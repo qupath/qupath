@@ -73,7 +73,7 @@ public class ShowLicensesCommand implements PathCommand {
 		String buildString = qupath.getBuildString();
 		if (buildString != null && !buildString.trim().isEmpty()) {
 			sbQuPath.append("QuPath").append("\n");
-			sbQuPath.append(buildString);
+			sbQuPath.append(buildString).append("\n\n");
 		}
 		
 		try {
