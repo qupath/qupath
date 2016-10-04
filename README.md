@@ -7,6 +7,8 @@ QuPath has been developed as a research tool at Queen's University Belfast.
 
 QuPath is free and open source, using GPLv3.
 
+To download a binary version of QuPath, go to the [Latest Releases](https://github.com/qupath/qupath/releases/latest) page.
+
 For more documentation, see the [QuPath Wiki](https://go.qub.ac.uk/qupath-docs)
 
 Copyright 2014-2016 The Queen's University of Belfast, Northern Ireland
