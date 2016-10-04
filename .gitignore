@@ -1,0 +1,20 @@
+# Maven
+deploy/
+target/
+log/
+
+# Eclipse
+.settings/
+#.project
+.classpath
+
+# Mac
+.DS_Store
+
+# Other
+*.tmp
+*.bak
+*.swp
+*~.nib
+*thumbs.db
+bin/
