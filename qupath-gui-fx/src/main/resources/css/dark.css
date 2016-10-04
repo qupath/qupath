@@ -1,0 +1,11 @@
+/*
+* See https://tomsondev.bestsolution.at/2014/03/13/eclipse-on-javafx-get-dark-the-power-of-javafx-css/
+* 
+* Improvements welcome...
+*/
+.root {
+    -fx-base: rgb(45, 48, 50);
+    -fx-background: rgb(45, 48, 50);
+    -fx-control-inner-background:  rgb(45, 48, 50);
+    -fx-light-text-color: rgb(200, 200, 200);
+}
