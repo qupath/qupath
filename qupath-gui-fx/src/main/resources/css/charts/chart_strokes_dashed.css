@@ -1,0 +1,13 @@
+.default-color0.chart-series-line {
+	-fx-stroke-dash-array: 1;
+    }
+.default-color1.chart-series-line {
+	-fx-stroke-dash-array: 1 5;
+    }
+.default-color2.chart-series-line {
+	-fx-stroke-dash-array: 5 5;
+    }
+.default-color3.chart-series-line {
+	-fx-stroke-dash-array: 12 6;
+    }
+

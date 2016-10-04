@@ -1,0 +1,249 @@
+/*-
+ * #%L
+ * This file is part of QuPath.
+ * %%
+ * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
+ * Contact: IP Management (ipmanagement@qub.ac.uk)
+ * %%
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public
+ * License along with this program.  If not, see
+ * <http://www.gnu.org/licenses/gpl-3.0.html>.
+ * #L%
+ */
+
+package qupath.lib.gui.viewer.recording;
+
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.PrintWriter;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Scanner;
+
+import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.value.ObservableValue;
+import javafx.scene.Scene;
+import javafx.scene.control.Button;
+import javafx.scene.control.SelectionMode;
+import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableColumn.CellDataFeatures;
+import javafx.scene.control.TableView;
+import javafx.scene.input.Clipboard;
+import javafx.scene.input.ClipboardContent;
+import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.GridPane;
+import javafx.stage.Stage;
+import javafx.util.Callback;
+import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.commands.interfaces.PathCommand;
+import qupath.lib.gui.helpers.DisplayHelpers;
+import qupath.lib.gui.helpers.PanelToolsFX;
+import qupath.lib.gui.viewer.QuPathViewer;
+
+/**
+ * Command to export view tracking information.
+ * 
+ * @author Pete Bankhead
+ *
+ */
+public class ViewTrackerExportCommand implements PathCommand {
+	
+	private QuPathViewer viewer;
+	private ViewTracker tracker;
+	
+	private Stage dialog;
+	private TableView<ViewRecordingFrame> table = new TableView<>();
+	
+	public ViewTrackerExportCommand(final QuPathViewer viewer, final ViewTracker tracker) {
+		this.viewer = viewer;
+		this.tracker = tracker;
+	}
+
+	public static void handleExport(final ViewTracker tracker) {
+		if (tracker.isEmpty()) {
+			DisplayHelpers.showErrorMessage("Tracking export", "Tracker is empty - nothing to export!");
+			return;
+		}
+		File fileExport = QuPathGUI.getSharedDialogHelper().promptToSaveFile(null, null, null, "QuPath tracking data (csv)", "csv");
+		if (fileExport == null)
+			return;
+		
+		PrintWriter out = null;
+		try {
+			out = new PrintWriter(fileExport);
+			out.print(tracker.getSummaryString());
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+		} finally {
+			if (out != null)
+				out.close();
+		}
+	}
+	
+	
+	public static boolean handleImport(final ViewTracker tracker) {
+		File fileImport = QuPathGUI.getSharedDialogHelper().promptForFile(null, null, "QuPath tracking data (csv)", new String[]{"csv"});
+		if (fileImport == null)
+			return false;
+		
+		Scanner scanner = null;
+		String content = null;
+		try {
+			scanner = new Scanner(fileImport);
+			content = scanner.useDelimiter("\\Z").next();
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+		} finally {
+			if (scanner != null)
+				scanner.close();
+		}
+		
+		if (content == null) {
+			DisplayHelpers.showErrorMessage("View tracking import", "Unable to read " + fileImport);
+			return false;
+		}
+		tracker.resetRecording();
+		try {
+			DefaultViewTracker.parseSummaryString(content, null, tracker);
+			return true;
+		} catch (Exception e) {
+			DisplayHelpers.showErrorMessage("View tracking import", "Unable to read tracking data from " + fileImport);
+			e.printStackTrace();
+		}
+		return false;
+	}
+	
+	
+	
+	@Override
+	public void run() {
+		if (dialog == null) {
+			dialog = new Stage();
+			if (QuPathGUI.getInstance() != null)
+				dialog.initOwner(QuPathGUI.getInstance().getStage());
+			dialog.setTitle("View tracker");
+			
+			for (int i = 0; i < nCols(tracker); i++) {
+				final int col = i;
+				TableColumn<ViewRecordingFrame, Object> column = new TableColumn<>(getColumnName(col));
+				column.setCellValueFactory(new Callback<CellDataFeatures<ViewRecordingFrame, Object>, ObservableValue<Object>>() {
+				     @Override
+					public ObservableValue<Object> call(CellDataFeatures<ViewRecordingFrame, Object> frame) {
+				         return new SimpleObjectProperty<>(getColumnValue(frame.getValue(), col));
+				     }
+				  });
+				table.getColumns().add(column);
+			}
+			
+			table.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
+			table.getSelectionModel().selectedItemProperty().addListener((v, o, frame) -> {
+					if (frame != null)
+						ViewTrackerPlayback.setViewerForFrame(viewer, frame);
+			});
+			refreshTracker();
+			
+			Button btnImport = new Button("Import");
+			btnImport.setOnAction(e -> {
+					if (handleImport(tracker)) {
+						refreshTracker();
+					}
+			});
+			
+			Button btnExport = new Button("Export");
+			btnExport.setOnAction(e -> {
+					handleExport(tracker);
+			});
+			
+			Button btnCopy = new Button("Copy to clipboard");
+			btnCopy.setOnAction(e -> {
+				ClipboardContent content = new ClipboardContent();
+				content.putString(tracker.getSummaryString());
+			    Clipboard clipboard = Clipboard.getSystemClipboard();
+			    clipboard.setContent(content);
+			});
+
+			GridPane panelButtons = PanelToolsFX.createColumnGridControls(
+					btnImport,
+					btnExport,
+					btnCopy
+					);
+			
+			
+			BorderPane pane = new BorderPane();
+			pane.setCenter(table);
+			pane.setBottom(panelButtons);
+			dialog.setScene(new Scene(pane));
+		}
+		dialog.show();
+		dialog.toFront();
+	}
+	
+	
+	static Object getColumnValue(final ViewRecordingFrame frame, final int col) {
+		switch (col) {
+		case 0: return frame.getTimestamp();
+		case 1: return frame.getImageBounds().x;
+		case 2: return frame.getImageBounds().y;
+		case 3: return frame.getImageBounds().width;
+		case 4: return frame.getImageBounds().height;
+		case 5: return frame.getSize().width;
+		case 6: return frame.getSize().height;
+		case 7: return frame.getCursorPosition() == null ? "" : frame.getCursorPosition().getX();
+		case 8: return frame.getCursorPosition() == null ? "" : frame.getCursorPosition().getY();
+		case 9: return frame.getEyePosition() == null ? "" : frame.getEyePosition().getX();
+		case 10: return frame.getEyePosition() == null ? "" : frame.getEyePosition().getY();
+		case 11: return frame.isEyeFixated() == null ? "" : frame.isEyeFixated();
+		}
+		return null;
+	}
+	
+	static String getColumnName(int col) {
+		switch (col) {
+		case 0: return "Timestamp (ms)";
+		case 1: return "X";
+		case 2: return "Y";
+		case 3: return "Width";
+		case 4: return "Height";
+		case 5: return "Canvas width";
+		case 6: return "Canvas height";
+		case 7: return "Cursor X";
+		case 8: return "Cursor Y";
+		case 9: return "Eye X";
+		case 10: return "Eye Y";
+		case 11: return "Fixated";
+		}
+		return null;
+	}
+	
+	static int nCols(final ViewTracker tracker) {
+		if (tracker == null)
+			return 0;
+		if (tracker.hasEyeTrackingData())
+			return 12;
+		return 9;
+	}
+	
+	
+	
+	void refreshTracker() {
+		List<ViewRecordingFrame> frames = new ArrayList<>();
+		if (tracker == null)
+			return;
+		for (int i = 0; i < tracker.nFrames(); i++) {
+			frames.add(tracker.getFrame(i));
+		}
+		table.getItems().setAll(frames);
+	}
+	
+	
+}

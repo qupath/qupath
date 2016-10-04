@@ -1,0 +1,24 @@
+/* 
+ * Attempt to remove background/border of a text area.
+ * This wasn't entirely successful... a border still remains.
+ */
+.text-area {
+    -fx-background-color: none;
+    -fx-text-box-border: none;
+    -fx-border-color: none;
+}
+.text-area .scroll-pane {
+    -fx-background-color: none;
+    -fx-text-box-border: none;
+    -fx-border-color: none;
+}
+.text-area .scroll-pane .viewport{
+    -fx-background-color: none;
+    -fx-text-box-border: none;
+    -fx-border-color: none;
+}
+.text-area .scroll-pane .content{
+    -fx-background-color: none;
+    -fx-text-box-border: none;
+    -fx-border-color: none;
+}
