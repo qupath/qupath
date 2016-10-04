@@ -30,4 +30,6 @@ The QuPath software has been developed as part of projects that have received fu
 * Cancer Research UK Accelerator (C11512/A20256)
 
 #### Libraries used within QuPath
-To see a list of third-party open source libraries used within QuPath (generated automatically using Maven), see THIRD-PARTY.txt.  Full licenses and copyright notices for third-party dependencies are also included for each relevant submodule inside src/main/resources/licenses, and accessible from within within QUPath distributions under 'Help -> License'.
+To see a list of third-party open source libraries used within QuPath (generated automatically using Maven), see THIRD-PARTY.txt.
+
+Full licenses and copyright notices for third-party dependencies are also included for each relevant submodule inside ```src/main/resources/licenses```, and accessible from within within QUPath distributions under *Help -> License*.
