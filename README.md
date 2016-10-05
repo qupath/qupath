@@ -3,15 +3,27 @@ QuPath
 
 QuPath is open source software for whole slide image analysis and digital pathology.
 
-QuPath has been developed as a research tool at Queen's University Belfast.
+QuPath has been developed as a research tool at Queen's University Belfast.  It offers a wide range of functionality, including:
+
+* extensive tools for annotation and visualization
+* workflows for both IHC and H&E analysis
+* novel algorithms for common tasks, e.g. cell segmentation, Tissue microarray dearraying
+* interactive machine learning, e.g. for cell and texture classification
+* an object-based hierarchical data model, with scripting support
+* extensibility, to add new features or support for different image sources
+* easy integration with other tools, e.g. MATLAB and ImageJ
+
+All in all, QuPath aims to provide researchers with a new set of tools to help with bioimage analysis in a way that is both user- and developer-friendly.
 
 QuPath is free and open source, using GPLv3.
 
-To download a binary version of QuPath, go to the [Latest Releases](https://github.com/qupath/qupath/releases/latest) page.
+To download a version of QuPath to install, go to the [Latest Releases](https://github.com/qupath/qupath/releases/latest) page.
 
-For more documentation, see the [QuPath Wiki](https://go.qub.ac.uk/qupath-docs)
+For documentation and more information, see the [QuPath Wiki](https://go.qub.ac.uk/qupath-docs)
 
 Copyright 2014-2016 The Queen's University of Belfast, Northern Ireland
+
+![Image](../../wiki/images/features/qupath_viewer.jpg)
 
 ----
 
