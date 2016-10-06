@@ -1,0 +1,39 @@
+<project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd" xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+	<modelVersion>4.0.0</modelVersion>
+	<groupId>org.openslide</groupId>
+	<artifactId>openslide</artifactId>
+	<packaging>jar</packaging>
+	<name>OpenSlide</name>
+	<version>3.4.1</version>
+	<description>Library for reading whole slide image data.</description>
+	<url>http://openslide.org</url>
+	<licenses>
+		<license>
+			<name>LGPL</name>
+			<url>https://raw.githubusercontent.com/openslide/openslide/master/lgpl-2.1.txt</url>
+		</license>
+	</licenses>
+	<dependencies>
+		<dependency>
+			<groupId>org.openslide</groupId>
+			<artifactId>openslide</artifactId>
+			<version>3.4.1</version>
+			<classifier>natives-linux</classifier>
+			<scope>runtime</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.openslide</groupId>
+			<artifactId>openslide</artifactId>
+			<version>3.4.1</version>
+			<classifier>natives-windows</classifier>
+			<scope>runtime</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.openslide</groupId>
+			<artifactId>openslide</artifactId>
+			<version>3.4.1</version>
+			<classifier>natives-osx</classifier>
+			<scope>runtime</scope>
+		</dependency>
+	</dependencies>
+</project>

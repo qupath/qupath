@@ -1,0 +1,11 @@
+.chart-content {
+    -fx-padding: 5px;
+}
+
+.chart-legend {
+   -fx-background-color:  transparent;
+}
+ 
+.chart-plot-background {
+    -fx-background-color: transparent;
+}

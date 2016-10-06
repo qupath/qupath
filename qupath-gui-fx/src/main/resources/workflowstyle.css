@@ -1,0 +1,36 @@
+body {
+    font-family: Arial, Helvetica, san-serif;
+    font-size: 12;
+    line-height: 150%;
+}
+
+.interaction {
+    font-weight: bold;
+}
+
+.tool {
+    font-family: monospace;
+    font-weight: bold;
+}
+
+.shortcut {
+    font-family: monospace;
+    font-weight: bold;
+}
+
+.fig {
+    text-align: center;
+    font-size: 90%;
+    font-style: italic;
+    padding-top: 10px;
+	padding-bottom: 10px;
+}
+
+img {
+      max-width: 90%;
+      height: auto;
+   }
+
+.shadowed {
+	box-shadow: 2px 2px 4px #888888;
+}

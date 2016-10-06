@@ -1,0 +1,18 @@
+OpenSlide
+
+Carnegie Mellon University and others
+
+http://openslide.org/
+
+====================
+
+Unless otherwise specified, this code is copyright Carnegie Mellon
+University.
+
+This code is licensed under the GNU LGPL version 2.1, not any later
+version.  See the file lgpl-2.1.txt for the text of the license.
+
+OpenSlide is distributed in the hope that it will be useful, but
+WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+Lesser General Public License for more details.

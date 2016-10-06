@@ -1,0 +1,34 @@
+WARNING! THIS IS A PRE-RELEASE VERSION OF QUPATH INTENDED FOR TESTING ONLY.
+
+--------------------
+
+Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
+Contact: IP Management (ipmanagement@qub.ac.uk)
+
+QuPath is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+
+QuPath is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with this program.  If not, see <http://www.gnu.org/licenses/gpl-3.0.html>.
+
+--------------------
+
+The original version of QuPath has been created at Queen's University Belfast.
+
+Design, implementation & documentation
+* Pete Bankhead
+
+Additional code & testing
+* Jose Fernandez
+
+Group leaders
+* Prof Peter Hamilton
+* Prof Manuel Salto-Tellez
+
+Project funding
+* Invest Northern Ireland (RDO0712612)
+* Cancer Research UK Accelerator (C11512/A20256)
+
+Important!  If you use QuPath for research, please include a citation in any publications.
+
+For more information, see http://go.qub.ac.uk/qupath-citation
