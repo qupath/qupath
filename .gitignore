@@ -5,7 +5,7 @@ log/
 
 # Eclipse
 .settings/
-#.project
+.project
 .classpath
 
 # Mac
