@@ -21,7 +21,7 @@
  * #L%
  */
 
-package qupath.lib.gui.commands;
+package qupath.lib.gui.commands.scriptable;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,9 +29,11 @@ import org.slf4j.LoggerFactory;
 import qupath.lib.gui.ViewerManager;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.viewer.QuPathViewer;
+import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
+import qupath.lib.plugins.workflow.DefaultScriptableWorkflowStep;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.roi.RectangleROI;
 import qupath.lib.roi.interfaces.ROI;
@@ -58,21 +60,26 @@ public class SelectAllAnnotationCommand implements PathCommand {
 		QuPathViewer viewer = qupath.getViewer();
 		if (viewer == null)
 			return;
-		PathObjectHierarchy hierarchy = viewer.getHierarchy();
-		if (hierarchy == null)
+		ImageData<?> imageData = viewer.getImageData();
+		if (imageData == null)
 			return;
+		PathObjectHierarchy hierarchy = imageData.getHierarchy();
+		
 		// Check if we already have a comparable annotation
 		ImageRegion bounds = viewer.getServerBounds();
 		for (PathObject pathObject : hierarchy.getObjects(null, PathAnnotationObject.class)) {
 			ROI roi = pathObject.getROI();
 			if (roi instanceof RectangleROI && roi.getBoundsX() == bounds.getX() && roi.getBoundsY() == bounds.getY() && roi.getBoundsWidth() == bounds.getWidth() && roi.getBoundsHeight() == bounds.getHeight()) {
-				logger.info("Select all annotation already exists! {}", pathObject);
+				logger.info("Full image annotation already exists! {}", pathObject);
 				viewer.setSelectedObject(pathObject);
 				return;
 			}
 		}
 		RectangleROI roi = new RectangleROI(bounds.getX(), bounds.getY(), bounds.getWidth(), bounds.getHeight());
 		viewer.createAnnotationObject(roi);
+		
+		// Log in the history
+		imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep("Create full image annotation", "createSelectAllObject(true);"));
 	}
 	
 }
