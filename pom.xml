@@ -97,7 +97,7 @@
 				</plugins>
 			</build>
 		</profile>
-		
+
 		<profile>
 			<id>update-license-header</id>
 			<modules>
@@ -188,7 +188,7 @@ Contact: IP Management (ipmanagement@qub.ac.uk)</copyrightOwners>
 					<version>2.18.1</version>
 				</plugin>
 
-				<!-- TODO: Consider better placement of native libraries in sub-modules 
+				<!-- TODO: Consider better placement of native libraries in sub-modules
 					when not preparing for release -->
 				<plugin>
 					<groupId>com.googlecode.mavennatives</groupId>
@@ -279,6 +279,23 @@ Contact: IP Management (ipmanagement@qub.ac.uk)</copyrightOwners>
 							<configuration>
 								<excludeGroupIds>qupath</excludeGroupIds> <!-- Don't include our qupath packages -->
 								<outputDirectory>../deploy/jars</outputDirectory>
+								<includeScope>runtime</includeScope>
+								<overWriteReleases>false</overWriteReleases>
+								<overWriteSnapshots>false</overWriteSnapshots>
+								<overWriteIfNewer>true</overWriteIfNewer>
+							</configuration>
+						</execution>
+
+						<execution>
+							<id>copy-dependencies-sources</id>
+							<phase>install</phase>
+							<goals>
+								<goal>copy-dependencies</goal>
+							</goals>
+							<configuration>
+								<excludeGroupIds>qupath</excludeGroupIds> <!-- Don't include our qupath packages -->
+								<outputDirectory>../deploy/jars/sources</outputDirectory>
+								<classifier>sources</classifier>
 								<includeScope>runtime</includeScope>
 								<overWriteReleases>false</overWriteReleases>
 								<overWriteSnapshots>false</overWriteSnapshots>
