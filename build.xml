@@ -98,7 +98,7 @@
 			<fx:fileset dir="${basedir}" includes="licenses/*" />
 			<fx:fileset dir="${basedir}" includes="licenses/**" />
 		</fx:resources>
-		<fx:application id="QuPathAppID" name="QuPath" mainClass="qupath.QuPath" version="0.0.1 (pre-release)" />
+		<fx:application id="QuPathAppID" name="QuPath" mainClass="qupath.QuPath" version="0.0.2" />
 		
 		<!-- Set time for Manifest -->
 		<tstamp>
@@ -115,7 +115,7 @@
 			<manifest>
 				<attribute name="Implementation-Vendor" value="QUB"/>
 				<attribute name="Implementation-Title" value="QuPath"/>
-				<attribute name="Implementation-Version" value="0.0.1 (pre-release)"/>
+				<attribute name="Implementation-Version" value="0.0.2"/>
 				<attribute name="QuPath-build-time" value="${BUILD_TIME}"/>
 				<attribute name="JavaFX-Feature-Proxy" value="None"/>
 			</manifest>
