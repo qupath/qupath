@@ -417,7 +417,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		String buildString = getBuildString();
 		if (buildString != null && !DisplayHelpers.showConfirmDialog("QuPath agreement", 
 				"This is a pre-release version of QuPath, intended for testing purposes.\n\n" + 
-				"Please contact Pete Bankhead if you would like more information.\n\n" +
+				"Please run 'Help -> Get latest version' regularly to check for updates.\n\n" +
 						buildString
 				)) {
 			Platform.exit();
@@ -2488,9 +2488,13 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				"Help",
 //				createCommandAction(new HelpCommand(this), "Documentation"),
 				createCommandAction(new OpenWebpageCommand(this, "http://go.qub.ac.uk/qupath-docs"), "Documentation (web)"),
-				createCommandAction(new OpenWebpageCommand(this, "https://www.youtube.com/playlist?list=PL4ta8RxZklWnr1oAnYgmHU7fJLtO4l8uk"), "Demo videos (web)"),
-				createCommandAction(new OpenWebpageCommand(this, "http://go.qub.ac.uk/qupath-source"), "Source code (web)"),
+				createCommandAction(new OpenWebpageCommand(this, "http://go.qub.ac.uk/qupath-videos"), "Demo videos (web)"),
+				createCommandAction(new OpenWebpageCommand(this, "http://go.qub.ac.uk/qupath-latest"), "Get latest version (web)"),
+				null,
 				createCommandAction(new OpenWebpageCommand(this, "http://go.qub.ac.uk/qupath-citation"), "Citing QuPath (web)"),
+				createCommandAction(new OpenWebpageCommand(this, "http://go.qub.ac.uk/qupath-bugs"), "Report bug (web)"),
+				createCommandAction(new OpenWebpageCommand(this, "http://go.qub.ac.uk/qupath-forum"), "User forum (web)"),
+				createCommandAction(new OpenWebpageCommand(this, "http://go.qub.ac.uk/qupath-source"), "View source code (web)"),
 				null,
 				createCommandAction(new ShowLicensesCommand(this), "License"),
 				createCommandAction(new ShowSystemInfoCommand(this), "System info"),
