@@ -93,7 +93,6 @@ import qupath.lib.gui.ImageDataWrapper;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.gui.helpers.dialogs.ParameterPanelFX;
-import qupath.lib.gui.panels.ProjectBrowser;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ServerTools;
@@ -661,7 +660,7 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 			Iterator<ProjectImageEntry<BufferedImage>> iter = entries.iterator();
 			while (iter.hasNext()) {
 				// Get the data file, and check it exists
-				File fileData = ProjectBrowser.getImageDataPath(project, iter.next());
+				File fileData = QuPathGUI.getImageDataFile(project, iter.next());
 				if (fileData == null || !fileData.exists()) {
 					iter.remove();
 					continue;
@@ -681,7 +680,7 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 				updateProgress(counter, entries.size());
 				counter++;
 
-				File fileData = ProjectBrowser.getImageDataPath(project, entry);
+				File fileData = QuPathGUI.getImageDataFile(project, entry);
 				if (fileData == null || !fileData.exists())
 					continue;
 
@@ -798,7 +797,7 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 			Iterator<ProjectImageEntry<BufferedImage>> iter = entries.iterator();
 			while (iter.hasNext()) {
 				// Get the data file, and check it exists
-				File fileData = ProjectBrowser.getImageDataPath(project, iter.next());
+				File fileData = QuPathGUI.getImageDataFile(project, iter.next());
 				if (fileData == null || !fileData.exists()) {
 					iter.remove();
 					continue;
@@ -820,7 +819,7 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 				updateProgress(counter, entries.size());
 				counter++;
 
-				File fileData = ProjectBrowser.getImageDataPath(project, entry);
+				File fileData = QuPathGUI.getImageDataFile(project, entry);
 				if (fileData == null || !fileData.exists())
 					continue;
 

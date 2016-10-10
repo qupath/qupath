@@ -71,13 +71,9 @@ import qupath.lib.gui.ImageDataChangeListener;
 import qupath.lib.gui.ImageDataWrapper;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.helpers.DisplayHelpers;
-import qupath.lib.gui.prefs.PathPrefs;
-import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.ImageData.ImageType;
 import qupath.lib.images.servers.ImageServer;
-import qupath.lib.images.servers.ImageServerProvider;
-import qupath.lib.io.PathIO;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.RectangleROI;
@@ -99,8 +95,6 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 	
 //	private BorderPane pane = new BorderPane();
 	private StackPane pane = new StackPane();
-	
-	private String lastName = null;
 	
 	// TODO: Remove the Swing throwback...
 	private PathImageDetailsTableModel model = new PathImageDetailsTableModel(null);
@@ -253,73 +247,50 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 			}
 		);
 		
-		
-		listImages.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> {
-			
-				String name = listImages.getSelectionModel().getSelectedItem();
-				if (name == null)
-					return;
-				if (name.equals(lastName))
-					return;
-				lastName = name;
-//				updateThumbnail(name);
-				
-				// Automatically save the previous hierarchy
-				ImageServer<BufferedImage> serverPrevious = imageData.getServer();
-				if (serverPrevious != null && name.equals(serverPrevious.getDisplayedImageName()))
-					return;
-				File fileServer = serverPrevious.getFile();
-				if (fileServer != null) {
-					if (serverPrevious != null && imageData != null && !imageData.isChanged()) {
-						try {
-							String path = fileServer.getParent() + File.separator + "qupath" + File.separator + serverPrevious.getDisplayedImageName() + "." + PathPrefs.getSerializationExtension();
-							File fileOutput = new File(path);
-							fileOutput.getParentFile().mkdir();
-							PathIO.writeImageData(fileOutput, imageData);
-						} catch (Exception e) {
-							logger.error("Error saving file: {}", e);
-						}
-					}
-				}
-				
-				// Automatically load a hierarchy, if there was one
-				ImageData<BufferedImage> imageData = null;
-////				ImageServer serverNew = server.getSubImageServer(name);
-				ImageServer<BufferedImage> serverNew = ImageServerProvider.buildServer(serverPrevious.getSubImagePath(name), BufferedImage.class);
-				fileServer = serverNew.getFile();
-				if (fileServer != null) {
-					try {
-						String path = fileServer.getParent() + File.separator + "qupath" + File.separator + serverNew.getDisplayedImageName() + "." + PathPrefs.getSerializationExtension();
-						File fileInput = new File(path);
-						if (fileInput.exists()) {
-//							PathObjectHierarchy hierarchy = new PathObjectHierarchy();
-							PathIO.readImageData(fileInput, imageData, serverNew, BufferedImage.class);
-//							imageData = qupath.createNewImageData(serverNew);
-						}
-					} catch (Exception e) {
-						e.printStackTrace();
-					}
-				}
-				if (imageData == null)
-					imageData = qupath.createNewImageData(serverNew);
-
-				
-//				final SimpleProgressMonitor monitor = SimpleProgressMonitorFactory.makeSwingProgressMonitor(SwingUtilities.getWindowAncestor(viewer));
-				final ImageData<BufferedImage> imageData2 = imageData;
-				// TODO: Consider background loading some other time - here it interferes with thread-safe-ness
-//				monitor.startMonitoring("Loading " + name, 1, false);
-				QuPathViewer viewer = qupath.getViewer();
-				if (viewer != null)
-					viewer.setImageData(imageData2);
+		listImages.setOnKeyPressed(e -> {
+			if (e.getCode() == KeyCode.ENTER) {
+				tryToOpenSelectedEntry();
+				e.consume();
 			}
-			
-		);
+		});
+
+		listImages.setOnMouseClicked(e -> {
+			if (e.getClickCount() > 1) {
+				tryToOpenSelectedEntry();
+				e.consume();
+			}
+		});
 		
 		
 		Accordion accordion = new Accordion(panelTable, panelImages, panelAssociatedImages);
 		accordion.setExpandedPane(panelTable);
 		pane.getChildren().add(accordion);
 	}
+	
+	
+	/**
+	 * Try to open the selected image from the list.
+	 * 
+	 * This will involve prompting the user if required, so it is not guaranteed that this method will change 
+	 * the current image.
+	 */
+	private void tryToOpenSelectedEntry() {
+		String name = listImages.getSelectionModel().getSelectedItem();
+		if (name == null)
+			return;
+		
+		ImageServer<BufferedImage> serverPrevious = imageData.getServer();
+		if (serverPrevious != null && name.equals(serverPrevious.getDisplayedImageName()))
+			return;
+		
+		String newServerPath = serverPrevious.getSubImagePath(name);
+		if (qupath.getProject() != null) {
+			qupath.openImageEntry(qupath.getProject().getImageEntry(newServerPath));
+			return;
+		} else
+			qupath.openImage(newServerPath, true, true, false);
+	}
+	
 	
 	
 	void editStainVector(final Object value) {

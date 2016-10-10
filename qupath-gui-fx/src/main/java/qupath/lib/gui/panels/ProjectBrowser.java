@@ -72,14 +72,11 @@ import qupath.lib.gui.ImageDataWrapper;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.QuPathGUI.GUIActions;
 import qupath.lib.gui.helpers.DisplayHelpers;
-import qupath.lib.gui.helpers.DisplayHelpers.DialogButton;
-import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.helpers.PaintingToolsFX;
 import qupath.lib.gui.helpers.PanelToolsFX;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerProvider;
-import qupath.lib.io.PathIO;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectIO;
 import qupath.lib.projects.ProjectImageEntry;
@@ -133,14 +130,14 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 
 		tree.setOnKeyPressed(e -> {
 			if (e.getCode() == KeyCode.ENTER) {
-				openImageEntry(getSelectedEntry());
+				qupath.openImageEntry(getSelectedEntry());
 				e.consume();
 			}
 		});
 
 		tree.setOnMouseClicked(e -> {
 			if (e.getClickCount() > 1) {
-				openImageEntry(getSelectedEntry());
+				qupath.openImageEntry(getSelectedEntry());
 				e.consume();
 			}
 		});
@@ -168,7 +165,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 	ContextMenu getPopup() {
 
 
-		Action actionOpenImage = new Action("Open image", e -> openImageEntry(getSelectedEntry()));
+		Action actionOpenImage = new Action("Open image", e -> qupath.openImageEntry(getSelectedEntry()));
 		Action actionRemoveImage = new Action("Remove image", e -> {
 			TreeItem<?> path = tree.getSelectionModel().getSelectedItem();
 			if (path == null)
@@ -389,18 +386,18 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 		return getImageDataPath(project, entry);
 	}
 
-
+	/**
+	 * Get the file in which to save the ImageData for a specified project.
+	 * 
+	 * Deprecated now in favor of calling the static method in QuPathGUI instead.
+	 * 
+	 * @param project
+	 * @param entry
+	 * @return
+	 */
+	@Deprecated
 	public static File getImageDataPath(final Project<?> project, final ProjectImageEntry<?> entry) {
-		if (project == null || entry == null)
-			return null;
-		File dirBase = project.getBaseDirectory();
-		if (dirBase == null || !dirBase.isDirectory())
-			return null;
-
-		File dirData = new File(dirBase, "data");
-		if (!dirData.exists())
-			dirData.mkdir();
-		return new File(dirData, entry.getImageName() + "." + PathPrefs.getSerializationExtension());
+		return QuPathGUI.getImageDataFile(project, entry);
 	}
 
 
@@ -441,51 +438,6 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 			return (ProjectImageEntry<BufferedImage>)selected.getValue();
 		return null;
 	}
-
-
-	void openImageEntry(ProjectImageEntry<BufferedImage> entry) {
-		if (entry == null)
-			return;
-		// Check if we're changing ImageData
-		ImageData<BufferedImage> imageData = getCurrentImageData();
-		if (imageData != null && imageData.getServerPath().equals(entry.getServerPath()))
-			return;
-		// If the current ImageData belongs to the current project, and there have been any changes, serialize these
-		if (imageData != null && project != null) {
-			ProjectImageEntry<BufferedImage> entryPrevious = project.getImageEntry(imageData.getServerPath());
-			File filePrevious = getImageDataPath(entryPrevious);
-			if (filePrevious != null) {
-				// Write if the ImageData has changed, of if it has not previously been written
-				if (imageData.isChanged() || !filePrevious.exists()) {
-					DialogButton response = DialogButton.YES;
-					if (imageData.isChanged()) {
-						response = DisplayHelpers.showYesNoCancelDialog("Save changes", "Save changes to " + entryPrevious.getImageName() + "?");
-					}
-					if (response == DialogButton.YES)
-						PathIO.writeImageData(filePrevious, imageData);
-					else if (response == DialogButton.CANCEL)
-						return;
-				}
-			}
-		}
-		File fileData = getImageDataPath(entry);
-
-		//		boolean rotate180 = true;
-		// Check if we need to rotate the image
-		String value = entry.getMetadataValue("rotate180");
-		boolean rotate180 = value != null && value.toLowerCase().equals("true");
-
-		if (fileData != null && fileData.isFile()) {
-			// Open the image, and then the data if possible
-			if (qupath.openImage(entry.getServerPath(), false, false, rotate180))
-				qupath.openSavedData(qupath.getViewer(), fileData, true);
-			else
-				DisplayHelpers.showErrorMessage("Image open", "Unable to open image for path\n" + entry.getServerPath());
-		} else
-			qupath.openImage(entry.getServerPath(), false, false, rotate180);
-	}
-
-
 
 
 	static <T> Collection<ProjectImageEntry<T>> getImageEntries(final TreeItem<?> item, Collection<ProjectImageEntry<T>> entries) {

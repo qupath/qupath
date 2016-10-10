@@ -29,7 +29,6 @@ import java.io.File;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.helpers.DisplayHelpers;
-import qupath.lib.gui.panels.ProjectBrowser;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
@@ -61,7 +60,7 @@ public class SerializeImageDataCommand implements PathCommand {
 			String lastSavedPath = imageData.getLastSavedPath();
 			if (lastSavedPath == null && qupath.getProject() != null) {
 				// If we have a project, default to the 'correct' place to save it
-				lastSavedPath = ProjectBrowser.getImageDataPath(qupath.getProject(), qupath.getProject().getImageEntry(imageData.getServerPath())).getAbsolutePath();
+				lastSavedPath = QuPathGUI.getImageDataFile(qupath.getProject(), qupath.getProject().getImageEntry(imageData.getServerPath())).getAbsolutePath();
 			}
 			File file = null;
 			if (lastSavedPath != null) {
