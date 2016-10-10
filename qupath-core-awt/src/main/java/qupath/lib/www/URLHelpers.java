@@ -44,6 +44,8 @@ import javax.imageio.ImageIO;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import qupath.lib.common.GeneralTools;
+
 /**
  * Collection of static methods that help with reading images using HTTP requests.
  * 
@@ -122,7 +124,8 @@ public class URLHelpers {
 			return null;
 		
 //		File file = new File(dirCache, url.replace("/", "_"));
-		Path cachePath = fileSystem.getPath(cacheRootPath, url.replace("://", File.separator).replace(":/", File.separator).replace("?", "?"+File.separator));
+		String questionChar = GeneralTools.isWindows() ? "" : "?";
+		Path cachePath = fileSystem.getPath(cacheRootPath, url.replace("://", File.separator).replace(":/", File.separator).replace("?", questionChar+File.separator));
 //		File file = new File(dirCache, url.replace("://", File.separator).replace(":/", File.separator).replace("?", "?"+File.separator));
 		// First, try reading from existing cached file
 		if (Files.exists(cachePath)) {

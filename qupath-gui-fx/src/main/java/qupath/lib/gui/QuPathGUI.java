@@ -759,31 +759,6 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 //	}
 	
 	
-	private static void updateLibraryPath(final File dirExtensions) {
-		if (dirExtensions == null)
-			return;
-		// Ensure that the extensions directory is on the Java library path - in case native libraries are required
-		String libraryPath = System.getProperty("java.library.path");
-		if (libraryPath != null && dirExtensions != null && dirExtensions.isDirectory() && !libraryPath.contains(dirExtensions.getAbsolutePath())) {
-			libraryPath = libraryPath + ":" + dirExtensions;
-			for (File dir : dirExtensions.listFiles()) {
-				if (!dir.isHidden() && dir.isDirectory()) {
-					try {
-						Path dirPath = dir.toPath();
-						if (Files.isSymbolicLink(dirPath))
-							dirPath = Files.readSymbolicLink(dirPath);
-						libraryPath = libraryPath + ":" + dirPath.toFile().getAbsolutePath();
-					} catch (Exception e) {
-						logger.error("Error adding extension path", e);
-					}
-				}
-			}
-			System.setProperty("java.library.path", libraryPath);
-
-		}
-	}
-	
-	
 	/**
 	 * Directory containing extensions.
 	 * 
@@ -796,7 +771,6 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		if (path != null) {
 			File dir = new File(path);
 			if (dir.isDirectory()) {
-				updateLibraryPath(dir);
 				return dir;
 			}
 		}

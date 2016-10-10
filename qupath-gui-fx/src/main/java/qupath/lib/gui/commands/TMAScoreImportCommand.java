@@ -261,7 +261,7 @@ public class TMAScoreImportCommand implements PathCommand {
 		// Try to create a string grid
 		List<String[]> rows = new ArrayList<>();
 		int nCols = -1;
-		for (String row : text.split("\n|\r")) {
+		for (String row : text.split("\\r?\\n")) {
 			String[] cols;
 			if (row.contains("\t"))
 				cols = row.split("\t");

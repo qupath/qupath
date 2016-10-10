@@ -24,6 +24,8 @@
 package qupath.lib.gui.commands.scriptable;
 
 import java.awt.geom.Area;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -88,6 +90,12 @@ public class InverseObjectCommand implements PathCommand {
 		// Create the new ROI
 		PathShape shapeNew = PathROIToolsAwt.combineROIs(shape, shapeSelected, PathROIToolsAwt.CombineOp.SUBTRACT);
 		PathObject pathObjectNew = new PathAnnotationObject(shapeNew);
+		
+		// Reassign all other children to the new parent
+		List<PathObject> children = new ArrayList<>(parent.getChildObjects());
+		children.remove(pathObject);
+		pathObjectNew.addPathObjects(children);
+		
 		parent.addPathObject(pathObjectNew);
 		hierarchy.fireHierarchyChangedEvent(parent);
 		hierarchy.getSelectionModel().setSelectedObject(pathObjectNew);

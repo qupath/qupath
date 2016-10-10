@@ -148,11 +148,11 @@ public class ShowSystemInfoCommand implements PathCommand {
 	    // Show paths (at the end, since they may be rather long)
 		sb.append("\n");
 		sb.append("Library path:");
-		for (String p : System.getProperty("java.library.path").split(":"))
+		for (String p : System.getProperty("java.library.path").split(File.pathSeparator))
 			sb.append("\n      ").append(p);
 		sb.append("\n\n");
 		sb.append("Class path:");
-		for (String p : System.getProperty("java.class.path").split(":"))
+		for (String p : System.getProperty("java.class.path").split(File.pathSeparator))
 			sb.append("\n      ").append(p);
 		
 		return sb.toString();
