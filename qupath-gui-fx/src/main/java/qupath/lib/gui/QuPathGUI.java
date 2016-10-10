@@ -1749,6 +1749,80 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	}
 	
 	
+	/**
+	 * Opan the image represented by the specified ProjectImageEntry.
+	 * 
+	 * If an image is currently open, this command will prompt to save any changes.
+	 * 
+	 * @param entry
+	 */
+	public void openImageEntry(ProjectImageEntry<BufferedImage> entry) {
+		if (entry == null)
+			return;
+		// Check if we're changing ImageData
+		ImageData<BufferedImage> imageData = getImageData();
+		if (imageData != null && imageData.getServerPath().equals(entry.getServerPath()))
+			return;
+		// If the current ImageData belongs to the current project, and there have been any changes, serialize these
+		Project<BufferedImage> project = getProject();
+		if (imageData != null && project != null) {
+			ProjectImageEntry<BufferedImage> entryPrevious = project.getImageEntry(imageData.getServerPath());
+			File filePrevious = getImageDataFile(project, entryPrevious);
+			if (filePrevious != null) {
+				// Write if the ImageData has changed, of if it has not previously been written
+				if (imageData.isChanged() || !filePrevious.exists()) {
+					DialogButton response = DialogButton.YES;
+					if (imageData.isChanged()) {
+						response = DisplayHelpers.showYesNoCancelDialog("Save changes", "Save changes to " + entryPrevious.getImageName() + "?");
+					}
+					if (response == DialogButton.YES)
+						PathIO.writeImageData(filePrevious, imageData);
+					else if (response == DialogButton.CANCEL)
+						return;
+				}
+			}
+		}
+		File fileData = getImageDataFile(project, entry);
+
+		//		boolean rotate180 = true;
+		// Check if we need to rotate the image
+		String value = entry.getMetadataValue("rotate180");
+		boolean rotate180 = value != null && value.toLowerCase().equals("true");
+
+		if (fileData != null && fileData.isFile()) {
+			// Open the image, and then the data if possible
+			if (openImage(entry.getServerPath(), false, false, rotate180))
+				openSavedData(getViewer(), fileData, true);
+			else
+				DisplayHelpers.showErrorMessage("Image open", "Unable to open image for path\n" + entry.getServerPath());
+		} else
+			openImage(entry.getServerPath(), false, false, rotate180);
+	}
+	
+	/**
+	 * Get the ImageData file for a specific entry of a project.
+	 * 
+	 * This file does not necessarily exist, but it is the file that ought to be used for loading/saving 
+	 * within a project.
+	 * 
+	 * @param project
+	 * @param entry
+	 * @return
+	 */
+	public static File getImageDataFile(final Project<?> project, final ProjectImageEntry<?> entry) {
+		if (project == null || entry == null)
+			return null;
+		File dirBase = project.getBaseDirectory();
+		if (dirBase == null || !dirBase.isDirectory())
+			return null;
+
+		File dirData = new File(dirBase, "data");
+		if (!dirData.exists())
+			dirData.mkdir();
+		return new File(dirData, entry.getImageName() + "." + PathPrefs.getSerializationExtension());
+	}
+	
+	
 	
 	
 	/**
@@ -4082,7 +4156,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				File filePrevious = lastPath == null ? null : new File(lastPath);
 				if ((filePrevious == null || !filePrevious.exists()) && project.get() != null) {
 					ProjectImageEntry<BufferedImage> entryPrevious = project.get().getImageEntry(imageData.getServerPath());
-					filePrevious = ProjectBrowser.getImageDataPath(project.get(), entryPrevious);
+					filePrevious = getImageDataFile(project.get(), entryPrevious);
 				}
 				DialogButton response = DialogButton.YES;
 				if (imageData.isChanged()) {

@@ -106,7 +106,6 @@ import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.gui.helpers.DisplayHelpers.DialogButton;
 import qupath.lib.gui.logging.LoggingAppender;
-import qupath.lib.gui.panels.ProjectBrowser;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
@@ -325,8 +324,8 @@ public class DefaultScriptEditor implements ScriptEditor {
 
 
 	private void setupManager() {
-	Thread.currentThread().setContextClassLoader(qupath.getClassLoader());
-		manager = new ScriptEngineManager(qupath.getClassLoader());
+	Thread.currentThread().setContextClassLoader(QuPathGUI.getClassLoader());
+		manager = new ScriptEngineManager(QuPathGUI.getClassLoader());
 //		availableLanguages.add(Language.JAVA);
 		for (ScriptEngineFactory factory : manager.getEngineFactories()) {
 			for (Language supported : Language.values()) {
@@ -1172,7 +1171,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 					regionStore = qupath == null ? ImageRegionStoreFactory.createImageRegionStore(Runtime.getRuntime().freeMemory()/4) : qupath.getImageRegionStore();
 					QPEx.setSharedRegionStore(regionStore);
 
-					File fileEntry = ProjectBrowser.getImageDataPath(project, entry);
+					File fileEntry = QuPathGUI.getImageDataFile(project, entry);
 //					// TODO: Check rotate flag!
 					boolean doRotate = "true".equals(entry.getMetadataValue("rotate180"));
 //					boolean opened;
