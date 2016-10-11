@@ -1,3 +1,13 @@
+## Version 0.0.3
+
+* Fixed several formatting issues for Windows, including:
+  * Import of tab-delimited data (e.g. TMA grids)
+  * Separation of paths in 'Help -> System info'
+  * Cached image paths (still experimental)
+* Fixed reassigning child objects with 'Make inverse annotation' command
+* Set default logging level to INFO (and added sample script to change level)
+ 
+
 ## Version 0.0.2
 
 * New Help menu links to online resources
