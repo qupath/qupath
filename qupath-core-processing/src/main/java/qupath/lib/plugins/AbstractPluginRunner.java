@@ -179,6 +179,9 @@ public abstract class AbstractPluginRunner<T> implements PluginRunner<T> {
 		if (tasks.isEmpty())
 			return;
 		
+		// Reset cancelled status
+		tasksCancelled = false;
+		
 		// Ensure we have a pool
 		if (pool == null || pool.isShutdown()) {
 			int n = getNumThreads();

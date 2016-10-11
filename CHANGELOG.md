@@ -10,6 +10,7 @@
 * Modified TMA dearraying script command to abort if dearraying for the first time by default - this encourages good practice of checking dearrayed result prior to running full analysis (although means that any generated script would need to be run twice - once to dearray, and again to do everything else)
 * 'Relabel TMA Grid' now a scriptable command
 * Fixed reassigning child objects with 'Make inverse annotation' command
+* Fixed bug that prevented plugins cancelling more than once
 * Set default logging level to INFO
 * Added sample script to change logging level
  
