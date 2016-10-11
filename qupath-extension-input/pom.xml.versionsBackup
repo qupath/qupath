@@ -6,27 +6,24 @@
 	<parent>
 		<groupId>qupath</groupId>
 		<artifactId>qupath</artifactId>
-		<version>0.0.3</version>
+		<version>0.0.2</version>
 	</parent>
-	<artifactId>qupath-extension-openslide</artifactId>
-	<name>qupath-extension-openslide</name>
+	<artifactId>qupath-extension-input</artifactId>
+	<name>qupath-extension-input</name>
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 	</properties>
 
 	<dependencies>
 		<dependency>
-			<groupId>org.openslide</groupId>
-			<artifactId>openslide</artifactId>
-			<version>3.4.1</version>
+			<groupId>net.java.jinput</groupId>
+			<artifactId>jinput</artifactId>
+			<version>2.0.6</version>
 		</dependency>
 		<dependency>
 			<groupId>qupath</groupId>
-			<artifactId>qupath-core</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>qupath</groupId>
-			<artifactId>qupath-core-awt</artifactId>
+			<artifactId>qupath-gui-fx</artifactId>
+			<scope>provided</scope>
 		</dependency>
 	</dependencies>
 	
@@ -46,5 +43,5 @@
 			</plugin>
 		</plugins>
 	</build>
-	<description>QuPath ImageServer implementation using OpenSlide.</description>
+	<description>Support for special input devices - in this case, a 3D mouse.</description>
 </project>

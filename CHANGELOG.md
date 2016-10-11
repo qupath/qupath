@@ -5,7 +5,8 @@
   * Separation of paths in 'Help -> System info'
   * Cached image paths (still experimental)
 * Fixed reassigning child objects with 'Make inverse annotation' command
-* Set default logging level to INFO (and added sample script to change level)
+* Set default logging level to INFO
+* Added sample script to change logging level
  
 
 ## Version 0.0.2

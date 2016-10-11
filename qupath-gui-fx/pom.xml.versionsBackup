@@ -6,20 +6,14 @@
 	<parent>
 		<groupId>qupath</groupId>
 		<artifactId>qupath</artifactId>
-		<version>0.0.3</version>
+		<version>0.0.2</version>
 	</parent>
-	<artifactId>qupath-extension-openslide</artifactId>
-	<name>qupath-extension-openslide</name>
+	<artifactId>qupath-gui-fx</artifactId>
+	<name>qupath-gui-fx</name>
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 	</properties>
-
 	<dependencies>
-		<dependency>
-			<groupId>org.openslide</groupId>
-			<artifactId>openslide</artifactId>
-			<version>3.4.1</version>
-		</dependency>
 		<dependency>
 			<groupId>qupath</groupId>
 			<artifactId>qupath-core</artifactId>
@@ -28,8 +22,34 @@
 			<groupId>qupath</groupId>
 			<artifactId>qupath-core-awt</artifactId>
 		</dependency>
+		<dependency>
+			<groupId>qupath</groupId>
+			<artifactId>qupath-core-processing</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>qupath</groupId>
+			<artifactId>qupath-core-processing-awt</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.controlsfx</groupId>
+			<artifactId>controlsfx</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>com.google.code.gson</groupId>
+			<artifactId>gson</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.jfxtras</groupId>
+			<artifactId>jfxtras-menu</artifactId>
+		</dependency>
 	</dependencies>
-	
+
+
+	<!-- <build> <plugins> <plugin> <groupId>org.apache.maven.plugins</groupId> 
+		<artifactId>maven-jar-plugin</artifactId> <configuration> <archive> <manifest> 
+		<mainClass>qupath.QuPath</mainClass> </manifest> </archive> </configuration> 
+		</plugin> </plugins> </build> -->
+
 	<build>
 		<plugins>
 			<plugin>
@@ -40,11 +60,7 @@
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-source-plugin</artifactId>
 			</plugin>
-			<plugin>
-				<groupId>com.googlecode.mavennatives</groupId>
-				<artifactId>maven-nativedependencies-plugin</artifactId>
-			</plugin>
 		</plugins>
 	</build>
-	<description>QuPath ImageServer implementation using OpenSlide.</description>
+	<description>Primary JavaFX GUI for QuPath.</description>
 </project>

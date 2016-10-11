@@ -6,30 +6,24 @@
 	<parent>
 		<groupId>qupath</groupId>
 		<artifactId>qupath</artifactId>
-		<version>0.0.3</version>
+		<version>0.0.2</version>
 	</parent>
-	<artifactId>qupath-extension-openslide</artifactId>
-	<name>qupath-extension-openslide</name>
+	<artifactId>qupath-core-processing</artifactId>
+	<name>qupath-core-processing</name>
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 	</properties>
-
 	<dependencies>
 		<dependency>
-			<groupId>org.openslide</groupId>
-			<artifactId>openslide</artifactId>
-			<version>3.4.1</version>
+			<groupId>org.apache.commons</groupId>
+			<artifactId>commons-math3</artifactId>
 		</dependency>
 		<dependency>
 			<groupId>qupath</groupId>
 			<artifactId>qupath-core</artifactId>
 		</dependency>
-		<dependency>
-			<groupId>qupath</groupId>
-			<artifactId>qupath-core-awt</artifactId>
-		</dependency>
 	</dependencies>
-	
+
 	<build>
 		<plugins>
 			<plugin>
@@ -40,11 +34,7 @@
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-source-plugin</artifactId>
 			</plugin>
-			<plugin>
-				<groupId>com.googlecode.mavennatives</groupId>
-				<artifactId>maven-nativedependencies-plugin</artifactId>
-			</plugin>
 		</plugins>
 	</build>
-	<description>QuPath ImageServer implementation using OpenSlide.</description>
+	<description>Core processing code without external dependencies (apart from logging/testing).</description>
 </project>

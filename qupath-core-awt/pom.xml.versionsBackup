@@ -5,35 +5,18 @@
   <parent>
     <groupId>qupath</groupId>
     <artifactId>qupath</artifactId>
-    <version>0.0.3</version>
+    <version>0.0.2</version>
   </parent>
-  <artifactId>qupath-processing-opencv</artifactId>
-  <name>qupath-processing-opencv</name>
+  <artifactId>qupath-core-awt</artifactId>
+  <name>qupath-core-awt</name>
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
   </properties>
-	
   <dependencies>
     <dependency>
-			<groupId>qupath</groupId>
-			<artifactId>qupath-core</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>qupath</groupId>
-			<artifactId>qupath-core-awt</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>qupath</groupId>
-			<artifactId>qupath-core-processing</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>qupath</groupId>
-			<artifactId>qupath-core-processing-awt</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>org.opencv</groupId>
-			<artifactId>opencv</artifactId>
-		</dependency>
+    	<groupId>qupath</groupId>
+    	<artifactId>qupath-core</artifactId>
+    </dependency>
   </dependencies>
   
   <build>
@@ -48,5 +31,5 @@
 			</plugin>
 		</plugins>
 	</build>
-  <description>Processing library for QuPath, using OpenCV's Java bindings.</description>
+  <description>Core QuPath code that makes use of Java AWT.</description>
 </project>

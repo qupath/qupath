@@ -6,27 +6,24 @@
 	<parent>
 		<groupId>qupath</groupId>
 		<artifactId>qupath</artifactId>
-		<version>0.0.3</version>
+		<version>0.0.2</version>
 	</parent>
-	<artifactId>qupath-extension-openslide</artifactId>
-	<name>qupath-extension-openslide</name>
+	<artifactId>qupath-extension-pen</artifactId>
+	<name>qupath-extension-pen</name>
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 	</properties>
 
 	<dependencies>
 		<dependency>
-			<groupId>org.openslide</groupId>
-			<artifactId>openslide</artifactId>
-			<version>3.4.1</version>
+			<groupId>qupath</groupId>
+			<artifactId>qupath-gui-fx</artifactId>
+			<scope>provided</scope>
 		</dependency>
 		<dependency>
-			<groupId>qupath</groupId>
-			<artifactId>qupath-core</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>qupath</groupId>
-			<artifactId>qupath-core-awt</artifactId>
+			<groupId>net.sourceforge.jpen</groupId>
+			<artifactId>jpen</artifactId>
+			<version>2-150301</version>
 		</dependency>
 	</dependencies>
 	
@@ -46,5 +43,5 @@
 			</plugin>
 		</plugins>
 	</build>
-	<description>QuPath ImageServer implementation using OpenSlide.</description>
+	<description>Support for pressure-sensitive graphics tablets as input devices.</description>
 </project>
