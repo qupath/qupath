@@ -27,6 +27,7 @@ import java.awt.image.BufferedImage;
 
 import java.io.File;
 
+import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.ViewerManager;
 import qupath.lib.gui.commands.interfaces.PathCommand;
@@ -77,7 +78,7 @@ public class TMAExporterCommand implements PathCommand {
 		if (file != null) {
 			double downsample = PathPrefs.getTMAExportDownsample();
 			PathAwtIO.writeTMAData(file, imageData, viewer.getOverlayOptions(), downsample);
-			WorkflowStep step = new DefaultScriptableWorkflowStep("Export TMA data", "exportTMAData(\"" + file.getAbsolutePath() + "\", " + downsample + ")");
+			WorkflowStep step = new DefaultScriptableWorkflowStep("Export TMA data", "exportTMAData(\"" + GeneralTools.escapeFilePath(file.getParentFile().getAbsolutePath()) + "\", " + downsample + ")");
 			imageData.getHistoryWorkflow().addStep(step);
 //			PathAwtIO.writeTMAData(file, imageData, viewer.getOverlayOptions(), Double.NaN);
 			dirPrevious = file.getParentFile();

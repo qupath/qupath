@@ -67,6 +67,16 @@ public class GeneralTools {
 	}
 	
 	/**
+	 * Escape backslashes in an absolute file path - useful when scripting.
+	 * 
+	 * @param path
+	 * @return
+	 */
+	public static String escapeFilePath(final String path) {
+		return path.replace("\\", "\\\\");
+	}
+	
+	/**
 	 * Clip a value to be within a specific range.
 	 * 
 	 * @param value

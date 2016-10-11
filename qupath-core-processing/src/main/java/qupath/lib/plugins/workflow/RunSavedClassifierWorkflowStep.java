@@ -26,6 +26,7 @@ package qupath.lib.plugins.workflow;
 import java.util.Collections;
 import java.util.Map;
 
+import qupath.lib.common.GeneralTools;
 import qupath.lib.plugins.workflow.ScriptableWorkflowStep;
 
 /**
@@ -49,7 +50,7 @@ public class RunSavedClassifierWorkflowStep implements ScriptableWorkflowStep {
 	 */
 	public RunSavedClassifierWorkflowStep(final String name, final String classifierPath) {
 		this.name = name;
-		this.classifierPath = classifierPath.replace("\\", "\\\\");
+		this.classifierPath = GeneralTools.escapeFilePath(classifierPath);
 	}
 	
 	public RunSavedClassifierWorkflowStep(final String classifierPath) {
