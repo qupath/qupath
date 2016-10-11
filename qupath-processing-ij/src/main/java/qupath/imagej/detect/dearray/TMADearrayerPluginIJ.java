@@ -365,7 +365,7 @@ public class TMADearrayerPluginIJ extends AbstractInteractivePlugin<BufferedImag
 	
 	@Override
 	protected void addWorkflowStep(final ImageData<BufferedImage> imageData, final String arg) {
-		WorkflowStep step = new SimplePluginWorkflowStep(getName(), (Class<? extends PathPlugin<?>>)getClass(), arg, "if (!isTMADearrayed())\n\t", null);
+		WorkflowStep step = new SimplePluginWorkflowStep(getName(), (Class<? extends PathPlugin<?>>)getClass(), arg, "if (!isTMADearrayed()) {\n\t", "\n\treturn;\n}");
 		imageData.getHistoryWorkflow().addStep(step);
 		logger.info("{}", step);
 	}
