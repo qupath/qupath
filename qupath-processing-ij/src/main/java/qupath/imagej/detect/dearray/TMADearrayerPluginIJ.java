@@ -34,6 +34,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import ij.ImagePlus;
+import ij.plugin.ZProjector;
 import ij.process.ByteProcessor;
 import ij.process.ImageProcessor;
 import qupath.imagej.detect.dearray.TMADearrayer.TMAGridShape;
@@ -168,7 +169,6 @@ public class TMADearrayerPluginIJ extends AbstractInteractivePlugin<BufferedImag
 		
 		final private static Logger logger = LoggerFactory.getLogger(Dearrayer.class);
 		
-		private String lastServerPath = null;
 		private ImageProcessor ip;
 		
 		private TMAGrid tmaGrid = null;
@@ -198,7 +198,7 @@ public class TMADearrayerPluginIJ extends AbstractInteractivePlugin<BufferedImag
 			
 			boolean horizontalLabelFirst = params.getChoiceParameterValue("labelOrder").toString().startsWith("Column");
 			// TODO: Consider fluorescence mode in TMA dearraying
-			boolean isFluorescence = false;
+			boolean isFluorescence = imageData.isFluorescence();
 		
 			double densityThreshold = params.getIntParameterValue("densityThreshold") * 0.01;
 			double roiScaleFactor = params.getIntParameterValue("boundsScale") * 0.01;
@@ -209,19 +209,20 @@ public class TMADearrayerPluginIJ extends AbstractInteractivePlugin<BufferedImag
 			double dimRequested = 1200;
 			double downsample = Math.pow(2, Math.round(Math.log(maxDimLength / dimRequested)/Math.log(2)));
 					
-			// Read a new image, if necessary
-			if (ip == null || lastServerPath == null || !lastServerPath.equals(server.getPath())) {
-				PathImage<ImagePlus> pathImage = PathImagePlus.createPathImage(server, downsample);
-				ImagePlus imp = pathImage.getImage();
+			// Read the image
+			PathImage<ImagePlus> pathImage = PathImagePlus.createPathImage(server, downsample);
+			ImagePlus imp = pathImage.getImage();
+
+			if (imp.getType() == ImagePlus.COLOR_RGB || imp.getNChannels() == 1)
 				ip = imp.getProcessor();
-				bp = null;
-				lastServerPath = server.getPath();
+			else {
+				ZProjector zProjector = new ZProjector(imp);
+				zProjector.setMethod(ZProjector.AVG_METHOD);
+				zProjector.doProjection();
+				ip = zProjector.getProjection().getProcessor();
 			}
-//			Roi roiOrig = null;
-//			if (pathROI != null)
-//				roiOrig = PathROIConverterIJ.convertToIJRoi(pathROI, pathImage);
-			
-			
+			bp = null;
+				
 			String[] hLabelsSplit = PathObjectTools.parseTMALabelString(horizontalLabels);
 			String[] vLabelsSplit = PathObjectTools.parseTMALabelString(verticalLabels);
 
