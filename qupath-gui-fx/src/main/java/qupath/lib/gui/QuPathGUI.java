@@ -193,7 +193,6 @@ import qupath.lib.gui.commands.TMAAddNote;
 import qupath.lib.gui.commands.TMAExportViewerCommand;
 import qupath.lib.gui.commands.TMAGridAdd;
 import qupath.lib.gui.commands.TMAGridAdd.TMAAddType;
-import qupath.lib.gui.commands.TMAGridRelabel;
 import qupath.lib.gui.commands.TMAGridRemove.TMARemoveType;
 import qupath.lib.gui.commands.TMAGridReset;
 import qupath.lib.gui.commands.TMAGridRemove;
@@ -218,6 +217,7 @@ import qupath.lib.gui.commands.scriptable.SelectObjectsByClassCommand;
 import qupath.lib.gui.commands.scriptable.SelectObjectsByMeasurementCommand;
 import qupath.lib.gui.commands.scriptable.ShapeSimplifierCommand;
 import qupath.lib.gui.commands.scriptable.SpecifyAnnotationCommand;
+import qupath.lib.gui.commands.scriptable.TMAGridRelabel;
 import qupath.lib.gui.commands.selectable.CellDisplaySelectable;
 import qupath.lib.gui.commands.selectable.ToolSelectable;
 import qupath.lib.gui.extensions.QuPathExtension;
@@ -2469,7 +2469,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 						createCommandAction(new TMAGridRemove(this, TMARemoveType.ROW), "Remove TMA row"),
 						createCommandAction(new TMAGridRemove(this, TMARemoveType.COLUMN), "Remove TMA column")
 						),
-				createCommandAction(new TMAGridRelabel(this), "Relabel TMA cores"),
+				createCommandAction(new TMAGridRelabel(this), "Relabel TMA grid"),
 				createCommandAction(new TMAGridReset(this), "Reset TMA metadata"),
 				getActionMenuItem(GUIActions.CLEAR_TMA_CORES),
 				createCommandAction(new TMAGridView(this), "TMA grid summary view (experimental)"),

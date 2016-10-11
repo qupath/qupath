@@ -21,10 +21,9 @@
  * #L%
  */
 
-package qupath.lib.gui.commands;
+package qupath.lib.gui.commands.scriptable;
 
-import java.util.ArrayList;
-
+import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.helpers.DisplayHelpers;
@@ -32,6 +31,8 @@ import qupath.lib.images.ImageData;
 import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.objects.hierarchy.TMAGrid;
 import qupath.lib.plugins.parameters.ParameterList;
+import qupath.lib.plugins.workflow.DefaultScriptableWorkflowStep;
+import qupath.lib.scripting.QP;
 
 /**
  * Relabel the cores of a TMA grid.
@@ -68,10 +69,15 @@ public class TMAGridRelabel implements PathCommand {
 		if (!DisplayHelpers.showParameterDialog(NAME, params))
 			return;
 		
-		// Apply the labels
-		String[] columnLabels = PathObjectTools.parseTMALabelString(params.getStringParameterValue("labelsHorizontal"));
-		String[] rowLabels = PathObjectTools.parseTMALabelString(params.getStringParameterValue("labelsVertical"));
+		// Parse the arguments
+		String labelsHorizontal = params.getStringParameterValue("labelsHorizontal");
+		String labelsVertical = params.getStringParameterValue("labelsVertical");
+		boolean rowFirst = "Row first".equals(params.getChoiceParameterValue("labelOrder"));
+		
+		// Figure out if this will work
 		TMAGrid grid = imageData.getHierarchy().getTMAGrid();
+		String[] columnLabels = PathObjectTools.parseTMALabelString(labelsHorizontal);
+		String[] rowLabels = PathObjectTools.parseTMALabelString(labelsVertical);
 		if (columnLabels.length < grid.getGridWidth()) {
 			DisplayHelpers.showErrorMessage(NAME, "Not enough column labels specified!");
 			return;			
@@ -81,18 +87,20 @@ public class TMAGridRelabel implements PathCommand {
 			return;			
 		}
 		
-		boolean rowFirst = "Row first".equals(params.getChoiceParameterValue("labelOrder"));
-		for (int r = 0; r < grid.getGridHeight(); r++) {
-			for (int c = 0; c < grid.getGridWidth(); c++) {
-				String name;
-				if (rowFirst)
-					name = rowLabels[r] + "-" + columnLabels[c];
-				else
-					name = columnLabels[r] + "-" + rowLabels[c];
-				grid.getTMACore(r, c).setName(name);
-			}			
-		}
-		imageData.getHierarchy().fireObjectsChangedEvent(this, new ArrayList<>(grid.getTMACoreList()));
+		// Apply the labels
+		QP.relabelTMAGrid(
+				imageData.getHierarchy(),
+				labelsHorizontal,
+				labelsVertical,
+				rowFirst);
+		
+		// Add to workflow history
+		imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep("Relabel TMA grid",
+				String.format("relabelTMAGrid(\"%s\", \"%s\", %s)",
+						GeneralTools.escapeFilePath(labelsHorizontal),
+						GeneralTools.escapeFilePath(labelsVertical),
+						Boolean.toString(rowFirst))));
+		
 	}
 	
 }
