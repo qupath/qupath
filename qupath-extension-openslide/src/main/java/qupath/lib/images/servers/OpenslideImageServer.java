@@ -42,7 +42,6 @@ import org.slf4j.LoggerFactory;
 
 import qupath.lib.awt.common.AwtTools;
 import qupath.lib.awt.images.PathBufferedImage;
-import qupath.lib.common.GeneralTools;
 import qupath.lib.images.PathImage;
 import qupath.lib.regions.RegionRequest;
 
@@ -202,9 +201,11 @@ public class OpenslideImageServer extends AbstractImageServer<BufferedImage> {
         try {
 			// Create a thumbnail for the region
 			osr.paintRegionARGB(data, region.x, region.y, level, levelWidth, levelHeight);
-			// If we don't have a background color & don't need to resize, we can be done
-			if (backgroundColor == null && GeneralTools.almostTheSame(downsample, downsampleFactor, 0.001))
-				return img;
+			
+			// Previously tried to take shortcut and only repaint if needed - 
+			// but transparent pixels happened too often, and it's really needed to repaint every time
+//			if (backgroundColor == null && GeneralTools.almostTheSame(downsample, downsampleFactor, 0.001))
+//				return img;
 			
 			// Rescale if we have to
 			int width = (int)(region.width / downsampleFactor + .5);
