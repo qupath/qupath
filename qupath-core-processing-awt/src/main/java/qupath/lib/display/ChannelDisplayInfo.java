@@ -212,6 +212,7 @@ public interface ChannelDisplayInfo {
 
 		protected float minAllowed, maxAllowed;
 		protected float minDisplay, maxDisplay;
+		protected boolean clipToAllowed = false;
 
 		// The 'channel' corresponds to the 'band' in Java parlance
 		public AbstractChannelInfo(int nBits) {
@@ -221,6 +222,31 @@ public interface ChannelDisplayInfo {
 			this.maxDisplay = maxAllowed;
 		}
 
+		/**
+		 * Returns true if the min and max display are forced into the allowed range, false otherwise.
+		 * 
+		 * This makes it possible to either be strict about contrast settings or more flexible.
+		 * 
+		 * @return
+		 */
+		public boolean doClipToAllowed() {
+			return clipToAllowed;
+		}
+		
+		/**
+		 * Specify whether min/max display values should be clipped to fall within the allowed range.
+		 * 
+		 * This makes it possible to either be strict about contrast settings or more flexible.
+		 * 
+		 * @param clipToAllowed
+		 */
+		public void setClipToAllowed(final boolean clipToAllowed) {
+			this.clipToAllowed = clipToAllowed;
+			if (clipToAllowed) {
+				this.minDisplay = Math.min(Math.max(minDisplay, minAllowed), maxAllowed);
+				this.maxDisplay = Math.min(Math.max(maxDisplay, minAllowed), maxAllowed);
+			}
+		}
 		
 		@Override
 		public void setMinMaxAllowed(float minAllowed, float maxAllowed) {
@@ -241,12 +267,12 @@ public interface ChannelDisplayInfo {
 
 		@Override
 		public void setMinDisplay(float minDisplay) {
-			this.minDisplay = Math.max(minAllowed, minDisplay);
+			this.minDisplay = clipToAllowed ? Math.max(minAllowed, minDisplay) : minDisplay;
 		}
 
 		@Override
 		public void setMaxDisplay(float maxDisplay) {
-			this.maxDisplay = Math.min(maxAllowed, maxDisplay);
+			this.maxDisplay = clipToAllowed ? Math.min(maxAllowed, maxDisplay) : maxDisplay;
 		}
 		
 		@Override
