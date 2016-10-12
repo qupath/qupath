@@ -23,6 +23,7 @@
 
 package qupath.lib.images.servers;
 
+import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
 import java.awt.image.BufferedImage;
@@ -63,6 +64,7 @@ public class OpenslideImageServer extends AbstractImageServer<BufferedImage> {
 	private Map<String, AssociatedImage> associatedImages = null;
 
 	private OpenSlide osr;
+	private Color backgroundColor;
 	
 	
 	private double readNumericPropertyOrDefault(Map<String, String> properties, String name, double defaultValue) {
@@ -127,6 +129,18 @@ public class OpenslideImageServer extends AbstractImageServer<BufferedImage> {
 		associatedImageList = new ArrayList<>(associatedImages.keySet());
 		associatedImageList = Collections.unmodifiableList(associatedImageList);
 		
+		// Try to get a background color
+		try {
+			String bg = properties.get(OpenSlide.PROPERTY_NAME_BACKGROUND_COLOR);
+			if (bg != null) {
+				if (!bg.startsWith("#"))
+					bg = "#" + bg;
+				backgroundColor = Color.decode(bg);
+			}
+		} catch (Exception e) {
+			backgroundColor = null;
+			logger.debug("Unable to find background color: {}", e.getLocalizedMessage());
+		}
 		
 		// Try reading a thumbnail... the point being that if this is going to fail,
 		// we want it to fail quickly so that it may yet be possible to try another server
@@ -184,11 +198,12 @@ public class OpenslideImageServer extends AbstractImageServer<BufferedImage> {
 		BufferedImage img = new BufferedImage(levelWidth, levelHeight, BufferedImage.TYPE_INT_ARGB_PRE);
 
         int data[] = ((DataBufferInt)img.getRaster().getDataBuffer()).getData();
-
+        
         try {
 			// Create a thumbnail for the region
 			osr.paintRegionARGB(data, region.x, region.y, level, levelWidth, levelHeight);
-			if (GeneralTools.almostTheSame(downsample, downsampleFactor, 0.001))
+			// If we don't have a background color & don't need to resize, we can be done
+			if (backgroundColor == null && GeneralTools.almostTheSame(downsample, downsampleFactor, 0.001))
 				return img;
 			
 			// Rescale if we have to
@@ -197,6 +212,10 @@ public class OpenslideImageServer extends AbstractImageServer<BufferedImage> {
 //			BufferedImage img2 = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
 			BufferedImage img2 = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
 			Graphics2D g2d = img2.createGraphics();
+			if (backgroundColor != null) {
+				g2d.setColor(backgroundColor);
+				g2d.fillRect(0, 0, width, height);
+			}
 			g2d.drawImage(img, 0, 0, width, height, null);
 			g2d.dispose();
 			return img2;
