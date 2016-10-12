@@ -16,6 +16,7 @@
 * Set default logging level to INFO
 * Added sample script to change logging level
 * Improved display of licenses & third-party dependencies
+* Updated location of user preferences
  
 
 ## Version 0.0.2
