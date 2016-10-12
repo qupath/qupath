@@ -457,6 +457,19 @@ public class PreferencePanel {
 
 		private Property<String> prop;
 		private ObservableValue<File> fileValue;
+		
+//		private ObjectProperty<File> fileValue;
+//
+//		DirectoryPropertyItem(final Property<String> prop) {
+//			this.prop = prop;
+//			fileValue = new SimpleObjectProperty<>();
+//			updateFileProperty();
+//			prop.addListener((v, o, n) -> updateFileProperty());
+//		}
+//		
+//		private void updateFileProperty() {
+//			fileValue.set(prop.getValue() == null ? null : new File(prop.getValue()));
+//		}
 
 		DirectoryPropertyItem(final Property<String> prop) {
 			this.prop = prop;
@@ -567,6 +580,12 @@ public class PreferencePanel {
 			});
 			if (property.getDescription() != null)
 				control.setTooltip(new Tooltip(property.getDescription()));
+			
+			// Bind to the text property
+			if (property instanceof DirectoryPropertyItem) {
+				control.textProperty().bindBidirectional(((DirectoryPropertyItem)property).prop);
+			}
+			value = Bindings.createObjectBinding(() -> new File(control.getText()), control.textProperty());
 		}
 
 		@Override
@@ -576,10 +595,6 @@ public class PreferencePanel {
 
 		@Override
 		protected ObservableValue<File> getObservableValue() {
-			if (value == null) {
-				TextField control = getEditor();
-				value = Bindings.createObjectBinding(() -> new File(control.getText()), control.textProperty());
-			}
 			return value;
 		}
 

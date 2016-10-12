@@ -173,6 +173,7 @@ import qupath.lib.gui.commands.ProjectImportImagesCommand;
 import qupath.lib.gui.commands.ProjectMetadataEditorCommand;
 import qupath.lib.gui.commands.ProjectOpenCommand;
 import qupath.lib.gui.commands.ProjectSaveCommand;
+import qupath.lib.gui.commands.ResetPreferencesCommand;
 import qupath.lib.gui.commands.RigidObjectEditorCommand;
 import qupath.lib.gui.commands.RotateImageCommand;
 import qupath.lib.gui.commands.SampleScriptLoader;
@@ -945,51 +946,63 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			logger.info("No extension directory found!");
 			// Prompt to create an extensions directory
 			File dirDefault = getDefaultExtensionDirectory();
-			if (dirDefault.exists())
-				dir = dirDefault;
-			else {
-				Dialog<ButtonType> dialog = new Dialog<>();
-				dialog.initOwner(getStage());
-				
-				ButtonType btUseDefault = new ButtonType("Use default", ButtonData.YES);
-				ButtonType btChooseDirectory = new ButtonType("Choose directory", ButtonData.NO);
-				ButtonType btCancel = new ButtonType("Cancel", ButtonData.CANCEL_CLOSE);
-				dialog.getDialogPane().getButtonTypes().setAll(btUseDefault, btChooseDirectory, btCancel);
-				
-				dialog.setHeaderText(null);
-				dialog.setTitle("Choose extensions directory");
-				dialog.setContentText("No extensions directory is set.\n\nQuPath can automatically create one at\n" + dirDefault.getAbsolutePath() + 
-						"\n\nDo you want to use this default, or specify another directory?");
-				Optional<ButtonType> result = dialog.showAndWait();
-				if (!result.isPresent() || result.get() == btCancel) {
-					logger.info("No extension directory set - extensions not installed");
+			String msg;
+			if (dirDefault.exists()) {
+				msg = "An directory already exists at " + dirDefault.getAbsolutePath() + 
+						"\n\nDo you want to use this default, or specify another directory?";
+			} else {
+				msg = "QuPath can automatically create one at\n" + dirDefault.getAbsolutePath() + 
+						"\n\nDo you want to use this default, or specify another directory?";
+			}
+			
+			Dialog<ButtonType> dialog = new Dialog<>();
+			dialog.initOwner(getStage());
+
+			ButtonType btUseDefault = new ButtonType("Use default", ButtonData.YES);
+			ButtonType btChooseDirectory = new ButtonType("Choose directory", ButtonData.NO);
+			ButtonType btCancel = new ButtonType("Cancel", ButtonData.CANCEL_CLOSE);
+			dialog.getDialogPane().getButtonTypes().setAll(btUseDefault, btChooseDirectory, btCancel);
+
+			dialog.setHeaderText(null);
+			dialog.setTitle("Choose extensions directory");
+			dialog.setContentText("No extensions directory is set.\n\n" + msg);
+			Optional<ButtonType> result = dialog.showAndWait();
+			if (!result.isPresent() || result.get() == btCancel) {
+				logger.info("No extension directory set - extensions not installed");
+				return;
+			}
+			if (result.get() == btUseDefault) {
+				if (!dirDefault.exists() && !dirDefault.mkdirs()) {
+					DisplayHelpers.showErrorMessage("Extension error", "Unable to create directory at \n" + dirDefault.getAbsolutePath());
 					return;
 				}
-				if (result.get() == btUseDefault) {
-					if (!dirDefault.mkdirs()) {
-						DisplayHelpers.showErrorMessage("Extension error", "Unable to create directory at \n" + dirDefault.getAbsolutePath());
-						return;
-					}
-					dir = dirDefault;
-					PathPrefs.setExtensionsPath(dir.getAbsolutePath());
-				} else {
-					dir = getDialogHelper().promptForDirectory(dirDefault);
-					if (dir == null) {
-						logger.info("No extension directory set - extensions not installed");
-						return;
-					}
+				dir = dirDefault;
+				PathPrefs.setExtensionsPath(dir.getAbsolutePath());
+			} else {
+				dir = getDialogHelper().promptForDirectory(dirDefault);
+				if (dir == null) {
+					logger.info("No extension directory set - extensions not installed");
+					return;
 				}
 			}
 		}
 		// Create directory if we need it
 		if (!dir.exists())
 			dir.mkdir();
+		
 		// Copy all files into extensions directory
 		Path dest = dir.toPath();
 		for (File file : files) {
 			Path source = file.toPath();
+			Path destination = dest.resolve(source.getFileName());
+			if (destination.toFile().exists()) {
+				// It would be better to check how many files will be overwritten in one go,
+				// but this should be a pretty rare occurrence
+				if (!DisplayHelpers.showConfirmDialog("Install extension", "Overwrite " + destination.toFile().getName() + "?\n\nYou will have to restart QuPath to see the updates."))
+					return;
+			}
 			try {
-				Files.copy(source, dest.resolve(source.getFileName()), StandardCopyOption.REPLACE_EXISTING);
+				Files.copy(source, destination, StandardCopyOption.REPLACE_EXISTING);
 			} catch (IOException e) {
 				DisplayHelpers.showErrorMessage("Extension error", file + "\ncould not be copied, sorry");
 				logger.error("Could not copy file {}", file, e);
@@ -2312,7 +2325,8 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				getActionMenuItem(GUIActions.COPY_VIEW),
 				getActionMenuItem(GUIActions.COPY_WINDOW),
 				null,
-				getActionMenuItem(GUIActions.PREFERENCES)
+				getActionMenuItem(GUIActions.PREFERENCES),
+				createCommandAction(new ResetPreferencesCommand(), "Reset preferences")
 				);
 
 		// Create Tools menu

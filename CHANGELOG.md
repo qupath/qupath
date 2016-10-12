@@ -17,6 +17,7 @@
 * Added sample script to change logging level
 * Improved display of licenses & third-party dependencies
 * Updated location of user preferences
+* Added menu entry to reset preferences
  
 
 ## Version 0.0.2
