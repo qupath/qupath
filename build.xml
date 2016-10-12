@@ -77,6 +77,11 @@
 				<include name="THIRD-PARTY.txt"/>
 			</fileset>
 		</copy>
+		<copy todir="${basedir}/licenses/QuPath/">
+			<fileset dir="${basedir}/..">
+				<include name="LICENSE.txt"/>
+			</fileset>
+		</copy>
 		
 		<fx:resources id="appRes">
 			<!-- <fx:fileset dir="${basedir}/classes" includes="**/*" /> -->

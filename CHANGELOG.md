@@ -15,6 +15,7 @@
 * Minor improvements to Brightness/Contrast panel
 * Set default logging level to INFO
 * Added sample script to change logging level
+* Improved display of licenses & third-party dependencies
  
 
 ## Version 0.0.2
