@@ -1,55 +1,32 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <classpath>
-        <classpathentry kind="src" output="target/classes" path="src/main/java">
-                <attributes>
-                        <attribute name="optional" value="true"/>
-                        <attribute name="maven.pomderived" value="true"/>
-                </attributes>
-        </classpathentry>
-        <classpathentry excluding="**" kind="src" output="target/classes" path="src/main/resources">
-                <attributes>
-                        <attribute name="maven.pomderived" value="true"/>
-                </attributes>
-        </classpathentry>
-        <classpathentry kind="src" output="target/test-classes" path="src/test/java">
-                <attributes>
-                        <attribute name="optional" value="true"/>
-                        <attribute name="maven.pomderived" value="true"/>
-                </attributes>
-        </classpathentry>
-        <classpathentry excluding="**" kind="src" output="target/test-classes" path="src/test/resources">
-                <attributes>
-                        <attribute name="maven.pomderived" value="true"/>
-                </attributes>
-        </classpathentry>
-        <classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/JavaSE-1.8">
-                <attributes>
-                        <attribute name="maven.pomderived" value="true"/>
-                </attributes>
-        </classpathentry>
-        <classpathentry kind="con" path="org.eclipse.m2e.MAVEN2_CLASSPATH_CONTAINER">
-                <attributes>
-                        <attribute name="org.eclipse.jdt.launching.CLASSPATH_ATTR_LIBRARY_PATH_ENTRY" value="qupath-main/deploy/natives"/>
-                        <attribute name="maven.pomderived" value="true"/>
-                </attributes>
-        </classpathentry>
-        <classpathentry combineaccessrules="false" kind="src" path="/qupath-core"/>
-        <classpathentry combineaccessrules="false" kind="src" path="/qupath-core-awt"/>
-        <classpathentry combineaccessrules="false" kind="src" path="/qupath-core-processing"/>
-        <classpathentry combineaccessrules="false" kind="src" path="/qupath-ij"/>
-        <classpathentry combineaccessrules="false" kind="src" path="/qupath-openslide"/>
-        <classpathentry combineaccessrules="false" kind="src" path="/qupath-input"/>
-        <classpathentry combineaccessrules="false" kind="src" path="/qupath-pen">
-                <attributes>
-                        <attribute name="org.eclipse.jdt.launching.CLASSPATH_ATTR_LIBRARY_PATH_ENTRY" value="qupath-pen/target/natives/jpen-2-150301"/>
-                </attributes>
-        </classpathentry>
-        <classpathentry combineaccessrules="false" kind="src" path="/qupath-opencv"/>
-        <classpathentry kind="con" path="org.eclipse.fx.ide.jdt.core.JAVAFX_CONTAINER"/>
-        <classpathentry combineaccessrules="false" kind="src" path="/qupath-scripting"/>
-        <classpathentry combineaccessrules="false" kind="src" path="/qupath-core-processing-awt"/>
-        <classpathentry combineaccessrules="false" kind="src" path="/qupath-gui-fx"/>
-        <classpathentry combineaccessrules="false" kind="src" path="/qupath-ij-processing"/>
-        <classpathentry combineaccessrules="false" kind="src" path="/qupath-opencv-processing"/>
-        <classpathentry kind="output" path="target/classes"/>
+	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/JavaSE-1.8">
+		<attributes>
+			<attribute name="maven.pomderived" value="true"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="con" path="org.eclipse.m2e.MAVEN2_CLASSPATH_CONTAINER">
+		<attributes>
+			<attribute name="org.eclipse.jdt.launching.CLASSPATH_ATTR_LIBRARY_PATH_ENTRY" value="qupath/deploy/natives"/>
+			<attribute name="maven.pomderived" value="true"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="src" path="src/main/java"/>
+	<classpathentry kind="src" path="src/main/resources"/>
+	<classpathentry kind="src" path="src/test/java"/>
+	<classpathentry kind="src" path="src/test/resources"/>
+	<classpathentry combineaccessrules="false" kind="src" path="/qupath-core"/>
+	<classpathentry combineaccessrules="false" kind="src" path="/qupath-core-awt"/>
+	<classpathentry combineaccessrules="false" kind="src" path="/qupath-core-processing"/>
+	<classpathentry combineaccessrules="false" kind="src" path="/qupath-core-processing-awt"/>
+	<classpathentry combineaccessrules="false" kind="src" path="/qupath-extension-ij"/>
+	<classpathentry combineaccessrules="false" kind="src" path="/qupath-extension-input"/>
+	<classpathentry combineaccessrules="false" kind="src" path="/qupath-extension-opencv"/>
+	<classpathentry combineaccessrules="false" kind="src" path="/qupath-extension-openslide"/>
+	<classpathentry combineaccessrules="false" kind="src" path="/qupath-extension-pen"/>
+	<classpathentry combineaccessrules="false" kind="src" path="/qupath-extension-script-editor"/>
+	<classpathentry combineaccessrules="false" kind="src" path="/qupath-gui-fx"/>
+	<classpathentry combineaccessrules="false" kind="src" path="/qupath-processing-ij"/>
+	<classpathentry combineaccessrules="false" kind="src" path="/qupath-processing-opencv"/>
+	<classpathentry kind="output" path="target/classes"/>
 </classpath>

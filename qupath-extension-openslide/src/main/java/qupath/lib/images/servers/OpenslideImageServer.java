@@ -23,6 +23,7 @@
 
 package qupath.lib.images.servers;
 
+import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
 import java.awt.image.BufferedImage;
@@ -41,7 +42,6 @@ import org.slf4j.LoggerFactory;
 
 import qupath.lib.awt.common.AwtTools;
 import qupath.lib.awt.images.PathBufferedImage;
-import qupath.lib.common.GeneralTools;
 import qupath.lib.images.PathImage;
 import qupath.lib.regions.RegionRequest;
 
@@ -63,6 +63,7 @@ public class OpenslideImageServer extends AbstractImageServer<BufferedImage> {
 	private Map<String, AssociatedImage> associatedImages = null;
 
 	private OpenSlide osr;
+	private Color backgroundColor;
 	
 	
 	private double readNumericPropertyOrDefault(Map<String, String> properties, String name, double defaultValue) {
@@ -127,6 +128,18 @@ public class OpenslideImageServer extends AbstractImageServer<BufferedImage> {
 		associatedImageList = new ArrayList<>(associatedImages.keySet());
 		associatedImageList = Collections.unmodifiableList(associatedImageList);
 		
+		// Try to get a background color
+		try {
+			String bg = properties.get(OpenSlide.PROPERTY_NAME_BACKGROUND_COLOR);
+			if (bg != null) {
+				if (!bg.startsWith("#"))
+					bg = "#" + bg;
+				backgroundColor = Color.decode(bg);
+			}
+		} catch (Exception e) {
+			backgroundColor = null;
+			logger.debug("Unable to find background color: {}", e.getLocalizedMessage());
+		}
 		
 		// Try reading a thumbnail... the point being that if this is going to fail,
 		// we want it to fail quickly so that it may yet be possible to try another server
@@ -184,12 +197,15 @@ public class OpenslideImageServer extends AbstractImageServer<BufferedImage> {
 		BufferedImage img = new BufferedImage(levelWidth, levelHeight, BufferedImage.TYPE_INT_ARGB_PRE);
 
         int data[] = ((DataBufferInt)img.getRaster().getDataBuffer()).getData();
-
+        
         try {
 			// Create a thumbnail for the region
 			osr.paintRegionARGB(data, region.x, region.y, level, levelWidth, levelHeight);
-			if (GeneralTools.almostTheSame(downsample, downsampleFactor, 0.001))
-				return img;
+			
+			// Previously tried to take shortcut and only repaint if needed - 
+			// but transparent pixels happened too often, and it's really needed to repaint every time
+//			if (backgroundColor == null && GeneralTools.almostTheSame(downsample, downsampleFactor, 0.001))
+//				return img;
 			
 			// Rescale if we have to
 			int width = (int)(region.width / downsampleFactor + .5);
@@ -197,6 +213,10 @@ public class OpenslideImageServer extends AbstractImageServer<BufferedImage> {
 //			BufferedImage img2 = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
 			BufferedImage img2 = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
 			Graphics2D g2d = img2.createGraphics();
+			if (backgroundColor != null) {
+				g2d.setColor(backgroundColor);
+				g2d.fillRect(0, 0, width, height);
+			}
 			g2d.drawImage(img, 0, 0, width, height, null);
 			g2d.dispose();
 			return img2;

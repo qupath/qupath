@@ -1,4 +1,0 @@
-Eclipse's .classpath files aren't included in git any more (although .project files remain).
-If yours gets lost, you can try taking the classpath file from this directory and put it into qupath-main, remaining it to .classpath
-
-Maven -> Update Project should take care of the other class paths, only qupath-main is more awkward.

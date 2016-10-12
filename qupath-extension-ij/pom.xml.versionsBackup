@@ -6,30 +6,29 @@
 	<parent>
 		<groupId>qupath</groupId>
 		<artifactId>qupath</artifactId>
-		<version>0.0.3</version>
+		<version>0.0.2</version>
 	</parent>
-	<artifactId>qupath-extension-openslide</artifactId>
-	<name>qupath-extension-openslide</name>
+	<artifactId>qupath-extension-ij</artifactId>
+	<name>qupath-extension-ij</name>
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 	</properties>
-
 	<dependencies>
 		<dependency>
-			<groupId>org.openslide</groupId>
-			<artifactId>openslide</artifactId>
-			<version>3.4.1</version>
+			<groupId>qupath</groupId>
+			<artifactId>qupath-gui-fx</artifactId>
+			<scope>provided</scope>
 		</dependency>
 		<dependency>
 			<groupId>qupath</groupId>
-			<artifactId>qupath-core</artifactId>
+			<artifactId>qupath-processing-ij</artifactId>
 		</dependency>
 		<dependency>
-			<groupId>qupath</groupId>
-			<artifactId>qupath-core-awt</artifactId>
+			<groupId>net.imagej</groupId>
+			<artifactId>ij</artifactId>
 		</dependency>
 	</dependencies>
-	
+
 	<build>
 		<plugins>
 			<plugin>
@@ -40,11 +39,7 @@
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-source-plugin</artifactId>
 			</plugin>
-			<plugin>
-				<groupId>com.googlecode.mavennatives</groupId>
-				<artifactId>maven-nativedependencies-plugin</artifactId>
-			</plugin>
 		</plugins>
 	</build>
-	<description>QuPath ImageServer implementation using OpenSlide.</description>
+	<description>Integration of ImageJ commands &amp; GUI functions with QuPath.</description>
 </project>

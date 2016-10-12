@@ -143,7 +143,7 @@ public class PathAwtIO {
 			}
 			writer.close();
 		} catch (Exception e) {
-			e.printStackTrace();
+			logger.error("Error writing TMA data", e);
 			return;
 		}
 
@@ -182,7 +182,7 @@ public class PathAwtIO {
 			ExportCoresPlugin plugin = new ExportCoresPlugin(dirData, options, downsample);
 			PluginRunner<BufferedImage> runner;
 			if (QuPathGUI.getInstance() == null || QuPathGUI.getInstance().getImageData() != imageData) {
-				runner = new CommandLinePluginRunner<BufferedImage>(imageData, true);
+				runner = new CommandLinePluginRunner<>(imageData, true);
 				plugin.runPlugin(runner, null);
 			} else {
 				runner = new PluginRunnerFX(QuPathGUI.getInstance(), false);				
@@ -260,7 +260,14 @@ public class PathAwtIO {
 	}
 	
 	
-	
+	/**
+	 * Plugin for exporting TMA core images.
+	 * 
+	 * The reason for implementing this as a plugin is to take advantage of multithreading and progress bars - 
+	 * but it (intentionally) isn't scriptable since it is generally called from another (probably scriptable) command.
+	 * 
+	 * @author Pete Bankhead
+	 */
 	private static class ExportCoresPlugin extends AbstractPlugin<BufferedImage> {
 		
 		private double downsample;
@@ -316,7 +323,8 @@ public class PathAwtIO {
 				@Override
 				public void run() {
 					// Write the core
-					File fileOutput = new File(dir, parentObject.getName() + ".jpg");
+					String ext = imageData.getServer().isRGB() ? ".jpg" : ".tif";
+					File fileOutput = new File(dir, parentObject.getName() + ext);
 					RegionRequest request = RegionRequest.createInstance(imageData.getServerPath(), downsample, parentObject.getROI());
 					BufferedImage img = ImageWriterTools.writeImageRegion(imageData.getServer(), request, fileOutput.getAbsolutePath());
 					fileOutput = new File(dir, parentObject.getName() + "-overlay.jpg");

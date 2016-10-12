@@ -65,13 +65,15 @@ import qupath.lib.projects.ProjectIO;
  */
 public class PathPrefs {
 	
-	final private static String NODE_NAME = "uk.ac.qupath.prefs";
-	
-//	final private static String NODE_NAME = "QuPathAppID";
+	final private static String NODE_NAME = "io.github.qupath";
 	
 	private static Logger logger = LoggerFactory.getLogger(PathPrefs.class);
-
 	
+	/**
+	 * Flag used to trigger when properties should be reset to their default values.
+	 */
+	private static BooleanProperty resetProperty = new SimpleBooleanProperty(Boolean.FALSE);
+
 	public static BooleanProperty useProjectImageCache = createPersistentPreference("useProjectImageCache", Boolean.FALSE);
 	
 	/**
@@ -215,6 +217,7 @@ public class PathPrefs {
 			Preferences prefs = getUserPreferences();
 			prefs.removeNode();
 			prefs.flush();
+			resetProperty.set(!resetProperty.get());
 			logger.info("Preferences have been reset");
 		} catch (BackingStoreException e) {
 			logger.error("Failed to reset preferences", e);
@@ -955,6 +958,8 @@ public class PathPrefs {
 		BooleanProperty property = createTransientPreference(name, defaultValue);
 		property.set(getUserPreferences().getBoolean(name, defaultValue));
 		property.addListener((v, o, n) -> getUserPreferences().putBoolean(name, n));
+		// Triggered when reset is called
+		resetProperty.addListener((c, o, v) -> property.setValue(defaultValue));
 		return property;
 	}
 	
@@ -982,6 +987,8 @@ public class PathPrefs {
 		IntegerProperty property = createTransientPreference(name, defaultValue);
 		property.set(getUserPreferences().getInt(name, defaultValue));
 		property.addListener((v, o, n) -> getUserPreferences().putInt(name, n.intValue()));
+		// Triggered when reset is called
+		resetProperty.addListener((c, o, v) -> property.setValue(defaultValue));
 		return property;
 	}
 	
@@ -1009,6 +1016,8 @@ public class PathPrefs {
 		DoubleProperty property = createTransientPreference(name, defaultValue);
 		property.set(getUserPreferences().getDouble(name, defaultValue));
 		property.addListener((v, o, n) -> getUserPreferences().putDouble(name, n.doubleValue()));
+		// Triggered when reset is called
+		resetProperty.addListener((c, o, v) -> property.setValue(defaultValue));
 		return property;
 	}
 	
@@ -1035,7 +1044,14 @@ public class PathPrefs {
 	public static StringProperty createPersistentPreference(final String name, final String defaultValue) {
 		StringProperty property = createTransientPreference(name, defaultValue);
 		property.set(getUserPreferences().get(name, defaultValue));
-		property.addListener((v, o, n) -> getUserPreferences().put(name, n));
+		property.addListener((v, o, n) -> {
+			if (n == null)
+				getUserPreferences().remove(name);
+			else
+				getUserPreferences().put(name, n);
+		});
+		// Triggered when reset is called
+		resetProperty.addListener((c, o, v) -> property.setValue(defaultValue));
 		return property;
 	}
 	
@@ -1073,6 +1089,8 @@ public class PathPrefs {
 		FloatProperty property = new PositiveFloatThicknessProperty(name, defaultValue);
 		property.set(getUserPreferences().getFloat(name, defaultValue));
 		property.addListener((v, o, n) -> getUserPreferences().putFloat(name, n.floatValue()));
+		// Triggered when reset is called
+		resetProperty.addListener((c, o, v) -> property.setValue(defaultValue));
 		return property;
 	}
 	

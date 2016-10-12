@@ -57,6 +57,7 @@ import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
+import qupath.lib.objects.hierarchy.TMAGrid;
 import qupath.lib.plugins.CommandLinePluginRunner;
 import qupath.lib.plugins.PathPlugin;
 import qupath.lib.plugins.workflow.RunSavedClassifierWorkflowStep;
@@ -491,6 +492,59 @@ public class QP {
 		}
 		hierarchy.fireObjectsChangedEvent(QP.class, hierarchy.getTMAGrid().getTMACoreList());
 	}
+	
+	
+	/**
+	 * Relabel a TMA grid.  This will only be effective if enough labels are supplied for the full grid - otherwise no changes will be made.
+	 * 
+	 * For a TMA core at column c and row r, the label format will be 'Hc-Vr' or 'Hc-Vr', where H is the horizontal label and V the vertical label, 
+	 * depending upon the status of the 'rowFirst' flag.
+	 * 
+	 * An examples of label would be 'A-1', 'A-2', 'B-1', 'B-2' etc.
+	 * 
+	 * @param hierarchy The hierarchy containing the TMA grid to be relabelled.
+	 * @param labelsHorizontal A String containing labels for each TMA column, separated by spaces, or a numeric or alphabetic range (e.g. 1-10, or A-G)
+	 * @param labelsVertical A String containing labels for each TMA row, separated by spaces, or a numeric or alphabetic range (e.g. 1-10, or A-G)
+	 * @param rowFirst TRUE if the horizontal label should be added before the vertical label, FALSE otherwise
+	 * @return TRUE if there were sufficient horizontal and vertical labels to label the entire grid, FALSE otherwise.
+	 */
+	public static boolean relabelTMAGrid(final PathObjectHierarchy hierarchy, final String labelsHorizontal, final String labelsVertical, final boolean rowFirst) {
+		if (hierarchy == null || hierarchy.getTMAGrid() == null) {
+			logger.error("Cannot relabel TMA grid - no grid found!");
+			return false;
+		}
+		
+		TMAGrid grid = hierarchy.getTMAGrid();
+		String[] columnLabels = PathObjectTools.parseTMALabelString(labelsHorizontal);
+		String[] rowLabels = PathObjectTools.parseTMALabelString(labelsVertical);
+		if (columnLabels.length < grid.getGridWidth()) {
+			logger.error("Cannot relabel full TMA grid - not enough column labels specified!");
+			return false;			
+		}
+		if (rowLabels.length < grid.getGridHeight()) {
+			logger.error("Cannot relabel full TMA grid - not enough row labels specified!");
+			return false;			
+		}
+		
+		for (int r = 0; r < grid.getGridHeight(); r++) {
+			for (int c = 0; c < grid.getGridWidth(); c++) {
+				String name;
+				if (rowFirst)
+					name = rowLabels[r] + "-" + columnLabels[c];
+				else
+					name = columnLabels[r] + "-" + rowLabels[c];
+				grid.getTMACore(r, c).setName(name);
+			}			
+		}
+		hierarchy.fireObjectsChangedEvent(null, new ArrayList<>(grid.getTMACoreList()));
+		return true;
+	}
+	
+	
+	public static boolean relabelTMAGrid(final String labelsHorizontal, final String labelsVertical, final boolean rowFirst) {
+		return relabelTMAGrid(getCurrentHierarchy(), labelsHorizontal, labelsVertical, rowFirst);
+	}
+	
 	
 	public static void resetClassifications(final Class<? extends PathObject> cls) {
 		PathObjectHierarchy hierarchy = getCurrentHierarchy();

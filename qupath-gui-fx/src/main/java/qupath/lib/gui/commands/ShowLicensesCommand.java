@@ -26,19 +26,25 @@ package qupath.lib.gui.commands;
 import java.io.File;
 import java.io.IOException;
 import java.net.URISyntaxException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javafx.collections.ObservableList;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 import javafx.scene.control.TabPane.TabClosingPolicy;
 import javafx.scene.control.TextArea;
+import javafx.scene.control.TreeCell;
+import javafx.scene.control.TreeItem;
+import javafx.scene.control.TreeView;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.Pane;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import qupath.lib.common.GeneralTools;
@@ -53,29 +59,27 @@ import qupath.lib.gui.helpers.DisplayHelpers;
  *
  */
 public class ShowLicensesCommand implements PathCommand {
-	
+
 	final private static Logger logger = LoggerFactory.getLogger(ShowLicensesCommand.class);
-	
+
 	private QuPathGUI qupath;
-	
+
 	public ShowLicensesCommand(final QuPathGUI qupath) {
 		this.qupath = qupath;
 	}
-	
+
 	@Override
 	public void run() {
-		
+
 		logger.trace("Running 'Show licenses' command");
-		
+
+		// Create a suitable String to show for QuPath generally
 		StringBuilder sbQuPath = new StringBuilder();
-		StringBuilder sbThirdParty = new StringBuilder();
-		
 		String buildString = qupath.getBuildString();
 		if (buildString != null && !buildString.trim().isEmpty()) {
 			sbQuPath.append("QuPath").append("\n");
 			sbQuPath.append(buildString).append("\n\n");
 		}
-		
 		try {
 			String licenseText = GeneralTools.readInputStreamAsString(ShowLicensesCommand.class.getResourceAsStream("/license/QuPathLicenseDescription.txt"));
 			sbQuPath.append(licenseText);
@@ -84,7 +88,7 @@ public class ShowLicensesCommand implements PathCommand {
 			sbQuPath.append("For the most up-to-date QuPath license information, see http://github.com/qupath/");
 			logger.error("Cannot read license information", e);
 		}
-		
+
 		// Try to get license file location
 		// We assume it's in a license directory, located one level up from the current Jar
 		File currentFile = null;
@@ -97,64 +101,49 @@ public class ShowLicensesCommand implements PathCommand {
 		File fileLicenses = null;
 		if (currentFile != null && currentFile.getName().toLowerCase().endsWith(".jar")) {
 			File dirBase = currentFile.getParentFile();
-//			logger.debug("Base directory: {}", dirBase);
 			if (new File(dirBase, "licenses").isDirectory())
 				fileLicenses = new File(dirBase, "THIRD-PARTY.txt");
 			else if (new File(dirBase.getParentFile(), "licenses").isDirectory())
 				fileLicenses = new File(new File(dirBase.getParentFile(), "licenses"), "THIRD-PARTY.txt");
 			logger.debug("License file: {}", fileLicenses);
 		}
-		if (fileLicenses == null || !fileLicenses.isFile()) {
-			sbThirdParty.append("No license information could be found for third party dependencies.");
+		
+		// Create a QuPath tab
+		TextArea textAreaQuPath = getTextArea(sbQuPath.toString());
+		Tab tabQuPath = new Tab("QuPath", textAreaQuPath);
+		
+		// Create a TabPane
+		TabPane tabPane = new TabPane(tabQuPath);
+		tabPane.setTabClosingPolicy(TabClosingPolicy.UNAVAILABLE);
+		
+		// Add extra tabs
+		if (fileLicenses == null) {
+			// Indicate no third-party info found - probably running from an IDE...?
+			tabPane.getTabs().add(new Tab("Third party", new TextArea("No license information could be found for third party dependencies.")));
 		} else {
-			sbThirdParty.append("THIRD PARTY LICENSES");
-			sbThirdParty.append("\n");
-			sbThirdParty.append("----------------------");
-			sbThirdParty.append("\n");
-			
-			try {
-				for (String line : Files.readAllLines(fileLicenses.toPath(), StandardCharsets.UTF_8)) {
-					sbThirdParty.append(line);
-					sbThirdParty.append("\n");
+			// Include a QuPath license more prominently as its own tab, if possible
+			File filePrimaryLicense = new File(new File(fileLicenses.getParentFile(), "QuPath"), "LICENSE.txt");
+			if (filePrimaryLicense.isFile()) {
+				try {
+					tabPane.getTabs().add(new Tab("License", new TextArea(GeneralTools.readFileAsString(filePrimaryLicense.getAbsolutePath()))));									
+				} catch (Exception e) {
+					logger.error("Could not show QuPath's primary license file");
 				}
-			} catch (IOException e) {
-				logger.error("Error reading license information", e);
 			}
+			// Create a third-party licenses tab
+			tabPane.getTabs().add(new Tab("Third party", createLicenseTreePane(fileLicenses.getParentFile())));			
 		}
 		
-		
-		// Create dialog to show
+		// Create and show dialog
 		Stage dialog = new Stage();
 		dialog.initOwner(qupath.getStage());
 		dialog.initModality(Modality.APPLICATION_MODAL);
 		dialog.setTitle("Licenses");
-		
-		TextArea textAreaQuPath = getTextArea(sbQuPath.toString());
-
-		BorderPane paneThirdParty = new BorderPane(getTextArea(sbThirdParty.toString()));
-
-		if (fileLicenses != null) {
-			Button btnThirdParty = new Button("View third party licenses");
-			File dirLicenses = fileLicenses.getParentFile();
-			btnThirdParty.setOnAction(e -> {
-				DisplayHelpers.openFile(dirLicenses);
-			});
-			btnThirdParty.setMaxWidth(Double.MAX_VALUE);
-			paneThirdParty.setBottom(btnThirdParty);
-		}
-		
-		
-		Tab tabQuPath = new Tab("QuPath", textAreaQuPath);
-		Tab tabThirdParty = new Tab("Third party", paneThirdParty);
-		
-		TabPane tabPane = new TabPane(tabQuPath, tabThirdParty);
-		tabPane.setTabClosingPolicy(TabClosingPolicy.UNAVAILABLE);
-
 		dialog.setScene(new Scene(tabPane));
 		dialog.show();
 	}
-	
-	
+
+
 	private static TextArea getTextArea(final String contents) {
 		TextArea textArea = new TextArea();
 		textArea.setPrefColumnCount(60);
@@ -166,7 +155,171 @@ public class ShowLicensesCommand implements PathCommand {
 		textArea.setEditable(false);
 		return textArea;
 	}
+
+	/**
+	 * Create a pane for displaying license information in a readable form.
+	 * 
+	 * @param dirBase
+	 * @return
+	 */
+	private Pane createLicenseTreePane(final File dirBase) {
+		TreeView<File> tree = new TreeView<>();
+		tree.setRoot(new LicenseFileTreeItem(dirBase));
+		tree.setShowRoot(false);
+		
+		TextArea textArea = new TextArea();
+		textArea.setStyle("-fx-font-family: monospace");
+		textArea.setWrapText(true);
+		
+		// Show content for selected node
+		tree.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> {
+			if (n instanceof LicenseFileTreeItem)
+				textArea.setText(((LicenseFileTreeItem)n).getContents());
+		});
+		
+		tree.setCellFactory(n -> new FileTreeCell());
+		
+		Button btnThirdParty = new Button("Open licenses directory");
+		File dirLicenses = dirBase;
+		btnThirdParty.setOnAction(e -> {
+			DisplayHelpers.openFile(dirLicenses);
+		});
+		btnThirdParty.setMaxWidth(Double.MAX_VALUE);
+		
+
+		BorderPane pane = new BorderPane();
+		pane.setLeft(tree);
+		pane.setCenter(textArea);
+		pane.setBottom(btnThirdParty);
+		
+		return pane;
+	}
+
+	
+	/**
+	 * Display a file by using its name (rather than absolute path).
+	 */
+	static class FileTreeCell extends TreeCell<File> {
+		
+		@Override
+        public void updateItem(File item, boolean empty) {
+            super.updateItem(item, empty);
+            if (empty) {
+                setText(null);
+                setGraphic(null);
+            } else {
+            	String name = item.getName();
+            	if ("THIRD-PARTY.txt".equals(name))
+            		name = "Summary";
+                setText(name);
+                setGraphic(null);
+            }
+        }
+		
+	}
 	
 	
+	/**
+	 * TreeItem to help with the display of license information.
+	 */
+	static class LicenseFileTreeItem extends TreeItem<File> {
+		
+		private static FileFirstComparator comparator = new FileFirstComparator();
+
+		private boolean isDirectory;
+		private boolean hasCheckedChildren;
+		
+		private String contents;
+
+		LicenseFileTreeItem(final File file) {
+			super(file);
+			isDirectory = file.isDirectory();
+			hasCheckedChildren = !isDirectory;
+		}
+
+		@Override
+		public ObservableList<TreeItem<File>> getChildren() {
+			if (!hasCheckedChildren) {
+				hasCheckedChildren = true;
+				super.getChildren().setAll(
+						Arrays.stream(getValue().listFiles())
+							.filter(f -> !f.isHidden())
+							.sorted(comparator)
+							.map(f -> new LicenseFileTreeItem(f))
+							.collect(Collectors.toList()));
+			}
+			return super.getChildren();
+		}
+		
+		public String getName() {
+			return getValue().getName();
+		}
+		
+		public String getContents() {
+			if (contents == null) {
+				if (isDirectory) {
+					StringBuilder sb = new StringBuilder();
+					for (TreeItem<File> child : getChildren()) {
+						if (child instanceof LicenseFileTreeItem) {
+							LicenseFileTreeItem item = (LicenseFileTreeItem)child;
+							sb.append(item.getName());
+							sb.append("\n");
+							for (int i = 0; i < item.getName().length(); i++)
+								sb.append("=");
+							sb.append("\n\n");
+							sb.append(item.getContents());
+							// Don't add another END after a directory - will already be one after any previous files
+							if (!item.isDirectory) {
+								sb.append("\n\n\n");
+								sb.append("==========================");
+								sb.append("END");
+								sb.append("==========================");
+								sb.append("\n\n");
+							}
+						}
+					}
+					contents = sb.toString();
+					
+//					contents = "Directory";
+				} else {
+					try {
+						contents = GeneralTools.readFileAsString(getValue().getAbsolutePath());
+					} catch (IOException e) {
+						contents = "Unable to read from " + getValue();
+					}
+				}
+			}
+			return contents;
+		}
+
+		@Override
+		public boolean isLeaf() {
+			return !isDirectory;
+		}
+		
+		@Override
+		public String toString() {
+			return getName();
+		}
+
+	}
+	
+	/**
+	 * Comparator that returns files before directories.
+	 */
+	static class FileFirstComparator implements Comparator<File> {
+
+		@Override
+		public int compare(File f1, File f2) {
+			if (f1.isFile()) {
+				if (!f2.isFile())
+					return -1;
+			} else if (f2.isFile())
+				return 1;
+			return f1.compareTo(f2);
+		}
+		
+	}
+
 
 }

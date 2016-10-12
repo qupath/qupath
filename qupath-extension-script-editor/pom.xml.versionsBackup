@@ -6,27 +6,38 @@
 	<parent>
 		<groupId>qupath</groupId>
 		<artifactId>qupath</artifactId>
-		<version>0.0.3</version>
+		<version>0.0.2</version>
 	</parent>
-	<artifactId>qupath-extension-openslide</artifactId>
-	<name>qupath-extension-openslide</name>
+	<artifactId>qupath-extension-script-editor</artifactId>
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 	</properties>
 
+	<!-- <repositories>
+		<repository>
+			<id>bintray</id>
+			<name>Hephaestus</name>
+			<url>https://dl.bintray.com/giancosta86/Hephaestus/</url>
+		</repository>
+	</repositories> -->
 	<dependencies>
 		<dependency>
-			<groupId>org.openslide</groupId>
-			<artifactId>openslide</artifactId>
-			<version>3.4.1</version>
+			<groupId>org.codehaus.groovy</groupId>
+			<artifactId>groovy</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.codehaus.groovy</groupId>
+			<artifactId>groovy-jsr223</artifactId>
 		</dependency>
 		<dependency>
 			<groupId>qupath</groupId>
-			<artifactId>qupath-core</artifactId>
+			<artifactId>qupath-gui-fx</artifactId>
+			<scope>provided</scope>
 		</dependency>
 		<dependency>
-			<groupId>qupath</groupId>
-			<artifactId>qupath-core-awt</artifactId>
+			<groupId>org.fxmisc.richtext</groupId>
+			<artifactId>richtextfx</artifactId>
+			<version>0.6.10</version>
 		</dependency>
 	</dependencies>
 	
@@ -40,11 +51,8 @@
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-source-plugin</artifactId>
 			</plugin>
-			<plugin>
-				<groupId>com.googlecode.mavennatives</groupId>
-				<artifactId>maven-nativedependencies-plugin</artifactId>
-			</plugin>
 		</plugins>
 	</build>
-	<description>QuPath ImageServer implementation using OpenSlide.</description>
+	<name>qupath-extension-script-editor</name>
+	<description>An improved script editor for QuPath, using RichTextFX.</description>
 </project>

@@ -46,6 +46,7 @@ import javafx.scene.control.TableView;
 import javafx.scene.control.Tooltip;
 import javafx.scene.control.cell.CheckBoxTableCell;
 import javafx.scene.input.KeyEvent;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.GridPane;
@@ -63,6 +64,7 @@ import qupath.lib.gui.ImageDataWrapper;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.helpers.ColorToolsFX;
+import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.gui.helpers.PanelToolsFX;
 import qupath.lib.gui.plots.HistogramPanelFX;
 import qupath.lib.gui.plots.HistogramPanelFX.ThresholdedChartWrapper;
@@ -130,9 +132,11 @@ public class BrightnessContrastCommand implements PathCommand, ImageDataChangeLi
 		BorderPane pane = new BorderPane();
 		
 		GridPane box = new GridPane();
-		box.add(new Label("Min display"), 0, 0);
+		Label labelMin = new Label("Min display");
+		box.add(labelMin, 0, 0);
 		box.add(sliderMin, 1, 0);
-		box.add(new Label("Max display"), 0, 1);
+		Label labelMax = new Label("Max display");
+		box.add(labelMax, 0, 1);
 		box.add(sliderMax, 1, 1);
 		box.setVgap(5);
 		GridPane.setFillWidth(sliderMin, Boolean.TRUE);
@@ -142,6 +146,45 @@ public class BrightnessContrastCommand implements PathCommand, ImageDataChangeLi
 		GridPane.setHgrow(sliderMin, Priority.ALWAYS);
 		GridPane.setHgrow(sliderMax, Priority.ALWAYS);
 		
+		// In the absence of a better way, make it possible to enter display range values 
+		// manually by double-clicking on the corresponding label
+		// TODO: Consider a better way to do this; 
+		labelMin.setOnMouseClicked(e -> {
+			if (e.getClickCount() == 2) {
+				ChannelDisplayInfo infoVisible = getCurrentInfo();
+				if (infoVisible == null)
+					return;
+
+				Double value = DisplayHelpers.showInputDialog("Display range", "Set display range minimum", (double)infoVisible.getMinDisplay());
+				if (value != null && !Double.isNaN(value)) {
+					sliderMin.setValue(value);
+					// Update display directly if out of slider range
+					if (value < sliderMin.getMin() || value > sliderMin.getMax()) {
+						infoVisible.setMinDisplay(value.floatValue());
+						viewer.updateThumbnail();
+						viewer.repaintEntireImage();
+					}
+				}
+			}
+		});
+		labelMax.setOnMouseClicked(e -> {
+			if (e.getClickCount() == 2) {
+				ChannelDisplayInfo infoVisible = getCurrentInfo();
+				if (infoVisible == null)
+					return;
+
+				Double value = DisplayHelpers.showInputDialog("Display range", "Set display range maximum", (double)infoVisible.getMaxDisplay());
+				if (value != null && !Double.isNaN(value)) {
+					sliderMax.setValue(value);
+					// Update display directly if out of slider range
+					if (value < sliderMax.getMin() || value > sliderMax.getMax()) {
+						infoVisible.setMaxDisplay(value.floatValue());
+						viewer.updateThumbnail();
+						viewer.repaintEntireImage();
+					}
+				}
+			}
+		});
 		
 		
 		Button btnAuto = new Button("Auto");
@@ -239,14 +282,25 @@ public class BrightnessContrastCommand implements PathCommand, ImageDataChangeLi
 		     @Override
 			public ObservableValue<Boolean> call(CellDataFeatures<ChannelDisplayInfo, Boolean> item) {
 		    	 SimpleBooleanProperty property = new SimpleBooleanProperty(imageDisplay.getSelectedChannels().contains(item.getValue()));
-		    	 property.addListener((v, o, n) -> {
-		    		 imageDisplay.setChannelSelected(item.getValue(), n);
-		    		 viewer.repaintEntireImage();
-		    	 });
+		    	 // Remove repaint code here - now handled by table selection changes
+//		    	 property.addListener((v, o, n) -> {
+//	    			 imageDisplay.setChannelSelected(item.getValue(), n);
+//		    		 viewer.repaintEntireImage();
+//		    	 });
 		    	 return property;
 		     }
 		  });
-		col2.setCellFactory(column -> new CheckBoxTableCell<>());
+		col2.setCellFactory(column -> {
+			CheckBoxTableCell<ChannelDisplayInfo, Boolean> cell = new CheckBoxTableCell<>();
+			// Select cells when clicked - means a click anywhere within the row forces selection.
+			// Previously, clicking within the checkbox didn't select the row.
+			cell.addEventFilter(MouseEvent.MOUSE_RELEASED, e -> {
+				int ind = cell.getIndex();
+				if (ind < column.getTableView().getItems().size())
+					column.getTableView().getSelectionModel().select(ind);
+			});
+			return cell;
+		});
 		col2.setSortable(false);
 		col2.setEditable(true);
 		col2.setResizable(false);
@@ -565,36 +619,6 @@ public class BrightnessContrastCommand implements PathCommand, ImageDataChangeLi
 		else
 			table.getItems().setAll(imageDisplay.getAvailableChannels());
 	}
-
-
-	
-//	static class ChannelCellRenderer extends DefaultTableCellRenderer {
-//
-//		private static final long serialVersionUID = -4073854916359694624L;
-//
-//		@Override
-//		public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
-//			JLabel label = (JLabel)super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
-//			if (value instanceof ChannelDisplayInfo) {
-//				ChannelDisplayInfo channel = (ChannelDisplayInfo)value;
-//				Integer rgb = channel.getColor();
-//				if (rgb == null)
-//					rgb = label.getBackground().getRGB();
-//				label.setIcon(PathIconFactory.createSquareIcon(10, 10, 1, rgb, 0));
-//				
-////				if (color == null)
-////					label.setIcon(null);
-////				else {
-////					label.setIcon(PathIconFactory.createSquareIcon(12, 12, 1, color, 0));
-////					label.setHorizontalTextPosition(JLabel.LEFT);
-////				}
-//			}
-//			return label;
-//		}
-//		
-//	}
-
-
 
 
 	@Override

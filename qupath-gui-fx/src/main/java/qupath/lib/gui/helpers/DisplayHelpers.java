@@ -366,6 +366,34 @@ public class DisplayHelpers {
 	}
 	
 	
+	/**
+	 * Show an input dialog requesting a numeric value.
+	 * 
+	 * @param title
+	 * @param message
+	 * @param initialInput
+	 * @return Number input by the user, or NaN if no valid number was entered, or null if cancel was pressed.
+	 */
+	public static Double showInputDialog(final String title, final String message, final Double initialInput) {
+		String result = showInputDialog(title, message, initialInput == null ? "" : initialInput.toString());
+		if (result == null)
+			return null;
+		try {
+			return Double.parseDouble(result);
+		} catch (Exception e) {
+			logger.error("Unable to parse numeric value from {}", result);
+			return Double.NaN;
+		}
+	}
+	
+	/**
+	 * Show an input dialog requesting a String input.
+	 * 
+	 * @param title
+	 * @param message
+	 * @param initialInput
+	 * @return
+	 */
 	public static String showInputDialog(final String title, final String message, final String initialInput) {
 		if (Platform.isFxApplicationThread()) {
 			TextInputDialog dialog = new TextInputDialog(initialInput);
