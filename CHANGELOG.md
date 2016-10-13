@@ -1,3 +1,8 @@
+## Version 0.0.4
+
+* When sending image regions to ImageJ, the 'visibility' status is used to determine whether or not objects are sent as ROIs
+
+
 ## Version 0.0.3
 
 * Fixed several formatting issues for Windows, including:

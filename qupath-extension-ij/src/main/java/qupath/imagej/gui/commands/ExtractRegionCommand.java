@@ -33,9 +33,10 @@ import java.awt.image.BufferedImage;
 import javax.swing.SwingUtilities;
 
 import qupath.imagej.gui.IJExtension;
+import qupath.imagej.helpers.IJTools;
 import qupath.lib.awt.common.AwtTools;
 import qupath.lib.display.ImageDisplay;
-import qupath.lib.gui.ViewerManager;
+import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.gui.viewer.QuPathViewer;
@@ -56,13 +57,13 @@ import qupath.lib.regions.RegionRequest;
  */
 public class ExtractRegionCommand implements PathCommand {
 	
-	private ViewerManager<?> manager;
+	private QuPathGUI qupath;
 	private double downsample;
 	private boolean prompt;
 	
-	public ExtractRegionCommand(ViewerManager<?> manager, double downsample, boolean doPrompt) {
+	public ExtractRegionCommand(QuPathGUI qupath, double downsample, boolean doPrompt) {
 //		super("Extract region (custom)", PathIconFactory.createIcon(QuPathGUI.iconSize, QuPathGUI.iconSize, PathIconFactory.PathIcons.EXTRACT_REGION));
-		this.manager = manager;
+		this.qupath = qupath;
 //		if (!doPrompt)
 //			this.putValue(NAME, String.format("Extract region (%.1fx)", downsample));
 		this.downsample = downsample;
@@ -79,7 +80,7 @@ public class ExtractRegionCommand implements PathCommand {
 
 	@Override
 	public void run() {
-		QuPathViewer viewer = manager.getViewer();
+		QuPathViewer viewer = qupath.getViewer();
 		if (viewer == null || viewer.getServer() == null)
 			return;
 		
@@ -147,7 +148,7 @@ public class ExtractRegionCommand implements PathCommand {
 
 		
 		// We should switch to the event dispatch thread when interacting with ImageJ
-		PathImage<ImagePlus> pathImage = IJExtension.extractROIWithOverlay(server, pathObject, viewer.getHierarchy(), region, true, imageDisplay);
+		PathImage<ImagePlus> pathImage = IJExtension.extractROIWithOverlay(server, pathObject, viewer.getHierarchy(), region, true, viewer.getOverlayOptions(), imageDisplay);
 		if (pathImage != null) {
 			SwingUtilities.invokeLater(() -> {
 

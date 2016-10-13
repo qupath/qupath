@@ -208,7 +208,7 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 		ImageDisplay imageDisplay2 = Boolean.TRUE.equals(params.getBooleanParameterValue("useTransform")) ? imageDisplay : null;
 		RegionRequest region = RegionRequest.createInstance(imageData.getServer().getPath(), downsampleFactor, pathROI);
 		if (sendOverlay)
-			pathImage = IJExtension.extractROIWithOverlay(imageData.getServer(), pathObject, imageData.getHierarchy(), region, sendROI, imageDisplay2);
+			pathImage = IJExtension.extractROIWithOverlay(imageData.getServer(), pathObject, imageData.getHierarchy(), region, sendROI, null, imageDisplay2);
 		else
 			pathImage = IJTools.extractROI(imageData.getServer(), pathObject, region, sendROI, imageDisplay2);
 
