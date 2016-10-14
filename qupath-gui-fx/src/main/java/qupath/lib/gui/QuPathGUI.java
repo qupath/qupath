@@ -3702,7 +3702,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	/**
 	 * Trigger an update to the title of the Stage.
 	 */
-	private void updateTitle() {
+	public void updateTitle() {
 		if (stage == null)
 			return;
 		String name = "QuPath";
@@ -3711,9 +3711,19 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		ImageData<?> imageData = getImageData();
 		if (imageData == null || imageData.getServer() == null)
 			stage.setTitle(name);
-		else
-			stage.setTitle(name + " - " + imageData.getServer().getShortServerName());	
-		
+		else {
+			// Try to set name based on project entry
+			if (project.get() != null) {
+				String path = imageData.getServerPath();
+				ProjectImageEntry<?> entry = project.get().getImageEntry(path);
+				if (entry != null) {
+					stage.setTitle(name + " - " + entry.getImageName());
+					return;
+				}
+			}			
+			// Set name based on server instead
+			stage.setTitle(name + " - " + imageData.getServer().getShortServerName());
+		}
 	}
 	
 	/**
