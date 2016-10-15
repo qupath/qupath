@@ -40,16 +40,16 @@ import org.slf4j.LoggerFactory;
  *
  */
 public class URLTools {
-	
+
 	private static Logger logger = LoggerFactory.getLogger(URLTools.class);
 
 	public static String getNameFromBaseURL(String baseURL) {
-			// Switch escape characters
-			String url = baseURL.replace("%20", " ").replace("%5C", "\\").replace("/", "\\");
-			int indStart = Math.max(0, url.lastIndexOf("\\")) + 1;
-			return url.substring(indStart);
-	//		int indEnd = Math.min(baseURL.length(), baseURL.lastIndexOf("."));
-		}
+		// Switch escape characters
+		String url = baseURL.replace("%20", " ").replace("%5C", "\\").replace("/", "\\");
+		int indStart = Math.max(0, url.lastIndexOf("\\")) + 1;
+		return url.substring(indStart);
+		//		int indEnd = Math.min(baseURL.length(), baseURL.lastIndexOf("."));
+	}
 
 	public static boolean checkURL(String url) {
 		// See if we can create a URL
@@ -62,26 +62,45 @@ public class URLTools {
 		}
 	}
 
-	public static String readURLAsString(URL url) {
+	
+	/**
+	 * Read URL as String, with default timeout of 5 seconds.
+	 * 
+	 * @param url
+	 * @return
+	 */
+	public static String readURLAsString(final URL url) {
+		return readURLAsString(url, 5000); // Here, use 5 second timeout
+	}
+
+
+	/**
+	 * Read URL as String, with specified timeout in milliseconds.
+	 * 
+	 * @param url
+	 * @param timeoutMillis
+	 * @return
+	 */
+	public static String readURLAsString(final URL url, final int timeoutMillis) {
 		StringBuilder response = new StringBuilder();
 		String line = null;
 		try{
 			URLConnection connection = url.openConnection();
-			connection.setConnectTimeout(5000); // Here, use 5 second timeout
-		      BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream()));
-		      try{
-			      while ((line = in.readLine()) != null) 
-			            response.append(line + "\n");
-		      }
-		      finally {
-		        in.close();
-		      }
+			connection.setConnectTimeout(timeoutMillis);
+			BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+			try{
+				while ((line = in.readLine()) != null) 
+					response.append(line + "\n");
+			}
+			finally {
+				in.close();
+			}
 		}
 		catch (IOException ex) {
 			logger.error("Error parsing URL: {}", url);
 			logger.error(ex.getMessage(), ex);
 		}
-	    return response.toString();
+		return response.toString();
 	}
 
 }

@@ -39,6 +39,7 @@ import java.lang.Thread.UncaughtExceptionHandler;
 import java.lang.reflect.Constructor;
 import java.net.MalformedURLException;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.file.FileSystem;
@@ -46,6 +47,7 @@ import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.sql.Date;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -76,6 +78,7 @@ import org.controlsfx.glyphfont.Glyph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import ch.qos.logback.core.util.StringCollectionUtil;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
@@ -120,7 +123,9 @@ import javafx.scene.control.SplitPane.Divider;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 import javafx.scene.control.TabPane.TabClosingPolicy;
+import javafx.scene.control.TextArea;
 import javafx.scene.control.TextInputControl;
+import javafx.scene.control.TitledPane;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.control.ToggleGroup;
 import javafx.scene.control.ToolBar;
@@ -154,6 +159,7 @@ import qupath.lib.algorithms.LocalBinaryPatternsPlugin;
 import qupath.lib.algorithms.TilerPlugin;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.common.SimpleThreadFactory;
+import qupath.lib.common.URLTools;
 import qupath.lib.gui.commands.AnnotationCombineCommand;
 import qupath.lib.gui.commands.BrightnessContrastCommand;
 import qupath.lib.gui.commands.CommandListDisplayCommand;
@@ -316,6 +322,9 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	
 	private String buildString = null;
 	private String versionString = null;
+	
+	// For development... set to true to make sure the update check is not run on launch
+	private boolean disableAutoUpdateCheck = true;
 	
 	private static ExtensionClassLoader extensionClassLoader = new ExtensionClassLoader();
 	private ServiceLoader<QuPathExtension> extensionLoader = ServiceLoader.load(QuPathExtension.class, extensionClassLoader);
@@ -670,6 +679,12 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		
 		
 		logger.info("Build string: {}", buildString);
+		
+		
+		// Do auto-update check
+		if (!disableAutoUpdateCheck)
+			checkForUpdate(true);
+
 	}
 	
 	
@@ -886,6 +901,104 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 //		}
 //		return false;
 //	}
+	
+	
+	/**
+	 * Check for any updates, showing the new changelog if any updates found.
+	 * 
+	 * @param isAutoCheck If true, the check will only be performed if the auto-update preferences allow it, 
+	 * 					  and the user won't be prompted if no update is available.
+	 */
+	private void checkForUpdate(final boolean isAutoCheck) {
+		
+		// Confirm if the user wants us to check for updates
+		boolean doAutoUpdateCheck = PathPrefs.getUserPreferences().getBoolean("doAutoUpdateCheck", true);
+		if (isAutoCheck && !doAutoUpdateCheck)
+			return;
+
+		// Calculate when we last looked for an update
+		long currentTime = System.currentTimeMillis();
+		long lastUpdateCheck = PathPrefs.getUserPreferences().getLong("lastUpdateCheck", 0);
+
+		// Don't check run auto-update check again if we already checked within the last hour
+		long diffHours = (currentTime - lastUpdateCheck) / (60 * 60 * 1000);
+//		if (isAutoCheck && diffHours < 1)
+//			return;
+
+		// Run the check in a background thread
+		createSingleThreadExecutor(this).execute(() -> {
+			try {
+				// Try to download latest changelog
+				URL url = new URL("https://raw.githubusercontent.com/qupath/qupath/master/CHANGELOG.md");
+				String changeLog = URLTools.readURLAsString(url, 1000);
+				
+				// Store last update check time
+				PathPrefs.getUserPreferences().putLong("lastUpdateCheck", System.currentTimeMillis());
+				
+				// TODO: Compare changelogs
+				
+				// TODO: If not isAutoCheck, inform user even if there are no updated at this time
+				
+				// If changelogs are different, notify the user
+				showChangelogForUpdate(changeLog);
+			} catch (Exception e) {
+				logger.debug("Unable to check for updates - {}", e.getLocalizedMessage());
+			}
+		});
+
+
+		PathPrefs.getUserPreferences().putLong("lastUpdateCheck", System.currentTimeMillis());
+	}
+	
+	
+	
+	private void showChangelogForUpdate(final String changelog) {
+		if (!Platform.isFxApplicationThread()) {
+			// Need to be on FX thread
+			Platform.runLater(() -> showChangelogForUpdate(changelog));
+			return;
+		}
+		// TODO: Show changelog with option to download, not now, or do not remind again
+		Dialog<ButtonType> dialog = new Dialog<>();
+		dialog.setTitle("Update QuPath");
+		dialog.initOwner(getStage());
+		ButtonType btDownload = new ButtonType("Download update");
+		ButtonType btNotNow = new ButtonType("Not now");
+		ButtonType btDoNotRemind = new ButtonType("Do not remind me again");
+		
+		dialog.getDialogPane().getButtonTypes().addAll(
+				btDownload,
+				btNotNow
+//				btDoNotRemind
+				);
+		dialog.setHeaderText("A new version of QuPath is available!");
+		
+		TextArea textArea = new TextArea(changelog);
+		textArea.setWrapText(true);
+		
+		
+//		BorderPane pane = new BorderPane();
+		TitledPane paneChanges = new TitledPane("Changes", textArea);
+		
+		
+		dialog.getDialogPane().setContent(paneChanges);
+		Optional<ButtonType> result = dialog.showAndWait();
+		if (!result.isPresent())
+			return;
+		
+		if (result.get().equals(btDownload)) {
+			String url = "https://github.com/qupath/qupath/releases/latest";
+			try {
+				DisplayHelpers.browseURI(new URI(url));
+			} catch (URISyntaxException e) {
+				DisplayHelpers.showErrorNotification("Download", "Unable to open " + url);
+			}
+		} else if (result.get().equals(btDoNotRemind)) {
+			PathPrefs.getUserPreferences().putBoolean("doAutoUpdateCheck", false);
+		}
+	}
+	
+	
 	
 	/**
 	 * Keep a record of loaded extensions, both for display and to avoid loading them twice.
