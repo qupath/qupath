@@ -64,6 +64,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javafx.application.Platform;
+import javafx.beans.binding.Bindings;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.IntegerProperty;
@@ -97,9 +98,9 @@ import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.ContentDisplay;
+import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
-import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuBar;
@@ -111,13 +112,17 @@ import javafx.scene.control.Separator;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 import javafx.scene.control.TabPane.TabClosingPolicy;
-import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
-import javafx.scene.control.TableColumn.CellDataFeatures;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
 import javafx.scene.control.ToolBar;
 import javafx.scene.control.Tooltip;
+import javafx.scene.control.TreeItem;
+import javafx.scene.control.TreeTableCell;
+import javafx.scene.control.TreeTableColumn;
+import javafx.scene.control.TreeTableColumn.CellDataFeatures;
+import javafx.scene.control.TreeTableRow;
+import javafx.scene.control.TreeTableView;
 import javafx.scene.effect.DropShadow;
 import javafx.scene.image.Image;
 import javafx.scene.input.Clipboard;
@@ -129,7 +134,6 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
-import javafx.scene.text.Font;
 import javafx.scene.text.TextAlignment;
 import javafx.stage.Stage;
 import javafx.util.Callback;
@@ -262,20 +266,15 @@ public class TMASummaryViewer {
 	private ReadOnlyObjectProperty<MeasurementCombinationMethod> selectedMeasurementCombinationProperty = comboMeasurementMethod.getSelectionModel().selectedItemProperty();
 	
 	
-	private TableView<TMAEntry> table = new TableView<>();
-	private TableView<TMAEntry> tableDetail = new TableView<>();
-	private ListView<TMAEntry> listImages = new ListView<>();
+	private TreeTableView<TMAEntry> table = new TreeTableView<>();
 	private TMATableModel model;
 
 	private OverlayOptions overlayOptions = new OverlayOptions();
 	private TMAEntry entrySelected = null;
 
-	private boolean showOverlay = true;
-
 	private BooleanProperty showAnalysisProperty = new SimpleBooleanProperty(false);
 	private BooleanProperty useSelectedProperty = new SimpleBooleanProperty(false);
 	private BooleanProperty skipMissingCoresProperty = new SimpleBooleanProperty(true);
-	private BooleanProperty showDetailsProperty = new SimpleBooleanProperty(false);
 
 	private HistogramDisplay histogramDisplay;
 	private	KaplanMeierDisplay kmDisplay;
@@ -371,10 +370,8 @@ public class TMASummaryViewer {
 		});
 		predicate.addListener((v, o, n) -> {
 			Platform.runLater(() -> {
-				refreshTableData(table, null, false, getColumnFilter());
-				refreshDetailTable();
+				refreshTableData(table, null, getColumnFilter());
 				table.refresh();
-				tableDetail.refresh();
 				histogramDisplay.refreshHistogram();
 				updateSurvivalCurves();
 				scatterPane.updateChart();
@@ -482,14 +479,6 @@ public class TMASummaryViewer {
 		
 
 		table.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
-		table.getSelectionModel().getSelectedItems().addListener(new ListChangeListener<TMAEntry>() {
-
-			@Override
-			public void onChanged(Change<? extends TMAEntry> c) {
-				refreshDetailTable();
-			}
-
-		});
 		
 		BorderPane pane = new BorderPane();
 		pane.setTop(menuBar);
@@ -505,10 +494,6 @@ public class TMASummaryViewer {
 		cbShowAnalysis.setSelected(showAnalysisProperty.get());
 		cbShowAnalysis.selectedProperty().bindBidirectional(showAnalysisProperty);
 		
-		CheckBox cbShowDetails = new CheckBox("Show details");
-		cbShowDetails.setSelected(showDetailsProperty.get());
-		cbShowDetails.selectedProperty().bindBidirectional(showDetailsProperty);
-		
 		CheckBox cbUseSelected = new CheckBox("Use selection only");
 		cbUseSelected.selectedProperty().bindBidirectional(useSelectedProperty);
 		
@@ -516,7 +501,6 @@ public class TMASummaryViewer {
 		cbSkipMissing.selectedProperty().bindBidirectional(skipMissingCoresProperty);
 		skipMissingCoresProperty.addListener((v, o, n) -> {
 			table.refresh();
-			tableDetail.refresh();
 			updateSurvivalCurves();
 			if (histogramDisplay != null)
 				histogramDisplay.refreshHistogram();
@@ -530,7 +514,6 @@ public class TMASummaryViewer {
 				comboMeasurementMethod,
 				new Separator(Orientation.VERTICAL),
 				cbShowAnalysis,
-				cbShowDetails,
 				new Separator(Orientation.VERTICAL),
 				cbUseSelected,
 				new Separator(Orientation.VERTICAL),
@@ -541,39 +524,76 @@ public class TMASummaryViewer {
 		selectedMeasurementCombinationProperty.addListener((v, o, n) -> table.refresh());
 
 		
+		ContextMenu popup = new ContextMenu();
+		MenuItem miExpand = new MenuItem("Expand all");
+		miExpand.setOnAction(e -> {
+			if (table.getRoot() == null)
+				return;
+			for (TreeItem<?> item : table.getRoot().getChildren()) {
+				item.setExpanded(true);
+			}
+		});
+		MenuItem miCollapse = new MenuItem("Collapse all");
+		miCollapse.setOnAction(e -> {
+			if (table.getRoot() == null)
+				return;
+			for (TreeItem<?> item : table.getRoot().getChildren()) {
+				item.setExpanded(false);
+			}
+		});
+		popup.getItems().addAll(miExpand, miCollapse);
+		table.setContextMenu(popup);
+		
+		table.setRowFactory(e -> {
+			TreeTableRow<TMAEntry> row = new TreeTableRow<>();
+			
+//			// Make rows invisible if they don't pass the predicate
+//			row.visibleProperty().bind(Bindings.createBooleanBinding(() -> {
+//					TMAEntry entry = row.getItem();
+//					if (entry == null || (entry.isMissing() && skipMissingCoresProperty.get()))
+//							return false;
+//					return entries.getPredicate() == null || entries.getPredicate().test(entry);
+//					},
+//					skipMissingCoresProperty,
+//					entries.predicateProperty()));
+			
+			// Style rows according to what they contain
+			row.styleProperty().bind(
+					Bindings.createStringBinding(
+							() -> {
+								if (row.isSelected())
+									return "";
+								TMAEntry entry = row.getItem();
+								if (entry == null || entry instanceof TMASummaryEntry)
+									return "";
+								else if (entry.isMissing())
+									return "-fx-background-color:rgb(225,225,232)";				
+								else
+									return "-fx-background-color:rgb(240,240,245)";	
+							},
+							row.itemProperty(),
+							row.selectedProperty())
+					);
+//			row.itemProperty().addListener((v, o, n) -> {
+//				if (n == null || n instanceof TMASummaryEntry || row.isSelected())
+//					row.setStyle("");
+//				else if (n.isMissing())
+//					row.setStyle("-fx-background-color:rgb(225,225,232)");				
+//				else
+//					row.setStyle("-fx-background-color:rgb(240,240,245)");				
+//			});
+			return row;
+		});
+		
+		
 		BorderPane paneTable = new BorderPane();
 		paneTable.setTop(toolbar);
-		
-		listImages.setOrientation(Orientation.HORIZONTAL);
-		listImages.setItems(tableDetail.getItems());
-		listImages.setCellFactory(c -> new ImageListCell());
-		listImages.heightProperty().addListener((v, o, n) -> listImages.refresh());
-		listImages.setStyle("-fx-control-inner-background-alt: -fx-control-inner-background ;");
-		BorderPane paneImages = new BorderPane();
-		paneImages.setCenter(listImages);
-		
-		TabPane tabPaneDetails = new TabPane();
-		tabPaneDetails.getTabs().addAll(
-				new Tab("Images", paneImages),
-				new Tab("Table", tableDetail)
-				);
-		
-		
-		
-		tabPaneDetails.setTabClosingPolicy(TabClosingPolicy.UNAVAILABLE);
-		tabPaneDetails.setSide(Side.LEFT);
-		
-		MasterDetailPane mdPane = new MasterDetailPane(Side.BOTTOM, table, tabPaneDetails, false);
-		paneTable.setCenter(mdPane);
+		paneTable.setCenter(table);
 
 		MasterDetailPane mdTablePane = new MasterDetailPane(Side.RIGHT, paneTable, createSidePane(), true);
 
 		mdTablePane.showDetailNodeProperty().bind(showAnalysisProperty);
 
-		mdPane.showDetailNodeProperty().bind(showDetailsProperty);
-//		mdPane.showDetailNodeProperty().bind(
-//				Bindings.createBooleanBinding(() -> !tableDetail.getItems().isEmpty(),
-//				tableDetail.getItems()));
 		pane.setCenter(mdTablePane);
 		
 		
@@ -627,35 +647,11 @@ public class TMASummaryViewer {
 				promptForComment();
 				return;
 			}
-
-			// Note, only this actually does anything... the overlay isn't shown 'conventionally',
-			// but rather by using a second image (for fast performance)
-			if (code == KeyCode.H) {
-				setShowOverlay(!getShowOverlay());
-			}
-			
-			// This doesn't really do anything... for the above reasons
-			if (code == KeyCode.H)
-				overlayOptions.setShowObjects(!overlayOptions.getShowObjects());
-			else if (code == KeyCode.F)
-				overlayOptions.setFillObjects(!overlayOptions.getFillObjects());
 		});
 
 	}
 	
 	
-	
-	private void refreshDetailTable() {
-		// Update detail table
-		List<TMAEntry> detailEntries = new ArrayList<>();
-		for (TMAEntry temp : table.getSelectionModel().getSelectedItems()) {
-			if (temp instanceof TMASummaryEntry)
-				detailEntries.addAll(((TMASummaryEntry)temp).getEntries());
-			else
-				detailEntries.add(temp);
-		}
-		refreshTableData(tableDetail, detailEntries, true, null);
-	}
 	
 	private static Map<String, Image> imageMap = new LinkedHashMap<String, Image>(200, 1, true) {
 		
@@ -677,119 +673,7 @@ public class TMASummaryViewer {
 	}
 	
 	
-	private class ImageListCell extends ListCell<TMAEntry> {
-		
-		final private Canvas canvas = new Canvas();
-		final private Tooltip tooltip = new Tooltip();
-		
-		ImageListCell() {
-			super();
-			canvas.setStyle("-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.5), 4, 0, 1, 1);");
-			canvas.setWidth(250);
-			canvas.setHeight(250);
-			canvas.widthProperty().bind(canvas.heightProperty());
-			
-			tooltip.setFont(Font.font("Monospaced"));
-		}
-		
-		@Override
-		protected void updateItem(TMAEntry entry, boolean empty) {
-			super.updateItem(entry, empty);
-			if (entry == null || empty) {
-				setGraphic(null);
-				setTooltip(null);
-				return;
-			}
-			
-//			double w = getTableColumn().getWidth()-10;
-			double w = listImages.getHeight() - 10;
-			canvas.setHeight(w);
-			setGraphic(canvas);
-			
-			this.setContentDisplay(ContentDisplay.CENTER);
-			this.setAlignment(Pos.CENTER);
-			
-			Image img;
-			if (showOverlay) {
-				img = entry.getOverlay();
-			}
-	    	 else {
-	    		img = entry.getImage();
-	    	 }
-			
-			GraphicsContext gc = canvas.getGraphicsContext2D();
-			gc.clearRect(0, 0, w, w);
-			if (img == null)
-				return;
-			if (img != null) {
-				PaintingToolsFX.paintImage(canvas, img);
-			}
-//			else if (!waitingImages.contains(path)) {
-//				waitingImages.add(path);
-//				pool.execute(new ImageWorker(path));
-//				// Put in a request for the other path, just in case
-//				if (!imageMap.containsKey(otherPath) && !waitingImages.contains(otherPath)) {
-//					waitingImages.add(otherPath);
-//					pool.execute(new ImageWorker(otherPath));
-//			}
-			
-			
-//			InfoOverlay infoOverlay = new InfoOverlay();
-//			infoOverlay.setText(getTMAEntryText(entry));
-//			infoOverlay.setContent(canvas);
-//			infoOverlay.setShowOnHover(false);
-//			setGraphic(infoOverlay);
-			
-			tooltip.setText(getTMAEntryText(entry));
-			setTooltip(tooltip);
-		}
-		
-	}
-	
-	
-	private static String getTMAEntryText(final TMAEntry entry) {
-		StringBuilder sb = new StringBuilder();
-		
-		String coreName = entry.getName();
-		if (coreName != null)
-			sb.append("Name:  \t").append(coreName).append("\n\n");
-
-		String server = entry.getShortServerName();
-		if (server != null)
-			sb.append("Image:  \t").append(server).append("\n\n");
-
-		int maxLength = 0;
-		for (String name : entry.getMetadataNames()) {
-			maxLength = Math.max(maxLength, name.length());
-		}
-		if (maxLength > 0) {
-			for (String name : entry.getMetadataNames()) {
-				sb.append(name).append(":");
-				for (int i = name.length(); i < maxLength; i++)
-					sb.append(" ");
-				sb.append("  \t").append(entry.getMetadataValue(name)).append("\n");
-			}
-			maxLength = 0;
-			sb.append("\n");
-		}
-		
-		for (String name : entry.getMeasurementNames()) {
-			maxLength = Math.max(maxLength, name.length());
-		}
-		if (maxLength > 0) {
-			for (String name : entry.getMeasurementNames()) {
-				sb.append(name).append(":");
-				for (int i = name.length(); i < maxLength; i++)
-					sb.append(" ");
-				sb.append("  \t").append(entry.getMeasurement(name)).append("\n");
-			}
-		}
-		return sb.toString();
-	}
-	
-	
-	
-	private class ImageTableCell extends TableCell<TMAEntry, Image> {
+	private class ImageTableCell extends TreeTableCell<TMAEntry, Image> {
 		
 		final private Canvas canvas = new Canvas();
 		
@@ -818,10 +702,7 @@ public class TMASummaryViewer {
 			
 			GraphicsContext gc = canvas.getGraphicsContext2D();
 			gc.clearRect(0, 0, w, w);
-			Image img = imageMap.get(item);
-			if (img != null) {
-				PaintingToolsFX.paintImage(canvas, img);
-			}
+			PaintingToolsFX.paintImage(canvas, item);
 //			else if (!waitingImages.contains(item)) {
 //				waitingImages.add(item);
 //				pool.execute(new ImageWorker(item));
@@ -1156,7 +1037,7 @@ public class TMASummaryViewer {
 		
 		// Add the count of non-missing cores if we are working with summaries
 //		if (containsSummaries)
-		namesMeasurements.add("Non missing");
+		namesMeasurements.add("Available cores");
 		
 		// Make sure there are no nulls or other unusable values
 		namesMeasurements.remove(null);
@@ -1179,7 +1060,8 @@ public class TMASummaryViewer {
 		metadataNames.clear();
 		metadataNames.addAll(namesMetadata);
 		
-		refreshTableData(table, createSummaryEntries(entriesBase), false, getColumnFilter());
+		refreshTableData(table, createSummaryEntries(entriesBase), getColumnFilter());
+		
 		model.refreshList();
 	}
 
@@ -1187,80 +1069,120 @@ public class TMASummaryViewer {
 	
 	
 	@SuppressWarnings({ "rawtypes", "unchecked" })
-	private void refreshTableData(final TableView<TMAEntry> table, final Collection<? extends TMAEntry> entries, final boolean includeImages, final Predicate<String> columnFilter) {
-		
+	private void refreshTableData(final TreeTableView<TMAEntry> table, final Collection<? extends TMAEntry> entries, final Predicate<String> columnFilter) {
+
 		// Ensure that we don't try to modify a filtered list
-		ObservableList<TableColumn<TMAEntry, ?>> columns = table.getColumns();
+		ObservableList<TreeTableColumn<TMAEntry, ?>> columns = table.getColumns();
 		while (columns instanceof FilteredList)
 			columns = ((FilteredList)columns).getSource();
-		
-		if (includeImages) {
-			if (table.getColumns().isEmpty()) {
-				TableColumn<TMAEntry, Image> columnImage = new TableColumn<>("Thumbnail");
-				columnImage.setCellValueFactory(new Callback<CellDataFeatures<TMAEntry, Image>, ObservableValue<Image>>() {
-				     @Override
-					public ObservableValue<Image> call(CellDataFeatures<TMAEntry, Image> p) {
-				    	 if (showOverlay)
-				    		 return new SimpleObjectProperty<>(p.getValue().getOverlay());
-				    	 else
-				    		 return new SimpleObjectProperty<>(p.getValue().getImage());
-				     }
-				  });
-				columnImage.setCellFactory(c -> new ImageTableCell());
-				columnImage.widthProperty().addListener((v, o, n) -> table.refresh());
-				columns.add(columnImage);
 
-			}
-			else
-				columns.remove(1, table.getColumns().size());
-//				table.getColumns().remove(2, table.getColumns().size());
+		if (table.getColumns().isEmpty()) {
 			
-		} else
-			columns.clear();
-		
+			// Add an empty column.
+			// Its purpose is to provide the space needed for the little expansion arrows, to avoid 
+			// these stealing space from the first interesting column.
+			// Note: there's nothing to prevent the user reordering it along with other columns... 
+			// but hopefully it looks 'right' enough where it is that few would try to do that
+			TreeTableColumn<TMAEntry, String> columnEmpty = new TreeTableColumn<>("  ");
+			columnEmpty.setCellValueFactory(new Callback<CellDataFeatures<TMAEntry, String>, ObservableValue<String>>() {
+				@Override
+				public ObservableValue<String> call(CellDataFeatures<TMAEntry, String> p) {
+					return Bindings.createStringBinding(() -> "");
+				}
+			});
+			columnEmpty.setSortable(false);
+			columnEmpty.setResizable(false);
+			columns.add(columnEmpty);
+			
+			// Add columns to show images
+			TreeTableColumn<TMAEntry, Image> columnImage = new TreeTableColumn<>("Thumbnail");
+			TreeTableColumn<TMAEntry, Image> columnOverlay = new TreeTableColumn<>("Overlay");
+
+			columnImage.setCellValueFactory(new Callback<CellDataFeatures<TMAEntry, Image>, ObservableValue<Image>>() {
+				@Override
+				public ObservableValue<Image> call(CellDataFeatures<TMAEntry, Image> p) {
+					return new SimpleObjectProperty<>(p.getValue().getValue().getImage());
+				}
+			});
+			columnImage.setCellFactory(c -> new ImageTableCell());
+			columnImage.widthProperty().addListener((v, o, n) -> {
+				if (n.doubleValue() == columnImage.getPrefWidth())
+					return;
+				columnOverlay.setPrefWidth(n.doubleValue());
+				table.refresh();
+			});
+			columns.add(columnImage);
+
+			columnOverlay.setCellValueFactory(new Callback<CellDataFeatures<TMAEntry, Image>, ObservableValue<Image>>() {
+				@Override
+				public ObservableValue<Image> call(CellDataFeatures<TMAEntry, Image> p) {
+					return new SimpleObjectProperty<>(p.getValue().getValue().getOverlay());
+				}
+			});
+			columnOverlay.setCellFactory(c -> new ImageTableCell());
+			columnOverlay.widthProperty().addListener((v, o, n) -> {
+				if (n.doubleValue() == columnOverlay.getPrefWidth())
+					return;
+				columnImage.setPrefWidth(n.doubleValue());
+				table.refresh();
+			});
+			columns.add(columnOverlay);
+
+		}
+//		else
+//			columns.remove(1, table.getColumns().size());
+//		//				table.getColumns().remove(2, table.getColumns().size());
+
 		
 		for (String name : model.getAllNames()) {
 			if (model.getMeasurementNames().contains(name)) {
-				TableColumn<TMAEntry, Number> column = new TableColumn<>(name);
+				TreeTableColumn<TMAEntry, Number> column = new TreeTableColumn<>(name);
 				column.setCellValueFactory(new Callback<CellDataFeatures<TMAEntry, Number>, ObservableValue<Number>>() {
-				     @Override
+					@Override
 					public ObservableValue<Number> call(CellDataFeatures<TMAEntry, Number> p) {
-				    	 double value = p.getValue() == null ? Double.NaN : model.getNumericValue(p.getValue(), name);
-				    	 return new SimpleDoubleProperty(value);
-				     }
-				  });
-				column.setCellFactory(c -> new SummaryMeasurementTableCommand.NumericTableCell<>(null));
+						double value = p.getValue() == null ? Double.NaN : model.getNumericValue(p.getValue().getValue(), name);
+						return new SimpleDoubleProperty(value);
+					}
+				});
+				column.setCellFactory(c -> new NumericTableCell<>());
 				columns.add(column);
 			} else {
-				TableColumn<TMAEntry, Object> column = new TableColumn<>(name);
+				TreeTableColumn<TMAEntry, Object> column = new TreeTableColumn<>(name);
 				column.setCellValueFactory(new Callback<CellDataFeatures<TMAEntry, Object>, ObservableValue<Object>>() {
-				     @Override
+					@Override
 					public ObservableValue<Object> call(CellDataFeatures<TMAEntry, Object> p) {
-				    	return new SimpleObjectProperty<>(p.getValue() == null ? null : model.getStringValue(p.getValue(), name));
-				     }
-				  });
-				column.setCellFactory(c -> new SummaryMeasurementTableCommand.BasicTableCell<>());
+						return new SimpleObjectProperty<>(p.getValue() == null ? null : model.getStringValue(p.getValue().getValue(), name));
+					}
+				});
+				column.setCellFactory(c -> new BasicTableCell<>());
 				columns.add(column);
 			}
 		}
-		if (entries != null)
-			table.getItems().setAll(entries);
-		
+		if (entries != null) {
+			List<TreeItem<TMAEntry>> items = new ArrayList<>();
+			for (TMAEntry entry : entries) {
+				if (entry instanceof TMASummaryEntry) {
+					TreeItem<TMAEntry> item = new TreeItem<>(entry);
+					for (TMAEntry subEntry : ((TMASummaryEntry)entry).getEntries())
+						item.getChildren().add(new TreeItem<>(subEntry));
+					items.add(item);
+				} else {
+					items.add(new TreeItem<>(entry));
+				}
+			}
+			TreeItem<TMAEntry> root = new TreeItem<>(null);
+			root.getChildren().addAll(items);
+			table.setShowRoot(false);
+			table.setRoot(root);
+		}
+
 		if (columnFilter != null)
 			updateColumnVisibility(table, columnFilter);
-		
-//		columnPredicate.
-//		tableColumns
-		
-//		table.setRoot(buildTreeRoot());
-//		table.setShowRoot(false);
 	}
 	
 	
-	
-	
-	private void updateColumnVisibility(final TableView<?> table, final Predicate<String> predicate) {
-		for (TableColumn<?, ?> column : table.getColumns()) {
+	private void updateColumnVisibility(final TreeTableView<?> table, final Predicate<String> predicate) {
+		for (TreeTableColumn<?, ?> column : table.getColumns()) {
 			boolean visible = predicate == null || predicate.test(column.getText());
 			column.setVisible(visible);
 		}
@@ -1388,31 +1310,15 @@ public class TMASummaryViewer {
 
 
 
-	private boolean getShowOverlay() {
-		return showOverlay;
-	}
-
-	private void setShowOverlay(final boolean show) {
-		if (showOverlay == show)
-			return;
-		this.showOverlay = show;
-		
-		tableDetail.refresh();
-		listImages.refresh();
-	}
-
-	
-
-
 	private class TMATableModel implements PathTableData<TMAEntry> {
 		
 		private ObservableList<TMAEntry> list = FXCollections.observableArrayList();
 		
 		TMATableModel() {
 			useSelectedProperty.addListener((v, o, n) -> refreshList());
-			table.getSelectionModel().getSelectedItems().addListener(new ListChangeListener<TMAEntry>() {
+			table.getSelectionModel().getSelectedItems().addListener(new ListChangeListener<TreeItem<TMAEntry>>() {
 				@Override
-				public void onChanged(ListChangeListener.Change<? extends TMAEntry> c) {
+				public void onChanged(ListChangeListener.Change<? extends TreeItem<TMAEntry>> c) {
 					if (useSelectedProperty.get())
 						refreshList();
 				}
@@ -1421,12 +1327,19 @@ public class TMASummaryViewer {
 		}
 		
 		private void refreshList() {
-			if (useSelectedProperty.get())
-				list.setAll(table.getSelectionModel().getSelectedItems());
-			else
-				list.setAll(table.getItems());
+			if (table.getRoot() == null)
+				list.clear();
+			else if (useSelectedProperty.get()) {
+				List<TMAEntry> selectedList = table.getSelectionModel().getSelectedItems().stream().map(i -> i.getValue()).collect(Collectors.toList());
+				// If we have *any* summary entries, then make sure we have *all* summary entries
+				if (selectedList.stream().anyMatch(e -> e instanceof TMASummaryEntry))
+					selectedList = selectedList.stream().filter(e -> e instanceof TMASummaryEntry).collect(Collectors.toList());
+				list.setAll(selectedList);
+			} else
+				list.setAll(table.getRoot().getChildren().stream().map(i -> i.getValue()).collect(Collectors.toList()));
 		}
-
+		
+		
 		@Override
 		public List<String> getAllNames() {
 			List<String> namesList = new ArrayList<>();
@@ -1470,7 +1383,7 @@ public class TMASummaryViewer {
 		public double getNumericValue(TMAEntry entry, String column) {
 			if (entry == null)
 				return Double.NaN;
-			if ("Non missing".equals(column))
+			if ("Available cores".equals(column))
 				return entry instanceof TMASummaryEntry ? ((TMASummaryEntry)entry).nNonMissingEntries() : Double.NaN;
 			Number value = entry.getMeasurement(column);
 			return value == null ? Double.NaN : value.doubleValue();
@@ -2116,8 +2029,32 @@ public class TMASummaryViewer {
 						// Only clear selection if selection isn't used for display
 						if (!useSelectedProperty.get())
 							table.getSelectionModel().clearSelection();
-						table.getSelectionModel().select(entry);
-						table.scrollTo(entry);
+						
+						
+						
+						
+						
+						
+						
+						
+						
+						
+						
+						
+						
+						
+						
+						
+						
+						
+						
+						
+						
+						
+						
+						// TODO: REINSTATE SELECTION???
+//						table.getSelectionModel().select(entry);
+//						table.scrollTo(entry);
 					});
 				}
 				DropShadow dropShadow = new DropShadow();
@@ -2420,5 +2357,53 @@ public class TMASummaryViewer {
 		
 	}
 	
+	
+	
+	
+	static class NumericTableCell<T> extends TreeTableCell<T, Number> {
+
+		@Override
+		protected void updateItem(Number item, boolean empty) {
+			super.updateItem(item, empty);
+			if (item == null || empty) {
+				setText(null);
+				setStyle("");
+			} else {
+				setAlignment(Pos.CENTER);
+				if (Double.isNaN(item.doubleValue()))
+					setText("-");
+				else {
+					if (item.doubleValue() >= 1000)
+						setText(GeneralTools.getFormatter(1).format(item));
+					else if (item.doubleValue() >= 10)
+						setText(GeneralTools.getFormatter(2).format(item));
+					else
+						setText(GeneralTools.getFormatter(3).format(item));
+				}
+			}
+		}
+
+	}
+	
+	
+	
+	static class BasicTableCell<S, T> extends TreeTableCell<S, T> {
+
+		public BasicTableCell() {
+			setAlignment(Pos.CENTER);
+		}
+
+		@Override
+		protected void updateItem(T item, boolean empty) {
+			super.updateItem(item, empty);
+			if (item == null || empty) {
+				setText(null);
+				setGraphic(null);
+				return;
+			}
+			setText(item.toString());
+		}
+
+	}
 
 }
