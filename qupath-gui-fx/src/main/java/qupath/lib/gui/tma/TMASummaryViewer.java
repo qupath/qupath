@@ -24,7 +24,11 @@
 package qupath.lib.gui.tma;
 
 import java.awt.image.BufferedImage;
+import java.io.BufferedInputStream;
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -647,6 +651,8 @@ public class TMASummaryViewer {
 		for (TMAEntry temp : table.getSelectionModel().getSelectedItems()) {
 			if (temp instanceof TMASummaryEntry)
 				detailEntries.addAll(((TMASummaryEntry)temp).getEntries());
+			else
+				detailEntries.add(temp);
 		}
 		refreshTableData(tableDetail, detailEntries, true, null);
 	}
@@ -1105,7 +1111,7 @@ public class TMASummaryViewer {
 	}
 	
 	
-	private void setTMAEntries(final Collection<TMAEntry> newEntries) {
+	void setTMAEntries(final Collection<TMAEntry> newEntries) {
 		// Turn off use-selected - can be crashy when replacing entries
 		if (!newEntries.equals(entriesBase))
 			useSelectedProperty.set(false);
@@ -1204,7 +1210,8 @@ public class TMASummaryViewer {
 				columnImage.widthProperty().addListener((v, o, n) -> table.refresh());
 				columns.add(columnImage);
 
-			} else
+			}
+			else
 				columns.remove(1, table.getColumns().size());
 //				table.getColumns().remove(2, table.getColumns().size());
 			
@@ -1697,13 +1704,20 @@ public class TMASummaryViewer {
 				Image img = imageMap.get(imagePath);
 				if (img != null)
 					return img;
-				try {
-					img = new Image(new File(imagePath).toURI().toURL().toString(), false);
+				try (InputStream stream = new BufferedInputStream(new FileInputStream(new File(imagePath)))) {
+					img = new Image(stream);
 					imageMap.put(imagePath, img);
 					return img;
-				} catch (MalformedURLException e) {
+				} catch (IOException e) {
 					logger.error("Cannot show image: {}", e);
 				}
+//				try {
+//					img = new Image(new File(imagePath).toURI().toURL().toExternalForm(), false);
+//					imageMap.put(imagePath, img);
+//					return img;
+//				} catch (MalformedURLException e) {
+//					logger.error("Cannot show image: {}", e);
+//				}
 			}
 			return null;
 		}

@@ -247,6 +247,7 @@ import qupath.lib.gui.panels.WorkflowPanel;
 import qupath.lib.gui.panels.classify.RandomTrainingRegionSelector;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.prefs.QuPathStyleManager;
+import qupath.lib.gui.tma.TMAExplorer;
 import qupath.lib.gui.viewer.DragDropFileImportListener;
 import qupath.lib.gui.viewer.ModeWrapper;
 import qupath.lib.gui.viewer.OverlayOptions;
@@ -2600,6 +2601,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				createCommandAction(new TMAGridReset(this), "Reset TMA metadata"),
 				getActionMenuItem(GUIActions.CLEAR_TMA_CORES),
 				createCommandAction(new TMAGridView(this), "TMA grid summary view (experimental)"),
+				createCommandAction(new TMAExplorer(this), "TMA explorer (experimental)"),
 				null,
 				createPluginAction("Find convex hull detections (TMA)", FindConvexHullDetectionsPlugin.class, this, false, null)
 				);
