@@ -75,8 +75,10 @@ import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableBooleanValue;
 import javafx.beans.value.ObservableValue;
+import javafx.beans.value.WeakChangeListener;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
@@ -123,6 +125,7 @@ import javafx.scene.control.TreeTableColumn;
 import javafx.scene.control.TreeTableColumn.CellDataFeatures;
 import javafx.scene.control.TreeTableRow;
 import javafx.scene.control.TreeTableView;
+import javafx.scene.control.cell.CheckBoxTableCell;
 import javafx.scene.effect.DropShadow;
 import javafx.scene.image.Image;
 import javafx.scene.input.Clipboard;
@@ -181,8 +184,6 @@ public class TMASummaryViewer {
 	private List<String> metadataNames = new ArrayList<>();
 	private ObservableList<String> measurementNames = FXCollections.observableArrayList();
 	private ObservableList<String> filteredMeasurementNames = new FilteredList<>(measurementNames, m -> {
-		if (getColumnFilter() != null && !getColumnFilter().test(m))
-			return false;
 		return !(TMACoreObject.KEY_OS_CENSORED.equals(m) ||
 				TMACoreObject.KEY_OVERALL_SURVIVAL.equals(m) ||
 				TMACoreObject.KEY_RECURRENCE_FREE_SURVIVAL.equals(m) ||
@@ -197,19 +198,17 @@ public class TMASummaryViewer {
 	
 	private ObjectProperty<Predicate<? super TMAEntry>> predicate = entries.predicateProperty();
 	
+	/**
+	 * Maintain a reference to columns that were previously hidden whenever loading new data.
+	 * This helps maintain some continuity, so that if any columns have the same names then they 
+	 * can be hidden as well.
+	 */
+	private Set<String> lastHiddenColumns = new HashSet<>();
+	
 	private String colCensored = null;
 	
 	private Scene scene;
-	
-	// Regular expression used to filter columns
-	// By default, all columns starting with 'Num' are excluded
-	private String columnFilter = "^(?!Num).+";
-	
-	
-	private Predicate<String> getColumnFilter() {
-		return columnFilter == null ? null : s -> s.matches(columnFilter);
-	}
-	
+
 	
 	/**
 	 * Methods that may be used to combine measurements when multiple cores are available.
@@ -272,7 +271,7 @@ public class TMASummaryViewer {
 	private OverlayOptions overlayOptions = new OverlayOptions();
 	private TMAEntry entrySelected = null;
 
-	private BooleanProperty showAnalysisProperty = new SimpleBooleanProperty(false);
+	private BooleanProperty showAnalysisProperty = new SimpleBooleanProperty(true);
 	private BooleanProperty useSelectedProperty = new SimpleBooleanProperty(false);
 	private BooleanProperty skipMissingCoresProperty = new SimpleBooleanProperty(true);
 
@@ -350,27 +349,12 @@ public class TMASummaryViewer {
 			SummaryMeasurementTableCommand.copyTableContentsToClipboard(model, Collections.emptyList());
 		});
 		
-		MenuItem menuColumnFilter = new MenuItem("Filter columns");
-		menuColumnFilter.setOnAction(e -> {
-			String input = DisplayHelpers.showInputDialog("Column filter", "Enter column filter (regular expression)", columnFilter == null ? "" : columnFilter);
-			if (input == null)
-				return;
-			if (input.trim().isEmpty())
-				columnFilter = null;
-			else
-				columnFilter = input;
-			updateColumnVisibility(table, getColumnFilter());
-		});
-		menuEdit.getItems().add(menuColumnFilter);
-		
-		
 		MenuItem miPredicate = new MenuItem("Set predicate");
 		miPredicate.setOnAction(e -> {
 			promptForPredicate(entriesBase);
 		});
 		predicate.addListener((v, o, n) -> {
 			Platform.runLater(() -> {
-				refreshTableData(table, null, getColumnFilter());
 				table.refresh();
 				histogramDisplay.refreshHistogram();
 				updateSurvivalCurves();
@@ -591,7 +575,7 @@ public class TMASummaryViewer {
 		paneTable.setCenter(table);
 
 		MasterDetailPane mdTablePane = new MasterDetailPane(Side.RIGHT, paneTable, createSidePane(), true);
-
+		
 		mdTablePane.showDetailNodeProperty().bind(showAnalysisProperty);
 
 		pane.setCenter(mdTablePane);
@@ -878,6 +862,53 @@ public class TMASummaryViewer {
 		});
 		
 		
+		
+		TableView<TreeTableColumn<TMAEntry, ?>> tableColumns = new TableView<>();
+		tableColumns.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
+		tableColumns.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+		tableColumns.setItems(table.getColumns().filtered(p -> !p.getText().trim().isEmpty()));
+		TableColumn<TreeTableColumn<TMAEntry, ?>, String> columnName = new TableColumn<>("Column");
+		columnName.setCellValueFactory(v -> v.getValue().textProperty());
+		TableColumn<TreeTableColumn<TMAEntry, ?>, Boolean> columnVisible = new TableColumn<>("Visible");
+		columnVisible.setCellValueFactory(v -> v.getValue().visibleProperty());
+//		columnVisible.setCellValueFactory(col -> {
+//			SimpleBooleanProperty prop = new SimpleBooleanProperty(col.getValue().isVisible());
+//			prop.addListener((v, o, n) -> col.getValue().setVisible(n));
+//			return prop;
+//		});
+		tableColumns.setEditable(true);
+		columnVisible.setCellFactory(v -> new CheckBoxTableCell<>());
+		tableColumns.getColumns().add(columnName);
+		tableColumns.getColumns().add(columnVisible);
+		ContextMenu contextMenu = new ContextMenu();
+		MenuItem miShowSelected = new MenuItem("Show selected columns");
+		miShowSelected.setOnAction(e -> {
+			for (TreeTableColumn<?, ?> col : tableColumns.getSelectionModel().getSelectedItems()) {
+				if (col != null)
+					col.setVisible(true);
+				else {
+					// Not sure why this happens...?
+					logger.trace("Selected column is null!");
+				}
+			}
+		});
+		MenuItem miHideSelected = new MenuItem("Hide selected columns");
+		miHideSelected.setOnAction(e -> {
+			for (TreeTableColumn<?, ?> col : tableColumns.getSelectionModel().getSelectedItems()) {
+				if (col != null)
+					col.setVisible(false);
+				else {
+					// Not sure why this happens...?
+					logger.trace("Selected column is null!");
+				}
+			}
+		});
+		contextMenu.getItems().addAll(miShowSelected, miHideSelected);
+		tableColumns.setContextMenu(contextMenu);
+		tableColumns.setTooltip(new Tooltip("Show or hide table columns - right-click to change multiple columns at once"));
+		BorderPane paneColumns = new BorderPane(tableColumns);
+
+		
 		ScrollPane scrollPane = new ScrollPane(paneKaplanMeier);
 		scrollPane.setFitToWidth(true);
 		scrollPane.setFitToHeight(true);
@@ -885,6 +916,7 @@ public class TMASummaryViewer {
 		scrollPane.setHbarPolicy(ScrollBarPolicy.AS_NEEDED);
 		Tab tabSurvival = new Tab("Survival", scrollPane);
 		tabPane.getTabs().addAll(
+				new Tab("Table", paneColumns),
 				new Tab("Histogram", histogramDisplay.getPane()),
 				new Tab("Scatterplot", scatterPane.getPane()),
 				tabSurvival
@@ -999,6 +1031,11 @@ public class TMASummaryViewer {
 		this.entriesBase.clear();
 		this.entriesBase.addAll(newEntries);
 		
+		// Store the names of any currently hidden columns
+		lastHiddenColumns = table.getColumns().stream().filter(c -> !c.isVisible()).map(c -> c.getText()).collect(Collectors.toSet());
+		
+		this.table.getColumns().clear();
+		
 //		// Useful for a paper, but not generally...
 //		int count = 0;
 //		int nCells = 0;
@@ -1060,7 +1097,7 @@ public class TMASummaryViewer {
 		metadataNames.clear();
 		metadataNames.addAll(namesMetadata);
 		
-		refreshTableData(table, createSummaryEntries(entriesBase), getColumnFilter());
+		refreshTableData(table, createSummaryEntries(entriesBase));
 		
 		model.refreshList();
 	}
@@ -1069,12 +1106,10 @@ public class TMASummaryViewer {
 	
 	
 	@SuppressWarnings({ "rawtypes", "unchecked" })
-	private void refreshTableData(final TreeTableView<TMAEntry> table, final Collection<? extends TMAEntry> entries, final Predicate<String> columnFilter) {
+	private void refreshTableData(final TreeTableView<TMAEntry> table, final Collection<? extends TMAEntry> entries) {
 
 		// Ensure that we don't try to modify a filtered list
-		ObservableList<TreeTableColumn<TMAEntry, ?>> columns = table.getColumns();
-		while (columns instanceof FilteredList)
-			columns = ((FilteredList)columns).getSource();
+		List<TreeTableColumn<TMAEntry, ?>> columns = new ArrayList<>();
 
 		if (table.getColumns().isEmpty()) {
 			
@@ -1094,7 +1129,7 @@ public class TMASummaryViewer {
 			columnEmpty.setResizable(false);
 			columns.add(columnEmpty);
 			
-			// Add columns to show images
+			// Add columns to show images...
 			TreeTableColumn<TMAEntry, Image> columnImage = new TreeTableColumn<>("Thumbnail");
 			TreeTableColumn<TMAEntry, Image> columnOverlay = new TreeTableColumn<>("Overlay");
 
@@ -1133,7 +1168,7 @@ public class TMASummaryViewer {
 //			columns.remove(1, table.getColumns().size());
 //		//				table.getColumns().remove(2, table.getColumns().size());
 
-		
+
 		for (String name : model.getAllNames()) {
 			if (model.getMeasurementNames().contains(name)) {
 				TreeTableColumn<TMAEntry, Number> column = new TreeTableColumn<>(name);
@@ -1158,36 +1193,58 @@ public class TMASummaryViewer {
 				columns.add(column);
 			}
 		}
-		if (entries != null) {
-			List<TreeItem<TMAEntry>> items = new ArrayList<>();
-			for (TMAEntry entry : entries) {
-				if (entry instanceof TMASummaryEntry) {
-					TreeItem<TMAEntry> item = new TreeItem<>(entry);
-					for (TMAEntry subEntry : ((TMASummaryEntry)entry).getEntries())
-						item.getChildren().add(new TreeItem<>(subEntry));
-					items.add(item);
-				} else {
-					items.add(new TreeItem<>(entry));
-				}
+		
+		// Set the column visibility depending upon whether they were hidden previously
+		columns.stream().forEach(c -> c.setVisible(!lastHiddenColumns.contains(c.getText())));
+		
+		// Set columns for table
+		table.getColumns().setAll(columns);
+		
+		// Create TreeItems and add to table
+		List<TreeItem<TMAEntry>> items = new ArrayList<>();
+		for (TMAEntry entry : entries) {
+			if (entry instanceof TMASummaryEntry) {
+				items.add(new SummaryTreeItem((TMASummaryEntry)entry));
+			} else {
+				items.add(new TreeItem<>(entry));
 			}
-			TreeItem<TMAEntry> root = new TreeItem<>(null);
-			root.getChildren().addAll(items);
-			table.setShowRoot(false);
-			table.setRoot(root);
+		}
+		TreeItem<TMAEntry> root = new TreeItem<>(null);
+		root.getChildren().addAll(items);
+		table.setShowRoot(false);
+		table.setRoot(root);
+	}
+	
+	
+	class SummaryTreeItem extends TreeItem<TMAEntry> implements ChangeListener<Predicate<? super TMAEntry>> {
+		
+		private TMASummaryEntry entry;
+		
+		SummaryTreeItem(final TMASummaryEntry entry) {
+			super(entry);
+			this.entry = entry;
+			predicate.addListener(new WeakChangeListener<Predicate<? super TMAEntry>>(this));
+			// TODO: Check for memory leak!
+//			predicate.addListener((v, o, n) -> updateChildren());
+			updateChildren();
+		}
+		
+		private void updateChildren() {
+			ArrayList<TreeItem<TMAEntry>> children = new ArrayList<>();
+			for (TMAEntry subEntry : entry.getEntries())
+				children.add(new TreeItem<>(subEntry));
+			super.getChildren().setAll(children);
 		}
 
-		if (columnFilter != null)
-			updateColumnVisibility(table, columnFilter);
-	}
-	
-	
-	private void updateColumnVisibility(final TreeTableView<?> table, final Predicate<String> predicate) {
-		for (TreeTableColumn<?, ?> column : table.getColumns()) {
-			boolean visible = predicate == null || predicate.test(column.getText());
-			column.setVisible(visible);
+		@Override
+		public void changed(ObservableValue<? extends Predicate<? super TMAEntry>> observable,
+				Predicate<? super TMAEntry> oldValue, Predicate<? super TMAEntry> newValue) {
+			updateChildren();
 		}
+		
+		
+		
 	}
-	
 	
 	
 	
@@ -1612,6 +1669,26 @@ public class TMASummaryViewer {
 			return shortServerName;
 		}
 
+		/**
+		 * Returns true if this entry has (or thinks it has) an image.
+		 * It doesn't actually try to load the image, which may be expensive - 
+		 * and therefore there can be no guarantee the loading will succeed when getImage() is called.
+		 * @return
+		 */
+		public boolean hasImage() {
+			return imagePath != null;
+		}
+		
+		/**
+		 * Returns true if this entry has (or thinks it has) an overlay image.
+		 * It doesn't actually try to load the image, which may be expensive - 
+		 * and therefore there can be no guarantee the loading will succeed when getOverlay() is called.
+		 * @return
+		 */
+		public boolean hasOverlay() {
+			return overlayPath != null;
+		}
+		
 		public Image getImage() {
 			if (imagePath != null) {
 				Image img = imageMap.get(imagePath);
