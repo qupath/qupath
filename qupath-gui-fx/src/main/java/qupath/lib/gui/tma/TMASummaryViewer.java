@@ -194,9 +194,7 @@ public class TMASummaryViewer {
 	private ComboBox<String> comboSurvival = new ComboBox<>(survivalColumns);
 
 	private ObservableList<TMAEntry> entriesBase = FXCollections.observableArrayList();
-	private FilteredList<TMAEntry> entries = new FilteredList<>(entriesBase);
-	
-	private ObjectProperty<Predicate<? super TMAEntry>> predicate = entries.predicateProperty();
+//	private FilteredList<TMAEntry> entries = new FilteredList<>(entriesBase);
 	
 	/**
 	 * Maintain a reference to columns that were previously hidden whenever loading new data.
@@ -281,6 +279,19 @@ public class TMASummaryViewer {
 	
 	private ExecutorService pool = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
 	
+	
+	private ObjectProperty<Predicate<? super TMAEntry>> predicate = new SimpleObjectProperty<>();
+
+	private ObservableValue<Predicate<? super TMAEntry>> combinedPredicate = Bindings.createObjectBinding(() -> {
+		if (predicate.get() == null) {
+			if (!skipMissingCoresProperty.get())
+				return c -> true;
+			else
+				return c -> !c.isMissing();
+		}return predicate.get().and(c -> !((TMAEntry)c).isMissing() || !skipMissingCoresProperty.get());
+	}, predicate, skipMissingCoresProperty);
+
+	
 
 	public TMASummaryViewer(final Stage stage) {
 		if (stage == null)
@@ -337,8 +348,6 @@ public class TMASummaryViewer {
 			int n = importScores(text);
 			if (n > 0) {
 				setTMAEntries(new ArrayList<>(entriesBase));
-//				refreshTableData(table, createSummaryEntries(entriesBase), false, getColumnFilter());
-//				refreshDetailTable();
 			}
 			DisplayHelpers.showMessageDialog("Import scores", "Number of scores imported: " + n);
 		});
@@ -1129,39 +1138,53 @@ public class TMASummaryViewer {
 			columnEmpty.setResizable(false);
 			columns.add(columnEmpty);
 			
-			// Add columns to show images...
-			TreeTableColumn<TMAEntry, Image> columnImage = new TreeTableColumn<>("Thumbnail");
-			TreeTableColumn<TMAEntry, Image> columnOverlay = new TreeTableColumn<>("Overlay");
-
-			columnImage.setCellValueFactory(new Callback<CellDataFeatures<TMAEntry, Image>, ObservableValue<Image>>() {
-				@Override
-				public ObservableValue<Image> call(CellDataFeatures<TMAEntry, Image> p) {
-					return new SimpleObjectProperty<>(p.getValue().getValue().getImage());
+			// Check if we have any images or overlays
+			boolean hasImages = entries.stream().anyMatch(e -> e.hasImage());
+			boolean hasOverlay = entries.stream().anyMatch(e -> e.hasOverlay());
+			
+			// Add columns to show images, if we have them
+			if (hasImages || hasOverlay) {
+				TreeTableColumn<TMAEntry, Image> columnImage = hasImages ? new TreeTableColumn<>("Thumbnail") : null;
+				TreeTableColumn<TMAEntry, Image> columnOverlay = hasOverlay ? new TreeTableColumn<>("Overlay") : null;
+	
+				if (hasImages) {
+					columnImage.setCellValueFactory(new Callback<CellDataFeatures<TMAEntry, Image>, ObservableValue<Image>>() {
+						@Override
+						public ObservableValue<Image> call(CellDataFeatures<TMAEntry, Image> p) {
+							return new SimpleObjectProperty<>(p.getValue().getValue().getImage());
+						}
+					});
+					columnImage.setCellFactory(c -> new ImageTableCell());
+					if (hasOverlay) {
+						columnImage.widthProperty().addListener((v, o, n) -> {
+							if (n.doubleValue() == columnImage.getPrefWidth())
+								return;
+							columnOverlay.setPrefWidth(n.doubleValue());
+							table.refresh();
+						});
+					}
+					columns.add(columnImage);
 				}
-			});
-			columnImage.setCellFactory(c -> new ImageTableCell());
-			columnImage.widthProperty().addListener((v, o, n) -> {
-				if (n.doubleValue() == columnImage.getPrefWidth())
-					return;
-				columnOverlay.setPrefWidth(n.doubleValue());
-				table.refresh();
-			});
-			columns.add(columnImage);
-
-			columnOverlay.setCellValueFactory(new Callback<CellDataFeatures<TMAEntry, Image>, ObservableValue<Image>>() {
-				@Override
-				public ObservableValue<Image> call(CellDataFeatures<TMAEntry, Image> p) {
-					return new SimpleObjectProperty<>(p.getValue().getValue().getOverlay());
+	
+				if (hasOverlay) {
+					columnOverlay.setCellValueFactory(new Callback<CellDataFeatures<TMAEntry, Image>, ObservableValue<Image>>() {
+						@Override
+						public ObservableValue<Image> call(CellDataFeatures<TMAEntry, Image> p) {
+							return new SimpleObjectProperty<>(p.getValue().getValue().getOverlay());
+						}
+					});
+					columnOverlay.setCellFactory(c -> new ImageTableCell());
+					if (hasImages) {
+						columnOverlay.widthProperty().addListener((v, o, n) -> {
+							if (n.doubleValue() == columnOverlay.getPrefWidth())
+								return;
+							columnImage.setPrefWidth(n.doubleValue());
+							table.refresh();
+						});
+					}
+					columns.add(columnOverlay);
 				}
-			});
-			columnOverlay.setCellFactory(c -> new ImageTableCell());
-			columnOverlay.widthProperty().addListener((v, o, n) -> {
-				if (n.doubleValue() == columnOverlay.getPrefWidth())
-					return;
-				columnImage.setPrefWidth(n.doubleValue());
-				table.refresh();
-			});
-			columns.add(columnOverlay);
+			}
 
 		}
 //		else
@@ -1200,39 +1223,49 @@ public class TMASummaryViewer {
 		// Set columns for table
 		table.getColumns().setAll(columns);
 		
-		// Create TreeItems and add to table
-		List<TreeItem<TMAEntry>> items = new ArrayList<>();
-		for (TMAEntry entry : entries) {
-			if (entry instanceof TMASummaryEntry) {
-				items.add(new SummaryTreeItem((TMASummaryEntry)entry));
-			} else {
-				items.add(new TreeItem<>(entry));
-			}
-		}
-		TreeItem<TMAEntry> root = new TreeItem<>(null);
-		root.getChildren().addAll(items);
+//		// Create TreeItems and add to table
+//		List<TreeItem<TMAEntry>> items = new ArrayList<>();
+//		for (TMAEntry entry : entries) {
+//			if (entry instanceof TMASummaryEntry) {
+//				items.add(new SummaryTreeItem((TMASummaryEntry)entry));
+//			} else {
+//				items.add(new TreeItem<>(entry));
+//			}
+//		}
+		TreeItem<TMAEntry> root = new RootTreeItem(entries);
 		table.setShowRoot(false);
 		table.setRoot(root);
 	}
 	
 	
-	class SummaryTreeItem extends TreeItem<TMAEntry> implements ChangeListener<Predicate<? super TMAEntry>> {
+	
+	class RootTreeItem extends TreeItem<TMAEntry> implements ChangeListener<Predicate<? super TMAEntry>> {
 		
-		private TMASummaryEntry entry;
+		private List<TreeItem<TMAEntry>> entries = new ArrayList<>();
 		
-		SummaryTreeItem(final TMASummaryEntry entry) {
-			super(entry);
-			this.entry = entry;
-			predicate.addListener(new WeakChangeListener<Predicate<? super TMAEntry>>(this));
-			// TODO: Check for memory leak!
-//			predicate.addListener((v, o, n) -> updateChildren());
+		RootTreeItem(final Collection<? extends TMAEntry> entries) {
+			super(null);
+			for (TMAEntry entry : entries) {
+				if (entry instanceof TMASummaryEntry)
+					this.entries.add(new SummaryTreeItem((TMASummaryEntry)entry));
+				else
+					this.entries.add(new TreeItem<>(entry));					
+			}
+			combinedPredicate.addListener(new WeakChangeListener<Predicate<? super TMAEntry>>(this));
 			updateChildren();
 		}
 		
 		private void updateChildren() {
 			ArrayList<TreeItem<TMAEntry>> children = new ArrayList<>();
-			for (TMAEntry subEntry : entry.getEntries())
-				children.add(new TreeItem<>(subEntry));
+			for (TreeItem<TMAEntry> entry : entries) {
+				if (entry instanceof SummaryTreeItem) {
+					SummaryTreeItem summaryItem = (SummaryTreeItem)entry;
+					summaryItem.updateChildren();
+					if (!summaryItem.getChildren().isEmpty())
+						children.add(summaryItem);
+				} else if (combinedPredicate.getValue().test(entry.getValue()))
+					children.add(entry);
+			}
 			super.getChildren().setAll(children);
 		}
 
@@ -1242,9 +1275,52 @@ public class TMASummaryViewer {
 			updateChildren();
 		}
 		
+	}
+	
+	class SummaryTreeItem extends TreeItem<TMAEntry> {
 		
+		private TMASummaryEntry entry;
+		
+		SummaryTreeItem(final TMASummaryEntry entry) {
+			super(entry);
+			this.entry = entry;
+			updateChildren();
+		}
+		
+		private void updateChildren() {
+			ArrayList<TreeItem<TMAEntry>> children = new ArrayList<>();
+			for (TMAEntry subEntry : entry.getEntries())
+				children.add(new TreeItem<>(subEntry));
+			super.getChildren().setAll(children);
+		}
 		
 	}
+	
+//	class SummaryTreeItem extends TreeItem<TMAEntry> implements ChangeListener<Predicate<? super TMAEntry>> {
+//		
+//		private TMASummaryEntry entry;
+//		
+//		SummaryTreeItem(final TMASummaryEntry entry) {
+//			super(entry);
+//			this.entry = entry;
+//			combinedPredicate.addListener(new WeakChangeListener<Predicate<? super TMAEntry>>(this));
+//			updateChildren();
+//		}
+//		
+//		private void updateChildren() {
+//			ArrayList<TreeItem<TMAEntry>> children = new ArrayList<>();
+//			for (TMAEntry subEntry : entry.getEntries())
+//				children.add(new TreeItem<>(subEntry));
+//			super.getChildren().setAll(children);
+//		}
+//
+//		@Override
+//		public void changed(ObservableValue<? extends Predicate<? super TMAEntry>> observable,
+//				Predicate<? super TMAEntry> oldValue, Predicate<? super TMAEntry> newValue) {
+//			updateChildren();
+//		}
+//		
+//	}
 	
 	
 	
@@ -1268,7 +1344,7 @@ public class TMASummaryViewer {
 			}
 			TMASummaryEntry summary = summaryEntryMap.get(id);
 			if (summary == null) {
-				summary = new TMASummaryEntry(selectedMeasurementCombinationProperty, skipMissingCoresProperty, predicate);
+				summary = new TMASummaryEntry(selectedMeasurementCombinationProperty, skipMissingCoresProperty, combinedPredicate);
 				summaryEntryMap.put(id, summary);
 			}
 			summary.addEntry(entry);
@@ -1276,7 +1352,7 @@ public class TMASummaryViewer {
 		}
 		
 		// If we don't have any summaries, just return the original entries
-		if (summaryEntryMap.isEmpty())// || maxSummaryLength <= 1)
+		if (summaryEntryMap.isEmpty() || maxSummaryLength <= 1)
 			return entries;
 		return summaryEntryMap.values();
 	}
@@ -1353,8 +1429,6 @@ public class TMASummaryViewer {
 		}
 
 		logger.info("Parsed " + (entries.size() - nEntries) + " from " + file.getName() + " (" + entries.size() + " total)");
-		
-//		refreshTableData(table, createSummaryEntries(entries), false, getColumnFilter());
 	}
 
 
@@ -1588,9 +1662,10 @@ public class TMASummaryViewer {
 			this.serverPath = serverPath;
 			this.shortServerName = serverPath == null ? null : ServerTools.getDefaultShortServerName(serverPath).replace("%20", " ");
 			this.name = coreName;
-			this.imagePath = imagePath;
-			this.overlayPath = overlayPath;
 			this.isMissing = isMissing;
+			// Only store paths if they actually work...
+			this.imagePath = imagePath != null && new File(imagePath).isFile() ? imagePath : null;
+			this.overlayPath = overlayPath != null && new File(overlayPath).isFile() ? overlayPath : null;
 		}
 		
 		/**
@@ -1866,7 +1941,7 @@ public class TMASummaryViewer {
 		private ObservableList<TMAEntry> entriesBase = FXCollections.observableArrayList();
 		private FilteredList<TMAEntry> entries = new FilteredList<>(entriesBase);
 
-		TMASummaryEntry(final ReadOnlyObjectProperty<MeasurementCombinationMethod> method, final ObservableBooleanValue skipMissing, final ObjectProperty<Predicate<? super TMAEntry>> predicate) {
+		TMASummaryEntry(final ReadOnlyObjectProperty<MeasurementCombinationMethod> method, final ObservableBooleanValue skipMissing, final ObservableValue<Predicate<? super TMAEntry>> predicate) {
 			super(null, null, null, null, false);
 			// Use the same predicate as elsewhere
 			this.method = method;
@@ -1894,6 +1969,14 @@ public class TMASummaryViewer {
 					n++;
 			}
 			return n;
+		}
+		
+		public boolean hasImage() {
+			return entries.stream().anyMatch(e -> e.hasImage());
+		}
+		
+		public boolean hasOverlay() {
+			return entries.stream().anyMatch(e -> e.hasOverlay());
 		}
 		
 		@Override
