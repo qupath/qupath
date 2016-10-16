@@ -269,16 +269,35 @@ public class TMADearrayer {
 		if (!isFluorescence)
 			ip.invert();
 
+//		// Subtract from a morphological-opened image, with the filter size slightly bigger than the core size
+//		double filterRadius = coreDiameterPx * 0.6;
+//		ImageProcessor ip2 = ip.duplicate();
+//		System.err.println("Starting");
+//		long start = System.currentTimeMillis();
+//		rf.rank(ip2, filterRadius, RankFilters.MIN);
+//		rf.rank(ip2, filterRadius, RankFilters.MAX);
+//		long end = System.currentTimeMillis();
+//		System.err.println("Duration: " + (end - start));
+//		ip.copyBits(ip2, 0, 0, Blitter.SUBTRACT);
+		
 		// Subtract from a morphological-opened image, with the filter size slightly bigger than the core size
-		// This also inverts the image, making cores bright-on-dark (rather than dark-on-bright as typically the case)
+		// Update 15/10/2016 - Because the filter size is likely to be very large (maybe radius 40-50 pixels?), downsample first for performance
 		double filterRadius = coreDiameterPx * 0.6;
 		ImageProcessor ip2 = ip.duplicate();
-		rf.rank(ip2, filterRadius, RankFilters.MIN);
-		rf.rank(ip2, filterRadius, RankFilters.MAX);
+		double downsample = Math.round(filterRadius / 10);
+		if (downsample > 1) {
+			ip2 = ip.resize((int)(ip.getWidth() / downsample + 0.5), (int)(ip.getHeight() / downsample + 0.5), true);
+//			long start = System.currentTimeMillis();
+			rf.rank(ip2, filterRadius/downsample, RankFilters.MIN);
+			rf.rank(ip2, filterRadius/downsample, RankFilters.MAX);
+			ip2 = ip2.resize(ip.getWidth(), ip.getHeight());
+//			long end = System.currentTimeMillis();
+//			System.err.println("Duration: " + (end - start));
+		}
 		ip.copyBits(ip2, 0, 0, Blitter.SUBTRACT);
-//		for (int i = 0; i < ip.getWidth() * ip.getHeight(); i++) {
-//			ip.setf(i, ip.getf(i) - ip2.getf(i));
-//		}
+		
+		// Smooth slightly
+		ip.smooth();
 		
 		// Estimate a threshold using the triangle method
 		ip.setAutoThreshold(AutoThresholder.Method.Triangle, true);
@@ -573,7 +592,10 @@ public class TMADearrayer {
 				
 		// Apply a mean filter to determine local unassigned densities
 //		new ImagePlus("Density_before", fpDensity.duplicate()).show();
+//		long start = System.currentTimeMillis();
+		// Note: this is another bottleneck... filter size can be large
 		new RankFilters().rank(fpDensity, coreDiameterPx * 0.5, RankFilters.MEAN);
+//		System.err.println("Time: " + (System.currentTimeMillis() - start));
 //		fpDensity.min(-1);
 //		new ImagePlus("Density", fpDensity.duplicate()).show();
 		
