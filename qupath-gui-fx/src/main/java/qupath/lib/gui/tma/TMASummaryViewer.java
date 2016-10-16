@@ -183,12 +183,7 @@ public class TMASummaryViewer {
 
 	private List<String> metadataNames = new ArrayList<>();
 	private ObservableList<String> measurementNames = FXCollections.observableArrayList();
-	private ObservableList<String> filteredMeasurementNames = new FilteredList<>(measurementNames, m -> {
-		return !(TMACoreObject.KEY_OS_CENSORED.equals(m) ||
-				TMACoreObject.KEY_OVERALL_SURVIVAL.equals(m) ||
-				TMACoreObject.KEY_RECURRENCE_FREE_SURVIVAL.equals(m) ||
-				TMACoreObject.KEY_RFS_CENSORED.equals(m));
-	});
+	private ObservableList<String> filteredMeasurementNames = new FilteredList<>(measurementNames, m -> !isSurvivalColumn(m));
 
 	private ObservableList<String> survivalColumns = FXCollections.observableArrayList();
 	private ComboBox<String> comboSurvival = new ComboBox<>(survivalColumns);
@@ -212,7 +207,7 @@ public class TMASummaryViewer {
 	 * Methods that may be used to combine measurements when multiple cores are available.
 	 */
 	private static enum MeasurementCombinationMethod {
-		MEAN, MEDIAN, MIN, MAX;
+		MEAN, MEDIAN, MIN, MAX, RANGE;
 		
 		public double calculate(final List<TMAEntry> entries, final String measurementName, final boolean skipMissing) {
 			switch (this) {
@@ -224,6 +219,8 @@ public class TMASummaryViewer {
 				return getMedianMeasurement(entries, measurementName, skipMissing);
 			case MIN:
 				return getMinMeasurement(entries, measurementName, skipMissing);
+			case RANGE:
+				return getRangeMeasurement(entries, measurementName, skipMissing);
 			default:
 				return Double.NaN;
 			}
@@ -240,6 +237,8 @@ public class TMASummaryViewer {
 				return "Median";
 			case MIN:
 				return "Minimum";
+			case RANGE:
+				return "Range";
 			default:
 				return null;
 			}
@@ -1878,6 +1877,10 @@ public class TMASummaryViewer {
 		return n == 0 ? Double.NaN : min;
 	}
 	
+	public static double getRangeMeasurement(final List<TMAEntry> entries, final String measurement, final boolean skipMissing) {
+		return getMaxMeasurement(entries, measurement, skipMissing) - getMinMeasurement(entries, measurement, skipMissing);
+	}
+	
 	static Set<String> survivalSet = new HashSet<>(
 			Arrays.asList(
 				TMACoreObject.KEY_OVERALL_SURVIVAL,
@@ -1996,6 +1999,15 @@ public class TMASummaryViewer {
 		
 		@Override
 		public Number getMeasurement(String name) {
+			// Survival measurements need to be calculated differently
+			if (isSurvivalColumn(name)) {
+				double max = getMaxMeasurement(entries, name, skipMissing.get());
+				double min = getMinMeasurement(entries, name, skipMissing.get());
+				if (max == min)
+					return max;
+				logger.warn("Measurement {} for {} has different values!", name, this);
+				return Double.NaN;
+			}
 			return method.get().calculate(entries, name, skipMissing.get());
 		}
 		
@@ -2190,31 +2202,15 @@ public class TMASummaryViewer {
 						if (!useSelectedProperty.get())
 							table.getSelectionModel().clearSelection();
 						
-						
-						
-						
-						
-						
-						
-						
-						
-						
-						
-						
-						
-						
-						
-						
-						
-						
-						
-						
-						
-						
-						
-						// TODO: REINSTATE SELECTION???
-//						table.getSelectionModel().select(entry);
-//						table.scrollTo(entry);
+						// Select the item
+						TreeItem<TMAEntry> item = getItem(table.getRoot(), entry);
+						if (item != null) {
+							item.setExpanded(true);
+//							if (item.getParent() != null)
+//								item.getParent().setExpanded(true);
+							table.getSelectionModel().select(item);
+							table.scrollTo(table.getSelectionModel().getSelectedIndex());
+						}
 					});
 				}
 				DropShadow dropShadow = new DropShadow();
@@ -2259,6 +2255,26 @@ public class TMASummaryViewer {
 		
 	}
 	
+	
+	/**
+	 * Recursively search for a TreeItem, based upon the TMAEntry it represents.
+	 * 
+	 * @param item
+	 * @param entry
+	 * @return
+	 */
+	private TreeItem<TMAEntry> getItem(final TreeItem<TMAEntry> item, final TMAEntry entry) {
+		if (item == null)
+			return null;
+		if (item.getValue() == entry)
+			return item;
+		for (TreeItem<TMAEntry> item2 : item.getChildren()) {
+			TreeItem<TMAEntry> found = getItem(item2, entry);
+			if (found != null)
+				return found;
+		}
+		return null;
+	}
 	
 	
 	
