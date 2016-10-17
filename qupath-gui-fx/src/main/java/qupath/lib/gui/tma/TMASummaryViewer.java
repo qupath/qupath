@@ -61,6 +61,8 @@ import org.apache.commons.math3.stat.correlation.PearsonsCorrelation;
 import org.apache.commons.math3.stat.correlation.SpearmansCorrelation;
 import org.controlsfx.control.MasterDetailPane;
 import org.controlsfx.control.PopOver;
+import org.controlsfx.control.action.Action;
+import org.controlsfx.control.action.ActionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -84,6 +86,7 @@ import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
+import javafx.collections.transformation.SortedList;
 import javafx.event.ActionEvent;
 import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
@@ -113,12 +116,14 @@ import javafx.scene.control.ScrollPane;
 import javafx.scene.control.ScrollPane.ScrollBarPolicy;
 import javafx.scene.control.SelectionMode;
 import javafx.scene.control.Separator;
+import javafx.scene.control.SplitPane;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 import javafx.scene.control.TabPane.TabClosingPolicy;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
+import javafx.scene.control.TitledPane;
 import javafx.scene.control.ToolBar;
 import javafx.scene.control.Tooltip;
 import javafx.scene.control.TreeItem;
@@ -132,6 +137,7 @@ import javafx.scene.effect.DropShadow;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.Clipboard;
+import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
@@ -141,6 +147,7 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
+import javafx.scene.text.Text;
 import javafx.scene.text.TextAlignment;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
@@ -151,6 +158,7 @@ import qupath.lib.gui.commands.SummaryMeasurementTableCommand;
 import qupath.lib.gui.helpers.ChartToolsFX;
 import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.gui.helpers.PaintingToolsFX;
+import qupath.lib.gui.helpers.PanelToolsFX;
 import qupath.lib.gui.models.HistogramDisplay;
 import qupath.lib.gui.models.ObservableMeasurementTableData;
 import qupath.lib.gui.models.PathTableData;
@@ -474,7 +482,7 @@ public class TMASummaryViewer {
 //		});
 
 		
-
+		table.setPlaceholder(new Text("Drag TMA data folder onto window, or choose File -> Open"));
 		table.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
 		
 		BorderPane pane = new BorderPane();
@@ -494,7 +502,7 @@ public class TMASummaryViewer {
 		CheckBox cbUseSelected = new CheckBox("Use selection only");
 		cbUseSelected.selectedProperty().bindBidirectional(useSelectedProperty);
 		
-		CheckBox cbSkipMissing = new CheckBox("Skip missing cores");
+		CheckBox cbSkipMissing = new CheckBox("Hide missing cores");
 		cbSkipMissing.selectedProperty().bindBidirectional(skipMissingCoresProperty);
 		skipMissingCoresProperty.addListener((v, o, n) -> {
 			table.refresh();
@@ -590,6 +598,7 @@ public class TMASummaryViewer {
 		MasterDetailPane mdTablePane = new MasterDetailPane(Side.RIGHT, paneTable, createSidePane(), true);
 		
 		mdTablePane.showDetailNodeProperty().bind(showAnalysisProperty);
+		mdTablePane.setDividerPosition(2.0/3.0);
 
 		pane.setCenter(mdTablePane);
 		
@@ -675,6 +684,8 @@ public class TMASummaryViewer {
 		final private Canvas canvas = new Canvas();
 		
 		private PopOver popOver = null;
+		private ContextMenu menu = new ContextMenu();
+		private MenuItem miCopy = new MenuItem("Copy");
 		
 		ImageTableCell() {
 			super();
@@ -686,6 +697,7 @@ public class TMASummaryViewer {
 				if (popOver != null && e.getClickCount() == 2)
 					popOver.show(this);
 			});
+			menu.getItems().add(miCopy);
 		}
 		
 		@Override
@@ -708,6 +720,14 @@ public class TMASummaryViewer {
 			// TODO: Consider setting max width/height elsewhere, so user can adjust?
 			imageView.setFitWidth(Math.min(primaryScreenBounds.getWidth()*0.5, item.getWidth()));
 			imageView.setFitHeight(Math.min(primaryScreenBounds.getHeight()*0.75, item.getHeight()));
+			// Enable copying to clipboard
+			miCopy.setOnAction(e -> {
+				ClipboardContent content = new ClipboardContent();
+				content.putImage(item);
+				Clipboard.getSystemClipboard().setContent(content);
+			});
+			imageView.setOnContextMenuRequested(e -> menu.show(this, e.getScreenX(), e.getScreenY()));
+			
 			popOver = new PopOver(imageView);
 			String name = this.getTreeTableRow().getItem() == null ? null : this.getTreeTableRow().getItem().getName();
 			if (name != null)
@@ -895,50 +915,7 @@ public class TMASummaryViewer {
 		
 		
 		
-		TableView<TreeTableColumn<TMAEntry, ?>> tableColumns = new TableView<>();
-		tableColumns.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
-		tableColumns.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
-		tableColumns.setItems(table.getColumns().filtered(p -> !p.getText().trim().isEmpty()));
-		TableColumn<TreeTableColumn<TMAEntry, ?>, String> columnName = new TableColumn<>("Column");
-		columnName.setCellValueFactory(v -> v.getValue().textProperty());
-		TableColumn<TreeTableColumn<TMAEntry, ?>, Boolean> columnVisible = new TableColumn<>("Visible");
-		columnVisible.setCellValueFactory(v -> v.getValue().visibleProperty());
-//		columnVisible.setCellValueFactory(col -> {
-//			SimpleBooleanProperty prop = new SimpleBooleanProperty(col.getValue().isVisible());
-//			prop.addListener((v, o, n) -> col.getValue().setVisible(n));
-//			return prop;
-//		});
-		tableColumns.setEditable(true);
-		columnVisible.setCellFactory(v -> new CheckBoxTableCell<>());
-		tableColumns.getColumns().add(columnName);
-		tableColumns.getColumns().add(columnVisible);
-		ContextMenu contextMenu = new ContextMenu();
-		MenuItem miShowSelected = new MenuItem("Show selected columns");
-		miShowSelected.setOnAction(e -> {
-			for (TreeTableColumn<?, ?> col : tableColumns.getSelectionModel().getSelectedItems()) {
-				if (col != null)
-					col.setVisible(true);
-				else {
-					// Not sure why this happens...?
-					logger.trace("Selected column is null!");
-				}
-			}
-		});
-		MenuItem miHideSelected = new MenuItem("Hide selected columns");
-		miHideSelected.setOnAction(e -> {
-			for (TreeTableColumn<?, ?> col : tableColumns.getSelectionModel().getSelectedItems()) {
-				if (col != null)
-					col.setVisible(false);
-				else {
-					// Not sure why this happens...?
-					logger.trace("Selected column is null!");
-				}
-			}
-		});
-		contextMenu.getItems().addAll(miShowSelected, miHideSelected);
-		tableColumns.setContextMenu(contextMenu);
-		tableColumns.setTooltip(new Tooltip("Show or hide table columns - right-click to change multiple columns at once"));
-		BorderPane paneColumns = new BorderPane(tableColumns);
+		
 
 		
 		ScrollPane scrollPane = new ScrollPane(paneKaplanMeier);
@@ -948,7 +925,7 @@ public class TMASummaryViewer {
 		scrollPane.setHbarPolicy(ScrollBarPolicy.AS_NEEDED);
 		Tab tabSurvival = new Tab("Survival", scrollPane);
 		tabPane.getTabs().addAll(
-				new Tab("Table", paneColumns),
+				new Tab("Table", getCustomizeTablePane()),
 				new Tab("Histogram", histogramDisplay.getPane()),
 				new Tab("Scatterplot", scatterPane.getPane()),
 				tabSurvival
@@ -969,6 +946,88 @@ public class TMASummaryViewer {
 	
 	
 
+	private Pane getCustomizeTablePane() {
+		TableView<TreeTableColumn<TMAEntry, ?>> tableColumns = new TableView<>();
+		tableColumns.setPlaceholder(new Text("No columns available"));
+		tableColumns.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
+		tableColumns.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+		
+		SortedList<TreeTableColumn<TMAEntry, ?>> sortedColumns = new SortedList<>(table.getColumns().filtered(p -> !p.getText().trim().isEmpty()));
+		sortedColumns.setComparator((c1, c2) -> c1.getText().compareTo(c2.getText()));
+		tableColumns.setItems(sortedColumns);
+		sortedColumns.comparatorProperty().bind(tableColumns.comparatorProperty());
+//		sortedColumns.comparatorProperty().bind(tableColumns.comparatorProperty());
+
+		
+		TableColumn<TreeTableColumn<TMAEntry, ?>, String> columnName = new TableColumn<>("Column");
+		columnName.setCellValueFactory(v -> v.getValue().textProperty());
+		TableColumn<TreeTableColumn<TMAEntry, ?>, Boolean> columnVisible = new TableColumn<>("Visible");
+		columnVisible.setCellValueFactory(v -> v.getValue().visibleProperty());
+//		columnVisible.setCellValueFactory(col -> {
+//			SimpleBooleanProperty prop = new SimpleBooleanProperty(col.getValue().isVisible());
+//			prop.addListener((v, o, n) -> col.getValue().setVisible(n));
+//			return prop;
+//		});
+		tableColumns.setEditable(true);
+		columnVisible.setCellFactory(v -> new CheckBoxTableCell<>());
+		tableColumns.getColumns().add(columnName);
+		tableColumns.getColumns().add(columnVisible);
+		ContextMenu contextMenu = new ContextMenu();
+		
+		Action actionShowSelected = new Action("Show selected", e -> {
+			for (TreeTableColumn<?, ?> col : tableColumns.getSelectionModel().getSelectedItems()) {
+				if (col != null)
+					col.setVisible(true);
+				else {
+					// Not sure why this happens...?
+					logger.trace("Selected column is null!");
+				}
+			}
+		});
+		
+		Action actionHideSelected = new Action("Hide selected", e -> {
+			for (TreeTableColumn<?, ?> col : tableColumns.getSelectionModel().getSelectedItems()) {
+				if (col != null)
+					col.setVisible(false);
+				else {
+					// Not sure why this happens...?
+					logger.trace("Selected column is null!");
+				}
+			}
+		});
+		
+		contextMenu.getItems().addAll(
+				ActionUtils.createMenuItem(actionShowSelected),
+				ActionUtils.createMenuItem(actionHideSelected));
+		tableColumns.setContextMenu(contextMenu);
+		tableColumns.setTooltip(new Tooltip("Show or hide table columns - right-click to change multiple columns at once"));
+		
+		BorderPane paneColumns = new BorderPane(tableColumns);
+		paneColumns.setBottom(
+				PanelToolsFX.createColumnGridControls(
+						ActionUtils.createButton(actionShowSelected),
+						ActionUtils.createButton(actionHideSelected)
+						)
+				);
+		
+		
+		GridPane paneRows = new GridPane();
+		
+		SplitPane splitPane = new SplitPane(
+				paneColumns,
+				paneRows);
+//		SplitPane splitPane = new SplitPane(
+//				new TitledPane("Displayed columns", new BorderPane(tableColumns)),
+//				new TitledPane("Displayed rows", new BorderPane(paneRows)));
+		splitPane.setOrientation(Orientation.VERTICAL);
+		
+		BorderPane pane = new BorderPane(splitPane);
+		
+		
+		
+		return pane;
+	}
+	
 	
 	
 	private Map<String, List<TMAEntry>> createScoresMap(final List<TMAEntry> entries, final String colScore, final String colID) {
