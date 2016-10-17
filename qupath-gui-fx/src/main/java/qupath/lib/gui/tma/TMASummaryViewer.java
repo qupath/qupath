@@ -194,7 +194,7 @@ public class TMASummaryViewer {
 
 	private final Stage stage;
 
-	private List<String> metadataNames = new ArrayList<>();
+	private ObservableList<String> metadataNames = FXCollections.observableArrayList();
 	private ObservableList<String> measurementNames = FXCollections.observableArrayList();
 	private ObservableList<String> filteredMeasurementNames = new FilteredList<>(measurementNames, m -> !isSurvivalColumn(m));
 
@@ -292,16 +292,18 @@ public class TMASummaryViewer {
 	private ExecutorService pool = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
 	
 	
-	private ObjectProperty<Predicate<? super TMAEntry>> predicate = new SimpleObjectProperty<>();
+	private ObservableValue<Predicate<TMAEntry>> predicateHideMissing = Bindings.createObjectBinding(() -> {
+		if (!skipMissingCoresProperty.get())
+			return c -> true;
+		else
+			return c -> !c.isMissing();
+		}, skipMissingCoresProperty);
+	
+	private ObjectProperty<Predicate<TMAEntry>> predicateMetadataFilter = new SimpleObjectProperty<>();
+	
+	private ObjectProperty<Predicate<TMAEntry>> predicateMeasurements = new SimpleObjectProperty<>();
 
-	private ObservableValue<Predicate<? super TMAEntry>> combinedPredicate = Bindings.createObjectBinding(() -> {
-		if (predicate.get() == null) {
-			if (!skipMissingCoresProperty.get())
-				return c -> true;
-			else
-				return c -> !c.isMissing();
-		}return predicate.get().and(c -> !((TMAEntry)c).isMissing() || !skipMissingCoresProperty.get());
-	}, predicate, skipMissingCoresProperty);
+	private ObservableValue<Predicate<TMAEntry>> combinedPredicate;
 
 	
 
@@ -310,6 +312,16 @@ public class TMASummaryViewer {
 			this.stage = new Stage();
 		else
 			this.stage = stage;
+		
+		combinedPredicate = Bindings.createObjectBinding(() -> {
+			Predicate<TMAEntry> thisPredicate = predicateHideMissing.getValue();
+			if (predicateMeasurements.get() != null)
+				thisPredicate = thisPredicate.and(predicateMeasurements.getValue());
+			if (predicateMetadataFilter.get() != null)
+				thisPredicate = thisPredicate.and(predicateMetadataFilter.getValue());
+			return thisPredicate;
+		}, predicateMeasurements, predicateHideMissing, predicateMetadataFilter);
+		
 		initialize();
 		this.stage.setTitle("TMA Results Viewer");
 		this.stage.setScene(scene);
@@ -374,7 +386,7 @@ public class TMASummaryViewer {
 		miPredicate.setOnAction(e -> {
 			promptForPredicate(entriesBase);
 		});
-		predicate.addListener((v, o, n) -> {
+		combinedPredicate.addListener((v, o, n) -> {
 			Platform.runLater(() -> {
 				table.refresh();
 				histogramDisplay.refreshHistogram();
@@ -631,7 +643,7 @@ public class TMASummaryViewer {
 		labelPredicate.setMaxWidth(Double.MAX_VALUE);
 		labelPredicate.setMaxHeight(labelPredicate.getPrefHeight());
 		labelPredicate.setTextAlignment(TextAlignment.CENTER);
-		predicate.addListener((v, o, n) -> {
+		predicateMeasurements.addListener((v, o, n) -> {
 			if (n == null)
 				labelPredicate.setText("");
 			else if (n instanceof TablePredicate) {
@@ -1013,6 +1025,33 @@ public class TMASummaryViewer {
 		
 		GridPane paneRows = new GridPane();
 		
+		// Create a box to filter on some metadata text
+		ComboBox<String> comboMetadata = new ComboBox<>();
+		comboMetadata.setItems(metadataNames);
+		comboMetadata.getSelectionModel().getSelectedItem();
+		comboMetadata.setPlaceholder(new Text("Select column"));
+		TextField tfFilter = new TextField();
+		CheckBox cbExact = new CheckBox("Exact");
+		// Set listeners
+		cbExact.selectedProperty().addListener((v, o, n) -> setMetadataTextPredicate(comboMetadata.getSelectionModel().getSelectedItem(), tfFilter.getText(), cbExact.isSelected(), !cbExact.isSelected()));
+		tfFilter.textProperty().addListener((v, o, n) -> setMetadataTextPredicate(comboMetadata.getSelectionModel().getSelectedItem(), tfFilter.getText(), cbExact.isSelected(), !cbExact.isSelected()));
+		comboMetadata.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> setMetadataTextPredicate(comboMetadata.getSelectionModel().getSelectedItem(), tfFilter.getText(), cbExact.isSelected(), !cbExact.isSelected()));
+		
+		paneRows.add(new Label("Set metadata filter"), 0, 0, 3, 1);
+//		paneRows.add(new Label("Metadata column"), 0, 0);
+//		paneRows.add(new Label("Filter text"), 1, 0);
+		paneRows.add(comboMetadata, 0, 1);
+		paneRows.add(tfFilter, 1, 1);
+		paneRows.add(cbExact, 2, 1);
+		paneRows.setPadding(new Insets(10, 10, 10, 10));
+		paneRows.setVgap(2);
+		paneRows.setHgap(5);
+		comboMetadata.setMaxWidth(Double.MAX_VALUE);
+		GridPane.setHgrow(tfFilter, Priority.ALWAYS);
+		GridPane.setFillWidth(comboMetadata, Boolean.TRUE);
+		GridPane.setFillWidth(tfFilter, Boolean.TRUE);
+		
+		
 		SplitPane splitPane = new SplitPane(
 				paneColumns,
 				paneRows);
@@ -1026,6 +1065,32 @@ public class TMASummaryViewer {
 		
 		
 		return pane;
+	}
+	
+	
+	/**
+	 * Set a filter based on a (single) metadata column.
+	 * 
+	 * @param metadataName
+	 * @param filterText
+	 * @param exact
+	 * @param ignoreCase
+	 */
+	private void setMetadataTextPredicate(final String metadataName, final String filterText, final boolean exact, final boolean ignoreCase) {
+		if (metadataName == null || filterText == null || metadataName.trim().isEmpty() || filterText.trim().isEmpty()) {
+			predicateMetadataFilter.set(null);
+		} else {
+			if (ignoreCase) {
+				String filterTextLower = filterText.toLowerCase();
+				if (exact)
+					predicateMetadataFilter.set(t -> t.getMetadataValue(metadataName) != null && t.getMetadataValue(metadataName).toLowerCase().equals(filterTextLower));
+				else
+					predicateMetadataFilter.set(t -> t.getMetadataValue(metadataName) != null && t.getMetadataValue(metadataName).toLowerCase().contains(filterTextLower));
+			} else if (exact)
+				predicateMetadataFilter.set(t -> t.getMetadataValue(metadataName) != null && t.getMetadataValue(metadataName).equals(filterText));
+			else
+				predicateMetadataFilter.set(t -> t.getMetadataValue(metadataName) != null && t.getMetadataValue(metadataName).contains(filterText));
+		}
 	}
 	
 	
@@ -2027,7 +2092,7 @@ public class TMASummaryViewer {
 		private ObservableList<TMAEntry> entriesBase = FXCollections.observableArrayList();
 		private FilteredList<TMAEntry> entries = new FilteredList<>(entriesBase);
 
-		TMASummaryEntry(final ReadOnlyObjectProperty<MeasurementCombinationMethod> method, final ObservableBooleanValue skipMissing, final ObservableValue<Predicate<? super TMAEntry>> predicate) {
+		TMASummaryEntry(final ReadOnlyObjectProperty<MeasurementCombinationMethod> method, final ObservableBooleanValue skipMissing, final ObservableValue<Predicate<TMAEntry>> predicate) {
 			super(null, null, null, null, false);
 			// Use the same predicate as elsewhere
 			this.method = method;
@@ -2474,7 +2539,7 @@ public class TMASummaryViewer {
 		pane.setHgap(10);
 		pane.setVgap(10);
 		
-		Predicate<? super TMAEntry> previousPredicate = predicate.get();
+		Predicate<TMAEntry> previousPredicate = predicateMeasurements.get();
 		if (previousPredicate instanceof TablePredicate)
 			tfCommand.setText(((TablePredicate)previousPredicate).getOriginalCommand());
 		
@@ -2494,7 +2559,7 @@ public class TMASummaryViewer {
 		((Button)dialog.getDialogPane().lookupButton(buttonTypeTest)).addEventFilter(ActionEvent.ACTION, e -> {
 			TablePredicate predicateNew = new TablePredicate(tfCommand.getText());
 			if (predicateNew.isValid()) {
-				predicate.set(predicateNew);
+				predicateMeasurements.set(predicateNew);
 			} else {
 				DisplayHelpers.showErrorMessage("Invalid predicate", "Current predicate '" + tfCommand.getText() + "' is invalid!");
 			}
@@ -2502,7 +2567,7 @@ public class TMASummaryViewer {
 		});
 		((Button)dialog.getDialogPane().lookupButton(buttonTypeClear)).addEventFilter(ActionEvent.ACTION, e -> {
 			tfCommand.clear();
-			predicate.set(null);
+			predicateMeasurements.set(null);
 			e.consume();
 		});
 		
@@ -2511,13 +2576,13 @@ public class TMASummaryViewer {
 		if (result.isPresent() && result.get().equals(ButtonType.OK)) {
 			TablePredicate predicateNew = new TablePredicate(tfCommand.getText());
 			if (predicateNew.isValid())
-				predicate.set(predicateNew);
+				predicateMeasurements.set(predicateNew);
 			else
 				DisplayHelpers.showErrorMessage("Invalid predicate", "Current predicate '" + predicateNew + "' is invalid!");
 		} else
-			predicate.set(previousPredicate);
+			predicateMeasurements.set(previousPredicate);
 		
-		logger.info("Predicate set to: {}", predicate.get());
+		logger.info("Predicate set to: {}", predicateMeasurements.get());
 	}
 	
 	
