@@ -60,6 +60,7 @@ import javax.script.SimpleBindings;
 import org.apache.commons.math3.stat.correlation.PearsonsCorrelation;
 import org.apache.commons.math3.stat.correlation.SpearmansCorrelation;
 import org.controlsfx.control.MasterDetailPane;
+import org.controlsfx.control.PopOver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -87,6 +88,7 @@ import javafx.event.ActionEvent;
 import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
+import javafx.geometry.Rectangle2D;
 import javafx.geometry.Side;
 import javafx.scene.Node;
 import javafx.scene.Scene;
@@ -128,16 +130,19 @@ import javafx.scene.control.TreeTableView;
 import javafx.scene.control.cell.CheckBoxTableCell;
 import javafx.scene.effect.DropShadow;
 import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
 import javafx.scene.text.TextAlignment;
+import javafx.stage.Screen;
 import javafx.stage.Stage;
 import javafx.util.Callback;
 import qupath.lib.common.GeneralTools;
@@ -669,12 +674,18 @@ public class TMASummaryViewer {
 		
 		final private Canvas canvas = new Canvas();
 		
+		private PopOver popOver = null;
+		
 		ImageTableCell() {
 			super();
 			canvas.setStyle("-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.5), 4, 0, 1, 1);");
 			canvas.setWidth(100);
 			canvas.setHeight(100);
 			canvas.heightProperty().bind(canvas.widthProperty());
+			addEventFilter(MouseEvent.MOUSE_CLICKED, e -> {
+				if (popOver != null && e.getClickCount() == 2)
+					popOver.show(this);
+			});
 		}
 		
 		@Override
@@ -682,12 +693,25 @@ public class TMASummaryViewer {
 			super.updateItem(item, empty);
 			if (item == null || empty) {
 				setGraphic(null);
+				popOver = null;
 				return;
 			}
 			
 			double w = getTableColumn().getWidth()-10;
 			canvas.setWidth(w);
 			setGraphic(canvas);
+			
+			// Create PopOver to show larger image
+			ImageView imageView = new ImageView(item);
+			imageView.setPreserveRatio(true);
+			Rectangle2D primaryScreenBounds = Screen.getPrimary().getVisualBounds();
+			// TODO: Consider setting max width/height elsewhere, so user can adjust?
+			imageView.setFitWidth(Math.min(primaryScreenBounds.getWidth()*0.5, item.getWidth()));
+			imageView.setFitHeight(Math.min(primaryScreenBounds.getHeight()*0.75, item.getHeight()));
+			popOver = new PopOver(imageView);
+			String name = this.getTreeTableRow().getItem() == null ? null : this.getTreeTableRow().getItem().getName();
+			if (name != null)
+				popOver.setTitle(name);
 			
 			this.setContentDisplay(ContentDisplay.CENTER);
 			this.setAlignment(Pos.CENTER);
