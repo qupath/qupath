@@ -41,11 +41,9 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Optional;
 import java.util.Scanner;
 import java.util.Set;
 import java.util.TreeMap;
-import java.util.TreeSet;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.Predicate;
@@ -63,6 +61,7 @@ import org.controlsfx.control.MasterDetailPane;
 import org.controlsfx.control.PopOver;
 import org.controlsfx.control.action.Action;
 import org.controlsfx.control.action.ActionUtils;
+import org.controlsfx.control.textfield.TextFields;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -70,12 +69,10 @@ import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
-import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
-import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.value.ChangeListener;
@@ -87,7 +84,6 @@ import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
 import javafx.collections.transformation.SortedList;
-import javafx.event.ActionEvent;
 import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
@@ -101,14 +97,11 @@ import javafx.scene.chart.NumberAxis;
 import javafx.scene.chart.ScatterChart;
 import javafx.scene.chart.XYChart;
 import javafx.scene.control.Button;
-import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.ContextMenu;
-import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
-import javafx.scene.control.ListView;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuBar;
 import javafx.scene.control.MenuItem;
@@ -116,7 +109,6 @@ import javafx.scene.control.ScrollPane;
 import javafx.scene.control.ScrollPane.ScrollBarPolicy;
 import javafx.scene.control.SelectionMode;
 import javafx.scene.control.Separator;
-import javafx.scene.control.SplitPane;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 import javafx.scene.control.TabPane.TabClosingPolicy;
@@ -147,6 +139,7 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
+import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
 import javafx.scene.text.TextAlignment;
 import javafx.stage.Screen;
@@ -382,10 +375,6 @@ public class TMASummaryViewer {
 			SummaryMeasurementTableCommand.copyTableContentsToClipboard(model, Collections.emptyList());
 		});
 		
-		MenuItem miPredicate = new MenuItem("Set predicate");
-		miPredicate.setOnAction(e -> {
-			promptForPredicate(entriesBase);
-		});
 		combinedPredicate.addListener((v, o, n) -> {
 			Platform.runLater(() -> {
 				table.refresh();
@@ -423,7 +412,6 @@ public class TMASummaryViewer {
 //			updateSurvivalCurves();
 //			scatterPane.updateChart();
 //		});
-		menuEdit.getItems().add(miPredicate);
 		
 		
 		// Reset the scores for missing cores - this ensures they will be NaN and not influence subsequent results
@@ -1023,13 +1011,13 @@ public class TMASummaryViewer {
 				);
 		
 		
-		GridPane paneRows = new GridPane();
+		VBox paneRows = new VBox();
 		
 		// Create a box to filter on some metadata text
 		ComboBox<String> comboMetadata = new ComboBox<>();
 		comboMetadata.setItems(metadataNames);
 		comboMetadata.getSelectionModel().getSelectedItem();
-		comboMetadata.setPlaceholder(new Text("Select column"));
+		comboMetadata.setPromptText("Select column");
 		TextField tfFilter = new TextField();
 		CheckBox cbExact = new CheckBox("Exact");
 		// Set listeners
@@ -1037,33 +1025,88 @@ public class TMASummaryViewer {
 		tfFilter.textProperty().addListener((v, o, n) -> setMetadataTextPredicate(comboMetadata.getSelectionModel().getSelectedItem(), tfFilter.getText(), cbExact.isSelected(), !cbExact.isSelected()));
 		comboMetadata.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> setMetadataTextPredicate(comboMetadata.getSelectionModel().getSelectedItem(), tfFilter.getText(), cbExact.isSelected(), !cbExact.isSelected()));
 		
-		paneRows.add(new Label("Set metadata filter"), 0, 0, 3, 1);
-//		paneRows.add(new Label("Metadata column"), 0, 0);
-//		paneRows.add(new Label("Filter text"), 1, 0);
-		paneRows.add(comboMetadata, 0, 1);
-		paneRows.add(tfFilter, 1, 1);
-		paneRows.add(cbExact, 2, 1);
-		paneRows.setPadding(new Insets(10, 10, 10, 10));
-		paneRows.setVgap(2);
-		paneRows.setHgap(5);
+		GridPane paneMetadata = new GridPane();
+		paneMetadata.add(comboMetadata, 0, 0);
+		paneMetadata.add(tfFilter, 1, 0);
+		paneMetadata.add(cbExact, 2, 0);
+		paneMetadata.setPadding(new Insets(10, 10, 10, 10));
+		paneMetadata.setVgap(2);
+		paneMetadata.setHgap(5);
 		comboMetadata.setMaxWidth(Double.MAX_VALUE);
 		GridPane.setHgrow(tfFilter, Priority.ALWAYS);
 		GridPane.setFillWidth(comboMetadata, Boolean.TRUE);
 		GridPane.setFillWidth(tfFilter, Boolean.TRUE);
 		
+		TitledPane tpMetadata = new TitledPane("Metadata filter", paneMetadata);
+		tpMetadata.setExpanded(false);
+//		tpMetadata.setCollapsible(false);
+		Tooltip tooltipMetadata = new Tooltip("Enter text to filter entries according to a selected metadata column");
+		Tooltip.install(paneMetadata, tooltipMetadata);
+		tpMetadata.setTooltip(tooltipMetadata);
+		paneRows.getChildren().add(tpMetadata);		
 		
-		SplitPane splitPane = new SplitPane(
+		
+		// Add measurement predicate
+		TextField tfCommand = new TextField();
+		tfCommand.setTooltip(new Tooltip("Predicate used to filter entries for inclusion"));
+		
+		TextFields.bindAutoCompletion(tfCommand, e -> {
+			int ind = tfCommand.getText().lastIndexOf("\"");
+			if (ind < 0)
+				return Collections.emptyList();
+			String part = tfCommand.getText().substring(ind+1);
+			return measurementNames.stream().filter(n -> n.startsWith(part)).map(n -> "\"" + n + "\" ").collect(Collectors.toList());
+		});
+
+		String instructions = "Enter a predicate to filter entries.\n" + 
+				"Only entries passing the test will be included in any results.\n" + 
+				"Examples of predicates include:\n" + 
+				"    \"Num Tumor\" > 200\n" + 
+				"    \"Num Tumor\" > 100 && \"Num Stroma\" < 1000";
+//		labelInstructions.setTooltip(new Tooltip("Note: measurement names must be in \"inverted commands\" and\n" + 
+//				"&& indicates 'and', while || indicates 'or'."));
+
+		BorderPane paneMeasurementFilter = new BorderPane(tfCommand);
+		Label label = new Label("Predicate: ");
+		label.setAlignment(Pos.CENTER);
+		label.setMaxHeight(Double.MAX_VALUE);
+		paneMeasurementFilter.setLeft(label);
+		
+		Button btnApply = new Button("Apply");
+		btnApply.setOnAction(e -> {
+			TablePredicate predicateNew = new TablePredicate(tfCommand.getText());
+			if (predicateNew.isValid()) {
+				predicateMeasurements.set(predicateNew);
+			} else {
+				DisplayHelpers.showErrorMessage("Invalid predicate", "Current predicate '" + tfCommand.getText() + "' is invalid!");
+			}
+			e.consume();
+		});
+		TitledPane tpMeasurementFilter = new TitledPane("Measurement filter", paneMeasurementFilter);
+		tpMeasurementFilter.setExpanded(false);
+		Tooltip tooltipInstructions = new Tooltip(instructions);
+		tpMeasurementFilter.setTooltip(tooltipInstructions);
+		Tooltip.install(paneMeasurementFilter, tooltipInstructions);
+		paneMeasurementFilter.setRight(btnApply);
+		
+		paneRows.getChildren().add(tpMeasurementFilter);
+		
+		logger.info("Predicate set to: {}", predicateMeasurements.get());
+		
+		
+		
+		
+		VBox pane = new VBox();
+//		TitledPane tpColumns = new TitledPane("Select column", paneColumns);
+//		tpColumns.setMaxHeight(Double.MAX_VALUE);
+//		tpColumns.setCollapsible(false);
+		pane.getChildren().addAll(
 				paneColumns,
-				paneRows);
-//		SplitPane splitPane = new SplitPane(
-//				new TitledPane("Displayed columns", new BorderPane(tableColumns)),
-//				new TitledPane("Displayed rows", new BorderPane(paneRows)));
-		splitPane.setOrientation(Orientation.VERTICAL);
-		
-		BorderPane pane = new BorderPane(splitPane);
-		
-		
-		
+				new Separator(),
+				paneRows
+				);
+		VBox.setVgrow(paneColumns, Priority.ALWAYS);
+
 		return pane;
 	}
 	
@@ -1256,6 +1299,10 @@ public class TMASummaryViewer {
 		refreshTableData(table, createSummaryEntries(entriesBase));
 		
 		model.refreshList();
+		
+		// The next time the table is empty, show a different placeholder 
+		// from the original (which is for loading/import)
+		table.setPlaceholder(new Text("No data"));
 	}
 
 	
@@ -2474,117 +2521,7 @@ public class TMASummaryViewer {
 		return counter;
 	}
 	
-	
-	
-	
-	
-	
-	void promptForPredicate(final List<? extends TMAEntry> entries) {
 		
-		Set<String> measurementNames = new TreeSet<>();
-		for (TMAEntry entry : entries)
-			measurementNames.addAll(entry.getMeasurementNames());
-		if (measurementNames.isEmpty())
-			DisplayHelpers.showErrorMessage("Set predicate error", "No measurements available!");
-		
-		ListView<String> listNames = new ListView<>();
-		listNames.setTooltip(new Tooltip("Double-click on a measurement to insert it into the predicate text field"));
-		listNames.getItems().setAll(measurementNames);
-		
-		TextField tfCommand = new TextField();
-		tfCommand.setTooltip(new Tooltip("Predicate used to filter entries for inclusion"));
-
-		IntegerProperty lastCaret = new SimpleIntegerProperty();
-		tfCommand.caretPositionProperty().addListener((v, o, n) -> {
-			if (tfCommand.isFocused())
-				lastCaret.set(n.intValue());
-		});
-		listNames.setOnMouseClicked(e -> {
-			if (e.getClickCount() <= 1)
-				return;
-			String selected = listNames.getSelectionModel().getSelectedItem();
-			if (selected != null) {
-				int pos = lastCaret.get();
-				if (pos > tfCommand.getText().length())
-					pos = 0;
-				if (tfCommand.getSelection().getLength() > 0)
-					tfCommand.replaceSelection("\"" + selected + "\"");
-				else
-					tfCommand.insertText(pos, "\"" + selected + "\"");
-				tfCommand.requestFocus();
-				tfCommand.deselect();
-				tfCommand.positionCaret(pos + selected.length()+2);
-			}
-		});
-		
-		
-		Label labelInstructions = new Label();
-		labelInstructions.setText("Enter a predicate to filter entries.\n" + 
-				"Only entries passing the test will be included in any results.\n" + 
-				"Examples of possible predicates include:\n" + 
-				"\"Num Tumor\" > 200\n" + 
-				"\"Num Tumor\" > 100 && \"Num Stroma\" < 1000");
-		labelInstructions.setTooltip(new Tooltip("Note: measurement names must be in \"inverted commands\" and\n" + 
-				"&& indicates 'and', while || indicates 'or'."));
-		labelInstructions.setContentDisplay(ContentDisplay.CENTER);
-		labelInstructions.setAlignment(Pos.CENTER);
-		labelInstructions.setTextAlignment(TextAlignment.CENTER);
-		labelInstructions.setMaxWidth(Double.MAX_VALUE);
-		
-		GridPane pane = new GridPane();
-		pane.add(labelInstructions, 0, 0, 2, 1);
-		pane.add(listNames, 0, 1, 2, 1);
-		pane.add(new Label("Predicate"), 0, 2, 1, 1);
-		pane.add(tfCommand, 1, 2, 1, 1);
-		pane.setHgap(10);
-		pane.setVgap(10);
-		
-		Predicate<TMAEntry> previousPredicate = predicateMeasurements.get();
-		if (previousPredicate instanceof TablePredicate)
-			tfCommand.setText(((TablePredicate)previousPredicate).getOriginalCommand());
-		
-		Dialog<ButtonType> dialog = new Dialog<>();
-		dialog.initOwner(stage);
-		
-		dialog.getDialogPane().setContent(pane);
-		
-		ButtonType buttonTypeTest = new ButtonType("Test");
-		ButtonType buttonTypeClear = new ButtonType("Clear");
-		dialog.getDialogPane().getButtonTypes().setAll(buttonTypeClear, buttonTypeTest, ButtonType.OK, ButtonType.CANCEL);
-		
-		dialog.setOnCloseRequest(e -> {
-			
-		});
-		
-		((Button)dialog.getDialogPane().lookupButton(buttonTypeTest)).addEventFilter(ActionEvent.ACTION, e -> {
-			TablePredicate predicateNew = new TablePredicate(tfCommand.getText());
-			if (predicateNew.isValid()) {
-				predicateMeasurements.set(predicateNew);
-			} else {
-				DisplayHelpers.showErrorMessage("Invalid predicate", "Current predicate '" + tfCommand.getText() + "' is invalid!");
-			}
-			e.consume();
-		});
-		((Button)dialog.getDialogPane().lookupButton(buttonTypeClear)).addEventFilter(ActionEvent.ACTION, e -> {
-			tfCommand.clear();
-			predicateMeasurements.set(null);
-			e.consume();
-		});
-		
-		Optional<ButtonType> result = dialog.showAndWait();
-		
-		if (result.isPresent() && result.get().equals(ButtonType.OK)) {
-			TablePredicate predicateNew = new TablePredicate(tfCommand.getText());
-			if (predicateNew.isValid())
-				predicateMeasurements.set(predicateNew);
-			else
-				DisplayHelpers.showErrorMessage("Invalid predicate", "Current predicate '" + predicateNew + "' is invalid!");
-		} else
-			predicateMeasurements.set(previousPredicate);
-		
-		logger.info("Predicate set to: {}", predicateMeasurements.get());
-	}
-	
 	
 	/**
 	 * This is admittedly not the most beautiful or safe way to deal with an arbitrary predicate,
