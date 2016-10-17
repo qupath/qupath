@@ -81,6 +81,7 @@ import javafx.beans.value.ObservableValue;
 import javafx.beans.value.WeakChangeListener;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
+import javafx.collections.ListChangeListener.Change;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
 import javafx.collections.transformation.SortedList;
@@ -102,6 +103,8 @@ import javafx.scene.control.ComboBox;
 import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
+import javafx.scene.control.ListCell;
+import javafx.scene.control.ListView;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuBar;
 import javafx.scene.control.MenuItem;
@@ -208,6 +211,10 @@ public class TMASummaryViewer {
 	
 	private Scene scene;
 
+	
+	private static enum ImageAvailability {IMAGE_ONLY, OVERLAY_ONLY, BOTH, NONE}
+	private static ObjectProperty<ImageAvailability> imageAvailability = new SimpleObjectProperty<>(ImageAvailability.NONE);
+	
 	
 	/**
 	 * Methods that may be used to combine measurements when multiple cores are available.
@@ -916,7 +923,50 @@ public class TMASummaryViewer {
 		
 		
 		
-
+		
+		// Create a Tab for showing images
+		BorderPane paneImages = new BorderPane();
+		CheckBox cbShowOverlay = new CheckBox("Show overlay");
+		imageAvailability.addListener((c, v, n) -> {
+			if (n == ImageAvailability.OVERLAY_ONLY)
+				cbShowOverlay.setSelected(true);
+			else if (n == ImageAvailability.IMAGE_ONLY)
+				cbShowOverlay.setSelected(false);
+			cbShowOverlay.setDisable(n != ImageAvailability.BOTH);
+		});
+		ListView<TMAEntry> listImages = new ListView<>();
+		listImages.setCellFactory(v -> new ImageListCell(cbShowOverlay.selectedProperty()));
+		listImages.widthProperty().addListener((v, o, n) -> listImages.refresh());
+		listImages.setStyle("-fx-control-inner-background-alt: -fx-control-inner-background ;");
+		table.getSelectionModel().getSelectedItems().addListener((Change<? extends TreeItem<TMAEntry>> e) -> {
+			List<TMAEntry> entries = new ArrayList<>();
+			for (TreeItem<TMAEntry> item : e.getList()) {
+				if (item.getChildren().isEmpty()) {
+					if (item.getValue().hasImage() || item.getValue().hasOverlay())
+						entries.add(item.getValue());
+				} else {
+					for (TreeItem<TMAEntry> item2 : item.getChildren()) {
+						if (item2.getValue().hasImage() || item2.getValue().hasOverlay())
+							entries.add(item2.getValue());
+					}					
+				}
+				listImages.getItems().setAll(entries);
+			}
+		});
+		cbShowOverlay.setAlignment(Pos.CENTER);
+		cbShowOverlay.setMaxWidth(Double.MAX_VALUE);
+		cbShowOverlay.setPadding(new Insets(5, 5, 5, 5));
+		cbShowOverlay.selectedProperty().addListener((v, o, n) -> listImages.refresh());
+		paneImages.setCenter(listImages);
+		paneImages.setTop(cbShowOverlay);
+		
+		
+		
+		// Determine visibility based upon whether there are any images to show
+		Tab tabImages = new Tab("Images", paneImages);
+//		tabImages.getGraphic().setVisible(imageAvailability.get() != ImageAvailability.NONE);
+//		tabImages.getGraphic().visibleProperty().bind(Bindings.createBooleanBinding(() -> imageAvailability.get() != ImageAvailability.NONE, imageAvailability));
+		
 		
 		ScrollPane scrollPane = new ScrollPane(paneKaplanMeier);
 		scrollPane.setFitToWidth(true);
@@ -926,12 +976,20 @@ public class TMASummaryViewer {
 		Tab tabSurvival = new Tab("Survival", scrollPane);
 		tabPane.getTabs().addAll(
 				new Tab("Table", getCustomizeTablePane()),
+//				tabImages,
 				new Tab("Histogram", histogramDisplay.getPane()),
 				new Tab("Scatterplot", scatterPane.getPane()),
 				tabSurvival
 				);
 		tabPane.setTabClosingPolicy(TabClosingPolicy.UNAVAILABLE);
 		
+		
+		imageAvailability.addListener((c, v, n) -> {
+			if (n == ImageAvailability.NONE)
+				tabPane.getTabs().remove(tabImages);
+			else if (!tabPane.getTabs().contains(tabImages))
+				tabPane.getTabs().add(1, tabImages);
+		});
 		
 //		tabSurvival.visibleProperty().bind(
 //				Bindings.createBooleanBinding(() -> !survivalColumns.isEmpty(), survivalColumns)
@@ -1379,6 +1437,18 @@ public class TMASummaryViewer {
 					columns.add(columnOverlay);
 				}
 			}
+			
+			
+			// Update image availability
+			if (hasImages) {
+				if (hasOverlay)
+					imageAvailability.set(ImageAvailability.BOTH);
+				else
+					imageAvailability.set(ImageAvailability.IMAGE_ONLY);
+			} else if (hasOverlay) {
+				imageAvailability.set(ImageAvailability.OVERLAY_ONLY);
+			} else
+				imageAvailability.set(ImageAvailability.NONE);
 
 		}
 //		else
@@ -2667,4 +2737,58 @@ public class TMASummaryViewer {
 
 	}
 
+	
+	
+	
+	static class ImageListCell extends ListCell<TMAEntry> {
+		
+		final private Canvas canvas = new Canvas();
+		final private ObservableValue<Boolean> showOverlay;
+		
+		ImageListCell(final ObservableValue<Boolean> showOverlay) {
+			super();
+			this.showOverlay = showOverlay;
+			canvas.setStyle("-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.5), 4, 0, 1, 1);");
+			canvas.setWidth(250);
+			canvas.setHeight(250);
+			canvas.heightProperty().bind(canvas.widthProperty());
+		}
+		
+		@Override
+		protected void updateItem(TMAEntry entry, boolean empty) {
+			super.updateItem(entry, empty);
+			if (entry == null || empty) {
+				setGraphic(null);
+				setTooltip(null);
+				return;
+			}
+			
+//			double w = getTableColumn().getWidth()-10;
+			double w = getListView().getWidth() - 40;
+			canvas.setWidth(w);
+			setGraphic(canvas);
+			
+			this.setContentDisplay(ContentDisplay.CENTER);
+			this.setAlignment(Pos.CENTER);
+			
+			Image img;
+			if (showOverlay.getValue()) {
+				img = entry.getOverlay();
+			}
+	    	 else {
+	    		img = entry.getImage();
+	    	 }
+			
+			GraphicsContext gc = canvas.getGraphicsContext2D();
+			gc.clearRect(0, 0, w, w);
+			if (img == null)
+				return;
+			if (img != null) {
+				PaintingToolsFX.paintImage(canvas, img);
+			}
+		}
+		
+	}
+	
+	
 }
