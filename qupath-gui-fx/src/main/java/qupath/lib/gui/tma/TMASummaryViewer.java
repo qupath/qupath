@@ -160,8 +160,6 @@ import qupath.lib.gui.models.ObservableMeasurementTableData;
 import qupath.lib.gui.models.PathTableData;
 import qupath.lib.gui.panels.survival.KaplanMeierDisplay;
 import qupath.lib.gui.prefs.PathPrefs;
-import qupath.lib.gui.viewer.OverlayOptions;
-import qupath.lib.gui.viewer.OverlayOptions.CellDisplayMode;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ServerTools;
@@ -278,12 +276,12 @@ public class TMASummaryViewer {
 	private TreeTableView<TMAEntry> table = new TreeTableView<>();
 	private TMATableModel model;
 
-	private OverlayOptions overlayOptions = new OverlayOptions();
 	private TMAEntry entrySelected = null;
 
 	private BooleanProperty showAnalysisProperty = new SimpleBooleanProperty(true);
 	private BooleanProperty useSelectedProperty = new SimpleBooleanProperty(false);
 	private BooleanProperty skipMissingCoresProperty = new SimpleBooleanProperty(true);
+	private BooleanProperty groupByIDProperty = new SimpleBooleanProperty(true);
 
 	private HistogramDisplay histogramDisplay;
 	private	KaplanMeierDisplay kmDisplay;
@@ -337,9 +335,8 @@ public class TMASummaryViewer {
 	private void initialize() {
 		
 		model = new TMATableModel();
-		overlayOptions.setShowObjects(true);
-		overlayOptions.setFillObjects(true);
-		overlayOptions.setCellDisplayMode(CellDisplayMode.NUCLEI_ONLY);
+		
+		groupByIDProperty.addListener((v, o, n) -> refreshTableData());
 
 		MenuBar menuBar = new MenuBar();
 		Menu menuFile = new Menu("File");
@@ -506,6 +503,10 @@ public class TMASummaryViewer {
 		cbShowAnalysis.setSelected(showAnalysisProperty.get());
 		cbShowAnalysis.selectedProperty().bindBidirectional(showAnalysisProperty);
 		
+		CheckBox cbGroupByID = new CheckBox("Group by ID");
+		cbGroupByID.setSelected(groupByIDProperty.get());
+		cbGroupByID.selectedProperty().bindBidirectional(groupByIDProperty);
+		
 		CheckBox cbUseSelected = new CheckBox("Use selection only");
 		cbUseSelected.selectedProperty().bindBidirectional(useSelectedProperty);
 		
@@ -526,6 +527,8 @@ public class TMASummaryViewer {
 				comboMeasurementMethod,
 				new Separator(Orientation.VERTICAL),
 				cbShowAnalysis,
+				new Separator(Orientation.VERTICAL),
+				cbGroupByID,
 				new Separator(Orientation.VERTICAL),
 				cbUseSelected,
 				new Separator(Orientation.VERTICAL),
@@ -1354,7 +1357,8 @@ public class TMASummaryViewer {
 		metadataNames.clear();
 		metadataNames.addAll(namesMetadata);
 		
-		refreshTableData(table, createSummaryEntries(entriesBase));
+		
+		refreshTableData();
 		
 		model.refreshList();
 		
@@ -1367,8 +1371,12 @@ public class TMASummaryViewer {
 	
 	
 	@SuppressWarnings({ "rawtypes", "unchecked" })
-	private void refreshTableData(final TreeTableView<TMAEntry> table, final Collection<? extends TMAEntry> entries) {
+	private void refreshTableData() {
 
+		
+		Collection<? extends TMAEntry> entries = groupByIDProperty.get() ? createSummaryEntries(entriesBase) : entriesBase;
+		
+		
 		// Ensure that we don't try to modify a filtered list
 		List<TreeTableColumn<TMAEntry, ?>> columns = new ArrayList<>();
 
