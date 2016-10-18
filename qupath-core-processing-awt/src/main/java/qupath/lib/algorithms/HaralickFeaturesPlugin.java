@@ -55,6 +55,7 @@ import qupath.lib.measurements.MeasurementList;
 import qupath.lib.objects.PathCellObject;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.TMACoreObject;
 import qupath.lib.plugins.AbstractInteractivePlugin;
 import qupath.lib.plugins.PluginRunner;
 import qupath.lib.plugins.parameters.ParameterList;
@@ -576,13 +577,15 @@ public class HaralickFeaturesPlugin extends AbstractInteractivePlugin<BufferedIm
 
 	@Override
 	protected Collection<PathObject> getParentObjects(final PluginRunner<BufferedImage> runner) {
-		return runner.getImageData().getHierarchy().getObjects(null, PathDetectionObject.class);
+		return runner.getImageData().getHierarchy().getSelectionModel().getSelectedObjects();
+//		return runner.getImageData().getHierarchy().getObjects(null, PathDetectionObject.class);
 	}
 
 	@Override
 	public Collection<Class<? extends PathObject>> getSupportedParentObjectClasses() {
 		List<Class<? extends PathObject>> parents = new ArrayList<>();
 		parents.add(PathDetectionObject.class);
+		parents.add(TMACoreObject.class);
 		return parents;
 	}
 

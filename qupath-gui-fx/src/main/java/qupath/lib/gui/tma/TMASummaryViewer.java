@@ -278,7 +278,7 @@ public class TMASummaryViewer {
 
 	private TMAEntry entrySelected = null;
 
-	private BooleanProperty showAnalysisProperty = new SimpleBooleanProperty(true);
+	private BooleanProperty hidePaneProperty = new SimpleBooleanProperty(false);
 	private BooleanProperty useSelectedProperty = new SimpleBooleanProperty(false);
 	private BooleanProperty skipMissingCoresProperty = new SimpleBooleanProperty(true);
 	private BooleanProperty groupByIDProperty = new SimpleBooleanProperty(true);
@@ -379,44 +379,12 @@ public class TMASummaryViewer {
 			SummaryMeasurementTableCommand.copyTableContentsToClipboard(model, Collections.emptyList());
 		});
 		
+		
 		combinedPredicate.addListener((v, o, n) -> {
-			Platform.runLater(() -> {
-				table.refresh();
-				histogramDisplay.refreshHistogram();
-				updateSurvivalCurves();
-				scatterPane.updateChart();
-			});
+			// We want any other changes triggered by this to have happened, 
+			// so that the data has already been updated
+			Platform.runLater(() -> handleTableContentChange());
 		});
-		
-//		miPredicate.selectedProperty().addListener((v, o, n) -> {
-//			String predicateString = "\"Num Tumor\" > 500";
-//			if (n) {
-//				logger.warn("Testing predicates is incomplete!  Currently hard-coded to as {}", predicateString);
-//				predicate.set(new TablePredicate(predicateString));
-////				predicate.set(e -> {
-//////					String name = e.getName().trim().toLowerCase();
-//////					boolean keep = false;
-//////					keep = name.startsWith("a") || name.startsWith("b") || name.startsWith("c");
-//////					keep = name.startsWith("d") || name.startsWith("e") || name.startsWith("f");
-//////					keep = name.startsWith("g") || name.startsWith("h") || name.startsWith("i");
-//////					keep = keep && (e.getMeasurement("Num Tumor").doubleValue() + e.getMeasurement("Num Stroma").doubleValue()) > 250;
-//////					System.err.println(name + ": " + keep);
-//////					return keep;
-////					Number value = e.getMeasurement(predicateMeasurement);
-////					return value != null && value.doubleValue() >= predicateMin;
-////				});
-////				predicate.set(e -> !Double.isNaN(e.getMeasurement("H-score").doubleValue()));
-//			} else
-//				predicate.set(null);
-//			refreshTableData(table, null, false, getColumnFilter());
-//			refreshDetailTable();
-//			table.refresh();
-//			tableDetail.refresh();
-//			histogramDisplay.refreshHistogram();
-//			updateSurvivalCurves();
-//			scatterPane.updateChart();
-//		});
-		
 		
 		// Reset the scores for missing cores - this ensures they will be NaN and not influence subsequent results
 		MenuItem miResetMissingScores = new MenuItem("Reset scores for missing cores");
@@ -475,16 +443,6 @@ public class TMASummaryViewer {
 //			if (!e.isPopupTrigger() && e.getClickCount() > 1)
 //				promptForComment();
 //		});
-
-		
-//		Button btnSurvival = new Button("Kaplan Meier");
-//		btnSurvival.setOnAction(e -> {
-//			
-//			updateSurvivalCurves();
-//				
-//
-//		});
-
 		
 		table.setPlaceholder(new Text("Drag TMA data folder onto window, or choose File -> Open"));
 		table.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
@@ -499,9 +457,9 @@ public class TMASummaryViewer {
 		labelMeasurementMethod.setLabelFor(comboMeasurementMethod);
 		labelMeasurementMethod.setTooltip(new Tooltip("Method whereby measurements for multiple cores with the same " + TMACoreObject.KEY_UNIQUE_ID + " will be combined"));
 		
-		CheckBox cbShowAnalysis = new CheckBox("Show analysis pane");
-		cbShowAnalysis.setSelected(showAnalysisProperty.get());
-		cbShowAnalysis.selectedProperty().bindBidirectional(showAnalysisProperty);
+		CheckBox cbHidePane = new CheckBox("Hide pane");
+		cbHidePane.setSelected(hidePaneProperty.get());
+		cbHidePane.selectedProperty().bindBidirectional(hidePaneProperty);
 		
 		CheckBox cbGroupByID = new CheckBox("Group by ID");
 		cbGroupByID.setSelected(groupByIDProperty.get());
@@ -526,7 +484,7 @@ public class TMASummaryViewer {
 				labelMeasurementMethod,
 				comboMeasurementMethod,
 				new Separator(Orientation.VERTICAL),
-				cbShowAnalysis,
+				cbHidePane,
 				new Separator(Orientation.VERTICAL),
 				cbGroupByID,
 				new Separator(Orientation.VERTICAL),
@@ -607,7 +565,11 @@ public class TMASummaryViewer {
 
 		MasterDetailPane mdTablePane = new MasterDetailPane(Side.RIGHT, paneTable, createSidePane(), true);
 		
-		mdTablePane.showDetailNodeProperty().bind(showAnalysisProperty);
+		mdTablePane.showDetailNodeProperty().bind(
+				Bindings.createBooleanBinding(() ->
+				!hidePaneProperty.get() && !entriesBase.isEmpty(),
+				hidePaneProperty, entriesBase)
+				);
 		mdTablePane.setDividerPosition(2.0/3.0);
 
 		pane.setCenter(mdTablePane);
@@ -681,6 +643,18 @@ public class TMASummaryViewer {
 	     }
 		
 	};
+	
+	
+	
+	/**
+	 * Update data due to a change in table content.
+	 */
+	private void handleTableContentChange() {
+		table.refresh();
+		histogramDisplay.refreshHistogram();
+		updateSurvivalCurves();
+		scatterPane.updateChart();
+	}
 	
 	
 	
@@ -1360,8 +1334,6 @@ public class TMASummaryViewer {
 		
 		refreshTableData();
 		
-		model.refreshList();
-		
 		// The next time the table is empty, show a different placeholder 
 		// from the original (which is for loading/import)
 		table.setPlaceholder(new Text("No data"));
@@ -1380,7 +1352,7 @@ public class TMASummaryViewer {
 		// Ensure that we don't try to modify a filtered list
 		List<TreeTableColumn<TMAEntry, ?>> columns = new ArrayList<>();
 
-		if (table.getColumns().isEmpty()) {
+//		if (table.getColumns().isEmpty()) {
 			
 			// Add an empty column.
 			// Its purpose is to provide the space needed for the little expansion arrows, to avoid 
@@ -1458,7 +1430,7 @@ public class TMASummaryViewer {
 			} else
 				imageAvailability.set(ImageAvailability.NONE);
 
-		}
+//		}
 //		else
 //			columns.remove(1, table.getColumns().size());
 //		//				table.getColumns().remove(2, table.getColumns().size());
@@ -1507,6 +1479,9 @@ public class TMASummaryViewer {
 		TreeItem<TMAEntry> root = new RootTreeItem(entries);
 		table.setShowRoot(false);
 		table.setRoot(root);
+		
+		
+		model.refreshList();
 	}
 	
 	
@@ -2482,7 +2457,11 @@ public class TMASummaryViewer {
 //							if (item.getParent() != null)
 //								item.getParent().setExpanded(true);
 							table.getSelectionModel().select(item);
-							table.scrollTo(table.getSelectionModel().getSelectedIndex());
+							table.layout();
+							int ind = table.getSelectionModel().getSelectedIndex();
+							if (ind >= 0) {
+								table.scrollTo(ind);
+							}
 						}
 					});
 				}
@@ -2641,21 +2620,6 @@ public class TMASummaryViewer {
 		public boolean test(TMAEntry entry) {
 			if (!isValid)
 				throw new RuntimeException("Cannot run invalid predicate! Original command: " + commandOriginal);
-			
-//			if (!"Yes".equals(entry.getMetadataValue("Chemo")))
-//				return false;
-//			if (!"No".equals(entry.getMetadataValue("Chemo")))
-//				return false;
-
-//			if ("TL".equals(entry.getMetadataValue("Core type")) || "TS".equals(entry.getMetadataValue("Core type")))
-//				return false;
-//			if (!"T".equals(entry.getMetadataValue("Core type")))
-//			return false;
-			
-//			if (!"Central".equals(entry.getMetadataValue("Location")))
-//				return false;
-//			if (!"invasive".equals(entry.getMetadataValue("Location")))
-//				return false;
 			
 			// If nothing is included, accept everything
 			if (this.command.isEmpty())
