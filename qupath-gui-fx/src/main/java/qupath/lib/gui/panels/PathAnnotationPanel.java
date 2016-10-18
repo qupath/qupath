@@ -657,6 +657,8 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 		GridPane panel = new GridPane();
 		panel.setVgap(5);
 		TextField textField = new TextField();
+		if (currentObject.getName() != null)
+			textField.setText(currentObject.getName());
 		textField.setPrefColumnCount(20);
 		
 		panel.add(new Label("Name "), 0, 0);
