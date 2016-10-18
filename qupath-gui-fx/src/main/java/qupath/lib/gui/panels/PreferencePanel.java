@@ -102,6 +102,12 @@ public class PreferencePanel {
 		}
 		
 		
+		addPropertyPreference(PathPrefs.doAutoUpdateCheckProperty(), Boolean.class,
+				"Check for updates on startup",
+				category,
+				"Automatically check for updated when QuPath is started, and show a message if a new version is available.");
+		
+		
 		addPropertyPreference(PathPrefs.numCommandThreadsProperty(), Integer.class,
 				"Number of processors for parallel commands",
 				category,
@@ -585,12 +591,18 @@ public class PreferencePanel {
 			if (property instanceof DirectoryPropertyItem) {
 				control.textProperty().bindBidirectional(((DirectoryPropertyItem)property).prop);
 			}
-			value = Bindings.createObjectBinding(() -> new File(control.getText()), control.textProperty());
+			value = Bindings.createObjectBinding(() -> {
+				String text = control.getText();
+				if (text == null || text.trim().isEmpty() || !new File(text).isDirectory())
+					return null;
+				else
+					return new File(text);
+				}, control.textProperty());
 		}
 
 		@Override
 		public void setValue(File value) {
-			getEditor().setText(value == null ? "" : value.getAbsolutePath());
+			getEditor().setText(value == null ? null : value.getAbsolutePath());
 		}
 
 		@Override

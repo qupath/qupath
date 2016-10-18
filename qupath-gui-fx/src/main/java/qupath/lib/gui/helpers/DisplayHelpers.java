@@ -227,9 +227,8 @@ public class DisplayHelpers {
 			alert.getDialogPane().setHeader(null);
 			alert.getDialogPane().setContentText(message);
 			alert.showAndWait();
-		} else {
-			JOptionPane.showMessageDialog(null, message, title, JOptionPane.PLAIN_MESSAGE, null);
-		}
+		} else
+			Platform.runLater(() -> showMessageDialog(title, message));
 	}
 	
 	
