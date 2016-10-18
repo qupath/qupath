@@ -24,12 +24,7 @@
 package qupath.lib.gui.tma;
 
 import java.awt.image.BufferedImage;
-import java.io.BufferedInputStream;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.net.MalformedURLException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -58,7 +53,6 @@ import javax.script.SimpleBindings;
 import org.apache.commons.math3.stat.correlation.PearsonsCorrelation;
 import org.apache.commons.math3.stat.correlation.SpearmansCorrelation;
 import org.controlsfx.control.MasterDetailPane;
-import org.controlsfx.control.PopOver;
 import org.controlsfx.control.action.Action;
 import org.controlsfx.control.action.ActionUtils;
 import org.controlsfx.control.textfield.TextFields;
@@ -76,7 +70,6 @@ import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.value.ChangeListener;
-import javafx.beans.value.ObservableBooleanValue;
 import javafx.beans.value.ObservableValue;
 import javafx.beans.value.WeakChangeListener;
 import javafx.collections.FXCollections;
@@ -88,22 +81,17 @@ import javafx.collections.transformation.SortedList;
 import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
-import javafx.geometry.Rectangle2D;
 import javafx.geometry.Side;
 import javafx.scene.Node;
 import javafx.scene.Scene;
-import javafx.scene.canvas.Canvas;
-import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.chart.NumberAxis;
 import javafx.scene.chart.ScatterChart;
 import javafx.scene.chart.XYChart;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
-import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
-import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuBar;
@@ -122,7 +110,6 @@ import javafx.scene.control.TitledPane;
 import javafx.scene.control.ToolBar;
 import javafx.scene.control.Tooltip;
 import javafx.scene.control.TreeItem;
-import javafx.scene.control.TreeTableCell;
 import javafx.scene.control.TreeTableColumn;
 import javafx.scene.control.TreeTableColumn.CellDataFeatures;
 import javafx.scene.control.TreeTableRow;
@@ -130,14 +117,11 @@ import javafx.scene.control.TreeTableView;
 import javafx.scene.control.cell.CheckBoxTableCell;
 import javafx.scene.effect.DropShadow;
 import javafx.scene.image.Image;
-import javafx.scene.image.ImageView;
 import javafx.scene.input.Clipboard;
-import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
-import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
@@ -145,7 +129,6 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
 import javafx.scene.text.TextAlignment;
-import javafx.stage.Screen;
 import javafx.stage.Stage;
 import javafx.util.Callback;
 import qupath.lib.common.GeneralTools;
@@ -153,16 +136,23 @@ import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.SummaryMeasurementTableCommand;
 import qupath.lib.gui.helpers.ChartToolsFX;
 import qupath.lib.gui.helpers.DisplayHelpers;
-import qupath.lib.gui.helpers.PaintingToolsFX;
 import qupath.lib.gui.helpers.PanelToolsFX;
 import qupath.lib.gui.models.HistogramDisplay;
 import qupath.lib.gui.models.ObservableMeasurementTableData;
 import qupath.lib.gui.models.PathTableData;
 import qupath.lib.gui.panels.survival.KaplanMeierDisplay;
 import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.gui.tma.cells.BasicTableCell;
+import qupath.lib.gui.tma.cells.ImageListCell;
+import qupath.lib.gui.tma.cells.ImageTableCell;
+import qupath.lib.gui.tma.cells.NumericTableCell;
+import qupath.lib.gui.tma.entries.DefaultTMAEntry;
+import qupath.lib.gui.tma.entries.TMAEntry;
+import qupath.lib.gui.tma.entries.TMAObjectEntry;
+import qupath.lib.gui.tma.entries.TMASummaryEntry;
+import qupath.lib.gui.tma.entries.TMASummaryEntry.MeasurementCombinationMethod;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
-import qupath.lib.images.servers.ServerTools;
 import qupath.lib.io.PathIO;
 import qupath.lib.io.TMAScoreImporter;
 import qupath.lib.measurements.MeasurementList;
@@ -190,13 +180,12 @@ public class TMASummaryViewer {
 
 	private ObservableList<String> metadataNames = FXCollections.observableArrayList();
 	private ObservableList<String> measurementNames = FXCollections.observableArrayList();
-	private ObservableList<String> filteredMeasurementNames = new FilteredList<>(measurementNames, m -> !isSurvivalColumn(m));
+	private ObservableList<String> filteredMeasurementNames = new FilteredList<>(measurementNames, m -> !TMASummaryEntry.isSurvivalColumn(m));
 
 	private ObservableList<String> survivalColumns = FXCollections.observableArrayList();
 	private ComboBox<String> comboSurvival = new ComboBox<>(survivalColumns);
 
 	private ObservableList<TMAEntry> entriesBase = FXCollections.observableArrayList();
-//	private FilteredList<TMAEntry> entries = new FilteredList<>(entriesBase);
 	
 	/**
 	 * Maintain a reference to columns that were previously hidden whenever loading new data.
@@ -213,49 +202,6 @@ public class TMASummaryViewer {
 	private static enum ImageAvailability {IMAGE_ONLY, OVERLAY_ONLY, BOTH, NONE}
 	private static ObjectProperty<ImageAvailability> imageAvailability = new SimpleObjectProperty<>(ImageAvailability.NONE);
 	
-	
-	/**
-	 * Methods that may be used to combine measurements when multiple cores are available.
-	 */
-	private static enum MeasurementCombinationMethod {
-		MEAN, MEDIAN, MIN, MAX, RANGE;
-		
-		public double calculate(final List<TMAEntry> entries, final String measurementName, final boolean skipMissing) {
-			switch (this) {
-			case MAX:
-				return getMaxMeasurement(entries, measurementName, skipMissing);
-			case MEAN:
-				return getMeanMeasurement(entries, measurementName, skipMissing);
-			case MEDIAN:
-				return getMedianMeasurement(entries, measurementName, skipMissing);
-			case MIN:
-				return getMinMeasurement(entries, measurementName, skipMissing);
-			case RANGE:
-				return getRangeMeasurement(entries, measurementName, skipMissing);
-			default:
-				return Double.NaN;
-			}
-		}
-		
-		@Override
-		public String toString() {
-			switch (this) {
-			case MAX:
-				return "Maximum";
-			case MEAN:
-				return "Mean";
-			case MEDIAN:
-				return "Median";
-			case MIN:
-				return "Minimum";
-			case RANGE:
-				return "Range";
-			default:
-				return null;
-			}
-		}
-		
-	};
 	
 	
 	/**
@@ -395,7 +341,7 @@ public class TMASummaryViewer {
 					continue;
 				boolean changed = false;
 				for (String m : entry.getMeasurementNames().toArray(new String[0])) {
-					if (!isSurvivalColumn(m) && !Double.isNaN(entry.getMeasurementAsDouble(m))) {
+					if (!TMASummaryEntry.isSurvivalColumn(m) && !Double.isNaN(entry.getMeasurementAsDouble(m))) {
 						entry.putMeasurement(m, null);
 						changed = true;
 					}
@@ -631,21 +577,6 @@ public class TMASummaryViewer {
 	
 	
 	
-	private static Map<String, Image> imageMap = new LinkedHashMap<String, Image>(200, 1, true) {
-		
-		private static final long serialVersionUID = 4814360294521533841L;
-		
-		private static final int MAX_ENTRIES = 200;
-		
-		@Override
-		protected boolean removeEldestEntry(Map.Entry<String, Image> eldest) {
-	        return size() > MAX_ENTRIES;
-	     }
-		
-	};
-	
-	
-	
 	/**
 	 * Update data due to a change in table content.
 	 */
@@ -661,76 +592,6 @@ public class TMASummaryViewer {
 	public Stage getStage() {
 		return stage;
 	}
-	
-	
-	private class ImageTableCell extends TreeTableCell<TMAEntry, Image> {
-		
-		final private Canvas canvas = new Canvas();
-		
-		private PopOver popOver = null;
-		private ContextMenu menu = new ContextMenu();
-		private MenuItem miCopy = new MenuItem("Copy");
-		
-		ImageTableCell() {
-			super();
-			canvas.setStyle("-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.5), 4, 0, 1, 1);");
-			canvas.setWidth(100);
-			canvas.setHeight(100);
-			canvas.heightProperty().bind(canvas.widthProperty());
-			addEventFilter(MouseEvent.MOUSE_CLICKED, e -> {
-				if (popOver != null && e.getClickCount() == 2)
-					popOver.show(this);
-			});
-			menu.getItems().add(miCopy);
-		}
-		
-		@Override
-		protected void updateItem(Image item, boolean empty) {
-			super.updateItem(item, empty);
-			if (item == null || empty) {
-				setGraphic(null);
-				popOver = null;
-				return;
-			}
-			
-			double w = getTableColumn().getWidth()-10;
-			canvas.setWidth(w);
-			setGraphic(canvas);
-			
-			// Create PopOver to show larger image
-			ImageView imageView = new ImageView(item);
-			imageView.setPreserveRatio(true);
-			Rectangle2D primaryScreenBounds = Screen.getPrimary().getVisualBounds();
-			// TODO: Consider setting max width/height elsewhere, so user can adjust?
-			imageView.setFitWidth(Math.min(primaryScreenBounds.getWidth()*0.5, item.getWidth()));
-			imageView.setFitHeight(Math.min(primaryScreenBounds.getHeight()*0.75, item.getHeight()));
-			// Enable copying to clipboard
-			miCopy.setOnAction(e -> {
-				ClipboardContent content = new ClipboardContent();
-				content.putImage(item);
-				Clipboard.getSystemClipboard().setContent(content);
-			});
-			imageView.setOnContextMenuRequested(e -> menu.show(this, e.getScreenX(), e.getScreenY()));
-			
-			popOver = new PopOver(imageView);
-			String name = this.getTreeTableRow().getItem() == null ? null : this.getTreeTableRow().getItem().getName();
-			if (name != null)
-				popOver.setTitle(name);
-			
-			this.setContentDisplay(ContentDisplay.CENTER);
-			this.setAlignment(Pos.CENTER);
-			
-			GraphicsContext gc = canvas.getGraphicsContext2D();
-			gc.clearRect(0, 0, w, w);
-			PaintingToolsFX.paintImage(canvas, item);
-//			else if (!waitingImages.contains(item)) {
-//				waitingImages.add(item);
-//				pool.execute(new ImageWorker(item));
-//			}
-		}
-		
-	}
-	
 	
 	
 	/**
@@ -1476,7 +1337,7 @@ public class TMASummaryViewer {
 //				items.add(new TreeItem<>(entry));
 //			}
 //		}
-		TreeItem<TMAEntry> root = new RootTreeItem(entries);
+		TreeItem<TMAEntry> root = new RootTreeItem(entries, combinedPredicate);
 		table.setShowRoot(false);
 		table.setRoot(root);
 		
@@ -1486,11 +1347,12 @@ public class TMASummaryViewer {
 	
 	
 	
-	class RootTreeItem extends TreeItem<TMAEntry> implements ChangeListener<Predicate<? super TMAEntry>> {
+	static class RootTreeItem extends TreeItem<TMAEntry> implements ChangeListener<Predicate<TMAEntry>> {
 		
 		private List<TreeItem<TMAEntry>> entries = new ArrayList<>();
+		private ObservableValue<Predicate<TMAEntry>> combinedPredicate;
 		
-		RootTreeItem(final Collection<? extends TMAEntry> entries) {
+		RootTreeItem(final Collection<? extends TMAEntry> entries, final ObservableValue<Predicate<TMAEntry>> combinedPredicate) {
 			super(null);
 			for (TMAEntry entry : entries) {
 				if (entry instanceof TMASummaryEntry)
@@ -1498,7 +1360,8 @@ public class TMASummaryViewer {
 				else
 					this.entries.add(new TreeItem<>(entry));					
 			}
-			combinedPredicate.addListener(new WeakChangeListener<Predicate<? super TMAEntry>>(this));
+			this.combinedPredicate = combinedPredicate;
+			this.combinedPredicate.addListener(new WeakChangeListener<>(this));
 			updateChildren();
 		}
 		
@@ -1517,14 +1380,14 @@ public class TMASummaryViewer {
 		}
 
 		@Override
-		public void changed(ObservableValue<? extends Predicate<? super TMAEntry>> observable,
-				Predicate<? super TMAEntry> oldValue, Predicate<? super TMAEntry> newValue) {
+		public void changed(ObservableValue<? extends Predicate<TMAEntry>> observable,
+				Predicate<TMAEntry> oldValue, Predicate<TMAEntry> newValue) {
 			updateChildren();
 		}
 		
 	}
 	
-	class SummaryTreeItem extends TreeItem<TMAEntry> {
+	static class SummaryTreeItem extends TreeItem<TMAEntry> {
 		
 		private TMASummaryEntry entry;
 		
@@ -1662,7 +1525,7 @@ public class TMASummaryViewer {
 				File fileOverlayImage = new File(dirData, name + "-overlay.jpg");
 				if (!fileOverlayImage.exists())
 					fileOverlayImage = new File(dirData, name + "-overlay.png");
-				TMAEntry entry = new TMAEntry(serverPath, fileImage.getAbsolutePath(), fileOverlayImage.getAbsolutePath(), name, missing);
+				TMAEntry entry = new DefaultTMAEntry(serverPath, fileImage.getAbsolutePath(), fileOverlayImage.getAbsolutePath(), name, missing);
 				for (Entry<String, List<String>> temp : metadataColumns.entrySet()) {
 					entry.putMetadata(temp.getKey(), temp.getValue().get(i));
 				}
@@ -1737,7 +1600,7 @@ public class TMASummaryViewer {
 		@Override
 		public String getStringValue(TMAEntry entry, String column, int decimalPlaces) {
 			if ("Image".equals(column))
-				return entry.getShortServerName();
+				return entry.getImageName();
 			if ("Core".equals(column))
 				return entry.getName();
 			if ("Comment".equals(column))
@@ -1791,544 +1654,12 @@ public class TMASummaryViewer {
 	private void promptForComment() {
 		String input = DisplayHelpers.showInputDialog( 
 				"Add comment",
-				"Type comment for " + entrySelected.getName() + "(" + entrySelected.getShortServerName() + ")", entrySelected.getComment());
+				"Type comment for " + entrySelected.getName() + "(" + entrySelected.getImageName() + ")", entrySelected.getComment());
 		if (input == null)
 			return;
 		entrySelected.setComment(input);
 		table.refresh();
 	}
-
-
-
-	private class TMAObjectEntry extends TMAEntry {
-		
-		private ObservableMeasurementTableData data;
-		private TMACoreObject core;
-
-		TMAObjectEntry(ObservableMeasurementTableData data, String serverPath, TMACoreObject core) {
-			super(serverPath, null, null, null, false);
-			this.core = core;
-			this.data = data;			
-		}
-		
-		
-		@Override
-		public Number getMeasurement(String name) {
-			return data.getNumericValue(core, name);
-		}
-		
-		@Override
-		public Collection<String> getMetadataNames() {
-			return data.getMetadataNames();
-		}
-		
-		@Override
-		public String getMetadataValue(final String name) {
-			return data.getStringValue(core, name);
-		}
-		
-		@Override
-		public void putMetadata(String name, String value) {
-			core.putMetadataValue(name, value);
-		}
-		
-		@Override
-		public boolean isMissing() {
-			return core.isMissing();
-		}
-		
-		@Override
-		public Collection<String> getMeasurementNames() {
-			return data.getMeasurementNames();
-		}
-
-		@Override
-		public void putMeasurement(String name, Number number) {
-			core.getMeasurementList().putMeasurement(name, number == null ? Double.NaN : number.doubleValue());
-		}
-
-		@Override
-		public String getName() {
-			return core.getName();
-		}
-
-		@Override
-		public Image getImage() {
-//			if (imagePath != null) {
-//				Image img = imageMap.get(imagePath);
-//				if (img != null)
-//					return img;
-//				try {
-//					img = new Image(new File(imagePath).toURI().toURL().toString(), false);
-//					imageMap.put(imagePath, img);
-//					return img;
-//				} catch (MalformedURLException e) {
-//					logger.error("Cannot show image: {}", e);
-//				}
-//			}
-			return null;
-		}
-
-		@Override
-		public Image getOverlay() {
-//			if (overlayPath != null) {
-//				Image img = imageMap.get(overlayPath);
-//				if (img != null)
-//					return img;
-//				try {
-//					img = new Image(new File(overlayPath).toURI().toURL().toString(), false);
-//					imageMap.put(overlayPath, img);
-//					return img;
-//				} catch (MalformedURLException e) {
-//					logger.error("Cannot show image: {}", e);
-//				}
-//			}
-			return null;
-//			if (overlayPath != null)
-//				return new Image(overlayPath, false);
-//			return null;
-		}
-		
-		
-	}
-	
-
-	public static class TMAEntry {
-		
-		private String serverPath;
-		private String shortServerName;
-		private String name;
-		private String imagePath;
-		private String overlayPath;
-		private String comment;
-		private boolean isMissing;
-		private Map<String, String> metadata = new LinkedHashMap<>();
-		private Map<String, Number> measurements = new LinkedHashMap<>();
-
-		TMAEntry(String serverPath, String imagePath, String overlayPath, String coreName, boolean isMissing) {
-			this.serverPath = serverPath;
-			this.shortServerName = serverPath == null ? null : ServerTools.getDefaultShortServerName(serverPath).replace("%20", " ");
-			this.name = coreName;
-			this.isMissing = isMissing;
-			// Only store paths if they actually work...
-			this.imagePath = imagePath != null && new File(imagePath).isFile() ? imagePath : null;
-			this.overlayPath = overlayPath != null && new File(overlayPath).isFile() ? overlayPath : null;
-		}
-		
-		/**
-		 * Get a measurement value.
-		 * 
-		 * If isMissing() returns true, this always returns NaN.
-		 * 
-		 * Otherwise it returns whichever value is stored (which may or may not be NaN).
-		 * 
-		 * @param name
-		 * @return
-		 */
-		public Number getMeasurement(String name) {
-			// There's an argument for not returning any measurement for a missing core...
-			// but this can be problematic if 'valid' measurements are later imported
-//			if (isMissing())
-//				return Double.NaN;
-			return measurements.get(name);
-		}
-		
-		/**
-		 * Get a measurement as a double value.
-		 * 
-		 * If getMeasurement returns null, this will give NaN.
-		 * Otherwise, it will return getMeasurement(name).doubleValue();
-		 */
-		public double getMeasurementAsDouble(String name) {
-			Number measurement = getMeasurement(name);
-			if (measurement == null)
-				return Double.NaN;
-			return measurement.doubleValue();
-		}
-		
-		public Collection<String> getMetadataNames() {
-			return metadata.keySet();
-		}
-		
-		public String getMetadataValue(final String name) {
-			return metadata.get(name);
-		}
-		
-		public void putMetadata(String name, String value) {
-			metadata.put(name, value);
-		}
-		
-		public boolean isMissing() {
-			return isMissing;
-		}
-		
-		public Collection<String> getMeasurementNames() {
-			return measurements.keySet();
-		}
-
-		public void putMeasurement(String name, Number number) {
-			if (number == null)
-				measurements.remove(name);
-			else
-				measurements.put(name, number);
-		}
-
-		public String getComment() {
-			return comment;
-		}
-
-		public void setComment(String comment) {
-			this.comment = comment.replace("\t", "  ").replace("\n", "  ");
-		}
-
-		public String getName() {
-			return name;
-		}
-
-		public String getShortServerName() {
-			if (shortServerName == null)
-				this.shortServerName = serverPath == null ? null : ServerTools.getDefaultShortServerName(serverPath).replace("%20", " ");
-			return shortServerName;
-		}
-
-		/**
-		 * Returns true if this entry has (or thinks it has) an image.
-		 * It doesn't actually try to load the image, which may be expensive - 
-		 * and therefore there can be no guarantee the loading will succeed when getImage() is called.
-		 * @return
-		 */
-		public boolean hasImage() {
-			return imagePath != null;
-		}
-		
-		/**
-		 * Returns true if this entry has (or thinks it has) an overlay image.
-		 * It doesn't actually try to load the image, which may be expensive - 
-		 * and therefore there can be no guarantee the loading will succeed when getOverlay() is called.
-		 * @return
-		 */
-		public boolean hasOverlay() {
-			return overlayPath != null;
-		}
-		
-		public Image getImage() {
-			if (imagePath != null) {
-				Image img = imageMap.get(imagePath);
-				if (img != null)
-					return img;
-				try (InputStream stream = new BufferedInputStream(new FileInputStream(new File(imagePath)))) {
-					img = new Image(stream);
-					imageMap.put(imagePath, img);
-					return img;
-				} catch (IOException e) {
-					logger.error("Cannot show image: {}", e);
-				}
-//				try {
-//					img = new Image(new File(imagePath).toURI().toURL().toExternalForm(), false);
-//					imageMap.put(imagePath, img);
-//					return img;
-//				} catch (MalformedURLException e) {
-//					logger.error("Cannot show image: {}", e);
-//				}
-			}
-			return null;
-		}
-
-		public Image getOverlay() {
-			if (overlayPath != null) {
-				Image img = imageMap.get(overlayPath);
-				if (img != null)
-					return img;
-				try {
-					img = new Image(new File(overlayPath).toURI().toURL().toString(), false);
-					imageMap.put(overlayPath, img);
-					return img;
-				} catch (MalformedURLException e) {
-					logger.error("Cannot show image: {}", e);
-				}
-			}
-			return null;
-//			if (overlayPath != null)
-//				return new Image(overlayPath, false);
-//			return null;
-		}
-		
-		@Override
-		public String toString() {
-			return "TMA Entry: " + getName();
-		}
-
-	}
-	
-	
-	public static double getMeanMeasurement(final List<TMAEntry> entries, final String measurement, final boolean skipMissing) {
-		double sum = 0;
-		int n = 0;
-		for (TMAEntry entry : entries) {
-			if (skipMissing && entry.isMissing())
-				continue;
-			Number val = entry.getMeasurement(measurement);
-			if (val == null || Double.isNaN(val.doubleValue()))
-				continue;
-			sum += val.doubleValue();
-			n++;
-		}
-		return n == 0 ? Double.NaN : sum / n;
-	}
-	
-	
-	public static double getMaxMeasurement(final List<TMAEntry> entries, final String measurement, final boolean skipMissing) {
-		double max = Double.NEGATIVE_INFINITY;
-		int n = 0;
-		for (TMAEntry entry : entries) {
-			if (skipMissing && entry.isMissing())
-				continue;
-			Number val = entry.getMeasurement(measurement);
-			if (val == null || Double.isNaN(val.doubleValue()))
-				continue;
-			n++;
-			if (val.doubleValue() > max)
-				max = val.doubleValue();
-		}
-		return n == 0 ? Double.NaN : max;
-		
-		// Test code when checking what happens if taking the most (tumor) cells
-//		double max = Double.NEGATIVE_INFINITY;
-//		int maxInd = -1;
-//		String indMeasurement = "Num Tumor";
-//		for (int i = 0; i < entries.size(); i++) {
-//			TMAEntry entry = entries.get(i);
-//			Number val = entry.getMeasurement(indMeasurement);
-//			if (val == null || Double.isNaN(val.doubleValue()))
-//				continue;
-//			if (val.doubleValue() > max) {
-//				max = val.doubleValue();
-//				maxInd = i;
-//			}
-//		}
-//		return maxInd < 0 ? Double.NaN : entries.get(maxInd).getMeasurementAsDouble(measurement);
-	}
-	
-	public static double getMinMeasurement(final List<TMAEntry> entries, final String measurement, final boolean skipMissing) {
-		double min = Double.POSITIVE_INFINITY;
-		int n = 0;
-		for (TMAEntry entry : entries) {
-			if (skipMissing && entry.isMissing())
-				continue;
-			Number val = entry.getMeasurement(measurement);
-			if (val == null || Double.isNaN(val.doubleValue()))
-				continue;
-			n++;
-			if (val.doubleValue() < min)
-				min = val.doubleValue();
-		}
-		return n == 0 ? Double.NaN : min;
-	}
-	
-	public static double getRangeMeasurement(final List<TMAEntry> entries, final String measurement, final boolean skipMissing) {
-		return getMaxMeasurement(entries, measurement, skipMissing) - getMinMeasurement(entries, measurement, skipMissing);
-	}
-	
-	static Set<String> survivalSet = new HashSet<>(
-			Arrays.asList(
-				TMACoreObject.KEY_OVERALL_SURVIVAL,
-				TMACoreObject.KEY_OS_CENSORED,
-				TMACoreObject.KEY_RECURRENCE_FREE_SURVIVAL,
-				TMACoreObject.KEY_RFS_CENSORED,
-				"Censored"
-				)
-			);
-	
-	/**
-	 * Due to the awkward way that survival data is thrown in with all measurements,
-	 * sometimes need to check if a column is survival-related or not
-	 * 
-	 * @param name
-	 * @return
-	 */
-	static boolean isSurvivalColumn(final String name) {
-		return survivalSet.contains(name);
-	}
-	
-	/**
-	 * Calculate median measurement from a list of entries.
-	 * 
-	 * Entries are optionally always skipped if the entry has been marked as missing, otherwise
-	 * its value will be used if not NaN.
-	 * 
-	 * @param entries
-	 * @param measurement
-	 * @return
-	 */
-	public static double getMedianMeasurement(final List<TMAEntry> entries, final String measurement, final boolean skipMissing) {
-		double[] values = new double[entries.size()];
-		int n = 0;
-		for (TMAEntry entry : entries) {
-			if (skipMissing && entry.isMissing())
-				continue;
-			Number val = entry.getMeasurement(measurement);
-			if (val == null || Double.isNaN(val.doubleValue()))
-				continue;
-			values[n] = val.doubleValue();
-			n++;
-		}
-		if (n == 0)
-			return Double.NaN;
-		if (n < values.length)
-			values = Arrays.copyOf(values, n);
-		Arrays.sort(values);
-		if (n % 2 == 0)
-			return values[n/2-1]/2 + values[n/2]/2;
-		return values[n/2];
-	}
-	
-	
-	
-	
-	private static class TMASummaryEntry extends TMAEntry {
-		
-		private ReadOnlyObjectProperty<MeasurementCombinationMethod> method;
-		private ObservableBooleanValue skipMissing;
-		private ObservableList<TMAEntry> entriesBase = FXCollections.observableArrayList();
-		private FilteredList<TMAEntry> entries = new FilteredList<>(entriesBase);
-
-		TMASummaryEntry(final ReadOnlyObjectProperty<MeasurementCombinationMethod> method, final ObservableBooleanValue skipMissing, final ObservableValue<Predicate<TMAEntry>> predicate) {
-			super(null, null, null, null, false);
-			// Use the same predicate as elsewhere
-			this.method = method;
-			this.skipMissing = skipMissing;
-			entries.predicateProperty().bind(predicate);
-		}
-		
-		public void addEntry(final TMAEntry entry) {
-			this.entriesBase.add(entry);
-		}
-		
-		public List<TMAEntry> getEntries() {
-			return Collections.unmodifiableList(entries);
-		}
-		
-		@Override
-		public boolean isMissing() {
-			return nNonMissingEntries() > 0;
-		}
-		
-		public int nNonMissingEntries() {
-			int n = 0;
-			for (TMAEntry entry : entries) {
-				if (!entry.isMissing())
-					n++;
-			}
-			return n;
-		}
-		
-		public boolean hasImage() {
-			return entries.stream().anyMatch(e -> e.hasImage());
-		}
-		
-		public boolean hasOverlay() {
-			return entries.stream().anyMatch(e -> e.hasOverlay());
-		}
-		
-		@Override
-		public String getName() {
-			if (entries.isEmpty())
-				return null;
-			String coreNameCached;
-			Set<String> names = entries.stream().filter(e -> e.getName() != null).map(e -> e.getName()).collect(Collectors.toSet());
-			if (names.size() == 1)
-				coreNameCached = names.iterator().next();
-			else if (!names.isEmpty()) {
-				coreNameCached = "[" + String.join(", ", names) + "]";
-			} else
-				coreNameCached = "";
-			return coreNameCached;
-		}
-		
-		@Override
-		public Number getMeasurement(String name) {
-			// Survival measurements need to be calculated differently
-			if (isSurvivalColumn(name)) {
-				double max = getMaxMeasurement(entries, name, skipMissing.get());
-				double min = getMinMeasurement(entries, name, skipMissing.get());
-				if (max == min)
-					return max;
-				logger.warn("Measurement {} for {} has different values!", name, this);
-				return Double.NaN;
-			}
-			return method.get().calculate(entries, name, skipMissing.get());
-		}
-		
-		@Override
-		public Collection<String> getMetadataNames() {
-			Set<String> names = new LinkedHashSet<>();
-			for (TMAEntry entry : entries)
-				names.addAll(entry.getMetadataNames());
-			return names;
-		}
-		
-		@Override
-		public String getMetadataValue(final String name) {
-			// If we need the ID, try to get everything
-			List<TMAEntry> entriesToCheck = entries;
-			if (entriesToCheck.isEmpty()) {
-				if (TMACoreObject.KEY_UNIQUE_ID.equals(name)) {
-					entriesToCheck = entriesBase;
-				}
-				if (entriesToCheck.isEmpty())	
-					return null;
-			}
-			String value = entriesToCheck.get(0).getMetadataValue(name);
-			for (TMAEntry entry : entriesToCheck) {
-				String temp = entry.getMetadataValue(name);
-				if (value == temp)
-					continue;
-				if (value != null && !value.equals(temp))
-					return "(Mixed)";
-				else
-					value = temp;
-			}
-			// TODO: HANDLE METADATA VALUES!!!
-			return value;
-//			throw new IllegalArgumentException("Cannot get metadata value from " + getClass().getSimpleName());
-		}
-		
-		@Override
-		public void putMetadata(String name, String value) {
-			throw new IllegalArgumentException("Cannot add metadata value to " + getClass().getSimpleName());
-		}
-		
-		@Override
-		public Collection<String> getMeasurementNames() {
-			Set<String> names = new LinkedHashSet<>();
-			for (TMAEntry entry : entries)
-				names.addAll(entry.getMeasurementNames());
-			return names;
-		}
-
-		@Override
-		public void putMeasurement(String name, Number number) {
-			throw new IllegalArgumentException("Cannot add measurement to " + getClass().getSimpleName());
-		}
-		
-		
-		
-		@Override
-		public String toString() {
-			StringBuilder sb = new StringBuilder("TMA Entry: [");
-			int count = 0;
-			for (TMAEntry entry : entries) {
-				sb.append(entry.toString());
-				count++;
-				if (count < entries.size())
-					sb.append(", ");
-			}
-			sb.append("]");
-			return sb.toString();
-		}
-		
-	}
-	
 	
 	class ScatterPane {
 		
@@ -2656,108 +1987,6 @@ public class TMASummaryViewer {
 		@Override
 		public String toString() {
 			return getCommand();
-		}
-		
-	}
-	
-	
-	
-	
-	static class NumericTableCell<T> extends TreeTableCell<T, Number> {
-
-		@Override
-		protected void updateItem(Number item, boolean empty) {
-			super.updateItem(item, empty);
-			if (item == null || empty) {
-				setText(null);
-				setStyle("");
-			} else {
-				setAlignment(Pos.CENTER);
-				if (Double.isNaN(item.doubleValue()))
-					setText("-");
-				else {
-					if (item.doubleValue() >= 1000)
-						setText(GeneralTools.getFormatter(1).format(item));
-					else if (item.doubleValue() >= 10)
-						setText(GeneralTools.getFormatter(2).format(item));
-					else
-						setText(GeneralTools.getFormatter(3).format(item));
-				}
-			}
-		}
-
-	}
-	
-	
-	
-	static class BasicTableCell<S, T> extends TreeTableCell<S, T> {
-
-		public BasicTableCell() {
-			setAlignment(Pos.CENTER);
-		}
-
-		@Override
-		protected void updateItem(T item, boolean empty) {
-			super.updateItem(item, empty);
-			if (item == null || empty) {
-				setText(null);
-				setGraphic(null);
-				return;
-			}
-			setText(item.toString());
-		}
-
-	}
-
-	
-	
-	
-	static class ImageListCell extends ListCell<TMAEntry> {
-		
-		final private Canvas canvas = new Canvas();
-		final private ObservableValue<Boolean> showOverlay;
-		
-		ImageListCell(final ObservableValue<Boolean> showOverlay) {
-			super();
-			this.showOverlay = showOverlay;
-			canvas.setStyle("-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.5), 4, 0, 1, 1);");
-			canvas.setWidth(250);
-			canvas.setHeight(250);
-			canvas.heightProperty().bind(canvas.widthProperty());
-		}
-		
-		@Override
-		protected void updateItem(TMAEntry entry, boolean empty) {
-			super.updateItem(entry, empty);
-			if (entry == null || empty) {
-				setGraphic(null);
-				setTooltip(null);
-				return;
-			}
-			
-//			double w = getTableColumn().getWidth()-10;
-			double w = getListView().getWidth() - 40;
-			canvas.setWidth(w);
-			setGraphic(canvas);
-			
-			this.setContentDisplay(ContentDisplay.CENTER);
-			this.setAlignment(Pos.CENTER);
-			
-			Image img;
-			if (showOverlay.getValue()) {
-				img = entry.getOverlay();
-			}
-	    	 else {
-	    		img = entry.getImage();
-	    	 }
-			
-			GraphicsContext gc = canvas.getGraphicsContext2D();
-			gc.clearRect(0, 0, w, w);
-			if (img == null)
-				return;
-			if (img != null) {
-				PaintingToolsFX.paintImage(canvas, img);
-			}
 		}
 		
 	}

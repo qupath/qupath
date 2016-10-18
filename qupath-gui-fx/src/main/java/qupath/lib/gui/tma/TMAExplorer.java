@@ -1,8 +1,3 @@
-package qupath.lib.gui.tma;
-
-import java.awt.image.BufferedImage;
-import java.io.File;
-import java.util.ArrayList;
 /*-
  * #%L
  * This file is part of QuPath.
@@ -26,6 +21,12 @@ import java.util.ArrayList;
  * #L%
  */
 
+package qupath.lib.gui.tma;
+
+import java.awt.image.BufferedImage;
+import java.io.File;
+import java.util.ArrayList;
+
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -40,7 +41,8 @@ import javafx.stage.Stage;
 import qupath.lib.analysis.stats.RunningStatistics;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
-import qupath.lib.gui.tma.TMASummaryViewer.TMAEntry;
+import qupath.lib.gui.tma.entries.DefaultTMAEntry;
+import qupath.lib.gui.tma.entries.TMAEntry;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.io.PathIO;
@@ -134,7 +136,7 @@ public class TMAExplorer implements PathCommand {
 						}
 					}
 
-					TMAEntry entry = new TMAEntry(
+					DefaultTMAEntry entry = new DefaultTMAEntry(
 							imageEntry.getServerPath(),
 							fileOutput.getAbsolutePath(),
 							null,
@@ -186,46 +188,6 @@ public class TMAExplorer implements PathCommand {
 		
 		
 	}
-	
-	
-	
-	
-	
-//	private static class TMADataLoader extends AbstractPlugin<BufferedImage> {
-//
-//		@Override
-//		public String getName() {
-//			return "TMA data loader";
-//		}
-//
-//		@Override
-//		public String getDescription() {
-//			return "Load TMA data for " + TMAExplorer.class.getSimpleName();
-//		}
-//
-//		@Override
-//		public String getLastResultsDescription() {
-//			return null;
-//		}
-//
-//		@Override
-//		protected boolean parseArgument(ImageData<BufferedImage> imageData, String arg) {
-//			return true;
-//		}
-//
-//		@Override
-//		protected Collection<? extends PathObject> getParentObjects(PluginRunner<BufferedImage> runner) {
-//			// TODO Auto-generated method stub
-//			return null;
-//		}
-//
-//		@Override
-//		protected void addRunnableTasks(ImageData<BufferedImage> imageData, PathObject parentObject, List<Runnable> tasks) {
-//			// TODO Auto-generated method stub
-//			
-//		}
-//		
-//	}
 	
 
 }
