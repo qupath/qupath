@@ -27,9 +27,11 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.text.DecimalFormat;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
 import java.util.regex.Pattern;
@@ -149,7 +151,24 @@ public class GeneralTools {
 		}
 		return sb.toString();
 	}
-
+	
+	
+	/**
+	 * Split new lines (in a cross-platform way... i.e. not with s.split("\n"), which is asking for trouble).
+	 * 
+	 * @param s
+	 * @return
+	 */
+	public static String[] splitLines(final String s) {
+		List<String> lines = new ArrayList<>();
+		try (Scanner scanner = new Scanner(s)) {
+			while (scanner.hasNextLine())
+				lines.add(scanner.nextLine());
+		}
+		return lines.toArray(new String[lines.size()]);
+	}
+	
+	
 	/**
 	 * Get a DecimalFormat that may be used to convert a number to have a maximum of nDecimalPlaces
 	 * (trailing zeros are not shown).

@@ -47,6 +47,7 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.text.TextAlignment;
+import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.ImageDataWrapper;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
@@ -261,7 +262,7 @@ public class TMAScoreImportCommand implements PathCommand {
 		// Try to create a string grid
 		List<String[]> rows = new ArrayList<>();
 		int nCols = -1;
-		for (String row : text.split("\\r?\\n")) {
+		for (String row : GeneralTools.splitLines(text)) {
 			String[] cols;
 			if (row.contains("\t"))
 				cols = row.split("\t");

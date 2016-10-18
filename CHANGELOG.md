@@ -1,6 +1,7 @@
 ## Version 0.0.4
 
 * When sending image regions to ImageJ, the 'visibility' status is used to determine whether or not objects are sent as ROIs
+* Fixed (hopefully) cross-platform line splitting (v0.0.3 fix for Windows managed to break TMA grid import elsewhere)
 
 
 ## Version 0.0.3
