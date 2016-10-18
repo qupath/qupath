@@ -69,7 +69,7 @@ public class URLTools {
 	 * @param url
 	 * @return
 	 */
-	public static String readURLAsString(final URL url) {
+	public static String readURLAsString(final URL url) throws IOException {
 		return readURLAsString(url, 5000); // Here, use 5 second timeout
 	}
 
@@ -77,30 +77,25 @@ public class URLTools {
 	/**
 	 * Read URL as String, with specified timeout in milliseconds.
 	 * 
+	 * The content type is checked, and an IOException is thrown if this doesn't start with text/plain.
+	 * 
 	 * @param url
 	 * @param timeoutMillis
 	 * @return
 	 */
-	public static String readURLAsString(final URL url, final int timeoutMillis) {
+	public static String readURLAsString(final URL url, final int timeoutMillis) throws IOException {
 		StringBuilder response = new StringBuilder();
 		String line = null;
-		try{
-			URLConnection connection = url.openConnection();
-			connection.setConnectTimeout(timeoutMillis);
-			BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream()));
-			try{
+		URLConnection connection = url.openConnection();
+		connection.setConnectTimeout(timeoutMillis);
+		String contentType = connection.getContentType();
+		if (contentType.startsWith("text/plain")) {
+			try (BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream()))) {
 				while ((line = in.readLine()) != null) 
 					response.append(line + "\n");
 			}
-			finally {
-				in.close();
-			}
-		}
-		catch (IOException ex) {
-			logger.error("Error parsing URL: {}", url);
-			logger.error(ex.getMessage(), ex);
-		}
-		return response.toString();
+			return response.toString();
+		} else throw new IOException("Expected content type text/plain, but got " + contentType);
 	}
 
 }

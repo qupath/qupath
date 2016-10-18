@@ -1,6 +1,7 @@
 ## Version 0.0.4
 
 * Fixed bug with extension path wrongly defaulting to an internal QuPath directory
+* Added check for updates on QuPath startup
 * When sending image regions to ImageJ, the 'visibility' status is used to determine whether or not objects are sent as ROIs
 * Fixed (hopefully) cross-platform line splitting (v0.0.3 tried to fix this for Windows... but only partly did, while breaking TMA grid import elsewhere)
 * When manually setting the name of an annotation, any previous name is now shown (rather than a blank field)

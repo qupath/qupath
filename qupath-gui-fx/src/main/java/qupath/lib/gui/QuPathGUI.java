@@ -47,7 +47,6 @@ import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
-import java.sql.Date;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -67,6 +66,7 @@ import java.util.concurrent.Executors;
 import java.util.jar.Attributes;
 import java.util.jar.JarFile;
 import java.util.jar.Manifest;
+import java.util.prefs.BackingStoreException;
 import java.util.stream.Collectors;
 
 import javax.imageio.ImageIO;
@@ -78,7 +78,6 @@ import org.controlsfx.glyphfont.Glyph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import ch.qos.logback.core.util.StringCollectionUtil;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
@@ -325,7 +324,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	private String versionString = null;
 	
 	// For development... set to true to make sure the update check is not run on launch
-	private boolean disableAutoUpdateCheck = true;
+	private boolean disableAutoUpdateCheck = false;
 	
 	private static ExtensionClassLoader extensionClassLoader = new ExtensionClassLoader();
 	private ServiceLoader<QuPathExtension> extensionLoader = ServiceLoader.load(QuPathExtension.class, extensionClassLoader);
@@ -552,6 +551,13 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			// Save the PathClasses
 			savePathClasses();
 			
+			// Flush the preferences
+			try {
+				PathPrefs.getUserPreferences().flush();
+			} catch (BackingStoreException bse) {
+				logger.error("Error flushing preferences", bse);
+			}
+			
 			// Shut down any pools we know about
 			poolMultipleThreads.shutdownNow();
 			for (ExecutorService pool : mapSingleThreadPools.values())
@@ -565,7 +571,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 
 			// Reset the instance
 			instance = null;
-
+			
 			// Exit if running as a standalone application
 			if (isStandalone()) {
 				logger.info("Calling Platform.exit();");
@@ -785,11 +791,11 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	 */
 	public static File getExtensionDirectory() {
 		String path = PathPrefs.getExtensionsPath();
-		if (path != null) {
-			File dir = new File(path);
-			if (dir.isDirectory()) {
-				return dir;
-			}
+		if (path == null || path.trim().length() == 0)
+			return null;
+		File dir = new File(path);
+		if (dir.isDirectory()) {
+			return dir;
 		}
 		return null;
 	}
@@ -913,7 +919,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	private void checkForUpdate(final boolean isAutoCheck) {
 		
 		// Confirm if the user wants us to check for updates
-		boolean doAutoUpdateCheck = PathPrefs.getUserPreferences().getBoolean("doAutoUpdateCheck", true);
+		boolean doAutoUpdateCheck = PathPrefs.doAutoUpdateCheck();
 		if (isAutoCheck && !doAutoUpdateCheck)
 			return;
 
@@ -925,30 +931,82 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		long diffHours = (currentTime - lastUpdateCheck) / (60 * 60 * 1000);
 //		if (isAutoCheck && diffHours < 1)
 //			return;
+		
+		// See if we can read the current ChangeLog
+		File fileChanges = new File("CHANGELOG.md");
+		if (!fileChanges.exists()) {
+			logger.debug("No changelog found - will not check for updates");
+			if (!isAutoCheck) {
+				DisplayHelpers.showErrorMessage("Update check", "Cannot check for updates at this time, sorry");
+			}
+			return;
+		}
+		String changeLog = null;
+		try {
+			changeLog = GeneralTools.readFileAsString(fileChanges.getAbsolutePath());
+		} catch (IOException e1) {
+			if (!isAutoCheck) {
+				DisplayHelpers.showErrorMessage("Update check", "Cannot check for updates at this time, sorry");
+			}
+			logger.error("Error reading changelog", e1);
+			return;
+		}
+		// Output changelog, if we're tracing...
+		logger.trace("Changelog contents:\n{}", changeLog);
+		String changeLogCurrent = changeLog;
 
 		// Run the check in a background thread
 		createSingleThreadExecutor(this).execute(() -> {
 			try {
 				// Try to download latest changelog
 				URL url = new URL("https://raw.githubusercontent.com/qupath/qupath/master/CHANGELOG.md");
-				String changeLog = URLTools.readURLAsString(url, 1000);
+				String changeLogOnline = URLTools.readURLAsString(url, 2000);
 				
 				// Store last update check time
 				PathPrefs.getUserPreferences().putLong("lastUpdateCheck", System.currentTimeMillis());
 				
-				// TODO: Compare changelogs
-				
-				// TODO: If not isAutoCheck, inform user even if there are no updated at this time
+				// Compare the current and online changelogs
+				if (compareChangelogHeaders(changeLogCurrent, changeLogOnline)) {
+					// If not isAutoCheck, inform user even if there are no updated at this time
+					if (!isAutoCheck) {
+						DisplayHelpers.showMessageDialog("Update check", "QuPath is up-to-date!");
+					}
+					return;
+				}
 				
 				// If changelogs are different, notify the user
-				showChangelogForUpdate(changeLog);
+				showChangelogForUpdate(changeLogOnline);
 			} catch (Exception e) {
+				// Notify the user if we couldn't read the log
+				if (!isAutoCheck) {
+					DisplayHelpers.showMessageDialog("Update check", "Unable to check for updated as this time, sorry");
+					return;
+				}
 				logger.debug("Unable to check for updates - {}", e.getLocalizedMessage());
 			}
 		});
-
-
-		PathPrefs.getUserPreferences().putLong("lastUpdateCheck", System.currentTimeMillis());
+	}
+	
+	
+	/**
+	 * Compare two changelogs.
+	 * 
+	 * In truth, this only checks if they have the same first line.
+	 * 
+	 * @param changelogOld
+	 * @param changelogNew
+	 * @return True if the changelogs contain the same first line.
+	 */
+	private static boolean compareChangelogHeaders(final String changelogOld, final String changelogNew) {
+		String[] changesOld = GeneralTools.splitLines(changelogOld.trim());
+		String[] changesNew = GeneralTools.splitLines(changelogNew.trim());
+		if (changesOld[0].equals(changesNew[0]))
+			return true;
+		
+		// Could try to parse version numbers... but is there any need?
+//		Pattern.compile("(\\d+\\.)?(\\d+\\.)?(\\*|\\d+)").matcher(changelogOld);
+		
+		return false;
 	}
 	
 	
@@ -959,12 +1017,14 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			Platform.runLater(() -> showChangelogForUpdate(changelog));
 			return;
 		}
-		// TODO: Show changelog with option to download, not now, or do not remind again
+		// Show changelog with option to download, or not now
 		Dialog<ButtonType> dialog = new Dialog<>();
 		dialog.setTitle("Update QuPath");
 		dialog.initOwner(getStage());
+		dialog.setResizable(true);
 		ButtonType btDownload = new ButtonType("Download update");
 		ButtonType btNotNow = new ButtonType("Not now");
+		// Not actually included (for space reasons)
 		ButtonType btDoNotRemind = new ButtonType("Do not remind me again");
 		
 		dialog.getDialogPane().getButtonTypes().addAll(
@@ -976,11 +1036,11 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		
 		TextArea textArea = new TextArea(changelog);
 		textArea.setWrapText(true);
-		
+		textArea.setEditable(false);
 		
 //		BorderPane pane = new BorderPane();
 		TitledPane paneChanges = new TitledPane("Changes", textArea);
-		
+		paneChanges.setCollapsible(false);
 		
 		dialog.getDialogPane().setContent(paneChanges);
 		Optional<ButtonType> result = dialog.showAndWait();
@@ -995,7 +1055,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				DisplayHelpers.showErrorNotification("Download", "Unable to open " + url);
 			}
 		} else if (result.get().equals(btDoNotRemind)) {
-			PathPrefs.getUserPreferences().putBoolean("doAutoUpdateCheck", false);
+			PathPrefs.setDoAutoUpdateCheck(false);
 		}
 	}
 	
@@ -4836,7 +4896,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 
 		public ExtensionClassLoader() {
 			super(new URL[0], QuPathGUI.class.getClassLoader());
-			refresh();
+//			refresh();
 		}
 		
 		/**

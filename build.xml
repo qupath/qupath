@@ -89,6 +89,7 @@
 			<fx:fileset dir="${basedir}" includes="qupath/sources/*"/>
 			<fx:fileset dir="${basedir}" includes="jars/*" excludes="jars/*-natives-*"/>
 			<fx:fileset dir="${basedir}" includes="jars/sources/*"/>
+			<fx:fileset dir="${basedir}" includes="CHANGELOG.md"/>
 			<fx:fileset dir="${basedir}/dist/" includes="QuPathApp.jar"/>
 			
 			<!-- See http://docs.oracle.com/javafx/2/deployment/self-contained-packaging.htm -->
@@ -104,7 +105,7 @@
 			<fx:fileset dir="${basedir}" includes="licenses/*" />
 			<fx:fileset dir="${basedir}" includes="licenses/**" />
 		</fx:resources>
-		<fx:application id="QuPathAppID" name="QuPath" mainClass="qupath.QuPath" version="0.0.3" />
+		<fx:application id="QuPathAppID" name="QuPath" mainClass="qupath.QuPath" version="0.0.4" />
 		
 		<!-- Set time for Manifest -->
 		<tstamp>
@@ -121,7 +122,7 @@
 			<manifest>
 				<attribute name="Implementation-Vendor" value="QUB"/>
 				<attribute name="Implementation-Title" value="QuPath"/>
-				<attribute name="Implementation-Version" value="0.0.3"/>
+				<attribute name="Implementation-Version" value="0.0.4"/>
 				<attribute name="QuPath-build-time" value="${BUILD_TIME}"/>
 				<attribute name="JavaFX-Feature-Proxy" value="None"/>
 			</manifest>
