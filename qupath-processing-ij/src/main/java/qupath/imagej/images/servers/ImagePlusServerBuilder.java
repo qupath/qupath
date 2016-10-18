@@ -31,6 +31,7 @@ import org.slf4j.LoggerFactory;
 
 import ij.ImagePlus;
 import ij.io.FileInfo;
+import qupath.lib.common.GeneralTools;
 import qupath.lib.common.URLTools;
 //import qupath.lib.images.servers.BioformatsImageServer;
 import qupath.lib.images.servers.ImageServer;
@@ -86,7 +87,7 @@ public class ImagePlusServerBuilder {
 		String info = imp.getInfoProperty();
 		String path = null;
 		if (info != null) {
-			for (String s : info.split("\n")) {
+			for (String s : GeneralTools.splitLines(info)) {
 				if (s.toLowerCase().startsWith("location")) {
 					path = s.substring(s.indexOf('=')+1).trim();
 					break;
@@ -117,7 +118,7 @@ public class ImagePlusServerBuilder {
 		// (The info property should persist despite duplication, but the FileInfo probably doesn't)
 		String info = imp.getInfoProperty();
 		if (info != null) {
-			for (String s : info.split("\n")) {
+			for (String s : GeneralTools.splitLines(info)) {
 				if (s.toLowerCase().startsWith("url")) {
 					String url = s.substring(s.indexOf('=')+1).trim();
 					if (URLTools.checkURL(url))

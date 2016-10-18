@@ -1381,7 +1381,6 @@ public class DefaultScriptEditor implements ScriptEditor {
 		int nNewLines = textBetween.length() - textBetween.replace("\n", "").length();
 		int nCommentLines = (textBetween.length() - textBetween.replace("\n" + commentString, commentString).length());
 		boolean allComments = textBetween.startsWith(commentString) && nNewLines == nCommentLines;
-//		boolean allComments = textBetween.startsWith(commentString) && (textBetween.trim().split("\n").length == textBetween.trim().split("\n" + commentString).length);
 		
 		String replaceText;
 		if (allComments) {

@@ -41,6 +41,7 @@ import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.event.EventHandler;
 import javafx.scene.input.MouseEvent;
+import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.QuPathViewerListener;
@@ -340,7 +341,7 @@ public class DefaultViewTracker implements ViewTracker, QuPathViewerListener {
 		boolean includesCursorTracking = false;
 		boolean includesEyeTracking = false;
 		boolean firstLine = true;
-		for (String s : str.split("\n")) {
+		for (String s : GeneralTools.splitLines(str)) {
 			if (firstLine) {
 				includesCursorTracking = s.toLowerCase().contains("cursor");
 				includesEyeTracking = s.toLowerCase().contains("eye");
