@@ -1,6 +1,8 @@
 ## Version 0.0.4
 
 * When sending image regions to ImageJ, the 'visibility' status is used to determine whether or not objects are sent as ROIs
+* When manually setting the name of an annotation, any previous name is now shown (rather than a blank field)
+* TMA core labels can now optionally have leading zeros (e.g. 01-16), or be in descending order (e.g. J-A)
 
 
 ## Version 0.0.3
