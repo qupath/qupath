@@ -1,7 +1,9 @@
 ## Version 0.0.4
 
 * When sending image regions to ImageJ, the 'visibility' status is used to determine whether or not objects are sent as ROIs
-* Fixed (hopefully) cross-platform line splitting (v0.0.3 fix for Windows managed to break TMA grid import elsewhere)
+* Fixed (hopefully) cross-platform line splitting (v0.0.3 tried to fix this for Windows... but only partly did, while breaking TMA grid import elsewhere)
+* When manually setting the name of an annotation, any previous name is now shown (rather than a blank field)
+* TMA core labels can now optionally have leading zeros (e.g. 01-16), or be in descending order (e.g. J-A)
 
 
 ## Version 0.0.3
