@@ -23,11 +23,7 @@
 
 package qupath.lib.gui.tma.entries;
 
-import java.io.BufferedInputStream;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.util.Collection;
 import java.util.LinkedHashMap;
@@ -48,20 +44,6 @@ import qupath.lib.images.servers.ServerTools;
 public class DefaultTMAEntry implements TMAEntry {
 
 	private static Logger logger = LoggerFactory.getLogger(DefaultTMAEntry.class);
-
-
-	static Map<String, Image> imageMap = new LinkedHashMap<String, Image>(200, 1, true) {
-
-		private static final long serialVersionUID = 4814360294521533841L;
-
-		private static final int MAX_ENTRIES = 200;
-
-		@Override
-		protected boolean removeEldestEntry(Map.Entry<String, Image> eldest) {
-			return size() > MAX_ENTRIES;
-		}
-
-	};
 
 	private String serverPath;
 	private String shortServerName;
@@ -166,47 +148,27 @@ public class DefaultTMAEntry implements TMAEntry {
 	}
 
 	@Override
-	public Image getImage() {
-		if (imagePath != null) {
-			Image img = imageMap.get(imagePath);
-			if (img != null)
-				return img;
-			try (InputStream stream = new BufferedInputStream(new FileInputStream(new File(imagePath)))) {
-				img = new Image(stream);
-				imageMap.put(imagePath, img);
-				return img;
-			} catch (IOException e) {
-				logger.error("Cannot show image: {}", e);
-			}
-			//				try {
-			//					img = new Image(new File(imagePath).toURI().toURL().toExternalForm(), false);
-			//					imageMap.put(imagePath, img);
-			//					return img;
-			//				} catch (MalformedURLException e) {
-			//					logger.error("Cannot show image: {}", e);
-			//				}
+	public Image getImage(int maxWidth) {
+		if (imagePath == null)
+			return null;
+		try {
+			return new Image(new File(imagePath).toURI().toURL().toString(), maxWidth, -1, true, false);
+		} catch (MalformedURLException e) {
+			logger.error("Cannot show image: {}", e);
 		}
 		return null;
 	}
 
 	@Override
-	public Image getOverlay() {
-		if (overlayPath != null) {
-			Image img = imageMap.get(overlayPath);
-			if (img != null)
-				return img;
-			try {
-				img = new Image(new File(overlayPath).toURI().toURL().toString(), false);
-				imageMap.put(overlayPath, img);
-				return img;
-			} catch (MalformedURLException e) {
-				logger.error("Cannot show image: {}", e);
-			}
+	public Image getOverlay(int maxWidth) {
+		if (overlayPath == null)
+			return null;
+		try {
+			return new Image(new File(overlayPath).toURI().toURL().toString(), maxWidth, -1, true, false);
+		} catch (MalformedURLException e) {
+			logger.error("Cannot show overlay image: {}", e);
 		}
 		return null;
-		//			if (overlayPath != null)
-		//				return new Image(overlayPath, false);
-		//			return null;
 	}
 
 

@@ -270,14 +270,14 @@ public class TMASummaryEntry implements TMAEntry {
 	}
 
 	@Override
-	public Image getImage() {
-		// TODO Auto-generated method stub
+	public Image getImage(int maxWidth) {
+		// Cannot return summary image (at least not now)
 		return null;
 	}
 
 	@Override
-	public Image getOverlay() {
-		// TODO Auto-generated method stub
+	public Image getOverlay(int maxWidth) {
+		// Cannot return summary image (at least not now)
 		return null;
 	}
 	

@@ -148,6 +148,7 @@ import qupath.lib.gui.tma.cells.ImageTableCell;
 import qupath.lib.gui.tma.cells.NumericTableCell;
 import qupath.lib.gui.tma.entries.DefaultTMAEntry;
 import qupath.lib.gui.tma.entries.TMAEntry;
+import qupath.lib.gui.tma.entries.TMAImageCache;
 import qupath.lib.gui.tma.entries.TMAObjectEntry;
 import qupath.lib.gui.tma.entries.TMASummaryEntry;
 import qupath.lib.gui.tma.entries.TMASummaryEntry.MeasurementCombinationMethod;
@@ -173,6 +174,10 @@ public class TMASummaryViewer {
 	public final static Logger logger = LoggerFactory.getLogger(TMASummaryViewer.class);
 	
 	private Map<String, ImageServer<BufferedImage>> serverMap = new HashMap<>();
+	
+	private int maxSmallWidth = 100;
+	
+	private TMAImageCache imageCache = new TMAImageCache(maxSmallWidth);
 	
 	private static String MISSING_COLUMN = "Missing";
 
@@ -773,7 +778,7 @@ public class TMASummaryViewer {
 			cbShowOverlay.setDisable(n != ImageAvailability.BOTH);
 		});
 		ListView<TMAEntry> listImages = new ListView<>();
-		listImages.setCellFactory(v -> new ImageListCell(cbShowOverlay.selectedProperty()));
+		listImages.setCellFactory(v -> new ImageListCell(cbShowOverlay.selectedProperty(), imageCache));
 		listImages.widthProperty().addListener((v, o, n) -> listImages.refresh());
 		listImages.setStyle("-fx-control-inner-background-alt: -fx-control-inner-background ;");
 		table.getSelectionModel().getSelectedItems().addListener((Change<? extends TreeItem<TMAEntry>> e) -> {
@@ -1120,9 +1125,26 @@ public class TMASummaryViewer {
 	
 	
 	void setTMAEntries(final Collection<TMAEntry> newEntries) {
+		
 		// Turn off use-selected - can be crashy when replacing entries
-		if (!newEntries.equals(entriesBase))
+		if (!newEntries.equals(entriesBase)) {
 			useSelectedProperty.set(false);
+			
+			// Reset the cache
+			imageCache.clear();
+			
+			// Try to load small images in a background thread
+			List<TMAEntry> duplicateEntries = new ArrayList<>(newEntries);
+			ExecutorService service = Executors.newSingleThreadExecutor();
+			service.submit(() -> {
+				duplicateEntries.parallelStream().forEach(entry -> {
+					imageCache.getImage(entry, maxSmallWidth);
+					imageCache.getOverlay(entry, maxSmallWidth);
+				});
+			});
+			service.shutdown();
+			
+		}
 		this.entriesBase.clear();
 		this.entriesBase.addAll(newEntries);
 		
@@ -1244,7 +1266,8 @@ public class TMASummaryViewer {
 					columnImage.setCellValueFactory(new Callback<CellDataFeatures<TMAEntry, Image>, ObservableValue<Image>>() {
 						@Override
 						public ObservableValue<Image> call(CellDataFeatures<TMAEntry, Image> p) {
-							return new SimpleObjectProperty<>(p.getValue().getValue().getImage());
+							return new SimpleObjectProperty<>(imageCache.getImage(p.getValue().getValue(), p.getTreeTableColumn().getWidth()));
+//							return new SimpleObjectProperty<>(p.getValue().getValue().getImage());
 						}
 					});
 					columnImage.setCellFactory(c -> new ImageTableCell());
@@ -1263,7 +1286,7 @@ public class TMASummaryViewer {
 					columnOverlay.setCellValueFactory(new Callback<CellDataFeatures<TMAEntry, Image>, ObservableValue<Image>>() {
 						@Override
 						public ObservableValue<Image> call(CellDataFeatures<TMAEntry, Image> p) {
-							return new SimpleObjectProperty<>(p.getValue().getValue().getOverlay());
+							return new SimpleObjectProperty<>(imageCache.getOverlay(p.getValue().getValue(), p.getTreeTableColumn().getWidth()));
 						}
 					});
 					columnOverlay.setCellFactory(c -> new ImageTableCell());

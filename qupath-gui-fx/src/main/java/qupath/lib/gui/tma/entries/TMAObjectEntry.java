@@ -89,7 +89,7 @@ public class TMAObjectEntry implements TMAEntry {
 		}
 
 		@Override
-		public Image getImage() {
+		public Image getImage(int maxWidth) {
 //			if (imagePath != null) {
 //				Image img = imageMap.get(imagePath);
 //				if (img != null)
@@ -106,7 +106,7 @@ public class TMAObjectEntry implements TMAEntry {
 		}
 
 		@Override
-		public Image getOverlay() {
+		public Image getOverlay(int maxWidth) {
 //			if (overlayPath != null) {
 //				Image img = imageMap.get(overlayPath);
 //				if (img != null)

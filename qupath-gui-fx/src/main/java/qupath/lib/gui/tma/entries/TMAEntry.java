@@ -56,6 +56,10 @@ public interface TMAEntry {
 	 */
 	double getMeasurementAsDouble(String name);
 
+	Collection<String> getMeasurementNames();
+
+	void putMeasurement(String name, Number number);
+
 	Collection<String> getMetadataNames();
 
 	String getMetadataValue(String name);
@@ -63,10 +67,6 @@ public interface TMAEntry {
 	void putMetadata(String name, String value);
 
 	boolean isMissing();
-
-	Collection<String> getMeasurementNames();
-
-	void putMeasurement(String name, Number number);
 
 	String getComment();
 
@@ -92,9 +92,9 @@ public interface TMAEntry {
 	 */
 	boolean hasOverlay();
 
-	Image getImage();
+	Image getImage(int maxWidth);
 
-	Image getOverlay();
+	Image getOverlay(int maxWidth);
 
 	String toString();
 

@@ -33,6 +33,7 @@ import javafx.scene.control.ListCell;
 import javafx.scene.image.Image;
 import qupath.lib.gui.helpers.PaintingToolsFX;
 import qupath.lib.gui.tma.entries.TMAEntry;
+import qupath.lib.gui.tma.entries.TMAImageCache;
 
 /**
  * A ListCell for containing the image of a TMAEntry.
@@ -41,51 +42,67 @@ import qupath.lib.gui.tma.entries.TMAEntry;
  *
  */
 public class ImageListCell extends ListCell<TMAEntry> {
-		
-		final private Canvas canvas = new Canvas();
-		final private ObservableValue<Boolean> showOverlay;
-		
-		public ImageListCell(final ObservableValue<Boolean> showOverlay) {
-			super();
-			this.showOverlay = showOverlay;
-			canvas.setStyle("-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.5), 4, 0, 1, 1);");
-			canvas.setWidth(250);
-			canvas.setHeight(250);
-			canvas.heightProperty().bind(canvas.widthProperty());
-		}
-		
-		@Override
-		protected void updateItem(TMAEntry entry, boolean empty) {
-			super.updateItem(entry, empty);
-			if (entry == null || empty) {
-				setGraphic(null);
-				setTooltip(null);
-				return;
-			}
-			
-//			double w = getTableColumn().getWidth()-10;
-			double w = getListView().getWidth() - 40;
-			canvas.setWidth(w);
-			setGraphic(canvas);
-			
-			this.setContentDisplay(ContentDisplay.CENTER);
-			this.setAlignment(Pos.CENTER);
-			
-			Image img;
-			if (showOverlay.getValue()) {
-				img = entry.getOverlay();
-			}
-	    	 else {
-	    		img = entry.getImage();
-	    	 }
-			
-			GraphicsContext gc = canvas.getGraphicsContext2D();
-			gc.clearRect(0, 0, w, w);
-			if (img == null)
-				return;
-			if (img != null) {
-				PaintingToolsFX.paintImage(canvas, img);
-			}
-		}
-		
+
+	final private TMAImageCache imageCache;
+	
+	final private Canvas canvas = new Canvas();
+	final private ObservableValue<Boolean> showOverlay;
+
+	public ImageListCell(final ObservableValue<Boolean> showOverlay, final TMAImageCache imageCache) {
+		super();
+		this.showOverlay = showOverlay;
+		this.imageCache = imageCache;
+		canvas.setStyle("-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.5), 4, 0, 1, 1);");
+		canvas.setWidth(250);
+		canvas.setHeight(250);
+		canvas.heightProperty().bind(canvas.widthProperty());
 	}
+
+	@Override
+	protected void updateItem(TMAEntry entry, boolean empty) {
+		super.updateItem(entry, empty);
+		if (entry == null || empty) {
+			setGraphic(null);
+			setTooltip(null);
+			return;
+		}
+
+		//			double w = getTableColumn().getWidth()-10;
+		double w = getListView().getWidth() - 40;
+		if (w <= 0) {
+			setGraphic(null);
+			return;
+		}
+
+		Image img;
+		if (showOverlay.getValue()) {
+			if (!entry.hasOverlay()) {
+				setGraphic(null);
+				return;
+			}
+			img = imageCache.getOverlay(entry, w);
+		}
+		else {
+			if (!entry.hasImage()) {
+				setGraphic(null);
+				return;
+			}
+			img = imageCache.getImage(entry, w);
+		}
+
+		canvas.setWidth(w);
+		setGraphic(canvas);
+
+		this.setContentDisplay(ContentDisplay.CENTER);
+		this.setAlignment(Pos.CENTER);
+		
+		GraphicsContext gc = canvas.getGraphicsContext2D();
+		gc.clearRect(0, 0, w, w);
+		if (img == null)
+			return;
+		if (img != null) {
+			PaintingToolsFX.paintImage(canvas, img);
+		}
+	}
+
+}
