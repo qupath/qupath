@@ -63,7 +63,7 @@ public interface TMAEntry {
 	Collection<String> getMetadataNames();
 
 	String getMetadataValue(String name);
-
+	
 	void putMetadata(String name, String value);
 
 	boolean isMissing();

@@ -63,10 +63,12 @@ import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
+import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
+import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.value.ChangeListener;
@@ -116,7 +118,6 @@ import javafx.scene.control.TreeTableRow;
 import javafx.scene.control.TreeTableView;
 import javafx.scene.control.cell.CheckBoxTableCell;
 import javafx.scene.effect.DropShadow;
-import javafx.scene.image.Image;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
@@ -175,9 +176,9 @@ public class TMASummaryViewer {
 	
 	private Map<String, ImageServer<BufferedImage>> serverMap = new HashMap<>();
 	
-	private int maxSmallWidth = 100;
+	private IntegerProperty maxSmallWidth = new SimpleIntegerProperty(150);
 	
-	private TMAImageCache imageCache = new TMAImageCache(maxSmallWidth);
+	private TMAImageCache imageCache = new TMAImageCache(maxSmallWidth.get());
 	
 	private static String MISSING_COLUMN = "Missing";
 
@@ -413,6 +414,14 @@ public class TMASummaryViewer {
 		cbHidePane.selectedProperty().bindBidirectional(hidePaneProperty);
 		
 		CheckBox cbGroupByID = new CheckBox("Group by ID");
+		entriesBase.addListener((Change<? extends TMAEntry> event) -> {
+			if (!event.getList().stream().anyMatch(e -> e.getMetadataValue(TMACoreObject.KEY_UNIQUE_ID) != null)) {
+				cbGroupByID.setSelected(false);
+				cbGroupByID.setDisable(true);
+			} else {
+				cbGroupByID.setDisable(false);
+			}
+		});
 		cbGroupByID.setSelected(groupByIDProperty.get());
 		cbGroupByID.selectedProperty().bindBidirectional(groupByIDProperty);
 		
@@ -1066,13 +1075,13 @@ public class TMASummaryViewer {
 			DisplayHelpers.showErrorMessage("Show TMA summary", "No TMA data available!");
 			return;
 		}
-		ImageData<?> imageData = qupath.getImageData();
+		ImageData<BufferedImage> imageData = qupath.getImageData();
 		String serverPath = imageData.getServerPath();
 		ObservableMeasurementTableData data = new ObservableMeasurementTableData();
 		data.setImageData(imageData, imageData.getHierarchy().getTMAGrid().getTMACoreList());
 		List<TMAEntry> entriesNew = new ArrayList<>();
 		for (TMACoreObject core : imageData.getHierarchy().getTMAGrid().getTMACoreList()) {
-			entriesNew.add(new TMAObjectEntry(data, serverPath, core));
+			entriesNew.add(new TMAObjectEntry(imageData, data, serverPath, core));
 		}
 		setTMAEntries(entriesNew);
 		stage.setTitle("TMA Results Viewer: Current image");
@@ -1092,7 +1101,7 @@ public class TMASummaryViewer {
 				data.setImageData(imageData, imageData.getHierarchy().getTMAGrid().getTMACoreList());
 				for (TMACoreObject core : imageData.getHierarchy().getTMAGrid().getTMACoreList()) {
 //					data.getEntries().add(core);
-					entries.add(new TMAObjectEntry(data, imageData.getServerPath(), core));
+					entries.add(new TMAObjectEntry(imageData, data, imageData.getServerPath(), core));
 				}
 			}
 			setTMAEntries(entries);
@@ -1138,8 +1147,8 @@ public class TMASummaryViewer {
 			ExecutorService service = Executors.newSingleThreadExecutor();
 			service.submit(() -> {
 				duplicateEntries.parallelStream().forEach(entry -> {
-					imageCache.getImage(entry, maxSmallWidth);
-					imageCache.getOverlay(entry, maxSmallWidth);
+					imageCache.getImage(entry, maxSmallWidth.get());
+					imageCache.getOverlay(entry, maxSmallWidth.get());
 				});
 			});
 			service.shutdown();
@@ -1225,99 +1234,89 @@ public class TMASummaryViewer {
 	
 	
 	
-	@SuppressWarnings({ "rawtypes", "unchecked" })
 	private void refreshTableData() {
-
 		
 		Collection<? extends TMAEntry> entries = groupByIDProperty.get() ? createSummaryEntries(entriesBase) : entriesBase;
-		
-		
+
 		// Ensure that we don't try to modify a filtered list
 		List<TreeTableColumn<TMAEntry, ?>> columns = new ArrayList<>();
 
-//		if (table.getColumns().isEmpty()) {
-			
-			// Add an empty column.
-			// Its purpose is to provide the space needed for the little expansion arrows, to avoid 
-			// these stealing space from the first interesting column.
-			// Note: there's nothing to prevent the user reordering it along with other columns... 
-			// but hopefully it looks 'right' enough where it is that few would try to do that
-			TreeTableColumn<TMAEntry, String> columnEmpty = new TreeTableColumn<>("  ");
-			columnEmpty.setCellValueFactory(new Callback<CellDataFeatures<TMAEntry, String>, ObservableValue<String>>() {
-				@Override
-				public ObservableValue<String> call(CellDataFeatures<TMAEntry, String> p) {
-					return Bindings.createStringBinding(() -> "");
-				}
-			});
-			columnEmpty.setSortable(false);
-			columnEmpty.setResizable(false);
-			columns.add(columnEmpty);
-			
-			// Check if we have any images or overlays
-			boolean hasImages = entries.stream().anyMatch(e -> e.hasImage());
-			boolean hasOverlay = entries.stream().anyMatch(e -> e.hasOverlay());
-			
-			// Add columns to show images, if we have them
-			if (hasImages || hasOverlay) {
-				TreeTableColumn<TMAEntry, Image> columnImage = hasImages ? new TreeTableColumn<>("Thumbnail") : null;
-				TreeTableColumn<TMAEntry, Image> columnOverlay = hasOverlay ? new TreeTableColumn<>("Overlay") : null;
-	
-				if (hasImages) {
-					columnImage.setCellValueFactory(new Callback<CellDataFeatures<TMAEntry, Image>, ObservableValue<Image>>() {
-						@Override
-						public ObservableValue<Image> call(CellDataFeatures<TMAEntry, Image> p) {
-							return new SimpleObjectProperty<>(imageCache.getImage(p.getValue().getValue(), p.getTreeTableColumn().getWidth()));
-//							return new SimpleObjectProperty<>(p.getValue().getValue().getImage());
-						}
-					});
-					columnImage.setCellFactory(c -> new ImageTableCell());
-					if (hasOverlay) {
-						columnImage.widthProperty().addListener((v, o, n) -> {
-							if (n.doubleValue() == columnImage.getPrefWidth())
-								return;
-							columnOverlay.setPrefWidth(n.doubleValue());
-							table.refresh();
-						});
-					}
-					columns.add(columnImage);
-				}
-	
-				if (hasOverlay) {
-					columnOverlay.setCellValueFactory(new Callback<CellDataFeatures<TMAEntry, Image>, ObservableValue<Image>>() {
-						@Override
-						public ObservableValue<Image> call(CellDataFeatures<TMAEntry, Image> p) {
-							return new SimpleObjectProperty<>(imageCache.getOverlay(p.getValue().getValue(), p.getTreeTableColumn().getWidth()));
-						}
-					});
-					columnOverlay.setCellFactory(c -> new ImageTableCell());
-					if (hasImages) {
-						columnOverlay.widthProperty().addListener((v, o, n) -> {
-							if (n.doubleValue() == columnOverlay.getPrefWidth())
-								return;
-							columnImage.setPrefWidth(n.doubleValue());
-							table.refresh();
-						});
-					}
-					columns.add(columnOverlay);
-				}
+		// Add an empty column.
+		// Its purpose is to provide the space needed for the little expansion arrows, to avoid 
+		// these stealing space from the first interesting column.
+		// Note: there's nothing to prevent the user reordering it along with other columns... 
+		// but hopefully it looks 'right' enough where it is that few would try to do that
+		TreeTableColumn<TMAEntry, String> columnEmpty = new TreeTableColumn<>("  ");
+		columnEmpty.setCellValueFactory(new Callback<CellDataFeatures<TMAEntry, String>, ObservableValue<String>>() {
+			@Override
+			public ObservableValue<String> call(CellDataFeatures<TMAEntry, String> p) {
+				return Bindings.createStringBinding(() -> "");
 			}
-			
-			
-			// Update image availability
-			if (hasImages) {
-				if (hasOverlay)
-					imageAvailability.set(ImageAvailability.BOTH);
-				else
-					imageAvailability.set(ImageAvailability.IMAGE_ONLY);
-			} else if (hasOverlay) {
-				imageAvailability.set(ImageAvailability.OVERLAY_ONLY);
-			} else
-				imageAvailability.set(ImageAvailability.NONE);
+		});
+		columnEmpty.setSortable(false);
+		columnEmpty.setResizable(false);
+		columns.add(columnEmpty);
 
-//		}
-//		else
-//			columns.remove(1, table.getColumns().size());
-//		//				table.getColumns().remove(2, table.getColumns().size());
+		// Check if we have any images or overlays
+		boolean hasImages = entries.stream().anyMatch(e -> e.hasImage());
+		boolean hasOverlay = entries.stream().anyMatch(e -> e.hasOverlay());
+
+		// Add columns to show images, if we have them
+		if (hasImages || hasOverlay) {
+			TreeTableColumn<TMAEntry, TMAEntry> columnImage = hasImages ? new TreeTableColumn<>("Thumbnail") : null;
+			TreeTableColumn<TMAEntry, TMAEntry> columnOverlay = hasOverlay ? new TreeTableColumn<>("Overlay") : null;
+
+			if (hasImages) {
+				columnImage.setCellValueFactory(new Callback<CellDataFeatures<TMAEntry, TMAEntry>, ObservableValue<TMAEntry>>() {
+					@Override
+					public ObservableValue<TMAEntry> call(CellDataFeatures<TMAEntry, TMAEntry> p) {
+						return p.getValue().valueProperty();
+					}
+				});
+				columnImage.setCellFactory(c -> new ImageTableCell(imageCache, false));
+				columnImage.maxWidthProperty().bind(maxSmallWidth);
+				columnImage.widthProperty().addListener((v, o, n) -> {
+					if (n.doubleValue() == columnImage.getPrefWidth())
+						return;
+					if (hasOverlay)
+						columnOverlay.setPrefWidth(n.doubleValue());
+					table.refresh();
+				});
+				columns.add(columnImage);
+			}
+
+			if (hasOverlay) {
+				columnOverlay.setCellValueFactory(new Callback<CellDataFeatures<TMAEntry, TMAEntry>, ObservableValue<TMAEntry>>() {
+					@Override
+					public ObservableValue<TMAEntry> call(CellDataFeatures<TMAEntry, TMAEntry> p) {
+						return p.getValue().valueProperty();
+					}
+				});
+				columnOverlay.setCellFactory(c -> new ImageTableCell(imageCache, true));
+				columnOverlay.maxWidthProperty().bind(maxSmallWidth);
+				columnOverlay.widthProperty().addListener((v, o, n) -> {
+					if (n.doubleValue() == columnOverlay.getPrefWidth())
+						return;
+					columnImage.setPrefWidth(n.doubleValue());
+					if (hasImages)
+						table.refresh();
+				});
+				columns.add(columnOverlay);
+			}
+		}
+
+
+		// Update image availability
+		if (hasImages) {
+			if (hasOverlay)
+				imageAvailability.set(ImageAvailability.BOTH);
+			else
+				imageAvailability.set(ImageAvailability.IMAGE_ONLY);
+		} else if (hasOverlay) {
+			imageAvailability.set(ImageAvailability.OVERLAY_ONLY);
+		} else
+			imageAvailability.set(ImageAvailability.NONE);
+
 
 
 		for (String name : model.getAllNames()) {
@@ -1351,19 +1350,10 @@ public class TMASummaryViewer {
 		// Set columns for table
 		table.getColumns().setAll(columns);
 		
-//		// Create TreeItems and add to table
-//		List<TreeItem<TMAEntry>> items = new ArrayList<>();
-//		for (TMAEntry entry : entries) {
-//			if (entry instanceof TMASummaryEntry) {
-//				items.add(new SummaryTreeItem((TMASummaryEntry)entry));
-//			} else {
-//				items.add(new TreeItem<>(entry));
-//			}
-//		}
+		// Set new root for table
 		TreeItem<TMAEntry> root = new RootTreeItem(entries, combinedPredicate);
 		table.setShowRoot(false);
 		table.setRoot(root);
-		
 		
 		model.refreshList();
 	}

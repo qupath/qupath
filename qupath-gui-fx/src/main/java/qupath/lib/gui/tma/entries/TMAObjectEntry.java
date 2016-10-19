@@ -24,11 +24,17 @@
 
 package qupath.lib.gui.tma.entries;
 
+import java.awt.image.BufferedImage;
 import java.util.Collection;
+import java.util.Collections;
 
+import javafx.embed.swing.SwingFXUtils;
 import javafx.scene.image.Image;
 import qupath.lib.gui.models.ObservableMeasurementTableData;
+import qupath.lib.images.ImageData;
 import qupath.lib.objects.TMACoreObject;
+import qupath.lib.regions.RegionRequest;
+import qupath.lib.roi.interfaces.ROI;
 
 /**
  * A TMAEntry acting as a wrapper for a TMACoreObject.
@@ -37,131 +43,142 @@ import qupath.lib.objects.TMACoreObject;
  *
  */
 public class TMAObjectEntry implements TMAEntry {
-		
-		private ObservableMeasurementTableData data;
-		private TMACoreObject core;
 
-		public TMAObjectEntry(ObservableMeasurementTableData data, String serverPath, TMACoreObject core) {
-//			super(serverPath, null, null, null, false);
-			this.core = core;
-			this.data = data;			
-		}
-		
-		
-		@Override
-		public Number getMeasurement(String name) {
-			return data.getNumericValue(core, name);
-		}
-		
-		@Override
-		public Collection<String> getMetadataNames() {
-			return data.getMetadataNames();
-		}
-		
-		@Override
-		public String getMetadataValue(final String name) {
-			return data.getStringValue(core, name);
-		}
-		
-		@Override
-		public void putMetadata(String name, String value) {
-			core.putMetadataValue(name, value);
-		}
-		
-		@Override
-		public boolean isMissing() {
-			return core.isMissing();
-		}
-		
-		@Override
-		public Collection<String> getMeasurementNames() {
-			return data.getMeasurementNames();
-		}
+	private ImageData<BufferedImage> imageData;
 
-		@Override
-		public void putMeasurement(String name, Number number) {
-			core.getMeasurementList().putMeasurement(name, number == null ? Double.NaN : number.doubleValue());
-		}
+	private ObservableMeasurementTableData data;
+	private TMACoreObject core;
 
-		@Override
-		public String getName() {
-			return core.getName();
-		}
-
-		@Override
-		public Image getImage(int maxWidth) {
-//			if (imagePath != null) {
-//				Image img = imageMap.get(imagePath);
-//				if (img != null)
-//					return img;
-//				try {
-//					img = new Image(new File(imagePath).toURI().toURL().toString(), false);
-//					imageMap.put(imagePath, img);
-//					return img;
-//				} catch (MalformedURLException e) {
-//					logger.error("Cannot show image: {}", e);
-//				}
-//			}
-			return null;
-		}
-
-		@Override
-		public Image getOverlay(int maxWidth) {
-//			if (overlayPath != null) {
-//				Image img = imageMap.get(overlayPath);
-//				if (img != null)
-//					return img;
-//				try {
-//					img = new Image(new File(overlayPath).toURI().toURL().toString(), false);
-//					imageMap.put(overlayPath, img);
-//					return img;
-//				} catch (MalformedURLException e) {
-//					logger.error("Cannot show image: {}", e);
-//				}
-//			}
-			return null;
-//			if (overlayPath != null)
-//				return new Image(overlayPath, false);
-//			return null;
-		}
-
-
-		@Override
-		public double getMeasurementAsDouble(String name) {
-			Number measurement = getMeasurement(name);
-			return measurement == null ? Double.NaN : measurement.doubleValue();
-		}
-
-
-		@Override
-		public String getComment() {
-			return core.getMetadataString("Comment");
-		}
-
-
-		@Override
-		public void setComment(String comment) {
-			core.putMetadataValue("Comment", comment);
-		}
-
-
-		@Override
-		public String getImageName() {
-			// TODO Auto-generated method stub
-			return null;
-		}
-
-
-		@Override
-		public boolean hasImage() {
-			return false;
-		}
-
-
-		@Override
-		public boolean hasOverlay() {
-			return false;
-		}
-		
-		
+	public TMAObjectEntry(ImageData<BufferedImage> imageData, ObservableMeasurementTableData data, String serverPath, TMACoreObject core) {
+		//			super(serverPath, null, null, null, false);
+		this.imageData = imageData;
+		this.core = core;
+		this.data = data;			
 	}
+
+
+	@Override
+	public Number getMeasurement(String name) {
+		return data.getNumericValue(core, name);
+	}
+
+	@Override
+	public Collection<String> getMetadataNames() {
+		return data.getMetadataNames();
+	}
+
+	@Override
+	public String getMetadataValue(final String name) {
+		return (String)core.getMetadataValue(name);
+//		return data.getStringValue(core, name);
+	}
+
+	@Override
+	public void putMetadata(String name, String value) {
+		core.putMetadataValue(name, value);
+		if (imageData != null)
+			imageData.getHierarchy().fireObjectMeasurementsChangedEvent(this, Collections.singletonList(core));
+	}
+
+	@Override
+	public boolean isMissing() {
+		return core.isMissing();
+	}
+
+	@Override
+	public Collection<String> getMeasurementNames() {
+		return data.getMeasurementNames();
+	}
+
+	@Override
+	public void putMeasurement(String name, Number number) {
+		core.getMeasurementList().putMeasurement(name, number == null ? Double.NaN : number.doubleValue());
+		if (imageData != null)
+			imageData.getHierarchy().fireObjectMeasurementsChangedEvent(this, Collections.singletonList(core));
+	}
+
+	@Override
+	public String getName() {
+		return core.getName();
+	}
+
+	@Override
+	public Image getImage(int maxWidth) {
+		if (imageData == null)
+			return null;
+		
+		ROI roi = core.getROI();
+		double downsample = 1;
+		if (maxWidth > 0) {
+			downsample = Math.max(roi.getBoundsWidth() / maxWidth, 1);
+		}
+		
+		BufferedImage img = imageData.getServer().readBufferedImage(
+				RegionRequest.createInstance(imageData.getServerPath(), downsample, roi));
+		
+		if (img == null)
+			return null;
+		return SwingFXUtils.toFXImage(img, null);
+	}
+
+	@Override
+	public Image getOverlay(int maxWidth) {
+		//			if (overlayPath != null) {
+		//				Image img = imageMap.get(overlayPath);
+		//				if (img != null)
+		//					return img;
+		//				try {
+		//					img = new Image(new File(overlayPath).toURI().toURL().toString(), false);
+		//					imageMap.put(overlayPath, img);
+		//					return img;
+		//				} catch (MalformedURLException e) {
+		//					logger.error("Cannot show image: {}", e);
+		//				}
+		//			}
+		return null;
+		//			if (overlayPath != null)
+		//				return new Image(overlayPath, false);
+		//			return null;
+	}
+
+
+	@Override
+	public double getMeasurementAsDouble(String name) {
+		Number measurement = getMeasurement(name);
+		return measurement == null ? Double.NaN : measurement.doubleValue();
+	}
+
+
+	@Override
+	public String getComment() {
+		return core.getMetadataString("Comment");
+	}
+
+
+	@Override
+	public void setComment(String comment) {
+		core.putMetadataValue("Comment", comment);
+		if (imageData != null)
+			imageData.getHierarchy().fireObjectMeasurementsChangedEvent(this, Collections.singletonList(core));
+	}
+
+
+	@Override
+	public String getImageName() {
+		return imageData == null ? null : imageData.getServer().getShortServerName();
+	}
+
+
+	@Override
+	public boolean hasImage() {
+		return imageData != null;
+	}
+
+
+	@Override
+	public boolean hasOverlay() {
+		return false;
+	}
+
+
+}

@@ -24,7 +24,7 @@
 
 package qupath.lib.gui.tma.entries;
 
-import java.lang.ref.WeakReference;
+import java.lang.ref.SoftReference;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -45,10 +45,10 @@ public class TMAImageCache {
 	private int maxSmallWidth;
 	
 	private Map<TMAEntry, Image> imageSmall = Collections.synchronizedMap(new HashMap<>());
-	private Map<TMAEntry, WeakReference<Image>> imageLarge = Collections.synchronizedMap(new HashMap<>());
+	private Map<TMAEntry, SoftReference<Image>> imageLarge = Collections.synchronizedMap(new HashMap<>());
 
 	private Map<TMAEntry, Image> overlaySmall = Collections.synchronizedMap(new HashMap<>());
-	private Map<TMAEntry, WeakReference<Image>> overlayLarge = Collections.synchronizedMap(new HashMap<>());
+	private Map<TMAEntry, SoftReference<Image>> overlayLarge = Collections.synchronizedMap(new HashMap<>());
 
 	/**
 	 * Create an image cache, with the specified maximum image width used to define what is a 'small image'.
@@ -95,13 +95,13 @@ public class TMAImageCache {
 	
 	
 	private Image getLargeCachedImage(final TMAEntry entry, final boolean isOverlay) {
-		Map<TMAEntry, WeakReference<Image>> cache = isOverlay ? overlayLarge : imageLarge;
-		WeakReference<Image> ref = cache.get(entry);
+		Map<TMAEntry, SoftReference<Image>> cache = isOverlay ? overlayLarge : imageLarge;
+		SoftReference<Image> ref = cache.get(entry);
 		Image img = ref == null ? null : ref.get();
 		if (img == null) {
 			img = isOverlay ? entry.getOverlay(-1) : entry.getImage(-1);
 			if (img != null) {
-				cache.put(entry, new WeakReference<Image>(img));
+				cache.put(entry, new SoftReference<>(img));
 			}
 		}
 		return img;

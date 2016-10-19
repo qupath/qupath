@@ -47,6 +47,8 @@ public class ImageListCell extends ListCell<TMAEntry> {
 	
 	final private Canvas canvas = new Canvas();
 	final private ObservableValue<Boolean> showOverlay;
+	
+	private Image img; // Keep a reference to the last image, so the cache doesn't throw it away
 
 	public ImageListCell(final ObservableValue<Boolean> showOverlay, final TMAImageCache imageCache) {
 		super();
@@ -64,6 +66,7 @@ public class ImageListCell extends ListCell<TMAEntry> {
 		if (entry == null || empty) {
 			setGraphic(null);
 			setTooltip(null);
+			img = null;
 			return;
 		}
 
@@ -74,7 +77,6 @@ public class ImageListCell extends ListCell<TMAEntry> {
 			return;
 		}
 
-		Image img;
 		if (showOverlay.getValue()) {
 			if (!entry.hasOverlay()) {
 				setGraphic(null);

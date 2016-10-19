@@ -38,10 +38,10 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
-import javafx.scene.input.MouseEvent;
 import javafx.stage.Screen;
 import qupath.lib.gui.helpers.PaintingToolsFX;
 import qupath.lib.gui.tma.entries.TMAEntry;
+import qupath.lib.gui.tma.entries.TMAImageCache;
 
 
 /**
@@ -50,33 +50,36 @@ import qupath.lib.gui.tma.entries.TMAEntry;
  * @author Pete Bankhead
  *
  */
-public class ImageTableCell extends TreeTableCell<TMAEntry, Image> {
+public class ImageTableCell extends TreeTableCell<TMAEntry, TMAEntry> {
 		
 		final private Canvas canvas = new Canvas();
 		
+		private TMAImageCache cache;
+		private boolean isOverlay;
 		private PopOver popOver = null;
 		private ContextMenu menu = new ContextMenu();
 		private MenuItem miCopy = new MenuItem("Copy");
 		
-		public ImageTableCell() {
+		private Image img; // Keep a reference to the last image, so the cache doesn't throw it away
+		
+		public ImageTableCell(final TMAImageCache cache, final boolean isOverlay) {
 			super();
+			this.cache = cache;
+			this.isOverlay = isOverlay;
 			canvas.setStyle("-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.5), 4, 0, 1, 1);");
 			canvas.setWidth(100);
 			canvas.setHeight(100);
 			canvas.heightProperty().bind(canvas.widthProperty());
-			addEventFilter(MouseEvent.MOUSE_CLICKED, e -> {
-				if (popOver != null && e.getClickCount() == 2)
-					popOver.show(this);
-			});
 			menu.getItems().add(miCopy);
 		}
 		
 		@Override
-		protected void updateItem(Image item, boolean empty) {
+		protected void updateItem(TMAEntry item, boolean empty) {
 			super.updateItem(item, empty);
+			popOver = null;
 			if (item == null || empty) {
 				setGraphic(null);
-				popOver = null;
+				img = null;
 				return;
 			}
 			
@@ -84,36 +87,50 @@ public class ImageTableCell extends TreeTableCell<TMAEntry, Image> {
 			canvas.setWidth(w);
 			setGraphic(canvas);
 			
-			// Create PopOver to show larger image
-			ImageView imageView = new ImageView(item);
-			imageView.setPreserveRatio(true);
-			Rectangle2D primaryScreenBounds = Screen.getPrimary().getVisualBounds();
-			// TODO: Consider setting max width/height elsewhere, so user can adjust?
-			imageView.setFitWidth(Math.min(primaryScreenBounds.getWidth()*0.5, item.getWidth()));
-			imageView.setFitHeight(Math.min(primaryScreenBounds.getHeight()*0.75, item.getHeight()));
-			// Enable copying to clipboard
-			miCopy.setOnAction(e -> {
-				ClipboardContent content = new ClipboardContent();
-				content.putImage(item);
-				Clipboard.getSystemClipboard().setContent(content);
+			this.setOnMouseClicked(e -> {
+				if (e.getClickCount() == 2) {
+					if (popOver == null)
+						createPopOver(item, isOverlay);
+					if (popOver != null)
+						popOver.show(this);
+				}
 			});
-			imageView.setOnContextMenuRequested(e -> menu.show(this, e.getScreenX(), e.getScreenY()));
-			
-			popOver = new PopOver(imageView);
-			String name = this.getTreeTableRow().getItem() == null ? null : this.getTreeTableRow().getItem().getName();
-			if (name != null)
-				popOver.setTitle(name);
 			
 			this.setContentDisplay(ContentDisplay.CENTER);
 			this.setAlignment(Pos.CENTER);
 			
 			GraphicsContext gc = canvas.getGraphicsContext2D();
 			gc.clearRect(0, 0, w, w);
-			PaintingToolsFX.paintImage(canvas, item);
-//			else if (!waitingImages.contains(item)) {
-//				waitingImages.add(item);
-//				pool.execute(new ImageWorker(item));
-//			}
+			img = isOverlay ? cache.getOverlay(item, w) : cache.getImage(item, w);
+			PaintingToolsFX.paintImage(canvas, img);
 		}
+		
+		
+		private void createPopOver(final TMAEntry entry, final boolean isOverlay) {
+			// Request full resolution image
+			Image image = isOverlay ? cache.getOverlay(entry, -1) : cache.getImage(entry, -1);
+			if (image == null)
+				return;
+			// Create PopOver to show larger image
+			ImageView imageView = new ImageView(image);
+			imageView.setPreserveRatio(true);
+			Rectangle2D primaryScreenBounds = Screen.getPrimary().getVisualBounds();
+			// TODO: Consider setting max width/height elsewhere, so user can adjust?
+			imageView.setFitWidth(Math.min(primaryScreenBounds.getWidth()*0.5, image.getWidth()));
+			imageView.setFitHeight(Math.min(primaryScreenBounds.getHeight()*0.75, image.getHeight()));
+			// Enable copying to clipboard
+			miCopy.setOnAction(e -> {
+				ClipboardContent content = new ClipboardContent();
+				content.putImage(image);
+				Clipboard.getSystemClipboard().setContent(content);
+			});
+			imageView.setOnContextMenuRequested(e -> menu.show(this, e.getScreenX(), e.getScreenY()));
+
+			popOver = new PopOver(imageView);
+			String name = this.getTreeTableRow().getItem() == null ? null : this.getTreeTableRow().getItem().getName();
+			if (name != null)
+				popOver.setTitle(name);
+		}
+		
 		
 	}
