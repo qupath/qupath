@@ -323,8 +323,8 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	private String buildString = null;
 	private String versionString = null;
 	
-	// For development... set to true to make sure the update check is not run on launch
-	private boolean disableAutoUpdateCheck = false;
+	// For development... don't run update check if running from a directory (rather than a Jar)
+	private boolean disableAutoUpdateCheck = new File(qupath.lib.gui.QuPathGUI.class.getProtectionDomain().getCodeSource().getLocation().getFile()).isDirectory();
 	
 	private static ExtensionClassLoader extensionClassLoader = new ExtensionClassLoader();
 	private ServiceLoader<QuPathExtension> extensionLoader = ServiceLoader.load(QuPathExtension.class, extensionClassLoader);
@@ -929,8 +929,8 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 
 		// Don't check run auto-update check again if we already checked within the last hour
 		long diffHours = (currentTime - lastUpdateCheck) / (60 * 60 * 1000);
-//		if (isAutoCheck && diffHours < 1)
-//			return;
+		if (isAutoCheck && diffHours < 1)
+			return;
 		
 		// See if we can read the current ChangeLog
 		File fileChanges = new File("CHANGELOG.md");
@@ -969,7 +969,15 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				if (compareChangelogHeaders(changeLogCurrent, changeLogOnline)) {
 					// If not isAutoCheck, inform user even if there are no updated at this time
 					if (!isAutoCheck) {
-						DisplayHelpers.showMessageDialog("Update check", "QuPath is up-to-date!");
+						Platform.runLater(() -> {
+//							Dialog<Void> dialog = new Dialog<>();
+//							dialog.setTitle("Update check");
+//							dialog.initOwner(getStage());
+//							dialog.getDialogPane().setHeaderText("QuPath is up-to-date!");
+//							dialog.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
+//							dialog.showAndWait();
+							DisplayHelpers.showMessageDialog("Update check", "QuPath is up-to-date!");
+						});
 					}
 					return;
 				}
@@ -979,7 +987,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			} catch (Exception e) {
 				// Notify the user if we couldn't read the log
 				if (!isAutoCheck) {
-					DisplayHelpers.showMessageDialog("Update check", "Unable to check for updated as this time, sorry");
+					DisplayHelpers.showMessageDialog("Update check", "Unable to check for updates at this time, sorry");
 					return;
 				}
 				logger.debug("Unable to check for updates - {}", e.getLocalizedMessage());
@@ -2731,13 +2739,17 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				createCommandAction(new SingleFeatureClassifierCommand(this, PathDetectionObject.class), "Classify by specific feature")
 			);
 		
+		Action actionUpdateCheck = new Action("Check for updates (web)", e -> {
+			checkForUpdate(false);
+		});
 		
 		Menu menuHelp = createMenu(
 				"Help",
 //				createCommandAction(new HelpCommand(this), "Documentation"),
 				createCommandAction(new OpenWebpageCommand(this, "http://go.qub.ac.uk/qupath-docs"), "Documentation (web)"),
 				createCommandAction(new OpenWebpageCommand(this, "http://go.qub.ac.uk/qupath-videos"), "Demo videos (web)"),
-				createCommandAction(new OpenWebpageCommand(this, "http://go.qub.ac.uk/qupath-latest"), "Get latest version (web)"),
+//				createCommandAction(new OpenWebpageCommand(this, "http://go.qub.ac.uk/qupath-latest"), "Get latest version (web)"),
+				actionUpdateCheck,
 				null,
 				createCommandAction(new OpenWebpageCommand(this, "http://go.qub.ac.uk/qupath-citation"), "Cite QuPath (web)"),
 				createCommandAction(new OpenWebpageCommand(this, "http://go.qub.ac.uk/qupath-extensions"), "Add extensions (web)"),
