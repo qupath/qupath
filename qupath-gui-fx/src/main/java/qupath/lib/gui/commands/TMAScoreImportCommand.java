@@ -48,7 +48,6 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.text.TextAlignment;
 import qupath.lib.common.GeneralTools;
-import qupath.lib.gui.ImageDataWrapper;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.helpers.ColorToolsFX;
@@ -74,16 +73,40 @@ public class TMAScoreImportCommand implements PathCommand {
 	
 	private static String name = "TMA data importer";
 	
-	private ImageDataWrapper<?> manager;
+	private QuPathGUI qupath;
 	
-	public TMAScoreImportCommand(final ImageDataWrapper<?> manager) {
+	public TMAScoreImportCommand(final QuPathGUI qupath) {
 		super();
-		this.manager = manager;
+		this.qupath = qupath;
+		
+		// Support dragging a TMA map onto the image
+		qupath.getDefaultDragDropListener().addFileDropHandler((viewer, list) -> {
+			if (list.isEmpty())
+				return false;
+			ImageData<?> imageData = qupath.getImageData();
+			if (imageData == null || imageData.getHierarchy().getTMAGrid() == null)
+				return false;
+			File file = list.get(0);
+			if (file.getName().toLowerCase().endsWith(".qpmap")) {
+				try {
+					CoreInfoGrid grid = new CoreInfoGrid(imageData.getHierarchy().getTMAGrid());
+					boolean success = handleImportGrid(grid, GeneralTools.readFileAsString(file.getAbsolutePath()));
+					if (success) {
+						grid.synchronizeTMAGridToInfo();
+						DisplayHelpers.showInfoNotification("TMA grid import", "TMA grid imported (" + grid.getWidth() + "x" + grid.getHeight() + ")");
+						return true;
+					}
+				} catch (Exception e) {
+					logger.error("Error importing TMA grid", e);
+				}
+			}
+			return false;
+		});
 	}
 		
 	@Override
 	public void run() {
-		ImageData<?> imageData = manager.getImageData();
+		ImageData<?> imageData = qupath.getImageData();
 		PathObjectHierarchy hierarchy = imageData == null ? null : imageData.getHierarchy();
 		if (hierarchy == null || hierarchy.getTMAGrid() == null) {
 			DisplayHelpers.showErrorMessage(name, "No TMA grid has been set for the selected image!");
