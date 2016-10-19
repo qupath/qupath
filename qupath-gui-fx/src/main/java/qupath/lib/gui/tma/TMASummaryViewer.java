@@ -162,6 +162,8 @@ import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.hierarchy.DefaultTMAGrid;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.TMAGrid;
+import qupath.lib.projects.Project;
+import qupath.lib.projects.ProjectImageEntry;
 
 
 /**
@@ -302,6 +304,11 @@ public class TMASummaryViewer {
 		miImportFromImage.setOnAction(e -> setTMAEntriesFromOpenImage());
 		
 		
+		MenuItem miImportFromProject = new MenuItem("Import from current project... (experimental)");
+		miImportFromProject.setAccelerator(new KeyCodeCombination(KeyCode.P, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
+		miImportFromProject.setOnAction(e -> setTMAEntriesFromOpenProject());
+		
+		
 		MenuItem miImportClipboard = new MenuItem("Import from clipboard...");
 		miImportClipboard.setOnAction(e -> {
 			String text = Clipboard.getSystemClipboard().getString();
@@ -369,7 +376,8 @@ public class TMASummaryViewer {
 				null,
 				miImportClipboard,
 				null,
-				miImportFromImage
+				miImportFromImage,
+				miImportFromProject
 				);
 		menuBar.getMenus().add(menuFile);
 		menuEdit.getItems().add(miCopy);
@@ -379,6 +387,8 @@ public class TMASummaryViewer {
 		menuFile.setOnShowing(e -> {
 			boolean imageDataAvailable = QuPathGUI.getInstance() != null && QuPathGUI.getInstance().getImageData() != null && QuPathGUI.getInstance().getImageData().getHierarchy().getTMAGrid() != null;
 			miImportFromImage.setDisable(!imageDataAvailable);
+			boolean projectAvailable = QuPathGUI.getInstance() != null && QuPathGUI.getInstance().getProject() != null && !QuPathGUI.getInstance().getProject().getImageList().isEmpty();
+			miImportFromProject.setDisable(!projectAvailable);
 		});
 		
 		// Double-clicking previously used for comments... but conflicts with tree table expansion
@@ -598,9 +608,10 @@ public class TMASummaryViewer {
 			item.getValue().setMissing(status);
 		}
 		// Refresh the table data if necessary
-		if (skipMissingCoresProperty.get())
+		if (skipMissingCoresProperty.get()) {
+			table.getSelectionModel().clearSelection();
 			refreshTableData();
-		else
+		} else
 			table.refresh();
 	}
 	
@@ -612,6 +623,7 @@ public class TMASummaryViewer {
 	 */
 	private void handleTableContentChange() {
 		table.refresh();
+		model.refreshList();
 		histogramDisplay.refreshHistogram();
 		updateSurvivalCurves();
 		scatterPane.updateChart();
@@ -831,9 +843,7 @@ public class TMASummaryViewer {
 		
 		
 		// Determine visibility based upon whether there are any images to show
-		Tab tabImages = new Tab("Images", paneImages);
-//		tabImages.getGraphic().setVisible(imageAvailability.get() != ImageAvailability.NONE);
-//		tabImages.getGraphic().visibleProperty().bind(Bindings.createBooleanBinding(() -> imageAvailability.get() != ImageAvailability.NONE, imageAvailability));
+//		Tab tabImages = new Tab("Images", paneImages);
 		
 		
 		ScrollPane scrollPane = new ScrollPane(paneKaplanMeier);
@@ -851,15 +861,15 @@ public class TMASummaryViewer {
 				);
 		tabPane.setTabClosingPolicy(TabClosingPolicy.UNAVAILABLE);
 		
-		if (imageAvailability.get() != ImageAvailability.NONE)
-			tabPane.getTabs().add(1, tabImages);
-		
-		imageAvailability.addListener((c, v, n) -> {
-			if (n == ImageAvailability.NONE)
-				tabPane.getTabs().remove(tabImages);
-			else if (!tabPane.getTabs().contains(tabImages))
-				tabPane.getTabs().add(1, tabImages);
-		});
+//		if (imageAvailability.get() != ImageAvailability.NONE)
+//			tabPane.getTabs().add(1, tabImages);
+//		
+//		imageAvailability.addListener((c, v, n) -> {
+//			if (n == ImageAvailability.NONE)
+//				tabPane.getTabs().remove(tabImages);
+//			else if (!tabPane.getTabs().contains(tabImages))
+//				tabPane.getTabs().add(1, tabImages);
+//		});
 		
 //		tabSurvival.visibleProperty().bind(
 //				Bindings.createBooleanBinding(() -> !survivalColumns.isEmpty(), survivalColumns)
@@ -1098,19 +1108,53 @@ public class TMASummaryViewer {
 	}
 	
 	
+	
+	private void setTMAEntriesFromOpenProject() {
+		QuPathGUI qupath = QuPathGUI.getInstance();
+		if (qupath == null || qupath.getProject() == null || qupath.getProject().getImageList().isEmpty()) {
+			DisplayHelpers.showErrorMessage("Show TMA summary", "No project available!");
+			return;
+		}
+		Project<BufferedImage> project = qupath.getProject();
+		
+		List<TMAEntry> entries = new ArrayList<>();
+		for (ProjectImageEntry<BufferedImage> imageEntry : project.getImageList()) {
+			File file = QuPathGUI.getImageDataFile(project, imageEntry);
+			if (file.isFile()) {
+				logger.info("Reading from {}", file);
+				ImageData<BufferedImage> imageData = PathIO.readImageData(file, null, null, BufferedImage.class);
+				if (imageData != null)
+					entries.addAll(getEntriesForTMAData(imageData));
+				else
+					logger.error("No ImageData read for {]", file);
+			}
+		}
+		setTMAEntries(entries);
+		stage.setTitle("TMA Viewer: " + project.getName());
+	}
+	
+	
+	
+	private static List<TMAEntry> getEntriesForTMAData(final ImageData<BufferedImage> imageData) {
+		List<TMAEntry> entriesNew = new ArrayList<>();
+		if (imageData.getHierarchy().getTMAGrid() == null)
+			return entriesNew;
+		ObservableMeasurementTableData data = new ObservableMeasurementTableData();
+		data.setImageData(imageData, imageData.getHierarchy().getTMAGrid().getTMACoreList());
+		for (TMACoreObject core : imageData.getHierarchy().getTMAGrid().getTMACoreList()) {
+			entriesNew.add(new TMAObjectEntry(imageData, data, core));
+		}
+		return entriesNew;
+	}
+	
+	
 	/**
 	 * Set the TMA entries from the TMACoreObjects of a specific ImageData.
 	 * 
 	 * @param imageData
 	 */
 	public void setTMAEntriesFromImageData(final ImageData<BufferedImage> imageData) {
-		ObservableMeasurementTableData data = new ObservableMeasurementTableData();
-		data.setImageData(imageData, imageData.getHierarchy().getTMAGrid().getTMACoreList());
-		List<TMAEntry> entriesNew = new ArrayList<>();
-		for (TMACoreObject core : imageData.getHierarchy().getTMAGrid().getTMACoreList()) {
-			entriesNew.add(new TMAObjectEntry(imageData, data, core));
-		}
-		setTMAEntries(entriesNew);
+		setTMAEntries(getEntriesForTMAData(imageData));
 		stage.setTitle("TMA Viewer: " + imageData.getServer().getShortServerName());
 	}
 	
@@ -1169,13 +1213,12 @@ public class TMASummaryViewer {
 			service.shutdown();
 			
 		}
-		this.entriesBase.clear();
-		this.entriesBase.addAll(newEntries);
+		this.entriesBase.setAll(newEntries);
 		
 		// Store the names of any currently hidden columns
 		lastHiddenColumns = table.getColumns().stream().filter(c -> !c.isVisible()).map(c -> c.getText()).collect(Collectors.toSet());
 		
-		this.table.getColumns().clear();
+//		this.table.getColumns().clear();
 		
 //		// Useful for a paper, but not generally...
 //		int count = 0;

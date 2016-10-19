@@ -169,7 +169,7 @@ public class TMASummaryEntry implements TMAEntry {
 		if (TMASummaryEntry.isSurvivalColumn(name)) {
 			double max = getMaxMeasurement(entries, name, skipMissing.get());
 			double min = getMinMeasurement(entries, name, skipMissing.get());
-			if (max == min)
+			if (max == min || (Double.isNaN(max) && Double.isNaN(min)))
 				return max;
 			TMASummaryViewer.logger.warn("Measurement {} for {} has different values!", name, this);
 			return Double.NaN;
