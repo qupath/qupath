@@ -48,12 +48,35 @@ public class TMAObjectEntry implements TMAEntry {
 
 	private ObservableMeasurementTableData data;
 	private TMACoreObject core;
+	private double preferredDownsample;
 
-	public TMAObjectEntry(ImageData<BufferedImage> imageData, ObservableMeasurementTableData data, String serverPath, TMACoreObject core) {
-		//			super(serverPath, null, null, null, false);
+	/**
+	 * Create a TMAObjectEntry with a default preferredDownsample of 4.
+	 * 
+	 * @param imageData
+	 * @param data
+	 * @param serverPath
+	 * @param core
+	 */
+	public TMAObjectEntry(ImageData<BufferedImage> imageData, ObservableMeasurementTableData data, TMACoreObject core) {
+		this(imageData, data, core, 4);
+	}
+	
+	/**
+	 * Create a TMAObjectEntry.
+	 * 
+	 * @param imageData
+	 * @param data
+	 * @param serverPath
+	 * @param core
+	 * @param preferredDownsample The preferred amount to downsample any region requests used to return an image.  This is useful to limit 
+	 * requests to avoid looking for an excessively-high resolution image.
+	 */
+	public TMAObjectEntry(ImageData<BufferedImage> imageData, ObservableMeasurementTableData data, TMACoreObject core, final double preferredDownsample) {
 		this.imageData = imageData;
 		this.core = core;
-		this.data = data;			
+		this.data = data;
+		this.preferredDownsample = preferredDownsample;
 	}
 
 
@@ -108,9 +131,11 @@ public class TMAObjectEntry implements TMAEntry {
 			return null;
 		
 		ROI roi = core.getROI();
-		double downsample = 1;
+		
+		// Don't request full resolution, necessarily
+		double downsample = preferredDownsample;
 		if (maxWidth > 0) {
-			downsample = Math.max(roi.getBoundsWidth() / maxWidth, 1);
+			downsample = Math.max(roi.getBoundsWidth() / maxWidth, preferredDownsample);
 		}
 		
 		BufferedImage img = imageData.getServer().readBufferedImage(
@@ -179,6 +204,12 @@ public class TMAObjectEntry implements TMAEntry {
 	public boolean hasOverlay() {
 		return false;
 	}
-
+	
+	@Override
+	public void setMissing(final boolean missing) {
+		core.setMissing(missing);
+		if (imageData != null)
+			imageData.getHierarchy().fireObjectsChangedEvent(this, Collections.singleton(core));
+	}
 
 }

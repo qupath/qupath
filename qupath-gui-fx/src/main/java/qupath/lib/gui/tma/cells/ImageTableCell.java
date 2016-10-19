@@ -77,13 +77,21 @@ public class ImageTableCell extends TreeTableCell<TMAEntry, TMAEntry> {
 		protected void updateItem(TMAEntry item, boolean empty) {
 			super.updateItem(item, empty);
 			popOver = null;
+			
 			if (item == null || empty) {
 				setGraphic(null);
 				img = null;
 				return;
 			}
-			
+
 			double w = getTableColumn().getWidth()-10;
+			img = isOverlay ? cache.getOverlay(item, w) : cache.getImage(item, w);
+			if (img == null) {
+				setGraphic(null);
+				img = null;
+				return;
+			}
+			
 			canvas.setWidth(w);
 			setGraphic(canvas);
 			

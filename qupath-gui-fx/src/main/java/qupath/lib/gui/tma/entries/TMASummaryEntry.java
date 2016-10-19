@@ -397,4 +397,13 @@ public class TMASummaryEntry implements TMAEntry {
 		return getMaxMeasurement(entries, measurement, skipMissing) - getMinMeasurement(entries, measurement, skipMissing);
 	}
 
+	/**
+	 * Sets the missing status of all child entries that currently pass the predicate.
+	 */
+	@Override
+	public void setMissing(boolean missing) {
+		for (TMAEntry entry : entries)
+			entry.setMissing(missing);
+	}
+
 }

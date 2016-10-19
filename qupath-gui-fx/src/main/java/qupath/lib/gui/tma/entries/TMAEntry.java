@@ -67,6 +67,8 @@ public interface TMAEntry {
 	void putMetadata(String name, String value);
 
 	boolean isMissing();
+	
+	void setMissing(boolean missing);
 
 	String getComment();
 

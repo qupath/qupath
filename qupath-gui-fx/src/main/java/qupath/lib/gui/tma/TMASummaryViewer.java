@@ -102,6 +102,7 @@ import javafx.scene.control.ScrollPane;
 import javafx.scene.control.ScrollPane.ScrollBarPolicy;
 import javafx.scene.control.SelectionMode;
 import javafx.scene.control.Separator;
+import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 import javafx.scene.control.TabPane.TabClosingPolicy;
@@ -154,7 +155,6 @@ import qupath.lib.gui.tma.entries.TMAObjectEntry;
 import qupath.lib.gui.tma.entries.TMASummaryEntry;
 import qupath.lib.gui.tma.entries.TMASummaryEntry.MeasurementCombinationMethod;
 import qupath.lib.images.ImageData;
-import qupath.lib.images.servers.ImageServer;
 import qupath.lib.io.PathIO;
 import qupath.lib.io.TMAScoreImporter;
 import qupath.lib.measurements.MeasurementList;
@@ -173,8 +173,6 @@ import qupath.lib.objects.hierarchy.TMAGrid;
 public class TMASummaryViewer {
 	
 	public final static Logger logger = LoggerFactory.getLogger(TMASummaryViewer.class);
-	
-	private Map<String, ImageServer<BufferedImage>> serverMap = new HashMap<>();
 	
 	private IntegerProperty maxSmallWidth = new SimpleIntegerProperty(150);
 	
@@ -239,8 +237,6 @@ public class TMASummaryViewer {
 	private	KaplanMeierDisplay kmDisplay;
 	private ScatterPane scatterPane = new ScatterPane();
 	
-	private ExecutorService pool = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
-	
 	
 	private ObservableValue<Predicate<TMAEntry>> predicateHideMissing = Bindings.createObjectBinding(() -> {
 		if (!skipMissingCoresProperty.get())
@@ -275,11 +271,6 @@ public class TMASummaryViewer {
 		initialize();
 		this.stage.setTitle("TMA Results Viewer");
 		this.stage.setScene(scene);
-		this.stage.setOnCloseRequest(e -> {
-			for (ImageServer<?> server : serverMap.values())
-				server.close();
-			pool.shutdown();
-		});
 		new DragDropTMADataImportListener(this);
 	}
 	
@@ -458,6 +449,12 @@ public class TMASummaryViewer {
 
 		
 		ContextMenu popup = new ContextMenu();
+		MenuItem miSetMissing = new MenuItem("Set missing");
+		miSetMissing.setOnAction(e -> setSelectedMissingStatus(true));
+
+		MenuItem miSetAvailable = new MenuItem("Set available");
+		miSetAvailable.setOnAction(e -> setSelectedMissingStatus(false));
+		
 		MenuItem miExpand = new MenuItem("Expand all");
 		miExpand.setOnAction(e -> {
 			if (table.getRoot() == null)
@@ -474,7 +471,12 @@ public class TMASummaryViewer {
 				item.setExpanded(false);
 			}
 		});
-		popup.getItems().addAll(miExpand, miCollapse);
+		popup.getItems().addAll(
+				miSetMissing,
+				miSetAvailable,
+				new SeparatorMenuItem(),
+				miExpand,
+				miCollapse);
 		table.setContextMenu(popup);
 		
 		table.setRowFactory(e -> {
@@ -588,6 +590,20 @@ public class TMASummaryViewer {
 		});
 
 	}
+	
+	
+	
+	private void setSelectedMissingStatus(final boolean status) {
+		for (TreeItem<TMAEntry> item : table.getSelectionModel().getSelectedItems()) {
+			item.getValue().setMissing(status);
+		}
+		// Refresh the table data if necessary
+		if (skipMissingCoresProperty.get())
+			refreshTableData();
+		else
+			table.refresh();
+	}
+	
 	
 	
 	
@@ -835,6 +851,8 @@ public class TMASummaryViewer {
 				);
 		tabPane.setTabClosingPolicy(TabClosingPolicy.UNAVAILABLE);
 		
+		if (imageAvailability.get() != ImageAvailability.NONE)
+			tabPane.getTabs().add(1, tabImages);
 		
 		imageAvailability.addListener((c, v, n) -> {
 			if (n == ImageAvailability.NONE)
@@ -1076,15 +1094,24 @@ public class TMASummaryViewer {
 			return;
 		}
 		ImageData<BufferedImage> imageData = qupath.getImageData();
-		String serverPath = imageData.getServerPath();
+		setTMAEntriesFromImageData(imageData);
+	}
+	
+	
+	/**
+	 * Set the TMA entries from the TMACoreObjects of a specific ImageData.
+	 * 
+	 * @param imageData
+	 */
+	public void setTMAEntriesFromImageData(final ImageData<BufferedImage> imageData) {
 		ObservableMeasurementTableData data = new ObservableMeasurementTableData();
 		data.setImageData(imageData, imageData.getHierarchy().getTMAGrid().getTMACoreList());
 		List<TMAEntry> entriesNew = new ArrayList<>();
 		for (TMACoreObject core : imageData.getHierarchy().getTMAGrid().getTMACoreList()) {
-			entriesNew.add(new TMAObjectEntry(imageData, data, serverPath, core));
+			entriesNew.add(new TMAObjectEntry(imageData, data, core));
 		}
 		setTMAEntries(entriesNew);
-		stage.setTitle("TMA Results Viewer: Current image");
+		stage.setTitle("TMA Viewer: " + imageData.getServer().getShortServerName());
 	}
 	
 
@@ -1094,23 +1121,9 @@ public class TMASummaryViewer {
 		
 		if (file.getName().toLowerCase().endsWith(PathPrefs.getSerializationExtension())) {
 			ImageData<BufferedImage> imageData = PathIO.readImageData(file, null, null, BufferedImage.class);
-			serverMap.put(imageData.getServerPath(), imageData.getServer());
-			List<TMAEntry> entries = new ArrayList<>();
-			ObservableMeasurementTableData data = new ObservableMeasurementTableData();
-			if (imageData.getHierarchy().getTMAGrid() != null) {
-				data.setImageData(imageData, imageData.getHierarchy().getTMAGrid().getTMACoreList());
-				for (TMACoreObject core : imageData.getHierarchy().getTMAGrid().getTMACoreList()) {
-//					data.getEntries().add(core);
-					entries.add(new TMAObjectEntry(imageData, data, imageData.getServerPath(), core));
-				}
-			}
-			setTMAEntries(entries);
-			
-			stage.setTitle("TMA Results View: " + file.getName());
-			
+			setTMAEntriesFromImageData(imageData);
 			return;
 		}
-		
 
 		List<TMAEntry> entriesTemp = new ArrayList<>();
 
@@ -1134,6 +1147,8 @@ public class TMASummaryViewer {
 	
 	
 	void setTMAEntries(final Collection<TMAEntry> newEntries) {
+		
+//		boolean containsSummaries = newEntries.stream().anyMatch(e -> e instanceof TMASummaryEntry);
 		
 		// Turn off use-selected - can be crashy when replacing entries
 		if (!newEntries.equals(entriesBase)) {
@@ -1198,9 +1213,9 @@ public class TMASummaryViewer {
 		else if (!survivalColumns.isEmpty())
 			comboSurvival.getSelectionModel().select(survivalColumns.get(0));
 		
-		// Add the count of non-missing cores if we are working with summaries
+//		// Add the count of non-missing cores if we are working with summaries
 //		if (containsSummaries)
-		namesMeasurements.add("Available cores");
+			namesMeasurements.add("Available cores");
 		
 		// Make sure there are no nulls or other unusable values
 		namesMeasurements.remove(null);

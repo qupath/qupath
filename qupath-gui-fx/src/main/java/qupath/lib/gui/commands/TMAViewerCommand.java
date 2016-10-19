@@ -23,10 +23,13 @@
 
 package qupath.lib.gui.commands;
 
+import java.awt.image.BufferedImage;
+
 import javafx.stage.Stage;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.tma.TMASummaryViewer;
+import qupath.lib.images.ImageData;
 
 /**
  * Launch GUI for viewing exported TMA summary data.
@@ -34,7 +37,7 @@ import qupath.lib.gui.tma.TMASummaryViewer;
  * @author Pete Bankhead
  *
  */
-public class TMAExportViewerCommand implements PathCommand {
+public class TMAViewerCommand implements PathCommand {
 	
 	@Override
 	public void run() {
@@ -42,7 +45,14 @@ public class TMAExportViewerCommand implements PathCommand {
 		Stage stage = new Stage();
 		if (qupath != null)
 			stage.initOwner(qupath.getStage());
-		new TMASummaryViewer(stage).getStage().show();
+		TMASummaryViewer tmaViewer = new TMASummaryViewer(stage);
+		
+		ImageData<BufferedImage> imageData = qupath.getImageData();
+		if (imageData != null && imageData.getHierarchy().getTMAGrid() != null)
+			tmaViewer.setTMAEntriesFromImageData(imageData);
+		
+		tmaViewer.getStage().show();
+		
 	}
 
 }

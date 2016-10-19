@@ -176,5 +176,10 @@ public class DefaultTMAEntry implements TMAEntry {
 	public String toString() {
 		return "TMA Entry: " + getName();
 	}
+	
+	@Override
+	public void setMissing(final boolean missing) {
+		this.isMissing = missing;
+	}
 
 }

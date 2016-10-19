@@ -196,7 +196,7 @@ import qupath.lib.gui.commands.TMAGridView;
 import qupath.lib.gui.commands.SingleFeatureClassifierCommand;
 import qupath.lib.gui.commands.SummaryMeasurementTableCommand;
 import qupath.lib.gui.commands.TMAAddNote;
-import qupath.lib.gui.commands.TMAExportViewerCommand;
+import qupath.lib.gui.commands.TMAViewerCommand;
 import qupath.lib.gui.commands.TMAGridAdd;
 import qupath.lib.gui.commands.TMAGridAdd.TMAAddType;
 import qupath.lib.gui.commands.TMAGridRemove.TMARemoveType;
@@ -2471,7 +2471,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				null,
 				getActionMenuItem(GUIActions.TMA_SCORE_IMPORTER),
 				getActionMenuItem(GUIActions.TMA_EXPORT_DATA),
-				createCommandAction(new TMAExportViewerCommand(), "Launch exported TMA data viewer")
+				createCommandAction(new TMAViewerCommand(), "Launch TMA data viewer")
 				);
 		
 		

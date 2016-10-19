@@ -578,6 +578,7 @@ public class HaralickFeaturesPlugin extends AbstractInteractivePlugin<BufferedIm
 	@Override
 	protected Collection<PathObject> getParentObjects(final PluginRunner<BufferedImage> runner) {
 		return runner.getImageData().getHierarchy().getSelectionModel().getSelectedObjects();
+//		return runner.getImageData().getHierarchy().getSelectionModel().getSelectedObjects();
 //		return runner.getImageData().getHierarchy().getObjects(null, PathDetectionObject.class);
 	}
 
