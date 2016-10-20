@@ -51,7 +51,6 @@ import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.text.Font;
-import javafx.scene.text.FontWeight;
 import javafx.stage.Stage;
 import qupath.lib.plugins.parameters.BooleanParameter;
 import qupath.lib.plugins.parameters.ChoiceParameter;
@@ -80,7 +79,10 @@ public class ParameterPanelFX {
 	
 	private GridPane pane;
 	private ParameterList params;
-	private Map<Parameter<?>, Parent> map = new HashMap<>();
+	private Map<Parameter<?>, Node> map = new HashMap<>();
+	
+	// TODO: Check if font needs to be set everywhere?  For now it's just for titles...
+	private static Font font = Font.font("Arial");
 	
 	/**
 	 * Create a ParameterPanelFX.
@@ -209,10 +211,15 @@ public class ParameterPanelFX {
 
 	private void addEmptyParameter(EmptyParameter param) {
 		Label label = new Label(param.getPrompt());
+//		Text label = new Text(param.getPrompt());
 		if (param.isTitle()) {
-			label.setFont(Font.font(Font.getDefault().getFamily(), FontWeight.BOLD, Font.getDefault().getSize()));
-			label.setPadding(new Insets(15, 0, 0, 0));
-//			label.setBorder(BorderFactory.createEmptyBorder(15, 0, 0, 0));
+			// Cannot change font weight for default font (at least on macOS...) - need to change the font that's used
+			label.setFont(font);
+			label.setStyle("-fx-font-weight: bold;");
+//			label.setStyle("-fx-font-size: 100%");
+//			label.setEffect(new DropShadow());
+			if (!map.isEmpty())
+				label.setPadding(new Insets(10, 0, 0, 0));
 		}
 		addParamComponent(param, null, label);
 	}
@@ -331,16 +338,20 @@ public class ParameterPanelFX {
 	GridBagConstraints constraints = new GridBagConstraints();
 	
 	// GridBagLayout version... TODO: Update for JavaFX
-	private void addParamComponent(Parameter<?> parameter, String text, Parent component) {
+	private void addParamComponent(Parameter<?> parameter, String text, Node component) {
+		
 		map.put(parameter, component);
 		String help = parameter.getHelpText();
 		Tooltip tooltip = help == null ? null : new Tooltip(help);
 		if (tooltip != null) {
 			Tooltip.install(component, tooltip);
-			for (Node child : component.getChildrenUnmodifiable()) {
-				if (child instanceof Control) {
-					((Control)child).setTooltip(tooltip);
-				} 
+			// May not be necessary...?
+			if (component instanceof Parent) {
+				for (Node child : ((Parent)component).getChildrenUnmodifiable()) {
+					if (child instanceof Control) {
+						((Control)child).setTooltip(tooltip);
+					} 
+				}
 			}
 		}
 		if (constraints == null) {
@@ -378,7 +389,7 @@ public class ParameterPanelFX {
 	
 	
 	
-	private void add(Parent component, GridBagConstraints constraints) {
+	private void add(Node component, GridBagConstraints constraints) {
 //		if (component instanceof Pane)
 //			((Pane)component).setPadding(new Insets(2, 2, 2, 2));
 //		else if (component instanceof Control)
@@ -402,7 +413,7 @@ public class ParameterPanelFX {
 	}
 	
 	public boolean getParameterEnabled(Parameter<?> param) {
-		Parent comp = map.get(param);
+		Node comp = map.get(param);
 		return comp != null && !comp.isDisabled();
 	}
 	
@@ -412,12 +423,12 @@ public class ParameterPanelFX {
 	
 	
 	public void setParameterEnabled(Parameter<?> param, boolean enabled) {
-		Parent comp = map.get(param);
+		Node comp = map.get(param);
 		if (comp != null)
 			setEnabledRecursively(comp, enabled);
 	}
 	
-	private void setEnabledRecursively(Parent comp, boolean enabled) {
+	private void setEnabledRecursively(Node comp, boolean enabled) {
 		comp.setDisable(!enabled);
 	}
 	
@@ -517,18 +528,20 @@ public class ParameterPanelFX {
 			return false;			
 		}
 		NumericParameter<?> parameter = (NumericParameter<?>)parameterOrig;
-		Parent component = map.get(parameter);
+		Node component = map.get(parameter);
 		// Occurs with hidden parameters
 		if (component == null) {
 			parameter.setDoubleLastValue(value.doubleValue());
 			return true;
 		}
-		for (Node comp : component.getChildrenUnmodifiable()) {
-			if (comp instanceof TextField) {
-				// Only change the text if necessary
-				TextField textField = (TextField)comp;
-				setTextFieldFromNumber(textField, value, parameter.getUnit());
-				return true;
+		if (component instanceof Parent) {
+			for (Node comp : ((Parent)component).getChildrenUnmodifiable()) {
+				if (comp instanceof TextField) {
+					// Only change the text if necessary
+					TextField textField = (TextField)comp;
+					setTextFieldFromNumber(textField, value, parameter.getUnit());
+					return true;
+				}
 			}
 		}
 		logger.warn("Unable to set parameter {} with value {} - no component found", key, value);		
@@ -558,9 +571,9 @@ public class ParameterPanelFX {
 		// Occurs with hidden parameters
 		try {
 			parameter.setRange(minValue, maxValue);
-			Parent component = map.get(parameter);
-			if (component != null) {
-				for (Node comp : component.getChildrenUnmodifiable()) {
+			Node component = map.get(parameter);
+			if (component instanceof Parent) {
+				for (Node comp : ((Parent)component).getChildrenUnmodifiable()) {
 					if (comp instanceof Slider) {
 						// Only change the text if necessary
 						Slider slider = (Slider)comp;

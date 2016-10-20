@@ -41,13 +41,19 @@ public class StatisticsHelper {
 	
 	public static RunningStatistics computeRunningStatistics(SimpleImage img) {
 		RunningStatistics stats = new RunningStatistics();
+		updateRunningStatistics(stats, img);
+		return stats;
+	}
+	
+	
+	public static void updateRunningStatistics(RunningStatistics stats, SimpleImage img) {
 		for (int y = 0; y < img.getHeight(); y++) {
 			for (int x = 0; x < img.getWidth(); x++) {
 				stats.addValue(img.getValue(x, y));
 			}			
 		}
-		return stats;
 	}
+	
 	
 //	public static RunningStatistics computeRunningStatistics(float[] pxIntensities, byte[] pxMask, int width, Rectangle bounds) {
 //		RunningStatistics stats = new RunningStatistics();

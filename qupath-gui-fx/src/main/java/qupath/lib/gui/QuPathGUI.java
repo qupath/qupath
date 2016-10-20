@@ -154,6 +154,7 @@ import javafx.util.Duration;
 import jfxtras.scene.menu.CirclePopupMenu;
 import qupath.lib.algorithms.CoherenceFeaturePlugin;
 import qupath.lib.algorithms.HaralickFeaturesPlugin;
+import qupath.lib.algorithms.IntensityFeaturesPlugin;
 import qupath.lib.algorithms.LocalBinaryPatternsPlugin;
 import qupath.lib.algorithms.TilerPlugin;
 import qupath.lib.common.GeneralTools;
@@ -2715,7 +2716,8 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				createMenu(
 						"Calculate features",
 //						new PathPluginAction("Create tiles", TilerPlugin.class, this),
-						createPluginAction("Add Haralick texture features", HaralickFeaturesPlugin.class, this, true, null),
+						createPluginAction("Add intensity features (experimental)", IntensityFeaturesPlugin.class, this, true, null),
+						createPluginAction("Add Haralick texture features (legacy)", HaralickFeaturesPlugin.class, this, true, null),
 //						createPluginAction("Add Haralick texture features (feature test version)", HaralickFeaturesPluginTesting.class, this, imageRegionStore, null),
 						createPluginAction("Add Coherence texture feature (experimental)", CoherenceFeaturePlugin.class, this, true, null),
 						createPluginAction("Add Smoothed features", SmoothFeaturesPlugin.class, this, false, null),
