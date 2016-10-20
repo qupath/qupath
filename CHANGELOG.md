@@ -1,5 +1,8 @@
 ## Version 0.0.4
 
+* Major updates to the 'TMA data viewer', with improved performance and a tree-table structure.
+* New 'Add intensity features (experimental)' command. This will eventually replace the Haralick features command (and possibly others), since it offers the same functionality in a much more flexible way.  Furthermore, the new command can handle up to 8 channels of fluorescence data (with arbitrary setting of the min/max values used to calculate the graylevel co-occurrence matrix).
+* TMA grids can be applied to add TMA 'Unique ID' values by drag-and-drop, using a text file with extension '.qpmap'
 * Fixed bug with extension path wrongly defaulting to an internal QuPath directory
 * Added check for updates on QuPath startup
 * When sending image regions to ImageJ, the 'visibility' status is used to determine whether or not objects are sent as ROIs

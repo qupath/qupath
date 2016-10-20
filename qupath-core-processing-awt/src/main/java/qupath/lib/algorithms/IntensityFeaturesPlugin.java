@@ -53,7 +53,6 @@ import qupath.lib.images.stores.TileListener;
 import qupath.lib.images.tools.BufferedImageTools;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.objects.PathAnnotationObject;
-import qupath.lib.objects.PathCellObject;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.TMACoreObject;
@@ -65,7 +64,7 @@ import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
- * Plugin for calculating Haralick texture features, within or around detections or tiles.
+ * Plugin for calculating intensity-based features, including Haralick textures, within or around detections or tiles.
  * 
  * The ROIs of the detections can be used directly as masks, or else the textures can alternatively be 
  * calculated within square or circular regions around the object centroids.
@@ -74,7 +73,6 @@ import qupath.lib.roi.interfaces.ROI;
  * 
  * TODO: Read entire region (where suitable) & tile that (if it makes sense...? may not scale up to whole slide images though...)
  * TODO: Improve use of static/non-static methods
- * TODO: Integrate masking
  * 
  * @author Pete Bankhead
  *
@@ -84,6 +82,7 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 	private final static Logger logger = LoggerFactory.getLogger(IntensityFeaturesPlugin.class);
 	
 	private ParameterList params;
+	private boolean parametersInitialized = false;
 	
 	transient private ImageRegionStore<BufferedImage> regionStore;
 	
@@ -118,7 +117,17 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 		BLUE("colorBlue", "Blue"),
 		HUE("colorHue", "Hue (mean only)"),
 		SATURATION("colorSaturation", "Saturation"),
-		BRIGHTNESS("colorBrightness", "Brightness")		
+		BRIGHTNESS("colorBrightness", "Brightness"),
+		
+		CHANNEL_1("channel1", "Channel 1"),
+		CHANNEL_2("channel2", "Channel 2"),
+		CHANNEL_3("channel3", "Channel 3"),
+		CHANNEL_4("channel4", "Channel 4"),
+		CHANNEL_5("channel5", "Channel 5"),
+		CHANNEL_6("channel6", "Channel 6"),
+		CHANNEL_7("channel7", "Channel 7"),
+		CHANNEL_8("channel8", "Channel 8"),
+		
 		;
 		
 		private String key;
@@ -129,7 +138,20 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 			this.prompt = prompt;
 		}
 
-		public String getPrompt() {
+		public String getPrompt(final ImageData<?> imageData) {
+			ColorDeconvolutionStains stains = imageData == null ? null : imageData.getColorDeconvolutionStains();
+			if (stains != null) {
+				switch (this) {
+				case STAIN_1:
+					return stains.getStain(1).getName() + " (color deconvolved)";
+				case STAIN_2:
+					return stains.getStain(2).getName() + " (color deconvolved)";
+				case STAIN_3:
+					return stains.getStain(3).getName() + " (color deconvolved)";
+				default:
+					break;
+				}
+			}
 			return prompt;
 		}
 
@@ -170,8 +192,10 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 				return stains.getStain(3).getName();
 			case HUE:
 				return "Hue";
+			case OD:
+				return "OD Sum";
 			default:
-				return getPrompt();
+				return getPrompt(null);
 			}
 		}
 		
@@ -190,6 +214,22 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 			case STAIN_2:
 			case STAIN_3:
 				return imageData.isBrightfield() && imageData.getServer().isRGB();
+			case CHANNEL_1:
+				return !imageData.getServer().isRGB() && imageData.getServer().nChannels() >= 1;
+			case CHANNEL_2:
+				return !imageData.getServer().isRGB() && imageData.getServer().nChannels() >= 2;
+			case CHANNEL_3:
+				return !imageData.getServer().isRGB() && imageData.getServer().nChannels() >= 3;
+			case CHANNEL_4:
+				return !imageData.getServer().isRGB() && imageData.getServer().nChannels() >= 4;
+			case CHANNEL_5:
+				return !imageData.getServer().isRGB() && imageData.getServer().nChannels() >= 5;
+			case CHANNEL_6:
+				return !imageData.getServer().isRGB() && imageData.getServer().nChannels() >= 6;
+			case CHANNEL_7:
+				return !imageData.getServer().isRGB() && imageData.getServer().nChannels() >= 7;
+			case CHANNEL_8:
+				return !imageData.getServer().isRGB() && imageData.getServer().nChannels() >= 8;
 			default:
 				return false;
 			}
@@ -220,6 +260,23 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 				return ColorTransformer.getTransformedPixels(buf, ColorTransformMethod.Stain_2, pixels, stains);
 			case STAIN_3:
 				return ColorTransformer.getTransformedPixels(buf, ColorTransformMethod.Stain_3, pixels, stains);
+				
+			case CHANNEL_1:
+				return img.getRaster().getSamples(0, 0, img.getWidth(), img.getHeight(), 0, pixels);
+			case CHANNEL_2:
+				return img.getRaster().getSamples(0, 0, img.getWidth(), img.getHeight(), 1, pixels);
+			case CHANNEL_3:
+				return img.getRaster().getSamples(0, 0, img.getWidth(), img.getHeight(), 2, pixels);
+			case CHANNEL_4:
+				return img.getRaster().getSamples(0, 0, img.getWidth(), img.getHeight(), 3, pixels);
+			case CHANNEL_5:
+				return img.getRaster().getSamples(0, 0, img.getWidth(), img.getHeight(), 4, pixels);
+			case CHANNEL_6:
+				return img.getRaster().getSamples(0, 0, img.getWidth(), img.getHeight(), 5, pixels);
+			case CHANNEL_7:
+				return img.getRaster().getSamples(0, 0, img.getWidth(), img.getHeight(), 6, pixels);
+			case CHANNEL_8:
+				return img.getRaster().getSamples(0, 0, img.getWidth(), img.getHeight(), 7, pixels);
 			default:
 				break;
 			}
@@ -251,17 +308,6 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 		params.addDoubleParameter("tileSizeMicrons", "Tile diameter", 25, GeneralTools.micrometerSymbol(), "Diameter of tile around the object centroid used to calculate textures.\nOnly matters if tiles are being used (i.e. the region parameter isn't ROI).");
 		params.addDoubleParameter("tileSizePixels", "Tile diameter", 200, "px (full resolution image)", "Diameter of tile around the object centroid used to calculate textures.\nOnly matters if tiles are being used (i.e. the region parameter isn't ROI).");
 
-		// Color transforms
-		params.addTitleParameter("Color transforms");
-		for (FeatureColorTransform transform : FeatureColorTransform.values()) {
-			params.addBooleanParameter(transform.getKey(), transform.getPrompt(), false);
-		}
-
-		// Add feature-related parameters
-		for (FeatureComputerBuilder builder : builders) {
-			builder.addParameters(params);
-		}
-		
 	}
 
 	public IntensityFeaturesPlugin() {
@@ -307,10 +353,17 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 	}
 	
 	static String getDiameterString(final ImageServer<BufferedImage> server, final ParameterList params) {
-		if (server.hasPixelSizeMicrons())
-			return String.format("%.1f %s", params.getDoubleParameterValue("tileSizeMicrons"), GeneralTools.micrometerSymbol());
-		else
-			return String.format("%d px", (int)(params.getDoubleParameterValue("tileSizePixels") + .5));
+		RegionType regionType = (RegionType)params.getChoiceParameterValue("region");
+		String shape = regionType == RegionType.SQUARE ? "Square" : (regionType == RegionType.CIRCLE ? "Circle" : "ROI");
+		String unit = server.hasPixelSizeMicrons() ? GeneralTools.micrometerSymbol() : "px";
+		double pixelSize = server.hasPixelSizeMicrons() ? params.getDoubleParameterValue("pixelSizeMicrons") : params.getDoubleParameterValue("downsample");
+		double regionSize = server.hasPixelSizeMicrons() ? params.getDoubleParameterValue("tileSizeMicrons") : params.getDoubleParameterValue("tileSizePixels");
+		
+		if (regionType == RegionType.ROI) {
+			return String.format("ROI, %.2f %s per pixel", pixelSize, unit);
+		} else {
+			return String.format("%s, diameter %.1f %s, %.2f %s per pixel", shape, regionSize, unit, pixelSize, unit);
+		}
 	}
 	
 	
@@ -420,8 +473,8 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 			
 		// Try to get ROI
 		ROI pathROI = pathObject.getROI();
-		if (pathObject instanceof PathCellObject && ((PathCellObject)pathObject).getNucleusROI() != null)
-			pathROI = ((PathCellObject)pathObject).getNucleusROI();
+//		if (pathObject instanceof PathCellObject && ((PathCellObject)pathObject).getNucleusROI() != null)
+//			pathROI = ((PathCellObject)pathObject).getNucleusROI();
 		if (pathROI == null)
 			return false;
 		
@@ -481,11 +534,12 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 		 * THIS IS NEW
 		 */
 		
-		String postfix = maskBytes == null ? " (" + getDiameterString(server, params) + ")" : "";
+		String postfix = " (" + getDiameterString(server, params) + ")";
 		
+		boolean isRGB = server.isRGB();
 		int w = img.getWidth();
  		int h = img.getHeight();
-		int[] rgbBuffer = img.getRGB(0, 0, w, h, null, 0, w);
+		int[] rgbBuffer = isRGB ? img.getRGB(0, 0, w, h, null, 0, w) : null;
 		float[] pixels = null;
 		for (FeatureColorTransform transform : FeatureColorTransform.values()) {
 			// Check if the color transform is requested
@@ -537,16 +591,32 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 		
 	}
 	
-
-	@Override
+	
 	public ParameterList getDefaultParameterList(final ImageData<BufferedImage> imageData) {
-		boolean hasMicrons = imageData.getServer().hasPixelSizeMicrons();
 		
-		params.getParameters().get("pixelSizeMicrons").setHidden(!hasMicrons);
-		params.getParameters().get("downsample").setHidden(hasMicrons);
+		if (!parametersInitialized) {
+			boolean hasMicrons = imageData.getServer().hasPixelSizeMicrons();
+			
+			params.getParameters().get("pixelSizeMicrons").setHidden(!hasMicrons);
+			params.getParameters().get("downsample").setHidden(hasMicrons);
+			
+			params.getParameters().get("tileSizeMicrons").setHidden(!hasMicrons);
+			params.getParameters().get("tileSizePixels").setHidden(hasMicrons);
+			
+			// Color transforms
+			params.addTitleParameter("Color transforms");
+			for (FeatureColorTransform transform : FeatureColorTransform.values()) {
+				if (transform.supportsImage(imageData))
+					params.addBooleanParameter(transform.getKey(), transform.getPrompt(imageData), false);
+			}
+	
+			// Add feature-related parameters
+			for (FeatureComputerBuilder builder : builders) {
+				builder.addParameters(imageData, params);
+			}
+		}
 		
-		params.getParameters().get("tileSizeMicrons").setHidden(!hasMicrons);
-		params.getParameters().get("tileSizePixels").setHidden(hasMicrons);
+		parametersInitialized = true;
 		
 		return params;
 	}
@@ -596,7 +666,7 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 		 * 
 		 * @param params
 		 */
-		public abstract void addParameters(final ParameterList params);
+		public abstract void addParameters(final ImageData<?> imageData, final ParameterList params);
 
 		/**
 		 * Create a new FeatureComputer.
@@ -714,7 +784,7 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 	static class BasicFeatureComputerBuilder implements FeatureComputerBuilder {
 		
 		@Override
-		public void addParameters(ParameterList params) {
+		public void addParameters(ImageData<?> imageData, ParameterList params) {
 			params.addTitleParameter("Basic features");
 			for (Feature feature : Arrays.asList(Feature.MEAN, Feature.STD_DEV, Feature.MIN_MAX)) {
 				params.addBooleanParameter(feature.key, feature.prompt, false, feature.help);
@@ -739,9 +809,14 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 			if (!Boolean.TRUE.equals(params.getBooleanParameterValue("doHaralick")))
 				return;
 			
-			double[] minMax = transform.getHaralickMinMax();
-			if (minMax == null)
+			// Don't compute results for Hue - would be confusing...
+			if (transform == FeatureColorTransform.HUE)
 				return;
+			
+			double[] minMax = transform.getHaralickMinMax();
+			if (minMax == null) {
+				minMax = new double[]{params.getDoubleParameterValue("haralickMin"), params.getDoubleParameterValue("haralickMax")};
+			}
 			
 			int d = params.getIntParameterValue("haralickDistance");
 			int nBins = params.getIntParameterValue("haralickBins");
@@ -769,13 +844,17 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 	static class HaralickFeatureComputerBuilder implements FeatureComputerBuilder {
 
 		@Override
-		public void addParameters(ParameterList params) {
+		public void addParameters(ImageData<?> imageData, ParameterList params) {
 			params.addTitleParameter("Haralick features");
-			params.addBooleanParameter("doHaralick", "Compute Haralick features", false)
-					.addDoubleParameter("haralickMin", "Haralick min", Double.NaN)
-					.addDoubleParameter("haralickMax", "Haralick max", Double.NaN)
-					.addIntParameter("haralickDistance", "Haralick distance", 1, null, "Spacing between pixels used in computing the co-occurrence matrix for Haralick textures (default = 1)")
+			params.addBooleanParameter("doHaralick", "Compute Haralick features", false);
+			
+			if (!imageData.getServer().isRGB()) {
+				params.addDoubleParameter("haralickMin", "Haralick min", Double.NaN)
+						.addDoubleParameter("haralickMax", "Haralick max", Double.NaN);
+			}
+			params.addIntParameter("haralickDistance", "Haralick distance", 1, null, "Spacing between pixels used in computing the co-occurrence matrix for Haralick textures (default = 1)")
 					.addIntParameter("haralickBins", "Haralick number of bins", 32, null, 8, 256, "Number of intensity bins to use when computing the co-occurrence matrix for Haralick textures (default = 32)");
+			
 		}
 
 		@Override
@@ -786,7 +865,12 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 	}
 	
 	
-	
+	/**
+	 * Calculate the mean Hue.
+	 * 
+	 * Given that Hue values are 'circular', this is angle-based rather than a straightforward mean.
+	 *
+	 */
 	static class HueStats {
 
 		private double sinX = 0;
