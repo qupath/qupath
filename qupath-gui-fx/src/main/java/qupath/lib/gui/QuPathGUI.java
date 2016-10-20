@@ -162,6 +162,7 @@ import qupath.lib.common.SimpleThreadFactory;
 import qupath.lib.common.URLTools;
 import qupath.lib.gui.commands.AnnotationCombineCommand;
 import qupath.lib.gui.commands.BrightnessContrastCommand;
+import qupath.lib.gui.commands.ClusterObjectsCommand;
 import qupath.lib.gui.commands.CommandListDisplayCommand;
 import qupath.lib.gui.commands.CopyViewToClipboardCommand;
 import qupath.lib.gui.commands.CountingPanelCommand;
@@ -1531,11 +1532,18 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		
 		
 		viewer.getView().addEventFilter(KeyEvent.KEY_PRESSED, e -> {
-			if (!e.isConsumed() && e.getCode() == KeyCode.ENTER) {
+			if (!e.isConsumed()) {
 				PathObject pathObject = viewer.getSelectedObject();
 				if (pathObject instanceof TMACoreObject) {
-					getAction(GUIActions.TMA_ADD_NOTE).handle(new ActionEvent(e.getSource(), e.getTarget()));
-					e.consume();
+					TMACoreObject core = (TMACoreObject)pathObject;
+					if (e.getCode() == KeyCode.ENTER) {
+						getAction(GUIActions.TMA_ADD_NOTE).handle(new ActionEvent(e.getSource(), e.getTarget()));
+						e.consume();
+					} else if (e.getCode() == KeyCode.BACK_SPACE) {
+						core.setMissing(!core.isMissing());
+						viewer.getHierarchy().fireObjectsChangedEvent(this, Collections.singleton(core));
+						e.consume();
+					}
 				}
 			}
 		});
@@ -2738,7 +2746,8 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				createCommandAction(new ResetClassificationsCommand(this, PathDetectionObject.class), "Reset detection classifications"),
 				null,
 				createCommandAction(new RandomTrainingRegionSelector(this, getAvailablePathClasses()), "Choose random training samples"),
-				createCommandAction(new SingleFeatureClassifierCommand(this, PathDetectionObject.class), "Classify by specific feature")
+				createCommandAction(new SingleFeatureClassifierCommand(this, PathDetectionObject.class), "Classify by specific feature"),
+				createCommandAction(new ClusterObjectsCommand(this), "Cluster objects (experimental)")
 			);
 		
 		Action actionUpdateCheck = new Action("Check for updates (web)", e -> {

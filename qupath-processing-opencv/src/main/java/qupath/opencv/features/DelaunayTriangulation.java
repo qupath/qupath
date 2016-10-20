@@ -707,7 +707,7 @@ public class DelaunayTriangulation {
 				if (area > maxArea)
 					maxArea = area;
 			}
-			return maxArea;
+			return Double.isFinite(maxArea) ? maxArea : Double.NaN;
 		}
 
 		
