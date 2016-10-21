@@ -37,6 +37,7 @@ import java.util.List;
 import ij.IJ;
 import ij.ImagePlus;
 import ij.gui.OvalRoi;
+import ij.gui.PointRoi;
 import ij.gui.PolygonRoi;
 import ij.gui.ProfilePlot;
 import ij.gui.Roi;
@@ -54,6 +55,7 @@ import ij.process.ByteProcessor;
 import ij.process.ColorProcessor;
 import ij.process.FloatProcessor;
 import ij.process.ImageProcessor;
+import qupath.imagej.processing.ROILabeling;
 
 
 /**
@@ -101,6 +103,7 @@ public class TMADearrayer {
 	
 	
 	private static TMAGridShape detectTMACoresFromBinary(FloatProcessor fpOrig, ByteProcessor bp, double coreDiameterPx, int nHorizontal, int nVertical, Roi roi) {
+
 		// Identify regions with areas close to the specified core area & high circularity
 		// (Making sure we have a ByteProcessor.... we probably do, in which case there should be no duplication)
 		Polygon polyDetected = new Polygon();
@@ -151,7 +154,7 @@ public class TMADearrayer {
 //		refineGridCoordinates(bp, polyGrid, coreDiameterPx);
 //		IJHelpers.quickShowImage("Binary", bp);
 		refineGridCoordinatesByShifting(bp, polyGrid, nHorizontalDetected, coreDiameterPx);
-
+		
 		if (!Double.isNaN(angle) && angle != 0) {
 			// Rotate according to the angle computed previously
 			// (Note this code is largely based on ImageJ's standard RoiRotator plugin)
@@ -169,6 +172,7 @@ public class TMADearrayer {
 				polyGrid.ypoints[i] = (int)(yNew + 0.5);
 			}
 		}
+		
 		return new TMAGridShape(polyGrid, nVerticalDetected, nHorizontalDetected);
 	}
 	
@@ -310,11 +314,14 @@ public class TMADearrayer {
 			bpPixels[i] = (ip.getf(i) > threshold) ? (byte)255 : 0;
 		
 		// Apply (gentle) morphological cleaning
-		filterRadius = Math.max(1.0, coreDiameterPx * 0.1);
+		filterRadius = Math.max(1.0, coreDiameterPx * 0.02);
 		rf.rank(bp, filterRadius, RankFilters.MAX);
 		rf.rank(bp, filterRadius, RankFilters.MIN);
 		rf.rank(bp, filterRadius, RankFilters.MIN);
 		rf.rank(bp, filterRadius, RankFilters.MAX);
+		
+		// Fill holes
+		ROILabeling.fillHoles(bp);
 		
 		// Remove everything outside the ROI
 		if (roi != null && roi.isArea()) {
@@ -458,12 +465,12 @@ public class TMADearrayer {
 		double tolerance = 0.0;
 		int[] peakLocs = MaximumFinder.findMaxima(prof, tolerance, false);
 		//int[] peakLocs = new int[nMaxima];
-		if (peakLocs.length < nMaxima) {
-			Arrays.sort(peakLocs);
-			for (int i = 0; i < peakLocs.length; i++)
-				locs[i] = peakLocs[i];
-			return peakLocs.length;
-		}
+//		if (peakLocs.length < nMaxima) {
+//			Arrays.sort(peakLocs);
+//			for (int i = 0; i < peakLocs.length; i++)
+//				locs[i] = peakLocs[i];
+//			return peakLocs.length;
+//		}
 		int n = 0;
 		for (int p : peakLocs) {
 			if (checkNewIndSeparated(maxima, p, n, minSeparation)) {

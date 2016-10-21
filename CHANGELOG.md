@@ -1,14 +1,15 @@
 ## Version 0.0.4
 
+* Added check for updates on QuPath startup
 * Major updates to the 'TMA data viewer', with improved performance and a tree-table structure.
 * New 'Add intensity features (experimental)' command. This will eventually replace the Haralick features command (and possibly others), since it offers the same functionality in a much more flexible way.  Furthermore, the new command can handle up to 8 channels of fluorescence data (with arbitrary setting of the min/max values used to calculate the graylevel co-occurrence matrix).
+* TMA dearrayer now has improved speed & accuracy
+* TMA core labels can now optionally have leading zeros (e.g. 01-16), or be in descending order (e.g. J-A)
 * TMA grids can be applied to add TMA 'Unique ID' values by drag-and-drop, using a text file with extension '.qpmap'
-* Fixed bug with extension path wrongly defaulting to an internal QuPath directory
-* Added check for updates on QuPath startup
+* Fixed bug with extension path wrongly defaulting to an internal QuPath directory (you may need to update your extensions directory from 'Edit -> Preferences'
 * When sending image regions to ImageJ, the 'visibility' status is used to determine whether or not objects are sent as ROIs
 * Fixed (hopefully) cross-platform line splitting (v0.0.3 tried to fix this for Windows... but only partly did, while breaking TMA grid import elsewhere)
 * When manually setting the name of an annotation, any previous name is now shown (rather than a blank field)
-* TMA core labels can now optionally have leading zeros (e.g. 01-16), or be in descending order (e.g. J-A)
 
 
 ## Version 0.0.3
