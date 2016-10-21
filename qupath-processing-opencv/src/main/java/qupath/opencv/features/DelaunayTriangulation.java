@@ -86,6 +86,23 @@ public class DelaunayTriangulation {
 	
 	
 	
+	/**
+	 * Get the ROI for an object - preferring a nucleus ROI for a cell, if possible.
+	 * 
+	 * @param pathObject
+	 * @return
+	 */
+	static ROI getROI(final PathObject pathObject) {
+		if (pathObject instanceof PathCellObject) {
+			ROI roi = ((PathCellObject)pathObject).getNucleusROI();
+			if (roi != null && !Double.isNaN(roi.getCentroidX()))
+				return roi;
+		}
+		return pathObject.getROI();
+	}
+	
+	
+	
 	void computeDelaunay(final List<PathObject> pathObjectList, final double pixelWidth, final double pixelHeight) {
 		
 		if (pathObjectList.size() <= 2)
@@ -103,12 +120,7 @@ public class DelaunayTriangulation {
 			ROI pathROI = null;
 			
 			// First, try to get a nucleus ROI if we have a cell - otherwise just get the normal ROI
-			if (pathObject instanceof PathCellObject) {
-				pathROI = (ROI)((PathCellObject)pathObject).getNucleusROI();
-				if (pathROI == null)
-					pathROI = pathObject.getROI();
-			} else
-				pathROI = pathObject.getROI();
+			pathROI = getROI(pathObject);
 
 			// Check if we have a ROI at all
 			if (pathROI == null) {
@@ -240,7 +252,7 @@ public class DelaunayTriangulation {
 					break;
 				
 				
-				boolean distanceOK = ignoreDistance || distance(pathObject.getROI(), destination.getROI()) < distanceThreshold;
+				boolean distanceOK = ignoreDistance || distance(getROI(pathObject), getROI(destination)) < distanceThreshold;
 				boolean classOK = !limitByClass || pathClass == destination.getPathClass() || (destination.getPathClass() != null && destination.getPathClass().getBaseClass() == pathClass);
 				
 				if (distanceOK && classOK) {
@@ -296,10 +308,11 @@ public class DelaunayTriangulation {
 			DelaunayNode node = nodeMap.get(temp);
 			if (node == null)
 				continue;
-			double x1 = temp.getROI().getCentroidX();
-			double y1 = temp.getROI().getCentroidY();
+			ROI roi = getROI(temp);
+			double x1 = roi.getCentroidX();
+			double y1 = roi.getCentroidY();
 			for (DelaunayNode node2 : node.nodeList) {
-				ROI roi2 = node2.getPathObject().getROI();
+				ROI roi2 = getROI(node2.getPathObject());
 				double x2 = roi2.getCentroidX();
 				double y2 = roi2.getCentroidY();
 				if (x1 < x2 || (x1 == x2 && y1 <= y2))
@@ -542,8 +555,9 @@ public class DelaunayTriangulation {
 		
 		private DelaunayNode(final PathObject pathObject, final double pixelWidth, final double pixelHeight) {
 			this.pathObject = pathObject;
-			this.x = pathObject.getROI().getCentroidX() * pixelWidth;
-			this.y = pathObject.getROI().getCentroidY() * pixelHeight;
+			ROI roi = getROI(pathObject);
+			this.x = roi.getCentroidX() * pixelWidth;
+			this.y = roi.getCentroidY() * pixelHeight;
 		}
 		
 //		public void addEdge(final PathObject destination) {
