@@ -108,6 +108,7 @@ public class TMAGridAdd implements PathCommand {
 		double h = imageData.getServer().getHeight();
 		
 		// Check if the core centroids all fall within the image or not
+		int outsideCores = 0;
 		for (TMACoreObject core : gridNew.getTMACoreList()) {
 			// Shouldn't happen...
 			if (!core.hasROI())
@@ -118,9 +119,16 @@ public class TMAGridAdd implements PathCommand {
 			double x = core.getROI().getCentroidX();
 			double y = core.getROI().getCentroidY();
 			if (x < 0 || x >= w || y < 0 || y >= h) {
-				if (!hierarchy.getTMAGrid().getTMACoreList().contains(core))
-				throw new IllegalArgumentException("Cannot update TMA grid - not enough space within image");
+				if (!hierarchy.getTMAGrid().getTMACoreList().contains(core)) {
+					outsideCores++;
+				}
+//				throw new IllegalArgumentException("Cannot update TMA grid - not enough space within image");
 			}
+		}
+		if (outsideCores > 0) {
+			String label = outsideCores == 1 ? "core" : "cores";
+			if (!DisplayHelpers.showConfirmDialog("Add to TMA Grid", "Not enough space within image to store " + outsideCores + " new " + label + " - proceed anyway?"))
+				return;
 		}
 		
 		// If we got this far, update the grid

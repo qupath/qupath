@@ -1640,7 +1640,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		miTMAMissing.setOnAction(e -> setTMACoreMissing(viewer.getHierarchy(), true));
 		
 		Menu menuTMA = createMenu(
-				"TMA core",
+				"TMA",
 				miTMAValid,
 				miTMAMissing,
 				null,
