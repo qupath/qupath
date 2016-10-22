@@ -31,7 +31,6 @@ import java.awt.image.BufferedImage;
 import java.awt.image.ImageObserver;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
@@ -43,8 +42,10 @@ import qupath.lib.gui.viewer.overlays.AbstractImageDataOverlay;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.regions.ImageRegion;
+import qupath.lib.roi.interfaces.ROI;
 
 /**
  * Overlay to show Delaunay triangulation.
@@ -59,7 +60,7 @@ import qupath.lib.regions.ImageRegion;
  */
 public class DelaunayOverlay extends AbstractImageDataOverlay {
 	
-	private Set<DelaunayTriangulation> triangulations = Collections.synchronizedSet(new LinkedHashSet<>());
+	private Set<PathObjectConnections> triangulations = Collections.synchronizedSet(new LinkedHashSet<>());
 
 	public DelaunayOverlay(OverlayOptions overlayOptions, ImageData<BufferedImage> imageData) {
 		super(overlayOptions, imageData);
@@ -100,23 +101,26 @@ public class DelaunayOverlay extends AbstractImageDataOverlay {
 		
 		Collection<PathObject> pathObjects = hierarchy.getObjectsForRegion(PathDetectionObject.class, imageRegion, null);
 //		double threshold = downsampleFactor*downsampleFactor*4;
-		Set<double[]> edges = new HashSet<>();
-		for (DelaunayTriangulation dt : triangulations)
-			dt.getConnectedNodes(pathObjects, edges);
-		
-		for (double[] edge : edges) {
-			line.setLine(edge[0], edge[1], edge[2], edge[3]);
-			g2d.draw(line);
+		for (PathObjectConnections dt : triangulations) {
+			for (PathObject pathObject : pathObjects) {
+				ROI roi = PathObjectTools.getROI(pathObject, true);
+				for (PathObject siblingObject : dt.getConnectedObjects(pathObject)) {
+					ROI roi2 = PathObjectTools.getROI(siblingObject, true);
+					line.setLine(roi.getCentroidX(), roi.getCentroidY(), roi2.getCentroidX(), roi2.getCentroidY());
+					g2d.draw(line);
+				}
+			}
 		}
 		
 		g2d.dispose();
 	}
 	
-	public void addDelaunay(final DelaunayTriangulation dt) {
+	
+	public void addDelaunay(final PathObjectConnections dt) {
 		triangulations.add(dt);
 	}
 
-	public void removeDelaunay(final DelaunayTriangulation dt) {
+	public void removeDelaunay(final PathObjectConnections dt) {
 		triangulations.remove(dt);
 	}
 	

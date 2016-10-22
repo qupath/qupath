@@ -33,11 +33,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.opencv.core.Point;
 import org.opencv.core.Rect;
 import org.opencv.imgproc.Subdiv2D;
 
+import qupath.lib.analysis.stats.RunningStatistics;
 import qupath.lib.classifiers.PathClassificationLabellingHelper;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.measurements.MeasurementList;
@@ -54,7 +56,7 @@ import qupath.lib.roi.interfaces.ROI;
  *
  */
 // I'm not trying to make a secret of it (although possibly should) - the 'finalize' method of Subdiv2D isn't called on OSX
-public class DelaunayTriangulation {
+public class DelaunayTriangulation implements PathObjectConnections {
 	
 	private double distanceThreshold = Double.NaN;
 	private boolean limitByClass = false;
@@ -73,6 +75,12 @@ public class DelaunayTriangulation {
 		this.distanceThreshold = distanceThresholdPixels;
 		this.limitByClass = limitByClass;
 		computeDelaunay(pathObjects, pixelWidth, pixelHeight);
+		
+		Collection<String> measurements = PathClassificationLabellingHelper.getAvailableFeatures(pathObjects);
+		for (String name : measurements) {
+			RunningStatistics stats = new RunningStatistics();
+			pathObjects.stream().forEach(p -> stats.addValue(p.getMeasurementList().getMeasurementValue(name)));
+		}
 	}
 	
 	
@@ -84,6 +92,21 @@ public class DelaunayTriangulation {
 		}
 	}
 	
+	
+	@Override
+	public List<PathObject> getConnectedObjects(final PathObject pathObject) {
+		DelaunayNode node = nodeMap.get(pathObject);
+		if (node == null)
+			return Collections.emptyList();
+		return node.getNodeList().stream().map(n -> n.getPathObject()).collect(Collectors.toList());
+	}
+	
+	
+	@Override
+	public Collection<PathObject> getPathObjects() {
+		return nodeMap.keySet();
+	}
+
 	
 	
 	/**
@@ -115,7 +138,7 @@ public class DelaunayTriangulation {
 		double minY = Double.POSITIVE_INFINITY;
 		double maxX = Double.NEGATIVE_INFINITY;
 		double maxY = Double.NEGATIVE_INFINITY;
-		List<Point> centroids = new ArrayList<Point>(pathObjectList.size());
+		List<Point> centroids = new ArrayList<>(pathObjectList.size());
 		for (PathObject pathObject : pathObjectList) {
 			ROI pathROI = null;
 			
@@ -763,8 +786,6 @@ public class DelaunayTriangulation {
 		}
 		
 	}
-	
-	
-	
+
 
 }

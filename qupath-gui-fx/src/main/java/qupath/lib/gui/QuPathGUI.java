@@ -1639,8 +1639,9 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		CheckMenuItem miTMAMissing = new CheckMenuItem("Set core missing");
 		miTMAMissing.setOnAction(e -> setTMACoreMissing(viewer.getHierarchy(), true));
 		
-		Menu menuTMA = createMenu(
-				"TMA",
+		Menu menuTMA = new Menu("TMA");
+		addMenuItems(
+				menuTMA,
 				miTMAValid,
 				miTMAMissing,
 				null,
