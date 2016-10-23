@@ -51,6 +51,7 @@ import javafx.scene.control.TitledPane;
 import javafx.scene.control.Tooltip;
 import javafx.scene.control.TreeItem;
 import javafx.scene.control.TreeView;
+import javafx.scene.input.KeyCode;
 import javafx.scene.layout.BorderPane;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
@@ -196,14 +197,22 @@ public class MeasurementManager implements PathCommand {
 				// Update
 				mapMeasurements.get(cls).removeAll(toRemove);
 				tree.setRoot(new MeasurementItem(mapMeasurements.get(cls), ""));
+				setTreeItemsExpanded(tree.getRoot(), true);
 			}
 		});
 		btnRemove.disableProperty().bind(tree.getSelectionModel().selectedItemProperty().isNull());
+		
+		// Operate on backspace too
+		tree.setOnKeyPressed(e -> {
+			if (e.getCode() == KeyCode.BACK_SPACE || e.getCode() == KeyCode.DELETE)
+				btnRemove.fire();
+		});
 
-		// Listen for selections
+		// Listen for object type selections
 		comboBox.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> {
 			Class<? extends PathObject> cls = classMap.get(n);
 			tree.setRoot(new MeasurementItem(mapMeasurements.get(cls), ""));
+			setTreeItemsExpanded(tree.getRoot(), true);
 			titledMeasurements.setText("Measurements (" + mapMeasurements.get(cls).size() + ")");
 		});
 		
@@ -220,7 +229,7 @@ public class MeasurementManager implements PathCommand {
 				break;
 			}			
 		}
-			
+		
 
 		
 		Stage dialog = new Stage();

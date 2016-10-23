@@ -51,6 +51,7 @@ import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.text.Font;
+import javafx.scene.text.FontWeight;
 import javafx.stage.Stage;
 import qupath.lib.plugins.parameters.BooleanParameter;
 import qupath.lib.plugins.parameters.ChoiceParameter;
@@ -214,8 +215,8 @@ public class ParameterPanelFX {
 //		Text label = new Text(param.getPrompt());
 		if (param.isTitle()) {
 			// Cannot change font weight for default font (at least on macOS...) - need to change the font that's used
-			label.setFont(font);
-			label.setStyle("-fx-font-weight: bold;");
+			label.setFont(Font.font(font.getFamily(), FontWeight.BOLD, font.getSize()));
+//			label.setStyle("-fx-font-weight: bold;");
 //			label.setStyle("-fx-font-size: 100%");
 //			label.setEffect(new DropShadow());
 			if (!map.isEmpty())
