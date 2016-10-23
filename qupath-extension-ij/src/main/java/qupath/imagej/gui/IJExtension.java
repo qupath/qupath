@@ -419,7 +419,7 @@ public class IJExtension implements QuPathExtension {
 		// Add an analysis menu
 //		Menu menuAnalysis = qupath.getMenu("Analyze", true);
 		
-		Menu menuFeatures = qupath.getMenu("Analyze>Calculate features", true);
+//		Menu menuFeatures = qupath.getMenu("Analyze>Calculate features", true);
 		
 		Menu menuRegions = qupath.getMenu("Analyze>Region identification", true);
 		QuPathGUI.addMenuItems(menuRegions,
