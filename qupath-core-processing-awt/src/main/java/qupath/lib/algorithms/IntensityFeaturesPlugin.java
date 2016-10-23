@@ -360,9 +360,9 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 		double regionSize = server.hasPixelSizeMicrons() ? params.getDoubleParameterValue("tileSizeMicrons") : params.getDoubleParameterValue("tileSizePixels");
 		
 		if (regionType == RegionType.ROI) {
-			return String.format("ROI, %.2f %s per pixel", pixelSize, unit);
+			return String.format("ROI: %.2f %s per pixel", pixelSize, unit);
 		} else {
-			return String.format("%s, diameter %.1f %s, %.2f %s per pixel", shape, regionSize, unit, pixelSize, unit);
+			return String.format("%s: Diameter %.1f %s: %.2f %s per pixel", shape, regionSize, unit, pixelSize, unit);
 		}
 	}
 	
@@ -530,11 +530,7 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 		}
 		
 		
-		/**
-		 * THIS IS NEW
-		 */
-		
-		String postfix = " (" + getDiameterString(server, params) + ")";
+		String prefix = getDiameterString(server, params);
 		
 		boolean isRGB = server.isRGB();
 		int w = img.getWidth();
@@ -576,7 +572,7 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 					FeatureComputer computer = builder.build();
 					computer.updateFeatures(pixelImage, transform, params);
 					// Add to the parent object
-					String name = transform.getName(stains) + postfix;
+					String name = prefix + ": " + transform.getName(stains) + ": ";
 					computer.addMeasurements(pathObject, name, params);
 				}
 			}

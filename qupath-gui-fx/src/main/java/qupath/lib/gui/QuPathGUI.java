@@ -169,6 +169,7 @@ import qupath.lib.gui.commands.CountingPanelCommand;
 import qupath.lib.gui.commands.EstimateStainVectorsCommand;
 import qupath.lib.gui.commands.LoadClassifierCommand;
 import qupath.lib.gui.commands.LogViewerCommand;
+import qupath.lib.gui.commands.MeasurementManager;
 import qupath.lib.gui.commands.MeasurementMapCommand;
 import qupath.lib.gui.commands.MiniViewerCommand;
 import qupath.lib.gui.commands.OpenCommand;
@@ -2688,6 +2689,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		Menu menuMeasure = createMenu(
 				"Measure",
 				getActionMenuItem(GUIActions.MEASUREMENT_MAP),
+				createCommandAction(new MeasurementManager(this), "Show measurement manager"),
 				null,
 				getActionMenuItem(GUIActions.SUMMARY_TMA),
 				getActionMenuItem(GUIActions.SUMMARY_ANNOTATIONS),

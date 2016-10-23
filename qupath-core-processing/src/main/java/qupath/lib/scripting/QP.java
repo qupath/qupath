@@ -918,4 +918,24 @@ public class QP {
 		return PathClassFactory.getDerivedPathClass(baseClass, name, rgb);
 	}
 
+	
+	public static void removeMeasurements(final Class<? extends PathObject> cls, final String... measurementNames) {
+		removeMeasurements(getCurrentHierarchy(), cls, measurementNames);
+	}
+
+	public static void removeMeasurements(final PathObjectHierarchy hierarchy, final Class<? extends PathObject> cls, final String... measurementNames) {
+		if (hierarchy == null)
+			return;
+		List<PathObject> pathObjects = hierarchy.getObjects(null, cls);
+		for (PathObject pathObject : pathObjects) {
+			// A little check, to handle possible subclasses being returned
+			if (pathObject.getClass() != cls)
+				continue;
+			// Remove the measurements
+			pathObject.getMeasurementList().removeMeasurements(measurementNames);
+			pathObject.getMeasurementList().closeList();
+		}
+		hierarchy.fireObjectMeasurementsChangedEvent(null, pathObjects);
+	}
+
 }
