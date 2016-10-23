@@ -94,6 +94,7 @@ public class TMAScoreImportCommand implements PathCommand {
 					boolean success = handleImportGrid(grid, GeneralTools.readFileAsString(file.getAbsolutePath()));
 					if (success) {
 						grid.synchronizeTMAGridToInfo();
+						imageData.getHierarchy().fireObjectsChangedEvent(this, imageData.getHierarchy().getTMAGrid().getTMACoreList());
 						DisplayHelpers.showInfoNotification("TMA grid import", "TMA grid imported (" + grid.getGridWidth() + "x" + grid.getGridHeight() + ")");
 						return true;
 					}
@@ -156,8 +157,9 @@ public class TMAScoreImportCommand implements PathCommand {
 		
 		Button btnPasteGrid = new Button("Paste grid");
 		btnPasteGrid.setOnAction(e -> {
-			if (handlePasteGrid(infoGrid))
+			if (handlePasteGrid(infoGrid)) {
 				table.refresh();
+			}
 		});
 		Button btnLoadGrid = new Button("Import grid");
 		btnLoadGrid.setOnAction(e -> {
