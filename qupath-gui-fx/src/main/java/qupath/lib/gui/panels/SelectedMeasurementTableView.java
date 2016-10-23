@@ -119,18 +119,20 @@ public class SelectedMeasurementTableView implements PathObjectSelectionListener
 	}
 	
 	private void updateTableModel() {
-		// Check if objects are outside hierarchy
-		if (imageData != null) {
-			for (PathObject pathObject : getSelectedObjectList()) {
-				if (PathObjectTools.hierarchyContainsObject(imageData.getHierarchy(), pathObject)) {
-					tableModel.setImageData(this.imageData, getSelectedObjectList());
-					tableMeasurements.refresh();
-					return;
-				}
-			}
-		}
-		tableModel.setImageData(null, getSelectedObjectList());
+		tableModel.setImageData(this.imageData, getSelectedObjectList());
 		tableMeasurements.refresh();
+//		// Check if objects are outside hierarchy
+//		if (imageData != null) {
+//			for (PathObject pathObject : getSelectedObjectList()) {
+//				if (PathObjectTools.hierarchyContainsObject(imageData.getHierarchy(), pathObject)) {
+//					tableModel.setImageData(this.imageData, getSelectedObjectList());
+//					tableMeasurements.refresh();
+//					return;
+//				}
+//			}
+//		}
+//		tableModel.setImageData(null, getSelectedObjectList());
+//		tableMeasurements.refresh();
 	}
 
 	@Override
