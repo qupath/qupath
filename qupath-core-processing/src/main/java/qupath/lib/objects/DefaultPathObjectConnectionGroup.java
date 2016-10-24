@@ -1,5 +1,32 @@
+/*-
+ * #%L
+ * This file is part of QuPath.
+ * %%
+ * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
+ * Contact: IP Management (ipmanagement@qub.ac.uk)
+ * %%
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public
+ * License along with this program.  If not, see
+ * <http://www.gnu.org/licenses/gpl-3.0.html>.
+ * #L%
+ */
+
 package qupath.lib.objects;
 
+import java.io.Externalizable;
+import java.io.IOException;
+import java.io.ObjectInput;
+import java.io.ObjectOutput;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -8,23 +35,38 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import qupath.lib.analysis.stats.RunningStatistics;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.roi.interfaces.ROI;
 
-public class DefaultPathObjectConnections implements PathObjectConnections {
+/**
+ * Simple, default implementation of PathObjectConnectionGroup.
+ * 
+ * @author Pete Bankhead
+ *
+ */
+public class DefaultPathObjectConnectionGroup implements PathObjectConnectionGroup, Externalizable {
+	
+	private static final long serialVersionUID = 1L;
+	
+	private static final Logger logger = LoggerFactory.getLogger(DefaultPathObjectConnectionGroup.class);
 	
 	private Map<PathObject, ObjectConnector> map = new LinkedHashMap<>();
 	
 	public static final String KEY_OBJECT_CONNECTIONS = "OBJECT_CONNECTIONS";
 	
-	public DefaultPathObjectConnections(final Collection<PathObject> pathObjects) {
+	public DefaultPathObjectConnectionGroup() {}
+	
+	public DefaultPathObjectConnectionGroup(final Collection<PathObject> pathObjects) {
 		pathObjects.stream().forEach(p -> map.put(p, new ObjectConnector(p)));
 	}
 	
-	public DefaultPathObjectConnections(final PathObjectConnections connections) {
+	public DefaultPathObjectConnectionGroup(final PathObjectConnectionGroup connections) {
 		connections.getPathObjects().stream().forEach(p -> map.put(p, new ObjectConnector(p, connections.getConnectedObjects(p))));
 	}
 	
@@ -161,10 +203,14 @@ public class DefaultPathObjectConnections implements PathObjectConnections {
 	
 	
 	
-	static class ObjectConnector {
+	static class ObjectConnector implements Externalizable {
+		
+		private static final long serialVersionUID = 1L;
 		
 		private PathObject pathObject;
 		private List<PathObject> connections = new ArrayList<>();
+		
+		public ObjectConnector() {}
 		
 		ObjectConnector(final PathObject pathObject) {
 			this.pathObject = pathObject;
@@ -197,7 +243,42 @@ public class DefaultPathObjectConnections implements PathObjectConnections {
 					centroidDistanceSquared(pathObject, o2)
 					));
 		}
+
+		@Override
+		public void writeExternal(ObjectOutput out) throws IOException {
+			out.writeLong(1);
+			out.writeObject(pathObject);
+			out.writeObject(connections);
+		}
+
+		@Override
+		public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
+			long version = in.readLong();
+			if (version != 1) {
+				logger.warn("Unexpected {} version number {}", ObjectConnector.class, version);
+			}
+			this.pathObject = (PathObject)in.readObject();
+			this.connections = (List<PathObject>)in.readObject();
+		}
 		
+	}
+
+
+
+	@Override
+	public void writeExternal(ObjectOutput out) throws IOException {
+		out.writeLong(1);
+		out.writeObject(map);
+	}
+
+	@Override
+	public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
+		long version = in.readLong();
+		if (version != 1) {
+			logger.warn("Unexpected {} version number {}", DefaultPathObjectConnectionGroup.class, version);
+		}
+		Map<PathObject, ObjectConnector> readMap = (Map<PathObject, ObjectConnector>)in.readObject();
+		map.putAll(readMap);
 	}
 	
 }

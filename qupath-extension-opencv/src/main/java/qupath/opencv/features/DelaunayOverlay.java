@@ -26,14 +26,12 @@ package qupath.opencv.features;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.awt.image.ImageObserver;
-import java.util.Collections;
-import java.util.LinkedHashSet;
-import java.util.Set;
 
 import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.gui.viewer.PathHierarchyPaintingHelper;
 import qupath.lib.gui.viewer.overlays.AbstractImageDataOverlay;
 import qupath.lib.images.ImageData;
+import qupath.lib.objects.PathObjectConnectionGroup;
 import qupath.lib.objects.PathObjectConnections;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.regions.ImageRegion;
@@ -51,7 +49,7 @@ import qupath.lib.regions.ImageRegion;
  */
 public class DelaunayOverlay extends AbstractImageDataOverlay {
 	
-	private Set<PathObjectConnections> triangulations = Collections.synchronizedSet(new LinkedHashSet<>());
+	private PathObjectConnections triangulations = new PathObjectConnections();
 
 	public DelaunayOverlay(OverlayOptions overlayOptions, ImageData<BufferedImage> imageData) {
 		super(overlayOptions, imageData);
@@ -75,12 +73,12 @@ public class DelaunayOverlay extends AbstractImageDataOverlay {
 	}
 	
 	
-	public void addDelaunay(final PathObjectConnections dt) {
-		triangulations.add(dt);
+	public void addDelaunay(final PathObjectConnectionGroup dt) {
+		triangulations.addGroup(dt);
 	}
 
-	public void removeDelaunay(final PathObjectConnections dt) {
-		triangulations.remove(dt);
+	public void removeDelaunay(final PathObjectConnectionGroup dt) {
+		triangulations.removeGroup(dt);
 	}
 	
 	public void clear() {

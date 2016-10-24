@@ -63,6 +63,7 @@ import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.objects.PathCellObject;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjectConnectionGroup;
 import qupath.lib.objects.PathObjectConnections;
 import qupath.lib.objects.PathTileObject;
 import qupath.lib.objects.TMACoreObject;
@@ -712,7 +713,7 @@ public class PathHierarchyPaintingHelper {
 		 * @param color
 		 * @param downsampleFactor
 		 */
-		public static void paintConnections(final Collection<PathObjectConnections> connections, final PathObjectHierarchy hierarchy, Graphics2D g2d, final Color color, final double downsampleFactor) {
+		public static void paintConnections(final PathObjectConnections connections, final PathObjectHierarchy hierarchy, Graphics2D g2d, final Color color, final double downsampleFactor) {
 			if (hierarchy == null || connections == null || connections.isEmpty())
 				return;
 
@@ -729,15 +730,24 @@ public class PathHierarchyPaintingHelper {
 			//		g2d.setColor(ColorToolsAwt.getColorWithOpacity(getPreferredOverlayColor(), 1));
 			g2d.setColor(color);
 			Line2D line = new Line2D.Double();
-			ImageRegion imageRegion = AwtTools.getImageRegion(g2d.getClipBounds(), 0, 0);
+			
+			// We can have trouble whenever two objects are outside the clip, but their connections would be inside it
+			// Here, we just enlarge the region (by quite a lot)
+			// It's not guaranteed to work, but it usually does... and avoids much more expensive computations
+			Rectangle bounds = g2d.getClipBounds();
+			bounds.setBounds(bounds.x-bounds.width, bounds.y-bounds.height, bounds.width*3, bounds.height*3);
+			ImageRegion imageRegion = AwtTools.getImageRegion(bounds, 0, 0);
 
 			g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
 			g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_SPEED);
 
+			
+//			g2d.draw(g2d.getClipBounds());
+			
 
 			Collection<PathObject> pathObjects = hierarchy.getObjectsForRegion(PathDetectionObject.class, imageRegion, null);
 			//		double threshold = downsampleFactor*downsampleFactor*4;
-			for (PathObjectConnections dt : connections) {
+			for (PathObjectConnectionGroup dt : connections.getConnectionGroups()) {
 				for (PathObject pathObject : pathObjects) {
 					ROI roi = PathObjectTools.getROI(pathObject, true);
 					for (PathObject siblingObject : dt.getConnectedObjects(pathObject)) {

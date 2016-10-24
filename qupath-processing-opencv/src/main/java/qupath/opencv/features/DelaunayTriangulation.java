@@ -45,7 +45,7 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.objects.PathCellObject;
 import qupath.lib.objects.PathObject;
-import qupath.lib.objects.PathObjectConnections;
+import qupath.lib.objects.PathObjectConnectionGroup;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.roi.interfaces.ROI;
 
@@ -57,7 +57,7 @@ import qupath.lib.roi.interfaces.ROI;
  *
  */
 // I'm not trying to make a secret of it (although possibly should) - the 'finalize' method of Subdiv2D isn't called on OSX
-public class DelaunayTriangulation implements PathObjectConnections {
+public class DelaunayTriangulation implements PathObjectConnectionGroup {
 	
 	private double distanceThreshold = Double.NaN;
 	private boolean limitByClass = false;

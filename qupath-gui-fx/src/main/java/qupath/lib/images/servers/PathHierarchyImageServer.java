@@ -41,7 +41,7 @@ import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.gui.viewer.PathHierarchyPaintingHelper;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.PathImage;
-import qupath.lib.objects.DefaultPathObjectConnections;
+import qupath.lib.objects.DefaultPathObjectConnectionGroup;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectConnections;
@@ -244,11 +244,10 @@ public class PathHierarchyImageServer implements GeneratingImageServer<BufferedI
 		PathHierarchyPaintingHelper.paintSpecifiedObjects(g2d, AwtTools.getBounds(request), pathObjects, options, null, downsampleFactor);
 		
 		// See if we have any connections to draw
-		Object o = imageData.getProperty(DefaultPathObjectConnections.KEY_OBJECT_CONNECTIONS);
-		if (o instanceof Collection<?>) {
-			try {
-				PathHierarchyPaintingHelper.paintConnections((Collection<PathObjectConnections>)o, hierarchy, g2d, ColorToolsAwt.TRANSLUCENT_BLACK, downsampleFactor);
-			} catch (ClassCastException e) {
+		if (options.getShowConnections()) {
+			Object o = imageData.getProperty(DefaultPathObjectConnectionGroup.KEY_OBJECT_CONNECTIONS);
+			if (o instanceof PathObjectConnections) {
+				PathHierarchyPaintingHelper.paintConnections((PathObjectConnections)o, hierarchy, g2d, imageData.isFluorescence() ? ColorToolsAwt.TRANSLUCENT_WHITE : ColorToolsAwt.TRANSLUCENT_BLACK, downsampleFactor);
 			}
 		}
 		

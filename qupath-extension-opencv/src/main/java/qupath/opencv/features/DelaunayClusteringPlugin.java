@@ -36,13 +36,14 @@ import org.slf4j.LoggerFactory;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
-import qupath.lib.objects.DefaultPathObjectConnections;
+import qupath.lib.objects.DefaultPathObjectConnectionGroup;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjectConnectionGroup;
 import qupath.lib.objects.PathObjectConnections;
 import qupath.lib.objects.PathRootObject;
 import qupath.lib.objects.TMACoreObject;
-import qupath.lib.objects.DefaultPathObjectConnections.MeasurementNormalizer;
+import qupath.lib.objects.DefaultPathObjectConnectionGroup.MeasurementNormalizer;
 import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.plugins.AbstractInteractivePlugin;
 import qupath.lib.plugins.PathTask;
@@ -69,19 +70,6 @@ public class DelaunayClusteringPlugin<T> extends AbstractInteractivePlugin<T> {
 	public DelaunayClusteringPlugin() {
 		super();
 	}	
-	
-	@Override
-	protected void preprocess(PluginRunner<T> pluginRunner) {
-		super.preprocess(pluginRunner);
-		ImageData<T> imageData = pluginRunner.getImageData();
-		if (imageData != null) {
-			if (params.getBooleanParameterValue("showOverlay"))
-				imageData.setProperty(DefaultPathObjectConnections.KEY_OBJECT_CONNECTIONS, new ArrayList<PathObjectConnections>());
-			else
-				imageData.setProperty(DefaultPathObjectConnections.KEY_OBJECT_CONNECTIONS, null);
-		}
-	}
-
 	
 	@Override
 	protected void postprocess(PluginRunner<T> pluginRunner) {
@@ -189,7 +177,7 @@ public class DelaunayClusteringPlugin<T> extends AbstractInteractivePlugin<T> {
 		private boolean addClusterMeasurements;
 		private boolean limitByClass;
 		
-		private PathObjectConnections result;
+		private PathObjectConnectionGroup result;
 		
 		private String lastResult = null;
 		
@@ -308,7 +296,7 @@ public class DelaunayClusteringPlugin<T> extends AbstractInteractivePlugin<T> {
 			
 			DelaunayTriangulation dt = new DelaunayTriangulation(pathObjects, pixelWidth, pixelHeight, distanceThresholdPixels, limitByClass);
 			
-			DefaultPathObjectConnections result = new DefaultPathObjectConnections(dt);
+			DefaultPathObjectConnectionGroup result = new DefaultPathObjectConnectionGroup(dt);
 			pathObjects = new ArrayList<>(result.getPathObjects());
 
 			
@@ -486,18 +474,15 @@ public class DelaunayClusteringPlugin<T> extends AbstractInteractivePlugin<T> {
 		@Override
 		public void taskComplete() {
 			if (result != null && imageData != null) {
-				Object o = imageData.getProperty("OBJECT_CONNECTIONS");
-				Collection<PathObjectConnections> connections = null;
-				if (o != null) {
-					try {
-						connections = (Collection<PathObjectConnections>)o;
-					} catch (ClassCastException e) {
-						logger.error("Invalid contents of OBJECT_CONNECTIONS property: {}", o);
-					}
+				Object o = imageData.getProperty(DefaultPathObjectConnectionGroup.KEY_OBJECT_CONNECTIONS);
+				PathObjectConnections connections = null;
+				if (o instanceof PathObjectConnections)
+					connections = (PathObjectConnections)o;
+				else {
+					connections = new PathObjectConnections();
+					imageData.setProperty(DefaultPathObjectConnectionGroup.KEY_OBJECT_CONNECTIONS, connections);
 				}
-				if (connections == null)
-					connections = new ArrayList<>();
-				connections.add(result);
+				connections.addGroup(result);
 			}
 		}
 
