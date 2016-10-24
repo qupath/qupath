@@ -70,6 +70,7 @@ import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
+import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 
 /**
  * Command to classify detection objects based on thresholding a single measurement.
@@ -195,10 +196,13 @@ public class SingleFeatureClassifierCommand implements PathCommand {
 		// Create a map of all the object classifications upon opening the dialog, so these can be restored
 		Map<PathClass, List<PathObject>> mapReset = new HashMap<>();
 		for (PathObject temp : imageData.getHierarchy().getObjects(null, cls)) {
-			List<PathObject> list = mapReset.get(temp.getPathClass());
+			PathClass key = temp.getPathClass();
+			if (key == null)
+				key = PathClassFactory.getPathClassUnclassified();
+			List<PathObject> list = mapReset.get(key);
 			if (list == null) {
 				list = new ArrayList<>();
-				mapReset.put(temp.getPathClass(), list);
+				mapReset.put(key, list);
 			}
 			list.add(temp);
 		}
@@ -217,18 +221,20 @@ public class SingleFeatureClassifierCommand implements PathCommand {
 		
 		final Button buttonTest = (Button)dialog.getDialogPane().lookupButton(buttonTypeTest);
 		buttonTest.addEventFilter(ActionEvent.ACTION, event -> {
-			applyClassification();
+			applyClassification(imageData.getHierarchy(), mapReset);
 			event.consume();
 		});
 		
 		Optional<ButtonType> result = dialog.showAndWait();
 		if (result.isPresent() && result.get() == ButtonType.OK)
-			applyClassification();
+			applyClassification(imageData.getHierarchy(), mapReset);
 		else {
 			// Restore the classifications to their former state
 			List<PathObject> changedObjects = new ArrayList<>();
 			for (Entry<PathClass, List<PathObject>> entry : mapReset.entrySet()) {
 				PathClass pathClass = entry.getKey();
+				if (pathClass == PathClassFactory.getPathClassUnclassified())
+					pathClass = null;
 				for (PathObject temp : entry.getValue())
 					temp.setPathClass(pathClass);
 				changedObjects.addAll(entry.getValue());
@@ -240,10 +246,9 @@ public class SingleFeatureClassifierCommand implements PathCommand {
 	
 	
 	
-	void applyClassification() {
-		ImageData<?> imageData = qupath.getImageData();
-		if (imageData == null) {
-			textArea.setText("No image data available!");
+	void applyClassification(final PathObjectHierarchy hierarchy, final Map<PathClass, List<PathObject>> map) {
+		if (map == null || map.isEmpty()) {
+			textArea.setText("No objects available!");
 			return;
 		}
 		
@@ -275,32 +280,43 @@ public class SingleFeatureClassifierCommand implements PathCommand {
 		logger.info(s);
 		
 		
+		// Reset everything first
+		for (Entry<PathClass, List<PathObject>> entry : map.entrySet()) {
+			PathClass pathClass = entry.getKey();
+			if (pathClass == PathClassFactory.getPathClassUnclassified())
+				pathClass = null;
+			for (PathObject temp : entry.getValue())
+				temp.setPathClass(pathClass);
+		}
+		
+		
+		// Apply new classification
 		List<PathObject> changedObjects = new ArrayList<>();
-		for (PathObject pathObject : imageData.getHierarchy().getObjects(null, cls)) {
-			if (!(inputClasses.isEmpty() || inputClasses.contains(pathObject.getPathClass())))
-				continue;
-			double value = pathObject.getMeasurementList().getMeasurementValue(measurementName);					
-			PathClass newClass = null;
-			if (value > threshold) {
-				newClass = classAbove;
-			}
-			else if (value < threshold) {
-				newClass = classBelow;
-			}
-			else if (value == threshold) {
-				newClass = classEquals;
-			}
-			if (newClass != null && newClass != pathObject.getPathClass()) {
-				// Deal with special case of 'Unclassified' class
-				if (newClass.getName() == null)
-					pathObject.setPathClass(null);
-				else
-					pathObject.setPathClass(newClass);
-				changedObjects.add(pathObject);
+		for (PathClass key : inputClasses) {
+			for (PathObject pathObject : map.get(key)) {
+				double value = pathObject.getMeasurementList().getMeasurementValue(measurementName);					
+				PathClass newClass = null;
+				if (value > threshold) {
+					newClass = classAbove;
+				}
+				else if (value < threshold) {
+					newClass = classBelow;
+				}
+				else if (value == threshold) {
+					newClass = classEquals;
+				}
+				if (newClass != null && newClass != pathObject.getPathClass()) {
+					// Deal with special case of 'Unclassified' class
+					if (newClass.getName() == null)
+						pathObject.setPathClass(null);
+					else
+						pathObject.setPathClass(newClass);
+					changedObjects.add(pathObject);
+				}
 			}
 		}
 		if (!changedObjects.isEmpty())
-			imageData.getHierarchy().fireObjectClassificationsChangedEvent(this, changedObjects);
+			hierarchy.fireObjectClassificationsChangedEvent(this, changedObjects);
 	}
 	
 	
