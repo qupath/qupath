@@ -344,7 +344,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 								COUNTING_PANEL, CONVEX_POINTS, USE_SELECTED_COLOR, DETECTIONS_TO_POINTS,
 								ROTATE_IMAGE, MINI_VIEWER,
 								RIGID_OBJECT_EDITOR, SHOW_COMMAND_LIST,
-								TMA_SCORE_IMPORTER, TMA_ADD_NOTE, COLOR_DECONVOLUTION_REFINE, SHOW_LOG,
+								TMA_SCORE_IMPORTER, TMA_ADD_NOTE, COLOR_DECONVOLUTION_REFINE, SHOW_LOG, TMA_RELABEL,
 								SHOW_CELL_BOUNDARIES, SHOW_CELL_NUCLEI, SHOW_CELL_BOUNDARIES_AND_NUCLEI,
 								SUMMARY_TMA, SUMMARY_ANNOTATIONS, SUMMARY_DETECTIONS,
 								VIEW_TRACKER, MEASUREMENT_MAP, WORKFLOW_DISPLAY,
@@ -2679,7 +2679,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 						createCommandAction(new TMAGridRemove(this, TMARemoveType.ROW), "Remove TMA row"),
 						createCommandAction(new TMAGridRemove(this, TMARemoveType.COLUMN), "Remove TMA column")
 						),
-				createCommandAction(new TMAGridRelabel(this), "Relabel TMA grid"),
+				getActionMenuItem(GUIActions.TMA_RELABEL),
 				createCommandAction(new TMAGridReset(this), "Reset TMA metadata"),
 				getActionMenuItem(GUIActions.CLEAR_TMA_CORES),
 				createCommandAction(new TMAGridView(this), "TMA grid summary view (experimental)"),
@@ -3156,6 +3156,8 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			return createCommandAction(new MiniViewerCommand(this), "Show mini viewer");
 		case TMA_SCORE_IMPORTER:
 			return createCommandAction(new TMAScoreImportCommand(this), "Import TMA map");
+		case TMA_RELABEL:
+			return createCommandAction(new TMAGridRelabel(this), "Relabel TMA grid");
 //		case OVERLAY_OPACITY:
 //			return new OpacityAction(this, overlayOptions);
 		case COLOR_DECONVOLUTION_REFINE:

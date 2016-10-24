@@ -532,7 +532,7 @@ public class QP {
 				if (rowFirst)
 					name = rowLabels[r] + "-" + columnLabels[c];
 				else
-					name = columnLabels[r] + "-" + rowLabels[c];
+					name = columnLabels[c] + "-" + rowLabels[r];
 				grid.getTMACore(r, c).setName(name);
 			}			
 		}
