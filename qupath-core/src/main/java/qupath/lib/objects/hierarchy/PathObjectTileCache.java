@@ -452,7 +452,7 @@ class PathObjectTileMap {
 				else {
 					for (PathObject pathObject : set) {
 						ROI pathROI = pathObject.getROI();
-						if (pathObject.isPoint() || region.intersects(pathROI.getBoundsX(), pathROI.getBoundsY(), pathROI.getBoundsWidth(), pathROI.getBoundsHeight()))
+						if (pathObject.isPoint() || region.intersects(pathROI.getBoundsX(), pathROI.getBoundsY(), Math.max(pathROI.getBoundsWidth(), 1), Math.max(pathROI.getBoundsHeight(), 1)))
 							pathObjects.add(pathObject);
 					}
 				}

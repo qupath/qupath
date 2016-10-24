@@ -33,6 +33,7 @@ import org.slf4j.LoggerFactory;
 
 import javafx.beans.value.ObservableIntegerValue;
 import javafx.scene.Node;
+import javafx.scene.shape.ClosePath;
 import javafx.scene.shape.Ellipse;
 import javafx.scene.shape.Line;
 import javafx.scene.shape.LineTo;
@@ -261,7 +262,7 @@ public class PathIconFactory {
 						path.getElements().add(new LineTo(x, y));
 						break;
 					case PathIterator.SEG_CLOSE:
-						path.getElements().add(new LineTo(x, y));
+						path.getElements().add(new ClosePath());
 						break;
 					default:
 						continue;

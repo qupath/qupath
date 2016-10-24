@@ -287,7 +287,7 @@ public class PathHierarchyPaintingHelper {
 			double roiBoundsHeight = pathROI.getBoundsHeight();
 			if (pathObject.isPoint() || boundsDisplayed == null || 
 					pathROI instanceof LineROI || 
-					boundsDisplayed.intersects(roiBoundsX, roiBoundsY, roiBoundsWidth, roiBoundsHeight)) {
+					boundsDisplayed.intersects(roiBoundsX, roiBoundsY, Math.max(roiBoundsWidth, 1), Math.max(roiBoundsHeight, 1))) {
 			
 				// Paint the ROI, if necessary
 				if (isSelected || (overlayOptions.getShowObjects() && isDetectedObject) || (overlayOptions.getShowAnnotations() && pathObject.isAnnotation()) || (overlayOptions.getShowTMAGrid() && pathObject.isTMACore())) {

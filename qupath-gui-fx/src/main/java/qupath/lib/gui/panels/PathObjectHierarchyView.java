@@ -385,10 +385,13 @@ public class PathObjectHierarchyView implements ImageDataChangeListener<Buffered
 
 	@Override
 	public void hierarchyChanged(PathObjectHierarchyEvent event) {
+		if (event.isChanging())
+			return;
 		if (!Platform.isFxApplicationThread()) {
 			Platform.runLater(() -> hierarchyChanged(event));
 			return;
 		}
+		System.out.println(event);
 		synchronizingTreeToModel = true;
 		treeView.setRoot(createNode(imageData.getHierarchy().getRootObject()));
 		synchronizingTreeToModel = false;
