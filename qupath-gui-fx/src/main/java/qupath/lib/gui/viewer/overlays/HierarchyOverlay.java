@@ -98,7 +98,8 @@ public class HierarchyOverlay extends AbstractImageDataOverlay {
 		else {
 			ImageServer<BufferedImage> server = getImageData().getServer();
 			// If the image is small, don't really need a server at all...
-			overlayServer = new PathHierarchyImageServer(server, getHierarchy(), getOverlayOptions());
+			overlayServer = new PathHierarchyImageServer(getImageData(), getOverlayOptions());
+//			overlayServer = new PathHierarchyImageServer(server, getHierarchy(), getOverlayOptions());
 			smallImage = server.getWidth() < PathPrefs.getMinWholeSlideDimension() && server.getHeight() < PathPrefs.getMinWholeSlideDimension();
 		}
 	}

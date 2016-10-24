@@ -1,4 +1,4 @@
-package qupath.opencv.features;
+package qupath.lib.objects;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -17,6 +17,8 @@ import qupath.lib.roi.interfaces.ROI;
 public class DefaultPathObjectConnections implements PathObjectConnections {
 	
 	private Map<PathObject, ObjectConnector> map = new LinkedHashMap<>();
+	
+	public static final String KEY_OBJECT_CONNECTIONS = "OBJECT_CONNECTIONS";
 	
 	public DefaultPathObjectConnections(final Collection<PathObject> pathObjects) {
 		pathObjects.stream().forEach(p -> map.put(p, new ObjectConnector(p)));

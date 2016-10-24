@@ -12,6 +12,8 @@
 * When sending image regions to ImageJ, the 'visibility' status is used to determine whether or not objects are sent as ROIs
 * Fixed bug with extension path wrongly defaulting to an internal QuPath directory (you may need to update your extensions directory from 'Edit -> Preferences')
 * Fixed (hopefully) cross-platform line splitting (v0.0.3 tried to fix this for Windows... but only partly did, while breaking TMA grid import elsewhere)
+* Fixed bug whereby ROIs with zero width or height were not shown at all
+* Fixed bug in drawing ROIs as icons (e.g. in the annotation or hierarchy views)
 * When manually setting the name of an annotation, any previous name is now shown (rather than a blank field)
 
 

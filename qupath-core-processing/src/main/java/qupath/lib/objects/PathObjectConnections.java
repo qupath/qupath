@@ -1,4 +1,4 @@
-package qupath.opencv.features;
+package qupath.lib.objects;
 
 import java.util.Collection;
 import java.util.List;

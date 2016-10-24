@@ -34,13 +34,17 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+import qupath.lib.awt.color.ColorToolsAwt;
 import qupath.lib.awt.common.AwtTools;
 import qupath.lib.common.ColorTools;
 import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.gui.viewer.PathHierarchyPaintingHelper;
+import qupath.lib.images.ImageData;
 import qupath.lib.images.PathImage;
+import qupath.lib.objects.DefaultPathObjectConnections;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjectConnections;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.regions.RegionRequest;
 
@@ -59,16 +63,22 @@ public class PathHierarchyImageServer implements GeneratingImageServer<BufferedI
 	public static String DEFAULT_PREFIX = "OVERLAY";
 	
 	private String prefix;
+	private ImageData<BufferedImage> imageData;
 	private ImageServer<BufferedImage> server;
 	private OverlayOptions options;
 	private PathObjectHierarchy hierarchy;
 //	private PathHierarchyPainter painter;
 	
-	public PathHierarchyImageServer(final ImageServer<BufferedImage> server, final PathObjectHierarchy hierarchy, final OverlayOptions options) {
-		this(DEFAULT_PREFIX + " " + counter + "::", server, hierarchy, options);
+	public PathHierarchyImageServer(final ImageData<BufferedImage> imageData, final OverlayOptions options) {
+		this(DEFAULT_PREFIX + " " + counter + "::", imageData, imageData.getServer(), imageData.getHierarchy(), options);
 	}
 	
-	PathHierarchyImageServer(final String prefix, final ImageServer<BufferedImage> server, final PathObjectHierarchy hierarchy, final OverlayOptions options) {
+//	public PathHierarchyImageServer(final ImageServer<BufferedImage> server, final PathObjectHierarchy hierarchy, final OverlayOptions options) {
+//		this(DEFAULT_PREFIX + " " + counter + "::", server, hierarchy, options);
+//	}
+	
+	PathHierarchyImageServer(final String prefix, final ImageData<BufferedImage> imageData, final ImageServer<BufferedImage> server, final PathObjectHierarchy hierarchy, final OverlayOptions options) {
+		this.imageData = imageData;
 		this.prefix = prefix;
 		this.server = server;
 		this.hierarchy = hierarchy;
@@ -223,6 +233,7 @@ public class PathHierarchyImageServer implements GeneratingImageServer<BufferedI
 		int height = (int)(request.getHeight() / downsampleFactor);
 		BufferedImage img = gc.createCompatibleImage(width, height, Transparency.TRANSLUCENT);
 		Graphics2D g2d = img.createGraphics();
+		g2d.setClip(0, 0, width, height);
 //		g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 		double scale = 1.0/downsampleFactor;
 		
@@ -231,6 +242,17 @@ public class PathHierarchyImageServer implements GeneratingImageServer<BufferedI
 		g2d.translate(-request.getX(), -request.getY());
 		// Note we don't want to pass a selection model, as selections shouldn't be included
 		PathHierarchyPaintingHelper.paintSpecifiedObjects(g2d, AwtTools.getBounds(request), pathObjects, options, null, downsampleFactor);
+		
+		// See if we have any connections to draw
+		Object o = imageData.getProperty(DefaultPathObjectConnections.KEY_OBJECT_CONNECTIONS);
+		if (o instanceof Collection<?>) {
+			try {
+				PathHierarchyPaintingHelper.paintConnections((Collection<PathObjectConnections>)o, hierarchy, g2d, ColorToolsAwt.TRANSLUCENT_BLACK, downsampleFactor);
+			} catch (ClassCastException e) {
+			}
+		}
+		
+		
 		g2d.dispose();
 //		long endTime = System.currentTimeMillis();
 //		System.out.println("Number of objects: " + pathObjects.size());

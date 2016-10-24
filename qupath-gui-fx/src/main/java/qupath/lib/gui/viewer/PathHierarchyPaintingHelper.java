@@ -39,6 +39,7 @@ import java.awt.Transparency;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.Ellipse2D;
 import java.awt.geom.Line2D;
+import java.awt.geom.Line2D.Double;
 import java.awt.geom.Path2D;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
@@ -62,10 +63,12 @@ import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.objects.PathCellObject;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjectConnections;
 import qupath.lib.objects.PathTileObject;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.helpers.PathObjectColorToolsAwt;
+import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.TMAGrid;
 import qupath.lib.objects.hierarchy.events.PathObjectSelectionModel;
@@ -699,7 +702,55 @@ public class PathHierarchyPaintingHelper {
 			}
 		}
 	}
-	
+
+		/**
+		 * Paint connections between objects (e.g. from Delaunay triangulation).
+		 * 
+		 * @param connections
+		 * @param hierarchy
+		 * @param g2d
+		 * @param color
+		 * @param downsampleFactor
+		 */
+		public static void paintConnections(final Collection<PathObjectConnections> connections, final PathObjectHierarchy hierarchy, Graphics2D g2d, final Color color, final double downsampleFactor) {
+			if (hierarchy == null || connections == null || connections.isEmpty())
+				return;
+
+			float alpha = (float)(1f - downsampleFactor / 15);
+			alpha = Math.min(alpha, 0.5f);
+			if (alpha < .05f)
+				return;
+
+			g2d = (Graphics2D)g2d.create();
+
+			//		Shape clipShape = g2d.getClip();
+			g2d.setStroke(getCachedStroke(PathPrefs.getThinStrokeThickness()));
+			g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, alpha * .5f));
+			//		g2d.setColor(ColorToolsAwt.getColorWithOpacity(getPreferredOverlayColor(), 1));
+			g2d.setColor(color);
+			Line2D line = new Line2D.Double();
+			ImageRegion imageRegion = AwtTools.getImageRegion(g2d.getClipBounds(), 0, 0);
+
+			g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
+			g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_SPEED);
+
+
+			Collection<PathObject> pathObjects = hierarchy.getObjectsForRegion(PathDetectionObject.class, imageRegion, null);
+			//		double threshold = downsampleFactor*downsampleFactor*4;
+			for (PathObjectConnections dt : connections) {
+				for (PathObject pathObject : pathObjects) {
+					ROI roi = PathObjectTools.getROI(pathObject, true);
+					for (PathObject siblingObject : dt.getConnectedObjects(pathObject)) {
+						ROI roi2 = PathObjectTools.getROI(siblingObject, true);
+						line.setLine(roi.getCentroidX(), roi.getCentroidY(), roi2.getCentroidX(), roi2.getCentroidY());
+						g2d.draw(line);
+					}
+				}
+			}
+
+			g2d.dispose();
+		}
+
 	
 //	@Override
 //	public void draw(Graphics g, Color colorStroke, Color colorFill) {

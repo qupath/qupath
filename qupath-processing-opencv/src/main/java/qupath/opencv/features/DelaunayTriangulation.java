@@ -45,6 +45,7 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.objects.PathCellObject;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjectConnections;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.roi.interfaces.ROI;
 

@@ -23,41 +23,31 @@
 
 package qupath.opencv.features;
 
-import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
-import org.apache.commons.math3.stat.correlation.PearsonsCorrelation;
-import org.opencv.core.Core;
-import org.opencv.core.CvType;
-import org.opencv.core.Mat;
-import org.opencv.core.TermCriteria;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
-import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.objects.DefaultPathObjectConnections;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjectConnections;
 import qupath.lib.objects.PathRootObject;
 import qupath.lib.objects.TMACoreObject;
-import qupath.lib.objects.classes.PathClassFactory;
+import qupath.lib.objects.DefaultPathObjectConnections.MeasurementNormalizer;
 import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.plugins.AbstractInteractivePlugin;
 import qupath.lib.plugins.PathTask;
 import qupath.lib.plugins.PluginRunner;
 import qupath.lib.plugins.parameters.ParameterList;
-import qupath.opencv.features.DefaultPathObjectConnections.MeasurementNormalizer;
 
 /**
  * Plugin for calculating Delaunay clustering, and associated features.
@@ -72,62 +62,30 @@ import qupath.opencv.features.DefaultPathObjectConnections.MeasurementNormalizer
  * @author Pete Bankhead
  *
  */
-public class DelaunayClusteringPlugin extends AbstractInteractivePlugin<BufferedImage> {
+public class DelaunayClusteringPlugin<T> extends AbstractInteractivePlugin<T> {
 
 	final private static Logger logger = LoggerFactory.getLogger(DelaunayClusteringPlugin.class);
-	
-	private QuPathViewer viewer;
-	private DelaunayOverlay overlay;
 	
 	public DelaunayClusteringPlugin() {
 		super();
 	}	
 	
 	@Override
-	public void preprocess(final PluginRunner<BufferedImage> runner) {
-		
-		ImageData<?> imageData = runner.getImageData();
-		if (imageData == null)
-			return;
-		
-		// Get a reference to any viewer (for possible overlay)
-		viewer = null;
-		QuPathGUI qupath = QuPathGUI.getInstance();
-		if (qupath != null) {
-			for (QuPathViewer viewer2 : qupath.getViewers()) {
-				if (viewer2.getImageData() == runner.getImageData()) {
-					viewer = viewer2;
-				}
-			}
-			logger.trace("Found viewer: {}", viewer);
-		}
-		
-		// Handle overlays
-		if (viewer != null) {
-			// Ensure any existing DelaunayOverlays are removed from the viewer
-			overlay = (DelaunayOverlay)viewer.getOverlayLayer(DelaunayOverlay.class);
-			while (overlay != null) {
-				viewer.removeOverlay(overlay);
-				overlay = (DelaunayOverlay)viewer.getOverlayLayer(DelaunayOverlay.class);
-			}
-			
-			// Create an overlay, if needed
+	protected void preprocess(PluginRunner<T> pluginRunner) {
+		super.preprocess(pluginRunner);
+		ImageData<T> imageData = pluginRunner.getImageData();
+		if (imageData != null) {
 			if (params.getBooleanParameterValue("showOverlay"))
-				overlay = new DelaunayOverlay(viewer.getOverlayOptions(), runner.getImageData());
+				imageData.setProperty(DefaultPathObjectConnections.KEY_OBJECT_CONNECTIONS, new ArrayList<PathObjectConnections>());
 			else
-				overlay = null;
+				imageData.setProperty(DefaultPathObjectConnections.KEY_OBJECT_CONNECTIONS, null);
 		}
-
 	}
-	
+
 	
 	@Override
-	protected void postprocess(PluginRunner<BufferedImage> pluginRunner) {
-		if (viewer != null && overlay != null) {
-			viewer.addOverlay(overlay);
-			viewer = null;
-			overlay = null;
-		}
+	protected void postprocess(PluginRunner<T> pluginRunner) {
+		super.postprocess(pluginRunner);
 		pluginRunner.getHierarchy().fireHierarchyChangedEvent(this);
 	}
 	
@@ -154,7 +112,7 @@ public class DelaunayClusteringPlugin extends AbstractInteractivePlugin<Buffered
 	}
 
 	@Override
-	public ParameterList getDefaultParameterList(ImageData<BufferedImage> imageData) {
+	public ParameterList getDefaultParameterList(ImageData<T> imageData) {
 		ParameterList params = new ParameterList()
 				.addDoubleParameter("distanceThreshold", "Distance threshold", 0, "pixels", "Distance threshold - edges longer than this will be omitted")
 				.addDoubleParameter("distanceThresholdMicrons", "Distance threshold", 0, GeneralTools.micrometerSymbol(), "Distance threshold - edges longer than this will be omitted")
@@ -170,7 +128,7 @@ public class DelaunayClusteringPlugin extends AbstractInteractivePlugin<Buffered
 	}
 
 	@Override
-	protected Collection<? extends PathObject> getParentObjects(PluginRunner<BufferedImage> runner) {
+	protected Collection<? extends PathObject> getParentObjects(PluginRunner<T> runner) {
 		if (runner.getHierarchy() == null)
 			return Collections.emptyList();
 		
@@ -189,7 +147,7 @@ public class DelaunayClusteringPlugin extends AbstractInteractivePlugin<Buffered
 	}
 
 	@Override
-	protected void addRunnableTasks(ImageData<BufferedImage> imageData, PathObject parentObject, List<Runnable> tasks) {
+	protected void addRunnableTasks(ImageData<T> imageData, PathObject parentObject, List<Runnable> tasks) {
 		
 		// Get pixel sizes, if possible
 		ImageServer<?> server = imageData.getServer();
@@ -207,13 +165,13 @@ public class DelaunayClusteringPlugin extends AbstractInteractivePlugin<Buffered
 
 
 		tasks.add(new DelaunayRunnable(
+				imageData,
 				parentObject,
 				params.getBooleanParameterValue("addClusterMeasurements"),
 				pixelWidth,
 				pixelHeight,
 				distanceThresholdPixels,
-				params.getBooleanParameterValue("limitByClass"),
-				overlay
+				params.getBooleanParameterValue("limitByClass")
 				));
 	}
 	
@@ -222,8 +180,7 @@ public class DelaunayClusteringPlugin extends AbstractInteractivePlugin<Buffered
 	
 	static class DelaunayRunnable implements PathTask {
 		
-		private DelaunayOverlay overlay;
-		
+		private ImageData<?> imageData;
 		private PathObject parentObject;
 		private double pixelWidth;
 		private double pixelHeight;
@@ -236,14 +193,14 @@ public class DelaunayClusteringPlugin extends AbstractInteractivePlugin<Buffered
 		
 		private String lastResult = null;
 		
-		DelaunayRunnable(final PathObject parentObject, final boolean addClusterMeasurements, final double pixelWidth, final double pixelHeight, final double distanceThresholdPixels, final boolean limitByClass, final DelaunayOverlay overlay) {
+		DelaunayRunnable(final ImageData<?> imageData, final PathObject parentObject, final boolean addClusterMeasurements, final double pixelWidth, final double pixelHeight, final double distanceThresholdPixels, final boolean limitByClass) {
+			this.imageData = imageData;
 			this.parentObject = parentObject;
 			this.pixelWidth = pixelWidth;
 			this.pixelHeight = pixelHeight;
 			this.addClusterMeasurements = addClusterMeasurements;
 			this.distanceThresholdPixels = distanceThresholdPixels;
 			this.limitByClass = limitByClass;
-			this.overlay = overlay;
 		}
 
 		
@@ -261,7 +218,7 @@ public class DelaunayClusteringPlugin extends AbstractInteractivePlugin<Buffered
 			List<String> measurements = new ArrayList<>(normalizer.getAvailableMeasurements());
 			
 			measurements = measurements.stream().filter(p -> {
-				return (p.toLowerCase().contains("haralick") || p.toLowerCase().contains("smooth")) && !p.toLowerCase().contains("cluster");
+				return (p.toLowerCase().contains("haralick") || p.toLowerCase().contains("smooth")) && !p.toLowerCase().contains("cluster") && !p.toLowerCase().startsWith("pca");
 //				return !p.toLowerCase().contains("cluster");
 			}).collect(Collectors.toList());
 //			measurements = measurements.stream().filter(p -> {
@@ -287,46 +244,67 @@ public class DelaunayClusteringPlugin extends AbstractInteractivePlugin<Buffered
 //			System.err.println("Remove: " + measurementsToRemove.size());
 //			measurements.removeAll(measurementsToRemove);
 			
-						
-			int k = 4;
-			int attempts = 1;
-			Mat data = new Mat(pathObjects.size(), measurements.size(), CvType.CV_32F);
-			
-			double[] values = new double[measurements.size()];
-			for (int i = 0; i < pathObjects.size(); i++) {
-				values = normalizer.normalizeMeanStdDev(pathObjects.get(i), measurements, 0, values);
-				data.put(i, 0, values);
-			}
-			
-			Mat bestLabels = new Mat(pathObjects.size(), 1, CvType.CV_32S);
-			TermCriteria termCriteria = new TermCriteria(TermCriteria.COUNT + TermCriteria.EPS, 100, 0.001);
-			Core.kmeans(data, k, bestLabels, termCriteria, attempts, Core.KMEANS_PP_CENTERS);
-			
-//			Mat centers = new Mat(k, measurements.size(), CvType.CV_32F);
-//			Core.kmeans(data, k, bestLabels, termCriteria, attempts, Core.KMEANS_PP_CENTERS, centers);
-//			centers.release();
-			
-			Map<PathObject, Integer> mapLabels = new HashMap<>();
-			int[] label = new int[1];
-			for (int i = 0; i < pathObjects.size(); i++) {
-				bestLabels.get(i, 0, label);
-				mapLabels.put(pathObjects.get(i), label[0]);
-			}
-			
-			data.release();
-			bestLabels.release();
 			
 			
-			// Move through and break connections
-			for (PathObject pathObject : pathObjects) {
-				int currentLabel = mapLabels.get(pathObject);
-				// Set PathClass
-				pathObject.setPathClass(
-						PathClassFactory.getPathClass("Cluster " + currentLabel,
-								ColorTools.makeRGB((int)(Math.random() * 256), (int)(Math.random() * 256), (int)(Math.random() * 256))
-								)
-						);
-			}
+//			int k = 4;
+//			int attempts = 1;
+//			Mat data = new Mat(pathObjects.size(), measurements.size(), CvType.CV_32F);
+//			
+//			double[] values = new double[measurements.size()];
+//			for (int i = 0; i < pathObjects.size(); i++) {
+//				values = normalizer.normalizeMeanStdDev(pathObjects.get(i), measurements, 0, values);
+//				data.put(i, 0, values);
+//			}
+//			
+//			Mat eigenvectors = new Mat();
+//			Mat mean = new Mat();
+//			Core.PCACompute(data, mean, eigenvectors);
+//			Mat pca = new Mat();
+//			Core.PCAProject(data, mean, eigenvectors, pca);
+//			for (int i = 0; i < pathObjects.size(); i++) {
+//				MeasurementList list = pathObjects.get(i).getMeasurementList();
+//				float[] output = new float[1];
+//				for (int p = 0; p < 5; p++) {
+//					pca.get(i, p, output);
+//					list.putMeasurement("PCA " + (p+1), output[0]);
+//				}
+//			}
+//			eigenvectors.release();
+//			mean.release();
+//			pca.release();
+//			data.release();
+//			data = pca.colRange(0, 1);
+//			
+//			
+//			Mat bestLabels = new Mat(pathObjects.size(), 1, CvType.CV_32S);
+//			TermCriteria termCriteria = new TermCriteria(TermCriteria.COUNT + TermCriteria.EPS, 100, 0.001);
+//			Core.kmeans(data, k, bestLabels, termCriteria, attempts, Core.KMEANS_PP_CENTERS);
+//			
+////			Mat centers = new Mat(k, measurements.size(), CvType.CV_32F);
+////			Core.kmeans(data, k, bestLabels, termCriteria, attempts, Core.KMEANS_PP_CENTERS, centers);
+////			centers.release();
+//			
+//			Map<PathObject, Integer> mapLabels = new HashMap<>();
+//			int[] label = new int[1];
+//			for (int i = 0; i < pathObjects.size(); i++) {
+//				bestLabels.get(i, 0, label);
+//				mapLabels.put(pathObjects.get(i), label[0]);
+//			}
+//			
+//			data.release();
+//			bestLabels.release();
+//			
+//			
+//			// Move through and break connections
+//			for (PathObject pathObject : pathObjects) {
+//				int currentLabel = mapLabels.get(pathObject);
+//				// Set PathClass
+//				pathObject.setPathClass(
+//						PathClassFactory.getPathClass("Cluster " + currentLabel,
+//								ColorTools.makeRGB((int)(Math.random() * 256), (int)(Math.random() * 256), (int)(Math.random() * 256))
+//								)
+//						);
+//			}
 			
 			DelaunayTriangulation dt = new DelaunayTriangulation(pathObjects, pixelWidth, pixelHeight, distanceThresholdPixels, limitByClass);
 			
@@ -507,8 +485,20 @@ public class DelaunayClusteringPlugin extends AbstractInteractivePlugin<Buffered
 
 		@Override
 		public void taskComplete() {
-			if (result != null && overlay != null)
-				overlay.addDelaunay(result);
+			if (result != null && imageData != null) {
+				Object o = imageData.getProperty("OBJECT_CONNECTIONS");
+				Collection<PathObjectConnections> connections = null;
+				if (o != null) {
+					try {
+						connections = (Collection<PathObjectConnections>)o;
+					} catch (ClassCastException e) {
+						logger.error("Invalid contents of OBJECT_CONNECTIONS property: {}", o);
+					}
+				}
+				if (connections == null)
+					connections = new ArrayList<>();
+				connections.add(result);
+			}
 		}
 
 		@Override

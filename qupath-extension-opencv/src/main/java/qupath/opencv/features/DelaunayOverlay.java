@@ -23,29 +23,20 @@
 
 package qupath.opencv.features;
 
-import java.awt.AlphaComposite;
 import java.awt.Graphics2D;
-import java.awt.RenderingHints;
-import java.awt.geom.Line2D;
 import java.awt.image.BufferedImage;
 import java.awt.image.ImageObserver;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
-import qupath.lib.awt.common.AwtTools;
-import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.gui.viewer.PathHierarchyPaintingHelper;
 import qupath.lib.gui.viewer.overlays.AbstractImageDataOverlay;
 import qupath.lib.images.ImageData;
-import qupath.lib.objects.PathDetectionObject;
-import qupath.lib.objects.PathObject;
-import qupath.lib.objects.helpers.PathObjectTools;
+import qupath.lib.objects.PathObjectConnections;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.regions.ImageRegion;
-import qupath.lib.roi.interfaces.ROI;
 
 /**
  * Overlay to show Delaunay triangulation.
@@ -80,39 +71,7 @@ public class DelaunayOverlay extends AbstractImageDataOverlay {
 		if (hierarchy == null)
 			return;
 
-		float alpha = (float)(1f - downsampleFactor / 15);
-		alpha = Math.min(alpha, 0.5f);
-		if (alpha < .05f)
-			return;
-
-		g2d = (Graphics2D)g2d.create();
-
-//		Shape clipShape = g2d.getClip();
-		g2d.setStroke(PathHierarchyPaintingHelper.getCachedStroke(PathPrefs.getThinStrokeThickness()));
-		g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, alpha * .5f));
-//		g2d.setColor(ColorToolsAwt.getColorWithOpacity(getPreferredOverlayColor(), 1));
-		g2d.setColor(getPreferredOverlayColor());
-		Line2D line = new Line2D.Double();
-		imageRegion = AwtTools.getImageRegion(g2d.getClipBounds(), 0, 0);
-		
-		g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
-		g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_SPEED);
-		
-		
-		Collection<PathObject> pathObjects = hierarchy.getObjectsForRegion(PathDetectionObject.class, imageRegion, null);
-//		double threshold = downsampleFactor*downsampleFactor*4;
-		for (PathObjectConnections dt : triangulations) {
-			for (PathObject pathObject : pathObjects) {
-				ROI roi = PathObjectTools.getROI(pathObject, true);
-				for (PathObject siblingObject : dt.getConnectedObjects(pathObject)) {
-					ROI roi2 = PathObjectTools.getROI(siblingObject, true);
-					line.setLine(roi.getCentroidX(), roi.getCentroidY(), roi2.getCentroidX(), roi2.getCentroidY());
-					g2d.draw(line);
-				}
-			}
-		}
-		
-		g2d.dispose();
+		PathHierarchyPaintingHelper.paintConnections(triangulations, hierarchy, g2d, getPreferredOverlayColor(), downsampleFactor);
 	}
 	
 	
