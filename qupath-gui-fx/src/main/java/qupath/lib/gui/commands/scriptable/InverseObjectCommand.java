@@ -33,6 +33,7 @@ import org.slf4j.LoggerFactory;
 import qupath.lib.gui.ImageDataWrapper;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.images.ImageData;
+import qupath.lib.images.servers.ImageServer;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
@@ -41,6 +42,7 @@ import qupath.lib.roi.RectangleROI;
 import qupath.lib.roi.interfaces.PathArea;
 import qupath.lib.roi.interfaces.PathShape;
 import qupath.lib.roi.interfaces.ROI;
+import qupath.lib.scripting.QPEx;
 
 /**
  * Create a new annotation which is the inverse of the existing selected annotation,
@@ -71,53 +73,10 @@ public class InverseObjectCommand implements PathCommand {
 		PathObjectHierarchy hierarchy = imageData.getHierarchy();
 		PathObject pathObject = hierarchy.getSelectionModel().getSelectedObject();
 		
-		// Get the currently-selected area
-		PathArea shapeSelected = null;
-		if (pathObject instanceof PathAnnotationObject) {
-			shapeSelected = getAreaROI(pathObject);
-		}
-		if (shapeSelected == null) {
-			logger.error("Cannot create inverse annotation from " + pathObject);
-			return;
-		}
 		
-		// Get the parent area to use
-		PathObject parent = pathObject.getParent();
-		PathArea shape = getAreaROI(parent);
-		if (shape == null)
-			shape = new RectangleROI(0, 0, imageData.getServer().getWidth(), imageData.getServer().getHeight(), shapeSelected.getC(), shapeSelected.getZ(), shapeSelected.getT());
-		
-		// Create the new ROI
-		PathShape shapeNew = PathROIToolsAwt.combineROIs(shape, shapeSelected, PathROIToolsAwt.CombineOp.SUBTRACT);
-		PathObject pathObjectNew = new PathAnnotationObject(shapeNew);
-		
-		// Reassign all other children to the new parent
-		List<PathObject> children = new ArrayList<>(parent.getChildObjects());
-		children.remove(pathObject);
-		pathObjectNew.addPathObjects(children);
-		
-		parent.addPathObject(pathObjectNew);
-		hierarchy.fireHierarchyChangedEvent(parent);
-		hierarchy.getSelectionModel().setSelectedObject(pathObjectNew);
+		PathObject merged = QPEx.makeInverseAnnotation(imageData, pathObject);
+		if (merged != null)
+			hierarchy.getSelectionModel().setSelectedObject(merged);
 	}
 	
-	
-	static Area getROIArea(PathObject pathObject) {
-		ROI pathROI = pathObject.getROI();
-		if (!(pathROI instanceof PathShape))
-			return null;
-		return PathROIToolsAwt.getArea(pathObject.getROI());		
-	}
-	
-	
-	static PathArea getAreaROI(PathObject pathObject) {
-		if (pathObject == null)
-			return null;
-		ROI pathROI = pathObject.getROI();
-		if (!(pathROI instanceof PathArea))
-			return null;
-		return (PathArea)pathObject.getROI();
-	}
-	
-
 }
