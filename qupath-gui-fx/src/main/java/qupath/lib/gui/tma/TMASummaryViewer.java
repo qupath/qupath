@@ -1576,9 +1576,10 @@ public class TMASummaryViewer {
 				nameColumn = csvData.remove("Object");
 			// Handle 'missing-ness' separately from general metadata
 			List<String> missingColumn = csvData.remove(MISSING_COLUMN);
-			int n = csvData.values().iterator().next().size();
+			int n = idColumn == null ? 0 : idColumn.size(); //csvData.values().iterator().next().size();
 			for (Entry<String, List<String>> entry : csvData.entrySet()) {
 				List<String> list = entry.getValue();
+				n = list.size();
 				double[] values = TMAScoreImporter.parseNumeric(list, true);
 				if (values == null || TMAScoreImporter.numNaNs(values) == list.size())
 					metadataColumns.put(entry.getKey(), list);

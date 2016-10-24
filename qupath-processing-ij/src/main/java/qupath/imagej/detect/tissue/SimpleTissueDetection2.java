@@ -365,7 +365,8 @@ public class SimpleTissueDetection2 extends AbstractDetectionPlugin<BufferedImag
 					roi = PathROIToolsAwt.combineROIs(roi, currentShape, CombineOp.ADD);
 			}
 			pathObjects.clear();
-			pathObjects.add(new PathAnnotationObject(roi));
+			if (roi != null)
+				pathObjects.add(new PathAnnotationObject(roi));
 		}
 		
 		
