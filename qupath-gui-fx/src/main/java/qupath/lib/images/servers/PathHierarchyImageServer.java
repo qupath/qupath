@@ -216,16 +216,25 @@ public class PathHierarchyImageServer implements GeneratingImageServer<BufferedI
 	 */
 	@Override
 	public boolean isEmptyRegion(RegionRequest request) {
-		return !hierarchy.hasObjectsForRegion(PathDetectionObject.class, request);
+		return !hierarchy.hasObjectsForRegion(PathDetectionObject.class, request) && (!options.getShowConnections() || imageData.getProperty(DefaultPathObjectConnectionGroup.KEY_OBJECT_CONNECTIONS) == null);
 	}
 	
 
 	@Override
 	public BufferedImage readBufferedImage(RegionRequest request) {
 //		long startTime = System.currentTimeMillis();
+		
+		// Get connections
+		Object o = options.getShowConnections() ? imageData.getProperty(DefaultPathObjectConnectionGroup.KEY_OBJECT_CONNECTIONS) : null;
+		PathObjectConnections connections = (o instanceof PathObjectConnections) ? (PathObjectConnections)o : null;
+		
 		Collection<PathObject> pathObjects = getObjectsToPaint(request);
-		if (pathObjects == null || pathObjects.isEmpty())
-			return null;
+		if (pathObjects == null || pathObjects.isEmpty()) {
+			// We can only return null if no connections - otherwise we might still need to draw something
+			if (connections == null) {
+				return null;
+			}
+		}
 		
 		GraphicsConfiguration gc = GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice().getDefaultConfiguration();
 		double downsampleFactor = request.getDownsample();
@@ -241,14 +250,12 @@ public class PathHierarchyImageServer implements GeneratingImageServer<BufferedI
 		g2d.scale(scale, scale);
 		g2d.translate(-request.getX(), -request.getY());
 		// Note we don't want to pass a selection model, as selections shouldn't be included
-		PathHierarchyPaintingHelper.paintSpecifiedObjects(g2d, AwtTools.getBounds(request), pathObjects, options, null, downsampleFactor);
+		if (pathObjects != null && !pathObjects.isEmpty())
+			PathHierarchyPaintingHelper.paintSpecifiedObjects(g2d, AwtTools.getBounds(request), pathObjects, options, null, downsampleFactor);
 		
 		// See if we have any connections to draw
-		if (options.getShowConnections()) {
-			Object o = imageData.getProperty(DefaultPathObjectConnectionGroup.KEY_OBJECT_CONNECTIONS);
-			if (o instanceof PathObjectConnections) {
-				PathHierarchyPaintingHelper.paintConnections((PathObjectConnections)o, hierarchy, g2d, imageData.isFluorescence() ? ColorToolsAwt.TRANSLUCENT_WHITE : ColorToolsAwt.TRANSLUCENT_BLACK, downsampleFactor);
-			}
+		if (connections != null) {
+			PathHierarchyPaintingHelper.paintConnections(connections, hierarchy, g2d, imageData.isFluorescence() ? ColorToolsAwt.TRANSLUCENT_WHITE : ColorToolsAwt.TRANSLUCENT_BLACK, downsampleFactor);
 		}
 		
 		

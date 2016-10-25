@@ -53,12 +53,7 @@ import qupath.lib.plugins.parameters.ParameterList;
 /**
  * Plugin for calculating Delaunay clustering, and associated features.
  * 
- * Note: This currently has an unfortunate dependency on the GUI, because it displays its own custom overlay.
- * Consequently it isn't in the 'correct' qupath-opencv-processing package... yet.
- * 
  * Warning! Because the implementation will have to change in the future, it is best not to rely on this class!
- * 
- * TODO: Handle overlay elsewhere in a more general way - probably by storing Delaunay data along with PathObjectHierarchy (for example).
  * 
  * @author Pete Bankhead
  *
@@ -72,6 +67,13 @@ public class DelaunayClusteringPlugin<T> extends AbstractInteractivePlugin<T> {
 	}	
 	
 	@Override
+	protected void preprocess(PluginRunner<T> pluginRunner) {
+		super.preprocess(pluginRunner);
+		// Reset any previous connections
+		pluginRunner.getImageData().removeProperty(DefaultPathObjectConnectionGroup.KEY_OBJECT_CONNECTIONS);
+	}
+	
+	@Override
 	protected void postprocess(PluginRunner<T> pluginRunner) {
 		super.postprocess(pluginRunner);
 		pluginRunner.getHierarchy().fireHierarchyChangedEvent(this);
@@ -80,7 +82,7 @@ public class DelaunayClusteringPlugin<T> extends AbstractInteractivePlugin<T> {
 
 	@Override
 	public Collection<Class<? extends PathObject>> getSupportedParentObjectClasses() {
-		return Arrays.asList(PathAnnotationObject.class, TMACoreObject.class, PathRootObject.class);
+		return Arrays.asList(TMACoreObject.class, PathAnnotationObject.class, PathRootObject.class);
 	}
 
 	@Override
@@ -106,7 +108,7 @@ public class DelaunayClusteringPlugin<T> extends AbstractInteractivePlugin<T> {
 				.addDoubleParameter("distanceThresholdMicrons", "Distance threshold", 0, GeneralTools.micrometerSymbol(), "Distance threshold - edges longer than this will be omitted")
 				.addBooleanParameter("limitByClass", "Limit edges to same class", false, "Prevent edges linking objects with different base classifications")
 				.addBooleanParameter("addClusterMeasurements", "Add cluster measurements", false, "Add measurements derived from clustering connected objects")
-				.addBooleanParameter("showOverlay", "Show overlay", true);
+				;
 		
 		ImageServer<?> server = imageData.getServer();
 		boolean hasMicrons = server != null && server.hasPixelSizeMicrons();

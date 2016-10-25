@@ -717,43 +717,53 @@ public class PathHierarchyPaintingHelper {
 			if (hierarchy == null || connections == null || connections.isEmpty())
 				return;
 
-			float alpha = (float)(1f - downsampleFactor / 15);
-			alpha = Math.min(alpha, 0.5f);
-			if (alpha < .05f)
+			float alpha = (float)(1f - downsampleFactor / 5);
+			alpha = Math.min(alpha, 0.25f);
+			float thickness = PathPrefs.getThinStrokeThickness();
+			if (alpha < .1f || thickness / downsampleFactor <= 0.5)
 				return;
 
 			g2d = (Graphics2D)g2d.create();
 
 			//		Shape clipShape = g2d.getClip();
-			g2d.setStroke(getCachedStroke(PathPrefs.getThinStrokeThickness()));
-			g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, alpha * .5f));
+			g2d.setStroke(getCachedStroke(thickness));
+//			g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, alpha * .5f));
 			//		g2d.setColor(ColorToolsAwt.getColorWithOpacity(getPreferredOverlayColor(), 1));
-			g2d.setColor(color);
+
+			g2d.setColor(ColorToolsAwt.getColorWithOpacity(color.getRGB(), alpha));
+//			g2d.setColor(Color.BLACK);
 			Line2D line = new Line2D.Double();
 			
 			// We can have trouble whenever two objects are outside the clip, but their connections would be inside it
 			// Here, we just enlarge the region (by quite a lot)
-			// It's not guaranteed to work, but it usually does... and avoids much more expensive computations
+			// It's not guaranteed to work, but it usually does... and avoids much expensive computations
 			Rectangle bounds = g2d.getClipBounds();
-			bounds.setBounds(bounds.x-bounds.width, bounds.y-bounds.height, bounds.width*3, bounds.height*3);
-			ImageRegion imageRegion = AwtTools.getImageRegion(bounds, 0, 0);
+			int factor = 1;
+			Rectangle bounds2 = factor > 0 ? new Rectangle(bounds.x-bounds.width*factor, bounds.y-bounds.height*factor, bounds.width*(factor*2+1), bounds.height*(factor*2+1)) : bounds;
+			ImageRegion imageRegion = AwtTools.getImageRegion(bounds2, 0, 0);
+//			ImageRegion imageRegion = AwtTools.getImageRegion(bounds, 0, 0);
 
 			g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
 			g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_SPEED);
 
-			
 //			g2d.draw(g2d.getClipBounds());
 			
-
 			Collection<PathObject> pathObjects = hierarchy.getObjectsForRegion(PathDetectionObject.class, imageRegion, null);
+//			Collection<PathObject> pathObjects = hierarchy.getObjects(null, PathDetectionObject.class);
 			//		double threshold = downsampleFactor*downsampleFactor*4;
-			for (PathObjectConnectionGroup dt : connections.getConnectionGroups()) {
 				for (PathObject pathObject : pathObjects) {
 					ROI roi = PathObjectTools.getROI(pathObject, true);
+					double x1 = roi.getCentroidX();
+					double y1 = roi.getCentroidY();
+					for (PathObjectConnectionGroup dt : connections.getConnectionGroups()) {
 					for (PathObject siblingObject : dt.getConnectedObjects(pathObject)) {
 						ROI roi2 = PathObjectTools.getROI(siblingObject, true);
-						line.setLine(roi.getCentroidX(), roi.getCentroidY(), roi2.getCentroidX(), roi2.getCentroidY());
-						g2d.draw(line);
+						double x2 = roi2.getCentroidX();
+						double y2 = roi2.getCentroidY();
+						if (bounds.intersectsLine(x1, y1, x2, y2)) {
+							line.setLine(x1, y1, x2, y2);
+							g2d.draw(line);
+						}
 					}
 				}
 			}

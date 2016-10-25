@@ -4,6 +4,7 @@
 * Added 'Measure -> Show measurement manager' command to enable measurements to be viewed & (optionally) removed
 * Added 'File -> Revert' command to go back to the last saved version for the current image data
 * Added new 'Add intensity features (experimental)' command. This will eventually replace the Haralick features command (and possibly others), since it offers the same functionality in a much more flexible way.  Furthermore, the new command can handle up to 8 channels of fluorescence data (with arbitrary setting of the min/max values used to calculate the graylevel co-occurrence matrix).
+* Major updates to the 'Add Delaunay cluster features (experimental)' command, with improved display, persistence, and refactoring into OpenCV processing module.
 * Major updates to the 'TMA data viewer', with improved performance and a tree-table structure.
 * Improved 'Tile classifications to annotations' command to support tile-based region identification
 * Improved 'Simple tissue detection' command with support for detecting tissue inside TMACoreObjects
