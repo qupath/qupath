@@ -26,6 +26,8 @@ package qupath.lib.gui.panels;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -53,6 +55,7 @@ import javafx.scene.canvas.Canvas;
 import javafx.scene.control.Button;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Menu;
+import javafx.scene.control.MenuItem;
 import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.TitledPane;
 import javafx.scene.control.Tooltip;
@@ -171,9 +174,12 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 			if (path == null)
 				return;
 			if (path.getValue() instanceof ProjectImageEntry) {
-				logger.info("Removing entry {} from project {}", path.getValue(), project);
-				project.removeImage((ProjectImageEntry<?>)path.getValue());
-				model.rebuildModel();
+				ProjectImageEntry<?> entry = (ProjectImageEntry<?>)path.getValue();
+				if (DisplayHelpers.showConfirmDialog("Delete project entry", "Remove " + entry.getImageName() + " from project?")) {
+					logger.info("Removing entry {} from project {}", path.getValue(), project);
+					project.removeImage(entry);
+					model.rebuildModel();
+				}
 			} else {
 				Collection<ProjectImageEntry<BufferedImage>> entries = getImageEntries(path, null);
 				if (!entries.isEmpty() && (entries.size() == 1 || 
@@ -191,6 +197,15 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 //				tree.refresh();
 			}
 		});
+		
+		Action actionSetImageName = new Action("Rename image", e -> {
+			TreeItem<?> path = tree.getSelectionModel().getSelectedItem();
+			if (path == null)
+				return;
+			if (path.getValue() instanceof ProjectImageEntry) {
+				setProjectEntryImageName((ProjectImageEntry)path.getValue());
+			}
+		});
 
 		// TODO: Dynamically populate these options!
 		Menu menuSort = new Menu("Sort by...");
@@ -203,9 +218,23 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 
 
 		ContextMenu menu = new ContextMenu();
+		
+		MenuItem miOpenImage = ActionUtils.createMenuItem(actionOpenImage);
+		MenuItem miRemoveImage = ActionUtils.createMenuItem(actionRemoveImage);
+		MenuItem miSetImageName = ActionUtils.createMenuItem(actionSetImageName);
+		
+		// Set visibility as menu being displayed
+		menu.setOnShowing(e -> {
+			TreeItem<Object> selected = tree.getSelectionModel().getSelectedItem();
+			boolean hasImageEntry = selected != null && selected.getValue() instanceof ProjectImageEntry;
+			miOpenImage.setVisible(hasImageEntry);
+			miSetImageName.setVisible(hasImageEntry);
+		});
+		
 		menu.getItems().addAll(
-				ActionUtils.createMenuItem(actionOpenImage),
-				ActionUtils.createMenuItem(actionRemoveImage),
+				miOpenImage,
+				miRemoveImage,
+				miSetImageName,
 				new SeparatorMenuItem(),
 				menuSort
 				);
@@ -466,6 +495,119 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 		});
 	}
 
+	
+	/**
+	 * Prompt the user to set a new name for a ProjectImageEntry.
+	 * 
+	 * (Currently, this means creating a new entry with the required name, and adding it to the project instead of the current one.
+	 * 
+	 * @param entry
+	 * @return True if the entry was changed, false otherwise.
+	 */
+	private boolean setProjectEntryImageName(final ProjectImageEntry<BufferedImage> entry) {
+		Project<BufferedImage> project = qupath.getProject();
+		if (project == null) {
+			logger.error("Cannot set image name - project is null");
+		}
+		if (entry == null) {
+			logger.error("Cannot set image name - entry is null");
+		}
+		
+		String name = DisplayHelpers.showInputDialog("Set Image Name", "Enter the new image name", entry.getImageName());
+		if (name == null)
+			return false;
+		if (name.trim().isEmpty() || name.equals(entry.getImageName())) {
+			logger.warn("Cannot set image name to {} - will ignore", name);
+		}
+		
+		// Try to set the name
+		ProjectImageEntry<BufferedImage> entryNew = setProjectEntryImageName(project, entry, name);
+		if (entry == entryNew)
+			return false;
+		
+		model.rebuildModel();
+		tree.setRoot(model.getRootFX());
+		tree.getRoot().setExpanded(true);
+		tree.refresh();
+		if (recursiveSelectObject(tree, tree.getRoot(), entryNew)) {
+			// Getting the scroll to behave intuitively is tricky...
+//			int ind = tree.getSelectionModel().getSelectedIndex();
+//			if (ind >= 0)
+//				Platform.runLater(() -> tree.scrollTo(ind));
+		}
+		// Ensure we have an up-to-date title in QuPath
+		qupath.updateTitle();
+		return true;
+	}
+	
+	
+	/**
+	 * Select the TreeItem where TreeItem.getValue() == object after searching recursively from the specified item.
+	 * 
+	 * @param tree
+	 * @param item
+	 * @param object
+	 * @return Tree if a tree item was found and selected, false otherwise.
+	 */
+	private static <T> boolean recursiveSelectObject(final TreeView<T> tree, final TreeItem<T> item, final T object) {
+		if (item.getValue() == object) {
+			tree.getSelectionModel().select(item);
+			return true;
+		}
+		for (TreeItem<T> item2 : item.getChildren()) {
+			if (recursiveSelectObject(tree, item2, object))
+				return true;
+		}
+		return false;
+	}
+	
+	
+	/**
+	 * The the name for a specified ProjectImageEntry.
+	 * 
+	 * This works hard to do its job... including renaming any data files accordingly.
+	 * 
+	 * @param project
+	 * @param entry
+	 * @param name
+	 * @return
+	 */
+	private static <T> ProjectImageEntry<T> setProjectEntryImageName(final Project<T> project, final ProjectImageEntry<T> entry, final String name) {
+		
+		if (entry.getImageName().equals(name)) {
+			logger.info("Project image name already set to {} - will be left unchanged", name);
+			return entry;
+		}
+		
+		for (ProjectImageEntry<?> entry2 : project.getImageList()) {
+			if (entry2.getImageName().equals(name)) {
+				DisplayHelpers.showErrorMessage("Set Image Name", "Cannot set image name to " + name + " -\nan image with this name already exists in the project");
+				return entry;
+			}
+		}
+		
+		project.removeImage(entry);
+		File fileOld = QuPathGUI.getImageDataFile(project, entry);
+		
+		ProjectImageEntry<T> entryNew = new ProjectImageEntry<>(project, entry.getServerPath(), name, entry.getMetadataMap());
+		project.addImage(entryNew);
+		File fileNew = QuPathGUI.getImageDataFile(project, entryNew);
+		
+		// Rename the data file
+		if (fileOld.exists()) {
+			try {
+				Files.move(fileOld.toPath(), fileNew.toPath(), StandardCopyOption.ATOMIC_MOVE);
+			} catch (IOException e) {
+				DisplayHelpers.showErrorMessage("Set Image Name", e);
+			}
+		}
+		
+		// Ensure the project is updated
+		ProjectIO.writeProject(project);
+		
+		return entryNew;
+	}
+	
 
 
 	// I fully admit this is a horrible design - cobbled together from an earlier Swing version

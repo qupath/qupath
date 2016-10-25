@@ -49,6 +49,7 @@ public class OverlayOptions {
 	private BooleanProperty showAnnotations = new SimpleBooleanProperty(true);
 	private BooleanProperty showTMAGrid = new SimpleBooleanProperty(true);
 	private BooleanProperty showObjects = new SimpleBooleanProperty(true);
+	private BooleanProperty showConnections = new SimpleBooleanProperty(true);
 	private BooleanProperty fillObjects = new SimpleBooleanProperty(false);
 	private BooleanProperty fillAnnotations = new SimpleBooleanProperty(false);
 	private BooleanProperty showTMACoreLabels = new SimpleBooleanProperty(false);
@@ -157,6 +158,14 @@ public class OverlayOptions {
 		fillAnnotations.set(fill);
 	}
 	
+	/**
+	 * Show connections, if available.
+	 * 
+	 * @param show
+	 */
+	public void setShowConnections(boolean show) {
+		showConnections.set(show);
+	}
 	
 	/**
 	 * Show TMA core names on top of the image.
@@ -175,6 +184,9 @@ public class OverlayOptions {
 		return showTMACoreLabels;
 	}
 	
+	public BooleanProperty showConnectionsProperty() {
+		return showConnections;
+	}
 	
 	public boolean getShowAnnotations() {
 		return showAnnotations.get();
@@ -186,6 +198,10 @@ public class OverlayOptions {
 	
 	public boolean getShowObjects() {
 		return showObjects.get();
+	}
+	
+	public boolean getShowConnections() {
+		return showConnections.get();
 	}
 	
 	public boolean getFillObjects() {

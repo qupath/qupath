@@ -552,6 +552,22 @@ public class PathObjectTools {
 		
 		return objects;
 	}
+
+	/**
+	 * Get the ROI for a PathObject, with a preference for the nucleus ROI of a cell.
+	 * 
+	 * @param pathObject
+	 * @param preferNucleus
+	 * @return
+	 */
+	public static ROI getROI(final PathObject pathObject, final boolean preferNucleus) {
+		if (preferNucleus && pathObject instanceof PathCellObject) {
+			ROI roi = ((PathCellObject)pathObject).getNucleusROI();
+			if (roi != null)
+				return roi;
+		}
+		return pathObject.getROI();
+	}
 	
 	
 }

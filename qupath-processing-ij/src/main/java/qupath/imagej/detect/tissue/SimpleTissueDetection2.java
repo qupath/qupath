@@ -31,6 +31,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -66,7 +67,9 @@ import qupath.lib.plugins.PluginRunner;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.ROIHelpers;
+import qupath.lib.roi.experimental.ShapeSimplifier;
 import qupath.lib.roi.PathROIToolsAwt;
+import qupath.lib.roi.PathROIToolsAwt.CombineOp;
 import qupath.lib.roi.PolygonROI;
 import qupath.lib.roi.interfaces.PathShape;
 import qupath.lib.roi.interfaces.ROI;
@@ -87,19 +90,15 @@ public class SimpleTissueDetection2 extends AbstractDetectionPlugin<BufferedImag
 	final private static Logger logger = LoggerFactory.getLogger(SimpleTissueDetection2.class);
 	
 	private ParameterList params;
-	
-	private ImageRegionStore<BufferedImage> regionStore;
-	
-	transient private GlobalThresholder thresholder;
-	
 
+	private String lastResults = null;		
+	
 	public SimpleTissueDetection2() {
 		this(null);
 	}
 	
 	
 	public SimpleTissueDetection2(final ImageRegionStore<BufferedImage> regionStore) {
-		this.regionStore = regionStore;
 		
 		params = new ParameterList().
 				addIntParameter("threshold", "Threshold", 127, null, 0, 255, "Global threshold to use - defined in the range 0-255");
@@ -119,19 +118,15 @@ public class SimpleTissueDetection2 extends AbstractDetectionPlugin<BufferedImag
 		params.addBooleanParameter("dilateBoundaries", "Expand boundaries", false, "Apply 3x3 maximum filter to binary image to increase region sizes");
 		params.addBooleanParameter("smoothCoordinates", "Smooth coordinates", true, "Apply smmothing to region boundaries, to reduce 'blocky' appearance");
 		params.addBooleanParameter("excludeOnBoundary", "Exclude on boundary", false, "Discard detection regions that touch the image boundary");
+		
+		params.addBooleanParameter("singleAnnotation", "Single annotation", false, "Create a single annotation object from all (possibly-disconnected) regions");
+
 	}
 	
 	
 	
-	static class GlobalThresholder implements ObjectDetector<BufferedImage> {
+	class GlobalThresholder implements ObjectDetector<BufferedImage> {
 		
-		transient private String lastResults = null;
-		
-		transient private String lastServerPath = null;
-		transient private PathImage<ImagePlus> pathImage = null;
-		transient private ROI lastPathROI = null;
-		
-	
 		@Override
 		public Collection<PathObject> runDetection(final ImageData<BufferedImage> imageData, final ParameterList params, final ROI pathROI) {
 			
@@ -143,14 +138,13 @@ public class SimpleTissueDetection2 extends AbstractDetectionPlugin<BufferedImag
 			} else
 				downsample = params.getDoubleParameterValue("requestedDownsample");
 			
-			double maxDim = Math.max(server.getWidth(), server.getHeight());
+			double maxDim = pathROI == null ? Math.max(server.getWidth(), server.getHeight()) : Math.max(pathROI.getBoundsWidth(), pathROI.getBoundsHeight());
 			double maxDimLimit = 4000;
 			if (!(maxDim / downsample <= maxDimLimit)) {
 				logger.warn("Invalid requested downsample {} - will use {} instead", downsample, maxDim / maxDimLimit);
 				downsample = maxDim / maxDimLimit;
 			}
 			
-			if (pathImage == null || pathROI != lastPathROI || lastServerPath == null || !lastServerPath.equals(imageData.getServer().getPath())) {
 //				Rectangle bounds = pathROI != null ? pathROI.getBounds() : new Rectangle(0, 0, server.getWidth(), server.getHeight());
 //				RegionRequest request = RegionRequest.createInstance(server.getPath(), downsample, bounds);
 				
@@ -161,9 +155,7 @@ public class SimpleTissueDetection2 extends AbstractDetectionPlugin<BufferedImag
 					request = RegionRequest.createInstance(server.getPath(), downsample, pathROI);
 
 				
-				pathImage = server.readImagePlusRegion(request); // TODO: Implement z-stack support
-				lastPathROI = pathROI;
-			}
+				PathImage<ImagePlus> pathImage = server.readImagePlusRegion(request); // TODO: Implement z-stack support
 			
 			double threshold = params.getIntParameterValue("threshold");
 			double minAreaMicrons = 1, maxHoleAreaMicrons = 1, minAreaPixels = 1, maxHoleAreaPixels = 1;
@@ -180,6 +172,7 @@ public class SimpleTissueDetection2 extends AbstractDetectionPlugin<BufferedImag
 			boolean medianCleanup = params.getBooleanParameterValue("medianCleanup");
 			boolean excludeOnBoundary = params.getBooleanParameterValue("excludeOnBoundary");
 			boolean dilateBoundaries = params.getBooleanParameterValue("dilateBoundaries");
+			boolean singleAnnotation = Boolean.TRUE.equals(params.getBooleanParameterValue("singleAnnotation"));
 			
 			// Create a ByteProcessor
 			ImagePlus imp = pathImage.getImage();
@@ -221,7 +214,6 @@ public class SimpleTissueDetection2 extends AbstractDetectionPlugin<BufferedImag
 			if (Thread.currentThread().isInterrupted())
 				return null;
 			
-			
 			// Convert to objects
 			double minArea, maxHoleArea;
 			if (server.hasPixelSizeMicrons()) {
@@ -239,7 +231,7 @@ public class SimpleTissueDetection2 extends AbstractDetectionPlugin<BufferedImag
 				return null;
 
 			bp.setThreshold(127, Double.POSITIVE_INFINITY, ImageProcessor.NO_LUT_UPDATE);
-			List<PathObject> pathObjects = convertToPathObjects(bp, minArea, smoothCoordinates, imp.getCalibration(), downsample, maxHoleArea, excludeOnBoundary, null);
+			List<PathObject> pathObjects = convertToPathObjects(bp, minArea, smoothCoordinates, imp.getCalibration(), downsample, maxHoleArea, excludeOnBoundary, singleAnnotation, null);
 
 			if (Thread.currentThread().isInterrupted())
 				return null;
@@ -266,7 +258,7 @@ public class SimpleTissueDetection2 extends AbstractDetectionPlugin<BufferedImag
 	
 	
 	
-	public static List<PathObject> convertToPathObjects(ByteProcessor bp, double minArea, boolean smoothCoordinates, Calibration cal, double downsample, double maxHoleArea, boolean excludeOnBoundary, List<PathObject> pathObjects) {
+	public static List<PathObject> convertToPathObjects(ByteProcessor bp, double minArea, boolean smoothCoordinates, Calibration cal, double downsample, double maxHoleArea, boolean excludeOnBoundary, boolean singleAnnotation, List<PathObject> pathObjects) {
 		List<PolygonRoi> rois = ROILabeling.getFilledPolygonROIs(bp, Wand.FOUR_CONNECTED);
 		if (pathObjects == null)
 			pathObjects = new ArrayList<>(rois.size());
@@ -290,10 +282,10 @@ public class SimpleTissueDetection2 extends AbstractDetectionPlugin<BufferedImag
 				continue;
 						
 			bp.fill(r); // Fill holes as we go - it might matter later
-			if (smoothCoordinates) {
-//				r = new PolygonRoi(r.getInterpolatedPolygon(2.5, false), Roi.POLYGON);
-				r = new PolygonRoi(r.getInterpolatedPolygon(Math.min(2.5, r.getNCoordinates()*0.1), false), Roi.POLYGON); // TODO: Check this smoothing - it can be troublesome, causing nuclei to be outside cells
-			}
+//			if (smoothCoordinates) {
+////				r = new PolygonRoi(r.getInterpolatedPolygon(2.5, false), Roi.POLYGON);
+//				r = new PolygonRoi(r.getInterpolatedPolygon(Math.min(2.5, r.getNCoordinates()*0.1), false), Roi.POLYGON); // TODO: Check this smoothing - it can be troublesome, causing nuclei to be outside cells
+//			}
 			
 			PolygonROI pathPolygon = ROIConverterIJ.convertToPolygonROI(r, cal, downsample);
 //			if (pathPolygon.getArea() < minArea)
@@ -301,7 +293,7 @@ public class SimpleTissueDetection2 extends AbstractDetectionPlugin<BufferedImag
 			// Smooth the coordinates, if we downsampled quite a lot
 			if (smoothCoordinates) {
 				pathPolygon = new PolygonROI(ROIHelpers.smoothPoints(pathPolygon.getPolygonPoints()));
-//				pathROI = ShapeSimplifier.simplifyPolygon(pathROI, pathImage.getDownsampleFactor()/4.0);
+				pathPolygon = ShapeSimplifier.simplifyPolygon(pathPolygon, downsample/2);
 			}
 			pathObjects.add(new PathAnnotationObject(pathPolygon));
 		}
@@ -317,7 +309,7 @@ public class SimpleTissueDetection2 extends AbstractDetectionPlugin<BufferedImag
 //			new ImagePlus("Binary", bp).show();
 			bp.setThreshold(127, Double.POSITIVE_INFINITY, ImageProcessor.NO_LUT_UPDATE);
 			
-			List<PathObject> holes = convertToPathObjects(bp, maxHoleArea, smoothCoordinates, cal, downsample, 0, false, null);
+			List<PathObject> holes = convertToPathObjects(bp, maxHoleArea, smoothCoordinates, cal, downsample, 0, false, false, null);
 			
 			// For each object, fill in any associated holes
 			List<Area> areaList = new ArrayList<>();
@@ -337,6 +329,7 @@ public class SimpleTissueDetection2 extends AbstractDetectionPlugin<BufferedImag
 				}
 				if (areaList.isEmpty())
 					continue;
+				
 				// If we have some areas, combine them
 				// TODO: FIX MAJOR BOTTLENECK HERE!!!
 				Area hole = areaList.get(0);
@@ -359,6 +352,23 @@ public class SimpleTissueDetection2 extends AbstractDetectionPlugin<BufferedImag
 				}
 			}
 		}
+		
+		
+		// This is a clumsy way to do it...
+		if (singleAnnotation) {
+			PathShape roi = null;
+			for (PathObject annotation : pathObjects) {
+				PathShape currentShape = (PathShape)annotation.getROI();
+				if (roi == null)
+					roi = currentShape;
+				else
+					roi = PathROIToolsAwt.combineROIs(roi, currentShape, CombineOp.ADD);
+			}
+			pathObjects.clear();
+			if (roi != null)
+				pathObjects.add(new PathAnnotationObject(roi));
+		}
+		
 		
 		
 		// Lock the objects
@@ -384,9 +394,7 @@ public class SimpleTissueDetection2 extends AbstractDetectionPlugin<BufferedImag
 
 	@Override
 	public String getLastResultsDescription() {
-		if (thresholder == null)
-			return "";
-		return thresholder.getLastResultsDescription();
+		return lastResults;
 	}
 
 
@@ -398,19 +406,22 @@ public class SimpleTissueDetection2 extends AbstractDetectionPlugin<BufferedImag
 
 	@Override
 	protected void addRunnableTasks(ImageData<BufferedImage> imageData, PathObject parentObject, List<Runnable> tasks) {
-		if (thresholder == null)
-			thresholder = new GlobalThresholder();
-		tasks.add(DetectionPluginTools.createRunnableTask(thresholder, getParameterList(imageData), imageData, parentObject));
+		tasks.add(DetectionPluginTools.createRunnableTask(new GlobalThresholder(), getParameterList(imageData), imageData, parentObject));
 	}
 
 
 	@Override
 	protected Collection<? extends PathObject> getParentObjects(final PluginRunner<BufferedImage> runner) {
-		PathObjectHierarchy hierarchy = runner.getImageData().getHierarchy();
-		PathObject pathObjectSelected = runner.getSelectedObject();
-		if (pathObjectSelected instanceof PathAnnotationObject || pathObjectSelected instanceof TMACoreObject)
-			return Collections.singleton(pathObjectSelected);
-		return Collections.singleton(hierarchy.getRootObject());
+		
+		if (runner.getHierarchy().getTMAGrid() == null)
+			return Collections.singleton(runner.getHierarchy().getRootObject());
+		
+		return runner.getHierarchy().getSelectionModel().getSelectedObjects().stream().filter(p -> p.isTMACore()).collect(Collectors.toList());
+//		PathObjectHierarchy hierarchy = runner.getImageData().getHierarchy();
+//		PathObject pathObjectSelected = runner.getSelectedObject();
+//		if (pathObjectSelected instanceof PathAnnotationObject || pathObjectSelected instanceof TMACoreObject)
+//			return Collections.singleton(pathObjectSelected);
+//		return Collections.singleton(hierarchy.getRootObject());
 	}
 
 
@@ -419,7 +430,7 @@ public class SimpleTissueDetection2 extends AbstractDetectionPlugin<BufferedImag
 		// TODO: Re-allow taking an object as input in order to limit bounds
 		// Temporarily disabled so as to avoid asking annoying questions when run repeatedly
 		List<Class<? extends PathObject>> list = new ArrayList<>();
-//		list.add(TMACoreObject.class);
+		list.add(TMACoreObject.class);
 //		list.add(PathAnnotationObject.class);
 		list.add(PathRootObject.class);
 		return list;

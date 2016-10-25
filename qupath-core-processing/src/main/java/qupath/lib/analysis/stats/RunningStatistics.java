@@ -131,4 +131,9 @@ public class RunningStatistics {
 		return (size == 0) ? Double.NaN : max - min;
 	}
 	
+	@Override
+	public String toString() {
+		return String.format("%s Mean: %.2f, Std.dev: %.2f, Min: %.2f, Max: %.2f", RunningStatistics.class.getSimpleName(), getMean(), getStdDev(), getMin(), getMax());
+	}
+	
 }

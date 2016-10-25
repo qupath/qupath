@@ -139,7 +139,14 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 							setText("None");
 							setGraphic(new Rectangle(size, size, ColorToolsFX.getCachedColor(0, 0, 0, 0)));
 						} else {
-							int n = PathClassificationLabellingHelper.nLabelledObjectsForClass(hierarchy, value);
+							int n = 0; 
+							try {
+								// Try to count objects for class
+								// May be possibility of concurrent modification exception?
+								n = PathClassificationLabellingHelper.nLabelledObjectsForClass(hierarchy, value);
+							} catch (Exception e) {
+								logger.error("Exception while counting objects for class", e);
+							}
 							if (n == 0)
 								setText(value.getName());
 							else

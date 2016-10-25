@@ -316,7 +316,15 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
     	changes = true;
     	return propertiesMap.put(key, value);
     }
-    
+
+    public Object removeProperty(String key) {
+    	if (propertiesMap.containsKey(key)) {
+    		changes = true;
+    		return propertiesMap.remove(key);
+    	}
+    	return null;
+    }
+
     public Map<String, Object> getProperties() {
     	return Collections.unmodifiableMap(propertiesMap);
     }

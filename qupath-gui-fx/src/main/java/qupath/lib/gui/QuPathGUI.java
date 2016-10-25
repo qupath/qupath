@@ -39,6 +39,7 @@ import java.lang.Thread.UncaughtExceptionHandler;
 import java.lang.reflect.Constructor;
 import java.net.MalformedURLException;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.file.FileSystem;
@@ -65,6 +66,7 @@ import java.util.concurrent.Executors;
 import java.util.jar.Attributes;
 import java.util.jar.JarFile;
 import java.util.jar.Manifest;
+import java.util.prefs.BackingStoreException;
 import java.util.stream.Collectors;
 
 import javax.imageio.ImageIO;
@@ -120,7 +122,9 @@ import javafx.scene.control.SplitPane.Divider;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 import javafx.scene.control.TabPane.TabClosingPolicy;
+import javafx.scene.control.TextArea;
 import javafx.scene.control.TextInputControl;
+import javafx.scene.control.TitledPane;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.control.ToggleGroup;
 import javafx.scene.control.ToolBar;
@@ -150,18 +154,22 @@ import javafx.util.Duration;
 import jfxtras.scene.menu.CirclePopupMenu;
 import qupath.lib.algorithms.CoherenceFeaturePlugin;
 import qupath.lib.algorithms.HaralickFeaturesPlugin;
+import qupath.lib.algorithms.IntensityFeaturesPlugin;
 import qupath.lib.algorithms.LocalBinaryPatternsPlugin;
 import qupath.lib.algorithms.TilerPlugin;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.common.SimpleThreadFactory;
+import qupath.lib.common.URLTools;
 import qupath.lib.gui.commands.AnnotationCombineCommand;
 import qupath.lib.gui.commands.BrightnessContrastCommand;
+import qupath.lib.gui.commands.ClusterObjectsCommand;
 import qupath.lib.gui.commands.CommandListDisplayCommand;
 import qupath.lib.gui.commands.CopyViewToClipboardCommand;
 import qupath.lib.gui.commands.CountingPanelCommand;
 import qupath.lib.gui.commands.EstimateStainVectorsCommand;
 import qupath.lib.gui.commands.LoadClassifierCommand;
 import qupath.lib.gui.commands.LogViewerCommand;
+import qupath.lib.gui.commands.MeasurementManager;
 import qupath.lib.gui.commands.MeasurementMapCommand;
 import qupath.lib.gui.commands.MiniViewerCommand;
 import qupath.lib.gui.commands.OpenCommand;
@@ -174,6 +182,7 @@ import qupath.lib.gui.commands.ProjectMetadataEditorCommand;
 import qupath.lib.gui.commands.ProjectOpenCommand;
 import qupath.lib.gui.commands.ProjectSaveCommand;
 import qupath.lib.gui.commands.ResetPreferencesCommand;
+import qupath.lib.gui.commands.RevertCommand;
 import qupath.lib.gui.commands.RigidObjectEditorCommand;
 import qupath.lib.gui.commands.RotateImageCommand;
 import qupath.lib.gui.commands.SampleScriptLoader;
@@ -191,7 +200,7 @@ import qupath.lib.gui.commands.TMAGridView;
 import qupath.lib.gui.commands.SingleFeatureClassifierCommand;
 import qupath.lib.gui.commands.SummaryMeasurementTableCommand;
 import qupath.lib.gui.commands.TMAAddNote;
-import qupath.lib.gui.commands.TMAExportViewerCommand;
+import qupath.lib.gui.commands.TMAViewerCommand;
 import qupath.lib.gui.commands.TMAGridAdd;
 import qupath.lib.gui.commands.TMAGridAdd.TMAAddType;
 import qupath.lib.gui.commands.TMAGridRemove.TMARemoveType;
@@ -241,6 +250,7 @@ import qupath.lib.gui.panels.WorkflowPanel;
 import qupath.lib.gui.panels.classify.RandomTrainingRegionSelector;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.prefs.QuPathStyleManager;
+import qupath.lib.gui.tma.TMAExplorer;
 import qupath.lib.gui.viewer.DragDropFileImportListener;
 import qupath.lib.gui.viewer.ModeWrapper;
 import qupath.lib.gui.viewer.OverlayOptions;
@@ -317,6 +327,9 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	private String buildString = null;
 	private String versionString = null;
 	
+	// For development... don't run update check if running from a directory (rather than a Jar)
+	private boolean disableAutoUpdateCheck = new File(qupath.lib.gui.QuPathGUI.class.getProtectionDomain().getCodeSource().getLocation().getFile()).isDirectory();
+	
 	private static ExtensionClassLoader extensionClassLoader = new ExtensionClassLoader();
 	private ServiceLoader<QuPathExtension> extensionLoader = ServiceLoader.load(QuPathExtension.class, extensionClassLoader);
 //	private static ServiceLoader<QuPathExtension> extensionLoader = ServiceLoader.load(QuPathExtension.class);
@@ -331,7 +344,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 								COUNTING_PANEL, CONVEX_POINTS, USE_SELECTED_COLOR, DETECTIONS_TO_POINTS,
 								ROTATE_IMAGE, MINI_VIEWER,
 								RIGID_OBJECT_EDITOR, SHOW_COMMAND_LIST,
-								TMA_SCORE_IMPORTER, TMA_ADD_NOTE, COLOR_DECONVOLUTION_REFINE, SHOW_LOG,
+								TMA_SCORE_IMPORTER, TMA_ADD_NOTE, COLOR_DECONVOLUTION_REFINE, SHOW_LOG, TMA_RELABEL,
 								SHOW_CELL_BOUNDARIES, SHOW_CELL_NUCLEI, SHOW_CELL_BOUNDARIES_AND_NUCLEI,
 								SUMMARY_TMA, SUMMARY_ANNOTATIONS, SUMMARY_DETECTIONS,
 								VIEW_TRACKER, MEASUREMENT_MAP, WORKFLOW_DISPLAY,
@@ -420,13 +433,11 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		super();
 		
 		updateBuildString();
-		if (buildString != null && !DisplayHelpers.showConfirmDialog("QuPath agreement", 
-				"This is a pre-release version of QuPath, intended for testing purposes.\n\n" + 
-				"Please run 'Help -> Get latest version' regularly to check for updates.\n\n" +
-						buildString
-				)) {
-			Platform.exit();
-			return;
+		// If we have a build String, show pre-release warning
+		// (If we don't have a build String, we're probably running from an IDE)
+		if (buildString != null) {
+			String message = ("This is a pre-release version of QuPath\n" + buildString).replace("\n", "\n  ");
+			Platform.runLater(() -> DisplayHelpers.showInfoNotification("QuPath Notice", message));
 		}
 		
 		long startTime = System.currentTimeMillis();
@@ -542,6 +553,13 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			// Save the PathClasses
 			savePathClasses();
 			
+			// Flush the preferences
+			try {
+				PathPrefs.getUserPreferences().flush();
+			} catch (BackingStoreException bse) {
+				logger.error("Error flushing preferences", bse);
+			}
+			
 			// Shut down any pools we know about
 			poolMultipleThreads.shutdownNow();
 			for (ExecutorService pool : mapSingleThreadPools.values())
@@ -555,7 +573,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 
 			// Reset the instance
 			instance = null;
-
+			
 			// Exit if running as a standalone application
 			if (isStandalone()) {
 				logger.info("Calling Platform.exit();");
@@ -668,8 +686,10 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		long endTime = System.currentTimeMillis();
 		logger.debug("Startup time: {} ms", (endTime - startTime));
 		
-		
-		logger.info("Build string: {}", buildString);
+		// Do auto-update check
+		if (!disableAutoUpdateCheck)
+			checkForUpdate(true);
+
 	}
 	
 	
@@ -769,11 +789,11 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	 */
 	public static File getExtensionDirectory() {
 		String path = PathPrefs.getExtensionsPath();
-		if (path != null) {
-			File dir = new File(path);
-			if (dir.isDirectory()) {
-				return dir;
-			}
+		if (path == null || path.trim().length() == 0)
+			return null;
+		File dir = new File(path);
+		if (dir.isDirectory()) {
+			return dir;
 		}
 		return null;
 	}
@@ -886,6 +906,168 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 //		}
 //		return false;
 //	}
+	
+	
+	/**
+	 * Check for any updates, showing the new changelog if any updates found.
+	 * 
+	 * @param isAutoCheck If true, the check will only be performed if the auto-update preferences allow it, 
+	 * 					  and the user won't be prompted if no update is available.
+	 */
+	private void checkForUpdate(final boolean isAutoCheck) {
+		
+		logger.info("Performing update check...");
+		
+		// Confirm if the user wants us to check for updates
+		boolean doAutoUpdateCheck = PathPrefs.doAutoUpdateCheck();
+		if (isAutoCheck && !doAutoUpdateCheck)
+			return;
+
+		// Calculate when we last looked for an update
+		long currentTime = System.currentTimeMillis();
+		long lastUpdateCheck = PathPrefs.getUserPreferences().getLong("lastUpdateCheck", 0);
+
+		// Don't check run auto-update check again if we already checked within the last minute
+		long diffMinutes = (currentTime - lastUpdateCheck) / (60 * 1000);
+		if (isAutoCheck && diffMinutes < 1)
+			return;
+		
+		// See if we can read the current ChangeLog
+		File fileChanges = new File("CHANGELOG.md");
+		if (!fileChanges.exists()) {
+			logger.debug("No changelog found - will not check for updates");
+			if (!isAutoCheck) {
+				DisplayHelpers.showErrorMessage("Update check", "Cannot check for updates at this time, sorry");
+			}
+			return;
+		}
+		String changeLog = null;
+		try {
+			changeLog = GeneralTools.readFileAsString(fileChanges.getAbsolutePath());
+		} catch (IOException e1) {
+			if (!isAutoCheck) {
+				DisplayHelpers.showErrorMessage("Update check", "Cannot check for updates at this time, sorry");
+			}
+			logger.error("Error reading changelog", e1);
+			return;
+		}
+		// Output changelog, if we're tracing...
+		logger.trace("Changelog contents:\n{}", changeLog);
+		String changeLogCurrent = changeLog;
+
+		// Run the check in a background thread
+		createSingleThreadExecutor(this).execute(() -> {
+			try {
+				// Try to download latest changelog
+				URL url = new URL("https://raw.githubusercontent.com/qupath/qupath/master/CHANGELOG.md");
+				String changeLogOnline = URLTools.readURLAsString(url, 2000);
+				
+				// Store last update check time
+				PathPrefs.getUserPreferences().putLong("lastUpdateCheck", System.currentTimeMillis());
+				
+				// Compare the current and online changelogs
+				if (compareChangelogHeaders(changeLogCurrent, changeLogOnline)) {
+					// If not isAutoCheck, inform user even if there are no updated at this time
+					if (!isAutoCheck) {
+						Platform.runLater(() -> {
+//							Dialog<Void> dialog = new Dialog<>();
+//							dialog.setTitle("Update check");
+//							dialog.initOwner(getStage());
+//							dialog.getDialogPane().setHeaderText("QuPath is up-to-date!");
+//							dialog.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
+//							dialog.showAndWait();
+							DisplayHelpers.showMessageDialog("Update check", "QuPath is up-to-date!");
+						});
+					}
+					return;
+				}
+				
+				// If changelogs are different, notify the user
+				showChangelogForUpdate(changeLogOnline);
+			} catch (Exception e) {
+				// Notify the user if we couldn't read the log
+				if (!isAutoCheck) {
+					DisplayHelpers.showMessageDialog("Update check", "Unable to check for updates at this time, sorry");
+					return;
+				}
+				logger.debug("Unable to check for updates - {}", e.getLocalizedMessage());
+			}
+		});
+	}
+	
+	
+	/**
+	 * Compare two changelogs.
+	 * 
+	 * In truth, this only checks if they have the same first line.
+	 * 
+	 * @param changelogOld
+	 * @param changelogNew
+	 * @return True if the changelogs contain the same first line.
+	 */
+	private static boolean compareChangelogHeaders(final String changelogOld, final String changelogNew) {
+		String[] changesOld = GeneralTools.splitLines(changelogOld.trim());
+		String[] changesNew = GeneralTools.splitLines(changelogNew.trim());
+		if (changesOld[0].equals(changesNew[0]))
+			return true;
+		
+		// Could try to parse version numbers... but is there any need?
+//		Pattern.compile("(\\d+\\.)?(\\d+\\.)?(\\*|\\d+)").matcher(changelogOld);
+		
+		return false;
+	}
+	
+	
+	
+	private void showChangelogForUpdate(final String changelog) {
+		if (!Platform.isFxApplicationThread()) {
+			// Need to be on FX thread
+			Platform.runLater(() -> showChangelogForUpdate(changelog));
+			return;
+		}
+		// Show changelog with option to download, or not now
+		Dialog<ButtonType> dialog = new Dialog<>();
+		dialog.setTitle("Update QuPath");
+		dialog.initOwner(getStage());
+		dialog.setResizable(true);
+		ButtonType btDownload = new ButtonType("Download update");
+		ButtonType btNotNow = new ButtonType("Not now");
+		// Not actually included (for space reasons)
+		ButtonType btDoNotRemind = new ButtonType("Do not remind me again");
+		
+		dialog.getDialogPane().getButtonTypes().addAll(
+				btDownload,
+				btNotNow
+//				btDoNotRemind
+				);
+		dialog.setHeaderText("A new version of QuPath is available!");
+		
+		TextArea textArea = new TextArea(changelog);
+		textArea.setWrapText(true);
+		textArea.setEditable(false);
+		
+//		BorderPane pane = new BorderPane();
+		TitledPane paneChanges = new TitledPane("Changes", textArea);
+		paneChanges.setCollapsible(false);
+		
+		dialog.getDialogPane().setContent(paneChanges);
+		Optional<ButtonType> result = dialog.showAndWait();
+		if (!result.isPresent())
+			return;
+		
+		if (result.get().equals(btDownload)) {
+			String url = "https://github.com/qupath/qupath/releases/latest";
+			try {
+				DisplayHelpers.browseURI(new URI(url));
+			} catch (URISyntaxException e) {
+				DisplayHelpers.showErrorNotification("Download", "Unable to open " + url);
+			}
+		} else if (result.get().equals(btDoNotRemind)) {
+			PathPrefs.setDoAutoUpdateCheck(false);
+		}
+	}
+	
+	
 	
 	/**
 	 * Keep a record of loaded extensions, both for display and to avoid loading them twice.
@@ -1348,11 +1530,18 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		
 		
 		viewer.getView().addEventFilter(KeyEvent.KEY_PRESSED, e -> {
-			if (!e.isConsumed() && e.getCode() == KeyCode.ENTER) {
+			if (!e.isConsumed()) {
 				PathObject pathObject = viewer.getSelectedObject();
 				if (pathObject instanceof TMACoreObject) {
-					getAction(GUIActions.TMA_ADD_NOTE).handle(new ActionEvent(e.getSource(), e.getTarget()));
-					e.consume();
+					TMACoreObject core = (TMACoreObject)pathObject;
+					if (e.getCode() == KeyCode.ENTER) {
+						getAction(GUIActions.TMA_ADD_NOTE).handle(new ActionEvent(e.getSource(), e.getTarget()));
+						e.consume();
+					} else if (e.getCode() == KeyCode.BACK_SPACE) {
+						core.setMissing(!core.isMissing());
+						viewer.getHierarchy().fireObjectsChangedEvent(this, Collections.singleton(core));
+						e.consume();
+					}
 				}
 			}
 		});
@@ -1448,8 +1637,9 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		CheckMenuItem miTMAMissing = new CheckMenuItem("Set core missing");
 		miTMAMissing.setOnAction(e -> setTMACoreMissing(viewer.getHierarchy(), true));
 		
-		Menu menuTMA = createMenu(
-				"TMA core",
+		Menu menuTMA = new Menu("TMA");
+		addMenuItems(
+				menuTMA,
 				miTMAValid,
 				miTMAMissing,
 				null,
@@ -2276,6 +2466,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				null,
 				getActionMenuItem(GUIActions.OPEN_IMAGE),
 				getActionMenuItem(GUIActions.OPEN_IMAGE_OR_URL),
+				createCommandAction(new RevertCommand(this), "Revert", null, new KeyCodeCombination(KeyCode.R, KeyCodeCombination.SHORTCUT_DOWN)),
 				null,
 				getActionMenuItem(GUIActions.SAVE_DATA_AS),
 				getActionMenuItem(GUIActions.SAVE_DATA),
@@ -2289,7 +2480,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				null,
 				getActionMenuItem(GUIActions.TMA_SCORE_IMPORTER),
 				getActionMenuItem(GUIActions.TMA_EXPORT_DATA),
-				createCommandAction(new TMAExportViewerCommand(), "Launch exported TMA data viewer")
+				createCommandAction(new TMAViewerCommand(), "Launch TMA data viewer")
 				);
 		
 		
@@ -2421,6 +2612,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				getActionCheckBoxMenuItem(GUIActions.SHOW_TMA_GRID_LABELS),
 				getActionCheckBoxMenuItem(GUIActions.SHOW_OBJECTS),
 				getActionCheckBoxMenuItem(GUIActions.FILL_OBJECTS),
+				createCheckMenuItem(createSelectableCommandAction(overlayOptions.showConnectionsProperty(), "Show object connections")),
 				null,
 				getActionCheckBoxMenuItem(GUIActions.SHOW_OVERVIEW),
 				getActionCheckBoxMenuItem(GUIActions.SHOW_LOCATION),
@@ -2483,10 +2675,11 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 						createCommandAction(new TMAGridRemove(this, TMARemoveType.ROW), "Remove TMA row"),
 						createCommandAction(new TMAGridRemove(this, TMARemoveType.COLUMN), "Remove TMA column")
 						),
-				createCommandAction(new TMAGridRelabel(this), "Relabel TMA grid"),
+				getActionMenuItem(GUIActions.TMA_RELABEL),
 				createCommandAction(new TMAGridReset(this), "Reset TMA metadata"),
 				getActionMenuItem(GUIActions.CLEAR_TMA_CORES),
 				createCommandAction(new TMAGridView(this), "TMA grid summary view (experimental)"),
+//				createCommandAction(new TMAExplorer(this), "TMA explorer (experimental)"),
 				null,
 				createPluginAction("Find convex hull detections (TMA)", FindConvexHullDetectionsPlugin.class, this, false, null)
 				);
@@ -2495,6 +2688,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		Menu menuMeasure = createMenu(
 				"Measure",
 				getActionMenuItem(GUIActions.MEASUREMENT_MAP),
+				createCommandAction(new MeasurementManager(this), "Show measurement manager"),
 				null,
 				getActionMenuItem(GUIActions.SUMMARY_TMA),
 				getActionMenuItem(GUIActions.SUMMARY_ANNOTATIONS),
@@ -2532,7 +2726,8 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				createMenu(
 						"Calculate features",
 //						new PathPluginAction("Create tiles", TilerPlugin.class, this),
-						createPluginAction("Add Haralick texture features", HaralickFeaturesPlugin.class, this, true, null),
+						createPluginAction("Add intensity features (experimental)", IntensityFeaturesPlugin.class, this, true, null),
+						createPluginAction("Add Haralick texture features (legacy)", HaralickFeaturesPlugin.class, this, true, null),
 //						createPluginAction("Add Haralick texture features (feature test version)", HaralickFeaturesPluginTesting.class, this, imageRegionStore, null),
 						createPluginAction("Add Coherence texture feature (experimental)", CoherenceFeaturePlugin.class, this, true, null),
 						createPluginAction("Add Smoothed features", SmoothFeaturesPlugin.class, this, false, null),
@@ -2553,16 +2748,21 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				createCommandAction(new ResetClassificationsCommand(this, PathDetectionObject.class), "Reset detection classifications"),
 				null,
 				createCommandAction(new RandomTrainingRegionSelector(this, getAvailablePathClasses()), "Choose random training samples"),
-				createCommandAction(new SingleFeatureClassifierCommand(this, PathDetectionObject.class), "Classify by specific feature")
+				createCommandAction(new SingleFeatureClassifierCommand(this, PathDetectionObject.class), "Classify by specific feature"),
+				createCommandAction(new ClusterObjectsCommand(this), "Cluster objects (experimental)")
 			);
 		
+		Action actionUpdateCheck = new Action("Check for updates (web)", e -> {
+			checkForUpdate(false);
+		});
 		
 		Menu menuHelp = createMenu(
 				"Help",
 //				createCommandAction(new HelpCommand(this), "Documentation"),
 				createCommandAction(new OpenWebpageCommand(this, "http://go.qub.ac.uk/qupath-docs"), "Documentation (web)"),
 				createCommandAction(new OpenWebpageCommand(this, "http://go.qub.ac.uk/qupath-videos"), "Demo videos (web)"),
-				createCommandAction(new OpenWebpageCommand(this, "http://go.qub.ac.uk/qupath-latest"), "Get latest version (web)"),
+//				createCommandAction(new OpenWebpageCommand(this, "http://go.qub.ac.uk/qupath-latest"), "Get latest version (web)"),
+				actionUpdateCheck,
 				null,
 				createCommandAction(new OpenWebpageCommand(this, "http://go.qub.ac.uk/qupath-citation"), "Cite QuPath (web)"),
 				createCommandAction(new OpenWebpageCommand(this, "http://go.qub.ac.uk/qupath-extensions"), "Add extensions (web)"),
@@ -2952,6 +3152,8 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			return createCommandAction(new MiniViewerCommand(this), "Show mini viewer");
 		case TMA_SCORE_IMPORTER:
 			return createCommandAction(new TMAScoreImportCommand(this), "Import TMA map");
+		case TMA_RELABEL:
+			return createCommandAction(new TMAGridRelabel(this), "Relabel TMA grid");
 //		case OVERLAY_OPACITY:
 //			return new OpacityAction(this, overlayOptions);
 		case COLOR_DECONVOLUTION_REFINE:
@@ -3702,7 +3904,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	/**
 	 * Trigger an update to the title of the Stage.
 	 */
-	private void updateTitle() {
+	public void updateTitle() {
 		if (stage == null)
 			return;
 		String name = "QuPath";
@@ -3711,9 +3913,19 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		ImageData<?> imageData = getImageData();
 		if (imageData == null || imageData.getServer() == null)
 			stage.setTitle(name);
-		else
-			stage.setTitle(name + " - " + imageData.getServer().getShortServerName());	
-		
+		else {
+			// Try to set name based on project entry
+			if (project.get() != null) {
+				String path = imageData.getServerPath();
+				ProjectImageEntry<?> entry = project.get().getImageEntry(path);
+				if (entry != null) {
+					stage.setTitle(name + " - " + entry.getImageName());
+					return;
+				}
+			}			
+			// Set name based on server instead
+			stage.setTitle(name + " - " + imageData.getServer().getShortServerName());
+		}
 	}
 	
 	/**
@@ -4711,7 +4923,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 
 		public ExtensionClassLoader() {
 			super(new URL[0], QuPathGUI.class.getClassLoader());
-			refresh();
+//			refresh();
 		}
 		
 		/**

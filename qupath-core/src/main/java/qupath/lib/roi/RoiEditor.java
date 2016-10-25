@@ -405,7 +405,7 @@ public class RoiEditor {
 			if (handlesOverlap(handles))
 				activeHandleIndex = BOTTOM_RIGHT;
 			else
-			activeHandleIndex = getClosestHandleIndex(handles, x, y, maxDist);
+				activeHandleIndex = getClosestHandleIndex(handles, x, y, maxDist);
 			
 			if (activeHandleIndex < 0)
 				return null;

@@ -37,6 +37,7 @@ import java.util.TreeSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import qupath.lib.awt.color.ColorToolsAwt;
 import qupath.lib.awt.common.AwtTools;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.OverlayOptions;
@@ -46,9 +47,11 @@ import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.PathHierarchyImageServer;
 import qupath.lib.images.stores.DefaultImageRegionStore;
 import qupath.lib.objects.DefaultPathObjectComparator;
+import qupath.lib.objects.DefaultPathObjectConnectionGroup;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjectConnections;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
@@ -98,7 +101,8 @@ public class HierarchyOverlay extends AbstractImageDataOverlay {
 		else {
 			ImageServer<BufferedImage> server = getImageData().getServer();
 			// If the image is small, don't really need a server at all...
-			overlayServer = new PathHierarchyImageServer(server, getHierarchy(), getOverlayOptions());
+			overlayServer = new PathHierarchyImageServer(getImageData(), getOverlayOptions());
+//			overlayServer = new PathHierarchyImageServer(server, getHierarchy(), getOverlayOptions());
 			smallImage = server.getWidth() < PathPrefs.getMinWholeSlideDimension() && server.getHeight() < PathPrefs.getMinWholeSlideDimension();
 		}
 	}
@@ -152,6 +156,13 @@ public class HierarchyOverlay extends AbstractImageDataOverlay {
 				Collection<PathObject> pathObjects = hierarchy.getObjectsForRegion(PathDetectionObject.class, region, pathObjectsToPaint);
 				g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
 				PathHierarchyPaintingHelper.paintSpecifiedObjects(g2d, boundsDisplayed, pathObjects, overlayOptions, hierarchy.getSelectionModel(), downsampleFactor);
+				
+				if (overlayOptions.getShowConnections()) {
+					Object connections = getImageData().getProperty(DefaultPathObjectConnectionGroup.KEY_OBJECT_CONNECTIONS);
+					if (connections instanceof PathObjectConnections)
+							PathHierarchyPaintingHelper.paintConnections((PathObjectConnections)connections, hierarchy, g2d, getImageData().isFluorescence() ? ColorToolsAwt.TRANSLUCENT_WHITE : ColorToolsAwt.TRANSLUCENT_BLACK, downsampleFactor);
+				}
+				
 			} else {					
 				// If the image hasn't been updated, then we are viewing the stationary image - we want to wait for a full repaint then to avoid flickering;
 				// On the other hand, if a large image has been updated then we may be browsing quickly - better to repaint quickly while tiles may still be loading

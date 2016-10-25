@@ -263,11 +263,11 @@ public class ParameterDialogWrapper<T> {
 		if (pathObjectSelected != null && !pathObjectSelected.isRootObject()) {
 			if (supportedParents.contains(pathObjectSelected.getClass()))
 				return true;
-			else {
-				String message = name + " does not support parent objects of type " + pathObjectSelected.getClass().getSimpleName();
-				DisplayHelpers.showErrorMessage(name + " error", message);
-				return false;
-			}
+//			else {
+//				String message = name + " does not support parent objects of type " + pathObjectSelected.getClass().getSimpleName();
+//				DisplayHelpers.showErrorMessage(name + " error", message);
+//				return false;
+//			}
 		}
 
 		// If the root object is supported, and we don't have any of the other types, just run for the root object

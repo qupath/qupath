@@ -67,16 +67,32 @@ public class HaralickFeatureComputer {
 			minValue = stats.getMin();
 			maxValue = stats.getMax();
 		}
-		double binDepth = (maxValue - minValue) / nBins;
+		
+		// Create & update cooccurrance matrices
+		CoocurranceMatrices matricies = updateCooccurrenceMatrices(null, ip, bpMask, xx, yy, ww, hh, nBins, minValue, maxValue, d);
+
+		// Get features
+		HaralickFeatures features = matricies.getMeanFeatures();
+
+		return features;
+	}
+	
+	
+	public static CoocurranceMatrices updateCooccurrenceMatrices(final CoocurranceMatrices matrices, final SimpleImage ip, final SimpleImage bpMask, final int nBins, double minValue, double maxValue, final int d) {
+		return updateCooccurrenceMatrices(matrices, ip, bpMask, 0, 0, ip.getWidth(), ip.getHeight(), nBins, minValue, maxValue, d);
+	}
+	
+	public static CoocurranceMatrices updateCooccurrenceMatrices(CoocurranceMatrices matrices, final SimpleImage ip, final SimpleImage bpMask, final int xx, final int yy, final int ww, final int hh, final int nBins, double minValue, double maxValue, final int d) {
+		// Create matrices if necessary
+		if (matrices == null)
+			matrices = new CoocurranceMatrices(nBins);
 		
 		// Dimensions
 		int width = ip.getWidth();
 		int height = ip.getHeight();
-
 		
-		// Create cooccurrance matrices
-		CoocurranceMatrices matricies = new CoocurranceMatrices(nBins);
-
+		double binDepth = (maxValue - minValue) / nBins;
+		
 		// Loop through pixels
 		boolean noMask = bpMask == null;
 		for (int y = yy; y < yy + hh; y++) {
@@ -89,27 +105,28 @@ public class HaralickFeatureComputer {
 					continue;
 				// Test neighbors
 				if (x < width-d && (noMask || bpMask.getValue(x+d, y) != 0))
-					matricies.put0(binValue, getBinValue(ip, x+d, y, minValue, binDepth, nBins));
+					matrices.put0(binValue, getBinValue(ip, x+d, y, minValue, binDepth, nBins));
 
 				if (y < height-d && (noMask || bpMask.getValue(x, y+d) != 0))
-					matricies.put90(binValue, getBinValue(ip, x, y+d, minValue, binDepth, nBins));
+					matrices.put90(binValue, getBinValue(ip, x, y+d, minValue, binDepth, nBins));
 
 				// Note (Pete): The angles here may differ from the original paper
 				// Switching the order may help, but note that put45 and put135 are also called in another method (below)
 				// so this change has been reverted for consistency... we may want to consider modifying this (or just renaming the methods) at some point
 				// Here, it is assumed that the zero angle is -> (horizontal, left to right), and rotations are clockwise
 				if (x < width-d && y < height-d && (noMask || bpMask.getValue(x+d, y+d) != 0))
-					matricies.put45(binValue, getBinValue(ip, x+d, y+d, minValue, binDepth, nBins)); //J check with Haralick paper
+					matrices.put45(binValue, getBinValue(ip, x+d, y+d, minValue, binDepth, nBins)); //J check with Haralick paper
 
 				if (x >= d && y < height-d && (noMask || bpMask.getValue(x-d, y+d) != 0))
-					matricies.put135(binValue, getBinValue(ip, x-d, y+d, minValue, binDepth, nBins)); 
+					matrices.put135(binValue, getBinValue(ip, x-d, y+d, minValue, binDepth, nBins)); 
 			}			
 		}
-
-		HaralickFeatures features = matricies.getMeanFeatures();
-
-		return features;
+		return matrices;
 	}
+	
+	
+	
+	
 	
 	private static int getBinValue(SimpleImage ip, int x, int y, double minValue, double binDepth, int nBins) {
 		float val = ip.getValue(x, y);

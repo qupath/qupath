@@ -23,10 +23,13 @@
 
 package qupath.lib.gui.commands.scriptable;
 
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.StringProperty;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.helpers.DisplayHelpers;
+import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.objects.hierarchy.TMAGrid;
@@ -48,6 +51,10 @@ public class TMAGridRelabel implements PathCommand {
 	
 	private QuPathGUI qupath;
 	
+	private StringProperty rowLabelsProperty = PathPrefs.createPersistentPreference("tmaRowLabels", "A-J");
+	private StringProperty columnLabelsProperty = PathPrefs.createPersistentPreference("tmaColumnLabels", "1-16");
+	private BooleanProperty rowFirstProperty = PathPrefs.createPersistentPreference("tmaLabelRowFirst", true);
+	
 	public TMAGridRelabel(final QuPathGUI qupath) {
 		this.qupath = qupath;
 	}
@@ -62,9 +69,9 @@ public class TMAGridRelabel implements PathCommand {
 		}
 		
 		ParameterList params = new ParameterList();
-		params.addStringParameter("labelsHorizontal", "Column labels", "1-16", "Enter column labels.\nThis can be a continuous range of letters or numbers (e.g. 1-10 or A-J),\nor a discontinuous list separated by spaces (e.g. A B C E F G).");
-		params.addStringParameter("labelsVertical", "Row labels", "A-J", "Enter row labels.\nThis can be a continuous range of letters or numbers (e.g. 1-10 or A-J),\nor a discontinuous list separated by spaces (e.g. A B C E F G).");
-		params.addChoiceParameter("labelOrder", "Label order", "Row first", new String[]{"Column first", "Row first"}, "Create TMA labels either in the form Row-Column or Column-Row");
+		params.addStringParameter("labelsHorizontal", "Column labels", columnLabelsProperty.get(), "Enter column labels.\nThis can be a continuous range of letters or numbers (e.g. 1-10 or A-J),\nor a discontinuous list separated by spaces (e.g. A B C E F G).");
+		params.addStringParameter("labelsVertical", "Row labels", rowLabelsProperty.get(), "Enter row labels.\nThis can be a continuous range of letters or numbers (e.g. 1-10 or A-J),\nor a discontinuous list separated by spaces (e.g. A B C E F G).");
+		params.addChoiceParameter("labelOrder", "Label order", rowFirstProperty.get() ? "Row first" : "Column first", new String[]{"Column first", "Row first"}, "Create TMA labels either in the form Row-Column or Column-Row");
 		
 		if (!DisplayHelpers.showParameterDialog(NAME, params))
 			return;
@@ -101,6 +108,11 @@ public class TMAGridRelabel implements PathCommand {
 						GeneralTools.escapeFilePath(labelsVertical),
 						Boolean.toString(rowFirst))));
 		
+		
+		// Store values
+		rowLabelsProperty.set(labelsVertical);
+		columnLabelsProperty.set(labelsHorizontal);
+		rowFirstProperty.set(rowFirst);
 	}
 	
 }

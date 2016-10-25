@@ -23,24 +23,15 @@
 
 package qupath.lib.gui.commands.scriptable;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.lib.gui.ImageDataWrapper;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.images.ImageData;
-import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
-import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
-import qupath.lib.roi.PathROIToolsAwt;
-import qupath.lib.roi.interfaces.PathArea;
-import qupath.lib.roi.interfaces.PathShape;
+import qupath.lib.scripting.QPEx;
 
 
 /**
@@ -66,40 +57,10 @@ public class MergeSelectedAnnotationsCommand implements PathCommand {
 		if (imageData == null)
 			return;
 		PathObjectHierarchy hierarchy = imageData.getHierarchy();
-		
-		// Get all the selected annotations with area
-		PathShape shapeNew = null;
-		List<PathObject> children = new ArrayList<>();
-		Set<PathClass> pathClasses = new HashSet<>();
-		for (PathObject child : hierarchy.getSelectionModel().getSelectedObjects()) {
-			if (child instanceof PathAnnotationObject && child.getROI() instanceof PathArea) {
-				if (shapeNew == null)
-					shapeNew = (PathShape)child.getROI();//.duplicate();
-				else
-					shapeNew = PathROIToolsAwt.combineROIs(shapeNew, (PathArea)child.getROI(), PathROIToolsAwt.CombineOp.ADD);
-				if (child.getPathClass() != null)
-					pathClasses.add(child.getPathClass());
-				children.add(child);
-			}
-		}
-		// Check if we actually merged anything
-		if (children.size() <= 1)
-			return;
-		
-		// Create and add the new object, removing the old ones
-		PathObject pathObjectNew = new PathAnnotationObject(shapeNew);
-		if (pathClasses.size() == 1)
-			pathObjectNew.setPathClass(pathClasses.iterator().next());
-		else
-			logger.warn("Cannot assign class unambiguously - " + pathClasses.size() + " classes represented in selection");
-		hierarchy.removeObjects(children, true);
-		hierarchy.addPathObject(pathObjectNew, false);
-//		pathObject.removePathObjects(children);
-//		pathObject.addPathObject(pathObjectNew);
-//		hierarchy.fireHierarchyChangedEvent(pathObject);
-		hierarchy.getSelectionModel().setSelectedObject(pathObjectNew);
+		logger.debug("Merging selected annotations");
+		PathObject merged = QPEx.mergeSelectedAnnotations(hierarchy);
+		if (merged != null)
+			hierarchy.getSelectionModel().setSelectedObject(merged);
 	}
-	
-	
 
 }

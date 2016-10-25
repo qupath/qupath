@@ -81,7 +81,7 @@ public class OpenCVExtension implements QuPathExtension {
 		Menu menuFeatures = qupath.getMenu("Analyze>Calculate features", true);
 		QuPathGUI.addMenuItems(
 				menuFeatures,
-				qupath.createPluginAction("Add Delaunay cluster features (TMA, experimental)", DelaunayClusteringPlugin.class, null, false)
+				qupath.createPluginAction("Add Delaunay cluster features (experimental)", DelaunayClusteringPlugin.class, null, false)
 				);
 
 		Menu menuRegions = qupath.getMenu("Analyze>Region identification", true);

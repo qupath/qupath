@@ -4,7 +4,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>qupath</groupId>
 	<artifactId>qupath</artifactId>
-	<version>0.0.4-SNAPSHOT</version>
+	<version>0.0.4</version>
 	<description>Main QuPath project</description>
 
 	<developers>
@@ -393,22 +393,22 @@ Contact: IP Management (ipmanagement@qub.ac.uk)</copyrightOwners>
 			<dependency>
 				<groupId>qupath</groupId>
 				<artifactId>qupath-core</artifactId>
-				<version>0.0.4-SNAPSHOT</version>
+				<version>0.0.4</version>
 			</dependency>
 			<dependency>
 				<groupId>qupath</groupId>
 				<artifactId>qupath-core-awt</artifactId>
-				<version>0.0.4-SNAPSHOT</version>
+				<version>0.0.4</version>
 			</dependency>
 			<dependency>
 				<groupId>qupath</groupId>
 				<artifactId>qupath-core-processing</artifactId>
-				<version>0.0.4-SNAPSHOT</version>
+				<version>0.0.4</version>
 			</dependency>
 			<dependency>
 				<groupId>qupath</groupId>
 				<artifactId>qupath-core-processing-awt</artifactId>
-				<version>0.0.4-SNAPSHOT</version>
+				<version>0.0.4</version>
 			</dependency>
 			<dependency>
 				<groupId>org.opencv</groupId>
@@ -418,17 +418,17 @@ Contact: IP Management (ipmanagement@qub.ac.uk)</copyrightOwners>
 			<dependency>
 				<groupId>qupath</groupId>
 				<artifactId>qupath-gui-fx</artifactId>
-				<version>0.0.4-SNAPSHOT</version>
+				<version>0.0.4</version>
 			</dependency>
 			<dependency>
 				<groupId>qupath</groupId>
 				<artifactId>qupath-processing-ij</artifactId>
-				<version>0.0.4-SNAPSHOT</version>
+				<version>0.0.4</version>
 			</dependency>
 			<dependency>
 				<groupId>qupath</groupId>
 				<artifactId>qupath-processing-opencv</artifactId>
-				<version>0.0.4-SNAPSHOT</version>
+				<version>0.0.4</version>
 			</dependency>
 			<dependency>
 				<groupId>org.codehaus.groovy</groupId>

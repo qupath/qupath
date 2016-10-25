@@ -37,6 +37,7 @@ import java.util.List;
 import ij.IJ;
 import ij.ImagePlus;
 import ij.gui.OvalRoi;
+import ij.gui.PointRoi;
 import ij.gui.PolygonRoi;
 import ij.gui.ProfilePlot;
 import ij.gui.Roi;
@@ -54,6 +55,7 @@ import ij.process.ByteProcessor;
 import ij.process.ColorProcessor;
 import ij.process.FloatProcessor;
 import ij.process.ImageProcessor;
+import qupath.imagej.processing.ROILabeling;
 
 
 /**
@@ -101,6 +103,7 @@ public class TMADearrayer {
 	
 	
 	private static TMAGridShape detectTMACoresFromBinary(FloatProcessor fpOrig, ByteProcessor bp, double coreDiameterPx, int nHorizontal, int nVertical, Roi roi) {
+
 		// Identify regions with areas close to the specified core area & high circularity
 		// (Making sure we have a ByteProcessor.... we probably do, in which case there should be no duplication)
 		Polygon polyDetected = new Polygon();
@@ -151,7 +154,7 @@ public class TMADearrayer {
 //		refineGridCoordinates(bp, polyGrid, coreDiameterPx);
 //		IJHelpers.quickShowImage("Binary", bp);
 		refineGridCoordinatesByShifting(bp, polyGrid, nHorizontalDetected, coreDiameterPx);
-
+		
 		if (!Double.isNaN(angle) && angle != 0) {
 			// Rotate according to the angle computed previously
 			// (Note this code is largely based on ImageJ's standard RoiRotator plugin)
@@ -169,6 +172,7 @@ public class TMADearrayer {
 				polyGrid.ypoints[i] = (int)(yNew + 0.5);
 			}
 		}
+		
 		return new TMAGridShape(polyGrid, nVerticalDetected, nHorizontalDetected);
 	}
 	
@@ -269,16 +273,35 @@ public class TMADearrayer {
 		if (!isFluorescence)
 			ip.invert();
 
+//		// Subtract from a morphological-opened image, with the filter size slightly bigger than the core size
+//		double filterRadius = coreDiameterPx * 0.6;
+//		ImageProcessor ip2 = ip.duplicate();
+//		System.err.println("Starting");
+//		long start = System.currentTimeMillis();
+//		rf.rank(ip2, filterRadius, RankFilters.MIN);
+//		rf.rank(ip2, filterRadius, RankFilters.MAX);
+//		long end = System.currentTimeMillis();
+//		System.err.println("Duration: " + (end - start));
+//		ip.copyBits(ip2, 0, 0, Blitter.SUBTRACT);
+		
 		// Subtract from a morphological-opened image, with the filter size slightly bigger than the core size
-		// This also inverts the image, making cores bright-on-dark (rather than dark-on-bright as typically the case)
+		// Update 15/10/2016 - Because the filter size is likely to be very large (maybe radius 40-50 pixels?), downsample first for performance
 		double filterRadius = coreDiameterPx * 0.6;
 		ImageProcessor ip2 = ip.duplicate();
-		rf.rank(ip2, filterRadius, RankFilters.MIN);
-		rf.rank(ip2, filterRadius, RankFilters.MAX);
+		double downsample = Math.round(filterRadius / 10);
+		if (downsample > 1) {
+			ip2 = ip.resize((int)(ip.getWidth() / downsample + 0.5), (int)(ip.getHeight() / downsample + 0.5), true);
+//			long start = System.currentTimeMillis();
+			rf.rank(ip2, filterRadius/downsample, RankFilters.MIN);
+			rf.rank(ip2, filterRadius/downsample, RankFilters.MAX);
+			ip2 = ip2.resize(ip.getWidth(), ip.getHeight());
+//			long end = System.currentTimeMillis();
+//			System.err.println("Duration: " + (end - start));
+		}
 		ip.copyBits(ip2, 0, 0, Blitter.SUBTRACT);
-//		for (int i = 0; i < ip.getWidth() * ip.getHeight(); i++) {
-//			ip.setf(i, ip.getf(i) - ip2.getf(i));
-//		}
+		
+		// Smooth slightly
+		ip.smooth();
 		
 		// Estimate a threshold using the triangle method
 		ip.setAutoThreshold(AutoThresholder.Method.Triangle, true);
@@ -291,11 +314,14 @@ public class TMADearrayer {
 			bpPixels[i] = (ip.getf(i) > threshold) ? (byte)255 : 0;
 		
 		// Apply (gentle) morphological cleaning
-		filterRadius = Math.max(1.0, coreDiameterPx * 0.1);
+		filterRadius = Math.max(1.0, coreDiameterPx * 0.02);
 		rf.rank(bp, filterRadius, RankFilters.MAX);
 		rf.rank(bp, filterRadius, RankFilters.MIN);
 		rf.rank(bp, filterRadius, RankFilters.MIN);
 		rf.rank(bp, filterRadius, RankFilters.MAX);
+		
+		// Fill holes
+		ROILabeling.fillHoles(bp);
 		
 		// Remove everything outside the ROI
 		if (roi != null && roi.isArea()) {
@@ -439,12 +465,12 @@ public class TMADearrayer {
 		double tolerance = 0.0;
 		int[] peakLocs = MaximumFinder.findMaxima(prof, tolerance, false);
 		//int[] peakLocs = new int[nMaxima];
-		if (peakLocs.length < nMaxima) {
-			Arrays.sort(peakLocs);
-			for (int i = 0; i < peakLocs.length; i++)
-				locs[i] = peakLocs[i];
-			return peakLocs.length;
-		}
+//		if (peakLocs.length < nMaxima) {
+//			Arrays.sort(peakLocs);
+//			for (int i = 0; i < peakLocs.length; i++)
+//				locs[i] = peakLocs[i];
+//			return peakLocs.length;
+//		}
 		int n = 0;
 		for (int p : peakLocs) {
 			if (checkNewIndSeparated(maxima, p, n, minSeparation)) {
@@ -573,7 +599,10 @@ public class TMADearrayer {
 				
 		// Apply a mean filter to determine local unassigned densities
 //		new ImagePlus("Density_before", fpDensity.duplicate()).show();
+//		long start = System.currentTimeMillis();
+		// Note: this is another bottleneck... filter size can be large
 		new RankFilters().rank(fpDensity, coreDiameterPx * 0.5, RankFilters.MEAN);
+//		System.err.println("Time: " + (System.currentTimeMillis() - start));
 //		fpDensity.min(-1);
 //		new ImagePlus("Density", fpDensity.duplicate()).show();
 		
