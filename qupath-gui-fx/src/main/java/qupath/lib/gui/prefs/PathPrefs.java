@@ -137,6 +137,23 @@ public class PathPrefs {
 	}
 	
 	
+	
+	private static BooleanProperty doAutoUpdateCheck = createPersistentPreference("doAutoUpdateCheck", Boolean.TRUE);
+	
+	public static BooleanProperty doAutoUpdateCheckProperty() {
+		return doAutoUpdateCheck;
+	}
+
+	public static boolean doAutoUpdateCheck() {
+		return doAutoUpdateCheck.get();
+	}
+	
+	public static void setDoAutoUpdateCheck(final boolean doCheck) {
+		doAutoUpdateCheck.set(doCheck);
+	}
+
+	
+	
 	// This was a bit of a false lead in the attempt to set JVM options... 
 //	private static Preferences getJavaPreferences() {
 //		if (System.getProperty("app.preferences.id") == null)

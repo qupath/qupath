@@ -25,9 +25,13 @@ package qupath.lib.gui.commands;
 
 import java.util.ArrayList;
 import java.util.List;
+
+import javafx.event.ActionEvent;
 import qupath.lib.analysis.stats.RunningStatistics;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.QuPathGUI.GUIActions;
 import qupath.lib.gui.commands.interfaces.PathCommand;
+import qupath.lib.gui.commands.scriptable.TMAGridRelabel;
 import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
@@ -83,7 +87,9 @@ public class TMAGridAdd implements PathCommand {
 			return;
 		}
 		try {
-			addToTMA(imageData, type);
+			if (addToTMA(imageData, type)) {
+				qupath.getAction(GUIActions.TMA_RELABEL).handle(new ActionEvent());
+			}
 		} catch (Exception e) {
 			DisplayHelpers.showErrorMessage(NAME, e.getMessage());
 		}
@@ -96,7 +102,7 @@ public class TMAGridAdd implements PathCommand {
 	 * @param selectedCore
 	 * @param type
 	 */
-	public static void addToTMA(final ImageData<?> imageData, final TMAAddType type) {
+	public static boolean addToTMA(final ImageData<?> imageData, final TMAAddType type) {
 		PathObjectHierarchy hierarchy = imageData.getHierarchy();
 		PathObject selected = hierarchy.getSelectionModel().getSelectedObject();
 		TMACoreObject selectedCore = null;
@@ -108,6 +114,7 @@ public class TMAGridAdd implements PathCommand {
 		double h = imageData.getServer().getHeight();
 		
 		// Check if the core centroids all fall within the image or not
+		int outsideCores = 0;
 		for (TMACoreObject core : gridNew.getTMACoreList()) {
 			// Shouldn't happen...
 			if (!core.hasROI())
@@ -118,13 +125,21 @@ public class TMAGridAdd implements PathCommand {
 			double x = core.getROI().getCentroidX();
 			double y = core.getROI().getCentroidY();
 			if (x < 0 || x >= w || y < 0 || y >= h) {
-				if (!hierarchy.getTMAGrid().getTMACoreList().contains(core))
-				throw new IllegalArgumentException("Cannot update TMA grid - not enough space within image");
+				if (!hierarchy.getTMAGrid().getTMACoreList().contains(core)) {
+					outsideCores++;
+				}
+//				throw new IllegalArgumentException("Cannot update TMA grid - not enough space within image");
 			}
+		}
+		if (outsideCores > 0) {
+			String label = outsideCores == 1 ? "core" : "cores";
+			if (!DisplayHelpers.showConfirmDialog("Add to TMA Grid", "Not enough space within image to store " + outsideCores + " new " + label + " - proceed anyway?"))
+				return false;
 		}
 		
 		// If we got this far, update the grid
 		hierarchy.setTMAGrid(gridNew);
+		return true;
 	}
 	
 	

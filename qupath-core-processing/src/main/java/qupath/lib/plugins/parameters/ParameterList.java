@@ -147,6 +147,20 @@ public class ParameterList implements Serializable {
 		params.put(key, new EmptyParameter(prompt, isTitle));
 		return this;
 	}
+	
+	private int titleCount = 1;
+	
+	/**
+	 * Add a title parameter; these will be called title1, title2 etc. (so similar names must not be used for other parameters)
+	 * 
+	 * @param prompt
+	 * @return
+	 */
+	public ParameterList addTitleParameter(String prompt) {
+		addEmptyParameter("title" + titleCount, prompt, true);
+		titleCount++;
+		return this;
+	}
 
 	public ParameterList addBooleanParameter(String key, String prompt, boolean defaultValue) {
 		return addBooleanParameter(key, prompt, defaultValue, null);

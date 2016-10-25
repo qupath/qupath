@@ -45,6 +45,7 @@ import javafx.scene.control.TitledPane;
 import javafx.scene.input.Clipboard;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
+import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.helpers.DisplayHelpers;
@@ -277,7 +278,7 @@ public class ProjectImportImagesCommand implements PathCommand {
 		String clipboardString = Clipboard.getSystemClipboard().getString();
 		List<String> possiblePaths = new ArrayList<>();
 		if (clipboardString != null) {
-			for (String s : clipboardString.split("\n")) {
+			for (String s : GeneralTools.splitLines(clipboardString)) {
 				if (isPossiblePath(s.trim()))
 					possiblePaths.add(s.trim());
 			}

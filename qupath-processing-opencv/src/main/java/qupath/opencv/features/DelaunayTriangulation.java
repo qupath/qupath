@@ -33,16 +33,19 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.opencv.core.Point;
 import org.opencv.core.Rect;
 import org.opencv.imgproc.Subdiv2D;
 
+import qupath.lib.analysis.stats.RunningStatistics;
 import qupath.lib.classifiers.PathClassificationLabellingHelper;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.objects.PathCellObject;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjectConnectionGroup;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.roi.interfaces.ROI;
 
@@ -54,7 +57,7 @@ import qupath.lib.roi.interfaces.ROI;
  *
  */
 // I'm not trying to make a secret of it (although possibly should) - the 'finalize' method of Subdiv2D isn't called on OSX
-public class DelaunayTriangulation {
+public class DelaunayTriangulation implements PathObjectConnectionGroup {
 	
 	private double distanceThreshold = Double.NaN;
 	private boolean limitByClass = false;
@@ -73,6 +76,12 @@ public class DelaunayTriangulation {
 		this.distanceThreshold = distanceThresholdPixels;
 		this.limitByClass = limitByClass;
 		computeDelaunay(pathObjects, pixelWidth, pixelHeight);
+		
+		Collection<String> measurements = PathClassificationLabellingHelper.getAvailableFeatures(pathObjects);
+		for (String name : measurements) {
+			RunningStatistics stats = new RunningStatistics();
+			pathObjects.stream().forEach(p -> stats.addValue(p.getMeasurementList().getMeasurementValue(name)));
+		}
 	}
 	
 	
@@ -82,6 +91,38 @@ public class DelaunayTriangulation {
 				getConnectedNodesRecursive(next, set);
 			}
 		}
+	}
+	
+	
+	@Override
+	public List<PathObject> getConnectedObjects(final PathObject pathObject) {
+		DelaunayNode node = nodeMap.get(pathObject);
+		if (node == null)
+			return Collections.emptyList();
+		return node.getNodeList().stream().map(n -> n.getPathObject()).collect(Collectors.toList());
+	}
+	
+	
+	@Override
+	public Collection<PathObject> getPathObjects() {
+		return nodeMap.keySet();
+	}
+
+	
+	
+	/**
+	 * Get the ROI for an object - preferring a nucleus ROI for a cell, if possible.
+	 * 
+	 * @param pathObject
+	 * @return
+	 */
+	static ROI getROI(final PathObject pathObject) {
+		if (pathObject instanceof PathCellObject) {
+			ROI roi = ((PathCellObject)pathObject).getNucleusROI();
+			if (roi != null && !Double.isNaN(roi.getCentroidX()))
+				return roi;
+		}
+		return pathObject.getROI();
 	}
 	
 	
@@ -98,17 +139,12 @@ public class DelaunayTriangulation {
 		double minY = Double.POSITIVE_INFINITY;
 		double maxX = Double.NEGATIVE_INFINITY;
 		double maxY = Double.NEGATIVE_INFINITY;
-		List<Point> centroids = new ArrayList<Point>(pathObjectList.size());
+		List<Point> centroids = new ArrayList<>(pathObjectList.size());
 		for (PathObject pathObject : pathObjectList) {
 			ROI pathROI = null;
 			
 			// First, try to get a nucleus ROI if we have a cell - otherwise just get the normal ROI
-			if (pathObject instanceof PathCellObject) {
-				pathROI = (ROI)((PathCellObject)pathObject).getNucleusROI();
-				if (pathROI == null)
-					pathROI = pathObject.getROI();
-			} else
-				pathROI = pathObject.getROI();
+			pathROI = getROI(pathObject);
 
 			// Check if we have a ROI at all
 			if (pathROI == null) {
@@ -240,7 +276,7 @@ public class DelaunayTriangulation {
 					break;
 				
 				
-				boolean distanceOK = ignoreDistance || distance(pathObject.getROI(), destination.getROI()) < distanceThreshold;
+				boolean distanceOK = ignoreDistance || distance(getROI(pathObject), getROI(destination)) < distanceThreshold;
 				boolean classOK = !limitByClass || pathClass == destination.getPathClass() || (destination.getPathClass() != null && destination.getPathClass().getBaseClass() == pathClass);
 				
 				if (distanceOK && classOK) {
@@ -296,10 +332,11 @@ public class DelaunayTriangulation {
 			DelaunayNode node = nodeMap.get(temp);
 			if (node == null)
 				continue;
-			double x1 = temp.getROI().getCentroidX();
-			double y1 = temp.getROI().getCentroidY();
+			ROI roi = getROI(temp);
+			double x1 = roi.getCentroidX();
+			double y1 = roi.getCentroidY();
 			for (DelaunayNode node2 : node.nodeList) {
-				ROI roi2 = node2.getPathObject().getROI();
+				ROI roi2 = getROI(node2.getPathObject());
 				double x2 = roi2.getCentroidX();
 				double y2 = roi2.getCentroidY();
 				if (x1 < x2 || (x1 == x2 && y1 <= y2))
@@ -542,8 +579,9 @@ public class DelaunayTriangulation {
 		
 		private DelaunayNode(final PathObject pathObject, final double pixelWidth, final double pixelHeight) {
 			this.pathObject = pathObject;
-			this.x = pathObject.getROI().getCentroidX() * pixelWidth;
-			this.y = pathObject.getROI().getCentroidY() * pixelHeight;
+			ROI roi = getROI(pathObject);
+			this.x = roi.getCentroidX() * pixelWidth;
+			this.y = roi.getCentroidY() * pixelHeight;
 		}
 		
 //		public void addEdge(final PathObject destination) {
@@ -707,7 +745,7 @@ public class DelaunayTriangulation {
 				if (area > maxArea)
 					maxArea = area;
 			}
-			return maxArea;
+			return Double.isFinite(maxArea) ? maxArea : Double.NaN;
 		}
 
 		
@@ -749,8 +787,6 @@ public class DelaunayTriangulation {
 		}
 		
 	}
-	
-	
-	
+
 
 }

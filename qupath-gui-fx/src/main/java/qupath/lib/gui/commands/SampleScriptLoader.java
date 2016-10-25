@@ -199,7 +199,7 @@ public class SampleScriptLoader implements PathCommand {
 			int ind = script.indexOf("*/");
 			if (script.startsWith("/*") && ind > 0) {
 				StringBuilder sb = new StringBuilder();
-				for (String line : script.substring(0, ind+2).split("\n")) {
+				for (String line : GeneralTools.splitLines(script.substring(0, ind+2))) {
 					int startInd = line.indexOf("*");
 					String appendLine;
 					if (startInd >= 0)

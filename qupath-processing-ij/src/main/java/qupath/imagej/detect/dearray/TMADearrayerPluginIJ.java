@@ -189,7 +189,7 @@ public class TMADearrayerPluginIJ extends AbstractInteractivePlugin<BufferedImag
 			double fullCoreDiameterPx;
 			ImageServer<BufferedImage> server = imageData.getServer();
 			if (server.hasPixelSizeMicrons())
-				fullCoreDiameterPx = params.getDoubleParameterValue("coreDiameterMM") / server.getPixelWidthMicrons() * 1000;
+				fullCoreDiameterPx = params.getDoubleParameterValue("coreDiameterMM") / server.getAveragedPixelSizeMicrons() * 1000;
 			else
 				fullCoreDiameterPx = params.getDoubleParameterValue("coreDiameterPixels");
 
@@ -202,13 +202,32 @@ public class TMADearrayerPluginIJ extends AbstractInteractivePlugin<BufferedImag
 		
 			double densityThreshold = params.getIntParameterValue("densityThreshold") * 0.01;
 			double roiScaleFactor = params.getIntParameterValue("boundsScale") * 0.01;
-			logger.trace("ROI SCALE: " + roiScaleFactor);
+			logger.trace("ROI scale: " + roiScaleFactor);
 		
 
 			double maxDimLength = Math.max(server.getWidth(), server.getHeight());
 			double dimRequested = 1200;
 			double downsample = Math.pow(2, Math.round(Math.log(maxDimLength / dimRequested)/Math.log(2)));
-					
+			
+//			// Compute alternative downsample factor based on requested pixel size
+//			// This is likely to be a bit more reproducible - so use it instead
+//			if (server.hasPixelSizeMicrons()) {
+//				double preferredCoreDiameterPixels = 60;
+//				double downsample2 = Math.round(fullCoreDiameterPx / preferredCoreDiameterPixels);
+//				if (downsample2 > 1 && (maxDimLength / downsample2 < dimRequested*2)) {
+//					downsample = downsample2;
+//				}
+//			}
+
+			// Compute alternative downsample factor based on requested pixel size
+			// This is likely to be a bit more reproducible - so use it instead
+			if (server.hasPixelSizeMicrons()) {
+				double preferredPixelSizeMicrons = 25;
+				double downsample2 = Math.round(preferredPixelSizeMicrons / server.getAveragedPixelSizeMicrons());
+				if (downsample2 > 1 && (maxDimLength / downsample2 < dimRequested*2))
+					downsample = downsample2;
+			}
+
 			// Read the image
 			PathImage<ImagePlus> pathImage = PathImagePlus.createPathImage(server, downsample);
 			ImagePlus imp = pathImage.getImage();

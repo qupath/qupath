@@ -48,6 +48,11 @@ public class ColorTransformer {
 			RGB_mean,
 			Hue,
 			Saturation,
+			Brightness,
+			
+			Stain_1,
+			Stain_2,
+			Stain_3,
 			
 			Stain_1_projection,
 			Stain_2_projection,
@@ -138,8 +143,12 @@ public class ColorTransformer {
 			return chromaticityMax;
 		case Brown:
 			return 255;
+		case Stain_1:
+		case Stain_2:
+		case Stain_3:
+		case Hematoxylin_H_DAB:
+		case Hematoxylin_H_E:
 		case DAB_H_DAB:
-			return deconvMax;
 		case Eosin_H_E:
 			return deconvMax;
 		case Green:
@@ -148,13 +157,11 @@ public class ColorTransformer {
 			return chromaticityMax;
 		case Green_divided_by_blue:
 			return 255;
-		case Hematoxylin_H_DAB:
-			return deconvMax;
-		case Hematoxylin_H_E:
-			return deconvMax;
 		case Optical_density_sum:
 			return deconvMax * 2;
 		case Hue:
+			return 1;
+		case Brightness:
 			return 1;
 		case Saturation:
 			return 1;
@@ -180,6 +187,8 @@ public class ColorTransformer {
 				return new float[]{0f, 1f};
 			if (method == ColorTransformMethod.Hematoxylin_H_E || method == ColorTransformMethod.Hematoxylin_H_DAB || method == ColorTransformMethod.Eosin_H_E || method == ColorTransformMethod.DAB_H_DAB)
 				return new float[]{0f, 2.f};
+			if (method == ColorTransformMethod.Hue || method == ColorTransformMethod.Saturation || method == ColorTransformMethod.Brightness)
+				return new float[]{0f, 1f};
 	//		if (method == IntColorMethod.Red_chromaticity || method == IntColorMethod.Green_chromaticity || method == IntColorMethod.Blue_chromaticity)
 			float min = Float.POSITIVE_INFINITY;
 			float max = Float.NEGATIVE_INFINITY;
@@ -282,6 +291,7 @@ public class ColorTransformer {
 			if (stains == null || !stains.isH_E()) {
 				throw new IllegalArgumentException("No valid H&E stains supplied!");
 			}
+		case Stain_1:
 			od_lut_red = ColorDeconvolutionHelper.makeODLUT(stains.getMaxRed());
 			od_lut_green = ColorDeconvolutionHelper.makeODLUT(stains.getMaxGreen());
 			od_lut_blue = ColorDeconvolutionHelper.makeODLUT(stains.getMaxBlue());
@@ -294,12 +304,22 @@ public class ColorTransformer {
 			if (stains == null || !stains.isH_E()) {
 				throw new IllegalArgumentException("No valid H&E stains supplied!");
 			}
+		case Stain_2:
 			od_lut_red = ColorDeconvolutionHelper.makeODLUT(stains.getMaxRed());
 			od_lut_green = ColorDeconvolutionHelper.makeODLUT(stains.getMaxGreen());
 			od_lut_blue = ColorDeconvolutionHelper.makeODLUT(stains.getMaxBlue());
 			inverse = stains.getMatrixInverse();
 			for (int i = 0; i < buf.length; i++) {
 				pixels[i] = ColorTransformer.deconvolve(buf[i], inverse, od_lut_red, od_lut_green, od_lut_blue, 2);
+			}
+			break;
+		case Stain_3:
+			od_lut_red = ColorDeconvolutionHelper.makeODLUT(stains.getMaxRed());
+			od_lut_green = ColorDeconvolutionHelper.makeODLUT(stains.getMaxGreen());
+			od_lut_blue = ColorDeconvolutionHelper.makeODLUT(stains.getMaxBlue());
+			inverse = stains.getMatrixInverse();
+			for (int i = 0; i < buf.length; i++) {
+				pixels[i] = ColorTransformer.deconvolve(buf[i], inverse, od_lut_red, od_lut_green, od_lut_blue, 3);
 			}
 			break;
 		case Hematoxylin_H_DAB:
@@ -471,6 +491,11 @@ public class ColorTransformer {
 		case Saturation:
 			for (int i = 0; i < buf.length; i++) {
 				pixels[i] = ColorTransformer.saturation(buf[i]);
+			}
+			break;
+		case Brightness:
+			for (int i = 0; i < buf.length; i++) {
+				pixels[i] = ColorTransformer.brightness(buf[i]);
 			}
 			break;
 
@@ -676,6 +701,13 @@ public class ColorTransformer {
 		int g = (rgb & ColorTools.MASK_GREEN) >> 8;
 		int b = rgb & ColorTools.MASK_BLUE;
 		return Color.RGBtoHSB(r, g, b, null)[1];
+	}
+	
+	public static float brightness(int rgb) {
+		int r = (rgb & ColorTools.MASK_RED) >> 16;
+		int g = (rgb & ColorTools.MASK_GREEN) >> 8;
+		int b = rgb & ColorTools.MASK_BLUE;
+		return Color.RGBtoHSB(r, g, b, null)[2];
 	}
 
 	public static float getPixelValue(int rgb, ColorTransformMethod method) {

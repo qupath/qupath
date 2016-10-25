@@ -21,28 +21,41 @@
  * #L%
  */
 
-package qupath.lib.gui.commands;
 
-import javafx.stage.Stage;
-import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.commands.interfaces.PathCommand;
-import qupath.lib.gui.tma.TMASummaryViewer;
+package qupath.lib.gui.tma.cells;
+
+import javafx.geometry.Pos;
+import javafx.scene.control.TreeTableCell;
+import qupath.lib.common.GeneralTools;
 
 /**
- * Launch GUI for viewing exported TMA summary data.
+ * A TableCell to display numbers in a formatted way, with decimal places adjusted according to magnitude.
  * 
  * @author Pete Bankhead
  *
+ * @param <T>
  */
-public class TMAExportViewerCommand implements PathCommand {
-	
+public class NumericTableCell<T> extends TreeTableCell<T, Number> {
+
 	@Override
-	public void run() {
-		QuPathGUI qupath = QuPathGUI.getInstance();
-		Stage stage = new Stage();
-		if (qupath != null)
-			stage.initOwner(qupath.getStage());
-		new TMASummaryViewer(stage).getStage().show();
+	protected void updateItem(Number item, boolean empty) {
+		super.updateItem(item, empty);
+		if (item == null || empty) {
+			setText(null);
+			setStyle("");
+		} else {
+			setAlignment(Pos.CENTER);
+			if (Double.isNaN(item.doubleValue()))
+				setText("-");
+			else {
+				if (item.doubleValue() >= 1000)
+					setText(GeneralTools.getFormatter(1).format(item));
+				else if (item.doubleValue() >= 10)
+					setText(GeneralTools.getFormatter(2).format(item));
+				else
+					setText(GeneralTools.getFormatter(3).format(item));
+			}
+		}
 	}
 
 }

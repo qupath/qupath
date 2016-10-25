@@ -26,6 +26,11 @@ package qupath.lib.scripting;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.lang.reflect.Constructor;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,12 +40,21 @@ import qupath.lib.images.ImageData;
 import qupath.lib.images.stores.ImageRegionStore;
 import qupath.lib.io.PathAwtIO;
 import qupath.lib.io.PathIO;
+import qupath.lib.objects.PathAnnotationObject;
+import qupath.lib.objects.PathObject;
+import qupath.lib.objects.classes.PathClass;
+import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.plugins.CommandLinePluginRunner;
 import qupath.lib.plugins.PathPlugin;
 import qupath.lib.plugins.PluginRunner;
 import qupath.lib.plugins.PluginRunnerFX;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectImageEntry;
+import qupath.lib.roi.PathROIToolsAwt;
+import qupath.lib.roi.RectangleROI;
+import qupath.lib.roi.interfaces.PathArea;
+import qupath.lib.roi.interfaces.PathShape;
+import qupath.lib.roi.interfaces.ROI;
 
 /**
  * Alternative to QP offering static methods of use for scripting, 
@@ -264,6 +278,108 @@ public class QPEx extends QP {
 		if (extensions != null && extensions.length == 0)
 			extensions = null;
 		return QuPathGUI.getSharedDialogHelper().promptForFile(null, null, filterDescription, extensions);
+	}
+	
+
+	public static PathObject mergeAnnotations(final Collection<PathObject> annotations) {
+		return mergeAnnotations(getCurrentHierarchy(), annotations);
+	}
+	
+	public static PathObject mergeSelectedAnnotations() {
+		return mergeSelectedAnnotations(getCurrentHierarchy());
+	}
+	
+	public static PathObject mergeAnnotations(final PathObjectHierarchy hierarchy, final Collection<PathObject> annotations) {
+		if (hierarchy == null)
+			return null;
+		
+		// Get all the selected annotations with area
+		PathShape shapeNew = null;
+		List<PathObject> children = new ArrayList<>();
+		Set<PathClass> pathClasses = new HashSet<>();
+		for (PathObject child : annotations) {
+			if (child instanceof PathAnnotationObject && child.getROI() instanceof PathArea) {
+				if (shapeNew == null)
+					shapeNew = (PathShape)child.getROI();//.duplicate();
+				else
+					shapeNew = PathROIToolsAwt.combineROIs(shapeNew, (PathArea)child.getROI(), PathROIToolsAwt.CombineOp.ADD);
+				if (child.getPathClass() != null)
+					pathClasses.add(child.getPathClass());
+				children.add(child);
+			}
+		}
+		// Check if we actually merged anything
+		if (children.isEmpty())
+			return null;
+		if (children.size() == 1)
+			return children.get(0);
+	
+		// Create and add the new object, removing the old ones
+		PathObject pathObjectNew = new PathAnnotationObject(shapeNew);
+		if (pathClasses.size() == 1)
+			pathObjectNew.setPathClass(pathClasses.iterator().next());
+		else
+			logger.warn("Cannot assign class unambiguously - " + pathClasses.size() + " classes represented in selection");
+		hierarchy.removeObjects(children, true);
+		hierarchy.addPathObject(pathObjectNew, false);
+		//				pathObject.removePathObjects(children);
+		//				pathObject.addPathObject(pathObjectNew);
+		//				hierarchy.fireHierarchyChangedEvent(pathObject);
+		return pathObjectNew;
+	}
+
+
+	public static PathObject mergeSelectedAnnotations(final PathObjectHierarchy hierarchy) {
+		return hierarchy == null ? null : mergeAnnotations(hierarchy, hierarchy.getSelectionModel().getSelectedObjects());
+	}
+	
+	public static PathObject makeInverseAnnotation(final PathObject pathObject) {
+		return makeInverseAnnotation(getCurrentImageData(), pathObject);
+	}
+	
+	public static PathObject makeInverseAnnotation(final ImageData<?> imageData, final PathObject pathObject) {
+		if (imageData == null)
+			return null;
+		
+		PathObjectHierarchy hierarchy = imageData.getHierarchy();
+		// Get the currently-selected area
+		PathArea shapeSelected = null;
+		if (pathObject instanceof PathAnnotationObject) {
+			shapeSelected = getAreaROI(pathObject);
+		}
+		if (shapeSelected == null) {
+			logger.error("Cannot create inverse annotation from " + pathObject);
+			return null;
+		}
+
+		// Get the parent area to use
+		PathObject parent = pathObject.getParent();
+		PathArea shape = getAreaROI(parent);
+		if (shape == null)
+			shape = new RectangleROI(0, 0, imageData.getServer().getWidth(), imageData.getServer().getHeight(), shapeSelected.getC(), shapeSelected.getZ(), shapeSelected.getT());
+
+		// Create the new ROI
+		PathShape shapeNew = PathROIToolsAwt.combineROIs(shape, shapeSelected, PathROIToolsAwt.CombineOp.SUBTRACT);
+		PathObject pathObjectNew = new PathAnnotationObject(shapeNew);
+
+		// Reassign all other children to the new parent
+		List<PathObject> children = new ArrayList<>(parent.getChildObjects());
+		children.remove(pathObject);
+		pathObjectNew.addPathObjects(children);
+
+		parent.addPathObject(pathObjectNew);
+		hierarchy.fireHierarchyChangedEvent(parent);		
+		return pathObjectNew;
+	}
+	
+	
+	private static PathArea getAreaROI(PathObject pathObject) {
+		if (pathObject == null)
+			return null;
+		ROI pathROI = pathObject.getROI();
+		if (!(pathROI instanceof PathArea))
+			return null;
+		return (PathArea)pathObject.getROI();
 	}
 	
 }

@@ -105,6 +105,7 @@ public abstract class AbstractPathDraggingROITool extends AbstractPathROITool {
 				commitObjectToHierarchy(e, selectedObject);
 			}
 			editor.ensureHandlesUpdated();
+			editor.resetActiveHandle();
 			if (PathPrefs.getReturnToMoveMode())
 				modes.setMode(Modes.MOVE);
 		}

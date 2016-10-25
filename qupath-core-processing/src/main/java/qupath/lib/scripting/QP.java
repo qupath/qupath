@@ -532,7 +532,7 @@ public class QP {
 				if (rowFirst)
 					name = rowLabels[r] + "-" + columnLabels[c];
 				else
-					name = columnLabels[r] + "-" + rowLabels[c];
+					name = columnLabels[c] + "-" + rowLabels[r];
 				grid.getTMACore(r, c).setName(name);
 			}			
 		}
@@ -916,6 +916,26 @@ public class QP {
 	 */
 	public static PathClass getDerivedPathClass(final PathClass baseClass, final String name, final Integer rgb) {
 		return PathClassFactory.getDerivedPathClass(baseClass, name, rgb);
+	}
+
+	
+	public static void removeMeasurements(final Class<? extends PathObject> cls, final String... measurementNames) {
+		removeMeasurements(getCurrentHierarchy(), cls, measurementNames);
+	}
+
+	public static void removeMeasurements(final PathObjectHierarchy hierarchy, final Class<? extends PathObject> cls, final String... measurementNames) {
+		if (hierarchy == null)
+			return;
+		List<PathObject> pathObjects = hierarchy.getObjects(null, cls);
+		for (PathObject pathObject : pathObjects) {
+			// A little check, to handle possible subclasses being returned
+			if (pathObject.getClass() != cls)
+				continue;
+			// Remove the measurements
+			pathObject.getMeasurementList().removeMeasurements(measurementNames);
+			pathObject.getMeasurementList().closeList();
+		}
+		hierarchy.fireObjectMeasurementsChangedEvent(null, pathObjects);
 	}
 
 }

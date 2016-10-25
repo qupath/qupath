@@ -11,6 +11,9 @@ log/
 # Mac
 .DS_Store
 
+# Java
+hs_err*.log
+
 # Other
 *.tmp
 *.bak

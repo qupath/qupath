@@ -83,10 +83,14 @@ import qupath.lib.gui.extensions.QuPathExtension;
 import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.gui.icons.PathIconFactory;
 import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.images.PathImage;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathCellObject;
+import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.helpers.PathObjectColorToolsAwt;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.regions.RegionRequest;
@@ -271,7 +275,7 @@ public class IJExtension implements QuPathExtension {
 
 
 
-	public static PathImage<ImagePlus> extractROIWithOverlay(ImageServer<BufferedImage> server, PathObject pathObject, PathObjectHierarchy hierarchy, RegionRequest request, boolean setROI, ImageDisplay imageDisplay) {
+	public static PathImage<ImagePlus> extractROIWithOverlay(ImageServer<BufferedImage> server, PathObject pathObject, PathObjectHierarchy hierarchy, RegionRequest request, boolean setROI, OverlayOptions options, ImageDisplay imageDisplay) {
 		ROI pathROI;
 		if (pathObject == null || !pathObject.hasROI()) {
 			pathROI = new RectangleROI(0, 0, server.getWidth(), server.getHeight());
@@ -289,23 +293,38 @@ public class IJExtension implements QuPathExtension {
 		if (hierarchy != null) {
 			ImagePlus imp = pathImage.getImage();
 			Overlay overlay = new Overlay();
+			
 			// TODO: Permit filling/unfilling ROIs
 			for (PathObject child : hierarchy.getObjectsForRegion(PathObject.class, request, null)) {
 				if (child.equals(pathObject))
 					continue;
+				
 				if (child.hasROI()) {
+					
+					// Check if this is displayed - skip it not
+					if (options != null && 
+							((child instanceof PathDetectionObject && !options.getShowObjects()) ||
+							(child instanceof PathAnnotationObject && !options.getShowAnnotations()) ||
+							(child instanceof TMACoreObject && !options.getShowTMAGrid())))
+						continue;
+					
+					boolean isCell = child instanceof PathCellObject;
+					
 					Color color = PathObjectColorToolsAwt.getDisplayedColorAWT(child);
-					Roi roi = ROIConverterIJ.convertToIJRoi(child.getROI(), pathImage);
-					roi.setStrokeColor(color);
-					roi.setName(child.getDisplayedName());
-					//						roi.setStrokeWidth(2);
-					overlay.add(roi);
+					if (!(isCell && !options.getShowCellBoundaries())) {
+						Roi roi = ROIConverterIJ.convertToIJRoi(child.getROI(), pathImage);
+						roi.setStrokeColor(color);
+						roi.setName(child.getDisplayedName());
+						//						roi.setStrokeWidth(2);
+						overlay.add(roi);
+					}
+					
 					// TODO: Permit cell boundaries/nuclei to be shown/hidden
-					if (child instanceof PathCellObject) {
+					if (isCell && options.getShowCellNuclei()) {
 						ROI nucleus = ((PathCellObject)child).getNucleusROI();
 						if (nucleus == null)
 							continue;
-						roi = ROIConverterIJ.convertToIJRoi(((PathCellObject)child).getNucleusROI(), pathImage);
+						Roi roi = ROIConverterIJ.convertToIJRoi(((PathCellObject)child).getNucleusROI(), pathImage);
 						roi.setStrokeColor(color);
 						roi.setName(child.getDisplayedName() + " - nucleus");
 						overlay.add(roi);
@@ -400,7 +419,7 @@ public class IJExtension implements QuPathExtension {
 		// Add an analysis menu
 //		Menu menuAnalysis = qupath.getMenu("Analyze", true);
 		
-		Menu menuFeatures = qupath.getMenu("Analyze>Calculate features", true);
+//		Menu menuFeatures = qupath.getMenu("Analyze>Calculate features", true);
 		
 		Menu menuRegions = qupath.getMenu("Analyze>Region identification", true);
 		QuPathGUI.addMenuItems(menuRegions,

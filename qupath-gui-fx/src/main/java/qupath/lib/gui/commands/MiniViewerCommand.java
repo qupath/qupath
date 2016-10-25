@@ -91,7 +91,7 @@ public class MiniViewerCommand implements PathCommand {
 			
 			@Override
 			public void viewerClosed(QuPathViewer viewer) {
-				viewer.removeViewerListener(this);
+				miniViewer.removeViewerListener(this);
 				miniViewer.closeViewer();
 				dialog.hide();
 			}
@@ -100,11 +100,7 @@ public class MiniViewerCommand implements PathCommand {
 			public void selectedObjectChanged(QuPathViewer viewer, PathObject pathObjectSelected) {}
 			
 			@Override
-			public void imageDataChanged(QuPathViewer viewer2, ImageData<BufferedImage> imageDataOld, ImageData<BufferedImage> imageDataNew) {
-				// TODO: Implement ImageData change...?  This doesn't actually work...
-				if (viewer == viewer2)
-					miniViewer.setImageData(imageDataNew);
-			}
+			public void imageDataChanged(QuPathViewer viewer2, ImageData<BufferedImage> imageDataOld, ImageData<BufferedImage> imageDataNew) {}
 		});
 		
 	}
@@ -132,7 +128,7 @@ public class MiniViewerCommand implements PathCommand {
 }
 
 
-class MiniViewer extends QuPathViewer {
+class MiniViewer extends QuPathViewer implements QuPathViewerListener {
 	
 	private QuPathViewer mainViewer;
 	
@@ -174,6 +170,7 @@ class MiniViewer extends QuPathViewer {
 			ActionUtils.createRadioMenuItem(createDownsampleAction("100 %", this, 1)),	
 			ActionUtils.createRadioMenuItem(createDownsampleAction("50 %", this, 2)),		
 			ActionUtils.createRadioMenuItem(createDownsampleAction("25 %", this, 4)),		
+			ActionUtils.createRadioMenuItem(createDownsampleAction("20 %", this, 5)),		
 			ActionUtils.createRadioMenuItem(createDownsampleAction("10 %", this, 10)),		
 			ActionUtils.createRadioMenuItem(createDownsampleAction("Zoom to fit", this, -1))
 		};
@@ -201,12 +198,14 @@ class MiniViewer extends QuPathViewer {
 			getView().removeEventHandler(MouseEvent.MOUSE_CLICKED, clickHandler);
 			mainViewer.getView().removeEventHandler(MouseEvent.MOUSE_MOVED, moveHandler);
 			mainViewer.getView().removeEventHandler(MouseEvent.MOUSE_DRAGGED, moveHandler);
+			mainViewer.removeViewerListener(this);
 		}
 		this.mainViewer = viewer;
 		if (mainViewer != null) {
 			getView().addEventHandler(MouseEvent.MOUSE_CLICKED, clickHandler);
 			mainViewer.getView().addEventHandler(MouseEvent.MOUSE_MOVED, moveHandler);
 			mainViewer.getView().addEventHandler(MouseEvent.MOUSE_DRAGGED, moveHandler);
+			mainViewer.addViewerListener(this);
 		}
 	}
 	
@@ -237,5 +236,24 @@ class MiniViewer extends QuPathViewer {
 			action.setSelected(Math.abs(downsample - getDownsampleFactor()) < 0.1);
 		return action;
 	}
+
+
+	@Override
+	public void imageDataChanged(QuPathViewer viewer, ImageData<BufferedImage> imageDataOld,
+			ImageData<BufferedImage> imageDataNew) {
+		setImageData(imageDataNew);
+	}
+
+
+	@Override
+	public void visibleRegionChanged(QuPathViewer viewer, Shape shape) {}
+
+
+	@Override
+	public void selectedObjectChanged(QuPathViewer viewer, PathObject pathObjectSelected) {}
+
+
+	@Override
+	public void viewerClosed(QuPathViewer viewer) {}
 	
 }

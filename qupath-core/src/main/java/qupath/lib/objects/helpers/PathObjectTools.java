@@ -490,19 +490,44 @@ public class PathObjectTools {
 				// Try integer labels
 				int i1 = Integer.parseInt(labelsSplit[0]);
 				int i2 = Integer.parseInt(labelsSplit[1]);
-				labels = new String[i2-i1+1];
-				for (int i = 0; i <= i2-i1; i++)
-					labels[i] = Integer.toString(i1+i);
+				
+				// Are we descending?
+				int inc = 1;
+				int n = i2 - i1 + 1;
+				if (i1 > i2) {
+					inc = -1;
+					n = i1 - i2 + 1;
+				}
+				
+				// Check - do we want zero-padding?
+				String format = "%d";
+				if (labelsSplit[0].startsWith("0"))
+					format = "%0" + labelsSplit[0].length() + "d";
+				
+				// Create labels
+				labels = new String[n];
+				for (int i = 0; i < n; i++)
+					labels[i] = String.format(format, i1+i*inc);
 				return labels;
 			} catch (Exception e) {}
 			try {
 				// Try string labels
 				char c1 = labelsSplit[0].charAt(0);
 				char c2 = labelsSplit[1].charAt(0);
-				labels = new String[c2-c1+1];
+				
+				// Are we descending?
+				int inc = 1;
+				int n = c2 - c1 + 1;
+				if (c1 > c2) {
+					inc = -1;
+					n = c1 - c2 + 1;
+				}
+				
+				// Create labels
+				labels = new String[n];
 				int counter = 0;
-				for (char i = c1; i <= c2; i++) {
-					labels[counter] = ""+i;
+				for (char i = 0; i < n; i++) {
+					labels[counter] = ""+(char)(c1 + i*inc);
 					counter++;
 				}
 				return labels;
@@ -526,6 +551,22 @@ public class PathObjectTools {
 			.collect(Collectors.toList());
 		
 		return objects;
+	}
+
+	/**
+	 * Get the ROI for a PathObject, with a preference for the nucleus ROI of a cell.
+	 * 
+	 * @param pathObject
+	 * @param preferNucleus
+	 * @return
+	 */
+	public static ROI getROI(final PathObject pathObject, final boolean preferNucleus) {
+		if (preferNucleus && pathObject instanceof PathCellObject) {
+			ROI roi = ((PathCellObject)pathObject).getNucleusROI();
+			if (roi != null)
+				return roi;
+		}
+		return pathObject.getROI();
 	}
 	
 	
