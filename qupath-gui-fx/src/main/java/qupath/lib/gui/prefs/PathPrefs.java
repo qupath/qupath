@@ -315,7 +315,7 @@ public class PathPrefs {
 	}
 	
 	
-	private static BooleanProperty showExperimentalOptions = createPersistentPreference("showExperimentalOptions", false);
+	private static BooleanProperty showExperimentalOptions = createPersistentPreference("showExperimentalOptions", true);
 	
 	/**
 	 * Flag to indicate that menu items marked 'experimental' should be shown to the user.
