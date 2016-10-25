@@ -4,16 +4,18 @@
 * Added 'Measure -> Show measurement manager' command to enable measurements to be viewed & (optionally) removed
 * Added 'File -> Revert' command to go back to the last saved version for the current image data
 * Added new 'Add intensity features (experimental)' command. This will eventually replace the Haralick features command (and possibly others), since it offers the same functionality in a much more flexible way.  Furthermore, the new command can handle up to 8 channels of fluorescence data (with arbitrary setting of the min/max values used to calculate the graylevel co-occurrence matrix).
-* Major updates to the 'Add Delaunay cluster features (experimental)' command, with improved display, persistence, and refactoring into OpenCV processing module.
+* Major updates to the 'Add Delaunay cluster features (experimental)' command, with improved display and ability to save connections within the ImageData properties.
 * Major updates to the 'TMA data viewer', with improved performance and a tree-table structure.
 * Improved 'Tile classifications to annotations' command to support tile-based region identification
 * Improved 'Simple tissue detection' command with support for detecting tissue inside TMACoreObjects
-* TMA dearrayer now has improved speed & accuracy
+* Improved TMA dearrayer speed & accuracy
 * TMA core labels can now optionally have leading zeros (e.g. 01-16), or be in descending order (e.g. J-A)
 * TMA grids can be applied to add TMA 'Unique ID' values by drag-and-drop, using a text file with extension '.qpmap'
+* Adding or removing a TMA row or column now produces a prompt to relabel the grid
 * When sending image regions to ImageJ, the 'visibility' status is used to determine whether or not objects are sent as ROIs
-* Fixed bug with extension path wrongly defaulting to an internal QuPath directory (you may need to update your extensions directory from 'Edit -> Preferences')
+* Fixed bug with extension path wrongly defaulting to an internal QuPath directory (existing installations may require the extension directory to be updated rom 'Edit -> Preferences')
 * Fixed (hopefully) cross-platform line splitting (v0.0.3 tried to fix this for Windows... but only partly did, while breaking TMA grid import elsewhere)
+* Fixed bugs in 'Classify by specific feature' command
 * Fixed bug whereby ROIs with zero width or height were not shown at all
 * Fixed bug in drawing ROIs as icons (e.g. in the annotation or hierarchy views)
 * When manually setting the name of an annotation, any previous name is now shown (rather than a blank field)
