@@ -433,13 +433,11 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		super();
 		
 		updateBuildString();
-		if (buildString != null && !DisplayHelpers.showConfirmDialog("QuPath agreement", 
-				"This is a pre-release version of QuPath, intended for testing purposes.\n\n" + 
-				"Please run 'Help -> Get latest version' regularly to check for updates.\n\n" +
-						buildString
-				)) {
-			Platform.exit();
-			return;
+		// If we have a build String, show pre-release warning
+		// (If we don't have a build String, we're probably running from an IDE)
+		if (buildString != null) {
+			String message = ("This is a pre-release version of QuPath\n" + buildString).replace("\n", "\n  ");
+			Platform.runLater(() -> DisplayHelpers.showInfoNotification("QuPath Notice", message));
 		}
 		
 		long startTime = System.currentTimeMillis();
@@ -688,10 +686,6 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		long endTime = System.currentTimeMillis();
 		logger.debug("Startup time: {} ms", (endTime - startTime));
 		
-		
-		logger.info("Build string: {}", buildString);
-		
-		
 		// Do auto-update check
 		if (!disableAutoUpdateCheck)
 			checkForUpdate(true);
@@ -922,6 +916,8 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	 */
 	private void checkForUpdate(final boolean isAutoCheck) {
 		
+		logger.info("Performing update check...");
+		
 		// Confirm if the user wants us to check for updates
 		boolean doAutoUpdateCheck = PathPrefs.doAutoUpdateCheck();
 		if (isAutoCheck && !doAutoUpdateCheck)
@@ -931,9 +927,9 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		long currentTime = System.currentTimeMillis();
 		long lastUpdateCheck = PathPrefs.getUserPreferences().getLong("lastUpdateCheck", 0);
 
-		// Don't check run auto-update check again if we already checked within the last hour
-		long diffHours = (currentTime - lastUpdateCheck) / (60 * 60 * 1000);
-		if (isAutoCheck && diffHours < 1)
+		// Don't check run auto-update check again if we already checked within the last minute
+		long diffMinutes = (currentTime - lastUpdateCheck) / (60 * 1000);
+		if (isAutoCheck && diffMinutes < 1)
 			return;
 		
 		// See if we can read the current ChangeLog

@@ -89,7 +89,7 @@
 			<fx:fileset dir="${basedir}" includes="qupath/sources/*"/>
 			<fx:fileset dir="${basedir}" includes="jars/*" excludes="jars/*-natives-*"/>
 			<fx:fileset dir="${basedir}" includes="jars/sources/*"/>
-			<fx:fileset dir="${basedir}" includes="CHANGELOG.md"/>
+			<fx:fileset dir="${basedir}/.." includes="CHANGELOG.md"/>
 			<fx:fileset dir="${basedir}/dist/" includes="QuPathApp.jar"/>
 			
 			<!-- See http://docs.oracle.com/javafx/2/deployment/self-contained-packaging.htm -->
