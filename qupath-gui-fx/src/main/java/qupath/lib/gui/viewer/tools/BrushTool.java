@@ -213,6 +213,7 @@ public class BrushTool extends AbstractPathROITool {
 		
 		PathShape shapeROI = createNew ? null : (PathShape)currentObject.getROI();
 		if (createNew) {
+			creatingTiledROI = false; // Reset this
 			viewer.setSelectedObject(new PathAnnotationObject(new AWTAreaROI(new Rectangle2D.Double(p.getX(), p.getY(), 0, 0), -1, viewer.getZPosition(), viewer.getTPosition())));
 		} else
 			viewer.setSelectedObject(getUpdatedObject(e, shapeROI, currentObject, -1));
@@ -266,7 +267,7 @@ public class BrushTool extends AbstractPathROITool {
 			// Check to see if any changes are required at all
 			boolean subtractMode = isSubtractMode(e);
 			Shape shapeCurrent = PathROIToolsAwt.getShape(shapeROI);
-			if ((subtractMode && !shapeCurrent.intersects(shapeDrawn.getBounds2D())) || 
+			if (shapeDrawn == null || (subtractMode && !shapeCurrent.intersects(shapeDrawn.getBounds2D())) || 
 					(!subtractMode && shapeCurrent.contains(shapeDrawn.getBounds2D())))
 				return currentObject;
 			shapeNew = PathROIToolsAwt.combineROIs(shapeROI,
@@ -373,12 +374,16 @@ public class BrushTool extends AbstractPathROITool {
 			List<PathObject> listSelectable = getSelectableObjectList(x, y);
 			for (PathObject temp : listSelectable) {
 //				if ((temp instanceof PathDetectionObject) && temp.getROI() instanceof PathArea)
-				if (temp instanceof PathTileObject && temp.getROI() instanceof PathArea && !(temp.getROI() instanceof RectangleROI))
+				if (temp instanceof PathTileObject && temp.getROI() instanceof PathArea && !(temp.getROI() instanceof RectangleROI)) {
+					creatingTiledROI = true;
 					return PathROIToolsAwt.getShape(temp.getROI());
+				}
 			}
+			// If we're currently creating a tiled, ROI, but now not clicked on a tile, just return
+			if (creatingTiledROI)
+				return null;
 		}
 
-		
 		// Compute a diameter scaled according to the pressure being applied
 		double diameter = getBrushDiameter();
 		Shape shape = new Ellipse2D.Double(x-diameter/2, y-diameter/2, diameter, diameter);
@@ -394,10 +399,11 @@ public class BrushTool extends AbstractPathROITool {
 		return shape;
 	}
 	
-	
+	private boolean creatingTiledROI = false;
 
 	@Override
 	protected ROI createNewROI(double x, double y, int z, int t) {
+		creatingTiledROI = false;
 		return new AWTAreaROI(createShape(x, y, PathPrefs.getUseTileBrush()), -1, z, t);
 //		return new PathPolygonROI(x, y, -1, z, t);
 	}
