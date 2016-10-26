@@ -292,6 +292,7 @@ import qupath.lib.plugins.PathInteractivePlugin;
 import qupath.lib.plugins.PathPlugin;
 import qupath.lib.plugins.PluginRunnerFX;
 import qupath.lib.plugins.objects.FindConvexHullDetectionsPlugin;
+import qupath.lib.plugins.objects.ShapeFeaturesPlugin;
 import qupath.lib.plugins.objects.SmoothFeaturesPlugin;
 import qupath.lib.plugins.parameters.ParameterChangeListener;
 import qupath.lib.plugins.parameters.ParameterList;
@@ -2731,6 +2732,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 //						createPluginAction("Add Haralick texture features (feature test version)", HaralickFeaturesPluginTesting.class, this, imageRegionStore, null),
 						createPluginAction("Add Coherence texture feature (experimental)", CoherenceFeaturePlugin.class, this, true, null),
 						createPluginAction("Add Smoothed features", SmoothFeaturesPlugin.class, this, false, null),
+						createPluginAction("Add Shape features", ShapeFeaturesPlugin.class, this, false, null),
 						null,
 						createPluginAction("Add Local Binary Pattern features (experimental)", LocalBinaryPatternsPlugin.class, this, true, null)
 						)
