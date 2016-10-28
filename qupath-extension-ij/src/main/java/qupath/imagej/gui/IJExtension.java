@@ -73,6 +73,7 @@ import qupath.imagej.images.writers.ZipWriterIJ;
 import qupath.imagej.objects.ROIConverterIJ;
 import qupath.imagej.plugins.ImageJMacroRunner;
 import qupath.imagej.superpixels.DoGSuperpixelsPlugin;
+import qupath.imagej.superpixels.SLICSuperpixelsPlugin;
 import qupath.lib.analysis.objects.TileClassificationsToAnnotationsPlugin;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.display.ImageDisplay;
@@ -425,6 +426,7 @@ public class IJExtension implements QuPathExtension {
 		QuPathGUI.addMenuItems(menuRegions,
 				qupath.createPluginAction("Positive pixel count (experimental)", PositivePixelCounterIJ.class, null, false),
 				qupath.createPluginAction("DoG superpixel segmentation", DoGSuperpixelsPlugin.class, null, false),
+				qupath.createPluginAction("SLIC superpixel segmentation (experimental)", SLICSuperpixelsPlugin.class, null, false),
 				qupath.createPluginAction("Tile classifications to annotations", TileClassificationsToAnnotationsPlugin.class, null, false)				
 				);
 		
