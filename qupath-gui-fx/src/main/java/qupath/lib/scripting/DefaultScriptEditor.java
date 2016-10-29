@@ -58,7 +58,6 @@ import org.slf4j.LoggerFactory;
 import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ReadOnlyBooleanProperty;
-import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.StringProperty;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.ListChangeListener;
@@ -203,11 +202,11 @@ public class DefaultScriptEditor implements ScriptEditor {
 	private String tabString = "    "; // String to insert when tab key pressed
 
 	// Add default bindings, i.e. QuPathGUI, Viewer, ImageData... makes scripting much easier
-	private BooleanProperty useDefaultBindings = new SimpleBooleanProperty(true);
-	private BooleanProperty autoRefreshFiles = new SimpleBooleanProperty(true);
-	private BooleanProperty sendLogToConsole = new SimpleBooleanProperty(true);
-	private BooleanProperty outputScriptStartTime = new SimpleBooleanProperty(false);
-	private BooleanProperty autoClearConsole = new SimpleBooleanProperty(false);
+	private BooleanProperty useDefaultBindings = PathPrefs.createPersistentPreference("scriptingUseDefaultBindings", true);
+	private BooleanProperty autoRefreshFiles = PathPrefs.createPersistentPreference("scriptingAutoRefreshFiles", true);
+	private BooleanProperty sendLogToConsole = PathPrefs.createPersistentPreference("scriptingSendLogToConsole", true);
+	private BooleanProperty outputScriptStartTime = PathPrefs.createPersistentPreference("scriptingOutputScriptStartTime", false);
+	private BooleanProperty autoClearConsole = PathPrefs.createPersistentPreference("scriptingAutoClearConsole", false);
 	
 	private ScriptEngineManager manager;
 
@@ -1219,7 +1218,6 @@ public class DefaultScriptEditor implements ScriptEditor {
 	
 	Action createCopyAction(final String name) {
 		Action action = new Action(name, e -> {
-//			System.err.println(e.getSource());
 			ScriptEditorControl editor = getCurrentTextComponent();
 			if (editor != null) {
 				editor.copy();
