@@ -36,6 +36,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.stores.ImageRegionStore;
 import qupath.lib.io.PathAwtIO;
@@ -127,8 +128,14 @@ public class QPEx extends QP {
 	}
 	
 	
-	private static QuPathGUI getGUI() {
+	public static QuPathGUI getQuPath() {
 		return QuPathGUI.getInstance();
+	}
+	
+	
+	public static QuPathViewer getCurrentViewer() {
+		QuPathGUI qupath = QuPathGUI.getInstance();
+		return qupath == null ? null : qupath.getViewer();
 	}
 	
 	
@@ -237,11 +244,11 @@ public class QPEx extends QP {
 			pluginName = plugin.getName();
 			PluginRunner runner;
 			// TODO: Give potential of passing a plugin runner
-			if (isBatchMode() || imageData != getGUI().getImageData()) {
+			if (isBatchMode() || imageData != getQuPath().getImageData()) {
 				runner = new CommandLinePluginRunner(getSharedRegionStore(), imageData, true);
 			}
 			else {
-				runner = new PluginRunnerFX(getGUI(), true);
+				runner = new PluginRunnerFX(getQuPath(), true);
 			}
 			completed = plugin.runPlugin(runner, args);
 			cancelled = runner.isCancelled();
@@ -268,7 +275,7 @@ public class QPEx extends QP {
 	
 	
 	static boolean isBatchMode() {
-		return getGUI() == null || !getGUI().getStage().isShowing();
+		return getQuPath() == null || !getQuPath().getStage().isShowing();
 	}
 	
 	

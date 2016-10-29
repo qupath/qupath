@@ -38,14 +38,13 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Scanner;
+import java.util.concurrent.Future;
 
-import javax.script.Bindings;
 import javax.script.ScriptContext;
 import javax.script.ScriptEngine;
 import javax.script.ScriptEngineFactory;
 import javax.script.ScriptEngineManager;
 import javax.script.ScriptException;
-import javax.script.SimpleBindings;
 import javax.script.SimpleScriptContext;
 
 import org.controlsfx.control.ListSelectionView;
@@ -56,8 +55,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javafx.application.Platform;
+import javafx.beans.binding.BooleanBinding;
+import javafx.beans.binding.StringBinding;
 import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ReadOnlyBooleanProperty;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.StringProperty;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.ListChangeListener;
@@ -178,11 +181,26 @@ public class DefaultScriptEditor implements ScriptEditor {
 	
 	private static int untitledCounter = 0; // For incrementing untitled scripts
 	
+	private ObjectProperty<Future<?>> runningTask = new SimpleObjectProperty<>();
+	
 	private QuPathGUI qupath;
 	private Stage dialog;
 	private SplitPane splitMain;
 	private ToggleGroup bgLanguages;
 	private Font fontMain = Font.font("Courier");
+	
+	private ObjectProperty<ScriptTab> selectedScript = new SimpleObjectProperty<>();
+	
+	private StringBinding currentLanguage = javafx.beans.binding.Bindings.createStringBinding(
+			() -> {
+				if (selectedScript.get() == null || selectedScript.get().getLanguage() == null)
+					return null;
+				return selectedScript.get().getLanguage().toString();
+			},
+			selectedScript);
+	
+	// Binding to indicate it shouldn't be possible to 'Run' any script right now
+	private BooleanBinding disableRun = runningTask.isNotNull().or(currentLanguage.isNull());
 	
 	// Note: it doesn't seem to work to set the accelerators...
 	// this leads to the actions being called twice, due to the built-in behaviour of TextAreas
@@ -194,11 +212,6 @@ public class DefaultScriptEditor implements ScriptEditor {
 
 	private Action findAction = createFindAction("Find");
 
-	private Action actionRun = createRunScriptAction("Run", false);
-	private Action actionRunSelected = createRunScriptAction("Run selected", true);
-	private Action actionRunProject = createRunProjectScriptAction("Run for project", true);
-	private Action actionRunProjectWithoutSave = createRunProjectScriptAction("Run for project (without save)", false);
-	
 	private String tabString = "    "; // String to insert when tab key pressed
 
 	// Add default bindings, i.e. QuPathGUI, Viewer, ImageData... makes scripting much easier
@@ -208,15 +221,13 @@ public class DefaultScriptEditor implements ScriptEditor {
 	private BooleanProperty outputScriptStartTime = PathPrefs.createPersistentPreference("scriptingOutputScriptStartTime", false);
 	private BooleanProperty autoClearConsole = PathPrefs.createPersistentPreference("scriptingAutoClearConsole", false);
 	
-	private ScriptEngineManager manager;
-
-	private ScriptTab selectedScript = null;
+	private static ScriptEngineManager manager = createManager();
+	
 	private ListView<ScriptTab> listScripts = new ListView<>();
 
 
 	public DefaultScriptEditor(final QuPathGUI qupath) {
 		this.qupath = qupath;
-		setupManager();
 //		createDialog();
 	}
 	
@@ -273,15 +284,9 @@ public class DefaultScriptEditor implements ScriptEditor {
 	}
 	
 	
-	protected void updateLanguage(final ScriptTab scriptTab, final Language language) {
-		// Subclasses might handle this somehow
-		setRunEnabled(language != null);
-	}
-	
-	
 	void updateSelectedScript() {
 		ScriptTab tab = listScripts == null ? null : listScripts.getSelectionModel().getSelectedItem();
-		if (tab == selectedScript)
+		if (tab == selectedScript.get())
 			return;
 		
 		Node lastComponent = splitMain.getItems().get(1);
@@ -295,10 +300,10 @@ public class DefaultScriptEditor implements ScriptEditor {
 			maybeRefreshTab(tab);
 			splitMain.setDividerPosition(0, loc);
 			// Unfortunately need to wait until divider is present before we can set the divider location
-			if (selectedScript == null)
+			if (selectedScript.get() == null)
 				tab.splitEditor.setDividerPosition(0, 0.75);
 			else
-				tab.splitEditor.setDividerPosition(0, selectedScript.splitEditor.getDividers().get(0).getPosition());
+				tab.splitEditor.setDividerPosition(0, selectedScript.get().splitEditor.getDividers().get(0).getPosition());
 			
 			// Update the selected language
 			Language language = tab.getLanguage();
@@ -311,8 +316,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 			}
 		}
 		
-		selectedScript = tab;
-		setRunEnabled(true);
+		selectedScript.set(tab);
 	}
 	
 	
@@ -322,10 +326,10 @@ public class DefaultScriptEditor implements ScriptEditor {
 	}
 
 
-	private void setupManager() {
-	Thread.currentThread().setContextClassLoader(QuPathGUI.getClassLoader());
-		manager = new ScriptEngineManager(QuPathGUI.getClassLoader());
-//		availableLanguages.add(Language.JAVA);
+	private static ScriptEngineManager createManager() {
+		Thread.currentThread().setContextClassLoader(QuPathGUI.getClassLoader());
+		ScriptEngineManager manager = new ScriptEngineManager(QuPathGUI.getClassLoader());
+		//		availableLanguages.add(Language.JAVA);
 		for (ScriptEngineFactory factory : manager.getEngineFactories()) {
 			for (Language supported : Language.values()) {
 				if (factory.getNames().contains(supported.toString().toLowerCase())) {
@@ -350,6 +354,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 			}
 		}
 		Collections.sort(availableLanguages);
+		return manager;
 	}
 
 
@@ -511,21 +516,18 @@ public class DefaultScriptEditor implements ScriptEditor {
 		Menu menuRun = new Menu("Run");
 		QuPathGUI.addMenuItems(
 				menuRun,
-				actionRun,
-				actionRunSelected,
-				actionRunProject,
-				actionRunProjectWithoutSave,
+				createRunScriptAction("Run", false),
+				createRunScriptAction("Run selected", true),
+				createRunProjectScriptAction("Run for project", true),
+				createRunProjectScriptAction("Run for project (without save)", false),
+				null,
+				createKillRunningScriptAction("Kill running script"),
 				null,
 				QuPathGUI.createCheckMenuItem(QuPathGUI.createSelectableCommandAction(useDefaultBindings, "Include default bindings")),
 				QuPathGUI.createCheckMenuItem(QuPathGUI.createSelectableCommandAction(sendLogToConsole, "Send log to console")),
 				QuPathGUI.createCheckMenuItem(QuPathGUI.createSelectableCommandAction(outputScriptStartTime, "Log script start time")),
 				QuPathGUI.createCheckMenuItem(QuPathGUI.createSelectableCommandAction(autoClearConsole, "Auto clear console"))
 				);
-		menuRun.setOnShowing(e -> {
-			actionRunSelected.setDisabled(getSelectedText() == null);
-			actionRunProject.setDisabled(qupath.getProject() == null);
-			actionRunProjectWithoutSave.setDisabled(qupath.getProject() == null);
-		});
 		menubar.getMenus().add(menuRun);
 
 		// File list
@@ -599,7 +601,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 	}
 	
 	protected ScriptTab getCurrentScriptTab() {
-		return selectedScript;
+		return selectedScript.get();
 //		return listScripts == null ? null : listScripts.getSelectionModel().getSelectedItem();
 	}
 	
@@ -631,8 +633,8 @@ public class DefaultScriptEditor implements ScriptEditor {
 	
 	void updateCutCopyActionState() {
 		String selectedText = getSelectedText();
-		copyAction.setDisabled(selectedText == null);
-		cutAction.setDisabled(selectedText == null);
+		copyAction.setDisabled(selectedText == null || selectedText.isEmpty());
+		cutAction.setDisabled(selectedText == null || selectedText.isEmpty());
 		pasteAction.setDisabled(false);
 //		pasteAction.setDisabled(!Clipboard.getSystemClipboard().hasString());
 	}
@@ -645,107 +647,135 @@ public class DefaultScriptEditor implements ScriptEditor {
 	}
 	
 	
-	
-	void setRunEnabled(final boolean enabled) {
-		actionRun.setDisabled(enabled && getCurrentLanguage() == null);
-		actionRunSelected.setDisabled(enabled && getCurrentLanguage() == null);
-	}
-
-	private void executeScript(final ScriptTab tab, final String script, final ScriptExecutor scriptExecutor) {
-		executeScript(qupath.getImageData(), tab, script, scriptExecutor);
-	}
-
-	
-	private void executeScript(final ImageData<BufferedImage> imageData, final ScriptTab tab, final String script, final ScriptExecutor scriptExecutor) {
-		executeScript(imageData, tab, script, scriptExecutor, useDefaultBindings.get() ? qupath : null);
+	/**
+	 * Execute the script currently shown in the specified ScriptTab.
+	 * 
+	 * Output will be shown in the console of the ScriptTab.
+	 * 
+	 * @param tab
+	 * @param script
+	 * @param imageData
+	 */
+	private void executeScript(final ScriptTab tab, final String script, final ImageData<BufferedImage> imageData) {
+		ScriptEditorControl console = tab.getConsoleComponent();
+		
+		ScriptContext context = new SimpleScriptContext();
+		context.setWriter(new ScriptConsoleWriter(console, false));
+		context.setErrorWriter(new ScriptConsoleWriter(console, true));
+		
+		LoggingAppender.getInstance().addTextComponent(console.textProperty());
+		if (outputScriptStartTime.get())
+			logger.info("Starting script at {}", new Date());
+		Object result = executeScript(tab.getLanguage(), script, imageData, useDefaultBindings.get(), context);
+		if (result != null)
+			logger.info("Result: {}", result);
+		LoggingAppender.getInstance().removeTextComponent(console.textProperty());
 	}
 
 	/**
+	 * Execute a script using an appropriate ScriptEngine for a specified scripting language.
 	 * 
-	 * If qupath is not null, default bindings will be created for relevant objects (e.g. current ImageData, viewer...)
+	 * @param language
+	 * @param script
+	 * @param imageData
+	 * @param importDefaultMethods
+	 * @param context
+	 * @return
+	 */
+	public static Object executeScript(final Language language, final String script, final ImageData<BufferedImage> imageData, final boolean importDefaultMethods, final ScriptContext context) {
+		ScriptEngine engine = manager.getEngineByName(language.toString());
+		return executeScript(engine, script, imageData, importDefaultMethods, context);
+	}
+	
+	/**
+	 * Execute a script using the specific ScriptEngine.
 	 * 
 	 * @param engine
 	 * @param script
-	 * @param scriptExecutor
-	 * @param qupath
+	 * @param imageData
+	 * @param importDefaultMethods
+	 * @param context
+	 * @return
 	 */
-	private void executeScript(final ImageData<BufferedImage> imageData, final ScriptTab tab, final String script, final ScriptExecutor scriptExecutor, final QuPathGUI qupath) {
-		if (tab == null || tab.getLanguage() == null)
-			return;
-		ScriptEngine engine = manager.getEngineByName(tab.getLanguage().toString());
-		if (engine == null)
-			return;
+	public static Object executeScript(final ScriptEngine engine, final String script, final ImageData<BufferedImage> imageData, final boolean importDefaultMethods, final ScriptContext context) {
 		
-		ScriptEditorControl console = tab.getConsoleComponent();
-		ScriptContext context = new SimpleScriptContext();
-		Bindings bindings = new SimpleBindings();
-		
-		// Class supplying static methods that will be included in the main namespace
-		// TODO: Note: Javascript ignores the 'extends', i.e. loses all the QPEx stuff, so most functions don't work.
-		// This workaround means that command line script running is used with Javascript, whereas Groovy shows progress dialogs etc.
-		String scriptClass = engine.getFactory().getNames().contains("javascript") ? QP.class.getName() : QPEx.class.getName();
+		// Set the current ImageData if we can
+		QP.setBatchImageData((ImageData<?>)imageData);
 		
 		// We'll actually use script2... which may or may not be the same
 		String script2 = script;
 		
+		// Prepare to return a result
+		Object result = null;
+
+		// Record if any extra lines are added to the script, to help match line numbers of any exceptions
+		int extraLines = 0;
+
 		// Supply default bindings
-		if (qupath != null) {
-			bindings.put("qupath", qupath);
-			bindings.put("viewer", qupath.getViewer());
-//			bindings.put("QP", QP.class);
-//			ImageData<?> imageData = qupath.getImageData();
-//			if (imageData != null) {
-				bindings.put("imageData", imageData);
-//				bindings.put("hierarchy", imageData.getHierarchy());
-//			}
+		if (importDefaultMethods) {
+			
+			// Class supplying static methods that will be included in the main namespace
+			// TODO: Note: Javascript ignores the 'extends', i.e. loses all the QPEx stuff, so most functions don't work.
+			// This workaround means that command line script running is used with Javascript, whereas Groovy shows progress dialogs etc.
+			String scriptClass = engine.getFactory().getNames().contains("javascript") ? QP.class.getName() : QPEx.class.getName();
 			
 			// Import whatever else is needed into the namespace for the languages we know about
 			if (engine.getFactory().getNames().contains("jython")) {
 				script2 = String.format(
 						"import qupath\n" +
 						"from %s import *\n" +
-						"setBatchImageData(imageData)\n" +
+//						"setBatchImageData(imageData)\n" +
 						"%s\n" +
-						"setBatchImageData(None)\n",
+//						"setBatchImageData(None)\n",
 						scriptClass, script);
+				extraLines = 2;
 			}
 			if (engine.getFactory().getNames().contains("groovy")) {
 				script2 = String.format(
 						"import static %s.*;\n" + 
-						"setBatchImageData(imageData)\n" +
-						"%s\n" +
-						"setBatchImageData(null)\n",
+//						"setBatchImageData(imageData)\n" +
+						"%s\n",// +
+//						"setBatchImageData(null)\n",
 						scriptClass, script);
+				extraLines = 1;
 			}
 			if (engine.getFactory().getNames().contains("javascript")) {
 				script2 = String.format(
 						"var QP = Java.type(\"%s\");\n"
 						+ "with (Object.bindProperties({}, QP)) {\n"
-						+ "setBatchImageData(imageData)\n"
+//						+ "setBatchImageData(imageData)\n"
 						+ "%s\n"
-						+ "setBatchImageData(null)\n"
+//						+ "setBatchImageData(null)\n"
 						+ "}\n",
 						scriptClass, script);
+				extraLines = 2;
 			}
 			
 		}
 		
-		context.setBindings(bindings, ScriptContext.GLOBAL_SCOPE);
-		context.setWriter(new ScriptConsoleWriter(tab.console, false));
-		ScriptConsoleWriter errorWriter = new ScriptConsoleWriter(console, true);
-		context.setErrorWriter(errorWriter);
 		try {
-			LoggingAppender.getInstance().addTextComponent(console.textProperty());
-			if (outputScriptStartTime.get())
-				logger.info("Starting script at {}", new Date());
-			Object result = engine.eval(script2, context);
-//			if (result != null)
-//				logger.info("Script result: {}", result);
+			result = engine.eval(script2, context == null ? new SimpleScriptContext() : context);
 		} catch (ScriptException e) {
 			try {
 				int line = e.getLineNumber();
-				Throwable cause = e.getCause();
+				Throwable cause = e;
+				// Try to get to the root of the problem
+				while (cause.getCause() != null && cause.getCause() != cause)
+					cause = cause.getCause();
+				
+				// Sometimes we can still get the line number for a Groovy exception in this awkward way...
+				if (line < 0) {
+					for (StackTraceElement element : cause.getStackTrace()) {
+						if ("run".equals(element.getMethodName()) && element.getClassName() != null && element.getClassName().startsWith("Script")) {
+							line = element.getLineNumber();
+							break;
+						}
+					}
+				}
+				
+				Writer errorWriter = context.getErrorWriter();
 				if (line >= 0) {
+					line = line - extraLines;
 					if (cause instanceof InterruptedException)
 						errorWriter.append("Script interrupted at line " + line + ": " + cause.getLocalizedMessage() + "\n");
 					else
@@ -756,8 +786,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 					else
 						errorWriter.append("Error: " + cause.getLocalizedMessage() + "\n");
 				}
-				logger.error("Script error", e);
-				logger.error("Script error cause", cause);
+				logger.error("Script error", cause);
 			} catch (IOException e1) {
 				logger.error("Script IO error: {}", e1);
 			} catch (Exception e1) {
@@ -765,20 +794,11 @@ public class DefaultScriptEditor implements ScriptEditor {
 //				e1.printStackTrace();
 			}
 		} finally {
-			bindings.clear();
-			LoggingAppender.getInstance().removeTextComponent(console.textProperty());
-			if (scriptExecutor != null)
-				scriptExecutor.scriptComplete();
+			QP.setBatchImageData(null);
 		}
+		return result;
 	}
 
-
-//	private static void testOutput() {
-//		logger.info("Logger output");
-//		logger.error("Logger error");
-//		System.out.println("Standard output...");
-//		System.err.println("Error output...");
-//	}
 	
 	
 	
@@ -897,7 +917,10 @@ public class DefaultScriptEditor implements ScriptEditor {
 					logger.info(s);
 			} else {
 				String s = String.valueOf(cbuf, off, len);
-				doc.appendText(s);
+				if (Platform.isFxApplicationThread())
+					doc.appendText(s);
+				else
+					Platform.runLater(() -> doc.appendText(s));
 			}
 		}
 
@@ -910,37 +933,22 @@ public class DefaultScriptEditor implements ScriptEditor {
 	}
 
 	
-	
-	static interface ScriptExecutor {
-		
-		public void scriptComplete();
-		
-	}
-	
-	
-	static class ActionEnabler implements ScriptExecutor {
-		
-		private Action action;
-		
-		void setAction(final Action action) {
-			this.action = action;
-		}
-
-		@Override
-		public void scriptComplete() {
-			if (action != null) {
-				if (Platform.isFxApplicationThread())
-					action.setDisabled(false);
-				else
-					Platform.runLater(() -> action.setDisabled(false));
-			}
-		}
-		
+	Action createKillRunningScriptAction(final String name) {
+		Action action = new Action(name, e -> {
+			Future<?> future = runningTask.get();
+			if (future == null)
+				return;
+			if (future.isDone())
+				runningTask.set(null);
+			else
+				future.cancel(true);
+		});
+		action.disabledProperty().bind(runningTask.isNull());
+		return action;
 	}
 	
 	
 	Action createRunScriptAction(final String name, final boolean selectedText) {
-		ActionEnabler enabler = new ActionEnabler();
 		Action action = new Action(name, e -> {
 			String script;
 			if (selectedText)
@@ -964,25 +972,32 @@ public class DefaultScriptEditor implements ScriptEditor {
 				tab.getConsoleComponent().clear();
 			}
 			
-			setRunEnabled(false);
-			qupath.createSingleThreadExecutor(this).submit(new Runnable() {
+			runningTask.setValue(qupath.createSingleThreadExecutor(this).submit(new Runnable() {
 				@Override
 				public void run() {
-					executeScript(tab, script, enabler);
+					try {
+						executeScript(tab, script, qupath.getImageData());
+					} finally {
+						Platform.runLater(() -> runningTask.setValue(null));
+					}
 				}
-			});
+			}));
 		});
-		enabler.setAction(action);
 		if (selectedText)
 			action.setAccelerator(new KeyCodeCombination(KeyCode.R, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
 		else
 			action.setAccelerator(new KeyCodeCombination(KeyCode.R, KeyCombination.SHORTCUT_DOWN));
+		
+		action.disabledProperty().bind(disableRun);
+		
 		return action;
 	}
 	
 	
 	Action createRunProjectScriptAction(final String name, final boolean doSave) {
-		return new Action(name, e -> handleRunProject(doSave));
+		Action action = new Action(name, e -> handleRunProject(doSave));
+		action.disabledProperty().bind(disableRun.or(qupath.projectProperty().isNull()));
+		return action;
 	}
 	
 	private List<ProjectImageEntry<?>> previousImages = new ArrayList<>();
@@ -1094,11 +1109,6 @@ public class DefaultScriptEditor implements ScriptEditor {
 		
 		List<ProjectImageEntry<?>> imagesToProcess = new ArrayList<>(previousImages);
 
-		// TODO: Change this to run analysis without opening images within the viewer
-		// This lets it all be in a background thread
-		
-		
-		
 		ProjectTask worker = new ProjectTask(project, imagesToProcess, tab, doSave);
 		
 		
@@ -1117,7 +1127,14 @@ public class DefaultScriptEditor implements ScriptEditor {
 			}
 			e.consume();
 		});
-		qupath.createSingleThreadExecutor(this).submit(worker);
+		
+		// Clear console if necessary
+		if (autoClearConsole.get() && getCurrentScriptTab() != null) {
+			tab.getConsoleComponent().clear();
+		}
+		
+		// Create & run task
+		runningTask.set(qupath.createSingleThreadExecutor(this).submit(worker));
 		progress.show();
 	}
 	
@@ -1149,6 +1166,8 @@ public class DefaultScriptEditor implements ScriptEditor {
 
 		@Override
 		public Void call() {
+			
+			long startTime = System.currentTimeMillis();
 			
 			int counter = 0;
 			for (ProjectImageEntry<?> entry : imagesToProcess) {
@@ -1194,7 +1213,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 						continue;
 					}
 //					QPEx.setBatchImageData(imageData);
-					executeScript(imageData, tab, tab.getEditorComponent().getText(), null);
+					executeScript(tab, tab.getEditorComponent().getText(), imageData);
 					if (doSave)
 						PathIO.writeImageData(fileEntry, imageData);
 					imageData.getServer().close();
@@ -1209,8 +1228,30 @@ public class DefaultScriptEditor implements ScriptEditor {
 			}
 			updateProgress(imagesToProcess.size(), imagesToProcess.size());
 			
+			long endTime = System.currentTimeMillis();
+			
+			long timeMillis = endTime - startTime;
+			String time = null;
+			if (timeMillis > 1000*60)
+				time = String.format("Total processing time: %.2f minutes", timeMillis/(1000.0 * 60.0));
+			else if (timeMillis > 1000)
+				time = String.format("Total processing time: %.2f seconds", timeMillis/(1000.0));
+			else
+				time = String.format("Total processing time: %d milliseconds", timeMillis);
+			logger.info("Processed {} images", imagesToProcess.size());
+			logger.info(time);
+			
 			return null;
 		}
+		
+		
+		@Override
+		protected void done() {
+			super.done();
+			// Make sure we reset the running task
+			Platform.runLater(() -> runningTask.setValue(null));
+		}
+		
 	};
 	
 	
@@ -1606,7 +1647,6 @@ public class DefaultScriptEditor implements ScriptEditor {
 		
 		public void setLanguage(final Language language) {
 			this.language = language;
-			updateLanguage(this, language);
 		}
 		
 		public String getRequestedExtension() {
