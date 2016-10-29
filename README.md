@@ -1,8 +1,6 @@
 QuPath
 ======
 
-[![Join the chat at https://gitter.im/qupath-users/Lobby](https://badges.gitter.im/qupath-users/Lobby.svg)](https://gitter.im/qupath-users/Lobby?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
-
 QuPath is open source software for whole slide image analysis and digital pathology.
 
 QuPath has been developed as a research tool at Queen's University Belfast.  It offers a wide range of functionality, including:
