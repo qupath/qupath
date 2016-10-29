@@ -248,10 +248,11 @@ public class RichScriptEditor extends DefaultScriptEditor {
 			this.pos = control.getCaretPosition();
 			String[] split = text.substring(0, pos).split("(\\s+)|(\\()|(\\))|(\\{)|(\\})|(\\[)|(\\])");
 			if (split.length == 0)
-				return;
-			start = split[split.length-1].trim().toLowerCase();
-			if (start.length() == 0)
-				return;
+				start = "";
+			else
+				start = split[split.length-1].trim().toLowerCase();
+//			if (start.length() == 0)
+//				return;
 			completions = METHOD_NAMES.stream().filter(s -> s.toLowerCase().startsWith(start)).sorted().collect(Collectors.toList());
 		}
 		
