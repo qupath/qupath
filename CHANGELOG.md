@@ -1,3 +1,9 @@
+## Version 0.0.5
+
+* Script editor improvements, including a better design and more informative error messages
+* Improvements to how object hierarchy adds objects with complex ROI shapes, where the ROI centroid falls outside the ROI itself
+
+
 ## Version 0.0.4
 
 * Added check for updates on QuPath startup
