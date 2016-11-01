@@ -55,7 +55,7 @@ public class DilateAnnotationPlugin<T> extends AbstractInteractivePlugin<T> {
 	private ParameterList params = new ParameterList()
 			.addDoubleParameter("radiusMicrons", "Expansion radius", 100, GeneralTools.micrometerSymbol(), "Distance to expand ROI")
 			.addDoubleParameter("radiusPixels", "Expansion radius", 100, "px", "Distance to expand ROI")
-			.addBooleanParameter("removeInterior", "Remove interior", true, "Create annotation containing only the expanded region, with the original ROI removed")
+			.addBooleanParameter("removeInterior", "Remove interior", false, "Create annotation containing only the expanded region, with the original ROI removed")
 			.addBooleanParameter("constrainToParent", "Constrain to parent", true, "Constrain ROI to fit inside the ROI of the parent object")
 			;
 	
@@ -116,10 +116,16 @@ public class DilateAnnotationPlugin<T> extends AbstractInteractivePlugin<T> {
 		boolean constrainToParent = params.getBooleanParameterValue("constrainToParent");
 		boolean removeInterior = params.getBooleanParameterValue("removeInterior");
 		
+		// Want to reset selection
+		PathObject selected = hierarchy.getSelectionModel().getSelectedObject();
+		Collection<PathObject> previousSelection = new ArrayList<>(hierarchy.getSelectionModel().getSelectedObjects());
+		
 		tasks.add(() -> {
 			for (PathObject pathObject : parentObjects) {
 				addExpandedAnnotation(bounds, hierarchy, pathObject, radiusPixels, constrainToParent, removeInterior);
 			}
+			hierarchy.getSelectionModel().selectObjects(previousSelection);
+			hierarchy.getSelectionModel().setSelectedObject(selected, true);
 		});
 		return tasks;
 	}
@@ -141,10 +147,12 @@ public class DilateAnnotationPlugin<T> extends AbstractInteractivePlugin<T> {
 		ROI roi = pathObject.getROI();
 		Shape shape = PathROIToolsAwt.getShape(pathObject.getROI());
 		
-		Area area = PathROIToolsAwt.shapeMorphology(shape, radiusPixels, false);
+		Area area = PathROIToolsAwt.shapeMorphology(shape, radiusPixels);
 		
-	    PathObject parent = pathObject.getParent();
-		if (constrainToParent) {
+		// If the radius is negative (i.e. a dilation), then the parent will be the original object itself
+		boolean isErosion = radiusPixels < 0;
+	    PathObject parent = isErosion ? pathObject : pathObject.getParent();
+		if (constrainToParent && !isErosion) {
 		    Area parentShape;
 		    if (parent == null || parent.getROI() == null)
 		        parentShape = new Area(bounds);
@@ -153,8 +161,14 @@ public class DilateAnnotationPlugin<T> extends AbstractInteractivePlugin<T> {
 		    area.intersect(parentShape);
 		}
 
-		if (removeInterior)
-			area.subtract(new Area(shape));
+		if (removeInterior) {
+			if (isErosion) {
+				Area area2 = new Area(shape);
+				area2.subtract(area);
+				area = area2;
+			} else
+				area.subtract(new Area(shape));
+		}
 
 		ROI roi2 = PathROIToolsAwt.getShapeROI(area, roi.getC(), roi.getZ(), roi.getT(), 0.5);
 		
@@ -163,8 +177,8 @@ public class DilateAnnotationPlugin<T> extends AbstractInteractivePlugin<T> {
 		annotation2.setName(pathObject.getName());
 		annotation2.setColorRGB(pathObject.getColorRGB());
 
-		if (constrainToParent)
-		    hierarchy.addPathObjectBelowParent(pathObject.getParent(), annotation2, false, true);
+		if (constrainToParent || isErosion)
+		    hierarchy.addPathObjectBelowParent(parent, annotation2, false, true);
 		else
 			hierarchy.addPathObject(annotation2, false);
 		

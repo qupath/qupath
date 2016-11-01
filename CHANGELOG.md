@@ -1,6 +1,6 @@
 ## Version 0.0.5
 
-* Added 'Object -> Expand annotations' command to created annotations dilated by a fixed distance
+* Added 'Object -> Expand annotations' command to created annotations dilated (or eroded) by a fixed distance
 * Script editor improvements, including a better design and more informative error messages
 * Improvements to how object hierarchy adds objects with complex ROI shapes, where the ROI centroid falls outside the ROI itself
 

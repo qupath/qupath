@@ -513,27 +513,28 @@ public class PathROIToolsAwt {
 	 * Dilate or erode a ROI using a circular structuring element.
 	 * 
 	 * @param roi The ROI to dilate or erode.
-	 * @param radius The radius of the structuring element to use.
-	 * @param doErode If true, erode the shape - otherwise dilate.
+	 * @param radius The radius of the structuring element to use.  If positive this will be a dilation, if negative an erosion.
 	 * @return
 	 */
-	public static PathShape roiMorphology(final ROI roi, final double radius, final boolean doErode) {
-		return getShapeROI(shapeMorphology(getShape(roi), radius, doErode), roi.getC(), roi.getZ(), roi.getT());
+	public static PathShape roiMorphology(final ROI roi, final double radius) {
+		return getShapeROI(shapeMorphology(getShape(roi), radius), roi.getC(), roi.getZ(), roi.getT());
 	}
 
 	/**
 	 * Dilate or erode a java.awt.Shape using a circular structuring element.
 	 * 
 	 * @param shape The shape to dilate or erode.
-	 * @param radius The radius of the structuring element to use.
-	 * @param doErode If true, erode the shape - otherwise dilate.
+	 * @param radius The radius of the structuring element to use.  If positive this will be a dilation, if negative an erosion.
 	 * @return
 	 */
-	public static Area shapeMorphology(final Shape shape, final double radius, final boolean doErode) {
+	public static Area shapeMorphology(final Shape shape, double radius) {
 
 		PathIterator iterator = shape.getPathIterator(null, 0.5);
 
 		double[] coords = new double[6];
+		
+		boolean doErode = radius < 0;
+		radius = Math.abs(radius);
 
 		//Path2D path = new Path2D.Double(shape)
 		Area path = new Area(shape);
