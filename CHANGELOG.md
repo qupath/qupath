@@ -22,7 +22,7 @@
 * TMA grids can be applied to add TMA 'Unique ID' values by drag-and-drop, using a text file with extension '.qpmap'
 * Adding or removing a TMA row or column now produces a prompt to relabel the grid
 * When sending image regions to ImageJ, the 'visibility' status is used to determine whether or not objects are sent as ROIs
-* Fixed bug with extension path wrongly defaulting to an internal QuPath directory (existing installations may require the extension directory to be updated rom 'Edit -> Preferences')
+* Fixed bug with extension path wrongly defaulting to an internal QuPath directory (existing installations may require the extension directory to be updated from 'Edit -> Preferences')
 * Fixed (hopefully) cross-platform line splitting (v0.0.3 tried to fix this for Windows... but only partly did, while breaking TMA grid import elsewhere)
 * Fixed bugs in 'Classify by specific feature' command
 * Fixed bug whereby ROIs with zero width or height were not shown at all

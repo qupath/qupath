@@ -124,8 +124,8 @@ public class CellCountsCV extends AbstractTileableDetectionPlugin<BufferedImage>
 			// Get hematoxylin channel
 			ColorDeconvolutionStains stains = imageData.getColorDeconvolutionStains();
 			int[] rgb = img.getRGB(0, 0, img.getWidth(), img.getHeight(), null, 0, img.getWidth());
-			float[] pxHematoxylin = ColorDeconvolution.colorDeconvolveRGBArray(rgb, imageData.getColorDeconvolutionStains(), 0, null);
-			float[] pxStain2 = ColorDeconvolution.colorDeconvolveRGBArray(rgb, imageData.getColorDeconvolutionStains(), 1, null);
+			float[] pxHematoxylin = ColorDeconvolution.colorDeconvolveRGBArray(rgb, stains, 0, null);
+			float[] pxStain2 = ColorDeconvolution.colorDeconvolveRGBArray(rgb, stains, 1, null);
 			
 			double stain2Threshold = (imageData.isBrightfield() && imageData.getColorDeconvolutionStains().isH_DAB()) ? params.getDoubleParameterValue("thresholdDAB") : -1;
 			
@@ -168,6 +168,7 @@ public class CellCountsCV extends AbstractTileableDetectionPlugin<BufferedImage>
 				Imgproc.GaussianBlur(matStain2, matStain2, new Size(gaussianWidth, gaussianWidth), gaussianSigma);
 				matValid = new Mat();
 				Core.compare(mat, matStain2, matValid, Core.CMP_GE);
+				matStain2.release();
 			}
 				
 			
@@ -202,7 +203,6 @@ public class CellCountsCV extends AbstractTileableDetectionPlugin<BufferedImage>
 			// This finds the potential nucleus pixels that are also local maxima in the processed image
 			Core.min(matThresh, matMaxima, matMaxima);
 			
-			
 			/*
 			 * Create objects
 			 */
@@ -211,7 +211,9 @@ public class CellCountsCV extends AbstractTileableDetectionPlugin<BufferedImage>
 			// This deals with the fact that maxima located within matMaxima (a binary image) aren’t necessarily
 			// single pixels, but should be treated as belonging to the same cell		
 			List<MatOfPoint> contours = new ArrayList<>();
+			Mat temp = new Mat();
 			Imgproc.findContours(matMaxima, contours, new Mat(), Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE);
+			temp.release();
 			ArrayList<qupath.lib.geom.Point2> points = new ArrayList<>();
 
 			Shape shape = pathROI instanceof PathArea ? PathROIToolsAwt.getShape(pathROI) : null;
@@ -254,11 +256,23 @@ public class CellCountsCV extends AbstractTileableDetectionPlugin<BufferedImage>
 							pathObject.setPathClass(PathClassFactory.getNegative(null, null));
 					} else
 						pathObject.setColorRGB(color);
+					
+					contour.release();
 					pathObjects.add(pathObject);
 				}
 			}
 			logger.info("Found " + pathObjects.size() + " contours");
 
+			
+			// Release matrices
+			matThresh.release();
+			matMax.release();
+			matMaxima.release();
+			matOrig.release();
+			if (matValid != null)
+				matValid.release();
+
+			
 			return pathObjects;
 		}
 
