@@ -26,13 +26,14 @@ package qupath.imagej.superpixels;
 import ij.ImagePlus;
 import ij.gui.PolygonRoi;
 import ij.gui.Roi;
-import ij.plugin.filter.MaximumFinder;
-import ij.process.ByteProcessor;
 import ij.process.ColorProcessor;
 import ij.process.FloatProcessor;
 import ij.process.ImageProcessor;
+import ij.process.ShortProcessor;
+
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -55,17 +56,31 @@ import qupath.lib.roi.interfaces.PathArea;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
- * A simple superpixel-generating command based upon applying ImageJ's watershed transform to the
- * absolute values of a Difference-of-Gaussians filtered image.
+ * An implementation of SLICO superpixels, as described at http://ivrl.epfl.ch/research/superpixels
  * 
- * This provides tile objects that generally correspond to regions containing reasonably similar 
- * intensities or textures, which might then be classified.
+ * This largely follows the description at:
+ *   Radhakrishna Achanta, Appu Shaji, Kevin Smith, Aurelien Lucchi, Pascal Fua, and Sabine Süsstrunk
+ *   SLIC Superpixels Compared to State-of-the-art Superpixel Methods
+ *   IEEE Transactions on Pattern Analysis and Machine Intelligence, vol. 34, num. 11, p. 2274 - 2282, May 2012.
+ *   
+ * It doesn't follow the code made available by the authors, and differs in some details. 
+ * In particular, it currently uses color-deconvolved images (rather than CIELAB - although this may change) and 
+ * uses an alternative approach to enforcing connectivity.
+ * 
+ * Additionally, the 'spacing' parameter is also used to determine the resolution at which the superpixel computation 
+ * is performed, and a Gaussian filter is used to help reduce textures in advance.
  * 
  * @author Pete Bankhead
  *
  */
 public class SLICSuperpixelsPlugin extends AbstractTileableDetectionPlugin<BufferedImage> {
 
+	/**
+	 * The requested spacing is combined with the 'preferred' spacing to determine what 
+	 * downsampling to apply to the image prior to computation of the superpixels.
+	 */
+	private static double PREFERRED_PIXEL_SPACING = 20;
+	
 	@Override
 	public String getName() {
 		return "SLIC superpixel creator";
@@ -73,21 +88,30 @@ public class SLICSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffe
 
 	@Override
 	public String getLastResultsDescription() {
-		// TODO Auto-generated method stub
 		return null;
 	}
+	
+	
+	private static double getPreferredDownsample(final ImageData<BufferedImage> imageData, final ParameterList params) {
+		boolean hasPixelSizeMicrons = imageData.getServer().hasPixelSizeMicrons();
+		double spacingPixels = hasPixelSizeMicrons ? params.getDoubleParameterValue("spacingMicrons") / imageData.getServer().getAveragedPixelSizeMicrons() : params.getDoubleParameterValue("spacingPixels");
+		
+		// We aim to have about 20 pixel spacing
+		double downsample = Math.max(1, Math.round(spacingPixels / PREFERRED_PIXEL_SPACING));
+		return downsample;
+	}
+	
 
 	@Override
 	protected double getPreferredPixelSizeMicrons(final ImageData<BufferedImage> imageData, final ParameterList params) {
-		double pixelSize = params.getDoubleParameterValue("downsampleFactor");
-		if (imageData != null && imageData.getServer().hasPixelSizeMicrons())
-			pixelSize *= imageData.getServer().getAveragedPixelSizeMicrons();
-		return pixelSize;
+		if (imageData.getServer().hasPixelSizeMicrons())
+			return imageData.getServer().getAveragedPixelSizeMicrons() * getPreferredDownsample(imageData, params);
+		return getPreferredDownsample(imageData, params);
 	}
 
 	@Override
 	protected ObjectDetector<BufferedImage> createDetector(final ImageData<BufferedImage> imageData, final ParameterList params) {
-		return new DoGSuperpixelDetector();
+		return new SLICSuperpixelDetector();
 	}
 
 	@Override
@@ -97,25 +121,26 @@ public class SLICSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffe
 
 	@Override
 	public ParameterList getDefaultParameterList(ImageData<BufferedImage> imageData) {
-		ParameterList params = new ParameterList().
-				addDoubleParameter("downsampleFactor", "Downsample factor", 8, null, "Downsample factor, used to determine the resolution of the image being processed").
-				addDoubleParameter("sigmaPixels", "Gaussian sigma", 10, "px", "Sigma value used for smoothing; higher values result in larger regions being created").
-				addDoubleParameter("sigmaMicrons", "Gaussian sigma", 10, GeneralTools.micrometerSymbol(), "Sigma value used for smoothing; higher values result in larger regions being created").
-				addDoubleParameter("minThreshold", "Minimum intensity threshold", 10, null, "Regions with average values below this threshold will be discarded; this helps remove background or artefacts").
-				addDoubleParameter("maxThreshold", "Maximum intensity threshold", 230, null, "Regions with average values above this threshold will be discarded; this helps remove background or artefacts").
-				addDoubleParameter("noiseThreshold", "Noise threshold", 1, null, "Local threshold used to determine the number of regions created")
+		ParameterList params = new ParameterList()
+				.addDoubleParameter("sigmaPixels", "Gaussian sigma", 5, "px", "Adjust the Gaussian smoothing applied to the image, to reduce textures and give a smoother result")
+				.addDoubleParameter("sigmaMicrons", "Gaussian sigma", 5, GeneralTools.micrometerSymbol(), "Adjust the Gaussian smoothing applied to the image, to reduce textures and give a smoother result")
+				.addDoubleParameter("spacingPixels", "Superpixel spacing", 50, "px", "Control the (approximate) size of individual superpixels")
+				.addDoubleParameter("spacingMicrons", "Superpixel spacing", 50, GeneralTools.micrometerSymbol(), "Control the (approximate) size of individual superpixels")
+//				addBooleanParameter("doMerge", "Merge similar", false, "Merge neighboring superpixels if they are similar to one another")
 				;
 		
 		boolean hasMicrons = imageData != null && imageData.getServer().hasPixelSizeMicrons();
 		params.getParameters().get("sigmaPixels").setHidden(hasMicrons);
 		params.getParameters().get("sigmaMicrons").setHidden(!hasMicrons);
+		params.getParameters().get("spacingPixels").setHidden(hasMicrons);
+		params.getParameters().get("spacingMicrons").setHidden(!hasMicrons);
 		
 		return params;
 	}
 	
 	
 	
-	static class DoGSuperpixelDetector implements ObjectDetector<BufferedImage> {
+	static class SLICSuperpixelDetector implements ObjectDetector<BufferedImage> {
 		
 		private PathImage<ImagePlus> pathImage = null;
 		private ROI pathROI = null;
@@ -133,7 +158,7 @@ public class SLICSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffe
 			// Get a PathImage if we have a new ROI
 			if (!pathROI.equals(this.pathROI)) {
 				ImageServer<BufferedImage> server = imageData.getServer();
-				this.pathImage = PathImagePlus.createPathImage(server, pathROI, params.getDoubleParameterValue("downsampleFactor"));
+				this.pathImage = PathImagePlus.createPathImage(server, pathROI, getPreferredDownsample(imageData, params));
 				this.pathROI = pathROI;
 			}
 			
@@ -142,83 +167,59 @@ public class SLICSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffe
 			
 			FloatProcessor[] fpDeconvolved = ColorDeconvolutionIJ.colorDeconvolve((ColorProcessor)ipOrig, imageData.getColorDeconvolutionStains());
 			
+//			fpDeconvolved = Arrays.copyOf(fpDeconvolved, 2);
 			
-			FloatProcessor fpH = fpDeconvolved[0];
-			fpH.blurGaussian(2.5);
-//			fpH.setThreshold(0.2, ImageProcessor.NO_THRESHOLD, ImageProcessor.NO_LUT_UPDATE);
-			ByteProcessor bpPoints = new MaximumFinder().findMaxima(fpH, 0, 0.1, MaximumFinder.SINGLE_POINTS, false, false);
+			double m = 0.1;
+			double sigma = getSigma(pathImage, params);
 			
+			for (FloatProcessor fp : fpDeconvolved)
+				fp.blurGaussian(sigma);
+
+			int w = ipOrig.getWidth();
+			int h = ipOrig.getHeight();
+			short[] labels = new short[w*h];
+			Arrays.fill(labels, (short)-1);
+			double[] distances = new double[w*h];
+			Arrays.fill(distances, Double.POSITIVE_INFINITY);
 			
-			FloatProcessor fpPoints = bpPoints.convertToFloatProcessor();
-			fpPoints.multiply(1.0/255.0);
-			fpPoints.blurGaussian(5);
-			bpPoints = new MaximumFinder().findMaxima(fpPoints, 0, 0.001, MaximumFinder.SEGMENTED, false, false);
-			bpPoints.setThreshold(128, Double.POSITIVE_INFINITY, ImageProcessor.NO_LUT_UPDATE);
-			ImageProcessor ipLabels = ROILabeling.labelImage(bpPoints, false);
+			int s = 20;
+			List<ClusterCenter> centers = new ArrayList<>();
+			for (int y = s/2; y < h; y += s) {
+			    for (int x = s/2; x < w; x += s) {
+			    	ClusterCenter center = new ClusterCenter(fpDeconvolved, s, m, w, h);
+			    	center.addLabel(y*w+x);
+			        labels[y*w+x] = (short)centers.size();
+			        centers.add(center);
+			    }
+			}
 			
-//			new ImagePlus("Points", bpPoints).show();
-//			
-//			
-//			double m = 0.25;
-//			
-////			ImageStack stack = ((ColorProcessor)ipOrig).getHSBStack();
-////			for (int i = 0; i < 3; i++) {
-////				fpDeconvolved[i] = stack.getProcessor(i+1).convertToFloatProcessor();
-////			}
-////			m = 100;
-//
-//			
-//			
-//			for (FloatProcessor fp : fpDeconvolved)
-//				fp.blurGaussian(5);
-//
-////			new ImagePlus("De", fpDeconvolved[1]).show();
-//			
-//			int w = ipOrig.getWidth();
-//			int h = ipOrig.getHeight();
-//			short[] labels = new short[w*h];
-//			Arrays.fill(labels, (short)-1);
-//			double[] distances = new double[w*h];
-//			Arrays.fill(distances, Double.POSITIVE_INFINITY);
-//			
-//			int s = 60;
-//			List<ClusterCenter> centers = new ArrayList<>();
-//			for (int y = s/2; y < h; y += s) {
-//			    for (int x = s/2; x < w; x += s) {
-//			    	ClusterCenter center = new ClusterCenter(fpDeconvolved, s, m, w, h);
-//			    	center.addLabel(y*w+x);
-//			        labels[y*w+x] = (short)centers.size();
-//			        centers.add(center);
-//			    }
-//			}
-//			
-//			for (int i = 0; i < 20; i++) {
-//			    System.out.println("Iteration " + (i + 1));
-//			    int centerLabel = 0;
-//			    for (ClusterCenter center : centers) {
-//			        center.updateFeatures();
-////			        println("Center " + c + " of " + centers.size() + " - " + center.getObjects().size() + ", " + center.getNearbyClusters(grid).size())
-//			        for (int label : center.getNearbyClusters()) {
-//			            double distance = center.distanceSquared(label);
-//			            if (distance < distances[label]) {
-//			            	int currentLabel = labels[label];
-//			            	if (currentLabel == centerLabel)
-//			            		continue;
-//			            	if (currentLabel != (short)-1)
-//			            		centers.get(currentLabel).removeLabel(label);
-//			            	center.addLabel(label);
-//			            	distances[label] = distance;
-//			            	labels[label] = (short)centerLabel;
-//			            }
-//			        }
-//			        centerLabel++;
-//			    }
-//			}
-//			
-//			// Convert to ROIs
-//			ShortProcessor ipLabels = new ShortProcessor(w, h, labels, null);
-//			new ImagePlus("Labels", ipLabels.duplicate()).show();
-////			new RankFilters().rank(ipLabels, 1, RankFilters.MAX);
+			for (int i = 0; i < 20; i++) {
+			    int centerLabel = 0;
+			    for (ClusterCenter center : centers) {
+			        center.updateFeatures();
+//			        println("Center " + c + " of " + centers.size() + " - " + center.getObjects().size() + ", " + center.getNearbyClusters(grid).size())
+			        for (int label : center.getNearbyClusters()) {
+			            double distance = center.distanceSquared(label);
+			            if (distance < distances[label]) {
+			            	int currentLabel = labels[label];
+			            	if (currentLabel == centerLabel)
+			            		continue;
+			            	if (currentLabel != (short)-1)
+			            		centers.get(currentLabel).removeLabel(label);
+			            	center.addLabel(label);
+			            	distances[label] = distance;
+			            	labels[label] = (short)centerLabel;
+			            }
+			        }
+			        centerLabel++;
+			    }
+			}
+			
+			// Convert to ROIs
+			ShortProcessor ipLabels = new ShortProcessor(w, h, labels, null);
+			
+			// Increment all labels (TODO: Consider setting numbers 'correctly' the first time)
+			ipLabels.add(1.0);
 			
 			// Remove everything outside the ROI, if required
 			if (pathROI != null) {
@@ -232,22 +233,21 @@ public class SLICSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffe
 			}
 			
 			
-			
-			
 			// Convert to tiles & create a labelled image for later
-			PolygonRoi[] polygons = ROILabeling.labelsToFilledROIs(ipLabels, (int)ipLabels.getMax());
-			List<PathObject> pathObjects = new ArrayList<>(polygons.length);
+			List<PolygonRoi> polygons = ROILabeling.labelsToFilledRoiList(ipLabels, true);
+//			PolygonRoi[] polygons = ROILabeling.labelsToFilledROIs(ipLabels, (int)ipLabels.getMax());
+			List<PathObject> pathObjects = new ArrayList<>(polygons.size());
 			int label = 0;
-			// Set thresholds - regions means must be within specified range
-			double minThreshold = params.getDoubleParameterValue("minThreshold");
-			double maxThreshold = params.getDoubleParameterValue("maxThreshold");
-			if (!Double.isFinite(minThreshold))
-				minThreshold = Double.NEGATIVE_INFINITY;
-			if (!Double.isFinite(maxThreshold))
-				maxThreshold = Double.POSITIVE_INFINITY;
-			boolean hasThreshold = (minThreshold != maxThreshold) && (Double.isFinite(minThreshold) || Double.isFinite(maxThreshold));
+//			// Set thresholds - regions means must be within specified range
+//			double minThreshold = params.getDoubleParameterValue("minThreshold");
+//			double maxThreshold = params.getDoubleParameterValue("maxThreshold");
+//			if (!Double.isFinite(minThreshold))
+//				minThreshold = Double.NEGATIVE_INFINITY;
+//			if (!Double.isFinite(maxThreshold))
+//				maxThreshold = Double.POSITIVE_INFINITY;
+//			boolean hasThreshold = (minThreshold != maxThreshold) && (Double.isFinite(minThreshold) || Double.isFinite(maxThreshold));
 			try {
-				for (PolygonRoi roi : polygons) {
+				for (Roi roi : polygons) {
 					if (roi == null)
 						continue;
 //					if (hasThreshold) {
@@ -268,38 +268,6 @@ public class SLICSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffe
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
-//			fpOrig.resetRoi();
-
-//			// Compute Haralick textures
-////			ipLabels.resetMinAndMax();
-////			new ImagePlus("Labels", ipLabels.duplicate()).show();
-////			fpOrig.resetMinAndMax();
-////			new ImagePlus("Orig", fpOrig.duplicate()).show();
-//			if ("OD sum".equals(imageName)) {
-//				HaralickFeaturesIJ.measureHaralick(fpOrig, ipLabels, pathObjects, 32, 0, 3, 1, imageName);
-//				ColorDeconvolutionStains stains = imageData.getColorDeconvolutionStains();
-//				if (stains != null) {
-//					ColorProcessor cp = (ColorProcessor)ipOrig;
-//					FloatProcessor[] fpDeconv = ColorDeconvolutionIJ.colorDeconvolve(cp, stains, false);
-//					for (int i = 0; i < fpDeconv.length; i++) {
-//						StainVector stain = stains.getStain(i+1);
-//						if (stain.isResidual())
-//							continue;
-//						HaralickFeaturesIJ.measureHaralick(fpDeconv[i], ipLabels, pathObjects, 32, 0, 2.5, 1, stain.getName());
-//					}
-//				}
-//			} else {
-//				HaralickFeaturesIJ.measureHaralick(fpOrig, ipLabels, pathObjects, 32, Double.NaN, Double.NaN, 1, imageName);
-//				if (ipOrig instanceof ColorProcessor) {
-//					ColorProcessor cp = (ColorProcessor)ipOrig;
-//					FloatProcessor fpChannel = cp.toFloat(0, null);
-//					HaralickFeaturesIJ.measureHaralick(fpChannel, ipLabels, pathObjects, 32, Double.NaN, Double.NaN, 1, "Red");					
-//					fpChannel = cp.toFloat(1, fpChannel);
-//					HaralickFeaturesIJ.measureHaralick(fpChannel, ipLabels, pathObjects, 32, Double.NaN, Double.NaN, 1, "Green");					
-//					fpChannel = cp.toFloat(2, fpChannel);
-//					HaralickFeaturesIJ.measureHaralick(fpChannel, ipLabels, pathObjects, 32, Double.NaN, Double.NaN, 1, "Blue");					
-//				}
-//			}
 			
 			
 			lastResultSummary = pathObjects.size() + " tiles created";
@@ -311,7 +279,7 @@ public class SLICSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffe
 		static double getSigma(final PathImage<?> pathImage, final ParameterList params) {
 			double pixelSizeMicrons = .5 * (pathImage.getPixelWidthMicrons() + pathImage.getPixelHeightMicrons());
 			if (Double.isNaN(pixelSizeMicrons)) {
-				return params.getDoubleParameterValue("sigmaPixels") * params.getDoubleParameterValue("downsampleFactor");				
+				return params.getDoubleParameterValue("sigmaPixels") * pathImage.getDownsampleFactor();				
 			} else
 				return params.getDoubleParameterValue("sigmaMicrons") / pixelSizeMicrons;
 		}
@@ -336,14 +304,6 @@ public class SLICSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffe
 	protected synchronized Collection<? extends PathObject> getParentObjects(final PluginRunner<BufferedImage> runner) {
 		Collection<? extends PathObject> parents = super.getParentObjects(runner);
 		return parents;
-		
-		// Exploring the use of hidden objects...
-//		PathObject pathObjectHidden = new PathTileObject();
-//		for (PathObject parent : parents) {
-//			pathObjectHidden.addPathObject(new PathTileObject(parent.getROI()));
-//		}
-//		imageData.getHierarchy().getRootObject().addPathObject(pathObjectHidden);
-//		return pathObjectHidden.getPathObjectList();
 	}
 	
 
@@ -356,7 +316,7 @@ public class SLICSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffe
 	    private double x;
 	    private double y;
 	    
-	    private double s, m;
+	    private double s, m, mObserved;
 	    
 	    private int width;
 	    private int height;
@@ -365,6 +325,7 @@ public class SLICSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffe
 	    	this.featuresImages = featuresImages;
 	    	this.s = s;
 	    	this.m = m;
+	    	this.mObserved = m;
 	    	this.width = width;
 	    	this.height = height;
 	    }
@@ -415,6 +376,23 @@ public class SLICSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffe
 	            for (int i = 0; i < features.length; i++)
 	                features[i] += featuresImages[i].getf(label)/n;
 	        }
+	        // Loop through labels again to get maxima color difference
+        	double maxDistanceSquared = 0;
+	        for (int label : labels) {
+	        	double distanceSquared = 0;
+	            for (int i = 0; i < features.length; i++) {
+	                double dist = features[i] - featuresImages[i].getf(label);
+	                distanceSquared += dist*dist;
+	            }
+	            if (distanceSquared > maxDistanceSquared)
+	            	maxDistanceSquared = distanceSquared;
+	        }
+	        if (maxDistanceSquared == 0)
+	        	mObserved = m;
+	        else
+	        	mObserved = Math.sqrt(maxDistanceSquared);
+	        
+//	        System.err.println(mObserved);
 	    }
 
 	    public double distanceSquared(final int label) {
@@ -438,9 +416,13 @@ public class SLICSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffe
 	            if (Double.isFinite(d))
 	                DC2 += d*d;
 	        }
+	        
+	        // Compute distance
+//	        double distanceSquared = DC2/(m*m) + DS2/(s*s);
+	        double distanceSquared = DC2/(mObserved*mObserved) + DS2/(s*s);
 
 	        // Compute distance
-	        double distanceSquared = DC2 + DS2/(s*s) * m*m;
+//	        double distanceSquared = DC2 + DS2/(s*s) * m*m;
 
 	        return distanceSquared;
 	    }
