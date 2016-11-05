@@ -86,6 +86,7 @@ import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.Property;
 import javafx.beans.property.ReadOnlyBooleanProperty;
+import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ObservableValue;
@@ -291,6 +292,7 @@ import qupath.lib.plugins.ParameterDialogWrapper;
 import qupath.lib.plugins.PathInteractivePlugin;
 import qupath.lib.plugins.PathPlugin;
 import qupath.lib.plugins.PluginRunnerFX;
+import qupath.lib.plugins.objects.DilateAnnotationPlugin;
 import qupath.lib.plugins.objects.FindConvexHullDetectionsPlugin;
 import qupath.lib.plugins.objects.ShapeFeaturesPlugin;
 import qupath.lib.plugins.objects.SmoothFeaturesPlugin;
@@ -2652,6 +2654,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				null,
 				getActionMenuItem(GUIActions.RIGID_OBJECT_EDITOR),
 				getActionMenuItem(GUIActions.SPECIFY_ANNOTATION),
+				createPluginAction("Expand annotations", DilateAnnotationPlugin.class, null, false),
 				getActionMenuItem(GUIActions.SELECT_ALL_ANNOTATION),
 				getActionMenuItem(GUIActions.ANNOTATION_DUPLICATE),
 				getActionMenuItem(GUIActions.TRANSFER_ANNOTATION),
@@ -4042,6 +4045,9 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	}
 	
 	
+	public ReadOnlyObjectProperty<Project<BufferedImage>> projectProperty() {
+		return project;
+	}
 	
 	public Project<BufferedImage> getProject() {
 		return project.get();

@@ -80,7 +80,8 @@ public class CommandLinePluginRunner<T> extends AbstractPluginRunner<T> {
 		public void startMonitoring(String message, int maxProgress, boolean mayCancel) {
 			startTime = System.currentTimeMillis();
 			this.maxProgress = maxProgress;
-			logger.info(message);
+			if (message != null)
+				logger.info(message);
 		}
 
 		@Override

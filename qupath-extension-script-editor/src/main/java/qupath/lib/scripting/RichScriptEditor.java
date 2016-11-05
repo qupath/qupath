@@ -108,6 +108,13 @@ public class RichScriptEditor extends DefaultScriptEditor {
 		for (Method method : QPEx.class.getMethods()) {
 			METHOD_NAMES.add(method.getName());
 		}
+		
+		// Remove the methods that come from the Object class...
+		// they tend to be quite confusing
+		for (Method method : Object.class.getMethods()) {
+			METHOD_NAMES.remove(method.getName());
+		}
+		
 		for (Field field : QPEx.class.getFields()) {
 			METHOD_NAMES.add(field.getName());
 		}
@@ -248,11 +255,12 @@ public class RichScriptEditor extends DefaultScriptEditor {
 			this.pos = control.getCaretPosition();
 			String[] split = text.substring(0, pos).split("(\\s+)|(\\()|(\\))|(\\{)|(\\})|(\\[)|(\\])");
 			if (split.length == 0)
-				return;
-			start = split[split.length-1].trim().toLowerCase();
-			if (start.length() == 0)
-				return;
-			completions = METHOD_NAMES.stream().filter(s -> s.toLowerCase().startsWith(start)).sorted().collect(Collectors.toList());
+				start = "";
+			else
+				start = split[split.length-1].trim();
+//			if (start.length() == 0)
+//				return;
+			completions = METHOD_NAMES.stream().filter(s -> s.startsWith(start)).sorted().collect(Collectors.toList());
 		}
 		
 		public void applyNextCompletion() {
