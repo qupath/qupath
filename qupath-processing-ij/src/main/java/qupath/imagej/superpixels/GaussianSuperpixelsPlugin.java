@@ -29,8 +29,10 @@ import ij.gui.Roi;
 import ij.plugin.filter.EDM;
 import ij.plugin.filter.MaximumFinder;
 import ij.plugin.filter.RankFilters;
+import ij.plugin.filter.ThresholdToSelection;
 import ij.process.Blitter;
 import ij.process.ByteProcessor;
+import ij.process.ColorProcessor;
 import ij.process.FloatProcessor;
 import ij.process.ImageProcessor;
 import ij.process.ShortProcessor;
@@ -40,6 +42,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
+import qupath.imagej.color.ColorDeconvolutionIJ;
 import qupath.imagej.objects.PathImagePlus;
 import qupath.imagej.objects.ROIConverterIJ;
 import qupath.imagej.processing.MorphologicalReconstruction;
@@ -47,6 +50,8 @@ import qupath.imagej.processing.ROILabeling;
 import qupath.imagej.processing.SimpleThresholding;
 import qupath.lib.analysis.stats.RunningStatistics;
 import qupath.lib.color.ColorDeconvolution;
+import qupath.lib.color.ColorDeconvolutionStains;
+import qupath.lib.color.ColorTransformer;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.PathImage;
@@ -74,7 +79,7 @@ public class GaussianSuperpixelsPlugin extends AbstractTileableDetectionPlugin<B
 
 	@Override
 	public String getName() {
-		return "DoG superpixel creator";
+		return "Gaussian-based superpixels";
 	}
 
 	@Override
@@ -148,11 +153,8 @@ public class GaussianSuperpixelsPlugin extends AbstractTileableDetectionPlugin<B
 			// Get a float processor
 			ImageProcessor ipOrig = this.pathImage.getImage().getProcessor();
 			
-			float[] pixels = ColorDeconvolution.colorDeconvolveRGBArray((int[])ipOrig.getPixels(), imageData.getColorDeconvolutionStains(), 0, null);
-			
 			int w = ipOrig.getWidth();
 			int h = ipOrig.getHeight();
-			FloatProcessor fp = new FloatProcessor(w, h, pixels);
 			
 //			For each channel
 //				Threshold channel
@@ -166,62 +168,90 @@ public class GaussianSuperpixelsPlugin extends AbstractTileableDetectionPlugin<B
 //			Label image
 //			Dilate 3x3
 //			Convert to ROIs
+			
 
 			double sigma = getSigma(pathImage, params);
-
-//			new RankFilters().rank(fp, 1, RankFilters.MEDIAN);
-//			fp.blurGaussian(sigma);
 			
-//			RunningStatistics stats = getClippedStatistics(fp, 2.5, 20);
-//			System.err.println(stats);
+			float tissueThreshold = 0.04f;
+			double minAreaMicrons = 2000;
+			double split = 20;
+//			float[] threshold = new float[]{0.08f, 0.25f};
+			float[] threshold = new float[]{0.2f, -1f};
 			
-			float threshold = 0.05f;
-//			threshold = (float)(stats.getMean() + 5*stats.getStdDev());
+			// Convert to pixels
+			double pixelSize = (pathImage.getPixelWidthMicrons() + pathImage.getPixelHeightMicrons())/2;
+			double minArea = minAreaMicrons / (pixelSize * pixelSize);
+			split = split / pixelSize;
+//			System.err.println(minArea);
 			
-//			fp.blurGaussian(sigma);
-			
-			
-//			ByteProcessor bp = SimpleThresholding.thresholdAbove(fp, (float)fp.getStatistics().mean);
-			ByteProcessor bp = SimpleThresholding.thresholdAbove(fp, threshold);
-			
-			new ImagePlus("Binary", bp.duplicate()).show();
-			
-			bp.blurGaussian(sigma);
-
-//			ByteProcessor bpTissue = SimpleThresholding.thresholdAbove(bp, 1f);
-
-			bp.threshold(128);
-			
-			double minArea = 50;
-			double split = 10;
-			
-			boolean useDAB = true;
-			if (useDAB) {
-				float[] pixelsDAB = ColorDeconvolution.colorDeconvolveRGBArray((int[])ipOrig.getPixels(), imageData.getColorDeconvolutionStains(), 1, null);
-				FloatProcessor fpDAB = new FloatProcessor(w, h, pixelsDAB);
-				ByteProcessor bpDAB = SimpleThresholding.thresholdAbove(fpDAB, 0.1f);
-				bpDAB.blurGaussian(sigma);
-				bpDAB.threshold(128);
-//				bpDAB = MorphologicalReconstruction.binaryReconstruction(SimpleThresholding.thresholdAbove(bpDAB, 32), SimpleThresholding.thresholdAbove(bpDAB, 128), true);
-				ROILabeling.removeSmallAreas(bpDAB, minArea, false);
-				bpDAB.outline();
-//				new ImagePlus("DAB", bpDAB.duplicate()).show();
-				bp.copyBits(bpDAB, 0, 0, Blitter.MIN);
-			}
-			
-			ROILabeling.removeSmallAreas(bp, minArea, false);
-			bp.invert();
-			ROILabeling.removeSmallAreas(bp, minArea, false);
-			bp.invert();
-			
-			bp.outline();
-			
-			fp.blurGaussian(sigma);
-			ByteProcessor bpTissue = SimpleThresholding.thresholdAbove(fp, 0.015f);
+			// Detect tissue
+			ColorDeconvolutionStains stains = imageData.getColorDeconvolutionStains();
+			FloatProcessor fpODSum = ColorDeconvolutionIJ.convertToOpticalDensitySum((ColorProcessor)ipOrig, stains.getMaxRed(), stains.getMaxGreen(), stains.getMaxBlue());
+			fpODSum.blurGaussian(sigma);
+			ByteProcessor bpTissue = SimpleThresholding.thresholdAbove(fpODSum, tissueThreshold);
+			ROILabeling.removeSmallAreas(bpTissue, minArea, false);
 			bpTissue.invert();
 			ROILabeling.removeSmallAreas(bpTissue, minArea, false);
 			bpTissue.invert();
+			
+			// Create tissue ROI
+			bpTissue.setThreshold(128, Double.POSITIVE_INFINITY, ImageProcessor.NO_LUT_UPDATE);
+//			Roi roiTissue = new ThresholdToSelection().convert(bpTissue);
+			
+			
+			
+			float[] pixels = ColorDeconvolution.colorDeconvolveRGBArray((int[])ipOrig.getPixels(), imageData.getColorDeconvolutionStains(), 0, null);
+			FloatProcessor fp = new FloatProcessor(w, h, pixels);
+			ByteProcessor bp = SimpleThresholding.thresholdAbove(fp, threshold[0]);
+//			new ImagePlus("this", bp.duplicate()).show();
+
+			bp.blurGaussian(sigma);
+//			new ImagePlus("Here", bp.duplicate()).show();
 			bp.copyBits(bpTissue, 0, 0, Blitter.MIN);
+			bp.setThreshold(1, Double.POSITIVE_INFINITY, ImageProcessor.NO_LUT_UPDATE);
+			bp = new MaximumFinder().findMaxima(bp, 5, 1, MaximumFinder.SEGMENTED, false, false);
+//			bp.threshold(128);
+
+//			// Detect clusters in each channel
+//			ByteProcessor bp = (ByteProcessor)bpTissue.duplicate();
+//			for (int i = 0; i < 2; i++) {
+//				float channelThreshold = threshold[i];
+//				if (channelThreshold < 0)
+//					continue;
+//				float[] pixels = ColorDeconvolution.colorDeconvolveRGBArray((int[])ipOrig.getPixels(), imageData.getColorDeconvolutionStains(), i, null);
+//				FloatProcessor fp = new FloatProcessor(w, h, pixels);
+//				
+//				FloatProcessor fp2 = (FloatProcessor)fp.duplicate();
+//				fp2.blurGaussian(sigma*10);
+//				fp.copyBits(fp2, 0, 0, Blitter.SUBTRACT);
+////				fp.blurGaussian(sigma);
+////				new ImagePlus("Subtracted", fp.duplicate()).show();
+//
+////				FloatProcessor fp = ColorDeconvolutionIJ.convertToOpticalDensitySum((ColorProcessor)ipOrig, stains.getMaxRed(), stains.getMaxGreen(), stains.getMaxBlue());
+//				
+//				fp.setRoi(roiTissue);
+////				threshold = (float)fp.getStatistics().mean;
+//				fp.resetRoi();
+//				ByteProcessor bpChannel = SimpleThresholding.thresholdAbove(fp, channelThreshold);
+//				bpChannel.blurGaussian(sigma);
+//				bpChannel.threshold(128);
+//				
+//				ROILabeling.removeSmallAreas(bpChannel, minArea, false);
+//				bpChannel.invert();
+//				ROILabeling.removeSmallAreas(bpChannel, minArea, false);
+//				bpChannel.invert();
+//				
+//				bpChannel.outline();
+////				new ImagePlus("Outline", bpChannel.duplicate()).show();
+//				
+//				bp.copyBits(bpChannel, 0, 0, Blitter.MIN);
+//			}
+			
+//			ROILabeling.removeSmallAreas(bp, minArea, false);
+//			bp.invert();
+//			ROILabeling.removeSmallAreas(bp, minArea, false);
+//			bp.invert();
+//			new ImagePlus("Here", bp.duplicate()).show();
 
 			FloatProcessor fpEDM = new EDM().makeFloatEDM(bp, 0, true);
 			fpEDM.max(split);
@@ -291,38 +321,6 @@ public class GaussianSuperpixelsPlugin extends AbstractTileableDetectionPlugin<B
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
-//			fpOrig.resetRoi();
-
-//			// Compute Haralick textures
-////			ipLabels.resetMinAndMax();
-////			new ImagePlus("Labels", ipLabels.duplicate()).show();
-////			fpOrig.resetMinAndMax();
-////			new ImagePlus("Orig", fpOrig.duplicate()).show();
-//			if ("OD sum".equals(imageName)) {
-//				HaralickFeaturesIJ.measureHaralick(fpOrig, ipLabels, pathObjects, 32, 0, 3, 1, imageName);
-//				ColorDeconvolutionStains stains = imageData.getColorDeconvolutionStains();
-//				if (stains != null) {
-//					ColorProcessor cp = (ColorProcessor)ipOrig;
-//					FloatProcessor[] fpDeconv = ColorDeconvolutionIJ.colorDeconvolve(cp, stains, false);
-//					for (int i = 0; i < fpDeconv.length; i++) {
-//						StainVector stain = stains.getStain(i+1);
-//						if (stain.isResidual())
-//							continue;
-//						HaralickFeaturesIJ.measureHaralick(fpDeconv[i], ipLabels, pathObjects, 32, 0, 2.5, 1, stain.getName());
-//					}
-//				}
-//			} else {
-//				HaralickFeaturesIJ.measureHaralick(fpOrig, ipLabels, pathObjects, 32, Double.NaN, Double.NaN, 1, imageName);
-//				if (ipOrig instanceof ColorProcessor) {
-//					ColorProcessor cp = (ColorProcessor)ipOrig;
-//					FloatProcessor fpChannel = cp.toFloat(0, null);
-//					HaralickFeaturesIJ.measureHaralick(fpChannel, ipLabels, pathObjects, 32, Double.NaN, Double.NaN, 1, "Red");					
-//					fpChannel = cp.toFloat(1, fpChannel);
-//					HaralickFeaturesIJ.measureHaralick(fpChannel, ipLabels, pathObjects, 32, Double.NaN, Double.NaN, 1, "Green");					
-//					fpChannel = cp.toFloat(2, fpChannel);
-//					HaralickFeaturesIJ.measureHaralick(fpChannel, ipLabels, pathObjects, 32, Double.NaN, Double.NaN, 1, "Blue");					
-//				}
-//			}
 			
 			
 			lastResultSummary = pathObjects.size() + " tiles created";
