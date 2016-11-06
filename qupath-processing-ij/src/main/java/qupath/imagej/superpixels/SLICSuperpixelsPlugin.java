@@ -64,8 +64,7 @@ import qupath.lib.roi.interfaces.ROI;
  *   IEEE Transactions on Pattern Analysis and Machine Intelligence, vol. 34, num. 11, p. 2274 - 2282, May 2012.
  *   
  * It doesn't follow the code made available by the authors, and differs in some details. 
- * In particular, it currently uses color-deconvolved images (rather than CIELAB - although this may change) and 
- * uses an alternative approach to enforcing connectivity.
+ * In particular, it currently uses color-deconvolved images (rather than CIELAB - although this may change).
  * 
  * Additionally, the 'spacing' parameter is also used to determine the resolution at which the superpixel computation 
  * is performed, and a Gaussian filter is used to help reduce textures in advance.
@@ -79,7 +78,7 @@ public class SLICSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffe
 	 * The requested spacing is combined with the 'preferred' spacing to determine what 
 	 * downsampling to apply to the image prior to computation of the superpixels.
 	 */
-	private static double PREFERRED_PIXEL_SPACING = 20;
+	private static int PREFERRED_PIXEL_SPACING = 20;
 	
 	@Override
 	public String getName() {
@@ -96,7 +95,7 @@ public class SLICSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffe
 		boolean hasPixelSizeMicrons = imageData.getServer().hasPixelSizeMicrons();
 		double spacingPixels = hasPixelSizeMicrons ? params.getDoubleParameterValue("spacingMicrons") / imageData.getServer().getAveragedPixelSizeMicrons() : params.getDoubleParameterValue("spacingPixels");
 		
-		// We aim to have about 20 pixel spacing
+		// We aim to have about PREFERRED_PIXEL_SPACING spacing, so need to downsample the image accordingly
 		double downsample = Math.max(1, Math.round(spacingPixels / PREFERRED_PIXEL_SPACING));
 		return downsample;
 	}
@@ -182,7 +181,7 @@ public class SLICSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffe
 			double[] distances = new double[w*h];
 			Arrays.fill(distances, Double.POSITIVE_INFINITY);
 			
-			int s = 20;
+			int s = PREFERRED_PIXEL_SPACING;
 			List<ClusterCenter> centers = new ArrayList<>();
 			for (int y = s/2; y < h; y += s) {
 			    for (int x = s/2; x < w; x += s) {
@@ -215,11 +214,88 @@ public class SLICSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffe
 			    }
 			}
 			
-			// Convert to ROIs
-			ShortProcessor ipLabels = new ShortProcessor(w, h, labels, null);
 			
-			// Increment all labels (TODO: Consider setting numbers 'correctly' the first time)
-			ipLabels.add(1.0);
+			short[] newLabels = new short[labels.length];
+			int[] xyCurrent = new int[w*h];
+			short label = 1;
+			int minSize = s*s/4;
+			for (int y = 0; y < h; y++) {
+				// Maintain a reference to the previous label
+				short lastNewLabel = y > 0 ? labels[(y-1)*w] : 1;
+				for (int x = 0; x < w; x++) {
+					int i = y*w+x;
+					// Check if we've already labelled this
+					short currentNewLabel = newLabels[i];
+					if (currentNewLabel != 0) {
+						lastNewLabel = currentNewLabel;
+						continue;
+					}
+					
+					// Determine pixels for the current region
+					short currentOldLabel = labels[i];
+					int count = 1;
+					xyCurrent[0] = i;
+					newLabels[i] = label;
+					int c = 0;
+					while (c < count) {
+						int ii = xyCurrent[c];
+						int xx = ii % w;
+						int yy = ii / w;
+						c++;
+						// Check 4-connected neighbors
+						if (xx > 0) {
+							int ind = ii-1;
+							if (newLabels[ind] == 0 && labels[ind] == currentOldLabel) {
+								xyCurrent[count] = ind;
+								newLabels[ind] = label;
+								count++;
+							}
+						}
+						if (yy > 0) {
+							int ind = ii-w;
+							if (newLabels[ind] == 0 && labels[ind] == currentOldLabel) {
+								xyCurrent[count] = ind;
+								newLabels[ind] = label;
+								count++;
+							}
+						}
+						
+						if (xx < w-1) {
+							int ind = ii+1;
+							if (newLabels[ind] == 0 && labels[ind] == currentOldLabel) {
+								xyCurrent[count] = ind;
+								newLabels[ind] = label;
+								count++;
+							}
+						}
+						
+						if (yy < h-1) {
+							int ind = ii+w;
+							if (newLabels[ind] == 0 && labels[ind] == currentOldLabel) {
+								xyCurrent[count] = ind;
+								newLabels[ind] = label;
+								count++;
+							}
+						}
+					}
+					// Check if small, relabelling if required
+					if (count <= minSize) {
+						for (c = 0; c < count; c++)
+							newLabels[xyCurrent[c]] = lastNewLabel;
+					} else {
+						lastNewLabel = label;
+						label++;
+					}
+				}
+				
+			}
+			
+			
+			// Convert to ROIs
+			ShortProcessor ipLabels = new ShortProcessor(w, h, newLabels, null);
+//			new ImagePlus("Labels", ipLabels.duplicate()).show();
+//			// Increment all labels (TODO: Consider setting numbers 'correctly' the first time)
+//			ipLabels.add(1.0);
 			
 			// Remove everything outside the ROI, if required
 			if (pathROI != null) {
@@ -227,9 +303,10 @@ public class SLICSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffe
 				ROILabeling.clearOutside(ipLabels, roi);
 				// It's important to move away from the containing ROI, to help with brush selections ending up
 				// having the correct parent (i.e. don't want to risk moving slightly outside the parent object's ROI)
-				ipLabels.setValue(0);
-				ipLabels.setLineWidth(2);
-				ipLabels.draw(roi);
+				// (Or at least it previously seemed important... it has an unwanted effect when tiling though)
+//				ipLabels.setValue(0);
+//				ipLabels.setLineWidth(1);
+//				ipLabels.draw(roi);
 			}
 			
 			
@@ -237,7 +314,7 @@ public class SLICSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffe
 			List<PolygonRoi> polygons = ROILabeling.labelsToFilledRoiList(ipLabels, true);
 //			PolygonRoi[] polygons = ROILabeling.labelsToFilledROIs(ipLabels, (int)ipLabels.getMax());
 			List<PathObject> pathObjects = new ArrayList<>(polygons.size());
-			int label = 0;
+			label = 0;
 //			// Set thresholds - regions means must be within specified range
 //			double minThreshold = params.getDoubleParameterValue("minThreshold");
 //			double maxThreshold = params.getDoubleParameterValue("maxThreshold");
