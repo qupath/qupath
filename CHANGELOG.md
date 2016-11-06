@@ -3,6 +3,7 @@
 * Added 'Object -> Expand annotations' command to created annotations dilated (or eroded) by a fixed distance
 * Script editor improvements, including a better design and more informative error messages
 * Improvements to how object hierarchy adds objects with complex ROI shapes, where the ROI centroid falls outside the ROI itself
+* Improvements to how 'Simple tissue detection' handles thresholds that are set to detect the 'opposite' of what is normally expected, e.g. to detect holes inside tissue (by adjusting the 'dark background' and 'exclude on boundary' settings accordingly).
 * 'Fast cell counts' can now be used to get a very rough (but very quick) estimate of positive cell percentages
 
 
