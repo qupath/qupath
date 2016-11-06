@@ -427,6 +427,7 @@ public class IJExtension implements QuPathExtension {
 				qupath.createPluginAction("Positive pixel count (experimental)", PositivePixelCounterIJ.class, null, false),
 				qupath.createPluginAction("DoG superpixel segmentation", DoGSuperpixelsPlugin.class, null, false),
 				qupath.createPluginAction("SLIC superpixel segmentation (experimental)", SLICSuperpixelsPlugin.class, null, false),
+//				qupath.createPluginAction("Gaussian superpixel segmentation", GaussianSuperpixelsPlugin.class, null, false),
 				qupath.createPluginAction("Tile classifications to annotations", TileClassificationsToAnnotationsPlugin.class, null, false)				
 				);
 		
