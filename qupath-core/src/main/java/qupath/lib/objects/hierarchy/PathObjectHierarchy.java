@@ -37,6 +37,7 @@ import java.util.Vector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import qupath.lib.geom.Point2;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathCellObject;
 import qupath.lib.objects.PathDetectionObject;
@@ -50,6 +51,8 @@ import qupath.lib.objects.hierarchy.events.PathObjectSelectionModel;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent.HierarchyEventType;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.roi.PointsROI;
+import qupath.lib.roi.interfaces.PathArea;
+import qupath.lib.roi.interfaces.PathShape;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
@@ -343,8 +346,26 @@ public class PathObjectHierarchy implements Serializable {
 		
 		ROI pathROI = pathObject.getROI();
 		ROI pathROIInner = useCellNucleiForInsideTest && (pathObject instanceof PathCellObject) ? ((PathCellObject)pathObject).getNucleusROI() : pathROI; //J
-		if (useTileCentroidsForInsideTest && pathObject instanceof PathDetectionObject && !(pathROIInner instanceof PointsROI))
-			pathROIInner = new PointsROI(pathROIInner.getCentroidX(), pathROIInner.getCentroidY(), pathROIInner.getC(), pathROIInner.getZ(), pathROIInner.getT());
+		if (useTileCentroidsForInsideTest && pathObject instanceof PathDetectionObject && !(pathROIInner instanceof PointsROI)) {
+			double cx = pathROIInner.getCentroidX();
+			double cy = pathROIInner.getCentroidY();
+			boolean usePoint = true;
+			if (pathROIInner instanceof PathArea) {
+				PathArea tempArea = (PathArea)pathROIInner;
+				// If the centroid is outside the tile, try the center of the bounding box instead
+				if (!tempArea.contains(cx, cy)) {
+					Point2 p = PathObjectTools.getContainedPoint(tempArea);
+					usePoint = p != null;
+					if (usePoint) {
+						cx = p.getX();
+						cy = p.getY();
+					}
+				}
+			}
+			if (usePoint)
+				pathROIInner = new PointsROI(cx, cy, pathROIInner.getC(), pathROIInner.getZ(), pathROIInner.getT());
+//			pathROIInner = new PointsROI(pathROIInner.getCentroidX(), pathROIInner.getCentroidY(), pathROIInner.getC(), pathROIInner.getZ(), pathROIInner.getT());
+		}
 		
 		PathObject possibleParent = pathObjectParent;
 		List<PathObject> possibleChildren = new ArrayList<>();
@@ -368,9 +389,26 @@ public class PathObjectHierarchy implements Serializable {
 //			= useCellNucleiForInsideTest && (temp instanceof PathCellObject) ? ((PathCellObject)temp).getNucleusROI() : tempROI; //J
 			
 //			if (useTileCentroidsForInsideTest && temp instanceof PathTileObject)
-			if (useTileCentroidsForInsideTest && temp instanceof PathDetectionObject)
-				tempROIInner = new PointsROI(tempROIInner.getCentroidX(), tempROIInner.getCentroidY(), tempROI.getC(), tempROI.getZ(), tempROI.getT());
+			if (useTileCentroidsForInsideTest && temp instanceof PathDetectionObject) {
+				double cx = tempROIInner.getCentroidX();
+				double cy = tempROIInner.getCentroidY();
+				boolean usePoint = true;
+				if (tempROIInner instanceof PathArea) {
+					PathArea tempArea = (PathArea)tempROIInner;
+					// If the centroid is outside the tile, try the center of the bounding box instead
+					if (!tempArea.contains(cx, cy)) {
+						Point2 p = PathObjectTools.getContainedPoint(tempArea);
+						usePoint = p != null;
+						if (usePoint) {
+							cx = p.getX();
+							cy = p.getY();
+						}
+					}
+				}
+				if (usePoint)
+					tempROIInner = new PointsROI(cx, cy, tempROI.getC(), tempROI.getZ(), tempROI.getT());
 //				tempROIInner = new RectangleROI(tempROIInner.getCentroidX()-.5, tempROIInner.getCentroidY()-.5,  1,  1, tempROI.getC(), tempROI.getZ(), tempROI.getT());
+			}
 
 			if (!(temp instanceof TMACoreObject) && pathROI != tempROIInner && PathObjectTools.containsROI(pathROI, tempROIInner)){
 				possibleChildren.add(temp);

@@ -1,3 +1,12 @@
+## Version 0.0.5
+
+* Added 'Object -> Expand annotations' command to created annotations dilated (or eroded) by a fixed distance
+* Script editor improvements, including a better design and more informative error messages
+* Improvements to how object hierarchy adds objects with complex ROI shapes, where the ROI centroid falls outside the ROI itself
+* Improvements to how 'Simple tissue detection' handles thresholds that are set to detect the 'opposite' of what is normally expected, e.g. to detect holes inside tissue (by adjusting the 'dark background' and 'exclude on boundary' settings accordingly).
+* 'Fast cell counts' can now be used to get a very rough (but very quick) estimate of positive cell percentages
+
+
 ## Version 0.0.4
 
 * Added check for updates on QuPath startup
@@ -14,7 +23,7 @@
 * TMA grids can be applied to add TMA 'Unique ID' values by drag-and-drop, using a text file with extension '.qpmap'
 * Adding or removing a TMA row or column now produces a prompt to relabel the grid
 * When sending image regions to ImageJ, the 'visibility' status is used to determine whether or not objects are sent as ROIs
-* Fixed bug with extension path wrongly defaulting to an internal QuPath directory (existing installations may require the extension directory to be updated rom 'Edit -> Preferences')
+* Fixed bug with extension path wrongly defaulting to an internal QuPath directory (existing installations may require the extension directory to be updated from 'Edit -> Preferences')
 * Fixed (hopefully) cross-platform line splitting (v0.0.3 tried to fix this for Windows... but only partly did, while breaking TMA grid import elsewhere)
 * Fixed bugs in 'Classify by specific feature' command
 * Fixed bug whereby ROIs with zero width or height were not shown at all

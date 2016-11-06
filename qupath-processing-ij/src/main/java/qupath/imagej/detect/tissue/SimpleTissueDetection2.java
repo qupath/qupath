@@ -48,6 +48,7 @@ import ij.process.ImageProcessor;
 import qupath.imagej.images.servers.ImagePlusServer;
 import qupath.imagej.images.servers.ImagePlusServerBuilder;
 import qupath.imagej.objects.ROIConverterIJ;
+import qupath.imagej.processing.MorphologicalReconstruction;
 import qupath.imagej.processing.ROILabeling;
 import qupath.imagej.processing.SimpleThresholding;
 import qupath.lib.common.GeneralTools;
@@ -59,7 +60,6 @@ import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathRootObject;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.helpers.PathObjectTools;
-import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.plugins.AbstractDetectionPlugin;
 import qupath.lib.plugins.DetectionPluginTools;
 import qupath.lib.plugins.ObjectDetector;
@@ -206,9 +206,23 @@ public class SimpleTissueDetection2 extends AbstractDetectionPlugin<BufferedImag
 	//		new ImagePlus("", bp.duplicate()).show();
 			
 			// If there is a ROI, clear everything outside
+			Roi roiIJ = null;
 			if (pathROI != null) {
-				Roi roi = ROIConverterIJ.convertToIJRoi(pathROI, imp.getCalibration(), downsample);
-				ROILabeling.clearOutside(bp, roi);
+				roiIJ = ROIConverterIJ.convertToIJRoi(pathROI, imp.getCalibration(), downsample);
+				ROILabeling.clearOutside(bp, roiIJ);
+			}
+			
+			// Exclude on image boundary now, if required
+			// This needs to be done before getting ROIs, because filled ROIs are requested - which can result in the whole image being filled in if the boundary covers everything
+			if (excludeOnBoundary) {
+				ByteProcessor bpMarker = new ByteProcessor(bp.getWidth(), bp.getHeight());
+				bpMarker.setValue(255);
+				bpMarker.drawRect(0, 0, bp.getWidth(), bp.getHeight());
+				if (roiIJ != null)
+					bpMarker.draw(roiIJ);
+				bpMarker.copyBits(bp, 0, 0, Blitter.AND);
+				ByteProcessor bpBoundary = MorphologicalReconstruction.binaryReconstruction(bpMarker, bp, false);
+				bp.copyBits(bpBoundary, 0, 0, Blitter.SUBTRACT);
 			}
 			
 			if (Thread.currentThread().isInterrupted())
@@ -229,7 +243,7 @@ public class SimpleTissueDetection2 extends AbstractDetectionPlugin<BufferedImag
 			
 			if (Thread.currentThread().isInterrupted())
 				return null;
-
+			
 			bp.setThreshold(127, Double.POSITIVE_INFINITY, ImageProcessor.NO_LUT_UPDATE);
 			List<PathObject> pathObjects = convertToPathObjects(bp, minArea, smoothCoordinates, imp.getCalibration(), downsample, maxHoleArea, excludeOnBoundary, singleAnnotation, null);
 

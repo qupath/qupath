@@ -39,6 +39,7 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
 
+import javafx.collections.ListChangeListener.Change;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
@@ -198,6 +199,7 @@ public class MeasurementManager implements PathCommand {
 				mapMeasurements.get(cls).removeAll(toRemove);
 				tree.setRoot(new MeasurementItem(mapMeasurements.get(cls), ""));
 				setTreeItemsExpanded(tree.getRoot(), true);
+				titledMeasurements.setText("Measurements (" + mapMeasurements.get(cls).size() + ")");
 			}
 		});
 		btnRemove.disableProperty().bind(tree.getSelectionModel().selectedItemProperty().isNull());
@@ -282,6 +284,7 @@ public class MeasurementManager implements PathCommand {
         	
         	String[] splits = prefix.split(delimiter);
         	this.name = splits.length == 0 ? prefix : splits[splits.length-1];
+        	
         	setValue(name + " (" + measurements.size() + ")");
         	
         	Map<String, List<String>> map = new TreeMap<>();
@@ -311,6 +314,9 @@ public class MeasurementManager implements PathCommand {
        				map.entrySet().stream().map(
        						entry -> new MeasurementItem(entry.getValue(), prefix + entry.getKey())).collect(Collectors.toList()));
 
+       		
+       		getChildren().addListener((Change<? extends TreeItem<String>> e) -> setValue(name + " (" + getChildren().size() + ")"));
+       		
        		// Add the leaf children
        		getChildren().addAll(children);
         }

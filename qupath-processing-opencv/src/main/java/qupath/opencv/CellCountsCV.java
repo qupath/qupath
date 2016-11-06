@@ -40,6 +40,7 @@ import org.opencv.imgproc.Imgproc;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import qupath.lib.color.ColorDeconvolution;
 import qupath.lib.color.ColorDeconvolutionStains;
 import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
@@ -47,6 +48,7 @@ import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.plugins.AbstractTileableDetectionPlugin;
 import qupath.lib.plugins.ObjectDetector;
@@ -121,8 +123,14 @@ public class CellCountsCV extends AbstractTileableDetectionPlugin<BufferedImage>
 			
 			// Get hematoxylin channel
 			ColorDeconvolutionStains stains = imageData.getColorDeconvolutionStains();
-			float[][] pxDeconvolved = WatershedNucleiCV.colorDeconvolve(img, stains.getStain(1).getArray(), stains.getStain(2).getArray(), null, 2);
-			float[] pxHematoxylin = pxDeconvolved[0];
+			int[] rgb = img.getRGB(0, 0, img.getWidth(), img.getHeight(), null, 0, img.getWidth());
+			float[] pxHematoxylin = ColorDeconvolution.colorDeconvolveRGBArray(rgb, stains, 0, null);
+			float[] pxStain2 = ColorDeconvolution.colorDeconvolveRGBArray(rgb, stains, 1, null);
+			
+			double stain2Threshold = (imageData.isBrightfield() && imageData.getColorDeconvolutionStains().isH_DAB()) ? params.getDoubleParameterValue("thresholdDAB") : -1;
+			
+//			float[][] pxDeconvolved = WatershedNucleiCV.colorDeconvolve(img, stains.getStain(1).getArray(), stains.getStain(2).getArray(), null, 2);
+//			float[] pxHematoxylin = pxDeconvolved[0];
 			
 			// Convert to OpenCV Mat
 			int width = img.getWidth();
@@ -152,15 +160,15 @@ public class CellCountsCV extends AbstractTileableDetectionPlugin<BufferedImage>
 			Mat mat = new Mat(); // From now on, work with the smoothed image
 			Imgproc.GaussianBlur(matOrig, mat, new Size(gaussianWidth, gaussianWidth), gaussianSigma);
 			
-			// Ensure cells selected only where hematoxlin > eosin/DAB
+			// Ensure cells selected only where hematoxlin > eosin/DAB, if required
 			Mat matValid = null;
-			if (ensureMainStain) {
-				float[] pxStain2 = pxDeconvolved[1];
+			if (ensureMainStain || stain2Threshold < 0) {
 				Mat matStain2 = new Mat(height, width, CvType.CV_32FC1);
 				matStain2.put(0, 0, pxStain2);
 				Imgproc.GaussianBlur(matStain2, matStain2, new Size(gaussianWidth, gaussianWidth), gaussianSigma);
 				matValid = new Mat();
 				Core.compare(mat, matStain2, matValid, Core.CMP_GE);
+				matStain2.release();
 			}
 				
 			
@@ -195,7 +203,6 @@ public class CellCountsCV extends AbstractTileableDetectionPlugin<BufferedImage>
 			// This finds the potential nucleus pixels that are also local maxima in the processed image
 			Core.min(matThresh, matMaxima, matMaxima);
 			
-			
 			/*
 			 * Create objects
 			 */
@@ -204,13 +211,20 @@ public class CellCountsCV extends AbstractTileableDetectionPlugin<BufferedImage>
 			// This deals with the fact that maxima located within matMaxima (a binary image) aren’t necessarily
 			// single pixels, but should be treated as belonging to the same cell		
 			List<MatOfPoint> contours = new ArrayList<>();
+			Mat temp = new Mat();
 			Imgproc.findContours(matMaxima, contours, new Mat(), Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE);
+			temp.release();
 			ArrayList<qupath.lib.geom.Point2> points = new ArrayList<>();
 
 			Shape shape = pathROI instanceof PathArea ? PathROIToolsAwt.getShape(pathROI) : null;
 			Integer color = ColorTools.makeRGB(0, 255, 0);
 			for (MatOfPoint contour : contours){
 
+				// This doesn't appear to work...
+//				Moments moments = Imgproc.moments(contour, false);
+//				int cx = (int)(moments.m10/moments.m00);
+//				int cy = (int)(moments.m01/moments.m00);
+				
 				// Create a polygon ROI
 				points.clear();
 				for (Point p : contour.toArray())
@@ -231,12 +245,34 @@ public class CellCountsCV extends AbstractTileableDetectionPlugin<BufferedImage>
 
 				if (pathROI instanceof RectangleROI || PathObjectTools.containsROI(pathROI, tempROI)) {
 					PathObject pathObject = new PathDetectionObject(tempROI);
-					pathObject.setColorRGB(color);
+					// Check stain2 value at the peak pixel, if required
+					if (stain2Threshold >= 0) {
+						int cx = (int)((tempROI.getCentroidX() - x)/downsample);
+						int cy = (int)((tempROI.getCentroidY() - y)/downsample);
+						int i = cy * img.getWidth() +cx;
+						if (pxStain2[i] >= stain2Threshold)
+							pathObject.setPathClass(PathClassFactory.getPositive(null, null));
+						else
+							pathObject.setPathClass(PathClassFactory.getNegative(null, null));
+					} else
+						pathObject.setColorRGB(color);
+					
+					contour.release();
 					pathObjects.add(pathObject);
 				}
 			}
-			System.out.println("Found " + pathObjects.size() + " contours");
+			logger.info("Found " + pathObjects.size() + " contours");
 
+			
+			// Release matrices
+			matThresh.release();
+			matMax.release();
+			matMaxima.release();
+			matOrig.release();
+			if (matValid != null)
+				matValid.release();
+
+			
 			return pathObjects;
 		}
 
@@ -255,10 +291,16 @@ public class CellCountsCV extends AbstractTileableDetectionPlugin<BufferedImage>
 				addDoubleParameter("backgroundRadiusPixels", "Background radius", 5, "px", "Filter size to estimate background; should be > the largest nucleus radius").
 				addDoubleParameter("backgroundRadiusMicrons", "Background radius", 10, GeneralTools.micrometerSymbol(), "Filter size to estimate background; should be > the largest nucleus radius").
 				addDoubleParameter("gaussianSigmaPixels", "Gaussian sigma", 1, "px", "Smoothing filter uses to reduce spurious peaks").
-				addDoubleParameter("gaussianSigmaMicrons", "Gaussian sigma", 2, GeneralTools.micrometerSymbol(), "Smoothing filter uses to reduce spurious peaks").
+				addDoubleParameter("gaussianSigmaMicrons", "Gaussian sigma", 1.5, GeneralTools.micrometerSymbol(), "Smoothing filter uses to reduce spurious peaks").
 				addDoubleParameter("threshold", "Threshold", 0.1, "Hematoxylin intensity threshold").
 				addBooleanParameter("doDoG", "Use Difference of Gaussians", true, "Apply Difference of Gaussians filter prior to detection - this tends to detect more nuclei, but may detect too many").
+				addDoubleParameter("thresholdDAB", "DAB threshold", 0.5, "DAB OD threshold for positive percentage counts").
 				addBooleanParameter("ensureMainStain", "Hematoxylin predominant", false, "Accept detection only if haematoxylin value is higher than that of the second deconvolved stain");
+		
+		boolean isHDAB = imageData.isBrightfield() && imageData.getColorDeconvolutionStains().isH_DAB();
+		params.setHiddenParameters(isHDAB, "ensureMainStain");
+		params.setHiddenParameters(!isHDAB, "thresholdDAB");
+		
 		boolean hasMicrons = imageData != null && imageData.getServer() != null && imageData.getServer().hasPixelSizeMicrons();
 		params.getParameters().get("gaussianSigmaPixels").setHidden(hasMicrons);
 		params.getParameters().get("gaussianSigmaMicrons").setHidden(!hasMicrons);
