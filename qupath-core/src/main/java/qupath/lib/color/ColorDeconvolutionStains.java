@@ -367,11 +367,11 @@ public class ColorDeconvolutionStains implements Externalizable {
 			sb.append("\"Stain ").append(i).append("\" : \"").append(stain.getName()).append("\", ");
 			sb.append("\"Values ").append(i).append("\" : \"").append(stain.arrayAsString(nDecimalPlaces)).append("\", ");
 		}
-		sb.append("\"Background\" : \"[");
-		sb.append(stains.getMaxRed()).append(", ");
-		sb.append(stains.getMaxGreen()).append(", ");
+		sb.append("\"Background\" : \"");
+		sb.append(stains.getMaxRed()).append(" ");
+		sb.append(stains.getMaxGreen()).append(" ");
 		sb.append(stains.getMaxBlue());
-		sb.append("]\"}");
+		sb.append("\"}");
 		
 		return sb.toString();
 	}
