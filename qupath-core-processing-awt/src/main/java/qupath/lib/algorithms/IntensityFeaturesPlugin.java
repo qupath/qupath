@@ -28,7 +28,10 @@ import java.awt.image.DataBufferByte;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -61,6 +64,7 @@ import qupath.lib.plugins.PluginRunner;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
+import qupath.lib.roi.PathROIToolsAwt;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
@@ -472,112 +476,141 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 		RegionType regionType = (RegionType)params.getChoiceParameterValue("region");
 			
 		// Try to get ROI
-		ROI pathROI = pathObject.getROI();
+		ROI roi = pathObject.getROI();
 //		if (pathObject instanceof PathCellObject && ((PathCellObject)pathObject).getNucleusROI() != null)
 //			pathROI = ((PathCellObject)pathObject).getNucleusROI();
-		if (pathROI == null)
+		if (roi == null)
 			return false;
 		
-		// Get bounds
-		RegionRequest region;
-		if (regionType == RegionType.ROI) {
-			region = RegionRequest.createInstance(server.getPath(), downsample, pathObject.getROI());
-		} else {
-			ImmutableDimension size = getPreferredTileSizePixels(server, params);
-			//		RegionRequest region = RegionRequest.createInstance(server.getPath(), downsample, (int)(pathROI.getCentroidX() + .5) - size.width/2, (int)(pathROI.getCentroidY() + .5) - size.height/2, size.width, size.height, pathROI.getT(), pathROI.getZ());
-			// Try to align with pixel boundaries according to the downsample being used - otherwise, interpolation can cause some strange, pattern artefacts
-			int xStart = (int)((int)(pathROI.getCentroidX() / downsample + .5) * downsample) - size.width/2;
-			int yStart = (int)((int)(pathROI.getCentroidY() / downsample + .5) * downsample) - size.height/2;
-			int width = Math.min(server.getWidth(), xStart + size.width) - xStart;
-			int height = Math.min(server.getHeight(), yStart + size.height) - yStart;
-			region = RegionRequest.createInstance(server.getPath(), downsample, xStart, yStart, width, height, pathROI.getT(), pathROI.getZ());			
-		}
-		
-		// Check image large enough to do *anything* of value
-		if (region.getWidth() / downsample < 3 || region.getHeight() / downsample < 3)
-			return false;
-
-//		System.out.println(bounds);
-//		System.out.println("Size: " + size);
-
-		BufferedImage img = null;
-		// Try to read the image using the ImageRegionServer... if this doesn't work out, fall back to using the default (slower) method
-		if (regionStore != null) {
-			try {
-				img = regionStore.getImage(server, region);
-			} catch (Exception e) {
-//				if (e instanceof InterruptedException)
-//					throw (InterruptedException)e;
-				logger.info("Failed to read from {} in region store with request {}", server, region);
-				e.printStackTrace();
+		// Create a map - this is useful for occasions when tiling is needed
+		Map<FeatureColorTransform, List<FeatureComputer>> map = new LinkedHashMap<>();
+		for (FeatureColorTransform transform : FeatureColorTransform.values()) {
+			List<FeatureComputer> list = new ArrayList<>();
+			map.put(transform, list);
+			for (FeatureComputerBuilder builder : builders) {
+				list.add(builder.build());
 			}
 		}
-		// Try again once more...
-		if (img == null) {
-			img = server.readBufferedImage(region);
-		}
-		if (img == null) {
-			logger.error("Could not read image - unable to compute intensity features for {}", pathObject);
-			return false;
-		}
-
-		// Create mask ROI if necessary
-		byte[] maskBytes = null;
-		if (regionType == RegionType.ROI) {
-			ROI roi = pathObject.getROI();
-			BufferedImage imgMask = BufferedImageTools.createROIMask(img.getWidth(), img.getHeight(), roi, region);
-			maskBytes = ((DataBufferByte)imgMask.getRaster().getDataBuffer()).getData();
-		}
-		
 		
 		String prefix = getDiameterString(server, params);
+
+		// Create tiled ROIs, if required
+		ImmutableDimension sizePreferred = new ImmutableDimension((int)(2000*downsample), (int)(2000*downsample));
+//		ImmutableDimension sizePreferred = new ImmutableDimension((int)(200*downsample), (int)(200*downsample));
+		Collection<? extends ROI> rois = PathROIToolsAwt.computeTiledROIs(roi, sizePreferred, sizePreferred, false, 0);
+		if (rois.size() > 1)
+			logger.info("Splitting {} into {} tiles for intensity measurements", roi, rois.size());
 		
-		boolean isRGB = server.isRGB();
-		int w = img.getWidth();
- 		int h = img.getHeight();
-		int[] rgbBuffer = isRGB ? img.getRGB(0, 0, w, h, null, 0, w) : null;
-		float[] pixels = null;
-		for (FeatureColorTransform transform : FeatureColorTransform.values()) {
-			// Check if the color transform is requested
-			if (Boolean.TRUE.equals(params.getBooleanParameterValue(transform.getKey()))) {
-				
-				// Transform the pixels
-				pixels = transform.getTransformedPixels(img, rgbBuffer, stains, pixels);
-				
-				// Create the simple image
-				FloatArraySimpleImage pixelImage = new FloatArraySimpleImage(pixels, w, h);
-				
-				// Apply any arbitrary mask
-				if (maskBytes != null) {
-					for (int i = 0; i < pixels.length; i++) {
-						if (maskBytes[i] == (byte)0)
-							pixelImage.setValue(i % w, i / w, Float.NaN);
-					}
-				} else if (regionType == RegionType.CIRCLE) {
-					// Apply circular tile mask
-					double cx = (w-1) / 2;
-					double cy = (h-1) / 2;
-					double radius = Math.max(w, h) * .5;
-					double distThreshold = radius * radius;
-					for (int y = 0; y < h; y++) {
-						for (int x = 0; x < w; x++) {
-							if ((cx - x)*(cx - x) + (cy - y)*(cy - y) > distThreshold)
-								pixelImage.setValue(x, y, Float.NaN);
-						}			
-					}
+		for (ROI pathROI : rois) {
+			
+			if (Thread.currentThread().isInterrupted()) {
+				logger.warn("Measurement skipped - thread interrupted!");
+				return false;
+			}
+			
+			// Get bounds
+			RegionRequest region;
+			if (regionType == RegionType.ROI) {
+				region = RegionRequest.createInstance(server.getPath(), downsample, pathROI);
+			} else {
+				ImmutableDimension size = getPreferredTileSizePixels(server, params);
+				//		RegionRequest region = RegionRequest.createInstance(server.getPath(), downsample, (int)(pathROI.getCentroidX() + .5) - size.width/2, (int)(pathROI.getCentroidY() + .5) - size.height/2, size.width, size.height, pathROI.getT(), pathROI.getZ());
+				// Try to align with pixel boundaries according to the downsample being used - otherwise, interpolation can cause some strange, pattern artefacts
+				int xStart = (int)((int)(pathROI.getCentroidX() / downsample + .5) * downsample) - size.width/2;
+				int yStart = (int)((int)(pathROI.getCentroidY() / downsample + .5) * downsample) - size.height/2;
+				int width = Math.min(server.getWidth(), xStart + size.width) - xStart;
+				int height = Math.min(server.getHeight(), yStart + size.height) - yStart;
+				region = RegionRequest.createInstance(server.getPath(), downsample, xStart, yStart, width, height, pathROI.getT(), pathROI.getZ());			
+			}
+			
+			// Check image large enough to do *anything* of value
+			if (region.getWidth() / downsample < 3 || region.getHeight() / downsample < 3)
+				return false;
+	
+	//		System.out.println(bounds);
+	//		System.out.println("Size: " + size);
+	
+			BufferedImage img = null;
+			// Try to read the image using the ImageRegionServer... if this doesn't work out, fall back to using the default (slower) method
+			if (regionStore != null) {
+				try {
+					img = regionStore.getImage(server, region);
+				} catch (Exception e) {
+	//				if (e instanceof InterruptedException)
+	//					throw (InterruptedException)e;
+					logger.info("Failed to read from {} in region store with request {}", server, region);
+					e.printStackTrace();
 				}
-				
-				// Do the computations
-				for (FeatureComputerBuilder builder : builders) {
-					FeatureComputer computer = builder.build();
-					computer.updateFeatures(pixelImage, transform, params);
-					// Add to the parent object
-					String name = prefix + ": " + transform.getName(stains) + ": ";
-					computer.addMeasurements(pathObject, name, params);
+			}
+			// Try again once more...
+			if (img == null) {
+				img = server.readBufferedImage(region);
+			}
+			if (img == null) {
+				logger.error("Could not read image - unable to compute intensity features for {}", pathObject);
+				return false;
+			}
+	
+			// Create mask ROI if necessary
+			byte[] maskBytes = null;
+			if (regionType == RegionType.ROI) {
+				BufferedImage imgMask = BufferedImageTools.createROIMask(img.getWidth(), img.getHeight(), pathROI, region);
+				maskBytes = ((DataBufferByte)imgMask.getRaster().getDataBuffer()).getData();
+			}
+			
+			
+			boolean isRGB = server.isRGB();
+			int w = img.getWidth();
+	 		int h = img.getHeight();
+			int[] rgbBuffer = isRGB ? img.getRGB(0, 0, w, h, null, 0, w) : null;
+			float[] pixels = null;
+			for (FeatureColorTransform transform : FeatureColorTransform.values()) {
+				// Check if the color transform is requested
+				if (Boolean.TRUE.equals(params.getBooleanParameterValue(transform.getKey()))) {
+					
+					// Transform the pixels
+					pixels = transform.getTransformedPixels(img, rgbBuffer, stains, pixels);
+					
+					// Create the simple image
+					FloatArraySimpleImage pixelImage = new FloatArraySimpleImage(pixels, w, h);
+					
+					// Apply any arbitrary mask
+					if (maskBytes != null) {
+						for (int i = 0; i < pixels.length; i++) {
+							if (maskBytes[i] == (byte)0)
+								pixelImage.setValue(i % w, i / w, Float.NaN);
+						}
+					} else if (regionType == RegionType.CIRCLE) {
+						// Apply circular tile mask
+						double cx = (w-1) / 2;
+						double cy = (h-1) / 2;
+						double radius = Math.max(w, h) * .5;
+						double distThreshold = radius * radius;
+						for (int y = 0; y < h; y++) {
+							for (int x = 0; x < w; x++) {
+								if ((cx - x)*(cx - x) + (cy - y)*(cy - y) > distThreshold)
+									pixelImage.setValue(x, y, Float.NaN);
+							}			
+						}
+					}
+					
+					// Do the computations
+					for (FeatureComputer computer : map.get(transform)) {
+						computer.updateFeatures(pixelImage, transform, params);
+					}
 				}
 			}
 		}
+		
+		// Add measurements to the parent object
+		for (Entry<FeatureColorTransform, List<FeatureComputer>> entry : map.entrySet()) {
+			String name = prefix + ": " + entry.getKey().getName(stains) + ": ";
+			for (FeatureComputer computer : entry.getValue())
+				computer.addMeasurements(pathObject, name, params);
+		}
 		pathObject.getMeasurementList().closeList();
+		
+		// Lock any measurements that require it
 		if (pathObject instanceof PathAnnotationObject)
 			((PathAnnotationObject)pathObject).setLocked(true);
 		else if (pathObject instanceof TMACoreObject)

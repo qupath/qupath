@@ -354,69 +354,88 @@ public class PathROIToolsAwt {
 		}
 		return tiles;
 	}
-
+	
+	
+	
 	public static Collection<? extends ROI> computeTiledROIs(ImageData<?> imageData, PathObject parentObject, ImmutableDimension sizePreferred, ImmutableDimension sizeMax, boolean fixedSize, int overlap) {
-
 		ROI parentROI = parentObject.getROI();
+		if (parentROI == null)
+			parentROI = new RectangleROI(0, 0, imageData.getServer().getWidth(), imageData.getServer().getHeight());
+		return computeTiledROIs(parentROI, sizePreferred, sizeMax, fixedSize, overlap);
+	}
+	
+
+	/**
+	 * Create a collection of tiled ROIs corresponding to a specified parentROI if it is larger than sizeMax.
+	 * 
+	 * If the parentROI is smaller, it is returned as is.
+	 * 
+	 * @param parentROI
+	 * @param sizePreferred
+	 * @param sizeMax
+	 * @param fixedSize
+	 * @param overlap
+	 * @return
+	 */
+	public static Collection<? extends ROI> computeTiledROIs(ROI parentROI, ImmutableDimension sizePreferred, ImmutableDimension sizeMax, boolean fixedSize, int overlap) {
+
 		PathArea pathArea = parentROI instanceof PathArea ? (PathArea)parentROI : null;
-		Rectangle2D bounds = pathArea == null ? 
-				new Rectangle2D.Double(0, 0, imageData.getServer().getWidth(), imageData.getServer().getHeight()) 
-				: AwtTools.getBounds2D(pathArea);
-				if (pathArea == null || (bounds.getWidth() <= sizeMax.width && bounds.getHeight() <= sizeMax.height)) {
-					return Collections.singletonList(parentObject.getROI());
+		Rectangle2D bounds = AwtTools.getBounds2D(parentROI);
+		if (pathArea == null || (bounds.getWidth() <= sizeMax.width && bounds.getHeight() <= sizeMax.height)) {
+			return Collections.singletonList(parentROI);
+		}
+
+
+		List<ROI> pathROIs = new ArrayList<>();
+
+		Area area = getArea(pathArea);
+
+		double xMin = bounds.getMinX();
+		double yMin = bounds.getMinY();
+		int nx = (int)Math.ceil(bounds.getWidth() / sizePreferred.width);
+		int ny = (int)Math.ceil(bounds.getHeight() / sizePreferred.height);
+		double w = fixedSize ? sizePreferred.width : (int)Math.ceil(bounds.getWidth() / nx);
+		double h = fixedSize ? sizePreferred.height : (int)Math.ceil(bounds.getHeight() / ny);
+
+		// Center the tiles
+		xMin = (int)(bounds.getCenterX() - (nx * w * .5));
+		yMin = (int)(bounds.getCenterY() - (ny * h * .5));
+
+		for (int yi = 0; yi < ny; yi++) {
+			for (int xi = 0; xi < nx; xi++) {
+
+				double x = xMin + xi * w - overlap;
+				double y = yMin + yi * h - overlap;
+
+				Rectangle2D boundsTile = new Rectangle2D.Double(x, y, w + overlap*2, h + overlap*2);
+
+				//				double x = xMin + xi * w;
+				//				double y = yMin + yi * h;
+				//				
+				//				Rectangle2D boundsTile = new Rectangle2D.Double(x, y, w, h);
+				//					logger.info(boundsTile);
+				ROI pathROI = null;
+				Shape shape = getShape(pathArea);
+				if (shape.contains(boundsTile))
+					pathROI = new RectangleROI(boundsTile.getX(), boundsTile.getY(), boundsTile.getWidth(), boundsTile.getHeight(), parentROI.getC(), parentROI.getZ(), parentROI.getT());
+				else if (pathArea instanceof RectangleROI) {
+					Rectangle2D bounds2 = boundsTile.createIntersection(bounds);
+					pathROI = new RectangleROI(bounds2.getX(), bounds2.getY(), bounds2.getWidth(), bounds2.getHeight(), parentROI.getC(), parentROI.getZ(), parentROI.getT());
 				}
-
-
-				List<ROI> pathROIs = new ArrayList<>();
-
-				Area area = getArea(pathArea);
-
-				double xMin = bounds.getMinX();
-				double yMin = bounds.getMinY();
-				int nx = (int)Math.ceil(bounds.getWidth() / sizePreferred.width);
-				int ny = (int)Math.ceil(bounds.getHeight() / sizePreferred.height);
-				double w = fixedSize ? sizePreferred.width : (int)Math.ceil(bounds.getWidth() / nx);
-				double h = fixedSize ? sizePreferred.height : (int)Math.ceil(bounds.getHeight() / ny);
-
-				// Center the tiles
-				xMin = (int)(bounds.getCenterX() - (nx * w * .5));
-				yMin = (int)(bounds.getCenterY() - (ny * h * .5));
-
-				for (int yi = 0; yi < ny; yi++) {
-					for (int xi = 0; xi < nx; xi++) {
-
-						double x = xMin + xi * w - overlap;
-						double y = yMin + yi * h - overlap;
-
-						Rectangle2D boundsTile = new Rectangle2D.Double(x, y, w + overlap*2, h + overlap*2);
-
-						//				double x = xMin + xi * w;
-						//				double y = yMin + yi * h;
-						//				
-						//				Rectangle2D boundsTile = new Rectangle2D.Double(x, y, w, h);
-						//					logger.info(boundsTile);
-						ROI pathROI = null;
-						Shape shape = getShape(pathArea);
-						if (shape.contains(boundsTile))
-							pathROI = new RectangleROI(boundsTile.getX(), boundsTile.getY(), boundsTile.getWidth(), boundsTile.getHeight(), parentROI.getC(), parentROI.getZ(), parentROI.getT());
-						else if (pathArea instanceof RectangleROI) {
-							Rectangle2D bounds2 = boundsTile.createIntersection(bounds);
-							pathROI = new RectangleROI(bounds2.getX(), bounds2.getY(), bounds2.getWidth(), bounds2.getHeight(), parentROI.getC(), parentROI.getZ(), parentROI.getT());
-						}
-						else {
-							if (!area.intersects(boundsTile))
-								continue;
-							Area areaTemp = new Area(boundsTile);
-							areaTemp.intersect(area);
-							if (!areaTemp.isEmpty())
-								pathROI = new AWTAreaROI(areaTemp, parentROI.getC(), parentROI.getZ(), parentROI.getT());					
-						}
-						if (pathROI != null)
-							pathROIs.add(pathROI);
-						x += w;
-					}
+				else {
+					if (!area.intersects(boundsTile))
+						continue;
+					Area areaTemp = new Area(boundsTile);
+					areaTemp.intersect(area);
+					if (!areaTemp.isEmpty())
+						pathROI = new AWTAreaROI(areaTemp, parentROI.getC(), parentROI.getZ(), parentROI.getT());					
 				}
-				return pathROIs;
+				if (pathROI != null)
+					pathROIs.add(pathROI);
+				x += w;
+			}
+		}
+		return pathROIs;
 	}
 
 	public static PolygonROI[][] splitAreaToPolygons(final Area area) {
