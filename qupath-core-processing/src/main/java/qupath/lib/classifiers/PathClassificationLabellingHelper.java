@@ -401,6 +401,8 @@ public class PathClassificationLabellingHelper {
 		// so by checking the last list that was added, there is no need to bother the set to add the same thing again.
 		List<String> lastNames = null;
 		for (PathObject pathObject : pathObjects) {
+			if (!pathObject.hasMeasurements())
+				continue;
 			List<String> list = pathObject.getMeasurementList().getMeasurementNames();
 			if (lastNames == null || !lastNames.equals(list))
 				featureSet.addAll(list);

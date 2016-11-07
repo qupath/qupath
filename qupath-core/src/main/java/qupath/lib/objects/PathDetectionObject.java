@@ -24,6 +24,8 @@
 package qupath.lib.objects;
 
 import qupath.lib.measurements.MeasurementList;
+import qupath.lib.measurements.MeasurementList.TYPE;
+import qupath.lib.measurements.MeasurementListFactory;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.roi.interfaces.ROI;
 
@@ -56,6 +58,12 @@ public class PathDetectionObject extends PathROIObject {
 		super(pathROI, pathClass, measurements);
 	}
 
+	/**
+	 * Create a new PathDetectionObject with a float measurement list.
+	 * 
+	 * @param pathROI
+	 * @param pathClass
+	 */
 	public PathDetectionObject(ROI pathROI, PathClass pathClass) {
 		super(pathROI, pathClass);
 	}
@@ -71,6 +79,13 @@ public class PathDetectionObject extends PathROIObject {
 	public boolean isEditable() {
 		return false;
 	}
-		
+	
+	/**
+	 * Default to a simple, float measurement list.
+	 */
+	@Override
+	protected MeasurementList createEmptyMeasurementList() {
+		return MeasurementListFactory.createMeasurementList(0, TYPE.FLOAT);
+	}
 	
 }

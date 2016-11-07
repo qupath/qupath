@@ -342,6 +342,8 @@ class NumericMeasurementList {
 		public DoubleList(int capacity) {
 			super(capacity);
 			this.values = new double[capacity];
+			// Close from the start... will be opened as needed
+			closeList();
 		}
 		
 		@Override
@@ -394,6 +396,8 @@ class NumericMeasurementList {
 		public FloatList(int capacity) {
 			super(capacity);
 			this.values = new float[capacity];
+			// Close from the start... will be opened as needed
+			closeList();
 		}
 
 		@Override
