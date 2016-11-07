@@ -45,6 +45,7 @@ import qupath.imagej.color.ColorDeconvolutionIJ;
 import qupath.imagej.objects.PathImagePlus;
 import qupath.imagej.objects.ROIConverterIJ;
 import qupath.imagej.processing.ROILabeling;
+import qupath.lib.analysis.stats.RunningStatistics;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.PathImage;
@@ -136,7 +137,7 @@ public class SLICSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffe
 				.addDoubleParameter("regularization", "Regularization", 0.25, null, "Control the 'squareness' of superpixels - higher values are more square")
 				.addBooleanParameter("adaptRegularization", "Auto-adapt regularization", false, "Automatically adapt regularization parameter for different superpixels")
 				.addBooleanParameter("useDeconvolved", "Use color deconvolved channels", false, "Use color-deconvolved values, rather than (standard) RGB->LAB colorspace transform")
-//				addBooleanParameter("doMerge", "Merge similar", false, "Merge neighboring superpixels if they are similar to one another")
+				.addBooleanParameter("doMerge", "Merge similar", false, "Merge neighboring superpixels if they are similar to one another")
 				;
 		
 		boolean hasMicrons = imageData != null && imageData.getServer().hasPixelSizeMicrons();
@@ -178,6 +179,7 @@ public class SLICSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffe
 			double m = params.getDoubleParameterValue("regularization");
 			boolean adaptRegularization = params.getBooleanParameterValue("adaptRegularization");
 			boolean doDeconvolve = params.getBooleanParameterValue("useDeconvolved");
+			double mergeThreshold = 0.05;
 			
 			// Get a float processor
 			ImagePlus imp = pathImage.getImage();
@@ -191,6 +193,7 @@ public class SLICSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffe
 //					for (ImageProcessor fp : fpDeconvolved)
 //						System.err.println(fp.getStatistics().stdDev);
 					m = m / 2;
+					mergeThreshold = mergeThreshold / 2;
 				} else {
 					imp = new ColorSpaceConverter().RGBToLab(imp);
 					ImageStack stack = imp.getStack();
@@ -199,6 +202,7 @@ public class SLICSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffe
 						ipColor[i] = stack.getProcessor(i+1).convertToFloatProcessor();
 					// Rescale; original paper describes sensible values in range 1-40
 					m = m * 40;
+					mergeThreshold = mergeThreshold * 40;
 				}
 			} else {
 				ImageStack stack = imp.getStack();
@@ -212,6 +216,7 @@ public class SLICSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffe
 				logger.info("Possible regularization value: {}", regularizationSuggestion/ipColor.length/100);
 				// Scale by 100 for 'arbitary' fluorescence
 				m = m * 100;
+				mergeThreshold = mergeThreshold * 100;
 			}
 			
 			double sigma = getSigma(pathImage, params);
@@ -232,12 +237,16 @@ public class SLICSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffe
 			
 			int s = PREFERRED_PIXEL_SPACING;
 			List<ClusterCenter> centers = new ArrayList<>();
+			int widthClusters = 0; // Used to help figure out which clusters are side by side
 			for (int y = s/2; y < h; y += s) {
+				widthClusters = 0;
 			    for (int x = s/2; x < w; x += s) {
-			    	ClusterCenter center = new ClusterCenter(ipColor, s, m, adaptRegularization, w, h);
+			    	short label = (short)centers.size();
+			    	ClusterCenter center = new ClusterCenter(ipColor, label, s, m, adaptRegularization, w, h);
 			    	center.addLabel(y*w+x);
-			        labels[y*w+x] = (short)centers.size();	
+			        labels[y*w+x] = label;	
 			        centers.add(center);
+			        widthClusters++;
 			    }
 			}
 			
@@ -262,6 +271,39 @@ public class SLICSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffe
 			        centerLabel++;
 			    }
 			}
+			
+			// Merge clusters if required
+			if (params.getBooleanParameterValue("doMerge")) {
+				for (int i = 0; i < centers.size(); i++) {
+					ClusterCenter center = centers.get(i);
+					center.updateFeatures();
+					
+					int xc = i % widthClusters;
+					// Check for horizontal link
+					if (xc < widthClusters - 1) {
+						ClusterCenter center2 = centers.get(i+1);
+						maybeMergeClusters(center, center2, labels, mergeThreshold);
+					}
+					// Check for vertical link
+					if (i < centers.size() - widthClusters) {
+						ClusterCenter center2 = centers.get(i+widthClusters);
+						maybeMergeClusters(center, center2, labels, mergeThreshold);
+						
+						// Check for diagonal forward link
+						if (xc < widthClusters - 1) {
+							center2 = centers.get(i+widthClusters+1);
+							maybeMergeClusters(center, center2, labels, mergeThreshold);
+						}
+						
+						// Check for backwards forward link
+						if (xc > 0) {
+							center2 = centers.get(i+widthClusters-1);
+							maybeMergeClusters(center, center2, labels, mergeThreshold);
+						}
+					}
+				}
+			}
+			
 			
 			// Enforce connectivity and merge small objects
 			short[] newLabels = new short[labels.length];
@@ -383,6 +425,56 @@ public class SLICSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffe
 		}
 		
 		
+		
+		static boolean maybeMergeClusters(final ClusterCenter center, final ClusterCenter center2, final short[] labels, final double mergeThreshold) {
+			// Check merge based on euclidean distance
+			double distanceThreshold = mergeThreshold;//0.02;
+			double dist = 0;
+			for (int i = 0; i < center.features.length; i++) {
+				double f1 = center.features[i];
+				double f2 = center2.features[i];
+				dist += (f1-f2)*(f1-f2);
+			}
+			dist = Math.sqrt(dist);
+//			System.err.println(dist);
+			boolean doMerge = dist <= distanceThreshold;
+						
+						
+//			// Check merge based on cosine distance
+//			double distanceThreshold = 0.9999;
+//			double dist = 0;
+//			double mag1 = 0;
+//			double mag2 = 0;
+//			for (int i = 0; i < center.features.length; i++) {
+//				double f1 = center.features[i];
+//				mag1 += f1*f1;
+//				double f2 = center2.features[i];
+//				mag2 += f2*f2;				
+//				dist += f1*f2;
+//			}
+//			dist = dist / (Math.sqrt(mag1) * Math.sqrt(mag2));
+////			dist = 1-2*Math.acos(dist)/Math.PI;
+//			boolean doMerge = dist >= distanceThreshold;
+						
+//			// Check merge based on distance standard deviations within each cluster
+//			double distanceThreshold = Math.min(center.getColorDistanceStdDev(), center2.getColorDistanceStdDev());
+//			double dist = center.colorDistance(center2.features);
+//			boolean doMerge = dist < distanceThreshold;
+			
+			// Perform the merge
+			if (doMerge) {
+				for (int label : center2.getLabels())
+					labels[label] = center.primaryLabel;
+				center2.primaryLabel = center.primaryLabel;
+//				center2.labels.addAll(center.labels);
+				return true;
+			}
+			return false;
+		}
+		
+		
+		
+		
 		static double getSigma(final PathImage<?> pathImage, final ParameterList params) {
 			double pixelSizeMicrons = .5 * (pathImage.getPixelWidthMicrons() + pathImage.getPixelHeightMicrons());
 			if (Double.isNaN(pixelSizeMicrons)) {
@@ -464,6 +556,7 @@ public class SLICSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffe
 		private ImageProcessor[] featuresImages;
 
 	    private List<Integer> labels = new ArrayList<>();
+	    private short primaryLabel;
 	    private double[] features = null;
 	    private double x;
 	    private double y;
@@ -474,8 +567,9 @@ public class SLICSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffe
 	    private int width;
 	    private int height;
 	    
-	    ClusterCenter(final ImageProcessor[] featuresImages, final double s, final double m, final boolean adaptRegularization, final int width, final int height) {
+	    ClusterCenter(final ImageProcessor[] featuresImages, final short primaryLabel, final double s, final double m, final boolean adaptRegularization, final int width, final int height) {
 	    	this.featuresImages = featuresImages;
+	    	this.primaryLabel = primaryLabel;
 	    	this.s = s;
 	    	this.adaptRegularization = adaptRegularization;
 	    	this.mSquared = m*m;
@@ -545,6 +639,16 @@ public class SLICSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffe
 	    		this.mSquared = maxDistanceSquared;
 	    }
 	    
+	    
+	    private double getColorDistanceStdDev() {
+	    	RunningStatistics stats = new RunningStatistics();
+	    	for (int label : getLabels()) {
+	    		stats.addValue(Math.sqrt(colorDistanceSquared(label)));
+	    	}
+	    	return stats.getStdDev();
+	    }
+	    
+	    
 	    private double colorDistanceSquared(final int ind) {
 	    	double DC2 = 0;
 	        for (int i = 0; i < featuresImages.length; i++) {
@@ -554,6 +658,17 @@ public class SLICSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffe
 	        }
 	        return DC2;
 	    }
+	    
+	    
+	    public double colorDistance(final double[] features) {
+	    	double distanceSquared = 0;
+	    	for (int i = 0; i < features.length; i++) {
+	    		double d = features[i] - this.features[i];
+	    		distanceSquared += d*d;
+	    	}
+	    	return Math.sqrt(distanceSquared);
+	    }
+	    
 
 	    public double distanceSquared(final int ind) {
 	        if (features == null)
