@@ -29,7 +29,6 @@ import ij.gui.PolygonRoi;
 import ij.gui.Roi;
 import ij.process.ColorProcessor;
 import ij.process.ColorSpaceConverter;
-import ij.process.FloatProcessor;
 import ij.process.ImageProcessor;
 import ij.process.ShortProcessor;
 import java.awt.image.BufferedImage;
@@ -133,6 +132,7 @@ public class SLICSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffe
 				.addDoubleParameter("spacingPixels", "Superpixel spacing", 50, "px", "Control the (approximate) size of individual superpixels")
 				.addDoubleParameter("spacingMicrons", "Superpixel spacing", 50, GeneralTools.micrometerSymbol(), "Control the (approximate) size of individual superpixels")
 				.addTitleParameter("Algorithm parameters")
+				.addIntParameter("maxIterations", "Number of iterations", 10, null, "Maximum number of iterations to use for superpixel generation")
 				.addDoubleParameter("regularization", "Regularization", 0.25, null, "Control the 'squareness' of superpixels - higher values are more square")
 				.addBooleanParameter("adaptRegularization", "Auto-adapt regularization", false, "Automatically adapt regularization parameter for different superpixels")
 				.addBooleanParameter("useDeconvolved", "Use color deconvolved channels", false, "Use color-deconvolved values, rather than (standard) RGB->LAB colorspace transform")
@@ -174,7 +174,7 @@ public class SLICSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffe
 			}
 			
 			// Define maximum iterations
-			int maxIterations = 10;
+			int maxIterations = params.getIntParameterValue("maxIterations");
 			double m = params.getDoubleParameterValue("regularization");
 			boolean adaptRegularization = params.getBooleanParameterValue("adaptRegularization");
 			boolean doDeconvolve = params.getBooleanParameterValue("useDeconvolved");
@@ -182,11 +182,11 @@ public class SLICSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffe
 			// Get a float processor
 			ImagePlus imp = pathImage.getImage();
 			
-			ImageProcessor[] fpDeconvolved;
+			ImageProcessor[] ipColor;
 			if (imp.getType() == ImagePlus.COLOR_RGB) {
 				ColorProcessor cp = (ColorProcessor)imp.getProcessor();
 				if (doDeconvolve && imageData.isBrightfield() && imageData.getColorDeconvolutionStains() != null) {
-					fpDeconvolved = ColorDeconvolutionIJ.colorDeconvolve(cp, imageData.getColorDeconvolutionStains());
+					ipColor = ColorDeconvolutionIJ.colorDeconvolve(cp, imageData.getColorDeconvolutionStains());
 //					fpDeconvolved = Arrays.copyOf(fpDeconvolved, 1);
 //					for (ImageProcessor fp : fpDeconvolved)
 //						System.err.println(fp.getStatistics().stdDev);
@@ -194,41 +194,35 @@ public class SLICSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffe
 				} else {
 					imp = new ColorSpaceConverter().RGBToLab(imp);
 					ImageStack stack = imp.getStack();
-					fpDeconvolved = new ImageProcessor[stack.getSize()];
+					ipColor = new ImageProcessor[stack.getSize()];
 					for (int i = 0; i < stack.getSize(); i++)
-						fpDeconvolved[i] = stack.getProcessor(i+1).convertToFloatProcessor();
-					
+						ipColor[i] = stack.getProcessor(i+1).convertToFloatProcessor();
 					// Rescale; original paper describes sensible values in range 1-40
 					m = m * 40;
-					
-//					fpDeconvolved = convertToLAB(cp);
-//					ImageStack stack = new ImageStack(imp.getWidth(), imp.getHeight());
-//					for (ImageProcessor ip : fpDeconvolved)
-//						stack.addSlice(ip.duplicate());
-//					new ImagePlus("Color", cp.duplicate()).show();
-//					new ImagePlus("Stack", stack).show();
 				}
 			} else {
 				ImageStack stack = imp.getStack();
-				fpDeconvolved = new ImageProcessor[stack.getSize()];
+				ipColor = new ImageProcessor[stack.getSize()];
 				for (int i = 0; i < stack.getSize(); i++)
-					fpDeconvolved[i] = stack.getProcessor(i+1).convertToFloatProcessor();
+					ipColor[i] = stack.getProcessor(i+1).convertToFloatProcessor();
 				// Sensible fluorescence values are a bit harder to guess...
 				double regularizationSuggestion = 0;
-				for (ImageProcessor fp : fpDeconvolved)
+				for (ImageProcessor fp : ipColor)
 					regularizationSuggestion += fp.getStatistics().stdDev;
-				logger.info("Possible regularization value: {}", regularizationSuggestion/fpDeconvolved.length/100);
+				logger.info("Possible regularization value: {}", regularizationSuggestion/ipColor.length/100);
 				// Scale by 100 for 'arbitary' fluorescence
 				m = m * 100;
 			}
 			
-//			fpDeconvolved = Arrays.copyOf(fpDeconvolved, 2);
-			
 			double sigma = getSigma(pathImage, params);
 			
-			for (ImageProcessor fp : fpDeconvolved)
-				fp.blurGaussian(sigma);
-
+			// Apply smoothing
+			if (sigma > 0) {
+				for (ImageProcessor fp : ipColor)
+					fp.blurGaussian(sigma);
+			}
+			
+			// Initialize centres and distances
 			int w = imp.getWidth();
 			int h = imp.getHeight();
 			short[] labels = new short[w*h];
@@ -240,13 +234,14 @@ public class SLICSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffe
 			List<ClusterCenter> centers = new ArrayList<>();
 			for (int y = s/2; y < h; y += s) {
 			    for (int x = s/2; x < w; x += s) {
-			    	ClusterCenter center = new ClusterCenter(fpDeconvolved, s, m, adaptRegularization, w, h);
+			    	ClusterCenter center = new ClusterCenter(ipColor, s, m, adaptRegularization, w, h);
 			    	center.addLabel(y*w+x);
 			        labels[y*w+x] = (short)centers.size();	
 			        centers.add(center);
 			    }
 			}
 			
+			// Loop through and perform local k-means clustering
 			for (int i = 0; i < maxIterations; i++) {
 			    int centerLabel = 0;
 			    for (ClusterCenter center : centers) {
@@ -268,7 +263,7 @@ public class SLICSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffe
 			    }
 			}
 			
-			
+			// Enforce connectivity and merge small objects
 			short[] newLabels = new short[labels.length];
 			int[] xyCurrent = new int[w*h];
 			short label = 1;
@@ -347,9 +342,6 @@ public class SLICSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffe
 			
 			// Convert to ROIs
 			ShortProcessor ipLabels = new ShortProcessor(w, h, newLabels, null);
-//			new ImagePlus("Labels", ipLabels.duplicate()).show();
-//			// Increment all labels (TODO: Consider setting numbers 'correctly' the first time)
-//			ipLabels.add(1.0);
 			
 			// Remove everything outside the ROI, if required
 			if (pathROI != null) {
@@ -366,27 +358,12 @@ public class SLICSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffe
 			
 			// Convert to tiles & create a labelled image for later
 			List<PolygonRoi> polygons = ROILabeling.labelsToFilledRoiList(ipLabels, true);
-//			PolygonRoi[] polygons = ROILabeling.labelsToFilledROIs(ipLabels, (int)ipLabels.getMax());
 			List<PathObject> pathObjects = new ArrayList<>(polygons.size());
 			label = 0;
-//			// Set thresholds - regions means must be within specified range
-//			double minThreshold = params.getDoubleParameterValue("minThreshold");
-//			double maxThreshold = params.getDoubleParameterValue("maxThreshold");
-//			if (!Double.isFinite(minThreshold))
-//				minThreshold = Double.NEGATIVE_INFINITY;
-//			if (!Double.isFinite(maxThreshold))
-//				maxThreshold = Double.POSITIVE_INFINITY;
-//			boolean hasThreshold = (minThreshold != maxThreshold) && (Double.isFinite(minThreshold) || Double.isFinite(maxThreshold));
 			try {
 				for (Roi roi : polygons) {
 					if (roi == null)
 						continue;
-//					if (hasThreshold) {
-//						ipOrig.setRoi(roi);
-//						double meanValue = ipOrig.getStatistics().mean;
-//						if (meanValue < minThreshold || meanValue > maxThreshold)
-//							continue;
-//					}
 					PathArea superpixelROI = (PathArea)ROIConverterIJ.convertToPathROI(roi, pathImage);
 					if (pathROI == null)
 						continue;
@@ -397,9 +374,8 @@ public class SLICSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffe
 					ipLabels.fill(roi);
 				}
 			} catch (Exception e) {
-				e.printStackTrace();
+				logger.error("Error created tiled ROIs", e);
 			}
-			
 			
 			lastResultSummary = pathObjects.size() + " tiles created";
 			
@@ -424,49 +400,49 @@ public class SLICSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffe
 	}
 	
 	
-	// This is somewhat complete... but fails to take sRGB into consideration
-	private static ImageProcessor[] convertToLAB(final ColorProcessor cp) {
-		
-		// Extract channels and FloatProcessors
-		// (These will be reused for the output)
-		FloatProcessor fpRed = cp.toFloat(0, null);
-		FloatProcessor fpGreen = cp.toFloat(1, null);
-		FloatProcessor fpBlue = cp.toFloat(2, null);
-
-		// Conversion values taken from http://docs.opencv.org/2.4/modules/imgproc/doc/miscellaneous_transformations.html
-
-		double epsilon = 0.008856;
-		for (int i = 0; i < cp.getWidth() * cp.getHeight(); i++) {
-			// Extract pixels
-			double r = fpRed.getf(i)   / 255.0;
-			double g = fpGreen.getf(i) / 255.0;
-			double b = fpBlue.getf(i)  / 255.0;
-			
-			// Convert to X, Y, Z
-			double X = r*0.412453 + g*0.357580 + b*0.180423;
-			double Y = r*0.212671 + g*0.715160 + b*0.072169;
-			double Z = r*0.019334 + g*0.119193 + b*0.950227;
-			
-			X /= 0.950456;
-			Z /= 1.088754;
-			
-			// Convert to LAB
-			double L = Y > epsilon ? 116*Math.cbrt(Y)-16 : 903.3*Y;
-		
-			double fx = X > epsilon ? Math.cbrt(X) : 7.787*X + 16.0/116.0;
-			double fy = Y > epsilon ? Math.cbrt(Y) : 7.787*Y + 16.0/116.0;
-			double fz = Z > epsilon ? Math.cbrt(Z) : 7.787*Z + 16.0/116.0;
-
-			double A = 500 * (fx - fy);
-			double B = 200 * (fy - fz);
-			
-			fpRed.setf(i, (float)L);
-			fpGreen.setf(i, (float)A);
-			fpBlue.setf(i, (float)B);
-		}
-		
-		return new ImageProcessor[]{fpRed, fpGreen, fpBlue};
-	}
+//	// This is somewhat complete... but fails to take sRGB into consideration
+//	private static ImageProcessor[] convertToLAB(final ColorProcessor cp) {
+//		
+//		// Extract channels and FloatProcessors
+//		// (These will be reused for the output)
+//		FloatProcessor fpRed = cp.toFloat(0, null);
+//		FloatProcessor fpGreen = cp.toFloat(1, null);
+//		FloatProcessor fpBlue = cp.toFloat(2, null);
+//
+//		// Conversion values taken from http://docs.opencv.org/2.4/modules/imgproc/doc/miscellaneous_transformations.html
+//
+//		double epsilon = 0.008856;
+//		for (int i = 0; i < cp.getWidth() * cp.getHeight(); i++) {
+//			// Extract pixels
+//			double r = fpRed.getf(i)   / 255.0;
+//			double g = fpGreen.getf(i) / 255.0;
+//			double b = fpBlue.getf(i)  / 255.0;
+//			
+//			// Convert to X, Y, Z
+//			double X = r*0.412453 + g*0.357580 + b*0.180423;
+//			double Y = r*0.212671 + g*0.715160 + b*0.072169;
+//			double Z = r*0.019334 + g*0.119193 + b*0.950227;
+//			
+//			X /= 0.950456;
+//			Z /= 1.088754;
+//			
+//			// Convert to LAB
+//			double L = Y > epsilon ? 116*Math.cbrt(Y)-16 : 903.3*Y;
+//		
+//			double fx = X > epsilon ? Math.cbrt(X) : 7.787*X + 16.0/116.0;
+//			double fy = Y > epsilon ? Math.cbrt(Y) : 7.787*Y + 16.0/116.0;
+//			double fz = Z > epsilon ? Math.cbrt(Z) : 7.787*Z + 16.0/116.0;
+//
+//			double A = 500 * (fx - fy);
+//			double B = 200 * (fy - fz);
+//			
+//			fpRed.setf(i, (float)L);
+//			fpGreen.setf(i, (float)A);
+//			fpBlue.setf(i, (float)B);
+//		}
+//		
+//		return new ImageProcessor[]{fpRed, fpGreen, fpBlue};
+//	}
 	
 	
 	
