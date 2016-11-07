@@ -299,9 +299,11 @@ public class StainVector implements Externalizable {
 				vector[i] = Double.parseDouble(token);
 			} catch (NumberFormatException e) {
 				// Try this as a last resort...
-				if (!token.contains("."))
-					token = token.replace(",", ".");
-				vector[i] = Double.parseDouble(token);				
+				if (token.contains(",") && !token.contains(".")) {
+					String newToken = token.replace(",", ".");
+					vector[i] = Double.parseDouble(newToken);				
+					logger.warn("Using emergency stain vector parsing! {} was replaced with {}", token, newToken);
+				}
 			}
 			i++;
 			// If we got here, we found 3 numbers

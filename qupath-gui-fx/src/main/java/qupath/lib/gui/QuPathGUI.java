@@ -251,7 +251,6 @@ import qupath.lib.gui.panels.WorkflowPanel;
 import qupath.lib.gui.panels.classify.RandomTrainingRegionSelector;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.prefs.QuPathStyleManager;
-import qupath.lib.gui.tma.TMAExplorer;
 import qupath.lib.gui.viewer.DragDropFileImportListener;
 import qupath.lib.gui.viewer.ModeWrapper;
 import qupath.lib.gui.viewer.OverlayOptions;
