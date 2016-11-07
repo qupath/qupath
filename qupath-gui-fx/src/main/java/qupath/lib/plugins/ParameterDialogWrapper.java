@@ -118,7 +118,8 @@ public class ParameterDialogWrapper<T> {
 		//			});
 
 
-		final Button btnRun = new Button("Run " + plugin.getName());
+//		final Button btnRun = new Button("Run " + plugin.getName());
+		final Button btnRun = new Button("Run");
 
 		final Stage dialog = new Stage();
 		QuPathGUI qupath = QuPathGUI.getInstance();
@@ -142,9 +143,10 @@ public class ParameterDialogWrapper<T> {
 				params.removeParameter(KEY_REGIONS);
 
 				//					PathInteractivePlugin<T> pluginInteractive = (PaCollectionivePlugin<T>)plugin;
+				boolean alwaysPrompt = plugin.alwaysPromptForObjects();
 				Collection<? extends PathObject> parents = PathObjectTools.getSupportedObjects(pluginRunner.getHierarchy().getSelectionModel().getSelectedObjects(), plugin.getSupportedParentObjectClasses());
-				if (parents == null || parents.isEmpty()) {
-					if (!ParameterDialogWrapper.promptForParentObjects(pluginRunner, plugin))
+				if (alwaysPrompt || parents == null || parents.isEmpty()) {
+					if (!ParameterDialogWrapper.promptForParentObjects(pluginRunner, plugin, alwaysPrompt && !parents.isEmpty()))
 						return;
 				}
 				//					promptForParentObjects
@@ -224,7 +226,7 @@ public class ParameterDialogWrapper<T> {
 	 * @param hierarchy
 	 * @return
 	 */
-	public static <T> boolean promptForParentObjects(final PluginRunner<T> runner, final PathInteractivePlugin<T> plugin) {
+	public static <T> boolean promptForParentObjects(final PluginRunner<T> runner, final PathInteractivePlugin<T> plugin, final boolean includeSelected) {
 
 		final Collection<Class<? extends PathObject>> supportedParents = plugin.getSupportedParentObjectClasses();
 
@@ -247,12 +249,16 @@ public class ParameterDialogWrapper<T> {
 		}
 
 		// Create a map of potential choices
-		LinkedHashMap<String, Class<? extends PathObject>> choices = new LinkedHashMap<String, Class<? extends PathObject>>();
+		LinkedHashMap<String, Class<? extends PathObject>> choices = new LinkedHashMap<>();
 		for (Class<? extends PathObject> cls : availableTypes)
 			choices.put(PathObjectTools.getSuitableName(cls, true), cls);
 		if (supportedParents.contains(PathRootObject.class))
 			choices.put("Entire image", PathRootObject.class);
 		ArrayList<String> choiceList = new ArrayList<>(choices.keySet());
+		
+		// Add selected objects option, if required
+		if (includeSelected)
+			choiceList.add(0, "Selected objects");
 
 		String name = plugin.getName();
 
@@ -260,7 +266,7 @@ public class ParameterDialogWrapper<T> {
 		PathObject pathObjectSelected = runner.getSelectedObject();
 
 		// If the currently-selected object is supported, use it as the parent
-		if (pathObjectSelected != null && !pathObjectSelected.isRootObject()) {
+		if (!includeSelected && pathObjectSelected != null && !pathObjectSelected.isRootObject()) {
 			if (supportedParents.contains(pathObjectSelected.getClass()))
 				return true;
 //			else {
@@ -271,7 +277,7 @@ public class ParameterDialogWrapper<T> {
 		}
 
 		// If the root object is supported, and we don't have any of the other types, just run for the root object
-		if (availableTypes.isEmpty()) {
+		if (!includeSelected && availableTypes.isEmpty()) {
 			if (supportedParents.contains(PathRootObject.class))
 				return true;
 			else {
@@ -290,7 +296,10 @@ public class ParameterDialogWrapper<T> {
 		if (!DisplayHelpers.showParameterDialog("Process regions", paramsParents))
 			return false;
 
-		SelectObjectsByClassCommand.selectObjectsByClass(imageData, choices.get(paramsParents.getChoiceParameterValue(KEY_REGIONS)));
+		
+		String choiceString = (String)paramsParents.getChoiceParameterValue(KEY_REGIONS);
+		if (!"Selected objects".equals(choiceString))
+			SelectObjectsByClassCommand.selectObjectsByClass(imageData, choices.get(choiceString));
 		//			QP.selectObjectsByClass(hierarchy, choices.get(paramsParents.getChoiceParameterValue(InteractivePluginTools.KEY_REGIONS)));
 
 		// Success!  Probably...

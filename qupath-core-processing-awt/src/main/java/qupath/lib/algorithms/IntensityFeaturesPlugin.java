@@ -584,7 +584,6 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 			((TMACoreObject)pathObject).setLocked(true);
 		
 		return true;
-		
 	}
 	
 	
@@ -629,7 +628,7 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 
 	@Override
 	public String getDescription() {
-		return "Add Haralick texture features to existing object measurements";
+		return "Add intensity features to existing object measurements";
 	}
 
 	@Override
@@ -647,7 +646,11 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 	}
 	
 	
-	
+	@Override
+	public boolean alwaysPromptForObjects() {
+		return true;
+	}
+
 	
 	
 	

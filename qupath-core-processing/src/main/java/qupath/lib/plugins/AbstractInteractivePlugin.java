@@ -52,6 +52,11 @@ public abstract class AbstractInteractivePlugin<T> extends AbstractPlugin<T> imp
 	 */
 	@Override
 	public abstract ParameterList getDefaultParameterList(final ImageData<T> imageData);
+	
+	@Override
+	public boolean alwaysPromptForObjects() {
+		return false;
+	}
 
 	/**
 	 * Get a reference to a ParameterList stored internally, and which will be used for analysis.
