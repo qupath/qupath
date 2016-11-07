@@ -24,19 +24,23 @@
 package qupath.imagej.superpixels;
 
 import ij.ImagePlus;
+import ij.ImageStack;
 import ij.gui.PolygonRoi;
 import ij.gui.Roi;
 import ij.process.ColorProcessor;
+import ij.process.ColorSpaceConverter;
 import ij.process.FloatProcessor;
 import ij.process.ImageProcessor;
 import ij.process.ShortProcessor;
-
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import qupath.imagej.color.ColorDeconvolutionIJ;
 import qupath.imagej.objects.PathImagePlus;
@@ -80,6 +84,8 @@ public class SLICSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffe
 	 */
 	private static int PREFERRED_PIXEL_SPACING = 20;
 	
+	private static Logger logger = LoggerFactory.getLogger(SLICSuperpixelsPlugin.class);
+	
 	@Override
 	public String getName() {
 		return "SLIC superpixel creator";
@@ -121,10 +127,15 @@ public class SLICSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffe
 	@Override
 	public ParameterList getDefaultParameterList(ImageData<BufferedImage> imageData) {
 		ParameterList params = new ParameterList()
+				.addTitleParameter("Size parameters")
 				.addDoubleParameter("sigmaPixels", "Gaussian sigma", 5, "px", "Adjust the Gaussian smoothing applied to the image, to reduce textures and give a smoother result")
 				.addDoubleParameter("sigmaMicrons", "Gaussian sigma", 5, GeneralTools.micrometerSymbol(), "Adjust the Gaussian smoothing applied to the image, to reduce textures and give a smoother result")
 				.addDoubleParameter("spacingPixels", "Superpixel spacing", 50, "px", "Control the (approximate) size of individual superpixels")
 				.addDoubleParameter("spacingMicrons", "Superpixel spacing", 50, GeneralTools.micrometerSymbol(), "Control the (approximate) size of individual superpixels")
+				.addTitleParameter("Algorithm parameters")
+				.addDoubleParameter("regularization", "Regularization", 0.25, null, "Control the 'squareness' of superpixels - higher values are more square")
+				.addBooleanParameter("adaptRegularization", "Auto-adapt regularization", false, "Automatically adapt regularization parameter for different superpixels")
+				.addBooleanParameter("useDeconvolved", "Use color deconvolved channels", false, "Use color-deconvolved values, rather than (standard) RGB->LAB colorspace transform")
 //				addBooleanParameter("doMerge", "Merge similar", false, "Merge neighboring superpixels if they are similar to one another")
 				;
 		
@@ -133,6 +144,7 @@ public class SLICSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffe
 		params.getParameters().get("sigmaMicrons").setHidden(!hasMicrons);
 		params.getParameters().get("spacingPixels").setHidden(hasMicrons);
 		params.getParameters().get("spacingMicrons").setHidden(!hasMicrons);
+		params.getParameters().get("useDeconvolved").setHidden(!(imageData.isBrightfield() && imageData.getColorDeconvolutionStains() != null && imageData.getServer().isRGB()));
 		
 		return params;
 	}
@@ -161,21 +173,64 @@ public class SLICSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffe
 				this.pathROI = pathROI;
 			}
 			
-			// Get a float processor
-			ImageProcessor ipOrig = this.pathImage.getImage().getProcessor();
+			// Define maximum iterations
+			int maxIterations = 10;
+			double m = params.getDoubleParameterValue("regularization");
+			boolean adaptRegularization = params.getBooleanParameterValue("adaptRegularization");
+			boolean doDeconvolve = params.getBooleanParameterValue("useDeconvolved");
 			
-			FloatProcessor[] fpDeconvolved = ColorDeconvolutionIJ.colorDeconvolve((ColorProcessor)ipOrig, imageData.getColorDeconvolutionStains());
+			// Get a float processor
+			ImagePlus imp = pathImage.getImage();
+			
+			ImageProcessor[] fpDeconvolved;
+			if (imp.getType() == ImagePlus.COLOR_RGB) {
+				ColorProcessor cp = (ColorProcessor)imp.getProcessor();
+				if (doDeconvolve && imageData.isBrightfield() && imageData.getColorDeconvolutionStains() != null) {
+					fpDeconvolved = ColorDeconvolutionIJ.colorDeconvolve(cp, imageData.getColorDeconvolutionStains());
+//					fpDeconvolved = Arrays.copyOf(fpDeconvolved, 1);
+//					for (ImageProcessor fp : fpDeconvolved)
+//						System.err.println(fp.getStatistics().stdDev);
+					m = m / 2;
+				} else {
+					imp = new ColorSpaceConverter().RGBToLab(imp);
+					ImageStack stack = imp.getStack();
+					fpDeconvolved = new ImageProcessor[stack.getSize()];
+					for (int i = 0; i < stack.getSize(); i++)
+						fpDeconvolved[i] = stack.getProcessor(i+1).convertToFloatProcessor();
+					
+					// Rescale; original paper describes sensible values in range 1-40
+					m = m * 40;
+					
+//					fpDeconvolved = convertToLAB(cp);
+//					ImageStack stack = new ImageStack(imp.getWidth(), imp.getHeight());
+//					for (ImageProcessor ip : fpDeconvolved)
+//						stack.addSlice(ip.duplicate());
+//					new ImagePlus("Color", cp.duplicate()).show();
+//					new ImagePlus("Stack", stack).show();
+				}
+			} else {
+				ImageStack stack = imp.getStack();
+				fpDeconvolved = new ImageProcessor[stack.getSize()];
+				for (int i = 0; i < stack.getSize(); i++)
+					fpDeconvolved[i] = stack.getProcessor(i+1).convertToFloatProcessor();
+				// Sensible fluorescence values are a bit harder to guess...
+				double regularizationSuggestion = 0;
+				for (ImageProcessor fp : fpDeconvolved)
+					regularizationSuggestion += fp.getStatistics().stdDev;
+				logger.info("Possible regularization value: {}", regularizationSuggestion/fpDeconvolved.length/100);
+				// Scale by 100 for 'arbitary' fluorescence
+				m = m * 100;
+			}
 			
 //			fpDeconvolved = Arrays.copyOf(fpDeconvolved, 2);
 			
-			double m = 0.1;
 			double sigma = getSigma(pathImage, params);
 			
-			for (FloatProcessor fp : fpDeconvolved)
+			for (ImageProcessor fp : fpDeconvolved)
 				fp.blurGaussian(sigma);
 
-			int w = ipOrig.getWidth();
-			int h = ipOrig.getHeight();
+			int w = imp.getWidth();
+			int h = imp.getHeight();
 			short[] labels = new short[w*h];
 			Arrays.fill(labels, (short)-1);
 			double[] distances = new double[w*h];
@@ -185,18 +240,17 @@ public class SLICSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffe
 			List<ClusterCenter> centers = new ArrayList<>();
 			for (int y = s/2; y < h; y += s) {
 			    for (int x = s/2; x < w; x += s) {
-			    	ClusterCenter center = new ClusterCenter(fpDeconvolved, s, m, w, h);
+			    	ClusterCenter center = new ClusterCenter(fpDeconvolved, s, m, adaptRegularization, w, h);
 			    	center.addLabel(y*w+x);
-			        labels[y*w+x] = (short)centers.size();
+			        labels[y*w+x] = (short)centers.size();	
 			        centers.add(center);
 			    }
 			}
 			
-			for (int i = 0; i < 20; i++) {
+			for (int i = 0; i < maxIterations; i++) {
 			    int centerLabel = 0;
 			    for (ClusterCenter center : centers) {
 			        center.updateFeatures();
-//			        println("Center " + c + " of " + centers.size() + " - " + center.getObjects().size() + ", " + center.getNearbyClusters(grid).size())
 			        for (int label : center.getNearbyClusters()) {
 			            double distance = center.distanceSquared(label);
 			            if (distance < distances[label]) {
@@ -370,6 +424,51 @@ public class SLICSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffe
 	}
 	
 	
+	// This is somewhat complete... but fails to take sRGB into consideration
+	private static ImageProcessor[] convertToLAB(final ColorProcessor cp) {
+		
+		// Extract channels and FloatProcessors
+		// (These will be reused for the output)
+		FloatProcessor fpRed = cp.toFloat(0, null);
+		FloatProcessor fpGreen = cp.toFloat(1, null);
+		FloatProcessor fpBlue = cp.toFloat(2, null);
+
+		// Conversion values taken from http://docs.opencv.org/2.4/modules/imgproc/doc/miscellaneous_transformations.html
+
+		double epsilon = 0.008856;
+		for (int i = 0; i < cp.getWidth() * cp.getHeight(); i++) {
+			// Extract pixels
+			double r = fpRed.getf(i)   / 255.0;
+			double g = fpGreen.getf(i) / 255.0;
+			double b = fpBlue.getf(i)  / 255.0;
+			
+			// Convert to X, Y, Z
+			double X = r*0.412453 + g*0.357580 + b*0.180423;
+			double Y = r*0.212671 + g*0.715160 + b*0.072169;
+			double Z = r*0.019334 + g*0.119193 + b*0.950227;
+			
+			X /= 0.950456;
+			Z /= 1.088754;
+			
+			// Convert to LAB
+			double L = Y > epsilon ? 116*Math.cbrt(Y)-16 : 903.3*Y;
+		
+			double fx = X > epsilon ? Math.cbrt(X) : 7.787*X + 16.0/116.0;
+			double fy = Y > epsilon ? Math.cbrt(Y) : 7.787*Y + 16.0/116.0;
+			double fz = Z > epsilon ? Math.cbrt(Z) : 7.787*Z + 16.0/116.0;
+
+			double A = 500 * (fx - fy);
+			double B = 200 * (fy - fz);
+			
+			fpRed.setf(i, (float)L);
+			fpGreen.setf(i, (float)A);
+			fpBlue.setf(i, (float)B);
+		}
+		
+		return new ImageProcessor[]{fpRed, fpGreen, fpBlue};
+	}
+	
+	
 	
 	@Override
 	public String getDescription() {
@@ -386,23 +485,24 @@ public class SLICSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffe
 
 	static class ClusterCenter {
 		
-		private FloatProcessor[] featuresImages;
+		private ImageProcessor[] featuresImages;
 
 	    private List<Integer> labels = new ArrayList<>();
 	    private double[] features = null;
 	    private double x;
 	    private double y;
 	    
-	    private double s, m, mObserved;
+	    private boolean adaptRegularization;
+	    private double s, mSquared;
 	    
 	    private int width;
 	    private int height;
 	    
-	    ClusterCenter(final FloatProcessor[] featuresImages, final double s, final double m, final int width, final int height) {
+	    ClusterCenter(final ImageProcessor[] featuresImages, final double s, final double m, final boolean adaptRegularization, final int width, final int height) {
 	    	this.featuresImages = featuresImages;
 	    	this.s = s;
-	    	this.m = m;
-	    	this.mObserved = m;
+	    	this.adaptRegularization = adaptRegularization;
+	    	this.mSquared = m*m;
 	    	this.width = width;
 	    	this.height = height;
 	    }
@@ -453,32 +553,39 @@ public class SLICSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffe
 	            for (int i = 0; i < features.length; i++)
 	                features[i] += featuresImages[i].getf(label)/n;
 	        }
-	        // Loop through labels again to get maxima color difference
-        	double maxDistanceSquared = 0;
-	        for (int label : labels) {
-	        	double distanceSquared = 0;
-	            for (int i = 0; i < features.length; i++) {
-	                double dist = features[i] - featuresImages[i].getf(label);
-	                distanceSquared += dist*dist;
-	            }
-	            if (distanceSquared > maxDistanceSquared)
-	            	maxDistanceSquared = distanceSquared;
+	        updateM();
+	    }
+	    
+	    private void updateM() {
+	    	if (!adaptRegularization)
+	    		return;
+	    	double maxDistanceSquared = 0;
+	    	for (int label : labels) {
+	    		double dist = colorDistanceSquared(label);
+	    		if (dist > maxDistanceSquared)
+	    			maxDistanceSquared = dist;
+	    	}
+	    	if (maxDistanceSquared > 0)
+	    		this.mSquared = maxDistanceSquared;
+	    }
+	    
+	    private double colorDistanceSquared(final int ind) {
+	    	double DC2 = 0;
+	        for (int i = 0; i < featuresImages.length; i++) {
+	            double d = featuresImages[i].getf(ind) - features[i];
+	            if (Double.isFinite(d))
+	                DC2 += d*d;
 	        }
-	        if (maxDistanceSquared == 0)
-	        	mObserved = m;
-	        else
-	        	mObserved = Math.sqrt(maxDistanceSquared);
-	        
-//	        System.err.println(mObserved);
+	        return DC2;
 	    }
 
-	    public double distanceSquared(final int label) {
+	    public double distanceSquared(final int ind) {
 	        if (features == null)
 	            return Double.POSITIVE_INFINITY;
 
 	        // Get coordinates from label
-	        double xx = label % width;
-        	double yy = label / width;
+	        double xx = ind % width;
+        	double yy = ind / width;
         	
 	        // Calculate spatial distance squared
 	        double dx = x - xx;
@@ -487,20 +594,11 @@ public class SLICSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffe
 	        double DS2 = dx*dx + dy*dy;
 
 	        // Calculate feature distance squared
-	        double DC2 = 0;
-	        for (int i = 0; i < featuresImages.length; i++) {
-	            double d = featuresImages[i].getf(label) - features[i];
-	            if (Double.isFinite(d))
-	                DC2 += d*d;
-	        }
+	        double DC2 = colorDistanceSquared(ind);
 	        
 	        // Compute distance
-//	        double distanceSquared = DC2/(m*m) + DS2/(s*s);
-	        double distanceSquared = DC2/(mObserved*mObserved) + DS2/(s*s);
-
-	        // Compute distance
-//	        double distanceSquared = DC2 + DS2/(s*s) * m*m;
-
+	        double distanceSquared = DC2/mSquared + DS2/(s*s);
+	        
 	        return distanceSquared;
 	    }
 

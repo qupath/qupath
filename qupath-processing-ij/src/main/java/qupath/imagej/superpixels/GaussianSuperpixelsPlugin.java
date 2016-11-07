@@ -24,12 +24,10 @@
 package qupath.imagej.superpixels;
 
 import ij.ImagePlus;
-import ij.gui.PolygonRoi;
 import ij.gui.Roi;
 import ij.plugin.filter.EDM;
 import ij.plugin.filter.MaximumFinder;
 import ij.plugin.filter.RankFilters;
-import ij.plugin.filter.ThresholdToSelection;
 import ij.process.Blitter;
 import ij.process.ByteProcessor;
 import ij.process.ColorProcessor;
@@ -45,13 +43,11 @@ import java.util.List;
 import qupath.imagej.color.ColorDeconvolutionIJ;
 import qupath.imagej.objects.PathImagePlus;
 import qupath.imagej.objects.ROIConverterIJ;
-import qupath.imagej.processing.MorphologicalReconstruction;
 import qupath.imagej.processing.ROILabeling;
 import qupath.imagej.processing.SimpleThresholding;
 import qupath.lib.analysis.stats.RunningStatistics;
 import qupath.lib.color.ColorDeconvolution;
 import qupath.lib.color.ColorDeconvolutionStains;
-import qupath.lib.color.ColorTransformer;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.PathImage;
@@ -66,11 +62,9 @@ import qupath.lib.roi.interfaces.PathArea;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
- * A simple superpixel-generating command based upon applying ImageJ's watershed transform to the
- * absolute values of a Difference-of-Gaussians filtered image.
+ * A simple superpixel-generating command.
  * 
- * This provides tile objects that generally correspond to regions containing reasonably similar 
- * intensities or textures, which might then be classified.
+ * It's entirely experimental at the moment, and not accessible from the main GUI...
  * 
  * @author Pete Bankhead
  *
