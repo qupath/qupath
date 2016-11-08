@@ -9,6 +9,7 @@
 * 'Fast cell counts' can now be used to get a very rough (but very quick) estimate of positive cell percentages
 * 'Add intensity features' command now always prompts to confirm the objects to which it will be applied, and splits large regions into tiles if needed
 * Median option added to 'Add intensity features' command
+* The 'ImageJ macro runner' now works more predictably with selected object, and shows error message if no objects are selected or a requested region is too large
 * Locale information now stored in .qpdata files.  This (hopefully) fixed a critical bug affecting computers where the locale used commas to separate decimal values (i.e. #,### rather than #.###), which prevented QuPath from reopening saved data files.
 
 

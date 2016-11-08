@@ -312,7 +312,7 @@ public class IJExtension implements QuPathExtension {
 					boolean isCell = child instanceof PathCellObject;
 					
 					Color color = PathObjectColorToolsAwt.getDisplayedColorAWT(child);
-					if (!(isCell && !options.getShowCellBoundaries())) {
+					if (!(isCell && (options == null || !options.getShowCellBoundaries()))) {
 						Roi roi = ROIConverterIJ.convertToIJRoi(child.getROI(), pathImage);
 						roi.setStrokeColor(color);
 						roi.setName(child.getDisplayedName());
@@ -321,7 +321,7 @@ public class IJExtension implements QuPathExtension {
 					}
 					
 					// TODO: Permit cell boundaries/nuclei to be shown/hidden
-					if (isCell && options.getShowCellNuclei()) {
+					if (isCell && (options == null || options.getShowCellNuclei())) {
 						ROI nucleus = ((PathCellObject)child).getNucleusROI();
 						if (nucleus == null)
 							continue;
