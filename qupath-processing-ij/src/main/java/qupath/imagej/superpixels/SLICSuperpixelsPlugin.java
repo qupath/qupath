@@ -60,7 +60,7 @@ import qupath.lib.roi.interfaces.PathArea;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
- * An implementation of SLICO superpixels, as described at http://ivrl.epfl.ch/research/superpixels
+ * An implementation of SLIC superpixels, as described at http://ivrl.epfl.ch/research/superpixels
  * 
  * This largely follows the description at:
  *   Radhakrishna Achanta, Appu Shaji, Kevin Smith, Aurelien Lucchi, Pascal Fua, and Sabine Süsstrunk
@@ -68,10 +68,11 @@ import qupath.lib.roi.interfaces.ROI;
  *   IEEE Transactions on Pattern Analysis and Machine Intelligence, vol. 34, num. 11, p. 2274 - 2282, May 2012.
  *   
  * It doesn't follow the code made available by the authors, and differs in some details. 
- * In particular, it currently uses color-deconvolved images (rather than CIELAB - although this may change).
  * 
- * Additionally, the 'spacing' parameter is also used to determine the resolution at which the superpixel computation 
+ * For example, the 'spacing' parameter is also used to determine the resolution at which the superpixel computation 
  * is performed, and a Gaussian filter is used to help reduce textures in advance.
+ * 
+ * It is also possible to use color deconvolved images, rather than transforming RGB to CIELAB.
  * 
  * @author Pete Bankhead
  *
