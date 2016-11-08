@@ -1,12 +1,14 @@
 ## Version 0.0.5
 
 * Cell detection now works for fluorescence images as well as brightfield
-* Added 'Object -> Expand annotations' command to created annotations dilated (or eroded) by a fixed distance
-* Script editor improvements, including a better design and more informative error messages
+* New 'Object -> Expand annotations' command to created annotations dilated (or eroded) by a fixed distance
+* 'Analyze -> Region identification -> Create tiles' command can now be used to create annotations instead of standard tiles, or to split a single large annotation into smaller annotations
+* Script editor improvements, including a better design and more informative error messages to help identify the line where any problem occurred
 * Improvements to how object hierarchy adds objects with complex ROI shapes, where the ROI centroid falls outside the ROI itself
 * Improvements to how 'Simple tissue detection' handles thresholds that are set to detect the 'opposite' of what is normally expected, e.g. to detect holes inside tissue (by adjusting the 'dark background' and 'exclude on boundary' settings accordingly).
 * 'Fast cell counts' can now be used to get a very rough (but very quick) estimate of positive cell percentages
 * 'Add intensity features' command now always prompts to confirm the objects to which it will be applied, and splits large regions into tiles if needed
+* Median option added to 'Add intensity features' command
 * Locale information now stored in .qpdata files.  This (hopefully) fixed a critical bug affecting computers where the locale used commas to separate decimal values (i.e. #,### rather than #.###), which prevented QuPath from reopening saved data files.
 
 

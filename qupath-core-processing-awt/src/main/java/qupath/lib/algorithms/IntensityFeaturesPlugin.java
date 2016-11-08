@@ -291,7 +291,7 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 		
 	}
 	
-	private static List<FeatureComputerBuilder> builders = Arrays.asList(new BasicFeatureComputerBuilder(), new HaralickFeatureComputerBuilder());
+	private static List<FeatureComputerBuilder> builders = Arrays.asList(new BasicFeatureComputerBuilder(), new MedianFeatureComputerBuilder(), new HaralickFeatureComputerBuilder());
 	
 	
 
@@ -811,6 +811,165 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 		}
 		
 	}
+	
+	
+	
+	static class MedianFeatureComputerBuilder implements FeatureComputerBuilder {
+		
+		private int originalBitsPerPixel;
+
+		@Override
+		public void addParameters(ImageData<?> imageData, ParameterList params) {
+			this.originalBitsPerPixel = imageData.getServer().getBitsPerPixel();
+			if (originalBitsPerPixel > 16)
+				return;
+			params.addBooleanParameter("doMedian", "Median", false);
+		}
+
+		@Override
+		public FeatureComputer build() {
+			return new MedianFeatureComputer(originalBitsPerPixel);
+		}
+		
+	}
+	
+	
+	static class MedianFeatureComputer implements FeatureComputer {
+		
+		private int originalBitsPerPixel;
+		private double minBin, maxBin;
+		private long n;
+		private int nBins;
+		private long[] histogram;
+		
+		MedianFeatureComputer(final int originalBitsPerPixel) {
+			this.originalBitsPerPixel = originalBitsPerPixel;
+		}
+
+		@Override
+		public void updateFeatures(SimpleImage img, FeatureColorTransform transform, ParameterList params) {
+			// Don't do anything if we don't have a meaningful transform
+			if (transform == null || transform == FeatureColorTransform.HUE || (histogram != null && histogram.length == 0))
+				return;
+			
+			// Create a new histogram if we need one
+			if (histogram == null) {
+				switch(transform) {
+				case BLUE:
+				case GREEN:
+				case RED:
+					nBins = 256;
+					minBin = 0;
+					maxBin = 255;
+					break;
+				case SATURATION:
+				case BRIGHTNESS:
+					nBins = 1001;
+					minBin = 0;
+					maxBin = 1;
+					break;
+				case CHANNEL_1:
+				case CHANNEL_2:
+				case CHANNEL_3:
+				case CHANNEL_4:
+				case CHANNEL_5:
+				case CHANNEL_6:
+				case CHANNEL_7:
+				case CHANNEL_8:
+					if (originalBitsPerPixel <= 16) {
+						nBins = (int)Math.pow(2, originalBitsPerPixel);
+						minBin = 0;
+						maxBin = nBins-1;
+					} else {
+						// Can't handle more bits per pixel...
+						histogram = new long[0];
+						return;
+					}
+					break;
+				case HUE:
+					break;
+				case OD:
+				case STAIN_1:
+				case STAIN_2:
+				case STAIN_3:
+					nBins = 4001;
+					minBin = 0;
+					maxBin = 4.0;
+					break;
+				default:
+					// We have something that unfortunately we can't handle...
+					histogram = new long[0];
+					return;
+				}
+				// Create histogram
+				histogram = new long[nBins];
+			}
+			
+			// Check we can do anything
+			if (nBins == 0)
+				return;
+			
+			// Loop through and update histogram
+//			List<Double> testList = new ArrayList<>();
+			double binWidth = (maxBin - minBin) / (nBins - 1);
+			for (int y = 0; y < img.getHeight(); y++) {
+				for (int x = 0; x < img.getWidth(); x++) {
+					double val = img.getValue(x, y);
+					if (!Double.isFinite(val))
+						continue;
+					int bin = (int)((val - minBin)/binWidth);
+					if (bin >= nBins)
+						histogram[nBins-1]++;
+					else if (bin < 0)
+						histogram[0]++;
+					else
+						histogram[bin]++;
+					n++;
+					
+//					testList.add(val);
+				}
+			}
+			
+//			Collections.sort(testList);
+//			System.err.println("Exact median for " + transform + ": " + testList.get(testList.size()/2));
+			
+		}
+
+		@Override
+		public void addMeasurements(PathObject pathObject, String name, ParameterList params) {
+			// Check if we have a median we can use
+			if (histogram == null || histogram.length == 0)
+				return;
+			
+			// Find the bin containing the median value
+			double median = Double.NaN;
+			double halfway = n/2.0;
+			if (n > 0) {
+				long sum = 0;
+				int bin = 0;
+				while (bin < histogram.length) {
+					sum += histogram[bin];
+					if (sum >= halfway)
+						break;
+					bin++;
+				}
+				if (bin == histogram.length)
+					median = maxBin;
+				else if (bin == 0)
+					median = minBin;
+				else {
+					double binWidth = (maxBin - minBin) / (nBins - 1);
+					median = minBin + bin * binWidth + binWidth/2;
+				}
+			}
+			
+			// Add to measurement list
+			MeasurementList measurementList = pathObject.getMeasurementList();
+			measurementList.putMeasurement(name + " Median", median);
+		}
+		
+	}
+	
 	
 	
 	static class BasicFeatureComputerBuilder implements FeatureComputerBuilder {
