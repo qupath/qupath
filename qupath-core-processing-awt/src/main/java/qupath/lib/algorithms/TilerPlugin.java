@@ -32,8 +32,6 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.geom.ImmutableDimension;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
-import qupath.lib.measurements.MeasurementList;
-import qupath.lib.measurements.MeasurementListFactory;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathTileObject;
@@ -64,9 +62,10 @@ public class TilerPlugin<T> extends AbstractDetectionPlugin<T> {
 		// Set up initial parameters
 		params = new ParameterList();
 		
-		params.addDoubleParameter("tileSizeMicrons", "Tile size", 100, GeneralTools.micrometerSymbol());
-		params.addDoubleParameter("tileSizePx", "Tile size", 200, "px");
-		params.addBooleanParameter("trimToROI", "Trim to ROI", true);
+		params.addDoubleParameter("tileSizeMicrons", "Tile size", 100, GeneralTools.micrometerSymbol(), "Specify tile width and height, in " + GeneralTools.micrometerSymbol());
+		params.addDoubleParameter("tileSizePx", "Tile size", 200, "px", "Specify tile width and height, in pixels");
+		params.addBooleanParameter("trimToROI", "Trim to ROI", true, "Trim tiles to match the parent ROI shape, rather than overlap boundaries with full squares");
+		params.addBooleanParameter("makeAnnotations", "Make annotation tiles", false, "Create annotation objects, rather than tile objects");
 	}
 
 	
@@ -135,7 +134,7 @@ public class TilerPlugin<T> extends AbstractDetectionPlugin<T> {
 					if (Thread.currentThread().isInterrupted()) {
 						return null;
 					}
-					PathTileObject tile = createTile(iter.next(), params, server);
+					PathObject tile = createTile(iter.next(), params, server);
 					if (tile != null) {
 						idx++;
 						tile.setName("Tile " + idx);
@@ -155,9 +154,8 @@ public class TilerPlugin<T> extends AbstractDetectionPlugin<T> {
 		}
 		
 		
-		private PathTileObject createTile(ROI pathROI, ParameterList params, ImageServer<T> server) throws InterruptedException {
-			MeasurementList measurementList = MeasurementListFactory.createMeasurementList(0, MeasurementList.TYPE.FLOAT);
-			return new PathTileObject(pathROI, measurementList);
+		private PathObject createTile(ROI pathROI, ParameterList params, ImageServer<T> server) throws InterruptedException {
+			return Boolean.TRUE.equals(params.getBooleanParameterValue("makeAnnotations")) ? new PathAnnotationObject(pathROI) : new PathTileObject(pathROI);
 			
 		}
 
