@@ -49,6 +49,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Locale.Category;
 import java.util.Map.Entry;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
@@ -125,7 +126,7 @@ public class PathIO {
 		if (file == null)
 			return null;
 		
-		Locale locale = Locale.getDefault();
+		Locale locale = Locale.getDefault(Category.FORMAT);
 		boolean localeChanged = false;
 		
 		try {
@@ -175,7 +176,7 @@ public class PathIO {
 						// If we have a Locale, then set it
 						if (input instanceof Locale) {
 							if (input != locale) {
-								Locale.setDefault((Locale)input);
+								Locale.setDefault(Category.FORMAT, (Locale)input);
 								localeChanged = true;
 							}
 						} else if (input instanceof PathObjectHierarchy)
@@ -277,7 +278,7 @@ public class PathIO {
 			e.printStackTrace();
 		} finally {
 			if (localeChanged)
-				Locale.setDefault(locale);
+				Locale.setDefault(Category.FORMAT, locale);
 		}
 		return imageData;
 	}
@@ -613,7 +614,7 @@ public class PathIO {
 			outStream.writeObject("Image path: " + imageData.getServerPath());
 			
 			// Write the current locale
-			outStream.writeObject(Locale.getDefault());
+			outStream.writeObject(Locale.getDefault(Category.FORMAT));
 			
 			// Write the rest of the main image metadata
 			outStream.writeObject(imageData.getImageType());
@@ -669,7 +670,7 @@ public class PathIO {
 		if (file == null)
 			return null;
 		
-		Locale locale = Locale.getDefault();
+		Locale locale = Locale.getDefault(Category.FORMAT);
 		boolean localeChanged = false;
 		
 		try {
@@ -693,7 +694,7 @@ public class PathIO {
 						// Set locale - may be needed (although probably isn't...)
 						if (input instanceof Locale) {
 							if (input != locale) {
-								Locale.setDefault((Locale)input);
+								Locale.setDefault(Category.FORMAT, (Locale)input);
 								localeChanged = true;
 							}
 						} else if (input instanceof PathObjectHierarchy) {
@@ -723,7 +724,7 @@ public class PathIO {
 			e.printStackTrace();
 		} finally {
 			if (localeChanged)
-				Locale.setDefault(locale);
+				Locale.setDefault(Category.FORMAT, locale);
 		}
 		logger.error("Unable to find object hierarchy in " + file);
 		return null;
