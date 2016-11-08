@@ -53,6 +53,7 @@ import qupath.imagej.gui.IJExtension;
 import qupath.imagej.helpers.IJTools;
 import qupath.lib.display.ImageDisplay;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.gui.helpers.PanelToolsFX;
 import qupath.lib.gui.helpers.dialogs.ParameterPanelFX;
 import qupath.lib.images.ImageData;
@@ -60,8 +61,6 @@ import qupath.lib.images.PathImage;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.TMACoreObject;
-import qupath.lib.objects.helpers.PathObjectTools;
-import qupath.lib.objects.hierarchy.TMAGrid;
 import qupath.lib.plugins.AbstractPlugin;
 import qupath.lib.plugins.PluginRunner;
 import qupath.lib.plugins.parameters.ParameterList;
@@ -155,8 +154,10 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 //						runPlugin(runner, arg); // TODO: Consider running in a background thread?
 						// Run in a background thread
 						Collection<? extends PathObject> parents = getParentObjects(runner);
-						if (parents.isEmpty())
+						if (parents.isEmpty()) {
+							DisplayHelpers.showErrorMessage("ImageJ macro runner", "No annotation of TMA core objects selected!");
 							return;
+						}
 						
 						List<Runnable> tasks = new ArrayList<>();
 						for (PathObject parent : parents)
@@ -207,6 +208,14 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 		ROI pathROI = pathObject.getROI();		
 		ImageDisplay imageDisplay2 = Boolean.TRUE.equals(params.getBooleanParameterValue("useTransform")) ? imageDisplay : null;
 		RegionRequest region = RegionRequest.createInstance(imageData.getServer().getPath(), downsampleFactor, pathROI);
+		
+		// Check the size of the region to extract - abort if it is too large
+		double approxPixelCount = (region.getWidth() / region.getDownsample()) * (region.getHeight() / region.getDownsample());
+		if (approxPixelCount > 5000L*5000L) {
+			DisplayHelpers.showErrorMessage("ImageJ macro error", "Requested region is too large to send to ImageJ (approx " + (int)(region.getWidth() / region.getDownsample()) + " x " + (int)(region.getHeight() / region.getDownsample()) + " pixels) - try again with a smaller region, or a higher downsample factor");
+			return;
+		}
+		
 		if (sendOverlay)
 			pathImage = IJExtension.extractROIWithOverlay(imageData.getServer(), pathObject, imageData.getHierarchy(), region, sendROI, null, imageDisplay2);
 		else
@@ -368,16 +377,16 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 		// Try to get currently-selected objects
 		List<PathObject> pathObjects = runner.getHierarchy().getSelectionModel().getSelectedObjects().stream()
 				.filter(p -> p.isAnnotation() || p.isTMACore()).collect(Collectors.toList());
-		if (!pathObjects.isEmpty())
+//		if (!pathObjects.isEmpty())
 			return pathObjects;
 		
-		// TODO: Give option to analyse annotations, even when TMA grid is present
-		ImageData<BufferedImage> imageData = runner.getImageData();
-		TMAGrid tmaGrid = imageData.getHierarchy().getTMAGrid();
-		if (tmaGrid != null && tmaGrid.nCores() > 0)
-			return PathObjectTools.getTMACoreObjects(imageData.getHierarchy(), false);
-		else
-			return imageData.getHierarchy().getObjects(null, PathAnnotationObject.class);
+//		// TODO: Give option to analyse annotations, even when TMA grid is present
+//		ImageData<BufferedImage> imageData = runner.getImageData();
+//		TMAGrid tmaGrid = imageData.getHierarchy().getTMAGrid();
+//		if (tmaGrid != null && tmaGrid.nCores() > 0)
+//			return PathObjectTools.getTMACoreObjects(imageData.getHierarchy(), false);
+//		else
+//			return imageData.getHierarchy().getObjects(null, PathAnnotationObject.class);
 	}
 
 

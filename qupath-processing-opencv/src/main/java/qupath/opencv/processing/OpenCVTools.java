@@ -46,7 +46,12 @@ import org.opencv.imgproc.Imgproc;
  */
 public class OpenCVTools {
 	
-	
+	/**
+	 * Convert an RGB image to an OpenCV Mat.
+	 * 
+	 * @param img
+	 * @return
+	 */
 	public static Mat imageToMat(BufferedImage img) {
 //		img.getRaster().getDataBuffer()
 //		img.getRaster().getDataBuffer().getDataType()

@@ -30,6 +30,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javafx.application.Application;
+import javafx.application.Platform;
 import javafx.stage.Stage;
 import qupath.lib.gui.prefs.PathPrefs;
 
@@ -58,9 +59,12 @@ public class QuPathApp extends Application {
 		QuPathGUI gui = new QuPathGUI(stage);
 		logger.info("Starting QuPath with parameters: " + args);
 		
-		// Open an image, if required
+		// Try to open an image, if required
 		if (args != null && !args.isEmpty()) {
-			gui.openImage(args.get(0), false, false, false);
+			String path = args.get(0);
+			gui.openImage(path, false, false, false);
+//			if (path != null && !path.isEmpty())
+//				Platform.runLater(() -> gui.openImage(path, false, false, false));
 		}
 		
 		gui.updateCursor();

@@ -70,7 +70,7 @@ import qupath.lib.roi.interfaces.ROI;
  * Prior to running a script, the ImageData should be set so that the script can make sue of it.
  * 
  * A different ImageData may be stored for different threads.
- * 
+ * x
  * Note: This design may change in the future, to enable a non-static class to encapsulate 
  * the context for a running script.  The limited ability to subclass a class containing static methods 
  * makes this design a bit problematic, while its package location means it cannot have access to GUI features 
@@ -184,6 +184,13 @@ public class QP {
 		if (imageData == null)
 			return null;
 		return imageData.getHierarchy();
+	}
+	
+	public static Collection<PathObject> getSelectedObjects() {
+		PathObjectHierarchy hierarchy = getCurrentHierarchy();
+		if (hierarchy == null)
+			return null;
+		return hierarchy.getSelectionModel().getSelectedObjects();
 	}
 	
 	public static PathObject getSelectedObject() {

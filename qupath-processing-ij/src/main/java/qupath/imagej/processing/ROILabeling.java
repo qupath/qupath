@@ -37,11 +37,13 @@ import ij.gui.PolygonRoi;
 import ij.gui.Roi;
 import ij.gui.Wand;
 import ij.plugin.filter.RankFilters;
+import ij.plugin.filter.ThresholdToSelection;
 import ij.process.Blitter;
 import ij.process.ByteProcessor;
 import ij.process.FloatPolygon;
 import ij.process.FloodFiller;
 import ij.process.ImageProcessor;
+import ij.process.ImageStatistics;
 import ij.process.ShortProcessor;
 
 /**
@@ -254,6 +256,88 @@ public class ROILabeling {
 					Wand wand = new Wand(ipLabels);
 					wand.autoOutline(x, y, val, val, Wand.EIGHT_CONNECTED);
 					PolygonRoi roi = wandToRoi(wand);
+					rois[(int)val-1] = roi;
+					bpCompleted.fill(roi);
+				}
+			}
+		}
+		return rois;
+	}
+	
+	
+	
+	/**
+	 * Convert a labelled image into a list of PolygonRois by tracing.
+	 * 
+	 * Unlike labelsToFilledROIs, the order in which ROIs are returned is arbitrary.
+	 * 
+	 * Also, the multiple Rois may be created for the same label, if unconnected regions are used.
+	 * 
+	 * @param ipLabels
+	 * @param n - maximum number of labels
+	 * @return
+	 */
+	public static List<PolygonRoi> labelsToFilledRoiList(final ImageProcessor ipLabels, final boolean conn8) {
+		List<PolygonRoi> rois = new ArrayList<>();
+		int w = ipLabels.getWidth();
+		int h = ipLabels.getHeight();
+		ByteProcessor bpCompleted = new ByteProcessor(w, h);
+		bpCompleted.setValue(255);
+		for (int y = 0; y < h; y++) {
+			for (int x = 0; x < w; x++) {
+				if (bpCompleted.get(x, y) != 0)
+					continue;
+				float val = ipLabels.getf(x, y);
+				if (val > 0) {
+					Wand wand = new Wand(ipLabels);
+					wand.autoOutline(x, y, val, val, conn8 ? Wand.EIGHT_CONNECTED : Wand.FOUR_CONNECTED);
+					PolygonRoi roi = wandToRoi(wand);
+					rois.add(roi);
+					bpCompleted.fill(roi);
+				}
+			}
+		}
+		return rois;
+	}
+	
+	
+	
+	/**
+	 * Create ROIs from labels in an image.
+	 * 
+	 * This differs from labelsToConnectedROIs in that the ROIs created may be
+	 * disconnected and contain holes.
+	 * 
+	 * @param ipLabels
+	 * @param n
+	 * @return
+	 */
+	public static Roi[] labelsToConnectedROIs(ImageProcessor ipLabels, int n) {
+		Roi[] rois = new Roi[n];
+		int w = ipLabels.getWidth();
+		int h = ipLabels.getHeight();
+		ByteProcessor bpCompleted = new ByteProcessor(w, h);
+		bpCompleted.setValue(255);
+		ThresholdToSelection tts = new ThresholdToSelection();
+		for (int y = 0; y < h; y++) {
+			for (int x = 0; x < w; x++) {
+				if (bpCompleted.get(x, y) != 0)
+					continue;
+				float val = ipLabels.getf(x, y);
+				if (val > 0 && val <= n) {
+					Wand wand = new Wand(ipLabels);
+					ipLabels.resetThreshold();
+					wand.autoOutline(x, y, val, val, Wand.EIGHT_CONNECTED);
+					Roi roi = wandToRoi(wand);
+					
+					// Check if ROI contains holes, and create if necessary
+					ipLabels.setRoi(roi);
+					ImageStatistics stats = ipLabels.getStatistics();
+					if (stats.max != stats.min || rois[(int)val-1] != null) {
+						ipLabels.setThreshold(val-0.25, val+0.25, ImageProcessor.NO_LUT_UPDATE);
+						roi = tts.convert(ipLabels);
+					}
+					
 					rois[(int)val-1] = roi;
 					bpCompleted.fill(roi);
 				}

@@ -59,5 +59,14 @@ public interface PathInteractivePlugin<T> extends PathPlugin<T> {
 	 * @return
 	 */
 	public Collection<Class<? extends PathObject>> getSupportedParentObjectClasses();
+	
+	
+	/**
+	 * If this returns true, then a prompt is requested every time the command is run - 
+	 * even if there are valid parent objects already selected.
+	 * 
+	 * @return
+	 */
+	public boolean alwaysPromptForObjects();
 
 }

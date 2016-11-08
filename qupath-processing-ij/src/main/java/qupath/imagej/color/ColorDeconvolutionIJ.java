@@ -25,6 +25,7 @@ package qupath.imagej.color;
 
 import qupath.lib.color.ColorDeconvMatrix3x3;
 import qupath.lib.color.ColorDeconvolutionHelper;
+import qupath.lib.color.ColorDeconvolutionStains;
 import qupath.lib.color.StainVector;
 import ij.process.Blitter;
 import ij.process.ColorProcessor;
@@ -69,7 +70,9 @@ public class ColorDeconvolutionIJ {
 		return new FloatProcessor[]{fpRed, fpGreen, fpBlue};
 	}
 	
-	
+	public static FloatProcessor[] colorDeconvolve(ColorProcessor cp, ColorDeconvolutionStains stains) {
+		return colorDeconvolve(cp, stains.getStain(1), stains.getStain(2), stains.getStain(3), stains.getMaxRed(), stains.getMaxGreen(), stains.getMaxBlue(), false);
+	}
 		
 	public static FloatProcessor[] colorDeconvolve(ColorProcessor cp, StainVector stain1, StainVector stain2, StainVector stain3) {
 		return colorDeconvolve(cp, stain1, stain2, stain3, false);

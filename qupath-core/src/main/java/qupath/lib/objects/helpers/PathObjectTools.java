@@ -32,6 +32,9 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import qupath.lib.geom.Point2;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.objects.PathAnnotationObject;
@@ -45,10 +48,12 @@ import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.TMAGrid;
 import qupath.lib.regions.ImageRegion;
+import qupath.lib.roi.AreaROI;
 import qupath.lib.roi.ROIHelpers;
 import qupath.lib.roi.interfaces.PathArea;
 import qupath.lib.roi.interfaces.PathPoints;
 import qupath.lib.roi.interfaces.ROI;
+import qupath.lib.rois.measure.ConvexHull;
 
 /**
  * A collection of static methods to help work with PathObjects.
@@ -57,6 +62,8 @@ import qupath.lib.roi.interfaces.ROI;
  *
  */
 public class PathObjectTools {
+	
+	final private static Logger logger = LoggerFactory.getLogger(PathObjectTools.class);
 
 	/**
 	 * Filter a collection by removing objects if their ROIs are not instances of a specified class.
@@ -289,6 +296,61 @@ public class PathObjectTools {
 		//			return true;
 	}
 
+	
+	/**
+	 * Look for a point contained within a PathArea.
+	 * 
+	 * Note: This may return null, if no point could be found.  This doesn't necessarily mean 
+	 * the area is zero (roi.getArea() == 0 can be used to check for this), but rather that the 
+	 * calculations to find a contained point were prohibitively expensive.
+	 * 
+	 * This works as follows:
+	 * - Return the centroid, if this is contained
+	 * - Return the center of the ROI bounding box, if this is contained
+	 * - Check mid-points for pairs of points along the convex hull, and return the first of these that is contained
+	 * 
+	 * If none of these tests find a contained point, null is returned.
+	 * 
+	 * @param roi
+	 * @return
+	 */
+	public static Point2 getContainedPoint(final PathArea roi) {
+		// Return the centroid, if this is sufficient
+		double x = roi.getCentroidX();
+		double y = roi.getCentroidY();
+		if (roi.contains(x, y))
+			return new Point2(x, y);
+
+		// Check if we have an area at all
+		if (roi.getArea() == 0)
+			return null;
+
+		// Return the centre of the bounding box, if this is sufficient
+		x = roi.getBoundsX() + roi.getBoundsWidth()/2;
+		y = roi.getBoundsY() + roi.getBoundsHeight()/2;
+		if (roi.contains(x, y))
+			return new Point2(x, y);
+		
+		// TODO: There must be better ways to do this...
+		// Trace through convex hull of the points and see if we can find a pair were the result is inside
+		List<Point2> points = ConvexHull.getConvexHull(roi.getPolygonPoints());
+		for (int i = 0; i < points.size(); i++) {
+			Point2 pi = points.get(i);
+			for (int j = i+2; j < points.size()-1; j++) {
+				Point2 pj = points.get(j);
+				x = (pi.getX() + pj.getX())/2;
+				y = (pi.getY() + pj.getY())/2;
+				if (roi.contains(x, y))
+					return new Point2(x, y);
+			}			
+		}
+		
+		// Failed to find anything...
+		logger.warn("Could not find a contained point for {}", roi);
+		return null;
+	}
+	
+	
 	
 	
 	public static String getSuitableName(Class<? extends PathObject> cls, boolean makePlural) {

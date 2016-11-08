@@ -24,6 +24,7 @@
 package qupath.lib.algorithms;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
@@ -32,19 +33,15 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.geom.ImmutableDimension;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
-import qupath.lib.measurements.MeasurementList;
-import qupath.lib.measurements.MeasurementListFactory;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathTileObject;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.plugins.AbstractDetectionPlugin;
-import qupath.lib.plugins.DetectionPluginTools;
-import qupath.lib.plugins.ObjectDetector;
 import qupath.lib.plugins.PathPlugin;
+import qupath.lib.plugins.PathTask;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.roi.PathROIToolsAwt;
-import qupath.lib.roi.RectangleROI;
 import qupath.lib.roi.interfaces.PathArea;
 import qupath.lib.roi.interfaces.ROI;
 
@@ -58,35 +55,46 @@ public class TilerPlugin<T> extends AbstractDetectionPlugin<T> {
 	
 	private ParameterList params;
 
-	transient private TileCreator<T> tiler = null;
-
 	public TilerPlugin() {
 		// Set up initial parameters
 		params = new ParameterList();
 		
-		params.addDoubleParameter("tileSizeMicrons", "Tile size", 100, GeneralTools.micrometerSymbol());
-		params.addDoubleParameter("tileSizePx", "Tile size", 200, "px");
-		params.addBooleanParameter("trimToROI", "Trim to ROI", true);
+		params.addTitleParameter("Tile options");
+		params.addDoubleParameter("tileSizeMicrons", "Tile size", 100, GeneralTools.micrometerSymbol(), "Specify tile width and height, in " + GeneralTools.micrometerSymbol());
+		params.addDoubleParameter("tileSizePx", "Tile size", 200, "px", "Specify tile width and height, in pixels");
+		params.addBooleanParameter("trimToROI", "Trim to ROI", true, "Trim tiles to match the parent ROI shape, rather than overlap boundaries with full squares");
+		
+		params.addTitleParameter("Annotation options");
+		params.addBooleanParameter("makeAnnotations", "Make annotation tiles", false, "Create annotation objects, rather than tile objects");
+		params.addBooleanParameter("removeParentAnnotation", "Remove parent annotation", false, "Remove the parent object, if it was an annotation; has no effect if 'Make annotation tiles' is not selected, or the parent object is not an annotation");
 	}
 
 	
 	
 	@Override
 	public Collection<Class<? extends PathObject>> getSupportedParentObjectClasses() {
-		List<Class<? extends PathObject>> list = new ArrayList<>(3);
-		list.add(TMACoreObject.class);
-		list.add(PathAnnotationObject.class);
-		return list;
+		return Arrays.asList(
+				TMACoreObject.class,
+				PathAnnotationObject.class
+				);
 	}
 	
 	
-	static class TileCreator<T> implements ObjectDetector<T> {
+	static class TileCreator implements PathTask {
 	
+		private ParameterList params;
+		private PathObject parentObject;
+		private ImageData<?> imageData;
+				
 		private List<PathObject> tiles;
 		
 		private String lastMessage = null;
 	
-		TileCreator() {}
+		TileCreator(final ImageData<?> imageData, final PathObject parentObject, final ParameterList params) {
+			this.parentObject = parentObject;
+			this.imageData = imageData;
+			this.params = params;
+		}
 		
 		
 		public static <T> ImmutableDimension getPreferredTileSizePixels(final ParameterList params, final ImageServer<T> server) {
@@ -104,66 +112,68 @@ public class TilerPlugin<T> extends AbstractDetectionPlugin<T> {
 		}
 		
 	
-		@Override
-		public Collection<PathObject> runDetection(final ImageData<T> imageData, ParameterList params, ROI pathROI) {
-			
-			final ImageServer<T> server = imageData.getServer();
-			PathArea pathArea;
-			if (pathROI instanceof PathArea)
-				pathArea = (PathArea)pathROI;
-			else
-				pathArea = new RectangleROI(0, 0, server.getWidth(), server.getHeight());
-			
-			// Determine tile size
-			ImmutableDimension tileSize = getPreferredTileSizePixels(params, server);
-			int tileWidth = tileSize.width;
-			int tileHeight = tileSize.height;
-			boolean trimToROI = params.getBooleanParameterValue("trimToROI");
-			
-			List<ROI> pathROIs = PathROIToolsAwt.makeTiles(pathArea, tileWidth, tileHeight, trimToROI);
-			
-			if (tiles == null)
-				tiles = new ArrayList<>(pathROIs.size());
-			else
-				tiles.clear();
-			
-	
-			Iterator<ROI> iter = pathROIs.iterator();
-			int idx = 0;
-			while (iter.hasNext()) {
-				try {
-					if (Thread.currentThread().isInterrupted()) {
-						return null;
-					}
-					PathTileObject tile = createTile(iter.next(), params, server);
-					if (tile != null) {
-						idx++;
-						tile.setName("Tile " + idx);
-						tiles.add(tile);
-					}
-				} catch (InterruptedException e) {
-					return null;
-				} catch (Exception e) {
-//					e.printStackTrace();
-					iter.remove();
-				}
-			}
-			
-			lastMessage = tiles.size() + " tiles created";
-			
-			return tiles;
-		}
-		
-		
-		private PathTileObject createTile(ROI pathROI, ParameterList params, ImageServer<T> server) throws InterruptedException {
-			MeasurementList measurementList = MeasurementListFactory.createMeasurementList(0, MeasurementList.TYPE.FLOAT);
-			return new PathTileObject(pathROI, measurementList);
+		private PathObject createTile(ROI pathROI, ParameterList params, ImageServer<?> server) throws InterruptedException {
+			return Boolean.TRUE.equals(params.getBooleanParameterValue("makeAnnotations")) ? new PathAnnotationObject(pathROI) : new PathTileObject(pathROI);
 			
 		}
 
 		@Override
 		public String getLastResultsDescription() {
 			return lastMessage;
+		}
+
+
+		@Override
+		public void run() {
+			
+			ROI roi = parentObject.getROI();
+			if (!(roi instanceof PathArea)) {
+				lastMessage = "Cannot tile ROI " + roi + " - does not represent an area region of interest";
+				return;
+			}
+
+			
+			// Determine tile size
+			ImageServer<?> server = imageData.getServer();
+			ImmutableDimension tileSize = getPreferredTileSizePixels(params, server);
+			int tileWidth = tileSize.width;
+			int tileHeight = tileSize.height;
+			boolean trimToROI = params.getBooleanParameterValue("trimToROI");
+
+			List<ROI> pathROIs = PathROIToolsAwt.makeTiles((PathArea)roi, tileWidth, tileHeight, trimToROI);
+
+			tiles = new ArrayList<>(pathROIs.size());
+
+			Iterator<ROI> iter = pathROIs.iterator();
+			int idx = 0;
+			while (iter.hasNext()) {
+				try {
+					PathObject tile = createTile(iter.next(), params, server);
+					if (tile != null) {
+						idx++;
+						tile.setName("Tile " + idx);
+						tiles.add(tile);
+					}
+				} catch (InterruptedException e) {
+					lastMessage = "Tile creation interrupted for " + parentObject;
+					return;
+				} catch (Exception e) {
+					iter.remove();
+				}
+			}
+			
+			lastMessage = tiles.size() + " tiles created";
+		}
+
+
+		@Override
+		public void taskComplete() {
+			parentObject.clearPathObjects();
+			parentObject.addPathObjects(tiles);
+			imageData.getHierarchy().fireHierarchyChangedEvent(this, parentObject);
+			if (params.getBooleanParameterValue("removeParentAnnotation") && params.getBooleanParameterValue("makeAnnotations") && parentObject.isAnnotation()) {
+				imageData.getHierarchy().removeObject(parentObject, true);
+			}
 		}
 		
 		
@@ -189,7 +199,7 @@ public class TilerPlugin<T> extends AbstractDetectionPlugin<T> {
 
 	@Override
 	public String getLastResultsDescription() {
-		return tiler == null ? "" : tiler.getLastResultsDescription();
+		return null;
 	}
 
 	public PathPlugin<T> makePluginCopy() {
@@ -198,9 +208,7 @@ public class TilerPlugin<T> extends AbstractDetectionPlugin<T> {
 
 	@Override
 	protected void addRunnableTasks(ImageData<T> imageData,	PathObject parentObject, List<Runnable> tasks) {
-		// Always create a new tiler
-		tiler = new TileCreator<>();
-		tasks.add(DetectionPluginTools.createRunnableTask(new TileCreator<>(), getParameterList(imageData), imageData, parentObject));
+		tasks.add(new TileCreator(imageData, parentObject, params));
 	}
 	
 	

@@ -208,7 +208,7 @@ public class ProjectImportImagesCommand implements PathCommand {
 	
 	
 	boolean loadFromSingleURL(final List<String> list) {
-		String path = QuPathGUI.getSharedDialogHelper().promptForFilePathOrURL(null, null, null, null);
+		String path = QuPathGUI.getSharedDialogHelper().promptForFilePathOrURL("Enter image path", null, null, null, null);
 		if (path == null)
 			return false;
 		if (list.contains(path)) {

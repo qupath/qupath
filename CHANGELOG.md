@@ -1,3 +1,21 @@
+## Version 0.0.5
+
+* Cell detection now works for fluorescence images as well as for brightfield
+* New (experimental, subject to change) 'Analyze -> Region identification -> SLIC superpixel segmentation' command to generate superpixels based on the SLIC (Simple Linear Iterative Clustering) method
+* New 'Object -> Expand annotations' command to create annotations that have been dilated (or eroded) by a fixed distance
+* 'Analyze -> Region identification -> Create tiles' command can now be used to create annotations instead of standard tiles, or to split a single large annotation into smaller annotations
+* Script editor improvements, including a better design and more informative error messages to help identify the line where any problem occurred
+* Improvements to how the object hierarchy adds objects with complex ROI shapes, where the ROI centroid falls outside the ROI itself
+* Improvements to how 'Simple tissue detection' handles thresholds that are set to detect the 'opposite' of what is normally expected, e.g. to detect holes inside tissue (by adjusting the 'dark background' and 'exclude on boundary' settings accordingly)
+* 'Fast cell counts' can now be used to get a very rough (but very quick) estimate of positive cell percentages
+* 'Add intensity features' command now always prompts to confirm the objects to which it will be applied, and splits large regions into tiles if needed
+* 'Median' option added to 'Add intensity features' command
+* The 'ImageJ macro runner' now works more predictably with selected objects, and shows error messages if no objects are selected or a requested region is too large
+* Fixed Windows bug that meant trying to open a .qpdata file relating to an image that has been moved failed catastrophically.  Now a prompt should appear, elegantly asking for the new image path.
+* Locale information now stored in .qpdata files.  This (hopefully) fixed a critical bug affecting computers where the locale used commas to separate decimal values (i.e. #,### rather than #.###), which previously prevented QuPath from reopening saved data files.
+* Installer now requests a Desktop shortcut to be created by default.
+
+
 ## Version 0.0.4
 
 * Added check for updates on QuPath startup
@@ -14,7 +32,7 @@
 * TMA grids can be applied to add TMA 'Unique ID' values by drag-and-drop, using a text file with extension '.qpmap'
 * Adding or removing a TMA row or column now produces a prompt to relabel the grid
 * When sending image regions to ImageJ, the 'visibility' status is used to determine whether or not objects are sent as ROIs
-* Fixed bug with extension path wrongly defaulting to an internal QuPath directory (existing installations may require the extension directory to be updated rom 'Edit -> Preferences')
+* Fixed bug with extension path wrongly defaulting to an internal QuPath directory (existing installations may require the extension directory to be updated from 'Edit -> Preferences')
 * Fixed (hopefully) cross-platform line splitting (v0.0.3 tried to fix this for Windows... but only partly did, while breaking TMA grid import elsewhere)
 * Fixed bugs in 'Classify by specific feature' command
 * Fixed bug whereby ROIs with zero width or height were not shown at all

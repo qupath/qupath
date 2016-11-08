@@ -204,8 +204,14 @@ public class PathObjectHierarchyView implements ImageDataChangeListener<Buffered
 			int n = treeView.getExpandedItemCount();
 			PathObject mainSelectedObject = model.getSelectedObject();
 			int mainObjectInd = -1;
+			
 			for (int i = 0; i < n; i++) {
-				PathObject temp = treeView.getTreeItem(i).getValue();
+				TreeItem<PathObject> item = treeView.getTreeItem(i);
+				if (item == null) {
+					treeModel.clearSelection(i);
+					continue;
+				}
+				PathObject temp = item.getValue();
 				if (temp == mainSelectedObject)
 					mainObjectInd = i;
 				if (model.isSelected(temp)) {

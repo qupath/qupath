@@ -117,8 +117,22 @@ public abstract class PathObject implements Externalizable {
 	
 	public MeasurementList getMeasurementList() {
 		if (measurements == null)
-			measurements = MeasurementListFactory.createMeasurementList(16, MeasurementList.TYPE.GENERAL);
+			measurements = createEmptyMeasurementList();
 		return measurements;
+	}
+	
+	/**
+	 * Create a new MeasurementList of the preferred type for this object.
+	 * 
+	 * This will be called whenever a MeasurementList is requested, if one is not already stored.
+	 * 
+	 * Subclasses can use this method to create more efficient MeasurementList implementations if required.
+	 * 
+	 * @return
+	 */
+	protected MeasurementList createEmptyMeasurementList() {
+		MeasurementList list = MeasurementListFactory.createMeasurementList(16, MeasurementList.TYPE.GENERAL);
+		return list;
 	}
 	
 	public int nMeasurements() {

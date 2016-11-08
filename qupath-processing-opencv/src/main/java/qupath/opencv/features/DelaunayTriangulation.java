@@ -789,4 +789,11 @@ public class DelaunayTriangulation implements PathObjectConnectionGroup {
 	}
 
 
+
+	@Override
+	public boolean containsObject(PathObject pathObject) {
+		return nodeMap.containsKey(pathObject);
+	}
+
+
 }

@@ -27,8 +27,7 @@ import java.io.Externalizable;
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import java.util.StringTokenizer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -71,7 +70,7 @@ public class StainVector implements Externalizable {
 
 //	private static final double[] STAIN_EOSIN_DEFAULT = new double[]{0.07, 0.99, 0.11}; 		// From Ruifrok & Johnston's original paper
 
-	public static Pattern pattern = Pattern.compile( "[-+]?\\d*\\.?\\d+([eE][-+]?\\d+)?" );
+//	public static Pattern pattern = Pattern.compile( "[-+]?\\d*\\.?\\d+([eE][-+]?\\d+)?" );
 	
 	
 	public static StainVector makeDefaultStainVector(DEFAULT_STAINS stain) {
@@ -286,16 +285,42 @@ public class StainVector implements Externalizable {
 	 * @return
 	 */
 	public static double[] parseValues(String s) {
-		Matcher matcher = StainVector.pattern.matcher(s);
+		// Try to parse the stain vector, taking into consideration two unwelcome facts:
+		// - the current locale might have used commas rather than decimal points
+		// - QuPath might (unwisely) have used commas as a separator
 		double[] vector = new double[3];
+		StringTokenizer tokenizer = new StringTokenizer(s, " \t\n\r\f[]");
 		int i = 0;
-		while (matcher.find()) {
-			vector[i] = Double.parseDouble(matcher.group());
+		while (tokenizer.hasMoreTokens()) {
+			String token = tokenizer.nextToken();
+			if (token.endsWith(","))
+				token = token.substring(0, token.length()-1);
+			try {
+				vector[i] = Double.parseDouble(token);
+			} catch (NumberFormatException e) {
+				// Try this as a last resort...
+				if (token.contains(",") && !token.contains(".")) {
+					String newToken = token.replace(",", ".");
+					vector[i] = Double.parseDouble(newToken);				
+					logger.warn("Using emergency stain vector parsing! {} was replaced with {}", token, newToken);
+				}
+			}
 			i++;
 			// If we got here, we found 3 numbers
 			if (i == 3)
 				return vector;
 		}
+		
+//		Matcher matcher = StainVector.pattern.matcher(s);
+//		double[] vector = new double[3];
+//		int i = 0;
+//		while (matcher.find()) {
+//			vector[i] = Double.parseDouble(matcher.group());
+//			i++;
+//			// If we got here, we found 3 numbers
+//			if (i == 3)
+//				return vector;
+//		}
 		// If we got here, we didn't find 3 numbers
 		return null;
 	}

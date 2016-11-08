@@ -47,7 +47,9 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Locale.Category;
 import java.util.Map.Entry;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
@@ -98,7 +100,8 @@ public class PathIO {
 				fileIn = new FileInputStream(file);
 				inStream = new ObjectInputStream(new BufferedInputStream(fileIn));
 				// Check the first line, then read the server path if it is valid
-				if (inStream.readUTF().startsWith("Data file version")) {
+				String firstLine = inStream.readUTF();
+				if (firstLine.startsWith("Data file version")) {
 					serverPath = (String)inStream.readObject();
 					serverPath = serverPath.substring("Image path: ".length()).trim();
 				}
@@ -123,6 +126,9 @@ public class PathIO {
 		if (file == null)
 			return null;
 		
+		Locale locale = Locale.getDefault(Category.FORMAT);
+		boolean localeChanged = false;
+		
 		try {
 			long startTime = System.currentTimeMillis();
 			logger.info("Reading data from {}...", file.getName());
@@ -142,9 +148,19 @@ public class PathIO {
 				Workflow workflow = null;
 				Map<String, Object> propertyMap = null;
 				
-				if (!inStream.readUTF().startsWith("Data file version")) {
+				String firstLine = inStream.readUTF();
+//				int versionNumber = -1;
+				if (!firstLine.startsWith("Data file version")) {
 					logger.error(file.getPath() + " is not a valid QuPath data file!");
 				}
+//				else {
+//					// Could try to parse version number... although frankly, at this time, we don't really care...
+//					try {
+//						versionNumber = NumberFormat.getInstance(Locale.US).parse(firstLine.substring("Data file version".length()).trim()).intValue();
+//					} catch (Exception e) {
+//						logger.warn("Unable to parse version number from {}", firstLine);
+//					}
+//				}
 				
 				serverPath = (String)inStream.readObject();
 				serverPath = serverPath.substring("Image path: ".length()).trim();
@@ -156,8 +172,14 @@ public class PathIO {
 						// Try to read a relevant object from the stream
 						Object input = inStream.readObject();
 						logger.debug("Read: {}", input);
-
-						if (input instanceof PathObjectHierarchy)
+						
+						// If we have a Locale, then set it
+						if (input instanceof Locale) {
+							if (input != locale) {
+								Locale.setDefault(Category.FORMAT, (Locale)input);
+								localeChanged = true;
+							}
+						} else if (input instanceof PathObjectHierarchy)
 							hierarchy = (PathObjectHierarchy)input;
 						else if (input instanceof ImageData.ImageType)
 							imageType = (ImageData.ImageType)input;
@@ -174,8 +196,10 @@ public class PathIO {
 							workflow = (Workflow)input;
 						else if (input instanceof Map)
 							propertyMap = (Map<String, Object>)input;
-						else
-							logger.error("Unsupported object will be skipped: " + input);
+						else if (input == null) {
+							logger.error("Null objecy will be skipped");
+						} else
+							logger.error("Unsupported object of class {} will be skipped: {}", input.getClass().getName(), input);
 						
 					} catch (ClassNotFoundException e) {
 						logger.error("Unable to find class", e);
@@ -252,6 +276,9 @@ public class PathIO {
 			}
 		} catch (IOException e) {
 			e.printStackTrace();
+		} finally {
+			if (localeChanged)
+				Locale.setDefault(Category.FORMAT, locale);
 		}
 		return imageData;
 	}
@@ -555,6 +582,7 @@ public class PathIO {
 		if (file == null)
 			return false;
 		File backup = null;
+		
 		try {
 			long startTime = System.currentTimeMillis();
 			
@@ -578,10 +606,15 @@ public class PathIO {
 			ObjectOutputStream outStream = new ObjectOutputStream(outputStream);
 			
 			// Write the identifier
-			outStream.writeUTF("Data file version 1.0");
+			// Version 1.0 was the first...
+			// Version 2 switched to integers, and includes Locale information
+			outStream.writeUTF("Data file version 2");
 			
 			// Write the image path
 			outStream.writeObject("Image path: " + imageData.getServerPath());
+			
+			// Write the current locale
+			outStream.writeObject(Locale.getDefault(Category.FORMAT));
 			
 			// Write the rest of the main image metadata
 			outStream.writeObject(imageData.getImageType());
@@ -592,7 +625,6 @@ public class PathIO {
 			PathObjectHierarchy hierarchy = imageData.getHierarchy();
 			logger.info(String.format("Writing object hierarchy with %d object(s)...", hierarchy.nObjects()));
 			outStream.writeObject(hierarchy);
-			
 			
 			// Write any remaining (serializable) properties
 			Map<String, Object> map = new HashMap<>();
@@ -638,6 +670,9 @@ public class PathIO {
 		if (file == null)
 			return null;
 		
+		Locale locale = Locale.getDefault(Category.FORMAT);
+		boolean localeChanged = false;
+		
 		try {
 			logger.info("Reading hierarchy from {}...", file.getName());
 			FileInputStream fileIn = null;
@@ -655,8 +690,14 @@ public class PathIO {
 						// Try to read a relevant object from the stream
 						Object input = inStream.readObject();
 						logger.debug("Read: {}", input);
-
-						if (input instanceof PathObjectHierarchy) {
+						
+						// Set locale - may be needed (although probably isn't...)
+						if (input instanceof Locale) {
+							if (input != locale) {
+								Locale.setDefault(Category.FORMAT, (Locale)input);
+								localeChanged = true;
+							}
+						} else if (input instanceof PathObjectHierarchy) {
 							/* This would ideally be unnecessary, but it's needed to ensure that the PathObjectHierarchy
 							 * has been property initialized.  We can't count on the deserialized hierarchy being immediately functional.
 							 */
@@ -681,6 +722,9 @@ public class PathIO {
 			}
 		} catch (IOException e) {
 			e.printStackTrace();
+		} finally {
+			if (localeChanged)
+				Locale.setDefault(Category.FORMAT, locale);
 		}
 		logger.error("Unable to find object hierarchy in " + file);
 		return null;
@@ -691,70 +735,32 @@ public class PathIO {
 	
 	
 	
-	static boolean serializePathObject(File file, PathObject pathObject) {
-		boolean success = false;
-		if (file == null)
-			return false;
-		BufferedOutputStream outputStream = null;
-		try {
-			logger.info("Writing {}", pathObject);
-			FileOutputStream fileOutMain = new FileOutputStream(file);
-			outputStream = new BufferedOutputStream(fileOutMain);
-			ObjectOutputStream outStream = new ObjectOutputStream(outputStream);
-			outStream.writeObject(pathObject);
-			outStream.close();
-			success = true;
-		} catch (IOException e) {
-			e.printStackTrace();
-		} finally {
-			if (outputStream != null)
-				try {
-					outputStream.close();
-				} catch (IOException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
-		}
-		return success;
-	}
-	
-	
-	@Deprecated
-	public static boolean serializePathHierarchy(File file, PathObjectHierarchy hierarchy) {
-		boolean success = false;
-		if (file == null)
-			return false;
-		try {
-			long startTime = System.currentTimeMillis();
-			logger.info(String.format("Writing object hierarchy with %d object(s)...", hierarchy.nObjects()));
-			FileOutputStream fileOutMain = new FileOutputStream(file);
-			BufferedOutputStream outputStream = new BufferedOutputStream(fileOutMain);
-			success = serializePathHierarchy(outputStream, hierarchy);
-			outputStream.close();
-			long endTime = System.currentTimeMillis();
-			if (success)
-				logger.info(String.format("Hierarchy written to %s in %.2f seconds", file.getAbsolutePath(), (endTime - startTime)/1000.));
-			else
-				logger.error("Error writing object hierarchy to {}", file.getAbsolutePath());
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-		return success;
-	}
-	
-	
-	@Deprecated
-	static boolean serializePathHierarchy(OutputStream output, PathObjectHierarchy hierarchy) {
-		boolean success = false;
-		try {
-			ObjectOutputStream outStream = new ObjectOutputStream(output);
-			outStream.writeObject(hierarchy);
-			success = true;
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-		return success;
-	}
+//	private static boolean serializePathObject(File file, PathObject pathObject) {
+//		boolean success = false;
+//		if (file == null)
+//			return false;
+//		BufferedOutputStream outputStream = null;
+//		try {
+//			logger.info("Writing {}", pathObject);
+//			FileOutputStream fileOutMain = new FileOutputStream(file);
+//			outputStream = new BufferedOutputStream(fileOutMain);
+//			ObjectOutputStream outStream = new ObjectOutputStream(outputStream);
+//			outStream.writeObject(pathObject);
+//			outStream.close();
+//			success = true;
+//		} catch (IOException e) {
+//			e.printStackTrace();
+//		} finally {
+//			if (outputStream != null)
+//				try {
+//					outputStream.close();
+//				} catch (IOException e) {
+//					// TODO Auto-generated catch block
+//					e.printStackTrace();
+//				}
+//		}
+//		return success;
+//	}
 	
 	
 }

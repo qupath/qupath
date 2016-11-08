@@ -367,11 +367,13 @@ public class ColorDeconvolutionStains implements Externalizable {
 			sb.append("\"Stain ").append(i).append("\" : \"").append(stain.getName()).append("\", ");
 			sb.append("\"Values ").append(i).append("\" : \"").append(stain.arrayAsString(nDecimalPlaces)).append("\", ");
 		}
-		sb.append("\"Background\" : \"[");
-		sb.append(stains.getMaxRed()).append(", ");
-		sb.append(stains.getMaxGreen()).append(", ");
-		sb.append(stains.getMaxBlue());
-		sb.append("]\"}");
+		sb.append("\"Background\" : \"");
+		
+		sb.append(String.format( "%.Nf %.Nf %.Nf".replace("N", Integer.toString(nDecimalPlaces)), stains.getMaxRed(), stains.getMaxGreen(), stains.getMaxBlue()));
+//		sb.append(stains.getMaxRed()).append(" ");
+//		sb.append(stains.getMaxGreen()).append(" ");
+//		sb.append(stains.getMaxBlue());
+		sb.append("\"}");
 		
 		return sb.toString();
 	}
@@ -416,7 +418,7 @@ public class ColorDeconvolutionStains implements Externalizable {
 	public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
 		int version = in.readInt();
 		if (version != 1)
-			System.err.println(getClass().getSimpleName() + " unsupported version number " + version);
+			logger.error("{} unsupported version number: {}", getClass().getSimpleName(), version);
 		
 		Object o = in.readObject();
 		if (o instanceof String) {

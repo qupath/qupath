@@ -220,9 +220,9 @@ public class EstimateStainVectorsCommand implements PathCommand {
 		TableColumn<Integer, String> colName = new TableColumn<>("Name");
 		colName.setCellValueFactory(v -> new SimpleStringProperty(stainsWrapper.getStains().getStain(v.getValue()).getName()));
 		TableColumn<Integer, String> colOrig = new TableColumn<>("Original");
-		colOrig.setCellValueFactory(v -> new SimpleStringProperty(stainsWrapper.getOriginalStains().getStain(v.getValue()).arrayAsString(", ", 3)));
+		colOrig.setCellValueFactory(v -> new SimpleStringProperty(stainsWrapper.getOriginalStains().getStain(v.getValue()).arrayAsString(" | ", 3)));
 		TableColumn<Integer, String> colCurrent = new TableColumn<>("Current");
-		colCurrent.setCellValueFactory(v -> new SimpleStringProperty(stainsWrapper.getStains().getStain(v.getValue()).arrayAsString(", ", 3)));
+		colCurrent.setCellValueFactory(v -> new SimpleStringProperty(stainsWrapper.getStains().getStain(v.getValue()).arrayAsString(" | ", 3)));
 		TableColumn<Integer, String> colAngle = new TableColumn<>("Angle");
 		colAngle.setCellValueFactory(v -> {
 			return new SimpleStringProperty(

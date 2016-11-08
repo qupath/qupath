@@ -109,6 +109,20 @@ public interface DialogHelper {
 	 * @param exts - array of file extensions, not including . - (may be null if no filter should be used)
 	 * @return The path to the file or URL, or null if no path was provided.
 	 */
-	public String promptForFilePathOrURL(String defaultPath, File dirBase, String filterDescription, String[] exts);
+	public String promptForFilePathOrURL(String title, String defaultPath, File dirBase, String filterDescription, String[] exts);
 
+	/**
+	 * Alternative syntax that doesn't allow a title to be specified.
+	 * 
+	 * Here (temporarily) for backwards-compatibility reasons, but will be removed in a future release.
+	 * 
+	 * @param defaultPath
+	 * @param dirBase
+	 * @param filterDescription
+	 * @param exts
+	 * @return
+	 */
+	@Deprecated
+	public String promptForFilePathOrURL(String defaultPath, File dirBase, String filterDescription, String[] exts);
+	
 }
