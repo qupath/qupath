@@ -293,6 +293,10 @@ public class SingleFeatureClassifierCommand implements PathCommand {
 		// Apply new classification
 		List<PathObject> changedObjects = new ArrayList<>();
 		for (PathClass key : inputClasses) {
+			if (!map.containsKey(key)) {
+				logger.info("No objects with class {} - skipping...", key);
+				continue;
+			}
 			for (PathObject pathObject : map.get(key)) {
 				double value = pathObject.getMeasurementList().getMeasurementValue(measurementName);					
 				PathClass newClass = null;
@@ -322,19 +326,19 @@ public class SingleFeatureClassifierCommand implements PathCommand {
 	
 	
 	
-	void updateHistogram(final Collection<PathClass> inputClasses, final Collection<PathObject> pathObjects, final String measurementName) {
-		
-		// Extract all the relevant measurements
-		double[] measurements =
-			pathObjects.parallelStream()
-				.filter(inputClassPredicate(inputClasses))
-//				.filter(p -> !(inputClasses.isEmpty() || inputClasses.contains(p.getPathClass()) || (containsUnclassified && p.getPathClass() == null)))
-				.mapToDouble(p -> p.getMeasurementList().getMeasurementValue(measurementName))
-				.toArray();
-		
-//		Histogram histogram = new Histogram(measurements, 100);
-		
-	}
+//	void updateHistogram(final Collection<PathClass> inputClasses, final Collection<PathObject> pathObjects, final String measurementName) {
+//		
+//		// Extract all the relevant measurements
+//		double[] measurements =
+//			pathObjects.parallelStream()
+//				.filter(inputClassPredicate(inputClasses))
+////				.filter(p -> !(inputClasses.isEmpty() || inputClasses.contains(p.getPathClass()) || (containsUnclassified && p.getPathClass() == null)))
+//				.mapToDouble(p -> p.getMeasurementList().getMeasurementValue(measurementName))
+//				.toArray();
+//		
+////		Histogram histogram = new Histogram(measurements, 100);
+//		
+//	}
 	
 	
 	/**
