@@ -62,9 +62,9 @@ public class QuPathApp extends Application {
 		// Try to open an image, if required
 		if (args != null && !args.isEmpty()) {
 			String path = args.get(0);
-//			gui.openImage(path, false, false, false);
-			if (path != null && !path.isEmpty())
-				Platform.runLater(() -> gui.openImage(path, false, false, false));
+			gui.openImage(path, false, false, false);
+//			if (path != null && !path.isEmpty())
+//				Platform.runLater(() -> gui.openImage(path, false, false, false));
 		}
 		
 		gui.updateCursor();

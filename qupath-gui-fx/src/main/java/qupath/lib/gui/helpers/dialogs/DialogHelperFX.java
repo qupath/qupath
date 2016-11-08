@@ -271,5 +271,11 @@ public class DialogHelperFX implements DialogHelper {
 		return path;
 	}
 	
+	
+	@Override
+	public String promptForFilePathOrURL(String defaultPath, File dirBase, String filterDescription, String[] exts) {
+		return promptForFilePathOrURL(null, defaultPath, dirBase, filterDescription, exts);
+	}
+	
 
 }
