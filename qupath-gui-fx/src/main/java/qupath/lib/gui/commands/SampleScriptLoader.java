@@ -105,7 +105,7 @@ public class SampleScriptLoader implements PathCommand {
 							setGraphic(null);
 							return;
 						}
-						setText(value.getName());
+						setText(value.getDisplayedName());
 						setTooltip(new Tooltip(value.getDescription()));
 					}
 
@@ -220,6 +220,14 @@ public class SampleScriptLoader implements PathCommand {
 
 		public String getName() {
 			return name;
+		}
+		
+		public String getDisplayedName() {
+			String displayedName = name;
+			if (name.toLowerCase().endsWith(".groovy"))
+				displayedName = name.substring(0, name.length()-".groovy".length());
+			displayedName = displayedName.replace("_", " ");
+			return displayedName;
 		}
 
 		public String getScript() {
