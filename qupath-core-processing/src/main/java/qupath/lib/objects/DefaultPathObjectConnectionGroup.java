@@ -280,5 +280,10 @@ public class DefaultPathObjectConnectionGroup implements PathObjectConnectionGro
 		Map<PathObject, ObjectConnector> readMap = (Map<PathObject, ObjectConnector>)in.readObject();
 		map.putAll(readMap);
 	}
+
+	@Override
+	public boolean containsObject(PathObject pathObject) {
+		return map.containsKey(pathObject);
+	}
 	
 }

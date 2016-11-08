@@ -50,6 +50,26 @@ public class PathObjectConnections implements Externalizable {
 	
 	public PathObjectConnections() {}
 	
+	/**
+	 * Get all the connections to a specified PathObject.
+	 * 
+	 * This will iterate through all the groups and return the connections from the first group 
+	 * containing this object.
+	 * 
+	 * If the object may be contained in multiple groups, then the groups will need to be requested 
+	 * instead with getConnectionGroups(), and searched elsewhere.
+	 * 
+	 * @param pathObject
+	 * @return
+	 */
+	public List<PathObject> getConnections(final PathObject pathObject) {
+		for (PathObjectConnectionGroup group : connections) {
+			if (group.containsObject(pathObject))
+				return group.getConnectedObjects(pathObject);
+		}
+		return Collections.emptyList();
+	}
+	
 	public List<PathObjectConnectionGroup> getConnectionGroups() {
 		return Collections.unmodifiableList(connections);
 	}

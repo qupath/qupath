@@ -41,8 +41,29 @@ import qupath.lib.objects.PathObject;
  */
 public interface PathObjectConnectionGroup {
 	
+	/**
+	 * Returns true if the specified PathObject is contained within this group.
+	 * 
+	 * @param pathObject
+	 * @return
+	 */
+	public boolean containsObject(final PathObject pathObject);
+	
+	/**
+	 * Get an unmodifiable collection containing all the PathObjects contained within this group.
+	 * 
+	 * @return
+	 */
 	public Collection<PathObject> getPathObjects();
 	
+	/**
+	 * Get all the connections to a specified PathObject stored in this group.
+	 * 
+	 * If containsObject(pathObject) returns null, this will return an empty list (and not null).
+	 * 
+	 * @param pathObject
+	 * @return
+	 */
 	public List<PathObject> getConnectedObjects(final PathObject pathObject);
 
 }
