@@ -1,6 +1,6 @@
 ## Version 0.0.5
 
-* Cell detection now works for fluorescence images as well as brightfield
+* Cell detection now works for fluorescence images as well as for brightfield
 * New 'Object -> Expand annotations' command to created annotations dilated (or eroded) by a fixed distance
 * 'Analyze -> Region identification -> Create tiles' command can now be used to create annotations instead of standard tiles, or to split a single large annotation into smaller annotations
 * Script editor improvements, including a better design and more informative error messages to help identify the line where any problem occurred

@@ -81,6 +81,7 @@ import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.plugins.AbstractTileableDetectionPlugin;
 import qupath.lib.plugins.ObjectDetector;
+import qupath.lib.plugins.parameters.DoubleParameter;
 import qupath.lib.plugins.parameters.Parameter;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.roi.PolygonROI;
@@ -146,7 +147,7 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 
 		String microns = IJ.micronSymbol + "m";
 		
-		params.addEmptyParameter("paramsResolution", "Setup parameters", true);
+		params.addTitleParameter("Setup parameters");
 
 		params.addIntParameter("detectionImageFluorescence", "Choose detection channel", 1, null, "Choose the channel number containing a nucleus counterstain (e.g. DAPI)");
 
@@ -158,7 +159,7 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 //		params.addDoubleParameter("requestedPixelSize", "Requested downsample factor", 1, "");
 
 		
-		params.addEmptyParameter("paramsNuclei", "Nucleus parameters", true);
+		params.addTitleParameter("Nucleus parameters");
 		
 		params.addDoubleParameter("backgroundRadiusMicrons", "Background radius", 8, microns, 
 				"Radius for background estimation, should be > the largest nucleus radius, or <= 0 to turn off background subtraction");
@@ -182,8 +183,11 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 		params.addDoubleParameter("maxArea", "Maximum area", 1000, "px^2",
 				"Detected nuclei with an area > maximum area will be discarded");
 
-		params.addDoubleParameter("threshold", "Threshold", 0.1, null, 0, 2.5,
+		params.addTitleParameter("Intensity parameters");
+		params.addDoubleParameter("threshold", "Threshold", 0.1, null,
 				"Intensity threshold - detected nuclei must have a mean intensity >= threshold");
+//		params.addDoubleParameter("threshold", "Threshold", 0.1, null, 0, 2.5,
+//				"Intensity threshold - detected nuclei must have a mean intensity >= threshold");
 		params.addDoubleParameter("maxBackground", "Max background intensity", 2, null,
 				"If background radius > 0, detected nuclei occurring on a background > max background intensity will be discarded");
 		
@@ -194,7 +198,7 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 				"Set to 'true' if regions of high DAB staining should not be considered nuclei; useful if DAB stains cell membranes");
 		
 		
-		params.addEmptyParameter("paramsCells", "Cell parameters", true);
+		params.addTitleParameter("Cell parameters");
 
 		params.addDoubleParameter("cellExpansionMicrons", "Cell expansion", 5, microns, 0, 25,
 				"Amount by which to expand detected nuclei to approximate the full cell area");
@@ -207,7 +211,7 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 				"If cell expansion is used, optionally include/exclude the nuclei within the detected cells");
 		
 		
-		params.addEmptyParameter("paramsGeneral", "General parameters", true);
+		params.addTitleParameter("General parameters");
 		params.addBooleanParameter("smoothBoundaries", "Smooth boundaries", true,
 				"Smooth the detected nucleus/cell boundaries");
 		params.addBooleanParameter("makeMeasurements", "Make measurements", true,
@@ -403,6 +407,13 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 		boolean isBrightfield = imageData.isBrightfield();
 		params.setHiddenParameters(!isBrightfield, brightfieldParameters);
 		params.setHiddenParameters(isBrightfield, fluorescenceParameters);
+		
+		if (!isBrightfield) {
+			if (imageData.getServer().getBitsPerPixel() > 8)
+				((DoubleParameter)params.getParameters().get("threshold")).setValue(100.0);
+			else
+				((DoubleParameter)params.getParameters().get("threshold")).setValue(25.0);
+		}
 
 //		map.get("detectionImageBrightfield").setHidden(imageData.getColorDeconvolutionStains() == null);
 
@@ -589,7 +600,15 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 			} 
 			
 			if (bp == null)
-				bp = new ByteProcessor(width, height);			
+				bp = new ByteProcessor(width, height);	
+			
+//			// TODO: Consider application of an automated threshold
+//			if (threshold < 0) {
+//				ipToMeasure.resetRoi();
+//				ImageStatistics stats = ipToMeasure.getStatistics();
+//				threshold = stats.mean;// + stats.stdDev;
+//				logger.info("Mean threshold set: " + threshold);
+//			}
 
 			bp.setValue(255);
 			for (Roi r : rois) {
