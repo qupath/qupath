@@ -221,7 +221,7 @@ public class DialogHelperFX implements DialogHelper {
 	}
 
 	@Override
-	public String promptForFilePathOrURL(String defaultPath, File dirBase, String filterDescription, String[] exts) {
+	public String promptForFilePathOrURL(String title, String defaultPath, File dirBase, String filterDescription, String[] exts) {
 		
 		// Create dialog
         BorderPane pane = new BorderPane();
@@ -252,6 +252,10 @@ public class DialogHelperFX implements DialogHelper {
 			tf.setText(defaultPath);
 		
 		Alert alert = new Alert(Alert.AlertType.NONE, "Enter image path (file or URL)", ButtonType.OK, ButtonType.CANCEL);
+		if (title == null)
+			alert.setTitle("Enter file path or URL");
+		else
+			alert.setTitle(title);
 //	    alert.initModality(Modality.APPLICATION_MODAL);
 //	    alert.initOwner(scene.getWindow());
 	    

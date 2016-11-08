@@ -46,7 +46,7 @@ public class OpenslideServerBuilder implements ImageServerBuilder<BufferedImage>
 		try {
 			return new OpenslideImageServer(path);
 		} catch (IOException e) {
-			logger.warn("Error opening {} with OpenSlide: {}", path, e);
+			logger.warn("Unable to open {} with OpenSlide: {}", path, e.getLocalizedMessage());
 		} catch (UnsatisfiedLinkError e) {
 			logger.error("Could not load OpenSlide native library", e);
 			return null;

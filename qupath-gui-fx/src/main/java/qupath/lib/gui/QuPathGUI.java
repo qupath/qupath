@@ -2046,7 +2046,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		File fileNew = null;
 		if (pathNew == null) {
 			if (includeURLs) {
-				pathNew = getDialogHelper().promptForFilePathOrURL(pathOld, fileBase, null, null);
+				pathNew = getDialogHelper().promptForFilePathOrURL("Choose path", pathOld, fileBase, null, null);
 				if (pathNew == null)
 					return false;
 				fileNew = new File(pathNew);
@@ -2220,7 +2220,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			if (server == null) {
 //				boolean pathValid = new File(serverPath).isFile() || URLHelpers.checkURL(serverPath);
 //				if (!pathValid) {
-					serverPath = getDialogHelper().promptForFilePathOrURL(serverPath, new File(serverPath).getParentFile(), null, null);
+					serverPath = getDialogHelper().promptForFilePathOrURL("Set path to missing file", serverPath, new File(serverPath).getParentFile(), null, null);
 //					fileImage = getDialogHelper().promptForFile("Set image location (" + fileImage.getName() + ")",fileImage.getParentFile(), null, null);
 					if (serverPath == null)
 						return false;
