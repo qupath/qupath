@@ -88,7 +88,7 @@ public class SLICSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffe
 	
 	@Override
 	public String getName() {
-		return "SLIC superpixel creator";
+		return "SLIC superpixel plugin";
 	}
 
 	@Override
@@ -137,7 +137,7 @@ public class SLICSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffe
 				.addDoubleParameter("regularization", "Regularization", 0.25, null, "Control the 'squareness' of superpixels - higher values are more square")
 				.addBooleanParameter("adaptRegularization", "Auto-adapt regularization", false, "Automatically adapt regularization parameter for different superpixels")
 				.addBooleanParameter("useDeconvolved", "Use color deconvolved channels", false, "Use color-deconvolved values, rather than (standard) RGB->LAB colorspace transform")
-				.addBooleanParameter("doMerge", "Merge similar", false, "Merge neighboring superpixels if they are similar to one another")
+//				.addBooleanParameter("doMerge", "Merge similar", false, "Merge neighboring superpixels if they are similar to one another")
 				;
 		
 		boolean hasMicrons = imageData != null && imageData.getServer().hasPixelSizeMicrons();
@@ -273,7 +273,7 @@ public class SLICSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffe
 			}
 			
 			// Merge clusters if required
-			if (params.getBooleanParameterValue("doMerge")) {
+			if (Boolean.TRUE.equals(params.getBooleanParameterValue("doMerge"))) {
 				for (int i = 0; i < centers.size(); i++) {
 					ClusterCenter center = centers.get(i);
 					center.updateFeatures();
