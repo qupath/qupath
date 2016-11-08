@@ -23,10 +23,9 @@
 
 package qupath.lib.plugins;
 
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 
 import qupath.lib.objects.PathAnnotationObject;
@@ -48,11 +47,15 @@ public abstract class AbstractDetectionPlugin<T> extends AbstractInteractivePlug
 
 	@Override
 	public Collection<Class<? extends PathObject>> getSupportedParentObjectClasses() {
-		List<Class<? extends PathObject>> list = new ArrayList<>(3);
-		list.add(PathAnnotationObject.class);
-		list.add(TMACoreObject.class);
+		return Arrays.asList(
+				PathAnnotationObject.class,
+				TMACoreObject.class
+				);
+//		List<Class<? extends PathObject>> list = new ArrayList<>(3);
+//		list.add(PathAnnotationObject.class);
+//		list.add(TMACoreObject.class);
 //		list.add(PathRootObject.class);
-		return list;
+//		return list;
 	}
 
 	/**
