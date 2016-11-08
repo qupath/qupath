@@ -120,6 +120,15 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 		"cellExpansion",
 		};
 	
+	private static String[] fluorescenceParameters = {
+			"detectionImageFluorescence"
+	};
+
+	private static String[] brightfieldParameters = {
+			"detectionImageBrightfield",
+			"maxBackground"
+	};
+
 	transient private CellDetector detector;
 	
 	private final static Logger logger = LoggerFactory.getLogger(WatershedCellDetection.class);
@@ -138,7 +147,9 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 		String microns = IJ.micronSymbol + "m";
 		
 		params.addEmptyParameter("paramsResolution", "Setup parameters", true);
-		
+
+		params.addIntParameter("detectionImageFluorescence", "Choose detection channel", 1, null, "Choose the channel number containing a nucleus counterstain (e.g. DAPI)");
+
 		params.addChoiceParameter("detectionImageBrightfield", "Choose detection image", IMAGE_HEMATOXYLIN, Arrays.asList(IMAGE_HEMATOXYLIN, IMAGE_OPTICAL_DENSITY),
 				"Transformed image to which to apply the detection");
 
@@ -253,8 +264,7 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 			Roi roi = null;
 			if (pathROI != null)
 				roi = ROIConverterIJ.convertToIJRoi(pathROI, pathImage);
-			if (ip instanceof ColorProcessor && stains != null) {
-
+			if (ip instanceof ColorProcessor && stains != null && isBrightfield) {
 				FloatProcessor[] fps = ColorDeconvolutionIJ.colorDeconvolve((ColorProcessor)ip, stains.getStain(1), stains.getStain(2), stains.getStain(3));
 				channels.put("Hematoxylin OD",  fps[0]);
 				if (stains.isH_DAB()) {
@@ -292,8 +302,16 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 				}
 				// For fluorescence, measure everything
 				channelsCell.putAll(channels);
+				
 				// TODO: Deal with fluorescence... for now, defaults to first channel (may be totally wrong)
-				fpDetection = channels.get("Channel 1");
+				int detectionChannel = 1;
+				if (!isBrightfield)
+					detectionChannel = params.getIntParameterValue("detectionImageFluorescence");
+				fpDetection = channels.get("Channel " + detectionChannel);
+				if (fpDetection == null) {
+					logger.warn("Unable to find specified Channel {} - will default to Channel 1", detectionChannel);
+					fpDetection = channels.get("Channel 1");
+				}
 			}
 			WatershedCellDetector detector2 = new WatershedCellDetector(fpDetection, channels, channelsCell, roi, pathImage);
 			
@@ -325,7 +343,7 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 			
 			detector2.runDetection(
 					backgroundRadius,
-					params.getDoubleParameterValue("maxBackground"),
+					isBrightfield ? params.getDoubleParameterValue("maxBackground") : Double.NEGATIVE_INFINITY,
 					medianRadius,
 					sigma,
 					params.getDoubleParameterValue("threshold"),
@@ -378,12 +396,19 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 			map.get(name).setHidden(!pixelSizeKnown);
 		for (String name : pixelParameters)
 			map.get(name).setHidden(pixelSizeKnown);
+		
+		params.setHiddenParameters(!pixelSizeKnown, micronParameters);
+		params.setHiddenParameters(pixelSizeKnown, pixelParameters);
 
-		map.get("detectionImageBrightfield").setHidden(imageData.getColorDeconvolutionStains() == null);
+		boolean isBrightfield = imageData.isBrightfield();
+		params.setHiddenParameters(!isBrightfield, brightfieldParameters);
+		params.setHiddenParameters(isBrightfield, fluorescenceParameters);
+
+//		map.get("detectionImageBrightfield").setHidden(imageData.getColorDeconvolutionStains() == null);
 
 		map.get("excludeDAB").setHidden(imageData.getColorDeconvolutionStains() == null || !imageData.getColorDeconvolutionStains().isH_DAB());
 		
-		map.get("makeMeasurements").setHidden(!imageData.isBrightfield());
+//		map.get("makeMeasurements").setHidden(!imageData.isBrightfield());
 
 		return params;
 	}
