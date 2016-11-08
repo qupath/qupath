@@ -23,6 +23,7 @@
 
 package qupath.lib.images.servers;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -129,8 +130,8 @@ public class ImageServerProvider {
 		
 		logger.error("Unable to build whole slide server - check your classpath for a suitable library (e.g. OpenSlide, BioFormats)\n\t");
 		logger.error(System.getProperty("java.class.path"));
-		throw new RuntimeException("Unable to build a whole slide server for " + path);
-//		return null;
+//		throw new IOException("Unable to build a whole slide server for " + path);
+		return null;
 	}
 	
 	

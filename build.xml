@@ -105,7 +105,7 @@
 			<fx:fileset dir="${basedir}" includes="licenses/*" />
 			<fx:fileset dir="${basedir}" includes="licenses/**" />
 		</fx:resources>
-		<fx:application id="QuPathAppID" name="QuPath" mainClass="qupath.QuPath" version="0.0.4" />
+		<fx:application id="QuPathAppID" name="QuPath" mainClass="qupath.QuPath" version="0.0.5" />
 		
 		<!-- Set time for Manifest -->
 		<tstamp>
@@ -122,7 +122,7 @@
 			<manifest>
 				<attribute name="Implementation-Vendor" value="QUB"/>
 				<attribute name="Implementation-Title" value="QuPath"/>
-				<attribute name="Implementation-Version" value="0.0.4"/>
+				<attribute name="Implementation-Version" value="0.0.5"/>
 				<attribute name="QuPath-build-time" value="${BUILD_TIME}"/>
 				<attribute name="JavaFX-Feature-Proxy" value="None"/>
 			</manifest>
@@ -140,13 +140,13 @@
 			    <fx:jvmuserarg name="-Xmx" value="1024m" />
 							    -->
 			</fx:platform>
-			<fx:info title="QuPath" vendor="QUB" description="Whole slide image analysis" copyright="Copyright 2014-2016 The Queen's University of Belfast, Northern Ireland">
+			<fx:info title="QuPath" vendor="QUB" description="Digital pathology image analysis" copyright="Copyright 2014-2016 The Queen's University of Belfast, Northern Ireland" license="GPLv3">
 				<fx:association extension="qpdata" mimetype="application/qupath-data" description="QuPath data file" />
 				<fx:association extension="qpproj" mimetype="application/qupath-project" description="QuPath project file" />
 			</fx:info>
 			<fx:application refId="QuPathAppID"/>
 			<fx:resources refid="appRes"/>
-			<fx:preferences install="false"/>
+			<fx:preferences install="false" shortcut="true" menu="true" />
 		</fx:deploy>
 	</target>
 </project>
