@@ -2,6 +2,7 @@
 
 * Improved behavior for 'Brightness/Contrast' pane, including ability to set channel color for fluorescence images by double-clicking on the channel name
 * Better support for ImageJ TIFF images, including multi-channel fluorescence, 16 and 32-bit.
+* Fixed 'Add intensity features' bug, where the median was calculated whether it was wanted or not.
 
 
 ## Version 0.0.5
