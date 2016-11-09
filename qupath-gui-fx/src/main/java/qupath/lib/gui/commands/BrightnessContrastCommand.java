@@ -27,7 +27,9 @@ import java.awt.image.BufferedImage;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 import java.text.DecimalFormat;
+import java.util.Optional;
 
+import javafx.application.Platform;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ObservableValue;
@@ -36,12 +38,16 @@ import javafx.geometry.Insets;
 import javafx.scene.Scene;
 import javafx.scene.chart.NumberAxis;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
+import javafx.scene.control.ColorPicker;
+import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
 import javafx.scene.control.Slider;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableColumn.CellDataFeatures;
+import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
 import javafx.scene.control.Tooltip;
 import javafx.scene.control.cell.CheckBoxTableCell;
@@ -51,6 +57,7 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
+import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
 import javafx.scene.text.Text;
@@ -98,6 +105,8 @@ public class BrightnessContrastCommand implements PathCommand, ImageDataChangeLi
 	private TableView<ChannelDisplayInfo> table = new TableView<>();
 	private CheckBox cbColorLUTs;
 	
+	private ColorPicker picker = new ColorPicker();
+	
 	private HistogramPanelFX histogramPanel = new HistogramPanelFX();
 	private ThresholdedChartWrapper chartWrapper = new ThresholdedChartWrapper(histogramPanel.getChart());
 	
@@ -108,6 +117,15 @@ public class BrightnessContrastCommand implements PathCommand, ImageDataChangeLi
 	public BrightnessContrastCommand(final QuPathGUI qupath) {
 		this.qupath = qupath;
 		this.qupath.addImageDataChangeListener(this);
+		
+		// Add 'pure' red, green & blue to the available colors
+		picker.getCustomColors().addAll(
+				ColorToolsFX.getCachedColor(255, 0, 0),
+				ColorToolsFX.getCachedColor(0, 255, 0),
+				ColorToolsFX.getCachedColor(0, 0, 255),
+				ColorToolsFX.getCachedColor(255, 255, 0),
+				ColorToolsFX.getCachedColor(0, 255, 255),
+				ColorToolsFX.getCachedColor(255, 0, 255));
 	}
 	
 	
@@ -217,11 +235,11 @@ public class BrightnessContrastCommand implements PathCommand, ImageDataChangeLi
 		table.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> {
 //			boolean alreadySelected = rowIndex == table.getSelectedRow();
 //	        super.changeSelection(rowIndex, columnIndex, toggle, extend);
-	        ChannelDisplayInfo info = getCurrentInfo();
+//	        ChannelDisplayInfo info = getCurrentInfo();
 //	        if (alreadySelected)
 //				toggleDisplay(info);
 //	        else
-	        	updateDisplay(info, true);
+//	        	updateDisplay(info, true);
 	        updateHistogram();
 			updateSliders();
 		});
@@ -276,6 +294,7 @@ public class BrightnessContrastCommand implements PathCommand, ImageDataChangeLi
 		    	}
 		    };
 		   });
+		
 		col1.setSortable(false);
 		TableColumn<ChannelDisplayInfo, Boolean> col2 = new TableColumn<>("Selected");
 		col2.setCellValueFactory(new Callback<CellDataFeatures<ChannelDisplayInfo, Boolean>, ObservableValue<Boolean>>() {
@@ -283,10 +302,11 @@ public class BrightnessContrastCommand implements PathCommand, ImageDataChangeLi
 			public ObservableValue<Boolean> call(CellDataFeatures<ChannelDisplayInfo, Boolean> item) {
 		    	 SimpleBooleanProperty property = new SimpleBooleanProperty(imageDisplay.getSelectedChannels().contains(item.getValue()));
 		    	 // Remove repaint code here - now handled by table selection changes
-//		    	 property.addListener((v, o, n) -> {
-//	    			 imageDisplay.setChannelSelected(item.getValue(), n);
-//		    		 viewer.repaintEntireImage();
-//		    	 });
+		    	 property.addListener((v, o, n) -> {
+	    			 imageDisplay.setChannelSelected(item.getValue(), n);
+	    			 table.refresh();
+		    		 Platform.runLater(() -> viewer.repaintEntireImage());
+		    	 });
 		    	 return property;
 		     }
 		  });
@@ -304,6 +324,44 @@ public class BrightnessContrastCommand implements PathCommand, ImageDataChangeLi
 		col2.setSortable(false);
 		col2.setEditable(true);
 		col2.setResizable(false);
+		
+		
+		// Handle color change requests when an appropriate row is double-clicked
+		table.setRowFactory(tableView -> {
+			TableRow<ChannelDisplayInfo> row = new TableRow<>();
+			row.setOnMouseClicked(e -> {
+				if (e.getClickCount() == 2) {
+					ChannelDisplayInfo info = row.getItem();
+					if (info instanceof ChannelDisplayInfo.MultiChannelInfo) {
+						ChannelDisplayInfo.MultiChannelInfo multiInfo = (ChannelDisplayInfo.MultiChannelInfo)info;
+						Color color = ColorToolsFX.getCachedColor(multiInfo.getColor());
+						picker.setValue(color);
+						
+						
+						Dialog<ButtonType> colorDialog = new Dialog<>();
+						colorDialog.setTitle("Channel color");
+						colorDialog.getDialogPane().getButtonTypes().setAll(ButtonType.APPLY, ButtonType.CANCEL);
+						colorDialog.getDialogPane().setHeaderText("Select color for " + info.getName());
+						StackPane colorPane = new StackPane(picker);
+						colorDialog.getDialogPane().setContent(colorPane);
+						Optional<ButtonType> result = colorDialog.showAndWait();
+						if (result.isPresent() && result.get() == ButtonType.APPLY) {
+//							if (!DisplayHelpers.showMessageDialog("Choose channel color", picker))
+//								return;
+							Color color2 = picker.getValue();
+							if (color == color2)
+								return;
+							multiInfo.setLUTColor(ColorToolsFX.getRGB(color2));
+							viewer.repaintEntireImage();
+							updateHistogram();
+							table.refresh();
+						}
+					}
+				}
+			});			
+			return row;
+		});
+		
 		
 		table.getColumns().add(col1);
 		table.getColumns().add(col2);
@@ -475,7 +533,7 @@ public class BrightnessContrastCommand implements PathCommand, ImageDataChangeLi
 	void updateDisplay(ChannelDisplayInfo channel, boolean selected) {
 		if (imageDisplay == null)
 			return;
-		
+		System.err.println(channel + " - " + selected);
 		if (channel == null)
 			imageDisplay.setChannelSelected(null, selected);
 		else
@@ -680,11 +738,11 @@ public class BrightnessContrastCommand implements PathCommand, ImageDataChangeLi
 			String character = event.getCharacter();
 			if (character != null && character.length() > 0) {
 				int c = (int)event.getCharacter().charAt(0) - '0';
-	//			System.out.println("CHARACTER: " + c);
+				System.out.println("CHARACTER: " + c);
 				if (c >= 1 && c <= Math.min(9, imageDisplay.getAvailableChannels().size())) {
-					toggleDisplay(imageDisplay.getAvailableChannels().get(c-1));
 					if (table != null)
 						table.getSelectionModel().select(c-1);
+					toggleDisplay(imageDisplay.getAvailableChannels().get(c-1));
 					event.consume();
 				}
 			}

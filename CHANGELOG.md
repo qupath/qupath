@@ -1,3 +1,8 @@
+## Version 0.0.6
+
+* Improved behavior for 'Brightness/Contrast' pane, including ability to set channel color for fluorescence images by double-clicking on the channel name
+
+
 ## Version 0.0.5
 
 * Cell detection now works for fluorescence images as well as for brightfield
