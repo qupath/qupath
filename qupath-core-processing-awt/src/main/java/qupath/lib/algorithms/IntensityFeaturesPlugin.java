@@ -85,7 +85,6 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 	
 	private final static Logger logger = LoggerFactory.getLogger(IntensityFeaturesPlugin.class);
 	
-	private ParameterList params;
 	private boolean parametersInitialized = false;
 	
 	transient private ImageRegionStore<BufferedImage> regionStore;
@@ -189,11 +188,11 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 		public String getName(final ColorDeconvolutionStains stains) {
 			switch (this) {
 			case STAIN_1:
-				return stains.getStain(1).getName();
+				return stains == null ? "Stain 1" : stains.getStain(1).getName();
 			case STAIN_2:
-				return stains.getStain(2).getName();
+				return stains == null ? "Stain 2" : stains.getStain(2).getName();
 			case STAIN_3:
-				return stains.getStain(3).getName();
+				return stains == null ? "Stain 3" : stains.getStain(3).getName();
 			case HUE:
 				return "Hue";
 			case OD:
