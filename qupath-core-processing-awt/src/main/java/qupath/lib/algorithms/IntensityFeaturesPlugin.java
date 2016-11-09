@@ -85,7 +85,6 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 	
 	private final static Logger logger = LoggerFactory.getLogger(IntensityFeaturesPlugin.class);
 	
-	private ParameterList params;
 	private boolean parametersInitialized = false;
 	
 	transient private ImageRegionStore<BufferedImage> regionStore;
@@ -189,11 +188,11 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 		public String getName(final ColorDeconvolutionStains stains) {
 			switch (this) {
 			case STAIN_1:
-				return stains.getStain(1).getName();
+				return stains == null ? "Stain 1" : stains.getStain(1).getName();
 			case STAIN_2:
-				return stains.getStain(2).getName();
+				return stains == null ? "Stain 2" : stains.getStain(2).getName();
 			case STAIN_3:
-				return stains.getStain(3).getName();
+				return stains == null ? "Stain 3" : stains.getStain(3).getName();
 			case HUE:
 				return "Hue";
 			case OD:
@@ -823,7 +822,7 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 			this.originalBitsPerPixel = imageData.getServer().getBitsPerPixel();
 			if (originalBitsPerPixel > 16)
 				return;
-			params.addBooleanParameter("doMedian", "Median", false);
+			params.addBooleanParameter("doMedian", "Median", false, "Calculate approximate median of pixel values (based on a generated histogram)");
 		}
 
 		@Override
@@ -1040,8 +1039,8 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 			params.addBooleanParameter("doHaralick", "Compute Haralick features", false);
 			
 			if (!imageData.getServer().isRGB()) {
-				params.addDoubleParameter("haralickMin", "Haralick min", Double.NaN)
-						.addDoubleParameter("haralickMax", "Haralick max", Double.NaN);
+				params.addDoubleParameter("haralickMin", "Haralick min", Double.NaN, null, "Maximum value used when calculating grayscale cooccurrence matrix for Haralick features -\nThis should be approximately the largest pixel value in the image for which textures are meaningful.")
+						.addDoubleParameter("haralickMax", "Haralick max", Double.NaN, null, "Minimum value used when calculating grayscale cooccurrence matrix for Haralick features -\nThis should be approximately the smallest pixel value in the image for which textures are meaningful.");
 			}
 			params.addIntParameter("haralickDistance", "Haralick distance", 1, null, "Spacing between pixels used in computing the co-occurrence matrix for Haralick textures (default = 1)")
 					.addIntParameter("haralickBins", "Haralick number of bins", 32, null, 8, 256, "Number of intensity bins to use when computing the co-occurrence matrix for Haralick textures (default = 32)");
