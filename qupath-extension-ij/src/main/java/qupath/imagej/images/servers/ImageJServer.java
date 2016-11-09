@@ -159,9 +159,9 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 		ImageProcessor ip = imp.getStack().getProcessor(ind);
 		
 		// Deal with any cropping
-		if (!(request.getX() == 0 && request.getY() == 0 && request.getWidth() == imp.getWidth() && request.getHeight() == imp.getHeight())) {
+		if (!(request.getX() == 0 || request.getY() == 0 || request.getWidth() == imp.getWidth() || request.getHeight() == imp.getHeight())) {
 			ip.setRoi(request.getX(), request.getY(), request.getWidth(), request.getHeight());
-			ImageProcessor ip2 = ip.duplicate();
+			ImageProcessor ip2 = ip.crop();
 			ip.resetRoi();
 			ip = ip2;
 		}
@@ -185,9 +185,9 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 			logger.error("Sorry, currently only RGB & single-channel images supported with ImageJ");
 			return null;
 		}
-		if (request.getX() == 0 && request.getY() == 0 && request.getWidth() == imp.getWidth() && request.getHeight() == imp.getHeight())
-			return img;
-		return img.getSubimage(request.getX(), request.getY(), request.getWidth(), request.getHeight());
+//		if (request.getX() == 0 && request.getY() == 0 && request.getWidth() == imp.getWidth() && request.getHeight() == imp.getHeight())
+		return img;
+//		return img.getSubimage(request.getX(), request.getY(), request.getWidth(), request.getHeight());
 	}
 
 	@Override
