@@ -1,6 +1,7 @@
 ## Version 0.0.6
 
 * Improved behavior for 'Brightness/Contrast' pane, including ability to set channel color for fluorescence images by double-clicking on the channel name
+* Better support for ImageJ TIFF images, including multi-channel fluorescence, 16 and 32-bit.
 
 
 ## Version 0.0.5

@@ -67,15 +67,22 @@ public class SelectAllAnnotationCommand implements PathCommand {
 		
 		// Check if we already have a comparable annotation
 		ImageRegion bounds = viewer.getServerBounds();
+		RectangleROI roi = new RectangleROI(bounds.getX(), bounds.getY(), bounds.getWidth(), bounds.getHeight(), 0, viewer.getZPosition(), viewer.getTPosition());
 		for (PathObject pathObject : hierarchy.getObjects(null, PathAnnotationObject.class)) {
-			ROI roi = pathObject.getROI();
-			if (roi instanceof RectangleROI && roi.getBoundsX() == bounds.getX() && roi.getBoundsY() == bounds.getY() && roi.getBoundsWidth() == bounds.getWidth() && roi.getBoundsHeight() == bounds.getHeight()) {
+			ROI r2 = pathObject.getROI();
+			if (r2 instanceof RectangleROI && 
+					roi.getBoundsX() == r2.getBoundsX() && 
+					roi.getBoundsY() == r2.getBoundsY() && 
+					roi.getBoundsWidth() == r2.getBoundsWidth() && 
+					roi.getBoundsHeight() == r2.getBoundsHeight() &&
+					roi.getC() == r2.getC() &&
+					roi.getZ() == r2.getZ() &&
+					roi.getT() == r2.getT()) {
 				logger.info("Full image annotation already exists! {}", pathObject);
 				viewer.setSelectedObject(pathObject);
 				return;
 			}
 		}
-		RectangleROI roi = new RectangleROI(bounds.getX(), bounds.getY(), bounds.getWidth(), bounds.getHeight());
 		viewer.createAnnotationObject(roi);
 		
 		// Log in the history

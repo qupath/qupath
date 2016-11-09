@@ -169,6 +169,10 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 	public BufferedImage readBufferedImage(RegionRequest request) {
 		// Deal with any cropping
 		ImagePlus imp = this.imp;
+		
+		int z = request.getZ();
+		int t = request.getT();
+		
 		if (!(request.getX() == 0 && request.getY() == 0 && request.getWidth() == imp.getWidth() && request.getHeight() == imp.getHeight())) {
 			imp.setRoi(request.getX(), request.getY(), request.getWidth(), request.getHeight());
 			imp = imp.duplicate();
@@ -180,7 +184,7 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 		if (request.getDownsample() != 1) {
 			ImageStack stackNew = null;
 			for (int i = 1; i <= nChannels; i++) {
-				int ind = imp.getStackIndex(i, request.getZ(), request.getT());
+				int ind = imp.getStackIndex(i, z, t);
 				ImageProcessor ip = imp.getStack().getProcessor(ind);
 				ip = ip.resize((int)(ip.getWidth() / request.getDownsample() + 0.5));
 				if (stackNew == null)
@@ -188,10 +192,13 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 				stackNew.addSlice("Channel " + i, ip);
 			}
 			imp.setStack(stackNew, nChannels, 1, 1);
+			// Reset other indices
+			z = 1;
+			t = 1;
 		}
 
 		// Extract processor
-		int ind = imp.getStackIndex(1, request.getZ(), request.getT());
+		int ind = imp.getStackIndex(1, z, t);
 		ImageProcessor ip = imp.getStack().getProcessor(ind);
 
 		BufferedImage img = null;
@@ -221,7 +228,8 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 				model = new BandedSampleModel(DataBuffer.TYPE_BYTE, w, h, nChannels);
 				byte[][] bytes = new byte[nChannels][w*h];
 				for (int i = 0; i < nChannels; i++) {
-					bytes[i] = (byte[])imp.getStack().getPixels(i+1);
+					int sliceInd = imp.getStackIndex(i+1, z, t);
+					bytes[i] = (byte[])imp.getStack().getPixels(sliceInd);
 				}
 				DataBufferByte buffer = new DataBufferByte(bytes, w*h);
 				return new BufferedImage(colorModel, Raster.createWritableRaster(model, buffer, null), true, null);
@@ -229,7 +237,8 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 				model = new BandedSampleModel(DataBuffer.TYPE_USHORT, w, h, nChannels);
 				short[][] bytes = new short[nChannels][w*h];
 				for (int i = 0; i < nChannels; i++) {
-					bytes[i] = (short[])imp.getStack().getPixels(i+1);
+					int sliceInd = imp.getStackIndex(i+1, z, t);
+					bytes[i] = (short[])imp.getStack().getPixels(sliceInd);
 				}
 				DataBufferUShort buffer = new DataBufferUShort(bytes, w*h);
 				return new BufferedImage(colorModel, Raster.createWritableRaster(model, buffer, null), true, null);
@@ -237,12 +246,12 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 				model = new BandedSampleModel(DataBuffer.TYPE_FLOAT, w, h, nChannels);
 				float[][] bytes = new float[nChannels][w*h];
 				for (int i = 0; i < nChannels; i++) {
-					bytes[i] = (float[])imp.getStack().getPixels(i+1);
+					int sliceInd = imp.getStackIndex(i+1, z, t);
+					bytes[i] = (float[])imp.getStack().getPixels(sliceInd);
 				}
 				DataBufferFloat buffer = new DataBufferFloat(bytes, w*h);
 				return new BufferedImage(colorModel, Raster.createWritableRaster(model, buffer, null), true, null);
 			}
-			
 			logger.error("Sorry, currently only RGB & single-channel images supported with ImageJ");
 			return null;
 		}
