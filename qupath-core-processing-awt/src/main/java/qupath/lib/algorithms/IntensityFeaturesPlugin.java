@@ -290,6 +290,8 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 		
 	}
 	
+	// Commented out the option with the cumulative histogram... for now
+//	private static List<FeatureComputerBuilder> builders = Arrays.asList(new BasicFeatureComputerBuilder(), new MedianFeatureComputerBuilder(), new HaralickFeatureComputerBuilder(), new CumulativeHistogramFeatureComputerBuilder());
 	private static List<FeatureComputerBuilder> builders = Arrays.asList(new BasicFeatureComputerBuilder(), new MedianFeatureComputerBuilder(), new HaralickFeatureComputerBuilder());
 	
 	
@@ -937,7 +939,8 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 		@Override
 		public void addMeasurements(PathObject pathObject, String name, ParameterList params) {
 			// Check if we have a median we can use
-			if (histogram == null || histogram.length == 0)
+			
+			if (!Boolean.TRUE.equals(params.getBooleanParameterValue("doMedian")) || histogram == null || histogram.length == 0)
 				return;
 			
 			// Find the bin containing the median value
@@ -1086,6 +1089,122 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 		
 	}
 	
+	
+	
+	
+	
+	static class CumulativeHistogramFeatureComputerBuilder implements FeatureComputerBuilder {
+		
+		private int originalBitsPerPixel;
+
+		@Override
+		public void addParameters(ImageData<?> imageData, ParameterList params) {
+			this.originalBitsPerPixel = imageData.getServer().getBitsPerPixel();
+			if (originalBitsPerPixel > 16)
+				return;
+			params.addTitleParameter("Cumulative histogram");
+			params.addBooleanParameter("doCumulativeHistogram", "Cumulative histogram", false);
+			params.addDoubleParameter("chMinValue", "Min histogram value", 0);
+			params.addDoubleParameter("chMaxValue", "Max histogram value", 1);
+			params.addIntParameter("chBins", "Number of bins", 5);
+		}
+
+		@Override
+		public FeatureComputer build() {
+			return new CumulativeHistogramFeatureComputer();
+		}
+		
+	}
+	
+	
+	
+	
+	
+	
+	
+	
+	/**
+	 * The following classes aren't currently used, but they may be useful one day (perhaps in a new command).
+	 * 
+	 * The idea is this: to compute a small histogram, normalized to area, for a specific channel.
+	 * Doing so then makes it possible to include both intensity and proportion information in a single threshold.
+	 * For example, a threshold may be set to identify cells exhibiting > 10% positive staining.
+	 * 
+	 * Values in the final output indicate the proportion of the region's staining that is >= each threshold value 
+	 * (or, equivalently, the left edges of the histogram bins).
+	 * 
+	 * @author Pete Bankhead
+	 *
+	 */
+	static class CumulativeHistogramFeatureComputer implements FeatureComputer {
+		
+		private double minBin, maxBin;
+		private long n;
+		private int nBins;
+		private long[] histogram;
+		
+		@Override
+		public void updateFeatures(SimpleImage img, FeatureColorTransform transform, ParameterList params) {
+			// Don't do anything if we don't have a meaningful transform
+			if (!Boolean.TRUE.equals(params.getBooleanParameterValue("doCumulativeHistogram")) || transform == null || transform == FeatureColorTransform.HUE || (histogram != null && histogram.length == 0))
+				return;
+			
+			// Create a new histogram if we need one
+			if (histogram == null) {
+				minBin = params.getDoubleParameterValue("chMinValue");
+				maxBin = params.getDoubleParameterValue("chMaxValue");
+				nBins = params.getIntParameterValue("chBins");
+				// Create histogram
+				histogram = new long[nBins];
+			}
+			
+			// Check we can do anything
+			if (nBins == 0)
+				return;
+			
+			// Loop through and update histogram
+			double binWidth = (maxBin - minBin) / (nBins - 1);
+			for (int y = 0; y < img.getHeight(); y++) {
+				for (int x = 0; x < img.getWidth(); x++) {
+					double val = img.getValue(x, y);
+					if (!Double.isFinite(val))
+						continue;
+					int bin = (int)((val - minBin)/binWidth);
+					if (bin >= nBins)
+						histogram[nBins-1]++;
+					else if (bin < 0)
+						histogram[0]++;
+					else
+						histogram[bin]++;
+					n++;
+				}
+			}
+		}
+
+		@Override
+		public void addMeasurements(PathObject pathObject, String name, ParameterList params) {
+			// Check if we have a median we can use
+			if (histogram == null || histogram.length == 0)
+				return;
+			
+			// Start from the end & update
+			double total = 0;
+			double[] proportions = new double[histogram.length];
+			for (int i = histogram.length-1; i >= 0; i--) {
+				total += histogram[i] / (double)n;
+				proportions[i] = total;
+			}
+			
+			// Add the measurements
+			MeasurementList measurementList = pathObject.getMeasurementList();
+			double binWidth = (maxBin - minBin) / (nBins - 1);
+			for (int i = 0; i < histogram.length; i++) {
+				double value = minBin + i * binWidth;
+				measurementList.putMeasurement(name + " >= " + GeneralTools.getFormatter(3).format(value), proportions[i]);
+			}
+		}
+		
+	}
 	
 	
 }
