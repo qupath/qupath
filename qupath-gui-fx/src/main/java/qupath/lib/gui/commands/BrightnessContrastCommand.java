@@ -533,7 +533,6 @@ public class BrightnessContrastCommand implements PathCommand, ImageDataChangeLi
 	void updateDisplay(ChannelDisplayInfo channel, boolean selected) {
 		if (imageDisplay == null)
 			return;
-		System.err.println(channel + " - " + selected);
 		if (channel == null)
 			imageDisplay.setChannelSelected(null, selected);
 		else
@@ -738,7 +737,6 @@ public class BrightnessContrastCommand implements PathCommand, ImageDataChangeLi
 			String character = event.getCharacter();
 			if (character != null && character.length() > 0) {
 				int c = (int)event.getCharacter().charAt(0) - '0';
-				System.out.println("CHARACTER: " + c);
 				if (c >= 1 && c <= Math.min(9, imageDisplay.getAvailableChannels().size())) {
 					if (table != null)
 						table.getSelectionModel().select(c-1);
