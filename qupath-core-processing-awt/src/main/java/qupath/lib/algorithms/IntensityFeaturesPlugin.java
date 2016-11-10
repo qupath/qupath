@@ -298,21 +298,6 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 
 	public IntensityFeaturesPlugin(final ImageRegionStore<BufferedImage> regionServer) {
 		this.regionStore = regionServer;
-		
-		params = new ParameterList();
-		
-		// Regions & resolution
-		params.addTitleParameter("Resolution");
-		params.addDoubleParameter("downsample", "Downsample", 1, null, "Amount to downsample the image before calculating textures; choose 1 to use full resolution, or a higher value to use a smaller image").
-				addDoubleParameter("pixelSizeMicrons", "Preferred pixel size", 2, GeneralTools.micrometerSymbol(), "Preferred pixel size of the image used to calculate the tetures - higher values means coarser (lower resolution) images")
-				;
-
-		// Regions & resolution
-		params.addTitleParameter("Regions");
-		params.addChoiceParameter("region", "Region", RegionType.ROI, RegionType.values(), "The region within which to calculate the features");
-		params.addDoubleParameter("tileSizeMicrons", "Tile diameter", 25, GeneralTools.micrometerSymbol(), "Diameter of tile around the object centroid used to calculate textures.\nOnly matters if tiles are being used (i.e. the region parameter isn't ROI).");
-		params.addDoubleParameter("tileSizePixels", "Tile diameter", 200, "px (full resolution image)", "Diameter of tile around the object centroid used to calculate textures.\nOnly matters if tiles are being used (i.e. the region parameter isn't ROI).");
-
 	}
 
 	public IntensityFeaturesPlugin() {
@@ -624,6 +609,21 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 	public ParameterList getDefaultParameterList(final ImageData<BufferedImage> imageData) {
 		
 		if (!parametersInitialized) {
+			
+			params = new ParameterList();
+			
+			// Regions & resolution
+			params.addTitleParameter("Resolution");
+			params.addDoubleParameter("downsample", "Downsample", 1, null, "Amount to downsample the image before calculating textures; choose 1 to use full resolution, or a higher value to use a smaller image").
+					addDoubleParameter("pixelSizeMicrons", "Preferred pixel size", 2, GeneralTools.micrometerSymbol(), "Preferred pixel size of the image used to calculate the tetures - higher values means coarser (lower resolution) images")
+					;
+
+			// Regions & resolution
+			params.addTitleParameter("Regions");
+			params.addChoiceParameter("region", "Region", RegionType.ROI, RegionType.values(), "The region within which to calculate the features");
+			params.addDoubleParameter("tileSizeMicrons", "Tile diameter", 25, GeneralTools.micrometerSymbol(), "Diameter of tile around the object centroid used to calculate textures.\nOnly matters if tiles are being used (i.e. the region parameter isn't ROI).");
+			params.addDoubleParameter("tileSizePixels", "Tile diameter", 200, "px (full resolution image)", "Diameter of tile around the object centroid used to calculate textures.\nOnly matters if tiles are being used (i.e. the region parameter isn't ROI).");
+			
 			boolean hasMicrons = imageData.getServer().hasPixelSizeMicrons();
 			
 			params.getParameters().get("pixelSizeMicrons").setHidden(!hasMicrons);
