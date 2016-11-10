@@ -233,7 +233,7 @@ public class CellCountsCV extends AbstractTileableDetectionPlugin<BufferedImage>
 				// Add new polygon if it is contained within the ROI
 				ROI tempROI = null;
 				if (points.size() == 1) {
-					double radius = 6;
+					double radius = 10;
 					qupath.lib.geom.Point2 p = points.get(0);
 					if (shape != null && !shape.contains(p.getX(), p.getY())) {
 						continue;
