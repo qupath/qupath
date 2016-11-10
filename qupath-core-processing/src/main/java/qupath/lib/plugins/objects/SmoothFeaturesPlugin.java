@@ -33,6 +33,7 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import qupath.lib.classifiers.PathClassificationLabellingHelper;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
@@ -70,7 +71,9 @@ public class SmoothFeaturesPlugin<T> extends AbstractInteractivePlugin<T> {
 		params = new ParameterList()
 				.addDoubleParameter("fwhmMicrons", "Radius (FWHM)", 25, GeneralTools.micrometerSymbol(), "Smoothing filter size - higher values indicate more smoothing")
 				.addDoubleParameter("fwhmPixels", "Radius (FWHM)", 100, "pixels", "Smoothing filter size - higher values indicate more smoothing")
-				.addBooleanParameter("smoothWithinClasses", "Smooth within classes", false, "Restrict smoothing to only be applied within objects with the same base classification");
+				.addBooleanParameter("smoothWithinClasses", "Smooth within classes", false, "Restrict smoothing to only be applied within objects with the same base classification")
+				.addBooleanParameter("useLegacyNames", "Use legacy feature names", false, "Use previous naming strategy for smoothed features - only retained here for backwards compatibility")
+				;
 	}
 	
 	
@@ -120,6 +123,7 @@ public class SmoothFeaturesPlugin<T> extends AbstractInteractivePlugin<T> {
 		final String fwhmString = fwhmStringTemp;
 		final double fwhmPixels = fwhm;
 		final boolean withinClass = params.getBooleanParameterValue("smoothWithinClasses");
+		final boolean useLegacyNames = Boolean.TRUE.equals(params.getBooleanParameterValue("useLegacyNames"));
 		tasks.add(new Runnable() {
 
 			@Override
@@ -140,15 +144,17 @@ public class SmoothFeaturesPlugin<T> extends AbstractInteractivePlugin<T> {
 						return;
 					
 					// TODO: ACCESS & USE THE CLASSIFIER DATA!!!!
-					List<String> measurements = new ArrayList<>(pathObjects.get(0).getMeasurementList().getMeasurementNames());
+					List<String> measurements = new ArrayList<>(PathClassificationLabellingHelper.getAvailableFeatures(pathObjects));
 					Iterator<String> iter = measurements.iterator();
 					while (iter.hasNext()) {
-						if (iter.next().toLowerCase().endsWith("smoothed"))
+						String name = iter.next().toLowerCase();
+						if (name.endsWith("smoothed") || name.startsWith("smoothed") ||
+								name.contains(" - smoothed (fwhm ") || name.startsWith("smoothed denominator (local density, ") || name.startsWith("nearby detection counts"))
 							iter.remove();
 					}
 					
-					logger.info(String.format("Smooth features: %s (FWHM: %.2f px)", parentObject.getDisplayedName(), fwhmPixels));
-					smoothMeasurements(pathObjects, measurements, fwhmPixels, fwhmString, withinClass);
+					logger.debug(String.format("Smooth features: %s (FWHM: %.2f px)", parentObject.getDisplayedName(), fwhmPixels));
+					smoothMeasurements(pathObjects, measurements, fwhmPixels, fwhmString, withinClass, useLegacyNames);
 					
 					
 //					// REMOVE - the purpose was to test a 'difference of Gaussians' type of thing
@@ -189,7 +195,7 @@ public class SmoothFeaturesPlugin<T> extends AbstractInteractivePlugin<T> {
 //	 * @return A set containing names for all the measurements that were added
 	 */
 //	public static Set<String> smoothMeasurements(List<PathObject> pathObjects, List<String> measurements, double fwhmPixels) {
-	public static void smoothMeasurements(List<PathObject> pathObjects, List<String> measurements, double fwhmPixels, String fwhmString, boolean withinClass) {
+	public static void smoothMeasurements(List<PathObject> pathObjects, List<String> measurements, double fwhmPixels, String fwhmString, boolean withinClass, boolean useLegacyNames) {
 		if (measurements.isEmpty() || pathObjects.size() <= 1)
 			return; //Collections.emptySet();
 		
@@ -265,9 +271,22 @@ public class SmoothFeaturesPlugin<T> extends AbstractInteractivePlugin<T> {
 			}
 		}
 
-		String postfix = String.format(" - Smoothed (FWHM %s)", fwhmString);
-		String denomName = String.format("Smoothed denominator (local density, FWHM %s)", fwhmString);
-		String countsName = String.format("Nearby detection counts (radius %s)", fwhmString);
+		String prefix, postfix, denomName, countsName;
+		
+		// Use previous syntax for naming smoothed measurements
+		if (useLegacyNames) {
+			prefix = "";
+			postfix = String.format(" - Smoothed (FWHM %s)", fwhmString);			
+			denomName = String.format("Smoothed denominator (local density, FWHM %s)", fwhmString);
+			countsName = String.format("Nearby detection counts (radius %s)", fwhmString);
+		} else {
+			prefix = String.format("Smoothed: %s: ", fwhmString);
+			postfix = "";
+			denomName = null; //prefix + "Weighted density";
+			countsName = prefix + "Nearby detection counts";
+//			denomName = prefix + "Denominator (local density)";
+//			countsName = prefix + "Nearby detection counts";
+		}
 		
 		// Loop through objects, computing predominant class based on distance weighting
 		for (int i = 0; i < nObjects; i++) {
@@ -333,13 +352,13 @@ public class SmoothFeaturesPlugin<T> extends AbstractInteractivePlugin<T> {
 			int ind = 0;
 			float maxDenominator = Float.NEGATIVE_INFINITY;
 			for (String name : measurements) {
-				if (name.contains(" - Smoothed (FWHM ") || name.startsWith("Smoothed denominator (local density, ") || name.startsWith("Nearby detection counts"))
-					continue;
+//				if (name.contains(" - Smoothed (FWHM ") || name.startsWith("Smoothed denominator (local density, ") || name.startsWith("Nearby detection counts"))
+//					continue;
 				float denominator = mDenominator[ind];
 				if (denominator > maxDenominator)
 					maxDenominator = denominator;
 				
-				String nameToAdd = name + postfix;
+				String nameToAdd = prefix + name + postfix;
 				measurementList.putMeasurement(nameToAdd, mWeighted[ind] / denominator);
 				
 //				measurementsAdded.add(nameToAdd);
@@ -348,11 +367,11 @@ public class SmoothFeaturesPlugin<T> extends AbstractInteractivePlugin<T> {
 //				measurementList.addMeasurement(name + " - smoothed", mWeighted[ind] / mDenominator[ind]);
 				ind++;
 			}
-			if (pathObject instanceof PathDetectionObject) {
+			if (pathObject instanceof PathDetectionObject && denomName != null) {
 				measurementList.putMeasurement(denomName, maxDenominator);
 //				measurementsAdded.add(denomName);
 			}
-			if (pathObject instanceof PathDetectionObject) {
+			if (pathObject instanceof PathDetectionObject && countsName != null) {
 				measurementList.putMeasurement(countsName, nearbyDetectionCounts[i]);
 //				measurementsAdded.add(countsName);
 			}
