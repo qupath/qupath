@@ -51,6 +51,7 @@ import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener.Change;
 import javafx.collections.ObservableList;
 import qupath.lib.common.ColorTools;
+import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.helpers.CommandFinderTools.CommandBarDisplay;
 import qupath.lib.projects.ProjectIO;
 
@@ -446,7 +447,7 @@ public class PathPrefs {
 	
 	
 	
-	private static BooleanProperty invertScrolling = createPersistentPreference("invertScrolling", false);
+	private static BooleanProperty invertScrolling = createPersistentPreference("invertScrolling", !GeneralTools.isMac());
 	
 	public static BooleanProperty invertScrollingProperty() {
 		return invertScrolling;
