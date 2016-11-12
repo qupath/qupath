@@ -48,6 +48,7 @@ import ij.IJ;
 import ij.ImagePlus;
 import ij.ImageStack;
 import ij.measure.Calibration;
+import ij.plugin.Duplicator;
 import ij.process.ByteProcessor;
 import ij.process.ColorProcessor;
 import ij.process.FloatProcessor;
@@ -85,7 +86,11 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 	
 	public ImageJServer(final String path) throws IOException {
 		this.path = path;
-		imp = IJ.openImage(path);
+		if (path.toLowerCase().endsWith(".tif") || path.toLowerCase().endsWith(".tiff")) {
+			imp = IJ.openVirtual(path);
+		}
+		if (imp == null)
+			imp = IJ.openImage(path);
 		if (imp == null)
 			throw new IOException("Could not open " + path + " with ImageJ");
 		
@@ -144,6 +149,7 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 
 	@Override
 	public double[] getPreferredDownsamples() {
+		// TODO: Consider creating an in-memory pyramid for very large images - or at least store a low resolution version?
 		return new double[]{1};
 	}
 
@@ -170,17 +176,36 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 		// Deal with any cropping
 		ImagePlus imp = this.imp;
 		
-		int z = request.getZ();
-		int t = request.getT();
+		int z = request.getZ()+1;
+		int t = request.getT()+1;
+		int nChannels = nChannels();
+		
+//		// There would be a possibility to intercept these calls and perform a z-projection...
+//		if (nZSlices() > 1) {
+//			imp.setT(t);
+//			ZProjector zProjector = new ZProjector(imp);
+//			zProjector.setMethod(ZProjector.MAX_METHOD);
+//			zProjector.setStartSlice(1);
+//			zProjector.setStopSlice(nZSlices());
+//			zProjector.doHyperStackProjection(false);
+//			imp = zProjector.getProjection();
+//			z = 1;
+//			t = 1;
+//		}
 		
 		if (!(request.getX() == 0 && request.getY() == 0 && request.getWidth() == imp.getWidth() && request.getHeight() == imp.getHeight())) {
 			imp.setRoi(request.getX(), request.getY(), request.getWidth(), request.getHeight());
-			imp = imp.duplicate();
+			// Crop for required z and time
+			Duplicator duplicator = new Duplicator();
+			imp = duplicator.run(imp, 1, nChannels, z, z, t, t);
+			z = 1;
+			t = 1;
+//			imp = imp.duplicate();
 			imp.killRoi();
 		}
 		
+		System.out.println(z);
 		// Deal with any downsampling
-		int nChannels = nChannels();
 		if (request.getDownsample() != 1) {
 			ImageStack stackNew = null;
 			for (int i = 1; i <= nChannels; i++) {
