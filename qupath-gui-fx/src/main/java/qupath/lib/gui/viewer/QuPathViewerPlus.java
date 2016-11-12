@@ -73,6 +73,9 @@ public class QuPathViewerPlus extends QuPathViewer {
 		sliderZ.setOrientation(Orientation.VERTICAL);
 		sliderT.setOrientation(Orientation.HORIZONTAL);
 		
+		sliderT.setSnapToTicks(true);
+		sliderZ.setSnapToTicks(true);
+		
 		
 		
 		Pane view = super.getView();
@@ -182,8 +185,32 @@ public class QuPathViewerPlus extends QuPathViewer {
 	static void setSliderRange(final Slider slider, double position, double min, double max) {
 		slider.setMin(min);
 		slider.setMax(max);
-		slider.setMajorTickUnit(1);
+		int range = (int)(max - min + 0.5);
+		if (range > 200) {
+			slider.setMajorTickUnit(50);
+			slider.setMinorTickCount(10);
+		} else if (range >= 50) {
+			slider.setMajorTickUnit(10);
+			slider.setMinorTickCount(5);
+		} else if (range >= 10) {
+			slider.setMajorTickUnit(5);
+			slider.setMinorTickCount(1);
+		} else {
+			slider.setMajorTickUnit(1);
+			slider.setMinorTickCount(1);
+		}
+		slider.setSnapToTicks(true);
+		slider.setShowTickMarks(true);
+		slider.setShowTickLabels(false);
 		slider.setValue(position);
+		slider.setOpacity(0.5);
+		
+		slider.setOnMouseEntered(e -> {
+			slider.setOpacity(1);			
+		});
+		slider.setOnMouseExited(e -> {
+			slider.setOpacity(0.5);			
+		});
 	}
 	
 	
