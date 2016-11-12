@@ -191,7 +191,8 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 					stackNew = new ImageStack(ip.getWidth(), ip.getHeight());
 				stackNew.addSlice("Channel " + i, ip);
 			}
-			imp.setStack(stackNew, nChannels, 1, 1);
+			imp = new ImagePlus(imp.getTitle(), stackNew);
+			imp.setDimensions(nChannels, 1, 1);
 			// Reset other indices
 			z = 1;
 			t = 1;
