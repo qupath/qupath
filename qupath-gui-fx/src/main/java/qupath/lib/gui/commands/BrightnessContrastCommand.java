@@ -351,7 +351,10 @@ public class BrightnessContrastCommand implements PathCommand, ImageDataChangeLi
 							Color color2 = picker.getValue();
 							if (color == color2)
 								return;
-							multiInfo.setLUTColor(ColorToolsFX.getRGB(color2));
+							Integer channelRGB = ColorToolsFX.getRGB(color2);
+							multiInfo.setLUTColor(channelRGB);
+							// Add color property
+							imageDisplay.saveChannelColorProperties();
 							viewer.repaintEntireImage();
 							updateHistogram();
 							table.refresh();

@@ -2270,6 +2270,9 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			if (viewerManager.getViewers().size() == 1 || !viewerManager.synchronizeViewersProperty().get())
 				setInitialLocationAndMagnification(viewer);
 		}
+		// Make sure that the color channels are loaded
+		if (viewer.getImageDisplay().loadChannelColorProperties())
+			viewer.repaintEntireImage();
 		
 		return true;
 	}

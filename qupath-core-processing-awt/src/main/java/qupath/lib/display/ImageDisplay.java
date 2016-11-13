@@ -47,6 +47,7 @@ import qupath.lib.color.ColorDeconvolutionStains.DEFAULT_CD_STAINS;
 import qupath.lib.color.ColorTransformer;
 import qupath.lib.color.ColorTransformer.ColorTransformMethod;
 import qupath.lib.common.ColorTools;
+import qupath.lib.display.ChannelDisplayInfo.MultiChannelInfo;
 import qupath.lib.display.ChannelDisplayInfo.RGBDirectChannelInfo;
 import qupath.lib.display.ChannelDisplayInfo.SingleChannelDisplayInfo;
 import qupath.lib.images.ImageData;
@@ -104,6 +105,8 @@ public class ImageDisplay {
 		this.imageData = imageData;
 		//		updateChannelOptions(true);		
 		updateHistogramMap();
+		if (imageData != null)
+			loadChannelColorProperties();
 		//		updateChannelOptions(false);		
 	}
 
@@ -200,8 +203,9 @@ public class ImageDisplay {
 			// TODO: Get the number of bits per pixel in a more elegant way
 			//			int bpp = server.getBufferedThumbnail(100, 100, 0).getSampleModel().getSampleSize(0);
 			int bpp = server.getBitsPerPixel();
-			if (server.nChannels() == 1)
+			if (server.nChannels() == 1) {
 				channelOptions.add(new ChannelDisplayInfo.MultiChannelInfo("Channel 1", bpp, 0, 255, 255, 255));
+			}
 			else {
 				for (int c = 0; c < server.nChannels(); c++) {
 					int rgb = server.getDefaultChannelColor(c);
@@ -226,6 +230,58 @@ public class ImageDisplay {
 
 	}
 
+	
+	/**
+	 * Load any channel colors stored in the image properties.
+	 * 
+	 * @return
+	 */
+	public boolean loadChannelColorProperties() {
+		if (imageData == null) {
+			return false;
+		}
+		int n = 0;
+		for (ChannelDisplayInfo info : getAvailableChannels()) {
+			if (info instanceof MultiChannelInfo) {
+				MultiChannelInfo multiInfo = (MultiChannelInfo)info;
+				Integer colorOld = multiInfo.getColor();
+				Object colorNew = imageData.getProperty("COLOR_CHANNEL:" + info.getName());
+				if (colorNew instanceof Integer && colorOld != colorNew) {
+					multiInfo.setLUTColor((Integer)colorNew);
+					n++;
+				}
+			}
+		}
+		if (n == 1)
+			logger.info("Loaded color channel info for one channel");
+		else if (n > 1)
+			logger.info("Loaded color channel info for " + n + " channels");
+		return n > 0;
+	}
+	
+	/**
+	 * Save color channels in the ImageData properties.  This lets them be deserialized later.
+	 */
+	public void saveChannelColorProperties() {
+		if (imageData == null) {
+			logger.warn("Cannot save color channel properties - no ImageData available");
+			return;
+		}
+		int n = 0;
+		for (ChannelDisplayInfo info : getAvailableChannels()) {
+			if (info instanceof MultiChannelInfo) {
+				MultiChannelInfo multiInfo = (MultiChannelInfo)info;
+				Integer color = multiInfo.getColor();
+				imageData.setProperty("COLOR_CHANNEL:" + info.getName(), color);
+				n++;
+			}
+		}
+		if (n == 1)
+			logger.info("Saved color channel info for one channel");
+		else if (n > 1)
+			logger.info("Saved color channel info for " + n + " channels");
+	}
+	
 
 	public List<ChannelDisplayInfo> getAvailableChannels() {
 		return Collections.unmodifiableList(channelOptions);
