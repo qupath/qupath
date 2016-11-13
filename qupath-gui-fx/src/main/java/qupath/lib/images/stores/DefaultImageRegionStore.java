@@ -163,10 +163,11 @@ public class DefaultImageRegionStore extends AbstractImageRegionStore<BufferedIm
 	 * @param tPosition
 	 * @param downsampleFactor
 	 * @param observer
+	 * @param imageDispla TODO
 	 * @param timeoutMilliseconds Timeout after which a request is made from the PathImageServer directly, rather than waiting for tile requests.
 	 */
 	@SuppressWarnings("unchecked")
-	public void paintRegionCompletely(ImageServer<BufferedImage> server, Graphics g, Shape clipShapeVisible, int zPosition, int tPosition, double downsampleFactor, ImageObserver observer, long timeoutMilliseconds) {
+	public void paintRegionCompletely(ImageServer<BufferedImage> server, Graphics g, Shape clipShapeVisible, int zPosition, int tPosition, double downsampleFactor, ImageObserver observer, ImageDisplay imageDisplay, long timeoutMilliseconds) {
 		
 //		if (downsampleFactor > 1)
 //			((Graphics2D)g).setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
@@ -176,15 +177,20 @@ public class DefaultImageRegionStore extends AbstractImageRegionStore<BufferedIm
 		
 		// Loop through and create the image
 		List<TileWorker<BufferedImage>> workers = new ArrayList<>();
+		BufferedImage imgTemp = null;
 		
 		for (RegionRequest request : ImageRegionStoreHelpers.getTilesToRequest(server, clipShapeVisible, downsampleFactor, zPosition, tPosition, null)) {
 
 			Object result = requestImageTile(server, request, cache, true);
 
 			// If we have an image, paint it & record coordinates
-			if (result instanceof BufferedImage)
-				g.drawImage((BufferedImage)result, request.getX(), request.getY(), request.getWidth(), request.getHeight(), observer);
-			else if (result instanceof TileWorker) {
+			if (result instanceof BufferedImage) {
+				if (imageDisplay != null) {
+					imgTemp = imageDisplay.applyTransforms((BufferedImage)result, imgTemp);
+					g.drawImage(imgTemp, request.getX(), request.getY(), request.getWidth(), request.getHeight(), observer);
+				} else
+					g.drawImage((BufferedImage)result, request.getX(), request.getY(), request.getWidth(), request.getHeight(), observer);
+			} else if (result instanceof TileWorker) {
 				// If we've a tile worker, prepare for requesting its results soon...
 //				System.out.println(((TileWorker)result).getRegion());
 				workers.add((TileWorker<BufferedImage>)result);
@@ -229,7 +235,12 @@ public class DefaultImageRegionStore extends AbstractImageRegionStore<BufferedIm
 			if (imgTile == null)
 				continue;
 			RegionRequest request = worker.getRequest();
-			g.drawImage(imgTile, request.getX(), request.getY(), request.getWidth(), request.getHeight(), observer);
+			if (imageDisplay != null) {
+				imgTemp = imageDisplay.applyTransforms(imgTile, imgTemp);
+				g.drawImage(imgTemp, request.getX(), request.getY(), request.getWidth(), request.getHeight(), observer);
+				
+			} else
+				g.drawImage(imgTile, request.getX(), request.getY(), request.getWidth(), request.getHeight(), observer);
 		}
 		
 	}

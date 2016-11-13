@@ -3,6 +3,7 @@
 * Better support for ImageJ TIFF images, including multi-channel fluorescence, 16 and 32-bit.
 * Improved sliders and behavior when working with z-stacks or time series.
 * Improved behavior for 'Brightness/Contrast' pane, including ability to set channel color for fluorescence images by double-clicking on the channel name.
+* Wand tool now uses current color transform information, giving another way to influence how it works.
 * When sending back an annotation from ImageJ's macro runner, its shape will be automatically trimmed to fit inside the region that was sent to ImageJ.
 * New 'Use calibrated location text' preference to toggle units used in the location text shown on the bottom right of the viewer.
 * Default for new installations is to invert scrolling for Windows and Linux.

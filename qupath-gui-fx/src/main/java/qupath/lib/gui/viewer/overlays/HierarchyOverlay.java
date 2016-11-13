@@ -168,7 +168,7 @@ public class HierarchyOverlay extends AbstractImageDataOverlay {
 				// On the other hand, if a large image has been updated then we may be browsing quickly - better to repaint quickly while tiles may still be loading
 				if (paintCompletely) {
 ////											System.out.println("Painting completely");
-					regionStore.paintRegionCompletely(overlayServer, g2d, shapeRegion, z, t, downsampleFactor, observer, 5000);
+					regionStore.paintRegionCompletely(overlayServer, g2d, shapeRegion, z, t, downsampleFactor, observer, null, 5000);
 				}
 				else {
 ////											System.out.println("Painting PROGRESSIVELY");

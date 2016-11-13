@@ -142,7 +142,7 @@ public class WandToolCV extends BrushTool {
 		bounds.setFrame(x-w*downsample*.5, y-w*downsample*.5, w*downsample, w*downsample);
 		g2d.scale(1.0/downsample, 1.0/downsample);
 		g2d.translate(-bounds.getX(), -bounds.getY());
-		regionStore.paintRegionCompletely(viewer.getServer(), g2d, bounds, viewer.getZPosition(), viewer.getTPosition(), viewer.getDownsampleFactor(), null, 250);
+		regionStore.paintRegionCompletely(viewer.getServer(), g2d, bounds, viewer.getZPosition(), viewer.getTPosition(), viewer.getDownsampleFactor(), null, viewer.getImageDisplay(), 250);
 		g2d.dispose();
 		
 		// Put pixels into an OpenCV image
