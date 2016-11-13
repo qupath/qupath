@@ -192,7 +192,7 @@ public class ImmuneScorerTMA extends AbstractInteractivePlugin<BufferedImage> {
 						Calibration cal = new Calibration();
 						cal.xOrigin = -roi.getBoundsX()/downsample;
 						cal.yOrigin = -roi.getBoundsY()/downsample;
-						roiTumour = ROIConverterIJ.convertToPathROI(roiTumourSelected, cal, downsample);
+						roiTumour = ROIConverterIJ.convertToPathROI(roiTumourSelected, cal, downsample, -1, roi.getZ(), roi.getT());
 						roiTumour = ShapeSimplifierAwt.simplifyShape((PathShape)roiTumour, 10);
 						parentObject.addPathObject(new PathAnnotationObject(roiTumour, tumorDisplayClass));
 						logger.trace("Added object!");

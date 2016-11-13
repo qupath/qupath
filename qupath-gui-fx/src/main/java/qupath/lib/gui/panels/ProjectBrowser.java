@@ -361,16 +361,16 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 		if (newServer)
 			server.close();
 		if (img2 != null) {
+			// Try to write RGB images directly
 			boolean success = server.isRGB() ? ImageIO.write(img2, THUMBNAIL_EXT, fileThumbnail) : false;
 			if (!success) {
-				// Try again - with transforms
+				// Try with display transforms
 				ImageDisplay imageDisplay = new ImageDisplay(new ImageData<>(server), qupath.getImageRegionStore(), false);
 				for (ChannelDisplayInfo info : imageDisplay.getSelectedChannels()) {
 					imageDisplay.autoSetDisplayRange(info);
 				}
 				img2 = imageDisplay.applyTransforms(img2, null);
 				ImageIO.write(img2, THUMBNAIL_EXT, fileThumbnail);
-				logger.warn("Could not write thumbnail to {}", fileThumbnail.getName());
 			}
 		}
 		return SwingFXUtils.toFXImage(img2, null);
