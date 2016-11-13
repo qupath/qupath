@@ -613,7 +613,7 @@ public class ImageDisplay {
 			else
 				histogram = new Histogram(pixels, 1024);
 			histogram.setNormalizeCounts(true);
-			logger.info("{} {}", info, histogram);
+			logger.debug("{} {}", info, histogram);
 			//			System.out.println(info.toString() + " " + histogram.toString());
 			histogramMap.put(info, histogram);
 
@@ -633,7 +633,7 @@ public class ImageDisplay {
 		}
 
 		long endTime = System.currentTimeMillis();
-		logger.info("Histogram creation time: {} seconds", (endTime - startTime)/1000.);
+		logger.debug("Histogram creation time: {} seconds", (endTime - startTime)/1000.);
 
 	}
 
