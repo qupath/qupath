@@ -197,7 +197,7 @@ public class PathIO {
 						else if (input instanceof Map)
 							propertyMap = (Map<String, Object>)input;
 						else if (input == null) {
-							logger.error("Null objecy will be skipped");
+							logger.error("Null object will be skipped");
 						} else
 							logger.error("Unsupported object of class {} will be skipped: {}", input.getClass().getName(), input);
 						

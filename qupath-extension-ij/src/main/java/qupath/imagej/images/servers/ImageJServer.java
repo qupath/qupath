@@ -204,7 +204,6 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 			imp.killRoi();
 		}
 		
-		System.out.println(z);
 		// Deal with any downsampling
 		if (request.getDownsample() != 1) {
 			ImageStack stackNew = null;

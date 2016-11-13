@@ -92,7 +92,6 @@ public class ImageDisplay {
 
 
 	public ImageDisplay(final ImageData<BufferedImage> imageData, final ImageRegionStore<BufferedImage> regionStore, final boolean showAllRGBTransforms) {
-		this.imageData = imageData;
 		this.regionStore = regionStore;
 		this.showAllRGBTransforms = showAllRGBTransforms;
 		createRGBChannels();
