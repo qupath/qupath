@@ -102,7 +102,7 @@ public class PathROIToolsAwt {
 		// conversion seems to help
 		//		area1 = new Area(new Path2D.Float(area1));
 		// Return simplest ROI that works - prefer a rectangle or polygon over an area
-		return getShapeROI(area1, shape1.getC(), shape1.getT(), shape1.getZ(), flatness);
+		return getShapeROI(area1, shape1.getC(), shape1.getZ(), shape1.getT(), flatness);
 	}
 
 
