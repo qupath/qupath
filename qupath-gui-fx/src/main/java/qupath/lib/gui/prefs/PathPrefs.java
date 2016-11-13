@@ -731,6 +731,12 @@ public class PathPrefs {
 	public static boolean showTMAToolTips() {
 		return true;
 	}
+
+	private static BooleanProperty useCalibratedLocationString = createPersistentPreference("useCalibratedLocationString", true);
+	
+	public static BooleanProperty useCalibratedLocationStringProperty() {
+		return useCalibratedLocationString;
+	}
 	
 	
 	private static BooleanProperty showPointHulls = createTransientPreference("showPointHulls", false);

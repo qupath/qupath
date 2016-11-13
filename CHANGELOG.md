@@ -3,6 +3,8 @@
 * Default for new installations is to invert scrolling for Windows and Linux
 * Improved behavior for 'Brightness/Contrast' pane, including ability to set channel color for fluorescence images by double-clicking on the channel name
 * Better support for ImageJ TIFF images, including multi-channel fluorescence, 16 and 32-bit.
+* New 'Use calibrated location text' preference to toggle units used in the location text shown on the bottom right of the viewer.
+* Improved sliders and behavior when viewing z-stacks or time series.
 * Fixed 'Add intensity features' bug, where the median was calculated whether it was wanted or not.
 
 

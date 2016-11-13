@@ -27,6 +27,8 @@ package qupath.lib.gui.viewer;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.geometry.Bounds;
 import javafx.geometry.Orientation;
 import javafx.scene.Node;
@@ -39,6 +41,7 @@ import javafx.scene.layout.Pane;
 import javafx.scene.paint.Color;
 import javafx.scene.text.TextAlignment;
 import qupath.lib.gui.helpers.ColorToolsFX;
+import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.stores.DefaultImageRegionStore;
@@ -59,7 +62,7 @@ public class QuPathViewerPlus extends QuPathViewer {
 
 	private BorderPane panelLocation = new BorderPane();
 	private Label labelLocation = new Label(" ");
-	private boolean useMicronsForLocationString = true;
+	private BooleanProperty useCalibratedLocationString = PathPrefs.useCalibratedLocationStringProperty();
 	private Slider sliderZ = new Slider(0, 1, 0);
 	private Slider sliderT = new Slider(0, 1, 0);
 
@@ -76,7 +79,7 @@ public class QuPathViewerPlus extends QuPathViewer {
 		sliderT.setSnapToTicks(true);
 		sliderZ.setSnapToTicks(true);
 		
-		
+		useCalibratedLocationString.addListener(v -> updateLocationString());
 		
 		Pane view = super.getView();
 		view.getChildren().add(basePane);
@@ -127,7 +130,7 @@ public class QuPathViewerPlus extends QuPathViewer {
 		sliderZ.setVisible(false);
 		sliderZ.setTooltip(new Tooltip("Change z-slice"));
 		AnchorPane.setLeftAnchor(sliderZ, (double)padding);
-		AnchorPane.setTopAnchor(sliderZ, (double)padding);
+		AnchorPane.setTopAnchor(sliderZ, (double)padding*2.0);
 
 		
 		// Add the t-slider
@@ -137,7 +140,7 @@ public class QuPathViewerPlus extends QuPathViewer {
 		sliderT.setTooltip(new Tooltip("Change time point"));
 		
 		AnchorPane.setLeftAnchor(sliderT, padding*2.0);
-		AnchorPane.setTopAnchor(sliderT, 0.0);
+		AnchorPane.setTopAnchor(sliderT, (double)padding);
 
 
 		basePane.getChildren().addAll(sliderZ, sliderT);
@@ -145,7 +148,8 @@ public class QuPathViewerPlus extends QuPathViewer {
 		
 		updateSliders();
 		
-		
+		zPositionProperty().addListener(v -> updateLocationString());
+		tPositionProperty().addListener(v -> updateLocationString());
 		
 		this.viewerDisplayOptions = viewerDisplayOptions;
 		
@@ -185,25 +189,27 @@ public class QuPathViewerPlus extends QuPathViewer {
 	static void setSliderRange(final Slider slider, double position, double min, double max) {
 		slider.setMin(min);
 		slider.setMax(max);
-		int range = (int)(max - min + 0.5);
-		if (range > 200) {
-			slider.setMajorTickUnit(50);
-			slider.setMinorTickCount(10);
-		} else if (range >= 50) {
-			slider.setMajorTickUnit(10);
-			slider.setMinorTickCount(5);
-		} else if (range >= 10) {
-			slider.setMajorTickUnit(5);
-			slider.setMinorTickCount(1);
-		} else {
-			slider.setMajorTickUnit(1);
-			slider.setMinorTickCount(1);
-		}
+//		int range = (int)(max - min + 0.5);
+//		if (range > 200) {
+//			slider.setMajorTickUnit(50);
+//			slider.setMinorTickCount(10);
+//		} else if (range >= 50) {
+//			slider.setMajorTickUnit(10);
+//			slider.setMinorTickCount(5);
+//		} else if (range >= 10) {
+//			slider.setMajorTickUnit(5);
+//			slider.setMinorTickCount(1);
+//		} else {
+//			slider.setMajorTickUnit(1);
+//			slider.setMinorTickCount(1);
+//		}
+		slider.setMajorTickUnit(1);
 		slider.setSnapToTicks(true);
-		slider.setShowTickMarks(true);
+		slider.setShowTickMarks(false);
 		slider.setShowTickLabels(false);
 		slider.setValue(position);
-		slider.setOpacity(0.5);
+		slider.setOpacity(0.25);
+		slider.setBlockIncrement(1.0);
 		
 		slider.setOnMouseEntered(e -> {
 			slider.setOpacity(1);			
@@ -250,7 +256,7 @@ public class QuPathViewerPlus extends QuPathViewer {
 	void updateLocationString() {
 		String s = null;
 		if (labelLocation != null && hasServer())
-			s = getLocationString(useMicronsForLocationString);
+			s = getLocationString(useCalibratedLocationString());
 		if (s != null && s.length() > 0) {
 			labelLocation.setText(s);
 			panelLocation.setOpacity(1);
@@ -259,7 +265,10 @@ public class QuPathViewerPlus extends QuPathViewer {
 		}
 	}
 
-
+	
+	public boolean useCalibratedLocationString() {
+		return useCalibratedLocationString.get();
+	}
 
 	@Override
 	void paintCanvas() {
