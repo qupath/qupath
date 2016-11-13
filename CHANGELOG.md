@@ -1,10 +1,11 @@
 ## Version 0.0.6
 
-* Default for new installations is to invert scrolling for Windows and Linux
-* Improved behavior for 'Brightness/Contrast' pane, including ability to set channel color for fluorescence images by double-clicking on the channel name
 * Better support for ImageJ TIFF images, including multi-channel fluorescence, 16 and 32-bit.
+* Improved sliders and behavior when working with z-stacks or time series.
+* Improved behavior for 'Brightness/Contrast' pane, including ability to set channel color for fluorescence images by double-clicking on the channel name.
+* When sending back an annotation from ImageJ's macro runner, its shape will be automatically trimmed to fit inside the region that was sent to ImageJ.
 * New 'Use calibrated location text' preference to toggle units used in the location text shown on the bottom right of the viewer.
-* Improved sliders and behavior when viewing z-stacks or time series.
+* Default for new installations is to invert scrolling for Windows and Linux.
 * Fixed 'Add intensity features' bug, where the median was calculated whether it was wanted or not.
 
 

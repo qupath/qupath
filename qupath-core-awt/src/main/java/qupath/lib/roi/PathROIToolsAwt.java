@@ -82,6 +82,20 @@ public class PathROIToolsAwt {
 			throw new IllegalArgumentException("Cannot combine - shapes " + shape1 + " and " + shape2 + " do not share the same image plane");
 		Area area1 = getArea(shape1);
 		Area area2 = getArea(shape2);
+		
+		// Do a quick check to see if a combination might be avoided
+		if (op == CombineOp.INTERSECT) {
+			if (area1.contains(area2.getBounds2D()))
+				return shape2;
+			if (area2.contains(area1.getBounds2D()))
+				return shape1;
+		} else if (op == CombineOp.ADD) {
+			if (area1.contains(area2.getBounds2D()))
+				return shape1;
+			if (area2.contains(area1.getBounds2D()))
+				return shape2;			
+		}
+		
 		combineAreas(area1, area2, op);
 		// I realise the following looks redundant... however direct use of the areas with the
 		// brush tool led to strange artefacts appearing & disappearing... performing an additional
