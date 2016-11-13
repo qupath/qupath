@@ -43,6 +43,7 @@ import javafx.scene.Node;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
 import javafx.scene.paint.Color;
+import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.helpers.ColorToolsFX;
 import qupath.lib.gui.helpers.CommandFinderTools.CommandBarDisplay;
@@ -195,6 +196,12 @@ public class PreferencePanel {
 				"Zoom in when double-clicking on image (if not inside an object) with move tool; zoom out if Alt or Ctrl/Cmd is held down");
 
 
+		addPropertyPreference(PathPrefs.useCalibratedLocationStringProperty(), Boolean.class,
+				"Use calibrated location text",
+				category,
+				"Show pixel locations on the viewer in " + GeneralTools.micrometerSymbol() + " where possible");
+
+		
 //		// Add support for 3D mice only if required class if available
 //		// (Ideally this wouldn't be hard-coded... should switch to being a proper extension)
 //		try {

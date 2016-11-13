@@ -70,6 +70,8 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
 import javafx.util.Callback;
+import qupath.lib.display.ChannelDisplayInfo;
+import qupath.lib.display.ImageDisplay;
 import qupath.lib.gui.ImageDataChangeListener;
 import qupath.lib.gui.ImageDataWrapper;
 import qupath.lib.gui.QuPathGUI;
@@ -335,6 +337,8 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 	
 	
 	Image requestThumbnail(final String serverPath, final File fileThumbnail) throws IOException {
+//		serversRequested.clear();
+		
 		// Check if we've already asked for this server... if so, stop
 		if (serversRequested.contains(serverPath))
 			return null;
@@ -357,7 +361,17 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 		if (newServer)
 			server.close();
 		if (img2 != null) {
-			ImageIO.write(img2, THUMBNAIL_EXT, fileThumbnail);
+			// Try to write RGB images directly
+			boolean success = server.isRGB() ? ImageIO.write(img2, THUMBNAIL_EXT, fileThumbnail) : false;
+			if (!success) {
+				// Try with display transforms
+				ImageDisplay imageDisplay = new ImageDisplay(new ImageData<>(server), qupath.getImageRegionStore(), false);
+				for (ChannelDisplayInfo info : imageDisplay.getSelectedChannels()) {
+					imageDisplay.autoSetDisplayRange(info);
+				}
+				img2 = imageDisplay.applyTransforms(img2, null);
+				ImageIO.write(img2, THUMBNAIL_EXT, fileThumbnail);
+			}
 		}
 		return SwingFXUtils.toFXImage(img2, null);
 	}

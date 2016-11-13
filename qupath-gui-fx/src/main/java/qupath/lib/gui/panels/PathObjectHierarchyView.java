@@ -122,7 +122,6 @@ public class PathObjectHierarchyView implements ImageDataChangeListener<Buffered
 			return;
 		boolean ownsChanges = !synchronizingModelToTree;
 		try {
-			System.out.println(change);
 			synchronizingModelToTree = true;
 			PathObjectSelectionModel model = getHierarchySelectionModel();
 			if (model == null) {

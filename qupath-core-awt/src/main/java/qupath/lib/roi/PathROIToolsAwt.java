@@ -82,13 +82,27 @@ public class PathROIToolsAwt {
 			throw new IllegalArgumentException("Cannot combine - shapes " + shape1 + " and " + shape2 + " do not share the same image plane");
 		Area area1 = getArea(shape1);
 		Area area2 = getArea(shape2);
+		
+		// Do a quick check to see if a combination might be avoided
+		if (op == CombineOp.INTERSECT) {
+			if (area1.contains(area2.getBounds2D()))
+				return shape2;
+			if (area2.contains(area1.getBounds2D()))
+				return shape1;
+		} else if (op == CombineOp.ADD) {
+			if (area1.contains(area2.getBounds2D()))
+				return shape1;
+			if (area2.contains(area1.getBounds2D()))
+				return shape2;			
+		}
+		
 		combineAreas(area1, area2, op);
 		// I realise the following looks redundant... however direct use of the areas with the
 		// brush tool led to strange artefacts appearing & disappearing... performing an additional
 		// conversion seems to help
 		//		area1 = new Area(new Path2D.Float(area1));
 		// Return simplest ROI that works - prefer a rectangle or polygon over an area
-		return getShapeROI(area1, shape1.getC(), shape1.getT(), shape1.getZ(), flatness);
+		return getShapeROI(area1, shape1.getC(), shape1.getZ(), shape1.getT(), flatness);
 	}
 
 

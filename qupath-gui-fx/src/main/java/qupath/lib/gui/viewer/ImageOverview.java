@@ -109,6 +109,9 @@ public class ImageOverview implements QuPathViewerListener {
 			e.consume();
 		});
 		
+		viewer.zPositionProperty().addListener(v -> repaint());
+		viewer.tPositionProperty().addListener(v -> repaint());
+			
 		viewer.addViewerListener(this);
 	}
 

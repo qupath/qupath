@@ -257,9 +257,9 @@ public class IJTools {
 		return downsampleFactor;
 	}
 
-	public static PathObject convertToPathObject(ImagePlus imp, ImageServer<?> server, Roi roi, double downsampleFactor, boolean makeDetection) {
+	public static PathObject convertToPathObject(ImagePlus imp, ImageServer<?> server, Roi roi, double downsampleFactor, boolean makeDetection, int c, int z, int t) {
 		Calibration cal = imp.getCalibration();
-		ROI pathROI = ROIConverterIJ.convertToPathROI(roi, cal, downsampleFactor);
+		ROI pathROI = ROIConverterIJ.convertToPathROI(roi, cal, downsampleFactor, c, z, t);
 		if (pathROI == null)
 			return null;
 		PathObject pathObject;

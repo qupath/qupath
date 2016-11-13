@@ -23,7 +23,16 @@
 
 package qupath.imagej.images.servers;
 
+import java.awt.image.BandedSampleModel;
 import java.awt.image.BufferedImage;
+import java.awt.image.ColorModel;
+import java.awt.image.DataBuffer;
+import java.awt.image.DataBufferByte;
+import java.awt.image.DataBufferFloat;
+import java.awt.image.DataBufferUShort;
+import java.awt.image.Raster;
+import java.awt.image.SampleModel;
+import java.awt.image.WritableRaster;
 import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
@@ -37,7 +46,9 @@ import org.slf4j.LoggerFactory;
 import ij.CompositeImage;
 import ij.IJ;
 import ij.ImagePlus;
+import ij.ImageStack;
 import ij.measure.Calibration;
+import ij.plugin.Duplicator;
 import ij.process.ByteProcessor;
 import ij.process.ColorProcessor;
 import ij.process.FloatProcessor;
@@ -71,9 +82,15 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 	private ImageServerMetadata originalMetadata;
 	private ImageServerMetadata userMetadata;
 	
+	private ColorModel colorModel;
+	
 	public ImageJServer(final String path) throws IOException {
 		this.path = path;
-		imp = IJ.openImage(path);
+		if (path.toLowerCase().endsWith(".tif") || path.toLowerCase().endsWith(".tiff")) {
+			imp = IJ.openVirtual(path);
+		}
+		if (imp == null)
+			imp = IJ.openImage(path);
 		if (imp == null)
 			throw new IOException("Could not open " + path + " with ImageJ");
 		
@@ -102,8 +119,8 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 //				setMagnification(pxlInfo.mag). // Don't know magnification...?
 				build();
 		
-		if ((!isRGB() && nChannels() > 1) || getBitsPerPixel() == 32)
-			throw new IOException("Sorry, currently only RGB & single-channel 8 & 16-bit images supported using ImageJ server");
+//		if ((!isRGB() && nChannels() > 1) || getBitsPerPixel() == 32)
+//			throw new IOException("Sorry, currently only RGB & single-channel 8 & 16-bit images supported using ImageJ server");
 	}
 	
 	
@@ -132,6 +149,7 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 
 	@Override
 	public double[] getPreferredDownsamples() {
+		// TODO: Consider creating an in-memory pyramid for very large images - or at least store a low resolution version?
 		return new double[]{1};
 	}
 
@@ -155,39 +173,116 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 
 	@Override
 	public BufferedImage readBufferedImage(RegionRequest request) {
-		int ind = imp.getStackIndex(1, request.getZ(), request.getT());
-		ImageProcessor ip = imp.getStack().getProcessor(ind);
-		
 		// Deal with any cropping
+		ImagePlus imp = this.imp;
+		
+		int z = request.getZ()+1;
+		int t = request.getT()+1;
+		int nChannels = nChannels();
+		
+//		// There would be a possibility to intercept these calls and perform a z-projection...
+//		if (nZSlices() > 1) {
+//			imp.setT(t);
+//			ZProjector zProjector = new ZProjector(imp);
+//			zProjector.setMethod(ZProjector.MAX_METHOD);
+//			zProjector.setStartSlice(1);
+//			zProjector.setStopSlice(nZSlices());
+//			zProjector.doHyperStackProjection(false);
+//			imp = zProjector.getProjection();
+//			z = 1;
+//			t = 1;
+//		}
+		
 		if (!(request.getX() == 0 && request.getY() == 0 && request.getWidth() == imp.getWidth() && request.getHeight() == imp.getHeight())) {
-			ip.setRoi(request.getX(), request.getY(), request.getWidth(), request.getHeight());
-			ImageProcessor ip2 = ip.duplicate();
-			ip.resetRoi();
-			ip = ip2;
+			imp.setRoi(request.getX(), request.getY(), request.getWidth(), request.getHeight());
+			// Crop for required z and time
+			Duplicator duplicator = new Duplicator();
+			imp = duplicator.run(imp, 1, nChannels, z, z, t, t);
+			z = 1;
+			t = 1;
+//			imp = imp.duplicate();
+			imp.killRoi();
 		}
+		
 		// Deal with any downsampling
 		if (request.getDownsample() != 1) {
-			ip = ip.resize((int)(ip.getWidth() / request.getDownsample() + 0.5));
+			ImageStack stackNew = null;
+			for (int i = 1; i <= nChannels; i++) {
+				int ind = imp.getStackIndex(i, z, t);
+				ImageProcessor ip = imp.getStack().getProcessor(ind);
+				ip = ip.resize((int)(ip.getWidth() / request.getDownsample() + 0.5));
+				if (stackNew == null)
+					stackNew = new ImageStack(ip.getWidth(), ip.getHeight());
+				stackNew.addSlice("Channel " + i, ip);
+			}
+			imp = new ImagePlus(imp.getTitle(), stackNew);
+			imp.setDimensions(nChannels, 1, 1);
+			// Reset other indices
+			z = 1;
+			t = 1;
 		}
-		
+
+		// Extract processor
+		int ind = imp.getStackIndex(1, z, t);
+		ImageProcessor ip = imp.getStack().getProcessor(ind);
+
 		BufferedImage img = null;
+		int w = ip.getWidth();
+		int h = ip.getHeight();
 		if (ip instanceof ColorProcessor) {
 			img = ip.getBufferedImage();
-		} else if (nChannels() == 1) {
+		} else if (nChannels == 1 && !(ip instanceof FloatProcessor)) {
+			// Take the easy way out for 8 and 16-bit images
 			if (ip instanceof ByteProcessor)
 				img = ip.getBufferedImage();
 			else if (ip instanceof ShortProcessor)
 				img = ((ShortProcessor)ip).get16BitBufferedImage();
-			else if (ip instanceof FloatProcessor){
-				img = ip.getBufferedImage(); // TODO: 32-bit... will end up being converted to 8-bit, sadly
-			}
 		} else {
+			// Try to create a suitable BufferedImage for whatever else we may need
+			SampleModel model;
+			if (colorModel == null) {
+				if (ip instanceof ByteProcessor)
+					colorModel = new SimpleColorModel(8);
+				else if (ip instanceof ShortProcessor)
+					colorModel = new SimpleColorModel(16);
+				else
+					colorModel = new SimpleColorModel(32);
+			}
+			
+			if (ip instanceof ByteProcessor) {
+				model = new BandedSampleModel(DataBuffer.TYPE_BYTE, w, h, nChannels);
+				byte[][] bytes = new byte[nChannels][w*h];
+				for (int i = 0; i < nChannels; i++) {
+					int sliceInd = imp.getStackIndex(i+1, z, t);
+					bytes[i] = (byte[])imp.getStack().getPixels(sliceInd);
+				}
+				DataBufferByte buffer = new DataBufferByte(bytes, w*h);
+				return new BufferedImage(colorModel, Raster.createWritableRaster(model, buffer, null), true, null);
+			} else if (ip instanceof ShortProcessor) {
+				model = new BandedSampleModel(DataBuffer.TYPE_USHORT, w, h, nChannels);
+				short[][] bytes = new short[nChannels][w*h];
+				for (int i = 0; i < nChannels; i++) {
+					int sliceInd = imp.getStackIndex(i+1, z, t);
+					bytes[i] = (short[])imp.getStack().getPixels(sliceInd);
+				}
+				DataBufferUShort buffer = new DataBufferUShort(bytes, w*h);
+				return new BufferedImage(colorModel, Raster.createWritableRaster(model, buffer, null), true, null);
+			} else if (ip instanceof FloatProcessor){
+				model = new BandedSampleModel(DataBuffer.TYPE_FLOAT, w, h, nChannels);
+				float[][] bytes = new float[nChannels][w*h];
+				for (int i = 0; i < nChannels; i++) {
+					int sliceInd = imp.getStackIndex(i+1, z, t);
+					bytes[i] = (float[])imp.getStack().getPixels(sliceInd);
+				}
+				DataBufferFloat buffer = new DataBufferFloat(bytes, w*h);
+				return new BufferedImage(colorModel, Raster.createWritableRaster(model, buffer, null), true, null);
+			}
 			logger.error("Sorry, currently only RGB & single-channel images supported with ImageJ");
 			return null;
 		}
-		if (request.getX() == 0 && request.getY() == 0 && request.getWidth() == imp.getWidth() && request.getHeight() == imp.getHeight())
-			return img;
-		return img.getSubimage(request.getX(), request.getY(), request.getWidth(), request.getHeight());
+//		if (request.getX() == 0 && request.getY() == 0 && request.getWidth() == imp.getWidth() && request.getHeight() == imp.getHeight())
+		return img;
+//		return img.getSubimage(request.getX(), request.getY(), request.getWidth(), request.getHeight());
 	}
 
 	@Override
@@ -247,10 +342,8 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 		if (imp instanceof CompositeImage) {
 			CompositeImage impComp = (CompositeImage)imp;
 			LUT lut = impComp.getChannelLut(channel+1);
-			int r = lut.getRed(lut.getMapSize());
-			int g = lut.getRed(lut.getMapSize());
-			int b = lut.getRed(lut.getMapSize());
-			return ColorTools.makeRGB(r, g, b);
+			int ind = lut.getMapSize()-1;
+			return lut.getRGB(ind);
 		}
 		return getDefaultChannelColor(channel);
 	}
@@ -271,5 +364,55 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 	public ImageServerMetadata getOriginalMetadata() {
 		return originalMetadata;
 	}
+	
+	
+	
+	/**
+	 * An extremely tolerant ColorModel that assumes everything should be shown in black.
+	 * QuPath takes care of display elsewhere, so this is just needed to avoid any trouble with null pointer exceptions.
+	 */
+	static class SimpleColorModel extends ColorModel {
+		
+		SimpleColorModel(final int nBits) {
+			super(nBits);
+		}
+
+		@Override
+		public int getRed(int pixel) {
+			return 0;
+		}
+
+		@Override
+		public int getGreen(int pixel) {
+			return 0;
+		}
+
+		@Override
+		public int getBlue(int pixel) {
+			return 0;
+		}
+
+		@Override
+		public int getAlpha(int pixel) {
+			return 0;
+		}
+		
+		@Override
+		public boolean isCompatibleRaster(Raster raster) {
+			// We accept everything...
+			return true;
+		}
+		
+		@Override
+		public ColorModel coerceData(WritableRaster raster, boolean isAlphaPremultiplied) {
+			// Don't do anything
+			return null;
+		}
+		
+		
+	};
+	
+	
+	
 
 }

@@ -163,7 +163,7 @@ public class BrushTool extends AbstractPathROITool {
 //		boolean createNew = currentObject == null || e.getClickCount() > 1;// || (!currentObject.getROI().contains(p.getX(), p.getY()) && !e.isAltDown());
 		Point2D p = viewer.componentPointToImagePoint(e.getX(), e.getY(), null, true);
 //		boolean createNew = currentObject == null || !(currentObject instanceof PathAnnotationObject) || (currentObject.hasChildren()) || (PathPrefs.getBrushCreateNewObjects() && !ROIHelpers.areaContains(currentObject.getROI(), p.getX(), p.getY()) && !isSubtractMode(e));
-		boolean createNew = currentObject == null || !(currentObject instanceof PathAnnotationObject) || (!currentObject.isEditable()) || (!e.isShiftDown() && PathPrefs.getBrushCreateNewObjects() && !ROIHelpers.areaContains(currentObject.getROI(), p.getX(), p.getY()) && !isSubtractMode(e));
+		boolean createNew = currentObject == null || !(currentObject instanceof PathAnnotationObject) || (!currentObject.isEditable()) || currentObject.getROI().getZ() != viewer.getZPosition() || currentObject.getROI().getT() != viewer.getTPosition() || (!e.isShiftDown() && PathPrefs.getBrushCreateNewObjects() && !ROIHelpers.areaContains(currentObject.getROI(), p.getX(), p.getY()) && !isSubtractMode(e));
 		
 		// See if, rather than creating something, we can instead reactivate a current object
 		boolean multipleClicks = e.getClickCount() > 1;
@@ -273,11 +273,12 @@ public class BrushTool extends AbstractPathROITool {
 			shapeNew = PathROIToolsAwt.combineROIs(shapeROI,
 					new AWTAreaROI(shapeDrawn, shapeROI.getC(), shapeROI.getZ(), shapeROI.getT()), subtractMode ? PathROIToolsAwt.CombineOp.SUBTRACT : PathROIToolsAwt.CombineOp.ADD, flatness);
 			// Convert complete polygons to areas
-			if (shapeNew instanceof PolygonROI && ((PolygonROI)shapeNew).nVertices() > 50)
+			if (shapeNew instanceof PolygonROI && ((PolygonROI)shapeNew).nVertices() > 50) {
 				shapeNew = new AWTAreaROI(PathROIToolsAwt.getShape(shapeNew), shapeNew.getC(), shapeNew.getZ(), shapeNew.getT());
-		} else
+			}
+		} else {
 			shapeNew = new AWTAreaROI(shapeDrawn, -1, viewer.getZPosition(), viewer.getTPosition());
-		
+		}
 		
 		if (currentObject instanceof PathAnnotationObject) {
 			((PathAnnotationObject)currentObject).setROI(shapeNew);

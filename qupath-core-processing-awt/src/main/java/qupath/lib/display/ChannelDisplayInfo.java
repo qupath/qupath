@@ -944,7 +944,7 @@ public interface ChannelDisplayInfo {
 
 		@Override
 		public float getValue(BufferedImage img, int x, int y) {
-			return img.getRaster().getSample(x, y, channel);
+			return img.getRaster().getSampleFloat(x, y, channel);
 		}
 
 		@Override

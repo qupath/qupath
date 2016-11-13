@@ -48,6 +48,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.Vector;
+import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -75,6 +76,7 @@ import javafx.scene.text.TextAlignment;
 import qupath.lib.awt.color.ColorToolsAwt;
 import qupath.lib.awt.common.AwtTools;
 import qupath.lib.common.ColorTools;
+import qupath.lib.common.GeneralTools;
 import qupath.lib.display.ImageDisplay;
 import qupath.lib.gui.QuPathGUI.Modes;
 import qupath.lib.gui.helpers.ColorToolsFX;
@@ -2029,7 +2031,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	 * @param y
 	 * @return
 	 */
-	public String getLocationString(double x, double y, boolean useMicrons) {
+	public String getLocationString(double x, double y, boolean useCalibratedUnits) {
 		ImageServer<BufferedImage> server = getServer();
 		if (server == null)
 			return "";
@@ -2045,7 +2047,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 
 		double xDisplay = xx;
 		double yDisplay = yy;
-		if (useMicrons && server.hasPixelSizeMicrons()) {
+		if (useCalibratedUnits && server.hasPixelSizeMicrons()) {
 			units = '\u00B5' + "m";
 			xDisplay *= server.getPixelWidthMicrons();
 			yDisplay *= server.getPixelHeightMicrons();
@@ -2088,11 +2090,43 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 					s = imageDisplay.getTransformedValueAsString(img, xi, yi);
 			}
 		}
+		
+		// Append z, t position if required
+		String zString = null;
+		if (server.nZSlices() > 1) {
+			double zSpacing = server.getZSpacingMicrons();
+			if (!useCalibratedUnits || Double.isNaN(zSpacing))
+				zString = "z = " + getZPosition();
+			else
+				zString = String.format("z = %.2f %s", getZPosition()*zSpacing, GeneralTools.micrometerSymbol());
+		}
+		String tString = null;
+		if (server.nTimepoints() > 1) {
+			// TODO: Consider use of TimeUnit
+//			TimeUnit timeUnit = server.getTimeUnit();
+//			if (!useMicrons || timeUnit == null)
+				tString = "t = " + getTPosition();
+//			else
+//				tString = String.format("z = %.2f %s", getTPosition(), timeUnit.toString());
+		}
+
+		String dimensionString;
+		if (tString == null && zString == null)
+			dimensionString = "";
+		else {
+			dimensionString = "\n";
+			if (zString != null) {
+				dimensionString += zString;
+				if (tString != null)
+					dimensionString += ", " + tString;
+			} else
+				dimensionString += tString;
+		}
 
 		if (s != null)
-			return String.format("%s%.2f, %.2f %s\n%s", prefix, xDisplay, yDisplay, units, s);
+			return String.format("%s%.2f, %.2f %s\n%s%s", prefix, xDisplay, yDisplay, units, s, dimensionString);
 		else
-			return String.format("%s%.2f, %.2f %s", prefix, xDisplay, yDisplay, units);
+			return String.format("%s%.2f, %.2f %s%s", prefix, xDisplay, yDisplay, units, dimensionString);
 		
 		
 //		if (s != null)
@@ -2101,10 +2135,16 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 //			return String.format("<html><center>%.2f, %.2f %s", xDisplay, yDisplay, units);
 	}
 
-
-	public String getLocationString(boolean useMicrons) {
+	/**
+	 * Get a string to summarize the pixel found below the most recent known mouse location, 
+	 * or "" if the mouse is outside this viewer.
+	 * 
+	 * @param useCalibratedUnits If true, microns will be used rather than pixels (if known).
+	 * @return
+	 */
+	public String getLocationString(boolean useCalibratedUnits) {
 		if (componentContains(mouseX, mouseY))
-			return getLocationString(mouseX, mouseY, useMicrons);
+			return getLocationString(mouseX, mouseY, useCalibratedUnits);
 		else
 			return "";
 	}

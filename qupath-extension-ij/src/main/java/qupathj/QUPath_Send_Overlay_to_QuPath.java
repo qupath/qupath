@@ -29,6 +29,7 @@ import java.util.List;
 
 import qupath.imagej.helpers.IJTools;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.objects.PathObject;
@@ -86,11 +87,12 @@ public class QUPath_Send_Overlay_to_QuPath implements PlugIn {
 		boolean asDetection = "Detection".equals(typeChoice);
 		includeMeasurements = gd.getNextBoolean();
 
-		ImageServer<BufferedImage> server = gui.getViewer().getServer();
+		QuPathViewer viewer = gui.getViewer();
+		ImageServer<BufferedImage> server = viewer.getServer();
 		double downsample = IJTools.estimateDownsampleFactor(imp, server);
 		PathObjectHierarchy hierarchy = gui.getViewer().getHierarchy();
 		
-		List<PathObject> pathObjects = createPathObjectsFromROIs(imp, overlay.toArray(), server, downsample, asDetection, includeMeasurements);
+		List<PathObject> pathObjects = createPathObjectsFromROIs(imp, overlay.toArray(), server, downsample, asDetection, includeMeasurements, -1, viewer.getZPosition(), viewer.getTPosition());
 		if (!pathObjects.isEmpty()) {
 			Platform.runLater(() -> hierarchy.addPathObjects(pathObjects, true));
 		}
@@ -109,13 +111,13 @@ public class QUPath_Send_Overlay_to_QuPath implements PlugIn {
 	 * @param includeMeasurements
 	 * @return
 	 */
-	public static List<PathObject> createPathObjectsFromROIs(final ImagePlus imp, final Roi[] rois, final ImageServer<?> server, final double downsample, final boolean asDetection, final boolean includeMeasurements) {
+	public static List<PathObject> createPathObjectsFromROIs(final ImagePlus imp, final Roi[] rois, final ImageServer<?> server, final double downsample, final boolean asDetection, final boolean includeMeasurements, final int c, final int z, final int t) {
 		List<PathObject> pathObjects = new ArrayList<>();
 		ResultsTable rt = new ResultsTable();
 		Analyzer analyzer = new Analyzer(imp, Analyzer.getMeasurements(), rt);
 		String[] headings = null;
 		for (Roi roi : rois) {
-			PathObject pathObject = IJTools.convertToPathObject(imp, server, roi, downsample, asDetection);
+			PathObject pathObject = IJTools.convertToPathObject(imp, server, roi, downsample, asDetection, c, z, t);
 			if (pathObject == null)
 				IJ.log("Sorry, I could not convert " + roi + " to a value QuPath object");
 			else {

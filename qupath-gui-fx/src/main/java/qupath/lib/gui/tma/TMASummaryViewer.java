@@ -694,7 +694,8 @@ public class TMASummaryViewer {
 		}
 		if (colCensored == null && colSurvival != null) {
 			logger.warn("Unable to find censored column - survival data will be uncensored");
-		}
+		} else
+			logger.info("Survival column: {}, Censored column: {}", colSurvival, colCensored);
 		
 		colScore = comboMainMeasurement.getSelectionModel().getSelectedItem();
 		if (colID == null || colSurvival == null || colCensored == null) {// || colScore == null) {
