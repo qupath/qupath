@@ -103,7 +103,6 @@ public class BrightnessContrastCommand implements PathCommand, ImageDataChangeLi
 //	private float maxCurrent = 0;
 	
 	private TableView<ChannelDisplayInfo> table = new TableView<>();
-	private CheckBox cbColorLUTs;
 	
 	private ColorPicker picker = new ColorPicker();
 	
@@ -387,10 +386,10 @@ public class BrightnessContrastCommand implements PathCommand, ImageDataChangeLi
 //		panelColor.setBorder(BorderFactory.createTitledBorder("Color display"));
 		panelColor.setCenter(table);
 		
-		cbColorLUTs = new CheckBox("Use color LUTs");
+		CheckBox cbShowGrayscale = new CheckBox("Show grayscale");
 		if (imageDisplay != null)
-			cbColorLUTs.setSelected(imageDisplay.useColorLUTs());
-		cbColorLUTs.setOnAction(e -> {
+			cbShowGrayscale.setSelected(!imageDisplay.useColorLUTs());
+		cbShowGrayscale.setOnAction(e -> {
 			if (imageDisplay == null)
 				return;
 				imageDisplay.setUseColorLUTs(!imageDisplay.useColorLUTs());
@@ -399,7 +398,7 @@ public class BrightnessContrastCommand implements PathCommand, ImageDataChangeLi
 				table.refresh();
 		});
 		FlowPane paneCheck = new FlowPane();
-		paneCheck.getChildren().add(cbColorLUTs);
+		paneCheck.getChildren().add(cbShowGrayscale);
 		paneCheck.setPadding(new Insets(5, 0, 0, 0));
 		panelColor.setBottom(paneCheck);		
 		pane.setCenter(panelColor);
