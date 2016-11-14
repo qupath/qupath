@@ -169,6 +169,7 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 			case RED:
 			case GREEN:
 			case BLUE:
+				return new double[]{0, 255};
 			case BRIGHTNESS:
 				return new double[]{0, 1};
 			case SATURATION:
