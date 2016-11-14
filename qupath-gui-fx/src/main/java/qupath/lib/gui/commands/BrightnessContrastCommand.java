@@ -717,6 +717,10 @@ public class BrightnessContrastCommand implements PathCommand, ImageDataChangeLi
 	
 	@Override
 	public void propertyChange(PropertyChangeEvent evt) {
+		if (!Platform.isFxApplicationThread()) {
+			Platform.runLater(() -> propertyChange(evt));
+			return;
+		}
 		if (!((evt.getSource() instanceof ImageData<?>) && evt.getPropertyName().equals("stains")))
 			imageDisplay.updateChannelOptions(false);
 		
