@@ -1,3 +1,10 @@
+## Version 0.0.7
+
+* Added sample script to estimate background RGB values for brightfield images; this improves optical density calculations (but without adjusting stain vectors)
+* 'Optical density sum' color transform display now incorporates RGB max values (previously these only influenced processing, but not the visualization provided by the Brightness/Contrast command)
+* Fixed bug that prevent Haralick textures being calculated for red, green or blue channels of an RGB image
+
+
 ## Version 0.0.6
 
 * Better support for ImageJ TIFF images, including multi-channel fluorescence, 16 and 32-bit.
