@@ -54,6 +54,7 @@ import javafx.collections.transformation.FilteredList;
 import qupath.lib.classifiers.PathClassificationLabellingHelper;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.geom.Point2;
+import qupath.lib.gui.models.ObservableMeasurementTableData.ROICentroidMeasurementBuilder.CentroidType;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
@@ -147,6 +148,18 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 		
 		if (containsAnnotations || containsDetections) {
 			builderMap.put("ROI", new ROINameMeasurementBuilder());
+		}
+		
+		// Add centroids
+		if (containsAnnotations || containsDetections || containsTMACores) {
+//			ROICentroidMeasurementBuilder builder = new ROICentroidMeasurementBuilder(imageData, CentroidType.X);
+//			builderMap.put("Centroid X", builder);
+//			builder = new ROICentroidMeasurementBuilder(imageData, CentroidType.Y);
+//			builderMap.put("Centroid Y", builder);
+			ROICentroidMeasurementBuilder builder = new ROICentroidMeasurementBuilder(imageData, CentroidType.X);
+			builderMap.put(builder.getName(), builder);
+			builder = new ROICentroidMeasurementBuilder(imageData, CentroidType.Y);
+			builderMap.put(builder.getName(), builder);
 		}
 
 		// If we have metadata, store it
@@ -933,6 +946,43 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 		@Override
 		protected String getMeasurementValue(PathObject pathObject) {
 			return pathObject.hasROI() ? pathObject.getROI().getROIType() : null;
+		}
+		
+	}
+	
+	
+	static class ROICentroidMeasurementBuilder extends RoiMeasurementBuilder {
+		
+		enum CentroidType {X, Y};
+		private CentroidType type;
+
+		ROICentroidMeasurementBuilder(ImageData<?> imageData, final CentroidType type) {
+			super(imageData);
+			this.type = type;
+		}
+
+		@Override
+		public String getName() {
+			return String.format("Centroid %s %s", type, hasPixelSizeMicrons() ? GeneralTools.micrometerSymbol() : "px");
+		}
+
+		public double getCentroid(ROI roi) {
+			if (roi == null || type == null)
+				return Double.NaN;
+			return type == CentroidType.X
+					? roi.getCentroidX() * pixelWidthMicrons()
+					: roi.getCentroidY() * pixelHeightMicrons();
+		}
+
+		@Override
+		public Binding<Number> createMeasurement(PathObject pathObject) {
+			return new DoubleBinding() {
+				@Override
+				protected double computeValue() {
+					return getCentroid(pathObject.getROI());
+				}
+				
+			};
 		}
 		
 	}
