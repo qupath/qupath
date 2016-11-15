@@ -524,7 +524,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 				createKillRunningScriptAction("Kill running script"),
 				null,
 				QuPathGUI.createCheckMenuItem(QuPathGUI.createSelectableCommandAction(useDefaultBindings, "Include default bindings")),
-				QuPathGUI.createCheckMenuItem(QuPathGUI.createSelectableCommandAction(sendLogToConsole, "Send log to console")),
+				QuPathGUI.createCheckMenuItem(QuPathGUI.createSelectableCommandAction(sendLogToConsole, "Send output to log")),
 				QuPathGUI.createCheckMenuItem(QuPathGUI.createSelectableCommandAction(outputScriptStartTime, "Log script start time")),
 				QuPathGUI.createCheckMenuItem(QuPathGUI.createSelectableCommandAction(autoClearConsole, "Auto clear console"))
 				);
@@ -894,8 +894,9 @@ public class DefaultScriptEditor implements ScriptEditor {
 	class ScriptConsoleWriter extends Writer {
 
 		private ScriptEditorControl doc;
-//		private AttributeSet attributes;
 		private boolean isErrorWriter = false;
+//		private int flushCount = 0;
+		private StringBuilder sb = new StringBuilder();
 
 		ScriptConsoleWriter(final ScriptEditorControl doc, final boolean isErrorWriter) {
 			super();
@@ -905,7 +906,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 		}
 
 		@Override
-		public void write(char[] cbuf, int off, int len) throws IOException {
+		public synchronized void write(char[] cbuf, int off, int len) throws IOException {
 			if (sendLogToConsole.get()) {
 				// Don't need to log newlines
 				if (len == 1 && cbuf[off] == '\n')
@@ -917,18 +918,30 @@ public class DefaultScriptEditor implements ScriptEditor {
 					logger.info(s);
 			} else {
 				String s = String.valueOf(cbuf, off, len);
-				if (Platform.isFxApplicationThread())
-					doc.appendText(s);
-				else
-					Platform.runLater(() -> doc.appendText(s));
+				sb.append(s);
 			}
 		}
 
 		@Override
-		public void flush() throws IOException {}
+		public synchronized void flush() throws IOException {
+			// Only update the component when flush is called
+			// One reason is that println produces two write statements, but only one flush...
+			String s = sb.toString();
+			sb.setLength(0);
+			if (s.isEmpty())
+				return;
+			if (Platform.isFxApplicationThread())
+				doc.appendText(s);
+			else
+				Platform.runLater(() -> doc.appendText(s));
+//			flushCount++;
+//			System.err.println("Flush called: " + flushCount);
+		}
 
 		@Override
-		public void close() throws IOException {}
+		public void close() throws IOException {
+			flush();
+		}
 
 	}
 
