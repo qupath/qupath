@@ -542,13 +542,13 @@ public class KaplanMeierDisplay implements ParameterChangeListener, PathObjectHi
 		//			logger.info("Log rank comparison: {}", LogRankTest.computeLogRankTest(kmLow, kmHigh));
 
 		if (plotter == null) {
-			plotter = new KaplanMeierChartWrapper(survivalColumn);
+			plotter = new KaplanMeierChartWrapper(survivalColumn + " time");
 			//				plotter.setBorder(BorderFactory.createTitledBorder("Survival plot"));
 			//				plotter.getCanvas().setWidth(300);
 			//				plotter.getCanvas().setHeight(300);
 		}
 		KaplanMeierData[] kmArray = new KaplanMeierData[kms.size()];
-		plotter.setKaplanMeierCurves(survivalColumn, kms.toArray(kmArray));
+		plotter.setKaplanMeierCurves(survivalColumn + " time", kms.toArray(kmArray));
 		tableModel.setSurvivalCurves(thresholds, params != null && params.getChoiceParameterValue("scoreThresholdMethod").equals("Lowest p-value"), kmArray);
 
 

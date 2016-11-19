@@ -31,6 +31,9 @@ import org.controlsfx.control.action.ActionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.SimpleBooleanProperty;
+import javafx.collections.ListChangeListener.Change;
 import javafx.geometry.Side;
 import javafx.print.PrinterJob;
 import javafx.scene.Node;
@@ -39,6 +42,7 @@ import javafx.scene.SnapshotParameters;
 import javafx.scene.chart.LineChart;
 import javafx.scene.chart.NumberAxis;
 import javafx.scene.chart.XYChart;
+import javafx.scene.chart.Axis.TickMark;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuItem;
@@ -51,9 +55,13 @@ import javafx.scene.input.ClipboardContent;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
+import javafx.scene.text.Text;
+import javafx.scene.text.TextAlignment;
 import javafx.scene.transform.Transform;
 import javafx.stage.Stage;
+import javafx.util.StringConverter;
 import qupath.lib.analysis.stats.survival.KaplanMeierData;
+import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.helpers.ChartToolsFX;
 import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.gui.panels.ExportChartPanel;
@@ -74,6 +82,8 @@ public class KaplanMeierChartWrapper {
 	private NumberAxis yAxis = new NumberAxis();
 	private LineChart<Number, Number> chart = new LineChart<>(xAxis, yAxis);
 
+	private BooleanProperty showAtRisk = new SimpleBooleanProperty(false);
+	
 	KaplanMeierChartWrapper(final String survivalKey) {
 		super();
 		//			yAxis.setAutoRanging(false);
@@ -84,6 +94,62 @@ public class KaplanMeierChartWrapper {
 		xAxis.setLabel(survivalKey);
 		//			yAxis.setPadding(new Insets(5, 5, 5, 5));
 
+		
+		xAxis.setTickLabelFormatter(new StringConverter<Number>() {
+
+			@Override
+			public String toString(Number object) {
+				double d = object.doubleValue();
+				String s = GeneralTools.getFormatter(2).format(d);
+				if (showAtRisk.get()) {
+//					s += "\n---";
+					s += d == 0 ? "\n-At risk-" : "\n---";
+					for (KaplanMeierData kmData : kmList) {
+						if (d == 0) {
+							s += "\n" + kmData.getName() + ": " + kmData.getAtRisk(d);
+						} else {
+							s += "\n" + kmData.getAtRisk(d-0.0001);
+						}
+					}
+				}
+				return s;
+			}
+
+			@Override
+			public Number fromString(String s) {
+				if (s == null)
+					return null;
+				return Double.parseDouble(s.split("\n")[0]);
+			}
+			
+		});
+		
+		xAxis.getTickMarks().addListener((Change<? extends TickMark<Number>> v) -> {
+			// Center all the text children
+			for (Node node : xAxis.getChildrenUnmodifiable()) {
+				if (node instanceof Text) {
+					Text text = (Text)node;
+					text.setTextAlignment(TextAlignment.CENTER);
+				}
+			}
+			
+//			for (TickMark<Number> mark : v.getList()) {
+//				mark.
+//				TickMark.class.getField("")
+//			}
+//				System.err.println(v.getList().get(0).getClass());			
+		});
+//		xAxis.lay
+		
+		
+		showAtRisk.addListener((v, o, n) -> {
+			updateChart();
+			chart.layout();
+//			xAxis.requestAxisLayout();
+//			chart.requestLayout();
+//			chart.layout();
+		});
+		
 
 		// TODO: Fix printing - may depend on Java bug fix https://bugs.openjdk.java.net/browse/JDK-8129364
 		ContextMenu menu = new ContextMenu();
@@ -227,7 +293,14 @@ public class KaplanMeierChartWrapper {
 	//			return canvas;
 	//		}
 
-	public LineChart<Number, Number> getCanvas() {
+//	BorderPane pane;
+	
+	public Node getCanvas() {
+//		if (pane == null) {
+//			pane = new BorderPane();
+//			pane.setCenter(chart);
+//			xAxis.setTi
+//		}
 		return chart;
 	}
 
@@ -239,7 +312,15 @@ public class KaplanMeierChartWrapper {
 	public boolean getShowKey() {
 		return chart.isLegendVisible();
 	}
+	
+	
+	public boolean getShowAtRisk() {
+		return showAtRisk.get();
+	}
 
+	public void setShowAtRisk(boolean show) {
+		showAtRisk.set(show);
+	}
 
 	public boolean getShowCensoredTicks() {
 		return chart.getCreateSymbols();
@@ -332,13 +413,26 @@ public class KaplanMeierChartWrapper {
 			
 			XYChart<Number, Number> chart2;
 			try {
-				NumberAxis xAxis = new NumberAxis();
-				NumberAxis yAxis = new NumberAxis();
 				KaplanMeierChartWrapper kmPlotter2 = new KaplanMeierChartWrapper(kmPlotter.chart.getXAxis().getLabel());
+				NumberAxis xAxis = kmPlotter2.xAxis;
+				NumberAxis yAxis = kmPlotter2.yAxis;
 				kmPlotter2.kmList.addAll(kmPlotter.kmList);
-				xAxis.labelProperty().bind(kmPlotter.chart.getXAxis().labelProperty());
-				yAxis.labelProperty().bind(kmPlotter.chart.getYAxis().labelProperty());
+//				xAxis.labelProperty().bind(kmPlotter.chart.getXAxis().labelProperty());
+				int n = kmPlotter.kmList.size();
+				if (!kmPlotter.kmList.isEmpty()) {
+					xAxis.setAutoRanging(false);
+					xAxis.setLowerBound(0);
+					xAxis.setUpperBound(Math.ceil(kmPlotter.kmList.get(n-1).getMaxTime()));
+				}
+				yAxis.setLabel(kmPlotter.chart.getYAxis().getLabel());
+//				yAxis.labelProperty().bind(kmPlotter.chart.getYAxis().labelProperty());
+				yAxis.setAutoRanging(false);
+				yAxis.setLowerBound(0);
+				yAxis.setUpperBound(1);
 				kmPlotter2.updateChart();
+				
+				kmPlotter2.setShowAtRisk(kmPlotter.getShowAtRisk());
+				kmPlotter2.setShowCensoredTicks(kmPlotter.getShowCensoredTicks());
 				
 				chart2 = kmPlotter2.chart;
 				
