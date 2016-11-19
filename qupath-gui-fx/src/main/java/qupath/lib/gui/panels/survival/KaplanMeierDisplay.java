@@ -705,12 +705,15 @@ public class KaplanMeierDisplay implements ParameterChangeListener, PathObjectHi
 			params.addIntParameter("censorTimePoints", "Max censored time", (int)(censorThreshold + 0.5), null, 0, (int)Math.ceil(maxTimePoint), "Latest time point beyond which data will be censored");
 			//				params.addChoiceParameter("scoreThresholdMethod", "Threshold method", "Manual", Arrays.asList("Manual", "Median", "Log-rank test"));
 			if (calculateAllPValues)
-				params.addChoiceParameter("scoreThresholdMethod", "Threshold method", "Median", Arrays.asList("Manual (1)", "Manual (2)", "Manual (3)", "Median", "Tertiles", "Quartiles", "Lowest p-value", "Lowest smoothed p-value"));
+				// Don't include "Lowest smoothed p-value" - it's not an established method and open to misinterpretation...
+				params.addChoiceParameter("scoreThresholdMethod", "Threshold method", "Median", Arrays.asList("Manual (1)", "Manual (2)", "Manual (3)", "Median", "Tertiles", "Quartiles", "Lowest p-value"));
+//				params.addChoiceParameter("scoreThresholdMethod", "Threshold method", "Median", Arrays.asList("Manual (1)", "Manual (2)", "Manual (3)", "Median", "Tertiles", "Quartiles", "Lowest p-value", "Lowest smoothed p-value"));
 			else
 				params.addChoiceParameter("scoreThresholdMethod", "Threshold method", "Median", Arrays.asList("Manual (1)", "Manual (2)", "Manual (3)", "Median", "Tertiles", "Quartiles"));
 			params.addDoubleParameter("threshold1", "Threshold 1", thresholds.length > 0 ? thresholds[0] : (minVal + maxVal)/2, null, "Threshold to distinguish between patient groups");
 			params.addDoubleParameter("threshold2", "Threshold 2", thresholds.length > 1 ? thresholds[1] : (minVal + maxVal)/2, null, "Threshold to distinguish between patient groups");
 			params.addDoubleParameter("threshold3", "Threshold 3", thresholds.length > 2 ? thresholds[2] : (minVal + maxVal)/2, null, "Threshold to distinguish between patient groups");
+			params.addBooleanParameter("showAtRisk", "Show at risk", plotter.getShowAtRisk(), "Show number of patients at risk below the plot");
 			params.addBooleanParameter("showTicks", "Show censored ticks", plotter.getShowCensoredTicks(), "Show ticks to indicate censored data");
 			params.addBooleanParameter("showKey", "Show key", plotter.getShowKey(), "Show key indicating display of each curve");
 			//				params.addBooleanParameter("useColor", "Use color", plotter.getUseColor(), "Show each curve in a different color");
@@ -1013,6 +1016,11 @@ public class KaplanMeierDisplay implements ParameterChangeListener, PathObjectHi
 		//		}
 		if ("showKey".equals(key)) {
 			plotter.setShowKey(parameterList.getBooleanParameterValue("showKey"));
+			return;
+		}
+		
+		if ("showAtRisk".equals(key)) {
+			plotter.setShowAtRisk(parameterList.getBooleanParameterValue("showAtRisk"));
 			return;
 		}
 
