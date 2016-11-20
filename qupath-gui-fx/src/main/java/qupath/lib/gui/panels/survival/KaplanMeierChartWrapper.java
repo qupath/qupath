@@ -31,11 +31,10 @@ import org.controlsfx.control.action.ActionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javafx.beans.binding.Bindings;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.collections.ListChangeListener.Change;
-import javafx.geometry.Point2D;
+import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
 import javafx.geometry.Side;
 import javafx.print.PrinterJob;
@@ -45,7 +44,10 @@ import javafx.scene.SnapshotParameters;
 import javafx.scene.chart.LineChart;
 import javafx.scene.chart.NumberAxis;
 import javafx.scene.chart.XYChart;
+import javafx.scene.chart.XYChart.Series;
+import javafx.scene.chart.Axis;
 import javafx.scene.chart.Axis.TickMark;
+import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
 import javafx.scene.control.Menu;
@@ -59,6 +61,7 @@ import javafx.scene.input.ClipboardContent;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
+import javafx.scene.layout.TilePane;
 import javafx.scene.text.Text;
 import javafx.scene.text.TextAlignment;
 import javafx.scene.transform.Transform;
@@ -86,34 +89,60 @@ public class KaplanMeierChartWrapper {
 
 	private NumberAxis xAxis = new NumberAxis();
 	private NumberAxis yAxis = new NumberAxis();
-	private LineChart<Number, Number> chart = new LineChart<Number, Number>(xAxis, yAxis) {
+	
+	private KaplanMeierChart chart = new KaplanMeierChart(xAxis, yAxis);
+	
+	
+	static class KaplanMeierChart extends LineChart<Number, Number> {
 		
-		private List<Text> textList = new ArrayList<>();
-		private boolean initialized = false;
+		public KaplanMeierChart(Axis<Number> xAxis, Axis<Number> yAxis) {
+			super(xAxis, yAxis);
+		}
 		
-		@Override
-		protected final void layoutChildren() {
-			super.layoutChildren();
-			if (!initialized)
-				setupAtRisk();
+		protected void updateLegend() {
+			super.updateLegend();
 			
-		}
-		
-		private void setupAtRisk() {
-			StackPane pane = new StackPane();
-			getChartChildren().add(pane);
-			getXAxis().getTickMarks().addListener((Change<? extends TickMark<Number>> change) -> {
-				getChildren().removeAll(textList);
-				textList.clear();
-				for (TickMark<Number> mark : change.getList()) {
-					Text text = new Text(mark.getLabel());
-					textList.add(text);
+			if (getLegend() instanceof TilePane) {
+				TilePane tp = (TilePane)getLegend();
+	//			if (getLegendSide() == Side.RIGHT)
+	//				tp.setTranslateX(-tp.getWidth());
+				tp.setTranslateX(0);
+				tp.setOrientation(Orientation.VERTICAL);
+			}
+			
+			// Here, we remove the graphic for any series that doesn't have data
+			// This allows us to add in any 'empty' series to provide extra info 
+			// in the legend (i.e. p-values)
+			for (Node node : ((Pane)getLegend()).getChildren()) {
+				if (node instanceof Label) {
+					Label label = (Label)node;
+					String name = label.getText();
+					for (Series<?, ?> series : getData()) {
+						if (series.getName().equals(name)) {
+							if (series.getData().isEmpty()) {
+//								int ind = name.indexOf("p = ");
+//								if (ind > 0) {
+//									label.setText(name.substring(0, ind));
+//									label.setGraphic(new Label(name.substring(ind)));
+//									label.setContentDisplay(ContentDisplay.RIGHT);
+//									
+//									label.setAlignment(Pos.CENTER_LEFT);
+//								} else
+									label.setGraphic(null);
+//								label.setAlignment(Pos.CENTER_RIGHT);
+								label.setMaxWidth(Double.MAX_VALUE);
+							} else
+								label.setContentDisplay(ContentDisplay.LEFT);
+							break;
+						}
+					}
 				}
-				pane.getChildren().addAll(textList);
-			});
+			}
 		}
 		
-	};
+	}
+	
+	
 
 	private BooleanProperty showAtRisk = new SimpleBooleanProperty(false);
 	
@@ -316,17 +345,18 @@ public class KaplanMeierChartWrapper {
 
 		chart.setLegendSide(Side.RIGHT);
 		
-		if (kms.length == 2) {
-			LogRankResult logRankResult = LogRankTest.computeLogRankTest(kms[0], kms[1]);
-			labelPValue.setText("p = " + GeneralTools.getFormatter(5).format(logRankResult.getPValue()));
-			
-			labelPValue.setStyle("-fx-background-fill: red;");
-			
-			StackPane.setAlignment(labelPValue, null);
-			
-		}
-
 		updateChart();
+
+//		if (kms.length == 2) {
+//			LogRankResult logRankResult = LogRankTest.computeLogRankTest(kms[0], kms[1]);
+//			String pValueString = "p = " + GeneralTools.getFormatter(5).format(logRankResult.getPValue());
+//			Series<Number, Number> series = new Series<>();
+//			series.setName(pValueString);
+//			series.setNode(null);
+//			chart.getData().add(series);
+//		}
+
+		
 		return this;
 	}
 
@@ -335,73 +365,8 @@ public class KaplanMeierChartWrapper {
 	//			return canvas;
 	//		}
 
-	private Label labelPValue = new Label();
-	private Pane pane;
-	
 	public Node getCanvas() {
-		if (pane == null) {
-			pane = new Pane();
-			pane.getChildren().add(chart);
-			pane.getChildren().add(labelPValue);
-			
-			pane.setMinHeight(200);
-			pane.setMinWidth(200);
-			chart.prefWidthProperty().bind(pane.widthProperty());
-			chart.prefHeightProperty().bind(pane.heightProperty());
-//			pane.prefWidthProperty().bind(chart.widthProperty());
-//			pane.prefHeightProperty().bind(chart.heightProperty());
-			
-			labelPValue.setLayoutX(0);
-			labelPValue.setLayoutY(0);
-
-			labelPValue.translateXProperty().bind(
-					Bindings.createDoubleBinding(() -> {
-						double x = xAxis.getDisplayPosition(xAxis.getUpperBound());
-						Point2D positionInScene = xAxis.localToScene(x, 0);
-						x = pane.sceneToLocal(positionInScene).getX() - labelPValue.getWidth() - 5;
-						return x;
-					}, 
-							chart.widthProperty(),
-							chart.heightProperty(),
-							chart.boundsInParentProperty(), 
-							xAxis.lowerBoundProperty(),
-							xAxis.upperBoundProperty(),
-							xAxis.autoRangingProperty(),
-							yAxis.autoRangingProperty(),
-							yAxis.lowerBoundProperty(),
-							yAxis.upperBoundProperty(),
-							yAxis.scaleProperty(),
-							labelPValue.widthProperty()
-							)
-					);
-			
-			labelPValue.translateYProperty().bind(
-					Bindings.createDoubleBinding(() -> {
-						double y = yAxis.getDisplayPosition(yAxis.getUpperBound());
-						Point2D positionInScene = yAxis.localToScene(0, y);
-						y = pane.sceneToLocal(positionInScene).getY() + 5;
-						return y;
-					}, 
-							chart.widthProperty(),
-							chart.heightProperty(),
-							chart.boundsInParentProperty(), 
-							xAxis.lowerBoundProperty(),
-							xAxis.upperBoundProperty(),
-							xAxis.autoRangingProperty(),
-							yAxis.autoRangingProperty(),
-							yAxis.lowerBoundProperty(),
-							yAxis.upperBoundProperty(),
-							yAxis.scaleProperty(),
-							labelPValue.widthProperty()
-							)
-					);
-//			labelPValue.layoutYProperty().bind(chart.layoutYProperty().add(chart.widthProperty()).subtract(labelPValue.widthProperty()));
-//			labelPValue.layoutYProperty().bind(chart.layoutYProperty().add(chart.widthProperty()).subtract(labelPValue.widthProperty()));
-//			labelPValue.layoutXProperty().bind(chart.layoutXProperty());
-			
-//			xAxis.setTi
-		}
-		return pane;
+		return chart;
 	}
 
 
@@ -497,6 +462,89 @@ public class KaplanMeierChartWrapper {
 		while (count < chart.getData().size())
 			chart.getData().remove(count);
 		
+		
+		// Show p-values if we have 2 or 3
+		Series<Number, Number> series;
+		if (kmList.size() == 2) {
+			LogRankResult logRankResult = LogRankTest.computeLogRankTest(kmList.get(0), kmList.get(1));
+			String pValueString = "p = " + GeneralTools.getFormatter(3).format(logRankResult.getPValue());
+			
+//			series = new Series<>();
+//			series.setName("Log-rank test");
+//			series.setNode(null);
+//			chart.getData().add(series);
+
+			series = new Series<>();
+			series.setName(pValueString);
+			series.setNode(null);
+			chart.getData().add(series);
+		} else if (kmList.size() == 3) {
+			LogRankResult logRankResult = LogRankTest.computeLogRankTest(kmList.get(0), kmList.get(1));
+			
+//			series = new Series<>();
+//			series.setName("Log-rank test");
+//			series.setNode(null);
+//			chart.getData().add(series);
+			
+			series = new Series<>();
+			series.nameProperty().bind(
+					chart.getData().get(0).nameProperty()
+					.concat(" vs ")
+					.concat(chart.getData().get(1).nameProperty())
+					.concat(String.format(": p = %.4f", logRankResult.getPValue())));
+			series.setNode(null);
+			chart.getData().add(series);
+			
+			logRankResult = LogRankTest.computeLogRankTest(kmList.get(0), kmList.get(2));
+			series = new Series<>();
+			series.nameProperty().bind(
+					chart.getData().get(0).nameProperty()
+					.concat(" vs ")
+					.concat(chart.getData().get(2).nameProperty())
+					.concat(String.format(": p = %.4f", logRankResult.getPValue())));
+			series.setNode(null);
+			chart.getData().add(series);
+
+			logRankResult = LogRankTest.computeLogRankTest(kmList.get(1), kmList.get(2));
+			series = new Series<>();
+			series.nameProperty().bind(
+					chart.getData().get(1).nameProperty()
+					.concat(" vs ")
+					.concat(chart.getData().get(2).nameProperty())
+					.concat(String.format(": p = %.4f", logRankResult.getPValue())));
+			series.setNode(null);
+			chart.getData().add(series);
+			
+//			series = new Series<>();
+//			series.nameProperty().bind(
+//					chart.getData().get(0).nameProperty()
+//					.concat(" vs ")
+//					.concat(chart.getData().get(1).nameProperty())
+//					.concat(": p = " + GeneralTools.getFormatter(3).format(logRankResult.getPValue())));
+//			series.setNode(null);
+//			chart.getData().add(series);
+//			
+//			logRankResult = LogRankTest.computeLogRankTest(kmList.get(0), kmList.get(2));
+//			series = new Series<>();
+//			series.nameProperty().bind(
+//					chart.getData().get(0).nameProperty()
+//					.concat(" vs ")
+//					.concat(chart.getData().get(2).nameProperty())
+//					.concat(": p = " + GeneralTools.getFormatter(3).format(logRankResult.getPValue())));
+//			series.setNode(null);
+//			chart.getData().add(series);
+//
+//			logRankResult = LogRankTest.computeLogRankTest(kmList.get(1), kmList.get(2));
+//			series = new Series<>();
+//			series.nameProperty().bind(
+//					chart.getData().get(1).nameProperty()
+//					.concat(" vs ")
+//					.concat(chart.getData().get(2).nameProperty())
+//					.concat(": p = " + GeneralTools.getFormatter(3).format(logRankResult.getPValue())));
+//			series.setNode(null);
+//			chart.getData().add(series);
+		}
+
 		
 //		for (Series<Number, Number> series : chart.getData()) {
 //			System.out.println(series.getName());

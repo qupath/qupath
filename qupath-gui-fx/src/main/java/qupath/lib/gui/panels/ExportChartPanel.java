@@ -348,9 +348,11 @@ public class ExportChartPanel {
 				int counter = 0;
 				for (Series<?, ?> series : xyChart.getData()) {
 					counter++;
-					sheet.getItems().addAll(
-							new PreferencePanel.PropertyItem<>(series.nameProperty(), String.class).name("Series name " + counter + ":").description("Name of the data in the chart (will be used for legend)").category("Series")
-							);
+					if (!series.nameProperty().isBound()) {
+						sheet.getItems().addAll(
+								new PreferencePanel.PropertyItem<>(series.nameProperty(), String.class).name("Series name " + counter + ":").description("Name of the data in the chart (will be used for legend)").category("Series")
+								);
+					}
 				}
 
 

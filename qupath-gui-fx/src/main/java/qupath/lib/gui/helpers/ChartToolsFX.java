@@ -207,6 +207,14 @@ public class ChartToolsFX {
 			if (legendItem instanceof Label) {
 				Label label = (Label)legendItem;
 				Line line = new Line(0, 4, 25, 4);
+				if (chart instanceof XYChart<?, ?>) {
+					XYChart<?, ?> xyChart = (XYChart<?, ?>)chart;
+					if (xyChart.getData().get(count).getData().isEmpty()) {
+						label.setGraphic(null);
+						count++;
+						continue;
+					}
+				}
 				line.getStyleClass().setAll("chart-series-line", "default-color"+count);
 				label.setGraphic(line);
 				count++;
