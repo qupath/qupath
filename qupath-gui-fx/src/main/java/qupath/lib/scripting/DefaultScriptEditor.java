@@ -108,6 +108,7 @@ import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.gui.helpers.DisplayHelpers.DialogButton;
 import qupath.lib.gui.logging.LoggingAppender;
+import qupath.lib.gui.logging.TextAppendable;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
@@ -663,13 +664,13 @@ public class DefaultScriptEditor implements ScriptEditor {
 		context.setWriter(new ScriptConsoleWriter(console, false));
 		context.setErrorWriter(new ScriptConsoleWriter(console, true));
 		
-		LoggingAppender.getInstance().addTextComponent(console.textProperty());
+		LoggingAppender.getInstance().addTextComponent(console);
 		if (outputScriptStartTime.get())
 			logger.info("Starting script at {}", new Date());
 		Object result = executeScript(tab.getLanguage(), script, imageData, useDefaultBindings.get(), context);
 		if (result != null)
 			logger.info("Result: {}", result);
-		LoggingAppender.getInstance().removeTextComponent(console.textProperty());
+		LoggingAppender.getInstance().removeTextComponent(console);
 	}
 
 	/**
@@ -1821,7 +1822,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 	
 	
 	
-	public static interface ScriptEditorControl {
+	public static interface ScriptEditorControl extends TextAppendable {
 		
 		public StringProperty textProperty();
 		
