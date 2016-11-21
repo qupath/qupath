@@ -3,6 +3,10 @@
 * Added ROI centroids to measurement tables
 * Added sample script to estimate background RGB values for brightfield images; this improves optical density calculations (but without adjusting stain vectors)
 * 'Optical density sum' color transform display now incorporates RGB max values (previously these only influenced processing, but not the visualization provided by the Brightness/Contrast command)
+* 'Fast cell counts' has numerous improvements, including displaying detections closer to the true nucleus center, giving a more informative error message when applied to a non-brightfield image, and including an option to adjust the displayed detection size
+* Positive cell densities now calculated dynamically for annotations, or TMA cores containing single annotations with positive cells contained therein.
+* The 'TMA data viewer' now includes p-values in plot legends, for better figure creation
+* The 'TMA data viewer' adds an optional display of 'At risk' patients for survival curves
 * Fixed bug that prevent Haralick textures being calculated for red, green or blue channels of an RGB image
 
 

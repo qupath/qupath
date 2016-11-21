@@ -79,12 +79,12 @@ public class CellCountsCV extends AbstractTileableDetectionPlugin<BufferedImage>
 	static class FastCellCounter implements ObjectDetector<BufferedImage> {
 
 		// TODO: REQUEST DOWNSAMPLE IN PLUGINS
-		private List<PathObject> pathObjects = new ArrayList<>();
+		private String lastResult = null;
 
 		@Override
 		public Collection<PathObject> runDetection(final ImageData<BufferedImage> imageData, ParameterList params, ROI pathROI) {
-			// Reset any detected objects
-			pathObjects.clear();
+			// Create a list for detected objects
+			List<PathObject> pathObjects = new ArrayList<>();
 
 			// Extract parameters
 			double magnification = params.getDoubleParameterValue("magnification");
@@ -92,15 +92,18 @@ public class CellCountsCV extends AbstractTileableDetectionPlugin<BufferedImage>
 			double threshold = params.getDoubleParameterValue("threshold");
 			boolean doDoG = params.getBooleanParameterValue("doDoG");
 			boolean ensureMainStain = params.getBooleanParameterValue("ensureMainStain");
+			
+			// Radius (in pixels) of the region to show
+			double radius = params.getDoubleParameterValue("detectionDiameter") / 2;
+			if (!Double.isFinite(radius) || radius < 0)
+				radius = 10;
 
 			// Get the region info
 			double downsample = imageData.getServer().getMagnification() / magnification;
 			if (Double.isNaN(downsample) || downsample < 1)
 				downsample = 1;
 //			Rectangle bounds = AwtTools.getBounds(pathROI);
-			double x = pathROI.getBoundsX();
-			double y = pathROI.getBoundsY();
-			
+
 			// Get the filter size
 			double gaussianSigma;
 			double backgroundRadius;
@@ -116,7 +119,14 @@ public class CellCountsCV extends AbstractTileableDetectionPlugin<BufferedImage>
 
 			// Read the buffered image
 			ImageServer<BufferedImage> server = imageData.getServer();
-			BufferedImage img = server.readBufferedImage(RegionRequest.createInstance(server.getPath(), downsample, pathROI));
+			RegionRequest request = RegionRequest.createInstance(server.getPath(), downsample, pathROI);
+			BufferedImage img = server.readBufferedImage(request);
+			
+			// Get the top left corner for later adjustments
+			double x = request.getX();
+			double y = request.getY();
+			double scaleX = request.getWidth() / (double)img.getWidth();
+			double scaleY = request.getHeight() / (double)img.getHeight();
 
 			/*
 			 * Color deconvolution
@@ -125,7 +135,7 @@ public class CellCountsCV extends AbstractTileableDetectionPlugin<BufferedImage>
 			// Get hematoxylin channel
 			ColorDeconvolutionStains stains = imageData.getColorDeconvolutionStains();
 			int[] rgb = img.getRGB(0, 0, img.getWidth(), img.getHeight(), null, 0, img.getWidth());
-			float[] pxHematoxylin = ColorDeconvolution.colorDeconvolveRGBArray(rgb, stains, 0, null);
+			float[] pxNucleusStain = ColorDeconvolution.colorDeconvolveRGBArray(rgb, stains, 0, null);
 			float[] pxStain2 = ColorDeconvolution.colorDeconvolveRGBArray(rgb, stains, 1, null);
 			
 			double stain2Threshold = (imageData.isBrightfield() && imageData.getColorDeconvolutionStains().isH_DAB()) ? params.getDoubleParameterValue("thresholdDAB") : -1;
@@ -139,7 +149,7 @@ public class CellCountsCV extends AbstractTileableDetectionPlugin<BufferedImage>
 			Mat matOrig = new Mat(height, width, CvType.CV_32FC1);
 			
 			// It seems OpenCV doesn't use the array directly, so no need to copy...
-			matOrig.put(0, 0, pxHematoxylin);
+			matOrig.put(0, 0, pxNucleusStain);
 			
 			/*
 			 * Detection
@@ -212,7 +222,7 @@ public class CellCountsCV extends AbstractTileableDetectionPlugin<BufferedImage>
 			// single pixels, but should be treated as belonging to the same cell		
 			List<MatOfPoint> contours = new ArrayList<>();
 			Mat temp = new Mat();
-			Imgproc.findContours(matMaxima, contours, new Mat(), Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE);
+			Imgproc.findContours(matMaxima, contours, temp, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE);
 			temp.release();
 			ArrayList<qupath.lib.geom.Point2> points = new ArrayList<>();
 
@@ -233,12 +243,11 @@ public class CellCountsCV extends AbstractTileableDetectionPlugin<BufferedImage>
 				// Create a polygon ROI
 				points.clear();
 				for (Point p : contour.toArray())
-					points.add(new qupath.lib.geom.Point2(p.x * downsample + x, p.y * downsample + y));
+					points.add(new qupath.lib.geom.Point2((p.x + 0.5) * scaleX + x, (p.y + 0.5) * scaleY + y));
 
 				// Add new polygon if it is contained within the ROI
 				ROI tempROI = null;
 				if (points.size() == 1) {
-					double radius = 10;
 					qupath.lib.geom.Point2 p = points.get(0);
 					if (shape != null && !shape.contains(p.getX(), p.getY())) {
 						continue;
@@ -255,6 +264,7 @@ public class CellCountsCV extends AbstractTileableDetectionPlugin<BufferedImage>
 					// Check we're inside
 					if (area != null && !area.contains(tempROI.getCentroidX(), tempROI.getCentroidY()))
 						continue;
+					tempROI = new EllipseROI(tempROI.getCentroidX()-radius, tempROI.getCentroidY()-radius, radius*2, radius*2);
 				}
 
 				PathObject pathObject = new PathDetectionObject(tempROI);
@@ -285,17 +295,28 @@ public class CellCountsCV extends AbstractTileableDetectionPlugin<BufferedImage>
 			matOrig.release();
 			matStain2.release();
 			
+			lastResult = "Detected " + pathObjects.size() + " cells";
+			
 			return pathObjects;
 		}
 
 		@Override
 		public String getLastResultsDescription() {
-			return "Detected " + pathObjects.size() + " cells";
+			return lastResult;
 		}
 
 	}
 
 
+	@Override
+	protected boolean parseArgument(ImageData<BufferedImage> imageData, String arg) {
+		if (!imageData.isBrightfield() || imageData.getColorDeconvolutionStains() == null) {
+			throw new IllegalArgumentException("This command only supports brightfield images with H&E or H-DAB staining, sorry!");
+//			return false;
+		}
+		return super.parseArgument(imageData, arg);
+	}
+	
 	@Override
 	public ParameterList getDefaultParameterList(final ImageData<BufferedImage> imageData) {
 		ParameterList params = new ParameterList().
@@ -307,7 +328,8 @@ public class CellCountsCV extends AbstractTileableDetectionPlugin<BufferedImage>
 				addDoubleParameter("threshold", "Hematoxylin threshold", 0.1, null, "Hematoxylin intensity threshold").
 				addDoubleParameter("thresholdDAB", "DAB threshold", 0.5, null, "DAB OD threshold for positive percentage counts").
 				addBooleanParameter("doDoG", "Use Difference of Gaussians", true, "Apply Difference of Gaussians filter prior to detection - this tends to detect more nuclei, but may detect too many").
-				addBooleanParameter("ensureMainStain", "Hematoxylin predominant", false, "Accept detection only if haematoxylin value is higher than that of the second deconvolved stain");
+				addBooleanParameter("ensureMainStain", "Hematoxylin predominant", false, "Accept detection only if haematoxylin value is higher than that of the second deconvolved stain").
+				addDoubleParameter("detectionDiameter", "Detection object diameter", 20, "pixels", "Adjust the size of detection object that is created around each peak (note, this does not influence which cells are detected");
 		
 		boolean isHDAB = imageData.isBrightfield() && imageData.getColorDeconvolutionStains().isH_DAB();
 		params.setHiddenParameters(isHDAB, "ensureMainStain");
@@ -354,7 +376,7 @@ public class CellCountsCV extends AbstractTileableDetectionPlugin<BufferedImage>
 	}
 
 	/**
-	 * No overlap... aim is speed.
+	 * Returns zero - indicating no overlap... the aim is speed.
 	 */
 	@Override
 	protected int getTileOverlap(ImageData<BufferedImage> imageData, ParameterList params) {
