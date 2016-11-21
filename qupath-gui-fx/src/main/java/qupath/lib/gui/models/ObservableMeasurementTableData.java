@@ -461,13 +461,15 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 			}
 			
 			// Add density measurements
-			if (containsAnnotations) {
+			// These are only added if we have a (non-derived) positive class
+			// Additionally, these are only non-NaN if we have an annotation, or a TMA core containing a single annotation
+//			if (containsAnnotations) {
 				for (PathClass pathClass : pathClassList) {
-					if (PathClassFactory.isPositiveClass(pathClass))
+					if (PathClassFactory.isPositiveClass(pathClass) && pathClass.getBaseClass() == pathClass)
 	//				if (!(PathClassFactory.isDefaultIntensityClass(pathClass) || PathClassFactory.isNegativeClass(pathClass)))
 						builders.add(new ClassDensityMeasurementBuilder(imageData.getServer(), pathClass));
 				}
-			}
+//			}
 
 			valid = true;
 		}
@@ -517,13 +519,26 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 
 			@Override
 			protected double computeValue() {
-				DetectionPathClassCounts counts = map.get(pathObject);
+				// If we have a TMA core, look for a single annotation inside
+				// If we don't have that, we can't return counts since it's ambiguous where the 
+				// area should be coming from
+				PathObject pathObjectTemp = pathObject;
+				if (pathObject instanceof TMACoreObject) {
+					if (pathObject.getChildObjects().size() != 1)
+						return Double.NaN;
+					pathObjectTemp = pathObject.getChildObjects().stream().findFirst().get();
+				}
+				// We need an annotation to get a meaningful area
+				if (!(pathObjectTemp instanceof PathAnnotationObject))
+					return Double.NaN;
+				
+				DetectionPathClassCounts counts = map.get(pathObjectTemp);
 				if (counts == null) {
-					counts = new DetectionPathClassCounts(pathObject);
+					counts = new DetectionPathClassCounts(pathObjectTemp);
 					map.put(pathObject, counts);
 				}
 				int n = counts.getCountForAncestor(pathClass);
-				ROI roi = pathObject.getROI();
+				ROI roi = pathObjectTemp.getROI();
 				if (roi instanceof PathArea) {
 					double pixelWidth = 1;
 					double pixelHeight = 1;
@@ -709,9 +724,9 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 			@Override
 			public Binding<Number> createMeasurement(final PathObject pathObject) {
 				// Only return density measurements for annotations
-				if (!pathObject.isAnnotation())
-					return Bindings.createDoubleBinding(() -> Double.NaN);
-				return new ClassDensityMeasurementPerMM(server, pathObject, pathClass);
+				if (pathObject.isAnnotation() || (pathObject.isTMACore() && pathObject.getChildObjects().size() == 1))
+					return new ClassDensityMeasurementPerMM(server, pathObject, pathClass);
+				return Bindings.createDoubleBinding(() -> Double.NaN);
 			}
 			
 			@Override
