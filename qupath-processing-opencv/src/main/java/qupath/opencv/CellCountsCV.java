@@ -26,6 +26,7 @@ package qupath.opencv;
 import java.awt.Shape;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 
@@ -76,6 +77,12 @@ public class CellCountsCV extends AbstractTileableDetectionPlugin<BufferedImage>
 
 	private static Logger logger = LoggerFactory.getLogger(CellCountsCV.class);
 	
+	private static String HEMATOXYLIN = "Hematoxylin";
+	private static String DAB = "DAB";
+	private static String HEMATOXYLIN_PLUS_DAB = "Hematoxylin + DAB";
+	
+	private static List<String> STAIN_CHANNELS = Arrays.asList(HEMATOXYLIN, DAB, HEMATOXYLIN_PLUS_DAB);
+	
 	static class FastCellCounter implements ObjectDetector<BufferedImage> {
 
 		// TODO: REQUEST DOWNSAMPLE IN PLUGINS
@@ -87,6 +94,12 @@ public class CellCountsCV extends AbstractTileableDetectionPlugin<BufferedImage>
 			List<PathObject> pathObjects = new ArrayList<>();
 
 			// Extract parameters
+			String stainChannel = (String)params.getChoiceParameterValue("stainChannel");
+			// Default to hematoxylin
+			if (stainChannel == null) {
+				logger.debug("Stain channel not set - will default to 'Hematoxylin'");
+				stainChannel = "Hematoxylin";
+			}
 			double magnification = params.getDoubleParameterValue("magnification");
 			boolean hasMicrons = imageData != null && imageData.getServer() != null && imageData.getServer().hasPixelSizeMicrons();
 			double threshold = params.getDoubleParameterValue("threshold");
@@ -132,13 +145,25 @@ public class CellCountsCV extends AbstractTileableDetectionPlugin<BufferedImage>
 			 * Color deconvolution
 			 */
 			
-			// Get hematoxylin channel
+			// Get channels
 			ColorDeconvolutionStains stains = imageData.getColorDeconvolutionStains();
 			int[] rgb = img.getRGB(0, 0, img.getWidth(), img.getHeight(), null, 0, img.getWidth());
 			float[] pxNucleusStain = ColorDeconvolution.colorDeconvolveRGBArray(rgb, stains, 0, null);
 			float[] pxStain2 = ColorDeconvolution.colorDeconvolveRGBArray(rgb, stains, 1, null);
-			
+
+			// Positive channel threshold
 			double stain2Threshold = (imageData.isBrightfield() && imageData.getColorDeconvolutionStains().isH_DAB()) ? params.getDoubleParameterValue("thresholdDAB") : -1;
+
+			// Update the detection channel, if required
+			if (stainChannel.equals(DAB)) {
+				for (int i = 0; i < pxNucleusStain.length; i++) {
+					pxNucleusStain[i] = pxStain2[i];
+				}
+			} else if (stainChannel.equals(HEMATOXYLIN_PLUS_DAB)) {
+				for (int i = 0; i < pxNucleusStain.length; i++) {
+					pxNucleusStain[i] += pxStain2[i];
+				}				
+			}
 			
 //			float[][] pxDeconvolved = WatershedNucleiCV.colorDeconvolve(img, stains.getStain(1).getArray(), stains.getStain(2).getArray(), null, 2);
 //			float[] pxHematoxylin = pxDeconvolved[0];
@@ -233,6 +258,8 @@ public class CellCountsCV extends AbstractTileableDetectionPlugin<BufferedImage>
 			PathArea area = pathROI instanceof PathArea ? (PathArea)pathROI : null;
 			if (area instanceof AreaROI && !(area instanceof AWTAreaROI))
 				area = new AWTAreaROI((AreaROI)area);
+			
+			boolean detectInPositiveChannel = stainChannel.equals(DAB);
 			for (MatOfPoint contour : contours){
 
 				// This doesn't appear to work...
@@ -270,10 +297,10 @@ public class CellCountsCV extends AbstractTileableDetectionPlugin<BufferedImage>
 				PathObject pathObject = new PathDetectionObject(tempROI);
 				// Check stain2 value at the peak pixel, if required
 				if (stain2Threshold >= 0) {
-					int cx = (int)((tempROI.getCentroidX() - x)/downsample);
-					int cy = (int)((tempROI.getCentroidY() - y)/downsample);
+					int cx = (int)((tempROI.getCentroidX() - x)/scaleX);
+					int cy = (int)((tempROI.getCentroidY() - y)/scaleY);
 					matStain2.get(cy, cx, stain2Value);
-					if (stain2Value[0] >= stain2Threshold)
+					if (detectInPositiveChannel || stain2Value[0] >= stain2Threshold)
 						pathObject.setPathClass(PathClassFactory.getPositive(null, null));
 					else
 						pathObject.setPathClass(PathClassFactory.getNegative(null, null));
@@ -310,7 +337,8 @@ public class CellCountsCV extends AbstractTileableDetectionPlugin<BufferedImage>
 
 	@Override
 	protected boolean parseArgument(ImageData<BufferedImage> imageData, String arg) {
-		if (!imageData.isBrightfield() || imageData.getColorDeconvolutionStains() == null) {
+		ColorDeconvolutionStains stains = imageData.getColorDeconvolutionStains();
+		if (!imageData.isBrightfield() || stains == null || !(stains.isH_E() || stains.isH_DAB())) {
 			throw new IllegalArgumentException("This command only supports brightfield images with H&E or H-DAB staining, sorry!");
 //			return false;
 		}
@@ -320,18 +348,20 @@ public class CellCountsCV extends AbstractTileableDetectionPlugin<BufferedImage>
 	@Override
 	public ParameterList getDefaultParameterList(final ImageData<BufferedImage> imageData) {
 		ParameterList params = new ParameterList().
+				addChoiceParameter("stainChannel", "Cell detection channel", HEMATOXYLIN, STAIN_CHANNELS, "Choose channel that will be thresholded to detect the cells").
 				addDoubleParameter("magnification", "Requested magnification", 5, null, "Magnification at which the detection should be run").
 				addDoubleParameter("backgroundRadiusPixels", "Background radius", 5, "px", "Filter size to estimate background; should be > the largest nucleus radius").
 				addDoubleParameter("backgroundRadiusMicrons", "Background radius", 10, GeneralTools.micrometerSymbol(), "Filter size to estimate background; should be > the largest nucleus radius").
 				addDoubleParameter("gaussianSigmaPixels", "Gaussian sigma", 1, "px", "Smoothing filter uses to reduce spurious peaks").
 				addDoubleParameter("gaussianSigmaMicrons", "Gaussian sigma", 1.5, GeneralTools.micrometerSymbol(), "Smoothing filter uses to reduce spurious peaks").
-				addDoubleParameter("threshold", "Hematoxylin threshold", 0.1, null, "Hematoxylin intensity threshold").
+				addDoubleParameter("threshold", "Detection threshold", 0.1, null, "Hematoxylin intensity threshold").
 				addDoubleParameter("thresholdDAB", "DAB threshold", 0.5, null, "DAB OD threshold for positive percentage counts").
 				addBooleanParameter("doDoG", "Use Difference of Gaussians", true, "Apply Difference of Gaussians filter prior to detection - this tends to detect more nuclei, but may detect too many").
 				addBooleanParameter("ensureMainStain", "Hematoxylin predominant", false, "Accept detection only if haematoxylin value is higher than that of the second deconvolved stain").
 				addDoubleParameter("detectionDiameter", "Detection object diameter", 20, "pixels", "Adjust the size of detection object that is created around each peak (note, this does not influence which cells are detected");
 		
 		boolean isHDAB = imageData.isBrightfield() && imageData.getColorDeconvolutionStains().isH_DAB();
+		params.setHiddenParameters(!isHDAB, "stainChannel");		
 		params.setHiddenParameters(isHDAB, "ensureMainStain");
 		params.setHiddenParameters(!isHDAB, "thresholdDAB");
 		
@@ -350,7 +380,7 @@ public class CellCountsCV extends AbstractTileableDetectionPlugin<BufferedImage>
 
 	@Override
 	public String getDescription() {
-		return "Perform a fast, low-resolution count of nuclei in a whole slide image using a peak-finding approach";
+		return "Perform a fast, low-resolution count of nuclei in a whole slide image stained with H&E or hematoxylin and DAB using a peak-finding approach";
 	}
 
 	@Override
