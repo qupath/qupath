@@ -36,6 +36,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Optional;
 import java.util.Scanner;
 import java.util.Set;
 import java.util.TreeMap;
@@ -1979,6 +1980,12 @@ public class TMASummaryViewer {
 			if (!matched)
 				logger.warn("No match for ID: " + id);
 		}
+		
+		Optional<TMAEntry> objectEntry = entriesBase.stream().filter(t -> t instanceof TMAObjectEntry).findAny();
+		if (objectEntry.isPresent()) {
+			DisplayHelpers.showInfoNotification("TMA data update", "TMA cores updated!");
+		}
+		
 		return counter;
 	}
 	

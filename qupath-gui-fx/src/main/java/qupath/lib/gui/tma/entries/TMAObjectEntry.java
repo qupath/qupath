@@ -101,6 +101,7 @@ public class TMAObjectEntry implements TMAEntry {
 		core.putMetadataValue(name, value);
 		if (imageData != null)
 			imageData.getHierarchy().fireObjectMeasurementsChangedEvent(this, Collections.singletonList(core));
+		data.updateMeasurementList();
 	}
 
 	@Override
@@ -118,6 +119,7 @@ public class TMAObjectEntry implements TMAEntry {
 		core.getMeasurementList().putMeasurement(name, number == null ? Double.NaN : number.doubleValue());
 		if (imageData != null)
 			imageData.getHierarchy().fireObjectMeasurementsChangedEvent(this, Collections.singletonList(core));
+		data.updateMeasurementList();
 	}
 
 	@Override
@@ -185,6 +187,7 @@ public class TMAObjectEntry implements TMAEntry {
 		core.putMetadataValue("Comment", comment);
 		if (imageData != null)
 			imageData.getHierarchy().fireObjectMeasurementsChangedEvent(this, Collections.singletonList(core));
+		data.updateMeasurementList();
 	}
 
 
@@ -205,11 +208,21 @@ public class TMAObjectEntry implements TMAEntry {
 		return false;
 	}
 	
+	/**
+//	 * Get a reference to the table data - can be necessary to force a refresh
+//	 * @return
+//	 */
+//	ObservableMeasurementTableData getTableData() {
+//		
+//		return data;
+//	}
+	
 	@Override
 	public void setMissing(final boolean missing) {
 		core.setMissing(missing);
 		if (imageData != null)
 			imageData.getHierarchy().fireObjectsChangedEvent(this, Collections.singleton(core));
+		data.updateMeasurementList();
 	}
 
 }
