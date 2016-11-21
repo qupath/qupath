@@ -150,9 +150,11 @@ public class BrightnessContrastCommand implements PathCommand, ImageDataChangeLi
 		
 		GridPane box = new GridPane();
 		Label labelMin = new Label("Min display");
+		labelMin.setTooltip(new Tooltip("Set minimum lookup table value - double-click to edit manually"));
 		box.add(labelMin, 0, 0);
 		box.add(sliderMin, 1, 0);
 		Label labelMax = new Label("Max display");
+		labelMax.setTooltip(new Tooltip("Set maximum lookup table value - double-click to edit manually"));
 		box.add(labelMax, 0, 1);
 		box.add(sliderMax, 1, 1);
 		box.setVgap(5);
