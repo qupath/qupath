@@ -111,25 +111,38 @@ public class CellCountsCV extends AbstractTileableDetectionPlugin<BufferedImage>
 			if (!Double.isFinite(radius) || radius < 0)
 				radius = 10;
 
-			// Get the region info
-			double downsample = imageData.getServer().getMagnification() / magnification;
-			if (Double.isNaN(downsample) || downsample < 1)
-				downsample = 1;
-//			Rectangle bounds = AwtTools.getBounds(pathROI);
-
-			// Get the filter size
+			// Get the filter size & calculate a suitable downsample value
 			double gaussianSigma;
 			double backgroundRadius;
+			double downsample = imageData.getServer().getMagnification() / magnification;
+			if (downsample < 1)
+				downsample = 1;
 			if (hasMicrons) {
-				gaussianSigma = params.getDoubleParameterValue("gaussianSigmaMicrons") / (imageData.getServer().getAveragedPixelSizeMicrons() * downsample);
-				backgroundRadius = params.getDoubleParameterValue("backgroundRadiusMicrons") / (imageData.getServer().getAveragedPixelSizeMicrons() * downsample);;
+				// Determine the filter sizes in terms of pixels for the full-resolution image
+				gaussianSigma = params.getDoubleParameterValue("gaussianSigmaMicrons") / imageData.getServer().getAveragedPixelSizeMicrons();
+				backgroundRadius = params.getDoubleParameterValue("backgroundRadiusMicrons") / imageData.getServer().getAveragedPixelSizeMicrons();
+				// If we don't have a downsample factor based on magnification, determine one from the Gaussian filter size - 
+				// aiming for a sigma value of at approximately 1.25 pixels
+				if (!Double.isFinite(downsample)) {
+					downsample = Math.max(1, Math.round(gaussianSigma / 1.25));
+//					System.err.println("Downsample: " + downsample);
+				}
+				// Update filter sizes according to downsampling factor
+				gaussianSigma /= downsample;
+				backgroundRadius /= downsample;
 			}
 			else {
-				gaussianSigma = params.getDoubleParameterValue("gaussianSigmaPixels");
-				backgroundRadius = params.getDoubleParameterValue("backgroundRadiusPixels");
+				// Default to a downsample of 1 if we don't know better
+				if (!Double.isFinite(downsample))
+					downsample = 1;
+				// Get filter sizes in terms of pixels for the image to process
+				gaussianSigma = params.getDoubleParameterValue("gaussianSigmaPixels") / downsample;
+				backgroundRadius = params.getDoubleParameterValue("backgroundRadiusPixels") / downsample;
 			}
-			logger.debug("Fast cell counting with Gaussian sigma {} pixels", gaussianSigma);
+			logger.debug("Fast cell counting with Gaussian sigma {} pixels, downsample {}", gaussianSigma, downsample);
+//			System.err.println("ACTUAL Downsample: " + downsample);
 
+			
 			// Read the buffered image
 			ImageServer<BufferedImage> server = imageData.getServer();
 			RegionRequest request = RegionRequest.createInstance(server.getPath(), downsample, pathROI);
@@ -347,19 +360,26 @@ public class CellCountsCV extends AbstractTileableDetectionPlugin<BufferedImage>
 	
 	@Override
 	public ParameterList getDefaultParameterList(final ImageData<BufferedImage> imageData) {
-		ParameterList params = new ParameterList().
-				addChoiceParameter("stainChannel", "Cell detection channel", HEMATOXYLIN, STAIN_CHANNELS, "Choose channel that will be thresholded to detect the cells").
-				addDoubleParameter("magnification", "Requested magnification", 5, null, "Magnification at which the detection should be run").
-				addDoubleParameter("backgroundRadiusPixels", "Background radius", 5, "px", "Filter size to estimate background; should be > the largest nucleus radius").
-				addDoubleParameter("backgroundRadiusMicrons", "Background radius", 10, GeneralTools.micrometerSymbol(), "Filter size to estimate background; should be > the largest nucleus radius").
-				addDoubleParameter("gaussianSigmaPixels", "Gaussian sigma", 1, "px", "Smoothing filter uses to reduce spurious peaks").
-				addDoubleParameter("gaussianSigmaMicrons", "Gaussian sigma", 1.5, GeneralTools.micrometerSymbol(), "Smoothing filter uses to reduce spurious peaks").
-				addDoubleParameter("threshold", "Detection threshold", 0.1, null, "Hematoxylin intensity threshold").
-				addDoubleParameter("thresholdDAB", "DAB threshold", 0.5, null, "DAB OD threshold for positive percentage counts").
-				addBooleanParameter("doDoG", "Use Difference of Gaussians", true, "Apply Difference of Gaussians filter prior to detection - this tends to detect more nuclei, but may detect too many").
-				addBooleanParameter("ensureMainStain", "Hematoxylin predominant", false, "Accept detection only if haematoxylin value is higher than that of the second deconvolved stain").
-				addDoubleParameter("detectionDiameter", "Detection object diameter", 20, "pixels", "Adjust the size of detection object that is created around each peak (note, this does not influence which cells are detected");
-		
+		ParameterList params = new ParameterList()
+				.addTitleParameter("Detection image")
+				.addChoiceParameter("stainChannel", "Cell detection channel", HEMATOXYLIN, STAIN_CHANNELS, "Choose channel that will be thresholded to detect the cells")
+				// Magnification is deprecated!  Will be hidden, and only kept here for some backwards compatibility
+				.addDoubleParameter("magnification", "Requested magnification", Double.NaN, null, "Magnification at which the detection should be run")
+				.addDoubleParameter("gaussianSigmaPixels", "Gaussian sigma", 1, "px", "Smoothing filter uses to reduce spurious peaks")
+				.addDoubleParameter("gaussianSigmaMicrons", "Gaussian sigma", 1.5, GeneralTools.micrometerSymbol(), "Smoothing filter uses to reduce spurious peaks")
+				.addDoubleParameter("backgroundRadiusPixels", "Background radius", 5, "px", "Filter size to estimate background; should be > the largest nucleus radius")
+				.addDoubleParameter("backgroundRadiusMicrons", "Background radius", 10, GeneralTools.micrometerSymbol(), "Filter size to estimate background; should be > the largest nucleus radius")
+				.addBooleanParameter("doDoG", "Use Difference of Gaussians", true, "Apply Difference of Gaussians filter prior to detection - this tends to detect more nuclei, but may detect too many")
+				.addTitleParameter("Thresholding")
+				.addDoubleParameter("threshold", "Cell detection threshold", 0.1, null, "Hematoxylin intensity threshold")
+				.addDoubleParameter("thresholdDAB", "DAB threshold", 0.5, null, "DAB OD threshold for positive percentage counts")
+				.addBooleanParameter("ensureMainStain", "Hematoxylin predominant", false, "Accept detection only if haematoxylin value is higher than that of the second deconvolved stain")
+				.addTitleParameter("Display")
+				.addDoubleParameter("detectionDiameter", "Detection object diameter", 20, "pixels", "Adjust the size of detection object that is created around each peak (note, this does not influence which cells are detected");
+
+		// Magnification is deprecated!
+		params.setHiddenParameters(true, "magnification");
+
 		boolean isHDAB = imageData.isBrightfield() && imageData.getColorDeconvolutionStains().isH_DAB();
 		params.setHiddenParameters(!isHDAB, "stainChannel");		
 		params.setHiddenParameters(isHDAB, "ensureMainStain");
