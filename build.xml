@@ -149,7 +149,7 @@
 			</fx:info>
 			<fx:application refId="QuPathAppID"/>
 			<fx:resources refid="appRes"/>
-			<fx:preferences install="false" shortcut="true" menu="true" />
+			<fx:preferences install="false" shortcut="true" menu="true" installdirChooser="true" />
 		</fx:deploy>
 	</target>
 </project>
