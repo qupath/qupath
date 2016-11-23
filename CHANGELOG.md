@@ -7,6 +7,7 @@
 * Positive cell densities now calculated dynamically for annotations, or TMA cores containing single annotations with positive cells contained therein.
 * The 'TMA data viewer' now includes p-values in plot legends, for better figure creation
 * The 'TMA data viewer' adds an optional display of 'At risk' patients for survival curves
+* Added new OpenSlide binaries for macOS to fix bug that prevented some *.mrxs files opening (if bmps were involved)
 * Fixed bug that caused scripts that logged a lot of text to cause the user interface to become sluggish or freeze
 * Fixed bug that prevent Haralick textures being calculated for red, green or blue channels of an RGB image
 
