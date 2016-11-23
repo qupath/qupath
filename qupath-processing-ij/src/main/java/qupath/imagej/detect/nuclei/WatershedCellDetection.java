@@ -360,7 +360,9 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 //					params.getBooleanParameterValue("limitExpansionByNucleusSize"),
 					params.getBooleanParameterValue("smoothBoundaries"),
 					params.getBooleanParameterValue("includeNuclei"),
-					params.getBooleanParameterValue("makeMeasurements"));// && isBrightfield);
+					params.getBooleanParameterValue("makeMeasurements"),
+					pathROI.getZ(),
+					pathROI.getT());// && isBrightfield);
 			
 			pathObjects.addAll(detector2.getPathObjects());
 					
@@ -449,6 +451,8 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 		
 		private double backgroundRadius = 15;
 		private double maxBackground = 0.3;
+		
+		private int z = 0, t = 0;
 		
 		private boolean lastRunCompleted = false;
 		
@@ -727,7 +731,7 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 				if (smoothBoundaries)
 					r = new PolygonRoi(rOrig.getInterpolatedPolygon(Math.min(2.5, rOrig.getNCoordinates()*0.1), true), Roi.POLYGON);
 				
-				PolygonROI pathROI = ROIConverterIJ.convertToPolygonROI(r, cal, pathImage.getDownsampleFactor());
+				PolygonROI pathROI = ROIConverterIJ.convertToPolygonROI(r, cal, pathImage.getDownsampleFactor(), 0, z, t);
 				
 				if (smoothBoundaries) {
 					pathROI = ShapeSimplifier.simplifyPolygon(pathROI, pathImage.getDownsampleFactor()/4.0);
@@ -812,7 +816,7 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 						r = new PolygonRoi(r.getInterpolatedPolygon(Math.min(2.5, r.getNCoordinates()*0.1), false), Roi.POLYGON); // TODO: Check this smoothing - it can be troublesome, causing nuclei to be outside cells
 //						r = smoothPolygonRoi(r);
 
-					PolygonROI pathROI = ROIConverterIJ.convertToPolygonROI(r, pathImage.getImage().getCalibration(), pathImage.getDownsampleFactor());
+					PolygonROI pathROI = ROIConverterIJ.convertToPolygonROI(r, pathImage.getImage().getCalibration(), pathImage.getDownsampleFactor(), 0, z, t);
 					if (smoothBoundaries)
 						pathROI = ShapeSimplifier.simplifyPolygon(pathROI, pathImage.getDownsampleFactor()/4.0);
 
@@ -909,11 +913,15 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 		
 		
 //		public void runDetection(double backgroundRadius, double maxBackground, double medianRadius, double sigma, double threshold, double minArea, double maxArea, boolean mergeAll, boolean watershedPostProcess, boolean excludeDAB, double cellExpansion, boolean limitExpansionByNucleusSize, boolean smoothBoundaries, boolean includeNuclei, boolean makeMeasurements) {
-		public void runDetection(double backgroundRadius, double maxBackground, double medianRadius, double sigma, double threshold, double minArea, double maxArea, boolean mergeAll, boolean watershedPostProcess, boolean excludeDAB, double cellExpansion, boolean smoothBoundaries, boolean includeNuclei, boolean makeMeasurements) {
+		public void runDetection(double backgroundRadius, double maxBackground, double medianRadius, double sigma, double threshold, double minArea, double maxArea, boolean mergeAll, boolean watershedPostProcess, boolean excludeDAB, double cellExpansion, boolean smoothBoundaries, boolean includeNuclei, boolean makeMeasurements, int z, int t) {
 			
 			boolean updateNucleusROIs = rois == null || bpLoG == null;
 			updateNucleusROIs = updateNucleusROIs ? updateNucleusROIs : this.medianRadius != medianRadius;
 			this.medianRadius = medianRadius;
+			
+			updateNucleusROIs = updateNucleusROIs ? updateNucleusROIs : this.t != t || this.z != z;
+			this.z = z;
+			this.t = t;
 			
 			updateNucleusROIs = updateNucleusROIs ? updateNucleusROIs : this.backgroundRadius != backgroundRadius;
 			this.backgroundRadius = backgroundRadius;
