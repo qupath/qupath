@@ -195,6 +195,12 @@ public class TMASummaryViewer {
 	private ObservableList<TMAEntry> entriesBase = FXCollections.observableArrayList();
 	
 	/**
+	 * If trimUniqueIDs is true, Unique ID string will be trimmed to remove whitespace.
+	 * This can help with alignment problems due to the ID containing (unrecognized) additional spaces.
+	 */
+	private boolean trimUniqueIDs = true;
+	
+	/**
 	 * Maintain a reference to columns that were previously hidden whenever loading new data.
 	 * This helps maintain some continuity, so that if any columns have the same names then they 
 	 * can be hidden as well.
@@ -1296,6 +1302,16 @@ public class TMASummaryViewer {
 	
 	private void refreshTableData() {
 		
+//		int nn = 0;
+//		double nPositive = 0;
+//		for (TMAEntry entry : entriesBase) {
+//			if (entry.isMissing())
+//				continue;
+//			nPositive += entry.getMeasurementAsDouble("Num Positive");
+//			nn++;
+//		}
+//		System.err.println(nPositive + " positive cells across " + nn + " tissue samples");
+		
 		Collection<? extends TMAEntry> entries = groupByIDProperty.get() ? createSummaryEntries(entriesBase) : entriesBase;
 
 		// Ensure that we don't try to modify a filtered list
@@ -1571,8 +1587,15 @@ public class TMASummaryViewer {
 			Map<String, List<String>> metadataColumns = new LinkedHashMap<>();
 			Map<String, double[]> measurementColumns = new LinkedHashMap<>();
 			List<String> idColumn = csvData.remove(TMACoreObject.KEY_UNIQUE_ID);
-			if (idColumn != null)
+			if (idColumn != null) {
 				metadataColumns.put(TMACoreObject.KEY_UNIQUE_ID, idColumn);
+				
+				// Make sure IDs are trimmed
+				if (trimUniqueIDs) {
+					for (int i = 0; i < idColumn.size(); i++)
+						idColumn.set(i, idColumn.get(i).trim());
+				}
+			}
 			List<String> nameColumn = csvData.remove("Name");
 			if (nameColumn == null)
 				nameColumn = csvData.remove("Object");
