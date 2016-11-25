@@ -119,7 +119,7 @@ public class SimpleTissueDetection2 extends AbstractDetectionPlugin<BufferedImag
 		params.addBooleanParameter("smoothCoordinates", "Smooth coordinates", true, "Apply smmothing to region boundaries, to reduce 'blocky' appearance");
 		params.addBooleanParameter("excludeOnBoundary", "Exclude on boundary", false, "Discard detection regions that touch the image boundary");
 		
-		params.addBooleanParameter("singleAnnotation", "Single annotation", false, "Create a single annotation object from all (possibly-disconnected) regions");
+		params.addBooleanParameter("singleAnnotation", "Single annotation", true, "Create a single annotation object from all (possibly-disconnected) regions");
 
 	}
 	

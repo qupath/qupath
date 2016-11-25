@@ -367,15 +367,15 @@ public class CellCountsCV extends AbstractTileableDetectionPlugin<BufferedImage>
 				.addDoubleParameter("magnification", "Requested magnification", Double.NaN, null, "Magnification at which the detection should be run")
 				.addDoubleParameter("gaussianSigmaPixels", "Gaussian sigma", 1, "px", "Smoothing filter uses to reduce spurious peaks")
 				.addDoubleParameter("gaussianSigmaMicrons", "Gaussian sigma", 1.5, GeneralTools.micrometerSymbol(), "Smoothing filter uses to reduce spurious peaks")
-				.addDoubleParameter("backgroundRadiusPixels", "Background radius", 5, "px", "Filter size to estimate background; should be > the largest nucleus radius")
-				.addDoubleParameter("backgroundRadiusMicrons", "Background radius", 10, GeneralTools.micrometerSymbol(), "Filter size to estimate background; should be > the largest nucleus radius")
+				.addDoubleParameter("backgroundRadiusPixels", "Background radius", 20, "px", "Filter size to estimate background; should be > the largest nucleus radius")
+				.addDoubleParameter("backgroundRadiusMicrons", "Background radius", 15, GeneralTools.micrometerSymbol(), "Filter size to estimate background; should be > the largest nucleus radius")
 				.addBooleanParameter("doDoG", "Use Difference of Gaussians", true, "Apply Difference of Gaussians filter prior to detection - this tends to detect more nuclei, but may detect too many")
 				.addTitleParameter("Thresholding")
 				.addDoubleParameter("threshold", "Cell detection threshold", 0.1, null, "Hematoxylin intensity threshold")
-				.addDoubleParameter("thresholdDAB", "DAB threshold", 0.5, null, "DAB OD threshold for positive percentage counts")
+				.addDoubleParameter("thresholdDAB", "DAB threshold", 0.2, null, "DAB OD threshold for positive percentage counts")
 				.addBooleanParameter("ensureMainStain", "Hematoxylin predominant", false, "Accept detection only if haematoxylin value is higher than that of the second deconvolved stain")
 				.addTitleParameter("Display")
-				.addDoubleParameter("detectionDiameter", "Detection object diameter", 20, "pixels", "Adjust the size of detection object that is created around each peak (note, this does not influence which cells are detected");
+				.addDoubleParameter("detectionDiameter", "Detection object diameter", 25, "pixels", "Adjust the size of detection object that is created around each peak (note, this does not influence which cells are detected");
 
 		// Magnification is deprecated!
 		params.setHiddenParameters(true, "magnification");

@@ -2684,7 +2684,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				getActionMenuItem(GUIActions.TMA_RELABEL),
 				createCommandAction(new TMAGridReset(this), "Reset TMA metadata"),
 				getActionMenuItem(GUIActions.CLEAR_TMA_CORES),
-				createCommandAction(new TMAGridView(this), "TMA grid summary view (experimental)"),
+				createCommandAction(new TMAGridView(this), "TMA grid summary view"),
 //				createCommandAction(new TMAExplorer(this), "TMA explorer (experimental)"),
 				null,
 				createPluginAction("Find convex hull detections (TMA)", FindConvexHullDetectionsPlugin.class, this, false, null)
