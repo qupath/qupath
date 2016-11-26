@@ -54,10 +54,12 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.WeakHashMap;
+import java.util.Locale.Category;
 import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.concurrent.ExecutorCompletionService;
@@ -66,7 +68,6 @@ import java.util.concurrent.Executors;
 import java.util.jar.Attributes;
 import java.util.jar.JarFile;
 import java.util.jar.Manifest;
-import java.util.prefs.BackingStoreException;
 import java.util.stream.Collectors;
 
 import javax.imageio.ImageIO;
@@ -97,7 +98,9 @@ import javafx.concurrent.Task;
 import javafx.embed.swing.JFXPanel;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.event.ActionEvent;
+import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
+import javafx.geometry.Pos;
 import javafx.geometry.Rectangle2D;
 import javafx.scene.Cursor;
 import javafx.scene.Node;
@@ -131,6 +134,8 @@ import javafx.scene.control.ToggleGroup;
 import javafx.scene.control.ToolBar;
 import javafx.scene.control.Tooltip;
 import javafx.scene.effect.DropShadow;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
@@ -144,9 +149,11 @@ import javafx.scene.layout.Border;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.BorderStroke;
 import javafx.scene.layout.BorderStrokeStyle;
+import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Ellipse;
 import javafx.scene.shape.Rectangle;
+import javafx.scene.text.Font;
 import javafx.scene.text.TextAlignment;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
@@ -182,6 +189,7 @@ import qupath.lib.gui.commands.ProjectImportImagesCommand;
 import qupath.lib.gui.commands.ProjectMetadataEditorCommand;
 import qupath.lib.gui.commands.ProjectOpenCommand;
 import qupath.lib.gui.commands.ProjectSaveCommand;
+import qupath.lib.gui.commands.QuPathSetupCommand;
 import qupath.lib.gui.commands.ResetPreferencesCommand;
 import qupath.lib.gui.commands.RevertCommand;
 import qupath.lib.gui.commands.RigidObjectEditorCommand;
@@ -352,7 +360,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 								VIEW_TRACKER, MEASUREMENT_MAP, WORKFLOW_DISPLAY,
 								DELETE_SELECTED_OBJECTS, CLEAR_HIERARCHY, CLEAR_DETECTIONS, CLEAR_TMA_CORES, CLEAR_ANNOTATIONS,
 								PROJECT_NEW, PROJECT_OPEN, PROJECT_CLOSE, PROJECT_SAVE, PROJECT_IMPORT_IMAGES, PROJECT_EXPORT_IMAGE_LIST, PROJECT_METADATA,
-								PREFERENCES,
+								PREFERENCES, QUPATH_SETUP,
 								TRANSFER_ANNOTATION, SELECT_ALL_ANNOTATION, TOGGLE_SYNCHRONIZE_VIEWERS
 								};
 	
@@ -446,6 +454,11 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		
 		this.stage = stage;
 		this.isStandalone = isStandalone;
+		
+//		// Set the Locale, if required
+//		Locale localeFormat = PathPrefs.getDefaultLocale(Category.FORMAT);
+//		Locale localeDisplay = PathPrefs.getDefaultLocale(Category.DISPLAY);
+//		logger.info("Locales set to {} (format) and {} (display)", localeFormat, localeDisplay);
 		
 		menuBar = new MenuBar();
 		
@@ -556,11 +569,8 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			savePathClasses();
 			
 			// Flush the preferences
-			try {
-				PathPrefs.getUserPreferences().flush();
-			} catch (BackingStoreException bse) {
-				logger.error("Error flushing preferences", bse);
-			}
+			if (!PathPrefs.savePreferences())
+				logger.error("Error saving preferences");
 			
 			// Shut down any pools we know about
 			poolMultipleThreads.shutdownNow();
@@ -637,9 +647,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			openImage(path, false, false, false);
 		
 		// Set the icons
-		for (BufferedImage img : loadIconList()) {
-			stage.getIcons().add(SwingFXUtils.toFXImage(img, null));
-		}
+		stage.getIcons().addAll(loadIconList());
 		
 		
 		// Add scripts menu (delayed to here, since it takes a bit longer)
@@ -693,9 +701,6 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			checkForUpdate(true);
 
 	}
-	
-	
-	
 	
 	
 	/**
@@ -1259,6 +1264,98 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		}
 	}
 
+	
+	/**
+	 * Show a dialog requesting setup parameters
+	 * 
+	 * @return
+	 */
+	public boolean showSetupDialog() {
+		// Show a setup message
+		Dialog<ButtonType> dialog = new Dialog<>();
+		dialog.setTitle("QuPath setup");
+		dialog.initOwner(getStage());
+
+		// Try to get an image to display
+		Image img = loadIcon(128);
+		BorderPane pane = new BorderPane();
+		if (img != null) {
+			StackPane imagePane = new StackPane(new ImageView(img));
+			imagePane.setPadding(new Insets(10, 10, 10, 10));
+			pane.setLeft(imagePane);
+		}
+
+		Map<String, Locale> localeMap = Arrays.stream(Locale.getAvailableLocales()).collect(Collectors.toMap(l -> l.getDisplayName(Locale.US), l -> l));
+		localeMap.remove("");
+		List<String> localeList = new ArrayList<>(localeMap.keySet());
+		Collections.sort(localeList);
+		
+		long maxMemoryMB = Runtime.getRuntime().maxMemory() / 1024 / 1024;
+		String maxMemoryString = String.format("Current maximum memory is %.2f GB.", maxMemoryMB/1024.0);
+		
+		ParameterList paramsSetup = new ParameterList()
+				.addTitleParameter("Memory")
+				.addEmptyParameter("memoryString", "Set the maximum memory used by QuPath, or -1 to use the default.")
+				.addEmptyParameter("memoryString2", maxMemoryString);
+
+		boolean lowMemory = maxMemoryMB < 1024*6;
+		if (lowMemory) {
+			paramsSetup.addEmptyParameter("memoryStringWarning",
+					"It is suggested to increase the memory limit to approximately\nhalf of the RAM available on your computer."
+					);
+		}
+
+//				.addEmptyParameter("memoryString2", "Current ")
+		paramsSetup.addDoubleParameter("maxMemoryGB", "Maximum memory (GB)", -1, null, "Set the maximum memory for QuPath - considering using approximately half the total RAM for the system")
+				.addTitleParameter("Region")
+				.addEmptyParameter("localeString", "Set the region for QuPath to use for displaying numbers and messages.")
+				.addEmptyParameter("localeString2", "Note: Be careful if using a region for 'Numbers & dates' that uses a \ncomma as a decimal separator rather than a dot.")
+				.addEmptyParameter("localeString3", "Several QuPath commands require a dot separator for consistency.")
+				.addChoiceParameter("localeFormatting", "Numbers & dates", Locale.getDefault(Category.FORMAT).getDisplayName(), localeList, "Choose region settings used to format numbers and dates")
+				.addChoiceParameter("localeDisplay", "Messages", Locale.getDefault(Category.DISPLAY).getDisplayName(), localeList, "Choose region settings used for other formatting, e.g. in dialog boxes")
+				.addTitleParameter("Updates")
+				.addBooleanParameter("checkForUpdates", "Check for updates on startup (recommended)", PathPrefs.doAutoUpdateCheck(), "Specify whether to automatically prompt to download the latest QuPath on startup (required internet connection)")	
+				;
+
+		ParameterPanelFX parameterPanel = new ParameterPanelFX(paramsSetup);
+		pane.setCenter(parameterPanel.getPane());
+		
+		Label labelMemory = new Label("You will need to restart QuPath for memory changes to take effect");
+		labelMemory.setMaxWidth(Double.MAX_VALUE);
+		labelMemory.setAlignment(Pos.CENTER);
+		labelMemory.setFont(Font.font("Arial"));
+		labelMemory.setStyle("-fx-font-weight: bold;");
+		labelMemory.setPadding(new Insets(10, 10, 10, 10));
+		pane.setBottom(labelMemory);
+		
+//		dialog.initStyle(StageStyle.UNDECORATED);
+		dialog.getDialogPane().setContent(pane);
+		dialog.getDialogPane().getButtonTypes().setAll(ButtonType.APPLY, ButtonType.CANCEL);
+
+		Optional<ButtonType> result = dialog.showAndWait();
+		if (!result.isPresent() || !ButtonType.APPLY.equals(result.get()))
+			return false;
+		
+		Locale localeFormatting = localeMap.get(paramsSetup.getChoiceParameterValue("localeFormatting"));
+		Locale localeDisplay = localeMap.get(paramsSetup.getChoiceParameterValue("localeDisplay"));
+		
+		PathPrefs.setDefaultLocale(Category.FORMAT, localeFormatting);
+		PathPrefs.setDefaultLocale(Category.DISPLAY, localeDisplay);
+		
+		PathPrefs.setDoAutoUpdateCheck(paramsSetup.getBooleanParameterValue("checkForUpdates"));
+		int maxMemorySpecifiedMB = (int)(paramsSetup.getDoubleParameterValue("maxMemoryGB") * 1024 + 0.5);
+		if (maxMemorySpecifiedMB > 512) {
+			PathPrefs.maxMemoryMBProperty().set(maxMemorySpecifiedMB);
+		} else {
+			if (maxMemorySpecifiedMB >= 0)
+				DisplayHelpers.showErrorNotification("Max memory setting", "Specified maximum memory setting too low - will reset to default");
+			PathPrefs.maxMemoryMBProperty().set(-1);
+		}
+		
+		return true;
+	}
+	
+	
 	/**
 	 * Save available PathClasses to preferences.
 	 */
@@ -1340,18 +1437,32 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	 * 
 	 * @return
 	 */
-	List<BufferedImage> loadIconList() {
+	List<Image> loadIconList() {
 		try {
-			List<BufferedImage> icons = new ArrayList<>();
+			List<Image> icons = new ArrayList<>();
 			for (int i : new int[]{16, 32, 48, 64, 128, 256, 512}) {
-				InputStream stream = getClassLoader().getResourceAsStream("icons/QuPath_" + i + ".png");
-				if (stream != null)
-					icons.add(ImageIO.read(stream));
+				Image icon = loadIcon(i);
+				if (icon != null)
+					icons.add(icon);
 			}
 			if (!icons.isEmpty())
 				return icons;
 		} catch (Exception e) {
 			logger.warn("Unable to load icons");
+		}
+		return null;
+	}
+	
+	private Image loadIcon(int size) {
+		String path = "icons/QuPath_" + size + ".png";
+		try (InputStream stream = getClassLoader().getResourceAsStream(path)) {
+			if (stream != null) {
+				BufferedImage img = ImageIO.read(stream);
+				if (img != null)
+					return SwingFXUtils.toFXImage(img, null);
+			}
+		} catch (IOException e) {
+			logger.error("Unable to read icon from " + path);
 		}
 		return null;
 	}
@@ -2766,6 +2877,8 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		Menu menuHelp = createMenu(
 				"Help",
 //				createCommandAction(new HelpCommand(this), "Documentation"),
+				getAction(GUIActions.QUPATH_SETUP),
+				null,
 				createCommandAction(new OpenWebpageCommand(this, "http://go.qub.ac.uk/qupath-docs"), "Documentation (web)"),
 				createCommandAction(new OpenWebpageCommand(this, "http://go.qub.ac.uk/qupath-videos"), "Demo videos (web)"),
 //				createCommandAction(new OpenWebpageCommand(this, "http://go.qub.ac.uk/qupath-latest"), "Get latest version (web)"),
@@ -3232,6 +3345,9 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		case PREFERENCES:
 			return createCommandAction(new PreferencesCommand(this, prefsPanel), "Preferences...", PathIconFactory.createNode(iconSize, iconSize, PathIcons.COG), new KeyCodeCombination(KeyCode.COMMA, KeyCombination.SHORTCUT_DOWN));
 		
+		case QUPATH_SETUP:
+			return createCommandAction(new QuPathSetupCommand(this), "Show setup options");
+			
 		case TMA_ADD_NOTE:
 			return createCommandAction(new TMAAddNote(this), "Add TMA note");
 			

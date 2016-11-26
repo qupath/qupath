@@ -1,16 +1,18 @@
 ## Version 0.0.7
 
+* New 'Show setup options' dialog to encourage choosing important settings when QuPath is first used.
 * 'Fast cell counts' has numerous improvements, including displaying detections closer to the true nucleus center, giving a more informative error message when applied to a non-brightfield image, automatic calculation of a suitable magnification, and including an option to adjust the displayed detection size
 * Positive cell densities now calculated dynamically for annotations, or TMA cores containing single annotations with positive cells contained therein.
-* Added ROI centroids to measurement tables
-* Added sample script to estimate background RGB values for brightfield images; this improves optical density calculations (but without adjusting stain vectors)
-* 'Optical density sum' color transform display now incorporates RGB max values (previously these only influenced processing, but not the visualization provided by the Brightness/Contrast command)
-* The 'TMA data viewer' now includes p-values in plot legends, for better figure creation
-* The 'TMA data viewer' adds an optional display of 'At risk' patients for survival curves
-* Added new OpenSlide binaries for macOS to fix bug that prevented some *.mrxs files opening (if bmps were involved)
-* Fixed bug that caused scripts that logged a lot of text to cause the user interface to become sluggish or freeze
-* Fixed bug where cell detections were added to the wrong slice of a z-stack
-* Fixed bug that prevent Haralick textures being calculated for red, green or blue channels of an RGB image
+* Several default parameter values changed for 'Fast cell counts' and 'Simple tissue detection' for better generalization across different image types.
+* Added ROI centroids to measurement tables.
+* Added sample script to estimate background RGB values for brightfield images; this improves optical density calculations (but without adjusting stain vectors).
+* 'Optical density sum' color transform display now incorporates RGB max values (previously these only influenced processing, but not the visualization provided by the Brightness/Contrast command).
+* The 'TMA data viewer' now includes p-values in plot legends, for better figure creation.
+* The 'TMA data viewer' adds an optional display of 'At risk' patients for survival curves.
+* Added new OpenSlide binaries for macOS to fix bug that prevented some *.mrxs files opening (if bmps were involved).
+* Fixed bug that caused scripts that logged a lot of text to cause the user interface to become sluggish or freeze.
+* Fixed bug where cell detections were added to the wrong slice of a z-stack or time series.
+* Fixed bug that prevent Haralick textures being calculated for red, green or blue channels of an RGB image.
 
 
 ## Version 0.0.6

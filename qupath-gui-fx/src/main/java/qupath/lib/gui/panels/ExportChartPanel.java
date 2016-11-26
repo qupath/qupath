@@ -533,7 +533,7 @@ public class ExportChartPanel {
 	}
 
 	
-	private static void updateStoredPrefs() {
+	private synchronized static void updateStoredPrefs() {
 		List<String> prefs = new ArrayList<>();
 		try {
 			PathPrefs.getUserPreferences().sync();

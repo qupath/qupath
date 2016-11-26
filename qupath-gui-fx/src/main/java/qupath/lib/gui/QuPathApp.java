@@ -47,12 +47,16 @@ public class QuPathApp extends Application {
 	@Override
 	public void start(Stage stage) throws Exception {
 		// Handle any resets needed
-		List<String> args = getParameters().getRaw();
+		List<String> args = new ArrayList<>(getParameters().getRaw());
 		if (args.contains("reset")) {
 			PathPrefs.resetPreferences();
 			logger.info("Preferences have been reset");
-			args = new ArrayList<>(args);
 			args.remove("reset");
+		}
+		boolean skipSetup = false;
+		if (args.contains("skip-setup")) {
+			skipSetup = true;
+			args.remove("skip-setup");
 		}
 		
 		// Create main GUI
@@ -68,6 +72,20 @@ public class QuPathApp extends Application {
 		}
 		
 		gui.updateCursor();
+		
+		// Show setup if required, and if we haven't an argument specifying to skip
+		// Store a value indicating the setup version... this means we can enforce running 
+		// setup at a later date with a later version if new and necessary options are added
+		int currentSetup = 1; 
+		int lastSetup = PathPrefs.getUserPreferences().getInt("qupathSetupValue", -1);
+		if (!skipSetup && lastSetup != currentSetup) {
+			Platform.runLater(() -> {
+				if (gui.showSetupDialog()) {
+					PathPrefs.getUserPreferences().putInt("qupathSetupValue", currentSetup);
+					PathPrefs.savePreferences();
+				}
+			});
+		}
 		
 	}
 
