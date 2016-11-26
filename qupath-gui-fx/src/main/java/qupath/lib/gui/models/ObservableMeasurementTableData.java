@@ -1071,7 +1071,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 				else
 					dp = 4;
 			}
-			return GeneralTools.getFormatter(dp).format(val);
+			return GeneralTools.createFormatter(dp).format(val);
 		}
 		
 	}
@@ -1440,7 +1440,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 		double val = pathObject.getMeasurementList().getMeasurementValue(column);
 		if (Double.isNaN(val))
 			return "NaN";
-		return GeneralTools.getFormatter(4).format(val);
+		return GeneralTools.createFormatter(4).format(val);
 	}
 
 	public ReadOnlyListWrapper<String> getMetadataNames() {

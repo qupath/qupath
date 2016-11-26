@@ -24,6 +24,7 @@
 package qupath.lib.gui.commands;
 
 import java.awt.image.BufferedImage;
+import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -505,7 +506,7 @@ public class TMAGridView implements PathCommand, ImageDataChangeListener<Buffere
 			
 			if (measurement.getValue() != null && showMeasurement.getValue()) {
 				double value = model.getNumericValue(core, measurement.getValue());
-				setText(GeneralTools.getFormatter(2).format(value));
+				setText(GeneralTools.createFormatter(2).format(value));
 				setTextAlignment(TextAlignment.CENTER);
 				setAlignment(Pos.BOTTOM_CENTER);
 			} else
@@ -594,12 +595,13 @@ public class TMAGridView implements PathCommand, ImageDataChangeListener<Buffere
 		
 		void updateMeasurementText() {
 			String m = measurement == null ? null : measurement.get();
+			DecimalFormat formatter = GeneralTools.createFormatter(3);
 			for (Entry<TMACoreObject, Label> entry : nodeMap.entrySet()) {
 				if (m == null || !showMeasurement.get())
 					entry.getValue().setText(" ");
 				else {
 					double val = model.getNumericValue(entry.getKey(), m);
-					entry.getValue().setText(GeneralTools.getFormatter(3).format(val));
+					entry.getValue().setText(formatter.format(val));
 				}
 				entry.getValue().setContentDisplay(ContentDisplay.TOP);
 			}

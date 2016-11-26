@@ -135,15 +135,15 @@ public class LogRankTest {
 
 			String pValueString;
 			if (pValue > 1e-3)
-				pValueString = GeneralTools.getFormatter(4).format(pValue);					
+				pValueString = GeneralTools.createFormatter(4).format(pValue);					
 			else if (pValue > 1e-4)
-				pValueString = GeneralTools.getFormatter(5).format(pValue);					
+				pValueString = GeneralTools.createFormatter(5).format(pValue);					
 			else if (pValue > 1e-5)
-				pValueString = GeneralTools.getFormatter(6).format(pValue);					
+				pValueString = GeneralTools.createFormatter(6).format(pValue);					
 			else if (pValue > 1e-6)
-				pValueString = GeneralTools.getFormatter(7).format(pValue);					
+				pValueString = GeneralTools.createFormatter(7).format(pValue);					
 			else
-				pValueString = GeneralTools.getFormatter(8).format(pValue);					
+				pValueString = GeneralTools.createFormatter(8).format(pValue);					
 			//		}
 
 			return String.format("%s (%.2f; %.2f-%.2f)", pValueString, hazardRatio, hazardRatioLowerConfidence, hazardRatioUpperConfidence);

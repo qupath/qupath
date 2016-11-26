@@ -161,7 +161,7 @@ public class KaplanMeierChartWrapper {
 			@Override
 			public String toString(Number object) {
 				double d = object.doubleValue();
-				String s = GeneralTools.getFormatter(2).format(d);
+				String s = GeneralTools.createFormatter(2).format(d);
 				if (showAtRisk.get()) {
 //					s += "\n---";
 					s += d == 0 ? "\n-At risk-" : "\n---";
@@ -467,7 +467,7 @@ public class KaplanMeierChartWrapper {
 		Series<Number, Number> series;
 		if (kmList.size() == 2) {
 			LogRankResult logRankResult = LogRankTest.computeLogRankTest(kmList.get(0), kmList.get(1));
-			String pValueString = "p = " + GeneralTools.getFormatter(3).format(logRankResult.getPValue());
+			String pValueString = "p = " + GeneralTools.createFormatter(3).format(logRankResult.getPValue());
 			
 //			series = new Series<>();
 //			series.setName("Log-rank test");

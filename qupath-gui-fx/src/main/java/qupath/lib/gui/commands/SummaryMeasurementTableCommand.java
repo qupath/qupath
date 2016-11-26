@@ -118,9 +118,9 @@ public class SummaryMeasurementTableCommand implements PathCommand {
 	private QuPathGUI qupath;
 	private Class<? extends PathObject> type;
 	
-	private final static DecimalFormat df1 = GeneralTools.getFormatter(1);
-	private final static DecimalFormat df2 = GeneralTools.getFormatter(2);
-	private final static DecimalFormat df3 = GeneralTools.getFormatter(3);
+	private final static DecimalFormat df1 = GeneralTools.createFormatter(1);
+	private final static DecimalFormat df2 = GeneralTools.createFormatter(2);
+	private final static DecimalFormat df3 = GeneralTools.createFormatter(3);
 	
 	/**
 	 * Max thumbnails to store in cache
