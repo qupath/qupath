@@ -153,3 +153,126 @@ mvn org.apache.maven.plugins:maven-install-plugin:2.5.2:install-file  -Dfile=./o
 ```
 
 Pay attention to the use of a classifier... and be sure to set this if adding native libraries for some other platform.
+
+
+
+
+## Notes on packaging OpenSlide for Linux
+
+### Download and compile OpenSlide and OpenSlide Java interface
+
+Both can be downloaded from [the OpenSlide website](http://openslide.org/download/)
+
+Compilation is described in the ReadMe.txt with the download.  For OpenSlide itself this is generally straightforward.
+
+```bash
+./configure
+make
+make install
+```
+
+The same can be tried for the Java interface, but it may be necessary to use the following instead.
+
+```bash
+./configure --with-jni-headers=cross
+make
+make install
+```
+
+### Bring together required native libraries
+
+Find and enter a nice new directory in which everything can be brought together, and create a ```libs``` subdirectory within it containing the main OpenSlide and OpenSlide Java libraries.
+
+For example, something like this:
+
+```bash
+mkdir ./openslide-qupath
+cd ./openslide-qupath
+mkdir ./libs
+cp /usr/local/lib/libopenslide.so.0 ./
+cp /usr/local/lib/openslide-java/libopenslide-jni.so ./
+cp /usr/local/lib/openslide-java/openslide.jar ./
+```
+
+Then it's a matter of copying over everything that is required, and setting the ```rpath``` appropriately so that libraries look in the same directory where needed.
+
+```bash
+# Copy the main OpenSlide (+ Java) libraries, setting the rpath
+cp ./libopenslide.so.0 ./libs/
+patchelf --set-rpath '$ORIGIN' ./libs/libopenslide.so.0
+
+cp ./libopenslide-jni.so ./libs/
+patchelf --set-rpath '$ORIGIN' ./libs/libopenslide-jni.so
+
+# Copy over all (non-standard) dependencies, also setting the rpath
+for l in $(ldd ./libopenslide.so.0 | egrep "(/usr/lib/)|(prefix64)|(libpng)" | cut -d ' ' -f 3 | egrep -v "lib(X|x|GL|gl|drm)" | tr '\n' ' '); do
+  cp $l ./libs/
+  fname=`basename $l`
+  echo $fname
+  patchelf --set-rpath '$ORIGIN' ./libs/$fname
+done
+```
+
+Part of the above is based on the excellent instructions [here](https://ooc-lang.org/docs/tools/rock/packaging/), with a few modifications - in particular:
+
+* ```patchelf``` is added to set the ```rpath``` to look in the local directory
+* ```libpng``` needed to be explicitly included... since it also occurs inside ```/lib/``` in my Ubuntu installation.
+
+
+### Remove any libraries that aren't needed
+
+This may or may not be a good idea... but the above steps have a tendancy to bring over more libraries than OpenSlide 'normally' includes - presumably because they aren't needed, or because they are expected to already exist.
+
+Since we don't want to distribute something unnecessary - or, more importantly, without the necessary license/copyright files included - the following filters out some of the (presumed) extras:
+```bash
+rm ./libs/libstdc++*
+rm ./libs/libfontconfig*
+rm ./libs/libfreetype*
+rm ./libs/libicu*
+rm ./libs/libjbig*
+```
+
+This may need to be revisited if it turns out these are more necessary than I realize...
+
+
+### Remove absolute path for openslide.jar
+
+In the event that ```openslide.jar``` is required (it only needs to be created once for Linux/macOS or Windows), remove the absolute path it contains as described above:
+
+```bash
+zip -d ./openslide.jar resources/openslide.properties
+```
+
+### Bundle native libraries into a JAR
+
+Now bundle up the libraries into a JAR with
+
+```bash
+jar cf ./openslide-natives-linux.jar -C ./libs .
+```
+
+### Install to a (local) Maven repository
+
+Finally, add the native libraries to Maven - using something like the following:
+
+```bash
+mvn org.apache.maven.plugins:maven-install-plugin:2.5.2:install-file  -Dfile=./openslide-natives-linux.jar \
+                                                                              -DpomFile=./openslide-3.4.1.pom \
+                                                                              -DgroupId=org.openslide \
+                                                                              -DartifactId=openslide \
+                                                                              -Dversion=3.4.1 \
+                                                                              -Dclassifier=natives-linux \
+                                                                              -Dpackaging=jar \
+                                                                              -DlocalRepositoryPath=/path/to/repository
+```																																							
+
+Check out the macOS instructions for more information on this step.
+
+
+## Notes on packaging OpenSlide for Windows
+
+Working with OpenSlide and Windows is considerably easier... since the binaries may be downloaded from the OpenSlide website, including license files.
+
+Any license updates should be added within QuPath.
+
+Otherwise, creating and installing a Jar in the local Maven repository is similar to the process described for Mac and Linux.

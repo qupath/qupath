@@ -74,12 +74,25 @@
 		
 		<!--
 			Copy packager.jar (needed to set memory limits from within GUI)
+			This is usually easy to find relative to ${java.home}, but in Ubuntu it's located elsewhere
+			For now, we just try the other location that I know about (rather than searching properly)
 			-->
+		
+		<available file="${java.home}/../lib/packager.jar" property="packager.path" value="${java.home}/../lib/" />
+		<condition property="packager.path" value="/usr/share/java/openjfx/lib/">
+			<and>
+				<available file="/usr/share/java/openjfx/lib/packager.jar" />
+				<not>
+					<isset property="packager.path" />
+				</not>
+			</and>
+		</condition>
 		<copy todir="${basedir}/jars">
-			<fileset dir="${java.home}/../lib">
+			<fileset dir="${packager.path}">
 				<include name="packager.jar"/>
 			</fileset>
 		</copy>
+		<echo message="Packager expected in ${packager.path}" />
 		
 	</target>
 	<target xmlns:fx="javafx:com.sun.javafx.tools.ant" name="do-deploy" depends="init-fx-tasks, do-compile">
