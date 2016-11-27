@@ -23,7 +23,7 @@ For documentation and more information, see the [QuPath Wiki](https://go.qub.ac.
 
 Copyright 2014-2016 The Queen's University of Belfast, Northern Ireland
 
-![Image](../../wiki/images/features/qupath_viewer.jpg)
+![Image](https://raw.githubusercontent.com/wiki/qupath/qupath/images/qupath_demo.jpg)
 
 ----
 
