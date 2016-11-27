@@ -229,10 +229,21 @@ rm ./libs/libstdc++*
 rm ./libs/libfontconfig*
 rm ./libs/libfreetype*
 rm ./libs/libicu*
-rm ./libs/libjbig*
 ```
 
 This may need to be revisited if it turns out these are more necessary than I realize...
+
+
+> **A new consideration!**
+
+> The default installation of ```libtiff``` on Ubuntu also includes ```jbig``` - which would result in the combination being GPL rather than LGPL.  That's not a problem in itself (since QuPath is GPL), except that it would be very much preferable to keep the license situation with regard to OpenSlide as clear as possible.
+
+> In this regard, OpenSlide's build scripts for Windows involve compiling ```libtiff``` with the flags
+```./configure --disable-jbig --disable-lzma CPPFLAGS="${cppflags} -DTIF_PLATFORM_CONSOLE"```
+
+> At the expense of slightly complicating the build, QuPath ought to do this too.
+
+> (Longer term, a more complete build script for OpenSlide on macOS and Linux patterned on the 'official' Windows script is probably needed.)
 
 
 ### Remove absolute path for openslide.jar
