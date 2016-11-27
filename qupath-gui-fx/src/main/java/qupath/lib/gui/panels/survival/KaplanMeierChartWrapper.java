@@ -31,6 +31,11 @@ import org.controlsfx.control.action.ActionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.SimpleBooleanProperty;
+import javafx.collections.ListChangeListener.Change;
+import javafx.geometry.Orientation;
+import javafx.geometry.Pos;
 import javafx.geometry.Side;
 import javafx.print.PrinterJob;
 import javafx.scene.Node;
@@ -39,7 +44,12 @@ import javafx.scene.SnapshotParameters;
 import javafx.scene.chart.LineChart;
 import javafx.scene.chart.NumberAxis;
 import javafx.scene.chart.XYChart;
+import javafx.scene.chart.XYChart.Series;
+import javafx.scene.chart.Axis;
+import javafx.scene.chart.Axis.TickMark;
+import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.ContextMenu;
+import javafx.scene.control.Label;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.RadioMenuItem;
@@ -51,9 +61,16 @@ import javafx.scene.input.ClipboardContent;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
+import javafx.scene.layout.TilePane;
+import javafx.scene.text.Text;
+import javafx.scene.text.TextAlignment;
 import javafx.scene.transform.Transform;
 import javafx.stage.Stage;
+import javafx.util.StringConverter;
 import qupath.lib.analysis.stats.survival.KaplanMeierData;
+import qupath.lib.analysis.stats.survival.LogRankTest;
+import qupath.lib.analysis.stats.survival.LogRankTest.LogRankResult;
+import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.helpers.ChartToolsFX;
 import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.gui.panels.ExportChartPanel;
@@ -72,8 +89,63 @@ public class KaplanMeierChartWrapper {
 
 	private NumberAxis xAxis = new NumberAxis();
 	private NumberAxis yAxis = new NumberAxis();
-	private LineChart<Number, Number> chart = new LineChart<>(xAxis, yAxis);
+	
+	private KaplanMeierChart chart = new KaplanMeierChart(xAxis, yAxis);
+	
+	
+	static class KaplanMeierChart extends LineChart<Number, Number> {
+		
+		public KaplanMeierChart(Axis<Number> xAxis, Axis<Number> yAxis) {
+			super(xAxis, yAxis);
+		}
+		
+		protected void updateLegend() {
+			super.updateLegend();
+			
+			if (getLegend() instanceof TilePane) {
+				TilePane tp = (TilePane)getLegend();
+	//			if (getLegendSide() == Side.RIGHT)
+	//				tp.setTranslateX(-tp.getWidth());
+				tp.setTranslateX(0);
+				tp.setOrientation(Orientation.VERTICAL);
+			}
+			
+			// Here, we remove the graphic for any series that doesn't have data
+			// This allows us to add in any 'empty' series to provide extra info 
+			// in the legend (i.e. p-values)
+			for (Node node : ((Pane)getLegend()).getChildren()) {
+				if (node instanceof Label) {
+					Label label = (Label)node;
+					String name = label.getText();
+					for (Series<?, ?> series : getData()) {
+						if (series.getName().equals(name)) {
+							if (series.getData().isEmpty()) {
+//								int ind = name.indexOf("p = ");
+//								if (ind > 0) {
+//									label.setText(name.substring(0, ind));
+//									label.setGraphic(new Label(name.substring(ind)));
+//									label.setContentDisplay(ContentDisplay.RIGHT);
+//									
+//									label.setAlignment(Pos.CENTER_LEFT);
+//								} else
+									label.setGraphic(null);
+//								label.setAlignment(Pos.CENTER_RIGHT);
+								label.setMaxWidth(Double.MAX_VALUE);
+							} else
+								label.setContentDisplay(ContentDisplay.LEFT);
+							break;
+						}
+					}
+				}
+			}
+		}
+		
+	}
+	
+	
 
+	private BooleanProperty showAtRisk = new SimpleBooleanProperty(false);
+	
 	KaplanMeierChartWrapper(final String survivalKey) {
 		super();
 		//			yAxis.setAutoRanging(false);
@@ -83,7 +155,62 @@ public class KaplanMeierChartWrapper {
 		yAxis.setLabel("Probability");
 		xAxis.setLabel(survivalKey);
 		//			yAxis.setPadding(new Insets(5, 5, 5, 5));
+		
+		xAxis.setTickLabelFormatter(new StringConverter<Number>() {
 
+			@Override
+			public String toString(Number object) {
+				double d = object.doubleValue();
+				String s = GeneralTools.createFormatter(2).format(d);
+				if (showAtRisk.get()) {
+//					s += "\n---";
+					s += d == 0 ? "\n-At risk-" : "\n---";
+					for (KaplanMeierData kmData : kmList) {
+						if (d == 0) {
+							s += "\n" + kmData.getName() + ": " + kmData.getAtRisk(d);
+						} else {
+							s += "\n" + kmData.getAtRisk(d-0.0001);
+						}
+					}
+				}
+				return s;
+			}
+
+			@Override
+			public Number fromString(String s) {
+				if (s == null)
+					return null;
+				return Double.parseDouble(s.split("\n")[0]);
+			}
+			
+		});
+		
+		xAxis.getTickMarks().addListener((Change<? extends TickMark<Number>> v) -> {
+			// Center all the text children
+			for (Node node : xAxis.getChildrenUnmodifiable()) {
+				if (node instanceof Text) {
+					Text text = (Text)node;
+					text.setTextAlignment(TextAlignment.CENTER);
+				}
+			}
+			
+//			for (TickMark<Number> mark : v.getList()) {
+//				mark.
+//				TickMark.class.getField("")
+//			}
+//				System.err.println(v.getList().get(0).getClass());			
+		});
+//		xAxis.lay
+		
+		
+		showAtRisk.addListener((v, o, n) -> {
+			updateChart();
+			chart.layout();
+//			xAxis.requestAxisLayout();
+//			chart.requestLayout();
+//			chart.layout();
+		});
+		
 
 		// TODO: Fix printing - may depend on Java bug fix https://bugs.openjdk.java.net/browse/JDK-8129364
 		ContextMenu menu = new ContextMenu();
@@ -217,8 +344,19 @@ public class KaplanMeierChartWrapper {
 		yAxis.setUpperBound(1);
 
 		chart.setLegendSide(Side.RIGHT);
-
+		
 		updateChart();
+
+//		if (kms.length == 2) {
+//			LogRankResult logRankResult = LogRankTest.computeLogRankTest(kms[0], kms[1]);
+//			String pValueString = "p = " + GeneralTools.getFormatter(5).format(logRankResult.getPValue());
+//			Series<Number, Number> series = new Series<>();
+//			series.setName(pValueString);
+//			series.setNode(null);
+//			chart.getData().add(series);
+//		}
+
+		
 		return this;
 	}
 
@@ -227,7 +365,7 @@ public class KaplanMeierChartWrapper {
 	//			return canvas;
 	//		}
 
-	public LineChart<Number, Number> getCanvas() {
+	public Node getCanvas() {
 		return chart;
 	}
 
@@ -239,7 +377,15 @@ public class KaplanMeierChartWrapper {
 	public boolean getShowKey() {
 		return chart.isLegendVisible();
 	}
+	
+	
+	public boolean getShowAtRisk() {
+		return showAtRisk.get();
+	}
 
+	public void setShowAtRisk(boolean show) {
+		showAtRisk.set(show);
+	}
 
 	public boolean getShowCensoredTicks() {
 		return chart.getCreateSymbols();
@@ -317,6 +463,89 @@ public class KaplanMeierChartWrapper {
 			chart.getData().remove(count);
 		
 		
+		// Show p-values if we have 2 or 3
+		Series<Number, Number> series;
+		if (kmList.size() == 2) {
+			LogRankResult logRankResult = LogRankTest.computeLogRankTest(kmList.get(0), kmList.get(1));
+			String pValueString = "p = " + GeneralTools.createFormatter(3).format(logRankResult.getPValue());
+			
+//			series = new Series<>();
+//			series.setName("Log-rank test");
+//			series.setNode(null);
+//			chart.getData().add(series);
+
+			series = new Series<>();
+			series.setName(pValueString);
+			series.setNode(null);
+			chart.getData().add(series);
+		} else if (kmList.size() == 3) {
+			LogRankResult logRankResult = LogRankTest.computeLogRankTest(kmList.get(0), kmList.get(1));
+			
+//			series = new Series<>();
+//			series.setName("Log-rank test");
+//			series.setNode(null);
+//			chart.getData().add(series);
+			
+			series = new Series<>();
+			series.nameProperty().bind(
+					chart.getData().get(0).nameProperty()
+					.concat(" vs ")
+					.concat(chart.getData().get(1).nameProperty())
+					.concat(String.format(": p = %.4f", logRankResult.getPValue())));
+			series.setNode(null);
+			chart.getData().add(series);
+			
+			logRankResult = LogRankTest.computeLogRankTest(kmList.get(0), kmList.get(2));
+			series = new Series<>();
+			series.nameProperty().bind(
+					chart.getData().get(0).nameProperty()
+					.concat(" vs ")
+					.concat(chart.getData().get(2).nameProperty())
+					.concat(String.format(": p = %.4f", logRankResult.getPValue())));
+			series.setNode(null);
+			chart.getData().add(series);
+
+			logRankResult = LogRankTest.computeLogRankTest(kmList.get(1), kmList.get(2));
+			series = new Series<>();
+			series.nameProperty().bind(
+					chart.getData().get(1).nameProperty()
+					.concat(" vs ")
+					.concat(chart.getData().get(2).nameProperty())
+					.concat(String.format(": p = %.4f", logRankResult.getPValue())));
+			series.setNode(null);
+			chart.getData().add(series);
+			
+//			series = new Series<>();
+//			series.nameProperty().bind(
+//					chart.getData().get(0).nameProperty()
+//					.concat(" vs ")
+//					.concat(chart.getData().get(1).nameProperty())
+//					.concat(": p = " + GeneralTools.getFormatter(3).format(logRankResult.getPValue())));
+//			series.setNode(null);
+//			chart.getData().add(series);
+//			
+//			logRankResult = LogRankTest.computeLogRankTest(kmList.get(0), kmList.get(2));
+//			series = new Series<>();
+//			series.nameProperty().bind(
+//					chart.getData().get(0).nameProperty()
+//					.concat(" vs ")
+//					.concat(chart.getData().get(2).nameProperty())
+//					.concat(": p = " + GeneralTools.getFormatter(3).format(logRankResult.getPValue())));
+//			series.setNode(null);
+//			chart.getData().add(series);
+//
+//			logRankResult = LogRankTest.computeLogRankTest(kmList.get(1), kmList.get(2));
+//			series = new Series<>();
+//			series.nameProperty().bind(
+//					chart.getData().get(1).nameProperty()
+//					.concat(" vs ")
+//					.concat(chart.getData().get(2).nameProperty())
+//					.concat(": p = " + GeneralTools.getFormatter(3).format(logRankResult.getPValue())));
+//			series.setNode(null);
+//			chart.getData().add(series);
+		}
+
+		
 //		for (Series<Number, Number> series : chart.getData()) {
 //			System.out.println(series.getName());
 //			for (Data<Number, Number> data : series.getData()) {
@@ -332,13 +561,26 @@ public class KaplanMeierChartWrapper {
 			
 			XYChart<Number, Number> chart2;
 			try {
-				NumberAxis xAxis = new NumberAxis();
-				NumberAxis yAxis = new NumberAxis();
 				KaplanMeierChartWrapper kmPlotter2 = new KaplanMeierChartWrapper(kmPlotter.chart.getXAxis().getLabel());
+				NumberAxis xAxis = kmPlotter2.xAxis;
+				NumberAxis yAxis = kmPlotter2.yAxis;
 				kmPlotter2.kmList.addAll(kmPlotter.kmList);
-				xAxis.labelProperty().bind(kmPlotter.chart.getXAxis().labelProperty());
-				yAxis.labelProperty().bind(kmPlotter.chart.getYAxis().labelProperty());
+//				xAxis.labelProperty().bind(kmPlotter.chart.getXAxis().labelProperty());
+				int n = kmPlotter.kmList.size();
+				if (!kmPlotter.kmList.isEmpty()) {
+					xAxis.setAutoRanging(false);
+					xAxis.setLowerBound(0);
+					xAxis.setUpperBound(Math.ceil(kmPlotter.kmList.get(n-1).getMaxTime()));
+				}
+				yAxis.setLabel(kmPlotter.chart.getYAxis().getLabel());
+//				yAxis.labelProperty().bind(kmPlotter.chart.getYAxis().labelProperty());
+				yAxis.setAutoRanging(false);
+				yAxis.setLowerBound(0);
+				yAxis.setUpperBound(1);
 				kmPlotter2.updateChart();
+				
+				kmPlotter2.setShowAtRisk(kmPlotter.getShowAtRisk());
+				kmPlotter2.setShowCensoredTicks(kmPlotter.getShowCensoredTicks());
 				
 				chart2 = kmPlotter2.chart;
 				
@@ -355,118 +597,6 @@ public class KaplanMeierChartWrapper {
 				DisplayHelpers.showErrorNotification("Survival curve error", "Unable to copy the current survival curve!");
 				logger.error("Survival curve copy error", e);
 			}
-			
-//			
-//			NumberAxis xAxis = new NumberAxis();
-//			NumberAxis yAxis = new NumberAxis();
-//			KaplanMeierChartWrapper kmPlotter2 = new KaplanMeierChartWrapper(kmPlotter.chart.getXAxis().getLabel());
-//			kmPlotter2.kmList.addAll(kmPlotter.kmList);
-//			//			LineChart<Number, Number> chart2 = new LineChart<>(xAxis, yAxis);
-//			LineChart<Number, Number> chart2 = kmPlotter2.chart;
-//			
-//			
-//			chart2.setStyle("-fx-background-color: rgba(255, 255, 255, 0);");
-//			chart2.lookup(".chart-plot-background").setStyle("-fx-background-color: rgba(255, 255, 255, 0);");
-//			//			chart2.setOnMouseClicked(e -> {
-//			//				if (e.getClickCount() > 0) {
-//			//					chart2.setStyle("-fx-background-color: rgba(255, 255, 255, 0);");
-//			//					chart2.lookup(".chart-plot-background").setStyle("-fx-background-color: rgba(255, 255, 255, 0);");
-//			//				}
-//			//			});
-//			//			kmPlotter.chart.getData().addListener(new InvalidationListener() {
-//			//				@Override
-//			//				public void invalidated(Observable observable) {
-//			//					chart2.getData().setAll(kmPlotter.chart.getData());
-//			//				}
-//			//			});
-//			//			chart2.getData().setAll(kmPlotter.chart.getData());
-//			//			chart2.dataProperty().bind(kmPlotter.chart.dataProperty());
-//			chart2.setAnimated(false);
-//			xAxis.labelProperty().bind(kmPlotter.chart.getXAxis().labelProperty());
-//			yAxis.labelProperty().bind(kmPlotter.chart.getYAxis().labelProperty());
-//			kmPlotter2.updateChart();
-//
-//			Stage dialog = new Stage();
-//
-//			CheckBox cbLegend = new CheckBox("Show legend");
-//			chart2.legendVisibleProperty().bind(cbLegend.selectedProperty());
-//			TextField tfWidth = new TextField();
-//			tfWidth.setPrefColumnCount(8);
-//			TextField tfHeight = new TextField();
-//			tfHeight.setPrefColumnCount(8);
-//			Button btnSizeApply = new Button("Apply");
-//			btnSizeApply.setOnAction(e -> {
-//				try {
-//					
-////					Node node = chart2.lookup(".chart-legend");
-////					System.err.println(node);
-////					Node node = chart2.lookup(".chart-legend");
-////					System.err.println(((Region)node).getChildrenUnmodifiable());
-//					
-//					int w = Integer.parseInt(tfWidth.getText().trim());
-//					int h = Integer.parseInt(tfHeight.getText().trim());
-//					if (w > 0 && h > 0) {
-//						dialog.setWidth(w);
-//						dialog.setHeight(h);
-//					} else
-//						DisplayHelpers.showErrorMessage("Survival curve size", "Width & height must both be > 0");
-//				} catch (NumberFormatException ex) {
-//					DisplayHelpers.showErrorMessage("Survival curve size", "Cannot parse sizes");
-//				}
-//			});
-//
-//			Button btnCopy = new Button("Copy");
-//			btnCopy.setOnAction(e -> {
-//				WritableImage img = chart2.snapshot(null, null);
-//				ClipboardContent content = new ClipboardContent();
-//				content.putImage(img);
-//				Clipboard.getSystemClipboard().setContent(content);
-//			});
-//			Button btnCopyHiRes = new Button("Copy high res");
-//			btnCopyHiRes.setOnAction(e -> {
-//				// Create a snapshot at 4x the current resolution
-//				double scale = 4;
-//				Region region = chart2;
-//				int w = (int)(region.getWidth() * scale + 0.5);
-//				int h = (int)(region.getHeight() * scale + 0.5);
-//				SnapshotParameters params = new SnapshotParameters();
-//				params.setTransform(Transform.scale(scale, scale));
-//				WritableImage img = region.snapshot(params, new WritableImage(w, h));
-//				ClipboardContent content = new ClipboardContent();
-//				content.putImage(img);
-//				Clipboard.getSystemClipboard().setContent(content);
-//			});
-//
-//			GridPane paneButtons = new GridPane();
-//			paneButtons.setHgap(5);
-//			paneButtons.setVgap(5);
-//			paneButtons.setPadding(new Insets(10, 10, 10, 10));
-//			int r = 0;
-//			int c = 0;
-//			paneButtons.add(cbLegend, c++, r);
-//			paneButtons.add(new Separator(Orientation.VERTICAL), c++, r);
-//			paneButtons.add(new Label("Width"), c++, r);
-//			paneButtons.add(tfWidth, c++, r);
-//			paneButtons.add(new Label("Height"), c++, r);
-//			paneButtons.add(tfHeight, c++, r);
-//			paneButtons.add(btnSizeApply, c++, r);
-//			r++;
-//			Pane paneCopy = PanelToolsFX.createColumnGridControls(btnCopy, btnCopyHiRes);
-//			paneButtons.add(paneCopy, 0, r, c, 1);
-//			GridPane.setHgrow(paneCopy, Priority.ALWAYS);
-//
-//
-//
-//			Window window = kmPlotter.chart.getScene().getWindow();
-//			if (window != null)
-//				dialog.initOwner(window);
-//			BorderPane pane = new BorderPane();
-//			pane.setCenter(chart2);
-//			pane.setBottom(paneButtons);
-//			Scene scene = new Scene(pane);
-//			dialog.setTitle("Survival plot");
-//			dialog.setScene(scene);
-//			dialog.show();
 		}
 	
 	

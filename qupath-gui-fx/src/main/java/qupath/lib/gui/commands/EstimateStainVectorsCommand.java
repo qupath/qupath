@@ -226,7 +226,7 @@ public class EstimateStainVectorsCommand implements PathCommand {
 		TableColumn<Integer, String> colAngle = new TableColumn<>("Angle");
 		colAngle.setCellValueFactory(v -> {
 			return new SimpleStringProperty(
-					GeneralTools.getFormatter(2).format(
+					GeneralTools.createFormatter(2).format(
 						StainVector.computeAngle(
 						stainsWrapper.getOriginalStains().getStain(v.getValue()),
 						stainsWrapper.getStains().getStain(v.getValue()))

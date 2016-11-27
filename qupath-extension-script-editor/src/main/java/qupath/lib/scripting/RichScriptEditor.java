@@ -137,6 +137,7 @@ public class RichScriptEditor extends DefaultScriptEditor {
 //			METHOD_NAMES.add(method.getName());
 //		}
 		METHOD_NAMES.add("print");
+		METHOD_NAMES.add("println");
 		
 		final String KEYWORD_PATTERN = "\\b(" + String.join("|", KEYWORDS) + ")\\b";
 		final String METHOD_PATTERN = "\\b(" + String.join("|", METHOD_NAMES) + ")\\b";
@@ -285,7 +286,17 @@ public class RichScriptEditor extends DefaultScriptEditor {
 		try {
 			CodeArea codeArea = new CodeArea();
 			codeArea.richChanges().subscribe(change -> {
-	            codeArea.setStyleSpans(0, computeConsoleHighlighting(codeArea.getText()));
+				// If anything was removed, do full reformatting
+				if (change.getRemoved().length() != 0 || change.getPosition() == 0) {
+					if (!change.getRemoved().getText().equals(change.getInserted().getText()))
+//						System.err.println("Slow version!");
+						codeArea.setStyleSpans(0, computeConsoleHighlighting(codeArea.getText()));					
+				} else {
+//					System.err.println("FAST version!");
+					// Otherwise format only from changed position onwards
+					codeArea.setStyleSpans(change.getPosition(), computeConsoleHighlighting(change.getInserted().getText()));
+				}
+//	            codeArea.setStyleSpans(0, computeConsoleHighlighting(codeArea.getText()));					
 	        });
 			codeArea.getStylesheets().add(getClass().getClassLoader().getResource("scripting_styles.css").toExternalForm());
 			return new CodeAreaControl(codeArea);

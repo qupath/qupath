@@ -108,6 +108,7 @@ import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.gui.helpers.DisplayHelpers.DialogButton;
 import qupath.lib.gui.logging.LoggingAppender;
+import qupath.lib.gui.logging.TextAppendable;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
@@ -524,7 +525,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 				createKillRunningScriptAction("Kill running script"),
 				null,
 				QuPathGUI.createCheckMenuItem(QuPathGUI.createSelectableCommandAction(useDefaultBindings, "Include default bindings")),
-				QuPathGUI.createCheckMenuItem(QuPathGUI.createSelectableCommandAction(sendLogToConsole, "Send log to console")),
+				QuPathGUI.createCheckMenuItem(QuPathGUI.createSelectableCommandAction(sendLogToConsole, "Send output to log")),
 				QuPathGUI.createCheckMenuItem(QuPathGUI.createSelectableCommandAction(outputScriptStartTime, "Log script start time")),
 				QuPathGUI.createCheckMenuItem(QuPathGUI.createSelectableCommandAction(autoClearConsole, "Auto clear console"))
 				);
@@ -663,13 +664,13 @@ public class DefaultScriptEditor implements ScriptEditor {
 		context.setWriter(new ScriptConsoleWriter(console, false));
 		context.setErrorWriter(new ScriptConsoleWriter(console, true));
 		
-		LoggingAppender.getInstance().addTextComponent(console.textProperty());
+		LoggingAppender.getInstance().addTextComponent(console);
 		if (outputScriptStartTime.get())
 			logger.info("Starting script at {}", new Date());
 		Object result = executeScript(tab.getLanguage(), script, imageData, useDefaultBindings.get(), context);
 		if (result != null)
 			logger.info("Result: {}", result);
-		LoggingAppender.getInstance().removeTextComponent(console.textProperty());
+		LoggingAppender.getInstance().removeTextComponent(console);
 	}
 
 	/**
@@ -894,8 +895,9 @@ public class DefaultScriptEditor implements ScriptEditor {
 	class ScriptConsoleWriter extends Writer {
 
 		private ScriptEditorControl doc;
-//		private AttributeSet attributes;
 		private boolean isErrorWriter = false;
+//		private int flushCount = 0;
+		private StringBuilder sb = new StringBuilder();
 
 		ScriptConsoleWriter(final ScriptEditorControl doc, final boolean isErrorWriter) {
 			super();
@@ -905,7 +907,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 		}
 
 		@Override
-		public void write(char[] cbuf, int off, int len) throws IOException {
+		public synchronized void write(char[] cbuf, int off, int len) throws IOException {
 			if (sendLogToConsole.get()) {
 				// Don't need to log newlines
 				if (len == 1 && cbuf[off] == '\n')
@@ -917,18 +919,30 @@ public class DefaultScriptEditor implements ScriptEditor {
 					logger.info(s);
 			} else {
 				String s = String.valueOf(cbuf, off, len);
-				if (Platform.isFxApplicationThread())
-					doc.appendText(s);
-				else
-					Platform.runLater(() -> doc.appendText(s));
+				sb.append(s);
 			}
 		}
 
 		@Override
-		public void flush() throws IOException {}
+		public synchronized void flush() throws IOException {
+			// Only update the component when flush is called
+			// One reason is that println produces two write statements, but only one flush...
+			String s = sb.toString();
+			sb.setLength(0);
+			if (s.isEmpty())
+				return;
+			if (Platform.isFxApplicationThread())
+				doc.appendText(s);
+			else
+				Platform.runLater(() -> doc.appendText(s));
+//			flushCount++;
+//			System.err.println("Flush called: " + flushCount);
+		}
 
 		@Override
-		public void close() throws IOException {}
+		public void close() throws IOException {
+			flush();
+		}
 
 	}
 
@@ -1808,7 +1822,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 	
 	
 	
-	public static interface ScriptEditorControl {
+	public static interface ScriptEditorControl extends TextAppendable {
 		
 		public StringProperty textProperty();
 		

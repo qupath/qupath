@@ -111,13 +111,13 @@ public class SmoothFeaturesPlugin<T> extends AbstractInteractivePlugin<T> {
 		String fwhmStringTemp;
 		if (server != null && server.hasPixelSizeMicrons()) {
 			fwhm = getParameterList(imageData).getDoubleParameterValue("fwhmMicrons");
-			fwhmStringTemp = GeneralTools.getFormatter(2).format(fwhm) + " " + GeneralTools.micrometerSymbol();
+			fwhmStringTemp = GeneralTools.createFormatter(2).format(fwhm) + " " + GeneralTools.micrometerSymbol();
 			fwhm /= server.getAveragedPixelSizeMicrons();
 //			params.addDoubleParameter("fwhmPixels", "Radius (FWHM)", fwhm, "pixels"); // Set the FWHM in pixels too
 		}
 		else {
 			fwhm = getParameterList(imageData).getDoubleParameterValue("fwhmPixels");
-			fwhmStringTemp = GeneralTools.getFormatter(2).format(fwhm) + " px";
+			fwhmStringTemp = GeneralTools.createFormatter(2).format(fwhm) + " px";
 		}
 //		sigma = 50;
 		final String fwhmString = fwhmStringTemp;

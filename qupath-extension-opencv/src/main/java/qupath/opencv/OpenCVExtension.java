@@ -100,7 +100,7 @@ public class OpenCVExtension implements QuPathExtension {
 				menuCellAnalysis,
 				new SeparatorMenuItem(),
 				qupath.createPluginAction("Watershed nucleus detection (OpenCV, experimental)", WatershedNucleiCV.class, null, false),
-				qupath.createPluginAction("Fast cell counts (OpenCV, experimental)", CellCountsCV.class, null, false)
+				qupath.createPluginAction("Fast cell counts (brightfield)", CellCountsCV.class, null, false)
 				);
 
 		Menu menuClassify = qupath.getMenu("Classify", true);

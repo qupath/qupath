@@ -28,7 +28,9 @@ import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Locale.Category;
 import java.util.prefs.BackingStoreException;
 import java.util.prefs.Preferences;
 
@@ -155,6 +157,37 @@ public class PathPrefs {
 
 	
 	
+	
+	private static ObjectProperty<Locale> defaultLocaleFormat = createPersistentPreference("localeFormat", Locale.Category.FORMAT, Locale.getDefault(Category.FORMAT));
+
+	private static ObjectProperty<Locale> defaultLocaleDisplay = createPersistentPreference("localeDisplay", Locale.Category.DISPLAY, Locale.getDefault(Category.DISPLAY));
+	
+	
+	/**
+	 * Get a property for setting the default Locale for a specified Category.
+	 * 
+	 * Setting this property also results in the Locale being changed to match.
+	 * 
+	 * @param category
+	 * @return
+	 */
+	public static ObjectProperty<Locale> defaultLocaleProperty(final Category category) {
+		if (category == Category.FORMAT)
+			return defaultLocaleFormat;
+		if (category == Category.DISPLAY)
+			return defaultLocaleDisplay;
+		return null;
+	}
+	
+	public static Locale getDefaultLocale(final Category category) {
+		return defaultLocaleProperty(category).get();
+	}
+
+	public static void setDefaultLocale(final Category category, final Locale locale) {
+		defaultLocaleProperty(category).set(locale);
+	}
+
+
 	// This was a bit of a false lead in the attempt to set JVM options... 
 //	private static Preferences getJavaPreferences() {
 //		if (System.getProperty("app.preferences.id") == null)
@@ -230,7 +263,20 @@ public class PathPrefs {
 	}
 	
 	
-	public static void resetPreferences() {
+	public synchronized static boolean savePreferences() {
+		try {
+			Preferences prefs = getUserPreferences();
+			prefs.flush();
+			logger.debug("Preferences have been saved");
+			return true;
+		} catch (BackingStoreException e) {
+			logger.error("Failed to save preferences", e);
+			return false;
+		}		
+	}
+	
+	
+	public synchronized static void resetPreferences() {
 		try {
 			Preferences prefs = getUserPreferences();
 			prefs.removeNode();
@@ -1073,6 +1119,53 @@ public class PathPrefs {
 				getUserPreferences().remove(name);
 			else
 				getUserPreferences().put(name, n);
+		});
+		// Triggered when reset is called
+		resetProperty.addListener((c, o, v) -> property.setValue(defaultValue));
+		return property;
+	}
+	
+	
+	/**
+	 * Create a preference for storing Locales.
+	 * 
+	 * This provides a more persistant way of setting the Locale than doing so directly.
+	 * 
+	 * @param name
+	 * @param category
+	 * @param defaultValue
+	 * @return
+	 */
+	private static ObjectProperty<Locale> createPersistentPreference(final String name, final Category category, final Locale defaultValue) {
+		ObjectProperty<Locale> property = new SimpleObjectProperty<>(defaultValue);
+		// Try to read a set value for the preference
+		// Locale.US is (I think) the only one we're guaranteed to have - so use it to get the displayed name
+		String currentValue = getUserPreferences().get(name, defaultValue.getDisplayName(Locale.US));
+		if (currentValue != null) {
+			boolean localeFound = false;
+			for (Locale locale : Locale.getAvailableLocales()) {
+				if (currentValue.equals(locale.getDisplayName(Locale.US))) {
+					Locale.setDefault(category, locale);
+					logger.info("Locale {} set to {}", category, locale);
+					localeFound = true;
+					break;
+				}
+			}
+			if (!localeFound)
+				logger.info("Could not find Locale {} for {} - value remains ", currentValue, category, Locale.getDefault(category));
+		}
+		property.addListener((v, o, n) -> {
+			try {
+				if (n == null) {
+					getUserPreferences().remove(name);
+					Locale.setDefault(category, defaultValue);
+				} else {
+					getUserPreferences().put(name, n.getDisplayName(Locale.US));
+					Locale.setDefault(category, n);
+				}
+			} catch (Exception e) {
+				logger.error("Unable to set Locale for {} to {}", category, n);
+			}
 		});
 		// Triggered when reset is called
 		resetProperty.addListener((c, o, v) -> property.setValue(defaultValue));

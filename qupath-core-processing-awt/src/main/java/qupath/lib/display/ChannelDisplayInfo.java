@@ -31,6 +31,7 @@ import java.text.DecimalFormat;
 import qupath.lib.awt.color.ColorToolsAwt;
 import qupath.lib.awt.color.ColorTransformerAWT;
 import qupath.lib.color.ColorDeconvolution;
+import qupath.lib.color.ColorDeconvolutionHelper;
 import qupath.lib.color.ColorDeconvolutionStains;
 import qupath.lib.color.ColorTransformer;
 import qupath.lib.color.ColorTransformer.ColorTransformMethod;
@@ -787,8 +788,13 @@ public interface ChannelDisplayInfo {
 				return;
 			}
 			stains = imageDisplay.getImageData().getColorDeconvolutionStains();
-			colorModel = ColorToolsAwt.getIndexColorModel(stains.getStain(stainNumber));
-			color = stains.getStain(stainNumber).getColor();
+			if (stainNumber < 0) {
+				color = ColorTools.makeRGB(255, 255, 255);
+				colorModel = ColorTransformerAWT.getDefaultColorModel(method);
+			} else {
+				color = stains.getStain(stainNumber).getColor();
+				colorModel = ColorToolsAwt.getIndexColorModel(stains.getStain(stainNumber));
+			}
 		}
 
 		@Override
@@ -799,6 +805,14 @@ public interface ChannelDisplayInfo {
 			int rgb = img.getRGB(x, y);
 			if (method == null)
 				return ColorDeconvolution.colorDeconvolveRGBPixel(rgb, stains, stainNumber-1);
+			else if (method == ColorTransformMethod.Optical_density_sum) {
+				int r = ColorTools.red(rgb);
+				int g = ColorTools.green(rgb);
+				int b = ColorTools.blue(rgb);
+				return (float)(ColorDeconvolutionHelper.makeOD(r, stains.getMaxRed()) +
+						ColorDeconvolutionHelper.makeOD(g, stains.getMaxGreen()) + 
+						ColorDeconvolutionHelper.makeOD(b, stains.getMaxBlue()));
+			}
 			else
 				return ColorTransformer.getPixelValue(rgb, method);
 		}

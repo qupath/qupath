@@ -181,7 +181,7 @@ public class ExportImageRegionCommand implements PathCommand {
 		// Create a sensible default file name, and prompt for the actual name
 		String ext = "JPEG".equals(selectedImageType.get()) ? "jpg" : selectedImageType.get().toLowerCase();
 		String defaultName = roi == null ? server.getShortServerName() : 
-			String.format("%s (%s, %d, %d, %d, %d)", server.getShortServerName(), GeneralTools.getFormatter(2).format(request.getDownsample()), request.getX(), request.getY(), request.getWidth(), request.getHeight());
+			String.format("%s (%s, %d, %d, %d, %d)", server.getShortServerName(), GeneralTools.createFormatter(2).format(request.getDownsample()), request.getX(), request.getY(), request.getWidth(), request.getHeight());
 		File fileOutput = qupath.getDialogHelper().promptToSaveFile("Export image region", null, defaultName, selectedImageType.get(), ext);
 		if (fileOutput == null)
 			return;

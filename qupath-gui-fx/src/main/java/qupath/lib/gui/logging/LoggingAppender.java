@@ -36,7 +36,6 @@ import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.classic.spi.StackTraceElementProxy;
 import ch.qos.logback.core.AppenderBase;
 import javafx.application.Platform;
-import javafx.beans.property.StringProperty;
 
 
 /**
@@ -53,7 +52,7 @@ public class LoggingAppender extends AppenderBase<ILoggingEvent> {
 
 	private static LoggingAppender instance;
 	private boolean isActive = false;
-	private List<StringProperty> textComponentsFX = Collections.synchronizedList(new ArrayList<>());
+	private List<TextAppendable> textComponentsFX = Collections.synchronizedList(new ArrayList<>());
 	private Level minLevel = Level.INFO;
 
 	private LoggingAppender() {
@@ -76,12 +75,12 @@ public class LoggingAppender extends AppenderBase<ILoggingEvent> {
 		return instance;
 	}
 
-	public void addTextComponent(final StringProperty component) {
+	public void addTextComponent(final TextAppendable component) {
 		textComponentsFX.add(component);
 		isActive = true;
 	}
 
-	public void removeTextComponent(final StringProperty component) {
+	public void removeTextComponent(final TextAppendable component) {
 		textComponentsFX.remove(component);
 		isActive = !textComponentsFX.isEmpty();
 	}
@@ -109,7 +108,7 @@ public class LoggingAppender extends AppenderBase<ILoggingEvent> {
 			
 			final String message = tempMessage;
 			synchronized(textComponentsFX) {
-				for (StringProperty text : textComponentsFX) {
+				for (TextAppendable text : textComponentsFX) {
 					if (Platform.isFxApplicationThread())
 						log(text, message, isError);
 					else
@@ -121,7 +120,8 @@ public class LoggingAppender extends AppenderBase<ILoggingEvent> {
 	}
 	
 	
-	private static void log(final StringProperty component, final String message, final boolean isError) {
+	private static void log(final TextAppendable component, final String message, final boolean isError) {
+		component.appendText(message);
 //		if (isError)
 //			component.setStyle( "-fx-text-fill: red" );
 //		else
@@ -130,11 +130,11 @@ public class LoggingAppender extends AppenderBase<ILoggingEvent> {
 //		if (isError)
 //			text.setFill(javafx.scene.paint.Color.RED);
 //		component.getChildren().add(text);
-		String current = component.get();
-		if (current == null)
-			component.set(message);
-		else
-			component.set(current + message);
+//		String current = component.get();
+//		if (current == null)
+//			component.set(message);
+//		else
+//			component.set(current + message);
 	}
 
 }

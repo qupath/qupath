@@ -51,6 +51,7 @@ import javafx.stage.Stage;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.logging.LoggingAppender;
+import qupath.lib.gui.logging.TextAppendable;
 
 /**
  * Basic log display functionality.
@@ -71,7 +72,13 @@ public class LogViewerCommand implements PathCommand {
 	
 	public LogViewerCommand(final QuPathGUI qupath) {
 		this.qupath = qupath;
-		LoggingAppender.getInstance().addTextComponent(textPane.textProperty());
+		TextAppendable appendable = new TextAppendable() {
+			@Override
+			public void appendText(String text) {
+				textPane.appendText(text);
+			}
+		};
+		LoggingAppender.getInstance().addTextComponent(appendable);
 	}
 
 	@Override

@@ -149,7 +149,8 @@ public class ImageDisplay {
 		rgbBrightfieldChannels.add(new ChannelDisplayInfo.RBGColorDeconvolutionInfo(this, 1));
 		rgbBrightfieldChannels.add(new ChannelDisplayInfo.RBGColorDeconvolutionInfo(this, 2));
 		rgbBrightfieldChannels.add(new ChannelDisplayInfo.RBGColorDeconvolutionInfo(this, 3));
-		rgbBrightfieldChannels.add(new ChannelDisplayInfo.RBGColorTransformInfo(ColorTransformer.ColorTransformMethod.Optical_density_sum));
+		rgbBrightfieldChannels.add(new ChannelDisplayInfo.RBGColorDeconvolutionInfo(this, -1, ColorTransformer.ColorTransformMethod.Optical_density_sum));
+//		rgbBrightfieldChannels.add(new ChannelDisplayInfo.RBGColorTransformInfo(ColorTransformer.ColorTransformMethod.Optical_density_sum));
 
 //		// Add projections/rejections
 //		// (This was to test... they don't appear to be particularly useful (?)

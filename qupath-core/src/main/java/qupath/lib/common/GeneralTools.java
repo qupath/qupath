@@ -125,7 +125,7 @@ public class GeneralTools {
 		StringBuilder sb = new StringBuilder();
 		if (array.length == 0)
 			return "";
-		DecimalFormat df = getFormatter(nDecimalPlaces);
+		DecimalFormat df = createFormatter(nDecimalPlaces);
 		for (int i = 0; i < array.length; i++) {
 			sb.append(df.format(array[i]));
 			if (i < array.length)
@@ -170,12 +170,17 @@ public class GeneralTools {
 	
 	
 	/**
-	 * Get a DecimalFormat that may be used to convert a number to have a maximum of nDecimalPlaces
+	 * Create a new DecimalFormat that may be used to convert a number to have a maximum of nDecimalPlaces
 	 * (trailing zeros are not shown).
+	 * 
+	 * Important note: this always formats as 1.234 rather than 1,234 - regardless of Locale.
+	 * Consequently its results are more predictable... but may not be consistent with other number formatting on 
+	 * the specified platform.
+	 * 
 	 * @param nDecimalPlaces
 	 * @return
 	 */
-	public static DecimalFormat getFormatter(final int nDecimalPlaces) {
+	public static DecimalFormat createFormatter(final int nDecimalPlaces) {
 		switch (nDecimalPlaces) {
 		case 0: return new DecimalFormat("#."); // TODO: Check if this is correct!
 		case 1: return new DecimalFormat("#.#");

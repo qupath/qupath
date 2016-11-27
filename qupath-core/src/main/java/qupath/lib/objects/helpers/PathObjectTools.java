@@ -42,6 +42,7 @@ import qupath.lib.objects.PathCellObject;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathRootObject;
+import qupath.lib.objects.PathTileObject;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
@@ -352,7 +353,13 @@ public class PathObjectTools {
 	
 	
 	
-	
+	/**
+	 * Get a user-friendly name for a specific type of PathObject, based on its Java class.
+	 * 
+	 * @param cls
+	 * @param makePlural
+	 * @return
+	 */
 	public static String getSuitableName(Class<? extends PathObject> cls, boolean makePlural) {
 		if (makePlural) {
 			if (cls.equals(PathAnnotationObject.class))
@@ -363,6 +370,8 @@ public class PathObjectTools {
 				return "Detections";
 			if (cls.equals(PathCellObject.class))
 				return "Cells";
+			if (cls.equals(PathTileObject.class))
+				return "Tiles";
 			return cls.getSimpleName() + " objects";
 		}
 		if (cls.equals(PathAnnotationObject.class))
@@ -373,6 +382,8 @@ public class PathObjectTools {
 			return "Detection";
 		if (cls.equals(PathCellObject.class))
 			return "Cell";
+		if (cls.equals(PathTileObject.class))
+			return "Tile";
 		return cls.getSimpleName();
 	}
 

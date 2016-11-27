@@ -137,7 +137,7 @@ public class HistogramDisplay implements ParameterChangeListener {
 						if (Double.isNaN(item.doubleValue()))
 							setText("-");
 						else
-							setText(GeneralTools.getFormatter(3).format(item));
+							setText(GeneralTools.createFormatter(3).format(item));
 					}
 				}
 			};

@@ -36,6 +36,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Optional;
 import java.util.Scanner;
 import java.util.Set;
 import java.util.TreeMap;
@@ -192,6 +193,12 @@ public class TMASummaryViewer {
 	private ComboBox<String> comboSurvival = new ComboBox<>(survivalColumns);
 
 	private ObservableList<TMAEntry> entriesBase = FXCollections.observableArrayList();
+	
+	/**
+	 * If trimUniqueIDs is true, Unique ID string will be trimmed to remove whitespace.
+	 * This can help with alignment problems due to the ID containing (unrecognized) additional spaces.
+	 */
+	private boolean trimUniqueIDs = true;
 	
 	/**
 	 * Maintain a reference to columns that were previously hidden whenever loading new data.
@@ -1295,6 +1302,16 @@ public class TMASummaryViewer {
 	
 	private void refreshTableData() {
 		
+//		int nn = 0;
+//		double nPositive = 0;
+//		for (TMAEntry entry : entriesBase) {
+//			if (entry.isMissing())
+//				continue;
+//			nPositive += entry.getMeasurementAsDouble("Num Positive");
+//			nn++;
+//		}
+//		System.err.println(nPositive + " positive cells across " + nn + " tissue samples");
+		
 		Collection<? extends TMAEntry> entries = groupByIDProperty.get() ? createSummaryEntries(entriesBase) : entriesBase;
 
 		// Ensure that we don't try to modify a filtered list
@@ -1570,8 +1587,15 @@ public class TMASummaryViewer {
 			Map<String, List<String>> metadataColumns = new LinkedHashMap<>();
 			Map<String, double[]> measurementColumns = new LinkedHashMap<>();
 			List<String> idColumn = csvData.remove(TMACoreObject.KEY_UNIQUE_ID);
-			if (idColumn != null)
+			if (idColumn != null) {
 				metadataColumns.put(TMACoreObject.KEY_UNIQUE_ID, idColumn);
+				
+				// Make sure IDs are trimmed
+				if (trimUniqueIDs) {
+					for (int i = 0; i < idColumn.size(); i++)
+						idColumn.set(i, idColumn.get(i).trim());
+				}
+			}
 			List<String> nameColumn = csvData.remove("Name");
 			if (nameColumn == null)
 				nameColumn = csvData.remove("Object");
@@ -1685,7 +1709,7 @@ public class TMASummaryViewer {
 			double val = getNumericValue(entry, column);
 			if (Double.isNaN(val))
 				return "NaN";
-			return GeneralTools.getFormatter(4).format(getNumericValue(entry, column));
+			return GeneralTools.createFormatter(4).format(getNumericValue(entry, column));
 		}
 
 		@Override
@@ -1777,7 +1801,7 @@ public class TMASummaryViewer {
 			TableColumn<DoubleProperty, String> colName = new TableColumn<>("Name");
 			colName.setCellValueFactory(v -> new SimpleStringProperty(v.getValue().getName()));
 			TableColumn<DoubleProperty, String> colValue = new TableColumn<>("Value");
-			colValue.setCellValueFactory(v -> new SimpleStringProperty(GeneralTools.getFormatter(3).format(v.getValue().getValue())));
+			colValue.setCellValueFactory(v -> new SimpleStringProperty(GeneralTools.createFormatter(3).format(v.getValue().getValue())));
 			tableScatter.getColumns().add(colName);
 			tableScatter.getColumns().add(colValue);
 			tableScatter.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
@@ -1979,6 +2003,12 @@ public class TMASummaryViewer {
 			if (!matched)
 				logger.warn("No match for ID: " + id);
 		}
+		
+		Optional<TMAEntry> objectEntry = entriesBase.stream().filter(t -> t instanceof TMAObjectEntry).findAny();
+		if (objectEntry.isPresent()) {
+			DisplayHelpers.showInfoNotification("TMA data update", "TMA cores updated!");
+		}
+		
 		return counter;
 	}
 	

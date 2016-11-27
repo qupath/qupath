@@ -54,6 +54,7 @@ import javafx.collections.transformation.FilteredList;
 import qupath.lib.classifiers.PathClassificationLabellingHelper;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.geom.Point2;
+import qupath.lib.gui.models.ObservableMeasurementTableData.ROICentroidMeasurementBuilder.CentroidType;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
@@ -147,6 +148,18 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 		
 		if (containsAnnotations || containsDetections) {
 			builderMap.put("ROI", new ROINameMeasurementBuilder());
+		}
+		
+		// Add centroids
+		if (containsAnnotations || containsDetections || containsTMACores) {
+//			ROICentroidMeasurementBuilder builder = new ROICentroidMeasurementBuilder(imageData, CentroidType.X);
+//			builderMap.put("Centroid X", builder);
+//			builder = new ROICentroidMeasurementBuilder(imageData, CentroidType.Y);
+//			builderMap.put("Centroid Y", builder);
+			ROICentroidMeasurementBuilder builder = new ROICentroidMeasurementBuilder(imageData, CentroidType.X);
+			builderMap.put(builder.getName(), builder);
+			builder = new ROICentroidMeasurementBuilder(imageData, CentroidType.Y);
+			builderMap.put(builder.getName(), builder);
 		}
 
 		// If we have metadata, store it
@@ -448,13 +461,15 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 			}
 			
 			// Add density measurements
-			if (containsAnnotations) {
+			// These are only added if we have a (non-derived) positive class
+			// Additionally, these are only non-NaN if we have an annotation, or a TMA core containing a single annotation
+//			if (containsAnnotations) {
 				for (PathClass pathClass : pathClassList) {
-					if (PathClassFactory.isPositiveClass(pathClass))
+					if (PathClassFactory.isPositiveClass(pathClass) && pathClass.getBaseClass() == pathClass)
 	//				if (!(PathClassFactory.isDefaultIntensityClass(pathClass) || PathClassFactory.isNegativeClass(pathClass)))
 						builders.add(new ClassDensityMeasurementBuilder(imageData.getServer(), pathClass));
 				}
-			}
+//			}
 
 			valid = true;
 		}
@@ -504,13 +519,26 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 
 			@Override
 			protected double computeValue() {
-				DetectionPathClassCounts counts = map.get(pathObject);
+				// If we have a TMA core, look for a single annotation inside
+				// If we don't have that, we can't return counts since it's ambiguous where the 
+				// area should be coming from
+				PathObject pathObjectTemp = pathObject;
+				if (pathObject instanceof TMACoreObject) {
+					if (pathObject.getChildObjects().size() != 1)
+						return Double.NaN;
+					pathObjectTemp = pathObject.getChildObjects().stream().findFirst().get();
+				}
+				// We need an annotation to get a meaningful area
+				if (!(pathObjectTemp instanceof PathAnnotationObject))
+					return Double.NaN;
+				
+				DetectionPathClassCounts counts = map.get(pathObjectTemp);
 				if (counts == null) {
-					counts = new DetectionPathClassCounts(pathObject);
+					counts = new DetectionPathClassCounts(pathObjectTemp);
 					map.put(pathObject, counts);
 				}
 				int n = counts.getCountForAncestor(pathClass);
-				ROI roi = pathObject.getROI();
+				ROI roi = pathObjectTemp.getROI();
 				if (roi instanceof PathArea) {
 					double pixelWidth = 1;
 					double pixelHeight = 1;
@@ -696,9 +724,9 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 			@Override
 			public Binding<Number> createMeasurement(final PathObject pathObject) {
 				// Only return density measurements for annotations
-				if (!pathObject.isAnnotation())
-					return Bindings.createDoubleBinding(() -> Double.NaN);
-				return new ClassDensityMeasurementPerMM(server, pathObject, pathClass);
+				if (pathObject.isAnnotation() || (pathObject.isTMACore() && pathObject.getChildObjects().size() == 1))
+					return new ClassDensityMeasurementPerMM(server, pathObject, pathClass);
+				return Bindings.createDoubleBinding(() -> Double.NaN);
 			}
 			
 			@Override
@@ -938,6 +966,43 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 	}
 	
 	
+	static class ROICentroidMeasurementBuilder extends RoiMeasurementBuilder {
+		
+		enum CentroidType {X, Y};
+		private CentroidType type;
+
+		ROICentroidMeasurementBuilder(ImageData<?> imageData, final CentroidType type) {
+			super(imageData);
+			this.type = type;
+		}
+
+		@Override
+		public String getName() {
+			return String.format("Centroid %s %s", type, hasPixelSizeMicrons() ? GeneralTools.micrometerSymbol() : "px");
+		}
+
+		public double getCentroid(ROI roi) {
+			if (roi == null || type == null)
+				return Double.NaN;
+			return type == CentroidType.X
+					? roi.getCentroidX() * pixelWidthMicrons()
+					: roi.getCentroidY() * pixelHeightMicrons();
+		}
+
+		@Override
+		public Binding<Number> createMeasurement(PathObject pathObject) {
+			return new DoubleBinding() {
+				@Override
+				protected double computeValue() {
+					return getCentroid(pathObject.getROI());
+				}
+				
+			};
+		}
+		
+	}
+	
+	
 	static class MissingTMACoreMeasurementBuilder extends StringMeasurementBuilder {
 
 		@Override
@@ -1006,7 +1071,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 				else
 					dp = 4;
 			}
-			return GeneralTools.getFormatter(dp).format(val);
+			return GeneralTools.createFormatter(dp).format(val);
 		}
 		
 	}
@@ -1375,7 +1440,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 		double val = pathObject.getMeasurementList().getMeasurementValue(column);
 		if (Double.isNaN(val))
 			return "NaN";
-		return GeneralTools.getFormatter(4).format(val);
+		return GeneralTools.createFormatter(4).format(val);
 	}
 
 	public ReadOnlyListWrapper<String> getMetadataNames() {
