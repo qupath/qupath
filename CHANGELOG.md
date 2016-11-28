@@ -1,3 +1,8 @@
+## Version 0.0.8
+
+* Fixed bug in 'Show setup options' that made it difficult to return changed region settings back to the default (but any other change was ok)
+
+
 ## Version 0.0.7
 
 * New 'Show setup options' dialog to encourage choosing important settings when QuPath is first used.
