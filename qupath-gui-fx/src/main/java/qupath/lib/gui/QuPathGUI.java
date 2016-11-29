@@ -1306,7 +1306,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		}
 
 //				.addEmptyParameter("memoryString2", "Current ")
-		paramsSetup.addDoubleParameter("maxMemoryGB", "Maximum memory (GB)", -1, null, "Set the maximum memory for QuPath - considering using approximately half the total RAM for the system")
+		paramsSetup.addDoubleParameter("maxMemoryGB", "Maximum memory (GB)", Math.ceil(maxMemoryMB/1024.0), null, "Set the maximum memory for QuPath - considering using approximately half the total RAM for the system")
 				.addTitleParameter("Region")
 				.addEmptyParameter("localeString", "Set the region for QuPath to use for displaying numbers and messages.")
 				.addEmptyParameter("localeString2", "Note: Be careful if using a region for 'Numbers & dates' that uses a \ncomma as a decimal separator rather than a dot.")
