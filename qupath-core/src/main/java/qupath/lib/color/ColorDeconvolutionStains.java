@@ -27,6 +27,7 @@ import java.io.Externalizable;
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
+import java.util.Locale;
 import java.util.Map;
 
 import org.slf4j.Logger;
@@ -365,11 +366,12 @@ public class ColorDeconvolutionStains implements Externalizable {
 			if (i == 3 && stain.isResidual())
 				continue;
 			sb.append("\"Stain ").append(i).append("\" : \"").append(stain.getName()).append("\", ");
-			sb.append("\"Values ").append(i).append("\" : \"").append(stain.arrayAsString(nDecimalPlaces)).append("\", ");
+			sb.append("\"Values ").append(i).append("\" : \"").append(stain.arrayAsString(Locale.US, nDecimalPlaces)).append("\", ");
 		}
 		sb.append("\"Background\" : \"");
 		
-		sb.append(String.format( "%.Nf %.Nf %.Nf".replace("N", Integer.toString(nDecimalPlaces)), stains.getMaxRed(), stains.getMaxGreen(), stains.getMaxBlue()));
+		sb.append(" ").append(GeneralTools.arrayToString(Locale.US, new double[]{stains.getMaxRed(), stains.getMaxGreen(), stains.getMaxBlue()}, nDecimalPlaces));
+//		sb.append(String.format( "%.Nf %.Nf %.Nf".replace("N", Integer.toString(nDecimalPlaces)), stains.getMaxRed(), stains.getMaxGreen(), stains.getMaxBlue()));
 //		sb.append(stains.getMaxRed()).append(" ");
 //		sb.append(stains.getMaxGreen()).append(" ");
 //		sb.append(stains.getMaxBlue());

@@ -120,21 +120,35 @@ public class GeneralTools {
 	/**
 	 * Convert a double array to string, with a specified number of decimal places; trailing zeros are
 	 * not included.
+	 * 
+	 * @param locale
 	 * @param array
+	 * @param delimiter
 	 * @param nDecimalPlaces
 	 * @return
 	 */
-	public static String arrayToString(double[] array, int nDecimalPlaces) {
+	public static String arrayToString(final Locale locale, final double[] array, final String delimiter, final int nDecimalPlaces) {
 		StringBuilder sb = new StringBuilder();
 		if (array.length == 0)
 			return "";
-		NumberFormat df = createFormatter(nDecimalPlaces);
 		for (int i = 0; i < array.length; i++) {
-			sb.append(df.format(array[i]));
+			sb.append(formatNumber(locale, array[i], nDecimalPlaces));
 			if (i < array.length)
 				sb.append(" ");
 		}
 		return sb.toString();
+	}
+	
+	/**
+	 * Convert a double array to a String using a space as a delimiter.
+	 * 
+	 * @param locale
+	 * @param array
+	 * @param nDecimalPlaces
+	 * @return
+	 */
+	public static String arrayToString(final Locale locale, final double[] array, final int nDecimalPlaces) {
+		return arrayToString(locale, array, " ", nDecimalPlaces);
 	}
 	
 	/**
@@ -143,7 +157,7 @@ public class GeneralTools {
 	 * @param nDecimalPlaces
 	 * @return
 	 */
-	public static String arrayToString(Object[] array, String separator) {
+	public static String arrayToString(final Object[] array, final String separator) {
 		StringBuilder sb = new StringBuilder();
 		if (array.length == 0)
 			return "";
