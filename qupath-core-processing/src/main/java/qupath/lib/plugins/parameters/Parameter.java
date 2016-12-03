@@ -24,6 +24,7 @@
 package qupath.lib.plugins.parameters;
 
 import java.io.Serializable;
+import java.util.Locale;
 
 /**
  * Interface defining algorithm parameters, which need to be displayed to users somehow.
@@ -50,7 +51,7 @@ public interface Parameter<S> extends Serializable {
 	/**
 	 * Set last value using a string; implementing classes may need to parse this
 	 */
-	public boolean setStringLastValue(String value);
+	public boolean setStringLastValue(Locale locale, String value);
 
 	/**
 	 * Set last value to null (so default can be used).

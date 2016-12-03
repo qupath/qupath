@@ -1,6 +1,7 @@
 ## Version 0.0.8
 
 * Fixed bug in 'Show setup options' that made it difficult to return changed region settings back to the default (but any other change was ok)
+* Improved consistency of formatting used to display numbers based on Locale
 
 
 ## Version 0.0.7

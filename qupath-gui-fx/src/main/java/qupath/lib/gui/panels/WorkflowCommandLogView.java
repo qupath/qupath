@@ -27,6 +27,7 @@ import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
 
@@ -337,7 +338,7 @@ public class WorkflowCommandLogView implements ImageDataChangeListener<BufferedI
 						ParameterList params = pluginInteractive.getDefaultParameterList(imageData);
 						// Update parameter list, if necessary
 						if (arg != null)
-							ParameterList.updateParameterList(params, GeneralTools.parseArgStringValues(arg));
+							ParameterList.updateParameterList(params, GeneralTools.parseArgStringValues(arg), Locale.US); // Assume decimal points always
 						ParameterDialogWrapper<BufferedImage> dialog = new ParameterDialogWrapper<>(pluginInteractive, params, new PluginRunnerFX(qupath, false));
 						dialog.showDialog();
 						

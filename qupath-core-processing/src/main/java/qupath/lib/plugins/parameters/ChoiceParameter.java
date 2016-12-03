@@ -25,6 +25,7 @@ package qupath.lib.plugins.parameters;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * Parameter that supports a list of choices.
@@ -72,9 +73,10 @@ public class ChoiceParameter<S> extends AbstractParameter<S> {
 	 * and fail to set the lastValue
 	 */
 	@Override
-	public boolean setStringLastValue(String value) {
+	public boolean setStringLastValue(Locale locale, String value) {
 		for (S choice : choices) {
-			if (choice.toString().equals(value)) {
+			String choiceValue = choice.toString();
+			if (choiceValue.equals(value)) {
 				return setValue(choice);
 			}
 		}

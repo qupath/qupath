@@ -28,7 +28,6 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.PrintWriter;
-import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -117,10 +116,6 @@ public class SummaryMeasurementTableCommand implements PathCommand {
 
 	private QuPathGUI qupath;
 	private Class<? extends PathObject> type;
-	
-	private final static DecimalFormat df1 = GeneralTools.createFormatter(1);
-	private final static DecimalFormat df2 = GeneralTools.createFormatter(2);
-	private final static DecimalFormat df3 = GeneralTools.createFormatter(3);
 	
 	/**
 	 * Max thumbnails to store in cache
@@ -585,11 +580,11 @@ public class SummaryMeasurementTableCommand implements PathCommand {
 					setText("-");
 				else {
 					if (item.doubleValue() >= 1000)
-						setText(df1.format(item));
+						setText(GeneralTools.formatNumber(item.doubleValue(), 1));
 					else if (item.doubleValue() >= 10)
-						setText(df2.format(item));
+						setText(GeneralTools.formatNumber(item.doubleValue(), 2));
 					else
-						setText(df3.format(item));
+						setText(GeneralTools.formatNumber(item.doubleValue(), 3));
 				}
 
 

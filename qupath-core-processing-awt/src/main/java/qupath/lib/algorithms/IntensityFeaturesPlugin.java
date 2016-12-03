@@ -25,7 +25,7 @@ package qupath.lib.algorithms;
 
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferByte;
-import java.text.DecimalFormat;
+import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -1200,7 +1200,7 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 			// Add the measurements
 			MeasurementList measurementList = pathObject.getMeasurementList();
 			double binWidth = (maxBin - minBin) / (nBins - 1);
-			DecimalFormat formatter = GeneralTools.createFormatter(3);
+			NumberFormat formatter = GeneralTools.createFormatter(3);
 			for (int i = 0; i < histogram.length; i++) {
 				double value = minBin + i * binWidth;
 				measurementList.putMeasurement(name + " >= " + formatter.format(value), proportions[i]);

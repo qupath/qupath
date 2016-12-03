@@ -226,11 +226,11 @@ public class EstimateStainVectorsCommand implements PathCommand {
 		TableColumn<Integer, String> colAngle = new TableColumn<>("Angle");
 		colAngle.setCellValueFactory(v -> {
 			return new SimpleStringProperty(
-					GeneralTools.createFormatter(2).format(
+					GeneralTools.formatNumber(
 						StainVector.computeAngle(
 						stainsWrapper.getOriginalStains().getStain(v.getValue()),
 						stainsWrapper.getStains().getStain(v.getValue()))
-						)
+						, 2)
 					);
 		});//new SimpleStringProperty(stainsWrapper.getStains().getStain(v.getValue()).arrayAsString(", ", 3)));
 		table.getColumns().addAll(colName, colOrig, colCurrent, colAngle);

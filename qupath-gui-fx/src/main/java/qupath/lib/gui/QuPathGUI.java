@@ -79,6 +79,9 @@ import org.controlsfx.glyphfont.Glyph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.sun.glass.ui.Application;
+import com.sun.javafx.scene.SceneHelper;
+
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
@@ -104,6 +107,7 @@ import javafx.geometry.Pos;
 import javafx.geometry.Rectangle2D;
 import javafx.scene.Cursor;
 import javafx.scene.Node;
+import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonBar.ButtonData;
@@ -114,6 +118,7 @@ import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Control;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
+import javafx.scene.control.ListView;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuBar;
 import javafx.scene.control.MenuItem;
@@ -126,6 +131,7 @@ import javafx.scene.control.SplitPane.Divider;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 import javafx.scene.control.TabPane.TabClosingPolicy;
+import javafx.scene.control.TableView;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextInputControl;
 import javafx.scene.control.TitledPane;
@@ -133,6 +139,8 @@ import javafx.scene.control.ToggleButton;
 import javafx.scene.control.ToggleGroup;
 import javafx.scene.control.ToolBar;
 import javafx.scene.control.Tooltip;
+import javafx.scene.control.TreeTableView;
+import javafx.scene.control.TreeView;
 import javafx.scene.effect.DropShadow;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
@@ -1352,7 +1360,33 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			PathPrefs.maxMemoryMBProperty().set(-1);
 		}
 		
+		// Try to update display
+		if (getStage() != null && getStage().isShowing())
+			updateListsAndTables(getStage().getScene().getRoot());
+		
 		return true;
+	}
+	
+	/**
+	 * Make an effort at updating all the trees, tables or lists that we can find.
+	 * 
+	 * @param parent
+	 */
+	private static void updateListsAndTables(final Parent parent) {
+		if (parent == null)
+			return;
+		for (Node child : parent.getChildrenUnmodifiable()) {
+			if (child instanceof TreeView<?>)
+				((TreeView)child).refresh();
+			else if (child instanceof ListView<?>)
+				((ListView)child).refresh();
+			else if (child instanceof TableView<?>)
+				((TableView)child).refresh();
+			else if (child instanceof TreeTableView<?>)
+				((TreeTableView)child).refresh();
+			else if (child instanceof Parent)
+				updateListsAndTables((Parent)child);
+		}
 	}
 	
 	
@@ -2993,7 +3027,8 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				// Update parameter list, if necessary
 				if (arg != null) {
 					Map<String, String> map = GeneralTools.parseArgStringValues(arg);
-					ParameterList.updateParameterList(params, map);
+					// We use the US locale because we need to ensure decimal points (not commas)
+					ParameterList.updateParameterList(params, map, Locale.US);
 				}
 				ParameterDialogWrapper<BufferedImage> dialog = new ParameterDialogWrapper<>(pluginInteractive, params, new PluginRunnerFX(this, false));
 				dialog.showDialog();

@@ -49,11 +49,11 @@ public class NumericTableCell<T> extends TreeTableCell<T, Number> {
 				setText("-");
 			else {
 				if (item.doubleValue() >= 1000)
-					setText(GeneralTools.createFormatter(1).format(item));
+					setText(GeneralTools.formatNumber(item.doubleValue(), 1));
 				else if (item.doubleValue() >= 10)
-					setText(GeneralTools.createFormatter(2).format(item));
+					setText(GeneralTools.formatNumber(item.doubleValue(), 2));
 				else
-					setText(GeneralTools.createFormatter(3).format(item));
+					setText(GeneralTools.formatNumber(item.doubleValue(), 3));
 			}
 		}
 	}

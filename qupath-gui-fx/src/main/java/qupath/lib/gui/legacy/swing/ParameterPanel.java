@@ -35,6 +35,7 @@ import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Vector;
@@ -440,7 +441,7 @@ public class ParameterPanel extends JPanel implements Scrollable {
 
 		@Override
 		public void keyReleased(KeyEvent e) {
-			if (param.setStringLastValue(textField.getText()))
+			if (param.setStringLastValue(Locale.getDefault(), textField.getText()))
 				fireParameterChangedEvent(param, false);
 		}
 

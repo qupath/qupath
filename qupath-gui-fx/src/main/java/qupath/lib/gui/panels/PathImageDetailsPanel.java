@@ -410,22 +410,20 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 	
 	
 	
-	public static class TableEntry {
+	public class TableEntry {
 		
-		private final String name;
-		private final Object value;
+		private final int ind;
 		
-		public TableEntry(final String name, final Object value) {
-			this.name = name;
-			this.value = value;
+		public TableEntry(final int ind) {
+			this.ind = ind;
 		}
 		
 		public String getName() {
-			return name;
+			return (String)model.getName(ind);
 		}
 		
 		public Object getValue() {
-			return value;
+			return model.getValue(ind);
 		}
 		
 	}
@@ -447,7 +445,7 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 		
 		ObservableList<TableEntry> list = FXCollections.observableArrayList();
 		for (int i = 0; i < model.getRowCount(); i++)
-			list.add(new TableEntry((String)model.getName(i), model.getValue(i)));
+			list.add(new TableEntry(i));
 		table.setItems(list);
 		
 		if (server == null)

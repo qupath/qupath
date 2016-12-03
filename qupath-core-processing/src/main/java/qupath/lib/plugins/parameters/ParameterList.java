@@ -28,6 +28,7 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
 
@@ -356,13 +357,14 @@ public class ParameterList implements Serializable {
 		 * 
 		 * @param params
 		 * @param mapNew
+		 * @param locale The Locale to use for any parsing required.
 		 */
-		public static void updateParameterList(ParameterList params, Map<String, String> mapNew) {
+		public static void updateParameterList(ParameterList params, Map<String, String> mapNew, Locale locale) {
 			Map<String, Parameter<?>> mapParams = params.getParameters();
 			for (Entry<String, String> entry : mapNew.entrySet()) {
 				String key = entry.getKey();
 				Parameter<?> parameter = mapParams.get(key);
-				if (parameter == null || !parameter.setStringLastValue(entry.getValue())) {
+				if (parameter == null || !parameter.setStringLastValue(locale, entry.getValue())) {
 	//				if (parameter != null && parameter.isHidden())
 	//					logger.info("Skipping hidden parameter " + key + " with value " + entry.getValue());
 	//				else
@@ -374,7 +376,7 @@ public class ParameterList implements Serializable {
 	//				else
 						logger.warn("Unable to set parameter {} with value {}", key, entry.getValue());
 				} else
-					parameter.setStringLastValue(entry.getValue());
+					parameter.setStringLastValue(locale, entry.getValue());
 			}
 		}
 
@@ -423,12 +425,29 @@ public class ParameterList implements Serializable {
 	
 	
 	
-	
+	/**
+	 * Get a JSON representation of a ParameterList's contents.
+	 * 
+	 * Note that the current Locale will not be applied to format numbers, and a decimal point will always be used.
+	 * 
+	 * @param params
+	 * @param delimiter
+	 * @return
+	 */
 	public static String getParameterListJSON(final ParameterList params, final String delimiter) {
 		Map<String, Object> map = params.getKeyValueParameters(false);
 		return getParameterListJSON(map, delimiter);
 	}
 	
+	/**
+	 * Get a JSON representation of a specified map (expected to contain parameters).
+	 * 
+	 * Note that the current Locale will not be applied to format numbers, and a decimal point will always be used.
+	 * 
+	 * @param params
+	 * @param delimiter
+	 * @return
+	 */
 	public static String getParameterListJSON(final Map<String, ?> map, final String delimiter) {
 		StringBuilder sb = new StringBuilder();
 		int counter = 0;
@@ -445,6 +464,7 @@ public class ParameterList implements Serializable {
 			else if (value instanceof Boolean)
 				sb.append(value.toString());
 			else if (value instanceof Number) {
+//				sb.append(NumberFormat.getInstance().format(value));
 				sb.append(value.toString());
 			} else
 				sb.append("\"").append(value).append("\"");

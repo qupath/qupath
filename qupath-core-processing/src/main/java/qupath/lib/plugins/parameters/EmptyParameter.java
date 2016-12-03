@@ -23,6 +23,8 @@
 
 package qupath.lib.plugins.parameters;
 
+import java.util.Locale;
+
 /**
  * Parameter that doesn't actually store any value, but might contain some 
  * useful text (or a title) that may need to be displayed.
@@ -72,7 +74,7 @@ public class EmptyParameter extends AbstractParameter<String> {
 	}
 
 	@Override
-	public boolean setStringLastValue(String value) {
+	public boolean setStringLastValue(Locale locale, String value) {
 		return false;
 	}
 	
