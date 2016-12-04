@@ -27,9 +27,7 @@ import java.io.Externalizable;
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
-import java.text.NumberFormat;
 import java.util.Locale;
-import java.util.StringTokenizer;
 import java.util.Locale.Category;
 
 import org.slf4j.Logger;
@@ -259,79 +257,9 @@ public class StainVector implements Externalizable {
 		return Math.sqrt(len);
 	}
 
-	public static StainVector parseStainVector(String s) {
-		return parseStainVector(null, s);
-	}
-
-	public static StainVector parseStainVector(String name, String s) {
-		if (s == null)
-			return null;
-		s = s.trim();
-		if (s.length() == 0)
-			return null;
-		if (s.length() == 1) {
-			s = s.toLowerCase();
-			if (s.equals("h"))
-				return new StainVector("Hematoxylin", StainVector.STAIN_HEMATOXYLIN_DEFAULT);
-			else if (s.equals("e"))
-				return new StainVector("Eosin", StainVector.STAIN_EOSIN_DEFAULT);
-			else if (s.equals("d"))
-				return new StainVector("DAB", StainVector.STAIN_DAB_DEFAULT);
-		}
-		double[] vector = parseValues(s);
-		if (vector != null)
-			return new StainVector(name, vector[0], vector[1], vector[2]);
-		// If we got here, we didn't find 3 numbers
-		return null;
-	}
-	
-	/**
-	 * Parses 3 values, suitable for use as a stain vector
-	 * @param s
-	 * @return
-	 */
-	public static double[] parseValues(String s) {
-		// Try to parse the stain vector, taking into consideration two unwelcome facts:
-		// - the current locale might have used commas rather than decimal points
-		// - QuPath might (unwisely) have used commas as a separator
-		double[] vector = new double[3];
-		StringTokenizer tokenizer = new StringTokenizer(s, " \t\n\r\f[]");
-		int i = 0;
-		while (tokenizer.hasMoreTokens()) {
-			String token = tokenizer.nextToken();
-			if (token.endsWith(","))
-				token = token.substring(0, token.length()-1);
-			try {
-				vector[i] = NumberFormat.getInstance().parse(token).doubleValue();// Double.parseDouble(token);
-			} catch (Exception e) {
-//				// Try this as a last resort...?
-				vector[i] = Double.parseDouble(token);				
-//				if (token.contains(",") && !token.contains(".")) {
-//					String newToken = token.replace(",", ".");
-//					vector[i] = Double.parseDouble(newToken);				
-//					logger.warn("Using emergency stain vector parsing! {} was replaced with {}", token, newToken);
-//				}
-			}
-			i++;
-			// If we got here, we found 3 numbers
-			if (i == 3)
-				return vector;
-		}
-		
-//		Matcher matcher = StainVector.pattern.matcher(s);
-//		double[] vector = new double[3];
-//		int i = 0;
-//		while (matcher.find()) {
-//			vector[i] = Double.parseDouble(matcher.group());
-//			i++;
-//			// If we got here, we found 3 numbers
-//			if (i == 3)
-//				return vector;
-//		}
-		// If we got here, we didn't find 3 numbers
-		return null;
-	}
-	
+//	private static StainVector parseStainVector(String s) {
+//		return parseStainVector(null, s);
+//	}
 
 	public static double computeAngle(StainVector s1, StainVector s2) {
 		double[] v1 = s1.getArray();

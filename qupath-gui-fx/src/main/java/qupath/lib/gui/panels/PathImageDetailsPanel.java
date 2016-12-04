@@ -376,7 +376,7 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 			if (nameAfter.equals(nameBefore) && valuesAfter.equals(valuesBefore))
 				return;
 
-			double[] valuesParsed = StainVector.parseValues(valuesAfter);
+			double[] valuesParsed = ColorDeconvolutionStains.parseStainValues(Locale.getDefault(Category.FORMAT), valuesAfter);
 			if (valuesParsed == null) {
 				logger.error("Input for setting color deconvolution information invalid! Cannot parse 3 numbers from {}", valuesAfter);
 				return;
