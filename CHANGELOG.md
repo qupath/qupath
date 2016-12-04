@@ -4,6 +4,7 @@
 * Improved consistency of formatting used to display numbers based on other Locales
 * Switched default to US Locale
 * Removed pre-release notification
+* Switched build to request a system rather than user installation (mostly so as to automatically request admin privileges on Windows)
 
 
 ## Version 0.0.7
