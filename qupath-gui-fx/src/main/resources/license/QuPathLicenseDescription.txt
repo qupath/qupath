@@ -1,5 +1,3 @@
-WARNING! THIS IS A PRE-RELEASE VERSION OF QUPATH INTENDED FOR TESTING ONLY.
-
 --------------------
 
 Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
