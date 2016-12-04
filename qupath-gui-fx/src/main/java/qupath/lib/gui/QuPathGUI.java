@@ -451,22 +451,11 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		super();
 		
 		updateBuildString();
-		// If we have a build String, show pre-release warning
-		// (If we don't have a build String, we're probably running from an IDE)
-		if (buildString != null) {
-			String message = ("This is a pre-release version of QuPath\n" + buildString).replace("\n", "\n  ");
-			Platform.runLater(() -> DisplayHelpers.showInfoNotification("QuPath Notice", message));
-		}
 		
 		long startTime = System.currentTimeMillis();
 		
 		this.stage = stage;
 		this.isStandalone = isStandalone;
-		
-//		// Set the Locale, if required
-//		Locale localeFormat = PathPrefs.getDefaultLocale(Category.FORMAT);
-//		Locale localeDisplay = PathPrefs.getDefaultLocale(Category.DISPLAY);
-//		logger.info("Locales set to {} (format) and {} (display)", localeFormat, localeDisplay);
 		
 		menuBar = new MenuBar();
 		
@@ -1317,8 +1306,8 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		paramsSetup.addDoubleParameter("maxMemoryGB", "Maximum memory (GB)", Math.ceil(maxMemoryMB/1024.0), null, "Set the maximum memory for QuPath - considering using approximately half the total RAM for the system")
 				.addTitleParameter("Region")
 				.addEmptyParameter("localeString", "Set the region for QuPath to use for displaying numbers and messages.")
-				.addEmptyParameter("localeString2", "Note: Be careful if using a region for 'Numbers & dates' that uses a \ncomma as a decimal separator rather than a dot.")
-				.addEmptyParameter("localeString3", "Several QuPath commands require a dot separator for consistency.")
+				.addEmptyParameter("localeString2", "Note: It is highly recommended to keep the default (English, US) region settings.")
+				.addEmptyParameter("localeString3", "Support for regions that use different number formatting (e.g. commas as decimal marks)\nis still experimental, and may give unexpected results.")
 				.addChoiceParameter("localeFormatting", "Numbers & dates", Locale.getDefault(Category.FORMAT).getDisplayName(), localeList, "Choose region settings used to format numbers and dates")
 				.addChoiceParameter("localeDisplay", "Messages", Locale.getDefault(Category.DISPLAY).getDisplayName(), localeList, "Choose region settings used for other formatting, e.g. in dialog boxes")
 				.addTitleParameter("Updates")
@@ -1351,13 +1340,18 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		PathPrefs.setDefaultLocale(Category.DISPLAY, localeDisplay);
 		
 		PathPrefs.setDoAutoUpdateCheck(paramsSetup.getBooleanParameterValue("checkForUpdates"));
-		int maxMemorySpecifiedMB = (int)(paramsSetup.getDoubleParameterValue("maxMemoryGB") * 1024 + 0.5);
-		if (maxMemorySpecifiedMB > 512) {
-			PathPrefs.maxMemoryMBProperty().set(maxMemorySpecifiedMB);
+		
+		if (PathPrefs.hasJavaPreferences()) {
+			int maxMemorySpecifiedMB = (int)(paramsSetup.getDoubleParameterValue("maxMemoryGB") * 1024 + 0.5);
+			if (maxMemorySpecifiedMB > 512) {
+				PathPrefs.maxMemoryMBProperty().set(maxMemorySpecifiedMB);
+			} else {
+				if (maxMemorySpecifiedMB >= 0)
+					DisplayHelpers.showErrorNotification("Max memory setting", "Specified maximum memory setting too low - will reset to default");
+				PathPrefs.maxMemoryMBProperty().set(-1);
+			}
 		} else {
-			if (maxMemorySpecifiedMB >= 0)
-				DisplayHelpers.showErrorNotification("Max memory setting", "Specified maximum memory setting too low - will reset to default");
-			PathPrefs.maxMemoryMBProperty().set(-1);
+			DisplayHelpers.showWarningNotification("Max memory", "Cannot set maximum memory preferences");
 		}
 		
 		// Try to update display
