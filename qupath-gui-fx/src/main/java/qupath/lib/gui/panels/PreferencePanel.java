@@ -92,15 +92,15 @@ public class PreferencePanel {
 		 */
 		category = "General";
 		
-		if (PathPrefs.hasJavaPreferences()) {
-			addPropertyPreference(PathPrefs.maxMemoryMBProperty(), Integer.class,
-					"Max memory (MB)",
-					category,
-					"Maxmimum memory (in MB) available for QuPath.\n" +
-								"Note: changing this value only has an effect after restarting QuPath.\n" +
-								"Set to a value <= 0 to reset to default."
-							);
-		}
+//		if (PathPrefs.hasJavaPreferences()) {
+//			addPropertyPreference(PathPrefs.maxMemoryMBProperty(), Integer.class,
+//					"Max memory (MB)",
+//					category,
+//					"Maxmimum memory (in MB) available for QuPath.\n" +
+//								"Note: changing this value only has an effect after restarting QuPath.\n" +
+//								"Set to a value <= 0 to reset to default."
+//							);
+//		}
 		
 		
 		addPropertyPreference(PathPrefs.doAutoUpdateCheckProperty(), Boolean.class,

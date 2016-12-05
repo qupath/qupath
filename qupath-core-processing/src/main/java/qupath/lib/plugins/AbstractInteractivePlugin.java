@@ -23,6 +23,7 @@
 
 package qupath.lib.plugins;
 
+import java.util.Locale;
 import java.util.Map;
 
 import org.slf4j.Logger;
@@ -86,7 +87,8 @@ public abstract class AbstractInteractivePlugin<T> extends AbstractPlugin<T> imp
 			// Parse JSON-style arguments
 			Map<String, String> map = GeneralTools.parseArgStringValues(arg);
 			params = getParameterList(imageData);
-			ParameterList.updateParameterList(params, map);
+			// Use US locale for standardization, and use of decimal points (not commas)
+			ParameterList.updateParameterList(params, map, Locale.US);
 		}
 		return imageData != null;
 	}

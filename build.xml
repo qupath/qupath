@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <project xmlns:fx="javafx:com.sun.javafx.tools.ant" name="QuPath" default="do-deploy" basedir="./deploy">
 	
-	<property name="version" value="0.0.7"/>
+	<property name="version" value="0.1.0"/>
 	
 	<target name="init-fx-tasks">
 		<path id="fxant">
@@ -178,7 +178,7 @@
 			</fx:info>
 			<fx:application refId="QuPathAppID"/>
 			<fx:resources refid="appRes"/>
-			<fx:preferences install="false" shortcut="true" menu="true" installdirChooser="true" />
+			<fx:preferences install="true" shortcut="true" menu="true" installdirChooser="true" />
 		</fx:deploy>
 	</target>
 </project>

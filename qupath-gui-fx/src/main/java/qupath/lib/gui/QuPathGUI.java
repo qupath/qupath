@@ -79,6 +79,9 @@ import org.controlsfx.glyphfont.Glyph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.sun.glass.ui.Application;
+import com.sun.javafx.scene.SceneHelper;
+
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
@@ -104,6 +107,7 @@ import javafx.geometry.Pos;
 import javafx.geometry.Rectangle2D;
 import javafx.scene.Cursor;
 import javafx.scene.Node;
+import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonBar.ButtonData;
@@ -114,6 +118,7 @@ import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Control;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
+import javafx.scene.control.ListView;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuBar;
 import javafx.scene.control.MenuItem;
@@ -126,6 +131,7 @@ import javafx.scene.control.SplitPane.Divider;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 import javafx.scene.control.TabPane.TabClosingPolicy;
+import javafx.scene.control.TableView;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextInputControl;
 import javafx.scene.control.TitledPane;
@@ -133,6 +139,8 @@ import javafx.scene.control.ToggleButton;
 import javafx.scene.control.ToggleGroup;
 import javafx.scene.control.ToolBar;
 import javafx.scene.control.Tooltip;
+import javafx.scene.control.TreeTableView;
+import javafx.scene.control.TreeView;
 import javafx.scene.effect.DropShadow;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
@@ -443,22 +451,11 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		super();
 		
 		updateBuildString();
-		// If we have a build String, show pre-release warning
-		// (If we don't have a build String, we're probably running from an IDE)
-		if (buildString != null) {
-			String message = ("This is a pre-release version of QuPath\n" + buildString).replace("\n", "\n  ");
-			Platform.runLater(() -> DisplayHelpers.showInfoNotification("QuPath Notice", message));
-		}
 		
 		long startTime = System.currentTimeMillis();
 		
 		this.stage = stage;
 		this.isStandalone = isStandalone;
-		
-//		// Set the Locale, if required
-//		Locale localeFormat = PathPrefs.getDefaultLocale(Category.FORMAT);
-//		Locale localeDisplay = PathPrefs.getDefaultLocale(Category.DISPLAY);
-//		logger.info("Locales set to {} (format) and {} (display)", localeFormat, localeDisplay);
 		
 		menuBar = new MenuBar();
 		
@@ -1306,11 +1303,11 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		}
 
 //				.addEmptyParameter("memoryString2", "Current ")
-		paramsSetup.addDoubleParameter("maxMemoryGB", "Maximum memory (GB)", -1, null, "Set the maximum memory for QuPath - considering using approximately half the total RAM for the system")
+		paramsSetup.addDoubleParameter("maxMemoryGB", "Maximum memory (GB)", Math.ceil(maxMemoryMB/1024.0), null, "Set the maximum memory for QuPath - considering using approximately half the total RAM for the system")
 				.addTitleParameter("Region")
 				.addEmptyParameter("localeString", "Set the region for QuPath to use for displaying numbers and messages.")
-				.addEmptyParameter("localeString2", "Note: Be careful if using a region for 'Numbers & dates' that uses a \ncomma as a decimal separator rather than a dot.")
-				.addEmptyParameter("localeString3", "Several QuPath commands require a dot separator for consistency.")
+				.addEmptyParameter("localeString2", "Note: It is highly recommended to keep the default (English, US) region settings.")
+				.addEmptyParameter("localeString3", "Support for regions that use different number formatting (e.g. commas as decimal marks)\nis still experimental, and may give unexpected results.")
 				.addChoiceParameter("localeFormatting", "Numbers & dates", Locale.getDefault(Category.FORMAT).getDisplayName(), localeList, "Choose region settings used to format numbers and dates")
 				.addChoiceParameter("localeDisplay", "Messages", Locale.getDefault(Category.DISPLAY).getDisplayName(), localeList, "Choose region settings used for other formatting, e.g. in dialog boxes")
 				.addTitleParameter("Updates")
@@ -1343,16 +1340,47 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		PathPrefs.setDefaultLocale(Category.DISPLAY, localeDisplay);
 		
 		PathPrefs.setDoAutoUpdateCheck(paramsSetup.getBooleanParameterValue("checkForUpdates"));
-		int maxMemorySpecifiedMB = (int)(paramsSetup.getDoubleParameterValue("maxMemoryGB") * 1024 + 0.5);
-		if (maxMemorySpecifiedMB > 512) {
-			PathPrefs.maxMemoryMBProperty().set(maxMemorySpecifiedMB);
+		
+		if (PathPrefs.hasJavaPreferences()) {
+			int maxMemorySpecifiedMB = (int)(paramsSetup.getDoubleParameterValue("maxMemoryGB") * 1024 + 0.5);
+			if (maxMemorySpecifiedMB > 512) {
+				PathPrefs.maxMemoryMBProperty().set(maxMemorySpecifiedMB);
+			} else {
+				if (maxMemorySpecifiedMB >= 0)
+					DisplayHelpers.showErrorNotification("Max memory setting", "Specified maximum memory setting too low - will reset to default");
+				PathPrefs.maxMemoryMBProperty().set(-1);
+			}
 		} else {
-			if (maxMemorySpecifiedMB >= 0)
-				DisplayHelpers.showErrorNotification("Max memory setting", "Specified maximum memory setting too low - will reset to default");
-			PathPrefs.maxMemoryMBProperty().set(-1);
+			DisplayHelpers.showWarningNotification("Max memory", "Cannot set maximum memory preferences");
 		}
 		
+		// Try to update display
+		if (getStage() != null && getStage().isShowing())
+			updateListsAndTables(getStage().getScene().getRoot());
+		
 		return true;
+	}
+	
+	/**
+	 * Make an effort at updating all the trees, tables or lists that we can find.
+	 * 
+	 * @param parent
+	 */
+	private static void updateListsAndTables(final Parent parent) {
+		if (parent == null)
+			return;
+		for (Node child : parent.getChildrenUnmodifiable()) {
+			if (child instanceof TreeView<?>)
+				((TreeView)child).refresh();
+			else if (child instanceof ListView<?>)
+				((ListView)child).refresh();
+			else if (child instanceof TableView<?>)
+				((TableView)child).refresh();
+			else if (child instanceof TreeTableView<?>)
+				((TreeTableView)child).refresh();
+			else if (child instanceof Parent)
+				updateListsAndTables((Parent)child);
+		}
 	}
 	
 	
@@ -2993,7 +3021,8 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				// Update parameter list, if necessary
 				if (arg != null) {
 					Map<String, String> map = GeneralTools.parseArgStringValues(arg);
-					ParameterList.updateParameterList(params, map);
+					// We use the US locale because we need to ensure decimal points (not commas)
+					ParameterList.updateParameterList(params, map, Locale.US);
 				}
 				ParameterDialogWrapper<BufferedImage> dialog = new ParameterDialogWrapper<>(pluginInteractive, params, new PluginRunnerFX(this, false));
 				dialog.showDialog();

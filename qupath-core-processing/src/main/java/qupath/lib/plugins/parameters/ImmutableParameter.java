@@ -23,6 +23,8 @@
 
 package qupath.lib.plugins.parameters;
 
+import java.util.Locale;
+
 /**
  * An immutable parameter - attempts to set its value will produce UnsupportedOperationExceptions.
  * 
@@ -51,7 +53,7 @@ public class ImmutableParameter<S> implements Parameter<S> {
 	}
 
 	@Override
-	public boolean setStringLastValue(String value) {
+	public boolean setStringLastValue(Locale locale, String value) {
 		throw new UnsupportedOperationException(this + " is immutable - value cannot be set");
 	}
 

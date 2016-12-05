@@ -1709,7 +1709,7 @@ public class TMASummaryViewer {
 			double val = getNumericValue(entry, column);
 			if (Double.isNaN(val))
 				return "NaN";
-			return GeneralTools.createFormatter(4).format(getNumericValue(entry, column));
+			return GeneralTools.formatNumber(getNumericValue(entry, column), 4);
 		}
 
 		@Override
@@ -1801,7 +1801,7 @@ public class TMASummaryViewer {
 			TableColumn<DoubleProperty, String> colName = new TableColumn<>("Name");
 			colName.setCellValueFactory(v -> new SimpleStringProperty(v.getValue().getName()));
 			TableColumn<DoubleProperty, String> colValue = new TableColumn<>("Value");
-			colValue.setCellValueFactory(v -> new SimpleStringProperty(GeneralTools.createFormatter(3).format(v.getValue().getValue())));
+			colValue.setCellValueFactory(v -> new SimpleStringProperty(GeneralTools.formatNumber(v.getValue().getValue(), 3)));
 			tableScatter.getColumns().add(colName);
 			tableScatter.getColumns().add(colValue);
 			tableScatter.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);

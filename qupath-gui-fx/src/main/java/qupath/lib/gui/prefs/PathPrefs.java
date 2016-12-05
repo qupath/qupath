@@ -158,10 +158,12 @@ public class PathPrefs {
 	
 	
 	
-	private static ObjectProperty<Locale> defaultLocaleFormat = createPersistentPreference("localeFormat", Locale.Category.FORMAT, Locale.getDefault(Category.FORMAT));
+	private static ObjectProperty<Locale> defaultLocaleFormat = createPersistentPreference("localeFormat", Locale.Category.FORMAT, Locale.US);
+	private static ObjectProperty<Locale> defaultLocaleDisplay = createPersistentPreference("localeDisplay", Locale.Category.DISPLAY, Locale.US);
 
-	private static ObjectProperty<Locale> defaultLocaleDisplay = createPersistentPreference("localeDisplay", Locale.Category.DISPLAY, Locale.getDefault(Category.DISPLAY));
-	
+//	private static ObjectProperty<Locale> defaultLocaleFormat = createPersistentPreference("localeFormat", Locale.Category.FORMAT, Locale.getDefault(Category.FORMAT));
+//	private static ObjectProperty<Locale> defaultLocaleDisplay = createPersistentPreference("localeDisplay", Locale.Category.DISPLAY, Locale.getDefault(Category.DISPLAY));
+
 	
 	/**
 	 * Get a property for setting the default Locale for a specified Category.
@@ -1129,7 +1131,7 @@ public class PathPrefs {
 	/**
 	 * Create a preference for storing Locales.
 	 * 
-	 * This provides a more persistant way of setting the Locale than doing so directly.
+	 * This provides a more persistnt way of setting the Locale than doing so directly.
 	 * 
 	 * @param name
 	 * @param category
@@ -1138,6 +1140,7 @@ public class PathPrefs {
 	 */
 	private static ObjectProperty<Locale> createPersistentPreference(final String name, final Category category, final Locale defaultValue) {
 		ObjectProperty<Locale> property = new SimpleObjectProperty<>(defaultValue);
+		logger.debug("Default Locale {} set to: {}", category, defaultValue);
 		// Try to read a set value for the preference
 		// Locale.US is (I think) the only one we're guaranteed to have - so use it to get the displayed name
 		String currentValue = getUserPreferences().get(name, defaultValue.getDisplayName(Locale.US));
@@ -1145,7 +1148,9 @@ public class PathPrefs {
 			boolean localeFound = false;
 			for (Locale locale : Locale.getAvailableLocales()) {
 				if (currentValue.equals(locale.getDisplayName(Locale.US))) {
+//					System.err.println("Default for " + category + " is set to: " + currentValue);
 					Locale.setDefault(category, locale);
+					property.set(locale);
 					logger.info("Locale {} set to {}", category, locale);
 					localeFound = true;
 					break;
@@ -1156,6 +1161,7 @@ public class PathPrefs {
 		}
 		property.addListener((v, o, n) -> {
 			try {
+				logger.debug("Setting Locale {} to: {}", category, n);
 				if (n == null) {
 					getUserPreferences().remove(name);
 					Locale.setDefault(category, defaultValue);

@@ -134,17 +134,19 @@ public class LogRankTest {
 				return "-";
 
 			String pValueString;
+			int maxDecimalPlaces;
 			if (pValue > 1e-3)
-				pValueString = GeneralTools.createFormatter(4).format(pValue);					
+				maxDecimalPlaces = 4;					
 			else if (pValue > 1e-4)
-				pValueString = GeneralTools.createFormatter(5).format(pValue);					
+				maxDecimalPlaces = 5;					
 			else if (pValue > 1e-5)
-				pValueString = GeneralTools.createFormatter(6).format(pValue);					
+				maxDecimalPlaces = 6;					
 			else if (pValue > 1e-6)
-				pValueString = GeneralTools.createFormatter(7).format(pValue);					
+				maxDecimalPlaces = 7;					
 			else
-				pValueString = GeneralTools.createFormatter(8).format(pValue);					
+				maxDecimalPlaces = 8;					
 			//		}
+			pValueString = GeneralTools.formatNumber(pValue, maxDecimalPlaces);
 
 			return String.format("%s (%.2f; %.2f-%.2f)", pValueString, hazardRatio, hazardRatioLowerConfidence, hazardRatioUpperConfidence);
 		}

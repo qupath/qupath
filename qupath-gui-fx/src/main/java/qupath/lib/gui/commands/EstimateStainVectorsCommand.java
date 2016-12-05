@@ -27,6 +27,8 @@ import java.awt.geom.Point2D;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
+import java.util.Locale.Category;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -220,17 +222,17 @@ public class EstimateStainVectorsCommand implements PathCommand {
 		TableColumn<Integer, String> colName = new TableColumn<>("Name");
 		colName.setCellValueFactory(v -> new SimpleStringProperty(stainsWrapper.getStains().getStain(v.getValue()).getName()));
 		TableColumn<Integer, String> colOrig = new TableColumn<>("Original");
-		colOrig.setCellValueFactory(v -> new SimpleStringProperty(stainsWrapper.getOriginalStains().getStain(v.getValue()).arrayAsString(" | ", 3)));
+		colOrig.setCellValueFactory(v -> new SimpleStringProperty(stainsWrapper.getOriginalStains().getStain(v.getValue()).arrayAsString(Locale.getDefault(Category.FORMAT), " | ", 3)));
 		TableColumn<Integer, String> colCurrent = new TableColumn<>("Current");
-		colCurrent.setCellValueFactory(v -> new SimpleStringProperty(stainsWrapper.getStains().getStain(v.getValue()).arrayAsString(" | ", 3)));
+		colCurrent.setCellValueFactory(v -> new SimpleStringProperty(stainsWrapper.getStains().getStain(v.getValue()).arrayAsString(Locale.getDefault(Category.FORMAT), " | ", 3)));
 		TableColumn<Integer, String> colAngle = new TableColumn<>("Angle");
 		colAngle.setCellValueFactory(v -> {
 			return new SimpleStringProperty(
-					GeneralTools.createFormatter(2).format(
+					GeneralTools.formatNumber(
 						StainVector.computeAngle(
 						stainsWrapper.getOriginalStains().getStain(v.getValue()),
 						stainsWrapper.getStains().getStain(v.getValue()))
-						)
+						, 2)
 					);
 		});//new SimpleStringProperty(stainsWrapper.getStains().getStain(v.getValue()).arrayAsString(", ", 3)));
 		table.getColumns().addAll(colName, colOrig, colCurrent, colAngle);

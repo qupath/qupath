@@ -23,6 +23,8 @@
 
 package qupath.lib.plugins.parameters;
 
+import java.util.Locale;
+
 /**
  * Parameter that can take on true of false value - or null.
  * 
@@ -48,7 +50,7 @@ public class BooleanParameter extends AbstractParameter<Boolean> {
 	}
 
 	@Override
-	public boolean setStringLastValue(String value) {
+	public boolean setStringLastValue(Locale locale, String value) {
 		try {
 			boolean b = Boolean.parseBoolean(value);
 			return setValue(b);

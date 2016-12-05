@@ -23,6 +23,8 @@
 
 package qupath.lib.plugins.parameters;
 
+import java.util.Locale;
+
 /**
  * Parameter to represent a String value.
  * 
@@ -47,7 +49,7 @@ public class StringParameter extends AbstractParameter<String> {
 	}
 
 	@Override
-	public boolean setStringLastValue(String value) {
+	public boolean setStringLastValue(Locale locale, String value) {
 		return setValue(value);
 	}
 

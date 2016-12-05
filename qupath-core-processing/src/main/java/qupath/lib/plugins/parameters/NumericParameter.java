@@ -23,6 +23,9 @@
 
 package qupath.lib.plugins.parameters;
 
+import java.text.NumberFormat;
+import java.util.Locale;
+
 /**
  * Abstract parameter to represent a numeric value.
  * 
@@ -129,7 +132,16 @@ public abstract class NumericParameter<S extends Number> extends AbstractParamet
 	}
 	
 	@Override
-	public boolean setStringLastValue(String value) {
+	public boolean setStringLastValue(Locale locale, String value) {
+		try {
+			Number number;
+			if (locale == null)
+				number = NumberFormat.getInstance(locale).parse(value);
+			else
+				number = NumberFormat.getInstance(locale).parse(value);				
+			return setDoubleLastValue(number.doubleValue());
+		} catch (Exception e) {}
+		// Old code (shouldn't be needed?)
 		try {
 			double d = Double.parseDouble(value);
 			return setDoubleLastValue(d);

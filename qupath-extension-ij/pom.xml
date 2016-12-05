@@ -6,7 +6,7 @@
 	<parent>
 		<groupId>qupath</groupId>
 		<artifactId>qupath</artifactId>
-		<version>0.0.7</version>
+		<version>0.1.0</version>
 	</parent>
 	<artifactId>qupath-extension-ij</artifactId>
 	<name>qupath-extension-ij</name>

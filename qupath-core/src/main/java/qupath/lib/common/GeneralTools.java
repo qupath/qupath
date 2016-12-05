@@ -26,14 +26,17 @@ package qupath.lib.common;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.text.DecimalFormat;
+import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Scanner;
+import java.util.Locale.Category;
 import java.util.regex.Pattern;
 
 import org.slf4j.Logger;
@@ -117,21 +120,35 @@ public class GeneralTools {
 	/**
 	 * Convert a double array to string, with a specified number of decimal places; trailing zeros are
 	 * not included.
+	 * 
+	 * @param locale
 	 * @param array
+	 * @param delimiter
 	 * @param nDecimalPlaces
 	 * @return
 	 */
-	public static String arrayToString(double[] array, int nDecimalPlaces) {
+	public static String arrayToString(final Locale locale, final double[] array, final String delimiter, final int nDecimalPlaces) {
 		StringBuilder sb = new StringBuilder();
 		if (array.length == 0)
 			return "";
-		DecimalFormat df = createFormatter(nDecimalPlaces);
 		for (int i = 0; i < array.length; i++) {
-			sb.append(df.format(array[i]));
+			sb.append(formatNumber(locale, array[i], nDecimalPlaces));
 			if (i < array.length)
 				sb.append(" ");
 		}
 		return sb.toString();
+	}
+	
+	/**
+	 * Convert a double array to a String using a space as a delimiter.
+	 * 
+	 * @param locale
+	 * @param array
+	 * @param nDecimalPlaces
+	 * @return
+	 */
+	public static String arrayToString(final Locale locale, final double[] array, final int nDecimalPlaces) {
+		return arrayToString(locale, array, " ", nDecimalPlaces);
 	}
 	
 	/**
@@ -140,7 +157,7 @@ public class GeneralTools {
 	 * @param nDecimalPlaces
 	 * @return
 	 */
-	public static String arrayToString(Object[] array, String separator) {
+	public static String arrayToString(final Object[] array, final String separator) {
 		StringBuilder sb = new StringBuilder();
 		if (array.length == 0)
 			return "";
@@ -180,27 +197,74 @@ public class GeneralTools {
 	 * @param nDecimalPlaces
 	 * @return
 	 */
-	public static DecimalFormat createFormatter(final int nDecimalPlaces) {
-		switch (nDecimalPlaces) {
-		case 0: return new DecimalFormat("#."); // TODO: Check if this is correct!
-		case 1: return new DecimalFormat("#.#");
-		case 2: return new DecimalFormat("#.##");
-		case 3: return new DecimalFormat("#.###");
-		case 4: return new DecimalFormat("#.####");
-		case 5: return new DecimalFormat("#.#####");
-		case 6: return new DecimalFormat("#.######");
-		case 7: return new DecimalFormat("#.#######");
-		case 8: return new DecimalFormat("#.########");
-		case 9: return new DecimalFormat("#.#########");
-		default:
-			StringBuilder sb = new StringBuilder();
-			sb.append("#.");
-			for (int i = 0; i < nDecimalPlaces; i++)
-				sb.append("#");
-			return new DecimalFormat(sb.toString());
-		}
+	public static NumberFormat createFormatter(final int nDecimalPlaces) {
+		NumberFormat nf = NumberFormat.getInstance();
+		nf.setMaximumFractionDigits(nDecimalPlaces);
+		return nf;
+//		switch (nDecimalPlaces) {
+//		case 0: return new DecimalFormat("#."); // TODO: Check if this is correct!
+//		case 1: return new DecimalFormat("#.#");
+//		case 2: return new DecimalFormat("#.##");
+//		case 3: return new DecimalFormat("#.###");
+//		case 4: return new DecimalFormat("#.####");
+//		case 5: return new DecimalFormat("#.#####");
+//		case 6: return new DecimalFormat("#.######");
+//		case 7: return new DecimalFormat("#.#######");
+//		case 8: return new DecimalFormat("#.########");
+//		case 9: return new DecimalFormat("#.#########");
+//		default:
+//			StringBuilder sb = new StringBuilder();
+//			sb.append("#.");
+//			for (int i = 0; i < nDecimalPlaces; i++)
+//				sb.append("#");
+//			return new DecimalFormat(sb.toString());
+//		}
 	}
+	
+	/**
+	 * Cache of NumberFormat objects
+	 */
+	private static Map<Locale, NumberFormat> formatters = new HashMap<>();
+	
+	/**
+	 * Format a value with a maximum number of decimal places, using the default Locale.
+	 * 
+	 * @param value
+	 * @param nDecimalPlaces
+	 * @return
+	 */
+	public synchronized static String formatNumber(final double value, final int maxDecimalPlaces) {
+		return formatNumber(Locale.getDefault(Category.FORMAT), value, maxDecimalPlaces);
+	}
+	
+	/**
+	 * Format a value with a maximum number of decimal places, using a specified Locale.
+	 * 
+	 * @param value
+	 * @param nDecimalPlaces
+	 * @return
+	 */
+	public synchronized static String formatNumber(final Locale locale, final double value, final int maxDecimalPlaces) {
+		NumberFormat nf = formatters.get(locale);
+		if (nf == null) {
+			nf = NumberFormat.getInstance(locale);
+			formatters.put(locale, nf);
+		}
+		nf.setMaximumFractionDigits(maxDecimalPlaces);
+		return nf.format(value);
+	}
+	
+	
 
+	/**
+	 * Parse the contents of a JSON String.
+	 * 
+	 * Note that this is pretty unsophisticated... also, no localization is performed (using Java's Locales, for example) -
+	 * so that decimal values should be provided in the form 1.234 (and not e.g. 1,234).
+	 * 
+	 * @param s
+	 * @return
+	 */
 	// TODO: MOVE SOMEWHERE SENSIBLE
 	public static Map<String, String> parseArgStringValues(String s) {
 		if (s == null)
@@ -250,7 +314,7 @@ public class GeneralTools {
 			}
 
 			if (value.length() == 0) {
-				System.err.println("Unable to associated value with key " + key);
+				logger.warn("Unable to associate value with key {}", key);
 				continue;
 			}
 

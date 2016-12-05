@@ -27,6 +27,8 @@ import java.awt.image.BufferedImage;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 import java.io.File;
+import java.util.Locale;
+import java.util.Locale.Category;
 
 import javax.imageio.ImageIO;
 
@@ -143,7 +145,7 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 						//			             ComboBoxTableCell<TableEntry, Object>
 						String text = item == null ? "" : item.toString();
 						if (item instanceof double[]) {
-							text = GeneralTools.arrayToString((double[])item, 2);
+							text = GeneralTools.arrayToString(Locale.getDefault(Category.FORMAT), (double[])item, 2);
 						} else if (item instanceof StainVector) {
 							StainVector stain = (StainVector)item;
 							setTextFill(getColorFX(stain.getColor()));
@@ -352,13 +354,13 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 			String valuesBefore = null;
 			if (value instanceof StainVector) {
 				nameBefore = ((StainVector)value).getName();
-				valuesBefore = ((StainVector)value).arrayAsString();
+				valuesBefore = ((StainVector)value).arrayAsString(Locale.getDefault(Category.FORMAT));
 				params.addStringParameter("name", "Name", nameBefore, "Enter stain name")
 				.addStringParameter("values", "Values", valuesBefore, "Enter 3 values (red, green, blue) defining color deconvolution stain vector, separated by spaces");
 				title = "Set stain vector";
 			} else {
 				nameBefore = "Background";
-				valuesBefore = GeneralTools.arrayToString((double[])value, 2);
+				valuesBefore = GeneralTools.arrayToString(Locale.getDefault(Category.FORMAT), (double[])value, 2);
 				params.addStringParameter("name", "Name", nameBefore);
 				params.addStringParameter("values", "Values", valuesBefore, "Enter 3 values (red, green, blue) defining background, separated by spaces");
 				params.setHiddenParameters(true, "name");
@@ -374,7 +376,7 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 			if (nameAfter.equals(nameBefore) && valuesAfter.equals(valuesBefore))
 				return;
 
-			double[] valuesParsed = StainVector.parseValues(valuesAfter);
+			double[] valuesParsed = ColorDeconvolutionStains.parseStainValues(Locale.getDefault(Category.FORMAT), valuesAfter);
 			if (valuesParsed == null) {
 				logger.error("Input for setting color deconvolution information invalid! Cannot parse 3 numbers from {}", valuesAfter);
 				return;
@@ -410,22 +412,20 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 	
 	
 	
-	public static class TableEntry {
+	public class TableEntry {
 		
-		private final String name;
-		private final Object value;
+		private final int ind;
 		
-		public TableEntry(final String name, final Object value) {
-			this.name = name;
-			this.value = value;
+		public TableEntry(final int ind) {
+			this.ind = ind;
 		}
 		
 		public String getName() {
-			return name;
+			return (String)model.getName(ind);
 		}
 		
 		public Object getValue() {
-			return value;
+			return model.getValue(ind);
 		}
 		
 	}
@@ -447,7 +447,7 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 		
 		ObservableList<TableEntry> list = FXCollections.observableArrayList();
 		for (int i = 0; i < model.getRowCount(); i++)
-			list.add(new TableEntry((String)model.getName(i), model.getValue(i)));
+			list.add(new TableEntry(i));
 		table.setItems(list);
 		
 		if (server == null)

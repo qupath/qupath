@@ -27,6 +27,8 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import java.util.Locale;
+
 import org.junit.Test;
 
 import qupath.lib.color.ColorTransformer.ColorTransformMethod;
@@ -145,7 +147,7 @@ public class TestColors {
 		assertFalse(myCDS2.isH_E());
 		
 		assertTrue(myCDS1.getStain(3).isResidual());
-		assertEquals(myCDS1.getStain(3).arrayAsString(), mySVr1.arrayAsString()); // check automatic residual same as above
+		assertEquals(myCDS1.getStain(3).arrayAsString(Locale.US), mySVr1.arrayAsString(Locale.US)); // check automatic residual same as above
 		//assertEquals(myCDS1.getStainNumber(mySV3r), 3); // will need to override 'equals' to pass this test
 		assertFalse(myCDS2.getStain(3).isResidual());
 		
@@ -153,7 +155,7 @@ public class TestColors {
 		assertFalse(myCDS1.isH_E());
 		assertTrue(myCDS1.isH_DAB());
 		assertTrue(myCDS1.getStain(3).isResidual());
-		assertEquals(myCDS1.getStain(3).arrayAsString(), mySVr2.arrayAsString()); // check automatic residual same as above
+		assertEquals(myCDS1.getStain(3).arrayAsString(Locale.US), mySVr2.arrayAsString(Locale.US)); // check automatic residual same as above
 	
 		myCDS2 = myCDS2.changeStain(mySV2b, 2);
 

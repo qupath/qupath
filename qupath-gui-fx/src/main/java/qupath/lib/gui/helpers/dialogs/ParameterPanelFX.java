@@ -24,7 +24,10 @@
 package qupath.lib.gui.helpers.dialogs;
 
 import java.awt.GridBagConstraints;
+import java.text.NumberFormat;
 import java.util.HashMap;
+import java.util.Locale;
+import java.util.Locale.Category;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Vector;
@@ -301,7 +304,7 @@ public class ParameterPanelFX {
 				if (v == Math.round(v))
 					s = String.format("%.0f", v);
 				else
-					s = String.format("%.2f", v);
+					s = String.format("%.4f", v);
 			} else
 				s = String.format("%d", value.longValue());
 			if (unit != null)
@@ -316,7 +319,9 @@ public class ParameterPanelFX {
 	protected TextField getTextField(Parameter<?> param, int cols) {
 		TextField tf = new TextField();
 		Object defaultVal = param.getValueOrDefault();
-		if (defaultVal != null)
+		if (defaultVal instanceof Number)
+			tf.setText(NumberFormat.getInstance().format(defaultVal));
+		else if (defaultVal != null)
 			tf.setText(defaultVal.toString());
 		
 		if (cols > 0)
@@ -324,7 +329,7 @@ public class ParameterPanelFX {
 //		tf.addActionListener(new ParameterActionListener(tf, param));
 		
 		tf.textProperty().addListener((v, o, n) -> {
-			if (n != null && param.setStringLastValue(n)) {
+			if (n != null && param.setStringLastValue(Locale.getDefault(Category.FORMAT), n)) {
 				fireParameterChangedEvent(param, false);
 			}
 		});
@@ -483,7 +488,8 @@ public class ParameterPanelFX {
 					s = s.toLowerCase().replace(unit.toLowerCase(), "").trim();
 				if (s.length() == 0)
 					return;
-				double val = Double.parseDouble(s);
+				double val = NumberFormat.getInstance().parse(s).doubleValue();
+//				double val = Double.parseDouble(s);
 				double previousValue = param.getValueOrDefault().doubleValue();
 				if (Double.isNaN(val) || val == previousValue)
 					return;
