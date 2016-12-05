@@ -160,7 +160,7 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 						// Run in a background thread
 						Collection<? extends PathObject> parents = getParentObjects(runner);
 						if (parents.isEmpty()) {
-							DisplayHelpers.showErrorMessage("ImageJ macro runner", "No annotation of TMA core objects selected!");
+							DisplayHelpers.showErrorMessage("ImageJ macro runner", "No annotation or TMA core objects selected!");
 							return;
 						}
 						
@@ -264,6 +264,7 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 				} finally {
 					//		IJ.runMacro(macroText, argument);
 					WindowManager.setTempCurrentImage(null);
+//					IJ.run("Close all");
 				}
 				if (cancelled)
 					return;
@@ -368,6 +369,10 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 
 			@Override
 			public void run() {
+				if (Thread.currentThread().isInterrupted()) {
+					logger.warn("Execution interrupted - skipping {}", parentObject);
+					return;
+				}
 				if (SwingUtilities.isEventDispatchThread())
 					runMacro(params, imageData, null, parentObject, macroText); // TODO: Deal with logging macro text properly
 				else
