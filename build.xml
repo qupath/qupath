@@ -36,7 +36,7 @@
 		  </condition>
 	
 	<!--Select native bundle according to platform-->
-	<condition property="requestedBundle" value="exe">
+	<condition property="requestedBundle" value="image">
 		<istrue value="${isWindows}" />
 	</condition>
 	<condition property="requestedBundle" value="dmg">
@@ -162,15 +162,8 @@
 		<mkdir dir="${basedir}/deploy"/>
 		<!-- Need to use ${basedir} because somehow the ant task is calculating 
 									the directory differently -->
-		<fx:deploy verbose="true" embedJNLP="false" extension="false" includeDT="false" offlineAllowed="true" outdir="${basedir}/deploy" outfile="QuPath" nativeBundles="${requestedBundle}" updatemode="background">
+		<fx:deploy verbose="true" embedJNLP="false" extension="false" includeDT="false" offlineAllowed="true" outdir="${basedir}/deploy" outfile="QuPathApp" nativeBundles="${requestedBundle}" updatemode="background">
 			<fx:platform basedir="${java.home}">
-				<!-- Could try to change memory here one day... however it appears to work to change within the GUI instead
-				See https://docs.oracle.com/javase/8/docs/technotes/guides/deploy/javafx_ant_task_reference.html#CIAGFFIF
-				and https://docs.oracle.com/javase/8/docs/technotes/guides/deploy/jvm_options_api.html#BGBDIEED
-				and https://docs.oracle.com/javase/8/docs/technotes/guides/deploy/javafx_ant_tasks.html
-			    <fx:jvmuserarg name="-Xms" value="512m" />
-			    <fx:jvmuserarg name="-Xmx" value="1024m" />
-							    -->
 			</fx:platform>
 			<fx:info title="QuPath" vendor="QUB" description="Digital pathology image analysis" copyright="Copyright 2014-2016 The Queen's University of Belfast, Northern Ireland" license="GPLv3">
 				<fx:association extension="qpdata" mimetype="application/qupath-data" description="QuPath data file" />

@@ -1,3 +1,8 @@
+## Version 0.1.1
+
+* Updated build script to produce Windows distribution without requiring installation
+* Removed 'Cluster objects' command (was not intended for inclusion, usually gave an error)
+
 ## Version 0.1.0
 
 * Fixed bug in 'Show setup options' that made it difficult to return changed region settings back to the default (but any other change was ok)
