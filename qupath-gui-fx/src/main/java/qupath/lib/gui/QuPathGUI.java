@@ -2867,7 +2867,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				createMenu(
 						"Calculate features",
 //						new PathPluginAction("Create tiles", TilerPlugin.class, this),
-						createPluginAction("Add intensity features (experimental)", IntensityFeaturesPlugin.class, this, true, null),
+						createPluginAction("Add Intensity features (experimental)", IntensityFeaturesPlugin.class, this, true, null),
 						createPluginAction("Add Haralick texture features (legacy)", HaralickFeaturesPlugin.class, this, true, null),
 //						createPluginAction("Add Haralick texture features (feature test version)", HaralickFeaturesPluginTesting.class, this, imageRegionStore, null),
 						createPluginAction("Add Coherence texture feature (experimental)", CoherenceFeaturePlugin.class, this, true, null),

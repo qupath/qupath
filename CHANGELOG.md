@@ -1,7 +1,8 @@
 ## Version 0.1.1
 
 * Updated build script to produce Windows distribution without requiring installation
-* Removed 'Cluster objects' command (was not intended for inclusion, usually gave an error)
+* Fixed several typos & improved menu organization
+* Removed 'Cluster objects (experimental)' & 'OpenCV superpixel test' commands from menus (which were incomplete and included in error)
 
 ## Version 0.1.0
 

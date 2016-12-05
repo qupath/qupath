@@ -37,7 +37,6 @@ import qupath.lib.gui.QuPathGUI.Modes;
 import qupath.lib.gui.extensions.QuPathExtension;
 import qupath.opencv.classify.OpenCvClassifierCommand;
 import qupath.opencv.features.DelaunayClusteringPlugin;
-import qupath.opencv.superpixels.OpenCVSuperpixelTestPlugin;
 import qupath.opencv.tools.WandToolCV;
 
 /**
@@ -89,10 +88,7 @@ public class OpenCVExtension implements QuPathExtension {
 		QuPathGUI.addMenuItems(
 				menuRegions,
 //				QuPathGUI.createCommandAction(new TissueSegmentationCommand(qupath), "Tissue identification (OpenCV, experimental)"),
-				qupath.createPluginAction("Create cytokeratin annotations (TMA, experimental)", DetectCytokeratinCV.class, null, false),
-				
-				
-				qupath.createPluginAction("OpenCV superpixel test", OpenCVSuperpixelTestPlugin.class, null, false)
+				qupath.createPluginAction("Create cytokeratin annotations (TMA, experimental)", DetectCytokeratinCV.class, null, false)
 				);
 
 		Menu menuCellAnalysis = qupath.getMenu("Analyze>Cell analysis", true);
