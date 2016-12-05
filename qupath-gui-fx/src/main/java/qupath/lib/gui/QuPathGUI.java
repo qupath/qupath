@@ -79,9 +79,6 @@ import org.controlsfx.glyphfont.Glyph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.sun.glass.ui.Application;
-import com.sun.javafx.scene.SceneHelper;
-
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
@@ -178,7 +175,6 @@ import qupath.lib.common.SimpleThreadFactory;
 import qupath.lib.common.URLTools;
 import qupath.lib.gui.commands.AnnotationCombineCommand;
 import qupath.lib.gui.commands.BrightnessContrastCommand;
-import qupath.lib.gui.commands.ClusterObjectsCommand;
 import qupath.lib.gui.commands.CommandListDisplayCommand;
 import qupath.lib.gui.commands.CopyViewToClipboardCommand;
 import qupath.lib.gui.commands.CountingPanelCommand;
@@ -2894,8 +2890,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				createCommandAction(new ResetClassificationsCommand(this, PathDetectionObject.class), "Reset detection classifications"),
 				null,
 				createCommandAction(new RandomTrainingRegionSelector(this, getAvailablePathClasses()), "Choose random training samples"),
-				createCommandAction(new SingleFeatureClassifierCommand(this, PathDetectionObject.class), "Classify by specific feature"),
-				createCommandAction(new ClusterObjectsCommand(this), "Cluster objects (experimental)")
+				createCommandAction(new SingleFeatureClassifierCommand(this, PathDetectionObject.class), "Classify by specific feature")
 			);
 		
 		Action actionUpdateCheck = new Action("Check for updates (web)", e -> {
