@@ -1,9 +1,12 @@
 ## Version 0.1.1
 
 * Updated build script to produce Windows distribution without requiring installation
+* Turned off grouping when formatting numbers for display & export (i.e. 1000.1 rather than 1,000.1) to reduce ambiguity across different regions
+* Added support for locale-specific import of text data
 * Fixed several typos within the user interface
 * Added getMenuItem(String) method to main QuPathGUI class
 * Improved menu organization, removing several incomplete commands ('Cluster objects (experimental)' & 'OpenCV superpixel test')
+
 
 ## Version 0.1.0
 
