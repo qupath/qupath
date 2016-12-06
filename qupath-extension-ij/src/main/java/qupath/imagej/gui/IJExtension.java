@@ -422,14 +422,21 @@ public class IJExtension implements QuPathExtension {
 		
 //		Menu menuFeatures = qupath.getMenu("Analyze>Calculate features", true);
 		
-		Menu menuRegions = qupath.getMenu("Analyze>Region identification", true);
+		Menu menuRegions = qupath.getMenu("Analyze>Region identification>Tiles & superpixels", true);
 		QuPathGUI.addMenuItems(menuRegions,
-				qupath.createPluginAction("Positive pixel count (experimental)", PositivePixelCounterIJ.class, null, false),
+				null,
 				qupath.createPluginAction("DoG superpixel segmentation", DoGSuperpixelsPlugin.class, null, false),
 				qupath.createPluginAction("SLIC superpixel segmentation (experimental)", SLICSuperpixelsPlugin.class, null, false),
 //				qupath.createPluginAction("Gaussian superpixel segmentation", GaussianSuperpixelsPlugin.class, null, false),
+				null,
 				qupath.createPluginAction("Tile classifications to annotations", TileClassificationsToAnnotationsPlugin.class, null, false)				
 				);
+		
+		menuRegions = qupath.getMenu("Analyze>Region identification", true);
+		QuPathGUI.addMenuItems(menuRegions,
+				qupath.createPluginAction("Positive pixel count (experimental)", PositivePixelCounterIJ.class, null, false)
+				);
+
 		
 //		//			menuExperimental.add(new PathPluginAction("SVM classifier", SVMClassifierPlugin.class, qupath));
 ////		menuExperimental.add(new PathPluginAction<>("Experimental cell detection", WatershedCellDetection2.class, qupath));
@@ -509,10 +516,11 @@ public class IJExtension implements QuPathExtension {
 				qupath.createPluginAction("Cell + membrane detection", WatershedCellMembraneDetection.class, null, false),
 //				qupath.createPluginAction("Cell + membrane detection + percentage (experimental)", WatershedCellMembraneDetectionWithBoundaries.class, null, false),
 				qupath.createPluginAction("Positive nucleus detection (legacy)", WatershedNucleusDetection.class, null, false),
-				new SeparatorMenuItem(),
+//				new SeparatorMenuItem(),
 //				qupath.createPluginAction("Lesion detection (experimental)", LesionDetector.class, null, false),
+				
 				new SeparatorMenuItem(),
-				qupath.createPluginAction("Immune scorer (TMA)", ImmuneScorerTMA.class, null, false)
+				qupath.createPluginAction("Immune scorer (TMA, experimental)", ImmuneScorerTMA.class, null, false)
 				);
 
 

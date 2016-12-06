@@ -25,6 +25,8 @@ package qupath.lib.io;
 
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.text.NumberFormat;
+import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -227,6 +229,7 @@ public class TMAScoreImporter {
 	public static double[] parseNumeric(List<String> list, boolean allOrNothing) {
 		double[] vals = new double[list.size()];
 		int i = 0;
+		NumberFormat format = NumberFormat.getInstance();
 		for (String s : list) {
 			
 //			if (s.equals("Yes")) {
@@ -243,11 +246,15 @@ public class TMAScoreImporter {
 				vals[i] = Double.NaN;
 			else {
 				try {
-					vals[i] = Double.parseDouble(s);
-				} catch (NumberFormatException e) {
-					vals[i] = Double.NaN;
-					if (allOrNothing) {
-						return null;
+					vals[i] = format.parse(s).doubleValue();
+				} catch (ParseException e) {
+					try {
+						vals[i] = Double.parseDouble(s);
+					} catch (NumberFormatException e2) {
+						vals[i] = Double.NaN;
+						if (allOrNothing) {
+							return null;
+						}						
 					}
 				}
 			}

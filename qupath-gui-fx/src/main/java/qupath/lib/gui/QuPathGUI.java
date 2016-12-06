@@ -52,6 +52,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -78,9 +79,6 @@ import org.controlsfx.control.action.ActionUtils.ActionTextBehavior;
 import org.controlsfx.glyphfont.Glyph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.sun.glass.ui.Application;
-import com.sun.javafx.scene.SceneHelper;
 
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
@@ -178,7 +176,6 @@ import qupath.lib.common.SimpleThreadFactory;
 import qupath.lib.common.URLTools;
 import qupath.lib.gui.commands.AnnotationCombineCommand;
 import qupath.lib.gui.commands.BrightnessContrastCommand;
-import qupath.lib.gui.commands.ClusterObjectsCommand;
 import qupath.lib.gui.commands.CommandListDisplayCommand;
 import qupath.lib.gui.commands.CopyViewToClipboardCommand;
 import qupath.lib.gui.commands.CountingPanelCommand;
@@ -2866,17 +2863,20 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 						),
 				createMenu(
 						"Region identification",
-						createPluginAction("Create tiles", TilerPlugin.class, this, false, null)
+						createMenu(
+								"Tiles & superpixels",
+								createPluginAction("Create tiles", TilerPlugin.class, this, false, null)
+								)
 						),
 				createMenu(
 						"Calculate features",
 //						new PathPluginAction("Create tiles", TilerPlugin.class, this),
-						createPluginAction("Add intensity features (experimental)", IntensityFeaturesPlugin.class, this, true, null),
+						createPluginAction("Add Intensity features (experimental)", IntensityFeaturesPlugin.class, this, true, null),
 						createPluginAction("Add Haralick texture features (legacy)", HaralickFeaturesPlugin.class, this, true, null),
 //						createPluginAction("Add Haralick texture features (feature test version)", HaralickFeaturesPluginTesting.class, this, imageRegionStore, null),
 						createPluginAction("Add Coherence texture feature (experimental)", CoherenceFeaturePlugin.class, this, true, null),
 						createPluginAction("Add Smoothed features", SmoothFeaturesPlugin.class, this, false, null),
-						createPluginAction("Add Shape features", ShapeFeaturesPlugin.class, this, false, null),
+						createPluginAction("Add Shape features (experimental)", ShapeFeaturesPlugin.class, this, false, null),
 						null,
 						createPluginAction("Add Local Binary Pattern features (experimental)", LocalBinaryPatternsPlugin.class, this, true, null)
 						)
@@ -2894,8 +2894,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				createCommandAction(new ResetClassificationsCommand(this, PathDetectionObject.class), "Reset detection classifications"),
 				null,
 				createCommandAction(new RandomTrainingRegionSelector(this, getAvailablePathClasses()), "Choose random training samples"),
-				createCommandAction(new SingleFeatureClassifierCommand(this, PathDetectionObject.class), "Classify by specific feature"),
-				createCommandAction(new ClusterObjectsCommand(this), "Cluster objects (experimental)")
+				createCommandAction(new SingleFeatureClassifierCommand(this, PathDetectionObject.class), "Classify by specific feature")
 			);
 		
 		Action actionUpdateCheck = new Action("Check for updates (web)", e -> {
@@ -3812,6 +3811,30 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		return menuCurrent;
 	}
 	
+	
+	public MenuItem getMenuItem(String itemName) {
+		Collection<MenuItem> menuItems;
+		int ind = itemName.lastIndexOf(">");
+		if (ind >= 0) {
+			Menu menu = getMenu(itemName.substring(0, ind), false);
+			if (menu == null) {
+				logger.warn("No menu found for {}", itemName);
+				return null;
+			}
+			menuItems = menu.getItems();
+			itemName = itemName.substring(ind+1);
+		} else {
+			menuItems = new HashSet<>();
+			for (Menu menu : getMenuBar().getMenus())
+				menuItems.addAll(menu.getItems());
+		}
+		for (MenuItem menuItem : menuItems) {
+			if (itemName.equals(menuItem.getText()))
+				return menuItem;
+		}
+		logger.warn("No menu item found for {}", itemName);
+		return null;
+	}
 	
 	
 	static Menu createMenu(final String name) {

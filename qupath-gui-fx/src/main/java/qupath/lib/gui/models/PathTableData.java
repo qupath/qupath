@@ -46,6 +46,8 @@ public interface PathTableData<T> {
 	/**
 	 * Get a string representation of the value.
 	 * 
+	 * For this method, numbers should be formatted according to the Locale.
+	 * 
 	 * @param pathObject
 	 * @param column
 	 * @param decimalPlaces

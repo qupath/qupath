@@ -365,8 +365,8 @@ public class CellCountsCV extends AbstractTileableDetectionPlugin<BufferedImage>
 				.addChoiceParameter("stainChannel", "Cell detection channel", HEMATOXYLIN, STAIN_CHANNELS, "Choose channel that will be thresholded to detect the cells")
 				// Magnification is deprecated!  Will be hidden, and only kept here for some backwards compatibility
 				.addDoubleParameter("magnification", "Requested magnification", Double.NaN, null, "Magnification at which the detection should be run")
-				.addDoubleParameter("gaussianSigmaPixels", "Gaussian sigma", 1, "px", "Smoothing filter uses to reduce spurious peaks")
-				.addDoubleParameter("gaussianSigmaMicrons", "Gaussian sigma", 1.5, GeneralTools.micrometerSymbol(), "Smoothing filter uses to reduce spurious peaks")
+				.addDoubleParameter("gaussianSigmaPixels", "Gaussian sigma", 1, "px", "Smoothing filter used to reduce spurious peaks")
+				.addDoubleParameter("gaussianSigmaMicrons", "Gaussian sigma", 1.5, GeneralTools.micrometerSymbol(), "Smoothing filter used to reduce spurious peaks")
 				.addDoubleParameter("backgroundRadiusPixels", "Background radius", 20, "px", "Filter size to estimate background; should be > the largest nucleus radius")
 				.addDoubleParameter("backgroundRadiusMicrons", "Background radius", 15, GeneralTools.micrometerSymbol(), "Filter size to estimate background; should be > the largest nucleus radius")
 				.addBooleanParameter("doDoG", "Use Difference of Gaussians", true, "Apply Difference of Gaussians filter prior to detection - this tends to detect more nuclei, but may detect too many")

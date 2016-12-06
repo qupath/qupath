@@ -248,6 +248,7 @@ public class GeneralTools {
 		NumberFormat nf = formatters.get(locale);
 		if (nf == null) {
 			nf = NumberFormat.getInstance(locale);
+			nf.setGroupingUsed(false);
 			formatters.put(locale, nf);
 		}
 		nf.setMaximumFractionDigits(maxDecimalPlaces);
