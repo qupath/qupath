@@ -52,6 +52,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -2862,7 +2863,10 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 						),
 				createMenu(
 						"Region identification",
-						createPluginAction("Create tiles", TilerPlugin.class, this, false, null)
+						createMenu(
+								"Tiles & superpixels",
+								createPluginAction("Create tiles", TilerPlugin.class, this, false, null)
+								)
 						),
 				createMenu(
 						"Calculate features",
@@ -2872,7 +2876,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 //						createPluginAction("Add Haralick texture features (feature test version)", HaralickFeaturesPluginTesting.class, this, imageRegionStore, null),
 						createPluginAction("Add Coherence texture feature (experimental)", CoherenceFeaturePlugin.class, this, true, null),
 						createPluginAction("Add Smoothed features", SmoothFeaturesPlugin.class, this, false, null),
-						createPluginAction("Add Shape features", ShapeFeaturesPlugin.class, this, false, null),
+						createPluginAction("Add Shape features (experimental)", ShapeFeaturesPlugin.class, this, false, null),
 						null,
 						createPluginAction("Add Local Binary Pattern features (experimental)", LocalBinaryPatternsPlugin.class, this, true, null)
 						)
@@ -3807,6 +3811,30 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		return menuCurrent;
 	}
 	
+	
+	public MenuItem getMenuItem(String itemName) {
+		Collection<MenuItem> menuItems;
+		int ind = itemName.lastIndexOf(">");
+		if (ind >= 0) {
+			Menu menu = getMenu(itemName.substring(0, ind), false);
+			if (menu == null) {
+				logger.warn("No menu found for {}", itemName);
+				return null;
+			}
+			menuItems = menu.getItems();
+			itemName = itemName.substring(ind+1);
+		} else {
+			menuItems = new HashSet<>();
+			for (Menu menu : getMenuBar().getMenus())
+				menuItems.addAll(menu.getItems());
+		}
+		for (MenuItem menuItem : menuItems) {
+			if (itemName.equals(menuItem.getText()))
+				return menuItem;
+		}
+		logger.warn("No menu item found for {}", itemName);
+		return null;
+	}
 	
 	
 	static Menu createMenu(final String name) {

@@ -2,6 +2,7 @@
 
 * Updated build script to produce Windows distribution without requiring installation
 * Fixed several typos & improved menu organization
+* Added getMenuItem(String) method to main QuPath class (for scripting purposes)
 * Removed 'Cluster objects (experimental)' & 'OpenCV superpixel test' commands from menus (which were incomplete and included in error)
 
 ## Version 0.1.0
