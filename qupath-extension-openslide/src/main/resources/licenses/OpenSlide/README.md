@@ -23,3 +23,23 @@ Listed versions for OpenSlide dependencies are:
 	SQLite                         3.8.10.1
 	OpenSlide                      3.4.1
 	OpenSlide Java                 0.12.1
+
+For the Mac distribution, some differences occur through the use of Homebrew to create the compiled libraries:
+	cairo                          1.14.6_1
+	libffi                         3.0.13
+	fontconfig                     2.12.1_2
+	freetype                       2.7
+	gdk-pixbuf                     2.36.0_2
+	gettext                        0.19.8.1
+	glib                           2.50.2
+	libjpeg                        8d
+	OpenJPEG                       2.1.2
+	pcre                           8.39
+	pixman                         0.34.0
+	libpng                         1.6.26
+	libtiff                        4.0.7
+	libxml2                        2.9.4
+	OpenSlide                      3.4.1_2
+	OpenSlide Java                 0.12.2
+
+Additional relevant licenses are included in the 'Mac' directory.
