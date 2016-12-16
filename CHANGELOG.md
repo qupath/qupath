@@ -1,5 +1,6 @@
 ## Version 0.1.2
 
+* Improved number formatting within numeric fields
 * Minor changes to display names of detection classifiers to match with OpenCV's names (functionality unaffected)
 
 

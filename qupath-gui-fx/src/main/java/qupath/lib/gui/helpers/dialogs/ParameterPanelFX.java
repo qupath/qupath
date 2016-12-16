@@ -56,6 +56,7 @@ import javafx.scene.layout.Pane;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.stage.Stage;
+import qupath.lib.common.GeneralTools;
 import qupath.lib.plugins.parameters.BooleanParameter;
 import qupath.lib.plugins.parameters.ChoiceParameter;
 import qupath.lib.plugins.parameters.DoubleParameter;
@@ -304,7 +305,8 @@ public class ParameterPanelFX {
 				if (v == Math.round(v))
 					s = String.format("%.0f", v);
 				else
-					s = String.format("%.4f", v);
+					s = GeneralTools.formatNumber(v, 4);
+//					s = String.format("%.4f", v);
 			} else
 				s = String.format("%d", value.longValue());
 			if (unit != null)
