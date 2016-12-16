@@ -1,3 +1,8 @@
+## Version 0.1.2
+
+* Minor changes to display names of detection classifiers to match with OpenCV's names (functionality unaffected)
+
+
 ## Version 0.1.1
 
 * Updated build script to produce Windows distribution without requiring installation

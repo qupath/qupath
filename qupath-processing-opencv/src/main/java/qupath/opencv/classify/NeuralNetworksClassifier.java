@@ -52,7 +52,7 @@ public class NeuralNetworksClassifier extends ParameterizableOpenCvClassifier<AN
 
 	@Override
 	public String getName() {
-		return "Neural networks";
+		return "Neural Networks";
 	}
 
 	@Override
