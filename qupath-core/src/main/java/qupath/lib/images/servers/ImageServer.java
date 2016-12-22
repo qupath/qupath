@@ -283,7 +283,7 @@ public interface ImageServer<T> {
 	public List<String> getAssociatedImageList();
 	
 	/**
-	 * Get the T for a given AssociaedImage name.
+	 * Get the T for a given AssociatedImage name.
 	 * 
 	 * @see getAssociatedImageList
 	 * 

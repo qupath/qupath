@@ -260,6 +260,7 @@ import qupath.lib.gui.panels.PathObjectHierarchyView;
 import qupath.lib.gui.panels.PreferencePanel;
 import qupath.lib.gui.panels.ProjectBrowser;
 import qupath.lib.gui.panels.SelectedMeasurementTableView;
+import qupath.lib.gui.panels.SlideLabelView;
 import qupath.lib.gui.panels.WorkflowPanel;
 import qupath.lib.gui.panels.classify.RandomTrainingRegionSelector;
 import qupath.lib.gui.prefs.PathPrefs;
@@ -2716,6 +2717,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 //		}
 		
 		// Create View menu
+		SlideLabelView slideLabelView = new SlideLabelView(this);
 		ToggleGroup groupCellDisplay = new ToggleGroup();
 		Menu menuView = createMenu(
 				"View",
@@ -2763,6 +2765,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				null,
 				getActionMenuItem(GUIActions.VIEW_TRACKER),
 				getActionMenuItem(GUIActions.MINI_VIEWER),
+				createCheckMenuItem(createSelectableCommandAction(slideLabelView.showingProperty(), "Show slide label")),				
 				null,
 				getActionMenuItem(GUIActions.SHOW_LOG)
 			);
