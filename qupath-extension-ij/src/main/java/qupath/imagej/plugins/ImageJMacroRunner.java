@@ -23,6 +23,7 @@
 
 package qupath.imagej.plugins;
 
+import ij.IJ;
 import ij.ImagePlus;
 import ij.WindowManager;
 import ij.gui.Roi;
@@ -62,6 +63,7 @@ import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.plugins.AbstractPlugin;
+import qupath.lib.plugins.ParameterDialogWrapper;
 import qupath.lib.plugins.PluginRunner;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.regions.RegionRequest;
@@ -150,9 +152,11 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 
 					PathObject pathObject = runner.getHierarchy().getSelectionModel().singleSelection() ? runner.getSelectedObject() : null;
 					if (pathObject instanceof PathAnnotationObject || pathObject instanceof TMACoreObject) {
-						runMacro(params, 
-								qupath.getViewer().getImageData(),
-								qupath.getViewer().getImageDisplay(), pathObject, macroText);
+						SwingUtilities.invokeLater(() -> {
+							runMacro(params, 
+									qupath.getViewer().getImageData(),
+									qupath.getViewer().getImageDisplay(), pathObject, macroText);
+						});
 					} else {
 						//						DisplayHelpers.showErrorMessage(getClass().getSimpleName(), "Sorry, ImageJ macros can only be run for single selected images");
 //						logger.warn("ImageJ macro being run in current thread");
@@ -198,8 +202,14 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 
 
 	static void runMacro(final ParameterList params, final ImageData<BufferedImage> imageData, final ImageDisplay imageDisplay, final PathObject pathObject, final String macroText) {
-		if (!SwingUtilities.isEventDispatchThread()) {
-			SwingUtilities.invokeLater(() -> runMacro(params, imageData, imageDisplay, pathObject, macroText));
+//		if (!SwingUtilities.isEventDispatchThread()) {
+//			SwingUtilities.invokeLater(() -> runMacro(params, imageData, imageDisplay, pathObject, macroText));
+//			return;
+//		}
+		
+		// Don't try if interrupted
+		if (Thread.currentThread().isInterrupted()) {
+			logger.warn("Skipping macro for {} - thread interrupted", pathObject);
 			return;
 		}
 		
@@ -254,12 +264,23 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 				boolean cancelled = false;
 				ImagePlus impResult = null;
 				try {
-					impResult = new Interpreter().runBatchMacro(macroText, imp);
+					IJ.redirectErrorMessages();
+					Interpreter interpreter = new Interpreter();
+					impResult = interpreter.runBatchMacro(macroText, imp);
+					
+					// If we had an error, return
+					if (interpreter.wasError()) {
+						Thread.currentThread().interrupt();
+						return;
+					}
+					
+					// Get the resulting image, if available
 					if (impResult == null)
 						impResult = WindowManager.getCurrentImage();
 				} catch (RuntimeException e) {
 					logger.error(e.getLocalizedMessage());
 					//			DisplayHelpers.showErrorMessage("ImageJ macro error", e.getLocalizedMessage());
+					Thread.currentThread().interrupt();
 					cancelled = true;
 				} finally {
 					//		IJ.runMacro(macroText, argument);
@@ -342,15 +363,17 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 	public ParameterList getParameterList(final ImageData<BufferedImage> imageData) {
 		if (params == null)
 			params = new ParameterList()
-				.addEmptyParameter("1", "Setup", true)
+				.addTitleParameter("Setup")
 				.addDoubleParameter("downsampleFactor", "Downsample factor", 1)
 				//			.addBooleanParameter("useTransform", "Send color transformed image", true) // Not supported in batch mode, so disable option to avoid confusion
 				.addBooleanParameter("sendROI", "Send ROI to ImageJ", true)
 				.addBooleanParameter("sendOverlay", "Send overlay to ImageJ", true)
-				.addEmptyParameter("2", "Results", true)
+				.addBooleanParameter("doParallel", "Do parallel processing (experimental)", false)
+				.addTitleParameter("Results")
 				.addBooleanParameter("clearObjects", "Clear current child objects", false)
 				.addBooleanParameter("getROI", "Create annotation from ImageJ ROI", false)
-				.addBooleanParameter("getOverlay", "Create detection objects from ImageJ overlay", false);
+				.addBooleanParameter("getOverlay", "Create detection objects from ImageJ overlay", false)
+				;
 		return params;
 	}
 
@@ -365,6 +388,7 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 	@Override
 	protected void addRunnableTasks(final ImageData<BufferedImage> imageData, final PathObject parentObject, final List<Runnable> tasks) {
 		final ParameterList params = getParameterList(imageData);
+		boolean doParallel = Boolean.TRUE.equals(params.getBooleanParameterValue("doParallel"));
 		tasks.add(new Runnable() {
 
 			@Override
@@ -373,9 +397,9 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 					logger.warn("Execution interrupted - skipping {}", parentObject);
 					return;
 				}
-				if (SwingUtilities.isEventDispatchThread())
+				if (SwingUtilities.isEventDispatchThread() || doParallel)
 					runMacro(params, imageData, null, parentObject, macroText); // TODO: Deal with logging macro text properly
-				else
+				else {
 					try {
 						SwingUtilities.invokeAndWait(() -> runMacro(params, imageData, null, parentObject, macroText));
 					} catch (InvocationTargetException e) {
@@ -384,7 +408,8 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 					} catch (InterruptedException e) {
 						// TODO Auto-generated catch block
 						e.printStackTrace();
-					} // TODO: Deal with logging macro text properly					
+					} // TODO: Deal with logging macro text properly
+				}
 			}
 
 		});
@@ -395,8 +420,11 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 		// Try to get currently-selected objects
 		List<PathObject> pathObjects = runner.getHierarchy().getSelectionModel().getSelectedObjects().stream()
 				.filter(p -> p.isAnnotation() || p.isTMACore()).collect(Collectors.toList());
-//		if (!pathObjects.isEmpty())
-			return pathObjects;
+		if (pathObjects.isEmpty()) {
+			if (ParameterDialogWrapper.promptForParentObjects(runner, this, false, getSupportedParentObjectClasses()))
+				pathObjects = new ArrayList<>(runner.getHierarchy().getSelectionModel().getSelectedObjects());
+		}
+		return pathObjects;
 		
 //		// TODO: Give option to analyse annotations, even when TMA grid is present
 //		ImageData<BufferedImage> imageData = runner.getImageData();

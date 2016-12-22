@@ -2,6 +2,9 @@
 
 * Improved number formatting within numeric fields
 * Minor changes to display names of detection classifiers to match with OpenCV's names (functionality unaffected)
+* Fixed estimate of image size used when opening non-pyramidal images
+* ImageJ macro runner supports parallel processing (experimental)
+* ImageJ macro runner now prompts to select all TMA cores if none are selected
 
 
 ## Version 0.1.1

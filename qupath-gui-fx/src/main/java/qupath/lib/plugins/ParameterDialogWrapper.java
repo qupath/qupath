@@ -219,16 +219,32 @@ public class ParameterDialogWrapper<T> {
 		return lastWorkflowStep;
 	}
 
+	
+	
 	/**
 	 * Get the parent objects to use when running the plugin, or null if no suitable parent objects are found.
 	 * This involves prompting the user if multiple options are possible.
 	 * 
-	 * @param hierarchy
+	 * @param runner
+	 * @param plugin
+	 * @param includeSelected
 	 * @return
 	 */
 	public static <T> boolean promptForParentObjects(final PluginRunner<T> runner, final PathInteractivePlugin<T> plugin, final boolean includeSelected) {
-
-		final Collection<Class<? extends PathObject>> supportedParents = plugin.getSupportedParentObjectClasses();
+		return promptForParentObjects(runner, plugin, includeSelected, plugin.getSupportedParentObjectClasses());
+	}
+	
+	/**
+	 * Get the parent objects to use when running the plugin, or null if no suitable parent objects are found.
+	 * This involves prompting the user if multiple options are possible.
+	 * 
+	 * @param runner
+	 * @param plugin
+	 * @param includeSelected
+	 * @param supportedParents
+	 * @return
+	 */
+	public static <T> boolean promptForParentObjects(final PluginRunner<T> runner, final PathPlugin<T> plugin, final boolean includeSelected, final Collection<Class<? extends PathObject>> supportedParents) {
 
 		ImageData<T> imageData = runner.getImageData();
 		PathObjectHierarchy hierarchy = imageData == null ? null : imageData.getHierarchy();
