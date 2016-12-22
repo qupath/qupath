@@ -115,11 +115,11 @@ public class ImageServerProvider {
 				ImageServer<T> server = (ImageServer<T>)provider.buildServer(path);
 				if (server != null) {
 					// Check size is reasonable - should be small, or large & tiled
-					if ((long)server.getWidth() * server.getHeight() * server.getBitsPerPixel() < maxImageSize || server.getPreferredDownsamples().length > 1) {
+					if ((long)server.getWidth() * server.getHeight() * server.getBitsPerPixel() * server.nChannels() / 8 < maxImageSize || server.getPreferredDownsamples().length > 1) {
 						logger.info("Returning server: {} for {}", server.getServerType(), path);
 						return server;
 					} else
-						logger.warn("Cannot open {} with {} - image size too large ({} MB)", path, provider, server.getWidth() / (1024.0 * 1024.0) * server.getHeight() * server.getBitsPerPixel());
+						logger.warn("Cannot open {} with {} - image size too large ({} MB)", path, provider, server.getWidth() / (1024.0 * 1024.0 * 8.0) * server.getHeight() * server.getBitsPerPixel() * server.nChannels());
 				}
 			} catch (Exception e) {
 				logger.warn("ImageServer creation failed", e);
