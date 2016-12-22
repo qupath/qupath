@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <project xmlns:fx="javafx:com.sun.javafx.tools.ant" name="QuPath" default="do-deploy" basedir="./deploy">
 	
-	<property name="version" value="0.1.1"/>
+	<property name="version" value="0.1.2"/>
 	
 	<target name="init-fx-tasks">
 		<path id="fxant">
