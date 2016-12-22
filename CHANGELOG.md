@@ -1,7 +1,9 @@
 ## Version 0.1.2
 
 * Improved number formatting within numeric fields
+* New 'View -> Show slide label' option added to make labels easier to find
 * Minor changes to display names of detection classifiers to match with OpenCV's names (functionality unaffected)
+* Fixed bug that prevented images being opened if OpenSlide native libraries could not be found
 * Fixed estimate of image size used when opening non-pyramidal images
 * ImageJ macro runner supports parallel processing (experimental)
 * ImageJ macro runner now prompts to select all TMA cores if none are selected

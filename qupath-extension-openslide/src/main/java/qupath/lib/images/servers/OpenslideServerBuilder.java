@@ -24,7 +24,6 @@
 package qupath.lib.images.servers;
 
 import java.awt.image.BufferedImage;
-import java.io.IOException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,16 +39,22 @@ import qupath.lib.images.servers.FileFormatInfo.ImageCheckType;
 public class OpenslideServerBuilder implements ImageServerBuilder<BufferedImage> {
 	
 	private static Logger logger = LoggerFactory.getLogger(OpenslideServerBuilder.class);
+	private static boolean openslideUnavailable = false;
 
 	@Override
 	public ImageServer<BufferedImage> buildServer(String path) {
+		if (openslideUnavailable) {
+			logger.debug("OpenSlide is unavailable - will be skipped");
+			return null;
+		}
 		try {
 			return new OpenslideImageServer(path);
-		} catch (IOException e) {
-			logger.warn("Unable to open {} with OpenSlide: {}", path, e.getLocalizedMessage());
 		} catch (UnsatisfiedLinkError e) {
 			logger.error("Could not load OpenSlide native library", e);
-			return null;
+			// Log that we couldn't create the link
+			openslideUnavailable = true;
+		} catch (Exception e) {
+			logger.warn("Unable to open {} with OpenSlide: {}", path, e.getLocalizedMessage());
 		}
 		return null;
 	}
