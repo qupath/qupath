@@ -107,6 +107,8 @@ public class QPEx extends QP {
 		String base = getProjectBaseDirectory();
 		if (base != null)
 			return path.replace(PROJECT_BASE_DIR, base);
+		else if (path.contains(PROJECT_BASE_DIR))
+			throw new IllegalArgumentException("Cannot resolve path '" + path + "' - no project base directory available");
 		return
 			path;
 	}

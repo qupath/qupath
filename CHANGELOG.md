@@ -5,6 +5,9 @@
 * Minor changes to display names of detection classifiers to match with OpenCV's names (functionality unaffected)
 * Fixed bug that prevented images being opened if OpenSlide native libraries could not be found
 * Fixed estimate of image size used when opening non-pyramidal images
+* Using PROJECT_BASE_DIR in a script now fails with an appropriate error when called without a corresponding project
+* Added experimental guiscript option for running short GUI-oriented scripts in the JavaFX Platform thread
+* DialogHelperFX methods can now be called from any thread (not only the Platform thread)
 * ImageJ macro runner supports parallel processing (experimental)
 * ImageJ macro runner now prompts to select all TMA cores if none are selected
 

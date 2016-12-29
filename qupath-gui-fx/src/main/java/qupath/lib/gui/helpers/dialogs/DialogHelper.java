@@ -62,7 +62,7 @@ public interface DialogHelper {
 	 * @param exts
 	 * @return
 	 */
-	public List<File> promptForMultipleFiles(String title, File dirBase, String filterDescription, String[] exts);
+	public List<File> promptForMultipleFiles(String title, File dirBase, String filterDescription, String... exts);
 	
 	/**
 	 * Prompt user to select a directory.
@@ -81,7 +81,7 @@ public interface DialogHelper {
 	 * 
 	 * @return the File selected by the user, or 'null' if the dialog was cancelled
 	 */
-	public abstract File promptForFile(String title, File dirBase, String filterDescription, String[] exts);
+	public abstract File promptForFile(String title, File dirBase, String filterDescription, String... exts);
 
 	/**
 	 * Prompt user to select a file.
@@ -109,7 +109,7 @@ public interface DialogHelper {
 	 * @param exts - array of file extensions, not including . - (may be null if no filter should be used)
 	 * @return The path to the file or URL, or null if no path was provided.
 	 */
-	public String promptForFilePathOrURL(String title, String defaultPath, File dirBase, String filterDescription, String[] exts);
+	public String promptForFilePathOrURL(String title, String defaultPath, File dirBase, String filterDescription, String... exts);
 
 	/**
 	 * Alternative syntax that doesn't allow a title to be specified.
@@ -123,6 +123,6 @@ public interface DialogHelper {
 	 * @return
 	 */
 	@Deprecated
-	public String promptForFilePathOrURL(String defaultPath, File dirBase, String filterDescription, String[] exts);
+	public String promptForFilePathOrURL(String defaultPath, File dirBase, String filterDescription, String... exts);
 	
 }

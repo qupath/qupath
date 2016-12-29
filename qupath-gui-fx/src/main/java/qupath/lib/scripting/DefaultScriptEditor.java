@@ -39,6 +39,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Scanner;
 import java.util.concurrent.Future;
+import java.util.regex.Pattern;
 
 import javax.script.ScriptContext;
 import javax.script.ScriptEngine;
@@ -60,6 +61,7 @@ import javafx.beans.binding.StringBinding;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ReadOnlyBooleanProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.StringProperty;
 import javafx.beans.value.ObservableValue;
@@ -103,6 +105,7 @@ import javafx.scene.text.TextAlignment;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.util.Callback;
+import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.helpers.DisplayHelpers;
@@ -221,6 +224,10 @@ public class DefaultScriptEditor implements ScriptEditor {
 	private BooleanProperty sendLogToConsole = PathPrefs.createPersistentPreference("scriptingSendLogToConsole", true);
 	private BooleanProperty outputScriptStartTime = PathPrefs.createPersistentPreference("scriptingOutputScriptStartTime", false);
 	private BooleanProperty autoClearConsole = PathPrefs.createPersistentPreference("scriptingAutoClearConsole", false);
+	
+	// Regex pattern used to identify whether a script should be run in the JavaFX Platform thread
+	// If so, this line should be included at the top of the script
+	private static Pattern patternGuiScript = Pattern.compile("guiscript *?= *?true");
 	
 	private static ScriptEngineManager manager = createManager();
 	
@@ -962,6 +969,22 @@ public class DefaultScriptEditor implements ScriptEditor {
 	}
 	
 	
+	/**
+	 * Check the first line of this script to see whether it should be run in the JavaFX Platform thread or not
+	 * 
+	 * @param script
+	 * @return
+	 */
+	private static boolean requestGuiScript(final String script) {
+		String[] lines = GeneralTools.splitLines(script);
+		if (lines.length > 0) {
+			String firstLine = lines[0].toLowerCase();
+			return patternGuiScript.matcher(firstLine).find();
+		};
+		return false;
+	}
+	
+	
 	Action createRunScriptAction(final String name, final boolean selectedText) {
 		Action action = new Action(name, e -> {
 			String script;
@@ -986,16 +1009,30 @@ public class DefaultScriptEditor implements ScriptEditor {
 				tab.getConsoleComponent().clear();
 			}
 			
-			runningTask.setValue(qupath.createSingleThreadExecutor(this).submit(new Runnable() {
-				@Override
-				public void run() {
-					try {
-						executeScript(tab, script, qupath.getImageData());
-					} finally {
-						Platform.runLater(() -> runningTask.setValue(null));
-					}
+			// It's generally not a good idea to run in the Platform thread... since this will make the GUI unresponsive
+			// However, there may be times when it is useful to run a short script in the Platform thread
+			boolean runInPlatformThread = requestGuiScript(script);
+			
+			// Exceute the script
+			if (runInPlatformThread) {
+				logger.info("Running script in Platform thread...");
+				try {
+					executeScript(tab, script, qupath.getImageData());
+				} finally {
+					runningTask.setValue(null);
 				}
-			}));
+			} else {
+				runningTask.setValue(qupath.createSingleThreadExecutor(this).submit(new Runnable() {
+					@Override
+					public void run() {
+						try {
+							executeScript(tab, script, qupath.getImageData());
+						} finally {
+							Platform.runLater(() -> runningTask.setValue(null));
+						}
+					}
+				}));
+			}
 		});
 		if (selectedText)
 			action.setAccelerator(new KeyCodeCombination(KeyCode.R, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
