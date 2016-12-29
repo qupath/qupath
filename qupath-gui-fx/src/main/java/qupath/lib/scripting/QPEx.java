@@ -25,10 +25,15 @@ package qupath.lib.scripting;
 
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.PrintWriter;
 import java.lang.reflect.Constructor;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -36,14 +41,20 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.commands.SummaryMeasurementTableCommand;
+import qupath.lib.gui.models.ObservableMeasurementTableData;
+import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.stores.ImageRegionStore;
 import qupath.lib.io.PathAwtIO;
 import qupath.lib.io.PathIO;
 import qupath.lib.objects.PathAnnotationObject;
+import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.classes.PathClass;
+import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.plugins.CommandLinePluginRunner;
 import qupath.lib.plugins.PathPlugin;
@@ -390,5 +401,62 @@ public class QPEx extends QP {
 			return null;
 		return (PathArea)pathObject.getROI();
 	}
+	
+	
+	
+	public static void saveAnnotationMeasurements(final String path, final String... includeColumns) {
+		saveMeasurements(getCurrentImageData(), PathAnnotationObject.class, path, includeColumns);
+	}
+	
+	public static void saveTMAMeasurements(final String path, final String... includeColumns) {
+		saveMeasurements(getCurrentImageData(), TMACoreObject.class, path, includeColumns);
+	}
+	
+	public static void saveDetectionMeasurements(final String path, final String... includeColumns) {
+		saveMeasurements(getCurrentImageData(), PathDetectionObject.class, path, includeColumns);
+	}
+	
+	
+	public static void saveAnnotationMeasurements(final ImageData<?> imageData, final String path, final String... includeColumns) {
+		saveMeasurements(imageData, PathAnnotationObject.class, path, includeColumns);
+	}
+	
+	public static void saveTMAMeasurements(final ImageData<?> imageData, final String path, final String... includeColumns) {
+		saveMeasurements(imageData, TMACoreObject.class, path, includeColumns);
+	}
+	
+	public static void saveDetectionMeasurements(final ImageData<?> imageData, final String path, final String... includeColumns) {
+		saveMeasurements(imageData, PathDetectionObject.class, path, includeColumns);
+	}
+
+	public static void saveMeasurements(final Class<? extends PathObject> type, final String path, final String... includeColumns) {
+		saveMeasurements(getCurrentImageData(), type, path, includeColumns);
+	}
+	
+	public static void saveMeasurements(final ImageData<?> imageData, final Class<? extends PathObject> type, final String path, final String... includeColumns) {
+		File fileOutput = new File(resolvePath(path));
+		if (fileOutput.isDirectory()) {
+			String ext = ",".equals(PathPrefs.getTableDelimiter()) ? "csv" : "txt";
+			fileOutput = new File(fileOutput, imageData.getServer().getShortServerName() + " " + PathObjectTools.getSuitableName(type, true) + ext);
+		}
+		ObservableMeasurementTableData model = new ObservableMeasurementTableData();
+		model.setImageData(imageData, imageData == null ? Collections.emptyList() : imageData.getHierarchy().getObjects(null, type));
+		try {
+			PrintWriter writer = new PrintWriter(fileOutput);
+			Collection<String> excludeColumns;
+			if (includeColumns.length == 0) {
+				excludeColumns = Collections.emptyList();
+			} else {
+				excludeColumns = new LinkedHashSet<>(model.getAllNames());
+				excludeColumns.removeAll(Arrays.asList(includeColumns));
+			}
+			writer.println(SummaryMeasurementTableCommand.getTableModelString(model, PathPrefs.getTableDelimiter(), excludeColumns));
+			writer.close();
+		} catch (FileNotFoundException e) {
+			logger.error("File {} not found!", fileOutput);
+		}
+	}
+	
+	
 	
 }

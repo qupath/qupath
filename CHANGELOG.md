@@ -1,6 +1,7 @@
 ## Version 0.1.2
 
 * Improved number formatting within numeric fields
+* Saving measurement tables now logged, can be called from scripts
 * New 'View -> Show slide label' option added to make labels easier to find
 * Minor changes to display names of detection classifiers to match with OpenCV's names (functionality unaffected)
 * Fixed bug that prevented images being opened if OpenSlide native libraries could not be found
