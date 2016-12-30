@@ -29,6 +29,7 @@ import java.awt.GraphicsEnvironment;
 import java.awt.Transparency;
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -39,6 +40,7 @@ import qupath.lib.awt.common.AwtTools;
 import qupath.lib.common.ColorTools;
 import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.gui.viewer.PathHierarchyPaintingHelper;
+import qupath.lib.gui.viewer.overlays.HierarchyOverlay;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.PathImage;
 import qupath.lib.objects.DefaultPathObjectConnectionGroup;
@@ -228,13 +230,15 @@ public class PathHierarchyImageServer implements GeneratingImageServer<BufferedI
 		Object o = options.getShowConnections() ? imageData.getProperty(DefaultPathObjectConnectionGroup.KEY_OBJECT_CONNECTIONS) : null;
 		PathObjectConnections connections = (o instanceof PathObjectConnections) ? (PathObjectConnections)o : null;
 		
-		Collection<PathObject> pathObjects = getObjectsToPaint(request);
+		List<PathObject> pathObjects = new ArrayList<>(getObjectsToPaint(request));
 		if (pathObjects == null || pathObjects.isEmpty()) {
 			// We can only return null if no connections - otherwise we might still need to draw something
 			if (connections == null) {
 				return null;
 			}
 		}
+		
+		Collections.sort(pathObjects, new HierarchyOverlay.DetectionComparator());
 		
 		GraphicsConfiguration gc = GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice().getDefaultConfiguration();
 		double downsampleFactor = request.getDownsample();
