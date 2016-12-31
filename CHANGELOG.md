@@ -6,6 +6,7 @@
 * Minor changes to display names of detection classifiers to match with OpenCV's names (functionality unaffected)
 * Fixed bug that prevented images being opened if OpenSlide native libraries could not be found
 * Fixed estimate of image size used when opening non-pyramidal images
+* Fixed bug that prevented 3rd stain vector being set through the GUI if it was previously set to be the 'residual' stain, when image type is 'Brightfield (Other)'
 * New scripting functions (e.g. setIntensityClassifications) to simplify (sub-)classifying cells according to staining intensity ([example](https://gist.github.com/petebankhead/6f73a01a67935dae2f7fa75fabe0d6ee))
 * New, non-default PathClasses are now assigned a random color (rather than black)
 * Modified default color for Stroma classifications, to improve contrast
