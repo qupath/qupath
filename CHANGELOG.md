@@ -1,3 +1,24 @@
+## Version 0.1.2
+
+* Saving measurement tables is now logged, and can be called from scripts
+* New 'View -> Show slide label' option added to make labels easier to find
+* Added 'Analyze -> Cell analysis -> Subcellular detection' command (still experimental, for early testing & feedback)
+* Minor changes to display names of detection classifiers to match with OpenCV's names (functionality unaffected)
+* Fixed bug that prevented images being opened if OpenSlide native libraries could not be found
+* Fixed estimate of image size used when opening non-pyramidal images
+* Fixed bug that prevented 3rd stain vector being set through the GUI if it was previously set to be the 'residual' stain, when image type is 'Brightfield (Other)'
+* New scripting methods (e.g. setIntensityClassifications) to simplify (sub-)classifying cells according to staining intensity
+* New 'getCellObjects' scripting method
+* New, non-default PathClasses are now assigned a random color (rather than black)
+* Modified default color for 'Stroma' classifications, to improve contrast
+* Using PROJECT_BASE_DIR in a script now fails with an appropriate error when called without a corresponding project
+* Added experimental guiscript option for running short GUI-oriented scripts in the JavaFX Platform thread ([example](https://gist.github.com/petebankhead/6f73a01a67935dae2f7fa75fabe0d6ee))
+* DialogHelperFX methods can now be called from any thread (not only the Platform thread)
+* Improved number formatting within numeric fields
+* ImageJ macro runner supports parallel processing (experimental)
+* ImageJ macro runner now prompts to select all TMA cores if none are selected
+
+
 ## Version 0.1.1
 
 * Updated build script to produce Windows distribution without requiring installation

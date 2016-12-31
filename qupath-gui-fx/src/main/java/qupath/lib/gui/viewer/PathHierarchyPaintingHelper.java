@@ -39,7 +39,6 @@ import java.awt.Transparency;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.Ellipse2D;
 import java.awt.geom.Line2D;
-import java.awt.geom.Line2D.Double;
 import java.awt.geom.Path2D;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
@@ -356,8 +355,9 @@ public class PathHierarchyPaintingHelper {
 //									colorFill = ColorToolsAwt.getTranslucentColor(colorFill);
 //								else
 									colorFill = ColorToolsAwt.getMoreTranslucentColor(colorFill);
-							}
-							else if (pathObject instanceof PathTileObject && pathClass == null && color !=null && color.getRGB() == PathPrefs.getTileColor()) {
+							} else if (pathObject.getParent() instanceof PathDetectionObject) {
+								colorFill = ColorToolsAwt.getTranslucentColor(colorFill);
+							} else if (pathObject instanceof PathTileObject && pathClass == null && color !=null && color.getRGB() == PathPrefs.getTileColor()) {
 								// Don't fill in empty, unclassified tiles
 								colorFill = null; //DisplayHelpers.getMoreTranslucentColor(colorFill);
 							}

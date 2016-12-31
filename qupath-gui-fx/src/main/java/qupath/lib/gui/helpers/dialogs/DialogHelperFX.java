@@ -26,10 +26,15 @@ package qupath.lib.gui.helpers.dialogs;
 import java.io.File;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CountDownLatch;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javafx.application.Platform;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
 import javafx.geometry.Insets;
@@ -97,6 +102,11 @@ public class DialogHelperFX implements DialogHelper {
 
 	@Override
 	public File promptForDirectory(File dirBase) {
+		
+		if (!Platform.isFxApplicationThread()) {
+			return callOnPlatformThread(() -> promptForDirectory(dirBase));
+		}
+		
 		File lastDir = getLastDirectory();
 		directoryChooser.setInitialDirectory(getUsefulBaseDirectory(dirBase));
 		File dirSelected = directoryChooser.showDialog(ownerWindow);
@@ -113,7 +123,12 @@ public class DialogHelperFX implements DialogHelper {
 	}
 	
 	
-	public List<File> promptForMultipleFiles(String title, File dirBase, String filterDescription, String[] exts) {
+	public List<File> promptForMultipleFiles(String title, File dirBase, String filterDescription, String... exts) {
+		
+		if (!Platform.isFxApplicationThread()) {
+			return callOnPlatformThread(() -> promptForMultipleFiles(title, dirBase, filterDescription, exts));
+		}
+		
 		File lastDir = getLastDirectory();
 		fileChooser.setInitialDirectory(getUsefulBaseDirectory(dirBase));
 		if (title != null)
@@ -145,7 +160,12 @@ public class DialogHelperFX implements DialogHelper {
 	
 
 	@Override
-	public File promptForFile(String title, File dirBase, String filterDescription, String[] exts) {
+	public File promptForFile(String title, File dirBase, String filterDescription, String... exts) {
+		
+		if (!Platform.isFxApplicationThread()) {
+			return callOnPlatformThread(() -> promptForFile(title, dirBase, filterDescription, exts));
+		}
+		
 		File lastDir = getLastDirectory();
 		fileChooser.setInitialDirectory(getUsefulBaseDirectory(dirBase));
 		if (title != null)
@@ -177,11 +197,17 @@ public class DialogHelperFX implements DialogHelper {
 
 	@Override
 	public File promptForFile(File dirBase) {
-		return promptForFile(null, dirBase, null, null);
+		return promptForFile(null, dirBase, null);
 	}
 
 	@Override
 	public File promptToSaveFile(String title, File dirBase, String defaultName, String filterName, String ext) {
+		
+		if (!Platform.isFxApplicationThread()) {
+			return callOnPlatformThread(() -> promptToSaveFile(title, dirBase, defaultName, filterName, ext));
+		}
+
+		
 		File lastDir = getLastDirectory();
 		fileChooser.setInitialDirectory(getUsefulBaseDirectory(dirBase));
 		if (title != null)
@@ -221,7 +247,10 @@ public class DialogHelperFX implements DialogHelper {
 	}
 
 	@Override
-	public String promptForFilePathOrURL(String title, String defaultPath, File dirBase, String filterDescription, String[] exts) {
+	public String promptForFilePathOrURL(String title, String defaultPath, File dirBase, String filterDescription, String... exts) {
+		if (!Platform.isFxApplicationThread()) {
+			return callOnPlatformThread(() -> promptForFilePathOrURL(title, defaultPath, dirBase, filterDescription, exts));
+		}
 		
 		// Create dialog
         BorderPane pane = new BorderPane();
@@ -273,9 +302,48 @@ public class DialogHelperFX implements DialogHelper {
 	
 	
 	@Override
-	public String promptForFilePathOrURL(String defaultPath, File dirBase, String filterDescription, String[] exts) {
+	public String promptForFilePathOrURL(String defaultPath, File dirBase, String filterDescription, String... exts) {
 		return promptForFilePathOrURL(null, defaultPath, dirBase, filterDescription, exts);
 	}
 	
+	
+	
+	/**
+	 * Return a result after executing a Callable on the JavaFX Platform thread.
+	 * 
+	 * @param callable
+	 * @return
+	 */
+	private static <T> T callOnPlatformThread(final Callable<T> callable) {
+		if (Platform.isFxApplicationThread()) {
+			try {
+				return callable.call();
+			} catch (Exception e) {
+				logger.error("Error calling directly on Platform thread", e);
+				return null;
+			}
+		}
+		
+		CountDownLatch latch = new CountDownLatch(1);
+		ObjectProperty<T> result = new SimpleObjectProperty<>();
+		Platform.runLater(() -> {
+			T value;
+			try {
+				value = callable.call();
+				result.setValue(value);
+			} catch (Exception e) {
+				logger.error("Error calling on Platform thread", e);
+			} finally {
+				latch.countDown();
+			}
+		});
+		
+		try {
+			latch.await();
+		} catch (InterruptedException e) {
+			logger.error("Interrupted while waiting result", e);
+		}
+		return result.getValue();
+	}
 
 }

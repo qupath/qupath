@@ -65,7 +65,7 @@ public class PathClassFactory {
 		DEFAULT_PATH_CLASSES = new HashMap<>();
 		DEFAULT_PATH_CLASSES.put(PathClasses.TUMOR, new PathClass("Tumor", ColorTools.makeRGB(200, 0, 0)));
 		DEFAULT_PATH_CLASSES.put(PathClasses.NON_TUMOR, new PathClass("Non-tumor", ColorTools.makeRGB(140, 220, 90)));
-		DEFAULT_PATH_CLASSES.put(PathClasses.STROMA, new PathClass("Stroma", ColorTools.makeRGB(90, 180, 90)));
+		DEFAULT_PATH_CLASSES.put(PathClasses.STROMA, new PathClass("Stroma", ColorTools.makeRGB(150, 200, 150)));
 		DEFAULT_PATH_CLASSES.put(PathClasses.IMMUNE_CELLS, new PathClass("Immune cells", ColorTools.makeRGB(160, 90, 160)));
 		DEFAULT_PATH_CLASSES.put(PathClasses.NUCLEUS, new PathClass("Nucleus", ColorTools.makeRGB(20, 200, 20)));
 		DEFAULT_PATH_CLASSES.put(PathClasses.CELL, new PathClass("Cell", ColorTools.makeRGB(220, 0, 0)));
@@ -148,12 +148,46 @@ public class PathClassFactory {
 		return pathClass != null && NEGATIVE.equals(pathClass.getName());
 	}
 
+	/**
+	 * Get the first ancestor class that is not an intensity class (i.e. not negative, positive, 1+, 2+ or 3+).
+	 * 
+	 * This will return null if pathClass is null, or if no non-intensity classes are found.
+	 * 
+	 * @param pathClass
+	 * @return
+	 */
+	public static PathClass getNonIntensityAncestorClass(PathClass pathClass) {
+		while (pathClass != null && (PathClassFactory.isPositiveOrPositiveIntensityClass(pathClass) || PathClassFactory.isNegativeClass(pathClass)))
+			pathClass = pathClass.getParentClass();
+		return pathClass;
+	}
+	
 	
 	public static PathClass getPathClass(String name, Integer rgb) {
 		if (name == null)
 			return NULL_CLASS;
 		PathClass pathClass = mapPathBaseClasses.get(name);
 		if (pathClass == null) {
+			if (rgb == null) {
+				// Use default colors for intensity classes
+				if (name.equals(ONE_PLUS)) {
+					rgb = COLOR_ONE_PLUS;
+				} else if (name.equals(TWO_PLUS)) {
+					rgb = COLOR_TWO_PLUS;
+				} else if (name.equals(THREE_PLUS))
+					rgb = COLOR_THREE_PLUS;
+				else if (name.equals(POSITIVE)) {
+					rgb = COLOR_POSITIVE;
+				} else if (name.equals(NEGATIVE)) {
+					rgb = COLOR_NEGATIVE;
+				} else {
+					// Create a random color
+					rgb = ColorTools.makeRGB(
+							(int)(Math.random()*255),
+							(int)(Math.random()*255),
+							(int)(Math.random()*255));
+				}
+			}
 			pathClass = new PathClass(null, name, rgb);
 			mapPathBaseClasses.put(pathClass.toString(), pathClass);
 		}
@@ -201,11 +235,11 @@ public class PathClassFactory {
 				boolean isTumor = DEFAULT_PATH_CLASSES.get(PathClasses.TUMOR) == parentClass;
 				int parentRGB = parentClass.getColor();
 				if (name.equals(ONE_PLUS)) {
-					rgb = isTumor ? COLOR_ONE_PLUS : ColorTools.makeScaledRGB(parentRGB, 1.25);
+					rgb = isTumor ? COLOR_ONE_PLUS : ColorTools.makeScaledRGB(parentRGB, 0.9);
 				} else if (name.equals(TWO_PLUS)) {
-					rgb = isTumor ? COLOR_TWO_PLUS : ColorTools.makeScaledRGB(parentRGB, 0.75);
+					rgb = isTumor ? COLOR_TWO_PLUS : ColorTools.makeScaledRGB(parentRGB, 0.6);
 				} else if (name.equals(THREE_PLUS))
-					rgb = isTumor ? COLOR_THREE_PLUS : ColorTools.makeScaledRGB(parentRGB, 0.5);
+					rgb = isTumor ? COLOR_THREE_PLUS : ColorTools.makeScaledRGB(parentRGB, 0.4);
 				else if (name.equals(POSITIVE)) {
 					rgb = isTumor ? COLOR_POSITIVE : ColorTools.makeScaledRGB(parentRGB, 0.75);
 				} else if (name.equals(NEGATIVE)) {

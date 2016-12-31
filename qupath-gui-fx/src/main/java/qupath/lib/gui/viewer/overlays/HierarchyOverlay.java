@@ -214,7 +214,7 @@ public class HierarchyOverlay extends AbstractImageDataOverlay {
 	 * Comparator that makes use of levels, not only location.
 	 *
 	 */
-	static class DetectionComparator implements Comparator<PathObject> {
+	public static class DetectionComparator implements Comparator<PathObject> {
 		
 		private Comparator<PathObject> baseComparator = DefaultPathObjectComparator.getInstance();
 

@@ -311,7 +311,7 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 
 			StainVector stainVector = (StainVector)value;
 
-			if (stainVector.isResidual()) {
+			if (stainVector.isResidual() && imageData.getImageType() != ImageType.BRIGHTFIELD_OTHER) {
 				logger.warn("Cannot set residual stain vector - this is computed from the known vectors");
 				return;
 			}

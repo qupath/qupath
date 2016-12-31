@@ -255,6 +255,11 @@ public class QP {
 		removeObjects(Arrays.asList(pathObjects), keepChildren);
 	}
 	
+	/**
+	 * Get a count of the total number of objects in the current hierarchy.
+	 * 
+	 * @return
+	 */
 	public static int nObjects() {
 		PathObjectHierarchy hierarchy = getCurrentHierarchy();
 		if (hierarchy == null)
@@ -376,6 +381,7 @@ public class QP {
 		return hierarchy.getObjects(null, PathAnnotationObject.class);
 	}
 
+	@Deprecated
 	public static PathObject[] getDetectionObjectsAsArray() {
 		return getDetectionObjects().toArray(new PathObject[0]);
 	}
@@ -385,6 +391,13 @@ public class QP {
 		if (hierarchy == null)
 			return Collections.emptyList();
 		return hierarchy.getObjects(null, PathDetectionObject.class);
+	}
+	
+	public static List<PathObject> getCellObjects() {
+		PathObjectHierarchy hierarchy = getCurrentHierarchy();
+		if (hierarchy == null)
+			return Collections.emptyList();
+		return hierarchy.getObjects(null, PathCellObject.class);
 	}
 
 	public static PathObject[] getAllObjects() {
@@ -553,11 +566,23 @@ public class QP {
 	}
 	
 	
+	/**
+	 * Reset the PathClass for all objects of the specified type in the current hierarchy.
+	 * 
+	 * @param hierarchy
+	 * @param cls
+	 */
 	public static void resetClassifications(final Class<? extends PathObject> cls) {
 		PathObjectHierarchy hierarchy = getCurrentHierarchy();
 		resetClassifications(hierarchy, cls);
 	}
 	
+	/**
+	 * Reset the PathClass for all objects of the specified type in the specified hierarchy.
+	 * 
+	 * @param hierarchy
+	 * @param cls
+	 */
 	public static void resetClassifications(final PathObjectHierarchy hierarchy, final Class<? extends PathObject> cls) {
 		if (hierarchy == null)
 			return;
@@ -573,18 +598,34 @@ public class QP {
 		hierarchy.fireObjectClassificationsChangedEvent(QP.class, objects);
 	}
 	
+	/**
+	 * Reset the PathClass for all detection objects in the current hierarchy.
+	 */
 	public static void resetDetectionClassifications() {
 //		resetClassifications(PathAnnotationObject.class);
 		resetClassifications(PathDetectionObject.class);
 	}
 	
-	
-	public static boolean hasMeasurement(final PathObject pathObject, final String name) {
-		return pathObject != null && pathObject.getMeasurementList().containsNamedMeasurement(name);
+	/**
+	 * Test whether a PathObject has a specified measurement in its measurement list.
+	 * 
+	 * @param pathObject
+	 * @param name
+	 * @return
+	 */
+	public static boolean hasMeasurement(final PathObject pathObject, final String measurementName) {
+		return pathObject != null && pathObject.getMeasurementList().containsNamedMeasurement(measurementName);
 	}
 
-	public static double measurement(final PathObject pathObject, final String name) {
-		return pathObject == null ? Double.NaN : pathObject.getMeasurementList().getMeasurementValue(name);
+	/**
+	 * Extract the specified measurement from a PathObject.
+	 * 
+	 * @param pathObject
+	 * @param name
+	 * @return
+	 */
+	public static double measurement(final PathObject pathObject, final String measurementName) {
+		return pathObject == null ? Double.NaN : pathObject.getMeasurementList().getMeasurementValue(measurementName);
 	}
 
 	
@@ -679,48 +720,83 @@ public class QP {
 		selectObjects(hierarchy, p -> cls.isInstance(p));
 	}
 	
+	/**
+	 * Select all annotation objects in the specified hierarchy.
+	 * @param hierarchy
+	 */
 	public static void selectAnnotations(final PathObjectHierarchy hierarchy) {
 		selectObjectsByClass(hierarchy, PathAnnotationObject.class);
 	}
 	
+	/**
+	 * Select all TMA core objects in the specified hierarchy, excluding missing cores.
+	 * @param hierarchy
+	 */
 	public static void selectTMACores(final PathObjectHierarchy hierarchy) {
 		selectTMACores(hierarchy, false);
 	}
 	
+	/**
+	 * Select all TMA core objects in the specified hierarchy, optionally including missing cores.
+	 * @param hierarchy
+	 */
 	public static void selectTMACores(final PathObjectHierarchy hierarchy, final boolean includeMissing) {
 		hierarchy.getSelectionModel().setSelectedObjects(PathObjectTools.getTMACoreObjects(hierarchy, includeMissing), null);
 	}
 
+	/**
+	 * Select all detection objects in the specified hierarchy.
+	 * @param hierarchy
+	 */
 	public static void selectDetections(final PathObjectHierarchy hierarchy) {
 		selectObjectsByClass(hierarchy, PathDetectionObject.class);
 	}
 	
+	/**
+	 * Select all cell objects in the specified hierarchy.
+	 * @param hierarchy
+	 */
 	public static void selectCells(final PathObjectHierarchy hierarchy) {
 		selectObjectsByClass(hierarchy, PathCellObject.class);
 	}
 	
+	/**
+	 * Select all annotation objects in the current hierarchy.
+	 */
 	public static void selectAnnotations() {
 		PathObjectHierarchy hierarchy = getCurrentHierarchy();
 		if (hierarchy != null)
 			selectAnnotations(hierarchy);
 	}
 	
+	/**
+	 * Select all TMA core objects in the current hierarchy, excluding missing cores.
+	 */
 	public static void selectTMACores() {
 		selectTMACores(false);
 	}
 	
+	/**
+	 * Select all TMA core objects in the current hierarchy, optionally including missing cores.
+	 */
 	public static void selectTMACores(final boolean includeMissing) {
 		PathObjectHierarchy hierarchy = getCurrentHierarchy();
 		if (hierarchy != null)
 			selectTMACores(hierarchy, includeMissing);
 	}
 
+	/**
+	 * Select all detection objects in the current hierarchy.
+	 */
 	public static void selectDetections() {
 		PathObjectHierarchy hierarchy = getCurrentHierarchy();
 		if (hierarchy != null)
 			selectDetections(hierarchy);
 	}
 	
+	/**
+	 * Select all cell objects in the current hierarchy.
+	 */
 	public static void selectCells() {
 		PathObjectHierarchy hierarchy = getCurrentHierarchy();
 		if (hierarchy != null)
@@ -824,18 +900,30 @@ public class QP {
 			selectObjects(hierarchy, parsePredicate(command));
 	}
 	
-	public static void classifySelected(final String name) {
+	/**
+	 * Set the classification of the selected objects in the current hierarchy.
+	 * 
+	 * @param hierarchy
+	 * @param pathClassName
+	 */
+	public static void classifySelected(final String pathClassName) {
 		PathObjectHierarchy hierarchy = getCurrentHierarchy();
 		if (hierarchy != null)
-			classifySelected(hierarchy, name);
+			classifySelected(hierarchy, pathClassName);
 	}
 	
-	public static void classifySelected(final PathObjectHierarchy hierarchy, final String name) {
-		if (!PathClassFactory.pathClassExists(name)) {
-			logger.error("No class exists called {}", name);
+	/**
+	 * Set the classification of the selected objects.
+	 * 
+	 * @param hierarchy
+	 * @param pathClassName
+	 */
+	public static void classifySelected(final PathObjectHierarchy hierarchy, final String pathClassName) {
+		if (!PathClassFactory.pathClassExists(pathClassName)) {
+			logger.error("No class exists called {}", pathClassName);
 			return;
 		}
-		PathClass pathClass = PathClassFactory.getPathClass(name);
+		PathClass pathClass = PathClassFactory.getPathClass(pathClassName);
 		Collection<PathObject> selected = hierarchy.getSelectionModel().getSelectedObjects();
 		if (selected.isEmpty()) {
 			logger.info("No objects selected");
@@ -845,19 +933,29 @@ public class QP {
 			pathObject.setPathClass(pathClass);
 		}
 		if (selected.size() == 1)
-			logger.info("{} object classified as {}", selected.size(), name);
+			logger.info("{} object classified as {}", selected.size(), pathClassName);
 		else
-			logger.info("{} objects classified as {}", selected.size(), name);
+			logger.info("{} objects classified as {}", selected.size(), pathClassName);
 		hierarchy.fireObjectClassificationsChangedEvent(null, selected);
 	}
 
 	
+	/**
+	 * Clear the selection for the current hierarchy, so that no objects of any kind are selected.
+	 * 
+	 * @param hierarchy
+	 */
 	public static void deselectAll() {
 		PathObjectHierarchy hierarchy = getCurrentHierarchy();
 		if (hierarchy != null)
 			deselectAll(hierarchy);
 	}
 	
+	/**
+	 * Clear the selection, so that no objects of any kind are selected.
+	 * 
+	 * @param hierarchy
+	 */
 	public static void deselectAll(final PathObjectHierarchy hierarchy) {
 		hierarchy.getSelectionModel().clearSelection();
 	}
@@ -944,5 +1042,163 @@ public class QP {
 		}
 		hierarchy.fireObjectMeasurementsChangedEvent(null, pathObjects);
 	}
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	/**
+	 * Get a base class - which is either a valid PathClass which is *not* an intensity class, or else null.
+	 * 
+	 * This will be null if pathObject.getPathClass() == null.
+	 * 
+	 * Otherwise, it will be pathObject.getPathClass().getBaseClass() assuming the result isn't an intensity class - or null otherwise.
+	 * 
+	 * @param pathObject
+	 * @return
+	 */
+	public static PathClass getBasePathClass(final PathObject pathObject) {
+		PathClass baseClass = pathObject.getPathClass();
+		if (baseClass != null) {
+			baseClass = baseClass.getBaseClass();
+			// Check our base isn't an intensity class
+			if (PathClassFactory.isPositiveOrPositiveIntensityClass(baseClass) || PathClassFactory.isNegativeClass(baseClass))
+				baseClass = null;
+		}
+		return baseClass;
+	}
+
+	
+	/**
+	 * Get the first ancestor class of pathObject.getPathClass() that is not an intensity class (i.e. not negative, positive, 1+, 2+ or 3+).
+	 * 
+	 * This will return null if pathClass is null, or if no non-intensity classes are found.
+	 * 
+	 * @param pathObject
+	 * @return
+	 */
+	public static PathClass getNonIntensityAncestorPathClass(final PathObject pathObject) {
+		return PathClassFactory.getNonIntensityAncestorClass(pathObject.getPathClass());
+	}
+	
+	
+	/**
+	 * Assign cell classifications as positive or negative based upon a specified measurement, using up to 3 intensity bins.
+	 * 
+	 * An IllegalArgumentException is thrown if < 1 or > 3 intensity thresholds are provided.
+	 * 
+	 * @param pathObject The object to classify.
+	 * @param measurementName The name of the measurement to use for thresholding.
+	 * @param threshold1Plus The first (lowest) threshold.  An object with >= threshold1Plus will be classified as positive.
+	 * @param threshold2Plus The second (intermediate) threshold.  An object with >= threshold1Plus will be classified as moderately positive.
+	 * @param threshold3Plus The third (high) threshold.  An object with >= threshold1Plus will be classified as strongly positive.
+	 * @param singleThreshold If true, only threshold1Plus will be used.
+	 * @return the PathClass of the object after running this method.
+	 */
+	public static PathClass setIntensityClassification(final PathObject pathObject, final String measurementName, final double... thresholds) {
+		if (thresholds.length == 0 || thresholds.length > 3)
+			throw new IllegalArgumentException("Between 1 and 3 intensity thresholds required!");
+		
+		PathClass baseClass = getNonIntensityAncestorPathClass(pathObject);
+		double estimatedSpots = pathObject.getMeasurementList().getMeasurementValue(measurementName);
+		
+		boolean singleThreshold = thresholds.length == 1;
+		
+		if (estimatedSpots < thresholds[0]) {
+			pathObject.setPathClass(PathClassFactory.getNegative(baseClass, null));
+		} else {
+			if (singleThreshold)
+				pathObject.setPathClass(PathClassFactory.getPositive(baseClass, null));
+			else if (thresholds.length >= 3 && estimatedSpots >= thresholds[2])
+				pathObject.setPathClass(PathClassFactory.getThreePlus(baseClass, null));				
+			else if (thresholds.length >= 2 && estimatedSpots >= thresholds[1])
+				pathObject.setPathClass(PathClassFactory.getTwoPlus(baseClass, null));				
+			else if (estimatedSpots >= thresholds[0])
+				pathObject.setPathClass(PathClassFactory.getOnePlus(baseClass, null));				
+		}
+		return pathObject.getPathClass();
+	}
+	
+	public static void setIntensityClassifications(final Collection<PathObject> pathObjects, final String measurementName, final double... thresholds) {
+		for (PathObject pathObject : pathObjects)
+			setIntensityClassification(pathObject, measurementName, thresholds);
+	}
+	
+	/**
+	 * Set intensity classifications for all selected (detection) objects.
+	 * 
+	 * @param hierarchy
+	 * @param measurementName
+	 * @param thresholds
+	 */
+	public static void setIntensityClassificationsForSelected(final PathObjectHierarchy hierarchy, final String measurementName, final double... thresholds) {
+		// Get all selected detections
+		List<PathObject> pathObjects = hierarchy.getSelectionModel().getSelectedObjects()
+				.stream().filter(p -> p.isDetection()).collect(Collectors.toList());
+		setIntensityClassifications(pathObjects, measurementName, thresholds);
+		hierarchy.fireObjectClassificationsChangedEvent(QP.class, pathObjects);
+	}
+	
+	public static void setIntensityClassifications(final PathObjectHierarchy hierarchy, final Class<? extends PathObject> cls, final String measurementName, final double... thresholds) {
+		List<PathObject> pathObjects = hierarchy.getObjects(null, cls);
+		setIntensityClassifications(pathObjects, measurementName, thresholds);
+		hierarchy.fireObjectClassificationsChangedEvent(QP.class, pathObjects);
+	}
+	
+	public static void setIntensityClassifications(final Class<? extends PathObject> cls, final String measurementName, final double... thresholds) {
+		setIntensityClassifications(getCurrentHierarchy(), cls, measurementName, thresholds);
+	}
+	
+	public static void setCellIntensityClassifications(final String measurementName, final double... thresholds) {
+		setCellIntensityClassifications(getCurrentHierarchy(), measurementName, thresholds);
+	}
+	
+	public static void setCellIntensityClassifications(final PathObjectHierarchy hierarchy, final String measurementName, final double... thresholds) {
+		setIntensityClassifications(hierarchy, PathCellObject.class, measurementName, thresholds);
+	}	
+	
+	
+	/**
+	 * Reset the intensity classifications for all specified objects.
+	 * 
+	 * This means setting the classification to the result of <code>getNonIntensityAncestorPathClass(pathObject)</code>
+	 * 
+	 * @param hierarchy
+	 */
+	public static void resetIntensityClassifications(final Collection<PathObject> pathObjects) {
+		for (PathObject pathObject : pathObjects) {
+			PathClass currentClass = pathObject.getPathClass();
+			if (PathClassFactory.isPositiveOrPositiveIntensityClass(currentClass) || PathClassFactory.isNegativeClass(currentClass))
+				pathObject.setPathClass(getNonIntensityAncestorPathClass(pathObject));
+		}
+	}
+	
+	/**
+	 * Reset the intensity classifications for all detections in the specified hierarchy.
+	 * 
+	 * This means setting the classification to the result of <code>getNonIntensityAncestorPathClass(pathObject)</code>
+	 * 
+	 * @param hierarchy
+	 */
+	public static void resetIntensityClassifications(final PathObjectHierarchy hierarchy) {
+		List<PathObject> pathObjects = hierarchy.getObjects(null, PathDetectionObject.class);
+		resetIntensityClassifications(pathObjects);
+		hierarchy.fireObjectClassificationsChangedEvent(QP.class, pathObjects);
+	}
+
+	/**
+	 * Reset the intensity classifications for all detections in the current hierarchy.
+	 * 
+	 * This means setting the classification to the result of <code>getNonIntensityAncestorPathClass(pathObject)</code>
+	 * 
+	 */
+	public static void resetIntensityClassifications() {
+		resetIntensityClassifications(getCurrentHierarchy());
+	}
+
 
 }

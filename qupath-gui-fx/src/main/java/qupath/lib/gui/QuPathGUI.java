@@ -260,6 +260,7 @@ import qupath.lib.gui.panels.PathObjectHierarchyView;
 import qupath.lib.gui.panels.PreferencePanel;
 import qupath.lib.gui.panels.ProjectBrowser;
 import qupath.lib.gui.panels.SelectedMeasurementTableView;
+import qupath.lib.gui.panels.SlideLabelView;
 import qupath.lib.gui.panels.WorkflowPanel;
 import qupath.lib.gui.panels.classify.RandomTrainingRegionSelector;
 import qupath.lib.gui.prefs.PathPrefs;
@@ -2582,6 +2583,24 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	
 	
 	
+//	private final static String URL_DOCS       = "http://go.qub.ac.uk/qupath-docs");
+//	private final static String URL_VIDEOS     = "http://go.qub.ac.uk/qupath-videos";
+//	private final static String URL_CITATION   = "http://go.qub.ac.uk/qupath-citation";
+//	private final static String URL_EXTENSIONS = "http://go.qub.ac.uk/qupath-extensions";
+//	private final static String URL_BUGS       = "http://go.qub.ac.uk/qupath-bugs";
+//	private final static String URL_FORUM      = "http://go.qub.ac.uk/qupath-forum";
+//	private final static String URL_SOURCE     = "http://go.qub.ac.uk/qupath-source";
+	
+	private final static String URL_DOCS       = "https://github.com/qupath/qupath/wiki";
+	private final static String URL_VIDEOS     = "https://www.youtube.com/channel/UCk5fn7cjMZFsQKKdy-YWOFQ";
+	private final static String URL_CITATION   = "https://github.com/qupath/qupath/wiki/Citing-QuPath";
+	private final static String URL_EXTENSIONS = "https://github.com/qupath/qupath/wiki/Extensions";
+	private final static String URL_BUGS       = "https://github.com/qupath/qupath/issues";
+	private final static String URL_FORUM      = "https://groups.google.com/forum/#!forum/qupath-users";
+	private final static String URL_SOURCE     = "https://github.com/qupath/qupath";
+
+	
+	
 	protected MenuBar createMenuBar() {
 		
 		// Create a recent projects list
@@ -2716,6 +2735,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 //		}
 		
 		// Create View menu
+		SlideLabelView slideLabelView = new SlideLabelView(this);
 		ToggleGroup groupCellDisplay = new ToggleGroup();
 		Menu menuView = createMenu(
 				"View",
@@ -2763,6 +2783,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				null,
 				getActionMenuItem(GUIActions.VIEW_TRACKER),
 				getActionMenuItem(GUIActions.MINI_VIEWER),
+				createCheckMenuItem(createSelectableCommandAction(slideLabelView.showingProperty(), "Show slide label")),				
 				null,
 				getActionMenuItem(GUIActions.SHOW_LOG)
 			);
@@ -2906,16 +2927,16 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 //				createCommandAction(new HelpCommand(this), "Documentation"),
 				getAction(GUIActions.QUPATH_SETUP),
 				null,
-				createCommandAction(new OpenWebpageCommand(this, "http://go.qub.ac.uk/qupath-docs"), "Documentation (web)"),
-				createCommandAction(new OpenWebpageCommand(this, "http://go.qub.ac.uk/qupath-videos"), "Demo videos (web)"),
+				createCommandAction(new OpenWebpageCommand(this, URL_DOCS), "Documentation (web)"),
+				createCommandAction(new OpenWebpageCommand(this, URL_VIDEOS), "Demo videos (web)"),
 //				createCommandAction(new OpenWebpageCommand(this, "http://go.qub.ac.uk/qupath-latest"), "Get latest version (web)"),
 				actionUpdateCheck,
 				null,
-				createCommandAction(new OpenWebpageCommand(this, "http://go.qub.ac.uk/qupath-citation"), "Cite QuPath (web)"),
-				createCommandAction(new OpenWebpageCommand(this, "http://go.qub.ac.uk/qupath-extensions"), "Add extensions (web)"),
-				createCommandAction(new OpenWebpageCommand(this, "http://go.qub.ac.uk/qupath-bugs"), "Report bug (web)"),
-				createCommandAction(new OpenWebpageCommand(this, "http://go.qub.ac.uk/qupath-forum"), "View user forum (web)"),
-				createCommandAction(new OpenWebpageCommand(this, "http://go.qub.ac.uk/qupath-source"), "View source code (web)"),
+				createCommandAction(new OpenWebpageCommand(this, URL_CITATION), "Cite QuPath (web)"),
+				createCommandAction(new OpenWebpageCommand(this, URL_EXTENSIONS), "Add extensions (web)"),
+				createCommandAction(new OpenWebpageCommand(this, URL_BUGS), "Report bug (web)"),
+				createCommandAction(new OpenWebpageCommand(this, URL_FORUM), "View user forum (web)"),
+				createCommandAction(new OpenWebpageCommand(this, URL_SOURCE), "View source code (web)"),
 				null,
 				createCommandAction(new ShowLicensesCommand(this), "License"),
 				createCommandAction(new ShowSystemInfoCommand(this), "System info"),

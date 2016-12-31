@@ -136,7 +136,7 @@ public class RTreesClassifier extends ParameterizableOpenCvClassifier<RTrees> im
 	
 	@Override
 	public String getName() {
-		return "Random Forest";
+		return "Random Trees";
 	}
 
 	@Override

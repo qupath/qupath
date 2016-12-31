@@ -56,6 +56,7 @@ import org.controlsfx.control.action.Action;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import qupath.imagej.detect.cells.SubcellularDetection;
 import qupath.imagej.detect.dearray.TMADearrayerPluginIJ;
 import qupath.imagej.detect.features.ImmuneScorerTMA;
 import qupath.imagej.detect.nuclei.PositiveCellDetection;
@@ -520,7 +521,9 @@ public class IJExtension implements QuPathExtension {
 //				qupath.createPluginAction("Lesion detection (experimental)", LesionDetector.class, null, false),
 				
 				new SeparatorMenuItem(),
-				qupath.createPluginAction("Immune scorer (TMA, experimental)", ImmuneScorerTMA.class, null, false)
+				qupath.createPluginAction("Immune scorer (TMA, experimental)", ImmuneScorerTMA.class, null, false),
+				new SeparatorMenuItem(),
+				qupath.createPluginAction("Subcellular detection (experimental)", SubcellularDetection.class, null, true)
 				);
 
 

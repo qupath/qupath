@@ -29,4 +29,4 @@ Project funding
 
 Important!  If you use QuPath for research, please include a citation in any publications.
 
-For more information, see http://go.qub.ac.uk/qupath-citation
+For more information, see https://github.com/qupath/qupath/wiki/Citing-QuPath

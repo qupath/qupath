@@ -93,6 +93,8 @@ import qupath.lib.gui.viewer.QuPathViewerListener;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.stores.ImageRegionStore;
+import qupath.lib.objects.PathAnnotationObject;
+import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.classes.PathClass;
@@ -101,6 +103,8 @@ import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
 import qupath.lib.objects.hierarchy.events.PathObjectSelectionModel;
+import qupath.lib.plugins.workflow.DefaultScriptableWorkflowStep;
+import qupath.lib.plugins.workflow.WorkflowStep;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.interfaces.ROI;
 
@@ -298,7 +302,40 @@ public class SummaryMeasurementTableCommand implements PathCommand {
 				if (!col.isVisible())
 					excludeColumns.add(col.getText());
 			}
-			saveTableModel(model, null, excludeColumns);
+			File fileOutput = promptForOutputFile();
+			if (fileOutput == null)
+				return;
+			if (saveTableModel(model, fileOutput, excludeColumns)) {
+				WorkflowStep step;
+				String includeColumns;
+				if (excludeColumns.isEmpty())
+					includeColumns = "";
+				else {
+					List<String> includeColumnList = new ArrayList<>(model.getAllNames());
+					includeColumnList.removeAll(excludeColumns);
+					includeColumns = includeColumnList.stream().map(s -> "'" + s + "'").collect(Collectors.joining(", "));
+				}
+				String path = qupath.getProject() == null ? fileOutput.getAbsolutePath() : fileOutput.getParentFile().getAbsolutePath();
+				if (type == TMACoreObject.class) {
+					step = new DefaultScriptableWorkflowStep("Save TMA measurements",
+							String.format("saveTMAMeasurements('%s', %s)", path, includeColumns)
+							);
+				}
+				else if (type == PathAnnotationObject.class) {
+					step = new DefaultScriptableWorkflowStep("Save annotation measurements",
+							String.format("saveAnnotationMeasurements('%s\', %s)", path, includeColumns)
+							);
+				} else if (type == PathDetectionObject.class) {
+					step = new DefaultScriptableWorkflowStep("Save detection measurements",
+							String.format("saveDetectionMeasurements('%s', %s)", path, includeColumns)
+							);
+				} else {
+					step = new DefaultScriptableWorkflowStep("Save measurements",
+							String.format("saveMeasurements('%s', %s, %s)", path, type == null ? null : type.getName(), includeColumns)
+							);
+				}
+				imageData.getHistoryWorkflow().addStep(step);
+			}
 		});
 		buttons.add(btnSave);
 
@@ -718,30 +755,30 @@ public class SummaryMeasurementTableCommand implements PathCommand {
 		clipboard.setContent(content);
 	}
 
-
-	public static void saveTableModel(final PathTableData<?> tableModel, File fileOutput, Collection<String> excludeColumns) {
+	
+	
+	private static File promptForOutputFile() {
 		String ext = ",".equals(PathPrefs.getTableDelimiter()) ? "csv" : "txt";
+		return QuPathGUI.getSharedDialogHelper().promptToSaveFile(null, null, null, "Results data", ext);
+	}
+	
+
+	public static boolean saveTableModel(final PathTableData<?> tableModel, File fileOutput, Collection<String> excludeColumns) {
 		if (fileOutput == null) {
-			fileOutput = QuPathGUI.getSharedDialogHelper().promptToSaveFile(null, null, null, "Results data", ext);
+			fileOutput = promptForOutputFile();
 			if (fileOutput == null)
-				return;
+				return false;
 		}
 		try {
 			PrintWriter writer = new PrintWriter(fileOutput);
 			writer.println(getTableModelString(tableModel, PathPrefs.getTableDelimiter(), excludeColumns));
 			writer.close();
+			return true;
 		} catch (FileNotFoundException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			logger.error("File {} not found!", fileOutput);
 		}
+		return false;
 	}
-	
-	
-	
-	
-	
-	
-	
 	
 	
 	private boolean synchronizingTableToModel = false;
