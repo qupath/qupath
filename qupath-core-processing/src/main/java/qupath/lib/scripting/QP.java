@@ -381,6 +381,7 @@ public class QP {
 		return hierarchy.getObjects(null, PathAnnotationObject.class);
 	}
 
+	@Deprecated
 	public static PathObject[] getDetectionObjectsAsArray() {
 		return getDetectionObjects().toArray(new PathObject[0]);
 	}
@@ -390,6 +391,13 @@ public class QP {
 		if (hierarchy == null)
 			return Collections.emptyList();
 		return hierarchy.getObjects(null, PathDetectionObject.class);
+	}
+	
+	public static List<PathObject> getCellObjects() {
+		PathObjectHierarchy hierarchy = getCurrentHierarchy();
+		if (hierarchy == null)
+			return Collections.emptyList();
+		return hierarchy.getObjects(null, PathCellObject.class);
 	}
 
 	public static PathObject[] getAllObjects() {

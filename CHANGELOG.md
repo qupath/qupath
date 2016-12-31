@@ -7,7 +7,8 @@
 * Fixed bug that prevented images being opened if OpenSlide native libraries could not be found
 * Fixed estimate of image size used when opening non-pyramidal images
 * Fixed bug that prevented 3rd stain vector being set through the GUI if it was previously set to be the 'residual' stain, when image type is 'Brightfield (Other)'
-* New scripting functions (e.g. setIntensityClassifications) to simplify (sub-)classifying cells according to staining intensity
+* New scripting methods (e.g. setIntensityClassifications) to simplify (sub-)classifying cells according to staining intensity
+* New 'getCellObjects' scripting method
 * New, non-default PathClasses are now assigned a random color (rather than black)
 * Modified default color for 'Stroma' classifications, to improve contrast
 * Using PROJECT_BASE_DIR in a script now fails with an appropriate error when called without a corresponding project
