@@ -102,7 +102,9 @@ public class SimpleTissueDetection2 extends AbstractDetectionPlugin<BufferedImag
 		
 		params = new ParameterList().
 				addIntParameter("threshold", "Threshold", 127, null, 0, 255, "Global threshold to use - defined in the range 0-255");
-		
+
+		params.addIntParameter("channel", "Image channel to use", 1, null, "The input image channel to use for detection.");
+
 		params.addDoubleParameter("requestedPixelSizeMicrons", "Requested pixel size", 20, GeneralTools.micrometerSymbol(), "Requested pixel size for detection resolution - higher values mean a less detailed (but faster) result.\nNote that if the resolution is set too high (leading to a huge image) it will be adjusted automatically.");
 		params.addDoubleParameter("minAreaMicrons", "Minimum area", 10000, GeneralTools.micrometerSymbol()+"^2", "The minimum area for a detected region - smaller regions will be discarded");
 		params.addDoubleParameter("maxHoleAreaMicrons", "Max fill area", 1000000, GeneralTools.micrometerSymbol()+"^2", "'Holes' occurring within the detected regions that are smaller than this will be filled in");
@@ -158,6 +160,7 @@ public class SimpleTissueDetection2 extends AbstractDetectionPlugin<BufferedImag
 				PathImage<ImagePlus> pathImage = server.readImagePlusRegion(request); // TODO: Implement z-stack support
 			
 			double threshold = params.getIntParameterValue("threshold");
+			int channel = params.getIntParameterValue("channel");
 			double minAreaMicrons = 1, maxHoleAreaMicrons = 1, minAreaPixels = 1, maxHoleAreaPixels = 1;
 			if (server.hasPixelSizeMicrons()) {
 				minAreaMicrons = params.getDoubleParameterValue("minAreaMicrons");
@@ -176,6 +179,7 @@ public class SimpleTissueDetection2 extends AbstractDetectionPlugin<BufferedImag
 			
 			// Create a ByteProcessor
 			ImagePlus imp = pathImage.getImage();
+			imp.setC(channel);
 			ByteProcessor bp = imp.getProcessor().convertToByteProcessor();
 			
 			if (smoothImage)
