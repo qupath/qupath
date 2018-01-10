@@ -226,7 +226,7 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 		
 		// Check the size of the region to extract - abort if it is too large
 		double approxPixelCount = (region.getWidth() / region.getDownsample()) * (region.getHeight() / region.getDownsample());
-		if (approxPixelCount > 5000L*5000L) {
+		if (approxPixelCount > 25000L*25000L) {
 			DisplayHelpers.showErrorMessage("ImageJ macro error", "Requested region is too large to send to ImageJ (approx " + (int)(region.getWidth() / region.getDownsample()) + " x " + (int)(region.getHeight() / region.getDownsample()) + " pixels) - try again with a smaller region, or a higher downsample factor");
 			return;
 		}
