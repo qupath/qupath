@@ -93,8 +93,7 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 	private String macroText = null;
 
 	transient private Stage dialog;
-	
-	
+		
 	public ImageJMacroRunner(final QuPathGUI qupath) {
 		this.qupath = qupath;
 	}
@@ -224,10 +223,11 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 		ImageDisplay imageDisplay2 = Boolean.TRUE.equals(params.getBooleanParameterValue("useTransform")) ? imageDisplay : null;
 		RegionRequest region = RegionRequest.createInstance(imageData.getServer().getPath(), downsampleFactor, pathROI);
 		
-		// Check the size of the region to extract - abort if it is too large
-		double approxPixelCount = (region.getWidth() / region.getDownsample()) * (region.getHeight() / region.getDownsample());
-		if (approxPixelCount > 25000L*25000L) {
-			DisplayHelpers.showErrorMessage("ImageJ macro error", "Requested region is too large to send to ImageJ (approx " + (int)(region.getWidth() / region.getDownsample()) + " x " + (int)(region.getHeight() / region.getDownsample()) + " pixels) - try again with a smaller region, or a higher downsample factor");
+		// Check the size of the region to extract - abort if it is too large of if ther isn't enough RAM
+		try {
+			IJTools.isMemorySufficient(region, imageData);
+		} catch (Exception e1) {
+			DisplayHelpers.showErrorMessage("ImageJ macro error", e1.getMessage());
 			return;
 		}
 		
