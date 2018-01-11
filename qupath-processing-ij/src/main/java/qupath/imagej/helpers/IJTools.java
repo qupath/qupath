@@ -76,7 +76,6 @@ public class IJTools {
 	// Defines what fraction of total available memory can be allocated to transferring a single image to ImageJ 
 	private static double MEMORY_THRESHOLD = 0.5;
 
-	
 	/**
 	 * @param threshold - value in the interval ]0;1] defining the maximum remaining memory fraction an image can have 
 	 * when importing an image to ImageJ
@@ -89,7 +88,6 @@ public class IJTools {
 
 		MEMORY_THRESHOLD = new_threshold;
 	}
-	
 	
 	/**
 	 * @param region - the requested region coming from 
