@@ -184,7 +184,7 @@ public class PositivePixelCounterIJ extends AbstractDetectionPlugin<BufferedImag
 				PathObject pathObject = new PathDetectionObject(roiPositive, PathClassFactory.getPositive(null, PathClassFactory.COLOR_POSITIVE));
 				pathObject.getMeasurementList().addMeasurement("Num pixels", nPositive);
 				pathObject.getMeasurementList().addMeasurement("Mean DAB OD", meanPositive);
-				pathObjects.get(0).addPathObject(pathObject);
+				pathObjects.add(pathObject);
 			}
 			
 			boolean addMeasurements = params.getBooleanParameterValue("addSummaryMeasurements");
