@@ -53,6 +53,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -1610,6 +1611,13 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		viewer.getView().setOnScroll(e -> {
 			if (viewer == viewerManager.getActiveViewer() || !viewerManager.getSynchronizeViewers()) {
 				double scrollUnits = e.getDeltaY() * PathPrefs.getScaledScrollSpeed();
+				// Use shift down to adjust opacity
+				if (e.isShortcutDown()) {
+					OverlayOptions options = viewer.getOverlayOptions();
+					options.setOpacity((float)(options.getOpacity() + scrollUnits * 0.001));
+					return;
+				}
+				
 				if (PathPrefs.getInvertScrolling())
 					scrollUnits = -scrollUnits;
 				viewer.setDownsampleFactor(viewer.getDownsampleFactor() * Math.pow(viewer.getDefaultZoomFactor(), scrollUnits), e.getX(), e.getY());
@@ -1638,7 +1646,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		});
 		
 		viewer.getView().addEventFilter(ScrollEvent.ANY, e -> {
-			if (!PathPrefs.getUseScrollGestures() || e.isShiftDown())
+			if (!PathPrefs.getUseScrollGestures() || e.isShiftDown() || e.isShortcutDown())
 				return;
 			// TODO: Note: When e.isInertia() == TRUE on OSX, the results are quite annoyingly 'choppy', with 0 x,y movements interspersed with 'true' movements
 //			logger.debug("Delta: " + e.getDeltaX() + ", " + e.getDeltaY() + " - " + e.isInertia());
@@ -4381,7 +4389,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	
 	class MultiviewManager implements QuPathViewerListener, ViewerManager<QuPathViewerPlus> {
 		
-		private List<QuPathViewerPlus> viewers = new ArrayList<QuPathViewerPlus>();
+		private List<QuPathViewerPlus> viewers = new ArrayList<>();
 		private QuPathViewerPlus activeViewer = null;
 		
 		private SplitPaneGrid splitPaneGrid;
@@ -4420,7 +4428,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		 * @return
 		 */
 		public List<QuPathViewerPlus> getOpenViewers() {
-			List<QuPathViewerPlus> openViewers = new ArrayList<QuPathViewerPlus>();
+			List<QuPathViewerPlus> openViewers = new ArrayList<>();
 			for (QuPathViewerPlus v : viewers) {
 				if (v.getImageData() != null)
 					openViewers.add(v);
@@ -4470,10 +4478,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 
 			}
 			logger.debug("Active viewer set to {}", viewer);
-			
-			
 			fireImageDataChangedEvent(imageDataOld, imageDataNew);
-			
 		}
 		
 		public QuPathViewerPlus getActiveViewer() {
@@ -4524,7 +4529,24 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			}
 			splitPaneGrid.removeRow(row);
 			splitPaneGrid.resetGridSize();
+			// Make sure the viewer list is up-to-date
+			refreshViewerList();
 		}
+		
+		
+		/**
+		 * Check all viewers to see if they are associated with a scene, and remove them from the list if not.
+		 */
+		private void refreshViewerList() {
+			// Remove viewers from the list if they aren't associated with anything
+			// Easiest way is to check for a scene
+			Iterator<? extends QuPathViewer> iter = viewers.iterator();
+			while (iter.hasNext()) {
+				if (iter.next().getView().getScene() == null)
+					iter.remove();
+			}
+		}
+		
 		
 		/**
 		 * Close the image within a viewer, prompting to save changes if necessary.
@@ -4592,6 +4614,8 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			}
 			splitPaneGrid.removeColumn(col);
 			splitPaneGrid.resetGridSize();
+			// Make sure the viewer list is up-to-date
+			refreshViewerList();
 		}
 		
 		
