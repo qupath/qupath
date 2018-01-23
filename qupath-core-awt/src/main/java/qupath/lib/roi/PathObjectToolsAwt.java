@@ -102,12 +102,16 @@ public class PathObjectToolsAwt {
 			PathObject annotationNew = null;
 			if (op == PathROIToolsAwt.CombineOp.SUBTRACT) {
 				areaTemp.subtract(areaNew);
-				PathShape shapeNew = PathROIToolsAwt.getShapeROI(areaTemp, shapeMask.getC(), shapeMask.getZ(), shapeMask.getT());
-				annotationNew = new PathAnnotationObject(shapeNew, temp.getPathClass());
+				if (!areaTemp.isEmpty()) {
+					PathShape shapeNew = PathROIToolsAwt.getShapeROI(areaTemp, shapeMask.getC(), shapeMask.getZ(), shapeMask.getT());
+					annotationNew = new PathAnnotationObject(shapeNew, temp.getPathClass());
+				}
 			} else if (op == PathROIToolsAwt.CombineOp.INTERSECT) {
 				areaTemp.intersect(areaNew);
-				PathShape shapeNew = PathROIToolsAwt.getShapeROI(areaTemp, shapeMask.getC(), shapeMask.getZ(), shapeMask.getT());
-				annotationNew = new PathAnnotationObject(shapeNew, temp.getPathClass());
+				if (!areaTemp.isEmpty()) {
+					PathShape shapeNew = PathROIToolsAwt.getShapeROI(areaTemp, shapeMask.getC(), shapeMask.getZ(), shapeMask.getT());
+					annotationNew = new PathAnnotationObject(shapeNew, temp.getPathClass());
+				}
 			} else {
 				PathROIToolsAwt.combineAreas(areaNew, areaTemp, op);
 			}
@@ -124,7 +128,8 @@ public class PathObjectToolsAwt {
 		}
 		if (op == PathROIToolsAwt.CombineOp.ADD) {
 			PathShape shapeNew = PathROIToolsAwt.getShapeROI(areaNew, shapeMask.getC(), shapeMask.getZ(), shapeMask.getT());
-			objectsToAdd.add(new PathAnnotationObject(shapeNew, pathObject.getPathClass()));
+			if (!shapeNew.isEmpty())
+				objectsToAdd.add(new PathAnnotationObject(shapeNew, pathObject.getPathClass()));
 		}
 		// Remove previous objects
 		pathObjects.add(pathObject);
