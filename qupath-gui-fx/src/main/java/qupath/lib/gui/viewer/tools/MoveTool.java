@@ -186,7 +186,7 @@ public class MoveTool extends AbstractPathTool {
 			// Try moving handle
 			RoiEditor editor = viewer.getROIEditor();
 			if (editor != null && editor.hasActiveHandle()) {
-				ROI updatedROI = editor.setActiveHandlePosition(p.getX(), p.getY(), 0.9, e.isShiftDown());
+				ROI updatedROI = editor.setActiveHandlePosition(p.getX(), p.getY(), 0.25, e.isShiftDown());
 				if (updatedROI == null)
 					// This shouldn't occur...?
 					logger.warn("Updated ROI is null! Will be skipped...");
