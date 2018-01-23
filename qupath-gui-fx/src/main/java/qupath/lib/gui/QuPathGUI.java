@@ -2035,7 +2035,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			});
 			Node shape;
 			if (useFancyIcons) {
-				Ellipse r = new Ellipse(0, 0, iconSize, iconSize);
+				Ellipse r = new Ellipse(iconSize/2.0, iconSize/2.0, iconSize, iconSize);
 				if ("None".equals(name)) {
 					r.setFill(Color.rgb(255, 255, 255, 0.75));
 					
