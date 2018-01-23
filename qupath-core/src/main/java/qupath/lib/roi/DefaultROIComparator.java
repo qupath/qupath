@@ -149,11 +149,6 @@ public class DefaultROIComparator implements Comparator<ROI>{
 			LineROI r1 = (LineROI)o1;
 			LineROI r2 = (LineROI)o2;
 			v1 = r1.getY1();
-			v2 = r2.getY2();
-			temp = Double.compare(v1, v2);
-			if (temp != 0)
-				return temp;
-			v1 = r1.getY1();
 			v2 = r2.getY1();
 			temp = Double.compare(v1, v2);
 			if (temp != 0)
