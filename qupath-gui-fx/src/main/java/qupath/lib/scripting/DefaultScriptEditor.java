@@ -920,6 +920,9 @@ public class DefaultScriptEditor implements ScriptEditor {
 				if (len == 1 && cbuf[off] == '\n')
 					return;
 				String s = String.valueOf(cbuf, off, len);
+				// Skip newlines on Windows too...
+				if (s.equals(System.lineSeparator()))
+					return;
 				if (isErrorWriter)
 					logger.error(s);
 				else

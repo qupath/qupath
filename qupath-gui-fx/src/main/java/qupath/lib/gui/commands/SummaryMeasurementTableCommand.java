@@ -313,25 +313,25 @@ public class SummaryMeasurementTableCommand implements PathCommand {
 				else {
 					List<String> includeColumnList = new ArrayList<>(model.getAllNames());
 					includeColumnList.removeAll(excludeColumns);
-					includeColumns = includeColumnList.stream().map(s -> "'" + s + "'").collect(Collectors.joining(", "));
+					includeColumns = ", " + includeColumnList.stream().map(s -> "'" + s + "'").collect(Collectors.joining(", "));
 				}
-				String path = qupath.getProject() == null ? fileOutput.getAbsolutePath() : fileOutput.getParentFile().getAbsolutePath();
+				String path = qupath.getProject() == null ? fileOutput.toURI().getPath() : fileOutput.getParentFile().toURI().getPath();
 				if (type == TMACoreObject.class) {
 					step = new DefaultScriptableWorkflowStep("Save TMA measurements",
-							String.format("saveTMAMeasurements('%s', %s)", path, includeColumns)
+							String.format("saveTMAMeasurements('%s'%s)", path, includeColumns)
 							);
 				}
 				else if (type == PathAnnotationObject.class) {
 					step = new DefaultScriptableWorkflowStep("Save annotation measurements",
-							String.format("saveAnnotationMeasurements('%s\', %s)", path, includeColumns)
+							String.format("saveAnnotationMeasurements('%s\'%s)", path, includeColumns)
 							);
 				} else if (type == PathDetectionObject.class) {
 					step = new DefaultScriptableWorkflowStep("Save detection measurements",
-							String.format("saveDetectionMeasurements('%s', %s)", path, includeColumns)
+							String.format("saveDetectionMeasurements('%s'%s)", path, includeColumns)
 							);
 				} else {
 					step = new DefaultScriptableWorkflowStep("Save measurements",
-							String.format("saveMeasurements('%s', %s, %s)", path, type == null ? null : type.getName(), includeColumns)
+							String.format("saveMeasurements('%s', %s%s)", path, type == null ? null : type.getName(), includeColumns)
 							);
 				}
 				imageData.getHistoryWorkflow().addStep(step);
@@ -717,7 +717,7 @@ public class SummaryMeasurementTableCommand implements PathCommand {
 			if (col < nColumns - 1)
 				sb.append(delim);
 		}
-		sb.append("\n");
+		sb.append(System.lineSeparator());
 		
 		for (T object : model.getEntries()) {
 //			// TODO: Remove PathObject-specific addition!!!!!
@@ -737,7 +737,7 @@ public class SummaryMeasurementTableCommand implements PathCommand {
 				if (col < nColumns - 1)
 					sb.append(delim);
 			}
-			sb.append("\n");
+			sb.append(System.lineSeparator());
 		}
 		return sb.toString();
 	}
