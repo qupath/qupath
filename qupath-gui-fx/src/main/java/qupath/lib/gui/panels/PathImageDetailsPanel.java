@@ -38,6 +38,7 @@ import org.slf4j.LoggerFactory;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.embed.swing.SwingFXUtils;
+import javafx.scene.Group;
 import javafx.scene.Scene;
 import javafx.scene.control.Accordion;
 import javafx.scene.control.ListView;
@@ -57,6 +58,8 @@ import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
+import javafx.scene.layout.Background;
+import javafx.scene.layout.BackgroundFill;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
@@ -242,11 +245,18 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 				Image img = SwingFXUtils.toFXImage(imageData.getServer().getAssociatedImage(name), null);
 				ImageView imageView = new ImageView(img);
 				BorderPane pane = new BorderPane();
+				imageView.fitWidthProperty().bind(pane.widthProperty());
+				imageView.fitHeightProperty().bind(pane.heightProperty());
+				imageView.setPreserveRatio(true);
 				pane.setCenter(imageView);
 				pane.setTop(menubar);
+				Scene scene = new Scene(pane);
+				pane.prefWidthProperty().bind(scene.widthProperty());
+				pane.prefHeightProperty().bind(scene.heightProperty());
 				menubar.setUseSystemMenuBar(true);
+				pane.setBackground(new Background(new BackgroundFill(Color.BLACK, null, null)));
 				
-				dialog.setScene(new Scene(pane));
+				dialog.setScene(scene);
 				dialog.show();
 			}
 		);
