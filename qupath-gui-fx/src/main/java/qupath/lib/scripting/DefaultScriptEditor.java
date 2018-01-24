@@ -26,7 +26,9 @@ package qupath.lib.scripting;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.io.Writer;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.ArrayList;
@@ -1687,7 +1689,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 		
 		public void saveToFile(final File file) throws IOException {
 			String text = getCurrentText();
-			Files.write(file.toPath(), text.getBytes());
+			Files.write(file.toPath(), text.getBytes("UTF-8"));
 			this.file = file;
 			this.name = file.getName();
 			this.lastSavedContents = text;
