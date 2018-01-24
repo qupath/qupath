@@ -143,12 +143,13 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 							return;
 						}
 						//			             ComboBoxTableCell<TableEntry, Object>
+						Color textColor = Color.BLACK;
 						String text = item == null ? "" : item.toString();
 						if (item instanceof double[]) {
 							text = GeneralTools.arrayToString(Locale.getDefault(Category.FORMAT), (double[])item, 2);
 						} else if (item instanceof StainVector) {
 							StainVector stain = (StainVector)item;
-							setTextFill(getColorFX(stain.getColor()));
+							textColor = getColorFX(stain.getColor());
 						}
 						//			             if (item instanceof ImageType) {
 						//			            	 ComboBox<ImageType> combo = new ComboBox<>();
@@ -156,6 +157,7 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 						//			            	 combo.getSelectionModel().select((ImageType)item);
 						//			            	 getChildren().add(combo);
 						//			             } else
+						setTextFill(textColor);
 						setText(text);
 						setTooltip(new Tooltip(text));
 					}
@@ -295,7 +297,7 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 	
 	
 	
-	void editStainVector(final Object value) {
+	void editStainVector(Object value) {
 		if (!(value instanceof StainVector || value instanceof double[]))
 			return;
 		//					JOptionPane.showMessageDialog(null, "Modifying stain vectors not yet implemented...");
@@ -327,71 +329,77 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 
 		ROI pathROI = imageData.getHierarchy().getSelectionModel().getSelectedROI();
 		boolean wasChanged = false;
-		if ((pathROI instanceof RectangleROI) && 
-				!pathROI.isEmpty() &&
-				((RectangleROI) pathROI).getArea() < 500*500 && 
-				DisplayHelpers.showYesNoDialog("Color deconvolution stains", message)) {
-
-			ImageServer<BufferedImage> server = imageData.getServer();
-			BufferedImage img = server.readBufferedImage(RegionRequest.createInstance(server.getPath(), 1, pathROI));
-			int rgb = ColorDeconvolutionHelper.getMedianRGB(img.getRGB(0, 0, img.getWidth(), img.getHeight(), null, 0, img.getWidth()));
-			if (num >= 0) {
-				StainVector stainNew = ColorDeconvolutionHelper.generateMedianStainVectorFromPixels(name, img.getRGB(0, 0, img.getWidth(), img.getHeight(), null, 0, img.getWidth()), stains.getMaxRed(), stains.getMaxGreen(), stains.getMaxBlue());
-				stains = stains.changeStain(stainNew, num);
+		String warningMessage = null;
+		if (pathROI != null) {
+			if ((pathROI instanceof RectangleROI) && 
+					!pathROI.isEmpty() &&
+					((RectangleROI) pathROI).getArea() < 500*500) {
+				if (DisplayHelpers.showYesNoDialog("Color deconvolution stains", message)) {
+					ImageServer<BufferedImage> server = imageData.getServer();
+					BufferedImage img = server.readBufferedImage(RegionRequest.createInstance(server.getPath(), 1, pathROI));
+					int rgb = ColorDeconvolutionHelper.getMedianRGB(img.getRGB(0, 0, img.getWidth(), img.getHeight(), null, 0, img.getWidth()));
+					if (num >= 0) {
+						value = ColorDeconvolutionHelper.generateMedianStainVectorFromPixels(name, img.getRGB(0, 0, img.getWidth(), img.getHeight(), null, 0, img.getWidth()), stains.getMaxRed(), stains.getMaxGreen(), stains.getMaxBlue());
+					} else {
+						// Update the background
+						value = new double[] {ColorTools.red(rgb), ColorTools.green(rgb), ColorTools.blue(rgb)};
+					}
+					wasChanged = true;
+				}
 			} else {
-				// Update the background
-				stains = stains.changeMaxValues(ColorTools.red(rgb), ColorTools.green(rgb), ColorTools.blue(rgb));
-			}
-			wasChanged = true;
-		}
-
-		// If nothing has changed, try prompting
-		if (!wasChanged) {
-
-			ParameterList params = new ParameterList();
-			String title;
-			String nameBefore = null;
-			String valuesBefore = null;
-			if (value instanceof StainVector) {
-				nameBefore = ((StainVector)value).getName();
-				valuesBefore = ((StainVector)value).arrayAsString(Locale.getDefault(Category.FORMAT));
-				params.addStringParameter("name", "Name", nameBefore, "Enter stain name")
-				.addStringParameter("values", "Values", valuesBefore, "Enter 3 values (red, green, blue) defining color deconvolution stain vector, separated by spaces");
-				title = "Set stain vector";
-			} else {
-				nameBefore = "Background";
-				valuesBefore = GeneralTools.arrayToString(Locale.getDefault(Category.FORMAT), (double[])value, 2);
-				params.addStringParameter("name", "Name", nameBefore);
-				params.addStringParameter("values", "Values", valuesBefore, "Enter 3 values (red, green, blue) defining background, separated by spaces");
-				params.setHiddenParameters(true, "name");
-				title = "Set background";
-			}
-
-			if (!DisplayHelpers.showParameterDialog(title, params))
-				return;
-
-			// Check if anything changed
-			String nameAfter = params.getStringParameterValue("name");
-			String valuesAfter = params.getStringParameterValue("values");
-			if (nameAfter.equals(nameBefore) && valuesAfter.equals(valuesBefore))
-				return;
-
-			double[] valuesParsed = ColorDeconvolutionStains.parseStainValues(Locale.getDefault(Category.FORMAT), valuesAfter);
-			if (valuesParsed == null) {
-				logger.error("Input for setting color deconvolution information invalid! Cannot parse 3 numbers from {}", valuesAfter);
-				return;
-			}
-
-
-			if (num >= 0) {
-				stains = stains.changeStain(new StainVector(nameAfter, valuesParsed), num);
-			} else {
-				// Update the background
-				stains = stains.changeMaxValues(valuesParsed[0], valuesParsed[1], valuesParsed[2]);
+				warningMessage = "Note: To set stain values from an image region, draw a small, rectangular ROI first";
 			}
 		}
 
+		// Prompt to set the name / verify stains
+		ParameterList params = new ParameterList();
+		String title;
+		String nameBefore = null;
+		String valuesBefore = null;
+		if (value instanceof StainVector) {
+			nameBefore = ((StainVector)value).getName();
+			valuesBefore = ((StainVector)value).arrayAsString(Locale.getDefault(Category.FORMAT));
+			params.addStringParameter("name", "Name", nameBefore, "Enter stain name")
+			.addStringParameter("values", "Values", valuesBefore, "Enter 3 values (red, green, blue) defining color deconvolution stain vector, separated by spaces");
+			title = "Set stain vector";
+		} else {
+			nameBefore = "Background";
+			valuesBefore = GeneralTools.arrayToString(Locale.getDefault(Category.FORMAT), (double[])value, 2);
+			params.addStringParameter("name", "Name", nameBefore);
+			params.addStringParameter("values", "Values", valuesBefore, "Enter 3 values (red, green, blue) defining background, separated by spaces");
+			params.setHiddenParameters(true, "name");
+			title = "Set background";
+		}
+		
+		if (warningMessage != null)
+			params.addEmptyParameter("warning", warningMessage);
 
+		if (!DisplayHelpers.showParameterDialog(title, params))
+			return;
+
+		// Check if anything changed
+		String nameAfter = params.getStringParameterValue("name");
+		String valuesAfter = params.getStringParameterValue("values");
+		if (nameAfter.equals(nameBefore) && valuesAfter.equals(valuesBefore) && !wasChanged)
+			return;
+
+		double[] valuesParsed = ColorDeconvolutionStains.parseStainValues(Locale.getDefault(Category.FORMAT), valuesAfter);
+		if (valuesParsed == null) {
+			logger.error("Input for setting color deconvolution information invalid! Cannot parse 3 numbers from {}", valuesAfter);
+			return;
+		}
+
+		if (num >= 0) {
+			try {
+				stains = stains.changeStain(new StainVector(nameAfter, valuesParsed), num);					
+			} catch (Exception e) {
+				logger.error("Error setting stain vectors", e);
+				DisplayHelpers.showErrorMessage("Set stain vectors", "Requested stain vectors are not valid!\nAre two stains equal?");
+			}
+		} else {
+			// Update the background
+			stains = stains.changeMaxValues(valuesParsed[0], valuesParsed[1], valuesParsed[2]);
+		}
 
 		imageData.setColorDeconvolutionStains(stains);
 		
