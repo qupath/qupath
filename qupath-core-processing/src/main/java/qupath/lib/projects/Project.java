@@ -102,7 +102,8 @@ public class Project<T> {
 		
 		boolean changes = false;
 		for (String name : subImages)
-			changes = changes | addImage(new ProjectImageEntry<>(this, server.getSubImagePath(name), name, null));
+			// The sub image name might be the same across images, we should append the server displayed name to it, just to make sure it is unique
+			changes = changes | addImage(new ProjectImageEntry<>(this, server.getSubImagePath(name), server.getDisplayedImageName()+" ("+name+")", null));
 		return changes;
 	}
 	
