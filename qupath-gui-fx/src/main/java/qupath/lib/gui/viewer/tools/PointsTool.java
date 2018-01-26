@@ -101,7 +101,7 @@ public class PointsTool extends AbstractPathTool {
 		// Find out the coordinates in the image domain & update the adjustment
 		Point2D pAdjusting = viewer.componentPointToImagePoint(e.getX(), e.getY(), null, true);
 //		double radius = PointsROI.getDefaultPointRadius();
-		PointsROI points2 = (PointsROI)editor.setActiveHandlePosition(pAdjusting.getX(), pAdjusting.getY(), viewer.getDownsampleFactor(), e.isShiftDown());
+		PointsROI points2 = (PointsROI)editor.setActiveHandlePosition(pAdjusting.getX(), pAdjusting.getY(), 0.25, e.isShiftDown());
 		if (points2 == points)
 			return;
 		
@@ -143,7 +143,7 @@ public class PointsTool extends AbstractPathTool {
 	private boolean handleAltClick(double x, double y, PathObject currentObject) {
 		PathObjectHierarchy hierarchy = viewer.getHierarchy();
 		double downsample = viewer.getDownsampleFactor();
-		double distance = Math.max(PathPrefs.getDefaultPointRadius()/downsample, PathPrefs.getDefaultPointRadius()*downsample);
+		double distance = PathPrefs.getDefaultPointRadius();
 		// Remove a point if the current selection has one
 		if (currentObject != null && currentObject.isPoint()) {
 			PointsROI points = (PointsROI)currentObject.getROI();
@@ -224,7 +224,7 @@ public class PointsTool extends AbstractPathTool {
 				// If we didn't add a point, try to grab a handle
 				if (!editor.grabHandle(xx, yy, radius, e.isShiftDown()))
 					return;
-				points2 = (PointsROI)editor.setActiveHandlePosition(xx, yy, viewer.getDownsampleFactor(), e.isShiftDown());
+				points2 = (PointsROI)editor.setActiveHandlePosition(xx, yy, 0.25, e.isShiftDown());
 			} else {
 				editor.setROI(points2);
 				editor.grabHandle(xx, yy, radius, e.isShiftDown());

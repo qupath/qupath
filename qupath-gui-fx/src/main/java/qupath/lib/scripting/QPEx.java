@@ -436,7 +436,7 @@ public class QPEx extends QP {
 	public static void saveMeasurements(final ImageData<?> imageData, final Class<? extends PathObject> type, final String path, final String... includeColumns) {
 		File fileOutput = new File(resolvePath(path));
 		if (fileOutput.isDirectory()) {
-			String ext = ",".equals(PathPrefs.getTableDelimiter()) ? "csv" : "txt";
+			String ext = ",".equals(PathPrefs.getTableDelimiter()) ? ".csv" : ".txt";
 			fileOutput = new File(fileOutput, imageData.getServer().getShortServerName() + " " + PathObjectTools.getSuitableName(type, true) + ext);
 		}
 		ObservableMeasurementTableData model = new ObservableMeasurementTableData();

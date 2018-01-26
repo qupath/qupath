@@ -70,7 +70,7 @@ public class IntParameter extends NumericParameter<Integer> {
 
 	@Override
 	public boolean setDoubleLastValue(double val) {
-		return setValue((int)(val + .5));
+		return setValue((int)Math.round(val));
 	}
 
 	@Override

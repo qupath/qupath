@@ -182,10 +182,17 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 		
 		// Add derived measurements if we don't have only detections
 		if (containsParentAnnotations || containsTMACores) {
+			MeasurementBuilder<?> builder = new ObjectTypeCountMeasurementBuilder(PathAnnotationObject.class);
+			builderMap.put(builder.getName(), builder);
+			features.add(builder.getName());
+			builder = new ObjectTypeCountMeasurementBuilder(PathDetectionObject.class);
+			builderMap.put(builder.getName(), builder);
+			features.add(builder.getName());
+			
 			manager = new DerivedMeasurementManager(getImageData(), containsAnnotations);
-			for (MeasurementBuilder<?> builder : manager.getMeasurementBuilders()) {
-				builderMap.put(builder.getName(), builder);
-				features.add(builder.getName());
+			for (MeasurementBuilder<?> builder2 : manager.getMeasurementBuilders()) {
+				builderMap.put(builder2.getName(), builder2);
+				features.add(builder2.getName());
 			}
 			
 		}
@@ -379,6 +386,51 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 		@Override
 		protected double computeValue() {
 			return pathObject.getClassProbability();
+		}
+		
+	}
+	
+	
+	
+	class ObjectTypeCountMeasurement extends IntegerBinding {
+		
+		private Class<? extends PathObject> cls;
+		private PathObject pathObject;
+		
+		public ObjectTypeCountMeasurement(final PathObject pathObject, final Class<? extends PathObject> cls) {
+			this.pathObject = pathObject;
+			this.cls = cls;
+		}
+		
+		@Override
+		protected int computeValue() {
+			return PathObjectTools.countChildren(pathObject, cls, true);
+		}
+		
+	}
+	
+	
+	class ObjectTypeCountMeasurementBuilder extends NumericMeasurementBuilder {
+		
+		private Class<? extends PathObject> cls;
+		
+		public ObjectTypeCountMeasurementBuilder(final Class<? extends PathObject> cls) {
+			this.cls = cls;
+		}
+		
+		@Override
+		public String getName() {
+			return "Num " + PathObjectTools.getSuitableName(cls, true);
+		}
+		
+		@Override
+		public Binding<Number> createMeasurement(final PathObject pathObject) {
+			return new ObjectTypeCountMeasurement(pathObject, cls);
+		}
+		
+		@Override
+		public String toString() {
+			return getName();
 		}
 		
 	}
@@ -672,8 +724,6 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 			}
 			
 		}
-		
-		
 		
 		
 		class ClassCountMeasurementBuilder extends NumericMeasurementBuilder {

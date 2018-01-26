@@ -465,8 +465,8 @@ public class IJExtension implements QuPathExtension {
 		MenuItem miSetPluginsPath = new MenuItem("Set ImageJ plugins directory");
 		miSetPluginsPath.setOnAction(e -> {
 			String path = getImageJPath();
-			File dir = qupath.getDialogHelper().promptForDirectory(new File(path));
-			if (dir != null)
+			File dir = qupath.getDialogHelper().promptForDirectory(path == null ? null : new File(path));
+			if (dir != null && dir.isDirectory())
 				setImageJPath(dir.getAbsolutePath());
 		});
 					

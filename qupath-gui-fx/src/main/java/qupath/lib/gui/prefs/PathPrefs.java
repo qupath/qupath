@@ -101,7 +101,7 @@ public class PathPrefs {
 		useProjectImageCache.set(useCache);
 	}
 
-	private static StringProperty scriptsPath = createPersistentPreference("scriptsPath", null); // Base directory containing scripts
+	private static StringProperty scriptsPath = createPersistentPreference("scriptsPath", (String)null); // Base directory containing scripts
 
 	// Known whole slide image extensions
 	private static String[] knownImageExtensions = new String[]{
@@ -417,7 +417,7 @@ public class PathPrefs {
 	}
 		
 	
-	private static StringProperty extensionsPath = createPersistentPreference("extensionsPath", null); // Base directory containing extensions
+	private static StringProperty extensionsPath = createPersistentPreference("extensionsPath", (String)null); // Base directory containing extensions
 
 	
 	public static StringProperty extensionsPathProperty() {
@@ -1127,6 +1127,29 @@ public class PathPrefs {
 		return property;
 	}
 	
+	/**
+	 * Create a persistent property, i.e. one that will be saved to/reloaded from the user preferences.
+	 * 
+	 * @param name
+	 * @param defaultValue
+	 * @return
+	 */
+	public static <T extends Enum<T>> ObjectProperty<T> createPersistentPreference(final String name, final T defaultValue, final Class<T> enumType) {
+		ObjectProperty<T> property = createTransientPreference(name, defaultValue);
+		property.set(
+				Enum.valueOf(enumType, getUserPreferences().get(name, defaultValue.name()))
+				);
+		property.addListener((v, o, n) -> {
+			if (n == null)
+				getUserPreferences().remove(name);
+			else
+				getUserPreferences().put(name, n.name());
+		});
+		// Triggered when reset is called
+		resetProperty.addListener((c, o, v) -> property.setValue(defaultValue));
+		return property;
+	}
+	
 	
 	/**
 	 * Create a preference for storing Locales.
@@ -1188,6 +1211,18 @@ public class PathPrefs {
 	 */
 	static StringProperty createTransientPreference(final String name, final String defaultValue) {
 		return new SimpleStringProperty(null, name, defaultValue);
+	}
+	
+	
+	/**
+	 * Create a transient property, i.e. one that won't be saved in the user preferences later.
+	 * 
+	 * @param name
+	 * @param defaultValue
+	 * @return
+	 */
+	static <T> ObjectProperty<T> createTransientPreference(final String name, final T defaultValue) {
+		return new SimpleObjectProperty<>(null, name, defaultValue);
 	}
 
 

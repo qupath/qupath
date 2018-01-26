@@ -101,6 +101,25 @@ public class WandToolCV extends BrushTool {
 		wandSigmaPixels.set(sigma);
 	}
 	
+	
+	/**
+	 * Sensitivity value associated with the wand tool
+	 */
+	private static DoubleProperty wandSensitivityProperty = PathPrefs.createPersistentPreference("wandSensitivityPixels", 2.0);
+
+	public static DoubleProperty wandSensitivityProperty() {
+		return wandSensitivityProperty;
+	}
+	
+	public static double getWandSensitivity() {
+		return wandSensitivityProperty.get();
+	}
+	
+	public static void setWandSensitivity(final double sensitivity) {
+		wandSensitivityProperty.set(sensitivity);
+	}
+	
+	
 
 	public WandToolCV(QuPathGUI qupath) {
 		super(qupath);
@@ -109,7 +128,13 @@ public class WandToolCV extends BrushTool {
 		qupath.getPreferencePanel().addPropertyPreference(wandSigmaPixelsProperty(), Double.class,
 				"Wand smoothing",
 				"Drawing tools",
-				"Set the smoothing used by the wand tool - higher values lead to larger, smoother regions");
+				"Set the smoothing used by the wand tool - higher values lead to larger, smoother regions (default = 4.0)");
+		
+		qupath.getPreferencePanel().addPropertyPreference(wandSensitivityProperty(), Double.class,
+				"Wand sensitivity",
+				"Drawing tools",
+				"Set the sensitivity of the wand tool - lower values make it pay less attention to local intensities, and act more like the brush tool (default = 2.0)");
+
 	}
 	
 	
@@ -168,7 +193,9 @@ public class WandToolCV extends BrushTool {
 //		logger.trace(stddev.dump());
 
 		double[] stddev2 = stddev.toArray();
-		double scale = .4;
+		double scale = 1.0 / getWandSensitivity();
+		if (scale < 0)
+			scale = 0.01;
 		for (int i = 0; i < stddev2.length; i++)
 			stddev2[i] = stddev2[i]*scale;
 		threshold.set(stddev2);
