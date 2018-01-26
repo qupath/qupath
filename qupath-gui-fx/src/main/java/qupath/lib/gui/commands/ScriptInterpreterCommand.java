@@ -44,8 +44,6 @@ import org.controlsfx.control.MasterDetailPane;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.sun.javafx.scene.control.skin.TextAreaSkin;
-
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import javafx.collections.FXCollections;
@@ -74,6 +72,7 @@ import javafx.scene.control.TableView;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.ToggleGroup;
 import javafx.scene.control.Tooltip;
+import javafx.scene.control.skin.TextAreaSkin;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.BorderPane;
@@ -380,6 +379,7 @@ public class ScriptInterpreterCommand implements PathCommand {
 //				resetHistoryPointer();
 				if (menuAutocomplete.isShowing() || (e.isControlDown() && e.getCode() == KeyCode.SPACE)) {
 					updateAutocompleteMenu();
+					// TODO: Consider using reflection for compatibility with Java 8
 					TextAreaSkin skin = (TextAreaSkin)textAreaInput.getSkin();
 					Bounds b = skin.getCaretBounds();
 					// If there's only one open, and we aren't already showing, just use it

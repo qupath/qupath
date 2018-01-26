@@ -23,9 +23,9 @@
 
 package qupath.lib.gui.prefs;
 
-import com.sun.javafx.css.StyleManager;
-
+import impl.org.controlsfx.ReflectionUtils;
 import javafx.application.Application;
+import javafx.application.Platform;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.FXCollections;
@@ -61,20 +61,22 @@ public class QuPathStyleManager {
 			} else {
 				// Default
 				PathPrefs.getUserPreferences().remove("qupathStylesheet");
-				Application.setUserAgentStylesheet(Application.STYLESHEET_MODENA);
+				Application.setUserAgentStylesheet(null);
 			}
 		});
 		
 		// Try to load preference
-		String stylesheetName = PathPrefs.getUserPreferences().get("qupathStylesheet", null);
-		if (stylesheetName != null) {
-			for (StylesheetOption option : styles) {
-				if (stylesheetName.equals(option.getName())) {
-					selectedStyle.set(option);
+		Platform.runLater(() -> {
+			String stylesheetName = PathPrefs.getUserPreferences().get("qupathStylesheet", null);
+			if (stylesheetName != null) {
+				for (StylesheetOption option : styles) {
+					if (stylesheetName.equals(option.getName())) {
+						selectedStyle.set(option);
+					}
 				}
-			}
-		} else
-			selectedStyle.set(DEFAULT_STYLE);
+			} else
+				selectedStyle.set(DEFAULT_STYLE);
+		});
 	}
 	
 	
@@ -145,8 +147,9 @@ public class QuPathStyleManager {
 
 		@Override
 		public void setStylesheet() {
-			Application.setUserAgentStylesheet(Application.STYLESHEET_MODENA);
-			StyleManager.getInstance().addUserAgentStylesheet(url);
+			Application.setUserAgentStylesheet(null);
+			// TODO: Check if a public alternative to StyleManager ever becomes available...
+			ReflectionUtils.addUserAgentStylesheet(url);
 		}
 
 		@Override

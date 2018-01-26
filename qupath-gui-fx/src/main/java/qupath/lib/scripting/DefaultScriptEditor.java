@@ -102,6 +102,7 @@ import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.Region;
 import javafx.scene.text.Font;
 import javafx.scene.text.TextAlignment;
 import javafx.stage.Modality;
@@ -1626,7 +1627,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 			console = getNewConsole();
 			ContextMenu popup = new ContextMenu();
 			popup.getItems().add(ActionUtils.createMenuItem(new Action("Clear console", e -> console.setText(""))));
-			console.getControl().setContextMenu(popup);
+			console.setPopup(popup);
 			
 			splitEditor = new SplitPane();
 			splitEditor.setOrientation(Orientation.VERTICAL);
@@ -1886,7 +1887,9 @@ public class DefaultScriptEditor implements ScriptEditor {
 		
 		public boolean isRedoable();
 		
-		public Control getControl();
+		public Region getControl();
+		
+		public void setPopup(ContextMenu menu);
 		
 		public void undo();
 		
@@ -2029,6 +2032,11 @@ public class DefaultScriptEditor implements ScriptEditor {
 		@Override
 		public void selectRange(int anchor, int caretPosition) {
 			textArea.selectRange(anchor, caretPosition);
+		}
+
+		@Override
+		public void setPopup(ContextMenu menu) {
+			textArea.setContextMenu(menu);
 		}
 		
 	}

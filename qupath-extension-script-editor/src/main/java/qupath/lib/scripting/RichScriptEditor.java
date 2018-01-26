@@ -36,8 +36,8 @@ import java.util.stream.Collectors;
 
 import org.fxmisc.richtext.CodeArea;
 import org.fxmisc.richtext.LineNumberFactory;
-import org.fxmisc.richtext.StyleSpans;
-import org.fxmisc.richtext.StyleSpansBuilder;
+import org.fxmisc.richtext.model.StyleSpans;
+import org.fxmisc.richtext.model.StyleSpansBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,12 +45,13 @@ import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import javafx.beans.value.ObservableValue;
-import javafx.scene.control.Control;
+import javafx.scene.control.ContextMenu;
 import javafx.scene.control.IndexRange;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
+import javafx.scene.layout.Region;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.scripting.DefaultScriptEditor;
 
@@ -182,8 +183,10 @@ public class RichScriptEditor extends DefaultScriptEditor {
 		try {
 			CodeArea codeArea = new CodeArea();
 			codeArea.setParagraphGraphicFactory(LineNumberFactory.get(codeArea));
-			codeArea.richChanges().subscribe(change -> {
-	            codeArea.setStyleSpans(0, computeHighlighting(codeArea.getText()));
+			codeArea.richChanges()
+				.filter(change -> !change.getInserted().equals(change.getRemoved()))
+				.subscribe(change -> {
+					codeArea.setStyleSpans(0, computeHighlighting(codeArea.getText()));
 	        });
 			codeArea.getStylesheets().add(getClass().getClassLoader().getResource("scripting_styles.css").toExternalForm());
 			
@@ -400,7 +403,7 @@ public class RichScriptEditor extends DefaultScriptEditor {
 		}
 
 		@Override
-		public Control getControl() {
+		public Region getControl() {
 			return textArea;
 		}
 
@@ -482,6 +485,11 @@ public class RichScriptEditor extends DefaultScriptEditor {
 		@Override
 		public void selectRange(int anchor, int caretPosition) {
 			textArea.selectRange(anchor, caretPosition);
+		}
+
+		@Override
+		public void setPopup(ContextMenu menu) {
+			textArea.setContextMenu(menu);
 		}
 		
 	}

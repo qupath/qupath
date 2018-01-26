@@ -171,10 +171,10 @@ Contact: IP Management (ipmanagement@qub.ac.uk)</copyrightOwners>
 				<plugin>
 					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-compiler-plugin</artifactId>
-					<version>3.5.1</version>
+					<version>3.7.0</version>
 					<configuration>
-						<source>1.8</source>
-						<target>1.8</target>
+						<source>9</source>
+						<target>9</target>
 						<excludes>
 							<exclude>**/excluded/*.java</exclude>
 						</excludes>
@@ -443,7 +443,7 @@ Contact: IP Management (ipmanagement@qub.ac.uk)</copyrightOwners>
 			<dependency>
 				<groupId>org.controlsfx</groupId>
 				<artifactId>controlsfx</artifactId>
-				<version>8.40.12</version>
+				<version>9.0.0</version>
 			</dependency>
 			<dependency>
 				<groupId>com.google.code.gson</groupId>
