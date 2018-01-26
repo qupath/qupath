@@ -23,7 +23,9 @@
 
 package qupath.lib.gui.prefs;
 
-import impl.org.controlsfx.ReflectionUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.beans.property.ObjectProperty;
@@ -41,6 +43,8 @@ import javafx.collections.ObservableList;
  *
  */
 public class QuPathStyleManager {
+	
+	private static Logger logger = LoggerFactory.getLogger(QuPathStyleManager.class);
 	
 	private static JavaFXStylesheet DEFAULT_STYLE = new JavaFXStylesheet("Modena Light", Application.STYLESHEET_MODENA);
 
@@ -149,7 +153,14 @@ public class QuPathStyleManager {
 		public void setStylesheet() {
 			Application.setUserAgentStylesheet(null);
 			// TODO: Check if a public alternative to StyleManager ever becomes available...
-			ReflectionUtils.addUserAgentStylesheet(url);
+			// Unfortunately, for now we resort to using reflection
+			try {
+				Class<?> cStyleManager = Class.forName("com.sun.javafx.css.StyleManager");
+				Object styleManager = cStyleManager.getMethod("getInstance").invoke(null);
+				styleManager.getClass().getMethod("addUserAgentStylesheet", String.class).invoke(styleManager, url);
+			} catch (Exception e) {
+				logger.error("Unable to call addUserAgentStylesheet", e);
+			}
 		}
 
 		@Override

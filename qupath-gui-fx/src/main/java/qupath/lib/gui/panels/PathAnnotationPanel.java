@@ -725,7 +725,8 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 				selected.add(pathObject);
 		}
 		if (selected.isEmpty()) {
-			model.clearSelection();
+			if (!model.isEmpty())
+				model.clearSelection();
 			changingSelection = false;
 			return;
 		}

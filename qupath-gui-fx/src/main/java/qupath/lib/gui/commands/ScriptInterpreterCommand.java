@@ -26,6 +26,7 @@ package qupath.lib.gui.commands;
 import java.io.IOException;
 import java.io.Writer;
 import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
 import java.util.ArrayList;
@@ -63,6 +64,7 @@ import javafx.scene.control.MenuBar;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.RadioMenuItem;
 import javafx.scene.control.SelectionMode;
+import javafx.scene.control.Skin;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 import javafx.scene.control.TabPane.TabClosingPolicy;
@@ -72,7 +74,6 @@ import javafx.scene.control.TableView;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.ToggleGroup;
 import javafx.scene.control.Tooltip;
-import javafx.scene.control.skin.TextAreaSkin;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.BorderPane;
@@ -379,9 +380,17 @@ public class ScriptInterpreterCommand implements PathCommand {
 //				resetHistoryPointer();
 				if (menuAutocomplete.isShowing() || (e.isControlDown() && e.getCode() == KeyCode.SPACE)) {
 					updateAutocompleteMenu();
-					// TODO: Consider using reflection for compatibility with Java 8
-					TextAreaSkin skin = (TextAreaSkin)textAreaInput.getSkin();
-					Bounds b = skin.getCaretBounds();
+					// Using reflection for compatibility with Java 8 and Java 9
+					Skin<?> skin = textAreaInput.getSkin();
+					Bounds b = null;
+					try {
+						b = (Bounds)skin.getClass().getMethod("getCaretBounds").invoke(skin);
+					} catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException
+							| NoSuchMethodException | SecurityException e1) {
+						logger.error("Error requesting caret bounds - cannot display autocomplete menu", e1);
+					}
+//					TextAreaSkin skin = (TextAreaSkin)textAreaInput.getSkin();
+//					Bounds b = skin.getCaretBounds();
 					// If there's only one open, and we aren't already showing, just use it
 					if (!menuAutocomplete.isShowing() && menuAutocomplete.getItems().size() == 1) {
 						menuAutocomplete.getItems().get(0).fire();
@@ -389,7 +398,7 @@ public class ScriptInterpreterCommand implements PathCommand {
 						return;
 					}
 					
-					if (!menuAutocomplete.getItems().isEmpty()) {
+					if (b != null && !menuAutocomplete.getItems().isEmpty()) {
 						menuAutocomplete.show(textAreaInput,
 								Side.TOP,
 								b.getMaxX()+5,
