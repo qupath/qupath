@@ -146,6 +146,7 @@ import javafx.scene.image.ImageView;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
+import javafx.scene.input.KeyCombination.Modifier;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
@@ -368,7 +369,8 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 								DELETE_SELECTED_OBJECTS, CLEAR_HIERARCHY, CLEAR_DETECTIONS, CLEAR_TMA_CORES, CLEAR_ANNOTATIONS,
 								PROJECT_NEW, PROJECT_OPEN, PROJECT_CLOSE, PROJECT_SAVE, PROJECT_IMPORT_IMAGES, PROJECT_EXPORT_IMAGE_LIST, PROJECT_METADATA,
 								PREFERENCES, QUPATH_SETUP,
-								TRANSFER_ANNOTATION, SELECT_ALL_ANNOTATION, TOGGLE_SYNCHRONIZE_VIEWERS
+								TRANSFER_ANNOTATION, SELECT_ALL_ANNOTATION, TOGGLE_SYNCHRONIZE_VIEWERS,
+								UNDO, REDO
 								};
 	
 	// Modes for input tools
@@ -428,6 +430,8 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	private ScriptMenuLoader projectScriptMenuLoader;
 	
 	private DragDropFileImportListener dragAndDrop = new DragDropFileImportListener(this);
+	
+	private UndoRedoManager undoRedoManager;
 	
 	public QuPathGUI(final Stage stage) {
 		this(stage, null, true);
@@ -503,6 +507,8 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		pane.setCenter(initializeMainComponent());
 		
 		logger.trace("Time to menu: {} ms", (System.currentTimeMillis() - startTime));
+		
+		undoRedoManager = new UndoRedoManager(this);
 
 		initializingMenus.set(true);
 		menuBar.setUseSystemMenuBar(true);
@@ -2681,6 +2687,9 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		// Create Edit menu
 		Menu menuEdit = createMenu(
 				"Edit",
+				getActionMenuItem(GUIActions.UNDO),
+				getActionMenuItem(GUIActions.REDO),
+				null,
 				getActionMenuItem(GUIActions.COPY_VIEW),
 				getActionMenuItem(GUIActions.COPY_WINDOW),
 				null,
@@ -3415,6 +3424,17 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		
 		case TOGGLE_SYNCHRONIZE_VIEWERS:
 			return createSelectableCommandAction(viewerManager.synchronizeViewersProperty(), "Synchronize viewers", (Node)null, new KeyCodeCombination(KeyCode.S, KeyCombination.SHIFT_DOWN, KeyCombination.ALT_DOWN, KeyCombination.SHORTCUT_DOWN));
+			
+		case UNDO:
+			Action actionUndo = new Action("Undo", e -> undoRedoManager.undoOnce());
+			actionUndo.disabledProperty().bind(undoRedoManager.canUndo().not());
+			actionUndo.setAccelerator(new KeyCodeCombination(KeyCode.Z, KeyCodeCombination.SHORTCUT_DOWN));
+			return actionUndo;
+		case REDO:
+			Action actionRedo = new Action("Redo", e -> undoRedoManager.redoOnce());
+			actionRedo.disabledProperty().bind(undoRedoManager.canRedo().not());
+			actionRedo.setAccelerator(new KeyCodeCombination(KeyCode.Z, KeyCodeCombination.SHORTCUT_DOWN, KeyCodeCombination.SHIFT_DOWN));
+			return actionRedo;
 			
 		default:
 			return null;
@@ -4384,13 +4404,21 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	}
 	
 	
+	/**
+	 * Property representing the viewer currently active.
+	 * 
+	 * @return
+	 */
+	public ReadOnlyObjectProperty<QuPathViewerPlus> viewerProperty() {
+		return viewerManager.activeViewerProperty();
+	}
 	
 	
 	
 	class MultiviewManager implements QuPathViewerListener, ViewerManager<QuPathViewerPlus> {
 		
 		private List<QuPathViewerPlus> viewers = new ArrayList<>();
-		private QuPathViewerPlus activeViewer = null;
+		private SimpleObjectProperty<QuPathViewerPlus> activeViewerProperty = new SimpleObjectProperty<>();
 		
 		private SplitPaneGrid splitPaneGrid;
 		
@@ -4437,41 +4465,42 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		}
 		
 		
-		public void setActiveViewer(final QuPathViewerPlus viewer) {
-			if (activeViewer == viewer)
+		private void setActiveViewer(final QuPathViewerPlus viewer) {
+			QuPathViewerPlus previousActiveViewer = getActiveViewer();
+			if (previousActiveViewer == viewer)
 				return;
 			
 			ImageData<BufferedImage> imageDataOld = getImageData();
 			ImageData<BufferedImage> imageDataNew = viewer == null ? null : viewer.getImageData();
-			if (this.activeViewer != null) {
-				activeViewer.setBorderColor(null);
+			if (previousActiveViewer != null) {
+				previousActiveViewer.setBorderColor(null);
 //				activeViewer.setBorder(BorderFactory.createLineBorder(colorTransparent, borderWidth));
 //				activeViewer.setBorder(null);
-				deactivateTools(activeViewer);
+				deactivateTools(previousActiveViewer);
 				
 				// Grab reference to the current annotation, if there is one
-				PathObject pathObjectSelected = activeViewer.getSelectedObject();
+				PathObject pathObjectSelected = previousActiveViewer.getSelectedObject();
 				if (pathObjectSelected instanceof PathAnnotationObject) {
 					lastAnnotationObject = pathObjectSelected;					
 				}
 			}
-			this.activeViewer = viewer;
+			this.activeViewerProperty.set(viewer);
 			lastX = Double.NaN;
 			lastY = Double.NaN;
 			lastRotation = Double.NaN;
-			if (this.activeViewer != null) {
+			if (viewer != null) {
 //				activeViewer.getView().setBorder(null);
-				activeViewer.setBorderColor(colorBorder);
+				viewer.setBorderColor(colorBorder);
 //				activeViewer.setBorder(BorderFactory.createLineBorder(colorBorder, borderWidth));
-				activateTools(activeViewer);
+				activateTools(viewer);
 //				QuPathGUI qupath = QuPathGUI.this; // New to me... http://stackoverflow.com/questions/1816458/getting-hold-of-the-outer-class-object-from-the-inner-class-object
 //				if (qupath != null)
 //					qupath.imageDataChanged(null, imageDataOld, imageDataNew);
 				
-				if (activeViewer.getServer() != null) {
-					lastX = activeViewer.getCenterPixelX();
-					lastY = activeViewer.getCenterPixelY();
-					lastRotation = activeViewer.getRotation();
+				if (viewer.getServer() != null) {
+					lastX = viewer.getCenterPixelX();
+					lastY = viewer.getCenterPixelY();
+					lastRotation = viewer.getRotation();
 				}
 				
 				updateMagnificationString();
@@ -4482,7 +4511,11 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		}
 		
 		public QuPathViewerPlus getActiveViewer() {
-			return activeViewer;
+			return activeViewerProperty.get();
+		}
+		
+		public ReadOnlyObjectProperty<QuPathViewerPlus> activeViewerProperty() {
+			return activeViewerProperty;
 		}
 		
 		public Node getNode() {
@@ -4666,7 +4699,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 
 		@Override
 		public void imageDataChanged(QuPathViewer viewer, ImageData<BufferedImage> imageDataOld, ImageData<BufferedImage> imageDataNew) {
-			if (viewer != null && viewer == activeViewer) {
+			if (viewer != null && viewer == getActiveViewer()) {
 				fireImageDataChangedEvent(imageDataOld, viewer.getImageData());
 			}
 		}
@@ -4675,7 +4708,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		public void visibleRegionChanged(QuPathViewer viewer, Shape shape) {
 			if (viewer == null)
 				return;
-			if (viewer != activeViewer || viewer.isImageDataChanging()) {
+			if (viewer != getActiveViewer() || viewer.isImageDataChanging()) {
 //				// Only change downsamples for non-active viewer
 //				double downsample = viewer.getDownsampleFactor();
 //				if (synchronizeViewers) {
@@ -4694,6 +4727,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			
 //			logger.info("CHANGING VIEW");
 			
+			QuPathViewerPlus activeViewer = getActiveViewer();
 			double x = activeViewer.getCenterPixelX();
 			double y = activeViewer.getCenterPixelY();
 			double rotation = activeViewer.getRotation();
@@ -4802,7 +4836,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			}
 			
 			// Don't handle unselected viewers
-			if (viewer != activeViewer) {
+			if (viewer != getActiveViewer()) {
 				return;
 			}
 			
@@ -4846,6 +4880,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				return false;
 			}
 			
+			QuPathViewerPlus activeViewer = getActiveViewer();
 			if (activeViewer == null || activeViewer.getHierarchy() == null) {
 				logger.info("No active viewer available");
 				return false;
