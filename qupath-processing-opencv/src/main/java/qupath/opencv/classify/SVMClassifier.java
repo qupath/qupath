@@ -23,7 +23,7 @@
 
 package qupath.opencv.classify;
 
-import org.opencv.ml.SVM;
+import org.bytedeco.javacpp.opencv_ml.SVM;
 
 import qupath.lib.plugins.parameters.ParameterList;
 

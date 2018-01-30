@@ -27,6 +27,8 @@ import java.io.Externalizable;
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
+import java.nio.FloatBuffer;
+import java.nio.IntBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -47,11 +49,9 @@ import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.plugins.parameters.Parameterizable;
 
-import org.opencv.core.CvException;
-import org.opencv.core.CvType;
-import org.opencv.core.Mat;
-import org.opencv.ml.Ml;
-import org.opencv.ml.StatModel;
+import static org.bytedeco.javacpp.opencv_core.*;
+import static org.bytedeco.javacpp.opencv_ml.*;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -232,10 +232,10 @@ public abstract class OpenCvClassifier<T extends StatModel> implements PathObjec
 		int nMeasurements = measurements.size();
 		
 		
-		Mat matTraining = new Mat(arrayTraining.length / nMeasurements, nMeasurements, CvType.CV_32FC1);
-		matTraining.put(0, 0, arrayTraining);
-		Mat matResponses = new Mat(arrayResponses.length, 1, CvType.CV_32SC1);
-		matResponses.put(0, 0, arrayResponses);
+		Mat matTraining = new Mat(arrayTraining.length / nMeasurements, nMeasurements, CV_32FC1);
+		((FloatBuffer)matTraining.createBuffer()).put(arrayTraining);
+		Mat matResponses = new Mat(arrayResponses.length, 1, CV_32SC1);
+		((IntBuffer)matResponses.createBuffer()).put(arrayResponses);
 		
 //		// Clear any existing classifier
 //		if (classifier != null)
@@ -247,8 +247,8 @@ public abstract class OpenCvClassifier<T extends StatModel> implements PathObjec
 		// Create & train the classifier
 		try {
 			classifier = createClassifier();
-			classifier.train(matTraining, Ml.ROW_SAMPLE, matResponses);
-		} catch (CvException e) {
+			classifier.train(matTraining, ROW_SAMPLE, matResponses);
+		} catch (Exception e) {
 			// For reasons I haven't yet discerned, sometimes OpenCV throws an exception with the following message:
 			// OpenCV Error: Assertion failed ((int)_sleft.size() < n && (int)_sright.size() < n) in calcDir, file /tmp/opencv320150620-1681-1u5iwhh/opencv-3.0.0/modules/ml/src/tree.cpp, line 1190
 			// With one sample fewer, it can often recover... so attempt that, rather than failing miserably...
@@ -257,7 +257,7 @@ public abstract class OpenCvClassifier<T extends StatModel> implements PathObjec
 			matTraining = matTraining.rowRange(0, matTraining.rows()-1);
 			matResponses = matResponses.rowRange(0, matResponses.rows()-1);
 			classifier = createClassifier();
-			classifier.train(matTraining, Ml.ROW_SAMPLE, matResponses);			
+			classifier.train(matTraining, ROW_SAMPLE, matResponses);			
 		}
 		
 		matTraining.release();
@@ -289,7 +289,8 @@ public abstract class OpenCvClassifier<T extends StatModel> implements PathObjec
 		
 		int counter = 0;
 		float[] array = new float[measurements.size()];
-		Mat samples = new Mat(1, array.length, CvType.CV_32FC1);
+		Mat samples = new Mat(1, array.length, CV_32FC1);
+		FloatBuffer bufferSamples = samples.createBuffer();
 
 		Mat results = new Mat();
 
@@ -306,7 +307,10 @@ public abstract class OpenCvClassifier<T extends StatModel> implements PathObjec
 				idx++;
 			}
 			
-			samples.put(0, 0, array);
+//			FloatIndexer indexerSamples = samples.createIndexer();
+//			indexerSamples.put(0L, 0L, array);
+			bufferSamples.clear();
+			bufferSamples.put(array);
 			
 			try {
 				setPredictedClass(classifier, pathClasses, samples, results, pathObject);
@@ -318,9 +322,11 @@ public abstract class OpenCvClassifier<T extends StatModel> implements PathObjec
 //				pathObject.setPathClass(pathClasses.get((int)prediction), prediction2);
 				} catch (Exception e) {
 					pathObject.setPathClass(null);
-					logger.trace("Error with samples: " + samples.dump());
+					logger.trace("Error with samples: {}", samples);
 //					e.printStackTrace();
 				}
+			// TODO: See if this can be created outside the loop & reused... appears to work, but docs say release should be called
+//			indexerSamples.release();
 //			}
 			counter++;
 		}

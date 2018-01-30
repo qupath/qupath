@@ -27,8 +27,8 @@ import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
 
-import org.opencv.core.TermCriteria;
-import org.opencv.ml.StatModel;
+import org.bytedeco.javacpp.opencv_ml.StatModel;
+import org.bytedeco.javacpp.opencv_core.TermCriteria;
 
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.plugins.parameters.Parameterizable;

@@ -25,19 +25,16 @@ package qupath.opencv;
 
 import java.awt.Shape;
 import java.awt.image.BufferedImage;
+import java.nio.FloatBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 
-import org.opencv.core.Core;
-import org.opencv.core.CvType;
-import org.opencv.core.Mat;
-import org.opencv.core.MatOfPoint;
-import org.opencv.core.Point;
-import org.opencv.core.Scalar;
-import org.opencv.core.Size;
-import org.opencv.imgproc.Imgproc;
+import static org.bytedeco.javacpp.opencv_core.*;
+import org.bytedeco.javacpp.opencv_imgproc;
+import org.bytedeco.javacpp.indexer.FloatIndexer;
+import org.bytedeco.javacpp.indexer.IntIndexer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -184,10 +181,10 @@ public class CellCountsCV extends AbstractTileableDetectionPlugin<BufferedImage>
 			// Convert to OpenCV Mat
 			int width = img.getWidth();
 			int height = img.getHeight();
-			Mat matOrig = new Mat(height, width, CvType.CV_32FC1);
+			Mat matOrig = new Mat(height, width, CV_32FC1);
 			
 			// It seems OpenCV doesn't use the array directly, so no need to copy...
-			matOrig.put(0, 0, pxNucleusStain);
+			putFloatPixels(matOrig, pxNucleusStain);
 			
 			/*
 			 * Detection
@@ -197,9 +194,9 @@ public class CellCountsCV extends AbstractTileableDetectionPlugin<BufferedImage>
 			if (backgroundRadius > 0) {
 				Mat matBG = new Mat();
 				int size = (int)Math.round(backgroundRadius) * 2 + 1;
-				Mat kernel = Imgproc.getStructuringElement(Imgproc.MORPH_ELLIPSE, new Size(size, size));
-				Imgproc.morphologyEx(matOrig, matBG, Imgproc.MORPH_OPEN, kernel);
-				Core.subtract(matOrig, matBG, matOrig);
+				Mat kernel = opencv_imgproc.getStructuringElement(opencv_imgproc.MORPH_ELLIPSE, new Size(size, size));
+				opencv_imgproc.morphologyEx(matOrig, matBG, opencv_imgproc.MORPH_OPEN, kernel);
+				subtract(matOrig, matBG, matOrig);
 			}
 			
 			
@@ -207,22 +204,23 @@ public class CellCountsCV extends AbstractTileableDetectionPlugin<BufferedImage>
 			// Apply Gaussian filter
 			int gaussianWidth = (int)(Math.ceil(gaussianSigma * 3) * 2 + 1);
 			Mat mat = new Mat(); // From now on, work with the smoothed image
-			Imgproc.GaussianBlur(matOrig, mat, new Size(gaussianWidth, gaussianWidth), gaussianSigma);
+			opencv_imgproc.GaussianBlur(matOrig, mat, new Size(gaussianWidth, gaussianWidth), gaussianSigma);
 			
 			// Filter the second stain as well
-			Mat matStain2 = new Mat(height, width, CvType.CV_32FC1);
-			matStain2.put(0, 0, pxStain2);
-			Imgproc.GaussianBlur(matStain2, matStain2, new Size(gaussianWidth, gaussianWidth), gaussianSigma);
+			Mat matStain2 = new Mat(height, width, CV_32FC1);
+			putFloatPixels(matStain2, pxStain2);
+			opencv_imgproc.GaussianBlur(matStain2, matStain2, new Size(gaussianWidth, gaussianWidth), gaussianSigma);
 			
 			// Apply basic threshold to identify potential nucleus pixels
 			Mat matThresh = new Mat();
-			Core.compare(mat, new Scalar(threshold), matThresh, Core.CMP_GE);
+			opencv_imgproc.threshold(mat, matThresh, threshold, 255.0, opencv_imgproc.THRESH_BINARY);
+			matThresh.convertTo(matThresh, CV_8UC1);
 			
 			// Ensure cells selected only where hematoxylin > eosin/DAB, if required
 			if (ensureMainStain) {
 				Mat matValid = new Mat();
-				Core.compare(mat, matStain2, matValid, Core.CMP_GE);
-				Core.min(matThresh, matValid, matThresh);
+				compare(mat, matStain2, matValid, CMP_GE);
+				min(matThresh, matValid, matThresh);
 				matValid.release();
 			}
 			
@@ -232,24 +230,24 @@ public class CellCountsCV extends AbstractTileableDetectionPlugin<BufferedImage>
 				int gaussianWidth2 = (int)(Math.ceil(sigma2 * 3) * 2 + 1);
 				Mat mat2 = new Mat();
 				// Apply filter to the original
-				Imgproc.GaussianBlur(matOrig, mat2, new Size(gaussianWidth2, gaussianWidth2), sigma2);
-				Core.subtract(mat, mat2, mat);
+				opencv_imgproc.GaussianBlur(matOrig, mat2, new Size(gaussianWidth2, gaussianWidth2), sigma2);
+				subtract(mat, mat2, mat);
 			}
 			
 			// Apply max filter to help find maxima
 			Mat matMax = new Mat(mat.size(), mat.type());
-			Imgproc.dilate(mat, matMax, new Mat());
+			opencv_imgproc.dilate(mat, matMax, new Mat());
 
 			// Apply potential maxima threshold by locating pixels where mat == matMax,
 			// i.e. a pixel is equal to the maximum of its 8 neighbours
 			// (Note: this doesn’t deal with points of inflection, but with 32-bit this is likely to be rare enough
 			// not to be worth the considerably extra computational cost; may need to confirm there are no rounding errors)
 			Mat matMaxima = new Mat();
-			Core.compare(mat, matMax, matMaxima, Core.CMP_EQ);
+			compare(mat, matMax, matMaxima, CMP_EQ);
 			
 			// Compute AND of two binary images
 			// This finds the potential nucleus pixels that are also local maxima in the processed image
-			Core.min(matThresh, matMaxima, matMaxima);
+			min(matThresh, matMaxima, matMaxima);
 			
 			/*
 			 * Create objects
@@ -258,32 +256,37 @@ public class CellCountsCV extends AbstractTileableDetectionPlugin<BufferedImage>
 			// Create path objects from contours
 			// This deals with the fact that maxima located within matMaxima (a binary image) aren’t necessarily
 			// single pixels, but should be treated as belonging to the same cell		
-			List<MatOfPoint> contours = new ArrayList<>();
+			MatVector contours = new MatVector();
 			Mat temp = new Mat();
-			Imgproc.findContours(matMaxima, contours, temp, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE);
+			opencv_imgproc.findContours(matMaxima, contours, temp, opencv_imgproc.RETR_EXTERNAL, opencv_imgproc.CHAIN_APPROX_SIMPLE);
 			temp.release();
 			ArrayList<qupath.lib.geom.Point2> points = new ArrayList<>();
 
 			Shape shape = pathROI instanceof PathArea ? PathROIToolsAwt.getShape(pathROI) : null;
 			Integer color = ColorTools.makeRGB(0, 255, 0);
-			float[] stain2Value = new float[1];
 			String stain2Name = stains.getStain(2).getName();
 			PathArea area = pathROI instanceof PathArea ? (PathArea)pathROI : null;
 			if (area instanceof AreaROI && !(area instanceof AWTAreaROI))
 				area = new AWTAreaROI((AreaROI)area);
 			
 			boolean detectInPositiveChannel = stainChannel.equals(DAB);
-			for (MatOfPoint contour : contours){
+			FloatIndexer indexerStain2 = matStain2.createIndexer();
+			for (long c = 0; c < contours.size(); c++) {
+				Mat contour = contours.get(c);
 
 				// This doesn't appear to work...
-//				Moments moments = Imgproc.moments(contour, false);
+//				Moments moments = opencv_imgproc.moments(contour, false);
 //				int cx = (int)(moments.m10/moments.m00);
 //				int cy = (int)(moments.m01/moments.m00);
 				
 				// Create a polygon ROI
 				points.clear();
-				for (Point p : contour.toArray())
-					points.add(new qupath.lib.geom.Point2((p.x + 0.5) * scaleX + x, (p.y + 0.5) * scaleY + y));
+				IntIndexer indexerContour = contour.createIndexer();
+				for (int r = 0; r < indexerContour.rows(); r++) {
+					int px = indexerContour.get(r, 0L, 0L);
+					int py = indexerContour.get(r, 0L, 1L);
+					points.add(new qupath.lib.geom.Point2((px + 0.5) * scaleX + x, (py + 0.5) * scaleY + y));
+				}
 
 				// Add new polygon if it is contained within the ROI
 				ROI tempROI = null;
@@ -312,12 +315,12 @@ public class CellCountsCV extends AbstractTileableDetectionPlugin<BufferedImage>
 				if (stain2Threshold >= 0) {
 					int cx = (int)((tempROI.getCentroidX() - x)/scaleX);
 					int cy = (int)((tempROI.getCentroidY() - y)/scaleY);
-					matStain2.get(cy, cx, stain2Value);
-					if (detectInPositiveChannel || stain2Value[0] >= stain2Threshold)
+					float stain2Value = indexerStain2.get(cy, cx);
+					if (detectInPositiveChannel || stain2Value >= stain2Threshold)
 						pathObject.setPathClass(PathClassFactory.getPositive(null, null));
 					else
 						pathObject.setPathClass(PathClassFactory.getNegative(null, null));
-					pathObject.getMeasurementList().putMeasurement(stain2Name + " OD", stain2Value[0]);
+					pathObject.getMeasurementList().putMeasurement(stain2Name + " OD", stain2Value);
 					pathObject.getMeasurementList().closeList();
 				} else
 					pathObject.setColorRGB(color);
@@ -347,6 +350,17 @@ public class CellCountsCV extends AbstractTileableDetectionPlugin<BufferedImage>
 
 	}
 
+	/**
+	 * Put float[] array of pixels into an image.
+	 * Assumes the image is CV_32F!
+	 * 
+	 * @param mat
+	 * @param pixels
+	 */
+	private static void putFloatPixels(Mat mat, float[] pixels) {
+		FloatBuffer buffer = mat.createBuffer();
+		buffer.put(pixels);
+	}
 
 	@Override
 	protected boolean parseArgument(ImageData<BufferedImage> imageData, String arg) {

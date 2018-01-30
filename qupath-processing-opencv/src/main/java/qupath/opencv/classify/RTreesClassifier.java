@@ -25,9 +25,10 @@ package qupath.opencv.classify;
 
 import java.util.List;
 
-import org.opencv.core.Mat;
-import org.opencv.core.TermCriteria;
-import org.opencv.ml.RTrees;
+import org.bytedeco.javacpp.opencv_ml.RTrees;
+import org.bytedeco.javacpp.opencv_core.Mat;
+import org.bytedeco.javacpp.opencv_core.TermCriteria;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,7 +36,6 @@ import qupath.lib.objects.PathObject;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.plugins.parameters.Parameterizable;
-//import qupath.lib.plugins.workflow.DefaultPluginWorkflowStep;
 
 
 /**
@@ -45,6 +45,8 @@ import qupath.lib.plugins.parameters.Parameterizable;
  *
  */
 public class RTreesClassifier extends ParameterizableOpenCvClassifier<RTrees> implements Parameterizable {
+	
+	private static final long serialVersionUID = 214514118006174724L;
 	
 	private static Logger logger = LoggerFactory.getLogger(RTreesClassifier.class);
 	
@@ -106,8 +108,8 @@ public class RTreesClassifier extends ParameterizableOpenCvClassifier<RTrees> im
 	
 	@Override
 	protected void setPredictedClass(final RTrees classifier, final List<PathClass> pathClasses, final Mat samples, final Mat results, final PathObject pathObject) {
-		if (pathClasses.size() == 2 && termCriteria != null && ((TermCriteria.EPS & termCriteria.type) == 0) && termCriteria.maxCount > 0) {
-			double prediction = classifier.predict(samples, results, RTrees.PREDICT_SUM)  / termCriteria.maxCount;
+		if (pathClasses.size() == 2 && termCriteria != null && ((TermCriteria.EPS & termCriteria.type()) == 0) && termCriteria.maxCount() > 0) {
+			double prediction = classifier.predict(samples, results, RTrees.PREDICT_SUM)  / termCriteria.maxCount();
 			int index = (int)Math.round(prediction); // Round the prediction
 			// Convert to a probability based on the number of trees
 			double probability = prediction;

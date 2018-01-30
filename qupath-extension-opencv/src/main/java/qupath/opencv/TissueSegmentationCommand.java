@@ -27,14 +27,14 @@ import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferByte;
+import java.nio.FloatBuffer;
+import java.nio.IntBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import org.opencv.core.CvType;
-import org.opencv.core.Mat;
-import org.opencv.ml.Ml;
-import org.opencv.ml.RTrees;
+import static org.bytedeco.javacpp.opencv_core.*;
+import static org.bytedeco.javacpp.opencv_ml.*;
 
 import qupath.lib.common.ColorTools;
 import qupath.lib.gui.QuPathGUI;
@@ -49,6 +49,7 @@ import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
 import qupath.lib.roi.PathROIToolsAwt;
+import qupath.opencv.processing.OpenCVTools;
 
 /**
  * This is an *extremely* rough, very unfinished implementation of an (almost) pixel-based classifier for tissue identification.
@@ -191,23 +192,26 @@ public class TissueSegmentationCommand implements PathCommand, PathObjectHierarc
 		}
 		
 
-		Mat matTraining = new Mat(n, featureStride, CvType.CV_32FC1);
-		matTraining.put(0, 0, Arrays.copyOf(training, n*featureStride));
-		Mat matResponses = new Mat(n, 1, CvType.CV_32SC1);
-		matResponses.put(0, 0, Arrays.copyOf(trainingResponses, n));
-
-		trees.train(matTraining, Ml.ROW_SAMPLE, matResponses);
+		Mat matTraining = new Mat(n, featureStride, CV_32FC1);
+		FloatBuffer bufferTraining = matTraining.createBuffer();
+		bufferTraining.put(Arrays.copyOf(training, n*featureStride));
+	    
+		Mat matResponses = new Mat(n, 1, CV_32SC1);
+		IntBuffer bufferResponses = matResponses.createBuffer();
+		bufferResponses.put(Arrays.copyOf(trainingResponses, n));
+		
+		trees.train(matTraining, ROW_SAMPLE, matResponses);
 		
 		matTraining.release();
 		matResponses.release();
 		
-		Mat samples = new Mat(buf.length, featureStride, CvType.CV_32FC1);
-		samples.put(0, 0, features);
-		Mat results = new Mat(buf.length, 1, CvType.CV_32SC1);
+		Mat samples = new Mat(buf.length, featureStride, CV_32FC1);
+		OpenCVTools.putPixelsFloat(samples, features);
+		Mat results = new Mat(buf.length, 1, CV_32SC1);
 		trees.predict(samples, results, RTrees.PREDICT_AUTO);
 		BufferedImage imgOutput = new BufferedImage(img.getWidth(), img.getHeight(), BufferedImage.TYPE_INT_RGB);
 		float[] resultsArray = new float[buf.length];
-		results.get(0, 0, resultsArray);
+		OpenCVTools.extractPixels(results, resultsArray);
 		
 		for (int i = 0; i < resultsArray.length; i++) {
 			if (resultsArray[i] == 1f)

@@ -326,30 +326,31 @@ public class PathObjectHierarchyView implements ImageDataChangeListener<Buffered
 	}
 	
 	
-	class PathObjectCell extends TreeCell<PathObject> {
+	static class PathObjectCell extends TreeCell<PathObject> {
 
-	     public PathObjectCell() {    }
-	       
-	     @Override protected void updateItem(PathObject item, boolean empty) {
-//	    	 updateSelected(isObjectSelected(item));
-	         super.updateItem(item, empty);
-	         setGraphic(null);
-	         if (item == null || empty) {
-	        	 setText(null);
-	        	 setGraphic(null);
-	         } else {
-	        	 setText(item.toString());
-	        	 if (item.hasROI() && (!item.isDetection() || detectionDisplay.get() == TreeDetectionDisplay.WITH_ICONS)) {
-	        		 // It consumes too many resources to create enough icons to represent every detection this way...
-	        		 // consider reintroducing in the future with a more efficient implementation, e.g. reusing images & canvases
- 	        		 Color color = ColorToolsFX.getDisplayedColor(item);
-	        		 setGraphic(PathIconFactory.createROIIcon(item.getROI(), 16, 16, color));
-	        	 } else
-	        		 setGraphic(null);
-	         }
-	     }
+		public PathObjectCell() {    }
 
-	 }
+		@Override
+		protected void updateItem(PathObject item, boolean empty) {
+			//	    	 updateSelected(isObjectSelected(item));
+			super.updateItem(item, empty);
+			setGraphic(null);
+			if (item == null || empty) {
+				setText(null);
+				setGraphic(null);
+			} else {
+				setText(item.toString());
+				if (item.hasROI() && (!item.isDetection() || detectionDisplay.get() == TreeDetectionDisplay.WITH_ICONS)) {
+					// It consumes too many resources to create enough icons to represent every detection this way...
+					// consider reintroducing in the future with a more efficient implementation, e.g. reusing images & canvases
+					Color color = ColorToolsFX.getDisplayedColor(item);
+					setGraphic(PathIconFactory.createROIIcon(item.getROI(), 16, 16, color));
+				} else
+					setGraphic(null);
+			}
+		}
+
+	}
 	
 	
 	
@@ -402,25 +403,25 @@ public class PathObjectHierarchyView implements ImageDataChangeListener<Buffered
 	 
 	          @Override
 	          public ObservableList<TreeItem<PathObject>> getChildren() {
-	        	  ObservableList<TreeItem<PathObject>> children = super.getChildren();
-	        	  if (!childrenSet && children.isEmpty()) {
-	        		  childrenSet = true;
-	        		  List<TreeItem<PathObject>> newChildren = new ArrayList<>();
-	        		  Collection<PathObject> currentChildren = getValue().getChildObjects();
-	        		  boolean includeDetections = detectionDisplay.get() != TreeDetectionDisplay.NONE;
-                  for (PathObject child : currentChildren.toArray(new PathObject[currentChildren.size()])) {
-                	  	if (includeDetections || child.hasChildren() || !child.isDetection())
-                	  		newChildren.add(createNode(child));
-                  }
-	        		  super.getChildren().setAll(newChildren);
-	        	  }
-	              return children;
-	          }
-
-	          @Override
-	          public boolean isLeaf() {
-	        	  	return !getValue().hasChildren() || getChildren().isEmpty();
-	          }
+		        	  ObservableList<TreeItem<PathObject>> children = super.getChildren();
+		        	  if (!childrenSet && children.isEmpty()) {
+		        		  childrenSet = true;
+		        		  List<TreeItem<PathObject>> newChildren = new ArrayList<>();
+		        		  Collection<PathObject> currentChildren = getValue().getChildObjects();
+		        		  boolean includeDetections = detectionDisplay.get() != TreeDetectionDisplay.NONE;
+	                  for (PathObject child : currentChildren.toArray(new PathObject[currentChildren.size()])) {
+	                	  	if (includeDetections || child.hasChildren() || !child.isDetection())
+	                	  		newChildren.add(createNode(child));
+	                  }
+		        		  super.getChildren().setAll(newChildren);
+		        	  }
+		              return children;
+		          }
+	
+		          @Override
+		          public boolean isLeaf() {
+		        	  	return !getValue().hasChildren() || getChildren().isEmpty();
+		          }
 	          
 	      };
 	}

@@ -31,18 +31,13 @@ import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferByte;
-import java.util.ArrayList;
-import java.util.List;
+import java.nio.ByteBuffer;
+import java.nio.DoubleBuffer;
 
-import org.opencv.core.Core;
-import org.opencv.core.CvType;
-import org.opencv.core.Mat;
-import org.opencv.core.MatOfDouble;
-import org.opencv.core.MatOfPoint;
-import org.opencv.core.Point;
-import org.opencv.core.Scalar;
-import org.opencv.core.Size;
-import org.opencv.imgproc.Imgproc;
+import static org.bytedeco.javacpp.opencv_core.*;
+import org.bytedeco.javacpp.opencv_imgproc;
+import org.bytedeco.javacpp.indexer.IntIndexer;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -68,11 +63,9 @@ public class WandToolCV extends BrushTool {
 	private Point2D pLast = null;
 	private static int w = 149;
 	private BufferedImage imgTemp = new BufferedImage(w, w, BufferedImage.TYPE_3BYTE_BGR);
-	private Mat mat = null; //new Mat(w, w, CvType.CV_8U);
-	private Mat matMask = null; //new Mat(w, w, CvType.CV_8U);
-	private Scalar zero = new Scalar(0);
-	private Scalar one = new Scalar(1);
-	private Scalar threshold = new Scalar(1, 1, 1);
+	private Mat mat = null; //new Mat(w, w, CV_8U);
+	private Mat matMask = null; //new Mat(w, w, CV_8U);
+	private Scalar threshold = Scalar.all(1.0);
 	private Point seed = new Point(w/2, w/2);
 //	private Size morphSize = new Size(5, 5);
 	private Mat strel = null;
@@ -80,7 +73,6 @@ public class WandToolCV extends BrushTool {
 	
 	private Rectangle2D bounds = new Rectangle2D.Double();
 	
-	private List<MatOfPoint> contours = new ArrayList<>();
 	private Size blurSize = new Size(31, 31);
 	
 	
@@ -142,9 +134,9 @@ public class WandToolCV extends BrushTool {
 	protected Shape createShape(double x, double y, boolean useTiles) {
 		
 		if (mat == null)
-			mat = new Mat(w, w, CvType.CV_8UC3);
+			mat = new Mat(w, w, CV_8UC3);
 		if (matMask == null)
-			matMask = new Mat(w+2, w+2, CvType.CV_8U);
+			matMask = new Mat(w+2, w+2, CV_8U);
 
 		
 		if (pLast != null && pLast.distanceSq(x, y) < 4)
@@ -172,78 +164,83 @@ public class WandToolCV extends BrushTool {
 		
 		// Put pixels into an OpenCV image
 		byte[] buffer = ((DataBufferByte)imgTemp.getRaster().getDataBuffer()).getData();
-		mat.put(0, 0, buffer);
+	    ByteBuffer matBuffer = mat.createBuffer();
+	    matBuffer.put(buffer);
+//		mat.put(0, 0, buffer);
 		
-//		Imgproc.cvtColor(mat, mat, Imgproc.COLOR_BGR2Lab);
+//		opencv_imgproc.cvtColor(mat, mat, opencv_imgproc.COLOR_BGR2Lab);
 //		blurSigma = 4;
 		
 		double blurSigma = Math.max(0.5, getWandSigmaPixels());
-		double size = Math.ceil(blurSigma * 2) * 2 + 1;
-		blurSize.width = size;
-		blurSize.height = size;
+		int size = (int)Math.ceil(blurSigma * 2) * 2 + 1;
+		blurSize.width(size);
+		blurSize.height(size);
 		
 		// Smooth a little
-		Imgproc.GaussianBlur(mat, mat, blurSize, blurSigma);
+		opencv_imgproc.GaussianBlur(mat, mat, blurSize, blurSigma);
 		
-//		Imgproc.cvtColor(mat, mat, Imgproc.COLOR_RGB2Lab);
+//		opencv_imgproc.cvtColor(mat, mat, opencv_imgproc.COLOR_RGB2Lab);
 		
-		MatOfDouble mean = new MatOfDouble();
-		MatOfDouble stddev = new MatOfDouble();
-		Core.meanStdDev(mat, mean, stddev);
+		Mat mean = new Mat();
+		Mat stddev = new Mat();
+		meanStdDev(mat, mean, stddev);
 //		logger.trace(stddev.dump());
 
-		double[] stddev2 = stddev.toArray();
+		DoubleBuffer stddevBuffer = stddev.createBuffer();
+		double[] stddev2 = new double[3];
+		stddevBuffer.get(stddev2);
 		double scale = 1.0 / getWandSensitivity();
 		if (scale < 0)
 			scale = 0.01;
 		for (int i = 0; i < stddev2.length; i++)
 			stddev2[i] = stddev2[i]*scale;
-		threshold.set(stddev2);
+		threshold.put(stddev2);
 
 		mean.release();
 		stddev.release();
 		
-		matMask.setTo(zero);
-		Imgproc.circle(matMask, seed, w/2, one);
-		Imgproc.floodFill(mat, matMask, seed, one, null, threshold, threshold, 4 | (2 << 8) | Imgproc.FLOODFILL_MASK_ONLY | Imgproc.FLOODFILL_FIXED_RANGE);
-		Core.subtract(matMask, one, matMask);
+		matMask.put(Scalar.ZERO);
+//		matMask.setTo(Scalar.ZERO);
+		opencv_imgproc.circle(matMask, seed, w/2, Scalar.ONE);
+		opencv_imgproc.floodFill(mat, matMask, seed, Scalar.ONE, null, threshold, threshold, 4 | (2 << 8) | opencv_imgproc.FLOODFILL_MASK_ONLY | opencv_imgproc.FLOODFILL_FIXED_RANGE);
+		subtractPut(matMask, Scalar.ONE);
 		
 		if (strel == null)
-			strel = Imgproc.getStructuringElement(Imgproc.MORPH_ELLIPSE, new Size(5, 5));
-		Imgproc.morphologyEx(matMask, matMask, Imgproc.MORPH_CLOSE, strel);
-////		Imgproc.morphologyEx(matMask, matMask, Imgproc.MORPH_OPEN, Imgproc.getStructuringElement(Imgproc.MORPH_ELLIPSE, size));
+			strel = opencv_imgproc.getStructuringElement(opencv_imgproc.MORPH_ELLIPSE, new Size(5, 5));
+		opencv_imgproc.morphologyEx(matMask, matMask, opencv_imgproc.MORPH_CLOSE, strel);
+////		opencv_imgproc.morphologyEx(matMask, matMask, opencv_imgproc.MORPH_OPEN, opencv_imgproc.getStructuringElement(opencv_imgproc.MORPH_ELLIPSE, size));
 //		
-////		threshold = new Scalar(10, 10, 10);
-//		double[] stddev2 = stddev.toArray();
-//		double scale = .5;
-//		threshold = new Scalar(stddev2[0]*scale, stddev2[1]*scale, stddev2[2]*scale);
-		
-		contours.clear();
+		MatVector contours = new MatVector();
 		if (contourHierarchy == null)
 			contourHierarchy = new Mat();
-		Imgproc.findContours(matMask, contours, contourHierarchy, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE);
+		opencv_imgproc.findContours(matMask, contours, contourHierarchy, opencv_imgproc.RETR_EXTERNAL, opencv_imgproc.CHAIN_APPROX_SIMPLE);
 //		logger.trace("Contours: " + contours.size());
 
 		Path2D path = new Path2D.Float();
 		boolean isOpen = false;
-		for (MatOfPoint contour : contours){
+		for (long i = 0; i < contours.size(); i++){
+			
+			Mat contour = contours.get(i);
 			
 			// Discard single pixels / lines
-			if (contour.size().height <= 2)
+			if (contour.size().height() <= 2)
 				continue;
 			
 			// Create a polygon ROI
 			boolean firstPoint = true;
-	        for (Point p : contour.toArray()) {
-	        	double xx = (p.x - w/2-1) * downsample + x;
-	        	double yy = (p.y - w/2-1) * downsample + y;
-	        	if (firstPoint) {
-	        		path.moveTo(xx, yy);
-	        		firstPoint = false;
-		        	isOpen = true;
-	        	} else
-	        		path.lineTo(xx, yy);
-	        }
+			IntIndexer idxrContours = contour.createIndexer();
+	        for (long r = 0; r < idxrContours.rows(); r++) {
+	        		int px = idxrContours.get(r, 0L, 0L);
+	        		int py = idxrContours.get(r, 0L, 1L);
+		        	double xx = (px - w/2-1) * downsample + x;
+		        	double yy = (py - w/2-1) * downsample + y;
+		        	if (firstPoint) {
+		        		path.moveTo(xx, yy);
+		        		firstPoint = false;
+			        	isOpen = true;
+		        	} else
+		        		path.lineTo(xx, yy);
+		       }
 		}
 		if (isOpen)
 			path.closePath();

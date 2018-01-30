@@ -35,9 +35,8 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import org.opencv.core.Point;
-import org.opencv.core.Rect;
-import org.opencv.imgproc.Subdiv2D;
+import static org.bytedeco.javacpp.opencv_core.*;
+import static org.bytedeco.javacpp.opencv_imgproc.Subdiv2D;
 
 import qupath.lib.analysis.stats.RunningStatistics;
 import qupath.lib.classifiers.PathClassificationLabellingHelper;
@@ -139,7 +138,7 @@ public class DelaunayTriangulation implements PathObjectConnectionGroup {
 		double minY = Double.POSITIVE_INFINITY;
 		double maxX = Double.NEGATIVE_INFINITY;
 		double maxY = Double.NEGATIVE_INFINITY;
-		List<Point> centroids = new ArrayList<>(pathObjectList.size());
+		List<Point2f> centroids = new ArrayList<>(pathObjectList.size());
 		for (PathObject pathObject : pathObjectList) {
 			ROI pathROI = null;
 			
@@ -166,7 +165,7 @@ public class DelaunayTriangulation implements PathObjectConnectionGroup {
 			else if (y > maxY)
 				maxY = y;
 			
-			centroids.add(new Point(x, y));
+			centroids.add(new Point2f((float)x, (float)y));
 		}
 		
 		// Create Delaunay triangulation, updating vertex map
@@ -174,7 +173,7 @@ public class DelaunayTriangulation implements PathObjectConnectionGroup {
 		Rect bounds = new Rect((int)minX-1, (int)minY-1, (int)(maxX-minX)+100, (int)(maxY-minY)+100);
 		subdiv.initDelaunay(bounds);
 		for (int i = 0; i < centroids.size(); i++) {
-			Point p = centroids.get(i);
+			Point2f p = centroids.get(i);
 			if (p == null)
 				continue;
 			int v = subdiv.insert(p);

@@ -26,17 +26,16 @@ package qupath.opencv.processing;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferInt;
 import java.nio.ByteBuffer;
+import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
-import java.util.ArrayList;
-import java.util.List;
 
-import org.opencv.core.Core;
-import org.opencv.core.CvType;
-import org.opencv.core.Mat;
-import org.opencv.core.MatOfPoint;
-import org.opencv.core.Point;
-import org.opencv.core.Scalar;
-import org.opencv.imgproc.Imgproc;
+import static org.bytedeco.javacpp.opencv_core.*;
+import org.bytedeco.javacpp.opencv_imgproc;
+import org.bytedeco.javacpp.indexer.ByteIndexer;
+import org.bytedeco.javacpp.indexer.FloatIndexer;
+import org.bytedeco.javacpp.indexer.Indexer;
+import org.bytedeco.javacpp.opencv_core.Mat;
+import org.bytedeco.javacpp.opencv_core.Scalar;
 
 /**
  * Collection of static methods to help with using OpenCV from Java.
@@ -73,75 +72,134 @@ public class OpenCVTools {
 //	        j++;
 //	    }
 	    
-		//		Mat mat = new Mat(img.getHeight(), img.getWidth(), CvType.CV_8UC3);
-		Mat mat = new Mat(img.getHeight(), img.getWidth(), CvType.CV_8UC4);
-		mat.put(0, 0, dataBytes);
+		//		Mat mat = new Mat(img.getHeight(), img.getWidth(), CV_8UC3);
+		Mat mat = new Mat(img.getHeight(), img.getWidth(), CV_8UC4);
+		ByteBuffer buffer = mat.createBuffer();
+		buffer.put(dataBytes);
+//		mat.put(0, 0, dataBytes);
 		return mat;
 	}
 
-		public static void labelImage(Mat matBinary, Mat matLabels, int contourType) {
-			List<MatOfPoint> contours = new ArrayList<>();
-			Mat hierarchy = new Mat();
-			Imgproc.findContours(matBinary, contours, hierarchy, contourType, Imgproc.CHAIN_APPROX_SIMPLE);
-			// It's convoluted, but drawing contours this way is *much* faster than passing the full list (which is copied by the OpenCV 2.4.9 Java code)
-			List<MatOfPoint> temp = new ArrayList<>(1);
-			int i = 2;
-			int ind = 0;
-			for (MatOfPoint contour : contours) {
-				temp.clear();
-				temp.add(contour);
-				Imgproc.drawContours(matLabels, temp, 0, new Scalar(i++), -1, 8, hierarchy.col(ind), 2, new Point(0, 0));
-	//			Imgproc.drawContours(matLabels, temp, 0, new Scalar(i++), -1);
-				ind++;
-			}
+	public static void labelImage(Mat matBinary, Mat matLabels, int contourType) {
+		MatVector contours = new MatVector();
+		Mat hierarchy = new Mat();
+		opencv_imgproc.findContours(matBinary, contours, hierarchy, contourType, opencv_imgproc.CHAIN_APPROX_SIMPLE);
+		int i = 2;
+		int ind = 0;
+		Point offset = new Point(0, 0);
+		for (int c = 0; c < contours.size(); c++) {
+			opencv_imgproc.drawContours(matLabels, contours, c, Scalar.all(i++), -1, 8, hierarchy.col(ind), 2, offset);
+//			opencv_imgproc.drawContours(matLabels, temp, 0, new Scalar(i++), -1);
+			ind++;
 		}
+	}
+	
+	
+	/**
+	 * Set pixels from a byte array.
+	 * 
+	 * There is no real error checking; it is assumed that the pixel array is in the appropriate format.
+	 * 
+	 * @param mat
+	 * @param pixels
+	 */
+	public static void putPixelsUnsigned(Mat mat, byte[] pixels) {
+		Indexer indexer = mat.createIndexer();
+		if (indexer instanceof ByteIndexer) {
+			((ByteIndexer) indexer).put(0, pixels);
+		} else
+			throw new IllegalArgumentException("Expected a ByteIndexer, but instead got " + indexer.getClass());
+	}
+	
+	/**
+	 * Set pixels from a float array.
+	 * 
+	 * There is no real error checking; it is assumed that the pixel array is in the appropriate format.
+	 * 
+	 * @param mat
+	 * @param pixels
+	 */
+	public static void putPixelsFloat(Mat mat, float[] pixels) {
+		Indexer indexer = mat.createIndexer();
+		if (indexer instanceof FloatIndexer) {
+			((FloatIndexer) indexer).put(0, pixels);
+		} else
+			throw new IllegalArgumentException("Expected a FloatIndexer, but instead got " + indexer.getClass());
+	}
+	
 
 	public static void watershedDistanceTransformSplit(Mat matBinary, int maxFilterRadius) {
 			Mat matWatershedSeedsBinary;
 			
 			// Create a background mask
 			Mat matBackground = new Mat();
-			Core.compare(matBinary, new Scalar(255), matBackground, Core.CMP_NE);
+			compare(matBinary, new Mat(1, 1, CV_32FC1, Scalar.WHITE), matBackground, CMP_NE);
 	
 			// Separate by shape using the watershed transform
 			Mat matDistanceTransform = new Mat();
-			Imgproc.distanceTransform(matBinary, matDistanceTransform, Imgproc.CV_DIST_L2, Imgproc.CV_DIST_MASK_PRECISE);
+			opencv_imgproc.distanceTransform(matBinary, matDistanceTransform, opencv_imgproc.CV_DIST_L2, opencv_imgproc.CV_DIST_MASK_PRECISE);
 			// Find local maxima
 			matWatershedSeedsBinary = new Mat();
-			Imgproc.dilate(matDistanceTransform, matWatershedSeedsBinary, OpenCVTools.getCircularStructuringElement(maxFilterRadius));
-			Core.compare(matDistanceTransform, matWatershedSeedsBinary, matWatershedSeedsBinary, Core.CMP_EQ);
-			matWatershedSeedsBinary.setTo(new Scalar(0), matBackground);
+			opencv_imgproc.dilate(matDistanceTransform, matWatershedSeedsBinary, OpenCVTools.getCircularStructuringElement(maxFilterRadius));
+			compare(matDistanceTransform, matWatershedSeedsBinary, matWatershedSeedsBinary, CMP_EQ);
+			matWatershedSeedsBinary.setTo(new Mat(1, 1, matWatershedSeedsBinary.type(), Scalar.ZERO), matBackground);
 			// Dilate slightly to merge nearby maxima
-			Imgproc.dilate(matWatershedSeedsBinary, matWatershedSeedsBinary, OpenCVTools.getCircularStructuringElement(2));
+			opencv_imgproc.dilate(matWatershedSeedsBinary, matWatershedSeedsBinary, OpenCVTools.getCircularStructuringElement(2));
 	
 			// Create labels for watershed
-			Mat matLabels = new Mat(matDistanceTransform.size(), CvType.CV_32F, new Scalar(0));
-			labelImage(matWatershedSeedsBinary, matLabels, Imgproc.RETR_CCOMP);
+			Mat matLabels = new Mat(matDistanceTransform.size(), CV_32F, Scalar.ZERO);
+			labelImage(matWatershedSeedsBinary, matLabels, opencv_imgproc.RETR_CCOMP);
 	
 			// Remove everything outside the thresholded region
-			matLabels.setTo(new Scalar(0), matBackground);
+			matLabels.setTo(new Mat(1, 1, matLabels.type(), Scalar.ZERO), matBackground);
 	
 			// Do watershed
 			// 8-connectivity is essential for the watershed lines to be preserved - otherwise OpenCV's findContours could not be used
 			ProcessingCV.doWatershed(matDistanceTransform, matLabels, 0.1, true);
 	
 			// Update the binary image to remove the watershed lines
-			Core.multiply(matBinary, matLabels, matBinary, 1, matBinary.type());
+			multiply(matBinary, matLabels, matBinary, 1, matBinary.type());
 		}
 
 	public static Mat getCircularStructuringElement(int radius) {
-			Mat strel = new Mat(radius*2+1, radius*2+1, CvType.CV_8UC1, new Scalar(0));
-			Imgproc.circle(strel, new Point(radius, radius), radius, new Scalar(1), -1);
-			return strel;
-		}
+		// TODO: Find out why this doesn't just call a standard request for a strel...
+		Mat strel = new Mat(radius*2+1, radius*2+1, CV_8UC1, Scalar.ZERO);
+		opencv_imgproc.circle(strel, new Point(radius, radius), radius, Scalar.ONE, -1, LINE_8, 0);
+		return strel;
+	}
 
 	/*
 	 * Invert a binary image.
 	 * Technically, set all zero pixels to 255 and all non-zero pixels to 0.
 	 */
 	public static void invertBinary(Mat matBinary, Mat matDest) {
-		Core.compare(matBinary, new Scalar(0), matDest, Core.CMP_EQ);
+		compare(matBinary, new Mat(1, 1, CV_32FC1, Scalar.ZERO), matDest, CMP_EQ);
 	}
+	
+	
+	/**
+	 * Extract pixels as a float[] array.
+	 * 
+	 * @param mat
+	 * @param pixels
+	 * @return
+	 */
+	public static float[] extractPixels(Mat mat, float[] pixels) {
+		if (pixels == null)
+			pixels = new float[(int)mat.total()];
+		Mat mat2 = null;
+		if (mat.depth() != CV_32F) {
+			mat2 = new Mat();
+			mat.convertTo(mat2, CV_32F);
+			mat = mat2;
+		}
+		FloatBuffer buffer = mat.createBuffer();
+		buffer.get(pixels);
+		if (mat2 != null)
+			mat2.release();
+		return pixels;
+	}
+	
 
 	/**
 	 * Fill holes in a binary image (1-channel, 8-bit unsigned) with an area <= maxArea.
@@ -152,21 +210,22 @@ public class OpenCVTools {
 	public static void fillSmallHoles(Mat matBinary, double maxArea) {
 		Mat matHoles = new Mat();
 		invertBinary(matBinary, matHoles);
-		List<MatOfPoint> contours = new ArrayList<>();
+		MatVector contours = new MatVector();
 		Mat hierarchy = new Mat();
-		Imgproc.findContours(matHoles, contours, hierarchy, Imgproc.RETR_CCOMP, Imgproc.CHAIN_APPROX_SIMPLE);
-		List<MatOfPoint> contoursTemp = new ArrayList<>(1);
-		Scalar color = new Scalar(255);
+		opencv_imgproc.findContours(matHoles, contours, hierarchy, opencv_imgproc.RETR_CCOMP, opencv_imgproc.CHAIN_APPROX_SIMPLE);
+		Scalar color = Scalar.WHITE;
 		int ind = 0;
-		for (MatOfPoint contour : contours) {
+		Point offset = new Point(0, 0);
+		Indexer indexerHierearchy = hierarchy.createIndexer();
+		for (int c = 0; c < contours.size(); c++) {
+			Mat contour = contours.get(c);
 			// Only fill the small, inner contours
-			if (hierarchy.get(0, ind)[3] >= 0 || Imgproc.contourArea(contour) > maxArea) {
+			// TODO: Check hierarchy indexing after switch to JavaCPP!!
+			if (indexerHierearchy.getDouble(0, ind, 3) >= 0 || opencv_imgproc.contourArea(contour) > maxArea) {
 				ind++;
 				continue;
 			}
-			contoursTemp.clear();
-			contoursTemp.add(contour);
-			Imgproc.drawContours(matBinary, contoursTemp, 0, color, -1);
+			opencv_imgproc.drawContours(matBinary, contours, c, color, -1, LINE_8, null, Integer.MAX_VALUE, offset);
 			ind++;
 		}
 	}
@@ -185,24 +244,24 @@ public class OpenCVTools {
 		Mat matTemp = new Mat();
 		
 		Mat strel = getCircularStructuringElement(maximaRadius);
-		Imgproc.dilate(matWatershedIntensities, matTemp, strel);
-		Core.compare(matWatershedIntensities, matTemp, matTemp, Core.CMP_EQ);
-		Imgproc.dilate(matTemp, matTemp, getCircularStructuringElement(2));
+		opencv_imgproc.dilate(matWatershedIntensities, matTemp, strel);
+		compare(matWatershedIntensities, matTemp, matTemp, CMP_EQ);
+		opencv_imgproc.dilate(matTemp, matTemp, getCircularStructuringElement(2));
 		Mat matWatershedSeedsBinary = matTemp;
 	
 		// Remove everything outside the thresholded region
-		Core.min(matWatershedSeedsBinary, matBinary, matWatershedSeedsBinary);
+		min(matWatershedSeedsBinary, matBinary, matWatershedSeedsBinary);
 	
 		// Create labels for watershed
-		Mat matLabels = new Mat(matWatershedIntensities.size(), CvType.CV_32F, new Scalar(0));
-		labelImage(matWatershedSeedsBinary, matLabels, Imgproc.RETR_CCOMP);
+		Mat matLabels = new Mat(matWatershedIntensities.size(), CV_32F, Scalar.ZERO);
+		labelImage(matWatershedSeedsBinary, matLabels, opencv_imgproc.RETR_CCOMP);
 		
 		// Do watershed
 		// 8-connectivity is essential for the watershed lines to be preserved - otherwise OpenCV's findContours could not be used
 		ProcessingCV.doWatershed(matWatershedIntensities, matLabels, threshold, true);
 	
 		// Update the binary image to remove the watershed lines
-		Core.multiply(matBinary, matLabels, matBinary, 1, matBinary.type());
+		multiply(matBinary, matLabels, matBinary, 1, matBinary.type());
 	}
 
 

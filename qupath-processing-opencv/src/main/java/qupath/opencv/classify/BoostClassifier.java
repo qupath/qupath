@@ -25,8 +25,8 @@ package qupath.opencv.classify;
 
 import java.util.List;
 
-import org.opencv.core.Mat;
-import org.opencv.ml.Boost;
+import org.bytedeco.javacpp.opencv_ml.Boost;
+import org.bytedeco.javacpp.opencv_core.Mat;
 
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.classes.PathClass;

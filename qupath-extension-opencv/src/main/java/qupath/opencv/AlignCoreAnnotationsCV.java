@@ -34,9 +34,10 @@ import java.awt.image.DataBufferByte;
 import java.util.Iterator;
 import java.util.List;
 
-import org.opencv.core.CvType;
-import org.opencv.core.Mat;
-import org.opencv.video.Video;
+import static org.bytedeco.javacpp.opencv_core.*;
+import static org.bytedeco.javacpp.opencv_video.*;
+
+import org.bytedeco.javacpp.indexer.Indexer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -52,6 +53,7 @@ import qupath.lib.objects.TMACoreObject;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.PathROIToolsAwt;
 import qupath.lib.roi.interfaces.ROI;
+import qupath.opencv.processing.OpenCVTools;
 
 /**
  * Experimental method to try to align annotations to a TMA core.
@@ -158,26 +160,26 @@ public class AlignCoreAnnotationsCV implements PathCommand {
 
 
 			// Create binary masks
-			Mat matImage = Mat.zeros(h, w, CvType.CV_8UC1);
-			matImage.put(0, 0, bytesImage);
-			Mat matTemplate = Mat.zeros(h, w, CvType.CV_8UC1);
-			matTemplate.put(0, 0, bytesTemplate);
+			Mat matImage = new Mat(h, w, CV_8UC1, Scalar.ZERO);
+			OpenCVTools.putPixelsUnsigned(matImage, bytesImage);
+			Mat matTemplate = new Mat(h, w, CV_8UC1, Scalar.ZERO);
+			OpenCVTools.putPixelsUnsigned(matTemplate, bytesTemplate);
 
-			
-			Mat warpMatrix = Mat.eye(2, 3, CvType.CV_32FC1);
-			Video.findTransformECC(matTemplate, matImage, warpMatrix, Video.MOTION_EUCLIDEAN);
-			logger.debug("Warp matrix: " + warpMatrix.dump());
+			Mat warpMatrix = Mat.eye(2, 3, CV_32FC1).asMat();
+			findTransformECC(matTemplate, matImage, warpMatrix, MOTION_EUCLIDEAN, new TermCriteria(TermCriteria.COUNT + TermCriteria.EPS, 50, 0.001), null);
+			logger.debug("Warp matrix: {}", warpMatrix);
 			
 			// Try to shift annotation
 			AffineTransform transformRefine = new AffineTransform();
 //			double[] data = warpMatrix.get(0, 0);
+			Indexer indexerWarp = warpMatrix.createIndexer();
 			transformRefine.setTransform(
-					warpMatrix.get(0, 0)[0],
-					warpMatrix.get(1, 0)[0], 
-					warpMatrix.get(0, 1)[0], 
-					warpMatrix.get(1, 1)[0], 
-					warpMatrix.get(0, 2)[0], 
-					warpMatrix.get(1, 2)[0]);
+					indexerWarp.getDouble(0, 0),
+					indexerWarp.getDouble(1, 0), 
+					indexerWarp.getDouble(0, 1), 
+					indexerWarp.getDouble(1, 1), 
+					indexerWarp.getDouble(0, 2), 
+					indexerWarp.getDouble(1, 2));
 			for (PathObject temp : pathObjects) {
 				ROI roi = temp.getROI();
 				Shape shape = PathROIToolsAwt.getShape(roi);

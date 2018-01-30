@@ -31,8 +31,8 @@
 			<artifactId>qupath-core-processing-awt</artifactId>
 		</dependency>
 		<dependency>
-			<groupId>org.opencv</groupId>
-			<artifactId>opencv</artifactId>
+			<groupId>org.bytedeco.javacpp-presets</groupId>
+			<artifactId>opencv-platform</artifactId>
 		</dependency>
   </dependencies>
   

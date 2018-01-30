@@ -106,9 +106,9 @@ public class QuPath {
 				
 				String scriptName = map.get(SCRIPT_KEY);
 				
-				// Try to load OpenCV native library
-				if (!OpenCVExtension.loadNativeLibrary())
-					logger.warn("Unable to load OpenCV native library!");
+//				// Try to load OpenCV native library
+//				if (!OpenCVExtension.loadNativeLibrary())
+//					logger.warn("Unable to load OpenCV native library!");
 				
 				// 
 				ClassLoader classLoader = new QuPathGUI.ExtensionClassLoader();

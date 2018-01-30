@@ -23,7 +23,7 @@
 
 package qupath.opencv.classify;
 
-import org.opencv.ml.KNearest;
+import org.bytedeco.javacpp.opencv_ml.KNearest;
 
 import qupath.lib.plugins.parameters.ParameterList;
 

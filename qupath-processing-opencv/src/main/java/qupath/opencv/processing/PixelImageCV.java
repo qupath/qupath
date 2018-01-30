@@ -23,9 +23,9 @@
 
 package qupath.opencv.processing;
 
-import org.opencv.core.CvType;
-import org.opencv.core.Mat;
-import org.opencv.core.Size;
+import static org.bytedeco.javacpp.opencv_core.*;
+
+import java.nio.FloatBuffer;
 
 import qupath.lib.analysis.algorithms.SimpleModifiableImage;
 
@@ -44,28 +44,25 @@ public class PixelImageCV implements SimpleModifiableImage {
 	
 	public PixelImageCV(Mat mat) {
 		// Extract dimensions and pixels
-		this.width = (int)mat.size().width;
-		this.height = (int)mat.size().height;
-		
-		pixels = new float[(int)mat.total()];
-		if (mat.depth() == CvType.CV_32F)
-			mat.get(0, 0, pixels);
-		else {
-			Mat mat2 = new Mat();
-			mat.convertTo(mat2, CvType.CV_32F);
-			mat2.get(0, 0, pixels);
-		}
+		this.width = mat.cols();
+		this.height = mat.rows();
+		pixels = OpenCVTools.extractPixels(mat, null);
 	}
 	
 	public void put(Mat mat) {
-		if (mat.depth() == CvType.CV_32F)
-			mat.put(0, 0, pixels);
-		else {
-			Mat mat2 = new Mat(new Size(width, height), CvType.CV_32F);		
-			mat2.put(0, 0, pixels);
+		if (mat.depth() != CV_32F) {
+			Mat mat2 = new Mat(height, width, CV_32F, Scalar.ZERO);		
 			mat2.convertTo(mat, mat.depth());
+			FloatBuffer buffer = mat2.createBuffer();
+			buffer.put(pixels);
+			mat2.convertTo(mat, mat.depth());
+			mat2.release();
+		} else {
+			FloatBuffer buffer = mat.createBuffer();
+			buffer.put(pixels);
 		}
 	}
+	
 	
 	@Override
 	public float getValue(int x, int y) {

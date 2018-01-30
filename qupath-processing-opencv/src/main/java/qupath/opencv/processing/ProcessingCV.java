@@ -23,7 +23,7 @@
 
 package qupath.opencv.processing;
 
-import org.opencv.core.Mat;
+import org.bytedeco.javacpp.opencv_core.Mat;
 
 import qupath.lib.analysis.algorithms.MorphologicalReconstruction;
 import qupath.lib.analysis.algorithms.Watershed;

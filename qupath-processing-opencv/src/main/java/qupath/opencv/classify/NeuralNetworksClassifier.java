@@ -23,12 +23,13 @@
 
 package qupath.opencv.classify;
 
-import org.opencv.core.CvType;
-import org.opencv.core.Mat;
-import org.opencv.core.Scalar;
-import org.opencv.core.TermCriteria;
-import org.opencv.ml.ANN_MLP;
-import org.opencv.ml.Ml;
+import static org.bytedeco.javacpp.opencv_core.*;
+
+import java.nio.FloatBuffer;
+
+import org.bytedeco.javacpp.opencv_ml.ANN_MLP;
+import org.bytedeco.javacpp.indexer.FloatIndexer;
+import org.bytedeco.javacpp.opencv_ml;
 
 import qupath.lib.plugins.parameters.ParameterList;
 
@@ -65,8 +66,8 @@ public class NeuralNetworksClassifier extends ParameterizableOpenCvClassifier<AN
 	protected void createAndTrainClassifier() {
 		// Create the required Mats
 		int nMeasurements = measurements.size();
-		Mat matTraining = new Mat(arrayTraining.length / nMeasurements, nMeasurements, CvType.CV_32FC1);
-		matTraining.put(0, 0, arrayTraining);
+		Mat matTraining = new Mat(arrayTraining.length / nMeasurements, nMeasurements, CV_32FC1);
+		((FloatBuffer)matTraining.createBuffer()).put(arrayTraining);
 
 		// Parse parameters
 		ParameterList params = getParameterList();
@@ -80,25 +81,29 @@ public class NeuralNetworksClassifier extends ParameterizableOpenCvClassifier<AN
 		classifier = createClassifier();
 		ANN_MLP nnet = (ANN_MLP)classifier;
 		System.out.println(nnet.getLayerSizes());
-		Mat layers = new Mat(3, 1, CvType.CV_32F);
+		Mat layers = new Mat(3, 1, CV_32F);
 		int n = arrayTraining.length / nMeasurements;
 //		layers.put(0, 0, new float[]{nMeasurements, nHidden, pathClasses.size()});
-		layers.put(0, 0, nMeasurements);
-		layers.put(1, 0, nHidden); // Number of hidden layers
-		layers.put(2, 0, pathClasses.size());
+		FloatBuffer bufLayers = layers.createBuffer();
+		bufLayers.clear();
+		bufLayers.put(nMeasurements);
+		bufLayers.put(nHidden); // Number of hidden layers
+		bufLayers.put(pathClasses.size());
 		if (crit != null)
 			nnet.setTermCriteria(crit);
 		else
 			crit = nnet.getTermCriteria();
 		nnet.setLayerSizes(layers);
-		//			matResponses.convertTo(matResponses, CvType.CV_32F);
-		Mat matResponses = new Mat(n, pathClasses.size(), CvType.CV_32F);
-		matResponses.setTo(new Scalar(0));
+		//			matResponses.convertTo(matResponses, CV_32F);
+		Mat matResponses = new Mat(n, pathClasses.size(), CV_32F, Scalar.ZERO);
+		FloatIndexer indexerResponses = matResponses.createIndexer();
 		for (int i = 0; i < n; i++) {
-			matResponses.put(i, arrayResponses[i], 1);
+			indexerResponses.put(i, arrayResponses[i], 1);
+		indexerResponses.release();
+//			matResponses.put(i, arrayResponses[i], 1);
 		}
 		nnet.setActivationFunction(ANN_MLP.SIGMOID_SYM, 1, 1);
-		nnet.train(matTraining, Ml.ROW_SAMPLE, matResponses);
+		nnet.train(matTraining, opencv_ml.ROW_SAMPLE, matResponses);
 		
 //		lastDescription = getName() + "\n\nMain parameters:\n  " + DefaultPluginWorkflowStep.getParameterListJSON(params, "\n  ") + "\n\nTermination criteria:\n  " + crit.toString();
 	}
