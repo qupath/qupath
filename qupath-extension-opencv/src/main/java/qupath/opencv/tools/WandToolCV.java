@@ -25,10 +25,10 @@ package qupath.opencv.tools;
 
 import java.awt.Color;
 import java.awt.Graphics2D;
+import java.awt.Rectangle;
 import java.awt.Shape;
 import java.awt.geom.Path2D;
 import java.awt.geom.Point2D;
-import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferByte;
 import java.nio.ByteBuffer;
@@ -71,7 +71,7 @@ public class WandToolCV extends BrushTool {
 	private Mat strel = null;
 	private Mat contourHierarchy = null;
 	
-	private Rectangle2D bounds = new Rectangle2D.Double();
+	private Rectangle bounds = new Rectangle();
 	
 	private Size blurSize = new Size(31, 31);
 	
@@ -156,10 +156,18 @@ public class WandToolCV extends BrushTool {
 		Graphics2D g2d = imgTemp.createGraphics();
 		g2d.setColor(Color.BLACK);
 		g2d.fillRect(0, 0, w, w);
-		bounds.setFrame(x-w*downsample*.5, y-w*downsample*.5, w*downsample, w*downsample);
+		double xStart = x-w*downsample*0.5;
+		double yStart = y-w*downsample*0.5;
+		bounds.setFrame(xStart, yStart, w*downsample, w*downsample);
 		g2d.scale(1.0/downsample, 1.0/downsample);
-		g2d.translate(-bounds.getX(), -bounds.getY());
+		g2d.translate(-xStart, -yStart);
 		regionStore.paintRegionCompletely(viewer.getServer(), g2d, bounds, viewer.getZPosition(), viewer.getTPosition(), viewer.getDownsampleFactor(), null, viewer.getImageDisplay(), 250);
+		
+		// We could optionally paint the hierarchy, so that it too influences the values
+//		Collection<PathObject> pathObjects = viewer.getHierarchy().getObjectsForRegion(PathAnnotationObject.class, ImageRegion.createInstance(
+//				(int)bounds.getX()-1, (int)bounds.getY()-1, (int)bounds.getWidth()+1, (int)bounds.getHeight()+1, viewer.getZPosition(), viewer.getTPosition()), null);
+//		PathHierarchyPaintingHelper.paintSpecifiedObjects(g2d, bounds.getBounds(), pathObjects, viewer.getOverlayOptions(), null, downsample);
+
 		g2d.dispose();
 		
 		// Put pixels into an OpenCV image

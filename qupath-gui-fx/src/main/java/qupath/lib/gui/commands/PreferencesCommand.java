@@ -69,6 +69,9 @@ public class PreferencesCommand implements PathCommand {
 			BorderPane pane = new BorderPane();
 			pane.setCenter(panel.getNode());
 			pane.setBottom(btnClose);
+			if (qupath != null && qupath.getStage() != null) {
+				pane.setPrefHeight(Math.round(Math.max(300, qupath.getStage().getHeight()*0.75)));
+			}
 			btnClose.prefWidthProperty().bind(pane.widthProperty());
 			dialog.setScene(new Scene(pane));
 			dialog.setMinWidth(300);
