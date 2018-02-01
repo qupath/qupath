@@ -34,6 +34,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import org.fxmisc.flowless.VirtualizedScrollPane;
 import org.fxmisc.richtext.CodeArea;
 import org.fxmisc.richtext.LineNumberFactory;
 import org.fxmisc.richtext.model.StyleSpans;
@@ -361,6 +362,7 @@ public class RichScriptEditor extends DefaultScriptEditor {
 	
 	static class CodeAreaControl implements ScriptEditorControl {
 		
+		private VirtualizedScrollPane<CodeArea> scrollpane;
 		private CodeArea textArea;
 		private StringProperty textProperty = new SimpleStringProperty();
 		
@@ -373,6 +375,7 @@ public class RichScriptEditor extends DefaultScriptEditor {
 				textArea.clear();
 				textArea.insertText(0, n);
 			});
+			scrollpane = new VirtualizedScrollPane<>(textArea);
 		}
 		
 		@Override
@@ -404,7 +407,7 @@ public class RichScriptEditor extends DefaultScriptEditor {
 
 		@Override
 		public Region getControl() {
-			return textArea;
+			return scrollpane;
 		}
 
 		@Override
