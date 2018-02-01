@@ -758,9 +758,10 @@ public class ImageDisplay {
 		for (JsonHelperChannelInfo helper : helperList) {
 			for (ChannelDisplayInfo info : channelOptions) {
 				if (helper.updateInfo(info)) {
-					if (Boolean.TRUE.equals(helper.selected))
-						selectedChannels.add(info);
-					else
+					if (Boolean.TRUE.equals(helper.selected)) {
+						if (!selectedChannels.contains(info))
+							selectedChannels.add(info);
+					} else
 						selectedChannels.remove(info);
 					break;
 				}

@@ -968,9 +968,9 @@ public interface ChannelDisplayInfo {
 
 		public void setLUTColor(int rgb) {
 			setLUTColor(
-					(rgb & ColorTools.MASK_RED) >> 16,
-					(rgb & ColorTools.MASK_GREEN) >> 8,
-					(rgb & ColorTools.MASK_BLUE));
+					ColorTools.red(rgb),
+					ColorTools.green(rgb),
+					ColorTools.blue(rgb));
 		}
 
 		public void setLUTColor(int r, int g, int b) {
@@ -992,7 +992,8 @@ public interface ChannelDisplayInfo {
 			
 			cm = new IndexColorModel(8, 256, rb, gb, bb);
 			
-			this.rgb = (r << 16) + (g << 8) + b;
+			this.rgb = ColorTools.makeRGB(r, g, b);
+//			this.rgb = (r << 16) + (g << 8) + b;
 			
 //			this.r = do8BitRangeCheck(r);
 //			this.g = do8BitRangeCheck(g);
