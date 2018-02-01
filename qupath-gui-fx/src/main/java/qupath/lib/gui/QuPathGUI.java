@@ -2100,11 +2100,8 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			File filePrevious = getImageDataFile(project, entryPrevious);
 			if (filePrevious != null) {
 				// Write if the ImageData has changed, of if it has not previously been written
-				if (imageData.isChanged() || !filePrevious.exists()) {
-					DialogButton response = DialogButton.YES;
-					if (imageData.isChanged()) {
-						response = DisplayHelpers.showYesNoCancelDialog("Save changes", "Save changes to " + entryPrevious.getImageName() + "?");
-					}
+				if (imageData.isChanged()) {
+					DialogButton response = DisplayHelpers.showYesNoCancelDialog("Save changes", "Save changes to " + entryPrevious.getImageName() + "?");
 					if (response == DialogButton.YES)
 						PathIO.writeImageData(filePrevious, imageData);
 					else if (response == DialogButton.CANCEL)

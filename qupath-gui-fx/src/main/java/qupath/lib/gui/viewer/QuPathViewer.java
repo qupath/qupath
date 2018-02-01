@@ -1438,7 +1438,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 			}
 
 			Color color = getSuggestedOverlayColor();
-			for (PathOverlay overlay : overlayLayers) {
+			for (PathOverlay overlay : overlayLayers.toArray(new PathOverlay[0])) {
 				overlay.setPreferredOverlayColor(color);
 				overlay.paintOverlay(g2d, getServerBounds(), downsampleFactor, null, paintCompletely);
 			}

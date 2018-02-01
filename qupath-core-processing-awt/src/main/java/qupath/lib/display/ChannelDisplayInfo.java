@@ -98,16 +98,60 @@ public interface ChannelDisplayInfo {
 	 */
 	public abstract String getName();
 
+	/**
+	 * Set the min display value for this channel.
+	 * Note that it is *strongly* advised to use <code>ImageDisplay.setMinMaxDisplay</code> instead 
+	 * since this helps ensure that the <code>ImageDisplay</code> fires appropriate events etc.
+	 * 
+	 * @see ImageDisplay
+	 * 
+	 * @param minDisplay
+	 */
+	@Deprecated
 	public abstract void setMinDisplay(float minDisplay);
 
+	/**
+	 * Set the max display value for this channel.
+	 * Note that it is *strongly* advised to use <code>ImageDisplay.setMinMaxDisplay</code> instead 
+	 * since this helps ensure that the <code>ImageDisplay</code> fires appropriate events etc.
+	 * 
+	 * @see ImageDisplay
+	 * 
+	 * @param maxDisplay
+	 */
+	@Deprecated
 	public abstract void setMaxDisplay(float maxDisplay);
 	
+	/**
+	 * Get the min display value.
+	 * This is used to control the brightness/contrast when painting.
+	 * 
+	 * @return
+	 */
 	public abstract float getMinDisplay();
 
+	/**
+	 * Get the max display value.
+	 * This is used to control the brightness/contrast when painting.
+	 * 
+	 * @return
+	 */
 	public abstract float getMaxDisplay();
 
+	/**
+	 * Get the min allowed display value.
+	 * This is only a hint.
+	 * 
+	 * @return
+	 */
 	public abstract float getMinAllowed();
 
+	/**
+	 * Get the max allowed display value.
+	 * This is only a hint.
+	 * 
+	 * @return
+	 */
 	public abstract float getMaxAllowed();
 
 	/**
@@ -898,8 +942,8 @@ public interface ChannelDisplayInfo {
 		private String name;
 		private int channel;
 
-		private ColorModel cm;
-		private int[] rgbLUT;
+		transient private ColorModel cm;
+		transient private int[] rgbLUT;
 		private int rgb;
 //		private int rgb, r, g, b;
 
