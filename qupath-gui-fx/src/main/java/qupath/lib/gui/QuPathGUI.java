@@ -659,7 +659,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		StringBinding projectScriptsPath = Bindings.createStringBinding(() -> {
 			if (project.get() == null)
 				return null;
-			return new File(project.get().getBaseDirectory(), "scripts").getAbsolutePath();
+			return getProjectScriptsDirectory(false).getAbsolutePath();
 		}, project);
 		projectScriptMenuLoader = new ScriptMenuLoader("Project scripts...", projectScriptsPath, (DefaultScriptEditor)editor);
 		projectScriptMenuLoader.getMenu().visibleProperty().bind(
@@ -4215,7 +4215,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		
 		// Ensure we have the required directories
 //		getProjectClassifierDirectory(true);
-		getProjectScriptsDirectory(true);
+//		getProjectScriptsDirectory(true);
 		
 		logger.info("Project set to {}", project);
 	}

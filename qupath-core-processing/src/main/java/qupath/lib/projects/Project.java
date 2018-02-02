@@ -160,7 +160,15 @@ public class Project<T> {
 	
 	
 	public String getName() {
-		return name == null ? dirBase.getName() : name;
+		if (name != null)
+			return name;
+		if (dirBase == null || !dirBase.isDirectory()) {
+			return "(Project directory missing)";
+		}
+		if (file != null && file.exists() && file != dirBase) {
+			return dirBase.getName() + "/" + file.getName();
+		}
+		return dirBase.getName();
 	}
 	
 	@Override
