@@ -29,7 +29,9 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.PrintWriter;
 import java.io.Reader;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
@@ -41,6 +43,9 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+
+import qupath.lib.objects.classes.PathClass;
+import qupath.lib.objects.classes.PathClassFactory;
 
 /**
  * Read/write QuPath projects.
@@ -76,6 +81,24 @@ public class ProjectIO {
 			
 			project.creationTimestamp = element.get("createTimestamp").getAsLong();
 			project.modificationTimestamp = element.get("modifyTimestamp").getAsLong();
+			
+			JsonElement pathClassesElement = element.get("pathClasses");
+			if (pathClassesElement != null && pathClassesElement.isJsonArray()) {
+				try {
+					JsonArray pathClassesArray = pathClassesElement.getAsJsonArray();
+					List<PathClass> pathClasses = new ArrayList<>();
+					for (int i = 0; i < pathClassesArray.size(); i++) {
+						JsonObject pathClassObject = pathClassesArray.get(i).getAsJsonObject();
+						String name = pathClassObject.get("name").getAsString();
+						int color = pathClassObject.get("color").getAsInt();
+						PathClass pathClass = PathClassFactory.getPathClass(name, color);
+						pathClasses.add(pathClass);
+					}
+					project.setPathClasses(pathClasses);
+				} catch (Exception e) {
+					logger.error("Error parsing PathClass list", e);
+				}
+			}
 
 			JsonArray images = element.getAsJsonArray("images");
 			for (JsonElement imageElement : images) {
@@ -130,6 +153,18 @@ public class ProjectIO {
 
 		Gson gson = new GsonBuilder().setPrettyPrinting().create();
 		
+		List<PathClass> pathClasses = project.getPathClasses();
+		JsonArray pathClassArray = null;
+		if (!pathClasses.isEmpty()) {
+			pathClassArray = new JsonArray();
+			for (PathClass pathClass : pathClasses) {
+				JsonObject jsonEntry = new JsonObject();
+				jsonEntry.addProperty("name", pathClass.toString());
+				jsonEntry.addProperty("color", pathClass.getColor());
+				pathClassArray.add(jsonEntry);
+			}
+		}		
+		
 		JsonArray array = new JsonArray();
 		for (ProjectImageEntry<?> entry : project.getImageList()) {
 			JsonObject jsonEntry = new JsonObject();
@@ -142,13 +177,16 @@ public class ProjectIO {
 		        for (Map.Entry<String, String> metadataEntry : metadata.entrySet())
 		            metadataBuilder.addProperty(metadataEntry.getKey(), metadataEntry.getValue());
 		        jsonEntry.add("metadata", metadataBuilder);
-		}
-		array.add(jsonEntry);
+			}
+			array.add(jsonEntry);
 		}
 
 		JsonObject builder = new JsonObject();
 		builder.addProperty("createTimestamp", project.getCreationTimestamp());
 		builder.addProperty("modifyTimestamp", project.getModificationTimestamp());
+		if (pathClassArray != null) {
+			builder.add("pathClasses", pathClassArray);			
+		}
 		builder.add("images", array);
 
 		// If we already have a project, back it up

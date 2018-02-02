@@ -94,6 +94,7 @@ import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
+import javafx.collections.ListChangeListener.Change;
 import javafx.collections.ObservableList;
 import javafx.collections.ObservableMap;
 import javafx.concurrent.Task;
@@ -1214,6 +1215,14 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			resetAvailablePathClasses();
 		else
 			availablePathClasses.setAll(pathClasses);
+		availablePathClasses.addListener((Change<? extends PathClass> c) -> {
+			Project<?> project = getProject();
+			if (project != null) {
+				// Write the project, if necessary
+				if (project.setPathClasses(c.getList()))
+					ProjectIO.writeProject(project);
+			}
+		});
 	}
 	
 	
@@ -4212,6 +4221,18 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		
 		// Enable disable actions
 		updateProjectActionStates();
+		
+		// Update the PathClass list, if necessary
+		if (project != null) {
+			List<PathClass> pathClasses = project.getPathClasses();
+			if (pathClasses.isEmpty()) {
+				// Update the project according to the specified PathClasses
+				project.setPathClasses(getAvailablePathClasses());
+			} else {
+				// Update the available classes
+				getAvailablePathClasses().setAll(pathClasses);
+			}
+		}
 		
 		// Ensure we have the required directories
 //		getProjectClassifierDirectory(true);
