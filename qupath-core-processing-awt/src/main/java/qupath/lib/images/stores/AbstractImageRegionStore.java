@@ -589,9 +589,9 @@ public abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T>
 				updateRequestsForZ(zPosition, downsampleFactor, false);
 			else {
 				if (zPosition - zSeparation >= 0)
-					updateRequestsForZ(zPosition - zSeparation, downsampleFactor * Math.max(5, zSeparation), true);
+					updateRequestsForZ(zPosition - zSeparation, downsampleFactor * Math.max(5, zSeparation*2), true);
 				if (zPosition + zSeparation < server.nZSlices())
-					updateRequestsForZ(zPosition + zSeparation, downsampleFactor * Math.max(5, zSeparation), true);
+					updateRequestsForZ(zPosition + zSeparation, downsampleFactor * Math.max(5, zSeparation*2), true);
 			}
 		}
 		

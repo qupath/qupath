@@ -304,7 +304,10 @@ public class DefaultImageRegionStore extends AbstractImageRegionStore<BufferedIm
 			}
 		}
 		
-//		ConvolveOp c = new ConvolveOp(new Kernel(3, 3, new float[]{1/9f, 1/9f, 1/9f, 1/9f, 1/9f, 1/9f, 1/9f, 1/9f, 1/9f}), ConvolveOp.EDGE_NO_OP, null);
+		// If we're compositing channels, it's worthwhile to cache RGB tiles for so long as the ImageDisplay remains constant
+		boolean useDisplayCache = imageDisplay != null && !server.isRGB() && server.nChannels() > 1;
+		long displayTimestamp = imageDisplay == null ? 0L : imageDisplay.getLastChangeTimestamp();
+		String displayCachePath = useDisplayCache ? server.getPath() + ":" + imageDisplay.toJSON(false) + ":" + displayTimestamp : null;
 
 		// Loop through and draw whatever tiles we've got
 		BufferedImage imgTemp = null;
@@ -320,14 +323,30 @@ public class DefaultImageRegionStore extends AbstractImageRegionStore<BufferedIm
 			// If we have an image, paint it & record coordinates
 			// Apply any required color transformations
 			if (imageDisplay != null) {
-				if (imgTemp != null && (imgTemp.getWidth() != img.getWidth() || imgTemp.getHeight() != img.getHeight()))
-					imgTemp = null;
-				imgTemp = imageDisplay.applyTransforms(img, imgTemp);
+				// We can abort now - we know the display has changed, additional painting is futile...
+				if (displayTimestamp != imageDisplay.getLastChangeTimestamp())
+					return;
+				if (useDisplayCache) {
+					// Apply transforms, creating & caching new temp images
+					RegionRequest requestCache = RegionRequest.createInstance(displayCachePath, request.getDownsample(), request);
+					imgTemp = cache.get(requestCache);
+					if (imgTemp == null) {
+						imgTemp = imageDisplay.applyTransforms(img, null);
+						// Store this if we know we've still got the same display settings
+						// This avoids making the cache inconsistent
+						if (displayTimestamp == imageDisplay.getLastChangeTimestamp())
+							cache.put(requestCache, imgTemp);
+						else
+							return;
+					}
+				} else {
+					// Apply transforms, trying to reuse temp image
+					if (imgTemp != null && (imgTemp.getWidth() != img.getWidth() || imgTemp.getHeight() != img.getHeight()))
+						imgTemp = null;
+					imgTemp = imageDisplay.applyTransforms(img, imgTemp);
+				}
 				img = imgTemp;
 			}
-			
-//			img = c.filter(img, null);
-			
 			g.drawImage(img, request.getX(), request.getY(), request.getWidth(), request.getHeight(), observer);
 		}
 		

@@ -23,6 +23,9 @@
 
 package qupath.lib.gui.panels;
 
+import java.awt.Desktop;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
@@ -40,6 +43,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.TreeMap;
 
 import javax.imageio.ImageIO;
 
@@ -85,6 +89,7 @@ import qupath.lib.images.servers.ImageServerProvider;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectIO;
 import qupath.lib.projects.ProjectImageEntry;
+import qupath.lib.regions.RegionRequest;
 
 /**
  * Component for previewing and selecting images within a project.
@@ -208,42 +213,114 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 				setProjectEntryImageName((ProjectImageEntry)path.getValue());
 			}
 		});
+		
+		// Refresh thumbnail according to current display settings
+		Action actionRefreshThumbnail = new Action("Refresh thumbnail", e -> {
+			TreeItem<?> path = tree.getSelectionModel().getSelectedItem();
+			if (path == null)
+				return;
+			if (path.getValue() instanceof ProjectImageEntry) {
+				ProjectImageEntry<BufferedImage> entry = (ProjectImageEntry<BufferedImage>)path.getValue();
+				if (!isCurrentImage(entry)) {
+					logger.warn("Cannot refresh entry for image that is not open!");
+					return;
+				}
+				File fileThumbnail = getThumbnailFile(getProject(), entry);
+				BufferedImage imgThumbnail = qupath.getViewer().getRGBThumbnail();
+				imgThumbnail = resizeForThumbnail(imgThumbnail);
+				try {
+					ImageIO.write(imgThumbnail, THUMBNAIL_EXT, fileThumbnail);
+				} catch (IOException e1) {
+					logger.error("Error writing thumbnail", e1);
+				}
+				tree.refresh();
+			}
+		});
+		
+		
+		Action actionOpenProjectDirectory = new Action("Open project directory", e -> {
+			try {
+				Project<?> project = getProject();
+				if (project == null)
+					return;
+				File dir = project.getBaseDirectory();
+				if (dir.exists())
+					Desktop.getDesktop().open(dir);
+				else
+					logger.warn("Cannot find project directory {}", dir.getAbsolutePath());
+			} catch (IOException e1) {
+				DisplayHelpers.showErrorMessage("Open project directory", e1);
+			}
+		});
+		
 
-		// TODO: Dynamically populate these options!
 		Menu menuSort = new Menu("Sort by...");
-		menuSort.getItems().addAll(
-				ActionUtils.createMenuItem(createSortByKeyAction("None", null)),
-				ActionUtils.createMenuItem(createSortByKeyAction("Marker", "Marker")),
-				ActionUtils.createMenuItem(createSortByKeyAction("Slide ID", "Slide_ID")),
-				ActionUtils.createMenuItem(createSortByKeyAction("Scanner", "Scanner"))
-				);
-
-
 		ContextMenu menu = new ContextMenu();
 		
+		MenuItem miOpenProjectDirectory = ActionUtils.createMenuItem(actionOpenProjectDirectory);
 		MenuItem miOpenImage = ActionUtils.createMenuItem(actionOpenImage);
 		MenuItem miRemoveImage = ActionUtils.createMenuItem(actionRemoveImage);
 		MenuItem miSetImageName = ActionUtils.createMenuItem(actionSetImageName);
+		MenuItem miRefreshThumbnail = ActionUtils.createMenuItem(actionRefreshThumbnail);
+		
 		
 		// Set visibility as menu being displayed
 		menu.setOnShowing(e -> {
 			TreeItem<Object> selected = tree.getSelectionModel().getSelectedItem();
 			boolean hasImageEntry = selected != null && selected.getValue() instanceof ProjectImageEntry;
+			miOpenProjectDirectory.setVisible(project != null && project.getBaseDirectory().exists());
 			miOpenImage.setVisible(hasImageEntry);
 			miSetImageName.setVisible(hasImageEntry);
+			miRefreshThumbnail.setVisible(hasImageEntry && isCurrentImage((ProjectImageEntry<BufferedImage>)selected.getValue()));
+			miRemoveImage.setVisible(project != null && !project.getImageList().isEmpty());
+			
+			if (project == null) {
+				menuSort.setVisible(false);
+				return;
+			}
+			Map<String, MenuItem> newItems = new TreeMap<>();
+			for (ProjectImageEntry<?> entry : project.getImageList()) {
+				for (String key : entry.getMetadataKeys()) {
+					if (!newItems.containsKey(key))
+						newItems.put(key, ActionUtils.createMenuItem(createSortByKeyAction(key, key)));
+				}
+			}
+			menuSort.getItems().setAll(newItems.values());
+			
+			menuSort.getItems().add(0, ActionUtils.createMenuItem(createSortByKeyAction("None", null)));
+			menuSort.getItems().add(1, new SeparatorMenuItem());
+			
+			menuSort.setVisible(true);
+			
+			if (menu.getItems().isEmpty())
+				e.consume();
 		});
 		
+		SeparatorMenuItem separator = new SeparatorMenuItem();
+		separator.visibleProperty().bind(menuSort.visibleProperty());
 		menu.getItems().addAll(
 				miOpenImage,
 				miRemoveImage,
 				miSetImageName,
-				new SeparatorMenuItem(),
+				miRefreshThumbnail,
+				separator,
 				menuSort
 				);
+		
+		separator = new SeparatorMenuItem();
+		separator.visibleProperty().bind(miOpenProjectDirectory.visibleProperty());
+		if (Desktop.isDesktopSupported()) {
+			menu.getItems().addAll(
+					separator,
+					miOpenProjectDirectory);
+		}
 
 		return menu;
 
 	}
+	
+	
+	
 
 
 
@@ -357,12 +434,16 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 			server = ImageServerProvider.buildServer(serverPath, BufferedImage.class);
 			newServer = true;
 		}
-		BufferedImage img2 = server.getBufferedThumbnail(thumbnailWidth, thumbnailHeight, 0);
+		BufferedImage img2 = QuPathGUI.getInstance().getImageRegionStore().getThumbnail(server, server.nZSlices()/2, 0, true);
 		if (newServer)
 			server.close();
 		if (img2 != null) {
 			// Try to write RGB images directly
-			boolean success = server.isRGB() ? ImageIO.write(img2, THUMBNAIL_EXT, fileThumbnail) : false;
+			boolean success = false;
+			if (server.isRGB() || img2.getType() == BufferedImage.TYPE_BYTE_GRAY) {
+				img2 = resizeForThumbnail(img2);
+				success = ImageIO.write(img2, THUMBNAIL_EXT, fileThumbnail);
+			}
 			if (!success) {
 				// Try with display transforms
 				ImageDisplay imageDisplay = new ImageDisplay(new ImageData<>(server), qupath.getImageRegionStore(), false);
@@ -370,12 +451,34 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 					imageDisplay.autoSetDisplayRange(info);
 				}
 				img2 = imageDisplay.applyTransforms(img2, null);
+				img2 = resizeForThumbnail(img2);
 				ImageIO.write(img2, THUMBNAIL_EXT, fileThumbnail);
 			}
 		}
 		return SwingFXUtils.toFXImage(img2, null);
 	}
 
+	
+	/**
+	 * Resize an image so that its dimensions fit inside thumbnailWidth x thumbnailHeight.
+	 * 
+	 * Note: this assumes the image can be drawn to a Graphics object.
+	 * 
+	 * @param imgThumbnail
+	 * @return
+	 */
+	BufferedImage resizeForThumbnail(BufferedImage imgThumbnail) {
+		double scale = Math.min((double)thumbnailWidth / imgThumbnail.getWidth(), (double)thumbnailHeight / imgThumbnail.getHeight());
+		if (scale > 1)
+			return imgThumbnail;
+		BufferedImage imgThumbnail2 = new BufferedImage((int)(imgThumbnail.getWidth() * scale), (int)(imgThumbnail.getHeight() * scale), imgThumbnail.getType());
+		Graphics2D g2d = imgThumbnail2.createGraphics();
+		g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+		g2d.drawImage(imgThumbnail, 0, 0, imgThumbnail2.getWidth(), imgThumbnail2.getHeight(), null);
+		g2d.dispose();
+		return imgThumbnail2;
+	}
+	
 
 
 	void requestThumbnailInBackground(final String serverPath, final File fileThumbnail) {
@@ -816,10 +919,12 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 			}
 			
 			ProjectImageEntry<?> entry = item instanceof ProjectImageEntry ? (ProjectImageEntry<?>)item : null;
-			if (isCurrentImage(entry)) {
-				setStyle("-fx-font-weight: bold;");
-			} else
-				setStyle("-fx-font-weight: normal;");
+			if (isCurrentImage(entry))
+				setStyle("-fx-font-weight: bold; -fx-font-family: arial");
+			else if (entry == null || getImageDataPath(entry).exists())
+				setStyle("-fx-font-weight: normal; -fx-font-family: arial");
+			else
+				setStyle("-fx-font-style: italic; -fx-font-family: arial");
 			
 			if (entry == null) {
 				setText(item.toString());

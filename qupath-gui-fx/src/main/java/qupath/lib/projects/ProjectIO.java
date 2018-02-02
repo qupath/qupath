@@ -29,7 +29,9 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.PrintWriter;
 import java.io.Reader;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
@@ -42,6 +44,9 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
+import qupath.lib.objects.classes.PathClass;
+import qupath.lib.objects.classes.PathClassFactory;
+
 /**
  * Read/write QuPath projects.
  * 
@@ -51,6 +56,10 @@ import com.google.gson.JsonObject;
 public class ProjectIO {
 
 	final private static Logger logger = LoggerFactory.getLogger(ProjectIO.class);
+	
+	private static final String DEFAULT_PROJECT_NAME = "project";
+	
+	private static final String DEFAULT_PROJECT_EXTENSION = "qpproj";
 
 	/**
 	 * Read project from file.
@@ -58,13 +67,11 @@ public class ProjectIO {
 	 * @param fileProject
 	 * @param cls
 	 * @return
-	 * @throws FileNotFoundException
 	 */
-	public static <T> Project<T> loadProject(final File fileProject, final Class<T> cls) throws FileNotFoundException {
+	public static <T> Project<T> loadProject(final File fileProject, final Class<T> cls) {
 		if (fileProject == null) {
 			return null;
 		}
-
 
 		try (Reader fileReader = new BufferedReader(new FileReader(fileProject))){
 			Project<T> project = new Project<T>(fileProject, cls);
@@ -74,6 +81,24 @@ public class ProjectIO {
 			
 			project.creationTimestamp = element.get("createTimestamp").getAsLong();
 			project.modificationTimestamp = element.get("modifyTimestamp").getAsLong();
+			
+			JsonElement pathClassesElement = element.get("pathClasses");
+			if (pathClassesElement != null && pathClassesElement.isJsonArray()) {
+				try {
+					JsonArray pathClassesArray = pathClassesElement.getAsJsonArray();
+					List<PathClass> pathClasses = new ArrayList<>();
+					for (int i = 0; i < pathClassesArray.size(); i++) {
+						JsonObject pathClassObject = pathClassesArray.get(i).getAsJsonObject();
+						String name = pathClassObject.get("name").getAsString();
+						int color = pathClassObject.get("color").getAsInt();
+						PathClass pathClass = PathClassFactory.getPathClass(name, color);
+						pathClasses.add(pathClass);
+					}
+					project.setPathClasses(pathClasses);
+				} catch (Exception e) {
+					logger.error("Error parsing PathClass list", e);
+				}
+			}
 
 			JsonArray images = element.getAsJsonArray("images");
 			for (JsonElement imageElement : images) {
@@ -96,19 +121,21 @@ public class ProjectIO {
 
 			return project;
 		} catch (Exception e) {
-			e.printStackTrace();
+			logger.error("Unable to read project from " + fileProject.getAbsolutePath(), e);
 		}
 		return null;
 	}
 
 
 	/**
-	 * Write project with default name of 'project'
+	 * Write project, overwriting existing file or using the default name.
+	 * 
+	 * Note: Behavior of this method changed after 0.1.3.
 	 * 
 	 * @param project
 	 */
 	public static void writeProject(final Project<?> project) {
-		writeProject(project, "project");
+		writeProject(project, null);
 	}
 
 	/**
@@ -118,13 +145,25 @@ public class ProjectIO {
 	 * @param name
 	 */
 	public static void writeProject(final Project<?> project, final String name) {
-		File fileProject = getProjectPath(project, name);
+		File fileProject = getProjectFile(project, name);
 		if (fileProject == null) {
-			logger.error("Cannot write project: {}", project);
+			logger.error("No file found, cannot write project: {}", project);
 			return;
 		}
 
 		Gson gson = new GsonBuilder().setPrettyPrinting().create();
+		
+		List<PathClass> pathClasses = project.getPathClasses();
+		JsonArray pathClassArray = null;
+		if (!pathClasses.isEmpty()) {
+			pathClassArray = new JsonArray();
+			for (PathClass pathClass : pathClasses) {
+				JsonObject jsonEntry = new JsonObject();
+				jsonEntry.addProperty("name", pathClass.toString());
+				jsonEntry.addProperty("color", pathClass.getColor());
+				pathClassArray.add(jsonEntry);
+			}
+		}		
 		
 		JsonArray array = new JsonArray();
 		for (ProjectImageEntry<?> entry : project.getImageList()) {
@@ -138,23 +177,32 @@ public class ProjectIO {
 		        for (Map.Entry<String, String> metadataEntry : metadata.entrySet())
 		            metadataBuilder.addProperty(metadataEntry.getKey(), metadataEntry.getValue());
 		        jsonEntry.add("metadata", metadataBuilder);
-		}
-		array.add(jsonEntry);
+			}
+			array.add(jsonEntry);
 		}
 
 		JsonObject builder = new JsonObject();
 		builder.addProperty("createTimestamp", project.getCreationTimestamp());
 		builder.addProperty("modifyTimestamp", project.getModificationTimestamp());
+		if (pathClassArray != null) {
+			builder.add("pathClasses", pathClassArray);			
+		}
 		builder.add("images", array);
 
+		// If we already have a project, back it up
+		if (fileProject.exists()) {
+			File fileBackup = new File(fileProject.getAbsolutePath() + ".backup");
+			if (fileProject.renameTo(fileBackup))
+				logger.debug("Existing project file backed up at {}", fileBackup.getAbsolutePath());
+		}
 
+		// Write project
 		try (PrintWriter writer = new PrintWriter(fileProject)) {
 			writer.write(gson.toJson(builder));
 		} catch (FileNotFoundException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			logger.error("Error writing project", e);
 		}
-
+		
 //		Map<String, ?> properties = Collections.singletonMap(JsonGenerator.PRETTY_PRINTING, true);
 //		JsonWriter writer;
 //		try {
@@ -163,16 +211,62 @@ public class ProjectIO {
 //			writer.writeObject(builder.build());
 //			writer.close();
 //		} catch (IOException e) {
-//			// TODO Auto-generated catch block
 //			e.printStackTrace();
 //		}
 		
 	}
 
 
+	/**
+	 * Get a suitable project file.
+	 * 
+	 * Note: This behavior has changed from <= v0.1.2.
+	 * The earlier code often ignored the <code>name</code>.
+	 * 
+	 * @param project
+	 * @param name
+	 * @return
+	 */
+	static File getProjectFile(final Project<?> project, String name) {
+		if (project == null)
+			return null;
+		
+		// Use default name
+		if (name == null || name.length() == 0) {
+			// If we already have a file, use that
+			if (project.getFile() != null && (project.getFile() != project.getBaseDirectory()))
+				return project.getFile();
+			// Default to project.qpproj
+			name = DEFAULT_PROJECT_NAME;
+		}
 
-
-
+		// We need a base directory
+		File dirBase = project.getBaseDirectory();
+		if (dirBase == null || !dirBase.isDirectory()) {
+			logger.warn("No base directory for project!");
+			return null;
+		}
+		
+		// Return File with extension
+		if (!name.endsWith("."))
+			name += ".";
+		return new File(dirBase, name + ProjectIO.getProjectExtension());
+	}
+	
+	
+	/**
+	 * Get a suitable project file.
+	 * 
+	 * This method has been deprecated as it can produce surprising results;
+	 * specifically, the <code>name</code> is often ignored.
+	 * 
+	 * @getProjectFile
+	 * 
+	 * @param project
+	 * @param name
+	 * @return
+	 */
+	@Deprecated
 	static File getProjectPath(final Project<?> project, String name) {
 		if (project == null)
 			return null;
@@ -199,7 +293,7 @@ public class ProjectIO {
 	 * @return qpproj
 	 */
 	public static String getProjectExtension() {
-		return "qpproj";
+		return DEFAULT_PROJECT_EXTENSION;
 	}
 
 
