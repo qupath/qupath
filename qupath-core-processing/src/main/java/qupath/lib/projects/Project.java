@@ -26,6 +26,7 @@ package qupath.lib.projects;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -33,6 +34,7 @@ import java.util.TreeMap;
 
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerProvider;
+import qupath.lib.objects.classes.PathClass;
 
 /**
  * Data structure to store multiple images, relating these to a file system.
@@ -48,6 +50,8 @@ public class Project<T> {
 	private Class<T> cls;
 	private String name = null;
 	
+	private List<PathClass> pathClasses = new ArrayList<>();
+	
 	private Map<String, ProjectImageEntry<T>> images = new TreeMap<>();
 	long creationTimestamp;
 	long modificationTimestamp;
@@ -61,6 +65,28 @@ public class Project<T> {
 		this.cls = cls;
 		creationTimestamp = System.currentTimeMillis();
 		modificationTimestamp = System.currentTimeMillis();
+	}
+	
+	/**
+	 * Get an unmodifiable list representing the <code>PathClass</code>es associated with this project.
+	 * @return
+	 */
+	public List<PathClass> getPathClasses() {
+		return Collections.unmodifiableList(pathClasses);
+	}
+	
+	/**
+	 * Update the available PathClasses.
+	 * 
+	 * @param pathClasses
+	 * @return <code>true</code> if the stored values changed, false otherwise.
+	 */
+	public boolean setPathClasses(Collection<? extends PathClass> pathClasses) {
+		if (this.pathClasses.size() == pathClasses.size() && this.pathClasses.containsAll(pathClasses))
+			return false;
+		this.pathClasses.clear();
+		this.pathClasses.addAll(pathClasses);
+		return true;
 	}
 
 	public boolean addImage(final ProjectImageEntry<T> entry) {
@@ -160,7 +186,15 @@ public class Project<T> {
 	
 	
 	public String getName() {
-		return name == null ? dirBase.getName() : name;
+		if (name != null)
+			return name;
+		if (dirBase == null || !dirBase.isDirectory()) {
+			return "(Project directory missing)";
+		}
+		if (file != null && file.exists() && file != dirBase) {
+			return dirBase.getName() + "/" + file.getName();
+		}
+		return dirBase.getName();
 	}
 	
 	@Override

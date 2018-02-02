@@ -24,6 +24,7 @@
 package qupath.lib.gui.panels;
 
 import java.awt.image.BufferedImage;
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -38,6 +39,7 @@ import org.slf4j.LoggerFactory;
 
 import javafx.application.Platform;
 import javafx.collections.ListChangeListener;
+import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
 import javafx.scene.control.ColorPicker;
 import javafx.scene.control.ContextMenu;
@@ -82,6 +84,8 @@ import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
 import qupath.lib.objects.hierarchy.events.PathObjectSelectionListener;
+import qupath.lib.projects.Project;
+import qupath.lib.projects.ProjectIO;
 import qupath.lib.roi.PointsROI;
 import qupath.lib.roi.interfaces.ROI;
 
@@ -98,7 +102,7 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 
 	static Logger logger = LoggerFactory.getLogger(PathAnnotationPanel.class);
 
-	//	private QuPathGUI qupath;
+	private QuPathGUI qupath;
 	
 	private BorderPane pane = new BorderPane();
 
@@ -114,7 +118,7 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 	
 	
 	public PathAnnotationPanel(final QuPathGUI qupath) {
-		//		this.qupath = qupath;
+		this.qupath = qupath;
 		
 		listClasses = new ListView<>();
 		listClasses.setItems(qupath.getAvailablePathClasses());
@@ -153,6 +157,11 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 								setText(value.getName() + " (" + n + ")");
 							setGraphic(new Rectangle(size, size, ColorToolsFX.getPathClassColor(value)));
 						}
+						if (value != null && qupath.getViewer().getOverlayOptions().isPathClassHidden(value)) {
+							setStyle("-fx-font-family:arial; -fx-font-style:italic;");		
+							setText(getText() + " (hidden)");
+						} else
+							setStyle("-fx-font-family:arial; -fx-font-style:normal;");
 					}
 
 				};
@@ -236,8 +245,36 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 				return;
 			OverlayOptions overlayOptions = qupath.getViewer().getOverlayOptions();
 			overlayOptions.setPathClassHidden(pathClass, !overlayOptions.isPathClassHidden(pathClass));
-		}
-				);
+			listClasses.refresh();
+		});
+		
+		// Import classifications from an existing .qpproj file
+		MenuItem miImportFromProject = new MenuItem("Import from project");
+		miImportFromProject.setOnAction(e -> {
+			File file = QuPathGUI.getSharedDialogHelper().promptForFile("Import classifications", null, "QuPath project", ProjectIO.getProjectExtension());
+			if (file == null)
+				return;
+			if (!file.getAbsolutePath().toLowerCase().endsWith(ProjectIO.getProjectExtension())) {
+				DisplayHelpers.showErrorMessage("Import PathClasses", file.getName() + " is not a project file!");
+				return;
+			}
+			try {
+				Project<?> project = ProjectIO.loadProject(file, BufferedImage.class);
+				List<PathClass> pathClasses = project.getPathClasses();
+				if (pathClasses.isEmpty()) {
+					DisplayHelpers.showErrorMessage("Import PathClasses", "No classes found in " + file.getName());
+					return;
+				}
+				ObservableList<PathClass> availableClasses = qupath.getAvailablePathClasses();
+				if (pathClasses.size() == availableClasses.size() && availableClasses.containsAll(pathClasses)) {
+					DisplayHelpers.showInfoNotification("Import PathClasses", file.getName() + " contains same classifications - no changes to make");
+					return;
+				}
+				availableClasses.setAll(pathClasses);
+			} catch (Exception ex) {
+				DisplayHelpers.showErrorMessage("Error reading project", ex);
+			}
+		});
 
 		menu.getItems().addAll(
 				miAddClass,
@@ -246,7 +283,9 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 				new SeparatorMenuItem(),
 				miResetLabels,
 				new SeparatorMenuItem(),
-				miToggleClassVisible);
+				miToggleClassVisible,
+				new SeparatorMenuItem(),
+				miImportFromProject);
 
 		listClasses.setContextMenu(menu);
 
