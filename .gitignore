@@ -3,6 +3,10 @@ deploy/
 target/
 log/
 
+# Gradle
+build/
+.gradle/
+
 # Eclipse
 .settings/
 .project

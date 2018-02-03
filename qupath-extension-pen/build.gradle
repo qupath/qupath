@@ -1,0 +1,10 @@
+
+description = 'qupath-extension-pen'
+
+configurations {
+  compile.extendsFrom jpen
+}
+
+dependencies {
+  compile project(':qupath-gui-fx')
+}

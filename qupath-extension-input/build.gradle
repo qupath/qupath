@@ -1,0 +1,10 @@
+
+description = 'qupath-extension-input'
+
+configurations {
+  compile.extendsFrom jinput
+}
+
+dependencies {
+  compile project(':qupath-gui-fx')
+}
