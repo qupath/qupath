@@ -1,0 +1,15 @@
+
+description = 'qupath-gui-fx'
+
+configurations {
+  compile.extendsFrom gson
+  compile.extendsFrom controlsfx
+  compile.extendsFrom jfxtras
+}
+
+dependencies {
+  compile project(':qupath-core')
+  compile project(':qupath-core-awt')
+  compile project(':qupath-core-processing')
+  compile project(':qupath-core-processing-awt')
+}

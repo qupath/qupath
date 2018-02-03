@@ -1,0 +1,5 @@
+
+description = 'qupath-core-awt'
+dependencies {
+  compile project(':qupath-core')
+}
