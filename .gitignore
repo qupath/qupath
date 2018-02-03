@@ -3,6 +3,11 @@ deploy/
 target/
 log/
 
+# IntelliJ
+.idea/
+*.iml
+out/
+
 # Gradle
 build/
 .gradle/

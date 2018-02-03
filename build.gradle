@@ -54,7 +54,6 @@ subprojects {
     opencv
     jpen
     imagej
-    jinput
     openslide
   }
 
@@ -85,7 +84,6 @@ subprojects {
     if (nativesClassifier != null)
       jpen 'net.sourceforge.jpen:jpen:2-150301:' + nativesClassifier
     imagej 'net.imagej:ij:1.51s'
-    jinput 'net.java.jinput:jinput:2.0.6'
     openslide 'org.openslide:openslide:3.4.1_2'
     if (nativesClassifier != null)
       openslide 'org.openslide:openslide:3.4.1_2:' + nativesClassifier
@@ -130,7 +128,6 @@ dependencies {
     compile project(':qupath-gui-fx')
     compile project(':qupath-extension-opencv')
     compile project(':qupath-extension-ij')
-    compile project(':qupath-extension-input')
     compile project(':qupath-extension-openslide')
     compile project(':qupath-extension-pen')
     compile project(':qupath-extension-script-editor')
