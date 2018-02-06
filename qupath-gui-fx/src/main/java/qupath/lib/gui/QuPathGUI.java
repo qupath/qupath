@@ -1210,7 +1210,12 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	 */
 	private void initializePathClasses() {
 		availablePathClasses = FXCollections.observableArrayList();
-		List<PathClass> pathClasses = new ArrayList<>(loadPathClasses());
+		List<PathClass> pathClasses = new ArrayList<>();		
+		try {
+			pathClasses.addAll(loadPathClasses());			
+		} catch (Exception e) {
+			logger.error("Unable to load PathClasses", e);
+		}
 		if (pathClasses.isEmpty())
 			resetAvailablePathClasses();
 		else
