@@ -1709,6 +1709,11 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 						viewer.getHierarchy().fireObjectsChangedEvent(this, Collections.singleton(core));
 						e.consume();
 					}
+				} else if (pathObject instanceof PathAnnotationObject) {
+					if (e.getCode() == KeyCode.ENTER) {
+						PathAnnotationPanel.promptToSetActiveAnnotationProperties(viewer.getHierarchy());
+						e.consume();
+					}
 				}
 			}
 		});
