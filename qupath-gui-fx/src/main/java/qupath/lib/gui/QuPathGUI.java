@@ -147,7 +147,6 @@ import javafx.scene.image.ImageView;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
-import javafx.scene.input.KeyCombination.Modifier;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
@@ -1640,7 +1639,9 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				
 				if (PathPrefs.getInvertScrolling())
 					scrollUnits = -scrollUnits;
-				viewer.setDownsampleFactor(viewer.getDownsampleFactor() * Math.pow(viewer.getDefaultZoomFactor(), scrollUnits), e.getX(), e.getY());
+				double newDownsampleFactor = viewer.getDownsampleFactor() * Math.pow(viewer.getDefaultZoomFactor(), scrollUnits);
+				newDownsampleFactor = Math.min(viewer.getMaxDownsample(), Math.max(newDownsampleFactor, viewer.getMinDownsample()));
+				viewer.setDownsampleFactor(newDownsampleFactor, e.getX(), e.getY());
 			}
 		});
 		
@@ -4464,6 +4465,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		private BooleanProperty synchronizeViewers = new SimpleBooleanProperty(true);
 		private double lastX = Double.NaN;
 		private double lastY = Double.NaN;
+		private double lastDownsample = Double.NaN;
 		private double lastRotation = Double.NaN;
 		
 		public MultiviewManager(final QuPathViewerPlus defaultViewer) {
@@ -4515,6 +4517,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			this.activeViewerProperty.set(viewer);
 			lastX = Double.NaN;
 			lastY = Double.NaN;
+			lastDownsample = Double.NaN;
 			lastRotation = Double.NaN;
 			if (viewer != null) {
 //				activeViewer.getView().setBorder(null);
@@ -4528,6 +4531,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				if (viewer.getServer() != null) {
 					lastX = viewer.getCenterPixelX();
 					lastY = viewer.getCenterPixelY();
+					lastDownsample = viewer.getDownsampleFactor();
 					lastRotation = viewer.getRotation();
 				}
 				
@@ -4728,6 +4732,13 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		@Override
 		public void imageDataChanged(QuPathViewer viewer, ImageData<BufferedImage> imageDataOld, ImageData<BufferedImage> imageDataNew) {
 			if (viewer != null && viewer == getActiveViewer()) {
+				if (viewer.getServer() != null) {
+					// Setting these to NaN prevents unexpected jumping when a new image is opened
+					lastX = Double.NaN;
+					lastY = Double.NaN;
+					lastDownsample = Double.NaN;
+					lastRotation = Double.NaN;
+				}
 				fireImageDataChangedEvent(imageDataOld, viewer.getImageData());
 			}
 		}
@@ -4753,13 +4764,16 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				updateMagnificationString();
 			}
 			
-//			logger.info("CHANGING VIEW");
+			logger.info("CHANGING VIEW");
 			
 			QuPathViewerPlus activeViewer = getActiveViewer();
 			double x = activeViewer.getCenterPixelX();
 			double y = activeViewer.getCenterPixelY();
 			double rotation = activeViewer.getRotation();
 			double dx = Double.NaN, dy = Double.NaN, dr = Double.NaN;
+			
+			double downsample = viewer.getDownsampleFactor();
+			double relativeDownsample = viewer.getDownsampleFactor() / lastDownsample;
 			
 			// Shift as required, assuming we aren't aligning cores
 //			if (!aligningCores) {
@@ -4774,19 +4788,22 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				for (QuPathViewer v : viewers) {
 					if (v == viewer)
 						continue;
-					v.setDownsampleFactor(viewer.getDownsampleFactor());
+					if (!Double.isNaN(relativeDownsample))
+						v.setDownsampleFactor(v.getDownsampleFactor() * relativeDownsample, -1, -1, false);
 					if (!Double.isNaN(dr) && dr != 0)
 						v.setRotation(v.getRotation() + dr);
 					
 					// Shift as required
-					if (!Double.isNaN(dx)) {
-						v.setCenterPixelLocation(v.getCenterPixelX() + dx, v.getCenterPixelY() + dy);
+					double downsampleRatio = v.getDownsampleFactor() / downsample;
+					if (!Double.isNaN(dx) && !Double.isNaN(downsampleRatio)) {
+						v.setCenterPixelLocation(v.getCenterPixelX() + dx*downsampleRatio, v.getCenterPixelY() + dy*downsampleRatio);
 					}
 				}
 			}
 			
 			lastX = x;
 			lastY = y;
+			lastDownsample = downsample;
 			lastRotation = rotation;
 		}
 		
@@ -4878,6 +4895,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			// Thwart the upcoming region shift
 			lastX = Double.NaN;
 			lastY = Double.NaN;
+			lastDownsample = Double.NaN;
 			lastRotation = Double.NaN;
 			
 //			aligningCores = true;
