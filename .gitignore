@@ -3,6 +3,15 @@ deploy/
 target/
 log/
 
+# IntelliJ
+.idea/
+*.iml
+out/
+
+# Gradle
+build/
+.gradle/
+
 # Eclipse
 .settings/
 .project

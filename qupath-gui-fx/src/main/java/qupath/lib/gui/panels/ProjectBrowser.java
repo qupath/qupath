@@ -42,25 +42,35 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
 
 import javax.imageio.ImageIO;
 
+import org.controlsfx.control.MasterDetailPane;
 import org.controlsfx.control.action.Action;
 import org.controlsfx.control.action.ActionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javafx.application.Platform;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.StringProperty;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.geometry.Insets;
+import javafx.geometry.Side;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.ContextMenu;
+import javafx.scene.control.Dialog;
+import javafx.scene.control.Label;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.SeparatorMenuItem;
+import javafx.scene.control.TextArea;
+import javafx.scene.control.TextField;
 import javafx.scene.control.TitledPane;
 import javafx.scene.control.Tooltip;
 import javafx.scene.control.TreeCell;
@@ -89,7 +99,6 @@ import qupath.lib.images.servers.ImageServerProvider;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectIO;
 import qupath.lib.projects.ProjectImageEntry;
-import qupath.lib.regions.RegionRequest;
 
 /**
  * Component for previewing and selecting images within a project.
@@ -117,6 +126,8 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 
 	// Keep a record of servers we've requested - don't want to keep putting in requests if the server is unavailable
 	private Set<String> serversRequested = new HashSet<>();
+	
+	private StringProperty descriptionText = new SimpleStringProperty();
 
 
 	public ProjectBrowser(final QuPathGUI qupath) {
@@ -151,8 +162,22 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 				e.consume();
 			}
 		});
+		
+//		TextArea textDescription = new TextArea();
+		TextArea textDescription = new TextArea();
+		textDescription.textProperty().bind(descriptionText);
+		MasterDetailPane mdTree = new MasterDetailPane(Side.BOTTOM, tree, textDescription, false);
+		mdTree.showDetailNodeProperty().bind(descriptionText.isNotNull());
+		
+		tree.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> {
+			Object selected = n == null ? null : n.getValue();
+			if (selected instanceof ProjectImageEntry)
+				descriptionText.set(((ProjectImageEntry<?>)selected).getDescription());
+			else
+				descriptionText.set(null);
+		});
 
-		TitledPane titledTree = new TitledPane("Image list", tree);
+		TitledPane titledTree = new TitledPane("Image list", mdTree);
 		titledTree.setCollapsible(false);
 		titledTree.setMaxHeight(Double.MAX_VALUE);
 		
@@ -173,7 +198,6 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 
 
 	ContextMenu getPopup() {
-
 
 		Action actionOpenImage = new Action("Open image", e -> qupath.openImageEntry(getSelectedEntry()));
 		Action actionRemoveImage = new Action("Remove image", e -> {
@@ -237,7 +261,85 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 			}
 		});
 		
+		// Edit the description for the image
+		Action actionEditDescription = new Action("Edit description", e -> {
+			Project<?> project = getProject();
+			ProjectImageEntry<?> entry = getSelectedEntry();
+			if (project != null && entry != null) {
+				if (showDescriptionEditor(entry)) {
+					descriptionText.set(entry.getDescription());
+					ProjectIO.writeProject(project);						
+				}
+			} else {
+				DisplayHelpers.showErrorMessage("Edit image description", "No entry is selected!");
+			}
+		});
 		
+		// Add a metadata value
+		Action actionAddMetadataValue = new Action("Add metadata", e -> {
+			Project<?> project = getProject();
+			ProjectImageEntry<?> entry = getSelectedEntry();
+			if (project != null && entry != null) {
+				
+				TextField tfMetadataKey = new TextField();
+				TextField tfMetadataValue = new TextField();
+				Label labKey = new Label("New key");
+				Label labValue = new Label("New value");
+				labKey.setLabelFor(tfMetadataKey);
+				labValue.setLabelFor(tfMetadataValue);
+				tfMetadataKey.setTooltip(new Tooltip("Enter the name for the metadata entry"));
+				tfMetadataValue.setTooltip(new Tooltip("Enter the value for the metadata entry"));
+				
+				int nMetadataValues = entry.getMetadataKeys().size();
+				
+				GridPane pane = new GridPane();
+				pane.setVgap(5);
+				pane.setHgap(5);
+				pane.add(labKey, 0, 0);
+				pane.add(tfMetadataKey, 1, 0);
+				pane.add(labValue, 0, 1);
+				pane.add(tfMetadataValue, 1, 1);
+				if (nMetadataValues > 0) {
+					
+					Label labelCurrent = new Label("Current metadata");
+					TextArea textAreaCurrent = new TextArea();
+					textAreaCurrent.setEditable(false);
+
+					String keyString = entry.getMetadataSummaryString();
+					if (keyString.isEmpty())
+						textAreaCurrent.setText("No metadata entries yet");
+					else
+						textAreaCurrent.setText(keyString);
+					textAreaCurrent.setPrefRowCount(3);
+					labelCurrent.setLabelFor(textAreaCurrent);
+
+					pane.add(labelCurrent, 0, 2);
+					pane.add(textAreaCurrent, 1, 2);					
+				}
+				
+				Dialog<ButtonType> dialog = new Dialog<>();
+				dialog.setTitle("Metadata");
+				dialog.getDialogPane().getButtonTypes().setAll(ButtonType.OK, ButtonType.CANCEL);
+				dialog.getDialogPane().setHeaderText(entry.getImageName());
+				dialog.getDialogPane().setContent(pane);
+				Optional<ButtonType> result = dialog.showAndWait();
+				if (result.isPresent() && result.get() == ButtonType.OK) {
+					String key = tfMetadataKey.getText().trim();
+					String value = tfMetadataValue.getText();
+					if (key.isEmpty()) {
+						logger.warn("Attempted to set metadata value for {}, but key was empty!", entry.getImageName());
+					} else {
+						entry.putMetadataValue(key, value);
+						ProjectIO.writeProject(project);
+					}
+				}
+							
+			} else {
+				DisplayHelpers.showErrorMessage("Edit image description", "No entry is selected!");
+			}
+		});
+		
+		// Open the project directory using Explorer/Finder etc.
 		Action actionOpenProjectDirectory = new Action("Open project directory", e -> {
 			try {
 				Project<?> project = getProject();
@@ -262,6 +364,8 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 		MenuItem miRemoveImage = ActionUtils.createMenuItem(actionRemoveImage);
 		MenuItem miSetImageName = ActionUtils.createMenuItem(actionSetImageName);
 		MenuItem miRefreshThumbnail = ActionUtils.createMenuItem(actionRefreshThumbnail);
+		MenuItem miEditDescription = ActionUtils.createMenuItem(actionEditDescription);
+		MenuItem miAddMetadata = ActionUtils.createMenuItem(actionAddMetadataValue);
 		
 		
 		// Set visibility as menu being displayed
@@ -271,6 +375,8 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 			miOpenProjectDirectory.setVisible(project != null && project.getBaseDirectory().exists());
 			miOpenImage.setVisible(hasImageEntry);
 			miSetImageName.setVisible(hasImageEntry);
+			miAddMetadata.setVisible(hasImageEntry);
+			miEditDescription.setVisible(hasImageEntry);
 			miRefreshThumbnail.setVisible(hasImageEntry && isCurrentImage((ProjectImageEntry<BufferedImage>)selected.getValue()));
 			miRemoveImage.setVisible(project != null && !project.getImageList().isEmpty());
 			
@@ -302,6 +408,8 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 				miOpenImage,
 				miRemoveImage,
 				miSetImageName,
+				miAddMetadata,
+				miEditDescription,
 				miRefreshThumbnail,
 				separator,
 				menuSort
@@ -320,9 +428,24 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 	}
 	
 	
+	boolean showDescriptionEditor(ProjectImageEntry<?> entry) {
+		TextArea editor = new TextArea();
+		editor.setWrapText(true);
+		editor.setText(entry.getDescription());
+		Dialog<ButtonType> dialog = new Dialog<>();
+		dialog.getDialogPane().getButtonTypes().setAll(ButtonType.OK, ButtonType.CANCEL);
+		dialog.setTitle("Image description");
+		dialog.getDialogPane().setHeaderText(entry.getImageName());
+		dialog.getDialogPane().setContent(editor);
+		Optional<ButtonType> result = dialog.showAndWait();
+		if (result.isPresent() && result.get() == ButtonType.OK) {
+			entry.setDescription(editor.getText());
+			return true;
+		}
+		return false;
+	}
+
 	
-
-
 
 
 	public boolean hasProject() {

@@ -461,7 +461,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 
 
 	public double getMinDownsample() {
-		return 0.125;
+		return 0.0625;
 	}
 
 	public double getMaxDownsample() {
@@ -523,6 +523,14 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 				repaint();
 			}
 		};
+		// We need a more extensive repaint for changes to the image pixel display
+		InvalidationListener repainterEntire = new InvalidationListener() {
+			@Override
+			public void invalidated(Observable observable) {
+				repaintEntireImage();
+			}
+		};
+		PathPrefs.viewerInterpolateBilinearProperty().addListener(repainterEntire);
 		PathPrefs.useSelectedColorProperty().addListener(repainter);
 		PathPrefs.colorDefaultAnnotationsProperty().addListener(repainter);
 		PathPrefs.colorSelectedObjectProperty().addListener(repainter);
@@ -1588,7 +1596,10 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		boolean overBoundary = shapeBounds.x < 0 || shapeBounds.y < 0 || shapeBounds.x + shapeBounds.width >= serverWidth || shapeBounds.y + shapeBounds.height >= serverHeight;
 
 		// Reset interpolation - this roughly halves repaint times
-		gBuffered.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
+		if (PathPrefs.getViewerInterpolationBilinear())
+			gBuffered.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+		else
+			gBuffered.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
 
 		if (requiresTiling) {
 
@@ -1851,6 +1862,19 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		return imgThumbnailRGB;
 	}
 
+	/**
+	 * Set downsample factor, so that the specified coordinate in the image space is not shifted in the viewer afterwards.
+	 * The purpose is to make it possible to zoom in/out while keeping the cursor focussed on a particular location.
+	 * 
+	 * The specified downsample factor will automatically be clipped to the range <code>getMinDownsample</code> to <code>getMaxDownsample</code>.
+	 *  
+	 * @param downsampleFactor
+	 * @param cx
+	 * @param cy
+	 */
+	public void setDownsampleFactor(double downsampleFactor, double cx, double cy) {
+		setDownsampleFactor(downsampleFactor, cx, cy, false);
+	}
 
 	/**
 	 * Set downsample factor, so that the specified coordinate in the image space is not shifted in the viewer afterwards.
@@ -1859,12 +1883,14 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	 * @param downsampleFactor
 	 * @param cx
 	 * @param cy
+	 * @param clipToMinMax If <code>true</code>, the specified downsample factor will be clipped 
+	 * to the range <code>getMinDownsample</code> to <code>getMaxDownsample</code>.
 	 */
-	public void setDownsampleFactor(double downsampleFactor, double cx, double cy) {
+	public void setDownsampleFactor(double downsampleFactor, double cx, double cy, boolean clipToMinMax) {
 		
-//		System.out.println("DOWNSAMPLE: " + downsampleFactor);
-		// Ensure within range
-		downsampleFactor = Math.min(Math.max(downsampleFactor, getMinDownsample()), getMaxDownsample());
+		// Ensure within range, if necessary
+		if (clipToMinMax)
+			downsampleFactor = Math.min(Math.max(downsampleFactor, getMinDownsample()), getMaxDownsample());
 		if (this.downsampleFactor == downsampleFactor)
 			return;
 

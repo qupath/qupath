@@ -52,8 +52,9 @@ public class ProjectImageEntry<T> implements Comparable<ProjectImageEntry<T>> {
 	
 	private Map<String, String> metadata = new HashMap<>();
 	
-	
-	public ProjectImageEntry(final Project<T> project, final String serverPath, final String imageName, final Map<String, String> metadataMap) {
+	private String description;
+
+	public ProjectImageEntry(final Project<T> project, final String serverPath, final String imageName, final String description, final Map<String, String> metadataMap) {
 		this.project = project;
 		this.serverPath = serverPath;
 		
@@ -70,15 +71,38 @@ public class ProjectImageEntry<T> implements Comparable<ProjectImageEntry<T>> {
 		} else
 			this.imageName = imageName;
 		
+		if (description != null)
+			setDescription(description);
+		
 		if (metadataMap != null)
-			metadata.putAll(metadataMap);
+			metadata.putAll(metadataMap);		
 	}
 	
+	public ProjectImageEntry(final Project<T> project, final String serverPath, final String imageName, final Map<String, String> metadataMap) {
+		this(project, serverPath, imageName, null, metadataMap);
+	}
+	
+	/**
+	 * Get the path used to represent this image, which can be used to construct an <code>ImageServer</code>.
+	 * 
+	 * Note that this may have been cleaned up.
+	 * 
+	 * @see getStoredServerPath
+	 * 
+	 * @return
+	 */
 	public String getServerPath() {
 //		return serverPath;
 		return getCleanedServerPath();
 	}
 
+	/**
+	 * Get a name that may be used for this entry.
+	 * 
+	 * This may be derived automatically from the server path, or set explictly to be something else.
+	 * 
+	 * @return
+	 */
 	public String getImageName() {
 		return imageName;
 	}
@@ -92,6 +116,15 @@ public class ProjectImageEntry<T> implements Comparable<ProjectImageEntry<T>> {
 		//			return getServerPath();
 	}
 	
+	/**
+	 * Get the path used to represent this image, as specified when this entry was created.
+	 * 
+	 * It is generally better to rely on <code>getServerPath</code>, especially if paths will be compared.
+	 * 
+	 * @see getServerPath
+	 * 
+	 * @return
+	 */
 	public String getStoredServerPath() {
 		return serverPath;
 	}
@@ -104,6 +137,12 @@ public class ProjectImageEntry<T> implements Comparable<ProjectImageEntry<T>> {
 		return cleanedPath;
 	}
 	
+	/**
+	 * Check if this image entry refers to a specified image according to its path.
+	 * 
+	 * @param serverPath
+	 * @return <code>true</code> if the path is a match, <code>false</code> otherwise.
+	 */
 	public boolean equalsServerPath(final String serverPath) {
 		return getCleanedServerPath().equals(project.cleanServerPath(serverPath));
 	}
@@ -113,20 +152,75 @@ public class ProjectImageEntry<T> implements Comparable<ProjectImageEntry<T>> {
 		return getCleanedServerPath().compareTo(entry.getCleanedServerPath());
 	}
 	
+	/**
+	 * Remove a metadata value.
+	 * 
+	 * @param key
+	 * @return
+	 */
 	public String removeMetadataValue(final String key) {
 		return metadata.remove(key);
 	}
 	
+	/**
+	 * Request a metadata value.
+	 * Note that this may return <code>null</code>.
+	 * 
+	 * @param key
+	 * @return
+	 */
 	public String getMetadataValue(final String key) {
 		return metadata.get(key);
 	}
 
+	/**
+	 * Store a metadata value.
+	 * This is intended as storage of short key-value pairs.
+	 * Extended text should be stored under <code>setDescription</code>.
+	 * 
+	 * @param key
+	 * @param value
+	 * @return
+	 */
 	public String putMetadataValue(final String key, final String value) {
 		return metadata.put(key, value);
 	}
 	
+	/**
+	 * Check if a metadata value is present for a specified key.
+	 * 
+	 * @param key
+	 * @return <code>true</code> if <code>getDescription()</code> does not return null or an empty string, <code>false</code> otherwise.
+	 */
 	public boolean containsMetadata(final String key) {
 		return metadata.containsKey(key);
+	}
+	
+	/**
+	 * Get a description; this is free text describing the image.
+	 * @return
+	 */
+	public String getDescription() {
+		return description;
+	}
+	
+	/**
+	 * Set the description.
+	 * 
+	 * @see getDescription
+	 * @param description
+	 */
+	public void setDescription(final String description) {
+		this.description = description;
+	}
+	
+	/**
+	 * Check if a description is present.
+	 * 
+	 * @return <code>true</code> if <code>getDescription()</code> does not return null or an empty string, <code>false</code> otherwise.
+	 */
+	public boolean hasDescription() {
+		return this.description != null && !this.description.isEmpty();
 	}
 	
 	/**

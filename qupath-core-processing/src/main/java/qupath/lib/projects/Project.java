@@ -32,6 +32,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerProvider;
 import qupath.lib.objects.classes.PathClass;
@@ -44,6 +47,8 @@ import qupath.lib.objects.classes.PathClass;
  * @param <T>
  */
 public class Project<T> {
+	
+	private static Logger logger = LoggerFactory.getLogger(Project.class);
 	
 	private File file;
 	private File dirBase;
@@ -151,7 +156,7 @@ public class Project<T> {
 			server.close();
 			return changes;
 		} catch (Exception e) {
-			e.printStackTrace();
+			logger.error("Error adding image: {} ({})", path, e.getLocalizedMessage());
 			return false;
 		}
 	}
