@@ -51,6 +51,7 @@ import javafx.scene.control.MenuItem;
 import javafx.scene.control.MultipleSelectionModel;
 import javafx.scene.control.SelectionMode;
 import javafx.scene.control.SeparatorMenuItem;
+import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
 import javafx.scene.layout.BorderPane;
@@ -305,17 +306,20 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 			public ListCell<PathObject> call(ListView<PathObject> p) {
 
 				ListCell<PathObject> cell = new ListCell<PathObject>(){
+					
+					Tooltip tooltip;
 
 					@Override
 					protected void updateItem(PathObject value, boolean empty) {
 						super.updateItem(value, empty);
+						updateTooltip(value);
 						if (value == null || empty) {
 							setText(null);
 							setGraphic(null);
 							return;
 						}
 						setText(value.toString());
-
+						
 						int w = 16;
 						int h = 16;
 						
@@ -327,6 +331,26 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 //						} else
 						if (value.hasROI())
 							setGraphic(PathIconFactory.createROIIcon(value.getROI(), w, h, color));
+					}
+					
+					void updateTooltip(final PathObject pathObject) {
+						if (tooltip == null) {
+							if (pathObject == null || !pathObject.isAnnotation())
+								return;
+							tooltip = new Tooltip();
+							setTooltip(tooltip);
+						} else if (pathObject == null || !pathObject.isAnnotation()) {
+							setTooltip(null);
+							return;
+						}
+						PathAnnotationObject annotation = (PathAnnotationObject)pathObject;
+						String description = annotation.getDescription();
+						if (description == null) {
+							setTooltip(null);
+						} else {
+							tooltip.setText(description);
+							setTooltip(tooltip);
+						}
 					}
 
 				};
@@ -688,9 +712,6 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 
 
 
-
-
-
 	public static void promptToSetActiveAnnotationProperties(final PathObjectHierarchy hierarchy) {
 		PathObject currentObject = hierarchy.getSelectionModel().getSelectedObject();
 		if (currentObject == null || !currentObject.isAnnotation())
@@ -698,41 +719,67 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 		ROI roi = currentObject.getROI();
 		if (roi == null)
 			return;
+		if (promptToSetAnnotationProperties((PathAnnotationObject)currentObject)) {
+			hierarchy.fireObjectsChangedEvent(null, Collections.singleton(currentObject));
+			// Ensure the object is still selected
+			hierarchy.getSelectionModel().setSelectedObject(currentObject);
+		}
+	}
+
+
+
+	static boolean promptToSetAnnotationProperties(final PathAnnotationObject annotation) {
 
 
 		GridPane panel = new GridPane();
 		panel.setVgap(5);
+		panel.setHgap(5);
 		TextField textField = new TextField();
-		if (currentObject.getName() != null)
-			textField.setText(currentObject.getName());
+		if (annotation.getName() != null)
+			textField.setText(annotation.getName());
 		textField.setPrefColumnCount(20);
+		// Post focus request to run later, after dialog displayed
+		Platform.runLater(() -> textField.requestFocus());
 		
 		panel.add(new Label("Name "), 0, 0);
 		panel.add(textField, 1, 0);
 
-		boolean promptForColor = currentObject instanceof PathAnnotationObject;
+		boolean promptForColor = true;
 		ColorPicker panelColor = null;
 		if (promptForColor) {
-			panelColor = new ColorPicker(ColorToolsFX.getDisplayedColor(currentObject));
+			panelColor = new ColorPicker(ColorToolsFX.getDisplayedColor(annotation));
 			panel.add(new Label("Color "), 0, 1);
 			panel.add(panelColor, 1, 1);
 			panelColor.prefWidthProperty().bind(textField.widthProperty());
 		}
+		
+		Label labDescription = new Label("Description");
+		TextArea textAreaDescription = new TextArea(annotation.getDescription());
+		textAreaDescription.setPrefRowCount(3);
+		textAreaDescription.setPrefColumnCount(25);
+		labDescription.setLabelFor(textAreaDescription);
+		panel.add(labDescription, 0, 2);
+		panel.add(textAreaDescription, 1, 2);
 
 		if (!DisplayHelpers.showConfirmDialog("Set annotation properties", panel))
-			return;
+			return false;
 
 		String name = textField.getText().trim();
 		if (name.length() > 0)
-			currentObject.setName(name);
+			annotation.setName(name);
 		else
-			currentObject.setName(null);
+			annotation.setName(null);
 		if (promptForColor)
-			((PathAnnotationObject)currentObject).setColorRGB(ColorToolsFX.getRGBA(panelColor.getValue()));
+			annotation.setColorRGB(ColorToolsFX.getRGBA(panelColor.getValue()));
 
-		hierarchy.fireObjectsChangedEvent(null, Collections.singleton(currentObject));
-		// Ensure the object is still selected
-		hierarchy.getSelectionModel().setSelectedObject(currentObject);
+		// Set the description only if we have to
+		String description = textAreaDescription.getText();
+		if (description == null || description.isEmpty())
+			annotation.setDescription(null);
+		else
+			annotation.setDescription(description);
+		
+		return true;
 	}
 
 	

@@ -116,7 +116,12 @@ public class ProjectIO {
 						}
 					}
 				}
-				project.addImage(new ProjectImageEntry<>(project, imageObject.get("path").getAsString(), imageObject.get("name").getAsString(), metadataMap));
+				String description = null;
+				if (imageObject.has("description"))
+					description = imageObject.get("description").getAsString();
+				String path = imageObject.get("path").getAsString();
+				String name = imageObject.has("name") ? imageObject.get("name").getAsString() : null;
+				project.addImage(new ProjectImageEntry<>(project, path, name, description, metadataMap));
 			}
 
 			return project;
@@ -170,6 +175,9 @@ public class ProjectIO {
 			JsonObject jsonEntry = new JsonObject();
 		    jsonEntry.addProperty("path", entry.getStoredServerPath());
 		    jsonEntry.addProperty("name", entry.getImageName());
+		    
+		    if (entry.hasDescription())
+		    		jsonEntry.addProperty("description", entry.getDescription());
 
 		    Map<String, String> metadata = entry.getMetadataMap();
 		    if (!metadata.isEmpty()) {

@@ -968,6 +968,22 @@ public class PathPrefs {
 	}
 	
 	
+
+ private static BooleanProperty viewerInterpolateBilinear = createPersistentPreference("viewerInterpolateBilinear", false);
+	
+	public static void setViewerInterpolationBilinear(boolean doBilinear) {
+		viewerInterpolateBilinear.set(doBilinear);
+	}
+	
+	public static BooleanProperty viewerInterpolateBilinearProperty() {
+		return viewerInterpolateBilinear;
+	}
+	
+	public static boolean getViewerInterpolationBilinear() {
+		return viewerInterpolateBilinear.get();
+	}
+	
+	
 	
 	private static DoubleProperty allredMinPercentagePositive = createPersistentPreference("allredMinPercentagePositive", 0.0);
 	
