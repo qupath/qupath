@@ -34,11 +34,18 @@ import java.awt.Rectangle;
 import java.awt.RenderingHints;
 import java.awt.Shape;
 import java.awt.Stroke;
+import java.awt.color.ColorSpace;
+import java.awt.color.ICC_Profile;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.NoninvertibleTransformException;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
+import java.awt.image.ColorConvertOp;
+import java.awt.image.LookupOp;
+import java.awt.image.ByteLookupTable;
+import java.io.File;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -48,7 +55,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.Vector;
-import java.util.concurrent.TimeUnit;
+
+import javax.imageio.ImageIO;
+import javax.imageio.ImageReader;
+import javax.imageio.metadata.IIOMetadata;
+import javax.imageio.stream.ImageInputStream;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -530,6 +541,9 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 				repaintEntireImage();
 			}
 		};
+		
+		PathPrefs.viewerGammaProperty().addListener(repainterEntire);
+		
 		PathPrefs.viewerInterpolateBilinearProperty().addListener(repainterEntire);
 		PathPrefs.useSelectedColorProperty().addListener(repainter);
 		PathPrefs.colorDefaultAnnotationsProperty().addListener(repainter);
@@ -1249,6 +1263,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 
 	public void repaintEntireImage() {
 		imageUpdated = true;
+		ensureGammaUpdated();
 		updateThumbnail();
 		repaint();		
 	}
@@ -1412,7 +1427,6 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		//		if (imgThumbnailRGB != null)
 		//			g2d.drawImage(imgThumbnailRGB, 0, 0, getWidth(), getHeight(), this);
 
-
 		if (clipFull)
 			paintFinalImage(g, imgBuffer, this);
 		//			g2d.drawImage(imgBuffer, 0, 0, getWidth(), getHeight(), this);
@@ -1565,7 +1579,15 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	private void updateBufferedImage(final BufferedImage imgBuffer, final Shape shapeRegion, final int w, final int h) {
 		Graphics2D gBuffered = imgBuffer.createGraphics();
 		updateBufferedImage(gBuffered, shapeRegion, w, h);
-		gBuffered.dispose();		
+		gBuffered.dispose();
+		// Apply color transforms, if required
+		if (iccTransformOp != null) {
+			iccTransformOp.filter(this.imgBuffer.getRaster(), this.imgBuffer.getRaster());
+		}
+		ensureGammaUpdated();
+		if (gammaOp != null) {
+			gammaOp.filter(this.imgBuffer.getRaster(), this.imgBuffer.getRaster());
+		}
 	}
 
 	//	private void updateBufferedImage(final BufferedImage imgBuffer, final Shape shapeRegion) {
@@ -1735,6 +1757,112 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		g.drawImage(img, 0, 0, width, height, null);
 	}
 
+	
+	/**
+	 * Create a <code>LookupOp</code> that applies a gamma transform to an 8-bit image.
+	 * 
+	 * @param gamma
+	 * @return
+	 */
+	static LookupOp createGammaOp(double gamma) {
+		byte[] lut = new byte[256];
+		for (int i = 0; i < 256; i++) {
+			double val = Math.pow(i/255.0, gamma) * 255;
+			lut[i] = (byte)ColorTools.do8BitRangeCheck(val);
+		}
+		return new LookupOp(new ByteLookupTable(0, lut), null);
+	}
+
+	/**
+	 * Attempt to read an ICC profile from a TIFF image or stream.
+	 * This depends on ImageIO; in general, it should work with Java 9 
+	 * (if an ICC profile is included in the TIFF) but not earlier versions.
+	 * 
+	 * @param input an input of the kind that <code>ImageIO.createImageInputStream</code> can handle (e.g. a <code>File</code>)
+	 * @return an ICC profile if one is found, otherwise null.
+	 */
+	static ICC_Profile readICC(Object input) {
+		try (ImageInputStream stream = ImageIO.createImageInputStream(input)) {
+			Iterator<ImageReader> readers = ImageIO.getImageReaders(stream);
+			if (readers == null) {
+				logger.debug("No readers found to extract ICC profile from {}", input);
+				return null;
+			}
+			Class<?> clsTiffDir = Class.forName("javax.imageio.plugins.tiff.TIFFDirectory");
+			Class<?> clsTiffField = Class.forName("javax.imageio.plugins.tiff.TIFFField");
+			Method mCreateFromMetadata = clsTiffDir.getMethod("createFromMetadata", IIOMetadata.class);
+			Method mGetTiffField = clsTiffDir.getMethod("getTIFFField", int.class);
+			Method mGetAsBytes = clsTiffField.getMethod("getAsBytes");
+			while (readers.hasNext()) {
+				ImageReader reader = readers.next();
+				stream.reset();
+				reader.setInput(stream);
+				Object tiffDir = mCreateFromMetadata.invoke(null, reader.getImageMetadata(0));
+				Object tiffField = mGetTiffField.invoke(tiffDir, 34675);
+				byte[] bytes = (byte[])mGetAsBytes.invoke(tiffField);
+				return ICC_Profile.getInstance(bytes);
+			}
+		} catch (Exception e) {
+			logger.warn("Unable to read ICC profile: {}", e.getLocalizedMessage());
+		}
+		return null;
+	}
+
+	/**
+	 * Try to create a <code>ColorConvertOp</code> that can be applied to transform using the color space of 
+	 * the source image (read from TIFF tags, if possible) to sRGB.
+	 * 
+	 * @return the <code>ColorConvertOp</code> if an appropriate conversion could be found, or <code>null</code> otherwise.
+	 */
+	ColorConvertOp createICCConvertOp() {
+		ICC_Profile iccSource = readICC(new File(getServerPath()));
+		if (iccSource == null)
+			return null;
+		return new ColorConvertOp(new ICC_Profile[]{
+				iccSource,
+				ICC_Profile.getInstance(ColorSpace.CS_sRGB)}, null);
+	}
+	
+	
+	private double gamma = 1.0;
+	private LookupOp gammaOp = null;
+	
+	private ColorConvertOp iccTransformOp = null;
+	private boolean doICCTransform = false;
+	
+	void setGamma(final double gamma) {
+		if (this.gamma == gamma)
+			return;
+		if (gamma == 1 || gamma <= 0 || !Double.isFinite(gamma))
+			gammaOp = null;
+		else
+			gammaOp = createGammaOp(gamma);
+		this.gamma = gamma;
+	}
+	
+	void ensureGammaUpdated() {
+		if (gamma != PathPrefs.getViewerGamma()) {
+			setGamma(PathPrefs.getViewerGamma());
+			imageUpdated = true;
+		}
+	}
+	
+	void updateICCTransform() {
+		if (getServerPath() != null && getDoICCTransform())
+			iccTransformOp = createICCConvertOp();
+		else
+			iccTransformOp = null;
+	}
+	
+	void setDoICCTransform(final boolean doTransform) {
+		this.doICCTransform = doTransform;
+		updateICCTransform();
+	}
+
+	boolean getDoICCTransform() {
+		return doICCTransform;
+	}
+	
 	static void paintFinalImage(Graphics g, Image img, QuPathViewer viewer) {
 		g.drawImage(img, 0, 0, null);
 	}
@@ -2052,7 +2180,6 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	/**
 	 * Get a string representing the image coordinates for a particular x & y location in the viewer component.
 	 * 
-	 * @param viewer
 	 * @param x
 	 * @param y
 	 * @return

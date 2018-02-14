@@ -4764,8 +4764,6 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				updateMagnificationString();
 			}
 			
-			logger.info("CHANGING VIEW");
-			
 			QuPathViewerPlus activeViewer = getActiveViewer();
 			double x = activeViewer.getCenterPixelX();
 			double y = activeViewer.getCenterPixelY();

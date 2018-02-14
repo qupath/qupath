@@ -15,6 +15,7 @@ import java.util.WeakHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javafx.application.Platform;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.property.ReadOnlyObjectProperty;
@@ -86,6 +87,11 @@ public class UndoRedoManager implements ChangeListener<QuPathViewerPlus>, QuPath
 	 * These can be bound to the disabled status of GUI elements.
 	 */
 	private void refreshProperties() {
+		// Call refresh on the JavaFX application thread, because it's likely that GUI elements depend on these
+		if (!Platform.isFxApplicationThread()) {
+			Platform.runLater(() -> refreshProperties());
+			return;
+		}
 		SerializableUndoRedoStack<PathObjectHierarchy> undoRedo = map.get(viewerProperty.get());
 		if (undoRedo == null) {
 			canUndo.set(false);
