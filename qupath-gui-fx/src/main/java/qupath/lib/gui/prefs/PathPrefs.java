@@ -828,6 +828,27 @@ public class PathPrefs {
 	public static double getTMAExportDownsample() {
 		return tmaExportDownsampleProperty.get();
 	}
+	
+	
+	
+	private static DoubleProperty viewerGammaProperty = createPersistentPreference("viewerGammaProperty", 1.0);
+
+	public static void setViewerGamma(final double gamma) {
+		viewerGammaProperty.set(gamma);
+	}
+
+	/**
+	 * Requested gamma value applied to the image in each viewer (for display only).
+	 * @return
+	 */
+	public static DoubleProperty viewerGammaProperty() {
+		return viewerGammaProperty;
+	}
+
+	public static double getViewerGamma() {
+		return viewerGammaProperty.get();
+	}
+	
 
 	
 	/**
