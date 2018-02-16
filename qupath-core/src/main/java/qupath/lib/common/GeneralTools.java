@@ -26,6 +26,7 @@ package qupath.lib.common;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.Type;
 import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -41,6 +42,9 @@ import java.util.regex.Pattern;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 
 /**
  * Collection of generally useful static methods.
@@ -270,61 +274,8 @@ public class GeneralTools {
 	public static Map<String, String> parseArgStringValues(String s) {
 		if (s == null)
 			return Collections.emptyMap();
-
-		s = s.trim();
-		if (!s.startsWith("{")) { // || !s.startsWith("{")) { // Don't know what I was planning here...?
-			throw new IllegalArgumentException(s + " is not a valid parameter string!");
-		}
-
-		// Minimum length of 7, for {"a":1}
-		if (s.replace(" ",  "").length() < 7 || !s.contains("\"") || !s.contains(":"))
-			return Collections.emptyMap();
-
-		//		logger.info(s);
-		//		s = s.substring(s.indexOf("\""), s.lastIndexOf("\"") + 1);
-
-		Map<String, String> map = new LinkedHashMap<>();
-
-
-		String quotedString = "\"([^\"]*)\"[\\s]*";
-		// Match quoted strings, followed by : (potential keys)
-		Pattern p = Pattern.compile(quotedString + ":");
-		// Match everything up to the next potential key, or to the end brace }
-		Pattern p2 = Pattern.compile(".+?(?=("+quotedString+"[:])|})");
-
-		Scanner scanner = new Scanner(s);
-		scanner.useDelimiter("");
-		String key;
-		while ((key = scanner.findInLine(p)) != null) {
-
-			// Trim the key
-			key = key.substring(key.indexOf("\"")+1, key.lastIndexOf("\""));
-
-			String value = scanner.findInLine(p2);
-			if (value == null) {
-				logger.error("Unable to associated value with key {}", key);
-				continue;
-			}
-
-			// Trim any whitespace, commas or quotation marks
-			value = value.trim();
-			if (value.endsWith(","))
-				value = value.substring(0, value.length()-1);
-			if (value.startsWith("\"") && value.endsWith("\"") && value.length() >= 2) {
-				value = value.substring(value.indexOf("\"")+1, value.lastIndexOf("\""));
-			}
-
-			if (value.length() == 0) {
-				logger.warn("Unable to associate value with key {}", key);
-				continue;
-			}
-
-			// Decide what we have & put into the map
-			map.put(key, value);
-		}
-		scanner.close();
-
-		return map;
+		Type type = new TypeToken<Map<String, String>>() {}.getType();
+		return new Gson().fromJson(s, type);
 	}
 
 	
