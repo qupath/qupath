@@ -35,22 +35,27 @@ import java.nio.ByteBuffer;
 import java.nio.DoubleBuffer;
 
 import static org.bytedeco.javacpp.opencv_core.*;
+
+import org.bytedeco.javacpp.opencv_core;
 import org.bytedeco.javacpp.opencv_imgproc;
 import org.bytedeco.javacpp.indexer.IntIndexer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.QuPathViewer;
+import qupath.lib.gui.viewer.overlays.PathOverlay;
 import qupath.lib.gui.viewer.tools.BrushTool;
 import qupath.lib.images.stores.DefaultImageRegionStore;
+import qupath.lib.regions.ImageRegion;
 
 /**
  * Wand tool, which acts rather like the brush - except that it expands regions 
- * (somes rather too eagerly?) based upon local pixel values.
+ * (sometimes rather too eagerly?) based upon local pixel values.
  * 
  * @author Pete Bankhead
  *
@@ -63,8 +68,10 @@ public class WandToolCV extends BrushTool {
 	private Point2D pLast = null;
 	private static int w = 149;
 	private BufferedImage imgTemp = new BufferedImage(w, w, BufferedImage.TYPE_3BYTE_BGR);
+	private BufferedImage imgSelected = new BufferedImage(w+2, w+2, BufferedImage.TYPE_BYTE_GRAY);
 	private Mat mat = null; //new Mat(w, w, CV_8U);
 	private Mat matMask = null; //new Mat(w, w, CV_8U);
+	private Mat matSelected = null; //new Mat(w, w, CV_8U);
 	private Scalar threshold = Scalar.all(1.0);
 	private Point seed = new Point(w/2, w/2);
 //	private Size morphSize = new Size(5, 5);
@@ -75,6 +82,24 @@ public class WandToolCV extends BrushTool {
 	
 	private Size blurSize = new Size(31, 31);
 	
+	/**
+	 * Paint overlays and allow them to influence the want
+	 */
+	private static BooleanProperty wandUseOverlays = PathPrefs.createPersistentPreference("wandUseOverlays", true);
+
+	public static BooleanProperty wandUseOverlaysProperty() {
+		return wandUseOverlays;
+	}
+	
+	public static boolean getWandUseOverlays() {
+		return wandUseOverlays.get();
+	}
+	
+	public static void setWandUseOverlays(final boolean useOverlays) {
+		wandUseOverlays.set(useOverlays);
+	}
+		
+		
 	
 	/**
 	 * Sigma value associated with Wand tool smoothing
@@ -127,16 +152,23 @@ public class WandToolCV extends BrushTool {
 				"Drawing tools",
 				"Set the sensitivity of the wand tool - lower values make it pay less attention to local intensities, and act more like the brush tool (default = 2.0)");
 
+		qupath.getPreferencePanel().addPropertyPreference(wandUseOverlaysProperty(), Boolean.class,
+				"Wand use overlays",
+				"Drawing tools",
+				"Use image overlay information to influence the regions created with the wand tool");
+		
 	}
 	
 	
 	@Override
-	protected Shape createShape(double x, double y, boolean useTiles) {
+	protected Shape createShape(double x, double y, boolean useTiles, Shape addToShape) {
 		
 		if (mat == null)
 			mat = new Mat(w, w, CV_8UC3);
 		if (matMask == null)
 			matMask = new Mat(w+2, w+2, CV_8U);
+		if (matSelected == null)
+			matSelected = new Mat(w+2, w+2, CV_8U);
 
 		
 		if (pLast != null && pLast.distanceSq(x, y) < 4)
@@ -162,13 +194,37 @@ public class WandToolCV extends BrushTool {
 		g2d.scale(1.0/downsample, 1.0/downsample);
 		g2d.translate(-xStart, -yStart);
 		regionStore.paintRegionCompletely(viewer.getServer(), g2d, bounds, viewer.getZPosition(), viewer.getTPosition(), viewer.getDownsampleFactor(), null, viewer.getImageDisplay(), 250);
+		// Optionally include the overlay information when using the wand
+		if (getWandUseOverlays()) {
+			ImageRegion region = ImageRegion.createInstance(
+					(int)bounds.getX()-1, (int)bounds.getY()-1, (int)bounds.getWidth()+1, (int)bounds.getHeight()+1, viewer.getZPosition(), viewer.getTPosition());
+			for (PathOverlay overlay : viewer.getOverlayLayers().toArray(new PathOverlay[0])) {
+				overlay.paintOverlay(g2d, region, downsample, null, true);
+			}
+		}
 		
-		// We could optionally paint the hierarchy, so that it too influences the values
-//		Collection<PathObject> pathObjects = viewer.getHierarchy().getObjectsForRegion(PathAnnotationObject.class, ImageRegion.createInstance(
-//				(int)bounds.getX()-1, (int)bounds.getY()-1, (int)bounds.getWidth()+1, (int)bounds.getHeight()+1, viewer.getZPosition(), viewer.getTPosition()), null);
-//		PathHierarchyPaintingHelper.paintSpecifiedObjects(g2d, bounds.getBounds(), pathObjects, viewer.getOverlayOptions(), null, downsample);
-
-		g2d.dispose();
+		// Create a mask for the current shape, if required
+		// Because of the later morphological operations, this helps avoid tiny fragmented regions/gaps being generated
+		boolean hasMask = false;
+		if (addToShape != null) {
+			g2d = imgSelected.createGraphics();
+			g2d.setColor(Color.BLACK);
+			g2d.fillRect(0, 0, imgSelected.getWidth(), imgSelected.getHeight());
+			g2d.setColor(Color.WHITE);
+			// Fill in the center region, around the click
+			g2d.fillRect((w+2)/2-1, (w+2)/2-1, 3, 3);
+			g2d.scale(1.0/downsample, 1.0/downsample);
+			g2d.translate(-xStart+downsample*0.5, -yStart+downsample*0.5);
+			// Fill in the selected shape
+			g2d.fill(addToShape);
+			g2d.dispose();
+			byte[] buffer = ((DataBufferByte)imgSelected.getRaster().getDataBuffer()).getData(0);
+		    ByteBuffer matBuffer = matSelected.createBuffer();
+		    matBuffer.clear();
+		    matBuffer.put(buffer);
+		    hasMask = true;
+		} else
+			matSelected.put(Scalar.ZERO);
 		
 		// Put pixels into an OpenCV image
 		byte[] buffer = ((DataBufferByte)imgTemp.getRaster().getDataBuffer()).getData();
@@ -191,8 +247,11 @@ public class WandToolCV extends BrushTool {
 		
 		Mat mean = new Mat();
 		Mat stddev = new Mat();
-		meanStdDev(mat, mean, stddev);
-//		logger.trace(stddev.dump());
+		// Could optionally base the threshold on the masked region... but for now we don't
+//		if (hasMask)
+//			meanStdDev(mat, mean, stddev, matSelected.apply(new Rect(1, 1, w, w)));
+//		else
+			meanStdDev(mat, mean, stddev);
 
 		DoubleBuffer stddevBuffer = stddev.createBuffer();
 		double[] stddev2 = new double[3];
@@ -208,14 +267,19 @@ public class WandToolCV extends BrushTool {
 		stddev.release();
 		
 		matMask.put(Scalar.ZERO);
-//		matMask.setTo(Scalar.ZERO);
 		opencv_imgproc.circle(matMask, seed, w/2, Scalar.ONE);
 		opencv_imgproc.floodFill(mat, matMask, seed, Scalar.ONE, null, threshold, threshold, 4 | (2 << 8) | opencv_imgproc.FLOODFILL_MASK_ONLY | opencv_imgproc.FLOODFILL_FIXED_RANGE);
 		subtractPut(matMask, Scalar.ONE);
 		
+		if (hasMask)
+			opencv_core.orPut(matMask, matSelected);
+		
 		if (strel == null)
 			strel = opencv_imgproc.getStructuringElement(opencv_imgproc.MORPH_ELLIPSE, new Size(5, 5));
 		opencv_imgproc.morphologyEx(matMask, matMask, opencv_imgproc.MORPH_CLOSE, strel);
+		if (hasMask)
+			opencv_core.orPut(matMask, matSelected);
+//		opencv_imgproc.morphologyEx(matMask, matMask, opencv_imgproc.MORPH_OPEN, strel);
 ////		opencv_imgproc.morphologyEx(matMask, matMask, opencv_imgproc.MORPH_OPEN, opencv_imgproc.getStructuringElement(opencv_imgproc.MORPH_ELLIPSE, size));
 //		
 		MatVector contours = new MatVector();

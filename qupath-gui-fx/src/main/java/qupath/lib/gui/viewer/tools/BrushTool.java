@@ -30,17 +30,14 @@ import java.awt.geom.Ellipse2D;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 import java.util.Collection;
-import java.util.LinkedHashMap;
+import java.util.Collections;
 import java.util.List;
-import java.util.Map;
+import java.util.Set;
 
 import javafx.scene.Cursor;
-import javafx.scene.ImageCursor;
 import javafx.scene.SnapshotParameters;
-import javafx.scene.image.Image;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.paint.Color;
-import javafx.scene.shape.Ellipse;
 import qupath.lib.awt.common.AwtTools;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.ModeWrapper;
@@ -48,6 +45,8 @@ import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathTileObject;
+import qupath.lib.objects.classes.PathClass;
+import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.roi.AWTAreaROI;
@@ -69,19 +68,24 @@ import qupath.lib.roi.interfaces.PathShape;
  */
 public class BrushTool extends AbstractPathROITool {
 	
+	/**
+	 * A collection of classes that should be ignored when
+	 */
+	static Set<PathClass> reservedPathClasses = Collections.singleton(PathClassFactory.getPathClass("Region"));
+	
 	double lastRequestedCursorDiameter = Double.NaN;
 	Cursor requestedCursor;
 	
-	/**
-	 * Cache the last 50 cursors we saw
-	 */
-	private static Map<String, Cursor> cursorCache = new LinkedHashMap<String, Cursor>() {
-		private static final long serialVersionUID = 1L;
-		@Override
-		protected boolean removeEldestEntry(Map.Entry<String, Cursor> eldest) {
-	        return size() > 50;
-	    }
-	};
+//	/**
+//	 * Cache the last 50 cursors we saw
+//	 */
+//	private static Map<String, Cursor> cursorCache = new LinkedHashMap<String, Cursor>() {
+//		private static final long serialVersionUID = 1L;
+//		@Override
+//		protected boolean removeEldestEntry(Map.Entry<String, Cursor> eldest) {
+//	        return size() > 50;
+//	    }
+//	};
 	
 	private SnapshotParameters snapshotParameters = new SnapshotParameters();
 	
@@ -92,33 +96,35 @@ public class BrushTool extends AbstractPathROITool {
 	
 	
 	protected Cursor getRequestedCursor() {
-		
-		if (PathPrefs.getUseTileBrush())
-			return Cursor.CROSSHAIR;
-		
-		double res = 0.05;
-		
-		double diameter = getBrushDiameter() / viewer.getDownsampleFactor();
-		if (requestedCursor != null && Math.abs(diameter - lastRequestedCursorDiameter) < res)
-			return requestedCursor;
-		
-		Color color = viewer.getSuggestedOverlayColorFX();
-		String key = color.toString() + (int)Math.round(diameter * (1.0/res));
-		requestedCursor = cursorCache.get(key);
-		if (requestedCursor != null)
-			return requestedCursor;
-		
-		Ellipse e = new Ellipse(diameter/2, diameter/2);
-		e.setFill(null);
-		e.setStroke(color);
-		Image image = e.snapshot(snapshotParameters, null);
-		requestedCursor = new ImageCursor(image, diameter/2, diameter/2);
-		
-		this.registerTool(viewer);
-
-		cursorCache.put(key, requestedCursor);
-
-		return requestedCursor;
+		// Display of image cursors seems buggy, at least on macOS?
+		// TODO: Check if image cursors are buggy on all platforms or may be reinstated
+		return Cursor.CROSSHAIR;
+//		if (PathPrefs.getUseTileBrush())
+//			return Cursor.CROSSHAIR;
+//		
+//		double res = 0.05;
+//		
+//		double diameter = getBrushDiameter() / viewer.getDownsampleFactor();
+//		if (requestedCursor != null && Math.abs(diameter - lastRequestedCursorDiameter) < res)
+//			return requestedCursor;
+//		
+//		Color color = viewer.getSuggestedOverlayColorFX();
+//		String key = color.toString() + (int)Math.round(diameter * (1.0/res));
+//		requestedCursor = cursorCache.get(key);
+//		if (requestedCursor != null)
+//			return requestedCursor;
+//		
+//		Ellipse e = new Ellipse(diameter/2, diameter/2);
+//		e.setFill(null);
+//		e.setStroke(color);
+//		Image image = e.snapshot(snapshotParameters, null);
+//		requestedCursor = new ImageCursor(image, diameter/2, diameter/2);
+//		
+//		this.registerTool(viewer);
+//
+//		cursorCache.put(key, requestedCursor);
+//
+//		return requestedCursor;
 	}
 	
 	
@@ -235,16 +241,16 @@ public class BrushTool extends AbstractPathROITool {
             return;
         }
 		
-		ROI currentROI = viewer.getCurrentROI();
-		if (!(currentROI instanceof PathShape))
-			return;
-		
 		// Can only modify annotations
 		// TODO: Check for object being locked!
 		PathObject pathObject = viewer.getSelectedObject();
-		if (!(pathObject instanceof PathAnnotationObject))
-				return;
+		if (pathObject == null || !pathObject.isAnnotation())
+			return;
 
+		ROI currentROI = pathObject.getROI();
+		if (!(currentROI instanceof PathShape))
+			return;
+		
 		PathShape shapeROI = (PathShape)currentROI;
 		
 		PathObject pathObjectUpdated = getUpdatedObject(e, shapeROI, pathObject, -1);
@@ -261,11 +267,13 @@ public class BrushTool extends AbstractPathROITool {
 	private PathObject getUpdatedObject(MouseEvent e, PathShape shapeROI, PathObject currentObject, double flatness) {
 		Point2D p = viewer.componentPointToImagePoint(e.getX(), e.getY(), null, true);
 		PathShape shapeNew;
-		Shape shapeDrawn = createShape(p.getX(), p.getY(), PathPrefs.getUseTileBrush() && !e.isShiftDown());
+		boolean subtractMode = isSubtractMode(e);
+		Shape shapeCurrent = shapeROI == null ? null : PathROIToolsAwt.getShape(shapeROI);
+		Shape shapeDrawn = createShape(p.getX(), p.getY(),
+				PathPrefs.getUseTileBrush() && !e.isShiftDown(),
+				subtractMode ? null : shapeCurrent);
 		if (shapeROI != null) {
 			// Check to see if any changes are required at all
-			boolean subtractMode = isSubtractMode(e);
-			Shape shapeCurrent = PathROIToolsAwt.getShape(shapeROI);
 			if (shapeDrawn == null || (subtractMode && !shapeCurrent.intersects(shapeDrawn.getBounds2D())) || 
 					(!subtractMode && shapeCurrent.contains(shapeDrawn.getBounds2D())))
 				return currentObject;
@@ -285,6 +293,8 @@ public class BrushTool extends AbstractPathROITool {
 				area.add(new Area(shapeDrawn));
 				if (!annotations.isEmpty()) {
 					for (PathObject pathObject : annotations) {
+						if (reservedPathClasses.contains(pathObject.getPathClass()))
+							continue;
 						if (pathObject.getROI() instanceof PathArea) {
 							area.subtract(PathROIToolsAwt.getArea(pathObject.getROI()));
 						}
@@ -348,7 +358,7 @@ public class BrushTool extends AbstractPathROITool {
 //							(pathROI instanceof PolygonROI) ? ((PolygonROI)pathROI).nVertices() :
 //							((pathROI instanceof AreaROI) ? ((AreaROI)pathROI).nVertices() : 1);
 							
-					pathROI = ShapeSimplifierAwt.simplifyShape((PathShape)pathROI, 1.0);
+					pathROI = ShapeSimplifierAwt.simplifyShape((PathShape)pathROI, 0.5);
 //							pathROI = ShapeSimplifierAwt.simplifyShape((PathShape)pathROI, viewer.getDownsampleFactor());
 					
 //					if (nVertices > 500)
@@ -393,7 +403,18 @@ public class BrushTool extends AbstractPathROITool {
 	}
 	
 	
-	protected Shape createShape(double x, double y, boolean useTiles) {
+	/**
+	 * Create a new Shape using the specified tool, assuming a user click/drag at the provided x & y coordinates.
+	 * 
+	 * @param x
+	 * @param y
+	 * @param useTiles If true, request generating a shape from existing tile objects.
+	 * @param addToShape If provided, it can be assumed that any new shape ought to be added to this one.
+	 *                   The purpose is that this method may (optionally) use the shape to refine the one it will generate, 
+	 *                   e.g. to avoid having isolated or jagged boundaries.
+	 * @return
+	 */
+	protected Shape createShape(double x, double y, boolean useTiles, Shape addToShape) {
 		
 		// See if we're on top of a tile
 		// TODO: Add preference to turn on/off tile brush
@@ -432,7 +453,7 @@ public class BrushTool extends AbstractPathROITool {
 	@Override
 	protected ROI createNewROI(double x, double y, int z, int t) {
 		creatingTiledROI = false;
-		Shape shape = createShape(x, y, PathPrefs.getUseTileBrush());
+		Shape shape = createShape(x, y, PathPrefs.getUseTileBrush(), null);
 		return new AWTAreaROI(shape, -1, z, t);
 //		return new PathPolygonROI(x, y, -1, z, t);
 	}

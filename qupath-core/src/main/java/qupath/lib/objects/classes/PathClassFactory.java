@@ -27,6 +27,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 
 import qupath.lib.common.ColorTools;
 
@@ -45,7 +46,7 @@ public class PathClassFactory {
 //	public enum DEFAULT_PATH_CLASSES_ENUM {NUCLEUS, POSITIVE, NEGATIVE, ONE_PLUS, TWO_PLUS, THREE_PLUS, TUMOR, NON_TUMOR, STROMA, BACKGROUND};
 
 //	public enum PathClasses { TUMOR, NON_TUMOR, STROMA, IMMUNE_CELLS, NUCLEUS, CELL, WHITESPACE, NEGATIVE, POSITIVE, ONE_PLUS, TWO_PLUS, THREE_PLUS, ARTIFACT, IMAGE_ROOT, NECROSIS, OTHER }
-	public enum PathClasses { TUMOR, NON_TUMOR, STROMA, IMMUNE_CELLS, NUCLEUS, CELL, WHITESPACE, NEGATIVE, POSITIVE, ARTIFACT, IMAGE_ROOT, NECROSIS, OTHER }
+	public enum PathClasses { TUMOR, NON_TUMOR, STROMA, IMMUNE_CELLS, NUCLEUS, CELL, WHITESPACE, NEGATIVE, POSITIVE, ARTIFACT, IMAGE_ROOT, NECROSIS, OTHER, REGION }
 
 	private static Map<PathClasses, PathClass> DEFAULT_PATH_CLASSES;
 	
@@ -53,7 +54,9 @@ public class PathClassFactory {
 	private static Map<String, PathClass> mapPathDerivedClasses = new HashMap<>();
 
 	private final static PathClass NULL_CLASS = new PathClass();
-	
+
+	private final static String REGION = "Region";
+
 	private final static String POSITIVE = "Positive";
 	private final static String NEGATIVE = "Negative";
 	private final static String ONE_PLUS = "1+";
@@ -77,6 +80,8 @@ public class PathClassFactory {
 //		DEFAULT_PATH_CLASSES.put(PathClasses.THREE_PLUS, new PathClass(THREE_PLUS, ColorTools.makeRGB(200, 50, 50)));
 		DEFAULT_PATH_CLASSES.put(PathClasses.ARTIFACT, new PathClass("Artefact", ColorTools.makeRGB(180, 180, 180)));
 		DEFAULT_PATH_CLASSES.put(PathClasses.IMAGE_ROOT,  new PathClass("Image", ColorTools.makeRGB(128, 128, 128)));
+		
+		DEFAULT_PATH_CLASSES.put(PathClasses.REGION, new PathClass(REGION, ColorTools.makeRGB(0, 0, 180)));
 
 		DEFAULT_PATH_CLASSES.put(PathClasses.NECROSIS, new PathClass("Necrosis", ColorTools.makeRGB(50, 50, 50)));
 		DEFAULT_PATH_CLASSES.put(PathClasses.OTHER, new PathClass("Other", ColorTools.makeRGB(255, 200, 0)));
@@ -99,6 +104,19 @@ public class PathClassFactory {
 //		return getPathClass(name, color == null ? null : color.getRGB());
 //	}
 	
+	
+	/**
+	 * Get the 'Region' class.
+	 * 
+	 * This behaves slightly differently from other classes, e.g. it is not filled in when applied to
+	 * annotations.  Consequently it is good to heavily annotated regions, or possibly detected tissue 
+	 * containing further annotations inside.
+	 * 
+	 * @return
+	 */
+	public static PathClass getRegionClass() {
+		return getDefaultPathClass(PathClasses.REGION);
+	}
 	
 	/**
 	 * Returns true if the PathClass represents a built-in intensity class.
@@ -182,10 +200,13 @@ public class PathClassFactory {
 					rgb = COLOR_NEGATIVE;
 				} else {
 					// Create a random color
+					// Use the hashcode of the String as a seed - so that the same 
+					// color is generated reproducibly for the same name.
+					Random random = new Random(name.hashCode());
 					rgb = ColorTools.makeRGB(
-							(int)(Math.random()*255),
-							(int)(Math.random()*255),
-							(int)(Math.random()*255));
+							random.nextInt(256),
+							random.nextInt(256),
+							random.nextInt(256));
 				}
 			}
 			pathClass = new PathClass(null, name, rgb);

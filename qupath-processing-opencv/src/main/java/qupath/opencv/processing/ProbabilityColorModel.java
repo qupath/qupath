@@ -1,8 +1,11 @@
 package qupath.opencv.processing;
 
+import java.awt.image.BandedSampleModel;
 import java.awt.image.ColorModel;
 import java.awt.image.DataBuffer;
+import java.awt.image.DataBufferFloat;
 import java.awt.image.Raster;
+import java.awt.image.SampleModel;
 import java.awt.image.WritableRaster;
 
 import org.slf4j.Logger;
@@ -241,7 +244,10 @@ class ProbabilityColorModel extends ColorModel {
 		if (bpp == 8)
 			return WritableRaster.createBandedRaster(DataBuffer.TYPE_BYTE, w, h, nBands, null);
 		if (bpp == 32)
-			return WritableRaster.createBandedRaster(DataBuffer.TYPE_FLOAT, w, h, nBands, null);
+			return WritableRaster.createWritableRaster(
+					new BandedSampleModel(DataBuffer.TYPE_FLOAT, w, h, nBands),
+					new DataBufferFloat(w*h, nBands), null);
+//			return WritableRaster.createBandedRaster(DataBuffer.TYPE_FLOAT, w, h, nBands, null);
 		return super.createCompatibleWritableRaster(w, h);
 	}
 	
