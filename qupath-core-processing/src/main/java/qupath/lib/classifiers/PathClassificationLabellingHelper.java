@@ -44,6 +44,7 @@ import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.classes.PathClass;
+import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.roi.PointsROI;
@@ -198,7 +199,8 @@ public class PathClassificationLabellingHelper {
 		while (iter.hasNext()) {
 			PathObject pathObject = iter.next();
 			// We need a PathClass, and may need to only include points
-			if (pathObject.getPathClass() == null || (pointsOnly && !pathObject.isPoint()) || (!pathObject.isPoint() && !pathObject.hasChildren()))
+			if (pathObject.getPathClass() == null || pathObject.getPathClass() == PathClassFactory.getRegionClass() ||
+					(pointsOnly && !pathObject.isPoint()) || (!pathObject.isPoint() && !pathObject.hasChildren()))
 				iter.remove();
 			else
 				classifications.put(pathObject.getPathClass(), new ArrayList<>());

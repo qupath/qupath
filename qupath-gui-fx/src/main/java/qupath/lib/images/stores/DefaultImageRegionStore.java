@@ -163,7 +163,7 @@ public class DefaultImageRegionStore extends AbstractImageRegionStore<BufferedIm
 	 * @param tPosition
 	 * @param downsampleFactor
 	 * @param observer
-	 * @param imageDispla TODO
+	 * @param imageDisplay
 	 * @param timeoutMilliseconds Timeout after which a request is made from the PathImageServer directly, rather than waiting for tile requests.
 	 */
 	@SuppressWarnings("unchecked")
@@ -226,9 +226,11 @@ public class DefaultImageRegionStore extends AbstractImageRegionStore<BufferedIm
 						try {
 							imgTile = worker.get();
 						} catch (InterruptedException e1) {
-							e1.printStackTrace();
+							logger.warn("Tile request interrupted; {}", e1.getLocalizedMessage());
 						} catch (ExecutionException e1) {
-							e1.printStackTrace();
+							logger.warn("Execution exception during tile request: {}", e1.getLocalizedMessage());
+						} catch (CancellationException e1) {
+							logger.warn("Tile request cancelled: {}", e1.getLocalizedMessage());
 						}
 				}
 			}

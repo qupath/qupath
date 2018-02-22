@@ -187,6 +187,7 @@ public class WandToolCV extends BrushTool {
 		// Paint the image as it is currently being viewed
 		Graphics2D g2d = imgTemp.createGraphics();
 		g2d.setColor(Color.BLACK);
+		g2d.setClip(0, 0, w, w);
 		g2d.fillRect(0, 0, w, w);
 		double xStart = x-w*downsample*0.5;
 		double yStart = y-w*downsample*0.5;

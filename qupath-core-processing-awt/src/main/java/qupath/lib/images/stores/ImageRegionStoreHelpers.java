@@ -60,7 +60,7 @@ public class ImageRegionStoreHelpers {
 	 * @param server The PathImageServer from which the tiles would be requested
 	 * @param clipShape The requested shape, defined in the full-resolution image space
 	 * @param downsampleFactor The downsampleFactor determining the resolution at which tiles should be requested
-	 * @param requests The list to which requests should be added, or null if a new list should be created
+	 * @param regions The list to which requests should be added, or null if a new list should be created
 	 * @return The list of requests - identical to the one provided as an input parameter, unless this was null
 	 */
 	public static List<RegionRequest> getTilesToRequest(ImageServer<?> server, Shape clipShape, double downsampleFactor, int zPosition, int tPosition, List<RegionRequest> regions) {

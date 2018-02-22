@@ -1461,8 +1461,15 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 
 			Color color = getSuggestedOverlayColor();
 			for (PathOverlay overlay : overlayLayers.toArray(new PathOverlay[0])) {
+				if (overlay == hierarchyOverlay)
+					continue;
 				overlay.setPreferredOverlayColor(color);
 				overlay.paintOverlay(g2d, getServerBounds(), downsampleFactor, null, paintCompletely);
+			}
+			// Paint hierarchy last
+			if (hierarchyOverlay != null) {
+				hierarchyOverlay.setPreferredOverlayColor(color);
+				hierarchyOverlay.paintOverlay(g2d, getServerBounds(), downsampleFactor, null, paintCompletely);
 			}
 		}
 		
@@ -1517,41 +1524,6 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 				}
 			}
 		}
-
-//		// Paint the selected object
-//		PathObject selectedObject = getSelectedObject();
-//		// TODO: Simplify this...
-//		if (selectedObject != null && selectedObject.hasROI() && selectedObject.getROI().getZ() == getZPosition() && selectedObject.getROI().getT() == getTPosition()) {
-//			
-//			if (!selectedObject.isDetection()) {
-//				// Ensure a selected ROI can be seen clearly
-//				if (previousComposite != null)
-//					g2d.setComposite(previousComposite);
-//				g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-//			}
-//			
-//			Rectangle boundsDisplayed = shapeRegion.getBounds();
-//			
-////			PathPrefs.p
-//			ROI pathROI = selectedObject.getROI();
-//			if (PathPrefs.getPaintSelectedBounds() && !(pathROI instanceof RectangleROI)) {
-//				Rectangle boundsShape = AwtTools.getBounds(pathROI);
-//				boundsShape.setBounds(boundsShape.x-1, boundsShape.y-1, boundsShape.width+2, boundsShape.height+2);
-//				PathHierarchyPaintingHelper.paintShape(boundsShape, g2d, getSuggestedOverlayColor(), new BasicStroke((float)Math.max(downsampleFactor, 1)*2), null, downsampleFactor);
-//			}
-//			
-//			PathHierarchyPaintingHelper.paintObject(selectedObject, false, g2d, boundsDisplayed, overlayOptions, getHierarchy().getSelectionModel(), downsampleFactor);
-//			// Paint ROI handles, if required
-//			if (roiEditor.hasROI()) {
-//				Stroke strokeThick = PathHierarchyPaintingHelper.getCachedStroke(getOverlayOptions().getThickStrokeThickness() * downsampleFactor);
-//				Color color = ColorToolsAwt.getCachedColor(PathPrefs.getSelectedObjectColor());
-//				if (color == null)
-//					color = PathObjectColorToolsAwt.getDisplayedColorAWT(selectedObject);
-//				g2d.setStroke(strokeThick);
-//				double size = getROIHandleSize();
-//				PathHierarchyPaintingHelper.paintHandles(roiEditor, g2d, size, color, ColorToolsAwt.getTranslucentColor(color));
-//			}
-//		}
 
 		// Notify any listeners of shape changes
 		if (shapeChanged)

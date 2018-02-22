@@ -102,6 +102,7 @@ public class OpenCVTools {
 		switch (buffer.getDataType()) {
 			case DataBuffer.TYPE_BYTE:
 				typeCV = CV_8UC(nChannels);
+				break;
 //			case DataBuffer.TYPE_DOUBLE:
 //				typeCV = CV_64FC(nChannels); 
 //				mat = new Mat(height, width, typeCV, Scalar.ZERO);

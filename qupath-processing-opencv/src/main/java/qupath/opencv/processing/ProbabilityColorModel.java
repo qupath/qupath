@@ -143,7 +143,7 @@ class ProbabilityColorModel extends ColorModel {
 			return getAlpha((byte[])pixel);
 		if (pixel instanceof float[])
 			return getAlpha((float[])pixel);
-		return 0;
+		return 255;
 	}
 	
 	public int getRed(byte[] pixel) {
@@ -167,7 +167,7 @@ class ProbabilityColorModel extends ColorModel {
 				sum += byteToFloat(p);
 			return (int)(255 * clipFloat(sum));
 		}
-		return 0;
+		return 255;
 	}
 	
 	public int getRed(float[] pixel) {
@@ -213,7 +213,7 @@ class ProbabilityColorModel extends ColorModel {
 				sum += clipFloat(p);
 			return (int)(255 * clipFloat(sum));
 		}
-		return 0;
+		return 255;
 	}
 	
 	private static float clipFloat(float f) {
