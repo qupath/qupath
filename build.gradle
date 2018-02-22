@@ -114,6 +114,25 @@ allprojects {
   }
 }
 
+// Build Groovy
+allprojects {
+    apply plugin: 'groovy'
+    sourceCompatibility = JavaVersion.current()
+    targetCompatibility = JavaVersion.current()
+
+    repositories {
+        mavenLocal()
+        mavenCentral()
+        maven { url "../maven/repo" }
+    }
+
+    dependencies {
+        compile 'org.codehaus.groovy:groovy-all:2.4.12'
+        compile group: 'ch.qos.logback', name: 'logback-classic', version:'1.2.3'
+        testCompile group: 'junit', name: 'junit', version:'4.12'
+    }
+}
+
 // Build the main launcher class
 apply plugin: 'java'
 
@@ -126,6 +145,7 @@ repositories {
 // I suspect there is a cleaner way to specify subprojects here...
 dependencies {
     compile project(':qupath-gui-fx')
+    compile project(':qupath-experimental')
     compile project(':qupath-extension-openslide')
     compile project(':qupath-extension-script-editor')
     compile project(':qupath-extension-ij')
