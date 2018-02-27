@@ -1275,7 +1275,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			return pathClasses;
 		} catch (Exception e) {
 			logger.error("Error loading classes", e);
-			return null;
+			return Collections.emptyList();
 		}
 	}
 

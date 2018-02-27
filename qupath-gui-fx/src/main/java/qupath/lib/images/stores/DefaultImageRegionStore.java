@@ -9,12 +9,12 @@
  * it under the terms of the GNU General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public
  * License along with this program.  If not, see
  * <http://www.gnu.org/licenses/gpl-3.0.html>.
@@ -49,46 +49,46 @@ import qupath.lib.regions.RegionRequest;
 
 /**
  * An ImageRegionStore suitable for either Swing or JavaFX applications.
- * 
+ *
  * @author Pete Bankhead
  *
  */
 public class DefaultImageRegionStore extends AbstractImageRegionStore<BufferedImage> {
-	
+
 	static final int DEFAULT_THUMBNAIL_WIDTH = 1000;
-	
+
 	static Logger logger = LoggerFactory.getLogger(DefaultImageRegionStore.class);
-	
+
 	protected DefaultImageRegionStore(int thumbnailWidth, long tileCacheSize) {
 		super(new BufferedImageSizeEstimator(), thumbnailWidth, tileCacheSize);
 	}
-	
+
 	protected DefaultImageRegionStore(long tileCacheSize) {
 		this(DEFAULT_THUMBNAIL_WIDTH, tileCacheSize);
 	}
-	
+
 
 
 	@Override
 	@SuppressWarnings("unchecked")
 	public BufferedImage getImage(final ImageServer<BufferedImage> server, final RegionRequest request, final long timeoutMillis, final boolean nullIfTimeout) {
-		
+
 //		RegionRequest.createInstance(server.getPath(), downsampleFactor, bounds.x, bounds.y, bounds.width, bounds.height, zPosition, tPosition)
-		
+
 		// If we don't have an RGB image, then we have to read directly
 		if (!server.isRGB())
 			return server.readBufferedImage(request);
-		
+
 		double downsampleFactor = request.getDownsample();
 		int w = (int)(request.getWidth() / downsampleFactor);
 		int h = (int)(request.getHeight() / downsampleFactor);
 		BufferedImage img = new BufferedImage(w, h, BufferedImage.TYPE_INT_RGB); // TODO: DON'T ENFORCE THE TYPE!!!
-		
+
 //		// Improve the rendering quality for downsampled images...
 //		Graphics2D g2d = img.createGraphics();
 //		if (downsampleFactor > 1)
 //			g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
-		
+
 		// DON'T improve the quality for downsampled images; this produces strange artefacts with texture computations (e.g. Haralick features),
 		// as well as things like min/max/range
 		Graphics2D g2d = img.createGraphics();
@@ -96,10 +96,10 @@ public class DefaultImageRegionStore extends AbstractImageRegionStore<BufferedIm
 			g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
 		g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_SPEED);
 
-		
+
 		g2d.scale(1.0/downsampleFactor, 1.0/downsampleFactor);
 		g2d.translate(-request.getX(), -request.getY());
-		
+
 		// Check to see if the thumbnail is all we need
 		if (!isTiledImageServer(server)) {
 			BufferedImage imgThumbnail = getThumbnail(server, request.getZ(), request.getT(), true);
@@ -107,12 +107,12 @@ public class DefaultImageRegionStore extends AbstractImageRegionStore<BufferedIm
 			g2d.dispose();
 			return img;
 		}
-		
-				
+
+
 		// Loop through and create the image
 		List<TileWorker<BufferedImage>> workers = new ArrayList<>();
 		for (RegionRequest tileRequest : ImageRegionStoreHelpers.getTilesToRequest(server, request, null)) {
-			
+
 			Object result = requestImageTile(server, tileRequest, cache, true);
 
 			// If we have an image, paint it & record coordinates
@@ -150,12 +150,12 @@ public class DefaultImageRegionStore extends AbstractImageRegionStore<BufferedIm
 		}
 		return img;
 	}
-	
-	
-	
+
+
+
 	/**
 	 * Similar to paintRegion, but wait until all the tiles have arrived (or abort if it is taking too long)
-	 * 
+	 *
 	 * @param server
 	 * @param g
 	 * @param clipShapeVisible
@@ -163,22 +163,22 @@ public class DefaultImageRegionStore extends AbstractImageRegionStore<BufferedIm
 	 * @param tPosition
 	 * @param downsampleFactor
 	 * @param observer
-	 * @param imageDispla TODO
+	 * @param imageDisplay
 	 * @param timeoutMilliseconds Timeout after which a request is made from the PathImageServer directly, rather than waiting for tile requests.
 	 */
 	@SuppressWarnings("unchecked")
 	public void paintRegionCompletely(ImageServer<BufferedImage> server, Graphics g, Shape clipShapeVisible, int zPosition, int tPosition, double downsampleFactor, ImageObserver observer, ImageDisplay imageDisplay, long timeoutMilliseconds) {
-		
+
 //		if (downsampleFactor > 1)
 //			((Graphics2D)g).setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
 //		else
 //			((Graphics2D)g).setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
 
-		
+
 		// Loop through and create the image
 		List<TileWorker<BufferedImage>> workers = new ArrayList<>();
 		BufferedImage imgTemp = null;
-		
+
 		for (RegionRequest request : ImageRegionStoreHelpers.getTilesToRequest(server, clipShapeVisible, downsampleFactor, zPosition, tPosition, null)) {
 
 			Object result = requestImageTile(server, request, cache, true);
@@ -196,7 +196,7 @@ public class DefaultImageRegionStore extends AbstractImageRegionStore<BufferedIm
 				workers.add((TileWorker<BufferedImage>)result);
 			}
 		}
-		
+
 		// Loop through any workers now, drawing their tiles too
 		for (TileWorker<BufferedImage> worker : workers) {
 			BufferedImage imgTile = null;
@@ -207,10 +207,10 @@ public class DefaultImageRegionStore extends AbstractImageRegionStore<BufferedIm
 //				e.printStackTrace();
 				continue;
 			} catch (InterruptedException e) {
-				e.printStackTrace();
+				logger.warn("Tile request interrupted in 'paintRegionCompletely': {}", e.getLocalizedMessage());
 				return;
 			} catch (ExecutionException e) {
-				e.printStackTrace();
+				logger.error("Execution exception in 'paintRegionCompletely'", e);
 				return;
 			} catch (TimeoutException e) {
 				// If we timed out, try reading directly
@@ -226,9 +226,11 @@ public class DefaultImageRegionStore extends AbstractImageRegionStore<BufferedIm
 						try {
 							imgTile = worker.get();
 						} catch (InterruptedException e1) {
-							e1.printStackTrace();
+							logger.warn("Tile request interrupted; {}", e1.getLocalizedMessage());
 						} catch (ExecutionException e1) {
-							e1.printStackTrace();
+							logger.warn("Execution exception during tile request: {}", e1.getLocalizedMessage());
+						} catch (CancellationException e1) {
+							logger.warn("Tile request cancelled: {}", e1.getLocalizedMessage());
 						}
 				}
 			}
@@ -238,32 +240,32 @@ public class DefaultImageRegionStore extends AbstractImageRegionStore<BufferedIm
 			if (imageDisplay != null) {
 				imgTemp = imageDisplay.applyTransforms(imgTile, imgTemp);
 				g.drawImage(imgTemp, request.getX(), request.getY(), request.getWidth(), request.getHeight(), observer);
-				
+
 			} else
 				g.drawImage(imgTile, request.getX(), request.getY(), request.getWidth(), request.getHeight(), observer);
 		}
-		
-	}
-	
 
-	
+	}
+
+
+
 	public void paintRegion(ImageServer<BufferedImage> server, Graphics g, Shape clipShapeVisible, int zPosition, int tPosition, double downsampleFactor, BufferedImage imgThumbnail, ImageObserver observer, ImageDisplay imageDisplay) {
 		registerRequest(null, server, clipShapeVisible, downsampleFactor, zPosition, tPosition);
 		paintRegionInternal(server, g, clipShapeVisible, zPosition, tPosition, downsampleFactor, imgThumbnail, observer, imageDisplay);
 	}
 
-	
+
 	private void paintRegionInternal(ImageServer<BufferedImage> server, Graphics g, Shape clipShapeVisible, int zPosition, int tPosition, double downsampleFactor, BufferedImage imgThumbnail, ImageObserver observer, ImageDisplay imageDisplay) {
 
 //		// We don't need it... but try to request the thumbnail to keep it present in the cache, if it is there
 //		cache.get(getThumbnailRequest(server, zPosition, tPosition));
-		
+
 		// Check if we have all the regions required for this request
 		List<RegionRequest> requests = ImageRegionStoreHelpers.getTilesToRequest(server, clipShapeVisible, downsampleFactor, zPosition, tPosition, null);
-		
+
 //		System.out.println("Requesting tiles: " + requests.size());
 //		System.out.println("Requesting tiles " + server.getServerPath() + ": " + requests.size());
-		
+
 		// If we should be painting recursively, ending up with the thumbnail, do so
 		if (imgThumbnail != null) {
 			Rectangle missingBounds = null;
@@ -277,7 +279,7 @@ public class DefaultImageRegionStore extends AbstractImageRegionStore<BufferedIm
 						missingBounds = missingBounds.union(AwtTools.getBounds(request));
 				}
 			}
-			
+
 			// If we are missing regions, try (recursively) to repaint at a lower resolution
 			if (missingBounds != null) {
 				double[] preferredDownsamples = server.getPreferredDownsamples();
@@ -303,7 +305,7 @@ public class DefaultImageRegionStore extends AbstractImageRegionStore<BufferedIm
 				}
 			}
 		}
-		
+
 		// If we're compositing channels, it's worthwhile to cache RGB tiles for so long as the ImageDisplay remains constant
 		boolean useDisplayCache = imageDisplay != null && !server.isRGB() && server.nChannels() > 1;
 		long displayTimestamp = imageDisplay == null ? 0L : imageDisplay.getLastChangeTimestamp();
@@ -314,7 +316,7 @@ public class DefaultImageRegionStore extends AbstractImageRegionStore<BufferedIm
 		for (RegionRequest request : requests) {
 			// Load the image
 			BufferedImage img = getCachedRegion(server, request);
-			
+
 			// If there is no image tile, try to get a lower-resolution version to draw - 
 			// this can actually paint over previously-available regions, but they will be repainted again when this region's request comes through
 			if (img == null)
@@ -349,14 +351,14 @@ public class DefaultImageRegionStore extends AbstractImageRegionStore<BufferedIm
 			}
 			g.drawImage(img, request.getX(), request.getY(), request.getWidth(), request.getHeight(), observer);
 		}
-		
+
 	}
-	
-	
+
+
 	@Override
 	public void close() {
 		super.close();
 	}
-	
-	
+
+
 }
