@@ -219,6 +219,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 			if (anyPoints) {
 				MeasurementBuilder<?> builder = new NumPointsMeasurementBuilder();
 				builderMap.put(builder.getName(), builder);
+				features.add(builder.getName());
 			}
 			// Add spatial measurements, if needed
 			if (anyAreas) {
