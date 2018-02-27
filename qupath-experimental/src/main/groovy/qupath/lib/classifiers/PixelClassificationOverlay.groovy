@@ -61,6 +61,8 @@ public class PixelClassificationOverlay extends AbstractOverlay {
         // Note: we use the downsample for the *classifier*
         List<RegionRequest> requests = ImageRegionStoreHelpers.getTilesToRequest(server, g2d.getClip(), requestedDownsample, imageRegion.getZ(), imageRegion.getT(), null);
 
+//        g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR)
+
         // Loop through & paint classified tiles if we have them, or request tiles if we don't
         DefaultImageRegionStore store = viewer.getImageRegionStore();
         for (RegionRequest request : requests) {
@@ -128,7 +130,10 @@ public class PixelClassificationOverlay extends AbstractOverlay {
                     g2d2.scale(1.0 / downsample, 1.0 / downsample)
                     g2d2.translate(-request.getX() + padding * downsample, -request.getY() + padding * downsample)
                     g2d2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-                    viewer.getImageRegionStore().paintRegionCompletely(server, g2d2, g2d2.getClip(), request.getZ(), request.getT(), request.getDownsample(), null, null, 10L)
+                    viewer.getImageRegionStore().paintRegionCompletely(
+                            server, g2d2, g2d2.getClip(), request.getZ(), request.getT(),
+                            request.getDownsample(),
+                            null, null, 100L)
                     g2d2.dispose()
                     img = imgTile2
 

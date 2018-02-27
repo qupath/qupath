@@ -8,6 +8,7 @@ public class BasicMultiscaleOpenCVFeatureCalculator implements OpenCVFeatureCalc
     private double[] sigmaValues
     private int padding = 0
     private boolean includeEdges
+    private List<String> featureNames
 
     BasicMultiscaleOpenCVFeatureCalculator(double sigmaStart = 1.0, int nScales = 1, boolean includeEdges = false) {
         def sigmas = []
@@ -24,6 +25,10 @@ public class BasicMultiscaleOpenCVFeatureCalculator implements OpenCVFeatureCalc
         opencv_core.Mat matDest = new opencv_core.Mat()
         input.convertTo(matDest, opencv_core.CV_32F)
 
+        int nChannels = input.channels()
+
+        def featureNames = []
+
         // Compute smoothing
         def mats = []
         for (double sigma : sigmaValues) {
@@ -33,13 +38,19 @@ public class BasicMultiscaleOpenCVFeatureCalculator implements OpenCVFeatureCalc
             opencv_imgproc.GaussianBlur(matDest, matTemp, size, sigma)
             mats << matTemp
 
+            for (int c = 1; c <= nChannels; c++)
+                featureNames << String.format('Channel %d: Gaussian sigma = %.2f', c, sigma)
+
             def matTemp2 = new opencv_core.Mat()
             opencv_imgproc.Laplacian(matTemp, matTemp2, -1)
             mats << matTemp2
 
-            def matTemp3 = new opencv_core.Mat()
-            opencv_imgproc.cvtColor(matTemp, matTemp3, opencv_imgproc.COLOR_RGB2HSV)
-            mats << matTemp3
+            for (int c = 1; c <= nChannels; c++)
+                featureNames << String.format('Channel %d: Laplacian sigma = %.2f', c, sigma)
+
+//            def matTemp3 = new opencv_core.Mat()
+//            opencv_imgproc.cvtColor(matTemp, matTemp3, opencv_imgproc.COLOR_RGB2HSV)
+//            mats << matTemp3
 
             if (includeEdges) {
                 def matDx = new opencv_core.Mat()
@@ -48,15 +59,24 @@ public class BasicMultiscaleOpenCVFeatureCalculator implements OpenCVFeatureCalc
                 opencv_imgproc.Sobel(matTemp, matDy, -1, 0, 1)
                 opencv_core.magnitude(matDx, matDy, matDx)
                 mats << matDx
+
+                for (int c = 1; c <= nChannels; c++)
+                    featureNames << String.format('Channel %d: Gradient mag sigma = %.2f', c, sigma)
             }
 
         }
         opencv_core.merge(new opencv_core.MatVector(mats.toArray(new opencv_core.Mat[0])), matDest)
+
+        this.featureNames = Collections.unmodifiableList(featureNames)
         return matDest
     }
 
     public int requestedPadding() {
         return padding
+    }
+
+    public List<String> getLastFeatureNames() {
+        return featureNames
     }
 
     @Override

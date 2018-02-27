@@ -1,6 +1,7 @@
 package qupath.lib.classifiers
 
 import org.bytedeco.javacpp.opencv_core
+import org.bytedeco.javacpp.opencv_imgproc
 import org.bytedeco.javacpp.opencv_ml
 import org.bytedeco.javacpp.opencv_ml.TrainData
 import qupath.lib.images.ImageData
@@ -16,6 +17,7 @@ import qupath.lib.regions.RegionRequest
 import qupath.lib.roi.PathROIToolsAwt
 import qupath.lib.roi.interfaces.ROI
 import qupath.opencv.processing.OpenCVTools
+import qupath.opencv.processing.ProbabilityColorModel
 
 import java.awt.Color
 import java.awt.image.BufferedImage
@@ -139,9 +141,14 @@ class PixelClassifierHelper implements PathObjectHierarchyListener {
         def allFeatures = []
         def allTargets = []
         int label = 0
+        def backgroundClasses = [PathClassFactory.getDefaultPathClass(PathClassFactory.PathClasses.WHITESPACE), PathClassFactory.getPathClass("Background")] as Set
         for (PathClass pathClass : pathClasses) {
             // Create a suitable channel
-            PixelClassifierOutputChannel channel = new PixelClassifierOutputChannel(name: pathClass.getName(), color: pathClass.getColor())
+            def color = backgroundClasses.contains(pathClass) ?
+                    ProbabilityColorModel.BACKGROUND_COLOR : pathClass.getColor()
+            PixelClassifierOutputChannel channel = new PixelClassifierOutputChannel(
+                    name: pathClass.getName(),
+                    color: color)
             newChannels.add(channel)
             // Loop through the object & get masks
             for (ROI roi : map.get(pathClass)) {
@@ -164,10 +171,16 @@ class PixelClassifierHelper implements PathObjectHierarchyListener {
                     def matImage = OpenCVTools.imageToMat(img)
                     matImage.convertTo(matImage, opencv_core.CV_32F)
                     def matMask = OpenCVTools.imageToMat(imgMask)
-                    // Reshape mask to a column matrix
-                    matMask.put(matMask.reshape(1, matMask.rows()*matMask.cols()))
                     // Get features & reshape so that each row has features for specific pixel
                     def matFeaturesFull = calculator.calculateFeatures(matImage)
+                    int heightFeatures = matFeaturesFull.rows()
+                    int widthFeatures = matFeaturesFull.cols()
+                    if (heightFeatures != matMask.rows() || widthFeatures != matMask.cols()) {
+                        opencv_imgproc.resize(matMask, matMask, new opencv_core.Size(widthFeatures, heightFeatures))
+                    }
+                    // Reshape mask to a column matrix
+                    matMask.put(matMask.reshape(1, matMask.rows()*matMask.cols()))
+//                    System.err.println('SIZE: ' + widthFeatures + ' x ' + heightFeatures)
 //                    matFeaturesFull.convertTo(matFeaturesFull, opencv_core.CV_32F)
                     matFeaturesFull.put(matFeaturesFull.reshape(1, matMask.rows()*matMask.cols()))
                     // Extract the pixels
@@ -249,6 +262,7 @@ class PixelClassifierHelper implements PathObjectHierarchyListener {
             updateTrainingData()
         if (matTraining == null || matTargets == null)
             return null
+        System.err.println('Type training: ' + matTraining.depth() + ', ' + matTraining.type())
         return TrainData.create(matTraining, opencv_ml.ROW_SAMPLE, matTargets)
     }
 

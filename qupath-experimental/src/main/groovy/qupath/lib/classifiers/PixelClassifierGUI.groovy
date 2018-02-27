@@ -1,7 +1,9 @@
 package qupath.lib.classifiers
 
+import ij.CompositeImage
 import ij.ImagePlus
 import ij.ImageStack
+import ij.measure.Calibration
 import ij.process.ByteProcessor
 import ij.process.FloatProcessor
 import ij.process.ShortProcessor
@@ -10,40 +12,50 @@ import javafx.beans.property.BooleanProperty
 import javafx.beans.property.SimpleBooleanProperty
 import javafx.beans.property.SimpleObjectProperty
 import javafx.beans.value.ChangeListener
+import javafx.collections.FXCollections
 import javafx.geometry.Insets
 import javafx.scene.Scene
 import javafx.scene.control.Button
 import javafx.scene.control.CheckBox
 import javafx.scene.control.ComboBox
 import javafx.scene.control.Label
+import javafx.scene.control.ListCell
+import javafx.scene.control.ListView
 import javafx.scene.layout.GridPane
+import javafx.scene.shape.Rectangle
 import javafx.stage.Stage
+import javafx.collections.ObservableList
 import org.bytedeco.javacpp.indexer.ByteIndexer
 import org.bytedeco.javacpp.indexer.DoubleIndexer
 import org.bytedeco.javacpp.indexer.FloatIndexer
 import org.bytedeco.javacpp.indexer.UShortIndexer
 import org.bytedeco.javacpp.opencv_core
+import org.bytedeco.javacpp.opencv_dnn
 import org.bytedeco.javacpp.opencv_ml
 import org.bytedeco.javacpp.opencv_ml.StatModel
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import qupath.lib.common.ColorTools
+import qupath.imagej.helpers.IJTools
+import qupath.imagej.images.servers.ImagePlusServerBuilder
 import qupath.lib.gui.QuPathGUI
+import qupath.lib.gui.commands.interfaces.PathCommand
+import qupath.lib.gui.helpers.ColorToolsFX
+import qupath.lib.gui.helpers.DisplayHelpers
 import qupath.lib.gui.viewer.QuPathViewer
 import qupath.lib.gui.viewer.QuPathViewerListener
 import qupath.lib.images.ImageData
 import qupath.lib.objects.PathObject
 import qupath.lib.objects.classes.PathClass
-import qupath.lib.objects.classes.PathClassFactory
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener
+import qupath.lib.regions.RegionRequest
 import qupath.lib.roi.interfaces.ROI
-import qupath.opencv.processing.ProbabilityColorModel
+import qupath.opencv.processing.OpenCVTools
 
 import java.awt.Shape
 import java.awt.image.BufferedImage
 
-class PixelClassifierGUI implements QuPathViewerListener, PathObjectHierarchyListener {
+class PixelClassifierGUI implements PathCommand, QuPathViewerListener, PathObjectHierarchyListener {
 
     private static final Logger logger = LoggerFactory.getLogger(PixelClassifierGUI.class)
 
@@ -96,6 +108,8 @@ class PixelClassifierGUI implements QuPathViewerListener, PathObjectHierarchyLis
     private SimpleObjectProperty<OpenCVFeatureCalculator> selectedFeatureCalculator = new SimpleObjectProperty<>()
     private BooleanProperty autoUpdate = new SimpleBooleanProperty()
 
+    private ObservableList<PathClass> classificationList = FXCollections.observableArrayList()
+
     private PixelClassifierGUI(final QuPathViewer viewer) {
         this.viewer = viewer
     }
@@ -108,6 +122,12 @@ class PixelClassifierGUI implements QuPathViewerListener, PathObjectHierarchyLis
         return classifierGUI
     }
 
+    @Override
+    public void run() {
+        getInstance().show()
+    }
+
+
     private void createGUI() {
         stage = new Stage()
         stage.setTitle("Pixel classifier")
@@ -115,6 +135,12 @@ class PixelClassifierGUI implements QuPathViewerListener, PathObjectHierarchyLis
         stage.setOnCloseRequest( { e ->
             destroy()
         })
+
+
+        def listClassifications = new ListView<PathClass>(classificationList)
+        listClassifications.setCellFactory {new ClassificationCell()};
+        listClassifications.setPrefHeight(200)
+
 
         viewer.addViewerListener(this)
         def imageData = viewer.getImageData()
@@ -132,13 +158,38 @@ class PixelClassifierGUI implements QuPathViewerListener, PathObjectHierarchyLis
                 new BasicMultiscaleOpenCVFeatureCalculator(1.0, 3),
                 new BasicMultiscaleOpenCVFeatureCalculator(2.0, 3)
         )
+
+        // Load more models if we can find any...
+        def project = QuPathGUI.getInstance().getProject()
+        if (project != null) {
+            def dirModels = new File(project.getBaseDirectory(), 'models')
+            if (dirModels.exists()) {
+                for (File f : dirModels.listFiles()) {
+                    if (f.isFile() && !f.isHidden()) {
+                        try {
+                            def model = opencv_dnn.readNetFromTensorflow(f.getAbsolutePath())
+                            def featuresDNN = new OpenCVFeatureCalculatorDNN(model, f.getName())
+                            logger.info("Loaded model from {}", f.getAbsolutePath())
+                            comboFeatures.getItems().add(featuresDNN)
+                        } catch (Exception e) {
+                            logger.warn("Unable to load model from {}", f.getAbsolutePath())
+                        }
+                    }
+                }
+            }
+        }
+
+
         comboFeatures.getSelectionModel().select(0)
         comboFeatures.setMaxWidth(Double.MAX_VALUE)
         selectedFeatureCalculator.bind(comboFeatures.getSelectionModel().selectedItemProperty())
         selectedFeatureCalculator.addListener({v, o, n -> updateClassification()} as ChangeListener)
-        Label labelFeatures = new Label("Choose features")
+        Label labelFeatures = new Label("Features")
         labelFeatures.setLabelFor(comboFeatures)
 
+        // Show features for current selection
+        Button btnShowFeatures = new Button("Show")
+        btnShowFeatures.setOnAction({e -> showFeatures()})
 
         // Make it possible to choose resolution
         ComboBox<ClassificationResolution> comboResolution = new ComboBox<>()
@@ -153,6 +204,10 @@ class PixelClassifierGUI implements QuPathViewerListener, PathObjectHierarchyLis
         // Possibly auto-update
         def cbAutoUpdate = new CheckBox("Auto update")
         autoUpdate.bindBidirectional(cbAutoUpdate.selectedProperty())
+        autoUpdate.addListener({v, o, n ->
+            if (n)
+                updateClassification()
+        } as ChangeListener)
 
         // Make it possible to choose requested pixel size, if auto-update is not selected
         def btnUpdate = new Button("Update")
@@ -162,20 +217,64 @@ class PixelClassifierGUI implements QuPathViewerListener, PathObjectHierarchyLis
 
 
         def pane = new GridPane()
+        pane.setMaxWidth(Double.MAX_VALUE)
+        pane.setMaxHeight(Double.MAX_VALUE)
         pane.setHgap(5.0)
         pane.setVgap(5.0)
         pane.setPadding(new Insets(5))
         int row = 0
         pane.add(labelFeatures, 0, row, 1, 1)
-        pane.add(comboFeatures, 1, row++, 1, 1)
+        pane.add(comboFeatures, 1, row, 1, 1)
+        pane.add(btnShowFeatures, 2, row++, 1, 1)
         pane.add(labelResolution, 0, row, 1, 1)
-        pane.add(comboResolution, 1, row++, 1, 1)
-        pane.add(cbAutoUpdate, 0, row++)
-        pane.add(btnUpdate, 0, row++, 2, 1)
+        pane.add(comboResolution, 1, row++, 2, 1)
+        pane.add(cbAutoUpdate, 0, row++, 3, 1)
+        pane.add(listClassifications, 0, row++, 3, 1)
+        pane.add(btnUpdate, 0, row++, 3, 1)
+
 
         stage.setScene(new Scene(pane))
     }
 
+    def void showFeatures() {
+        def imageData = viewer.getImageData()
+        if (imageData == null) {
+            DisplayHelpers.showErrorMessage("Show features", "No image available!")
+            return
+        }
+        def roi = viewer.getCurrentROI()
+        if (roi == null) {
+            DisplayHelpers.showErrorMessage("Show features", "No ROI selected!")
+            return
+        }
+        def calculator = selectedFeatureCalculator.get()
+        if (calculator == null) {
+            DisplayHelpers.showErrorMessage("Show features", "No feature calculator available!")
+            return
+        }
+        def server = imageData.getServer()
+        def downsample = selectedResolution.get().getMicronsPerPixel() / server.getAveragedPixelSizeMicrons()
+        def request = RegionRequest.createInstance(server.getPath(), downsample, roi)
+        def img = imageData.getServer().readBufferedImage(request)
+        def mat = OpenCVTools.imageToMat(img)
+        def matFeatures = calculator.calculateFeatures(mat)
+        def names = calculator.getLastFeatureNames()
+        def imp = matToImagePlus(matFeatures,
+                String.format("Features: (%.2f, %d, %d, %d, %d)",
+                request.getDownsample(), request.getX(), request.getY(), request.getWidth(), request.getHeight()))
+        def impComp = new CompositeImage(imp, CompositeImage.GRAYSCALE)
+        impComp.setDimensions(impComp.getStackSize(), 1, 1)
+        for (int c = 1; c <= impComp.getStackSize(); c++) {
+            impComp.setC(c)
+            if (names)
+                impComp.getStack().setSliceLabel(names[c-1], c)
+            impComp.resetDisplayRange()
+        }
+        IJTools.calibrateImagePlus(impComp, request, server);
+
+        impComp.setC(1)
+        impComp.show()
+    }
 
     public void show() {
         if (stage == null) {
@@ -203,6 +302,7 @@ class PixelClassifierGUI implements QuPathViewerListener, PathObjectHierarchyLis
         double[] scales = helper.getLastTrainingScales()
         if (trainData == null) {
             logger.error("Not enough annotations to train a classifier!")
+            classificationList.clear()
             return
         }
         def channels = helper.getChannels()
@@ -243,6 +343,7 @@ class PixelClassifierGUI implements QuPathViewerListener, PathObjectHierarchyLis
 
         classifier = new OpenCVPixelClassifier(model, helper.getFeatureCalculator(), metadata)
 
+        classificationList.setAll(helper.getLastTrainingROIs().keySet())
 
         replaceOverlay(new PixelClassificationOverlay(viewer, classifier))
     }
@@ -312,7 +413,7 @@ class PixelClassifierGUI implements QuPathViewerListener, PathObjectHierarchyLis
 
 
 
-    def matToImagePlus(opencv_core.Mat mat, String title="Results") {
+    static matToImagePlus(opencv_core.Mat mat, String title="Results") {
         if (mat.channels() == 1) {
             return new ImagePlus(title, matToImageProcessor(mat))
         }
@@ -325,7 +426,7 @@ class PixelClassifierGUI implements QuPathViewerListener, PathObjectHierarchyLis
         return new ImagePlus(title, stack)
     }
 
-    def matToImageProcessor(opencv_core.Mat mat) {
+    static matToImageProcessor(opencv_core.Mat mat) {
         assert mat.channels() == 1
         int w = mat.cols()
         int h = mat.rows()
@@ -352,5 +453,41 @@ class PixelClassifierGUI implements QuPathViewerListener, PathObjectHierarchyLis
             return ip
         }
     }
+
+
+    class ClassificationCell extends ListCell<PathClass> {
+
+        @Override
+        protected void updateItem(PathClass value, boolean empty) {
+            super.updateItem(value, empty);
+            int size = 10;
+            if (value == null || empty) {
+                setText(null);
+                setGraphic(null);
+            } else if (value.getName() == null) {
+                setText("None");
+                setGraphic(new Rectangle(size, size, ColorToolsFX.getCachedColor(0, 0, 0, 0)));
+            } else {
+
+                def map = helper?.getLastTrainingROIs()
+                Integer n
+                if (map != null) {
+                    n = map.get(value)?.size()
+                }
+                if (n != null)
+                    setText(value.getName() + ' (' + n + ')')
+                else
+                    setText(value.getName());
+                setGraphic(new Rectangle(size, size, ColorToolsFX.getPathClassColor(value)));
+            }
+//            if (value != null && qupath.getViewer().getOverlayOptions().isPathClassHidden(value)) {
+//                setStyle("-fx-font-family:arial; -fx-font-style:italic;");
+//                setText(getText() + " (hidden)");
+//            } else
+//                setStyle("-fx-font-family:arial; -fx-font-style:normal;");
+        }
+
+    }
+
 
 }

@@ -10,4 +10,6 @@ public interface OpenCVFeatureCalculator {
 
     public int requestedPadding();
 
+    public List<String> getLastFeatureNames();
+
 }
