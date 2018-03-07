@@ -322,7 +322,7 @@ public class PathObjectHierarchy implements Serializable {
 	private synchronized boolean addPathObjectToList(PathObject pathObjectParent, PathObject pathObject, boolean avoidDuplicates, boolean fireChangeEvents) {
 		
 		if (pathObject != null && !pathObject.isDetection())
-			logger.info("Adding {} to hierarchy", pathObject);
+			logger.debug("Adding {} to hierarchy", pathObject);
 		
 //		// We can't add to a non-ROI
 //		if (!pathObjectParent.hasROI() && pathObjectParent != getRootObject())
