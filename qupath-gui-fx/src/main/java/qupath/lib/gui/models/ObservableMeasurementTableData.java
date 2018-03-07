@@ -1035,9 +1035,15 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 		public double getCentroid(ROI roi) {
 			if (roi == null || type == null)
 				return Double.NaN;
-			return type == CentroidType.X
-					? roi.getCentroidX() * pixelWidthMicrons()
-					: roi.getCentroidY() * pixelHeightMicrons();
+			if (hasPixelSizeMicrons()) {
+				return type == CentroidType.X
+						? roi.getCentroidX() * pixelWidthMicrons()
+						: roi.getCentroidY() * pixelHeightMicrons();
+			} else {
+				return type == CentroidType.X
+						? roi.getCentroidX()
+						: roi.getCentroidY();
+			}
 		}
 
 		@Override
