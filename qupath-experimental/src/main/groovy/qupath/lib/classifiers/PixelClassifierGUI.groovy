@@ -183,7 +183,10 @@ class PixelClassifierGUI implements PathCommand, QuPathViewerListener, PathObjec
         comboFeatures.getSelectionModel().select(0)
         comboFeatures.setMaxWidth(Double.MAX_VALUE)
         selectedFeatureCalculator.bind(comboFeatures.getSelectionModel().selectedItemProperty())
-        selectedFeatureCalculator.addListener({v, o, n -> updateClassification()} as ChangeListener)
+        selectedFeatureCalculator.addListener({v, o, n ->
+            if (autoUpdate.get())
+                updateClassification()
+        } as ChangeListener)
         Label labelFeatures = new Label("Features")
         labelFeatures.setLabelFor(comboFeatures)
 
@@ -197,7 +200,10 @@ class PixelClassifierGUI implements PathCommand, QuPathViewerListener, PathObjec
         comboResolution.getSelectionModel().select(ClassificationResolution.MODERATE)
         comboResolution.setMaxWidth(Double.MAX_VALUE)
         selectedResolution.bind(comboResolution.getSelectionModel().selectedItemProperty())
-        selectedResolution.addListener({v, o, n -> updateClassification()} as ChangeListener)
+        selectedResolution.addListener({v, o, n ->
+            if (autoUpdate.get())
+            updateClassification()
+        } as ChangeListener)
         Label labelResolution = new Label("Resolution")
         labelResolution.setLabelFor(comboResolution)
 
@@ -391,7 +397,8 @@ class PixelClassifierGUI implements PathCommand, QuPathViewerListener, PathObjec
 
     @Override
     void imageDataChanged(QuPathViewer viewer, ImageData<BufferedImage> imageDataOld, ImageData<BufferedImage> imageDataNew) {
-        helper.setImageData(imageDataNew)
+        if (helper != null)
+            helper.setImageData(imageDataNew)
         if (imageDataOld != null)
             imageDataOld.getHierarchy().removePathObjectListener(this)
         if (imageDataNew != null)

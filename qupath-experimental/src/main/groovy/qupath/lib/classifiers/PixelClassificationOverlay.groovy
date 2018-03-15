@@ -133,7 +133,7 @@ public class PixelClassificationOverlay extends AbstractOverlay {
                     viewer.getImageRegionStore().paintRegionCompletely(
                             server, g2d2, g2d2.getClip(), request.getZ(), request.getT(),
                             request.getDownsample(),
-                            null, null, 100L)
+                            null, null, 5000L)
                     g2d2.dispose()
                     img = imgTile2
 
