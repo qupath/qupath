@@ -415,21 +415,47 @@ public class PathPrefs {
 		}
 		return commandBarDisplay;
 	}
+	
+	
+	private static BooleanProperty doCreateLogFilesProperty = createPersistentPreference("requestCreateLogFiles", true);
+
+	/**
+	 * Request a log file to be generated.  Requires the <code>userPathProperty()</code> to be set to a directory.
+	 * 
+	 * @return
+	 */
+	public static BooleanProperty doCreateLogFilesProperty() {
+		return doCreateLogFilesProperty;
+	}
 		
 	
-	private static StringProperty extensionsPath = createPersistentPreference("extensionsPath", (String)null); // Base directory containing extensions
+	private static StringProperty userPath = createPersistentPreference("userPath", (String)null); // Base directory containing extensions
 
 	
-	public static StringProperty extensionsPathProperty() {
-		return extensionsPath;
+	public static StringProperty userPathProperty() {
+		return userPath;
+	}
+	
+	public static String getUserPath() {
+		return userPath.get();
 	}
 	
 	public static String getExtensionsPath() {
-		return extensionsPath.get();
+		String userPath = getUserPath();
+		if (userPath == null)
+			return null;
+		return new File(userPath, "extensions").getAbsolutePath();
+	}
+	
+	public static String getLoggingPath() {
+		String userPath = getUserPath();
+		if (userPath == null)
+			return null;
+		return new File(userPath, "logs").getAbsolutePath();
 	}
 
-	public static void setExtensionsPath(final String path) {
-		extensionsPath.set(path);
+	public static void setUserPath(final String path) {
+		userPath.set(path);
 	}
 	
 	

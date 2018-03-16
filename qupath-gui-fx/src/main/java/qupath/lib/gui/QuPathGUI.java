@@ -31,10 +31,13 @@ import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.io.Writer;
 import java.lang.Thread.UncaughtExceptionHandler;
 import java.lang.reflect.Constructor;
 import java.net.MalformedURLException;
@@ -47,10 +50,12 @@ import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -73,6 +78,9 @@ import java.util.jar.Manifest;
 import java.util.stream.Collectors;
 
 import javax.imageio.ImageIO;
+import javax.script.ScriptEngine;
+import javax.script.ScriptEngineManager;
+import javax.script.ScriptException;
 
 import org.controlsfx.control.action.Action;
 import org.controlsfx.control.action.ActionUtils;
@@ -256,6 +264,7 @@ import qupath.lib.gui.helpers.dialogs.DialogHelperFX;
 import qupath.lib.gui.helpers.dialogs.ParameterPanelFX;
 import qupath.lib.gui.icons.PathIconFactory;
 import qupath.lib.gui.icons.PathIconFactory.PathIcons;
+import qupath.lib.gui.logging.LoggingAppender;
 import qupath.lib.gui.panels.PathAnnotationPanel;
 import qupath.lib.gui.panels.PathImageDetailsPanel;
 import qupath.lib.gui.panels.PathObjectHierarchyView;
@@ -320,6 +329,7 @@ import qupath.lib.roi.PathROIToolsAwt;
 import qupath.lib.roi.interfaces.ROI;
 import qupath.lib.roi.interfaces.TranslatableROI;
 import qupath.lib.scripting.DefaultScriptEditor;
+import qupath.lib.scripting.DefaultScriptEditor.Language;
 import qupath.lib.scripting.QPEx;
 import qupath.lib.scripting.ScriptEditor;
 import qupath.lib.www.URLHelpers;
@@ -453,7 +463,17 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	public QuPathGUI(final Stage stage, final String path, final boolean isStandalone) {
 		super();
 		
+		if (PathPrefs.doCreateLogFilesProperty().get()) {
+			File fileLogging = tryToStartLogFile();
+			if (fileLogging != null) {
+				logger.info("Logging to file {}", fileLogging);
+			} else {
+				logger.warn("No directory set for log files! None will be written.");
+			}
+		}
+		
 		updateBuildString();
+		logger.info("QuPath build: {}", buildString);
 		
 		long startTime = System.currentTimeMillis();
 		
@@ -665,17 +685,30 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		projectScriptMenuLoader.getMenu().visibleProperty().bind(
 				Bindings.isNotNull(project).or(initializingMenus)
 				);
+		
+		StringBinding userScriptsPath = Bindings.createStringBinding(() -> {
+			String userPath = PathPrefs.getUserPath();
+			File dirScripts = userPath == null ? null : new File(userPath, "scripts");
+			if (dirScripts == null || !dirScripts.isDirectory())
+				return null;
+			return dirScripts.getAbsolutePath();
+		}, PathPrefs.userPathProperty());
+		ScriptMenuLoader userScriptMenuLoader = new ScriptMenuLoader("User scripts...", userScriptsPath, null);
+
 		menuAutomate.setOnMenuValidation(e -> {
 			sharedScriptMenuLoader.updateMenu();
 			projectScriptMenuLoader.updateMenu();
+			userScriptMenuLoader.updateMenu();
 		});
+
 		if (editor instanceof DefaultScriptEditor) {
 			addMenuItems(
 					menuAutomate,
 					null,
 					createCommandAction(new SampleScriptLoader(this), "Open sample scripts"),
 					projectScriptMenuLoader.getMenu(),
-					sharedScriptMenuLoader.getMenu()
+					sharedScriptMenuLoader.getMenu(),
+					userScriptMenuLoader.getMenu()
 					);
 		}
 		
@@ -702,7 +735,34 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		if (!disableAutoUpdateCheck)
 			checkForUpdate(true);
 
+		
+		// Run startup script, if we can
+		try {
+			runStartupScript();			
+		} catch (Exception e) {
+			logger.error("Error running startup script", e);
+		}
 	}
+	
+	
+	/**
+	 * Try to start logging to a file.
+	 * This will only work if <code>PathPrefs.getLoggingPath() != null</code>.
+	 * 
+	 * @return the file that will (attempt to be) used for logging, or <code>null</code> if no file is to be used.
+	 */
+	private File tryToStartLogFile() {
+		String pathLogging = PathPrefs.getLoggingPath();
+		if (pathLogging != null) {
+			SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss");
+			String name = "qupath-" + dateFormat.format(new Date()) + ".log";
+			File fileLog = new File(pathLogging, name);
+			LoggingAppender.getInstance().addFileAppender(fileLog);
+			return fileLog;
+		}
+		return null;
+	}
+	
 	
 	
 	/**
@@ -815,8 +875,8 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	 * 
 	 * @return
 	 */
-	private File getDefaultExtensionDirectory() {
-		return new File(new File(System.getProperty("user.home"), "QuPath"), "extensions");
+	private File getDefaultQuPathUserDirectory() {
+		return new File(System.getProperty("user.home"), "QuPath");
 	}
 	
 	
@@ -1136,7 +1196,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		if (dir == null) {
 			logger.info("No extension directory found!");
 			// Prompt to create an extensions directory
-			File dirDefault = getDefaultExtensionDirectory();
+			File dirDefault = getDefaultQuPathUserDirectory();
 			String msg;
 			if (dirDefault.exists()) {
 				msg = "An directory already exists at " + dirDefault.getAbsolutePath() + 
@@ -1167,15 +1227,16 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 					DisplayHelpers.showErrorMessage("Extension error", "Unable to create directory at \n" + dirDefault.getAbsolutePath());
 					return;
 				}
-				dir = dirDefault;
-				PathPrefs.setExtensionsPath(dir.getAbsolutePath());
+				PathPrefs.setUserPath(dirDefault.getAbsolutePath());
 			} else {
-				dir = getDialogHelper().promptForDirectory(dirDefault);
-				if (dir == null) {
-					logger.info("No extension directory set - extensions not installed");
+				File dirUser = getDialogHelper().promptForDirectory(dirDefault);
+				if (dirUser == null) {
+					logger.info("No QuPath user directory set - extensions not installed");
 					return;
 				}
 			}
+			// Now get the extensions directory (within the user directory)
+			dir = getExtensionDirectory();
 		}
 		// Create directory if we need it
 		if (!dir.exists())
@@ -2334,6 +2395,49 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		return false;
 	}
 	
+	
+	
+	/**
+	 * Check the user directory, and run a Groovy script called "startup.groovy" - if it exists.
+	 * @throws ScriptException 
+	 * @throws FileNotFoundException 
+	 */
+	private void runStartupScript() throws FileNotFoundException, ScriptException {
+		String pathUsers = PathPrefs.getUserPath();
+		File fileScript = pathUsers == null ? null : new File(pathUsers, "startup.groovy");
+		if (fileScript != null && fileScript.exists()) {
+			ScriptEngine engine = new ScriptEngineManager(getClassLoader()).getEngineByName("groovy");
+			engine.getContext().setWriter(new Writer() {
+				
+				@Override
+				public void write(char[] cbuf, int off, int len) throws IOException {
+					logger.info(String.valueOf(cbuf, off, len));
+				}
+				
+				@Override
+				public void flush() throws IOException {}
+				
+				@Override
+				public void close() throws IOException {}
+			});
+			engine.getContext().setErrorWriter(new Writer() {
+				
+				@Override
+				public void write(char[] cbuf, int off, int len) throws IOException {
+					logger.error(String.valueOf(cbuf, off, len));
+				}
+				
+				@Override
+				public void flush() throws IOException {}
+				
+				@Override
+				public void close() throws IOException {}
+			});
+			engine.eval(new FileReader(fileScript));
+		} else {
+			logger.debug("No startup script found");
+		}
+	}
 	
 	
 	
