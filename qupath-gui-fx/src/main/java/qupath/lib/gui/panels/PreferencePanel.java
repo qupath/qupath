@@ -108,6 +108,10 @@ public class PreferencePanel {
 				category,
 				"Automatically check for updated when QuPath is started, and show a message if a new version is available.");
 		
+		addPropertyPreference(PathPrefs.doCreateLogFilesProperty(), Boolean.class,
+				"Create log files",
+				category,
+				"Create log files when using QuPath inside the QuPath user directory (useful for debugging & reporting errors)");
 		
 		addPropertyPreference(PathPrefs.numCommandThreadsProperty(), Integer.class,
 				"Number of processors for parallel commands",
@@ -230,10 +234,10 @@ public class PreferencePanel {
 		 * Extensions
 		 */
 		category = "Extensions";
-		addDirectoryPropertyPreference(PathPrefs.extensionsPathProperty(),
-				"Extensions directory",
+		addDirectoryPropertyPreference(PathPrefs.userPathProperty(),
+				"QuPath user directory",
 				category,
-				"Set the extensions directory - this will only take effect after restarting QuPath");
+				"Set the QuPath user directory - after setting you should restart QuPath");
 
 
 		/*

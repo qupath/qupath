@@ -35,8 +35,10 @@ import javafx.beans.value.ObservableStringValue;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.SeparatorMenuItem;
+import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.scripting.DefaultScriptEditor;
+import qupath.lib.scripting.DefaultScriptEditor.Language;
 
 /**
  * Helper class for creating a dynamic menu to a directory containing scripts.
@@ -155,7 +157,7 @@ public class ScriptMenuLoader {
 				menu.getItems().add(subMenu);
 			}
 		} else {
-			if (scriptEditor.supportsFile(path.toFile())) {
+			if (scriptEditor == null || scriptEditor.supportsFile(path.toFile())) {
 				String name = path.getFileName().toString();
 				boolean cleanName = true;
 				if (cleanName) {
@@ -166,7 +168,20 @@ public class ScriptMenuLoader {
 				}
 				MenuItem item = new MenuItem(name);
 				item.setOnAction(e -> {
-					scriptEditor.showScript(path.toFile());
+					File scriptFile = path.toFile();
+					if (scriptEditor != null)
+						scriptEditor.showScript(scriptFile);
+					else {
+						Language language = DefaultScriptEditor.getLanguageFromName(scriptFile.getName());		
+						try {
+							String script = GeneralTools.readFileAsString(scriptFile.getAbsolutePath());
+							DefaultScriptEditor.executeScript(language, script, QuPathGUI.getInstance().getImageData(), true, null);
+						} catch (Exception e2) {
+							DisplayHelpers.showErrorMessage("Script error", e2);
+						}
+					}
+					
+//					scriptEditor.showScript(path.toFile());
 				});
 				menu.getItems().add(item);
 			}
