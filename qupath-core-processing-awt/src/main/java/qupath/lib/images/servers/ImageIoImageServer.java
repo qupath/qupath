@@ -34,9 +34,7 @@ import java.util.List;
 
 import javax.imageio.ImageIO;
 
-import qupath.lib.awt.images.PathBufferedImage;
 import qupath.lib.common.URLTools;
-import qupath.lib.images.PathImage;
 import qupath.lib.regions.RegionRequest;
 
 /**
@@ -50,9 +48,8 @@ import qupath.lib.regions.RegionRequest;
 public class ImageIoImageServer extends AbstractImageServer<BufferedImage> {
 	
 	private ImageServerMetadata originalMetadata;
-	private ImageServerMetadata userMetadata;
+
 	private BufferedImage img;
-	private String path;
 	private String imageName;
 	
 	/**
@@ -65,7 +62,6 @@ public class ImageIoImageServer extends AbstractImageServer<BufferedImage> {
 	public ImageIoImageServer(final String path, final String imageName, final BufferedImage img) {
 		super();
 		this.img = img;
-		this.path = path;
 		this.imageName = imageName;
 
 		// Create metadata objects
@@ -94,7 +90,7 @@ public class ImageIoImageServer extends AbstractImageServer<BufferedImage> {
 	@Override
 	public String getShortServerName() {
 		try {
-			String name = new File(path).getName().replaceFirst("[.][^.]+$", "");
+			String name = new File(getPath()).getName().replaceFirst("[.][^.]+$", "");
 			return name;
 		} catch (Exception e) {}
 		return getPath();
@@ -115,11 +111,6 @@ public class ImageIoImageServer extends AbstractImageServer<BufferedImage> {
 		if (ind > 0)
 			return Double.NaN;
 		return 0;
-	}
-
-	@Override
-	public PathImage<BufferedImage> readRegion(RegionRequest request) {
-		return new PathBufferedImage(this, request, readBufferedImage(request));
 	}
 
 	@Override
@@ -186,30 +177,8 @@ public class ImageIoImageServer extends AbstractImageServer<BufferedImage> {
 	}
 	
 	@Override
-	public File getFile() {
-		if (path == null)
-			return null;
-		File file = new File(path);
-		if (file.exists())
-			return file;
-		return null;
-	}
-
-	@Override
-	public ImageServerMetadata getMetadata() {
-		return userMetadata == null ? originalMetadata : userMetadata;
-	}
-
-	@Override
 	public ImageServerMetadata getOriginalMetadata() {
 		return originalMetadata;
 	}
 
-	@Override
-	public void setMetadata(ImageServerMetadata metadata) {
-		if (!originalMetadata.isCompatibleMetadata(metadata))
-			throw new RuntimeException("Specified metadata is incompatible with original metadata for " + this);
-		userMetadata = metadata;
-	}
-	
 }

@@ -21,12 +21,9 @@
  * #L%
  */
 
-package qupath.lib.awt.images;
-
-import java.awt.image.BufferedImage;
+package qupath.lib.images;
 
 import qupath.lib.common.GeneralTools;
-import qupath.lib.images.PathImage;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
@@ -37,9 +34,9 @@ import qupath.lib.regions.RegionRequest;
  * @author Pete Bankhead
  *
  */
-public class PathBufferedImage implements PathImage<BufferedImage> {
+public class DefaultPathImage<T> implements PathImage<T> {
 	
-	private BufferedImage img = null;
+	private T img = null;
 	private RegionRequest request;
 	private double pixelWidthMicrons, pixelHeightMicrons;
 	
@@ -54,7 +51,7 @@ public class PathBufferedImage implements PathImage<BufferedImage> {
 	 * @param pixelWidthMicrons
 	 * @param pixelHeightMicrons
 	 */
-	public PathBufferedImage(ImageServer<BufferedImage> server, RegionRequest request, BufferedImage img) {
+	public DefaultPathImage(ImageServer<T> server, RegionRequest request, T img) {
 		this.img = img;
 		this.request = request;
 		this.pixelWidthMicrons = server.getPixelWidthMicrons() * request.getDownsample();
@@ -67,18 +64,8 @@ public class PathBufferedImage implements PathImage<BufferedImage> {
 	}
 
 	@Override
-	public BufferedImage getImage() {
+	public T getImage() {
 		return img;
-	}
-
-	@Override
-	public int getWidth() {
-		return img.getWidth();
-	}
-
-	@Override
-	public int getHeight() {
-		return img.getHeight();
 	}
 
 	@Override
@@ -92,7 +79,7 @@ public class PathBufferedImage implements PathImage<BufferedImage> {
 	}
 
 	@Override
-	public BufferedImage getImage(boolean cache) {
+	public T getImage(boolean cache) {
 		return img;
 	}
 

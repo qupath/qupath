@@ -33,7 +33,6 @@ import java.awt.image.DataBufferUShort;
 import java.awt.image.Raster;
 import java.awt.image.SampleModel;
 import java.awt.image.WritableRaster;
-import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
@@ -55,10 +54,8 @@ import ij.process.FloatProcessor;
 import ij.process.ImageProcessor;
 import ij.process.LUT;
 import ij.process.ShortProcessor;
-import qupath.lib.awt.images.PathBufferedImage;
 import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
-import qupath.lib.images.PathImage;
 import qupath.lib.images.servers.AbstractImageServer;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
@@ -74,18 +71,15 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 	
 	final private static Logger logger = LoggerFactory.getLogger(ImageJServer.class);
 	
-	private String path;
+	private ImageServerMetadata originalMetadata;
+	
 	private ImagePlus imp;
 	
 	private static List<String> micronList = Arrays.asList("micron", "microns", "um", GeneralTools.micrometerSymbol());
 	
-	private ImageServerMetadata originalMetadata;
-	private ImageServerMetadata userMetadata;
-	
 	private ColorModel colorModel;
 	
 	public ImageJServer(final String path) throws IOException {
-		this.path = path;
 		if (path.toLowerCase().endsWith(".tif") || path.toLowerCase().endsWith(".tiff")) {
 			imp = IJ.openVirtual(path);
 		}
@@ -161,14 +155,6 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 	@Override
 	public double getTimePoint(int ind) {
 		return imp.getCalibration().frameInterval * ind;
-	}
-
-	@Override
-	public PathImage<BufferedImage> readRegion(RegionRequest request) {
-		BufferedImage img = readBufferedImage(request);
-		if (img == null)
-			return null;
-		return new PathBufferedImage(this, request, img);
 	}
 
 	@Override
@@ -325,11 +311,6 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 	}
 
 	@Override
-	public File getFile() {
-		return new File(path);
-	}
-
-	@Override
 	public int getBitsPerPixel() {
 		return isRGB() ? 8 : imp.getBitDepth();
 	}
@@ -351,24 +332,12 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 		}
 		return getDefaultChannelColor(channel);
 	}
-
-	@Override
-	public ImageServerMetadata getMetadata() {
-		return userMetadata == null ? originalMetadata : userMetadata;
-	}
-
-	@Override
-	public void setMetadata(ImageServerMetadata metadata) {
-		if (!originalMetadata.isCompatibleMetadata(metadata))
-			throw new RuntimeException("Specified metadata is incompatible with original metadata for " + this);
-		userMetadata = metadata;
-	}
-
+	
 	@Override
 	public ImageServerMetadata getOriginalMetadata() {
 		return originalMetadata;
 	}
-	
+
 	
 	
 	/**
@@ -412,11 +381,7 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 			// Don't do anything
 			return null;
 		}
-		
-		
+				
 	};
 	
-	
-	
-
 }

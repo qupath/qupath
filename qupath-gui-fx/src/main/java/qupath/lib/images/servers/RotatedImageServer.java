@@ -26,14 +26,10 @@ package qupath.lib.images.servers;
 import java.awt.geom.AffineTransform;
 import java.awt.image.AffineTransformOp;
 import java.awt.image.BufferedImage;
-import java.io.File;
-import java.util.List;
 
-import qupath.lib.awt.images.PathBufferedImage;
+import qupath.lib.images.DefaultPathImage;
 import qupath.lib.images.PathImage;
-import qupath.lib.images.servers.AbstractImageServer;
 import qupath.lib.images.servers.ImageServer;
-import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.regions.RegionRequest;
 
 /**
@@ -43,36 +39,16 @@ import qupath.lib.regions.RegionRequest;
  * @author Pete Bankhead
  *
  */
-public class RotatedImageServer extends AbstractImageServer<BufferedImage> {
-	
-	private ImageServer<BufferedImage> server;
+public class RotatedImageServer extends WrappedImageServer<BufferedImage> {
 	
 	public RotatedImageServer(final ImageServer<BufferedImage> server) {
-		super();
-		this.server = server;
+		super(server);
 	}
-
-	@Override
-	public double[] getPreferredDownsamples() {
-		return server.getPreferredDownsamples();
-	}
-
-	@Override
-	public boolean isRGB() {
-		return server.isRGB();
-	}
-
-	@Override
-	public double getTimePoint(int ind) {
-		return server.getTimePoint(ind);
-	}
-	
-	
 
 	@Override
 	public PathImage<BufferedImage> readRegion(RegionRequest request) {
 		request = rotateRequest(request);
-		return new PathBufferedImage(this, request, readRotatedBufferedImage(request));
+		return new DefaultPathImage<>(this, request, readRotatedBufferedImage(request));
 	}
 
 	@Override
@@ -90,7 +66,7 @@ public class RotatedImageServer extends AbstractImageServer<BufferedImage> {
 
 	
 	BufferedImage readRotatedBufferedImage(RegionRequest rotatedRequest) {
-		BufferedImage img = server.readBufferedImage(rotatedRequest);
+		BufferedImage img = getWrappedServer().readBufferedImage(rotatedRequest);
 		
 		if (img == null)
 			return img;
@@ -102,72 +78,6 @@ public class RotatedImageServer extends AbstractImageServer<BufferedImage> {
 	    img = op.filter(img, null);
 		
 		return img;
-	}
-	
-
-	@Override
-	public String getServerType() {
-		return server.getServerType() + " (rotated 180)";
-	}
-
-	@Override
-	public List<String> getSubImageList() {
-		return server.getSubImageList();
-	}
-
-	@Override
-	public List<String> getAssociatedImageList() {
-		return server.getAssociatedImageList();
-	}
-
-	@Override
-	public BufferedImage getAssociatedImage(String name) {
-		return server.getAssociatedImage(name);
-	}
-
-	@Override
-	public String getDisplayedImageName() {
-		return server.getDisplayedImageName();
-	}
-
-	@Override
-	public boolean containsSubImages() {
-		return server.containsSubImages();
-	}
-
-	@Override
-	public boolean usesBaseServer(ImageServer<?> server) {
-		return server.usesBaseServer(server);
-	}
-
-	@Override
-	public File getFile() {
-		return server.getFile();
-	}
-
-	@Override
-	public int getBitsPerPixel() {
-		return server.getBitsPerPixel();
-	}
-
-	@Override
-	public Integer getDefaultChannelColor(int channel) {
-		return server.getDefaultChannelColor(channel);
-	}
-
-	@Override
-	public ImageServerMetadata getMetadata() {
-		return server.getMetadata();
-	}
-
-	@Override
-	public void setMetadata(ImageServerMetadata metadata) {
-		server.setMetadata(metadata);
-	}
-
-	@Override
-	public ImageServerMetadata getOriginalMetadata() {
-		return server.getOriginalMetadata();
 	}
 
 }

@@ -41,8 +41,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.lib.awt.common.AwtTools;
-import qupath.lib.awt.images.PathBufferedImage;
-import qupath.lib.images.PathImage;
 import qupath.lib.regions.RegionRequest;
 
 /**
@@ -56,7 +54,7 @@ public class OpenslideImageServer extends AbstractImageServer<BufferedImage> {
 	final private static Logger logger = LoggerFactory.getLogger(OpenslideImageServer.class);
 
 	private ImageServerMetadata originalMetadata;
-	private ImageServerMetadata userMetadata;
+
 	private double[] downsamples;
 	
 	private List<String> associatedImageList = null;
@@ -150,27 +148,14 @@ public class OpenslideImageServer extends AbstractImageServer<BufferedImage> {
 	
 	@Override
 	public double[] getPreferredDownsamples() {
-//		for (double d : downsamples)
-//			System.out.println(d);
-//		return downsamples.clone();
 		return downsamples;
 	}
-
-	@Override
-	public PathImage<BufferedImage> readRegion(RegionRequest request) {
-		BufferedImage img = readBufferedImage(request);
-		if (img == null)
-			return null;
-		return new PathBufferedImage(this, request, img);
-	}
-
 
 	@Override
 	public void close() {
 		if (osr != null)
 			osr.close();
 	}
-
 	
 	@Override
 	public String getServerType() {
@@ -221,7 +206,7 @@ public class OpenslideImageServer extends AbstractImageServer<BufferedImage> {
 			g2d.dispose();
 			return img2;
 		} catch (Exception e) {
-			e.printStackTrace();
+			logger.error("Error requesting BufferedImage", e);
 		}
 		return null;
 	}
@@ -233,8 +218,6 @@ public class OpenslideImageServer extends AbstractImageServer<BufferedImage> {
 
 	@Override
 	public String getDisplayedImageName() {
-		// TODO: Implement associated images for OpenSlide
-//		logger.error("Image names not implemented for OpenSlide yet...");
 		return getShortServerName();
 	}
 	
@@ -273,17 +256,9 @@ public class OpenslideImageServer extends AbstractImageServer<BufferedImage> {
 		try {
 			return associatedImages.get(name).toBufferedImage();
 		} catch (Exception e) {
-			e.printStackTrace();
+			logger.error("Error requesting associated image " + name, e);
 		}
 		throw new IllegalArgumentException("Unable to find sub-image with the name " + name);
-	}
-
-	@Override
-	public File getFile() {
-		File file = new File(getPath());
-		if (file.exists())
-			return file;
-		return null;
 	}
 
 
@@ -291,24 +266,10 @@ public class OpenslideImageServer extends AbstractImageServer<BufferedImage> {
 	public double getTimePoint(int ind) {
 		return 0;
 	}
-
-
-	@Override
-	public ImageServerMetadata getMetadata() {
-		return userMetadata == null ? originalMetadata : userMetadata;
-	}
-
-
+	
 	@Override
 	public ImageServerMetadata getOriginalMetadata() {
 		return originalMetadata;
-	}
-
-	@Override
-	public void setMetadata(ImageServerMetadata metadata) {
-		if (!originalMetadata.isCompatibleMetadata(metadata))
-			throw new RuntimeException("Specified metadata is incompatible with original metadata for " + this);
-		userMetadata = metadata;
 	}
 
 }

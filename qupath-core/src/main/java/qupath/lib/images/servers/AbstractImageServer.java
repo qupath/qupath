@@ -23,12 +23,15 @@
 
 package qupath.lib.images.servers;
 
+import java.io.File;
 import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.lib.common.ColorTools;
+import qupath.lib.images.PathImage;
+import qupath.lib.images.DefaultPathImage;
 import qupath.lib.regions.RegionRequest;
 
 
@@ -41,6 +44,8 @@ import qupath.lib.regions.RegionRequest;
 public abstract class AbstractImageServer<T> implements ImageServer<T> {
 	
 	final private static Logger logger = LoggerFactory.getLogger(AbstractImageServer.class);
+	
+	private ImageServerMetadata userMetadata;
 	
 	protected double getThumbnailDownsampleFactor(int maxWidth, int maxHeight) {
 		if (maxWidth <= 0) {
@@ -185,6 +190,13 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 		}
 	}
 	
+	@Override
+	public File getFile() {
+		File file = new File(getPath());
+		if (file.exists())
+			return file;
+		return null;
+	}
 	
 	@Override
 	public String getPath() {
@@ -252,10 +264,30 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 	public TimeUnit getTimeUnit() {
 		return getMetadata().getTimeUnit();
 	}
-
+	
 	@Override
 	public boolean usesOriginalMetadata() {
 		return getOriginalMetadata().equals(getMetadata());
+	}
+	
+	@Override
+	public ImageServerMetadata getMetadata() {
+		return userMetadata == null ? getOriginalMetadata() : userMetadata;
+	}
+
+	@Override
+	public void setMetadata(ImageServerMetadata metadata) {
+		if (!getOriginalMetadata().isCompatibleMetadata(metadata))
+			throw new RuntimeException("Specified metadata is incompatible with original metadata for " + this);
+		userMetadata = metadata;
+	}
+	
+	@Override
+	public PathImage<T> readRegion(RegionRequest request) {
+		T img = readBufferedImage(request);
+		if (img == null)
+			return null;
+		return new DefaultPathImage<>(this, request, img);
 	}
 	
 }

@@ -44,18 +44,6 @@ public interface PathImage<T> {
 	public T getImage();
 	
 	/**
-	 * The width of the stored image, in pixels
-	 * @return
-	 */
-	public int getWidth();
-
-	/**
-	 * The height of the stored image, in pixels
-	 * @return
-	 */
-	public int getHeight();
-	
-	/**
 	 * Get the downsample factor originally used when obtaining the image from an ImageServer; will be 1 if the image is full-resolution.
 	 * @return
 	 */

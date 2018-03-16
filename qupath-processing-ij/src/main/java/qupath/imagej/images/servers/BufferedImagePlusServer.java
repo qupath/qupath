@@ -25,7 +25,6 @@ package qupath.imagej.images.servers;
 
 import ij.ImagePlus;
 import ij.ImageStack;
-import ij.measure.Calibration;
 import ij.process.ByteProcessor;
 import ij.process.FloatProcessor;
 import ij.process.ShortProcessor;
@@ -33,16 +32,11 @@ import ij.process.ShortProcessor;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBuffer;
 import java.awt.image.SampleModel;
-import java.io.File;
-import java.util.List;
-import java.util.concurrent.TimeUnit;
-
 import qupath.imagej.helpers.IJTools;
 import qupath.imagej.objects.PathImagePlus;
 import qupath.lib.images.PathImage;
-import qupath.lib.images.servers.AbstractImageServer;
 import qupath.lib.images.servers.ImageServer;
-import qupath.lib.images.servers.ImageServerMetadata;
+import qupath.lib.images.servers.WrappedImageServer;
 import qupath.lib.regions.RegionRequest;
 
 /**
@@ -54,153 +48,20 @@ import qupath.lib.regions.RegionRequest;
  * @author Pete Bankhead
  *
  */
-public class BufferedImagePlusServer extends AbstractImageServer<BufferedImage> implements ImagePlusServer {
+public class BufferedImagePlusServer extends WrappedImageServer<BufferedImage> implements ImagePlusServer {
 
-	private ImageServer<BufferedImage> server;
-	
 	public BufferedImagePlusServer(ImageServer<BufferedImage> server) {
-		this.server = server;
-	}
-	
-	protected ImageServer<BufferedImage> getWrappedServer() {
-		return server;
-	}
-	
-	@Override
-	public String getPath() {
-		return server.getPath();
-	}
-
-	@Override
-	public String getShortServerName() {
-		return server.getShortServerName();
-	}
-
-	@Override
-	public double[] getPreferredDownsamples() {
-		return server.getPreferredDownsamples();
-	}
-
-	@Override
-	public double getMagnification() {
-		return server.getMagnification();
-	}
-
-	@Override
-	public int getWidth() {
-		return server.getWidth();
-	}
-
-	@Override
-	public int getHeight() {
-		return server.getHeight();
-	}
-
-	@Override
-	public int nChannels() {
-		return server.nChannels();
-	}
-
-	@Override
-	public double getPixelWidthMicrons() {
-		return server.getPixelWidthMicrons();
-	}
-
-	@Override
-	public double getPixelHeightMicrons() {
-		return server.getPixelHeightMicrons();
-	}
-
-	
-	protected Calibration getCalibration() {
-		return null;
+		super(server);
 	}
 	
 	@Override
 	public PathImage<BufferedImage> readRegion(RegionRequest request) {
-		return server.readRegion(request);
+		return getWrappedServer().readRegion(request);
 	}
-	
-	@Override
-	public void close() {
-		// TODO: Consider whether or not to close the parent server
-//		server.close();
-	}
-
 	
 	@Override
 	public String getServerType() {
-		return String.format("%s (ImagePlus wrapper)", server.getServerType());
-	}
-
-	@Override
-	public int getPreferredTileWidth() {
-		return server.getPreferredTileWidth();
-	}
-
-	@Override
-	public int getPreferredTileHeight() {
-		return server.getPreferredTileHeight();
-	}
-
-	@Override
-	public boolean isRGB() {
-		return server.isRGB();
-	}
-
-	@Override
-	public int nZSlices() {
-		return server.nZSlices();
-	}
-
-	@Override
-	public double getZSpacingMicrons() {
-		return server.getZSpacingMicrons();
-	}
-
-	@Override
-	public BufferedImage readBufferedImage(RegionRequest request) {
-		return server.readBufferedImage(request);
-	}
-
-	@Override
-	public int nTimepoints() {
-		return server.nTimepoints();
-	}
-
-	@Override
-	public double getTimePoint(int ind) {
-		return server.getTimePoint(ind);
-	}
-
-	@Override
-	public TimeUnit getTimeUnit() {
-		return server.getTimeUnit();
-	}
-
-	@Override
-	public List<String> getSubImageList() {
-		return server.getSubImageList();
-	}
-
-	@Override
-	public String getDisplayedImageName() {
-		return server.getDisplayedImageName();
-	}
-
-	@Override
-	public boolean usesBaseServer(ImageServer<?> server) {
-		return this.server.usesBaseServer(server);
-	}
-	
-	@Override
-	public int getBitsPerPixel() {
-		return server.getBitsPerPixel();
-	}
-	
-	@Override
-	public Integer getDefaultChannelColor(int channel) {
-		return server.getDefaultChannelColor(channel);
+		return String.format("%s (ImagePlus wrapper)", getWrappedServer().getServerType());
 	}
 
 	@Override
@@ -242,44 +103,5 @@ public class BufferedImagePlusServer extends AbstractImageServer<BufferedImage> 
 		return PathImagePlus.createPathImage(this, request, imp);
 	}
 	
-	@Override
-	public List<String> getAssociatedImageList() {
-		return server.getAssociatedImageList();
-	}
-
-	@Override
-	public BufferedImage getAssociatedImage(String name) {
-		return server.getAssociatedImage(name);
-	}
-
-	@Override
-	public boolean containsSubImages() {
-		return server.containsSubImages();
-	}
-	
-	@Override
-	public File getFile() {
-		return server.getFile();
-	}
-
-	@Override
-	public String getSubImagePath(String imageName) {
-		return server.getSubImagePath(imageName);
-	}
-
-	@Override
-	public ImageServerMetadata getMetadata() {
-		return server.getMetadata();
-	}
-
-	@Override
-	public ImageServerMetadata getOriginalMetadata() {
-		return server.getOriginalMetadata();
-	}
-
-	@Override
-	public void setMetadata(ImageServerMetadata metadata) {
-		server.setMetadata(metadata);
-	}
 	
 }

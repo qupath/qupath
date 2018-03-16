@@ -56,8 +56,6 @@ public class PathImagePlus implements PathImage<ImagePlus>, Serializable {
 	transient private ImagePlusServer server;
 	transient private ImagePlus imp = null;
 	private RegionRequest request;
-	// Cache the width & height in case we lose our image later...
-	private int width = -1, height = -1;
 	private double pixelWidthMicrons = Double.NaN, pixelHeightMicrons = Double.NaN;
 
 	
@@ -126,19 +124,6 @@ public class PathImagePlus implements PathImage<ImagePlus>, Serializable {
 		return getImage(true);
 	}
 	
-	@Override
-	public int getWidth() {
-		if (width < 0)
-			width = getImage().getWidth();
-		return width;
-	}
-
-	@Override
-	public int getHeight() {
-		if (height < 0)
-			height = getImage().getHeight();
-		return height;
-	}
 	
 	@Override
 	public double getDownsampleFactor() {
