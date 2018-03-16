@@ -329,7 +329,6 @@ import qupath.lib.roi.PathROIToolsAwt;
 import qupath.lib.roi.interfaces.ROI;
 import qupath.lib.roi.interfaces.TranslatableROI;
 import qupath.lib.scripting.DefaultScriptEditor;
-import qupath.lib.scripting.DefaultScriptEditor.Language;
 import qupath.lib.scripting.QPEx;
 import qupath.lib.scripting.ScriptEditor;
 import qupath.lib.www.URLHelpers;

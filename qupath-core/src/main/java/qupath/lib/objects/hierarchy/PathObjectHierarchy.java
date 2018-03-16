@@ -52,7 +52,6 @@ import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent.HierarchyEve
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.roi.PointsROI;
 import qupath.lib.roi.interfaces.PathArea;
-import qupath.lib.roi.interfaces.PathShape;
 import qupath.lib.roi.interfaces.ROI;
 
 /**

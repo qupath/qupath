@@ -23,25 +23,14 @@
 
 package qupath.lib.gui.commands.scriptable;
 
-import java.awt.geom.Area;
-import java.util.ArrayList;
-import java.util.List;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.lib.gui.ImageDataWrapper;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.images.ImageData;
-import qupath.lib.images.servers.ImageServer;
-import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
-import qupath.lib.roi.PathROIToolsAwt;
-import qupath.lib.roi.RectangleROI;
-import qupath.lib.roi.interfaces.PathArea;
-import qupath.lib.roi.interfaces.PathShape;
-import qupath.lib.roi.interfaces.ROI;
 import qupath.lib.scripting.QPEx;
 
 /**

@@ -24,8 +24,6 @@
 package qupath.lib.gui.commands;
 
 import java.awt.image.BufferedImage;
-import java.text.DecimalFormat;
-import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;

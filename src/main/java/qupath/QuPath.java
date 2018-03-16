@@ -49,7 +49,6 @@ import qupath.lib.images.servers.ImageServerProvider;
 import qupath.lib.io.PathIO;
 import qupath.lib.scripting.QP;
 import qupath.lib.scripting.QPEx;
-import qupath.opencv.OpenCVExtension;
 
 /**
  * Main QuPath launcher.
