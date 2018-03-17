@@ -131,6 +131,18 @@ dependencies {
     compile project(':qupath-extension-ij')
     compile project(':qupath-extension-opencv')
     compile project(':qupath-extension-pen')
+
+    // Try to find packager.jar so it's possible to use UserJvmOptionsService,
+    // and therefore change the memory limits from within the main GUI
+    def filePackager = new File("${System.properties['java.home']}/../lib/packager.jar")
+    if (!filePackager.exists())
+        filePackager = new File("/usr/share/java/openjfx/lib/packager.jar")
+    if (filePackager.exists()) {
+        println 'Found the packager at ' + filePackager.getAbsolutePath()
+        compile files(filePackager)
+    }
+    else
+        println 'I could not find packager.jar! May not be able to set the memory limits from the GUI.'
 }
 
 // Get licences from subprojects
@@ -211,6 +223,7 @@ jar.dependsOn copyLicenseReport
 
 
 apply plugin: 'javafx-gradle-plugin'
+
 
 // Configure javafx-gradle-plugin
 jfx {

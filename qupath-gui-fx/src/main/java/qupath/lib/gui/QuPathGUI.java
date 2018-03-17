@@ -47,23 +47,9 @@ import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.ServiceLoader;
-import java.util.Set;
-import java.util.WeakHashMap;
+import java.util.*;
 import java.util.Locale.Category;
 import java.util.Map.Entry;
-import java.util.Optional;
 import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -1094,7 +1080,12 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		// Refresh the extensions
 		extensionClassLoader.refresh();
 		extensionLoader.reload();
-		for (QuPathExtension extension : extensionLoader) {
+		// Sort the extensions by name, to ensure predictable loading order
+		// (also, menus are in a better order if ImageJ extension installed before OpenCV extension)
+		List<QuPathExtension> extensions = new ArrayList<>();
+		extensionLoader.iterator().forEachRemaining(extensions::add);
+		Collections.sort(extensions, Comparator.comparing(QuPathExtension::getName));
+		for (QuPathExtension extension : extensions) {
 			if (!loadedExtensions.containsKey(extension.getClass())) {
 				extension.installExtension(this);
 				loadedExtensions.put(extension.getClass(), extension);
