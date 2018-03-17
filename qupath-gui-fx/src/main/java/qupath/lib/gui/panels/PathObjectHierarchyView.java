@@ -24,23 +24,15 @@
 package qupath.lib.gui.panels;
 
 import java.awt.image.BufferedImage;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
+import javafx.scene.control.*;
 import org.controlsfx.control.BreadCrumbBar;
 
 import javafx.application.Platform;
 import javafx.beans.property.ObjectProperty;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
-import javafx.scene.control.MultipleSelectionModel;
-import javafx.scene.control.SelectionMode;
-import javafx.scene.control.TreeCell;
-import javafx.scene.control.TreeItem;
-import javafx.scene.control.TreeView;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.paint.Color;
@@ -93,7 +85,7 @@ public class PathObjectHierarchyView implements ImageDataChangeListener<Buffered
 	}
 	
 	private static ObjectProperty<TreeDetectionDisplay> detectionDisplay = PathPrefs.createPersistentPreference(
-			"hierarchyTreeDectectionDisplay", TreeDetectionDisplay.NONE, TreeDetectionDisplay.class);
+			"hierarchyTreeDetectionDisplay", TreeDetectionDisplay.WITH_ICONS, TreeDetectionDisplay.class);
 	
 	static {
 		QuPathGUI.getInstance().getPreferencePanel().addPropertyPreference(detectionDisplay, TreeDetectionDisplay.class, "Hierarchy detection display", "General",
@@ -128,8 +120,45 @@ public class PathObjectHierarchyView implements ImageDataChangeListener<Buffered
 		setImageData(qupath.getImageData());
 		qupath.addImageDataChangeListener(this);
 		
-		
-		
+		// Add popup to control detection display
+		ContextMenu popup = new ContextMenu();
+		ToggleGroup toggleGroup = new ToggleGroup();
+		RadioMenuItem miWithIcons = new RadioMenuItem("With icons");
+		miWithIcons.setToggleGroup(toggleGroup);
+		miWithIcons.selectedProperty().addListener((v, o, n) -> {
+			if (n)
+				detectionDisplay.set(TreeDetectionDisplay.WITH_ICONS);
+		});
+
+
+		RadioMenuItem miWithoutIcons = new RadioMenuItem("Without icons");
+		miWithoutIcons.setToggleGroup(toggleGroup);
+		miWithoutIcons.selectedProperty().addListener((v, o, n) -> {
+			if (n)
+				detectionDisplay.set(TreeDetectionDisplay.WITHOUT_ICONS);
+		});
+
+		RadioMenuItem miHide = new RadioMenuItem("Hide detections");
+		miHide.setToggleGroup(toggleGroup);
+		miHide.selectedProperty().addListener((v, o, n) -> {
+			if (n)
+				detectionDisplay.set(TreeDetectionDisplay.NONE);
+		});
+		// Ensure we have the right toggle selected
+		miWithIcons.setSelected(detectionDisplay.get() == TreeDetectionDisplay.WITH_ICONS);
+		miWithoutIcons.setSelected(detectionDisplay.get() == TreeDetectionDisplay.WITHOUT_ICONS);
+		miHide.setSelected(detectionDisplay.get() == TreeDetectionDisplay.NONE);
+
+		// Add to menu
+		Menu menuDetectionDisplay = new Menu("Detection display");
+		menuDetectionDisplay.getItems().setAll(
+			miWithIcons, miWithoutIcons, miHide
+		);
+		popup.getItems().setAll(
+				menuDetectionDisplay
+		);
+		treeView.setContextMenu(popup);
+
 		treeView.setShowRoot(false);
 		
 		treeViewPane.setCenter(treeView);
@@ -429,6 +458,8 @@ public class PathObjectHierarchyView implements ImageDataChangeListener<Buffered
 
 	@Override
 	public void hierarchyChanged(PathObjectHierarchyEvent event) {
+		if (imageData == null)
+			return;
 //		if (event.isChanging())
 //			return;
 		if (!Platform.isFxApplicationThread()) {
