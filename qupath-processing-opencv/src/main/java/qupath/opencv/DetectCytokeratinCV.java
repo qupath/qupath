@@ -128,11 +128,15 @@ public class DetectCytokeratinCV extends AbstractDetectionPlugin<BufferedImage> 
 			
 			// Extract the color deconvolved channels
 			// TODO: Support alternative stain vectors
-			ColorDeconvolutionStains stains = imageData.getColorDeconvolutionStains();
-			boolean isH_DAB = stains.isH_DAB();
-			if (!isH_DAB) {
-				logger.error("Only H-DAB images are supported!");
+			if (!imageData.isBrightfield()) {
+				logger.error("Only brightfield images are supported!");
 				return Collections.emptyList();
+			}
+			ColorDeconvolutionStains stains = imageData.getColorDeconvolutionStains();
+			// Since we relaxed the strict rule this needs to be H-DAB, at least print a warning if it is not
+			if (!stains.isH_DAB()) {
+				logger.warn("{} was originally designed for H-DAB staining - here, {} will be used in place of hematoxylin and {} in place of DAB",
+						this.getClass().getSimpleName(), stains.getStain(1).getName(), stains.getStain(2).getName());
 			}
 			int[] rgb = img.getRGB(0, 0, w, h, null, 0, w);
 			
@@ -146,8 +150,16 @@ public class DetectCytokeratinCV extends AbstractDetectionPlugin<BufferedImage> 
 			matOD.put(0, 0, pxHematoxylin);
 			matDAB.put(0, 0, pxDAB);
 			
-			// Add the DAB to the haematoxylin values
+			// Add the DAB to the hematoxylin values
 			Core.add(matOD, matDAB, matOD);
+			
+			// If the third channel isn't a residual channel, add it too
+			if (!stains.getStain(3).isResidual()) {
+				float[] pxThird = ColorDeconvolution.colorDeconvolveRGBArray(rgb, stains, 2, null);
+				Mat matThird = new Mat(h, w, CvType.CV_32FC1);
+				matThird.put(0, 0, pxThird);
+				Core.add(matOD, matThird, matOD);
+			}
 			
 			// Apply Gaussian filter
 			Size gaussSize = new Size();
@@ -304,11 +316,13 @@ public class DetectCytokeratinCV extends AbstractDetectionPlugin<BufferedImage> 
 
 	@Override
 	public ParameterList getDefaultParameterList(final ImageData<BufferedImage> imageData) {
+		String stain2Name = imageData.getColorDeconvolutionStains() == null ? "DAB" : imageData.getColorDeconvolutionStains().getStain(2).getName();
+		String stain2Prompt = stain2Name + " threshold";
 		ParameterList params = new ParameterList()
 				.addIntParameter("downsampleFactor", "Downsample factor", 4, "", 1, 32, "Amount to downsample image prior to detection - higher values lead to smaller images (and faster but less accurate processing)")
 				.addDoubleParameter("gaussianSigmaMicrons", "Gaussian sigma", 5, GeneralTools.micrometerSymbol(), "Gaussian filter size - higher values give a smoother (less-detailed) result")
 				.addDoubleParameter("thresholdTissue", "Tissue threshold", 0.1, "OD units", "Threshold to use for tissue detection (used to create stroma annotation) - if zero, no stroma annotation is created")
-				.addDoubleParameter("thresholdDAB", "DAB threshold", 0.25, "OD units", "Threshold to use for cytokeratin detection (used to create tumor annotation) - if zero, no tumor annotation is created")
+				.addDoubleParameter("thresholdDAB", stain2Prompt, 0.25, "OD units", "Threshold to use for cytokeratin detection (used to create tumor annotation) - if zero, no tumor annotation is created")
 				.addDoubleParameter("separationDistanceMicrons", "Separation distance", 0.5, GeneralTools.micrometerSymbol(), "Approximate space to create between tumour & stroma classes when they occur side-by-side");
 		
 //		double thresholdTissue = 0.1;
