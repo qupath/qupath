@@ -49,14 +49,12 @@ import qupath.lib.regions.RegionRequest;
  * @author Pete Bankhead
  *
  */
-public class OpenslideImageServer extends AbstractImageServer<BufferedImage> {
+public class OpenslideImageServer extends AbstractTileableImageServer {
 	
 	final private static Logger logger = LoggerFactory.getLogger(OpenslideImageServer.class);
 
 	private ImageServerMetadata originalMetadata;
 
-	private double[] downsamples;
-	
 	private List<String> associatedImageList = null;
 	private Map<String, AssociatedImage> associatedImages = null;
 
@@ -81,6 +79,7 @@ public class OpenslideImageServer extends AbstractImageServer<BufferedImage> {
 
 
 	public OpenslideImageServer(String path) throws IOException {
+		super(null);
 
 		// Ensure the garbage collector has run - otherwise any previous attempts to load the required native library
 		// from different classloader are likely to cause an error (although upon first further investigation it seems this doesn't really solve the problem...)
@@ -102,25 +101,27 @@ public class OpenslideImageServer extends AbstractImageServer<BufferedImage> {
 		double pixelHeight = readNumericPropertyOrDefault(properties, "openslide.mpp-y", Double.NaN);
 		double magnification = readNumericPropertyOrDefault(properties, "openslide.objective-power", Double.NaN);
 		
+		// Loop through the series again & determine downsamples
+		int levelCount = (int)osr.getLevelCount();
+		double[] downsamples = new double[levelCount];
+		for (int i = 0; i < levelCount; i++)
+			downsamples[i] = osr.getLevelDownsample(i);
+
 		// Create metadata objects
 		originalMetadata = new ImageServerMetadata.Builder(path, width, height).
 				setSizeC(3). // Assume 3 channels (RGB)
+				setRGB(true).
+				setBitDepth(8).
 				setPreferredTileSize(tileWidth, tileHeight).
 				setPixelSizeMicrons(pixelWidth, pixelHeight).
 				setMagnification(magnification).
+				setPreferredDownsamples(downsamples).
 				build();
-
-		// Loop through the series again & determine downsamples
-		int levelCount = (int)osr.getLevelCount();
-		downsamples = new double[levelCount];
-		for (int i = 0; i < levelCount; i++)
-			downsamples[i] = osr.getLevelDownsample(i);
 		
 		/*
 		 * TODO: Determine associated image names
 		 * This works, but need to come up with a better way of returning usable servers
 		 * based on the associated images
-		 * 
 		 */
 		associatedImages = osr.getAssociatedImages();
 		associatedImageList = new ArrayList<>(associatedImages.keySet());
@@ -147,11 +148,6 @@ public class OpenslideImageServer extends AbstractImageServer<BufferedImage> {
 	}
 	
 	@Override
-	public double[] getPreferredDownsamples() {
-		return downsamples;
-	}
-
-	@Override
 	public void close() {
 		if (osr != null)
 			osr.close();
@@ -163,22 +159,18 @@ public class OpenslideImageServer extends AbstractImageServer<BufferedImage> {
 	}
 
 	@Override
-	public boolean isRGB() {
-		return true; // Only RGB currently supported
-	}
-
-	@Override
-	public BufferedImage readBufferedImage(RegionRequest request) {
+	public BufferedImage readTile(RegionRequest request) {
 		Rectangle region = AwtTools.getBounds(request);
 		if (region == null) {
 			region = new Rectangle(0, 0, getWidth(), getHeight());
 		}
 		
 		double downsampleFactor = request.getDownsample();
-		int level = ServerTools.getClosestDownsampleIndex(getPreferredDownsamples(), downsampleFactor);
-		double downsample = downsamples[level];
-		int levelWidth = (int)(region.width / downsample + .5);
-		int levelHeight = (int)(region.height / downsample + .5);
+		double[] preferredDownsamples = getPreferredDownsamples();
+		int level = ServerTools.getClosestDownsampleIndex(preferredDownsamples, downsampleFactor);
+		double downsample = preferredDownsamples[level];
+		int levelWidth = (int)(region.width / downsample + 0.5);
+		int levelHeight = (int)(region.height / downsample + 0.5);
 		BufferedImage img = new BufferedImage(levelWidth, levelHeight, BufferedImage.TYPE_INT_ARGB_PRE);
 
         int data[] = ((DataBufferInt)img.getRaster().getDataBuffer()).getData();
@@ -212,39 +204,6 @@ public class OpenslideImageServer extends AbstractImageServer<BufferedImage> {
 	}
 
 	@Override
-	public List<String> getSubImageList() {
-		return Collections.emptyList();
-	}
-
-	@Override
-	public String getDisplayedImageName() {
-		return getShortServerName();
-	}
-	
-
-	@Override
-	public boolean usesBaseServer(ImageServer<?> server) {
-		return this == server;
-	}
-
-	@Override
-	public int getBitsPerPixel() {
-		return 8; // Only 8-bit RGB images supported
-	}
-	
-	
-	@Override
-	public boolean containsSubImages() {
-		return false;
-	}
-
-
-	@Override
-	public Integer getDefaultChannelColor(int channel) {
-		return getDefaultRGBChannelColors(channel);
-	}
-
-	@Override
 	public List<String> getAssociatedImageList() {
 		if (associatedImageList == null)
 			return Collections.emptyList();
@@ -259,12 +218,6 @@ public class OpenslideImageServer extends AbstractImageServer<BufferedImage> {
 			logger.error("Error requesting associated image " + name, e);
 		}
 		throw new IllegalArgumentException("Unable to find sub-image with the name " + name);
-	}
-
-
-	@Override
-	public double getTimePoint(int ind) {
-		return 0;
 	}
 	
 	@Override

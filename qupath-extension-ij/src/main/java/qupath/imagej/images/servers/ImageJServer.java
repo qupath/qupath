@@ -35,7 +35,6 @@ import java.awt.image.SampleModel;
 import java.awt.image.WritableRaster;
 import java.io.IOException;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -100,6 +99,7 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 			}
 		}
 		
+		boolean isRGB = imp.getType() == ImagePlus.COLOR_RGB;
 		originalMetadata = new ImageServerMetadata.Builder(path,
 				imp.getWidth(),
 				imp.getHeight()).
@@ -108,7 +108,10 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 				setSizeZ(imp.getNSlices()).
 				setSizeT(imp.getNFrames()).
 				setTimeUnit(timeUnit).
+				setRGB(isRGB).
+				setBitDepth(isRGB ? 8 : imp.getBitDepth()).
 				setZSpacingMicrons(zMicrons).
+				setPreferredDownsamples(1.0). // TODO: Consider an in-memory image pyramid for large images
 				setPreferredTileSize(imp.getWidth(), imp.getHeight()).
 //				setMagnification(pxlInfo.mag). // Don't know magnification...?
 				build();
@@ -140,18 +143,6 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 		return Double.NaN;
 	}
 	
-
-	@Override
-	public double[] getPreferredDownsamples() {
-		// TODO: Consider creating an in-memory pyramid for very large images - or at least store a low resolution version?
-		return new double[]{1};
-	}
-
-	@Override
-	public boolean isRGB() {
-		return imp.getType() == ImagePlus.COLOR_RGB;
-	}
-
 	@Override
 	public double getTimePoint(int ind) {
 		return imp.getCalibration().frameInterval * ind;
@@ -281,38 +272,8 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 	}
 
 	@Override
-	public List<String> getSubImageList() {
-		return Collections.emptyList();
-	}
-
-	@Override
-	public List<String> getAssociatedImageList() {
-		return Collections.emptyList();
-	}
-
-	@Override
-	public BufferedImage getAssociatedImage(String name) {
-		return null;
-	}
-
-	@Override
 	public String getDisplayedImageName() {
 		return imp.getTitle();
-	}
-
-	@Override
-	public boolean containsSubImages() {
-		return false;
-	}
-
-	@Override
-	public boolean usesBaseServer(ImageServer<?> server) {
-		return this == server;
-	}
-
-	@Override
-	public int getBitsPerPixel() {
-		return isRGB() ? 8 : imp.getBitDepth();
 	}
 
 	@Override
@@ -330,7 +291,7 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 			int ind = lut.getMapSize()-1;
 			return lut.getRGB(ind);
 		}
-		return getDefaultChannelColor(channel);
+		return super.getDefaultChannelColor(channel);
 	}
 	
 	@Override

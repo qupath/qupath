@@ -24,6 +24,8 @@
 package qupath.lib.images.servers;
 
 import java.io.File;
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
@@ -98,6 +100,20 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 		logger.trace("Server " + this + " being closed now...");		
 	}
 	
+	@Override
+	public double[] getPreferredDownsamples() {
+		return getMetadata().getPreferredDownsamples();
+	}
+	
+	@Override
+	public boolean isRGB() {
+		return getMetadata().isRGB();
+	}
+	
+	@Override
+	public int getBitsPerPixel() {
+		return getMetadata().getBitDepth();
+	}
 	
 	/**
 	 * Attempt to close the server.  While not at all a good idea to rely on this, it may help clean up after some forgotten servers.
@@ -107,9 +123,9 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 		// Ensure we close...
 		try{
 			close();
-		}catch(Throwable t){
+		} catch(Throwable t){
 			throw t;
-		}finally{
+		} finally{
 			super.finalize();
 		}
 	}
@@ -283,11 +299,60 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 	}
 	
 	@Override
+	public double getTimePoint(int ind) {
+		return ind * getMetadata().getSizeT();
+	}
+	
+	@Override
 	public PathImage<T> readRegion(RegionRequest request) {
 		T img = readBufferedImage(request);
 		if (img == null)
 			return null;
 		return new DefaultPathImage<>(this, request, img);
+	}
+	
+	
+	@Override
+	public List<String> getSubImageList() {
+		return Collections.emptyList();
+	}
+
+	@Override
+	public List<String> getAssociatedImageList() {
+		return Collections.emptyList();
+	}
+
+	@Override
+	public T getAssociatedImage(String name) {
+		throw new IllegalArgumentException("No associated image with name '" + name + "' for " + getPath());
+	}
+	
+	@Override
+	public String getDisplayedImageName() {
+		return getShortServerName();
+	}
+
+	@Override
+	public boolean containsSubImages() {
+		return false;
+	}
+
+	@Override
+	public boolean usesBaseServer(ImageServer<?> server) {
+		return this == server;
+	}
+	
+	
+	@Override
+	public Integer getDefaultChannelColor(int channel) {
+		if (isRGB()) {
+			return getDefaultRGBChannelColors(channel);
+		}
+		// Grayscale
+		if (nChannels() == 1)
+			return ColorTools.makeRGB(255, 255, 255);
+		
+		return getExtendedDefaultChannelColor(channel);
 	}
 	
 }

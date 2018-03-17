@@ -29,8 +29,6 @@ import java.io.File;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.util.Collections;
-import java.util.List;
 
 import javax.imageio.ImageIO;
 
@@ -65,8 +63,15 @@ public class ImageIoImageServer extends AbstractImageServer<BufferedImage> {
 		this.imageName = imageName;
 
 		// Create metadata objects
+		int bitDepth = img.getSampleModel().getSampleSize(0);
+		int nChannels = img.getSampleModel().getNumBands();
+		boolean isRGB = (nChannels == 3 || nChannels == 4) && bitDepth == 8;
 		originalMetadata = new ImageServerMetadata.Builder(path, img.getWidth(), img.getHeight()).
-				setSizeC(img.getSampleModel().getNumBands()).build();
+				setPreferredDownsamples(1.0).
+				setRGB(isRGB).
+				setBitDepth(bitDepth).
+				setSizeC(nChannels).
+				build();
 	}
 	
 	/**
@@ -78,39 +83,6 @@ public class ImageIoImageServer extends AbstractImageServer<BufferedImage> {
 	 */
 	public ImageIoImageServer(String path) throws MalformedURLException, IOException {
 		this(path, null, URLTools.checkURL(path) ? ImageIO.read(new URL(path)) : ImageIO.read(new File(path)));
-	}
-	
-//	public ImageServer<>(String path, String imageName) {
-//		this(path, imageName, ImageIO.read(new File(path)));
-//		this.img = img;
-//		this.path = path;
-//		this.imageName = imageName;
-//	}
-
-	@Override
-	public String getShortServerName() {
-		try {
-			String name = new File(getPath()).getName().replaceFirst("[.][^.]+$", "");
-			return name;
-		} catch (Exception e) {}
-		return getPath();
-	}
-
-	@Override
-	public double[] getPreferredDownsamples() {
-		return new double[]{1};
-	}
-
-	@Override
-	public boolean isRGB() {
-		return (nChannels() == 3 || nChannels() == 4) && img.getSampleModel().getSampleSize(0) == 8;
-	}
-
-	@Override
-	public double getTimePoint(int ind) {
-		if (ind > 0)
-			return Double.NaN;
-		return 0;
 	}
 
 	@Override
@@ -135,45 +107,10 @@ public class ImageIoImageServer extends AbstractImageServer<BufferedImage> {
 	}
 
 	@Override
-	public List<String> getSubImageList() {
-		return Collections.emptyList();
-	}
-
-	@Override
 	public String getDisplayedImageName() {
 		if (imageName == null)
-			return getShortServerName();
+			return super.getDisplayedImageName();
 		return imageName;
-	}
-	
-	@Override
-	public boolean containsSubImages() {
-		return imageName != null;
-	}
-
-	@Override
-	public boolean usesBaseServer(ImageServer<?> server) {
-		return this == server;
-	}
-
-	@Override
-	public int getBitsPerPixel() {
-		return img.getSampleModel().getSampleSize(0);
-	}
-
-	@Override
-	public Integer getDefaultChannelColor(int channel) {
-		return getExtendedDefaultChannelColor(channel);
-	}
-
-	@Override
-	public List<String> getAssociatedImageList() {
-		return Collections.emptyList();
-	}
-
-	@Override
-	public BufferedImage getAssociatedImage(String name) {
-		throw new IllegalArgumentException("No associated image with name '" + name + "' for " + getPath());
 	}
 	
 	@Override

@@ -44,6 +44,11 @@ public class ImageServerMetadata {
 	private int sizeZ = 1;
 	private int sizeT = 1;
 	
+	private boolean isRGB = false;
+	private int bitDepth = 8;
+	
+	private double[] downsamples = new double[] {1};
+	
 	private double pixelWidthMicrons = Double.NaN;
 	private double pixelHeightMicrons = Double.NaN;
 	private double zSpacingMicrons = Double.NaN;
@@ -65,6 +70,21 @@ public class ImageServerMetadata {
 		
 		public Builder(final String path, final int width, final int height) {
 			metadata = new ImageServerMetadata(path, width, height);
+		}
+		
+		public Builder setRGB(boolean isRGB) {
+			metadata.isRGB = isRGB;
+			return this;
+		}
+		
+		public Builder setBitDepth(int bitDepth) {
+			metadata.bitDepth = bitDepth;
+			return this;
+		}
+		
+		public Builder setPreferredDownsamples(double... downsamples) {
+			metadata.downsamples = downsamples.clone();
+			return this;
 		}
 		
 		public Builder setSizeC(final int sizeC) {
@@ -135,6 +155,10 @@ public class ImageServerMetadata {
 		this.sizeZ = metadata.sizeZ;
 		this.sizeT = metadata.sizeT;
 		
+		this.isRGB = metadata.isRGB;
+		this.bitDepth = metadata.bitDepth;
+		this.downsamples = metadata.downsamples.clone();
+		
 		this.pixelWidthMicrons = metadata.pixelWidthMicrons;
 		this.pixelHeightMicrons = metadata.pixelHeightMicrons;
 		this.zSpacingMicrons = metadata.zSpacingMicrons;
@@ -156,6 +180,18 @@ public class ImageServerMetadata {
 
 	public int getHeight() {
 		return height;
+	}
+	
+	public double[] getPreferredDownsamples() {
+		return downsamples;
+	}
+	
+	public boolean isRGB() {
+		return isRGB;
+	}
+	
+	public int getBitDepth() {
+		return bitDepth;
 	}
 	
 	public boolean pixelSizeCalibrated() {
