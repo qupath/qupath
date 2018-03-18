@@ -38,7 +38,6 @@ import org.slf4j.LoggerFactory;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.embed.swing.SwingFXUtils;
-import javafx.scene.Group;
 import javafx.scene.Scene;
 import javafx.scene.control.Accordion;
 import javafx.scene.control.ListView;
@@ -76,6 +75,7 @@ import qupath.lib.gui.ImageDataChangeListener;
 import qupath.lib.gui.ImageDataWrapper;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.helpers.DisplayHelpers;
+import qupath.lib.gui.helpers.dialogs.ParameterPanelFX;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.ImageData.ImageType;
 import qupath.lib.images.servers.ImageServer;
@@ -340,6 +340,7 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 		ROI pathROI = imageData.getHierarchy().getSelectionModel().getSelectedROI();
 		boolean wasChanged = false;
 		String warningMessage = null;
+		boolean editableName = imageData.getImageType() == ImageType.BRIGHTFIELD_OTHER;
 		if (pathROI != null) {
 			if ((pathROI instanceof RectangleROI) && 
 					!pathROI.isEmpty() &&
@@ -366,6 +367,8 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 		String title;
 		String nameBefore = null;
 		String valuesBefore = null;
+		String collectiveNameBefore = stains.getName();
+		params.addStringParameter("collectiveName", "Collective name", collectiveNameBefore, "Enter collective name for all 3 stains (e.g. H-DAB Scanner A, H&E Scanner B)");
 		if (value instanceof StainVector) {
 			nameBefore = ((StainVector)value).getName();
 			valuesBefore = ((StainVector)value).arrayAsString(Locale.getDefault(Category.FORMAT));
@@ -375,22 +378,26 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 		} else {
 			nameBefore = "Background";
 			valuesBefore = GeneralTools.arrayToString(Locale.getDefault(Category.FORMAT), (double[])value, 2);
-			params.addStringParameter("name", "Name", nameBefore);
-			params.addStringParameter("values", "Values", valuesBefore, "Enter 3 values (red, green, blue) defining background, separated by spaces");
+			params.addStringParameter("name", "Stain name", nameBefore);
+			params.addStringParameter("values", "Stain values", valuesBefore, "Enter 3 values (red, green, blue) defining background, separated by spaces");
 			params.setHiddenParameters(true, "name");
 			title = "Set background";
 		}
-		
+
 		if (warningMessage != null)
 			params.addEmptyParameter("warning", warningMessage);
 
-		if (!DisplayHelpers.showParameterDialog(title, params))
+		// Disable editing the name if it should be fixed
+		ParameterPanelFX parameterPanel = new ParameterPanelFX(params);
+		parameterPanel.setParameterEnabled("name", editableName);;
+		if (!DisplayHelpers.showConfirmDialog(title, parameterPanel.getPane()))
 			return;
 
 		// Check if anything changed
+		String collectiveName = params.getStringParameterValue("collectiveName");
 		String nameAfter = params.getStringParameterValue("name");
 		String valuesAfter = params.getStringParameterValue("values");
-		if (nameAfter.equals(nameBefore) && valuesAfter.equals(valuesBefore) && !wasChanged)
+		if (collectiveName.equals(collectiveNameBefore) && nameAfter.equals(nameBefore) && valuesAfter.equals(valuesBefore) && !wasChanged)
 			return;
 
 		double[] valuesParsed = ColorDeconvolutionStains.parseStainValues(Locale.getDefault(Category.FORMAT), valuesAfter);
@@ -410,6 +417,9 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 			// Update the background
 			stains = stains.changeMaxValues(valuesParsed[0], valuesParsed[1], valuesParsed[2]);
 		}
+		
+		// Set the collective name
+		stains = stains.changeName(collectiveName);
 
 		imageData.setColorDeconvolutionStains(stains);
 		
