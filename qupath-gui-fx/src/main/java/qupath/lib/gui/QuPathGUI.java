@@ -331,6 +331,12 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	private String buildString = null;
 	private String versionString = null;
 	
+	/**
+	 * Variable, possibly stored in the manifest, indicating the latest commit tag.
+	 * This can be used to give some form of automated versioning.
+	 */
+	private String latestCommitTag = null;
+	
 	// For development... don't run update check if running from a directory (rather than a Jar)
 	private boolean disableAutoUpdateCheck = new File(qupath.lib.gui.QuPathGUI.class.getProtectionDomain().getCodeSource().getLocation().getFile()).isDirectory();
 	
@@ -911,26 +917,26 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	 */
 	private void checkForUpdate(final boolean isAutoCheck) {
 		
-		logger.info("Performing update check...");
-		
 		// Confirm if the user wants us to check for updates
 		boolean doAutoUpdateCheck = PathPrefs.doAutoUpdateCheck();
 		if (isAutoCheck && !doAutoUpdateCheck)
 			return;
 
+		logger.info("Performing update check...");
+
 		// Calculate when we last looked for an update
 		long currentTime = System.currentTimeMillis();
 		long lastUpdateCheck = PathPrefs.getUserPreferences().getLong("lastUpdateCheck", 0);
 
-		// Don't check run auto-update check again if we already checked within the last minute
-		long diffMinutes = (currentTime - lastUpdateCheck) / (60 * 1000);
+		// Don't check run auto-update check again if we already checked within the last hour
+		long diffMinutes = (currentTime - lastUpdateCheck) / (60L * 60L * 1000L);
 		if (isAutoCheck && diffMinutes < 1)
 			return;
 		
 		// See if we can read the current ChangeLog
 		File fileChanges = new File("CHANGELOG.md");
 		if (!fileChanges.exists()) {
-			logger.debug("No changelog found - will not check for updates");
+			logger.warn("No changelog found - will not check for updates");
 			if (!isAutoCheck) {
 				DisplayHelpers.showErrorMessage("Update check", "Cannot check for updates at this time, sorry");
 			}
@@ -2291,8 +2297,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		return new ImageData<BufferedImage>(server, estimateImageType ? DisplayHelpers.estimateImageType(server, imageRegionStore.getThumbnail(server, 0, 0, true)) : ImageData.ImageType.UNSET);
 	}
 	
-	
-	
+		
 	/**
 	 * Attempt to update the build string, providing some basic version info.
 	 * 
@@ -2310,9 +2315,14 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 					Attributes attributes = manifest.getMainAttributes();
 					String version = attributes.getValue("Implementation-Version");
 					String buildTime = attributes.getValue("QuPath-build-time");
+					String latestCommit = attributes.getValue("QuPath-latest-commit");
+					if (latestCommit != null)
+						latestCommitTag = latestCommit;
 					if (version == null || buildTime == null)
 						continue;
 					buildString = "Version: " + version + "\n" + "Build time: " + buildTime;
+					if (latestCommitTag != null)
+						buildString += "\n" + "Latest commit tag: " + latestCommitTag;
 					versionString = version;
 					return true;
 				} catch (IOException e) {

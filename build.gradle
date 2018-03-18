@@ -199,6 +199,32 @@ buildscript {
       maven { url "https://oss.sonatype.org/content/repositories/snapshots" }
       maven { url 'https://plugins.gradle.org/m2/' }
   }
+  
+  // Request latest commit by a command line call to Git, if required
+  def requestLatestCommit = project.findProperty('request-git-tag') == 'true'
+  
+  
+  // Try to get version number
+  ext {
+  	latestGitCommit = null
+  }
+  if (requestLatestCommit) {
+	  try {
+	  	def stdout = new ByteArrayOutputStream()
+	    def result = exec {
+	        commandLine 'git', 'describe', '--tags'
+	        standardOutput = stdout
+	    }
+	    latestGitCommit = stdout.toString().trim()
+	    println 'Latest commit: ' + latestGitCommit
+	  } catch (Exception e) {
+	  	println 'Unable to get latest commit: ' + e.getLocalizedMessage()
+	  	latestGitCommit = 'Unknown (is Git installed?)'
+	  }
+  } else {
+    println "I won't try to get the last commit - consider running with '-Prequest-git-tag=true' if you want this next time (assuming Git is installed)"
+  }
+  
 }
 
 // Run automated license generation (in addition to manually-curated licenses)
@@ -237,8 +263,12 @@ jfx {
     manifestAttributes = [
        "Implementation-Vendor": qupathVendor,
        "Implementation-Title": 'QuPath',
-       "Implementation-Version": qupathVersion
+       "Implementation-Version": qupathVersion,
+       "QuPath-build-time": new Date().format("yyyy-MM-dd, HH:mm")
     ]
+    if (latestGitCommit != null)
+       manifestAttributes["QuPath-latest-commit"] = latestGitCommit
+    
 
     // gradle jfxNative
     vendor               = qupathVendor
