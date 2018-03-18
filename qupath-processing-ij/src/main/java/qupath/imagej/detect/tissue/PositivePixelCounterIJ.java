@@ -43,11 +43,14 @@ import qupath.imagej.objects.PathImagePlus;
 import qupath.imagej.objects.ROIConverterIJ;
 import qupath.lib.color.ColorDeconvolution;
 import qupath.lib.color.ColorDeconvolutionStains;
+import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.PathImage;
+import qupath.lib.images.servers.ImageServer;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.plugins.AbstractDetectionPlugin;
 import qupath.lib.plugins.DetectionPluginTools;
@@ -55,10 +58,14 @@ import qupath.lib.plugins.ObjectDetector;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.RectangleROI;
+import qupath.lib.roi.interfaces.PathArea;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
  * Simple command to detect regions with positive staining.
+ * 
+ * For versions <= v0.1.2 this gave simple measurements that were influenced by the downsample values used.
+ * Later versions make calibrated measurements and give more flexibility in terms of output.
  * 
  * @author Pete Bankhead
  *
@@ -92,11 +99,22 @@ public class PositivePixelCounterIJ extends AbstractDetectionPlugin<BufferedImag
 			double thresholdStain2 = params.getDoubleParameterValue("thresholdStain2");
 			double gaussianSigmaMicrons = params.getDoubleParameterValue("gaussianSigmaMicrons");
 			
+			// Check whether to clear any existing measurements from parent objects
+			boolean clearParentMeasurements = Boolean.TRUE.equals(params.getBooleanParameterValue("clearParentMeasurements"));
+			boolean appendDetectionParameters = Boolean.TRUE.equals(params.getBooleanParameterValue("appendDetectionParameters"));
+			
+			// Default to using legacy measurements if no key is present
+			boolean useLegacyMeasurements = params.containsKey("legacyMeasurements0.1.2") ? params.getBooleanParameterValue("legacyMeasurements0.1.2") : true;
+			if (useLegacyMeasurements) {
+				logger.warn("Legacy measurements will be made for compatibility with QuPath v0.1.2 - note that pixel counts will depend on the downsample selected!");
+			}
+			
 			// Derive more useful values
 			double pixelSize = imageData.getServer().getAveragedPixelSizeMicrons() * downsample;
 			double gaussianSigma = gaussianSigmaMicrons / pixelSize;
 			
 			// Read the image, if necessary
+			ImageServer<BufferedImage> server = imageData.getServer();
 			RegionRequest request = RegionRequest.createInstance(imageData.getServerPath(), downsample, pathROI);
 			PathImage<ImagePlus> pathImage = PathImagePlus.createPathImage(imageData.getServer(), request);
 			ImagePlus imp = pathImage.getImage();
@@ -171,34 +189,109 @@ public class PositivePixelCounterIJ extends AbstractDetectionPlugin<BufferedImag
 			double meanPositive = nPositive == 0 ? Double.NaN : sumPositive / nPositive;
 			double meanNegative = nNegative == 0 ? Double.NaN : sumNegative / nNegative;
 			
+			boolean hasPixelSizeMicrons = server.hasPixelSizeMicrons();
+			String areaUnits = hasPixelSizeMicrons ? GeneralTools.micrometerSymbol() + "^2" : "px^2";
+			double pixelWidth = hasPixelSizeMicrons ? server.getPixelWidthMicrons() : 1;
+			double pixelHeight = hasPixelSizeMicrons ? server.getPixelHeightMicrons() : 1;
+			double areaNegative = 0;
+			double areaPositive = 0;
+			
+			// Create a String to store measurement parameters, if requested
+			int maxDP = 3;
+			String paramsString = "";
+			if (appendDetectionParameters)
+				paramsString = String.format(" (d=%s, s=%s, tN=%s, tP=%s)", 
+					GeneralTools.formatNumber(downsample, maxDP),
+					GeneralTools.formatNumber(gaussianSigmaMicrons, maxDP),
+					GeneralTools.formatNumber(thresholdStain1, maxDP),
+					GeneralTools.formatNumber(thresholdStain2, maxDP));
+						
+			
 			if (roiStained != null) {
 				ROI roiTissue = ROIConverterIJ.convertToPathROI(roiStained, pathImage);
-				PathObject pathObject = new PathDetectionObject(roiTissue, PathClassFactory.getNegative(null, PathClassFactory.COLOR_NEGATIVE));
-				pathObject.getMeasurementList().addMeasurement("Num pixels", nNegative);
-				pathObject.getMeasurementList().addMeasurement("Mean hematoxylin OD", meanNegative);
+				PathObject pathObject = new PathDetectionObject(roiTissue);
+				PathClass pathClass = null;
+				if (useLegacyMeasurements) {
+					pathObject.getMeasurementList().addMeasurement("Num pixels", nNegative);
+					pathObject.getMeasurementList().addMeasurement("Mean hematoxylin OD", meanNegative);
+					pathClass = PathClassFactory.getNegative(null, PathClassFactory.COLOR_NEGATIVE);
+				} else {
+					areaNegative = ((PathArea)roiTissue).getScaledArea(pixelWidth, pixelHeight);
+					pathObject.getMeasurementList().addMeasurement("Stained area " + areaUnits + paramsString, areaNegative);
+					pathObject.getMeasurementList().addMeasurement("Mean " + stains.getStain(1).getName() + " OD" + paramsString, meanNegative);
+					pathClass = PathClassFactory.getPathClass("Pixel count negative", ColorTools.makeScaledRGB(PathClassFactory.COLOR_NEGATIVE, 1.25));
+				}
+				pathObject.setPathClass(pathClass);
+				pathObject.getMeasurementList().closeList();
 				pathObjects.add(pathObject);
 			}
 			if (roiDAB != null) {
 				ROI roiPositive = ROIConverterIJ.convertToPathROI(roiDAB, pathImage);
 //				roiDAB = ShapeSimplifierAwt.simplifyShape(roiDAB, simplifyAmount);
-				PathObject pathObject = new PathDetectionObject(roiPositive, PathClassFactory.getPositive(null, PathClassFactory.COLOR_POSITIVE));
-				pathObject.getMeasurementList().addMeasurement("Num pixels", nPositive);
-				pathObject.getMeasurementList().addMeasurement("Mean DAB OD", meanPositive);
+				PathClass pathClass = null;
+				PathObject pathObject = new PathDetectionObject(roiPositive);
+				if (useLegacyMeasurements) {
+					pathObject.getMeasurementList().addMeasurement("Num pixels", nPositive);
+					pathObject.getMeasurementList().addMeasurement("Mean DAB OD", meanPositive);
+					pathClass = PathClassFactory.getPositive(null, PathClassFactory.COLOR_POSITIVE);
+				} else {
+					areaPositive = ((PathArea)roiPositive).getScaledArea(pixelWidth, pixelHeight);
+					pathObject.getMeasurementList().addMeasurement("Stained area " + areaUnits + paramsString, areaPositive);
+					pathObject.getMeasurementList().addMeasurement("Mean " + stains.getStain(2).getName() + " OD" + paramsString, meanPositive);
+					pathClass = PathClassFactory.getPathClass("Pixel count positive", ColorTools.makeScaledRGB(PathClassFactory.COLOR_POSITIVE, 1.25));
+				}
+				pathObject.setPathClass(pathClass);
+				pathObject.getMeasurementList().closeList();
 				pathObjects.add(pathObject);
 			}
 			
 			boolean addMeasurements = params.getBooleanParameterValue("addSummaryMeasurements");
 			double positivePercentage = nPositive * 100.0 / (nPositive + nNegative);
-			if (addMeasurements) {
-				parent.getMeasurementList().putMeasurement("Positive pixel %", positivePercentage);
-				parent.getMeasurementList().putMeasurement("Positive pixel count", nPositive);
-				parent.getMeasurementList().putMeasurement("Negative pixel count", nNegative);
-				parent.getMeasurementList().putMeasurement("Mean positive DAB staining OD", meanPositive);
-				parent.getMeasurementList().putMeasurement("Stained pixel count", nPositive + nNegative);
-				parent.getMeasurementList().closeList();
+						
+			if (clearParentMeasurements && !parent.getMeasurementList().isEmpty()) {
+				parent.getMeasurementList().clear();				
+				parent.getMeasurementList().closeList();			
 			}
 			
-			lastMessage = String.format("Positive percentage: %.2f%%", positivePercentage);
+			if (addMeasurements) {
+				if (useLegacyMeasurements) {
+					parent.getMeasurementList().putMeasurement("Positive pixel %", positivePercentage);
+					parent.getMeasurementList().putMeasurement("Positive pixel count", nPositive);
+					parent.getMeasurementList().putMeasurement("Negative pixel count", nNegative);
+					parent.getMeasurementList().putMeasurement("Mean positive DAB staining OD", meanPositive);
+					parent.getMeasurementList().putMeasurement("Stained pixel count", nPositive + nNegative);
+					parent.getMeasurementList().closeList();
+				} else {
+					parent.getMeasurementList().putMeasurement("Positive % of stained pixels" + paramsString, positivePercentage);
+					parent.getMeasurementList().putMeasurement("Positive pixel area " + areaUnits + paramsString, areaPositive);
+					parent.getMeasurementList().putMeasurement("Negative pixel area " + areaUnits + paramsString, areaNegative);
+					parent.getMeasurementList().putMeasurement("Stained area (Positive + Negative)" + areaUnits + paramsString, areaPositive + areaNegative);					
+					//					parent.getMeasurementList().putMeasurement("Positive pixel count (full image)", nPositive * downsample * downsample);
+//					parent.getMeasurementList().putMeasurement("Negative pixel count (full image)", nNegative * downsample * downsample);
+//					// Uncalibrated counts really only might be useful for a sanity check
+//					parent.getMeasurementList().putMeasurement(String.format("Uncalibrated positive pixel count" + paramsString, GeneralTools.formatNumber(downsample, 4)), nPositive);
+//					parent.getMeasurementList().putMeasurement(String.format("Uncalibrated negative pixel count" + paramsString, GeneralTools.formatNumber(downsample, 4)), nNegative);
+//					parent.getMeasurementList().putMeasurement("Mean positive " + stains.getStain(2).getName() + " staining OD", meanPositive);
+					
+					// If we can, add measurements relative to the parent ROI
+					ROI roiParent = parent.getROI();
+					boolean roisMatch = roiParent == pathROI;
+					if (!roisMatch) {
+						logger.warn("Unexpected mismatch between parent ROI & analysis ROI! No measurements based on ROI area will be added.");
+					}
+					if (roisMatch && roiParent instanceof PathArea) {
+						// Clip to 100% (could conceivably go slightly above because of sub-pixel errors)
+						double areaROI = ((PathArea)roiParent).getScaledArea(pixelWidth, pixelHeight);
+						parent.getMeasurementList().putMeasurement("Total ROI area " + areaUnits + paramsString, areaROI);					
+//						parent.getMeasurementList().putMeasurement("Stained % of total ROI area" + paramsString, Math.min(100, (areaPositive + areaNegative) / areaROI * 100.0));					
+						parent.getMeasurementList().putMeasurement("Positive % of total ROI area" + paramsString, Math.min(100, areaPositive / areaROI * 100.0));
+					}
+					
+					parent.getMeasurementList().closeList();					
+				}
+			}
+			
+			lastMessage = String.format("Stained positive percentage: %.2f%%", positivePercentage);
 			
 			return pathObjects;
 		}
@@ -219,35 +312,18 @@ public class PositivePixelCounterIJ extends AbstractDetectionPlugin<BufferedImag
 
 	@Override
 	public ParameterList getDefaultParameterList(final ImageData<BufferedImage> imageData) {
+		ColorDeconvolutionStains stains = imageData.getColorDeconvolutionStains();
+		String stain1Name = stains == null ? "Hematoxylin" : stains.getStain(1).getName();
+		String stain2Name = stains == null ? "DAB" : stains.getStain(2).getName();
 		ParameterList params = new ParameterList()
 				.addIntParameter("downsampleFactor", "Downsample factor", 4, "", 1, 32, "Amount to downsample image prior to detection - higher values lead to smaller images (and faster but less accurate processing)")
 				.addDoubleParameter("gaussianSigmaMicrons", "Gaussian sigma", 2, GeneralTools.micrometerSymbol(), "Gaussian filter size - higher values give a smoother (less-detailed) result")
-				.addDoubleParameter("thresholdStain1", "Hematoxylin threshold", 0.1, "OD units", "Threshold to use for hemtaoxylin detection")
-				.addDoubleParameter("thresholdStain2", "DAB threshold", 0.3, "OD units", "Threshold to use for DAB stain detection")
-				.addBooleanParameter("addSummaryMeasurements", "Add summary measurements", true, "Add summary measurements to parent objects");
-		
-//		double thresholdStain1 = 0.1;
-//		double thresholdStain2 = 0.1;
-//		double gaussianSigmaMicrons = 5;
-//		int separationRadius = 1;
-
-		// TODO: Support parameters properly!
-//		
-//		if (imageData.getServer().hasPixelSizeMicrons()) {
-//			String um = GeneralTools.micrometerSymbol();
-//			params.addDoubleParameter("medianRadius", "Median radius", 1, um).
-//				addDoubleParameter("gaussianSigma", "Gaussian sigma", 1.5, um).
-//				addDoubleParameter("openingRadius", "Opening radius", 8, um).
-//				addDoubleParameter("threshold", "Threshold", 0.1, null, 0, 1.0).
-//				addDoubleParameter("minArea", "Minimum area", 25, um+"^2");
-//		} else {
-//			params.addDoubleParameter("medianRadius", "Median radius", 1, "px").
-//					addDoubleParameter("gaussianSigma", "Gaussian sigma", 2, "px").
-//					addDoubleParameter("openingRadius", "Opening radius", 20, "px").
-//					addDoubleParameter("threshold", "Threshold", 0.1, null, 0, 1.0).
-//					addDoubleParameter("minArea", "Minimum area", 100, "px^2");
-//		}
-//		params.addBooleanParameter("splitShape", "Split by shape", true);			
+				.addDoubleParameter("thresholdStain1", stain1Name + " threshold ('Negative')", 0.1, "OD units", "Threshold to use for 'Negative' detection")
+				.addDoubleParameter("thresholdStain2", stain2Name + " threshold ('Positive')", 0.3, "OD units", "Threshold to use for 'Positive' stain detection")
+				.addBooleanParameter("addSummaryMeasurements", "Add summary measurements to parent", true, "Add summary measurements to parent objects")
+				.addBooleanParameter("clearParentMeasurements", "Clear existing parent measurements", true, "Remove any existing measurements from parent objects")
+				.addBooleanParameter("appendDetectionParameters", "Add parameters to measurement names", false, "Append the detection parameters to any measurement names")
+				.addBooleanParameter("legacyMeasurements0.1.2", "Use legacy measurements (v0.1.2)", false, "Generate measurements compatible with QuPath v0.1.2");	
 		return params;
 	}
 
