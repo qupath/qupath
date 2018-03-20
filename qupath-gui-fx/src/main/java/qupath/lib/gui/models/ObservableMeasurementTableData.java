@@ -139,6 +139,12 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 		// Include the class
 		if (containsAnnotations || containsDetections) {
 			builderMap.put("Class", new PathClassMeasurementBuilder());
+			// Get the name of the containing TMA core if we have anything other than cores
+			if (imageData != null && imageData.getHierarchy().getTMAGrid() != null) {
+				builderMap.put("TMA core", new TMACoreNameMeasurementBuilder());
+			}
+			// Get the name of the first parent object
+			builderMap.put("Parent", new ParentNameMeasurementBuilder());
 		}
 
 		// Include the TMA missing status, if appropriate
@@ -1101,6 +1107,57 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 		}
 		
 	}
+	
+	/**
+	 * Get the displayed name of the first TMACoreObject that is an ancestor of the supplied object.
+	 */
+	static class TMACoreNameMeasurementBuilder extends StringMeasurementBuilder {
+		
+		@Override
+		public String getName() {
+			return "TMA Core";
+		}
+		
+		private TMACoreObject getAncestorTMACore(PathObject pathObject) {
+			if (pathObject == null)
+				return null;
+			if (pathObject instanceof TMACoreObject)
+				return (TMACoreObject)pathObject;
+			return getAncestorTMACore(pathObject.getParent());
+		}
+
+		@Override
+		public String getMeasurementValue(PathObject pathObject) {
+			TMACoreObject core = getAncestorTMACore(pathObject);
+			if (core == null)
+				return null;
+			return core.getDisplayedName();
+		}
+		
+	}
+	
+	
+	
+	/**
+	 * Get the displayed name of the parent of this object.
+	 */
+	static class ParentNameMeasurementBuilder extends StringMeasurementBuilder {
+		
+		@Override
+		public String getName() {
+			return "Parent";
+		}
+		
+		@Override
+		public String getMeasurementValue(PathObject pathObject) {
+			PathObject parent = pathObject == null ? null : pathObject.getParent();
+			if (parent == null)
+				return null;
+			return parent.getDisplayedName();
+		}
+		
+	}
+	
 	
 	
 	static abstract class NumericMeasurementBuilder implements MeasurementBuilder<Number> {
