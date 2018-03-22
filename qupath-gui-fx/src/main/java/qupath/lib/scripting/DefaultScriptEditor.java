@@ -117,8 +117,6 @@ import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerProvider;
 import qupath.lib.images.servers.RotatedImageServer;
-import qupath.lib.images.stores.ImageRegionStore;
-import qupath.lib.images.stores.ImageRegionStoreFactory;
 import qupath.lib.io.PathIO;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectImageEntry;
@@ -1225,7 +1223,6 @@ public class DefaultScriptEditor implements ScriptEditor {
 			
 			int counter = 0;
 			for (ProjectImageEntry<?> entry : imagesToProcess) {
-				ImageRegionStore<BufferedImage> regionStore = null;
 				try {
 					// Stop
 					if (isQuietlyCancelled() || isCancelled()) {
@@ -1239,9 +1236,6 @@ public class DefaultScriptEditor implements ScriptEditor {
 					
 					// Create a new region store if we need one
 					System.gc();
-//					regionStore = ImageRegionStoreFactory.createImageRegionStore(Runtime.getRuntime().freeMemory()/4);
-					regionStore = qupath == null ? ImageRegionStoreFactory.createImageRegionStore(Runtime.getRuntime().freeMemory()/4) : qupath.getImageRegionStore();
-					QPEx.setSharedRegionStore(regionStore);
 
 					File fileEntry = QuPathGUI.getImageDataFile(project, entry);
 //					// TODO: Check rotate flag!
@@ -1273,11 +1267,6 @@ public class DefaultScriptEditor implements ScriptEditor {
 					imageData.getServer().close();
 				} catch (Exception e) {
 					logger.error("Error running batch script: {}", e);
-				} finally {
-//					// Close & reset the region store
-//					if (regionStore != null)
-//						regionStore.close();
-					QPEx.setSharedRegionStore(null);
 				}
 			}
 			updateProgress(imagesToProcess.size(), imagesToProcess.size());

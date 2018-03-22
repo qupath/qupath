@@ -71,7 +71,7 @@ public class PluginRunnerFX extends AbstractPluginRunner<BufferedImage> {
 	//		private ImageData<BufferedImage> imageData; // Consider reinstating - at least as an option
 
 	public PluginRunnerFX(final QuPathGUI qupath, final boolean batchMode) {
-		super(qupath.getImageRegionStore(), batchMode);
+		super(batchMode);
 		this.qupath = qupath;
 		//			this.imageData = qupath.getImageData();
 	}

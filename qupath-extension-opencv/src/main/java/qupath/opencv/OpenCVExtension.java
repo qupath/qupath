@@ -59,22 +59,22 @@ public class OpenCVExtension implements QuPathExtension {
 		Menu menuFeatures = qupath.getMenu("Analyze>Calculate features", true);
 		QuPathGUI.addMenuItems(
 				menuFeatures,
-				qupath.createPluginAction("Add Delaunay cluster features (experimental)", DelaunayClusteringPlugin.class, null, false)
+				qupath.createPluginAction("Add Delaunay cluster features (experimental)", DelaunayClusteringPlugin.class, null)
 				);
 
 		Menu menuRegions = qupath.getMenu("Analyze>Region identification", true);
 		QuPathGUI.addMenuItems(
 				menuRegions,
 //				QuPathGUI.createCommandAction(new TissueSegmentationCommand(qupath), "Tissue identification (OpenCV, experimental)"),
-				qupath.createPluginAction("Create cytokeratin annotations (TMA, experimental)", DetectCytokeratinCV.class, null, false)
+				qupath.createPluginAction("Create cytokeratin annotations (TMA, experimental)", DetectCytokeratinCV.class, null)
 				);
 
 		Menu menuCellAnalysis = qupath.getMenu("Analyze>Cell analysis", true);
 		QuPathGUI.addMenuItems(
 				menuCellAnalysis,
 				new SeparatorMenuItem(),
-				qupath.createPluginAction("Watershed nucleus detection (OpenCV, experimental)", WatershedNucleiCV.class, null, false),
-				qupath.createPluginAction("Fast cell counts (brightfield)", CellCountsCV.class, null, false)
+				qupath.createPluginAction("Watershed nucleus detection (OpenCV, experimental)", WatershedNucleiCV.class, null),
+				qupath.createPluginAction("Fast cell counts (brightfield)", CellCountsCV.class, null)
 				);
 
 		Menu menuClassify = qupath.getMenu("Classify", true);

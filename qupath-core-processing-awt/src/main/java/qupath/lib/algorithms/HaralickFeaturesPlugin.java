@@ -84,12 +84,7 @@ public class HaralickFeaturesPlugin extends AbstractInteractivePlugin<BufferedIm
 	
 	private ParameterList params;
 	
-	transient private ImageRegionStore<BufferedImage> regionStore;
-	
-
-	public HaralickFeaturesPlugin(final ImageRegionStore<BufferedImage> regionServer) {
-		this.regionStore = regionServer;
-		
+	public HaralickFeaturesPlugin() {
 		params = new ParameterList().
 				addDoubleParameter("downsample", "Downsample", 1, null, "Amount to downsample the image before calculating textures; choose 1 to use full resolution, or a higher value to use a smaller image").
 				addDoubleParameter("magnification", "Magnification", 5, null, "Magnification factor of the image used to calculate the textures").
@@ -104,64 +99,6 @@ public class HaralickFeaturesPlugin extends AbstractInteractivePlugin<BufferedIm
 				addBooleanParameter("useNucleusROIs", "Use cell nucleus ROIs", true, "If textures are computed around cell objects, the nucleus ROI is used where available").
 				addIntParameter("haralickDistance", "Haralick distance", 1, null, "Spacing between pixels used in computing the co-occurrence matrix for Haralick textures (default = 1)").
 				addIntParameter("haralickBins", "Haralick number of bins", 32, null, 8, 256, "Number of intensity bins to use when computing the co-occurrence matrix for Haralick textures (default = 32)");
-	}
-
-	public HaralickFeaturesPlugin() {
-		this(null);
-	}
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	// TODO: SEE ABOUT CREATING A TEMPORARY REGION STORE
-	
-	
-	
-	@Override
-	public boolean runPlugin(final PluginRunner<BufferedImage> pluginRunner, final String arg) {
-		
-		boolean tempRegionStore = false;
-		if (regionStore == null) {
-			regionStore = pluginRunner.getRegionStore();
-			tempRegionStore = regionStore != null;
-		}
-		
-//		// If we don't have a region store & we aren't running in the background, create a temporary one
-////		if (!runInBackground && regionStore == null) {
-//		if (regionStore == null) {
-//			tempRegionStore = true;
-//			regionStore = ImageRegionStoreFactory.createImageRegionStore();
-//			logger.debug("Created temporary region store: " + regionStore);
-//		}
-
-		boolean success = super.runPlugin(pluginRunner, arg);
-		
-		if (tempRegionStore) {
-//			regionStore.close();
-			regionStore = null;
-		}
-		
-		return success;
 	}
 	
 	
@@ -192,37 +129,31 @@ public class HaralickFeaturesPlugin extends AbstractInteractivePlugin<BufferedIm
 	protected void addRunnableTasks(final ImageData<BufferedImage> imageData, final PathObject parentObject, List<Runnable> tasks) {
 		final ParameterList params = getParameterList(imageData);
 		final ImageServer<BufferedImage> server = imageData.getServer();
-		tasks.add(new HaralickRunnable(server, parentObject, params, imageData.getColorDeconvolutionStains(), regionStore));
+		tasks.add(new HaralickRunnable(server, parentObject, params, imageData.getColorDeconvolutionStains()));
 	}
 	
 	
-	@Override
-	protected Collection<Runnable> getTasks(final PluginRunner<BufferedImage> runner) {
-		Collection<Runnable> tasks = super.getTasks(runner);
-		// If we have a region store, it can be preferable to shuffle the tasks for performance.
-		// This is because regions larger than the requested tile size will be cached,
-		// so threads waiting for adjacent tiles can both block waiting for the same image -
-		// causing fetching regions to become a bottleneck.
-		// By shuffling tiles, all the threads put in requests for different requests at the start
-		// (which is slow), but as the image is processed then increasingly the required regions are
-		// already in the cache when they are needed - causing a dramatic speedup during runtime.
-		// Overall throughput should be improved, since the time spend blocked is minimized.
-		// *However* this is only likely to work if the cache is sufficiently big... otherwise
-		// a slowdown is possible, due to adjacent regions needing to be requested multiple times
-		// because the cache has been emptied in the interim.
-//		if (regionStore != null & Runtime.getRuntime().totalMemory() >= 1024L*1024L*1024L*4L) {
-//			if (!(tasks instanceof List))
-//				tasks = new ArrayList<>(tasks);
-//			Collections.shuffle((List<?>)tasks);
-			
-		if (regionStore != null) {
-			int n = tasks.size();
-			Runnable[] tasks2 = new Runnable[n];
-			if (rearrangeByStride(tasks, tasks2, Runtime.getRuntime().availableProcessors()))
-				tasks = Arrays.asList(tasks2);
-		}
-		return tasks;
-	}
+//	@Override
+//	protected Collection<Runnable> getTasks(final PluginRunner<BufferedImage> runner) {
+//		Collection<Runnable> tasks = super.getTasks(runner);
+//		// If we have a region store, it can be preferable to shuffle the tasks for performance.
+//		// This is because regions larger than the requested tile size will be cached,
+//		// so threads waiting for adjacent tiles can both block waiting for the same image -
+//		// causing fetching regions to become a bottleneck.
+//		// By shuffling tiles, all the threads put in requests for different requests at the start
+//		// (which is slow), but as the image is processed then increasingly the required regions are
+//		// already in the cache when they are needed - causing a dramatic speedup during runtime.
+//		// Overall throughput should be improved, since the time spend blocked is minimized.
+//		// *However* this is only likely to work if the cache is sufficiently big... otherwise
+//		// a slowdown is possible, due to adjacent regions needing to be requested multiple times
+//		// because the cache has been emptied in the interim.
+////		if (regionStore != null & Runtime.getRuntime().totalMemory() >= 1024L*1024L*1024L*4L) {
+////			if (!(tasks instanceof List))
+////				tasks = new ArrayList<>(tasks);
+////			Collections.shuffle((List<?>)tasks);
+//			
+//		return tasks;
+//	}
 	
 	
 	static class HaralickRunnable implements Runnable, TileListener<BufferedImage> {
@@ -231,13 +162,11 @@ public class HaralickFeaturesPlugin extends AbstractInteractivePlugin<BufferedIm
 		private ParameterList params;
 		private PathObject parentObject;
 		private ColorDeconvolutionStains stains;
-		private ImageRegionStore<BufferedImage> store;
 		
-		public HaralickRunnable(final ImageServer<BufferedImage> server, final PathObject parentObject, final ParameterList params, final ColorDeconvolutionStains stains, final ImageRegionStore<BufferedImage> store) {
+		public HaralickRunnable(final ImageServer<BufferedImage> server, final PathObject parentObject, final ParameterList params, final ColorDeconvolutionStains stains) {
 			this.server = server;
 			this.parentObject = parentObject;
 			this.params = params;
-			this.store = store;
 			this.stains = stains;
 		}
 
@@ -252,20 +181,14 @@ public class HaralickFeaturesPlugin extends AbstractInteractivePlugin<BufferedIm
 		@Override
 		public void run() {
 			try {
-				if (store != null)
-					store.addTileListener(this);
-				processObject(parentObject, params, server, stains, store);
+				processObject(parentObject, params, server, stains);
 //			} catch (InterruptedException e) {
 //				// TODO Auto-generated catch block
 //				e.printStackTrace();
 			} finally {
-				if (store != null)
-					store.removeTileListener(this);
 				parentObject.getMeasurementList().closeList();
-				
 				server = null;
 				params = null;
-				store = null;
 			}
 		}
 		
@@ -281,7 +204,7 @@ public class HaralickFeaturesPlugin extends AbstractInteractivePlugin<BufferedIm
 	
 	
 
-	static boolean processObject(final PathObject pathObject, final ParameterList params, final ImageServer<BufferedImage> server, final ColorDeconvolutionStains stains, final ImageRegionStore<BufferedImage> regionStore) {
+	static boolean processObject(final PathObject pathObject, final ParameterList params, final ImageServer<BufferedImage> server, final ColorDeconvolutionStains stains) {
 		String stainsName = (String)params.getChoiceParameterValue("stainChoice");
 		double mag = params.getDoubleParameterValue("magnification");
 		int d = params.getIntParameterValue("haralickDistance");
@@ -338,22 +261,8 @@ public class HaralickFeaturesPlugin extends AbstractInteractivePlugin<BufferedIm
 //		System.out.println(bounds);
 //		System.out.println("Size: " + size);
 
-		BufferedImage img = null;
-		// Try to read the image using the ImageRegionServer... if this doesn't work out, fall back to using the default (slower) method
-		if (regionStore != null) {
-			try {
-				img = regionStore.getImage(server, region);
-			} catch (Exception e) {
-//				if (e instanceof InterruptedException)
-//					throw (InterruptedException)e;
-				logger.info("Failed to read from {} in region store with request {}", server, region);
-				e.printStackTrace();
-			}
-		}
-		// Try again once more...
-		if (img == null) {
-			img = server.readBufferedImage(region);
-		}
+		BufferedImage img = server.readBufferedImage(region);
+
 		if (img == null) {
 			logger.error("Could not read image - unable to compute Haralick features for {}", pathObject);
 			return false;

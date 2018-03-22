@@ -514,15 +514,15 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	}
 
 
-	public QuPathViewer(final ImageData<BufferedImage> imageData, DefaultImageRegionStore regionServer, OverlayOptions overlayOptions) {
-		this(imageData, regionServer, overlayOptions, new ImageDisplay(null, regionServer, PathPrefs.getShowAllRGBTransforms()));
+	public QuPathViewer(final ImageData<BufferedImage> imageData, DefaultImageRegionStore regionStore, OverlayOptions overlayOptions) {
+		this(imageData, regionStore, overlayOptions, new ImageDisplay(null, regionStore, PathPrefs.getShowAllRGBTransforms()));
 	}
 
 
-	public QuPathViewer(final ImageData<BufferedImage> imageData, DefaultImageRegionStore regionServer, OverlayOptions overlayOptions, ImageDisplay imageDisplay) {
+	public QuPathViewer(final ImageData<BufferedImage> imageData, DefaultImageRegionStore regionStore, OverlayOptions overlayOptions, ImageDisplay imageDisplay) {
 		super();
 
-		this.regionStore = regionServer;
+		this.regionStore = regionStore;
 
 		setOverlayOptions(overlayOptions);
 		
@@ -562,7 +562,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 
 		this.imageDisplay = imageDisplay;
 
-		hierarchyOverlay = new HierarchyOverlay(regionServer, overlayOptions, imageData);
+		hierarchyOverlay = new HierarchyOverlay(this.regionStore, overlayOptions, imageData);
 		// Set up the overlay layers
 		overlayLayers.add(new TMAGridOverlay(overlayOptions, imageData));
 		//		overlayLayers.add(new HierarchyOverlay(regionServer, overlayOptions, imageData));
@@ -571,7 +571,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 
 		setImageData(imageData);
 
-		regionServer.addTileListener(this);
+		this.regionStore.addTileListener(this);
 
 		//		updateCursor();
 		imageUpdated = true;

@@ -28,6 +28,9 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import qupath.lib.analysis.algorithms.FloatArraySimpleImage;
 import qupath.lib.analysis.algorithms.SimpleImage;
 import qupath.lib.analysis.algorithms.SimpleModifiableImage;
@@ -40,7 +43,6 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.geom.ImmutableDimension;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
-import qupath.lib.images.stores.ImageRegionStore;
 import qupath.lib.images.stores.TileListener;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.objects.PathDetectionObject;
@@ -64,12 +66,7 @@ public class LocalBinaryPatternsPlugin extends AbstractInteractivePlugin<Buffere
 	
 	private ParameterList params;
 	
-	transient private ImageRegionStore<BufferedImage> regionStore;
-	
-
-	public LocalBinaryPatternsPlugin(final ImageRegionStore<BufferedImage> regionServer) {
-		this.regionStore = regionServer;
-		
+	public LocalBinaryPatternsPlugin() {
 		params = new ParameterList().
 				addDoubleParameter("magnification", "Magnification", 5).
 				addChoiceParameter("stainChoice", "Stains", "Optical density", new String[]{"Optical density", "H-DAB", "H&E", "H-DAB (8-bit)", "H&E (8-bit)", "RGB", "Grayscale"});
@@ -80,53 +77,6 @@ public class LocalBinaryPatternsPlugin extends AbstractInteractivePlugin<Buffere
 		params.addBooleanParameter("includeStats", "Include basic statistics", false).
 				addBooleanParameter("doCircular", "Use circular tiles", false);
 	}
-
-	public LocalBinaryPatternsPlugin() {
-		this(null);
-	}
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	// TODO: SEE ABOUT CREATING A TEMPORARY REGION STORE
-	
-	
-	
-	@Override
-	public boolean runPlugin(final PluginRunner<BufferedImage> pluginRunner, final String arg) {
-		boolean tempRegionStore = false;
-		// If we don't have a region store & we aren't running in the background, create a temporary one
-		if (this.regionStore == null)
-			this.regionStore = pluginRunner.getRegionStore();
-
-		boolean success = super.runPlugin(pluginRunner, arg);
-		
-		if (tempRegionStore)
-			this.regionStore = null;
-
-		return success;
-	}
-	
 	
 	
 	static ImmutableDimension getPreferredTileSizePixels(final ImageServer<BufferedImage> server, final ParameterList params) {
@@ -155,24 +105,24 @@ public class LocalBinaryPatternsPlugin extends AbstractInteractivePlugin<Buffere
 	protected void addRunnableTasks(final ImageData<BufferedImage> imageData, final PathObject parentObject, List<Runnable> tasks) {
 		final ParameterList params = getParameterList(imageData);
 		final ImageServer<BufferedImage> server = imageData.getServer();
-		tasks.add(new LBFRunnable(server, parentObject, params, imageData.getColorDeconvolutionStains(), regionStore));
+		tasks.add(new LBFRunnable(server, parentObject, params, imageData.getColorDeconvolutionStains()));
 	}
 	
 	
 	
 	static class LBFRunnable implements Runnable, TileListener<BufferedImage> {
 		
+		private static Logger logger = LoggerFactory.getLogger(LBFRunnable.class);
+		
 		private ImageServer<BufferedImage> server;
 		private ParameterList params;
 		private PathObject parentObject;
 		private ColorDeconvolutionStains stains;
-		private ImageRegionStore<BufferedImage> store;
 		
-		public LBFRunnable(final ImageServer<BufferedImage> server, final PathObject parentObject, final ParameterList params, final ColorDeconvolutionStains stains, final ImageRegionStore<BufferedImage> store) {
+		public LBFRunnable(final ImageServer<BufferedImage> server, final PathObject parentObject, final ParameterList params, final ColorDeconvolutionStains stains) {
 			this.server = server;
 			this.parentObject = parentObject;
 			this.params = params;
-			this.store = store;
 			this.stains = stains;
 		}
 
@@ -187,20 +137,13 @@ public class LocalBinaryPatternsPlugin extends AbstractInteractivePlugin<Buffere
 		@Override
 		public void run() {
 			try {
-				if (store != null)
-					store.addTileListener(this);
-				processObject(parentObject, params, server, stains, store);
+				processObject(parentObject, params, server, stains);
 			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+				logger.warn("Processing interrupdated!", e);
 			} finally {
-				if (store != null)
-					store.removeTileListener(this);
 				parentObject.getMeasurementList().closeList();
-				
 				server = null;
 				params = null;
-				store = null;
 			}
 		}
 		
@@ -216,7 +159,7 @@ public class LocalBinaryPatternsPlugin extends AbstractInteractivePlugin<Buffere
 	
 	
 
-	static boolean processObject(final PathObject pathObject, final ParameterList params, final ImageServer<BufferedImage> server, final ColorDeconvolutionStains stains, final ImageRegionStore<BufferedImage> regionStore) throws InterruptedException {
+	static boolean processObject(final PathObject pathObject, final ParameterList params, final ImageServer<BufferedImage> server, final ColorDeconvolutionStains stains) throws InterruptedException {
 		String stainsName = (String)params.getChoiceParameterValue("stainChoice");
 		double mag = params.getDoubleParameterValue("magnification");
 //		int d = params.getIntParameterValue("haralickDistance");
@@ -240,21 +183,7 @@ public class LocalBinaryPatternsPlugin extends AbstractInteractivePlugin<Buffere
 //		System.out.println(bounds);
 //		System.out.println("Size: " + size);
 
-		BufferedImage img = null;
-		// Try to read the image using the ImageRegionServer... if this doesn't work out, fall back to using the default (slower) method
-		if (regionStore != null) {
-			try {
-				img = regionStore.getImage(server, region);
-			} catch (Exception e) {
-//				if (e instanceof InterruptedException)
-//					throw (InterruptedException)e;
-				System.out.println("Failed to read from " + server + " with " + regionStore);
-				e.printStackTrace();
-			}
-		}
-		if (img == null) {
-			img = server.readBufferedImage(region);
-		}
+		BufferedImage img = server.readBufferedImage(region);
 
 //		System.out.println("Image size: " + img.getWidth() + " x " + img.getHeight() + " pixels");
 

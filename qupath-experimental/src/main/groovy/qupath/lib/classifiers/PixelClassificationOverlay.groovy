@@ -6,6 +6,7 @@ import qupath.lib.gui.viewer.overlays.AbstractOverlay
 import qupath.lib.images.ImageData
 import qupath.lib.images.servers.ImageServer
 import qupath.lib.images.stores.DefaultImageRegionStore
+import qupath.lib.images.stores.ImageRegionStore
 import qupath.lib.images.stores.ImageRegionStoreHelpers
 import qupath.lib.objects.PathObject
 import qupath.lib.objects.TMACoreObject
@@ -64,7 +65,7 @@ public class PixelClassificationOverlay extends AbstractOverlay {
 //        g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR)
 
         // Loop through & paint classified tiles if we have them, or request tiles if we don't
-        DefaultImageRegionStore store = viewer.getImageRegionStore();
+        ImageRegionStore<BufferedImage> store = viewer.getImageRegionStore();
         for (RegionRequest request : requests) {
 
             BufferedImage img = cache.get(request);

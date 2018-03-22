@@ -29,7 +29,6 @@ import java.awt.Shape;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferByte;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -59,7 +58,6 @@ import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
-import qupath.lib.images.stores.ImageRegionStore;
 import qupath.lib.images.stores.TileListener;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.measurements.MeasurementListFactory;
@@ -90,32 +88,11 @@ public class SubcellularDetection extends AbstractInteractivePlugin<BufferedImag
 	
 	private final static Logger logger = LoggerFactory.getLogger(SubcellularDetection.class);
 	
-	transient private ImageRegionStore<BufferedImage> regionStore;
-	
-
-	public SubcellularDetection(final ImageRegionStore<BufferedImage> regionServer) {
-		this.regionStore = regionServer;
-	}
-
-	public SubcellularDetection() {
-		this(null);
-	}
-	
 	
 	@Override
 	public boolean runPlugin(final PluginRunner<BufferedImage> pluginRunner, final String arg) {
-		boolean tempRegionStore = false;
-		// If we don't have a region store & we aren't running in the background, create a temporary one
-		if (this.regionStore == null)
-			this.regionStore = pluginRunner.getRegionStore();
-
 		boolean success = super.runPlugin(pluginRunner, arg);
-		
 		pluginRunner.getHierarchy().fireHierarchyChangedEvent(this);
-		
-		if (tempRegionStore)
-			this.regionStore = null;
-
 		return success;
 	}
 	
@@ -123,32 +100,32 @@ public class SubcellularDetection extends AbstractInteractivePlugin<BufferedImag
 	@Override
 	protected void addRunnableTasks(final ImageData<BufferedImage> imageData, final PathObject parentObject, List<Runnable> tasks) {
 		final ParameterList params = getParameterList(imageData);
-		tasks.add(new SubcellularDetectionRunnable(imageData, parentObject, params, regionStore));
+		tasks.add(new SubcellularDetectionRunnable(imageData, parentObject, params));
 	}
 	
 	
-	@Override
-	protected Collection<Runnable> getTasks(final PluginRunner<BufferedImage> runner) {
-		Collection<Runnable> tasks = super.getTasks(runner);
-		// If we have a region store, it can be preferable to shuffle the tasks for performance.
-		// This is because regions larger than the requested tile size will be cached,
-		// so threads waiting for adjacent tiles can both block waiting for the same image -
-		// causing fetching regions to become a bottleneck.
-		// By shuffling tiles, all the threads put in requests for different requests at the start
-		// (which is slow), but as the image is processed then increasingly the required regions are
-		// already in the cache when they are needed - causing a dramatic speedup during runtime.
-		// Overall throughput should be improved, since the time spend blocked is minimized.
-		// *However* this is only likely to work if the cache is sufficiently big... otherwise
-		// a slowdown is possible, due to adjacent regions needing to be requested multiple times
-		// because the cache has been emptied in the interim.
-		if (regionStore != null) {
-			int n = tasks.size();
-			Runnable[] tasks2 = new Runnable[n];
-			if (rearrangeByStride(tasks, tasks2, Runtime.getRuntime().availableProcessors()))
-				tasks = Arrays.asList(tasks2);
-		}
-		return tasks;
-	}
+//	@Override
+//	protected Collection<Runnable> getTasks(final PluginRunner<BufferedImage> runner) {
+//		Collection<Runnable> tasks = super.getTasks(runner);
+//		// If we have a region store, it can be preferable to shuffle the tasks for performance.
+//		// This is because regions larger than the requested tile size will be cached,
+//		// so threads waiting for adjacent tiles can both block waiting for the same image -
+//		// causing fetching regions to become a bottleneck.
+//		// By shuffling tiles, all the threads put in requests for different requests at the start
+//		// (which is slow), but as the image is processed then increasingly the required regions are
+//		// already in the cache when they are needed - causing a dramatic speedup during runtime.
+//		// Overall throughput should be improved, since the time spend blocked is minimized.
+//		// *However* this is only likely to work if the cache is sufficiently big... otherwise
+//		// a slowdown is possible, due to adjacent regions needing to be requested multiple times
+//		// because the cache has been emptied in the interim.
+//		if (regionStore != null) {
+//			int n = tasks.size();
+//			Runnable[] tasks2 = new Runnable[n];
+//			if (rearrangeByStride(tasks, tasks2, Runtime.getRuntime().availableProcessors()))
+//				tasks = Arrays.asList(tasks2);
+//		}
+//		return tasks;
+//	}
 	
 	
 	static class SubcellularDetectionRunnable implements Runnable, TileListener<BufferedImage> {
@@ -156,13 +133,11 @@ public class SubcellularDetection extends AbstractInteractivePlugin<BufferedImag
 		private ImageData<BufferedImage> imageData;
 		private ParameterList params;
 		private PathObject parentObject;
-		private ImageRegionStore<BufferedImage> store;
 		
-		public SubcellularDetectionRunnable(final ImageData<BufferedImage> imageData, final PathObject parentObject, final ParameterList params, final ImageRegionStore<BufferedImage> store) {
+		public SubcellularDetectionRunnable(final ImageData<BufferedImage> imageData, final PathObject parentObject, final ParameterList params) {
 			this.imageData = imageData;
 			this.parentObject = parentObject;
 			this.params = params;
-			this.store = store;
 		}
 
 		@Override
@@ -176,24 +151,19 @@ public class SubcellularDetection extends AbstractInteractivePlugin<BufferedImag
 		@Override
 		public void run() {
 			try {
-				if (store != null)
-					store.addTileListener(this);
 				if (parentObject instanceof PathCellObject)
-					processObject(parentObject, params, new ImageWrapper(imageData, store));
+					processObject(parentObject, params, new ImageWrapper(imageData));
 				else {
 					List<PathObject> cellObjects = PathObjectTools.getFlattenedObjectList(parentObject, null, false).stream().filter(p -> p instanceof PathCellObject).collect(Collectors.toList());
 					for (PathObject cell : cellObjects)
-						processObject(cell, params, new ImageWrapper(imageData, store));
+						processObject(cell, params, new ImageWrapper(imageData));
 				}
 			} catch (InterruptedException e) {
 				logger.error("Processing interrupted", e);
 			} finally {
-				if (store != null)
-					store.removeTileListener(this);
 				parentObject.getMeasurementList().closeList();
 				imageData = null;
 				params = null;
-				store = null;
 			}
 		}
 		
@@ -400,7 +370,7 @@ public class SubcellularDetection extends AbstractInteractivePlugin<BufferedImag
 		ParameterList params = new ParameterList()
 				.addTitleParameter("Detection parameters");
 		
-		for (String name : new ImageWrapper(imageData, regionStore).getChannelNames(true, true)) {
+		for (String name : new ImageWrapper(imageData).getChannelNames(true, true)) {
 			params.addDoubleParameter("detection["+name+"]", "Detection threshold (" + name + ")", -1.0, "", "Intensity threshold for detection - if < 0, no detection will be applied to this channel");
 		}
 		params.addBooleanParameter("doSmoothing", "Smooth before detection", false, "Apply 3x3 smoothing filter to reduce noise prior to detection");
@@ -535,12 +505,10 @@ public class SubcellularDetection extends AbstractInteractivePlugin<BufferedImag
 	static class ImageWrapper {
 		
 		private final ImageData<BufferedImage> imageData;
-		private final ImageRegionStore<BufferedImage> regionStore;
 		private Map<RegionRequest, BufferedImage> cachedRegions = new HashMap<>();
 		
-		public ImageWrapper(final ImageData<BufferedImage> imageData, final ImageRegionStore<BufferedImage> regionStore) {
+		public ImageWrapper(final ImageData<BufferedImage> imageData) {
 			this.imageData = imageData;
-			this.regionStore = regionStore;
 		}
 		
 		public ImageServer<BufferedImage> getServer() {
@@ -692,18 +660,7 @@ public class SubcellularDetection extends AbstractInteractivePlugin<BufferedImag
 			if (cachedRegions.containsKey(region))
 				return cachedRegions.get(region);
 			
-			BufferedImage img = null;
-			if (regionStore != null) {
-				try {
-					img = regionStore.getImage(imageData.getServer(), region);
-				} catch (Exception e) {
-					logger.debug("Failed to read from {} with {}", imageData.getServer(), regionStore);
-					e.printStackTrace();
-				}
-			}
-			if (img == null) {
-				img = imageData.getServer().readBufferedImage(region);
-			}
+			BufferedImage img = imageData.getServer().readBufferedImage(region);
 			cachedRegions.put(region, img);
 			return img;
 		}

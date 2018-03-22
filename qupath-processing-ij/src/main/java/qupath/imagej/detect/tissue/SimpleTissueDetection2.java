@@ -91,14 +91,9 @@ public class SimpleTissueDetection2 extends AbstractDetectionPlugin<BufferedImag
 	
 	private ParameterList params;
 
-	private String lastResults = null;		
+	private String lastResults = null;
 	
 	public SimpleTissueDetection2() {
-		this(null);
-	}
-	
-	
-	public SimpleTissueDetection2(final ImageRegionStore<BufferedImage> regionStore) {
 		
 		params = new ParameterList().
 				addIntParameter("threshold", "Threshold", 127, null, 0, 255, "Global threshold to use - defined in the range 0-255");

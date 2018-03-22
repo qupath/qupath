@@ -29,7 +29,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.lib.images.ImageData;
-import qupath.lib.images.stores.ImageRegionStore;
 import qupath.lib.regions.ImageRegion;
 
 /**
@@ -46,11 +45,7 @@ public class CommandLinePluginRunner<T> extends AbstractPluginRunner<T> {
 	private ImageData<T> imageData;
 
 	public CommandLinePluginRunner(final ImageData<T> imageData, boolean batchMode) {
-		this(null, imageData, batchMode);
-	}
-
-	public CommandLinePluginRunner(final ImageRegionStore<T> regionStore, final ImageData<T> imageData, boolean batchMode) {
-		super(regionStore, batchMode);
+		super(batchMode);
 		this.imageData = imageData;
 	}
 

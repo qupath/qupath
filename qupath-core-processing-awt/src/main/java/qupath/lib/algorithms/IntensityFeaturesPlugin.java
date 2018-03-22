@@ -52,7 +52,6 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.geom.ImmutableDimension;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
-import qupath.lib.images.stores.ImageRegionStore;
 import qupath.lib.images.stores.TileListener;
 import qupath.lib.images.tools.BufferedImageTools;
 import qupath.lib.measurements.MeasurementList;
@@ -87,9 +86,6 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 	private final static Logger logger = LoggerFactory.getLogger(IntensityFeaturesPlugin.class);
 	
 	private boolean parametersInitialized = false;
-	
-	transient private ImageRegionStore<BufferedImage> regionStore;
-	
 	
 	static enum RegionType {
 		ROI, SQUARE, CIRCLE;
@@ -297,34 +293,10 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 	private static List<FeatureComputerBuilder> builders = Arrays.asList(new BasicFeatureComputerBuilder(), new MedianFeatureComputerBuilder(), new HaralickFeatureComputerBuilder());
 	
 	
-
-	public IntensityFeaturesPlugin(final ImageRegionStore<BufferedImage> regionServer) {
-		this.regionStore = regionServer;
-	}
-
-	public IntensityFeaturesPlugin() {
-		this(null);
-	}
-	
-	
-	
 	@Override
 	public boolean runPlugin(final PluginRunner<BufferedImage> pluginRunner, final String arg) {
-		
-		boolean tempRegionStore = false;
-		if (regionStore == null) {
-			regionStore = pluginRunner.getRegionStore();
-			tempRegionStore = regionStore != null;
-		}
-		
 		boolean success = super.runPlugin(pluginRunner, arg);
-		
 		pluginRunner.getHierarchy().fireHierarchyChangedEvent(this);
-		
-		if (tempRegionStore) {
-			regionStore = null;
-		}
-		
 		return success;
 	}
 	
@@ -363,37 +335,37 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 	protected void addRunnableTasks(final ImageData<BufferedImage> imageData, final PathObject parentObject, List<Runnable> tasks) {
 		final ParameterList params = getParameterList(imageData);
 		final ImageServer<BufferedImage> server = imageData.getServer();
-		tasks.add(new IntensityFeatureRunnable(server, parentObject, params, imageData.getColorDeconvolutionStains(), regionStore));
+		tasks.add(new IntensityFeatureRunnable(server, parentObject, params, imageData.getColorDeconvolutionStains()));
 	}
 	
 	
-	@Override
-	protected Collection<Runnable> getTasks(final PluginRunner<BufferedImage> runner) {
-		Collection<Runnable> tasks = super.getTasks(runner);
-		// If we have a region store, it can be preferable to shuffle the tasks for performance.
-		// This is because regions larger than the requested tile size will be cached,
-		// so threads waiting for adjacent tiles can both block waiting for the same image -
-		// causing fetching regions to become a bottleneck.
-		// By shuffling tiles, all the threads put in requests for different requests at the start
-		// (which is slow), but as the image is processed then increasingly the required regions are
-		// already in the cache when they are needed - causing a dramatic speedup during runtime.
-		// Overall throughput should be improved, since the time spend blocked is minimized.
-		// *However* this is only likely to work if the cache is sufficiently big... otherwise
-		// a slowdown is possible, due to adjacent regions needing to be requested multiple times
-		// because the cache has been emptied in the interim.
-//		if (regionStore != null & Runtime.getRuntime().totalMemory() >= 1024L*1024L*1024L*4L) {
-//			if (!(tasks instanceof List))
-//				tasks = new ArrayList<>(tasks);
-//			Collections.shuffle((List<?>)tasks);
-			
-		if (regionStore != null) {
-			int n = tasks.size();
-			Runnable[] tasks2 = new Runnable[n];
-			if (rearrangeByStride(tasks, tasks2, Runtime.getRuntime().availableProcessors()))
-				tasks = Arrays.asList(tasks2);
-		}
-		return tasks;
-	}
+//	@Override
+//	protected Collection<Runnable> getTasks(final PluginRunner<BufferedImage> runner) {
+//		Collection<Runnable> tasks = super.getTasks(runner);
+//		// If we have a region store, it can be preferable to shuffle the tasks for performance.
+//		// This is because regions larger than the requested tile size will be cached,
+//		// so threads waiting for adjacent tiles can both block waiting for the same image -
+//		// causing fetching regions to become a bottleneck.
+//		// By shuffling tiles, all the threads put in requests for different requests at the start
+//		// (which is slow), but as the image is processed then increasingly the required regions are
+//		// already in the cache when they are needed - causing a dramatic speedup during runtime.
+//		// Overall throughput should be improved, since the time spend blocked is minimized.
+//		// *However* this is only likely to work if the cache is sufficiently big... otherwise
+//		// a slowdown is possible, due to adjacent regions needing to be requested multiple times
+//		// because the cache has been emptied in the interim.
+////		if (regionStore != null & Runtime.getRuntime().totalMemory() >= 1024L*1024L*1024L*4L) {
+////			if (!(tasks instanceof List))
+////				tasks = new ArrayList<>(tasks);
+////			Collections.shuffle((List<?>)tasks);
+//			
+//		if (regionStore != null) {
+//			int n = tasks.size();
+//			Runnable[] tasks2 = new Runnable[n];
+//			if (rearrangeByStride(tasks, tasks2, Runtime.getRuntime().availableProcessors()))
+//				tasks = Arrays.asList(tasks2);
+//		}
+//		return tasks;
+//	}
 	
 	
 	static class IntensityFeatureRunnable implements Runnable, TileListener<BufferedImage> {
@@ -402,13 +374,11 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 		private ParameterList params;
 		private PathObject parentObject;
 		private ColorDeconvolutionStains stains;
-		private ImageRegionStore<BufferedImage> store;
 		
-		public IntensityFeatureRunnable(final ImageServer<BufferedImage> server, final PathObject parentObject, final ParameterList params, final ColorDeconvolutionStains stains, final ImageRegionStore<BufferedImage> store) {
+		public IntensityFeatureRunnable(final ImageServer<BufferedImage> server, final PathObject parentObject, final ParameterList params, final ColorDeconvolutionStains stains) {
 			this.server = server;
 			this.parentObject = parentObject;
 			this.params = params;
-			this.store = store;
 			this.stains = stains;
 		}
 
@@ -423,20 +393,14 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 		@Override
 		public void run() {
 			try {
-				if (store != null)
-					store.addTileListener(this);
-				processObject(parentObject, params, server, stains, store);
+				processObject(parentObject, params, server, stains);
 //			} catch (InterruptedException e) {
 //				// TODO Auto-generated catch block
 //				e.printStackTrace();
 			} finally {
-				if (store != null)
-					store.removeTileListener(this);
 				parentObject.getMeasurementList().closeList();
-				
 				server = null;
 				params = null;
-				store = null;
 			}
 		}
 		
@@ -451,7 +415,7 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 	
 	
 
-	static boolean processObject(final PathObject pathObject, final ParameterList params, final ImageServer<BufferedImage> server, final ColorDeconvolutionStains stains, final ImageRegionStore<BufferedImage> regionStore) {
+	static boolean processObject(final PathObject pathObject, final ParameterList params, final ImageServer<BufferedImage> server, final ColorDeconvolutionStains stains) {
 
 		// Determine amount to downsample
 		double downsample;
@@ -518,22 +482,7 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 	//		System.out.println(bounds);
 	//		System.out.println("Size: " + size);
 	
-			BufferedImage img = null;
-			// Try to read the image using the ImageRegionServer... if this doesn't work out, fall back to using the default (slower) method
-			if (regionStore != null) {
-				try {
-					img = regionStore.getImage(server, region);
-				} catch (Exception e) {
-	//				if (e instanceof InterruptedException)
-	//					throw (InterruptedException)e;
-					logger.info("Failed to read from {} in region store with request {}", server, region);
-					e.printStackTrace();
-				}
-			}
-			// Try again once more...
-			if (img == null) {
-				img = server.readBufferedImage(region);
-			}
+			BufferedImage img = server.readBufferedImage(region);
 			if (img == null) {
 				logger.error("Could not read image - unable to compute intensity features for {}", pathObject);
 				return false;

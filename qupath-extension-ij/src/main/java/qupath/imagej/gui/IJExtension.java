@@ -426,16 +426,16 @@ public class IJExtension implements QuPathExtension {
 		Menu menuRegions = qupath.getMenu("Analyze>Region identification>Tiles & superpixels", true);
 		QuPathGUI.addMenuItems(menuRegions,
 				null,
-				qupath.createPluginAction("DoG superpixel segmentation", DoGSuperpixelsPlugin.class, null, false),
-				qupath.createPluginAction("SLIC superpixel segmentation (experimental)", SLICSuperpixelsPlugin.class, null, false),
+				qupath.createPluginAction("DoG superpixel segmentation", DoGSuperpixelsPlugin.class, null),
+				qupath.createPluginAction("SLIC superpixel segmentation (experimental)", SLICSuperpixelsPlugin.class, null),
 //				qupath.createPluginAction("Gaussian superpixel segmentation", GaussianSuperpixelsPlugin.class, null, false),
 				null,
-				qupath.createPluginAction("Tile classifications to annotations", TileClassificationsToAnnotationsPlugin.class, null, false)				
+				qupath.createPluginAction("Tile classifications to annotations", TileClassificationsToAnnotationsPlugin.class, null)				
 				);
 		
 		menuRegions = qupath.getMenu("Analyze>Region identification", true);
 		QuPathGUI.addMenuItems(menuRegions,
-				qupath.createPluginAction("Positive pixel count (experimental)", PositivePixelCounterIJ.class, null, false)
+				qupath.createPluginAction("Positive pixel count (experimental)", PositivePixelCounterIJ.class, null)
 				);
 
 		
@@ -449,7 +449,7 @@ public class IJExtension implements QuPathExtension {
 		// Put dearraying at the top of the TMA menu
 		Menu menuTMA = qupath.getMenu("TMA", true);
 		menuTMA.getItems().add(0,
-				QuPathGUI.createMenuItem(qupath.createPluginAction("TMA dearrayer", TMADearrayerPluginIJ.class, null, false))
+				QuPathGUI.createMenuItem(qupath.createPluginAction("TMA dearrayer", TMADearrayerPluginIJ.class, null))
 				);
 		menuTMA.getItems().add(1,
 				new SeparatorMenuItem()
@@ -502,8 +502,8 @@ public class IJExtension implements QuPathExtension {
 		QuPathGUI.addMenuItems(
 				menuPreprocessing,
 				null,
-				qupath.createPluginAction("Simple tissue detection", SimpleTissueDetection2.class, null, true),
-				qupath.createPluginAction("Simple tissue detection (legacy)", SimpleTissueDetection.class, null, false)
+				qupath.createPluginAction("Simple tissue detection", SimpleTissueDetection2.class, null),
+				qupath.createPluginAction("Simple tissue detection (legacy)", SimpleTissueDetection.class, null)
 				);
 		
 		
@@ -512,18 +512,18 @@ public class IJExtension implements QuPathExtension {
 				menuCellAnalysis,
 //				qupath.createPluginAction("Mean brown chromogen (legacy)", MeanBrownChromogenPlugin.class, null, false),
 //				new SeparatorMenuItem(),
-				qupath.createPluginAction("Cell detection", WatershedCellDetection.class, null, false),
-				qupath.createPluginAction("Positive cell detection", PositiveCellDetection.class, null, false),
-				qupath.createPluginAction("Cell + membrane detection", WatershedCellMembraneDetection.class, null, false),
+				qupath.createPluginAction("Cell detection", WatershedCellDetection.class, null),
+				qupath.createPluginAction("Positive cell detection", PositiveCellDetection.class, null),
+				qupath.createPluginAction("Cell + membrane detection", WatershedCellMembraneDetection.class, null),
 //				qupath.createPluginAction("Cell + membrane detection + percentage (experimental)", WatershedCellMembraneDetectionWithBoundaries.class, null, false),
-				qupath.createPluginAction("Positive nucleus detection (legacy)", WatershedNucleusDetection.class, null, false),
+				qupath.createPluginAction("Positive nucleus detection (legacy)", WatershedNucleusDetection.class, null),
 //				new SeparatorMenuItem(),
 //				qupath.createPluginAction("Lesion detection (experimental)", LesionDetector.class, null, false),
 				
 				new SeparatorMenuItem(),
-				qupath.createPluginAction("Immune scorer (TMA, experimental)", ImmuneScorerTMA.class, null, false),
+				qupath.createPluginAction("Immune scorer (TMA, experimental)", ImmuneScorerTMA.class, null),
 				new SeparatorMenuItem(),
-				qupath.createPluginAction("Subcellular detection (experimental)", SubcellularDetection.class, null, true)
+				qupath.createPluginAction("Subcellular detection (experimental)", SubcellularDetection.class, null)
 				);
 
 

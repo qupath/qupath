@@ -92,7 +92,6 @@ import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.QuPathViewerListener;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
-import qupath.lib.images.stores.ImageRegionStore;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
@@ -204,7 +203,7 @@ public class SummaryMeasurementTableCommand implements PathCommand {
 			col.setCellValueFactory(val -> new SimpleObjectProperty<>(val.getValue().getROI()));
 			double maxWidth = maxDimForTMACore;
 			double padding = 10;
-			col.setCellFactory(column -> new TMACoreTableCell(table, qupath.getImageRegionStore(), imageData.getServer(), maxWidth, padding));
+			col.setCellFactory(column -> new TMACoreTableCell(table, imageData.getServer(), maxWidth, padding));
 			col.widthProperty().addListener((v, o, n) -> table.refresh());
 			col.setMaxWidth(maxWidth + padding*2);
 			table.getColumns().add(col);
@@ -508,19 +507,17 @@ public class SummaryMeasurementTableCommand implements PathCommand {
 	class TMACoreTableCell extends TableCell<PathObject, ROI> {
 
 		private TableView<?> table;
-		private ImageRegionStore<BufferedImage> regionStore;
 		private ImageServer<BufferedImage> server;
 		private Canvas canvas = new Canvas();
 		private double preferredSize = 100;
 		private double maxDim;
 		private double padding;
 
-		TMACoreTableCell(final TableView<?> table, final ImageRegionStore<BufferedImage> regionStore, final ImageServer<BufferedImage> server, final double maxDim, final double padding) {
+		TMACoreTableCell(final TableView<?> table, final ImageServer<BufferedImage> server, final double maxDim, final double padding) {
 			this.table = table;
 			this.server = server;
 			this.maxDim = maxDim;
 			this.padding = padding;
-			this.regionStore = regionStore;
 			canvas.setWidth(preferredSize);
 			canvas.setHeight(preferredSize);
 			canvas.setStyle("-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.5), 4, 0, 1, 1);");
@@ -556,7 +553,7 @@ public class SummaryMeasurementTableCommand implements PathCommand {
 					double downsample = Math.max(roi.getBoundsWidth(), roi.getBoundsHeight()) / maxDim;
 					// TODO: Put requests into a background thread!
 					RegionRequest request = RegionRequest.createInstance(server.getPath(), downsample, roi);
-					BufferedImage img = regionStore.getImage(server, request, 100, true);
+					BufferedImage img = server.readBufferedImage(request);
 					if (img == null)
 						return;
 					Image imageNew = SwingFXUtils.toFXImage(img, null);

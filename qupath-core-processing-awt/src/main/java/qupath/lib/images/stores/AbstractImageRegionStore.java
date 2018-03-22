@@ -47,7 +47,7 @@ import qupath.lib.awt.common.AwtTools;
 import qupath.lib.common.SimpleThreadFactory;
 import qupath.lib.images.servers.GeneratingImageServer;
 import qupath.lib.images.servers.ImageServer;
-import qupath.lib.images.stores.RegionCache;
+import qupath.lib.images.stores.DefaultRegionCache;
 import qupath.lib.images.stores.SizeEstimator;
 import qupath.lib.images.stores.TileListener;
 import qupath.lib.images.stores.TileWorker;
@@ -82,9 +82,9 @@ public abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T>
 	protected Vector<TileListener<T>> tileListeners = new Vector<>();
 
 	// Cache of image tiles for specified regions
-	protected RegionCache<T> cache;
+	protected DefaultRegionCache<T> cache;
 	// Cache image thumbnails
-	protected RegionCache<T> thumbnailCache;
+	protected DefaultRegionCache<T> thumbnailCache;
 	
 	private int thumbnailWidth;
 
@@ -101,8 +101,8 @@ public abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T>
 
 	protected AbstractImageRegionStore(final SizeEstimator<T> sizeEstimator, final int thumbnailWidth, final long tileCacheSizeBytes) {
 		this.thumbnailWidth = thumbnailWidth;
-		cache = new RegionCache<>(sizeEstimator, tileCacheSizeBytes);
-		thumbnailCache = new RegionCache<>(sizeEstimator, tileCacheSizeBytes/4);
+		cache = new DefaultRegionCache<>(sizeEstimator, tileCacheSizeBytes);
+		thumbnailCache = new DefaultRegionCache<>(sizeEstimator, tileCacheSizeBytes/4);
 	}
 
 	
@@ -125,32 +125,9 @@ public abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T>
 	}
 	
 	
-	
-	/**
-	 * Get an image representing the specified region.
-	 * 
-	 * The simplest subclass could just delegate this to an ImageServer call - optionally caching the result.
-	 * 
-	 * However a preferable approach, where possible, would be to break the request into tiles at 'stored' resolutions
-	 * and make use of these to ensure that the cache is used as well as possible.
-	 * 
-	 */
-	@Override
-	public abstract T getImage(final ImageServer<T> server, final RegionRequest request, final long timeoutMillis, final boolean nullIfTimeout);
-	
-	/* (non-Javadoc)
-	 * @see qupath.lib.images.stores.ImageRegionStore#getImage(qupath.lib.images.servers.ImageServer, qupath.lib.regions.RegionRequest)
-	 */
-	@Override
-	@Deprecated
-	public T getImage(final ImageServer<T> server, final RegionRequest request) {
-		return getImage(server, request, -1, false);
-	}
-	
 	/* (non-Javadoc)
 	 * @see qupath.lib.images.stores.ImageRegionStore#getCachedThumbnail(qupath.lib.images.servers.ImageServer, int, int)
 	 */
-	@Override
 	public T getCachedThumbnail(ImageServer<T> server, int zPosition, int tPosition) {
 		RegionRequest request = getThumbnailRequest(server, zPosition, tPosition);
 		return thumbnailCache.get(request);

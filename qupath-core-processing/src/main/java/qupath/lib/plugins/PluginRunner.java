@@ -27,7 +27,6 @@ import java.util.Collection;
 
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
-import qupath.lib.images.stores.ImageRegionStore;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 
@@ -52,15 +51,6 @@ public interface PluginRunner<T> {
 	ImageServer<T> getImageServer();
 	
 	boolean isCancelled();
-	
-	/**
-	 * Get an ImageRegionStore, which may be able to supply cached regions to the plugin to improve efficiency.
-	 * 
-	 * Plugins shouldn't rely on this being present, and it may return null.
-	 * 
-	 * @return
-	 */
-	ImageRegionStore<T> getRegionStore();
 
 	PathObjectHierarchy getHierarchy();
 

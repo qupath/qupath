@@ -81,8 +81,6 @@ public class QPEx extends QP {
 	
 	final public static String PROJECT_BASE_DIR = "{%PROJECT}";
 	
-	private static ImageRegionStore<?> sharedRegionStore;
-
 	/**
 	 * Load ImageData from a file.
 	 * 
@@ -232,16 +230,6 @@ public class QPEx extends QP {
 	}
 	
 	
-	static void setSharedRegionStore(final ImageRegionStore<?> regionStore) {
-		sharedRegionStore = regionStore;
-	}
-
-	static ImageRegionStore<?> getSharedRegionStore() {
-		return sharedRegionStore;
-	}
-
-	
-	
 	@SuppressWarnings("unchecked")
 	public static boolean runPlugin(final String className, final ImageData<?> imageData, final String args) throws InterruptedException {
 		if (imageData == null)
@@ -258,7 +246,7 @@ public class QPEx extends QP {
 			PluginRunner runner;
 			// TODO: Give potential of passing a plugin runner
 			if (isBatchMode() || imageData != getQuPath().getImageData()) {
-				runner = new CommandLinePluginRunner(getSharedRegionStore(), imageData, true);
+				runner = new CommandLinePluginRunner(imageData, true);
 			}
 			else {
 				runner = new PluginRunnerFX(getQuPath(), true);

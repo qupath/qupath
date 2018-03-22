@@ -245,8 +245,6 @@ public class TMAGridView implements PathCommand, ImageDataChangeListener<Buffere
 		List<TMACoreObject> cores = imageData.getHierarchy().getTMAGrid().getTMACoreList();
 
 		ImageServer<BufferedImage> server = imageData.getServer();
-		ImageRegionStore<BufferedImage> regionStore = qupath.getImageRegionStore();
-//						cache.clear();
 						
 		CountDownLatch latch = new CountDownLatch(cores.size());
 		for (TMACoreObject core : cores) {
@@ -259,7 +257,7 @@ public class TMAGridView implements PathCommand, ImageDataChangeListener<Buffere
 						return;
 					}
 
-					BufferedImage img = regionStore.getImage(server, request, 30000, true);
+					BufferedImage img = server.readBufferedImage(request);
 					if (img == null) {
 						logger.debug("Request {} returned null", request);
 						latch.countDown();

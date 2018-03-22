@@ -55,6 +55,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -1002,8 +1003,8 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		long lastUpdateCheck = PathPrefs.getUserPreferences().getLong("lastUpdateCheck", 0);
 
 		// Don't check run auto-update check again if we already checked within the last hour
-		long diffMinutes = (currentTime - lastUpdateCheck) / (60L * 60L * 1000L);
-		if (isAutoCheck && diffMinutes < 1)
+		double diffHours = (double)(currentTime - lastUpdateCheck) / (60L * 60L * 1000L);
+		if (isAutoCheck && diffHours < 1)
 			return;
 		
 		// See if we can read the current ChangeLog
@@ -2965,7 +2966,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				null,
 				getActionMenuItem(GUIActions.RIGID_OBJECT_EDITOR),
 				getActionMenuItem(GUIActions.SPECIFY_ANNOTATION),
-				createPluginAction("Expand annotations", DilateAnnotationPlugin.class, null, false),
+				createPluginAction("Expand annotations", DilateAnnotationPlugin.class, null),
 				getActionMenuItem(GUIActions.SELECT_ALL_ANNOTATION),
 				getActionMenuItem(GUIActions.ANNOTATION_DUPLICATE),
 				getActionMenuItem(GUIActions.TRANSFER_ANNOTATION),
@@ -2996,7 +2997,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				createCommandAction(new TMAGridView(this), "TMA grid summary view"),
 //				createCommandAction(new TMAExplorer(this), "TMA explorer (experimental)"),
 				null,
-				createPluginAction("Find convex hull detections (TMA)", FindConvexHullDetectionsPlugin.class, this, false, null)
+				createPluginAction("Find convex hull detections (TMA)", FindConvexHullDetectionsPlugin.class, this, null)
 				);
 		
 		
@@ -3038,20 +3039,20 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 						"Region identification",
 						createMenu(
 								"Tiles & superpixels",
-								createPluginAction("Create tiles", TilerPlugin.class, this, false, null)
+								createPluginAction("Create tiles", TilerPlugin.class, this, null)
 								)
 						),
 				createMenu(
 						"Calculate features",
 //						new PathPluginAction("Create tiles", TilerPlugin.class, this),
-						createPluginAction("Add Intensity features (experimental)", IntensityFeaturesPlugin.class, this, true, null),
-						createPluginAction("Add Haralick texture features (legacy)", HaralickFeaturesPlugin.class, this, true, null),
+						createPluginAction("Add Intensity features (experimental)", IntensityFeaturesPlugin.class, this, null),
+						createPluginAction("Add Haralick texture features (legacy)", HaralickFeaturesPlugin.class, this, null),
 //						createPluginAction("Add Haralick texture features (feature test version)", HaralickFeaturesPluginTesting.class, this, imageRegionStore, null),
-						createPluginAction("Add Coherence texture feature (experimental)", CoherenceFeaturePlugin.class, this, true, null),
-						createPluginAction("Add Smoothed features", SmoothFeaturesPlugin.class, this, false, null),
-						createPluginAction("Add Shape features (experimental)", ShapeFeaturesPlugin.class, this, false, null),
+						createPluginAction("Add Coherence texture feature (experimental)", CoherenceFeaturePlugin.class, this, null),
+						createPluginAction("Add Smoothed features", SmoothFeaturesPlugin.class, this, null),
+						createPluginAction("Add Shape features (experimental)", ShapeFeaturesPlugin.class, this, null),
 						null,
-						createPluginAction("Add Local Binary Pattern features (experimental)", LocalBinaryPatternsPlugin.class, this, true, null)
+						createPluginAction("Add Local Binary Pattern features (experimental)", LocalBinaryPatternsPlugin.class, this, null)
 						)
 				);
 
@@ -3113,15 +3114,15 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	}
 	
 	
-	public Action createPluginAction(final String name, final Class<? extends PathPlugin> pluginClass, final String arg, final boolean includeRegionStore) {
-		return createPluginAction(name, pluginClass, this, includeRegionStore, arg);
+	public Action createPluginAction(final String name, final Class<? extends PathPlugin> pluginClass, final String arg) {
+		return createPluginAction(name, pluginClass, this, arg);
 	}
 
 	
 	
 	public Action createPluginAction(final String name, final String pluginClassName, final boolean includeRegionStore, final String arg) throws ClassNotFoundException {
 		Class<PathPlugin> cls = (Class<PathPlugin>)getClassLoader().loadClass(pluginClassName);
-		return createPluginAction(name, cls, this, includeRegionStore, arg);
+		return createPluginAction(name, cls, this, arg);
 	}
 	
 	
@@ -3162,10 +3163,10 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	 * @param arg
 	 * @return
 	 */
-	public static Action createPluginAction(final String name, final Class<? extends PathPlugin> pluginClass, final QuPathGUI qupath, final boolean includeRegionStore, final String arg) {
+	public static Action createPluginAction(final String name, final Class<? extends PathPlugin> pluginClass, final QuPathGUI qupath, final String arg) {
 		try {
 			Action action = new Action(name, event -> {
-				PathPlugin<BufferedImage> plugin = qupath.createPlugin(pluginClass, includeRegionStore);
+				PathPlugin<BufferedImage> plugin = qupath.createPlugin(pluginClass);
 				qupath.runPlugin(plugin, arg, true);
 			});
 			return action;
@@ -3215,19 +3216,10 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	 * @return
 	 */
 	@SuppressWarnings("unchecked")
-	public PathPlugin<BufferedImage> createPlugin(final Class<? extends PathPlugin> pluginClass, final boolean includeRegionStore) {
+	public PathPlugin<BufferedImage> createPlugin(final Class<? extends PathPlugin> pluginClass) {
 		PathPlugin<BufferedImage> plugin = null;
 		try {
-			if (includeRegionStore) {
-				try {
-					Constructor<? extends PathPlugin> constructor = pluginClass.getConstructor(ImageRegionStore.class);
-					plugin = constructor.newInstance(getImageRegionStore());
-				} catch (NoSuchMethodException e) {
-					// Ideally would check properly, instead of relying on this...
-				}
-			}
-			if (plugin == null)
-				plugin = pluginClass.getConstructor().newInstance();
+			plugin = pluginClass.getConstructor().newInstance();
 		} catch (Exception e1) {
 			logger.error("Unable to construct plugin {}", pluginClass, e1);
 		}

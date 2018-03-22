@@ -37,17 +37,6 @@ import qupath.lib.regions.RegionRequest;
  */
 public interface ImageRegionStore<T> {
 
-	T getImage(ImageServer<T> server, RegionRequest request, long timeoutMillis, boolean nullIfTimeout);
-
-	/**
-	 * Deprecated in favor of version that includes a timeout.
-	 * 
-	 * @param server
-	 * @param request
-	 * @return
-	 */
-	T getImage(ImageServer<T> server, RegionRequest request);
-
 	T getCachedThumbnail(ImageServer<T> server, int zPosition, int tPosition);
 
 	void addTileListener(TileListener<T> listener);

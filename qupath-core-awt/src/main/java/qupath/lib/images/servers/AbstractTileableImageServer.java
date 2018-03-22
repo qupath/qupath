@@ -89,7 +89,6 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 		}
 		// Handle the general case for RGB
 		if (isRGB()) {
-			System.err.println("Requesting " + requests.size());
 			int width = (int)Math.round(request.getWidth() / request.getDownsample());
 			int height = (int)Math.round(request.getHeight() / request.getDownsample());
 			BufferedImage imgResult = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);

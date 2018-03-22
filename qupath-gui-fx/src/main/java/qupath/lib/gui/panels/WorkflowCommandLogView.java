@@ -325,7 +325,7 @@ public class WorkflowCommandLogView implements ImageDataChangeListener<BufferedI
 				String pluginClassName = pluginStep.getPluginClass();
 				try {
 					Class<? extends PathPlugin> cls = (Class<? extends PathPlugin>)Class.forName(pluginClassName);
-					PathPlugin<BufferedImage> plugin = qupath.createPlugin(cls, true);
+					PathPlugin<BufferedImage> plugin = qupath.createPlugin(cls);
 					
 					Map<String, ?> parameterMap = pluginStep.getParameterMap();
 					String arg = null;

@@ -38,7 +38,6 @@ import org.slf4j.LoggerFactory;
 import qupath.lib.common.SimpleThreadFactory;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
-import qupath.lib.images.stores.ImageRegionStore;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 
@@ -65,14 +64,12 @@ public abstract class AbstractPluginRunner<T> implements PluginRunner<T> {
 
 	private Map<Future<Runnable>, Runnable> pendingTasks = new HashMap<>();
 	
-	private ImageRegionStore<T> regionStore;
 	private boolean batchMode = false;
 	private SimpleProgressMonitor monitor;
 	
 	private boolean tasksCancelled = false;
 	
-	protected AbstractPluginRunner(final ImageRegionStore<T> regionStore, final boolean batchMode) {
-		this.regionStore = regionStore;
+	protected AbstractPluginRunner(final boolean batchMode) {
 		this.batchMode = batchMode;
 	}
 
@@ -304,14 +301,6 @@ public abstract class AbstractPluginRunner<T> implements PluginRunner<T> {
 		String text = task == null ? "Completed" : task.getLastResultsDescription();
 		monitor.updateProgress(1, text, null);
 	}
-	
-	
-	
-	@Override
-	public ImageRegionStore<T> getRegionStore() {
-		return regionStore;
-	}
-	
 	
 	@Override
 	public boolean isCancelled() {
