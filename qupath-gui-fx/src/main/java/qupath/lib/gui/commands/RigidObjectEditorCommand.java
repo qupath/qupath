@@ -160,7 +160,7 @@ public class RigidObjectEditorCommand implements PathCommand, ImageDataChangeLis
 //		editingROI.setAngle(Math.PI/3);
 		
 		overlay = new AffineEditOverlay(viewer.getOverlayOptions());
-		viewer.addOverlay(overlay);
+		viewer.getCustomOverlayLayers().add(overlay);
 		
 		PathPrefs.setPaintSelectedBounds(false);
 		// Create & show temporary object
@@ -204,7 +204,7 @@ public class RigidObjectEditorCommand implements PathCommand, ImageDataChangeLis
 			viewer.setMode(qupath.getMode());
 		
 		viewer.getView().removeEventHandler(MouseEvent.ANY, mouseListener);
-		viewer.removeOverlay(overlay);
+		viewer.getCustomOverlayLayers().remove(overlay);
 		viewer.removeViewerListener(this);
 		
 //		if (pathObject != null)

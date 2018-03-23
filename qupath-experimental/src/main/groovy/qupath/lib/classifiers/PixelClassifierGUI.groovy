@@ -365,9 +365,9 @@ class PixelClassifierGUI implements PathCommand, QuPathViewerListener, PathObjec
             return
         }
         if (overlay != null)
-            viewer.removeOverlay(overlay)
+            viewer.getCustomOverlayLayers().remove(overlay)
         overlay = newOverlay
-        viewer.addOverlay(overlay)
+        viewer.getCustomOverlayLayers().add(overlay)
     }
 
 
@@ -376,7 +376,7 @@ class PixelClassifierGUI implements PathCommand, QuPathViewerListener, PathObjec
         helper.setImageData(null)
         classifierGUI = null
         if (overlay != null) {
-            viewer.removeOverlay(overlay)
+            viewer.getCustomOverlayLayers().remove(overlay)
             overlay = null
         }
         if (stage != null && stage.isShowing())

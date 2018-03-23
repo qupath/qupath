@@ -49,11 +49,9 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.Vector;
 
 import javax.imageio.ImageIO;
@@ -71,6 +69,9 @@ import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleIntegerProperty;
+import javafx.collections.FXCollections;
+import javafx.collections.ListChangeListener.Change;
+import javafx.collections.ObservableList;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.event.EventHandler;
 import javafx.scene.Cursor;
@@ -149,9 +150,19 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 
 	// A PathImageServer used to wrap a PathObjectHierarchy, for faster painting when there are a lot of objects
 	private HierarchyOverlay hierarchyOverlay = null;
-	private List<PathOverlay> overlayLayers = new ArrayList<>();
-	//	private Map<Class<? extends PathOverlay>> overlayMap = new HashMap<Class<? extends PathOverlay>>PathOverlay>();
-	private Set<PathOverlay> baseOverlayLayers = new HashSet<>(); // These are fixed, and cannot be replaced
+	// An overlay to show a TMA grid
+	private TMAGridOverlay tmaGridOverlay;
+	// An overlay to show a regular grid (e.g. for counting)
+	private GridOverlay gridOverlay;
+	
+	// Overlay layers that can be edited
+	private ObservableList<PathOverlay> customOverlayLayers = FXCollections.observableArrayList();
+	
+	// Core overlay layers - these are always retained, and painted on top of any custom layers
+	private ObservableList<PathOverlay> coreOverlayLayers = FXCollections.observableArrayList();
+	
+	// List that concatenates the custom & core overlay layers in painting order
+	private ObservableList<PathOverlay> allOverlayLayers = FXCollections.observableArrayList();
 
 	// Current we have two images - one transformed & one not - because the untransformed
 	// image is needed to determine pixel values as the mouse moves over the image
@@ -314,6 +325,16 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 
 	}
 	
+	
+	/**
+	 * Update allOverlayLayers to make sure it contains all the required PathOverlays.
+	 */
+	private void refreshAllOverlayLayers() {
+		List<PathOverlay> temp = new ArrayList<>();
+		temp.addAll(customOverlayLayers);
+		temp.addAll(coreOverlayLayers);
+		allOverlayLayers.setAll(temp);
+	}
 	
 	
 	long lastPaint = 0;
@@ -562,12 +583,20 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 
 		this.imageDisplay = imageDisplay;
 
+		// Prepare overlay layers
+		customOverlayLayers.addListener((Change<? extends PathOverlay> e) -> refreshAllOverlayLayers());
+		coreOverlayLayers.addListener((Change<? extends PathOverlay> e) -> refreshAllOverlayLayers());
+		allOverlayLayers.addListener((Change<? extends PathOverlay> e) -> repaint());
+		
 		hierarchyOverlay = new HierarchyOverlay(this.regionStore, overlayOptions, imageData);
+		tmaGridOverlay = new TMAGridOverlay(overlayOptions, imageData);
+		gridOverlay = new GridOverlay(overlayOptions, imageData);
 		// Set up the overlay layers
-		overlayLayers.add(new TMAGridOverlay(overlayOptions, imageData));
-		//		overlayLayers.add(new HierarchyOverlay(regionServer, overlayOptions, imageData));
-		overlayLayers.add(hierarchyOverlay);
-		overlayLayers.add(new GridOverlay(overlayOptions, imageData));
+		coreOverlayLayers.setAll(
+				tmaGridOverlay,
+				hierarchyOverlay,
+				gridOverlay
+		);
 
 		setImageData(imageData);
 
@@ -1199,14 +1228,17 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		//		featureMapWrapper = new TiledFeatureMapImageWrapper(server.getWidth(), server.getHeight());
 
 		// Notify overlays of change to ImageData
-		Iterator<PathOverlay> iter = overlayLayers.iterator();
+		Iterator<PathOverlay> iter = allOverlayLayers.iterator();
 		while (iter.hasNext()) {
 			PathOverlay overlay = iter.next();
 			if (overlay instanceof ImageDataOverlay) {
 				ImageDataOverlay overlay2 = (ImageDataOverlay)overlay;
-				if (!overlay2.supportsImageDataChange())
+				if (!overlay2.supportsImageDataChange()) {
+					// Remove any non-core overlay layers that don't support an ImageData change
+					if (!coreOverlayLayers.contains(overlay2))
+						iter.remove();
 					continue;
-				else
+				} else
 					overlay2.setImageData(imageData);
 			}
 		}
@@ -1460,17 +1492,15 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 			}
 
 			Color color = getSuggestedOverlayColor();
-			for (PathOverlay overlay : overlayLayers.toArray(new PathOverlay[0])) {
-				if (overlay == hierarchyOverlay)
-					continue;
+			// Paint the overlay layers
+			for (PathOverlay overlay : allOverlayLayers.toArray(new PathOverlay[0])) {
 				overlay.setPreferredOverlayColor(color);
 				overlay.paintOverlay(g2d, getServerBounds(), downsampleFactor, null, paintCompletely);
 			}
-			// Paint hierarchy last
-			if (hierarchyOverlay != null) {
-				hierarchyOverlay.setPreferredOverlayColor(color);
-				hierarchyOverlay.paintOverlay(g2d, getServerBounds(), downsampleFactor, null, paintCompletely);
-			}
+//			if (hierarchyOverlay != null) {
+//				hierarchyOverlay.setPreferredOverlayColor(color);
+//				hierarchyOverlay.paintOverlay(g2d, getServerBounds(), downsampleFactor, null, paintCompletely);
+//			}
 		}
 		
 		// Paint the selected object
@@ -1655,51 +1685,17 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	 * @return
 	 */
 	public List<PathOverlay> getOverlayLayers() {
-		return Collections.unmodifiableList(overlayLayers);
+		return FXCollections.unmodifiableObservableList(allOverlayLayers);
 	}
-
+	
 	/**
-	 * Get an overlay that is an instance of a specified class.  If multiple overlays exist, the first one will be returned.
-	 * If none exist on the current overlay, null is returned.
-	 * @param cls
+	 * Get direct access to the custom overlay list.
 	 * @return
 	 */
-	public PathOverlay getOverlayLayer(final Class<? extends PathOverlay> cls) {
-		for (PathOverlay overlay : overlayLayers) {
-			if (overlay.getClass().isAssignableFrom(cls))
-				return overlay;
-		}
-		return null;
+	public ObservableList<PathOverlay> getCustomOverlayLayers() {
+		return customOverlayLayers;
 	}
-
-
-	public void addOverlay(PathOverlay overlayNew) {
-		overlayLayers.add(overlayNew);
-		repaint();
-	}
-
-	public void insertOverlay(int ind, PathOverlay overlayNew) {
-		overlayLayers.add(ind, overlayNew);
-		repaint();
-	}
-
-	/**
-	 * Remove an overlay layer.  Note that not all overlay layers can be removed
-	 * (i.e. the ones present on startup are fixed).
-	 * @param overlayToRemove
-	 * @return True if the overlay was removed, false otherwise (either because it
-	 * was fixed, or because it was not present on the current overlay layer list anyway).
-	 */
-	public boolean removeOverlay(PathOverlay overlayToRemove) {
-		if (baseOverlayLayers.contains(overlayToRemove))
-			return false;
-		if (overlayLayers.remove(overlayToRemove)) {
-			repaint();
-			return true;
-		}
-		return false;
-	}
-
+	
 
 	/**
 	 * Get the handle size used to draw a ROI.

@@ -29,7 +29,8 @@ public class SmoothedOpenCVFeatureCalculator implements OpenCVFeatureCalculator 
         input.convertTo(matOutput, opencv_core.CV_32F)
 
         int nChannels = matOutput.channels()
-        featureNames = []
+		// TODO: Just generate the feature names once!
+        def featureNames = []
         for (int c = 1; c <= nChannels; c++) {
             if (sigma > 0)
                 featureNames << String.format('Channel %d: Gaussian sigma = %.2f', c, sigma)
@@ -40,6 +41,10 @@ public class SmoothedOpenCVFeatureCalculator implements OpenCVFeatureCalculator 
         if (sigma > 0) {
             opencv_imgproc.GaussianBlur(matOutput, matOutput, size, sigma)
         }
+		synchronized (this) {
+			this.featureNames.clear()
+			this.featureNames.addAll(featureNames)
+		}
         return matOutput;
     }
 
@@ -47,7 +52,7 @@ public class SmoothedOpenCVFeatureCalculator implements OpenCVFeatureCalculator 
         return padding
     }
 
-    public List<String> getLastFeatureNames() {
+    public synchronized  List<String> getLastFeatureNames() {
         return featureNames
     }
 

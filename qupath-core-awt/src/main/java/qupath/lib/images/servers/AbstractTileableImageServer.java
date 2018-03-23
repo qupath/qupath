@@ -1,6 +1,7 @@
 package qupath.lib.images.servers;
 
 import java.awt.Graphics2D;
+import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -95,6 +96,7 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 			Graphics2D g2d = imgResult.createGraphics();
 			g2d.scale(1.0/request.getDownsample(), 1.0/request.getDownsample());
 			g2d.translate(-request.getX(), -request.getY());
+//			g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
 			for (RegionRequest tileRequest : requests) {
 				BufferedImage imgTile = getTile(tileRequest);
 				g2d.drawImage(imgTile, tileRequest.getX(), tileRequest.getY(), tileRequest.getWidth(), tileRequest.getHeight(), null);
