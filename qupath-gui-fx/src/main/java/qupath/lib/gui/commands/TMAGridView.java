@@ -88,7 +88,6 @@ import qupath.lib.gui.helpers.PaintingToolsFX;
 import qupath.lib.gui.models.ObservableMeasurementTableData;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
-import qupath.lib.images.stores.ImageRegionStore;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
@@ -231,9 +230,14 @@ public class TMAGridView implements PathCommand, ImageDataChangeListener<Buffere
 	
 
 	private void initializeData(ImageData<BufferedImage> imageData) {
-		this.imageData = imageData;
-		if (imageData != null)
-			imageData.getHierarchy().addPathObjectListener(this);
+		if (this.imageData != imageData) {
+			if (this.imageData != null)
+				this.imageData.getHierarchy().removePathObjectListener(this);
+			this.imageData = imageData;
+			if (imageData != null) {
+				imageData.getHierarchy().addPathObjectListener(this);
+			}
+		}
 		
 		if (imageData == null || imageData.getHierarchy().getTMAGrid() == null) {
 			model.setImageData(null, Collections.emptyList());
@@ -517,7 +521,7 @@ public class TMAGridView implements PathCommand, ImageDataChangeListener<Buffere
 
 	@Override
 	public void hierarchyChanged(PathObjectHierarchyEvent event) {
-		if (imageData != null && imageData.getHierarchy() == event.getHierarchy() && stage != null && stage.isShowing()) {
+		if (!event.isChanging() && imageData != null && imageData.getHierarchy() == event.getHierarchy() && stage != null && stage.isShowing()) {
 			// This is some fairly aggressive updating...
 			initializeData(imageData);
 		}
