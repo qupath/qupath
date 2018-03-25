@@ -1029,6 +1029,22 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 			viewCanvas.setStyle("-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.5), 4, 0, 1, 1);");
 			label.getChildren().add(viewCanvas);
 			label.setPrefSize(viewWidth, viewHeight);
+			
+//			setOnDragDetected( event ->  {
+//				if (isEmpty())
+//					return;
+//				Object item = getItem();
+//				String path = null;
+//				if (item instanceof ProjectImageEntry<?>)
+//					path = ((ProjectImageEntry)item).getServerPath();
+//				if (path == null)
+//					return;
+//				Dragboard db = startDragAndDrop(TransferMode.COPY);
+//				ClipboardContent cc = new ClipboardContent();
+//				cc.putString(path);
+//				db.setContent(cc);
+//				db.setDragView(snapshot(null, null));
+//            });
 		}
 
 		@Override

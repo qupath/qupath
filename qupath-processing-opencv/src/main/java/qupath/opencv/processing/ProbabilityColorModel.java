@@ -20,7 +20,7 @@ import qupath.lib.common.ColorTools;
  * 
  * TODO: The actual implementation may change... it doesn't currently do all the checks it could/should...
  */
-class ProbabilityColorModel extends ColorModel {
+public class ProbabilityColorModel extends ColorModel {
 	
 	private final static Logger logger = LoggerFactory.getLogger(ProbabilityColorModel.class);
 		

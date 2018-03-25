@@ -23,6 +23,7 @@
 
 package qupath.opencv.tools;
 
+import java.awt.AlphaComposite;
 import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
@@ -196,9 +197,12 @@ public class WandToolCV extends BrushTool {
 		g2d.translate(-xStart, -yStart);
 		regionStore.paintRegionCompletely(viewer.getServer(), g2d, bounds, viewer.getZPosition(), viewer.getTPosition(), viewer.getDownsampleFactor(), null, viewer.getImageDisplay(), 250);
 		// Optionally include the overlay information when using the wand
-		if (getWandUseOverlays()) {
+		float opacity = viewer.getOverlayOptions().getOpacity();
+		if (opacity > 0 && getWandUseOverlays()) {
 			ImageRegion region = ImageRegion.createInstance(
 					(int)bounds.getX()-1, (int)bounds.getY()-1, (int)bounds.getWidth()+1, (int)bounds.getHeight()+1, viewer.getZPosition(), viewer.getTPosition());
+			if (opacity < 0)
+				g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, opacity));
 			for (PathOverlay overlay : viewer.getOverlayLayers().toArray(new PathOverlay[0])) {
 				overlay.paintOverlay(g2d, region, downsample, null, true);
 			}

@@ -67,8 +67,11 @@ import javafx.beans.InvalidationListener;
 import javafx.beans.Observable;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.IntegerProperty;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleIntegerProperty;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener.Change;
 import javafx.collections.ObservableList;
@@ -141,7 +144,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 
 	private Vector<QuPathViewerListener> listeners = new Vector<>();
 
-	private ImageData<BufferedImage> imageData;
+	private ObjectProperty<ImageData<BufferedImage>> imageDataProperty = new SimpleObjectProperty<>();
 
 	private DefaultImageRegionStore regionStore;
 
@@ -643,9 +646,15 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		});
 	}
 
+	
+	
+	public ReadOnlyObjectProperty<ImageData<BufferedImage>> getImageDataProperty() {
+		return imageDataProperty;
+	}
+	
 
 	public ImageData<BufferedImage> getImageData() {
-		return imageData;
+		return imageDataProperty.get();
 	}
 
 
@@ -1147,7 +1156,8 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 
 
 	public ImageServer<BufferedImage> getServer() {
-		return imageData == null ? null : imageData.getServer();
+		ImageData<BufferedImage> temp = imageDataProperty.get();
+		return temp == null ? null : temp.getServer();
 	}
 
 	public boolean hasServer() {
@@ -1187,25 +1197,25 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	}
 
 	public void setImageData(ImageData<BufferedImage> imageDataNew) {
-		if (this.imageData == imageDataNew)
+		if (this.imageDataProperty.get() == imageDataNew)
 			return;
 		
 		imageDataChanging.set(true);
 
 		// Remove listeners for previous hierarchy
-		ImageData<BufferedImage> imageDataOld = this.imageData;
+		ImageData<BufferedImage> imageDataOld = this.imageDataProperty.get();
 		if (imageDataOld != null) {
 			imageDataOld.getHierarchy().removePathObjectListener(this);
 			imageDataOld.getHierarchy().getSelectionModel().removePathObjectSelectionListener(this);
 		}
 
-		this.imageData = imageDataNew;
+		this.imageDataProperty.set(imageDataNew);
 		ImageServer<BufferedImage> server = imageDataNew == null ? null : imageDataNew.getServer();
 		PathObjectHierarchy hierarchy = imageDataNew == null ? null : imageDataNew.getHierarchy();
 
 		long startTime = System.currentTimeMillis();
 		if (imageDisplay != null) {
-			imageDisplay.setImageData(imageData);
+			imageDisplay.setImageData(imageDataNew);
 			//			SwingWorker<Void, Void> worker = new SwingWorker<Void, Void>() {
 			//
 			//				@Override
@@ -1239,12 +1249,12 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 						iter.remove();
 					continue;
 				} else
-					overlay2.setImageData(imageData);
+					overlay2.setImageData(imageDataNew);
 			}
 		}
 		//		overlay.setImageData(imageData);
 
-		if (imageData != null) {
+		if (imageDataNew != null) {
 			//			hierarchyPainter = new PathHierarchyPainter(hierarchy);
 			hierarchy.addPathObjectListener(this);
 			hierarchy.getSelectionModel().addPathObjectSelectionListener(this);
@@ -2272,7 +2282,8 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 
 
 	public PathObjectHierarchy getHierarchy() {
-		return imageData == null ? null : imageData.getHierarchy();
+		ImageData<BufferedImage> temp = imageDataProperty.get();
+		return temp == null ? null : temp.getHierarchy();
 	}
 
 	public void addViewerListener(QuPathViewerListener listener) {
@@ -2507,8 +2518,9 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	
 	@Override
 	public String toString() {
-		if (imageData != null)
-			return getClass().getSimpleName() + " - " + imageData.getServerPath();
+		ImageData<BufferedImage> temp = imageDataProperty.get();
+		if (temp != null)
+			return getClass().getSimpleName() + " - " + temp.getServerPath();
 		return getClass().getSimpleName() + " - no server";
 	}
 
