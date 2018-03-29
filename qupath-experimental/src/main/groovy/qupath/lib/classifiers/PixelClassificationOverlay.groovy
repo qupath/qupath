@@ -60,7 +60,10 @@ public class PixelClassificationOverlay extends AbstractOverlay {
 
         // Check which tile requests are required currently
         // Note: we use the downsample for the *classifier*
-        List<RegionRequest> requests = ImageRegionStoreHelpers.getTilesToRequest(server, g2d.getClip(), requestedDownsample, imageRegion.getZ(), imageRegion.getT(), null);
+		int tileWidth = 512;
+		int tileHeight = 512;
+        List<RegionRequest> requests = ImageRegionStoreHelpers.getTilesToRequest(
+			server, g2d.getClip(), requestedDownsample, imageRegion.getZ(), imageRegion.getT(), tileWidth, tileHeight, null);
 
 //        g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR)
 
@@ -103,9 +106,9 @@ public class PixelClassificationOverlay extends AbstractOverlay {
 
             // If there is a tile available, request classification
             BufferedImage imgTile = store.getCachedTile(server, request);
-            if (imgTile != null) {
+//            if (imgTile != null) {
                 requestTile(request, imgTile);
-            }
+//            }
         }
     }
 
@@ -125,18 +128,23 @@ public class PixelClassificationOverlay extends AbstractOverlay {
                     double downsample = request.getDownsample()
                     int width = ((request.getWidth()) / downsample + padding*2) as int
                     int height = ((request.getHeight()) / downsample + padding*2) as int
-                    def imgTile2 = new BufferedImage(width, height, img.getType())
-                    def g2d2 = imgTile2.createGraphics()
-                    g2d2.setClip(0, 0, imgTile2.getWidth(), imgTile2.getHeight())
-                    g2d2.scale(1.0 / downsample, 1.0 / downsample)
-                    g2d2.translate(-request.getX() + padding * downsample, -request.getY() + padding * downsample)
-                    g2d2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-                    viewer.getImageRegionStore().paintRegionCompletely(
-                            server, g2d2, g2d2.getClip(), request.getZ(), request.getT(),
-                            request.getDownsample(),
-                            null, null, 5000L)
-                    g2d2.dispose()
-                    img = imgTile2
+					img = server.readBufferedImage(RegionRequest.createInstance(
+						request.getPath(), request.getDownsample(), 
+						(int)(request.getX()-padding*downsample), (int)(request.getY()-padding*downsample),
+						(int)Math.round(request.getWidth()+padding*downsample*2),
+						(int)Math.round(request.getHeight()+padding*downsample*2))) as BufferedImage
+//                    def imgTile2 = new BufferedImage(width, height, img.getType())
+//                    def g2d2 = imgTile2.createGraphics()
+//                    g2d2.setClip(0, 0, imgTile2.getWidth(), imgTile2.getHeight())
+//                    g2d2.scale(1.0 / downsample, 1.0 / downsample)
+//                    g2d2.translate(-request.getX() + padding * downsample, -request.getY() + padding * downsample)
+//                    g2d2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+//                    viewer.getImageRegionStore().paintRegionCompletely(
+//                            server, g2d2, g2d2.getClip(), request.getZ(), request.getT(),
+//                            request.getDownsample(),
+//                            null, null, 5000L)
+//                    g2d2.dispose()
+//                    img = imgTile2
 
                     BufferedImage imgResult = classifier.applyClassification(img, padding);
                     cache.put(request, imgResult);

@@ -42,6 +42,8 @@ public class SmoothedOpenCVFeatureCalculator implements OpenCVFeatureCalculator 
             opencv_imgproc.GaussianBlur(matOutput, matOutput, size, sigma)
         }
 		synchronized (this) {
+			if (this.featureNames == null)
+				this.featureNames = []
 			this.featureNames.clear()
 			this.featureNames.addAll(featureNames)
 		}

@@ -25,7 +25,6 @@ package qupath.lib.images.servers;
 
 import java.awt.Color;
 import java.awt.Graphics2D;
-import java.awt.Rectangle;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferInt;
 import java.io.File;
@@ -40,7 +39,6 @@ import org.openslide.OpenSlide;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import qupath.lib.awt.common.AwtTools;
 import qupath.lib.regions.RegionRequest;
 
 /**
@@ -160,24 +158,18 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 
 	@Override
 	public BufferedImage readTile(RegionRequest request) {
-		Rectangle region = AwtTools.getBounds(request);
-		if (region == null) {
-			region = new Rectangle(0, 0, getWidth(), getHeight());
-		}
-		
 		double downsampleFactor = request.getDownsample();
 		double[] preferredDownsamples = getPreferredDownsamples();
 		int level = ServerTools.getClosestDownsampleIndex(preferredDownsamples, downsampleFactor);
 		double downsample = preferredDownsamples[level];
-		int levelWidth = (int)(region.width / downsample + 0.5);
-		int levelHeight = (int)(region.height / downsample + 0.5);
+		int levelWidth = (int)Math.round(request.getWidth() / downsample);
+		int levelHeight = (int)Math.round(request.getHeight() / downsample);
 		BufferedImage img = new BufferedImage(levelWidth, levelHeight, BufferedImage.TYPE_INT_ARGB_PRE);
-
         int data[] = ((DataBufferInt)img.getRaster().getDataBuffer()).getData();
         
         try {
 			// Create a thumbnail for the region
-			osr.paintRegionARGB(data, region.x, region.y, level, levelWidth, levelHeight);
+			osr.paintRegionARGB(data, request.getX(), request.getY(), level, levelWidth, levelHeight);
 			
 			// Previously tried to take shortcut and only repaint if needed - 
 			// but transparent pixels happened too often, and it's really needed to repaint every time
@@ -185,9 +177,9 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 //				return img;
 			
 			// Rescale if we have to
-			int width = (int)(region.width / downsampleFactor + .5);
-			int height = (int)(region.height / downsampleFactor + .5);
-//			BufferedImage img2 = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
+			int width = (int)Math.round(request.getWidth() / downsampleFactor);
+			int height = (int)Math.round(request.getHeight() / downsampleFactor);
+			
 			BufferedImage img2 = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
 			Graphics2D g2d = img2.createGraphics();
 			if (backgroundColor != null) {

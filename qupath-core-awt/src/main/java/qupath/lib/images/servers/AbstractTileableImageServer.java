@@ -1,7 +1,6 @@
 package qupath.lib.images.servers;
 
 import java.awt.Graphics2D;
-import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -10,7 +9,6 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import qupath.lib.common.GeneralTools;
 import qupath.lib.images.stores.ImageRegionStoreHelpers;
 import qupath.lib.regions.RegionRequest;
 
@@ -82,10 +80,8 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 		List<RegionRequest> requests = ImageRegionStoreHelpers.getTilesToRequest(this, request, null);
 		if (requests.isEmpty())
 			return null;
-		// Check for the special case where we are requesting a single tile
-		double tileDownsample = requests.get(0).getDownsample();
-		double scale = tileDownsample / request.getDownsample();
-		if (requests.size() == 1 && (scale == 1 || GeneralTools.almostTheSame(scale, 1.0, 0.00001))) {
+		// Check for the special case where we are requesting a single tile, which exactly matches the request
+		if (requests.size() == 1 && request.equals(requests.get(0))) {
 			return getTile(requests.get(0));
 		}
 		// Handle the general case for RGB

@@ -47,23 +47,54 @@ import qupath.lib.regions.RegionRequest;
  */
 public class ImageRegionStoreHelpers {
 	
-	
+	/**
+	 * Given ImageServer, determine the boundaries of the image tiles that would be needed to construct 
+	 * the image for a specified region.
+	 * 
+	 * @param server The ImageServer from which the tiles would be requested
+	 * @param request The region for which all required tiles should be requested
+	 * @param regions regions The list to which requests should be added, or null if a new list should be created
+	 * @return The list of requests - identical to the one provided as an input parameter, unless this was null
+	 */
 	public static List<RegionRequest> getTilesToRequest(ImageServer<?> server, RegionRequest request, List<RegionRequest> regions) {
 		return getTilesToRequest(server, AwtTools.getBounds(request), request.getDownsample(), request.getZ(), request.getT(), regions);
 	}
 	
 	/**
-	 * Given a PathImageServer, determine the boundaries of the image tiles that would be needed to paint
+	 * Given ImageServer, determine the boundaries of the image tiles that would be needed to paint
 	 * a specified shape (defined by coordinates in the full-resolution image space).
 	 * The downsampleFactor is used to determine the resolution at which to request the tiles.
 	 * 
-	 * @param server The PathImageServer from which the tiles would be requested
+	 * @param server The ImageServer from which the tiles would be requested
 	 * @param clipShape The requested shape, defined in the full-resolution image space
 	 * @param downsampleFactor The downsampleFactor determining the resolution at which tiles should be requested
-	 * @param regions The list to which requests should be added, or null if a new list should be created
+	 * @param zPosition The zPosition from which to request tiles
+	 * @param tPosition The tPosition from which to request tiles
+	 * @param regions regions The list to which requests should be added, or null if a new list should be created
 	 * @return The list of requests - identical to the one provided as an input parameter, unless this was null
 	 */
 	public static List<RegionRequest> getTilesToRequest(ImageServer<?> server, Shape clipShape, double downsampleFactor, int zPosition, int tPosition, List<RegionRequest> regions) {
+		return getTilesToRequest(server, clipShape, downsampleFactor, zPosition, tPosition, -1, -1, regions);
+	}
+	
+
+	/**
+	 * Given ImageServer, determine the boundaries of the image tiles that would be needed to paint
+	 * a specified shape (defined by coordinates in the full-resolution image space).
+	 * The downsampleFactor is used to determine the resolution at which to request the tiles.
+	 * 
+	 * @param server The ImageServer from which the tiles would be requested
+	 * @param clipShape The requested shape, defined in the full-resolution image space
+	 * @param downsampleFactor The downsampleFactor determining the resolution at which tiles should be requested
+	 * @param zPosition The zPosition from which to request tiles
+	 * @param tPosition The tPosition from which to request tiles
+	 * @param tileWidth Specific tile width (overrides preferred width in the server if > 0)
+	 * @param tileHeight Specific tile width (overrides preferred height in the server if > 0)
+	 * @param regions regions The list to which requests should be added, or null if a new list should be created
+	 * @return The list of requests - identical to the one provided as an input parameter, unless this was null
+	 */
+	public static List<RegionRequest> getTilesToRequest(ImageServer<?> server, Shape clipShape, double downsampleFactor, int zPosition, int tPosition,
+			int tileWidth, int tileHeight, List<RegionRequest> regions) {
 
 		if (regions == null)
 			regions = new ArrayList<>();
@@ -72,11 +103,14 @@ public class ImageRegionStoreHelpers {
 
 		// Determine what the tile size will be in the original image space for the requested downsample
 		// Aim for a round number - preferred downsamples can be a bit off due to rounding
-		int tileWidth = server.getPreferredTileWidth();
-		int tileHeight = server.getPreferredTileHeight();
-		if (tileWidth < 0)
+		if (tileWidth <= 0)
+			tileWidth = server.getPreferredTileWidth();
+		if (tileHeight <= 0)
+			tileHeight = server.getPreferredTileHeight();
+		// If the preferred sizes are out of range, use defaults
+		if (tileWidth <= 0)
 			tileWidth = 256;
-		if (tileHeight < 0)
+		if (tileHeight <= 0)
 			tileHeight = 256;
 		//		System.out.println("Tile size: " + tileWidth + ", " + tileHeight);
 		int tileWidthForLevel;
