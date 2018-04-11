@@ -579,8 +579,15 @@ public class ImageAlignmentPane {
 			else 
 				setStyle("-fx-font-weight: normal; -fx-font-family: arial");
 			
-			// TODO: CHANGE NAME TO USE PROJECT!
-			setText(item.getServer().getShortServerName());
+			// Get the name from the project, if possible
+			Project<?> project = qupath.getProject();
+			String name = item.getServer().getDisplayedImageName();
+			if (project != null) {
+				ProjectImageEntry<?> entry = project.getImageEntry(item.getServerPath());
+				if (entry != null)
+					name = entry.getImageName();
+			}
+			setText(name);
 			
 			BufferedImage img = viewer.getImageRegionStore().getThumbnail(item.getServer(), 0, 0, true);
 			Image image = SwingFXUtils.toFXImage(img, null);

@@ -1,4 +1,4 @@
-package qupath.opencv.processing;
+package qupath.lib.awt.color.model;
 
 import java.awt.image.BandedSampleModel;
 import java.awt.image.ColorModel;
@@ -20,32 +20,12 @@ import qupath.lib.common.ColorTools;
  * 
  * TODO: The actual implementation may change... it doesn't currently do all the checks it could/should...
  */
-public class ProbabilityColorModel extends ColorModel {
+class ProbabilityColorModel extends ColorModel {
 	
 	private final static Logger logger = LoggerFactory.getLogger(ProbabilityColorModel.class);
 		
 	public static final int BACKGROUND_COLOR = ColorTools.makeRGBA(0, 0, 0, 255);
 
-	/**
-	 * Create a ColorModel that can be used to display an image where pixels per channel reflect 
-	 * probabilities, either as float or byte.
-	 * 
-	 * It is assumed that the probabilities sum to 1; if they sum to less than 1, <code>alphaResidual</code> 
-	 * can be used to make 'unknown' pixels transparent/translucent rather than black.
-	 * 
-	 * @param bpp Bits per pixel.
-	 * @param nChannels Number of color channels.
-	 * @param alphaResidual If true, the alpha value is scaled according to the sum of the other probabilities.
-	 *                      This makes pixels with low probabilities for all other channels appear transparent.
-	 * @param colors Packed RGB representations of each color, in order.  A single channel can also be set to <code>BACKGROUND_COLOR</code>,
-	 * 						which indicates that it is used directly to control the alpha values, overriding <code>alphaResidual</code>.
-	 * @return
-	 */
-	public static ColorModel createColorModel(final int bpp, final int nChannels, final boolean alphaResidual, final int...colors) {
-		return new ProbabilityColorModel(bpp, nChannels, alphaResidual, colors);
-	}
-	
-	
 	private static int[] DEFAULT_COLORS = new int[] {
 			ColorTools.makeRGB(255, 0, 0),
 			ColorTools.makeRGB(0, 255, 0),

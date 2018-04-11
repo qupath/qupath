@@ -1,6 +1,6 @@
-package qupath.lib.classifiers
+package qupath.lib.classifiers.pixel;
 
-import java.awt.image.BufferedImage
+import java.awt.image.BufferedImage;
 
 public interface PixelClassifier {
 

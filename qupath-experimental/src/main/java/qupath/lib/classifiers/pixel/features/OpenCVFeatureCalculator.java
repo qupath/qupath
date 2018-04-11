@@ -1,8 +1,8 @@
-package qupath.lib.classifiers
+package qupath.lib.classifiers.pixel.features;
 
-import org.bytedeco.javacpp.opencv_core.Mat
+import org.bytedeco.javacpp.opencv_core.Mat;
 
-import java.awt.image.BufferedImage
+import java.util.List;
 
 public interface OpenCVFeatureCalculator {
 

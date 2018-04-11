@@ -53,6 +53,7 @@ import ij.process.FloatProcessor;
 import ij.process.ImageProcessor;
 import ij.process.LUT;
 import ij.process.ShortProcessor;
+import qupath.lib.awt.color.model.ColorModelFactory;
 import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.servers.AbstractImageServer;
@@ -223,11 +224,11 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 			SampleModel model;
 			if (colorModel == null) {
 				if (ip instanceof ByteProcessor)
-					colorModel = new SimpleColorModel(8);
+					colorModel = ColorModelFactory.getDummyColorModel(8);
 				else if (ip instanceof ShortProcessor)
-					colorModel = new SimpleColorModel(16);
+					colorModel = ColorModelFactory.getDummyColorModel(16);
 				else
-					colorModel = new SimpleColorModel(32);
+					colorModel = ColorModelFactory.getDummyColorModel(32);
 			}
 			
 			if (ip instanceof ByteProcessor) {
@@ -298,51 +299,5 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 	public ImageServerMetadata getOriginalMetadata() {
 		return originalMetadata;
 	}
-
-	
-	
-	/**
-	 * An extremely tolerant ColorModel that assumes everything should be shown in black.
-	 * QuPath takes care of display elsewhere, so this is just needed to avoid any trouble with null pointer exceptions.
-	 */
-	static class SimpleColorModel extends ColorModel {
-		
-		SimpleColorModel(final int nBits) {
-			super(nBits);
-		}
-
-		@Override
-		public int getRed(int pixel) {
-			return 0;
-		}
-
-		@Override
-		public int getGreen(int pixel) {
-			return 0;
-		}
-
-		@Override
-		public int getBlue(int pixel) {
-			return 0;
-		}
-
-		@Override
-		public int getAlpha(int pixel) {
-			return 0;
-		}
-		
-		@Override
-		public boolean isCompatibleRaster(Raster raster) {
-			// We accept everything...
-			return true;
-		}
-		
-		@Override
-		public ColorModel coerceData(WritableRaster raster, boolean isAlphaPremultiplied) {
-			// Don't do anything
-			return null;
-		}
-				
-	};
 	
 }

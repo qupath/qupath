@@ -4,6 +4,7 @@ import java.awt.Graphics2D;
 import java.awt.Rectangle;
 import java.awt.Shape;
 import java.awt.geom.AffineTransform;
+import java.awt.geom.NoninvertibleTransformException;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBuffer;
 import java.awt.image.DataBufferByte;
@@ -18,6 +19,10 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonSyntaxException;
+
+import qupath.lib.awt.color.model.ColorModelFactory;
 import qupath.lib.color.ColorDeconvolution;
 import qupath.lib.color.ColorDeconvolutionStains;
 import qupath.lib.common.ColorTools;
@@ -26,6 +31,7 @@ import qupath.lib.images.PathImage;
 import qupath.lib.images.servers.AbstractImageServer;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
+import qupath.lib.images.servers.ImageServerProvider;
 import qupath.lib.regions.RegionRequest;
 
 /**
@@ -41,22 +47,33 @@ public class MergedServer extends AbstractImageServer<BufferedImage> {
 	private Logger logger = LoggerFactory.getLogger(MergedServer.class);
 
 	/**
-	 * We need one server from with to determine key parameters, e.g. width, height, downsamples
+	 * We need one server from which to determine key parameters, e.g. width, height, downsamples
 	 */
-	private ServerWrapper mainServer;
+	private ServerTransformWrapper mainServer;
 	private ImageServer<BufferedImage> server;
-	private List<ServerWrapper> wrappers = new ArrayList<>();
+	private List<ServerTransformWrapper> wrappers = new ArrayList<>();
+	
+	/**
+	 * Redefine the base colors, giving BGR rather than RGB.
+	 * The reason is that the nuclear counterstain is added first, and the 'natural' color 
+	 * choice for it is blue (rather than the red of RGB).
+	 */
+	private List<Integer> baseColors = Arrays.asList(
+			ColorTools.makeRGB(0, 0, 255),
+			ColorTools.makeRGB(0, 255, 0),
+			ColorTools.makeRGB(255, 0, 0)
+			);
 
 	private String path;
 	private int nChannels;
 
-	MergedServer(List<ServerWrapper> wrappers, ServerWrapper serverMain) {
+	MergedServer(List<ServerTransformWrapper> wrappers, ServerTransformWrapper serverMain) {
 		logger.info("Number of wrappers: " + wrappers.size());
 		this.wrappers.addAll(wrappers);
 		// Take the first server if none specified
 		if (serverMain == null) {
-			for (ServerWrapper wrapper : wrappers) {
-				if (wrapper.affine.isIdentity()) {
+			for (ServerTransformWrapper wrapper : wrappers) {
+				if (wrapper.isIdentityTransform()) {
 					serverMain = wrapper;
 				}
 			}
@@ -109,7 +126,7 @@ public class MergedServer extends AbstractImageServer<BufferedImage> {
 	@Override
 	public BufferedImage readBufferedImage(RegionRequest request) {
 
-		double scale = 128;
+		double scale = 100;
 
 		// Get pixels for the main server first
 		BufferedImage img = server.readBufferedImage(request);
@@ -117,7 +134,7 @@ public class MergedServer extends AbstractImageServer<BufferedImage> {
 		int height = img.getHeight();
 
 		// Get the color deconvolved channels
-		ServerWrapper wrapper = wrappers.get(0);
+		ServerTransformWrapper wrapper = wrappers.get(0);
 		int[] rgb = img.getRGB(0, 0, width, height, null, 0, width);
 		WritableRaster raster = Raster.createInterleavedRaster(DataBuffer.TYPE_BYTE, width, height, nChannels, null);
 		byte[] buffer = ((DataBufferByte)raster.getDataBuffer()).getData();
@@ -142,7 +159,7 @@ public class MergedServer extends AbstractImageServer<BufferedImage> {
 			wrapper = wrappers.get(c);
 			ImageServer<BufferedImage> server2 = wrapper.server;
 			rect.setBounds(request.getX(), request.getY(), request.getWidth(), request.getHeight());
-			Shape shape = wrapper.affine.createTransformedShape(rect);
+			Shape shape = wrapper.getTransform().createTransformedShape(rect);
 			rect = shape.getBounds();
 			// Make sure the coordinates fit within the requested image
 			int x = rect.x;
@@ -168,7 +185,7 @@ public class MergedServer extends AbstractImageServer<BufferedImage> {
 			Graphics2D g2d = img2.createGraphics();
 			g2d.scale(1.0/request.getDownsample(), 1.0/request.getDownsample());
 			g2d.translate(-request.getX(), -request.getY());
-			g2d.transform(wrapper.affine.createInverse());
+			g2d.transform(wrapper.getInverseTransform());
 			g2d.drawImage(imgTemp, request2.getX(), request2.getY(), request2.getWidth(), request2.getHeight(), null);
 			g2d.dispose();
 
@@ -182,7 +199,7 @@ public class MergedServer extends AbstractImageServer<BufferedImage> {
 
 		}
 
-		return new BufferedImage(new ImageJServer.SimpleColorModel(8), raster, true, null);
+		return new BufferedImage(ColorModelFactory.getDummyColorModel(8), raster, true, null);
 	}
 
 	@Override
@@ -230,17 +247,10 @@ public class MergedServer extends AbstractImageServer<BufferedImage> {
 		return server.getBitsPerPixel();
 	}
 
-	List<Integer> colors = Arrays.asList(
-			ColorTools.makeRGB(0, 0, 255),
-			ColorTools.makeRGB(255, 0, 0),
-			ColorTools.makeRGB(0, 255, 0),
-			ColorTools.makeRGB(255, 0, 255)
-			);
-
 	@Override
 	public Integer getDefaultChannelColor(int channel) {
-		if (channel < colors.size())
-			return colors.get(channel);
+		if (channel < baseColors.size())
+			return baseColors.get(channel);
 		return super.getExtendedDefaultChannelColor(channel);
 	}
 
@@ -260,13 +270,94 @@ public class MergedServer extends AbstractImageServer<BufferedImage> {
 	}
 
 
-	static class ServerWrapper {
-		ImageServer<BufferedImage> server;
-		String name;
-		double[] transform;
-		AffineTransform affine;
-		// Use default H-DAB stains (probably better to change one day...)
-		ColorDeconvolutionStains stains = ColorDeconvolutionStains.makeDefaultColorDeconvolutionStains(ColorDeconvolutionStains.DEFAULT_CD_STAINS.H_DAB);
+	public static class ServerTransformWrapper {
+		
+		private ImageServer<BufferedImage> server;
+		private String name;
+		private AffineTransform transform;
+		private AffineTransform transformInverse;
+		private ColorDeconvolutionStains stains;
+		
+		
+		public static String toJSON(final ServerTransformWrapper wrapper) {
+			return new GsonBuilder().create().toJson(
+					new ServerTransformJSONable(wrapper)
+					);
+		}
+		
+		public static ServerTransformWrapper fromJSON(final String json) throws JsonSyntaxException, NoninvertibleTransformException {
+			return new GsonBuilder().create().fromJson(json, ServerTransformJSONable.class).toServerTransformWrapper();
+		}
+		
+		
+		public ServerTransformWrapper(final ImageServer<BufferedImage> server, final String name,
+				final AffineTransform transform, ColorDeconvolutionStains stains) throws NoninvertibleTransformException {
+			this.server = server;
+			this.name = name;
+			this.transform = transform;
+			this.transformInverse = transform.createInverse();
+			this.stains = stains;
+		}
+		
+		public ImageServer<BufferedImage> getServer() {
+			return server;
+		}
+		
+		public ColorDeconvolutionStains getStains() {
+			return stains;
+		}
+		
+		public String getName() {
+			return name;
+		}
+		
+		public boolean isIdentityTransform() {
+			return transform.isIdentity();
+		}
+		
+		public AffineTransform getTransform() {
+			return transform;
+		}
+		
+		public AffineTransform getInverseTransform() {
+			return transformInverse;
+		}
+		
+		
+		
+		private static class ServerTransformJSONable {
+			
+			private String path;
+			private String name;
+			private double[] transform;
+			private String stainsString;
+			
+			ServerTransformJSONable(ServerTransformWrapper wrapper) {
+				this.path = wrapper.getServer().getPath();
+				this.name = wrapper.getName();
+				this.stainsString = ColorDeconvolutionStains.getColorDeconvolutionStainsAsString(
+						wrapper.getStains(), 6);
+			}
+			
+			
+			ServerTransformWrapper toServerTransformWrapper() throws NoninvertibleTransformException {
+				ImageServer<BufferedImage> server = ImageServerProvider.buildServer(path, BufferedImage.class);
+				ColorDeconvolutionStains stains = ColorDeconvolutionStains.parseColorDeconvolutionStainsArg(stainsString);
+				AffineTransform affine = new AffineTransform(
+						transform[0], transform[2], transform[4],
+						transform[1], transform[3], transform[5]
+						);
+				return new ServerTransformWrapper(
+						server,
+						name,
+						affine,
+						stains);
+			}
+			
+			
+		}
+		
 	}
+	
 
 }
