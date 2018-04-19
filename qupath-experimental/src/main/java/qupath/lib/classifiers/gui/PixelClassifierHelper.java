@@ -5,6 +5,9 @@ import org.bytedeco.javacpp.opencv_imgproc;
 import org.bytedeco.javacpp.opencv_ml;
 import org.bytedeco.javacpp.opencv_ml.TrainData;
 import org.bytedeco.javacpp.indexer.UByteIndexer;
+
+import qupath.lib.classifiers.pixel.OpenCVPixelClassifier;
+import qupath.lib.classifiers.pixel.PixelClassifierOutputChannel;
 import qupath.lib.classifiers.pixel.features.OpenCVFeatureCalculator;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;

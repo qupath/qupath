@@ -1551,6 +1551,10 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 		else if (builder instanceof NumericMeasurementBuilder)
 			return ((NumericMeasurementBuilder)builder).getStringValue(pathObject, decimalPlaces);
 		
+		if (pathObject == null) {
+			logger.warn("Requested measurement {} for null object! Returned empty String.", column);
+			return "";
+		}
 		double val = pathObject.getMeasurementList().getMeasurementValue(column);
 		if (Double.isNaN(val))
 			return "NaN";
