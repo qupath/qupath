@@ -72,7 +72,7 @@ import qupath.lib.roi.interfaces.ROI;
 
 /**
  * Command to help set stain vectors for brightfield chromogenic stains,
- * e.g. H-DAB or H&E.
+ * e.g. H-DAB or H&amp;E.
  * 
  * @author Pete Bankhead
  *

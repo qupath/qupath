@@ -67,7 +67,7 @@ public class ClosedShapeStatistics implements Serializable {
 //	}
 	
 	/**
-	 * Calculate shape statistics for default pixel width & height of 1.
+	 * Calculate shape statistics for default pixel width &amp; height of 1.
 	 * 
 	 * @param vertices
 	 */
@@ -76,7 +76,7 @@ public class ClosedShapeStatistics implements Serializable {
 	}
 
 	/**
-	 * Calculate shape statistics for default pixel width & height of 1.
+	 * Calculate shape statistics for default pixel width &amp; height of 1.
 	 * 
 	 * Note: This method access a list of multiple vertices relating to a single area, as stored by AreaROI.
 	 * It isn't advised to work with this directly, since the manner in which these vertices are stored is important.
@@ -88,7 +88,7 @@ public class ClosedShapeStatistics implements Serializable {
 	}
 
 	/**
-	 * Calculate shape statistics with scaling according to a specified pixel width & height 
+	 * Calculate shape statistics with scaling according to a specified pixel width &amp; height
 	 * (affecting the x and y coordinates respectively).
 	 * 
 	 * @param vertices
@@ -100,7 +100,7 @@ public class ClosedShapeStatistics implements Serializable {
 	}
 	
 	/**
-	 * Calculate shape statistics with scaling according to a specified pixel width & height 
+	 * Calculate shape statistics with scaling according to a specified pixel width &amp; height
 	 * (affecting the x and y coordinates respectively).
 	 * 
 	 * Note: This method access a list of multiple vertices relating to a single area, as stored by AreaROI.

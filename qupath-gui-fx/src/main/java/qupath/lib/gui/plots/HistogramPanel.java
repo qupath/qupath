@@ -148,7 +148,7 @@ public class HistogramPanel extends Canvas {
 	}
 	
 	/**
-	 * Set histogram bar & fill colors based on a base color, which will automatically have its
+	 * Set histogram bar &amp; fill colors based on a base color, which will automatically have its
 	 * opacity adjusted to improve appearance.
 	 * 
 	 * For more control over appearance, setHistogramBarEdgeColor and setHistogramBarFillColor can be used instead.

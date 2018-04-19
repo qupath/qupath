@@ -61,7 +61,7 @@ public interface ImageServerBuilder<T> {
 	public float supportLevel(String path, ImageCheckType info, Class<?> cls);
 	
 	/**
-	 * Attempt to create ImageServer<T> from the specified path.
+	 * Attempt to create {@code ImageServer<T>} from the specified path.
 	 * @param path
 	 * @return
 	 */

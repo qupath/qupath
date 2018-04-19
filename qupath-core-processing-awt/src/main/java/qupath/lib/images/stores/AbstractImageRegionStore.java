@@ -255,7 +255,7 @@ public abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T>
 	 * Request an image tile.
 	 * There are 3 possible return values:
 	 * 	- a T for the tile
-	 * 	- the TileWorker<T> object currently charged with fetching the tile
+	 * 	- the {@code TileWorker<T>} object currently charged with fetching the tile
 	 * 	- null, if this is the value stored in the TiledImageCache (i.e. the tile has previously been fetched, and there is no image corresponding to the request)
 	 * @param server
 	 * @param request

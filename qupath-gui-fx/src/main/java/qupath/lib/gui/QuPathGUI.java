@@ -1638,7 +1638,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	
 	
 	/**
-	 * Get a reference to the default drag & drop listener, so this may be added to additional windows if needed.
+	 * Get a reference to the default drag &amp; drop listener, so this may be added to additional windows if needed.
 	 * 
 	 * @return
 	 */
@@ -4272,7 +4272,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	}
 	
 	/**
-	 * Get a String representing the QuPath version & build time.
+	 * Get a String representing the QuPath version &amp; build time.
 	 * 
 	 * @return
 	 */

@@ -64,7 +64,7 @@ import qupath.lib.roi.interfaces.ROI;
 /**
  * Simple command to detect regions with positive staining.
  * 
- * For versions <= v0.1.2 this gave simple measurements that were influenced by the downsample values used.
+ * For versions &lt;= v0.1.2 this gave simple measurements that were influenced by the downsample values used.
  * Later versions make calibrated measurements and give more flexibility in terms of output.
  * 
  * @author Pete Bankhead

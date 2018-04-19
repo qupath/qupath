@@ -102,7 +102,7 @@ import qupathj.QUPath_Send_Overlay_to_QuPath;
 import qupathj.QUPath_Send_ROI_to_QuPath;
 
 /**
- * QuPath extension & associated static helper methods used to support integration of ImageJ with QuPath.
+ * QuPath extension &amp; associated static helper methods used to support integration of ImageJ with QuPath.
  * 
  * @author Pete Bankhead
  *

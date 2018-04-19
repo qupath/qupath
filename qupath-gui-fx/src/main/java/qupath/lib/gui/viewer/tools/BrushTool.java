@@ -404,7 +404,7 @@ public class BrushTool extends AbstractPathROITool {
 	
 	
 	/**
-	 * Create a new Shape using the specified tool, assuming a user click/drag at the provided x & y coordinates.
+	 * Create a new Shape using the specified tool, assuming a user click/drag at the provided x &amp; y coordinates.
 	 * 
 	 * @param x
 	 * @param y

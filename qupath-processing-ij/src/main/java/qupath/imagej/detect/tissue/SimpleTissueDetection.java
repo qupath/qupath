@@ -75,7 +75,7 @@ import qupath.lib.roi.interfaces.ROI;
 /**
  * Very basic global thresholding command to identify tissue regions.
  * 
- * Uses fixed approach to downsampling images & global threshold applied to RGB images only.
+ * Uses fixed approach to downsampling images &amp; global threshold applied to RGB images only.
  * 
  * TODO: Provide choice of channels to threshold
  * TODO: Support 16-bit data

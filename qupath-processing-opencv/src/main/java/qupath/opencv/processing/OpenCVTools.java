@@ -65,7 +65,7 @@ public class OpenCVTools {
 	 * BGR and RGB images will remain with the same channel order, and an alpha channel 
 	 * (if present) will be included at the end (i.e. to give BGRA or RGBA).
 	 * 
-	 * Note: the behavior of this method has changed; in QuPath <= 0.1.2 only 
+	 * Note: the behavior of this method has changed; in QuPath &lt;= 0.1.2 only
 	 * RGB images were really supported, and an RGB conversion was *always* made.
 	 * 
 	 * @see #imageToMatRGB
@@ -574,7 +574,7 @@ public class OpenCVTools {
 	
 
 	/**
-	 * Fill holes in a binary image (1-channel, 8-bit unsigned) with an area <= maxArea.
+	 * Fill holes in a binary image (1-channel, 8-bit unsigned) with an area &lt;= maxArea.
 	 * 
 	 * @param matBinary
 	 * @param maxArea

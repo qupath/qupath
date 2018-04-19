@@ -134,7 +134,7 @@ public class HistogramPanelFX {
 	
 	
 	/**
-	 * Create a HistogramData object to wrap a histogram & some info about its display.
+	 * Create a HistogramData object to wrap a histogram &amp; some info about its display.
 	 * 
 	 * @param histogram
 	 * @param areaPlot If true, an area plot (simplified, fewer vertices) will be used instead.  Good for approximate display of dense histograms, less good if there are few bins.
@@ -147,7 +147,7 @@ public class HistogramPanelFX {
 	
 	
 	/**
-	 * Create a HistogramData object to wrap a histogram & some info about its display.
+	 * Create a HistogramData object to wrap a histogram &amp; some info about its display.
 	 * 
 	 * @param histogram
 	 * @param areaPlot If true, an area plot (simplified, fewer vertices) will be used instead.  Good for approximate display of dense histograms, less good if there are few bins.
@@ -209,7 +209,7 @@ public class HistogramPanelFX {
 		private boolean areaPlot;
 		
 		/**
-		 * Wrapper for histogram & data relevant to its display.
+		 * Wrapper for histogram &amp; data relevant to its display.
 		 * 
 		 * @param histogram
 		 * @param areaPlot If true, an area plot (simplified, fewer vertices) will be used instead.  Good for approximate display of dense histograms, less good if there are few bins.

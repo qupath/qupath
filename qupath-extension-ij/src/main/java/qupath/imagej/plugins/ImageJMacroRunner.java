@@ -76,7 +76,7 @@ import qupath.lib.roi.interfaces.ROI;
 import qupathj.QUPath_Send_Overlay_to_QuPath;
 
 /**
- * QuPath plugin for running ImageJ macros & returning detected regions.
+ * QuPath plugin for running ImageJ macros &amp; returning detected regions.
  * 
  * TODO: Support script recording.
  * 

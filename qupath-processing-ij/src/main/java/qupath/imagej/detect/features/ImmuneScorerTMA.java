@@ -72,7 +72,7 @@ import qupath.lib.roi.interfaces.ROI;
  * Experimental class to help with (one method of) scoring TMAs with immune cell markers.
  * 
  * The idea is that it looks at the distance of immune cells from tumor regions.
- * However a more refined approach is really needed in practice... it's just kept here for ideas & inspiration.
+ * However a more refined approach is really needed in practice... it's just kept here for ideas &amp; inspiration.
  * 
  * @author Pete Bankhead
  *

@@ -63,7 +63,7 @@ import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.TMAGrid;
 
 /**
- * Command for importing TMA maps & additional info (e.g. manual scores).
+ * Command for importing TMA maps &amp; additional info (e.g. manual scores).
  * 
  * @author Pete Bankhead
  *

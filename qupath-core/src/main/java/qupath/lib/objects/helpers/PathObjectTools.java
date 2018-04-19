@@ -473,7 +473,7 @@ public class PathObjectTools {
 	}
 
 	/**
-	 * Get the TMA core that contains the specified x & y coordinate, or null if no core is available for the coordinates give.
+	 * Get the TMA core that contains the specified x &amp; y coordinate, or null if no core is available for the coordinates give.
 	 * 
 	 * @param hierarchy
 	 * @param x

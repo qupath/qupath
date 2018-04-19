@@ -22,7 +22,7 @@ public interface PixelClassifier {
     public PixelClassifierMetadata getMetadata();
 
     /**
-     * Request that images be padded by this number of pixels along the width & height (on both sides)
+     * Request that images be padded by this number of pixels along the width &amp; height (on both sides)
      * before being passed to <code>applyClassification</code>
      *
      * The actual image width should then be <code>width + requestedPadding*2</code>.

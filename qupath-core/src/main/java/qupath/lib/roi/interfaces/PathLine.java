@@ -40,7 +40,7 @@ public interface PathLine extends PathShape {
 	public double getLength();
 
 	/**
-	 * Get line length in scaled units, given a specified pixel width & pixel height.
+	 * Get line length in scaled units, given a specified pixel width &amp; pixel height.
 	 * @param pixelWidth
 	 * @param pixelHeight
 	 * @return

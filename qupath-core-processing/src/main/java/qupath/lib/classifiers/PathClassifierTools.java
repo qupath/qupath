@@ -40,7 +40,7 @@ import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.TMAGrid;
 
 /**
- * Static methods to load & run a classifier.
+ * Static methods to load &amp; run a classifier.
  * 
  * @author Pete Bankhead
  *

@@ -46,7 +46,7 @@ import qupath.lib.common.URLTools;
  *   - some other kind of 2D, RGB TIFF
  *   - some other kind of potentially multidimensional TIFF
  * <p>
- * To improve the likelihood of accurate metadata parsing & all dimensions being present,
+ * To improve the likelihood of accurate metadata parsing &amp; all dimensions being present,
  * it is better to choose a the right ImageServer.  For example ImageJ should be used for
  * ImageJ TIFFs, while OpenSlide should only be used for TIFFs (or TIFF-based formats) that
  * are 2D and RGB.

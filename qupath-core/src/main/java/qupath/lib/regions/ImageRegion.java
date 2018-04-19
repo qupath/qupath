@@ -27,7 +27,7 @@ import qupath.lib.roi.interfaces.ROI;
 
 /**
  * Class for defining an image region.
- * A boundary box is given in pixel coordinates, while z & t values are given as indices.
+ * A boundary box is given in pixel coordinates, while z &amp; t values are given as indices.
  * 
  * @author Pete Bankhead
  *

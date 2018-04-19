@@ -1640,7 +1640,7 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 	 * 
 	 * The reason is that we wouldn't want to interrupt a half-finished classification... by classifying these
 	 * stand-in objects in a background thread, we can make sure not to be modifying any PathObjects during the
-	 * (possibly-lengthy) training & application of a classifier, and then return to the Platform JavaFX thread for the final update.
+	 * (possibly-lengthy) training &amp; application of a classifier, and then return to the Platform JavaFX thread for the final update.
 	 * 
 	 * This somewhat-awkward approach is used to keep the complexity here, while retaining a simple definition of a PathObjectClassifier.
 	 * 

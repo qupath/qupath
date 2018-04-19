@@ -43,14 +43,14 @@ public interface PathPlugin<T> {
 	/**
 	 * Get the name of the plugin for display.
 	 * <p>
-	 * This should be descriptive and, above all, short - as it may be used for menu item names & dialog box titles.
+	 * This should be descriptive and, above all, short - as it may be used for menu item names &amp; dialog box titles.
 	 * 
 	 * @return
 	 */
 	public String getName();
 	
 	/**
-	 * Get a brief description of the plugin's purpose & operation.
+	 * Get a brief description of the plugin's purpose &amp; operation.
 	 * <p>
 	 * If no description is provided, this may return null.
 	 * 

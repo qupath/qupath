@@ -79,7 +79,7 @@ public class AnnotationCreatorPanel {
 	
 	
 	/**
-	 * Create & return a new annotation object according to the input.
+	 * Create &amp; return a new annotation object according to the input.
 	 * @return
 	 */
 	public PathObject createNewObject() {

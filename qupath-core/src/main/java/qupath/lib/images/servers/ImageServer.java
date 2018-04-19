@@ -67,7 +67,7 @@ public interface ImageServer<T> {
 	
 	/**
 	 * Get the downsample factor supported by the server that is the best match for the requested downsample.
-	 * Generally, this will be <= the requested downsample (but it may be slightly more if the error introduced
+	 * Generally, this will be &lt;= the requested downsample (but it may be slightly more if the error introduced
 	 * would be very small, i.e. if 4 is requested and 4.0001 is available, 4.0001 would be returned).
 	 * 
 	 * @param requestedDownsample
@@ -114,7 +114,7 @@ public interface ImageServer<T> {
 	public int nChannels();
 	
 	/**
-	 * TRUE if the image has 8-bit red, green & blue channels (and nothing else), false otherwise.
+	 * TRUE if the image has 8-bit red, green &amp; blue channels (and nothing else), false otherwise.
 	 * @return
 	 */
 	public boolean isRGB();
@@ -162,7 +162,7 @@ public interface ImageServer<T> {
 	public double getPixelHeightMicrons();
 	
 	/**
-	 * The mean of the pixel width & height, if available; for square pixels this is the same as either width * height
+	 * The mean of the pixel width &amp; height, if available; for square pixels this is the same as either width * height
 	 * @return
 	 */
 	public double getAveragedPixelSizeMicrons();
@@ -174,7 +174,7 @@ public interface ImageServer<T> {
 	public boolean hasPixelSizeMicrons();
 	
 	/**
-	 * Obtain a T thumbnail, no larger than the maxWidth & maxHeigth specified.
+	 * Obtain a T thumbnail, no larger than the maxWidth &amp; maxHeigth specified.
 	 * Aspect ratio will be maintained, so only one dimension needs to be specified - the other can be -1.
 	 * <p>
 	 * Note: The aim of this method is to supply a T that would look sensible when drawn,
@@ -192,7 +192,7 @@ public interface ImageServer<T> {
 	 * Read a requested region, returning PathImage containing additional metadata.
 	 * <p>
 	 * 'region' must contain integer pixel coordinates from the full-resolution image, while downsampleFactor can be any double 
-	 * (generally >= 1; 'upsampling' may not be supported, depending on the concrete implementations).
+	 * (generally &gt;= 1; 'upsampling' may not be supported, depending on the concrete implementations).
 	 * <p>
 	 * For pyramid images, no guarantee is provided as to which level will actually be used, but it is most likely
 	 * to be the level closest to - but not lower-resolution than - the requested downsampleFactor.
@@ -296,7 +296,7 @@ public interface ImageServer<T> {
 	 * <p>
 	 * If the server only has one image, then it will be the same as getShortServerName().
 	 * However if the server contains multiple images, this will identify the image whose
-	 * metadata & pixels are provided by the server.
+	 * metadata &amp; pixels are provided by the server.
 	 * 
 	 * @return
 	 */

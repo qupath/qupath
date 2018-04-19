@@ -26,7 +26,7 @@ package qupath.lib.images;
 import qupath.lib.regions.ImageRegion;
 
 /**
- * Interface used when wanting to store pixel data, in some format dependent on <T> (e.g. BufferedImage, ImagePlus, Mat...), along
+ * Interface used when wanting to store pixel data, in some format dependent on {@code <T>} (e.g. BufferedImage, ImagePlus, Mat...), along
  * with information of the image from which the pixel data was obtained, including the downsample factor used to extract it.
  * 
  * @author Pete Bankhead
@@ -83,7 +83,7 @@ public interface PathImage<T> {
 	public double getPixelHeightMicrons();
 	
 	/**
-	 * Query whether the horizontal & vertical pixel sizes are available in microns.
+	 * Query whether the horizontal &amp; vertical pixel sizes are available in microns.
 	 * @return true if both getPixelWidthMicrons() and getPixelHeightMicrons() return non-NaN values; false otherwise.
 	 */
 	public boolean hasPixelSizeMicrons();

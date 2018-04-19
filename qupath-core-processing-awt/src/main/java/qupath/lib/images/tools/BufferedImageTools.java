@@ -48,7 +48,7 @@ public class BufferedImageTools {
 	 * @param width Width of the requested mask image
 	 * @param height Height of the requested mask image
 	 * @param roi ROI for mask
-	 * @param request Region that the mask should correspond to, including the origin (x & y) and downsample factor to use.
+	 * @param request Region that the mask should correspond to, including the origin (x &amp; y) and downsample factor to use.
 	 * @return
 	 */
 	public static BufferedImage createROIMask(final int width, final int height, final ROI roi, final RegionRequest request) {

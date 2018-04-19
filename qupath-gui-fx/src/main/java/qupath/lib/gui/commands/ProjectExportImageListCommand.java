@@ -39,7 +39,7 @@ import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.projects.ProjectImageEntry;
 
 /**
- * Command to export image paths & metadata from a current project.
+ * Command to export image paths &amp; metadata from a current project.
  * 
  * @author Pete Bankhead
  */

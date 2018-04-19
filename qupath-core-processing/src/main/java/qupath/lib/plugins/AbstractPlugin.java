@@ -143,7 +143,7 @@ public abstract class AbstractPlugin<T> implements PathPlugin<T> {
 	
 	
 	/**
-	 * Called after parsing the argument String, and immediately before creating & running any generated tasks.
+	 * Called after parsing the argument String, and immediately before creating &amp; running any generated tasks.
 	 * 
 	 * Does nothing by default.
 	 */

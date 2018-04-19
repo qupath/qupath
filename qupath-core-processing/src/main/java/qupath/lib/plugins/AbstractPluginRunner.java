@@ -84,7 +84,7 @@ public abstract class AbstractPluginRunner<T> implements PluginRunner<T> {
 	/**
 	 * Set the number of threads requested to be used for the next threadpool created.
 	 * 
-	 * The request is stored as-is, but may be adjusted if it is outside a valid range, i.e. > 0 and <= available processors.
+	 * The request is stored as-is, but may be adjusted if it is outside a valid range, i.e. &gt; 0 and &lt;= available processors.
 	 * 
 	 * @see #getNumThreadsRequested
 	 * @see #getNumThreads
@@ -102,7 +102,7 @@ public abstract class AbstractPluginRunner<T> implements PluginRunner<T> {
 	
 	/**
 	 * Get the number of threads requested.  This isn't necessarily the number that will be used for the next threadpool,
-	 * since it may be <= 0 or > the available processors.
+	 * since it may be &lt;= 0 or &gt; the available processors.
 	 * 
 	 * @see #setNumThreadsRequested
 	 * @see #getNumThreads

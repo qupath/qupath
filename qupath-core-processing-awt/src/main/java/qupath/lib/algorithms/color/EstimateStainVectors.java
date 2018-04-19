@@ -76,7 +76,7 @@ public class EstimateStainVectors {
 	
 	/**
 	 * 
-	 * Check colors only currently applies to H&E.
+	 * Check colors only currently applies to H&amp;E.
 	 * 
 	 * @param rgbPacked
 	 * @param redOD
@@ -302,7 +302,7 @@ public class EstimateStainVectors {
 	 * No guarantee is made that the resulting array will contain *exactly* maxEntries,
 	 * but rather equal spacing between entries will be used.
 	 * 
-	 * If arr.length <= maxEntries, the array is returned unchanged.
+	 * If arr.length &lt;= maxEntries, the array is returned unchanged.
 	 * 
 	 * @param arr
 	 * @param maxEntries
@@ -344,7 +344,7 @@ public class EstimateStainVectors {
 	 * Get the mode from an array of (packed) RGB pixel values.
 	 * 
 	 * @param rgb
-	 * @return an array with 3 entries giving the Red, Green & Blue values (in order) corresponding to the mode
+	 * @return an array with 3 entries giving the Red, Green &amp; Blue values (in order) corresponding to the mode
 	 * of each channel from the packed RGB pixel array.
 	 */
 	public static int[] getModeRGB(final int[] rgb) {

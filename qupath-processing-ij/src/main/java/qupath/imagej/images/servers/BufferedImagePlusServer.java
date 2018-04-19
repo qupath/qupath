@@ -40,10 +40,10 @@ import qupath.lib.images.servers.WrappedImageServer;
 import qupath.lib.regions.RegionRequest;
 
 /**
- * Simple ImageServer that wraps around an existing ImageServer<BufferedImage> 
+ * Simple ImageServer that wraps around an existing {@code ImageServer<BufferedImage>}
  * to convert the BufferedImages into ImagePlus objects, with the Calibration set suitably.
  * <p>
- * Note that changes to the calibration of this image 'filter through' the the ImageServer<BufferedImage> used for pixel access.
+ * Note that changes to the calibration of this image 'filter through' the the {@code ImageServer<BufferedImage>} used for pixel access.
  * 
  * @author Pete Bankhead
  *

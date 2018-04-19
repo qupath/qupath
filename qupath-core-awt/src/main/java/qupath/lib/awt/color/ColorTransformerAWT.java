@@ -40,9 +40,9 @@ import qupath.lib.color.ColorTransformer;
  * primarily DAB staining, or otherwise assist in exploring IHC data.
  * More details on each method (in particular 'Blue normalized', here 'Blue chromaticity') are provided in:
  * 
- *  Brey, E. M., Lalani, Z., Johnston, C., Wong, M., McIntire, L. V., Duke, P. J., & Patrick, C. W. (2003).
+ *  Brey, E. M., Lalani, Z., Johnston, C., Wong, M., McIntire, L. V., Duke, P. J., &amp; Patrick, C. W. (2003).
  *    Automated Selection of DAB-labeled Tissue for Immunohistochemical Quantification.
- *    Journal of Histochemistry & Cytochemistry, 51(5)
+ *    Journal of Histochemistry &amp; Cytochemistry, 51(5)
  *    doi:10.1177/002215540305100503
  *    
  * Color deconvolution methods use default stain vectors - qupath.lib.color contains more flexible options for this.

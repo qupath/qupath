@@ -163,7 +163,7 @@ public interface ChannelDisplayInfo {
 	public abstract boolean isAdditive();
 
 	/**
-	 * Returns true if rescaling according to min & max display levels is applied, false if the full display range is used.
+	 * Returns true if rescaling according to min &amp; max display levels is applied, false if the full display range is used.
 	 * 
 	 * @return
 	 */
@@ -925,9 +925,13 @@ public interface ChannelDisplayInfo {
 	/**
 	 * ChannelInfo intended for use with a single or multichannel image (possibly fluorescence)
 	 * where the pixel's value is used to scale a single color according to a specified display range.
-	 * If the pixel's value is >= maxDisplay, the pure color is used.
-	 * If the pixel's value is <= minDisplay, the black is used.
+	 *
+	 * If the pixel's value is &gt;= maxDisplay, the pure color is used.
+	 *
+	 * If the pixel's value is &lt;= minDisplay, the black is used.
+	 *
 	 * Otherwise, a scaled version of the color is used
+	 *
 	 * The end result is like having a lookup table (LUT) that stretches from black to the 'pure' color specified,
 	 * but without actually generating the LUT.
 	 * 

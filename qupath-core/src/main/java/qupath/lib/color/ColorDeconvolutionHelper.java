@@ -511,7 +511,7 @@ public class ColorDeconvolutionHelper {
 	 * Estimate white (background) values for a brightfield image.
 	 * <p>
 	 * The algorithm computes histograms for each RGB channel, and takes the mode
-	 * of the histogram in the region of the histogram > the mean value for that channel.
+	 * of the histogram in the region of the histogram &gt; the mean value for that channel.
 	 * 
 	 * @param rgb
 	 * @return

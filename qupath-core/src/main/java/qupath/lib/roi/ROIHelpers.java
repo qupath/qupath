@@ -39,7 +39,7 @@ import qupath.lib.roi.interfaces.ROI;
 public class ROIHelpers {
 	
 	/**
-	 * Test if two PathROIs share the same channel, z-slice & time-point
+	 * Test if two PathROIs share the same channel, z-slice &amp; time-point
 	 * 
 	 * @param roi1
 	 * @param roi2
@@ -74,7 +74,7 @@ public class ROIHelpers {
 	
 	
 	/**
-	 * Returns true if pathROI is an area that contains x & y somewhere within it.
+	 * Returns true if pathROI is an area that contains x &amp; y somewhere within it.
 	 * 
 	 * @param pathROI
 	 * @param x

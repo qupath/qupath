@@ -114,7 +114,7 @@ public class PixelClassifierMetadata {
     }
 
     /**
-     * List representing the names & display colors for each output channel,
+     * List representing the names &amp; display colors for each output channel,
      * or for the output classifications if <code>outputType == OutputType.Classification</code>
      */
     public List<PixelClassifierOutputChannel> getChannels() {

@@ -54,7 +54,7 @@ import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
- * TODO: Read entire region (where suitable) & tile that (if it makes sense...? may not scale up to whole slide images though...)
+ * TODO: Read entire region (where suitable) &amp; tile that (if it makes sense...? may not scale up to whole slide images though...)
  * TODO: Improve use of static/non-static methods
  * TODO: Integrate masking
  * 

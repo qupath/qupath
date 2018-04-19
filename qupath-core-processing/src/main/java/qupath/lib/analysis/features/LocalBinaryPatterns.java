@@ -283,7 +283,7 @@ public class LocalBinaryPatterns {
 	
 	
 	/**
-	 * Compute normalized LBP histogram for x >= x1 and x < x2 and y >= y1 and y < y2.
+	 * Compute normalized LBP histogram for x &gt;= x1 and x &lt; x2 and y &gt;= y1 and y &lt; y2.
 	 * 
 	 * @param img
 	 * @param x1

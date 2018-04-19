@@ -88,8 +88,8 @@ public class ImageRegionStoreHelpers {
 	 * @param downsampleFactor The downsampleFactor determining the resolution at which tiles should be requested
 	 * @param zPosition The zPosition from which to request tiles
 	 * @param tPosition The tPosition from which to request tiles
-	 * @param tileWidth Specific tile width (overrides preferred width in the server if > 0)
-	 * @param tileHeight Specific tile width (overrides preferred height in the server if > 0)
+	 * @param tileWidth Specific tile width (overrides preferred width in the server if &gt; 0)
+	 * @param tileHeight Specific tile width (overrides preferred height in the server if &gt; 0)
 	 * @param regions regions The list to which requests should be added, or null if a new list should be created
 	 * @return The list of requests - identical to the one provided as an input parameter, unless this was null
 	 */

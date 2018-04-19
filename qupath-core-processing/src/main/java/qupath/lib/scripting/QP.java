@@ -1084,7 +1084,7 @@ public class QP {
 	/**
 	 * Assign cell classifications as positive or negative based upon a specified measurement, using up to 3 intensity bins.
 	 * 
-	 * An IllegalArgumentException is thrown if < 1 or > 3 intensity thresholds are provided.
+	 * An IllegalArgumentException is thrown if &lt; 1 or &gt; 3 intensity thresholds are provided.
 	 * 
 	 * @param pathObject 		the object to classify.
 	 * @param measurementName 	the name of the measurement to use for thresholding.

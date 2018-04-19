@@ -73,7 +73,7 @@ public abstract class AbstractTileableDetectionPlugin<T> extends AbstractDetecti
 	 * 
 	 * If the overlap is 0, then tile boundaries are likely to be visible in the results.
 	 * 
-	 * If the overlap is > 0, then the overlap should also be > the expected largest size of a detected object -
+	 * If the overlap is &gt; 0, then the overlap should also be &gt; the expected largest size of a detected object -
 	 * otherwise objects may be lost of trimmed when overlaps are resolved.  This is because (currently) 
 	 * the resolution of overlapping detections involves taking the largest one, rather than (for example) merging them.
 	 * 

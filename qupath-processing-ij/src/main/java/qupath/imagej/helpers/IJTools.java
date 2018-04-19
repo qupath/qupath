@@ -142,7 +142,7 @@ public class IJTools {
 	 * @param server
 	 * @param pathROI
 	 * @param request
-	 * @param setROI		{@code true} if a (non-rectangular) ROI should be converted to the closest matching ImageJ {@code Roi} & set on the image
+	 * @param setROI		{@code true} if a (non-rectangular) ROI should be converted to the closest matching ImageJ {@code Roi} &amp; set on the image
 	 * @param imageDisplay
 	 * @return
 	 */

@@ -50,7 +50,7 @@ import qupath.lib.images.servers.ImageServerBuilder;
 import qupath.lib.images.servers.ImageServerProvider;
 
 /**
- * Command to list the names & details of all installed extensions
+ * Command to list the names &amp; details of all installed extensions
  * 
  * @author Pete Bankhead
  *

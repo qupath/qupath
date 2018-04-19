@@ -138,7 +138,7 @@ public class ROIConverterIJ {
 	}
 	
 	/**
-	 * Create an ImageJ Roi from a ROI, suitable for displaying on the ImagePlus of an PathImage<ImagePlus>.
+	 * Create an ImageJ Roi from a ROI, suitable for displaying on the ImagePlus of an {@code PathImage<ImagePlus>}.
 	 * 
 	 * @param pathROI
 	 * @param pathImage

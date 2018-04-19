@@ -266,7 +266,7 @@ public class PathClassificationLabellingHelper {
 	
 	
 	/**
-	 * Resample a training map (PathClass label & lists of PathObjects that should have the specified classifications) so that
+	 * Resample a training map (PathClass label &amp; lists of PathObjects that should have the specified classifications) so that
 	 * it contains only a specified proportion of entries.
 	 * 
 	 * @param map

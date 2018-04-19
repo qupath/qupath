@@ -43,7 +43,7 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 	protected abstract BufferedImage readTile(final RegionRequest request);
 	
 	/**
-	 * Construct a tileable ImageServer, providing a cache in which to store & retrieve tiles.
+	 * Construct a tileable ImageServer, providing a cache in which to store &amp; retrieve tiles.
 	 * 
 	 * @param cache
 	 */

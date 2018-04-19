@@ -212,7 +212,7 @@ public class PathObjectHierarchy implements Serializable {
 	
 	/**
 	 * Remove a collection of objects, firing a single 'hierarchy changed' event afterwards to notify listeners if anything happened
-	 * (i.e. if any of the objects really were found within the hierarchy) & removed.
+	 * (i.e. if any of the objects really were found within the hierarchy) &amp; removed.
 	 * 
 	 * @param pathObjects
 	 * @param keepChildren

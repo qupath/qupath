@@ -30,11 +30,11 @@ import qupath.lib.objects.PathObject;
 
 
 /**
- * Class for storing histogram data & basic statistics.
+ * Class for storing histogram data &amp; basic statistics.
  * 
  * See also HistogramPanel.
  * 
- * TODO: Document int check - if all values are integers, the bin size cannot be < 1.
+ * TODO: Document int check - if all values are integers, the bin size cannot be &lt; 1.
  * 
  * @author Pete Bankhead
  *
@@ -197,7 +197,7 @@ public class Histogram { // implements Serializable {
 	
 	
 	/**
-	 * Create a histogram from an array of values, optionally specifying the minimum & maximum values to include.
+	 * Create a histogram from an array of values, optionally specifying the minimum &amp; maximum values to include.
 	 * NaNs will be ignored from the histogram.
 	 * 
 	 * @param valuesArray The data values from which the histogram should be computed
@@ -211,7 +211,7 @@ public class Histogram { // implements Serializable {
 	}
 
 	/**
-	 * Create a histogram from an array of values, optionally specifying the minimum & maximum values to include.
+	 * Create a histogram from an array of values, optionally specifying the minimum &amp; maximum values to include.
 	 * NaNs will be ignored from the histogram.
 	 * 
 	 * @param valuesArray The data values from which the histogram should be computed
@@ -225,7 +225,7 @@ public class Histogram { // implements Serializable {
 	}
 	
 	/**
-	 * Create a histogram from an array of values, optionally specifying the minimum & maximum values to include.
+	 * Create a histogram from an array of values, optionally specifying the minimum &amp; maximum values to include.
 	 * NaNs will be ignored from the histogram.
 	 * 
 	 * @param valuesArray The data values from which the histogram should be computed

@@ -47,7 +47,7 @@ import ij.process.ImageStatistics;
 import ij.process.ShortProcessor;
 
 /**
- * Collection of static methods to help work with ROIs, binary & labelled images in ImageJ - 
+ * Collection of static methods to help work with ROIs, binary &amp; labelled images in ImageJ -
  * switching between the different methods of representing regions as required.
  * 
  * @author Pete Bankhead
@@ -112,7 +112,7 @@ public class ROILabeling {
 	
 	/**
 	 * Experimental 8-connected ROI creation; non-zero pixels considered within objects
-	 * TODO: Improve experimental getFillPolygonROIs!!!  Consider efficiency (i.e. no min filter) & standard ImageJ compatibility
+	 * TODO: Improve experimental getFillPolygonROIs!!!  Consider efficiency (i.e. no min filter) &amp; standard ImageJ compatibility
 	 * 			Using standard ImageJ draw/fill, the original binary image is NOT reconstructed.
 	 * 
 	 * @param ip
@@ -601,7 +601,7 @@ public class ROILabeling {
 	
 	
 	/**
-	 * Remove objects containing < minPixels or > maxPixels.
+	 * Remove objects containing &lt; minPixels or &gt; maxPixels.
 	 * 
 	 * @param bp
 	 * @param minPixels

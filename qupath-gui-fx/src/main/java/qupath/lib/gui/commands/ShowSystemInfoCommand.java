@@ -94,7 +94,7 @@ public class ShowSystemInfoCommand implements PathCommand {
 	
 	
 	/**
-	 * Get a multi-line string containing some system info, created mostly by querying system properties & the current Runtime.
+	 * Get a multi-line string containing some system info, created mostly by querying system properties &amp; the current Runtime.
 	 * 
 	 * @return
 	 */

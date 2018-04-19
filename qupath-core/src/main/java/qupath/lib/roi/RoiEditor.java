@@ -273,7 +273,7 @@ public class RoiEditor {
 	
 	/**
 	 * If a handle has been grabbed, update its displacement.
-	 * If minDisplacement is > 0, smaller movements will be discarded to avoid unnecessary work.
+	 * If minDisplacement is &gt; 0, smaller movements will be discarded to avoid unnecessary work.
 	 * 
 	 * @param x
 	 * @param y

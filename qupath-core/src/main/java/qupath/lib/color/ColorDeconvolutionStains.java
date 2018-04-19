@@ -183,7 +183,7 @@ public class ColorDeconvolutionStains implements Externalizable {
 	}
 	
 	/**
-	 * Check if we have H&E staining, by checking the names of the first two stains and confirming that the third stain is a residual.
+	 * Check if we have H&amp;E staining, by checking the names of the first two stains and confirming that the third stain is a residual.
 	 * Note the order of the stains must be 1-Hematoxylin, 2-Eosin, 3-residual (missing)
 	 * @return
 	 */

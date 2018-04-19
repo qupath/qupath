@@ -35,7 +35,7 @@ import qupath.lib.regions.ImageRegion;
 public interface TileListener<T> {
 	
 	/**
-	 * Notify a listener that an image tile has been received read & is available.
+	 * Notify a listener that an image tile has been received read &amp; is available.
 	 * 
 	 * @param serverPath
 	 * @param region

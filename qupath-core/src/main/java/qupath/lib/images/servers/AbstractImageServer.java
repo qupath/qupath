@@ -185,8 +185,8 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 	
 	
 	/**
-	 * Similar to getDefaultRGBChannelColors, but including Magenta, Cyan & Yellow to return colors for up to 6 channels.
-	 * If only one channel is present, or a channel number > 6 is requested, Color.WHITE is returned.
+	 * Similar to getDefaultRGBChannelColors, but including Magenta, Cyan &amp; Yellow to return colors for up to 6 channels.
+	 * If only one channel is present, or a channel number &gt; 6 is requested, Color.WHITE is returned.
 	 * 
 	 * @param channel
 	 * @return

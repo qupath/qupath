@@ -110,7 +110,7 @@ public class PathHierarchyPaintingHelper {
 
 	/**
 	 * Create a thumbnail image, with the overlay painted.
-	 * If a BufferedImage is supplied, it will be used if it has the required width & height - otherwise a new one will be generated.
+	 * If a BufferedImage is supplied, it will be used if it has the required width &amp; height - otherwise a new one will be generated.
 	 * 
 	 * @param overlayOptions
 	 * @param serverWidth
@@ -671,7 +671,7 @@ public class PathHierarchyPaintingHelper {
 	 * Paint the handles onto a Graphics object, if we have a suitable (non-point) ROI.
 	 * 
 	 * @param g2d
-	 * @param handleSize The width & height of the shape used to draw the handles
+	 * @param handleSize The width &amp; height of the shape used to draw the handles
 	 * @param colorStroke
 	 * @param colorFill
 	 */
@@ -684,7 +684,7 @@ public class PathHierarchyPaintingHelper {
 		 * Paint the handles onto a Graphics object.
 		 * 
 		 * @param g2d
-		 * @param handleSize The width & height of the shape used to draw the handles
+		 * @param handleSize The width &amp; height of the shape used to draw the handles
 		 * @param colorStroke
 		 * @param colorFill
 		 */

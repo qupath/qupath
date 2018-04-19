@@ -73,9 +73,9 @@ public class ImageServerProvider {
 	
 	
 	/**
-	 * Attempt to create ImageServer<T> from the specified path, which returns images of the specified class
+	 * Attempt to create {@code ImageServer<T>} from the specified path, which returns images of the specified class
 	 * (e.g. BufferedImage).  The class needs to be passed to assist with ensuring the correct generic type of
-	 * the returned ImageServer<T>.
+	 * the returned {@code ImageServer<T>}.
 	 * 
 	 * @param path
 	 * @param cls

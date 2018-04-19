@@ -35,7 +35,7 @@ import qupath.lib.regions.RegionRequest;
  * Map for storing image tiles, which automatically removes tiles that have not been accessed
  * in a while after it reaches a maximum number of tiles, or maximum memory consumption.
  * 
- * The memory consumption estimate is based on the bit-depth of the image & number of pixels it contains
+ * The memory consumption estimate is based on the bit-depth of the image &amp; number of pixels it contains
  * (other overhead is ignored).
  * 
  * @author Pete Bankhead

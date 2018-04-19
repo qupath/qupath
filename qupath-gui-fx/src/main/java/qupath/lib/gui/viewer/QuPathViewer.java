@@ -1116,7 +1116,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	 * Transform a clip shape into image coordinates for this viewer.
 	 * The resulting shape coordinates are in the image space.
 	 * 
-	 * @param clip The clip shape, or null if the entire width & height of the component should be used.
+	 * @param clip The clip shape, or null if the entire width &amp; height of the component should be used.
 	 * @return
 	 */
 	protected Shape getDisplayedClipShape(Shape clip) {
@@ -1934,7 +1934,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	}
 
 	/**
-	 * Get thumbnails for all z-slices & time points
+	 * Get thumbnails for all z-slices &amp; time points
 	 * @return
 	 */
 	public List<BufferedImage> getAllThumbnails() {
@@ -2154,7 +2154,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	}
 
 	/**
-	 * Get a string representing the image coordinates for a particular x & y location in the viewer component.
+	 * Get a string representing the image coordinates for a particular x &amp; y location in the viewer component.
 	 * 
 	 * @param x
 	 * @param y

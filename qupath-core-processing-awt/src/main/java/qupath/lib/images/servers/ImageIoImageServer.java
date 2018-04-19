@@ -51,7 +51,7 @@ public class ImageIoImageServer extends AbstractImageServer<BufferedImage> {
 	private String imageName;
 	
 	/**
-	 * Create a ImageServer<BufferedImage> using an image that has been provided directly.
+	 * Create an {@code ImageServer<BufferedImage>} using an image that has been provided directly.
 	 * 
 	 * @param path
 	 */
@@ -73,7 +73,7 @@ public class ImageIoImageServer extends AbstractImageServer<BufferedImage> {
 	}
 	
 	/**
-	 * Create a ImageServer<BufferedImage> after first reading the image using ImageIO.
+	 * Create an {@code ImageServer<BufferedImage>} after first reading the image using ImageIO.
 	 * 
 	 * @param path
 	 * @throws MalformedURLException
