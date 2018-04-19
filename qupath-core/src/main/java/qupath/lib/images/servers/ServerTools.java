@@ -80,8 +80,8 @@ public class ServerTools {
 	 * 
 	 * Optionally ensure that the downsample is a power of 2 (i.e. the closest power of 2 available to the 'ideal' downsample).
 	 * 
-	 * @param server
-	 * @param preferredPixelSizeMicrons
+	 * @param serverPixelSizeMicrons
+	 * @param requestedPixelSizeMicrons
 	 * @param doLog2
 	 * @return
 	 */

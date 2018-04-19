@@ -1372,7 +1372,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 	 * This either inserts getTabString() at the current caret position (if no text is selected, 
 	 * or either indents or removes the indentation from all selected rows if a selection is made.
 	 * 
-	 * @param component
+	 * @param textArea
 	 * @param shiftDown
 	 */
 	void handleTabPress(final ScriptEditorControl textArea, final boolean shiftDown) {
@@ -1438,7 +1438,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 	 * Handle the press of the / key, with/without shift.
 	 * This either inserts comments or uncomments the selected lines, if possible.
 	 * 
-	 * @param component
+	 * @param textArea
 	 */
 	void handleLineComment(final ScriptEditorControl textArea) {
 		String commentString = getCurrentLineCommentString();

@@ -221,7 +221,7 @@ public class RichScriptEditor extends DefaultScriptEditor {
 	/**
 	 * Try to match and auto-complete a method name.
 	 * 
-	 * @param codeArea
+	 * @param control
 	 * @param e
 	 */
 	private void matchMethodName(final ScriptEditorControl control, final KeyEvent e) {

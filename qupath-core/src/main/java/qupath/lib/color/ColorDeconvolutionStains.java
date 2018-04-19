@@ -113,7 +113,7 @@ public class ColorDeconvolutionStains implements Externalizable {
 	 * as it would be orthogonal to the old stain rather than the new one).
 	 * 
 	 * @param stains
-	 * @param stain
+	 * @param stainNew
 	 * @param stainNumber
 	 * @return
 	 */

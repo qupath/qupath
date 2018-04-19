@@ -106,7 +106,7 @@ public class ClosedShapeStatistics implements Serializable {
 	 * Note: This method access a list of multiple vertices relating to a single area, as stored by AreaROI.
 	 * It isn't advised to work with this directly, since the manner in which these vertices are stored is important.
 	 * 
-	 * @param vertices
+	 * @param verticesList
 	 * @param pixelWidth
 	 * @param pixelHeight
 	 */

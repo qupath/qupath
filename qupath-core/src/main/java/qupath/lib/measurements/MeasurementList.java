@@ -52,8 +52,7 @@ public interface MeasurementList extends Serializable, Iterable<Measurement> {
 	 * putMeasurement can be must slower than add or addMeasurement - so adding should be preferred if it is
 	 * known that a measurement with the same name is not present.
 	 * 
-	 * @param name
-	 * @param value
+	 * @param measurement
 	 * @return
 	 */
 	public Measurement putMeasurement(Measurement measurement);

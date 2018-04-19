@@ -64,7 +64,8 @@ public interface PathPlugin<T> {
 	 * <p>
 	 * Note: This command should block until it has completed processing.
 	 * 
-	 * @param runner
+	 * @param pluginRunner
+	 * @param arg
 	 * @return
 	 */
 	public boolean runPlugin(PluginRunner<T> pluginRunner, String arg);

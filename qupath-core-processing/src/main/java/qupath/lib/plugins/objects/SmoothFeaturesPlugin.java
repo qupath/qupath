@@ -189,10 +189,11 @@ public class SmoothFeaturesPlugin<T> extends AbstractInteractivePlugin<T> {
 	 * nearby objects, weighted by centroid distance.
 	 * 
 	 * @param pathObjects
-	 * @param pathClasses
-	 * @param sigmaPixels
-	 * 
-//	 * @return A set containing names for all the measurements that were added
+	 * @param measurements
+	 * @param fwhmPixels
+	 * @param fwhmString
+	 * @param withinClass
+	 * @param useLegacyNames
 	 */
 //	public static Set<String> smoothMeasurements(List<PathObject> pathObjects, List<String> measurements, double fwhmPixels) {
 	public static void smoothMeasurements(List<PathObject> pathObjects, List<String> measurements, double fwhmPixels, String fwhmString, boolean withinClass, boolean useLegacyNames) {

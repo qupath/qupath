@@ -318,7 +318,6 @@ public class PathClassFactory {
 	 * 
 	 * This is useful for displaying available classes; it should not be set as the class for any object.
 	 * 
-	 * @param pathClass
 	 * @return
 	 */
 	public static PathClass getPathClassUnclassified() {

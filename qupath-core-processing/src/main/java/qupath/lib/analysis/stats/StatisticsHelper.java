@@ -136,7 +136,6 @@ public class StatisticsHelper {
 	 * 
 	 * @param img
 	 * @param imgLabels
-	 * @param statsMap
 	 */
 	public static Map<Float, RunningStatistics> computeRunningStatisticsMap(SimpleImage img, SimpleImage imgLabels) {
 		float lastLabel = Float.NaN;

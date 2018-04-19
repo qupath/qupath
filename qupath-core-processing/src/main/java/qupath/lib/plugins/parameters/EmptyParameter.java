@@ -45,13 +45,10 @@ public class EmptyParameter extends AbstractParameter<String> {
 	
 	/**
 	 * An empty parameter, which does not take any input, always returning null.
-	 * It is useful to store a prompt that should be displayed.
 	 * 
-	 * The isTitle parameter identifies whether the prompt corresponds to a title, 
+	 * @param prompt text to display
+	 * @param isTitle identifies whether the prompt corresponds to a title, 
 	 * so that it might be displayed differently (e.g. in bold)
-	 * 
-	 * @param prompt
-	 * @param defaultValue
 	 */
 	public EmptyParameter(String prompt, boolean isTitle) {
 		this(prompt, isTitle, false);

@@ -663,7 +663,7 @@ public class PathHierarchyPaintingHelper {
 	public static Stroke getCachedStroke(final double thickness) {
 		if (thickness == Math.rint(thickness))
 			return getCachedStroke((int)thickness);
-		return getCachedStroke(new Float(thickness));
+		return getCachedStroke(Float.valueOf((float)thickness));
 	}
 	
 	

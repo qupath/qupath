@@ -196,7 +196,7 @@ class PathObjectTileCache implements PathObjectHierarchyListener {
 	 * If a collection is not provided, a HashSet is created & used instead.
 	 * Either way, the collection actually used is returned.
 	 * 
-	 * @param type a PathObject type (PathObject.getType()), or null if all object types should be returned
+	 * @param cls a PathObject class, or null if all object types should be returned
 	 * @param region an image region, or null if all objects with ROIs should be return
 	 * @param pathObjects an (optional) existing collection to which PathObjects should be added
 	 * @param includeSubclasses true if subclasses of the specified class should be included

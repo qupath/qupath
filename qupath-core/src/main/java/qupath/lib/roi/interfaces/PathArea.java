@@ -32,16 +32,12 @@ public interface PathArea extends PathShape {
 	
 	/**
 	 * Get ROI area in pixels^2, or Double.NaN if no area can be computed.
-	 * @param pixelWidth
-	 * @param pixelHeight
 	 * @return
 	 */
 	public double getArea();
 	
 	/**
 	 * Get ROI perimeter in pixels, or Double.NaN if no perimeter can be computed.
-	 * @param pixelWidth
-	 * @param pixelHeight
 	 * @return
 	 */
 	public double getPerimeter();

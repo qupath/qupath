@@ -181,9 +181,7 @@ public class SubcellularDetection extends AbstractInteractivePlugin<BufferedImag
 	 * 
 	 * @param pathObject
 	 * @param params
-	 * @param server
-	 * @param stains
-	 * @param regionStore
+	 * @param imageWrapper
 	 * @return
 	 * @throws InterruptedException
 	 */
@@ -521,7 +519,7 @@ public class SubcellularDetection extends AbstractInteractivePlugin<BufferedImag
 		 * If ColorDeconvolutionStains are available, these will be used.
 		 * 
 		 * @param region
-		 * @param channel
+		 * @param channelName
 		 * @return
 		 */
 		public SimpleImage getRegion(final RegionRequest region, final String channelName) {

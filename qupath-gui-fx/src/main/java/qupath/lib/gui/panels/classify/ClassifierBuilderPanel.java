@@ -1537,8 +1537,6 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 	 * Decide whether to update.
 	 * This this decision involves checking if the selected object is in the hierarchy, need a special 
 	 * flag to indicate that this was called due to a object removal event - in which case this check should be adapted.
-	 * 
-	 * @param removedEvent
 	 */
 	private void maybeUpdate() { 
 		if (!tbAutoUpdate.isDisabled() && 

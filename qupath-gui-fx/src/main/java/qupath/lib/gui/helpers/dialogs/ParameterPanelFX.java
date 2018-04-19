@@ -620,7 +620,7 @@ public class ParameterPanelFX {
 				addIntParameter(Integer.toString(k++), "Enter an int in range", 5, null, 1, 10).
 				addStringParameter(Integer.toString(k++), "Enter a string", "Default here").
 				addChoiceParameter(Integer.toString(k++), "Choose a choice", "Two", new String[]{"One", "Two", "Three"}).
-				addChoiceParameter(Integer.toString(k++), "Choose a number choice", new Integer(2), new Integer[]{1, 2, 3}).
+				addChoiceParameter(Integer.toString(k++), "Choose a number choice", Integer.valueOf(2), new Integer[]{1, 2, 3}).
 				addBooleanParameter(Integer.toString(k++), "Check me out", true);
 		
 		

@@ -44,12 +44,9 @@ public class DefaultPathImage<T> implements PathImage<T> {
 	 * The bounds are the coordinates in the original image space (in pixels) from which this image was extracted.
 	 * This is useful for whole slide images, from which this may be a downsampled part.
 	 * 
-	 * @param path
+	 * @param server
+	 * @param request
 	 * @param img
-	 * @param bounds
-	 * @param downsampleFactor
-	 * @param pixelWidthMicrons
-	 * @param pixelHeightMicrons
 	 */
 	public DefaultPathImage(ImageServer<T> server, RegionRequest request, T img) {
 		this.img = img;

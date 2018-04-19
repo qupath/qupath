@@ -46,7 +46,6 @@ import qupath.lib.gui.models.ObservableMeasurementTableData;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
-import qupath.lib.images.stores.ImageRegionStore;
 import qupath.lib.io.PathAwtIO;
 import qupath.lib.io.PathIO;
 import qupath.lib.objects.PathAnnotationObject;
@@ -88,7 +87,7 @@ public class QPEx extends QP {
 	 * @param setBatchData If true, the <code>setBatchImageData(ImageData)</code> will be called if the loading is successful.
 	 * @return
 	 * 
-	 * @see setBatchImageData
+	 * @see #setBatchImageData
 	 */
 	public static ImageData<BufferedImage> loadImageData(final String path, final boolean setBatchData) {
 		ImageData<BufferedImage> imageData = PathIO.readImageData(new File(resolvePath(path)), null, null, BufferedImage.class);

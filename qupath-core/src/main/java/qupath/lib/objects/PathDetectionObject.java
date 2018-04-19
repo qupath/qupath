@@ -52,7 +52,7 @@ public class PathDetectionObject extends PathROIObject {
 	 * 
 	 * @param pathROI
 	 * @param pathClass
-	 * @param measurementCapacity - request for measurement list capacity; may be used to improve efficiency & avoid wasted space
+	 * @param measurements
 	 */
 	public PathDetectionObject(ROI pathROI, PathClass pathClass, MeasurementList measurements) {
 		super(pathROI, pathClass, measurements);

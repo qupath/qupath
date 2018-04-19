@@ -167,7 +167,7 @@ public class PathROIToolsAwt {
 	 * 
 	 * In the input shape is an Ellipse2D then an EllipseROI will be returned.
 	 * 
-	 * @param area
+	 * @param shape
 	 * @param c
 	 * @param z
 	 * @param t

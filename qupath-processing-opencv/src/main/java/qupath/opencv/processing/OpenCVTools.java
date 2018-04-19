@@ -68,8 +68,8 @@ public class OpenCVTools {
 	 * Note: the behavior of this method has changed; in QuPath <= 0.1.2 only 
 	 * RGB images were really supported, and an RGB conversion was *always* made.
 	 * 
-	 * @see imageToMatRGB
-	 * @see imageToMatBGR
+	 * @see #imageToMatRGB
+	 * @see #imageToMatBGR
 	 * 
 	 * @param img
 	 * @return
@@ -229,7 +229,7 @@ public class OpenCVTools {
 	 * This is equivalent to matToBufferedImage(mat, null);
 	 * As such, the ColorModel may or may not end up being something useful.
 	 * 
-	 * @see matToBufferedImage
+	 * @see #matToBufferedImage
 	 * 
 	 * @param mat
 	 * @return
@@ -605,9 +605,10 @@ public class OpenCVTools {
 	/**
 	 * Apply a watershed transform to refine a binary image, guided either by a distance transform or a supplied intensity image.
 	 * 
-	 * @param matBinary - thresholded, 8-bit unsigned integer binary image
-	 * @param matIntensities - optional intensity image for applying watershed transform; if not set, distance transform of binary will be used
+	 * @param matBinary thresholded, 8-bit unsigned integer binary image
+	 * @param matWatershedIntensities optional intensity image for applying watershed transform; if not set, distance transform of binary will be used
 	 * @param threshold
+	 * @param maximaRadius
 	 */
 	public static void watershedIntensitySplit(Mat matBinary, Mat matWatershedIntensities, double threshold, int maximaRadius) {
 	

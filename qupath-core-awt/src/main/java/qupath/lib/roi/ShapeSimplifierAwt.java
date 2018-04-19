@@ -48,15 +48,15 @@ public class ShapeSimplifierAwt {
 
 	/**
 	 * 
-	 * Create a simplified polygon (fewer coordinates) using method based on Visvalingam’s Algorithm.
+	 * Create a simplified path (fewer coordinates) using method based on Visvalingam’s Algorithm.
 	 * 
 	 * See references:
 	 * https://hydra.hull.ac.uk/resources/hull:8338
 	 * https://www.jasondavies.com/simplify/
 	 * http://bost.ocks.org/mike/simplify/
 	 * 
-	 * @param polygon
-	 * @param areaThreshold
+	 * @param path
+	 * @param altitudeThreshold
 	 * @return
 	 */
 	public static Path2D simplifyPath(Path2D path, double altitudeThreshold) {
@@ -105,8 +105,8 @@ public class ShapeSimplifierAwt {
 	 * https://www.jasondavies.com/simplify/
 	 * http://bost.ocks.org/mike/simplify/
 	 * 
-	 * @param polygon
-	 * @param areaThreshold
+	 * @param shapeROI
+	 * @param altitudeThreshold
 	 * @return
 	 */
 	public static PathShape simplifyShape(PathShape shapeROI, double altitudeThreshold) {

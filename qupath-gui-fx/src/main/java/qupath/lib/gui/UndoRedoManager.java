@@ -105,8 +105,7 @@ public class UndoRedoManager implements ChangeListener<QuPathViewerPlus>, QuPath
 	/**
 	 * Request to 'undo' the last observed hierarchy change for the current active viewer.
 	 * 
-	 * @param viewer
-	 * @return True if any changes were made, false otherwise.
+	 * @return {@code true} if any changes were made, false otherwise.
 	 */
 	public boolean undoOnce() {
 		return undoOnce(viewerProperty.get());
@@ -115,7 +114,6 @@ public class UndoRedoManager implements ChangeListener<QuPathViewerPlus>, QuPath
 	/**
 	 * Request to 'redo' the last 'undone' hierarchy change for the current active viewer.
 	 * 
-	 * @param viewer
 	 * @return True if any changes were made, false otherwise.
 	 */
 	public boolean redoOnce() {
@@ -126,7 +124,7 @@ public class UndoRedoManager implements ChangeListener<QuPathViewerPlus>, QuPath
 	 * Request to 'undo' the last observed hierarchy change for the specified viewer.
 	 * 
 	 * @param viewer
-	 * @return True if any changes were made, false otherwise.
+	 * @return {@code true} if any changes were made, {@code false} otherwise.
 	 */
 	boolean undoOnce(final QuPathViewer viewer) {
 		if (viewer == null) {
@@ -342,7 +340,7 @@ public class UndoRedoManager implements ChangeListener<QuPathViewerPlus>, QuPath
 		 * Deserialize an object from an array of bytes.
 		 * It's assumed at the object is of the generic type used elsewhere in this class.
 		 * 
-		 * @param initialSize
+		 * @param bytes
 		 * @return
 		 */
 		private T deserialize(byte[] bytes) {

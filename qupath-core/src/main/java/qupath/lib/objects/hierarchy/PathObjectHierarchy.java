@@ -588,7 +588,7 @@ public class PathObjectHierarchy implements Serializable {
 	 * 
 	 * @param pathObject
 	 * @param pathObjects
-	 * @param type
+	 * @param cls
 	 * @return
 	 */
 	public synchronized List<PathObject> getDescendantObjects(PathObject pathObject, List<PathObject> pathObjects, Class<? extends PathObject> cls) {

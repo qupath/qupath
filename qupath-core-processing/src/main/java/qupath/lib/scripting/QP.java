@@ -107,7 +107,7 @@ public class QP {
 	
 	/**
 	 * Set the ImageData to use for batch processing.  This will be local for the current thread.
-	 * @param imageData
+
 	 * @return The ImageData set with setBatchImageData, or null if no ImageData has been set for the current thread.
 	 */
 	public static ImageData<?> getBatchImageData() {
@@ -569,7 +569,6 @@ public class QP {
 	/**
 	 * Reset the PathClass for all objects of the specified type in the current hierarchy.
 	 * 
-	 * @param hierarchy
 	 * @param cls
 	 */
 	public static void resetClassifications(final Class<? extends PathObject> cls) {
@@ -610,7 +609,7 @@ public class QP {
 	 * Test whether a PathObject has a specified measurement in its measurement list.
 	 * 
 	 * @param pathObject
-	 * @param name
+	 * @param measurementName
 	 * @return
 	 */
 	public static boolean hasMeasurement(final PathObject pathObject, final String measurementName) {
@@ -621,7 +620,7 @@ public class QP {
 	 * Extract the specified measurement from a PathObject.
 	 * 
 	 * @param pathObject
-	 * @param name
+	 * @param measurementName
 	 * @return
 	 */
 	public static double measurement(final PathObject pathObject, final String measurementName) {
@@ -674,7 +673,6 @@ public class QP {
 	 * Set selected objects to contain (only) all objects in the current hierarchy according to a specified predicate.
 	 * 
 	 * @param predicate
-	 * @return
 	 */
 	public static void selectObjects(final Predicate<PathObject> predicate) {
 		PathObjectHierarchy hierarchy = getCurrentHierarchy();
@@ -696,7 +694,6 @@ public class QP {
 	 * Set selected objects to contain (only) all objects in the specified hierarchy according to a specified predicate.
 	 * 
 	 * @param predicate
-	 * @return
 	 */
 	public static void selectObjects(final PathObjectHierarchy hierarchy, final Predicate<PathObject> predicate) {
 		hierarchy.getSelectionModel().setSelectedObjects(getObjects(hierarchy, predicate), null);
@@ -883,10 +880,10 @@ public class QP {
 
 
 	/**
-	 * Select objects that are instances of a specified class.
+	 * Select objects based on a specified measurement.
 	 * 
 	 * @param imageData
-	 * @param cls
+	 * @param command
 	 */
 	@Deprecated
 	public static void selectObjectsByMeasurement(final ImageData<?> imageData, final String command) {
@@ -903,7 +900,6 @@ public class QP {
 	/**
 	 * Set the classification of the selected objects in the current hierarchy.
 	 * 
-	 * @param hierarchy
 	 * @param pathClassName
 	 */
 	public static void classifySelected(final String pathClassName) {
@@ -943,7 +939,6 @@ public class QP {
 	/**
 	 * Clear the selection for the current hierarchy, so that no objects of any kind are selected.
 	 * 
-	 * @param hierarchy
 	 */
 	public static void deselectAll() {
 		PathObjectHierarchy hierarchy = getCurrentHierarchy();
@@ -983,7 +978,7 @@ public class QP {
 	 * @param rgb
 	 * @return
 	 * 
-	 * @see makeColorRGB
+	 * @see ColorTools#makeRGB
 	 */
 	public static PathClass getPathClass(final String name, final Integer rgb) {
 		return PathClassFactory.getPathClass(name, rgb);
@@ -1091,13 +1086,10 @@ public class QP {
 	 * 
 	 * An IllegalArgumentException is thrown if < 1 or > 3 intensity thresholds are provided.
 	 * 
-	 * @param pathObject The object to classify.
-	 * @param measurementName The name of the measurement to use for thresholding.
-	 * @param threshold1Plus The first (lowest) threshold.  An object with >= threshold1Plus will be classified as positive.
-	 * @param threshold2Plus The second (intermediate) threshold.  An object with >= threshold1Plus will be classified as moderately positive.
-	 * @param threshold3Plus The third (high) threshold.  An object with >= threshold1Plus will be classified as strongly positive.
-	 * @param singleThreshold If true, only threshold1Plus will be used.
-	 * @return the PathClass of the object after running this method.
+	 * @param pathObject 		the object to classify.
+	 * @param measurementName 	the name of the measurement to use for thresholding.
+	 * @param thresholds 		between 1 and 3 intensity thresholds, used to indicate negative/positive, or negative/1+/2+/3+
+	 * @return 					the PathClass of the object after running this method.
 	 */
 	public static PathClass setIntensityClassification(final PathObject pathObject, final String measurementName, final double... thresholds) {
 		if (thresholds.length == 0 || thresholds.length > 3)
@@ -1167,7 +1159,7 @@ public class QP {
 	 * 
 	 * This means setting the classification to the result of <code>getNonIntensityAncestorPathClass(pathObject)</code>
 	 * 
-	 * @param hierarchy
+	 * @param pathObjects
 	 */
 	public static void resetIntensityClassifications(final Collection<PathObject> pathObjects) {
 		for (PathObject pathObject : pathObjects) {

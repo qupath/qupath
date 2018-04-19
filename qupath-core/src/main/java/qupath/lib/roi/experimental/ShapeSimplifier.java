@@ -52,9 +52,8 @@ public class ShapeSimplifier {
 	 * https://www.jasondavies.com/simplify/
 	 * http://bost.ocks.org/mike/simplify/
 	 * 
-	 * @param polygon
-	 * @param areaThreshold
-	 * @return
+	 * @param points
+	 * @param altitudeThreshold
 	 */
 	public static void simplifyPolygonPoints(final List<Point2> points, final double altitudeThreshold) {
 		
@@ -139,7 +138,7 @@ public class ShapeSimplifier {
 	 * http://bost.ocks.org/mike/simplify/
 	 * 
 	 * @param polygon
-	 * @param areaThreshold
+	 * @param altitudeThreshold
 	 * @return
 	 */
 	public static PolygonROI simplifyPolygon(PolygonROI polygon, final double altitudeThreshold) {

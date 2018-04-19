@@ -79,7 +79,8 @@ public class PathImagePlus implements PathImage<ImagePlus>, Serializable {
 	 * Create a PathImage for which the image will be read lazily.
 	 * 
 	 * @param server
-	 * @param bounds
+	 * @param request
+	 * @param imp
 	 */
 	PathImagePlus(ImageServer<BufferedImage> server, RegionRequest request, ImagePlus imp) {
 		this.request = request;

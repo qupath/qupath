@@ -177,9 +177,6 @@ public class ScriptInterpreterCommand implements PathCommand {
 		
 		/**
 		 * For inputting new commands.
-		 * 
-		 * @param qupath
-		 * @param classLoader
 		 */
 		private TextArea textAreaInput = new TextArea();
 		

@@ -38,7 +38,7 @@ import qupath.lib.roi.interfaces.ROI;
  * 
  * @author Pete Bankhead
  * 
- * @see PathObjectHierarchy
+ * @see qupath.lib.objects.hierarchy.PathObjectHierarchy
  * 
  */
 public class PathObjectSelectionModel {

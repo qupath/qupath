@@ -151,7 +151,6 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
 	 * Create a new ImageData with ImageType.UNKNOWN and a new PathObjectHierarchy.
 	 * 
 	 * @param server
-	 * @param hierarchy
 	 */
 	public ImageData(ImageServer<T> server) {
 		this(server, new PathObjectHierarchy());
@@ -347,7 +346,7 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
      * 
      * @return
      * 
-     * @see setLastSavedPath
+     * @see #setLastSavedPath
      */
     public boolean isChanged() {
     		return changes;

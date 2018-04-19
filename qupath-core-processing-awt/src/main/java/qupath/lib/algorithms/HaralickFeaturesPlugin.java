@@ -27,7 +27,6 @@ import java.awt.Color;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferByte;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 
@@ -48,7 +47,6 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.geom.ImmutableDimension;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
-import qupath.lib.images.stores.ImageRegionStore;
 import qupath.lib.images.stores.TileListener;
 import qupath.lib.images.tools.BufferedImageTools;
 import qupath.lib.measurements.MeasurementList;

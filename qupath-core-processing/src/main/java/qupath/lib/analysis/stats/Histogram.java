@@ -200,7 +200,7 @@ public class Histogram { // implements Serializable {
 	 * Create a histogram from an array of values, optionally specifying the minimum & maximum values to include.
 	 * NaNs will be ignored from the histogram.
 	 * 
-	 * @param values The data values from which the histogram should be computed
+	 * @param valuesArray The data values from which the histogram should be computed
 	 * @param nBins Number of histogram bins (will be number of edges - 1)
 	 * @param minEdge The minimum (edge) value to include in the histogram, or Double.NaN (to use the data minimum)
 	 * @param maxEdge The maximum (edge) value to include in the histogram, or Double.NaN (to use the data maximum)
@@ -214,7 +214,7 @@ public class Histogram { // implements Serializable {
 	 * Create a histogram from an array of values, optionally specifying the minimum & maximum values to include.
 	 * NaNs will be ignored from the histogram.
 	 * 
-	 * @param values The data values from which the histogram should be computed
+	 * @param valuesArray The data values from which the histogram should be computed
 	 * @param nBins Number of histogram bins (will be number of edges - 1)
 	 * @param minEdge The minimum (edge) value to include in the histogram, or Double.NaN (to use the data minimum)
 	 * @param maxEdge The maximum (edge) value to include in the histogram, or Double.NaN (to use the data maximum)
@@ -228,7 +228,7 @@ public class Histogram { // implements Serializable {
 	 * Create a histogram from an array of values, optionally specifying the minimum & maximum values to include.
 	 * NaNs will be ignored from the histogram.
 	 * 
-	 * @param values The data values from which the histogram should be computed
+	 * @param valuesArray The data values from which the histogram should be computed
 	 * @param nBins Number of histogram bins (will be number of edges - 1)
 	 * @param minEdge The minimum (edge) value to include in the histogram, or Double.NaN (to use the data minimum)
 	 * @param maxEdge The maximum (edge) value to include in the histogram, or Double.NaN (to use the data maximum)

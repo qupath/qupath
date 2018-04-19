@@ -55,7 +55,6 @@ public class TMAObjectEntry implements TMAEntry {
 	 * 
 	 * @param imageData
 	 * @param data
-	 * @param serverPath
 	 * @param core
 	 */
 	public TMAObjectEntry(ImageData<BufferedImage> imageData, ObservableMeasurementTableData data, TMACoreObject core) {
@@ -67,9 +66,8 @@ public class TMAObjectEntry implements TMAEntry {
 	 * 
 	 * @param imageData
 	 * @param data
-	 * @param serverPath
 	 * @param core
-	 * @param preferredDownsample The preferred amount to downsample any region requests used to return an image.  This is useful to limit 
+	 * @param preferredDownsample the preferred amount to downsample any region requests used to return an image.  This is useful to limit 
 	 * requests to avoid looking for an excessively-high resolution image.
 	 */
 	public TMAObjectEntry(ImageData<BufferedImage> imageData, ObservableMeasurementTableData data, TMACoreObject core, final double preferredDownsample) {

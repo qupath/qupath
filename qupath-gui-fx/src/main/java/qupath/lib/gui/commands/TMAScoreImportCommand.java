@@ -223,7 +223,7 @@ public class TMAScoreImportCommand implements PathCommand {
 	 * Creating a pseudo hierarchy makes it possible to make changes without modifying the 'true' underlying hierarchy,
 	 * i.e. enabling them to be reversible.
 	 * 
-	 * @param infoGrid
+	 * @param grid
 	 * @return
 	 */
 	private static PathObjectHierarchy createPseudoHierarchy(final TMAGrid grid) {

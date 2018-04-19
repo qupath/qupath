@@ -485,7 +485,7 @@ public abstract class PathObject implements Externalizable {
 	 * @param key
 	 * @param value
 	 * 
-	 * @see retrieveMetadataValue
+	 * @see #retrieveMetadataValue
 	 */
 	protected Object storeMetadataValue(final String key, final String value) {
 		if (metadata == null)
@@ -497,10 +497,9 @@ public abstract class PathObject implements Externalizable {
 	 * Get a metadata value.
 	 * 
 	 * @param key
-	 * @param value
 	 * @return the metadata value if set, or null if not
 	 * 
-	 * @see storeMetadataValue
+	 * @see #storeMetadataValue
 	 */
 	protected Object retrieveMetadataValue(final String key) {
 		return metadata == null ? null : metadata.get(key);

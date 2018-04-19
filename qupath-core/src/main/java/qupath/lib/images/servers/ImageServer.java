@@ -49,15 +49,13 @@ public interface ImageServer<T> {
 	 * This should uniquely identify the image; if multiple images are stored within the same file, then this information should be encoded (somehow) in the path.
 	 * @return
 	 * 
-	 * @see getFile
+	 * @see #getFile
 	 */
 	public String getPath();
 
 	/**
 	 * Get a short name for the server, derived from getServerPath().
 	 * @return
-	 * 
-	 * @see getShortServerName(String)
 	 */
 	public String getShortServerName();
 
@@ -244,8 +242,8 @@ public interface ImageServer<T> {
 	 * 
 	 * @return
 	 * 
-	 * @see getSubImagePath
-	 * @see getAssociatedImage
+	 * @see #getSubImagePath
+	 * @see #getAssociatedImage
 	 */
 	public List<String> getSubImageList();
 	
@@ -254,7 +252,7 @@ public interface ImageServer<T> {
 	 * 
 	 * @return
 	 * 
-	 * @see getSubImageList
+	 * @see #getSubImageList
 	 */
 	public String getSubImagePath(String imageName);
 	
@@ -276,7 +274,7 @@ public interface ImageServer<T> {
 	 * <p>
 	 * Each associated image is simply a T that does not warrant (or require) a full ImageServer, and most likely would never be analyzed.
 	 * 
-	 * @see getAssociatedImage
+	 * @see #getAssociatedImage
 	 * 
 	 * @return
 	 */
@@ -285,7 +283,7 @@ public interface ImageServer<T> {
 	/**
 	 * Get the T for a given AssociatedImage name.
 	 * 
-	 * @see getAssociatedImageList
+	 * @see #getAssociatedImageList
 	 * 
 	 * @param name
 	 * @return
@@ -367,29 +365,29 @@ public interface ImageServer<T> {
 	/**
 	 * Get essential metadata associated with the ImageServer as a distinct object.  This may be edited by the user.
 	 * @return
-	 * @see getOriginalMetadata
+	 * @see #getOriginalMetadata
 	 */
 	public ImageServerMetadata getMetadata();
 	
 	/**
 	 * Set the metadata to use, e.g. to change the pixel size in microns.
-	 * @see getMetadata
-	 * @see getOriginalMetadata
+	 * @see #getMetadata
+	 * @see #getOriginalMetadata
 	 */
 	public void setMetadata(ImageServerMetadata metadata);
 	
 	/**
 	 * Get the original metadata read during creation of the server.  This may or may not be correct.
 	 * @return
-	 * @see getMetadata
+	 * @see #getMetadata
 	 */
 	public ImageServerMetadata getOriginalMetadata();
 	
 	/**
 	 * Tests whether the original metadata (e.g. pixel sizes in microns, magnification) is being used.
 	 * @return
-	 * @see getMetadata
-	 * @see getOriginalMetadata
+	 * @see #getMetadata
+	 * @see #getOriginalMetadata
 	 */
 	public boolean usesOriginalMetadata();
 	

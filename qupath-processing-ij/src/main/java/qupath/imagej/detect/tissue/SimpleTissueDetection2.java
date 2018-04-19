@@ -54,7 +54,6 @@ import qupath.imagej.processing.SimpleThresholding;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.PathImage;
-import qupath.lib.images.stores.ImageRegionStore;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathRootObject;

@@ -90,7 +90,6 @@ public class PathAwtIO {
 	 * @param file
 	 * @param imageData
 	 * @param downsampleFactor The downsample factor used for the TMA cores. If NaN, an automatic downsample value will be selected (>= 1).  If <= 0, no cores are exported.
-	 * @return
 	 */
 	public static void writeTMAData(File file, final ImageData<BufferedImage> imageData, OverlayOptions overlayOptions, final double downsampleFactor) {
 		if (imageData == null || imageData.getHierarchy() == null || imageData.getHierarchy().getTMAGrid() == null) {

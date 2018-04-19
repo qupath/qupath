@@ -61,8 +61,8 @@ public interface Parameter<S> extends Serializable {
 	/**
 	 * Get the current set value (may be null).
 	 * 
-	 * @see setValue
-	 * @see getValueOrDefault
+	 * @see #setValue
+	 * @see #getValueOrDefault
 	 * @return
 	 */
 	public S getValue();
@@ -70,8 +70,8 @@ public interface Parameter<S> extends Serializable {
 	/**
 	 * Get the current set value, or any default if no value has been set.
 	 * 
-	 * @see setValue
-	 * @see getValue
+	 * @see #setValue
+	 * @see #getValue
 	 * @return
 	 */
 	public S getValueOrDefault();

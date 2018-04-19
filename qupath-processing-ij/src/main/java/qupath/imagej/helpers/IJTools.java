@@ -136,12 +136,14 @@ public class IJTools {
 		
 		return (approxPixelCount > 2147480000L || approxMemory > presumableFreeMemory * MEMORY_THRESHOLD);
 	}
+
 	/**
 	 * 
 	 * @param server
 	 * @param pathROI
-	 * @param downsample
-	 * @param setROI - true if a (non-rectangular) ROI should be converted to the closest matching ImageJ Roi & set on the image
+	 * @param request
+	 * @param setROI		{@code true} if a (non-rectangular) ROI should be converted to the closest matching ImageJ {@code Roi} & set on the image
+	 * @param imageDisplay
 	 * @return
 	 */
 	public static PathImage<ImagePlus> extractROI(ImageServer<BufferedImage> server, ROI pathROI, RegionRequest request, boolean setROI, ImageDisplay imageDisplay) {
@@ -375,7 +377,6 @@ public class IJTools {
 	 * with the specified title, reseting brightness/contrast suitably and showing the result.
 	 * 
 	 * @param name
-	 * @param roi
 	 * @param ips
 	 */
 	public static void quickShowImage(final String name, final ImageProcessor... ips) {

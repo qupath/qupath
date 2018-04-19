@@ -2066,7 +2066,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	 * Set selected TMA cores to have the specified 'locked' status.
 	 * 
 	 * @param hierarchy
-	 * @param setToMissing
+	 * @param setToLocked
 	 */
 	private static void setSelectedAnnotationLock(final PathObjectHierarchy hierarchy, final boolean setToLocked) {
 		if (hierarchy == null)
@@ -2097,9 +2097,8 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	/**
 	 * Update a 'set annotation class' menu for a viewer immediately prior to display
 	 * 
-	 * @param menuSet
+	 * @param menuSetClass
 	 * @param viewer
-	 * @return
 	 */
 	void updateSetAnnotationPathClassMenu(final Menu menuSetClass, final QuPathViewer viewer) {
 		updateSetAnnotationPathClassMenu(menuSetClass.getItems(), viewer, false);
@@ -2637,10 +2636,10 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	/**
 	 * Create a menu, and add new menu items.
 	 * 
-	 * If null is passed as an object, a separated is added.
+	 * If null is passed as an object, a separator is added.
 	 * 
-	 * @param menu
-	 * @param objects
+	 * @param name
+	 * @param items
 	 * @return new menu
 	 */
 	public static Menu createMenu(final String name, final Object... items) {
@@ -2650,10 +2649,10 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	/**
 	 * Add menu items to an existing menu.
 	 * 
-	 * If null is passed as an object, a separated is added.
+	 * If null is passed as an object, a separator is added.
 	 * 
 	 * @param menu
-	 * @param objects
+	 * @param items
 	 * @return menu, so that this method can be nested inside other calls.
 	 */
 	public static Menu addMenuItems(final Menu menu, final Object... items) {
@@ -3159,7 +3158,6 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	 * @param name
 	 * @param pluginClass
 	 * @param qupath
-	 * @param includeRegionStore
 	 * @param arg
 	 * @return
 	 */
@@ -3212,7 +3210,6 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	 * Create a plugin from a specified class.
 	 * 
 	 * @param pluginClass
-	 * @param includeRegionStore
 	 * @return
 	 */
 	@SuppressWarnings("unchecked")
@@ -3655,8 +3652,6 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	
 	/**
 	 * Set the cursor for all the viewers.
-	 * 
-	 * @param cursor
 	 */
 	protected void updateCursor() {
 		if (stage == null || stage.getScene() == null)

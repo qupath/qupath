@@ -113,7 +113,6 @@ public class RoiEditor {
 	/**
 	 * Returns true if the current ROI is translatable, and at the end of this call the translation has started.
 	 * 
-	 * @param pathROI
 	 * @param x
 	 * @param y
 	 * @return
@@ -136,10 +135,9 @@ public class RoiEditor {
 	 * of if isTranslating() returns false.
 	 * Otherwise returns a translated version of the ROI;
 	 * 
-	 * @param pathROI
 	 * @param x
 	 * @param y
-	 * @param constrainBounds
+	 * @param constrainRegion
 	 * @return
 	 */
 	public ROI updateTranslation(double x, double y, ImageRegion constrainRegion) {
@@ -178,7 +176,6 @@ public class RoiEditor {
 	/**
 	 * Notify the editor that translation should end.
 	 * 
-	 * @param pathROI
 	 * @return true if there is any displacement between the current and starting translation points, false otherwise.
 	 */
 	public boolean finishTranslation() {
@@ -259,7 +256,7 @@ public class RoiEditor {
 	 * @param x
 	 * @param y
 	 * @param maxDist
-	 * @param modifiers - from a MouseEvent - may optionally be used to control how the handle is modified
+	 * @param shiftDown - from a MouseEvent - may optionally be used to control how the handle is modified
 	 * @return
 	 */
 	public boolean grabHandle(double x, double y, double maxDist, boolean shiftDown) {
@@ -281,7 +278,7 @@ public class RoiEditor {
 	 * @param x
 	 * @param y
 	 * @param minDisplacement
- 	 * @param modifiers - from a MouseEvent - may optionally be used to control how the handle is modified
+ 	 * @param shiftDown - from a MouseEvent - may optionally be used to control how the handle is modified
 	 * @return
 	 */
 	public ROI setActiveHandlePosition(double x, double y, double minDisplacement, boolean shiftDown) {

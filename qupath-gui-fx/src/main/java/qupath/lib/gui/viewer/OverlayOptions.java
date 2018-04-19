@@ -170,7 +170,7 @@ public class OverlayOptions {
 	/**
 	 * Show TMA core names on top of the image.
 	 * 
-	 * @param fill
+	 * @param showTMALabels
 	 */
 	public void setShowTMACoreLabels(boolean showTMALabels) {
 		showTMACoreLabels.set(showTMALabels);

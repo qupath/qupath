@@ -89,10 +89,12 @@ public class ROIConverterIJ {
 	}
 	
 	/**
-	 * Convert a collection of points from a ROI into the coordinate space of a PathImage<ImagePlus>
+	 * Convert a collection of points from a ROI into the coordinate space determined from the calibration information.
 	 * 
 	 * @param points
-	 * @param pathImage
+	 * @param xOrigin
+	 * @param yOrigin
+	 * @param downsampleFactor
 	 * @return float arrays, where result[0] gives the x coordinates and result[1] the y coordinates
 	 */
 	protected static float[][] getTransformedPoints(Collection<Point2> points, double xOrigin, double yOrigin, double downsampleFactor) {
@@ -206,7 +208,7 @@ public class ROIConverterIJ {
 	/**
 	 * Create a ROI from an ImageJ Roi.
 	 * 
-	 * @param pathROI
+	 * @param roi
 	 * @param pathImage
 	 * @return
 	 */
@@ -224,8 +226,12 @@ public class ROIConverterIJ {
 	/**
 	 * Create a ROI from an ImageJ Roi.
 	 * 
-	 * @param pathROI
-	 * @param pathImage
+	 * @param roi
+	 * @param cal
+	 * @param downsampleFactor
+	 * @param c
+	 * @param z
+	 * @param t
 	 * @return
 	 */
 	public static ROI convertToPathROI(Roi roi, Calibration cal, double downsampleFactor, final int c, final int z, final int t) {

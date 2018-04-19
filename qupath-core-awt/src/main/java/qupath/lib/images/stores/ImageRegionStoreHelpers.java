@@ -236,14 +236,16 @@ public class ImageRegionStoreHelpers {
 	}
 
 	/**
-	 * Given a PathImageServer, determine the boundaries of the image tile that contains specified x, y coordinates.
+	 * Given an {@code ImageServer}, determine the boundaries of the image tile that contains specified x, y coordinates.
 	 * The downsampleFactor is used to determine the resolution at which to request the tiles.
 	 * 
-	 * @param server The PathImageServer from which the tiles would be requested
-	 * @param clipShape The requested shape, defined in the full-resolution image space
-	 * @param downsampleFactor The downsampleFactor determining the resolution at which tiles should be requested
-	 * @param requests The list to which requests should be added, or null if a new list should be created
-	 * @return The list of requests - identical to the one provided as an input parameter, unless this was null
+	 * @param server the {@code ImageServer} from which the tiles would be requested
+	 * @param x
+	 * @param y
+	 * @param downsampleFactor	the downsampleFactor determining the resolution at which tiles should be requested
+	 * @param zPosition
+	 * @param tPosition
+	 * @return
 	 */
 	public static RegionRequest getTileRequest(ImageServer<BufferedImage> server, double x, double y, double downsampleFactor, int zPosition, int tPosition) {
 

@@ -444,7 +444,7 @@ public class ParameterList implements Serializable {
 	 * 
 	 * Note that the current Locale will not be applied to format numbers, and a decimal point will always be used.
 	 * 
-	 * @param params
+	 * @param map
 	 * @param delimiter
 	 * @return
 	 */

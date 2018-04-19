@@ -274,7 +274,7 @@ public class ROILabeling {
 	 * Also, the multiple Rois may be created for the same label, if unconnected regions are used.
 	 * 
 	 * @param ipLabels
-	 * @param n - maximum number of labels
+	 * @param conn8
 	 * @return
 	 */
 	public static List<PolygonRoi> labelsToFilledRoiList(final ImageProcessor ipLabels, final boolean conn8) {
@@ -484,7 +484,6 @@ public class ROILabeling {
 	 * Based on code in ImageJ's Binary class.
 	 * 
 	 * @param bp
-	 * @return
 	 */
 	public static void fillHoles(ByteProcessor bp) {
 		int w = bp.getWidth();

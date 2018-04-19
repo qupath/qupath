@@ -216,11 +216,7 @@ public class ColorDeconvolutionHelper {
 	 * Determine median of RGB values.
 	 * The median of each channel is computed separately.
 	 * 
-	 * @param name
-	 * @param rgb
-	 * @param redMax
-	 * @param greenMax
-	 * @param blueMax
+	 * @param rgb array of packed RGB values
 	 * @return
 	 */
 	public static int getMedianRGB(int[] rgb) {

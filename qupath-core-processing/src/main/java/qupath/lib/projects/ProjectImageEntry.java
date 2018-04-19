@@ -87,7 +87,7 @@ public class ProjectImageEntry<T> implements Comparable<ProjectImageEntry<T>> {
 	 * 
 	 * Note that this may have been cleaned up.
 	 * 
-	 * @see getStoredServerPath
+	 * @see #getStoredServerPath
 	 * 
 	 * @return
 	 */
@@ -121,7 +121,7 @@ public class ProjectImageEntry<T> implements Comparable<ProjectImageEntry<T>> {
 	 * 
 	 * It is generally better to rely on <code>getServerPath</code>, especially if paths will be compared.
 	 * 
-	 * @see getServerPath
+	 * @see #getServerPath
 	 * 
 	 * @return
 	 */
@@ -207,7 +207,7 @@ public class ProjectImageEntry<T> implements Comparable<ProjectImageEntry<T>> {
 	/**
 	 * Set the description.
 	 * 
-	 * @see getDescription
+	 * @see #getDescription
 	 * @param description
 	 */
 	public void setDescription(final String description) {

@@ -257,9 +257,9 @@ public class ProjectImportImagesCommand implements PathCommand {
 	
 	
 	/**
-	 * Load potential image paths into a list
+	 * Load potential image paths into a list.
 	 * 
-	 * @param listView
+	 * @param list
 	 */
 	int loadFromClipboard(final List<String> list) {
 		int changes = 0;

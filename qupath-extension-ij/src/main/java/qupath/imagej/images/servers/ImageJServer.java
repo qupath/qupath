@@ -32,7 +32,6 @@ import java.awt.image.DataBufferFloat;
 import java.awt.image.DataBufferUShort;
 import java.awt.image.Raster;
 import java.awt.image.SampleModel;
-import java.awt.image.WritableRaster;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
@@ -57,7 +56,6 @@ import qupath.lib.awt.color.model.ColorModelFactory;
 import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.servers.AbstractImageServer;
-import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.regions.RegionRequest;
 

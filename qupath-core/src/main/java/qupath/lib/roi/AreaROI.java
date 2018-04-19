@@ -53,8 +53,6 @@ import qupath.lib.rois.vertices.Vertices;
  * since potentially a deserialized version of this could then be used to create different kinds of Area 
  * (e.g. java.awt.Area or some JavaFX alternative.)
  * 
- * @see AWTAreaROI
- * 
  * @author Pete Bankhead
  *
  */

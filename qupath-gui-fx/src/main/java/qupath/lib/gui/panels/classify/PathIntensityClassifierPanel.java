@@ -324,7 +324,6 @@ public class PathIntensityClassifierPanel implements PathObjectSelectionListener
 	 * Set the available measurements, optionally filtering them to permit only measurements containing the text filter (case insensitive).
 	 * 
 	 * @param measurements
-	 * @param filter
 	 */
 	public void setAvailableMeasurements(final Collection<String> measurements) {
 		

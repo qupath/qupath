@@ -186,7 +186,7 @@ public interface ChannelDisplayInfo {
 	 * @param img
 	 * @param x
 	 * @param y
-	 * @param rgb
+	 * @param useColorLUT
 	 * @return
 	 */
 	public abstract int getRGB(BufferedImage img, int x, int y, boolean useColorLUT);
@@ -195,9 +195,8 @@ public interface ChannelDisplayInfo {
 	 * Get the RGB values that would be used to display all the pixels of an image
 	 * 
 	 * @param img
-	 * @param x
-	 * @param y
 	 * @param rgb
+	 * @param useColorLUT
 	 * @return
 	 */
 	public abstract int[] getRGB(BufferedImage img, int[] rgb, boolean useColorLUT);
@@ -218,10 +217,8 @@ public interface ChannelDisplayInfo {
 	 * May throw an UnsupportedOperationException if isAdditive() returns false;
 	 * 
 	 * @param img
-	 * @param x
-	 * @param y
 	 * @param rgb
-	 * @return
+	 * @param useColorLUT
 	 */
 	public void updateRGBAdditive(BufferedImage img, int[] rgb, boolean useColorLUT);
 	

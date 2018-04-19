@@ -353,7 +353,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	 * 
 	 * @param repaintSpacingMillis
 	 * 
-	 * @see resetMinimumRepaintSpacingMillis
+	 * @see #resetMinimumRepaintSpacingMillis
 	 */
 	public void setMinimumRepaintSpacingMillis(final long repaintSpacingMillis) {
 		this.minimumRepaintSpacingMillis = repaintSpacingMillis;
@@ -789,8 +789,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	 * This is useful whenever another component might have received the event,
 	 * but the viewer needs to 'know' when it receives the focus.
 	 * 
-	 * @param isDown
-	 * @return
+	 * @param spaceDown
 	 */
 	public void setSpaceDown(boolean spaceDown) {
 		if (this.spaceDown == spaceDown)
@@ -1671,7 +1670,6 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 
 	/**
 	 * Flag to set if the main overlay is being shown (objects, TMA grid etc.)
-	 * @return
 	 */
 	public void setShowMainOverlay(boolean showOverlay) {
 		if (this.showMainOverlay == showOverlay)

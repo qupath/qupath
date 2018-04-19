@@ -100,9 +100,10 @@ public class PathClass implements Comparable<PathClass>, Serializable {
 	
 	
 	/**
-	 * Returns TRUE if this class is equal to the specified child class.
+	 * Returns {@code true} if this class is equal to the specified child class, 
+	 * or an ancestor of that class.
 	 * 
-	 * @param parentClass
+	 * @param childClass
 	 * @return
 	 */
 	public boolean isAncestorOf(PathClass childClass) {

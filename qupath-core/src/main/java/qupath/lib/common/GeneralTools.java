@@ -155,7 +155,7 @@ public class GeneralTools {
 	/**
 	 * Convert a String array to a single string, with a specified separator string.
 	 * @param array
-	 * @param nDecimalPlaces
+	 * @param separator
 	 * @return
 	 */
 	public static String arrayToString(final Object[] array, final String separator) {
@@ -231,7 +231,7 @@ public class GeneralTools {
 	 * Format a value with a maximum number of decimal places, using the default Locale.
 	 * 
 	 * @param value
-	 * @param nDecimalPlaces
+	 * @param maxDecimalPlaces
 	 * @return
 	 */
 	public synchronized static String formatNumber(final double value, final int maxDecimalPlaces) {
@@ -241,8 +241,9 @@ public class GeneralTools {
 	/**
 	 * Format a value with a maximum number of decimal places, using a specified Locale.
 	 * 
+	 * @param locale
 	 * @param value
-	 * @param nDecimalPlaces
+	 * @param maxDecimalPlaces
 	 * @return
 	 */
 	public synchronized static String formatNumber(final Locale locale, final double value, final int maxDecimalPlaces) {
@@ -321,7 +322,7 @@ public class GeneralTools {
 	/**
 	 * Read the entire contents of an InputStream into a single String.
 	 * 
-	 * @param path
+	 * @param stream
 	 * @return
 	 * @throws IOException
 	 */

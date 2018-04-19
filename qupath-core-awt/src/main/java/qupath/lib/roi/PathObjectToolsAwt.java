@@ -71,7 +71,7 @@ public class PathObjectToolsAwt {
 	 * The selected object should itself be an annotation.
 	 * 
 	 * @param hierarchy
-	 * @param selectedObject
+	 * @param pathObjects
 	 * @param op
 	 */
 	public static void combineAnnotations(final PathObjectHierarchy hierarchy, final List<PathObject> pathObjects, PathROIToolsAwt.CombineOp op) {
@@ -147,16 +147,16 @@ public class PathObjectToolsAwt {
 
 	/**
 		 * 
-		 * Given an input annotation
-		 * Create a simplified polygon (fewer coordinates) using method based on Visvalingam’s Algorithm.
+		 * Given an input list of annotations, simplify the ROIs (fewer coordinates) 
+		 * using method based on Visvalingam’s Algorithm.
 		 * 
 		 * See references:
 		 * https://hydra.hull.ac.uk/resources/hull:8338
 		 * https://www.jasondavies.com/simplify/
 		 * http://bost.ocks.org/mike/simplify/
 		 * 
-		 * @param polygon
-		 * @param areaThreshold
+		 * @param pathObjects
+		 * @param altitudeThreshold
 		 * @return
 		 */
 		public static List<PathObject> simplifyAllShapeAnnotations(Collection<? extends PathObject> pathObjects, final double altitudeThreshold) {

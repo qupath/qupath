@@ -52,9 +52,9 @@ public interface SimpleProgressMonitor {
 	 * Update the displayed progress, and optionally inform the PluginRunner that data related to a specified image region has been updated.
 	 * If progress >= 1 this indicates that the task is finished, and the monitor may stop.
 	 * 
-	 * @param progress Value between 0 (nothing completed yet) and maxProgress (task finished).
-	 * @param message Optional message that may be displayed to reflect the current progress status.
-	 * @param region Optional region of the image that has been changed; in interactive mode, this region may be repainted.
+	 * @param increment update progress by the specifie increment
+	 * @param message optional message that may be displayed to reflect the current progress status.
+	 * @param region optional region of the image that has been changed; in interactive mode, this region may be repainted.
 	 */
 	public void updateProgress(int increment, String message, ImageRegion region);
 	
@@ -62,7 +62,7 @@ public interface SimpleProgressMonitor {
 	 * Notify the monitor that the plugin has completed its work.  This is called automatically by updateProgress if progress >= 1,
 	 * but may also be called if the plugin was cancelled or otherwise terminated abnormally.
 	 * 
-	 * @param pluginCancelled True if the plugin was cancelled rather than completing its operation normally.
+	 * @param message message to show upon completion.
 	 */
 	public void pluginCompleted(String message);
 	

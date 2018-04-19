@@ -97,8 +97,7 @@ public class TMAGridAdd implements PathCommand {
 	/**
 	 * Add a new row or column to a TMA grid.
 	 * 
-	 * @param hierarchy
-	 * @param selectedCore
+	 * @param imageData
 	 * @param type
 	 */
 	public static boolean addToTMA(final ImageData<?> imageData, final TMAAddType type) {

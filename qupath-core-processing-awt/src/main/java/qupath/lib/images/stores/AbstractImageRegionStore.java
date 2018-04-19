@@ -61,6 +61,7 @@ import qupath.lib.regions.RegionRequest;
  * 
  * 
  * @author Pete Bankhead
+ * @param <T> 
  *
  */
 public abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {

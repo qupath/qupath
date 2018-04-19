@@ -220,7 +220,7 @@ public class ColorToolsAwt {
 	 * @param color
 	 * @return
 	 * 
-	 * @see getTranslucentColor
+	 * @see #getTranslucentColor
 	 */
 
 	public static Color getMoreTranslucentColor(Color color) {
@@ -304,7 +304,7 @@ public class ColorToolsAwt {
 	/**
 	 * Get a color with a specified opacity, setting the alpha channel accordingly.
 	 * 
-	 * @param rgb
+	 * @param color
 	 * @param opacity
 	 * @return
 	 */
