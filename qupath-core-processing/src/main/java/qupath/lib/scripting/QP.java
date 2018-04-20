@@ -66,11 +66,11 @@ import qupath.lib.roi.interfaces.ROI;
 
 /**
  * Collection of static methods that are useful for scripting.
- * 
- * Prior to running a script, the ImageData should be set so that the script can make sue of it.
- * 
- * A different ImageData may be stored for different threads.
- * x
+ * <p>
+ * Prior to running a script, the {@code ImageData} should be set so that the script can make use of it.
+ * <p>
+ * A different {@code ImageData} may be stored for different threads.
+ * <p>
  * Note: This design may change in the future, to enable a non-static class to encapsulate 
  * the context for a running script.  The limited ability to subclass a class containing static methods 
  * makes this design a bit problematic, while its package location means it cannot have access to GUI features 
@@ -107,7 +107,7 @@ public class QP {
 	
 	/**
 	 * Set the ImageData to use for batch processing.  This will be local for the current thread.
-
+	 * <p>
 	 * @return The ImageData set with setBatchImageData, or null if no ImageData has been set for the current thread.
 	 */
 	public static ImageData<?> getBatchImageData() {
@@ -128,9 +128,12 @@ public class QP {
 	
 	/**
 	 * Trigger an update for the current hierarchy.
-	 * 
+	 * <p>
 	 * This should be called after any (non-standard) modifications are made to the hierarchy 
 	 * to ensure that all listeners are notified (including for any GUI).
+	 * <p>
+	 * It is common to call it at the end of any script that does any direct modification of objects 
+	 * (e.g. adding/removing measurements, setting classifications).
 	 */
 	public static void fireHierarchyUpdate() {
 		fireHierarchyUpdate(getCurrentHierarchy());
@@ -138,9 +141,12 @@ public class QP {
 
 	/**
 	 * Trigger an update for the specified hierarchy.
-	 * 
+	 * <p>
 	 * This should be called after any (non-standard) modifications are made to the hierarchy 
 	 * to ensure that all listeners are notified (including for any GUI).
+	 * <p>
+	 * It is common to call it at the end of any script that does any direct modification of objects 
+	 * (e.g. adding/removing measurements, setting classifications).
 	 * 
 	 * @param hierarchy
 	 */
@@ -152,10 +158,10 @@ public class QP {
 	
 	/**
 	 * Create a new packed-int representation of an RGB color.
-	 * 
+	 * <p>
 	 * @param v A value between 0 and 255.  If a single value is give, the result will be
 	 * a shade of gray (RGB all with that value).  Otherwise, 3 or 4 values may be given to generate 
-	 * either an RGB or RGBA color.
+	 * either an RGB or RGBA color.  Note: values are expected in order RGBA, but Java's packed ints are really ARGB.
 	 * @return
 	 */
 	public static Integer getColorRGB(final int... v) {
@@ -168,6 +174,12 @@ public class QP {
 		throw new IllegalArgumentException("Input to getColorRGB must be either 1, 3 or 4 integer values, between 0 and 255!");
 	}
 	
+	/**
+	 * Get the path to the {@code ImageServer} of the current {@code ImageData}.
+	 * @return
+	 * 
+	 * @see #getCurrentImageData()
+	 */
 	public static String getCurrentServerPath() {
 		ImageData<?> imageData = getCurrentImageData();
 		if (imageData == null)
@@ -175,10 +187,26 @@ public class QP {
 		return imageData.getServerPath();
 	}
 	
+	/**
+	 * Get the path to the current {@code ImageData}.
+	 * <p>
+	 * In this implementation, it is the same as calling {@code getBatchImageData()}.
+	 * 
+	 * @return
+	 * 
+	 * @see #getBatchImageData()
+	 */
 	public static ImageData<?> getCurrentImageData() {
 		return getBatchImageData();
 	}
 	
+	/**
+	 * Get the {@code PathObjectHierarchy} of the current {@code ImageData}.
+	 * 
+	 * @return
+	 * 
+	 * @see #getCurrentImageData()
+	 */
 	public static PathObjectHierarchy getCurrentHierarchy() {
 		ImageData<?> imageData = getCurrentImageData();
 		if (imageData == null)
@@ -186,6 +214,16 @@ public class QP {
 		return imageData.getHierarchy();
 	}
 	
+	/**
+	 * Get the selected objects within the current {@code PathObjectHierarchy}.
+	 * <p>
+	 * Note: this implementation returns the selected objects directly.  The returned collection 
+	 * may not be modifiable.
+	 * 
+	 * @return
+	 * 
+	 * @see #getCurrentHierarchy()
+	 */
 	public static Collection<PathObject> getSelectedObjects() {
 		PathObjectHierarchy hierarchy = getCurrentHierarchy();
 		if (hierarchy == null)
@@ -193,6 +231,14 @@ public class QP {
 		return hierarchy.getSelectionModel().getSelectedObjects();
 	}
 	
+	/**
+	 * Get the primary selected object within the current {@code PathObjectHierarchy}.
+	 * 
+	 * @return
+	 * 
+	 * @see #getCurrentHierarchy()
+	 * @see #getSelectedObjects()
+	 */
 	public static PathObject getSelectedObject() {
 		PathObjectHierarchy hierarchy = getCurrentHierarchy();
 		if (hierarchy == null)
@@ -200,6 +246,16 @@ public class QP {
 		return hierarchy.getSelectionModel().getSelectedObject();
 	}
 	
+	/**
+	 * Get the {@code ROI} for the primary selected object within the current {@code PathObjectHierarchy}.
+	 * <p>
+	 * This is really a convenience method where the selection indicates (for example) a region that should be extracted.
+	 * 
+	 * @return
+	 * 
+	 * @see #getCurrentHierarchy()
+	 * @see #getSelectedObject()
+	 */
 	public static ROI getSelectedROI() {
 		PathObject pathObject = getSelectedObject();
 		if (pathObject != null)
@@ -207,7 +263,9 @@ public class QP {
 		return null;
 	}
 	
-	
+	/**
+	 * Clear the selected objects for the current {@code PathObjectHierarchy}.
+	 */
 	public static void resetSelection() {
 		PathObjectHierarchy hierarchy = getCurrentHierarchy();
 		if (hierarchy == null)
@@ -215,7 +273,14 @@ public class QP {
 		hierarchy.getSelectionModel().clearSelection();
 	}
 	
-
+	/**
+	 * Set the selected object for the current {@code PathObjectHierarchy}.
+	 * 
+	 * @param pathObject the object to select.
+	 * @return
+	 * 
+	 * @see qupath.lib.objects.hierarchy.events.PathObjectSelectionModel#setSelectedObject
+	 */
 	public static boolean setSelectedObject(PathObject pathObject) {
 		PathObjectHierarchy hierarchy = getCurrentHierarchy();
 		if (hierarchy == null)
@@ -224,6 +289,13 @@ public class QP {
 		return true;
 	}
 	
+	/**
+	 * Add the specified object to the current {@code PathObjectHierarchy}.
+	 * <p>
+	 * This will trigger a hierarchy changed event.
+	 * 
+	 * @param pathObject
+	 */
 	public static void addObject(PathObject pathObject) {
 		PathObjectHierarchy hierarchy = getCurrentHierarchy();
 		if (hierarchy == null)
@@ -231,11 +303,25 @@ public class QP {
 		hierarchy.addPathObject(pathObject, true);
 	}
 	
+	/**
+	 * Add the specified array of objects to the current {@code PathObjectHierarchy}.
+	 * <p>
+	 * This will trigger a hierarchy changed event.
+	 * 
+	 * @param pathObjects
+	 */
 	public static void addObjects(PathObject[] pathObjects) {
 		addObjects(Arrays.asList(pathObjects));
 	}
 	
 	
+	/**
+	 * Add the specified collection of objects to the current {@code PathObjectHierarchy}.
+	 * <p>
+	 * This will trigger a hierarchy changed event.
+	 * 
+	 * @param pathObjects
+	 */
 	public static void addObjects(Collection<PathObject> pathObjects) {
 		PathObjectHierarchy hierarchy = getCurrentHierarchy();
 		if (hierarchy == null)
@@ -243,7 +329,13 @@ public class QP {
 		hierarchy.addPathObjects(pathObjects, true);
 	}
 	
-	
+	/**
+	 * Remove the specified object from the current {@code PathObjectHierarchy}, 
+	 * optionally keeping or removing descendant objects.
+	 * 
+	 * @param pathObject
+	 * @param keepChildren
+	 */
 	public static void removeObject(PathObject pathObject, boolean keepChildren) {
 		PathObjectHierarchy hierarchy = getCurrentHierarchy();
 		if (hierarchy == null)
@@ -251,6 +343,13 @@ public class QP {
 		hierarchy.removeObject(pathObject, keepChildren);
 	}
 	
+	/**
+	 * Remove the specified array of objects from the current {@code PathObjectHierarchy}, 
+	 * optionally keeping or removing descendant objects.
+	 * 
+	 * @param pathObjects
+	 * @param keepChildren
+	 */
 	public static void removeObjects(PathObject[] pathObjects, boolean keepChildren) {
 		removeObjects(Arrays.asList(pathObjects), keepChildren);
 	}
@@ -259,6 +358,8 @@ public class QP {
 	 * Get a count of the total number of objects in the current hierarchy.
 	 * 
 	 * @return
+	 * 
+	 * @see qupath.lib.objects.hierarchy.PathObjectHierarchy#nObjects
 	 */
 	public static int nObjects() {
 		PathObjectHierarchy hierarchy = getCurrentHierarchy();
@@ -267,6 +368,13 @@ public class QP {
 		return hierarchy.nObjects();
 	}
 	
+	/**
+	 * Remove the specified collection of objects from the current {@code PathObjectHierarchy}, 
+	 * optionally keeping or removing descendant objects.
+	 * 
+	 * @param pathObjects
+	 * @param keepChildren
+	 */
 	public static void removeObjects(Collection<PathObject> pathObjects, boolean keepChildren) {
 		PathObjectHierarchy hierarchy = getCurrentHierarchy();
 		if (hierarchy == null)
@@ -275,11 +383,9 @@ public class QP {
 	}
 	
 	
-	
-	
-	
 	/**
-	 * Returns true if TMA cores are available.
+	 * Returns {@code true} if TMA cores are available.
+	 * 
 	 * @return
 	 */
 	public static boolean isTMADearrayed() {
@@ -290,7 +396,11 @@ public class QP {
 	}
 	
 	
-	
+	/**
+	 * Remove all the objects in the current {@code PathObjectHierarchy}, and clear the selection.
+	 * 
+	 * @see #getCurrentHierarchy
+	 */
 	public static void clearAllObjects() {
 		PathObjectHierarchy hierarchy = getCurrentHierarchy();
 		if (hierarchy == null)
@@ -299,7 +409,15 @@ public class QP {
 		hierarchy.getSelectionModel().clearSelection();
 	}
 	
-	
+	/**
+	 * Remove all the objects of a specified Java class.
+	 * 
+	 * @param cls the class, e.g. {@code PathAnnotationObject.class}, {@code PathDetectionObject.class}, or
+	 * 			  {@code null} if all objects should be removed.
+	 * 
+	 * @see #getCurrentHierarchy
+	 * @see qupath.lib.objects.hierarchy.PathObjectHierarchy#getObjects
+	 */
 	public static void clearAllObjects(final Class<? extends PathObject> cls) {
 		if (cls == null) {
 			clearAllObjects();
@@ -316,15 +434,31 @@ public class QP {
 			hierarchy.getSelectionModel().setSelectedObject(null);
 	}
 	
+	/**
+	 * Remove all the annotation objects from the current {@code PathObjectHierarchy}.
+	 * 
+	 * @see #getCurrentHierarchy
+	 * @see #clearAllObjects
+	 */
 	public static void clearAnnotations() {
 		clearAllObjects(PathAnnotationObject.class);
 	}
 	
+	/**
+	 * Remove all the detection objects from the current {@code PathObjectHierarchy}.
+	 * 
+	 * @see #getCurrentHierarchy
+	 * @see #clearAllObjects
+	 */
 	public static void clearDetections() {
 		clearAllObjects(PathDetectionObject.class);
 	}
 	
-	
+	/**
+	 * Remove the TMA grid from the current {@code PathObjectHierarchy}.
+	 * 
+	 * @see #getCurrentHierarchy
+	 */
 	public static void clearTMAGrid() {
 		PathObjectHierarchy hierarchy = getCurrentHierarchy();
 		if (hierarchy == null)
@@ -335,7 +469,16 @@ public class QP {
 			hierarchy.getSelectionModel().setSelectedObject(null);
 	}
 	
-	
+	/**
+	 * Run the specified plugin on the current {@code ImageData}.
+	 * 
+	 * @param className
+	 * @param args
+	 * @return
+	 * @throws InterruptedException
+	 * 
+	 * @see #getCurrentImageData
+	 */
 	public static boolean runPlugin(String className, String args)  throws InterruptedException {
 		ImageData<?> imageData = getCurrentImageData();
 		if (imageData == null)
@@ -344,6 +487,14 @@ public class QP {
 	}
 	
 	
+	/**
+	 * Run the specified plugin on the specified {@code ImageData}.
+	 * 
+	 * @param className
+	 * @param args
+	 * @return
+	 * @throws InterruptedException
+	 */
 	@SuppressWarnings("unchecked")
 	public static boolean runPlugin(final String className, final ImageData<?> imageData, final String args) throws InterruptedException {
 		if (imageData == null)
@@ -355,14 +506,19 @@ public class QP {
 			final PathPlugin plugin = (PathPlugin)cons.newInstance();
 			return plugin.runPlugin(new CommandLinePluginRunner<>(imageData, true), args);
 		} catch (Exception e) {
-			logger.error("Unable to run plugin {}", className);
-			e.printStackTrace();
+			logger.error("Unable to run plugin " + className, e);
 			return false;
 		}
 	}
 	
 	
-	
+	/**
+	 * Get the list of TMA core objects for the current hierarchy.
+	 * 
+	 * @return the list of {@code TMACoreObject}s, or an empty list if there is no TMA grid present.
+	 * 
+	 * @see #getCurrentHierarchy
+	 */
 	public static List<TMACoreObject> getTMACoreList() {
 		PathObjectHierarchy hierarchy = getCurrentHierarchy();
 		if (hierarchy == null || hierarchy.getTMAGrid() == null)
@@ -370,10 +526,26 @@ public class QP {
 		return hierarchy.getTMAGrid().getTMACoreList();
 	}
 
+	/**
+	 * Get a array of the current annotation objects.
+	 * <p>
+	 * This has been deprecated, because Groovy gives ways to quickly switch between arrays and lists 
+	 * using {@code as}, so in most scripts it should not really be needed as a separate method.
+	 * 
+	 * @return
+	 */
+	@Deprecated
 	public static PathObject[] getAnnotationObjectsAsArray() {
 		return getAnnotationObjects().toArray(new PathObject[0]);
 	}
 	
+	/**
+	 * Get a list of the current annotation objects.
+	 * 
+	 * @return
+	 * 
+	 * @see #getCurrentHierarchy
+	 */
 	public static List<PathObject> getAnnotationObjects() {
 		PathObjectHierarchy hierarchy = getCurrentHierarchy();
 		if (hierarchy == null)
@@ -381,11 +553,26 @@ public class QP {
 		return hierarchy.getObjects(null, PathAnnotationObject.class);
 	}
 
+	/**
+	 * Get a array of the current detection objects.
+	 * <p>
+	 * This has been deprecated, because Groovy gives ways to quickly switch between arrays and lists 
+	 * using {@code as}, so in most scripts it should not really be needed as a separate method.
+	 * 
+	 * @return
+	 */
 	@Deprecated
 	public static PathObject[] getDetectionObjectsAsArray() {
 		return getDetectionObjects().toArray(new PathObject[0]);
 	}
 	
+	/**
+	 * Get a list of the current detection objects.
+	 * 
+	 * @return
+	 * 
+	 * @see #getCurrentHierarchy
+	 */
 	public static List<PathObject> getDetectionObjects() {
 		PathObjectHierarchy hierarchy = getCurrentHierarchy();
 		if (hierarchy == null)
@@ -393,6 +580,13 @@ public class QP {
 		return hierarchy.getObjects(null, PathDetectionObject.class);
 	}
 	
+	/**
+	 * Get a list of the current cell objects.
+	 * 
+	 * @return
+	 * 
+	 * @see #getCurrentHierarchy
+	 */
 	public static List<PathObject> getCellObjects() {
 		PathObjectHierarchy hierarchy = getCurrentHierarchy();
 		if (hierarchy == null)
@@ -400,6 +594,13 @@ public class QP {
 		return hierarchy.getObjects(null, PathCellObject.class);
 	}
 
+	/**
+	 * Get an array of all objects in the current hierarchy.
+	 * 
+	 * @return
+	 * 
+	 * @see #getCurrentHierarchy
+	 */
 	public static PathObject[] getAllObjects() {
 		PathObjectHierarchy hierarchy = getCurrentHierarchy();
 		if (hierarchy == null)
