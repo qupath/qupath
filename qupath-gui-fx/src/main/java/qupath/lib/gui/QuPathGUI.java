@@ -483,6 +483,8 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		
 		long startTime = System.currentTimeMillis();
 		
+		ImageServerProvider.setCache(imageRegionStore.getCache(), BufferedImage.class);
+		
 		this.stage = stage;
 		this.isStandalone = isStandalone;
 		

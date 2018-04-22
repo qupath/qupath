@@ -67,8 +67,11 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 	 */
 	private BufferedImage getTile(final RegionRequest request) {
 		BufferedImage imgCached = cache.get(request);
-		if (imgCached != null)
+		if (imgCached != null) { 
+			logger.trace("Returning cached tile: {}", request);
 			return imgCached;
+		}
+		logger.trace("Reading tile: {}", request);
 		imgCached = readTile(request);
 		cache.put(request, imgCached);
 		return imgCached;
@@ -88,6 +91,7 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 		if (requests.size() == 1 && request.equals(requests.get(0))) {
 			return getTile(requests.get(0));
 		}
+		long startTime = System.currentTimeMillis();
 		// Handle the general case for RGB
 		int width = (int)Math.round(request.getWidth() / request.getDownsample());
 		int height = (int)Math.round(request.getHeight() / request.getDownsample());
@@ -102,6 +106,10 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 				g2d.drawImage(imgTile, tileRequest.getX(), tileRequest.getY(), tileRequest.getWidth(), tileRequest.getHeight(), null);
 			}
 			g2d.dispose();
+			
+			long endTime = System.currentTimeMillis();
+			logger.trace("Requested " + requests.size() + " tiles in " + (endTime - startTime) + " ms (RGB)");
+
 			return imgResult;
 		} else {
 			// Figure out which tiles we need
@@ -173,7 +181,11 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 			
 			// Return the image, resizing if necessary
 			BufferedImage imgResult = new BufferedImage(colorModel, raster, alphaPremultiplied, null);
-			return resize(imgResult, width, height, false);
+			imgResult = resize(imgResult, width, height, false);
+			
+			long endTime = System.currentTimeMillis();
+			logger.trace("Requested " + requests.size() + " tiles in " + (endTime - startTime) + " ms (non-RGB)");
+			return imgResult;
 		}
 	}
 	

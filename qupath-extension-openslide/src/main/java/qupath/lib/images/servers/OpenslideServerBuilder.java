@@ -24,11 +24,13 @@
 package qupath.lib.images.servers;
 
 import java.awt.image.BufferedImage;
+import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.lib.images.servers.FileFormatInfo.ImageCheckType;
+import qupath.lib.regions.RegionRequest;
 
 /**
  * Builder for Openslide ImageServer.
@@ -42,13 +44,13 @@ public class OpenslideServerBuilder implements ImageServerBuilder<BufferedImage>
 	private static boolean openslideUnavailable = false;
 
 	@Override
-	public ImageServer<BufferedImage> buildServer(String path) {
+	public ImageServer<BufferedImage> buildServer(String path, Map<RegionRequest, BufferedImage> cache) {
 		if (openslideUnavailable) {
 			logger.debug("OpenSlide is unavailable - will be skipped");
 			return null;
 		}
 		try {
-			return new OpenslideImageServer(path);
+			return new OpenslideImageServer(cache, path);
 		} catch (UnsatisfiedLinkError e) {
 			logger.error("Could not load OpenSlide native library", e);
 			// Log that we couldn't create the link

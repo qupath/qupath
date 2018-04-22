@@ -25,6 +25,7 @@ package qupath.imagej.images.servers;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,6 +33,7 @@ import org.slf4j.LoggerFactory;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerBuilder;
 import qupath.lib.images.servers.FileFormatInfo.ImageCheckType;
+import qupath.lib.regions.RegionRequest;
 
 /**
  * Builder for ImageServers that use ImageJ to read images.
@@ -44,7 +46,7 @@ public class ImageJServerBuilder implements ImageServerBuilder<BufferedImage> {
 	private static Logger logger = LoggerFactory.getLogger(ImageJServerBuilder.class);
 
 	@Override
-	public ImageServer<BufferedImage> buildServer(String path) {
+	public ImageServer<BufferedImage> buildServer(String path, Map<RegionRequest, BufferedImage> cache) {
 		try {
 			return new ImageJServer(path);
 		} catch (IOException e) {

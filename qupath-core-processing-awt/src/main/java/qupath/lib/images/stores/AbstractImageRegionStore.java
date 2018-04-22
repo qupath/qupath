@@ -163,7 +163,7 @@ public abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T>
 
 	
 	
-	protected RegionCache<T> getCache() {
+	public RegionCache<T> getCache() {
 		return cache;
 	}
 	

@@ -23,10 +23,11 @@
 
 package qupath.lib.images.stores;
 
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Map.Entry;
+import java.util.Set;
 
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.regions.RegionRequest;
@@ -154,6 +155,64 @@ public class DefaultRegionCache<T> implements RegionCache<T> {
 	@Override
 	public String toString() {
 		return String.format("Cache: %d (%d/%d non-null), %s", map.size(), nonNullSize, maxCapacity, map.toString());
+	}
+
+	@Override
+	public int size() {
+		return map.size();
+	}
+
+	@Override
+	public boolean isEmpty() {
+		return map.isEmpty();
+	}
+
+	@Override
+	public boolean containsKey(Object key) {
+		return map.containsKey(key);
+	}
+
+	@Override
+	public boolean containsValue(Object value) {
+		return map.containsValue(value);
+	}
+
+	@Override
+	public T get(Object key) {
+		return map.get(key);
+	}
+
+	@Override
+	public T remove(Object key) {
+		// Update the memory requirements
+		T imgPrevious = map.get(key);
+		if (imgPrevious != null) {
+			memoryBytes -= sizeEstimator.getApproxImageSize(imgPrevious);
+			nonNullSize--;
+		}
+		return imgPrevious;
+	}
+
+	@Override
+	public void putAll(Map<? extends RegionRequest, ? extends T> m) {
+		for (Entry<? extends RegionRequest, ? extends T> entry : m.entrySet()) {
+			put(entry.getKey(), entry.getValue());
+		}
+	}
+
+	@Override
+	public Set<RegionRequest> keySet() {
+		return map.keySet();
+	}
+
+	@Override
+	public Collection<T> values() {
+		return map.values();
+	}
+
+	@Override
+	public Set<Entry<RegionRequest, T>> entrySet() {
+		return map.entrySet();
 	}
 	
 

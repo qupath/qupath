@@ -74,10 +74,14 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 			return defaultValue;
 		}
 	}
-
-
+	
 	public OpenslideImageServer(String path) throws IOException {
-		super(null);
+		this(null, path);
+	}
+
+
+	public OpenslideImageServer(Map<RegionRequest, BufferedImage> cache, String path) throws IOException {
+		super(cache);
 
 		// Ensure the garbage collector has run - otherwise any previous attempts to load the required native library
 		// from different classloader are likely to cause an error (although upon first further investigation it seems this doesn't really solve the problem...)

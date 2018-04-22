@@ -26,13 +26,16 @@ package qupath.lib.images.servers;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.ServiceLoader;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.lib.images.servers.FileFormatInfo.ImageCheckType;
+import qupath.lib.regions.RegionRequest;
 
 /**
  * Service provider for creating ImageServers from a given path - which may be a file path or URL.
@@ -46,10 +49,19 @@ import qupath.lib.images.servers.FileFormatInfo.ImageCheckType;
 public class ImageServerProvider {
 	
 	final private static Logger logger = LoggerFactory.getLogger(ImageServerProvider.class);
-
+	
+	private static Map<Class<?>, Map<RegionRequest, ?>> cacheMap = new HashMap<>();
+	
 	@SuppressWarnings("rawtypes")
 	private static ServiceLoader<ImageServerBuilder> serviceLoader = ServiceLoader.load(ImageServerBuilder.class);
 	
+	public static <T> void setCache(Map<RegionRequest, T> cache, final Class<T> cls) {
+		cacheMap.put(cls, cache);
+	}
+	
+	public static <T> Map<RegionRequest, T> getCache(final Class<T> cls) {
+		return (Map<RegionRequest, T>)cacheMap.get(cls);
+	}
 	
 	/**
 	 * Replace the default service loader with another.
@@ -112,7 +124,11 @@ public class ImageServerProvider {
 				return null;
 			}
 			try {
-				ImageServer<T> server = (ImageServer<T>)provider.buildServer(path);
+				@SuppressWarnings("unchecked")
+				Map<RegionRequest, T> cache = (Map<RegionRequest, T>)cacheMap.getOrDefault(cls, null);
+				@SuppressWarnings("unchecked")
+				ImageServerBuilder<T> possibleProvider = (ImageServerBuilder<T>)provider;
+				ImageServer<T> server = possibleProvider.buildServer(path, cache);
 				if (server != null) {
 					// Check size is reasonable - should be small, or large & tiled
 					if ((long)server.getWidth() * server.getHeight() * server.getBitsPerPixel() * server.nChannels() / 8 < maxImageSize || server.getPreferredDownsamples().length > 1) {
