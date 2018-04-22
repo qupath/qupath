@@ -85,7 +85,7 @@ subprojects {
     jpen 'net.sourceforge.jpen:jpen:2-150301'
     if (nativesClassifier != null)
       jpen 'net.sourceforge.jpen:jpen:2-150301:' + nativesClassifier
-    imagej 'net.imagej:ij:1.51s'
+    imagej 'net.imagej:ij:1.51w'
     openslide 'org.openslide:openslide:3.4.1_2'
     if (nativesClassifier != null)
       openslide 'org.openslide:openslide:3.4.1_2:' + nativesClassifier

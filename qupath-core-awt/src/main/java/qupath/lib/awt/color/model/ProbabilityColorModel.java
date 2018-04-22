@@ -95,6 +95,8 @@ class ProbabilityColorModel extends ColorModel {
 			return getRed((byte[])pixel);
 		if (pixel instanceof float[])
 			return getRed((float[])pixel);
+		if (pixel instanceof short[])
+			return getRed((short[])pixel);
 		return 0;
 	}
 
@@ -104,6 +106,8 @@ class ProbabilityColorModel extends ColorModel {
 			return getGreen((byte[])pixel);
 		if (pixel instanceof float[])
 			return getGreen((float[])pixel);
+		if (pixel instanceof short[])
+			return getGreen((short[])pixel);
 		return 0;
 	}
 
@@ -113,6 +117,8 @@ class ProbabilityColorModel extends ColorModel {
 			return getBlue((byte[])pixel);
 		if (pixel instanceof float[])
 			return getBlue((float[])pixel);
+		if (pixel instanceof short[])
+			return getBlue((short[])pixel);
 		return 0;
 	}
 
@@ -122,6 +128,8 @@ class ProbabilityColorModel extends ColorModel {
 			return getAlpha((byte[])pixel);
 		if (pixel instanceof float[])
 			return getAlpha((float[])pixel);
+		if (pixel instanceof short[])
+			return getAlpha((short[])pixel);
 		return 255;
 	}
 	
@@ -162,6 +170,19 @@ class ProbabilityColorModel extends ColorModel {
 	}
 	
 	
+	public int getRed(short[] pixel) {
+		return scaledPixelColorU16(pixel, rScale);
+	}
+
+	public int getGreen(short[] pixel) {
+		return scaledPixelColorU16(pixel, gScale);
+	}
+
+	public int getBlue(short[] pixel) {
+		return scaledPixelColorU16(pixel, bScale);
+	}
+	
+	
 	
 	public int scaledPixelColor(float[] pixel, float[] scale) {
 		float sum = 0;
@@ -178,6 +199,16 @@ class ProbabilityColorModel extends ColorModel {
 		for (int i = 0; i < pixel.length; i++) {
 			if (backgroundChannel != i)
 				sum += byteToFloat(pixel[i]) * scale[i];
+		}
+		return (int)(255 * clipFloat(sum));
+	}
+	
+	
+	public int scaledPixelColorU16(short[] pixel, float[] scale) {
+		float sum = 0;
+		for (int i = 0; i < pixel.length; i++) {
+			if (backgroundChannel != i)
+				sum += ushortToFloat(pixel[i]) * scale[i];
 		}
 		return (int)(255 * clipFloat(sum));
 	}
@@ -203,6 +234,11 @@ class ProbabilityColorModel extends ColorModel {
 		return f;
 	}
 	
+	private static float ushortToFloat(short s) {
+		int val = s & 0xFFFF;
+		return val / 65535f;
+	}
+	
 	private static float byteToFloat(byte b) {
 		int val = b & 0xFF;
 		if (val > 255)
@@ -215,6 +251,7 @@ class ProbabilityColorModel extends ColorModel {
 		// We accept byte & float images
 		int transferType = raster.getTransferType();
 		return transferType == DataBuffer.TYPE_BYTE ||
+				transferType == DataBuffer.TYPE_USHORT ||
 				transferType == DataBuffer.TYPE_FLOAT;
 	}
 	
@@ -222,6 +259,8 @@ class ProbabilityColorModel extends ColorModel {
 	public WritableRaster createCompatibleWritableRaster(int w, int h) {
 		if (bpp == 8)
 			return WritableRaster.createBandedRaster(DataBuffer.TYPE_BYTE, w, h, nBands, null);
+		if (bpp == 16)
+			return WritableRaster.createBandedRaster(DataBuffer.TYPE_USHORT, w, h, nBands, null);
 		if (bpp == 32)
 			return WritableRaster.createWritableRaster(
 					new BandedSampleModel(DataBuffer.TYPE_FLOAT, w, h, nBands),

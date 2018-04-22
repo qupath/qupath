@@ -81,7 +81,8 @@ public class BufferedImagePlusServer extends WrappedImageServer<BufferedImage> i
 				// Read data as float (no matter what it is)
 				FloatProcessor fp = new FloatProcessor(w, h);
 				float[] pixels = (float[])fp.getPixels();
-				sampleModel.getSamples(0, 0, w, h, b, pixels, img.getRaster().getDataBuffer());
+				img.getRaster().getSamples(0, 0, w, h, b, pixels);
+//				sampleModel.getSamples(0, 0, w, h, b, pixels, img.getRaster().getDataBuffer());
 				// Convert to 8 or 16-bit, if appropriate
 				if (dataType == DataBuffer.TYPE_BYTE) {
 					ByteProcessor bp = new ByteProcessor(w, h);
