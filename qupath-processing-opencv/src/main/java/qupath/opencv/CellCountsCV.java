@@ -38,8 +38,9 @@ import org.bytedeco.javacpp.indexer.IntIndexer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import qupath.lib.color.ColorDeconvolution;
 import qupath.lib.color.ColorDeconvolutionStains;
+import qupath.lib.color.ColorTransformer;
+import qupath.lib.color.ColorTransformer.ColorTransformMethod;
 import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.ImageData;
@@ -158,8 +159,12 @@ public class CellCountsCV extends AbstractTileableDetectionPlugin<BufferedImage>
 			// Get channels
 			ColorDeconvolutionStains stains = imageData.getColorDeconvolutionStains();
 			int[] rgb = img.getRGB(0, 0, img.getWidth(), img.getHeight(), null, 0, img.getWidth());
-			float[] pxNucleusStain = ColorDeconvolution.colorDeconvolveRGBArray(rgb, stains, 0, null);
-			float[] pxStain2 = ColorDeconvolution.colorDeconvolveRGBArray(rgb, stains, 1, null);
+			
+			float[] pxNucleusStain = ColorTransformer.getTransformedPixels(rgb, ColorTransformMethod.Stain_1, null, stains);
+			float[] pxStain2 = ColorTransformer.getTransformedPixels(rgb, ColorTransformMethod.Stain_2, null, stains);
+
+//			float[] pxNucleusStain = ColorDeconvolution.colorDeconvolveRGBArray(rgb, stains, 0, null);
+//			float[] pxStain2 = ColorDeconvolution.colorDeconvolveRGBArray(rgb, stains, 1, null);
 
 			// Positive channel threshold
 			double stain2Threshold = (imageData.isBrightfield() && imageData.getColorDeconvolutionStains().isH_DAB()) ? params.getDoubleParameterValue("thresholdDAB") : -1;

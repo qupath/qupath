@@ -42,8 +42,9 @@ import org.bytedeco.javacpp.opencv_core.Scalar;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import qupath.lib.color.ColorDeconvolution;
 import qupath.lib.color.ColorDeconvolutionStains;
+import qupath.lib.color.ColorTransformer;
+import qupath.lib.color.ColorTransformer.ColorTransformMethod;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathAnnotationObject;
@@ -142,8 +143,11 @@ public class DetectCytokeratinCV extends AbstractDetectionPlugin<BufferedImage> 
 			}
 			int[] rgb = img.getRGB(0, 0, w, h, null, 0, w);
 
-			float[] pxHematoxylin = ColorDeconvolution.colorDeconvolveRGBArray(rgb, stains, 0, null);
-			float[] pxDAB = ColorDeconvolution.colorDeconvolveRGBArray(rgb, stains, 1, null);
+			float[] pxHematoxylin = ColorTransformer.getTransformedPixels(rgb, ColorTransformMethod.Stain_1, null, stains);
+			float[] pxDAB = ColorTransformer.getTransformedPixels(rgb, ColorTransformMethod.Stain_2, null, stains);
+
+//			float[] pxHematoxylin = ColorDeconvolution.colorDeconvolveRGBArray(rgb, stains, 0, null);
+//			float[] pxDAB = ColorDeconvolution.colorDeconvolveRGBArray(rgb, stains, 1, null);
 
 			// Create OpenCV Mats
 			Mat matOD = new Mat(h, w, CV_32FC1);
@@ -156,7 +160,8 @@ public class DetectCytokeratinCV extends AbstractDetectionPlugin<BufferedImage> 
 
 			// If the third channel isn't a residual channel, add it too
 			if (!stains.getStain(3).isResidual()) {
-				float[] pxThird = ColorDeconvolution.colorDeconvolveRGBArray(rgb, stains, 2, null);
+				float[] pxThird = ColorTransformer.getTransformedPixels(rgb, ColorTransformMethod.Stain_3, null, stains);
+//				float[] pxThird = ColorDeconvolution.colorDeconvolveRGBArray(rgb, stains, 2, null);
 				Mat matThird = new Mat(h, w, CV_32FC1);
 				OpenCVTools.putPixelsFloat(matThird, pxThird);
 				add(matOD, matThird, matOD);

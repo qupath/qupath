@@ -239,7 +239,7 @@ public class WatershedCellMembraneDetection extends AbstractTileableDetectionPlu
 				ColorDeconvolutionStains stains = imageData.getColorDeconvolutionStains();
 				if (ip instanceof ColorProcessor && stains != null) {
 					
-					FloatProcessor[] fps = ColorDeconvolutionIJ.colorDeconvolve((ColorProcessor)ip, stains.getStain(1), stains.getStain(2), stains.getStain(3));
+					FloatProcessor[] fps = ColorDeconvolutionIJ.colorDeconvolve((ColorProcessor)ip, stains);
 					fpH = fps[0];
 					if (stains.isH_DAB())
 						fpDAB = fps[1];

@@ -173,10 +173,10 @@ public class ImageDisplay {
 		//		rgbBasicChannels.add(new ChannelDisplayInfo.RBGColorTransformInfo(transformer, ColorTransformMethod.Blue));
 
 		// Add optical density & color deconvolution options for brightfield images
-		rgbBrightfieldChannels.add(new ChannelDisplayInfo.RBGColorDeconvolutionInfo(this, 1));
-		rgbBrightfieldChannels.add(new ChannelDisplayInfo.RBGColorDeconvolutionInfo(this, 2));
-		rgbBrightfieldChannels.add(new ChannelDisplayInfo.RBGColorDeconvolutionInfo(this, 3));
-		rgbBrightfieldChannels.add(new ChannelDisplayInfo.RBGColorDeconvolutionInfo(this, -1, ColorTransformer.ColorTransformMethod.Optical_density_sum));
+		rgbBrightfieldChannels.add(new ChannelDisplayInfo.RBGColorDeconvolutionInfo(this, ColorTransformMethod.Stain_1));
+		rgbBrightfieldChannels.add(new ChannelDisplayInfo.RBGColorDeconvolutionInfo(this, ColorTransformMethod.Stain_2));
+		rgbBrightfieldChannels.add(new ChannelDisplayInfo.RBGColorDeconvolutionInfo(this, ColorTransformMethod.Stain_3));
+		rgbBrightfieldChannels.add(new ChannelDisplayInfo.RBGColorDeconvolutionInfo(this, ColorTransformer.ColorTransformMethod.Optical_density_sum));
 //		rgbBrightfieldChannels.add(new ChannelDisplayInfo.RBGColorTransformInfo(ColorTransformer.ColorTransformMethod.Optical_density_sum));
 
 //		// Add projections/rejections

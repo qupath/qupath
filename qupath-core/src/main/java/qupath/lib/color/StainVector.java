@@ -44,7 +44,6 @@ import qupath.lib.common.GeneralTools;
  */
 public class StainVector implements Externalizable {
 	
-	
 	private static final long serialVersionUID = 1L;
 	
 	final private static Logger logger = LoggerFactory.getLogger(StainVector.class);

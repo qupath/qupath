@@ -23,10 +23,10 @@
 
 package qupath.imagej.color;
 
-import qupath.lib.color.ColorDeconvMatrix3x3;
 import qupath.lib.color.ColorDeconvolutionHelper;
 import qupath.lib.color.ColorDeconvolutionStains;
-import qupath.lib.color.StainVector;
+import qupath.lib.color.ColorTransformer;
+import qupath.lib.color.ColorTransformer.ColorTransformMethod;
 import ij.process.Blitter;
 import ij.process.ColorProcessor;
 import ij.process.FloatProcessor;
@@ -39,7 +39,15 @@ import ij.process.FloatProcessor;
  */
 public class ColorDeconvolutionIJ {
 	
-	
+	/**
+	 * Calculate optical density values for the red, green and blue channels, then add these all together.
+	 * 
+	 * @param cp
+	 * @param maxRed
+	 * @param maxGreen
+	 * @param maxBlue
+	 * @return
+	 */
 	public static FloatProcessor convertToOpticalDensitySum(ColorProcessor cp, double maxRed, double maxGreen, double maxBlue) {
 		FloatProcessor fp = cp.toFloat(0, null);
 		ColorDeconvolutionHelper.convertPixelsToOpticalDensities((float[])fp.getPixels(), maxRed, true);
@@ -55,107 +63,21 @@ public class ColorDeconvolutionIJ {
 	}
 	
 	/**
-	 * Zero-based channel (0 = Red, 1 = Green, 2 = Blue)
+	 * Apply color deconvolution, outputting 3 'stain' images in the same order as the stain vectors.
+	 * 
+	 * @param cp      input RGB color image
+	 * @param stains  color deconvolution stain vectors
+	 * @return array containing three {@code FloatProcessor}s, representing the deconvolved stains
 	 */
-	private static FloatProcessor convertToOpticalDensities(ColorProcessor cp, double maxValue, int channel) {
-		FloatProcessor fp = cp.toFloat(channel, null);
-		ColorDeconvolutionHelper.convertPixelsToOpticalDensities((float[])fp.getPixels(), maxValue, true);
-		return fp;
-	}
-	
-	private static FloatProcessor[] convertToOpticalDensities(ColorProcessor cp, double maxRed, double maxGreen, double maxBlue) {
-		FloatProcessor fpRed = convertToOpticalDensities(cp, maxRed, 0);
-		FloatProcessor fpGreen = convertToOpticalDensities(cp, maxGreen, 1);
-		FloatProcessor fpBlue = convertToOpticalDensities(cp, maxBlue, 2);
-		return new FloatProcessor[]{fpRed, fpGreen, fpBlue};
-	}
-	
 	public static FloatProcessor[] colorDeconvolve(ColorProcessor cp, ColorDeconvolutionStains stains) {
-		return colorDeconvolve(cp, stains.getStain(1), stains.getStain(2), stains.getStain(3), stains.getMaxRed(), stains.getMaxGreen(), stains.getMaxBlue(), false);
-	}
-		
-	public static FloatProcessor[] colorDeconvolve(ColorProcessor cp, StainVector stain1, StainVector stain2, StainVector stain3) {
-		return colorDeconvolve(cp, stain1, stain2, stain3, false);
-	}
-
-	private static FloatProcessor[] colorDeconvolve(ColorProcessor cp, StainVector stain1, StainVector stain2, StainVector stain3, boolean clipNegative) {
-		return colorDeconvolve(cp, stain1, stain2, stain3, 255, 255, 255, clipNegative);
-	}
-	
-	private static FloatProcessor[] colorDeconvolve(ColorProcessor cp, StainVector stain1, StainVector stain2, StainVector stain3, double maxRed, double maxGreen, double maxBlue, boolean clipNegative) {
-//		IJ.log(String.format("Max values: %.2f, %.2f, %.2f", maxRed, maxGreen, maxBlue));
-		FloatProcessor[] fpRGBODs = convertToOpticalDensities(cp, maxRed, maxGreen, maxBlue);
-		boolean deconvolved = colorDeconvolveRGBOpticalDensities(fpRGBODs[0], fpRGBODs[1], fpRGBODs[2], stain1, stain2, stain3, clipNegative);
-		if (deconvolved) {
-			return fpRGBODs;
-		}
-		else
-			return new FloatProcessor[0];
+		int width = cp.getWidth();
+		int height = cp.getHeight();
+		int[] rgb = (int[])cp.getPixels();
+		FloatProcessor fpStain1 = new FloatProcessor(width, height, ColorTransformer.getTransformedPixels(rgb, ColorTransformMethod.Stain_1, null, stains));
+		FloatProcessor fpStain2 = new FloatProcessor(width, height, ColorTransformer.getTransformedPixels(rgb, ColorTransformMethod.Stain_2, null, stains));
+		FloatProcessor fpStain3 = new FloatProcessor(width, height, ColorTransformer.getTransformedPixels(rgb, ColorTransformMethod.Stain_3, null, stains));
+		return new FloatProcessor[] {fpStain1, fpStain2, fpStain3};
 	}
 	
 	
-	private static boolean colorDeconvolveRGBOpticalDensities(FloatProcessor fpRed, FloatProcessor fpGreen, FloatProcessor fpBlue, StainVector stain1, StainVector stain2, StainVector stain3, boolean clipNegative) {
-		// Make stain3 orthogonal, if it wasn't supplied
-		if (stain3 == null)
-			stain3 = StainVector.makeResidualStainVector(stain1, stain2);
-		
-		// Generate and invert matrix
-		// TODO: Absolutely no idea if this is correct... it would be very surprising if so...
-		ColorDeconvMatrix3x3 mat3x3 = new ColorDeconvMatrix3x3(new double[][]{stain1.getArray(), stain2.getArray(), stain3.getArray()});
-		double[][] matInv = mat3x3.inverse();
-		double[] stain1Inv = matInv[0];
-		double[] stain2Inv = matInv[1];
-		double[] stain3Inv = matInv[2];
-		
-//		IJ.log(mat3x3.toString());
-//		IJ.log("INVERSE:");
-//		IJ.log(new ColorDeconvMatrix3x3(matInv).toString());
-//		IJ.log("Stain 1:");
-//		IJ.log(stain1Inv[0] + ", " + stain1Inv[1] + ", " + stain1Inv[2]);
-//		IJ.log(stain1.toString());
-//		IJ.log(stain2.toString());
-//		IJ.log(stain3.toString());
-
-		
-		// Extract pixels
-		float[] pxRed = (float[])fpRed.getPixels();
-		float[] pxGreen = (float[])fpGreen.getPixels();
-		float[] pxBlue = (float[])fpBlue.getPixels();
-				
-		for (int i = 0; i < pxRed.length; i++) {
-			double r = pxRed[i];
-			double g = pxGreen[i];
-			double b = pxBlue[i];		
-			
-			double o1 = r * stain1Inv[0] + g * stain2Inv[0] + b * stain3Inv[0];
-			double o2 = r * stain1Inv[1] + g * stain2Inv[1] + b * stain3Inv[1];
-			double o3 = r * stain1Inv[2] + g * stain2Inv[2] + b * stain3Inv[2];
-			
-//			double sumOrig = r + g + b;
-//			double sumDeconv = 	o1 + o2 + o3;
-//			double sumOrig2 = r*r + g*g + b*b;
-//			double sumDeconv2 = o1*o1 + o2*o2 + o3*o3;
-//			IJ.log(String.format("Orig: %.3f, Deconv: %.3f, Orig^2: %.3f, Deconv^2: %.3f", sumOrig, sumDeconv, sumOrig2, sumDeconv2));
-//			IJ.log(sumOrig + ", \t" + sumDeconv);
-			
-//			// The following should be equal....
-//			IJ.log(String.format("Red: %.3f, Red by OD: %.3f", r, stain1.getArray()[0]*o1 + stain2.getArray()[0]*o2 + stain3.getArray()[0]*o3));
-
-			
-			// Clip zeros, if necessary
-			if (clipNegative) {
-				o1 = Math.max(0, o1);
-				o2 = Math.max(0, o2);
-				o3 = Math.max(0, o3);
-			}
-			
-			pxRed[i] = (float)o1;
-			pxGreen[i] = (float)o2;
-			pxBlue[i] = (float)o3;
-		}
-		return true;
-	}
-	
-	
-
 }

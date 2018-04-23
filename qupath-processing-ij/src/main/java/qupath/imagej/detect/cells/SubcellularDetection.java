@@ -51,9 +51,10 @@ import qupath.imagej.processing.ROILabeling;
 import qupath.imagej.processing.SimpleThresholding;
 import qupath.lib.analysis.algorithms.FloatArraySimpleImage;
 import qupath.lib.analysis.algorithms.SimpleImage;
-import qupath.lib.color.ColorDeconvolution;
 import qupath.lib.color.ColorDeconvolutionStains;
+import qupath.lib.color.ColorTransformer;
 import qupath.lib.color.StainVector;
+import qupath.lib.color.ColorTransformer.ColorTransformMethod;
 import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.ImageData;
@@ -547,7 +548,20 @@ public class SubcellularDetection extends AbstractInteractivePlugin<BufferedImag
 			int h = img.getHeight();
 			if (stains != null) {
 				int[] buf = img.getRGB(0, 0, w, h, null, 0, w);
-				pixels = ColorDeconvolution.colorDeconvolveRGBArray(buf, stains, channel, pixels);
+				switch (channel) {
+					case 0:
+						pixels = ColorTransformer.getTransformedPixels(buf, ColorTransformMethod.Stain_1, pixels, stains);
+						break;
+					case 1:
+						pixels = ColorTransformer.getTransformedPixels(buf, ColorTransformMethod.Stain_2, pixels, stains);
+						break;
+					case 2:
+						pixels = ColorTransformer.getTransformedPixels(buf, ColorTransformMethod.Stain_3, pixels, stains);
+						break;
+					default:
+						throw new IllegalArgumentException("Specified channel should be 0, 1, or 2!");
+				}
+//				pixels = ColorDeconvolution.colorDeconvolveRGBArray(buf, stains, channel, pixels);
 			} else {
 				pixels = img.getData().getSamples(0, 0, w, h, channel, pixels);
 			}

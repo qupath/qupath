@@ -23,8 +23,9 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonSyntaxException;
 
 import qupath.lib.awt.color.model.ColorModelFactory;
-import qupath.lib.color.ColorDeconvolution;
 import qupath.lib.color.ColorDeconvolutionStains;
+import qupath.lib.color.ColorTransformer;
+import qupath.lib.color.ColorTransformer.ColorTransformMethod;
 import qupath.lib.common.ColorTools;
 import qupath.lib.images.DefaultPathImage;
 import qupath.lib.images.PathImage;
@@ -139,13 +140,13 @@ public class MergedServer extends AbstractImageServer<BufferedImage> {
 		WritableRaster raster = Raster.createInterleavedRaster(DataBuffer.TYPE_BYTE, width, height, nChannels, null);
 		byte[] buffer = ((DataBufferByte)raster.getDataBuffer()).getData();
 
-		float[] deconvolved = ColorDeconvolution.colorDeconvolveRGBArray(rgb, wrapper.stains, 0, null);
+		float[] deconvolved = ColorTransformer.getTransformedPixels(rgb, ColorTransformMethod.Stain_1, null, wrapper.stains);
 		for (int i = 0; i < width * height; i++) {
 			int val = ColorTools.do8BitRangeCheck(deconvolved[i] * scale);
 			buffer[i*nChannels] = (byte)val;
 		}
 
-		deconvolved = ColorDeconvolution.colorDeconvolveRGBArray(rgb, wrapper.stains, 1, deconvolved);
+		deconvolved = ColorTransformer.getTransformedPixels(rgb, ColorTransformMethod.Stain_2, deconvolved, wrapper.stains);
 		for (int i = 0; i < width * height; i++) {
 			int val = ColorTools.do8BitRangeCheck(deconvolved[i] * scale);
 			buffer[i*nChannels+1] = (byte)val;
@@ -191,7 +192,7 @@ public class MergedServer extends AbstractImageServer<BufferedImage> {
 
 			// Add to buffer
 			rgb = img2.getRGB(0, 0, width, height, rgb, 0, width);
-			deconvolved = ColorDeconvolution.colorDeconvolveRGBArray(rgb, wrapper.stains, 1, deconvolved);
+			deconvolved = ColorTransformer.getTransformedPixels(rgb, ColorTransformMethod.Stain_2, deconvolved, wrapper.stains);
 			for (int i = 0; i < width * height; i++) {
 				int val = ColorTools.do8BitRangeCheck(deconvolved[i] * scale);
 				buffer[i*nChannels+c+1] = (byte)val;

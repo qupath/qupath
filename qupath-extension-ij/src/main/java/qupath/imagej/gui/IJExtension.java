@@ -62,7 +62,6 @@ import qupath.imagej.detect.features.ImmuneScorerTMA;
 import qupath.imagej.detect.nuclei.PositiveCellDetection;
 import qupath.imagej.detect.nuclei.WatershedCellDetection;
 import qupath.imagej.detect.nuclei.WatershedCellMembraneDetection;
-import qupath.imagej.detect.nuclei.WatershedNucleusDetection;
 import qupath.imagej.detect.tissue.PositivePixelCounterIJ;
 import qupath.imagej.detect.tissue.SimpleTissueDetection;
 import qupath.imagej.detect.tissue.SimpleTissueDetection2;
@@ -516,7 +515,6 @@ public class IJExtension implements QuPathExtension {
 				qupath.createPluginAction("Positive cell detection", PositiveCellDetection.class, null),
 				qupath.createPluginAction("Cell + membrane detection", WatershedCellMembraneDetection.class, null),
 //				qupath.createPluginAction("Cell + membrane detection + percentage (experimental)", WatershedCellMembraneDetectionWithBoundaries.class, null, false),
-				qupath.createPluginAction("Positive nucleus detection (legacy)", WatershedNucleusDetection.class, null),
 //				new SeparatorMenuItem(),
 //				qupath.createPluginAction("Lesion detection (experimental)", LesionDetector.class, null, false),
 				

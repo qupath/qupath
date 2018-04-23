@@ -46,8 +46,9 @@ import qupath.imagej.objects.ROIConverterIJ;
 import qupath.imagej.processing.ROILabeling;
 import qupath.imagej.processing.SimpleThresholding;
 import qupath.lib.analysis.stats.RunningStatistics;
-import qupath.lib.color.ColorDeconvolution;
 import qupath.lib.color.ColorDeconvolutionStains;
+import qupath.lib.color.ColorTransformer;
+import qupath.lib.color.ColorTransformer.ColorTransformMethod;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.PathImage;
@@ -192,9 +193,8 @@ public class GaussianSuperpixelsPlugin extends AbstractTileableDetectionPlugin<B
 			bpTissue.setThreshold(128, Double.POSITIVE_INFINITY, ImageProcessor.NO_LUT_UPDATE);
 //			Roi roiTissue = new ThresholdToSelection().convert(bpTissue);
 			
-			
-			
-			float[] pixels = ColorDeconvolution.colorDeconvolveRGBArray((int[])ipOrig.getPixels(), imageData.getColorDeconvolutionStains(), 0, null);
+			float[] pixels = ColorTransformer.getTransformedPixels((int[])ipOrig.getPixels(), ColorTransformMethod.Stain_1, null, stains);
+//			float[] pixels = ColorDeconvolution.colorDeconvolveRGBArray((int[])ipOrig.getPixels(), imageData.getColorDeconvolutionStains(), 0, null);
 			FloatProcessor fp = new FloatProcessor(w, h, pixels);
 			ByteProcessor bp = SimpleThresholding.thresholdAbove(fp, threshold[0]);
 //			new ImagePlus("this", bp.duplicate()).show();

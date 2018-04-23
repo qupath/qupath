@@ -270,7 +270,7 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 			if (pathROI != null)
 				roi = ROIConverterIJ.convertToIJRoi(pathROI, pathImage);
 			if (ip instanceof ColorProcessor && stains != null && isBrightfield) {
-				FloatProcessor[] fps = ColorDeconvolutionIJ.colorDeconvolve((ColorProcessor)ip, stains.getStain(1), stains.getStain(2), stains.getStain(3));
+				FloatProcessor[] fps = ColorDeconvolutionIJ.colorDeconvolve((ColorProcessor)ip, stains);
 				for (int i = 0; i < 3; i++) {
 					StainVector stain = stains.getStain(i+1);
 					if (!stain.isResidual()) {
