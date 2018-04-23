@@ -4,7 +4,7 @@
 
 def qupathVersion = "0.2.0-SNAPSHOT"   // Current version for QuPath
 def qupathVendor = "QuPath developers" // Requested by JavaFX packager
-def includeJRE = true                  // Should Java be included in any native packages?
+def includeJRE = false                 // Should Java be included in any native packages?
 def additionalResourcesDir = 'build/additional' // Where to store additional files needed for final package
 
 def useLegacyDependencies = false      // For minimal changes from v0.1.2, no support for Java 9
@@ -38,9 +38,6 @@ if (OperatingSystem.current().isMacOsX()) {
 // Nevertheless, it should be possible to build for Java 9 generally
 // with minimal changes, provided that the correct version of ControlsFX is used
 println 'Current Java version: ' + JavaVersion.current()
-if (JavaVersion.current() != JavaVersion.VERSION_1_8) {
-  println 'Warning! Creating native packages is currently only possible with Java 1.8!'
-}
 
 // Define dependencies
 subprojects {
@@ -66,10 +63,7 @@ subprojects {
       richtextfx 'org.fxmisc.richtext:richtextfx:0.8.1'
     commonsmath 'org.apache.commons:commons-math3:3.6.1'
     gson 'com.google.code.gson:gson:2.8.2'
-    if (JavaVersion.current() == JavaVersion.VERSION_1_8)
-        controlsfx 'org.controlsfx:controlsfx:8.40.14'
-    else
-        controlsfx 'org.controlsfx:controlsfx:9.0.0'
+    controlsfx 'org.controlsfx:controlsfx:9.0.0'
     jfxtras 'org.jfxtras:jfxtras-menu:8.0-r5'
     if (useLegacyDependencies) {
       opencv 'org.opencv:opencv:3.1.0'
@@ -101,8 +95,8 @@ allprojects  {
 // Build all projects
 allprojects {
   apply plugin: 'java'
-  sourceCompatibility = JavaVersion.current()
-  targetCompatibility = JavaVersion.current()
+  sourceCompatibility = JavaVersion.VERSION_1_9
+  targetCompatibility = JavaVersion.VERSION_1_9
 
   repositories {
     mavenLocal()
@@ -119,8 +113,8 @@ allprojects {
 // Build Groovy
 allprojects {
     apply plugin: 'groovy'
-    sourceCompatibility = JavaVersion.current()
-    targetCompatibility = JavaVersion.current()
+    sourceCompatibility = JavaVersion.VERSION_1_9
+    targetCompatibility = JavaVersion.VERSION_1_9
 
     repositories {
         mavenLocal()
@@ -208,10 +202,7 @@ task extractNativeLibraries() {
 buildscript {
 
   dependencies {
-      if (JavaVersion.current() == JavaVersion.VERSION_1_8)
-          classpath group: 'de.dynamicfiles.projects.gradle.plugins', name: 'javafx-gradle-plugin', version: '8.8.2'
-      else
-          classpath group: 'de.dynamicfiles.projects.gradle.plugins', name: 'javafx-gradle-plugin', version: '8.9.0-SNAPSHOT'
+      classpath group: 'de.dynamicfiles.projects.gradle.plugins', name: 'javafx-gradle-plugin', version: '8.9.0-SNAPSHOT'
       classpath 'gradle.plugin.com.github.jk1:gradle-license-report:0.5.0'
   }
 
