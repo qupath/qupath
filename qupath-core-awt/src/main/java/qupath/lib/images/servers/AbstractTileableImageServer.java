@@ -366,7 +366,7 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 //					ww = serverWidth - xx;
 //				}
 
-				RegionRequest tileRequest = RegionRequest.createInstance(server.getPath(), downsamplePreferred, 
+				RegionRequest tileRequest = RegionRequest.createInstance(request.getPath(), downsamplePreferred, 
 						xx, yy, ww, hh,
 						request.getZ(), request.getT());
 

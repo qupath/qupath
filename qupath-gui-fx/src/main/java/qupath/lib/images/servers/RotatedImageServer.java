@@ -58,7 +58,7 @@ public class RotatedImageServer extends WrappedImageServer<BufferedImage> {
 	}
 
 	RegionRequest rotateRequest(RegionRequest request) {
-		return RegionRequest.createInstance(request.getPath(), request.getDownsample(), 
+		return RegionRequest.createInstance(request.getPath() + " (before rotation)", request.getDownsample(), 
 				getWidth()-request.getX()-request.getWidth(),
 				getHeight() - request.getY() - request.getHeight(),
 				request.getWidth(), request.getHeight(), request.getZ(), request.getT());
@@ -68,16 +68,27 @@ public class RotatedImageServer extends WrappedImageServer<BufferedImage> {
 	BufferedImage readRotatedBufferedImage(RegionRequest rotatedRequest) {
 		BufferedImage img = getWrappedServer().readBufferedImage(rotatedRequest);
 		
-		if (img == null)
+		if (img == null) {
 			return img;
+		}
 		
 		// TODO: Improve efficiency of this...
 		AffineTransform transform = AffineTransform.getScaleInstance(-1, -1);
-		transform.translate(-img.getWidth(null), -img.getHeight(null));
+		transform.translate(-img.getWidth(), -img.getHeight());
 	    AffineTransformOp op = new AffineTransformOp(transform, AffineTransformOp.TYPE_NEAREST_NEIGHBOR);
 	    img = op.filter(img, null);
 		
 		return img;
+	}
+	
+	@Override
+	public String getPath() {
+		return getWrappedServer().getPath() + " (rotated)";
+	}
+
+	@Override
+	public String getServerType() {
+		return getWrappedServer().getServerType() + " (rotated 180)";
 	}
 
 }
