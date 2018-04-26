@@ -173,10 +173,39 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 				double tileDownsample = firstTile.getDownsample();
 				int parentX = (int)Math.round((request.getX() - xTileStart) / tileDownsample);
 				int parentY = (int)Math.round((request.getY() - yTileStart) / tileDownsample);
-				int parentWidth = (int)Math.round(request.getWidth() / tileDownsample);
-				int parentHeight = (int)Math.round(request.getHeight() / tileDownsample);
+				int parentX2 = parentX + (int)Math.round(request.getWidth() / tileDownsample);
+				int parentY2 = parentY + (int)Math.round(request.getHeight() / tileDownsample);
 				// TODO: Consider creating an entirely separate (non-child) raster to improve efficiency
-				raster = raster.createWritableChild(parentX, parentY, parentWidth, parentHeight, 0, 0, null);
+				try {
+					// Handle the fact that regions might be requested beyond the image boundary
+					int prependX = 0, prependY = 0, appendX = 0, appendY = 0;
+					if (parentX < 0) {
+						prependX = -parentX;
+						parentX = 0;
+					} if (parentY < 0) {
+						prependY = -parentY;
+						parentY = 0;
+					} if (parentX2 >= raster.getWidth()) {
+						appendX = parentX2 - raster.getWidth();
+						parentX2 = raster.getWidth()-1;
+					} if (parentY2 >= raster.getHeight()) {
+						appendY = parentY2 - raster.getHeight();
+						parentY2 = raster.getHeight()-1;
+					}
+					raster = raster.createWritableChild(parentX, parentY, parentX2 - parentX, parentY2 - parentY, 0, 0, null);
+					int finalWidth = raster.getWidth() + prependX + appendX;
+					int finalHeight = raster.getHeight() + prependY + appendY;
+					if (raster.getWidth() != finalWidth || raster.getHeight() != finalHeight) {
+						logger.debug("Padding image from {}, {} to dimensions {}, {}", raster.getWidth(), raster.getHeight(), finalWidth, finalHeight);
+						WritableRaster raster2 = raster.createCompatibleWritableRaster(finalWidth, finalHeight);						
+						raster2.setRect(prependX, prependY, raster);
+						raster = raster2;
+					}
+				} catch (Exception e) {
+					logger.error("Problem extracting region with coordinates ({}, {}, {}, {}) from raster with size ({}, {})", 
+							parentX, parentY, parentX2 - parentX, parentY2 - parentY, raster.getWidth(), raster.getHeight());
+					throw(e);
+				}
 			}
 			
 			// Return the image, resizing if necessary

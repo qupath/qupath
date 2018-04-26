@@ -56,6 +56,14 @@ public class BasicMultiscaleOpenCVFeatureCalculator implements OpenCVFeatureCalc
 
             for (int c = 1; c <= nChannels; c++)
                 featureNames.add(String.format("Channel %d: Laplacian sigma = %.2f", c, sigma));
+            
+//            // Must be 8-bit for median filter...?
+//            Mat matTemp3 = new Mat();
+//            int window = (int)Math.round(sigma)*2+1;
+//            opencv_imgproc.medianBlur(matDest, matTemp3, window);
+//            mats.add(matTemp3);
+//            for (int c = 1; c <= nChannels; c++)
+//                featureNames.add(String.format("Channel %d: Median window = %d", c, window));
 
 //            def matTemp3 = new opencv_core.Mat()
 //            opencv_imgproc.cvtColor(matTemp, matTemp3, opencv_imgproc.COLOR_RGB2HSV)

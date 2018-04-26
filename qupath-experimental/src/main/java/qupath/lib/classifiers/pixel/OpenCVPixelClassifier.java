@@ -104,14 +104,17 @@ public class OpenCVPixelClassifier extends AbstractOpenCVPixelClassifier {
         Mat matOutput = new Mat();
         matFeatures = matFeatures.reshape(1, matFeatures.rows()*matFeatures.cols());
         synchronized (model) {
-            model.predict(matFeatures, matOutput, opencv_ml.StatModel.RAW_OUTPUT);
+            model.predict(matFeatures, matOutput, 0);
+//            model.predict(matFeatures, matOutput, opencv_ml.StatModel.RAW_OUTPUT);
         }
-
-        // Normalize
-        Mat matSum = new Mat();
-        opencv_core.reduce(matOutput, matSum, 1, opencv_core.REDUCE_SUM);
-        for (int c = 0; c < matOutput.cols(); c++) {
-            opencv_core.dividePut(matOutput.col(c), matSum);
+        
+        // Normalize if we have probabilities
+        if (model instanceof opencv_ml.ANN_MLP) {
+            Mat matSum = new Mat();
+            opencv_core.reduce(matOutput, matSum, 1, opencv_core.REDUCE_SUM);
+            for (int c = 0; c < matOutput.cols(); c++) {
+                opencv_core.dividePut(matOutput.col(c), matSum);
+            }        	
         }
 
         // Reshape output

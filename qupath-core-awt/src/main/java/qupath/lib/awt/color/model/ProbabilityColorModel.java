@@ -24,7 +24,7 @@ class ProbabilityColorModel extends ColorModel {
 	
 	private final static Logger logger = LoggerFactory.getLogger(ProbabilityColorModel.class);
 		
-	public static final int BACKGROUND_COLOR = ColorTools.makeRGBA(0, 0, 0, 255);
+	public static final int BACKGROUND_COLOR = ColorTools.makeRGBA(255, 253, 254, 0); // TODO: See PixelClassifierOutputChannel.TRANSPARENT;
 
 	private static int[] DEFAULT_COLORS = new int[] {
 			ColorTools.makeRGB(255, 0, 0),

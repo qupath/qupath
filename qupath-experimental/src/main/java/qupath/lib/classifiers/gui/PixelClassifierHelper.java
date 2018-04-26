@@ -53,6 +53,8 @@ class PixelClassifierHelper implements PathObjectHierarchyListener {
 
     private List<PixelClassifierOutputChannel> channels;
     private double requestedPixelSizeMicrons;
+    
+    private int modelType = opencv_ml.VAR_NUMERICAL;
 
     private Mat matTraining;
     private Mat matTargets;
@@ -61,14 +63,39 @@ class PixelClassifierHelper implements PathObjectHierarchyListener {
 
     private Map<ROI, Mat> cacheFeatures = new WeakHashMap<>();
 
-    PixelClassifierHelper(ImageData<BufferedImage> imageData, OpenCVFeatureCalculator calculator, double requestedPixelSizeMicrons) {
+    /**
+     * Create a new pixel classifier helper, to support generating training data.
+     * 
+     * @param imageData
+     * @param calculator
+     * @param requestedPixelSizeMicrons
+     * @param varType  opencv_ml.VAR_CATEGORICAL or opencv_ml.VAR_NUMERICAL
+     */
+    PixelClassifierHelper(ImageData<BufferedImage> imageData, OpenCVFeatureCalculator calculator, 
+    		double requestedPixelSizeMicrons, int varType) {
         setImageData(imageData);
         this.calculator = calculator;
         this.requestedPixelSizeMicrons = requestedPixelSizeMicrons;
+        setVarType(varType);
     }
 
     public double getRequestedPixelSizeMicrons() {
         return requestedPixelSizeMicrons;
+    }
+    
+    /**
+     * Set the var type, which indicates how the training data should be created.
+     * 
+     * @param newVarType
+     */
+    public void setVarType(final int newVarType) {
+    	if (newVarType == modelType)
+    		return;
+    	if (newVarType == opencv_ml.VAR_CATEGORICAL || newVarType == opencv_ml.VAR_NUMERICAL) {
+	    	modelType = newVarType;
+	    	changes = true;
+    	} else
+    		throw new IllegalArgumentException("Unsupported varType!  Must be opencv_ml.VAR_CATEGORICAL or opencv_ml.VAR_NUMERICAL");
     }
 
     public void setFeatureCalculator(OpenCVFeatureCalculator calculator) {
@@ -151,9 +178,12 @@ class PixelClassifierHelper implements PathObjectHierarchyListener {
             return false;
         }
 
-        // Training is the same - so nothing else to do
-        if (map.equals(lastAnnotatedROIs))
-            return true;
+        // Training is the same - so nothing else to do unless the varType changed
+        if (map.equals(lastAnnotatedROIs)) {
+        	if ((modelType == opencv_ml.VAR_CATEGORICAL && matTargets != null && matTargets.cols() == 1) ||
+        			(modelType == opencv_ml.VAR_NUMERICAL && matTargets != null && matTargets.cols() != 1))
+        		return true;
+        }
 
         // Get the current image
         ImageServer<BufferedImage> server = imageData.getServer();
@@ -230,8 +260,13 @@ class PixelClassifierHelper implements PathObjectHierarchyListener {
                     cacheFeatures.put(roi, matFeatures);
                 }
                 allFeatures.add(matFeatures.clone()); // Clone to be careful... not sure if normalization could impact this under adverse conditions
-                Mat targets = new Mat(matFeatures.rows(), nTargets, opencv_core.CV_32FC1, opencv_core.Scalar.ZERO);
-                targets.col(label).put(opencv_core.Scalar.ONE);
+                Mat targets;
+                if (modelType == opencv_ml.VAR_CATEGORICAL) {
+                    targets = new Mat(matFeatures.rows(), 1, opencv_core.CV_32SC1, opencv_core.Scalar.all(label));
+                } else {
+                    targets = new Mat(matFeatures.rows(), nTargets, opencv_core.CV_32FC1, opencv_core.Scalar.ZERO);
+                    targets.col(label).put(opencv_core.Scalar.ONE);                	
+                }
                 allTargets.add(targets);
             }
             label++;

@@ -11,6 +11,8 @@ import qupath.opencv.processing.OpenCVTools;
 
 import java.awt.image.BufferedImage;
 import java.awt.image.ColorModel;
+import java.awt.image.DataBuffer;
+import java.awt.image.IndexColorModel;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -18,7 +20,8 @@ public abstract class AbstractOpenCVPixelClassifier implements PixelClassifier {
 
     private static final Logger logger = LoggerFactory.getLogger(OpenCVPixelClassifier.class);
 
-    private ColorModel colorModel;
+    private ColorModel colorModelProbabilities;
+    private IndexColorModel colorModelClassifications;
     private boolean doSoftMax;
     private boolean do8Bit;
 
@@ -31,7 +34,11 @@ public abstract class AbstractOpenCVPixelClassifier implements PixelClassifier {
         int[] colors = metadata.getChannels().stream().mapToInt(c -> c.getColor()).toArray();
         int bpp = do8Bit ? 8 : 32;
         // TODO: Check residualBackground!
-        this.colorModel = ColorModelFactory.createProbabilityColorModel(bpp, metadata.nOutputChannels(), false, colors);
+        this.colorModelProbabilities = ColorModelFactory.createProbabilityColorModel(bpp, metadata.nOutputChannels(), false, colors);
+        int[] cmap = metadata.getChannels().stream().mapToInt(c -> c.getColor()).toArray();
+        if (cmap.length > 256)
+        	throw new IllegalArgumentException("Only 256 possible classifications supported!");
+        this.colorModelClassifications = new IndexColorModel(8, metadata.nOutputChannels(), cmap, 0, true, -1, DataBuffer.TYPE_BYTE);
     }
 
     public PixelClassifierMetadata getMetadata() {
@@ -41,19 +48,30 @@ public abstract class AbstractOpenCVPixelClassifier implements PixelClassifier {
     @Override
     public BufferedImage applyClassification(BufferedImage img, int pad) {
         // Get the pixels into a friendly format
-        Mat matInput = OpenCVTools.imageToMatRGB(img, false);
+//        Mat matInput = OpenCVTools.imageToMatRGB(img, false);
+        Mat matInput = OpenCVTools.imageToMat(img);
 
-        // Do the classification, optimally with softmax
+        // Do the classification, optionally with softmax
         Mat matResult = doClassification(matInput, pad);
-        if (doSoftMax)
-            applySoftmax(matResult);
+        
+        // If we have a floating point or multi-channel result, we have probabilities
+        ColorModel colorModelLocal;
+        if (matResult.channels() > 1) {
+        	// Do softmax if needed
+            if (doSoftMax)
+                applySoftmax(matResult);
 
-        // Convert to 8-bit if needed
-        if (do8Bit)
-            matResult.convertTo(matResult, opencv_core.CV_8U, 255.0, 0.0);
+            // Convert to 8-bit if needed
+            if (do8Bit)
+                matResult.convertTo(matResult, opencv_core.CV_8U, 255.0, 0.0);        	
+            colorModelLocal = colorModelProbabilities;
+        } else {
+            matResult.convertTo(matResult, opencv_core.CV_8U);
+            colorModelLocal = colorModelClassifications;
+        }
 
         // Create & return BufferedImage
-        BufferedImage imgResult = OpenCVTools.matToBufferedImage(matResult, colorModel);
+        BufferedImage imgResult = OpenCVTools.matToBufferedImage(matResult, colorModelLocal);
 
         // Free matrices
         if (matInput != null)

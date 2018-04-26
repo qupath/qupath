@@ -33,6 +33,7 @@ import org.bytedeco.javacpp.opencv_core.Mat;
 import org.bytedeco.javacpp.opencv_core.MatVector;
 import org.bytedeco.javacpp.opencv_dnn;
 import org.bytedeco.javacpp.opencv_ml;
+import org.bytedeco.javacpp.opencv_ml.ANN_MLP;
 import org.bytedeco.javacpp.opencv_ml.StatModel;
 import org.bytedeco.javacpp.opencv_ml.TrainData;
 import org.slf4j.Logger;
@@ -70,15 +71,23 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * User interface for interacting with pixel classification.
+ * 
+ * @author Pete Bankhead
+ *
+ */
 public class PixelClassifierGUI implements PathCommand, QuPathViewerListener, PathObjectHierarchyListener {
 
     private static final Logger logger = LoggerFactory.getLogger(PixelClassifierGUI.class);
 
     public static enum ClassificationResolution {
-        VERY_HIGH, HIGH, MODERATE, LOW, VERY_LOW;
+    	MAX_RESOLUTION, VERY_HIGH, HIGH, MODERATE, LOW, VERY_LOW;
 
         public double getMicronsPerPixel() {
             switch(this) {
+	            case MAX_RESOLUTION:
+	                return -1;
                 case VERY_HIGH:
                     return 1.0;
                 case HIGH:
@@ -95,8 +104,10 @@ public class PixelClassifierGUI implements PathCommand, QuPathViewerListener, Pa
 
         public String toString() {
             switch(this) {
+	            case MAX_RESOLUTION:
+	                return "Maximum resolution";
                 case VERY_HIGH:
-                    return String.format("High (%.0f mpp)", getMicronsPerPixel());
+                    return String.format("Very high (%.0f mpp)", getMicronsPerPixel());
                 case HIGH:
                     return String.format("High (%.0f mpp)", getMicronsPerPixel());
                 case MODERATE:
@@ -124,6 +135,13 @@ public class PixelClassifierGUI implements PathCommand, QuPathViewerListener, Pa
     private SimpleObjectProperty<ClassificationResolution> selectedResolution = new SimpleObjectProperty<>();
     private SimpleObjectProperty<OpenCVFeatureCalculator> selectedFeatureCalculator = new SimpleObjectProperty<>();
     private BooleanProperty autoUpdate = new SimpleBooleanProperty();
+    
+    private ObservableList<ClassifierModelBuilder> availableClassifierBuilders = FXCollections.observableArrayList(
+    		new RTreesClassifierBuilder(),
+//    		new NormalBayesClassifierBuilder(),
+    		new ANNClassifierBuilder()
+    		);
+    private SimpleObjectProperty<ClassifierModelBuilder> classifierBuilder = new SimpleObjectProperty<>(availableClassifierBuilders.get(0));
 
     private ObservableList<PathClass> classificationList = FXCollections.observableArrayList();
 
@@ -223,6 +241,18 @@ public class PixelClassifierGUI implements PathCommand, QuPathViewerListener, Pa
         });
         Label labelResolution = new Label("Resolution");
         labelResolution.setLabelFor(comboResolution);
+        
+        // Make it possible to choose the type of classifier
+        ComboBox<ClassifierModelBuilder> comboClassifierType = new ComboBox<>(availableClassifierBuilders);
+        comboClassifierType.getSelectionModel().select(classifierBuilder.get());
+        comboClassifierType.setMaxWidth(Double.MAX_VALUE);
+        classifierBuilder.bind(comboClassifierType.getSelectionModel().selectedItemProperty());
+        classifierBuilder.addListener((v, o, n) -> {
+            if (autoUpdate.get())
+            	updateClassification();
+        });
+        Label labelClassifierType = new Label("Classifier");
+        labelClassifierType.setLabelFor(comboClassifierType);
 
         // Possibly auto-update
         CheckBox cbAutoUpdate = new CheckBox("Auto update");
@@ -251,6 +281,8 @@ public class PixelClassifierGUI implements PathCommand, QuPathViewerListener, Pa
         pane.add(btnShowFeatures, 2, row++, 1, 1);
         pane.add(labelResolution, 0, row, 1, 1);
         pane.add(comboResolution, 1, row++, 2, 1);
+        pane.add(labelClassifierType, 0, row, 1, 1);
+        pane.add(comboClassifierType, 1, row++, 2, 1);
         pane.add(cbAutoUpdate, 0, row++, 3, 1);
         pane.add(listClassifications, 0, row++, 3, 1);
         pane.add(btnUpdate, 0, row++, 3, 1);
@@ -277,6 +309,8 @@ public class PixelClassifierGUI implements PathCommand, QuPathViewerListener, Pa
         }
         ImageServer<BufferedImage> server = imageData.getServer();
         double downsample = selectedResolution.get().getMicronsPerPixel() / server.getAveragedPixelSizeMicrons();
+        if (downsample < 0)
+        	downsample = 1;
         RegionRequest request = RegionRequest.createInstance(server.getPath(), downsample, roi);
         
 //        downsample = 0.5 / server.getAveragedPixelSizeMicrons();
@@ -319,14 +353,22 @@ public class PixelClassifierGUI implements PathCommand, QuPathViewerListener, Pa
     void updateClassification() {
         
         double requestedPixelSizeMicrons = selectedResolution.get().getMicronsPerPixel();
-
+        if (requestedPixelSizeMicrons < 0 && viewer.getServer() != null)
+        	requestedPixelSizeMicrons = viewer.getServer().getAveragedPixelSizeMicrons();
+        
+        
+        ClassifierModelBuilder modelBuilder = classifierBuilder.get();
+        
         if (helper == null)
-            helper = new PixelClassifierHelper(viewer.getImageData(), selectedFeatureCalculator.get(), requestedPixelSizeMicrons);
+            helper = new PixelClassifierHelper(
+            		viewer.getImageData(), selectedFeatureCalculator.get(), requestedPixelSizeMicrons, opencv_ml.VAR_CATEGORICAL);
         else {
             helper.setImageData(viewer.getImageData());
             helper.setFeatureCalculator(selectedFeatureCalculator.get());
             helper.setRequestedPixelSizeMicrons(requestedPixelSizeMicrons);
         }
+        // Set the var type according to the kind of model we have
+        helper.setVarType(modelBuilder.getVarType());
 
         helper.updateTrainingData();
         TrainData trainData = helper.getTrainData();
@@ -340,30 +382,11 @@ public class PixelClassifierGUI implements PathCommand, QuPathViewerListener, Pa
         List<PixelClassifierOutputChannel> channels = helper.getChannels();
         int nClasses = channels.size();
         int nFeatures = trainData.getNVars();
-
-        model = opencv_ml.ANN_MLP.create();
-
-        double[] layersArray = new double[] {
-                nFeatures,
-                nClasses * 16.0,
-                nClasses * 8.0,
-                nClasses * 4.0,
-                nClasses
-        };
-
-        Mat layers = new Mat(layersArray.length, 1, opencv_core.CV_64F);
-        DoubleIndexer indexer = layers.createIndexer();
-        for (int i = 0; i < layersArray.length; i++) {
-            indexer.put(i, layersArray[i]);
-        }
-        indexer.release();
-        if (model instanceof opencv_ml.ANN_MLP) {
-        	((opencv_ml.ANN_MLP)model).setLayerSizes(layers);
-        	((opencv_ml.ANN_MLP)model).setActivationFunction(opencv_ml.ANN_MLP.SIGMOID_SYM, 1, 1);
-        }
-
+        
+        model = modelBuilder.createNewClassifier(nFeatures, nClasses);
+        
         trainData.shuffleTrainTest();
-        model.train(trainData, opencv_ml.VAR_NUMERICAL);
+        model.train(trainData, modelBuilder.getVarType());
 
         PixelClassifierMetadata metadata = new PixelClassifierMetadata.Builder()
         		.inputPixelSizeMicrons(helper.getRequestedPixelSizeMicrons())
@@ -392,7 +415,8 @@ public class PixelClassifierGUI implements PathCommand, QuPathViewerListener, Pa
         if (overlay != null)
             viewer.getCustomOverlayLayers().remove(overlay);
         overlay = newOverlay;
-        viewer.getCustomOverlayLayers().add(overlay);
+        if (overlay != null)
+        	viewer.getCustomOverlayLayers().add(overlay);
     }
 
 
@@ -523,6 +547,101 @@ public class PixelClassifierGUI implements PathCommand, QuPathViewerListener, Pa
 //                setStyle("-fx-font-family:arial; -fx-font-style:normal;");
         }
 
+    }
+    
+    
+    static interface ClassifierModelBuilder {
+    	
+    	/**
+    	 * Create a new {@code StatModel} to use as a classifier.
+    	 * <p>
+    	 * This may optionally use the number of features and number of output classes to 
+    	 * initialize itself suitably.
+    	 * 
+    	 * @param nFeatures
+    	 * @param nClasses
+    	 * @return
+    	 */
+    	public StatModel createNewClassifier(final int nFeatures, final int nClasses);
+    	
+    	/**
+    	 * Either opencv_ml.VAR_CATEGORICAL or opencv_ml.VAR_NUMERIC, depending on whether
+    	 * this classifier outputs classifications directly or numerical predictions (here, assumed to be probabilities).
+    	 * 
+    	 * @return
+    	 */
+    	public int getVarType();
+    	
+    }
+    
+    static class RTreesClassifierBuilder implements ClassifierModelBuilder {
+    	
+    	public StatModel createNewClassifier(final int nFeatures, final int nClasses) {
+    		return opencv_ml.RTrees.create();
+    	}
+    	
+    	public int getVarType() {
+    		return opencv_ml.VAR_CATEGORICAL;
+    	}
+    	
+    	public String toString() {
+    		return "Random Trees";
+    	}
+    	
+    }
+    
+//    static class NormalBayesClassifierBuilder implements ClassifierModelBuilder {
+//    	
+//    	public StatModel createNewClassifier(final int nFeatures, final int nClasses) {
+//    		return opencv_ml.NormalBayesClassifier.create();
+//    	}
+//    	
+//    	public int getVarType() {
+//    		return opencv_ml.VAR_CATEGORICAL;
+//    	}
+//    	
+//    	@Override
+//    	public String toString() {
+//    		return "Normal Bayes";
+//    	}
+//    	
+//    }
+    
+    static class ANNClassifierBuilder implements ClassifierModelBuilder {
+    	
+    	public StatModel createNewClassifier(final int nFeatures, final int nClasses) {
+    		ANN_MLP model = opencv_ml.ANN_MLP.create();
+    		
+    		double[] layersArray = new double[] {
+                    nFeatures,
+                    nFeatures * 2.0,
+                    nClasses * 8.0,
+                    nClasses * 4.0,
+                    nClasses
+            };
+
+            Mat layers = new Mat(layersArray.length, 1, opencv_core.CV_64F);
+            DoubleIndexer indexer = layers.createIndexer();
+            for (int i = 0; i < layersArray.length; i++) {
+                indexer.put(i, layersArray[i]);
+            }
+            indexer.release();
+        	((opencv_ml.ANN_MLP)model).setLayerSizes(layers);
+        	((opencv_ml.ANN_MLP)model).setActivationFunction(opencv_ml.ANN_MLP.SIGMOID_SYM, 1, 1);
+    		
+    		return model;
+    	}
+    	
+    	public int getVarType() {
+    		return opencv_ml.VAR_NUMERICAL;
+    	}
+    	
+    	@Override
+    	public String toString() {
+    		return "Artificial Neural Network (ANN)";
+    	}
+
+    	
     }
 
 
