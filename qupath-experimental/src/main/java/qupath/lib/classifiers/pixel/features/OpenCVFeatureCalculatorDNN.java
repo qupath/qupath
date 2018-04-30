@@ -24,10 +24,15 @@ public class OpenCVFeatureCalculatorDNN implements OpenCVFeatureCalculator {
     private int padding = 32; // Default
     private String outputName;
     private List<String> featureNames;
-    private double mean, scale;
+    private double scale;
+    private Scalar mean;
     private String name;
-
+    
     public OpenCVFeatureCalculatorDNN(Net model, String name, double mean, double scale) {
+    	this(model, name, Scalar.all(mean), scale);
+    }
+
+    public OpenCVFeatureCalculatorDNN(Net model, String name, Scalar mean, double scale) {
         this.model = model;
         this.name = name;
 
@@ -44,20 +49,20 @@ public class OpenCVFeatureCalculatorDNN implements OpenCVFeatureCalculator {
 
     @Override
     public Mat calculateFeatures(Mat input) {
-    	Mat mat = new Mat();
-    	opencv_imgproc.cvtColor(input, mat, opencv_imgproc.COLOR_RGB2BGR);
-    	mat.convertTo(mat, opencv_core.CV_32F, 1.0/255.0, 0.0);
-//        mat.put(opencv_core.subtract(opencv_core.Scalar.ONE, mat));
-        mat.put(opencv_core.subtract(mat, opencv_core.Scalar.ONEHALF));
+//    	Mat mat = new Mat();
+//    	opencv_imgproc.cvtColor(input, mat, opencv_imgproc.COLOR_RGB2BGR);
+//    	mat.convertTo(mat, opencv_core.CV_32F, 1.0/255.0, 0.0);
+////        mat.put(opencv_core.subtract(opencv_core.Scalar.ONE, mat));
+//        mat.put(opencv_core.subtract(mat, opencv_core.Scalar.ONEHALF));
+//
+//        // Handle scales & offsets
+//        if (mean != null && !Scalar.ZERO.equals(mean))
+//            opencv_core.subtractPut(mat, mean);
+//        if (scale != 1) {
+//            opencv_core.dividePut(mat, scale);
+//        }
 
-        // Handle scales & offsets
-        if (mean != 0)
-            opencv_core.subtractPut(mat, Scalar.all(mean));
-        if (scale != 1) {
-            opencv_core.dividePut(mat, scale);
-        }
-
-        Mat blob = opencv_dnn.blobFromImage(input);
+        Mat blob = opencv_dnn.blobFromImage(input, scale, input.size(), mean, true, false);
         Mat prob;
         synchronized (model) {
             model.setInput(blob);

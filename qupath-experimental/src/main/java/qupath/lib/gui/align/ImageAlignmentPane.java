@@ -19,6 +19,7 @@ import org.bytedeco.javacpp.opencv_core;
 import org.bytedeco.javacpp.opencv_core.Mat;
 import org.bytedeco.javacpp.opencv_core.TermCriteria;
 import org.bytedeco.javacpp.opencv_video;
+import org.bytedeco.javacpp.indexer.FloatIndexer;
 import org.bytedeco.javacpp.indexer.Indexer;
 import org.controlsfx.control.CheckListView;
 import org.slf4j.Logger;
@@ -276,8 +277,7 @@ public class ImageAlignmentPane {
 		
 	}
 	
-	
-	
+		
 	void promptToAddImages() {
 		// Get all the other project entries - except for the base image (which is fixed)
 		Project<BufferedImage> project = qupath.getProject();
@@ -451,16 +451,34 @@ public class ImageAlignmentPane {
 		Mat matBase = OpenCVTools.imageToMat(imgBase);
 		Mat matOverlay = OpenCVTools.imageToMat(imgOverlay);
 		Mat matTransform = Mat.eye(2, 3, opencv_core.CV_32F).asMat();
+		// Initialize using existing transform
+//		affine.setToTransform(mxx, mxy, tx, myx, myy, ty);
+		try (FloatIndexer indexer = matTransform.createIndexer()) {
+			indexer.put(0, 0, (float)affine.getMxx());
+			indexer.put(0, 1, (float)affine.getMxy());
+			indexer.put(0, 2, (float)(affine.getTx() / downsample));
+			indexer.put(1, 0, (float)affine.getMyx());
+			indexer.put(1, 1, (float)affine.getMyy());
+			indexer.put(1, 2, (float)(affine.getTy() / downsample));
+//			System.err.println(indexer);
+		} catch (Exception e) {
+			logger.error("Error closing indexer", e);
+		}
 //		// Might want to mask out completely black pixels (could indicate missing data)?
 //		def matMask = new opencv_core.Mat(matOverlay.size(), opencv_core.CV_8UC1, Scalar.ZERO);
 		TermCriteria termCrit = new TermCriteria(TermCriteria.COUNT+TermCriteria.EPS, 100, 0.001);
-		double result = opencv_video.findTransformECC(matBase, matOverlay	, matTransform, opencv_video.MOTION_EUCLIDEAN, termCrit, null);
+		try {
+			double result = opencv_video.findTransformECC(matBase, matOverlay, matTransform, opencv_video.MOTION_EUCLIDEAN, termCrit, null);
+			logger.info("Transformation result: {}", result);
+		} catch (Exception e) {
+			DisplayHelpers.showErrorNotification("Estimate transform", "Unable to estimated transform - result did not converge");
+			logger.error("Unable to estimate transform", e);
+			return;
+		}
 		
 		// To use the following function, images need to be the same size
 //		def matTransform = opencv_video.estimateRigidTransform(matBase, matOverlay, false);
 			
-		logger.info("Transformation result: {}", result);
-		
 		Indexer indexer = matTransform.createIndexer();
 		affine.setToTransform(
 			indexer.getDouble(0, 0),

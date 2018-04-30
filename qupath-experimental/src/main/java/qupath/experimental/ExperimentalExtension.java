@@ -2,6 +2,7 @@ package qupath.experimental;
 
 import qupath.lib.classifiers.gui.PixelClassifierGUI;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.align.InteractiveImageAlignmentCommand;
 import qupath.lib.gui.extensions.QuPathExtension;
 
 /**
@@ -14,6 +15,10 @@ public class ExperimentalExtension implements QuPathExtension {
         QuPathGUI.addMenuItems(
                 qupath.getMenu("Classify", true),
                 QuPathGUI.createCommandAction(PixelClassifierGUI.getInstance(), "Pixel classifier (experimental)")
+        );
+        QuPathGUI.addMenuItems(
+                qupath.getMenu("Analyze", true),
+                QuPathGUI.createCommandAction(new InteractiveImageAlignmentCommand(qupath), "Interactive image alignment (experimental)")
         );
     }
 

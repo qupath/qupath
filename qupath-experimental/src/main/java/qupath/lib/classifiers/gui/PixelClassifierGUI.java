@@ -203,7 +203,7 @@ public class PixelClassifierGUI implements PathCommand, QuPathViewerListener, Pa
                         	opencv_dnn.Net model = opencv_dnn.readNetFromTensorflow(f.getAbsolutePath());
                         	// TODO: HANDLE UNKNOWN MEAN AND SCALE!
                         	logger.warn("Creating DNN feature calculator - but don't know mean or scale to apply!");
-                        	OpenCVFeatureCalculatorDNN featuresDNN = new OpenCVFeatureCalculatorDNN(model, f.getName(), 0, 1);
+                        	OpenCVFeatureCalculatorDNN featuresDNN = new OpenCVFeatureCalculatorDNN(model, f.getName(), 0, 1.0/255.0);
                             logger.info("Loaded model from {}", f.getAbsolutePath());
                             comboFeatures.getItems().add(featuresDNN);
                         } catch (Exception e) {
