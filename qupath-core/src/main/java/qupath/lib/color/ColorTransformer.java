@@ -682,8 +682,12 @@ public class ColorTransformer {
 		int b = rgb & ColorTools.MASK_BLUE;
 		return Color.RGBtoHSB(r, g, b, null)[2];
 	}
-
+	
 	public static float getPixelValue(int rgb, ColorTransformMethod method) {
+		return getPixelValue(rgb, method, null);
+	}
+
+	public static float getPixelValue(int rgb, ColorTransformMethod method, ColorDeconvolutionStains stains) {
 		switch (method) {
 		case Red:
 			return ColorTools.red(rgb);
@@ -722,6 +726,35 @@ public class ColorTransformer {
 		case Saturation:
 			return saturation(rgb);
 		case Original:
+			return Float.NaN;
+			
+			
+		case Stain_1:
+			if (stains != null) {
+				double[] od_lut_red = ColorDeconvolutionHelper.makeODLUT(stains.getMaxRed());
+				double[] od_lut_green = ColorDeconvolutionHelper.makeODLUT(stains.getMaxGreen());
+				double[] od_lut_blue = ColorDeconvolutionHelper.makeODLUT(stains.getMaxBlue());
+				double[][] inverse = stains.getMatrixInverse();
+				return ColorTransformer.deconvolve(rgb, inverse, od_lut_red, od_lut_green, od_lut_blue, 1);
+			}
+			return Float.NaN;
+		case Stain_2:
+			if (stains != null) {
+				double[] od_lut_red = ColorDeconvolutionHelper.makeODLUT(stains.getMaxRed());
+				double[] od_lut_green = ColorDeconvolutionHelper.makeODLUT(stains.getMaxGreen());
+				double[] od_lut_blue = ColorDeconvolutionHelper.makeODLUT(stains.getMaxBlue());
+				double[][] inverse = stains.getMatrixInverse();
+				return ColorTransformer.deconvolve(rgb, inverse, od_lut_red, od_lut_green, od_lut_blue, 2);
+			}
+			return Float.NaN;
+		case Stain_3:
+			if (stains != null) {
+				double[] od_lut_red = ColorDeconvolutionHelper.makeODLUT(stains.getMaxRed());
+				double[] od_lut_green = ColorDeconvolutionHelper.makeODLUT(stains.getMaxGreen());
+				double[] od_lut_blue = ColorDeconvolutionHelper.makeODLUT(stains.getMaxBlue());
+				double[][] inverse = stains.getMatrixInverse();
+				return ColorTransformer.deconvolve(rgb, inverse, od_lut_red, od_lut_green, od_lut_blue, 3);
+			}
 			return Float.NaN;
 		default:
 			return Float.NaN;

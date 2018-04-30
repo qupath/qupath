@@ -169,9 +169,11 @@ public class URLHelpers {
 					((HttpURLConnection)connection).disconnect();
 				return null;
 			}
-			int length = connection.getContentLength();
+			long length = connection.getContentLengthLong();
+			if (length < 0)
+				length = 4096;
 			stream = new BufferedInputStream(connection.getInputStream());
-			ByteArrayOutputStream outBytes = new ByteArrayOutputStream(length);
+			ByteArrayOutputStream outBytes = new ByteArrayOutputStream((int)length);
 			byte[] buffer = new byte[4096];
 			int len = 0;
 			while ((len = stream.read(buffer)) > 0) {

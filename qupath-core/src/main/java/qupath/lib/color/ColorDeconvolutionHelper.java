@@ -45,7 +45,12 @@ public class ColorDeconvolutionHelper {
 	public static final double makeOD(double val, double max) {
 		return Math.max(0, -Math.log10(Math.max(val, 1)/max));
 	}
-
+	
+	public static final double makeODByLUT(int val, double[] OD_LUT) {
+		if (val >= 0 && val < OD_LUT.length)
+			return OD_LUT[val];
+		return Double.NaN;
+	}
 	public static final double makeODByLUT(float val, double[] OD_LUT) {
         return ColorDeconvolutionHelper.makeODByLUT((int)Math.round(val), OD_LUT);
     }	

@@ -855,9 +855,8 @@ public interface ChannelDisplayInfo {
 				return (float)(ColorDeconvolutionHelper.makeOD(r, stains.getMaxRed()) +
 						ColorDeconvolutionHelper.makeOD(g, stains.getMaxGreen()) + 
 						ColorDeconvolutionHelper.makeOD(b, stains.getMaxBlue()));
-			}
-			else
-				return ColorTransformer.getPixelValue(rgb, method);
+			} else
+				return ColorTransformer.getPixelValue(rgb, method, stains);
 		}
 
 		@Override
