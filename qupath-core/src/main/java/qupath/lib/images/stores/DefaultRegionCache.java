@@ -158,34 +158,34 @@ public class DefaultRegionCache<T> implements RegionCache<T> {
 	}
 
 	@Override
-	public int size() {
+	public synchronized int size() {
 		return map.size();
 	}
 
 	@Override
-	public boolean isEmpty() {
+	public synchronized boolean isEmpty() {
 		return map.isEmpty();
 	}
 
 	@Override
-	public boolean containsKey(Object key) {
+	public synchronized boolean containsKey(Object key) {
 		return map.containsKey(key);
 	}
 
 	@Override
-	public boolean containsValue(Object value) {
+	public synchronized boolean containsValue(Object value) {
 		return map.containsValue(value);
 	}
 
 	@Override
-	public T get(Object key) {
+	public synchronized T get(Object key) {
 		return map.get(key);
 	}
 
 	@Override
-	public T remove(Object key) {
+	public synchronized T remove(Object key) {
 		// Update the memory requirements
-		T imgPrevious = map.get(key);
+		T imgPrevious = map.remove(key);
 		if (imgPrevious != null) {
 			memoryBytes -= sizeEstimator.getApproxImageSize(imgPrevious);
 			nonNullSize--;
@@ -194,24 +194,24 @@ public class DefaultRegionCache<T> implements RegionCache<T> {
 	}
 
 	@Override
-	public void putAll(Map<? extends RegionRequest, ? extends T> m) {
+	public synchronized void putAll(Map<? extends RegionRequest, ? extends T> m) {
 		for (Entry<? extends RegionRequest, ? extends T> entry : m.entrySet()) {
 			put(entry.getKey(), entry.getValue());
 		}
 	}
 
 	@Override
-	public Set<RegionRequest> keySet() {
+	public synchronized Set<RegionRequest> keySet() {
 		return map.keySet();
 	}
 
 	@Override
-	public Collection<T> values() {
+	public synchronized Collection<T> values() {
 		return map.values();
 	}
 
 	@Override
-	public Set<Entry<RegionRequest, T>> entrySet() {
+	public synchronized Set<Entry<RegionRequest, T>> entrySet() {
 		return map.entrySet();
 	}
 	

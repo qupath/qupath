@@ -4384,8 +4384,8 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			}
 		}
 		FileSystem fileSystemOld = URLHelpers.getCacheFileSystem();
-		if (fileSystemOld == fileSystem)
-			return;
+//		if (fileSystemOld == fileSystem)
+//			return;
 		if (fileSystemOld != null && fileSystemOld != FileSystems.getDefault()) {
 			try {
 				fileSystemOld.close();
