@@ -137,6 +137,7 @@ public class ImageDisplay {
 		this.useColorLUTs = useColorLUTs;
 		if (!useColorLUTs && getSelectedChannels().size() > 1)
 			setChannelSelected(lastSelectedChannel, true);
+		saveChannelColorProperties();
 	}
 
 
