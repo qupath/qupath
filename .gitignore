@@ -9,6 +9,8 @@ log/
 out/
 
 # Gradle
+# Use local properties (e.g. to set a specific JDK)
+gradle.properties
 build/
 .gradle/
 
