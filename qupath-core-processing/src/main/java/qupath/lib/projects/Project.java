@@ -28,9 +28,9 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.TreeMap;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -57,7 +57,7 @@ public class Project<T> {
 	
 	private List<PathClass> pathClasses = new ArrayList<>();
 	
-	private Map<String, ProjectImageEntry<T>> images = new TreeMap<>();
+	private Map<String, ProjectImageEntry<T>> images = new LinkedHashMap<>();
 	long creationTimestamp;
 	long modificationTimestamp;
 	
@@ -181,7 +181,7 @@ public class Project<T> {
 	 */
 	public List<ProjectImageEntry<T>> getImageList() {
 		List<ProjectImageEntry<T>> list = new ArrayList<>(images.values());
-		list.sort(ImageEntryComparator.instance);
+//		list.sort(ImageEntryComparator.instance);
 		return list;
 	}
 	
