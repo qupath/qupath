@@ -182,6 +182,17 @@ class ProbabilityColorModel extends ColorModel {
 		return scaledPixelColorU16(pixel, bScale);
 	}
 	
+	public int getAlpha(short[] pixel) {
+		if (backgroundChannel >= 0)
+			return (int)(255 * (1f - ushortToFloat(pixel[backgroundChannel])));
+		if (residualBackground) {
+			float sum = 0;
+			for (short p : pixel)
+				sum += ushortToFloat(p);
+			return (int)(255 * clipFloat(sum));
+		}
+		return 255;
+	}
 	
 	
 	public int scaledPixelColor(float[] pixel, float[] scale) {

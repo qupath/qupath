@@ -27,6 +27,7 @@ import java.awt.Rectangle;
 import java.awt.Shape;
 import java.awt.geom.Area;
 import java.awt.geom.Ellipse2D;
+import java.awt.geom.Path2D;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 import java.util.Collection;
@@ -435,6 +436,10 @@ public class BrushTool extends AbstractPathROITool {
 		// Compute a diameter scaled according to the pressure being applied
 		double diameter = getBrushDiameter();
 		Shape shape = new Ellipse2D.Double(x-diameter/2, y-diameter/2, diameter, diameter);
+		// Flattening now helps improve performance - especially when drawing at a low magnification
+		Path2D path = new Path2D.Float();
+		path.append(shape.getPathIterator(null, viewer.getDownsampleFactor()/2.0), true);
+		shape = path;
 		// Clip over the image boundary
 		Rectangle2D shapeBounds = shape.getBounds2D();
 		viewer.getServerBounds();
