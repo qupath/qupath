@@ -63,6 +63,8 @@ and add the modules as in the red rectangle in the picture below:
 
 Finally click the `Apply` button in the bottom right corner.
 
+(TODO add the libraries from the `deploy` folder)
+
 Now create a build configuration by clicking the top right arrow and 
 `Edit configurations...`:
 ![Image](https://image.ibb.co/dFGZky/idea2.png)
