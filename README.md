@@ -47,3 +47,18 @@ The QuPath software has been developed as part of projects that have received fu
 To see a list of third-party open source libraries used within QuPath (generated automatically using Maven), see THIRD-PARTY.txt.
 
 Full licenses and copyright notices for third-party dependencies are also included for each relevant submodule inside ```src/main/resources/licenses```, and accessible from within within QUPath distributions under *Help &rarr; License*.
+
+
+#### How to run in Intellij?
+
+Open your project as an existing project into Intellij then go into
+`File > Project structure...` then click on `Project` under the `Project settings`.
+and on the `Project language settings:` option set it to `8 - Lambdas, type annotations etc.`
+then click apply.
+
+Still in the `Project structure` menu now click on `Modules` then `qupath`, the
+`Dependencies` tab and the `+` sign. On the `+` sign click `Module Dependency`
+and add the modules as in the red rectangle in the picture below:
+![Image](https://image.ibb.co/mPeJdJ/idea1.png)
+
+Finally click the `Apply` button in the bottom right corner.
