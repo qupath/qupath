@@ -2,6 +2,8 @@
 deploy/
 target/
 log/
+.idea/
+
 
 # Eclipse
 .settings/
@@ -20,4 +22,5 @@ hs_err*.log
 *.swp
 *~.nib
 *thumbs.db
+*.iml
 bin/
