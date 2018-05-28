@@ -51,24 +51,38 @@ Full licenses and copyright notices for third-party dependencies are also includ
 
 #### How to run in Intellij?
 
-Open your project as an existing project into Intellij then go into
-`File > Project structure...` then click on `Project` under the `Project settings`.
+1. Open your project as an existing project into Intellij.
+1. Go into `Edit configuration` and add click the `+` button to add a maven configuration
+and complete it as below:
+![Image](https://image.ibb.co/dFGZky/idea2.png)
+then:
+![Image](https://image.ibb.co/gXtYVy/idea4.png)
+And click `OK`
+1. Then click on the play button next to the maven configuration to launch the install step and
+wait for it to finish
+![Image](https://image.ibb.co/cLHoxd/idea5.png)
+
+1. Now go into `File > Project structure...` then click on `Project` under the `Project settings`.
 and on the `Project language settings:` option set it to `8 - Lambdas, type annotations etc.`
 then click apply.
 
-Still in the `Project structure` menu now click on `Modules` then `qupath`, the
+1. Still in the `Project structure` menu now click on `Modules` then `qupath`, the
 `Dependencies` tab and the `+` sign. On the `+` sign click `Module Dependency`
-and add the modules as in the red rectangle in the picture below:
-![Image](https://image.ibb.co/mPeJdJ/idea1.png)
-
+and select all the `qupath-*` dependencies then click `OK`.
+Now click again on that the `+` sign but chose `1 JARs or directory...`
+and chose the `deploy/jars` from the list. You should have something like
+in the red rectangle below:
+![Image](https://preview.ibb.co/kF2Vcd/idea1.png)
 Finally click the `Apply` button in the bottom right corner.
 
-(TODO add the libraries from the `deploy` folder)
-
-Now create a build configuration by clicking the top right arrow and 
+1. Now create a build configuration by clicking the top right arrow and 
 `Edit configurations...`:
 ![Image](https://image.ibb.co/dFGZky/idea2.png)
 
-Click on the `+` button and chose `Application` then complete the configuration
+1. Click on the `+` button and chose `Application` then complete the configuration
 as below and click `OK`:
 ![Image](https://image.ibb.co/cd49JJ/idea3.png)
+
+1. Optionally install opencv onto your system
+1. Now select QuPath App in the configuration dropdown and click the play button:
+![Image](https://image.ibb.co/iqAu3J/idea7.png)
