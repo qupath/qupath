@@ -39,6 +39,8 @@ import org.bytedeco.javacpp.opencv_ml.TrainData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.imagej.helpers.IJTools;
+import qupath.imagej.images.servers.ImagePlusServer;
+import qupath.imagej.images.servers.ImagePlusServerBuilder;
 import qupath.lib.classifiers.pixel.OpenCVPixelClassifier;
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.classifiers.pixel.PixelClassifierMetadata;
@@ -70,6 +72,7 @@ import java.io.File;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * User interface for interacting with pixel classification.
@@ -139,11 +142,25 @@ public class PixelClassifierGUI implements PathCommand, QuPathViewerListener, Pa
     private ObservableList<ClassifierModelBuilder> availableClassifierBuilders = FXCollections.observableArrayList(
     		new RTreesClassifierBuilder(),
 //    		new NormalBayesClassifierBuilder(),
+    		new ANNSingleLayerClassifierBuilder(),
     		new ANNClassifierBuilder()
     		);
     private SimpleObjectProperty<ClassifierModelBuilder> classifierBuilder = new SimpleObjectProperty<>(availableClassifierBuilders.get(0));
 
     private ObservableList<PathClass> classificationList = FXCollections.observableArrayList();
+    
+    public final static int NUM_CHANNELS = 3;
+    
+    private ObservableList<OpenCVFeatureCalculator> featureCalculators = FXCollections.observableArrayList(
+    		new SmoothedOpenCVFeatureCalculator(NUM_CHANNELS, 1.0),
+            new SmoothedOpenCVFeatureCalculator(NUM_CHANNELS, 2.0),
+            new SmoothedOpenCVFeatureCalculator(NUM_CHANNELS, 4.0),
+            new BasicMultiscaleOpenCVFeatureCalculator(NUM_CHANNELS, 1.0, 1, false),
+            new BasicMultiscaleOpenCVFeatureCalculator(NUM_CHANNELS, 1.0, 2, false),
+            new BasicMultiscaleOpenCVFeatureCalculator(NUM_CHANNELS, 1.0, 3, false),
+            new BasicMultiscaleOpenCVFeatureCalculator(NUM_CHANNELS, 2.0, 3, false)
+    		);
+
 
     private PixelClassifierGUI(final QuPathViewer viewer) {
         this.viewer = viewer;
@@ -156,6 +173,17 @@ public class PixelClassifierGUI implements PathCommand, QuPathViewerListener, Pa
         }
         return classifierGUI;
     }
+    
+    
+    /**
+     * Access the observable list of available feature calculators.
+     * 
+     * @return
+     */
+    public ObservableList<OpenCVFeatureCalculator> getFeatureCalculators() {
+    	return featureCalculators;
+    }
+    
 
     @Override
     public void run() {
@@ -181,38 +209,29 @@ public class PixelClassifierGUI implements PathCommand, QuPathViewerListener, Pa
             imageData.getHierarchy().addPathObjectListener(this);
 
         // Make it possible to choose OpenCVFeatureCalculator
-        ComboBox<OpenCVFeatureCalculator> comboFeatures = new ComboBox<>();
-        comboFeatures.getItems().addAll(
-                new SmoothedOpenCVFeatureCalculator(1.0),
-                new SmoothedOpenCVFeatureCalculator(2.0),
-                new SmoothedOpenCVFeatureCalculator(4.0),
-                new BasicMultiscaleOpenCVFeatureCalculator(1.0, 1, false),
-                new BasicMultiscaleOpenCVFeatureCalculator(1.0, 2, false),
-                new BasicMultiscaleOpenCVFeatureCalculator(1.0, 3, false),
-                new BasicMultiscaleOpenCVFeatureCalculator(2.0, 3, false)
-        );
+        ComboBox<OpenCVFeatureCalculator> comboFeatures = new ComboBox<>(featureCalculators);
 
-        // Load more models if we can find any...
-        Project<BufferedImage> project = QuPathGUI.getInstance().getProject();
-        if (project != null) {
-        	File dirModels = new File(project.getBaseDirectory(), "models");
-            if (dirModels.exists()) {
-                for (File f : dirModels.listFiles()) {
-                    if (f.isFile() && !f.isHidden()) {
-                        try {
-                        	opencv_dnn.Net model = opencv_dnn.readNetFromTensorflow(f.getAbsolutePath());
-                        	// TODO: HANDLE UNKNOWN MEAN AND SCALE!
-                        	logger.warn("Creating DNN feature calculator - but don't know mean or scale to apply!");
-                        	OpenCVFeatureCalculatorDNN featuresDNN = new OpenCVFeatureCalculatorDNN(model, f.getName(), 0, 1.0/255.0);
-                            logger.info("Loaded model from {}", f.getAbsolutePath());
-                            comboFeatures.getItems().add(featuresDNN);
-                        } catch (Exception e) {
-                            logger.warn("Unable to load model from {}", f.getAbsolutePath());
-                        }
-                    }
-                }
-            }
-        }
+//        // Load more models if we can find any...
+//        Project<BufferedImage> project = QuPathGUI.getInstance().getProject();
+//        if (project != null) {
+//        	File dirModels = new File(project.getBaseDirectory(), "models");
+//            if (dirModels.exists()) {
+//                for (File f : dirModels.listFiles()) {
+//                    if (f.isFile() && !f.isHidden()) {
+//                        try {
+//                        	opencv_dnn.Net model = opencv_dnn.readNetFromTensorflow(f.getAbsolutePath());
+//                        	// TODO: HANDLE UNKNOWN MEAN AND SCALE!
+//                        	logger.warn("Creating DNN feature calculator - but don't know mean or scale to apply!");
+//                        	OpenCVFeatureCalculatorDNN featuresDNN = new OpenCVFeatureCalculatorDNN(model, f.getName(), 0, 1.0/255.0);
+//                            logger.info("Loaded model from {}", f.getAbsolutePath());
+//                            featureCalculators.add(featuresDNN);
+//                        } catch (Exception e) {
+//                            logger.warn("Unable to load model from {}", f.getAbsolutePath());
+//                        }
+//                    }
+//                }
+//            }
+//        }
 
 
         comboFeatures.getSelectionModel().select(0);
@@ -311,7 +330,16 @@ public class PixelClassifierGUI implements PathCommand, QuPathViewerListener, Pa
         double downsample = selectedResolution.get().getMicronsPerPixel() / server.getAveragedPixelSizeMicrons();
         if (downsample < 0)
         	downsample = 1;
-        RegionRequest request = RegionRequest.createInstance(server.getPath(), downsample, roi);
+        
+        // Always give at the requested pixel size
+        int x = (int)Math.round(roi.getCentroidX() - calculator.getMetadata().getInputWidth() * downsample / 2.0);
+        int y = (int)Math.round(roi.getCentroidY() - calculator.getMetadata().getInputHeight() * downsample / 2.0);
+        int w = (int)Math.round(calculator.getMetadata().getInputWidth() * downsample);
+        int h = (int)Math.round(calculator.getMetadata().getInputHeight() * downsample);
+        RegionRequest request = RegionRequest.createInstance(server.getPath(), downsample, x, y, w, h);
+        
+        ImagePlusServer serverIJ = ImagePlusServerBuilder.ensureImagePlusWholeSlideServer(server);
+        serverIJ.readImagePlusRegion(request).getImage().show();
         
 //        downsample = 0.5 / server.getAveragedPixelSizeMicrons();
 //        request = RegionRequest.createInstance(server.getPath(), downsample,
@@ -320,11 +348,8 @@ public class PixelClassifierGUI implements PathCommand, QuPathViewerListener, Pa
 //        		(int)Math.round(256*downsample),
 //  				(int)Math.round(256*downsample));
         
-        BufferedImage img = imageData.getServer().readBufferedImage(request);        
-//        new ImagePlus("Extracted", img).show();
-        Mat mat = OpenCVTools.imageToMat(img);
-        Mat matFeatures = calculator.calculateFeatures(mat);
-        List<String> names = calculator.getLastFeatureNames();
+        Mat matFeatures = calculator.calculateFeatures(imageData.getServer(), request);
+        List<String> names = calculator.getMetadata().getChannels().stream().map(c -> c.getName()).collect(Collectors.toList());
         ImagePlus imp = matToImagePlus(matFeatures,
                 String.format("Features: (%.2f, %d, %d, %d, %d)",
                 request.getDownsample(), request.getX(), request.getY(), request.getWidth(), request.getHeight()));
@@ -388,8 +413,11 @@ public class PixelClassifierGUI implements PathCommand, QuPathViewerListener, Pa
         trainData.shuffleTrainTest();
         model.train(trainData, modelBuilder.getVarType());
 
+        int inputWidth = helper.getFeatureCalculator().getMetadata().getInputWidth();
+        int inputHeight = helper.getFeatureCalculator().getMetadata().getInputHeight();
         PixelClassifierMetadata metadata = new PixelClassifierMetadata.Builder()
         		.inputPixelSizeMicrons(helper.getRequestedPixelSizeMicrons())
+        		.inputShape(inputWidth, inputHeight)
         		.inputChannelMeans(means)
         		.inputChannelScales(scales)
         		.channels(channels)
@@ -469,8 +497,14 @@ public class PixelClassifierGUI implements PathCommand, QuPathViewerListener, Pa
     }
 
 
-
-    static ImagePlus matToImagePlus(opencv_core.Mat mat, String title) {
+    /**
+     * Convert an OpenCV {@code Mat} into an ImageJ {@code ImagePlus}.
+     * 
+     * @param mat
+     * @param title
+     * @return
+     */
+    static ImagePlus matToImagePlus(Mat mat, String title) {
         if (mat.channels() == 1) {
             return new ImagePlus(title, matToImageProcessor(mat));
         }
@@ -483,8 +517,16 @@ public class PixelClassifierGUI implements PathCommand, QuPathViewerListener, Pa
         return new ImagePlus(title, stack);
     }
 
+    /**
+     * Convert a single-channel OpenCV {@code Mat} into an ImageJ {@code ImageProcessor}.
+     * 
+     * @param mat
+     * @param title
+     * @return
+     */
     static ImageProcessor matToImageProcessor(Mat mat) {
-        assert mat.channels() == 1;
+    	if (mat.channels() != 1)
+    		throw new IllegalArgumentException("Only a single-channel Mat can be converted to an ImageProcessor! Specified Mat has " + mat.channels() + " channels");
         int w = mat.cols();
         int h = mat.rows();
         if (mat.depth() == opencv_core.CV_32F) {
@@ -607,6 +649,39 @@ public class PixelClassifierGUI implements PathCommand, QuPathViewerListener, Pa
 //    	
 //    }
     
+    static class ANNSingleLayerClassifierBuilder implements ClassifierModelBuilder {
+    	
+    	public StatModel createNewClassifier(final int nFeatures, final int nClasses) {
+    		ANN_MLP model = opencv_ml.ANN_MLP.create();
+    		
+    		double[] layersArray = new double[] {
+                    nFeatures,
+                    nClasses
+            };
+
+            Mat layers = new Mat(layersArray.length, 1, opencv_core.CV_64F);
+            DoubleIndexer indexer = layers.createIndexer();
+            for (int i = 0; i < layersArray.length; i++) {
+                indexer.put(i, layersArray[i]);
+            }
+            indexer.release();
+        	((opencv_ml.ANN_MLP)model).setLayerSizes(layers);
+        	((opencv_ml.ANN_MLP)model).setActivationFunction(opencv_ml.ANN_MLP.SIGMOID_SYM, 1, 1);
+    		
+    		return model;
+    	}
+    	
+    	public int getVarType() {
+    		return opencv_ml.VAR_NUMERICAL;
+    	}
+    	
+    	@Override
+    	public String toString() {
+    		return "Artificial Neural Network (ANN, Single layer)";
+    	}
+    	
+    }
+    
     static class ANNClassifierBuilder implements ClassifierModelBuilder {
     	
     	public StatModel createNewClassifier(final int nFeatures, final int nClasses) {
@@ -640,7 +715,6 @@ public class PixelClassifierGUI implements PathCommand, QuPathViewerListener, Pa
     	public String toString() {
     		return "Artificial Neural Network (ANN)";
     	}
-
     	
     }
 

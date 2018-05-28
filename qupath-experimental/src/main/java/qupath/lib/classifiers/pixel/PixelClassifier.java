@@ -2,16 +2,30 @@ package qupath.lib.classifiers.pixel;
 
 import java.awt.image.BufferedImage;
 
+import qupath.lib.images.servers.ImageServer;
+import qupath.lib.regions.RegionRequest;
+
 public interface PixelClassifier {
 
     /**
-     * Apply pixel classifier to the specified image.
+     * Apply pixel classifier to a specified region of an image.
+     * <p>
+     * An {@code ImageServer} and {@code RegionRequest} are supplied, rather 
+     * than a {@code BufferedImage} directly, because there may be a need to adapt 
+     * to the image resolution and/or incorporate padding to reduce boundary effects.
+     * <p>
+     * There is no guarantee that the returned {@code BufferedImage} will be the same size 
+     * as the input region (after downsampling), but rather that it should contain the full 
+     * classification information for the specified region.
+     * <p>
+     * Practically, this means that there may be fewer pixels in the output because the classification 
+     * inherently involves downsampling.
      *
-     * @param img
-     * @param pad
-     * @return
+     * @param server
+     * @param request
+     * @return a {@code BufferedImage} representing the pixel classifications as separate bands.
      */
-    public BufferedImage applyClassification(BufferedImage img, int pad);
+    public BufferedImage applyClassification(ImageServer<BufferedImage> server, RegionRequest request);
 
     /**
      * Get metadata that describes how the classifier should be called,
@@ -20,17 +34,5 @@ public interface PixelClassifier {
      * @return
      */
     public PixelClassifierMetadata getMetadata();
-
-    /**
-     * Request that images be padded by this number of pixels along the width &amp; height (on both sides)
-     * before being passed to <code>applyClassification</code>
-     *
-     * The actual image width should then be <code>width + requestedPadding*2</code>.
-     *
-     * This padding can be used to reduce boundary artifacts.
-     *
-     * @return
-     */
-    public int requestedPadding();
 
 }

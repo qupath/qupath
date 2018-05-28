@@ -11,7 +11,7 @@ import java.util.List;
 public class PixelClassifierMetadata {
 
     public static enum PixelType { UInt8, UInt16, Float32, Float64 }
-    public static enum OutputType { Classification, Probability, Logit }
+    public static enum OutputType { Features, Classification, Probability, Logit }
 
 	private double inputPixelSizeMicrons;
 	private double[] inputChannelMeans;

@@ -70,8 +70,8 @@ public class PixelClassificationOverlay extends AbstractOverlay {
         }
 
         // Request tiles, of the size that the classifier wants to receive
-        int tileWidth = classifier.getMetadata().getInputWidth() - classifier.requestedPadding() * 2;
-        int tileHeight = classifier.getMetadata().getInputHeight() - classifier.requestedPadding() * 2;
+        int tileWidth = classifier.getMetadata().getInputWidth();// - classifier.requestedPadding() * 2;
+        int tileHeight = classifier.getMetadata().getInputHeight();// - classifier.requestedPadding() * 2;
         if (tileWidth <= 0)
         	tileWidth = 256;
         if (tileHeight <= 0)
@@ -129,17 +129,19 @@ public class PixelClassificationOverlay extends AbstractOverlay {
         if (pendingRequests.add(request)) {
             pool.submit(() -> {
                 try {
-                    // We might need to rescale or add padding, so request the tile from the region store
-                    int padding = classifier.requestedPadding();
-                    ImageServer<BufferedImage> server = viewer.getServer();
-                    double downsample = request.getDownsample();
-					BufferedImage img2 = server.readBufferedImage(RegionRequest.createInstance(
-						request.getPath(), request.getDownsample(), 
-						(int)(request.getX()-padding*downsample), (int)(request.getY()-padding*downsample),
-						(int)Math.round(request.getWidth()+padding*downsample*2),
-						(int)Math.round(request.getHeight()+padding*downsample*2)));
-
-                    BufferedImage imgResult = classifier.applyClassification(img2, padding);
+//                    // We might need to rescale or add padding, so request the tile from the region store
+//                    int padding = classifier.requestedPadding();
+//                    ImageServer<BufferedImage> server = viewer.getServer();
+//                    double downsample = request.getDownsample();
+//					BufferedImage img2 = server.readBufferedImage(RegionRequest.createInstance(
+//						request.getPath(), request.getDownsample(), 
+//						(int)(request.getX()-padding*downsample), (int)(request.getY()-padding*downsample),
+//						(int)Math.round(request.getWidth()+padding*downsample*2),
+//						(int)Math.round(request.getHeight()+padding*downsample*2)));
+//
+//                    BufferedImage imgResult = classifier.applyClassification(img2, padding);
+                    
+                    BufferedImage imgResult = classifier.applyClassification(viewer.getServer(), request);
                     cache.put(request, imgResult);
                     pendingRequests.remove(request);
                     viewer.repaint();

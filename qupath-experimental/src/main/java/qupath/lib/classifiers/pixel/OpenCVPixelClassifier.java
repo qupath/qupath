@@ -1,26 +1,32 @@
 package qupath.lib.classifiers.pixel;
 
+import java.awt.image.BufferedImage;
+import java.awt.image.ColorModel;
+
 import org.bytedeco.javacpp.opencv_core;
 import org.bytedeco.javacpp.opencv_core.Mat;
 import org.bytedeco.javacpp.opencv_core.MatVector;
 import org.bytedeco.javacpp.opencv_core.Scalar;
 
 import qupath.lib.classifiers.pixel.features.OpenCVFeatureCalculator;
+import qupath.lib.images.servers.ImageServer;
+import qupath.lib.regions.RegionRequest;
+import qupath.opencv.processing.OpenCVTools;
 
-import org.bytedeco.javacpp.opencv_imgproc;
 import org.bytedeco.javacpp.opencv_ml;
+import org.bytedeco.javacpp.opencv_ml.StatModel;
 import org.bytedeco.javacpp.indexer.Indexer;
 
 public class OpenCVPixelClassifier extends AbstractOpenCVPixelClassifier {
 
-    private opencv_ml.StatModel model;
+    private StatModel model;
     private OpenCVFeatureCalculator calculator;
     
-    public OpenCVPixelClassifier(opencv_ml.StatModel statModel, OpenCVFeatureCalculator calculator, PixelClassifierMetadata metadata) {
+    public OpenCVPixelClassifier(StatModel statModel, OpenCVFeatureCalculator calculator, PixelClassifierMetadata metadata) {
     	this(statModel, calculator, metadata, false);
     }
 
-    public OpenCVPixelClassifier(opencv_ml.StatModel statModel, OpenCVFeatureCalculator calculator, PixelClassifierMetadata metadata, boolean do8Bit) {
+    public OpenCVPixelClassifier(StatModel statModel, OpenCVFeatureCalculator calculator, PixelClassifierMetadata metadata, boolean do8Bit) {
         super(metadata, do8Bit);
         this.model = statModel;
         this.calculator = calculator;
@@ -32,9 +38,6 @@ public class OpenCVPixelClassifier extends AbstractOpenCVPixelClassifier {
         normalizeFeatures(mat, means, scales);
     }
 
-    public int requestedPadding() {
-        return calculator.requestedPadding();
-    }
 
     public static double[] toDoubleArray(Mat mat) {
         Indexer indexer = mat.createIndexer();
@@ -52,8 +55,8 @@ public class OpenCVPixelClassifier extends AbstractOpenCVPixelClassifier {
         indexer.release();
         return results;
     }
-
-
+    
+    
     public static void normalizeFeatures(Mat mat, double[] means, double[] scales) {
         if (means == null && scales == null)
             return;
@@ -79,25 +82,19 @@ public class OpenCVPixelClassifier extends AbstractOpenCVPixelClassifier {
         // Might not need to merge...?
         opencv_core.merge(matvec, mat);
     }
-
-    protected Mat doClassification(Mat mat, int pad) {
-        Mat matFeatures = calculator.calculateFeatures(mat);
-        PixelClassifierMetadata metadata = getMetadata();
+    
+    
+    @Override
+    public BufferedImage applyClassification(final ImageServer<BufferedImage> server, final RegionRequest request) {
+        // Get the pixels into a friendly format
+//        Mat matInput = OpenCVTools.imageToMatRGB(img, false);
+    	
+    	Mat matFeatures = calculator.calculateFeatures(server, request);
+    	
+    	
+    	PixelClassifierMetadata metadata = getMetadata();
         normalizeFeatures(matFeatures, metadata.getInputChannelMeans(), metadata.getInputChannelScales());
 
-        // Remove padding now, if we want - this means less to classify
-        // Remove padding, if necessary
-        if (pad > 0) {
-            opencv_imgproc.resize(matFeatures, matFeatures, mat.size());
-            int padX = pad;
-            int padY = pad;
-//            double scaleDownX = mat.rows() / matFeatures.rows()
-//            double scaleDownY = mat.rows() / matFeatures.rows()
-//            int padX = (pad / scaleDownX) / 2 as int
-//            int padY = (pad / scaleDownY) / 2 as int
-//            matFeatures.put(matFeatures.apply(new opencv_core.Rect(padX, padY, mat.cols()-padX*2, mat.rows()-padY*2)).clone())
-            matFeatures.put(matFeatures.apply(new opencv_core.Rect(padX, padY, mat.cols()-padX*2, mat.rows()-padY*2)).clone());
-        }
         int heightFeatures = matFeatures.rows();
 
         // Get probabilities
@@ -105,7 +102,7 @@ public class OpenCVPixelClassifier extends AbstractOpenCVPixelClassifier {
         matFeatures = matFeatures.reshape(1, matFeatures.rows()*matFeatures.cols());
         synchronized (model) {
             model.predict(matFeatures, matOutput, 0);
-//            model.predict(matFeatures, matOutput, opencv_ml.StatModel.RAW_OUTPUT);
+//            model.predict(matFeatures, matOutput, StatModel.RAW_OUTPUT);
         }
         
         // Normalize if we have probabilities
@@ -119,8 +116,32 @@ public class OpenCVPixelClassifier extends AbstractOpenCVPixelClassifier {
 
         // Reshape output
         Mat matResult = matOutput.reshape(matOutput.cols(), heightFeatures);
+        
+        
+        // If we have a floating point or multi-channel result, we have probabilities
+        ColorModel colorModelLocal;
+        if (matResult.channels() > 1) {
+        	// Do softmax if needed
+            if (doSoftMax)
+                applySoftmax(matResult);
 
-        return matResult;
+            // Convert to 8-bit if needed
+            if (do8Bit)
+                matResult.convertTo(matResult, opencv_core.CV_8U, 255.0, 0.0);        	
+            colorModelLocal = colorModelProbabilities;
+        } else {
+            matResult.convertTo(matResult, opencv_core.CV_8U);
+            colorModelLocal = colorModelClassifications;
+        }
+
+        // Create & return BufferedImage
+        BufferedImage imgResult = OpenCVTools.matToBufferedImage(matResult, colorModelLocal);
+
+        // Free matrix
+        if (matResult != null)
+            matResult.release();
+
+        return imgResult;
     }
-
+    
 }

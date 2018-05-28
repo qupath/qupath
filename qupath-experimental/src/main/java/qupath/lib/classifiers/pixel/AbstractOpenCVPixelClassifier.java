@@ -7,6 +7,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.lib.awt.color.model.ColorModelFactory;
+import qupath.lib.classifiers.pixel.features.BasicMultiscaleOpenCVFeatureCalculator;
+import qupath.lib.images.servers.ImageServer;
+import qupath.lib.regions.RegionRequest;
 import qupath.opencv.processing.OpenCVTools;
 
 import java.awt.image.BufferedImage;
@@ -20,10 +23,10 @@ public abstract class AbstractOpenCVPixelClassifier implements PixelClassifier {
 
     private static final Logger logger = LoggerFactory.getLogger(OpenCVPixelClassifier.class);
 
-    private ColorModel colorModelProbabilities;
-    private IndexColorModel colorModelClassifications;
-    private boolean doSoftMax;
-    private boolean do8Bit;
+    ColorModel colorModelProbabilities;
+    IndexColorModel colorModelClassifications;
+    boolean doSoftMax;
+    boolean do8Bit;
 
     private PixelClassifierMetadata metadata;
     
@@ -45,45 +48,6 @@ public abstract class AbstractOpenCVPixelClassifier implements PixelClassifier {
         return metadata;
     }
 
-    @Override
-    public BufferedImage applyClassification(BufferedImage img, int pad) {
-        // Get the pixels into a friendly format
-//        Mat matInput = OpenCVTools.imageToMatRGB(img, false);
-        Mat matInput = OpenCVTools.imageToMat(img);
-
-        // Do the classification, optionally with softmax
-        Mat matResult = doClassification(matInput, pad);
-        
-        // If we have a floating point or multi-channel result, we have probabilities
-        ColorModel colorModelLocal;
-        if (matResult.channels() > 1) {
-        	// Do softmax if needed
-            if (doSoftMax)
-                applySoftmax(matResult);
-
-            // Convert to 8-bit if needed
-            if (do8Bit)
-                matResult.convertTo(matResult, opencv_core.CV_8U, 255.0, 0.0);        	
-            colorModelLocal = colorModelProbabilities;
-        } else {
-            matResult.convertTo(matResult, opencv_core.CV_8U);
-            colorModelLocal = colorModelClassifications;
-        }
-
-        // Create & return BufferedImage
-        BufferedImage imgResult = OpenCVTools.matToBufferedImage(matResult, colorModelLocal);
-
-        // Free matrices
-        if (matInput != null)
-            matInput.release();
-        if (matResult != null && matResult != matInput)
-            matResult.release();
-
-        return imgResult;
-    }
-
-
-    protected abstract Mat doClassification(Mat mat, int padding);
 
 
     void applySoftmax(Mat mat) {

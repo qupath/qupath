@@ -6,13 +6,10 @@ import org.bytedeco.javacpp.opencv_core.MatVector;
 import org.bytedeco.javacpp.opencv_core.Scalar;
 import org.bytedeco.javacpp.opencv_dnn;
 import org.bytedeco.javacpp.opencv_dnn.Net;
-import org.bytedeco.javacpp.opencv_imgproc;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.awt.image.ColorModel;
-import java.util.ArrayList;
-import java.util.List;
 
 class OpenCVPixelClassifierDNN extends AbstractOpenCVPixelClassifier {
 
@@ -21,13 +18,23 @@ class OpenCVPixelClassifierDNN extends AbstractOpenCVPixelClassifier {
     private opencv_dnn.Net model;
     private ColorModel colorModel;
     private boolean doSoftMax;
+    
+    private int inputPadding;
+    private int stripOutputPadding;
 
     private Scalar means;
     private Scalar scales;
     private boolean scalesMatch;
-
+    
     OpenCVPixelClassifierDNN(Net net, PixelClassifierMetadata metadata, boolean do8Bit) {
+    	this(net, metadata, do8Bit, 0, 0);
+    }
+
+    OpenCVPixelClassifierDNN(Net net, PixelClassifierMetadata metadata, boolean do8Bit, int inputPadding, int stripOutputPadding) {
         super(metadata, do8Bit);
+        
+        this.inputPadding = inputPadding;
+        this.stripOutputPadding = stripOutputPadding;
 
         // TODO: Fix creation of unnecessary objects
         if (metadata.getInputChannelMeans() != null)
@@ -81,7 +88,7 @@ class OpenCVPixelClassifierDNN extends AbstractOpenCVPixelClassifier {
      * @return
      */
     public static Net readNet(final String path, final String config) {
-    	if (config != null)
+    	if (config == null)
         	logger.info("Reading model from {} (no config file specified)", path);
     	else
     		logger.info("Reading model from {}, with config in {}", path, config);
@@ -115,16 +122,20 @@ class OpenCVPixelClassifierDNN extends AbstractOpenCVPixelClassifier {
      * @return
      */
     public int requestedPadding() {
-        return 32;
+        return stripOutputPadding;
     }
 
 
     protected Mat doClassification(Mat mat, int pad, boolean doSoftmax) {
 //        System.err.println("Mean start: " + opencv_core.mean(mat))
-        opencv_imgproc.cvtColor(mat, mat, opencv_imgproc.COLOR_RGB2BGR);
-        mat.convertTo(mat, opencv_core.CV_32F, 1.0/255.0, 0.0);
-//        mat.put(opencv_core.subtract(Scalar.ONE, mat))
-		mat.put(opencv_core.subtract(mat, Scalar.ONEHALF));
+    	
+    	opencv_core.extractChannel(mat, mat, 0);
+    	mat.convertTo(mat, opencv_core.CV_32F);
+    	
+//        opencv_imgproc.cvtColor(mat, mat, opencv_imgproc.COLOR_RGB2BGR);
+//        mat.convertTo(mat, opencv_core.CV_32F, 1.0/255.0, 0.0);
+////        mat.put(opencv_core.subtract(Scalar.ONE, mat))
+//		mat.put(opencv_core.subtract(mat, Scalar.ONEHALF));
 
 //        System.err.println("Mean before: " + opencv_core.mean(mat))
 
@@ -145,24 +156,38 @@ class OpenCVPixelClassifierDNN extends AbstractOpenCVPixelClassifier {
 
         Mat prob;
         synchronized(model) {
+        	long startTime = System.currentTimeMillis();
             Mat blob = opencv_dnn.blobFromImage(mat);
             model.setInput(blob);
             prob = model.forward();
+        	long endTime = System.currentTimeMillis();
+        	System.err.println("Classification time: " + (endTime - startTime) + " ms");
         }
-        int nOutputChannels = getMetadata().nOutputChannels();
-        List<Mat> matOutput = new ArrayList<>();
-        for (int i = 0; i < nOutputChannels; i++) {
-            Mat plane = opencv_dnn.getPlane(prob, 0, i);
-            matOutput.add(plane);
-        }
-        MatVector matvec = new MatVector(matOutput.toArray(new Mat[0]));
-        Mat matResult = new Mat();
-        opencv_core.merge(matvec, matResult);
+        
+        MatVector matvec = new MatVector();
+        opencv_dnn.imagesFromBlob(prob, matvec);
+        if (matvec.size() != 1)
+        	throw new IllegalArgumentException("DNN result must be a single image - here, the result is " + matvec.size() + " images");
+        Mat matResult = matvec.get(0L);
+        
+//        int nOutputChannels = getMetadata().nOutputChannels();
+//        List<Mat> matOutput = new ArrayList<>();
+//        for (int i = 0; i < nOutputChannels; i++) {
+//            Mat plane = opencv_dnn.getPlane(prob, 0, i);
+//            matOutput.add(plane);
+//        }
+//        MatVector matvec = new MatVector(matOutput.toArray(new Mat[0]));
+//        Mat matResult = new Mat();
+//        opencv_core.merge(matvec, matResult);
 
         // Remove padding, if necessary
 //        pad /= 2;
-        if (pad > 0) {
-            matResult.put(matResult.apply(new opencv_core.Rect(pad, pad, matResult.cols()-pad*2, matResult.rows()-pad*2)).clone());
+        if (stripOutputPadding > 0) {
+            matResult.put(
+            		matResult.apply(
+            				new opencv_core.Rect(
+            						stripOutputPadding, stripOutputPadding,
+            						matResult.cols()-stripOutputPadding*2, matResult.rows()-stripOutputPadding*2)).clone());
         }
 
         return matResult;
