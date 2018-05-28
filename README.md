@@ -62,3 +62,11 @@ and add the modules as in the red rectangle in the picture below:
 ![Image](https://image.ibb.co/mPeJdJ/idea1.png)
 
 Finally click the `Apply` button in the bottom right corner.
+
+Now create a build configuration by clicking the top right arrow and 
+`Edit configurations...`:
+![Image](https://image.ibb.co/dFGZky/idea2.png)
+
+Click on the `+` button and chose `Application` then complete the configuration
+as below and click `OK`:
+![Image](https://image.ibb.co/cd49JJ/idea3.png)
