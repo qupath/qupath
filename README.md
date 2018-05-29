@@ -62,7 +62,7 @@ And click `OK`
 wait for it to finish
 ![Image](./images/idea5.png)
 
-1. Now go into `File > Project structure...` then click on `Project` under the `Project settings`.
+1. Now go into `File > Project structure...` then click on `Project` under the `Project settings`
 and on the `Project language settings:` option set it to `8 - Lambdas, type annotations etc.`
 then click apply.
 
@@ -90,11 +90,17 @@ as below and click `OK`:
 
 ### How to deploy in Intellij?
 
-Open the maven windows and select all profiles then
+1. Open the maven windows and select all profiles then
 click "install"
 ![Image](./images/idea8.png)
 
-Now right click on the `build.xml` file at the root
+1. Now right click on the `build.xml` file at the root
 of the project and click on "Add as Ant build file".
 Then in the Ant windows click on "do-deploy".
 ![Image](./images/idea9.png)
+
+Notes:
+ - Use and check the JDK 8 is used in "Project structure" for compilation
+ - If you get "Access is denied" when running the ANT task on
+Windows just move your project directory to `C:\Users\YOUR_USER`
+and try to compile from there.
