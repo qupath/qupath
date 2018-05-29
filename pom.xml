@@ -40,6 +40,7 @@
 				<module>qupath-processing-opencv</module>
 				<module>qupath-extension-script-editor</module>
 				<module>qupath-extension-ij</module>
+				<module>qupath-extension-nn-converter</module>
 				<module>qupath-extension-input</module>
 				<module>qupath-extension-openslide</module>
 				<module>qupath-extension-pen</module>
@@ -69,6 +70,7 @@
 				<module>qupath-processing-opencv</module>
 				<module>qupath-extension-script-editor</module>
 				<module>qupath-extension-ij</module>
+				<module>qupath-extension-nn-converter</module>
 				<module>qupath-extension-input</module>
 				<module>qupath-extension-openslide</module>
 				<module>qupath-extension-pen</module>
@@ -110,6 +112,7 @@
 				<module>qupath-processing-opencv</module>
 				<module>qupath-extension-script-editor</module>
 				<module>qupath-extension-ij</module>
+				<module>qupath-extension-nn-converter</module>
 				<module>qupath-extension-input</module>
 				<module>qupath-extension-openslide</module>
 				<module>qupath-extension-pen</module>
