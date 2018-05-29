@@ -85,7 +85,6 @@ Finally click the `Apply` button in the bottom right corner.
 as below and click `OK`:
 ![Image](./images/idea3.png)
 
-1. Optionally install opencv onto your system
 1. Now select QuPath App in the configuration dropdown and click the play button:
 ![Image](./images/idea7.png)
 
