@@ -70,9 +70,11 @@ then click apply.
 `Dependencies` tab and the `+` sign. On the `+` sign click `Module Dependency`
 and select all the `qupath-*` dependencies then click `OK`.
 Now click again on that the `+` sign but chose `1 JARs or directory...`
-and chose the `deploy/jars` from the list. You should have something like
-in the red rectangle below:
-![Image](https://preview.ibb.co/kF2Vcd/idea1.png)
+and chose the the directory `deploy/jars`.
+Finally click again on the `+` sign and choose `1 JARs or directory...` and
+select the folder `deploy/natives`.
+You should have something like in the red rectangle below:
+![Image](https://image.ibb.co/bThhsd/idea1.png)
 Finally click the `Apply` button in the bottom right corner.
 
 1. Now create a build configuration by clicking the top right arrow and 
