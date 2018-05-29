@@ -54,13 +54,13 @@ Full licenses and copyright notices for third-party dependencies are also includ
 1. Open your project as an existing project into Intellij.
 1. Go into `Edit configuration` and add click the `+` button to add a maven configuration
 and complete it as below:
-![Image](https://image.ibb.co/dFGZky/idea2.png)
+![Image](./images/idea2.png)
 then:
-![Image](https://image.ibb.co/gXtYVy/idea4.png)
+![Image](./images/idea4.png)
 And click `OK`
 1. Then click on the play button next to the maven configuration to launch the install step and
 wait for it to finish
-![Image](https://image.ibb.co/cLHoxd/idea5.png)
+![Image](./images/idea5.png)
 
 1. Now go into `File > Project structure...` then click on `Project` under the `Project settings`.
 and on the `Project language settings:` option set it to `8 - Lambdas, type annotations etc.`
@@ -74,17 +74,28 @@ and chose the the directory `deploy/jars`.
 Finally click again on the `+` sign and choose `1 JARs or directory...` and
 select the folder `deploy/natives`.
 You should have something like in the red rectangle below:
-![Image](https://image.ibb.co/bThhsd/idea1.png)
+![Image](./images/idea1.png)
 Finally click the `Apply` button in the bottom right corner.
 
 1. Now create a build configuration by clicking the top right arrow and 
 `Edit configurations...`:
-![Image](https://image.ibb.co/dFGZky/idea2.png)
+![Image](./images/idea10.png)
 
 1. Click on the `+` button and chose `Application` then complete the configuration
 as below and click `OK`:
-![Image](https://image.ibb.co/cd49JJ/idea3.png)
+![Image](./images/idea3.png)
 
 1. Optionally install opencv onto your system
 1. Now select QuPath App in the configuration dropdown and click the play button:
-![Image](https://image.ibb.co/iqAu3J/idea7.png)
+![Image](./images/idea7.png)
+
+### How to deploy in Intellij?
+
+Open the maven windows and select all profiles then
+click "install"
+![Image](./images/idea8.png)
+
+Now right click on the `build.xml` file at the root
+of the project and click on "Add as Ant build file".
+Then in the Ant windows click on "do-deploy".
+![Image](./images/idea9.png)
