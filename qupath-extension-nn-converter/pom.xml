@@ -38,5 +38,5 @@
 			</plugin>
 		</plugins>
 	</build>
-	<description>Integration of a file converter to put data in the right format for deep learning.</description>
+	<description>File converter which puts data in the right format for deep learning</description>
 </project>

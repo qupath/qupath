@@ -511,7 +511,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		Scene scene;
 		try {
 			Rectangle2D bounds = Screen.getPrimary().getVisualBounds();
-			scene = new Scene(pane, bounds.getWidth()*0.8, bounds.getHeight()*0.8);
+			scene = new Scene(pane, bounds.getWidth()*0.85, bounds.getHeight()*0.85);
 		} catch (Exception e) {
 			logger.debug("Unable to set stage size using primary screen {}", Screen.getPrimary());
 			scene = new Scene(pane, 1000, 600);
