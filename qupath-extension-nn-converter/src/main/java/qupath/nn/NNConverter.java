@@ -1,9 +1,6 @@
 package qupath.nn;
 
-import javafx.scene.control.Button;
-import javafx.scene.control.Menu;
-import javafx.scene.control.MenuItem;
-import javafx.scene.control.Tooltip;
+import javafx.scene.control.*;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import org.slf4j.Logger;
@@ -20,6 +17,7 @@ import java.net.URL;
 public class NNConverter implements QuPathExtension {
 
     final private static Logger logger = LoggerFactory.getLogger(NNConverter.class);
+    private WorkIndicatorDialog wd;
 
     private void addQuPathCommands(final QuPathGUI qupath) {
         qupath.addToolbarSeparator();
@@ -30,7 +28,7 @@ public class NNConverter implements QuPathExtension {
             Button btnNN = new Button();
             btnNN.setGraphic(imageView);
             btnNN.setTooltip(new Tooltip("NN converter commands"));
-            btnNN.setOnMouseClicked(e -> onExecButtonClick());
+            btnNN.setOnMouseClicked(e -> onExecButtonClick(qupath));
             qupath.addToolbarButton(btnNN);
 
             // Add to menus
@@ -40,8 +38,8 @@ public class NNConverter implements QuPathExtension {
             // Create a new MenuItem, which shows a new script when selected
             MenuItem execItem = new MenuItem("Execute NN converter");
             MenuItem configItem = new MenuItem("Import NN converter configuration");
-            execItem.setOnAction(e -> onExecButtonClick());
-            configItem.setOnAction(e -> onConfigButtonClick());
+            execItem.setOnAction(e -> onExecButtonClick(qupath));
+            configItem.setOnAction(e -> onConfigButtonClick(qupath));
             menu.getItems().add(execItem);
             menu.getItems().add(configItem);
         } catch (Exception e) {
@@ -49,11 +47,11 @@ public class NNConverter implements QuPathExtension {
         }
     }
 
-    private void onConfigButtonClick(){
+    private void onConfigButtonClick(final QuPathGUI qupath){
 
     }
 
-    private void onExecButtonClick(){
+    private void onExecButtonClick(final QuPathGUI qupath){
         logger.info("Starting NN converter...");
         //        if (sendOverlay)
 //            pathImage = IJExtension.extractROIWithOverlay(imageData.getServer(), pathObject, imageData.getHierarchy(), region, sendROI, null, imageDisplay2);
@@ -63,11 +61,43 @@ public class NNConverter implements QuPathExtension {
         // Get the main QuPath data structures
         ImageData imageData = QPEx.getCurrentImageData();
         if (imageData == null) {
-            // TODO show pop-up
+            Alert alert = new Alert(Alert.AlertType.WARNING);
+            alert.setTitle("Warning");
+            alert.setHeaderText(null);
+            alert.setContentText("Please select an image first");
+
+            alert.showAndWait();
+        } else {
+            wd = new WorkIndicatorDialog(qupath.getStage().getScene().getWindow(),
+                    "Converting data...");
+
+            wd.addTaskEndNotification(result -> {
+                if (((Integer) result) == 1){
+                    logger.info("NN converter finished with success!");
+                } else {
+                    logger.error("NN converter finished with a failure!");
+                }
+                wd=null; // don't keep the object, cleanup
+            });
+
+            wd.exec("123", inputParam -> {
+                // NO ACCESS TO UI ELEMENTS!
+                PathObjectHierarchy hierarchy = imageData.getHierarchy();
+                ImageServer server = imageData.getServer();
+
+                // Little loader
+                for (int i = 0; i < 20; i++) {
+                    System.out.println("Loading data... '123' =->"+inputParam);
+                    try {
+                        Thread.sleep(1000);
+                    }
+                    catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                }
+                return 1;
+            });
         }
-        PathObjectHierarchy hierarchy = imageData.getHierarchy();
-        ImageServer server = imageData.getServer();
-        logger.info("NN converter finished!");
     }
     @Override
     public void installExtension(QuPathGUI qupath) {
