@@ -32,7 +32,6 @@ public class OpenFromRootPathCommand implements PathCommand {
     }
 
     private void openInProject(List<Path> mrxsFiles) {
-        logger.info("openInProject...");
         Map<String, Project.ADD_IMAGE_CODE> retcodes = new HashMap<>();
         Task<Void> worker = new Task<Void>() {
             @Override
@@ -104,8 +103,6 @@ public class OpenFromRootPathCommand implements PathCommand {
 
     @Override
     public void run() {
-        logger.info("Opening from root dir...");
-
         File dir = qupath.getDialogHelper().promptForDirectory(null);
         if (dir == null)
             return;
