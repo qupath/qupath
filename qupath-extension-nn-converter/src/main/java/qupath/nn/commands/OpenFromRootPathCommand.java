@@ -123,7 +123,7 @@ public class OpenFromRootPathCommand implements PathCommand {
             List<Path> mrxsFiles = new ArrayList<>();
             Files.find(Paths.get(dir.toString()), 9999, (p, bfa) -> bfa.isRegularFile() &&
                     p.getFileName().toString().matches(".*\\.mrxs"))
-                    .forEach(path -> mrxsFiles.add(path));
+                    .forEach(mrxsFiles::add);
             openInProject(mrxsFiles);
         } catch (IOException e) {
             e.printStackTrace();
