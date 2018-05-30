@@ -116,16 +116,22 @@ public class Project<T> {
 		cleanedPath = cleanedPath.replace("{$PROJECT_DIR}", getBaseDirectory().getAbsolutePath());
 		return cleanedPath;
 	}
-	
-	public boolean addImage(final String path) {
+
+	public enum ADD_IMAGE_CODE {
+		CHANGED,
+		NO_CHANGES,
+		EXCEPTION
+	}
+
+	public ADD_IMAGE_CODE addImage(final String path) {
 		try {
 			ImageServer<T> server = ImageServerProvider.buildServer(path, cls);
 			boolean changes = addImagesForServer(server);
 			server.close();
-			return changes;
+			return changes ? ADD_IMAGE_CODE.CHANGED : ADD_IMAGE_CODE.NO_CHANGES;
 		} catch (Exception e) {
 			e.printStackTrace();
-			return false;
+			return ADD_IMAGE_CODE.EXCEPTION;
 		}
 	}
 	
