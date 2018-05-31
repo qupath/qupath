@@ -39,10 +39,6 @@ public class MaskExporterCommand implements PathCommand {
     }
 
     private void exportMasks(PathObjectHierarchy hierarchy, ImageServer server) {
-        // Free the gc as much as possible
-        System.gc ();
-        System.runFinalization ();
-
         // Request all objects from the hierarchy & filter only the annotations
         List<PathObject> annotations = hierarchy.getFlattenedObjectList(null).stream()
                 .filter(PathObject::isAnnotation).collect(Collectors.toList());
@@ -51,6 +47,10 @@ public class MaskExporterCommand implements PathCommand {
         QPEx.mkdirs(pathOutput);
 
         annotations.forEach(annotation -> {
+            // Free the gc as much as possible
+            System.gc ();
+            System.runFinalization ();
+            
             ROI roi = annotation.getROI();
             PathClass pathClass = annotation.getPathClass();
             String annotationLabel = pathClass == null ? "None" : pathClass.getName();
