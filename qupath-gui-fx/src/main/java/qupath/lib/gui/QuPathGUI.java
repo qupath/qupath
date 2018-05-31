@@ -342,6 +342,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	
 	private String buildString = null;
 	private String versionString = null;
+	private String nnVersionString = null;
 	
 	// For development... don't run update check if running from a directory (rather than a Jar)
 	private boolean disableAutoUpdateCheck = new File(qupath.lib.gui.QuPathGUI.class.getProtectionDomain().getCodeSource().getLocation().getFile()).isDirectory();
@@ -2287,11 +2288,13 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 					Manifest manifest = new Manifest(url.openStream());
 					Attributes attributes = manifest.getMainAttributes();
 					String version = attributes.getValue("Implementation-Version");
+					String nnVersion = attributes.getValue("NN-Version");
 					String buildTime = attributes.getValue("QuPath-build-time");
 					if (version == null || buildTime == null)
 						continue;
 					buildString = "Version: " + version + "\n" + "Build time: " + buildTime;
 					versionString = version;
+					nnVersionString = nnVersion;
 					return true;
 				} catch (IOException e) {
 					logger.error("Error reading manifest", e);
@@ -4105,7 +4108,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			return;
 		String name = "QuPath";
 		if (versionString != null)
-			name = name + " (" + versionString + ")";
+			name = name + " (" + versionString + ") - NN converter edition ("+ nnVersionString +")";
 		ImageData<?> imageData = getImageData();
 		if (imageData == null || imageData.getServer() == null)
 			stage.setTitle(name);

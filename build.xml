@@ -2,6 +2,7 @@
 <project xmlns:fx="javafx:com.sun.javafx.tools.ant" name="QuPath" default="do-deploy" basedir="./deploy">
 	
 	<property name="version" value="0.1.2"/>
+	<property name="nn_version" value="1.0"/>
 	
 	<target name="init-fx-tasks">
 		<path id="fxant">
@@ -159,6 +160,7 @@
 				<attribute name="Implementation-Vendor" value="QUB"/>
 				<attribute name="Implementation-Title" value="QuPath"/>
 				<attribute name="Implementation-Version" value="${version}"/>
+				<attribute name="NN-Version" value="${nn_version}"/>
 				<attribute name="QuPath-build-time" value="${BUILD_TIME}"/>
 				<attribute name="JavaFX-Feature-Proxy" value="None"/>
 			</manifest>
