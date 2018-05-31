@@ -27,7 +27,7 @@ import java.util.stream.Collectors;
 public class MaskExporterCommand implements PathCommand {
 
     // Define downscale value for export resolution
-    private final double DOWNSCALE = 1.0;
+    private final double DOWNSCALE = 2.0;
     private final String IMAGE_EXPORT_TYPE = "PNG";
 
     final private static Logger logger = LoggerFactory.getLogger(MaskExporterCommand.class);
@@ -50,7 +50,7 @@ public class MaskExporterCommand implements PathCommand {
             // Free the gc as much as possible
             System.gc ();
             System.runFinalization ();
-            
+
             ROI roi = annotation.getROI();
             PathClass pathClass = annotation.getPathClass();
             String annotationLabel = pathClass == null ? "None" : pathClass.getName();
