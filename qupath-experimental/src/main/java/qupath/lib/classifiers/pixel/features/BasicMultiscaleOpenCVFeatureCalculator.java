@@ -47,7 +47,6 @@ public class BasicMultiscaleOpenCVFeatureCalculator implements OpenCVFeatureCalc
         
         List<PixelClassifierOutputChannel> channels = new ArrayList<>();
         // Compute smoothing
-        List<Mat> mats = new ArrayList<>();
         int color = ColorTools.makeRGB(255, 255, 255);
         for (double sigma : sigmaValues) {
         	// Apply Gaussian filter

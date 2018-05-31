@@ -5,10 +5,16 @@ import org.bytedeco.javacpp.opencv_core.Mat;
 import org.bytedeco.javacpp.opencv_core.MatVector;
 import org.bytedeco.javacpp.opencv_core.Scalar;
 import org.bytedeco.javacpp.opencv_dnn;
+import org.bytedeco.javacpp.opencv_ml;
 import org.bytedeco.javacpp.opencv_dnn.Net;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import qupath.lib.images.servers.ImageServer;
+import qupath.lib.regions.RegionRequest;
+import qupath.opencv.processing.OpenCVTools;
+
+import java.awt.image.BufferedImage;
 import java.awt.image.ColorModel;
 
 class OpenCVPixelClassifierDNN extends AbstractOpenCVPixelClassifier {
@@ -129,11 +135,11 @@ class OpenCVPixelClassifierDNN extends AbstractOpenCVPixelClassifier {
     protected Mat doClassification(Mat mat, int pad, boolean doSoftmax) {
 //        System.err.println("Mean start: " + opencv_core.mean(mat))
     	
-    	opencv_core.extractChannel(mat, mat, 0);
-    	mat.convertTo(mat, opencv_core.CV_32F);
+//    	opencv_core.extractChannel(mat, mat, 0);
+//    	mat.convertTo(mat, opencv_core.CV_32F);
     	
 //        opencv_imgproc.cvtColor(mat, mat, opencv_imgproc.COLOR_RGB2BGR);
-//        mat.convertTo(mat, opencv_core.CV_32F, 1.0/255.0, 0.0);
+        mat.convertTo(mat, opencv_core.CV_32F, 1.0/255.0, 0.0);
 ////        mat.put(opencv_core.subtract(Scalar.ONE, mat))
 //		mat.put(opencv_core.subtract(mat, Scalar.ONEHALF));
 
@@ -194,9 +200,42 @@ class OpenCVPixelClassifierDNN extends AbstractOpenCVPixelClassifier {
     }
 
 
-	@Override
 	protected Mat doClassification(Mat mat, int padding) {
 		return doClassification(mat, padding, true);
 	}
+
+	@Override
+    public BufferedImage applyClassification(final ImageServer<BufferedImage> server, final RegionRequest request) {
+        // Get the pixels into a friendly format
+//        Mat matInput = OpenCVTools.imageToMatRGB(img, false);
+		
+		Mat mat = OpenCVTools.imageToMat(server.readBufferedImage(request));
+		Mat matResult = doClassification(mat, inputPadding);
+    	        
+        // If we have a floating point or multi-channel result, we have probabilities
+        ColorModel colorModelLocal;
+        if (matResult.channels() > 1) {
+        	// Do softmax if needed
+            if (doSoftMax)
+                applySoftmax(matResult);
+
+            // Convert to 8-bit if needed
+            if (do8Bit)
+                matResult.convertTo(matResult, opencv_core.CV_8U, 255.0, 0.0);        	
+            colorModelLocal = colorModelProbabilities;
+        } else {
+            matResult.convertTo(matResult, opencv_core.CV_8U);
+            colorModelLocal = colorModelClassifications;
+        }
+
+        // Create & return BufferedImage
+        BufferedImage imgResult = OpenCVTools.matToBufferedImage(matResult, colorModelLocal);
+
+        // Free matrix
+        if (matResult != null)
+            matResult.release();
+
+        return imgResult;
+    }
 
 }

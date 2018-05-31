@@ -6,6 +6,7 @@ import ij.ImageStack;
 import ij.process.ByteProcessor;
 import ij.process.FloatProcessor;
 import ij.process.ImageProcessor;
+import ij.process.LUT;
 import ij.process.ShortProcessor;
 import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
@@ -21,6 +22,7 @@ import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
+import javafx.scene.control.Tooltip;
 import javafx.scene.layout.GridPane;
 import javafx.scene.shape.Rectangle;
 import javafx.stage.Stage;
@@ -31,7 +33,6 @@ import org.bytedeco.javacpp.indexer.UShortIndexer;
 import org.bytedeco.javacpp.opencv_core;
 import org.bytedeco.javacpp.opencv_core.Mat;
 import org.bytedeco.javacpp.opencv_core.MatVector;
-import org.bytedeco.javacpp.opencv_dnn;
 import org.bytedeco.javacpp.opencv_ml;
 import org.bytedeco.javacpp.opencv_ml.ANN_MLP;
 import org.bytedeco.javacpp.opencv_ml.StatModel;
@@ -39,6 +40,7 @@ import org.bytedeco.javacpp.opencv_ml.TrainData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.imagej.helpers.IJTools;
+import qupath.imagej.images.servers.BufferedImagePlusServer;
 import qupath.imagej.images.servers.ImagePlusServer;
 import qupath.imagej.images.servers.ImagePlusServerBuilder;
 import qupath.lib.classifiers.pixel.OpenCVPixelClassifier;
@@ -47,7 +49,6 @@ import qupath.lib.classifiers.pixel.PixelClassifierMetadata;
 import qupath.lib.classifiers.pixel.PixelClassifierOutputChannel;
 import qupath.lib.classifiers.pixel.features.BasicMultiscaleOpenCVFeatureCalculator;
 import qupath.lib.classifiers.pixel.features.OpenCVFeatureCalculator;
-import qupath.lib.classifiers.pixel.features.OpenCVFeatureCalculatorDNN;
 import qupath.lib.classifiers.pixel.features.SmoothedOpenCVFeatureCalculator;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
@@ -59,19 +60,20 @@ import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.classes.PathClass;
+import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
-import qupath.lib.projects.Project;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.interfaces.ROI;
-import qupath.opencv.processing.OpenCVTools;
 
+import java.awt.Color;
 import java.awt.Shape;
 import java.awt.image.BufferedImage;
-import java.io.File;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -247,6 +249,8 @@ public class PixelClassifierGUI implements PathCommand, QuPathViewerListener, Pa
         // Show features for current selection
         Button btnShowFeatures = new Button("Show");
         btnShowFeatures.setOnAction(e -> showFeatures());
+        btnShowFeatures.setMaxWidth(Double.MAX_VALUE);
+        btnShowFeatures.setTooltip(new Tooltip("Show ImageJ stack illustrating the features being used"));
 
         // Make it possible to choose resolution
         ComboBox<ClassificationResolution> comboResolution = new ComboBox<>();
@@ -285,7 +289,9 @@ public class PixelClassifierGUI implements PathCommand, QuPathViewerListener, Pa
         Button btnUpdate = new Button("Update");
         btnUpdate.disableProperty().bind(autoUpdate);
         btnUpdate.setMaxWidth(Double.MAX_VALUE);
+        btnUpdate.setMaxHeight(Double.MAX_VALUE);
         btnUpdate.setOnAction( e -> updateClassification());
+        btnUpdate.setTooltip(new Tooltip("Update the classifier"));
 
 
         GridPane pane = new GridPane();
@@ -299,13 +305,54 @@ public class PixelClassifierGUI implements PathCommand, QuPathViewerListener, Pa
         pane.add(comboFeatures, 1, row, 1, 1);
         pane.add(btnShowFeatures, 2, row++, 1, 1);
         pane.add(labelResolution, 0, row, 1, 1);
-        pane.add(comboResolution, 1, row++, 2, 1);
+        pane.add(comboResolution, 1, row++, 1, 1);
         pane.add(labelClassifierType, 0, row, 1, 1);
-        pane.add(comboClassifierType, 1, row++, 2, 1);
+        pane.add(comboClassifierType, 1, row++, 1, 1);
         pane.add(cbAutoUpdate, 0, row++, 3, 1);
         pane.add(listClassifications, 0, row++, 3, 1);
-        pane.add(btnUpdate, 0, row++, 3, 1);
+        // Add update button (across rows)
+        pane.add(btnUpdate, 2, 1, 1, 2);
+//        pane.add(btnUpdate, 0, row++, 3, 1);
 
+        
+        
+        Button btnShowClassification = new Button("Apply current classifier");
+        btnShowClassification.setMaxWidth(Double.MAX_VALUE);
+        btnShowClassification.setOnAction(e -> {
+        	if (classifier == null || imageData == null)
+        		return;
+        	ImageServer<BufferedImage> server = imageData.getServer();
+        	PathObjectHierarchy hierarchy = imageData.getHierarchy();
+        	Set<PathObject> selected = hierarchy.getSelectionModel().getSelectedObjects();
+        	if (selected.isEmpty())
+        		selected = Collections.singleton(hierarchy.getRootObject());
+        	 double downsample = selectedResolution.get().getMicronsPerPixel() / server.getAveragedPixelSizeMicrons();
+             if (downsample < 0)
+             	downsample = 1;
+        	for (PathObject parent : selected) {
+            	RegionRequest request = parent.isRootObject() ?
+            			RegionRequest.createInstance(server.getPath(), downsample, 0, 0, server.getWidth(), server.getHeight()) :
+            				RegionRequest.createInstance(server.getPath(), downsample, parent.getROI());
+            	BufferedImage imgClassified = classifier.applyClassification(viewer.getServer(), request);
+            	String title = String.format("Classified %s (%.2f, x=%d, y=%d, w=%d, h=%d, z=%d, t=%d)", server.getDisplayedImageName(),
+            			request.getDownsample(), request.getX(), request.getY(), request.getWidth(), request.getHeight(), request.getZ(), request.getT());
+            	ImagePlus imp = BufferedImagePlusServer.convertToImagePlus(title, server, imgClassified, request).getImage();
+            	
+        		List<PixelClassifierOutputChannel> channels = classifier.getMetadata().getChannels();
+            	if (imp.getNChannels() > 1 && imp.getNChannels() == channels.size()) {
+            		CompositeImage impComp = imp instanceof CompositeImage ? (CompositeImage)imp : new CompositeImage(imp, CompositeImage.GRAYSCALE);
+            		for (int c = 0; c < channels.size(); c++) {
+                		impComp.getStack().setSliceLabel(channels.get(c).getName(), c+1);            			
+                		impComp.setChannelLut(LUT.createLutFromColor(new Color(channels.get(c).getColor())), c+1);
+            		}
+            		impComp.resetDisplayRanges(); // TODO: Consider setting to full range
+            	}
+            	
+            	imp.show();
+        	}
+        });
+        pane.add(btnShowClassification, 0, row++, 3, 1);
+        
 
         stage.setScene(new Scene(pane));
     }
@@ -440,8 +487,10 @@ public class PixelClassifierGUI implements PathCommand, QuPathViewerListener, Pa
             Platform.runLater(() -> replaceOverlay(newOverlay));
             return;
         }
-        if (overlay != null)
+        if (overlay != null) {
+            overlay.stop();
             viewer.getCustomOverlayLayers().remove(overlay);
+        }
         overlay = newOverlay;
         if (overlay != null)
         	viewer.getCustomOverlayLayers().add(overlay);
@@ -464,11 +513,12 @@ public class PixelClassifierGUI implements PathCommand, QuPathViewerListener, Pa
 
     @Override
     public void hierarchyChanged(PathObjectHierarchyEvent event) {
-        if (event.isChanging() || !autoUpdate.get())
+        if (event.isChanging() || !autoUpdate.get()) {
             return;
+        }
         // Only update the classification if necessary
         Map<PathClass, Collection<ROI>> map = PixelClassifierHelper.getAnnotatedROIs(event.getHierarchy());
-        if (helper == null || map != helper.getLastTrainingROIs()) {
+        if (helper == null || !map.equals(helper.getLastTrainingROIs())) {
             updateClassification();
         }
     }
@@ -521,7 +571,6 @@ public class PixelClassifierGUI implements PathCommand, QuPathViewerListener, Pa
      * Convert a single-channel OpenCV {@code Mat} into an ImageJ {@code ImageProcessor}.
      * 
      * @param mat
-     * @param title
      * @return
      */
     static ImageProcessor matToImageProcessor(Mat mat) {
@@ -555,6 +604,11 @@ public class PixelClassifierGUI implements PathCommand, QuPathViewerListener, Pa
             return ip;
         }
     }
+    
+    
+    
+    
+    
 
 
     class ClassificationCell extends ListCell<PathClass> {

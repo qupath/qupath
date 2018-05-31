@@ -122,12 +122,26 @@ public class PixelClassificationOverlay extends AbstractOverlay {
             requestTile(request);
         }
     }
+    
+    
+    public void stop() {
+    	this.pendingRequests.clear();
+    	List<Runnable> pending = this.pool.shutdownNow();
+    	logger.debug("Stopped classification overlay, dropped {} requests", pending.size());
+    }
+    
 
     // TODO: Revise this - don't require BufferedImage input!
     void requestTile(RegionRequest request) {
         // Make the request, if it isn't already pending
         if (pendingRequests.add(request)) {
             pool.submit(() -> {
+            	if (pool.isShutdown())
+            		return;
+            	if (!pendingRequests.contains(request)) {
+            		System.err.println("Ditched request!");
+            		return;
+            	}
                 try {
 //                    // We might need to rescale or add padding, so request the tile from the region store
 //                    int padding = classifier.requestedPadding();
