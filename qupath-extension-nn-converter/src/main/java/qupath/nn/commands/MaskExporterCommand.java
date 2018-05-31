@@ -35,6 +35,7 @@ public class MaskExporterCommand implements PathCommand {
 
         // Get the main QuPath data structures
         ImageData imageData = QPEx.getCurrentImageData();
+
         if (imageData == null) {
             Alert alert = new Alert(Alert.AlertType.WARNING);
             alert.setTitle("Warning");

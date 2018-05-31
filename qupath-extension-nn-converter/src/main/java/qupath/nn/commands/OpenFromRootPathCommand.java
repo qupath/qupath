@@ -33,15 +33,27 @@ public class OpenFromRootPathCommand implements PathCommand {
 
     private void openInProject(List<Path> mrxsFiles) {
         Map<String, Project.ADD_IMAGE_CODE> retcodes = new HashMap<>();
+        Map<String, String> fileList = new HashMap<>();
+        List<String> duplicates = new ArrayList<>();
+
         Task<Void> worker = new Task<Void>() {
             @Override
             protected Void call() throws Exception {
                 long max = mrxsFiles.size();
                 long counter = 0;
                 for (Path path : mrxsFiles) {
-                    updateMessage(path.getFileName().toString());
-                    updateProgress(counter, max);
+                    String fileName = path.getFileName().toString();
                     String abs_path = path.toAbsolutePath().toString();
+
+                    updateMessage(fileName);
+                    updateProgress(counter, max);
+
+                    // Check if the file doesn't have a duplicate name
+                    if (fileList.keySet().contains(fileName)) {
+                        duplicates.add(abs_path);
+                    }
+                    fileList.put(fileName, abs_path);
+
                     retcodes.put(abs_path, qupath.getProject().addImage(abs_path.trim()));
                     counter++;
                 }
@@ -56,6 +68,18 @@ public class OpenFromRootPathCommand implements PathCommand {
 
         qupath.submitShortTask(worker);
         progress.showAndWait();
+
+        if (duplicates.size() > 0) {
+            StringBuilder sb = new StringBuilder();
+            sb.append("No files were imported. Duplicate files found, please import unique file names: \n\n");
+
+            duplicates.forEach(dup -> sb.append(dup).append("\n"));
+
+            TextArea textArea = new TextArea();
+            textArea.setText(sb.toString());
+            DisplayHelpers.showErrorMessage(commandName, textArea);
+            return;
+        }
 
         Map<Project.ADD_IMAGE_CODE, Long> valcounts = retcodes.values().stream()
                 .collect(Collectors.groupingBy(v -> v, Collectors.counting()));

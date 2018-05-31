@@ -46,7 +46,7 @@ public class NNConverter implements QuPathExtension {
             // Add to menus
             // Get a reference to a menu, creating it if necessary
             Menu menu = qupath.getMenu("File", false);
-            MenuItem execItem = new MenuItem("Open from Mirax files from root path...");
+            MenuItem execItem = new MenuItem("Open Mirax files from root path...");
             execItem.setOnAction(e -> openFromRootPathCommand.run());
             menu.getItems().add(5,execItem);
         } catch (Exception e) {
