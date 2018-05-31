@@ -3281,9 +3281,9 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		case OPEN_IMAGE_OR_URL:
 			return createCommandAction(new OpenCommand(this, true), "Open URL...", null, new KeyCodeCombination(KeyCode.O, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
 		case SAVE_DATA_AS:
-			return createCommandAction(new SerializeImageDataCommand(this, false), "Save As", null, new KeyCodeCombination(KeyCode.S, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));			
+			return createCommandAction(new SerializeImageDataCommand(this, false, true), "Save As", null, new KeyCodeCombination(KeyCode.S, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
 		case SAVE_DATA:
-			return createCommandAction(new SerializeImageDataCommand(this, true), "Save", null, new KeyCodeCombination(KeyCode.S, KeyCombination.SHORTCUT_DOWN));
+			return createCommandAction(new SerializeImageDataCommand(this, true, true), "Save", null, new KeyCodeCombination(KeyCode.S, KeyCombination.SHORTCUT_DOWN));
 		case SHOW_ANNOTATIONS:
 			return createSelectableCommandAction(overlayOptions.showAnnotationsProperty(), "Show annotations", PathIconFactory.PathIcons.ANNOTATIONS, new KeyCodeCombination(KeyCode.A));
 		case FILL_ANNOTATIONS:

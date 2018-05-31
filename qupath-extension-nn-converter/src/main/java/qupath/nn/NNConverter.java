@@ -12,6 +12,7 @@ import org.controlsfx.control.action.ActionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.commands.SerializeImageDataCommand;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.extensions.QuPathExtension;
 import qupath.nn.commands.MaskExporterCommand;
@@ -41,6 +42,8 @@ public class NNConverter implements QuPathExtension {
             ImageView imageView = new ImageView(getUploadIcon(QuPathGUI.iconSize, QuPathGUI.iconSize));
             Button btn = getActionButton(QuPathGUI.createCommandAction(maskExporterCommand, "Export & save tile",
                     imageView, new KeyCodeCombination(KeyCode.M, KeyCombination.SHORTCUT_DOWN)), true);
+
+            //qupath.createPluginAction()
             qupath.addToolbarButton(btn);
 
             // Add to menus

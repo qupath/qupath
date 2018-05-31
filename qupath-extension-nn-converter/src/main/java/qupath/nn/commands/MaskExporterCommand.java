@@ -4,6 +4,7 @@ import javafx.scene.control.Alert;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.commands.SerializeImageDataCommand;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
@@ -21,30 +22,96 @@ import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.net.URI;
+import java.nio.file.*;
+import java.nio.file.attribute.BasicFileAttributes;
+import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 public class MaskExporterCommand implements PathCommand {
 
     // Define downscale value for export resolution
-    private final double DOWNSCALE = 2.0;
+    private final double DOWNSCALE = 3.0;
     private final String IMAGE_EXPORT_TYPE = "PNG";
 
     final private static Logger logger = LoggerFactory.getLogger(MaskExporterCommand.class);
+    private PathCommand saveCommand;
     private QuPathGUI qupath;
     private WorkIndicatorDialog wd;
 
     public MaskExporterCommand(final QuPathGUI qupath) {
         this.qupath = qupath;
+        this.saveCommand = new SerializeImageDataCommand(qupath, true, false);
     }
 
     private void freeGC() {
         // Free the gc as much as possible
-        System.gc ();
-        System.runFinalization ();
+        System.gc();
+        System.runFinalization();
+    }
+
+    private void walkFiles(FileSystem zipfs, String baseDir, String directory) throws IOException {
+        Files.walkFileTree(Paths.get(directory), new SimpleFileVisitor<Path>() {
+            @Override
+            public FileVisitResult visitFile(Path file,
+                                             BasicFileAttributes attrs) throws IOException {
+                final Path dest = zipfs.getPath(new File(baseDir).toURI().relativize(file.toUri()).getPath());
+                Files.copy(file, dest, StandardCopyOption.REPLACE_EXISTING);
+                return FileVisitResult.CONTINUE;
+            }
+
+            @Override
+            public FileVisitResult preVisitDirectory(Path dir,
+                                                     BasicFileAttributes attrs) throws IOException {
+                final Path dirToCreate = zipfs.getPath(new File(baseDir).toURI().relativize(dir.toUri()).getPath());
+                if (Files.notExists(dirToCreate)) {
+                    Files.createDirectories(dirToCreate);
+                }
+                return FileVisitResult.CONTINUE;
+            }
+        });
+    }
+
+    private void saveAndBackupProject() {
+        // Save the .qpdata first
+        this.saveCommand.run();
+
+        StringBuilder sb = new StringBuilder();
+        String backupsOutput = QPEx.buildFilePath(QPEx.PROJECT_BASE_DIR, "backups");
+        QPEx.mkdirs(backupsOutput);
+
+        File baseDir = qupath.getProject().getBaseDirectory();
+        String dataDir = baseDir + File.separator + "data";
+        String qprojFile = baseDir + File.separator + "project.qpproj";
+        String thumbnailsDir = baseDir + File.separator + "thumbnails";
+
+        // Create a backup name
+        LocalDateTime currentTime = LocalDateTime.now();
+        String time = currentTime.toString().replace("-", "").replace(':', '.');
+        time = time.split("\\.")[0] + "." + time.split("\\.")[1];
+        sb.append(backupsOutput).append(File.separator).append(time).append(".zip");
+
+        // Create the backup
+        Map<String, String> env = new HashMap<>();
+        env.put("create", "true");
+
+        URI uri = URI.create("jar:file:" + sb.toString());
+
+        try (FileSystem zipfs = FileSystems.newFileSystem(uri, env)) {
+            walkFiles(zipfs, baseDir.toPath().toString(), dataDir);
+            walkFiles(zipfs, baseDir.toPath().toString(), qprojFile);
+            walkFiles(zipfs, baseDir.toPath().toString(), thumbnailsDir);
+        } catch (IOException e) {
+            logger.error(e.getMessage());
+        }
     }
 
     private void exportMasks(PathObjectHierarchy hierarchy, ImageServer server) {
+        saveAndBackupProject();
+
         // Request all objects from the hierarchy & filter only the annotations
         List<PathObject> annotations = hierarchy.getFlattenedObjectList(null).stream()
                 .filter(PathObject::isAnnotation).collect(Collectors.toList());
