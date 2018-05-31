@@ -38,6 +38,12 @@ public class MaskExporterCommand implements PathCommand {
         this.qupath = qupath;
     }
 
+    private void freeGC() {
+        // Free the gc as much as possible
+        System.gc ();
+        System.runFinalization ();
+    }
+
     private void exportMasks(PathObjectHierarchy hierarchy, ImageServer server) {
         // Request all objects from the hierarchy & filter only the annotations
         List<PathObject> annotations = hierarchy.getFlattenedObjectList(null).stream()
@@ -47,10 +53,7 @@ public class MaskExporterCommand implements PathCommand {
         QPEx.mkdirs(pathOutput);
 
         annotations.forEach(annotation -> {
-            // Free the gc as much as possible
-            System.gc ();
-            System.runFinalization ();
-
+            freeGC();
             ROI roi = annotation.getROI();
             PathClass pathClass = annotation.getPathClass();
             String annotationLabel = pathClass == null ? "None" : pathClass.getName();
@@ -103,6 +106,7 @@ public class MaskExporterCommand implements PathCommand {
             }
 
         });
+        freeGC();
     }
 
     @Override
@@ -132,7 +136,7 @@ public class MaskExporterCommand implements PathCommand {
                 wd = null; // don't keep the object, cleanup
             });
 
-            wd.exec("123", inputParam -> {
+            wd.exec(null, inputParam -> {
                 // NO ACCESS TO UI ELEMENTS!
                 PathObjectHierarchy hierarchy = imageData.getHierarchy();
                 ImageServer server = imageData.getServer();
