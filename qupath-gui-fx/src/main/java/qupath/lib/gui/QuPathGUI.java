@@ -4187,10 +4187,10 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		
 		// Enable disable actions
 		updateProjectActionStates();
-		
+
 		// Ensure we have the required directories
 //		getProjectClassifierDirectory(true);
-		getProjectScriptsDirectory(true);
+//		getProjectScriptsDirectory(true);
 		
 		logger.info("Project set to {}", project);
 	}
