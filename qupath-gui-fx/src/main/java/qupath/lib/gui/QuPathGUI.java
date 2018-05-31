@@ -2090,12 +2090,15 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				if (imageData.isChanged() || !filePrevious.exists()) {
 					DialogButton response = DialogButton.YES;
 					if (imageData.isChanged()) {
-						response = DisplayHelpers.showYesNoCancelDialog("Save changes", "Save changes to " + entryPrevious.getImageName() + "?");
-					}
-					if (response == DialogButton.YES)
-						PathIO.writeImageData(filePrevious, imageData);
-					else if (response == DialogButton.CANCEL)
+						DisplayHelpers.showErrorMessage("Work not saved",
+								"Please click on the upload button to save your work before moving on to the next slide!");
 						return;
+//						response = DisplayHelpers.showYesNoCancelDialog("Save changes", "Save changes to " + entryPrevious.getImageName() + "?");
+					}
+//					if (response == DialogButton.YES)
+//						PathIO.writeImageData(filePrevious, imageData);
+//					else if (response == DialogButton.CANCEL)
+//						return;
 				}
 			}
 		}

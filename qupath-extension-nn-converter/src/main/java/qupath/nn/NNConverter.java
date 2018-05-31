@@ -1,6 +1,5 @@
 package qupath.nn;
 
-import javafx.event.ActionEvent;
 import javafx.scene.control.*;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
@@ -12,7 +11,6 @@ import org.controlsfx.control.action.ActionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.commands.SerializeImageDataCommand;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.extensions.QuPathExtension;
 import qupath.nn.commands.MaskExporterCommand;
@@ -24,10 +22,9 @@ public class NNConverter implements QuPathExtension {
 
     final private static Logger logger = LoggerFactory.getLogger(NNConverter.class);
 
-    public Button getActionButton(Action action, boolean hideActionText) {
-        Button button = ActionUtils.createButton(action, hideActionText ?
-                ActionUtils.ActionTextBehavior.HIDE : ActionUtils.ActionTextBehavior.SHOW);
-        if (hideActionText && action.getText() != null) {
+    private Button getActionButton(Action action) {
+        Button button = ActionUtils.createButton(action, ActionUtils.ActionTextBehavior.HIDE);
+        if (action.getText() != null) {
             Tooltip.install(button, new Tooltip(action.getText()));
         }
         return button;
@@ -41,8 +38,9 @@ public class NNConverter implements QuPathExtension {
         try {
             ImageView imageView = new ImageView(getUploadIcon(QuPathGUI.iconSize, QuPathGUI.iconSize));
             Button btn = getActionButton(QuPathGUI.createCommandAction(maskExporterCommand, "Export & save tile",
-                    imageView, new KeyCodeCombination(KeyCode.M, KeyCombination.SHORTCUT_DOWN)), true);
+                    imageView, new KeyCodeCombination(KeyCode.M, KeyCombination.SHORTCUT_DOWN)));
 
+            // TODO add action shortcut
             //qupath.createPluginAction()
             qupath.addToolbarButton(btn);
 
@@ -55,18 +53,6 @@ public class NNConverter implements QuPathExtension {
         } catch (Exception e) {
             logger.error("Error adding toolbar buttons", e);
         }
-    }
-
-    Action createOpenAction(final String name) {
-        Action action = new Action(name, e -> {
-
-        });
-        action.setAccelerator(new KeyCodeCombination(KeyCode.O, KeyCombination.SHORTCUT_DOWN));
-        return action;
-    }
-
-    private void onConfigButtonClick(final QuPathGUI qupath){
-
     }
 
     @Override
