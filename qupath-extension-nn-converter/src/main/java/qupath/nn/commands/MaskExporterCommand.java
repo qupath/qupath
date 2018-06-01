@@ -99,7 +99,7 @@ public class MaskExporterCommand implements PathCommand {
         Map<String, String> env = new HashMap<>();
         env.put("create", "true");
 
-        URI uri = URI.create("jar:file:" + sb.toString());
+        URI uri = URI.create("jar:" + new File(sb.toString()).toURI());
 
         try (FileSystem zipfs = FileSystems.newFileSystem(uri, env)) {
             walkFiles(zipfs, baseDir.toPath().toString(), dataDir);
