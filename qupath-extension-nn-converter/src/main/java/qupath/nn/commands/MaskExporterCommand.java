@@ -6,6 +6,7 @@ import org.slf4j.LoggerFactory;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.SerializeImageDataCommand;
 import qupath.lib.gui.commands.interfaces.PathCommand;
+import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.objects.PathObject;
@@ -34,7 +35,7 @@ import java.util.stream.Collectors;
 public class MaskExporterCommand implements PathCommand {
 
     // Define downscale value for export resolution
-    private final double DOWNSCALE = 3.0;
+    private final double REQUESTED_PIXEL_SIZE_MICRONS = 10.0; //8.0
     private final String IMAGE_EXPORT_TYPE = "PNG";
 
     final private static Logger logger = LoggerFactory.getLogger(MaskExporterCommand.class);
@@ -109,6 +110,19 @@ public class MaskExporterCommand implements PathCommand {
         }
     }
 
+    private void saveSlide(ImageServer server, double downsample, String pathOutput) throws IOException {
+        RegionRequest imgRegion = RegionRequest.createInstance(server.getPath(), downsample,
+                0, 0, server.getWidth(), server.getHeight());
+
+        // Request the BufferedImage
+        BufferedImage imgBuf = (BufferedImage) server.readBufferedImage(imgRegion);
+
+        // Create filename & export
+        File fileImage = new File(pathOutput, server.getShortServerName() + '.' + IMAGE_EXPORT_TYPE.toLowerCase());
+        ImageIO.write(imgBuf, IMAGE_EXPORT_TYPE, fileImage);
+        freeGC();
+    }
+
     private void exportMasks(PathObjectHierarchy hierarchy, ImageServer server) {
         saveAndBackupProject();
 
@@ -118,6 +132,21 @@ public class MaskExporterCommand implements PathCommand {
 
         String pathOutput = QPEx.buildFilePath(QPEx.PROJECT_BASE_DIR, "masks");
         QPEx.mkdirs(pathOutput);
+
+        double downsample = 1;
+
+        if (REQUESTED_PIXEL_SIZE_MICRONS > 0)
+            downsample = REQUESTED_PIXEL_SIZE_MICRONS / server.getAveragedPixelSizeMicrons();
+
+        // First save the whole slide
+        try {
+            saveSlide(server, downsample, pathOutput);
+        } catch (IOException e) {
+            DisplayHelpers.showErrorMessage("Error while saving the slide",
+                    "An error occurred while saving the entire slide:\n" + e.getMessage());
+        }
+
+        final double finalDownsample = downsample;
 
         annotations.forEach(annotation -> {
             freeGC();
@@ -131,10 +160,13 @@ public class MaskExporterCommand implements PathCommand {
                 return;
             }
 
-            RegionRequest region = RegionRequest.createInstance(server.getPath(), DOWNSCALE, roi);
+            RegionRequest region = RegionRequest.createInstance(server.getPath(), finalDownsample, roi);
+
+            // TODO change the name to match the file_name and get the center position X and Y of each annotations
+            // to store them in a csv file
 
             // Create a name
-            String name = String.format("%s_%s_prop(%.2f,%d,%d,%d,%d)",
+            String name = String.format("%s_%s_prop(DOWN-%.2f,X-%d,Y-%d,W-%d,H-%d)",
                     annotationLabel,
                     server.getShortServerName(),
                     region.getDownsample(),
@@ -154,7 +186,7 @@ public class MaskExporterCommand implements PathCommand {
             BufferedImage imgMask = new BufferedImage(img.getWidth(), img.getHeight(), BufferedImage.TYPE_BYTE_GRAY);
             Graphics2D g2d = imgMask.createGraphics();
             g2d.setColor(Color.WHITE);
-            g2d.scale(1.0 / DOWNSCALE, 1.0 / DOWNSCALE);
+            g2d.scale(1.0 / finalDownsample, 1.0 / finalDownsample);
             g2d.translate(-region.getX(), -region.getY());
             g2d.fill(shape);
             g2d.dispose();
@@ -169,7 +201,8 @@ public class MaskExporterCommand implements PathCommand {
                 ImageIO.write(imgMask, IMAGE_EXPORT_TYPE, fileMask);
 
             } catch (IOException e) {
-                e.printStackTrace();
+                DisplayHelpers.showErrorMessage("Error while saving the annotation",
+                        "An error occurred while saving one annotation:\n" + e.getMessage());
             }
 
         });
