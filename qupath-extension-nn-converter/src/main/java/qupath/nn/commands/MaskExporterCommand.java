@@ -35,7 +35,7 @@ import java.util.stream.Collectors;
 public class MaskExporterCommand implements PathCommand {
 
     // Define downscale value for export resolution
-    private final double REQUESTED_PIXEL_SIZE_MICRONS = 8.0;
+    private final double REQUESTED_PIXEL_SIZE_MICRONS = 4.0;
     private final String IMAGE_EXPORT_TYPE = "PNG";
 
     final private static Logger logger = LoggerFactory.getLogger(MaskExporterCommand.class);
@@ -130,7 +130,7 @@ public class MaskExporterCommand implements PathCommand {
         List<PathObject> annotations = hierarchy.getFlattenedObjectList(null).stream()
                 .filter(PathObject::isAnnotation).collect(Collectors.toList());
 
-        String pathOutput = QPEx.buildFilePath(QPEx.PROJECT_BASE_DIR, "masks");
+        String pathOutput = QPEx.buildFilePath(QPEx.PROJECT_BASE_DIR, "masks", server.getShortServerName());
         QPEx.mkdirs(pathOutput);
 
         double downsample = 1;
