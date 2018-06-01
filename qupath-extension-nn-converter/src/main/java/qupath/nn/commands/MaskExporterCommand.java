@@ -35,7 +35,7 @@ import java.util.stream.Collectors;
 public class MaskExporterCommand implements PathCommand {
 
     // Define downscale value for export resolution
-    private final double REQUESTED_PIXEL_SIZE_MICRONS = 10.0; //8.0
+    private final double REQUESTED_PIXEL_SIZE_MICRONS = 8.0;
     private final String IMAGE_EXPORT_TYPE = "PNG";
 
     final private static Logger logger = LoggerFactory.getLogger(MaskExporterCommand.class);
@@ -166,14 +166,13 @@ public class MaskExporterCommand implements PathCommand {
             // to store them in a csv file
 
             // Create a name
-            String name = String.format("%s_%s_prop(DOWN-%.2f,X-%d,Y-%d,W-%d,H-%d)",
+            String name = String.format("%s_%s_prop(X-%d,Y-%d,W-%d,H-%d)",
                     annotationLabel,
                     server.getShortServerName(),
-                    region.getDownsample(),
-                    region.getX(),
-                    region.getY(),
-                    region.getWidth(),
-                    region.getHeight()
+                    (int) Math.ceil(region.getX() / region.getDownsample()),
+                    (int) Math.ceil(region.getY() / region.getDownsample()),
+                    (int) Math.ceil(region.getWidth() / region.getDownsample()),
+                    (int) Math.ceil(region.getHeight() / region.getDownsample())
             );
 
             // Request the BufferedImage
