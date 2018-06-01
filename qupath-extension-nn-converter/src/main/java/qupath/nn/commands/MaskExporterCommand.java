@@ -162,9 +162,6 @@ public class MaskExporterCommand implements PathCommand {
 
             RegionRequest region = RegionRequest.createInstance(server.getPath(), finalDownsample, roi);
 
-            // TODO change the name to match the file_name and get the center position X and Y of each annotations
-            // to store them in a csv file
-
             // Create a name
             String name = String.format("%s_%s_prop(X-%d,Y-%d,W-%d,H-%d)",
                     annotationLabel,
