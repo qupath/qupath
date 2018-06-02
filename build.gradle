@@ -2,6 +2,7 @@
  * Gradle script for building QuPath, with the help of the JavaFX packager.
  */
 
+def nnVersion = "0.1"
 def qupathVersion = "0.1.3-SNAPSHOT"   // Current version for QuPath
 def qupathVendor = "QuPath developers" // Requested by JavaFX packager
 def includeJRE = true                  // Should Java be included in any native packages?
@@ -199,11 +200,11 @@ buildscript {
       maven { url "https://oss.sonatype.org/content/repositories/snapshots" }
       maven { url 'https://plugins.gradle.org/m2/' }
   }
-  
+
   // Request latest commit by a command line call to Git, if required
   def requestLatestCommit = project.findProperty('request-git-tag') == 'true'
-  
-  
+
+
   // Try to get version number
   ext {
   	latestGitCommit = null
@@ -224,7 +225,7 @@ buildscript {
   } else {
     println "I won't try to get the last commit - consider running with '-Prequest-git-tag=true' if you want this next time (assuming Git is installed)"
   }
-  
+
 }
 
 // Run automated license generation (in addition to manually-curated licenses)
@@ -264,11 +265,12 @@ jfx {
        "Implementation-Vendor": qupathVendor,
        "Implementation-Title": 'QuPath',
        "Implementation-Version": qupathVersion,
+       "NN-Version": nnVersion,
        "QuPath-build-time": new Date().format("yyyy-MM-dd, HH:mm")
     ]
     if (latestGitCommit != null)
        manifestAttributes["QuPath-latest-commit"] = latestGitCommit
-    
+
 
     // gradle jfxNative
     vendor               = qupathVendor
