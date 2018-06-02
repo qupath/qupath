@@ -93,6 +93,8 @@ then click apply.
 
 1. On the right you'll have a gradle menu, open it and execute `qupath > qupath > Tasks > javafx > jfxNative`
 ![Image](./images/idea11.png)
+N.B: If you're not interested by debugging and just want to run the program right away just run the 
+`qupath > qupath > Tasks > javafx > jfxRun` command and ignore the steps below.
 
 1. Go back in the `Project structure` menu and now click on `Modules` then `qupath > qupath_main`, the
 `Dependencies` tab and the `+` sign. On the `+` sign click `1 JARs or directory...`
