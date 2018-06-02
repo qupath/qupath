@@ -25,6 +25,7 @@ package qupath.lib.gui.commands;
 
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.nio.file.Files;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -57,6 +58,12 @@ public class ProjectCreateCommand implements PathCommand {
 			return;
 		if (!dir.isDirectory()) {
 			logger.error(dir + " is not a valid project directory!");
+		}
+		if (!Files.isWritable(dir.toPath())) {
+			logger.error("Directory not writable {}", dir);
+			DisplayHelpers.showErrorMessage("Project creator", "No write access for the selected " +
+					"folder! Please change the folder permissions or use another folder");
+			return;
 		}
 		for (File f : dir.listFiles()) {
 			if (!f.isHidden()) {
