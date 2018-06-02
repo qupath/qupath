@@ -79,11 +79,13 @@ public class ShapeSimplifierAwt {
 			
 			boolean firstPoint = true;
 			for (Point2 p : points) {
+				double xx = p.getX();
+				double yy = p.getY();
 				if (firstPoint) {
-					pathNew.moveTo(p.getX(), p.getY());
+					pathNew.moveTo(xx, yy);
 					firstPoint = false;
 				} else
-					pathNew.lineTo(p.getX(), p.getY());
+					pathNew.lineTo(xx, yy);
 			}
 			pathNew.closePath();
 		}
@@ -122,6 +124,7 @@ public class ShapeSimplifierAwt {
 			case PathIterator.SEG_MOVETO:
 				// Fall through
 			case PathIterator.SEG_LINETO:
+//				points.add(new Point2(Math.round(seg[0]), Math.round(seg[1])));
 				points.add(new Point2(seg[0], seg[1]));
 				break;
 			case PathIterator.SEG_CLOSE:

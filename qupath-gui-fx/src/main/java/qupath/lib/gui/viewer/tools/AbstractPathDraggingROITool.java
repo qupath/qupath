@@ -65,7 +65,7 @@ public abstract class AbstractPathDraggingROITool extends AbstractPathROITool {
 		if (currentROI != null && editor.getROI() == currentROI && editor.hasActiveHandle()) {
 			PathObject pathObject = viewer.getSelectedObject();
 			Point2D p = viewer.componentPointToImagePoint(e.getX(), e.getY(), null, true);
-			ROI roiUpdated = editor.setActiveHandlePosition(p.getX(), p.getY(), 1.5 * viewer.getROIHandleSize(), e.isShiftDown());
+			ROI roiUpdated = editor.setActiveHandlePosition(p.getX(), p.getY(), 0.25, e.isShiftDown());
 			if (roiUpdated != currentROI) {
 				((PathROIObject)pathObject).setROI(roiUpdated);
 				viewer.repaint();

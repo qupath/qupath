@@ -93,8 +93,7 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 	private String macroText = null;
 
 	transient private Stage dialog;
-	
-	
+		
 	public ImageJMacroRunner(final QuPathGUI qupath) {
 		this.qupath = qupath;
 	}
@@ -219,15 +218,15 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 		double downsampleFactor = params.getDoubleParameterValue("downsampleFactor");
 		boolean sendROI = params.getBooleanParameterValue("sendROI");
 		boolean sendOverlay = params.getBooleanParameterValue("sendOverlay");
-
 		ROI pathROI = pathObject.getROI();		
 		ImageDisplay imageDisplay2 = Boolean.TRUE.equals(params.getBooleanParameterValue("useTransform")) ? imageDisplay : null;
 		RegionRequest region = RegionRequest.createInstance(imageData.getServer().getPath(), downsampleFactor, pathROI);
 		
-		// Check the size of the region to extract - abort if it is too large
-		double approxPixelCount = (region.getWidth() / region.getDownsample()) * (region.getHeight() / region.getDownsample());
-		if (approxPixelCount > 5000L*5000L) {
-			DisplayHelpers.showErrorMessage("ImageJ macro error", "Requested region is too large to send to ImageJ (approx " + (int)(region.getWidth() / region.getDownsample()) + " x " + (int)(region.getHeight() / region.getDownsample()) + " pixels) - try again with a smaller region, or a higher downsample factor");
+		// Check the size of the region to extract - abort if it is too large of if ther isn't enough RAM
+		try {
+			IJTools.isMemorySufficient(region, imageData);
+		} catch (Exception e1) {
+			DisplayHelpers.showErrorMessage("ImageJ macro error", e1.getMessage());
 			return;
 		}
 		
@@ -318,8 +317,10 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 						}
 					}
 				}
+				
+				boolean exportAsDetection = ((String) params.getChoiceParameterValue("getOverlayAs")).equals("Detections") ? true : false;
 				if (params.getBooleanParameterValue("getOverlay") && impResult.getOverlay() != null) {
-					List<PathObject> childObjects = QUPath_Send_Overlay_to_QuPath.createPathObjectsFromROIs(imp, impResult.getOverlay().toArray(), imageData.getServer(), downsampleFactor, true, true, -1, region.getZ(), region.getT());
+					List<PathObject> childObjects = QUPath_Send_Overlay_to_QuPath.createPathObjectsFromROIs(imp, impResult.getOverlay().toArray(), imageData.getServer(), downsampleFactor, exportAsDetection, true, -1, region.getZ(), region.getT());
 					if (!childObjects.isEmpty()) {
 						pathObject.addPathObjects(childObjects);
 						changes = true;
@@ -372,7 +373,8 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 				.addTitleParameter("Results")
 				.addBooleanParameter("clearObjects", "Clear current child objects", false)
 				.addBooleanParameter("getROI", "Create annotation from ImageJ ROI", false)
-				.addBooleanParameter("getOverlay", "Create detection objects from ImageJ overlay", false)
+				.addBooleanParameter("getOverlay", "Get objects from ImageJ overlay", false)
+				.addChoiceParameter("getOverlayAs", "Get objects as", "Detections", new String[]{"Detections", "Annotations"} )
 				;
 		return params;
 	}
@@ -434,6 +436,4 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 //		else
 //			return imageData.getHierarchy().getObjects(null, PathAnnotationObject.class);
 	}
-
-
 }

@@ -2,8 +2,17 @@
 deploy/
 target/
 log/
-.idea/
 
+# IntelliJ
+.idea/
+*.iml
+out/
+
+# Gradle
+# Use local properties (e.g. to set a specific JDK)
+gradle.properties
+build/
+.gradle/
 
 # Eclipse
 .settings/
@@ -22,5 +31,4 @@ hs_err*.log
 *.swp
 *~.nib
 *thumbs.db
-*.iml
 bin/

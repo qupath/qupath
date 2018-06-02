@@ -27,6 +27,7 @@ import java.awt.Color;
 import java.awt.Rectangle;
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.text.DecimalFormat;
 import java.util.List;
 
 import javax.swing.SwingUtilities;
@@ -50,6 +51,7 @@ import qupath.imagej.objects.ROIConverterIJ;
 import qupath.lib.awt.common.AwtTools;
 import qupath.lib.display.ChannelDisplayInfo;
 import qupath.lib.display.ImageDisplay;
+import qupath.lib.images.ImageData;
 import qupath.lib.images.PathImage;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.objects.PathAnnotationObject;
@@ -70,8 +72,70 @@ import qupath.lib.roi.interfaces.ROI;
 public class IJTools {
 	
 	final private static Logger logger = LoggerFactory.getLogger(IJTools.class);
+	
+	// Defines what fraction of total available memory can be allocated to transferring a single image to ImageJ 
+	private static double MEMORY_THRESHOLD = 0.5;
 
+	/**
+	 * @param threshold - value in the interval ]0;1] defining the maximum remaining memory fraction an image can have 
+	 * when importing an image to ImageJ
+	 */
+	public static void setMemoryThreshold(double threshold) {
+		
+		// Just make sure the user entered something that makes sense
+		double new_threshold = ( threshold > 1 ) ? 1   : threshold;
+		new_threshold        = ( threshold < 0 ) ? 0.1 : new_threshold;
 
+		MEMORY_THRESHOLD = new_threshold;
+	}
+	
+	/**
+	 * @param region - the requested region coming from 
+	 * @param imageData - this BufferedImage
+	 * @return - true if the memory is sufficient
+	 * @throws Exception - either the fact that IamgeJ cannot handle the image size or that the memory is insufficient
+	 */
+	public static boolean isMemorySufficient(RegionRequest region, final ImageData<BufferedImage> imageData) throws Exception {
+		
+		// Gather data on the image
+		ImageServer<BufferedImage> server = imageData.getServer();
+		int bytesPerPixel = (server.isRGB()) ? 4 : server.getBitsPerPixel() * server.nChannels() / 8;
+		
+		// Gather data on the region being requested
+		double regionWidth = region.getWidth() / region.getDownsample();
+		double regionHeight = region.getHeight() / region.getDownsample();
+		
+		double approxPixelCount = regionWidth * regionHeight;
+
+		// Kindly request garbage collection
+		Runtime.getRuntime().gc();
+		
+		// Compute (very simply) how much memory this image could take
+		long approxMemory = (long) approxPixelCount * bytesPerPixel;
+		
+		// Compute the available memory, as per https://stackoverflow.com/a/18366283
+		long allocatedMemory      = Runtime.getRuntime().totalMemory()-Runtime.getRuntime().freeMemory();
+		long presumableFreeMemory = Runtime.getRuntime().maxMemory() - allocatedMemory;
+		
+		// Prepare pretty formatting if needed
+		DecimalFormat df = new DecimalFormat("00.00");
+		
+		if (approxPixelCount > 2147480000L) 
+			throw 
+				new Exception("ImageJ cannot handle images this big ("+
+							   (int) regionWidth+"x"+ (int)regionHeight+" pixels).\n"+
+							   "Try again with a smaller region, or a higher downsample factor.");
+		
+		if (approxMemory > presumableFreeMemory * MEMORY_THRESHOLD) 
+			throw 
+				new Exception("There is not enough free memory to open this region in ImageJ\n"+
+						   "Image memory requirement: "+ df.format(approxMemory/(1024*1024))+"MB\n"+
+						   "Available Memory: "+df.format(presumableFreeMemory/(1024*1024) * MEMORY_THRESHOLD)+"MB\n\n"+
+						   "Try again with a smaller region, or a higher downsample factor,"+
+						   "or modify the memory threshold using IJTools.setMemoryThreshold(double threshold)");
+		
+		return (approxPixelCount > 2147480000L || approxMemory > presumableFreeMemory * MEMORY_THRESHOLD);
+	}
 	/**
 	 * 
 	 * @param server

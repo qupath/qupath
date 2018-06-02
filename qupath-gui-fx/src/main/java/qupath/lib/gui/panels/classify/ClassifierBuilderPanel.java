@@ -1343,7 +1343,7 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 		String errorMessage = null;
 		boolean classifierChanged = classifier != lastClassifierCompleted;
 		try {
-			classifierChanged = classifier.updateClassifier(mapTraining, features, normalization);
+			classifierChanged = classifier.updateClassifier(mapTraining, features, normalization) || classifierChanged;
 		} catch (Exception e) {
 			errorMessage = "Classifier training failed with message:\n" + e.getLocalizedMessage() + 
 					"\nPlease try again with different settings.";

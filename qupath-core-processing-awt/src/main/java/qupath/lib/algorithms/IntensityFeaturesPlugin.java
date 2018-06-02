@@ -335,10 +335,10 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 		int tileWidth, tileHeight;
 		if (server.hasPixelSizeMicrons()) {
 			double tileSize = params.getDoubleParameterValue("tileSizeMicrons");
-			tileWidth = (int)(tileSize / server.getPixelWidthMicrons() + .5);
-			tileHeight = (int)(tileSize / server.getPixelHeightMicrons() + .5);
+			tileWidth = (int)Math.round(tileSize / server.getPixelWidthMicrons());
+			tileHeight = (int)Math.round(tileSize / server.getPixelHeightMicrons());
 		} else {
-			tileWidth = (int)(params.getDoubleParameterValue("tileSizePx") + .5);
+			tileWidth = (int)Math.round(params.getDoubleParameterValue("tileSizePixels"));
 			tileHeight = tileWidth;
 		}
 		return new ImmutableDimension(tileWidth, tileHeight);

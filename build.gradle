@@ -1,0 +1,301 @@
+/*
+ * Gradle script for building QuPath, with the help of the JavaFX packager.
+ */
+
+def qupathVersion = "0.1.3-SNAPSHOT"   // Current version for QuPath
+def qupathVendor = "QuPath developers" // Requested by JavaFX packager
+def includeJRE = true                  // Should Java be included in any native packages?
+def additionalResourcesDir = 'build/additional' // Where to store additional files needed for final package
+
+def useLegacyDependencies = true       // For minimal changes from v0.1.2, no support for Java 9
+
+def nativeBundle = null                // Choose native bundle, or leave null for default
+def nativesClassifier = null           // Maven classifier for requesting native libraries
+
+// Handle OS-specific decisions
+import org.gradle.internal.os.OperatingSystem
+println 'Operating system: ' + OperatingSystem.current()
+def nativesCPP = null
+if (OperatingSystem.current().isMacOsX()) {
+  nativeBundle = 'mac.app'
+  nativesClassifier = 'natives-osx'
+  nativesCPP = 'macosx-x86_64'
+} else if (OperatingSystem.current().isLinux()) {
+  nativeBundle = 'linux.app'
+  nativesClassifier = 'natives-linux'
+  nativesCPP = 'linux-x86_64'
+} else if (OperatingSystem.current().isWindows()) {
+  nativeBundle = 'windows.app'
+  nativesClassifier = 'natives-windows'
+  nativesCPP = 'windows-x86_64'
+} else {
+  println 'Unknown operating system - will attempt all native bundles'
+  nativeBundle = 'all'
+}
+
+// At the time of writing, packaging as a JavaFX native package is only
+// working smoothing for Java 8.
+// Nevertheless, it should be possible to build for Java 9 generally
+// with minimal changes, provided that the correct version of ControlsFX is used
+println 'Current Java version: ' + JavaVersion.current()
+if (JavaVersion.current() != JavaVersion.VERSION_1_8) {
+  println 'Warning! Creating native packages is currently only possible with Java 1.8!'
+}
+
+// Define dependencies
+subprojects {
+  configurations {
+    groovy
+    richtextfx
+    commonsmath
+    gson
+    controlsfx
+    jfxtras
+    opencv
+    jpen
+    imagej
+    openslide
+  }
+
+  dependencies {
+    groovy 'org.codehaus.groovy:groovy:2.4.13'
+    groovy 'org.codehaus.groovy:groovy-jsr223:2.4.13'
+    if (useLegacyDependencies)
+      richtextfx 'org.fxmisc.richtext:richtextfx:0.6.10'
+    else
+      richtextfx 'org.fxmisc.richtext:richtextfx:0.8.1'
+    commonsmath 'org.apache.commons:commons-math3:3.6.1'
+    gson 'com.google.code.gson:gson:2.8.2'
+    if (JavaVersion.current() == JavaVersion.VERSION_1_9)
+      controlsfx 'org.controlsfx:controlsfx:9.0.0'
+    else
+      controlsfx 'org.controlsfx:controlsfx:8.40.14'
+    jfxtras 'org.jfxtras:jfxtras-menu:8.0-r5'
+    if (useLegacyDependencies) {
+      opencv 'org.opencv:opencv:3.1.0'
+      if (nativesClassifier != null)
+        opencv 'org.opencv:opencv:3.1.0:' + nativesClassifier
+    } else {
+      opencv 'org.bytedeco.javacpp-presets:opencv:3.4.0-1.4'
+      if (nativesCPP != null)
+        opencv 'org.bytedeco.javacpp-presets:opencv:3.4.0-1.4:' + nativesCPP
+    }
+    jpen 'net.sourceforge.jpen:jpen:2-150301'
+    if (nativesClassifier != null)
+      jpen 'net.sourceforge.jpen:jpen:2-150301:' + nativesClassifier
+    imagej 'net.imagej:ij:1.51s'
+    openslide 'org.openslide:openslide:3.4.1_2'
+    if (nativesClassifier != null)
+      openslide 'org.openslide:openslide:3.4.1_2:' + nativesClassifier
+  }
+}
+
+// Set the group & version
+allprojects  {
+  group = 'qupath'
+  version = qupathVersion
+}
+
+// Build all projects
+allprojects {
+  apply plugin: 'java'
+  sourceCompatibility = JavaVersion.current()
+  targetCompatibility = JavaVersion.current()
+
+  repositories {
+    mavenLocal()
+    mavenCentral()
+    maven { url "../maven/repo" }
+  }
+
+  dependencies {
+    compile group: 'ch.qos.logback', name: 'logback-classic', version:'1.2.3'
+    testCompile group: 'junit', name: 'junit', version:'4.12'
+  }
+}
+
+// Build the main launcher class
+apply plugin: 'java'
+
+repositories {
+  mavenLocal()
+  mavenCentral()
+  maven { url "./maven/repo" }
+}
+
+// I suspect there is a cleaner way to specify subprojects here...
+dependencies {
+    compile project(':qupath-gui-fx')
+    compile project(':qupath-extension-openslide')
+    compile project(':qupath-extension-script-editor')
+    compile project(':qupath-extension-ij')
+    compile project(':qupath-extension-opencv')
+    compile project(':qupath-extension-pen')
+
+    // Try to find packager.jar so it's possible to use UserJvmOptionsService,
+    // and therefore change the memory limits from within the main GUI
+    def filePackager = new File("${System.properties['java.home']}/../lib/packager.jar")
+    if (!filePackager.exists())
+        filePackager = new File("/usr/share/java/openjfx/lib/packager.jar")
+    if (filePackager.exists()) {
+        println 'Found the packager at ' + filePackager.getAbsolutePath()
+        compile files(filePackager)
+    }
+    else
+        println 'I could not find packager.jar! May not be able to set the memory limits from the GUI.'
+}
+
+// Get licences from subprojects
+task copyLicenses(type: Copy) {
+  def licenseDirs = []
+  subprojects.each {
+    def dir = new File(it.projectDir, 'src/main/resources/licenses')
+    if (dir.isDirectory())
+      licenseDirs << dir
+  }
+  println 'Copying license directories: '
+  licenseDirs.each { println '  ' + it }
+  from licenseDirs
+  into additionalResourcesDir + '/licenses'
+}
+
+// Get main changelog & license
+task copyChangelog(type: Copy) {
+  from project.rootDir
+  into additionalResourcesDir
+  include 'CHANGELOG.md'
+  include 'LICENSE.txt'
+}
+
+// Get native libraries from dependencies
+task extractNativeLibraries() {
+  if (nativesClassifier == null)
+    return
+  configurations.compile.files.findAll({ it.getName().contains(nativesClassifier) }).each { file ->
+    println 'Extracting native libraries from ' + file
+    doLast {
+      copy {
+        from zipTree(file)
+        into additionalResourcesDir
+      }
+    }
+  }
+}
+
+// Configure build script for creating JavaFX package
+buildscript {
+
+  dependencies {
+      if (JavaVersion.current() == JavaVersion.VERSION_1_9)
+        classpath group: 'de.dynamicfiles.projects.gradle.plugins', name: 'javafx-gradle-plugin', version: '8.9.0-SNAPSHOT'
+      else
+        classpath group: 'de.dynamicfiles.projects.gradle.plugins', name: 'javafx-gradle-plugin', version: '8.8.2'
+      classpath 'gradle.plugin.com.github.jk1:gradle-license-report:0.5.0'
+  }
+
+  repositories {
+      mavenLocal()
+      mavenCentral()
+      maven { url "https://oss.sonatype.org/content/repositories/snapshots" }
+      maven { url 'https://plugins.gradle.org/m2/' }
+  }
+  
+  // Request latest commit by a command line call to Git, if required
+  def requestLatestCommit = project.findProperty('request-git-tag') == 'true'
+  
+  
+  // Try to get version number
+  ext {
+  	latestGitCommit = null
+  }
+  if (requestLatestCommit) {
+	  try {
+	  	def stdout = new ByteArrayOutputStream()
+	    def result = exec {
+	        commandLine 'git', 'describe', '--tags'
+	        standardOutput = stdout
+	    }
+	    latestGitCommit = stdout.toString().trim()
+	    println 'Latest commit: ' + latestGitCommit
+	  } catch (Exception e) {
+	  	println 'Unable to get latest commit: ' + e.getLocalizedMessage()
+	  	latestGitCommit = 'Unknown (is Git installed?)'
+	  }
+  } else {
+    println "I won't try to get the last commit - consider running with '-Prequest-git-tag=true' if you want this next time (assuming Git is installed)"
+  }
+  
+}
+
+// Run automated license generation (in addition to manually-curated licenses)
+apply plugin: 'com.github.jk1.dependency-license-report'
+import com.github.jk1.license.importer.*
+import com.github.jk1.license.render.*
+
+licenseReport {
+    renderer = new MultiReportRenderer(new TextReportRenderer('THIRD-PARTY.txt'), new CsvReportRenderer(), new InventoryHtmlReportRenderer())
+}
+
+task copyLicenseReport(type: Copy) {
+  from 'build/reports/dependency-license/THIRD-PARTY.txt'
+  into additionalResourcesDir + '/licenses'
+}
+
+// Make sure our files are copied when needed...
+jar.dependsOn copyLicenses
+jar.dependsOn copyChangelog
+jar.dependsOn extractNativeLibraries
+jar.dependsOn copyLicenseReport
+
+
+apply plugin: 'javafx-gradle-plugin'
+
+
+// Configure javafx-gradle-plugin
+jfx {
+    verbose           = true
+    mainClass         = "qupath.QuPath"
+    jfxMainAppJarName = 'QuPathApp.jar'
+    deployDir         = "src/main/resources"
+    libFolderName     = 'jars'
+
+    // gradle jfxJar
+    manifestAttributes = [
+       "Implementation-Vendor": qupathVendor,
+       "Implementation-Title": 'QuPath',
+       "Implementation-Version": qupathVersion,
+       "QuPath-build-time": new Date().format("yyyy-MM-dd, HH:mm")
+    ]
+    if (latestGitCommit != null)
+       manifestAttributes["QuPath-latest-commit"] = latestGitCommit
+    
+
+    // gradle jfxNative
+    vendor               = qupathVendor
+    nativeReleaseVersion = qupathVersion
+    appName              = 'QuPath'
+    bundler              = nativeBundle
+
+    // Necessary for native libraries, licenses & changelog
+    copyAdditionalAppResourcesToJar = true
+    additionalAppResources = additionalResourcesDir
+
+    fileAssociations = [
+      [
+        description: 'QuPath project file',
+        extensions: 'qpproj',
+        contentType: 'application/qupath-project'
+      ],
+      [
+        description: 'QuPath data file',
+        extensions: 'qpdata',
+        contentType: 'application/qupath-data'
+      ]
+    ]
+
+    bundleArguments = [:]
+    if (!includeJRE) {
+      bundleArguments['runtime'] = null
+    }
+
+}

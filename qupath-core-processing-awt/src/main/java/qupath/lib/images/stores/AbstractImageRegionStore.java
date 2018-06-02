@@ -355,8 +355,35 @@ public abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T>
 	}
 	
 	
+	/**
+	 * Clear the cache, including thumbnails, and cancel any pending requests.
+	 */
+	public synchronized void clearCache() {
+		clearCache(true, true);
+	}
 	
 	
+	/**
+	 * Clear the cache, optionally including thumbnails and stopping any pending requests.
+	 * 
+	 * @param stopWaiting
+	 * @param clearThumbnails
+	 */
+	public synchronized void clearCache(final boolean clearThumbnails, final boolean stopWaiting) {
+		clearingCache = true;
+		// Try to cancel anything we're waiting for
+		if (stopWaiting) {
+			for (TileWorker<T> worker : waitingMap.values().toArray(new TileWorker[0])) {
+				worker.cancel(true);
+			}
+			waitingMap.clear();
+			workers.clear();
+		}
+		if (clearThumbnails)
+			thumbnailCache.clear();
+		cache.clear();
+		clearingCache = false;
+	}
 	
 	
 	/* (non-Javadoc)
@@ -562,9 +589,9 @@ public abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T>
 				updateRequestsForZ(zPosition, downsampleFactor, false);
 			else {
 				if (zPosition - zSeparation >= 0)
-					updateRequestsForZ(zPosition - zSeparation, downsampleFactor * Math.max(5, zSeparation), true);
+					updateRequestsForZ(zPosition - zSeparation, downsampleFactor * Math.max(5, zSeparation*2), true);
 				if (zPosition + zSeparation < server.nZSlices())
-					updateRequestsForZ(zPosition + zSeparation, downsampleFactor * Math.max(5, zSeparation), true);
+					updateRequestsForZ(zPosition + zSeparation, downsampleFactor * Math.max(5, zSeparation*2), true);
 			}
 		}
 		

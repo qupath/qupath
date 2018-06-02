@@ -1,0 +1,11 @@
+
+description = 'qupath-core-processing'
+
+configurations {
+  compile.extendsFrom commonsmath
+  compile.extendsFrom gson
+}
+
+dependencies {
+  compile project(':qupath-core')
+}

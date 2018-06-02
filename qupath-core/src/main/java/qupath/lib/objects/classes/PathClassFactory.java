@@ -164,7 +164,7 @@ public class PathClassFactory {
 	
 	
 	public static PathClass getPathClass(String name, Integer rgb) {
-		if (name == null)
+		if (name == null || name.equals(NULL_CLASS.toString()) || name.equals(NULL_CLASS.getName()))
 			return NULL_CLASS;
 		PathClass pathClass = mapPathBaseClasses.get(name);
 		if (pathClass == null) {

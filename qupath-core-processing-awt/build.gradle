@@ -1,0 +1,13 @@
+
+description = 'qupath-core-processing-awt'
+
+configurations {
+  compile.extendsFrom commonsmath
+  compile.extendsFrom gson
+}
+
+dependencies {
+  compile project(':qupath-core')
+  compile project(':qupath-core-awt')
+  compile project(':qupath-core-processing')
+}

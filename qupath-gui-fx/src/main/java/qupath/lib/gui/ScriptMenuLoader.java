@@ -73,6 +73,11 @@ public class ScriptMenuLoader {
 			File scriptFile = new File(dir, scriptName);
 			if (!scriptFile.exists()) {
 				try {
+					// If we need to create the scripts directory, try to do so
+					// (This helps for project scripts, when the directory might not exist yet)
+					File dirScripts = new File(dir);
+					if (!dirScripts.exists())
+						dirScripts.mkdir();
 					scriptFile.createNewFile();
 				} catch (Exception e1) {
 					DisplayHelpers.showErrorMessage("New script error", "Unable to create new script!");
@@ -86,7 +91,11 @@ public class ScriptMenuLoader {
 		miOpenDirectory.disableProperty().bind(Bindings.isNotNull(scriptDirectory).not());
 		miOpenDirectory.setOnAction(e -> {
 			// Try to reveal directory in Finder/Windows Explorer etc.
-			DisplayHelpers.openFile(new File(scriptDirectory.get()));
+			File dir = new File(scriptDirectory.get());
+			if (!dir.exists()) {
+				dir.mkdir();
+			}
+			DisplayHelpers.openFile(dir);
 		});
 		
 		if (scriptDirectory instanceof StringProperty) {

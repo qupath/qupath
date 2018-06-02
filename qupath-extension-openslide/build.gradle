@@ -1,0 +1,11 @@
+
+description = 'qupath-extension-openslide'
+
+configurations {
+  compile.extendsFrom openslide
+}
+
+dependencies {
+  compile project(':qupath-core')
+  compile project(':qupath-core-awt')
+}
