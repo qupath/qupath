@@ -1,0 +1,5 @@
+
+description = 'qupath-extension-nn-converter'
+dependencies {
+  compile project(':qupath-gui-fx')
+}
