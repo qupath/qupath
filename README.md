@@ -82,58 +82,30 @@ Afterwards, you should find QuPath inside the `./build/jfx/native`.  You may the
 > You can get Gradle itself from http://gradle.org -- but
 [in keeping with the Gradle guidelines](https://docs.gradle.org/current/userguide/gradle_wrapper.html), the *Gradle Wrapper* is included here.  That makes things easier, and you don't need to download Gradle separately.  Here's the [Apache v2 license](https://github.com/gradle/gradle/blob/master/LICENSE).
 
-#### How to run in Intellij? (deprecated with new build system with Gradle)
+#### How to run in Intellij?
 
 1. Open your project as an existing project into Intellij.
-1. Go into `Edit configuration` and add click the `+` button to add a maven configuration
+
+1. Go into `File > Project structure...` then click on `Project` under the `Project settings`
+and on the `Project language settings:` option set it to `8 - Lambdas, type annotations etc.`
+then click apply.
+![Image](./images/idea12.png)
+
+1. On the right you'll have a gradle menu, open it and execute `qupath > qupath > Tasks > javafx > jfxNative`
+![Image](./images/idea11.png)
+
+1. Go back in the `Project structure` menu and now click on `Modules` then `qupath > qupath_main`, the
+`Dependencies` tab and the `+` sign. On the `+` sign click `1 JARs or directory...`
+and navigate to `build/jfx/app` and click "Open". You should now have a dependency named 
+"app and one more file", now click `OK`.
+![Image](./images/idea13.png)
+
+1. Go into `Edit configuration` and add click the `+` button to add an Application configuration
 and complete it as below:
 ![Image](./images/idea2.png)
 then:
-![Image](./images/idea4.png)
+![Image](./images/idea14.png)
 And click `OK`
-1. Then click on the play button next to the maven configuration to launch the install step and
-wait for it to finish
-![Image](./images/idea5.png)
 
-1. Now go into `File > Project structure...` then click on `Project` under the `Project settings`
-and on the `Project language settings:` option set it to `8 - Lambdas, type annotations etc.`
-then click apply.
-
-1. Still in the `Project structure` menu now click on `Modules` then `qupath`, the
-`Dependencies` tab and the `+` sign. On the `+` sign click `Module Dependency`
-and select all the `qupath-*` dependencies then click `OK`.
-Now click again on that the `+` sign but chose `1 JARs or directory...`
-and chose the the directory `deploy/jars`.
-Finally click again on the `+` sign and choose `1 JARs or directory...` and
-select the folder `deploy/natives`.
-You should have something like in the red rectangle below:
-![Image](./images/idea1.png)
-Finally click the `Apply` button in the bottom right corner.
-
-1. Now create a build configuration by clicking the top right arrow and 
-`Edit configurations...`:
-![Image](./images/idea10.png)
-
-1. Click on the `+` button and chose `Application` then complete the configuration
-as below and click `OK`:
-![Image](./images/idea3.png)
-
-1. Now select QuPath App in the configuration dropdown and click the play button:
-![Image](./images/idea7.png)
-
-### How to deploy in Intellij?
-
-1. Open the maven windows and select all profiles then
-click "install"
-![Image](./images/idea8.png)
-
-1. Now right click on the `build.xml` file at the root
-of the project and click on "Add as Ant build file".
-Then in the Ant windows click on "do-deploy".
-![Image](./images/idea9.png)
-
-Notes:
- - Use and check the JDK 8 is used in "Project structure" for compilation
- - If you get "Access is denied" when running the ANT task on
-Windows just move your project directory to `C:\Users\YOUR_USER`
-and try to compile from there.
+1. Finally click on the play button next to the QuPath configuration you just created to launch the app
+![Image](./images/idea15.png)
