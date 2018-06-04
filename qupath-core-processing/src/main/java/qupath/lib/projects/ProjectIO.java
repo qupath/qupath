@@ -24,6 +24,8 @@
 package qupath.lib.projects;
 
 import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -195,16 +197,11 @@ public class ProjectIO {
 
 		// Create the new file
 		try {
-			fileProject.createNewFile();
 			// Write project
-			PrintWriter writer = new PrintWriter(fileProject);
-			writer.write(gson.toJson(builder));
-		}
-		catch (FileNotFoundException e) {
-			errorCallback.onError("File " + fileProject + " not found!");
+			Files.write(fileProject.toPath(), gson.toJson(builder).getBytes());
 		}
 		catch (IOException e) {
-			errorCallback.onError("Could not create file " + fileProject);
+			errorCallback.onError("Could not create file " + fileProject.toPath());
 		}
 	}
 
