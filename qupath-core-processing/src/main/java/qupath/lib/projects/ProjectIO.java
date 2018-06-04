@@ -132,6 +132,10 @@ public class ProjectIO {
 	}
 
 
+	public static void writeProject(final Project<?> project) {
+		ProjectIO.writeProject(project, e -> logger.error("Error writing project", e));
+	}
+
 	/**
 	 * Write project, overwriting existing file or using the default name.
 	 * 
@@ -139,25 +143,15 @@ public class ProjectIO {
 	 * 
 	 * @param project
 	 */
-	public static void writeProject(final Project<?> project) {
-		writeProject(project, null);
-	}
-
-	/**
-	 * Write project, setting the name of the project file.
-	 * 
-	 * @param project
-	 * @param name
-	 */
-	public static void writeProject(final Project<?> project, final String name) {
-		File fileProject = getProjectFile(project, name);
+	public static void writeProject(final Project<?> project, ProjectErrorCallback errorCallback) {
+		File fileProject = getProjectFile(project, null);
 		if (fileProject == null) {
 			logger.error("No file found, cannot write project: {}", project);
 			return;
 		}
 
 		Gson gson = new GsonBuilder().setPrettyPrinting().create();
-		
+
 		List<PathClass> pathClasses = project.getPathClasses();
 		JsonArray pathClassArray = null;
 		if (!pathClasses.isEmpty()) {
@@ -168,23 +162,23 @@ public class ProjectIO {
 				jsonEntry.addProperty("color", pathClass.getColor());
 				pathClassArray.add(jsonEntry);
 			}
-		}		
-		
+		}
+
 		JsonArray array = new JsonArray();
 		for (ProjectImageEntry<?> entry : project.getImageList()) {
 			JsonObject jsonEntry = new JsonObject();
-		    jsonEntry.addProperty("path", entry.getStoredServerPath());
-		    jsonEntry.addProperty("name", entry.getImageName());
-		    
-		    if (entry.hasDescription())
-		    		jsonEntry.addProperty("description", entry.getDescription());
+			jsonEntry.addProperty("path", entry.getStoredServerPath());
+			jsonEntry.addProperty("name", entry.getImageName());
 
-		    Map<String, String> metadata = entry.getMetadataMap();
-		    if (!metadata.isEmpty()) {
-		    	JsonObject metadataBuilder = new JsonObject();
-		        for (Map.Entry<String, String> metadataEntry : metadata.entrySet())
-		            metadataBuilder.addProperty(metadataEntry.getKey(), metadataEntry.getValue());
-		        jsonEntry.add("metadata", metadataBuilder);
+			if (entry.hasDescription())
+				jsonEntry.addProperty("description", entry.getDescription());
+
+			Map<String, String> metadata = entry.getMetadataMap();
+			if (!metadata.isEmpty()) {
+				JsonObject metadataBuilder = new JsonObject();
+				for (Map.Entry<String, String> metadataEntry : metadata.entrySet())
+					metadataBuilder.addProperty(metadataEntry.getKey(), metadataEntry.getValue());
+				jsonEntry.add("metadata", metadataBuilder);
 			}
 			array.add(jsonEntry);
 		}
@@ -193,7 +187,7 @@ public class ProjectIO {
 		builder.addProperty("createTimestamp", project.getCreationTimestamp());
 		builder.addProperty("modifyTimestamp", project.getModificationTimestamp());
 		if (pathClassArray != null) {
-			builder.add("pathClasses", pathClassArray);			
+			builder.add("pathClasses", pathClassArray);
 		}
 		builder.add("images", array);
 
@@ -208,22 +202,10 @@ public class ProjectIO {
 		try (PrintWriter writer = new PrintWriter(fileProject)) {
 			writer.write(gson.toJson(builder));
 		} catch (FileNotFoundException e) {
+			errorCallback.onError("File " + fileProject + " not found!");
 			logger.error("Error writing project", e);
 		}
-		
-//		Map<String, ?> properties = Collections.singletonMap(JsonGenerator.PRETTY_PRINTING, true);
-//		JsonWriter writer;
-//		try {
-//			writer = Json.createWriterFactory(properties).createWriter(new BufferedWriter(new FileWriter(fileProject)));
-//			//			writer = Json.createWriter(new BufferedWriter(new FileWriter(fileProject)));
-//			writer.writeObject(builder.build());
-//			writer.close();
-//		} catch (IOException e) {
-//			e.printStackTrace();
-//		}
-		
 	}
-
 
 	/**
 	 * Get a suitable project file.
