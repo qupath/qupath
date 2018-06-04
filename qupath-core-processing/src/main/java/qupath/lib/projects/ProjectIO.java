@@ -203,7 +203,6 @@ public class ProjectIO {
 			writer.write(gson.toJson(builder));
 		} catch (FileNotFoundException e) {
 			errorCallback.onError("File " + fileProject + " not found!");
-			logger.error("Error writing project", e);
 		}
 	}
 
