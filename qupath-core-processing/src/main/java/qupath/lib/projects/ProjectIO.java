@@ -23,12 +23,7 @@
 
 package qupath.lib.projects;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
-import java.io.PrintWriter;
-import java.io.Reader;
+import java.io.*;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -198,11 +193,18 @@ public class ProjectIO {
 				logger.debug("Existing project file backed up at {}", fileBackup.getAbsolutePath());
 		}
 
-		// Write project
-		try (PrintWriter writer = new PrintWriter(fileProject)) {
+		// Create the new file
+		try {
+			fileProject.createNewFile();
+			// Write project
+			PrintWriter writer = new PrintWriter(fileProject);
 			writer.write(gson.toJson(builder));
-		} catch (FileNotFoundException e) {
+		}
+		catch (FileNotFoundException e) {
 			errorCallback.onError("File " + fileProject + " not found!");
+		}
+		catch (IOException e) {
+			errorCallback.onError("Could not create file " + fileProject);
 		}
 	}
 
