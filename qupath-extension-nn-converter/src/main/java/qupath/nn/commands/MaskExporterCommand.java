@@ -38,9 +38,11 @@ public class MaskExporterCommand implements PathCommand {
     // Requested pixel size - used to define output resolution
     // Set <= 0 to use the full resolution (whatever that may be)
     // (But be careful with this - it could take a long time to run!)
-    double requestedPixelSizeMicrons = 1.0;
+    private double requestedPixelSizeMicrons = 2.5;
     // Maximum size of an image tile when exporting
     private final int maxTileSize = 4096;
+    // If set to True maxTileSize won't matter
+    private final boolean saveFullSizedImages = true;
     private final String IMAGE_EXPORT_TYPE = "PNG";
 
     final private static Logger logger = LoggerFactory.getLogger(MaskExporterCommand.class);
@@ -115,45 +117,65 @@ public class MaskExporterCommand implements PathCommand {
         }
     }
 
+    private void exportImage(ImageServer server, RegionRequest imgRegion, String pathOutput, String filename) {
+        // Request the BufferedImage
+        BufferedImage imgBuf = (BufferedImage) server.readBufferedImage(imgRegion);
+
+        // Create filename & export
+        File fileImage = new File(pathOutput, filename + '.' + IMAGE_EXPORT_TYPE.toLowerCase());
+        try {
+            ImageIO.write(imgBuf, IMAGE_EXPORT_TYPE, fileImage);
+        } catch (IOException e) {
+            DisplayHelpers.showErrorMessage("Error while saving the slide: ",
+                    "An error occurred while saving the crop:\n" + fileImage.getAbsolutePath());
+        }
+    }
     private void saveSlide(ImageServer server, double downsample, String pathOutput) {
         // Calculate the tile spacing in full resolution pixels
         int spacing = (int)(maxTileSize * downsample);
 
-        // Create the RegionRequests
-        List<RegionRequest> requests = new ArrayList<>();
-        for (int y = 0; y < server.getHeight(); y += spacing) {
-            int h = spacing;
-            if (y + h > server.getHeight())
-                h = server.getHeight() - y;
-            for (int x = 0; x < server.getWidth(); x += spacing) {
-                int w = spacing;
-                if (x + w > server.getWidth())
-                    w = server.getWidth() - x;
-                requests.add(RegionRequest.createInstance(server.getPath(), downsample, x, y, w, h));
-            }
-        }
+        if (saveFullSizedImages) {
+            RegionRequest imgRegion = RegionRequest.createInstance(server.getPath(), downsample,
+                    0, 0, server.getWidth(), server.getHeight());
 
-        requests.parallelStream().forEach(request -> {
             // Create a suitable base image name
-            String name = String.format("%s_(%d,%d,%d,%d)",
+            String name = String.format("full_%s_(%d,%d,%d,%d)",
                     server.getShortServerName(),
-                    request.getX(),
-                    request.getY(),
-                    request.getWidth(),
-                    request.getHeight()
+                    imgRegion.getX(),
+                    imgRegion.getY(),
+                    imgRegion.getWidth(),
+                    imgRegion.getHeight()
             );
 
-            BufferedImage imgBuf = (BufferedImage) server.readBufferedImage(request);
-
-            // Create filename & export
-            File fileImage = new File(pathOutput, name + '.' + IMAGE_EXPORT_TYPE.toLowerCase());
-            try {
-                ImageIO.write(imgBuf, IMAGE_EXPORT_TYPE, fileImage);
-            } catch (IOException e) {
-                DisplayHelpers.showErrorMessage("Error while saving the slide: ",
-                        "An error occurred while saving the crop:\n" + fileImage.getAbsolutePath());
+            exportImage(server, imgRegion, pathOutput, name);
+        } else {
+            // Create the RegionRequests
+            List<RegionRequest> requests = new ArrayList<>();
+            for (int y = 0; y < server.getHeight(); y += spacing) {
+                int h = spacing;
+                if (y + h > server.getHeight())
+                    h = server.getHeight() - y;
+                for (int x = 0; x < server.getWidth(); x += spacing) {
+                    int w = spacing;
+                    if (x + w > server.getWidth())
+                        w = server.getWidth() - x;
+                    requests.add(RegionRequest.createInstance(server.getPath(), downsample, x, y, w, h));
+                }
             }
-        });
+
+            requests.parallelStream().forEach(request -> {
+                // Create a suitable base image name
+                String name = String.format("crop_%s_(%d,%d,%d,%d)",
+                        server.getShortServerName(),
+                        request.getX(),
+                        request.getY(),
+                        request.getWidth(),
+                        request.getHeight()
+                );
+
+                exportImage(server, request, pathOutput, name);
+            });
+        }
         freeGC();
     }
 
@@ -210,18 +232,18 @@ public class MaskExporterCommand implements PathCommand {
             BufferedImage imgMask = new BufferedImage(img.getWidth(), img.getHeight(), BufferedImage.TYPE_BYTE_GRAY);
             Graphics2D g2d = imgMask.createGraphics();
             g2d.setColor(Color.WHITE);
-            //g2d.scale(1.0 / DOWNSAMPLE, 1.0 / DOWNSAMPLE);
+            g2d.scale(1.0 / finalDownsample, 1.0 / finalDownsample);
             g2d.translate(-region.getX(), -region.getY());
             g2d.fill(shape);
             g2d.dispose();
 
             try {
                 // Create filename & export
-                File fileImage = new File(pathOutput, name + '.' + IMAGE_EXPORT_TYPE.toLowerCase());
+                File fileImage = new File(pathOutput, "maskImg_" + name + '.' + IMAGE_EXPORT_TYPE.toLowerCase());
                 ImageIO.write(img, IMAGE_EXPORT_TYPE, fileImage);
 
                 // Export the mask
-                File fileMask = new File(pathOutput, name + "-mask.png");
+                File fileMask = new File(pathOutput, "mask_" + name + ".png");
                 ImageIO.write(imgMask, IMAGE_EXPORT_TYPE, fileMask);
 
             } catch (IOException e) {
