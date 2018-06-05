@@ -1222,7 +1222,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			if (project != null) {
 				// Write the project, if necessary
 				if (project.setPathClasses(c.getList()))
-					ProjectIO.writeProject(project);
+					ProjectIO.writeProject(project, message -> DisplayHelpers.showErrorMessage("Error", message));
 			}
 		});
 	}

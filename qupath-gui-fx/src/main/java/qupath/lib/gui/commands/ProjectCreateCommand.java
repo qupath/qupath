@@ -34,6 +34,7 @@ import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.projects.Project;
+import qupath.lib.projects.ProjectIO;
 
 /**
  * Command to create a new (empty) project.
@@ -73,6 +74,7 @@ public class ProjectCreateCommand implements PathCommand {
 			}
 		}
 		qupath.setProject(new Project<>(dir, BufferedImage.class));
+		ProjectIO.writeProject(qupath.getProject(), message -> DisplayHelpers.showErrorMessage("Error", message));
 	}
 	
 }

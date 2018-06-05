@@ -220,7 +220,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 					model.rebuildModel();
 				}
 			}
-			ProjectIO.writeProject(project);
+			ProjectIO.writeProject(project, message -> DisplayHelpers.showErrorMessage("Error", message));
 			if (tree != null) {
 				boolean isExpanded = tree.getRoot() != null && tree.getRoot().isExpanded();
 				tree.setRoot(model.getRootFX());
@@ -268,7 +268,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 			if (project != null && entry != null) {
 				if (showDescriptionEditor(entry)) {
 					descriptionText.set(entry.getDescription());
-					ProjectIO.writeProject(project);						
+					ProjectIO.writeProject(project, message -> DisplayHelpers.showErrorMessage("Error", message));
 				}
 			} else {
 				DisplayHelpers.showErrorMessage("Edit image description", "No entry is selected!");
@@ -330,7 +330,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 						logger.warn("Attempted to set metadata value for {}, but key was empty!", entry.getImageName());
 					} else {
 						entry.putMetadataValue(key, value);
-						ProjectIO.writeProject(project);
+						ProjectIO.writeProject(project, message -> DisplayHelpers.showErrorMessage("Error", message));
 					}
 				}
 							
@@ -494,7 +494,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 				setSelectedEntry(tree, tree.getRoot(), entry);
 			}
 
-			ProjectIO.writeProject(project);
+			ProjectIO.writeProject(project, message -> DisplayHelpers.showErrorMessage("Error", message));
 		}
 	}
 
@@ -843,7 +843,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 		}
 		
 		// Ensure the project is updated
-		ProjectIO.writeProject(project);
+		ProjectIO.writeProject(project, message -> DisplayHelpers.showErrorMessage("Error", message));
 		
 		return entryNew;
 	}

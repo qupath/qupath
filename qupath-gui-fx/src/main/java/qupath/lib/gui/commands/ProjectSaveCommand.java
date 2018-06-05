@@ -25,6 +25,7 @@ package qupath.lib.gui.commands;
 
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
+import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.projects.ProjectIO;
 
 /**
@@ -47,7 +48,8 @@ public class ProjectSaveCommand implements PathCommand {
 	
 	@Override
 	public void run() {
-		ProjectIO.writeProject(qupath.getProject());
+		ProjectIO.writeProject(qupath.getProject(),
+				message -> DisplayHelpers.showErrorMessage("Error", message));
 	}
 	
 }

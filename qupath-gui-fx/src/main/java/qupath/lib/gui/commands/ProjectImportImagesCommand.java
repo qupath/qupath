@@ -69,7 +69,7 @@ public class ProjectImportImagesCommand implements PathCommand {
 	public ProjectImportImagesCommand(final QuPathGUI qupath) {
 		this.qupath = qupath;
 	}
-	
+
 	@Override
 	public void run() {
 		if (qupath.getProject() == null) {
@@ -159,7 +159,8 @@ public class ProjectImportImagesCommand implements PathCommand {
 				sb.append("\t" + path + "\n");
 			sb.append("\n");
 			qupath.refreshProject();
-			ProjectIO.writeProject(qupath.getProject());
+			ProjectIO.writeProject(qupath.getProject(),
+					message -> DisplayHelpers.showErrorMessage("Error", message));
 		}
 		if (!pathFailed.isEmpty()) {
 			sb.append("Unable to import " + pathFailed.size() + " paths:\n");
