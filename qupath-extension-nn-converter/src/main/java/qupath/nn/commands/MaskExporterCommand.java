@@ -27,6 +27,7 @@ import java.net.URI;
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -34,8 +35,12 @@ import java.util.stream.Collectors;
 
 public class MaskExporterCommand implements PathCommand {
 
-    // Define downscale value for export resolution
-    private final double REQUESTED_PIXEL_SIZE_MICRONS = 4.0;
+    // Requested pixel size - used to define output resolution
+    // Set <= 0 to use the full resolution (whatever that may be)
+    // (But be careful with this - it could take a long time to run!)
+    double requestedPixelSizeMicrons = 1.0;
+    // Maximum size of an image tile when exporting
+    private final int maxTileSize = 4096;
     private final String IMAGE_EXPORT_TYPE = "PNG";
 
     final private static Logger logger = LoggerFactory.getLogger(MaskExporterCommand.class);
@@ -110,16 +115,45 @@ public class MaskExporterCommand implements PathCommand {
         }
     }
 
-    private void saveSlide(ImageServer server, double downsample, String pathOutput) throws IOException {
-        RegionRequest imgRegion = RegionRequest.createInstance(server.getPath(), downsample,
-                0, 0, server.getWidth(), server.getHeight());
+    private void saveSlide(ImageServer server, double downsample, String pathOutput) {
+        // Calculate the tile spacing in full resolution pixels
+        int spacing = (int)(maxTileSize * downsample);
 
-        // Request the BufferedImage
-        BufferedImage imgBuf = (BufferedImage) server.readBufferedImage(imgRegion);
+        // Create the RegionRequests
+        List<RegionRequest> requests = new ArrayList<>();
+        for (int y = 0; y < server.getHeight(); y += spacing) {
+            int h = spacing;
+            if (y + h > server.getHeight())
+                h = server.getHeight() - y;
+            for (int x = 0; x < server.getWidth(); x += spacing) {
+                int w = spacing;
+                if (x + w > server.getWidth())
+                    w = server.getWidth() - x;
+                requests.add(RegionRequest.createInstance(server.getPath(), downsample, x, y, w, h));
+            }
+        }
 
-        // Create filename & export
-        File fileImage = new File(pathOutput, server.getShortServerName() + '.' + IMAGE_EXPORT_TYPE.toLowerCase());
-        ImageIO.write(imgBuf, IMAGE_EXPORT_TYPE, fileImage);
+        requests.parallelStream().forEach(request -> {
+            // Create a suitable base image name
+            String name = String.format("%s_(%d,%d,%d,%d)",
+                    server.getShortServerName(),
+                    request.getX(),
+                    request.getY(),
+                    request.getWidth(),
+                    request.getHeight()
+            );
+
+            BufferedImage imgBuf = (BufferedImage) server.readBufferedImage(request);
+
+            // Create filename & export
+            File fileImage = new File(pathOutput, name + '.' + IMAGE_EXPORT_TYPE.toLowerCase());
+            try {
+                ImageIO.write(imgBuf, IMAGE_EXPORT_TYPE, fileImage);
+            } catch (IOException e) {
+                DisplayHelpers.showErrorMessage("Error while saving the slide: ",
+                        "An error occurred while saving the crop:\n" + fileImage.getAbsolutePath());
+            }
+        });
         freeGC();
     }
 
@@ -133,21 +167,15 @@ public class MaskExporterCommand implements PathCommand {
         String pathOutput = QPEx.buildFilePath(QPEx.PROJECT_BASE_DIR, "masks", server.getShortServerName());
         QPEx.mkdirs(pathOutput);
 
+        // Calculate the downsample value
         double downsample = 1;
+        if (requestedPixelSizeMicrons > 0)
+            downsample = requestedPixelSizeMicrons / server.getAveragedPixelSizeMicrons();
 
-        if (REQUESTED_PIXEL_SIZE_MICRONS > 0)
-            downsample = REQUESTED_PIXEL_SIZE_MICRONS / server.getAveragedPixelSizeMicrons();
+        // First save the whole slide as crops
+        saveSlide(server, downsample, pathOutput);
 
-        // First save the whole slide
-        try {
-            saveSlide(server, downsample, pathOutput);
-        } catch (IOException e) {
-            DisplayHelpers.showErrorMessage("Error while saving the slide",
-                    "An error occurred while saving the entire slide:\n" + e.getMessage());
-        }
-
-        final double finalDownsample = downsample;
-
+        double finalDownsample = downsample;
         annotations.forEach(annotation -> {
             freeGC();
             ROI roi = annotation.getROI();
@@ -182,7 +210,7 @@ public class MaskExporterCommand implements PathCommand {
             BufferedImage imgMask = new BufferedImage(img.getWidth(), img.getHeight(), BufferedImage.TYPE_BYTE_GRAY);
             Graphics2D g2d = imgMask.createGraphics();
             g2d.setColor(Color.WHITE);
-            g2d.scale(1.0 / finalDownsample, 1.0 / finalDownsample);
+            //g2d.scale(1.0 / DOWNSAMPLE, 1.0 / DOWNSAMPLE);
             g2d.translate(-region.getX(), -region.getY());
             g2d.fill(shape);
             g2d.dispose();
