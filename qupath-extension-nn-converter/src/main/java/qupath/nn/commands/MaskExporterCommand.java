@@ -44,6 +44,7 @@ public class MaskExporterCommand implements PathCommand {
     // If set to True maxTileSize won't matter
     private final boolean saveFullSizedImages = false;
     private final String IMAGE_EXPORT_TYPE = "PNG";
+    private int successfulAnnotationCounter;
 
     final private static Logger logger = LoggerFactory.getLogger(MaskExporterCommand.class);
     private PathCommand saveCommand;
@@ -125,11 +126,22 @@ public class MaskExporterCommand implements PathCommand {
         File fileImage = new File(pathOutput, filename + '.' + IMAGE_EXPORT_TYPE.toLowerCase());
         try {
             ImageIO.write(imgBuf, IMAGE_EXPORT_TYPE, fileImage);
+            successfulAnnotationCounter++;
         } catch (IOException e) {
-            DisplayHelpers.showErrorMessage("Error while saving the slide: ",
-                    "An error occurred while saving the crop:\n" + fileImage.getAbsolutePath());
+            String message = "An error occurred while saving the crop:\n" + fileImage.getAbsolutePath();
+            logger.error(message);
+            DisplayHelpers.showErrorMessage("Error while saving the crop: ", message);
         }
     }
+
+    private void checkAnnotationsSuccess(int size) {
+        if (successfulAnnotationCounter != size) {
+            DisplayHelpers.showErrorMessage("Error while saving the annotation",
+                    "Not all annotations were saved, maybe your computer does " +
+                            "not have enough RAM for the operation to finish");
+        }
+    }
+
     private void saveSlide(ImageServer server, double downsample, String pathOutput) {
         // Calculate the tile spacing in full resolution pixels
         int spacing = (int)(maxTileSize * downsample);
@@ -163,6 +175,7 @@ public class MaskExporterCommand implements PathCommand {
                 }
             }
 
+            successfulAnnotationCounter = 0;
             requests.parallelStream().forEach(request -> {
                 // Create a suitable base image name
                 String name = String.format("crop_%s_(%d,%d,%d,%d)",
@@ -175,6 +188,7 @@ public class MaskExporterCommand implements PathCommand {
 
                 exportImage(server, request, pathOutput, name);
             });
+            checkAnnotationsSuccess(requests.size());
         }
         freeGC();
     }
@@ -198,6 +212,7 @@ public class MaskExporterCommand implements PathCommand {
         saveSlide(server, downsample, pathOutput);
 
         double finalDownsample = downsample;
+        successfulAnnotationCounter = 0;
         annotations.forEach(annotation -> {
             freeGC();
             ROI roi = annotation.getROI();
@@ -245,6 +260,7 @@ public class MaskExporterCommand implements PathCommand {
                 // Export the mask
                 File fileMask = new File(pathOutput, "mask_" + name + ".png");
                 ImageIO.write(imgMask, IMAGE_EXPORT_TYPE, fileMask);
+                successfulAnnotationCounter++;
 
             } catch (IOException e) {
                 DisplayHelpers.showErrorMessage("Error while saving the annotation",
@@ -252,6 +268,7 @@ public class MaskExporterCommand implements PathCommand {
             }
 
         });
+        checkAnnotationsSuccess(annotations.size());
         freeGC();
     }
 
