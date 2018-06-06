@@ -8,7 +8,7 @@ import org.slf4j.LoggerFactory;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.helpers.DisplayHelpers;
-import qupath.lib.projects.Project;
+import qupath.lib.projects.ImageRetCode;
 import qupath.lib.projects.ProjectIO;
 
 import java.io.File;
@@ -32,7 +32,7 @@ public class OpenFromRootPathCommand implements PathCommand {
     }
 
     private void openInProject(List<Path> mrxsFiles) {
-        Map<String, Project.ADD_IMAGE_CODE> retcodes = new HashMap<>();
+        Map<String, ImageRetCode.IMAGE_CODE> retcodes = new HashMap<>();
         Map<String, String> fileList = new HashMap<>();
         List<String> duplicates = new ArrayList<>();
 
@@ -54,7 +54,15 @@ public class OpenFromRootPathCommand implements PathCommand {
                     }
                     fileList.put(fileName, abs_path);
 
-                    retcodes.put(abs_path, qupath.getProject().addImage(abs_path.trim()));
+                    ImageRetCode retCode = qupath.getProject().addImage(abs_path.trim());
+
+                    if (!retCode.isOpenSlideImageServer()) {
+                        DisplayHelpers.showErrorMessage("Error", "The mrsx files you opened is not using " +
+                                "OpenSlide image server. Please contact the developers about this issue.");
+                        break;
+                    }
+
+                    retcodes.put(abs_path, retCode.getRetCode());
                     counter++;
                 }
                 updateProgress(max, max);
@@ -81,32 +89,32 @@ public class OpenFromRootPathCommand implements PathCommand {
             return;
         }
 
-        Map<Project.ADD_IMAGE_CODE, Long> valcounts = retcodes.values().stream()
+        Map<ImageRetCode.IMAGE_CODE, Long> valcounts = retcodes.values().stream()
                 .collect(Collectors.groupingBy(v -> v, Collectors.counting()));
 
-        long changed_sz = valcounts.get(Project.ADD_IMAGE_CODE.CHANGED) == null ?
-                0 : valcounts.get(Project.ADD_IMAGE_CODE.CHANGED);
+        long changed_sz = valcounts.get(ImageRetCode.IMAGE_CODE.CHANGED) == null ?
+                0 : valcounts.get(ImageRetCode.IMAGE_CODE.CHANGED);
         StringBuilder sucess_sb = new StringBuilder();
         sucess_sb.append("Successfully imported ")
                 .append(changed_sz).append(" files:\n");
 
-        long no_changes_sz = valcounts.get(Project.ADD_IMAGE_CODE.NO_CHANGES) == null ?
-                0 : valcounts.get(Project.ADD_IMAGE_CODE.NO_CHANGES);
+        long no_changes_sz = valcounts.get(ImageRetCode.IMAGE_CODE.NO_CHANGES) == null ?
+                0 : valcounts.get(ImageRetCode.IMAGE_CODE.NO_CHANGES);
         StringBuilder unchanged_sb = new StringBuilder();
         unchanged_sb.append("Ignored (already in the project) ")
                 .append(no_changes_sz).append(" files:\n");
 
-        long exceptions_sz = valcounts.get(Project.ADD_IMAGE_CODE.EXCEPTION) == null ?
-                0 : valcounts.get(Project.ADD_IMAGE_CODE.EXCEPTION);
+        long exceptions_sz = valcounts.get(ImageRetCode.IMAGE_CODE.EXCEPTION) == null ?
+                0 : valcounts.get(ImageRetCode.IMAGE_CODE.EXCEPTION);
         StringBuilder exception_sb = new StringBuilder();
         exception_sb.append("Unable to import ")
                 .append(exceptions_sz).append(" files:\n");
 
-        for (Map.Entry<String, Project.ADD_IMAGE_CODE> entry : retcodes.entrySet())
+        for (Map.Entry<String, ImageRetCode.IMAGE_CODE> entry : retcodes.entrySet())
         {
-            if (entry.getValue() == Project.ADD_IMAGE_CODE.CHANGED)
+            if (entry.getValue() == ImageRetCode.IMAGE_CODE.CHANGED)
                 sucess_sb.append("\t").append(entry.getKey()).append("\n");
-            else if (entry.getValue() == Project.ADD_IMAGE_CODE.NO_CHANGES)
+            else if (entry.getValue() == ImageRetCode.IMAGE_CODE.NO_CHANGES)
                 unchanged_sb.append("\t").append(entry.getKey()).append("\n");
             else
                 exception_sb.append("\t").append(entry.getKey()).append("\n");
@@ -119,9 +127,9 @@ public class OpenFromRootPathCommand implements PathCommand {
         } else {
             TextArea textArea = new TextArea();
             textArea.setText(sucess_sb.toString() + '\n' + unchanged_sb.toString());
-            DisplayHelpers.showMessageDialog(commandName, textArea);
             qupath.refreshProject();
             ProjectIO.writeProject(qupath.getProject());
+            DisplayHelpers.showMessageDialog(commandName, textArea);
         }
     }
 

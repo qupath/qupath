@@ -149,21 +149,17 @@ public class Project<T> {
 		return cleanedPath;
 	}
 
-	public enum ADD_IMAGE_CODE {
-		CHANGED,
-		NO_CHANGES,
-		EXCEPTION
-	}
-
-	public ADD_IMAGE_CODE addImage(final String path) {
+	public ImageRetCode addImage(final String path) {
 		try {
 			ImageServer<T> server = ImageServerProvider.buildServer(path, cls);
 			boolean changes = addImagesForServer(server);
+			ImageRetCode.IMAGE_CODE code = changes ? ImageRetCode.IMAGE_CODE.CHANGED : ImageRetCode.IMAGE_CODE.NO_CHANGES;
+			ImageRetCode retCode = new ImageRetCode(code, server);
 			server.close();
-			return changes ? ADD_IMAGE_CODE.CHANGED : ADD_IMAGE_CODE.NO_CHANGES;
+			return retCode;
 		} catch (Exception e) {
 			e.printStackTrace();
-			return ADD_IMAGE_CODE.EXCEPTION;
+			return new ImageRetCode(ImageRetCode.IMAGE_CODE.EXCEPTION, null);
 		}
 	}
 	

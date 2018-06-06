@@ -50,7 +50,7 @@ import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.gui.helpers.PanelToolsFX;
-import qupath.lib.projects.Project;
+import qupath.lib.projects.ImageRetCode;
 import qupath.lib.projects.ProjectIO;
 
 /**
@@ -136,8 +136,8 @@ public class ProjectImportImagesCommand implements PathCommand {
 				for (String path : listView.getItems()) {
 					updateMessage(path);
 					updateProgress(counter, max);
-					Project.ADD_IMAGE_CODE code = qupath.getProject().addImage(path.trim());
-					if (code == Project.ADD_IMAGE_CODE.CHANGED)
+					ImageRetCode code = qupath.getProject().addImage(path.trim());
+					if (code.getRetCode() == ImageRetCode.IMAGE_CODE.CHANGED)
 						pathSucceeded.add(path);
 					else
 						pathFailed.add(path);
@@ -262,7 +262,7 @@ public class ProjectImportImagesCommand implements PathCommand {
 	/**
 	 * Load potential image paths into a list
 	 * 
-	 * @param listView
+	 * @param list
 	 */
 	int loadFromClipboard(final List<String> list) {
 		int changes = 0;
