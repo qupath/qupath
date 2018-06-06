@@ -38,11 +38,11 @@ public class MaskExporterCommand implements PathCommand {
     // Requested pixel size - used to define output resolution
     // Set <= 0 to use the full resolution (whatever that may be)
     // (But be careful with this - it could take a long time to run!)
-    private double requestedPixelSizeMicrons = 2.5;
+    private double requestedPixelSizeMicrons = 1;
     // Maximum size of an image tile when exporting
     private final int maxTileSize = 4096;
     // If set to True maxTileSize won't matter
-    private final boolean saveFullSizedImages = true;
+    private final boolean saveFullSizedImages = false;
     private final String IMAGE_EXPORT_TYPE = "PNG";
 
     final private static Logger logger = LoggerFactory.getLogger(MaskExporterCommand.class);
