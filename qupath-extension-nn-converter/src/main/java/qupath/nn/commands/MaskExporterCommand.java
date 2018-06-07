@@ -1,6 +1,7 @@
 package qupath.nn.commands;
 
 import javafx.scene.control.Alert;
+import javafx.scene.control.TextArea;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.gui.QuPathGUI;
@@ -47,6 +48,7 @@ public class MaskExporterCommand implements PathCommand {
     private int successfulAnnotationCounter;
 
     final private static Logger logger = LoggerFactory.getLogger(MaskExporterCommand.class);
+    private List<String> errorMessages;
     private PathCommand saveCommand;
     private QuPathGUI qupath;
     private WorkIndicatorDialog wd;
@@ -130,22 +132,16 @@ public class MaskExporterCommand implements PathCommand {
         } catch (IOException e) {
             String message = "An error occurred while saving the crop:\n" + fileImage.getAbsolutePath();
             logger.error(message);
-            DisplayHelpers.showErrorMessage("Error while saving the crop: ", message);
+            errorMessages.add(message);
         }
     }
 
-    private void checkAnnotationsSuccess(int size) {
-        if (successfulAnnotationCounter != size) {
-            DisplayHelpers.showErrorMessage("Error while saving the annotation",
-                    "Not all annotations were saved, maybe your computer does " +
-                            "not have enough RAM for the operation to finish");
-        }
-    }
-
-    private void saveSlide(ImageServer server, double downsample, String pathOutput) {
+    private boolean saveSlide(ImageServer server, double downsample, String pathOutput) {
         // Calculate the tile spacing in full resolution pixels
         int spacing = (int)(maxTileSize * downsample);
 
+        successfulAnnotationCounter = 0;
+        boolean isSuccessful;
         if (saveFullSizedImages) {
             RegionRequest imgRegion = RegionRequest.createInstance(server.getPath(), downsample,
                     0, 0, server.getWidth(), server.getHeight());
@@ -160,6 +156,7 @@ public class MaskExporterCommand implements PathCommand {
             );
 
             exportImage(server, imgRegion, pathOutput, name);
+            isSuccessful = successfulAnnotationCounter == 1;
         } else {
             // Create the RegionRequests
             List<RegionRequest> requests = new ArrayList<>();
@@ -175,7 +172,6 @@ public class MaskExporterCommand implements PathCommand {
                 }
             }
 
-            successfulAnnotationCounter = 0;
             requests.parallelStream().forEach(request -> {
                 // Create a suitable base image name
                 String name = String.format("crop_%s_(%d,%d,%d,%d)",
@@ -188,14 +184,16 @@ public class MaskExporterCommand implements PathCommand {
 
                 exportImage(server, request, pathOutput, name);
             });
-            checkAnnotationsSuccess(requests.size());
+            isSuccessful = successfulAnnotationCounter == requests.size();
         }
         freeGC();
+        return isSuccessful;
     }
 
-    private void exportMasks(PathObjectHierarchy hierarchy, ImageServer server) {
+    private int exportMasks(PathObjectHierarchy hierarchy, ImageServer server) {
         saveAndBackupProject();
 
+        boolean isSuccessful = false;
         // Request all objects from the hierarchy & filter only the annotations
         List<PathObject> annotations = hierarchy.getFlattenedObjectList(null).stream()
                 .filter(PathObject::isAnnotation).collect(Collectors.toList());
@@ -209,7 +207,7 @@ public class MaskExporterCommand implements PathCommand {
             downsample = requestedPixelSizeMicrons / server.getAveragedPixelSizeMicrons();
 
         // First save the whole slide as crops
-        saveSlide(server, downsample, pathOutput);
+        isSuccessful = saveSlide(server, downsample, pathOutput);
 
         double finalDownsample = downsample;
         successfulAnnotationCounter = 0;
@@ -252,9 +250,10 @@ public class MaskExporterCommand implements PathCommand {
             g2d.fill(shape);
             g2d.dispose();
 
+            // Create filename & export
+            File fileImage = new File(pathOutput, "maskImg_" + name + '.' + IMAGE_EXPORT_TYPE.toLowerCase());
+
             try {
-                // Create filename & export
-                File fileImage = new File(pathOutput, "maskImg_" + name + '.' + IMAGE_EXPORT_TYPE.toLowerCase());
                 ImageIO.write(img, IMAGE_EXPORT_TYPE, fileImage);
 
                 // Export the mask
@@ -263,13 +262,16 @@ public class MaskExporterCommand implements PathCommand {
                 successfulAnnotationCounter++;
 
             } catch (IOException e) {
-                DisplayHelpers.showErrorMessage("Error while saving the annotation",
-                        "An error occurred while saving one annotation:\n" + e.getMessage());
+                String message = "An error occurred while saving one annotation:\n" + fileImage.getAbsolutePath();
+                logger.error(message);
+                errorMessages.add(message);
             }
 
         });
-        checkAnnotationsSuccess(annotations.size());
-        freeGC();
+        if (isSuccessful && successfulAnnotationCounter == annotations.size()) {
+            return 1;
+        }
+        return -1;
     }
 
     @Override
@@ -291,10 +293,23 @@ public class MaskExporterCommand implements PathCommand {
                     "Saving data...");
 
             wd.addTaskEndNotification(result -> {
+                freeGC();
                 if (((Integer) result) == 1) {
-                    logger.info("NN exporter finished with success!");
+                    logger.info("NN exporter ended with success!");
+                    DisplayHelpers.showInfoNotification("Changes saved",
+                            "The changes were successfully saved");
                 } else {
-                    logger.error("NN exporter finished with a failure!");
+                    logger.error("NN exporter ended with a failure!");
+                    StringBuilder sb = new StringBuilder();
+                    sb.append("Not all annotations were saved, maybe your computer does not have enough RAM " +
+                            "for the operations to finish.\nThe following exports ended with errors:\n");
+
+                    for (String msg : errorMessages) {
+                        sb.append(msg).append('\n');
+                    }
+                    javafx.scene.control.TextArea textArea = new TextArea();
+                    textArea.setText(sb.toString());
+                    DisplayHelpers.showErrorMessage("Error while saving the annotations", textArea);
                 }
                 wd = null; // don't keep the object, cleanup
             });
@@ -304,8 +319,8 @@ public class MaskExporterCommand implements PathCommand {
                 PathObjectHierarchy hierarchy = imageData.getHierarchy();
                 ImageServer server = imageData.getServer();
 
-                exportMasks(hierarchy, server);
-                return 1;
+                errorMessages = new ArrayList<>();
+                return exportMasks(hierarchy, server);
             });
         }
     }
