@@ -731,7 +731,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 						"import qupath\n" +
 						"from %s import *\n" +
 //						"setBatchImageData(imageData)\n" +
-						"%s\n" +
+						"%s\n",
 //						"setBatchImageData(None)\n",
 						scriptClass, script);
 				extraLines = 2;
