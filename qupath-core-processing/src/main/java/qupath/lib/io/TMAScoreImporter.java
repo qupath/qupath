@@ -24,7 +24,7 @@
 package qupath.lib.io;
 
 import java.io.File;
-import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.text.NumberFormat;
 import java.text.ParseException;
 import java.util.ArrayList;
@@ -60,7 +60,7 @@ public class TMAScoreImporter {
 	
 	final private static Logger logger = LoggerFactory.getLogger(TMAScoreImporter.class);
 	
-	public static int importFromCSV(final File file, final PathObjectHierarchy hierarchy) throws FileNotFoundException {
+	public static int importFromCSV(final File file, final PathObjectHierarchy hierarchy) throws IOException {
 		return importFromCSV(readCSV(file), hierarchy);
 	}
 	
@@ -94,7 +94,7 @@ public class TMAScoreImporter {
 			logger.error("No column with header 'core' or '" + TMACoreObject.KEY_UNIQUE_ID + "' found");
 			return 0;
 		}
-		int n = coreNames == null ? coreIDs.size() : coreNames.size();
+//		int n = coreNames == null ? coreIDs.size() : coreNames.size();
 		
 		// Get a list of cores ordered by whatever info we have
 		Map<Integer, List<TMACoreObject>> cores = new HashMap<>();
@@ -283,11 +283,10 @@ public class TMAScoreImporter {
 		return readCSV(new Scanner(text));
 	}
 
-	public static Map<String, List<String>> readCSV(final File file) throws FileNotFoundException {
-		Scanner scanner = new Scanner(file);
-		Map<String, List<String>> map = readCSV(scanner);
-		scanner.close();
-		return map;
+	public static Map<String, List<String>> readCSV(final File file) throws IOException {
+		try (Scanner scanner = new Scanner(file)) {
+			return readCSV(scanner);
+		}
 	}
 
 	

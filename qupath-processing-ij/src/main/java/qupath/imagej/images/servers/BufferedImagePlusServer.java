@@ -106,7 +106,7 @@ public class BufferedImagePlusServer extends WrappedImageServer<BufferedImage> i
 		imp.setDimensions(imp.getNSlices(), 1, 1);
 		// Set colors
 		SampleModel sampleModel = img.getSampleModel();
-		if (sampleModel.getNumBands() > 1) {
+		if (!server.isRGB() && sampleModel.getNumBands() > 1) {
 			CompositeImage impComp = new CompositeImage(imp, CompositeImage.COMPOSITE);
 			for (int b = 0; b < sampleModel.getNumBands(); b++) {
 				impComp.setChannelLut(

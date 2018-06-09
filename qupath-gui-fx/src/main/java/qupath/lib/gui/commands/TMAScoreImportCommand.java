@@ -25,6 +25,7 @@ package qupath.lib.gui.commands;
 
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -212,7 +213,7 @@ public class TMAScoreImportCommand implements PathCommand {
 				DisplayHelpers.showMessageDialog(name, "Updated " + nScores + " cores");
 //			logger.info(String.format("Scores read for %d core(s)", nScores));
 			return nScores > 0;
-		} catch (FileNotFoundException e) {
+		} catch (IOException e) {
 			DisplayHelpers.showErrorMessage(name, e.getLocalizedMessage());
 			return false;
 		}

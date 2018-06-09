@@ -1568,8 +1568,7 @@ public class TMASummaryViewer {
 			serverPath = scanner.nextLine().trim();
 			scanner.close();
 		} catch (Exception e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			logger.error("Error parsing input file", e);
 		}
 		if (serverPath == null) { // || !(new File(serverPath).exists())) {
 			logger.error("Unable to find a server with path " + serverPath + " - cannot parse " + file.getAbsolutePath());
@@ -1579,9 +1578,16 @@ public class TMASummaryViewer {
 		File dirData = new File(file.getAbsolutePath() + ".data");
 		
 		try {
-			Map<String, List<String>> csvData = TMAScoreImporter.readCSV(getTMAResultsFile(dirData));
-			if (csvData.isEmpty())
+			File fileResults = getTMAResultsFile(dirData);
+			if (fileResults == null) {
+				logger.error("No results file found for {}", dirData.getAbsolutePath());
 				return;
+			}
+			Map<String, List<String>> csvData = TMAScoreImporter.readCSV(fileResults);
+			if (csvData.isEmpty()) {
+				logger.warn("Results file empty: {}", fileResults.getAbsolutePath());
+				return;
+			}
 			
 			// Identify metadata and numeric columns
 			Map<String, List<String>> metadataColumns = new LinkedHashMap<>();
@@ -1593,7 +1599,7 @@ public class TMASummaryViewer {
 				// Make sure IDs are trimmed
 				if (trimUniqueIDs) {
 					for (int i = 0; i < idColumn.size(); i++)
-						idColumn.set(i, idColumn.get(i).trim());
+						idColumn.set(i, idColumn.get(i) == null ? null : idColumn.get(i).trim());
 				}
 			}
 			List<String> nameColumn = csvData.remove("Name");
@@ -1632,7 +1638,7 @@ public class TMASummaryViewer {
 				entries.add(entry);
 			}
 		} catch (Exception e) {
-			e.printStackTrace();
+			logger.error("Error parsing input file " + file, e);
 		}
 
 		logger.info("Parsed " + (entries.size() - nEntries) + " from " + file.getName() + " (" + entries.size() + " total)");
