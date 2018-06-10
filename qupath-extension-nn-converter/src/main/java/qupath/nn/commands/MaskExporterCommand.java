@@ -40,11 +40,11 @@ public class MaskExporterCommand implements PathCommand {
     // Set <= 0 to use the full resolution (whatever that may be)
     // (But be careful with this - it could take a long time to run!)
     // If requestedPixelSizeMicrons > 0 then the downsample result will be rounded
-    private double requestedPixelSizeMicrons = 4.0; // 4.0
+    private double requestedPixelSizeMicrons = 1.0; // 4.0
     // Maximum size of an image tile when exporting
     private final int maxTileSize = 4096;
     // If set to True maxTileSize won't matter
-    private final boolean saveFullSizedImages = true;
+    private final boolean saveFullSizedImages = false;
     private final String IMAGE_EXPORT_TYPE = "PNG";
     private int successfulAnnotationCounter;
 
