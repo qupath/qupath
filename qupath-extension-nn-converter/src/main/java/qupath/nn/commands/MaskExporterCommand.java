@@ -39,7 +39,7 @@ public class MaskExporterCommand implements PathCommand {
     // Requested pixel size - used to define output resolution
     // Set <= 0 to use the full resolution (whatever that may be)
     // (But be careful with this - it could take a long time to run!)
-    private double requestedPixelSizeMicrons = 1;
+    private double requestedPixelSizeMicrons = 1; // 4.0
     // Maximum size of an image tile when exporting
     private final int maxTileSize = 4096;
     // If set to True maxTileSize won't matter
@@ -226,7 +226,7 @@ public class MaskExporterCommand implements PathCommand {
             RegionRequest region = RegionRequest.createInstance(server.getPath(), finalDownsample, roi);
 
             // Create a name
-            String name = String.format("%s_%s_prop(X-%d,Y-%d,W-%d,H-%d)",
+            String name = String.format("%s_%s_prop(%d,%d,%d,%d)",
                     annotationLabel,
                     server.getShortServerName(),
                     (int) Math.ceil(region.getX() / region.getDownsample()),
