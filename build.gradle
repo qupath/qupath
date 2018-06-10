@@ -2,7 +2,7 @@
  * Gradle script for building QuPath, with the help of the JavaFX packager.
  */
 
-def nnVersion = "0.2"
+def nnVersion = "0.3"
 def qupathVersion = "0.1.3-SNAPSHOT"   // Current version for QuPath
 def qupathVendor = "QuPath developers" // Requested by JavaFX packager
 def includeJRE = true                  // Should Java be included in any native packages?

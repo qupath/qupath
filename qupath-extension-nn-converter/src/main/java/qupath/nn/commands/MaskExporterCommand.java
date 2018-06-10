@@ -172,17 +172,17 @@ public class MaskExporterCommand implements PathCommand {
                 }
             }
 
-            requests.parallelStream().forEach(request -> {
+            requests.parallelStream().forEach(region -> {
                 // Create a suitable base image name
                 String name = String.format("crop_%s_(%d,%d,%d,%d)",
                         server.getShortServerName(),
-                        request.getX(),
-                        request.getY(),
-                        request.getWidth(),
-                        request.getHeight()
+                        (int) Math.ceil(region.getX() / region.getDownsample()),
+                        (int) Math.ceil(region.getY() / region.getDownsample()),
+                        (int) Math.ceil(region.getWidth() / region.getDownsample()),
+                        (int) Math.ceil(region.getHeight() / region.getDownsample())
                 );
 
-                exportImage(server, request, pathOutput, name);
+                exportImage(server, region, pathOutput, name);
             });
             isSuccessful = successfulAnnotationCounter == requests.size();
         }
