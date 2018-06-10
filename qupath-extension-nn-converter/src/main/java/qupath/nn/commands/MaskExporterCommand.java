@@ -39,11 +39,12 @@ public class MaskExporterCommand implements PathCommand {
     // Requested pixel size - used to define output resolution
     // Set <= 0 to use the full resolution (whatever that may be)
     // (But be careful with this - it could take a long time to run!)
-    private double requestedPixelSizeMicrons = 1; // 4.0
+    // If requestedPixelSizeMicrons > 0 then the downsample result will be rounded
+    private double requestedPixelSizeMicrons = 4.0; // 4.0
     // Maximum size of an image tile when exporting
     private final int maxTileSize = 4096;
     // If set to True maxTileSize won't matter
-    private final boolean saveFullSizedImages = false;
+    private final boolean saveFullSizedImages = true;
     private final String IMAGE_EXPORT_TYPE = "PNG";
     private int successfulAnnotationCounter;
 
@@ -137,9 +138,6 @@ public class MaskExporterCommand implements PathCommand {
     }
 
     private boolean saveSlide(ImageServer server, double downsample, String pathOutput) {
-        // Calculate the tile spacing in full resolution pixels
-        int spacing = (int)(maxTileSize * downsample);
-
         successfulAnnotationCounter = 0;
         boolean isSuccessful;
         if (saveFullSizedImages) {
@@ -158,6 +156,10 @@ public class MaskExporterCommand implements PathCommand {
             exportImage(server, imgRegion, pathOutput, name);
             isSuccessful = successfulAnnotationCounter == 1;
         } else {
+            // Calculate the tile spacing in full resolution pixels
+            int spacing = (int)(maxTileSize * downsample);
+
+
             // Create the RegionRequests
             List<RegionRequest> requests = new ArrayList<>();
             for (int y = 0; y < server.getHeight(); y += spacing) {
@@ -190,7 +192,7 @@ public class MaskExporterCommand implements PathCommand {
         return isSuccessful;
     }
 
-    private int exportMasks(PathObjectHierarchy hierarchy, ImageServer server) {
+    private int exportMasksAndSlide(PathObjectHierarchy hierarchy, ImageServer server) {
         saveAndBackupProject();
 
         boolean isSuccessful = false;
@@ -204,7 +206,7 @@ public class MaskExporterCommand implements PathCommand {
         // Calculate the downsample value
         double downsample = 1;
         if (requestedPixelSizeMicrons > 0)
-            downsample = requestedPixelSizeMicrons / server.getAveragedPixelSizeMicrons();
+            downsample = (int) Math.ceil(requestedPixelSizeMicrons / server.getAveragedPixelSizeMicrons());
 
         // First save the whole slide as crops
         isSuccessful = saveSlide(server, downsample, pathOutput);
@@ -320,7 +322,7 @@ public class MaskExporterCommand implements PathCommand {
                 ImageServer server = imageData.getServer();
 
                 errorMessages = new ArrayList<>();
-                return exportMasks(hierarchy, server);
+                return exportMasksAndSlide(hierarchy, server);
             });
         }
     }
