@@ -137,6 +137,16 @@ public class MaskExporterCommand implements PathCommand {
         }
     }
 
+    private String getRegionName(ImageServer server, String prefix, RegionRequest region) {
+        return String.format(prefix + "_%s_(%d,%d,%d,%d)",
+                server.getShortServerName(),
+                (int) Math.round(region.getX() / region.getDownsample()),
+                (int) Math.round(region.getY() / region.getDownsample()),
+                (int) Math.round(region.getWidth() / region.getDownsample()),
+                (int) Math.round(region.getHeight() / region.getDownsample())
+        );
+    }
+
     private boolean saveSlide(ImageServer server, double downsample, String pathOutput) {
         successfulAnnotationCounter = 0;
         boolean isSuccessful;
@@ -145,13 +155,7 @@ public class MaskExporterCommand implements PathCommand {
                     0, 0, server.getWidth(), server.getHeight());
 
             // Create a suitable base image name
-            String name = String.format("full_%s_(%d,%d,%d,%d)",
-                    server.getShortServerName(),
-                    imgRegion.getX(),
-                    imgRegion.getY(),
-                    imgRegion.getWidth(),
-                    imgRegion.getHeight()
-            );
+            String name = getRegionName(server, "full", imgRegion);
 
             exportImage(server, imgRegion, pathOutput, name);
             isSuccessful = successfulAnnotationCounter == 1;
@@ -176,13 +180,7 @@ public class MaskExporterCommand implements PathCommand {
 
             requests.parallelStream().forEach(region -> {
                 // Create a suitable base image name
-                String name = String.format("crop_%s_(%d,%d,%d,%d)",
-                        server.getShortServerName(),
-                        (int) Math.ceil(region.getX() / region.getDownsample()),
-                        (int) Math.ceil(region.getY() / region.getDownsample()),
-                        (int) Math.ceil(region.getWidth() / region.getDownsample()),
-                        (int) Math.ceil(region.getHeight() / region.getDownsample())
-                );
+                String name = getRegionName(server, "crop", region);
 
                 exportImage(server, region, pathOutput, name);
             });
@@ -195,7 +193,7 @@ public class MaskExporterCommand implements PathCommand {
     private int exportMasksAndSlide(PathObjectHierarchy hierarchy, ImageServer server) {
         saveAndBackupProject();
 
-        boolean isSuccessful = false;
+        boolean isSuccessful;
         // Request all objects from the hierarchy & filter only the annotations
         List<PathObject> annotations = hierarchy.getFlattenedObjectList(null).stream()
                 .filter(PathObject::isAnnotation).collect(Collectors.toList());
@@ -228,14 +226,7 @@ public class MaskExporterCommand implements PathCommand {
             RegionRequest region = RegionRequest.createInstance(server.getPath(), finalDownsample, roi);
 
             // Create a name
-            String name = String.format("%s_%s_prop(%d,%d,%d,%d)",
-                    annotationLabel,
-                    server.getShortServerName(),
-                    (int) Math.ceil(region.getX() / region.getDownsample()),
-                    (int) Math.ceil(region.getY() / region.getDownsample()),
-                    (int) Math.ceil(region.getWidth() / region.getDownsample()),
-                    (int) Math.ceil(region.getHeight() / region.getDownsample())
-            );
+            String name = getRegionName(server, annotationLabel, region);
 
             // Request the BufferedImage
             BufferedImage img = (BufferedImage) server.readBufferedImage(region);
