@@ -140,10 +140,10 @@ public class MaskExporterCommand implements PathCommand {
     private String getRegionName(ImageServer server, String prefix, RegionRequest region) {
         return String.format(prefix + "_%s_(%d,%d,%d,%d)",
                 server.getShortServerName(),
-                (int) Math.round(region.getX() / region.getDownsample()),
-                (int) Math.round(region.getY() / region.getDownsample()),
-                (int) Math.round(region.getWidth() / region.getDownsample()),
-                (int) Math.round(region.getHeight() / region.getDownsample())
+                (int) Math.ceil(region.getX() / region.getDownsample()),
+                (int) Math.ceil(region.getY() / region.getDownsample()),
+                (int) Math.ceil(region.getWidth() / region.getDownsample()),
+                (int) Math.ceil(region.getHeight() / region.getDownsample())
         );
     }
 
