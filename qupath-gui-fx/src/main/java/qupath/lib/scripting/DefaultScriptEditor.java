@@ -99,6 +99,7 @@ import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.text.Font;
 import javafx.scene.text.TextAlignment;
@@ -1112,26 +1113,25 @@ public class DefaultScriptEditor implements ScriptEditor {
 		
 		// Add a filter text field
 		TextField tfFilter = new TextField();
+		CheckBox cbWithData = new CheckBox("With data file only");
 		tfFilter.setTooltip(new Tooltip("Enter text to filter image list"));
-		tfFilter.textProperty().addListener((v, o, n) -> {
-			String text = n.trim().toLowerCase();
-			
-			// Get an update source items list
-			List<ProjectImageEntry<?>> sourceItems = new ArrayList<>(project.getImageList());
-			sourceItems.removeAll(listSelectionView.getTargetItems());
-			if (text.length() > 0 && !sourceItems.isEmpty()) {
-				Iterator<ProjectImageEntry<?>> iter = sourceItems.iterator();
-				while (iter.hasNext()) {
-					if (!iter.next().getImageName().toLowerCase().contains(text))
-						iter.remove();
-				}
-			}
-			if (listSelectionView.getSourceItems().equals(sourceItems))
-				return;
-			listSelectionView.getSourceItems().setAll(sourceItems);
-			
-		});
-		listSelectionView.setSourceFooter(tfFilter);
+		cbWithData.setTooltip(new Tooltip("Filter image list to only images with associated data files"));
+		tfFilter.textProperty().addListener((v, o, n) -> updateImageList(listSelectionView, project, n, cbWithData.selectedProperty().get()));
+		cbWithData.selectedProperty().addListener((v, o, n) -> updateImageList(listSelectionView, project, tfFilter.getText(), cbWithData.selectedProperty().get()));
+		
+		GridPane paneFooter = new GridPane();
+		paneFooter.setMaxWidth(Double.MAX_VALUE);
+		cbWithData.setMaxWidth(Double.MAX_VALUE);
+		paneFooter.add(tfFilter, 0, 0);
+		paneFooter.add(cbWithData, 0, 1);
+		// TODO: Apparent bug in checkbox display; full text not shown?
+		// https://bugs.openjdk.java.net/browse/JDK-8199592
+		GridPane.setHgrow(tfFilter, Priority.ALWAYS);
+		GridPane.setHgrow(cbWithData, Priority.ALWAYS);
+		GridPane.setFillWidth(tfFilter, Boolean.TRUE);
+		GridPane.setFillWidth(cbWithData, Boolean.TRUE);
+		paneFooter.setVgap(5);
+		listSelectionView.setSourceFooter(paneFooter);
 		
 		// Create label to show number selected
 		Label labelSelected = new Label();
@@ -1190,6 +1190,30 @@ public class DefaultScriptEditor implements ScriptEditor {
 		progress.show();
 	}
 	
+	
+	
+	private void updateImageList(final ListSelectionView<ProjectImageEntry<?>> listSelectionView, final Project<?> project, final String filterText, final boolean withDataOnly) {
+		String text = filterText.trim().toLowerCase();
+		
+		// Get an update source items list
+		List<ProjectImageEntry<?>> sourceItems = new ArrayList<>(project.getImageList());
+		sourceItems.removeAll(listSelectionView.getTargetItems());
+		// Remove those without a data file, if necessary
+		if (withDataOnly) {
+			sourceItems.removeIf(p -> !QuPathGUI.getImageDataFile(project, p).exists());
+		}
+		// Apply filter text
+		if (text.length() > 0 && !sourceItems.isEmpty()) {
+			Iterator<ProjectImageEntry<?>> iter = sourceItems.iterator();
+			while (iter.hasNext()) {
+				if (!iter.next().getImageName().toLowerCase().contains(text))
+					iter.remove();
+			}
+		}
+		if (listSelectionView.getSourceItems().equals(sourceItems))
+			return;
+		listSelectionView.getSourceItems().setAll(sourceItems);
+	}
 	
 	
 	
