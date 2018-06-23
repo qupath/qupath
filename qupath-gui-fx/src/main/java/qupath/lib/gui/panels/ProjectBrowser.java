@@ -1056,7 +1056,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 				setGraphic(null);
 				return;
 			}
-			
+
 			ProjectImageEntry<?> entry = item instanceof ProjectImageEntry ? (ProjectImageEntry<?>)item : null;
 			if (isCurrentImage(entry))
 				setStyle("-fx-font-weight: bold; -fx-font-family: arial");
@@ -1066,7 +1066,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 				setStyle("-fx-font-style: italic; -fx-font-family: arial");
 			
 			if (entry == null) {
-				setText(item.toString());
+				setText(item.toString() + " (" + getTreeItem().getChildren().size() + ")");
 				tooltip.setText(item.toString());
 				setTooltip(tooltip);
 				setGraphic(null);
