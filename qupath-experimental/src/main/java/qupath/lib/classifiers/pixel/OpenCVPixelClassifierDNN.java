@@ -7,15 +7,17 @@ import org.bytedeco.javacpp.opencv_core.Scalar;
 import org.bytedeco.javacpp.opencv_dnn;
 import org.bytedeco.javacpp.opencv_ml;
 import org.bytedeco.javacpp.opencv_dnn.Net;
+import org.bytedeco.javacpp.opencv_imgproc;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.regions.RegionRequest;
 import qupath.opencv.processing.OpenCVTools;
 
 import java.awt.image.BufferedImage;
 import java.awt.image.ColorModel;
+import java.util.ArrayList;
+import java.util.List;
 
 class OpenCVPixelClassifierDNN extends AbstractOpenCVPixelClassifier {
 
@@ -138,8 +140,12 @@ class OpenCVPixelClassifierDNN extends AbstractOpenCVPixelClassifier {
 //    	opencv_core.extractChannel(mat, mat, 0);
 //    	mat.convertTo(mat, opencv_core.CV_32F);
     	
+    	opencv_imgproc.cvtColor(mat, mat, opencv_imgproc.COLOR_RGB2BGR);
+    	
 //        opencv_imgproc.cvtColor(mat, mat, opencv_imgproc.COLOR_RGB2BGR);
-        mat.convertTo(mat, opencv_core.CV_32F, 1.0/255.0, 0.0);
+    	mat.convertTo(mat, opencv_core.CV_32F);
+//    	System.err.println("Mean: " + opencv_core.mean(mat));
+//        mat.convertTo(mat, opencv_core.CV_32F, 1.0/255.0, 0.0);
 ////        mat.put(opencv_core.subtract(Scalar.ONE, mat))
 //		mat.put(opencv_core.subtract(mat, Scalar.ONEHALF));
 
@@ -159,22 +165,54 @@ class OpenCVPixelClassifierDNN extends AbstractOpenCVPixelClassifier {
                 opencv_core.merge(matvec, mat);
             }
         }
+        
+//    	System.err.println("Mean AFTER: " + opencv_core.mean(mat));
 
-        Mat prob;
+
+        Mat prob = null;
         synchronized(model) {
         	long startTime = System.currentTimeMillis();
             Mat blob = opencv_dnn.blobFromImage(mat);
             model.setInput(blob);
+            try {
             prob = model.forward();
+            } catch (Exception e2) {
+            	logger.error("Error applying classifier", e2);
+            }
         	long endTime = System.currentTimeMillis();
-        	System.err.println("Classification time: " + (endTime - startTime) + " ms");
+//        	System.err.println("Classification time: " + (endTime - startTime) + " ms");
         }
         
         MatVector matvec = new MatVector();
         opencv_dnn.imagesFromBlob(prob, matvec);
+//        System.err.println(matvec.get(0).channels());
         if (matvec.size() != 1)
         	throw new IllegalArgumentException("DNN result must be a single image - here, the result is " + matvec.size() + " images");
         Mat matResult = matvec.get(0L);
+        
+        // Sometimes, rather unfortunately, dimensions can be wrong
+        int nChannels = getMetadata().getChannels().size();
+        if (nChannels == matResult.cols() && nChannels != matResult.channels()) {
+        	List<Mat> channels = new ArrayList<>();
+        	for (int c = 0; c < matResult.cols(); c++) {
+        		Mat matChannel = matResult.col(c).reshape(1, matResult.rows());
+        		opencv_core.transpose(matChannel, matChannel);
+//        		opencv_core.rotate(matChannel, matChannel, opencv_core.ROTATE_180);
+        		channels.add(matChannel);
+        	}
+        	opencv_core.merge(new MatVector(channels.toArray(new Mat[0])), matResult);
+        }
+        
+////        matResult = matResult.reshape(4, 128);
+//        MatVector channels = new MatVector();
+//        opencv_core.split(matResult, channels);
+//        Mat matSum = channels.get(0).clone();
+////        System.err.println("Channels: " + channels.size());
+////        System.err.println(matSum);
+//        for (int c = 1; c < channels.size(); c++)
+//        	opencv_core.addPut(matSum, channels.get(0));
+////        System.err.println("Mean afterwards: " + opencv_core.mean(matSum));
+//        matSum.release();
         
 //        int nOutputChannels = getMetadata().nOutputChannels();
 //        List<Mat> matOutput = new ArrayList<>();
