@@ -481,10 +481,22 @@ public class ImageDisplay {
 	public String getTransformedValueAsString(BufferedImage img, int x, int y) {
 		if (selectedChannels == null || selectedChannels.isEmpty() || selectedChannels.get(0) == null)
 			return "";
-		String s = selectedChannels.get(0).getValueAsString(img, x, y);
-		for (int i = 1; i < selectedChannels.size(); i++) {
-			s += (", " + selectedChannels.get(i).getValueAsString(img, x, y));
+		if (selectedChannels.size() == 1)
+			return selectedChannels.get(0).getValueAsString(img, x, y);
+		
+		String s = null;
+		for (ChannelDisplayInfo channel : getAvailableChannels()) {
+			if (selectedChannels.contains(channel) ) {
+				if (s == null)
+					s = channel.getValueAsString(img, x, y);
+				else
+					s += (", " + channel.getValueAsString(img, x, y));
+			}
 		}
+//		String s = selectedChannels.get(0).getValueAsString(img, x, y);
+//		for (int i = 1; i < selectedChannels.size(); i++) {
+//			s += (", " + selectedChannels.get(i).getValueAsString(img, x, y));
+//		}
 		return s;
 	}
 
