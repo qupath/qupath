@@ -354,7 +354,7 @@ public class PathIntensityClassifierPanel implements PathObjectSelectionListener
 //			comboIntensities.getItems().setAll(measurements);
 		
 		// Ensure we have 'none'
-		if (availableMeasurements.isEmpty() || !availableMeasurements.equals("None"))
+		if (availableMeasurements.isEmpty() || !availableMeasurements.get(0).equals("None"))
 			availableMeasurements.add(0, "None");
 		
 		if (filteredAvailableMeasurements.contains(selected))

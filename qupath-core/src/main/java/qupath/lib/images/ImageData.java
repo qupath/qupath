@@ -309,24 +309,28 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
 
     
     public Object getProperty(String key) {
-    	return propertiesMap.get(key);
+    		return propertiesMap.get(key);
     }
 
     public Object setProperty(String key, Object value) {
-    	changes = true;
-    	return propertiesMap.put(key, value);
+	    	Object oldValue = propertiesMap.put(key, value);
+	    	if (oldValue == null)
+	    		changes = value != null;
+	    	else
+	    		changes = !oldValue.equals(changes);
+	    	return oldValue;
     }
 
     public Object removeProperty(String key) {
-    	if (propertiesMap.containsKey(key)) {
-    		changes = true;
-    		return propertiesMap.remove(key);
-    	}
-    	return null;
+	    	if (propertiesMap.containsKey(key)) {
+	    		changes = true;
+	    		return propertiesMap.remove(key);
+	    	}
+	    	return null;
     }
 
     public Map<String, Object> getProperties() {
-    	return Collections.unmodifiableMap(propertiesMap);
+    		return Collections.unmodifiableMap(propertiesMap);
     }
     
     
@@ -335,7 +339,7 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
      * @return
      */
     public String getLastSavedPath() {
-    	return lastSavedPath;
+    		return lastSavedPath;
     }
     
     /**
@@ -346,7 +350,7 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
      * @see setLastSavedPath
      */
     public boolean isChanged() {
-    	return changes;
+    		return changes;
     }
     
     /**

@@ -1,0 +1,6 @@
+
+description = 'qupath-core'
+
+configurations {
+  compile.extendsFrom gson
+}

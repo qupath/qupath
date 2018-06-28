@@ -50,6 +50,7 @@ import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.gui.helpers.PanelToolsFX;
+import qupath.lib.projects.ImageRetCode;
 import qupath.lib.projects.ProjectIO;
 
 /**
@@ -68,7 +69,7 @@ public class ProjectImportImagesCommand implements PathCommand {
 	public ProjectImportImagesCommand(final QuPathGUI qupath) {
 		this.qupath = qupath;
 	}
-	
+
 	@Override
 	public void run() {
 		if (qupath.getProject() == null) {
@@ -135,7 +136,8 @@ public class ProjectImportImagesCommand implements PathCommand {
 				for (String path : listView.getItems()) {
 					updateMessage(path);
 					updateProgress(counter, max);
-					if (qupath.getProject().addImage(path.trim()))
+					ImageRetCode code = qupath.getProject().addImage(path.trim());
+					if (code.getRetCode() == ImageRetCode.IMAGE_CODE.CHANGED)
 						pathSucceeded.add(path);
 					else
 						pathFailed.add(path);
@@ -157,7 +159,8 @@ public class ProjectImportImagesCommand implements PathCommand {
 				sb.append("\t" + path + "\n");
 			sb.append("\n");
 			qupath.refreshProject();
-			ProjectIO.writeProject(qupath.getProject());
+			ProjectIO.writeProject(qupath.getProject(),
+					message -> DisplayHelpers.showErrorMessage("Error", message));
 		}
 		if (!pathFailed.isEmpty()) {
 			sb.append("Unable to import " + pathFailed.size() + " paths:\n");
@@ -259,7 +262,7 @@ public class ProjectImportImagesCommand implements PathCommand {
 	/**
 	 * Load potential image paths into a list
 	 * 
-	 * @param listView
+	 * @param list
 	 */
 	int loadFromClipboard(final List<String> list) {
 		int changes = 0;

@@ -25,10 +25,10 @@ package qupath.opencv.tools;
 
 import java.awt.Color;
 import java.awt.Graphics2D;
+import java.awt.Rectangle;
 import java.awt.Shape;
 import java.awt.geom.Path2D;
 import java.awt.geom.Point2D;
-import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferByte;
 import java.util.ArrayList;
@@ -78,7 +78,7 @@ public class WandToolCV extends BrushTool {
 	private Mat strel = null;
 	private Mat contourHierarchy = null;
 	
-	private Rectangle2D bounds = new Rectangle2D.Double();
+	private Rectangle bounds = new Rectangle();
 	
 	private List<MatOfPoint> contours = new ArrayList<>();
 	private Size blurSize = new Size(31, 31);
@@ -101,6 +101,25 @@ public class WandToolCV extends BrushTool {
 		wandSigmaPixels.set(sigma);
 	}
 	
+	
+	/**
+	 * Sensitivity value associated with the wand tool
+	 */
+	private static DoubleProperty wandSensitivityProperty = PathPrefs.createPersistentPreference("wandSensitivityPixels", 2.0);
+
+	public static DoubleProperty wandSensitivityProperty() {
+		return wandSensitivityProperty;
+	}
+	
+	public static double getWandSensitivity() {
+		return wandSensitivityProperty.get();
+	}
+	
+	public static void setWandSensitivity(final double sensitivity) {
+		wandSensitivityProperty.set(sensitivity);
+	}
+	
+	
 
 	public WandToolCV(QuPathGUI qupath) {
 		super(qupath);
@@ -109,7 +128,13 @@ public class WandToolCV extends BrushTool {
 		qupath.getPreferencePanel().addPropertyPreference(wandSigmaPixelsProperty(), Double.class,
 				"Wand smoothing",
 				"Drawing tools",
-				"Set the smoothing used by the wand tool - higher values lead to larger, smoother regions");
+				"Set the smoothing used by the wand tool - higher values lead to larger, smoother regions (default = 4.0)");
+		
+		qupath.getPreferencePanel().addPropertyPreference(wandSensitivityProperty(), Double.class,
+				"Wand sensitivity",
+				"Drawing tools",
+				"Set the sensitivity of the wand tool - lower values make it pay less attention to local intensities, and act more like the brush tool (default = 2.0)");
+
 	}
 	
 	
@@ -139,10 +164,18 @@ public class WandToolCV extends BrushTool {
 		Graphics2D g2d = imgTemp.createGraphics();
 		g2d.setColor(Color.BLACK);
 		g2d.fillRect(0, 0, w, w);
-		bounds.setFrame(x-w*downsample*.5, y-w*downsample*.5, w*downsample, w*downsample);
+		double xStart = x-w*downsample*0.5;
+		double yStart = y-w*downsample*0.5;
+		bounds.setFrame(xStart, yStart, w*downsample, w*downsample);
 		g2d.scale(1.0/downsample, 1.0/downsample);
-		g2d.translate(-bounds.getX(), -bounds.getY());
+		g2d.translate(-xStart, -yStart);
 		regionStore.paintRegionCompletely(viewer.getServer(), g2d, bounds, viewer.getZPosition(), viewer.getTPosition(), viewer.getDownsampleFactor(), null, viewer.getImageDisplay(), 250);
+		
+		// We could optionally paint the hierarchy, so that it too influences the values
+//		Collection<PathObject> pathObjects = viewer.getHierarchy().getObjectsForRegion(PathAnnotationObject.class, ImageRegion.createInstance(
+//				(int)bounds.getX()-1, (int)bounds.getY()-1, (int)bounds.getWidth()+1, (int)bounds.getHeight()+1, viewer.getZPosition(), viewer.getTPosition()), null);
+//		PathHierarchyPaintingHelper.paintSpecifiedObjects(g2d, bounds.getBounds(), pathObjects, viewer.getOverlayOptions(), null, downsample);
+
 		g2d.dispose();
 		
 		// Put pixels into an OpenCV image
@@ -168,7 +201,9 @@ public class WandToolCV extends BrushTool {
 //		logger.trace(stddev.dump());
 
 		double[] stddev2 = stddev.toArray();
-		double scale = .4;
+		double scale = 1.0 / getWandSensitivity();
+		if (scale < 0)
+			scale = 0.01;
 		for (int i = 0; i < stddev2.length; i++)
 			stddev2[i] = stddev2[i]*scale;
 		threshold.set(stddev2);

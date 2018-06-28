@@ -1,0 +1,13 @@
+
+description = 'qupath-processing-opencv'
+
+configurations {
+  compile.extendsFrom opencv
+}
+
+dependencies {
+  compile project(':qupath-core')
+  compile project(':qupath-core-awt')
+  compile project(':qupath-core-processing')
+  compile project(':qupath-core-processing-awt')
+}

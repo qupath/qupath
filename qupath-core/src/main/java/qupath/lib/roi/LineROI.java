@@ -225,7 +225,7 @@ public class LineROI extends AbstractPathROI implements PathLine, TranslatableRO
 		}
 		
 		private Object readResolve() {
-			LineROI roi = new LineROI(x, y, x2-x, y2-y, c, z, t);
+			LineROI roi = new LineROI(x, y, x2, y2, c, z, t);
 //			if (name != null)
 //				roi.setName(name);
 			return roi;

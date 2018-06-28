@@ -33,7 +33,6 @@ import java.awt.image.BufferedImage;
 import javax.swing.SwingUtilities;
 
 import qupath.imagej.gui.IJExtension;
-import qupath.imagej.helpers.IJTools;
 import qupath.lib.awt.common.AwtTools;
 import qupath.lib.display.ImageDisplay;
 import qupath.lib.gui.QuPathGUI;

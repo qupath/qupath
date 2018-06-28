@@ -68,6 +68,7 @@ import qupath.lib.analysis.algorithms.SimpleImage;
 import qupath.lib.analysis.stats.RunningStatistics;
 import qupath.lib.analysis.stats.StatisticsHelper;
 import qupath.lib.color.ColorDeconvolutionStains;
+import qupath.lib.color.StainVector;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.PathImage;
 import qupath.lib.images.servers.ImageServer;
@@ -270,15 +271,23 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 				roi = ROIConverterIJ.convertToIJRoi(pathROI, pathImage);
 			if (ip instanceof ColorProcessor && stains != null && isBrightfield) {
 				FloatProcessor[] fps = ColorDeconvolutionIJ.colorDeconvolve((ColorProcessor)ip, stains.getStain(1), stains.getStain(2), stains.getStain(3));
-				channels.put("Hematoxylin OD",  fps[0]);
-				if (stains.isH_DAB()) {
-					channels.put("DAB OD", fps[1]);
-					channelsCell.put("DAB OD", fps[1]);
+				for (int i = 0; i < 3; i++) {
+					StainVector stain = stains.getStain(i+1);
+					if (!stain.isResidual()) {
+						channels.put(stain.getName() + " OD", fps[i]);
+						channelsCell.put(stain.getName() + " OD", fps[i]);
+					}
 				}
-				else if (stains.isH_E()) {
-					channels.put("Eosin OD", fps[1]);
-					channelsCell.put("Eosin OD", fps[1]);
-				}
+//				channels.put("Hematoxylin OD",  fps[0]);
+//				if (stains.isH_DAB()) {
+//					channels.put("DAB OD", fps[1]);
+//					channelsCell.put("DAB OD", fps[1]);
+//				}
+//				else if (stains.isH_E()) {
+//					channels.put("Eosin OD", fps[1]);
+//					channelsCell.put("Eosin OD", fps[1]);
+//				}
+				
 
 				if (!params.getParameters().get("detectionImageBrightfield").isHidden()) {
 					if (params.getChoiceParameterValue("detectionImageBrightfield").equals(IMAGE_OPTICAL_DENSITY))

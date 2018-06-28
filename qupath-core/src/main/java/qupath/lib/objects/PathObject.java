@@ -30,6 +30,7 @@ import java.io.ObjectOutput;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -221,7 +222,7 @@ public abstract class PathObject implements Externalizable {
 				// Keep a record of the object to remove
 				if (lastBatchRemoveParent != previousParent) {
 					if (lastBatchRemoveParent != null && !batchRemove.isEmpty()) {
-						lastBatchRemoveParent.childList.removeAll(batchRemove);
+						removeAllQuickly(lastBatchRemoveParent.childList, batchRemove);
 						batchRemove.clear();
 					}
 				}
@@ -236,7 +237,7 @@ public abstract class PathObject implements Externalizable {
 			for (PathObject child : pathObjects)
 				child.parent = this;
 		} else if (lastBatchRemoveParent != null && !batchRemove.isEmpty())
-			lastBatchRemoveParent.childList.removeAll(batchRemove);
+			removeAllQuickly(lastBatchRemoveParent.childList, batchRemove);
 		// Add to the current child list
 		childList.addAll(pathObjects);
 		if (isChildList)
@@ -251,6 +252,24 @@ public abstract class PathObject implements Externalizable {
 		// Sort if we aren't the root object
 		if (!this.isRootObject())
 			Collections.sort(childList, DefaultPathObjectComparator.getInstance());
+	}
+	
+	
+	/**
+	 * Remove all items from a list, but optionally using a (temporary) set 
+	 * to improve performance.
+	 * 
+	 * @param list
+	 * @param toRemove
+	 */
+	private static <T> void removeAllQuickly(List<T> list, Collection<T> toRemove) {
+		// This is rather implementation-specific, based on how ArrayLists do their object removal.
+		// In some implementations it might be better to switch the list to a set temporarily?
+		int size = 10;
+		if (!(toRemove instanceof Set)  && toRemove.size() > size) {
+			toRemove = new HashSet<>(toRemove);
+		}
+		list.removeAll(toRemove);
 	}
 	
 	
@@ -310,7 +329,7 @@ public abstract class PathObject implements Externalizable {
 			if (pathObject.parent == this)
 				pathObject.parent = null;
 		}
-		childList.removeAll(pathObjects);
+		removeAllQuickly(childList, pathObjects);
 	}
 	
 	public void clearPathObjects() {

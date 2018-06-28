@@ -25,6 +25,7 @@ package qupath.lib.gui.commands;
 
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.nio.file.Files;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,6 +34,7 @@ import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.projects.Project;
+import qupath.lib.projects.ProjectIO;
 
 /**
  * Command to create a new (empty) project.
@@ -58,6 +60,12 @@ public class ProjectCreateCommand implements PathCommand {
 		if (!dir.isDirectory()) {
 			logger.error(dir + " is not a valid project directory!");
 		}
+		if (!Files.isWritable(dir.toPath())) {
+			logger.error("Directory not writable {}", dir);
+			DisplayHelpers.showErrorMessage("Project creator", "No write access for the selected " +
+					"folder! Please change the folder permissions or use another folder");
+			return;
+		}
 		for (File f : dir.listFiles()) {
 			if (!f.isHidden()) {
 				logger.error("Cannot create project for non-empty directory {}", dir);
@@ -66,6 +74,7 @@ public class ProjectCreateCommand implements PathCommand {
 			}
 		}
 		qupath.setProject(new Project<>(dir, BufferedImage.class));
+		ProjectIO.writeProject(qupath.getProject(), message -> DisplayHelpers.showErrorMessage("Error", message));
 	}
 	
 }

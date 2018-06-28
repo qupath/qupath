@@ -23,6 +23,9 @@
 
 package qupath.lib.gui.panels;
 
+import java.awt.Desktop;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
@@ -39,24 +42,35 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Optional;
 import java.util.Set;
+import java.util.TreeMap;
 
 import javax.imageio.ImageIO;
 
+import org.controlsfx.control.MasterDetailPane;
 import org.controlsfx.control.action.Action;
 import org.controlsfx.control.action.ActionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javafx.application.Platform;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.StringProperty;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.geometry.Insets;
+import javafx.geometry.Side;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.ContextMenu;
+import javafx.scene.control.Dialog;
+import javafx.scene.control.Label;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.SeparatorMenuItem;
+import javafx.scene.control.TextArea;
+import javafx.scene.control.TextField;
 import javafx.scene.control.TitledPane;
 import javafx.scene.control.Tooltip;
 import javafx.scene.control.TreeCell;
@@ -112,6 +126,8 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 
 	// Keep a record of servers we've requested - don't want to keep putting in requests if the server is unavailable
 	private Set<String> serversRequested = new HashSet<>();
+	
+	private StringProperty descriptionText = new SimpleStringProperty();
 
 
 	public ProjectBrowser(final QuPathGUI qupath) {
@@ -146,8 +162,22 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 				e.consume();
 			}
 		});
+		
+//		TextArea textDescription = new TextArea();
+		TextArea textDescription = new TextArea();
+		textDescription.textProperty().bind(descriptionText);
+		MasterDetailPane mdTree = new MasterDetailPane(Side.BOTTOM, tree, textDescription, false);
+		mdTree.showDetailNodeProperty().bind(descriptionText.isNotNull());
+		
+		tree.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> {
+			Object selected = n == null ? null : n.getValue();
+			if (selected instanceof ProjectImageEntry)
+				descriptionText.set(((ProjectImageEntry<?>)selected).getDescription());
+			else
+				descriptionText.set(null);
+		});
 
-		TitledPane titledTree = new TitledPane("Image list", tree);
+		TitledPane titledTree = new TitledPane("Image list", mdTree);
 		titledTree.setCollapsible(false);
 		titledTree.setMaxHeight(Double.MAX_VALUE);
 		
@@ -168,7 +198,6 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 
 
 	ContextMenu getPopup() {
-
 
 		Action actionOpenImage = new Action("Open image", e -> qupath.openImageEntry(getSelectedEntry()));
 		Action actionRemoveImage = new Action("Remove image", e -> {
@@ -191,7 +220,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 					model.rebuildModel();
 				}
 			}
-			ProjectIO.writeProject(project);
+			ProjectIO.writeProject(project, message -> DisplayHelpers.showErrorMessage("Error", message));
 			if (tree != null) {
 				boolean isExpanded = tree.getRoot() != null && tree.getRoot().isExpanded();
 				tree.setRoot(model.getRootFX());
@@ -208,44 +237,215 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 				setProjectEntryImageName((ProjectImageEntry)path.getValue());
 			}
 		});
+		
+		// Refresh thumbnail according to current display settings
+		Action actionRefreshThumbnail = new Action("Refresh thumbnail", e -> {
+			TreeItem<?> path = tree.getSelectionModel().getSelectedItem();
+			if (path == null)
+				return;
+			if (path.getValue() instanceof ProjectImageEntry) {
+				ProjectImageEntry<BufferedImage> entry = (ProjectImageEntry<BufferedImage>)path.getValue();
+				if (!isCurrentImage(entry)) {
+					logger.warn("Cannot refresh entry for image that is not open!");
+					return;
+				}
+				File fileThumbnail = getThumbnailFile(getProject(), entry);
+				BufferedImage imgThumbnail = qupath.getViewer().getRGBThumbnail();
+				imgThumbnail = resizeForThumbnail(imgThumbnail);
+				try {
+					ImageIO.write(imgThumbnail, THUMBNAIL_EXT, fileThumbnail);
+				} catch (IOException e1) {
+					logger.error("Error writing thumbnail", e1);
+				}
+				tree.refresh();
+			}
+		});
+		
+		// Edit the description for the image
+		Action actionEditDescription = new Action("Edit description", e -> {
+			Project<?> project = getProject();
+			ProjectImageEntry<?> entry = getSelectedEntry();
+			if (project != null && entry != null) {
+				if (showDescriptionEditor(entry)) {
+					descriptionText.set(entry.getDescription());
+					ProjectIO.writeProject(project, message -> DisplayHelpers.showErrorMessage("Error", message));
+				}
+			} else {
+				DisplayHelpers.showErrorMessage("Edit image description", "No entry is selected!");
+			}
+		});
+		
+		// Add a metadata value
+		Action actionAddMetadataValue = new Action("Add metadata", e -> {
+			Project<?> project = getProject();
+			ProjectImageEntry<?> entry = getSelectedEntry();
+			if (project != null && entry != null) {
+				
+				TextField tfMetadataKey = new TextField();
+				TextField tfMetadataValue = new TextField();
+				Label labKey = new Label("New key");
+				Label labValue = new Label("New value");
+				labKey.setLabelFor(tfMetadataKey);
+				labValue.setLabelFor(tfMetadataValue);
+				tfMetadataKey.setTooltip(new Tooltip("Enter the name for the metadata entry"));
+				tfMetadataValue.setTooltip(new Tooltip("Enter the value for the metadata entry"));
+				
+				int nMetadataValues = entry.getMetadataKeys().size();
+				
+				GridPane pane = new GridPane();
+				pane.setVgap(5);
+				pane.setHgap(5);
+				pane.add(labKey, 0, 0);
+				pane.add(tfMetadataKey, 1, 0);
+				pane.add(labValue, 0, 1);
+				pane.add(tfMetadataValue, 1, 1);
+				if (nMetadataValues > 0) {
+					
+					Label labelCurrent = new Label("Current metadata");
+					TextArea textAreaCurrent = new TextArea();
+					textAreaCurrent.setEditable(false);
 
-		// TODO: Dynamically populate these options!
+					String keyString = entry.getMetadataSummaryString();
+					if (keyString.isEmpty())
+						textAreaCurrent.setText("No metadata entries yet");
+					else
+						textAreaCurrent.setText(keyString);
+					textAreaCurrent.setPrefRowCount(3);
+					labelCurrent.setLabelFor(textAreaCurrent);
+
+					pane.add(labelCurrent, 0, 2);
+					pane.add(textAreaCurrent, 1, 2);					
+				}
+				
+				Dialog<ButtonType> dialog = new Dialog<>();
+				dialog.setTitle("Metadata");
+				dialog.getDialogPane().getButtonTypes().setAll(ButtonType.OK, ButtonType.CANCEL);
+				dialog.getDialogPane().setHeaderText(entry.getImageName());
+				dialog.getDialogPane().setContent(pane);
+				Optional<ButtonType> result = dialog.showAndWait();
+				if (result.isPresent() && result.get() == ButtonType.OK) {
+					String key = tfMetadataKey.getText().trim();
+					String value = tfMetadataValue.getText();
+					if (key.isEmpty()) {
+						logger.warn("Attempted to set metadata value for {}, but key was empty!", entry.getImageName());
+					} else {
+						entry.putMetadataValue(key, value);
+						ProjectIO.writeProject(project, message -> DisplayHelpers.showErrorMessage("Error", message));
+					}
+				}
+							
+			} else {
+				DisplayHelpers.showErrorMessage("Edit image description", "No entry is selected!");
+			}
+		});
+		
+		// Open the project directory using Explorer/Finder etc.
+		Action actionOpenProjectDirectory = new Action("Open project directory", e -> {
+			try {
+				Project<?> project = getProject();
+				if (project == null)
+					return;
+				File dir = project.getBaseDirectory();
+				if (dir.exists())
+					Desktop.getDesktop().open(dir);
+				else
+					logger.warn("Cannot find project directory {}", dir.getAbsolutePath());
+			} catch (IOException e1) {
+				DisplayHelpers.showErrorMessage("Open project directory", e1);
+			}
+		});
+		
+
 		Menu menuSort = new Menu("Sort by...");
-		menuSort.getItems().addAll(
-				ActionUtils.createMenuItem(createSortByKeyAction("None", null)),
-				ActionUtils.createMenuItem(createSortByKeyAction("Marker", "Marker")),
-				ActionUtils.createMenuItem(createSortByKeyAction("Slide ID", "Slide_ID")),
-				ActionUtils.createMenuItem(createSortByKeyAction("Scanner", "Scanner"))
-				);
-
-
 		ContextMenu menu = new ContextMenu();
 		
+		MenuItem miOpenProjectDirectory = ActionUtils.createMenuItem(actionOpenProjectDirectory);
 		MenuItem miOpenImage = ActionUtils.createMenuItem(actionOpenImage);
 		MenuItem miRemoveImage = ActionUtils.createMenuItem(actionRemoveImage);
 		MenuItem miSetImageName = ActionUtils.createMenuItem(actionSetImageName);
+		MenuItem miRefreshThumbnail = ActionUtils.createMenuItem(actionRefreshThumbnail);
+		MenuItem miEditDescription = ActionUtils.createMenuItem(actionEditDescription);
+		MenuItem miAddMetadata = ActionUtils.createMenuItem(actionAddMetadataValue);
+		
 		
 		// Set visibility as menu being displayed
 		menu.setOnShowing(e -> {
 			TreeItem<Object> selected = tree.getSelectionModel().getSelectedItem();
 			boolean hasImageEntry = selected != null && selected.getValue() instanceof ProjectImageEntry;
+			miOpenProjectDirectory.setVisible(project != null && project.getBaseDirectory().exists());
 			miOpenImage.setVisible(hasImageEntry);
 			miSetImageName.setVisible(hasImageEntry);
+			miAddMetadata.setVisible(hasImageEntry);
+			miEditDescription.setVisible(hasImageEntry);
+			miRefreshThumbnail.setVisible(hasImageEntry && isCurrentImage((ProjectImageEntry<BufferedImage>)selected.getValue()));
+			miRemoveImage.setVisible(project != null && !project.getImageList().isEmpty());
+			
+			if (project == null) {
+				menuSort.setVisible(false);
+				return;
+			}
+			Map<String, MenuItem> newItems = new TreeMap<>();
+			for (ProjectImageEntry<?> entry : project.getImageList()) {
+				for (String key : entry.getMetadataKeys()) {
+					if (!newItems.containsKey(key))
+						newItems.put(key, ActionUtils.createMenuItem(createSortByKeyAction(key, key)));
+				}
+			}
+			menuSort.getItems().setAll(newItems.values());
+			
+			menuSort.getItems().add(0, ActionUtils.createMenuItem(createSortByKeyAction("None", null)));
+			menuSort.getItems().add(1, new SeparatorMenuItem());
+			
+			menuSort.setVisible(true);
+			
+			if (menu.getItems().isEmpty())
+				e.consume();
 		});
 		
+		SeparatorMenuItem separator = new SeparatorMenuItem();
+		separator.visibleProperty().bind(menuSort.visibleProperty());
 		menu.getItems().addAll(
 				miOpenImage,
 				miRemoveImage,
 				miSetImageName,
-				new SeparatorMenuItem(),
+				miAddMetadata,
+				miEditDescription,
+				miRefreshThumbnail,
+				separator,
 				menuSort
 				);
+		
+		separator = new SeparatorMenuItem();
+		separator.visibleProperty().bind(miOpenProjectDirectory.visibleProperty());
+		if (Desktop.isDesktopSupported()) {
+			menu.getItems().addAll(
+					separator,
+					miOpenProjectDirectory);
+		}
 
 		return menu;
 
 	}
+	
+	
+	boolean showDescriptionEditor(ProjectImageEntry<?> entry) {
+		TextArea editor = new TextArea();
+		editor.setWrapText(true);
+		editor.setText(entry.getDescription());
+		Dialog<ButtonType> dialog = new Dialog<>();
+		dialog.getDialogPane().getButtonTypes().setAll(ButtonType.OK, ButtonType.CANCEL);
+		dialog.setTitle("Image description");
+		dialog.getDialogPane().setHeaderText(entry.getImageName());
+		dialog.getDialogPane().setContent(editor);
+		Optional<ButtonType> result = dialog.showAndWait();
+		if (result.isPresent() && result.get() == ButtonType.OK) {
+			entry.setDescription(editor.getText());
+			return true;
+		}
+		return false;
+	}
 
-
+	
 
 
 	public boolean hasProject() {
@@ -294,7 +494,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 				setSelectedEntry(tree, tree.getRoot(), entry);
 			}
 
-			ProjectIO.writeProject(project);
+			ProjectIO.writeProject(project, message -> DisplayHelpers.showErrorMessage("Error", message));
 		}
 	}
 
@@ -357,12 +557,16 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 			server = ImageServerProvider.buildServer(serverPath, BufferedImage.class);
 			newServer = true;
 		}
-		BufferedImage img2 = server.getBufferedThumbnail(thumbnailWidth, thumbnailHeight, 0);
+		BufferedImage img2 = QuPathGUI.getInstance().getImageRegionStore().getThumbnail(server, server.nZSlices()/2, 0, true);
 		if (newServer)
 			server.close();
 		if (img2 != null) {
 			// Try to write RGB images directly
-			boolean success = server.isRGB() ? ImageIO.write(img2, THUMBNAIL_EXT, fileThumbnail) : false;
+			boolean success = false;
+			if (server.isRGB() || img2.getType() == BufferedImage.TYPE_BYTE_GRAY) {
+				img2 = resizeForThumbnail(img2);
+				success = ImageIO.write(img2, THUMBNAIL_EXT, fileThumbnail);
+			}
 			if (!success) {
 				// Try with display transforms
 				ImageDisplay imageDisplay = new ImageDisplay(new ImageData<>(server), qupath.getImageRegionStore(), false);
@@ -370,12 +574,34 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 					imageDisplay.autoSetDisplayRange(info);
 				}
 				img2 = imageDisplay.applyTransforms(img2, null);
+				img2 = resizeForThumbnail(img2);
 				ImageIO.write(img2, THUMBNAIL_EXT, fileThumbnail);
 			}
 		}
 		return SwingFXUtils.toFXImage(img2, null);
 	}
 
+	
+	/**
+	 * Resize an image so that its dimensions fit inside thumbnailWidth x thumbnailHeight.
+	 * 
+	 * Note: this assumes the image can be drawn to a Graphics object.
+	 * 
+	 * @param imgThumbnail
+	 * @return
+	 */
+	BufferedImage resizeForThumbnail(BufferedImage imgThumbnail) {
+		double scale = Math.min((double)thumbnailWidth / imgThumbnail.getWidth(), (double)thumbnailHeight / imgThumbnail.getHeight());
+		if (scale > 1)
+			return imgThumbnail;
+		BufferedImage imgThumbnail2 = new BufferedImage((int)(imgThumbnail.getWidth() * scale), (int)(imgThumbnail.getHeight() * scale), imgThumbnail.getType());
+		Graphics2D g2d = imgThumbnail2.createGraphics();
+		g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+		g2d.drawImage(imgThumbnail, 0, 0, imgThumbnail2.getWidth(), imgThumbnail2.getHeight(), null);
+		g2d.dispose();
+		return imgThumbnail2;
+	}
+	
 
 
 	void requestThumbnailInBackground(final String serverPath, final File fileThumbnail) {
@@ -617,7 +843,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 		}
 		
 		// Ensure the project is updated
-		ProjectIO.writeProject(project);
+		ProjectIO.writeProject(project, message -> DisplayHelpers.showErrorMessage("Error", message));
 		
 		return entryNew;
 	}
@@ -816,10 +1042,12 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 			}
 			
 			ProjectImageEntry<?> entry = item instanceof ProjectImageEntry ? (ProjectImageEntry<?>)item : null;
-			if (isCurrentImage(entry)) {
-				setStyle("-fx-font-weight: bold;");
-			} else
-				setStyle("-fx-font-weight: normal;");
+			if (isCurrentImage(entry))
+				setStyle("-fx-font-weight: bold; -fx-font-family: arial");
+			else if (entry == null || getImageDataPath(entry).exists())
+				setStyle("-fx-font-weight: normal; -fx-font-family: arial");
+			else
+				setStyle("-fx-font-style: italic; -fx-font-family: arial");
 			
 			if (entry == null) {
 				setText(item.toString());
