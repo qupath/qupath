@@ -2093,15 +2093,6 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			// Open the image, and then the data if possible
 			if (openImage(entry.getServerPath(), false, false, rotate180))
 				openSavedData(getViewer(), fileData, true);
-			else {
-				boolean res = DisplayHelpers.showYesNoDialog("Image open",
-						"Unable to open image for path\n" + entry.getServerPath() +
-						"\n\n Do you want QuPath to automatically fix the WSI discovery by providing a root path?");
-				if (res) {
-					PathCommand command = new FixWsiPathCommand(this);
-					command.run();
-				}
-			}
 		} else
 			openImage(entry.getServerPath(), false, false, rotate180);
 	}
@@ -2168,7 +2159,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			pathOld = server.getPath();
 			try {
 				fileBase = new File(pathOld).getParentFile();
-			} catch (Exception e) {};
+			} catch (Exception e) {}
 		}
 		// Prompt for a path, if required
 		File fileNew = null;
@@ -2234,6 +2225,15 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 //				hierarchy.getSelectionModel().resetSelection();
 				
 				return true;
+			} else {
+				boolean res = DisplayHelpers.showYesNoDialog("Image open",
+						"Unable to open image for path\n" + pathNew +
+								"\n\nDo you want QuPath to automatically fix the discovery " +
+								"of all WSI by providing a root path?");
+				if (res) {
+					PathCommand command = new FixWsiPathCommand(this);
+					command.run();
+				}
 			}
 		}
 		return false;

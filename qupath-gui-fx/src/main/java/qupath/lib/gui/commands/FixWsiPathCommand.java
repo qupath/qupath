@@ -5,6 +5,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
+import qupath.lib.gui.helpers.DisplayHelpers;
+import qupath.lib.projects.ProjectIO;
 import qupath.lib.projects.ProjectImageEntry;
 
 import java.awt.image.BufferedImage;
@@ -42,9 +44,12 @@ public class FixWsiPathCommand implements PathCommand {
 
     private void fixPath(List<ProjectImageEntry<BufferedImage>> projectWsiFiles, List<Path> localWsiFiles)
             throws IOException {
+
+        List<String> pathNotFound = new ArrayList<>();
         for (ProjectImageEntry<BufferedImage> projectItem : projectWsiFiles) {
             String projectItemMd5 = projectItem.getMetadataMap().get("md5");
             String projectItemImageName = projectItem.getImageName();
+            boolean isPathFound = false;
             for (Path localFile : localWsiFiles) {
                 FileInputStream fis = new FileInputStream(localFile.toFile());
                 String localMd5 = org.apache.commons.codec.digest.DigestUtils.md5Hex(fis);
@@ -53,14 +58,29 @@ public class FixWsiPathCommand implements PathCommand {
 
                 if (projectItemImageName.equals(localFileName)) {
                     // If no md5 metadata exists just use the filename
-                    if (projectItemMd5 == null) {
+                    if (projectItemMd5 == null || localMd5.equals(projectItemMd5)) {
                         replacePath(projectItem, localFileName, localFile, localMd5);
+                        isPathFound = true;
                         break;
                     }
                 }
             }
+
+            if (!isPathFound) {
+                pathNotFound.add(projectItemImageName);
+            }
+        }
+
+        if (pathNotFound.size() > 0) {
+            StringBuilder sb = new StringBuilder();
+            sb.append("Could not find the path for WSI:\n");
+            for (String name : pathNotFound) {
+                sb.append(name + '\n');
+            }
+            DisplayHelpers.showErrorMessage(commandName, sb.toString());
         }
         qupath.refreshProject();
+        ProjectIO.writeProject(qupath.getProject(), message -> DisplayHelpers.showErrorMessage("Error", message));
     }
 
     @Override
