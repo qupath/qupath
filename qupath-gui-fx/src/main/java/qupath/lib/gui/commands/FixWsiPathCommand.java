@@ -78,6 +78,8 @@ public class FixWsiPathCommand implements PathCommand {
                 sb.append(name + '\n');
             }
             DisplayHelpers.showErrorMessage(commandName, sb.toString());
+        } else {
+            DisplayHelpers.showMessageDialog(commandName, "All WSI path were successfully fixed");
         }
         qupath.refreshProject();
         ProjectIO.writeProject(qupath.getProject(), message -> DisplayHelpers.showErrorMessage("Error", message));
