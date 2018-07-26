@@ -109,14 +109,18 @@ public class OpenFromRootPathCommand implements PathCommand {
         long changed_sz = valcounts.get(ImageRetCode.IMAGE_CODE.CHANGED) == null ?
                 0 : valcounts.get(ImageRetCode.IMAGE_CODE.CHANGED);
         StringBuilder sucess_sb = new StringBuilder();
-        sucess_sb.append("Successfully imported ")
-                .append(changed_sz).append(" files:\n");
+
+        if (changed_sz > 0) {
+            sucess_sb.append("Successfully imported ")
+                    .append(changed_sz).append(" files:\n");
+        }
 
         long no_changes_sz = valcounts.get(ImageRetCode.IMAGE_CODE.NO_CHANGES) == null ?
                 0 : valcounts.get(ImageRetCode.IMAGE_CODE.NO_CHANGES);
         StringBuilder unchanged_sb = new StringBuilder();
-        unchanged_sb.append("Ignored (already in the project) ")
-                .append(no_changes_sz).append(" files:\n");
+        unchanged_sb.append("Gracefully ignored ")
+                .append(no_changes_sz)
+                .append(" files (already in the project): \n");
 
         long exceptions_sz = valcounts.get(ImageRetCode.IMAGE_CODE.EXCEPTION) == null ?
                 0 : valcounts.get(ImageRetCode.IMAGE_CODE.EXCEPTION);

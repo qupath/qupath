@@ -162,58 +162,9 @@ import qupath.lib.algorithms.TilerPlugin;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.common.SimpleThreadFactory;
 import qupath.lib.common.URLTools;
-import qupath.lib.gui.commands.AnnotationCombineCommand;
-import qupath.lib.gui.commands.BrightnessContrastCommand;
-import qupath.lib.gui.commands.CommandListDisplayCommand;
-import qupath.lib.gui.commands.CopyViewToClipboardCommand;
-import qupath.lib.gui.commands.CountingPanelCommand;
-import qupath.lib.gui.commands.EstimateStainVectorsCommand;
-import qupath.lib.gui.commands.LoadClassifierCommand;
-import qupath.lib.gui.commands.LogViewerCommand;
-import qupath.lib.gui.commands.MeasurementManager;
-import qupath.lib.gui.commands.MeasurementMapCommand;
-import qupath.lib.gui.commands.MiniViewerCommand;
-import qupath.lib.gui.commands.OpenCommand;
-import qupath.lib.gui.commands.PreferencesCommand;
-import qupath.lib.gui.commands.ProjectCloseCommand;
-import qupath.lib.gui.commands.ProjectCreateCommand;
-import qupath.lib.gui.commands.ProjectExportImageListCommand;
-import qupath.lib.gui.commands.ProjectImportImagesCommand;
-import qupath.lib.gui.commands.ProjectMetadataEditorCommand;
-import qupath.lib.gui.commands.ProjectOpenCommand;
-import qupath.lib.gui.commands.ProjectSaveCommand;
-import qupath.lib.gui.commands.QuPathSetupCommand;
-import qupath.lib.gui.commands.ResetPreferencesCommand;
-import qupath.lib.gui.commands.RevertCommand;
-import qupath.lib.gui.commands.RigidObjectEditorCommand;
-import qupath.lib.gui.commands.RotateImageCommand;
-import qupath.lib.gui.commands.SampleScriptLoader;
-import qupath.lib.gui.commands.ExportImageRegionCommand;
-import qupath.lib.gui.commands.SaveViewCommand;
-import qupath.lib.gui.commands.ScriptInterpreterCommand;
-import qupath.lib.gui.commands.SerializeImageDataCommand;
-import qupath.lib.gui.commands.SetGridSpacingCommand;
-import qupath.lib.gui.commands.OpenWebpageCommand;
-import qupath.lib.gui.commands.ShowInstalledExtensionsCommand;
-import qupath.lib.gui.commands.ShowLicensesCommand;
-import qupath.lib.gui.commands.ShowScriptEditorCommand;
-import qupath.lib.gui.commands.ShowSystemInfoCommand;
-import qupath.lib.gui.commands.TMAGridView;
-import qupath.lib.gui.commands.SingleFeatureClassifierCommand;
-import qupath.lib.gui.commands.SummaryMeasurementTableCommand;
-import qupath.lib.gui.commands.TMAAddNote;
-import qupath.lib.gui.commands.TMAViewerCommand;
-import qupath.lib.gui.commands.TMAGridAdd;
+import qupath.lib.gui.commands.*;
 import qupath.lib.gui.commands.TMAGridAdd.TMAAddType;
 import qupath.lib.gui.commands.TMAGridRemove.TMARemoveType;
-import qupath.lib.gui.commands.TMAGridReset;
-import qupath.lib.gui.commands.TMAGridRemove;
-import qupath.lib.gui.commands.TMAExporterCommand;
-import qupath.lib.gui.commands.TMAScoreImportCommand;
-import qupath.lib.gui.commands.ViewTrackerCommand;
-import qupath.lib.gui.commands.ViewerSetDownsampleCommand;
-import qupath.lib.gui.commands.WorkflowDisplayCommand;
-import qupath.lib.gui.commands.ZoomCommand;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.commands.interfaces.PathSelectableCommand;
 import qupath.lib.gui.commands.scriptable.DeleteObjectsCommand;
@@ -1992,7 +1943,6 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	 * Set selected TMA cores to have the specified 'locked' status.
 	 * 
 	 * @param hierarchy
-	 * @param setToMissing
 	 */
 	private static void setSelectedAnnotationLock(final PathObjectHierarchy hierarchy, final boolean setToLocked) {
 		if (hierarchy == null)
@@ -2022,8 +1972,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	
 	/**
 	 * Update a 'set annotation class' menu for a viewer immediately prior to display
-	 * 
-	 * @param menuSet
+	 *
 	 * @param viewer
 	 * @return
 	 */
@@ -2144,8 +2093,6 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			// Open the image, and then the data if possible
 			if (openImage(entry.getServerPath(), false, false, rotate180))
 				openSavedData(getViewer(), fileData, true);
-			else
-				DisplayHelpers.showErrorMessage("Image open", "Unable to open image for path\n" + entry.getServerPath());
 		} else
 			openImage(entry.getServerPath(), false, false, rotate180);
 	}
@@ -2212,7 +2159,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			pathOld = server.getPath();
 			try {
 				fileBase = new File(pathOld).getParentFile();
-			} catch (Exception e) {};
+			} catch (Exception e) {}
 		}
 		// Prompt for a path, if required
 		File fileNew = null;
@@ -2278,11 +2225,15 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 //				hierarchy.getSelectionModel().resetSelection();
 				
 				return true;
-			}
-			else {
-				// Show an error message if we can't open the file
-				DisplayHelpers.showErrorNotification("Open image", "Sorry, I can't open " + pathNew);
-//				logger.error("Unable to build whole slide server for path '{}'", pathNew);
+			} else {
+				boolean res = DisplayHelpers.showYesNoDialog("Image open",
+						"Unable to open image for path\n" + pathNew +
+								"\n\nDo you want QuPath to automatically fix the discovery " +
+								"of all WSI by providing a root path?");
+				if (res) {
+					PathCommand command = new FixWsiPathCommand(this);
+					command.run();
+				}
 			}
 		}
 		return false;
@@ -2529,9 +2480,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	 * Create a menu, and add new menu items.
 	 * 
 	 * If null is passed as an object, a separated is added.
-	 * 
-	 * @param menu
-	 * @param objects
+	 *
 	 * @return new menu
 	 */
 	public static Menu createMenu(final String name, final Object... items) {
@@ -2544,7 +2493,6 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	 * If null is passed as an object, a separated is added.
 	 * 
 	 * @param menu
-	 * @param objects
 	 * @return menu, so that this method can be nested inside other calls.
 	 */
 	public static Menu addMenuItems(final Menu menu, final Object... items) {
@@ -3555,8 +3503,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	
 	/**
 	 * Set the cursor for all the viewers.
-	 * 
-	 * @param cursor
+	 *
 	 */
 	protected void updateCursor() {
 		if (stage == null || stage.getScene() == null)
