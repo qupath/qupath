@@ -87,7 +87,7 @@ public class MaskExporterCommand implements PathCommand {
         });
     }
 
-    private void saveAndBackupProject() {
+    private int saveAndBackupProject() {
         // Save the .qpdata first
         this.saveCommand.run();
 
@@ -116,9 +116,11 @@ public class MaskExporterCommand implements PathCommand {
             walkFiles(zipfs, baseDir.toPath().toString(), dataDir);
             walkFiles(zipfs, baseDir.toPath().toString(), qprojFile);
             walkFiles(zipfs, baseDir.toPath().toString(), thumbnailsDir);
+            return 1;
         } catch (IOException e) {
             logger.error(e.getMessage());
         }
+        return -1;
     }
 
     private void exportImage(ImageServer server, RegionRequest imgRegion, String pathOutput, String filename) {
@@ -191,8 +193,6 @@ public class MaskExporterCommand implements PathCommand {
     }
 
     private int exportMasksAndSlide(PathObjectHierarchy hierarchy, ImageServer server) {
-        saveAndBackupProject();
-
         boolean isSuccessful;
         // Request all objects from the hierarchy & filter only the annotations
         List<PathObject> annotations = hierarchy.getFlattenedObjectList(null).stream()
@@ -313,7 +313,8 @@ public class MaskExporterCommand implements PathCommand {
                 ImageServer server = imageData.getServer();
 
                 errorMessages = new ArrayList<>();
-                return exportMasksAndSlide(hierarchy, server);
+                return saveAndBackupProject();
+                //return exportMasksAndSlide(hierarchy, server);
             });
         }
     }
