@@ -36,7 +36,7 @@ public class NNConverter implements QuPathExtension {
         PathCommand maskExporterCommand = new MaskExporterCommand(qupath);
 
         try {
-            ImageView imageView = new ImageView(getUploadIcon(QuPathGUI.iconSize, QuPathGUI.iconSize));
+            ImageView imageView = new ImageView(getSaveIcon(QuPathGUI.iconSize, QuPathGUI.iconSize));
             Button btn = getActionButton(QuPathGUI.createCommandAction(maskExporterCommand, "Export & save tile",
                     imageView, new KeyCodeCombination(KeyCode.M, KeyCombination.SHORTCUT_DOWN)));
 
@@ -77,9 +77,9 @@ public class NNConverter implements QuPathExtension {
      * @param height
      * @return
      */
-    private static Image getUploadIcon(final int width, final int height) {
+    private static Image getSaveIcon(final int width, final int height) {
         try {
-            URL url = NNConverter.class.getClassLoader().getResource("icons/cloud_upload.png");
+            URL url = NNConverter.class.getClassLoader().getResource("icons/save_icon.png");
             return new Image(url.toString(), width, height, true, true);
         } catch (Exception e) {
             logger.error("Unable to load NN-converter icon!", e);
