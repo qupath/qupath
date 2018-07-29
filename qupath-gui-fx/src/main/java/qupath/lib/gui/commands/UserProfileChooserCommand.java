@@ -18,28 +18,6 @@ import java.util.Optional;
 
 public class UserProfileChooserCommand implements PathCommand {
 
-    private enum UserProfileChoice {
-        SPECIALIST_MODE("Specialist mode"),
-        CONTRACTOR_MODE("Contractor mode"),
-        REVIEWER_MODE("Reviewer mode"),
-        ADMIN_MODE("Admin mode"); // Mode which uses QuPath normally
-
-        private final String text;
-
-        UserProfileChoice(String text) {
-            this.text = text;
-        }
-
-        public ButtonType getButton() {
-            return new ButtonType(text);
-        }
-
-        @Override
-        public String toString() {
-            return text;
-        }
-    }
-
     private QuPathGUI qupath;
 
     public UserProfileChooserCommand(QuPathGUI qupath) {
@@ -76,10 +54,10 @@ public class UserProfileChooserCommand implements PathCommand {
         javafx.scene.control.Label helpText = new Label("Please choose the appropriate profile to annotate the WSI");
         grid.add(helpText, 0, 0);
 
-        ButtonType specialistBtn =  UserProfileChoice.SPECIALIST_MODE.getButton();
-        ButtonType contractorBtn =  UserProfileChoice.CONTRACTOR_MODE.getButton();
-        ButtonType reviewerBtn =  UserProfileChoice.REVIEWER_MODE.getButton();
-        ButtonType adminBtn = UserProfileChoice.ADMIN_MODE.getButton();
+        ButtonType specialistBtn =  QuPathGUI.UserProfileChoice.SPECIALIST_MODE.getButton();
+        ButtonType contractorBtn =  QuPathGUI.UserProfileChoice.CONTRACTOR_MODE.getButton();
+        ButtonType reviewerBtn =  QuPathGUI.UserProfileChoice.REVIEWER_MODE.getButton();
+        ButtonType adminBtn = QuPathGUI.UserProfileChoice.ADMIN_MODE.getButton();
 
         pane.setCenter(grid);
         dialog.getDialogPane().setContent(pane);
@@ -88,27 +66,28 @@ public class UserProfileChooserCommand implements PathCommand {
 
         if (result.isPresent()) {
             ButtonType res = result.get();
-            String confirmText = "Are you sure to use ";
+            QuPathGUI.UserProfileChoice choice = null;
 
             if (specialistBtn.equals(res)) {
-                confirmText = confirmText + UserProfileChoice.SPECIALIST_MODE + "?";
+                choice = QuPathGUI.UserProfileChoice.SPECIALIST_MODE;
             }
             else if (contractorBtn.equals(res)) {
-                confirmText = confirmText + UserProfileChoice.CONTRACTOR_MODE + "?";
+                choice = QuPathGUI.UserProfileChoice.CONTRACTOR_MODE;
             }
             else if (reviewerBtn.equals(res)) {
-                confirmText = confirmText + UserProfileChoice.REVIEWER_MODE + "?";
+                choice = QuPathGUI.UserProfileChoice.REVIEWER_MODE;
             }
             else if (adminBtn.equals(res)) {
-                confirmText = confirmText + UserProfileChoice.ADMIN_MODE + "?";
+                choice = QuPathGUI.UserProfileChoice.ADMIN_MODE;
             }
 
-            boolean choice = DisplayHelpers.showConfirmDialog("Confirm profile", confirmText);
-            if (!choice) {
+            String confirmText = "Are you sure to use " +  choice + "?";
+            boolean confirm = DisplayHelpers.showConfirmDialog("Confirm profile", confirmText);
+            if (!confirm) {
                 getWindowChoice();
                 return;
             }
-            int e = 0;
+            qupath.setProfileChoice(choice);
         }
     }
 

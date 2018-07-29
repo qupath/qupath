@@ -292,7 +292,37 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 
     private static ExtensionClassLoader extensionClassLoader = new ExtensionClassLoader();
     private ServiceLoader<QuPathExtension> extensionLoader = ServiceLoader.load(QuPathExtension.class, extensionClassLoader);
+
+    public UserProfileChoice getProfileChoice() {
+        return profileChoice;
+    }
+
+    public void setProfileChoice(UserProfileChoice profileChoice) {
+        this.profileChoice = profileChoice;
+    }
 //	private static ServiceLoader<QuPathExtension> extensionLoader = ServiceLoader.load(QuPathExtension.class);
+
+    public enum UserProfileChoice {
+        SPECIALIST_MODE("Specialist mode"),
+        CONTRACTOR_MODE("Contractor mode"),
+        REVIEWER_MODE("Reviewer mode"),
+        ADMIN_MODE("Admin mode"); // Mode which uses QuPath normally
+
+        private final String text;
+
+        UserProfileChoice(String text) {
+            this.text = text;
+        }
+
+        public ButtonType getButton() {
+            return new ButtonType(text);
+        }
+
+        @Override
+        public String toString() {
+            return text;
+        }
+    }
 
     public enum GUIActions {
         OPEN_IMAGE, OPEN_IMAGE_OR_URL, TMA_EXPORT_DATA, SAVE_DATA, SAVE_DATA_AS,
@@ -381,6 +411,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
     private DragDropFileImportListener dragAndDrop = new DragDropFileImportListener(this);
 
     private UndoRedoManager undoRedoManager;
+    private UserProfileChoice profileChoice;
 
     public QuPathGUI(final Stage stage) {
         this(stage, null, true);
