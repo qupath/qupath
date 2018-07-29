@@ -2617,7 +2617,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				getActionMenuItem(GUIActions.OPEN_IMAGE_OR_URL),
 				createCommandAction(new RevertCommand(this), "Revert", null, new KeyCodeCombination(KeyCode.R, KeyCodeCombination.SHORTCUT_DOWN)),
 				null,
-				getActionMenuItem(GUIActions.SAVE_DATA_AS),
+				//getActionMenuItem(GUIActions.SAVE_DATA_AS),
 				getActionMenuItem(GUIActions.SAVE_DATA),
 				null,
 				createMenu(
@@ -3269,8 +3269,8 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			return createCommandAction(new OpenCommand(this), "Open...", null, new KeyCodeCombination(KeyCode.O, KeyCombination.SHORTCUT_DOWN));
 		case OPEN_IMAGE_OR_URL:
 			return createCommandAction(new OpenCommand(this, true), "Open URL...", null, new KeyCodeCombination(KeyCode.O, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
-		case SAVE_DATA_AS:
-			return createCommandAction(new SerializeImageDataCommand(this, false, true), "Save As", null, new KeyCodeCombination(KeyCode.S, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
+//		case SAVE_DATA_AS:
+//			return createCommandAction(new SerializeImageDataCommand(this, false, true), "Save As", null, new KeyCodeCombination(KeyCode.S, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
 		case SAVE_DATA:
 			return createCommandAction(new SerializeImageDataCommand(this, true, true), "Save", null, new KeyCodeCombination(KeyCode.S, KeyCombination.SHORTCUT_DOWN));
 		case SHOW_ANNOTATIONS:

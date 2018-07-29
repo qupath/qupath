@@ -1,4 +1,4 @@
-package qupath.nn;
+package qupath.lib.gui.commands;
 
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
