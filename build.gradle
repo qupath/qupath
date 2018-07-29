@@ -136,6 +136,7 @@ dependencies {
     compile project(':qupath-extension-opencv')
     compile project(':qupath-extension-pen')
     compile project(':qupath-extension-nn-converter')
+    compile project(':qupath-extension-usermode')
 
     // Try to find packager.jar so it's possible to use UserJvmOptionsService,
     // and therefore change the memory limits from within the main GUI

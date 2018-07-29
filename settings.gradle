@@ -12,6 +12,7 @@ include ':qupath-extension-openslide'
 include ':qupath-extension-pen'
 include ':qupath-extension-opencv'
 include ':qupath-extension-nn-converter'
+include ':qupath-extension-usermode'
 
 project(':qupath-core').projectDir = "$rootDir/qupath-core" as File
 project(':qupath-core-awt').projectDir = "$rootDir/qupath-core-awt" as File
@@ -26,3 +27,4 @@ project(':qupath-extension-openslide').projectDir = "$rootDir/qupath-extension-o
 project(':qupath-extension-pen').projectDir = "$rootDir/qupath-extension-pen" as File
 project(':qupath-extension-opencv').projectDir = "$rootDir/qupath-extension-opencv" as File
 project(':qupath-extension-nn-converter').projectDir = "$rootDir/qupath-extension-nn-converter" as File
+project(':qupath-extension-usermode').projectDir = "$rootDir/qupath-extension-usermode" as File
