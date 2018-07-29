@@ -274,7 +274,7 @@ jfx {
 
     // gradle jfxNative
     vendor = qupathVendor
-    nativeReleaseVersion = qupathVersion
+    nativeReleaseVersion = qupathVersion + "." + nnVersion
     appName = 'QuPath'
     bundler = nativeBundle
 
