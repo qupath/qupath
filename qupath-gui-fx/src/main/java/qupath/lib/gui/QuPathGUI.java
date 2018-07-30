@@ -293,14 +293,14 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
     private static ExtensionClassLoader extensionClassLoader = new ExtensionClassLoader();
     private ServiceLoader<QuPathExtension> extensionLoader = ServiceLoader.load(QuPathExtension.class, extensionClassLoader);
 
-    public UserProfileChoice getProfileChoice() {
+    public UserProfileChoice getUserProfileChoice() {
         return profileChoice;
     }
 
-    public void setProfileChoice(UserProfileChoice profileChoice) {
+    public void setUserProfileChoice(UserProfileChoice profileChoice) {
         this.profileChoice = profileChoice;
+        updateProjectActionStates();
     }
-//	private static ServiceLoader<QuPathExtension> extensionLoader = ServiceLoader.load(QuPathExtension.class);
 
     public enum UserProfileChoice {
         SPECIALIST_MODE("Specialist mode"),
@@ -2012,13 +2012,13 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
                 for (PathObject pathObject : viewer.getAllSelectedObjects()) {
                     if (!pathObject.isAnnotation() || pathObject.getPathClass() == pathClassToSet)
                         continue;
-                    if (QuPathGUI.getInstance().getProfileChoice() == QuPathGUI.UserProfileChoice.SPECIALIST_MODE &&
+                    if (QuPathGUI.getInstance().getUserProfileChoice() == QuPathGUI.UserProfileChoice.SPECIALIST_MODE &&
                             !pathClassToSet.getName().startsWith("ROI_")) {
                         boolean confirm = DisplayHelpers.showConfirmDialog("Setting non ROI",
                                 "You are trying to set a label without an ROI_ prefix in Specialist mode, " +
                                         "are you sure you want to do that?");
                         if (!confirm) continue;
-                    } else if (QuPathGUI.getInstance().getProfileChoice() == UserProfileChoice.CONTRACTOR_MODE &&
+                    } else if (QuPathGUI.getInstance().getUserProfileChoice() == UserProfileChoice.CONTRACTOR_MODE &&
                             pathClassToSet.getName().startsWith("ROI_")) {
                         DisplayHelpers.showMessageDialog("Error", "You cannot assign ROI labels in contractor mode!");
                         continue;
@@ -4198,8 +4198,10 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 
     private void updateProjectActionStates() {
         Project<?> project = getProject();
+        getAction(GUIActions.PROJECT_NEW).setDisabled(getUserProfileChoice() == UserProfileChoice.CONTRACTOR_MODE);
         getAction(GUIActions.PROJECT_CLOSE).setDisabled(project == null);
-        getAction(GUIActions.PROJECT_IMPORT_IMAGES).setDisabled(project == null);
+        getAction(GUIActions.PROJECT_IMPORT_IMAGES).setDisabled(project == null ||
+                getUserProfileChoice() == UserProfileChoice.CONTRACTOR_MODE);
         getAction(GUIActions.PROJECT_EXPORT_IMAGE_LIST).setDisabled(project == null);
         getAction(GUIActions.PROJECT_METADATA).setDisabled(project == null);
 

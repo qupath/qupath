@@ -87,7 +87,7 @@ public class UserProfileChooserCommand implements PathCommand {
                 getWindowChoice();
                 return;
             }
-            qupath.setProfileChoice(choice);
+            qupath.setUserProfileChoice(choice);
         }
     }
 

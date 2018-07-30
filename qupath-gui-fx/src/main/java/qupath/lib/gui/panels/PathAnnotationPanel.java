@@ -191,14 +191,14 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 
         MenuItem miAddClass = new MenuItem("Add class");
         miAddClass.setOnAction(e -> {
-            String initialInput = qupath.getProfileChoice() == QuPathGUI.UserProfileChoice.SPECIALIST_MODE ? "ROI_" : "";
+            String initialInput = qupath.getUserProfileChoice() == QuPathGUI.UserProfileChoice.SPECIALIST_MODE ? "ROI_" : "";
             String input = DisplayHelpers.showInputDialog("Add class", "Class name", initialInput);
 
-            if (qupath.getProfileChoice() == QuPathGUI.UserProfileChoice.CONTRACTOR_MODE && input != null &&
+            if (qupath.getUserProfileChoice() == QuPathGUI.UserProfileChoice.CONTRACTOR_MODE && input != null &&
                     input.startsWith("ROI_")) {
                 DisplayHelpers.showMessageDialog("Error", "ROI annotations cannot be created in contractor mode!");
                 return;
-            } else if (qupath.getProfileChoice() == QuPathGUI.UserProfileChoice.SPECIALIST_MODE && input != null &&
+            } else if (qupath.getUserProfileChoice() == QuPathGUI.UserProfileChoice.SPECIALIST_MODE && input != null &&
                     !input.startsWith("ROI_")) {
                 boolean confirm = DisplayHelpers.showConfirmDialog("Warning", "Trying to create a label " +
                         "without the ROI_ prefix in specialist mode. Are you sure you want to do that?");
@@ -523,13 +523,13 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
                 return;
             }
 
-            if (qupath.getProfileChoice() == QuPathGUI.UserProfileChoice.SPECIALIST_MODE &&
+            if (qupath.getUserProfileChoice() == QuPathGUI.UserProfileChoice.SPECIALIST_MODE &&
                     !pathClass.getName().startsWith("ROI_")) {
                 boolean confirm = DisplayHelpers.showConfirmDialog("Setting non ROI",
                         "You are trying to set a label without an ROI_ prefix in Specialist mode, " +
                                 "are you sure you want to do that?");
                 if (!confirm) return;
-            } else if (qupath.getProfileChoice() == QuPathGUI.UserProfileChoice.CONTRACTOR_MODE &&
+            } else if (qupath.getUserProfileChoice() == QuPathGUI.UserProfileChoice.CONTRACTOR_MODE &&
                     pathClass.getName().startsWith("ROI_")) {
                 DisplayHelpers.showMessageDialog("Error", "You cannot assign ROI labels in contractor mode!");
                 return;
@@ -579,7 +579,7 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
             if (pathObjectsToRemove == null || pathObjectsToRemove.isEmpty())
                 return;
 
-            if (qupath.getProfileChoice() == QuPathGUI.UserProfileChoice.CONTRACTOR_MODE) {
+            if (qupath.getUserProfileChoice() == QuPathGUI.UserProfileChoice.CONTRACTOR_MODE) {
                 for (PathObject o: pathObjectsToRemove) {
                     if (o.getPathClass().getName().contains("ROI_")) {
                         DisplayHelpers.showMessageDialog("Warning", "ROI annotations cannot be deleted in contractor mode!");
@@ -626,7 +626,7 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
     Action createClearROIsAction() {
         Action action = new Action("Delete all", e -> {
 
-            if (qupath.getProfileChoice() == QuPathGUI.UserProfileChoice.CONTRACTOR_MODE) {
+            if (qupath.getUserProfileChoice() == QuPathGUI.UserProfileChoice.CONTRACTOR_MODE) {
                 DisplayHelpers.showMessageDialog("Warning", "ROI annotations cannot be deleted in contractor mode!");
                 return;
             }

@@ -32,7 +32,6 @@ public class NNConverter implements QuPathExtension {
 
     private void addQuPathCommands(final QuPathGUI qupath) {
         qupath.addToolbarSeparator();
-        PathCommand openFromRootPathCommand = new OpenFromRootPathCommand(qupath);
         PathCommand maskExporterCommand = new MaskExporterCommand(qupath);
 
         try {
@@ -43,13 +42,6 @@ public class NNConverter implements QuPathExtension {
             // TODO add action shortcut
             //qupath.createPluginAction()
             qupath.addToolbarButton(btn);
-
-            // Add to menus
-            // Get a reference to a menu, creating it if necessary
-            Menu menu = qupath.getMenu("File", false);
-            MenuItem execItem = new MenuItem("Open Mirax files from root path...");
-            execItem.setOnAction(e -> openFromRootPathCommand.run());
-            menu.getItems().add(5,execItem);
         } catch (Exception e) {
             logger.error("Error adding toolbar buttons", e);
         }

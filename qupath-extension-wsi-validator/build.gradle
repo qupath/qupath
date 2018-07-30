@@ -1,5 +1,5 @@
 
-description = 'qupath-extension-usermode'
+description = 'qupath-extension-wsi-validator'
 dependencies {
   compile project(':qupath-gui-fx')
 }
