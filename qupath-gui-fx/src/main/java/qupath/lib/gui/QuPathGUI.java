@@ -2012,6 +2012,13 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
                 for (PathObject pathObject : viewer.getAllSelectedObjects()) {
                     if (!pathObject.isAnnotation() || pathObject.getPathClass() == pathClassToSet)
                         continue;
+                    if (QuPathGUI.getInstance().getProfileChoice() == QuPathGUI.UserProfileChoice.SPECIALIST_MODE &&
+                            !pathClassToSet.getName().startsWith("ROI_")) {
+                        boolean confirm = DisplayHelpers.showConfirmDialog("Setting non ROI",
+                                "You are trying to set a label without an ROI_ prefix in Specialist mode, " +
+                                        "are you sure you want to do that?");
+                        if (!confirm) continue;
+                    }
                     pathObject.setPathClass(pathClassToSet);
                     changed.add(pathObject);
                 }
@@ -2037,6 +2044,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
             }
 //			actionSetClass.setGraphic(r);
             RadioMenuItem item = ActionUtils.createRadioMenuItem(actionSetClass);
+            item.setMnemonicParsing(false);
             item.graphicProperty().unbind();
             item.setGraphic(shape);
             item.setToggleGroup(group);
