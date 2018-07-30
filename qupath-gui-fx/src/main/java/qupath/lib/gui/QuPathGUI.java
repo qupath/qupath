@@ -2018,6 +2018,10 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
                                 "You are trying to set a label without an ROI_ prefix in Specialist mode, " +
                                         "are you sure you want to do that?");
                         if (!confirm) continue;
+                    } else if (QuPathGUI.getInstance().getProfileChoice() == UserProfileChoice.CONTRACTOR_MODE &&
+                            pathClassToSet.getName().startsWith("ROI_")) {
+                        DisplayHelpers.showMessageDialog("Error", "You cannot assign ROI labels in contractor mode!");
+                        continue;
                     }
                     pathObject.setPathClass(pathClassToSet);
                     changed.add(pathObject);

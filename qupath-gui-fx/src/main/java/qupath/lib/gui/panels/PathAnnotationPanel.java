@@ -193,6 +193,12 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
         miAddClass.setOnAction(e -> {
             String initialInput = qupath.getProfileChoice() == QuPathGUI.UserProfileChoice.SPECIALIST_MODE ? "ROI_" : "";
             String input = DisplayHelpers.showInputDialog("Add class", "Class name", initialInput);
+
+            if (qupath.getProfileChoice() == QuPathGUI.UserProfileChoice.CONTRACTOR_MODE && input != null &&
+                    input.startsWith("ROI_")) {
+                DisplayHelpers.showMessageDialog("Warning", "ROI annotations cannot be created in contractor mode!");
+                return;
+            }
             if (input == null || input.trim().isEmpty())
                 return;
             PathClass pathClass = PathClassFactory.getPathClass(input);
@@ -518,6 +524,10 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
                         "You are trying to set a label without an ROI_ prefix in Specialist mode, " +
                                 "are you sure you want to do that?");
                 if (!confirm) return;
+            } else if (qupath.getProfileChoice() == QuPathGUI.UserProfileChoice.CONTRACTOR_MODE &&
+                    pathClass.getName().startsWith("ROI_")) {
+                DisplayHelpers.showMessageDialog("Error", "You cannot assign ROI labels in contractor mode!");
+                return;
             }
 
             if (pathObject.getPathClass() == pathClass)
@@ -563,10 +573,21 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
             List<PathObject> pathObjectsToRemove = new ArrayList<>(listAnnotations.getSelectionModel().getSelectedItems());
             if (pathObjectsToRemove == null || pathObjectsToRemove.isEmpty())
                 return;
+
+            if (qupath.getProfileChoice() == QuPathGUI.UserProfileChoice.CONTRACTOR_MODE) {
+                for (PathObject o: pathObjectsToRemove) {
+                    if (o.getPathClass().getName().contains("ROI_")) {
+                        DisplayHelpers.showMessageDialog("Warning", "ROI annotations cannot be deleted in contractor mode!");
+                        return;
+                    }
+                }
+            }
+
             int nObjects = pathObjectsToRemove.size();
             if (!DisplayHelpers.showYesNoDialog("Delete annotations",
                     String.format("Delete %d %s?", nObjects, nObjects == 1 ? "annotation" : "annotations")))
                 return;
+
             // Check for descendant objects
             List<PathObject> descendantList = new ArrayList<>();
             for (PathObject parent : pathObjectsToRemove)
@@ -599,6 +620,12 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
      */
     Action createClearROIsAction() {
         Action action = new Action("Delete all", e -> {
+
+            if (qupath.getProfileChoice() == QuPathGUI.UserProfileChoice.CONTRACTOR_MODE) {
+                DisplayHelpers.showMessageDialog("Warning", "ROI annotations cannot be deleted in contractor mode!");
+                return;
+            }
+
             if (hierarchy == null)
                 return;
             List<PathObject> pathObjectsToRemove = new ArrayList<>(listAnnotations.getItems());
