@@ -1,4 +1,4 @@
-package qupath.usermode.commands;
+package qupath.wsival.commands;
 
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
@@ -6,8 +6,6 @@ import qupath.lib.projects.ProjectImageEntry;
 
 import java.awt.image.BufferedImage;
 import java.nio.file.Path;
-import java.util.HashMap;
-import java.util.Map;
 
 public class ExportWSICommand implements PathCommand {
 

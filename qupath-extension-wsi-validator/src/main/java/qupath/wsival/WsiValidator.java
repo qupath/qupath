@@ -1,4 +1,4 @@
-package qupath.usermode;
+package qupath.wsival;
 
 import javafx.scene.control.Button;
 import javafx.scene.control.Menu;
@@ -13,7 +13,7 @@ import org.slf4j.LoggerFactory;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.extensions.QuPathExtension;
-import qupath.usermode.commands.ExportWSICommand;
+import qupath.wsival.commands.ExportWSICommand;
 
 import java.net.URL;
 

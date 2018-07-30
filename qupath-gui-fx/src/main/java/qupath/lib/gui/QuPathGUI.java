@@ -305,8 +305,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
     public enum UserProfileChoice {
         SPECIALIST_MODE("Specialist mode"),
         CONTRACTOR_MODE("Contractor mode"),
-        REVIEWER_MODE("Reviewer mode"),
-        ADMIN_MODE("Admin mode"); // Mode which uses QuPath normally
+        REVIEWER_MODE("Reviewer/Admin mode"); // Mode which uses QuPath normally
 
         private final String text;
 
@@ -758,10 +757,9 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
         if (path == null || path.trim().length() == 0)
             return null;
         File dir = new File(path);
-        if (dir.isDirectory()) {
+
             return dir;
-        }
-        return null;
+
     }
 
 
@@ -1626,8 +1624,18 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
         });
 
         viewer.getView().addEventFilter(ScrollEvent.ANY, e -> {
-            if (!PathPrefs.getUseScrollGestures() || e.isShiftDown() || e.isShortcutDown())
+            if (e.isInertia()) {
+				e.consume();
+				return;
+			}
+			if (e.getTouchCount() == 0 && (!PathPrefs.getUseScrollGestures()) || e.isShiftDown() || e.isShortcutDown()) {
                 return;
+			}
+			// Swallow the event if we're using a touch screen & not with the move tool selected
+			if (e.getTouchCount() != 0 && getMode() != Modes.MOVE) {
+				e.consume();
+				return;
+			}
             // TODO: Note: When e.isInertia() == TRUE on OSX, the results are quite annoyingly 'choppy', with 0 x,y movements interspersed with 'true' movements
 //			logger.debug("Delta: " + e.getDeltaX() + ", " + e.getDeltaY() + " - " + e.isInertia());
 
@@ -1677,7 +1685,6 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
                 }
             }
         });
-
 
     }
 
