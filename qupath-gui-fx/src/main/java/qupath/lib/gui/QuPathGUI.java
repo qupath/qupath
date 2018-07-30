@@ -925,7 +925,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
         createSingleThreadExecutor(this).execute(() -> {
             try {
                 // Try to download latest changelog
-                URL url = new URL("https://raw.githubusercontent.com/qupath/qupath/master/CHANGELOG.md");
+                URL url = new URL("https://raw.githubusercontent.com/EKami/qupath/master/CHANGELOG.md");
                 String changeLogOnline = URLTools.readURLAsString(url, 2000);
 
                 // Store last update check time
@@ -936,12 +936,6 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
                     // If not isAutoCheck, inform user even if there are no updated at this time
                     if (!isAutoCheck) {
                         Platform.runLater(() -> {
-//							Dialog<Void> dialog = new Dialog<>();
-//							dialog.setTitle("Update check");
-//							dialog.initOwner(getStage());
-//							dialog.getDialogPane().setHeaderText("QuPath is up-to-date!");
-//							dialog.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
-//							dialog.showAndWait();
                             DisplayHelpers.showMessageDialog("Update check", "QuPath is up-to-date!");
                         });
                     }
