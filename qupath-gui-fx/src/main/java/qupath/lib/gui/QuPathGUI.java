@@ -3374,7 +3374,8 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
             case PROJECT_SAVE:
                 return createCommandAction(new ProjectSaveCommand(this), "Save project");
             case PROJECT_IMPORT_IMAGES:
-                return createCommandAction(new ProjectImportImagesCommand(this), "Add images");
+                return createCommandAction(new OpenFromRootPathCommand(this), "Import Mirax files from root path");
+                //return createCommandAction(new ProjectImportImagesCommand(this), "Add images");
             case PROJECT_EXPORT_IMAGE_LIST:
                 return createCommandAction(new ProjectExportImageListCommand(this), "Export image list");
             case PROJECT_METADATA:

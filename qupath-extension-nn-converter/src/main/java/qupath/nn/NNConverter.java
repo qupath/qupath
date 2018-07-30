@@ -14,7 +14,7 @@ import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.extensions.QuPathExtension;
 import qupath.nn.commands.MaskExporterCommand;
-import qupath.nn.commands.OpenFromRootPathCommand;
+import qupath.lib.gui.commands.OpenFromRootPathCommand;
 
 import java.net.URL;
 
