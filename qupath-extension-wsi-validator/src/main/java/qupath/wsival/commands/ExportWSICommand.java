@@ -38,6 +38,23 @@ public class ExportWSICommand implements PathCommand {
         ProjectIO.writeProject(qupath.getProject(), message -> DisplayHelpers.showErrorMessage("Error", message));
     }
 
+    private void reassignValidationOwnership(ProjectImageEntry<BufferedImage> wsi, QuPathGUI.UserProfileChoice user) {
+        Map<String, String> meta = new HashMap<>(wsi.getMetadataMap());
+
+        if (user == null) {
+            meta.remove(QuPathGUI.WSI_VALIDATED);
+        } else {
+            meta.put(QuPathGUI.WSI_VALIDATED, user.name());
+        }
+        ProjectImageEntry<BufferedImage> entry = new ProjectImageEntry<>(qupath.getProject(),
+                wsi.getServerPath(), wsi.getImageName(), meta);
+
+        qupath.getProject().removeImage(wsi);
+        qupath.getProject().addImage(entry);
+        qupath.refreshProject();
+        ProjectIO.writeProject(qupath.getProject(), message -> DisplayHelpers.showErrorMessage("Error", message));
+    }
+
 
     private boolean getConfirmation() {
         return DisplayHelpers.showConfirmDialog("Warning", "Warning: Once you validate a WSI it will " +
@@ -49,17 +66,26 @@ public class ExportWSICommand implements PathCommand {
         ProjectImageEntry<BufferedImage> wsi = qupath.getProject().getImageEntry(qupath.getImageData().getServerPath());
 
         if (QuPathGUI.getInstance().getUserProfileChoice() == QuPathGUI.UserProfileChoice.ADMIN_MODE) {
-            String[] choices = {"Reset", "Give to " + QuPathGUI.UserProfileChoice.SPECIALIST_MODE,
+            String[] choices = {"Reset validation",
+                    "Give to " + QuPathGUI.UserProfileChoice.SPECIALIST_MODE,
                     "Give to " + QuPathGUI.UserProfileChoice.CONTRACTOR_MODE,
                     "Give to " + QuPathGUI.UserProfileChoice.REVIEWER_MODE};
+            String curVal = wsi.getMetadataMap().get(QuPathGUI.WSI_VALIDATED) == null ? "No one" :
+                    wsi.getMetadataMap().get(QuPathGUI.WSI_VALIDATED);
             String choice = DisplayHelpers.showChoiceDialog("Change validation ownership",
                     "In admin mode the validation button allow you to reset the \nWSI \"validation\" " +
                             "to another user profile.\nPlease select the profile to which you want to give " +
-                            "the validation attribute:\n", choices, choices[0]);
+                            "the validation attribute.\n\nCurrently validated by: "
+                            + curVal, choices, choices[0]);
             if (choice != null) {
                 if (choice.equals(choices[0])) {
-                    // TODO change the purpose of the button here
-                    // The button should pop-up a windows to choose to which profile to give the "Validation" status
+                    reassignValidationOwnership(wsi, null);
+                } else if (choice.equals(choices[1])) {
+                    reassignValidationOwnership(wsi, QuPathGUI.UserProfileChoice.SPECIALIST_MODE);
+                } else if (choice.equals(choices[2])) {
+                    reassignValidationOwnership(wsi, QuPathGUI.UserProfileChoice.CONTRACTOR_MODE);
+                } else if (choice.equals(choices[3])) {
+                    reassignValidationOwnership(wsi, QuPathGUI.UserProfileChoice.REVIEWER_MODE);
                 }
             }
         } else {
