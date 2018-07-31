@@ -28,7 +28,7 @@ public class ExportWSICommand implements PathCommand {
         QuPathGUI.UserProfileChoice userChoice = qupath.getUserProfileChoice();
         Map<String, String> meta = new HashMap<>(wsi.getMetadataMap());
 
-        meta.put("validated_by", userChoice.name());
+        meta.put(QuPathGUI.WSI_VALIDATED, userChoice.name());
         ProjectImageEntry<BufferedImage> entry = new ProjectImageEntry<>(qupath.getProject(),
                 wsi.getServerPath(), wsi.getImageName(), meta);
 
@@ -47,8 +47,25 @@ public class ExportWSICommand implements PathCommand {
     @Override
     public void run() {
         ProjectImageEntry<BufferedImage> wsi = qupath.getProject().getImageEntry(qupath.getImageData().getServerPath());
-        if (getConfirmation()) {
-            saveValidatedMeta(wsi);
+
+        if (QuPathGUI.getInstance().getUserProfileChoice() == QuPathGUI.UserProfileChoice.ADMIN_MODE) {
+            String[] choices = {"Reset", "Give to " + QuPathGUI.UserProfileChoice.SPECIALIST_MODE,
+                    "Give to " + QuPathGUI.UserProfileChoice.CONTRACTOR_MODE,
+                    "Give to " + QuPathGUI.UserProfileChoice.REVIEWER_MODE};
+            String choice = DisplayHelpers.showChoiceDialog("Change validation ownership",
+                    "In admin mode the validation button allow you to reset the \nWSI \"validation\" " +
+                            "to another user profile.\nPlease select the profile to which you want to give " +
+                            "the validation attribute:\n", choices, choices[0]);
+            if (choice != null) {
+                if (choice.equals(choices[0])) {
+                    // TODO change the purpose of the button here
+                    // The button should pop-up a windows to choose to which profile to give the "Validation" status
+                }
+            }
+        } else {
+            if (getConfirmation()) {
+                saveValidatedMeta(wsi);
+            }
         }
     }
 }

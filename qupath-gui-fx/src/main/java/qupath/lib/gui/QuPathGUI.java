@@ -305,7 +305,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
     public enum UserProfileChoice {
         SPECIALIST_MODE("Specialist mode"),
         CONTRACTOR_MODE("Contractor mode"),
-        REVIEWER_MODE("Reviewer"),
+        REVIEWER_MODE("Reviewer mode"),
         ADMIN_MODE("Admin mode"); // Mode which uses QuPath normally
 
         private final String text;
@@ -353,7 +353,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
         MOVE, RECTANGLE, ELLIPSE, LINE, POLYGON, BRUSH, POINTS, WAND
     }
 
-    ; //, TMA };
+    public static final String WSI_VALIDATED = "validated_by";
     private Modes mode = Modes.MOVE;
 
     // ExecutorServices for single & multiple threads

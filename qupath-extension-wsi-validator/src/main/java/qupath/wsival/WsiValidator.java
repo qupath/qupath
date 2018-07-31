@@ -45,9 +45,7 @@ public class WsiValidator implements QuPathExtension {
             // Get a reference to a menu, creating it if necessary
             Menu menu = qupath.getMenu("File", false);
             MenuItem execItem = new MenuItem("Validate WSI");
-            execItem.setOnAction(e -> {
-                exportWsiCommand.run();
-            });
+            execItem.setOnAction(e -> exportWsiCommand.run());
             menu.getItems().add(5,execItem);
         } catch (Exception e) {
             logger.error("Error adding toolbar buttons", e);
