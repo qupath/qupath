@@ -305,7 +305,8 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
     public enum UserProfileChoice {
         SPECIALIST_MODE("Specialist mode"),
         CONTRACTOR_MODE("Contractor mode"),
-        REVIEWER_MODE("Reviewer/Admin mode"); // Mode which uses QuPath normally
+        REVIEWER_MODE("Reviewer"),
+        ADMIN_MODE("Admin mode"); // Mode which uses QuPath normally
 
         private final String text;
 

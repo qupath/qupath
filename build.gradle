@@ -132,6 +132,7 @@ dependencies {
     compile project(':qupath-gui-fx')
     compile project(':qupath-extension-openslide')
     compile project(':qupath-extension-script-editor')
+    compile project(':qupath-extension-ij')
     compile project(':qupath-extension-opencv')
     compile project(':qupath-extension-pen')
     compile project(':qupath-extension-nn-converter')

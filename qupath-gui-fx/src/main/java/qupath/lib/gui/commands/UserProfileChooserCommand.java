@@ -57,10 +57,11 @@ public class UserProfileChooserCommand implements PathCommand {
         ButtonType specialistBtn =  QuPathGUI.UserProfileChoice.SPECIALIST_MODE.getButton();
         ButtonType contractorBtn =  QuPathGUI.UserProfileChoice.CONTRACTOR_MODE.getButton();
         ButtonType reviewerBtn =  QuPathGUI.UserProfileChoice.REVIEWER_MODE.getButton();
+        ButtonType adminBtn =  QuPathGUI.UserProfileChoice.ADMIN_MODE.getButton();
 
         pane.setCenter(grid);
         dialog.getDialogPane().setContent(pane);
-        dialog.getDialogPane().getButtonTypes().setAll(specialistBtn, contractorBtn, reviewerBtn);
+        dialog.getDialogPane().getButtonTypes().setAll(specialistBtn, contractorBtn, reviewerBtn, adminBtn);
         Optional<ButtonType> result = dialog.showAndWait();
 
         if (result.isPresent()) {
@@ -75,6 +76,9 @@ public class UserProfileChooserCommand implements PathCommand {
             }
             else if (reviewerBtn.equals(res)) {
                 choice = QuPathGUI.UserProfileChoice.REVIEWER_MODE;
+            }
+            else if (adminBtn.equals(res)) {
+                choice = QuPathGUI.UserProfileChoice.ADMIN_MODE;
             }
 
             String confirmText = "Are you sure to use " +  choice + "?";

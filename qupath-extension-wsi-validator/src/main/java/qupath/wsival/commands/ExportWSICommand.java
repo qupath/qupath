@@ -2,10 +2,18 @@ package qupath.wsival.commands;
 
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
+import qupath.lib.gui.helpers.DisplayHelpers;
+import qupath.lib.images.ImageData;
 import qupath.lib.projects.ProjectImageEntry;
 
 import java.awt.image.BufferedImage;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 public class ExportWSICommand implements PathCommand {
 
@@ -15,19 +23,35 @@ public class ExportWSICommand implements PathCommand {
         this.qupath = qupath;
     }
 
-    private void saveValidatedMeta(ProjectImageEntry<BufferedImage> imgEntry, String imgName, Path path, String md5) {
-//        Map<String, String> meta = new HashMap<>(imgEntry.getMetadataMap());
-//        meta.put("md5", md5);
-//
-//        ProjectImageEntry<BufferedImage> entry = new ProjectImageEntry<>(qupath.getProject(),
-//                path.toString(), imgName, meta);
-//
-//        qupath.getProject().removeImage(imgEntry);
-//        qupath.getProject().addImage(entry);
+    private void saveValidatedMeta(ProjectImageEntry<BufferedImage> wsi) {
+        QuPathGUI.UserProfileChoice userChoice = qupath.getUserProfileChoice();
+        Map<String, String> meta = new HashMap<>();
+
+        if (userChoice.equals(QuPathGUI.UserProfileChoice.SPECIALIST_MODE))
+            meta.put("status", QuPathGUI.UserProfileChoice.CONTRACTOR_MODE.name());
+        else if (userChoice.equals(QuPathGUI.UserProfileChoice.CONTRACTOR_MODE))
+            meta.put("status", QuPathGUI.UserProfileChoice.REVIEWER_MODE.name());
+        else if (userChoice.equals(QuPathGUI.UserProfileChoice.REVIEWER_MODE))
+            meta.put("status", "validated");
+
+        ProjectImageEntry<BufferedImage> entry = new ProjectImageEntry<>(qupath.getProject(),
+                wsi.getServerPath(), wsi.getImageName(), meta);
+
+        qupath.getProject().removeImage(wsi);
+        qupath.getProject().addImage(entry);
+    }
+
+
+    private boolean getConfirmation() {
+        return DisplayHelpers.showConfirmDialog("Warning", "Warning: Once you validate a WSI it will " +
+                "be send for review and you won't be able to edit it anymore. Proceed?");
     }
 
     @Override
     public void run() {
-
+        ProjectImageEntry<BufferedImage> wsi = qupath.getProject().getImageEntry(qupath.getImageData().getServerPath());
+        if (getConfirmation()) {
+            saveValidatedMeta(wsi);
+        }
     }
 }
