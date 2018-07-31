@@ -4101,7 +4101,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
             return;
         String name = "QuPath";
         if (versionString != null)
-            name = name + " (" + versionString + ") - NN converter edition (" + nnVersionString + ")";
+            name = name + " (" + versionString + ") - NN converter edition " + nnVersionString;
         ImageData<?> imageData = getImageData();
         if (imageData == null || imageData.getServer() == null)
             stage.setTitle(name);

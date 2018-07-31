@@ -1,3 +1,8 @@
+## Version 0.1.3.0.5
+
+* Added Specialist/contractor/reviewer mode
+* Fixed memory issues problems
+
 ## Version 0.1.2
 
 * Saving measurement tables is now logged, and can be called from scripts
