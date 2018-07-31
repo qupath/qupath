@@ -48,6 +48,7 @@ import java.util.TreeMap;
 
 import javax.imageio.ImageIO;
 
+import javafx.scene.layout.*;
 import org.controlsfx.control.MasterDetailPane;
 import org.controlsfx.control.action.Action;
 import org.controlsfx.control.action.ActionUtils;
@@ -79,10 +80,6 @@ import javafx.scene.control.TreeView;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.KeyCode;
-import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.GridPane;
-import javafx.scene.layout.Pane;
-import javafx.scene.layout.StackPane;
 import javafx.util.Callback;
 import qupath.lib.display.ChannelDisplayInfo;
 import qupath.lib.display.ImageDisplay;
@@ -146,20 +143,25 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 
 		tree.setRoot(null);
 
-
 		tree.setContextMenu(getPopup());
 
 		tree.setOnKeyPressed(e -> {
 			if (e.getCode() == KeyCode.ENTER) {
-				qupath.openImageEntry(getSelectedEntry());
-				e.consume();
+				ProjectImageEntry<BufferedImage> entry = getSelectedEntry();
+				if (!isValidatedEntry(entry)) {
+					qupath.openImageEntry(entry);
+					e.consume();
+				}
 			}
 		});
 
 		tree.setOnMouseClicked(e -> {
 			if (e.getClickCount() > 1) {
-				qupath.openImageEntry(getSelectedEntry());
-				e.consume();
+				ProjectImageEntry<BufferedImage> entry = getSelectedEntry();
+				if (!isValidatedEntry(entry)) {
+					qupath.openImageEntry(entry);
+					e.consume();
+				}
 			}
 		});
 		
@@ -195,7 +197,13 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 		panel.setTop(paneButtons);
 	}
 
-
+	private boolean isValidatedEntry(ProjectImageEntry<?> entry) {
+		String currentProfileChoice = QuPathGUI.getInstance().getUserProfileChoice().name();
+		if (entry.getMetadataKeys().contains("validated_by")) {
+			return currentProfileChoice.equals(entry.getMetadataMap().get("validated_by"));
+		}
+		return false;
+	}
 
 	ContextMenu getPopup() {
 
@@ -445,8 +453,6 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 		return false;
 	}
 
-	
-
 
 	public boolean hasProject() {
 		return getProject() != null;
@@ -467,15 +473,13 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 		if (this.project == project)
 			return;
 		this.project = project;
-		model = new ProjectImageTreeModel(project);
-		tree.setRoot(model.getRootFX());
-		tree.getRoot().setExpanded(true);
+		this.refreshProject();
 	}
 	
 	public void refreshProject() {
 		model = new ProjectImageTreeModel(project);
 		tree.setRoot(model.getRootFX());
-		tree.getRoot().setExpanded(true);		
+		tree.getRoot().setExpanded(true);
 	}
 
 
@@ -935,10 +939,6 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 			// Ensure unassigned is at the end
 			if (mapKeyList.remove(UNASSIGNED_NODE))
 				mapKeyList.add(UNASSIGNED_NODE);
-
-
-
-
 		}
 
 
@@ -1031,6 +1031,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 			label.setPrefSize(viewWidth, viewHeight);
 		}
 
+
 		@Override
 		protected void updateItem(Object item, boolean empty) {
 			super.updateItem(item, empty);
@@ -1059,16 +1060,9 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 				// Set whatever tooltip we have
 				tooltip.setGraphic(null);
 				setTooltip(tooltip);
-
 				setText(entry.getImageName());
-				//	        	 String s = entry.toString();
-				//	        	 File file = getImageDataPath(entry);
-				//	        	 if (file != null && file.exists()) {
-				//	        		 double sizeMB = file.length() / 1024.0 / 1024.0;
-				//	        		 s = String.format("%s (%.2f MB)", s, sizeMB);
-				//	        	 }
 
-								StringBuilder sb = new StringBuilder();
+				StringBuilder sb = new StringBuilder();
 				sb.append(entry.getImageName()).append("\n\n");
 				if (!entry.getMetadataMap().isEmpty()) {
 					for (Entry<String, String> mapEntry : entry.getMetadataMap().entrySet()) {
@@ -1085,7 +1079,11 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 					sb.append("No data file");
 
 				tooltip.setText(sb.toString());
-				//	        	 Tooltip tooltip = new Tooltip(sb.toString());
+
+				if (isValidatedEntry(entry)) {
+					setText("(Validated) - " + getText());
+					setDisabled(true);
+				}
 
 				File fileThumbnail = getThumbnailFile(getProject(), entry);
 				if (fileThumbnail == null) {

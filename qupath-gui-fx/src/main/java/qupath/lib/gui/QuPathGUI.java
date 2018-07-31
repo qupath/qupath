@@ -2068,7 +2068,6 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
         menuSetClassItems.setAll(itemList);
     }
 
-
     /**
      * Opan the image represented by the specified ProjectImageEntry.
      * <p>

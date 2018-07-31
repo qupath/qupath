@@ -4,6 +4,7 @@ import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.images.ImageData;
+import qupath.lib.projects.ProjectIO;
 import qupath.lib.projects.ProjectImageEntry;
 
 import java.awt.image.BufferedImage;
@@ -27,19 +28,14 @@ public class ExportWSICommand implements PathCommand {
         QuPathGUI.UserProfileChoice userChoice = qupath.getUserProfileChoice();
         Map<String, String> meta = new HashMap<>(wsi.getMetadataMap());
 
-        if (userChoice.equals(QuPathGUI.UserProfileChoice.SPECIALIST_MODE))
-            meta.put("status", QuPathGUI.UserProfileChoice.CONTRACTOR_MODE.name());
-        else if (userChoice.equals(QuPathGUI.UserProfileChoice.CONTRACTOR_MODE))
-            meta.put("status", QuPathGUI.UserProfileChoice.REVIEWER_MODE.name());
-        else if (userChoice.equals(QuPathGUI.UserProfileChoice.REVIEWER_MODE))
-            meta.put("status", "validated");
-
+        meta.put("validated_by", userChoice.name());
         ProjectImageEntry<BufferedImage> entry = new ProjectImageEntry<>(qupath.getProject(),
                 wsi.getServerPath(), wsi.getImageName(), meta);
 
         qupath.getProject().removeImage(wsi);
         qupath.getProject().addImage(entry);
         qupath.refreshProject();
+        ProjectIO.writeProject(qupath.getProject(), message -> DisplayHelpers.showErrorMessage("Error", message));
     }
 
 
