@@ -25,7 +25,7 @@ public class ExportWSICommand implements PathCommand {
 
     private void saveValidatedMeta(ProjectImageEntry<BufferedImage> wsi) {
         QuPathGUI.UserProfileChoice userChoice = qupath.getUserProfileChoice();
-        Map<String, String> meta = new HashMap<>();
+        Map<String, String> meta = new HashMap<>(wsi.getMetadataMap());
 
         if (userChoice.equals(QuPathGUI.UserProfileChoice.SPECIALIST_MODE))
             meta.put("status", QuPathGUI.UserProfileChoice.CONTRACTOR_MODE.name());
@@ -39,6 +39,7 @@ public class ExportWSICommand implements PathCommand {
 
         qupath.getProject().removeImage(wsi);
         qupath.getProject().addImage(entry);
+        qupath.refreshProject();
     }
 
 
