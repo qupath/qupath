@@ -4205,10 +4205,12 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 
     private void updateProjectActionStates() {
         Project<?> project = getProject();
-        getAction(GUIActions.PROJECT_NEW).setDisabled(getUserProfileChoice() == UserProfileChoice.CONTRACTOR_MODE);
+        getAction(GUIActions.PROJECT_NEW).setDisabled(getUserProfileChoice() == UserProfileChoice.CONTRACTOR_MODE ||
+                getUserProfileChoice() == UserProfileChoice.REVIEWER_MODE);
         getAction(GUIActions.PROJECT_CLOSE).setDisabled(project == null);
         getAction(GUIActions.PROJECT_IMPORT_IMAGES).setDisabled(project == null ||
-                getUserProfileChoice() == UserProfileChoice.CONTRACTOR_MODE);
+                getUserProfileChoice() == UserProfileChoice.CONTRACTOR_MODE ||
+                getUserProfileChoice() == UserProfileChoice.REVIEWER_MODE);
         getAction(GUIActions.PROJECT_EXPORT_IMAGE_LIST).setDisabled(project == null);
         getAction(GUIActions.PROJECT_METADATA).setDisabled(project == null);
 
