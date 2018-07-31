@@ -78,9 +78,9 @@ public class ExportWSICommand implements PathCommand {
             String curVal = wsi.getMetadataMap().get(QuPathGUI.WSI_VALIDATED) == null ? "No one" :
                     QuPathGUI.UserProfileChoice.valueOf(wsi.getMetadataMap().get(QuPathGUI.WSI_VALIDATED)).toString();
             String choice = DisplayHelpers.showChoiceDialog("Change validation ownership",
-                    "In " + currentChoice + " the validation button allow you to change the " +
-                            "\nWSI \"validation\" attribute.\n" +
-                            "Please select what to do with it:\n\nCurrently validated by: "
+                    "In " + currentChoice + " the validation button allow you to reassign the " +
+                            "\nWSI to a user mode.\n" +
+                            "Please select to whom you want to give the WSI:\n\nCurrently validated by: "
                             + curVal, choices, choices[0]);
             if (choice != null) {
                 if (choice.equals(choices[0])) {
@@ -90,11 +90,11 @@ public class ExportWSICommand implements PathCommand {
                         saveValidatedMeta(wsi);
                     }
                 } else if (choice.equals(choices[1])) {
-                    reassignValidationOwnership(wsi, QuPathGUI.UserProfileChoice.SPECIALIST_MODE);
+                    reassignValidationOwnership(wsi, null);
                 } else if (choice.equals(choices[2])) {
-                    reassignValidationOwnership(wsi, QuPathGUI.UserProfileChoice.CONTRACTOR_MODE);
+                    reassignValidationOwnership(wsi, QuPathGUI.UserProfileChoice.SPECIALIST_MODE);
                 } else if (choice.equals(choices[3])) {
-                    reassignValidationOwnership(wsi, QuPathGUI.UserProfileChoice.REVIEWER_MODE);
+                    reassignValidationOwnership(wsi, QuPathGUI.UserProfileChoice.CONTRACTOR_MODE);
                 }
             }
         } else {
