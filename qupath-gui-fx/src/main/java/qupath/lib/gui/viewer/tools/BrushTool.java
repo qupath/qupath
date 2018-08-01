@@ -42,6 +42,7 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Ellipse;
 import qupath.lib.awt.common.AwtTools;
+import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.ModeWrapper;
 import qupath.lib.gui.viewer.QuPathViewer;
@@ -93,7 +94,8 @@ public class BrushTool extends AbstractPathROITool {
 	
 	protected Cursor getRequestedCursor() {
 		
-		if (PathPrefs.getUseTileBrush())
+		// There appears to be a display bug with custom cursors on a Mac
+		if (PathPrefs.getUseTileBrush() || GeneralTools.isMac())
 			return Cursor.CROSSHAIR;
 		
 		double res = 0.05;
