@@ -198,25 +198,12 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
     }
 
     private boolean isValidatedEntry(ProjectImageEntry<?> entry) {
-        final String currentProfileChoice = QuPathGUI.getInstance().getUserProfileChoice().name();
+        final QuPathGUI.UserProfileChoice currentProfileChoice = QuPathGUI.getInstance().getUserProfileChoice();
         if (entry != null && entry.getMetadataKeys().contains(QuPathGUI.WSI_VALIDATED)) {
-            String validatedBy = entry.getMetadataMap().get(QuPathGUI.WSI_VALIDATED);
-            if (currentProfileChoice.equals(QuPathGUI.UserProfileChoice.SPECIALIST_MODE.name())) {
-                if (validatedBy.equals(QuPathGUI.UserProfileChoice.SPECIALIST_MODE.name()) ||
-                        validatedBy.equals(QuPathGUI.UserProfileChoice.CONTRACTOR_MODE.name()) ||
-                        validatedBy.equals(QuPathGUI.UserProfileChoice.REVIEWER_MODE.name())) {
-                    return true;
-                }
-            } else if (currentProfileChoice.equals(QuPathGUI.UserProfileChoice.CONTRACTOR_MODE.name())) {
-                if (validatedBy.equals(QuPathGUI.UserProfileChoice.CONTRACTOR_MODE.name()) ||
-                        validatedBy.equals(QuPathGUI.UserProfileChoice.REVIEWER_MODE.name())) {
-                    return true;
-                }
-            } else if (currentProfileChoice.equals(QuPathGUI.UserProfileChoice.REVIEWER_MODE.name())) {
-                if (validatedBy.equals(QuPathGUI.UserProfileChoice.REVIEWER_MODE.name())) {
-                    return true;
-                }
-            }
+            QuPathGUI.UserProfileChoice validatedBy = QuPathGUI.UserProfileChoice.valueOf(
+                    entry.getMetadataMap().get(QuPathGUI.WSI_VALIDATED));
+
+            return currentProfileChoice.getHierarchyLevel() >= validatedBy.getHierarchyLevel();
         }
         return false;
     }

@@ -64,7 +64,13 @@ public class ExportWSICommand implements PathCommand {
 
     @Override
     public void run() {
-        ProjectImageEntry<BufferedImage> wsi = qupath.getProject().getImageEntry(qupath.getImageData().getServerPath());
+        ImageData<BufferedImage> imgData = qupath.getImageData();
+        if (imgData == null) {
+            DisplayHelpers.showMessageDialog("NO WSI", "Please select a WSI first!");
+            return;
+        }
+
+        ProjectImageEntry<BufferedImage> wsi = qupath.getProject().getImageEntry(imgData.getServerPath());
 
         QuPathGUI.UserProfileChoice currentChoice = QuPathGUI.getInstance().getUserProfileChoice();
         if (currentChoice == QuPathGUI.UserProfileChoice.REVIEWER_MODE ||

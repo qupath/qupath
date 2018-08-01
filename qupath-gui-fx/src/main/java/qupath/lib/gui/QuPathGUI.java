@@ -303,19 +303,25 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
     }
 
     public enum UserProfileChoice {
-        SPECIALIST_MODE("Specialist mode"),
-        CONTRACTOR_MODE("Contractor mode"),
-        REVIEWER_MODE("Reviewer mode"),
-        ADMIN_MODE("Admin mode"); // Mode which uses QuPath normally
+        ADMIN_MODE("Admin mode", 4), // Mode which uses QuPath normally
+        SPECIALIST_MODE("Specialist mode", 3),
+        CONTRACTOR_MODE("Contractor mode", 2),
+        REVIEWER_MODE("Reviewer mode", 1);
 
         private final String text;
+        private int hierarchyLevel;
 
-        UserProfileChoice(String text) {
+        UserProfileChoice(String text, int hierarchyLevel) {
             this.text = text;
+            this.hierarchyLevel = hierarchyLevel;
         }
 
         public ButtonType getButton() {
             return new ButtonType(text);
+        }
+
+        public int getHierarchyLevel() {
+            return hierarchyLevel;
         }
 
         @Override
