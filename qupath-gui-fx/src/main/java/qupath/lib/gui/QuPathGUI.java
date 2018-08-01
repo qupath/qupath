@@ -2260,6 +2260,11 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
         return false;
     }
 
+    public void closeCurrentImage() {
+        QuPathViewerPlus viewer = getViewer();
+        viewer.setImageData(null);
+    }
+
 
     public ImageData<BufferedImage> createNewImageData(final ImageServer<BufferedImage> server) {
         return createNewImageData(server, PathPrefs.getAutoEstimateImageType());

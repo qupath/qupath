@@ -34,6 +34,7 @@ public class ExportWSICommand implements PathCommand {
 
         qupath.getProject().removeImage(wsi);
         qupath.getProject().addImage(entry);
+        qupath.closeCurrentImage();
         qupath.refreshProject();
         ProjectIO.writeProject(qupath.getProject(), message -> DisplayHelpers.showErrorMessage("Error", message));
     }
