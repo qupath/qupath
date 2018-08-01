@@ -179,7 +179,7 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 		case 2: return ColorTools.makeRGB(0, 0, 255);
 		case 3: return ColorTools.makeRGB(255, 255, 0);
 		case 4: return ColorTools.makeRGB(0, 255, 255);
-		case 5: return ColorTools.makeRGB(255, 255, 0);
+		case 5: return ColorTools.makeRGB(255, 0, 255);
 		default:
 			return ColorTools.makeRGB(255, 255, 255);
 		}

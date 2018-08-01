@@ -370,6 +370,15 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 	}
 	
 	
+	/**
+	 * Retrieve the "Info" property for the {@code ImagePlus}, or null if none is found.
+	 * 
+	 * @return
+	 */
+	public String dumpMetadata() {
+		return imp.getInfoProperty();
+	}
+	
 	
 	/**
 	 * An extremely tolerant ColorModel that assumes everything should be shown in black.

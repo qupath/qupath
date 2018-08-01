@@ -40,6 +40,8 @@ import org.openslide.OpenSlide;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.gson.GsonBuilder;
+
 import qupath.lib.awt.common.AwtTools;
 import qupath.lib.awt.images.PathBufferedImage;
 import qupath.lib.images.PathImage;
@@ -171,6 +173,14 @@ public class OpenslideImageServer extends AbstractImageServer<BufferedImage> {
 			osr.close();
 	}
 
+	/**
+	 * Retrieve a JSON string representation of the properties, as stored as key-value pairs by OpenSlide.
+	 * 
+	 * @return
+	 */
+	public String dumpMetadata() {
+		return new GsonBuilder().setPrettyPrinting().create().toJson(osr.getProperties());
+	}
 	
 	@Override
 	public String getServerType() {
