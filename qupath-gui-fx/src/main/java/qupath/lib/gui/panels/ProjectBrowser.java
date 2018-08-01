@@ -939,19 +939,16 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
         private boolean isEntryDisplay(ProjectImageEntry<?> entry) {
             QuPathGUI.UserProfileChoice currentProfileChoice = QuPathGUI.getInstance().getUserProfileChoice();
             if (entry.getMetadataKeys().contains(QuPathGUI.WSI_VALIDATED)) {
-                String validatedBy = entry.getMetadataMap().get(QuPathGUI.WSI_VALIDATED);
+                QuPathGUI.UserProfileChoice validatedBy = QuPathGUI.UserProfileChoice.valueOf(
+                        entry.getMetadataMap().get(QuPathGUI.WSI_VALIDATED));
 
-                if (currentProfileChoice == QuPathGUI.UserProfileChoice.CONTRACTOR_MODE) {
-                    return validatedBy.equals(QuPathGUI.UserProfileChoice.SPECIALIST_MODE.name()) ||
-                            validatedBy.equals(QuPathGUI.UserProfileChoice.CONTRACTOR_MODE.name()) ||
-                            validatedBy.equals(QuPathGUI.UserProfileChoice.REVIEWER_MODE.name());
-                } else if (currentProfileChoice == QuPathGUI.UserProfileChoice.REVIEWER_MODE) {
-                    return validatedBy.equals(QuPathGUI.UserProfileChoice.CONTRACTOR_MODE.name()) ||
-                            validatedBy.equals(QuPathGUI.UserProfileChoice.REVIEWER_MODE.name());
-                }
-                // If specialist or admin profile
-                else {
+                if (currentProfileChoice == QuPathGUI.UserProfileChoice.SPECIALIST_MODE ||
+                        currentProfileChoice == QuPathGUI.UserProfileChoice.ADMIN_MODE) {
                     return true;
+                }
+                else {
+                    return currentProfileChoice.getHierarchyLevel() == validatedBy.getHierarchyLevel() ||
+                            currentProfileChoice.getHierarchyLevel() + 1 == validatedBy.getHierarchyLevel();
                 }
             } else {
                 return currentProfileChoice == QuPathGUI.UserProfileChoice.SPECIALIST_MODE ||
