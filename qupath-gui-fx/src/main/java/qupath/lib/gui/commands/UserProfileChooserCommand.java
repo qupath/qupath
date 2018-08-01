@@ -81,7 +81,7 @@ public class UserProfileChooserCommand implements PathCommand {
                 choice = QuPathGUI.UserProfileChoice.ADMIN_MODE;
             }
 
-            String confirmText = "Are you sure to use " +  choice + "?";
+            String confirmText = "Are you sure to use the " +  choice + "?";
             boolean confirm = DisplayHelpers.showConfirmDialog("Confirm profile", confirmText);
             if (!confirm) {
                 getWindowChoice();
