@@ -161,16 +161,30 @@ public class PathClass implements Comparable<PathClass>, Serializable {
 		return name == null;
 	}
 
+	/**
+	 * This is now equivalent to {@code this.toString().compareTo(o.toString())}.
+	 * <p>
+	 * Note that in previous versions (&lt; 0.1.2), the comparison was made based on the name only.
+	 * <p>
+	 * This could result in unexpected behavior whenever comparing with equality and using 
+	 * derived {@code PathClass} objects, because only the (final) name part was being compared 
+	 * and this could potentially result in classifications (wrongly) being considered equal 
+	 * (e.g. "Tumor: Positive" and "Stroma: Positive").
+	 * <p>
+	 * This was most significant when working with Groovy, where {@code == } is replaced by {@code compareTo}.
+	 */
 	@Override
 	public int compareTo(PathClass o) {
-		if (name == null) {
-			if (o.getName() == null)
-				return 0;
-			else
-				return -1;
-		} else if (o.getName() == null)
-			return 1;
-		return name.compareTo(o.getName());
+		return toString().compareTo(o.toString());
+		// Old behavior (v0.1.2) - can give unexpected results with Groovy == comparisons
+//		if (name == null) {
+//			if (o.getName() == null)
+//				return 0;
+//			else
+//				return -1;
+//		} else if (o.getName() == null)
+//			return 1;
+//		return name.compareTo(o.getName());
 	}
 	
 }
