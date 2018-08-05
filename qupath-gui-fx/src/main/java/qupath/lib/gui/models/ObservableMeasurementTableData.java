@@ -474,10 +474,17 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 				return;
 			
 			Set<PathClass> pathClasses = PathClassificationLabellingHelper.getRepresentedPathClasses(imageData.getHierarchy(), PathDetectionObject.class);
-			
-			// Ensure that any base classes are present
-			for (PathClass pathClass : pathClasses.toArray(new PathClass[0]))
-				pathClasses.add(pathClass.getBaseClass());
+
+//			// Ensure that any base classes are present
+//			Set<PathClass> basePathClasses = new LinkedHashSet<>();
+//			for (PathClass pathClass : pathClasses.toArray(new PathClass[0])) {
+//				basePathClasses.add(pathClass.getBaseClass());
+//			}
+//			pathClasses.addAll(basePathClasses);
+
+			pathClasses.remove(null);
+			pathClasses.remove(PathClassFactory.getPathClassUnclassified());
+			System.err.println(pathClasses.size());
 
 			Set<PathClass> parentIntensityClasses = new LinkedHashSet<>();
 			Set<PathClass> parentPositiveNegativeClasses = new LinkedHashSet<>();
@@ -490,11 +497,26 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 					parentPositiveNegativeClasses.add(pathClass.getParentClass());
 			}
 			
+			// Store intensity parent classes, if required
+			if (!parentPositiveNegativeClasses.isEmpty()) {
+				List<PathClass> pathClassList = new ArrayList<>(parentPositiveNegativeClasses);
+				pathClassList.remove(null);
+				pathClassList.remove(PathClassFactory.getPathClassUnclassified());
+				Collections.sort(pathClassList);
+				for (PathClass pathClass : pathClassList) {
+					builders.add(new ClassCountMeasurementBuilder(pathClass, true));
+				}				
+			}
+//			// Store the base classifications, if different
+//			for (PathClass pathClass : basePathClasses) {
+//				builders.add(new ClassCountMeasurementBuilder(pathClass, true));
+//			}
+			
 			// We can compute counts for any PathClass that is represented
 			List<PathClass> pathClassList = new ArrayList<>(pathClasses);
 			Collections.sort(pathClassList);
 			for (PathClass pathClass : pathClassList) {
-				builders.add(new ClassCountMeasurementBuilder(pathClass));
+				builders.add(new ClassCountMeasurementBuilder(pathClass, false));
 			}
 
 			// We can compute positive percentages if we have anything in ParentPositiveNegativeClasses
@@ -545,10 +567,12 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 			
 			private PathObject pathObject;
 			private PathClass pathClass;
+			private boolean baseClassification;
 			
-			public ClassCountMeasurement(final PathObject pathObject, final PathClass pathClass) {
+			public ClassCountMeasurement(final PathObject pathObject, final PathClass pathClass, final boolean baseClassification) {
 				this.pathObject = pathObject;
 				this.pathClass = pathClass;
+				this.baseClassification = baseClassification;
 			}
 
 			@Override
@@ -558,7 +582,10 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 					counts = new DetectionPathClassCounts(pathObject);
 					map.put(pathObject, counts);
 				}
-				return counts.getCountForAncestor(pathClass);
+				if (baseClassification)
+					return counts.getCountForAncestor(pathClass);
+				else
+					return counts.getDirectCount(pathClass);
 			}
 			
 		}
@@ -736,19 +763,31 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 		class ClassCountMeasurementBuilder extends NumericMeasurementBuilder {
 			
 			private PathClass pathClass;
+			private boolean baseClassification;
 			
-			ClassCountMeasurementBuilder(final PathClass pathClass) {
+			/**
+			 * Count objects with specific classifications.
+			 * 
+			 * @param pathClass
+			 * @param baseClassification if {@code true}, also count objects with classifications derived from the specified classification, 
+			 * if {@code false} count objects with <i>only</i> the exact classification given.
+			 */
+			ClassCountMeasurementBuilder(final PathClass pathClass, final boolean baseClassification) {
 				this.pathClass = pathClass;
+				this.baseClassification = baseClassification;
 			}
 			
 			@Override
 			public String getName() {
-				return "Num " + pathClass.toString();
+				if (baseClassification)
+					return "Num " + pathClass.toString() + " (base)";
+				else
+					return "Num " + pathClass.toString();
 			}
 			
 			@Override
 			public Binding<Number> createMeasurement(final PathObject pathObject) {
-				return new ClassCountMeasurement(pathObject, pathClass);
+				return new ClassCountMeasurement(pathObject, pathClass, baseClassification);
 			}
 			
 			@Override
@@ -1409,6 +1448,10 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 				else
 					counts.put(pathClass, Integer.valueOf(count.intValue() + 1));
 			}
+		}
+		
+		public int getDirectCount(final PathClass pathClass) {
+			return counts.getOrDefault(pathClass, Integer.valueOf(0));
 		}
 		
 		public int getCountForAncestor(final Predicate<PathClass> predicate, final PathClass ancestor) {
