@@ -165,7 +165,7 @@ public abstract class PathObject implements Externalizable {
 		if (getPathClass() == null)
 			postfix = objectCountPostfix();
 		else
-			postfix = " (" + getPathClass().getName() + ")";
+			postfix = " (" + getPathClass().toString() + ")";
 		if (getName() != null)
 			return getName() + postfix;
 		if (getROI() != null)
@@ -415,7 +415,7 @@ public abstract class PathObject implements Externalizable {
 		if (nameDisplayed == null) {
 			PathClass pathClass = getPathClass();
 			if (pathClass != null)
-				nameDisplayed = pathClass.getName();
+				nameDisplayed = pathClass.toString();
 			else
 				nameDisplayed = getClass().getSimpleName();
 		}
