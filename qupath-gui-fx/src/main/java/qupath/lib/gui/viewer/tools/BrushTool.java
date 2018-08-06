@@ -144,85 +144,83 @@ public class BrushTool extends AbstractPathROITool {
 	}
 	
 	
-	@Override
-	public void mousePressed(MouseEvent e) {
-//		if (e.getClickCount() > 1)
-//			super.mousePressed(e);
-		
-//		super.mousePressed(e);
-		if (!e.isPrimaryButtonDown() || e.isConsumed()) {
-            return;
-        }
-		
-		ensureCursorType(getRequestedCursor());
-		
-		PathObjectHierarchy hierarchy = viewer.getHierarchy();
-		if (hierarchy == null)
-			return;
-		
-		PathObject currentObject = viewer.getSelectedObject();
-		
-		// Determine if we are creating a new object
-//		boolean createNew = currentObject == null || e.getClickCount() > 1;// || (!currentObject.getROI().contains(p.getX(), p.getY()) && !e.isAltDown());
-		Point2D p = viewer.componentPointToImagePoint(e.getX(), e.getY(), null, true);
-//		boolean createNew = currentObject == null || !(currentObject instanceof PathAnnotationObject) || (currentObject.hasChildren()) || (PathPrefs.getBrushCreateNewObjects() && !ROIHelpers.areaContains(currentObject.getROI(), p.getX(), p.getY()) && !isSubtractMode(e));
-		boolean createNew = currentObject == null || !(currentObject instanceof PathAnnotationObject) || (!currentObject.isEditable()) || currentObject.getROI().getZ() != viewer.getZPosition() || currentObject.getROI().getT() != viewer.getTPosition() || (!e.isShiftDown() && PathPrefs.getBrushCreateNewObjects() && !ROIHelpers.areaContains(currentObject.getROI(), p.getX(), p.getY()) && !isSubtractMode(e));
-		
-		// See if, rather than creating something, we can instead reactivate a current object
-		boolean multipleClicks = e.getClickCount() > 1;
-		if (multipleClicks || (createNew && !e.isShiftDown())) {
-			// See if, rather than creating something, we can instead reactivate a current object
-			if (multipleClicks) {
-				PathObject objectSelectable = getSelectableObject(p.getX(), p.getY(), e.getClickCount() - 1);
-				if (objectSelectable != null && objectSelectable.isEditable() && objectSelectable.getROI() instanceof PathArea) {
-					createNew = false;
-					viewer.setSelectedObject(objectSelectable);
-					currentObject = objectSelectable;
-				} else if (createNew) {
-					viewer.setSelectedObject(null);
-					currentObject = null;
-				}
-			} else {
-					List<PathObject> listSelectable = getSelectableObjectList(p.getX(), p.getY());
-					PathObject objectSelectable = null;
-					for (int i = listSelectable.size()-1; i >= 0; i--) {
-						PathObject temp = listSelectable.get(i);
-						if (temp.isEditable() && temp instanceof PathAnnotationObject && temp.getROI() instanceof PathArea) { //temp.getROI() instanceof AreaROI) {
-							objectSelectable = temp;
-							break;
-						}
-					}
-					if (objectSelectable != null) {
-						createNew = false;
-						viewer.setSelectedObject(objectSelectable);
-						currentObject = objectSelectable;
-					} else if (createNew) {
-						viewer.setSelectedObject(null);
-						currentObject = null;
-					}
-			}
-		}
-		
-		// Can only modify annotations
-		// TODO: Check for object being locked!
-		if (!createNew && !(currentObject instanceof PathAnnotationObject && currentObject.getROI() instanceof PathShape))
-			return;
-				
-		// Need to remove the object from the hierarchy while editing it
-		if (!createNew && currentObject != null) {
-			hierarchy.removeObject(currentObject, true);
-		}
-		
-		
-		PathShape shapeROI = createNew ? null : (PathShape)currentObject.getROI();
-		if (createNew) {
-			creatingTiledROI = false; // Reset this
-			viewer.setSelectedObject(new PathAnnotationObject(new AWTAreaROI(new Rectangle2D.Double(p.getX(), p.getY(), 0, 0), -1, viewer.getZPosition(), viewer.getTPosition())));
-		} else
-			viewer.setSelectedObject(getUpdatedObject(e, shapeROI, currentObject, -1));
-	}
-	
-	
+//	@Override
+//	public void mousePressed(MouseEvent e) {
+////		if (e.getClickCount() > 1)
+////			super.mousePressed(e);
+//
+////		super.mousePressed(e);
+//		if (!e.isPrimaryButtonDown() || e.isConsumed()) {
+//            return;
+//        }
+//
+//		ensureCursorType(getRequestedCursor());
+//
+//		PathObjectHierarchy hierarchy = viewer.getHierarchy();
+//		if (hierarchy == null)
+//			return;
+//
+//		PathObject currentObject = viewer.getSelectedObject();
+//
+//		// Determine if we are creating a new object
+////		boolean createNew = currentObject == null || e.getClickCount() > 1;// || (!currentObject.getROI().contains(p.getX(), p.getY()) && !e.isAltDown());
+//		Point2D p = viewer.componentPointToImagePoint(e.getX(), e.getY(), null, true);
+////		boolean createNew = currentObject == null || !(currentObject instanceof PathAnnotationObject) || (currentObject.hasChildren()) || (PathPrefs.getBrushCreateNewObjects() && !ROIHelpers.areaContains(currentObject.getROI(), p.getX(), p.getY()) && !isSubtractMode(e));
+//		boolean createNew = currentObject == null || !(currentObject instanceof PathAnnotationObject) || (!currentObject.isEditable()) || currentObject.getROI().getZ() != viewer.getZPosition() || currentObject.getROI().getT() != viewer.getTPosition() || (!e.isShiftDown() && PathPrefs.getBrushCreateNewObjects() && !ROIHelpers.areaContains(currentObject.getROI(), p.getX(), p.getY()) && !isSubtractMode(e));
+//
+//		// See if, rather than creating something, we can instead reactivate a current object
+//		boolean multipleClicks = e.getClickCount() > 1;
+//		if (multipleClicks || (createNew && !e.isShiftDown())) {
+//			// See if, rather than creating something, we can instead reactivate a current object
+//			if (multipleClicks) {
+//				PathObject objectSelectable = getSelectableObject(p.getX(), p.getY(), e.getClickCount() - 1);
+//				if (objectSelectable != null && objectSelectable.isEditable() && objectSelectable.getROI() instanceof PathArea) {
+//					createNew = false;
+//					viewer.setSelectedObject(objectSelectable);
+//					currentObject = objectSelectable;
+//				} else if (createNew) {
+//					viewer.setSelectedObject(null);
+//					currentObject = null;
+//				}
+//			} else {
+//					List<PathObject> listSelectable = getSelectableObjectList(p.getX(), p.getY());
+//					PathObject objectSelectable = null;
+//					for (int i = listSelectable.size()-1; i >= 0; i--) {
+//						PathObject temp = listSelectable.get(i);
+//						if (temp.isEditable() && temp instanceof PathAnnotationObject && temp.getROI() instanceof PathArea) { //temp.getROI() instanceof AreaROI) {
+//							objectSelectable = temp;
+//							break;
+//						}
+//					}
+//					if (objectSelectable != null) {
+//						createNew = false;
+//						viewer.setSelectedObject(objectSelectable);
+//						currentObject = objectSelectable;
+//					} else if (createNew) {
+//						viewer.setSelectedObject(null);
+//						currentObject = null;
+//					}
+//			}
+//		}
+//
+//		// Can only modify annotations
+//		// TODO: Check for object being locked!
+//		if (!createNew && !(currentObject instanceof PathAnnotationObject && currentObject.getROI() instanceof PathShape))
+//			return;
+//
+//		// Need to remove the object from the hierarchy while editing it
+//		if (!createNew && currentObject != null) {
+//			hierarchy.removeObject(currentObject, true);
+//		}
+//
+//
+//		PathShape shapeROI = createNew ? null : (PathShape)currentObject.getROI();
+//		if (createNew) {
+//			creatingTiledROI = false; // Reset this
+//			viewer.setSelectedObject(new PathAnnotationObject(new AWTAreaROI(new Rectangle2D.Double(p.getX(), p.getY(), 0, 0), -1, viewer.getZPosition(), viewer.getTPosition())));
+//		} else
+//			viewer.setSelectedObject(getUpdatedObject(e, shapeROI, currentObject, -1));
+//	}
 	
 	
 	@Override

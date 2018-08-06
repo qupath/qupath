@@ -328,8 +328,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	 * normal service is resumed.
 	 * 
 	 * @param repaintSpacingMillis
-	 * 
-	 * @see resetMinimumRepaintSpacingMillis
+	 *
 	 */
 	public void setMinimumRepaintSpacingMillis(final long repaintSpacingMillis) {
 		this.minimumRepaintSpacingMillis = repaintSpacingMillis;
@@ -750,8 +749,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	 * 
 	 * This is useful whenever another component might have received the event,
 	 * but the viewer needs to 'know' when it receives the focus.
-	 * 
-	 * @param isDown
+	 *
 	 * @return
 	 */
 	public void setSpaceDown(boolean spaceDown) {

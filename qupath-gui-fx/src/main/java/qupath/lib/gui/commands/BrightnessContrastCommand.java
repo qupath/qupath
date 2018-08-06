@@ -679,8 +679,13 @@ public class BrightnessContrastCommand implements PathCommand, ImageDataChangeLi
 	public void updateTable() {
 		if (!isInitialized())
 			return;
-		if (imageDisplay == null)
+		// Reset any buffers for images currently open (used to cache floating point values)
+		for (ChannelDisplayInfo info :table.getItems())
+			info.resetBuffers();
+		// Clear the table
+		if (imageDisplay == null) {
 			table.getItems().clear();
+		}
 		else if (table.getItems().equals(imageDisplay.getAvailableChannels()))
 			table.refresh();
 		else

@@ -1,4 +1,4 @@
-package qupath.nn.commands;
+package qupath.lib.gui.commands;
 
 import javafx.concurrent.Task;
 import javafx.scene.control.*;
