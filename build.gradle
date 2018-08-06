@@ -164,6 +164,7 @@ task copyChangelog(type: Copy) {
   from project.rootDir
   into additionalResourcesDir
   include 'CHANGELOG.md'
+  include 'STARTUP.md'
   include 'LICENSE.txt'
 }
 

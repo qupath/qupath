@@ -693,8 +693,31 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		// Do auto-update check
 		if (!disableAutoUpdateCheck)
 			checkForUpdate(true);
-
+		
+		showStarupMesssage();
 	}
+	
+	
+	static void showStarupMesssage() {
+		File fileStartup = new File("STARTUP.md");
+		if (!fileStartup.exists()) {
+			return;
+		}
+		try {
+			TextArea textArea = new TextArea();
+			String text = GeneralTools.readFileAsString(fileStartup.getAbsolutePath());
+			textArea.setText(text);
+			textArea.setEditable(false);
+			Platform.runLater(() -> {
+				DisplayHelpers.showMessageDialog(
+						"QuPath experimental version v0.1.3",
+						textArea);
+			});
+		} catch (Exception e) {
+			logger.error("Error reading " + fileStartup.getAbsolutePath(), e);
+		}
+	}
+	
 	
 	
 	/**
