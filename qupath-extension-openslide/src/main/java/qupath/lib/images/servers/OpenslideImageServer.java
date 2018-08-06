@@ -39,6 +39,8 @@ import org.openslide.OpenSlide;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.gson.GsonBuilder;
+
 import qupath.lib.regions.RegionRequest;
 
 /**
@@ -153,6 +155,15 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 	public void close() {
 		if (osr != null)
 			osr.close();
+	}
+
+	/**
+	 * Retrieve a JSON string representation of the properties, as stored as key-value pairs by OpenSlide.
+	 * 
+	 * @return
+	 */
+	public String dumpMetadata() {
+		return new GsonBuilder().setPrettyPrinting().create().toJson(osr.getProperties());
 	}
 	
 	@Override

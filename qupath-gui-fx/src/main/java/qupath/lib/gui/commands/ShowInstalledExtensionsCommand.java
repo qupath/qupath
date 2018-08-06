@@ -24,6 +24,11 @@
 package qupath.lib.gui.commands;
 
 import java.io.File;
+import java.io.IOException;
+import java.net.URL;
+import java.util.jar.Attributes;
+import java.util.jar.JarInputStream;
+import java.util.jar.Manifest;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,6 +37,7 @@ import javafx.geometry.Insets;
 import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.Label;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TitledPane;
 import javafx.scene.control.Tooltip;
@@ -103,13 +109,13 @@ public class ShowInstalledExtensionsCommand implements PathCommand {
 		TitledPane titledServers = new TitledPane("Image Servers", paneServers);
 		titledServers.getStylesheets().add(titledPlainCSS);
 		
-		VBox accordion = new VBox(
+		VBox vbox = new VBox(
 				titledExtensions,
 				titledServers
 		);
 
-		accordion.setMaxWidth(Double.POSITIVE_INFINITY);
-		dialog.setScene(new Scene(accordion));
+		vbox.setMaxWidth(Double.POSITIVE_INFINITY);
+		dialog.setScene(new Scene(new ScrollPane(vbox)));
 		dialog.show();
 	}
 	
@@ -234,6 +240,11 @@ public class ShowInstalledExtensionsCommand implements PathCommand {
 			this.extension = extension;
 		}
 
+		/**
+		 * Request the extension name.
+		 * 
+		 * @return
+		 */
 		public String getName() {
 			if (extension instanceof QuPathExtension)
 				return ((QuPathExtension) extension).getName();
@@ -242,6 +253,11 @@ public class ShowInstalledExtensionsCommand implements PathCommand {
 			return null;
 		}
 
+		/**
+		 * Request the extension description.
+		 * 
+		 * @return
+		 */
 		public String getDescription() {
 			if (extension instanceof QuPathExtension)
 				return ((QuPathExtension) extension).getDescription();
@@ -249,19 +265,47 @@ public class ShowInstalledExtensionsCommand implements PathCommand {
 				return ((ImageServerBuilder<?>) extension).getDescription();
 			return null;
 		}
+		
+		URL getURL() {
+			return extension.getClass().getProtectionDomain().getCodeSource().getLocation();
+		}
 
-		public String getPathToJar() {
-			return extension.getClass().getProtectionDomain().getCodeSource().getLocation().getPath();
+		String getPathToJar() {
+			return getURL().getPath();
 		}
 		
+		/**
+		 * Request the Implementation-Version for the jar containing the extension.
+		 * <p>
+		 * This tries in the first instance to locate it from a jar file directly.
+		 * <p>
+		 * If this fails, it falls back to requesting the value from the class package. 
+		 * This was previously the only behavior (&lt; 0.1.2), but it resulted in 
+		 * returning the wrong version number if the package was the same as one within
+		 * another jar.
+		 * 
+		 * @return the String for the Implementation-Version, or null if no version could be found.
+		 */
 		public String getVersion() {
+			URL url =  getURL();
+			if (url.toString().endsWith(".jar")) {
+				try (JarInputStream stream = new JarInputStream(url.openStream())) {
+					if (stream != null) {
+						  Manifest manifest = stream.getManifest();
+						  Attributes mainAttributes = manifest.getMainAttributes();
+						  return mainAttributes.getValue("Implementation-Version");						
+					}
+				} catch (IOException e) {
+					logger.debug("Exception attempting to open manifest for {}: {}", extension, e.getLocalizedMessage());
+				}					
+			}
 			return extension.getClass().getPackage() == null ? null : extension.getClass().getPackage().getImplementationVersion();
 		}
 
-		public boolean isDefault() {
+		boolean isDefault() {
 			try {
 				File file = new File(getPathToJar());
-				return !file.getAbsolutePath().startsWith(qupath.getExtensionDirectory().getAbsolutePath());
+				return !file.getAbsolutePath().startsWith(QuPathGUI.getExtensionDirectory().getAbsolutePath());
 			} catch (Exception e) {
 				logger.trace("Problem getting default status for {}", extension);
 				return true;
