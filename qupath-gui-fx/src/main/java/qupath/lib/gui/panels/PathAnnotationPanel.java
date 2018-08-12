@@ -87,6 +87,7 @@ import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
 import qupath.lib.objects.hierarchy.events.PathObjectSelectionListener;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectIO;
+import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.PointsROI;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.ROI;
@@ -460,7 +461,7 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 			for (PathObject temp : objectsToMerge) {
 				pointsList.addAll(((PointsROI)temp.getROI()).getPointList());
 			}
-			PathObject pathObjectNew = new PathAnnotationObject(ROIs.createPointsROI(pointsList, c, z, t), pathClass);
+			PathObject pathObjectNew = new PathAnnotationObject(ROIs.createPointsROI(pointsList, ImagePlane.getPlaneWithChannel(c, z, t)), pathClass);
 			hierarchy.removeObjects(objectsToMerge, true);
 			hierarchy.addPathObject(pathObjectNew, false);
 		});

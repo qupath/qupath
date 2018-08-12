@@ -50,6 +50,7 @@ import qupath.lib.geom.Point2;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.classes.PathClass;
+import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.PointsROI;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.PathPoints;
@@ -228,7 +229,7 @@ public class PointIO {
 		if (count != pointsList.size())
 			logger.warn("Warning: {} points expected, {} points found", count, pointsList.size());
 		
-		PathPoints points = ROIs.createPointsROI(pointsList, -1, 0, 0);
+		PathPoints points = ROIs.createPointsROI(pointsList, ImagePlane.getDefaultPlane());
 		PathAnnotationObject pathObject = new PathAnnotationObject(points);
 		if (name != null && name.length() > 0 && !"null".equals(name))
 			pathObject.setName(name);
@@ -254,7 +255,7 @@ public class PointIO {
 		scanner.close();
 //		if (name != null && name.length() > 0)
 //			points.setName(name);
-		return ROIs.createPointsROI(pointsList, -1, 0, 0);
+		return ROIs.createPointsROI(pointsList, ImagePlane.getDefaultPlane());
 	}
 	
 	public static String getPointsAsString(PointsROI points) {
@@ -306,7 +307,7 @@ public class PointIO {
 				double y = Double.parseDouble(splits[1]);
 				pointsList.add(new Point2(x, y));
 			}
-			points = ROIs.createPointsROI(pointsList, -1, 0, 0);
+			points = ROIs.createPointsROI(pointsList, ImagePlane.getDefaultPlane());
 //			if (name != null && name.length() > 0)
 //				points.setName(name);
 		} catch (IOException e) {

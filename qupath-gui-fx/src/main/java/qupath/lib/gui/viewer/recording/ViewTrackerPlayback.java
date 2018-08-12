@@ -43,7 +43,7 @@ import javafx.util.Duration;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
-import qupath.lib.roi.PointsROI;
+import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.PathPoints;
 
@@ -214,7 +214,7 @@ class ViewTrackerPlayback {
 		if (frame.hasEyePosition()) {
 			Point2D p2d = frame.getEyePosition();
 			
-			PathPoints point = ROIs.createPointsROI(p2d.getX(), p2d.getY(), -1, 0, 0);
+			PathPoints point = ROIs.createPointsROI(p2d.getX(), p2d.getY(), ImagePlane.getDefaultPlane());
 ////			if (Boolean.TRUE.equals(frame.isEyeFixated()))
 //				point.setPointRadius(viewer.getDownsampleFactor() * 10); // This was only removed because setPointRadius was removed!
 ////			else

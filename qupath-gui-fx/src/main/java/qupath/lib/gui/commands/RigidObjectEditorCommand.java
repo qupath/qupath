@@ -65,6 +65,7 @@ import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathROIObject;
 import qupath.lib.objects.TMACoreObject;
+import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.roi.PathROIToolsAwt;
 import qupath.lib.roi.PolylineROI;
@@ -399,7 +400,7 @@ public class RigidObjectEditorCommand implements PathCommand, ImageDataChangeLis
 			if (shape instanceof Ellipse2D) {
 				Rectangle2D bounds = shape.getBounds2D();
 				if (theta == 0 || GeneralTools.almostTheSame(bounds.getWidth(), bounds.getHeight(), 0.01)) {
-					return ROIs.createEllipseROI(bounds.getX()+dx, bounds.getY()+dy, bounds.getWidth(), bounds.getHeight(), roi.getC(), roi.getZ(), roi.getT());
+					return ROIs.createEllipseROI(bounds.getX()+dx, bounds.getY()+dy, bounds.getWidth(), bounds.getHeight(), ImagePlane.getPlaneWithChannel(roi));
 				}
 				// Don't flatten an ellipse
 				flatness = -1;
@@ -414,7 +415,7 @@ public class RigidObjectEditorCommand implements PathCommand, ImageDataChangeLis
 				// Check if we have a line
 				if (shape instanceof Line2D) {
 					Line2D line = (Line2D)shape;
-					return ROIs.createLineROI(line.getX1(), line.getY1(), line.getX2(), line.getY2(), roi.getC(), roi.getZ(), roi.getT());
+					return ROIs.createLineROI(line.getX1(), line.getY1(), line.getX2(), line.getY2(), ImagePlane.getPlaneWithChannel(roi));
 				}
 				// Polyline is the only other option (currently?)
 				PathIterator iter = shape.getPathIterator(null);
@@ -434,7 +435,7 @@ public class RigidObjectEditorCommand implements PathCommand, ImageDataChangeLis
 					};
 					iter.next();
 				}
-				return ROIs.createPolylineROI(points, roi.getC(), roi.getZ(), roi.getT());
+				return ROIs.createPolylineROI(points, ImagePlane.getPlaneWithChannel(roi));
 			}
 		}
 		

@@ -35,6 +35,7 @@ import qupath.lib.measurements.MeasurementList;
 import qupath.lib.measurements.MeasurementListFactory;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
+import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.ROI;
 
@@ -46,7 +47,7 @@ public class TestPathAnnotationObject extends PathObjectTestWrapper {
 	private final String nameML = "JJJ";
 	private final Double valueML = 10.0;
 	//private final double epsilon = 1e-15; 
-	ROI myROI = ROIs.createLineROI(line_x,line_y, -1, 0, 0);
+	ROI myROI = ROIs.createLineROI(line_x,line_y, ImagePlane.getDefaultPlane());
 	PathClass myPC = PathClassFactory.getDefaultPathClass(PathClassFactory.PathClasses.IMAGE_ROOT);
 	PathAnnotationObject myPO = new PathAnnotationObject();
 	PathAnnotationObject myPO2 = new PathAnnotationObject(myROI);

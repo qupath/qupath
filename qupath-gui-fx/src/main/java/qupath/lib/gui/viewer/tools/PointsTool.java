@@ -36,6 +36,7 @@ import qupath.lib.images.servers.ImageServer;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathROIObject;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
+import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.PointsROI;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.RoiEditor;
@@ -215,7 +216,7 @@ public class PointsTool extends AbstractPathTool {
 		// Create a new ROI if we've got Alt & Shift pressed - or we just don't have a point ROI
 		else if (points == null || (e.isShiftDown() && e.getClickCount() > 1)) {
 			// PathPoints is effectively ready from the start - don't need to finalize
-			points = ROIs.createPointsROI(xx, yy, -1, 0, 0);
+			points = ROIs.createPointsROI(xx, yy, ImagePlane.getDefaultPlane());
 			viewer.createAnnotationObject(points);
 			editor.setROI(points);
 			editor.grabHandle(xx, yy, radius, e.isShiftDown());
@@ -272,7 +273,7 @@ public class PointsTool extends AbstractPathTool {
 		}
 		List<Point2> pointsList2 = new ArrayList<>(pointsList);
 		pointsList2.add(new Point2(x, y));
-		return ROIs.createPointsROI(pointsList2, points.getC(), points.getZ(), points.getT());
+		return ROIs.createPointsROI(pointsList2, ImagePlane.getPlaneWithChannel(points.getC(), points.getZ(), points.getT()));
 	}
 	
 	
@@ -282,7 +283,7 @@ public class PointsTool extends AbstractPathTool {
 			return points;
 		List<Point2> pointsList = new ArrayList<>(points.getPointList());
 		if (pointsList.remove(point)) {
-			return ROIs.createPointsROI(pointsList, points.getC(), points.getZ(), points.getT());
+			return ROIs.createPointsROI(pointsList, ImagePlane.getPlaneWithChannel(points.getC(), points.getZ(), points.getT()));
 		}
 		return points;
 	}

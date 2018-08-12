@@ -28,6 +28,7 @@ import java.util.Collections;
 import java.util.List;
 
 import qupath.lib.geom.Point2;
+import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.interfaces.PathArea;
 import qupath.lib.roi.interfaces.PathLine;
 import qupath.lib.roi.interfaces.PathPoints;
@@ -41,48 +42,48 @@ import qupath.lib.roi.interfaces.PathPoints;
  */
 public class ROIs {
 
-	public static PathArea createRectangleROI(double x, double y, double width, double height, int c, int z, int t) {
-		return new RectangleROI(x, y, width, height, c, z, t);
+	public static PathArea createRectangleROI(double x, double y, double width, double height, ImagePlane plane) {
+		return new RectangleROI(x, y, width, height, plane.getC(), plane.getZ(), plane.getT());
 	}
 
-	public static PathArea createEllipseROI(double x, double y, double width, double height, int c, int z, int t) {
-		return new EllipseROI(x, y, width, height, c, z, t);
+	public static PathArea createEllipseROI(double x, double y, double width, double height, ImagePlane plane) {
+		return new EllipseROI(x, y, width, height, plane.getC(), plane.getZ(), plane.getT());
 	}
 
-	public static PathLine createLineROI(double x, double y, double x2, double y2, int c, int z, int t) {
-		return new LineROI(x, y, x2, y2, c, z, t);
+	public static PathLine createLineROI(double x, double y, double x2, double y2, ImagePlane plane) {
+		return new LineROI(x, y, x2, y2, plane.getC(), plane.getZ(), plane.getT());
 	}
 
-	public static PathLine createLineROI(double x, double y, int c, int z, int t) {
-		return createLineROI(x, y, x, y, c, z, t);
+	public static PathLine createLineROI(double x, double y, ImagePlane plane) {
+		return createLineROI(x, y, x, y, plane);
 	}
 	
-	public static PathPoints createPointsROI(int c, int z, int t) {
-		return createPointsROI(Double.NaN, Double.NaN, c, z, t);
+	public static PathPoints createPointsROI(ImagePlane plane) {
+		return createPointsROI(Double.NaN, Double.NaN, plane);
 	}
 
-	public static PathPoints createPointsROI(double x, double y, int c, int z, int t) {
-		return new PointsROI(x, y, c, z, t);
+	public static PathPoints createPointsROI(double x, double y, ImagePlane plane) {
+		return new PointsROI(x, y, plane.getC(), plane.getZ(), plane.getT());
 	}
 	
-	public static PathPoints createPointsROI(List<? extends Point2> points, int c, int z, int t) {
-		return new PointsROI(points, c, z, t);
+	public static PathPoints createPointsROI(List<? extends Point2> points, ImagePlane plane) {
+		return new PointsROI(points, plane.getC(), plane.getZ(), plane.getT());
 	}
 
-	public static PolygonROI createPolyonROI(List<Point2> points, int c, int z, int t) {
-		return new PolygonROI(points, c, z, t);
+	public static PolygonROI createPolyonROI(List<Point2> points, ImagePlane plane) {
+		return new PolygonROI(points, plane.getC(), plane.getZ(), plane.getT());
 	}
 	
-	public static PolygonROI createPolyonROI(double x, double y, int c, int z, int t) {
-		return new PolygonROI(Collections.singletonList(new Point2(x, y)), c, z, t);
+	public static PolygonROI createPolyonROI(double x, double y, ImagePlane plane) {
+		return new PolygonROI(Collections.singletonList(new Point2(x, y)), plane.getC(), plane.getZ(), plane.getT());
 	}
 	
-	public static PolylineROI createPolylineROI(List<Point2> points, int c, int z, int t) {
-		return new PolylineROI(points, c, z, t);
+	public static PolylineROI createPolylineROI(List<Point2> points, ImagePlane plane) {
+		return new PolylineROI(points, plane.getC(), plane.getZ(), plane.getT());
 	}
 	
-	public static PolylineROI createPolylineROI(double x, double y, int c, int z, int t) {
-		return new PolylineROI(Collections.singletonList(new Point2(x, y)), c, z, t);
+	public static PolylineROI createPolylineROI(double x, double y, ImagePlane plane) {
+		return new PolylineROI(Collections.singletonList(new Point2(x, y)), plane.getC(), plane.getZ(), plane.getT());
 	}
 
 }

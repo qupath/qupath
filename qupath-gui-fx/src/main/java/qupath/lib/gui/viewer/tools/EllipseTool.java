@@ -24,6 +24,7 @@
 package qupath.lib.gui.viewer.tools;
 
 import qupath.lib.gui.viewer.ModeWrapper;
+import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.ROI;
 
@@ -41,7 +42,7 @@ public class EllipseTool extends AbstractPathDraggingROITool {
 	
 	@Override
 	protected ROI createNewROI(double x, double y, int z, int t) {
-		return ROIs.createEllipseROI(x, y, 0, 0, -1, z, t);
+		return ROIs.createEllipseROI(x, y, 0, 0, ImagePlane.getPlane(z, t));
 	}
 
 }

@@ -30,14 +30,15 @@ import org.junit.Test;
 
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
+import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.ROI;
 
 public class TestPathCellObject {
 	private final Double x = 0.0, y = 0.0, w = 10.0, h = 10.0;
 	private final Double xn = 0.0, yn = 0.0, wn = 5.0, hn = 5.0;
-	ROI myROI = ROIs.createEllipseROI(x, y, w, h, -1, 0, 0);
-	ROI myNROI = ROIs.createEllipseROI(xn, yn, wn, hn, -1, 0, 0);
+	ROI myROI = ROIs.createEllipseROI(x, y, w, h, ImagePlane.getDefaultPlane());
+	ROI myNROI = ROIs.createEllipseROI(xn, yn, wn, hn, ImagePlane.getDefaultPlane());
 	PathClass myPC = PathClassFactory.getDefaultPathClass(PathClassFactory.PathClasses.IMAGE_ROOT);
 	PathCellObject myPO = new PathCellObject();
 	PathCellObject myPO2 = new PathCellObject(myROI, myNROI, myPC);

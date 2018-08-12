@@ -39,7 +39,7 @@ import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
-import qupath.lib.roi.PointsROI;
+import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.ROIs;
 
 /**
@@ -120,7 +120,7 @@ public class DetectionsToPointsCommand implements PathCommand {
 		
 		// Create & add annotation objects to hierarchy
 		for (Entry<PathClass, List<Point2>> entry : pointsMap.entrySet()) {
-			PathObject pointObject = new PathAnnotationObject(ROIs.createPointsROI(entry.getValue(), -1, 0, 0));
+			PathObject pointObject = new PathAnnotationObject(ROIs.createPointsROI(entry.getValue(), ImagePlane.getDefaultPlane()));
 			pointObject.setPathClass(entry.getKey());
 			hierarchy.addPathObject(pointObject, false);			
 		}

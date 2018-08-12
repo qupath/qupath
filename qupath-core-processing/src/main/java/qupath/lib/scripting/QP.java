@@ -61,6 +61,7 @@ import qupath.lib.objects.hierarchy.TMAGrid;
 import qupath.lib.plugins.CommandLinePluginRunner;
 import qupath.lib.plugins.PathPlugin;
 import qupath.lib.plugins.workflow.RunSavedClassifierWorkflowStep;
+import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.ROI;
 
@@ -691,7 +692,7 @@ public class QP {
 		if (imageData == null)
 			return;
 		ImageServer<?> server = imageData.getServer();
-		PathObject pathObject = new PathAnnotationObject(ROIs.createRectangleROI(0, 0, server.getWidth(), server.getHeight(), -1, 0, 0));
+		PathObject pathObject = new PathAnnotationObject(ROIs.createRectangleROI(0, 0, server.getWidth(), server.getHeight(), ImagePlane.getDefaultPlane()));
 		imageData.getHierarchy().addPathObject(pathObject, false);
 		if (setSelected)
 			imageData.getHierarchy().getSelectionModel().setSelectedObject(pathObject);

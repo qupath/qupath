@@ -65,6 +65,7 @@ import qupath.lib.plugins.ObjectDetector;
 import qupath.lib.plugins.PluginRunner;
 import qupath.lib.plugins.parameters.Parameter;
 import qupath.lib.plugins.parameters.ParameterList;
+import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.ROIHelpers;
 import qupath.lib.roi.ROIs;
@@ -275,7 +276,7 @@ public class SimpleTissueDetection extends AbstractDetectionPlugin<BufferedImage
 //				continue;
 			// Smooth the coordinates, if we downsampled quite a lot
 			if (smoothCoordinates) {
-				pathPolygon = ROIs.createPolyonROI(ROIHelpers.smoothPoints(pathPolygon.getPolygonPoints()), -1, 0, 0);
+				pathPolygon = ROIs.createPolyonROI(ROIHelpers.smoothPoints(pathPolygon.getPolygonPoints()), ImagePlane.getPlane(pathPolygon));
 			}
 			pathObjects.add(new PathAnnotationObject(pathPolygon));
 		}

@@ -30,6 +30,7 @@ import java.util.Map;
 import java.util.Set;
 
 import qupath.lib.objects.helpers.PathObjectTools;
+import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.ROIs;
 
 /**
@@ -61,7 +62,7 @@ public class TMACoreObject extends PathROIObject implements MetadataStore {
 	}
 	
 	public TMACoreObject(double x, double y, double width, double height, boolean isMissing) {
-		super(ROIs.createEllipseROI(x, y, width, height, -1, 0, 0), null);
+		super(ROIs.createEllipseROI(x, y, width, height, ImagePlane.getDefaultPlane()), null);
 		this.isMissing = isMissing;
 	}
 

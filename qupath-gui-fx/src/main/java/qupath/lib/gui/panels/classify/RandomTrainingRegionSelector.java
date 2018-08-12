@@ -82,6 +82,7 @@ import qupath.lib.objects.hierarchy.TMAGrid;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
 import qupath.lib.plugins.parameters.ParameterList;
+import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.PointsROI;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.PathPoints;
@@ -471,18 +472,18 @@ public class RandomTrainingRegionSelector implements PathCommand {
 				PathAnnotationObject pathObject = objectCache.getPointObject(pathClass);
 				boolean newPoint = pathObject == null;
 				if (newPoint)
-					pathObject = new PathAnnotationObject(ROIs.createPointsROI(-1, 0, 0), pathClass);
+					pathObject = new PathAnnotationObject(ROIs.createPointsROI(ImagePlane.getDefaultPlane()), pathClass);
 				double x = currentPoint.getCentroidX();
 				double y = currentPoint.getCentroidY();
 				PathObjectHierarchy hierarchy = viewer.getHierarchy();
 				if (newPoint) {
-					pathObject.setROI(ROIs.createPointsROI(x, y, -1, 0, 0));
+					pathObject.setROI(ROIs.createPointsROI(x, y, ImagePlane.getDefaultPlane()));
 					hierarchy.addPathObject(pathObject, true);
 				} else {
 					PointsROI pointsROI = ((PointsROI)pathObject.getROI());
 					List<Point2> points = new ArrayList<Point2>(pointsROI.getPointList());
 					points.add(new Point2(x, y));
-					pathObject.setROI(ROIs.createPointsROI(points, -1, 0, 0));
+					pathObject.setROI(ROIs.createPointsROI(points, ImagePlane.getDefaultPlane()));
 					hierarchy.fireObjectsChangedEvent(this, Collections.singleton(pathObject));
 				}
 				// Unfortunately, this horrible hack that prevents this being a static class...
@@ -529,7 +530,7 @@ public class RandomTrainingRegionSelector implements PathCommand {
 				x = temp.getROI().getCentroidX();
 				y = temp.getROI().getCentroidY();
 			}
-			currentPoint = ROIs.createPointsROI(x, y, -1, 0, 0);
+			currentPoint = ROIs.createPointsROI(x, y, ImagePlane.getDefaultPlane());
 			viewer.setCenterPixelLocation(x, y);
 			viewer.setSelectedObject(new PathAnnotationObject(currentPoint));
 		}

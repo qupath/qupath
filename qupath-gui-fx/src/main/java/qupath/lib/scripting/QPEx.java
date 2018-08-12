@@ -61,6 +61,7 @@ import qupath.lib.plugins.PluginRunner;
 import qupath.lib.plugins.PluginRunnerFX;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectImageEntry;
+import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.PathROIToolsAwt;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.PathArea;
@@ -363,7 +364,7 @@ public class QPEx extends QP {
 		PathObject parent = pathObject.getParent();
 		PathArea shape = getAreaROI(parent);
 		if (shape == null)
-			shape = ROIs.createRectangleROI(0, 0, imageData.getServer().getWidth(), imageData.getServer().getHeight(), shapeSelected.getC(), shapeSelected.getZ(), shapeSelected.getT());
+			shape = ROIs.createRectangleROI(0, 0, imageData.getServer().getWidth(), imageData.getServer().getHeight(), ImagePlane.getPlaneWithChannel(shapeSelected));
 
 		// Create the new ROI
 		PathShape shapeNew = PathROIToolsAwt.combineROIs(shape, shapeSelected, PathROIToolsAwt.CombineOp.SUBTRACT);

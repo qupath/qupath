@@ -31,6 +31,7 @@ import java.util.List;
 
 import org.junit.Test;
 
+import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
@@ -45,9 +46,9 @@ public class TestPathObjectHierarchy {
 	PO_hlistener myPOHL = new PO_hlistener();
 	PathObjectHierarchyEvent event = PathObjectHierarchyEvent.createObjectAddedEvent(new Object(), myPH, new PathAnnotationObject(), new PathAnnotationObject());
 	PathRootObject myPRO = new PathRootObject();
-	ROI my_PR1 = ROIs.createRectangleROI(10, 10, 2, 2, -1, 0, 0);
-	ROI my_PR2 = ROIs.createRectangleROI(10, 10, 1, 1, -1, 0, 0);
-	ROI my_PR3 = ROIs.createRectangleROI(30, 30, 1, 1, -1, 0, 0);
+	ROI my_PR1 = ROIs.createRectangleROI(10, 10, 2, 2, ImagePlane.getDefaultPlane());
+	ROI my_PR2 = ROIs.createRectangleROI(10, 10, 1, 1, ImagePlane.getDefaultPlane());
+	ROI my_PR3 = ROIs.createRectangleROI(30, 30, 1, 1, ImagePlane.getDefaultPlane());
 	PathAnnotationObject myChild1PAO = new PathAnnotationObject(my_PR1);
 	PathAnnotationObject myChild2PAO = new PathAnnotationObject(my_PR2); 
 	PathAnnotationObject myChild3PAO = new PathAnnotationObject(my_PR3);

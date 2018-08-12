@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.PriorityQueue;
 
 import qupath.lib.geom.Point2;
+import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.PolygonROI;
 import qupath.lib.roi.ROIs;
 
@@ -146,7 +147,7 @@ public class ShapeSimplifier {
 		List<Point2> points = polygon.getPolygonPoints();
 		simplifyPolygonPoints(points, altitudeThreshold);
 		// Construct a new polygon
-		return ROIs.createPolyonROI(points, polygon.getC(), polygon.getZ(), polygon.getT());
+		return ROIs.createPolyonROI(points, ImagePlane.getPlaneWithChannel(polygon));
 	}
 	
 	
