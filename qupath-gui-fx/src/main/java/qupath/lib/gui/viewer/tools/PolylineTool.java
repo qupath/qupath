@@ -31,6 +31,7 @@ import qupath.lib.gui.viewer.ModeWrapper;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathROIObject;
 import qupath.lib.roi.PolylineROI;
+import qupath.lib.roi.ROIs;
 import qupath.lib.roi.RoiEditor;
 import qupath.lib.roi.interfaces.ROI;
 
@@ -94,7 +95,7 @@ public class PolylineTool extends AbstractPathROITool {
 
 	@Override
 	protected ROI createNewROI(double x, double y, int z, int t) {
-		return new PolylineROI(x, y, -1, z, t);
+		return ROIs.createPolylineROI(x, y, -1, z, t);
 	}
 	
 }

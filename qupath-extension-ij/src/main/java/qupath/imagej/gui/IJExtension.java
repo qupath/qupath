@@ -95,7 +95,7 @@ import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.helpers.PathObjectColorToolsAwt;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.regions.RegionRequest;
-import qupath.lib.roi.RectangleROI;
+import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.ROI;
 import qupathj.QUPath_Send_Overlay_to_QuPath;
 import qupathj.QUPath_Send_ROI_to_QuPath;
@@ -279,7 +279,7 @@ public class IJExtension implements QuPathExtension {
 	public static PathImage<ImagePlus> extractROIWithOverlay(ImageServer<BufferedImage> server, PathObject pathObject, PathObjectHierarchy hierarchy, RegionRequest request, boolean setROI, OverlayOptions options, ImageDisplay imageDisplay) {
 		ROI pathROI;
 		if (pathObject == null || !pathObject.hasROI()) {
-			pathROI = new RectangleROI(0, 0, server.getWidth(), server.getHeight());
+			pathROI = ROIs.createRectangleROI(0, 0, server.getWidth(), server.getHeight(), -1, 0, 0);
 			//			logger.error("No ROI found to extract!");
 			//			return null;
 		} else

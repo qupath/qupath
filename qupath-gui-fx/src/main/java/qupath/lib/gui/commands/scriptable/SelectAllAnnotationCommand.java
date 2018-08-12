@@ -35,6 +35,7 @@ import qupath.lib.objects.PathObject;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.plugins.workflow.DefaultScriptableWorkflowStep;
 import qupath.lib.regions.ImageRegion;
+import qupath.lib.roi.ROIs;
 import qupath.lib.roi.RectangleROI;
 import qupath.lib.roi.interfaces.ROI;
 
@@ -67,7 +68,7 @@ public class SelectAllAnnotationCommand implements PathCommand {
 		
 		// Check if we already have a comparable annotation
 		ImageRegion bounds = viewer.getServerBounds();
-		RectangleROI roi = new RectangleROI(bounds.getX(), bounds.getY(), bounds.getWidth(), bounds.getHeight(), 0, viewer.getZPosition(), viewer.getTPosition());
+		ROI roi = ROIs.createRectangleROI(bounds.getX(), bounds.getY(), bounds.getWidth(), bounds.getHeight(), -1, viewer.getZPosition(), viewer.getTPosition());
 		for (PathObject pathObject : hierarchy.getObjects(null, PathAnnotationObject.class)) {
 			ROI r2 = pathObject.getROI();
 			if (r2 instanceof RectangleROI && 

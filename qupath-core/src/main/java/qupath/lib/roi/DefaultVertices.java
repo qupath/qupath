@@ -44,7 +44,7 @@ import qupath.lib.rois.vertices.Vertices;
  * @author Pete Bankhead
  *
  */
-public class DefaultVertices implements Vertices {
+class DefaultVertices implements Vertices {
 	
 	static Logger logger = LoggerFactory.getLogger(DefaultVertices.class);
 	

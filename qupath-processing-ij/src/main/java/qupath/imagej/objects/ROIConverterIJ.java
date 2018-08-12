@@ -43,7 +43,9 @@ import qupath.lib.roi.PathROIToolsAwt;
 import qupath.lib.roi.PointsROI;
 import qupath.lib.roi.PolygonROI;
 import qupath.lib.roi.PolylineROI;
+import qupath.lib.roi.ROIs;
 import qupath.lib.roi.RectangleROI;
+import qupath.lib.roi.interfaces.PathPoints;
 import qupath.lib.roi.interfaces.ROI;
 import ij.ImagePlus;
 import ij.gui.Line;
@@ -273,7 +275,7 @@ public class ROIConverterIJ {
 		List<Point2> points = convertToPointsList(roi.getFloatPolygon(), cal, downsampleFactor);
 		if (points == null)
 			return null;
-		return new PolylineROI(points, c, z, t);
+		return ROIs.createPolylineROI(points, c, z, t);
 	}
 	
 	
@@ -321,34 +323,34 @@ public class ROIConverterIJ {
 //				convertYfromIJ(bounds.getHeight(), null, downsampleFactor));
 	}
 	
-	public static RectangleROI getRectangleROI(Roi roi, Calibration cal, double downsampleFactor, final int c, final int z, final int t) {
+	public static ROI getRectangleROI(Roi roi, Calibration cal, double downsampleFactor, final int c, final int z, final int t) {
 		Rectangle2D bounds = getTransformedBoundsFromIJ(roi, cal, downsampleFactor);
-		return new RectangleROI(bounds.getX(), bounds.getY(), bounds.getWidth(), bounds.getHeight(), c, z, t);
+		return ROIs.createRectangleROI(bounds.getX(), bounds.getY(), bounds.getWidth(), bounds.getHeight(), c, z, t);
 	}
 
-	public static EllipseROI convertToEllipseROI(Roi roi, Calibration cal, double downsampleFactor, final int c, final int z, final int t) {
+	public static ROI convertToEllipseROI(Roi roi, Calibration cal, double downsampleFactor, final int c, final int z, final int t) {
 		Rectangle2D bounds = getTransformedBoundsFromIJ(roi, cal, downsampleFactor);
-		return new EllipseROI(bounds.getX(), bounds.getY(), bounds.getWidth(), bounds.getHeight(), c, z, t);
+		return ROIs.createEllipseROI(bounds.getX(), bounds.getY(), bounds.getWidth(), bounds.getHeight(), c, z, t);
 	}
 
-	public static LineROI convertToLineROI(Line roi, Calibration cal, double downsampleFactor, final int c, final int z, final int t) {
+	public static ROI convertToLineROI(Line roi, Calibration cal, double downsampleFactor, final int c, final int z, final int t) {
 		double x1 = convertXfromIJ(roi.x1d, cal, downsampleFactor);
 		double x2 = convertXfromIJ(roi.x2d, cal, downsampleFactor);
 		double y1 = convertYfromIJ(roi.y1d, cal, downsampleFactor);
 		double y2 = convertYfromIJ(roi.y2d, cal, downsampleFactor);
-		return new LineROI(x1, y1, x2, y2, c, z, t);		
+		return ROIs.createLineROI(x1, y1, x2, y2, c, z, t);		
 	}
 	
-	public static PointsROI convertToPointROI(PolygonRoi roi, Calibration cal, double downsampleFactor) {
+	public static PathPoints convertToPointROI(PolygonRoi roi, Calibration cal, double downsampleFactor) {
 		return convertToPointROI(roi, cal, downsampleFactor, -1, 0, 0);
 	}
 
 
-	public static PointsROI convertToPointROI(PolygonRoi roi, Calibration cal, double downsampleFactor, final int c, final int z, final int t) {
+	public static PathPoints convertToPointROI(PolygonRoi roi, Calibration cal, double downsampleFactor, final int c, final int z, final int t) {
 		List<Point2> points = convertToPointsList(roi.getFloatPolygon(), cal, downsampleFactor);
 		if (points == null)
 			return null;
-		return new PointsROI(points, c, z, t);
+		return ROIs.createPointsROI(points, c, z, t);
 	}
 	
 	public static PolygonROI convertToPolygonROI(PolygonRoi roi, Calibration cal, double downsampleFactor) {
@@ -359,7 +361,7 @@ public class ROIConverterIJ {
 		List<Point2> points = convertToPointsList(roi.getFloatPolygon(), cal, downsampleFactor);
 		if (points == null)
 			return null;
-		return new PolygonROI(points, c, z, t);
+		return ROIs.createPolyonROI(points, c, z, t);
 	}
 	
 	public static List<Point2> convertToPointsList(FloatPolygon polygon, Calibration cal, double downsampleFactor) {

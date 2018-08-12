@@ -56,6 +56,7 @@ import qupath.lib.plugins.ObjectDetector;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.PolygonROI;
+import qupath.lib.roi.ROIs;
 import qupath.lib.roi.RectangleROI;
 import qupath.lib.roi.interfaces.ROI;
 import qupath.opencv.processing.OpenCVTools;
@@ -243,7 +244,7 @@ public class WatershedNucleiCV extends AbstractTileableDetectionPlugin<BufferedI
 						}
 
 						// Add new polygon if it is contained within the ROI & measurable
-						PolygonROI pathPolygon = new PolygonROI(points);
+						PolygonROI pathPolygon = ROIs.createPolyonROI(points, pathROI.getC(), pathROI.getZ(), pathROI.getT());
 						if (!(pathPolygon.getArea() >= minArea)) {
 							// Don't do a simpler < because we also want to discard the region if the area couldn't be measured (although this is unlikely)
 							continue;

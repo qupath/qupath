@@ -42,6 +42,8 @@ import qupath.lib.rois.vertices.Vertices;
 /**
  * ROI representing an arbitrary closed polygon.
  * 
+ * @see Polyline
+ * 
  * @author Pete Bankhead
  *
  */
@@ -68,16 +70,16 @@ public class PolygonROI extends AbstractPathAreaROI implements ROIWithHull, Tran
 	 * @param x
 	 * @param y
 	 */
-	public PolygonROI(double x, double y) {
+	PolygonROI(double x, double y) {
 		this(x, y, -1, 0, 0);
 	}
 	
-	public PolygonROI(List<Point2> points) {
+	PolygonROI(List<Point2> points) {
 		this(points, -1, 0, 0);
 	}
 	
 	
-	public PolygonROI(double x, double y, int c, int z, int t) {
+	PolygonROI(double x, double y, int c, int z, int t) {
 		super(c, z, t);
 		vertices = VerticesFactory.createVertices(new float[]{(float)x, (float)x}, new float[]{(float)y, (float)y}, false);
 //		vertices = VerticesFactory.createMutableVertices();
@@ -85,7 +87,7 @@ public class PolygonROI extends AbstractPathAreaROI implements ROIWithHull, Tran
 //		vertices.close();
 	}
 	
-	public PolygonROI(List<Point2> points, int c, int z, int t) {
+	PolygonROI(List<Point2> points, int c, int z, int t) {
 		super(c, z, t);
 //		vertices = VerticesFactory.createMutableVertices(points.size()+1);
 //		setPoints(points);
@@ -101,7 +103,7 @@ public class PolygonROI extends AbstractPathAreaROI implements ROIWithHull, Tran
 	}
 	
 	
-	public PolygonROI(float[] x, float[] y, int c, int z, int t) {
+	PolygonROI(float[] x, float[] y, int c, int z, int t) {
 		this(x, y, c, z, t, true);
 //		List<Point2> points = new ArrayList<>();
 //		for (int i = 0; i < x.length; i++) {

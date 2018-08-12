@@ -37,6 +37,14 @@ import qupath.lib.roi.interfaces.ROI;
 import qupath.lib.roi.interfaces.TranslatableROI;
 import qupath.lib.rois.vertices.Vertices;
 
+/**
+ * ROI representing an arbitrary open polygon.
+ * 
+ * @see Polygon
+ * 
+ * @author Pete Bankhead
+ *
+ */
 public class PolylineROI extends AbstractPathROI implements PathLine, TranslatableROI, Serializable {
 
 	private static final long serialVersionUID = 1L;
@@ -47,15 +55,15 @@ public class PolylineROI extends AbstractPathROI implements PathLine, Translatab
 	
 	private transient PolylineStats stats;
 	
-	public PolylineROI(double x, double y, int c, int z, int t) {
+	PolylineROI(double x, double y, int c, int z, int t) {
 		this((float)x, (float)y, c, z, t);
 	}
 	
-	public PolylineROI(float x, float y, int c, int z, int t) {
+	PolylineROI(float x, float y, int c, int z, int t) {
 		this(new float[]{x}, new float[]{y}, c, z, t, false);
 	}
 	
-	public PolylineROI(List<Point2> points, int c, int z, int t) {
+	PolylineROI(List<Point2> points, int c, int z, int t) {
 		super(c, z, t);
 		float[] x = new float[points.size()];
 		float[] y = new float[points.size()];
@@ -67,7 +75,7 @@ public class PolylineROI extends AbstractPathROI implements PathLine, Translatab
 		vertices = VerticesFactory.createVertices(x, y, false);
 	}
 	
-	public PolylineROI(final float[] x, final float[] y, final int c, final int z, final int t) {
+	PolylineROI(final float[] x, final float[] y, final int c, final int z, final int t) {
 		this(x, y, c, z, t, true);
 	}
 	

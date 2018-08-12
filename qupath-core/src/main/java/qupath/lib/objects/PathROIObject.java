@@ -49,21 +49,21 @@ public abstract class PathROIObject extends PathObject {
 	private double classProbability = Double.NaN;
 	private boolean lockedROI = false; //J Lock to determine whether ROI is locked (set by user)
 
-	protected PathROIObject() {
+	PathROIObject() {
 		super();
 	}
 	
-	public PathROIObject(ROI pathROI, PathClass pc) {
+	PathROIObject(ROI pathROI, PathClass pc) {
 		super();
 		this.pathROI = pathROI;
 		setPathClass(pc);
 	}
 	
-	protected PathROIObject(MeasurementList measurements) {
+	PathROIObject(MeasurementList measurements) {
 		super(measurements);
 	}
 	
-	public PathROIObject(ROI pathROI, PathClass pc, MeasurementList measurements) {
+	PathROIObject(ROI pathROI, PathClass pc, MeasurementList measurements) {
 		super(measurements);
 		this.pathROI = pathROI;
 		setPathClass(pc);

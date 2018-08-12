@@ -45,23 +45,23 @@ public class EllipseROI extends AbstractPathBoundedROI implements PathArea, Seri
 	
 	private static final long serialVersionUID = 1L;
 	
-	protected EllipseROI() {
+	EllipseROI() {
 		super();
 	}
 	
-	public EllipseROI(double x, double y) {
+	EllipseROI(double x, double y) {
 		super(x, y);
 	}
 	
-	public EllipseROI(double x, double y, int c, int z, int t) {
+	EllipseROI(double x, double y, int c, int z, int t) {
 		super(x, y, c, z, t);
 	}
 
-	public EllipseROI(double x, double y, double width, double height) {
+	EllipseROI(double x, double y, double width, double height) {
 		super(x, y, width, height, -1, 0, 0);
 	}
 
-	public EllipseROI(double x, double y, double width, double height, int c, int z, int t) {
+	EllipseROI(double x, double y, double width, double height, int c, int z, int t) {
 		super(x, y, width, height, c, z, t);
 	}
 	

@@ -57,11 +57,11 @@ public class PointsROI extends AbstractPathROI implements ROIWithHull, PathPoint
 	transient protected PathArea convexHull = null;
 //	transient protected Point2 pointAdjusting = null;
 	
-	public PointsROI() {
+	PointsROI() {
 		this(Double.NaN, Double.NaN);
 	}
 	
-	public PointsROI(double x, double y) {
+	PointsROI(double x, double y) {
 		this(x, y, -1, 0, 0);
 	}
 	
@@ -71,18 +71,18 @@ public class PointsROI extends AbstractPathROI implements ROIWithHull, PathPoint
 		recomputeBounds();
 	}
 	
-	public PointsROI(List<Point2> points) {
+	PointsROI(List<? extends Point2> points) {
 		this(points, -1, 0, 0);
 	}
 	
-	public PointsROI(List<Point2> points, int c, int z, int t) {
+	PointsROI(List<? extends Point2> points, int c, int z, int t) {
 		super(c, z, t);
 		for (Point2 p : points)
 			addPoint(p.getX(), p.getY());
 		recomputeBounds();
 	}
 	
-	public PointsROI(float[] x, float[] y, int c, int z, int t) {
+	PointsROI(float[] x, float[] y, int c, int z, int t) {
 		super(c, z, t);
 		if (x.length != y.length)
 			throw new IllegalArgumentException("Lengths of x and y arrays are not the same! " + x.length + " and " + y.length);

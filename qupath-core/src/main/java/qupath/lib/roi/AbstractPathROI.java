@@ -31,7 +31,7 @@ import qupath.lib.roi.interfaces.ROI;
  * @author Pete Bankhead
  *
  */
-public abstract class AbstractPathROI implements ROI {
+abstract class AbstractPathROI implements ROI {
 	
 	// Dimension variables
 	int c = -1; // Defaults to -1, indicating all channels

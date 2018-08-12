@@ -24,7 +24,7 @@
 package qupath.lib.gui.viewer.tools;
 
 import qupath.lib.gui.viewer.ModeWrapper;
-import qupath.lib.roi.LineROI;
+import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
@@ -42,7 +42,7 @@ public class LineTool extends AbstractPathDraggingROITool {
 	
 	@Override
 	protected ROI createNewROI(double x, double y, int z, int t) {
-		return new LineROI(x, y, x, y, -1, z, t);
+		return ROIs.createLineROI(x, y, x, y, -1, z, t);
 	}
 
 }

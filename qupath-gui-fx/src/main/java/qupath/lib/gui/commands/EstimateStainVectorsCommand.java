@@ -67,7 +67,7 @@ import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.regions.RegionRequest;
-import qupath.lib.roi.RectangleROI;
+import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
@@ -123,7 +123,7 @@ public class EstimateStainVectorsCommand implements PathCommand {
 		PathObject pathObject = imageData.getHierarchy().getSelectionModel().getSelectedObject();
 		ROI roi = pathObject == null ? null : pathObject.getROI();
 		if (roi == null)
-			roi = new RectangleROI(0, 0, imageData.getServer().getWidth(), imageData.getServer().getHeight());
+			roi = ROIs.createRectangleROI(0, 0, imageData.getServer().getWidth(), imageData.getServer().getHeight(), -1, 0, 0);
 		
 		double downsample = Math.max(1, Math.sqrt((roi.getBoundsWidth() * roi.getBoundsHeight()) / MAX_PIXELS));
 		RegionRequest request = RegionRequest.createInstance(imageData.getServerPath(), downsample, roi);

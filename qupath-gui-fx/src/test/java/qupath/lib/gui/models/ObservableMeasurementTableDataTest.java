@@ -38,7 +38,7 @@ import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.classes.PathClassFactory.PathClasses;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
-import qupath.lib.roi.RectangleROI;
+import qupath.lib.roi.ROIs;
 
 /**
  * Some tests for observable measurements.
@@ -63,7 +63,7 @@ public class ObservableMeasurementTableDataTest {
 		PathObjectHierarchy hierarchy = imageData.getHierarchy();
 		
 		// Add a parent annotation
-		PathObject parent = new PathAnnotationObject(new RectangleROI(500, 500, 1000, 1000));
+		PathObject parent = new PathAnnotationObject(ROIs.createRectangleROI(500, 500, 1000, 1000, -1, 0, 0));
 		
 		
 		// Create 100 tumor detections
@@ -133,14 +133,14 @@ public class ObservableMeasurementTableDataTest {
 		assertEquals(135, model.getNumericValue(parent, "Stroma + Tumor: H-score"), EPSILON);
 		
 		// Add a new parent that completely contains the current object, and confirm complete scores agree
-		PathObject parentNew = new PathAnnotationObject(new RectangleROI(0, 0, 2000, 2000));
+		PathObject parentNew = new PathAnnotationObject(ROIs.createRectangleROI(0, 0, 2000, 2000, -1, 0, 0));
 		hierarchy.addPathObject(parentNew, false);
 		model.refreshEntries();
 		assertEquals(135, model.getNumericValue(parent, "Stroma + Tumor: H-score"), EPSILON);
 		assertEquals(135, model.getNumericValue(parentNew, "Stroma + Tumor: H-score"), EPSILON);
 		
 		// Create a new object and demonstrate Allred dependence on a single cell
-		PathObject parentAllred = new PathAnnotationObject(new RectangleROI(4000, 4000, 1000, 1000));
+		PathObject parentAllred = new PathAnnotationObject(ROIs.createRectangleROI(4000, 4000, 1000, 1000, -1, 0, 0));
 		for (int i = 0; i < 100; i++)
 			parentAllred.addPathObject(new PathDetectionObject(null, PathClassFactory.getNegative(tumorClass, null)));
 		hierarchy.addPathObject(parentAllred, false);

@@ -49,6 +49,7 @@ import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
 import qupath.lib.objects.hierarchy.events.PathObjectSelectionListener;
 import qupath.lib.objects.hierarchy.events.PathObjectSelectionModel;
 import qupath.lib.roi.PointsROI;
+import qupath.lib.roi.ROIs;
 
 /**
  * Component for creating and modifying point objects.
@@ -65,7 +66,7 @@ public class CountingPanel implements PathObjectSelectionListener, PathObjectHie
 	private ListView<PathObject> listCounts;
 	
 	private Action btnAdd = new Action("Add", e -> {
-		PathObject pathObjectCounts = new PathAnnotationObject(new PointsROI());
+		PathObject pathObjectCounts = new PathAnnotationObject(ROIs.createPointsROI(-1, 0, 0));
 		hierarchy.addPathObject(pathObjectCounts, false);
 //		hierarchy.fireChangeEvent(pathObjectCounts.getParent());
 		hierarchy.getSelectionModel().setSelectedObject(pathObjectCounts);

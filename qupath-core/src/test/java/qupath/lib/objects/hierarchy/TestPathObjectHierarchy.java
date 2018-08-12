@@ -37,7 +37,7 @@ import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathRootObject;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
-import qupath.lib.roi.RectangleROI;
+import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.ROI;
 
 public class TestPathObjectHierarchy {
@@ -45,9 +45,9 @@ public class TestPathObjectHierarchy {
 	PO_hlistener myPOHL = new PO_hlistener();
 	PathObjectHierarchyEvent event = PathObjectHierarchyEvent.createObjectAddedEvent(new Object(), myPH, new PathAnnotationObject(), new PathAnnotationObject());
 	PathRootObject myPRO = new PathRootObject();
-	ROI my_PR1 = new RectangleROI(10, 10, 2, 2);
-	ROI my_PR2 = new RectangleROI(10, 10, 1, 1);
-	ROI my_PR3 = new RectangleROI(30, 30, 1, 1);
+	ROI my_PR1 = ROIs.createRectangleROI(10, 10, 2, 2, -1, 0, 0);
+	ROI my_PR2 = ROIs.createRectangleROI(10, 10, 1, 1, -1, 0, 0);
+	ROI my_PR3 = ROIs.createRectangleROI(30, 30, 1, 1, -1, 0, 0);
 	PathAnnotationObject myChild1PAO = new PathAnnotationObject(my_PR1);
 	PathAnnotationObject myChild2PAO = new PathAnnotationObject(my_PR2); 
 	PathAnnotationObject myChild3PAO = new PathAnnotationObject(my_PR3);

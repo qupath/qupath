@@ -37,7 +37,9 @@ import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathROIObject;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.roi.PointsROI;
+import qupath.lib.roi.ROIs;
 import qupath.lib.roi.RoiEditor;
+import qupath.lib.roi.interfaces.PathPoints;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
@@ -123,7 +125,7 @@ public class PointsTool extends AbstractPathTool {
 	}
 	
 	
-	private PointsROI removeNearbyPoint(PointsROI points, double x, double y, double distance) {
+	private ROI removeNearbyPoint(PointsROI points, double x, double y, double distance) {
 		if (points == null)
 			return points;
 		Point2 p = points.getNearest(x, y, distance);
@@ -147,7 +149,7 @@ public class PointsTool extends AbstractPathTool {
 		// Remove a point if the current selection has one
 		if (currentObject != null && currentObject.isPoint()) {
 			PointsROI points = (PointsROI)currentObject.getROI();
-			PointsROI points2 = removeNearbyPoint(points, x, y, distance);
+			ROI points2 = removeNearbyPoint(points, x, y, distance);
 			if (points != points2) {
 				((PathROIObject)currentObject).setROI(points2);
 				hierarchy.fireHierarchyChangedEvent(this, currentObject);
@@ -205,7 +207,7 @@ public class PointsTool extends AbstractPathTool {
 		RoiEditor editor = viewer.getROIEditor();
 		double radius = PathPrefs.getDefaultPointRadius();
 		
-		PointsROI points = (currentROI instanceof PointsROI) ? (PointsROI)currentROI : null;
+		PathPoints points = (currentROI instanceof PathPoints) ? (PathPoints)currentROI : null;
 		// If Alt is pressed, try to delete a point
 		if (e.isAltDown()) {
 			handleAltClick(xx, yy, currentObject);
@@ -213,13 +215,13 @@ public class PointsTool extends AbstractPathTool {
 		// Create a new ROI if we've got Alt & Shift pressed - or we just don't have a point ROI
 		else if (points == null || (e.isShiftDown() && e.getClickCount() > 1)) {
 			// PathPoints is effectively ready from the start - don't need to finalize
-			points = new PointsROI(xx, yy);
+			points = ROIs.createPointsROI(xx, yy, -1, 0, 0);
 			viewer.createAnnotationObject(points);
 			editor.setROI(points);
 			editor.grabHandle(xx, yy, radius, e.isShiftDown());
 		} else if (points != null) {
 			// Add point to current ROI, or adjust the position of a nearby point
-			PointsROI points2 = addPoint(points, xx, yy, radius);
+			PathPoints points2 = addPoint(points, xx, yy, radius);
 			if (points2 == points) {
 				// If we didn't add a point, try to grab a handle
 				if (!editor.grabHandle(xx, yy, radius, e.isShiftDown()))
@@ -255,7 +257,7 @@ public class PointsTool extends AbstractPathTool {
 	 * @param y
 	 * @param minimumSeparation
 	 */
-	private PointsROI addPoint(final PointsROI points, final double x, final double y, final double minimumSeparation) {
+	private PathPoints addPoint(final PathPoints points, final double x, final double y, final double minimumSeparation) {
 		// Can't add NaN points
 		if (Double.isNaN(x + y))
 			return points;
@@ -270,17 +272,17 @@ public class PointsTool extends AbstractPathTool {
 		}
 		List<Point2> pointsList2 = new ArrayList<>(pointsList);
 		pointsList2.add(new Point2(x, y));
-		return new PointsROI(pointsList2, points.getC(), points.getZ(), points.getT());
+		return ROIs.createPointsROI(pointsList2, points.getC(), points.getZ(), points.getT());
 	}
 	
 	
 	
-	private PointsROI removePoint(final PointsROI points, final Point2 point) {
+	private ROI removePoint(final PointsROI points, final Point2 point) {
 		if (point == null)
 			return points;
 		List<Point2> pointsList = new ArrayList<>(points.getPointList());
 		if (pointsList.remove(point)) {
-			return new PointsROI(pointsList, points.getC(), points.getZ(), points.getT());
+			return ROIs.createPointsROI(pointsList, points.getC(), points.getZ(), points.getT());
 		}
 		return points;
 	}

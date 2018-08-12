@@ -54,9 +54,9 @@ import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.AWTAreaROI;
 import qupath.lib.roi.AreaROI;
-import qupath.lib.roi.EllipseROI;
 import qupath.lib.roi.PathROIToolsAwt;
 import qupath.lib.roi.PolygonROI;
+import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.PathArea;
 import qupath.lib.roi.interfaces.ROI;
 
@@ -305,14 +305,14 @@ public class CellCountsCV extends AbstractTileableDetectionPlugin<BufferedImage>
 					if (area != null && !area.contains(p.getX(), p.getY()))
 						continue;
 					
-					tempROI = new EllipseROI(p.getX()-radius, p.getY()-radius, radius*2, radius*2);
+					tempROI = ROIs.createEllipseROI(p.getX()-radius, p.getY()-radius, radius*2, radius*2, -1, 0, 0);
 				}
 				else {
-					tempROI = new PolygonROI(points);
+					tempROI = ROIs.createPolyonROI(points, -1, 0, 0);
 					// Check we're inside
 					if (area != null && !area.contains(tempROI.getCentroidX(), tempROI.getCentroidY()))
 						continue;
-					tempROI = new EllipseROI(tempROI.getCentroidX()-radius, tempROI.getCentroidY()-radius, radius*2, radius*2);
+					tempROI = ROIs.createEllipseROI(tempROI.getCentroidX()-radius, tempROI.getCentroidY()-radius, radius*2, radius*2, -1, 0, 0);
 				}
 
 				PathObject pathObject = new PathDetectionObject(tempROI);

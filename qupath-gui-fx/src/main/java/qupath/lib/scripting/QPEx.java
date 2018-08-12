@@ -48,9 +48,9 @@ import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
 import qupath.lib.io.PathAwtIO;
 import qupath.lib.io.PathIO;
+import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathDetectionObject;
-import qupath.lib.objects.PathObject;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.helpers.PathObjectTools;
@@ -62,7 +62,7 @@ import qupath.lib.plugins.PluginRunnerFX;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectImageEntry;
 import qupath.lib.roi.PathROIToolsAwt;
-import qupath.lib.roi.RectangleROI;
+import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.PathArea;
 import qupath.lib.roi.interfaces.PathShape;
 import qupath.lib.roi.interfaces.ROI;
@@ -363,7 +363,7 @@ public class QPEx extends QP {
 		PathObject parent = pathObject.getParent();
 		PathArea shape = getAreaROI(parent);
 		if (shape == null)
-			shape = new RectangleROI(0, 0, imageData.getServer().getWidth(), imageData.getServer().getHeight(), shapeSelected.getC(), shapeSelected.getZ(), shapeSelected.getT());
+			shape = ROIs.createRectangleROI(0, 0, imageData.getServer().getWidth(), imageData.getServer().getHeight(), shapeSelected.getC(), shapeSelected.getZ(), shapeSelected.getT());
 
 		// Create the new ROI
 		PathShape shapeNew = PathROIToolsAwt.combineROIs(shape, shapeSelected, PathROIToolsAwt.CombineOp.SUBTRACT);

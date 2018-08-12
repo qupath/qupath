@@ -30,7 +30,7 @@ import java.util.Map;
 import java.util.Set;
 
 import qupath.lib.objects.helpers.PathObjectTools;
-import qupath.lib.roi.EllipseROI;
+import qupath.lib.roi.ROIs;
 
 /**
  * A special PathObject used exclusively to represent TMA cores.
@@ -61,7 +61,7 @@ public class TMACoreObject extends PathROIObject implements MetadataStore {
 	}
 	
 	public TMACoreObject(double x, double y, double width, double height, boolean isMissing) {
-		super(new EllipseROI(x, y, width, height, -1, 0, 0), null);
+		super(ROIs.createEllipseROI(x, y, width, height, -1, 0, 0), null);
 		this.isMissing = isMissing;
 	}
 

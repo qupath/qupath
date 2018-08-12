@@ -33,8 +33,7 @@ import qupath.lib.images.servers.ImageServer;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.plugins.parameters.ParameterList;
-import qupath.lib.roi.EllipseROI;
-import qupath.lib.roi.RectangleROI;
+import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.ROI;
 
 
@@ -108,9 +107,9 @@ public class AnnotationCreatorPanel {
 		// Create ROI
 		ROI pathROI;
 		if ("Rectangle".equals(params.getChoiceParameterValue("type")))
-			pathROI = new RectangleROI(x, y, width, height);
+			pathROI = ROIs.createRectangleROI(x, y, width, height, -1, 0, 0);
 		else
-			pathROI = new EllipseROI(x, y, width, height);			
+			pathROI = ROIs.createEllipseROI(x, y, width, height, -1, 0, 0);	
 		
 		// Create & return annotation
 		PathAnnotationObject pathObject = new PathAnnotationObject(pathROI);

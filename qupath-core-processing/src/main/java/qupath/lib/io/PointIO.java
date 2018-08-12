@@ -51,6 +51,8 @@ import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.roi.PointsROI;
+import qupath.lib.roi.ROIs;
+import qupath.lib.roi.interfaces.PathPoints;
 
 /**
  * Helper class for reading/writing point objects in terms of their x,y coordinates.
@@ -149,8 +151,8 @@ public class PointIO {
 	
 	
 	
-	public static List<PointsROI> readPointsList(File file) {
-		List<PointsROI> pointsList = new ArrayList<>();
+	public static List<? extends PathPoints> readPointsList(File file) {
+		List<PathPoints> pointsList = new ArrayList<>();
 		ZipFile zipFile;
 		Scanner s = null;
 		try {
@@ -160,7 +162,7 @@ public class PointIO {
 				ZipEntry entry = entries.nextElement();
 				s = new Scanner(new BufferedInputStream(zipFile.getInputStream(entry)));
 				s.useDelimiter("\\A");
-				PointsROI points = readPointsFromString(s.next());
+				PathPoints points = readPointsFromString(s.next());
 				if (points != null)
 					pointsList.add(points);
 				s.close();
@@ -226,7 +228,7 @@ public class PointIO {
 		if (count != pointsList.size())
 			logger.warn("Warning: {} points expected, {} points found", count, pointsList.size());
 		
-		PointsROI points = new PointsROI(pointsList);
+		PathPoints points = ROIs.createPointsROI(pointsList, -1, 0, 0);
 		PathAnnotationObject pathObject = new PathAnnotationObject(points);
 		if (name != null && name.length() > 0 && !"null".equals(name))
 			pathObject.setName(name);
@@ -236,7 +238,7 @@ public class PointIO {
 	
 
 	
-	public static PointsROI readPointsFromString(String s) {
+	public static PathPoints readPointsFromString(String s) {
 		List<Point2> pointsList = new ArrayList<>();
 		Scanner scanner = new Scanner(s);
 //		String name = scanner.nextLine();
@@ -252,7 +254,7 @@ public class PointIO {
 		scanner.close();
 //		if (name != null && name.length() > 0)
 //			points.setName(name);
-		return new PointsROI(pointsList);
+		return ROIs.createPointsROI(pointsList, -1, 0, 0);
 	}
 	
 	public static String getPointsAsString(PointsROI points) {
@@ -286,9 +288,9 @@ public class PointIO {
 	}
 
 
-	public static PointsROI readPoints(File file) {
+	public static PathPoints readPoints(File file) {
 		BufferedReader reader = null;
-		PointsROI points = null;
+		PathPoints points = null;
 		List<Point2> pointsList = new ArrayList<>();
 		try {
 			reader = new BufferedReader(new FileReader(file));
@@ -304,7 +306,7 @@ public class PointIO {
 				double y = Double.parseDouble(splits[1]);
 				pointsList.add(new Point2(x, y));
 			}
-			points = new PointsROI(pointsList);
+			points = ROIs.createPointsROI(pointsList, -1, 0, 0);
 //			if (name != null && name.length() > 0)
 //				points.setName(name);
 		} catch (IOException e) {

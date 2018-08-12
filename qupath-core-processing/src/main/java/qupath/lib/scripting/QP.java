@@ -48,10 +48,10 @@ import qupath.lib.color.ColorDeconvolutionStains;
 import qupath.lib.common.ColorTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathCellObject;
 import qupath.lib.objects.PathDetectionObject;
-import qupath.lib.objects.PathObject;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
@@ -61,7 +61,7 @@ import qupath.lib.objects.hierarchy.TMAGrid;
 import qupath.lib.plugins.CommandLinePluginRunner;
 import qupath.lib.plugins.PathPlugin;
 import qupath.lib.plugins.workflow.RunSavedClassifierWorkflowStep;
-import qupath.lib.roi.RectangleROI;
+import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
@@ -691,7 +691,7 @@ public class QP {
 		if (imageData == null)
 			return;
 		ImageServer<?> server = imageData.getServer();
-		PathObject pathObject = new PathAnnotationObject(new RectangleROI(0, 0, server.getWidth(), server.getHeight(), 0, 0, 0));
+		PathObject pathObject = new PathAnnotationObject(ROIs.createRectangleROI(0, 0, server.getWidth(), server.getHeight(), -1, 0, 0));
 		imageData.getHierarchy().addPathObject(pathObject, false);
 		if (setSelected)
 			imageData.getHierarchy().getSelectionModel().setSelectedObject(pathObject);

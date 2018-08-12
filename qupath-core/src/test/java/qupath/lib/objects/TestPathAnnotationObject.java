@@ -35,7 +35,8 @@ import qupath.lib.measurements.MeasurementList;
 import qupath.lib.measurements.MeasurementListFactory;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
-import qupath.lib.roi.LineROI;
+import qupath.lib.roi.ROIs;
+import qupath.lib.roi.interfaces.ROI;
 
 public class TestPathAnnotationObject extends PathObjectTestWrapper { 
 	private final Integer nPO = 10; // number of (child) objects to be added
@@ -45,7 +46,7 @@ public class TestPathAnnotationObject extends PathObjectTestWrapper {
 	private final String nameML = "JJJ";
 	private final Double valueML = 10.0;
 	//private final double epsilon = 1e-15; 
-	LineROI myROI = new LineROI(line_x,line_y);
+	ROI myROI = ROIs.createLineROI(line_x,line_y, -1, 0, 0);
 	PathClass myPC = PathClassFactory.getDefaultPathClass(PathClassFactory.PathClasses.IMAGE_ROOT);
 	PathAnnotationObject myPO = new PathAnnotationObject();
 	PathAnnotationObject myPO2 = new PathAnnotationObject(myROI);

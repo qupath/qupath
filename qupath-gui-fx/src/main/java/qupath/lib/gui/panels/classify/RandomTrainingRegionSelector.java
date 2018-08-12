@@ -83,6 +83,8 @@ import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.roi.PointsROI;
+import qupath.lib.roi.ROIs;
+import qupath.lib.roi.interfaces.PathPoints;
 import qupath.lib.roi.interfaces.ROI;
 
 
@@ -434,7 +436,7 @@ public class RandomTrainingRegionSelector implements PathCommand {
 		private QuPathViewer viewer;
 		
 		private ObjectCache objectCache = new ObjectCache();
-		private PointsROI currentPoint;
+		private PathPoints currentPoint;
 		
 		private int nextCluster = 0;
 		
@@ -469,18 +471,18 @@ public class RandomTrainingRegionSelector implements PathCommand {
 				PathAnnotationObject pathObject = objectCache.getPointObject(pathClass);
 				boolean newPoint = pathObject == null;
 				if (newPoint)
-					pathObject = new PathAnnotationObject(new PointsROI(), pathClass);
+					pathObject = new PathAnnotationObject(ROIs.createPointsROI(-1, 0, 0), pathClass);
 				double x = currentPoint.getCentroidX();
 				double y = currentPoint.getCentroidY();
 				PathObjectHierarchy hierarchy = viewer.getHierarchy();
 				if (newPoint) {
-					pathObject.setROI(new PointsROI(x, y));
+					pathObject.setROI(ROIs.createPointsROI(x, y, -1, 0, 0));
 					hierarchy.addPathObject(pathObject, true);
 				} else {
 					PointsROI pointsROI = ((PointsROI)pathObject.getROI());
 					List<Point2> points = new ArrayList<Point2>(pointsROI.getPointList());
 					points.add(new Point2(x, y));
-					pathObject.setROI(new PointsROI(points));
+					pathObject.setROI(ROIs.createPointsROI(points, -1, 0, 0));
 					hierarchy.fireObjectsChangedEvent(this, Collections.singleton(pathObject));
 				}
 				// Unfortunately, this horrible hack that prevents this being a static class...
@@ -527,7 +529,7 @@ public class RandomTrainingRegionSelector implements PathCommand {
 				x = temp.getROI().getCentroidX();
 				y = temp.getROI().getCentroidY();
 			}
-			currentPoint = new PointsROI(x, y);
+			currentPoint = ROIs.createPointsROI(x, y, -1, 0, 0);
 			viewer.setCenterPixelLocation(x, y);
 			viewer.setSelectedObject(new PathAnnotationObject(currentPoint));
 		}

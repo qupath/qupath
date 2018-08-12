@@ -31,13 +31,13 @@ import qupath.lib.roi.interfaces.PathArea;
  * @author Pete Bankhead
  *
  */
-public abstract class AbstractPathAreaROI extends AbstractPathROI implements PathArea {
+abstract class AbstractPathAreaROI extends AbstractPathROI implements PathArea {
 	
-	public AbstractPathAreaROI() {
+	AbstractPathAreaROI() {
 		super();
 	}
 	
-	public AbstractPathAreaROI(int c, int z, int t) {
+	AbstractPathAreaROI(int c, int z, int t) {
 		super(c, z, t);
 	}
 

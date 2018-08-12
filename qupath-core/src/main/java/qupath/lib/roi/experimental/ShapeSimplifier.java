@@ -28,6 +28,7 @@ import java.util.PriorityQueue;
 
 import qupath.lib.geom.Point2;
 import qupath.lib.roi.PolygonROI;
+import qupath.lib.roi.ROIs;
 
 /**
  * Helper methods for simplifying shapes, i.e. removing polygon points while retaining the same overall 
@@ -145,7 +146,7 @@ public class ShapeSimplifier {
 		List<Point2> points = polygon.getPolygonPoints();
 		simplifyPolygonPoints(points, altitudeThreshold);
 		// Construct a new polygon
-		return new PolygonROI(points, polygon.getC(), polygon.getZ(), polygon.getT());
+		return ROIs.createPolyonROI(points, polygon.getC(), polygon.getZ(), polygon.getT());
 	}
 	
 	

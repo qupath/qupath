@@ -40,7 +40,7 @@ import qupath.lib.rois.vertices.Vertices;
  * @author Pete Bankhead
  *
  */
-public class ClosedShapeStatistics implements Serializable {
+class ClosedShapeStatistics implements Serializable {
 	
 	private static final long serialVersionUID = 1L;
 	
