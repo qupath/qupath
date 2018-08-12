@@ -100,7 +100,7 @@ public class ObservableMeasurementTableDataTest {
 		
 		
 		// Check tumor counts
-		assertEquals(100, model.getNumericValue(parent, "Num Tumor"), EPSILON);
+		assertEquals(100, model.getNumericValue(parent, "Num Tumor (base)"), EPSILON);
 		assertEquals(25, model.getNumericValue(parent, "Num Tumor: Negative"), EPSILON);
 		assertEquals(25, model.getNumericValue(parent, "Num Tumor: 1+"), EPSILON);
 		assertEquals(25, model.getNumericValue(parent, "Num Tumor: 2+"), EPSILON);
@@ -120,13 +120,13 @@ public class ObservableMeasurementTableDataTest {
 		hierarchy.fireHierarchyChangedEvent(this);
 		model.refreshEntries();
 //		model.setImageData(imageData, Collections.singletonList(parent));
-		assertEquals(100, model.getNumericValue(parent, "Num Stroma"), EPSILON);
+		assertEquals(100, model.getNumericValue(parent, "Num Stroma (base)"), EPSILON);
 		assertEquals(50, model.getNumericValue(parent, "Num Stroma: Negative"), EPSILON);
 		assertEquals(150, model.getNumericValue(parent, "Tumor: H-score"), EPSILON);
 		assertEquals(75, model.getNumericValue(parent, "Tumor: Positive %"), EPSILON);
 		
 		// Check stroma scores
-		assertEquals(100, model.getNumericValue(parent, "Num Stroma"), EPSILON);
+		assertEquals(100, model.getNumericValue(parent, "Num Stroma (base)"), EPSILON);
 		assertEquals(120, model.getNumericValue(parent, "Stroma: H-score"), EPSILON);
 
 		// Check complete scores
