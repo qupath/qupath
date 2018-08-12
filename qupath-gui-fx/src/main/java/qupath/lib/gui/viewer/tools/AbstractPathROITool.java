@@ -38,6 +38,7 @@ import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathROIObject;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.roi.PolygonROI;
+import qupath.lib.roi.PolylineROI;
 import qupath.lib.roi.RoiEditor;
 import qupath.lib.roi.interfaces.ROI;
 
@@ -88,7 +89,7 @@ public abstract class AbstractPathROITool extends AbstractPathTool {
 		
 		RoiEditor editor = viewer.getROIEditor();
 
-		boolean adjustingPolygon = (currentROI instanceof PolygonROI) && editor.getROI() == currentROI && (editor.isTranslating() || editor.hasActiveHandle());
+		boolean adjustingPolygon = (currentROI instanceof PolygonROI || currentROI instanceof PolylineROI) && editor.getROI() == currentROI && (editor.isTranslating() || editor.hasActiveHandle());
 		
 		// If we are double-clicking & we don't have a polygon, see if we can access a ROI
 		if (!adjustingPolygon && e.getClickCount() > 1) {

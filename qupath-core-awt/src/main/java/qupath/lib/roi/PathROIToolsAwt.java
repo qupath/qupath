@@ -227,6 +227,19 @@ public class PathROIToolsAwt {
 			path.closePath();
 			return path;
 		}
+		
+		if (roi instanceof PolylineROI) {
+			PolylineROI polygon = (PolylineROI)roi;
+			Path2D path = new Path2D.Float();
+			Vertices vertices = polygon.getVertices();
+			for (int i = 0; i <  vertices.size(); i++) {
+				if (i == 0)
+					path.moveTo(vertices.getX(i), vertices.getY(i));
+				else
+					path.lineTo(vertices.getX(i), vertices.getY(i));
+			}
+			return path;
+		}
 
 		//		if (roi instanceof PolygonROI) {
 		//			PolygonROI polygon = (PolygonROI)roi;

@@ -31,11 +31,14 @@ import java.awt.geom.AffineTransform;
 import java.awt.geom.Area;
 import java.awt.geom.Ellipse2D;
 import java.awt.geom.Line2D;
+import java.awt.geom.PathIterator;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 import java.awt.image.ImageObserver;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
@@ -43,6 +46,7 @@ import javafx.event.EventHandler;
 import javafx.scene.input.MouseEvent;
 import qupath.lib.awt.color.ColorToolsAwt;
 import qupath.lib.common.GeneralTools;
+import qupath.lib.geom.Point2;
 import qupath.lib.gui.ImageDataChangeListener;
 import qupath.lib.gui.ImageDataWrapper;
 import qupath.lib.gui.QuPathGUI;
@@ -63,7 +67,9 @@ import qupath.lib.objects.PathROIObject;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.roi.EllipseROI;
+import qupath.lib.roi.LineROI;
 import qupath.lib.roi.PathROIToolsAwt;
+import qupath.lib.roi.PolylineROI;
 import qupath.lib.roi.interfaces.PathArea;
 import qupath.lib.roi.interfaces.PathShape;
 import qupath.lib.roi.interfaces.ROI;
@@ -110,7 +116,9 @@ public class RigidObjectEditorCommand implements PathCommand, ImageDataChangeLis
 	
 	
 	private boolean isSuitableAnnotation(PathObject pathObject) {
-		return pathObject instanceof PathAnnotationObject && pathObject.isEditable() && pathObject.getROI() instanceof PathArea;
+		return pathObject instanceof PathAnnotationObject
+				&& pathObject.isEditable()
+				&& (pathObject.getROI() instanceof PathArea || pathObject.getROI() instanceof PolylineROI);
 	}
 	
 
@@ -155,7 +163,7 @@ public class RigidObjectEditorCommand implements PathCommand, ImageDataChangeLis
 //		// Remove selected object & create an overlay showing the currently-being-edited version
 //		viewer.getHierarchy().removeObject(originalObject, true, true);
 		
-		transformer = new RoiAffineTransformer((PathArea)originalObject.getROI());
+		transformer = new RoiAffineTransformer(originalObject.getROI());
 //		editingROI = new RotatedROI((PathArea)originalObject.getROI());
 //		editingROI.setAngle(Math.PI/3);
 		
@@ -368,7 +376,7 @@ public class RigidObjectEditorCommand implements PathCommand, ImageDataChangeLis
 		private double theta = 0;
 		private AffineTransform transform;
 		
-		RoiAffineTransformer(final PathArea roi) {
+		RoiAffineTransformer(final ROI roi) {
 //			this.roi = roi;
 			this.shapeOrig = PathROIToolsAwt.getShape(roi);
 			this.boundsOrig = shapeOrig.getBounds2D();
@@ -401,7 +409,34 @@ public class RigidObjectEditorCommand implements PathCommand, ImageDataChangeLis
 			updateTransform();
 			shape = transform.createTransformedShape(shape);
 			// TODO: Improve the choice of shape this returns
-			return PathROIToolsAwt.getShapeROI(shape, roi.getC(), roi.getZ(), roi.getT(), flatness);
+			if (roi instanceof PathArea)
+				return PathROIToolsAwt.getShapeROI(shape, roi.getC(), roi.getZ(), roi.getT(), flatness);
+			else {
+				// Check if we have a line
+				if (shape instanceof Line2D) {
+					Line2D line = (Line2D)shape;
+					return new LineROI(line.getX1(), line.getY1(), line.getX2(), line.getY2(), roi.getC(), roi.getZ(), roi.getT());
+				}
+				// Polyline is the only other option (currently?)
+				PathIterator iter = shape.getPathIterator(null);
+				List<Point2> points = new ArrayList<>();
+				double[] seg = new double[6];
+				while (!iter.isDone()) {
+					switch(iter.currentSegment(seg)) {
+					case PathIterator.SEG_MOVETO:
+						// Fall through
+					case PathIterator.SEG_LINETO:
+						points.add(new Point2(seg[0], seg[1]));
+						break;
+					case PathIterator.SEG_CLOSE:
+						throw new IllegalArgumentException("Found a closed segment in a non-area ROI!");
+					default:
+						throw new RuntimeException("Invalid connection - only straight lines are allowed");
+					};
+					iter.next();
+				}
+				return new PolylineROI(points, roi.getC(), roi.getZ(), roi.getT());
+			}
 		}
 		
 		

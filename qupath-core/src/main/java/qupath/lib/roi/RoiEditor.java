@@ -99,6 +99,8 @@ public class RoiEditor {
 			adjuster = new EllipseHandleAdjuster((EllipseROI)pathROI);
 		else if (pathROI instanceof PolygonROI)
 			adjuster = new PolygonHandleAdjuster((PolygonROI)pathROI);
+		else if (pathROI instanceof PolylineROI)
+			adjuster = new PolylineHandleAdjuster((PolylineROI)pathROI);
 		else if (pathROI instanceof LineROI)
 			adjuster = new LineHandleAdjuster((LineROI)pathROI);
 		else if (pathROI instanceof PointsROI)
@@ -649,6 +651,86 @@ public class RoiEditor {
 	
 	
 	
+	class PolylineHandleAdjuster extends RoiHandleAdjuster<PolylineROI> {
+		
+		private PolylineROI roi;
+		private List<MutablePoint> handles;
+//		private MutablePoint activeHandle = null;
+		
+		PolylineHandleAdjuster(PolylineROI roi) {
+			this.roi = roi;
+			ensureHandlesUpdated();
+		}
+		
+		@Override
+		void ensureHandlesUpdated() {
+			if (handles == null)
+				handles = new ArrayList<>();
+			else
+				handles.clear();
+			addPointsToMutablePointList(handles, roi.getPolygonPoints());
+			
+			// If we have a single point, create a second handle (which may be adjusted)
+			if (handles.size() == 1)
+				handles.add(new MutablePoint(handles.get(0).getX(), handles.get(0).getY()));
+		}
+		
+		@Override
+		MutablePoint grabHandle(double x, double y, double maxDist, boolean shiftDown) {
+			int activeHandleIndex = getClosestHandleIndex(handles, x, y, maxDist);
+			if (activeHandleIndex >= 0)
+				activeHandle = handles.get(activeHandleIndex);
+			else
+				activeHandle = null;
+			return activeHandle;
+		}
+		
+		@Override
+		PolylineROI updateActiveHandleLocation(double xNew, double yNew, boolean shiftDown) {
+			if (activeHandle == null)
+				return roi;
+			activeHandle.setLocation(xNew, yNew);
+			roi = new PolylineROI(createPoint2List(handles), roi.getC(), roi.getZ(), roi.getT());
+//			System.out.println("UPDATED HANDLES: " + handles.size() + ", " + roi.nVertices());
+			return roi;
+		}
+		
+		@Override
+		List<MutablePoint> getHandles() {
+			return handles;
+		}
+		
+		@Override
+		public PolylineROI requestNewHandle(double x, double y) {
+			if (activeHandle == null)
+				return roi; // Can only add if there is an active handle - distance to this will be used
+			
+			// Move the active handle if it is very close to the requested region
+			// (removed)
+			
+			// Don't add a handle at almost the sample place as an existing handle
+			if (handles.size() >= 2 && activeHandle == handles.get(handles.size() - 1) && handles.get(handles.size() - 2).distanceSq(x, y) < 4) {
+				return roi;
+			}
+			
+//			// If we have 2 points, which are identical, shift instead of creating
+//			if (handles.size() >= 2 && activeHandle == handles.get(handles.size() - 1) && activeHandle.distanceSq(handles.get(handles.size() - 2)) < 0.000001) {
+//				System.err.println("UPDATING HANDLE");
+//				return updateActiveHandleLocation(x, y, false);
+//			}
+			
+			activeHandle = new MutablePoint(x, y);
+			handles.add(activeHandle);
+			roi = new PolylineROI(createPoint2List(handles), roi.getC(), roi.getZ(), roi.getT());
+//			System.out.println("UPDATED HANDLES BY REQUEST: " + handles.size());
+			return roi;
+		}
+
+
+	}
+	
+
+	
 	
 	class PointsHandleAdjuster extends RoiHandleAdjuster<PointsROI> {
 		
@@ -777,7 +859,8 @@ public class RoiEditor {
 			
 			activeHandle.setLocation(xNew, yNew);
 			
-			roi = new LineROI(inactiveHandle.getX(), inactiveHandle.getY(), activeHandle.getX(), activeHandle.getY(), roi.getC(), roi.getZ(), roi.getT());
+			roi = new LineROI(handles.get(0).getX(), handles.get(0).getY(), handles.get(1).getX(), handles.get(1).getY(), roi.getC(), roi.getZ(), roi.getT());
+//			roi = new LineROI(inactiveHandle.getX(), inactiveHandle.getY(), activeHandle.getX(), activeHandle.getY(), roi.getC(), roi.getZ(), roi.getT());
 			return roi;
 		}
 		

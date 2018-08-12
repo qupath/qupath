@@ -517,8 +517,16 @@ public class PathObjectTools {
 			while (iter.hasNext()) {
 				PathObject temp = iter.next();
 	//			if ((temp.isHidden() && temp.hasChildren()) || !PathROIHelpers.areaContains(temp.getROI(), x, y))
-				if (!ROIHelpers.areaContains(temp.getROI(), x, y))
-					iter.remove();
+//				if (temp.getROI() instanceof PathArea) {
+					if (!ROIHelpers.areaContains(temp.getROI(), x, y))
+						iter.remove();					
+//				}
+//				else if (temp.getROI() instanceof LineROI) {
+//					// TODO: Apply a more meaningful distance threshold
+//					LineROI line = (LineROI)temp.getROI();
+//					if (Line2D.ptLineDistSq(line.getX1(), line.getY1(), line.getX2(), line.getY2(), x, y) > 5*5)
+//						iter.remove();
+//				}
 			}
 			
 			if (pathObjects.isEmpty()) {

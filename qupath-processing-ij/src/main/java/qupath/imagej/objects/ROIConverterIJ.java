@@ -42,6 +42,7 @@ import qupath.lib.roi.AreaROI;
 import qupath.lib.roi.PathROIToolsAwt;
 import qupath.lib.roi.PointsROI;
 import qupath.lib.roi.PolygonROI;
+import qupath.lib.roi.PolylineROI;
 import qupath.lib.roi.RectangleROI;
 import qupath.lib.roi.interfaces.ROI;
 import ij.ImagePlus;
@@ -137,6 +138,11 @@ public class ROIConverterIJ {
 		return setIJRoiProperties(new PolygonRoi(points[0], points[1], Roi.POLYGON), pathPolygon);
 	}
 	
+	public static PolygonRoi convertToPolygonROI(PolylineROI pathPolygon, double xOrigin, double yOrigin, double downsampleFactor) {
+		float[][] points = getTransformedPoints(pathPolygon.getPolygonPoints(), xOrigin, yOrigin, downsampleFactor);
+		return setIJRoiProperties(new PolygonRoi(points[0], points[1], Roi.POLYLINE), pathPolygon);
+	}
+	
 	/**
 	 * Create an ImageJ Roi from a ROI, suitable for displaying on the ImagePlus of an {@code PathImage<ImagePlus>}.
 	 * 
@@ -171,6 +177,8 @@ public class ROIConverterIJ {
 			return convertToOvalROI((EllipseROI)pathROI, xOrigin, yOrigin, downsampleFactor);
 		if (pathROI instanceof LineROI)
 			return convertToLineROI((LineROI)pathROI, xOrigin, yOrigin, downsampleFactor);
+		if (pathROI instanceof PolylineROI)
+			return convertToPolygonROI((PolylineROI)pathROI, xOrigin, yOrigin, downsampleFactor);
 		if (pathROI instanceof PointsROI)
 			return convertToPointROI((PointsROI)pathROI, xOrigin, yOrigin, downsampleFactor);
 		// If we have any other kind of shape, create a general shape roi
@@ -252,10 +260,22 @@ public class ROIConverterIJ {
 			return convertToAreaROI((ShapeRoi)roi, cal, downsampleFactor, c, z, t);
 		if (roi.isArea())
 			return convertToPolygonOrAreaROI(roi, cal, downsampleFactor, c, z, t);
+		if (roi instanceof PolygonRoi) {
+			if (roi.getType() == Roi.FREELINE || roi.getType() == Roi.POLYLINE)
+				return convertToPolylineROI((PolygonRoi)roi, cal, downsampleFactor, c, z, t);
+		}
 		// TODO: Integrate ROI not supported exception...?
 		return null;	
 	}
 
+	
+	public static ROI convertToPolylineROI(PolygonRoi roi, Calibration cal, double downsampleFactor, final int c, final int z, final int t) {
+		List<Point2> points = convertToPointsList(roi.getFloatPolygon(), cal, downsampleFactor);
+		if (points == null)
+			return null;
+		return new PolylineROI(points, c, z, t);
+	}
+	
 	
 	public static ROI convertToPolygonOrAreaROI(Roi roi, Calibration cal, double downsampleFactor, final int c, final int z, final int t) {
 		Shape shape;

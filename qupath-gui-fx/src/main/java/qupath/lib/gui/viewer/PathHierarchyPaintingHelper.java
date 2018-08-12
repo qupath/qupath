@@ -426,7 +426,11 @@ public class PathHierarchyPaintingHelper {
 		if (pathROI instanceof PathShape) {
 			Shape shape = shapeProvider.getShape((PathShape)pathROI, downsample);
 //			Shape shape = PathROIToolsAwt.getShape(pathROI);
-			paintShape(shape, g, colorStroke, stroke, colorFill, downsample);
+			// Only pass the colorFill if we have an area (i.e. not a line/polyline)
+			if (pathROI instanceof PathArea)
+				paintShape(shape, g, colorStroke, stroke, colorFill, downsample);
+			else
+				paintShape(shape, g, colorStroke, stroke, null, downsample);
 		} else if (pathROI instanceof PathPoints) {
 			paintPoints((PathPoints)pathROI, g2d, PathPrefs.getDefaultPointRadius(), colorStroke, stroke, colorFill, downsample);
 		}
@@ -608,6 +612,28 @@ public class PathHierarchyPaintingHelper {
 			g2d.setColor(colorStroke);
 			g2d.draw(shape);
 		}
+		
+		// TODO: Find a way to incorporate arrow heads
+//		if (shape instanceof Line2D) {
+//			Line2D line = (Line2D)shape;
+//			double x1 = line.getX1();
+//			double y1 = line.getY1();
+//			double x2 = line.getX2();
+//			double y2 = line.getY2();
+//			double dx = x1 - x2;
+//			double dy = y1 - y2;
+//			double length = Math.sqrt(dx*dx + dy*dy);
+//			// Unit vectors & perpendicular
+//			dx /= length;
+//			dy /= length;
+//			double px = dy;
+//			double py = -dx;
+//			double scale = Math.min(length / 5.0, downsample * 40);
+//			line.setLine(x1, y1, x1-dx*scale+px*scale/2, y1-dy*scale+py*scale/2);
+//			g2d.draw(line);
+//			line.setLine(x1, y1, x1-dx*scale-px*scale/2, y1-dy*scale-py*scale/2);
+//			g2d.draw(line);
+//		}
 	}
 	
 	
