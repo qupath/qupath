@@ -60,6 +60,7 @@ import java.util.stream.Collectors;
 
 import javax.imageio.ImageIO;
 
+import org.controlsfx.control.ToggleSwitch;
 import org.controlsfx.control.action.Action;
 import org.controlsfx.control.action.ActionUtils;
 import org.controlsfx.control.action.ActionUtils.ActionTextBehavior;
@@ -212,14 +213,7 @@ import qupath.lib.gui.viewer.QuPathViewerListener;
 import qupath.lib.gui.viewer.QuPathViewerPlus;
 import qupath.lib.gui.viewer.ViewerPlusDisplayOptions;
 import qupath.lib.gui.viewer.OverlayOptions.CellDisplayMode;
-import qupath.lib.gui.viewer.tools.BrushTool;
-import qupath.lib.gui.viewer.tools.EllipseTool;
-import qupath.lib.gui.viewer.tools.LineTool;
-import qupath.lib.gui.viewer.tools.MoveTool;
-import qupath.lib.gui.viewer.tools.PathTool;
-import qupath.lib.gui.viewer.tools.PointsTool;
-import qupath.lib.gui.viewer.tools.PolygonTool;
-import qupath.lib.gui.viewer.tools.RectangleTool;
+import qupath.lib.gui.viewer.tools.*;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerBuilder;
@@ -334,7 +328,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
         OPEN_IMAGE, OPEN_IMAGE_OR_URL, TMA_EXPORT_DATA, SAVE_DATA, SAVE_DATA_AS,
         COPY_VIEW, COPY_WINDOW, ZOOM_IN, ZOOM_OUT, ZOOM_TO_FIT,
         MOVE_TOOL, RECTANGLE_TOOL, ELLIPSE_TOOL, POLYGON_TOOL, BRUSH_TOOL, LINE_TOOL, POINTS_TOOL, WAND_TOOL,
-        BRIGHTNESS_CONTRAST,
+        EMBED_WAND_TOOL, BRIGHTNESS_CONTRAST,
         SHOW_OVERVIEW, SHOW_LOCATION, SHOW_SCALEBAR, SHOW_GRID, SHOW_ANALYSIS_PANEL,
         SHOW_ANNOTATIONS, FILL_ANNOTATIONS, SHOW_TMA_GRID, SHOW_TMA_GRID_LABELS, SHOW_OBJECTS, FILL_OBJECTS,
         SPECIFY_ANNOTATION, ANNOTATION_DUPLICATE, GRID_SPACING,
@@ -356,7 +350,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 
     // Modes for input tools
     public enum Modes {
-        MOVE, RECTANGLE, ELLIPSE, LINE, POLYGON, BRUSH, POINTS, WAND
+        MOVE, RECTANGLE, ELLIPSE, LINE, POLYGON, BRUSH, POINTS, WAND, EMBED_WAND
     }
 
     public static final String WSI_VALIDATED = "validated_by";
@@ -1761,7 +1755,8 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
                 getActionCheckBoxMenuItem(GUIActions.POLYGON_TOOL, null),
                 getActionCheckBoxMenuItem(GUIActions.BRUSH_TOOL, null),
                 getActionCheckBoxMenuItem(GUIActions.POINTS_TOOL, null),
-                getActionCheckBoxMenuItem(GUIActions.WAND_TOOL, null)
+                getActionCheckBoxMenuItem(GUIActions.WAND_TOOL, null),
+                getActionCheckBoxMenuItem(GUIActions.EMBED_WAND_TOOL, null)
         );
 
 
@@ -3256,6 +3251,10 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
                 action = createSelectableCommandAction(new ToolSelectable(this, Modes.WAND), "Wand tool", Modes.WAND, new KeyCodeCombination(KeyCode.W));
                 action.disabledProperty().bind(Bindings.createBooleanBinding(() -> !tools.containsKey(Modes.WAND), tools));
                 return action;
+            case EMBED_WAND_TOOL:
+                action = createSelectableCommandAction(new ToolSelectable(this, Modes.EMBED_WAND), "Embed Wand tool", Modes.EMBED_WAND, null);
+                action.disabledProperty().bind(Bindings.createBooleanBinding(() -> !tools.containsKey(Modes.EMBED_WAND), tools));
+                return action;
             case SHOW_GRID:
                 return createSelectableCommandAction(overlayOptions.showGridProperty(), "Show grid", PathIconFactory.PathIcons.GRID, new KeyCodeCombination(KeyCode.G, KeyCombination.SHIFT_DOWN));
             case SHOW_LOCATION:
@@ -3886,6 +3885,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
         private Label labelMag = new Label("1x");
         private Tooltip tooltipMag = new Tooltip("Current magnification - double-click to set");
         private ToolBar toolbar = new ToolBar();
+        private boolean isWandEmbedMode = false;
 
         ToolBarComponent(final QuPathGUI qupath) {
 
@@ -3988,6 +3988,11 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
             ToggleButton toggleWand = qupath.getActionToggleButton(GUIActions.WAND_TOOL, true, groupTools, false);
 //			toggleWand.visibleProperty().bind(Bindings.not(qupath.getAction(GUIActions.WAND_TOOL).disabledProperty()));
             toolbar.getItems().add(toggleWand);
+            ToggleButton toggleEmbedWand = qupath.getActionToggleButton(GUIActions.EMBED_WAND_TOOL,
+                    true, groupTools, false);
+            toolbar.getItems().add(toggleEmbedWand);
+            //wandSwitch.set
+
 //			if (qupath.tools.containsKey(Modes.WAND))
 //				toolbar.getItems().add(toggleWand);
             toolbar.getItems().add(qupath.getActionToggleButton(GUIActions.POINTS_TOOL, true, groupTools, false));

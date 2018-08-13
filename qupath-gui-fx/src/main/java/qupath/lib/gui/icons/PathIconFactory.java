@@ -112,6 +112,7 @@ public class PathIconFactory {
 									TMA_GRID("\ue91b", PathPrefs.colorTMAProperty()),
 
 									WAND_TOOL("\ue91c", PathPrefs.colorDefaultAnnotationsProperty()),
+									EMBED_WAND_TOOL("\ue91c", PathPrefs.colorAlternativeAnnotationsProperty()),
 									
 									ZOOM_IN("\ue91d"),
 									ZOOM_OUT("\ue91e"),
@@ -129,12 +130,12 @@ public class PathIconFactory {
 		PathIcons(String code, javafx.scene.paint.Color color) {
 			this.code = code;
 			this.color = color;
-		};
+		}
 
 		PathIcons(String code, ObservableIntegerValue observableColor) {
 			this.code = code;
 			this.observableColor = observableColor;
-		};
+		}
 
 		private String getCode() {
 			return code;
@@ -313,6 +314,8 @@ public class PathIconFactory {
 			return createNode(width, height, PathIcons.BRUSH_TOOL);
 		case WAND:
 			return createNode(width, height, PathIcons.WAND_TOOL);
+		case EMBED_WAND:
+			return createNode(width, height, PathIcons.EMBED_WAND_TOOL); // TODO remake icon
 		case RECTANGLE:
 			return createNode(width, height, PathIcons.RECTANGLE_TOOL);
 		default:

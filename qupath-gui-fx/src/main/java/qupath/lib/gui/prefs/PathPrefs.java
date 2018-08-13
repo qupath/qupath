@@ -872,6 +872,7 @@ public class PathPrefs {
 	
 	
 	private static IntegerProperty colorDefaultAnnotations = createPersistentPreference("colorDefaultAnnotations", ColorTools.makeRGB(255, 0, 0));
+	private static IntegerProperty colorAlternativeAnnotations = createPersistentPreference("colorDefaultAnnotations", ColorTools.makeRGB(255, 140, 0));
 	
 	private static String extPathClassifier = ".qpclassifier";
 	
@@ -906,6 +907,10 @@ public class PathPrefs {
 	
 	public static IntegerProperty colorDefaultAnnotationsProperty() {
 		return colorDefaultAnnotations;
+	}
+
+	public static IntegerProperty colorAlternativeAnnotationsProperty() {
+		return colorAlternativeAnnotations;
 	}
 
 	public static Integer getColorDefaultAnnotations() {
