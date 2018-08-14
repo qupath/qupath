@@ -166,6 +166,14 @@ public class PreferencePanel {
 		 */
 		category = "Viewer";
 		
+		addPropertyPreference(PathPrefs.viewerInterpolateBilinearProperty(), Boolean.class,
+				"Use bilinear interpolation", category, 
+				"Use bilinear interpolation for displaying image in the viewer (default is nearest-neighbor)");
+		
+		addPropertyPreference(PathPrefs.viewerGammaProperty(), Double.class,
+				"Gamma value (display only)", category, 
+				"Set the gamma value applied to the image in the viewer for display - recommended to leave at default value of 1");
+		
 		addPropertyPreference(PathPrefs.scrollSpeedProperty(), Integer.class,
 				"Scroll speed %", category, 
 				"Adjust the scrolling speed - 100% is 'normal', while lower values lead to slower scrolling");

@@ -170,6 +170,8 @@ public class TilerPlugin<T> extends AbstractDetectionPlugin<T> {
 		public void taskComplete() {
 			parentObject.clearPathObjects();
 			parentObject.addPathObjects(tiles);
+			if (parentObject.isAnnotation())
+				((PathAnnotationObject)parentObject).setLocked(true);
 			imageData.getHierarchy().fireHierarchyChangedEvent(this, parentObject);
 			if (params.getBooleanParameterValue("removeParentAnnotation") && params.getBooleanParameterValue("makeAnnotations") && parentObject.isAnnotation()) {
 				imageData.getHierarchy().removeObject(parentObject, true);

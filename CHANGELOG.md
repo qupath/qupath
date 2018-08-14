@@ -1,3 +1,12 @@
+## Version 0.1.3.0.5
+
+* Added Specialist/Contractor/Reviewer/Admin mode
+* Added nested annotations with the wand tool
+* Fixed memory leaks issues problems
+* Remove ImageJ button
+* Add Save button
+* Add Validation button (used to pass the WSI to the next user profile)
+
 ## Version 0.1.2
 
 * Saving measurement tables is now logged, and can be called from scripts

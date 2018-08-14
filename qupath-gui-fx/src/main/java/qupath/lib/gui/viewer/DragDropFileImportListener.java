@@ -26,7 +26,9 @@ package qupath.lib.gui.viewer;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -186,18 +188,28 @@ public class DragDropFileImportListener implements EventHandler<DragEvent> {
 			
 			// Check if this is a directory - if so, look for a single project file
 			if (singleFile && file.isDirectory()) {
-				List<File> projectFiles = new ArrayList<>();
-				for (File temp : file.listFiles()) {
-					if (temp.isHidden() || !temp.isFile())
-						continue;
-					if (temp.getAbsolutePath().toLowerCase().endsWith(ProjectIO.getProjectExtension()))
-						projectFiles.add(temp);
-				}
+				// Identify all files in the directory, and also all potential project files
+				File[] filesInDirectory = file.listFiles(f -> !f.isHidden());
+				List<File> projectFiles = Arrays.stream(filesInDirectory).filter(f -> f.isFile() && 
+						f.getAbsolutePath().toLowerCase().endsWith(ProjectIO.getProjectExtension())).collect(Collectors.toList());
 				if (projectFiles.size() == 1) {
 					file = projectFiles.get(0);
 					logger.warn("Selecting project file {}", file);
 				} else if (projectFiles.size() > 1) {
-					logger.warn("Multiple project files found in directory {}", file);
+					// Prompt to select which project file to open
+					logger.debug("Multiple project files found in directory {}", file);
+					String[] fileNames = projectFiles.stream().map(f -> f.getName()).toArray(n -> new String[n]);
+					String selectedName = DisplayHelpers.showChoiceDialog("Select project", "Select project to open", fileNames, fileNames[0]);
+					if (selectedName == null)
+						return;
+					file = new File(file, selectedName);
+				} else if (filesInDirectory.length == 0) {
+					// If we have an empty directory, offer to set it as a project
+					if (DisplayHelpers.showYesNoDialog("Create project", "Create project for empty directory?")) {
+						Project<BufferedImage> project = new Project<>(file, BufferedImage.class);
+						gui.setProject(project);
+						return;
+					}
 				}
 			}
 

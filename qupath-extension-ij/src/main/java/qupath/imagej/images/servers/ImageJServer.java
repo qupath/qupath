@@ -172,9 +172,9 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 	}
 
 	@Override
-	public BufferedImage readBufferedImage(RegionRequest request) {
+	public synchronized BufferedImage readBufferedImage(RegionRequest request) {
 		// Deal with any cropping
-		ImagePlus imp = this.imp;
+//		ImagePlus imp2 = this.imp;
 		
 		int z = request.getZ()+1;
 		int t = request.getT()+1;
@@ -193,38 +193,42 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 //			t = 1;
 //		}
 		
-		if (!(request.getX() == 0 && request.getY() == 0 && request.getWidth() == imp.getWidth() && request.getHeight() == imp.getHeight())) {
-			imp.setRoi(request.getX(), request.getY(), request.getWidth(), request.getHeight());
+		ImagePlus imp2;
+		if (!(request.getX() == 0 && request.getY() == 0 && request.getWidth() == this.imp.getWidth() && request.getHeight() == this.imp.getHeight())) {
+			// Synchronization introduced because of concurrency issues around here!
+			this.imp.setRoi(request.getX(), request.getY(), request.getWidth(), request.getHeight());
 			// Crop for required z and time
 			Duplicator duplicator = new Duplicator();
-			imp = duplicator.run(imp, 1, nChannels, z, z, t, t);
+			imp2 = duplicator.run(this.imp, 1, nChannels, z, z, t, t);
+			this.imp.killRoi();
 			z = 1;
 			t = 1;
 //			imp = imp.duplicate();
-			imp.killRoi();
-		}
+			imp2.killRoi();
+		} else
+			imp2 = this.imp;
 		
 		// Deal with any downsampling
 		if (request.getDownsample() != 1) {
 			ImageStack stackNew = null;
 			for (int i = 1; i <= nChannels; i++) {
-				int ind = imp.getStackIndex(i, z, t);
-				ImageProcessor ip = imp.getStack().getProcessor(ind);
+				int ind = imp2.getStackIndex(i, z, t);
+				ImageProcessor ip = imp2.getStack().getProcessor(ind);
 				ip = ip.resize((int)(ip.getWidth() / request.getDownsample() + 0.5));
 				if (stackNew == null)
 					stackNew = new ImageStack(ip.getWidth(), ip.getHeight());
 				stackNew.addSlice("Channel " + i, ip);
 			}
-			imp = new ImagePlus(imp.getTitle(), stackNew);
-			imp.setDimensions(nChannels, 1, 1);
+			imp2 = new ImagePlus(imp2.getTitle(), stackNew);
+			imp2.setDimensions(nChannels, 1, 1);
 			// Reset other indices
 			z = 1;
 			t = 1;
 		}
 
 		// Extract processor
-		int ind = imp.getStackIndex(1, z, t);
-		ImageProcessor ip = imp.getStack().getProcessor(ind);
+		int ind = imp2.getStackIndex(1, z, t);
+		ImageProcessor ip = imp2.getStack().getProcessor(ind);
 
 		BufferedImage img = null;
 		int w = ip.getWidth();
@@ -253,8 +257,8 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 				model = new BandedSampleModel(DataBuffer.TYPE_BYTE, w, h, nChannels);
 				byte[][] bytes = new byte[nChannels][w*h];
 				for (int i = 0; i < nChannels; i++) {
-					int sliceInd = imp.getStackIndex(i+1, z, t);
-					bytes[i] = (byte[])imp.getStack().getPixels(sliceInd);
+					int sliceInd = imp2.getStackIndex(i+1, z, t);
+					bytes[i] = (byte[])imp2.getStack().getPixels(sliceInd);
 				}
 				DataBufferByte buffer = new DataBufferByte(bytes, w*h);
 				return new BufferedImage(colorModel, Raster.createWritableRaster(model, buffer, null), true, null);
@@ -262,8 +266,8 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 				model = new BandedSampleModel(DataBuffer.TYPE_USHORT, w, h, nChannels);
 				short[][] bytes = new short[nChannels][w*h];
 				for (int i = 0; i < nChannels; i++) {
-					int sliceInd = imp.getStackIndex(i+1, z, t);
-					bytes[i] = (short[])imp.getStack().getPixels(sliceInd);
+					int sliceInd = imp2.getStackIndex(i+1, z, t);
+					bytes[i] = (short[])imp2.getStack().getPixels(sliceInd);
 				}
 				DataBufferUShort buffer = new DataBufferUShort(bytes, w*h);
 				return new BufferedImage(colorModel, Raster.createWritableRaster(model, buffer, null), true, null);
@@ -271,8 +275,8 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 				model = new BandedSampleModel(DataBuffer.TYPE_FLOAT, w, h, nChannels);
 				float[][] bytes = new float[nChannels][w*h];
 				for (int i = 0; i < nChannels; i++) {
-					int sliceInd = imp.getStackIndex(i+1, z, t);
-					bytes[i] = (float[])imp.getStack().getPixels(sliceInd);
+					int sliceInd = imp2.getStackIndex(i+1, z, t);
+					bytes[i] = (float[])imp2.getStack().getPixels(sliceInd);
 				}
 				DataBufferFloat buffer = new DataBufferFloat(bytes, w*h);
 				return new BufferedImage(colorModel, Raster.createWritableRaster(model, buffer, null), true, null);

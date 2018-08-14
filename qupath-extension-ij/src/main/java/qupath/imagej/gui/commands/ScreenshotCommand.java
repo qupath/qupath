@@ -79,7 +79,9 @@ public class ScreenshotCommand implements PathCommand {
 		ImageJ ij = IJExtension.getImageJInstance();
 		if (ij != null)
 			ij.setVisible(true);
-		String name = WindowManager.getUniqueName("Screenshot - " + viewer.getServer().getShortServerName());
+		String name = "QuPath screenshot";
+		if (viewer.getServer() != null)
+			name = WindowManager.getUniqueName("Screenshot - " + viewer.getServer().getShortServerName());
 		ImagePlus imp = new ImagePlus(name, img);
 		double pixelWidth = viewer.getDisplayedPixelWidthMicrons();
 		double pixelHeight = viewer.getDisplayedPixelHeightMicrons();

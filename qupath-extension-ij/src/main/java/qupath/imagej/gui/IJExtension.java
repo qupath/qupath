@@ -407,8 +407,9 @@ public class IJExtension implements QuPathExtension {
 //					PathPrefs.setImageJPath(dir.getAbsolutePath());
 //			});
 //			popup.getItems().addAll(new SeparatorMenuItem(), miSetPluginsPath);
-			
-			qupath.addToolbarButton(btnImageJ);
+
+			// Remove for this version of QuPath
+			//qupath.addToolbarButton(btnImageJ);
 		} catch (Exception e) {
 			logger.error("Error adding toolbar buttons", e);
 			qupath.addToolbarCommand(commandExtractRegionCustom.getName(), commandExtractRegionCustom, PathIconFactory.createNode(QuPathGUI.iconSize, QuPathGUI.iconSize, PathIconFactory.PathIcons.EXTRACT_REGION));
@@ -465,8 +466,8 @@ public class IJExtension implements QuPathExtension {
 		MenuItem miSetPluginsPath = new MenuItem("Set ImageJ plugins directory");
 		miSetPluginsPath.setOnAction(e -> {
 			String path = getImageJPath();
-			File dir = qupath.getDialogHelper().promptForDirectory(new File(path));
-			if (dir != null)
+			File dir = qupath.getDialogHelper().promptForDirectory(path == null ? null : new File(path));
+			if (dir != null && dir.isDirectory())
 				setImageJPath(dir.getAbsolutePath());
 		});
 					

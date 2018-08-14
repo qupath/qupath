@@ -44,7 +44,7 @@ public class PathClass implements Comparable<PathClass>, Serializable {
 	private static String defaultName = "Unclassified";
 	
 	private PathClass parentClass = null;
-	private String name = null;
+	private String name;
 	private Integer colorRGB = ColorTools.makeRGB(64, 64, 64);
 
 	PathClass() {}
@@ -144,7 +144,7 @@ public class PathClass implements Comparable<PathClass>, Serializable {
 	}
 	
 	static String derivedClassToString(PathClass parent, String name) {
-		return parent == null ? name : parent.getName() + ": " + name;
+		return parent == null ? name : parent.toString() + ": " + name;
 	}
 	
 	@Override

@@ -37,6 +37,7 @@ import qupath.lib.gui.QuPathGUI.Modes;
 import qupath.lib.gui.extensions.QuPathExtension;
 import qupath.opencv.classify.OpenCvClassifierCommand;
 import qupath.opencv.features.DelaunayClusteringPlugin;
+import qupath.opencv.tools.EmbedWandToolCV;
 import qupath.opencv.tools.WandToolCV;
 
 /**
@@ -108,6 +109,10 @@ public class OpenCVExtension implements QuPathExtension {
 		// Add the Wand tool
 		WandToolCV wandTool = new WandToolCV(qupath);
 		qupath.putToolForMode(Modes.WAND, wandTool);
+
+		// Add the Embed Wand tool
+		EmbedWandToolCV embedWandTool = new EmbedWandToolCV(qupath);
+		qupath.putToolForMode(Modes.EMBED_WAND, embedWandTool);
 	}
 
 

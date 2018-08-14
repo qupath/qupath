@@ -3,6 +3,17 @@ deploy/
 target/
 log/
 
+# IntelliJ
+.idea/
+*.iml
+out/
+
+# Gradle
+# Use local properties (e.g. to set a specific JDK)
+gradle.properties
+build/
+.gradle/
+
 # Eclipse
 .settings/
 .project

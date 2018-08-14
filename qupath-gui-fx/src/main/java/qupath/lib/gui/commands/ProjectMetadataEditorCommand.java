@@ -201,7 +201,8 @@ public class ProjectMetadataEditorCommand implements PathCommand {
 				wrapper.commitChanges();
 			}
 			// Write the project
-			ProjectIO.writeProject(project);
+			ProjectIO.writeProject(project,
+					message -> DisplayHelpers.showErrorMessage("Error", message));
 			logger.info("Committing project metadata changes");
 		}
 		

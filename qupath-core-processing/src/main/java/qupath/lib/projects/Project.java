@@ -26,13 +26,18 @@ package qupath.lib.projects;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerProvider;
+import qupath.lib.objects.classes.PathClass;
 
 /**
  * Data structure to store multiple images, relating these to a file system.
@@ -43,11 +48,15 @@ import qupath.lib.images.servers.ImageServerProvider;
  */
 public class Project<T> {
 	
+	private static Logger logger = LoggerFactory.getLogger(Project.class);
+
 	private File file;
 	private File dirBase;
 	private Class<T> cls;
 	private String name = null;
 	
+	private List<PathClass> pathClasses = new ArrayList<>();
+
 	private Map<String, ProjectImageEntry<T>> images = new TreeMap<>();
 	long creationTimestamp;
 	long modificationTimestamp;
@@ -61,6 +70,28 @@ public class Project<T> {
 		this.cls = cls;
 		creationTimestamp = System.currentTimeMillis();
 		modificationTimestamp = System.currentTimeMillis();
+	}
+
+	/**
+	 * Get an unmodifiable list representing the <code>PathClass</code>es associated with this project.
+	 * @return
+	 */
+	public List<PathClass> getPathClasses() {
+		return Collections.unmodifiableList(pathClasses);
+	}
+
+	/**
+	 * Update the available PathClasses.
+	 *
+	 * @param pathClasses
+	 * @return <code>true</code> if the stored values changed, false otherwise.
+	 */
+	public boolean setPathClasses(Collection<? extends PathClass> pathClasses) {
+		if (this.pathClasses.size() == pathClasses.size() && this.pathClasses.containsAll(pathClasses))
+			return false;
+		this.pathClasses.clear();
+		this.pathClasses.addAll(pathClasses);
+		return true;
 	}
 
 	public boolean addImage(final ProjectImageEntry<T> entry) {
@@ -102,7 +133,8 @@ public class Project<T> {
 		
 		boolean changes = false;
 		for (String name : subImages)
-			changes = changes | addImage(new ProjectImageEntry<>(this, server.getSubImagePath(name), name, null));
+			// The sub image name might be the same across images, we should append the server displayed name to it, just to make sure it is unique
+			changes = changes | addImage(new ProjectImageEntry<>(this, server.getSubImagePath(name), server.getDisplayedImageName()+" ("+name+")", null));
 		return changes;
 	}
 	
@@ -116,16 +148,18 @@ public class Project<T> {
 		cleanedPath = cleanedPath.replace("{$PROJECT_DIR}", getBaseDirectory().getAbsolutePath());
 		return cleanedPath;
 	}
-	
-	public boolean addImage(final String path) {
+
+	public ImageRetCode addImage(final String path) {
 		try {
 			ImageServer<T> server = ImageServerProvider.buildServer(path, cls);
 			boolean changes = addImagesForServer(server);
+			ImageRetCode.IMAGE_CODE code = changes ? ImageRetCode.IMAGE_CODE.CHANGED : ImageRetCode.IMAGE_CODE.NO_CHANGES;
+			ImageRetCode retCode = new ImageRetCode(code, server);
 			server.close();
-			return changes;
+			return retCode;
 		} catch (Exception e) {
 			e.printStackTrace();
-			return false;
+			return new ImageRetCode(ImageRetCode.IMAGE_CODE.EXCEPTION, null);
 		}
 	}
 	
@@ -159,7 +193,15 @@ public class Project<T> {
 	
 	
 	public String getName() {
-		return name == null ? dirBase.getName() : name;
+		if (name != null)
+			return name;
+		if (dirBase == null || !dirBase.isDirectory()) {
+			return "(Project directory missing)";
+		}
+		if (file != null && file.exists() && file != dirBase) {
+			return dirBase.getName() + "/" + file.getName();
+		}
+		return dirBase.getName();
 	}
 	
 	@Override

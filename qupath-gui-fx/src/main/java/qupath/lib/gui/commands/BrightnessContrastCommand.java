@@ -88,6 +88,11 @@ public class BrightnessContrastCommand implements PathCommand, ImageDataChangeLi
 	
 	private static DecimalFormat df = new DecimalFormat("#.###");
 	
+	/**
+	 * Controls proportion of saturated pixels to apply when automatically setting brightness/contrast.
+	 */
+	private float autoBrightnessContrastSaturation = 0.01f;
+	
 	private QuPathGUI qupath;
 	private QuPathViewer viewer;
 	private ImageDisplay imageDisplay;
@@ -179,7 +184,8 @@ public class BrightnessContrastCommand implements PathCommand, ImageDataChangeLi
 					sliderMin.setValue(value);
 					// Update display directly if out of slider range
 					if (value < sliderMin.getMin() || value > sliderMin.getMax()) {
-						infoVisible.setMinDisplay(value.floatValue());
+						imageDisplay.setMinMaxDisplay(infoVisible, (float)value.floatValue(), (float)infoVisible.getMaxDisplay());
+//						infoVisible.setMinDisplay(value.floatValue());
 						viewer.updateThumbnail();
 						viewer.repaintEntireImage();
 					}
@@ -197,7 +203,8 @@ public class BrightnessContrastCommand implements PathCommand, ImageDataChangeLi
 					sliderMax.setValue(value);
 					// Update display directly if out of slider range
 					if (value < sliderMax.getMin() || value > sliderMax.getMax()) {
-						infoVisible.setMaxDisplay(value.floatValue());
+						imageDisplay.setMinMaxDisplay(infoVisible, (float)infoVisible.getMinDisplay(), (float)value.floatValue());
+//						infoVisible.setMaxDisplay(value.floatValue());
 						viewer.updateThumbnail();
 						viewer.repaintEntireImage();
 					}
@@ -214,7 +221,7 @@ public class BrightnessContrastCommand implements PathCommand, ImageDataChangeLi
 //					return;
 ////				setSliders((float)histogram.getEdgeMin(), (float)histogram.getEdgeMax());
 				ChannelDisplayInfo info = getCurrentInfo();
-				imageDisplay.autoSetDisplayRange(info);
+				imageDisplay.autoSetDisplayRange(info, autoBrightnessContrastSaturation);
 				updateSliders();
 				handleSliderChange();
 		});
@@ -597,8 +604,7 @@ public class BrightnessContrastCommand implements PathCommand, ImageDataChangeLi
 		double minValue = sliderMin.getValue();
 		double maxValue = sliderMax.getValue();
 				
-		infoVisible.setMinDisplay((float)minValue);
-		infoVisible.setMaxDisplay((float)maxValue);
+		imageDisplay.setMinMaxDisplay(infoVisible, (float)minValue, (float)maxValue);
 		
 		// Avoid displaying -0... which looks weird
 		if (Math.abs(Math.round(minValue * 100)) == 0)
@@ -673,8 +679,13 @@ public class BrightnessContrastCommand implements PathCommand, ImageDataChangeLi
 	public void updateTable() {
 		if (!isInitialized())
 			return;
-		if (imageDisplay == null)
+		// Reset any buffers for images currently open (used to cache floating point values)
+		for (ChannelDisplayInfo info :table.getItems())
+			info.resetBuffers();
+		// Clear the table
+		if (imageDisplay == null) {
 			table.getItems().clear();
+		}
 		else if (table.getItems().equals(imageDisplay.getAvailableChannels()))
 			table.refresh();
 		else

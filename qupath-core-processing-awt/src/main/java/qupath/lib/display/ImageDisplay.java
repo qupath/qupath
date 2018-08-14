@@ -26,6 +26,7 @@ package qupath.lib.display;
 import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
+import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -40,6 +41,12 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+import com.google.gson.reflect.TypeToken;
 
 import qupath.lib.analysis.stats.Histogram;
 import qupath.lib.color.ColorDeconvolutionStains;
@@ -65,6 +72,11 @@ import qupath.lib.images.stores.ImageRegionStore;
 public class ImageDisplay {
 
 	final static Logger logger = LoggerFactory.getLogger(ImageDisplay.class);
+	
+	/**
+	 * Identifier used when storing/retrieving display settings from ImageData properties.
+	 */
+	private static final String PROPERTY_DISPLAY = ImageDisplay.class.getName();
 
 	// Lists to store the different kinds of channels we might need
 	private ChannelDisplayInfo rgbDirectChannel = new ChannelDisplayInfo.RGBDirectChannelInfo();
@@ -81,6 +93,7 @@ public class ImageDisplay {
 	private List<ChannelDisplayInfo> selectedChannels = new ArrayList<>();
 	private ChannelDisplayInfo lastSelectedChannel = null;
 
+	private long changeTimestamp = System.currentTimeMillis();
 
 	transient private Map<String, Map<ChannelDisplayInfo, Histogram>> cachedHistogramMaps;
 
@@ -98,6 +111,7 @@ public class ImageDisplay {
 		createRGBChannels();
 		setImageData(imageData);
 	}
+	
 
 	public void setImageData(ImageData<BufferedImage> imageData) {
 		if (this.imageData == imageData)
@@ -108,6 +122,7 @@ public class ImageDisplay {
 		if (imageData != null)
 			loadChannelColorProperties();
 		//		updateChannelOptions(false);		
+		changeTimestamp = System.currentTimeMillis();
 	}
 
 	public ImageData<BufferedImage> getImageData() {
@@ -122,9 +137,22 @@ public class ImageDisplay {
 		this.useColorLUTs = useColorLUTs;
 		if (!useColorLUTs && getSelectedChannels().size() > 1)
 			setChannelSelected(lastSelectedChannel, true);
+		saveChannelColorProperties();
 	}
 
 
+	/**
+	 * Get a timestamp the last known changes for the object.
+	 * 
+	 * This is useful to abort painting if the display changes during a paint run.
+	 * 
+	 * @return
+	 */
+	public long getLastChangeTimestamp() {
+		return changeTimestamp;
+	}
+	
+	
 	private void createRGBChannels() {
 
 		if (!showAllRGBTransforms)
@@ -241,6 +269,18 @@ public class ImageDisplay {
 		if (imageData == null) {
 			return false;
 		}
+		// Parse display from JSON
+		Object property = imageData.getProperty(PROPERTY_DISPLAY);
+		if (property instanceof String) {
+			try {
+				updateFromJSON((String)property);
+				return true;
+			} catch (Exception e) {
+				logger.warn("Unable to parse display settings from {}", property);
+			}
+		}
+		
+		// Legacy code for the old color-only-storing property approach
 		int n = 0;
 		for (ChannelDisplayInfo info : getAvailableChannels()) {
 			if (info instanceof MultiChannelInfo) {
@@ -260,6 +300,24 @@ public class ImageDisplay {
 		return n > 0;
 	}
 	
+	
+	/**
+	 * Set the min/max display values for a specified ChannelDisplayInfo.
+	 * 
+	 * The benefit of calling this method is that it will update the ImageData metadata if appropriate.
+	 * 
+	 * @param info
+	 * @param minDisplay
+	 * @param maxDisplay
+	 */
+	public void setMinMaxDisplay(final ChannelDisplayInfo info , float minDisplay, float maxDisplay) {
+		info.setMinDisplay(minDisplay);
+		info.setMaxDisplay(maxDisplay);
+		if (getAvailableChannels().contains(info))
+			saveChannelColorProperties();
+	}
+	
+	
 	/**
 	 * Save color channels in the ImageData properties.  This lets them be deserialized later.
 	 */
@@ -268,19 +326,24 @@ public class ImageDisplay {
 			logger.warn("Cannot save color channel properties - no ImageData available");
 			return;
 		}
-		int n = 0;
-		for (ChannelDisplayInfo info : getAvailableChannels()) {
-			if (info instanceof MultiChannelInfo) {
-				MultiChannelInfo multiInfo = (MultiChannelInfo)info;
-				Integer color = multiInfo.getColor();
-				imageData.setProperty("COLOR_CHANNEL:" + info.getName(), color);
-				n++;
-			}
-		}
-		if (n == 1)
-			logger.info("Saved color channel info for one channel");
-		else if (n > 1)
-			logger.info("Saved color channel info for " + n + " channels");
+		// Store the current display settings in the ImageData
+		imageData.setProperty(PROPERTY_DISPLAY, toJSON(false));
+		changeTimestamp = System.currentTimeMillis();
+		
+		// Legacy code (just stored changed colors, but not min/max values)
+//		int n = 0;
+//		for (ChannelDisplayInfo info : getAvailableChannels()) {
+//			if (info instanceof MultiChannelInfo) {
+//				MultiChannelInfo multiInfo = (MultiChannelInfo)info;
+//				Integer color = multiInfo.getColor();
+//				imageData.setProperty("COLOR_CHANNEL:" + info.getName(), color);
+//				n++;
+//			}
+//		}
+//		if (n == 1)
+//			logger.info("Saved color channel info for one channel");
+//		else if (n > 1)
+//			logger.info("Saved color channel info for " + n + " channels");
 	}
 	
 
@@ -328,6 +391,9 @@ public class ImageDisplay {
 		List<ChannelDisplayInfo> selectedChannels = getSelectedChannels();
 		if (lastSelectedChannel == null && !selectedChannels.isEmpty())
 			lastSelectedChannel = selectedChannels.get(0);
+		
+		saveChannelColorProperties();
+		
 		return selectedChannels;
 	}
 
@@ -415,10 +481,22 @@ public class ImageDisplay {
 	public String getTransformedValueAsString(BufferedImage img, int x, int y) {
 		if (selectedChannels == null || selectedChannels.isEmpty() || selectedChannels.get(0) == null)
 			return "";
-		String s = selectedChannels.get(0).getValueAsString(img, x, y);
-		for (int i = 1; i < selectedChannels.size(); i++) {
-			s += (", " + selectedChannels.get(i).getValueAsString(img, x, y));
+		if (selectedChannels.size() == 1)
+			return selectedChannels.get(0).getValueAsString(img, x, y);
+		
+		String s = null;
+		for (ChannelDisplayInfo channel : getAvailableChannels()) {
+			if (selectedChannels.contains(channel) ) {
+				if (s == null)
+					s = channel.getValueAsString(img, x, y);
+				else
+					s += (", " + channel.getValueAsString(img, x, y));
+			}
 		}
+//		String s = selectedChannels.get(0).getValueAsString(img, x, y);
+//		for (int i = 1; i < selectedChannels.size(); i++) {
+//			s += (", " + selectedChannels.get(i).getValueAsString(img, x, y));
+//		}
 		return s;
 	}
 
@@ -546,11 +624,15 @@ public class ImageDisplay {
 
 
 	public void autoSetDisplayRange(ChannelDisplayInfo info, Histogram histogram) {
-		autoSetDisplayRange(info, histogram, 0.025);
+		autoSetDisplayRange(info, histogram, 0.01);
 	}
 
 	public void autoSetDisplayRange(ChannelDisplayInfo info) {
 		autoSetDisplayRange(info, histogramMap.get(info));
+	}
+	
+	public void autoSetDisplayRange(ChannelDisplayInfo info, double saturation) {
+		autoSetDisplayRange(info, histogramMap.get(info), saturation);
 	}
 
 
@@ -639,6 +721,110 @@ public class ImageDisplay {
 	}
 
 
+	
+	
+	
+	
+	/**
+	 * Create a JSON representation of the main components of the current display.
+	 * 
+	 * @return
+	 */
+	public String toJSON() {
+		return toJSON(false);
+	}
+	
+	/**
+	 * Create a JSON representation of the main components of the current display.
+	 * 
+	 * @return
+	 */
+	public String toJSON(final boolean prettyPrint) {
+		JsonArray array = new JsonArray();
+		for (ChannelDisplayInfo info : channelOptions) {
+			JsonObject obj = new JsonObject();
+			obj.addProperty("name", info.getName());
+			obj.addProperty("class", info.getClass().getName());
+			obj.addProperty("minDisplay", info.getMinDisplay());
+			obj.addProperty("maxDisplay", info.getMaxDisplay());
+			obj.addProperty("color", info.getColor());
+			obj.addProperty("selected", selectedChannels.contains(info));			
+			array.add(obj);
+		}
+		if (prettyPrint) {
+			Gson gson = new GsonBuilder().setPrettyPrinting().create();
+			return gson.toJson(array);
+		} else
+			return array.toString();
+	}
+	
+	/**
+	 * Update current display info based on deserializing a JSON String.
+	 * 
+	 * @param json
+	 */
+	void updateFromJSON(final String json) {
+		Gson gson = new Gson();
+		Type type = new TypeToken<List<JsonHelperChannelInfo>>(){}.getType();
+		List<JsonHelperChannelInfo> helperList = gson.fromJson(json, type);
+		// Try updating everything
+		for (JsonHelperChannelInfo helper : helperList) {
+			for (ChannelDisplayInfo info : channelOptions) {
+				if (helper.updateInfo(info)) {
+					if (Boolean.TRUE.equals(helper.selected)) {
+						if (!selectedChannels.contains(info))
+							selectedChannels.add(info);
+					} else
+						selectedChannels.remove(info);
+					break;
+				}
+			}
+		}
+	}
+	
+	/**
+	 * Class to help with deserializing JSON representation.
+	 */
+	static class JsonHelperChannelInfo {
+		private String name;
+		private Class<?> cls;
+		private Float minDisplay;
+		private Float maxDisplay;
+		private Integer color;
+		private Boolean selected;
+		
+		/**
+		 * Check if we match the info.
+		 * That means the names must be the same, and the classes must either match or 
+		 * the class here needs to be <code>null</code>.
+		 * 
+		 * @param info
+		 * @return
+		 */
+		boolean matches(final ChannelDisplayInfo info) {
+			if (name == null)
+				return false;
+			return name.equals(info.getName()) && (cls == null || cls.equals(info.getClass()));
+		}
+		
+		/**
+		 * Check is this helper <code>matches</code> the info, and set its properties if so.
+		 * 
+		 * @param info
+		 * @return
+		 */
+		boolean updateInfo(final ChannelDisplayInfo info) {
+			if (!matches(info))
+				return false;
+			if (minDisplay != null)
+				info.setMinDisplay(minDisplay);
+			if (maxDisplay != null)
+				info.setMaxDisplay(maxDisplay);
+			if (color != null && info instanceof MultiChannelInfo)
+				((MultiChannelInfo)info).setLUTColor(color);
+			return true;
+		}
+	}
 
 
 }
