@@ -21,7 +21,7 @@
  * #L%
  */
 
-package qupath.lib.rois.vertices;
+package qupath.lib.roi;
 
 /**
  * Vertices that can be modified.
@@ -29,7 +29,7 @@ package qupath.lib.rois.vertices;
  * @author Pete Bankhead
  *
  */
-public interface MutableVertices extends Vertices {
+interface MutableVertices extends Vertices {
 
 	public abstract void clear();
 

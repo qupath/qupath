@@ -21,12 +21,11 @@
  * #L%
  */
 
-package qupath.lib.roi.experimental;
+package qupath.lib.roi;
 
 import java.util.List;
 
 import qupath.lib.geom.Point2;
-import qupath.lib.rois.vertices.Vertices;
 
 /**
  * Class to help ascertain when a point falls inside a particular shape.
@@ -36,7 +35,7 @@ import qupath.lib.rois.vertices.Vertices;
  * @author Pete Bankhead
  *
  */
-public class WindingTest {
+class WindingTest {
 	
 	/*
 	 * Note the following copyright notice for the original C++ implementation of the code:

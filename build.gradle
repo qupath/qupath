@@ -42,6 +42,7 @@ println 'Current Java version: ' + JavaVersion.current()
 // Define dependencies
 subprojects {
   configurations {
+  	jts
     groovy
     richtextfx
     commonsmath
@@ -55,6 +56,7 @@ subprojects {
   }
 
   dependencies {
+    jts 'org.locationtech.jts:jts-core:1.15.1'
     groovy 'org.codehaus.groovy:groovy:2.4.13'
     groovy 'org.codehaus.groovy:groovy-jsr223:2.4.13'
     if (useLegacyDependencies)

@@ -25,6 +25,7 @@
 
 package qupath.lib.roi;
 
+import java.awt.Shape;
 import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
 import java.io.Serializable;
@@ -35,7 +36,6 @@ import qupath.lib.geom.Point2;
 import qupath.lib.roi.interfaces.PathLine;
 import qupath.lib.roi.interfaces.ROI;
 import qupath.lib.roi.interfaces.TranslatableROI;
-import qupath.lib.rois.vertices.Vertices;
 
 /**
  * ROI representing an arbitrary open polygon.
@@ -85,7 +85,7 @@ public class PolylineROI extends AbstractPathROI implements PathLine, Translatab
 	}
 		
 	@Override
-	public String getROIType() {
+	public String getRoiName() {
 		return "Polyline";
 	}
 
@@ -223,6 +223,17 @@ public class PolylineROI extends AbstractPathROI implements PathLine, Translatab
 		
 	}
 	
+	
+	@Override
+	public RoiType getRoiType() {
+		return RoiType.LINE;
+	}
+	
+	
+	@Override
+	public Shape getShape() {
+		return PathROIToolsAwt.getShape(this);
+	}
 	
 	
 	private Object writeReplace() {

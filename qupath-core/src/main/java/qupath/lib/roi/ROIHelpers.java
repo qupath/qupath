@@ -87,5 +87,20 @@ public class ROIHelpers {
 	
 	
 	
-	
+	public static boolean isSimpleRectangle(final ROI roi) {
+		return roi instanceof RectangleROI;
+	}
+
+	public static boolean isSimpleEllipse(final ROI roi) {
+		return roi instanceof EllipseROI;
+	}
+
+	public static boolean isSimplePolygon(final ROI roi) {
+		return roi instanceof PolygonROI;
+	}
+
+	public static boolean isSimplePolyline(final ROI roi) {
+		return roi instanceof PolylineROI;
+	}
+
 }

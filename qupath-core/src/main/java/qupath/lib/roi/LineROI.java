@@ -23,6 +23,8 @@
 
 package qupath.lib.roi;
 
+import java.awt.Shape;
+import java.awt.geom.Line2D;
 import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
 import java.io.Serializable;
@@ -70,7 +72,7 @@ public class LineROI extends AbstractPathROI implements PathLine, TranslatableRO
 	 * @see qupath.lib.rois.LineROI#getROIType()
 	 */
 	@Override
-	public String getROIType() {
+	public String getRoiName() {
 		return "Line";
 	}
 
@@ -192,6 +194,22 @@ public class LineROI extends AbstractPathROI implements PathLine, TranslatableRO
 				new Point2(x2, y2));
 	}
 	
+	
+	@Override
+	public Shape getShape() {
+		return new Line2D.Double(x, y, x2, y2);
+	}
+	
+	
+//	public Geometry getGeometry() {
+//		GeometryFactory factory = new GeometryFactory();
+//	}
+	
+	
+	@Override
+	public RoiType getRoiType() {
+		return RoiType.LINE;
+	}
 	
 	
 	

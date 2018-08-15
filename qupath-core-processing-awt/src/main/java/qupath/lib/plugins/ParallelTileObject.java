@@ -42,8 +42,9 @@ import qupath.lib.objects.PathROIObject;
 import qupath.lib.objects.PathTileObject;
 import qupath.lib.objects.TemporaryObject;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
-import qupath.lib.roi.AWTAreaROI;
+import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.PathROIToolsAwt;
+import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.PathArea;
 import qupath.lib.roi.interfaces.ROI;
 
@@ -184,7 +185,7 @@ public class ParallelTileObject extends PathTileObject implements TemporaryObjec
 						if (temp.isEmpty())
 							continue;
 						// We have an intersection, but it may be minimal... check this
-						double intersectionArea = new AWTAreaROI(temp).getArea();
+						double intersectionArea = ROIs.createAreaROI(temp, ImagePlane.getDefaultPlane()).getArea();
 						double threshold = 0.1;
 						// We do have an intersection - keep the object with the larger area if the intersection is a 'reasonable' proportion of the smaller area
 						// Here, reasonable is defined as 10%

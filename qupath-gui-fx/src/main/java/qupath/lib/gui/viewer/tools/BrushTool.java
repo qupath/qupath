@@ -49,10 +49,11 @@ import qupath.lib.objects.PathTileObject;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
+import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.ImageRegion;
-import qupath.lib.roi.AWTAreaROI;
 import qupath.lib.roi.AreaROI;
 import qupath.lib.roi.ROIHelpers;
+import qupath.lib.roi.ROIs;
 import qupath.lib.roi.PathROIToolsAwt;
 import qupath.lib.roi.PolygonROI;
 import qupath.lib.roi.RectangleROI;
@@ -224,7 +225,11 @@ public class BrushTool extends AbstractPathROITool {
 		PathShape shapeROI = createNew ? null : (PathShape)currentObject.getROI();
 		if (createNew) {
 			creatingTiledROI = false; // Reset this
-			viewer.setSelectedObject(new PathAnnotationObject(new AWTAreaROI(new Rectangle2D.Double(p.getX(), p.getY(), 0, 0), -1, viewer.getZPosition(), viewer.getTPosition())));
+			viewer.setSelectedObject(
+					new PathAnnotationObject(
+							ROIs.createAreaROI(
+									new Rectangle2D.Double(p.getX(), p.getY(), 0, 0),
+									ImagePlane.getPlane(viewer.getZPosition(), viewer.getTPosition()))));
 		} else
 			viewer.setSelectedObject(getUpdatedObject(e, shapeROI, currentObject, -1));
 	}
@@ -285,7 +290,7 @@ public class BrushTool extends AbstractPathROITool {
 			if (subtractMode) {
 				// If subtracting... then just subtract
 				shapeNew = PathROIToolsAwt.combineROIs(shapeROI,
-						new AWTAreaROI(shapeDrawn, shapeROI.getC(), shapeROI.getZ(), shapeROI.getT()), PathROIToolsAwt.CombineOp.SUBTRACT, flatness);
+						ROIs.createAreaROI(shapeDrawn, ImagePlane.getPlaneWithChannel(shapeROI.getC(), shapeROI.getZ(), shapeROI.getT())), PathROIToolsAwt.CombineOp.SUBTRACT, flatness);
 			} else if (avoidOtherAnnotations) {
 				Rectangle bounds2 = shapeDrawn.getBounds();
 				Collection<PathObject> annotations = viewer.getHierarchy().getObjectsForRegion(PathAnnotationObject.class, ImageRegion.createInstance(
@@ -305,15 +310,15 @@ public class BrushTool extends AbstractPathROITool {
 			} else {
 				// Just add, regardless of whether there are other annotations below or not
 				shapeNew = PathROIToolsAwt.combineROIs(shapeROI,
-						new AWTAreaROI(shapeDrawn, shapeROI.getC(), shapeROI.getZ(), shapeROI.getT()), PathROIToolsAwt.CombineOp.ADD, flatness);
+						ROIs.createAreaROI(shapeDrawn, ImagePlane.getPlaneWithChannel(shapeROI)), PathROIToolsAwt.CombineOp.ADD, flatness);
 			}
 			
 			// Convert complete polygons to areas
 			if (shapeNew instanceof PolygonROI && ((PolygonROI)shapeNew).nVertices() > 50) {
-				shapeNew = new AWTAreaROI(PathROIToolsAwt.getShape(shapeNew), shapeNew.getC(), shapeNew.getZ(), shapeNew.getT());
+				shapeNew = ROIs.createAreaROI(PathROIToolsAwt.getShape(shapeNew), ImagePlane.getPlane(shapeNew));
 			}
 		} else {
-			shapeNew = new AWTAreaROI(shapeDrawn, -1, viewer.getZPosition(), viewer.getTPosition());
+			shapeNew = ROIs.createAreaROI(shapeDrawn, ImagePlane.getPlane(viewer.getZPosition(), viewer.getTPosition()));
 		}
 		
 		if (currentObject instanceof PathAnnotationObject) {
@@ -459,7 +464,7 @@ public class BrushTool extends AbstractPathROITool {
 	protected ROI createNewROI(double x, double y, int z, int t) {
 		creatingTiledROI = false;
 		Shape shape = createShape(x, y, PathPrefs.getUseTileBrush(), null);
-		return new AWTAreaROI(shape, -1, z, t);
+		return ROIs.createAreaROI(shape, ImagePlane.getPlane(z, t));
 //		return new PathPolygonROI(x, y, -1, z, t);
 	}
 	

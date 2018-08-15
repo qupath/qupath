@@ -23,6 +23,7 @@
 
 package qupath.lib.roi;
 
+import java.awt.Shape;
 import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
 import java.io.Serializable;
@@ -32,11 +33,8 @@ import java.util.List;
 
 import qupath.lib.common.GeneralTools;
 import qupath.lib.geom.Point2;
-import qupath.lib.roi.experimental.WindingTest;
 import qupath.lib.roi.interfaces.ROI;
 import qupath.lib.roi.interfaces.TranslatableROI;
-import qupath.lib.rois.vertices.MutableVertices;
-import qupath.lib.rois.vertices.Vertices;
 
 /**
  * Implementation of an arbitrary area ROI - which could contain disjointed or hollow regions.
@@ -127,7 +125,7 @@ public class AreaROI extends AbstractPathAreaROI implements TranslatableROI, Ser
 	}
 
 	@Override
-	public String getROIType() {
+	public String getRoiName() {
 		return "Area";
 	}
 
@@ -326,6 +324,10 @@ public class AreaROI extends AbstractPathAreaROI implements TranslatableROI, Ser
 		}
 		
 	}
-	
+
+	@Override
+	public Shape getShape() {
+		return PathROIToolsAwt.getShape(this);
+	}
 	
 }

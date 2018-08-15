@@ -21,7 +21,7 @@
  * #L%
  */
 
-package qupath.lib.rois.vertices;
+package qupath.lib.roi;
 
 import java.util.List;
 
@@ -33,7 +33,7 @@ import qupath.lib.geom.Point2;
  * @author Pete Bankhead
  *
  */
-public interface Vertices {
+interface Vertices {
 
 	public abstract boolean isEmpty();
 

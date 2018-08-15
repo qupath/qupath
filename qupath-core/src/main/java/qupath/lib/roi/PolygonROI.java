@@ -23,6 +23,7 @@
 
 package qupath.lib.roi;
 
+import java.awt.Shape;
 import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
 import java.io.Serializable;
@@ -30,13 +31,11 @@ import java.util.List;
 
 import qupath.lib.common.GeneralTools;
 import qupath.lib.geom.Point2;
-import qupath.lib.roi.experimental.WindingTest;
 import qupath.lib.roi.interfaces.PathArea;
 import qupath.lib.roi.interfaces.ROIWithHull;
 import qupath.lib.roi.interfaces.ROI;
 import qupath.lib.roi.interfaces.TranslatableROI;
 import qupath.lib.rois.measure.ConvexHull;
-import qupath.lib.rois.vertices.Vertices;
 
 
 /**
@@ -196,7 +195,7 @@ public class PolygonROI extends AbstractPathAreaROI implements ROIWithHull, Tran
 	 * @see qupath.lib.rois.PolygonROI#getROIType()
 	 */
 	@Override
-	public String getROIType() {
+	public String getRoiName() {
 		return "Polygon";
 	}
 
@@ -241,6 +240,12 @@ public class PolygonROI extends AbstractPathAreaROI implements ROIWithHull, Tran
 		return getScaledArea(pixelWidth, pixelHeight) / getScaledConvexArea(pixelWidth, pixelHeight);
 	}
 
+	
+	@Override
+	public Shape getShape() {
+		return PathROIToolsAwt.getShape(this);
+	}
+	
 	
 //	protected void resetCachedMeasurements() {
 //		stats = null;

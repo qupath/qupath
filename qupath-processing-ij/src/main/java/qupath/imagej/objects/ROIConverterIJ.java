@@ -36,7 +36,6 @@ import qupath.lib.geom.Point2;
 import qupath.lib.images.PathImage;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.ImageRegion;
-import qupath.lib.roi.AWTAreaROI;
 import qupath.lib.roi.EllipseROI;
 import qupath.lib.roi.LineROI;
 import qupath.lib.roi.AreaROI;
@@ -186,9 +185,7 @@ public class ROIConverterIJ {
 			return convertToPointROI((PointsROI)pathROI, xOrigin, yOrigin, downsampleFactor);
 		// If we have any other kind of shape, create a general shape roi
 		if (pathROI instanceof AreaROI) { // TODO: Deal with non-AWT area ROIs!
-			if (!(pathROI instanceof AWTAreaROI))
-				pathROI = new AWTAreaROI((AreaROI)pathROI);
-			Shape shape = ((AWTAreaROI)pathROI).getShape();
+			Shape shape = PathROIToolsAwt.getArea(pathROI);
 //			"scaleX", "shearY", "shearX", "scaleY", "translateX", "translateY"
 			shape = new AffineTransform(1.0/downsampleFactor, 0, 0, 1.0/downsampleFactor, xOrigin, yOrigin).createTransformedShape(shape);
 			return setIJRoiProperties(new ShapeRoi(shape), pathROI);
@@ -291,12 +288,12 @@ public class ROIConverterIJ {
 		transform.translate(roi.getXBase(), roi.getYBase());
 		if (cal != null)
 			transform.translate(-cal.xOrigin, -cal.yOrigin);
-		return PathROIToolsAwt.getShapeROI(new Area(transform.createTransformedShape(shape)), c, z, t);
+		return ROIs.createAreaROI(new Area(transform.createTransformedShape(shape)), ImagePlane.getPlaneWithChannel(c, z, t));
 //		return setPathROIProperties(new PathAreaROI(transform.createTransformedShape(shape)), roi);
 	}
 	
 	
-	public static AreaROI convertToAreaROI(ShapeRoi roi, Calibration cal, double downsampleFactor, final int c, final int z, final int t) {
+	public static ROI convertToAreaROI(ShapeRoi roi, Calibration cal, double downsampleFactor, final int c, final int z, final int t) {
 		Shape shape = roi.getShape();
 		AffineTransform transform = new AffineTransform();
 		transform.scale(downsampleFactor, downsampleFactor);
@@ -304,7 +301,7 @@ public class ROIConverterIJ {
 		if (cal != null)
 			transform.translate(-cal.xOrigin, -cal.yOrigin);
 //		return setPathROIProperties(PathROIHelpers.getShapeROI(new Area(transform.createTransformedShape(shape)), 0, 0, 0), roi);
-		return new AWTAreaROI(transform.createTransformedShape(shape), c, z, t);
+		return ROIs.createAreaROI(transform.createTransformedShape(shape), ImagePlane.getPlaneWithChannel(c, z, t));
 	}
 	
 	

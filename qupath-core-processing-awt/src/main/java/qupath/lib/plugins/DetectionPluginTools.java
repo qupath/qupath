@@ -43,10 +43,11 @@ import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathROIObject;
 import qupath.lib.plugins.parameters.ParameterList;
+import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.ImageRegion;
-import qupath.lib.roi.AWTAreaROI;
 import qupath.lib.roi.PathROIToolsAwt;
 import qupath.lib.roi.PointsROI;
+import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.PathArea;
 import qupath.lib.roi.interfaces.ROI;
 
@@ -222,7 +223,7 @@ public class DetectionPluginTools {
 							if (temp.isEmpty())
 								continue;
 							// We have an intersection, but it may be minimal... check this
-							double intersectionArea = new AWTAreaROI(temp).getArea();
+							double intersectionArea = ROIs.createAreaROI(temp, ImagePlane.getDefaultPlane()).getArea();
 							double threshold = 0.1;
 							// We do have an intersection - keep the object with the larger area if the intersection is a 'reasonable' proportion of the smaller area
 							// Here, reasonable is defined as 10%

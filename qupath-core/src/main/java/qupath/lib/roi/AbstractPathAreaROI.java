@@ -73,5 +73,9 @@ abstract class AbstractPathAreaROI extends AbstractPathROI implements PathArea {
 		return getScaledPerimeter(1, 1);
 	}
 
+	@Override
+	public RoiType getRoiType() {
+		return RoiType.AREA;
+	}
 
 }

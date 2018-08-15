@@ -1055,7 +1055,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 
 		@Override
 		protected String getMeasurementValue(PathObject pathObject) {
-			return pathObject.hasROI() ? pathObject.getROI().getROIType() : null;
+			return pathObject.hasROI() ? pathObject.getROI().getRoiName() : null;
 		}
 		
 	}

@@ -23,12 +23,15 @@
 
 package qupath.lib.roi;
 
+import java.awt.Shape;
 import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+
+import org.locationtech.jts.geom.Geometry;
 
 import qupath.lib.geom.Point2;
 import qupath.lib.roi.interfaces.PathArea;
@@ -259,7 +262,7 @@ public class PointsROI extends AbstractPathROI implements ROIWithHull, PathPoint
 	
 	
 	@Override
-	public String getROIType() {
+	public String getRoiName() {
 		return "Points";
 	}
 	
@@ -267,7 +270,7 @@ public class PointsROI extends AbstractPathROI implements ROIWithHull, PathPoint
 	public String toString() {
 //		if (getName() != null)
 //			return String.format("%s (%d points)", getName(), points.size());			
-		return String.format("%s (%d points)", getROIType(), points.size());
+		return String.format("%s (%d points)", getRoiName(), points.size());
 	}
 	
 	@Override
@@ -380,6 +383,30 @@ public class PointsROI extends AbstractPathROI implements ROIWithHull, PathPoint
 		return getPointList();
 	}
 	
+	
+	
+	/**
+	 * throws UnsupportedOperationException
+	 */
+	@Override
+	public Shape getShape() throws UnsupportedOperationException {
+		throw new UnsupportedOperationException("PointROI does not support getShape()!");
+	}
+	
+	
+	/**
+	 * throws UnsupportedOperationException
+	 */
+	@Override
+	public Geometry getGeometry() throws UnsupportedOperationException {
+		throw new UnsupportedOperationException("PointROI does not support getGeometry()!");
+	}
+	
+	
+	@Override
+	public RoiType getRoiType() {
+		return RoiType.POINT;
+	}
 	
 	
 	private Object writeReplace() {

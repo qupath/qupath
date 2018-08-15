@@ -24,6 +24,7 @@
 
 package qupath.lib.roi;
 
+import java.awt.Shape;
 import java.util.Collections;
 import java.util.List;
 
@@ -84,6 +85,10 @@ public class ROIs {
 	
 	public static PolylineROI createPolylineROI(double x, double y, ImagePlane plane) {
 		return new PolylineROI(Collections.singletonList(new Point2(x, y)), plane.getC(), plane.getZ(), plane.getT());
+	}
+	
+	public static PathArea createAreaROI(Shape shape, ImagePlane plane) {
+		return new AWTAreaROI(shape, plane.getC(), plane.getZ(), plane.getT());
 	}
 
 }

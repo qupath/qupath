@@ -53,8 +53,6 @@ import qupath.lib.plugins.ObjectDetector;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.RegionRequest;
-import qupath.lib.roi.AWTAreaROI;
-import qupath.lib.roi.AreaROI;
 import qupath.lib.roi.PathROIToolsAwt;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.PathArea;
@@ -271,8 +269,8 @@ public class CellCountsCV extends AbstractTileableDetectionPlugin<BufferedImage>
 			Integer color = ColorTools.makeRGB(0, 255, 0);
 			String stain2Name = stains.getStain(2).getName();
 			PathArea area = pathROI instanceof PathArea ? (PathArea)pathROI : null;
-			if (area instanceof AreaROI && !(area instanceof AWTAreaROI))
-				area = new AWTAreaROI((AreaROI)area);
+//			if (area instanceof AreaROI && !(area instanceof AWTAreaROI))
+//				area = new AWTAreaROI((AreaROI)area);
 			
 			boolean detectInPositiveChannel = stainChannel.equals(DAB);
 			FloatIndexer indexerStain2 = matStain2.createIndexer();

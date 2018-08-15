@@ -36,8 +36,6 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.geom.Point2;
 import qupath.lib.roi.interfaces.ROI;
 import qupath.lib.roi.interfaces.TranslatableROI;
-import qupath.lib.rois.vertices.MutableVertices;
-import qupath.lib.rois.vertices.Vertices;
 
 /**
  * An implementation of AreaROI that makes use of Java AWT Shapes.  If available, this is a better choice than using
@@ -56,16 +54,16 @@ public class AWTAreaROI extends AreaROI implements TranslatableROI, Serializable
 	// By caching the bounds this can be speeded up
 	transient ClosedShapeStatistics stats = null;
 	
-	public AWTAreaROI(Shape shape) {
+	AWTAreaROI(Shape shape) {
 		this(shape, -1, 0, 0);
 	}
 	
-	public AWTAreaROI(Shape shape, int c, int z, int t) {
+	AWTAreaROI(Shape shape, int c, int z, int t) {
 		super(getVertices(shape), c, z, t);
 		this.shape = new Path2D.Float(shape);
 	}
 	
-	public AWTAreaROI(AreaROI roi) {
+	AWTAreaROI(AreaROI roi) {
 		super(roi.vertices, roi.getC(), roi.getZ(), roi.getT());
 		shape = new Path2D.Float();
 		for (Vertices vertices : vertices) {
@@ -111,13 +109,13 @@ public class AWTAreaROI extends AreaROI implements TranslatableROI, Serializable
 		return stats.getPerimeter();
 	}
 
-	@Deprecated
+	@Override
 	public Shape getShape() {
 		return new Path2D.Float(shape);
 	}
 	
 	@Override
-	public String getROIType() {
+	public String getRoiName() {
 		return "Area (AWT)";
 	}
 
@@ -242,7 +240,7 @@ public class AWTAreaROI extends AreaROI implements TranslatableROI, Serializable
 	}
 	
 	
-	public static List<Point2> getLinearPathPoints(final Path2D path, final PathIterator iter) {
+	static List<Point2> getLinearPathPoints(final Path2D path, final PathIterator iter) {
 		List<Point2> points = new ArrayList<>();
 		double[] seg = new double[6];
 		while (!iter.isDone()) {
@@ -267,7 +265,7 @@ public class AWTAreaROI extends AreaROI implements TranslatableROI, Serializable
 	
 	
 	
-	public static List<Vertices> getVertices(final Shape shape) {
+	static List<Vertices> getVertices(final Shape shape) {
 		Path2D path = shape instanceof Path2D ? (Path2D)shape : new Path2D.Float(shape);
 		PathIterator iter = path.getPathIterator(null, 0.5);
 		List<Vertices> verticesList = new ArrayList<>();

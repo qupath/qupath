@@ -23,6 +23,8 @@
 
 package qupath.lib.roi;
 
+import java.awt.Shape;
+import java.awt.geom.Ellipse2D;
 import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
 import java.io.Serializable;
@@ -76,7 +78,7 @@ public class EllipseROI extends AbstractPathBoundedROI implements PathArea, Seri
 	}
 	
 	@Override
-	public String getROIType() {
+	public String getRoiName() {
 		return "Ellipse";
 	}
 	
@@ -131,6 +133,10 @@ public class EllipseROI extends AbstractPathBoundedROI implements PathArea, Seri
 	}
 
 	
+	@Override
+	public Shape getShape() {
+		return new Ellipse2D.Double(x, y, x2, y2);
+	}
 	
 	
 	private Object writeReplace() {

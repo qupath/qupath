@@ -23,15 +23,13 @@
 
 package qupath.lib.roi;
 
-import qupath.lib.rois.vertices.Vertices;
-
 /**
  * Factory used to help create vertices objects.
  * 
  * @author Pete Bankhead
  *
  */
-public class VerticesFactory {
+class VerticesFactory {
 
 	public static Vertices createVertices(final int capacity) {
 		return new DefaultVertices(capacity);

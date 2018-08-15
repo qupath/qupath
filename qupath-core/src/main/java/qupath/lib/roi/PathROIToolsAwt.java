@@ -57,7 +57,6 @@ import qupath.lib.roi.RectangleROI;
 import qupath.lib.roi.interfaces.PathArea;
 import qupath.lib.roi.interfaces.ROI;
 import qupath.lib.roi.interfaces.PathShape;
-import qupath.lib.rois.vertices.Vertices;
 
 /**
  * A collection of static methods to help converting between PathROIs and AWT shapes, or using AWT shapes to add
@@ -182,6 +181,10 @@ public class PathROIToolsAwt {
 		if (shape instanceof Ellipse2D) {
 			Rectangle2D bounds = shape.getBounds2D();
 			return new EllipseROI(bounds.getX(), bounds.getY(), bounds.getWidth(), bounds.getHeight(), c, z, t);
+		}
+		if (shape instanceof Line2D) {
+			Line2D line = (Line2D)shape;
+			return new LineROI(line.getX1(), line.getY1(), line.getX2(), line.getY2(), c, z, t);
 		}
 		return getShapeROI(new Area(shape), c, z, t, flatness);
 	}
