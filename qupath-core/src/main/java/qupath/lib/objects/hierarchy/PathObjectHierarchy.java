@@ -71,7 +71,7 @@ import qupath.lib.roi.interfaces.ROI;
  * @author Pete Bankhead
  *
  */
-public class PathObjectHierarchy implements Serializable {
+public final class PathObjectHierarchy implements Serializable {
 	
 	private static final long serialVersionUID = 1L;
 	
@@ -643,12 +643,12 @@ public class PathObjectHierarchy implements Serializable {
 	}
 	
 	
-	protected synchronized void fireObjectRemovedEvent(Object source, PathObject pathObject, PathObject previousParent) {
+	synchronized void fireObjectRemovedEvent(Object source, PathObject pathObject, PathObject previousParent) {
 		PathObjectHierarchyEvent event = PathObjectHierarchyEvent.createObjectRemovedEvent(source, this, previousParent, pathObject);
 		fireEvent(event);
 	}
 
-	protected synchronized void fireObjectAddedEvent(Object source, PathObject pathObject) {
+	synchronized void fireObjectAddedEvent(Object source, PathObject pathObject) {
 		PathObjectHierarchyEvent event = PathObjectHierarchyEvent.createObjectAddedEvent(source, this, pathObject.getParent(), pathObject);
 		fireEvent(event);
 	}

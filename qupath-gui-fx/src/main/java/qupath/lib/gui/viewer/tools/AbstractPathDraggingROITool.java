@@ -31,6 +31,7 @@ import javafx.scene.input.MouseEvent;
 import qupath.lib.gui.QuPathGUI.Modes;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.ModeWrapper;
+import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathROIObject;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
@@ -43,7 +44,7 @@ import qupath.lib.roi.interfaces.ROI;
  * @author Pete Bankhead
  *
  */
-public abstract class AbstractPathDraggingROITool extends AbstractPathROITool {
+abstract class AbstractPathDraggingROITool extends AbstractPathROITool {
 
 
 	AbstractPathDraggingROITool(ModeWrapper modes) {
@@ -121,7 +122,20 @@ public abstract class AbstractPathDraggingROITool extends AbstractPathROITool {
 //				hierarchy.removeObject(pathObject, true);
 //			return;
 //		}
-		hierarchy.addPathObject(viewer.getSelectedObject(), true); // Ensure object is within the hierarchy
+		
+		if (!requestParentClipping(e)) {
+			hierarchy.addPathObject(viewer.getSelectedObject(), true); // Ensure object is within the hierarchy
+		} else {
+			ROI roiNew = refineROIByParent(pathObject.getROI());
+			if (roiNew.isEmpty()) {
+				hierarchy.removeObject(pathObject, true);
+				pathObject = null;
+			} else {
+				((PathAnnotationObject)pathObject).setROI(roiNew);
+				hierarchy.addPathObjectBelowParent(currentParent, pathObject, false, true);
+			}
+		}
+		
 		viewer.setSelectedObject(pathObject);
 //		if (e.isAltDown()) {
 //			if (e.isShiftDown())

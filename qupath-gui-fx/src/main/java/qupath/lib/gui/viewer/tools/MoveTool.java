@@ -40,6 +40,7 @@ import qupath.lib.awt.common.AwtTools;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.ModeWrapper;
 import qupath.lib.gui.viewer.QuPathViewer;
+import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathROIObject;
 import qupath.lib.objects.TMACoreObject;
@@ -126,7 +127,14 @@ public class MoveTool extends AbstractPathTool {
 //			return;
 //		}
 		
-		if (!viewer.isSpaceDown()) {
+		if (!viewer.isSpaceDown() && viewer.getHierarchy() != null) {
+			
+			// Set the current parent object based on the first click
+			PathObject currentObject = viewer.getSelectedObject();
+			if (currentObject != null)
+				setCurrentParent(viewer.getHierarchy(), currentObject.getParent(), currentObject);
+			else
+				setCurrentParent(viewer.getHierarchy(), null, currentObject);
 			
 			// See if we can get a handle to edit the ROI
 			// Don't want to edit detections / TMA cores
@@ -270,6 +278,11 @@ public class MoveTool extends AbstractPathTool {
 			e.consume();
 			PathObject pathObject = viewer.getSelectedObject();
 			
+			if (requestParentClipping(e) && pathObject instanceof PathAnnotationObject) {
+				ROI roiNew = refineROIByParent(pathObject.getROI());
+				((PathAnnotationObject)pathObject).setROI(roiNew);
+			}
+			
 			if (pathObject != null && pathObject.hasROI() && pathObject.getROI().isEmpty()) {
 				if (pathObject.getParent() != null)
 					viewer.getHierarchy().removeObject(pathObject, true);
@@ -283,7 +296,10 @@ public class MoveTool extends AbstractPathTool {
 					if (roiChanged) {
 						PathObject parentPrevious = pathObject.getParent();
 						hierarchy.removeObject(pathObject, true, false);
-						hierarchy.addPathObject(pathObject, false, false);
+						if (currentParent == null || e.isShiftDown())
+							hierarchy.addPathObject(pathObject, false, false);
+						else
+							hierarchy.addPathObjectBelowParent(currentParent, pathObject, false, false);
 						PathObject parentNew = pathObject.getParent();
 						if (parentPrevious == parentNew)
 							hierarchy.fireHierarchyChangedEvent(this, parentPrevious);

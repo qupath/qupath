@@ -33,6 +33,7 @@ import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.interfaces.PathArea;
 import qupath.lib.roi.interfaces.PathLine;
 import qupath.lib.roi.interfaces.PathPoints;
+import qupath.lib.roi.interfaces.ROI;
 
 /**
  * This class consists exclusively of static methods that operate on or return regions of interest (ROIs).
@@ -43,6 +44,18 @@ import qupath.lib.roi.interfaces.PathPoints;
  */
 public class ROIs {
 
+	/**
+	 * Create an 'empty' ROI with no length or area.
+	 * 
+	 * <p>The only guarantee is that it will return {@code isEmpty() == true}
+	 * 
+	 * @return
+	 */
+	public static ROI createEmptyROI() {
+		return createRectangleROI(0, 0, 0, 0, ImagePlane.getDefaultPlane());
+	}
+	
+	
 	public static PathArea createRectangleROI(double x, double y, double width, double height, ImagePlane plane) {
 		return new RectangleROI(x, y, width, height, plane.getC(), plane.getZ(), plane.getT());
 	}

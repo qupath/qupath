@@ -24,6 +24,7 @@
 package qupath.lib.gui.viewer.tools;
 
 import java.awt.Shape;
+import java.awt.geom.Area;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -34,13 +35,18 @@ import java.util.List;
 import javafx.scene.Cursor;
 import javafx.scene.Node;
 import javafx.scene.input.MouseEvent;
+import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.ModeWrapper;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.QuPathViewerListener;
 import qupath.lib.images.ImageData;
+import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
+import qupath.lib.roi.PathROIToolsAwt;
+import qupath.lib.roi.ROIs;
+import qupath.lib.roi.interfaces.ROI;
 
 /**
  * Abstract implementation of a PathTool.
@@ -48,10 +54,14 @@ import qupath.lib.objects.hierarchy.PathObjectHierarchy;
  * @author Pete Bankhead
  *
  */
-public abstract class AbstractPathTool implements PathTool, QuPathViewerListener {
+abstract class AbstractPathTool implements PathTool, QuPathViewerListener {
 
 	QuPathViewer viewer;
 	ModeWrapper modes;
+	
+	PathObject currentParent;
+	Area parentArea;
+	Area parentAnnotationsArea;
 	
 	transient LevelComparator comparator;
 	
@@ -114,6 +124,79 @@ public abstract class AbstractPathTool implements PathTool, QuPathViewerListener
 //		hierarchy.getSelectionModel().setSelectedPathObject(pathObjectList.get(ind));
 //		return true;
 //	}
+	
+	
+	/**
+	 * Query whether parent clipping should be applied.
+	 * 
+	 * <p>This might depend upon the MouseEvent.
+	 * 
+	 * @param e
+	 * @return
+	 */
+	boolean requestParentClipping(MouseEvent e) {
+		return PathPrefs.getClipROIsForHierarchy() != e.isShiftDown();
+	}
+	
+	
+	/**
+	 * Apply clipping based on the current parent object.
+	 * 
+	 * Returns an empty ROI if this result of the clipping is an empty area.
+	 * 
+	 * @param currentROI
+	 * @return
+	 */
+	ROI refineROIByParent(ROI currentROI) {
+		Area currentArea = PathROIToolsAwt.getArea(currentROI);
+		if (parentArea != null)
+			currentArea.intersect(parentArea);
+		if (parentAnnotationsArea != null)
+			currentArea.subtract(parentAnnotationsArea);
+		if (currentArea.isEmpty())
+			return ROIs.createEmptyROI();
+		else
+			return PathROIToolsAwt.getShapeROI(currentArea, currentROI.getC(), currentROI.getZ(), currentROI.getT());
+	}
+	
+	
+	
+	/**
+	 * Set the current parent object, this can be used for clipping the ROI before it is finalized 
+	 * to prevent accidentally generating overlaps.
+	 * 
+	 * @param hierarchy
+	 * @param parent
+	 * @param current the current object, which shouldn't affect the clipping
+	 */
+	void setCurrentParent(final PathObjectHierarchy hierarchy, final PathObject parent, final PathObject current) {
+		currentParent = parent;
+				
+		// Reset parent area & its descendant annotation areas
+		parentArea = null;
+		parentAnnotationsArea = null;
+		
+		// Check the parent is a valid potential parent
+		if (currentParent == null || !(currentParent.hasROI() && currentParent.getROI().isArea()))
+			currentParent = hierarchy.getRootObject();
+		
+		// Get a combined area for the parent and any annotation children
+		if (currentParent.hasROI() && currentParent.getROI().isArea())
+			parentArea = PathROIToolsAwt.getArea(currentParent.getROI());
+		
+		for (PathObject child : hierarchy.getDescendantObjects(currentParent, null, PathAnnotationObject.class)) {
+			if (child == current)
+				continue;
+			if (child.hasROI() && child.getROI().isArea()) {
+				Area childArea = PathROIToolsAwt.getArea(child.getROI());
+				if (parentAnnotationsArea == null)
+					parentAnnotationsArea = childArea;
+				else
+					parentAnnotationsArea.add(childArea);
+			}
+		}
+	}
+	
 	
 	
 	/**

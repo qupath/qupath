@@ -257,6 +257,12 @@ public class PreferencePanel {
 				"Return to Move Tool automatically",
 				category,
 				"Return selected tool to 'Move' automatically after drawing a ROI (applies to all drawing tools except brush & wand)");
+		
+		addPropertyPreference(PathPrefs.clipROIsForHierarchy(), Boolean.class,
+				"Clip ROIs to hierarchy",
+				category,
+				"Automatically clip ROIs so that they don't extend beyond a parent annotation, or encroach on a child annotation - this helps keep the hierarchy easier to interpret, without overlaps. " + 
+				"The setting can be overridden by pressing the 'shift' key");
 
 		addPropertyPreference(PathPrefs.brushDiameterProperty(), Integer.class,
 				"Brush diameter",

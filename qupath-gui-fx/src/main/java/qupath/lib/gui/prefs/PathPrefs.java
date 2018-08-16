@@ -364,6 +364,30 @@ public class PathPrefs {
 	}
 	
 	
+	
+	
+	private static BooleanProperty clipROIsForHierarchy = createPersistentPreference("clipROIsForHierarchy", false);
+
+	/**
+	 * Request ROIs to be clipped and inserted as the right place in the hierarchy when drawing 
+	 * (to prevent overlapping ROIs being created accidentally).
+	 * @return
+	 */
+	public static BooleanProperty clipROIsForHierarchy() {
+		return clipROIsForHierarchy;
+	}
+
+	public static void setClipROIsForHierarchy(final boolean clipROIs) {
+		clipROIsForHierarchy.set(clipROIs);
+	}
+	
+	public static boolean getClipROIsForHierarchy() {
+		return clipROIsForHierarchy.get();
+	}
+	
+	
+	
+	
 	private static BooleanProperty showExperimentalOptions = createPersistentPreference("showExperimentalOptions", true);
 	
 	/**

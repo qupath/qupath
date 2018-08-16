@@ -48,7 +48,7 @@ import qupath.lib.roi.interfaces.ROI;
  * @author Pete Bankhead
  *
  */
-public abstract class AbstractPathROITool extends AbstractPathTool {
+abstract class AbstractPathROITool extends AbstractPathTool {
 	
 	final private static Logger logger = LoggerFactory.getLogger(AbstractPathROITool.class);
 	
@@ -90,15 +90,18 @@ public abstract class AbstractPathROITool extends AbstractPathTool {
 		RoiEditor editor = viewer.getROIEditor();
 
 		boolean adjustingPolygon = (currentROI instanceof PolygonROI || currentROI instanceof PolylineROI) && editor.getROI() == currentROI && (editor.isTranslating() || editor.hasActiveHandle());
-		
+
 		// If we are double-clicking & we don't have a polygon, see if we can access a ROI
 		if (!adjustingPolygon && e.getClickCount() > 1) {
+			// Reset parent... for now
+			currentParent = null;
+			parentArea = null;
+			parentAnnotationsArea = null;			
 			tryToSelect(xx, yy, e.getClickCount()-2, false);
 			e.consume();
 			return;
 		}
-		
-		
+
 //		PathObjectSelectionModel selectionModel = hierarchy.getSelectionModel();
 		// If we double-clicked a polygon, we're done with it
 		if (adjustingPolygon) {
@@ -115,6 +118,12 @@ public abstract class AbstractPathROITool extends AbstractPathTool {
 				logger.trace("Finishing polygon  {}", e);
 //				editor.setROI(null);
 //				currentROI.finishAdjusting(p2.getX(), p2.getY(), e.isShiftDown());
+				
+				if (requestParentClipping(e)) {
+					currentROI = refineROIByParent(currentROI);
+					((PathAnnotationObject)currentObject).setROI(currentROI);
+				}
+				
 				// If the polygon is just a single point, get rid of it
 				if (currentROI.isEmpty()) {
 					currentROI = null;
@@ -123,7 +132,10 @@ public abstract class AbstractPathROITool extends AbstractPathTool {
 						hierarchy.removeObject(currentObject, true);
 					editor.setROI(null);
 				} else {
-					hierarchy.addPathObject(currentObject, true);
+					if (e.isShiftDown() && currentParent != null)
+						hierarchy.addPathObjectBelowParent(currentParent, currentObject, false, true);
+					else
+						hierarchy.addPathObject(currentObject, true);						
 					viewer.setSelectedObject(currentObject);
 					editor.resetActiveHandle();
 //					editor.resetActiveHandle();
@@ -136,12 +148,16 @@ public abstract class AbstractPathROITool extends AbstractPathTool {
 			return;
 		}
 		
+		// Set the current parent object based on the first click
+		setCurrentParent(hierarchy, getSelectableObject(xx, yy, 0), null);
+		
 		PathObject pathObject = new PathAnnotationObject(createNewROI(xx, yy, viewer.getZPosition(), viewer.getTPosition()));
 		viewer.setSelectedObject(pathObject);
 		// Start editing the ROI immediately
 		editor.setROI(pathObject.getROI());
 		editor.grabHandle(xx, yy, viewer.getROIHandleSize() * 1.5, e.isShiftDown());
 	}
+	
 	
 	
 	@Override

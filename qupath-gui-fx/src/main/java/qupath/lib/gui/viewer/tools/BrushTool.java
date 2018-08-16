@@ -23,14 +23,12 @@
 
 package qupath.lib.gui.viewer.tools;
 
-import java.awt.Rectangle;
 import java.awt.Shape;
 import java.awt.geom.Area;
 import java.awt.geom.Ellipse2D;
 import java.awt.geom.Path2D;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
@@ -50,7 +48,6 @@ import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.regions.ImagePlane;
-import qupath.lib.regions.ImageRegion;
 import qupath.lib.roi.AreaROI;
 import qupath.lib.roi.ROIHelpers;
 import qupath.lib.roi.ROIs;
@@ -215,13 +212,16 @@ public class BrushTool extends AbstractPathROITool {
 		// TODO: Check for object being locked!
 		if (!createNew && !(currentObject instanceof PathAnnotationObject && currentObject.getROI() instanceof PathShape))
 			return;
-				
+						
+		// Get the parent, in case we need to constrain the shape
+		PathObject parent = currentObject == null ? getSelectableObject(p.getX(), p.getY(), 0) : currentObject.getParent();
+		setCurrentParent(hierarchy, parent, currentObject);
+		
 		// Need to remove the object from the hierarchy while editing it
 		if (!createNew && currentObject != null) {
 			hierarchy.removeObject(currentObject, true);
 		}
-		
-		
+
 		PathShape shapeROI = createNew ? null : (PathShape)currentObject.getROI();
 		if (createNew) {
 			creatingTiledROI = false; // Reset this
@@ -286,26 +286,34 @@ public class BrushTool extends AbstractPathROITool {
 			
 			// TODO: Consider whether a preference should be used rather than the shift key?
 			// Anyhow, this will switch to 'dodge' mode, and avoid overlapping existing annotations
-			boolean avoidOtherAnnotations = e.isShiftDown();
+			boolean avoidOtherAnnotations = requestParentClipping(e);
 			if (subtractMode) {
 				// If subtracting... then just subtract
 				shapeNew = PathROIToolsAwt.combineROIs(shapeROI,
 						ROIs.createAreaROI(shapeDrawn, ImagePlane.getPlaneWithChannel(shapeROI.getC(), shapeROI.getZ(), shapeROI.getT())), PathROIToolsAwt.CombineOp.SUBTRACT, flatness);
 			} else if (avoidOtherAnnotations) {
-				Rectangle bounds2 = shapeDrawn.getBounds();
-				Collection<PathObject> annotations = viewer.getHierarchy().getObjectsForRegion(PathAnnotationObject.class, ImageRegion.createInstance(
-						bounds2.x, bounds2.y, bounds2.width, bounds2.height, viewer.getZPosition(), viewer.getTPosition()), null);
+				
 				Area area = new Area(shapeCurrent);
 				area.add(new Area(shapeDrawn));
-				if (!annotations.isEmpty()) {
-					for (PathObject pathObject : annotations) {
-						if (reservedPathClasses.contains(pathObject.getPathClass()))
-							continue;
-						if (pathObject.getROI() instanceof PathArea) {
-							area.subtract(PathROIToolsAwt.getArea(pathObject.getROI()));
-						}
-					}
-				}
+				if (parentArea != null)
+					area.intersect(parentArea);
+				if (parentAnnotationsArea != null)
+					area.subtract(parentAnnotationsArea);
+				
+//				Rectangle bounds2 = shapeDrawn.getBounds();
+//				Collection<PathObject> annotations = viewer.getHierarchy().getObjectsForRegion(PathAnnotationObject.class, ImageRegion.createInstance(
+//						bounds2.x, bounds2.y, bounds2.width, bounds2.height, viewer.getZPosition(), viewer.getTPosition()), null);
+//				Area area = new Area(shapeCurrent);
+//				area.add(new Area(shapeDrawn));
+//				if (!annotations.isEmpty()) {
+//					for (PathObject pathObject : annotations) {
+//						if (reservedPathClasses.contains(pathObject.getPathClass()))
+//							continue;
+//						if (pathObject.getROI() instanceof PathArea) {
+//							area.subtract(PathROIToolsAwt.getArea(pathObject.getROI()));
+//						}
+//					}
+//				}
 				shapeNew = PathROIToolsAwt.getShapeROI(area, shapeROI.getC(), shapeROI.getZ(), shapeROI.getT());
 			} else {
 				// Just add, regardless of whether there are other annotations below or not
@@ -351,6 +359,11 @@ public class BrushTool extends AbstractPathROITool {
 			return;
 		
 		PathObjectHierarchy hierarchy = viewer.getHierarchy();
+		
+		if (requestParentClipping(e)) {
+			((PathAnnotationObject)currentObject).setROI(refineROIByParent(currentObject.getROI()));
+		}
+		
 		// Ensure the object is in the hierarchy, if it is non-empty
 		if (currentObject.getParent() == null) {
 			if (currentObject.getROI() == null || currentObject.getROI().isEmpty())
@@ -360,26 +373,15 @@ public class BrushTool extends AbstractPathROITool {
 				ROI pathROI = viewer.getCurrentROI();
 				if (pathROI instanceof AreaROI) {
 					// Simplify the shape as we go to discard unnecessary vertices
-//					int nVertices = 
-//							(pathROI instanceof PolygonROI) ? ((PolygonROI)pathROI).nVertices() :
-//							((pathROI instanceof AreaROI) ? ((AreaROI)pathROI).nVertices() : 1);
-							
 					pathROI = ShapeSimplifierAwt.simplifyShape((PathShape)pathROI, 0.5);
-//							pathROI = ShapeSimplifierAwt.simplifyShape((PathShape)pathROI, viewer.getDownsampleFactor());
-					
-//					if (nVertices > 500)
-//						pathROI = ShapeSimplifierAwt.simplifyShape((PathShape)pathROI, 2);
-//					else if (nVertices > 200)
-//						pathROI = ShapeSimplifierAwt.simplifyShape((PathShape)pathROI, 1);						
-//					else if (nVertices > 20)
-//						pathROI = ShapeSimplifierAwt.simplifyShape((PathShape)pathROI, .5);						
-//					else
-//						pathROI = ShapeSimplifierAwt.simplifyShape((PathShape)pathROI, .25);						
+						
 					currentObject = getUpdatedObject(e, (PathShape)pathROI, currentObject, -1);
-//					currentObject = getUpdatedObject(e, (PathShape)pathROI, currentObject, 2);
 					viewer.setSelectedObject(currentObject);
 				}
-				hierarchy.addPathObject(currentObject, true);
+				if (requestParentClipping(e))
+					hierarchy.addPathObjectBelowParent(currentParent, currentObject, false, true);
+				else
+					hierarchy.addPathObject(currentObject, true);
 			}
 		}
 		else if (currentObject.hasROI()) {
