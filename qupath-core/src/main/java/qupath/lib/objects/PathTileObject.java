@@ -24,6 +24,7 @@
 package qupath.lib.objects;
 
 import qupath.lib.measurements.MeasurementList;
+import qupath.lib.objects.classes.PathClass;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
@@ -42,12 +43,16 @@ public class PathTileObject extends PathDetectionObject {
 		super();
 	}
 
-	public PathTileObject(ROI pathROI) {
+	protected PathTileObject(ROI pathROI) {
 		super(pathROI, null);
 	}
 	
-	public PathTileObject(ROI pathROI, MeasurementList measurements) {
+	PathTileObject(ROI pathROI, MeasurementList measurements) {
 		super(pathROI, null, measurements);
+	}
+	
+	PathTileObject(ROI pathROI, PathClass pathClass, MeasurementList measurements) {
+		super(pathROI, pathClass, measurements);
 	}
 		
 		

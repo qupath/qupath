@@ -49,8 +49,8 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.PathImage;
 import qupath.lib.images.servers.ImageServer;
-import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.plugins.AbstractDetectionPlugin;
@@ -212,7 +212,7 @@ public class PositivePixelCounterIJ extends AbstractDetectionPlugin<BufferedImag
 			
 			if (roiStained != null) {
 				ROI roiTissue = ROIConverterIJ.convertToPathROI(roiStained, pathImage);
-				PathObject pathObject = new PathDetectionObject(roiTissue);
+				PathObject pathObject = PathObjects.createDetectionObject(roiTissue);
 				PathClass pathClass = null;
 				if (useLegacyMeasurements) {
 					pathObject.getMeasurementList().addMeasurement("Num pixels", nNegative);
@@ -232,7 +232,7 @@ public class PositivePixelCounterIJ extends AbstractDetectionPlugin<BufferedImag
 				ROI roiPositive = ROIConverterIJ.convertToPathROI(roiDAB, pathImage);
 //				roiDAB = ShapeSimplifierAwt.simplifyShape(roiDAB, simplifyAmount);
 				PathClass pathClass = null;
-				PathObject pathObject = new PathDetectionObject(roiPositive);
+				PathObject pathObject = PathObjects.createDetectionObject(roiPositive);
 				if (useLegacyMeasurements) {
 					pathObject.getMeasurementList().addMeasurement("Num pixels", nPositive);
 					pathObject.getMeasurementList().addMeasurement("Mean DAB OD", meanPositive);

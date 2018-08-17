@@ -110,9 +110,9 @@ import qupath.lib.images.servers.PathHierarchyImageServer;
 import qupath.lib.images.stores.DefaultImageRegionStore;
 import qupath.lib.images.stores.ImageRegionStoreHelpers;
 import qupath.lib.images.stores.TileListener;
-import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.helpers.PathObjectColorToolsAwt;
 import qupath.lib.objects.helpers.PathObjectTools;
@@ -1063,7 +1063,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		PathObjectHierarchy hierarchy = getHierarchy();
 		if (hierarchy == null)
 			return;
-		PathObject pathObject = new PathAnnotationObject(pathROI);
+		PathObject pathObject = PathObjects.createAnnotationObject(pathROI);
 		hierarchy.addPathObject(pathObject, true);
 		setSelectedObject(pathObject);
 	}

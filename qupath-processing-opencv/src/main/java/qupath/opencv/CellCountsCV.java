@@ -45,8 +45,8 @@ import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
-import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.plugins.AbstractTileableDetectionPlugin;
 import qupath.lib.plugins.ObjectDetector;
@@ -313,7 +313,7 @@ public class CellCountsCV extends AbstractTileableDetectionPlugin<BufferedImage>
 					tempROI = ROIs.createEllipseROI(tempROI.getCentroidX()-radius, tempROI.getCentroidY()-radius, radius*2, radius*2, ImagePlane.getPlane(pathROI));
 				}
 
-				PathObject pathObject = new PathDetectionObject(tempROI);
+				PathObject pathObject = PathObjects.createDetectionObject(tempROI);
 				// Check stain2 value at the peak pixel, if required
 				if (stain2Threshold >= 0) {
 					int cx = (int)((tempROI.getCentroidX() - x)/scaleX);

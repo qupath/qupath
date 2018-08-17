@@ -41,6 +41,7 @@ import qupath.lib.classifiers.PathClassificationLabellingHelper;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.PathRootObject;
 import qupath.lib.objects.PathTileObject;
 import qupath.lib.objects.TMACoreObject;
@@ -213,7 +214,7 @@ public class TileClassificationsToAnnotationsPlugin<T> extends AbstractDetection
 							pathROINew = PathROIToolsAwt.getShapeROI(new Area(path), parentROI.getC(), parentROI.getZ(), parentROI.getT());
 						else
 							pathROINew = PathROIToolsAwt.getShapeROI(new Area(path), -1, 0, 0);
-						pathSingleAnnotation = new PathAnnotationObject(pathROINew, pathClass);
+						pathSingleAnnotation = PathObjects.createAnnotationObject(pathROINew, pathClass);
 						if (!deleteTiles)
 							pathSingleAnnotation.addPathObjects(tiles);
 					}
@@ -253,7 +254,7 @@ public class TileClassificationsToAnnotationsPlugin<T> extends AbstractDetection
 									shape = PathROIToolsAwt.combineROIs(shape, hole, PathROIToolsAwt.CombineOp.SUBTRACT);
 							}
 //							PathObjectTools.containsObject(pathSingleAnnotation, childObject)
-							PathAnnotationObject annotation = new PathAnnotationObject(shape, pathClass);
+							PathObject annotation = PathObjects.createAnnotationObject(shape, pathClass);
 							if (!deleteTiles)
 								annotation.addPathObjects(children);
 							pathAnnotations.add(annotation);

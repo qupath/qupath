@@ -31,15 +31,15 @@ import java.util.Collections;
 import org.junit.Test;
 
 import qupath.lib.images.ImageData;
-import qupath.lib.objects.PathAnnotationObject;
-import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.classes.PathClassFactory.PathClasses;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.ROIs;
+import qupath.lib.roi.interfaces.ROI;
 
 /**
  * Some tests for observable measurements.
@@ -64,34 +64,37 @@ public class ObservableMeasurementTableDataTest {
 		PathObjectHierarchy hierarchy = imageData.getHierarchy();
 		
 		// Add a parent annotation
-		PathObject parent = new PathAnnotationObject(ROIs.createRectangleROI(500, 500, 1000, 1000, ImagePlane.getDefaultPlane()));
+		PathObject parent = PathObjects.createAnnotationObject(
+								ROIs.createRectangleROI(500, 500, 1000, 1000, ImagePlane.getDefaultPlane())
+								);
 		
 		
 		// Create 100 tumor detections
+		ROI emptyROI = ROIs.createEmptyROI();
 		for (int i = 0; i < 100; i++) {
 			if (i < 25)
-				parent.addPathObject(new PathDetectionObject(null, PathClassFactory.getNegative(tumorClass, null)));
+				parent.addPathObject(PathObjects.createDetectionObject(emptyROI, PathClassFactory.getNegative(tumorClass, null)));
 			else if (i < 50)
-				parent.addPathObject(new PathDetectionObject(null, PathClassFactory.getOnePlus(tumorClass, null)));
+				parent.addPathObject(PathObjects.createDetectionObject(emptyROI, PathClassFactory.getOnePlus(tumorClass, null)));
 			else if (i < 75)
-				parent.addPathObject(new PathDetectionObject(null, PathClassFactory.getTwoPlus(tumorClass, null)));
+				parent.addPathObject(PathObjects.createDetectionObject(emptyROI, PathClassFactory.getTwoPlus(tumorClass, null)));
 			else if (i < 100)
-				parent.addPathObject(new PathDetectionObject(null, PathClassFactory.getThreePlus(tumorClass, null)));
+				parent.addPathObject(PathObjects.createDetectionObject(emptyROI, PathClassFactory.getThreePlus(tumorClass, null)));
 		}
 		// Create 100 stroma detections
 		for (int i = 0; i < 100; i++) {
 			if (i < 50)
-				parent.addPathObject(new PathDetectionObject(null, PathClassFactory.getNegative(stromaClass, null)));
+				parent.addPathObject(PathObjects.createDetectionObject(emptyROI, PathClassFactory.getNegative(stromaClass, null)));
 			else if (i < 60)
-				parent.addPathObject(new PathDetectionObject(null, PathClassFactory.getOnePlus(stromaClass, null)));
+				parent.addPathObject(PathObjects.createDetectionObject(emptyROI, PathClassFactory.getOnePlus(stromaClass, null)));
 			else if (i < 70)
-				parent.addPathObject(new PathDetectionObject(null, PathClassFactory.getTwoPlus(stromaClass, null)));
+				parent.addPathObject(PathObjects.createDetectionObject(emptyROI, PathClassFactory.getTwoPlus(stromaClass, null)));
 			else if (i < 100)
-				parent.addPathObject(new PathDetectionObject(null, PathClassFactory.getThreePlus(stromaClass, null)));
+				parent.addPathObject(PathObjects.createDetectionObject(emptyROI, PathClassFactory.getThreePlus(stromaClass, null)));
 		}
 		// Create 50 artefact detections
 		for (int i = 0; i < 50; i++) {
-			parent.addPathObject(new PathDetectionObject(null, artefactClass));
+			parent.addPathObject(PathObjects.createDetectionObject(emptyROI, artefactClass));
 		}
 		
 		hierarchy.addPathObject(parent, false);
@@ -117,7 +120,7 @@ public class ObservableMeasurementTableDataTest {
 
 		// Check tumor H-score unaffected when tumor detections added without intensity classification
 		for (int i = 0; i < 10; i++)
-			parent.addPathObject(new PathDetectionObject(null, tumorClass));
+			parent.addPathObject(PathObjects.createDetectionObject(emptyROI, tumorClass));
 		hierarchy.fireHierarchyChangedEvent(this);
 		model.refreshEntries();
 //		model.setImageData(imageData, Collections.singletonList(parent));
@@ -134,20 +137,20 @@ public class ObservableMeasurementTableDataTest {
 		assertEquals(135, model.getNumericValue(parent, "Stroma + Tumor: H-score"), EPSILON);
 		
 		// Add a new parent that completely contains the current object, and confirm complete scores agree
-		PathObject parentNew = new PathAnnotationObject(ROIs.createRectangleROI(0, 0, 2000, 2000, ImagePlane.getDefaultPlane()));
+		PathObject parentNew = PathObjects.createAnnotationObject(ROIs.createRectangleROI(0, 0, 2000, 2000, ImagePlane.getDefaultPlane()));
 		hierarchy.addPathObject(parentNew, false);
 		model.refreshEntries();
 		assertEquals(135, model.getNumericValue(parent, "Stroma + Tumor: H-score"), EPSILON);
 		assertEquals(135, model.getNumericValue(parentNew, "Stroma + Tumor: H-score"), EPSILON);
 		
 		// Create a new object and demonstrate Allred dependence on a single cell
-		PathObject parentAllred = new PathAnnotationObject(ROIs.createRectangleROI(4000, 4000, 1000, 1000, ImagePlane.getDefaultPlane()));
+		PathObject parentAllred = PathObjects.createAnnotationObject(ROIs.createRectangleROI(4000, 4000, 1000, 1000, ImagePlane.getDefaultPlane()));
 		for (int i = 0; i < 100; i++)
-			parentAllred.addPathObject(new PathDetectionObject(null, PathClassFactory.getNegative(tumorClass, null)));
+			parentAllred.addPathObject(PathObjects.createDetectionObject(emptyROI, PathClassFactory.getNegative(tumorClass, null)));
 		hierarchy.addPathObject(parentAllred, false);
 		model.refreshEntries();
 		assertEquals(0, model.getNumericValue(parentAllred, "Tumor: Allred score"), EPSILON);
-		parentAllred.addPathObject(new PathDetectionObject(null, PathClassFactory.getThreePlus(tumorClass, null)));
+		parentAllred.addPathObject(PathObjects.createDetectionObject(emptyROI, PathClassFactory.getThreePlus(tumorClass, null)));
 		model.refreshEntries();
 		assertEquals(4, model.getNumericValue(parentAllred, "Tumor: Allred score"), EPSILON);
 		

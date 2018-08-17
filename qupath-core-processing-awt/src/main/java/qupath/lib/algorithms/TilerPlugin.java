@@ -35,7 +35,7 @@ import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
-import qupath.lib.objects.PathTileObject;
+import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.plugins.AbstractDetectionPlugin;
 import qupath.lib.plugins.PathPlugin;
@@ -113,7 +113,7 @@ public class TilerPlugin<T> extends AbstractDetectionPlugin<T> {
 		
 	
 		private PathObject createTile(ROI pathROI, ParameterList params, ImageServer<?> server) throws InterruptedException {
-			return Boolean.TRUE.equals(params.getBooleanParameterValue("makeAnnotations")) ? new PathAnnotationObject(pathROI) : new PathTileObject(pathROI);
+			return Boolean.TRUE.equals(params.getBooleanParameterValue("makeAnnotations")) ? PathObjects.createAnnotationObject(pathROI) : PathObjects.createTileObject(pathROI);
 			
 		}
 

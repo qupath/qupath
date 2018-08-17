@@ -53,6 +53,7 @@ import qupath.lib.measurements.MeasurementList;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathCellObject;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
@@ -194,7 +195,7 @@ public class ImmuneScorerTMA extends AbstractInteractivePlugin<BufferedImage> {
 						cal.yOrigin = -roi.getBoundsY()/downsample;
 						roiTumour = ROIConverterIJ.convertToPathROI(roiTumourSelected, cal, downsample, -1, roi.getZ(), roi.getT());
 						roiTumour = ShapeSimplifierAwt.simplifyShape((PathShape)roiTumour, 10);
-						parentObject.addPathObject(new PathAnnotationObject(roiTumour, tumorDisplayClass));
+						parentObject.addPathObject(PathObjects.createAnnotationObject(roiTumour, tumorDisplayClass));
 						logger.trace("Added object!");
 						
 						imageData.getHierarchy().fireHierarchyChangedEvent(this);

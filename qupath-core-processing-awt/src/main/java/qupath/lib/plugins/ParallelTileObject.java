@@ -69,7 +69,7 @@ public class ParallelTileObject extends PathTileObject implements TemporaryObjec
 	PathObjectHierarchy hierarchy;
 	Map<ParallelTileObject, Rectangle2D> map = new HashMap<>();
 
-	public ParallelTileObject(final ROI pathROI, final PathObjectHierarchy hierarchy, final AtomicInteger countdown) {
+	ParallelTileObject(final ROI pathROI, final PathObjectHierarchy hierarchy, final AtomicInteger countdown) {
 		super(pathROI);
 		this.bounds = getBounds2D(pathROI);
 		this.hierarchy = hierarchy;

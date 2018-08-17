@@ -47,8 +47,8 @@ import qupath.lib.color.ColorTransformer;
 import qupath.lib.color.ColorTransformer.ColorTransformMethod;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.ImageData;
-import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.classes.PathClassFactory.PathClasses;
 import qupath.lib.plugins.AbstractDetectionPlugin;
@@ -215,7 +215,7 @@ public class DetectCytokeratinCV extends AbstractDetectionPlugin<BufferedImage> 
 				if (!areaTissue.isEmpty()) {
 					PathShape roiTissue = PathROIToolsAwt.getShapeROI(areaTissue, -1, request.getZ(), request.getT());
 					roiTissue = ShapeSimplifierAwt.simplifyShape(roiTissue, simplifyAmount);
-					pathObjects.add(new PathAnnotationObject(roiTissue, PathClassFactory.getDefaultPathClass(PathClasses.STROMA)));
+					pathObjects.add(PathObjects.createAnnotationObject(roiTissue, PathClassFactory.getDefaultPathClass(PathClasses.STROMA)));
 				}
 			}
 			if (areaDAB != null) {
@@ -226,7 +226,7 @@ public class DetectCytokeratinCV extends AbstractDetectionPlugin<BufferedImage> 
 				if (!areaDAB.isEmpty()) {
 					PathShape roiDAB = PathROIToolsAwt.getShapeROI(areaDAB, -1, request.getZ(), request.getT());
 					roiDAB = ShapeSimplifierAwt.simplifyShape(roiDAB, simplifyAmount);
-					pathObjects.add(new PathAnnotationObject(roiDAB, PathClassFactory.getDefaultPathClass(PathClasses.TUMOR)));
+					pathObjects.add(PathObjects.createAnnotationObject(roiDAB, PathClassFactory.getDefaultPathClass(PathClasses.TUMOR)));
 				}
 			}
 

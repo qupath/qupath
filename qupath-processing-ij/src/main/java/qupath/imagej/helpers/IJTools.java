@@ -54,9 +54,8 @@ import qupath.lib.display.ImageDisplay;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.PathImage;
 import qupath.lib.images.servers.ImageServer;
-import qupath.lib.objects.PathAnnotationObject;
-import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.PointsROI;
@@ -330,9 +329,9 @@ public class IJTools {
 			return null;
 		PathObject pathObject;
 		if (makeDetection && !(pathROI instanceof PointsROI))
-			pathObject = new PathDetectionObject(pathROI);
+			pathObject = PathObjects.createDetectionObject(pathROI);
 		else
-			pathObject = new PathAnnotationObject(pathROI);
+			pathObject = PathObjects.createAnnotationObject(pathROI);
 		Color color = roi.getStrokeColor();
 		if (color == null)
 			color = Roi.getColor();

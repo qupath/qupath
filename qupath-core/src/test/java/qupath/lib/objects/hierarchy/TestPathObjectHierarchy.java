@@ -35,6 +35,7 @@ import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.PathRootObject;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
@@ -49,9 +50,9 @@ public class TestPathObjectHierarchy {
 	ROI my_PR1 = ROIs.createRectangleROI(10, 10, 2, 2, ImagePlane.getDefaultPlane());
 	ROI my_PR2 = ROIs.createRectangleROI(10, 10, 1, 1, ImagePlane.getDefaultPlane());
 	ROI my_PR3 = ROIs.createRectangleROI(30, 30, 1, 1, ImagePlane.getDefaultPlane());
-	PathAnnotationObject myChild1PAO = new PathAnnotationObject(my_PR1);
-	PathAnnotationObject myChild2PAO = new PathAnnotationObject(my_PR2); 
-	PathAnnotationObject myChild3PAO = new PathAnnotationObject(my_PR3);
+	PathObject myChild1PAO = PathObjects.createAnnotationObject(my_PR1);
+	PathObject myChild2PAO = PathObjects.createAnnotationObject(my_PR2); 
+	PathObject myChild3PAO = PathObjects.createAnnotationObject(my_PR3);
 	ImageRegion myIR = ImageRegion.createInstance(25, 25, 10, 10, 0, 0); // set to contain child3 - other values can be used to test negative 
 	
 	@Test

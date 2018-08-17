@@ -49,6 +49,7 @@ import qupath.lib.images.ImageData;
 import qupath.lib.io.PathAwtIO;
 import qupath.lib.io.PathIO;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.TMACoreObject;
@@ -323,7 +324,7 @@ public class QPEx extends QP {
 			return children.get(0);
 	
 		// Create and add the new object, removing the old ones
-		PathObject pathObjectNew = new PathAnnotationObject(shapeNew);
+		PathObject pathObjectNew = PathObjects.createAnnotationObject(shapeNew);
 		if (pathClasses.size() == 1)
 			pathObjectNew.setPathClass(pathClasses.iterator().next());
 		else
@@ -368,7 +369,7 @@ public class QPEx extends QP {
 
 		// Create the new ROI
 		PathShape shapeNew = PathROIToolsAwt.combineROIs(shape, shapeSelected, PathROIToolsAwt.CombineOp.SUBTRACT);
-		PathObject pathObjectNew = new PathAnnotationObject(shapeNew);
+		PathObject pathObjectNew = PathObjects.createAnnotationObject(shapeNew);
 
 		// Reassign all other children to the new parent
 		List<PathObject> children = new ArrayList<>(parent.getChildObjects());

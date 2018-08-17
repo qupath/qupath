@@ -30,8 +30,8 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.helpers.dialogs.ParameterPanelFX;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.images.servers.ImageServer;
-import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjects;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.ROIs;
@@ -113,7 +113,7 @@ public class AnnotationCreatorPanel {
 			pathROI = ROIs.createEllipseROI(x, y, width, height, ImagePlane.getDefaultPlane());	
 		
 		// Create & return annotation
-		PathAnnotationObject pathObject = new PathAnnotationObject(pathROI);
+		PathObject pathObject = PathObjects.createAnnotationObject(pathROI);
 		String name = params.getStringParameterValue("name");
 		if (name.length() > 0)
 			pathObject.setName(name);

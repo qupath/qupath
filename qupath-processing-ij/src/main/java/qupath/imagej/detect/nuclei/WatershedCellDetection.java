@@ -75,9 +75,8 @@ import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ServerTools;
 import qupath.lib.measurements.MeasurementListFactory;
 import qupath.lib.measurements.MeasurementList;
-import qupath.lib.objects.PathCellObject;
-import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.plugins.AbstractTileableDetectionPlugin;
@@ -765,7 +764,7 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 				}
 				
 				// TODO: It would be more efficient to measure the hematoxylin intensities along with the shapes
-				PathObject pathObject = new PathDetectionObject(pathROI, null, measurementList);
+				PathObject pathObject = PathObjects.createDetectionObject(pathROI, null, measurementList);
 				nucleiObjects.add(pathObject);
 
 			}
@@ -881,7 +880,7 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 
 					
 					// Create & store the cell object
-					PathObject pathObject = new PathCellObject(pathROI, nucleus == null ? null : nucleus.getROI(), null, measurementList);
+					PathObject pathObject = PathObjects.createCellObject(pathROI, nucleus == null ? null : nucleus.getROI(), null, measurementList);
 					pathObjects.add(pathObject);
 					
 					roisCellsList.add(r);

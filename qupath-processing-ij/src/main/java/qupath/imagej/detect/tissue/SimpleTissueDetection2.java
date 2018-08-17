@@ -56,6 +56,7 @@ import qupath.lib.images.ImageData;
 import qupath.lib.images.PathImage;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.PathRootObject;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.helpers.PathObjectTools;
@@ -305,7 +306,7 @@ public class SimpleTissueDetection2 extends AbstractDetectionPlugin<BufferedImag
 				pathPolygon = ROIs.createPolyonROI(ROIHelpers.smoothPoints(pathPolygon.getPolygonPoints()), ImagePlane.getPlaneWithChannel(pathPolygon));
 				pathPolygon = ShapeSimplifier.simplifyPolygon(pathPolygon, downsample/2);
 			}
-			pathObjects.add(new PathAnnotationObject(pathPolygon));
+			pathObjects.add(PathObjects.createAnnotationObject(pathPolygon));
 		}
 		
 		
@@ -358,7 +359,7 @@ public class SimpleTissueDetection2 extends AbstractDetectionPlugin<BufferedImag
 					Area areaMain = PathROIToolsAwt.getArea(pathROI);
 					areaMain.subtract(hole);
 					pathROI = PathROIToolsAwt.getShapeROI(areaMain, pathROI.getC(), pathROI.getZ(), pathROI.getT());
-					pathObjects.set(ind, new PathAnnotationObject(pathROI));
+					pathObjects.set(ind, PathObjects.createAnnotationObject(pathROI));
 				}
 			}
 		}
@@ -376,7 +377,7 @@ public class SimpleTissueDetection2 extends AbstractDetectionPlugin<BufferedImag
 			}
 			pathObjects.clear();
 			if (roi != null)
-				pathObjects.add(new PathAnnotationObject(roi));
+				pathObjects.add(PathObjects.createAnnotationObject(roi));
 		}
 		
 		

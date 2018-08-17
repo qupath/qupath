@@ -62,6 +62,7 @@ import qupath.lib.gui.viewer.overlays.AbstractOverlay;
 import qupath.lib.gui.viewer.overlays.PathOverlay;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathROIObject;
 import qupath.lib.objects.TMACoreObject;
@@ -232,7 +233,7 @@ public class RigidObjectEditorCommand implements PathCommand, ImageDataChangeLis
 	PathObject createTransformedObject() {
 		ROI roi = originalObject.getROI();
 		PathShape shape = PathROIToolsAwt.getShapeROI(new Area(transformer.getTransformedShape()), roi.getC(), roi.getZ(), roi.getT());
-		return new PathAnnotationObject(shape, originalObject.getPathClass());
+		return PathObjects.createAnnotationObject(shape, originalObject.getPathClass());
 	}
 	
 

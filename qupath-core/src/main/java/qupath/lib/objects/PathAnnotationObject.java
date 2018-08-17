@@ -49,15 +49,15 @@ public class PathAnnotationObject extends PathROIObject {
 		super();
 	}
 
-	public PathAnnotationObject(ROI pathROI) {
+	PathAnnotationObject(ROI pathROI) {
 		super(pathROI, null);
 	}
 	
-	public PathAnnotationObject(ROI pathROI, PathClass pathClass) {
+	PathAnnotationObject(ROI pathROI, PathClass pathClass) {
 		super(pathROI, pathClass);
 	}
 	
-	public PathAnnotationObject(ROI pathROI, PathClass pathClass, MeasurementList measurements) {
+	PathAnnotationObject(ROI pathROI, PathClass pathClass, MeasurementList measurements) {
 		super(pathROI, pathClass, measurements);
 	}
 	

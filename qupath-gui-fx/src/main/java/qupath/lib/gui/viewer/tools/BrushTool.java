@@ -43,6 +43,7 @@ import qupath.lib.gui.viewer.ModeWrapper;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.PathTileObject;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
@@ -226,7 +227,7 @@ public class BrushTool extends AbstractPathROITool {
 		if (createNew) {
 			creatingTiledROI = false; // Reset this
 			viewer.setSelectedObject(
-					new PathAnnotationObject(
+					PathObjects.createAnnotationObject(
 							ROIs.createAreaROI(
 									new Rectangle2D.Double(p.getX(), p.getY(), 0, 0),
 									ImagePlane.getPlane(viewer.getZPosition(), viewer.getTPosition()))));
@@ -335,7 +336,7 @@ public class BrushTool extends AbstractPathROITool {
 		}
 		
 //		shapeNew = new PathAreaROI(new Area(shapeNew.getShape()));
-		PathAnnotationObject pathObjectNew = new PathAnnotationObject(shapeNew);
+		PathObject pathObjectNew = PathObjects.createAnnotationObject(shapeNew);
 		if (currentObject != null) {
 			pathObjectNew.setName(currentObject.getName());
 			pathObjectNew.setColorRGB(currentObject.getColorRGB());

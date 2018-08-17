@@ -31,6 +31,7 @@ import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 
 /**
@@ -62,7 +63,7 @@ public class DuplicateAnnotationCommand implements PathCommand {
 			logger.error("Only annotation objects can be duplicated!");
 			return;
 		}
-		PathObject pathObjectNew = new PathAnnotationObject(pathObject.getROI().duplicate(), pathObject.getPathClass());
+		PathObject pathObjectNew = PathObjects.createAnnotationObject(pathObject.getROI().duplicate(), pathObject.getPathClass());
 		hierarchy.addPathObject(pathObjectNew, false);
 		hierarchy.getSelectionModel().setSelectedObject(pathObjectNew);
 	}

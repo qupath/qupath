@@ -35,6 +35,7 @@ import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.ModeWrapper;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.PathROIObject;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.roi.PolygonROI;
@@ -151,7 +152,7 @@ abstract class AbstractPathROITool extends AbstractPathTool {
 		// Set the current parent object based on the first click
 		setCurrentParent(hierarchy, getSelectableObject(xx, yy, 0), null);
 		
-		PathObject pathObject = new PathAnnotationObject(createNewROI(xx, yy, viewer.getZPosition(), viewer.getTPosition()));
+		PathObject pathObject = PathObjects.createAnnotationObject(createNewROI(xx, yy, viewer.getZPosition(), viewer.getTPosition()));
 		viewer.setSelectedObject(pathObject);
 		// Start editing the ROI immediately
 		editor.setROI(pathObject.getROI());

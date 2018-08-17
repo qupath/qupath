@@ -77,6 +77,7 @@ import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
@@ -423,7 +424,7 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 			int t = points.getT();
 			PathClass pathClass = pathObject.getPathClass();
 			for (Point2 p : points.getPointList()) {
-				PathObject temp = new PathAnnotationObject(new PointsROI(p.getX(), p.getY(), c, z, t), pathClass);
+				PathObject temp = PathObjects.createAnnotationObject(new PointsROI(p.getX(), p.getY(), c, z, t), pathClass);
 				newObjects.add(temp);
 			}
 			hierarchy.addPathObjects(newObjects, false);
@@ -461,7 +462,7 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 			for (PathObject temp : objectsToMerge) {
 				pointsList.addAll(((PointsROI)temp.getROI()).getPointList());
 			}
-			PathObject pathObjectNew = new PathAnnotationObject(ROIs.createPointsROI(pointsList, ImagePlane.getPlaneWithChannel(c, z, t)), pathClass);
+			PathObject pathObjectNew = PathObjects.createAnnotationObject(ROIs.createPointsROI(pointsList, ImagePlane.getPlaneWithChannel(c, z, t)), pathClass);
 			hierarchy.removeObjects(objectsToMerge, true);
 			hierarchy.addPathObject(pathObjectNew, false);
 		});

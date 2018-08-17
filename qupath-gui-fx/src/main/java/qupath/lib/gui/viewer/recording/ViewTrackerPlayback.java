@@ -41,8 +41,8 @@ import javafx.event.EventHandler;
 import javafx.stage.Window;
 import javafx.util.Duration;
 import qupath.lib.gui.viewer.QuPathViewer;
-import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjects;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.PathPoints;
@@ -219,7 +219,7 @@ class ViewTrackerPlayback {
 //				point.setPointRadius(viewer.getDownsampleFactor() * 10); // This was only removed because setPointRadius was removed!
 ////			else
 ////				point.setPointRadius(viewer.getDownsampleFactor() * 8);
-			PathObject pathObject = new PathAnnotationObject(point);
+			PathObject pathObject = PathObjects.createAnnotationObject(point);
 			pathObject.setName("Eye tracking position");
 			viewer.setSelectedObject(pathObject);
 			logger.debug("Eye position: " + p2d);

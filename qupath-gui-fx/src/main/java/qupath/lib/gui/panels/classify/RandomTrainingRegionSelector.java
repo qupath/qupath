@@ -76,6 +76,7 @@ import qupath.lib.measurements.MeasurementList;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.TMAGrid;
@@ -469,21 +470,21 @@ public class RandomTrainingRegionSelector implements PathCommand {
 					logger.error("Cannot classify - no point available!");
 					return;
 				}
-				PathAnnotationObject pathObject = objectCache.getPointObject(pathClass);
+				PathObject pathObject = objectCache.getPointObject(pathClass);
 				boolean newPoint = pathObject == null;
 				if (newPoint)
-					pathObject = new PathAnnotationObject(ROIs.createPointsROI(ImagePlane.getDefaultPlane()), pathClass);
+					pathObject = PathObjects.createAnnotationObject(ROIs.createPointsROI(ImagePlane.getDefaultPlane()), pathClass);
 				double x = currentPoint.getCentroidX();
 				double y = currentPoint.getCentroidY();
 				PathObjectHierarchy hierarchy = viewer.getHierarchy();
 				if (newPoint) {
-					pathObject.setROI(ROIs.createPointsROI(x, y, ImagePlane.getDefaultPlane()));
+					((PathAnnotationObject)pathObject).setROI(ROIs.createPointsROI(x, y, ImagePlane.getDefaultPlane()));
 					hierarchy.addPathObject(pathObject, true);
 				} else {
 					PointsROI pointsROI = ((PointsROI)pathObject.getROI());
 					List<Point2> points = new ArrayList<Point2>(pointsROI.getPointList());
 					points.add(new Point2(x, y));
-					pathObject.setROI(ROIs.createPointsROI(points, ImagePlane.getDefaultPlane()));
+					((PathAnnotationObject)pathObject).setROI(ROIs.createPointsROI(points, ImagePlane.getDefaultPlane()));
 					hierarchy.fireObjectsChangedEvent(this, Collections.singleton(pathObject));
 				}
 				// Unfortunately, this horrible hack that prevents this being a static class...
@@ -532,7 +533,7 @@ public class RandomTrainingRegionSelector implements PathCommand {
 			}
 			currentPoint = ROIs.createPointsROI(x, y, ImagePlane.getDefaultPlane());
 			viewer.setCenterPixelLocation(x, y);
-			viewer.setSelectedObject(new PathAnnotationObject(currentPoint));
+			viewer.setSelectedObject(PathObjects.createAnnotationObject(currentPoint));
 		}
 		
 		

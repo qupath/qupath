@@ -47,8 +47,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.lib.geom.Point2;
-import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.PointsROI;
@@ -230,7 +230,7 @@ public class PointIO {
 			logger.warn("Warning: {} points expected, {} points found", count, pointsList.size());
 		
 		PathPoints points = ROIs.createPointsROI(pointsList, ImagePlane.getDefaultPlane());
-		PathAnnotationObject pathObject = new PathAnnotationObject(points);
+		PathObject pathObject = PathObjects.createAnnotationObject(points);
 		if (name != null && name.length() > 0 && !"null".equals(name))
 			pathObject.setName(name);
 		pathObject.setColorRGB(color);

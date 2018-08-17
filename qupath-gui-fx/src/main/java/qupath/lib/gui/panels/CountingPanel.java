@@ -43,6 +43,7 @@ import qupath.lib.geom.Point2;
 import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
@@ -67,7 +68,7 @@ public class CountingPanel implements PathObjectSelectionListener, PathObjectHie
 	private ListView<PathObject> listCounts;
 	
 	private Action btnAdd = new Action("Add", e -> {
-		PathObject pathObjectCounts = new PathAnnotationObject(ROIs.createPointsROI(ImagePlane.getDefaultPlane()));
+		PathObject pathObjectCounts = PathObjects.createAnnotationObject(ROIs.createPointsROI(ImagePlane.getDefaultPlane()));
 		hierarchy.addPathObject(pathObjectCounts, false);
 //		hierarchy.fireChangeEvent(pathObjectCounts.getParent());
 		hierarchy.getSelectionModel().setSelectedObject(pathObjectCounts);

@@ -36,6 +36,7 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.plugins.AbstractInteractivePlugin;
 import qupath.lib.plugins.PluginRunner;
@@ -173,7 +174,7 @@ public class DilateAnnotationPlugin<T> extends AbstractInteractivePlugin<T> {
 		ROI roi2 = PathROIToolsAwt.getShapeROI(area, roi.getC(), roi.getZ(), roi.getT(), 0.5);
 		
 		// Create a new annotation, with properties based on the original
-		PathAnnotationObject annotation2 = new PathAnnotationObject(roi2, pathObject.getPathClass());
+		PathObject annotation2 = PathObjects.createAnnotationObject(roi2, pathObject.getPathClass());
 		annotation2.setName(pathObject.getName());
 		annotation2.setColorRGB(pathObject.getColorRGB());
 

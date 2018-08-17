@@ -54,7 +54,7 @@ import qupath.lib.images.ImageData;
 import qupath.lib.images.PathImage;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.objects.PathObject;
-import qupath.lib.objects.PathTileObject;
+import qupath.lib.objects.PathObjects;
 import qupath.lib.plugins.AbstractTileableDetectionPlugin;
 import qupath.lib.plugins.ObjectDetector;
 import qupath.lib.plugins.PluginRunner;
@@ -306,7 +306,7 @@ public class GaussianSuperpixelsPlugin extends AbstractTileableDetectionPlugin<B
 					PathArea superpixelROI = (PathArea)ROIConverterIJ.convertToPathROI(roi, pathImage);
 					if (pathROI == null)
 						continue;
-					PathObject tile = new PathTileObject(superpixelROI);
+					PathObject tile = PathObjects.createTileObject(superpixelROI);
 					pathObjects.add(tile);
 					label++;
 					ipLabels.setValue(label);

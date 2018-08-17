@@ -48,8 +48,8 @@ import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.measurements.MeasurementListFactory;
-import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.plugins.AbstractTileableDetectionPlugin;
 import qupath.lib.plugins.ObjectDetector;
@@ -255,7 +255,7 @@ public class WatershedNucleiCV extends AbstractTileableDetectionPlugin<BufferedI
 						//	        Mat matSmall = new Mat();
 						if (pathROI instanceof RectangleROI || PathObjectTools.containsROI(pathROI, pathPolygon)) {
 							MeasurementList measurementList = MeasurementListFactory.createMeasurementList(20, MeasurementList.TYPE.FLOAT);
-							PathObject pathObject = new PathDetectionObject(pathPolygon, null, measurementList);
+							PathObject pathObject = PathObjects.createDetectionObject(pathPolygon, null, measurementList);
 
 							measurementList.addMeasurement("Area", pathPolygon.getArea());
 							measurementList.addMeasurement("Perimeter", pathPolygon.getPerimeter());

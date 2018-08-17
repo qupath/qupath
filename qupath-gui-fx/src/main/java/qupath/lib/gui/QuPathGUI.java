@@ -307,6 +307,7 @@ import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathCellObject;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
@@ -5117,7 +5118,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			}
 			
 			
-			PathObject annotation = new PathAnnotationObject(roi, lastAnnotationObject.getPathClass());
+			PathObject annotation = PathObjects.createAnnotationObject(roi, lastAnnotationObject.getPathClass());
 //			hierarchy.addPathObject(annotation, false);
 			
 //			// Make sure any core parent is set

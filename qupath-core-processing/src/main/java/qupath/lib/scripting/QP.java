@@ -49,6 +49,7 @@ import qupath.lib.common.ColorTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathCellObject;
 import qupath.lib.objects.PathDetectionObject;
@@ -692,7 +693,9 @@ public class QP {
 		if (imageData == null)
 			return;
 		ImageServer<?> server = imageData.getServer();
-		PathObject pathObject = new PathAnnotationObject(ROIs.createRectangleROI(0, 0, server.getWidth(), server.getHeight(), ImagePlane.getDefaultPlane()));
+		PathObject pathObject = PathObjects.createAnnotationObject(
+				ROIs.createRectangleROI(0, 0, server.getWidth(), server.getHeight(), ImagePlane.getDefaultPlane())
+				);
 		imageData.getHierarchy().addPathObject(pathObject, false);
 		if (setSelected)
 			imageData.getHierarchy().getSelectionModel().setSelectedObject(pathObject);

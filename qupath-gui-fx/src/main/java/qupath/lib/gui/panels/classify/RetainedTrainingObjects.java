@@ -39,8 +39,8 @@ import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
 
@@ -141,7 +141,7 @@ class RetainedTrainingObjects implements Externalizable {
 			List<PathObject> newList = 
 					originalList.stream().map(p -> {
 						if (p.isDetection())
-							return new PathDetectionObject(p.getROI(), p.getPathClass(), p.getMeasurementList());
+							return PathObjects.createDetectionObject(p.getROI(), p.getPathClass(), p.getMeasurementList());
 						else {
 							logger.debug("Adding non-detection object to retained map: {}", p);
 							return p;

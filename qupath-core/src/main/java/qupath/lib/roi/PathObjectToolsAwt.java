@@ -34,6 +34,7 @@ import org.slf4j.LoggerFactory;
 
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.roi.experimental.ShapeSimplifier;
@@ -57,10 +58,10 @@ public class PathObjectToolsAwt {
 		if (pathROI instanceof PolygonROI) {
 			PolygonROI polygonROI = (PolygonROI)pathROI;
 			polygonROI = ShapeSimplifier.simplifyPolygon(polygonROI, altitudeThreshold);
-			pathObjectNew = new PathAnnotationObject(polygonROI, pathObject.getPathClass(), pathObject.getMeasurementList());
+			pathObjectNew = PathObjects.createAnnotationObject(polygonROI, pathObject.getPathClass(), pathObject.getMeasurementList());
 		} else {
 			pathROI = ShapeSimplifierAwt.simplifyShape(pathROI, altitudeThreshold);
-			pathObjectNew = new PathAnnotationObject(pathROI, pathObject.getPathClass(), pathObject.getMeasurementList());			
+			pathObjectNew = PathObjects.createAnnotationObject(pathROI, pathObject.getPathClass(), pathObject.getMeasurementList());			
 		}
 		return pathObjectNew;
 	}
@@ -104,13 +105,13 @@ public class PathObjectToolsAwt {
 				areaTemp.subtract(areaNew);
 				if (!areaTemp.isEmpty()) {
 					PathShape shapeNew = PathROIToolsAwt.getShapeROI(areaTemp, shapeMask.getC(), shapeMask.getZ(), shapeMask.getT());
-					annotationNew = new PathAnnotationObject(shapeNew, temp.getPathClass());
+					annotationNew = PathObjects.createAnnotationObject(shapeNew, temp.getPathClass());
 				}
 			} else if (op == PathROIToolsAwt.CombineOp.INTERSECT) {
 				areaTemp.intersect(areaNew);
 				if (!areaTemp.isEmpty()) {
 					PathShape shapeNew = PathROIToolsAwt.getShapeROI(areaTemp, shapeMask.getC(), shapeMask.getZ(), shapeMask.getT());
-					annotationNew = new PathAnnotationObject(shapeNew, temp.getPathClass());
+					annotationNew = PathObjects.createAnnotationObject(shapeNew, temp.getPathClass());
 				}
 			} else {
 				PathROIToolsAwt.combineAreas(areaNew, areaTemp, op);
@@ -129,7 +130,7 @@ public class PathObjectToolsAwt {
 		if (op == PathROIToolsAwt.CombineOp.ADD) {
 			PathShape shapeNew = PathROIToolsAwt.getShapeROI(areaNew, shapeMask.getC(), shapeMask.getZ(), shapeMask.getT());
 			if (!shapeNew.isEmpty())
-				objectsToAdd.add(new PathAnnotationObject(shapeNew, pathObject.getPathClass()));
+				objectsToAdd.add(PathObjects.createAnnotationObject(shapeNew, pathObject.getPathClass()));
 		}
 		// Remove previous objects
 		pathObjects.add(pathObject);
