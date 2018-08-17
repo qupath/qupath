@@ -365,7 +365,6 @@ public class PathPrefs {
 	
 	
 	
-	
 	private static BooleanProperty clipROIsForHierarchy = createPersistentPreference("clipROIsForHierarchy", false);
 
 	/**
@@ -373,7 +372,7 @@ public class PathPrefs {
 	 * (to prevent overlapping ROIs being created accidentally).
 	 * @return
 	 */
-	public static BooleanProperty clipROIsForHierarchy() {
+	public static BooleanProperty clipROIsForHierarchyProperty() {
 		return clipROIsForHierarchy;
 	}
 

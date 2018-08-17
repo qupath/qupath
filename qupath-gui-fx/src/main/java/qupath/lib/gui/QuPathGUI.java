@@ -1227,7 +1227,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			return;
 		}
 		File dir = getExtensionDirectory();
-		if (dir == null) {
+		if (dir == null || !dir.isDirectory()) {
 			logger.info("No extension directory found!");
 			// Prompt to create an extensions directory
 			File dirDefault = getDefaultQuPathUserDirectory();
@@ -5393,8 +5393,13 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		 */
 		public void refresh() {
 			File dirExtensions = getExtensionDirectory();
-			if (dirExtensions == null)
+			if (dirExtensions == null) {
+				logger.debug("Extensions directory is null - no extensions will be loaded");
+			}
+			if (!dirExtensions.isDirectory()) {
+				logger.error("Invalid extensions directory! '{}' is not a directory.", dirExtensions);
 				return;
+			}
 			refreshExtensions(dirExtensions);
 			for (File dir : dirExtensions.listFiles()) {
 				if (!dir.isHidden() && dir.isDirectory()) {

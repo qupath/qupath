@@ -301,16 +301,6 @@ public class ShowInstalledExtensionsCommand implements PathCommand {
 			}
 			return extension.getClass().getPackage() == null ? null : extension.getClass().getPackage().getImplementationVersion();
 		}
-
-		boolean isDefault() {
-			try {
-				File file = new File(getPathToJar());
-				return !file.getAbsolutePath().startsWith(QuPathGUI.getExtensionDirectory().getAbsolutePath());
-			} catch (Exception e) {
-				logger.trace("Problem getting default status for {}", extension);
-				return true;
-			}
-		}
 		
 	}
 

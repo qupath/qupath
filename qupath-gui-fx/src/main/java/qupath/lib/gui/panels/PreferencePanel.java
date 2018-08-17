@@ -258,7 +258,7 @@ public class PreferencePanel {
 				category,
 				"Return selected tool to 'Move' automatically after drawing a ROI (applies to all drawing tools except brush & wand)");
 		
-		addPropertyPreference(PathPrefs.clipROIsForHierarchy(), Boolean.class,
+		addPropertyPreference(PathPrefs.clipROIsForHierarchyProperty(), Boolean.class,
 				"Clip ROIs to hierarchy",
 				category,
 				"Automatically clip ROIs so that they don't extend beyond a parent annotation, or encroach on a child annotation - this helps keep the hierarchy easier to interpret, without overlaps. " + 
