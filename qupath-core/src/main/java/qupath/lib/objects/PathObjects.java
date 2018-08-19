@@ -51,11 +51,11 @@ public class PathObjects {
 	}
 	
 	public static PathObject createDetectionObject(final ROI roi, final PathClass pathClass) {
-		return createDetectionObject(roi, null);
+		return createDetectionObject(roi, pathClass, null);
 	}
 
 	public static PathObject createDetectionObject(final ROI roi) {
-		return createDetectionObject(roi);
+		return createDetectionObject(roi, null);
 	}
 
 	/**

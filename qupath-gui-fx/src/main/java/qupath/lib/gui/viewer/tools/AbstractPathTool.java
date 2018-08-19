@@ -135,7 +135,7 @@ abstract class AbstractPathTool implements PathTool, QuPathViewerListener {
 	 * @return
 	 */
 	boolean requestParentClipping(MouseEvent e) {
-		return PathPrefs.getClipROIsForHierarchy() != e.isShiftDown();
+		return PathPrefs.getClipROIsForHierarchy() != (e.isShiftDown() && e.isShortcutDown());
 	}
 	
 	
@@ -148,6 +148,10 @@ abstract class AbstractPathTool implements PathTool, QuPathViewerListener {
 	 * @return
 	 */
 	ROI refineROIByParent(ROI currentROI) {
+		// Don't do anything with lines
+		if (currentROI.isLine())
+			return currentROI;
+		// Handle areas
 		Area currentArea = PathROIToolsAwt.getArea(currentROI);
 		if (parentArea != null)
 			currentArea.intersect(parentArea);

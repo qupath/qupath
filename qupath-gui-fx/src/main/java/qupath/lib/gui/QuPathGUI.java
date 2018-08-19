@@ -110,6 +110,7 @@ import javafx.concurrent.Task;
 import javafx.embed.swing.JFXPanel;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.event.ActionEvent;
+import javafx.event.EventHandler;
 import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
@@ -1726,6 +1727,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		viewer.getView().setOnScroll(e -> {
 			if (viewer == viewerManager.getActiveViewer() || !viewerManager.getSynchronizeViewers()) {
 				double scrollUnits = e.getDeltaY() * PathPrefs.getScaledScrollSpeed();
+				
 				// Use shift down to adjust opacity
 				if (e.isShortcutDown()) {
 					OverlayOptions options = viewer.getOverlayOptions();
@@ -1762,44 +1764,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			e.consume();
 		});
 		
-		viewer.getView().addEventFilter(ScrollEvent.ANY, e -> {
-			if (e.isInertia()) {
-				e.consume();
-				return;
-			}
-			if (e.getTouchCount() == 0 && (!PathPrefs.getUseScrollGestures()) || e.isShiftDown() || e.isShortcutDown()) {
-				return;
-			}
-			// Swallow the event if we're using a touch screen & not with the move tool selected
-			if (e.getTouchCount() != 0 && getMode() != Modes.MOVE) {
-				e.consume();
-				return;
-			}
-			// TODO: Note: When e.isInertia() == TRUE on OSX, the results are quite annoyingly 'choppy', with 0 x,y movements interspersed with 'true' movements
-//			logger.debug("Delta: " + e.getDeltaX() + ", " + e.getDeltaY() + " - " + e.isInertia());
-			double dx = e.getDeltaX() * viewer.getDownsampleFactor();
-			double dy = e.getDeltaY() * viewer.getDownsampleFactor();
-			
-			if (PathPrefs.getInvertScrolling()) {
-				dx = -dx;
-				dy = -dy;
-			}
-			
-			// Handle rotation
-			if (viewer.isRotated()) {
-				double cosTheta = Math.cos(-viewer.getRotation());
-				double sinTheta = Math.sin(-viewer.getRotation());
-				double dx2 = cosTheta*dx - sinTheta*dy;
-				double dy2 = sinTheta*dx + cosTheta*dy;
-				dx = dx2;
-				dy = dy2;
-			}
-			
-			viewer.setCenterPixelLocation(
-					viewer.getCenterPixelX() - dx,
-					viewer.getCenterPixelY() - dy);
-			e.consume();
-		});
+		viewer.getView().addEventFilter(ScrollEvent.ANY, new ScrollEventPanningFilter(viewer));
 		
 		
 		viewer.getView().addEventFilter(KeyEvent.KEY_PRESSED, e -> {
@@ -1825,6 +1790,104 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		});
 		
 
+	}
+	
+	
+	
+	
+	static class ScrollEventPanningFilter implements EventHandler<ScrollEvent> {
+		
+		private QuPathViewer viewer;
+		private boolean lastTouchEvent = false;
+		private double deltaX = 0;
+		private double deltaY = 0;
+		private long lastTimestamp = 0L;
+		
+		ScrollEventPanningFilter(final QuPathViewer viewer) {
+			this.viewer = viewer;
+		}
+
+		@Override
+		public void handle(ScrollEvent e) {
+			// Check if we'd rather be using scroll to do something else (e.g. zoom, adjust opacity)
+			boolean wouldRatherDoSomethingElse = e.getTouchCount() == 0 && (!PathPrefs.getUseScrollGestures() || e.isShiftDown() || e.isShortcutDown());
+			if (wouldRatherDoSomethingElse) {
+				return;
+			}
+			
+			// Don't pan with inertia events (use the 'mover' instead)
+			if (e.isInertia()) {
+				e.consume();
+				return;
+			}
+			
+			// Return if we aren't using a touchscreen, and we don't want to handle scroll gestures - 
+			// but don't consume the event so that it can be handled elsewhere
+			lastTouchEvent = e.getTouchCount() != 0;
+			if (!lastTouchEvent && !PathPrefs.getUseScrollGestures() || e.isShiftDown() || e.isShortcutDown()) {
+				return;
+			}
+			// Swallow the event if we're using a touch screen without the move tool selected - we want to draw instead
+			if (lastTouchEvent && viewer.getMode() != Modes.MOVE) {
+				e.consume();
+				return;
+			}
+			
+//			// If this is a SCROLL_FINISHED event, continue moving with the last starting velocity - but ignore inertia
+			if (!lastTouchEvent && e.getEventType() == ScrollEvent.SCROLL_FINISHED) {
+				if (System.currentTimeMillis() - lastTimestamp < 100L) {
+					viewer.requestStartMoving(deltaX, deltaY);
+					viewer.requestDecelerate();					
+				}
+				deltaX = 0;
+				deltaY = 0;
+				e.consume();
+				return;
+			}
+//			viewer.requestStopMoving();
+			
+			// Use downsample since shift will be defined in full-resolution pixel coordinates
+			double dx = e.getDeltaX() * viewer.getDownsampleFactor();
+			double dy = e.getDeltaY() * viewer.getDownsampleFactor();
+			
+			// When e.isInertia() == TRUE on OSX, the results are quite annoyingly 'choppy' - x,y values are often passed separately
+//			System.err.println(String.format("dx=%.1f, dy=%.1f %s", e.getDeltaX(), e.getDeltaY(), (e.isInertia() ? "-Inertia" : "")));
+			
+			// Flip scrolling direction if necessary
+			if (PathPrefs.getInvertScrolling()) {
+				dx = -dx;
+				dy = -dy;
+			}
+			
+			// Handle rotation
+			if (viewer.isRotated()) {
+				double cosTheta = Math.cos(-viewer.getRotation());
+				double sinTheta = Math.sin(-viewer.getRotation());
+				double dx2 = cosTheta*dx - sinTheta*dy;
+				double dy2 = sinTheta*dx + cosTheta*dy;
+				dx = dx2;
+				dy = dy2;
+			}
+
+			// Shift the viewer
+			viewer.setCenterPixelLocation(
+					viewer.getCenterPixelX() - dx,
+					viewer.getCenterPixelY() - dy);
+			
+			// Retain deltas in case we need to decelerate later
+			deltaX = dx;
+			deltaY = dy;
+			lastTimestamp = System.currentTimeMillis();
+			
+//			if (deltaX == 0 && deltaY == 0) {
+//				viewer.requestStopMoving();
+//			} else {
+//				viewer.requestStartMoving(deltaX, deltaY);
+//				viewer.requestDecelerate();				
+//			}
+			e.consume();
+		}
+		
 	}
 	
 	
