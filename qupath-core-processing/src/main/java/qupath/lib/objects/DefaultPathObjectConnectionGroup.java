@@ -113,11 +113,11 @@ public class DefaultPathObjectConnectionGroup implements PathObjectConnectionGro
 	}
 	
 	public static double centroidDistance(final PathObject pathObject1, final PathObject pathObject2) {
-		return Math.sqrt(centroidDistance(pathObject1, pathObject2));
+		return Math.sqrt(centroidDistanceSquared(pathObject1.getROI(), pathObject2.getROI()));
 	}
 	
 	public static double centroidDistance(final ROI roi1, final ROI roi2) {
-		return Math.sqrt(centroidDistance(roi1, roi2));
+		return Math.sqrt(centroidDistanceSquared(roi1, roi2));
 	}
 	
 	public static double centroidDistanceSquared(final PathObject pathObject1, final PathObject pathObject2) {

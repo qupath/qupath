@@ -101,7 +101,7 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
 	private Map<String, Object> propertiesMap = new HashMap<>();
 	
 	
-	protected boolean changes = false; // Indicating changes since this ImageData was last saved
+	private boolean changes = false; // Indicating changes since this ImageData was last saved
 	
 	
 	public ImageData(ImageServer<T> server, PathObjectHierarchy hierarchy, ImageType type) {

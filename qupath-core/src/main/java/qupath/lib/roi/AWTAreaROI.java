@@ -52,7 +52,7 @@ public class AWTAreaROI extends AreaROI implements TranslatableROI, Serializable
 	
 	// We potentially spend a lot of time drawing polygons & assessing whether or not to draw them...
 	// By caching the bounds this can be speeded up
-	transient ClosedShapeStatistics stats = null;
+	transient private ClosedShapeStatistics stats = null;
 	
 	AWTAreaROI(Shape shape) {
 		this(shape, -1, 0, 0);

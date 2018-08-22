@@ -64,11 +64,7 @@ public class AreaROI extends AbstractPathAreaROI implements TranslatableROI, Ser
 	
 	// We potentially spend a lot of time drawing polygons & assessing whether or not to draw them...
 	// By caching the bounds this can be speeded up
-	transient ClosedShapeStatistics stats = null;
-	
-	AreaROI(List<? extends Vertices> vertices) {
-		this(vertices, -1, 0, 0);
-	}
+	transient private ClosedShapeStatistics stats = null;
 	
 	// TODO: Consider making this protected - better not to use directly, to ensure validity of vertices
 	AreaROI(List<? extends Vertices> vertices, int c, int z, int t) {
@@ -78,7 +74,7 @@ public class AreaROI extends AbstractPathAreaROI implements TranslatableROI, Ser
 			this.vertices.add(new DefaultMutableVertices(v));
 	}
 	
-	AreaROI(float[][] x, float[][] y, int c, int z, int t) {
+	private AreaROI(float[][] x, float[][] y, int c, int z, int t) {
 		super(c, z, t);
 		this.vertices = new ArrayList<>();
 		if (x.length != y.length)

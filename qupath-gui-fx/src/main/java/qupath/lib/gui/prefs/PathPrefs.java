@@ -229,7 +229,7 @@ public class PathPrefs {
 	 * 
 	 * @return
 	 */
-	public static IntegerProperty maxMemoryMBProperty() {
+	public synchronized static IntegerProperty maxMemoryMBProperty() {
 		if (maxMemoryMB == null) {
 			maxMemoryMB = createPersistentPreference("maxMemoryMB", -1);
 			// Update Java preferences for restart
@@ -425,7 +425,7 @@ public class PathPrefs {
 	
 	private static ObjectProperty<CommandBarDisplay> commandBarDisplay;
 	
-	public static ObjectProperty<CommandBarDisplay> commandBarDisplayProperty() {
+	public synchronized static ObjectProperty<CommandBarDisplay> commandBarDisplayProperty() {
 		if (commandBarDisplay == null) {
 			String name = PathPrefs.getUserPreferences().get("commandFinderDisplayMode", CommandBarDisplay.NEVER.name());
 			CommandBarDisplay display = CommandBarDisplay.valueOf(name);

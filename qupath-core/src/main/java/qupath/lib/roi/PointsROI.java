@@ -50,21 +50,21 @@ public class PointsROI extends AbstractPathROI implements ROIWithHull, PathPoint
 	
 	private static final long serialVersionUID = 1L;
 	
-	protected List<Point2> points = new ArrayList<>();
+	private List<Point2> points = new ArrayList<>();
 	
 //	// Point radius no longer sorted internally (it's really a display thing)
 //	@Deprecated
 //	protected double pointRadius = -1;
 	
-	transient protected double xMin = Double.NaN, yMin = Double.NaN, xMax = Double.NaN, yMax = Double.NaN;
-	transient protected PathArea convexHull = null;
+	transient private double xMin = Double.NaN, yMin = Double.NaN, xMax = Double.NaN, yMax = Double.NaN;
+	transient private PathArea convexHull = null;
 //	transient protected Point2 pointAdjusting = null;
 	
 	PointsROI() {
 		this(Double.NaN, Double.NaN);
 	}
 	
-	PointsROI(double x, double y) {
+	private PointsROI(double x, double y) {
 		this(x, y, -1, 0, 0);
 	}
 	
@@ -74,10 +74,6 @@ public class PointsROI extends AbstractPathROI implements ROIWithHull, PathPoint
 		recomputeBounds();
 	}
 	
-	PointsROI(List<? extends Point2> points) {
-		this(points, -1, 0, 0);
-	}
-	
 	PointsROI(List<? extends Point2> points, int c, int z, int t) {
 		super(c, z, t);
 		for (Point2 p : points)
@@ -85,7 +81,7 @@ public class PointsROI extends AbstractPathROI implements ROIWithHull, PathPoint
 		recomputeBounds();
 	}
 	
-	PointsROI(float[] x, float[] y, int c, int z, int t) {
+	private PointsROI(float[] x, float[] y, int c, int z, int t) {
 		super(c, z, t);
 		if (x.length != y.length)
 			throw new IllegalArgumentException("Lengths of x and y arrays are not the same! " + x.length + " and " + y.length);

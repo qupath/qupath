@@ -52,7 +52,7 @@ class ImmutableShapeWrapper implements Shape {
 
 	@Override
 	public boolean contains(Rectangle2D r) {
-		return contains(r);
+		return shape.contains(r);
 	}
 
 	@Override

@@ -54,9 +54,9 @@ public class PolygonROI extends AbstractPathAreaROI implements ROIWithHull, Tran
 	
 	private Vertices vertices;
 	
-	transient protected PathArea convexHull = null;
+	transient private PathArea convexHull = null;
 
-	transient ClosedShapeStatistics stats = null;
+	transient private ClosedShapeStatistics stats = null;
 	
 
 	PolygonROI() {

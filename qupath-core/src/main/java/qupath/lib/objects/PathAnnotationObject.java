@@ -68,7 +68,7 @@ public class PathAnnotationObject extends PathROIObject {
 	 */
 	public void setDescription(final String text) {
 		// Don't store unless we need to (which can also help avoid creating unnecessary metadata stores)
-		if (text == retrieveMetadataValue(KEY_ANNOTATION_TEXT))
+		if (text.equals(retrieveMetadataValue(KEY_ANNOTATION_TEXT)))
 			return;
 		this.storeMetadataValue(KEY_ANNOTATION_TEXT, text);
 	}

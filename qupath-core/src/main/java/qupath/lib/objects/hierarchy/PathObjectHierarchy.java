@@ -327,7 +327,7 @@ public final class PathObjectHierarchy implements Serializable {
 //		if (!pathObjectParent.hasROI() && pathObjectParent != getRootObject())
 //			return false;
 		
-		if (!pathObjectParent.hasChildren()) {
+		if (pathObjectParent != null && !pathObjectParent.hasChildren()) {
 			// The parent doesn't have any other children - so we can just add the object directly
 			pathObjectParent.addPathObject(pathObject);
 			// Notify listeners of changes

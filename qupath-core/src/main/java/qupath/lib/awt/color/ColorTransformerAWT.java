@@ -53,10 +53,10 @@ import qupath.lib.color.ColorTransformer;
 public class ColorTransformerAWT {
 
 	// Color models
-	final protected static IndexColorModel ICM_RED = ColorToolsAwt.createIndexColorModel(Color.RED);
-	final protected static IndexColorModel ICM_GREEN = ColorToolsAwt.createIndexColorModel(Color.GREEN);
-	final protected static IndexColorModel ICM_BLUE = ColorToolsAwt.createIndexColorModel(Color.BLUE);
-	final protected static IndexColorModel ICM_HUE = ColorToolsAwt.createHueColorModel();
+	final private static IndexColorModel ICM_RED = ColorToolsAwt.createIndexColorModel(Color.RED);
+	final private static IndexColorModel ICM_GREEN = ColorToolsAwt.createIndexColorModel(Color.GREEN);
+	final private static IndexColorModel ICM_BLUE = ColorToolsAwt.createIndexColorModel(Color.BLUE);
+	final private static IndexColorModel ICM_HUE = ColorToolsAwt.createHueColorModel();
 	final private static IndexColorModel ICM_HEMATOXYLIN;
 	final private static IndexColorModel ICM_EOSIN;
 	final private static IndexColorModel ICM_DAB;

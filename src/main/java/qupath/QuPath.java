@@ -64,7 +64,7 @@ public class QuPath {
 		
 		logger.info("Launching QuPath with args: {}", String.join(", ", args));
 		
-		if (args != null && args.length > 0 && "tma".equals(args[0].toLowerCase()))
+		if (args.length > 0 && "tma".equals(args[0].toLowerCase()))
 				QuPathTMAViewer.launch(QuPathTMAViewer.class, args);
 		else {
 //			// This was an attempt to register a file listener at an early stage, so as to be able to launch QuPath

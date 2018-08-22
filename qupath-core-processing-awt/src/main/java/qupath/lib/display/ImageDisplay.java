@@ -287,7 +287,7 @@ public class ImageDisplay {
 				MultiChannelInfo multiInfo = (MultiChannelInfo)info;
 				Integer colorOld = multiInfo.getColor();
 				Object colorNew = imageData.getProperty("COLOR_CHANNEL:" + info.getName());
-				if (colorNew instanceof Integer && colorOld != colorNew) {
+				if (colorNew instanceof Integer && ((Integer) colorNew).equals(colorOld)) {
 					multiInfo.setLUTColor((Integer)colorNew);
 					n++;
 				}

@@ -70,7 +70,7 @@ class MetadataMap implements Map<String, String>, Externalizable {
 
 	@Override
 	public boolean containsValue(Object value) {
-		return containsValue(value);
+		return map.containsValue(value);
 	}
 
 	@Override

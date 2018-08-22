@@ -47,9 +47,7 @@ import qupath.imagej.images.servers.ImagePlusServerBuilder;
  * @author Pete Bankhead
  *
  */
-public class PathImagePlus implements PathImage<ImagePlus>, Serializable {
-	
-	private static final long serialVersionUID = 1L;
+public class PathImagePlus implements PathImage<ImagePlus> {
 	
 	final private static Logger logger = LoggerFactory.getLogger(PathImagePlus.class);
 	

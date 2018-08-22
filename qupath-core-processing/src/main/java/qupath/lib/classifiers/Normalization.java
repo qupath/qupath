@@ -43,7 +43,7 @@ public enum Normalization {
 		case MIN_MAX:
 			return "Min & max";
 		default:
-			return null;
+			throw new IllegalArgumentException("Unknown normalization method!");
 		}
 	}
 

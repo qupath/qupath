@@ -74,7 +74,7 @@ public class PathClassificationLabellingHelper {
 			case RANDOM_WITH_REPLACEMENT:
 				return "Random (with replacement)";
 			default:
-				return null;
+				throw new IllegalArgumentException("Unknown SplitType!");
 			}
 		}
 	};
