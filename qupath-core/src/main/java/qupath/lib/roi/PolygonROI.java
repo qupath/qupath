@@ -41,7 +41,7 @@ import qupath.lib.rois.measure.ConvexHull;
 /**
  * ROI representing an arbitrary closed polygon.
  * 
- * @see Polyline
+ * @see PolylineROI
  * 
  * @author Pete Bankhead
  *

@@ -40,7 +40,7 @@ import qupath.lib.roi.interfaces.TranslatableROI;
 /**
  * ROI representing an arbitrary open polygon.
  * 
- * @see Polygon
+ * @see PolygonROI
  * 
  * @author Pete Bankhead
  *

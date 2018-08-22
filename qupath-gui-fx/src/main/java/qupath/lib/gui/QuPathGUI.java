@@ -5459,6 +5459,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			File dirExtensions = getExtensionDirectory();
 			if (dirExtensions == null) {
 				logger.debug("Extensions directory is null - no extensions will be loaded");
+				return;
 			}
 			if (!dirExtensions.isDirectory()) {
 				logger.error("Invalid extensions directory! '{}' is not a directory.", dirExtensions);

@@ -16,7 +16,7 @@ public class PathObjects {
 	 * @param measurements
 	 * @return
 	 * 
-	 * @see createCellObject
+	 * @see #createCellObject
 	 */
 	public static PathObject createAnnotationObject(final ROI roi, final PathClass pathClass, final MeasurementList measurements) {
 		if (roi == null)
@@ -42,7 +42,7 @@ public class PathObjects {
 	 * @param measurements
 	 * @return
 	 * 
-	 * @see createCellObject
+	 * @see #createCellObject
 	 */
 	public static PathObject createDetectionObject(final ROI roi, final PathClass pathClass, final MeasurementList measurements) {
 		if (roi == null)
@@ -69,7 +69,7 @@ public class PathObjects {
 	 * @param measurements
 	 * @return
 	 * 
-	 * @see createDetectionObject
+	 * @see #createDetectionObject
 	 */
 	public static PathObject createTileObject(final ROI roi, final PathClass pathClass, final MeasurementList measurements) {
 		if (roi == null)
@@ -95,7 +95,7 @@ public class PathObjects {
 	 * @param measurements
 	 * @return
 	 * 
-	 * @see createDetectionObject
+	 * @see #createDetectionObject
 	 */
 	public static PathObject createCellObject(final ROI roiCell, final ROI roiNucleus, final PathClass pathClass, final MeasurementList measurements) {
 		return new PathCellObject(roiCell, roiNucleus, pathClass, measurements);

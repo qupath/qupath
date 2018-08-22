@@ -2778,8 +2778,8 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	/**
 	 * Request that the viewer stop any panning immediately.
 	 * 
-	 * @see requestDecelerate
-	 * @see requestStartMoving
+	 * @see #requestDecelerate
+	 * @see #requestStartMoving
 	 */
 	public void requestStopMoving() {
 		mover.stopMoving();
@@ -2788,8 +2788,8 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	/**
 	 * Request that a viewer decelerate any existing panning smoothly.
 	 * 
-	 * @see requestStartMoving
-	 * @see requestStopMoving
+	 * @see #requestStartMoving
+	 * @see #requestStopMoving
 	 */
 	public void requestDecelerate() {
 		mover.decelerate();
@@ -2803,8 +2803,8 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	 * @param dx
 	 * @param dy
 	 * 
-	 * @see requestDecelerate
-	 * @see requestStopMoving
+	 * @see #requestDecelerate
+	 * @see #requestStopMoving
 	 */
 	public void requestStartMoving(final double dx, final double dy) {
 		mover.startMoving(dx, dy, true);

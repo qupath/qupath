@@ -85,7 +85,7 @@ public class ImagePlane implements Comparable<ImagePlane> {
 	/**
 	 * Similar to {@code compareTo}, but ignoring the channel, in the order t, z.
 	 * 
-	 * @see compareTo
+	 * @see #compareTo
 	 */
 	int compareToWithoutChannel(ImagePlane o) {
 		int tCompare = Integer.compare(t, o.t);
