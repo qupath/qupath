@@ -296,10 +296,11 @@ public class BrushTool extends AbstractPathROITool {
 				
 				Area area = new Area(shapeCurrent);
 				area.add(new Area(shapeDrawn));
-				if (parentArea != null)
-					area.intersect(parentArea);
-				if (parentAnnotationsArea != null)
-					area.subtract(parentAnnotationsArea);
+				if (getCurrentParentArea() != null)
+					area.intersect(getCurrentParentArea());
+				Area currentParentAnnotationsArea = getCurrentParentAnnotationsArea(currentObject);
+				if (currentParentAnnotationsArea != null)
+					area.subtract(currentParentAnnotationsArea);
 				
 //				Rectangle bounds2 = shapeDrawn.getBounds();
 //				Collection<PathObject> annotations = viewer.getHierarchy().getObjectsForRegion(PathAnnotationObject.class, ImageRegion.createInstance(
@@ -380,7 +381,7 @@ public class BrushTool extends AbstractPathROITool {
 					viewer.setSelectedObject(currentObject);
 				}
 				if (requestParentClipping(e))
-					hierarchy.addPathObjectBelowParent(currentParent, currentObject, false, true);
+					hierarchy.addPathObjectBelowParent(getCurrentParent(), currentObject, false, true);
 				else
 					hierarchy.addPathObject(currentObject, true);
 			}

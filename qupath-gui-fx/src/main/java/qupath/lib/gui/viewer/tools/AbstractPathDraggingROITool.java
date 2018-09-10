@@ -132,7 +132,7 @@ abstract class AbstractPathDraggingROITool extends AbstractPathROITool {
 				pathObject = null;
 			} else {
 				((PathAnnotationObject)pathObject).setROI(roiNew);
-				hierarchy.addPathObjectBelowParent(currentParent, pathObject, false, true);
+				hierarchy.addPathObjectBelowParent(getCurrentParent(), pathObject, false, true);
 			}
 		}
 		

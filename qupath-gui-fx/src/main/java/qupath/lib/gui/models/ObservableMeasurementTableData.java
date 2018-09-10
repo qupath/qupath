@@ -110,7 +110,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 	}
 	
 	
-	public void updateMeasurementList() {
+	public synchronized void updateMeasurementList() {
 		
 //		PathPrefs.setAllredMinPercentagePositive(0);
 		

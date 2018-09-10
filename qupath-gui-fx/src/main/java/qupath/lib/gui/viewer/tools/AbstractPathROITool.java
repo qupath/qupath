@@ -95,9 +95,7 @@ abstract class AbstractPathROITool extends AbstractPathTool {
 		// If we are double-clicking & we don't have a polygon, see if we can access a ROI
 		if (!adjustingPolygon && e.getClickCount() > 1) {
 			// Reset parent... for now
-			currentParent = null;
-			parentArea = null;
-			parentAnnotationsArea = null;			
+			resetCurrentParent();		
 			tryToSelect(xx, yy, e.getClickCount()-2, false);
 			e.consume();
 			return;
@@ -133,8 +131,8 @@ abstract class AbstractPathROITool extends AbstractPathTool {
 						hierarchy.removeObject(currentObject, true);
 					editor.setROI(null);
 				} else {
-					if (e.isShiftDown() && currentParent != null)
-						hierarchy.addPathObjectBelowParent(currentParent, currentObject, false, true);
+					if (e.isShiftDown() && getCurrentParent() != null)
+						hierarchy.addPathObjectBelowParent(getCurrentParent(), currentObject, false, true);
 					else
 						hierarchy.addPathObject(currentObject, true);						
 					viewer.setSelectedObject(currentObject);

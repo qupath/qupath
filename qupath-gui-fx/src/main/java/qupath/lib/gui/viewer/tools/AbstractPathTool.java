@@ -40,7 +40,6 @@ import qupath.lib.gui.viewer.ModeWrapper;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.QuPathViewerListener;
 import qupath.lib.images.ImageData;
-import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
@@ -59,9 +58,9 @@ abstract class AbstractPathTool implements PathTool, QuPathViewerListener {
 	QuPathViewer viewer;
 	ModeWrapper modes;
 	
-	PathObject currentParent;
-	Area parentArea;
-	Area parentAnnotationsArea;
+	private PathObject currentParent;
+	private Area parentArea;
+	private Area parentAnnotationsArea;
 	
 	transient LevelComparator comparator;
 	
@@ -173,7 +172,7 @@ abstract class AbstractPathTool implements PathTool, QuPathViewerListener {
 	 * @param parent
 	 * @param current the current object, which shouldn't affect the clipping
 	 */
-	void setCurrentParent(final PathObjectHierarchy hierarchy, final PathObject parent, final PathObject current) {
+	synchronized void setCurrentParent(final PathObjectHierarchy hierarchy, final PathObject parent, final PathObject current) {
 		currentParent = parent;
 				
 		// Reset parent area & its descendant annotation areas
@@ -188,17 +187,41 @@ abstract class AbstractPathTool implements PathTool, QuPathViewerListener {
 		if (currentParent.hasROI() && currentParent.getROI().isArea())
 			parentArea = PathROIToolsAwt.getArea(currentParent.getROI());
 		
-		for (PathObject child : hierarchy.getDescendantObjects(currentParent, null, PathAnnotationObject.class)) {
-			if (child == current)
-				continue;
-			if (child.hasROI() && child.getROI().isArea()) {
-				Area childArea = PathROIToolsAwt.getArea(child.getROI());
-				if (parentAnnotationsArea == null)
-					parentAnnotationsArea = childArea;
-				else
-					parentAnnotationsArea.add(childArea);
+	}
+	
+	
+	synchronized void resetCurrentParent() {
+		this.currentParent = null;
+		this.parentArea = null;
+		this.parentAnnotationsArea = null;
+	}
+	
+	
+	synchronized PathObject getCurrentParent() {
+		return currentParent;
+	}
+	
+	synchronized Area getCurrentParentArea() {
+		return parentArea;
+	}
+	
+	synchronized Area getCurrentParentAnnotationsArea(final PathObject currentObject) {
+		if (currentParent == null)
+			return null;
+		if (parentAnnotationsArea == null) {
+			for (PathObject child : PathObjectTools.getFlattenedObjectList(currentParent, null, false)) {
+				if (!child.isAnnotation() || child == currentObject)
+					continue;
+				if (child.hasROI() && child.getROI().isArea()) {
+					Area childArea = PathROIToolsAwt.getArea(child.getROI());
+					if (parentAnnotationsArea == null)
+						parentAnnotationsArea = childArea;
+					else
+						parentAnnotationsArea.add(childArea);
+				}
 			}
 		}
+		return parentAnnotationsArea;
 	}
 	
 	
