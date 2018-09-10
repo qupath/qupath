@@ -4,10 +4,10 @@ import org.bytedeco.javacpp.opencv_core;
 import org.bytedeco.javacpp.opencv_imgproc;
 import org.bytedeco.javacpp.opencv_ml;
 import org.bytedeco.javacpp.opencv_ml.TrainData;
-import org.bytedeco.javacpp.indexer.Indexer;
 import org.bytedeco.javacpp.indexer.UByteIndexer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import ij.ImagePlus;
 import qupath.lib.classifiers.pixel.OpenCVPixelClassifier;
 import qupath.lib.classifiers.pixel.PixelClassifierOutputChannel;
 import qupath.lib.classifiers.pixel.features.OpenCVFeatureCalculator;
@@ -27,9 +27,12 @@ import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.PathROIToolsAwt;
+import qupath.lib.roi.interfaces.PathArea;
+import qupath.lib.roi.interfaces.PathLine;
 import qupath.lib.roi.interfaces.ROI;
 import qupath.opencv.processing.OpenCVTools;
 
+import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.Shape;
@@ -49,6 +52,8 @@ import java.util.stream.Collectors;
 
 
 class PixelClassifierHelper implements PathObjectHierarchyListener {
+	
+	private static final Logger logger = LoggerFactory.getLogger(PixelClassifierHelper.class);
 
     private ImageData<BufferedImage> imageData;
     private OpenCVFeatureCalculator calculator;
@@ -218,6 +223,12 @@ class PixelClassifierHelper implements PathObjectHierarchyListener {
                 Mat matFeatures = cacheFeatures.get(roi);
                 if (matFeatures == null) {
                 	
+                	boolean isArea = roi instanceof PathArea;
+                	boolean isLine = roi instanceof PathLine;
+                	if (!isArea && !isLine) {
+                		logger.warn("{} is neither an instance of PathArea nor PathLine! Will be skipped...", roi);
+                		continue;
+                	}
                     Shape shape = PathROIToolsAwt.getShape(roi);
                     
                     List<RegionRequest> requests = ImageRegionStoreHelpers.getTilesToRequest(
@@ -241,7 +252,12 @@ class PixelClassifierHelper implements PathObjectHierarchyListener {
                         g2d.scale(1.0/downsampleMask, 1.0/downsampleMask);
                         g2d.translate(-request.getX(), -request.getY());
                         g2d.setColor(Color.WHITE);
-                        g2d.fill(shape);
+                        if (isArea)
+                        	g2d.fill(shape);
+                        if (isLine) {
+                        	g2d.setStroke(new BasicStroke((float)downsampleMask));
+                        	g2d.draw(shape);
+                        }
                         g2d.dispose();
                         
 //                        if (pathClass.getName().equals("Tumor")) {
@@ -310,6 +326,8 @@ class PixelClassifierHelper implements PathObjectHierarchyListener {
         means = OpenCVPixelClassifier.toDoubleArray(matMean);
         scales = OpenCVPixelClassifier.toDoubleArray(matStdDev);
 
+        logger.info("Training data: {} x {}, Target data: {} x {}", matTraining.rows(), matTraining.cols(), matTargets.rows(), matTargets.cols());
+        
         if (channels == null)
             channels = new ArrayList<>();
         else

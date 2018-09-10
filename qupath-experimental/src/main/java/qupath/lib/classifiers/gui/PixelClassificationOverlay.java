@@ -1,21 +1,35 @@
 package qupath.lib.classifiers.gui;
 
 import qupath.lib.classifiers.pixel.PixelClassifier;
+import qupath.lib.classifiers.pixel.PixelClassifierMetadata.OutputType;
+import qupath.lib.classifiers.pixel.PixelClassifierOutputChannel;
+import qupath.lib.common.GeneralTools;
 import qupath.lib.common.SimpleThreadFactory;
 import qupath.lib.gui.viewer.QuPathViewer;
+import qupath.lib.gui.viewer.QuPathViewerListener;
 import qupath.lib.gui.viewer.overlays.AbstractOverlay;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.stores.ImageRegionStoreHelpers;
+import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.TMACoreObject;
+import qupath.lib.objects.hierarchy.PathObjectHierarchy;
+import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
+import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
+import qupath.lib.roi.PathROIToolsAwt;
 import qupath.lib.roi.interfaces.ROI;
 
+import java.awt.Color;
 import java.awt.Graphics2D;
+import java.awt.Shape;
 import java.awt.image.BufferedImage;
+import java.awt.image.DataBuffer;
 import java.awt.image.ImageObserver;
+import java.awt.image.SampleModel;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -23,13 +37,18 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.WeakHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class PixelClassificationOverlay extends AbstractOverlay {
+import ij.ImagePlus;
+import javafx.application.Platform;
+
+public class PixelClassificationOverlay extends AbstractOverlay implements PathObjectHierarchyListener, QuPathViewerListener {
 	
 	private static Logger logger = LoggerFactory.getLogger(PixelClassificationOverlay.class);
 
@@ -42,11 +61,217 @@ public class PixelClassificationOverlay extends AbstractOverlay {
 
     private ExecutorService pool = Executors.newFixedThreadPool(8, new SimpleThreadFactory("classifier-overlay", true));
 
+    private Map<PathObject, ROI> measuredObjects = new WeakHashMap<>();
+    
+    private ImageData<BufferedImage> imageData;
+    
     PixelClassificationOverlay(final QuPathViewer viewer, final PixelClassifier classifier) {
         super();
         this.classifier = classifier;
         this.viewer = viewer;
+        this.viewer.addViewerListener(this);
+        imageDataChanged(viewer, null, viewer.getImageData());
     }
+    
+    
+    private synchronized void updateAnnotationMeasurements() {
+    	if (imageData == null) {
+    		return;
+    	}
+    	
+    	PathObjectHierarchy hierarchy = imageData.getHierarchy();
+    	List<PathObject> changed = new ArrayList<>();
+    	for (PathObject annotation : hierarchy.getObjects(null, PathAnnotationObject.class)) {
+    		if (addPercentageMeasurements(annotation))
+    			changed.add(annotation);
+    	}
+		hierarchy.fireObjectMeasurementsChangedEvent(this, changed);
+    }
+    
+    
+    synchronized boolean addPercentageMeasurements(final PathObject pathObject) {
+    	
+       	// Check if we've already measured this
+    	if (measuredObjects.getOrDefault(pathObject, null) == pathObject.getROI())
+    		return false;
+
+    	
+        List<PixelClassifierOutputChannel> channels = classifier.getMetadata().getChannels();
+        long[] counts = null;
+        long total = 0L;
+                
+ 
+    	if (imageData == null || !pathObject.getROI().isArea()) {
+  			return updateMeasurements(pathObject, channels, null, 0L, Double.NaN, null);
+    	}
+
+        ImageServer<BufferedImage> server = imageData.getServer();
+        
+        // Check we have a suitable output type
+        OutputType type = classifier.getMetadata().getOutputType();
+        if (type == OutputType.Features)
+        	return updateMeasurements(pathObject, channels, counts, total, Double.NaN, null);
+        
+        
+    	ROI roi = pathObject.getROI();
+        double requestedDownsample = classifier.getMetadata().getInputPixelSizeMicrons() / server.getAveragedPixelSizeMicrons();
+
+        // Calculate area of a pixel
+        double pixelArea = (server.getPixelWidthMicrons() * requestedDownsample) * (server.getPixelHeightMicrons() * requestedDownsample);
+        String pixelAreaUnits = GeneralTools.micrometerSymbol() + "^2";
+        if (!pathObject.isDetection()) {
+        	double scale = requestedDownsample / 1000.0;
+            pixelArea = (server.getPixelWidthMicrons() * scale) * (server.getPixelHeightMicrons() * scale);
+            pixelAreaUnits = "mm^2";
+        }
+
+    	int tileWidth = classifier.getMetadata().getInputWidth();// - classifier.requestedPadding() * 2;
+        int tileHeight = classifier.getMetadata().getInputHeight();// - classifier.requestedPadding() * 2;
+        if (tileWidth <= 0)
+        	tileWidth = 256;
+        if (tileHeight <= 0)
+        	tileHeight = 256;
+        
+        Shape shape = PathROIToolsAwt.getShape(roi);
+        
+        // Get the regions we need
+        List<RegionRequest> requests = ImageRegionStoreHelpers.getTilesToRequest(
+			server, shape, requestedDownsample, roi.getZ(), roi.getT(), tileWidth, tileHeight, null);
+        
+        if (requests.isEmpty()) {
+        	logger.debug("Request empty for {}", pathObject);
+        	return updateMeasurements(pathObject, channels, counts, total, pixelArea, pixelAreaUnits);
+        }
+        
+        requests = requests.stream().map(r -> RegionRequest.createInstance(r.getPath(), requestedDownsample, r)).collect(Collectors.toList());
+
+
+        // Try to get all cached tiles - if this fails, return quickly (can't calculate measurement)
+        Map<RegionRequest, BufferedImage> localCache = new HashMap<>();
+        for (RegionRequest request : requests) {
+        	BufferedImage tile = cache.getOrDefault(request, null);
+        	if (tile == null)
+        		return updateMeasurements(pathObject, channels, counts, total, pixelArea, pixelAreaUnits);
+        	localCache.put(request, tile);
+        }
+        
+        // Calculate stained proportions
+        counts = new long[channels.size()];
+        total = 0L;
+        BufferedImage imgMask = null;
+        for (Map.Entry<RegionRequest, BufferedImage> entry : localCache.entrySet()) {
+        	RegionRequest region = entry.getKey();
+        	BufferedImage tile = entry.getValue();
+        	// Create a binary mask corresponding to the current tile        	
+        	if (imgMask == null || imgMask.getWidth() != tile.getWidth() || imgMask.getHeight() != tile.getHeight()) {
+        		imgMask = new BufferedImage(tile.getWidth(), tile.getHeight(), BufferedImage.TYPE_BYTE_GRAY);
+        	}
+        	Graphics2D g2d = imgMask.createGraphics();
+        	g2d.setColor(Color.BLACK);
+        	g2d.fillRect(0, 0, tile.getWidth(), tile.getHeight());
+        	g2d.setColor(Color.WHITE);
+        	g2d.scale(1.0/region.getDownsample(), 1.0/region.getDownsample());
+        	g2d.translate(-region.getX(), -region.getY());
+        	g2d.fill(shape);
+        	g2d.dispose();
+        	
+//        	if ("Mine".equals(pathObject.getName())) {
+//            	new ImagePlus(region.toString(), tile).duplicate().show();
+//            	new ImagePlus(region.toString()+"-mask", imgMask).duplicate().show();        		
+//        	}
+        	
+        	switch (type) {
+			case Classification:
+			case Probability:
+				DataBuffer buffer = tile.getRaster().getDataBuffer();
+				SampleModel sampleModel = tile.getSampleModel();
+				DataBuffer bufferMask = imgMask.getRaster().getDataBuffer();
+				SampleModel sampleModelMask = imgMask.getSampleModel();
+				int b = 0;
+				for (int y = 0; y < tile.getHeight(); y++) {
+					for (int x = 0; x < tile.getWidth(); x++) {
+						if (sampleModelMask.getSample(x, y, b, bufferMask) == 0)
+							continue;
+						int ind = sampleModel.getSample(x, y, b, buffer);
+						// TODO: This could be out of range!
+						counts[ind]++;
+						total++;
+					}					
+				}
+				break;
+			case Features:
+				return false;
+			case Logit:
+				break;
+			default:
+				return updateMeasurements(pathObject, channels, counts, total, pixelArea, pixelAreaUnits);
+        	}
+        }
+    	return updateMeasurements(pathObject, channels, counts, total, pixelArea, pixelAreaUnits);
+    }
+
+    
+    private synchronized void resetMeasurements(PathObjectHierarchy hierarchy, Collection<PathObject> pathObjects) {
+    	boolean changes = false;
+    	for (PathObject pathObject : pathObjects) {
+    		if (updateMeasurements(pathObject, classifier.getMetadata().getChannels(), null, 0L, Double.NaN, null))
+    			changes = true;
+    	}
+    	if (hierarchy != null && changes) {
+        	hierarchy.fireObjectMeasurementsChangedEvent(this, pathObjects);    		
+    	}
+    }
+
+    
+    
+    private synchronized boolean updateMeasurements(PathObject pathObject, List<PixelClassifierOutputChannel> channels, long[] counts, long total, double pixelArea, String pixelAreaUnits) {
+    	boolean changes = false;
+    	
+    	for (int c = 0; c < channels.size(); c++) {
+    		String namePercentage = "Classifier: " + channels.get(c).getName() + " %";
+    		String nameArea = "Classifier: " + channels.get(c).getName() + " area " + pixelAreaUnits;
+    		if (counts == null) {
+    			if (pathObject.getMeasurementList().containsNamedMeasurement(namePercentage)) {
+        			pathObject.getMeasurementList().removeMeasurements(namePercentage);
+    				changes = true;
+    			}
+    			if (pathObject.getMeasurementList().containsNamedMeasurement(nameArea)) {
+        			pathObject.getMeasurementList().removeMeasurements(nameArea);
+    				changes = true;
+    			}
+    		}
+    		else {
+//    			if ("Mine".equals(pathObject.getName()))
+//    				System.err.println(counts[c] + "/" + total + " = " + ((double)counts[c]/total * 100.0));
+    			pathObject.getMeasurementList().putMeasurement(namePercentage, (double)counts[c]/total * 100.0);
+    			if (!Double.isNaN(pixelArea))
+    				pathObject.getMeasurementList().putMeasurement(nameArea,counts[c] * pixelArea);
+    			changes = true;
+    		}
+    	}
+
+    	// Add total area (useful as a check)
+		String nameArea = "Classifier: Total area " + pixelAreaUnits;
+		if (counts == null) {
+			if (pathObject.getMeasurementList().containsNamedMeasurement(nameArea)) {
+    			pathObject.getMeasurementList().removeMeasurements(nameArea);
+				changes = true;
+			}
+		}
+		else if (!Double.isNaN(pixelArea))
+			pathObject.getMeasurementList().putMeasurement(nameArea, total * pixelArea);
+
+    	if (changes)
+    		pathObject.getMeasurementList().closeList();
+    	if (counts == null) {
+        	measuredObjects.remove(pathObject);
+    		return changes;
+    	}
+    	measuredObjects.put(pathObject, pathObject.getROI());
+    	return changes;
+    }
+    
+    
 
     @Override
 	public void paintOverlay(Graphics2D g2d, ImageRegion imageRegion, double downsampleFactor, ImageObserver observer, boolean paintCompletely) {
@@ -55,7 +280,6 @@ public class PixelClassificationOverlay extends AbstractOverlay {
         if (!viewer.getOverlayOptions().getShowObjects())
             return;
 
-        ImageData<BufferedImage> imageData = viewer.getImageData();
         if (imageData == null)
             return;
         ImageServer<BufferedImage> server = imageData.getServer();
@@ -79,6 +303,9 @@ public class PixelClassificationOverlay extends AbstractOverlay {
         List<RegionRequest> requests = ImageRegionStoreHelpers.getTilesToRequest(
 			server, g2d.getClip(), requestedDownsample, imageRegion.getZ(), imageRegion.getT(), tileWidth, tileHeight, null);
 
+        requests = requests.stream().map(r -> RegionRequest.createInstance(r.getPath(), requestedDownsample, r)).collect(Collectors.toList());
+        
+        
 //        g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR)
 
         // Loop through & paint classified tiles if we have them, or request tiles if we don't
@@ -125,6 +352,10 @@ public class PixelClassificationOverlay extends AbstractOverlay {
     
     
     public void stop() {
+    	if (imageData != null) {
+    		resetMeasurements(imageData.getHierarchy(), imageData.getHierarchy().getObjects(null, PathAnnotationObject.class));
+    	}
+    	imageDataChanged(viewer, imageData, null);
     	this.pendingRequests.clear();
     	List<Runnable> pending = this.pool.shutdownNow();
     	logger.debug("Stopped classification overlay, dropped {} requests", pending.size());
@@ -139,7 +370,7 @@ public class PixelClassificationOverlay extends AbstractOverlay {
             	if (pool.isShutdown())
             		return;
             	if (!pendingRequests.contains(request)) {
-            		System.err.println("Ditched request!");
+//            		System.err.println("Ditched request!");
             		return;
             	}
                 try {
@@ -159,12 +390,44 @@ public class PixelClassificationOverlay extends AbstractOverlay {
                     cache.put(request, imgResult);
                     pendingRequests.remove(request);
                     viewer.repaint();
+                    Platform.runLater(() -> updateAnnotationMeasurements());
                 } catch (Exception e) {
                    logger.error("Error requesting tile classification", e);
                 }
             });
         }
     }
+
+
+	@Override
+	public void hierarchyChanged(PathObjectHierarchyEvent event) {
+		if (event.isAddedOrRemovedEvent() || event.isStructureChangeEvent())
+			updateAnnotationMeasurements();
+	}
+
+
+	@Override
+	public void imageDataChanged(QuPathViewer viewer, ImageData<BufferedImage> imageDataOld,
+			ImageData<BufferedImage> imageDataNew) {
+		if (this.imageData != null) {
+			this.imageData.getHierarchy().removePathObjectListener(this);
+		}
+		this.imageData = imageDataNew;
+		if (imageDataNew != null)
+			imageDataNew.getHierarchy().addPathObjectListener(this);
+	}
+
+
+	@Override
+	public void visibleRegionChanged(QuPathViewer viewer, Shape shape) {}
+
+
+	@Override
+	public void selectedObjectChanged(QuPathViewer viewer, PathObject pathObjectSelected) {}
+
+
+	@Override
+	public void viewerClosed(QuPathViewer viewer) {}
 
 
 }

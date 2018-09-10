@@ -72,10 +72,10 @@ subprojects {
       if (nativesClassifier != null)
         opencv 'org.opencv:opencv:3.1.0:' + nativesClassifier
     } else {
-      opencv 'org.bytedeco.javacpp-presets:opencv:3.4.1-1.4.1'
+      opencv 'org.bytedeco.javacpp-presets:opencv:3.4.2-1.4.2'
       if (nativesCPP != null) {
-        opencv 'org.bytedeco.javacpp-presets:opencv:3.4.1-1.4.1:' + nativesCPP
-        opencv 'org.bytedeco.javacpp-presets:opencv:3.4.1-1.4.1:' + nativesCPP + '-gpu'
+        opencv 'org.bytedeco.javacpp-presets:opencv:3.4.2-1.4.2:' + nativesCPP
+        opencv 'org.bytedeco.javacpp-presets:opencv:3.4.2-1.4.2:' + nativesCPP + '-gpu'
       }
     }
     jpen 'net.sourceforge.jpen:jpen:2-150301'
