@@ -211,7 +211,7 @@ public class PointIO {
 		List<Point2> pointsList = new ArrayList<>();
 		Scanner scanner = new Scanner(s);
 		String name = scanner.nextLine().split("\t")[1].trim();
-		Integer color = Integer.getInteger(scanner.nextLine().split("\t")[1]);
+		Integer color = Integer.parseInt(scanner.nextLine().split("\t")[1]);
 		// Skip the coordinate count line...
 		int count = Integer.parseInt(scanner.nextLine().split("\t")[1]);
 		while (scanner.hasNextLine()) {
