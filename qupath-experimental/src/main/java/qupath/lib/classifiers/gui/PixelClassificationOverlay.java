@@ -45,7 +45,6 @@ import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import ij.ImagePlus;
 import javafx.application.Platform;
 
 public class PixelClassificationOverlay extends AbstractOverlay implements PathObjectHierarchyListener, QuPathViewerListener {
@@ -58,6 +57,8 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
     private Map<RegionRequest, BufferedImage> cache = new HashMap<>();
     private Map<BufferedImage, BufferedImage> cacheRGB = new HashMap<>();
     private Set<RegionRequest> pendingRequests = Collections.synchronizedSet(new HashSet<>());
+    
+    private Set<String> measurementsAdded = new HashSet<>();
 
     private ExecutorService pool = Executors.newFixedThreadPool(8, new SimpleThreadFactory("classifier-overlay", true));
 
@@ -107,16 +108,8 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
 
         ImageServer<BufferedImage> server = imageData.getServer();
         
-        // Check we have a suitable output type
-        OutputType type = classifier.getMetadata().getOutputType();
-        if (type == OutputType.Features)
-        	return updateMeasurements(pathObject, channels, counts, total, Double.NaN, null);
-        
-        
-    	ROI roi = pathObject.getROI();
-        double requestedDownsample = classifier.getMetadata().getInputPixelSizeMicrons() / server.getAveragedPixelSizeMicrons();
-
         // Calculate area of a pixel
+        double requestedDownsample = classifier.getMetadata().getInputPixelSizeMicrons() / server.getAveragedPixelSizeMicrons();
         double pixelArea = (server.getPixelWidthMicrons() * requestedDownsample) * (server.getPixelHeightMicrons() * requestedDownsample);
         String pixelAreaUnits = GeneralTools.micrometerSymbol() + "^2";
         if (!pathObject.isDetection()) {
@@ -124,6 +117,15 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
             pixelArea = (server.getPixelWidthMicrons() * scale) * (server.getPixelHeightMicrons() * scale);
             pixelAreaUnits = "mm^2";
         }
+
+        
+        // Check we have a suitable output type
+        OutputType type = classifier.getMetadata().getOutputType();
+        if (type == OutputType.Features)
+        	return updateMeasurements(pathObject, channels, counts, total, pixelArea, pixelAreaUnits);
+        
+        
+    	ROI roi = pathObject.getROI();
 
     	int tileWidth = classifier.getMetadata().getInputWidth();// - classifier.requestedPadding() * 2;
         int tileHeight = classifier.getMetadata().getInputHeight();// - classifier.requestedPadding() * 2;
@@ -225,41 +227,49 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
     
     
     private synchronized boolean updateMeasurements(PathObject pathObject, List<PixelClassifierOutputChannel> channels, long[] counts, long total, double pixelArea, String pixelAreaUnits) {
-    	boolean changes = false;
+    	// Remove any existing measurements
+    	int nBefore = pathObject.getMeasurementList().size();
+  		pathObject.getMeasurementList().removeMeasurements(measurementsAdded.toArray(new String[0]));
+  		boolean changes = nBefore != pathObject.getMeasurementList().size();
+    	
+  		
+    	long totalWithoutIgnored = 0L;
+    	if (counts != null) {
+    		for (int c = 0; c < channels.size(); c++) {
+    			if (channels.get(c).isTransparent())
+        			continue;
+    			totalWithoutIgnored += counts[c];
+    		}
+    	}
     	
     	for (int c = 0; c < channels.size(); c++) {
+    		// Skip background channels
+    		if (channels.get(c).isTransparent())
+    			continue;
+    		
     		String namePercentage = "Classifier: " + channels.get(c).getName() + " %";
     		String nameArea = "Classifier: " + channels.get(c).getName() + " area " + pixelAreaUnits;
-    		if (counts == null) {
-    			if (pathObject.getMeasurementList().containsNamedMeasurement(namePercentage)) {
-        			pathObject.getMeasurementList().removeMeasurements(namePercentage);
-    				changes = true;
+    		if (counts != null) {
+    			pathObject.getMeasurementList().putMeasurement(namePercentage, (double)counts[c]/totalWithoutIgnored * 100.0);
+    			measurementsAdded.add(namePercentage);
+    			if (!Double.isNaN(pixelArea)) {
+    				pathObject.getMeasurementList().putMeasurement(nameArea, counts[c] * pixelArea);
+        			measurementsAdded.add(nameArea);
     			}
-    			if (pathObject.getMeasurementList().containsNamedMeasurement(nameArea)) {
-        			pathObject.getMeasurementList().removeMeasurements(nameArea);
-    				changes = true;
-    			}
-    		}
-    		else {
-//    			if ("Mine".equals(pathObject.getName()))
-//    				System.err.println(counts[c] + "/" + total + " = " + ((double)counts[c]/total * 100.0));
-    			pathObject.getMeasurementList().putMeasurement(namePercentage, (double)counts[c]/total * 100.0);
-    			if (!Double.isNaN(pixelArea))
-    				pathObject.getMeasurementList().putMeasurement(nameArea,counts[c] * pixelArea);
     			changes = true;
     		}
     	}
 
     	// Add total area (useful as a check)
-		String nameArea = "Classifier: Total area " + pixelAreaUnits;
-		if (counts == null) {
-			if (pathObject.getMeasurementList().containsNamedMeasurement(nameArea)) {
-    			pathObject.getMeasurementList().removeMeasurements(nameArea);
-				changes = true;
-			}
-		}
-		else if (!Double.isNaN(pixelArea))
+		String nameArea = "Classifier: Total annotated area " + pixelAreaUnits;
+		String nameAreaWithoutIgnored = "Classifier: Total quantified area " + pixelAreaUnits;
+		if (counts != null && !Double.isNaN(pixelArea)) {
+			pathObject.getMeasurementList().putMeasurement(nameAreaWithoutIgnored, totalWithoutIgnored * pixelArea);
 			pathObject.getMeasurementList().putMeasurement(nameArea, total * pixelArea);
+			measurementsAdded.add(nameAreaWithoutIgnored);
+			measurementsAdded.add(nameArea);
+			changes = true;
+		}
 
     	if (changes)
     		pathObject.getMeasurementList().closeList();

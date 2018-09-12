@@ -15,6 +15,14 @@ public class PixelClassifierOutputChannel {
 	}
 	
 	/**
+	 * Check if the color is 'transparent'; this is used for background/ignored channels.
+	 * @return
+	 */
+	public boolean isTransparent() {
+		return TRANSPARENT.equals(this.color);
+	}
+	
+	/**
 	 * Name of the output channel
 	 */
 	public String getName() {

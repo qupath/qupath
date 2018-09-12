@@ -499,13 +499,15 @@ public class PixelClassifierGUI implements PathCommand, QuPathViewerListener, Pa
 
 
     public void destroy() {
-    	if (helper != null)
-    		helper.setImageData(null);
-        classifierGUI = null;
         if (overlay != null) {
+        	overlay.stop();
             viewer.getCustomOverlayLayers().remove(overlay);
             overlay = null;
         }
+        imageDataChanged(viewer, viewer.getImageData(), null);
+    	if (helper != null)
+    		helper.setImageData(null);
+        classifierGUI = null;
         if (stage != null && stage.isShowing())
             stage.close();
     }
