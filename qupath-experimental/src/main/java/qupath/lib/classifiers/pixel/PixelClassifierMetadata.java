@@ -16,6 +16,7 @@ public class PixelClassifierMetadata {
 	private double inputPixelSizeMicrons;
 	private double[] inputChannelMeans;
 	private double[] inputChannelScales;
+	private boolean strictInputSize = false;
 	private int inputWidth = -1;
 	private int inputHeight = -1;
 	private int inputNumChannels = 3;
@@ -31,6 +32,14 @@ public class PixelClassifierMetadata {
     public double getInputPixelSizeMicrons() {
     	return inputPixelSizeMicrons;
     };
+    
+    /**
+     * Returns {@code true} if the input size must be strictly applied, {@code false} if 
+     * different input image sizes can be handled.
+     */
+    public boolean strictInputSize() {
+    	return strictInputSize;
+    }
 
     /**
      * Mean value to subtract from a specified input channel
@@ -140,6 +149,7 @@ public class PixelClassifierMetadata {
     	this.outputHeight = builder.outputHeight;
     	this.outputType = builder.outputType;
     	this.channels = builder.channels;
+    	this.strictInputSize = builder.strictInputSize;
     }
     
     
@@ -148,6 +158,7 @@ public class PixelClassifierMetadata {
     	private double inputPixelSizeMicrons;
     	private double[] inputChannelMeans;
     	private double[] inputChannelScales;
+    	private boolean strictInputSize = false;
     	private int inputWidth = -1;
     	private int inputHeight = -1;
     	private int inputNumChannels = 3;
@@ -169,6 +180,11 @@ public class PixelClassifierMetadata {
     	public Builder inputShape(int width, int height) {
     		this.inputWidth = width;
     		this.inputHeight = height;
+    		return this;
+    	}
+    	
+    	public Builder strictInputSize() {
+    		this.strictInputSize = true;
     		return this;
     	}
     	

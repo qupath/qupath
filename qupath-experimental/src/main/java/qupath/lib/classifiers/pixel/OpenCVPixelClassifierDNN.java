@@ -3,6 +3,7 @@ package qupath.lib.classifiers.pixel;
 import org.bytedeco.javacpp.opencv_core;
 import org.bytedeco.javacpp.opencv_core.Mat;
 import org.bytedeco.javacpp.opencv_core.MatVector;
+import org.bytedeco.javacpp.opencv_core.Rect;
 import org.bytedeco.javacpp.opencv_core.Scalar;
 import org.bytedeco.javacpp.opencv_dnn;
 import org.bytedeco.javacpp.opencv_ml;
@@ -137,6 +138,47 @@ class OpenCVPixelClassifierDNN extends AbstractOpenCVPixelClassifier {
     protected Mat doClassification(Mat mat, int pad, boolean doSoftmax) {
 //        System.err.println("Mean start: " + opencv_core.mean(mat))
     	
+    	// Handle padding, if necessary
+        int top = 0, bottom = 0, left = 0, right = 0;
+        boolean doPad = false;
+        
+    	PixelClassifierMetadata metadata = getMetadata();
+    	if (metadata.strictInputSize()) {
+        	if (mat.cols() > metadata.getInputWidth()) {
+        		List<Mat> horizontal = new ArrayList<>();
+        		for (int x = 0; x < mat.cols(); x += metadata.getInputWidth()) {
+            		Mat matTemp = doClassification(mat.colRange(x, Math.min(x+metadata.getInputWidth(), mat.cols())).clone(), pad, doSoftmax);
+            		horizontal.add(matTemp);
+        		}
+        		Mat matResult = new Mat();
+        		opencv_core.hconcat(new MatVector(horizontal.toArray(new Mat[0])), matResult);
+        		return matResult;
+        	} else if (mat.rows() > metadata.getInputHeight()) {
+        		List<Mat> vertical = new ArrayList<>();
+        		for (int y = 0; y < mat.rows(); y += metadata.getInputHeight()) {
+            		Mat matTemp = doClassification(mat.rowRange(y, Math.min(y+metadata.getInputHeight(), mat.rows())).clone(), pad, doSoftmax);
+            		vertical.add(matTemp);
+        		}
+        		Mat matResult = new Mat();
+//        		try {
+        			opencv_core.vconcat(new MatVector(vertical.toArray(new Mat[0])), matResult);
+//        		} catch (Exception e) {
+//        			System.err.println(vertical);
+//        			e.printStackTrace();
+//        		}
+        		return matResult;
+        	} else if (mat.cols() < metadata.getInputWidth() || mat.rows() < metadata.getInputHeight()) {
+        		top = (metadata.getInputHeight() - mat.rows()) / 2;
+        		left = (metadata.getInputWidth() - mat.cols()) / 2;
+        		bottom = metadata.getInputHeight() - mat.rows() - top;
+        		right = metadata.getInputWidth() - mat.cols() - left;
+        		Mat matPadded = new Mat();
+        		opencv_core.copyMakeBorder(mat, matPadded, top, bottom, left, right, opencv_core.BORDER_REFLECT);
+        		mat = matPadded;
+        		doPad = true;
+        	}
+    	}
+    	
 //    	opencv_core.extractChannel(mat, mat, 0);
 //    	mat.convertTo(mat, opencv_core.CV_32F);
     	
@@ -168,14 +210,13 @@ class OpenCVPixelClassifierDNN extends AbstractOpenCVPixelClassifier {
         
 //    	System.err.println("Mean AFTER: " + opencv_core.mean(mat));
 
-
         Mat prob = null;
         synchronized(model) {
         	long startTime = System.currentTimeMillis();
             Mat blob = opencv_dnn.blobFromImage(mat);
             model.setInput(blob);
             try {
-            prob = model.forward();
+            	prob = model.forward();
             } catch (Exception e2) {
             	logger.error("Error applying classifier", e2);
             }
@@ -189,9 +230,9 @@ class OpenCVPixelClassifierDNN extends AbstractOpenCVPixelClassifier {
         if (matvec.size() != 1)
         	throw new IllegalArgumentException("DNN result must be a single image - here, the result is " + matvec.size() + " images");
         Mat matResult = matvec.get(0L);
-        
+                
         // Sometimes, rather unfortunately, dimensions can be wrong
-        int nChannels = getMetadata().getChannels().size();
+        int nChannels = metadata.getChannels().size();
         if (nChannels == matResult.cols() && nChannels != matResult.channels()) {
         	List<Mat> channels = new ArrayList<>();
         	for (int c = 0; c < matResult.cols(); c++) {
@@ -201,6 +242,14 @@ class OpenCVPixelClassifierDNN extends AbstractOpenCVPixelClassifier {
         		channels.add(matChannel);
         	}
         	opencv_core.merge(new MatVector(channels.toArray(new Mat[0])), matResult);
+        }
+        
+        // Handle padding
+        if (doPad) {
+        	Rect rect = new Rect(left, top, metadata.getInputWidth()-right-left, metadata.getInputHeight()-top-bottom);
+        	Mat matResult2 = matResult.apply(rect).clone();
+        	matResult.release();
+        	matResult = matResult2;
         }
         
 ////        matResult = matResult.reshape(4, 128);
@@ -214,7 +263,7 @@ class OpenCVPixelClassifierDNN extends AbstractOpenCVPixelClassifier {
 ////        System.err.println("Mean afterwards: " + opencv_core.mean(matSum));
 //        matSum.release();
         
-//        int nOutputChannels = getMetadata().nOutputChannels();
+//        int nOutputChannels = metadata.nOutputChannels();
 //        List<Mat> matOutput = new ArrayList<>();
 //        for (int i = 0; i < nOutputChannels; i++) {
 //            Mat plane = opencv_dnn.getPlane(prob, 0, i);
