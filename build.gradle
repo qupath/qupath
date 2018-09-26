@@ -15,19 +15,23 @@ def nativesClassifier = null           // Maven classifier for requesting native
 // Handle OS-specific decisions
 import org.gradle.internal.os.OperatingSystem
 println 'Operating system: ' + OperatingSystem.current()
-def nativesCPP = null
+def nativesCPP
+def platform
 if (OperatingSystem.current().isMacOsX()) {
   nativeBundle = 'mac.app'
   nativesClassifier = 'natives-osx'
   nativesCPP = 'macosx-x86_64'
+  platform = 'mac'
 } else if (OperatingSystem.current().isLinux()) {
   nativeBundle = 'linux.app'
   nativesClassifier = 'natives-linux'
   nativesCPP = 'linux-x86_64'
+  platform = 'linux'
 } else if (OperatingSystem.current().isWindows()) {
   nativeBundle = 'windows.app'
   nativesClassifier = 'natives-windows'
   nativesCPP = 'windows-x86_64'
+  platform = 'win'
 } else {
   println 'Unknown operating system - will attempt all native bundles'
   nativeBundle = 'all'
@@ -53,12 +57,18 @@ subprojects {
     jpen
     imagej
     openslide
+    javafx
   }
 
   dependencies {
     jts 'org.locationtech.jts:jts-core:1.15.1'
     groovy 'org.codehaus.groovy:groovy:2.4.13'
     groovy 'org.codehaus.groovy:groovy-jsr223:2.4.13'
+    javafx "org.openjfx:javafx-base:11:${platform}"
+    javafx "org.openjfx:javafx-graphics:11:${platform}"
+    javafx "org.openjfx:javafx-controls:11:${platform}"
+    javafx "org.openjfx:javafx-swing:11:${platform}"
+    javafx "org.openjfx:javafx-web:11:${platform}"
     if (useLegacyDependencies)
       richtextfx 'org.fxmisc.richtext:richtextfx:0.6.10'
     else
@@ -66,7 +76,7 @@ subprojects {
     commonsmath 'org.apache.commons:commons-math3:3.6.1'
     gson 'com.google.code.gson:gson:2.8.2'
     controlsfx 'org.controlsfx:controlsfx:9.0.0'
-    jfxtras 'org.jfxtras:jfxtras-menu:8.0-r5'
+    jfxtras 'org.jfxtras:jfxtras-menu:9.0-r1'
     if (useLegacyDependencies) {
       opencv 'org.opencv:opencv:3.1.0'
       if (nativesClassifier != null)
@@ -97,8 +107,8 @@ allprojects  {
 // Build all projects
 allprojects {
   apply plugin: 'java'
-  sourceCompatibility = JavaVersion.VERSION_1_9
-  targetCompatibility = JavaVersion.VERSION_1_9
+  sourceCompatibility = JavaVersion.VERSION_11
+  targetCompatibility = JavaVersion.VERSION_11
 
   repositories {
     mavenLocal()
@@ -112,11 +122,30 @@ allprojects {
   }
 }
 
+// Handle JavaFX
+compileJava {
+    doFirst {
+        options.compilerArgs = [
+                '--module-path', classpath.asPath,
+                '--add-modules', 'javafx.controls'
+        ]
+    }
+}
+
+//run {
+//    doFirst {
+//        jvmArgs = [
+//                '--module-path', classpath.asPath,
+//                '--add-modules', 'javafx.controls'
+//        ]
+//    }
+//}
+
 // Build Groovy
 allprojects {
     apply plugin: 'groovy'
-    sourceCompatibility = JavaVersion.VERSION_1_9
-    targetCompatibility = JavaVersion.VERSION_1_9
+    sourceCompatibility = JavaVersion.VERSION_11
+    targetCompatibility = JavaVersion.VERSION_11
 
     repositories {
         mavenLocal()
@@ -264,54 +293,54 @@ jar.dependsOn extractNativeLibraries
 jar.dependsOn copyLicenseReport
 
 
-apply plugin: 'javafx-gradle-plugin'
-
-
-// Configure javafx-gradle-plugin
-jfx {
-    verbose           = true
-    mainClass         = "qupath.QuPath"
-    jfxMainAppJarName = 'QuPathApp.jar'
-    deployDir         = "src/main/resources"
-    libFolderName     = 'jars'
-
-    // gradle jfxJar
-    manifestAttributes = [
-       "Implementation-Vendor": qupathVendor,
-       "Implementation-Title": 'QuPath',
-       "Implementation-Version": qupathVersion,
-       "QuPath-build-time": new Date().format("yyyy-MM-dd, HH:mm")
-    ]
-    if (latestGitCommit != null)
-       manifestAttributes["QuPath-latest-commit"] = latestGitCommit
-    
-
-    // gradle jfxNative
-    vendor               = qupathVendor
-    nativeReleaseVersion = qupathVersion
-    appName              = 'QuPath'
-    bundler              = nativeBundle
-
-    // Necessary for native libraries, licenses & changelog
-    copyAdditionalAppResourcesToJar = true
-    additionalAppResources = additionalResourcesDir
-
-    fileAssociations = [
-      [
-        description: 'QuPath project file',
-        extensions: 'qpproj',
-        contentType: 'application/qupath-project'
-      ],
-      [
-        description: 'QuPath data file',
-        extensions: 'qpdata',
-        contentType: 'application/qupath-data'
-      ]
-    ]
-
-    bundleArguments = [:]
-    if (!includeJRE) {
-      bundleArguments['runtime'] = null
-    }
-
-}
+//apply plugin: 'javafx-gradle-plugin'
+//
+//
+//// Configure javafx-gradle-plugin
+//jfx {
+//    verbose           = true
+//    mainClass         = "qupath.QuPath"
+//    jfxMainAppJarName = 'QuPathApp.jar'
+//    deployDir         = "src/main/resources"
+//    libFolderName     = 'jars'
+//
+//    // gradle jfxJar
+//    manifestAttributes = [
+//       "Implementation-Vendor": qupathVendor,
+//       "Implementation-Title": 'QuPath',
+//       "Implementation-Version": qupathVersion,
+//       "QuPath-build-time": new Date().format("yyyy-MM-dd, HH:mm")
+//    ]
+//    if (latestGitCommit != null)
+//       manifestAttributes["QuPath-latest-commit"] = latestGitCommit
+//
+//
+//    // gradle jfxNative
+//    vendor               = qupathVendor
+//    nativeReleaseVersion = qupathVersion
+//    appName              = 'QuPath'
+//    bundler              = nativeBundle
+//
+//    // Necessary for native libraries, licenses & changelog
+//    copyAdditionalAppResourcesToJar = true
+//    additionalAppResources = additionalResourcesDir
+//
+//    fileAssociations = [
+//      [
+//        description: 'QuPath project file',
+//        extensions: 'qpproj',
+//        contentType: 'application/qupath-project'
+//      ],
+//      [
+//        description: 'QuPath data file',
+//        extensions: 'qpdata',
+//        contentType: 'application/qupath-data'
+//      ]
+//    ]
+//
+//    bundleArguments = [:]
+//    if (!includeJRE) {
+//      bundleArguments['runtime'] = null
+//    }
+//
+//}
