@@ -315,7 +315,7 @@ public class WorkflowPanel {
 		count++;
 		steps.add(builder.build());
 
-		Action action = qupath.createCommandAction("qupath.opencv.classify.OpenCvClassifierCommand", "Create detection classifier", qupath);
+		Action action = qupath.createCommandAction("qupath.opencv.gui.classify.OpenCvClassifierCommand", "Create detection classifier", qupath);
 		builder = new WizardStepBuilder("Set up & run tumor classifier")
 				.essential()
 				.setDescriptionByResource(base + count + "/description.html")

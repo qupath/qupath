@@ -37,8 +37,8 @@ import javafx.scene.control.MenuItem;
 import javafx.scene.control.SeparatorMenuItem;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.helpers.DisplayHelpers;
-import qupath.lib.scripting.DefaultScriptEditor;
-import qupath.lib.scripting.DefaultScriptEditor.Language;
+import qupath.lib.gui.scripting.DefaultScriptEditor;
+import qupath.lib.gui.scripting.DefaultScriptEditor.Language;
 
 /**
  * Helper class for creating a dynamic menu to a directory containing scripts.

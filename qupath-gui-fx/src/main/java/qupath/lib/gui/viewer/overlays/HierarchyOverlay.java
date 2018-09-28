@@ -42,12 +42,12 @@ import org.slf4j.LoggerFactory;
 
 import qupath.lib.awt.color.ColorToolsAwt;
 import qupath.lib.awt.common.AwtTools;
+import qupath.lib.gui.images.servers.PathHierarchyImageServer;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.gui.viewer.PathHierarchyPaintingHelper;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
-import qupath.lib.images.servers.PathHierarchyImageServer;
 import qupath.lib.images.stores.DefaultImageRegionStore;
 import qupath.lib.objects.DefaultPathObjectComparator;
 import qupath.lib.objects.DefaultPathObjectConnectionGroup;

@@ -2,6 +2,7 @@
 description = 'qupath-core'
 
 configurations {
+  compile.extendsFrom commonsmath
   compile.extendsFrom gson
   compile.extendsFrom jts
 }

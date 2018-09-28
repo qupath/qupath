@@ -7,5 +7,4 @@ configurations {
 
 dependencies {
   compile project(':qupath-core')
-  compile project(':qupath-core-awt')
 }

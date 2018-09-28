@@ -63,18 +63,18 @@ import qupath.lib.gui.ImageDataWrapper;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.gui.helpers.PanelToolsFX;
+import qupath.lib.gui.plugins.ParameterDialogWrapper;
+import qupath.lib.gui.plugins.PluginRunnerFX;
+import qupath.lib.gui.scripting.ScriptEditor;
 import qupath.lib.images.ImageData;
-import qupath.lib.plugins.ParameterDialogWrapper;
 import qupath.lib.plugins.PathInteractivePlugin;
 import qupath.lib.plugins.PathPlugin;
-import qupath.lib.plugins.PluginRunnerFX;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.plugins.workflow.ScriptableWorkflowStep;
 import qupath.lib.plugins.workflow.SimplePluginWorkflowStep;
 import qupath.lib.plugins.workflow.Workflow;
 import qupath.lib.plugins.workflow.WorkflowListener;
 import qupath.lib.plugins.workflow.WorkflowStep;
-import qupath.lib.scripting.ScriptEditor;
 
 
 /**

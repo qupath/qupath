@@ -7,8 +7,6 @@ def qupathVendor = "QuPath developers" // Requested by JavaFX packager
 def includeJRE = false                 // Should Java be included in any native packages?
 def additionalResourcesDir = 'build/additional' // Where to store additional files needed for final package
 
-def useLegacyDependencies = false      // For minimal changes from v0.1.2, no support for Java 9
-
 def nativeBundle = null                // Choose native bundle, or leave null for default
 def nativesClassifier = null           // Maven classifier for requesting native libraries
 
@@ -58,35 +56,27 @@ subprojects {
     imagej
     openslide
     javafx
+    nativeloader
   }
 
   dependencies {
-    jts 'org.locationtech.jts:jts-core:1.15.1'
-    groovy 'org.codehaus.groovy:groovy:2.4.13'
-    groovy 'org.codehaus.groovy:groovy-jsr223:2.4.13'
+    jts 'org.locationtech.jts:jts-core:1.16.0'
+    groovy 'org.codehaus.groovy:groovy:2.5.2'
+    groovy 'org.codehaus.groovy:groovy-jsr223:2.5.2'
     javafx "org.openjfx:javafx-base:11:${platform}"
     javafx "org.openjfx:javafx-graphics:11:${platform}"
     javafx "org.openjfx:javafx-controls:11:${platform}"
     javafx "org.openjfx:javafx-swing:11:${platform}"
     javafx "org.openjfx:javafx-web:11:${platform}"
-    if (useLegacyDependencies)
-      richtextfx 'org.fxmisc.richtext:richtextfx:0.6.10'
-    else
-      richtextfx 'org.fxmisc.richtext:richtextfx:0.9.0'
+    richtextfx 'org.fxmisc.richtext:richtextfx:0.9.1'
     commonsmath 'org.apache.commons:commons-math3:3.6.1'
-    gson 'com.google.code.gson:gson:2.8.2'
+    gson 'com.google.code.gson:gson:2.8.5'
     controlsfx 'org.controlsfx:controlsfx:9.0.0'
     jfxtras 'org.jfxtras:jfxtras-menu:9.0-r1'
-    if (useLegacyDependencies) {
-      opencv 'org.opencv:opencv:3.1.0'
-      if (nativesClassifier != null)
-        opencv 'org.opencv:opencv:3.1.0:' + nativesClassifier
-    } else {
-      opencv 'org.bytedeco.javacpp-presets:opencv:3.4.2-1.4.2'
-      if (nativesCPP != null) {
-        opencv 'org.bytedeco.javacpp-presets:opencv:3.4.2-1.4.2:' + nativesCPP
-        opencv 'org.bytedeco.javacpp-presets:opencv:3.4.2-1.4.2:' + nativesCPP + '-gpu'
-      }
+    opencv 'org.bytedeco.javacpp-presets:opencv:3.4.2-1.4.2'
+    if (nativesCPP != null) {
+      opencv 'org.bytedeco.javacpp-presets:opencv:3.4.2-1.4.2:' + nativesCPP
+      opencv 'org.bytedeco.javacpp-presets:opencv:3.4.2-1.4.2:' + nativesCPP + '-gpu'
     }
     jpen 'net.sourceforge.jpen:jpen:2-150301'
     if (nativesClassifier != null)
@@ -95,6 +85,7 @@ subprojects {
     openslide 'org.openslide:openslide:3.4.1_2'
     if (nativesClassifier != null)
       openslide 'org.openslide:openslide:3.4.1_2:' + nativesClassifier
+    nativeloader 'org.scijava:native-lib-loader:2.3.1'
   }
 }
 
@@ -104,12 +95,23 @@ allprojects  {
   version = qupathVersion
 }
 
+
 // Build all projects
 allprojects {
   apply plugin: 'java'
   sourceCompatibility = JavaVersion.VERSION_11
   targetCompatibility = JavaVersion.VERSION_11
 
+// Handle JavaFX
+compileJava {
+    doFirst {
+    	print(classpath.getClass())
+//		print 'CLASSPATH: ' + classpath.filter({File f -> !f.name.contains('opencv')}).
+        options.compilerArgs = [
+                '--module-path', classpath.filter({File f -> !f.name.contains('opencv')}).asPath
+        ]
+    }
+}
   repositories {
     mavenLocal()
     mavenCentral()
@@ -122,15 +124,7 @@ allprojects {
   }
 }
 
-// Handle JavaFX
-compileJava {
-    doFirst {
-        options.compilerArgs = [
-                '--module-path', classpath.asPath,
-                '--add-modules', 'javafx.controls'
-        ]
-    }
-}
+
 
 //run {
 //    doFirst {
@@ -141,7 +135,8 @@ compileJava {
 //    }
 //}
 
-// Build Groovy
+// Build Groovy - currently disabled for module-related reasons
+/*
 allprojects {
     apply plugin: 'groovy'
     sourceCompatibility = JavaVersion.VERSION_11
@@ -154,11 +149,12 @@ allprojects {
     }
 
     dependencies {
-        compile 'org.codehaus.groovy:groovy-all:2.4.12'
+//        compile 'org.codehaus.groovy:groovy-all:2.5.2'
         compile group: 'ch.qos.logback', name: 'logback-classic', version:'1.2.3'
         testCompile group: 'junit', name: 'junit', version:'4.12'
     }
 }
+*/
 
 // Build the main launcher class
 apply plugin: 'java'
@@ -172,11 +168,11 @@ repositories {
 // I suspect there is a cleaner way to specify subprojects here...
 dependencies {
     compile project(':qupath-gui-fx')
-    compile project(':qupath-experimental')
+//    compile project(':qupath-experimental')
     compile project(':qupath-extension-openslide')
     compile project(':qupath-extension-script-editor')
     compile project(':qupath-extension-ij')
-    compile project(':qupath-extension-opencv')
+//    compile project(':qupath-extension-opencv')
     compile project(':qupath-extension-pen')
 
     // Try to find packager.jar so it's possible to use UserJvmOptionsService,
@@ -235,7 +231,7 @@ buildscript {
 
   dependencies {
       classpath group: 'de.dynamicfiles.projects.gradle.plugins', name: 'javafx-gradle-plugin', version: '8.9.0-SNAPSHOT'
-      classpath 'gradle.plugin.com.github.jk1:gradle-license-report:0.5.0'
+      classpath 'gradle.plugin.com.github.jk1:gradle-license-report:1.2'
   }
 
   repositories {
@@ -291,6 +287,9 @@ jar.dependsOn copyLicenses
 jar.dependsOn copyChangelog
 jar.dependsOn extractNativeLibraries
 jar.dependsOn copyLicenseReport
+
+apply plugin: 'application'
+mainClassName = 'qupath.QuPath'
 
 
 //apply plugin: 'javafx-gradle-plugin'

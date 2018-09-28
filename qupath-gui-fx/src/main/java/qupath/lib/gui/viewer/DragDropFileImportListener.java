@@ -41,15 +41,15 @@ import javafx.scene.input.Dragboard;
 import javafx.scene.input.TransferMode;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.helpers.DisplayHelpers;
+import qupath.lib.gui.io.PathAwtIO;
 import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.gui.scripting.ScriptEditor;
 import qupath.lib.images.ImageData;
-import qupath.lib.io.PathAwtIO;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.TMAGrid;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectIO;
-import qupath.lib.scripting.DefaultScriptEditor;
-import qupath.lib.scripting.ScriptEditor;
+import qupath.lib.gui.scripting.DefaultScriptEditor;
 
 
 /**

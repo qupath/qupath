@@ -1,0 +1,9 @@
+// The naming of jpen-2 isn't very module-friendly.
+module qupath.openslide {
+	
+	requires java.desktop;
+	
+    requires qupath.gui.fx;
+
+
+}

@@ -1,1 +1,1 @@
-qupath.lib.images.servers.OpenslideServerBuilder
+qupath.lib.images.servers.openslide.OpenslideServerBuilder
