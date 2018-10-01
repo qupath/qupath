@@ -1,47 +1,64 @@
 /*
- * Gradle script for building QuPath, with the help of the JavaFX packager.
+ * Gradle script for building QuPath.
+ *
+ * To create a complete build including associated license files, try the following:
+ *
+ * ./gradlew clean generateLicenseReport build createPackage -Ppackager=/path/to/jpackager
  */
 
-def qupathVersion = "0.2.0-SNAPSHOT"   // Current version for QuPath
-def qupathVendor = "QuPath developers" // Requested by JavaFX packager
-def includeJRE = false                 // Should Java be included in any native packages?
-def additionalResourcesDir = 'build/additional' // Where to store additional files needed for final package
+/**
+ * Some metadata for the manifest
+ */
+def qupathVersion = "0.2.0-SNAPSHOT"
+def qupathVendor = "QuPath developers"
 
-def nativeBundle = null                // Choose native bundle, or leave null for default
-def nativesClassifier = null           // Maven classifier for requesting native libraries
+/**
+ * Output location; once things are gathered here, they can be used as input for jpackager
+ */
+def qupathOutputDir = 'qupath'
+def additionalResourcesDir = "build/${qupathOutputDir}"
 
-// Handle OS-specific decisions
+/**
+ * Include OpenCV binaries with GPU support (quite big, may not be used?)
+ */
+def useGPU = false
+
+/**
+ * Good to know what JDK is (sometimes accidentally) being used
+ */
+println 'Current Java version: ' + JavaVersion.current()
+
+/**
+ * Handle OS-specific decisions
+ */
 import org.gradle.internal.os.OperatingSystem
 println 'Operating system: ' + OperatingSystem.current()
 def nativesCPP
 def platform
+def nativesClassifier
+String iconName
 if (OperatingSystem.current().isMacOsX()) {
-  nativeBundle = 'mac.app'
   nativesClassifier = 'natives-osx'
   nativesCPP = 'macosx-x86_64'
   platform = 'mac'
+  iconName = 'macosx/qupath.icns'
 } else if (OperatingSystem.current().isLinux()) {
-  nativeBundle = 'linux.app'
   nativesClassifier = 'natives-linux'
   nativesCPP = 'linux-x86_64'
   platform = 'linux'
+  iconName = 'linux/QuPath.png'
 } else if (OperatingSystem.current().isWindows()) {
-  nativeBundle = 'windows.app'
   nativesClassifier = 'natives-windows'
   nativesCPP = 'windows-x86_64'
   platform = 'win'
+  iconName = 'windows/QuPath.ico'
 } else {
-  println 'Unknown operating system - will attempt all native bundles'
-  nativeBundle = 'all'
+  println 'Unknown operating system!'
 }
 
-// At the time of writing, packaging as a JavaFX native package is only
-// working smoothing for Java 8.
-// Nevertheless, it should be possible to build for Java 9 generally
-// with minimal changes, provided that the correct version of ControlsFX is used
-println 'Current Java version: ' + JavaVersion.current()
-
-// Define dependencies
+/**
+ * Define managed dependencies for use within sub-projects
+ */
 subprojects {
   configurations {
   	jts
@@ -60,62 +77,73 @@ subprojects {
   }
 
   dependencies {
-    jts 'org.locationtech.jts:jts-core:1.16.0'
-    groovy 'org.codehaus.groovy:groovy:2.5.2'
-    groovy 'org.codehaus.groovy:groovy-jsr223:2.5.2'
-    javafx "org.openjfx:javafx-base:11:${platform}"
-    javafx "org.openjfx:javafx-graphics:11:${platform}"
-    javafx "org.openjfx:javafx-controls:11:${platform}"
-    javafx "org.openjfx:javafx-swing:11:${platform}"
-    javafx "org.openjfx:javafx-web:11:${platform}"
+
+    jts "org.locationtech.jts:jts-core:1.16.0"
+
+    groovy "org.codehaus.groovy:groovy:2.5.3-SNAPSHOT"
+    groovy "org.codehaus.groovy:groovy-jsr223:2.5.3-SNAPSHOT"
+
+    for (fx in ['javafx-base', 'javafx-controls', 'javafx-graphics', 'javafx-media', 'javafx-web', 'javafx-swing']) {
+      javafx "org.openjfx:${fx}:11"
+      javafx "org.openjfx:${fx}:11:${platform}"
+    }
+
     richtextfx 'org.fxmisc.richtext:richtextfx:0.9.1'
+
     commonsmath 'org.apache.commons:commons-math3:3.6.1'
+
     gson 'com.google.code.gson:gson:2.8.5'
+
     controlsfx 'org.controlsfx:controlsfx:9.0.0'
+
     jfxtras 'org.jfxtras:jfxtras-menu:9.0-r1'
+
     opencv 'org.bytedeco.javacpp-presets:opencv:3.4.2-1.4.2'
     if (nativesCPP != null) {
       opencv 'org.bytedeco.javacpp-presets:opencv:3.4.2-1.4.2:' + nativesCPP
-      opencv 'org.bytedeco.javacpp-presets:opencv:3.4.2-1.4.2:' + nativesCPP + '-gpu'
+      if (useGPU)
+        opencv 'org.bytedeco.javacpp-presets:opencv:3.4.2-1.4.2:' + nativesCPP + '-gpu'
     }
+
     jpen 'net.sourceforge.jpen:jpen:2-150301'
     if (nativesClassifier != null)
       jpen 'net.sourceforge.jpen:jpen:2-150301:' + nativesClassifier
+
     imagej 'net.imagej:ij:1.51w'
+
     openslide 'org.openslide:openslide:3.4.1_2'
     if (nativesClassifier != null)
       openslide 'org.openslide:openslide:3.4.1_2:' + nativesClassifier
+
     nativeloader 'org.scijava:native-lib-loader:2.3.1'
   }
 }
 
-// Set the group & version
+/**
+ * Set group & version
+ */
 allprojects  {
   group = 'qupath'
   version = qupathVersion
 }
 
-
-// Build all projects
+/**
+ * Build all projects
+ */
 allprojects {
   apply plugin: 'java'
   sourceCompatibility = JavaVersion.VERSION_11
   targetCompatibility = JavaVersion.VERSION_11
-
-// Handle JavaFX
-compileJava {
-    doFirst {
-    	print(classpath.getClass())
-//		print 'CLASSPATH: ' + classpath.filter({File f -> !f.name.contains('opencv')}).
-        options.compilerArgs = [
-                '--module-path', classpath.filter({File f -> !f.name.contains('opencv')}).asPath
-        ]
-    }
-}
+  
   repositories {
     mavenLocal()
     mavenCentral()
     maven { url "../maven/repo" }
+    
+    // For Groovy snapshot (>= 2.5.3 required for Java 11)
+    maven {
+        url 'https://oss.jfrog.org/artifactory/oss-snapshot-local'
+    }
   }
 
   dependencies {
@@ -124,40 +152,14 @@ compileJava {
   }
 }
 
-
-
-//run {
-//    doFirst {
-//        jvmArgs = [
-//                '--module-path', classpath.asPath,
-//                '--add-modules', 'javafx.controls'
-//        ]
-//    }
-//}
-
-// Build Groovy - currently disabled for module-related reasons
-/*
-allprojects {
-    apply plugin: 'groovy'
-    sourceCompatibility = JavaVersion.VERSION_11
-    targetCompatibility = JavaVersion.VERSION_11
-
-    repositories {
-        mavenLocal()
-        mavenCentral()
-        maven { url "../maven/repo" }
-    }
-
-    dependencies {
-//        compile 'org.codehaus.groovy:groovy-all:2.5.2'
-        compile group: 'ch.qos.logback', name: 'logback-classic', version:'1.2.3'
-        testCompile group: 'junit', name: 'junit', version:'4.12'
-    }
-}
-*/
-
-// Build the main launcher class
+/**
+ * Build the main launcher class
+ */
 apply plugin: 'java'
+rootProject.libsDirName = qupathOutputDir
+
+//println 'BASE NAME: ' + jar.archiveName
+
 
 repositories {
   mavenLocal()
@@ -165,30 +167,18 @@ repositories {
   maven { url "./maven/repo" }
 }
 
-// I suspect there is a cleaner way to specify subprojects here...
+/**
+ * I suspect there may be a cleaner way to specify subprojects...
+ */
 dependencies {
-    compile project(':qupath-gui-fx')
-//    compile project(':qupath-experimental')
-    compile project(':qupath-extension-openslide')
-    compile project(':qupath-extension-script-editor')
-    compile project(':qupath-extension-ij')
-//    compile project(':qupath-extension-opencv')
-    compile project(':qupath-extension-pen')
-
-    // Try to find packager.jar so it's possible to use UserJvmOptionsService,
-    // and therefore change the memory limits from within the main GUI
-    def filePackager = new File("${System.properties['java.home']}/../lib/packager.jar")
-    if (!filePackager.exists())
-        filePackager = new File("/usr/share/java/openjfx/lib/packager.jar")
-    if (filePackager.exists()) {
-        println 'Found the packager at ' + filePackager.getAbsolutePath()
-        compile files(filePackager)
-    }
-    else
-        println 'I could not find packager.jar! May not be able to set the memory limits from the GUI.'
+  subprojects {
+    compile it
+  }
 }
 
-// Get licences from subprojects
+/**
+ * Copy licenses from subprojects to include in distribution
+ */
 task copyLicenses(type: Copy) {
   def licenseDirs = []
   subprojects.each {
@@ -202,7 +192,9 @@ task copyLicenses(type: Copy) {
   into additionalResourcesDir + '/licenses'
 }
 
-// Get main changelog & license
+/**
+ * Get the main changelog & license
+ */
 task copyChangelog(type: Copy) {
   from project.rootDir
   into additionalResourcesDir
@@ -211,7 +203,9 @@ task copyChangelog(type: Copy) {
   include 'LICENSE.txt'
 }
 
-// Get native libraries from dependencies
+/**
+ * Extract native libraries where necessary
+ */
 task extractNativeLibraries() {
   if (nativesClassifier == null)
     return
@@ -226,11 +220,38 @@ task extractNativeLibraries() {
   }
 }
 
-// Configure build script for creating JavaFX package
+/**
+ * Copy required jars all into one directory
+ */
+task copyRuntimeLibs(type: Copy) {
+  into additionalResourcesDir
+  from configurations.runtime
+}
+
+/**
+ * Run automated license generation (in addition to manually-curated licenses)
+ */
+apply plugin: 'com.github.jk1.dependency-license-report'
+import com.github.jk1.license.render.*
+
+import java.nio.file.Paths
+
+licenseReport {
+  renderers = [new TextReportRenderer('THIRD-PARTY.txt'),
+               new CsvReportRenderer(),
+               new InventoryHtmlReportRenderer()]
+}
+task copyLicenseReport(type: Copy) {
+  from 'build/reports/dependency-license/THIRD-PARTY.txt'
+  into additionalResourcesDir + '/licenses'
+}
+
+/**
+ * Configure build script
+ */
 buildscript {
 
   dependencies {
-      classpath group: 'de.dynamicfiles.projects.gradle.plugins', name: 'javafx-gradle-plugin', version: '8.9.0-SNAPSHOT'
       classpath 'gradle.plugin.com.github.jk1:gradle-license-report:1.2'
   }
 
@@ -243,8 +264,7 @@ buildscript {
   
   // Request latest commit by a command line call to Git, if required
   def requestLatestCommit = project.findProperty('request-git-tag') == 'true'
-  
-  
+
   // Try to get version number
   ext {
   	latestGitCommit = null
@@ -268,78 +288,90 @@ buildscript {
   
 }
 
-// Run automated license generation (in addition to manually-curated licenses)
-apply plugin: 'com.github.jk1.dependency-license-report'
-import com.github.jk1.license.importer.*
-import com.github.jk1.license.render.*
-
-licenseReport {
-    renderer = new MultiReportRenderer(new TextReportRenderer('THIRD-PARTY.txt'), new CsvReportRenderer(), new InventoryHtmlReportRenderer())
-}
-
-task copyLicenseReport(type: Copy) {
-  from 'build/reports/dependency-license/THIRD-PARTY.txt'
-  into additionalResourcesDir + '/licenses'
-}
-
-// Make sure our files are copied when needed...
+/**
+ * Specify the order of some operations
+ */
 jar.dependsOn copyLicenses
 jar.dependsOn copyChangelog
 jar.dependsOn extractNativeLibraries
-jar.dependsOn copyLicenseReport
+build.dependsOn copyLicenseReport
+build.dependsOn copyRuntimeLibs
 
-apply plugin: 'application'
-mainClassName = 'qupath.QuPath'
+/**
+ * Squeeze some useful metadata into the Manifest of the main jar -
+ * QuPath can display this through the GUI
+ */
+jar {
+  manifest {
+    def manifestAttributes = [
+       "Implementation-Vendor": qupathVendor,
+       "Implementation-Title": 'QuPath',
+       "Implementation-Version": qupathVersion,
+       "QuPath-build-time": new Date().format("yyyy-MM-dd, HH:mm")
+    ]
+    if (latestGitCommit != null)
+       manifestAttributes["QuPath-latest-commit"] = latestGitCommit
 
+    attributes(manifestAttributes)
+  }
+}
 
-//apply plugin: 'javafx-gradle-plugin'
-//
-//
-//// Configure javafx-gradle-plugin
-//jfx {
-//    verbose           = true
-//    mainClass         = "qupath.QuPath"
-//    jfxMainAppJarName = 'QuPathApp.jar'
-//    deployDir         = "src/main/resources"
-//    libFolderName     = 'jars'
-//
-//    // gradle jfxJar
-//    manifestAttributes = [
-//       "Implementation-Vendor": qupathVendor,
-//       "Implementation-Title": 'QuPath',
-//       "Implementation-Version": qupathVersion,
-//       "QuPath-build-time": new Date().format("yyyy-MM-dd, HH:mm")
-//    ]
-//    if (latestGitCommit != null)
-//       manifestAttributes["QuPath-latest-commit"] = latestGitCommit
-//
-//
-//    // gradle jfxNative
-//    vendor               = qupathVendor
-//    nativeReleaseVersion = qupathVersion
-//    appName              = 'QuPath'
-//    bundler              = nativeBundle
-//
-//    // Necessary for native libraries, licenses & changelog
-//    copyAdditionalAppResourcesToJar = true
-//    additionalAppResources = additionalResourcesDir
-//
-//    fileAssociations = [
-//      [
-//        description: 'QuPath project file',
-//        extensions: 'qpproj',
-//        contentType: 'application/qupath-project'
-//      ],
-//      [
-//        description: 'QuPath data file',
-//        extensions: 'qpdata',
-//        contentType: 'application/qupath-data'
-//      ]
-//    ]
-//
-//    bundleArguments = [:]
-//    if (!includeJRE) {
-//      bundleArguments['runtime'] = null
-//    }
-//
-//}
+/**
+ * If we have a packager (somewhere), use it.
+ *
+ * To call this:
+ *   gradlew createPackage -Ppackager=/path/to/jpackager
+ *
+ * Or to make an installer:
+ *   gradlew createPackage -Ppackager=/path/to/jpackager -Ptype=installer}
+ */
+task createPackage(dependsOn:build, type:Exec) {
+
+  doFirst {
+
+    def packager = findProperty('packager')
+    if (packager == null || !new File(packager).exists()) {
+      println '-------'
+      println 'Please specify where I can find a suitable packager!  Something like this:'
+      println 'gradlew createPackage -Ppackager=/path/to/jpackager'
+      println '-------'
+      throw new GradleException('Please specify where I can find a suitable packager!')
+    }
+    println 'Using packager: ' + packager
+
+    def packageType = findProperty('type')
+
+    def params = [packager]
+
+    if (packageType == 'installer')
+      params << 'create-installer'
+    else
+      params << 'create-image'
+
+    params << '--input' << rootProject.libsDir.getAbsolutePath()
+    params << '--output' << new File(rootProject.libsDir.getParentFile(), 'dist').getAbsolutePath()
+
+    params << '--main-jar' << jar.archiveName
+
+    params << '--name' << 'QuPath-JDK11-alpha'
+    params << '--class' << 'qupath.QuPath'
+
+    // Strip off any SNAPSHOT part, which can cause trouble
+    params << '--version' << qupathVersion.replace('-SNAPSHOT', '')
+
+    // Try to find the icon
+    def pathIcon = Paths.get(
+            rootProject.libsDir.getParentFile().getAbsolutePath(),
+            'resources', 'main', 'package',
+            iconName).toFile().getAbsolutePath()
+    params << '--icon' << pathIcon
+
+    params << '--add-modules' << 'java.desktop,java.xml,java.scripting,java.sql,java.naming,jdk.unsupported'
+
+    params.each {
+      print it
+    }
+    commandLine = params
+  }
+
+}

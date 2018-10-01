@@ -100,7 +100,7 @@ public class ShowLicensesCommand implements PathCommand {
 		}
 		File fileLicenses = null;
 		if (currentFile != null && currentFile.getName().toLowerCase().endsWith(".jar")) {
-			File dirBase = currentFile.getParentFile();
+			File dirBase = currentFile;
 			if (new File(dirBase, "licenses").isDirectory())
 				fileLicenses = new File(dirBase, "THIRD-PARTY.txt");
 			else if (new File(dirBase.getParentFile(), "licenses").isDirectory())
@@ -131,7 +131,7 @@ public class ShowLicensesCommand implements PathCommand {
 				}
 			}
 			// Create a third-party licenses tab
-			tabPane.getTabs().add(new Tab("Third party", createLicenseTreePane(fileLicenses.getParentFile())));			
+			tabPane.getTabs().add(new Tab("Third party", createLicenseTreePane(fileLicenses.getParentFile())));
 		}
 		
 		// Create and show dialog

@@ -1,5 +1,5 @@
 
-description = 'qupath-extension-ij'
+description = 'qupath-extension-processing'
 dependencies {
   compile project(':qupath-core-processing')
   compile project(':qupath-gui-fx')
