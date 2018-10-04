@@ -64,7 +64,7 @@ import qupath.lib.roi.interfaces.ROI;
 /**
  * Static methods for exporting TMA data, optionally with small images.
  * 
- * @see PathIO
+ * @see qupath.lib.io.PathIO
  * 
  * @author Pete Bankhead
  *

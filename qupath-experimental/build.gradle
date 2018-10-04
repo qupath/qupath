@@ -1,12 +1,6 @@
 description = 'qupath-experimental'
 
-configurations {
-  compile.extendsFrom opencv
-}
-
 dependencies {
-    compile 'org.codehaus.groovy:groovy-all:2.4.12'
-    compile project(':qupath-processing-opencv')
-    compile project(':qupath-processing-ij')
+    compile project(':qupath-extension-processing')
     compile project(':qupath-gui-fx')
 }

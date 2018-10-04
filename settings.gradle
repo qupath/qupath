@@ -6,7 +6,7 @@ include ':qupath-extension-script-editor'
 include ':qupath-extension-processing'
 include ':qupath-extension-openslide'
 include ':qupath-extension-pen'
-//include ':qupath-experimental'
+include ':qupath-experimental'
 
 project(':qupath-core').projectDir = "$rootDir/qupath-core" as File
 project(':qupath-core-processing').projectDir = "$rootDir/qupath-core-processing" as File
@@ -15,4 +15,4 @@ project(':qupath-extension-script-editor').projectDir = "$rootDir/qupath-extensi
 project(':qupath-extension-processing').projectDir = "$rootDir/qupath-extension-processing" as File
 project(':qupath-extension-openslide').projectDir = "$rootDir/qupath-extension-openslide" as File
 project(':qupath-extension-pen').projectDir = "$rootDir/qupath-extension-pen" as File
-//project(':qupath-experimental').projectDir = "$rootDir/qupath-experimental" as File
+project(':qupath-experimental').projectDir = "$rootDir/qupath-experimental" as File
