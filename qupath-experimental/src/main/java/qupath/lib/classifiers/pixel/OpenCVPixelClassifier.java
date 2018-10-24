@@ -2,6 +2,7 @@ package qupath.lib.classifiers.pixel;
 
 import java.awt.image.BufferedImage;
 import java.awt.image.ColorModel;
+import java.io.IOException;
 
 import org.bytedeco.javacpp.opencv_core;
 import org.bytedeco.javacpp.opencv_core.Mat;
@@ -85,7 +86,7 @@ public class OpenCVPixelClassifier extends AbstractOpenCVPixelClassifier {
     
     
     @Override
-    public BufferedImage applyClassification(final ImageServer<BufferedImage> server, final RegionRequest request) {
+    public BufferedImage applyClassification(final ImageServer<BufferedImage> server, final RegionRequest request) throws IOException {
         // Get the pixels into a friendly format
 //        Mat matInput = OpenCVTools.imageToMatRGB(img, false);
     	

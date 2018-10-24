@@ -31,6 +31,7 @@ import java.awt.geom.AffineTransform;
 import java.awt.geom.NoninvertibleTransformException;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferByte;
+import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
 
@@ -130,7 +131,13 @@ public class AlignCoreAnnotationsCV implements PathCommand {
 				downsample = preferredPixelSizeMicrons / server.getAveragedPixelSizeMicrons();
 			}
 			RegionRequest request = RegionRequest.createInstance(server.getPath(), downsample, parentObject.getROI());
-			BufferedImage img = server.readBufferedImage(request);
+			BufferedImage img = null;
+			try {
+				img = server.readBufferedImage(request);
+			} catch (IOException e) {
+				DisplayHelpers.showErrorMessage("Align cores", e);
+				return;
+			}
 			
 			// Convert to grayscale & get bytes
 			byte[] bytesImage = getGrayscalePixelBytes(img);

@@ -1,5 +1,7 @@
 package qupath.lib.images.servers;
 
+import java.io.IOException;
+
 import qupath.lib.regions.RegionRequest;
 
 /**
@@ -37,7 +39,7 @@ public abstract class WrappedImageServer<T> extends AbstractImageServer<T> {
 	}
 
 	@Override
-	public T readBufferedImage(RegionRequest request) {
+	public T readBufferedImage(RegionRequest request) throws IOException {
 		return server.readBufferedImage(request);
 	}
 

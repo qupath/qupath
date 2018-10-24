@@ -6,7 +6,6 @@ import org.bytedeco.javacpp.opencv_core.MatVector;
 import org.bytedeco.javacpp.opencv_core.Rect;
 import org.bytedeco.javacpp.opencv_core.Scalar;
 import org.bytedeco.javacpp.opencv_dnn;
-import org.bytedeco.javacpp.opencv_ml;
 import org.bytedeco.javacpp.opencv_dnn.Net;
 import org.bytedeco.javacpp.opencv_imgproc;
 import org.slf4j.Logger;
@@ -17,6 +16,7 @@ import qupath.opencv.processing.OpenCVTools;
 
 import java.awt.image.BufferedImage;
 import java.awt.image.ColorModel;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -292,7 +292,7 @@ class OpenCVPixelClassifierDNN extends AbstractOpenCVPixelClassifier {
 	}
 
 	@Override
-    public BufferedImage applyClassification(final ImageServer<BufferedImage> server, final RegionRequest request) {
+    public BufferedImage applyClassification(final ImageServer<BufferedImage> server, final RegionRequest request) throws IOException {
         // Get the pixels into a friendly format
 //        Mat matInput = OpenCVTools.imageToMatRGB(img, false);
 		

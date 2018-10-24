@@ -35,6 +35,8 @@ import java.awt.Color;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBuffer;
 import java.awt.image.SampleModel;
+import java.io.IOException;
+
 import qupath.imagej.helpers.IJTools;
 import qupath.imagej.objects.PathImagePlus;
 import qupath.lib.images.PathImage;
@@ -58,7 +60,7 @@ public class BufferedImagePlusServer extends WrappedImageServer<BufferedImage> i
 	}
 	
 	@Override
-	public PathImage<BufferedImage> readRegion(RegionRequest request) {
+	public PathImage<BufferedImage> readRegion(RegionRequest request) throws IOException {
 		return getWrappedServer().readRegion(request);
 	}
 	
@@ -68,7 +70,7 @@ public class BufferedImagePlusServer extends WrappedImageServer<BufferedImage> i
 	}
 
 	@Override
-	public PathImage<ImagePlus> readImagePlusRegion(RegionRequest request) {
+	public PathImage<ImagePlus> readImagePlusRegion(RegionRequest request) throws IOException {
 		// Create an ImagePlus from a BufferedImage
 		return convertToImagePlus(this, request);
 	}
@@ -81,8 +83,9 @@ public class BufferedImagePlusServer extends WrappedImageServer<BufferedImage> i
 	 * @param server
 	 * @param request
 	 * @return
+	 * @throws IOException 
 	 */
-	public static PathImage<ImagePlus> convertToImagePlus(ImageServer<BufferedImage> server, RegionRequest request) {
+	public static PathImage<ImagePlus> convertToImagePlus(ImageServer<BufferedImage> server, RegionRequest request) throws IOException {
 		// Create an ImagePlus from a BufferedImage
 		return convertToImagePlus(server.getDisplayedImageName(), server, null, request);
 	}
@@ -97,8 +100,9 @@ public class BufferedImagePlusServer extends WrappedImageServer<BufferedImage> i
 	 * @param img the image to convert - if {@code null} this will be requested from {@code server}.
 	 * @param request the region to request, or that was requested to provide {@code img}
 	 * @return
+	 * @throws IOException 
 	 */
-	public static PathImage<ImagePlus> convertToImagePlus(String title, ImageServer<BufferedImage> server, BufferedImage img, RegionRequest request) {
+	public static PathImage<ImagePlus> convertToImagePlus(String title, ImageServer<BufferedImage> server, BufferedImage img, RegionRequest request) throws IOException {
 		if (img == null)
 			img = server.readBufferedImage(request);
 		ImagePlus imp = convertToUncalibratedImagePlus(title, img);

@@ -27,6 +27,7 @@ import java.awt.Color;
 import java.awt.Rectangle;
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.io.IOException;
 import java.text.DecimalFormat;
 import java.util.List;
 
@@ -144,8 +145,9 @@ public class IJTools {
 	 * @param setROI		{@code true} if a (non-rectangular) ROI should be converted to the closest matching ImageJ {@code Roi} &amp; set on the image
 	 * @param imageDisplay
 	 * @return
+	 * @throws IOException 
 	 */
-	public static PathImage<ImagePlus> extractROI(ImageServer<BufferedImage> server, ROI pathROI, RegionRequest request, boolean setROI, ImageDisplay imageDisplay) {
+	public static PathImage<ImagePlus> extractROI(ImageServer<BufferedImage> server, ROI pathROI, RegionRequest request, boolean setROI, ImageDisplay imageDisplay) throws IOException {
 		setROI = setROI && (pathROI != null);
 		// Ensure the ROI bounds & ensure it fits within the image
 		Rectangle bounds = AwtTools.getBounds(request);
@@ -241,8 +243,9 @@ public class IJTools {
 	 * @param setROI
 	 * @param imageDisplay
 	 * @return
+	 * @throws IOException 
 	 */
-	public static PathImage<ImagePlus> extractROI(ImageServer<BufferedImage> server, PathObject pathObject, RegionRequest request, boolean setROI, ImageDisplay imageDisplay) {
+	public static PathImage<ImagePlus> extractROI(ImageServer<BufferedImage> server, PathObject pathObject, RegionRequest request, boolean setROI, ImageDisplay imageDisplay) throws IOException {
 		PathImage<ImagePlus> pathImage = extractROI(server, pathObject.getROI(), request, setROI, imageDisplay);
 		IJTools.setTitleFromObject(pathImage, pathObject);
 		return pathImage;

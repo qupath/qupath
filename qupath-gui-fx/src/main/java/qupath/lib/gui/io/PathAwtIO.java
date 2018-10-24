@@ -26,6 +26,7 @@ package qupath.lib.gui.io;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -172,7 +173,11 @@ public class PathAwtIO {
 			optionsThumbnail.setShowGrid(false);
 			optionsThumbnail.setShowAnnotations(false);
 			optionsThumbnail.setShowObjects(false);
-			ImageWriterTools.writeImageRegionWithOverlay(imageData.getServer(), Collections.singletonList(new TMAGridOverlay(overlayOptions, imageData)), request, fileTMAMap.getAbsolutePath());
+			try {
+				ImageWriterTools.writeImageRegionWithOverlay(imageData.getServer(), Collections.singletonList(new TMAGridOverlay(overlayOptions, imageData)), request, fileTMAMap.getAbsolutePath());				
+			} catch (IOException e) {
+				logger.warn("Unable to write image overview", e);
+			}
 
 			
 			
@@ -326,10 +331,14 @@ public class PathAwtIO {
 					String ext = imageData.getServer().isRGB() ? ".jpg" : ".tif";
 					File fileOutput = new File(dir, parentObject.getName() + ext);
 					RegionRequest request = RegionRequest.createInstance(imageData.getServerPath(), downsample, parentObject.getROI());
-					BufferedImage img = ImageWriterTools.writeImageRegion(imageData.getServer(), request, fileOutput.getAbsolutePath());
-					fileOutput = new File(dir, parentObject.getName() + "-overlay.jpg");
-					// Pass in the image we have so that it will be drawn on top of
-					ImageWriterTools.writeImageRegionWithOverlay(img, imageData, options, request, fileOutput.getAbsolutePath());
+					try {
+						BufferedImage img = ImageWriterTools.writeImageRegion(imageData.getServer(), request, fileOutput.getAbsolutePath());
+						fileOutput = new File(dir, parentObject.getName() + "-overlay.jpg");
+						// Pass in the image we have so that it will be drawn on top of
+						ImageWriterTools.writeImageRegionWithOverlay(img, imageData, options, request, fileOutput.getAbsolutePath());						
+					} catch (IOException e) {
+						logger.error("Unable to write " + request, e);
+					}
 					
 					// The following code writes a PNG with transparency for the overlay, rather than a marked-up version of the original
 //					fileOutput = new File(dir, parentObject.getName() + "-overlay.png");

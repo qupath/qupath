@@ -131,7 +131,7 @@ public class ImageServerProvider {
 				ImageServer<T> server = possibleProvider.buildServer(path, cache);
 				if (server != null) {
 					// Check size is reasonable - should be small, or large & tiled
-					if ((long)server.getWidth() * server.getHeight() * server.getBitsPerPixel() * server.nChannels() / 8 < maxImageSize || server.getPreferredDownsamples().length > 1) {
+					if ((long)server.getWidth() * server.getHeight() * server.getBitsPerPixel() * server.nChannels() / 8 < maxImageSize || server.nResolutions() > 1) {
 						logger.info("Returning server: {} for {}", server.getServerType(), path);
 						return server;
 					} else

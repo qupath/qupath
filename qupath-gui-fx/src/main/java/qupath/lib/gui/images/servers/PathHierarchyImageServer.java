@@ -68,6 +68,8 @@ public class PathHierarchyImageServer implements GeneratingImageServer<BufferedI
 	static long counter = 0;
 	public static String DEFAULT_PREFIX = "OVERLAY";
 	
+	private double[] downsamples = new double[]{1, 4, 32, 64, 128};
+	
 	private String prefix;
 	private ImageData<BufferedImage> imageData;
 	private ImageServer<BufferedImage> server;
@@ -104,7 +106,7 @@ public class PathHierarchyImageServer implements GeneratingImageServer<BufferedI
 
 	@Override
 	public double[] getPreferredDownsamples() {
-		return new double[]{1, 4, 32, 64, 128};
+		return downsamples.clone();
 //		return new double[]{4, 32, 1024};
 //		return new double[]{1, 4, 32};
 //		return server.getPreferredDownsamples();
@@ -366,6 +368,11 @@ public class PathHierarchyImageServer implements GeneratingImageServer<BufferedI
 	@Override
 	public void setMetadata(ImageServerMetadata metadata) {
 		throw new RuntimeException("Metadata cannot be set for a hierarchy image server!");
+	}
+
+	@Override
+	public int nResolutions() {
+		return downsamples.length;
 	}
 	
 //	@Override

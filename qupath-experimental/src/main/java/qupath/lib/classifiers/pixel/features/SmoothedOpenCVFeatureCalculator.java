@@ -1,6 +1,7 @@
 package qupath.lib.classifiers.pixel.features;
 
 import java.awt.image.BufferedImage;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -72,7 +73,7 @@ public class SmoothedOpenCVFeatureCalculator implements OpenCVFeatureCalculator 
     
     
     @Override
-	public Mat calculateFeatures(ImageServer<BufferedImage> server, RegionRequest request) {
+	public Mat calculateFeatures(ImageServer<BufferedImage> server, RegionRequest request) throws IOException {
 		BufferedImage img = BasicMultiscaleOpenCVFeatureCalculator.getPaddedRequest(server, request, padding);
 		Mat mat = OpenCVTools.imageToMat(img);
 		Mat matFeatures = calculateFeatures(mat);

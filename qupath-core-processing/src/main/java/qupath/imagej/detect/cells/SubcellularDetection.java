@@ -28,6 +28,7 @@ import java.awt.Graphics2D;
 import java.awt.Shape;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferByte;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -161,6 +162,8 @@ public class SubcellularDetection extends AbstractInteractivePlugin<BufferedImag
 				}
 			} catch (InterruptedException e) {
 				logger.error("Processing interrupted", e);
+			} catch (IOException e) {
+				logger.error("Error processing " + parentObject, e);
 			} finally {
 				parentObject.getMeasurementList().closeList();
 				imageData = null;
@@ -185,8 +188,9 @@ public class SubcellularDetection extends AbstractInteractivePlugin<BufferedImag
 	 * @param imageWrapper
 	 * @return
 	 * @throws InterruptedException
+	 * @throws IOException 
 	 */
-	static boolean processObject(final PathObject pathObject, final ParameterList params, final ImageWrapper imageWrapper) throws InterruptedException {
+	static boolean processObject(final PathObject pathObject, final ParameterList params, final ImageWrapper imageWrapper) throws InterruptedException, IOException {
 
 		// Get the base classification for the object as it currently stands
 		PathClass baseClass = PathClassFactory.getNonIntensityAncestorClass(pathObject.getPathClass());
@@ -522,8 +526,9 @@ public class SubcellularDetection extends AbstractInteractivePlugin<BufferedImag
 		 * @param region
 		 * @param channelName
 		 * @return
+		 * @throws IOException 
 		 */
-		public SimpleImage getRegion(final RegionRequest region, final String channelName) {
+		public SimpleImage getRegion(final RegionRequest region, final String channelName) throws IOException {
 			for (int i = 0; i < nChannels(); i++) {
 				if (channelName.equals(getChannelName(i)))
 					return getRegion(region, i);
@@ -539,8 +544,9 @@ public class SubcellularDetection extends AbstractInteractivePlugin<BufferedImag
 		 * @param region
 		 * @param channel
 		 * @return
+		 * @throws IOException 
 		 */
-		public SimpleImage getRegion(final RegionRequest region, final int channel) {
+		public SimpleImage getRegion(final RegionRequest region, final int channel) throws IOException {
 			BufferedImage img = getBufferedImage(region);
 			ColorDeconvolutionStains stains = imageData.getColorDeconvolutionStains();
 			float[] pixels = null;
@@ -668,7 +674,7 @@ public class SubcellularDetection extends AbstractInteractivePlugin<BufferedImag
 		}
 		
 
-		private BufferedImage getBufferedImage(final RegionRequest region) {
+		private BufferedImage getBufferedImage(final RegionRequest region) throws IOException {
 			if (cachedRegions.containsKey(region))
 				return cachedRegions.get(region);
 			

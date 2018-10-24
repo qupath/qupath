@@ -25,6 +25,7 @@ package qupath.lib.algorithms;
 
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferByte;
+import java.io.IOException;
 import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -394,9 +395,8 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 		public void run() {
 			try {
 				processObject(parentObject, params, server, stains);
-//			} catch (InterruptedException e) {
-//				// TODO Auto-generated catch block
-//				e.printStackTrace();
+			} catch (IOException e) {
+				logger.error("Unable to process " + parentObject, e);
 			} finally {
 				parentObject.getMeasurementList().closeList();
 				server = null;
@@ -415,7 +415,7 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 	
 	
 
-	static boolean processObject(final PathObject pathObject, final ParameterList params, final ImageServer<BufferedImage> server, final ColorDeconvolutionStains stains) {
+	static boolean processObject(final PathObject pathObject, final ParameterList params, final ImageServer<BufferedImage> server, final ColorDeconvolutionStains stains) throws IOException {
 
 		// Determine amount to downsample
 		double downsample;

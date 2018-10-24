@@ -27,11 +27,15 @@ import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferByte;
+import java.io.IOException;
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import static org.bytedeco.javacpp.opencv_core.*;
 import static org.bytedeco.javacpp.opencv_ml.*;
@@ -66,8 +70,10 @@ import qupath.opencv.processing.OpenCVTools;
  */
 public class TissueSegmentationCommand implements PathCommand, PathObjectHierarchyListener {
 
+	private static final Logger logger = LoggerFactory.getLogger(TissueSegmentationCommand.class);
+
 	private QuPathGUI qupath;
-	
+		
 	private ImageData<BufferedImage> imageData;
 	private PathObjectHierarchy hierarchy;
 	private PathAnnotationObject annotation;
@@ -95,7 +101,12 @@ public class TissueSegmentationCommand implements PathCommand, PathObjectHierarc
 		this.hierarchy = imageData.getHierarchy();
 		
 		double downsample = 25 / imageData.getServer().getAveragedPixelSizeMicrons();
-		img = this.imageData.getServer().getBufferedThumbnail((int)(imageData.getServer().getWidth() / downsample + 0.5), -1, 0);
+		try {
+			img = this.imageData.getServer().getBufferedThumbnail((int)(imageData.getServer().getWidth() / downsample + 0.5), -1, 0);
+		} catch (IOException e) {
+			logger.error("Error requesting image", e);
+			return;
+		}
 		
 //		ConvolveOp op = new ConvolveOp(new Kernel(3, 3, new float[]{1/9f, 1/9f, 1/9f, 1/9f, 1/9f, 1/9f, 1/9f, 1/9f, 1/9f}), ConvolveOp.EDGE_NO_OP, null);
 //		img = op.filter(img, null);

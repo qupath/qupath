@@ -26,6 +26,7 @@ package qupath.imagej.detect.tissue;
 import java.awt.Rectangle;
 import java.awt.geom.Area;
 import java.awt.image.BufferedImage;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -127,7 +128,7 @@ public class SimpleTissueDetection extends AbstractDetectionPlugin<BufferedImage
 		
 	
 		@Override
-		public Collection<PathObject> runDetection(final ImageData<BufferedImage> imageData, final ParameterList params, final ROI pathROI) {
+		public Collection<PathObject> runDetection(final ImageData<BufferedImage> imageData, final ParameterList params, final ROI pathROI) throws IOException {
 			
 			ImagePlusServer server = ImagePlusServerBuilder.ensureImagePlusWholeSlideServer(imageData.getServer());
 			

@@ -69,6 +69,7 @@ import qupath.lib.roi.interfaces.ROI;
 import java.awt.Color;
 import java.awt.Shape;
 import java.awt.image.BufferedImage;
+import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -333,10 +334,16 @@ public class PixelClassifierGUI implements PathCommand, QuPathViewerListener, Pa
             	RegionRequest request = parent.isRootObject() ?
             			RegionRequest.createInstance(server.getPath(), downsample, 0, 0, server.getWidth(), server.getHeight()) :
             				RegionRequest.createInstance(server.getPath(), downsample, parent.getROI());
-            	BufferedImage imgClassified = classifier.applyClassification(viewer.getServer(), request);
-            	String title = String.format("Classified %s (%.2f, x=%d, y=%d, w=%d, h=%d, z=%d, t=%d)", server.getDisplayedImageName(),
-            			request.getDownsample(), request.getX(), request.getY(), request.getWidth(), request.getHeight(), request.getZ(), request.getT());
-            	ImagePlus imp = BufferedImagePlusServer.convertToImagePlus(title, server, imgClassified, request).getImage();
+      			ImagePlus imp;
+            	try {
+	            	BufferedImage imgClassified = classifier.applyClassification(viewer.getServer(), request);
+	            	String title = String.format("Classified %s (%.2f, x=%d, y=%d, w=%d, h=%d, z=%d, t=%d)", server.getDisplayedImageName(),
+	            			request.getDownsample(), request.getX(), request.getY(), request.getWidth(), request.getHeight(), request.getZ(), request.getT());
+	            	imp = BufferedImagePlusServer.convertToImagePlus(title, server, imgClassified, request).getImage();
+            	} catch (IOException e2) {
+            		logger.error("Unable to apply classification for " + request, e2);
+            		continue;
+            	}
             	
         		List<PixelClassifierOutputChannel> channels = classifier.getMetadata().getChannels();
             	if (imp.getNChannels() > 1 && imp.getNChannels() == channels.size()) {
@@ -385,17 +392,25 @@ public class PixelClassifierGUI implements PathCommand, QuPathViewerListener, Pa
         int h = (int)Math.round(calculator.getMetadata().getInputHeight() * downsample);
         RegionRequest request = RegionRequest.createInstance(server.getPath(), downsample, x, y, w, h);
         
-        ImagePlusServer serverIJ = ImagePlusServerBuilder.ensureImagePlusWholeSlideServer(server);
-        serverIJ.readImagePlusRegion(request).getImage().show();
+        Mat matFeatures;
+        try {
+	        ImagePlusServer serverIJ = ImagePlusServerBuilder.ensureImagePlusWholeSlideServer(server);
+	        serverIJ.readImagePlusRegion(request).getImage().show();
+	        
+	//        downsample = 0.5 / server.getAveragedPixelSizeMicrons();
+	//        request = RegionRequest.createInstance(server.getPath(), downsample,
+	//        		(int)roi.getBoundsX(),
+	//        		(int)roi.getBoundsY(),
+	//        		(int)Math.round(256*downsample),
+	//  				(int)Math.round(256*downsample));
+	        
+	        matFeatures = calculator.calculateFeatures(imageData.getServer(), request);
+        }
+        catch (IOException e2) {
+    		logger.error("Unable to calculate faetures for " + request, e2);
+    		return;
+    	}
         
-//        downsample = 0.5 / server.getAveragedPixelSizeMicrons();
-//        request = RegionRequest.createInstance(server.getPath(), downsample,
-//        		(int)roi.getBoundsX(),
-//        		(int)roi.getBoundsY(),
-//        		(int)Math.round(256*downsample),
-//  				(int)Math.round(256*downsample));
-        
-        Mat matFeatures = calculator.calculateFeatures(imageData.getServer(), request);
         List<String> names = calculator.getMetadata().getChannels().stream().map(c -> c.getName()).collect(Collectors.toList());
         ImagePlus imp = matToImagePlus(matFeatures,
                 String.format("Features: (%.2f, %d, %d, %d, %d)",

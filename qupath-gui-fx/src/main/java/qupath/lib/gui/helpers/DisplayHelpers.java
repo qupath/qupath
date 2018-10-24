@@ -101,8 +101,8 @@ public class DisplayHelpers {
 	 * Make a semi-educated guess at the image type of a PathImageServer.
 	 * 
 	 * @param server
-	 * @param imgThumbnail Optional thumbnail for the image. If not present, the server will be asked for a thumbnail.
-	 * 						Including one here can improve performance by reducing need to query server.
+	 * @param imgThumbnail Thumbnail for the image. This is now a required parameter (previously &leq; 0.1.2 it was optional).
+	 * 
 	 * @return
 	 */
 	public static ImageData.ImageType estimateImageType(final ImageServer<BufferedImage> server, final BufferedImage imgThumbnail) {
@@ -112,16 +112,17 @@ public class DisplayHelpers {
 		if (!server.isRGB())
 			return ImageData.ImageType.FLUORESCENCE;
 		
-		BufferedImage img;
-		if (imgThumbnail == null)
-			img = server.getBufferedThumbnail(220, 220, 0);
-		else {
-			img = imgThumbnail;
+		BufferedImage img = imgThumbnail;
+//		BufferedImage img;
+//		if (imgThumbnail == null)
+//			img = server.getBufferedThumbnail(220, 220, 0);
+//		else {
+//			img = imgThumbnail;
 //			// Rescale if necessary
 //			if (img.getWidth() * img.getHeight() > 400*400) {
 //				imgThumbnail.getS
 //			}
-		}
+//		}
 		int w = img.getWidth();
 		int h = img.getHeight();
 		int[] rgb = img.getRGB(0, 0, w, h, null, 0, w);

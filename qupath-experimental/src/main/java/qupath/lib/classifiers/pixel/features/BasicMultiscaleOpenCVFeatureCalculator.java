@@ -2,6 +2,7 @@ package qupath.lib.classifiers.pixel.features;
 
 import java.awt.image.BufferedImage;
 import java.awt.image.WritableRaster;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -195,7 +196,7 @@ public class BasicMultiscaleOpenCVFeatureCalculator implements OpenCVFeatureCalc
     }
 
 	@Override
-	public Mat calculateFeatures(ImageServer<BufferedImage> server, RegionRequest request) {
+	public Mat calculateFeatures(ImageServer<BufferedImage> server, RegionRequest request) throws IOException {
 		BufferedImage img = getPaddedRequest(server, request, padding);
 		Mat mat = OpenCVTools.imageToMat(img);
 		Mat matFeatures = calculateFeatures(mat);
@@ -219,8 +220,9 @@ public class BasicMultiscaleOpenCVFeatureCalculator implements OpenCVFeatureCalc
 	 * @param request
 	 * @param padding
 	 * @return
+	 * @throws IOException 
 	 */
-	public static BufferedImage getPaddedRequest(ImageServer<BufferedImage> server, RegionRequest request, int padding) {
+	public static BufferedImage getPaddedRequest(ImageServer<BufferedImage> server, RegionRequest request, int padding) throws IOException {
 		// If we don't have any padding, just return directly
 		if (padding == 0)
 			return server.readBufferedImage(request);

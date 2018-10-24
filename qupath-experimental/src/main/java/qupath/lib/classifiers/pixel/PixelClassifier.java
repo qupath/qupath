@@ -1,6 +1,7 @@
 package qupath.lib.classifiers.pixel;
 
 import java.awt.image.BufferedImage;
+import java.io.IOException;
 
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.regions.RegionRequest;
@@ -24,8 +25,9 @@ public interface PixelClassifier {
      * @param server
      * @param request
      * @return a {@code BufferedImage} representing the pixel classifications as separate bands.
+     * @throws IOException if unable to read pixels from {@code server}
      */
-    public BufferedImage applyClassification(ImageServer<BufferedImage> server, RegionRequest request);
+    public BufferedImage applyClassification(ImageServer<BufferedImage> server, RegionRequest request) throws IOException;
 
     /**
      * Get metadata that describes how the classifier should be called,

@@ -25,6 +25,7 @@ package qupath.lib.gui.commands;
 
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.io.IOException;
 
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.BooleanProperty;
@@ -186,10 +187,14 @@ public class ExportImageRegionCommand implements PathCommand {
 		if (fileOutput == null)
 			return;
 		
-		if (includeOverlay.get())
-			ImageWriterTools.writeImageRegionWithOverlay(viewer, request, fileOutput.getAbsolutePath());
-		else
-			ImageWriterTools.writeImageRegion(server, request, fileOutput.getAbsolutePath());
+		try {
+			if (includeOverlay.get())
+				ImageWriterTools.writeImageRegionWithOverlay(viewer, request, fileOutput.getAbsolutePath());
+			else
+				ImageWriterTools.writeImageRegion(server, request, fileOutput.getAbsolutePath());
+		} catch (IOException e) {
+			DisplayHelpers.showErrorMessage("Export region", e);
+		}
 	}
 	
 }

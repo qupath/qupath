@@ -4,6 +4,7 @@ import java.awt.Graphics2D;
 import java.awt.geom.Point2D;
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -213,7 +214,12 @@ public class ImageAlignmentPane {
 		
 		btnAutoAlign.setOnAction(e -> {
 			double requestedPixelSizeMicrons = Double.parseDouble(tfRequestedPixelSizeMicrons.getText());
-			autoAlign(requestedPixelSizeMicrons);
+			try {
+				autoAlign(requestedPixelSizeMicrons);
+			} catch (IOException e2) {
+				DisplayHelpers.showErrorMessage("Alignment error", "Error requesting image region: " + e2.getLocalizedMessage());
+				logger.error("Error in auto alignment", e2);
+			}
 		});
 		
 		// Need to update transform text with image
@@ -411,8 +417,9 @@ public class ImageAlignmentPane {
 	 * Auto-align the selected image overlay with the base image in the viewer.
 	 * 
 	 * @param requestedPixelSizeMicrons
+	 * @throws IOException 
 	 */
-	void autoAlign(double requestedPixelSizeMicrons) {
+	void autoAlign(double requestedPixelSizeMicrons) throws IOException {
 		ImageData<BufferedImage> imageDataBase = viewer.getImageData();
 		ImageData<BufferedImage> imageDataSelected = selectedImageData.get();
 		if (imageDataBase == null) {
@@ -431,7 +438,7 @@ public class ImageAlignmentPane {
 		autoAlign(imageDataBase.getServer(), imageDataSelected.getServer(), overlay.getAffine(), requestedPixelSizeMicrons);
 	}
 
-	static void autoAlign(ImageServer<BufferedImage> serverBase, ImageServer<BufferedImage> serverOverlay, Affine affine, double requestedPixelSizeMicrons) {
+	static void autoAlign(ImageServer<BufferedImage> serverBase, ImageServer<BufferedImage> serverOverlay, Affine affine, double requestedPixelSizeMicrons) throws IOException {
 		double pixelSize = serverBase.getAveragedPixelSizeMicrons();
 		double downsample = 1;
 		if (!Double.isFinite(pixelSize)) {

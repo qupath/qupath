@@ -27,6 +27,7 @@ import java.awt.image.BufferedImage;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 import java.io.File;
+import java.io.IOException;
 import java.util.Locale;
 import java.util.Locale.Category;
 
@@ -347,7 +348,13 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 					((RectangleROI) pathROI).getArea() < 500*500) {
 				if (DisplayHelpers.showYesNoDialog("Color deconvolution stains", message)) {
 					ImageServer<BufferedImage> server = imageData.getServer();
-					BufferedImage img = server.readBufferedImage(RegionRequest.createInstance(server.getPath(), 1, pathROI));
+					BufferedImage img = null;
+					try {
+						img = server.readBufferedImage(RegionRequest.createInstance(server.getPath(), 1, pathROI));
+					} catch (IOException e) {
+						DisplayHelpers.showErrorMessage("Set stain vector", "Unable to read image region");
+						logger.error("Unable to read region", e);
+					}
 					int rgb = ColorDeconvolutionHelper.getMedianRGB(img.getRGB(0, 0, img.getWidth(), img.getHeight(), null, 0, img.getWidth()));
 					if (num >= 0) {
 						value = ColorDeconvolutionHelper.generateMedianStainVectorFromPixels(name, img.getRGB(0, 0, img.getWidth(), img.getHeight(), null, 0, img.getWidth()), stains.getMaxRed(), stains.getMaxGreen(), stains.getMaxBlue());

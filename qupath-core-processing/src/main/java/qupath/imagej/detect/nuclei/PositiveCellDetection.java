@@ -24,6 +24,7 @@
 package qupath.imagej.detect.nuclei;
 
 import java.awt.image.BufferedImage;
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
 
@@ -83,7 +84,7 @@ public class PositiveCellDetection extends WatershedCellDetection {
 		}
 
 		@Override
-		public Collection<PathObject> runDetection(ImageData<T> imageData, ParameterList params, ROI pathROI) {
+		public Collection<PathObject> runDetection(ImageData<T> imageData, ParameterList params, ROI pathROI) throws IOException {
 			Collection<PathObject> detections = detector.runDetection(imageData, params, pathROI);
 			// Apply intensity classifications
 			String measurement = (String)params.getChoiceParameterValue("thresholdCompartment");

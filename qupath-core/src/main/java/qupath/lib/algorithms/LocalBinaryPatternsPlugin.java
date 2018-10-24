@@ -24,6 +24,7 @@
 package qupath.lib.algorithms;
 
 import java.awt.image.BufferedImage;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -138,7 +139,9 @@ public class LocalBinaryPatternsPlugin extends AbstractInteractivePlugin<Buffere
 			try {
 				processObject(parentObject, params, server, stains);
 			} catch (InterruptedException e) {
-				logger.warn("Processing interrupdated!", e);
+				logger.warn("Processing interrupted!", e);
+			} catch (IOException e) {
+				logger.warn("Error processing " + parentObject, e);
 			} finally {
 				parentObject.getMeasurementList().closeList();
 				server = null;
@@ -158,7 +161,7 @@ public class LocalBinaryPatternsPlugin extends AbstractInteractivePlugin<Buffere
 	
 	
 
-	static boolean processObject(final PathObject pathObject, final ParameterList params, final ImageServer<BufferedImage> server, final ColorDeconvolutionStains stains) throws InterruptedException {
+	static boolean processObject(final PathObject pathObject, final ParameterList params, final ImageServer<BufferedImage> server, final ColorDeconvolutionStains stains) throws InterruptedException, IOException {
 		String stainsName = (String)params.getChoiceParameterValue("stainChoice");
 		double mag = params.getDoubleParameterValue("magnification");
 //		int d = params.getIntParameterValue("haralickDistance");

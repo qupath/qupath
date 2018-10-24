@@ -24,6 +24,7 @@
 package qupath.lib.gui.commands;
 
 import java.awt.image.BufferedImage;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -261,9 +262,11 @@ public class TMAGridView implements PathCommand, ImageDataChangeListener<Buffere
 						return;
 					}
 
-					BufferedImage img = server.readBufferedImage(request);
-					if (img == null) {
-						logger.debug("Request {} returned null", request);
+					BufferedImage img;
+					try {
+						img = server.readBufferedImage(request);
+					} catch (IOException e) {
+						logger.debug("Unable to get tile for " + request, e);
 						latch.countDown();
 						return;
 					}

@@ -5,6 +5,7 @@ import java.awt.image.BufferedImage;
 import java.awt.image.ColorModel;
 import java.awt.image.SampleModel;
 import java.awt.image.WritableRaster;
+import java.io.IOException;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -44,7 +45,7 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 	 * @param request
 	 * @return
 	 */
-	protected abstract BufferedImage readTile(final RegionRequest request);
+	protected abstract BufferedImage readTile(final RegionRequest request) throws IOException;
 	
 	/**
 	 * Construct a tileable ImageServer, providing a cache in which to store &amp; retrieve tiles.
@@ -65,7 +66,7 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 	 * @param request
 	 * @return
 	 */
-	private BufferedImage getTile(final RegionRequest request) {
+	private BufferedImage getTile(final RegionRequest request) throws IOException {
 		BufferedImage imgCached = cache.get(request);
 		if (imgCached != null) { 
 			logger.trace("Returning cached tile: {}", request);
@@ -78,7 +79,7 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 	}
 
 	@Override
-	public BufferedImage readBufferedImage(final RegionRequest request) {
+	public BufferedImage readBufferedImage(final RegionRequest request) throws IOException {
 		// Check if we already have a tile for precisely this occasion
 		BufferedImage img = cache.get(request);
 		if (img != null)

@@ -29,6 +29,7 @@ import ij.macro.Interpreter;
 
 import java.awt.Rectangle;
 import java.awt.image.BufferedImage;
+import java.io.IOException;
 
 import javax.swing.SwingUtilities;
 
@@ -147,7 +148,13 @@ public class ExtractRegionCommand implements PathCommand {
 
 		
 		// We should switch to the event dispatch thread when interacting with ImageJ
-		PathImage<ImagePlus> pathImage = IJExtension.extractROIWithOverlay(server, pathObject, viewer.getHierarchy(), region, true, viewer.getOverlayOptions(), imageDisplay);
+		PathImage<ImagePlus> pathImage;
+		try {
+			pathImage = IJExtension.extractROIWithOverlay(server, pathObject, viewer.getHierarchy(), region, true, viewer.getOverlayOptions(), imageDisplay);			
+		} catch (IOException e) {
+			DisplayHelpers.showErrorMessage("Extract region to ImageJ", e);
+			return;
+		}
 		if (pathImage != null) {
 			SwingUtilities.invokeLater(() -> {
 

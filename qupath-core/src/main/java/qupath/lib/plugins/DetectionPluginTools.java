@@ -28,6 +28,7 @@ import java.awt.Shape;
 import java.awt.geom.Area;
 import java.awt.geom.Path2D;
 import java.awt.geom.Rectangle2D;
+import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -118,7 +119,11 @@ public class DetectionPluginTools {
 				imageData.getHierarchy().fireObjectsChangedEvent(this, Collections.singleton(parentObject), true);
 			}
 			if (checkROI()) {
-				pathObjectsDetected = detector.runDetection(imageData, params, pathROI);
+				try {
+					pathObjectsDetected = detector.runDetection(imageData, params, pathROI);
+				} catch (IOException e) {
+					logger.error("Error processing " + pathROI, e);
+				}
 				result = detector.getLastResultsDescription();
 				long endTime = System.currentTimeMillis();
 				if (result != null)

@@ -26,6 +26,7 @@ package qupath.lib.images.servers;
 import java.awt.geom.AffineTransform;
 import java.awt.image.AffineTransformOp;
 import java.awt.image.BufferedImage;
+import java.io.IOException;
 
 import qupath.lib.images.DefaultPathImage;
 import qupath.lib.images.PathImage;
@@ -45,13 +46,13 @@ public class RotatedImageServer extends WrappedImageServer<BufferedImage> {
 	}
 
 	@Override
-	public PathImage<BufferedImage> readRegion(RegionRequest request) {
+	public PathImage<BufferedImage> readRegion(RegionRequest request) throws IOException {
 		request = rotateRequest(request);
 		return new DefaultPathImage<>(this, request, readRotatedBufferedImage(request));
 	}
 
 	@Override
-	public BufferedImage readBufferedImage(RegionRequest request) {
+	public BufferedImage readBufferedImage(RegionRequest request) throws IOException {
 		request = rotateRequest(request);
 		return readRotatedBufferedImage(request);
 	}
@@ -64,7 +65,7 @@ public class RotatedImageServer extends WrappedImageServer<BufferedImage> {
 	}
 
 	
-	BufferedImage readRotatedBufferedImage(RegionRequest rotatedRequest) {
+	BufferedImage readRotatedBufferedImage(RegionRequest rotatedRequest) throws IOException {
 		BufferedImage img = getWrappedServer().readBufferedImage(rotatedRequest);
 		
 		if (img == null) {

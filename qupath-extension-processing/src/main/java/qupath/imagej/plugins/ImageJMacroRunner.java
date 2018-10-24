@@ -39,6 +39,7 @@ import javafx.scene.text.Font;
 import javafx.stage.Stage;
 
 import java.awt.image.BufferedImage;
+import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -230,10 +231,15 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 			return;
 		}
 		
-		if (sendOverlay)
-			pathImage = IJExtension.extractROIWithOverlay(imageData.getServer(), pathObject, imageData.getHierarchy(), region, sendROI, null, imageDisplay2);
-		else
-			pathImage = IJTools.extractROI(imageData.getServer(), pathObject, region, sendROI, imageDisplay2);
+		try {
+			if (sendOverlay)
+				pathImage = IJExtension.extractROIWithOverlay(imageData.getServer(), pathObject, imageData.getHierarchy(), region, sendROI, null, imageDisplay2);
+			else
+				pathImage = IJTools.extractROI(imageData.getServer(), pathObject, region, sendROI, imageDisplay2);
+		} catch (IOException e) {
+			logger.error("Unable to extract image region " + region, e);
+			return;
+		}
 
 
 		//		IJHelpers.getImageJInstance();

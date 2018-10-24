@@ -24,6 +24,7 @@
 package qupath.imagej.objects;
 
 import java.awt.image.BufferedImage;
+import java.io.IOException;
 import java.io.Serializable;
 
 import org.slf4j.Logger;
@@ -120,7 +121,12 @@ public class PathImagePlus implements PathImage<ImagePlus> {
 	
 	@Override
 	public ImagePlus getImage() {
-		return getImage(true);
+		try {
+			return getImage(true);			
+		} catch (IOException e) {
+			logger.warn("Could not getImage", e);
+			return null;
+		}
 	}
 	
 	
@@ -136,7 +142,7 @@ public class PathImagePlus implements PathImage<ImagePlus> {
 	}
 	
 	@Override
-	public ImagePlus getImage(boolean cache) {
+	public ImagePlus getImage(boolean cache) throws IOException {
 //		System.out.println("IMAGE IS REQUESTED NOW");
 		if (imp != null)
 			return imp;

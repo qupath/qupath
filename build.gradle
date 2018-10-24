@@ -31,6 +31,7 @@ println 'Current Java version: ' + JavaVersion.current()
 /**
  * Handle OS-specific decisions
  */
+
 import org.gradle.internal.os.OperatingSystem
 println 'Operating system: ' + OperatingSystem.current()
 def nativesCPP
@@ -80,8 +81,8 @@ subprojects {
 
     jts "org.locationtech.jts:jts-core:1.16.0"
 
-    groovy "org.codehaus.groovy:groovy:2.5.3-SNAPSHOT"
-    groovy "org.codehaus.groovy:groovy-jsr223:2.5.3-SNAPSHOT"
+    groovy "org.codehaus.groovy:groovy:2.5.3"
+    groovy "org.codehaus.groovy:groovy-jsr223:2.5.3"
 
     for (fx in ['javafx-base', 'javafx-controls', 'javafx-graphics', 'javafx-media', 'javafx-web', 'javafx-swing']) {
       javafx "org.openjfx:${fx}:11"
@@ -139,11 +140,6 @@ allprojects {
     mavenLocal()
     mavenCentral()
     maven { url "../maven/repo" }
-    
-    // For Groovy snapshot (>= 2.5.3 required for Java 11)
-    maven {
-        url 'https://oss.jfrog.org/artifactory/oss-snapshot-local'
-    }
   }
 
   dependencies {

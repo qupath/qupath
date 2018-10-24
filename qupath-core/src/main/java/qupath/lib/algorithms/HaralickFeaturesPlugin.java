@@ -26,6 +26,7 @@ package qupath.lib.algorithms;
 import java.awt.Color;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferByte;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -180,9 +181,8 @@ public class HaralickFeaturesPlugin extends AbstractInteractivePlugin<BufferedIm
 		public void run() {
 			try {
 				processObject(parentObject, params, server, stains);
-//			} catch (InterruptedException e) {
-//				// TODO Auto-generated catch block
-//				e.printStackTrace();
+			} catch (IOException e) {
+				logger.error("Unable to process " + parentObject, e);
 			} finally {
 				parentObject.getMeasurementList().closeList();
 				server = null;
@@ -202,7 +202,7 @@ public class HaralickFeaturesPlugin extends AbstractInteractivePlugin<BufferedIm
 	
 	
 
-	static boolean processObject(final PathObject pathObject, final ParameterList params, final ImageServer<BufferedImage> server, final ColorDeconvolutionStains stains) {
+	static boolean processObject(final PathObject pathObject, final ParameterList params, final ImageServer<BufferedImage> server, final ColorDeconvolutionStains stains) throws IOException {
 		String stainsName = (String)params.getChoiceParameterValue("stainChoice");
 		double mag = params.getDoubleParameterValue("magnification");
 		int d = params.getIntParameterValue("haralickDistance");

@@ -26,6 +26,7 @@ package qupath.opencv;
 
 import java.awt.Rectangle;
 import java.awt.image.BufferedImage;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -85,7 +86,7 @@ public class WatershedNucleiCV extends AbstractTileableDetectionPlugin<BufferedI
 
 
 		@Override
-		public Collection<PathObject> runDetection(final ImageData<BufferedImage> imageData, ParameterList params, ROI pathROI) {
+		public Collection<PathObject> runDetection(final ImageData<BufferedImage> imageData, ParameterList params, ROI pathROI) throws IOException {
 			// Reset any detected objects
 			pathObjects.clear();
 

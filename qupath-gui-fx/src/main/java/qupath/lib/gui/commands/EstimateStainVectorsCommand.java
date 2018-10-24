@@ -25,6 +25,7 @@ package qupath.lib.gui.commands;
 
 import java.awt.geom.Point2D;
 import java.awt.image.BufferedImage;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -128,7 +129,14 @@ public class EstimateStainVectorsCommand implements PathCommand {
 		
 		double downsample = Math.max(1, Math.sqrt((roi.getBoundsWidth() * roi.getBoundsHeight()) / MAX_PIXELS));
 		RegionRequest request = RegionRequest.createInstance(imageData.getServerPath(), downsample, roi);
-		BufferedImage img = imageData.getServer().readBufferedImage(request);
+		BufferedImage img = null;
+		
+		try {
+			img = imageData.getServer().readBufferedImage(request);
+		} catch (IOException e) {
+			DisplayHelpers.showErrorMessage("Estimate stain vectors", e);
+			logger.error("Unable to obtain pixels for " + request.toString(), e);
+		}
 		
 		// Apply small amount of smoothing to reduce compression artefacts
 		img = EstimateStainVectors.smoothImage(img);

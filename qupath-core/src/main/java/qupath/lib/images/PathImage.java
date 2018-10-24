@@ -23,6 +23,8 @@
 
 package qupath.lib.images;
 
+import java.io.IOException;
+
 import qupath.lib.regions.ImageRegion;
 
 /**
@@ -38,8 +40,11 @@ public interface PathImage<T> {
 	public String getImageTitle();
 	
 	/**
-	 * Get the pixel data (image)
-	 * @return
+	 * Get the pixel data (image).
+	 * 
+	 * @return the stored image, or {@code null} if it is not possible to retrieve the image.
+	 * 
+	 * @see #getImage(boolean)
 	 */
 	public T getImage();
 	
@@ -57,12 +62,18 @@ public interface PathImage<T> {
 	
 	/**
 	 * Version of getImage() that makes it possible to specified whether the image should be cached or not;
-	 * if the pixel data will not be required again, getImage(false) may improve efficiency.
+	 * if the pixel data will not be required again, {@code getImage(false)} may improve efficiency.
 	 * <p>
-	 * This only makes a difference is the image is not already cached, i.e. hasCachedImage() returns false.
+	 * This only really makes a difference is the image is not already cached, i.e. {@code hasCachedImage()} returns false.
+	 * <p>
+	 * Unlike {@code getImage}, this method may throw an exception if the image is unavailable, rather than returning {@code null}.
+	 * 
 	 * @return
+	 * @throws IOException 
+	 * 
+	 * @see {@link #getImage()}
 	 */
-	public T getImage(boolean cache);
+	public T getImage(boolean cache) throws IOException;
 	
 	/**
 	 * Test whether getPixelWidthMicrons() is equal to getPixelHeightMicrons() (with a small floating-point tolerance).

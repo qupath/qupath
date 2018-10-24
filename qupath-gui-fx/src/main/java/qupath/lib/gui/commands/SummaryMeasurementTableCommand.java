@@ -27,6 +27,7 @@ import java.awt.Shape;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -553,13 +554,15 @@ public class SummaryMeasurementTableCommand implements PathCommand {
 					double downsample = Math.max(roi.getBoundsWidth(), roi.getBoundsHeight()) / maxDim;
 					// TODO: Put requests into a background thread!
 					RegionRequest request = RegionRequest.createInstance(server.getPath(), downsample, roi);
-					BufferedImage img = server.readBufferedImage(request);
-					if (img == null)
-						return;
-					Image imageNew = SwingFXUtils.toFXImage(img, null);
-					if (imageNew != null) {
-						cache.put(roi, imageNew);
-						Platform.runLater(() -> table.refresh());
+					try {
+						BufferedImage img = server.readBufferedImage(request);
+						Image imageNew = SwingFXUtils.toFXImage(img, null);
+						if (imageNew != null) {
+							cache.put(roi, imageNew);
+							Platform.runLater(() -> table.refresh());
+						}
+					} catch (IOException e) {
+						logger.debug("Unable to return image for " + request, e);
 					}
 				});
 			} catch (Exception e) {

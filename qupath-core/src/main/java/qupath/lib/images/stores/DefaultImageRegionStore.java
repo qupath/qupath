@@ -28,6 +28,7 @@ import java.awt.Rectangle;
 import java.awt.Shape;
 import java.awt.image.BufferedImage;
 import java.awt.image.ImageObserver;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -65,11 +66,11 @@ public class DefaultImageRegionStore extends AbstractImageRegionStore<BufferedIm
 		this(DEFAULT_THUMBNAIL_WIDTH, tileCacheSize);
 	}
 
-	
+
 	public RegionCache<BufferedImage> getThumbnailCache() {
 		return thumbnailCache;
 	}
-	
+
 	public int getPreferredThumbnailSize() {
 		return DEFAULT_THUMBNAIL_WIDTH;
 	}
@@ -226,8 +227,12 @@ public class DefaultImageRegionStore extends AbstractImageRegionStore<BufferedIm
 					imgTile = null;
 				else {
 					if (worker.cancel(false)) {
-						imgTile = server.readBufferedImage(request);
-						cache.put(request, imgTile);
+						try {
+							imgTile = server.readBufferedImage(request);
+							cache.put(request, imgTile);
+						} catch (IOException e1) {
+							logger.warn("Unable to read tile for " + request, e1);
+						}
 					} else
 						try {
 							imgTile = worker.get();
@@ -323,7 +328,7 @@ public class DefaultImageRegionStore extends AbstractImageRegionStore<BufferedIm
 			// Load the image
 			BufferedImage img = getCachedRegion(server, request);
 
-			// If there is no image tile, try to get a lower-resolution version to draw - 
+			// If there is no image tile, try to get a lower-resolution version to draw -
 			// this can actually paint over previously-available regions, but they will be repainted again when this region's request comes through
 			if (img == null)
 				continue;

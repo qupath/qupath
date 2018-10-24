@@ -24,6 +24,7 @@
 package qupath.lib.images.stores;
 
 import java.awt.Shape;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -329,7 +330,14 @@ public abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T>
 		} catch (ExecutionException e) {
 			logger.error(e.getLocalizedMessage());
 		}
-		return server.readBufferedImage(request); // Last resort... shouldn't happen
+		try {
+			// Last resort... shouldn't happen
+			logger.warn("Fallback to requesting thumbnail directly...");
+			return server.readBufferedImage(request);
+		} catch (IOException e) {
+			logger.error("Unable to obtain thumbnail for " + request, e);
+			return null;
+		}
 	}
 	
 	

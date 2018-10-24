@@ -37,6 +37,7 @@ import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.Shape;
 import java.awt.image.BufferedImage;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -240,7 +241,13 @@ class PixelClassifierHelper implements PathObjectHierarchyListener {
                     List<Mat> rows = new ArrayList<>();
                     for (RegionRequest request : requests) {
                         // Get features & reshape so that each row has features for specific pixel
-                        Mat matFeaturesFull = calculator.calculateFeatures(server, request);
+                        Mat matFeaturesFull;
+						try {
+							matFeaturesFull = calculator.calculateFeatures(server, request);
+						} catch (IOException e) {
+							logger.warn("Unable to calculate features for " + request + " - will be skipped", e);
+							continue;
+						}
 
                         // Create a mask based on the output size after feature classification
                         // Note that the feature classification can incorporate additional resampling (e.g. with max pooling steps)

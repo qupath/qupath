@@ -24,6 +24,7 @@
 package qupath.lib.images.servers;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -54,7 +55,7 @@ public interface ImageServer<T> {
 	public String getPath();
 
 	/**
-	 * Get a short name for the server, derived from getServerPath().
+	 * Get a short name for the server, derived from {@code getPath()}.
 	 * @return
 	 */
 	public String getShortServerName();
@@ -64,6 +65,15 @@ public interface ImageServer<T> {
 	 * @return
 	 */
 	public double[] getPreferredDownsamples();
+	
+	/**
+	 * Number of resolutions for the image.
+	 * <p>
+	 * This is equivalent to {@code getPreferredDownsamples().length}.
+	 * 
+	 * @return
+	 */
+	public int nResolutions();
 	
 	/**
 	 * Get the downsample factor supported by the server that is the best match for the requested downsample.
@@ -186,7 +196,7 @@ public interface ImageServer<T> {
 	 * @param zPosition
 	 * @return
 	 */
-	public T getBufferedThumbnail(int maxWidth, int maxHeight, int zPosition);
+	public T getBufferedThumbnail(int maxWidth, int maxHeight, int zPosition) throws IOException;
 
 	/**
 	 * Read a requested region, returning PathImage containing additional metadata.
@@ -209,7 +219,7 @@ public interface ImageServer<T> {
 	 * @param request - the image region being requested, including the downsample factor
 	 * @return
 	 */
-	public PathImage<T> readRegion(RegionRequest request);
+	public PathImage<T> readRegion(RegionRequest request) throws IOException;
 	
 	/**
 	 * Read a buffered image for a specified RegionRequest, cropping and downsampling as required.  No specific checking is guaranteed
@@ -220,7 +230,7 @@ public interface ImageServer<T> {
 	 * @param request
 	 * @return
 	 */
-	public T readBufferedImage(RegionRequest request);
+	public T readBufferedImage(RegionRequest request) throws IOException;
 
 	/**
 	 * Method that may be required by some servers.

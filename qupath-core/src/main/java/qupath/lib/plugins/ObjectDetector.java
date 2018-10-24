@@ -23,6 +23,7 @@
 
 package qupath.lib.plugins;
 
+import java.io.IOException;
 import java.util.Collection;
 
 import qupath.lib.images.ImageData;
@@ -42,7 +43,7 @@ import qupath.lib.roi.interfaces.ROI;
  */
 public interface ObjectDetector<T> {
 	
-	public Collection<PathObject> runDetection(ImageData<T> imageData, ParameterList params, ROI pathROI);
+	public Collection<PathObject> runDetection(ImageData<T> imageData, ParameterList params, ROI pathROI) throws IOException;
 
 	public String getLastResultsDescription();
 

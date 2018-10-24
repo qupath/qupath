@@ -25,6 +25,7 @@ package qupath.opencv;
 
 import java.awt.Shape;
 import java.awt.image.BufferedImage;
+import java.io.IOException;
 import java.nio.FloatBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -85,7 +86,7 @@ public class CellCountsCV extends AbstractTileableDetectionPlugin<BufferedImage>
 		private String lastResult = null;
 
 		@Override
-		public Collection<PathObject> runDetection(final ImageData<BufferedImage> imageData, ParameterList params, ROI pathROI) {
+		public Collection<PathObject> runDetection(final ImageData<BufferedImage> imageData, ParameterList params, ROI pathROI) throws IOException {
 			// Create a list for detected objects
 			List<PathObject> pathObjects = new ArrayList<>();
 

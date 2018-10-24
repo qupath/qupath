@@ -24,6 +24,7 @@
 package qupath.lib.images.servers;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -72,7 +73,7 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 	}
 
 	@Override
-	public T getBufferedThumbnail(int maxWidth, int maxHeight, int zPosition) {
+	public T getBufferedThumbnail(int maxWidth, int maxHeight, int zPosition) throws IOException {
 		double downsample = getThumbnailDownsampleFactor(maxWidth, maxHeight);
 		return readBufferedImage(
 				RegionRequest.createInstance(getPath(), downsample, 0, 0, getWidth(), getHeight(), zPosition, 0));
@@ -90,7 +91,7 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 	
 	@Override
 	public double getPreferredDownsampleFactor(double requestedDownsample) {
-		double[] downsamples = getPreferredDownsamples();
+		double[] downsamples = getPreferredDownsamplesArray();
 		int ind = ServerTools.getClosestDownsampleIndex(downsamples, requestedDownsample);
 		return downsamples[ind];
 	}
@@ -100,9 +101,36 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 		logger.trace("Server " + this + " being closed now...");		
 	}
 	
+	/**
+	 * Request the preferred downsamples from the image metadata.
+	 * <p>
+	 * Note that this returns the array directly; any modifications may result 
+	 * in this array becoming corrupted.  This method exists for performance reasons 
+	 * to avoid always needing to make defensive copies.
+	 * 
+	 * @return
+	 * 
+	 * @see #getPreferredDownsamples()
+	 */
+	protected double[] getPreferredDownsamplesArray() {
+		return getMetadata().getPreferredDownsamples();
+	}
+	
+	@Override
+	public int nResolutions() {
+		return getPreferredDownsamplesArray().length;
+	}
+	
+	/**
+	 * Request the preferred downsamples from the image metadata.
+	 * <p>
+	 * Note that this makes a defensive copy of the array.
+	 * 
+	 * @see #getPreferredDownsamplesArray()
+	 */
 	@Override
 	public double[] getPreferredDownsamples() {
-		return getMetadata().getPreferredDownsamples();
+		return getMetadata().getPreferredDownsamples().clone();
 	}
 	
 	@Override
@@ -304,7 +332,7 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 	}
 	
 	@Override
-	public PathImage<T> readRegion(RegionRequest request) {
+	public PathImage<T> readRegion(RegionRequest request) throws IOException {
 		T img = readBufferedImage(request);
 		if (img == null)
 			return null;

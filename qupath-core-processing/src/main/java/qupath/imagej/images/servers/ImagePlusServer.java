@@ -24,6 +24,7 @@
 package qupath.imagej.images.servers;
 
 import java.awt.image.BufferedImage;
+import java.io.IOException;
 
 import ij.ImagePlus;
 import qupath.lib.images.PathImage;
@@ -38,6 +39,6 @@ import qupath.lib.regions.RegionRequest;
  */
 public interface ImagePlusServer extends ImageServer<BufferedImage> {
 
-	public PathImage<ImagePlus> readImagePlusRegion(RegionRequest request);
+	public PathImage<ImagePlus> readImagePlusRegion(RegionRequest request) throws IOException;
 
 }

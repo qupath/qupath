@@ -1,6 +1,7 @@
 package qupath.lib.classifiers.pixel.features;
 
 import java.awt.image.BufferedImage;
+import java.io.IOException;
 
 import org.bytedeco.javacpp.opencv_core.Mat;
 
@@ -27,8 +28,10 @@ public interface OpenCVFeatureCalculator {
      * @param server
      * @param request
      * @return a {@code BufferedImage} representing the pixel classifications as separate bands.
+     * 
+     * @throws IOException if unable to read pixels from {@code server}
      */
-    public Mat calculateFeatures(ImageServer<BufferedImage> server, RegionRequest request);
+    public Mat calculateFeatures(ImageServer<BufferedImage> server, RegionRequest request) throws IOException;
 
     /**
      * Get metadata that describes how the classifier should be called,

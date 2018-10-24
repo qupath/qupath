@@ -177,7 +177,7 @@ public class OpenCVFeatureCalculatorDNN implements OpenCVFeatureCalculator {
     }
 
 	@Override
-	public Mat calculateFeatures(ImageServer<BufferedImage> server, RegionRequest request) {
+	public Mat calculateFeatures(ImageServer<BufferedImage> server, RegionRequest request) throws IOException {
 		BufferedImage img = BasicMultiscaleOpenCVFeatureCalculator.getPaddedRequest(server, request, inputPadding);
 		
 		Mat mat = OpenCVTools.imageToMat(img);
