@@ -43,7 +43,6 @@ import com.google.gson.GsonBuilder;
 
 import qupath.lib.images.servers.AbstractTileableImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
-import qupath.lib.images.servers.ServerTools;
 import qupath.lib.regions.RegionRequest;
 
 /**
@@ -175,36 +174,33 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 	}
 
 	@Override
-	public BufferedImage readTile(RegionRequest request) {
-		double downsampleFactor = request.getDownsample();
-		double[] preferredDownsamples = getPreferredDownsamples();
-		int level = ServerTools.getClosestDownsampleIndex(preferredDownsamples, downsampleFactor);
-		double downsample = preferredDownsamples[level];
-		int levelWidth = (int)Math.round(request.getWidth() / downsample);
-		int levelHeight = (int)Math.round(request.getHeight() / downsample);
-		BufferedImage img = new BufferedImage(levelWidth, levelHeight, BufferedImage.TYPE_INT_ARGB_PRE);
+	public BufferedImage readTile(TileRequest tileRequest) {
+		
+		int tileWidth = tileRequest.getTileWidth();
+		int tileHeight = tileRequest.getTileHeight();
+
+		
+//		double downsampleFactor = getPreferredDownsamplesArray()[downsampleInd];
+		BufferedImage img = new BufferedImage(tileWidth, tileHeight, BufferedImage.TYPE_INT_ARGB_PRE);
         int data[] = ((DataBufferInt)img.getRaster().getDataBuffer()).getData();
         
         try {
 			// Create a thumbnail for the region
-			osr.paintRegionARGB(data, request.getX(), request.getY(), level, levelWidth, levelHeight);
+//        	osr.paintRegionOfLevel(g, dx, dy, sx, sy, w, h, level);
+			osr.paintRegionARGB(data, tileRequest.getImageX(), tileRequest.getImageY(), tileRequest.getLevel(), tileWidth, tileHeight);
 			
 			// Previously tried to take shortcut and only repaint if needed - 
 			// but transparent pixels happened too often, and it's really needed to repaint every time
 //			if (backgroundColor == null && GeneralTools.almostTheSame(downsample, downsampleFactor, 0.001))
 //				return img;
 			
-			// Rescale if we have to
-			int width = (int)Math.round(request.getWidth() / downsampleFactor);
-			int height = (int)Math.round(request.getHeight() / downsampleFactor);
-			
-			BufferedImage img2 = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+			BufferedImage img2 = new BufferedImage(tileWidth, tileHeight, BufferedImage.TYPE_INT_RGB);
 			Graphics2D g2d = img2.createGraphics();
 			if (backgroundColor != null) {
 				g2d.setColor(backgroundColor);
-				g2d.fillRect(0, 0, width, height);
+				g2d.fillRect(0, 0, tileWidth, tileHeight);
 			}
-			g2d.drawImage(img, 0, 0, width, height, null);
+			g2d.drawImage(img, 0, 0, tileWidth, tileHeight, null);
 			g2d.dispose();
 			return img2;
 		} catch (Exception e) {

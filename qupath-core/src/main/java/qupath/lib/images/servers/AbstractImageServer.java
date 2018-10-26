@@ -71,7 +71,17 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 			downsample = 1;
 		return downsample;
 	}
-
+	
+	/**
+	 * Default implementation, returns 'Channel n' where n is the channel number (1-based).
+	 * <p>
+	 * Note that the channel argument is 0-based.
+	 */
+	@Override
+	public String getChannelName(int channel) {
+		return "Channel " + (channel + 1);
+	}
+	
 	@Override
 	public T getBufferedThumbnail(int maxWidth, int maxHeight, int zPosition) throws IOException {
 		double downsample = getThumbnailDownsampleFactor(maxWidth, maxHeight);
@@ -357,7 +367,11 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 	
 	@Override
 	public String getDisplayedImageName() {
-		return getShortServerName();
+		String name = getMetadata().getName();
+		if (name == null)
+			return getShortServerName();
+		else
+			return name;
 	}
 
 	@Override

@@ -23,6 +23,7 @@
 
 package qupath.lib.images.servers;
 
+import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -35,8 +36,10 @@ import java.util.concurrent.TimeUnit;
  *
  */
 public class ImageServerMetadata {
-	
+
 	private String path;
+	private String name;
+	
 	private int width;
 	private int height;
 	
@@ -129,6 +132,11 @@ public class ImageServerMetadata {
 			return this;
 		}
 		
+		public Builder setName(final String name) {
+			metadata.name = name;
+			return this;
+		}
+		
 		public ImageServerMetadata build() {
 			return metadata;
 		}
@@ -148,6 +156,7 @@ public class ImageServerMetadata {
 
 	ImageServerMetadata(final ImageServerMetadata metadata) {
 		this.path = metadata.path;
+		this.name = metadata.name;
 		this.width = metadata.width;
 		this.height = metadata.height;
 		
@@ -256,6 +265,10 @@ public class ImageServerMetadata {
 		return new ImageServerMetadata(this);
 	}
 	
+	public String getName() {
+		return name;
+	}
+	
 	
 	/**
 	 * Returns true if a specified ImageServerMetadata is compatible with this one, i.e. it has the same path and dimensions
@@ -273,6 +286,7 @@ public class ImageServerMetadata {
 	public String toString() {
 		StringBuilder sb = new StringBuilder("{ ");
 		sb.append("\"path\": \"").append(path).append("\", ");
+		sb.append("\"name\": \"").append(name).append("\", ");
 		sb.append("\"width\": ").append(width).append(", ");
 		sb.append("\"height\": ").append(height).append(", ");
 		sb.append("\"sizeC\": ").append(sizeC);
@@ -295,10 +309,14 @@ public class ImageServerMetadata {
 	public int hashCode() {
 		final int prime = 31;
 		int result = 1;
+		result = prime * result + bitDepth;
+		result = prime * result + Arrays.hashCode(downsamples);
 		result = prime * result + height;
+		result = prime * result + (isRGB ? 1231 : 1237);
 		long temp;
 		temp = Double.doubleToLongBits(magnification);
 		result = prime * result + (int) (temp ^ (temp >>> 32));
+		result = prime * result + ((name == null) ? 0 : name.hashCode());
 		result = prime * result + ((path == null) ? 0 : path.hashCode());
 		temp = Double.doubleToLongBits(pixelHeightMicrons);
 		result = prime * result + (int) (temp ^ (temp >>> 32));
@@ -326,9 +344,20 @@ public class ImageServerMetadata {
 		if (getClass() != obj.getClass())
 			return false;
 		ImageServerMetadata other = (ImageServerMetadata) obj;
+		if (bitDepth != other.bitDepth)
+			return false;
+		if (!Arrays.equals(downsamples, other.downsamples))
+			return false;
 		if (height != other.height)
 			return false;
+		if (isRGB != other.isRGB)
+			return false;
 		if (Double.doubleToLongBits(magnification) != Double.doubleToLongBits(other.magnification))
+			return false;
+		if (name == null) {
+			if (other.name != null)
+				return false;
+		} else if (!name.equals(other.name))
 			return false;
 		if (path == null) {
 			if (other.path != null)
@@ -357,5 +386,6 @@ public class ImageServerMetadata {
 			return false;
 		return true;
 	}
+	
 
 }

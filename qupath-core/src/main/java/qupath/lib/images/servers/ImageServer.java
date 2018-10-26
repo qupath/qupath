@@ -373,6 +373,14 @@ public interface ImageServer<T> {
 	
 	
 	/**
+	 * Get a name for the channel.
+	 * @param channel
+	 * @return
+	 */
+	public String getChannelName(int channel);
+	
+	
+	/**
 	 * Get essential metadata associated with the ImageServer as a distinct object.  This may be edited by the user.
 	 * @return
 	 * @see #getOriginalMetadata

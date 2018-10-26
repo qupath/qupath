@@ -374,6 +374,11 @@ public class PathHierarchyImageServer implements GeneratingImageServer<BufferedI
 	public int nResolutions() {
 		return downsamples.length;
 	}
+
+	@Override
+	public String getChannelName(int channel) {
+		return "Channel " + (channel + 1);
+	}
 	
 //	@Override
 //	public ImagePixels readPixels(RegionRequest request) {
