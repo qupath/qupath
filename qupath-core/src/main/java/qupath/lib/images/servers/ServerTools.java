@@ -85,7 +85,7 @@ public class ServerTools {
 	 * @param doLog2
 	 * @return
 	 */
-	public static double getPreferredDownsampleForPixelSizeMicrons(double serverPixelSizeMicrons, double requestedPixelSizeMicrons, boolean doLog2) {
+	static double getPreferredDownsampleForPixelSizeMicrons(double serverPixelSizeMicrons, double requestedPixelSizeMicrons, boolean doLog2) {
 		// If we have NaN input, we have NaN output
 		if (Double.isNaN(serverPixelSizeMicrons + requestedPixelSizeMicrons))
 			return Double.NaN;

@@ -57,7 +57,7 @@ import org.slf4j.LoggerFactory;
  * @author Pete Bankhead
  *
  */
-public class TiffChecker {
+class TiffChecker {
 	
 	public enum ImageCheckType {UNKNOWN, TIFF_IMAGEJ, TIFF_2D_RGB, TIFF_OTHER};
 	

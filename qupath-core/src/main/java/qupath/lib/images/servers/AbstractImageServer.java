@@ -33,6 +33,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.lib.common.ColorTools;
+import qupath.lib.common.GeneralTools;
 import qupath.lib.images.PathImage;
 import qupath.lib.images.DefaultPathImage;
 import qupath.lib.regions.RegionRequest;
@@ -395,6 +396,62 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 			return ColorTools.makeRGB(255, 255, 255);
 		
 		return getExtendedDefaultChannelColor(channel);
+	}
+	
+	
+	/**
+	 * Estimate the downsample value for a specific level based on the full resolution image dimensions 
+	 * and the level dimensions.
+	 * <p>
+	 * This method is provides so that different ImageServer implementations can potentially use the same logic.
+	 * 
+	 * @param fullWidth width of the full resolution image
+	 * @param fullHeight height of the full resolution image
+	 * @param levelWidth width of the pyramid level of interest
+	 * @param levelHeight height of the pyramid level of interest
+	 * @param level Resolution level.  Not required for the calculation, but if &geq; 0 and the computed x & y downsamples are very different a warning will be logged.
+	 * @return
+	 */
+	protected static double estimateDownsample(final int fullWidth, final int fullHeight, final int levelWidth, final int levelHeight, final int level) {
+		// Calculate estimated downsamples for width & height independently
+		double downsampleX = (double)fullWidth / levelWidth;
+		double downsampleY = (double)fullHeight / levelHeight;
+		
+		// If the difference is less than 1 pixel from what we'd get by downsampling by closest integer, 
+		// adjust the downsample factors - we're probably aiming at integer downsampling
+		boolean xPow2 = false;
+		boolean yPow2 = false;
+		if (Math.abs(fullWidth / (double)Math.round(downsampleX)  - levelWidth) <= 1) {
+			downsampleX = Math.round(downsampleX);
+			xPow2 = Integer.bitCount((int)downsampleX) == 1;
+		}
+		if (Math.abs(fullHeight / (double)Math.round(downsampleY) - levelHeight) <= 1) {
+			downsampleY = Math.round(downsampleY);	
+			yPow2 = Integer.bitCount((int)downsampleY) == 1;
+		}
+		// If one of these is a power of two, use it - this is usually the case
+		if (xPow2)
+			downsampleY = downsampleX;
+		else if (yPow2)
+			downsampleX = downsampleY;
+		
+		/*
+		 * Average the calculated downsamples for x & y, warning if they are substantially different.
+		 * 
+		 * The 'right' way to do this is a bit unclear... 
+		 * * OpenSlide also seems to use averaging: https://github.com/openslide/openslide/blob/7b99a8604f38280d14a34db6bda7a916563f96e1/src/openslide.c#L272
+		 * * OMERO's rendering may use the 'lower' ratio: https://github.com/openmicroscopy/openmicroscopy/blob/v5.4.6/components/insight/SRC/org/openmicroscopy/shoola/env/rnd/data/ResolutionLevel.java#L96
+		 * 
+		 * However, because in the majority of cases the rounding checks above will have resolved discrepancies, it is less critical.
+		 */
+		
+		// Average the calculated downsamples for x & y
+		double downsample = (downsampleX + downsampleY) / 2;
+		
+		// Give a warning if the downsamples differ substantially
+		if (level >= 0 && !GeneralTools.almostTheSame(downsampleX, downsampleY, 0.001))
+			logger.warn("Calculated downsample values differ for x & y for level {}: x={} and y={} - will use value {}", level, downsampleX, downsampleY, downsample);
+		return downsample;
 	}
 	
 }

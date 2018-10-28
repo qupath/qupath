@@ -68,13 +68,13 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 		// Try to read a tile size
 		String value = properties.get(name);
 		if (value == null) {
-			logger.error("Openslide: Property not available: {}", name);
+			logger.warn("Openslide: Property '{}' not available, will return default value {}", name, defaultValue);
 			return defaultValue;
 		}
 		try {
 			return Double.parseDouble(value);
 		} catch (NumberFormatException e) {
-			logger.error("Openslide: Could not parse property {} with value {}", name, value);
+			logger.error("Openslide: Could not parse property '{}' with value {} as a number, will return default value {}", name, value, defaultValue);
 			return defaultValue;
 		}
 	}
@@ -98,20 +98,28 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 		int height = (int)osr.getLevel0Height();
 
 		Map<String, String> properties = osr.getProperties();
-		
+
 		// Try to read a tile size
 		int tileWidth = (int)readNumericPropertyOrDefault(properties, "openslide.level[0].tile-width", -1);
 		int tileHeight = (int)readNumericPropertyOrDefault(properties, "openslide.level[0].tile-height", -1);
 		// Read other properties
-		double pixelWidth = readNumericPropertyOrDefault(properties, "openslide.mpp-x", Double.NaN);
-		double pixelHeight = readNumericPropertyOrDefault(properties, "openslide.mpp-y", Double.NaN);
-		double magnification = readNumericPropertyOrDefault(properties, "openslide.objective-power", Double.NaN);
+		double pixelWidth = readNumericPropertyOrDefault(properties, OpenSlide.PROPERTY_NAME_MPP_X, Double.NaN);
+		double pixelHeight = readNumericPropertyOrDefault(properties, OpenSlide.PROPERTY_NAME_MPP_Y, Double.NaN);
+		double magnification = readNumericPropertyOrDefault(properties, OpenSlide.PROPERTY_NAME_OBJECTIVE_POWER, Double.NaN);
 		
 		// Loop through the series again & determine downsamples
 		int levelCount = (int)osr.getLevelCount();
 		double[] downsamples = new double[levelCount];
-		for (int i = 0; i < levelCount; i++)
-			downsamples[i] = osr.getLevelDownsample(i);
+		downsamples[0] = 1;
+		for (int i = 1; i < levelCount; i++) {
+			// When requesting downsamples from OpenSlide, these seem to be averaged from the width & height ratios:
+			// https://github.com/openslide/openslide/blob/7b99a8604f38280d14a34db6bda7a916563f96e1/src/openslide.c#L272
+			// However this can result in inexact floating point values whenever the 'true' downsample is 
+			// almost certainly an integer value, therefore we prefer to use our own calculation.
+			// Other ImageServer implementations can also draw on our calculation for consistency (or override it if they can do better).
+			downsamples[i] = estimateDownsample(width, height, (int)osr.getLevelWidth(i), (int)osr.getLevelHeight(i), i);
+//			downsamples[i] = osr.getLevelDownsample(i);
+		}
 
 		// Create metadata objects
 		originalMetadata = new ImageServerMetadata.Builder(path, width, height).
@@ -150,7 +158,6 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 		// we want it to fail quickly so that it may yet be possible to try another server
 		// This can occur with corrupt .svs (.tif) files that Bioformats is able to handle better
 		logger.info("Test reading thumbnail with openslide: passed (" + getBufferedThumbnail(200, 200, 0).toString() + ")");
-
 	}
 	
 	@Override
@@ -174,39 +181,33 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 	}
 
 	@Override
-	public BufferedImage readTile(TileRequest tileRequest) {
+	public BufferedImage readTile(TileRequest tileRequest) throws IOException {
 		
 		int tileWidth = tileRequest.getTileWidth();
 		int tileHeight = tileRequest.getTileHeight();
 
-		
 //		double downsampleFactor = getPreferredDownsamplesArray()[downsampleInd];
 		BufferedImage img = new BufferedImage(tileWidth, tileHeight, BufferedImage.TYPE_INT_ARGB_PRE);
         int data[] = ((DataBufferInt)img.getRaster().getDataBuffer()).getData();
         
-        try {
-			// Create a thumbnail for the region
+		// Create a thumbnail for the region
 //        	osr.paintRegionOfLevel(g, dx, dy, sx, sy, w, h, level);
-			osr.paintRegionARGB(data, tileRequest.getImageX(), tileRequest.getImageY(), tileRequest.getLevel(), tileWidth, tileHeight);
-			
-			// Previously tried to take shortcut and only repaint if needed - 
-			// but transparent pixels happened too often, and it's really needed to repaint every time
+		osr.paintRegionARGB(data, tileRequest.getImageX(), tileRequest.getImageY(), tileRequest.getLevel(), tileWidth, tileHeight);
+		
+		// Previously tried to take shortcut and only repaint if needed - 
+		// but transparent pixels happened too often, and it's really needed to repaint every time
 //			if (backgroundColor == null && GeneralTools.almostTheSame(downsample, downsampleFactor, 0.001))
 //				return img;
-			
-			BufferedImage img2 = new BufferedImage(tileWidth, tileHeight, BufferedImage.TYPE_INT_RGB);
-			Graphics2D g2d = img2.createGraphics();
-			if (backgroundColor != null) {
-				g2d.setColor(backgroundColor);
-				g2d.fillRect(0, 0, tileWidth, tileHeight);
-			}
-			g2d.drawImage(img, 0, 0, tileWidth, tileHeight, null);
-			g2d.dispose();
-			return img2;
-		} catch (Exception e) {
-			logger.error("Error requesting BufferedImage", e);
+		
+		BufferedImage img2 = new BufferedImage(tileWidth, tileHeight, BufferedImage.TYPE_INT_RGB);
+		Graphics2D g2d = img2.createGraphics();
+		if (backgroundColor != null) {
+			g2d.setColor(backgroundColor);
+			g2d.fillRect(0, 0, tileWidth, tileHeight);
 		}
-		return null;
+		g2d.drawImage(img, 0, 0, tileWidth, tileHeight, null);
+		g2d.dispose();
+		return img2;
 	}
 
 	@Override

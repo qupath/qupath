@@ -24,8 +24,11 @@
 package qupath.lib.images.servers.openslide;
 
 import java.awt.image.BufferedImage;
+import java.io.File;
+import java.net.URI;
 import java.util.Map;
 
+import org.openslide.OpenSlide;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,7 +47,17 @@ public class OpenslideServerBuilder implements ImageServerBuilder<BufferedImage>
 	
 	private static Logger logger = LoggerFactory.getLogger(OpenslideServerBuilder.class);
 	private static boolean openslideUnavailable = false;
-
+	
+	static {
+		try {
+			logger.info("OpenSlide version {}", OpenSlide.getLibraryVersion());
+		}
+		catch (UnsatisfiedLinkError e) {
+			logger.error("Could not load OpenSlide native library", e);
+			openslideUnavailable = true;
+		}
+	}
+	
 	@Override
 	public ImageServer<BufferedImage> buildServer(String path, Map<RegionRequest, BufferedImage> cache) {
 		if (openslideUnavailable) {
@@ -53,10 +66,6 @@ public class OpenslideServerBuilder implements ImageServerBuilder<BufferedImage>
 		}
 		try {
 			return new OpenslideImageServer(cache, path);
-		} catch (UnsatisfiedLinkError e) {
-			logger.error("Could not load OpenSlide native library", e);
-			// Log that we couldn't create the link
-			openslideUnavailable = true;
 		} catch (Exception e) {
 			logger.warn("Unable to open {} with OpenSlide: {}", path, e.getLocalizedMessage());
 		}
@@ -65,8 +74,18 @@ public class OpenslideServerBuilder implements ImageServerBuilder<BufferedImage>
 
 	@Override
 	public float supportLevel(String path, ImageCheckType type, Class<?> cls) {
-		if (cls != BufferedImage.class)
+		if (cls != BufferedImage.class || openslideUnavailable)
 			return 0;
+		
+		try {
+			URI uri = new URI(path);
+			File file = uri.isAbsolute() ? new File(uri) : new File(path);
+			if (OpenSlide.detectVendor(file) == null)
+				return 0;
+		} catch (Exception e) {
+			logger.debug("Unable to read with OpenSlide: {}", e.getLocalizedMessage());
+		}
+		
 		switch (type) {
 		case TIFF_2D_RGB:
 			return 3.5f;

@@ -1,7 +1,6 @@
 package qupath.lib.images.servers;
 
 import java.awt.Graphics2D;
-import java.awt.Rectangle;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.awt.image.ColorModel;
@@ -320,12 +319,7 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 			}
 			raster.setSamples(0, 0, finalWidth, finalHeight, b, pixelsNew);
 		}
-
 		return new BufferedImage(img.getColorModel(), raster, img.getColorModel().isAlphaPremultiplied(), null);
-		
-//		// Warning!  This doesn't actually work!  It performs some unwelcome rescaling of pixel intensities
-//		logger.warn("Resizing not implemented properly for images with type {} - pixel values will be surreptitiously rescaled", img.getType());
-//		return AWTImageTools.scale(img, finalWidth, finalHeight, false);
 	}
 	
 	
