@@ -152,7 +152,11 @@ public class PathImagePlus implements PathImage<ImagePlus> {
 			if (server == null) {
 				ImagePlusServer server = new ImagePlusServerBuilder().buildServer(request.getPath());
 				impTemp = server.readImagePlusRegion(request).getImage();
-				server.close();
+				try {
+					server.close();
+				} catch (Exception e) {
+					logger.warn("Problem closing server", e);
+				}
 			} else
 				impTemp = server.readImagePlusRegion(request).getImage();
 			if (cache)

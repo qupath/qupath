@@ -108,7 +108,7 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 	}
 	
 	@Override
-	public void close() {
+	public void close() throws Exception {
 		logger.trace("Server " + this + " being closed now...");		
 	}
 	

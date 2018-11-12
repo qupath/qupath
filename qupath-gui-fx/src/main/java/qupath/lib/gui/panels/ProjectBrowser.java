@@ -558,8 +558,13 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 			newServer = true;
 		}
 		BufferedImage img2 = QuPathGUI.getInstance().getImageRegionStore().getThumbnail(server, server.nZSlices()/2, 0, true);
-		if (newServer)
-			server.close();
+		if (newServer) {
+			try {
+				server.close();
+			} catch (Exception e) {
+				logger.warn("Problem closing server", e);
+			}
+		}
 		if (img2 != null) {
 			// Try to write RGB images directly
 			boolean success = false;

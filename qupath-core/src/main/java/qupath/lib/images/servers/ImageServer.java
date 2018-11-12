@@ -42,7 +42,7 @@ import qupath.lib.regions.RegionRequest;
  *
  * @param <T>
  */
-public interface ImageServer<T> {
+public interface ImageServer<T> extends AutoCloseable {
 	
 	/**
 	 * Get either the URL for this image, or the path to a file.
@@ -231,11 +231,6 @@ public interface ImageServer<T> {
 	 * @return
 	 */
 	public T readBufferedImage(RegionRequest request) throws IOException;
-
-	/**
-	 * Method that may be required by some servers.
-	 */
-	public void close();
         
 	
 	/**

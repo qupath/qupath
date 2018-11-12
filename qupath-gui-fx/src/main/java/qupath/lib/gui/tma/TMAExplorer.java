@@ -160,7 +160,11 @@ public class TMAExplorer implements PathCommand {
 					entries.add(entry);
 				}
 				
-				server.close();
+				try {
+					server.close();
+				} catch (Exception e) {
+					logger.warn("Problem closing server", e);
+				}
 
 			}
 			

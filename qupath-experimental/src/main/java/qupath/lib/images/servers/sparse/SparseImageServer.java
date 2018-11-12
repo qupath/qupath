@@ -1,17 +1,26 @@
 package qupath.lib.images.servers.sparse;
 
 import java.awt.image.BufferedImage;
+import java.awt.image.ColorModel;
 import java.awt.image.WritableRaster;
+import java.io.File;
+import java.io.FileReader;
 import java.io.IOException;
+import java.io.Reader;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
+import java.util.TreeSet;
 
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
-
-import qupath.lib.common.GeneralTools;
 import qupath.lib.images.servers.AbstractTileableImageServer;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
@@ -33,11 +42,12 @@ public class SparseImageServer extends AbstractTileableImageServer {
 	
 	private final ImageServerMetadata metadata;
 	
-	private Map<String, ImageRegion> regionMap = new LinkedHashMap<>();
-	private Map<String, ImageServer<BufferedImage>> serverMap = new HashMap<>();
+	private SparseImageServerManager manager;
 	
 	private String[] channelNames;
 	private Integer[] channelColors;
+	
+	private ColorModel colorModel;
 	
 	private int originX = 0, originY = 0;
 
@@ -46,15 +56,14 @@ public class SparseImageServer extends AbstractTileableImageServer {
 				
 //		cache.clear();
 		
-		String text = GeneralTools.readFileAsString(path);
-		regionMap = new Gson().fromJson(text, new TypeToken<Map<String, ImageRegion>>() {}.getType());
+//		String text = GeneralTools.readFileAsString(path);
+		manager = SparseImageServerManager.fromJSON(new FileReader(new File(path)));
 		
 		ImageServerMetadata metadata = null;
 		
 		int x1 = Integer.MAX_VALUE, y1 = Integer.MAX_VALUE, x2 = -Integer.MAX_VALUE, y2 = -Integer.MAX_VALUE;
 		
-		for (Entry<String, ImageRegion> entry : regionMap.entrySet()) {
-			ImageRegion region = entry.getValue();
+		for (ImageRegion region: manager.getRegions()) {
 			if (region.getX() < x1)
 				x1 = region.getX();
 			if (region.getY() < y1)
@@ -66,32 +75,26 @@ public class SparseImageServer extends AbstractTileableImageServer {
 			
 			// Read the first server
 			if (metadata == null) {
-				String firstPath = entry.getKey();
-				ImageServer<BufferedImage> server = ImageServerProvider.buildServer(firstPath, BufferedImage.class);
-				
+				ImageServer<BufferedImage> server = manager.getServer(region, 1);
 				channelNames = new String[server.nChannels()];
 				channelColors = new Integer[server.nChannels()];
 				for (int c = 0; c < server.nChannels(); c++) {
 					channelNames[c] = server.getChannelName(c);
 					channelColors[c] = server.getDefaultChannelColor(c);
 				}
-				
-				serverMap.put(firstPath, server);
 				metadata = server.getMetadata();
+				colorModel = server.getBufferedThumbnail(100, 100, 0).getColorModel();
 			}
 		}
 		// Here, we assume origin at zero
 //		int width = x2;
-//		int height = y2;		
+//		int height = y2;
 		
 		originX = x1;
 		originY = y1;
 		int width = x2 - x1;
 		int height = y2 - y1;
 		
-		// Request the servers we will need, in parallel
-		regionMap.keySet().parallelStream().forEach(p -> getRegionServer(p));
-				
 		this.metadata = new ImageServerMetadata.Builder(path, width, height)
 				.setBitDepth(metadata.getBitDepth())
 				.setRGB(metadata.isRGB())
@@ -102,21 +105,11 @@ public class SparseImageServer extends AbstractTileableImageServer {
 				.setSizeT(metadata.getSizeT())
 				.setSizeZ(metadata.getSizeZ())
 				.setTimeUnit(metadata.getTimeUnit())
-				.setPreferredDownsamples(1, 4, 32, 64, 128)
+				.setPreferredDownsamples(manager.getAvailableDownsamples())
 				.setZSpacingMicrons(metadata.getZSpacingMicrons())
 				.build();
 		
 	}
-	
-	private ImageServer<BufferedImage> getRegionServer(final String serverPath) {
-		ImageServer<BufferedImage> server = serverMap.get(serverPath);
-		if (server == null) {
-			server = ImageServerProvider.buildServer(serverPath, BufferedImage.class);
-			serverMap.put(serverPath, server);
-		}
-		return server;
-	}
-	
 	
 	@Override
 	public Integer getDefaultChannelColor(int channel) {
@@ -139,9 +132,8 @@ public class SparseImageServer extends AbstractTileableImageServer {
 	}
 	
 	@Override
-	public void close() {
-		for (ImageServer<BufferedImage> server : serverMap.values())
-			server.close();
+	public void close() throws Exception {
+		manager.close();
 		super.close();
 	}
 	
@@ -152,22 +144,36 @@ public class SparseImageServer extends AbstractTileableImageServer {
 		BufferedImage imgOutput = null;
 		WritableRaster raster = null;
 		
-		double downsample = tileRequest.getRegionRequest().getDownsample();
 		
-		for (Entry<String, ImageRegion> entry : regionMap.entrySet()) {
-			ImageRegion subRegion = entry.getValue();
+		for (ImageRegion subRegion : manager.getRegions()) {
+			double downsample = tileRequest.getRegionRequest().getDownsample();
 			if (subRegion.intersects(tileRequest.getImageX() + originX, tileRequest.getImageY() + originY, tileRequest.getImageWidth(), tileRequest.getImageHeight())) {
 				// If we overlap, request the overlapping portion
-				String serverPath = entry.getKey();
-				ImageServer<BufferedImage> serverTemp = getRegionServer(serverPath);
+				ImageServer<BufferedImage> serverTemp = manager.getServer(subRegion, downsample);
 				
 				int x1 = Math.max(tileRequest.getImageX() + originX, subRegion.getX());
 				int y1 = Math.max(tileRequest.getImageY() + originY, subRegion.getY());
 				int x2 = Math.min(tileRequest.getImageX() + originX + tileRequest.getImageWidth(), subRegion.getX() + subRegion.getWidth());
 				int y2 = Math.min(tileRequest.getImageY() + originY + tileRequest.getImageHeight(), subRegion.getY() + subRegion.getHeight());
+				
+				// Determine request coordinates
+				// TODO: Test whether sparse images with pyramidal regions work
+				int xr = x1 - subRegion.getX();
+				int yr = y1 - subRegion.getY();
+				int xr2 = x2 - subRegion.getX();
+				int yr2 = y2 - subRegion.getY();
+				double requestDownsample = downsample;
+				if (requestDownsample > 1 && serverTemp.nResolutions() == 1) {
+					xr = (int)Math.round(xr / downsample);					
+					yr = (int)Math.round(yr / downsample);					
+					xr2 = (int)Math.round(xr2 / downsample);					
+					yr2 = (int)Math.round(yr2 / downsample);	
+					requestDownsample = 1;
+				}
+				
 				RegionRequest requestTemp = RegionRequest.createInstance(
-						serverPath, downsample,
-						x1-subRegion.getX(), y1-subRegion.getY(), x2-x1, y2-y1, tileRequest.getZ(), tileRequest.getT());
+						serverTemp.getPath(), requestDownsample,
+						xr, yr, xr2-xr, yr2-yr, tileRequest.getZ(), tileRequest.getT());
 				
 				BufferedImage imgTemp = null;
 				synchronized (serverTemp) {
@@ -180,7 +186,7 @@ public class SparseImageServer extends AbstractTileableImageServer {
 				// If we don't have an output image yet, create a compatible one
 				if (imgOutput == null) {
 					raster = imgTemp.getRaster().createCompatibleWritableRaster(tileRequest.getTileWidth(), tileRequest.getTileHeight());					
-					imgOutput = new BufferedImage(imgTemp.getColorModel(), raster, imgTemp.isAlphaPremultiplied(), null);
+					imgOutput = new BufferedImage(colorModel, raster, false, null);
 				}
 				
 				int x = (int)Math.round((x1 - tileRequest.getImageX() - originX) / downsample);
@@ -193,5 +199,165 @@ public class SparseImageServer extends AbstractTileableImageServer {
 		
 		return imgOutput;
 	}
+	
+	
+		
+	/**
+	 * Helper class for SparseImageServers, capable of returning the appropriate ImageServer for 
+	 * different ImageRegions and different resolutions.
+	 * <p>
+	 * This also allows serialization/deserialization with JSON.
+	 */
+	public static class SparseImageServerManager implements AutoCloseable {
+		
+		private Map<ImageRegion, List<SparseImageServerManagerResolution>> regionMap = new LinkedHashMap<>();
+		private Set<Double> downsamples = new TreeSet<>();
+		
+		private transient List<ImageRegion> regionList;
+		private transient Map<String, ImageServer<BufferedImage>> serverMap = new HashMap<>();
+		
+		/**
+		 * Add the path to a new ImageServer for a specified region & downsample.
+		 * @param path
+		 * @param region
+		 * @param downsample
+		 */
+		public synchronized void addRegionServer(String path, ImageRegion region, double downsample) {
+			resetCaches();
+			
+			List<SparseImageServerManagerResolution> resolutions = regionMap.get(region);
+			if (resolutions == null) {
+				resolutions = new ArrayList<>();
+				regionMap.put(region, resolutions);
+			}
+			downsamples.add(downsample);
+			int ind = 0;
+			while (ind < resolutions.size() && downsample > resolutions.get(ind).getDownsample()) {
+				ind++;
+			}
+			resolutions.add(ind, new SparseImageServerManagerResolution(path, downsample));
+		}
+		
+		private void resetCaches() {
+			regionList = null;
+		}
+		
+
+		/**
+		 * Get an unmodifiable collection for all available regions.
+		 * <p>
+		 * This can be used to iterate through regions to check which overlap a request.
+		 * @return
+		 */
+		public synchronized Collection<ImageRegion> getRegions() {
+			if (regionList == null) {
+				regionList = new ArrayList<>(regionMap.keySet());
+				regionList = Collections.unmodifiableList(regionList);
+			}
+			return regionList;
+		}
+		
+		/**
+		 * Request the server for a specific downsample.
+		 * <p>
+		 * Note that this does not aim to return a server for any arbitrary region; rather, 
+		 * a server <i>must</i> exist for the specified region and downsample, otherwise this will return {@code null}. 
+		 * 
+		 * @param region specified region to which the server should correspond (must be found within {@code getRegions()})
+		 * @param downsample specified downsample for the server (must be found within {@code getDownsamples()})
+		 * @return
+		 */
+		public synchronized ImageServer<BufferedImage> getServer(ImageRegion region, double downsample) {
+			// Get the best resolution map for the specified region & return null if none found
+			List<SparseImageServerManagerResolution> resolutions = regionMap.get(region);
+			if (resolutions == null || resolutions.isEmpty())
+				return null;
+			int level = resolutions.size()-1;
+			while (level > 0 && resolutions.get(level).getDownsample() > downsample) {
+				level--;
+			}
+			
+			// Create a new ImageServer if we need to, or reuse an existing one
+			// Note: the same server might be reused for multiple regions/resolutions if they have the same path
+			String path = resolutions.get(level).getPath();
+			ImageServer<BufferedImage> server = serverMap.get(path);
+			if (server == null) {
+				server = ImageServerProvider.buildServer(path, BufferedImage.class);
+				serverMap.put(path, server);
+			}
+			return server;
+		}
+
+		@Override
+		public void close() throws Exception {
+			for (ImageServer<BufferedImage> server : serverMap.values())
+				server.close();
+		}
+		
+		double[] getAvailableDownsamples() {
+			return downsamples.stream().mapToDouble(d -> d).toArray();
+		}
+		
+		public String toJSON() {
+			return toJSON(false);
+		}
+		
+		public String toJSON(boolean prettyPrint) {
+			
+			List<SparseImageServerManagerRegion> regions = new ArrayList<>();
+			for (Entry<ImageRegion, List<SparseImageServerManagerResolution>> entry : regionMap.entrySet()) {
+				regions.add(new SparseImageServerManagerRegion(entry.getKey(), entry.getValue()));
+			}
+			GsonBuilder builder = new GsonBuilder();
+			if (prettyPrint)
+				builder.setPrettyPrinting();
+			return builder.create().toJson(regions);
+		}
+		
+		public static SparseImageServerManager fromJSON(Reader input) {
+			List<SparseImageServerManagerRegion> list = new Gson().fromJson(input, new TypeToken<ArrayList<SparseImageServerManagerRegion>>() {}.getType());
+			SparseImageServerManager manager = new SparseImageServerManager();
+			for (SparseImageServerManagerRegion region : list) {
+				for (SparseImageServerManagerResolution resolution : region.resolutions)
+					manager.addRegionServer(resolution.getPath(), region.region, resolution.getDownsample());
+			}
+			return manager;
+		}
+		
+	}
+	
+	static class SparseImageServerManagerRegion {
+		
+		private ImageRegion region;
+		private List<SparseImageServerManagerResolution> resolutions;
+		
+		SparseImageServerManagerRegion(ImageRegion region, List<SparseImageServerManagerResolution> resolutions) {
+			this.region = region;
+			this.resolutions = resolutions;
+		}
+		
+	}
+	
+	
+	static class SparseImageServerManagerResolution {
+		
+		private final double downsample;
+		private final String path;
+
+		SparseImageServerManagerResolution(String path, double downsample) {
+			this.path = path;
+			this.downsample = downsample;
+		}
+		
+		String getPath() {
+			return path;
+		}
+		
+		double getDownsample() {
+			return downsample;
+		}
+				
+	}
+	
 
 }

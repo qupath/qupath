@@ -47,7 +47,7 @@ class DummyColorModel extends ColorModel {
 	@Override
 	public ColorModel coerceData(WritableRaster raster, boolean isAlphaPremultiplied) {
 		// Don't do anything
-		return null;
+		return this;
 	}
 
 }

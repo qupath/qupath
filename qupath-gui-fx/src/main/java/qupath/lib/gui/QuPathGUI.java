@@ -612,8 +612,12 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 
 			// Shut down all our image servers
 			for (QuPathViewer v : getViewers()) {
-				if (v.getImageData() != null)
-					v.getImageData().getServer().close();
+				try {
+					if (v.getImageData() != null)
+						v.getImageData().getServer().close();
+				} catch (Exception e2) {
+					logger.warn("Problem closing server", e2);
+				}
 			}
 
 			// Reset the instance
