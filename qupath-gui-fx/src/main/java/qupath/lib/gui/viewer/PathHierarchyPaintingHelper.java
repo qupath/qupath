@@ -532,11 +532,11 @@ public class PathHierarchyPaintingHelper {
 		
 		private Shape simplifyByDownsample(final Shape shape, final double downsample) {
 			if (downsample > 50)
-				return ShapeSimplifierAwt.simplifyPath(shape instanceof Path2D ? (Path2D)shape : new Path2D.Float(shape), 100);
+				return ShapeSimplifierAwt.simplifyPath(shape instanceof Path2D ? (Path2D)shape : new Path2D.Float(shape), 50);
 			if (downsample > 20)
-				return ShapeSimplifierAwt.simplifyPath(shape instanceof Path2D ? (Path2D)shape : new Path2D.Float(shape), 40);
-			if (downsample > 10)
 				return ShapeSimplifierAwt.simplifyPath(shape instanceof Path2D ? (Path2D)shape : new Path2D.Float(shape), 20);
+			if (downsample > 10)
+				return ShapeSimplifierAwt.simplifyPath(shape instanceof Path2D ? (Path2D)shape : new Path2D.Float(shape), 10);
 			return shape;
 		}
 		

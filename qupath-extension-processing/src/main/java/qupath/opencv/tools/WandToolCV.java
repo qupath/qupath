@@ -195,7 +195,8 @@ public class WandToolCV extends BrushTool {
 		bounds.setFrame(xStart, yStart, w*downsample, w*downsample);
 		g2d.scale(1.0/downsample, 1.0/downsample);
 		g2d.translate(-xStart, -yStart);
-		regionStore.paintRegionCompletely(viewer.getServer(), g2d, bounds, viewer.getZPosition(), viewer.getTPosition(), viewer.getDownsampleFactor(), null, viewer.getImageDisplay(), 250);
+		regionStore.paintRegion(viewer.getServer(), g2d, bounds, viewer.getZPosition(), viewer.getTPosition(), viewer.getDownsampleFactor(), null, null, viewer.getImageDisplay());
+//		regionStore.paintRegionCompletely(viewer.getServer(), g2d, bounds, viewer.getZPosition(), viewer.getTPosition(), viewer.getDownsampleFactor(), null, viewer.getImageDisplay(), 250);
 		// Optionally include the overlay information when using the wand
 		float opacity = viewer.getOverlayOptions().getOpacity();
 		if (opacity > 0 && getWandUseOverlays()) {

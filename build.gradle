@@ -99,11 +99,11 @@ subprojects {
 
     jfxtras 'org.jfxtras:jfxtras-menu:9.0-r1'
 
-    opencv 'org.bytedeco.javacpp-presets:opencv:3.4.2-1.4.2'
+    opencv 'org.bytedeco.javacpp-presets:opencv:3.4.3-1.4.3'
     if (nativesCPP != null) {
-      opencv 'org.bytedeco.javacpp-presets:opencv:3.4.2-1.4.2:' + nativesCPP
+      opencv 'org.bytedeco.javacpp-presets:opencv:3.4.3-1.4.3:' + nativesCPP
       if (useGPU)
-        opencv 'org.bytedeco.javacpp-presets:opencv:3.4.2-1.4.2:' + nativesCPP + '-gpu'
+        opencv 'org.bytedeco.javacpp-presets:opencv:3.4.3-1.4.3:' + nativesCPP + '-gpu'
     }
 
     jpen 'net.sourceforge.jpen:jpen:2-150301'
