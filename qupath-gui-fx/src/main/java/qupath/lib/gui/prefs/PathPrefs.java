@@ -102,27 +102,6 @@ public class PathPrefs {
 	}
 
 	private static StringProperty scriptsPath = createPersistentPreference("scriptsPath", (String)null); // Base directory containing scripts
-
-	// Known whole slide image extensions
-	private static String[] knownImageExtensions = new String[]{
-		"tif",
-		"tiff",
-		"jpeg",
-		"jpg", 
-		"svs",
-		"ndpi",
-		"scn",
-		"mrxs",
-		"vms",
-		"vmu",
-		"svslide",
-		"bif",
-		"zvi",
-		"lif"
-	};
-	
-	
-	
 	
 	
 	private static IntegerProperty numCommandThreads = createPersistentPreference("Requested number of threads", Runtime.getRuntime().availableProcessors());
@@ -559,6 +538,27 @@ public class PathPrefs {
 	}
 	
 	
+	private static BooleanProperty keepDisplaySettings = createPersistentPreference("keepDisplaySettings", true);
+	
+	/**
+	 * Retain display settings (channel colors, brightness/contrast) when opening new images 
+	 * that have the same properties (i.e. channels, channel names, bit-depths).
+	 * 
+	 * @return
+	 */
+	public static BooleanProperty keepDisplaySettingsProperty() {
+		return keepDisplaySettings;
+	}
+	
+	public static boolean getKeepDisplaySettings() {
+		return keepDisplaySettings.get();
+	}
+	
+	public static void setKeepDisplaySettings(boolean keep) {
+		keepDisplaySettings.set(keep);
+	}
+	
+	
 	
 	private static BooleanProperty doubleClickToZoom = createPersistentPreference("doubleClickToZoom", false);
 	
@@ -780,24 +780,6 @@ public class PathPrefs {
 		return 5000;
 	}
 	
-	
-	public static String[] getKnownImageExtensions() {
-		return knownImageExtensions.clone();
-	}
-	
-	
-	/**
-	 * Returns true if a filename ends with a known image file extension
-	 * @param fileName
-	 * @return
-	 */
-	public static boolean hasKnownImageFileExtension(String fileName) {
-		for (String extKnown : knownImageExtensions) {
-			if (fileName.endsWith(extKnown))
-				return true;
-		}
-		return false;
-	}
 
 	
 //	// Number of tiles to keep in cache when displaying image
@@ -919,6 +901,24 @@ public class PathPrefs {
 //		return dirCache;
 //	}
 	
+	private static IntegerProperty viewerBackgroundColor = createPersistentPreference("viewerBackgroundColor", ColorTools.makeRGB(0, 0, 0));
+	
+	public static Integer getViewerBackgroundColor() {
+		return viewerBackgroundColor.get();
+	}
+	
+	public static void setViewerBackgroundColor(int color) {
+		viewerBackgroundColor.set(color);
+	}
+
+	/**
+	 * Color to paint behind any image.
+	 * @return
+	 */
+	public static IntegerProperty viewerBackgroundColorProperty() {
+		return viewerBackgroundColor;
+	}
+
 	
 	private static IntegerProperty colorDefaultAnnotations = createPersistentPreference("colorDefaultAnnotations", ColorTools.makeRGB(255, 0, 0));
 	

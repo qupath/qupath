@@ -27,9 +27,13 @@ import java.awt.image.BufferedImage;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 import java.text.DecimalFormat;
+import java.util.HashSet;
 import java.util.Optional;
+import java.util.Set;
 
 import javafx.application.Platform;
+import javafx.beans.binding.Bindings;
+import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ObservableValue;
@@ -41,8 +45,11 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ColorPicker;
+import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
+import javafx.scene.control.MenuItem;
+import javafx.scene.control.SelectionMode;
 import javafx.scene.control.Slider;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
@@ -75,6 +82,7 @@ import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.gui.helpers.PanelToolsFX;
 import qupath.lib.gui.plots.HistogramPanelFX;
 import qupath.lib.gui.plots.HistogramPanelFX.ThresholdedChartWrapper;
+import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
 
@@ -115,6 +123,8 @@ public class BrightnessContrastCommand implements PathCommand, ImageDataChangeLi
 	private ThresholdedChartWrapper chartWrapper = new ThresholdedChartWrapper(histogramPanel.getChart());
 	
 	private Tooltip chartTooltip = new Tooltip(); // Basic stats go here now
+	private ContextMenu popup;
+	private BooleanProperty showGrayscale = new SimpleBooleanProperty();
 	
 	private BrightnessContrastKeyListener keyListener = new BrightnessContrastKeyListener();
 	
@@ -149,19 +159,39 @@ public class BrightnessContrastCommand implements PathCommand, ImageDataChangeLi
 		if (!isInitialized())
 			initializeSliders();
 		
+		initializePopup();
+		
 		imageDataChanged(null, null, qupath.getImageData());
 		
 		BorderPane pane = new BorderPane();
 		
 		GridPane box = new GridPane();
+		String blank = "      ";
 		Label labelMin = new Label("Min display");
-		labelMin.setTooltip(new Tooltip("Set minimum lookup table value - double-click to edit manually"));
+//		labelMin.setTooltip(new Tooltip("Set minimum lookup table value - double-click to edit manually"));
+		Label labelMinValue = new Label(blank);
+		labelMinValue.setTooltip(new Tooltip("Set minimum lookup table value - double-click to edit manually"));
+		labelMinValue.textProperty().bind(Bindings.createStringBinding(() -> {
+//			if (table.getSelectionModel().getSelectedItem() == null)
+//				return blank;
+			return String.format("%.1f", sliderMin.getValue());
+		}, table.getSelectionModel().selectedItemProperty(), sliderMin.valueProperty()));
 		box.add(labelMin, 0, 0);
 		box.add(sliderMin, 1, 0);
+		box.add(labelMinValue, 2, 0);
+		
 		Label labelMax = new Label("Max display");
 		labelMax.setTooltip(new Tooltip("Set maximum lookup table value - double-click to edit manually"));
+		Label labelMaxValue = new Label(blank);
+		labelMaxValue.setTooltip(new Tooltip("Set maximum lookup table value - double-click to edit manually"));
+		labelMaxValue.textProperty().bind(Bindings.createStringBinding(() -> {
+//				if (table.getSelectionModel().getSelectedItem() == null)
+//					return blank;
+				return String.format("%.1f", sliderMax.getValue());
+			}, table.getSelectionModel().selectedItemProperty(), sliderMax.valueProperty()));
 		box.add(labelMax, 0, 1);
 		box.add(sliderMax, 1, 1);
+		box.add(labelMaxValue, 2, 1);
 		box.setVgap(5);
 		GridPane.setFillWidth(sliderMin, Boolean.TRUE);
 		GridPane.setFillWidth(sliderMax, Boolean.TRUE);
@@ -173,7 +203,7 @@ public class BrightnessContrastCommand implements PathCommand, ImageDataChangeLi
 		// In the absence of a better way, make it possible to enter display range values 
 		// manually by double-clicking on the corresponding label
 		// TODO: Consider a better way to do this; 
-		labelMin.setOnMouseClicked(e -> {
+		labelMinValue.setOnMouseClicked(e -> {
 			if (e.getClickCount() == 2) {
 				ChannelDisplayInfo infoVisible = getCurrentInfo();
 				if (infoVisible == null)
@@ -192,7 +222,7 @@ public class BrightnessContrastCommand implements PathCommand, ImageDataChangeLi
 				}
 			}
 		});
-		labelMax.setOnMouseClicked(e -> {
+		labelMaxValue.setOnMouseClicked(e -> {
 			if (e.getClickCount() == 2) {
 				ChannelDisplayInfo infoVisible = getCurrentInfo();
 				if (infoVisible == null)
@@ -222,12 +252,18 @@ public class BrightnessContrastCommand implements PathCommand, ImageDataChangeLi
 ////				setSliders((float)histogram.getEdgeMin(), (float)histogram.getEdgeMax());
 				ChannelDisplayInfo info = getCurrentInfo();
 				imageDisplay.autoSetDisplayRange(info, autoBrightnessContrastSaturation);
+				for (ChannelDisplayInfo info2 : table.getSelectionModel().getSelectedItems()) {
+					imageDisplay.autoSetDisplayRange(info2, autoBrightnessContrastSaturation);
+				}
 				updateSliders();
 				handleSliderChange();
 		});
 		
 		Button btnReset = new Button("Reset");
 		btnReset.setOnAction(e -> {
+				for (ChannelDisplayInfo info : table.getSelectionModel().getSelectedItems()) {
+					imageDisplay.setMinMaxDisplay(info, info.getMinAllowed(), info.getMaxAllowed());
+				}
 				sliderMin.setValue(sliderMin.getMin());
 				sliderMax.setValue(sliderMax.getMax());
 		});
@@ -240,6 +276,7 @@ public class BrightnessContrastCommand implements PathCommand, ImageDataChangeLi
 		table = new TableView<>();
 		table.setPlaceholder(new Text("No channels available"));
 		
+		table.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
 		table.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> {
 //			boolean alreadySelected = rowIndex == table.getSelectedRow();
 //	        super.changeSelection(rowIndex, columnIndex, toggle, extend);
@@ -400,18 +437,26 @@ public class BrightnessContrastCommand implements PathCommand, ImageDataChangeLi
 		panelColor.setCenter(table);
 		
 		CheckBox cbShowGrayscale = new CheckBox("Show grayscale");
+		cbShowGrayscale.selectedProperty().bindBidirectional(showGrayscale);
+		cbShowGrayscale.setTooltip(new Tooltip("Show single channel with grayscale lookup table"));
 		if (imageDisplay != null)
 			cbShowGrayscale.setSelected(!imageDisplay.useColorLUTs());
-		cbShowGrayscale.setOnAction(e -> {
+		showGrayscale.addListener((v, o, n) -> {
 			if (imageDisplay == null)
 				return;
-				imageDisplay.setUseColorLUTs(!imageDisplay.useColorLUTs());
-				viewer.updateThumbnail();
-				viewer.repaintEntireImage();
-				table.refresh();
+			imageDisplay.setUseColorLUTs(!imageDisplay.useColorLUTs());
+			viewer.updateThumbnail();
+			viewer.repaintEntireImage();
+			table.refresh();
 		});
+		CheckBox cbKeepDisplaySettings = new CheckBox("Keep settings");
+		cbKeepDisplaySettings.selectedProperty().bindBidirectional(PathPrefs.keepDisplaySettingsProperty());
+		cbKeepDisplaySettings.setTooltip(new Tooltip("Retain same display settings where possible when opening similar images"));
+		
 		FlowPane paneCheck = new FlowPane();
 		paneCheck.getChildren().add(cbShowGrayscale);
+		paneCheck.getChildren().add(cbKeepDisplaySettings);
+		paneCheck.setHgap(10);
 		paneCheck.setPadding(new Insets(5, 0, 0, 0));
 		panelColor.setBottom(paneCheck);		
 		pane.setCenter(panelColor);
@@ -431,7 +476,7 @@ public class BrightnessContrastCommand implements PathCommand, ImageDataChangeLi
 		panelMinMax.setTop(panelSliders);
 		
 		histogramPanel.setDrawAxes(false);
-//		histogramPanel.getChart().setAnimated(false);
+		histogramPanel.getChart().setAnimated(false);
 //		histogramPanel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
 //		panelMinMax.setCenter(histogramPanel.getChart());
 		panelMinMax.setCenter(chartWrapper.getPane());
@@ -676,7 +721,70 @@ public class BrightnessContrastCommand implements PathCommand, ImageDataChangeLi
 	}
 	
 
+	/**
+	 * Popup menu to toggle additive channels on/off.
+	 */
+	private void initializePopup() {
+		popup = new ContextMenu();
+		
+		MenuItem miTurnOn = new MenuItem("Show channels");
+		miTurnOn.setOnAction(e -> setTableSelectedChannels(true));
+		miTurnOn.disableProperty().bind(showGrayscale);
+		MenuItem miTurnOff = new MenuItem("Hide channels");
+		miTurnOff.setOnAction(e -> setTableSelectedChannels(false));
+		miTurnOff.disableProperty().bind(showGrayscale);
+		MenuItem miToggle = new MenuItem("Toggle channels");
+		miToggle.setOnAction(e -> toggleTableSelectedChannels());
+		miToggle.disableProperty().bind(showGrayscale);
+		
+		popup.getItems().addAll(
+				miTurnOn,
+				miTurnOff,
+				miToggle
+				);
+	}
 	
+	/**
+	 * Request that channels currently selected (highlighted) in the table have their 
+	 * selected status changed accordingly.  This allows multiple channels to be turned on/off 
+	 * in one step.
+	 * @param showChannels
+	 * 
+	 * @see #toggleTableSelectedChannels()
+	 */
+	private void setTableSelectedChannels(boolean showChannels) {
+		if (!isInitialized())
+			return;
+		for (ChannelDisplayInfo info : table.getSelectionModel().getSelectedItems()) {
+			imageDisplay.setChannelSelected(info, showChannels);
+		}
+		table.refresh();
+		if (viewer != null) {
+			viewer.updateThumbnail();
+			viewer.repaintEntireImage();
+		}
+	}
+
+	/**
+	 * Request that channels currently selected (highlighted) in the table have their 
+	 * selected status inverted.  This allows multiple channels to be turned on/off 
+	 * in one step.
+	 * 
+	 * @see #setTableSelectedChannels(boolean)
+	 */
+	private void toggleTableSelectedChannels() {
+		if (!isInitialized())
+			return;
+		Set<ChannelDisplayInfo> selected = new HashSet<>(imageDisplay.getSelectedChannels());
+		for (ChannelDisplayInfo info : table.getSelectionModel().getSelectedItems()) {
+			imageDisplay.setChannelSelected(info, !selected.contains(info));
+		}
+		table.refresh();
+		if (viewer != null) {
+			viewer.updateThumbnail();
+			viewer.repaintEntireImage();
+		}
+	}
 	
 	
 	
@@ -694,6 +802,14 @@ public class BrightnessContrastCommand implements PathCommand, ImageDataChangeLi
 			table.refresh();
 		else
 			table.getItems().setAll(imageDisplay.getAvailableChannels());
+		
+		// If all entries are additive, allow bulk toggling by right-click
+		int n = table.getItems().size();
+		if (n > 0 || n == table.getItems().stream().filter(c -> c.isAdditive()).count()) {
+			table.setContextMenu(popup);
+		} else {
+			table.setContextMenu(null);
+		}
 	}
 
 
@@ -713,7 +829,6 @@ public class BrightnessContrastCommand implements PathCommand, ImageDataChangeLi
 				viewerNew.getView().addEventHandler(KeyEvent.KEY_TYPED, keyListener);
 			viewer = viewerNew;
 		}
-		
 		
 		imageDisplay = viewer == null ? null : viewer.getImageDisplay();
 		

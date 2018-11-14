@@ -38,7 +38,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -109,21 +108,47 @@ public class ImageDisplay {
 		this.regionStore = regionStore;
 		this.showAllRGBTransforms = showAllRGBTransforms;
 		createRGBChannels();
-		setImageData(imageData);
+		setImageData(imageData, false);
 	}
 	
 
-	public void setImageData(ImageData<BufferedImage> imageData) {
+	public void setImageData(ImageData<BufferedImage> imageData, boolean retainDisplaySettings) {
 		if (this.imageData == imageData)
 			return;
+
+		// Retain display settings if requested *and* we have two similar images 
+		// (i.e. same bit depth, same number and names for channels)
+		String lastDisplayJSON = null;
+		if (retainDisplaySettings && this.imageData != null && imageData != null) {
+			ImageServer<?> lastServer = this.imageData.getServer();
+			ImageServer<?> nextServer = imageData.getServer();
+			retainDisplaySettings = lastServer.nChannels() == nextServer.nChannels() &&
+					lastServer.getBitsPerPixel() == nextServer.getBitsPerPixel();
+			if (retainDisplaySettings) {
+				for (int c = 0; c < lastServer.nChannels(); c++) {
+					if (!lastServer.getChannelName(c).equals(nextServer.getChannelName(c))) {
+						retainDisplaySettings = false;
+					}
+				}
+			}
+		}
+		lastDisplayJSON = retainDisplaySettings ? toJSON() : null;
+		
 		this.imageData = imageData;
 		//		updateChannelOptions(true);		
+//		Map<ChannelDisplayInfo, Histogram> oldHistogramMap = histogramMap == null ? null : new LinkedHashMap<>(histogramMap);
+//		Set<String> lastSelectedChannels = selectedChannels == null ? Collections.emptySet() : selectedChannels.stream().map(c -> infoToStringID(c)).collect(Collectors.toSet());
 		updateHistogramMap();
-		if (imageData != null)
+		if (imageData != null) {
+			// Load any existing color properties
 			loadChannelColorProperties();
-		//		updateChannelOptions(false);		
+			// Update from the last image, if required
+			if (lastDisplayJSON != null && !lastDisplayJSON.isEmpty())
+				updateFromJSON(lastDisplayJSON);
+		}
 		changeTimestamp = System.currentTimeMillis();
 	}
+	
 
 	public ImageData<BufferedImage> getImageData() {
 		return imageData;
@@ -565,8 +590,7 @@ public class ImageDisplay {
 			try {
 				pool.awaitTermination(30, TimeUnit.SECONDS);
 			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+				logger.trace("Interrupted while building histogram map", e);
 			}
 		}
 
@@ -740,6 +764,8 @@ public class ImageDisplay {
 	 * @return
 	 */
 	public String toJSON(final boolean prettyPrint) {
+		if (this.imageData == null)
+			return null;
 		JsonArray array = new JsonArray();
 		for (ChannelDisplayInfo info : channelOptions) {
 			JsonObject obj = new JsonObject();

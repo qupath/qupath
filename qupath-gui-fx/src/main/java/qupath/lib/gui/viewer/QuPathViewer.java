@@ -203,6 +203,8 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	// Flag to indicate that repainting should occur faster if possible (less detail required)
 	// This can be useful when rapidly changing view, for example
 	private boolean doFasterRepaint = false;
+	
+	private Color background = ColorToolsAwt.getCachedColor(PathPrefs.getViewerBackgroundColor());
 
 	// Keep a record of when the spacebar is pressed, to help with dragging to pan
 	private boolean spaceDown = false;
@@ -227,8 +229,6 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 
 	private Modes mode = Modes.MOVE;
 	private ImageDisplay imageDisplay;
-
-	private Color background = Color.BLACK;
 
 	transient private long lastRepaintTimestamp = 0; // Used for debugging repaint times
 	
@@ -562,6 +562,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		InvalidationListener repainterEntire = new InvalidationListener() {
 			@Override
 			public void invalidated(Observable observable) {
+				background = ColorToolsAwt.getCachedColor(PathPrefs.getViewerBackgroundColor());
 				repaintEntireImage();
 			}
 		};
@@ -569,6 +570,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		PathPrefs.viewerGammaProperty().addListener(repainterEntire);
 		
 		PathPrefs.viewerInterpolateBilinearProperty().addListener(repainterEntire);
+		PathPrefs.viewerBackgroundColorProperty().addListener(repainterEntire);
 		PathPrefs.useSelectedColorProperty().addListener(repainter);
 		PathPrefs.colorDefaultAnnotationsProperty().addListener(repainter);
 		PathPrefs.colorSelectedObjectProperty().addListener(repainter);
@@ -672,14 +674,18 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	 * the image zoom.
 	 * <p>
 	 * This only makes a difference for large (tiled) images.
+	 * <p>
+	 * @deprecated This is now deprecated, because it produce visual artifacts too often.
 	 * @param fasterRepaint
 	 */
+	@Deprecated
 	public void setDoFasterRepaint(boolean fasterRepaint) {
-		if (this.doFasterRepaint == fasterRepaint)
-			return;
-		this.imageUpdated = true;
-		this.doFasterRepaint = fasterRepaint;
-		repaint();
+		return;
+//		if (this.doFasterRepaint == fasterRepaint)
+//			return;
+//		this.imageUpdated = true;
+//		this.doFasterRepaint = fasterRepaint;
+//		repaint();
 	}
 
 	public boolean getDoFasterRepaint() {
@@ -1214,7 +1220,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 
 		long startTime = System.currentTimeMillis();
 		if (imageDisplay != null) {
-			imageDisplay.setImageData(imageDataNew);
+			imageDisplay.setImageData(imageDataNew, PathPrefs.getKeepDisplaySettings());
 			//			SwingWorker<Void, Void> worker = new SwingWorker<Void, Void>() {
 			//
 			//				@Override

@@ -170,6 +170,15 @@ public class PreferencePanel {
 		 */
 		category = "Viewer";
 		
+		addColorPropertyPreference(PathPrefs.viewerBackgroundColorProperty(),
+				"Viewer background color",
+				category,
+				"Set the color to show behind any image in the viewer (i.e. beyond the image bounds)");
+		
+		addPropertyPreference(PathPrefs.keepDisplaySettingsProperty(), Boolean.class,
+				"Keep display settings where possible", category, 
+				"Keep display settings (channel colors, brightness/contrast) when opening similar images");
+		
 		addPropertyPreference(PathPrefs.viewerInterpolateBilinearProperty(), Boolean.class,
 				"Use bilinear interpolation", category, 
 				"Use bilinear interpolation for displaying image in the viewer (default is nearest-neighbor)");

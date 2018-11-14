@@ -28,8 +28,10 @@ import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
 import java.awt.Shape;
+import java.awt.geom.Area;
 import java.awt.geom.Path2D;
 import java.awt.geom.Point2D;
+import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferByte;
 import java.nio.ByteBuffer;
@@ -46,6 +48,7 @@ import org.slf4j.LoggerFactory;
 
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
+import qupath.lib.awt.common.AwtTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.QuPathViewer;
@@ -331,8 +334,13 @@ public class WandToolCV extends BrushTool {
 		else
 			pLast.setLocation(x, y);
 		
+		Rectangle2D bounds = AwtTools.getBounds(viewer.getServerBounds());
+		if (!bounds.contains(path.getBounds2D())) {
+			Area area = new Area(path);
+			area.intersect(new Area(bounds));
+			return area;
+		}
 		return path;
-		
 	}
 	
 	

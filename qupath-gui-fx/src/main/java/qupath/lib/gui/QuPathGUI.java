@@ -2311,7 +2311,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		if (fileData != null && fileData.isFile()) {
 			// Open the image, and then the data if possible
 			if (openImage(entry.getServerPath(), false, false, rotate180))
-				openSavedData(getViewer(), fileData, true);
+				openSavedData(getViewer(), fileData, true, false);
 			else
 				DisplayHelpers.showErrorMessage("Image open", "Unable to open image for path\n" + entry.getServerPath());
 		} else
@@ -2386,12 +2386,12 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		File fileNew = null;
 		if (pathNew == null) {
 			if (includeURLs) {
-				pathNew = getDialogHelper().promptForFilePathOrURL("Choose path", pathOld, fileBase, null, null);
+				pathNew = getDialogHelper().promptForFilePathOrURL("Choose path", pathOld, fileBase, null);
 				if (pathNew == null)
 					return false;
 				fileNew = new File(pathNew);
 			} else {
-				fileNew = getDialogHelper().promptForFile(null, fileBase, null, null);
+				fileNew = getDialogHelper().promptForFile(null, fileBase, null);
 				if (fileNew == null)
 					return false;
 				pathNew = fileNew.getAbsolutePath();
@@ -2408,7 +2408,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		
 		// If we have a file, check if it is a data file - if so, handle differently
 		if (fileNew.isFile() && GeneralTools.checkExtensions(pathNew, PathPrefs.getSerializationExtension()))
-			return openSavedData(viewer, fileNew, false);
+			return openSavedData(viewer, fileNew, false, true);
 
 		// Check for project file
 		if (fileNew.isFile() && GeneralTools.checkExtensions(pathNew, ProjectIO.getProjectExtension())) {
@@ -2564,10 +2564,11 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	 * 
 	 * @param viewer
 	 * @param file
-	 * @param keepExistingServer If true and the viewer already has an ImageServer, then any ImageServer path recorded within the data file will be ignored
+	 * @param keepExistingServer if true and the viewer already has an ImageServer, then any ImageServer path recorded within the data file will be ignored
+	 * @param checkForChanges if true, the user will be prompted to ask whether to save changes or not
 	 * @return
 	 */
-	public boolean openSavedData(QuPathViewer viewer, final File file, final boolean keepExistingServer) {
+	public boolean openSavedData(QuPathViewer viewer, final File file, final boolean keepExistingServer, boolean promptToSaveChanges) {
 		
 		if (viewer == null) {
 			if (getViewers().size() == 1)
@@ -2628,13 +2629,14 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		}
 		
 		
-		if (imageData != null && imageData.isChanged()) {
-			if (!DisplayHelpers.showYesNoDialog("Discard objects", "Discard changes for " + imageData.getServer().getShortServerName() + " without saving?"))
-				return false;			
-			
-		} else if (imageData != null && imageData.isChanged()) {
-			if (!DisplayHelpers.showYesNoDialog("Replace open image", "Close " + imageData.getServer().getShortServerName() + " without saving?"))
-				return false;			
+		if (promptToSaveChanges && imageData != null && imageData.isChanged()) {
+			if (!promptToSaveChangesOrCancel("Save changes", imageData))
+				return false;
+//			if (!DisplayHelpers.showYesNoDialog("Discard changes", "Discard changes for " + imageData.getServer().getShortServerName() + " without saving?"))
+//				return false;			
+//		} else if (imageData != null && imageData.isChanged()) {
+//			if (!DisplayHelpers.showYesNoDialog("Replace open image", "Close " + imageData.getServer().getShortServerName() + " without saving?"))
+//				return false;			
 		}
 		
 //		ImageDataLoader task = new ImageDataLoader(file, imageData, server);
@@ -2657,9 +2659,9 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			if (viewerManager.getViewers().size() == 1 || !viewerManager.synchronizeViewersProperty().get())
 				setInitialLocationAndMagnification(viewer);
 		}
-		// Make sure that the color channels are loaded
-		if (viewer.getImageDisplay().loadChannelColorProperties())
-			viewer.repaintEntireImage();
+//		// Make sure that the color channels are loaded
+//		if (viewer.getImageDisplay().loadChannelColorProperties())
+//			viewer.repaintEntireImage();
 		
 		return true;
 	}
@@ -4654,6 +4656,42 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	
 	
 	
+	/**
+	 * Show a prompt to save changes for an ImageData. 
+	 * <p>
+	 * Note the return value indicates whether the user cancelled or not, rather than whether the data 
+	 * was saved or not.
+	 * 
+	 * @param dialogTitle
+	 * @param imageData
+	 * @return true if the prompt 'succeeded' (i.e. user chose 'Yes' or 'No'), false if it was cancelled.
+	 */
+	private boolean promptToSaveChangesOrCancel(String dialogTitle, ImageData<BufferedImage> imageData) {
+		String lastPath = imageData.getLastSavedPath();
+		File filePrevious = lastPath == null ? null : new File(lastPath);
+		if ((filePrevious == null || !filePrevious.exists()) && project.get() != null) {
+			ProjectImageEntry<BufferedImage> entryPrevious = project.get().getImageEntry(imageData.getServerPath());
+			filePrevious = getImageDataFile(project.get(), entryPrevious);
+		}
+		DialogButton response = DialogButton.YES;
+		if (imageData.isChanged()) {
+			response = DisplayHelpers.showYesNoCancelDialog(dialogTitle, "Save changes to " + imageData.getServer().getShortServerName() + "?");
+		}
+		if (response == DialogButton.CANCEL)
+			return false;
+		if (response == DialogButton.YES) {
+			if (filePrevious == null) {
+				filePrevious = getDialogHelper().promptToSaveFile("Save image data", filePrevious, imageData.getServer().getShortServerName(), "QuPath Serialized Data", PathPrefs.getSerializationExtension());
+				if (filePrevious == null)
+					return false;
+			}
+			PathIO.writeImageData(filePrevious, imageData);
+		}
+		return true;
+	}
+	
+	
+	
 	class MultiviewManager implements QuPathViewerListener, ViewerManager<QuPathViewerPlus> {
 		
 		private List<QuPathViewerPlus> viewers = new ArrayList<>();
@@ -4848,30 +4886,13 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				return true;
 			// Deal with saving, if necessary
 			if (imageData.isChanged()) {
-				String lastPath = imageData.getLastSavedPath();
-				File filePrevious = lastPath == null ? null : new File(lastPath);
-				if ((filePrevious == null || !filePrevious.exists()) && project.get() != null) {
-					ProjectImageEntry<BufferedImage> entryPrevious = project.get().getImageEntry(imageData.getServerPath());
-					filePrevious = getImageDataFile(project.get(), entryPrevious);
-				}
-				DialogButton response = DialogButton.YES;
-				if (imageData.isChanged()) {
-					response = DisplayHelpers.showYesNoCancelDialog(dialogTitle, "Save changes to " + imageData.getServer().getShortServerName() + "?");
-				}
-				if (response == DialogButton.CANCEL)
+				if (!promptToSaveChangesOrCancel(dialogTitle, imageData))
 					return false;
-				if (response == DialogButton.YES) {
-					if (filePrevious == null) {
-						filePrevious = getDialogHelper().promptToSaveFile("Save image data", filePrevious, imageData.getServer().getShortServerName(), "QuPath Serialized Data", PathPrefs.getSerializationExtension());
-						if (filePrevious == null)
-							return false;
-					}
-					PathIO.writeImageData(filePrevious, imageData);
-				}
 			}
 			viewer.setImageData(null);
 			return true;
 		}
+		
 		
 		
 		public void removeViewerColumn(final QuPathViewerPlus viewer) {

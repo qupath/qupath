@@ -887,11 +887,15 @@ public interface ChannelDisplayInfo {
 		@Override
 		public String getName() {
 			ensureStainsUpdated();
+			if (stainNumber > 0) {
+				if (stains == null)
+					return "Stain " + stainNumber + " (missing)";
+				else
+					return stains.getStain(stainNumber).getName();
+			}
 			if (method != null)
 				return method.toString();
-			if (stains == null)
-				return "Stain " + stainNumber + " (missing)";
-			return stains.getStain(stainNumber).getName();
+			return "Unknown color deconvolution transform";
 		}
 		
 		@Override

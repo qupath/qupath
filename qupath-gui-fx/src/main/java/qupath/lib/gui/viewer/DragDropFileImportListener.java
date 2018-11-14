@@ -182,7 +182,7 @@ public class DragDropFileImportListener implements EventHandler<DragEvent> {
 					DisplayHelpers.showErrorMessage("Open data", "Please drag the file only a specific viewer to open!");
 					break;
 				}
-				gui.openSavedData(viewer, file, false);
+				gui.openSavedData(viewer, file, false, true);
 				break;
 			}
 			
