@@ -640,8 +640,9 @@ public class RoiEditor {
 //			}
 			
 			activeHandle = new MutablePoint(x, y);
-			handles.add(activeHandle);
 			roi = new PolygonROI(createPoint2List(handles), roi.getC(), roi.getZ(), roi.getT());
+			handles.add(activeHandle);
+			
 //			System.out.println("UPDATED HANDLES BY REQUEST: " + handles.size());
 			return roi;
 		}
@@ -720,8 +721,8 @@ public class RoiEditor {
 //			}
 			
 			activeHandle = new MutablePoint(x, y);
-			handles.add(activeHandle);
 			roi = new PolylineROI(createPoint2List(handles), roi.getC(), roi.getZ(), roi.getT());
+			handles.add(activeHandle);
 //			System.out.println("UPDATED HANDLES BY REQUEST: " + handles.size());
 			return roi;
 		}
@@ -970,6 +971,10 @@ public class RoiEditor {
 		
 		public double distanceSq(final double x2, final double y2) {
 			return (x-x2)*(x-x2) + (y-y2)*(y-y2);
+		}
+		
+		public String toString() {
+			return String.format("Mutable point: %.2f, %.2f", x, y);
 		}
 
 	}
