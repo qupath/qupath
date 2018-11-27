@@ -86,6 +86,11 @@ public class FileFormatInfo {
 		if (!file.exists())
 			return ImageCheckType.UNKNOWN;
 		
+		// Workaround for large .ndpi problem - TODO: consider longer-term .ndpi fix, or removing TIFF check
+		// See https://github.com/qupath/qupath-bioformats-extension/issues/2#issuecomment-437854123
+		if (path.toLowerCase().endsWith(".ndpi"))
+			return ImageCheckType.UNKNOWN;
+		
 		RandomAccessFile in = null;
 		FileFormatInfo.ImageCheckType type = null;
 		try {
@@ -112,14 +117,14 @@ public class FileFormatInfo {
 				type = ImageCheckType.UNKNOWN;
 			
 		} catch (Exception e) {
-			e.printStackTrace();
+			logger.error("TIFF check problem", e);
 			return ImageCheckType.UNKNOWN;
 		} finally {
 			if (in != null) {
 				try {
 					in.close();
 				} catch (IOException e) {
-					e.printStackTrace();
+					logger.error("TIFF check problem", e);
 				}
 			}
 		}

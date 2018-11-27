@@ -837,7 +837,7 @@ public interface ChannelDisplayInfo {
 			if (stainNumber < 0) {
 				color = ColorTools.makeRGB(255, 255, 255);
 				colorModel = ColorTransformerAWT.getDefaultColorModel(method);
-			} else {
+			} else if (stains != null) {
 				color = stains.getStain(stainNumber).getColor();
 				colorModel = ColorToolsAwt.getIndexColorModel(stains.getStain(stainNumber));
 			}

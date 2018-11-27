@@ -51,13 +51,17 @@ public class SparseImageServer extends AbstractTileableImageServer {
 	
 	private int originX = 0, originY = 0;
 
-	protected SparseImageServer(Map<RegionRequest, BufferedImage> cache, String path) throws IOException {
+	public SparseImageServer(Map<RegionRequest, BufferedImage> cache, String path) throws IOException {
+		this(cache, path, SparseImageServerManager.fromJSON(new FileReader(new File(path))));
+	}
+	
+	public SparseImageServer(Map<RegionRequest, BufferedImage> cache, String path, SparseImageServerManager manager) throws IOException {
 		super(cache);
-				
+		
 //		cache.clear();
 		
 //		String text = GeneralTools.readFileAsString(path);
-		manager = SparseImageServerManager.fromJSON(new FileReader(new File(path)));
+		this.manager = manager;
 		
 		ImageServerMetadata metadata = null;
 		
@@ -108,8 +112,9 @@ public class SparseImageServer extends AbstractTileableImageServer {
 				.setPreferredDownsamples(manager.getAvailableDownsamples())
 				.setZSpacingMicrons(metadata.getZSpacingMicrons())
 				.build();
-		
 	}
+
+	
 	
 	@Override
 	public Integer getDefaultChannelColor(int channel) {
@@ -237,6 +242,21 @@ public class SparseImageServer extends AbstractTileableImageServer {
 			}
 			resolutions.add(ind, new SparseImageServerManagerResolution(path, downsample));
 		}
+		
+		/**
+		 * Add a new ImageServer for a specified region & downsample.
+		 * <p>
+		 * This is useful for creating a sparse server in a script, relying on pre-created servers.
+		 * 
+		 * @param server
+		 * @param region
+		 * @param downsample
+		 */
+		public synchronized void addRegionServer(ImageServer<BufferedImage> server, ImageRegion region, double downsample) {
+			 if (!serverMap.containsKey(server.getPath()))
+				serverMap.put(server.getPath(), server);
+			 addRegionServer(server.getPath(), region, downsample);
+		 }
 		
 		private void resetCaches() {
 			regionList = null;
