@@ -483,7 +483,7 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 		final int tileWidth;
 		final int tileHeight;
 		
-		TileRequest(final RegionRequest request, final int level, final int tileWidth, final int tileHeight) {
+		public TileRequest(final RegionRequest request, final int level, final int tileWidth, final int tileHeight) {
 			this.request = request;
 			this.level = level;
 			this.tileWidth = tileWidth;

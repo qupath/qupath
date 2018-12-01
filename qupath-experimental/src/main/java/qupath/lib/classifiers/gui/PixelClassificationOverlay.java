@@ -190,15 +190,19 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
 				DataBuffer bufferMask = imgMask.getRaster().getDataBuffer();
 				SampleModel sampleModelMask = imgMask.getSampleModel();
 				int b = 0;
-				for (int y = 0; y < tile.getHeight(); y++) {
-					for (int x = 0; x < tile.getWidth(); x++) {
-						if (sampleModelMask.getSample(x, y, b, bufferMask) == 0)
-							continue;
-						int ind = sampleModel.getSample(x, y, b, buffer);
-						// TODO: This could be out of range!
-						counts[ind]++;
-						total++;
-					}					
+				try {
+					for (int y = 0; y < tile.getHeight(); y++) {
+						for (int x = 0; x < tile.getWidth(); x++) {
+							if (sampleModelMask.getSample(x, y, b, bufferMask) == 0)
+								continue;
+							int ind = sampleModel.getSample(x, y, b, buffer);
+							// TODO: This could be out of range!
+							counts[ind]++;
+							total++;
+						}					
+					}
+				} catch (Exception e) {
+					e.printStackTrace();
 				}
 				break;
 			case Features:

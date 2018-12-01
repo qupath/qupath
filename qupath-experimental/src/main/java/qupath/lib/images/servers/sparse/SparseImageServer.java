@@ -18,6 +18,9 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.TreeSet;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
@@ -40,9 +43,13 @@ import qupath.lib.regions.RegionRequest;
  */
 public class SparseImageServer extends AbstractTileableImageServer {
 	
+	private final static Logger logger = LoggerFactory.getLogger(SparseImageServer.class);
+	
 	private final ImageServerMetadata metadata;
 	
 	private SparseImageServerManager manager;
+	
+	private Map<String, BufferedImage> emptyTileMap = new HashMap<>();
 	
 	private String[] channelNames;
 	private Integer[] channelColors;
@@ -58,9 +65,6 @@ public class SparseImageServer extends AbstractTileableImageServer {
 	public SparseImageServer(Map<RegionRequest, BufferedImage> cache, String path, SparseImageServerManager manager) throws IOException {
 		super(cache);
 		
-//		cache.clear();
-		
-//		String text = GeneralTools.readFileAsString(path);
 		this.manager = manager;
 		
 		ImageServerMetadata metadata = null;
@@ -146,9 +150,7 @@ public class SparseImageServer extends AbstractTileableImageServer {
 	@Override
 	protected BufferedImage readTile(final TileRequest tileRequest) throws IOException {
 		
-		BufferedImage imgOutput = null;
 		WritableRaster raster = null;
-		
 		
 		for (ImageRegion subRegion : manager.getRegions()) {
 			double downsample = tileRequest.getRegionRequest().getDownsample();
@@ -189,9 +191,8 @@ public class SparseImageServer extends AbstractTileableImageServer {
 					continue;
 				
 				// If we don't have an output image yet, create a compatible one
-				if (imgOutput == null) {
+				if (raster == null) {
 					raster = imgTemp.getRaster().createCompatibleWritableRaster(tileRequest.getTileWidth(), tileRequest.getTileHeight());					
-					imgOutput = new BufferedImage(colorModel, raster, false, null);
 				}
 				
 				int x = (int)Math.round((x1 - tileRequest.getImageX() - originX) / downsample);
@@ -202,7 +203,22 @@ public class SparseImageServer extends AbstractTileableImageServer {
 			}
 		}
 		
-		return imgOutput;
+		// To avoid problems with returning nulls, create an empty compatible raster where needed - 
+		// reusing an existing raster where possible to reduce memory requirements.
+		if (raster == null) {
+			String key = tileRequest.getTileWidth() + "x" + tileRequest.getTileHeight();
+			BufferedImage imgEmpty = emptyTileMap.get(key);
+			if (imgEmpty == null) {
+				logger.trace("Creating new reusable empty tile for {}", tileRequest.getRegionRequest());
+				raster = colorModel.createCompatibleWritableRaster(tileRequest.getTileWidth(), tileRequest.getTileHeight());
+				imgEmpty = new BufferedImage(colorModel, raster, false, null);
+				emptyTileMap.put(key, imgEmpty);
+			} else {
+				logger.trace("Returning reusable empty tile for {}", tileRequest.getRegionRequest());
+			}
+			return imgEmpty;
+		}
+		return new BufferedImage(colorModel, raster, false, null);
 	}
 	
 	

@@ -45,11 +45,14 @@ import ij.measure.Calibration;
 import ij.process.ColorProcessor;
 import ij.process.FloatProcessor;
 import ij.process.ImageProcessor;
+import ij.process.LUT;
 import qupath.imagej.images.servers.ImagePlusServer;
 import qupath.imagej.images.servers.ImagePlusServerBuilder;
 import qupath.imagej.objects.PathImagePlus;
 import qupath.imagej.objects.ROIConverterIJ;
+import qupath.lib.awt.color.ColorToolsAwt;
 import qupath.lib.awt.common.AwtTools;
+import qupath.lib.common.GeneralTools;
 import qupath.lib.display.ChannelDisplayInfo;
 import qupath.lib.display.ImageDisplay;
 import qupath.lib.images.ImageData;
@@ -90,6 +93,9 @@ public class IJTools {
 	}
 	
 	/**
+	 * Check if sufficient memory is available to request pixels for a specific region, and the number 
+	 * of pixels is less than the maximum length of a Java array.
+	 * 
 	 * @param region - the requested region coming from 
 	 * @param imageData - this BufferedImage
 	 * @return - true if the memory is sufficient
@@ -234,7 +240,7 @@ public class IJTools {
 	}
 
 	/**
-	 * Similar to extract ROI, except that the title of the ImagePlus is set according to the parent object type (which is used to get the ROI).
+	 * Similar to {@link #extractROI(ImageServer, ROI, RegionRequest, boolean, ImageDisplay)}, except that the title of the ImagePlus is set according to the parent object type (which is used to get the ROI).
 	 * Specifically, if a TMA core is passed as a parent, then the core name will be included in the title.
 	 * 
 	 * @param server
@@ -244,6 +250,8 @@ public class IJTools {
 	 * @param imageDisplay
 	 * @return
 	 * @throws IOException 
+	 * 
+	 * @see {@link #extractROI(ImageServer, ROI, RegionRequest, boolean, ImageDisplay)}
 	 */
 	public static PathImage<ImagePlus> extractROI(ImageServer<BufferedImage> server, PathObject pathObject, RegionRequest request, boolean setROI, ImageDisplay imageDisplay) throws IOException {
 		PathImage<ImagePlus> pathImage = extractROI(server, pathObject.getROI(), request, setROI, imageDisplay);
@@ -252,8 +260,87 @@ public class IJTools {
 	}
 
 	/**
-	 * Set the name of an image based on a PathObject.
+	 * Extract a full ImageJ hyperstack for a specific region, using all z-slices and time points.
 	 * 
+	 * @param server
+	 * @param request
+	 * @return
+	 * @throws IOException
+	 */
+	public static ImagePlus extractHyperstack(ImageServer<BufferedImage> server, RegionRequest request) throws IOException {
+		return extractHyperstack(server, request, 0, server.nZSlices(), 0, server.nTimepoints());
+	}
+	
+	/**
+	 * Extract a full ImageJ hyperstack for a specific region, for specified ranges of z-slices and time points.
+	 * 
+	 * @param server
+	 * @param request
+	 * @param zStart
+	 * @param zEnd
+	 * @param tStart
+	 * @param tEnd
+	 * @return
+	 * @throws IOException
+	 */
+	public static ImagePlus extractHyperstack(ImageServer<BufferedImage> server, RegionRequest request, int zStart, int zEnd, int tStart, int tEnd) throws IOException {
+		
+		ImagePlusServer serverIJ = ImagePlusServerBuilder.ensureImagePlusWholeSlideServer(server);
+		
+		int nChannels = -1;
+		int nZ = zEnd - zStart;
+		int nT = tEnd - tStart;
+		double downsample = request.getDownsample();
+		ImageStack stack = null;
+		Calibration cal = null;
+		for (int t = tStart; t < tEnd; t++) {
+			for (int z = zStart; z < zEnd; z++) {
+				RegionRequest request2 = RegionRequest.createInstance(server.getPath(), downsample,
+			            request.getX(), request.getY(), request.getWidth(), request.getHeight(),
+			            z, t
+			    );
+			    ImagePlus imp = serverIJ.readImagePlusRegion(request2).getImage();
+			    if (stack == null) {
+			    	stack = new ImageStack(imp.getWidth(), imp.getHeight());
+			    }
+			    // Append to original image stack
+			    for (int i = 1; i <= imp.getStack().getSize(); i++) {
+			        stack.addSlice(imp.getStack().getProcessor(i));
+			    }
+			    // Get the last calibration
+		    	cal = imp.getCalibration();
+		    	nChannels = imp.getNChannels();
+			}
+		}
+	    if (cal != null && !Double.isNaN(server.getZSpacingMicrons())) {
+	        cal.pixelDepth = server.getZSpacingMicrons();
+	        cal.setZUnit("um");
+	    }
+	    
+	    ImagePlus imp = new ImagePlus(server.getDisplayedImageName(), stack);
+	    CompositeImage impComp = null;
+	    if (imp.getType() != ImagePlus.COLOR_RGB && nChannels > 1) {
+		    impComp = new CompositeImage(imp, CompositeImage.COMPOSITE);
+		    imp = impComp;
+	    }
+	    imp.setCalibration(cal);
+	    imp.setDimensions(nChannels, nZ, nT);
+	    // Set colors, if necesssary
+	    if (impComp != null) {
+		    for (int c = 0; c < nChannels; c++) {
+		    	impComp.setChannelLut(
+		    			LUT.createLutFromColor(
+		    					ColorToolsAwt.getCachedColor(
+		    							server.getDefaultChannelColor(c))), c+1);
+		    }
+	    }
+	    return imp;
+	}
+	
+
+	/**
+	 * Set the name of an image based on a PathObject.
+	 * <p>
 	 * Useful whenever the ROI for an object is being extracted for display separately.
 	 * 
 	 * @param pathImage
@@ -312,6 +399,16 @@ public class IJTools {
 		imp.setProperty("Info", "location="+server.getPath());
 	}
 
+	/**
+	 * Estimate the downsample factor for an image region extracted from an image server, based upon 
+	 * the ratio of pixel sizes if possible or ratio of dimensions if necessary.
+	 * <p>
+	 * Note that the ratio of dimensions is only suitable if the full image has been extracted!
+	 * 
+	 * @param imp
+	 * @param server
+	 * @return
+	 */
 	public static double estimateDownsampleFactor(final ImagePlus imp, final ImageServer<BufferedImage> server) {
 		// Try to get the downsample factor from pixel size;
 		// if that doesn't work, resort to trying to get it from the image dimensions
@@ -320,11 +417,30 @@ public class IJTools {
 			downsampleFactor = imp.getCalibration().pixelWidth / server.getPixelWidthMicrons();
 		//			downsampleFactor = server.getPixelWidthMicrons() / imp.getCalibration().pixelWidth;
 		else {
-			downsampleFactor = (double)server.getWidth() / imp.getWidth();
+			double downsampleX = (double)server.getWidth() / imp.getWidth();
+			double downsampleY = (double)server.getHeight() / imp.getHeight();
+			if (GeneralTools.almostTheSame(downsampleX, downsampleY, 0.001))
+				logger.warn("ImageJ downsample factor is being estimated from image dimensions - assumes that ImagePlus corresponds to the full image server");
+			else
+				logger.warn("ImageJ downsample factor is being estimated from image dimensions - assumes that ImagePlus corresponds to the full image server (and these don't seem to match! {} and {})", downsampleX, downsampleY);
+			downsampleFactor = (downsampleX + downsampleY) / 2.0;
 		}
 		return downsampleFactor;
 	}
 
+	/**
+	 * Create a QuPath annotation or detection object for a specific ImageJ Roi.
+	 * 
+	 * @param imp
+	 * @param server
+	 * @param roi
+	 * @param downsampleFactor
+	 * @param makeDetection
+	 * @param c
+	 * @param z
+	 * @param t
+	 * @return
+	 */
 	public static PathObject convertToPathObject(ImagePlus imp, ImageServer<?> server, Roi roi, double downsampleFactor, boolean makeDetection, int c, int z, int t) {
 		Calibration cal = imp.getCalibration();
 		ROI pathROI = ROIConverterIJ.convertToPathROI(roi, cal, downsampleFactor, c, z, t);

@@ -536,7 +536,7 @@ public class OpenCVTools {
 	public static Mat getCircularStructuringElement(int radius) {
 		// TODO: Find out why this doesn't just call a standard request for a strel...
 		Mat strel = new Mat(radius*2+1, radius*2+1, CV_8UC1, Scalar.ZERO);
-		opencv_imgproc.circle(strel, new Point(radius, radius), radius, Scalar.ONE, -1, LINE_8, 0);
+		opencv_imgproc.circle(strel, new Point(radius, radius), radius, Scalar.ONE, -1, opencv_imgproc.LINE_8, 0);
 		return strel;
 	}
 
@@ -597,7 +597,7 @@ public class OpenCVTools {
 				ind++;
 				continue;
 			}
-			opencv_imgproc.drawContours(matBinary, contours, c, color, -1, LINE_8, null, Integer.MAX_VALUE, offset);
+			opencv_imgproc.drawContours(matBinary, contours, c, color, -1, opencv_imgproc.LINE_8, null, Integer.MAX_VALUE, offset);
 			ind++;
 		}
 	}

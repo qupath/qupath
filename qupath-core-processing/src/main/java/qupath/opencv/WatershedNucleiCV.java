@@ -183,7 +183,7 @@ public class WatershedNucleiCV extends AbstractTileableDetectionPlugin<BufferedI
 					for (int c = 0; c < contours.size(); c++) {
 						Mat contour = contours.get(c);
 						label++;
-						opencv_imgproc.drawContours(matLabels, contours, 0, Scalar.all(label), -1, LINE_8, null, Integer.MAX_VALUE, offset);
+						opencv_imgproc.drawContours(matLabels, contours, 0, Scalar.all(label), -1, opencv_imgproc.LINE_8, null, Integer.MAX_VALUE, offset);
 						statsList.add(new RunningStatistics());
 					}
 					// Compute mean for each contour, keep those that are sufficiently intense
@@ -195,7 +195,7 @@ public class WatershedNucleiCV extends AbstractTileableDetectionPlugin<BufferedI
 					matBinary.put(Scalar.ZERO);
 					for (RunningStatistics stats : statsList) {
 						if (stats.getMean() > threshold) {
-							opencv_imgproc.drawContours(matBinary, contours, ind, color, -1, LINE_8, null, Integer.MAX_VALUE, offset);				
+							opencv_imgproc.drawContours(matBinary, contours, ind, color, -1, opencv_imgproc.LINE_8, null, Integer.MAX_VALUE, offset);				
 						}
 						ind++;
 					}
@@ -277,7 +277,7 @@ public class WatershedNucleiCV extends AbstractTileableDetectionPlugin<BufferedI
 							statsHematoxylinList.add(new RunningStatistics());
 							if (pxDAB != null)
 								statsDABList.add(new RunningStatistics());
-							opencv_imgproc.drawContours(matLabels, contours, c, Scalar.all(label), -1, LINE_8, null, Integer.MAX_VALUE, offset);
+							opencv_imgproc.drawContours(matLabels, contours, c, Scalar.all(label), -1, opencv_imgproc.LINE_8, null, Integer.MAX_VALUE, offset);
 						}
 					}
 

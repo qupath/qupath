@@ -21,7 +21,7 @@ def additionalResourcesDir = "build/${qupathOutputDir}"
 /**
  * Include OpenCV binaries with GPU support (quite big, may not be used?)
  */
-def useGPU = false
+def useGPU = true
 
 /**
  * Good to know what JDK is (sometimes accidentally) being used
@@ -72,6 +72,7 @@ subprojects {
     opencv
     jpen
     imagej
+    bioformats
     openslide
     javafx
     nativeloader
@@ -81,12 +82,12 @@ subprojects {
 
     jts "org.locationtech.jts:jts-core:1.16.0"
 
-    groovy "org.codehaus.groovy:groovy:2.5.3"
-    groovy "org.codehaus.groovy:groovy-jsr223:2.5.3"
+    groovy "org.codehaus.groovy:groovy:2.5.4"
+    groovy "org.codehaus.groovy:groovy-jsr223:2.5.4"
 
     for (fx in ['javafx-base', 'javafx-controls', 'javafx-graphics', 'javafx-media', 'javafx-web', 'javafx-swing']) {
-      javafx "org.openjfx:${fx}:11"
-      javafx "org.openjfx:${fx}:11:${platform}"
+      javafx "org.openjfx:${fx}:11.0.1"
+      javafx "org.openjfx:${fx}:11.0.1:${platform}"
     }
 
     richtextfx 'org.fxmisc.richtext:richtextfx:0.9.1'
@@ -97,26 +98,39 @@ subprojects {
 
     controlsfx 'org.controlsfx:controlsfx:9.0.0'
 
+//	bioformats 'ome:bioformats_package:6.0.0-m3'
+	bioformats 'ome:formats-gpl:6.0.0-m3'
+	bioformats 'ome:bio-formats_plugins:6.0.0-m3'
+
     jfxtras 'org.jfxtras:jfxtras-menu:9.0-r1'
 
+    opencv 'org.bytedeco.javacpp-presets:opencv:4.0.0-1.4.4-SNAPSHOT'
+    if (nativesCPP != null) {
+      if (useGPU)
+        opencv 'org.bytedeco.javacpp-presets:opencv:4.0.0-1.4.4-SNAPSHOT:' + nativesCPP + '-gpu'
+      else
+	    opencv 'org.bytedeco.javacpp-presets:opencv:4.0.0-1.4.4-SNAPSHOT:' + nativesCPP
+    }
+/*
     opencv 'org.bytedeco.javacpp-presets:opencv:3.4.3-1.4.3'
     if (nativesCPP != null) {
       opencv 'org.bytedeco.javacpp-presets:opencv:3.4.3-1.4.3:' + nativesCPP
       if (useGPU)
         opencv 'org.bytedeco.javacpp-presets:opencv:3.4.3-1.4.3:' + nativesCPP + '-gpu'
     }
+*/
 
     jpen 'net.sourceforge.jpen:jpen:2-150301'
     if (nativesClassifier != null)
       jpen 'net.sourceforge.jpen:jpen:2-150301:' + nativesClassifier
 
-    imagej 'net.imagej:ij:1.51w'
+    imagej 'net.imagej:ij:1.52i'
 
     openslide 'org.openslide:openslide:3.4.1_2'
     if (nativesClassifier != null)
       openslide 'org.openslide:openslide:3.4.1_2:' + nativesClassifier
 
-    nativeloader 'org.scijava:native-lib-loader:2.3.1'
+    nativeloader 'org.scijava:native-lib-loader:2.3.2'
   }
 }
 
@@ -139,6 +153,16 @@ allprojects {
   repositories {
     mavenLocal()
     mavenCentral()
+    
+    maven { url "https://oss.sonatype.org/content/repositories/snapshots" }
+    
+    maven {
+      name 'Unidata'
+      url 'https://artifacts.unidata.ucar.edu/content/repositories/unidata-releases'
+    }
+    maven {
+      url 'https://artifacts.openmicroscopy.org/artifactory/maven/'
+    }
     maven { url "../maven/repo" }
   }
 
@@ -147,6 +171,8 @@ allprojects {
     testCompile group: 'junit', name: 'junit', version:'4.12'
   }
 }
+
+
 
 /**
  * Build the main launcher class
@@ -248,7 +274,7 @@ task copyLicenseReport(type: Copy) {
 buildscript {
 
   dependencies {
-      classpath 'gradle.plugin.com.github.jk1:gradle-license-report:1.2'
+      classpath 'gradle.plugin.com.github.jk1:gradle-license-report:1.3'
   }
 
   repositories {
