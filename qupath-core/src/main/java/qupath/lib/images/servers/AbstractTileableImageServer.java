@@ -475,7 +475,7 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 	 * Consequently, TileRequests provide a means to reproducibly define coordinates at pyramid levels and not only 
 	 * the full resolution image space.  They wrap a RegionRequest, because this is still used for caching purposes. 
 	 */
-	protected static class TileRequest {
+	public static class TileRequest {
 		
 		final RegionRequest request;
 		

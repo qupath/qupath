@@ -26,7 +26,6 @@ package qupath.opencv.tools;
 import java.awt.AlphaComposite;
 import java.awt.Color;
 import java.awt.Graphics2D;
-import java.awt.Rectangle;
 import java.awt.Shape;
 import java.awt.geom.Area;
 import java.awt.geom.Path2D;
@@ -46,7 +45,6 @@ import org.bytedeco.javacpp.indexer.IntIndexer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import ij.ImagePlus;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
 import qupath.lib.awt.common.AwtTools;
@@ -74,7 +72,7 @@ public class WandToolCV extends BrushTool {
 	private Point2D pLast = null;
 	private static int w = 149;
 	private BufferedImage imgTemp = new BufferedImage(w, w, BufferedImage.TYPE_3BYTE_BGR);
-	private BufferedImage imgSelected = new BufferedImage(w+2, w+2, BufferedImage.TYPE_BYTE_GRAY);
+//	private BufferedImage imgSelected = new BufferedImage(w+2, w+2, BufferedImage.TYPE_BYTE_GRAY);
 	private Mat mat = null; //new Mat(w, w, CV_8U);
 	private Mat matMask = null; //new Mat(w, w, CV_8U);
 	private Mat matSelected = null; //new Mat(w, w, CV_8U);

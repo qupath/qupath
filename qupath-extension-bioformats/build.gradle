@@ -1,0 +1,10 @@
+description = 'qupath-extension-bioformats'
+
+configurations {
+  compile.extendsFrom bioformats
+  testCompile.extendsFrom imagej
+}
+
+dependencies {
+  compile project(':qupath-gui-fx')
+}

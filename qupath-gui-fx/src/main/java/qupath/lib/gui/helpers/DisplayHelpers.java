@@ -438,6 +438,10 @@ public class DisplayHelpers {
 	}
 	
 	public static void showErrorNotification(final String title, final Throwable e) {
+		if (!Platform.isFxApplicationThread()) {
+			Platform.runLater(() -> showErrorNotification(title, e));
+			return;
+		}
 		logger.error("{}", title, e);
 		String message = e.getLocalizedMessage();
 		if (message == null)
@@ -451,21 +455,37 @@ public class DisplayHelpers {
 	}
 
 	public static void showErrorNotification(final String title, final String message) {
+		if (!Platform.isFxApplicationThread()) {
+			Platform.runLater(() -> showErrorNotification(title, message));
+			return;
+		}
 		logger.error(title + ": " + message);
 		Notifications.create().title(title).text(message).showError();
 	}
 
 	public static void showWarningNotification(final String title, final String message) {
+		if (!Platform.isFxApplicationThread()) {
+			Platform.runLater(() -> showWarningNotification(title, message));
+			return;
+		}
 		logger.warn(title + ": " + message);
 		Notifications.create().title(title).text(message).showWarning();
 	}
 
 	public static void showInfoNotification(final String title, final String message) {
+		if (!Platform.isFxApplicationThread()) {
+			Platform.runLater(() -> showInfoNotification(title, message));
+			return;
+		}
 		logger.info(title + ": " + message);
 		Notifications.create().title(title).text(message).showInformation();
 	}
 
 	public static void showPlainNotification(final String title, final String message) {
+		if (!Platform.isFxApplicationThread()) {
+			Platform.runLater(() -> showPlainNotification(title, message));
+			return;
+		}
 		logger.info(title + ": " + message);
 		Notifications.create().title(title).text(message).show();
 	}

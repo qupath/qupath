@@ -587,7 +587,7 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 		
 		private ImageData<BufferedImage> imageData;
 		
-		protected enum ROW_TYPE {NAME, PATH, IMAGE_TYPE, BIT_DEPTH, MAGNIFICATION, WIDTH, HEIGHT, PIXEL_WIDTH, PIXEL_HEIGHT, SERVER_TYPE};
+		protected enum ROW_TYPE {NAME, PATH, IMAGE_TYPE, BIT_DEPTH, MAGNIFICATION, WIDTH, HEIGHT, DIMENSIONS, PIXEL_WIDTH, PIXEL_HEIGHT, SERVER_TYPE, PYRAMID};
 
 //		protected enum ROW_TYPE {PATH, IMAGE_TYPE, MAGNIFICATION, WIDTH, HEIGHT, PIXEL_WIDTH, PIXEL_HEIGHT,
 //				CHANNEL_1, CHANNEL_1_STAIN, CHANNEL_2, CHANNEL_2_STAIN, CHANNEL_3, CHANNEL_3_STAIN
@@ -650,12 +650,16 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 				return "Width";
 			case HEIGHT:
 				return "Height";
+			case DIMENSIONS:
+				return "Dimensions (CZT)";
 			case PIXEL_WIDTH:
 				return "Pixel width";
 			case PIXEL_HEIGHT:
 				return "Pixel height";
 			case SERVER_TYPE:
 				return "Server type";
+			case PYRAMID:
+				return "Pyramid";
 			default:
 				return null;
 			}
@@ -696,6 +700,8 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 					return String.format("%s px (%.2f %s)", server.getHeight(), server.getHeight() * server.getPixelHeightMicrons(), GeneralTools.micrometerSymbol());
 				else
 					return String.format("%s px", server.getHeight());
+			case DIMENSIONS:
+				return String.format("%d x %d x %d", server.nChannels(), server.nZSlices(), server.nTimepoints());
 			case PIXEL_WIDTH:
 				if (server.hasPixelSizeMicrons())
 					return String.format("%.4f %s", server.getPixelWidthMicrons(), GeneralTools.micrometerSymbol());
@@ -708,6 +714,10 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 					return "Unknown";
 			case SERVER_TYPE:
 				return server.getServerType();
+			case PYRAMID:
+				if (server.nResolutions() == 1)
+					return "No";
+				return GeneralTools.arrayToString(Locale.getDefault(), server.getPreferredDownsamples(), 1);
 //			case TMA_GRID:
 //				return new Boolean(details.hasTMAGrid());
 			default:
