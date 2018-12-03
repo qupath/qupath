@@ -46,12 +46,14 @@ import org.bytedeco.javacpp.indexer.IntIndexer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import ij.ImagePlus;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
 import qupath.lib.awt.common.AwtTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.QuPathViewer;
+import qupath.lib.gui.viewer.overlays.HierarchyOverlay;
 import qupath.lib.gui.viewer.overlays.PathOverlay;
 import qupath.lib.gui.viewer.tools.BrushTool;
 import qupath.lib.images.stores.DefaultImageRegionStore;
@@ -82,7 +84,7 @@ public class WandToolCV extends BrushTool {
 	private Mat strel = null;
 	private Mat contourHierarchy = null;
 	
-	private Rectangle bounds = new Rectangle();
+	private Rectangle2D bounds = new Rectangle2D.Double();
 	
 	private Size blurSize = new Size(31, 31);
 	
@@ -204,36 +206,41 @@ public class WandToolCV extends BrushTool {
 		float opacity = viewer.getOverlayOptions().getOpacity();
 		if (opacity > 0 && getWandUseOverlays()) {
 			ImageRegion region = ImageRegion.createInstance(
-					(int)bounds.getX()-1, (int)bounds.getY()-1, (int)bounds.getWidth()+1, (int)bounds.getHeight()+1, viewer.getZPosition(), viewer.getTPosition());
+					(int)bounds.getX()-1, (int)bounds.getY()-1, (int)bounds.getWidth()+2, (int)bounds.getHeight()+2, viewer.getZPosition(), viewer.getTPosition());
 			if (opacity < 0)
 				g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, opacity));
 			for (PathOverlay overlay : viewer.getOverlayLayers().toArray(new PathOverlay[0])) {
-				overlay.paintOverlay(g2d, region, downsample, null, true);
+				if (!(overlay instanceof HierarchyOverlay))
+					overlay.paintOverlay(g2d, region, downsample, null, true);
 			}
 		}
 		
 		// Create a mask for the current shape, if required
 		// Because of the later morphological operations, this helps avoid tiny fragmented regions/gaps being generated
+		// At least, that was the idea... in reality it was buggy and did more harm than good, so has been removed
 		boolean hasMask = false;
-		if (addToShape != null) {
-			g2d = imgSelected.createGraphics();
-			g2d.setColor(Color.BLACK);
-			g2d.fillRect(0, 0, imgSelected.getWidth(), imgSelected.getHeight());
-			g2d.setColor(Color.WHITE);
-			// Fill in the center region, around the click
-			g2d.fillRect((w+2)/2-1, (w+2)/2-1, 3, 3);
-			g2d.scale(1.0/downsample, 1.0/downsample);
-			g2d.translate(-xStart+downsample*0.5, -yStart+downsample*0.5);
-			// Fill in the selected shape
-			g2d.fill(addToShape);
-			g2d.dispose();
-			byte[] buffer = ((DataBufferByte)imgSelected.getRaster().getDataBuffer()).getData(0);
-		    ByteBuffer matBuffer = matSelected.createBuffer();
-		    matBuffer.clear();
-		    matBuffer.put(buffer);
-		    hasMask = true;
-		} else
-			matSelected.put(Scalar.ZERO);
+//		if (addToShape != null) {
+//			g2d = imgSelected.createGraphics();
+//			g2d.setColor(Color.BLACK);
+//			g2d.fillRect(0, 0, imgSelected.getWidth(), imgSelected.getHeight());
+//			g2d.setColor(Color.WHITE);
+//			// Fill in the center region, around the click
+//			g2d.fillRect((w+2)/2-1, (w+2)/2-1, 3, 3);
+//			g2d.translate(1, 1);
+//			g2d.scale(1.0/downsample, 1.0/downsample);
+//			g2d.translate(-xStart, -yStart);
+//			// Fill in the selected shape
+//			g2d.fill(addToShape);
+//			g2d.dispose();
+////			new ImagePlus("Mask", imgSelected).show();
+//			byte[] buffer = ((DataBufferByte)imgSelected.getRaster().getDataBuffer()).getData(0);
+//		    ByteBuffer matBuffer = matSelected.createBuffer();
+//		    matBuffer.clear();
+//		    matBuffer.put(buffer);
+//		    hasMask = true;
+//		} else
+//			matSelected.put(Scalar.ZERO);
+//		hasMask = false;
 		
 		// Put pixels into an OpenCV image
 		byte[] buffer = ((DataBufferByte)imgTemp.getRaster().getDataBuffer()).getData();
