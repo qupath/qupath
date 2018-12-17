@@ -627,6 +627,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 			imageUpdated = true;
 			updateThumbnail(false);
 			repaint();
+			fireVisibleRegionChangedEvent(getDisplayedRegionShape());
 		});
 		
 		
@@ -636,6 +637,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 			imageUpdated = true;
 			updateThumbnail(false);
 			repaint();
+			fireVisibleRegionChangedEvent(getDisplayedRegionShape());
 		});
 		
 		zoomToFit.addListener(o -> {
@@ -2530,11 +2532,11 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 
 
 	
-	protected IntegerProperty zPositionProperty() {
+	public IntegerProperty zPositionProperty() {
 		return zPosition;
 	}
 	
-	protected IntegerProperty tPositionProperty() {
+	public IntegerProperty tPositionProperty() {
 		return tPosition;
 	}
 	
@@ -2575,7 +2577,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		@Override
 		public void handle(KeyEvent event) {
 			KeyCode code = event.getCode();
-
+			
 			// Handle backspace/delete to remove selected object
 			if (event.getEventType() == KeyEvent.KEY_PRESSED && (code == KeyCode.BACK_SPACE || code == KeyCode.DELETE)) {
 				if (getROIEditor().hasActiveHandle() || getROIEditor().isTranslating()) {
@@ -2737,17 +2739,39 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 				double d = getDownsampleFactor() * scale * 20;
 				double dx = 0;
 				double dy = 0;
+				int nZSlices = hasServer() ? getServer().nZSlices() : 1;
+				int nTimepoints = hasServer() ? getServer().nTimepoints() : 1;
 				switch (code) {
 				case LEFT:
+					if (nTimepoints > 1) {
+						setTPosition(Math.max(nTimepoints-1, 0));
+						event.consume();
+						return;
+					}
 					dx = d;
 					break;
 				case UP:
+					if (nZSlices > 1) {
+						setZPosition(Math.max(0, getZPosition() - 1));	
+						event.consume();
+						return;
+					}
 					dy = d;
 					break;
 				case RIGHT:
+					if (nTimepoints > 1) {
+						setTPosition(Math.min(nTimepoints-1, getTPosition() + 1));						
+						event.consume();
+						return;
+					}
 					dx = -d;
 					break;
 				case DOWN:
+					if (nZSlices > 1) {
+						setZPosition(Math.min(nZSlices-1, getZPosition() + 1));						
+						event.consume();
+						return;
+					}
 					dy = -d;
 					break;
 				default:

@@ -322,6 +322,8 @@ public class ColorTransformerAWT {
 	 * <p>
 	 * This supports in-place operation, i.e. buf and bufOutput can be the same array.
 	 * Otherwise, if bufOutput == null, a new output array will be created.
+	 * <p>
+	 * Note: If {@code stainsInput} is null, the returned array will be filled with zeros.
 	 * 
 	 * @param buf
 	 * @param stainsInput
@@ -335,6 +337,12 @@ public class ColorTransformerAWT {
 	public static int[] colorDeconvolveReconvolveRGBArray(int[] buf, ColorDeconvolutionStains stainsInput, ColorDeconvolutionStains stainsOutput, boolean discardResidual, int[] bufOutput, float scale, float offset) {
 		if (bufOutput == null || bufOutput.length < buf.length)
 			bufOutput = new int[buf.length];
+		else if (stainsInput == null)
+			Arrays.fill(bufOutput, 0);
+		
+		// Handle case where we have no stains
+		if (stainsInput == null)
+			return bufOutput;
 		
 		double[][] matInv = stainsInput.getMatrixInverse();
 		

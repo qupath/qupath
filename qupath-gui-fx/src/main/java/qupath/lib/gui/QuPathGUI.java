@@ -379,7 +379,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 								SHOW_ANNOTATIONS, FILL_ANNOTATIONS, SHOW_TMA_GRID, SHOW_TMA_GRID_LABELS, SHOW_OBJECTS, FILL_OBJECTS, 
 								SPECIFY_ANNOTATION, ANNOTATION_DUPLICATE, GRID_SPACING,
 								COUNTING_PANEL, CONVEX_POINTS, USE_SELECTED_COLOR, DETECTIONS_TO_POINTS,
-								ROTATE_IMAGE, MINI_VIEWER,
+								ROTATE_IMAGE, MINI_VIEWER, CHANNEL_VIEWER,
 								RIGID_OBJECT_EDITOR, SHOW_COMMAND_LIST,
 								TMA_SCORE_IMPORTER, TMA_ADD_NOTE, COLOR_DECONVOLUTION_REFINE, SHOW_LOG, TMA_RELABEL,
 								SHOW_CELL_BOUNDARIES, SHOW_CELL_NUCLEI, SHOW_CELL_BOUNDARIES_AND_NUCLEI,
@@ -3041,6 +3041,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				getActionMenuItem(GUIActions.GRID_SPACING),
 				null,
 				getActionMenuItem(GUIActions.VIEW_TRACKER),
+				getActionMenuItem(GUIActions.CHANNEL_VIEWER),
 				getActionMenuItem(GUIActions.MINI_VIEWER),
 				createCheckMenuItem(createSelectableCommandAction(slideLabelView.showingProperty(), "Show slide label")),				
 				null,
@@ -3569,8 +3570,10 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			return createCommandAction(new DetectionsToPointsCommand(this), "Convert detections to points");
 		case ROTATE_IMAGE:
 			return createCommandAction(new RotateImageCommand(this), "Rotate image");
+		case CHANNEL_VIEWER:
+			return createCommandAction(new MiniViewerCommand(this, true), "Show channel viewer");
 		case MINI_VIEWER:
-			return createCommandAction(new MiniViewerCommand(this), "Show mini viewer");
+			return createCommandAction(new MiniViewerCommand(this, false), "Show mini viewer");
 		case TMA_SCORE_IMPORTER:
 			return createCommandAction(new TMAScoreImportCommand(this), "Import TMA map");
 		case TMA_RELABEL:
