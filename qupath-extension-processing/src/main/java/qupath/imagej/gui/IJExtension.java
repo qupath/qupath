@@ -23,14 +23,18 @@
 
 package qupath.imagej.gui;
 
+import ij.CompositeImage;
 import ij.IJ;
 import ij.ImageJ;
 import ij.ImagePlus;
+import ij.ImageStack;
 import ij.Menus;
 import ij.Prefs;
 import ij.gui.ImageWindow;
 import ij.gui.Overlay;
 import ij.gui.Roi;
+import ij.process.ColorProcessor;
+import ij.process.FloatProcessor;
 import javafx.beans.property.StringProperty;
 import javafx.scene.control.Button;
 import javafx.scene.control.ContextMenu;
@@ -43,12 +47,14 @@ import javafx.scene.image.ImageView;
 
 import java.awt.Color;
 import java.awt.Frame;
+import java.awt.Rectangle;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
+import java.util.List;
 
 import javax.swing.SwingUtilities;
 
@@ -68,14 +74,19 @@ import qupath.imagej.detect.tissue.SimpleTissueDetection2;
 import qupath.imagej.gui.commands.ExtractRegionCommand;
 import qupath.imagej.gui.commands.ScreenshotCommand;
 import qupath.imagej.helpers.IJTools;
+import qupath.imagej.images.servers.ImagePlusServer;
+import qupath.imagej.images.servers.ImagePlusServerBuilder;
 import qupath.imagej.images.writers.TIFFWriterIJ;
 import qupath.imagej.images.writers.ZipWriterIJ;
+import qupath.imagej.objects.PathImagePlus;
 import qupath.imagej.objects.ROIConverterIJ;
 import qupath.imagej.plugins.ImageJMacroRunner;
 import qupath.imagej.superpixels.DoGSuperpixelsPlugin;
 import qupath.imagej.superpixels.SLICSuperpixelsPlugin;
 import qupath.lib.analysis.objects.TileClassificationsToAnnotationsPlugin;
+import qupath.lib.awt.common.AwtTools;
 import qupath.lib.common.GeneralTools;
+import qupath.lib.display.ChannelDisplayInfo;
 import qupath.lib.display.ImageDisplay;
 import qupath.lib.gui.ImageWriterTools;
 import qupath.lib.gui.QuPathGUI;
@@ -97,6 +108,7 @@ import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.ROIs;
+import qupath.lib.roi.RectangleROI;
 import qupath.lib.roi.interfaces.ROI;
 import qupathj.QUPath_Send_Overlay_to_QuPath;
 import qupathj.QUPath_Send_ROI_to_QuPath;
@@ -275,6 +287,124 @@ public class IJExtension implements QuPathExtension {
 		return ijTemp;
 	}
 
+	
+	
+	/**
+	 * 
+	 * @param server
+	 * @param pathROI
+	 * @param request
+	 * @param setROI		{@code true} if a (non-rectangular) ROI should be converted to the closest matching ImageJ {@code Roi} &amp; set on the image
+	 * @param imageDisplay
+	 * @return
+	 * @throws IOException 
+	 */
+	public static PathImage<ImagePlus> extractROI(ImageServer<BufferedImage> server, ROI pathROI, RegionRequest request, boolean setROI, ImageDisplay imageDisplay) throws IOException {
+		setROI = setROI && (pathROI != null);
+		// Ensure the ROI bounds & ensure it fits within the image
+		Rectangle bounds = AwtTools.getBounds(request);
+		if (bounds != null)
+			bounds = bounds.intersection(new Rectangle(0, 0, server.getWidth(), server.getHeight()));
+		if (bounds == null) {
+			return null;
+		}
+	
+	
+		PathImage<ImagePlus> pathImage = null;
+	
+		// Transform the pixels, if required
+		if (imageDisplay != null) {
+			List<ChannelDisplayInfo> channels = imageDisplay.getSelectedChannels();
+			if (channels != null && !channels.isEmpty() && (channels.size() > 1 || channels.get(0).doesSomething())) {
+				BufferedImage img = server.readBufferedImage(request);
+				int width = img.getWidth();
+				int height = img.getHeight();
+				ImageStack stack = new ImageStack(width, height);
+				//				imageDisplay.applyTransforms(imgInput, imgOutput)
+				int type = 0;
+				for (ChannelDisplayInfo channel : channels) {
+					if (channel instanceof ChannelDisplayInfo.SingleChannelDisplayInfo) {
+						if (type == 0 || type == ImagePlus.GRAY32) {
+							float[] px = ((ChannelDisplayInfo.SingleChannelDisplayInfo)channel).getValues(img, 0, 0, width, height, null);
+							FloatProcessor fp = new FloatProcessor(width, height, px);
+							stack.addSlice(channel.getName(), fp);
+							type = ImagePlus.GRAY32;
+						} else {
+							logger.error("Unable to apply color transform " + channel.getName() + " - incompatible with previously-applied transforms");
+						}
+					} else if (type == 0 || type == ImagePlus.COLOR_RGB) {
+						int[] px = channel.getRGB(img, null, imageDisplay.useColorLUTs());
+						ColorProcessor cp = new ColorProcessor(width, height, px);
+						stack.addSlice(channel.getName(), cp);
+						type = ImagePlus.COLOR_RGB;
+					} else {
+						logger.error("Unable to apply color transform " + channel.getName() + " - incompatible with previously-applied transforms");
+					}
+				}
+				if (stack.getSize() > 0) {
+					ImagePlus imp = new ImagePlus(server.getShortServerName(), stack);
+					if (type != ImagePlus.COLOR_RGB) {
+						//						CompositeImage impComp = new CompositeImage(imp, imageDisplay.useColorLUTs() ? CompositeImage.COMPOSITE : CompositeImage.GRAYSCALE);
+						// TODO: Support color LUTs?
+						CompositeImage impComp = new CompositeImage(imp, CompositeImage.GRAYSCALE);
+						int c = 1;
+						for (ChannelDisplayInfo channel : channels) {
+							impComp.setC(c);
+							impComp.setDisplayRange(channel.getMinDisplay(), channel.getMaxDisplay());
+							c++;
+						}
+						impComp.setC(1);
+						imp = impComp;
+					}
+					if (imp != null) {
+						IJTools.calibrateImagePlus(imp, request, server);
+						pathImage = PathImagePlus.createPathImage(server, request, imp);;
+					}
+				}
+			}
+		}
+	
+	
+		// If we don't have an image yet, try reading more simply
+		if (pathImage == null) {
+			ImagePlusServer serverIJ = ImagePlusServerBuilder.ensureImagePlusWholeSlideServer(server);
+			pathImage = serverIJ.readImagePlusRegion(request);
+			if (pathImage == null || pathImage.getImage() == null)
+				return null;
+		}
+	
+	
+	
+		if (setROI) {
+			ImagePlus imp = pathImage.getImage();
+			if (!(pathROI instanceof RectangleROI)) {
+				Roi roi = ROIConverterIJ.convertToIJRoi(pathROI, pathImage);
+				imp.setRoi(roi);
+			}
+		}
+		return pathImage;
+	}
+
+	/**
+	 * Similar to {@link #extractROI(ImageServer, ROI, RegionRequest, boolean, ImageDisplay)}, except that the title of the ImagePlus is set according to the parent object type (which is used to get the ROI).
+	 * Specifically, if a TMA core is passed as a parent, then the core name will be included in the title.
+	 * 
+	 * @param server
+	 * @param pathObject
+	 * @param request
+	 * @param setROI
+	 * @param imageDisplay
+	 * @return
+	 * @throws IOException 
+	 * 
+	 * @see {@link #extractROI(ImageServer, ROI, RegionRequest, boolean, ImageDisplay)}
+	 */
+	public static PathImage<ImagePlus> extractROI(ImageServer<BufferedImage> server, PathObject pathObject, RegionRequest request, boolean setROI, ImageDisplay imageDisplay) throws IOException {
+		PathImage<ImagePlus> pathImage = extractROI(server, pathObject.getROI(), request, setROI, imageDisplay);
+		IJTools.setTitleFromObject(pathImage, pathObject);
+		return pathImage;
+	}
+	
 
 
 	public static PathImage<ImagePlus> extractROIWithOverlay(ImageServer<BufferedImage> server, PathObject pathObject, PathObjectHierarchy hierarchy, RegionRequest request, boolean setROI, OverlayOptions options, ImageDisplay imageDisplay) throws IOException {
@@ -287,7 +417,7 @@ public class IJExtension implements QuPathExtension {
 			pathROI = pathObject.getROI();
 
 		// Extract the image
-		PathImage<ImagePlus> pathImage = IJTools.extractROI(server, pathROI, request, setROI, imageDisplay);
+		PathImage<ImagePlus> pathImage = extractROI(server, pathROI, request, setROI, imageDisplay);
 		if (pathImage == null)
 			return pathImage;
 

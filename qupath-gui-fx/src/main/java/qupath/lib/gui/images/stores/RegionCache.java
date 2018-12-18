@@ -1,4 +1,4 @@
-package qupath.lib.images.stores;
+package qupath.lib.gui.images.stores;
 
 import java.util.Map;
 
@@ -11,7 +11,7 @@ import qupath.lib.regions.RegionRequest;
  *
  * @param <T>
  */
-public interface RegionCache<T> extends Map<RegionRequest, T> {
+interface RegionCache<T> extends Map<RegionRequest, T> {
 
 	T put(RegionRequest request, T img);
 

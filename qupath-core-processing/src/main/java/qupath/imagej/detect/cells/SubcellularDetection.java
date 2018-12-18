@@ -60,7 +60,6 @@ import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
-import qupath.lib.images.stores.TileListener;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.measurements.MeasurementListFactory;
 import qupath.lib.measurements.MeasurementList.TYPE;
@@ -75,7 +74,6 @@ import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.plugins.AbstractInteractivePlugin;
 import qupath.lib.plugins.PluginRunner;
 import qupath.lib.plugins.parameters.ParameterList;
-import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.PathROIToolsAwt;
 import qupath.lib.roi.interfaces.ROI;
@@ -130,7 +128,7 @@ public class SubcellularDetection extends AbstractInteractivePlugin<BufferedImag
 //	}
 	
 	
-	static class SubcellularDetectionRunnable implements Runnable, TileListener<BufferedImage> {
+	static class SubcellularDetectionRunnable implements Runnable {
 		
 		private ImageData<BufferedImage> imageData;
 		private ParameterList params;
@@ -140,14 +138,6 @@ public class SubcellularDetection extends AbstractInteractivePlugin<BufferedImag
 			this.imageData = imageData;
 			this.parentObject = parentObject;
 			this.params = params;
-		}
-
-		@Override
-		public void tileAvailable(final String serverPath, final ImageRegion region, final BufferedImage tile) {}
-
-		@Override
-		public boolean requiresTileRegion(final String serverPath, final ImageRegion region) {
-			return imageData.getServer() != null && imageData.getServer().getPath().equals(serverPath);
 		}
 
 		@Override

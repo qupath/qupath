@@ -21,19 +21,33 @@
  * #L%
  */
 
-package qupath.lib.images.stores;
+package qupath.lib.gui.images.stores;
+
+import java.util.concurrent.RunnableFuture;
+
+import qupath.lib.regions.RegionRequest;
 
 /**
- * Implementing classes are able to estimate the size given an object of some time - 
- * most likely an image (e.g. AWT BufferedImage or JavaFX Image).  This can be used
- * by a cache to determine the approximate size of the objects it contains.
+ * Interface for a worker to fetch an image tile related to a specified RegionRequest.
  * 
  * @author Pete Bankhead
  *
  * @param <T>
  */
-public interface SizeEstimator<T> {
+public interface TileWorker<T> extends RunnableFuture<T> {
 	
-	public long getApproxImageSize(T value);
+	/**
+	 * The region that has been requested for this worker to fetch, including downsample.
+	 * 
+	 * @return
+	 */
+	public RegionRequest getRequest();
+	
+	/**
+	 * The cache where the region should be added, when available.
+	 * 
+	 * @return
+	 */
+	public RegionCache<T> getRequestedCache();
 	
 }

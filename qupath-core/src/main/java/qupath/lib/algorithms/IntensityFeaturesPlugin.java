@@ -53,7 +53,6 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.geom.ImmutableDimension;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
-import qupath.lib.images.stores.TileListener;
 import qupath.lib.images.tools.BufferedImageTools;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.objects.PathAnnotationObject;
@@ -369,7 +368,7 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 //	}
 	
 	
-	static class IntensityFeatureRunnable implements Runnable, TileListener<BufferedImage> {
+	static class IntensityFeatureRunnable implements Runnable {
 		
 		private ImageServer<BufferedImage> server;
 		private ParameterList params;
@@ -381,14 +380,6 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 			this.parentObject = parentObject;
 			this.params = params;
 			this.stains = stains;
-		}
-
-		@Override
-		public void tileAvailable(final String serverPath, final ImageRegion region, final BufferedImage tile) {}
-
-		@Override
-		public boolean requiresTileRegion(final String serverPath, final ImageRegion region) {
-			return server != null && server.getPath().equals(serverPath);
 		}
 
 		@Override

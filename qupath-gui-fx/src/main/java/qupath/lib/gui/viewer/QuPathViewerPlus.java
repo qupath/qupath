@@ -40,10 +40,10 @@ import javafx.scene.layout.Pane;
 import javafx.scene.paint.Color;
 import javafx.scene.text.TextAlignment;
 import qupath.lib.gui.helpers.ColorToolsFX;
+import qupath.lib.gui.images.stores.DefaultImageRegionStore;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
-import qupath.lib.images.stores.DefaultImageRegionStore;
 
 /**
  * A whole slide viewer with optional extras... i.e. an overview, scalebar, location string...
@@ -323,7 +323,8 @@ public class QuPathViewerPlus extends QuPathViewer {
 	@Override
 	public void repaintEntireImage() {
 		super.repaintEntireImage();
-		overview.repaint();
+		if (overview != null)
+			overview.repaint();
 	}
 	
 	

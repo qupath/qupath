@@ -21,7 +21,7 @@
  * #L%
  */
 
-package qupath.lib.images.stores;
+package qupath.lib.gui.images.stores;
 
 import java.util.Collection;
 import java.util.Iterator;

@@ -35,12 +35,11 @@ import java.awt.image.BufferedImage;
 import java.awt.image.DataBuffer;
 import java.io.IOException;
 
-import qupath.imagej.helpers.IJTools;
+import qupath.imagej.images.servers.ImagePlusServerBuilder;
 import qupath.lib.images.PathImage;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.writers.AbstractImageWriter;
 import qupath.lib.regions.RegionRequest;
-import qupath.lib.roi.interfaces.ROI;
 
 /**
  * Abstract ImageWriter using ImageJ.
@@ -77,7 +76,7 @@ abstract class AbstractWriterIJ extends AbstractImageWriter<BufferedImage> {
 
 	@Override
 	public BufferedImage writeImage(ImageServer<BufferedImage> server, RegionRequest request, String pathOutput) throws IOException {
-		PathImage<ImagePlus> pathImage = IJTools.extractROI(server, (ROI)null, request, false, null);
+		PathImage<ImagePlus> pathImage = ImagePlusServerBuilder.ensureImagePlusWholeSlideServer(server).readImagePlusRegion(request);
 		if (pathImage == null)
 			throw new IOException("Unable to extract region from from " + server.getPath());
 		writeImage(pathImage.getImage(), pathOutput);

@@ -11,10 +11,10 @@ import org.slf4j.LoggerFactory;
 
 import javafx.scene.transform.Affine;
 import javafx.scene.transform.TransformChangedEvent;
+import qupath.lib.gui.images.stores.DefaultImageRegionStore;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.overlays.AbstractImageDataOverlay;
 import qupath.lib.images.servers.ImageServer;
-import qupath.lib.images.stores.DefaultImageRegionStore;
 import qupath.lib.regions.ImageRegion;
 
 /**

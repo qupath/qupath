@@ -21,36 +21,19 @@
  * #L%
  */
 
-package qupath.lib.images.stores;
-
-import qupath.lib.images.servers.ImageServer;
-import qupath.lib.regions.RegionRequest;
+package qupath.lib.gui.images.stores;
 
 /**
- * Interface to define a store for image tiles.
- * 
- * This is used to cache tiles and merge them into larger images, where necessary.
+ * Implementing classes are able to estimate the size given an object of some time - 
+ * most likely an image (e.g. AWT BufferedImage or JavaFX Image).  This can be used
+ * by a cache to determine the approximate size of the objects it contains.
  * 
  * @author Pete Bankhead
  *
  * @param <T>
  */
-public interface ImageRegionStore<T> {
-
-	T getCachedThumbnail(ImageServer<T> server, int zPosition, int tPosition);
-
-	void addTileListener(TileListener<T> listener);
-
-	void removeTileListener(TileListener<T> listener);
-
-	T getCachedTile(ImageServer<T> server, RegionRequest request);
-
-	T getThumbnail(ImageServer<T> server, int zPosition, int tPosition, boolean addToCache);
-
-	void clearCacheForServer(ImageServer<T> server);
-
-	void clearCacheForRequestOverlap(RegionRequest request);
-
-	void close();
-
+interface SizeEstimator<T> {
+	
+	public long getApproxImageSize(T value);
+	
 }

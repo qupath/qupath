@@ -48,7 +48,6 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.geom.ImmutableDimension;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
-import qupath.lib.images.stores.TileListener;
 import qupath.lib.images.tools.BufferedImageTools;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.objects.PathCellObject;
@@ -155,7 +154,7 @@ public class HaralickFeaturesPlugin extends AbstractInteractivePlugin<BufferedIm
 //	}
 	
 	
-	static class HaralickRunnable implements Runnable, TileListener<BufferedImage> {
+	static class HaralickRunnable implements Runnable {
 		
 		private ImageServer<BufferedImage> server;
 		private ParameterList params;
@@ -167,14 +166,6 @@ public class HaralickFeaturesPlugin extends AbstractInteractivePlugin<BufferedIm
 			this.parentObject = parentObject;
 			this.params = params;
 			this.stains = stains;
-		}
-
-		@Override
-		public void tileAvailable(final String serverPath, final ImageRegion region, final BufferedImage tile) {}
-
-		@Override
-		public boolean requiresTileRegion(final String serverPath, final ImageRegion region) {
-			return server != null && server.getPath().equals(serverPath);
 		}
 
 		@Override

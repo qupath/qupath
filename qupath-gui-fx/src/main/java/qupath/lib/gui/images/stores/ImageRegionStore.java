@@ -21,28 +21,36 @@
  * #L%
  */
 
-package qupath.lib.images.stores;
+package qupath.lib.gui.images.stores;
 
-import java.awt.image.BufferedImage;
-import java.awt.image.DataBuffer;
+import qupath.lib.images.servers.ImageServer;
+import qupath.lib.regions.RegionRequest;
 
 /**
- * Helper class to estimate if the size in bytes for a BufferedImage.
+ * Interface to define a store for image tiles.
  * 
- * This isn't particularly exact (and doesn't try to deal with anything beyond pixels, 
- * but gives a good enough guide to help with caching.
+ * This is used to cache tiles and merge them into larger images, where necessary.
  * 
  * @author Pete Bankhead
  *
+ * @param <T>
  */
-public class BufferedImageSizeEstimator implements SizeEstimator<BufferedImage> {
-	
-	@Override
-	public long getApproxImageSize(BufferedImage img) {
-		if (img == null)
-			return 0;
-		DataBuffer data = img.getRaster().getDataBuffer();
-		return Math.round(data.getSize() * DataBuffer.getDataTypeSize(data.getDataType()) / 8.0 * data.getNumBanks());
-	}
-	
+public interface ImageRegionStore<T> {
+
+	T getCachedThumbnail(ImageServer<T> server, int zPosition, int tPosition);
+
+	void addTileListener(TileListener<T> listener);
+
+	void removeTileListener(TileListener<T> listener);
+
+	T getCachedTile(ImageServer<T> server, RegionRequest request);
+
+	T getThumbnail(ImageServer<T> server, int zPosition, int tPosition, boolean addToCache);
+
+	void clearCacheForServer(ImageServer<T> server);
+
+	void clearCacheForRequestOverlap(RegionRequest request);
+
+	void close();
+
 }

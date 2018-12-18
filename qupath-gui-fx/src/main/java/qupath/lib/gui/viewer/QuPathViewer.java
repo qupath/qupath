@@ -97,6 +97,9 @@ import qupath.lib.gui.QuPathGUI.Modes;
 import qupath.lib.gui.helpers.ColorToolsFX;
 import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.gui.images.servers.PathHierarchyImageServer;
+import qupath.lib.gui.images.stores.DefaultImageRegionStore;
+import qupath.lib.gui.images.stores.ImageRegionStoreHelpers;
+import qupath.lib.gui.images.stores.TileListener;
 import qupath.lib.gui.objects.helpers.PathObjectColorToolsAwt;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.overlays.GridOverlay;
@@ -108,9 +111,6 @@ import qupath.lib.gui.viewer.tools.MoveTool;
 import qupath.lib.gui.viewer.tools.PathTool;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
-import qupath.lib.images.stores.DefaultImageRegionStore;
-import qupath.lib.images.stores.ImageRegionStoreHelpers;
-import qupath.lib.images.stores.TileListener;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
@@ -229,6 +229,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 
 	private Modes mode = Modes.MOVE;
 	private ImageDisplay imageDisplay;
+	transient private long lastDisplayChangeTimestamp = 0; // Used to indicate imageDisplay changes
 
 	transient private long lastRepaintTimestamp = 0; // Used for debugging repaint times
 	
@@ -478,6 +479,13 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	public void repaint() {
 		if (repaintRequested && minimumRepaintSpacingMillis <= 0)
 			return;
+		
+		// We need to repaint everything if the display changed
+		if (imageDisplay != null && (lastDisplayChangeTimestamp != imageDisplay.getLastChangeTimestamp())) {
+			repaintEntireImage();
+			return;
+		}
+		
 		logger.trace("Repaint requested!");
 		repaintRequested = true;
 		
@@ -1312,6 +1320,8 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 
 	public void repaintEntireImage() {
 		imageUpdated = true;
+		if (imageDisplay != null)
+			lastDisplayChangeTimestamp = imageDisplay.getLastChangeTimestamp();
 		ensureGammaUpdated();
 		updateThumbnail();
 		repaint();		

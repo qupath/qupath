@@ -235,7 +235,7 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 			if (sendOverlay)
 				pathImage = IJExtension.extractROIWithOverlay(imageData.getServer(), pathObject, imageData.getHierarchy(), region, sendROI, null, imageDisplay2);
 			else
-				pathImage = IJTools.extractROI(imageData.getServer(), pathObject, region, sendROI, imageDisplay2);
+				pathImage = IJExtension.extractROI(imageData.getServer(), pathObject, region, sendROI, imageDisplay2);
 		} catch (IOException e) {
 			logger.error("Unable to extract image region " + region, e);
 			return;

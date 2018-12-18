@@ -53,8 +53,6 @@ import qupath.imagej.objects.ROIConverterIJ;
 import qupath.lib.awt.color.ColorToolsAwt;
 import qupath.lib.awt.common.AwtTools;
 import qupath.lib.common.GeneralTools;
-import qupath.lib.display.ChannelDisplayInfo;
-import qupath.lib.display.ImageDisplay;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.PathImage;
 import qupath.lib.images.servers.ImageServer;
@@ -143,121 +141,6 @@ public class IJTools {
 		return (approxPixelCount > 2147480000L || approxMemory > presumableFreeMemory * MEMORY_THRESHOLD);
 	}
 
-	/**
-	 * 
-	 * @param server
-	 * @param pathROI
-	 * @param request
-	 * @param setROI		{@code true} if a (non-rectangular) ROI should be converted to the closest matching ImageJ {@code Roi} &amp; set on the image
-	 * @param imageDisplay
-	 * @return
-	 * @throws IOException 
-	 */
-	public static PathImage<ImagePlus> extractROI(ImageServer<BufferedImage> server, ROI pathROI, RegionRequest request, boolean setROI, ImageDisplay imageDisplay) throws IOException {
-		setROI = setROI && (pathROI != null);
-		// Ensure the ROI bounds & ensure it fits within the image
-		Rectangle bounds = AwtTools.getBounds(request);
-		if (bounds != null)
-			bounds = bounds.intersection(new Rectangle(0, 0, server.getWidth(), server.getHeight()));
-		if (bounds == null) {
-			return null;
-		}
-	
-	
-		PathImage<ImagePlus> pathImage = null;
-	
-		// Transform the pixels, if required
-		if (imageDisplay != null) {
-			List<ChannelDisplayInfo> channels = imageDisplay.getSelectedChannels();
-			if (channels != null && !channels.isEmpty() && (channels.size() > 1 || channels.get(0).doesSomething())) {
-				BufferedImage img = server.readBufferedImage(request);
-				int width = img.getWidth();
-				int height = img.getHeight();
-				ImageStack stack = new ImageStack(width, height);
-				//				imageDisplay.applyTransforms(imgInput, imgOutput)
-				int type = 0;
-				for (ChannelDisplayInfo channel : channels) {
-					if (channel instanceof ChannelDisplayInfo.SingleChannelDisplayInfo) {
-						if (type == 0 || type == ImagePlus.GRAY32) {
-							float[] px = ((ChannelDisplayInfo.SingleChannelDisplayInfo)channel).getValues(img, 0, 0, width, height, null);
-							FloatProcessor fp = new FloatProcessor(width, height, px);
-							stack.addSlice(channel.getName(), fp);
-							type = ImagePlus.GRAY32;
-						} else {
-							logger.error("Unable to apply color transform " + channel.getName() + " - incompatible with previously-applied transforms");
-						}
-					} else if (type == 0 || type == ImagePlus.COLOR_RGB) {
-						int[] px = channel.getRGB(img, null, imageDisplay.useColorLUTs());
-						ColorProcessor cp = new ColorProcessor(width, height, px);
-						stack.addSlice(channel.getName(), cp);
-						type = ImagePlus.COLOR_RGB;
-					} else {
-						logger.error("Unable to apply color transform " + channel.getName() + " - incompatible with previously-applied transforms");
-					}
-				}
-				if (stack.getSize() > 0) {
-					ImagePlus imp = new ImagePlus(server.getShortServerName(), stack);
-					if (type != ImagePlus.COLOR_RGB) {
-						//						CompositeImage impComp = new CompositeImage(imp, imageDisplay.useColorLUTs() ? CompositeImage.COMPOSITE : CompositeImage.GRAYSCALE);
-						// TODO: Support color LUTs?
-						CompositeImage impComp = new CompositeImage(imp, CompositeImage.GRAYSCALE);
-						int c = 1;
-						for (ChannelDisplayInfo channel : channels) {
-							impComp.setC(c);
-							impComp.setDisplayRange(channel.getMinDisplay(), channel.getMaxDisplay());
-							c++;
-						}
-						impComp.setC(1);
-						imp = impComp;
-					}
-					if (imp != null) {
-						IJTools.calibrateImagePlus(imp, request, server);
-						pathImage = PathImagePlus.createPathImage(server, request, imp);;
-					}
-				}
-			}
-		}
-	
-	
-		// If we don't have an image yet, try reading more simply
-		if (pathImage == null) {
-			ImagePlusServer serverIJ = ImagePlusServerBuilder.ensureImagePlusWholeSlideServer(server);
-			pathImage = serverIJ.readImagePlusRegion(request);
-			if (pathImage == null || pathImage.getImage() == null)
-				return null;
-		}
-	
-	
-	
-		if (setROI) {
-			ImagePlus imp = pathImage.getImage();
-			if (!(pathROI instanceof RectangleROI)) {
-				Roi roi = ROIConverterIJ.convertToIJRoi(pathROI, pathImage);
-				imp.setRoi(roi);
-			}
-		}
-		return pathImage;
-	}
-
-	/**
-	 * Similar to {@link #extractROI(ImageServer, ROI, RegionRequest, boolean, ImageDisplay)}, except that the title of the ImagePlus is set according to the parent object type (which is used to get the ROI).
-	 * Specifically, if a TMA core is passed as a parent, then the core name will be included in the title.
-	 * 
-	 * @param server
-	 * @param pathObject
-	 * @param request
-	 * @param setROI
-	 * @param imageDisplay
-	 * @return
-	 * @throws IOException 
-	 * 
-	 * @see {@link #extractROI(ImageServer, ROI, RegionRequest, boolean, ImageDisplay)}
-	 */
-	public static PathImage<ImagePlus> extractROI(ImageServer<BufferedImage> server, PathObject pathObject, RegionRequest request, boolean setROI, ImageDisplay imageDisplay) throws IOException {
-		PathImage<ImagePlus> pathImage = extractROI(server, pathObject.getROI(), request, setROI, imageDisplay);
-		IJTools.setTitleFromObject(pathImage, pathObject);
-		return pathImage;
-	}
 
 	/**
 	 * Extract a full ImageJ hyperstack for a specific region, using all z-slices and time points.

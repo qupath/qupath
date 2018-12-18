@@ -56,9 +56,9 @@ import qupath.lib.common.ColorTools;
 import qupath.lib.display.ChannelDisplayInfo.MultiChannelInfo;
 import qupath.lib.display.ChannelDisplayInfo.RGBDirectChannelInfo;
 import qupath.lib.display.ChannelDisplayInfo.SingleChannelDisplayInfo;
+import qupath.lib.gui.images.stores.ImageRegionStore;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
-import qupath.lib.images.stores.ImageRegionStore;
 
 /**
  * Class used to look after the color transforms that may be applied to an image,

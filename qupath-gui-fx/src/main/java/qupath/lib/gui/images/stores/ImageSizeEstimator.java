@@ -24,7 +24,6 @@
 package qupath.lib.gui.images.stores;
 
 import javafx.scene.image.Image;
-import qupath.lib.images.stores.SizeEstimator;
 
 /**
  * Estimate the size, in bytes of a JavaFX image.
@@ -35,7 +34,7 @@ import qupath.lib.images.stores.SizeEstimator;
  * @author Pete Bankhead
  *
  */
-public class ImageSizeEstimator implements SizeEstimator<Image> {
+class ImageSizeEstimator implements SizeEstimator<Image> {
 
 	@Override
 	public long getApproxImageSize(Image img) {

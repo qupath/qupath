@@ -43,14 +43,12 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.geom.ImmutableDimension;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
-import qupath.lib.images.stores.TileListener;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.plugins.AbstractInteractivePlugin;
 import qupath.lib.plugins.PluginRunner;
 import qupath.lib.plugins.parameters.ParameterList;
-import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.interfaces.ROI;
 
@@ -112,7 +110,7 @@ public class CoherenceFeaturePlugin extends AbstractInteractivePlugin<BufferedIm
 	
 	
 	
-	static class CoherenceRunnable implements Runnable, TileListener<BufferedImage> {
+	static class CoherenceRunnable implements Runnable {
 		
 		private static Logger logger = LoggerFactory.getLogger(CoherenceRunnable.class);
 		
@@ -126,14 +124,6 @@ public class CoherenceFeaturePlugin extends AbstractInteractivePlugin<BufferedIm
 			this.parentObject = parentObject;
 			this.params = params;
 			this.stains = stains;
-		}
-
-		@Override
-		public void tileAvailable(final String serverPath, final ImageRegion region, final BufferedImage tile) {}
-
-		@Override
-		public boolean requiresTileRegion(final String serverPath, final ImageRegion region) {
-			return server != null && server.getPath().equals(serverPath);
 		}
 
 		@Override

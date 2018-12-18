@@ -21,7 +21,7 @@
  * #L%
  */
 
-package qupath.lib.images.stores;
+package qupath.lib.gui.images.stores;
 
 import qupath.lib.regions.ImageRegion;
 

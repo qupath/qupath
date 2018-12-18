@@ -21,27 +21,28 @@
  * #L%
  */
 
-package qupath.lib.images.stores;
+package qupath.lib.gui.images.stores;
+
+import java.awt.image.BufferedImage;
+import java.awt.image.DataBuffer;
 
 /**
- * Factory for creating an ImageRegionStore.
+ * Helper class to estimate if the size in bytes for a BufferedImage.
+ * 
+ * This isn't particularly exact (and doesn't try to deal with anything beyond pixels, 
+ * but gives a good enough guide to help with caching.
  * 
  * @author Pete Bankhead
  *
  */
-public class ImageRegionStoreFactory {
+class BufferedImageSizeEstimator implements SizeEstimator<BufferedImage> {
 	
-	/**
-	 * Create an ImageRegionStore.
-	 * 
-	 * TileListeners will be notified on the JavaFX application thread if isJavaFX is true,
-	 * otherwise they will be notified on the Event Dispatch Thread (for Swing).
-	 * 
-	 * @return
-	 */
-	public static DefaultImageRegionStore createImageRegionStore(final long tileCacheSize) {
-//		return new PriorityImageRegionStore();
-		return new DefaultImageRegionStore(tileCacheSize);
+	@Override
+	public long getApproxImageSize(BufferedImage img) {
+		if (img == null)
+			return 0;
+		DataBuffer data = img.getRaster().getDataBuffer();
+		return Math.round(data.getSize() * DataBuffer.getDataTypeSize(data.getDataType()) / 8.0 * data.getNumBanks());
 	}
 	
 }

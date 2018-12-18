@@ -44,7 +44,6 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.geom.ImmutableDimension;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
-import qupath.lib.images.stores.TileListener;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
@@ -110,7 +109,7 @@ public class LocalBinaryPatternsPlugin extends AbstractInteractivePlugin<Buffere
 	
 	
 	
-	static class LBFRunnable implements Runnable, TileListener<BufferedImage> {
+	static class LBFRunnable implements Runnable {
 		
 		private static Logger logger = LoggerFactory.getLogger(LBFRunnable.class);
 		
@@ -126,13 +125,6 @@ public class LocalBinaryPatternsPlugin extends AbstractInteractivePlugin<Buffere
 			this.stains = stains;
 		}
 
-		@Override
-		public void tileAvailable(final String serverPath, final ImageRegion region, final BufferedImage tile) {}
-
-		@Override
-		public boolean requiresTileRegion(final String serverPath, final ImageRegion region) {
-			return server != null && server.getPath().equals(serverPath);
-		}
 
 		@Override
 		public void run() {

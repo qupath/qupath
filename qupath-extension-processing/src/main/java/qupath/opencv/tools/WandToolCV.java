@@ -49,12 +49,12 @@ import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
 import qupath.lib.awt.common.AwtTools;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.images.stores.DefaultImageRegionStore;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.overlays.HierarchyOverlay;
 import qupath.lib.gui.viewer.overlays.PathOverlay;
 import qupath.lib.gui.viewer.tools.BrushTool;
-import qupath.lib.images.stores.DefaultImageRegionStore;
 import qupath.lib.regions.ImageRegion;
 
 /**

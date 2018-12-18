@@ -21,33 +21,27 @@
  * #L%
  */
 
-package qupath.lib.images.stores;
-
-import java.util.concurrent.RunnableFuture;
-
-import qupath.lib.regions.RegionRequest;
+package qupath.lib.gui.images.stores;
 
 /**
- * Interface for a worker to fetch an image tile related to a specified RegionRequest.
+ * Factory for creating an ImageRegionStore.
  * 
  * @author Pete Bankhead
  *
- * @param <T>
  */
-public interface TileWorker<T> extends RunnableFuture<T> {
+public class ImageRegionStoreFactory {
 	
 	/**
-	 * The region that has been requested for this worker to fetch, including downsample.
+	 * Create an ImageRegionStore.
+	 * 
+	 * TileListeners will be notified on the JavaFX application thread if isJavaFX is true,
+	 * otherwise they will be notified on the Event Dispatch Thread (for Swing).
 	 * 
 	 * @return
 	 */
-	public RegionRequest getRequest();
-	
-	/**
-	 * The cache where the region should be added, when available.
-	 * 
-	 * @return
-	 */
-	public RegionCache<T> getRequestedCache();
+	public static DefaultImageRegionStore createImageRegionStore(final long tileCacheSize) {
+//		return new PriorityImageRegionStore();
+		return new DefaultImageRegionStore(tileCacheSize);
+	}
 	
 }
