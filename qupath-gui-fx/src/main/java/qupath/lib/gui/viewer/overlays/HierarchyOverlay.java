@@ -104,7 +104,7 @@ public class HierarchyOverlay extends AbstractImageDataOverlay {
 		else {
 			ImageServer<BufferedImage> server = getImageData().getServer();
 			// If the image is small, don't really need a server at all...
-			overlayServer = new PathHierarchyImageServer(getImageData(), getOverlayOptions());
+			overlayServer = new PathHierarchyImageServer(getImageData(), regionStore.getCache(), getOverlayOptions());
 //			overlayServer = new PathHierarchyImageServer(server, getHierarchy(), getOverlayOptions());
 			smallImage = server.getWidth() < PathPrefs.getMinWholeSlideDimension() && server.getHeight() < PathPrefs.getMinWholeSlideDimension();
 		}
@@ -154,7 +154,7 @@ public class HierarchyOverlay extends AbstractImageDataOverlay {
 		if (overlayOptions.getShowObjects() && !hierarchy.isEmpty()) {
 
 			// If we aren't downsampling by much, or we're upsampling, paint directly - making sure to paint the right number of times, and in the right order
-			if (smallImage || overlayServer == null || regionStore == null || downsampleFactor <= overlayServer.getPreferredDownsamples()[0]) {
+			if (smallImage || overlayServer == null || regionStore == null || downsampleFactor < 1.0) {
 				Set<PathObject> pathObjectsToPaint = new TreeSet<>(comparator);
 				Collection<PathObject> pathObjects = hierarchy.getObjectsForRegion(PathDetectionObject.class, region, pathObjectsToPaint);
 				g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);

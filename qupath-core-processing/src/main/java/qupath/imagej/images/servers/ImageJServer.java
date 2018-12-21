@@ -103,7 +103,7 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 				imp.getWidth(),
 				imp.getHeight()).
 				setPixelSizeMicrons(xMicrons, yMicrons).
-				setSizeC(imp.getNChannels()).
+				setSizeC(isRGB ? 3 : imp.getNChannels()).
 				setSizeZ(imp.getNSlices()).
 				setSizeT(imp.getNFrames()).
 				setTimeUnit(timeUnit).

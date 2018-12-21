@@ -64,7 +64,6 @@ import org.slf4j.LoggerFactory;
 
 import qupath.imagej.detect.cells.SubcellularDetection;
 import qupath.imagej.detect.dearray.TMADearrayerPluginIJ;
-import qupath.imagej.detect.features.ImmuneScorerTMA;
 import qupath.imagej.detect.nuclei.PositiveCellDetection;
 import qupath.imagej.detect.nuclei.WatershedCellDetection;
 import qupath.imagej.detect.nuclei.WatershedCellMembraneDetection;
@@ -314,7 +313,7 @@ public class IJExtension implements QuPathExtension {
 	
 		// Transform the pixels, if required
 		if (imageDisplay != null) {
-			List<ChannelDisplayInfo> channels = imageDisplay.getSelectedChannels();
+			List<ChannelDisplayInfo> channels = imageDisplay.selectedChannels();
 			if (channels != null && !channels.isEmpty() && (channels.size() > 1 || channels.get(0).doesSomething())) {
 				BufferedImage img = server.readBufferedImage(request);
 				int width = img.getWidth();
@@ -649,8 +648,6 @@ public class IJExtension implements QuPathExtension {
 //				new SeparatorMenuItem(),
 //				qupath.createPluginAction("Lesion detection (experimental)", LesionDetector.class, null, false),
 				
-				new SeparatorMenuItem(),
-				qupath.createPluginAction("Immune scorer (TMA, experimental)", ImmuneScorerTMA.class, null),
 				new SeparatorMenuItem(),
 				qupath.createPluginAction("Subcellular detection (experimental)", SubcellularDetection.class, null)
 				);

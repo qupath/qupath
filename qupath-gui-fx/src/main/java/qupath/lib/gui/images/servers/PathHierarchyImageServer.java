@@ -24,17 +24,14 @@
 package qupath.lib.gui.images.servers;
 
 import java.awt.Graphics2D;
-import java.awt.GraphicsConfiguration;
-import java.awt.GraphicsEnvironment;
-import java.awt.Transparency;
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
-
+import java.util.Map;
 import qupath.lib.awt.color.ColorToolsAwt;
 import qupath.lib.awt.common.AwtTools;
 import qupath.lib.common.ColorTools;
@@ -42,11 +39,10 @@ import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.gui.viewer.PathHierarchyPaintingHelper;
 import qupath.lib.gui.viewer.overlays.HierarchyOverlay;
 import qupath.lib.images.ImageData;
-import qupath.lib.images.PathImage;
+import qupath.lib.images.servers.AbstractTileableImageServer;
 import qupath.lib.images.servers.GeneratingImageServer;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
-import qupath.lib.images.servers.ServerTools;
 import qupath.lib.objects.DefaultPathObjectConnectionGroup;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
@@ -62,36 +58,55 @@ import qupath.lib.regions.RegionRequest;
  * @author Pete Bankhead
  *
  */
-public class PathHierarchyImageServer implements GeneratingImageServer<BufferedImage> {
+public class PathHierarchyImageServer extends AbstractTileableImageServer implements GeneratingImageServer<BufferedImage> {
 	
 //	public static String DEFAULT_PREFIX = "OVERLAY::";
 	static long counter = 0;
 	public static String DEFAULT_PREFIX = "OVERLAY";
 	
-	private double[] downsamples = new double[]{1, 4, 32, 64, 128};
+	private ImageServerMetadata originalMetadata;
 	
 	private String prefix;
 	private ImageData<BufferedImage> imageData;
 	private ImageServer<BufferedImage> server;
 	private OverlayOptions options;
 	private PathObjectHierarchy hierarchy;
-//	private PathHierarchyPainter painter;
 	
-	public PathHierarchyImageServer(final ImageData<BufferedImage> imageData, final OverlayOptions options) {
-		this(DEFAULT_PREFIX + " " + counter + "::", imageData, imageData.getServer(), imageData.getHierarchy(), options);
+	public PathHierarchyImageServer(final ImageData<BufferedImage> imageData, final Map<RegionRequest, BufferedImage> cache, final OverlayOptions options) {
+		this(DEFAULT_PREFIX + " " + counter + "::", imageData, cache, options);
 	}
 	
 //	public PathHierarchyImageServer(final ImageServer<BufferedImage> server, final PathObjectHierarchy hierarchy, final OverlayOptions options) {
 //		this(DEFAULT_PREFIX + " " + counter + "::", server, hierarchy, options);
 //	}
 	
-	PathHierarchyImageServer(final String prefix, final ImageData<BufferedImage> imageData, final ImageServer<BufferedImage> server, final PathObjectHierarchy hierarchy, final OverlayOptions options) {
+	private PathHierarchyImageServer(final String prefix, final ImageData<BufferedImage> imageData, final Map<RegionRequest, BufferedImage> cache, final OverlayOptions options) {
+		super(cache);
 		this.imageData = imageData;
 		this.prefix = prefix;
-		this.server = server;
-		this.hierarchy = hierarchy;
-//		this.painter = new PathHierarchyPainter(hierarchy);
+		this.server = imageData.getServer();
+		this.hierarchy = imageData.getHierarchy();
 		this.options = options;
+		
+		List<Double> downsamples = new ArrayList<>();
+		double minDim = Math.min(server.getWidth(), server.getHeight());
+		double nextDownsample = 1.0;
+		while (minDim / nextDownsample > 1024 || downsamples.isEmpty()) {
+			downsamples.add(nextDownsample);
+			nextDownsample *= 4.0;
+		}
+		
+//		String path = getPath();
+//		cache.entrySet().removeIf(r -> path.equals(r.getKey().getPath()));
+		
+		// Set metadata, using the underlying server as a basis
+		this.originalMetadata = new ImageServerMetadata.Builder(server.getOriginalMetadata())
+				.setPreferredTileSize(256, 256)
+				.setPreferredDownsamples(downsamples.stream().mapToDouble(d -> d).toArray())
+				.setBitDepth(8)
+				.setSizeC(3)
+				.setRGB(true)
+				.build();
 	}
 	
 	@Override
@@ -105,119 +120,14 @@ public class PathHierarchyImageServer implements GeneratingImageServer<BufferedI
 	}
 
 	@Override
-	public double[] getPreferredDownsamples() {
-		return downsamples.clone();
-//		return new double[]{4, 32, 1024};
-//		return new double[]{1, 4, 32};
-//		return server.getPreferredDownsamples();
-	}
-
-	@Override
-	public double getPreferredDownsampleFactor(double requestedDownsample) {
-		int ind = ServerTools.getClosestDownsampleIndex(getPreferredDownsamples(), requestedDownsample);
-		return getPreferredDownsamples()[ind];
-//		return server.getPreferredDownsampleFactor(requestedDownsample);
-	}
-
-	@Override
-	public int getPreferredTileWidth() {
-//		return 1024;
-		return 256;
-//		return server.getPreferredTileWidth();
-	}
-
-	@Override
-	public int getPreferredTileHeight() {
-//		return 1024;
-		return 256;
-//		return server.getPreferredTileHeight();
-	}
-
-	@Override
-	public double getMagnification() {
-		return server.getMagnification();
-	}
-
-	@Override
-	public int getWidth() {
-		return server.getWidth();
-	}
-
-	@Override
-	public int getHeight() {
-		return server.getHeight();
-	}
-
-	@Override
-	public int nChannels() {
-		return 3;
-	}
-
-	@Override
-	public boolean isRGB() {
-		return true;
-	}
-
-	@Override
-	public int nZSlices() {
-		return server.nZSlices();
-	}
-
-	@Override
-	public int nTimepoints() {
-		return server.nTimepoints();
-	}
-
-	@Override
-	public double getTimePoint(int ind) {
-		return server.getTimePoint(ind);
-	}
-
-	@Override
-	public TimeUnit getTimeUnit() {
-		return server.getTimeUnit();
-	}
-
-	@Override
-	public double getZSpacingMicrons() {
-		return server.getZSpacingMicrons();
-	}
-
-	@Override
-	public double getPixelWidthMicrons() {
-		return server.getPixelWidthMicrons();
-	}
-
-	@Override
-	public double getPixelHeightMicrons() {
-		return server.getPixelHeightMicrons();
-	}
-
-	@Override
-	public double getAveragedPixelSizeMicrons() {
-		return server.getAveragedPixelSizeMicrons();
-	}
-
-	@Override
-	public boolean hasPixelSizeMicrons() {
-		return server.hasPixelSizeMicrons();
-	}
-
-	@Override
 	public BufferedImage getBufferedThumbnail(int maxWidth, int maxHeight, int zPosition) {
 		return PathHierarchyPaintingHelper.createThumbnail(hierarchy, options, getWidth(), getHeight(), null, null);
-	}
-
-	@Override
-	public PathImage<BufferedImage> readRegion(RegionRequest request) {
-		throw new UnsupportedOperationException("Overlay image servers cannot return PathImages");
 	}
 	
 	private Collection<PathObject> getObjectsToPaint(RegionRequest request) {
 //		Rectangle region = request.getBounds();
 		return hierarchy.getObjectsForRegion(PathDetectionObject.class, request, null);
 	}
-	
 	
 	/**
 	 * Returns true if there are no objects to be painted within the requested region.
@@ -227,10 +137,80 @@ public class PathHierarchyImageServer implements GeneratingImageServer<BufferedI
 		return !hierarchy.hasObjectsForRegion(PathDetectionObject.class, request) && (!options.getShowConnections() || imageData.getProperty(DefaultPathObjectConnectionGroup.KEY_OBJECT_CONNECTIONS) == null);
 	}
 	
+	@Override
+	public void close() {}
 
 	@Override
-	public BufferedImage readBufferedImage(RegionRequest request) {
-//		long startTime = System.currentTimeMillis();
+	public String getServerType() {
+		return "Overlay";
+	}
+
+	@Override
+	public String getDisplayedImageName() {
+		return prefix + server.getDisplayedImageName();
+	}
+
+	@Override
+	public boolean usesBaseServer(ImageServer<?> server) {
+		return this.server == server;
+	}
+
+	@Override
+	public Integer getDefaultChannelColor(int channel) {
+		if (nChannels() == 1)
+			return ColorTools.makeRGB(255, 255, 255);
+		switch (channel) {
+		case 0: return ColorTools.makeRGB(255, 0, 0);
+		case 1: return ColorTools.makeRGB(0, 255, 0);
+		case 2: return ColorTools.makeRGB(0, 0, 255);
+		default:
+			return ColorTools.makeRGB(255, 255, 255);
+		}
+	}
+	
+	/**
+	 * Currently, this always returns null.  May change in the future if hierarchies are read from files (although probably won't).
+	 */
+	@Override
+	public File getFile() {
+		return null;
+	}
+
+	@Override
+	public String getSubImagePath(String imageName) {
+		throw new RuntimeException("Cannot construct sub-image with name " + imageName + " for " + getClass().getSimpleName());
+	}
+
+	@Override
+	public ImageServerMetadata getOriginalMetadata() {
+		return originalMetadata;
+	}
+
+	/**
+	 * Throws an exception - metadata should not be set for a hierarchy image server directly.  Any changes should be made to the underlying
+	 * image server for which this server represents an object hierarchy.
+	 */
+	@Override
+	public void setMetadata(ImageServerMetadata metadata) {
+		throw new RuntimeException("Metadata cannot be set for a hierarchy image server!");
+	}
+
+	@Override
+	public String getChannelName(int channel) {
+		return "Channel " + (channel + 1);
+	}
+
+	@Override
+	protected BufferedImage createDefaultRGBImage(int width, int height) {
+//		GraphicsConfiguration gc = GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice().getDefaultConfiguration();
+//		return gc.createCompatibleImage(width, height, Transparency.TRANSLUCENT);
+		return new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
+	}
+	
+	@Override
+	protected BufferedImage readTile(TileRequest tileRequest) throws IOException {
+		RegionRequest request = tileRequest.getRegionRequest();
+		long startTime = System.currentTimeMillis();
 		
 		// Get connections
 		Object o = options.getShowConnections() ? imageData.getProperty(DefaultPathObjectConnectionGroup.KEY_OBJECT_CONNECTIONS) : null;
@@ -246,11 +226,10 @@ public class PathHierarchyImageServer implements GeneratingImageServer<BufferedI
 		
 		Collections.sort(pathObjects, new HierarchyOverlay.DetectionComparator());
 		
-		GraphicsConfiguration gc = GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice().getDefaultConfiguration();
 		double downsampleFactor = request.getDownsample();
 		int width = (int)(request.getWidth() / downsampleFactor);
 		int height = (int)(request.getHeight() / downsampleFactor);
-		BufferedImage img = gc.createCompatibleImage(width, height, Transparency.TRANSLUCENT);
+		BufferedImage img = createDefaultRGBImage(width, height);
 		Graphics2D g2d = img.createGraphics();
 		g2d.setClip(0, 0, width, height);
 //		g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
@@ -275,114 +254,5 @@ public class PathHierarchyImageServer implements GeneratingImageServer<BufferedI
 //		System.out.println("Single tile image creation time: " + (endTime - startTime)/1000.);
 		return img;
 	}
-
-	@Override
-	public int getBitsPerPixel() {
-		return 8; // Only 8-bit RGB images provided
-	}
-
-	@Override
-	public void close() {}
-
-	@Override
-	public String getServerType() {
-		return "Overlay";
-	}
-
-	@Override
-	public List<String> getSubImageList() {
-		return Collections.emptyList();
-	}
-
-	@Override
-	public String getDisplayedImageName() {
-		return prefix + server.getDisplayedImageName();
-	}
-
-	@Override
-	public boolean containsSubImages() {
-		return server.containsSubImages();
-	}
-
-
-	@Override
-	public boolean usesBaseServer(ImageServer<?> server) {
-		return this == server;
-	}
-
-	@Override
-	public Integer getDefaultChannelColor(int channel) {
-		if (nChannels() == 1)
-			return ColorTools.makeRGB(255, 255, 255);
-		switch (channel) {
-		case 0: return ColorTools.makeRGB(255, 0, 0);
-		case 1: return ColorTools.makeRGB(0, 255, 0);
-		case 2: return ColorTools.makeRGB(0, 0, 255);
-		default:
-			return ColorTools.makeRGB(255, 255, 255);
-		}
-	}
-
-	@Override
-	public List<String> getAssociatedImageList() {
-		return Collections.emptyList();
-	}
-
-	@Override
-	public BufferedImage getAssociatedImage(String name) {
-		throw new IllegalArgumentException("No associated image with name '" + name + "' for " + getPath());
-	}
-	
-	/**
-	 * Currently, this always returns null.  May change in the future if hierarchies are read from files (although probably won't).
-	 */
-	@Override
-	public File getFile() {
-		return null;
-	}
-
-	@Override
-	public String getSubImagePath(String imageName) {
-		throw new RuntimeException("Cannot construct sub-image with name " + imageName + " for " + getClass().getSimpleName());
-	}
-
-	@Override
-	public ImageServerMetadata getMetadata() {
-		return new ImageServerMetadata.Builder(server.getMetadata()).setSizeC(3).build(); // Convert to always 3-channel
-	}
-
-	@Override
-	public ImageServerMetadata getOriginalMetadata() {
-		return new ImageServerMetadata.Builder(server.getOriginalMetadata()).setSizeC(3).build(); // Convert to always 3-channel
-	}
-
-	@Override
-	public boolean usesOriginalMetadata() {
-		return server.usesOriginalMetadata();
-	}
-	
-	/**
-	 * Throws an exception - metadata should not be set for a hierarchy image server directly.  Any changes should be made to the underlying
-	 * image server for which this server represents an object hierarchy.
-	 */
-	@Override
-	public void setMetadata(ImageServerMetadata metadata) {
-		throw new RuntimeException("Metadata cannot be set for a hierarchy image server!");
-	}
-
-	@Override
-	public int nResolutions() {
-		return downsamples.length;
-	}
-
-	@Override
-	public String getChannelName(int channel) {
-		return "Channel " + (channel + 1);
-	}
-	
-//	@Override
-//	public ImagePixels readPixels(RegionRequest request) {
-//		return new BufferedImagePixels(readBufferedImage(request));
-//	}
 
 }

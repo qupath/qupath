@@ -288,7 +288,8 @@ public class ImageAlignmentPane {
 		// Get all the other project entries - except for the base image (which is fixed)
 		Project<BufferedImage> project = qupath.getProject();
 		List<ProjectImageEntry<BufferedImage>> entries = new ArrayList<>(project.getImageList());
-		String baseServerPath = viewer.getServerPath();
+		ImageServer<?> currentServer = viewer.getServer();
+		String baseServerPath = currentServer == null ? null : currentServer.getPath();
 		entries.removeIf(e -> e.equalsServerPath(baseServerPath));
 		
 		// Find the entries currently selected

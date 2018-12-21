@@ -24,13 +24,10 @@
 package qupath.imagej.helpers;
 
 import java.awt.Color;
-import java.awt.Rectangle;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.text.DecimalFormat;
-import java.util.List;
-
 import javax.swing.SwingUtilities;
 
 import org.slf4j.Logger;
@@ -43,15 +40,12 @@ import ij.gui.Roi;
 import ij.io.FileInfo;
 import ij.measure.Calibration;
 import ij.process.ColorProcessor;
-import ij.process.FloatProcessor;
 import ij.process.ImageProcessor;
 import ij.process.LUT;
 import qupath.imagej.images.servers.ImagePlusServer;
 import qupath.imagej.images.servers.ImagePlusServerBuilder;
-import qupath.imagej.objects.PathImagePlus;
 import qupath.imagej.objects.ROIConverterIJ;
 import qupath.lib.awt.color.ColorToolsAwt;
-import qupath.lib.awt.common.AwtTools;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.PathImage;
@@ -61,7 +55,6 @@ import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.PointsROI;
-import qupath.lib.roi.RectangleROI;
 import qupath.lib.roi.interfaces.ROI;
 
 /**

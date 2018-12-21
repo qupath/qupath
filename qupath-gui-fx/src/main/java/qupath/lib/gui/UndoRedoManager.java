@@ -60,7 +60,6 @@ public class UndoRedoManager implements ChangeListener<QuPathViewerPlus>, QuPath
 	private IntegerProperty maxUndoLevels = PathPrefs.createPersistentPreference("undoMaxLevels", 10);
 	private IntegerProperty maxUndoHierarchySize = PathPrefs.createPersistentPreference("undoMaxHierarchySize", 10000);
 	
-	private QuPathGUI qupath;
 	private ReadOnlyObjectProperty<QuPathViewerPlus> viewerProperty;
 	
 	private SimpleBooleanProperty canUndo = new SimpleBooleanProperty(false);
@@ -71,7 +70,6 @@ public class UndoRedoManager implements ChangeListener<QuPathViewerPlus>, QuPath
 	private Map<QuPathViewer, SerializableUndoRedoStack<PathObjectHierarchy>> map = new WeakHashMap<>();
 	
 	UndoRedoManager(final QuPathGUI qupath) {
-		this.qupath = qupath;
 		this.viewerProperty = qupath.viewerProperty();
 		this.viewerProperty.addListener(this);
 		

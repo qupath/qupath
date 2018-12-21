@@ -26,7 +26,6 @@ package qupath.lib.display;
 import java.awt.image.BufferedImage;
 import java.awt.image.ColorModel;
 import java.awt.image.IndexColorModel;
-import java.lang.reflect.Method;
 import java.text.DecimalFormat;
 
 import qupath.lib.awt.color.ColorToolsAwt;
@@ -69,7 +68,7 @@ import qupath.lib.images.servers.ImageServer;
  * (i.e. not standard RGB/BGR/single-channel images) don't always behave nicely with Graphics objects
  * if we want to paint or scale them.
  * 
- * Using the ChannelDisplayInfo approach means that during repainting a RGB(A) image can be produced on-the-fly
+ * Using the ChannelDisplayInfo approach means that during repainting an (A)RGB image can be produced on-the-fly
  * without needing to create a new image with the desired ColorModel for painting.
  * This potentially ends up requiring a bit more computation that is really necessary - and it may be optimized
  * better in the future - but it was the simplest method I could come up with to provide the features I wanted...
@@ -122,7 +121,7 @@ public interface ChannelDisplayInfo {
 	 * @param maxDisplay
 	 */
 	@Deprecated
-	public abstract void setMaxDisplay(float maxDisplay);
+	abstract void setMaxDisplay(float maxDisplay);
 	
 	/**
 	 * Get the min display value.
@@ -253,17 +252,28 @@ public interface ChannelDisplayInfo {
 
 
 	static abstract class AbstractChannelInfo implements ChannelDisplayInfo {
+		
+		private ImageData<BufferedImage> imageData;
 
 		protected float minAllowed, maxAllowed;
 		protected float minDisplay, maxDisplay;
 		protected boolean clipToAllowed = false;
 
 		// The 'channel' corresponds to the 'band' in Java parlance
-		public AbstractChannelInfo(int nBits) {
+		public AbstractChannelInfo(final ImageData<BufferedImage> imageData) {
+			this.imageData = imageData;
 			this.minAllowed = 0;
-			this.maxAllowed = (float)Math.pow(2, nBits) - 1;
+			this.maxAllowed = (float)Math.pow(2, imageData.getServer().getBitsPerPixel()) - 1;
 			this.minDisplay = 0;
 			this.maxDisplay = maxAllowed;
+		}
+		
+		protected ImageData<BufferedImage> getImageData() {
+			return imageData;
+		}
+
+		protected ImageServer<BufferedImage> getImageServer() {
+			return imageData.getServer();
 		}
 
 		/**
@@ -273,7 +283,7 @@ public interface ChannelDisplayInfo {
 		 * 
 		 * @return
 		 */
-		public boolean doClipToAllowed() {
+		boolean doClipToAllowed() {
 			return clipToAllowed;
 		}
 		
@@ -284,7 +294,7 @@ public interface ChannelDisplayInfo {
 		 * 
 		 * @param clipToAllowed
 		 */
-		public void setClipToAllowed(final boolean clipToAllowed) {
+		void setClipToAllowed(final boolean clipToAllowed) {
 			this.clipToAllowed = clipToAllowed;
 			if (clipToAllowed) {
 				this.minDisplay = Math.min(Math.max(minDisplay, minAllowed), maxAllowed);
@@ -339,11 +349,11 @@ public interface ChannelDisplayInfo {
 			return maxDisplay;
 		}
 		
-		final public static int do8BitRangeCheck(float v) {
+		final static int do8BitRangeCheck(float v) {
 			return v < 0 ? 0 : (v > 255 ? 255 : (int)v);
 		}
 
-		final public static int do8BitRangeCheck(int v) {
+		final static int do8BitRangeCheck(int v) {
 			return v < 0 ? 0 : (v > 255 ? 255 : v);
 		}
 
@@ -368,81 +378,16 @@ public interface ChannelDisplayInfo {
 		}
 		
 		
-		public float getOffset() {
+		float getOffset() {
 			return getMinDisplay();
 		}
 
-		public float getScaleToByte() {
+		float getScaleToByte() {
 			return 255.f / (getMaxDisplay() - getMinDisplay());
 		}
 
 
 	}
-
-	
-	static class RGBColorReconvolution extends AbstractChannelInfo {
-		
-		private ImageDisplay imageDisplay;
-		private ColorDeconvolutionStains stainsTarget;
-		private boolean discardResidual;
-
-		public RGBColorReconvolution(ImageDisplay imageDisplay, ColorDeconvolutionStains stainsTarget, boolean discardResidual) {
-			super(8);
-			this.imageDisplay = imageDisplay;
-			this.stainsTarget = stainsTarget;
-			this.discardResidual = discardResidual;
-		}
-
-		@Override
-		public String getName() {
-			return "Reconvolve standard stains";
-		}
-
-		@Override
-		public boolean isAdditive() {
-			return false;
-		}
-
-		@Override
-		public String getValueAsString(BufferedImage img, int x, int y) {
-			int rgb = getRGB(img, x, y, false);
-			return ColorTools.red(rgb) + ", " + ColorTools.green(rgb) + ", " + ColorTools.blue(rgb);
-		}
-
-		@Override
-		public int getRGB(BufferedImage img, int x, int y, boolean useColorLUT) {
-			int[] arr = new int[]{img.getRGB(x, y)};
-			return ColorTransformerAWT.colorDeconvolveReconvolveRGBArray(arr, imageDisplay.getImageData().getColorDeconvolutionStains(), stainsTarget, discardResidual, arr)[0];
-		}
-
-		@Override
-		public int[] getRGB(BufferedImage img, int[] rgb, boolean useColorLUT) {
-			int[] buffer = RGBDirectChannelInfo.getRGBIntBuffer(img);
-			if (buffer == null)
-				buffer = img.getRGB(0, 0, img.getWidth(), img.getHeight(), null, 0, img.getWidth());
-			return ColorTransformerAWT.colorDeconvolveReconvolveRGBArray(buffer, imageDisplay.getImageData().getColorDeconvolutionStains(), stainsTarget, discardResidual, rgb, getScaleToByte(), -getOffset());
-		}
-
-		@Override
-		public void updateRGBAdditive(BufferedImage img, int[] rgb, boolean useColorLUT) {
-			throw new UnsupportedOperationException(this + " does not support additive display");
-		}
-
-		@Override
-		public void resetBuffers() {}
-
-		@Override
-		public boolean doesSomething() {
-			return !stainsTarget.equals(imageDisplay.getImageData().getColorDeconvolutionStains());
-		}
-		
-		@Override
-		public Integer getColor() {
-			return null;
-		}
-		
-	}
-
 
 
 	public static interface SingleChannelDisplayInfo extends ChannelDisplayInfo {
@@ -450,8 +395,6 @@ public interface ChannelDisplayInfo {
 		public abstract float getValue(BufferedImage img, int x, int y);
 		
 		public abstract float[] getValues(BufferedImage img, int x, int y, int w, int h, float[] array);
-		
-//		public boolean isInteger();
 		
 	}
 
@@ -468,8 +411,8 @@ public interface ChannelDisplayInfo {
 		private float[] values = null; // Buffer in which to store values
 		
 		
-		public AbstractSingleChannelInfo(int nBits) {
-			super(nBits);
+		public AbstractSingleChannelInfo(final ImageData<BufferedImage> imageData) {
+			super(imageData);
 		}
 
 		/**
@@ -480,13 +423,13 @@ public interface ChannelDisplayInfo {
 		 */
 		public abstract int getRGB(float value, boolean useColorLUT);
 				
-		public void updateRGBAdditive(float[] values, int[] rgb, boolean useColorLUT) {
+		private void updateRGBAdditive(float[] values, int[] rgb, boolean useColorLUT) {
 			int n = Math.min(values.length, rgb.length);
 			for (int i = 0; i < n; i++)
 				rgb[i] = updateRGBAdditive(values[i], rgb[i], useColorLUT);
 		}
 		
-		public int[] getRGB(float[] values, int[] rgb, boolean useColorLUT) {
+		private int[] getRGB(float[] values, int[] rgb, boolean useColorLUT) {
 			int n = values.length;
 			if (rgb == null)
 				rgb = new int[values.length];
@@ -505,7 +448,7 @@ public interface ChannelDisplayInfo {
 			return getRGB(getValue(img, x, y), useColorLUT);
 		}
 		
-		public int updateRGBAdditive(float value, int rgb, boolean useColorLUT) {
+		private int updateRGBAdditive(float value, int rgb, boolean useColorLUT) {
 			// Don't do anything with an existing pixel if display range is 0, or it is lower than the min display
 			if (maxDisplay == minDisplay || value <= minDisplay)
 				return rgb;
@@ -513,10 +456,13 @@ public interface ChannelDisplayInfo {
 			int rgbNew = getRGB(value, useColorLUT);
 			if (rgb == 0)
 				return rgbNew;
+			if (rgbNew == 0)
+				return rgb;
 
 			int r2 = ((rgbNew & ColorTools.MASK_RED) >> 16) + ((rgb & ColorTools.MASK_RED) >> 16);
 			int g2 = ((rgbNew & ColorTools.MASK_GREEN) >> 8) + ((rgb & ColorTools.MASK_GREEN) >> 8);
 			int b2 = (rgbNew & ColorTools.MASK_BLUE) + (rgb & ColorTools.MASK_BLUE);
+			
 			return (do8BitRangeCheck(r2) << 16) + 
 					(do8BitRangeCheck(g2) << 8) + 
 					do8BitRangeCheck(b2);
@@ -560,8 +506,8 @@ public interface ChannelDisplayInfo {
 	 */
 	static class RGBDirectChannelInfo extends AbstractChannelInfo {
 		
-		public RGBDirectChannelInfo() {
-			super(8);
+		public RGBDirectChannelInfo(final ImageData<BufferedImage> imageData) {
+			super(imageData);
 		}
 
 		@Override
@@ -581,7 +527,7 @@ public interface ChannelDisplayInfo {
 		}
 		
 		
-		protected static int[] getRGBIntBuffer(BufferedImage img) {
+		static int[] getRGBIntBuffer(BufferedImage img) {
 			int type = img.getType();
 			if (type == BufferedImage.TYPE_INT_RGB || type == BufferedImage.TYPE_INT_ARGB || type == BufferedImage.TYPE_INT_ARGB_PRE) {
 				return (int[])img.getRaster().getDataElements(0, 0, img.getWidth(), img.getHeight(), (int[])null);
@@ -665,8 +611,8 @@ public interface ChannelDisplayInfo {
 	 */
 	static class RGBNormalizedChannelInfo extends RGBDirectChannelInfo {
 		
-		public RGBNormalizedChannelInfo() {
-			super();
+		public RGBNormalizedChannelInfo(final ImageData<BufferedImage> imageData) {
+			super(imageData);
 		}
 
 		@Override
@@ -720,14 +666,14 @@ public interface ChannelDisplayInfo {
 	
 	static class RBGColorTransformInfo extends AbstractSingleChannelInfo {
 
-		private int[] buffer = null;
+		private transient int[] buffer = null;
 		private ColorTransformer.ColorTransformMethod method;
-		private ColorModel colorModel;
+		private transient ColorModel colorModel;
 		
 		private transient Integer color = null;
 
-		public RBGColorTransformInfo(ColorTransformer.ColorTransformMethod method) {
-			super(8);
+		public RBGColorTransformInfo(final ImageData<BufferedImage> imageData, final ColorTransformer.ColorTransformMethod method) {
+			super(imageData);
 			this.method = method;
 			setMinMaxAllowed(0, ColorTransformer.getDefaultTransformedMax(method));
 			setMinDisplay(0);
@@ -798,17 +744,15 @@ public interface ChannelDisplayInfo {
 	
 	static class RBGColorDeconvolutionInfo extends AbstractSingleChannelInfo {
 
-		private int stainNumber;
-		private ImageDisplay imageDisplay;
-		private ColorDeconvolutionStains stains;
-		private ColorModel colorModel = null;
+		private transient int stainNumber;
+		private transient ColorDeconvolutionStains stains;
+		private transient ColorModel colorModel = null;
 		private transient Integer color;
 		
 		private ColorTransformMethod method;
 
-		public RBGColorDeconvolutionInfo(ImageDisplay imageDisplay, ColorTransformMethod method) {
-			super(8);
-			this.imageDisplay = imageDisplay;
+		public RBGColorDeconvolutionInfo(final ImageData<BufferedImage> imageData, ColorTransformMethod method) {
+			super(imageData);
 			this.method = method;
 			switch (method) {
 				case Stain_1:
@@ -828,12 +772,9 @@ public interface ChannelDisplayInfo {
 			setMaxDisplay(1.5f);
 		}
 
-		public final void ensureStainsUpdated() {
-			if (imageDisplay == null || imageDisplay.getImageData() == null) {
-				stains = null;
-				return;
-			}
-			stains = imageDisplay.getImageData().getColorDeconvolutionStains();
+		final void ensureStainsUpdated() {
+			ImageData<BufferedImage> imageData = getImageData();
+			stains = imageData == null ? null : imageData.getColorDeconvolutionStains();
 			if (stainNumber < 0) {
 				color = ColorTools.makeRGB(255, 255, 255);
 				colorModel = ColorTransformerAWT.getDefaultColorModel(method);
@@ -945,7 +886,6 @@ public interface ChannelDisplayInfo {
 	 */
 	static class MultiChannelInfo extends AbstractSingleChannelInfo {
 		
-		private String name;
 		private int channel;
 
 		transient private ColorModel cm;
@@ -954,11 +894,10 @@ public interface ChannelDisplayInfo {
 //		private int rgb, r, g, b;
 
 		// The 'channel' corresponds to the 'band' in Java parlance
-		public MultiChannelInfo(String name, int nBits, int channel, int r, int g, int b) {
-			super(nBits);
-			this.name = name;
+		public MultiChannelInfo(final ImageData<BufferedImage> imageData, int channel) {
+			super(imageData);
 			this.channel = channel;
-			setLUTColor(r, g, b);
+			setLUTColor(imageData.getServer().getDefaultChannelColor(channel));
 		}
 		
 //		@Override
@@ -968,28 +907,19 @@ public interface ChannelDisplayInfo {
 		
 		@Override
 		public String getName() {
-			return name;
-		}
-		
-		
-		public String getName(ImageData<?> imageData) {
-			try {
-				ImageServer<?> server = imageData.getServer();
-				Method m = server.getClass().getMethod("getChannelName", int.class);
-				if (m != null) {
-					String channelName = (String)m.invoke(server, channel);
-					if (channelName.contains(name))
-						return channelName;
-					return channelName + " (" + name + ")";				
-				}
-			} catch (Exception e) {
-				e.printStackTrace();
+			String name = "Channel " + (channel + 1);
+			ImageData<BufferedImage> imageData = getImageData();
+			String channelName = imageData == null ? null : imageData.getServer().getChannelName(channel);
+			if (channelName == null) {
+				return name;
 			}
-			return getName();
+			if (channelName.contains(name))
+				return channelName;
+			return channelName + " (C" + (channel + 1) + ")";		
 		}
-		
+				
 
-		public void setLUTColor(int rgb) {
+		void setLUTColor(int rgb) {
 			setLUTColor(
 					ColorTools.red(rgb),
 					ColorTools.green(rgb),
@@ -1042,24 +972,6 @@ public interface ChannelDisplayInfo {
 		@Override
 		public int getRGB(float value, boolean useColorLUT) {
 			return ColorTransformerAWT.makeScaledRGBwithRangeCheck(value, minDisplay, 255.f/(maxDisplay - minDisplay), useColorLUT ? cm : null);
-			
-//			// Don't do anything if display range is 0, or it is lower than the min display
-//			if (maxDisplay == minDisplay || value <= minDisplay)
-//				return 0;
-//			// Return pixel unchanged if it is maximal
-//			if (value >= maxDisplay) {
-//				if (useColorLUT)
-//					return rgb;
-//				else
-//					return ColorTransformerAWT.makeRGB(255, null);
-//			}
-//			// Scale the pixel brightness according to its value
-//			float scale = (value - minDisplay) / (maxDisplay - minDisplay);
-//			if (useColorLUT)
-////				return cm.getRGB(ColorTools.do8BitRangeCheck(value * scale));
-//				return rgbLUT[ColorTools.do8BitRangeCheck(255*scale)];
-//			else
-//				return ColorTransformerAWT.makeRGBwithRangeCheck(255*scale, null);
 		}
 
 		@Override

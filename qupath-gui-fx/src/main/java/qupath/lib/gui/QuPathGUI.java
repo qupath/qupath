@@ -267,7 +267,6 @@ import qupath.lib.gui.helpers.dialogs.ParameterPanelFX;
 import qupath.lib.gui.icons.PathIconFactory;
 import qupath.lib.gui.icons.PathIconFactory.PathIcons;
 import qupath.lib.gui.images.stores.DefaultImageRegionStore;
-import qupath.lib.gui.images.stores.ImageRegionStore;
 import qupath.lib.gui.images.stores.ImageRegionStoreFactory;
 import qupath.lib.gui.logging.LoggingAppender;
 import qupath.lib.gui.panels.PathAnnotationPanel;
@@ -1567,17 +1566,6 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		return pane;
 	}
 
-	
-	/**
-	 * Get access to the image region store used for requesting images indirectly.
-	 * 
-	 * @return
-	 */
-	public ImageRegionStore<BufferedImage> getImageRegionStore() {
-		return imageRegionStore;
-	}
-	
-	
 	
 	/**
 	 * Try to load icons, i.e. images of various sizes that could be sensible icons... here sacrificing elegance in an effort to make it work
@@ -3005,6 +2993,11 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				getActionMenuItem(GUIActions.BRIGHTNESS_CONTRAST),
 				null,
 				getActionCheckBoxMenuItem(GUIActions.TOGGLE_SYNCHRONIZE_VIEWERS),
+				createMenu(
+						"Mini viewers",
+						getActionMenuItem(GUIActions.CHANNEL_VIEWER),
+						getActionMenuItem(GUIActions.MINI_VIEWER)
+						),
 				null,
 				createMenu(
 						"Zoom",
@@ -3041,8 +3034,6 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				getActionMenuItem(GUIActions.GRID_SPACING),
 				null,
 				getActionMenuItem(GUIActions.VIEW_TRACKER),
-				getActionMenuItem(GUIActions.CHANNEL_VIEWER),
-				getActionMenuItem(GUIActions.MINI_VIEWER),
 				createCheckMenuItem(createSelectableCommandAction(slideLabelView.showingProperty(), "Show slide label")),				
 				null,
 				getActionMenuItem(GUIActions.SHOW_LOG)

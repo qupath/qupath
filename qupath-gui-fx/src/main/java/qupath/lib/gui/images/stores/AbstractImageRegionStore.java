@@ -215,11 +215,9 @@ abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {
 	   		for (TileListener<T> listener : myTileListeners)
 	   			listener.tileAvailable(request.getPath(), request, imgNew);
 		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			logger.warn("Tile request interrupted", e);
 		} catch (ExecutionException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			logger.warn("Tile request exception", e);
 		}
 	}
 	

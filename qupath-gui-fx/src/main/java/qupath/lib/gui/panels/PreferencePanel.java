@@ -183,6 +183,11 @@ public class PreferencePanel {
 				"Use bilinear interpolation", category, 
 				"Use bilinear interpolation for displaying image in the viewer (default is nearest-neighbor)");
 		
+		addPropertyPreference(PathPrefs.autoBrightnessContrastSaturationPercentProperty(), Double.class,
+				"Auto Brightness/Contrast saturation %", category, 
+				"Set % bright and % dark pixels that should be saturated when applying 'Auto' brightness/contrast settings");
+
+		
 		addPropertyPreference(PathPrefs.viewerGammaProperty(), Double.class,
 				"Gamma value (display only)", category, 
 				"Set the gamma value applied to the image in the viewer for display - recommended to leave at default value of 1");

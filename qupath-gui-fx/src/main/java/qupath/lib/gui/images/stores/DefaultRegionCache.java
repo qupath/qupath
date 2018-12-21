@@ -42,7 +42,7 @@ import qupath.lib.regions.RegionRequest;
  * @author Pete Bankhead
  *
  */
-public class DefaultRegionCache<T> implements RegionCache<T> {
+class DefaultRegionCache<T> implements RegionCache<T> {
 
 	private LinkedHashMap<RegionRequest, T> map;
 	private final SizeEstimator<T> sizeEstimator;

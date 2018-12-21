@@ -40,7 +40,6 @@ public class ImageRegionStoreFactory {
 	 * @return
 	 */
 	public static DefaultImageRegionStore createImageRegionStore(final long tileCacheSize) {
-//		return new PriorityImageRegionStore();
 		return new DefaultImageRegionStore(tileCacheSize);
 	}
 	

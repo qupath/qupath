@@ -7,12 +7,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.lib.awt.color.model.ColorModelFactory;
-import qupath.lib.classifiers.pixel.features.BasicMultiscaleOpenCVFeatureCalculator;
-import qupath.lib.images.servers.ImageServer;
-import qupath.lib.regions.RegionRequest;
-import qupath.opencv.processing.OpenCVTools;
-
-import java.awt.image.BufferedImage;
 import java.awt.image.ColorModel;
 import java.awt.image.DataBuffer;
 import java.awt.image.IndexColorModel;

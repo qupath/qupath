@@ -557,7 +557,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 			server = ImageServerProvider.buildServer(serverPath, BufferedImage.class);
 			newServer = true;
 		}
-		BufferedImage img2 = QuPathGUI.getInstance().getImageRegionStore().getThumbnail(server, server.nZSlices()/2, 0, true);
+		BufferedImage img2 = qupath.getViewer().getImageRegionStore().getThumbnail(server, server.nZSlices()/2, 0, true);
 		if (newServer) {
 			try {
 				server.close();
@@ -574,8 +574,8 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 			}
 			if (!success) {
 				// Try with display transforms
-				ImageDisplay imageDisplay = new ImageDisplay(new ImageData<>(server), qupath.getImageRegionStore(), false);
-				for (ChannelDisplayInfo info : imageDisplay.getSelectedChannels()) {
+				ImageDisplay imageDisplay = new ImageDisplay(new ImageData<>(server), qupath.getViewer().getImageRegionStore(), false);
+				for (ChannelDisplayInfo info : imageDisplay.selectedChannels()) {
 					imageDisplay.autoSetDisplayRange(info);
 				}
 				img2 = imageDisplay.applyTransforms(img2, null);

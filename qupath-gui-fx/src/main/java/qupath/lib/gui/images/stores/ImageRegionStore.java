@@ -35,7 +35,7 @@ import qupath.lib.regions.RegionRequest;
  *
  * @param <T>
  */
-public interface ImageRegionStore<T> {
+interface ImageRegionStore<T> {
 
 	T getCachedThumbnail(ImageServer<T> server, int zPosition, int tPosition);
 

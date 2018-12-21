@@ -538,6 +538,26 @@ public class PathPrefs {
 	}
 	
 	
+	private static DoubleProperty autoBrightnessContrastSaturation = PathPrefs.createPersistentPreference("autoBrightnessContrastSaturationPercentage", 0.1);
+
+	/**
+	 * Controls percentage of saturated pixels to apply when automatically setting brightness/contrast.
+	 * <p>
+	 * A value of 1 indicates that approximately 1% dark pixels and 1% bright pixels should be saturated.
+	 */
+	public static DoubleProperty autoBrightnessContrastSaturationPercentProperty() {
+		return autoBrightnessContrastSaturation;
+	}
+	
+	public static double getAutoBrightnessContrastSaturationPercent() {
+		return autoBrightnessContrastSaturation.get();
+	}
+	
+	public static void setAutoBrightnessContrastSaturationPercent(double saturation) {
+		autoBrightnessContrastSaturation.set(saturation);
+	}
+	
+	
 	private static BooleanProperty keepDisplaySettings = createPersistentPreference("keepDisplaySettings", true);
 	
 	/**

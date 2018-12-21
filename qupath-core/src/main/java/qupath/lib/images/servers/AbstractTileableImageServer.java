@@ -79,6 +79,20 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 		return imgCached;
 	}
 	
+	
+	/**
+	 * Create the default (blank) RGB image for this server.
+	 * <p>
+	 * By default this will have {@code TYPE_INT_RGB} but a subclass may change this if necessary 
+	 * (e.g. to incorporate an alpha channel).
+	 * 
+	 * @param width
+	 * @param height
+	 * @return
+	 */
+	protected BufferedImage createDefaultRGBImage(int width, int height) {
+		return new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+	}
 		
 
 	@Override
@@ -104,7 +118,7 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 		int width = (int)Math.round(request.getWidth() / request.getDownsample());
 		int height = (int)Math.round(request.getHeight() / request.getDownsample());
 		if (isRGB()) {
-			BufferedImage imgResult = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+			BufferedImage imgResult = createDefaultRGBImage(width, height);
 			Graphics2D g2d = imgResult.createGraphics();
 			g2d.scale(1.0/request.getDownsample(), 1.0/request.getDownsample());
 			g2d.translate(-request.getX(), -request.getY());

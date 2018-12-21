@@ -255,7 +255,7 @@ public class Histogram { // implements Serializable {
 			double v = values.getDouble(i);
 			stats.addValue(v);
 			// Also check if we have integers only
-			if (maybeInteger && v != Math.rint(v)) { //v != (int)v) {
+			if (maybeInteger && v != (int)v) { //v != Math.rint(v)) {
 				maybeInteger = false;
 			}
 		}

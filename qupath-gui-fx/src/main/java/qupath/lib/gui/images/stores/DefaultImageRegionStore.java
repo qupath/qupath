@@ -41,7 +41,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.lib.awt.common.AwtTools;
-import qupath.lib.display.ImageDisplay;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.regions.RegionRequest;
 
@@ -52,7 +51,7 @@ import qupath.lib.regions.RegionRequest;
  * @author Pete Bankhead
  *
  */
-public class DefaultImageRegionStore extends AbstractImageRegionStore<BufferedImage> {
+public class DefaultImageRegionStore extends AbstractImageRegionStore<BufferedImage> implements ImageRegionRenderer {
 
 	static final int DEFAULT_THUMBNAIL_WIDTH = 1000;
 
@@ -76,90 +75,6 @@ public class DefaultImageRegionStore extends AbstractImageRegionStore<BufferedIm
 	}
 
 
-//	@Override
-//	@SuppressWarnings("unchecked")
-//	public BufferedImage getImage(final ImageServer<BufferedImage> server, final RegionRequest request, final long timeoutMillis, final boolean nullIfTimeout) {
-//
-////		RegionRequest.createInstance(server.getPath(), downsampleFactor, bounds.x, bounds.y, bounds.width, bounds.height, zPosition, tPosition)
-//
-//		// If we don't have an RGB image, then we have to read directly
-//		if (!server.isRGB())
-//			return server.readBufferedImage(request);
-//
-//		double downsampleFactor = request.getDownsample();
-//		int w = (int)(request.getWidth() / downsampleFactor);
-//		int h = (int)(request.getHeight() / downsampleFactor);
-//		BufferedImage img = new BufferedImage(w, h, BufferedImage.TYPE_INT_RGB); // TODO: DON'T ENFORCE THE TYPE!!!
-//
-////		// Improve the rendering quality for downsampled images...
-////		Graphics2D g2d = img.createGraphics();
-////		if (downsampleFactor > 1)
-////			g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
-//
-//		// DON'T improve the quality for downsampled images; this produces strange artefacts with texture computations (e.g. Haralick features),
-//		// as well as things like min/max/range
-//		Graphics2D g2d = img.createGraphics();
-//		if (downsampleFactor > 1)
-//			g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
-//		g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_SPEED);
-//
-//
-//		g2d.scale(1.0/downsampleFactor, 1.0/downsampleFactor);
-//		g2d.translate(-request.getX(), -request.getY());
-//
-//		// Check to see if the thumbnail is all we need
-//		if (!isTiledImageServer(server)) {
-//			BufferedImage imgThumbnail = getThumbnail(server, request.getZ(), request.getT(), true);
-//			g2d.drawImage(imgThumbnail, 0, 0, null);
-//			g2d.dispose();
-//			return img;
-//		}
-//
-//
-//		// Loop through and create the image
-//		List<TileWorker<BufferedImage>> workers = new ArrayList<>();
-//		for (RegionRequest tileRequest : ImageRegionStoreHelpers.getTilesToRequest(server, request, null)) {
-//
-//			Object result = requestImageTile(server, tileRequest, cache, true);
-//
-//			// If we have an image, paint it & record coordinates
-//			if (result instanceof BufferedImage)
-//				g2d.drawImage((BufferedImage)result, tileRequest.getX(), tileRequest.getY(), tileRequest.getWidth(), tileRequest.getHeight(), null);
-//			else if (result instanceof TileWorker) {
-//				// If we've a tile worker, prepare for requesting its results soon...
-//				workers.add((TileWorker<BufferedImage>)result);
-//			}
-////			else {
-////				// If we have neither, something went wrong... fall back on just requesting the whole image
-////				System.out.println(String.format("Requesting image tiles for %s... will request image from server instead", server.getServerPath()));
-////				return server.readBufferedImage(bounds, downsampleFactor);
-////			}
-//		}
-//		// Loop through any workers now, drawing their tiles too
-//		for (TileWorker<BufferedImage> worker : workers) {
-//			BufferedImage imgTile;
-//			try {
-//				if (timeoutMillis > 0)
-//					imgTile = worker.get(timeoutMillis, TimeUnit.MILLISECONDS);
-//				else
-//					imgTile = worker.get();//(10, TimeUnit.SECONDS); // TODO: Consider timeout?
-//				RegionRequest region = worker.getRequest();
-//				g2d.drawImage(imgTile, region.getX(), region.getY(), region.getWidth(), region.getHeight(), null);
-//			} catch (Exception e) {
-////				logger.warn("{}", e);
-//				if (nullIfTimeout) {
-//					logger.trace("Timed out requesting tile for {}... returning null", server.getPath());
-//					return null;
-//				}
-//				logger.warn("Timed out requesting tile for {}... will request image from server instead", server.getPath());
-//				return server.readBufferedImage(worker.getRequest());
-//			}
-//		}
-//		return img;
-//	}
-
-
-
 	/**
 	 * Similar to paintRegion, but wait until all the tiles have arrived (or abort if it is taking too long)
 	 *
@@ -174,7 +89,7 @@ public class DefaultImageRegionStore extends AbstractImageRegionStore<BufferedIm
 	 * @param timeoutMilliseconds Timeout after which a request is made from the PathImageServer directly, rather than waiting for tile requests.
 	 */
 	@SuppressWarnings("unchecked")
-	public void paintRegionCompletely(ImageServer<BufferedImage> server, Graphics g, Shape clipShapeVisible, int zPosition, int tPosition, double downsampleFactor, ImageObserver observer, ImageDisplay imageDisplay, long timeoutMilliseconds) {
+	public void paintRegionCompletely(ImageServer<BufferedImage> server, Graphics g, Shape clipShapeVisible, int zPosition, int tPosition, double downsampleFactor, ImageObserver observer, ImageRenderer imageDisplay, long timeoutMilliseconds) {
 
 //		if (downsampleFactor > 1)
 //			((Graphics2D)g).setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
@@ -260,13 +175,13 @@ public class DefaultImageRegionStore extends AbstractImageRegionStore<BufferedIm
 
 
 
-	public void paintRegion(ImageServer<BufferedImage> server, Graphics g, Shape clipShapeVisible, int zPosition, int tPosition, double downsampleFactor, BufferedImage imgThumbnail, ImageObserver observer, ImageDisplay imageDisplay) {
+	public void paintRegion(ImageServer<BufferedImage> server, Graphics g, Shape clipShapeVisible, int zPosition, int tPosition, double downsampleFactor, BufferedImage imgThumbnail, ImageObserver observer, ImageRenderer imageDisplay) {
 		registerRequest(null, server, clipShapeVisible, downsampleFactor, zPosition, tPosition);
 		paintRegionInternal(server, g, clipShapeVisible, zPosition, tPosition, downsampleFactor, imgThumbnail, observer, imageDisplay);
 	}
 
 
-	private void paintRegionInternal(ImageServer<BufferedImage> server, Graphics g, Shape clipShapeVisible, int zPosition, int tPosition, double downsampleFactor, BufferedImage imgThumbnail, ImageObserver observer, ImageDisplay imageDisplay) {
+	private void paintRegionInternal(ImageServer<BufferedImage> server, Graphics g, Shape clipShapeVisible, int zPosition, int tPosition, double downsampleFactor, BufferedImage imgThumbnail, ImageObserver observer, ImageRenderer imageDisplay) {
 
 //		// We don't need it... but try to request the thumbnail to keep it present in the cache, if it is there
 //		cache.get(getThumbnailRequest(server, zPosition, tPosition));
@@ -320,7 +235,7 @@ public class DefaultImageRegionStore extends AbstractImageRegionStore<BufferedIm
 		// If we're compositing channels, it's worthwhile to cache RGB tiles for so long as the ImageDisplay remains constant
 		boolean useDisplayCache = imageDisplay != null && !server.isRGB() && server.nChannels() > 1;
 		long displayTimestamp = imageDisplay == null ? 0L : imageDisplay.getLastChangeTimestamp();
-		String displayCachePath = useDisplayCache ? server.getPath() + ":" + imageDisplay.toJSON(false) + ":" + displayTimestamp : null;
+		String displayCachePath = useDisplayCache ? server.getPath() + imageDisplay.getUniqueID() : null;
 
 		// Loop through and draw whatever tiles we've got
 		BufferedImage imgTemp = null;

@@ -49,7 +49,7 @@ import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
 import qupath.lib.awt.common.AwtTools;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.images.stores.DefaultImageRegionStore;
+import qupath.lib.gui.images.stores.ImageRegionRenderer;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.overlays.HierarchyOverlay;
@@ -186,7 +186,7 @@ public class WandToolCV extends BrushTool {
 		
 		double downsample = viewer.getDownsampleFactor();
 		
-		DefaultImageRegionStore regionStore = viewer.getImageRegionStore();
+		ImageRegionRenderer regionStore = viewer.getImageRegionStore();
 		
 		// Paint the image as it is currently being viewed
 		Graphics2D g2d = imgTemp.createGraphics();
