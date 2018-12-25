@@ -82,6 +82,7 @@ import qupath.lib.gui.helpers.ColorToolsFX;
 import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.gui.helpers.PanelToolsFX;
 import qupath.lib.gui.plots.HistogramPanelFX;
+import qupath.lib.gui.plots.HistogramPanelFX.HistogramData;
 import qupath.lib.gui.plots.HistogramPanelFX.ThresholdedChartWrapper;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.QuPathViewer;
@@ -514,8 +515,11 @@ public class BrightnessContrastCommand implements PathCommand, ImageDataChangeLi
 			if (histogramPanel.getHistogramData().size() == 1) {
 				Color color = infoSelected.getColor() == null ? ColorToolsFX.TRANSLUCENT_BLACK_FX : ColorToolsFX.getCachedColor(infoSelected.getColor());
 				histogramPanel.getHistogramData().get(0).setHistogram(histogram, color);
-			} else
-				histogramPanel.getHistogramData().setAll(HistogramPanelFX.createHistogramData(histogram, true, infoSelected.getColor()));
+			} else {
+				HistogramData histogramData = HistogramPanelFX.createHistogramData(histogram, true, infoSelected.getColor());
+				histogramData.setDoNormalizeCounts(true);
+				histogramPanel.getHistogramData().setAll(histogramData);
+			}
 		}
 		
 		
@@ -595,16 +599,16 @@ public class BrightnessContrastCommand implements PathCommand, ImageDataChangeLi
 		if (table != null) {
 			updateHistogram();
 	
-			// Update current min & max
-			ChannelDisplayInfo info = getCurrentInfo();
-			if (info != null) {
-				Histogram histogram = imageDisplay.getHistogram(info);
-				if (histogram != null) {
-					float minCurrent = (float)Math.min(info.getMinAllowed(), histogram.getEdgeMin());
-					float maxCurrent = (float)Math.max(info.getMaxAllowed(), histogram.getEdgeMax());
-					info.setMinMaxAllowed(minCurrent, maxCurrent);
-				}
-			}
+//			// Update current min & max
+//			ChannelDisplayInfo info = getCurrentInfo();
+//			if (info != null) {
+//				Histogram histogram = imageDisplay.getHistogram(info);
+//				if (histogram != null) {
+//					float minCurrent = (float)Math.min(info.getMinAllowed(), histogram.getEdgeMin());
+//					float maxCurrent = (float)Math.max(info.getMaxAllowed(), histogram.getEdgeMax());
+//					info.setMinMaxAllowed(minCurrent, maxCurrent);
+//				}
+//			}
 			table.refresh();
 		}
 //		viewer.updateThumbnail();

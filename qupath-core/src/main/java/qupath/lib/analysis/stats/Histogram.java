@@ -45,23 +45,14 @@ public class Histogram { // implements Serializable {
 //	private static final long serialVersionUID = 1L;
 	
 	private double[] edges;
-	private double[] counts;
-	private double maxCount;
+	private long[] counts;
+	private long maxCount;
 	private double edgeMin, edgeMax;
-	private double countSum;
-	private boolean normalizeCounts = false;
+	private long countSum;
 	private boolean isInteger = true;
 	
 	private RunningStatistics stats;
 	
-	public void setNormalizeCounts(boolean normalizeCounts) {
-		this.normalizeCounts = normalizeCounts;
-	}
-
-	public boolean getNormalizeCounts() {
-		return normalizeCounts;
-	}
-
 	public double getEdgeMin() {
 		return edgeMin;
 	}
@@ -87,7 +78,11 @@ public class Histogram { // implements Serializable {
 	}
 
 	public double getCountsForBin(int ind) {
-		return normalizeCounts ? counts[ind] / countSum : counts[ind];
+		return counts[ind];
+	}
+	
+	public double getNormalizedCountsForBin(int ind) {
+		return (double)getCountsForBin(ind) / countSum;
 	}
 	
 	public boolean isInteger() {
@@ -150,15 +145,20 @@ public class Histogram { // implements Serializable {
 		return i;
 	}
 	
-	public double getMaxCount() {
-		return normalizeCounts ? maxCount / countSum : maxCount;
+	public long getMaxCount() {
+		return maxCount;
 	}
+	
+	public double getMaxNormalizedCount() {
+		return (double)getMaxCount() / getCountSum();
+	}
+
 	
 	public int nBins() {
 		return counts.length;
 	}
 	
-	public double getCountSum() {
+	public long getCountSum() {
 		return countSum;
 	}
 
@@ -291,7 +291,7 @@ public class Histogram { // implements Serializable {
 		
 		// Create the arrays
 		this.edges = new double[nBins+1];
-		this.counts = new double[nBins];
+		this.counts = new long[nBins];
 		
 		if (nBins == 0)
 			return;
@@ -313,7 +313,7 @@ public class Histogram { // implements Serializable {
 			int bin = (int)((v - edgeMin) / binWidth);
 			if (bin >= counts.length)
 				bin = counts.length - 1;
-			double count = counts[bin] + 1;
+			long count = counts[bin] + 1;
 			counts[bin] = count;
 			if (count > maxCount)
 				maxCount = count;

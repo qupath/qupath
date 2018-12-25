@@ -45,6 +45,7 @@ import java.awt.image.ColorConvertOp;
 import java.awt.image.LookupOp;
 import java.awt.image.ByteLookupTable;
 import java.io.File;
+import java.io.IOException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -66,11 +67,14 @@ import javafx.beans.Observable;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.IntegerProperty;
+import javafx.beans.property.LongProperty;
 import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.ReadOnlyLongProperty;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleIntegerProperty;
+import javafx.beans.property.SimpleLongProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
@@ -200,6 +204,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	private DoubleProperty downsampleFactor = new SimpleDoubleProperty(1.0);
 	private double rotation = 0;
 	private BooleanProperty zoomToFit = new SimpleBooleanProperty(false);
+	
 	// Affine transform used to apply rotation
 	private AffineTransform transform = new AffineTransform();
 	private AffineTransform transformInverse = new AffineTransform();
@@ -233,7 +238,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	private ImageDisplay imageDisplay;
 	transient private long lastDisplayChangeTimestamp = 0; // Used to indicate imageDisplay changes
 
-	transient private long lastRepaintTimestamp = 0; // Used for debugging repaint times
+	private LongProperty lastRepaintTimestamp = new SimpleLongProperty(0L); // Used for debugging repaint times
 	
 	private boolean repaintRequested = false;
 	
@@ -550,7 +555,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 
 
 	public QuPathViewer(final ImageData<BufferedImage> imageData, DefaultImageRegionStore regionStore, OverlayOptions overlayOptions) {
-		this(imageData, regionStore, overlayOptions, new ImageDisplay(null, regionStore, PathPrefs.getShowAllRGBTransforms()));
+		this(imageData, regionStore, overlayOptions, new ImageDisplay(null));
 	}
 
 	
@@ -1199,15 +1204,41 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 			return;
 
 		// Read a thumbnail image
-		BufferedImage imgThumbnail = regionStore.getThumbnail(server, getZPosition(), getTPosition(), true);
-		if (imageDisplay != null) // && !server.isRGB()) // Transforms will be applied quickly to RGB images, so no need to cache transformed part now
-			imgThumbnailRGB = getRenderer().applyTransforms(imgThumbnail, null);
-		else
-			imgThumbnailRGB = imgThumbnail;
-		thumbnailIsFullImage = imgThumbnail.getWidth() == server.getWidth() && imgThumbnail.getHeight() == server.getHeight();
-		if (updateOverlayColor)
+		try {
+			BufferedImage imgThumbnail = server.getDefaultThumbnail(getZPosition(), getTPosition());
+//			BufferedImage imgThumbnail = regionStore.getThumbnail(server, getZPosition(), getTPosition(), true);
+			imgThumbnailRGB = createThumbnailRGB();
+			thumbnailIsFullImage = imgThumbnailRGB.getWidth() == server.getWidth() && imgThumbnailRGB.getHeight() == server.getHeight();
+			if (updateOverlayColor)
+				colorOverlaySuggested = null;
+		} catch (IOException e) {
+			imgThumbnailRGB = null;
 			colorOverlaySuggested = null;
+			logger.warn("Error requesting thumbnail {}", e.getLocalizedMessage());
+		}
 	}
+	
+	/**
+	 * Create an RGB thumbnail image using the current rendering settings.
+	 * <p>
+	 * Subclasses may choose to override this if a suitable image has been cached already.
+	 * 
+	 * @return
+	 * @throws IOException
+	 */
+	protected BufferedImage createThumbnailRGB() throws IOException {
+		ImageServer<BufferedImage> server = getServer();
+		if (server == null)
+			return null;
+		BufferedImage imgThumbnail = server.getDefaultThumbnail(getZPosition(), getTPosition());
+//		BufferedImage imgThumbnail = regionStore.getThumbnail(server, getZPosition(), getTPosition(), true);
+		ImageRenderer renderer = getRenderer();
+		if (renderer != null) // && !server.isRGB()) // Transforms will be applied quickly to RGB images, so no need to cache transformed part now
+			return renderer.applyTransforms(imgThumbnail, null);
+		else
+			return imgThumbnail;
+	}
+	
 	
 	
 	/**
@@ -1343,17 +1374,6 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		long startTime = System.currentTimeMillis();
 		if (imageDisplay != null) {
 			imageDisplay.setImageData(imageDataNew, PathPrefs.getKeepDisplaySettings());
-			//			SwingWorker<Void, Void> worker = new SwingWorker<Void, Void>() {
-			//
-			//				@Override
-			//				protected Void doInBackground() throws Exception {
-			//					imageDisplay.setImageData(imageData);
-			//					return null;
-			//				}
-			//				
-			//			};
-			//			worker.execute();
-			//			imageDisplay.setImageData(imageData);
 		}
 		long endTime = System.currentTimeMillis();
 		logger.debug("Setting ImageData time: {} ms", endTime - startTime);
@@ -1387,10 +1407,11 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 			hierarchy.getSelectionModel().addPathObjectSelectionListener(this);
 		}
 
-		// TODO: Consider shifting, fixing magnification, repainting etc.
-		repaint();
-		
 		setSelectedObject(null);
+		
+		// TODO: Consider shifting, fixing magnification, repainting etc.
+		if (isShowing())
+			repaint();
 		
 		logger.info("Image data set to {}", imageDataNew);
 	}
@@ -1427,8 +1448,8 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 			repaint();
 		}
 	}
-
-
+	
+	
 	public void repaintEntireImage() {
 		imageUpdated = true;
 		if (imageDisplay != null)
@@ -1482,8 +1503,8 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		manager.detachAll();
 		manager.clear();
 		regionStore.removeTileListener(this);
-		// Set the server to null
-		setImageData(null);
+//		// Set the server to null
+//		setImageData(null);
 		// Notify listeners
 		for (QuPathViewerListener listener : listeners.toArray(new QuPathViewerListener[0]))
 			listener.viewerClosed(this);
@@ -1512,24 +1533,20 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		paintViewer(g, getWidth(), getHeight());
 	}
 
+	
+	void updateRepaintTimestamp() {
+		long timestamp = System.currentTimeMillis();
+		lastRepaintTimestamp.set(timestamp);
+	}
+	
 
 	protected void paintViewer(Graphics g, int w, int h) {
-		
-//		if (!SwingUtilities.isEventDispatchThread()) {
-//			logger.warn("Repainting called from the wrong thread!");
-//			return;
-//		}
-//		
-		if (logger.isTraceEnabled() && new Rectangle(0, 0, getWidth(), getHeight()).equals(g.getClipBounds())) {
-			long timestamp = System.currentTimeMillis();
-			logger.trace("Full repaint delay time: {} ms", (timestamp - lastRepaintTimestamp));
-			lastRepaintTimestamp = timestamp;
-		}
 		
 		ImageServer<BufferedImage> server = getServer();
 		if (server == null) {
 			g.setColor(background);
 			g.fillRect(0, 0, w, h);
+			updateRepaintTimestamp();
 			return;
 		}
 
@@ -1702,8 +1719,16 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		// Notify any listeners of shape changes
 		if (shapeChanged)
 			fireVisibleRegionChangedEvent(lastVisibleShape);
+		
+		
+		updateRepaintTimestamp();
 	}
 
+	
+	public ReadOnlyLongProperty repaintTimestamp() {
+		return lastRepaintTimestamp;
+	}
+	
 	
 	/**
 	 * Create an RGB BufferedImage suitable for caching the image used for painting.
@@ -2426,9 +2451,19 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		try {
 			transformInverse.invert();
 		} catch (NoninvertibleTransformException e) {
-			e.printStackTrace();
+			logger.warn("Transform not invertible!", e);
 		}
 	}
+	
+//	
+//	public AffineTransform getTransform() {
+//		return new AffineTransform(transform);
+//	}
+//
+//	public AffineTransform getInverseTransform() {
+//		return new AffineTransform(transformInverse);
+//	}
+
 
 	/**
 	 * Set the rotation; angle in radians.
@@ -2768,32 +2803,6 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 
 
 				if (event.isShiftDown()) {
-
-					//					// TODO: Handle changes in focus or time point
-					//					if (event.isAltDown() || event.isMetaDown() || event.isControlDown()) {
-					//						switch (code) {
-					//						case UP:
-					//							if (sliderZ != null)
-					//								sliderZ.setValue(sliderZ.getValue() + 1);
-					//							return;
-					//						case DOWN:
-					//							if (sliderZ != null)
-					//								sliderZ.setValue(sliderZ.getValue() - 1);
-					//							return;
-					//						case LEFT:
-					//							if (sliderT != null)
-					//								sliderT.setValue(sliderT.getValue() - 1);
-					//							return;
-					//						case RIGHT:
-					//							if (sliderT != null)
-					//								sliderT.setValue(sliderT.getValue() + 1);
-					//							return;
-					//						default:
-					//							break;
-					//						}
-					//					}
-
-
 					switch (code) {
 					case UP:
 						zoomOut(10);

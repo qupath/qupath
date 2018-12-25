@@ -404,5 +404,42 @@ public interface ImageServer<T> extends AutoCloseable {
 	 */
 	public boolean usesOriginalMetadata();
 	
+	/**
+	 * Get a timestamp for the last time the underlying data was modified (optional).
+	 * <p>
+	 * The purpose of this is to distinguish whether two servers with the same path really do 
+	 * refer to the same image, or if there might have been an update in between (e.g. a file 
+	 * overwritten by another file with the same name).  This is necessary because the path is 
+	 * used for caching image tiles.
+	 * 
+	 * @return a relevant timestamp, or 0L if no timestamps are available.
+	 */
+	public long getLastChangeTimestamp();
+
+	/**
+	 * Get the default thumbnail, without specifying the z-slice or timepoint.
+	 * <p>
+	 * This is useful for a general representation of the image appearance.  A specific 
+	 * z-slice or timepoint should not be assumed, e.g. it may be the first or it may be selected 
+	 * based on other criteria.
+	 * 
+	 * @return
+	 * @see #getDefaultThumbnail(int, int)
+	 */
+	public T getDefaultThumbnail() throws IOException;
+	
+	/**
+	 * Get the default thumbnail for a specified z-slice and timepoint.
+	 * <p>
+	 * This should be the lowest resolution image that is available in the case of the multiresolution 
+	 * image, or else the full image.  For large datasets, it may be used to determine basic statistics or 
+	 * histograms without requiring every pixel to be visited in the full resolution image.
+	 * 
+	 * @param z
+	 * @param t
+	 * @return
+	 */
+	public T getDefaultThumbnail(int z, int t) throws IOException;
+	
 	
 }

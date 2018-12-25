@@ -574,7 +574,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 			}
 			if (!success) {
 				// Try with display transforms
-				ImageDisplay imageDisplay = new ImageDisplay(new ImageData<>(server), qupath.getViewer().getImageRegionStore(), false);
+				ImageDisplay imageDisplay = new ImageDisplay(new ImageData<>(server));
 				for (ChannelDisplayInfo info : imageDisplay.selectedChannels()) {
 					imageDisplay.autoSetDisplayRange(info);
 				}

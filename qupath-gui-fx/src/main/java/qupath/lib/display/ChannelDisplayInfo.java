@@ -44,20 +44,23 @@ import qupath.lib.images.servers.ImageServer;
  * SampleModel).  This applies not only to the 'default' channels in an image -
  * e.g. red, green and blue for an RGB image - but also to 'derived' channels computed
  * by a transformation, e.g. color deconvolution.
- * 
+ * <p>
  * The primary uses are:
- * 	- to extract floating point pixel values for the channel from a BufferedImage
+ * <ul>
+ * 	<li> to extract floating point pixel values for the channel from a BufferedImage
  * 		(either directly, or via some color transformation that may involve
  * 		 more than one channel/band from the BufferedImage)
- * 	- to generate RGB pixel values suitable for visualizing the raw channel values
+ * 	<li> to generate RGB pixel values suitable for visualizing the raw channel values
  * 		extracted above, including the storage of any lookup tables required
- * 	- to store min/max display values, which influence the lookup table mapping to RGB
+ * 	<li> to store min/max display values, which influence the lookup table mapping to RGB
  * 		(i.e. to store brightness/contrast values)
- * 	- to update an existing RGB value, to facilitate creating composite images that depict
+ * 	<li> to update an existing RGB value, to facilitate creating composite images that depict
  *      the values of multiple channels in a single, merged visualization
+ * </ul>
  * 
+ * <p>
  * As such, its uses lie somewhere between Java's SampleModel and ColorModel classes.
- * 
+ * <p>
  * Its reason for existing is that sometimes we need to be able to adjust the display of channels
  * individually and to create merges - particularly in the case of fluorescence images - but
  * to simplify whole slide image support we need to be able to do this on-the-fly.
@@ -67,7 +70,7 @@ import qupath.lib.images.servers.ImageServer;
  * for longer, even though they were read from the same image servers.  Furthermore, 'unknown' image types
  * (i.e. not standard RGB/BGR/single-channel images) don't always behave nicely with Graphics objects
  * if we want to paint or scale them.
- * 
+ * <p>
  * Using the ChannelDisplayInfo approach means that during repainting an (A)RGB image can be produced on-the-fly
  * without needing to create a new image with the desired ColorModel for painting.
  * This potentially ends up requiring a bit more computation that is really necessary - and it may be optimized
@@ -80,49 +83,12 @@ import qupath.lib.images.servers.ImageServer;
 public interface ChannelDisplayInfo {
 
 	/**
-	 * Set the maximum permissible range for the image display.
-	 * For an 8-bit image, that should be 0 and 255.
-	 * For a 16-bit image, fewer bits might actually be used... therefore the full range of 0-2^16-1 may be too much.
-	 * Also, for a 32-bit floating point image the limits are rather harder to define in a general way.
-	 * This method makes it possible to restrict the permissible range to something sensible.
-	 * Brightness/contrast/min/max sliders may make use of this.
-	 * 
-	 * @param minAllowed
-	 * @param maxAllowed
-	 */
-	public abstract void setMinMaxAllowed(float minAllowed, float maxAllowed);
-
-	/**
-	 * Get the channel name.  This may also be returned by the toString() method.
+	 * Get the channel name.  This may also be returned by the {@link #toString()} method.
 	 * 
 	 * @return
 	 */
 	public abstract String getName();
 
-	/**
-	 * Set the min display value for this channel.
-	 * Note that it is *strongly* advised to use <code>ImageDisplay.setMinMaxDisplay</code> instead 
-	 * since this helps ensure that the <code>ImageDisplay</code> fires appropriate events etc.
-	 * 
-	 * @see ImageDisplay
-	 * 
-	 * @param minDisplay
-	 */
-	@Deprecated
-	public abstract void setMinDisplay(float minDisplay);
-
-	/**
-	 * Set the max display value for this channel.
-	 * Note that it is *strongly* advised to use <code>ImageDisplay.setMinMaxDisplay</code> instead 
-	 * since this helps ensure that the <code>ImageDisplay</code> fires appropriate events etc.
-	 * 
-	 * @see ImageDisplay
-	 * 
-	 * @param maxDisplay
-	 */
-	@Deprecated
-	abstract void setMaxDisplay(float maxDisplay);
-	
 	/**
 	 * Get the min display value.
 	 * This is used to control the brightness/contrast when painting.
@@ -225,8 +191,8 @@ public interface ChannelDisplayInfo {
 	
 	
 	/**
-	 * Optional operation.
-	 * Some implementing classes may use buffers to improve performance when applying transforms.
+	 * Some implementing classes may use buffers to improve performance when applying transforms (optional).
+	 * <p>
 	 * Running this command is an instruction that the class may not be used for a while, so this memory can (and should) be freed.
 	 */
 	public void resetBuffers();
@@ -234,6 +200,7 @@ public interface ChannelDisplayInfo {
 
 	/**
 	 * Returns true if this does something - anything.
+	 * <p>
 	 * Returns false if not, e.g. if we have an RGB image, with no transformations of any kind applied (e.g. brightness/contrast)
 	 */
 	public boolean doesSomething();
@@ -247,13 +214,56 @@ public interface ChannelDisplayInfo {
 	public Integer getColor();
 	
 
-
-
-
-
-	static abstract class AbstractChannelInfo implements ChannelDisplayInfo {
+	/**
+	 * Helper interface to indicate that the display ranges can be modified.
+	 */
+	static interface ModifiableChannelDisplayInfo extends ChannelDisplayInfo {
 		
-		private ImageData<BufferedImage> imageData;
+		/**
+		 * Set the maximum permissible range for the image display.
+		 * <p>
+		 * For an 8-bit image, that should be 0 and 255.
+		 * <p>
+		 * For a 16-bit image, fewer bits might actually be used... therefore the full range of 0-2^16-1 may be too much.
+		 * <p>
+		 * Also, for a 32-bit floating point image the limits are rather harder to define in a general way.
+		 * This method makes it possible to restrict the permissible range to something sensible.
+		 * Brightness/contrast/min/max sliders may make use of this.
+		 * 
+		 * @param minAllowed
+		 * @param maxAllowed
+		 */
+		public abstract void setMinMaxAllowed(float minAllowed, float maxAllowed);
+		
+		/**
+		 * Set the min display value for this channel.
+		 * Note that it is *strongly* advised to use <code>ImageDisplay.setMinMaxDisplay</code> instead 
+		 * since this helps ensure that the <code>ImageDisplay</code> fires appropriate events etc.
+		 * 
+		 * @see ImageDisplay
+		 * 
+		 * @param minDisplay
+		 */
+		public abstract void setMinDisplay(float minDisplay);
+
+		/**
+		 * Set the max display value for this channel.
+		 * Note that it is *strongly* advised to use <code>ImageDisplay.setMinMaxDisplay</code> instead 
+		 * since this helps ensure that the <code>ImageDisplay</code> fires appropriate events etc.
+		 * 
+		 * @see ImageDisplay
+		 * 
+		 * @param maxDisplay
+		 */
+		public abstract void setMaxDisplay(float maxDisplay);
+		
+	}
+
+
+
+	static abstract class AbstractChannelInfo implements ModifiableChannelDisplayInfo {
+		
+		private transient ImageData<BufferedImage> imageData;
 
 		protected float minAllowed, maxAllowed;
 		protected float minDisplay, maxDisplay;
@@ -408,7 +418,7 @@ public interface ChannelDisplayInfo {
 		
 		protected static final DecimalFormat df = new DecimalFormat("#.##");
 		
-		private float[] values = null; // Buffer in which to store values
+		private transient float[] values = null; // Buffer in which to store values
 		
 		
 		public AbstractSingleChannelInfo(final ImageData<BufferedImage> imageData) {

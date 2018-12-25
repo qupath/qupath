@@ -51,6 +51,8 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 	
 	private ImageServerMetadata userMetadata;
 	
+	private transient Long timestamp = null;
+	
 	protected double getThumbnailDownsampleFactor(int maxWidth, int maxHeight) {
 		if (maxWidth <= 0) {
 			if (maxHeight <= 0) {
@@ -454,4 +456,36 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 		return downsample;
 	}
 	
+		
+	/**
+	 * Default implementation, with returns {@code getFile().lastModified()} if a file is available, otherwise 0L.
+	 */
+	public long getLastChangeTimestamp() {
+		if (timestamp == null) {
+			File file = getFile();
+			if (file == null)
+				timestamp = Long.valueOf(0L);
+			else
+				timestamp = Long.valueOf(file.lastModified());
+		}
+		return timestamp.longValue();
+	}
+	
+	
+	/**
+	 * Default implementation that requests a thumbnail from the first timepoint and 
+	 * the center of the z-stack.
+	 */
+	@Override
+	public T getDefaultThumbnail() throws IOException {
+		return getDefaultThumbnail(nZSlices()/2, 0);
+	}
+	
+	@Override
+	public T getDefaultThumbnail(int z, int t) throws IOException {
+		double downsample = getPreferredDownsamplesArray()[nResolutions()-1];
+		RegionRequest request = RegionRequest.createInstance(getPath(), downsample, 0, 0, getWidth(), getHeight());
+		return readBufferedImage(request);
+	}
+		
 }

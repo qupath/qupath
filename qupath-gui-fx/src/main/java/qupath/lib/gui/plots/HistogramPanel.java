@@ -174,12 +174,13 @@ public class HistogramPanel extends Canvas {
 			return;
 		}
 		String text;
-		if (histogram.getNormalizeCounts())
+		
+//		if (histogram.getNormalizeCounts())
 			text = "Bin center: " + df.format(0.5 * (histogram.getBinLeftEdge(ind) + histogram.getBinRightEdge(ind))) +
-					", Counts :" + df.format(histogram.getCountsForBin(ind)*100) + "%";
-		else
-			text = "Bin center: " + df.format(0.5 * (histogram.getBinLeftEdge(ind) + histogram.getBinRightEdge(ind))) +
-					", Counts :" + df.format(histogram.getCountsForBin(ind));
+					", Counts: " + df.format(histogram.getCountsForBin(ind)) + " (" + df.format(histogram.getNormalizedCountsForBin(ind)*100) + "%)";
+//		else
+//			text = "Bin center: " + df.format(0.5 * (histogram.getBinLeftEdge(ind) + histogram.getBinRightEdge(ind))) +
+//					", Counts: " + df.format(histogram.getCountsForBin(ind));
 		setTooltipText(text);
 //		if (histogram.getNormalizeCounts())
 //			return String.format("Bin center: %.2f, Counts :%.2f%%",

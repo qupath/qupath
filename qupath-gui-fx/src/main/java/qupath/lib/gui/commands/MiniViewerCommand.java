@@ -23,37 +23,44 @@
 
 package qupath.lib.gui.commands;
 
-import java.awt.BasicStroke;
-import java.awt.Color;
 import java.awt.Graphics2D;
-import java.awt.RenderingHints;
-import java.awt.Shape;
-import java.awt.geom.Line2D;
+import java.awt.geom.AffineTransform;
 import java.awt.geom.Point2D;
 import java.awt.image.BufferedImage;
-import java.awt.image.ImageObserver;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import org.controlsfx.control.action.Action;
 import org.controlsfx.control.action.ActionUtils;
 
 import javafx.application.Platform;
-import javafx.beans.WeakInvalidationListener;
+import javafx.beans.InvalidationListener;
+import javafx.beans.Observable;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
+import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableStringValue;
+import javafx.beans.value.ObservableValue;
 import javafx.collections.ListChangeListener;
+import javafx.collections.ObservableList;
+import javafx.embed.swing.SwingFXUtils;
 import javafx.event.EventHandler;
+import javafx.geometry.HPos;
 import javafx.geometry.Pos;
+import javafx.geometry.VPos;
 import javafx.scene.Node;
 import javafx.scene.Scene;
+import javafx.scene.canvas.Canvas;
+import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
 import javafx.scene.control.Menu;
@@ -61,13 +68,18 @@ import javafx.scene.control.RadioMenuItem;
 import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.ToggleGroup;
 import javafx.scene.control.Tooltip;
+import javafx.scene.image.Image;
+import javafx.scene.image.WritableImage;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
 import javafx.stage.Stage;
+import qupath.lib.awt.color.ColorToolsAwt;
+import qupath.lib.awt.common.AwtTools;
 import qupath.lib.common.ColorTools;
+import qupath.lib.common.SimpleThreadFactory;
 import qupath.lib.display.ChannelDisplayInfo;
 import qupath.lib.display.ImageDisplay;
 import qupath.lib.gui.QuPathGUI;
@@ -76,16 +88,15 @@ import qupath.lib.gui.images.stores.AbstractImageRenderer;
 import qupath.lib.gui.images.stores.ImageRenderer;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.QuPathViewer;
-import qupath.lib.gui.viewer.QuPathViewerListener;
-import qupath.lib.gui.viewer.overlays.AbstractOverlay;
-import qupath.lib.images.ImageData;
-import qupath.lib.images.servers.ImageServer;
-import qupath.lib.objects.PathObject;
 import qupath.lib.regions.ImageRegion;
 
 /**
  * Command to open a small viewer window, which displays a detail from 
  * the current image depending on where the cursor is over the image.
+ * <p>
+ * In QuPath &leq; v0.1.2, this gave a single {@link QuPathViewer} that updated its display 
+ * based on a main viewer.  Now, it has been rewritten to provide a more efficient paintable 
+ * canvas (not a full QuPathViewer) and is capable of showing separated color channels.
  * 
  * @author Pete Bankhead
  *
@@ -96,6 +107,9 @@ public class MiniViewerCommand implements PathCommand {
 	
 	private boolean channelViewer;
 	
+	/**
+	 * Style binding to use the same background color as the main viewer.
+	 */
 	private static ObservableStringValue style = Bindings.createStringBinding(() -> {
 		int rgb = PathPrefs.getViewerBackgroundColor();
 		return String.format("-fx-background-color: rgb(%d, %d, %d)", ColorTools.red(rgb), ColorTools.green(rgb), ColorTools.blue(rgb));
@@ -119,372 +133,465 @@ public class MiniViewerCommand implements PathCommand {
 		final Stage dialog = new Stage();
 		dialog.initOwner(qupath.getStage());
 		
-		List<MiniViewer> miniViewers = new ArrayList<>();
-		
+		ObservableList<ChannelDisplayInfo> channels = viewer.getImageDisplay().availableChannels();
+		MiniViewerManager manager = new MiniViewerManager(viewer, channelViewer ? channels.size() : 0);
+		manager.getPane().styleProperty().bind(style);
 		if (channelViewer) {
 			dialog.setTitle("Channel viewer");
-			Pane pane = getChannelViewerGridPane(viewer, miniViewers);
-			Scene scene = new Scene(pane, 400, 400);
+			Scene scene = new Scene(manager.getPane(), 400, 400);
 			ListChangeListener<ChannelDisplayInfo> listChangeListener = new ListChangeListener<ChannelDisplayInfo>() {
 				@Override
 				public void onChanged(Change<? extends ChannelDisplayInfo> c) {
-					if (c.getList().size() + 1 != miniViewers.size()) {
-						miniViewers.stream().forEach(v -> v.closeViewer());
-						miniViewers.clear();
-						scene.setRoot(getChannelViewerGridPane(viewer, miniViewers));
+					if (c.getList().size() != manager.nChannels()) {
+						manager.setChannels(channels.size());
+						scene.setRoot(manager.getPane());
 					}
 				}
 			};
-			viewer.getImageDisplay().availableChannels().addListener(listChangeListener);
-			dialog.setScene(scene);
-			
+			channels.addListener(listChangeListener);
 			dialog.setOnHiding(e -> {
-				viewer.getImageDisplay().availableChannels().removeListener(listChangeListener);
-				miniViewers.stream().forEach(v -> v.closeViewer());
+				channels.removeListener(listChangeListener);
+				manager.close();
+				manager.getPane().styleProperty().unbind();
 			});
-
+			dialog.setScene(scene);
 		} else {
 			dialog.setTitle("Mini viewer");
-			MiniViewer miniViewer = new MiniViewer(viewer, -1);
-			miniViewers.add(miniViewer);
-			createPopup(miniViewers, miniViewer.getView());
-			dialog.setScene(new Scene(miniViewer.getView(), 400, 400));
+			Scene scene = new Scene(manager.getPane(), 400, 400); 
+			dialog.setScene(scene);
 			dialog.setOnHiding(e -> {
-				miniViewers.stream().forEach(v -> v.closeViewer());
+				manager.close();
+				manager.getPane().styleProperty().unbind();
 			});
 		}
-		
-		
+		createPopup(manager);
+						
 		dialog.show();
-		// Be sure to repaint now that sizes are determined
-		Platform.runLater(() -> miniViewers.stream().forEach(v -> v.repaintEntireImage()));
 	}
 	
-	
-	
-	
-	Pane getChannelViewerGridPane(final QuPathViewer viewer, final List<MiniViewer> miniViewers) {
-		ImageServer<?> server = viewer.getServer();
-		List<ChannelDisplayInfo> channels = viewer.getImageDisplay().availableChannels();
-		int nChannels = channels.size();
-		int nRows = 1;
-		int nCols = 1;
-		// Try to create a per-channel mini-viewer
-		if (server != null) {
-			int n = (int)Math.ceil(Math.sqrt(nChannels + 1));
-			nRows = n;
-			nCols = n;
-		}
+	/**
+	 * Create and install a popup menu in a MiniViewerManager.
+	 * 
+	 * @param manager
+	 * @return
+	 */
+	static ContextMenu createPopup(final MiniViewerManager manager) {
 		
-		GridPane pane = new GridPane();
-		int channel = 0;
-		for (int r = 0; r < nRows; r++) {
-			for (int c = 0; c < nCols; c++) {
-				if (channel > nChannels)
-					continue;
-				
-				MiniViewer miniViewer;
-				int rowSpan = 1;
-				int colSpan = 1;
-				if (channel == nChannels) {
-					miniViewer = new MiniViewer(viewer, -1);
-					miniViewers.add(miniViewer);
-					colSpan = nRows * nCols - nChannels;
-				} else {
-					miniViewer = new MiniViewer(viewer, channel);
-					miniViewers.add(miniViewer);
-				}
-				
-				AnchorPane anchorPane = new AnchorPane();
-				miniViewer.getView().getChildren().add(anchorPane);
-				anchorPane.prefWidthProperty().bind(miniViewer.getView().widthProperty());
-				anchorPane.prefHeightProperty().bind(miniViewer.getView().heightProperty());
-				
-				Label label = new Label();
-				label.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
-				double prefHeight = 30.0;
-				label.setPrefHeight(prefHeight);
-				label.setAlignment(Pos.CENTER);
-				label.setTextFill(javafx.scene.paint.Color.WHITE);
-				label.setStyle("-fx-background-color: rgba(0, 0, 0, 0.6);");
-				label.textProperty().bind(miniViewer.nameBinding);
-				anchorPane.getChildren().add(label);
-				AnchorPane.setBottomAnchor(label, 0.0);
-				AnchorPane.setLeftAnchor(label, 0.0);
-				AnchorPane.setRightAnchor(label, 0.0);		
-				label.visibleProperty().bind(Bindings.createBooleanBinding(() -> {
-					return anchorPane.getHeight() > prefHeight * 1.5 && label.getText() != null && miniViewer.showChannelNames.get();
-				}, anchorPane.heightProperty(), label.textProperty(), miniViewer.showChannelNames));
-				
-				Tooltip tooltip = new Tooltip();
-				tooltip.textProperty().bind(miniViewer.nameBinding);
-				Tooltip.install(miniViewer.getView(), tooltip);
-				
-				pane.add(miniViewer.getView(), c, r, colSpan, rowSpan);
-				GridPane.setHgrow(miniViewer.getView(), Priority.ALWAYS);
-				GridPane.setVgrow(miniViewer.getView(), Priority.ALWAYS);
-				GridPane.setFillHeight(miniViewer.getView(), Boolean.TRUE);
-				GridPane.setFillWidth(miniViewer.getView(), Boolean.TRUE);
-				channel++;
-			}			
-		}
-		pane.styleProperty().bind(style);
-		double gap = 5.0;
-		pane.setVgap(gap);
-		pane.setHgap(gap);
-		
-		createPopup(miniViewers, pane);
-		
-		return pane;
-	}
-	
-	
-	ContextMenu createPopup(final List<MiniViewer> miniViewers, final Node node) {
-		
-		BooleanProperty synchronizeToMainViewer = new SimpleBooleanProperty(true);
-		BooleanProperty showChannelNames = new SimpleBooleanProperty(true);
-		BooleanProperty showCursor = new SimpleBooleanProperty(true);
-//		BooleanProperty zoomToFit = new SimpleBooleanProperty(false);
-		
-		for (MiniViewer v : miniViewers) {
-			v.showCursorProperty.bind(showCursor);
-			v.showChannelNames.bind(showChannelNames);
-			v.synchronizeToMainViewer.bind(synchronizeToMainViewer);
-		}
-
 		List<RadioMenuItem> radioItems = Arrays.asList(
-				ActionUtils.createRadioMenuItem(createDownsampleAction("400 %", miniViewers, 0.25)),
-				ActionUtils.createRadioMenuItem(createDownsampleAction("200 %", miniViewers, 0.5)),
-				ActionUtils.createRadioMenuItem(createDownsampleAction("100 %", miniViewers, 1)),	
-				ActionUtils.createRadioMenuItem(createDownsampleAction("50 %", miniViewers, 2)),		
-				ActionUtils.createRadioMenuItem(createDownsampleAction("25 %", miniViewers, 4)),		
-				ActionUtils.createRadioMenuItem(createDownsampleAction("20 %", miniViewers, 5)),		
-				ActionUtils.createRadioMenuItem(createDownsampleAction("10 %", miniViewers, 10)),		
-				ActionUtils.createRadioMenuItem(createDownsampleAction("5 %", miniViewers, 20)),		
-				ActionUtils.createRadioMenuItem(createDownsampleAction("2 %", miniViewers, 20)),		
-				ActionUtils.createRadioMenuItem(createDownsampleAction("1 %", miniViewers, 20))
-//				ActionUtils.createRadioMenuItem(createDownsampleAction("Zoom to fit", miniViewers, -1))
+				ActionUtils.createRadioMenuItem(createDownsampleAction("400 %", manager.downsample, 0.25)),
+				ActionUtils.createRadioMenuItem(createDownsampleAction("200 %", manager.downsample, 0.5)),
+				ActionUtils.createRadioMenuItem(createDownsampleAction("100 %", manager.downsample, 1)),	
+				ActionUtils.createRadioMenuItem(createDownsampleAction("50 %", manager.downsample, 2)),		
+				ActionUtils.createRadioMenuItem(createDownsampleAction("25 %", manager.downsample, 4)),		
+				ActionUtils.createRadioMenuItem(createDownsampleAction("20 %", manager.downsample, 5)),		
+				ActionUtils.createRadioMenuItem(createDownsampleAction("10 %", manager.downsample, 10)),		
+				ActionUtils.createRadioMenuItem(createDownsampleAction("5 %", manager.downsample, 20)),		
+				ActionUtils.createRadioMenuItem(createDownsampleAction("2 %", manager.downsample, 50)),		
+				ActionUtils.createRadioMenuItem(createDownsampleAction("1 %", manager.downsample, 100))
 		);
 
 		ToggleGroup group = new ToggleGroup();
 		for (RadioMenuItem item : radioItems)
 			item.setToggleGroup(group);
 
-		ContextMenu popup = new ContextMenu();
-		popup.getItems().addAll(
-				ActionUtils.createCheckMenuItem(QuPathGUI.createSelectableCommandAction(synchronizeToMainViewer, "Synchronize to main viewer")),
-				new SeparatorMenuItem(),
-				ActionUtils.createCheckMenuItem(QuPathGUI.createSelectableCommandAction(showCursor, "Show cursor")),
-				ActionUtils.createCheckMenuItem(QuPathGUI.createSelectableCommandAction(showChannelNames, "Show channel names")),
-				new SeparatorMenuItem()
-				);
 		Menu menuZoom = new Menu("Zoom...");
 		menuZoom.getItems().addAll(radioItems);
-		popup.getItems().add(menuZoom);
-		
+
+		ContextMenu popup = new ContextMenu();
+		popup.getItems().addAll(
+				ActionUtils.createCheckMenuItem(QuPathGUI.createSelectableCommandAction(manager.synchronizeToMainViewer, "Synchronize to main viewer")),
+				menuZoom,
+				new SeparatorMenuItem(),
+				ActionUtils.createCheckMenuItem(QuPathGUI.createSelectableCommandAction(manager.showCursor, "Show cursor")),
+				ActionUtils.createCheckMenuItem(QuPathGUI.createSelectableCommandAction(manager.showChannelNames, "Show channel names")),
+				ActionUtils.createCheckMenuItem(QuPathGUI.createSelectableCommandAction(manager.showOverlays, "Show overlays"))
+				);
+
 		group.selectToggle(radioItems.get(3));
 		
-		node.setOnContextMenuRequested(e -> {
-			popup.show(node, e.getScreenX(), e.getScreenY());
+		Pane pane = manager.getPane();
+		pane.setOnContextMenuRequested(e -> {
+			popup.show(pane, e.getScreenX(), e.getScreenY());
 		});
 
 		return popup;
-
-//		getView().setOnContextMenuRequested(e -> {
-//			popup.show((Node)e.getSource(), e.getScreenX(), e.getScreenY());
-//		});
+	}
+	
+	
+	/**
+	 * Create Action to set a downsample value.
+	 * 
+	 * @param text
+	 * @param downsampleValue
+	 * @param downsample
+	 * @return
+	 */
+	static Action createDownsampleAction(final String text, final DoubleProperty downsampleValue, final double downsample) {
+		return new Action(text, e -> downsampleValue.set(downsample));
 	}
 	
 	
 	
-	Action createDownsampleAction(final String text, final Collection<? extends QuPathViewer> viewers, final double downsample) {
-		Action action = new Action(text, e -> {
-			for (QuPathViewer viewer : viewers.toArray(new QuPathViewer[0])) {
-				if (downsample <= 0)
-					viewer.setZoomToFit(true);
-				else {
-					if (viewer.getZoomToFit())
-						viewer.setZoomToFit(false);
-					viewer.setDownsampleFactor(downsample);
-				}				
-			}
-		});
-		return action;
-	}
 	
-	
-	
-	class MiniViewer extends QuPathViewer implements QuPathViewerListener {
+	static class MiniViewerManager implements EventHandler<MouseEvent> {
+		
+		private GridPane pane = new GridPane();
+		
+		private List<MiniViewer> miniViewers = new ArrayList<>();
+		
+		private BooleanProperty showChannelNames = new SimpleBooleanProperty(true);
+		private BooleanProperty showCursor = new SimpleBooleanProperty(true);
+		private BooleanProperty showOverlays = new SimpleBooleanProperty(true);
+		private BooleanProperty synchronizeToMainViewer = new SimpleBooleanProperty(true);
+		
+		/**
+		 * Track if the shift button is pressed; temporarily suspend synchronization if so.
+		 */
+		private BooleanProperty shiftDown = new SimpleBooleanProperty(false);
+		
+		private DoubleProperty downsample = new SimpleDoubleProperty(1.0);
+		
+		private boolean requestUpdate = false;
 		
 		private QuPathViewer mainViewer;
+		private int nChannels;
 		
-		private Point2D cursorImagePoint;
+		private Point2D centerPosition = new Point2D.Double();
+		private Point2D mousePosition;
 		
-		private ImageRenderer renderer;
+		private ExecutorService pool = Executors.newSingleThreadExecutor(new SimpleThreadFactory("mini-viewer", true));
 		
-		private StringProperty nameBinding = new SimpleStringProperty();
-		private BooleanProperty showChannelNames = new SimpleBooleanProperty();
-		private BooleanProperty showCursorProperty = new SimpleBooleanProperty();
-		private BooleanProperty synchronizeToMainViewer = new SimpleBooleanProperty();
-		
-		private EventHandler<MouseEvent> clickHandler = new EventHandler<MouseEvent>() {
+		private ChangeListener<Number> changeListener = new ChangeListener<Number>() {
+
 			@Override
-		    public void handle(MouseEvent e) {
-				if (e.isPopupTrigger()) {
+			public void changed(ObservableValue<? extends Number> observable, Number oldValue, Number newValue) {
+				pool.submit(() -> requestFullUpdate());
+			}
+			
+		};
+		
+		private InvalidationListener invalidationListener = new InvalidationListener() {
+
+			@Override
+			public void invalidated(Observable observable) {
+				pool.submit(() -> requestUpdate());
+			}
+			
+		};
+		
+		public int nChannels() {
+			return nChannels;
+		}
+		
+		MiniViewerManager(final QuPathViewer mainViewer, final int nChannels) {
+			this.mainViewer = mainViewer;
+			setChannels(nChannels);
+
+			mainViewer.zPositionProperty().addListener(changeListener);
+			mainViewer.tPositionProperty().addListener(changeListener);
+			mainViewer.getImageDisplay().changeTimestampProperty().addListener(changeListener);
+			showCursor.addListener(invalidationListener);
+			showOverlays.addListener(invalidationListener);
+			showChannelNames.addListener(invalidationListener);
+			synchronizeToMainViewer.addListener(invalidationListener);
+			downsample.addListener(invalidationListener);
+			mainViewer.getView().addEventFilter(MouseEvent.MOUSE_MOVED, this);
+		}
+		
+		void close() {
+			mainViewer.zPositionProperty().removeListener(changeListener);
+			mainViewer.tPositionProperty().removeListener(changeListener);
+			mainViewer.getImageDisplay().changeTimestampProperty().removeListener(changeListener);
+			showCursor.removeListener(invalidationListener);
+			showOverlays.removeListener(invalidationListener);
+			showChannelNames.removeListener(invalidationListener);
+			synchronizeToMainViewer.removeListener(invalidationListener);
+			downsample.removeListener(invalidationListener);
+			mainViewer.getView().removeEventFilter(MouseEvent.MOUSE_MOVED, this);
+		}
+		
+		void setChannels(int nChannels) {
+			
+			miniViewers.stream().forEach(v -> v.close());
+			miniViewers.clear();
+			
+			int nCols = (int)Math.ceil(Math.sqrt(nChannels + 1));
+			int nRows = (int)Math.ceil((nChannels + 1) / (double)nCols);
+			
+			this.nChannels = nChannels;
+			List<Node> nodes = new ArrayList<>();
+			for (int c = 0; c < nChannels; c++) {
+				MiniViewer canvas = new MiniViewer(new ImageDisplaySingleChannelRenderer(c));
+				miniViewers.add(canvas);
+				nodes.add(createPane(canvas, c % nCols, c / nCols, 1, 1));
+			}
+			MiniViewer mainCanvas = new MiniViewer(mainViewer.getImageDisplay());
+			miniViewers.add(mainCanvas);
+			nodes.add(createPane(mainCanvas,
+					nChannels % nCols, nChannels / nCols,
+					nRows * nCols - nChannels, 1));
+			
+			pane.setVgap(5);
+			pane.setHgap(5);
+
+			pane.getChildren().setAll(nodes);
+			
+		}
+		
+		Pane createPane(MiniViewer canvas, int col, int row, int colSpan, int rowSpan) {
+			AnchorPane tempPane = new AnchorPane();
+			tempPane.setMinSize(0, 0);
+			tempPane.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
+			tempPane.getChildren().add(canvas);
+			canvas.widthProperty().bind(tempPane.widthProperty());
+			canvas.heightProperty().bind(tempPane.heightProperty());
+			GridPane.setConstraints(tempPane,
+					col, row,
+					colSpan, rowSpan, 
+					HPos.CENTER, VPos.CENTER, 
+					Priority.ALWAYS, Priority.ALWAYS);
+			GridPane.setFillHeight(tempPane, Boolean.TRUE);
+			GridPane.setFillWidth(tempPane, Boolean.TRUE);
+			
+			
+			Label label = new Label();
+			label.textProperty().bind(canvas.nameBinding);
+			label.setStyle("-fx-background-color: rgba(0, 0, 0, 0.6)");
+			label.setTextFill(javafx.scene.paint.Color.WHITE);
+			label.setAlignment(Pos.CENTER);
+			double height = 50;
+			label.setPrefHeight(height);
+			label.setMinWidth(0);
+			label.setMaxWidth(Double.MAX_VALUE);
+			AnchorPane.setBottomAnchor(label, 0.0);
+			AnchorPane.setLeftAnchor(label, 0.0);
+			AnchorPane.setRightAnchor(label, 0.0);
+			label.prefWidthProperty().bind(pane.widthProperty());
+			label.visibleProperty().bind(canvas.heightProperty().greaterThan(height * 1.2).and(label.textProperty().isNotEmpty()).and(showChannelNames));
+			tempPane.getChildren().add(label);
+
+			Tooltip tooltip = new Tooltip();
+			tooltip.textProperty().bind(canvas.nameBinding);
+			Tooltip.install(canvas, tooltip);
+			
+			return tempPane;
+		}
+		
+		
+		GridPane getPane() {
+			return pane;
+		}
+		
+		void requestFullUpdate() {
+			for (MiniViewer viewer : miniViewers) {
+				if (Thread.interrupted())
 					return;
-				}
-				if (e.getClickCount() > 1) {
-					Point2D p = componentPointToImagePoint(e.getX(), e.getY(), null, false);
-					mainViewer.setCenterPixelLocation(p.getX(), p.getY());
-				}
-		    }
-		};
-		
-		private EventHandler<MouseEvent> moveHandler = new EventHandler<MouseEvent>() {
-			@Override
-		    public void handle(MouseEvent e) {
-				cursorImagePoint = mainViewer.componentPointToImagePoint(e.getX(), e.getY(), cursorImagePoint, false);
-				if (!e.isShiftDown() && synchronizeToMainViewer.get())
-					setCenterPixelLocation(cursorImagePoint.getX(), cursorImagePoint.getY());
-				else
-					repaint();
-		    }
-		};
-
-		
-		public MiniViewer(final QuPathViewer viewer, final int channel) {
-			super(viewer.getImageData(), viewer.getImageRegionStore(), viewer.getOverlayOptions(), 
-					viewer.getImageDisplay());
-			
-			this.renderer = new ImageDisplaySingleChannelRenderer(channel);
-			
-			// Create binding to indicate the current channel name
-			nameBinding.bind(Bindings.createStringBinding(() -> {
-						List<ChannelDisplayInfo> channels = getImageDisplay().availableChannels();
-						if (channel < 0 || channel >= channels.size())
-							return null;
-						return channels.get(channel).getName();
-					},
-					getImageDataProperty(), getImageDisplay().changeTimestampProperty()));
-			
-			setViewer(viewer);
-			
-			getCustomOverlayLayers().add(new CursorOverlay());
-			
-			getImageDisplay().changeTimestampProperty().addListener(new WeakInvalidationListener(n -> repaintEntireImage()));
-
-			showCursorProperty.addListener((v, o, n) -> repaint());
-			repaintEntireImage();
-		}
-		
-		@Override
-		public void closeViewer() {
-			setViewer(null);
-			super.closeViewer();
-			renderer = null;
-			getCustomOverlayLayers().clear();
-			showCursorProperty.unbind();
-			showChannelNames.unbind();
-			synchronizeToMainViewer.unbind();
-			nameBinding.unbind();
-		}
-		
-		
-		@Override
-		protected ImageRenderer getRenderer() {
-			if (renderer != null)
-				return renderer;
-			return super.getRenderer();
-		}
-		
-		
-		void setViewer(final QuPathViewer viewer) {
-			if (mainViewer != null) {
-				getView().removeEventHandler(MouseEvent.MOUSE_CLICKED, clickHandler);
-				mainViewer.getView().removeEventHandler(MouseEvent.MOUSE_MOVED, moveHandler);
-				mainViewer.getView().removeEventHandler(MouseEvent.MOUSE_DRAGGED, moveHandler);
-				mainViewer.removeViewerListener(this);
+				viewer.updateThumbnail();
 			}
-			this.mainViewer = viewer;
-			if (mainViewer != null) {
-				getView().addEventHandler(MouseEvent.MOUSE_CLICKED, clickHandler);
-				mainViewer.getView().addEventHandler(MouseEvent.MOUSE_MOVED, moveHandler);
-				mainViewer.getView().addEventHandler(MouseEvent.MOUSE_DRAGGED, moveHandler);
-				mainViewer.addViewerListener(this);
-			}
+			requestUpdate();
 		}
 		
-		
-		@Override
-		public void imageDataChanged(QuPathViewer viewer, ImageData<BufferedImage> imageDataOld,
-				ImageData<BufferedImage> imageDataNew) {
-			setImageData(imageDataNew);
-		}
-
-
-		@Override
-		public void visibleRegionChanged(QuPathViewer viewer, Shape shape) {
-			if (viewer != mainViewer)
+		void requestUpdate() {
+			if (requestUpdate)
 				return;
-			setZPosition(mainViewer.getZPosition());
-			setTPosition(mainViewer.getTPosition());
+			requestUpdate = true;
+			updateViewers();
 		}
+		
+		void updateViewers() {
+			if (!requestUpdate)
+				return;
+			if (!Platform.isFxApplicationThread()) {
+				Platform.runLater(() -> updateViewers());
+				return;
+			}
+			// Update mouse position if we are synchronizing
+			mousePosition = mainViewer.getMousePosition();
+			if (mousePosition != null) {
+				mainViewer.componentPointToImagePoint(mousePosition, mousePosition, false);
+				if (synchronizeToMainViewer.get() && !shiftDown.get())
+					centerPosition.setLocation(mousePosition);
+			}
 
-
-		@Override
-		public void selectedObjectChanged(QuPathViewer viewer, PathObject pathObjectSelected) {}
-
-
-		@Override
-		public void viewerClosed(QuPathViewer viewer) {}
+			// Repaint all viewers
+			for (MiniViewer viewer : miniViewers)
+				viewer.repaint();
+			requestUpdate = false;
+		}
 		
 		
-		class CursorOverlay extends AbstractOverlay {
+		@Override
+		public void handle(MouseEvent event) {
+			shiftDown.set(event.isShiftDown());
+			requestUpdate();
+		}
+		
+		
+		
+		class MiniViewer extends Canvas {
 			
-			private Line2D vertical = new Line2D.Double();
-			private Line2D horizontal = new Line2D.Double();
+			private ImageRenderer renderer;
+						
+			private StringProperty nameBinding = new SimpleStringProperty();
+			private BufferedImage imgRGB;
+			private BufferedImage img;
+			private WritableImage imgFX;
+			
+			private Point2D localCursorPosition = null;
+			private AffineTransform transform = new AffineTransform();
+
+			
+			public MiniViewer(ImageRenderer renderer) {
+				this.renderer = renderer;
+				
+				this.widthProperty().addListener(v -> repaint());
+				this.heightProperty().addListener(v -> repaint());
+				
+				// Create binding to indicate the current channel name
+				nameBinding.bind(Bindings.createStringBinding(() -> {
+						if (renderer instanceof ImageDisplaySingleChannelRenderer) {
+							ImageDisplaySingleChannelRenderer channelRenderer = (ImageDisplaySingleChannelRenderer)renderer;
+							int channel = channelRenderer.channel;
+							List<ChannelDisplayInfo> channels = mainViewer.getImageDisplay().availableChannels();
+							if (channel < 0 || channel >= channels.size())
+								return null;
+							return channels.get(channel).getName();
+						}
+						return null;
+						},
+						mainViewer.getImageDataProperty(), mainViewer.getImageDisplay().changeTimestampProperty()));
+			}
+			
+			void close() {
+				this.nameBinding.unbind();
+				imgRGB = null;
+				img = null;
+				imgFX = null;
+			}
+			
+			@Override
+			public boolean isResizable() {
+				return true;
+			}
+			
+			@Override
+			public double prefHeight(double height) {
+				return height;
+			}
 
 			@Override
-			public void paintOverlay(Graphics2D g2d, ImageRegion imageRegion, double downsampleFactor,
-					ImageObserver observer, boolean paintCompletely) {
-				
-				if (cursorImagePoint == null || !showCursorProperty.get())
+			public double prefWidth(double width) {
+				return width;
+			}
+
+			double getDownsampleFactor() {
+				return downsample.get();
+			}
+			
+			void updateThumbnail() {
+				if (renderer == null)
+					imgRGB = mainViewer.getRGBThumbnail();
+				else
+					imgRGB = renderer.applyTransforms(mainViewer.getThumbnail(), imgRGB);
+			}
+			
+			void repaint() {
+				int w = (int)Math.ceil(getWidth());
+				int h = (int)Math.ceil(getHeight());
+				if (w <= 0 || h <= 0)
 					return;
+				if (img == null || img.getWidth() != w || img.getHeight() != h) {
+					img = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
+				}
 				
-				double half = downsampleFactor * 5;
-				double x = cursorImagePoint.getX();
-				double y = cursorImagePoint.getY();
-				vertical.setLine(x, y-half, x, y+half);
-				horizontal.setLine(x-half, y, x+half, y);
+				Graphics2D g2d = img.createGraphics();
+				// Fill background
+				g2d.setColor(ColorToolsAwt.getCachedColor(PathPrefs.getViewerBackgroundColor()));
+				g2d.fillRect(0, 0, w, h);
 				
-				g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
-				
-				BasicStroke darkStroke = new BasicStroke((float)(downsampleFactor * 4));
-				g2d.setColor(Color.BLACK);
-				g2d.setStroke(darkStroke);
-				g2d.draw(vertical);
-				g2d.draw(horizontal);
-
-				BasicStroke lightStroke = new BasicStroke((float)(downsampleFactor * 2));
-				g2d.setColor(Color.WHITE);
-				g2d.setStroke(lightStroke);
-				g2d.draw(vertical);
-				g2d.draw(horizontal);
+				g2d.setClip(0, 0, w, h);
 				
 				
-//				String name = getName().get();
-//				if (name != null) {
-//					g2d.setTransform(new AffineTransform());
-//					g2d.setColor(ColorToolsAwt.TRANSLUCENT_BLACK);
-//					g2d.fillRect(0, (int)getView().getHeight()/2, (int)getView().getWidth(), (int)getView().getHeight()/2);
-//					g2d.setColor(Color.WHITE);
-//					g2d.drawString(name, 0, (int)getView().getHeight()/2);				
-//				}
-
+				
+				transform.setToIdentity();
+				transform.translate(getWidth()*.5, getHeight()*.5);
+				double downsample = getDownsampleFactor();
+				transform.scale(1.0/downsample, 1.0/downsample);
+				transform.translate(-centerPosition.getX(), -centerPosition.getY());
+				double rotation = mainViewer.getRotation();
+				if (rotation != 0)
+					transform.rotate(rotation, centerPosition.getX(), centerPosition.getY());
+				
+				g2d.transform(transform);
+				
+				if (mousePosition == null)
+					localCursorPosition = null;
+				else
+					localCursorPosition = transform.transform(mousePosition, localCursorPosition);
+				
+				// Paint viewer
+				mainViewer.getImageRegionStore().paintRegion(
+						mainViewer.getServer(),
+						g2d,
+						g2d.getClip(),
+						mainViewer.getZPosition(),
+						mainViewer.getTPosition(),
+						downsample,
+						imgRGB,
+						null,
+						renderer);
+				
+				if (showOverlays.get()) {
+					ImageRegion region = AwtTools.getImageRegion(g2d.getClipBounds(), mainViewer.getZPosition(), mainViewer.getTPosition());				
+					mainViewer.getOverlayLayers().stream().forEach(o -> o.paintOverlay(
+							g2d, region, downsample, null, false));					
+				}
+				
+				g2d.dispose();
+				
+				if (imgFX == null || img.getWidth() != imgFX.getWidth() || img.getHeight() != imgFX.getHeight())
+					imgFX = SwingFXUtils.toFXImage(img, null);
+				else
+					imgFX = SwingFXUtils.toFXImage(img, imgFX);
+				
+				blitter(imgFX);
+			}
+			
+			/**
+			 * Update the canvas by painting the specified image.
+			 * 
+			 * @param imgFX
+			 */
+			void blitter(Image imgFX) {
+				if (!Platform.isFxApplicationThread()) {
+					Platform.runLater(() -> blitter(imgFX));
+					return;
+				}
+				GraphicsContext context = getGraphicsContext2D();
+				context.clearRect(0, 0, getWidth(), getHeight());
+				if (imgFX != null)
+					context.drawImage(imgFX, 0, 0);
+				
+				if (showCursor.get() && localCursorPosition != null) {
+					context.setLineWidth(4);
+					context.setStroke(javafx.scene.paint.Color.BLACK);
+					double len = 4.0;
+					double x = localCursorPosition.getX();
+					double y = localCursorPosition.getY();
+					context.strokeLine(x, y-len, x, y+len);
+					context.strokeLine(x-len, y, x+len, y);
+					context.setLineWidth(2);
+					context.setStroke(javafx.scene.paint.Color.WHITE);
+					context.strokeLine(x, y-len, x, y+len);
+					context.strokeLine(x-len, y, x+len, y);
+				}
 			}
 			
 		}
 		
+		/**
+		 * Renderer that extracts a single channel from an {@link ImageDisplay}.
+		 */
 		class ImageDisplaySingleChannelRenderer extends AbstractImageRenderer {
 			
 			private int channel;
@@ -496,12 +603,12 @@ public class MiniViewerCommand implements PathCommand {
 			
 			@Override
 			public long getLastChangeTimestamp() {
-				return getImageDisplay().getLastChangeTimestamp();
+				return mainViewer.getImageDisplay().getLastChangeTimestamp();
 			}
 
 			@Override
 			public BufferedImage applyTransforms(BufferedImage imgInput, BufferedImage imgOutput) {
-				ImageDisplay imageDisplay = getImageDisplay();
+				ImageDisplay imageDisplay = mainViewer.getImageDisplay();
 				if (channel >= 0) {
 					List<ChannelDisplayInfo> channels = imageDisplay.availableChannels();
 					if (channel < channels.size()) {
@@ -512,7 +619,7 @@ public class MiniViewerCommand implements PathCommand {
 			}
 			
 		}
-		
+
 	}
 	
 }
