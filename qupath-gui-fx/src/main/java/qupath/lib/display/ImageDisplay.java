@@ -213,15 +213,15 @@ public class ImageDisplay extends AbstractImageRenderer {
 		rgbNormalizedChannelInfo = new ChannelDisplayInfo.RGBNormalizedChannelInfo(imageData);
 
 		// Add simple channel separation
-		rgbBasicChannels.add(new ChannelDisplayInfo.RBGColorTransformInfo(imageData, ColorTransformMethod.Red));
-		rgbBasicChannels.add(new ChannelDisplayInfo.RBGColorTransformInfo(imageData, ColorTransformMethod.Green));
-		rgbBasicChannels.add(new ChannelDisplayInfo.RBGColorTransformInfo(imageData, ColorTransformMethod.Blue));
+		rgbBasicChannels.add(new ChannelDisplayInfo.RBGColorTransformInfo(imageData, ColorTransformMethod.Red, false));
+		rgbBasicChannels.add(new ChannelDisplayInfo.RBGColorTransformInfo(imageData, ColorTransformMethod.Green, false));
+		rgbBasicChannels.add(new ChannelDisplayInfo.RBGColorTransformInfo(imageData, ColorTransformMethod.Blue, false));
 //		rgbBasicChannels.add(new ChannelDisplayInfo.MultiChannelInfo("Red", 8, 0, 255, 0, 0));
 //		rgbBasicChannels.add(new ChannelDisplayInfo.MultiChannelInfo("Green", 8, 1, 0, 255, 0));
 //		rgbBasicChannels.add(new ChannelDisplayInfo.MultiChannelInfo("Blue", 8, 2, 0, 0, 255));
-		rgbBasicChannels.add(new ChannelDisplayInfo.RBGColorTransformInfo(imageData, ColorTransformer.ColorTransformMethod.Hue));
-		rgbBasicChannels.add(new ChannelDisplayInfo.RBGColorTransformInfo(imageData, ColorTransformer.ColorTransformMethod.Saturation));
-		rgbBasicChannels.add(new ChannelDisplayInfo.RBGColorTransformInfo(imageData, ColorTransformer.ColorTransformMethod.RGB_mean));
+		rgbBasicChannels.add(new ChannelDisplayInfo.RBGColorTransformInfo(imageData, ColorTransformer.ColorTransformMethod.Hue, false));
+		rgbBasicChannels.add(new ChannelDisplayInfo.RBGColorTransformInfo(imageData, ColorTransformer.ColorTransformMethod.Saturation, false));
+		rgbBasicChannels.add(new ChannelDisplayInfo.RBGColorTransformInfo(imageData, ColorTransformer.ColorTransformMethod.RGB_mean, false));
 
 		// Add optical density & color deconvolution options for brightfield images
 		rgbBrightfieldChannels.add(new ChannelDisplayInfo.RBGColorDeconvolutionInfo(imageData, ColorTransformMethod.Stain_1));
@@ -229,9 +229,9 @@ public class ImageDisplay extends AbstractImageRenderer {
 		rgbBrightfieldChannels.add(new ChannelDisplayInfo.RBGColorDeconvolutionInfo(imageData, ColorTransformMethod.Stain_3));
 		rgbBrightfieldChannels.add(new ChannelDisplayInfo.RBGColorDeconvolutionInfo(imageData, ColorTransformer.ColorTransformMethod.Optical_density_sum));
 
-		rgbChromaticityChannels.add(new ChannelDisplayInfo.RBGColorTransformInfo(imageData, ColorTransformer.ColorTransformMethod.Red_chromaticity));		
-		rgbChromaticityChannels.add(new ChannelDisplayInfo.RBGColorTransformInfo(imageData, ColorTransformer.ColorTransformMethod.Green_chromaticity));		
-		rgbChromaticityChannels.add(new ChannelDisplayInfo.RBGColorTransformInfo(imageData, ColorTransformer.ColorTransformMethod.Blue_chromaticity));		
+		rgbChromaticityChannels.add(new ChannelDisplayInfo.RBGColorTransformInfo(imageData, ColorTransformer.ColorTransformMethod.Red_chromaticity, false));		
+		rgbChromaticityChannels.add(new ChannelDisplayInfo.RBGColorTransformInfo(imageData, ColorTransformer.ColorTransformMethod.Green_chromaticity, false));		
+		rgbChromaticityChannels.add(new ChannelDisplayInfo.RBGColorTransformInfo(imageData, ColorTransformer.ColorTransformMethod.Blue_chromaticity, false));		
 	}
 
 	public void updateChannelOptions(boolean serverChanged) {
@@ -617,6 +617,11 @@ public class ImageDisplay extends AbstractImageRenderer {
 		autoSetDisplayRange(info, getHistogram(info), saturation, true);
 	}
 
+	
+	ImageServer<BufferedImage> getServer() {
+		return imageData == null ? null : imageData.getServer();
+	}
+	
 
 	/**
 	 * Returns a histogram for a ChannelInfo, or none if no histogram is available (e.g. the channel is RGB)
@@ -626,7 +631,7 @@ public class ImageDisplay extends AbstractImageRenderer {
 	public Histogram getHistogram(ChannelDisplayInfo info) {
 		if (info == null || histogramManager == null)
 			return null;
-		return histogramManager.getHistogram(info);
+		return histogramManager.getHistogram(getServer(), info);
 	}
 
 	
@@ -758,8 +763,8 @@ public class ImageDisplay extends AbstractImageRenderer {
 			// Request default thumbnails (at lowest available resolution)
 			int nImages = server.nTimepoints() * server.nZSlices();
 			return IntStream.range(0, nImages).parallel().mapToObj(i -> {
-				int z = i % server.nTimepoints();
-				int t = i / server.nTimepoints();
+				int z = i % server.nZSlices();
+				int t = i / server.nZSlices();
 				try {
 					return server.getDefaultThumbnail(z, t);
 				} catch (IOException e) {
@@ -835,7 +840,14 @@ public class ImageDisplay extends AbstractImageRenderer {
 			logger.debug("Histograms built in {} ms", (endTime - startTime));
 		}
 		
-		Histogram getHistogram(final ChannelDisplayInfo channel) {
+		Histogram getHistogram(final ImageServer<BufferedImage> server, final ChannelDisplayInfo channel) {
+			if (channel instanceof SingleChannelDisplayInfo) {
+				// Always recompute histogram for mutable channels
+				if (((SingleChannelDisplayInfo)channel).isMutable()) {
+					map.remove(getKey(channel));
+				}
+			}
+			ensureChannels(server, Collections.singletonList(channel));
 			return map.get(getKey(channel));
 		}
 		

@@ -483,8 +483,13 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 	
 	@Override
 	public T getDefaultThumbnail(int z, int t) throws IOException {
-		double downsample = getPreferredDownsamplesArray()[nResolutions()-1];
-		RegionRequest request = RegionRequest.createInstance(getPath(), downsample, 0, 0, getWidth(), getHeight());
+		int ind = nResolutions() - 1;
+		double targetDownsample = Math.sqrt(getWidth() / 1024.0 * getHeight() / 1024.0);
+		double[] downsamples = getPreferredDownsamplesArray();
+		while (ind > 0 && downsamples[ind-1] >= targetDownsample)
+			ind--;
+		double downsample = getPreferredDownsamplesArray()[ind];
+		RegionRequest request = RegionRequest.createInstance(getPath(), downsample, 0, 0, getWidth(), getHeight(), z, t);
 		return readBufferedImage(request);
 	}
 		

@@ -406,6 +406,16 @@ public interface ChannelDisplayInfo {
 		
 		public abstract float[] getValues(BufferedImage img, int x, int y, int w, int h, float[] array);
 		
+		/**
+		 * Check if {@link #getValue(BufferedImage, int, int)} returns fixed values, or if they are dependent on 
+		 * other properties of the {@link ImageData}.
+		 * <p>
+		 * For example, a transform based on color deconvolution should be flagged as mutable because stain vectors change, 
+		 * while a simple channel separation is not (since the pixel values for the underlying image remain constant in QuPath).
+		 * @return
+		 */
+		public boolean isMutable();
+		
 	}
 
 
@@ -680,11 +690,13 @@ public interface ChannelDisplayInfo {
 		private ColorTransformer.ColorTransformMethod method;
 		private transient ColorModel colorModel;
 		
+		private boolean isMutable;
 		private transient Integer color = null;
 
-		public RBGColorTransformInfo(final ImageData<BufferedImage> imageData, final ColorTransformer.ColorTransformMethod method) {
+		public RBGColorTransformInfo(final ImageData<BufferedImage> imageData, final ColorTransformer.ColorTransformMethod method, final boolean isMutable) {
 			super(imageData);
 			this.method = method;
+			this.isMutable = isMutable;
 			setMinMaxAllowed(0, ColorTransformer.getDefaultTransformedMax(method));
 			setMinDisplay(0);
 			setMaxDisplay(getMaxAllowed());
@@ -745,6 +757,12 @@ public interface ChannelDisplayInfo {
 		public Integer getColor() {
 			return color;
 		}
+		
+		@Override
+		public boolean isMutable() {
+			return isMutable;
+		}
+
 
 
 	}
@@ -865,6 +883,12 @@ public interface ChannelDisplayInfo {
 				ensureStainsUpdated();
 			return color;
 		}
+		
+		@Override
+		public boolean isMutable() {
+			return true;
+		}
+
 		
 //		@Override
 //		public boolean isInteger() {
@@ -997,6 +1021,11 @@ public interface ChannelDisplayInfo {
 		@Override
 		public Integer getColor() {
 			return rgb;
+		}
+
+		@Override
+		public boolean isMutable() {
+			return false;
 		}
 
 		//	@Override

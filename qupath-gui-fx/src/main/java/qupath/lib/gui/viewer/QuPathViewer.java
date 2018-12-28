@@ -53,6 +53,8 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+
 import javax.imageio.ImageIO;
 import javax.imageio.ImageReader;
 import javax.imageio.metadata.IIOMetadata;
@@ -1205,9 +1207,9 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 
 		// Read a thumbnail image
 		try {
-			BufferedImage imgThumbnail = server.getDefaultThumbnail(getZPosition(), getTPosition());
+			BufferedImage imgThumbnail = regionStore.getThumbnail(server, getZPosition(), getTPosition(), true);
 //			BufferedImage imgThumbnail = regionStore.getThumbnail(server, getZPosition(), getTPosition(), true);
-			imgThumbnailRGB = createThumbnailRGB();
+			imgThumbnailRGB = createThumbnailRGB(imgThumbnail);
 			thumbnailIsFullImage = imgThumbnailRGB.getWidth() == server.getWidth() && imgThumbnailRGB.getHeight() == server.getHeight();
 			if (updateOverlayColor)
 				colorOverlaySuggested = null;
@@ -1224,14 +1226,8 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	 * Subclasses may choose to override this if a suitable image has been cached already.
 	 * 
 	 * @return
-	 * @throws IOException
 	 */
-	protected BufferedImage createThumbnailRGB() throws IOException {
-		ImageServer<BufferedImage> server = getServer();
-		if (server == null)
-			return null;
-		BufferedImage imgThumbnail = server.getDefaultThumbnail(getZPosition(), getTPosition());
-//		BufferedImage imgThumbnail = regionStore.getThumbnail(server, getZPosition(), getTPosition(), true);
+	BufferedImage createThumbnailRGB(BufferedImage imgThumbnail) throws IOException {
 		ImageRenderer renderer = getRenderer();
 		if (renderer != null) // && !server.isRGB()) // Transforms will be applied quickly to RGB images, so no need to cache transformed part now
 			return renderer.applyTransforms(imgThumbnail, null);
