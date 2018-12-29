@@ -34,6 +34,7 @@ import java.util.Map;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
+import qupath.lib.scripting.QP;
 import qupath.lib.objects.PathObject;
 
 /**
@@ -88,6 +89,16 @@ public class PathIntensityClassifier implements Serializable, PathObjectClassifi
 //		PathClass classOnePlus = PathClassFactory.getDefaultPathClass(PathClassFactory.PathClasses.ONE_PLUS);
 //		PathClass classTwoPlus = PathClassFactory.getDefaultPathClass(PathClassFactory.PathClasses.TWO_PLUS);
 //		PathClass classThreePlus = PathClassFactory.getDefaultPathClass(PathClassFactory.PathClasses.THREE_PLUS);
+		
+		// If there is no class specified, apply to all
+		if (classSelected == null) {
+			if (singleThreshold) {
+				QP.setIntensityClassifications(pathObjects, intensityMeasurement, t1);
+			} else {
+				QP.setIntensityClassifications(pathObjects, intensityMeasurement, t1, t2, t3);
+			}
+			return pathObjects.size();
+		}
 		
 		// Ensure we have the correct singleton class so we can do an equality check
 		classSelected = PathClassFactory.getSingletonPathClass(classSelected);

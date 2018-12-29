@@ -53,7 +53,7 @@ import qupath.lib.gui.helpers.dialogs.ParameterPanelFX;
 import qupath.lib.gui.plots.HistogramPanelFX;
 import qupath.lib.gui.plots.HistogramPanelFX.ThresholdedChartWrapper;
 import qupath.lib.images.ImageData;
-import qupath.lib.objects.classes.PathClassFactory;
+import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.events.PathObjectSelectionListener;
 import qupath.lib.objects.PathDetectionObject;
@@ -268,15 +268,17 @@ public class PathIntensityClassifierPanel implements PathObjectSelectionListener
 		if (intensityMeasurement != null && !intensityMeasurement.equals("None")) {
 			boolean singleThreshold = paramsIntensity.getBooleanParameterValue("single_threshold");
 			double t1 = paramsIntensity.getDoubleParameterValue("threshold_1");
+//			PathClass baseClass = PathClassFactory.getDefaultPathClass(PathClassFactory.PathClasses.TUMOR);
+			PathClass baseClass = null;
 			if (singleThreshold) {
 				intensityClassifier = new PathIntensityClassifier(
-						PathClassFactory.getDefaultPathClass(PathClassFactory.PathClasses.TUMOR),
+						baseClass,
 						intensityMeasurement, t1);
 			} else {
 				double t2 = Math.max(t1, paramsIntensity.getDoubleParameterValue("threshold_2"));
 				double t3 = Math.max(t2, paramsIntensity.getDoubleParameterValue("threshold_3"));
 				intensityClassifier = new PathIntensityClassifier(
-						PathClassFactory.getDefaultPathClass(PathClassFactory.PathClasses.TUMOR),
+						baseClass,
 						intensityMeasurement,
 						t1, t2, t3);
 			}

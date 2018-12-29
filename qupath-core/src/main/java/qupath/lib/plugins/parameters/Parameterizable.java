@@ -33,6 +33,4 @@ public interface Parameterizable {
 	
 	public ParameterList getParameterList();
 	
-	public void resetParameterList();
-
 }

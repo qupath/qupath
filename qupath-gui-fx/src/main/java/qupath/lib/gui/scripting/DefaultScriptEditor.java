@@ -676,10 +676,13 @@ public class DefaultScriptEditor implements ScriptEditor {
 		LoggingAppender.getInstance().addTextComponent(console);
 		if (outputScriptStartTime.get())
 			logger.info("Starting script at {}", new Date());
-		Object result = executeScript(tab.getLanguage(), script, imageData, useDefaultBindings.get(), context);
-		if (result != null)
-			logger.info("Result: {}", result);
-		LoggingAppender.getInstance().removeTextComponent(console);
+		try {
+			Object result = executeScript(tab.getLanguage(), script, imageData, useDefaultBindings.get(), context);
+			if (result != null)
+				logger.info("Result: {}", result);
+		} finally {
+			LoggingAppender.getInstance().removeTextComponent(console);			
+		}
 	}
 
 	/**

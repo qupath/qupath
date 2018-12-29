@@ -1301,20 +1301,20 @@ public class QP {
 			throw new IllegalArgumentException("Between 1 and 3 intensity thresholds required!");
 		
 		PathClass baseClass = getNonIntensityAncestorPathClass(pathObject);
-		double estimatedSpots = pathObject.getMeasurementList().getMeasurementValue(measurementName);
+		double intensityValue = pathObject.getMeasurementList().getMeasurementValue(measurementName);
 		
 		boolean singleThreshold = thresholds.length == 1;
 		
-		if (estimatedSpots < thresholds[0]) {
+		if (intensityValue < thresholds[0]) {
 			pathObject.setPathClass(PathClassFactory.getNegative(baseClass, null));
 		} else {
 			if (singleThreshold)
 				pathObject.setPathClass(PathClassFactory.getPositive(baseClass, null));
-			else if (thresholds.length >= 3 && estimatedSpots >= thresholds[2])
+			else if (thresholds.length >= 3 && intensityValue >= thresholds[2])
 				pathObject.setPathClass(PathClassFactory.getThreePlus(baseClass, null));				
-			else if (thresholds.length >= 2 && estimatedSpots >= thresholds[1])
+			else if (thresholds.length >= 2 && intensityValue >= thresholds[1])
 				pathObject.setPathClass(PathClassFactory.getTwoPlus(baseClass, null));				
-			else if (estimatedSpots >= thresholds[0])
+			else if (intensityValue >= thresholds[0])
 				pathObject.setPathClass(PathClassFactory.getOnePlus(baseClass, null));				
 		}
 		return pathObject.getPathClass();

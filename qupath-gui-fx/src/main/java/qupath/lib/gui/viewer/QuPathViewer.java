@@ -581,8 +581,9 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	private InvalidationListener repainterOverlay = new InvalidationListener() {
 		@Override
 		public void invalidated(Observable observable) {
+			forceOverlayUpdate();
 			background = ColorToolsAwt.getCachedColor(PathPrefs.getViewerBackgroundColor());
-			repaintEntireImage();
+			repaint();
 		}
 	};
 	

@@ -63,11 +63,6 @@ public abstract class ParameterizableOpenCvClassifier<T extends StatModel> exten
 			params = createParameterList();
 		return params;
 	}
-
-	@Override
-	public void resetParameterList() {
-		params = null;
-	}
 	
 	
 	/**

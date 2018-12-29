@@ -29,6 +29,7 @@ import javafx.stage.Stage;
 import org.bytedeco.javacpp.indexer.ByteIndexer;
 import org.bytedeco.javacpp.indexer.DoubleIndexer;
 import org.bytedeco.javacpp.indexer.FloatIndexer;
+import org.bytedeco.javacpp.indexer.UByteIndexer;
 import org.bytedeco.javacpp.indexer.UShortIndexer;
 import org.bytedeco.javacpp.opencv_core;
 import org.bytedeco.javacpp.opencv_core.Mat;
@@ -601,10 +602,13 @@ public class PixelClassifierGUI implements PathCommand, QuPathViewerListener, Pa
             indexer.get(0L, pixels);
             return new FloatProcessor(w, h, pixels);
         } else if (mat.depth() == opencv_core.CV_8U) {
-            ByteIndexer indexer = mat.createIndexer();
-            byte[] pixels = new byte[w*h];
+            UByteIndexer indexer = mat.createIndexer();
+            int[] pixels = new int[w*h];
             indexer.get(0L, pixels);
-            return new ByteProcessor(w, h, pixels);
+            ByteProcessor bp = new ByteProcessor(w, h);
+            for (int i = 0; i < pixels.length; i++)
+            	bp.set(i, pixels[i]);
+            return bp;
         } else if (mat.depth() == opencv_core.CV_16U) {
             UShortIndexer indexer = mat.createIndexer();
             int[] pixels = new int[w*h];
