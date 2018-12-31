@@ -226,6 +226,22 @@ public class PreferencePanel {
 				"Use calibrated location text",
 				category,
 				"Show pixel locations on the viewer in " + GeneralTools.micrometerSymbol() + " where possible");
+		
+		
+		addPropertyPreference(PathPrefs.gridSpacingXProperty(), Double.class,
+				"Grid spacing X",
+				category,
+				"Horizonal grid spacing when displaying a grid on the viewer");
+
+		addPropertyPreference(PathPrefs.gridSpacingYProperty(), Double.class,
+				"Grid spacing Y",
+				category,
+				"Vertical grid spacing when displaying a grid on the viewer");
+
+		addPropertyPreference(PathPrefs.gridScaleMicrons(), Boolean.class,
+				"Grid spacing in " + GeneralTools.micrometerSymbol(),
+				category,
+				"Use " + GeneralTools.micrometerSymbol() + " units where possible when defining grid spacing");
 
 		
 //		// Add support for 3D mice only if required class if available

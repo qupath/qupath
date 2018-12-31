@@ -538,6 +538,44 @@ public class PathPrefs {
 	}
 	
 	
+	
+	/**
+	 * Grid properties
+	 */
+	
+	private static DoubleProperty gridStartX = createPersistentPreference("gridStartX", 0.0);
+
+	private static DoubleProperty gridStartY = createPersistentPreference("gridStartY", 0.0);
+	
+	private static DoubleProperty gridSpacingX = createPersistentPreference("gridSpacingX", 250.0);
+
+	private static DoubleProperty gridSpacingY = createPersistentPreference("gridSpacingY", 250.0);
+
+	private static BooleanProperty gridScaleMicrons = createPersistentPreference("gridScaleMicrons", true);
+
+
+	public static DoubleProperty gridStartXProperty() {
+		return gridStartX;
+	}
+	
+	public static DoubleProperty gridStartYProperty() {
+		return gridStartY;
+	}
+
+	public static DoubleProperty gridSpacingXProperty() {
+		return gridSpacingX;
+	}
+
+	public static DoubleProperty gridSpacingYProperty() {
+		return gridSpacingY;
+	}
+
+	public static BooleanProperty gridScaleMicrons() {
+		return gridScaleMicrons;
+	}
+
+	
+	
 	private static DoubleProperty autoBrightnessContrastSaturation = PathPrefs.createPersistentPreference("autoBrightnessContrastSaturationPercentage", 0.1);
 
 	/**

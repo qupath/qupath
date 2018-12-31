@@ -53,7 +53,6 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 
 import javax.imageio.ImageIO;
 import javax.imageio.ImageReader;
@@ -724,7 +723,13 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		manager.attachListener(PathPrefs.colorTileProperty(), repainter);
 		manager.attachListener(PathPrefs.colorTMAProperty(), repainter);
 		manager.attachListener(PathPrefs.colorTMAMissingProperty(), repainter);
-		
+
+		manager.attachListener(PathPrefs.gridSpacingXProperty(), repainter);
+		manager.attachListener(PathPrefs.gridSpacingYProperty(), repainter);
+		manager.attachListener(PathPrefs.gridStartXProperty(), repainter);
+		manager.attachListener(PathPrefs.gridStartYProperty(), repainter);
+		manager.attachListener(PathPrefs.gridScaleMicrons(), repainter);
+
 		// We need to repaint everything if detection line thickness changes - including any cached regions
 		manager.attachListener(PathPrefs.strokeThinThicknessProperty(), repainterOverlay);		
 

@@ -25,6 +25,7 @@ package qupath.lib.awt.color;
 
 import java.awt.Color;
 import java.awt.image.IndexColorModel;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.locks.Lock;
@@ -206,9 +207,9 @@ public class ColorToolsAwt {
 		return getIndexColorModel(stain, true);
 	}
 
-	private static Map<Color, Color> colorsTransparent = new HashMap<>();
-	private static Map<Color, Color> colorsDarkened = new HashMap<>();
-	private static Map<Color, Color> colorsMoreTransparent = new HashMap<>();
+	private static Map<Color, Color> colorsTransparent = Collections.synchronizedMap(new HashMap<>());
+	private static Map<Color, Color> colorsDarkened = Collections.synchronizedMap(new HashMap<>());
+	private static Map<Color, Color> colorsMoreTransparent = Collections.synchronizedMap(new HashMap<>());
 	public static final Color TRANSLUCENT_WHITE = new Color(255, 255, 255, 128);
 	public static final Color TRANSLUCENT_BLACK = new Color(0, 0, 0, 128);
 
