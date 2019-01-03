@@ -1693,10 +1693,9 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 		 * @return
 		 */
 		public boolean updateObject() {
-			if (pathObject.getPathClass() == pathClass)
-				return false;
+			boolean changed = pathObject.getPathClass() != pathClass;
 			pathObject.setPathClass(pathClass, classificationProbability);
-			return true;
+			return changed;
 		}
 
 
