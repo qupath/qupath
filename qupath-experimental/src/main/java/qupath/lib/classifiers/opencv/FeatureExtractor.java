@@ -11,13 +11,9 @@ import qupath.lib.objects.PathObject;
 class FeatureExtractor {
 	
 	private List<String> measurements = new ArrayList<>();
-	private Normalizer normalizer;
-	private double missingValue;
 	
-	FeatureExtractor(final List<String> measurements, final Normalizer normalizer, final double missingValue) {
+	FeatureExtractor(final List<String> measurements) {
 		this.measurements.addAll(measurements);
-		this.normalizer = normalizer;
-		this.missingValue = missingValue;
 	}
 	
 	public void extractFeatures(final Collection<PathObject> pathObjects, FloatBuffer buffer) {
@@ -35,16 +31,9 @@ class FeatureExtractor {
 	
 	public void extractFeatures(final PathObject pathObject, FloatBuffer buffer) {
 		var measurementList = pathObject.getMeasurementList();
-		int idx = 0;
 		for (var m : measurements) {
 			double value = measurementList.getMeasurementValue(m);
-			if (normalizer != null)
-				value = normalizer.normalizeFeature(idx, value);
-			if (!Double.isFinite(value))
-				buffer.put((float)missingValue);
-			else
-				buffer.put((float)value);
-			idx++;
+			buffer.put((float)value);
 		}
 	}
 	

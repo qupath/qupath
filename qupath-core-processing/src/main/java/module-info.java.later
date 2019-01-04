@@ -24,6 +24,7 @@ module qupath.core.processing {
     exports qupath.imagej.objects.measure;
     exports qupath.imagej.processing;
     exports qupath.imagej.superpixels;
+    exports qupath.imagej.wrappers;
     exports qupath.opencv;
     exports qupath.opencv.classify;
     exports qupath.opencv.features;

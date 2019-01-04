@@ -4,6 +4,7 @@ include ':qupath-core-processing'
 include ':qupath-gui-fx'
 include ':qupath-extension-script-editor'
 include ':qupath-extension-processing'
+include ':qupath-extension-bioformats'
 include ':qupath-extension-openslide'
 include ':qupath-extension-pen'
 include ':qupath-experimental'
@@ -13,6 +14,7 @@ project(':qupath-core-processing').projectDir = "$rootDir/qupath-core-processing
 project(':qupath-gui-fx').projectDir = "$rootDir/qupath-gui-fx" as File
 project(':qupath-extension-script-editor').projectDir = "$rootDir/qupath-extension-script-editor" as File
 project(':qupath-extension-processing').projectDir = "$rootDir/qupath-extension-processing" as File
+project(':qupath-extension-bioformats').projectDir = "$rootDir/qupath-extension-bioformats" as File
 project(':qupath-extension-openslide').projectDir = "$rootDir/qupath-extension-openslide" as File
 project(':qupath-extension-pen').projectDir = "$rootDir/qupath-extension-pen" as File
 project(':qupath-experimental').projectDir = "$rootDir/qupath-experimental" as File

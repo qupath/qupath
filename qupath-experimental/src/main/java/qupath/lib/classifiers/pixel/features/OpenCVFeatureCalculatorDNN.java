@@ -125,7 +125,7 @@ public class OpenCVFeatureCalculatorDNN implements OpenCVFeatureCalculator {
     		logger.warn("Input size {}x{} differs from the preferred size {}x{}", input.cols(), input.rows(), requestedWidth, requestedHeight);
     	}
 
-        Mat blob = opencv_dnn.blobFromImage(input, scale, input.size(), mean, true, false);
+        Mat blob = opencv_dnn.blobFromImage(input, scale, input.size(), mean, true, false, opencv_core.CV_32F);
         Mat prob;
         Mat matResult = null;
         synchronized (model) {
