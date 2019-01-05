@@ -434,7 +434,7 @@ public class IJExtension implements QuPathExtension {
 					
 					// Check if this is displayed - skip it not
 					if (options != null && 
-							((child instanceof PathDetectionObject && !options.getShowObjects()) ||
+							((child instanceof PathDetectionObject && !options.getShowDetections()) ||
 							(child instanceof PathAnnotationObject && !options.getShowAnnotations()) ||
 							(child instanceof TMACoreObject && !options.getShowTMAGrid())))
 						continue;

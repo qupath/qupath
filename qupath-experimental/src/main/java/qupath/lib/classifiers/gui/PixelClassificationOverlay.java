@@ -291,7 +291,7 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
 	public void paintOverlay(Graphics2D g2d, ImageRegion imageRegion, double downsampleFactor, ImageObserver observer, boolean paintCompletely) {
 
         // For now, bind the display to the display of detections
-        if (!viewer.getOverlayOptions().getShowObjects())
+        if (!viewer.getOverlayOptions().getShowPixelClassification())
             return;
 
         if (imageData == null)

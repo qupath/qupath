@@ -375,7 +375,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 								MOVE_TOOL, RECTANGLE_TOOL, ELLIPSE_TOOL, POLYGON_TOOL, POLYLINE_TOOL, BRUSH_TOOL, LINE_TOOL, POINTS_TOOL, WAND_TOOL,
 								BRIGHTNESS_CONTRAST,
 								SHOW_OVERVIEW, SHOW_LOCATION, SHOW_SCALEBAR, SHOW_GRID, SHOW_ANALYSIS_PANEL,
-								SHOW_ANNOTATIONS, FILL_ANNOTATIONS, SHOW_TMA_GRID, SHOW_TMA_GRID_LABELS, SHOW_OBJECTS, FILL_OBJECTS, 
+								SHOW_ANNOTATIONS, FILL_ANNOTATIONS, SHOW_TMA_GRID, SHOW_TMA_GRID_LABELS, SHOW_DETECTIONS, FILL_DETECTIONS, SHOW_PIXEL_CLASSIFICATION,
 								SPECIFY_ANNOTATION, ANNOTATION_DUPLICATE, GRID_SPACING,
 								COUNTING_PANEL, CONVEX_POINTS, USE_SELECTED_COLOR, DETECTIONS_TO_POINTS,
 								ROTATE_IMAGE, MINI_VIEWER, CHANNEL_VIEWER,
@@ -671,6 +671,13 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 					e.consume();
 					return;
 				}
+			}
+			// Generic 'hiding'
+			if (new KeyCodeCombination(KeyCode.H).match(e)) {
+				var action = getAction(GUIActions.SHOW_DETECTIONS);
+				action.setSelected(!action.isSelected());
+				action = getAction(GUIActions.SHOW_PIXEL_CLASSIFICATION);
+				action.setSelected(!action.isSelected());
 			}
 			
 		});
@@ -3023,9 +3030,10 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				getActionCheckBoxMenuItem(GUIActions.FILL_ANNOTATIONS),
 				getActionCheckBoxMenuItem(GUIActions.SHOW_TMA_GRID),
 				getActionCheckBoxMenuItem(GUIActions.SHOW_TMA_GRID_LABELS),
-				getActionCheckBoxMenuItem(GUIActions.SHOW_OBJECTS),
-				getActionCheckBoxMenuItem(GUIActions.FILL_OBJECTS),
+				getActionCheckBoxMenuItem(GUIActions.SHOW_DETECTIONS),
+				getActionCheckBoxMenuItem(GUIActions.FILL_DETECTIONS),
 				createCheckMenuItem(createSelectableCommandAction(overlayOptions.showConnectionsProperty(), "Show object connections")),
+				getActionCheckBoxMenuItem(GUIActions.SHOW_PIXEL_CLASSIFICATION),
 				null,
 				getActionCheckBoxMenuItem(GUIActions.SHOW_OVERVIEW),
 				getActionCheckBoxMenuItem(GUIActions.SHOW_LOCATION),
@@ -3525,6 +3533,8 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			return createCommandAction(new SerializeImageDataCommand(this, false), "Save As", null, new KeyCodeCombination(KeyCode.S, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));			
 		case SAVE_DATA:
 			return createCommandAction(new SerializeImageDataCommand(this, true), "Save", null, new KeyCodeCombination(KeyCode.S, KeyCombination.SHORTCUT_DOWN));
+		case SHOW_PIXEL_CLASSIFICATION:
+			return createSelectableCommandAction(overlayOptions.showPixelClassificationProperty(), "Show pixel classification", PathIconFactory.PathIcons.PIXEL_CLASSIFICATION, new KeyCodeCombination(KeyCode.C));
 		case SHOW_ANNOTATIONS:
 			return createSelectableCommandAction(overlayOptions.showAnnotationsProperty(), "Show annotations", PathIconFactory.PathIcons.ANNOTATIONS, new KeyCodeCombination(KeyCode.A));
 		case FILL_ANNOTATIONS:
@@ -3533,10 +3543,10 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			return createSelectableCommandAction(overlayOptions.showTMAGridProperty(), "Show TMA grid", PathIconFactory.PathIcons.TMA_GRID, new KeyCodeCombination(KeyCode.G));
 		case SHOW_TMA_GRID_LABELS:
 			return createSelectableCommandAction(overlayOptions.showTMACoreLabelsProperty(), "Show TMA grid labels");
-		case SHOW_OBJECTS:
-			return createSelectableCommandAction(overlayOptions.showObjectsProperty(), "Show detections", PathIconFactory.PathIcons.DETECTIONS, new KeyCodeCombination(KeyCode.H));
-		case FILL_OBJECTS:
-			return createSelectableCommandAction(overlayOptions.fillObjectsProperty(), "Fill detections", PathIconFactory.PathIcons.DETECTIONS_FILL, new KeyCodeCombination(KeyCode.F));	
+		case SHOW_DETECTIONS:
+			return createSelectableCommandAction(overlayOptions.showDetectionsProperty(), "Show detections", PathIconFactory.PathIcons.DETECTIONS, new KeyCodeCombination(KeyCode.D));
+		case FILL_DETECTIONS:
+			return createSelectableCommandAction(overlayOptions.fillDetectionsProperty(), "Fill detections", PathIconFactory.PathIcons.DETECTIONS_FILL, new KeyCodeCombination(KeyCode.F));	
 		case SPECIFY_ANNOTATION:
 			return createCommandAction(new SpecifyAnnotationCommand(this), "Specify annotation");
 		case ANNOTATION_DUPLICATE:
@@ -4259,8 +4269,9 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			OverlayOptions overlayOptions = qupath.overlayOptions;
 			toolbar.getItems().add(qupath.getActionToggleButton(GUIActions.SHOW_ANNOTATIONS, true, overlayOptions.getShowAnnotations()));
 			toolbar.getItems().add(qupath.getActionToggleButton(GUIActions.SHOW_TMA_GRID, true, overlayOptions.getShowTMAGrid()));
-			toolbar.getItems().add(qupath.getActionToggleButton(GUIActions.SHOW_OBJECTS, true, overlayOptions.getShowObjects()));
-			toolbar.getItems().add(qupath.getActionToggleButton(GUIActions.FILL_OBJECTS, true, overlayOptions.getFillObjects()));
+			toolbar.getItems().add(qupath.getActionToggleButton(GUIActions.SHOW_DETECTIONS, true, overlayOptions.getShowDetections()));
+			toolbar.getItems().add(qupath.getActionToggleButton(GUIActions.FILL_DETECTIONS, true, overlayOptions.getFillObjects()));
+			toolbar.getItems().add(qupath.getActionToggleButton(GUIActions.SHOW_PIXEL_CLASSIFICATION, true, overlayOptions.getShowPixelClassification()));
 
 			final Slider sliderOpacity = new Slider(0, 1, 1);
 			sliderOpacity.valueProperty().bindBidirectional(overlayOptions.opacityProperty());

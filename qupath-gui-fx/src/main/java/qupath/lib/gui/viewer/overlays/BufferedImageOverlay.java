@@ -171,7 +171,7 @@ public class BufferedImageOverlay extends AbstractImageDataOverlay {
     @Override
     public void paintOverlay(Graphics2D g2d, ImageRegion imageRegion, double downsampleFactor, ImageObserver observer, boolean paintCompletely) {
         // Don't show if objects aren't being shown
-        if (!getOverlayOptions().getShowObjects())
+        if (!getOverlayOptions().getShowDetections())
             return;
 
         // Paint the regions we have

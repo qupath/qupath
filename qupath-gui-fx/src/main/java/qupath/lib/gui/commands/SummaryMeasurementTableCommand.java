@@ -429,8 +429,8 @@ public class SummaryMeasurementTableCommand implements PathCommand {
 		// I accept this is a terrible hack... I would greatly appreciate someone telling me the proper way to get the accelerator keys to work
 		final Action actionShowTMAction = qupath.getAction(GUIActions.SHOW_TMA_GRID);
 		final Action actionShowAnnotations = qupath.getAction(GUIActions.SHOW_ANNOTATIONS);
-		final Action actionShowObjects = qupath.getAction(GUIActions.SHOW_OBJECTS);
-		final Action actionFillObjects = qupath.getAction(GUIActions.FILL_OBJECTS);
+		final Action actionShowObjects = qupath.getAction(GUIActions.SHOW_DETECTIONS);
+		final Action actionFillObjects = qupath.getAction(GUIActions.FILL_DETECTIONS);
 		final KeyCombination showTMAKeyStroke = actionShowTMAction.getAccelerator();
 		final KeyCombination showAnnotationsKeystroke = actionShowAnnotations.getAccelerator();
 		final KeyCombination showObjectsKeystroke = actionShowObjects.getAccelerator();

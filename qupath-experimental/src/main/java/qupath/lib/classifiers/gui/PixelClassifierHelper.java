@@ -321,6 +321,9 @@ class PixelClassifierHelper implements PathObjectHierarchyListener {
         opencv_core.vconcat(new MatVector(allFeatures.toArray(new Mat[0])), matTraining);
         opencv_core.vconcat(new MatVector(allTargets.toArray(new Mat[0])), matTargets);
 
+        
+        opencv_core.patchNaNs(matTraining, 0.0);
+        
         int nFeatures = matTraining.cols();
         Mat matMean = new Mat(1, nFeatures, opencv_core.CV_64F);
         Mat matStdDev = new Mat(1, nFeatures, opencv_core.CV_64F);
@@ -330,6 +333,7 @@ class PixelClassifierHelper implements PathObjectHierarchyListener {
             opencv_core.subtractPut(matTraining.col(i), matMean.col(i));
             opencv_core.dividePut(matTraining.col(i), matStdDev.col(i));
         }
+//        System.err.println(matMean.createIndexer() + ", " + matStdDev.createIndexer());
         means = OpenCVPixelClassifier.toDoubleArray(matMean);
         scales = OpenCVPixelClassifier.toDoubleArray(matStdDev);
 

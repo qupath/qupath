@@ -97,12 +97,14 @@ public class PathIconFactory {
 									
 									OVERVIEW("\ue911"),
 									
+									PIXEL_CLASSIFICATION("C"),
+									
 									PLAYBACK_PLAY("\ue912"),
 									POINTS_TOOL("\ue913", PathPrefs.colorDefaultAnnotationsProperty()),
 									POLYGON_TOOL("\ue914", PathPrefs.colorDefaultAnnotationsProperty()),
 									
 									// TODO: Update to have a unique icon!
-									POLYLINE_TOOL("\ue914", PathPrefs.colorDefaultAnnotationsProperty()),
+									POLYLINE_TOOL("V", PathPrefs.colorDefaultAnnotationsProperty()),
 									
 									PLAYBACK_RECORD("\ue915"),
 									RECTANGLE_TOOL("\ue916", PathPrefs.colorDefaultAnnotationsProperty()),

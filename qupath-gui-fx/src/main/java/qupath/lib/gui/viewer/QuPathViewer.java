@@ -862,7 +862,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		this.overlayOptions = overlayOptions;
 		if (overlayOptions != null) {
 			
-			overlayOptionsManager.attachListener(overlayOptions.fillObjectsProperty(), repainterOverlay);
+			overlayOptionsManager.attachListener(overlayOptions.fillDetectionsProperty(), repainterOverlay);
 			overlayOptionsManager.attachListener(overlayOptions.hiddenClassesProperty(), repainterOverlay);
 			overlayOptionsManager.attachListener(overlayOptions.measurementMapperProperty(), repainterOverlay);
 			overlayOptionsManager.attachListener(overlayOptions.cellDisplayModeProperty(), repainterOverlay);
@@ -870,7 +870,8 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 
 			overlayOptionsManager.attachListener(overlayOptions.showAnnotationsProperty(), repainter);
 			overlayOptionsManager.attachListener(overlayOptions.fillAnnotationsProperty(), repainter);
-			overlayOptionsManager.attachListener(overlayOptions.showObjectsProperty(), repainter);
+			overlayOptionsManager.attachListener(overlayOptions.showDetectionsProperty(), repainter);
+			overlayOptionsManager.attachListener(overlayOptions.showPixelClassificationProperty(), repainter);
 			overlayOptionsManager.attachListener(overlayOptions.gridLinesProperty(), repainter);
 			overlayOptionsManager.attachListener(overlayOptions.showTMACoreLabelsProperty(), repainter);
 			overlayOptionsManager.attachListener(overlayOptions.showGridProperty(), repainter);

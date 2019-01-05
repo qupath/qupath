@@ -26,14 +26,17 @@ import javafx.scene.control.Tooltip;
 import javafx.scene.layout.GridPane;
 import javafx.scene.shape.Rectangle;
 import javafx.stage.Stage;
-import org.bytedeco.javacpp.indexer.ByteIndexer;
 import org.bytedeco.javacpp.indexer.DoubleIndexer;
 import org.bytedeco.javacpp.indexer.FloatIndexer;
 import org.bytedeco.javacpp.indexer.UByteIndexer;
 import org.bytedeco.javacpp.indexer.UShortIndexer;
+import org.bytedeco.javacpp.FloatPointer;
 import org.bytedeco.javacpp.opencv_core;
 import org.bytedeco.javacpp.opencv_core.Mat;
 import org.bytedeco.javacpp.opencv_core.MatVector;
+import org.bytedeco.javacpp.opencv_core.Size;
+import org.bytedeco.javacpp.opencv_core.TermCriteria;
+import org.bytedeco.javacpp.opencv_imgproc;
 import org.bytedeco.javacpp.opencv_ml;
 import org.bytedeco.javacpp.opencv_ml.ANN_MLP;
 import org.bytedeco.javacpp.opencv_ml.StatModel;
@@ -51,6 +54,9 @@ import qupath.lib.classifiers.pixel.PixelClassifierOutputChannel;
 import qupath.lib.classifiers.pixel.features.BasicMultiscaleOpenCVFeatureCalculator;
 import qupath.lib.classifiers.pixel.features.OpenCVFeatureCalculator;
 import qupath.lib.classifiers.pixel.features.SmoothedOpenCVFeatureCalculator;
+import qupath.lib.common.ColorTools;
+import qupath.lib.common.GeneralTools;
+import qupath.lib.display.ChannelDisplayInfo.SingleChannelDisplayInfo;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.helpers.ColorToolsFX;
@@ -66,11 +72,12 @@ import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.interfaces.ROI;
-
 import java.awt.Color;
 import java.awt.Shape;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -211,6 +218,25 @@ public class PixelClassifierGUI implements PathCommand, QuPathViewerListener, Pa
         ImageData<BufferedImage> imageData = viewer.getImageData();
         if (imageData != null)
             imageData.getHierarchy().addPathObjectListener(this);
+        
+        
+        for (var channel : viewer.getImageDisplay().availableChannels()) {
+        	if (channel instanceof SingleChannelDisplayInfo) {
+        		var sigmas = new double[]{2.0, 4.0, 8.0};
+        		var filters = new ArrayList<FeatureFilter>();
+        		for (var s : sigmas) {
+        			filters.add(new GaussianFeatureFilter(s));
+        			filters.add(new LoGFeatureFilter(s));
+        			filters.add(new SobelFeatureFilter(s));
+        			filters.add(new CoherenceFeatureFilter(s));
+        		}
+        		featureCalculators.add(new BasicFeatureCalculator(
+        				channel.getName() + " - basic features",
+        				Collections.singletonList((SingleChannelDisplayInfo)channel), 
+        				filters, 4.0));
+        	}
+        }
+        
 
         // Make it possible to choose OpenCVFeatureCalculator
         ComboBox<OpenCVFeatureCalculator> comboFeatures = new ComboBox<>(featureCalculators);
@@ -475,7 +501,7 @@ public class PixelClassifierGUI implements PathCommand, QuPathViewerListener, Pa
         
         trainData.shuffleTrainTest();
         model.train(trainData, modelBuilder.getVarType());
-
+        
         int inputWidth = helper.getFeatureCalculator().getMetadata().getInputWidth();
         int inputHeight = helper.getFeatureCalculator().getMetadata().getInputHeight();
         PixelClassifierMetadata metadata = new PixelClassifierMetadata.Builder()
@@ -694,7 +720,9 @@ public class PixelClassifierGUI implements PathCommand, QuPathViewerListener, Pa
     static class RTreesClassifierBuilder implements ClassifierModelBuilder {
     	
     	public StatModel createNewClassifier(final int nFeatures, final int nClasses) {
-    		return opencv_ml.RTrees.create();
+    		var model = opencv_ml.RTrees.create();
+    		model.setTermCriteria(new TermCriteria(TermCriteria.COUNT, 50, 0));
+    		return model;
     	}
     	
     	public int getVarType() {
@@ -792,6 +820,259 @@ public class PixelClassifierGUI implements PathCommand, QuPathViewerListener, Pa
     	}
     	
     }
+    
+    
+//    static class PixelFeatureCalculatorBuilder {
+//    	
+//    	public OpenCVFeatureCalculator getFeatureCalculator() {
+//    		
+//    		
+//    	}
+//    	
+//    }
+    
+    
+    static class BasicFeatureCalculator implements OpenCVFeatureCalculator {
+    	
+    	private String name;
+    	private List<SingleChannelDisplayInfo> channels = new ArrayList<>();
+    	private List<FeatureFilter> filters = new ArrayList<>();
+    	private PixelClassifierMetadata metadata;
+    	
+    	private int padding = 0;
+    	
+    	BasicFeatureCalculator(String name, List<SingleChannelDisplayInfo> channels, List<FeatureFilter> filters, double pixelSizeMicrons) {
+    		this.name = name;
+    		this.channels.addAll(channels);
+    		this.filters.addAll(filters);
+    		
+    		var outputChannels = new ArrayList<PixelClassifierOutputChannel>();
+    		for (var channel : channels) {
+    			for (var filter : filters) {
+    				outputChannels.add(new PixelClassifierOutputChannel(channel.getName() + ": " + filter.getName(), ColorTools.makeRGB(255, 255, 255)));
+    			}
+    		}
+    		
+    		padding = filters.stream().mapToInt(f -> f.getPadding()).max().orElseGet(() -> 0);
+    		metadata = new PixelClassifierMetadata.Builder()
+    				.channels(outputChannels)
+    				.inputPixelSizeMicrons(pixelSizeMicrons)
+    				.inputShape(512, 512)
+    				.build();
+    	}
+    	
+    	public String toString() {
+    		return name;
+    	}
+
+		@Override
+		public Mat calculateFeatures(ImageServer<BufferedImage> server, RegionRequest request) throws IOException {
+			
+			BufferedImage img = BasicMultiscaleOpenCVFeatureCalculator.getPaddedRequest(server, request, padding);
+			
+			List<Mat> output = new ArrayList<opencv_core.Mat>();
+			
+			int w = img.getWidth();
+			int h = img.getHeight();
+			float[] pixels = new float[w * h];
+			var mat = new Mat(h, w, opencv_core.CV_32FC1);
+			var matGaussian = new Mat(h, w, opencv_core.CV_32FC1);
+			FloatIndexer idx = mat.createIndexer();
+			for (var channel : channels) {
+				channel.getValues(img, 0, 0, w, h, pixels);
+				idx.put(0L, pixels);
+				double sigma = Double.NaN;
+    			for (var filter : filters) {
+    				if (filter instanceof AbstractGaussianFeatureFilter) {
+    					double nextSigma = ((AbstractGaussianFeatureFilter) filter).getSigma();
+    					if (nextSigma != sigma) {
+    	    				gaussianFilter(mat, sigma, matGaussian);
+    						sigma = nextSigma;
+    					}
+    				}
+    				filter.calculate(mat, matGaussian, output);
+    			}
+			}
+			
+			opencv_core.merge(new MatVector(output.toArray(Mat[]::new)), mat);
+			if (padding > 0)
+				mat.put(mat.apply(new opencv_core.Rect(padding, padding, mat.cols()-padding*2, mat.rows()-padding*2)).clone());
+			
+			matGaussian.release();
+			return mat;
+		}
+
+		@Override
+		public PixelClassifierMetadata getMetadata() {
+			return metadata;
+		}
+    	
+    }
+    
+    static void gaussianFilter(Mat matInput, double sigma, Mat matOutput) {
+    	int s = (int)Math.ceil(sigma * 3) * 2 + 1;
+    	opencv_imgproc.GaussianBlur(matInput, matOutput, new Size(s, s), sigma);
+    }
+    
+    static abstract class FeatureFilter {
+    	    	
+    	public abstract String getName();
+    	
+    	public abstract int getPadding();
+    	
+    	public abstract void calculate(Mat matInput, Mat matGaussian, List<Mat> output);
+    	
+    }
+
+    static abstract class AbstractGaussianFeatureFilter extends FeatureFilter {
+    	
+    	private double sigma;
+    	
+    	AbstractGaussianFeatureFilter(final double sigma) {
+    		this.sigma = sigma;
+    	}
+    	
+        String sigmaString() {
+        	return " (sigma=" + GeneralTools.formatNumber(sigma, 1) + ")";
+        }
+    	
+    	public double getSigma() {
+    		return sigma;
+    	}
+    	
+    	public int getPadding() {
+    		return (int)Math.ceil(sigma * 4);
+    	}
+    	
+    	public abstract void calculate(Mat matInput, Mat matGaussian, List<Mat> output);
+    	
+    }
+    
+    static class GaussianFeatureFilter extends AbstractGaussianFeatureFilter {
+    	
+    	GaussianFeatureFilter(double sigma) {
+    		super(sigma);
+    	}
+    	
+    	public String getName() {
+    		return "Gaussian" + sigmaString();
+    	}
+
+		@Override
+		public void calculate(Mat matInput, Mat matGaussian, List<Mat> output) {
+			output.add(matGaussian.clone());
+		}    	
+    	
+    }
+    
+    static class SobelFeatureFilter extends AbstractGaussianFeatureFilter {
+    	
+    	SobelFeatureFilter(double sigma) {
+    		super(sigma);
+    	}
+    	
+    	public String getName() {
+    		return "Gradient magnitude" + sigmaString();
+    	}
+
+		@Override
+		public void calculate(Mat matInput, Mat matGaussian, List<Mat> output) {
+			var matOutput = new Mat();
+			var matTemp = new Mat();
+			opencv_imgproc.Sobel(matGaussian, matOutput, -1, 1, 0);
+			opencv_imgproc.Sobel(matGaussian, matTemp, -1, 0, 1);
+			opencv_core.magnitude(matOutput, matTemp, matOutput);
+			output.add(matOutput);
+			matTemp.release();
+		}    	
+    	
+    }
+    
+    static class LoGFeatureFilter extends AbstractGaussianFeatureFilter {
+    	
+    	LoGFeatureFilter(double sigma) {
+    		super(sigma);
+    	}
+    	
+    	public String getName() {
+    		return "LoG" + sigmaString();
+    	}
+
+		@Override
+		public void calculate(Mat matInput, Mat matGaussian, List<Mat> output) {
+			var matOutput = new Mat();
+			opencv_imgproc.Laplacian(matGaussian, matOutput, -1);
+			output.add(matOutput);
+		}    	
+    	
+    }
+    
+    /**
+     * See http://bigwww.epfl.ch/publications/puespoeki1603.html
+     * 
+     */
+    static class CoherenceFeatureFilter extends AbstractGaussianFeatureFilter {
+    	
+    	CoherenceFeatureFilter(double sigma) {
+    		super(sigma);
+    	}
+    	
+    	public String getName() {
+    		return "Coherence" + sigmaString();
+    	}
+
+		@Override
+		public void calculate(Mat matInput, Mat matGaussian, List<Mat> output) {
+			var matDX = new Mat();
+			var matDY = new Mat();
+			opencv_imgproc.Sobel(matInput, matDX, -1, 1, 0);
+			opencv_imgproc.Sobel(matInput, matDY, -1, 0, 1);
+			
+			var matDXY = new Mat();
+			opencv_core.multiply(matDX, matDY, matDXY);
+			opencv_core.multiply(matDX, matDX, matDX);
+			opencv_core.multiply(matDY, matDY, matDY);
+			
+			double sigma = getSigma();
+			gaussianFilter(matDX, sigma, matDX);
+			gaussianFilter(matDY, sigma, matDY);
+			gaussianFilter(matDXY, sigma, matDXY);
+			
+			FloatIndexer idxDX = matDX.createIndexer();
+			FloatIndexer idxDY = matDY.createIndexer();
+			FloatIndexer idxDXY = matDXY.createIndexer();
+
+			// Reuse one mat for the output
+			var matOutput = matDXY;
+			FloatIndexer idxOutput = idxDXY;
+
+			long cols = matOutput.cols();
+			long rows = matOutput.rows();
+			for (long y = 0; y < rows; y++) {
+				for (long x = 0; x < cols; x++) {
+					float fxx = idxDX.get(y, x);
+					float fyy = idxDY.get(y, x);
+					float fxy = idxDXY.get(y, x);
+					double coherence = Math.sqrt(
+							(fxx - fyy) * (fxx - fyy) + 4 * fxy * fxy
+							) / (fxx + fyy);
+					idxOutput.put(y, x, (float)coherence);
+				}
+			}
+			output.add(matOutput);
+			
+			idxDX.release();
+			idxDY.release();
+			idxDXY.release();
+			
+			matDX.release();		
+			matDY.release();		
+		}    	
+    	
+    }
+    
+    
+    
 
 
 }

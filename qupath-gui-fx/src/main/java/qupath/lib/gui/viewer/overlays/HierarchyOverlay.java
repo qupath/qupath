@@ -151,7 +151,7 @@ public class HierarchyOverlay extends AbstractImageDataOverlay {
 
 		// TODO: Cache detections on an overlay image for faster repainting e.g. when drawing ROIs
 		OverlayOptions overlayOptions = getOverlayOptions();
-		if (overlayOptions.getShowObjects() && !hierarchy.isEmpty()) {
+		if (overlayOptions.getShowDetections() && !hierarchy.isEmpty()) {
 
 			// If we aren't downsampling by much, or we're upsampling, paint directly - making sure to paint the right number of times, and in the right order
 			if (smallImage || overlayServer == null || regionStore == null || downsampleFactor < 1.0) {

@@ -148,7 +148,7 @@ public class OpenCVMLClassifier implements PathObjectClassifier, Parameterizable
 		
 		// Create a PCA projector, if needed
 		if (pcaRetainedVariance > 0) {
-			pca = new PCAProjector(matFeatures, 0.99, true);
+			pca = new PCAProjector(matFeatures, pcaRetainedVariance, true);
 			pca.project(matFeatures, matFeatures);			
 		} else {
 			pca = null;

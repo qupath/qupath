@@ -101,6 +101,8 @@ public class OpenCVPixelClassifier extends AbstractOpenCVPixelClassifier {
         // Get probabilities
         Mat matOutput = new Mat();
         matFeatures = matFeatures.reshape(1, matFeatures.rows()*matFeatures.cols());
+        
+        opencv_core.patchNaNs(matFeatures, 0.0);
         synchronized (model) {
             model.predict(matFeatures, matOutput, 0);
 //            model.predict(matFeatures, matOutput, StatModel.RAW_OUTPUT);

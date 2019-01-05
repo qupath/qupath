@@ -172,7 +172,7 @@ public class PathAwtIO {
 			optionsThumbnail.setShowTMAGrid(true);
 			optionsThumbnail.setShowGrid(false);
 			optionsThumbnail.setShowAnnotations(false);
-			optionsThumbnail.setShowObjects(false);
+			optionsThumbnail.setShowDetections(false);
 			try {
 				ImageWriterTools.writeImageRegionWithOverlay(imageData.getServer(), Collections.singletonList(new TMAGridOverlay(overlayOptions, imageData)), request, fileTMAMap.getAbsolutePath());				
 			} catch (IOException e) {
