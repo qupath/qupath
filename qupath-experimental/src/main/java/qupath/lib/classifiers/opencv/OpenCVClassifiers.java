@@ -31,10 +31,82 @@ import org.bytedeco.javacpp.opencv_ml.SVMSGD;
 import org.bytedeco.javacpp.opencv_ml.StatModel;
 import org.bytedeco.javacpp.opencv_ml.TrainData;
 
+import qupath.lib.classifiers.Normalization;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.plugins.parameters.ParameterList;
 
 public class OpenCVClassifiers {
+	
+	
+	
+	public static class FeaturePreprocessor {
+		
+		private Normalizer normalizer;
+		private PCAProjector pca;
+		
+		public void apply(Mat mat) {
+			int rows = mat.rows();
+			int cols = mat.cols();
+			int channels = mat.channels();
+			if (channels > 1)
+				mat.put(mat.reshape(1, rows * cols));
+			if (normalizer != null)
+				Normalizer.normalize(mat, normalizer);
+			if (pca != null)
+				pca.project(mat, mat);
+			if (channels > 1)
+				mat.put(mat.reshape((int)(mat.total()/(rows*cols)), rows));
+		}
+		
+		public static class Builder {
+			
+			private Normalization normalization = Normalization.NONE;
+			private double missingValue = Double.NaN;
+			private double pcaRetainedVariance = -1;
+			private boolean pcaNormalize = true;
+			
+			private Normalizer normalizer;
+			private PCAProjector pca;
+			
+			public Builder() {}
+			
+			public Builder normalize(Normalization normalization) {
+				this.normalization = normalization;
+				return this;
+			}
+			
+			public Builder missingValue(double missingValue) {
+				this.missingValue = missingValue;
+				return this;
+			}
+						
+			public Builder pca(double retainedVariance, boolean pcaNormalize) {
+				this.pcaRetainedVariance = retainedVariance;
+				this.pcaNormalize = pcaNormalize;
+				return this;
+			}
+			
+			public FeaturePreprocessor buildAndApply(Mat trainingData) {
+				if (normalization != Normalization.NONE || !Double.isNaN(missingValue)) {
+					this.normalizer = Normalizer.createNormalizer(normalization, trainingData, missingValue);
+					Normalizer.normalize(trainingData, normalizer);						
+				}
+				
+				if (pcaRetainedVariance > 0) {
+					this.pca = PCAProjector.createPCAProjector(trainingData, pcaRetainedVariance, pcaNormalize);
+					this.pca.project(trainingData, trainingData);
+				}
+				var features = new FeaturePreprocessor();
+				features.normalizer = this.normalizer;
+				features.pca = this.pca;
+				return features;
+			}
+			
+		}
+		
+	}
+	
+	
 	
 	
 	public static OpenCVStatModel wrapStatModel(StatModel statModel) {
@@ -76,17 +148,19 @@ public class OpenCVClassifiers {
 	
 	public static abstract class OpenCVStatModel {
 		
-		abstract boolean supportsMissingValues();
+		public abstract boolean supportsMissingValues();
 		
-		abstract String getName();
+		public abstract String getName();
 		
-		abstract boolean isTrained();
+		public abstract boolean isTrained();
 		
-		abstract boolean supportsAutoUpdate();
+		public abstract boolean supportsAutoUpdate();
 		
-		abstract ParameterList getParameterList();
+		public abstract ParameterList getParameterList();
 				
-		abstract void train(Mat samples, Mat targets);
+		public abstract TrainData createTrainData(Mat samples, Mat targets);
+		
+		public abstract void train(TrainData trainData);
 
 		/**
 		 * Apply classification, optionally requesting probability estimates.
@@ -105,7 +179,7 @@ public class OpenCVClassifiers {
 		 * @param results a Mat to receive the results
 		 * @param probabilities a Mat to receive probability estimates, or null if probabilities are not needed
 		 */
-		abstract void predict(Mat samples, Mat results, Mat probabilities);
+		public abstract void predict(Mat samples, Mat results, Mat probabilities);
 		
 	}
 	
@@ -159,7 +233,12 @@ public class OpenCVClassifiers {
 //			
 //		}
 		
-		TrainData createTrainData(Mat samples, Mat targets) {
+		@Override
+		public String toString() {
+			return getName();
+		}
+		
+		public TrainData createTrainData(Mat samples, Mat targets) {
 			
 			if (requiresOneHotEncoding() && targets.depth() == opencv_core.CV_32S && targets.cols() == 1) {
 				IntBuffer buffer = targets.createBuffer();
@@ -193,12 +272,10 @@ public class OpenCVClassifiers {
 			return false;
 		}
 
-		public synchronized void train(Mat samples, Mat targets) {
-			try (var trainData = createTrainData(samples, targets)) {
-				var statModel = getStatModel();
-				updateModel(statModel, params, trainData);
-				statModel.train(trainData);
-			}
+		public synchronized void train(TrainData trainData) {
+			var statModel = getStatModel();
+			updateModel(statModel, params, trainData);
+			statModel.train(trainData);
 		}
 
 		@Override
@@ -418,8 +495,8 @@ public class OpenCVClassifiers {
 		}
 		
 		@Override
-		public void train(Mat samples, Mat targets) {
-			super.train(samples, targets);
+		public void train(TrainData trainData) {
+			super.train(trainData);
 			var trees = getStatModel();
 			if (trees.getCalculateVarImportance()) {
 				synchronized (this) {

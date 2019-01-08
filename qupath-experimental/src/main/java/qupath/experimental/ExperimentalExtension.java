@@ -2,6 +2,7 @@ package qupath.experimental;
 
 import qupath.lib.classifiers.gui.OpenCvClassifierCommand2;
 import qupath.lib.classifiers.gui.PixelClassifierGUI;
+import qupath.lib.classifiers.opencv.gui.PixelClassifierCommand;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.align.InteractiveImageAlignmentCommand;
 import qupath.lib.gui.extensions.QuPathExtension;
@@ -16,6 +17,7 @@ public class ExperimentalExtension implements QuPathExtension {
         QuPathGUI.addMenuItems(
                 qupath.getMenu("Classify", true),
                 QuPathGUI.createCommandAction(PixelClassifierGUI.getInstance(), "Pixel classifier (experimental)"),
+                QuPathGUI.createCommandAction(new PixelClassifierCommand(), "Pixel classifier (updated)"),
                 QuPathGUI.createCommandAction(new OpenCvClassifierCommand2(qupath), "Object classifier (experimental)")
         );
         QuPathGUI.addMenuItems(

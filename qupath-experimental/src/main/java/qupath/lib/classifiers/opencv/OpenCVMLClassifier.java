@@ -148,14 +148,22 @@ public class OpenCVMLClassifier implements PathObjectClassifier, Parameterizable
 		
 		// Create a PCA projector, if needed
 		if (pcaRetainedVariance > 0) {
-			pca = new PCAProjector(matFeatures, pcaRetainedVariance, true);
+			pca = PCAProjector.createPCAProjector(matFeatures, pcaRetainedVariance, true);
 			pca.project(matFeatures, matFeatures);			
 		} else {
 			pca = null;
 		}
 		
 		// Train classifier
-		classifier.train(matFeatures, matTargets);
+		// TODO: Optionally limit the number of training samples we use
+		var trainData = classifier.createTrainData(matFeatures, matTargets);
+//		int maxSamples = 10000;
+//		if (maxSamples > 0 && trainData.getTrainSamples().rows() > maxSamples)
+//			trainData.setTrainTestSplit(maxSamples, true);
+//		else
+//			trainData.shuffleTrainTest();
+		
+		classifier.train(trainData);
 		
 		logger.info("Classifier trained with " + matFeatures.rows() + " samples and " + matFeatures.cols() + " features");
 		

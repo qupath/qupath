@@ -8,7 +8,7 @@ import org.bytedeco.javacpp.opencv_core.Scalar;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-class PCAProjector implements AutoCloseable {
+public class PCAProjector implements AutoCloseable {
 		
 		private static final Logger logger = LoggerFactory.getLogger(PCAProjector.class);
 		
@@ -22,7 +22,14 @@ class PCAProjector implements AutoCloseable {
 		private double retainedVariance = -1;
 		private boolean normalize = true;
 		
-		PCAProjector(Mat data, double retainedVariance, boolean normalize) {
+		
+		
+		public static PCAProjector createPCAProjector(Mat data, double retainedVariance, boolean normalize) {
+			return new PCAProjector(data, retainedVariance, normalize);
+		}
+		
+		
+		private PCAProjector(Mat data, double retainedVariance, boolean normalize) {
 			this.retainedVariance = retainedVariance;
 			this.normalize = normalize;
 			opencv_core.PCACompute2(data, mean, eigenvectors, eigenvalues, retainedVariance);
@@ -34,7 +41,7 @@ class PCAProjector implements AutoCloseable {
 			return retainedVariance;
 		}
 		
-		void project(Mat data, Mat result) {
+		public void project(Mat data, Mat result) {
 			opencv_core.PCAProject(data, mean, eigenvectors, result);
 			if (normalize)
 				doNormalize(result);

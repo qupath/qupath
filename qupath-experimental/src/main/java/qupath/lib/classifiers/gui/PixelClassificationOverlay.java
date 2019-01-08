@@ -66,7 +66,7 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
     
     private ImageData<BufferedImage> imageData;
     
-    PixelClassificationOverlay(final QuPathViewer viewer, final PixelClassifier classifier) {
+    public PixelClassificationOverlay(final QuPathViewer viewer, final PixelClassifier classifier) {
         super();
         this.classifier = classifier;
         this.viewer = viewer;

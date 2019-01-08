@@ -8,7 +8,9 @@ import org.bytedeco.javacpp.indexer.UByteIndexer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import qupath.lib.classifiers.pixel.OpenCVPixelClassifier;
+import qupath.lib.classifiers.Normalization;
+import qupath.lib.classifiers.opencv.OpenCVClassifiers.FeaturePreprocessor;
+import qupath.lib.classifiers.opencv.OpenCVClassifiers;
 import qupath.lib.classifiers.pixel.PixelClassifierOutputChannel;
 import qupath.lib.classifiers.pixel.features.OpenCVFeatureCalculator;
 import qupath.lib.gui.images.stores.ImageRegionStoreHelpers;
@@ -43,6 +45,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -52,7 +55,7 @@ import java.util.WeakHashMap;
 import java.util.stream.Collectors;
 
 
-class PixelClassifierHelper implements PathObjectHierarchyListener {
+public class PixelClassifierHelper implements PathObjectHierarchyListener {
 	
 	private static final Logger logger = LoggerFactory.getLogger(PixelClassifierHelper.class);
 
@@ -61,14 +64,12 @@ class PixelClassifierHelper implements PathObjectHierarchyListener {
     private boolean changes = true;
 
     private List<PixelClassifierOutputChannel> channels;
-    private double requestedPixelSizeMicrons;
+    private double downsample;
     
-    private int modelType = opencv_ml.VAR_NUMERICAL;
-
     private Mat matTraining;
     private Mat matTargets;
-    private double[] means;
-    private double[] scales;
+    
+    private FeaturePreprocessor preprocessor;
 
     private Map<ROI, Mat> cacheFeatures = new WeakHashMap<>();
 
@@ -78,33 +79,16 @@ class PixelClassifierHelper implements PathObjectHierarchyListener {
      * @param imageData
      * @param calculator
      * @param requestedPixelSizeMicrons
-     * @param varType  opencv_ml.VAR_CATEGORICAL or opencv_ml.VAR_NUMERICAL
      */
-    PixelClassifierHelper(ImageData<BufferedImage> imageData, OpenCVFeatureCalculator calculator, 
-    		double requestedPixelSizeMicrons, int varType) {
+    public PixelClassifierHelper(ImageData<BufferedImage> imageData, OpenCVFeatureCalculator calculator, 
+    		double downsample) {
         setImageData(imageData);
         this.calculator = calculator;
-        this.requestedPixelSizeMicrons = requestedPixelSizeMicrons;
-        setVarType(varType);
+        this.downsample = downsample;
     }
 
-    public double getRequestedPixelSizeMicrons() {
-        return requestedPixelSizeMicrons;
-    }
-    
-    /**
-     * Set the var type, which indicates how the training data should be created.
-     * 
-     * @param newVarType
-     */
-    public void setVarType(final int newVarType) {
-    	if (newVarType == modelType)
-    		return;
-    	if (newVarType == opencv_ml.VAR_CATEGORICAL || newVarType == opencv_ml.VAR_NUMERICAL) {
-	    	modelType = newVarType;
-	    	changes = true;
-    	} else
-    		throw new IllegalArgumentException("Unsupported varType!  Must be opencv_ml.VAR_CATEGORICAL or opencv_ml.VAR_NUMERICAL");
+    public double getDownsample() {
+        return downsample;
     }
 
     public void setFeatureCalculator(OpenCVFeatureCalculator calculator) {
@@ -114,10 +98,10 @@ class PixelClassifierHelper implements PathObjectHierarchyListener {
         resetTrainingData();
     }
 
-    public void setRequestedPixelSizeMicrons(double requestedPixelSizeMicrons) {
-        if (this.requestedPixelSizeMicrons == requestedPixelSizeMicrons)
+    public void setDownsample(double downsample) {
+        if (this.downsample == downsample)
             return;
-        this.requestedPixelSizeMicrons = requestedPixelSizeMicrons;
+        this.downsample = downsample;
         resetTrainingData();
     }
 
@@ -170,8 +154,13 @@ class PixelClassifierHelper implements PathObjectHierarchyListener {
         return lastAnnotatedROIs;
     }
 
+    private Map<Integer, PathClass> pathClassesLabels = new LinkedHashMap<>();
+    
+    public synchronized Map<Integer, PathClass> getPathClassLabels() {
+    	return Collections.unmodifiableMap(pathClassesLabels);
+    }
 
-    public boolean updateTrainingData() {
+    public synchronized boolean updateTrainingData() {
         if (imageData == null) {
             resetTrainingData();
             return false;
@@ -189,16 +178,15 @@ class PixelClassifierHelper implements PathObjectHierarchyListener {
 
         // Training is the same - so nothing else to do unless the varType changed
         if (map.equals(lastAnnotatedROIs)) {
-        	if ((modelType == opencv_ml.VAR_CATEGORICAL && matTargets != null && matTargets.cols() == 1) ||
-        			(modelType == opencv_ml.VAR_NUMERICAL && matTargets != null && matTargets.cols() != 1))
-        		return true;
+       		return true;
         }
 
         // Get the current image
         ImageServer<BufferedImage> server = imageData.getServer();
-        double downsample = requestedPixelSizeMicrons / server.getAveragedPixelSizeMicrons();
-
+ 
         List<PathClass> pathClasses = new ArrayList<>(map.keySet());
+        pathClassesLabels.clear();
+        
         List<PixelClassifierOutputChannel> newChannels = new ArrayList<>();
         String path = imageData.getServerPath();
         List<Mat> allFeatures = new ArrayList<>();
@@ -217,6 +205,7 @@ class PixelClassifierHelper implements PathObjectHierarchyListener {
             PixelClassifierOutputChannel channel = new PixelClassifierOutputChannel(
                     pathClass.getName(), color);
             newChannels.add(channel);
+            pathClassesLabels.put(label, pathClass);
             // Loop through the object & get masks
             for (ROI roi : map.get(pathClass)) {
                 // Check if we've cached features
@@ -302,13 +291,7 @@ class PixelClassifierHelper implements PathObjectHierarchyListener {
                 }
                 if (matFeatures != null && !matFeatures.empty()) {
                     allFeatures.add(matFeatures.clone()); // Clone to be careful... not sure if normalization could impact this under adverse conditions
-                    Mat targets;
-                    if (modelType == opencv_ml.VAR_CATEGORICAL) {
-                        targets = new Mat(matFeatures.rows(), 1, opencv_core.CV_32SC1, opencv_core.Scalar.all(label));
-                    } else {
-                        targets = new Mat(matFeatures.rows(), nTargets, opencv_core.CV_32FC1, opencv_core.Scalar.ZERO);
-                        targets.col(label).put(opencv_core.Scalar.ONE);                	
-                    }
+                    Mat targets = new Mat(matFeatures.rows(), 1, opencv_core.CV_32SC1, opencv_core.Scalar.all(label));
                     allTargets.add(targets);
                 }
             }
@@ -324,18 +307,12 @@ class PixelClassifierHelper implements PathObjectHierarchyListener {
         
         opencv_core.patchNaNs(matTraining, 0.0);
         
-        int nFeatures = matTraining.cols();
-        Mat matMean = new Mat(1, nFeatures, opencv_core.CV_64F);
-        Mat matStdDev = new Mat(1, nFeatures, opencv_core.CV_64F);
-        for (int i = 0; i < nFeatures; i++) {
-            opencv_core.meanStdDev(matTraining.col(i), matMean.col(i), matStdDev.col(i));
-            // Apply normalization while we're here
-            opencv_core.subtractPut(matTraining.col(i), matMean.col(i));
-            opencv_core.dividePut(matTraining.col(i), matStdDev.col(i));
-        }
-//        System.err.println(matMean.createIndexer() + ", " + matStdDev.createIndexer());
-        means = OpenCVPixelClassifier.toDoubleArray(matMean);
-        scales = OpenCVPixelClassifier.toDoubleArray(matStdDev);
+        this.preprocessor = new OpenCVClassifiers.FeaturePreprocessor.Builder()
+        	.normalize(Normalization.MEAN_VARIANCE)
+//        	.pca(0.99, true)
+        	.missingValue(0)
+        	.buildAndApply(matTraining);
+        
 
         logger.info("Training data: {} x {}, Target data: {} x {}", matTraining.rows(), matTraining.cols(), matTargets.rows(), matTargets.cols());
         
@@ -351,12 +328,8 @@ class PixelClassifierHelper implements PathObjectHierarchyListener {
     }
 
 
-    public double[] getLastTrainingMeans() {
-        return means;
-    }
-
-    public double[] getLastTrainingScales() {
-        return scales;
+    public FeaturePreprocessor getLastFeaturePreprocessor() {
+        return preprocessor;
     }
     
     

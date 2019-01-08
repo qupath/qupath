@@ -26,20 +26,17 @@ import javafx.scene.control.Tooltip;
 import javafx.scene.layout.GridPane;
 import javafx.scene.shape.Rectangle;
 import javafx.stage.Stage;
-import org.bytedeco.javacpp.indexer.DoubleIndexer;
 import org.bytedeco.javacpp.indexer.FloatIndexer;
 import org.bytedeco.javacpp.indexer.UByteIndexer;
 import org.bytedeco.javacpp.indexer.UShortIndexer;
-import org.bytedeco.javacpp.FloatPointer;
 import org.bytedeco.javacpp.opencv_core;
 import org.bytedeco.javacpp.opencv_core.Mat;
 import org.bytedeco.javacpp.opencv_core.MatVector;
 import org.bytedeco.javacpp.opencv_core.Size;
-import org.bytedeco.javacpp.opencv_core.TermCriteria;
 import org.bytedeco.javacpp.opencv_imgproc;
-import org.bytedeco.javacpp.opencv_ml;
 import org.bytedeco.javacpp.opencv_ml.ANN_MLP;
-import org.bytedeco.javacpp.opencv_ml.StatModel;
+import org.bytedeco.javacpp.opencv_ml.KNearest;
+import org.bytedeco.javacpp.opencv_ml.RTrees;
 import org.bytedeco.javacpp.opencv_ml.TrainData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -47,6 +44,8 @@ import qupath.imagej.helpers.IJTools;
 import qupath.imagej.images.servers.BufferedImagePlusServer;
 import qupath.imagej.images.servers.ImagePlusServer;
 import qupath.imagej.images.servers.ImagePlusServerBuilder;
+import qupath.lib.classifiers.opencv.OpenCVClassifiers;
+import qupath.lib.classifiers.opencv.OpenCVClassifiers.OpenCVStatModel;
 import qupath.lib.classifiers.pixel.OpenCVPixelClassifier;
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.classifiers.pixel.PixelClassifierMetadata;
@@ -56,7 +55,6 @@ import qupath.lib.classifiers.pixel.features.OpenCVFeatureCalculator;
 import qupath.lib.classifiers.pixel.features.SmoothedOpenCVFeatureCalculator;
 import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
-import qupath.lib.display.ChannelDisplayInfo.SingleChannelDisplayInfo;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.helpers.ColorToolsFX;
@@ -77,13 +75,13 @@ import java.awt.Shape;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 /**
  * User interface for interacting with pixel classification.
@@ -139,7 +137,7 @@ public class PixelClassifierGUI implements PathCommand, QuPathViewerListener, Pa
 
     private PixelClassifierHelper helper;
     private Stage stage;
-    private StatModel model;
+    private OpenCVStatModel model;
 
     private QuPathViewer viewer;
 
@@ -150,13 +148,13 @@ public class PixelClassifierGUI implements PathCommand, QuPathViewerListener, Pa
     private SimpleObjectProperty<OpenCVFeatureCalculator> selectedFeatureCalculator = new SimpleObjectProperty<>();
     private BooleanProperty autoUpdate = new SimpleBooleanProperty();
     
-    private ObservableList<ClassifierModelBuilder> availableClassifierBuilders = FXCollections.observableArrayList(
-    		new RTreesClassifierBuilder(),
-//    		new NormalBayesClassifierBuilder(),
-    		new ANNSingleLayerClassifierBuilder(),
-    		new ANNClassifierBuilder()
+    private ObservableList<OpenCVStatModel> availableClassifierBuilders = FXCollections.observableArrayList(
+    		OpenCVClassifiers.wrapStatModel(RTrees.create()),
+    		OpenCVClassifiers.wrapStatModel(ANN_MLP.create()),
+    		OpenCVClassifiers.wrapStatModel(KNearest.create())
     		);
-    private SimpleObjectProperty<ClassifierModelBuilder> classifierBuilder = new SimpleObjectProperty<>(availableClassifierBuilders.get(0));
+    
+    private SimpleObjectProperty<OpenCVStatModel> classifierBuilder = new SimpleObjectProperty<>(availableClassifierBuilders.get(0));
 
     private ObservableList<PathClass> classificationList = FXCollections.observableArrayList();
     
@@ -219,23 +217,58 @@ public class PixelClassifierGUI implements PathCommand, QuPathViewerListener, Pa
         if (imageData != null)
             imageData.getHierarchy().addPathObjectListener(this);
         
+        var channelsList = IntStream.range(0, imageData.getServer().nChannels()).boxed().collect(Collectors.toList());
         
-        for (var channel : viewer.getImageDisplay().availableChannels()) {
-        	if (channel instanceof SingleChannelDisplayInfo) {
-        		var sigmas = new double[]{2.0, 4.0, 8.0};
-        		var filters = new ArrayList<FeatureFilter>();
-        		for (var s : sigmas) {
-        			filters.add(new GaussianFeatureFilter(s));
-        			filters.add(new LoGFeatureFilter(s));
-        			filters.add(new SobelFeatureFilter(s));
-        			filters.add(new CoherenceFeatureFilter(s));
-        		}
-        		featureCalculators.add(new BasicFeatureCalculator(
-        				channel.getName() + " - basic features",
-        				Collections.singletonList((SingleChannelDisplayInfo)channel), 
-        				filters, 4.0));
-        	}
+        var filters = new ArrayList<FeatureFilter>();
+        var sigmas = new double[]{2.0, 4.0, 8.0};
+        for (var sigma : sigmas) {
+        	filters.add(new GaussianFeatureFilter(sigma));
         }
+        featureCalculators.add(new BasicFeatureCalculator(
+    				"Smoothed features",
+    				channelsList, 
+    				filters, 4.0));
+        
+        for (var sigma : sigmas) {
+        	filters.add(new SobelFeatureFilter(sigma));
+        }
+        featureCalculators.add(new BasicFeatureCalculator(
+    				"Smoothed with edges",
+    				channelsList, 
+    				filters, 4.0));
+
+        for (var sigma : sigmas) {
+        	filters.add(new LoGFeatureFilter(sigma));
+        }
+        featureCalculators.add(new BasicFeatureCalculator(
+    				"Smoothed, edges, LoG",
+    				channelsList, 
+    				filters, 4.0));
+
+        for (var sigma : sigmas) {
+        	filters.add(new CoherenceFeatureFilter(sigma));
+        }
+        featureCalculators.add(new BasicFeatureCalculator(
+    				"Smoothed, edges, LoG, coherence",
+    				channelsList, 
+    				filters, 4.0));
+
+//        for (var channel : viewer.getImageDisplay().availableChannels()) {
+//        	if (channel instanceof SingleChannelDisplayInfo) {
+//        		var sigmas = new double[]{2.0, 4.0, 8.0};
+//        		var filters = new ArrayList<FeatureFilter>();
+//        		for (var s : sigmas) {
+//        			filters.add(new GaussianFeatureFilter(s));
+//        			filters.add(new LoGFeatureFilter(s));
+////        			filters.add(new SobelFeatureFilter(s));
+////        			filters.add(new CoherenceFeatureFilter(s));
+//        		}
+//        		featureCalculators.add(new BasicFeatureCalculator(
+//        				channel.getName() + " - basic features",
+//        				Collections.singletonList((SingleChannelDisplayInfo)channel), 
+//        				filters, 4.0));
+//        	}
+//        }
         
 
         // Make it possible to choose OpenCVFeatureCalculator
@@ -294,7 +327,7 @@ public class PixelClassifierGUI implements PathCommand, QuPathViewerListener, Pa
         labelResolution.setLabelFor(comboResolution);
         
         // Make it possible to choose the type of classifier
-        ComboBox<ClassifierModelBuilder> comboClassifierType = new ComboBox<>(availableClassifierBuilders);
+        var comboClassifierType = new ComboBox<>(availableClassifierBuilders);
         comboClassifierType.getSelectionModel().select(classifierBuilder.get());
         comboClassifierType.setMaxWidth(Double.MAX_VALUE);
         classifierBuilder.bind(comboClassifierType.getSelectionModel().selectedItemProperty());
@@ -420,6 +453,7 @@ public class PixelClassifierGUI implements PathCommand, QuPathViewerListener, Pa
         RegionRequest request = RegionRequest.createInstance(server.getPath(), downsample, x, y, w, h);
         
         Mat matFeatures;
+        List<String> names = calculator.getMetadata().getChannels().stream().map(c -> c.getName()).collect(Collectors.toList());
         try {
 	        ImagePlusServer serverIJ = ImagePlusServerBuilder.ensureImagePlusWholeSlideServer(server);
 	        serverIJ.readImagePlusRegion(request).getImage().show();
@@ -432,13 +466,21 @@ public class PixelClassifierGUI implements PathCommand, QuPathViewerListener, Pa
 	//  				(int)Math.round(256*downsample));
 	        
 	        matFeatures = calculator.calculateFeatures(imageData.getServer(), request);
+	        var preprocessor = helper.getLastFeaturePreprocessor();
+	        if (preprocessor != null) {
+	        	preprocessor.apply(matFeatures);
+	        	if (names.size() != matFeatures.channels()) {
+	        		names.clear();
+	        		for (int i = 1; i <= matFeatures.channels(); i++)
+	        			names.add("Feature " + i + " (preprocessed)");
+	        	}
+	        }
         }
         catch (IOException e2) {
     		logger.error("Unable to calculate faetures for " + request, e2);
     		return;
     	}
         
-        List<String> names = calculator.getMetadata().getChannels().stream().map(c -> c.getName()).collect(Collectors.toList());
         ImagePlus imp = matToImagePlus(matFeatures,
                 String.format("Features: (%.2f, %d, %d, %d, %d)",
                 request.getDownsample(), request.getX(), request.getY(), request.getWidth(), request.getHeight()));
@@ -466,53 +508,50 @@ public class PixelClassifierGUI implements PathCommand, QuPathViewerListener, Pa
 
     void updateClassification() {
         
-        double requestedPixelSizeMicrons = selectedResolution.get().getMicronsPerPixel();
-        if (requestedPixelSizeMicrons < 0 && viewer.getServer() != null)
-        	requestedPixelSizeMicrons = viewer.getServer().getAveragedPixelSizeMicrons();
+        double downsample = viewer.getServer() == null ? selectedResolution.get().getMicronsPerPixel() :
+        	selectedResolution.get().getMicronsPerPixel() / viewer.getServer().getAveragedPixelSizeMicrons();
         
         
-        ClassifierModelBuilder modelBuilder = classifierBuilder.get();
+       model = classifierBuilder.get();
         
         if (helper == null)
             helper = new PixelClassifierHelper(
-            		viewer.getImageData(), selectedFeatureCalculator.get(), requestedPixelSizeMicrons, opencv_ml.VAR_CATEGORICAL);
+            		viewer.getImageData(), selectedFeatureCalculator.get(), downsample);
         else {
             helper.setImageData(viewer.getImageData());
             helper.setFeatureCalculator(selectedFeatureCalculator.get());
-            helper.setRequestedPixelSizeMicrons(requestedPixelSizeMicrons);
+            helper.setDownsample(downsample);
         }
-        // Set the var type according to the kind of model we have
-        helper.setVarType(modelBuilder.getVarType());
-
+        
         helper.updateTrainingData();
         TrainData trainData = helper.getTrainData();
-        double[] means = helper.getLastTrainingMeans();
-        double[] scales = helper.getLastTrainingScales();
         if (trainData == null) {
             logger.error("Not enough annotations to train a classifier!");
             classificationList.clear();
             return;
         }
         List<PixelClassifierOutputChannel> channels = helper.getChannels();
-        int nClasses = channels.size();
-        int nFeatures = trainData.getNVars();
         
-        model = modelBuilder.createNewClassifier(nFeatures, nClasses);
-        
-        trainData.shuffleTrainTest();
-        model.train(trainData, modelBuilder.getVarType());
+     // TODO: Optionally limit the number of training samples we use
+//     		var trainData = classifier.createTrainData(matFeatures, matTargets);
+     		int maxSamples = 10000;
+     		if (maxSamples > 0 && trainData.getNTrainSamples() > maxSamples)
+     			trainData.setTrainTestSplit(maxSamples, true);
+     		else
+     			trainData.shuffleTrainTest();
+     	
+        model.train(trainData);
+//        model.train(trainData, modelBuilder.getVarType());
         
         int inputWidth = helper.getFeatureCalculator().getMetadata().getInputWidth();
         int inputHeight = helper.getFeatureCalculator().getMetadata().getInputHeight();
         PixelClassifierMetadata metadata = new PixelClassifierMetadata.Builder()
-        		.inputPixelSizeMicrons(helper.getRequestedPixelSizeMicrons())
+//        		.inputPixelSizeMicrons(helper.getRequestedPixelSizeMicrons())
         		.inputShape(inputWidth, inputHeight)
-        		.inputChannelMeans(means)
-        		.inputChannelScales(scales)
         		.channels(channels)
         		.build();
 
-        classifier = new OpenCVPixelClassifier(model, helper.getFeatureCalculator(), metadata);
+        classifier = new OpenCVPixelClassifier(model, helper.getFeatureCalculator(), helper.getLastFeaturePreprocessor(), metadata);
 
         classificationList.setAll(helper.getLastTrainingROIs().keySet());
 
@@ -693,155 +732,16 @@ public class PixelClassifierGUI implements PathCommand, QuPathViewerListener, Pa
     }
     
     
-    static interface ClassifierModelBuilder {
-    	
-    	/**
-    	 * Create a new {@code StatModel} to use as a classifier.
-    	 * <p>
-    	 * This may optionally use the number of features and number of output classes to 
-    	 * initialize itself suitably.
-    	 * 
-    	 * @param nFeatures
-    	 * @param nClasses
-    	 * @return
-    	 */
-    	public StatModel createNewClassifier(final int nFeatures, final int nClasses);
-    	
-    	/**
-    	 * Either opencv_ml.VAR_CATEGORICAL or opencv_ml.VAR_NUMERIC, depending on whether
-    	 * this classifier outputs classifications directly or numerical predictions (here, assumed to be probabilities).
-    	 * 
-    	 * @return
-    	 */
-    	public int getVarType();
-    	
-    }
-    
-    static class RTreesClassifierBuilder implements ClassifierModelBuilder {
-    	
-    	public StatModel createNewClassifier(final int nFeatures, final int nClasses) {
-    		var model = opencv_ml.RTrees.create();
-    		model.setTermCriteria(new TermCriteria(TermCriteria.COUNT, 50, 0));
-    		return model;
-    	}
-    	
-    	public int getVarType() {
-    		return opencv_ml.VAR_CATEGORICAL;
-    	}
-    	
-    	public String toString() {
-    		return "Random Trees";
-    	}
-    	
-    }
-    
-//    static class NormalBayesClassifierBuilder implements ClassifierModelBuilder {
-//    	
-//    	public StatModel createNewClassifier(final int nFeatures, final int nClasses) {
-//    		return opencv_ml.NormalBayesClassifier.create();
-//    	}
-//    	
-//    	public int getVarType() {
-//    		return opencv_ml.VAR_CATEGORICAL;
-//    	}
-//    	
-//    	@Override
-//    	public String toString() {
-//    		return "Normal Bayes";
-//    	}
-//    	
-//    }
-    
-    static class ANNSingleLayerClassifierBuilder implements ClassifierModelBuilder {
-    	
-    	public StatModel createNewClassifier(final int nFeatures, final int nClasses) {
-    		ANN_MLP model = opencv_ml.ANN_MLP.create();
-    		
-    		double[] layersArray = new double[] {
-                    nFeatures,
-                    nClasses
-            };
-
-            Mat layers = new Mat(layersArray.length, 1, opencv_core.CV_64F);
-            DoubleIndexer indexer = layers.createIndexer();
-            for (int i = 0; i < layersArray.length; i++) {
-                indexer.put(i, layersArray[i]);
-            }
-            indexer.release();
-        	((opencv_ml.ANN_MLP)model).setLayerSizes(layers);
-        	((opencv_ml.ANN_MLP)model).setActivationFunction(opencv_ml.ANN_MLP.SIGMOID_SYM, 1, 1);
-    		
-    		return model;
-    	}
-    	
-    	public int getVarType() {
-    		return opencv_ml.VAR_NUMERICAL;
-    	}
-    	
-    	@Override
-    	public String toString() {
-    		return "Artificial Neural Network (ANN, Single layer)";
-    	}
-    	
-    }
-    
-    static class ANNClassifierBuilder implements ClassifierModelBuilder {
-    	
-    	public StatModel createNewClassifier(final int nFeatures, final int nClasses) {
-    		ANN_MLP model = opencv_ml.ANN_MLP.create();
-    		
-    		double[] layersArray = new double[] {
-                    nFeatures,
-                    nFeatures * 2.0,
-                    nClasses * 8.0,
-                    nClasses * 4.0,
-                    nClasses
-            };
-
-            Mat layers = new Mat(layersArray.length, 1, opencv_core.CV_64F);
-            DoubleIndexer indexer = layers.createIndexer();
-            for (int i = 0; i < layersArray.length; i++) {
-                indexer.put(i, layersArray[i]);
-            }
-            indexer.release();
-        	((opencv_ml.ANN_MLP)model).setLayerSizes(layers);
-        	((opencv_ml.ANN_MLP)model).setActivationFunction(opencv_ml.ANN_MLP.SIGMOID_SYM, 1, 1);
-    		
-    		return model;
-    	}
-    	
-    	public int getVarType() {
-    		return opencv_ml.VAR_NUMERICAL;
-    	}
-    	
-    	@Override
-    	public String toString() {
-    		return "Artificial Neural Network (ANN)";
-    	}
-    	
-    }
-    
-    
-//    static class PixelFeatureCalculatorBuilder {
-//    	
-//    	public OpenCVFeatureCalculator getFeatureCalculator() {
-//    		
-//    		
-//    	}
-//    	
-//    }
-    
-    
-    static class BasicFeatureCalculator implements OpenCVFeatureCalculator {
+    public static class BasicFeatureCalculator implements OpenCVFeatureCalculator {
     	
     	private String name;
-    	private List<SingleChannelDisplayInfo> channels = new ArrayList<>();
+    	private List<Integer> channels = new ArrayList<>();
     	private List<FeatureFilter> filters = new ArrayList<>();
     	private PixelClassifierMetadata metadata;
     	
     	private int padding = 0;
     	
-    	BasicFeatureCalculator(String name, List<SingleChannelDisplayInfo> channels, List<FeatureFilter> filters, double pixelSizeMicrons) {
+    	public BasicFeatureCalculator(String name, List<Integer> channels, List<FeatureFilter> filters, double pixelSizeMicrons) {
     		this.name = name;
     		this.channels.addAll(channels);
     		this.filters.addAll(filters);
@@ -849,7 +749,8 @@ public class PixelClassifierGUI implements PathCommand, QuPathViewerListener, Pa
     		var outputChannels = new ArrayList<PixelClassifierOutputChannel>();
     		for (var channel : channels) {
     			for (var filter : filters) {
-    				outputChannels.add(new PixelClassifierOutputChannel(channel.getName() + ": " + filter.getName(), ColorTools.makeRGB(255, 255, 255)));
+    				outputChannels.add(new PixelClassifierOutputChannel("Channel " + channel + ": " + filter.getName(), ColorTools.makeRGB(255, 255, 255)));
+//    				outputChannels.add(new PixelClassifierOutputChannel(channel.getName() + ": " + filter.getName(), ColorTools.makeRGB(255, 255, 255)));
     			}
     		}
     		
@@ -879,7 +780,8 @@ public class PixelClassifierGUI implements PathCommand, QuPathViewerListener, Pa
 			var matGaussian = new Mat(h, w, opencv_core.CV_32FC1);
 			FloatIndexer idx = mat.createIndexer();
 			for (var channel : channels) {
-				channel.getValues(img, 0, 0, w, h, pixels);
+				pixels = img.getRaster().getSamples(0, 0, w, h, channel, pixels);
+//				channel.getValues(img, 0, 0, w, h, pixels);
 				idx.put(0L, pixels);
 				double sigma = Double.NaN;
     			for (var filter : filters) {
@@ -914,7 +816,7 @@ public class PixelClassifierGUI implements PathCommand, QuPathViewerListener, Pa
     	opencv_imgproc.GaussianBlur(matInput, matOutput, new Size(s, s), sigma);
     }
     
-    static abstract class FeatureFilter {
+    public static abstract class FeatureFilter {
     	    	
     	public abstract String getName();
     	
@@ -924,7 +826,7 @@ public class PixelClassifierGUI implements PathCommand, QuPathViewerListener, Pa
     	
     }
 
-    static abstract class AbstractGaussianFeatureFilter extends FeatureFilter {
+    public static abstract class AbstractGaussianFeatureFilter extends FeatureFilter {
     	
     	private double sigma;
     	
@@ -933,7 +835,8 @@ public class PixelClassifierGUI implements PathCommand, QuPathViewerListener, Pa
     	}
     	
         String sigmaString() {
-        	return " (sigma=" + GeneralTools.formatNumber(sigma, 1) + ")";
+        	return " (\u03C3="+ GeneralTools.formatNumber(sigma, 1) + ")";
+//        	return " (sigma=" + GeneralTools.formatNumber(sigma, 1) + ")";
         }
     	
     	public double getSigma() {
@@ -946,11 +849,16 @@ public class PixelClassifierGUI implements PathCommand, QuPathViewerListener, Pa
     	
     	public abstract void calculate(Mat matInput, Mat matGaussian, List<Mat> output);
     	
+    	@Override
+    	public String toString() {
+    		return getName();
+    	}
+    	
     }
     
-    static class GaussianFeatureFilter extends AbstractGaussianFeatureFilter {
+    public static class GaussianFeatureFilter extends AbstractGaussianFeatureFilter {
     	
-    	GaussianFeatureFilter(double sigma) {
+    	public GaussianFeatureFilter(double sigma) {
     		super(sigma);
     	}
     	
@@ -965,9 +873,9 @@ public class PixelClassifierGUI implements PathCommand, QuPathViewerListener, Pa
     	
     }
     
-    static class SobelFeatureFilter extends AbstractGaussianFeatureFilter {
+    public static class SobelFeatureFilter extends AbstractGaussianFeatureFilter {
     	
-    	SobelFeatureFilter(double sigma) {
+    	public SobelFeatureFilter(double sigma) {
     		super(sigma);
     	}
     	
@@ -988,9 +896,9 @@ public class PixelClassifierGUI implements PathCommand, QuPathViewerListener, Pa
     	
     }
     
-    static class LoGFeatureFilter extends AbstractGaussianFeatureFilter {
+    public static class LoGFeatureFilter extends AbstractGaussianFeatureFilter {
     	
-    	LoGFeatureFilter(double sigma) {
+    	public LoGFeatureFilter(double sigma) {
     		super(sigma);
     	}
     	
@@ -1011,9 +919,9 @@ public class PixelClassifierGUI implements PathCommand, QuPathViewerListener, Pa
      * See http://bigwww.epfl.ch/publications/puespoeki1603.html
      * 
      */
-    static class CoherenceFeatureFilter extends AbstractGaussianFeatureFilter {
+    public static class CoherenceFeatureFilter extends AbstractGaussianFeatureFilter {
     	
-    	CoherenceFeatureFilter(double sigma) {
+    	public CoherenceFeatureFilter(double sigma) {
     		super(sigma);
     	}
     	
@@ -1067,7 +975,8 @@ public class PixelClassifierGUI implements PathCommand, QuPathViewerListener, Pa
 			
 			matDX.release();		
 			matDY.release();		
-		}    	
+		}
+		
     	
     }
     

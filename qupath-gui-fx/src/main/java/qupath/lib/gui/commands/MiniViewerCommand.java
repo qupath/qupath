@@ -23,6 +23,7 @@
 
 package qupath.lib.gui.commands;
 
+import java.awt.AlphaComposite;
 import java.awt.Graphics2D;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.Point2D;
@@ -233,7 +234,7 @@ public class MiniViewerCommand implements PathCommand {
 	
 	
 	
-	static class MiniViewerManager implements EventHandler<MouseEvent> {
+	public static class MiniViewerManager implements EventHandler<MouseEvent> {
 		
 		private GridPane pane = new GridPane();
 		
@@ -270,6 +271,15 @@ public class MiniViewerCommand implements PathCommand {
 			
 		};
 		
+		private ChangeListener<Number> fastChangeListener = new ChangeListener<Number>() {
+
+			@Override
+			public void changed(ObservableValue<? extends Number> observable, Number oldValue, Number newValue) {
+				pool.submit(() -> requestUpdate());
+			}
+			
+		};
+		
 		private InvalidationListener invalidationListener = new InvalidationListener() {
 
 			@Override
@@ -283,12 +293,13 @@ public class MiniViewerCommand implements PathCommand {
 			return nChannels;
 		}
 		
-		MiniViewerManager(final QuPathViewer mainViewer, final int nChannels) {
+		public MiniViewerManager(final QuPathViewer mainViewer, final int nChannels) {
 			this.mainViewer = mainViewer;
 			setChannels(nChannels);
 
 			mainViewer.zPositionProperty().addListener(changeListener);
 			mainViewer.tPositionProperty().addListener(changeListener);
+			mainViewer.repaintTimestamp().addListener(fastChangeListener);
 			mainViewer.getImageDisplay().changeTimestampProperty().addListener(changeListener);
 			showCursor.addListener(invalidationListener);
 			showOverlays.addListener(invalidationListener);
@@ -296,11 +307,14 @@ public class MiniViewerCommand implements PathCommand {
 			synchronizeToMainViewer.addListener(invalidationListener);
 			downsample.addListener(invalidationListener);
 			mainViewer.getView().addEventFilter(MouseEvent.MOUSE_MOVED, this);
+			
+			requestFullUpdate();
 		}
 		
 		void close() {
 			mainViewer.zPositionProperty().removeListener(changeListener);
 			mainViewer.tPositionProperty().removeListener(changeListener);
+			mainViewer.repaintTimestamp().removeListener(fastChangeListener);
 			mainViewer.getImageDisplay().changeTimestampProperty().removeListener(changeListener);
 			showCursor.removeListener(invalidationListener);
 			showOverlays.removeListener(invalidationListener);
@@ -377,8 +391,15 @@ public class MiniViewerCommand implements PathCommand {
 			return tempPane;
 		}
 		
-		
-		GridPane getPane() {
+		public double getDownsample() {
+			return downsample.get();
+		}
+
+		public void setDownsample(final double downsample) {
+			this.downsample.set(downsample);
+		}
+
+		public GridPane getPane() {
 			return pane;
 		}
 		
@@ -401,10 +422,10 @@ public class MiniViewerCommand implements PathCommand {
 		void updateViewers() {
 			if (!requestUpdate)
 				return;
-			if (!Platform.isFxApplicationThread()) {
-				Platform.runLater(() -> updateViewers());
-				return;
-			}
+//			if (!Platform.isFxApplicationThread()) {
+//				Platform.runLater(() -> updateViewers());
+//				return;
+//			}
 			// Update mouse position if we are synchronizing
 			mousePosition = mainViewer.getMousePosition();
 			if (mousePosition != null) {
@@ -541,7 +562,10 @@ public class MiniViewerCommand implements PathCommand {
 						null,
 						renderer);
 				
-				if (showOverlays.get()) {
+				float opacity = mainViewer.getOverlayOptions().getOpacity();
+				if (showOverlays.get() && opacity > 0) {
+					if (opacity < 1f)
+						g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, opacity));
 					ImageRegion region = AwtTools.getImageRegion(g2d.getClipBounds(), mainViewer.getZPosition(), mainViewer.getTPosition());				
 					mainViewer.getOverlayLayers().stream().forEach(o -> o.paintOverlay(
 							g2d, region, downsample, null, false));					

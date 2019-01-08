@@ -259,7 +259,7 @@ public class BasicMultiscaleOpenCVFeatureCalculator implements OpenCVFeatureCalc
 			outOfRange = true;
 		}
 		// If everything is within range, this should be relatively straightforward
-		RegionRequest request2 = RegionRequest.createInstance(request.getPath(), downsample, x, y, x2-x, y2-y);
+		RegionRequest request2 = RegionRequest.createInstance(request.getPath(), downsample, x, y, x2-x, y2-y, request.getZ(), request.getT());
 		BufferedImage img = server.readBufferedImage(request2);
 		if (outOfRange) {
 			WritableRaster raster = img.getRaster();
