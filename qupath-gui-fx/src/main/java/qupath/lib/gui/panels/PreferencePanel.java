@@ -175,6 +175,10 @@ public class PreferencePanel {
 				category,
 				"Set the color to show behind any image in the viewer (i.e. beyond the image bounds)");
 		
+		addPropertyPreference(PathPrefs.alwaysPaintSelectedObjectsProperty(), Boolean.class,
+				"Always paint selected objects", category, 
+				"Always paint selected objects, even if the overlay opacity is set to 0");
+		
 		addPropertyPreference(PathPrefs.keepDisplaySettingsProperty(), Boolean.class,
 				"Keep display settings where possible", category, 
 				"Keep display settings (channel colors, brightness/contrast) when opening similar images");
@@ -186,7 +190,6 @@ public class PreferencePanel {
 		addPropertyPreference(PathPrefs.autoBrightnessContrastSaturationPercentProperty(), Double.class,
 				"Auto Brightness/Contrast saturation %", category, 
 				"Set % bright and % dark pixels that should be saturated when applying 'Auto' brightness/contrast settings");
-
 		
 		addPropertyPreference(PathPrefs.viewerGammaProperty(), Double.class,
 				"Gamma value (display only)", category, 

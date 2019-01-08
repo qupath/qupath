@@ -23,6 +23,8 @@
 
 package qupath.lib.gui.viewer.overlays;
 
+import java.awt.AlphaComposite;
+import java.awt.Composite;
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
 import java.awt.RenderingHints;
@@ -119,7 +121,13 @@ public class HierarchyOverlay extends AbstractImageDataOverlay {
 
 	@Override
 	public void paintOverlay(final Graphics2D g2d, final ImageRegion imageRegion, final double downsampleFactor, final ImageObserver observer, final boolean paintCompletely) {
-		if (isInvisible())
+		
+		// Get the selection model, which can influence colours (TODO: this might not be the best way to do it!)
+		PathObjectHierarchy hierarchy = getHierarchy();
+		if (hierarchy == null)
+			return;
+		
+		if (isInvisible() && hierarchy.getSelectionModel().noSelection())
 			return;
 
 		Rectangle serverBounds = AwtTools.getBounds(imageRegion);
@@ -140,11 +148,6 @@ public class HierarchyOverlay extends AbstractImageDataOverlay {
 		boundsDisplayed = boundsDisplayed.intersection(serverBounds);
 		ImageRegion region = AwtTools.getImageRegion(boundsDisplayed, z, t);
 		//		System.out.println("Displayed clip: " + clip);
-
-		// Get the selection model, which can influence colours (TODO: this might not be the best way to do it!)
-		PathObjectHierarchy hierarchy = getHierarchy();
-		if (hierarchy == null)
-			return;
 
 		// Paint detection objects
 		long startTime = System.currentTimeMillis();
@@ -201,7 +204,15 @@ public class HierarchyOverlay extends AbstractImageDataOverlay {
 		// Ensure that selected objects are painted last, to make sure they aren't obscured
 		if (!selectedObjects.isEmpty()) {
 			PathHierarchyPaintingHelper.paintSpecifiedObjects(g2d, boundsDisplayed, pathObjectList, overlayOptions, null, downsampleFactor);
-			PathHierarchyPaintingHelper.paintSpecifiedObjects(g2d, boundsDisplayed, hierarchy.getSelectionModel().getSelectedObjects(), overlayOptions, hierarchy.getSelectionModel(), downsampleFactor);
+			Composite previousComposite = g2d.getComposite();
+			float opacity = overlayOptions.getOpacity();
+			if (opacity < 1) {
+				g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER));
+				PathHierarchyPaintingHelper.paintSpecifiedObjects(g2d, boundsDisplayed, hierarchy.getSelectionModel().getSelectedObjects(), overlayOptions, hierarchy.getSelectionModel(), downsampleFactor);
+				g2d.setComposite(previousComposite);
+			} else {
+				PathHierarchyPaintingHelper.paintSpecifiedObjects(g2d, boundsDisplayed, hierarchy.getSelectionModel().getSelectedObjects(), overlayOptions, hierarchy.getSelectionModel(), downsampleFactor);				
+			}			
 		} else
 			PathHierarchyPaintingHelper.paintSpecifiedObjects(g2d, boundsDisplayed, pathObjectList, overlayOptions, null, downsampleFactor);
 	}

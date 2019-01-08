@@ -134,6 +134,7 @@ import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.AreaROI;
 import qupath.lib.roi.PolygonROI;
+import qupath.lib.roi.PolylineROI;
 import qupath.lib.roi.RectangleROI;
 import qupath.lib.roi.RoiEditor;
 import qupath.lib.roi.interfaces.PathArea;
@@ -723,6 +724,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		manager.attachListener(PathPrefs.colorTileProperty(), repainter);
 		manager.attachListener(PathPrefs.colorTMAProperty(), repainter);
 		manager.attachListener(PathPrefs.colorTMAMissingProperty(), repainter);
+		manager.attachListener(PathPrefs.alwaysPaintSelectedObjectsProperty(), repainter);
 
 		manager.attachListener(PathPrefs.gridSpacingXProperty(), repainter);
 		manager.attachListener(PathPrefs.gridSpacingYProperty(), repainter);
@@ -1649,7 +1651,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		g2d.transform(transform);
 		Composite previousComposite = g2d.getComposite();
 		boolean paintCompletely = thumbnailIsFullImage || !doFasterRepaint;
-		if (opacity > 0) {
+		if (opacity > 0 || PathPrefs.getAlwaysPaintSelectedObjects()) {
 			if (opacity < 1) {
 				AlphaComposite composite = AlphaComposite.getInstance(AlphaComposite.SRC_OVER, opacity);
 				g2d.setComposite(composite);			
@@ -1853,13 +1855,14 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	 */
 	public double getROIHandleSize() {
 		double strokeWidth = overlayOptions.getThickStrokeWidth(downsampleFactor.get());
+//		return strokeWidth * 4;
 		double size = strokeWidth * 4;
-		if (roiEditor.getROI() instanceof PathArea) {
-			ROI pathROI = roiEditor.getROI();
-			if (pathROI instanceof AreaROI || roiEditor.getROI() instanceof PolygonROI)
-				size = Math.min(size, Math.min(pathROI.getBoundsWidth()/32, pathROI.getBoundsHeight()/32));
+		ROI roi = roiEditor.getROI();
+		if (roi != null) {
+			if (roi instanceof AreaROI || roi instanceof PolygonROI || roi instanceof PolylineROI)
+				size = Math.min(size, Math.min(roi.getBoundsWidth(), roi.getBoundsHeight())/32);
 			else
-				size = Math.min(size, Math.min(pathROI.getBoundsWidth()/8, pathROI.getBoundsHeight()/8));
+				size = Math.min(size, Math.min(roi.getBoundsWidth(), roi.getBoundsHeight())/8);
 		}
 		return Math.max(strokeWidth * .5, size);
 	}

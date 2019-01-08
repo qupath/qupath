@@ -1096,6 +1096,26 @@ public class PathPrefs {
 	}
 	
 	
+	
+	private static BooleanProperty alwaysPaintSelectedObjects = createPersistentPreference("alwaysPaintSelectedObjects", true);
+	
+	/**
+	 * Always paint selected objects in the viewer, even if the opacity setting is 0.
+	 * @param autoClose
+	 */
+	public static void setAlwaysPaintSelectedObjects(boolean alwaysPaint) {
+		alwaysPaintSelectedObjects.set(alwaysPaint);
+	}
+	
+	public static BooleanProperty alwaysPaintSelectedObjectsProperty() {
+		return alwaysPaintSelectedObjects;
+	}
+	
+	public static boolean getAlwaysPaintSelectedObjects() {
+		return alwaysPaintSelectedObjects.get();
+	}
+	
+	
 
  private static BooleanProperty viewerInterpolateBilinear = createPersistentPreference("viewerInterpolateBilinear", false);
 	
