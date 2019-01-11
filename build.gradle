@@ -76,21 +76,22 @@ subprojects {
     openslide
     javafx
     nativeloader
+    guava
   }
 
   dependencies {
 
     jts "org.locationtech.jts:jts-core:1.16.0"
 
-    groovy "org.codehaus.groovy:groovy:2.5.4"
-    groovy "org.codehaus.groovy:groovy-jsr223:2.5.4"
+    groovy "org.codehaus.groovy:groovy:2.5.5"
+    groovy "org.codehaus.groovy:groovy-jsr223:2.5.5"
 
     for (fx in ['javafx-base', 'javafx-controls', 'javafx-graphics', 'javafx-media', 'javafx-web', 'javafx-swing']) {
       javafx "org.openjfx:${fx}:11.0.1"
       javafx "org.openjfx:${fx}:11.0.1:${platform}"
     }
 
-    richtextfx 'org.fxmisc.richtext:richtextfx:0.9.1'
+    richtextfx 'org.fxmisc.richtext:richtextfx:0.9.2'
 
     commonsmath 'org.apache.commons:commons-math3:3.6.1'
 
@@ -99,38 +100,32 @@ subprojects {
     controlsfx 'org.controlsfx:controlsfx:9.0.0'
 
 //	bioformats 'ome:bioformats_package:6.0.0-m3'
-	bioformats 'ome:formats-gpl:6.0.0-m3'
-	bioformats 'ome:bio-formats_plugins:6.0.0-m3'
+	bioformats 'ome:formats-gpl:6.0.0-m4'
+	bioformats 'ome:bio-formats_plugins:6.0.0-m4'
 
-    jfxtras 'org.jfxtras:jfxtras-menu:9.0-r1'
+    jfxtras 'org.jfxtras:jfxtras-menu:10.0-r1'
 
-    opencv 'org.bytedeco.javacpp-presets:opencv:4.0.0-1.4.4-SNAPSHOT'
+    opencv 'org.bytedeco.javacpp-presets:opencv:4.0.1-1.4.4'
     if (nativesCPP != null) {
       if (useGPU)
-        opencv 'org.bytedeco.javacpp-presets:opencv:4.0.0-1.4.4-SNAPSHOT:' + nativesCPP + '-gpu'
+        opencv 'org.bytedeco.javacpp-presets:opencv:4.0.1-1.4.4:' + nativesCPP + '-gpu'
       else
-	    opencv 'org.bytedeco.javacpp-presets:opencv:4.0.0-1.4.4-SNAPSHOT:' + nativesCPP
+	    opencv 'org.bytedeco.javacpp-presets:opencv:4.0.1-1.4.4:' + nativesCPP
     }
-/*
-    opencv 'org.bytedeco.javacpp-presets:opencv:3.4.3-1.4.3'
-    if (nativesCPP != null) {
-      opencv 'org.bytedeco.javacpp-presets:opencv:3.4.3-1.4.3:' + nativesCPP
-      if (useGPU)
-        opencv 'org.bytedeco.javacpp-presets:opencv:3.4.3-1.4.3:' + nativesCPP + '-gpu'
-    }
-*/
 
     jpen 'net.sourceforge.jpen:jpen:2-150301'
     if (nativesClassifier != null)
       jpen 'net.sourceforge.jpen:jpen:2-150301:' + nativesClassifier
 
-    imagej 'net.imagej:ij:1.52i'
+    imagej 'net.imagej:ij:1.52j'
 
     openslide 'org.openslide:openslide:3.4.1_2'
     if (nativesClassifier != null)
       openslide 'org.openslide:openslide:3.4.1_2:' + nativesClassifier
 
     nativeloader 'org.scijava:native-lib-loader:2.3.2'
+    
+    guava 'com.google.guava:guava:27.0.1-jre'
   }
 }
 
@@ -153,8 +148,6 @@ allprojects {
   repositories {
     mavenLocal()
     mavenCentral()
-    
-    maven { url "https://oss.sonatype.org/content/repositories/snapshots" }
     
     maven {
       name 'Unidata'
