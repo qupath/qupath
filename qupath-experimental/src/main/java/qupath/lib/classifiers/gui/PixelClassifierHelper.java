@@ -221,10 +221,20 @@ public class PixelClassifierHelper implements PathObjectHierarchyListener {
                 	}
                     Shape shape = PathROIToolsAwt.getShape(roi);
                     
-                    List<RegionRequest> requests = ImageRegionStoreHelpers.getTilesToRequest(
-                			server, shape, downsample, roi.getZ(), roi.getT(),
-                			calculator.getMetadata().getInputWidth(),
-                			calculator.getMetadata().getInputHeight(), null);
+                    List<RegionRequest> requests = new ArrayList<>();
+                    int tw = (int)Math.round(calculator.getMetadata().getInputWidth() * downsample);
+                    int th = (int)Math.round(calculator.getMetadata().getInputHeight() * downsample);
+                    for (int y = (int)roi.getBoundsY(); y < (int)Math.ceil(roi.getBoundsY() + roi.getBoundsHeight()); y += th) {
+                        for (int x = (int)roi.getBoundsX(); x < (int)Math.ceil(roi.getBoundsX() + roi.getBoundsWidth()); x += tw) {
+                        	requests.add(RegionRequest.createInstance(
+                        			server.getPath(), downsample, x, y, tw, th, roi.getZ(), roi.getT()));
+                        }                    	
+                    }
+                    
+//                    List<RegionRequest> requests = ImageRegionStoreHelpers.getTilesToRequest(
+//                			server, shape, downsample, roi.getZ(), roi.getT(),
+//                			calculator.getMetadata().getInputWidth(),
+//                			calculator.getMetadata().getInputHeight(), null);
 
                     matFeatures = new Mat();
                     List<Mat> rows = new ArrayList<>();
@@ -232,6 +242,7 @@ public class PixelClassifierHelper implements PathObjectHierarchyListener {
                         // Get features & reshape so that each row has features for specific pixel
                         Mat matFeaturesFull;
 						try {
+							// TODO: FIX THE DOWNSAMPLE - IT IS LIKELY TO BE WRONG!
 							matFeaturesFull = calculator.calculateFeatures(server, request);
 						} catch (IOException e) {
 							logger.warn("Unable to calculate features for " + request + " - will be skipped", e);

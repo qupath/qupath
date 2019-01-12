@@ -3,14 +3,17 @@ package qupath.lib.classifiers.gui;
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.classifiers.pixel.PixelClassifierMetadata.OutputType;
 import qupath.lib.classifiers.pixel.PixelClassifierOutputChannel;
+import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.common.SimpleThreadFactory;
+import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.images.stores.ImageRegionStoreHelpers;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.QuPathViewerListener;
 import qupath.lib.gui.viewer.overlays.AbstractOverlay;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.ImageServerProvider;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.TMACoreObject;
@@ -29,6 +32,10 @@ import java.awt.image.BufferedImage;
 import java.awt.image.DataBuffer;
 import java.awt.image.ImageObserver;
 import java.awt.image.SampleModel;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -54,6 +61,8 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
     private QuPathViewer viewer;
 
     private PixelClassifier classifier;
+    private PixelClassificationImageServer classifierServer;
+    
     private Map<RegionRequest, BufferedImage> cache = new HashMap<>();
     private Map<BufferedImage, BufferedImage> cacheRGB = new HashMap<>();
     private Set<RegionRequest> pendingRequests = Collections.synchronizedSet(new HashSet<>());
@@ -68,6 +77,8 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
     
     public PixelClassificationOverlay(final QuPathViewer viewer, final PixelClassifier classifier) {
         super();
+        this.cache = ImageServerProvider.getCache(BufferedImage.class);
+        
         this.classifier = classifier;
         this.viewer = viewer;
         this.viewer.addViewerListener(this);
@@ -106,7 +117,7 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
   			return updateMeasurements(pathObject, channels, null, 0L, Double.NaN, null);
     	}
 
-        ImageServer<BufferedImage> server = imageData.getServer();
+        ImageServer<BufferedImage> server = classifierServer;//imageData.getServer();
         
         // Calculate area of a pixel
         double requestedDownsample = classifier.getMetadata().getInputPixelSizeMicrons() / server.getAveragedPixelSizeMicrons();
@@ -289,18 +300,20 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
 
     @Override
 	public void paintOverlay(Graphics2D g2d, ImageRegion imageRegion, double downsampleFactor, ImageObserver observer, boolean paintCompletely) {
-
+    	cacheRGB.clear();
         // For now, bind the display to the display of detections
         if (!viewer.getOverlayOptions().getShowPixelClassification())
             return;
 
         if (imageData == null)
             return;
-        ImageServer<BufferedImage> server = imageData.getServer();
+//        ImageServer<BufferedImage> server = imageData.getServer();
+        var server = classifierServer;
 
         double requestedDownsample = classifier.getMetadata().getInputPixelSizeMicrons() / server.getAveragedPixelSizeMicrons();
 
-        boolean requestingTiles = downsampleFactor <= requestedDownsample * 4.0;
+//        boolean requestingTiles = downsampleFactor <= requestedDownsample * 4.0;
+        boolean requestingTiles = true;
 
         Collection<PathObject> objectsForOverlap = null;
         if (requestingTiles && imageData.getHierarchy().getTMAGrid() != null) {
@@ -315,15 +328,33 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
         if (tileHeight <= 0)
         	tileHeight = 256;
         List<RegionRequest> requests = ImageRegionStoreHelpers.getTilesToRequest(
-			server, g2d.getClip(), requestedDownsample, imageRegion.getZ(), imageRegion.getT(), tileWidth, tileHeight, null);
+			classifierServer, g2d.getClip(), requestedDownsample, imageRegion.getZ(), imageRegion.getT(), -1, -1, null);
 
-        requests = requests.stream().map(r -> RegionRequest.createInstance(r.getPath(), requestedDownsample, r)).collect(Collectors.toList());
+//        requests = requests.stream().map(r -> RegionRequest.createInstance(r.getPath(), requestedDownsample, r)).collect(Collectors.toList());
+        
+        var annotations = imageData.getHierarchy().getObjects(null, PathAnnotationObject.class);
         
         
 //        g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR)
 
         // Loop through & paint classified tiles if we have them, or request tiles if we don't
         for (RegionRequest request : requests) {
+        	
+        	if (annotations == null) {
+        		boolean doPaint = false;
+        		for (var annotation : annotations) {
+        			var roi = annotation.getROI();
+        			if (roi.getZ() == request.getZ() &&
+        					roi.getT() == request.getT() &&
+        					request.intersects(roi.getBoundsX(), roi.getBoundsY(), roi.getBoundsWidth(), roi.getBoundsHeight())) {
+        				doPaint = true;
+        				break;
+        			}
+        		}
+        		if (!doPaint)
+        			continue;
+        	}
+        	
         	// Get the cached raw classified image
             BufferedImage img = cache.get(request);
             if (img != null) {
@@ -339,6 +370,11 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
                         g.drawImage(img, 0, 0, null);
                         g.dispose();
                     }
+//                    if (imgRGB.getRGB(0, 0) == ColorTools.makeRGB(0, 0, 0)) {
+//                    	System.err.println("WRONG! " + img.getColorModel());
+//                    } else {
+//                    	System.err.println("RIGHT! " + img.getColorModel());
+//                    }
                     cacheRGB.put(img, imgRGB);
                 }
                 g2d.drawImage(imgRGB, request.getX(), request.getY(), request.getWidth(), request.getHeight(), null);
@@ -375,15 +411,21 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
     	logger.debug("Stopped classification overlay, dropped {} requests", pending.size());
     }
     
+    
+    public PixelClassificationImageServer getPixelClassificationServer() {
+    	return classifierServer;
+    }
+    
 
     // TODO: Revise this - don't require BufferedImage input!
     void requestTile(RegionRequest request) {
         // Make the request, if it isn't already pending
-        if (pendingRequests.add(request)) {
+        if (!cache.containsKey(request) && pendingRequests.add(request)) {
             pool.submit(() -> {
             	if (pool.isShutdown())
             		return;
-            	if (!pendingRequests.contains(request)) {
+            	// Check we still need to make the request
+            	if (cache.containsKey(request) || !pendingRequests.contains(request)) {
 //            		System.err.println("Ditched request!");
             		return;
             	}
@@ -400,11 +442,12 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
 //
 //                    BufferedImage imgResult = classifier.applyClassification(img2, padding);
                     
-                    BufferedImage imgResult = classifier.applyClassification(viewer.getServer(), request);
+                	BufferedImage imgResult = classifierServer.readBufferedImage(request);
+//                    BufferedImage imgResult = classifier.applyClassification(viewer.getServer(), request);
                     cache.put(request, imgResult);
-                    pendingRequests.remove(request);
                     viewer.repaint();
                     Platform.runLater(() -> updateAnnotationMeasurements());
+                    pendingRequests.remove(request);
                 } catch (Exception e) {
                    logger.error("Error requesting tile classification", e);
                 }
@@ -425,10 +468,36 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
 			ImageData<BufferedImage> imageDataNew) {
 		if (this.imageData != null) {
 			this.imageData.getHierarchy().removePathObjectListener(this);
+			if (classifierServer != null)
+				try {
+					classifierServer.close();
+				} catch (Exception e) {
+					logger.warn("Exception when closing classification server", e);
+				}
 		}
 		this.imageData = imageDataNew;
-		if (imageDataNew != null)
+		if (imageDataNew != null) {
 			imageDataNew.getHierarchy().addPathObjectListener(this);
+			
+			String cacheDirectory = null;
+			var project = QuPathGUI.getInstance().getProject();
+			if (project != null) {
+				Path tempDir;
+				try {
+					var baseDir = Paths.get(project.getBaseDirectory().getAbsolutePath(), "pixel_classification", imageDataNew.getServer().getShortServerName());
+					Files.createDirectories(baseDir);
+					tempDir = Files.createTempDirectory(
+							baseDir, "classification");
+					cacheDirectory = tempDir.toString();
+					logger.info("Created cache directory: {}", cacheDirectory);
+					// TODO: WRITE CLASSIFIER INTO DIRECTORY!
+				} catch (IOException e) {
+					logger.error("Unable to create temp directory", e);
+					cacheDirectory = null;
+				}
+			}
+			classifierServer = new PixelClassificationImageServer(cacheDirectory, cache, imageDataNew.getServer(), classifier);
+		}
 	}
 
 

@@ -38,7 +38,7 @@ public class ServerTools {
 
 	/**
 	 * Get the index of the closest downsample factor from an array of available factors.
-	 * 
+	 * <p>
 	 * The array is assumed to be sorted in ascending order.
 	 * 
 	 * @param preferredDownsamples
@@ -46,7 +46,7 @@ public class ServerTools {
 	 * @return
 	 */
 	public static int getClosestDownsampleIndex(double[] preferredDownsamples, double downsampleFactor) {
-		downsampleFactor = Math.max(downsampleFactor, 1.0);
+		downsampleFactor = Math.max(downsampleFactor, preferredDownsamples[0]);
 		int bestDownsampleSeries = -1;
 		double bestDownsampleDiff = Double.POSITIVE_INFINITY;
 		for (int i = 0; i < preferredDownsamples.length; i++) {

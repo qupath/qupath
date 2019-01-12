@@ -10,7 +10,7 @@ import qupath.lib.objects.classes.PathClass;
  * operation, applied to all objects in one go.  Consequently, it the classifier is aborted early 
  * (e.g. the thread interrupted), then the objects are not partially reclassified.
  */
-class Reclassifier {
+public class Reclassifier {
 	
 	private PathObject pathObject;
 	private PathClass pathClass;

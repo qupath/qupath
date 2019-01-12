@@ -12,6 +12,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.stream.Collectors;
+
 import org.bytedeco.javacpp.opencv_ml.ANN_MLP;
 import org.bytedeco.javacpp.opencv_ml.DTrees;
 import org.bytedeco.javacpp.opencv_ml.LogisticRegression;
@@ -58,6 +60,7 @@ import qupath.lib.classifiers.gui.PixelClassifierHelper;
 import qupath.lib.classifiers.gui.PixelClassifierGUI.FeatureFilter;
 import qupath.lib.classifiers.opencv.OpenCVClassifiers;
 import qupath.lib.classifiers.opencv.OpenCVClassifiers.OpenCVStatModel;
+import qupath.lib.classifiers.opencv.Reclassifier;
 import qupath.lib.classifiers.pixel.OpenCVPixelClassifier;
 import qupath.lib.classifiers.pixel.PixelClassifierMetadata;
 import qupath.lib.classifiers.pixel.PixelClassifierOutputChannel;
@@ -69,7 +72,10 @@ import qupath.lib.gui.commands.MiniViewerCommand;
 import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
+import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.classes.PathClass;
+import qupath.lib.objects.classes.PathClassFactory;
+import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
 
@@ -318,6 +324,9 @@ public class PixelClassifierImageSelectionPane {
 		for (var s : sigmas)
 			comboFeatures.getItems().add(new PixelClassifierGUI.CoherenceFeatureFilter(s));
 
+		// Select the simple Gaussian features by default
+		comboFeatures.getCheckModel().checkIndices(1, 2, 3);
+		
 		var labelFeaturesSummary = new Label("No features selected");
 		var btnEditFeatures = new Button("Select");
 		btnEditFeatures.setOnAction(e -> selectFeatures());
@@ -346,6 +355,10 @@ public class PixelClassifierImageSelectionPane {
 		// Live predict
 		var btnLive = new ToggleButton("Live prediction");
 		btnLive.selectedProperty().bindBidirectional(livePrediction);
+		livePrediction.addListener((v, o, n) -> {
+			if (n)
+				updateClassifier(n);
+		});
 		
 		var btnSave = new Button("Save & Apply");
 		btnSave.setOnAction(e -> saveAndApply());
@@ -473,6 +486,10 @@ public class PixelClassifierImageSelectionPane {
 	}
 	
 	void updateClassifier() {
+		updateClassifier(livePrediction.get());
+	}
+	
+	void updateClassifier(boolean doClassification) {
 		
 		double downsample = getRequestedDownsample();
 				
@@ -485,7 +502,7 @@ public class PixelClassifierImageSelectionPane {
 			helper.setDownsample(downsample);
 		}
 		
-		if (livePrediction.get())
+		if (doClassification)
 			doClassification();
 	}
 	
@@ -542,7 +559,7 @@ public class PixelClassifierImageSelectionPane {
 			 pieChart.setData(Collections.emptyList(), false);
 			 return;
 		 }
-		 
+
 		 List<PixelClassifierOutputChannel> channels = helper.getChannels();
 
 		 // TODO: Optionally limit the number of training samples we use
@@ -553,7 +570,6 @@ public class PixelClassifierImageSelectionPane {
 		 else
 			 trainData.shuffleTrainTest();
 		 
-		 model.train(trainData);
 		 //	        model.train(trainData, modelBuilder.getVarType());
 		 
 		 var labels = helper.getPathClassLabels();
@@ -569,6 +585,9 @@ public class PixelClassifierImageSelectionPane {
 			 data.add(ClassificationPieChart.PathClassAndValue.create(entry.getValue(), counts[entry.getKey()]));
 		 }
 		 pieChart.setData(data, true);
+		 
+		 trainData = model.createTrainData(trainData.getTrainSamples(), trainData.getTrainResponses());
+		 model.train(trainData);
 		 
 		 trainData.close();
 
@@ -626,8 +645,7 @@ public class PixelClassifierImageSelectionPane {
 	
 	boolean saveAndApply() {
 		logger.info("Only applying, not saving...");
-		updateClassifier();
-		doClassification();
+		updateClassifier(true);
 //		DisplayHelpers.showErrorMessage("Save & Apply", "Not implemented yet!");
 		return false;
 	}
@@ -635,8 +653,24 @@ public class PixelClassifierImageSelectionPane {
 	
 	
 	boolean classifyObjects() {
-		DisplayHelpers.showErrorMessage("Classify objects", "Not implemented yet!");
-		return false;
+		
+		var hierarchy = viewer.getHierarchy();
+		var pathObjects = hierarchy.getObjects(null, PathDetectionObject.class);
+		var server = overlay.getPixelClassificationServer();
+		var reclassifiers = pathObjects.parallelStream().map(p -> {
+				try {
+					var roi = PathObjectTools.getROI(p, true);
+					int x = (int)Math.round(roi.getCentroidX());
+					int y = (int)Math.round(roi.getCentroidY());
+					int ind = server.getClassification(x, y, roi.getZ(), roi.getT());
+					return new Reclassifier(p, PathClassFactory.getPathClass(overlay.getPixelClassificationServer().getChannelName(ind)));
+				} catch (Exception e) {
+					return new Reclassifier(p, null);
+				}
+			}).collect(Collectors.toList());
+		reclassifiers.parallelStream().forEach(r -> r.apply());
+		hierarchy.fireObjectClassificationsChangedEvent(this, pathObjects);
+		return true;
 	}
 	
 	
@@ -886,9 +920,10 @@ public class PixelClassifierImageSelectionPane {
 		@Override
 		public void hierarchyChanged(PathObjectHierarchyEvent event) {
 			if (livePrediction.get() && !event.isChanging() && (event.isStructureChangeEvent() || event.isObjectClassificationEvent())) {
-				if (!event.isObjectClassificationEvent() && !event.getChangedObjects().stream().anyMatch(p -> p.getPathClass() != null))
-					return;
-				updateClassifier();
+				if (event.isObjectClassificationEvent() || event.getChangedObjects().stream().anyMatch(p -> p.getPathClass() != null)) {
+					if (event.getChangedObjects().stream().anyMatch(p -> p.isAnnotation()))
+						updateClassifier();
+				}
 			}
 		}
 		

@@ -531,11 +531,12 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 	
 	
 	@Override
-	protected int getLevelWidth(int level) {
+	public int getLevelWidth(int level) {
 		return levelWidths[level];
 	}
 	
-	protected int getLevelHeight(int level) {
+	@Override
+	public int getLevelHeight(int level) {
 		return levelHeights[level];
 	}
 	

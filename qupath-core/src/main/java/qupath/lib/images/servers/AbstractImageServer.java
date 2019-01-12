@@ -102,10 +102,15 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 		return 0.5 * (getPixelWidthMicrons() + getPixelHeightMicrons());
 	}
 	
+	protected int getPreferredResolutionLevel(double requestedDownsample) {
+		double[] downsamples = getPreferredDownsamplesArray();
+		return ServerTools.getClosestDownsampleIndex(downsamples, requestedDownsample);
+	}
+	
 	@Override
 	public double getPreferredDownsampleFactor(double requestedDownsample) {
 		double[] downsamples = getPreferredDownsamplesArray();
-		int ind = ServerTools.getClosestDownsampleIndex(downsamples, requestedDownsample);
+		int ind = getPreferredResolutionLevel(requestedDownsample);
 		return downsamples[ind];
 	}
 	
@@ -154,6 +159,32 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 	@Override
 	public int getBitsPerPixel() {
 		return getMetadata().getBitDepth();
+	}
+	
+	/**
+	 * Estimate image width for specified pyramid level.
+	 * <p>
+	 * Default implementation just divides the image width by the downsample; 
+	 * subclasses can override this if they have additional information.
+	 * 
+	 * @param level
+	 * @return
+	 */
+	public int getLevelWidth(int level) {
+		return (int)(getWidth() / getPreferredDownsamplesArray()[level]);
+	}
+	
+	/**
+	 * Estimate image height for specified pyramid level.
+	 * <p>
+	 * Default implementation just divides the image height by the downsample; 
+	 * subclasses can override this if they have additional information.
+	 * 
+	 * @param level
+	 * @return
+	 */
+	public int getLevelHeight(int level) {
+		return (int)(getHeight() / getPreferredDownsamplesArray()[level]);
 	}
 	
 	/**

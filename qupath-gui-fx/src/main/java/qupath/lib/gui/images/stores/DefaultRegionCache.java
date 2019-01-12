@@ -24,6 +24,7 @@
 package qupath.lib.gui.images.stores;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -44,7 +45,7 @@ import qupath.lib.regions.RegionRequest;
  */
 class DefaultRegionCache<T> implements RegionCache<T> {
 
-	private LinkedHashMap<RegionRequest, T> map;
+	private Map<RegionRequest, T> map;
 	private final SizeEstimator<T> sizeEstimator;
 	private int maxCapacity;
 	private int nonNullSize = 0;
@@ -76,6 +77,7 @@ class DefaultRegionCache<T> implements RegionCache<T> {
 		}; // Should never have to resize the cache, so loadfactor is > 1
 		//			logger.info("Max capacity: " + maxCapacity);
 		//			logger.info("Max size: " + maxSizeBytes);
+		map = Collections.synchronizedMap(map);
 	}
 
 	DefaultRegionCache(final SizeEstimator<T> sizeEstimator, long maxSizeBytes) {

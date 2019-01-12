@@ -93,6 +93,42 @@ public class RegionRequest extends ImageRegion {
 					super.intersects(request);
 		return false;
 	}
+	
+	/**
+	 * Check if this region contains a specified coordinate.
+	 * 
+	 * @param x
+	 * @param y
+	 * @param z
+	 * @param t
+	 * @return
+	 */
+	public boolean contains(int x, int y, int z, int t) {
+		return getZ() == z &&
+			   getT() == t &&
+			   x >= getX() &&
+			   x < getX() + getWidth() &&
+			   y >= getY() &&
+			   y < getY() + getHeight();
+	}
+	
+	
+//	public int getMinX() {
+//		return Math.min(getX(), getX() + getWidth());
+//	}
+//
+//	public int getMaxX() {
+//		return Math.max(getX(), getX() + getWidth());
+//	}
+//	
+//	public int getMinY() {
+//		return Math.min(getY(), getY() + getHeight());
+//	}
+//
+//	public int getMaxY() {
+//		return Math.max(getY(), getY() + getHeight());
+//	}
+
 
 	public String getPath() {
 		return path;

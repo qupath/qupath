@@ -189,19 +189,19 @@ public final class PathObjectHierarchy implements Serializable {
 		}
 
 		// Can't keep children if there aren't any
-		keepChildren = keepChildren && pathObject.hasChildren();
+		boolean hasChildren = pathObject.hasChildren();
 		
 		pathObjectParent.removePathObject(pathObject);
 
 		// Assign the children to the parent object, if necessary
-		if (keepChildren) {
+		if (keepChildren && hasChildren) {
 			// We create a new array list because getPathObjectList returns an unmodifiable collection
 //			List<PathObject> list = new ArrayList<>(pathObject.getPathObjectList());
 			pathObjectParent.addPathObjects(pathObject.getChildObjects());
 //			pathObject.clearPathObjects(); // Clear child objects, just in case
 		}
 		if (fireEvent) {
-			if (keepChildren)
+			if (keepChildren || !hasChildren)
 				fireObjectRemovedEvent(this, pathObject, pathObjectParent);
 			else
 				fireHierarchyChangedEvent(this, pathObjectParent);

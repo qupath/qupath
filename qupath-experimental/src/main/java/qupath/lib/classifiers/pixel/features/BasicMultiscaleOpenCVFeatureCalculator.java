@@ -292,7 +292,6 @@ public class BasicMultiscaleOpenCVFeatureCalculator implements OpenCVFeatureCalc
 					rasterPadded.setRect(c, 0, col);
 			}
 			// TODO: The padding seems to work - but something to be cautious with...
-//			System.err.println(String.format("Applied padding (%d, %d, %d, %d) - check this!", padUp, padDown, padLeft, padRight));
 			img = new BufferedImage(img.getColorModel(), rasterPadded, img.isAlphaPremultiplied(), null);
 		}
 		return img;

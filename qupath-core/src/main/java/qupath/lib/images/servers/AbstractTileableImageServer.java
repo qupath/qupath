@@ -8,13 +8,18 @@ import java.awt.image.SampleModel;
 import java.awt.image.WritableRaster;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
 
 public abstract class AbstractTileableImageServer extends AbstractImageServer<BufferedImage> {
@@ -46,6 +51,10 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 	 * @return
 	 */
 	protected abstract BufferedImage readTile(final TileRequest tileRequest) throws IOException;
+	
+	
+	private TileRequestManager tileRequestManager;
+	
 	
 	/**
 	 * Construct a tileable ImageServer, providing a cache in which to store &amp; retrieve tiles.
@@ -93,7 +102,15 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 	protected BufferedImage createDefaultRGBImage(int width, int height) {
 		return new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
 	}
-		
+
+	
+	protected TileRequestManager getTileRequestManager() {
+		if (tileRequestManager == null) {
+			tileRequestManager = new TileRequestManager(getAllTileRequests());
+		}
+		return tileRequestManager;
+	}
+	
 
 	@Override
 	public BufferedImage readBufferedImage(final RegionRequest request) throws IOException {
@@ -103,16 +120,18 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 			return img;
 		
 		// Figure out which tiles we need
-		TileRequestGrid requestGrid = getTileGridToRequest(this, request, -1, -1);
-		if (requestGrid == null || requestGrid.isEmpty())
+		var manager = getTileRequestManager();
+		var tiles = manager.getTiles(request);
+		
+		// If no tiles found, we assume a sparse image with nothing relevant to display for this location
+		if (tiles.isEmpty())
 			return null;
 		
-		int nRequests = requestGrid.size();
-		
 		// Check for the special case where we are requesting a single tile, which exactly matches the request
-		if (nRequests == 1 && request.equals(requestGrid.getTileRequest(0, 0).getRegionRequest())) {
-			return getTile(requestGrid.getTileRequest(0, 0));
+		if (tiles.size() == 1 && request.equals(tiles.get(0).getRegionRequest())) {
+			return getTile(tiles.get(0));
 		}
+		
 		long startTime = System.currentTimeMillis();
 		// Handle the general case for RGB
 		int width = (int)Math.round(request.getWidth() / request.getDownsample());
@@ -125,14 +144,14 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 			// Interpolate if downsampling
 			if (request.getDownsample() > 1)
 				g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-			for (TileRequest tileRequest : requestGrid.tileRequests) {
+			for (TileRequest tileRequest : tiles) {
 				BufferedImage imgTile = getTile(tileRequest);
 				g2d.drawImage(imgTile, tileRequest.getImageX(), tileRequest.getImageY(), tileRequest.getImageWidth(), tileRequest.getImageHeight(), null);
 			}
 			g2d.dispose();
 			
 			long endTime = System.currentTimeMillis();
-			logger.trace("Requested " + nRequests + " tiles in " + (endTime - startTime) + " ms (RGB)");
+			logger.trace("Requested " + tiles.size() + " tiles in " + (endTime - startTime) + " ms (RGB)");
 
 			return imgResult;
 		} else {
@@ -142,42 +161,53 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 			WritableRaster raster = null;
 			ColorModel colorModel = null;
 			boolean alphaPremultiplied = false;
-			int yy = 0;
-			for (int y = 0; y < requestGrid.nTilesY(); y++) {
-				int xx = 0;
-				TileRequest tileRequest = null;
-				for (int x = 0; x < requestGrid.nTilesX(); x++) {
-					tileRequest = requestGrid.getTileRequest(x, y);
-					BufferedImage imgTile = getTile(tileRequest);
-					if (imgTile != null) {
-						// Preallocate a raster if we need to, and everything else the tile might give us
-						if (raster == null) {
-							model = imgTile.getSampleModel().createCompatibleSampleModel(requestGrid.totalWidth(), requestGrid.totalHeight());
-							raster = WritableRaster.createWritableRaster(model, null);
-							colorModel = imgTile.getColorModel();
-							alphaPremultiplied = imgTile.isAlphaPremultiplied();							
-						}
-						// Insert the tile into the raster
-						raster.setDataElements(xx, yy, imgTile.getRaster());
+			
+			// Get the dimensions, based on tile coordinates & at the tiled resolution
+			int tileMinX = Integer.MAX_VALUE;
+			int tileMinY = Integer.MAX_VALUE;
+			int tileMaxX = Integer.MIN_VALUE;
+			int tileMaxY = Integer.MIN_VALUE;
+			double tileDownsample = Double.NaN;
+			for (var tileRequest : tiles) {
+				if (Double.isNaN(tileDownsample)) {
+					tileDownsample = tileRequest.getRegionRequest().getDownsample();
+				}
+				tileMinX = Math.min(tileRequest.getTileX(), tileMinX);
+				tileMinY = Math.min(tileRequest.getTileY(), tileMinY);
+				tileMaxX = Math.max(tileRequest.getTileX() + tileRequest.getTileWidth(), tileMaxX);
+				tileMaxY = Math.max(tileRequest.getTileY() + tileRequest.getTileHeight(), tileMaxY);
+			}
+			
+			
+			for (var tileRequest : tiles) {
+				
+				BufferedImage imgTile = getTile(tileRequest);
+				if (imgTile != null) {
+					// Preallocate a raster if we need to, and everything else the tile might give us
+					if (raster == null) {
+						model = imgTile.getSampleModel().createCompatibleSampleModel(tileMaxX - tileMinX, tileMaxY - tileMinY);
+						raster = WritableRaster.createWritableRaster(model, null);
+						colorModel = imgTile.getColorModel();
+						alphaPremultiplied = imgTile.isAlphaPremultiplied();							
 					}
-					xx += tileRequest.getTileWidth();
-				}	
-				yy += tileRequest.getTileHeight();
+					// Insert the tile into the raster
+					raster.setDataElements(
+							tileRequest.getTileX() - tileMinX,
+							tileRequest.getTileY() - tileMinY,
+//							Math.min(raster.getWidth() - tileMinX, imgTile.getWidth()),
+//							Math.min(raster.getHeight() - tileMinY, imgTile.getHeight()),							
+							imgTile.getRaster());
+				}
 			}
 			// Maybe we don't have anything at all (which is not an error if the image is sparse!)
 			if (raster == null)
 				return null;
 			
-			// Extract the region of interest from the full raster, if we need to
-			TileRequest firstTile = requestGrid.tileRequests.get(0);
-			TileRequest lastTile = requestGrid.tileRequests.get(requestGrid.tileRequests.size()-1);
-			
 			// Calculate the requested region mapped to the pyramidal level, and relative to the tiled image
-			double tileDownsample = firstTile.getRegionRequest().getDownsample();
-			int xStart = (int)Math.round(request.getX() / tileDownsample) - firstTile.getTileX();
-			int yStart = (int)Math.round(request.getY() / tileDownsample) - firstTile.getTileY();
-			int xEnd = (int)Math.round((request.getX() + request.getWidth()) / tileDownsample) - firstTile.getTileX();
-			int yEnd = (int)Math.round((request.getY() + request.getHeight()) / tileDownsample) - firstTile.getTileY();
+			int xStart = (int)Math.round(request.getX() / tileDownsample) - tileMinX;
+			int yStart = (int)Math.round(request.getY() / tileDownsample) - tileMinY;
+			int xEnd = (int)Math.round((request.getX() + request.getWidth()) / tileDownsample) - tileMinX;
+			int yEnd = (int)Math.round((request.getY() + request.getHeight()) / tileDownsample) - tileMinY;
 			
 			// Do cropping, if we need to
 			if (xStart > 0 || yStart > 0 || xEnd < raster.getWidth() || yEnd < raster.getHeight()) {
@@ -188,92 +218,17 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 						Math.min(raster.getHeight() - Math.max(yStart, 0), yEnd - Math.max(yStart, 0)),
 						0, 0, null);
 			}
-//			// TODO: Consider whether to do padding if we need to
-//			if (xStart < 0 || yStart < 0 || xEnd > raster.getWidth() || yEnd > raster.getHeight()) {
-//				
-//			}
-//			
-//			if (!(xStart == 0 && yStart == 0 && xWidth == raster.getWidth() && yHeight == raster.getHeight())) {
-//				System.err.println(String.format("I want %d, %d, %d, %d; I have %d, %d", xStart, yStart, xWidth, yHeight, raster.getWidth(), raster.getHeight()));
-//			}
-			
-			
-//			int beforeX = (int)Math.round((request.getX() - firstTile.getImageX()) / firstTile.getRegionRequest().getDownsample());
-//			int beforeY = (int)Math.round((request.getY() - firstTile.getImageY()) / firstTile.getRegionRequest().getDownsample());
-//			int afterX = (int)Math.round((lastTile.getImageX() + lastTile.getImageWidth() - request.getX() - request.getWidth()) / lastTile.getRegionRequest().getDownsample());
-//			int afterY = (int)Math.round((lastTile.getImageY() + lastTile.getImageHeight() - request.getY() - request.getHeight()) / lastTile.getRegionRequest().getDownsample());
-//			
-//			if (beforeX > 0 || beforeY > 0 || afterX > 0 || afterY > 0) {
-//				raster = raster.createWritableChild(parentX, parentY, parentX2 - parentX, parentY2 - parentY, 0, 0, null);
-//				int finalWidth = raster.getWidth() + prependX + appendX;
-//				int finalHeight = raster.getHeight() + prependY + appendY;
-//				if (raster.getWidth() != finalWidth || raster.getHeight() != finalHeight) {
-//					logger.debug("Padding image from {}, {} to dimensions {}, {}", raster.getWidth(), raster.getHeight(), finalWidth, finalHeight);
-//					WritableRaster raster2 = raster.createCompatibleWritableRaster(finalWidth, finalHeight);						
-//					raster2.setRect(prependX, prependY, raster);
-//					raster = raster2;
-//				}
-//			}
-//			
-//			int xTileStart = firstTile.getImageX();
-//			int yTileStart = firstTile.getImageY();
-//			int xTileEnd = lastTile.getImageX() + lastTile.getImageWidth();
-//			int yTileEnd = lastTile.getImageY() + lastTile.getImageHeight();
-//			if (xTileStart != request.getX() || yTileStart != request.getY() ||
-//					xTileEnd != request.getX() + request.getWidth() ||
-//					yTileEnd != request.getY() + request.getHeight()) {
-//				double tileDownsample = firstTile.getRegionRequest().getDownsample();
-//				int parentX = (int)Math.round((request.getX() - xTileStart) / tileDownsample);
-//				int parentY = (int)Math.round((request.getY() - yTileStart) / tileDownsample);
-//				int parentX2 = parentX + (int)Math.round(request.getWidth() / tileDownsample);
-//				int parentY2 = parentY + (int)Math.round(request.getHeight() / tileDownsample);
-//				// TODO: Consider creating an entirely separate (non-child) raster to improve efficiency
-//				try {
-//					// Handle the fact that regions might be requested beyond the image boundary
-//					int prependX = 0, prependY = 0, appendX = 0, appendY = 0;
-//					if (parentX < 0) {
-//						prependX = -parentX;
-//						parentX = 0;
-//					} if (parentY < 0) {
-//						prependY = -parentY;
-//						parentY = 0;
-//					} if (parentX2 >= raster.getWidth()) {
-//						appendX = parentX2 - raster.getWidth();
-//						parentX2 = raster.getWidth()-1;
-//					} if (parentY2 >= raster.getHeight()) {
-//						appendY = parentY2 - raster.getHeight();
-//						parentY2 = raster.getHeight()-1;
-//					}
-//					raster = raster.createWritableChild(parentX, parentY, parentX2 - parentX, parentY2 - parentY, 0, 0, null);
-//					int finalWidth = raster.getWidth() + prependX + appendX;
-//					int finalHeight = raster.getHeight() + prependY + appendY;
-//					if (raster.getWidth() != finalWidth || raster.getHeight() != finalHeight) {
-//						logger.debug("Padding image from {}, {} to dimensions {}, {}", raster.getWidth(), raster.getHeight(), finalWidth, finalHeight);
-//						WritableRaster raster2 = raster.createCompatibleWritableRaster(finalWidth, finalHeight);						
-//						raster2.setRect(prependX, prependY, raster);
-//						raster = raster2;
-//					}
-//				} catch (Exception e) {
-//					logger.error("Problem extracting region with coordinates ({}, {}, {}, {}) from raster with size ({}, {})", 
-//							parentX, parentY, parentX2 - parentX, parentY2 - parentY, raster.getWidth(), raster.getHeight());
-//					throw(e);
-//				}
-//			}
-			
+
 			// Return the image, resizing if necessary
 			BufferedImage imgResult = new BufferedImage(colorModel, raster, alphaPremultiplied, null);
-//			System.err.println(request);
-//			System.err.println("Before: " + imgResult.getWidth() + ", " + imgResult.getHeight());
-//			System.err.println("Size: " + width + ", " + height);
 			imgResult = resize(imgResult, width, height, false);
 			
 			long endTime = System.currentTimeMillis();
-			logger.trace("Requested " + nRequests + " tiles in " + (endTime - startTime) + " ms (non-RGB)");
+			logger.trace("Requested " + tiles.size() + " tiles in " + (endTime - startTime) + " ms (non-RGB)");
 			return imgResult;
 		}
 	}
-	
-	
+
 	
 	
 	/**
@@ -338,145 +293,6 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 	
 	
 	/**
-	 * Estimate image width for specified pyramid level.
-	 * <p>
-	 * Default implementation just divides the image width by the downsample; 
-	 * subclasses can override this if they have additional information.
-	 * 
-	 * @param level
-	 * @return
-	 */
-	protected int getLevelWidth(int level) {
-		return (int)(getWidth() / getPreferredDownsamplesArray()[level]);
-	}
-	
-	/**
-	 * Estimate image height for specified pyramid level.
-	 * <p>
-	 * Default implementation just divides the image height by the downsample; 
-	 * subclasses can override this if they have additional information.
-	 * 
-	 * @param level
-	 * @return
-	 */
-	protected int getLevelHeight(int level) {
-		return (int)(getHeight() / getPreferredDownsamplesArray()[level]);
-	}
-	
-	
-	TileRequestGrid getTileGridToRequest(ImageServer<?> server, RegionRequest request, int tileWidth, int tileHeight) {
-
-		double[] downsamples = server.getPreferredDownsamples();
-		int level = ServerTools.getClosestDownsampleIndex(downsamples, request.getDownsample());
-		double downsample = downsamples[level];
-
-		// Determine what the tile size will be in the original image space for the requested downsample
-		// Aim for a round number - preferred downsamples can be a bit off due to rounding
-		if (tileWidth <= 0)
-			tileWidth = server.getPreferredTileWidth();
-		if (tileHeight <= 0)
-			tileHeight = server.getPreferredTileHeight();
-		
-		// If the preferred sizes are out of range, use defaults
-		if (tileWidth <= 0)
-			tileWidth = 256;
-		if (tileHeight <= 0)
-			tileHeight = 256;
-		
-		// Find starting point, in pyramid level coordinates
-		int tileXStart = (int)Math.max(0, request.getX() / downsample / tileWidth) * tileWidth;
-		int tileYStart = (int)Math.max(0, request.getY() / downsample / tileHeight) * tileHeight;
-
-		// Find end point, in pyramid level coordinates
-		int levelWidth = getLevelWidth(level);
-		int levelHeight = getLevelHeight(level);
-		int tileXEnd = (int)Math.ceil(Math.min(levelWidth, (request.getX() + request.getWidth()) / downsample / tileWidth)) * tileWidth;
-		int tileYEnd = (int)Math.ceil(Math.min(levelHeight, (request.getY() + request.getHeight()) / downsample / tileHeight)) * tileHeight;
-		
-		// Loop through and create the tile requests
-		int nx = (int)Math.ceil((double)(tileXEnd - tileXStart) / tileWidth);
-		int ny = (int)Math.ceil((double)(tileYEnd - tileYStart) / tileHeight);
-		String path = server.getPath();
-		List<TileRequest> tileRequests = new ArrayList<>();
-		int z = request.getZ();
-		int t = request.getT();
-		for (int ty = tileYStart; ty < tileYEnd; ty += tileHeight) {
-			for (int tx = tileXStart; tx < tileXEnd; tx += tileWidth) {
-				// Get a tile width & height constrained to the level
-				int tw = tileWidth;
-				int th = tileHeight;
-				if (tx + tw >= levelWidth)
-					tw = levelWidth - tx;
-				if (ty + th >= levelHeight)
-					th = levelHeight - ty;
-				
-				// Calculate closest image coordinates
-				int ix = (int)Math.round(tx * downsample);
-				int iy = (int)Math.round(ty * downsample);
-				int iw = (int)Math.round((tx + tw) * downsample) - ix;
-				int ih = (int)Math.round((ty + th) * downsample) - iy;
-				RegionRequest tempRequest = RegionRequest.createInstance(path, downsample,
-						ix, iy, iw, ih,
-						z, t);
-				TileRequest tileRequest = new TileRequest(tempRequest, level, tw, th);
-				tileRequests.add(tileRequest);
-			}
-		}
-		return new TileRequestGrid(tileRequests, nx);
-	}
-	
-	
-	
-	static class TileRequestGrid {
-		
-		private List<TileRequest> tileRequests;
-		private int nx, ny;
-		
-		TileRequestGrid(List<TileRequest> tileRequests, int nx) {
-			this.tileRequests = tileRequests;
-			this.nx = nx;
-			this.ny = tileRequests.size() / nx;
-		}
-		
-		boolean isEmpty() {
-			return tileRequests.isEmpty();
-		}
-
-		int size() {
-			return tileRequests.size();
-		}
-
-		int nTilesY() {
-			return ny;
-		}
-
-		TileRequest getTileRequest(int x, int y) {
-			return tileRequests.get(y * nTilesX() + x);
-		}
-
-		int nTilesX() {
-			return nx;
-		}
-		
-		int totalWidth() {
-			int width = 0;
-			for (int x = 0; x < nTilesX(); x++)
-				width += getTileRequest(x, 0).getTileWidth();
-			return width;
-		}
-		
-		int totalHeight() {
-			int height = 0;
-			for (int y = 0; y < nTilesY(); y++)
-				height += getTileRequest(0, y).getTileHeight();
-			return height;
-		}
-		
-	}
-		
-	
-	
-	/**
 	 * A wrapper for a RegionRequest, useful to precisely specify image tiles at a particular resolution.
 	 * <p>
 	 * Why?
@@ -491,21 +307,40 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 	 */
 	public static class TileRequest {
 		
-		final RegionRequest request;
+		private transient RegionRequest request;
 		
-		final int level;
-		final int tileWidth;
-		final int tileHeight;
+		private final String path;
+		private final double downsample;
+		private final int level;
+		private final ImageRegion tileRegion;
 		
-		public TileRequest(final RegionRequest request, final int level, final int tileWidth, final int tileHeight) {
-			this.request = request;
+		public TileRequest(final String path, 
+				final double downsample, final int level, final ImageRegion tileRegion) {
+			this.path = path;
+			this.downsample = downsample;
 			this.level = level;
-			this.tileWidth = tileWidth;
-			this.tileHeight = tileHeight;
+			this.tileRegion = tileRegion;
 		}
 		
 		public RegionRequest getRegionRequest() {
+			if (request == null) {
+				double x1 = tileRegion.getX() * downsample;
+				double y1 = tileRegion.getY() * downsample;
+				double x2 = (tileRegion.getX() + tileRegion.getWidth()) * downsample;
+				double y2 = (tileRegion.getY() + tileRegion.getHeight()) * downsample;
+				request = RegionRequest.createInstance(path, downsample,
+						(int)Math.round(x1),
+						(int)Math.round(y1),
+						(int)Math.round(x2 - Math.round(x1)),
+						(int)Math.round(y2 - Math.round(y1)),
+						tileRegion.getZ(),
+						tileRegion.getT());
+			}
 			return request;
+		}
+		
+		public double getDownsample() {
+			return downsample;
 		}
 		
 		public int getLevel() {
@@ -529,31 +364,134 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 		}
 		
 		public int getTileX() {
-			return (int)Math.round(request.getX() / request.getDownsample());
+			return tileRegion.getX();
 		}
 		
 		public int getTileY() {
-			return (int)Math.round(request.getY() / request.getDownsample());
+			return tileRegion.getY();
 		}
 		
 		public int getTileWidth() {
-			return tileWidth;
+			return tileRegion.getWidth();
 		}
 		
 		public int getTileHeight() {
-			return tileHeight;
+			return tileRegion.getHeight();
 		}
 		
 		public int getZ() {
-			return request.getZ();
+			return tileRegion.getZ();
 		}
 		
 		public int getT() {
-			return request.getT();
+			return tileRegion.getT();
 		}
 		
 	}
+
+	private Collection<TileRequest> tileRequests;
+	
+	protected synchronized Collection<TileRequest> getAllTileRequests() {
+		if (tileRequests == null)
+			tileRequests = Collections.unmodifiableCollection(getAllTileRequests(this));
+		return tileRequests;
+	}
+	
+	/**
+	 * Request a collection of <i>all</i> tiles that this server must be capable of returning. 
+	 * The default implementation provides a dense grid of all expected tiles across all resolutions, 
+	 * time points, z-slices and x,y coordinates.
+	 * 
+	 * @return
+	 */
+	protected static Collection<TileRequest> getAllTileRequests(ImageServer<?> server) {
+		var set = new LinkedHashSet<TileRequest>();
+		
+		var path = server.getPath();
+		var tileWidth = server.getPreferredTileWidth();
+		var tileHeight = server.getPreferredTileHeight();
+		var downsamples = server.getPreferredDownsamples();
+		
+		for (int level = 0; level < downsamples.length; level++) {
+			double downsample = downsamples[level];
+			int height = server.getLevelHeight(level);
+			int width = server.getLevelWidth(level);
+			for (int t = 0; t < server.nTimepoints(); t++) {
+				for (int z = 0; z < server.nZSlices(); z++) {
+					for (int y = 0; y < height; y += tileHeight) {
+						int th = tileHeight;
+						if (y + th > height)
+							th = height - y;
+						
+						for (int x = 0; x < width; x += tileWidth) {
+							int tw = tileWidth;
+							if (x + tw > width)
+								tw = width - x;
+							
+							var tile = new TileRequest(
+									path, downsample, level, ImageRegion.createInstance(
+											x, y, tw, th, z, t)
+									);
+							set.add(tile);
+						}
+					}					
+				}
+			}
+		}
+		return set;
+	}
 	
 	
+	protected class TileRequestManager {
+		
+		private Map<String, Set<TileRequest>> tiles = new LinkedHashMap<>();
+		
+		private String getKey(TileRequest tile) {
+			return getKey(tile.getLevel(), tile.getZ(), tile.getT());
+		}
+		
+		private String getKey(int level, int z, int t) {
+			return level + ":" + z + ":" + t;
+		}
+		
+		TileRequestManager(Collection<TileRequest> tiles) {
+			for (var tile : tiles) {
+				var key = getKey(tile);
+				var set = this.tiles.get(key);
+				if (set == null) {
+					set = new LinkedHashSet<>();
+					this.tiles.put(key, set);
+				}
+				set.add(tile);
+			}
+		}
+		
+		public TileRequest getTile(int level, int x, int y, int z, int t) {
+			var key = getKey(level, z, t);
+			var set = tiles.get(key);
+			if (set != null) {
+				for (var tile : tiles.get(key)) {
+					if (tile.getLevel() == level && tile.getRegionRequest().contains(x, y, z, t))
+						return tile;
+				}				
+			}
+			return null;
+		}
+		
+		public List<TileRequest> getTiles(RegionRequest request) {
+			int level = getPreferredResolutionLevel(request.getDownsample());
+			var key = getKey(level, request.getZ(), request.getT());
+			var set = tiles.get(key);
+			var list = new ArrayList<TileRequest>();
+			if (set != null) {
+				for (var tile : set) {
+					if (request.intersects(tile.getRegionRequest()))
+						list.add(tile);
+				}
+			}
+			return list;
+		}
+		
+	}
 	
 }

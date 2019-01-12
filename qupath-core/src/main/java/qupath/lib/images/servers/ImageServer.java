@@ -116,6 +116,18 @@ public interface ImageServer<T> extends AutoCloseable {
 	 * @return
 	 */
 	public int getHeight();
+	
+	/**
+	 * Width of image for a specific resolution level in pixels.
+	 * @return
+	 */
+	public int getLevelWidth(int level);
+
+	/**
+	 * Height of image for a specific resolution level in pixels.
+	 * @return
+	 */
+	public int getLevelHeight(int level);
 
 	/**
 	 * Number of channels (3 for RGB).
