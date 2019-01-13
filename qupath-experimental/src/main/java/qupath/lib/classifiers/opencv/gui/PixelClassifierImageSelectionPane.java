@@ -83,6 +83,24 @@ public class PixelClassifierImageSelectionPane {
 	
 	private final static Logger logger = LoggerFactory.getLogger(PixelClassifierImageSelectionPane.class);
 	
+	static enum ClassificationRegion {
+		ENTIRE_IMAGE,
+		ANNOTATIONS_ONLY;
+		
+		@Override
+		public String toString() {
+			switch(this) {
+			case ANNOTATIONS_ONLY:
+				return "Annotations only";
+			case ENTIRE_IMAGE:
+				return "Entire image";
+			default:
+				return "Unknown";
+			}
+		}
+	}
+	
+	
 	private static final ImageResolution RESOLUTION_FULL = DownsampledImageResolution.getInstance("Full", 1.0);
 	
 	private static final ImageResolution RESOLUTION_VERY_HIGH_CAL = SimpleImageResolution.getInstance("Very high", 1.0);
@@ -129,6 +147,8 @@ public class PixelClassifierImageSelectionPane {
 	private ObservableBooleanValue classificationComplete = new SimpleBooleanProperty(false);
 	private ReadOnlyObjectProperty<OpenCVStatModel> selectedClassifier;
 
+	private ReadOnlyObjectProperty<ClassificationRegion> selectedRegion;
+	
 	private ObservableList<FeatureFilter> selectedFeatures;
 
 	private ObservableList<Integer> availableChannels;
@@ -295,18 +315,6 @@ public class PixelClassifierImageSelectionPane {
 		
 		var labelFeatures = new Label("Features");
 		var comboFeatures = new CheckComboBox<FeatureFilter>();
-		comboFeatures.setSkin(new CheckComboBoxSkin<FeatureFilter>(comboFeatures) {
-			
-			protected String buildString() {
-				int n = comboFeatures.getCheckModel().getCheckedItems().size();
-				if (n == 0)
-					return "No features selected!";
-				if (n == 1)
-					return "1 feature selected";
-				return n + " features selected";
-			}
-			
-		});
 		selectedFeatures = comboFeatures.getCheckModel().getCheckedItems();
 		selectedFeatures.addListener((Change<? extends FeatureFilter> c) -> updateFeatureCalculator());
 
@@ -327,6 +335,21 @@ public class PixelClassifierImageSelectionPane {
 		// Select the simple Gaussian features by default
 		comboFeatures.getCheckModel().checkIndices(1, 2, 3);
 		
+		// I'd like more informative text to be displayed by default
+		comboFeatures.setSkin(new CheckComboBoxSkin<FeatureFilter>(comboFeatures) {
+			
+			protected String buildString() {
+				int n = comboFeatures.getCheckModel().getCheckedItems().size();
+				if (n == 0)
+					return "No features selected!";
+				if (n == 1)
+					return "1 feature selected";
+				return n + " features selected";
+			}
+			
+		});
+
+		
 		var labelFeaturesSummary = new Label("No features selected");
 		var btnEditFeatures = new Button("Select");
 		btnEditFeatures.setOnAction(e -> selectFeatures());
@@ -340,11 +363,13 @@ public class PixelClassifierImageSelectionPane {
 		// Region
 		
 		var labelRegion = new Label("Region");
-		var comboRegion = new ComboBox<String>();
-		comboRegion.getItems().addAll(
-				"Entire image",
-				"Annotations only"
-				);
+		var comboRegion = new ComboBox<ClassificationRegion>();
+		comboRegion.getItems().addAll(ClassificationRegion.values());
+		selectedRegion = comboRegion.getSelectionModel().selectedItemProperty();
+		selectedRegion.addListener((v, o, n) -> {
+			if (overlay != null)
+				overlay.setUseAnnotationMask(n == ClassificationRegion.ANNOTATIONS_ONLY);
+		});
 		comboRegion.getSelectionModel().clearAndSelect(0);
 		
 		addGridRow(pane, row++, 0, 
@@ -451,7 +476,8 @@ public class PixelClassifierImageSelectionPane {
 		setMaxWidth(Double.MAX_VALUE, pane.getChildren().stream().filter(p -> p instanceof Region).toArray(Region[]::new));
 		
 		var splitPane = new SplitPane(pane, viewerPane);
-		splitPane.setDividerPositions(0.7);
+		viewerPane.setPrefSize(400, 400);
+		splitPane.setDividerPositions(0.5);
 		
 		pane.setPadding(new Insets(5));
 		
@@ -621,8 +647,10 @@ public class PixelClassifierImageSelectionPane {
 			viewer.getCustomOverlayLayers().remove(overlay);
 		}
 		overlay = newOverlay;
-		if (overlay != null)
+		if (overlay != null) {
+			overlay.setUseAnnotationMask(selectedRegion.get() == ClassificationRegion.ANNOTATIONS_ONLY);
 			viewer.getCustomOverlayLayers().add(overlay);
+		}
 	}
 
 

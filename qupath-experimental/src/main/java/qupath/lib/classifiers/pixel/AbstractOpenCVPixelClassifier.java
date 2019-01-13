@@ -6,10 +6,9 @@ import org.bytedeco.javacpp.opencv_core.MatVector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import qupath.lib.awt.color.model.ColorModelFactory;
+import qupath.lib.classifiers.gui.ClassificationColorModelFactory;
+
 import java.awt.image.ColorModel;
-import java.awt.image.DataBuffer;
-import java.awt.image.IndexColorModel;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -17,10 +16,11 @@ public abstract class AbstractOpenCVPixelClassifier implements PixelClassifier {
 
     private static final Logger logger = LoggerFactory.getLogger(AbstractOpenCVPixelClassifier.class);
 
-    ColorModel colorModelProbabilities;
-    IndexColorModel colorModelClassifications;
-    boolean doSoftMax;
-    boolean do8Bit;
+    private transient ColorModel colorModelProbabilities;
+    private transient ColorModel colorModelClassifications;
+    
+    private boolean doSoftMax;
+    private boolean do8Bit;
 
     private PixelClassifierMetadata metadata;
     
@@ -28,15 +28,34 @@ public abstract class AbstractOpenCVPixelClassifier implements PixelClassifier {
         this.doSoftMax = metadata.getOutputType() == PixelClassifierMetadata.OutputType.Logit;
         this.metadata = metadata;
         this.do8Bit = do8Bit;
-        int[] colors = metadata.getChannels().stream().mapToInt(c -> c.getColor()).toArray();
-        int bpp = do8Bit ? 8 : 32;
-        // TODO: Check residualBackground!
-        this.colorModelProbabilities = ColorModelFactory.createProbabilityColorModel(bpp, metadata.nOutputChannels(), false, colors);
-        int[] cmap = metadata.getChannels().stream().mapToInt(c -> c.getColor()).toArray();
-        if (cmap.length > 256)
-        	throw new IllegalArgumentException("Only 256 possible classifications supported!");
-        this.colorModelClassifications = new IndexColorModel(8, metadata.nOutputChannels(), cmap, 0, true, -1, DataBuffer.TYPE_BYTE);
     }
+    
+    boolean do8Bit() {
+    	return this.do8Bit;
+    }
+    
+    boolean doSoftMax() {
+    	return this.doSoftMax;
+    }
+    
+    protected synchronized ColorModel getClassificationsColorModel() {
+    	if (colorModelClassifications == null) {
+            colorModelClassifications = ClassificationColorModelFactory.geClassificationColorModel(metadata.getChannels());
+    	}
+    	return colorModelClassifications;
+    }
+    
+    
+    protected synchronized ColorModel getProbabilityColorModel() {
+    	if (colorModelProbabilities == null) {
+    		if (do8Bit())
+    			colorModelProbabilities = ClassificationColorModelFactory.geProbabilityColorModel8Bit(metadata.getChannels());
+    		else
+    			colorModelProbabilities = ClassificationColorModelFactory.geProbabilityColorModel32Bit(metadata.getChannels());
+    	}
+    	return colorModelProbabilities;
+    }
+    
 
     public PixelClassifierMetadata getMetadata() {
         return metadata;

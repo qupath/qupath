@@ -40,6 +40,9 @@ import org.bytedeco.javacpp.opencv_ml.RTrees;
 import org.bytedeco.javacpp.opencv_ml.TrainData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.gson.annotations.JsonAdapter;
+
 import qupath.imagej.helpers.IJTools;
 import qupath.imagej.images.servers.BufferedImagePlusServer;
 import qupath.imagej.images.servers.ImagePlusServer;
@@ -70,6 +73,8 @@ import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.interfaces.ROI;
+import qupath.opencv.processing.TypeAdaptersCV;
+
 import java.awt.Color;
 import java.awt.Shape;
 import java.awt.image.BufferedImage;
@@ -731,7 +736,7 @@ public class PixelClassifierGUI implements PathCommand, QuPathViewerListener, Pa
 
     }
     
-    
+    @JsonAdapter(TypeAdaptersCV.OpenCVTypeAdaptorFactory.class)
     public static class BasicFeatureCalculator implements OpenCVFeatureCalculator {
     	
     	private String name;

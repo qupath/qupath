@@ -307,12 +307,12 @@ class OpenCVPixelClassifierDNN extends AbstractOpenCVPixelClassifier {
                 applySoftmax(matResult);
 
             // Convert to 8-bit if needed
-            if (do8Bit)
+            if (do8Bit())
                 matResult.convertTo(matResult, opencv_core.CV_8U, 255.0, 0.0);        	
-            colorModelLocal = colorModelProbabilities;
+            colorModelLocal = getProbabilityColorModel();
         } else {
             matResult.convertTo(matResult, opencv_core.CV_8U);
-            colorModelLocal = colorModelClassifications;
+            colorModelLocal = getClassificationsColorModel();
         }
 
         // Create & return BufferedImage

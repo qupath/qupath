@@ -111,13 +111,23 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 		return tileRequestManager;
 	}
 	
+	
+	static BufferedImage duplicate(BufferedImage img) {
+		return new BufferedImage(
+				img.getColorModel(),
+				img.copyData(null),
+				img.isAlphaPremultiplied(),
+				null);
+	}
+	
 
 	@Override
 	public BufferedImage readBufferedImage(final RegionRequest request) throws IOException {
 		// Check if we already have a tile for precisely this occasion
+		// Make a defensive copy, since the cache is critical
 		BufferedImage img = cache.get(request);
 		if (img != null)
-			return img;
+			return duplicate(img);
 		
 		// Figure out which tiles we need
 		var manager = getTileRequestManager();
@@ -129,7 +139,10 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 		
 		// Check for the special case where we are requesting a single tile, which exactly matches the request
 		if (tiles.size() == 1 && request.equals(tiles.get(0).getRegionRequest())) {
-			return getTile(tiles.get(0));
+			var imgTile = getTile(tiles.get(0));
+			if (imgTile == null)
+				return null;
+			return duplicate(imgTile);
 		}
 		
 		long startTime = System.currentTimeMillis();

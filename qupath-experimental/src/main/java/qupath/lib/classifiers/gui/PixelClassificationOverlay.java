@@ -3,7 +3,6 @@ package qupath.lib.classifiers.gui;
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.classifiers.pixel.PixelClassifierMetadata.OutputType;
 import qupath.lib.classifiers.pixel.PixelClassifierOutputChannel;
-import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.common.SimpleThreadFactory;
 import qupath.lib.gui.QuPathGUI;
@@ -24,13 +23,13 @@ import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.PathROIToolsAwt;
 import qupath.lib.roi.interfaces.ROI;
-
 import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.Shape;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBuffer;
 import java.awt.image.ImageObserver;
+import java.awt.image.IndexColorModel;
 import java.awt.image.SampleModel;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -52,6 +51,8 @@ import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.gson.GsonBuilder;
+
 import javafx.application.Platform;
 
 public class PixelClassificationOverlay extends AbstractOverlay implements PathObjectHierarchyListener, QuPathViewerListener {
@@ -64,10 +65,12 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
     private PixelClassificationImageServer classifierServer;
     
     private Map<RegionRequest, BufferedImage> cache = new HashMap<>();
-    private Map<BufferedImage, BufferedImage> cacheRGB = new HashMap<>();
+    private Map<BufferedImage, BufferedImage> cacheRGB = Collections.synchronizedMap(new HashMap<>());
     private Set<RegionRequest> pendingRequests = Collections.synchronizedSet(new HashSet<>());
     
     private Set<String> measurementsAdded = new HashSet<>();
+    
+    private boolean useAnnotationMask = false;
 
     private ExecutorService pool = Executors.newFixedThreadPool(8, new SimpleThreadFactory("classifier-overlay", true));
 
@@ -300,7 +303,6 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
 
     @Override
 	public void paintOverlay(Graphics2D g2d, ImageRegion imageRegion, double downsampleFactor, ImageObserver observer, boolean paintCompletely) {
-    	cacheRGB.clear();
         // For now, bind the display to the display of detections
         if (!viewer.getOverlayOptions().getShowPixelClassification())
             return;
@@ -334,13 +336,15 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
         
         var annotations = imageData.getHierarchy().getObjects(null, PathAnnotationObject.class);
         
-        
+        // Clear pending requests, since we'll insert new ones (perhaps in a different order)
+    	this.pendingRequests.clear();
+
 //        g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR)
 
         // Loop through & paint classified tiles if we have them, or request tiles if we don't
         for (RegionRequest request : requests) {
         	
-        	if (annotations == null) {
+        	if (useAnnotationMask) {
         		boolean doPaint = false;
         		for (var annotation : annotations) {
         			var roi = annotation.getROI();
@@ -359,25 +363,9 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
             BufferedImage img = cache.get(request);
             if (img != null) {
             	// Get the cached RGB painted version (since painting can be a fairly expensive operation)
-                BufferedImage imgRGB = cacheRGB.get(img);
-                // If we don't have an RGB version, create one
-                if (imgRGB == null) {
-                    if (img.getType() == BufferedImage.TYPE_INT_ARGB) {
-                        imgRGB = img;
-                    } else {
-                        imgRGB = new BufferedImage(img.getWidth(), img.getHeight(), BufferedImage.TYPE_INT_ARGB);
-                        Graphics2D g = imgRGB.createGraphics();
-                        g.drawImage(img, 0, 0, null);
-                        g.dispose();
-                    }
-//                    if (imgRGB.getRGB(0, 0) == ColorTools.makeRGB(0, 0, 0)) {
-//                    	System.err.println("WRONG! " + img.getColorModel());
-//                    } else {
-//                    	System.err.println("RIGHT! " + img.getColorModel());
-//                    }
-                    cacheRGB.put(img, imgRGB);
-                }
-                g2d.drawImage(imgRGB, request.getX(), request.getY(), request.getWidth(), request.getHeight(), null);
+                BufferedImage imgRGB = getCachedRGBImage(img);
+                if (imgRGB != null)
+                	g2d.drawImage(imgRGB, request.getX(), request.getY(), request.getWidth(), request.getHeight(), null);
                 continue;
             }
 
@@ -401,13 +389,33 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
     }
     
     
+    BufferedImage getCachedRGBImage(BufferedImage img) {
+    	var imgRGB = cacheRGB.get(img);
+        // If we don't have an RGB version, create one
+        if (imgRGB == null) {
+            if (img.getType() == BufferedImage.TYPE_INT_ARGB) {
+                imgRGB = img;
+            } else {
+                imgRGB = new BufferedImage(img.getWidth(), img.getHeight(), BufferedImage.TYPE_INT_ARGB);
+                Graphics2D g = imgRGB.createGraphics();
+                g.drawImage(img, 0, 0, null);
+                g.dispose();
+            }
+            cacheRGB.put(img, imgRGB);
+        }
+        return imgRGB;
+    }
+    
+    
+    
     public void stop() {
     	if (imageData != null) {
     		resetMeasurements(imageData.getHierarchy(), imageData.getHierarchy().getObjects(null, PathAnnotationObject.class));
     	}
     	imageDataChanged(viewer, imageData, null);
-    	this.pendingRequests.clear();
     	List<Runnable> pending = this.pool.shutdownNow();
+    	viewer.removeViewerListener(this);
+    	cacheRGB.clear();
     	logger.debug("Stopped classification overlay, dropped {} requests", pending.size());
     }
     
@@ -416,8 +424,23 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
     	return classifierServer;
     }
     
+        
+    public void setUseAnnotationMask(final boolean useMask) {
+    	if (this.useAnnotationMask == useMask)
+    		return;
+    	this.useAnnotationMask = useMask;
+    	// Cancel pending requests if we need less than previously
+    	if (useMask)
+    		this.pendingRequests.clear();
+    	if (viewer != null)
+    		viewer.repaint();
+    }
+    
+    public boolean useAnnotationMask() {
+    	return useAnnotationMask;
+    }
+    
 
-    // TODO: Revise this - don't require BufferedImage input!
     void requestTile(RegionRequest request) {
         // Make the request, if it isn't already pending
         if (!cache.containsKey(request) && pendingRequests.add(request)) {
@@ -426,30 +449,18 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
             		return;
             	// Check we still need to make the request
             	if (cache.containsKey(request) || !pendingRequests.contains(request)) {
-//            		System.err.println("Ditched request!");
             		return;
             	}
                 try {
-//                    // We might need to rescale or add padding, so request the tile from the region store
-//                    int padding = classifier.requestedPadding();
-//                    ImageServer<BufferedImage> server = viewer.getServer();
-//                    double downsample = request.getDownsample();
-//					BufferedImage img2 = server.readBufferedImage(RegionRequest.createInstance(
-//						request.getPath(), request.getDownsample(), 
-//						(int)(request.getX()-padding*downsample), (int)(request.getY()-padding*downsample),
-//						(int)Math.round(request.getWidth()+padding*downsample*2),
-//						(int)Math.round(request.getHeight()+padding*downsample*2)));
-//
-//                    BufferedImage imgResult = classifier.applyClassification(img2, padding);
-                    
                 	BufferedImage imgResult = classifierServer.readBufferedImage(request);
-//                    BufferedImage imgResult = classifier.applyClassification(viewer.getServer(), request);
+                    getCachedRGBImage(imgResult);
                     cache.put(request, imgResult);
                     viewer.repaint();
                     Platform.runLater(() -> updateAnnotationMeasurements());
-                    pendingRequests.remove(request);
                 } catch (Exception e) {
                    logger.error("Error requesting tile classification", e);
+                } finally {
+                    pendingRequests.remove(request);
                 }
             });
         }
@@ -471,6 +482,10 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
 			if (classifierServer != null)
 				try {
 					classifierServer.close();
+					// Delete the cached results
+					var path = classifierServer.getCacheDirectory();
+					if (path != null)
+						Files.deleteIfExists(Paths.get(path));
 				} catch (Exception e) {
 					logger.warn("Exception when closing classification server", e);
 				}
@@ -484,13 +499,20 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
 			if (project != null) {
 				Path tempDir;
 				try {
-					var baseDir = Paths.get(project.getBaseDirectory().getAbsolutePath(), "pixel_classification", imageDataNew.getServer().getShortServerName());
-					Files.createDirectories(baseDir);
+					var baseDir = Paths.get(project.getBaseDirectory().getAbsolutePath(), "pixel_classification", "tmp");
+					if (!Files.exists(baseDir))
+						Files.createDirectories(baseDir);
 					tempDir = Files.createTempDirectory(
-							baseDir, "classification");
-					cacheDirectory = tempDir.toString();
+							baseDir, "classifier");
+					cacheDirectory = Paths.get(tempDir.toString(), imageData.getServer().getShortServerName() + ".zip").toString();
+					var gson = new GsonBuilder()
+							.setPrettyPrinting().create();
+					var json = gson.toJson(classifier);
+						
+					var pathClassifier = Paths.get(tempDir.toString(), "classifier.json");
+					Files.writeString(pathClassifier, json);
+					
 					logger.info("Created cache directory: {}", cacheDirectory);
-					// TODO: WRITE CLASSIFIER INTO DIRECTORY!
 				} catch (IOException e) {
 					logger.error("Unable to create temp directory", e);
 					cacheDirectory = null;

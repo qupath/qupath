@@ -9,19 +9,26 @@ import org.bytedeco.javacpp.opencv_core.Mat;
 import org.bytedeco.javacpp.opencv_core.MatVector;
 import org.bytedeco.javacpp.opencv_core.Scalar;
 
+import com.google.gson.annotations.JsonAdapter;
+
 import qupath.lib.classifiers.opencv.OpenCVClassifiers.FeaturePreprocessor;
 import qupath.lib.classifiers.opencv.OpenCVClassifiers.OpenCVStatModel;
 import qupath.lib.classifiers.pixel.features.OpenCVFeatureCalculator;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.regions.RegionRequest;
 import qupath.opencv.processing.OpenCVTools;
+import qupath.opencv.processing.TypeAdaptersCV;
 
 import org.bytedeco.javacpp.indexer.Indexer;
 
 public class OpenCVPixelClassifier extends AbstractOpenCVPixelClassifier {
 
+	@JsonAdapter(TypeAdaptersCV.OpenCVTypeAdaptorFactory.class)
     private OpenCVStatModel model;
+	
+	@JsonAdapter(TypeAdaptersCV.OpenCVTypeAdaptorFactory.class)
     private OpenCVFeatureCalculator calculator;
+	
     private FeaturePreprocessor preprocessor;
     
     public OpenCVPixelClassifier(OpenCVStatModel statModel, OpenCVFeatureCalculator calculator, FeaturePreprocessor preprocessor, PixelClassifierMetadata metadata) {
@@ -118,16 +125,16 @@ public class OpenCVPixelClassifier extends AbstractOpenCVPixelClassifier {
         ColorModel colorModelLocal;
         if (matResult.channels() > 1) {
         	// Do softmax if needed
-            if (doSoftMax)
+            if (doSoftMax())
                 applySoftmax(matResult);
 
             // Convert to 8-bit if needed
-            if (do8Bit)
+            if (do8Bit())
                 matResult.convertTo(matResult, opencv_core.CV_8U, 255.0, 0.0);        	
-            colorModelLocal = colorModelProbabilities;
+            colorModelLocal = getProbabilityColorModel();
         } else {
             matResult.convertTo(matResult, opencv_core.CV_8U);
-            colorModelLocal = colorModelClassifications;
+            colorModelLocal = getClassificationsColorModel();
         }
 
         // Create & return BufferedImage

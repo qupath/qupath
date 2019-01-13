@@ -3,13 +3,25 @@ package qupath.lib.classifiers.gui;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.nio.file.FileSystem;
+import java.nio.file.FileSystems;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.Collections;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 import javax.imageio.ImageIO;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.gson.GsonBuilder;
+
+import ij.io.FileSaver;
 import qupath.imagej.images.servers.BufferedImagePlusServer;
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.images.servers.AbstractTileableImageServer;
@@ -24,6 +36,7 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 	private static int DEFAULT_TILE_SIZE = 512;
 	
 	private String cacheDirectory;
+	private transient PersistentTileCache persistentTileCache;
 	
 	private ImageServer<BufferedImage> server;
 	private PixelClassifier classifier;
@@ -64,6 +77,16 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 				.setBitDepth(bitDepth)
 				.setRGB(false)
 				.build();
+		
+		if (cacheDirectory != null) {
+			try {
+				persistentTileCache = new FileSystemPersistentTileCache(Paths.get(cacheDirectory));
+				persistentTileCache.writeJSON("metadata.json", getMetadata());
+				persistentTileCache.writeJSON("classifier.json", classifier);
+			} catch (Exception e) {
+				logger.error("Unable to create persistent tile cache", e);
+			}
+		}
 				
 //		var classifierMetadata = classifier.getMetadata();
 //		var path = server.getPath() + "::" + classifier.toString();
@@ -95,6 +118,11 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 //				.setBitDepth(bitDepth)
 //				.setRGB(false)
 //				.build();
+	}
+	
+	public void close() throws Exception {
+		this.persistentTileCache.close();
+		super.close();
 	}
 
 	@Override
@@ -128,26 +156,13 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 
 	@Override
 	protected BufferedImage readTile(TileRequest tileRequest) throws IOException {
-		var path = getCachedPath(tileRequest);
-		var img = path == null ? null : readFromCache(path);
+		var img = tryReadFromCache(tileRequest.getRegionRequest());
 		if (img == null) {
-//			double downsample = classifier.getMetadata().getInputPixelSizeMicrons() / server.getAveragedPixelSizeMicrons();
-//			var regionRequest = RegionRequest.createInstance(server.getPath(), downsample,
-//					(int)Math.round(tileRequest.getImageX() * downsample),
-//					(int)Math.round(tileRequest.getImageY() * downsample),
-//					(int)Math.round(tileRequest.getImageWidth() * downsample),
-//					(int)Math.round(tileRequest.getImageHeight() * downsample),
-//					tileRequest.getZ(),
-//					tileRequest.getT()
-//					);
-			img = classifier.applyClassification(server, tileRequest.getRegionRequest());
-			if (path != null) {
-				try {
-					saveToCache(path, tileRequest.getRegionRequest(), img);
-				} catch (IOException e) {
-					logger.warn("Error attempting to save tile to cache: {}", e.getLocalizedMessage());
-				}
-			} 
+			var imgClassified = classifier.applyClassification(server, tileRequest.getRegionRequest());
+			img = imgClassified;
+			// Save to cache in a background thread
+			// It helps to return fast so that the tile can be cached locally as soon as possible
+			CompletableFuture.runAsync(() -> trySaveToCache(tileRequest.getRegionRequest(), imgClassified));
 		}
 		return img;
 	}
@@ -167,18 +182,27 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 	}
 	
 	
-	BufferedImage readFromCache(String path) throws IOException {
-		var file = new File(path);
-		if (file.exists()) {
-			synchronized(this) {
-				try {
-					return ImageIO.read(file);
-				} catch (IOException e) {
-					logger.warn("Exception when reading tile from cache", e);				
-				}
+	BufferedImage tryReadFromCache(RegionRequest request) {
+		if (persistentTileCache != null) {
+			try {
+				return persistentTileCache.readFromCache(request);
+			} catch (IOException e) {
+				logger.warn("Exception when reading tile from cache", e);				
 			}
 		}
 		return null;
+	}
+	
+	boolean trySaveToCache(RegionRequest request, BufferedImage img) {
+		if (persistentTileCache != null) {
+			try {
+				persistentTileCache.saveToCache(request, img);
+				return true;
+			} catch (IOException e) {
+				logger.warn("Exception when writing tile to cache", e);				
+			}
+		}
+		return false;
 	}
 	
 	/**
@@ -237,21 +261,113 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 		return cacheDirectory;
 	}
 	
-	/**
-	 * Save file.  We use ImageJ for writing
-	 * 
-	 * @param url
-	 * @param request
-	 * @param img
-	 * @throws IOException
-	 */
-	void saveToCache(String path, RegionRequest request, BufferedImage img) throws IOException {
-		var imp = BufferedImagePlusServer.convertToImagePlus("Tile", this, img, request).getImage();
-//		new FileSaver(imp).
-//		new Writer()
-		synchronized(this) {
-			ij.IJ.save(imp, path);
+	
+	
+	
+	interface PersistentTileCache extends AutoCloseable {
+		
+		default public String getCachedName(RegionRequest request) {
+			return String.format(
+					"tile(x=%d,y=%d,w=%d,h=%d,z=%d,t=%d).tif",
+					request.getX(),
+					request.getY(),
+					request.getWidth(),
+					request.getHeight(),
+					request.getZ(),
+					request.getT());
 		}
+		
+		public void writeJSON(String name, Object o) throws IOException;
+		
+		public BufferedImage readFromCache(RegionRequest request) throws IOException;
+		
+		public void saveToCache(RegionRequest request, BufferedImage img) throws IOException;
+		
 	}
+
+	
+	class FileSystemPersistentTileCache implements PersistentTileCache {
+		
+		private Path path;
+		private FileSystem fileSystem;
+		private String root;
+		
+		FileSystemPersistentTileCache(Path path) throws IOException, URISyntaxException {
+			this.path = path;
+			initializeFileSystem();
+		}
+		
+		private void initializeFileSystem() throws IOException {
+			if (path.toString().toLowerCase().endsWith(".zip")) {
+				var fileURI = path.toUri();
+				try {
+					var uri = new URI("jar:" + fileURI.getScheme(), fileURI.getPath(), null);
+					this.fileSystem = FileSystems.newFileSystem(uri, Collections.singletonMap("create", String.valueOf(Files.notExists(path))));
+					this.root = "/";
+				} catch (URISyntaxException e) {
+					logger.error("Problem constructing file system", e);
+				}
+			}
+			if (this.fileSystem == null) {
+				this.fileSystem = FileSystems.getDefault();
+				this.root = path.toString();
+			}
+		}
+		
+		
+		
+		
+		public void close() throws Exception {
+			if (this.fileSystem != FileSystems.getDefault())
+				this.fileSystem.close();
+		}
+		
+		
+		public void writeJSON(String name, Object o) throws IOException {
+			var gson = new GsonBuilder()
+					.setLenient()
+					.serializeSpecialFloatingPointValues()
+					.setPrettyPrinting()
+					.create();
+			var json = gson.toJson(o);
+			synchronized (fileSystem) {
+				var path = fileSystem.getPath(root, name);
+				Files.writeString(path, json);
+			}
+		}
+		
+		
+		
+		@Override
+		public BufferedImage readFromCache(RegionRequest request) throws IOException {
+			synchronized (fileSystem) {
+				var path = fileSystem.getPath(root, getCachedName(request));
+				if (Files.exists(path)) {
+					try (var stream = Files.newInputStream(path)) {
+						var img = ImageIO.read(stream);
+						return new BufferedImage(
+								ClassificationColorModelFactory.geClassificationColorModel(classifier.getMetadata().getChannels()),
+								img.getRaster(),
+								img.isAlphaPremultiplied(),
+								null
+								);
+					}
+				}
+			}
+			return null;
+		}
+		
+		@Override
+		public void saveToCache(RegionRequest request, BufferedImage img) throws IOException {
+			var imp = BufferedImagePlusServer.convertToImagePlus("Tile", PixelClassificationImageServer.this, img, request).getImage();
+			var bytes = new FileSaver(imp).serialize();
+			synchronized (fileSystem) {
+				var path = fileSystem.getPath(root, getCachedName(request));
+				Files.write(path, bytes);				
+			}
+		}
+		
+	}
+	
 
 }

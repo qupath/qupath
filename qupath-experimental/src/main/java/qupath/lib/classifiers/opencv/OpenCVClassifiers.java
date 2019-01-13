@@ -6,6 +6,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import org.bytedeco.javacpp.opencv_core;
 import org.bytedeco.javacpp.opencv_ml;
@@ -14,6 +15,9 @@ import org.bytedeco.javacpp.indexer.FloatIndexer;
 import org.bytedeco.javacpp.indexer.IntIndexer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.gson.annotations.JsonAdapter;
+
 import org.bytedeco.javacpp.opencv_core.Mat;
 import org.bytedeco.javacpp.opencv_core.Scalar;
 import org.bytedeco.javacpp.opencv_core.TermCriteria;
@@ -34,6 +38,7 @@ import org.bytedeco.javacpp.opencv_ml.TrainData;
 import qupath.lib.classifiers.Normalization;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.plugins.parameters.ParameterList;
+import qupath.opencv.processing.TypeAdaptersCV;
 
 public class OpenCVClassifiers {
 	
@@ -145,7 +150,6 @@ public class OpenCVClassifiers {
 		throw new IllegalArgumentException("Unknown StatModel class " + cls);
 	}
 	
-	
 	public static abstract class OpenCVStatModel {
 		
 		public abstract boolean supportsMissingValues();
@@ -187,8 +191,11 @@ public class OpenCVClassifiers {
 	
 	static abstract class AbstractOpenCVClassifierML<T extends StatModel> extends OpenCVStatModel {
 
+		@JsonAdapter(TypeAdaptersCV.OpenCVTypeAdaptorFactory.class)
 		private T model;
 		private transient ParameterList params; // Should take defaults from the serialized model
+		
+		transient ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
 		
 		abstract ParameterList createParameterList(T model);
 		
@@ -272,7 +279,24 @@ public class OpenCVClassifiers {
 			return false;
 		}
 
-		public synchronized void train(TrainData trainData) {
+		public void train(TrainData trainData) {
+			lock.writeLock().lock();
+			try {
+				trainWithLock(trainData);
+			} finally {
+				lock.writeLock().unlock();
+			}
+		}
+		
+		/**
+		 * Implement trainWithLock rather than train directly to ensure a lock is set 
+		 * when training, which can be used to prevent prediction occurring simultaneously.
+		 * 
+		 * @param trainData
+		 * 
+		 * @see predictWithLock
+		 */
+		public void trainWithLock(TrainData trainData) {
 			var statModel = getStatModel();
 			updateModel(statModel, params, trainData);
 			statModel.train(trainData);
@@ -299,7 +323,25 @@ public class OpenCVClassifiers {
 		 */
 		@Override
 		public void predict(Mat samples, Mat results, Mat probabilities) {
-			
+			lock.readLock().lock();
+			try {
+				predictWithLock(samples, results, probabilities);
+			} finally {
+				lock.readLock().unlock();
+			}
+		}
+		
+		/**
+		 * Implement predictWithLock rather than predict to ensure predict is not called while 
+		 * training.
+		 * 
+		 * @param samples
+		 * @param results
+		 * @param probabilities
+		 * 
+		 * @see trainWithLock
+		 */
+		protected void predictWithLock(Mat samples, Mat results, Mat probabilities) {
 			var statModel = getStatModel();
 			statModel.predict(samples, results, 0);
 			
@@ -499,7 +541,7 @@ public class OpenCVClassifiers {
 			super.train(trainData);
 			var trees = getStatModel();
 			if (trees.getCalculateVarImportance()) {
-				synchronized (this) {
+//				synchronized (this) {
 					var importance = trees.getVarImportance();
 					var indexer = importance.createIndexer();
 					int nFeatures = (int)indexer.rows();
@@ -508,7 +550,7 @@ public class OpenCVClassifiers {
 						featureImportance[r] = indexer.getDouble(r);
 					}
 					indexer.release();
-				}
+//				}
 			} else
 				featureImportance = null;
 		}
@@ -530,7 +572,7 @@ public class OpenCVClassifiers {
 		 * 
 		 * @see #hasFeatureImportance()
 		 */
-		public synchronized double[] getFeatureImportance() {
+		public double[] getFeatureImportance() {
 			return featureImportance == null ? null : featureImportance.clone();
 		}
 
@@ -559,7 +601,7 @@ public class OpenCVClassifiers {
 		
 		
 		@Override
-		public void predict(Mat samples, Mat results, Mat probabilities) {
+		public void predictWithLock(Mat samples, Mat results, Mat probabilities) {
 			// If we don't need probabilities, it's quite straightforward
 			var model = getStatModel();
 			if (probabilities == null) {
@@ -752,7 +794,7 @@ public class OpenCVClassifiers {
 		@Override
 		void updateModel(NormalBayesClassifier model, ParameterList params, TrainData trainData) {}
 		
-		public void predict(Mat samples, Mat results, Mat probabilities) {
+		public void predictWithLock(Mat samples, Mat results, Mat probabilities) {
 			var model = getStatModel();
 			if (probabilities == null)
 				probabilities = new Mat();
