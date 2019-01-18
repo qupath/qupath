@@ -646,7 +646,7 @@ public class OpenCVClassifiers {
 				// Update probability estimates
 				for (int c = 0; c < nClasses; c++) {
 					int count = indexer.get(row, c);
-					idxProbabilities.put(orderedClasses[c], (float)(count / sum));
+					idxProbabilities.put(i, orderedClasses[c], (float)(count / sum));
 				}
 				// Update prediction
 				int prediction = orderedClasses[maxInd];

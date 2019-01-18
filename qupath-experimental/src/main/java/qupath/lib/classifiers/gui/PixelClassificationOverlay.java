@@ -27,9 +27,7 @@ import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.Shape;
 import java.awt.image.BufferedImage;
-import java.awt.image.DataBuffer;
 import java.awt.image.ImageObserver;
-import java.awt.image.IndexColorModel;
 import java.awt.image.SampleModel;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -191,38 +189,59 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
         	g2d.fill(shape);
         	g2d.dispose();
         	
-//        	if ("Mine".equals(pathObject.getName())) {
-//            	new ImagePlus(region.toString(), tile).duplicate().show();
-//            	new ImagePlus(region.toString()+"-mask", imgMask).duplicate().show();        		
-//        	}
+//        	new ImagePlus("Tile: " + region.toString(), tile).show();
+//        	new ImagePlus("Mask: " + region.toString(), imgMask).show();
         	
         	switch (type) {
 			case Classification:
-			case Probability:
-				DataBuffer buffer = tile.getRaster().getDataBuffer();
-				SampleModel sampleModel = tile.getSampleModel();
-				DataBuffer bufferMask = imgMask.getRaster().getDataBuffer();
-				SampleModel sampleModelMask = imgMask.getSampleModel();
+				var raster = tile.getRaster();
+				var rasterMask = imgMask.getRaster();
 				int b = 0;
 				try {
 					for (int y = 0; y < tile.getHeight(); y++) {
 						for (int x = 0; x < tile.getWidth(); x++) {
-							if (sampleModelMask.getSample(x, y, b, bufferMask) == 0)
+							if (rasterMask.getSample(x, y, b) == 0)
 								continue;
-							int ind = sampleModel.getSample(x, y, b, buffer);
-							// TODO: This could be out of range!
+							int ind = raster.getSample(x, y, b);
+							// TODO: This could be out of range!  But shouldn't be...
 							counts[ind]++;
 							total++;
 						}					
 					}
 				} catch (Exception e) {
-					e.printStackTrace();
+					logger.error("Error calculating classification areas", e);
+				}
+				break;
+			case Logit:
+			case Probability:
+				// Take classification from the channel with the highest value
+				raster = tile.getRaster();
+				rasterMask = imgMask.getRaster();
+				int nChannels = Math.min(channels.size(), raster.getNumBands()); // Expecting these to be the same...
+				try {
+					for (int y = 0; y < tile.getHeight(); y++) {
+						for (int x = 0; x < tile.getWidth(); x++) {
+							if (rasterMask.getSample(x, y, 0) == 0)
+								continue;
+							double maxValue = raster.getSampleDouble(x, y, 0);
+							int ind = 0;
+							for (int i = 1; i < nChannels; i++) {
+								double val = raster.getSampleDouble(x, y, i);
+								if (val > maxValue) {
+									maxValue = val;
+									ind = i;
+								}
+							}
+							counts[ind]++;
+							total++;
+						}					
+					}
+				} catch (Exception e) {
+					logger.error("Error calculating classification areas", e);
 				}
 				break;
 			case Features:
 				return false;
-			case Logit:
-				break;
 			default:
 				return updateMeasurements(pathObject, channels, counts, total, pixelArea, pixelAreaUnits);
         	}
@@ -350,7 +369,8 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
         			var roi = annotation.getROI();
         			if (roi.getZ() == request.getZ() &&
         					roi.getT() == request.getT() &&
-        					request.intersects(roi.getBoundsX(), roi.getBoundsY(), roi.getBoundsWidth(), roi.getBoundsHeight())) {
+        					request.intersects(roi.getBoundsX(), roi.getBoundsY(), roi.getBoundsWidth(), roi.getBoundsHeight()) &&
+        					roi.getShape().intersects(request.getX(), request.getY(), request.getWidth(), request.getHeight())) {
         				doPaint = true;
         				break;
         			}

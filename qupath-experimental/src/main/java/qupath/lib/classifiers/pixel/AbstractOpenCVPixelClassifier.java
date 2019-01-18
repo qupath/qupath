@@ -62,31 +62,47 @@ public abstract class AbstractOpenCVPixelClassifier implements PixelClassifier {
     }
 
 
-
+    /**
+     * Apply Softmax along channels dimension.
+     * @param mat
+     */
     void applySoftmax(Mat mat) {
-    	MatVector matvec = new MatVector();
-        opencv_core.split(mat, matvec);
-        applySoftmax(matvec);
-        opencv_core.merge(matvec, mat);
-    }
-
-
-    void applySoftmax(MatVector matvec) {
-        Mat matSum = null;
-        for (int i = 0; i < matvec.size(); i++) {
-        	Mat mat = matvec.get(i);
-            opencv_core.exp(mat, mat);
-            if (matSum == null)
-                matSum = mat.clone();
-            else
-                opencv_core.addPut(matSum, mat);
-        }
-        for (int i = 0; i < matvec.size(); i++) {
-        	Mat mat = matvec.get(i);
-            opencv_core.dividePut(mat, matSum);
-        }
-        if (matSum != null)
-        	matSum.release();
+    	// This code doesn't use OpenCV methods because Infinity can sometimes 
+    	// occur & needs handled as a special case.
+    	var indexer = mat.createIndexer();
+    	int rows = (int)indexer.rows();
+    	int cols = (int)indexer.cols();
+    	int channels = (int)indexer.channels();
+    	double[] values = new double[channels];
+    	long[] inds = new long[3];
+    	for (int r = 0; r < rows; r++) {
+    		inds[0] = r;
+        	for (int c = 0; c < cols; c++) {
+        		inds[1] = c;
+        		double sum = 0;
+        		for (int k = 0; k < channels; k++) {
+            		inds[2] = k;
+        			double temp = Math.exp(indexer.getDouble(inds));
+        			values[k] = temp;
+        			sum += temp;
+        		}
+        		if (Double.isInfinite(sum)) {
+            		for (int k = 0; k < channels; k++) {
+                		inds[2] = k;
+                		if (Double.isInfinite(values[k]))
+                			indexer.putDouble(inds, 1);
+                		else
+                			indexer.putDouble(inds, 0);
+            		}
+        		} else {
+	        		for (int k = 0; k < channels; k++) {
+	            		inds[2] = k;
+	            		double temp = values[k] / sum;
+	        			indexer.putDouble(inds, temp);
+	        		}
+        		}
+        	}    		
+    	}
     }
 
     /**

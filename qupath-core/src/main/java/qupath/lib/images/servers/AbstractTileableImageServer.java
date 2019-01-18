@@ -4,6 +4,7 @@ import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.awt.image.ColorModel;
+import java.awt.image.Raster;
 import java.awt.image.SampleModel;
 import java.awt.image.WritableRaster;
 import java.io.IOException;
@@ -84,6 +85,7 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 		logger.trace("Reading tile: {}", tileRequest.getRegionRequest());
 		
 		imgCached = readTile(tileRequest);
+		
 		cache.put(tileRequest.getRegionRequest(), imgCached);
 		return imgCached;
 	}
@@ -115,7 +117,7 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 	static BufferedImage duplicate(BufferedImage img) {
 		return new BufferedImage(
 				img.getColorModel(),
-				img.copyData(null),
+				img.copyData(img.getRaster().createCompatibleWritableRaster()),
 				img.isAlphaPremultiplied(),
 				null);
 	}
@@ -198,15 +200,23 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 				if (imgTile != null) {
 					// Preallocate a raster if we need to, and everything else the tile might give us
 					if (raster == null) {
-						model = imgTile.getSampleModel().createCompatibleSampleModel(tileMaxX - tileMinX, tileMaxY - tileMinY);
-						raster = WritableRaster.createWritableRaster(model, null);
+						raster = imgTile.getRaster().createCompatibleWritableRaster(tileMaxX - tileMinX, tileMaxY - tileMinY);
+						model = raster.getSampleModel();
+//						model = imgTile.getSampleModel().createCompatibleSampleModel(tileMaxX - tileMinX, tileMaxY - tileMinY);
+//						raster = WritableRaster.createWritableRaster(model, null);
 						colorModel = imgTile.getColorModel();
 						alphaPremultiplied = imgTile.isAlphaPremultiplied();							
 					}
 					// Insert the tile into the raster
-					raster.setDataElements(
-							tileRequest.getTileX() - tileMinX,
-							tileRequest.getTileY() - tileMinY,
+					int dx = tileRequest.getTileX() - tileMinX;
+					int dy = tileRequest.getTileY() - tileMinY;
+					if (dx >= raster.getWidth() ||
+							dy >= raster.getHeight()
+							)
+						continue;
+					raster.setRect(
+							dx,
+							dy,
 //							Math.min(raster.getWidth() - tileMinX, imgTile.getWidth()),
 //							Math.min(raster.getHeight() - tileMinY, imgTile.getHeight()),							
 							imgTile.getRaster());
@@ -224,12 +234,21 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 			
 			// Do cropping, if we need to
 			if (xStart > 0 || yStart > 0 || xEnd < raster.getWidth() || yEnd < raster.getHeight()) {
-				raster = raster.createWritableChild(
-						Math.max(xStart, 0),
-						Math.max(yStart, 0),
-						Math.min(raster.getWidth() - Math.max(xStart, 0), xEnd - Math.max(xStart, 0)),
-						Math.min(raster.getHeight() - Math.max(yStart, 0), yEnd - Math.max(yStart, 0)),
-						0, 0, null);
+				// Best avoid creating a child raster, for memory & convenience reasons
+				// (i.e. sometimes weird things happen when not expecting to have a child raster)
+				int x = Math.max(xStart, 0);
+				int y = Math.max(yStart, 0);
+				int w = Math.min(raster.getWidth() - xStart, xEnd - xStart);
+				int h = Math.min(raster.getHeight() - yStart, yEnd - yStart);
+				var raster2 = raster.createCompatibleWritableRaster(w, h);
+				raster2.setRect(-x, -y, (Raster)raster);
+				raster = raster2;
+//				raster = raster.createWritableChild(
+//						Math.max(xStart, 0),
+//						Math.max(yStart, 0),
+//						Math.min(raster.getWidth() - Math.max(xStart, 0), xEnd - Math.max(xStart, 0)),
+//						Math.min(raster.getHeight() - Math.max(yStart, 0), yEnd - Math.max(yStart, 0)),
+//						0, 0, null);
 			}
 
 			// Return the image, resizing if necessary

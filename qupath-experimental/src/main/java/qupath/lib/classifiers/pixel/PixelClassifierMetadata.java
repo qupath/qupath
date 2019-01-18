@@ -172,6 +172,11 @@ public class PixelClassifierMetadata {
     		return new PixelClassifierMetadata(this);
     	}
     	
+    	public Builder setOutputType(OutputType type) {
+    		this.outputType = type;
+    		return this;
+    	}
+    	
     	public Builder inputPixelSizeMicrons(double pixelSizeMicrons) {
     		this.inputPixelSizeMicrons = pixelSizeMicrons;
     		return this;

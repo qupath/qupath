@@ -75,7 +75,7 @@ public class ClassificationColorModelFactory {
     	var map = probabilityModels32.get(channels);
     	if (map == null) {
             int[] colors = channels.stream().mapToInt(c -> c.getColor()).toArray();
-    		map = ColorModelFactory.createProbabilityColorModel(8, channels.size(), false, colors);
+    		map = ColorModelFactory.createProbabilityColorModel(32, channels.size(), false, colors);
     		probabilityModels32.put(new ArrayList<>(channels), map);
     	}
     	return map;

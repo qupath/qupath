@@ -64,6 +64,7 @@ import qupath.lib.classifiers.opencv.Reclassifier;
 import qupath.lib.classifiers.pixel.OpenCVPixelClassifier;
 import qupath.lib.classifiers.pixel.PixelClassifierMetadata;
 import qupath.lib.classifiers.pixel.PixelClassifierOutputChannel;
+import qupath.lib.classifiers.pixel.PixelClassifierMetadata.OutputType;
 import qupath.lib.classifiers.pixel.features.OpenCVFeatureCalculator;
 import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
@@ -622,10 +623,11 @@ public class PixelClassifierImageSelectionPane {
 		 PixelClassifierMetadata metadata = new PixelClassifierMetadata.Builder()
 				 .inputPixelSizeMicrons(getRequestedPixelSizeMicrons())
 				 .inputShape(inputWidth, inputHeight)
+				 .setOutputType(OutputType.Classification)
 				 .channels(channels)
 				 .build();
 
-		 var classifier = new OpenCVPixelClassifier(model, helper.getFeatureCalculator(), helper.getLastFeaturePreprocessor(), metadata);
+		 var classifier = new OpenCVPixelClassifier(model, helper.getFeatureCalculator(), helper.getLastFeaturePreprocessor(), metadata, true);
 
 		 replaceOverlay(new PixelClassificationOverlay(viewer, classifier));
 	}

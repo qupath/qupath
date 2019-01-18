@@ -11,6 +11,7 @@ import org.bytedeco.javacpp.opencv_core.Size;
 
 import qupath.lib.classifiers.pixel.PixelClassifierMetadata;
 import qupath.lib.classifiers.pixel.PixelClassifierOutputChannel;
+import qupath.lib.classifiers.pixel.PixelClassifierMetadata.OutputType;
 import qupath.lib.common.ColorTools;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.regions.RegionRequest;
@@ -55,6 +56,7 @@ public class SmoothedOpenCVFeatureCalculator implements OpenCVFeatureCalculator 
         this.metadata = new PixelClassifierMetadata.Builder()
         		.inputShape(DEFAULT_WIDTH, DEFAULT_HEIGHT)
         		.channels(channels)
+        		.setOutputType(OutputType.Features)
         		.build();
     }
 

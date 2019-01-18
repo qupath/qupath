@@ -3,7 +3,6 @@ package qupath.lib.classifiers.pixel;
 import java.awt.image.BufferedImage;
 import java.awt.image.ColorModel;
 import java.io.IOException;
-
 import org.bytedeco.javacpp.opencv_core;
 import org.bytedeco.javacpp.opencv_core.Mat;
 import org.bytedeco.javacpp.opencv_core.MatVector;
@@ -13,6 +12,7 @@ import com.google.gson.annotations.JsonAdapter;
 
 import qupath.lib.classifiers.opencv.OpenCVClassifiers.FeaturePreprocessor;
 import qupath.lib.classifiers.opencv.OpenCVClassifiers.OpenCVStatModel;
+import qupath.lib.classifiers.pixel.PixelClassifierMetadata.OutputType;
 import qupath.lib.classifiers.pixel.features.OpenCVFeatureCalculator;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.regions.RegionRequest;
@@ -115,7 +115,14 @@ public class OpenCVPixelClassifier extends AbstractOpenCVPixelClassifier {
 
         
 //        synchronized (model) {
-        	model.predict(matFeatures, matOutput, null);
+    	var type = getMetadata().getOutputType();
+    	if (type == OutputType.Classification) {
+        	model.predict(matFeatures, matOutput, null);    		
+    	} else {
+    		var matTemp = new Mat();
+        	model.predict(matFeatures, matTemp, matOutput);
+        	matTemp.release();
+    	}
 //        }
         
         // Reshape output
@@ -123,7 +130,10 @@ public class OpenCVPixelClassifier extends AbstractOpenCVPixelClassifier {
         
         // If we have a floating point or multi-channel result, we have probabilities
         ColorModel colorModelLocal;
-        if (matResult.channels() > 1) {
+        if (type == OutputType.Classification) {
+        	matResult.convertTo(matResult, opencv_core.CV_8U);
+            colorModelLocal = getClassificationsColorModel();
+        } else {
         	// Do softmax if needed
             if (doSoftMax())
                 applySoftmax(matResult);
@@ -132,9 +142,6 @@ public class OpenCVPixelClassifier extends AbstractOpenCVPixelClassifier {
             if (do8Bit())
                 matResult.convertTo(matResult, opencv_core.CV_8U, 255.0, 0.0);        	
             colorModelLocal = getProbabilityColorModel();
-        } else {
-            matResult.convertTo(matResult, opencv_core.CV_8U);
-            colorModelLocal = getClassificationsColorModel();
         }
 
         // Create & return BufferedImage

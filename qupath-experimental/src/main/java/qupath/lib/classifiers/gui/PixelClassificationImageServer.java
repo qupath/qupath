@@ -1,6 +1,8 @@
 package qupath.lib.classifiers.gui;
 
 import java.awt.image.BufferedImage;
+import java.awt.image.DataBufferByte;
+import java.awt.image.IndexColorModel;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
@@ -157,6 +159,8 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 	@Override
 	protected BufferedImage readTile(TileRequest tileRequest) throws IOException {
 		var img = tryReadFromCache(tileRequest.getRegionRequest());
+		if (img != null && img.getRaster().getNumBands() != nChannels())
+			img = null;
 		if (img == null) {
 			var imgClassified = classifier.applyClassification(server, tileRequest.getRegionRequest());
 			img = imgClassified;
@@ -344,13 +348,30 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 				var path = fileSystem.getPath(root, getCachedName(request));
 				if (Files.exists(path)) {
 					try (var stream = Files.newInputStream(path)) {
+						// TODO: Read using ImageJ
+//						var imp = new Opener().openTiff(stream, "Anything");
 						var img = ImageIO.read(stream);
-						return new BufferedImage(
-								ClassificationColorModelFactory.geClassificationColorModel(classifier.getMetadata().getChannels()),
-								img.getRaster(),
-								img.isAlphaPremultiplied(),
-								null
-								);
+						if (img.getColorModel() instanceof IndexColorModel)
+							return new BufferedImage(
+									ClassificationColorModelFactory.geClassificationColorModel(classifier.getMetadata().getChannels()),
+									img.getRaster(),
+									img.isAlphaPremultiplied(),
+									null
+									);
+						else if (img.getRaster().getDataBuffer() instanceof DataBufferByte)
+							return new BufferedImage(
+									ClassificationColorModelFactory.geProbabilityColorModel8Bit(classifier.getMetadata().getChannels()),
+									img.getRaster(),
+									img.isAlphaPremultiplied(),
+									null
+									);
+						else
+							return new BufferedImage(
+									ClassificationColorModelFactory.geProbabilityColorModel32Bit(classifier.getMetadata().getChannels()),
+									img.getRaster(),
+									img.isAlphaPremultiplied(),
+									null
+									);
 					}
 				}
 			}
