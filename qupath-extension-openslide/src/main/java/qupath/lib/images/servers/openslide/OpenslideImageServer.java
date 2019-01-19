@@ -42,6 +42,7 @@ import org.slf4j.LoggerFactory;
 import com.google.gson.GsonBuilder;
 
 import qupath.lib.images.servers.AbstractTileableImageServer;
+import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.TileRequest;
 import qupath.lib.regions.RegionRequest;
@@ -124,7 +125,7 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 
 		// Create metadata objects
 		originalMetadata = new ImageServerMetadata.Builder(path, width, height).
-				setSizeC(3). // Assume 3 channels (RGB)
+				channels(ImageChannel.getDefaultRGBChannels()). // Assume 3 channels (RGB)
 				setRGB(true).
 				setBitDepth(8).
 				setPreferredTileSize(tileWidth, tileHeight).

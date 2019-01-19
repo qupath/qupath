@@ -71,7 +71,6 @@ import qupath.lib.classifiers.opencv.OpenCVClassifiers.OpenCVStatModel;
 import qupath.lib.classifiers.opencv.Reclassifier;
 import qupath.lib.classifiers.pixel.OpenCVPixelClassifier;
 import qupath.lib.classifiers.pixel.PixelClassifierMetadata;
-import qupath.lib.classifiers.pixel.PixelClassifierOutputChannel;
 import qupath.lib.classifiers.pixel.PixelClassifierMetadata.OutputType;
 import qupath.lib.classifiers.pixel.features.OpenCVFeatureCalculator;
 import qupath.lib.common.ColorTools;
@@ -81,6 +80,7 @@ import qupath.lib.gui.commands.MiniViewerCommand;
 import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
+import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
@@ -645,7 +645,7 @@ public class PixelClassifierImageSelectionPane {
 			 return;
 		 }
 
-		 List<PixelClassifierOutputChannel> channels = helper.getChannels();
+		 List<ImageChannel> channels = helper.getChannels();
 
 		 // TODO: Optionally limit the number of training samples we use
 		 //	     		var trainData = classifier.createTrainData(matFeatures, matTargets);

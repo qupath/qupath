@@ -68,7 +68,7 @@ public class ImageIoImageServer extends AbstractImageServer<BufferedImage> {
 				setPreferredDownsamples(1.0).
 				setRGB(isRGB).
 				setBitDepth(bitDepth).
-				setSizeC(nChannels).
+				channels(ImageChannel.getDefaultChannelList(nChannels)).
 				build();
 	}
 	

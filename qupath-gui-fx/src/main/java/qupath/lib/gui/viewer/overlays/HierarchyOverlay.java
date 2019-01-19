@@ -146,6 +146,8 @@ public class HierarchyOverlay extends AbstractImageDataOverlay {
 		// Ensure the bounds do not extend beyond what the server actually contains
 		//			if (boundsDisplayed.getMinX() < serverBounds.getMinX() || boundsDisplayed.getMaxX() > serverBounds.getMaxX() || boundsDisplayed.getMinY() < serverBounds.getMinY() || boundsDisplayed.getMaxY() > serverBounds.getMaxY())
 		boundsDisplayed = boundsDisplayed.intersection(serverBounds);
+		if (boundsDisplayed.width <= 0 || boundsDisplayed.height <= 0)
+			return;
 		ImageRegion region = AwtTools.getImageRegion(boundsDisplayed, z, t);
 		//		System.out.println("Displayed clip: " + clip);
 

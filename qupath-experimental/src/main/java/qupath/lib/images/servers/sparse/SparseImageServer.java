@@ -110,7 +110,7 @@ public class SparseImageServer extends AbstractTileableImageServer {
 				.setMagnification(metadata.getMagnification())
 				.setPixelSizeMicrons(metadata.getPixelWidthMicrons(), metadata.getPixelHeightMicrons())
 				.setPreferredTileSize(1024, 1024)
-				.setSizeC(metadata.getSizeC())
+				.channels(metadata.getChannels())
 				.setSizeT(metadata.getSizeT())
 				.setSizeZ(metadata.getSizeZ())
 				.setTimeUnit(metadata.getTimeUnit())

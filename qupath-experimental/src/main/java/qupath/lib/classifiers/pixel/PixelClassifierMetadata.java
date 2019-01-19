@@ -5,6 +5,8 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
+import qupath.lib.images.servers.ImageChannel;
+
 /**
  * Metadata to control the behavior of a pixel classifier.
  */
@@ -24,7 +26,7 @@ public class PixelClassifierMetadata {
 	private int outputWidth = -1;
 	private int outputHeight = -1;
 	private OutputType outputType = OutputType.Classification;
-	private List<PixelClassifierOutputChannel> channels;
+	private List<ImageChannel> channels;
 	
     /**
      * Requested pixel size
@@ -126,7 +128,7 @@ public class PixelClassifierMetadata {
      * List representing the names &amp; display colors for each output channel,
      * or for the output classifications if <code>outputType == OutputType.Classification</code>
      */
-    public List<PixelClassifierOutputChannel> getChannels() {
+    public List<ImageChannel> getChannels() {
     	return Collections.unmodifiableList(channels);
     }
 
@@ -166,7 +168,7 @@ public class PixelClassifierMetadata {
     	private int outputWidth = -1;
     	private int outputHeight = -1;
     	private OutputType outputType = OutputType.Probability;
-    	private List<PixelClassifierOutputChannel> channels = new ArrayList<>();
+    	private List<ImageChannel> channels = new ArrayList<>();
     	
     	public PixelClassifierMetadata build() {
     		return new PixelClassifierMetadata(this);
@@ -208,11 +210,11 @@ public class PixelClassifierMetadata {
     		return this;
     	}
     	
-    	public Builder channels(PixelClassifierOutputChannel...channels) {
+    	public Builder channels(ImageChannel...channels) {
     		return channels(Arrays.asList(channels));
     	}
     	
-    	public Builder channels(List<PixelClassifierOutputChannel> channels) {
+    	public Builder channels(List<ImageChannel> channels) {
     		this.channels.addAll(channels);
     		return this;
     	}

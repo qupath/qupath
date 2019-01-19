@@ -10,9 +10,9 @@ import org.bytedeco.javacpp.opencv_core.Mat;
 import org.bytedeco.javacpp.opencv_core.Size;
 
 import qupath.lib.classifiers.pixel.PixelClassifierMetadata;
-import qupath.lib.classifiers.pixel.PixelClassifierOutputChannel;
 import qupath.lib.classifiers.pixel.PixelClassifierMetadata.OutputType;
 import qupath.lib.common.ColorTools;
+import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.regions.RegionRequest;
 import qupath.opencv.processing.OpenCVTools;
@@ -44,13 +44,13 @@ public class SmoothedOpenCVFeatureCalculator implements OpenCVFeatureCalculator 
             padding = (int)Math.ceil(s * 3);
         }
         
-        List<PixelClassifierOutputChannel> channels = new ArrayList<>();
+        List<ImageChannel> channels = new ArrayList<>();
         int color = ColorTools.makeRGB(255, 255, 255);
         for (int c = 1; c <= nChannels; c++) {
             if (sigma > 0)
-            	channels.add(new PixelClassifierOutputChannel(String.format("Channel %d: Gaussian sigma = %.2f", c, sigma), color));
+            	channels.add(ImageChannel.getInstance(String.format("Channel %d: Gaussian sigma = %.2f", c, sigma), color));
             else
-            	channels.add(new PixelClassifierOutputChannel(String.format("Channel %d", c), color));
+            	channels.add(ImageChannel.getInstance(String.format("Channel %d", c), color));
         }
         
         this.metadata = new PixelClassifierMetadata.Builder()

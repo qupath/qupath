@@ -23,7 +23,11 @@
 
 package qupath.lib.images.servers;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -43,7 +47,6 @@ public class ImageServerMetadata {
 	private int width;
 	private int height;
 	
-	private int sizeC = 1;
 	private int sizeZ = 1;
 	private int sizeT = 1;
 	
@@ -51,6 +54,8 @@ public class ImageServerMetadata {
 	private int bitDepth = 8;
 	
 	private double[] downsamples = new double[] {1};
+	
+	private List<ImageChannel> channels = new ArrayList<>();
 	
 	private double pixelWidthMicrons = Double.NaN;
 	private double pixelHeightMicrons = Double.NaN;
@@ -90,11 +95,6 @@ public class ImageServerMetadata {
 			return this;
 		}
 		
-		public Builder setSizeC(final int sizeC) {
-			metadata.sizeC = sizeC;
-			return this;
-		}
-
 		public Builder setSizeZ(final int sizeZ) {
 			metadata.sizeZ = sizeZ;
 			return this;
@@ -132,6 +132,16 @@ public class ImageServerMetadata {
 			return this;
 		}
 		
+		public Builder channels(ImageChannel... channels) {
+			return this.channels(Arrays.asList(channels));
+		}
+
+		public Builder channels(Collection<ImageChannel> channels) {
+			metadata.channels.clear();
+			metadata.channels.addAll(channels);
+			return this;
+		}
+
 		public Builder setName(final String name) {
 			metadata.name = name;
 			return this;
@@ -160,7 +170,6 @@ public class ImageServerMetadata {
 		this.width = metadata.width;
 		this.height = metadata.height;
 		
-		this.sizeC = metadata.sizeC;
 		this.sizeZ = metadata.sizeZ;
 		this.sizeT = metadata.sizeT;
 		
@@ -246,7 +255,7 @@ public class ImageServerMetadata {
 	}
 
 	public int getSizeC() {
-		return sizeC;
+		return channels.size();
 	}
 	
 	public double getMagnification() {
@@ -269,6 +278,13 @@ public class ImageServerMetadata {
 		return name;
 	}
 	
+	public ImageChannel getChannel(int n) {
+		return channels.get(n);
+	}
+	
+	public List<ImageChannel> getChannels() {
+		return Collections.unmodifiableList(channels);
+	}
 	
 	/**
 	 * Returns true if a specified ImageServerMetadata is compatible with this one, i.e. it has the same path and dimensions
@@ -277,7 +293,7 @@ public class ImageServerMetadata {
 	 * @return
 	 */
 	public boolean isCompatibleMetadata(final ImageServerMetadata metadata) {
-		return path.equals(metadata.path) && width == metadata.width && height == metadata.height && sizeT == metadata.sizeT && sizeC == metadata.sizeC &&
+		return path.equals(metadata.path) && width == metadata.width && height == metadata.height && sizeT == metadata.sizeT && getSizeC() == metadata.getSizeC() &&
 				sizeZ == metadata.sizeZ;
 	}
 	
@@ -289,7 +305,7 @@ public class ImageServerMetadata {
 		sb.append("\"name\": \"").append(name).append("\", ");
 		sb.append("\"width\": ").append(width).append(", ");
 		sb.append("\"height\": ").append(height).append(", ");
-		sb.append("\"sizeC\": ").append(sizeC);
+		sb.append("\"sizeC\": ").append(getSizeC());
 		if (sizeZ != 1)
 			sb.append(", ").append("\"sizeZ\": ").append(sizeZ);
 		if (sizeT != 1) {
@@ -310,6 +326,7 @@ public class ImageServerMetadata {
 		final int prime = 31;
 		int result = 1;
 		result = prime * result + bitDepth;
+		result = prime * result + ((channels == null) ? 0 : channels.hashCode());
 		result = prime * result + Arrays.hashCode(downsamples);
 		result = prime * result + height;
 		result = prime * result + (isRGB ? 1231 : 1237);
@@ -324,7 +341,6 @@ public class ImageServerMetadata {
 		result = prime * result + (int) (temp ^ (temp >>> 32));
 		result = prime * result + preferredTileHeight;
 		result = prime * result + preferredTileWidth;
-		result = prime * result + sizeC;
 		result = prime * result + sizeT;
 		result = prime * result + sizeZ;
 		result = prime * result + ((timeUnit == null) ? 0 : timeUnit.hashCode());
@@ -345,6 +361,11 @@ public class ImageServerMetadata {
 			return false;
 		ImageServerMetadata other = (ImageServerMetadata) obj;
 		if (bitDepth != other.bitDepth)
+			return false;
+		if (channels == null) {
+			if (other.channels != null)
+				return false;
+		} else if (!channels.equals(other.channels))
 			return false;
 		if (!Arrays.equals(downsamples, other.downsamples))
 			return false;
@@ -372,8 +393,6 @@ public class ImageServerMetadata {
 			return false;
 		if (preferredTileWidth != other.preferredTileWidth)
 			return false;
-		if (sizeC != other.sizeC)
-			return false;
 		if (sizeT != other.sizeT)
 			return false;
 		if (sizeZ != other.sizeZ)
@@ -386,6 +405,9 @@ public class ImageServerMetadata {
 			return false;
 		return true;
 	}
+
+
+	
 	
 
 }

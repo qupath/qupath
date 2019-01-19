@@ -52,7 +52,6 @@ import qupath.lib.classifiers.opencv.OpenCVClassifiers.OpenCVStatModel;
 import qupath.lib.classifiers.pixel.OpenCVPixelClassifier;
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.classifiers.pixel.PixelClassifierMetadata;
-import qupath.lib.classifiers.pixel.PixelClassifierOutputChannel;
 import qupath.lib.classifiers.pixel.features.BasicMultiscaleOpenCVFeatureCalculator;
 import qupath.lib.classifiers.pixel.features.OpenCVFeatureCalculator;
 import qupath.lib.classifiers.pixel.features.SmoothedOpenCVFeatureCalculator;
@@ -65,6 +64,7 @@ import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.QuPathViewerListener;
 import qupath.lib.images.ImageData;
+import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.classes.PathClass;
@@ -410,7 +410,7 @@ public class PixelClassifierGUI implements PathCommand, QuPathViewerListener, Pa
             		continue;
             	}
             	
-        		List<PixelClassifierOutputChannel> channels = classifier.getMetadata().getChannels();
+        		List<ImageChannel> channels = classifier.getMetadata().getChannels();
             	if (imp.getNChannels() > 1 && imp.getNChannels() == channels.size()) {
             		CompositeImage impComp = imp instanceof CompositeImage ? (CompositeImage)imp : new CompositeImage(imp, CompositeImage.GRAYSCALE);
             		for (int c = 0; c < channels.size(); c++) {
@@ -535,7 +535,7 @@ public class PixelClassifierGUI implements PathCommand, QuPathViewerListener, Pa
             classificationList.clear();
             return;
         }
-        List<PixelClassifierOutputChannel> channels = helper.getChannels();
+        List<ImageChannel> channels = helper.getChannels();
         
      // TODO: Optionally limit the number of training samples we use
 //     		var trainData = classifier.createTrainData(matFeatures, matTargets);
@@ -752,10 +752,10 @@ public class PixelClassifierGUI implements PathCommand, QuPathViewerListener, Pa
     		this.channels.addAll(channels);
     		this.filters.addAll(filters);
     		
-    		var outputChannels = new ArrayList<PixelClassifierOutputChannel>();
+    		var outputChannels = new ArrayList<ImageChannel>();
     		for (var channel : channels) {
     			for (var filter : filters) {
-    				outputChannels.add(new PixelClassifierOutputChannel("Channel " + channel + ": " + filter.getName(), ColorTools.makeRGB(255, 255, 255)));
+    				outputChannels.add(ImageChannel.getInstance("Channel " + channel + ": " + filter.getName(), ColorTools.makeRGB(255, 255, 255)));
 //    				outputChannels.add(new PixelClassifierOutputChannel(channel.getName() + ": " + filter.getName(), ColorTools.makeRGB(255, 255, 255)));
     			}
     		}

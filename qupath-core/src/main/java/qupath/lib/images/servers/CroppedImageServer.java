@@ -31,7 +31,7 @@ public class CroppedImageServer extends WrappedImageServer<BufferedImage> {
 				.setName(String.format("%s (%d, %d, %d, %d)", server.getMetadata().getName(), region.getX(), region.getY(), region.getWidth(), region.getHeight()))
 				.setPixelSizeMicrons(server.getMetadata().getPixelWidthMicrons(), server.getMetadata().getPixelHeightMicrons())
 				.setPreferredTileSize(server.getMetadata().getPreferredTileWidth(), server.getMetadata().getPreferredTileHeight())
-				.setSizeC(server.getMetadata().getSizeC())
+				.channels(server.getMetadata().getChannels())
 				.setSizeZ(server.getMetadata().getSizeZ())
 				.setSizeT(server.getMetadata().getSizeT())
 				.setTimeUnit(server.getMetadata().getTimeUnit())

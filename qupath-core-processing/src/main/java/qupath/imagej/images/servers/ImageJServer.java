@@ -33,6 +33,7 @@ import java.awt.image.DataBufferUShort;
 import java.awt.image.Raster;
 import java.awt.image.SampleModel;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -53,9 +54,9 @@ import ij.process.ImageProcessor;
 import ij.process.LUT;
 import ij.process.ShortProcessor;
 import qupath.lib.awt.color.model.ColorModelFactory;
-import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.servers.AbstractImageServer;
+import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.regions.RegionRequest;
 
@@ -98,12 +99,35 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 			}
 		}
 		
+		
 		boolean isRGB = imp.getType() == ImagePlus.COLOR_RGB;
+
+		List<ImageChannel> channels;
+		if (isRGB)
+			channels = ImageChannel.getDefaultRGBChannels();
+		else if (imp instanceof CompositeImage) {
+			CompositeImage impComp = (CompositeImage)imp;
+			channels = new ArrayList<ImageChannel>();
+			for (int channel = 0; channel < imp.getNChannels(); channel++) {
+				LUT lut = impComp.getChannelLut(channel+1);
+				int ind = lut.getMapSize()-1;
+				String name = impComp.getStack().getSliceLabel(channel + 1);
+				// Use slice label if it is a non-empty single line for a 2D image
+				if (name == null || impComp.getNFrames() > 1 || impComp.getNSlices() > 1 || name.isBlank() || name.contains("\n"))
+					name = "Channel " + (channel + 1);
+				channels.add(
+						ImageChannel.getInstance(name, lut.getRGB(ind))
+						);
+			}
+		} else
+			channels = ImageChannel.getDefaultChannelList(imp.getNChannels());
+		
+		
 		originalMetadata = new ImageServerMetadata.Builder(path,
 				imp.getWidth(),
 				imp.getHeight()).
 				setPixelSizeMicrons(xMicrons, yMicrons).
-				setSizeC(isRGB ? 3 : imp.getNChannels()).
+				channels(channels).
 				setSizeZ(imp.getNSlices()).
 				setSizeT(imp.getNFrames()).
 				setTimeUnit(timeUnit).
@@ -275,24 +299,6 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 		return imp.getTitle();
 	}
 
-	@Override
-	public Integer getDefaultChannelColor(int channel) {
-		if (isRGB()) {
-			return getDefaultRGBChannelColors(channel);
-		}
-		// Grayscale
-		if (nChannels() == 1)
-			return ColorTools.makeRGB(255, 255, 255);
-		
-		if (imp instanceof CompositeImage) {
-			CompositeImage impComp = (CompositeImage)imp;
-			LUT lut = impComp.getChannelLut(channel+1);
-			int ind = lut.getMapSize()-1;
-			return lut.getRGB(ind);
-		}
-		return super.getDefaultChannelColor(channel);
-	}
-	
 	@Override
 	public ImageServerMetadata getOriginalMetadata() {
 		return originalMetadata;

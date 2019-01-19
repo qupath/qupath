@@ -72,6 +72,7 @@ import loci.formats.ome.OMEXMLMetadata;
 import qupath.lib.awt.color.model.ColorModelFactory;
 import qupath.lib.common.ColorTools;
 import qupath.lib.images.servers.AbstractTileableImageServer;
+import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.TileRequest;
@@ -90,19 +91,6 @@ import qupath.lib.regions.RegionRequest;
 public class BioFormatsImageServer extends AbstractTileableImageServer {
 	
 	private static final Logger logger = LoggerFactory.getLogger(BioFormatsImageServer.class);
-	
-	/**
-	 * Default colors
-	 */
-	private static final List<Integer> DEFAULT_COLORS = Arrays.asList(
-		ColorTools.makeRGB(255, 0, 0),    // Red
-		ColorTools.makeRGB(0, 255, 0),    // Green
-		ColorTools.makeRGB(0, 0, 255),    // Blue
-		ColorTools.makeRGB(255, 255, 0),  // Yellow
-		ColorTools.makeRGB(0, 255, 255),  // Cyan
-		ColorTools.makeRGB(255, 0, 255),  // Magenta
-		ColorTools.makeRGB(255, 255, 255) // White
-		);
 	
 	/**
 	 * Minimum tile size - smaller values will be ignored.
@@ -150,11 +138,6 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 	 */
 	private Map<String, Integer> associatedImageMap = null;
 
-	/**
-	 * List representing the preferred colors to use for each channel, as packed int values.
-	 */
-	private List<Channel> channels = new ArrayList<>();
-	
 	/**
 	 * Delimiter between the file path and any sub-image names
 	 */
@@ -341,7 +324,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 			nChannels = reader.getSizeC();
 			
 			// Prepared to set channel colors
-			channels.clear();
+			var channels = new ArrayList<ImageChannel>();
 						
 			nZSlices = reader.getSizeZ();
 			// Workaround bug whereby VSI channels can also be replicated as z-slices
@@ -355,14 +338,12 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 			
 			// Try to read the default display colors for each channel from the file
 			if (isRGB) {
-				channels.add(new Channel("Red", ColorTools.makeRGB(255, 0, 0)));
-				channels.add(new Channel("Green", ColorTools.makeRGB(0, 255, 0)));
-				channels.add(new Channel("Blue", ColorTools.makeRGB(0, 0, 255)));
+				channels.addAll(ImageChannel.getDefaultRGBChannels());
 			}
 			else {
 				for (int c = 0; c < nChannels; c++) {
 					ome.xml.model.primitives.Color color = null;
-					String channelName = "Channel " + (c + 1);
+					String channelName = null;
 					try {
 						channelName = meta.getChannelName(series, c);
 						color = meta.getChannelColor(series, c);
@@ -374,22 +355,17 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 						channelColor = ColorTools.makeRGBA(color.getRed(), color.getGreen(), color.getBlue(), color.getAlpha());
 					else {
 						// Select next available default color
-						channelColor = DEFAULT_COLORS.get(c % DEFAULT_COLORS.size());
-						// Darken colors if we've already cycled through all our defaults
-						if (c > DEFAULT_COLORS.size()) {
-							int scale = c / DEFAULT_COLORS.size();
-							channelColor = ColorTools.makeScaledRGB(channelColor, Math.pow(0.85, scale));
-						}
+						channelColor = ImageChannel.getDefaultChannelColor(c);
 					}
-					channels.add(new Channel(channelName, channelColor));
+					if (channelName == null)
+						channelName = "Channel " + (c + 1);
+					channels.add(ImageChannel.getInstance(channelName, channelColor));
 				}
 				// Update RGB status if needed - sometimes we might really have an RGB image, but the Bio-Formats flag doesn't show this - 
 				// and we want to take advantage of the optimizations where we can
 				if (nChannels == 3 && 
 						bpp == 8 &&
-						(channels.get(0).color != null && channels.get(0).color == ColorTools.makeRGB(255, 0, 0)) &&
-						(channels.get(1).color != null && channels.get(1).color == ColorTools.makeRGB(0, 255, 0)) &&
-						(channels.get(2).color != null && channels.get(2).color == ColorTools.makeRGB(0, 0, 255))
+						channels.equals(ImageChannel.getDefaultRGBChannels())
 						)
 					isRGB = true;
 			}
@@ -481,7 +457,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 			
 			// Set metadata
 			ImageServerMetadata.Builder builder = new ImageServerMetadata.Builder(path, width, height).
-					setSizeC(nChannels).
+					channels(channels).
 					setSizeZ(nZSlices).
 					setSizeT(nTimepoints).
 					setPreferredDownsamples(downsamples).
@@ -680,7 +656,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 					imgMerged = AWTImageTools.mergeChannels(images);
 				} else {
 					// Try our own merge - this makes no real effort with ColorModels, and supports only 8-bit and 16-bit unsigned
-					imgMerged = mergeChannels(images, channels.stream().mapToInt(c -> c.color).toArray());
+					imgMerged = mergeChannels(images, getMetadata().getChannels().stream().mapToInt(c -> c.getColor()).toArray());
 				}
 				return imgMerged;
 
@@ -831,22 +807,6 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 	public boolean usesBaseServer(ImageServer<?> server) {
 		return this == server;
 	}
-	
-	/**
-	 * Get the stored name for this channel.
-	 * <p>
-	 * Note that the input used base-0 indexing, although the output may be 
-	 * "Channel 1", "Channel 2" etc. for more user-friendly readability.
-	 * 
-	 * @param channel
-	 * @return
-	 */
-	public String getChannelName(int channel) {
-		String name = channels.get(channel).name;
-		if (name == null)
-			return "Channel " + (channel + 1);
-		return name;
-	}
 
 	MetadataStore getMetadataStore() throws DependencyException, ServiceException, FormatException, IOException {
 		BufferedImageReader reader = manager.getPrimaryReader(this, filePath);
@@ -867,18 +827,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 		}
 		return null;
 	}
-	
-	@Override
-	public Integer getDefaultChannelColor(int channel) {
-		if (isRGB())
-			return getDefaultRGBChannelColors(channel);
-		Integer color = null;
-		if (channel >= 0 && channel <= channels.size())
-			 color = channels.get(channel).color;
-		if (color == null)
-			color = getExtendedDefaultChannelColor(channel);
-		return color;
-	}
+
 	
 	@Override
 	public List<String> getAssociatedImageList() {
@@ -1195,18 +1144,6 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 			return BufferedImageReader.makeBufferedImageReader(imageReader);
 		}
 		
-		
-	}
-	
-	static class Channel {
-		
-		private final String name;
-		private final Integer color;
-		
-		Channel(final String name, final Integer color) {
-			this.name = name;
-			this.color = color;
-		}
 		
 	}
 	

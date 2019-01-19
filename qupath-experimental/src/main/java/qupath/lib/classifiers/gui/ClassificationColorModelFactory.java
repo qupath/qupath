@@ -10,14 +10,14 @@ import java.util.List;
 import java.util.Map;
 
 import qupath.lib.awt.color.model.ColorModelFactory;
-import qupath.lib.classifiers.pixel.PixelClassifierOutputChannel;
+import qupath.lib.images.servers.ImageChannel;
 
 public class ClassificationColorModelFactory {
 	
-	private static Map<List<PixelClassifierOutputChannel>, IndexColorModel> classificationModels = Collections.synchronizedMap(new HashMap<>());
+	private static Map<List<ImageChannel>, IndexColorModel> classificationModels = Collections.synchronizedMap(new HashMap<>());
 
-	private static Map<List<PixelClassifierOutputChannel>, ColorModel> probabilityModels8 = Collections.synchronizedMap(new HashMap<>());
-	private static Map<List<PixelClassifierOutputChannel>, ColorModel> probabilityModels32 = Collections.synchronizedMap(new HashMap<>());
+	private static Map<List<ImageChannel>, ColorModel> probabilityModels8 = Collections.synchronizedMap(new HashMap<>());
+	private static Map<List<ImageChannel>, ColorModel> probabilityModels32 = Collections.synchronizedMap(new HashMap<>());
 
 	
 	private ClassificationColorModelFactory() {
@@ -31,7 +31,7 @@ public class ClassificationColorModelFactory {
 	 * @param channels
 	 * @return
 	 */
-    public static ColorModel geClassificationColorModel(List<PixelClassifierOutputChannel> channels) {
+    public static ColorModel geClassificationColorModel(List<ImageChannel> channels) {
     	var map = classificationModels.get(channels);
     	if (map == null) {
             int[] cmap = channels.stream().mapToInt(c -> c.getColor()).toArray();
@@ -52,7 +52,7 @@ public class ClassificationColorModelFactory {
      * @param channels
      * @return
      */
-    public static ColorModel geProbabilityColorModel8Bit(List<PixelClassifierOutputChannel> channels) {
+    public static ColorModel geProbabilityColorModel8Bit(List<ImageChannel> channels) {
     	var map = probabilityModels8.get(channels);
     	if (map == null) {
             int[] colors = channels.stream().mapToInt(c -> c.getColor()).toArray();
@@ -71,7 +71,7 @@ public class ClassificationColorModelFactory {
      * @param channels
      * @return
      */
-    public static ColorModel geProbabilityColorModel32Bit(List<PixelClassifierOutputChannel> channels) {
+    public static ColorModel geProbabilityColorModel32Bit(List<ImageChannel> channels) {
     	var map = probabilityModels32.get(channels);
     	if (map == null) {
             int[] colors = channels.stream().mapToInt(c -> c.getColor()).toArray();

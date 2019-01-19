@@ -2,7 +2,6 @@ package qupath.lib.classifiers.gui;
 
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.classifiers.pixel.PixelClassifierMetadata.OutputType;
-import qupath.lib.classifiers.pixel.PixelClassifierOutputChannel;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.common.SimpleThreadFactory;
 import qupath.lib.gui.QuPathGUI;
@@ -11,6 +10,7 @@ import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.QuPathViewerListener;
 import qupath.lib.gui.viewer.overlays.AbstractOverlay;
 import qupath.lib.images.ImageData;
+import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerProvider;
 import qupath.lib.objects.PathAnnotationObject;
@@ -146,7 +146,7 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
     		return false;
 
     	
-        List<PixelClassifierOutputChannel> channels = classifier.getMetadata().getChannels();
+        List<ImageChannel> channels = classifier.getMetadata().getChannels();
         long[] counts = null;
         long total = 0L;
                 
@@ -292,7 +292,7 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
 
     
     
-    private synchronized boolean updateMeasurements(PathObject pathObject, List<PixelClassifierOutputChannel> channels, long[] counts, long total, double pixelArea, String pixelAreaUnits) {
+    private synchronized boolean updateMeasurements(PathObject pathObject, List<ImageChannel> channels, long[] counts, long total, double pixelArea, String pixelAreaUnits) {
     	// Remove any existing measurements
     	int nBefore = pathObject.getMeasurementList().size();
   		pathObject.getMeasurementList().removeMeasurements(measurementsAdded.toArray(new String[0]));

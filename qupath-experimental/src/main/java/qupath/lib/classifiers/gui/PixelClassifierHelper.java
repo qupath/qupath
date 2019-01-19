@@ -11,9 +11,9 @@ import org.slf4j.LoggerFactory;
 import qupath.lib.classifiers.Normalization;
 import qupath.lib.classifiers.opencv.OpenCVClassifiers.FeaturePreprocessor;
 import qupath.lib.classifiers.opencv.OpenCVClassifiers;
-import qupath.lib.classifiers.pixel.PixelClassifierOutputChannel;
 import qupath.lib.classifiers.pixel.features.OpenCVFeatureCalculator;
 import qupath.lib.images.ImageData;
+import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServer;
 
 import org.bytedeco.javacpp.opencv_core.Mat;
@@ -62,7 +62,7 @@ public class PixelClassifierHelper implements PathObjectHierarchyListener {
     private OpenCVFeatureCalculator calculator;
     private boolean changes = true;
 
-    private List<PixelClassifierOutputChannel> channels;
+    private List<ImageChannel> channels;
     private double downsample;
     
     private Mat matTraining;
@@ -186,7 +186,7 @@ public class PixelClassifierHelper implements PathObjectHierarchyListener {
         List<PathClass> pathClasses = new ArrayList<>(map.keySet());
         pathClassesLabels.clear();
         
-        List<PixelClassifierOutputChannel> newChannels = new ArrayList<>();
+        List<ImageChannel> newChannels = new ArrayList<>();
         String path = imageData.getServerPath();
         List<Mat> allFeatures = new ArrayList<>();
         List<Mat> allTargets = new ArrayList<>();
@@ -200,8 +200,8 @@ public class PixelClassifierHelper implements PathObjectHierarchyListener {
         for (PathClass pathClass : pathClasses) {
             // Create a suitable channel
             Integer color = backgroundClasses.contains(pathClass) ?
-            		PixelClassifierOutputChannel.TRANSPARENT : pathClass.getColor();
-            PixelClassifierOutputChannel channel = new PixelClassifierOutputChannel(
+            		null : pathClass.getColor();
+            ImageChannel channel = ImageChannel.getInstance(
                     pathClass.getName(), color);
             newChannels.add(channel);
             pathClassesLabels.put(label, pathClass);
@@ -366,7 +366,7 @@ public class PixelClassifierHelper implements PathObjectHierarchyListener {
         return TrainData.create(matTraining, opencv_ml.ROW_SAMPLE, matTargets);
     }
 
-    public List<PixelClassifierOutputChannel> getChannels() {
+    public List<ImageChannel> getChannels() {
         return new ArrayList<>(channels);
     }
 

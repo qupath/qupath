@@ -191,7 +191,7 @@ public class ProjectImportImagesCommand implements PathCommand {
 	
 	
 	boolean loadFromFileChooser(final List<String> list) {
-		List<File> files = QuPathGUI.getSharedDialogHelper().promptForMultipleFiles(commandName, null, null, null);
+		List<File> files = QuPathGUI.getSharedDialogHelper().promptForMultipleFiles(commandName, null, null);
 		if (files == null)
 			return false;
 		boolean changes = false;
@@ -208,7 +208,7 @@ public class ProjectImportImagesCommand implements PathCommand {
 	
 	
 	boolean loadFromSingleURL(final List<String> list) {
-		String path = QuPathGUI.getSharedDialogHelper().promptForFilePathOrURL("Enter image path", null, null, null, null);
+		String path = QuPathGUI.getSharedDialogHelper().promptForFilePathOrURL("Enter image path", null, null, null);
 		if (path == null)
 			return false;
 		if (list.contains(path)) {

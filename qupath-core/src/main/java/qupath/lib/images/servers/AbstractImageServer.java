@@ -38,7 +38,6 @@ import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.PathImage;
 import qupath.lib.images.DefaultPathImage;
@@ -79,16 +78,6 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 		if (downsample < 1)
 			downsample = 1;
 		return downsample;
-	}
-	
-	/**
-	 * Default implementation, returns 'Channel n' where n is the channel number (1-based).
-	 * <p>
-	 * Note that the channel argument is 0-based.
-	 */
-	@Override
-	public String getChannelName(int channel) {
-		return "Channel " + (channel + 1);
 	}
 	
 	@Override
@@ -226,28 +215,7 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 	@Override
 	public String toString() {
 		return getServerType() + ": " + getPath() + " (" + getDisplayedImageName() + ")";
-	}
-
-	
-	/**
-	 * Method that may be used to get RGB colors.
-	 * Classes that only provide RGB images may call this from their getDefaultChannelColors method.
-	 * 
-	 * @param channel
-	 * @return
-	 */
-	protected Integer getDefaultRGBChannelColors(int channel) {
-		if (nChannels() == 1)
-			return ColorTools.makeRGB(255, 255, 255);
-		switch (channel) {
-		case 0: return ColorTools.makeRGB(255, 0, 0);
-		case 1: return ColorTools.makeRGB(0, 255, 0);
-		case 2: return ColorTools.makeRGB(0, 0, 255);
-		default:
-			return ColorTools.makeRGB(255, 255, 255);
-		}
-	}
-	
+	}	
 	
 	
 	@Override
@@ -264,29 +232,6 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 	@Override
 	public String getSubImagePath(String imageName) {
 		throw new RuntimeException("Cannot construct sub-image with name " + imageName + " for " + getClass().getSimpleName());
-	}
-	
-	
-	/**
-	 * Similar to getDefaultRGBChannelColors, but including Magenta, Cyan &amp; Yellow to return colors for up to 6 channels.
-	 * If only one channel is present, or a channel number &gt; 6 is requested, Color.WHITE is returned.
-	 * 
-	 * @param channel
-	 * @return
-	 */
-	protected Integer getExtendedDefaultChannelColor(int channel) {
-		if (nChannels() == 1)
-			return ColorTools.makeRGB(255, 255, 255);
-		switch (channel) {
-		case 0: return ColorTools.makeRGB(255, 0, 0);
-		case 1: return ColorTools.makeRGB(0, 255, 0);
-		case 2: return ColorTools.makeRGB(0, 0, 255);
-		case 3: return ColorTools.makeRGB(255, 255, 0);
-		case 4: return ColorTools.makeRGB(0, 255, 255);
-		case 5: return ColorTools.makeRGB(255, 0, 255);
-		default:
-			return ColorTools.makeRGB(255, 255, 255);
-		}
 	}
 	
 	@Override
@@ -432,14 +377,13 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 	
 	@Override
 	public Integer getDefaultChannelColor(int channel) {
-		if (isRGB()) {
-			return getDefaultRGBChannelColors(channel);
-		}
-		// Grayscale
-		if (nChannels() == 1)
-			return ColorTools.makeRGB(255, 255, 255);
-		
-		return getExtendedDefaultChannelColor(channel);
+		return getMetadata().getChannel(channel).getColor();
+	}
+	
+	
+	@Override
+	public String getChannelName(int channel) {
+		return getMetadata().getChannel(channel).getName();
 	}
 	
 	

@@ -34,13 +34,13 @@ import java.util.List;
 import java.util.Map;
 import qupath.lib.awt.color.ColorToolsAwt;
 import qupath.lib.awt.common.AwtTools;
-import qupath.lib.common.ColorTools;
 import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.gui.viewer.PathHierarchyPaintingHelper;
 import qupath.lib.gui.viewer.overlays.HierarchyOverlay;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.AbstractTileableImageServer;
 import qupath.lib.images.servers.GeneratingImageServer;
+import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.TileRequest;
@@ -105,7 +105,7 @@ public class PathHierarchyImageServer extends AbstractTileableImageServer implem
 				.setPreferredTileSize(256, 256)
 				.setPreferredDownsamples(downsamples.stream().mapToDouble(d -> d).toArray())
 				.setBitDepth(8)
-				.setSizeC(3)
+				.channels(ImageChannel.getDefaultRGBChannels())
 				.setRGB(true)
 				.build();
 	}
@@ -154,19 +154,6 @@ public class PathHierarchyImageServer extends AbstractTileableImageServer implem
 	@Override
 	public boolean usesBaseServer(ImageServer<?> server) {
 		return this.server == server;
-	}
-
-	@Override
-	public Integer getDefaultChannelColor(int channel) {
-		if (nChannels() == 1)
-			return ColorTools.makeRGB(255, 255, 255);
-		switch (channel) {
-		case 0: return ColorTools.makeRGB(255, 0, 0);
-		case 1: return ColorTools.makeRGB(0, 255, 0);
-		case 2: return ColorTools.makeRGB(0, 0, 255);
-		default:
-			return ColorTools.makeRGB(255, 255, 255);
-		}
 	}
 	
 	/**

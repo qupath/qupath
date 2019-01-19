@@ -74,7 +74,7 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 				.setPreferredTileSize(tileWidth, tileHeight)
 				.setPreferredDownsamples(downsample)
 				.setPixelSizeMicrons(server.getPixelWidthMicrons(), server.getPixelHeightMicrons())
-				.setSizeC(classifierMetadata.nOutputChannels())
+				.channels(classifierMetadata.getChannels())
 				.setSizeT(server.nTimepoints())
 				.setSizeZ(server.nZSlices())
 				.setMagnification(server.getMagnification())

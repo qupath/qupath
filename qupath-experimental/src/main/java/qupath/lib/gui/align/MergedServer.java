@@ -31,6 +31,7 @@ import qupath.lib.common.ColorTools;
 import qupath.lib.images.DefaultPathImage;
 import qupath.lib.images.PathImage;
 import qupath.lib.images.servers.AbstractImageServer;
+import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.ImageServerProvider;
@@ -39,10 +40,14 @@ import qupath.lib.regions.RegionRequest;
 /**
  * An ImageServer that merges separate RGB color images, deconvolving them and using the second stain
  * as a pseudo-fluorescence channel.
- *
+ * <p>
  * One 'main' image is also used to get a counterstain.
+ * <p>
+ * Note: this is incomplete!  For example, it does not properly handle metadata & image channels.
  * 
  * @author Pete Bankhead
+ * 
+ * @deprecated
  */
 public class MergedServer extends AbstractImageServer<BufferedImage> {
 
@@ -253,7 +258,7 @@ public class MergedServer extends AbstractImageServer<BufferedImage> {
 	public Integer getDefaultChannelColor(int channel) {
 		if (channel < baseColors.size())
 			return baseColors.get(channel);
-		return super.getExtendedDefaultChannelColor(channel);
+		return ImageChannel.getDefaultChannelColor(channel);
 	}
 
 	@Override
