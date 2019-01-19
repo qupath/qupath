@@ -108,14 +108,24 @@ public class TestPathObjectHierarchy {
 				
 		assertEquals(myPH.nObjects(), 3); // descendants - TODO: name may be a bit misleading???
 		
+//		// Remove one PO without a child (so 2 left)		
+//		myPH.removeObject(myChild2PAO, true); // no children, so a changed structure event will fire 
+//		List<PathObject> POAL5 = new ArrayList<>();
+//		POAL5 = myPH.getObjects(POAL5, PathAnnotationObject.class);
+//		assertEquals(POAL5.size(), 2); // 3 - 1  
+//		assertEquals(myPH.getObjects(null, PathAnnotationObject.class), POAL5);		
+//
+//		assertEquals(myPOHL.getFiredState(), 3); // event(CHANGED STRUCTURE) fired
+//		myPOHL.setFiredState(0);
+		
 		// Remove one PO without a child (so 2 left)		
-		myPH.removeObject(myChild2PAO, true); // no children, so a changed structure event will fire 
+		myPH.removeObject(myChild2PAO, true); // no children, so a removed event will fire 
 		List<PathObject> POAL5 = new ArrayList<>();
 		POAL5 = myPH.getObjects(POAL5, PathAnnotationObject.class);
 		assertEquals(POAL5.size(), 2); // 3 - 1  
 		assertEquals(myPH.getObjects(null, PathAnnotationObject.class), POAL5);		
 
-		assertEquals(myPOHL.getFiredState(), 3); // event(CHANGED STRUCTURE) fired
+		assertEquals(myPOHL.getFiredState(), 2); // event(CHANGED REMOVED) fired
 		myPOHL.setFiredState(0);
 		
 		// Remove one PO with a child but keep child (so 1 left)		

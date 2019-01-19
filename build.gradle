@@ -21,7 +21,7 @@ def additionalResourcesDir = "build/${qupathOutputDir}"
 /**
  * Include OpenCV binaries with GPU support (quite big, may not be used?)
  */
-def useGPU = true
+def useGPU = false
 
 /**
  * Good to know what JDK is (sometimes accidentally) being used
@@ -87,8 +87,8 @@ subprojects {
     groovy "org.codehaus.groovy:groovy-jsr223:2.5.5"
 
     for (fx in ['javafx-base', 'javafx-controls', 'javafx-graphics', 'javafx-media', 'javafx-web', 'javafx-swing']) {
-      javafx "org.openjfx:${fx}:11.0.1"
-      javafx "org.openjfx:${fx}:11.0.1:${platform}"
+      javafx "org.openjfx:${fx}:11.0.2"
+      javafx "org.openjfx:${fx}:11.0.2:${platform}"
     }
 
     richtextfx 'org.fxmisc.richtext:richtextfx:0.9.2'
