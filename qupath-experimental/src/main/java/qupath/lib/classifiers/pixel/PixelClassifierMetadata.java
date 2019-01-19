@@ -11,7 +11,7 @@ import java.util.List;
 public class PixelClassifierMetadata {
 
     public static enum PixelType { UInt8, UInt16, Float32, Float64 }
-    public static enum OutputType { Features, Classification, Probability, Logit }
+    public static enum OutputType { Features, Classification, Probability }
 
 	private double inputPixelSizeMicrons;
 	private double[] inputChannelMeans;
@@ -23,7 +23,7 @@ public class PixelClassifierMetadata {
 	private PixelType inputDataType = PixelType.UInt8;
 	private int outputWidth = -1;
 	private int outputHeight = -1;
-	private OutputType outputType = OutputType.Probability;
+	private OutputType outputType = OutputType.Classification;
 	private List<PixelClassifierOutputChannel> channels;
 	
     /**

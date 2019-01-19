@@ -28,7 +28,6 @@ import java.awt.Graphics2D;
 import java.awt.Shape;
 import java.awt.image.BufferedImage;
 import java.awt.image.ImageObserver;
-import java.awt.image.SampleModel;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -100,6 +99,15 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
     	}
 		hierarchy.fireObjectMeasurementsChangedEvent(this, changed);
     }
+    
+    
+    
+//    public String getResultsString(double x, double y) {
+//    	if (viewer == null || viewer.getServer() == null || classifierServer == null)
+//    		return null;
+//    	// TODO: Get the classification if it is cached, but not otherwise
+//    	return "" + classifierServer.getClassification((int)Math.round(x), (int)Math.round(y), viewer.getZPosition(), viewer.getTPosition());
+//    }
     
     
     synchronized boolean addPercentageMeasurements(final PathObject pathObject) {
@@ -212,7 +220,6 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
 					logger.error("Error calculating classification areas", e);
 				}
 				break;
-			case Logit:
 			case Probability:
 				// Take classification from the channel with the highest value
 				raster = tile.getRaster();

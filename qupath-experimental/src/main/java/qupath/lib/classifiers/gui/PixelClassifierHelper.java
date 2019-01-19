@@ -13,7 +13,6 @@ import qupath.lib.classifiers.opencv.OpenCVClassifiers.FeaturePreprocessor;
 import qupath.lib.classifiers.opencv.OpenCVClassifiers;
 import qupath.lib.classifiers.pixel.PixelClassifierOutputChannel;
 import qupath.lib.classifiers.pixel.features.OpenCVFeatureCalculator;
-import qupath.lib.gui.images.stores.ImageRegionStoreHelpers;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 

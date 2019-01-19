@@ -160,6 +160,8 @@ public class OpenCVClassifiers {
 		
 		public abstract boolean supportsAutoUpdate();
 		
+		public abstract boolean supportsProbabilities();
+		
 		public abstract ParameterList getParameterList();
 				
 		public abstract TrainData createTrainData(Mat samples, Mat targets);
@@ -218,6 +220,14 @@ public class OpenCVClassifiers {
 			return true;
 		}
 		
+		@Override
+		public boolean supportsProbabilities() {
+			var model = getStatModel();
+			return model instanceof RTrees ||
+					model instanceof ANN_MLP ||
+					model instanceof NormalBayesClassifier;
+		}
+		
 		T getStatModel() {
 			return model;
 		}
@@ -231,42 +241,13 @@ public class OpenCVClassifiers {
 		public ParameterList getParameterList() {
 			return params;
 		}
-		
-		boolean requiresOneHotEncoding() {
-			return false;
-		}
-		
-//		Mat updateTargets(Mat targets) {
-//			
-//		}
-		
+				
 		@Override
 		public String toString() {
 			return getName();
 		}
 		
 		public TrainData createTrainData(Mat samples, Mat targets) {
-			
-			if (requiresOneHotEncoding() && targets.depth() == opencv_core.CV_32S && targets.cols() == 1) {
-				IntBuffer buffer = targets.createBuffer();
-				int[] vals = new int[targets.rows()];
-				buffer.get(vals);
-				int max = Arrays.stream(vals).max().orElseGet(() -> 0) + 1;
-				var targets2 = new Mat(targets.rows(), max, opencv_core.CV_32FC1, Scalar.ZERO);
-				FloatIndexer idxTargets = targets2.createIndexer();
-				int row = 0;
-				for (var v : vals) {
-					idxTargets.put(row, v, 1f);
-					row++;
-				}
-				targets.put(targets2);
-				targets2.close();
-			}
-			
-			// TODO: MOVE THIS TO A MORE SENSIBLE LOCATION!
-			if (getStatModel() instanceof LogisticRegression)
-				targets.convertTo(targets, opencv_core.CV_32F);
-			
 			if (useUMat()) {
 				UMat uSamples = samples.getUMat(opencv_core.ACCESS_READ);
 				UMat uTargets = samples.getUMat(opencv_core.ACCESS_READ);
@@ -299,7 +280,12 @@ public class OpenCVClassifiers {
 		public void trainWithLock(TrainData trainData) {
 			var statModel = getStatModel();
 			updateModel(statModel, params, trainData);
-			statModel.train(trainData);
+//			statModel.train(trainData);
+			statModel.train(trainData, getTrainFlags());
+		}
+		
+		protected int getTrainFlags() {
+			return 0;
 		}
 
 		@Override
@@ -724,7 +710,6 @@ public class OpenCVClassifiers {
 		@Override
 		ParameterList createParameterList(LogisticRegression model) {
 			var params = new ParameterList();
-			
 			double learningRate = model.getLearningRate();
 			int nIterations = model.getIterations();
 			int reg = model.getRegularization();
@@ -737,16 +722,17 @@ public class OpenCVClassifiers {
 			
 			return params;
 		}
+		
+		public TrainData createTrainData(Mat samples, Mat targets) {
+			targets.convertTo(targets, opencv_core.CV_32F);
+			return super.createTrainData(samples, targets);
+		}
 
 		@Override
 		LogisticRegression createStatModel() {
 			return LogisticRegression.create();
 		}
 		
-		boolean requiresOneHotEncoding() {
-			return false;
-		}
-
 		@Override
 		void updateModel(LogisticRegression model, ParameterList params, TrainData trainData) {
 			double learningRate = params.getDoubleParameterValue("learningRate");
@@ -799,27 +785,6 @@ public class OpenCVClassifiers {
 			if (probabilities == null)
 				probabilities = new Mat();
 			model.predictProb(samples, results, probabilities, 0);
-
-//			int nSamples = results.rows();
-//			int nClasses = probabilities.cols();
-//			IntIndexer idxResults = results.createIndexer();
-//			FloatIndexer idxProbabilities = probabilities.createIndexer();
-//			for (int row = 0; row < nSamples; row++) {
-//				int prediction = idxResults.get(row);
-//				double sum = 0;
-//				double rawProbValue = idxProbabilities.get(row, prediction);
-//				for (int i = 0; i < nClasses; i++) {
-//					sum += idxProbabilities.get(row, i);
-//				}
-//				double probability;
-//				if (Double.isInfinite(rawProbValue))
-//					probability = 1.0;
-//				else if (sum == 0) {
-//					probability = Double.NaN;
-////					pathClass = null;
-//				} else
-//					probability = rawProbValue / sum;
-//			}
 		}
 	}
 	
@@ -963,6 +928,16 @@ public class OpenCVClassifiers {
 		
 		private static int MAX_HIDDEN_LAYERS = 5;
 		
+		/**
+		 * Alpha value for activation function (influences 'steepness')
+		 */
+		private double activationAlpha = 1.0;
+		
+		/**
+		 * Beta value for activation function (influences range)
+		 */
+		private double activationBeta = 1.0;
+		
 		ANNClassifierCV() {
 			super();
 		}
@@ -983,14 +958,57 @@ public class OpenCVClassifiers {
 			
 			return params;
 		}
+		
+		protected int getTrainFlags() {
+			return ANN_MLP.NO_OUTPUT_SCALE;
+		}
 
 		@Override
 		ANN_MLP createStatModel() {
 			return ANN_MLP.create();
 		}
 		
-		boolean requiresOneHotEncoding() {
-			return true;
+		public TrainData createTrainData(Mat samples, Mat targets) {
+			
+			IntBuffer buffer = targets.createBuffer();
+			int[] vals = new int[targets.rows()];
+			buffer.get(vals);
+			int max = Arrays.stream(vals).max().orElseGet(() -> 0) + 1;
+			var targets2 = new Mat(targets.rows(), max, opencv_core.CV_32FC1, Scalar.all(-1.0));
+			FloatIndexer idxTargets = targets2.createIndexer();
+			int row = 0;
+			for (var v : vals) {
+				idxTargets.put(row, v, 1f);
+				row++;
+			}
+			targets.put(targets2);
+			targets2.close();
+			
+			return super.createTrainData(samples, targets);
+		}
+		
+		
+		public void predictWithLock(Mat samples, Mat results, Mat probabilities) {
+			double beta = activationBeta;
+			super.predictWithLock(samples, results, probabilities);
+			// Convert to the range 0-1
+			var indexer = probabilities.createIndexer();
+			long[] inds = new long[2];
+			long rows = indexer.rows();
+			long cols = indexer.cols();
+			for (long r = 0; r < rows; r++) {
+				inds[0] = r;
+//				double max = 0;
+				for (long c = 0; c < cols; c++) {
+					inds[1] = c;
+					double val = indexer.getDouble(inds) / (beta * 2.0) + 0.5;
+//					val = val > 1 ? 1 : val;
+//					val = val < 0 ? 0 : val;
+					indexer.putDouble(inds, val);
+//					max = Math.max(max, val);
+				}
+			}
+			indexer.release();
 		}
 
 		@Override
@@ -1003,7 +1021,8 @@ public class OpenCVClassifiers {
 			int n = 1;
 			for (int i = 1; i <= MAX_HIDDEN_LAYERS; i++) {
 				int size = params.getIntParameterValue("hidden" + i);
-				if (size > 0) {
+				// Every layer needs more than one neuron
+				if (size > 1) {
 					layers[n] = size;
 					n++;
 				}
@@ -1020,7 +1039,7 @@ public class OpenCVClassifiers {
 			idx.release();
 			
 			model.setLayerSizes(mat);
-			model.setActivationFunction(ANN_MLP.SIGMOID_SYM, 1, 1);
+			model.setActivationFunction(ANN_MLP.SIGMOID_SYM, activationAlpha, activationBeta);
 			
 			logger.info("Initializing with layer sizes: " + GeneralTools.arrayToString(Locale.getDefault(), layers, 0));
 		}

@@ -14,6 +14,7 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
 
+import org.bytedeco.javacpp.opencv_imgproc;
 import org.bytedeco.javacpp.opencv_ml.ANN_MLP;
 import org.bytedeco.javacpp.opencv_ml.DTrees;
 import org.bytedeco.javacpp.opencv_ml.LogisticRegression;
@@ -24,6 +25,7 @@ import org.controlsfx.control.CheckComboBox;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import ij.CompositeImage;
 import impl.org.controlsfx.skin.CheckComboBoxSkin;
 import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
@@ -54,6 +56,7 @@ import javafx.scene.layout.Region;
 import javafx.stage.Stage;
 import javafx.util.StringConverter;
 import jfxtras.scene.layout.HBox;
+import qupath.imagej.helpers.IJTools;
 import qupath.lib.classifiers.gui.PixelClassificationOverlay;
 import qupath.lib.classifiers.gui.PixelClassifierGUI;
 import qupath.lib.classifiers.gui.PixelClassifierHelper;
@@ -79,6 +82,7 @@ import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
+import qupath.lib.regions.RegionRequest;
 
 public class PixelClassifierImageSelectionPane {
 	
@@ -332,6 +336,23 @@ public class PixelClassifierImageSelectionPane {
 
 		for (var s : sigmas)
 			comboFeatures.getItems().add(new PixelClassifierGUI.CoherenceFeatureFilter(s));
+		
+		comboFeatures.getItems().add(new PixelClassifierGUI.MedianFeatureFilter(3));
+		comboFeatures.getItems().add(new PixelClassifierGUI.MedianFeatureFilter(5));
+		
+		var radii = new int[] {1, 2, 4, 8};
+		for (var r : radii)
+			comboFeatures.getItems().add(new PixelClassifierGUI.MorphFilter(opencv_imgproc.MORPH_OPEN, r));
+		
+		for (var r : radii)
+			comboFeatures.getItems().add(new PixelClassifierGUI.MorphFilter(opencv_imgproc.MORPH_CLOSE, r));
+		
+		for (var r : radii)
+			comboFeatures.getItems().add(new PixelClassifierGUI.MorphFilter(opencv_imgproc.MORPH_ERODE, r));
+
+		for (var r : radii)
+			comboFeatures.getItems().add(new PixelClassifierGUI.MorphFilter(opencv_imgproc.MORPH_DILATE, r));
+
 
 		// Select the simple Gaussian features by default
 		comboFeatures.getCheckModel().checkIndices(1, 2, 3);
@@ -352,12 +373,12 @@ public class PixelClassifierImageSelectionPane {
 
 		
 		var labelFeaturesSummary = new Label("No features selected");
-		var btnEditFeatures = new Button("Select");
-		btnEditFeatures.setOnAction(e -> selectFeatures());
+		var btnShowFeatures = new Button("Show");
+		btnShowFeatures.setOnAction(e -> showFeatures());
 		
 		addGridRow(pane, row++, 0, 
 				"Choose the features that are available to the classifier (e.g. smoothed pixels, edges, other textures)",
-				labelFeatures, comboFeatures, btnEditFeatures);
+				labelFeatures, comboFeatures, btnShowFeatures);
 //		addGridRow(pane, row++, 0, labelFeatures, labelFeaturesSummary, btnEditFeatures);
 		
 		
@@ -623,7 +644,7 @@ public class PixelClassifierImageSelectionPane {
 		 PixelClassifierMetadata metadata = new PixelClassifierMetadata.Builder()
 				 .inputPixelSizeMicrons(getRequestedPixelSizeMicrons())
 				 .inputShape(inputWidth, inputHeight)
-				 .setOutputType(OutputType.Classification)
+				 .setOutputType(model.supportsProbabilities() ? OutputType.Probability : OutputType.Classification)
 				 .channels(channels)
 				 .build();
 
@@ -721,8 +742,37 @@ public class PixelClassifierImageSelectionPane {
 		return true;
 	}
 	
-	boolean selectFeatures() {
-		DisplayHelpers.showErrorMessage("Select features", "Not implemented yet!");
+	boolean showFeatures() {
+		double cx = viewer.getCenterPixelX();
+		double cy = viewer.getCenterPixelY();
+		var server = viewer.getServer();
+		if (server == null || featureCalculator == null)
+			return false;
+		double downsample = selectedResolution.get().getDownsampleFactor(server.getAveragedPixelSizeMicrons());
+		double width = featureCalculator.getMetadata().getInputWidth() * downsample;
+		double height = featureCalculator.getMetadata().getInputHeight() * downsample;
+		var request = RegionRequest.createInstance(
+				server.getPath(), downsample, 
+				(int)(cx - width/2), (int)(cy - height/2), (int)width, (int)height, viewer.getZPosition(), viewer.getTPosition());
+		
+		try {
+			var features = featureCalculator.calculateFeatures(viewer.getServer(), request);
+			var imp = PixelClassifierGUI.matToImagePlus(features, "Features");
+			int s = 1;
+			IJTools.calibrateImagePlus(imp, request, server);
+			var impComp = new CompositeImage(imp, CompositeImage.GRAYSCALE);
+			impComp.setDimensions(imp.getStackSize(), 1, 1);
+			for (var c : featureCalculator.getMetadata().getChannels()) {
+				impComp.setPosition(s);
+				impComp.resetDisplayRange();
+				impComp.getStack().setSliceLabel(c.getName(), s++);
+			}
+			impComp.setPosition(1);
+			impComp.show();
+			return true;
+		} catch (IOException e) {
+			logger.error("Error calculating features", e);
+		}
 		return false;
 	}
 

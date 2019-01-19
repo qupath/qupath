@@ -2,7 +2,6 @@ package qupath.lib.classifiers.pixel;
 
 import org.bytedeco.javacpp.opencv_core;
 import org.bytedeco.javacpp.opencv_core.Mat;
-import org.bytedeco.javacpp.opencv_core.MatVector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -19,23 +18,27 @@ public abstract class AbstractOpenCVPixelClassifier implements PixelClassifier {
     private transient ColorModel colorModelProbabilities;
     private transient ColorModel colorModelClassifications;
     
-    private boolean doSoftMax;
+    private boolean doSoftmax;
     private boolean do8Bit;
 
     private PixelClassifierMetadata metadata;
     
     AbstractOpenCVPixelClassifier(PixelClassifierMetadata metadata, boolean do8Bit) {
-        this.doSoftMax = metadata.getOutputType() == PixelClassifierMetadata.OutputType.Logit;
+        this(metadata, do8Bit, false);
+    }
+
+    AbstractOpenCVPixelClassifier(PixelClassifierMetadata metadata, boolean do8Bit, boolean doSoftmax) {
         this.metadata = metadata;
         this.do8Bit = do8Bit;
+        this.doSoftmax = doSoftmax;
     }
-    
+
     boolean do8Bit() {
     	return this.do8Bit;
     }
     
-    boolean doSoftMax() {
-    	return this.doSoftMax;
+    boolean doSoftmax() {
+    	return doSoftmax;
     }
     
     protected synchronized ColorModel getClassificationsColorModel() {

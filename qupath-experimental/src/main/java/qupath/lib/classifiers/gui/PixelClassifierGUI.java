@@ -642,7 +642,7 @@ public class PixelClassifierGUI implements PathCommand, QuPathViewerListener, Pa
      * @param title
      * @return
      */
-    static ImagePlus matToImagePlus(Mat mat, String title) {
+    public static ImagePlus matToImagePlus(Mat mat, String title) {
         if (mat.channels() == 1) {
             return new ImagePlus(title, matToImageProcessor(mat));
         }
@@ -744,6 +744,7 @@ public class PixelClassifierGUI implements PathCommand, QuPathViewerListener, Pa
     	private List<FeatureFilter> filters = new ArrayList<>();
     	private PixelClassifierMetadata metadata;
     	
+    	private int nPyramidLevels = 1;
     	private int padding = 0;
     	
     	public BasicFeatureCalculator(String name, List<Integer> channels, List<FeatureFilter> filters, double pixelSizeMicrons) {
@@ -765,12 +766,18 @@ public class PixelClassifierGUI implements PathCommand, QuPathViewerListener, Pa
     				.inputPixelSizeMicrons(pixelSizeMicrons)
     				.inputShape(512, 512)
     				.build();
+    		
+    		
+    		for (int i = 1; i< nPyramidLevels; i++) {
+    			padding *= 2;
+    		}
+    		
     	}
     	
     	public String toString() {
     		return name;
     	}
-
+    	
 		@Override
 		public Mat calculateFeatures(ImageServer<BufferedImage> server, RegionRequest request) throws IOException {
 			
@@ -782,32 +789,71 @@ public class PixelClassifierGUI implements PathCommand, QuPathViewerListener, Pa
 			int h = img.getHeight();
 			float[] pixels = new float[w * h];
 			var mat = new Mat(h, w, opencv_core.CV_32FC1);
-			var matGaussian = new Mat(h, w, opencv_core.CV_32FC1);
 			FloatIndexer idx = mat.createIndexer();
 			for (var channel : channels) {
 				pixels = img.getRaster().getSamples(0, 0, w, h, channel, pixels);
 //				channel.getValues(img, 0, 0, w, h, pixels);
 				idx.put(0L, pixels);
-				double sigma = Double.NaN;
-    			for (var filter : filters) {
-    				if (filter instanceof AbstractGaussianFeatureFilter) {
-    					double nextSigma = ((AbstractGaussianFeatureFilter) filter).getSigma();
-    					if (nextSigma != sigma) {
-    	    				gaussianFilter(mat, sigma, matGaussian);
-    						sigma = nextSigma;
-    					}
-    				}
-    				filter.calculate(mat, matGaussian, output);
-    			}
+				
+				addFeatures(mat, output);
+				
+				if (nPyramidLevels > 1) {
+					var matLastLevel = mat;
+        			var size = mat.size();
+	    			for (int i = 1; i < nPyramidLevels; i++) {
+	    				// Downsample pyramid level
+	    				var matPyramid = new Mat();
+	    				opencv_imgproc.pyrDown(matLastLevel, matPyramid);
+	    				// Add features to a temporary list (because we'll need to resize them
+	    				var tempList = new ArrayList<Mat>();
+	    				addFeatures(matPyramid, tempList);
+	    				for (var temp : tempList) {
+	    					// Upsample
+	    					for (int k = i; k > 0; k--)
+	    						opencv_imgproc.pyrUp(temp, temp);
+	    					// Adjust size if necessary
+	    					if (temp.rows() != size.height() || temp.cols() != size.width())
+	    						opencv_imgproc.resize(temp, temp, size, 0, 0, opencv_imgproc.INTER_CUBIC);
+	    					output.add(temp);
+	    				}
+	    				if (matLastLevel != mat)
+	    					matLastLevel.release();
+	    				matLastLevel = matPyramid;
+	    			}
+	    			matLastLevel.release();
+				}
+    			
 			}
 			
 			opencv_core.merge(new MatVector(output.toArray(Mat[]::new)), mat);
 			if (padding > 0)
 				mat.put(mat.apply(new opencv_core.Rect(padding, padding, mat.cols()-padding*2, mat.rows()-padding*2)).clone());
 			
-			matGaussian.release();
 			return mat;
 		}
+		
+		
+		void addFeatures(Mat mat, List<Mat> output) {
+			Mat matGaussian = null;
+			double sigma = Double.NaN;
+			for (var filter : filters) {
+				if (filter instanceof AbstractGaussianFeatureFilter) {
+					double nextSigma = ((AbstractGaussianFeatureFilter) filter).getSigma();
+					if (nextSigma != sigma) {
+						if (matGaussian == null)
+							matGaussian = new Mat(mat.rows(), mat.cols(), opencv_core.CV_32FC1);
+	    				gaussianFilter(mat, sigma, matGaussian);
+						sigma = nextSigma;
+					}
+					((AbstractGaussianFeatureFilter)filter).calculate(mat, matGaussian, output);
+				} else {
+					filter.calculate(mat, output);
+				}
+			}
+			if (matGaussian != null)
+				matGaussian.release();
+	    }
+		
 
 		@Override
 		public PixelClassifierMetadata getMetadata() {
@@ -815,6 +861,8 @@ public class PixelClassifierGUI implements PathCommand, QuPathViewerListener, Pa
 		}
     	
     }
+    
+        
     
     static void gaussianFilter(Mat matInput, double sigma, Mat matOutput) {
     	int s = (int)Math.ceil(sigma * 3) * 2 + 1;
@@ -827,9 +875,117 @@ public class PixelClassifierGUI implements PathCommand, QuPathViewerListener, Pa
     	
     	public abstract int getPadding();
     	
-    	public abstract void calculate(Mat matInput, Mat matGaussian, List<Mat> output);
+    	public abstract void calculate(Mat matInput, List<Mat> output);
+    	
+    	@Override
+    	public String toString() {
+    		return getName();
+    	}
+    	    	
+    }
+    
+    
+    public static class MedianFeatureFilter extends FeatureFilter {
+    	
+    	private int size;
+    	
+    	/**
+    	 * Median filter.  Note that only size of 3 or 5 is supported in general 
+    	 * (other filter sizes require 8-bit images for OpenCV).
+    	 */
+    	public MedianFeatureFilter(final int size) {
+    		this.size = size;
+    	}
+
+		@Override
+		public String getName() {
+			return "Median filter (" + size + "x" + size + ")";
+		}
+
+		@Override
+		public int getPadding() {
+			return size;
+		}
+
+		@Override
+		public void calculate(Mat matInput, List<Mat> output) {
+			var matOutput = new Mat();
+			opencv_imgproc.medianBlur(matInput, matOutput, size);
+			output.add(matOutput);
+		}
     	
     }
+    
+    
+    public static class MorphFilter extends FeatureFilter {
+    	
+    	private final int radius;
+    	private final int op;
+    	
+    	private transient String opName;
+    	private transient Mat kernel;
+    	
+    	/**
+    	 * Median filter.  Note that only size of 3 or 5 is supported in general 
+    	 * (other filter sizes require 8-bit images for OpenCV).
+    	 */
+    	public MorphFilter(final int op, final int radius) {
+    		this.op = op;
+    		this.radius = radius;
+    	}
+    	
+    	String getOpName() {
+    		if (opName == null) {
+    			switch (op) {
+    			case opencv_imgproc.MORPH_BLACKHAT:
+    				return "Morphological blackhat";
+    			case opencv_imgproc.MORPH_CLOSE:
+    				return "Morphological closing";
+    			case opencv_imgproc.MORPH_DILATE:
+    				return "Morphological dilation";
+    			case opencv_imgproc.MORPH_ERODE:
+    				return "Morphological erosion";
+    			case opencv_imgproc.MORPH_GRADIENT:
+    				return "Morphological gradient";
+    			case opencv_imgproc.MORPH_HITMISS:
+    				return "Morphological hit-miss";
+    			case opencv_imgproc.MORPH_OPEN:
+    				return "Morphological opening";
+    			case opencv_imgproc.MORPH_TOPHAT:
+    				return "Morphological tophat";
+    			default:
+    				return "Unknown morphological filter (" + op + ")";
+    			}
+    		}
+    		return opName;
+    	}
+
+		@Override
+		public String getName() {
+			return getOpName() + " (radius=" + radius + ")";
+		}
+
+		@Override
+		public int getPadding() {
+			return radius + 1;
+		}
+		
+		Mat getKernel() {
+			if (kernel == null) {
+				kernel = opencv_imgproc.getStructuringElement(opencv_imgproc.MORPH_ELLIPSE, new Size(radius*2+1, radius*2+1));
+			}
+			return kernel;
+		}
+
+		@Override
+		public void calculate(Mat matInput, List<Mat> output) {
+			var matOutput = new Mat();
+			opencv_imgproc.morphologyEx(matInput, matOutput, op, getKernel());
+			output.add(matOutput);
+		}
+    	
+    }
+    
 
     public static abstract class AbstractGaussianFeatureFilter extends FeatureFilter {
     	
@@ -852,6 +1008,21 @@ public class PixelClassifierGUI implements PathCommand, QuPathViewerListener, Pa
     		return (int)Math.ceil(sigma * 4);
     	}
     	
+    	public void calculate(Mat matInput, List<Mat> output) {
+    		var matGaussian = new Mat();
+    		gaussianFilter(matInput, sigma, matGaussian);
+    		calculate(matInput, matGaussian, output);
+    		matGaussian.release();
+    	}
+    	
+    	/**
+    	 * Alternative calculate method, suitable whenever the Gaussian filtering has already been 
+    	 * precomputed (so that it is not necessary to do this again).
+    	 * 
+    	 * @param matInput
+    	 * @param matGaussian
+    	 * @param output
+    	 */
     	public abstract void calculate(Mat matInput, Mat matGaussian, List<Mat> output);
     	
     	@Override
