@@ -25,6 +25,7 @@ package qupath.lib.images.servers;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -84,6 +85,15 @@ public interface ImageServer<T> extends AutoCloseable {
 	 * @return
 	 */
 	public double getPreferredDownsampleFactor(double requestedDownsample);
+	
+	/**
+	 * Get the downsample factor for a specified resolution level, where level 0 is the full resolution image 
+	 * and nResolutions() - 1 is the lowest resolution available.
+	 * 
+	 * @param level Resolution level, should be 0 &leq; level &lt; nResolutions().
+	 * @return
+	 */
+	public double getDownsampleForResolution(int level);
 	
 	/**
 	 * A suggested tile width (in pixels), derived from the full-resolution image.
@@ -452,6 +462,34 @@ public interface ImageServer<T> extends AutoCloseable {
 	 * @return
 	 */
 	public T getDefaultThumbnail(int z, int t) throws IOException;
+	
+	
+	/**
+	 * Get {@link TileRequest} objects for <i>all</i> tiles that this server supports.
+	 * 
+	 * @return
+	 */
+	public Collection<TileRequest> getAllTileRequests();
+	
+	/**
+	 * Get the {@link TileRequest} containing a specified pixel, or null if no such request exists.
+	 * 
+	 * @param level
+	 * @param x
+	 * @param y
+	 * @param z
+	 * @param t
+	 * @return
+	 */
+	public TileRequest getTile(int level, int x, int y, int z, int t);
+	
+	/**
+	 * Get a collection of {@link TileRequest} objects necessary to fulfil a specific {@link RegionRequest}.
+	 * 
+	 * @param request
+	 * @return
+	 */
+	public Collection<TileRequest> getTiles(final RegionRequest request);
 	
 	
 }

@@ -74,6 +74,7 @@ import qupath.lib.common.ColorTools;
 import qupath.lib.images.servers.AbstractTileableImageServer;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
+import qupath.lib.images.servers.TileRequest;
 import qupath.lib.regions.RegionRequest;
 
 /**

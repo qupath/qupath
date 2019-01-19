@@ -71,14 +71,6 @@ public class RegionRequest extends ImageRegion {
 	public static RegionRequest createInstance(String path, double downsample, int x, int y, int width, int height) {
 		return createInstance(path, downsample, x, y, width, height, 0, 0);
 	}
-
-//	public static RegionRequest createInstance(String path, double downsample, Rectangle bounds, int z, int t) {
-//		return createInstance(path, downsample, bounds.x, bounds.y, bounds.width, bounds.height, z, t);
-//	}
-//
-//	public static RegionRequest createInstance(String path, double downsample, Rectangle bounds) {
-//		return createInstance(path, downsample, bounds, 0, 0);
-//	}
 	
 	/**
 	 * Returns true if the region specified by this request overlaps with that of another request.
@@ -93,41 +85,6 @@ public class RegionRequest extends ImageRegion {
 					super.intersects(request);
 		return false;
 	}
-	
-	/**
-	 * Check if this region contains a specified coordinate.
-	 * 
-	 * @param x
-	 * @param y
-	 * @param z
-	 * @param t
-	 * @return
-	 */
-	public boolean contains(int x, int y, int z, int t) {
-		return getZ() == z &&
-			   getT() == t &&
-			   x >= getX() &&
-			   x < getX() + getWidth() &&
-			   y >= getY() &&
-			   y < getY() + getHeight();
-	}
-	
-	
-//	public int getMinX() {
-//		return Math.min(getX(), getX() + getWidth());
-//	}
-//
-//	public int getMaxX() {
-//		return Math.max(getX(), getX() + getWidth());
-//	}
-//	
-//	public int getMinY() {
-//		return Math.min(getY(), getY() + getHeight());
-//	}
-//
-//	public int getMaxY() {
-//		return Math.max(getY(), getY() + getHeight());
-//	}
 
 
 	public String getPath() {

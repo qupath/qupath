@@ -31,13 +31,17 @@ import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.StringProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableBooleanValue;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener.Change;
 import javafx.collections.ObservableList;
+import javafx.event.EventHandler;
 import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.geometry.Side;
 import javafx.scene.Node;
 import javafx.scene.Scene;
@@ -49,6 +53,7 @@ import javafx.scene.control.Label;
 import javafx.scene.control.SplitPane;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.control.Tooltip;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
@@ -153,7 +158,11 @@ public class PixelClassifierImageSelectionPane {
 	private ReadOnlyObjectProperty<OpenCVStatModel> selectedClassifier;
 
 	private ReadOnlyObjectProperty<ClassificationRegion> selectedRegion;
+
+	private ReadOnlyObjectProperty<OutputType> selectedOutputType;
 	
+	private StringProperty cursorLocation = new SimpleStringProperty();
+
 	private ObservableList<FeatureFilter> selectedFeatures;
 
 	private ObservableList<Integer> availableChannels;
@@ -245,7 +254,6 @@ public class PixelClassifierImageSelectionPane {
 	public void initialize(final QuPathViewer viewer) {
 		
 		int row = 0;
-		int col = 0;
 		
 		// Classifier
 		pane = new GridPane();
@@ -381,6 +389,20 @@ public class PixelClassifierImageSelectionPane {
 				labelFeatures, comboFeatures, btnShowFeatures);
 //		addGridRow(pane, row++, 0, labelFeatures, labelFeaturesSummary, btnEditFeatures);
 		
+		// Output
+		var labelOutput = new Label("Output");
+		var comboOutput = new ComboBox<OutputType>();
+		comboOutput.getItems().addAll(OutputType.Classification, OutputType.Probability);
+		selectedOutputType = comboOutput.getSelectionModel().selectedItemProperty();
+		selectedOutputType.addListener((v, o, n) -> {
+			updateClassifier();
+		});
+		comboOutput.getSelectionModel().clearAndSelect(0);
+		
+		addGridRow(pane, row++, 0, 
+				"Choose whether to output classifications only, or estimated probabilities per class (classifications only takes much less memory)",
+				labelOutput, comboOutput, comboOutput);
+		
 		
 		// Region
 		
@@ -440,6 +462,18 @@ public class PixelClassifierImageSelectionPane {
 				null,
 //				"View information about the current classifier training",
 				chart, chart, chart);
+		
+		
+		// Label showing cursor location
+		var labelCursor = new Label();
+		labelCursor.textProperty().bindBidirectional(cursorLocation);
+		labelCursor.setMaxWidth(Double.MAX_VALUE);
+		labelCursor.setAlignment(Pos.CENTER);
+		
+		addGridRow(pane, row++, 0, 
+				"Prediction for current cursor location",
+				labelCursor, labelCursor, labelCursor);
+		
 		
 		comboClassifier.getItems().addAll(
 				OpenCVClassifiers.wrapStatModel(RTrees.create()),
@@ -516,12 +550,15 @@ public class PixelClassifierImageSelectionPane {
 		stage.show();
 		stage.setOnCloseRequest(e -> destroy());
 		
+		viewer.getView().addEventFilter(MouseEvent.MOUSE_MOVED, mouseListener);
 		
 		viewer.getImageDataProperty().addListener(imageDataListener);
 		if (viewer.getImageData() != null)
 			viewer.getImageData().getHierarchy().addPathObjectListener(hierarchyListener);
 		
 	}
+	
+	private MouseListener mouseListener = new MouseListener();
 	
 	private OpenCVFeatureCalculator featureCalculator;
 	private PixelClassifierHelper helper;
@@ -644,7 +681,7 @@ public class PixelClassifierImageSelectionPane {
 		 PixelClassifierMetadata metadata = new PixelClassifierMetadata.Builder()
 				 .inputPixelSizeMicrons(getRequestedPixelSizeMicrons())
 				 .inputShape(inputWidth, inputHeight)
-				 .setOutputType(model.supportsProbabilities() ? OutputType.Probability : OutputType.Classification)
+				 .setOutputType(model.supportsProbabilities() ? selectedOutputType.get() : OutputType.Classification)
 				 .channels(channels)
 				 .build();
 
@@ -684,6 +721,7 @@ public class PixelClassifierImageSelectionPane {
 			viewer.getCustomOverlayLayers().remove(overlay);
 			overlay = null;
 		}
+		viewer.getView().removeEventFilter(MouseEvent.MOUSE_MOVED, mouseListener);
 		viewer.getImageDataProperty().removeListener(imageDataListener);
 //		setImageData(viewer, viewer.getImageData(), null);
 		if (helper != null)
@@ -991,6 +1029,24 @@ public class PixelClassifierImageSelectionPane {
 			
 		}
 		
+		
+	}
+	
+	
+	class MouseListener implements EventHandler<MouseEvent> {
+		
+
+		@Override
+		public void handle(MouseEvent event) {
+			if (overlay == null)
+				return;
+			var p = viewer.componentPointToImagePoint(event.getX(), event.getY(), null, false);
+			String results = overlay.getResultsString(p.getX(), p.getY());
+			if (results == null)
+				cursorLocation.set("");
+			else
+				cursorLocation.set(results);
+		}
 		
 	}
 	

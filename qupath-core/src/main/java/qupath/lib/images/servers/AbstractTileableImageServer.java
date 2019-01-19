@@ -5,22 +5,13 @@ import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.awt.image.ColorModel;
 import java.awt.image.Raster;
-import java.awt.image.SampleModel;
 import java.awt.image.WritableRaster;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
 import java.util.Map;
-import java.util.Set;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
 
 public abstract class AbstractTileableImageServer extends AbstractImageServer<BufferedImage> {
@@ -54,9 +45,6 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 	protected abstract BufferedImage readTile(final TileRequest tileRequest) throws IOException;
 	
 	
-	private TileRequestManager tileRequestManager;
-	
-	
 	/**
 	 * Construct a tileable ImageServer, providing a cache in which to store &amp; retrieve tiles.
 	 * 
@@ -76,7 +64,7 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 	 * @param request
 	 * @return
 	 */
-	private BufferedImage getTile(final TileRequest tileRequest) throws IOException {
+	protected BufferedImage getTile(final TileRequest tileRequest) throws IOException {
 		BufferedImage imgCached = cache.get(tileRequest.getRegionRequest());
 		if (imgCached != null) { 
 			logger.trace("Returning cached tile: {}", tileRequest.getRegionRequest());
@@ -104,14 +92,6 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 	protected BufferedImage createDefaultRGBImage(int width, int height) {
 		return new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
 	}
-
-	
-	protected TileRequestManager getTileRequestManager() {
-		if (tileRequestManager == null) {
-			tileRequestManager = new TileRequestManager(getAllTileRequests());
-		}
-		return tileRequestManager;
-	}
 	
 	
 	static BufferedImage duplicate(BufferedImage img) {
@@ -132,19 +112,21 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 			return duplicate(img);
 		
 		// Figure out which tiles we need
-		var manager = getTileRequestManager();
-		var tiles = manager.getTiles(request);
+		var tiles = getTiles(request);
 		
 		// If no tiles found, we assume a sparse image with nothing relevant to display for this location
 		if (tiles.isEmpty())
 			return null;
 		
 		// Check for the special case where we are requesting a single tile, which exactly matches the request
-		if (tiles.size() == 1 && request.equals(tiles.get(0).getRegionRequest())) {
-			var imgTile = getTile(tiles.get(0));
-			if (imgTile == null)
-				return null;
-			return duplicate(imgTile);
+		if (tiles.size() == 1) {
+			var firstTile = tiles.iterator().next();
+			if (firstTile.getRegionRequest().equals(request)) {
+				var imgTile = getTile(firstTile);
+				if (imgTile == null)
+					return null;
+				return duplicate(imgTile);
+			}
 		}
 		
 		long startTime = System.currentTimeMillis();
@@ -172,7 +154,6 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 		} else {
 			// Request all of the tiles we need & figure out image dimensions
 			// Do all this at the pyramid level of the tiles
-			SampleModel model = null;
 			WritableRaster raster = null;
 			ColorModel colorModel = null;
 			boolean alphaPremultiplied = false;
@@ -201,9 +182,6 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 					// Preallocate a raster if we need to, and everything else the tile might give us
 					if (raster == null) {
 						raster = imgTile.getRaster().createCompatibleWritableRaster(tileMaxX - tileMinX, tileMaxY - tileMinY);
-						model = raster.getSampleModel();
-//						model = imgTile.getSampleModel().createCompatibleSampleModel(tileMaxX - tileMinX, tileMaxY - tileMinY);
-//						raster = WritableRaster.createWritableRaster(model, null);
 						colorModel = imgTile.getColorModel();
 						alphaPremultiplied = imgTile.isAlphaPremultiplied();							
 					}
@@ -243,12 +221,6 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 				var raster2 = raster.createCompatibleWritableRaster(w, h);
 				raster2.setRect(-x, -y, (Raster)raster);
 				raster = raster2;
-//				raster = raster.createWritableChild(
-//						Math.max(xStart, 0),
-//						Math.max(yStart, 0),
-//						Math.min(raster.getWidth() - Math.max(xStart, 0), xEnd - Math.max(xStart, 0)),
-//						Math.min(raster.getHeight() - Math.max(yStart, 0), yEnd - Math.max(yStart, 0)),
-//						0, 0, null);
 			}
 
 			// Return the image, resizing if necessary
@@ -324,206 +296,5 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 	}
 	
 	
-	/**
-	 * A wrapper for a RegionRequest, useful to precisely specify image tiles at a particular resolution.
-	 * <p>
-	 * Why?
-	 * <p>
-	 * Because downsamples can be defined with floating point precision, and are not always unambiguous when 
-	 * calculated as the ratios of pyramid level dimensions (i.e. different apparent horizontal & vertical scaling), 
-	 * a RegionRequest is too fuzzy a way to refer to a specific rectangle of pixels from a specific pyramid level. 
-	 * Rounding errors can easily occur, and different image readers might respond differently to the same request.
-	 * <p>
-	 * Consequently, TileRequests provide a means to reproducibly define coordinates at pyramid levels and not only 
-	 * the full resolution image space.  They wrap a RegionRequest, because this is still used for caching purposes. 
-	 */
-	public static class TileRequest {
-		
-		private transient RegionRequest request;
-		
-		private final String path;
-		private final double downsample;
-		private final int level;
-		private final ImageRegion tileRegion;
-		
-		public TileRequest(final String path, 
-				final double downsample, final int level, final ImageRegion tileRegion) {
-			this.path = path;
-			this.downsample = downsample;
-			this.level = level;
-			this.tileRegion = tileRegion;
-		}
-		
-		public RegionRequest getRegionRequest() {
-			if (request == null) {
-				double x1 = tileRegion.getX() * downsample;
-				double y1 = tileRegion.getY() * downsample;
-				double x2 = (tileRegion.getX() + tileRegion.getWidth()) * downsample;
-				double y2 = (tileRegion.getY() + tileRegion.getHeight()) * downsample;
-				request = RegionRequest.createInstance(path, downsample,
-						(int)Math.round(x1),
-						(int)Math.round(y1),
-						(int)Math.round(x2 - Math.round(x1)),
-						(int)Math.round(y2 - Math.round(y1)),
-						tileRegion.getZ(),
-						tileRegion.getT());
-			}
-			return request;
-		}
-		
-		public double getDownsample() {
-			return downsample;
-		}
-		
-		public int getLevel() {
-			return level;
-		}
-		
-		public int getImageX() {
-			return request.getX();
-		}
-		
-		public int getImageY() {
-			return request.getY();
-		}
-		
-		public int getImageWidth() {
-			return request.getWidth();
-		}
-		
-		public int getImageHeight() {
-			return request.getHeight();
-		}
-		
-		public int getTileX() {
-			return tileRegion.getX();
-		}
-		
-		public int getTileY() {
-			return tileRegion.getY();
-		}
-		
-		public int getTileWidth() {
-			return tileRegion.getWidth();
-		}
-		
-		public int getTileHeight() {
-			return tileRegion.getHeight();
-		}
-		
-		public int getZ() {
-			return tileRegion.getZ();
-		}
-		
-		public int getT() {
-			return tileRegion.getT();
-		}
-		
-	}
-
-	private Collection<TileRequest> tileRequests;
-	
-	protected synchronized Collection<TileRequest> getAllTileRequests() {
-		if (tileRequests == null)
-			tileRequests = Collections.unmodifiableCollection(getAllTileRequests(this));
-		return tileRequests;
-	}
-	
-	/**
-	 * Request a collection of <i>all</i> tiles that this server must be capable of returning. 
-	 * The default implementation provides a dense grid of all expected tiles across all resolutions, 
-	 * time points, z-slices and x,y coordinates.
-	 * 
-	 * @return
-	 */
-	protected static Collection<TileRequest> getAllTileRequests(ImageServer<?> server) {
-		var set = new LinkedHashSet<TileRequest>();
-		
-		var path = server.getPath();
-		var tileWidth = server.getPreferredTileWidth();
-		var tileHeight = server.getPreferredTileHeight();
-		var downsamples = server.getPreferredDownsamples();
-		
-		for (int level = 0; level < downsamples.length; level++) {
-			double downsample = downsamples[level];
-			int height = server.getLevelHeight(level);
-			int width = server.getLevelWidth(level);
-			for (int t = 0; t < server.nTimepoints(); t++) {
-				for (int z = 0; z < server.nZSlices(); z++) {
-					for (int y = 0; y < height; y += tileHeight) {
-						int th = tileHeight;
-						if (y + th > height)
-							th = height - y;
-						
-						for (int x = 0; x < width; x += tileWidth) {
-							int tw = tileWidth;
-							if (x + tw > width)
-								tw = width - x;
-							
-							var tile = new TileRequest(
-									path, downsample, level, ImageRegion.createInstance(
-											x, y, tw, th, z, t)
-									);
-							set.add(tile);
-						}
-					}					
-				}
-			}
-		}
-		return set;
-	}
-	
-	
-	protected class TileRequestManager {
-		
-		private Map<String, Set<TileRequest>> tiles = new LinkedHashMap<>();
-		
-		private String getKey(TileRequest tile) {
-			return getKey(tile.getLevel(), tile.getZ(), tile.getT());
-		}
-		
-		private String getKey(int level, int z, int t) {
-			return level + ":" + z + ":" + t;
-		}
-		
-		TileRequestManager(Collection<TileRequest> tiles) {
-			for (var tile : tiles) {
-				var key = getKey(tile);
-				var set = this.tiles.get(key);
-				if (set == null) {
-					set = new LinkedHashSet<>();
-					this.tiles.put(key, set);
-				}
-				set.add(tile);
-			}
-		}
-		
-		public TileRequest getTile(int level, int x, int y, int z, int t) {
-			var key = getKey(level, z, t);
-			var set = tiles.get(key);
-			if (set != null) {
-				for (var tile : tiles.get(key)) {
-					if (tile.getLevel() == level && tile.getRegionRequest().contains(x, y, z, t))
-						return tile;
-				}				
-			}
-			return null;
-		}
-		
-		public List<TileRequest> getTiles(RegionRequest request) {
-			int level = getPreferredResolutionLevel(request.getDownsample());
-			var key = getKey(level, request.getZ(), request.getT());
-			var set = tiles.get(key);
-			var list = new ArrayList<TileRequest>();
-			if (set != null) {
-				for (var tile : set) {
-					if (request.intersects(tile.getRegionRequest()))
-						list.add(tile);
-				}
-			}
-			return list;
-		}
-		
-	}
 	
 }

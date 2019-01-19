@@ -26,9 +26,11 @@ import com.google.gson.GsonBuilder;
 import ij.io.FileSaver;
 import qupath.imagej.images.servers.BufferedImagePlusServer;
 import qupath.lib.classifiers.pixel.PixelClassifier;
+import qupath.lib.classifiers.pixel.PixelClassifierMetadata.OutputType;
 import qupath.lib.images.servers.AbstractTileableImageServer;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
+import qupath.lib.images.servers.TileRequest;
 import qupath.lib.regions.RegionRequest;
 
 public class PixelClassificationImageServer extends AbstractTileableImageServer {
@@ -221,12 +223,18 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 	 * @throws IOException
 	 */
 	public int getClassification(int x, int y, int z, int t) throws IOException {
-		var tile = getTileRequestManager().getTile(0, x, y, z, t);
+		
+		var type = classifier.getMetadata().getOutputType();
+		if (type != OutputType.Classification && type != OutputType.Probability)
+			return -1;
+		
+		var tile = getTile(0, x, y, z, t);
 		if (tile == null)
 			return -1;
-		int xx = (int)Math.round(x / tile.getDownsample() - tile.getTileX());
-		int yy = (int)Math.round(y / tile.getDownsample() - tile.getTileY());
-		var img = readBufferedImage(tile.getRegionRequest());
+		
+		int xx = (int)Math.floor(x / tile.getDownsample() - tile.getTileX());
+		int yy = (int)Math.floor(y / tile.getDownsample() - tile.getTileY());
+		var img = getTile(tile);
 		
 		if (xx >= img.getWidth())
 			xx = img.getWidth() - 1;
@@ -239,18 +247,19 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 			yy = 0;
 
 		int nBands = img.getRaster().getNumBands();
-		if (nBands == 1) {
+		if (nBands == 1 && type == OutputType.Classification) {
 			try {
 				return img.getRaster().getSample(xx, yy, 0);
 			} catch (Exception e) {
-				e.printStackTrace();
+				logger.error("Error requesting classification", e);
 				return -1;
 			}
-		} else {
+		} else if (type == OutputType.Probability) {
 			int maxInd = -1;
 			double maxVal = Double.NEGATIVE_INFINITY;
+			var raster = img.getRaster();
 			for (int b = 0; b < nBands; b++) {
-				double temp = img.getRaster().getSampleDouble(xx, yy, b);
+				double temp = raster.getSampleDouble(xx, yy, b);
 				if (temp > maxVal) {
 					maxInd = b;
 					maxVal = temp;
@@ -258,6 +267,7 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 			}
 			return maxInd;
 		}
+		return -1;
 	}
 	
 	

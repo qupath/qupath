@@ -25,8 +25,14 @@ package qupath.lib.images.servers;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
@@ -112,6 +118,11 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 		double[] downsamples = getPreferredDownsamplesArray();
 		int ind = getPreferredResolutionLevel(requestedDownsample);
 		return downsamples[ind];
+	}
+	
+	@Override
+	public double getDownsampleForResolution(int level) {
+		return getPreferredDownsamplesArray()[level];
 	}
 	
 	@Override
@@ -524,4 +535,90 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 		return readBufferedImage(request);
 	}
 		
+	
+	
+	
+	
+	private TileRequestManager tileRequestManager;
+	
+	protected synchronized TileRequestManager getTileRequestManager() {
+		if (tileRequestManager == null) {
+			tileRequestManager = new TileRequestManager(TileRequest.getAllTileRequests(this));
+		}
+		return tileRequestManager;
+	}
+	
+	public Collection<TileRequest> getAllTileRequests() {
+		return getTileRequestManager().getAllTiles();
+	}
+	
+	public TileRequest getTile(int level, int x, int y, int z, int t) {
+		return getTileRequestManager().getTile(level, x, y, z, t);
+	}
+	
+	public Collection<TileRequest> getTiles(final RegionRequest request) {
+		return getTileRequestManager().getTiles(request);
+	}
+	
+	
+	
+	private class TileRequestManager {
+		
+		private Collection<TileRequest> allTiles;
+		private Map<String, Set<TileRequest>> tiles = new LinkedHashMap<>();
+		
+		private String getKey(TileRequest tile) {
+			return getKey(tile.getLevel(), tile.getZ(), tile.getT());
+		}
+		
+		private String getKey(int level, int z, int t) {
+			return level + ":" + z + ":" + t;
+		}
+		
+		TileRequestManager(Collection<TileRequest> tiles) {
+			allTiles = Collections.unmodifiableList(new ArrayList<>(tiles));
+			for (var tile : allTiles) {
+				var key = getKey(tile);
+				var set = this.tiles.get(key);
+				if (set == null) {
+					set = new LinkedHashSet<>();
+					this.tiles.put(key, set);
+				}
+				set.add(tile);
+			}
+		}
+		
+		public Collection<TileRequest> getAllTiles() {
+			return allTiles;
+		}
+		
+		public TileRequest getTile(int level, int x, int y, int z, int t) {
+			var key = getKey(level, z, t);
+			var set = tiles.get(key);
+			if (set != null) {
+				for (var tile : tiles.get(key)) {
+					if (tile.getLevel() == level && tile.getRegionRequest().contains(x, y, z, t))
+						return tile;
+				}				
+			}
+			return null;
+		}
+		
+		public List<TileRequest> getTiles(RegionRequest request) {
+			int level = getPreferredResolutionLevel(request.getDownsample());
+			var key = getKey(level, request.getZ(), request.getT());
+			var set = tiles.get(key);
+			var list = new ArrayList<TileRequest>();
+			if (set != null) {
+				for (var tile : set) {
+					if (request.intersects(tile.getRegionRequest()))
+						list.add(tile);
+				}
+			}
+			return list;
+		}
+		
+	}
+	
+	
 }

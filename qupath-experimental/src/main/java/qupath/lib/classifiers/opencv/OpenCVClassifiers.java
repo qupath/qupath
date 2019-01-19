@@ -291,8 +291,25 @@ public class OpenCVClassifiers {
 		@Override
 		public String getName() {
 			var model = getStatModel();
+			
+			if (ANN_MLP.class.equals(model.getClass()))
+				return "Artificial neural network (ANN_MLP)";
+			else if (RTrees.class.equals(model.getClass()))
+				return "Random trees (RTrees)";
+			else if (Boost.class.equals(model.getClass()))
+				return "Boosted trees (Boost)";
+			else if (DTrees.class.equals(model.getClass()))
+				return "Decision tree (DTrees)";
+			else if (EM.class.equals(model.getClass()))
+				return "Expectation maximization";
+			else if (KNearest.class.equals(model.getClass()))
+				return "K nearest neighbor";
+			else if (LogisticRegression.class.equals(model.getClass()))
+				return "Logistic regression";
+			else if (NormalBayesClassifier.class.equals(model.getClass()))
+				return "Normal Bayes classifier";
+			
 			return model.getClass().getSimpleName();
-//			return getStatModel().getDefaultName().getString();
 		}
 		
 		/**
@@ -440,8 +457,8 @@ public class OpenCVClassifiers {
 
 			ParameterList params = new ParameterList()
 //					.addIntParameter("cvFolds", "Cross-validation folds", cvFolds, "Number of cross-validation folds to use when building the tree")
-					.addIntParameter("maxDepth", "Maximum tree depth", maxDepth, "Maximum possible tree depth")
-					.addIntParameter("minSampleCount", "Minimum sample count", minSampleCount, "Minimum number of samples per node")
+					.addIntParameter("maxDepth", "Maximum tree depth", maxDepth, null, "Maximum possible tree depth")
+					.addIntParameter("minSampleCount", "Minimum sample count", minSampleCount, null, "Minimum number of samples per node")
 //					.addDoubleParameter("regressionAccuracy", "Regression accuracy", regressionAccuracy, null, "Termination criterion")
 					.addBooleanParameter("use1SERule", "Use 1SE rule", use1SERule, "Harsher pruning, more compact tree")
 					;
@@ -516,8 +533,8 @@ public class OpenCVClassifiers {
 			boolean calcImportance = model.getCalculateVarImportance();
 			
 			params.addIntParameter("activeVarCount", "Active variable count", activeVarCount, null, "Number of features per tree node (if <=0, will use square root of number of features)");
-			params.addIntParameter("maxTrees", "Maximum number of trees", maxTrees);
-			params.addDoubleParameter("epsilon", "Termination epsilon", epsilon);
+			params.addIntParameter("maxTrees", "Maximum number of trees", maxTrees, null, "Maximum possible number of trees - but viewer may be used if 'Termination epsilon' is high");
+			params.addDoubleParameter("epsilon", "Termination epsilon", epsilon, null, "Termination criterion - if this is high, viewer trees may be used for classification");
 			params.addBooleanParameter("calcImportance", "Calculate variable importance", calcImportance, "Calculate estimate of each variable's importance (this impacts the results of the classifier!)");
 			return params;
 		}

@@ -24,6 +24,7 @@
 package qupath.lib.awt.common;
 
 import java.awt.Rectangle;
+import java.awt.Shape;
 import java.awt.geom.Rectangle2D;
 
 import qupath.lib.regions.ImageRegion;
@@ -71,6 +72,12 @@ public class AwtTools {
 	
 	public static ImageRegion getImageRegion(final Rectangle rectangle, final int z, final int t) {
 		return ImageRegion.createInstance(rectangle.x, rectangle.y, rectangle.width, rectangle.height, z, t);
+	}
+	
+	public static ImageRegion getImageRegion(final Shape shape, final int z, final int t) {
+		if (shape instanceof Rectangle)
+			return getImageRegion((Rectangle)shape, z, t);
+		return getImageRegion(shape.getBounds(), z, t);
 	}
 
 }

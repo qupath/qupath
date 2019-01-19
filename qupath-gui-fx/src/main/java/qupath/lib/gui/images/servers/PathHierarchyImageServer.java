@@ -43,6 +43,7 @@ import qupath.lib.images.servers.AbstractTileableImageServer;
 import qupath.lib.images.servers.GeneratingImageServer;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
+import qupath.lib.images.servers.TileRequest;
 import qupath.lib.objects.DefaultPathObjectConnectionGroup;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;

@@ -27,6 +27,7 @@ import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.Shape;
 import java.awt.image.BufferedImage;
+import java.awt.image.DataBuffer;
 import java.awt.image.ImageObserver;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -102,12 +103,40 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
     
     
     
-//    public String getResultsString(double x, double y) {
-//    	if (viewer == null || viewer.getServer() == null || classifierServer == null)
-//    		return null;
-//    	// TODO: Get the classification if it is cached, but not otherwise
-//    	return "" + classifierServer.getClassification((int)Math.round(x), (int)Math.round(y), viewer.getZPosition(), viewer.getTPosition());
-//    }
+    public String getResultsString(double x, double y) {
+    	if (viewer == null || viewer.getServer() == null || classifierServer == null)
+    		return null;
+    	int level = 0;
+    	var tile = classifierServer.getTile(level, (int)Math.round(x), (int)Math.round(y), viewer.getZPosition(), viewer.getTPosition());
+    	if (tile == null)
+    		return null;
+    	var img = cache.get(tile.getRegionRequest());
+    	if (img == null)
+    		return null;
+
+    	int xx = (int)Math.floor((x - tile.getImageX()) / tile.getDownsample());
+    	int yy = (int)Math.floor((y - tile.getImageY()) / tile.getDownsample());
+    	if (xx < 0 || yy < 0 || xx >= img.getWidth() || yy >= img.getHeight())
+    		return null;
+    	
+//    	String coords = GeneralTools.formatNumber(x, 1) + "," + GeneralTools.formatNumber(y, 1);
+    	
+    	var channels = classifier.getMetadata().getChannels();
+    	if (classifier.getMetadata().getOutputType() == OutputType.Classification) {
+        	int sample = img.getRaster().getSample(xx, yy, 0); 		
+        	return String.format("Classification: %s", channels.get(sample).getName());
+//        	return String.format("Classification (%s):\n%s", coords, channels.get(sample).getName());
+    	} else {
+    		var array = new String[channels.size()];
+    		for (int c = 0; c < channels.size(); c++) {
+    			float sample = img.getRaster().getSampleFloat(xx, yy, c);
+    			if (img.getRaster().getDataBuffer().getDataType() == DataBuffer.TYPE_BYTE)
+    				sample /= 255f;
+    			array[c] = channels.get(c).getName() + ": " + GeneralTools.formatNumber(sample, 2);
+    		}
+        	return String.format("Prediction: %s", String.join(", ", array));
+    	}
+    }
     
     
     synchronized boolean addPercentageMeasurements(final PathObject pathObject) {
@@ -147,18 +176,11 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
         
     	ROI roi = pathObject.getROI();
 
-    	int tileWidth = classifier.getMetadata().getInputWidth();// - classifier.requestedPadding() * 2;
-        int tileHeight = classifier.getMetadata().getInputHeight();// - classifier.requestedPadding() * 2;
-        if (tileWidth <= 0)
-        	tileWidth = 256;
-        if (tileHeight <= 0)
-        	tileHeight = 256;
-        
         Shape shape = PathROIToolsAwt.getShape(roi);
         
         // Get the regions we need
         List<RegionRequest> requests = ImageRegionStoreHelpers.getTilesToRequest(
-			server, shape, requestedDownsample, roi.getZ(), roi.getT(), tileWidth, tileHeight, null);
+			server, shape, requestedDownsample, roi.getZ(), roi.getT(), null);
         
         if (requests.isEmpty()) {
         	logger.debug("Request empty for {}", pathObject);
@@ -349,14 +371,8 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
         }
 
         // Request tiles, of the size that the classifier wants to receive
-        int tileWidth = classifier.getMetadata().getInputWidth();// - classifier.requestedPadding() * 2;
-        int tileHeight = classifier.getMetadata().getInputHeight();// - classifier.requestedPadding() * 2;
-        if (tileWidth <= 0)
-        	tileWidth = 256;
-        if (tileHeight <= 0)
-        	tileHeight = 256;
         List<RegionRequest> requests = ImageRegionStoreHelpers.getTilesToRequest(
-			classifierServer, g2d.getClip(), requestedDownsample, imageRegion.getZ(), imageRegion.getT(), -1, -1, null);
+			classifierServer, g2d.getClip(), requestedDownsample, imageRegion.getZ(), imageRegion.getT(), null);
 
 //        requests = requests.stream().map(r -> RegionRequest.createInstance(r.getPath(), requestedDownsample, r)).collect(Collectors.toList());
         
