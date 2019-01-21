@@ -1,0 +1,5 @@
+description = 'qupath-extension-omero'
+
+dependencies {
+  compile project(':qupath-gui-fx')
+}
