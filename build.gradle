@@ -322,6 +322,8 @@ jar {
        "Implementation-Vendor": qupathVendor,
        "Implementation-Title": 'QuPath',
        "Implementation-Version": qupathVersion,
+       "Main-Class": "qupath.QuPath",
+       "Class-Path": configurations.compile.collect { it.getName() }.join(' '),
        "QuPath-build-time": new Date().format("yyyy-MM-dd, HH:mm")
     ]
     if (latestGitCommit != null)
@@ -330,6 +332,29 @@ jar {
     attributes(manifestAttributes)
   }
 }
+
+
+/**
+ * Create a custom runtime.  Mostly to avoid using the same one as jpackager for now.
+ */
+task createRuntime(dependsOn:build, type:Exec) {
+
+  doFirst {
+
+   def params = ['jlink']
+
+    params << '--output' << new File(rootProject.libsDir.getParentFile(), 'jre').getAbsolutePath()
+    params << '--add-modules' << 'java.desktop,java.xml,java.scripting,java.sql,java.naming,jdk.unsupported'
+
+//	params << '--module-path' << System.properties.'java.home' + '/jmods' 
+
+    print String.join(' ', params)
+    
+    commandLine = params
+  }
+
+}
+
 
 /**
  * If we have a packager (somewhere), use it.
@@ -340,7 +365,7 @@ jar {
  * Or to make an installer:
  *   gradlew createPackage -Ppackager=/path/to/jpackager -Ptype=installer}
  */
-task createPackage(dependsOn:build, type:Exec) {
+task createPackage(dependsOn:createRuntime, type:Exec) {
 
   doFirst {
 
@@ -350,7 +375,7 @@ task createPackage(dependsOn:build, type:Exec) {
       println 'Please specify where I can find a suitable packager!  Something like this:'
       println 'gradlew createPackage -Ppackager=/path/to/jpackager'
       println '-------'
-      throw new GradleException('Please specify where I can find a suitable packager!')
+      throw new GradleException('Please specify where I can find a suitable jpackage!')
     }
     println 'Using packager: ' + packager
 
@@ -372,7 +397,12 @@ task createPackage(dependsOn:build, type:Exec) {
     params << '--class' << 'qupath.QuPath'
 
     // Strip off any SNAPSHOT part, which can cause trouble
-    params << '--version' << qupathVersion.replace('-SNAPSHOT', '')
+    params << '--app-version' << qupathVersion.replace('-SNAPSHOT', '')
+    
+    params << '--force'
+    
+    // Not entirely clear this is effective...?
+    params << '--strip-native-commands'
 
     // Try to find the icon
     def pathIcon = Paths.get(
@@ -381,11 +411,13 @@ task createPackage(dependsOn:build, type:Exec) {
             iconName).toFile().getAbsolutePath()
     params << '--icon' << pathIcon
 
-    params << '--add-modules' << 'java.desktop,java.xml,java.scripting,java.sql,java.naming,jdk.unsupported'
+	params << '--runtime-image' << new File(rootProject.libsDir.getParentFile(), 'jre').getAbsolutePath()
+//    params << '--add-modules' << 'java.desktop,java.xml,java.scripting,java.sql,java.naming,jdk.unsupported'
 
-    params.each {
-      print it
-    }
+//	params << '--module-path' << System.properties.'java.home' + '/jmods' 
+
+    print String.join(' ', params)
+    
     commandLine = params
   }
 
