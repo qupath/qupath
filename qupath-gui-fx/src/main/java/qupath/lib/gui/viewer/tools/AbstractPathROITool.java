@@ -154,7 +154,7 @@ abstract class AbstractPathROITool extends AbstractPathTool {
 		viewer.setSelectedObject(pathObject);
 		// Start editing the ROI immediately
 		editor.setROI(pathObject.getROI());
-		editor.grabHandle(xx, yy, viewer.getROIHandleSize() * 1.5, e.isShiftDown());
+		editor.grabHandle(xx, yy, viewer.getMaxROIHandleSize() * 1.5, e.isShiftDown());
 	}
 	
 	

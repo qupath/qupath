@@ -695,15 +695,20 @@ public class PathHierarchyPaintingHelper {
 	
 	/**
 	 * Paint the handles onto a Graphics object, if we have a suitable (non-point) ROI.
+	 * <p>
+	 * The minimum and maximum handle size can be specified; if the same, all handles will have the same size.  If different, 
+	 * then the distance between consecutive handles will be used to influence the actual handle size.  This is helpful 
+	 * when handles are densely packed.
 	 * 
 	 * @param g2d
-	 * @param handleSize The width &amp; height of the shape used to draw the handles
+	 * @param minHandleSize
+	 * @param maxHandleSize
 	 * @param colorStroke
 	 * @param colorFill
 	 */
-	public static void paintHandles(final RoiEditor roiEditor, final Graphics2D g2d, final double handleSize, final Color colorStroke, final Color colorFill) {		
+	public static void paintHandles(final RoiEditor roiEditor, final Graphics2D g2d, final double minHandleSize, final double maxHandleSize, final Color colorStroke, final Color colorFill) {		
 		if (!(roiEditor.getROI() instanceof PointsROI))
-			paintHandles(roiEditor.getHandles(), g2d, handleSize, colorStroke, colorFill);
+			paintHandles(roiEditor.getHandles(), g2d, minHandleSize, maxHandleSize, colorStroke, colorFill);
 	}
 
 		/**
@@ -714,19 +719,57 @@ public class PathHierarchyPaintingHelper {
 		 * @param colorStroke
 		 * @param colorFill
 		 */
-		public static void paintHandles(final List<Point2> handles, final Graphics2D g2d, final double handleSize, final Color colorStroke, final Color colorFill) {		
+	/**
+	 * Paint the handles onto a Graphics object, if we have a suitable (non-point) ROI.
+	 * <p>
+	 * The minimum and maximum handle size can be specified; if the same, all handles will have the same size.  If different, 
+	 * then the distance between consecutive handles will be used to influence the actual handle size.  This is helpful 
+	 * when handles are densely packed.
+	 * 
+	 * @param handles
+	 * @param g2d
+	 * @param minHandleSize
+	 * @param maxHandleSize
+	 * @param colorStroke
+	 * @param colorFill
+	 */
+	public static void paintHandles(final List<Point2> handles, final Graphics2D g2d, final double minHandleSize, final double maxHandleSize, final Color colorStroke, final Color colorFill) {		
 			RectangularShape handleShape = new Rectangle2D.Double();
 //			handleShape = new Ellipse2D.Double();
 		
-		for (Point2 p : handles) {
-			handleShape.setFrame(p.getX()-handleSize/2, p.getY()-handleSize/2, handleSize, handleSize);
-			if (colorFill != null) {
-				g2d.setColor(colorFill);
-				g2d.fill(handleShape);
+		int n = handles.size();
+		if (minHandleSize == maxHandleSize) {
+			for (Point2 p : handles) {
+				double handleSize = minHandleSize;
+				handleShape.setFrame(p.getX()-handleSize/2, p.getY()-handleSize/2, handleSize, handleSize);
+				if (colorFill != null) {
+					g2d.setColor(colorFill);
+					g2d.fill(handleShape);
+				}
+				if (colorStroke != null) {
+					g2d.setColor(colorStroke);
+					g2d.draw(handleShape);
+				}
 			}
-			if (colorStroke != null) {
-				g2d.setColor(colorStroke);
-				g2d.draw(handleShape);
+			return;
+		} else {
+			for (int i = 0; i < handles.size(); i++) {
+				var current = handles.get(i);
+				var before = handles.get((i + n - 1) % n);
+				var after = handles.get((i + 1) % n);
+				double distance = Math.sqrt(Math.min(current.distanceSq(before), current.distanceSq(after))) * 0.75;
+				double size = Math.max(minHandleSize, Math.min(distance, maxHandleSize));
+				
+				var p = current;
+				handleShape.setFrame(p.getX()-size/2, p.getY()-size/2, size, size);
+				if (colorFill != null) {
+					g2d.setColor(colorFill);
+					g2d.fill(handleShape);
+				}
+				if (colorStroke != null) {
+					g2d.setColor(colorStroke);
+					g2d.draw(handleShape);
+				}
 			}
 		}
 	}

@@ -145,7 +145,7 @@ public class MoveTool extends AbstractPathTool {
 				if (editor.getROI() == currentROI) {
 					// 1.5 increases the range; the handle radius alone is too small a distance, especially if the handles are painted as squares -
 					// because 1.5 >~ sqrt(2) it ensures that at least the entire square is 'active' (and a bit beyond it)
-					if (editor.grabHandle(xx, yy, viewer.getROIHandleSize() * 1.5, e.isShiftDown()))
+					if (editor.grabHandle(xx, yy, viewer.getMaxROIHandleSize() * 1.5, e.isShiftDown()))
 						e.consume();
 				}
 				if (!e.isConsumed() && ROIHelpers.areaContains(currentROI, xx, yy) && canTranslate(viewer.getSelectedObject())) {

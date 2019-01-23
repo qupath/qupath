@@ -1714,8 +1714,10 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 					if (color == null)
 						color = PathObjectColorToolsAwt.getDisplayedColorAWT(selectedObject);
 					g2d.setStroke(strokeThick);
-					double size = getROIHandleSize();
-					PathHierarchyPaintingHelper.paintHandles(roiEditor, g2d, size, color, ColorToolsAwt.getTranslucentColor(color));
+					// Draw ROI handles using adaptive size
+					double maxHandleSize = getMaxROIHandleSize();
+					double minHandleSize = downsample;
+					PathHierarchyPaintingHelper.paintHandles(roiEditor, g2d, minHandleSize, maxHandleSize, color, ColorToolsAwt.getTranslucentColor(color));
 				}
 			}
 		}
@@ -1726,6 +1728,11 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		
 		
 		updateRepaintTimestamp();
+	}
+	
+	
+	public double getMaxROIHandleSize() {
+		return overlayOptions.getThickStrokeWidth(downsampleFactor.get()) * 4.0;
 	}
 
 	
@@ -1843,30 +1850,6 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	public ObservableList<PathOverlay> getCustomOverlayLayers() {
 		return customOverlayLayers;
 	}
-	
-
-	/**
-	 * Get the handle size used to draw a ROI.
-	 * This is adapted to the downsample factor and any currently-selected ROI, to try to get a sensible
-	 * size even when very large images are viewed at a low magnification.
-	 * 
-	 * @return
-	 */
-	public double getROIHandleSize() {
-		double strokeWidth = overlayOptions.getThickStrokeWidth(downsampleFactor.get());
-//		return strokeWidth * 4;
-		double size = strokeWidth * 4;
-		ROI roi = roiEditor.getROI();
-		if (roi != null) {
-			if (roi instanceof AreaROI || roi instanceof PolygonROI || roi instanceof PolylineROI)
-				size = Math.min(size, Math.min(roi.getBoundsWidth(), roi.getBoundsHeight())/32);
-			else
-				size = Math.min(size, Math.min(roi.getBoundsWidth(), roi.getBoundsHeight())/8);
-		}
-		return Math.max(strokeWidth * .5, size);
-	}
-
-
 
 
 
