@@ -27,6 +27,7 @@ import java.awt.geom.Point2D;
 import java.util.Collections;
 
 import javafx.scene.input.MouseEvent;
+import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.ModeWrapper;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathROIObject;
@@ -44,8 +45,34 @@ import qupath.lib.roi.interfaces.ROI;
  */
 public class PolygonTool extends AbstractPathROITool {
 	
+	private boolean isFreehandPolygon = false;
+	
 	public PolygonTool(ModeWrapper modes) {
 		super(modes);
+	}
+	
+	
+	@Override
+	public void mousePressed(MouseEvent e) {
+		super.mousePressed(e);
+		ROI currentROI = viewer != null ? viewer.getCurrentROI() : null;
+		if (currentROI instanceof PolygonROI && currentROI.isEmpty())
+			isFreehandPolygon = true;
+	}
+	
+	
+	@Override
+	public void mouseReleased(MouseEvent e) {
+		super.mouseReleased(e);
+		
+		ROI currentROI = viewer.getCurrentROI();
+		if (isFreehandPolygon) {
+			if (currentROI instanceof PolygonROI && currentROI.isEmpty()) {
+				isFreehandPolygon = false;
+			} else if (PathPrefs.enableFreehandTools()) {
+				completePolygon(e);
+			}
+		}
 	}
 	
 	
@@ -64,12 +91,7 @@ public class PolygonTool extends AbstractPathROITool {
 			if (roiUpdated != currentROI && pathObject instanceof PathROIObject) {
 				((PathROIObject)pathObject).setROI(roiUpdated);
 				viewer.getHierarchy().fireObjectsChangedEvent(this, Collections.singleton(pathObject), true);
-//				viewer.repaint();
-//				System.err.println("N vertices: " + ((PolygonROI)roiUpdated).nVertices());
 			}
-			
-//			((PolygonROI)currentROI).setTempDrawingLocation(p.getX(), p.getY());
-//			viewer.repaint(); // TODO: Consider clip mask for this
 		}
 	}
 	
@@ -86,16 +108,13 @@ public class PolygonTool extends AbstractPathROITool {
 		
 		if ((currentROI instanceof PolygonROI) && editor.getROI() == currentROI) {
 			Point2D p = viewer.componentPointToImagePoint(e.getX(), e.getY(), null, true);
+			double downsample = viewer.getDownsampleFactor();
 			ROI roiUpdated = editor.requestNewHandle(p.getX(), p.getY());
 			PathObject pathObject = viewer.getSelectedObject();
 			if (roiUpdated != currentROI && pathObject instanceof PathROIObject) {
 				((PathROIObject)pathObject).setROI(roiUpdated);
 				viewer.getHierarchy().fireObjectsChangedEvent(this, Collections.singleton(pathObject), true);
-//				viewer.repaint();
 			}
-			
-//			((PolygonROI)currentROI).setTempDrawingLocation(p.getX(), p.getY());
-//			viewer.repaint(); // TODO: Consider clip mask for this
 		}
 	}
 	

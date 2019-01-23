@@ -114,35 +114,7 @@ abstract class AbstractPathROITool extends AbstractPathTool {
 				viewer.repaint();
 			}
 			else {
-				logger.trace("Finishing polygon  {}", e);
-//				editor.setROI(null);
-//				currentROI.finishAdjusting(p2.getX(), p2.getY(), e.isShiftDown());
-				
-				if (requestParentClipping(e)) {
-					currentROI = refineROIByParent(currentROI);
-					((PathAnnotationObject)currentObject).setROI(currentROI);
-				}
-				
-				// If the polygon is just a single point, get rid of it
-				if (currentROI.isEmpty()) {
-					currentROI = null;
-					viewer.setSelectedObject(null);
-					if (currentObject.getParent() != null)
-						hierarchy.removeObject(currentObject, true);
-					editor.setROI(null);
-				} else {
-					if (e.isShiftDown() && getCurrentParent() != null)
-						hierarchy.addPathObjectBelowParent(getCurrentParent(), currentObject, false, true);
-					else
-						hierarchy.addPathObject(currentObject, true);						
-					viewer.setSelectedObject(currentObject);
-					editor.resetActiveHandle();
-//					editor.resetActiveHandle();
-//					viewer.createAnnotationObject(currentROI);
-				}
-				if (PathPrefs.getReturnToMoveMode())
-					modes.setMode(Modes.MOVE);
-				
+				completePolygon(e);
 			}
 			return;
 		}
@@ -155,6 +127,48 @@ abstract class AbstractPathROITool extends AbstractPathTool {
 		// Start editing the ROI immediately
 		editor.setROI(pathObject.getROI());
 		editor.grabHandle(xx, yy, viewer.getMaxROIHandleSize() * 1.5, e.isShiftDown());
+	}
+	
+	
+	/**
+	 * Finish adjusting a polygon or polyline.
+	 * 
+	 * @param e
+	 * @param hierarchy
+	 * @param editor
+	 * @param currentObject
+	 * @param currentROI
+	 */
+	void completePolygon(MouseEvent e) {
+		logger.trace("Completing polygon  {}", e);
+		
+		PathObjectHierarchy hierarchy = viewer.getHierarchy();
+		PathObject currentObject = viewer.getSelectedObject();
+		ROI currentROI = viewer.getCurrentROI();
+		RoiEditor editor = viewer.getROIEditor();
+		
+		if (requestParentClipping(e)) {
+			currentROI = refineROIByParent(currentROI);
+			((PathAnnotationObject)currentObject).setROI(currentROI);
+		}
+		
+		// If the polygon is just a single point, get rid of it
+		if (currentROI.isEmpty()) {
+			currentROI = null;
+			viewer.setSelectedObject(null);
+			if (currentObject.getParent() != null)
+				hierarchy.removeObject(currentObject, true);
+			editor.setROI(null);
+		} else {
+			if (e.isShiftDown() && getCurrentParent() != null)
+				hierarchy.addPathObjectBelowParent(getCurrentParent(), currentObject, false, true);
+			else
+				hierarchy.addPathObject(currentObject, true);						
+			viewer.setSelectedObject(currentObject);
+			editor.resetActiveHandle();
+		}
+		if (PathPrefs.getReturnToMoveMode())
+			modes.setMode(Modes.MOVE);
 	}
 	
 	

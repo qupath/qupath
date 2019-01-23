@@ -707,6 +707,27 @@ public class PathPrefs {
 	
 	
 	
+	private static BooleanProperty enableFreehandTools = createPersistentPreference("enableFreehandTools", true);
+	
+	public static boolean enableFreehandTools() {
+		return enableFreehandTools.get();
+	}
+	
+	public static void setEnableFreehandTools(boolean enable) {
+		enableFreehandTools.set(enable);
+	}
+	
+	/**
+	 * Enable polygon/polyline tools to support 'freehand' mode; this means that if the ROI is 
+	 * started by dragging, then it will end by lifting the mouse (rather than requiring a double-click).
+	 * 
+	 * @return
+	 */
+	public static BooleanProperty enableFreehandToolsProperty() {
+		return enableFreehandTools;
+	}
+	
+	
 	
 	/**
 	 * File extension used for serialization of ImageData (without the dot)

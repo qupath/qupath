@@ -627,23 +627,25 @@ public class RoiEditor {
 			
 			// Move the active handle if it is very close to the requested region
 			// (removed)
-			
+
 			// Don't add a handle at almost the sample place as an existing handle
-			if (handles.size() >= 2 && activeHandle == handles.get(handles.size() - 1) && handles.get(handles.size() - 2).distanceSq(x, y) < 4) {
-				return roi;
+			boolean lastHandleSame = false;
+			if (handles.size() >= 2 && activeHandle == handles.get(handles.size() - 1)) {
+				MutablePoint lastHandle = handles.get(handles.size() - 2);
+				if (lastHandle.distanceSq(x, y) < 0.5) {
+					return roi;
+				}
+				lastHandleSame = lastHandle.distanceSq(activeHandle) == 0;
+			}
+
+			if (lastHandleSame) {
+				activeHandle.setLocation(x, y);
+			} else {
+				activeHandle = new MutablePoint(x, y);
+				roi = new PolygonROI(createPoint2List(handles), roi.getC(), roi.getZ(), roi.getT());
+				handles.add(activeHandle);
 			}
 			
-//			// If we have 2 points, which are identical, shift instead of creating
-//			if (handles.size() >= 2 && activeHandle == handles.get(handles.size() - 1) && activeHandle.distanceSq(handles.get(handles.size() - 2)) < 0.000001) {
-//				System.err.println("UPDATING HANDLE");
-//				return updateActiveHandleLocation(x, y, false);
-//			}
-			
-			activeHandle = new MutablePoint(x, y);
-			roi = new PolygonROI(createPoint2List(handles), roi.getC(), roi.getZ(), roi.getT());
-			handles.add(activeHandle);
-			
-//			System.out.println("UPDATED HANDLES BY REQUEST: " + handles.size());
 			return roi;
 		}
 

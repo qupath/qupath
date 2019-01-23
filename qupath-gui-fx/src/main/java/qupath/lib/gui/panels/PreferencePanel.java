@@ -219,6 +219,11 @@ public class PreferencePanel {
 				category,
 				"Use rotation gestures with touchscreens or touchpads to navigate the slide");
 		
+		addPropertyPreference(PathPrefs.enableFreehandToolsProperty(), Boolean.class,
+				"Enable freehand mode for polygon & polyline tools",
+				category,
+				"When starting to draw a polygon/polyline by clicking & dragging, optionally end ROI by releasing mouse button (rather than double-clicking)");
+		
 		addPropertyPreference(PathPrefs.doubleClickToZoomProperty(), Boolean.class,
 				"Use double-click to zoom",
 				category,

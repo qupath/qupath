@@ -27,10 +27,12 @@ import java.awt.geom.Point2D;
 import java.util.Collections;
 
 import javafx.scene.input.MouseEvent;
+import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.ModeWrapper;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathROIObject;
 import qupath.lib.regions.ImagePlane;
+import qupath.lib.roi.PolygonROI;
 import qupath.lib.roi.PolylineROI;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.RoiEditor;
@@ -44,8 +46,34 @@ import qupath.lib.roi.interfaces.ROI;
  */
 public class PolylineTool extends AbstractPathROITool {
 	
+	private boolean isFreehandPolyline = false;
+	
 	public PolylineTool(ModeWrapper modes) {
 		super(modes);
+	}
+	
+	
+	@Override
+	public void mousePressed(MouseEvent e) {
+		super.mousePressed(e);
+		ROI currentROI = viewer != null ? viewer.getCurrentROI() : null;
+		if (currentROI instanceof PolylineROI && currentROI.isEmpty())
+			isFreehandPolyline = true;
+	}
+	
+	
+	@Override
+	public void mouseReleased(MouseEvent e) {
+		super.mouseReleased(e);
+		
+		ROI currentROI = viewer.getCurrentROI();
+		if (isFreehandPolyline) {
+			if (currentROI instanceof PolylineROI && currentROI.isEmpty()) {
+				isFreehandPolyline = false;
+			} else if (PathPrefs.enableFreehandTools()) {
+				completePolygon(e);
+			}
+		}
 	}
 	
 	
