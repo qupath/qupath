@@ -188,14 +188,6 @@ public interface ChannelDisplayInfo {
 	 * @param useColorLUT
 	 */
 	public void updateRGBAdditive(BufferedImage img, int[] rgb, boolean useColorLUT);
-	
-	
-	/**
-	 * Some implementing classes may use buffers to improve performance when applying transforms (optional).
-	 * <p>
-	 * Running this command is an instruction that the class may not be used for a while, so this memory can (and should) be freed.
-	 */
-	public void resetBuffers();
 
 
 	/**
@@ -428,8 +420,6 @@ public interface ChannelDisplayInfo {
 		
 		protected static final DecimalFormat df = new DecimalFormat("#.##");
 		
-		private transient float[] values = null; // Buffer in which to store values
-		
 		
 		public AbstractSingleChannelInfo(final ImageData<BufferedImage> imageData) {
 			super(imageData);
@@ -496,7 +486,8 @@ public interface ChannelDisplayInfo {
 		
 		@Override
 		public int[] getRGB(BufferedImage img, int[] rgb, boolean useColorLUT) {
-			values = getValues(img, 0, 0, img.getWidth(), img.getHeight(), values);
+			// TODO: Consider caching (but must be threadsafe)
+			float[] values = getValues(img, 0, 0, img.getWidth(), img.getHeight(), (float[])null);
 			int[] result = getRGB(values, rgb, useColorLUT);
 			return result;
 		}
@@ -505,13 +496,9 @@ public interface ChannelDisplayInfo {
 		public void updateRGBAdditive(BufferedImage img, int[] rgb, boolean useColorLUT) {
 			if (!isAdditive())
 				throw new UnsupportedOperationException(this + " does not support additive display");
-			values = getValues(img, 0, 0, img.getWidth(), img.getHeight(), values);
+			// TODO: Consider caching (but must be threadsafe)
+			float[] values = getValues(img, 0, 0, img.getWidth(), img.getHeight(), (float[])null);
 			updateRGBAdditive(values, rgb, useColorLUT);
-		}
-		
-		@Override
-		public void resetBuffers() {
-			values = null;
 		}
 		
 		
@@ -598,9 +585,6 @@ public interface ChannelDisplayInfo {
 			throw new UnsupportedOperationException(this + " does not support additive display");
 
 		}
-
-		@Override
-		public void resetBuffers() {}
 
 		@Override
 		public boolean doesSomething() {
