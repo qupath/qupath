@@ -12,6 +12,8 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import ij.process.FloatProcessor;
+import ij.process.ImageProcessor;
 import qupath.lib.regions.RegionRequest;
 
 public abstract class AbstractTileableImageServer extends AbstractImageServer<BufferedImage> {
@@ -225,7 +227,7 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 
 			// Return the image, resizing if necessary
 			BufferedImage imgResult = new BufferedImage(colorModel, raster, alphaPremultiplied, null);
-			imgResult = resize(imgResult, width, height, false);
+			imgResult = resize(imgResult, width, height);
 			
 			long endTime = System.currentTimeMillis();
 			logger.trace("Requested " + tiles.size() + " tiles in " + (endTime - startTime) + " ms (non-RGB)");
@@ -233,6 +235,46 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 		}
 	}
 
+	
+	/**
+	 * Resize the image to have the requested width/height, using area averaging & bilinear interpolation.
+	 * 
+	 * @param img input image to be resized
+	 * @param finalWidth target output width
+	 * @param finalHeight target output height
+	 * @return resized image
+	 */
+	public static BufferedImage resize(final BufferedImage img, final int finalWidth, final int finalHeight) {
+		
+//		boolean useLegacyResizing = false;
+//		if (useLegacyResizing) {
+//			return resize(img, finalWidth, finalHeight, false);
+//		}
+		
+		if (img.getWidth() == finalWidth && img.getHeight() == finalHeight)
+			return img;
+		
+		logger.trace(String.format("Resizing %d x %d -> %d x %d", img.getWidth(), img.getHeight(), finalWidth, finalHeight));
+		
+		boolean areaAveraging = true;
+		
+		var raster = img.getRaster();
+		var raster2 = raster.createCompatibleWritableRaster(finalWidth, finalHeight);
+
+		int w = img.getWidth();
+		int h = img.getHeight();
+		
+		var fp = new FloatProcessor(w, h);
+		fp.setInterpolationMethod(ImageProcessor.BILINEAR);
+		for (int b = 0; b < raster.getNumBands(); b++) {
+			float[] pixels = (float[])fp.getPixels();
+			raster.getSamples(0, 0, w, h, b, pixels);
+			var fp2 = fp.resize(finalWidth, finalHeight, areaAveraging);
+			raster2.setSamples(0, 0, finalWidth, finalHeight, b, (float[])fp2.getPixels());
+		}
+		
+		return new BufferedImage(img.getColorModel(), raster2, img.isAlphaPremultiplied(), null);
+	}
 	
 	
 	/**
