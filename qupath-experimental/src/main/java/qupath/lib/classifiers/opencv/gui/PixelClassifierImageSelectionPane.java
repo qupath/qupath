@@ -17,6 +17,7 @@ import java.util.stream.Collectors;
 import org.bytedeco.javacpp.opencv_imgproc;
 import org.bytedeco.javacpp.opencv_ml.ANN_MLP;
 import org.bytedeco.javacpp.opencv_ml.DTrees;
+import org.bytedeco.javacpp.opencv_ml.KNearest;
 import org.bytedeco.javacpp.opencv_ml.LogisticRegression;
 import org.bytedeco.javacpp.opencv_ml.NormalBayesClassifier;
 import org.bytedeco.javacpp.opencv_ml.RTrees;
@@ -43,7 +44,6 @@ import javafx.event.EventHandler;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.geometry.Side;
-import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.chart.PieChart;
 import javafx.scene.chart.PieChart.Data;
@@ -78,6 +78,7 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.MiniViewerCommand;
 import qupath.lib.gui.helpers.DisplayHelpers;
+import qupath.lib.gui.helpers.GridPaneTools;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageChannel;
@@ -186,69 +187,6 @@ public class PixelClassifierImageSelectionPane {
 	};
 	
 	private Stage stage;
-	
-	/**
-	 * Add a row of nodes.  The rowspan is always 1.  The colspan is 1 by default, 
-	 * unless a Node is added multiple times consecutively in which case it is the sum 
-	 * of the number of times the node is added.
-	 * 
-	 * @param pane
-	 * @param row
-	 * @param col
-	 * @param nodes
-	 */
-	static void addGridRow(GridPane pane, int row, int col, String tooltipText, Node... nodes) {
-		Node lastNode = null;
-		var tooltip = tooltipText == null ? null : new Tooltip(tooltipText);
-		
-		for (var n : nodes) {
-			if (lastNode == n) {
-				Integer span = GridPane.getColumnSpan(n);
-				if (span == null)
-					GridPane.setColumnSpan(n, 2);
-				else
-					GridPane.setColumnSpan(n, span + 1);
-			} else {
-				pane.add(n, col, row);
-				if (tooltip != null)
-					Tooltip.install(n, tooltip);
-			}
-			lastNode = n;
-			col++;
-		}
-	}
-	
-	static void setGrowAlwaysPriority(Node... nodes) {
-		for (var n : nodes) {
-//			GridPane.setVgrow(n, Priority.ALWAYS);
-			GridPane.setHgrow(n, Priority.ALWAYS);
-		}
-	}
-	
-	static void setMaxWidth(double width, Region...regions) {
-		for (var r : regions)
-			r.setMaxWidth(width);
-	}
-
-	static void setMaxHeight(double height, Region...regions) {
-		for (var r : regions)
-			r.setMaxWidth(height);
-	}
-	
-	static void setMaxSize(double width, double height, Region...regions) {
-		for (var r : regions)
-			r.setMaxSize(width, height);
-	}
-
-	static void setFillWidth(Node...nodes) {
-		for (var n : nodes)
-			GridPane.setFillWidth(n, Boolean.TRUE);
-	}
-
-	static void setFillHeight(Node...nodes) {
-		for (var n : nodes)
-			GridPane.setFillHeight(n, Boolean.TRUE);
-	}
 
 	
 	public void initialize(final QuPathViewer viewer) {
@@ -268,7 +206,7 @@ public class PixelClassifierImageSelectionPane {
 		btnEditClassifier.setOnAction(e -> editClassifierParameters());
 		btnEditClassifier.disableProperty().bind(selectedClassifier.isNull());
 		
-		addGridRow(pane, row++, 0, 
+		GridPaneTools.addGridRow(pane, row++, 0, 
 				"Choose classifier type (RTrees is generally a good default)",
 				labelClassifier, comboClassifier, btnEditClassifier);
 		
@@ -281,7 +219,7 @@ public class PixelClassifierImageSelectionPane {
 		btnResolution.setOnAction(e -> addResolution());
 		selectedResolution = comboResolution.getSelectionModel().selectedItemProperty();
 		
-		addGridRow(pane, row++, 0, 
+		GridPaneTools.addGridRow(pane, row++, 0, 
 				"Choose the base image resolution based upon required detail in the classification (see preview on the right)",
 				labelResolution, comboResolution, btnResolution);
 		
@@ -320,7 +258,7 @@ public class PixelClassifierImageSelectionPane {
 		
 		labelResolution.setLabelFor(comboChannels);
 		
-		addGridRow(pane, row++, 0,
+		GridPaneTools.addGridRow(pane, row++, 0,
 				"Choose the image channels used to calculate features",
 				labelChannels, comboChannels, btnChannels);
 		
@@ -384,7 +322,7 @@ public class PixelClassifierImageSelectionPane {
 		var btnShowFeatures = new Button("Show");
 		btnShowFeatures.setOnAction(e -> showFeatures());
 		
-		addGridRow(pane, row++, 0, 
+		GridPaneTools.addGridRow(pane, row++, 0, 
 				"Choose the features that are available to the classifier (e.g. smoothed pixels, edges, other textures)",
 				labelFeatures, comboFeatures, btnShowFeatures);
 //		addGridRow(pane, row++, 0, labelFeatures, labelFeaturesSummary, btnEditFeatures);
@@ -399,7 +337,7 @@ public class PixelClassifierImageSelectionPane {
 		});
 		comboOutput.getSelectionModel().clearAndSelect(0);
 		
-		addGridRow(pane, row++, 0, 
+		GridPaneTools.addGridRow(pane, row++, 0, 
 				"Choose whether to output classifications only, or estimated probabilities per class (classifications only takes much less memory)",
 				labelOutput, comboOutput, comboOutput);
 		
@@ -416,7 +354,7 @@ public class PixelClassifierImageSelectionPane {
 		});
 		comboRegion.getSelectionModel().clearAndSelect(0);
 		
-		addGridRow(pane, row++, 0, 
+		GridPaneTools.addGridRow(pane, row++, 0, 
 				"Choose whether to apply the classifier to the whole image, or only regions containing annotations",
 				labelRegion, comboRegion, comboRegion);
 
@@ -433,7 +371,7 @@ public class PixelClassifierImageSelectionPane {
 		btnSave.setOnAction(e -> saveAndApply());
 		
 		var panePredict = new HBox(btnLive, btnSave);
-		setMaxWidth(Double.MAX_VALUE, btnLive, btnSave);
+		GridPaneTools.setMaxWidth(Double.MAX_VALUE, btnLive, btnSave);
 		HBox.setHgrow(btnLive, Priority.ALWAYS);
 		HBox.setHgrow(btnSave, Priority.ALWAYS);
 		
@@ -458,7 +396,7 @@ public class PixelClassifierImageSelectionPane {
 		chart.setLegendSide(Side.RIGHT);
 		GridPane.setVgrow(chart, Priority.ALWAYS);
 		
-		addGridRow(pane, row++, 0, 
+		GridPaneTools.addGridRow(pane, row++, 0, 
 				null,
 //				"View information about the current classifier training",
 				chart, chart, chart);
@@ -470,7 +408,7 @@ public class PixelClassifierImageSelectionPane {
 		labelCursor.setMaxWidth(Double.MAX_VALUE);
 		labelCursor.setAlignment(Pos.CENTER);
 		
-		addGridRow(pane, row++, 0, 
+		GridPaneTools.addGridRow(pane, row++, 0, 
 				"Prediction for current cursor location",
 				labelCursor, labelCursor, labelCursor);
 		
@@ -478,6 +416,7 @@ public class PixelClassifierImageSelectionPane {
 		comboClassifier.getItems().addAll(
 				OpenCVClassifiers.wrapStatModel(RTrees.create()),
 				OpenCVClassifiers.wrapStatModel(DTrees.create()),
+				OpenCVClassifiers.wrapStatModel(KNearest.create()),
 				OpenCVClassifiers.wrapStatModel(ANN_MLP.create()),
 				OpenCVClassifiers.wrapStatModel(LogisticRegression.create()),
 				OpenCVClassifiers.wrapStatModel(NormalBayesClassifier.create())
@@ -487,8 +426,8 @@ public class PixelClassifierImageSelectionPane {
 //		comboResolution.setMaxWidth(Double.MAX_VALUE);
 //		labelFeaturesSummary.setMaxWidth(Double.MAX_VALUE);
 		
-		setGrowAlwaysPriority(comboResolution, comboChannels, comboClassifier, comboFeatures, labelFeaturesSummary);
-		setFillWidth(comboResolution, comboChannels, comboClassifier, comboFeatures, labelFeaturesSummary);
+		GridPaneTools.setHGrowPriority(Priority.ALWAYS, comboResolution, comboChannels, comboClassifier, comboFeatures, labelFeaturesSummary);
+		GridPaneTools.setFillWidth(Boolean.TRUE, comboResolution, comboChannels, comboClassifier, comboFeatures, labelFeaturesSummary);
 		
 		
 		
@@ -522,14 +461,14 @@ public class PixelClassifierImageSelectionPane {
 		btnClassifyObjects.disableProperty().bind(classificationComplete);
 		btnClassifyObjects.setOnAction(e -> classifyObjects());
 		
-		setMaxWidth(Double.MAX_VALUE, btnCreateObjects, btnClassifyObjects);
+		GridPaneTools.setMaxWidth(Double.MAX_VALUE, btnCreateObjects, btnClassifyObjects);
 		HBox.setHgrow(btnCreateObjects, Priority.ALWAYS);
 		HBox.setHgrow(btnClassifyObjects, Priority.ALWAYS);
 		var panePostProcess = new HBox(btnCreateObjects, btnClassifyObjects);
 		
 		pane.add(panePostProcess, 0, row++, pane.getColumnCount(), 1);
 
-		setMaxWidth(Double.MAX_VALUE, pane.getChildren().stream().filter(p -> p instanceof Region).toArray(Region[]::new));
+		GridPaneTools.setMaxWidth(Double.MAX_VALUE, pane.getChildren().stream().filter(p -> p instanceof Region).toArray(Region[]::new));
 		
 		var splitPane = new SplitPane(pane, viewerPane);
 		viewerPane.setPrefSize(400, 400);

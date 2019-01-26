@@ -23,12 +23,11 @@
 
 package qupath.lib.gui.commands.scriptable;
 
-import qupath.lib.gui.ImageDataWrapper;
+import javafx.scene.Scene;
+import javafx.stage.Stage;
+import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.helpers.AnnotationCreatorPanel;
-import qupath.lib.gui.helpers.DisplayHelpers;
-import qupath.lib.images.ImageData;
-import qupath.lib.objects.PathObject;
 
 /**
  * Command to create a new rectangular/ellipse annotation object by 
@@ -39,27 +38,25 @@ import qupath.lib.objects.PathObject;
  */
 public class SpecifyAnnotationCommand implements PathCommand {
 	
-	private ImageDataWrapper<?> manager;
+	private QuPathGUI qupath;
 	
-	public SpecifyAnnotationCommand(final ImageDataWrapper<?> manager) {
+	public SpecifyAnnotationCommand(final QuPathGUI qupath) {
 		super();
-		this.manager = manager;
+		this.qupath = qupath;
 	}
 
 	@Override
 	public void run() {
-		ImageData<?> imageData = manager.getImageData();
-		if (imageData == null)
-			return;
-		AnnotationCreatorPanel panel = new AnnotationCreatorPanel(imageData.getServer());
-		if (!DisplayHelpers.showConfirmDialog("Create annotation", panel.getPane()))
-			return;
-		PathObject pathObject = panel.createNewObject();
+		AnnotationCreatorPanel pane = new AnnotationCreatorPanel(qupath);
 		
-		if (pathObject != null) {
-			imageData.getHierarchy().addPathObject(pathObject, false);
-//			viewer.repaint();
-		}
+		var stage = new Stage();
+		var scene = new Scene(pane.getPane());
+		stage.setScene(scene);
+		stage.setWidth(300);
+		stage.setTitle("Specify annotation");
+		stage.initOwner(qupath.getStage());
+		stage.show();
+		
 	}
 
 }

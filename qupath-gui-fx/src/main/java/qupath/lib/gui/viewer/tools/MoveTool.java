@@ -296,7 +296,7 @@ public class MoveTool extends AbstractPathTool {
 					if (roiChanged) {
 						PathObject parentPrevious = pathObject.getParent();
 						hierarchy.removeObject(pathObject, true, false);
-						if (getCurrentParent() == null || e.isShiftDown())
+						if (getCurrentParent() == null || !PathPrefs.getClipROIsForHierarchy() || e.isShiftDown())
 							hierarchy.addPathObject(pathObject, false, false);
 						else
 							hierarchy.addPathObjectBelowParent(getCurrentParent(), pathObject, false, false);

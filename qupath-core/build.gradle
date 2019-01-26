@@ -6,4 +6,5 @@ configurations {
   compile.extendsFrom gson
   compile.extendsFrom jts
   compile.extendsFrom guava
+  compile.extendsFrom imagej
 }
