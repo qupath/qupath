@@ -390,6 +390,8 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
         		boolean doPaint = false;
         		for (var annotation : annotations) {
         			var roi = annotation.getROI();
+        			if (!roi.isArea())
+        				continue;
         			if (roi.getZ() == request.getZ() &&
         					roi.getT() == request.getT() &&
         					request.intersects(roi.getBoundsX(), roi.getBoundsY(), roi.getBoundsWidth(), roi.getBoundsHeight()) &&
@@ -420,6 +422,8 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
             if (objectsForOverlap != null) {
                 if (!objectsForOverlap.stream().anyMatch(pathObject -> {
                     ROI roi = pathObject.getROI();
+                    if (!roi.isArea())
+                    	return false;
                     return request.intersects(roi.getBoundsX(), roi.getBoundsY(), roi.getBoundsWidth(), roi.getBoundsHeight());
                     }
                 ))

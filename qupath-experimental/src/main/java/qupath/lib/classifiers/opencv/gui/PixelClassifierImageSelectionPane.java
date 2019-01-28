@@ -114,6 +114,7 @@ public class PixelClassifierImageSelectionPane {
 	
 	private static final ImageResolution RESOLUTION_FULL = DownsampledImageResolution.getInstance("Full", 1.0);
 	
+	private static final ImageResolution RESOLUTION_ULTRA_HIGH_CAL = SimpleImageResolution.getInstance("Ultra high", 0.5);
 	private static final ImageResolution RESOLUTION_VERY_HIGH_CAL = SimpleImageResolution.getInstance("Very high", 1.0);
 	private static final ImageResolution RESOLUTION_HIGH_CAL      = SimpleImageResolution.getInstance("High", 2.0);
 	private static final ImageResolution RESOLUTION_MODERATE_CAL  = SimpleImageResolution.getInstance("Moderate", 4.0);
@@ -128,6 +129,7 @@ public class PixelClassifierImageSelectionPane {
 
 	private List<ImageResolution> DEFAULT_CALIBRATED_RESOLUTIONS = Collections.unmodifiableList(Arrays.asList(
 			RESOLUTION_FULL,
+			RESOLUTION_ULTRA_HIGH_CAL,
 			RESOLUTION_VERY_HIGH_CAL,
 			RESOLUTION_HIGH_CAL,
 			RESOLUTION_MODERATE_CAL,
@@ -269,6 +271,7 @@ public class PixelClassifierImageSelectionPane {
 		selectedFeatures = comboFeatures.getCheckModel().getCheckedItems();
 		selectedFeatures.addListener((Change<? extends FeatureFilter> c) -> updateFeatureCalculator());
 
+		comboFeatures.getItems().add(new PixelClassifierGUI.OriginalPixels());
 		
 		var sigmas = new double[] {1, 2, 4, 8};
 		for (var s : sigmas)
@@ -279,6 +282,9 @@ public class PixelClassifierImageSelectionPane {
 		
 		for (var s : sigmas)
 			comboFeatures.getItems().add(new PixelClassifierGUI.SobelFeatureFilter(s));
+		
+		for (var s : sigmas)
+			comboFeatures.getItems().add(new PixelClassifierGUI.NormalizedIntensityFilter(s));
 
 		for (var s : sigmas)
 			comboFeatures.getItems().add(new PixelClassifierGUI.CoherenceFeatureFilter(s));
@@ -287,6 +293,16 @@ public class PixelClassifierImageSelectionPane {
 		comboFeatures.getItems().add(new PixelClassifierGUI.MedianFeatureFilter(5));
 		
 		var radii = new int[] {1, 2, 4, 8};
+		
+		for (var r : radii)
+			comboFeatures.getItems().add(new PixelClassifierGUI.StdDevFeatureFilter(r));
+		
+		for (var r : radii)
+			comboFeatures.getItems().add(new PixelClassifierGUI.PeakDensityFilter(1.0, r, true));
+
+		for (var r : radii)
+			comboFeatures.getItems().add(new PixelClassifierGUI.PeakDensityFilter(1.0, r, false));
+
 		for (var r : radii)
 			comboFeatures.getItems().add(new PixelClassifierGUI.MorphFilter(opencv_imgproc.MORPH_OPEN, r));
 		
@@ -301,7 +317,7 @@ public class PixelClassifierImageSelectionPane {
 
 
 		// Select the simple Gaussian features by default
-		comboFeatures.getCheckModel().checkIndices(1, 2, 3);
+		comboFeatures.getCheckModel().checkIndices(0);
 		
 		// I'd like more informative text to be displayed by default
 		comboFeatures.setSkin(new CheckComboBoxSkin<FeatureFilter>(comboFeatures) {

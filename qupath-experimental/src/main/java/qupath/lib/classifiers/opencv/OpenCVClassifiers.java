@@ -1007,6 +1007,8 @@ public class OpenCVClassifiers {
 		
 		public void predictWithLock(Mat samples, Mat results, Mat probabilities) {
 			double beta = activationBeta;
+			if (probabilities == null)
+				probabilities = new Mat();
 			super.predictWithLock(samples, results, probabilities);
 			// Convert to the range 0-1
 			var indexer = probabilities.createIndexer();

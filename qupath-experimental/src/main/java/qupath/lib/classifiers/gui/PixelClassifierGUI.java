@@ -32,6 +32,7 @@ import org.bytedeco.javacpp.indexer.UShortIndexer;
 import org.bytedeco.javacpp.opencv_core;
 import org.bytedeco.javacpp.opencv_core.Mat;
 import org.bytedeco.javacpp.opencv_core.MatVector;
+import org.bytedeco.javacpp.opencv_core.Scalar;
 import org.bytedeco.javacpp.opencv_core.Size;
 import org.bytedeco.javacpp.opencv_imgproc;
 import org.bytedeco.javacpp.opencv_ml.ANN_MLP;
@@ -99,12 +100,14 @@ public class PixelClassifierGUI implements PathCommand, QuPathViewerListener, Pa
     private static final Logger logger = LoggerFactory.getLogger(PixelClassifierGUI.class);
 
     public static enum ClassificationResolution {
-    	MAX_RESOLUTION, VERY_HIGH, HIGH, MODERATE, LOW, VERY_LOW;
+    	MAX_RESOLUTION, ULTRA_HIGH, VERY_HIGH, HIGH, MODERATE, LOW, VERY_LOW;
 
         public double getMicronsPerPixel() {
             switch(this) {
 	            case MAX_RESOLUTION:
 	                return -1;
+                case ULTRA_HIGH:
+                    return 0.5;
                 case VERY_HIGH:
                     return 1.0;
                 case HIGH:
@@ -123,6 +126,8 @@ public class PixelClassifierGUI implements PathCommand, QuPathViewerListener, Pa
             switch(this) {
 	            case MAX_RESOLUTION:
 	                return "Maximum resolution";
+                case ULTRA_HIGH:
+                    return String.format("Ultra high (%.1f mpp)", getMicronsPerPixel());
                 case VERY_HIGH:
                     return String.format("Very high (%.0f mpp)", getMicronsPerPixel());
                 case HIGH:
@@ -842,8 +847,8 @@ public class PixelClassifierGUI implements PathCommand, QuPathViewerListener, Pa
 					if (nextSigma != sigma) {
 						if (matGaussian == null)
 							matGaussian = new Mat(mat.rows(), mat.cols(), opencv_core.CV_32FC1);
-	    				gaussianFilter(mat, sigma, matGaussian);
 						sigma = nextSigma;
+	    				gaussianFilter(mat, sigma, matGaussian);
 					}
 					((AbstractGaussianFeatureFilter)filter).calculate(mat, matGaussian, output);
 				} else {
@@ -883,6 +888,218 @@ public class PixelClassifierGUI implements PathCommand, QuPathViewerListener, Pa
     	}
     	    	
     }
+    
+    /**
+     * Clone the input image without further modification.
+     */
+    public static class OriginalPixels extends FeatureFilter {
+
+		@Override
+		public String getName() {
+			return "Original pixels";
+		}
+
+		@Override
+		public int getPadding() {
+			return 0;
+		}
+
+		@Override
+		public void calculate(Mat matInput, List<Mat> output) {
+			output.add(matInput.clone());
+		}
+    	
+    	
+    	
+    }
+    
+    
+    static Mat getSumFilter(int radius) {
+    	int s = radius*2 + 1;
+		var kernel = opencv_imgproc.getStructuringElement(
+				opencv_imgproc.MORPH_ELLIPSE, new Size(s, s));
+		kernel.convertTo(kernel, opencv_core.CV_32F);
+		return kernel;
+    }
+    
+    static Mat getMeanFilter(int radius) {
+		var kernel = getSumFilter(radius);
+		opencv_core.dividePut(kernel, opencv_core.countNonZero(kernel));
+		return kernel;
+    }
+    
+    
+    public static class StdDevFeatureFilter extends FeatureFilter {
+    	
+//    	private boolean includeMean = false;
+    	private int radius;
+    	
+    	private transient Mat kernel;
+    	
+    	/**
+    	 * Median filter.  Note that only size of 3 or 5 is supported in general 
+    	 * (other filter sizes require 8-bit images for OpenCV).
+    	 */
+    	public StdDevFeatureFilter(final int radius) {
+//    		this.includeMean = includeMean;
+    		this.radius = radius;
+    	}
+
+		@Override
+		public String getName() {
+			return "Std dev filter (sigma=" + radius + ")";
+		}
+
+		@Override
+		public int getPadding() {
+			return radius;
+		}
+		
+		private synchronized Mat getKernel() {
+			if (kernel == null) {
+				kernel = getMeanFilter(radius);
+			}
+			return kernel;
+		}
+
+		@Override
+		public void calculate(Mat matInput, List<Mat> output) {
+//			var matX = new Mat();
+//			var kernel = getKernel();
+//			gaussianFilter(matInput, radius, matX);
+//			matX.put(matX.mul(matX));
+//			
+//			var matX2 = matInput.mul(matInput).asMat();
+//			gaussianFilter(matX2, radius, matX2);
+//			
+//			opencv_core.subtractPut(matX2, matX);
+//			opencv_core.sqrt(matX2, matX2);
+//			matX.release();
+//			output.add(matX2);
+			
+			var matX = new Mat();
+			var kernel = getKernel();
+			opencv_imgproc.filter2D(matInput, matX, opencv_core.CV_32F, kernel);
+			matX.put(matX.mul(matX));
+			
+			var matX2 = matInput.mul(matInput).asMat();
+			opencv_imgproc.filter2D(matX2, matX2, opencv_core.CV_32F, kernel);
+			
+			opencv_core.subtractPut(matX2, matX);
+			opencv_core.sqrt(matX2, matX2);
+			matX.release();
+			
+			// TODO: Consider applying Gaussian filter afterwards
+			
+			output.add(matX2);
+		}
+    	
+    }
+    
+    
+    
+    public static class NormalizedIntensityFilter extends AbstractGaussianFeatureFilter {
+
+		public NormalizedIntensityFilter(double sigma) {
+			super(sigma);
+		}
+
+		@Override
+		public void calculate(Mat matInput, Mat matGaussian, List<Mat> output) {
+			
+			var kernel = getMeanFilter((int)Math.round(getSigma() * 2));
+
+			// Mean of X^2
+			var matXSq = matInput.mul(matInput).asMat();
+			opencv_imgproc.filter2D(matXSq, matXSq, -1, kernel);
+			
+			// Mean of 2X*y
+			var matX = new Mat();
+			opencv_imgproc.filter2D(matInput, matX, -1, kernel);
+			var mat2XY = opencv_core.multiply(2.0, matX.mul(matGaussian));
+			
+			// Mean of y^2 (constant)
+			var matYSq = matGaussian.mul(matGaussian);
+//			var n = opencv_core.countNonZero(kernel);
+//			matYSq = opencv_core.multiply(matYSq, n);
+			
+			// X^2 + y^2 - 2Xy
+			var localStdDev = opencv_core.subtract(opencv_core.add(matXSq, matYSq), mat2XY).asMat();
+			opencv_core.sqrt(localStdDev, localStdDev);
+			// setTo doesn't appear to work?
+//			var mask = opencv_core.lessThan(localStdDev, 1).asMat();
+//			var one = new Mat(1, 1, localStdDev.type(), Scalar.ONE);
+//			localStdDev.setTo(one, mask);
+			localStdDev.put(opencv_core.max(localStdDev, 1.0));
+			
+			var localSubtracted = opencv_core.subtract(matInput, matGaussian);
+			var localNormalized = opencv_core.divide(localSubtracted, localStdDev);
+			
+			matXSq.put(localNormalized);
+			
+//			matX.release();
+//			mask.release();
+//			localStdDev.release();
+			
+			output.add(matXSq);
+		}
+
+		@Override
+		public String getName() {
+			return "Normalized intensity" + sigmaString();
+		}
+    	
+    }
+    
+    
+    
+    public static class PeakDensityFilter extends AbstractGaussianFeatureFilter {
+
+    	private transient Mat kernel = opencv_imgproc.getStructuringElement(
+    			opencv_imgproc.MORPH_RECT, new Size(3, 3));
+    	
+    	private boolean highPeaks;
+    	private int radius;
+    	private transient Mat sumFilter;
+    	
+		public PeakDensityFilter(double sigma, int radius, boolean highPeaks) {
+			super(sigma);
+			this.radius = radius;
+			this.sumFilter = getSumFilter(radius);
+			this.highPeaks = highPeaks;
+		}
+
+		@Override
+		public void calculate(Mat matInput, Mat matGaussian, List<Mat> output) {
+			var matTemp = new Mat();
+			var matGaussian2 = new Mat();
+			gaussianFilter(matInput, getSigma(), matGaussian2);
+			if (highPeaks)
+				opencv_imgproc.dilate(matGaussian2, matTemp, kernel);
+			else
+				opencv_imgproc.erode(matGaussian2, matTemp, kernel);
+			
+			opencv_core.subtractPut(matTemp, matGaussian2);
+			matTemp.put(opencv_core.abs(matTemp));
+			matTemp.put(opencv_core.lessThan(matTemp, 1e-6));
+//			matTemp.put(opencv_core.equals(matTemp, matGaussian));
+			
+			opencv_imgproc.filter2D(matTemp, matTemp, opencv_core.CV_32F, sumFilter);
+			
+			matGaussian2.release();
+			output.add(matTemp);
+		}
+
+		@Override
+		public String getName() {
+			if (highPeaks)
+				return "High peak density" + sigmaString() + " (radius=" + radius + ")";
+			else
+				return "Low peak density" + sigmaString() + " (radius=" + radius + ")";
+		}
+    	
+    }
+    
     
     
     public static class MedianFeatureFilter extends FeatureFilter {

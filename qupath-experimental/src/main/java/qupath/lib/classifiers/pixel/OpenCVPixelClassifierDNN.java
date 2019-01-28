@@ -35,6 +35,10 @@ class OpenCVPixelClassifierDNN extends AbstractOpenCVPixelClassifier {
     private Scalar scales;
     private boolean scalesMatch;
     
+    public static PixelClassifier createDNN(Net net, PixelClassifierMetadata metadata, boolean do8Bit, int inputPadding, int stripOutputPadding) {
+    	return new OpenCVPixelClassifierDNN(net, metadata, do8Bit, inputPadding, stripOutputPadding);
+    }
+    
     OpenCVPixelClassifierDNN(Net net, PixelClassifierMetadata metadata, boolean do8Bit) {
     	this(net, metadata, do8Bit, 0, 0);
     }
@@ -193,6 +197,18 @@ class OpenCVPixelClassifierDNN extends AbstractOpenCVPixelClassifier {
 
 //        System.err.println("Mean before: " + opencv_core.mean(mat))
 
+    	
+    	// TODO: Fix creation of unnecessary objects
+        if (metadata.getInputChannelMeans() != null)
+            means = toScalar(metadata.getInputChannelMeans());
+        else
+            means = Scalar.ZERO;
+        if (metadata.getInputChannelScales() != null)
+            scales = toScalar(metadata.getInputChannelScales());
+        else
+            scales = Scalar.ONE;
+    	
+    	
         // Handle scales & offsets
         if (means != null);
             opencv_core.subtractPut(mat, means);
@@ -213,7 +229,7 @@ class OpenCVPixelClassifierDNN extends AbstractOpenCVPixelClassifier {
         Mat prob = null;
         synchronized(model) {
         	long startTime = System.currentTimeMillis();
-            Mat blob = opencv_dnn.blobFromImage(mat);
+            Mat blob = opencv_dnn.blobFromImage(mat, 1.0, null, null, true, false, opencv_core.CV_32F);
             model.setInput(blob);
             try {
             	prob = model.forward();
@@ -243,7 +259,7 @@ class OpenCVPixelClassifierDNN extends AbstractOpenCVPixelClassifier {
         	}
         	opencv_core.merge(new MatVector(channels.toArray(new Mat[0])), matResult);
         }
-        
+                
         // Handle padding
         if (doPad) {
         	Rect rect = new Rect(left, top, metadata.getInputWidth()-right-left, metadata.getInputHeight()-top-bottom);
