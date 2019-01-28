@@ -119,6 +119,20 @@ public class PathPrefs {
 	}
 	
 	
+	private static BooleanProperty showImageNameInTitle = createPersistentPreference("showImageNameInTitle", Boolean.TRUE);
+	
+	public static BooleanProperty showImageNameInTitleProperty() {
+		return showImageNameInTitle;
+	}
+
+	public static boolean showImageNameInTitle() {
+		return showImageNameInTitle.get();
+	}
+	
+	public static void setShowImageNameInTitle(final boolean show) {
+		showImageNameInTitle.set(show);
+	}
+	
 	
 	private static BooleanProperty doAutoUpdateCheck = createPersistentPreference("doAutoUpdateCheck", Boolean.TRUE);
 	

@@ -418,6 +418,11 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	 */
 	private PreferencePanel prefsPanel;
 	
+	/**
+	 * The current ImageData in the current QuPathViewer
+	 */
+	private ObjectProperty<ImageData<BufferedImage>> imageDataProperty = new SimpleObjectProperty<>();
+	
 	// Initializing the MenuBar here caused some major trouble (including segfaults) in OSX...
 	private MenuBar menuBar;
 
@@ -743,7 +748,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		initializingMenus.set(false);
 		
 		// Update the title
-		updateTitle();
+		stage.titleProperty().bind(titleBinding);
 		
 		// Update display
 		// Requesting the style should be enough to make sure it is called...
@@ -4362,32 +4367,37 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	}
 	
 	
-	/**
-	 * Trigger an update to the title of the Stage.
-	 */
-	public void updateTitle() {
-		if (stage == null)
-			return;
-		String name = "QuPath";
-		if (versionString != null)
-			name = name + " (" + versionString + ")";
-		ImageData<?> imageData = getImageData();
-		if (imageData == null || imageData.getServer() == null)
-			stage.setTitle(name);
-		else {
-			// Try to set name based on project entry
-			if (project.get() != null) {
-				String path = imageData.getServerPath();
-				ProjectImageEntry<?> entry = project.get().getImageEntry(path);
-				if (entry != null) {
-					stage.setTitle(name + " - " + entry.getImageName());
-					return;
-				}
-			}			
-			// Set name based on server instead
-			stage.setTitle(name + " - " + imageData.getServer().getShortServerName());
-		}
+	private String getDisplayedImageName(ImageData<?> imageData) {
+		if (imageData == null)
+			return null;
+		var project = getProject();
+		var entry = project == null ? null : project.getImageEntry(imageData.getServer().getPath());
+		if (entry == null)
+			return imageData.getServer().getShortServerName();
+		else
+			return entry.getImageName();
 	}
+	
+	public void updateTitle() {
+		if (Platform.isFxApplicationThread())
+			titleBinding.invalidate();
+		else
+			Platform.runLater(() -> updateTitle());
+	}
+	
+	
+	private StringBinding titleBinding = Bindings.createStringBinding(
+				() -> {
+					String name = "QuPath";
+					if (versionString != null)
+						name = name + " (" + versionString + ")";
+					var imageData = imageDataProperty.get();
+					if (imageData == null || !PathPrefs.showImageNameInTitle())
+						return name;
+					return name + " - " + getDisplayedImageName(imageData);
+				},
+				project, imageDataProperty, PathPrefs.showImageNameInTitleProperty());
+	
 	
 	/**
 	 * Get a String representing the QuPath version &amp; build time.
@@ -4400,6 +4410,9 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	
 	
 	private void fireImageDataChangedEvent(final ImageData<BufferedImage> imageDataOld, ImageData<BufferedImage> imageDataNew) {		
+		
+		imageDataProperty.set(imageDataNew);
+		
 		// Ensure we have the right tooltip for magnification
 		if (toolbar != null && toolbar.tooltipMag != null) {
 			if (imageDataNew == null)
@@ -4418,10 +4431,6 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			listener.imageDataChanged(this, imageDataOld, imageDataNew);
 		}
 		
-		// Update title, if required
-		if (stage != null) {
-			updateTitle();		
-		}
 	}
 	
 	

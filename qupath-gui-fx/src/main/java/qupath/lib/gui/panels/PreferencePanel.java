@@ -108,6 +108,13 @@ public class PreferencePanel {
 				category,
 				"Automatically check for updated when QuPath is started, and show a message if a new version is available.");
 		
+		
+		addPropertyPreference(PathPrefs.showImageNameInTitleProperty(), Boolean.class,
+				"Show image name in window title",
+				category,
+				"Show the name of the current image in the main QuPath title bar (turn this off if the name shouldn't be seen).");
+		
+		
 		addPropertyPreference(PathPrefs.doCreateLogFilesProperty(), Boolean.class,
 				"Create log files",
 				category,
