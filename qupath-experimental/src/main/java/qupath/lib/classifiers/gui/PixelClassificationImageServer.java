@@ -125,7 +125,8 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 	}
 	
 	public void close() throws Exception {
-		this.persistentTileCache.close();
+		if (persistentTileCache != null)
+			persistentTileCache.close();
 		super.close();
 	}
 

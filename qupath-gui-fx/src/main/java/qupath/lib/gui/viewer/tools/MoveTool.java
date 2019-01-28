@@ -294,17 +294,17 @@ public class MoveTool extends AbstractPathTool {
 				} else if (pathObject != null) {
 					// Handle ROI changes only if required
 					if (roiChanged) {
-						PathObject parentPrevious = pathObject.getParent();
+//						PathObject parentPrevious = pathObject.getParent();
 						hierarchy.removeObject(pathObject, true, false);
 						if (getCurrentParent() == null || !PathPrefs.getClipROIsForHierarchy() || e.isShiftDown())
-							hierarchy.addPathObject(pathObject, false, false);
+							hierarchy.addPathObject(pathObject, false, true);
 						else
-							hierarchy.addPathObjectBelowParent(getCurrentParent(), pathObject, false, false);
-						PathObject parentNew = pathObject.getParent();
-						if (parentPrevious == parentNew)
-							hierarchy.fireHierarchyChangedEvent(this, parentPrevious);
-						else
-							hierarchy.fireHierarchyChangedEvent(this);
+							hierarchy.addPathObjectBelowParent(getCurrentParent(), pathObject, false, true);
+//						PathObject parentNew = pathObject.getParent();
+//						if (parentPrevious == parentNew)
+//							hierarchy.fireHierarchyChangedEvent(this, parentPrevious);
+//						else
+//							hierarchy.fireHierarchyChangedEvent(this);
 					}
 				}
 				viewer.setSelectedObject(pathObject);				

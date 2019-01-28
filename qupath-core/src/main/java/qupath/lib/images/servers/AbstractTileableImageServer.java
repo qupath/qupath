@@ -107,9 +107,9 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 
 	@Override
 	public BufferedImage readBufferedImage(final RegionRequest request) throws IOException {
-		// Check if we already have a tile for precisely this occasion
+		// Check if we already have a tile for precisely this occasion - with the right server path
 		// Make a defensive copy, since the cache is critical
-		BufferedImage img = cache.get(request);
+		BufferedImage img = request.getPath().equals(getPath()) ? cache.get(request) : null;
 		if (img != null)
 			return duplicate(img);
 		
