@@ -23,6 +23,8 @@ import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.PathROIToolsAwt;
 import qupath.lib.roi.interfaces.ROI;
+import qupath.opencv.processing.TypeAdaptersCV;
+
 import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.Shape;
@@ -553,6 +555,7 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
 							baseDir, "classifier");
 					cacheDirectory = Paths.get(tempDir.toString(), imageData.getServer().getShortServerName() + ".zip").toString();
 					var gson = new GsonBuilder()
+							.registerTypeAdapterFactory(TypeAdaptersCV.getOpenCVTypeAdaptorFactory())
 							.setPrettyPrinting().create();
 					var json = gson.toJson(classifier);
 						

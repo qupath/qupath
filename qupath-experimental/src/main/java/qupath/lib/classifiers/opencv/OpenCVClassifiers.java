@@ -1,5 +1,6 @@
 package qupath.lib.classifiers.opencv;
 
+import java.io.IOException;
 import java.nio.IntBuffer;
 import java.util.Arrays;
 import java.util.Collections;
@@ -16,7 +17,10 @@ import org.bytedeco.javacpp.indexer.IntIndexer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.gson.TypeAdapter;
 import com.google.gson.annotations.JsonAdapter;
+import com.google.gson.stream.JsonReader;
+import com.google.gson.stream.JsonWriter;
 
 import org.bytedeco.javacpp.opencv_core.Mat;
 import org.bytedeco.javacpp.opencv_core.Scalar;
@@ -150,6 +154,8 @@ public class OpenCVClassifiers {
 		throw new IllegalArgumentException("Unknown StatModel class " + cls);
 	}
 	
+
+	@JsonAdapter(OpenCVClassifierTypeAdapter.class)
 	public static abstract class OpenCVStatModel {
 		
 		public abstract boolean supportsMissingValues();
@@ -186,6 +192,24 @@ public class OpenCVClassifiers {
 		 * @param probabilities a Mat to receive probability estimates, or null if probabilities are not needed
 		 */
 		public abstract void predict(Mat samples, Mat results, Mat probabilities);
+		
+		
+		abstract StatModel getStatModel();
+	}
+	
+	
+	static class OpenCVClassifierTypeAdapter extends TypeAdapter<OpenCVStatModel> {
+
+		@Override
+		public void write(JsonWriter out, OpenCVStatModel value) throws IOException {
+			TypeAdaptersCV.getTypeAdaptor(StatModel.class).write(out, value.getStatModel());
+		}
+
+		@Override
+		public OpenCVStatModel read(JsonReader in) throws IOException {
+			var statModel = TypeAdaptersCV.getTypeAdaptor(StatModel.class).read(in);
+			return new DefaultOpenCVStatModel<StatModel>(statModel);
+		}
 		
 	}
 	
@@ -401,10 +425,8 @@ public class OpenCVClassifiers {
 	
 	static class DefaultOpenCVStatModel<T extends StatModel> extends AbstractOpenCVClassifierML<T> {
 
-		private T model;
-		
 		DefaultOpenCVStatModel(T model) {
-			this.model = model;
+			super(model);
 		}
 		
 		@Override
@@ -414,7 +436,7 @@ public class OpenCVClassifiers {
 
 		@Override
 		T createStatModel() {
-			return model;
+			return getStatModel();
 		}
 
 		/**

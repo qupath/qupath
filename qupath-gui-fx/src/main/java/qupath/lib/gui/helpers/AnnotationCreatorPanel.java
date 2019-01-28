@@ -34,15 +34,18 @@ import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
+import javafx.scene.control.ListCell;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
+import javafx.scene.shape.Rectangle;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObjects;
+import qupath.lib.objects.classes.PathClass;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.ROI;
@@ -149,6 +152,9 @@ public class AnnotationCreatorPanel {
 				qupath.getAvailablePathClasses()
 				);
 		comboClassification.setMaxWidth(Double.MAX_VALUE);
+		comboClassification.setCellFactory(o -> {
+			return new ClassificationCell();
+		});
 //		comboClassification.cell;
 		
 		GridPaneTools.addGridRow(
@@ -339,6 +345,27 @@ public class AnnotationCreatorPanel {
 		return pane;
 	}
 	
+	
+	
+	class ClassificationCell extends ListCell<PathClass> {
+
+        @Override
+        protected void updateItem(PathClass value, boolean empty) {
+            super.updateItem(value, empty);
+            int size = 10;
+            if (value == null || empty) {
+                setText(null);
+                setGraphic(null);
+            } else if (value.getName() == null) {
+                setText("None");
+                setGraphic(new Rectangle(size, size, ColorToolsFX.getCachedColor(0, 0, 0, 0)));
+            } else {
+                setText(value.getName());
+                setGraphic(new Rectangle(size, size, ColorToolsFX.getPathClassColor(value)));
+            }
+        }
+
+    }
 	
 
 }

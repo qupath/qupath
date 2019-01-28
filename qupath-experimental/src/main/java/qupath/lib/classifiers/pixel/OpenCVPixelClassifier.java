@@ -6,16 +6,13 @@ import java.io.IOException;
 import org.bytedeco.javacpp.opencv_core;
 import org.bytedeco.javacpp.opencv_core.Mat;
 
-import com.google.gson.annotations.JsonAdapter;
-
+import qupath.lib.classifiers.gui.PixelClassifierGUI.BasicFeatureCalculator;
 import qupath.lib.classifiers.opencv.OpenCVClassifiers.FeaturePreprocessor;
 import qupath.lib.classifiers.opencv.OpenCVClassifiers.OpenCVStatModel;
 import qupath.lib.classifiers.pixel.PixelClassifierMetadata.OutputType;
-import qupath.lib.classifiers.pixel.features.OpenCVFeatureCalculator;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.regions.RegionRequest;
 import qupath.opencv.processing.OpenCVTools;
-import qupath.opencv.processing.TypeAdaptersCV;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,19 +21,25 @@ public class OpenCVPixelClassifier extends AbstractOpenCVPixelClassifier {
 	
 	private static final Logger logger = LoggerFactory.getLogger(OpenCVPixelClassifier.class);
 
-	@JsonAdapter(TypeAdaptersCV.OpenCVTypeAdaptorFactory.class)
     private OpenCVStatModel model;
 	
-	@JsonAdapter(TypeAdaptersCV.OpenCVTypeAdaptorFactory.class)
-    private OpenCVFeatureCalculator calculator;
+    private BasicFeatureCalculator calculator;
 	
     private FeaturePreprocessor preprocessor;
     
-    public OpenCVPixelClassifier(OpenCVStatModel statModel, OpenCVFeatureCalculator calculator, FeaturePreprocessor preprocessor, PixelClassifierMetadata metadata) {
+    private OpenCVPixelClassifier() {
+    	super(null, false);
+    }
+    
+    public OpenCVStatModel getModel() {
+    	return model;
+    }
+    
+    public OpenCVPixelClassifier(OpenCVStatModel statModel, BasicFeatureCalculator calculator, FeaturePreprocessor preprocessor, PixelClassifierMetadata metadata) {
     	this(statModel, calculator, preprocessor, metadata, false);
     }
 
-    public OpenCVPixelClassifier(OpenCVStatModel statModel, OpenCVFeatureCalculator calculator, FeaturePreprocessor preprocessor, PixelClassifierMetadata metadata, boolean do8Bit) {
+    public OpenCVPixelClassifier(OpenCVStatModel statModel, BasicFeatureCalculator calculator, FeaturePreprocessor preprocessor, PixelClassifierMetadata metadata, boolean do8Bit) {
         super(metadata, do8Bit);
         this.model = statModel;
         this.calculator = calculator;

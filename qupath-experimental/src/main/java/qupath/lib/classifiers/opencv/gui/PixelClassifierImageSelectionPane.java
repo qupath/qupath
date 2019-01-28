@@ -14,7 +14,6 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
 
-import org.bytedeco.javacpp.opencv_imgproc;
 import org.bytedeco.javacpp.opencv_ml.ANN_MLP;
 import org.bytedeco.javacpp.opencv_ml.DTrees;
 import org.bytedeco.javacpp.opencv_ml.KNearest;
@@ -62,10 +61,12 @@ import javafx.stage.Stage;
 import javafx.util.StringConverter;
 import jfxtras.scene.layout.HBox;
 import qupath.imagej.helpers.IJTools;
+import qupath.lib.classifiers.gui.FeatureFilter;
+import qupath.lib.classifiers.gui.FeatureFilters;
 import qupath.lib.classifiers.gui.PixelClassificationOverlay;
 import qupath.lib.classifiers.gui.PixelClassifierGUI;
+import qupath.lib.classifiers.gui.PixelClassifierGUI.BasicFeatureCalculator;
 import qupath.lib.classifiers.gui.PixelClassifierHelper;
-import qupath.lib.classifiers.gui.PixelClassifierGUI.FeatureFilter;
 import qupath.lib.classifiers.opencv.OpenCVClassifiers;
 import qupath.lib.classifiers.opencv.OpenCVClassifiers.OpenCVStatModel;
 import qupath.lib.classifiers.opencv.Reclassifier;
@@ -271,49 +272,49 @@ public class PixelClassifierImageSelectionPane {
 		selectedFeatures = comboFeatures.getCheckModel().getCheckedItems();
 		selectedFeatures.addListener((Change<? extends FeatureFilter> c) -> updateFeatureCalculator());
 
-		comboFeatures.getItems().add(new PixelClassifierGUI.OriginalPixels());
+		comboFeatures.getItems().add(FeatureFilters.getFeatureFilter(FeatureFilters.ORIGINAL_PIXELS, -1));
 		
 		var sigmas = new double[] {1, 2, 4, 8};
 		for (var s : sigmas)
-			comboFeatures.getItems().add(new PixelClassifierGUI.GaussianFeatureFilter(s));
+			comboFeatures.getItems().add(FeatureFilters.getFeatureFilter(FeatureFilters.GAUSSIAN_FILTER, s));
 		
 		for (var s : sigmas)
-			comboFeatures.getItems().add(new PixelClassifierGUI.LoGFeatureFilter(s));
+			comboFeatures.getItems().add(FeatureFilters.getFeatureFilter(FeatureFilters.LAPLACIAN_OF_GAUSSIAN_FILTER, s));
 		
 		for (var s : sigmas)
-			comboFeatures.getItems().add(new PixelClassifierGUI.SobelFeatureFilter(s));
+			comboFeatures.getItems().add(FeatureFilters.getFeatureFilter(FeatureFilters.SOBEL_FILTER, s));
 		
 		for (var s : sigmas)
-			comboFeatures.getItems().add(new PixelClassifierGUI.NormalizedIntensityFilter(s));
+			comboFeatures.getItems().add(FeatureFilters.getFeatureFilter(FeatureFilters.NORMALIZED_INTENSITY_FILTER, s));
 
 		for (var s : sigmas)
-			comboFeatures.getItems().add(new PixelClassifierGUI.CoherenceFeatureFilter(s));
+			comboFeatures.getItems().add(FeatureFilters.getFeatureFilter(FeatureFilters.COHERENCE_FILTER, s));
 		
-		comboFeatures.getItems().add(new PixelClassifierGUI.MedianFeatureFilter(3));
-		comboFeatures.getItems().add(new PixelClassifierGUI.MedianFeatureFilter(5));
+		comboFeatures.getItems().add(FeatureFilters.getFeatureFilter(FeatureFilters.MEDIAN_FILTER, 3));
+		comboFeatures.getItems().add(FeatureFilters.getFeatureFilter(FeatureFilters.MEDIAN_FILTER, 5));
 		
 		var radii = new int[] {1, 2, 4, 8};
 		
 		for (var r : radii)
-			comboFeatures.getItems().add(new PixelClassifierGUI.StdDevFeatureFilter(r));
+			comboFeatures.getItems().add(FeatureFilters.getFeatureFilter(FeatureFilters.STANDARD_DEVIATION_FILTER, r));
 		
-		for (var r : radii)
-			comboFeatures.getItems().add(new PixelClassifierGUI.PeakDensityFilter(1.0, r, true));
+//		for (var r : radii)
+//			comboFeatures.getItems().add(FeatureFilters.getFeatureFilter(FeatureFilters.PEAK_DENSITY_FILTER, r));
+
+//		for (var r : radii)
+//			comboFeatures.getItems().add(FeatureFilters.getFeatureFilter(FeatureFilters.VALLEY_DENSITY_FILTER, r));
 
 		for (var r : radii)
-			comboFeatures.getItems().add(new PixelClassifierGUI.PeakDensityFilter(1.0, r, false));
-
-		for (var r : radii)
-			comboFeatures.getItems().add(new PixelClassifierGUI.MorphFilter(opencv_imgproc.MORPH_OPEN, r));
+			comboFeatures.getItems().add(FeatureFilters.getFeatureFilter(FeatureFilters.MORPHOLOGICAL_OPEN_FILTER, r));
 		
 		for (var r : radii)
-			comboFeatures.getItems().add(new PixelClassifierGUI.MorphFilter(opencv_imgproc.MORPH_CLOSE, r));
+			comboFeatures.getItems().add(FeatureFilters.getFeatureFilter(FeatureFilters.MORPHOLOGICAL_CLOSE_FILTER, r));
 		
 		for (var r : radii)
-			comboFeatures.getItems().add(new PixelClassifierGUI.MorphFilter(opencv_imgproc.MORPH_ERODE, r));
+			comboFeatures.getItems().add(FeatureFilters.getFeatureFilter(FeatureFilters.MORPHOLOGICAL_ERODE_FILTER, r));
 
 		for (var r : radii)
-			comboFeatures.getItems().add(new PixelClassifierGUI.MorphFilter(opencv_imgproc.MORPH_DILATE, r));
+			comboFeatures.getItems().add(FeatureFilters.getFeatureFilter(FeatureFilters.MORPHOLOGICAL_DILATE_FILTER, r));
 
 
 		// Select the simple Gaussian features by default
@@ -640,7 +641,7 @@ public class PixelClassifierImageSelectionPane {
 				 .channels(channels)
 				 .build();
 
-		 var classifier = new OpenCVPixelClassifier(model, helper.getFeatureCalculator(), helper.getLastFeaturePreprocessor(), metadata, true);
+		 var classifier = new OpenCVPixelClassifier(model, (BasicFeatureCalculator)helper.getFeatureCalculator(), helper.getLastFeaturePreprocessor(), metadata, true);
 
 		 replaceOverlay(new PixelClassificationOverlay(viewer, classifier));
 	}
