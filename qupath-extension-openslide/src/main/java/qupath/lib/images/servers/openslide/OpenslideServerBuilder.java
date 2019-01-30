@@ -26,6 +26,8 @@ package qupath.lib.images.servers.openslide;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.net.URI;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 
 import org.openslide.OpenSlide;
@@ -48,12 +50,49 @@ public class OpenslideServerBuilder implements ImageServerBuilder<BufferedImage>
 	private static Logger logger = LoggerFactory.getLogger(OpenslideServerBuilder.class);
 	private static boolean openslideUnavailable = false;
 	
+	private static List<String> WIN_LIBRARIES = Arrays.asList(
+			"iconv",
+			"libjpeg-62",
+			"libsqlite3-0",
+			"libpixman-1-0",
+			"libffi-6",
+			"zlib1",
+			"libxml2-2",
+			"libopenjp2",
+			"libpng16-16",
+			"libtiff-5",
+			"libintl-8",
+			"libglib-2.0-0",
+			"libgobject-2.0-0",
+			"libcairo-2",
+			"libgmodule-2.0-0",
+			"libgio-2.0-0",
+			"libgthread-2.0-0",
+			"libgdk_pixbuf-2.0-0",
+			"libopenslide-0"
+			);
+	
 	static {
 		try {
+			// Try loading OpenSlide-JNI - hopefully there is a version of OpenSlide on the PATH we should use
+			System.loadLibrary("openslide-jni");
+		} catch (UnsatisfiedLinkError e) {
+			try {
+				// If we didn't succeed, try loading dependencies in reverse order
+				logger.debug("Couldn't load OpenSlide directly, attempting to load dependencies first...");
+				for (var lib : WIN_LIBRARIES) {
+					System.loadLibrary(lib);
+				}
+			} catch (UnsatisfiedLinkError e2) {}
+		}
+		try {
+			// Finally try to get the library version
 			logger.info("OpenSlide version {}", OpenSlide.getLibraryVersion());
 		}
 		catch (UnsatisfiedLinkError e) {
-			logger.error("Could not load OpenSlide native library", e);
+			logger.error("Could not load OpenSlide native libraries", e);
+			logger.info("If you want to use OpenSlide, you'll need to get the native libraries (either building from source or with a packager manager)\n" +
+			"and add them to your system PATH, including openslide-jni.");
 			openslideUnavailable = true;
 		}
 	}
