@@ -20,7 +20,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-class OpenCVPixelClassifierDNN extends AbstractOpenCVPixelClassifier {
+public class OpenCVPixelClassifierDNN extends AbstractOpenCVPixelClassifier {
 
     private static final Logger logger = LoggerFactory.getLogger(OpenCVPixelClassifier.class);
 

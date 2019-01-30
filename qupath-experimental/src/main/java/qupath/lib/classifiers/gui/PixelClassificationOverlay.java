@@ -1,11 +1,13 @@
 package qupath.lib.classifiers.gui;
 
+import qupath.lib.classifiers.pixel.OpenCVPixelClassifierDNN;
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.classifiers.pixel.PixelClassifierMetadata.OutputType;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.common.SimpleThreadFactory;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.images.stores.ImageRegionStoreHelpers;
+import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.QuPathViewerListener;
 import qupath.lib.gui.viewer.overlays.AbstractOverlay;
@@ -72,7 +74,7 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
     
     private boolean useAnnotationMask = false;
 
-    private ExecutorService pool = Executors.newFixedThreadPool(8, new SimpleThreadFactory("classifier-overlay", true));
+    private ExecutorService pool;
 
     private Map<PathObject, ROI> measuredObjects = new WeakHashMap<>();
     
@@ -81,6 +83,15 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
     public PixelClassificationOverlay(final QuPathViewer viewer, final PixelClassifier classifier) {
         super();
         this.cache = ImageServerProvider.getCache(BufferedImage.class);
+        
+        // Choose number of threads based on how intensive the processing will be
+        // TODO: Permit classifier to control request
+        int nThreads = Math.max(1, PathPrefs.getNumCommandThreads());
+        if (classifier instanceof OpenCVPixelClassifierDNN)
+        	nThreads = 1;
+        pool = Executors.newFixedThreadPool(
+        		nThreads, new SimpleThreadFactory(
+        				"classifier-overlay", true, Thread.NORM_PRIORITY-2));
         
         this.classifier = classifier;
         this.viewer = viewer;

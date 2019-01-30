@@ -757,7 +757,7 @@ public class PathHierarchyPaintingHelper {
 				var current = handles.get(i);
 				var before = handles.get((i + n - 1) % n);
 				var after = handles.get((i + 1) % n);
-				double distance = Math.sqrt(Math.min(current.distanceSq(before), current.distanceSq(after))) * 0.75;
+				double distance = Math.sqrt(Math.min(current.distanceSq(before), current.distanceSq(after))) * 0.5;
 				double size = Math.max(minHandleSize, Math.min(distance, maxHandleSize));
 				
 				var p = current;

@@ -1729,7 +1729,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	
 	
 	public double getMaxROIHandleSize() {
-		return overlayOptions.getThickStrokeWidth(downsampleFactor.get()) * 4.0;
+		return PathPrefs.getThickStrokeThickness() * getDownsampleFactor() * 4.0;
 	}
 
 	
