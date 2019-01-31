@@ -3491,7 +3491,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			action.disabledProperty().bind(Bindings.createBooleanBinding(() -> !tools.containsKey(Modes.POLYGON), tools));
 			return action;
 		case POLYLINE_TOOL:
-			action = createSelectableCommandAction(new ToolSelectable(this, Modes.POLYLINE), "Polyline tool", Modes.POLYLINE, new KeyCodeCombination(KeyCode.Y));
+			action = createSelectableCommandAction(new ToolSelectable(this, Modes.POLYLINE), "Polyline tool", Modes.POLYLINE, new KeyCodeCombination(KeyCode.V));
 			action.disabledProperty().bind(Bindings.createBooleanBinding(() -> !tools.containsKey(Modes.POLYLINE), tools));
 			return action;
 		case BRUSH_TOOL:
