@@ -429,15 +429,23 @@ public class PixelClassifierImageSelectionPane {
 				"Prediction for current cursor location",
 				labelCursor, labelCursor, labelCursor);
 		
-		
 		comboClassifier.getItems().addAll(
-				OpenCVClassifiers.wrapStatModel(RTrees.create()),
-				OpenCVClassifiers.wrapStatModel(DTrees.create()),
-				OpenCVClassifiers.wrapStatModel(KNearest.create()),
-				OpenCVClassifiers.wrapStatModel(ANN_MLP.create()),
-				OpenCVClassifiers.wrapStatModel(LogisticRegression.create()),
-				OpenCVClassifiers.wrapStatModel(NormalBayesClassifier.create())
+				OpenCVClassifiers.wrapStatModel(RTrees.class),
+				OpenCVClassifiers.wrapStatModel(DTrees.class),
+				OpenCVClassifiers.wrapStatModel(KNearest.class),
+				OpenCVClassifiers.wrapStatModel(ANN_MLP.class),
+				OpenCVClassifiers.wrapStatModel(LogisticRegression.class),
+				OpenCVClassifiers.wrapStatModel(NormalBayesClassifier.class)
 				);
+		
+//		comboClassifier.getItems().addAll(
+//				OpenCVClassifiers.wrapStatModel(RTrees.create()),
+//				OpenCVClassifiers.wrapStatModel(DTrees.create()),
+//				OpenCVClassifiers.wrapStatModel(KNearest.create()),
+//				OpenCVClassifiers.wrapStatModel(ANN_MLP.create()),
+//				OpenCVClassifiers.wrapStatModel(LogisticRegression.create()),
+//				OpenCVClassifiers.wrapStatModel(NormalBayesClassifier.create())
+//				);
 		comboClassifier.getSelectionModel().clearAndSelect(0);
 		
 //		comboResolution.setMaxWidth(Double.MAX_VALUE);
@@ -521,6 +529,11 @@ public class PixelClassifierImageSelectionPane {
 
 	
 	void updateFeatureCalculator() {
+//		featureCalculator = new PixelClassifierGUI.ExtractNeighborsFeatureCalculator("Patch features", 
+//				getRequestedPixelSizeMicrons(),
+//				5,
+//				0
+//				);
 		featureCalculator = new PixelClassifierGUI.BasicFeatureCalculator("Basic features", selectedChannels, selectedFeatures, 
 				getRequestedPixelSizeMicrons());
 		updateClassifier();

@@ -116,6 +116,39 @@ public class OpenCVClassifiers {
 	}
 	
 	
+	public static OpenCVStatModel wrapStatModel(Class<? extends StatModel> cls) {		
+		if (RTrees.class.equals(cls))
+			return new RTreesClassifier();
+
+		if (Boost.class.equals(cls))
+			return new BoostClassifier();
+		
+		if (DTrees.class.equals(cls))	
+			return new DTreesClassifier();
+		
+		if (KNearest.class.equals(cls))
+			return new KNearestClassifierCV();
+		
+		if (ANN_MLP.class.equals(cls))
+			return new ANNClassifierCV();
+		
+		if (LogisticRegression.class.equals(cls))
+			return new LogisticRegressionClassifier();
+		
+		if (EM.class.equals(cls))
+			return new EMClusterer();
+
+		if (NormalBayesClassifier.class.equals(cls))
+			return new NormalBayesClassifierCV();
+		
+		if (SVM.class.equals(cls))
+			return new SVMClassifierCV();
+		
+		if (SVMSGD.class.equals(cls))
+			return new SVMSGDClassifierCV();
+		
+		throw new IllegalArgumentException("Unknown StatModel class " + cls);
+	}
 	
 	
 	public static OpenCVStatModel wrapStatModel(StatModel statModel) {
@@ -229,10 +262,7 @@ public class OpenCVClassifiers {
 		
 		abstract void updateModel(T model, ParameterList params, TrainData trainData);
 		
-		AbstractOpenCVClassifierML() {
-			model = createStatModel();
-			params = createParameterList(model);
-		}
+		AbstractOpenCVClassifierML() {}
 		
 		AbstractOpenCVClassifierML(T model) {
 			this.model = model;
@@ -253,6 +283,8 @@ public class OpenCVClassifiers {
 		}
 		
 		T getStatModel() {
+			if (model == null)
+				model = createStatModel();
 			return model;
 		}
 		
@@ -263,6 +295,8 @@ public class OpenCVClassifiers {
 		
 		@Override
 		public ParameterList getParameterList() {
+			if (params == null)
+				params = createParameterList(model);
 			return params;
 		}
 				
@@ -303,7 +337,7 @@ public class OpenCVClassifiers {
 		 */
 		public void trainWithLock(TrainData trainData) {
 			var statModel = getStatModel();
-			updateModel(statModel, params, trainData);
+			updateModel(statModel, getParameterList(), trainData);
 //			statModel.train(trainData);
 			statModel.train(trainData, getTrainFlags());
 		}
@@ -311,26 +345,28 @@ public class OpenCVClassifiers {
 		protected int getTrainFlags() {
 			return 0;
 		}
+		
+		abstract Class<? extends StatModel> getStatModelClass();
 
 		@Override
 		public String getName() {
-			var model = getStatModel();
+			var cls = getStatModelClass();
 			
-			if (ANN_MLP.class.equals(model.getClass()))
+			if (ANN_MLP.class.equals(cls))
 				return "Artificial neural network (ANN_MLP)";
-			else if (RTrees.class.equals(model.getClass()))
+			else if (RTrees.class.equals(cls))
 				return "Random trees (RTrees)";
-			else if (Boost.class.equals(model.getClass()))
+			else if (Boost.class.equals(cls))
 				return "Boosted trees (Boost)";
-			else if (DTrees.class.equals(model.getClass()))
+			else if (DTrees.class.equals(cls))
 				return "Decision tree (DTrees)";
-			else if (EM.class.equals(model.getClass()))
+			else if (EM.class.equals(cls))
 				return "Expectation maximization";
-			else if (KNearest.class.equals(model.getClass()))
+			else if (KNearest.class.equals(cls))
 				return "K nearest neighbor";
-			else if (LogisticRegression.class.equals(model.getClass()))
+			else if (LogisticRegression.class.equals(cls))
 				return "Logistic regression";
-			else if (NormalBayesClassifier.class.equals(model.getClass()))
+			else if (NormalBayesClassifier.class.equals(cls))
 				return "Normal Bayes classifier";
 			
 			return model.getClass().getSimpleName();
@@ -443,8 +479,13 @@ public class OpenCVClassifiers {
 		 * No updates performed.
 		 */
 		@Override
-		void updateModel(StatModel model, ParameterList params, TrainData trainData) {
-			// Perform no updates
+		void updateModel(T model, ParameterList params, TrainData trainData) {
+			// TODO Auto-generated method stub
+		}
+
+		@Override
+		Class<? extends StatModel> getStatModelClass() {
+			return getStatModel().getClass();
 		}
 		
 	}
@@ -522,6 +563,11 @@ public class OpenCVClassifiers {
 		@Override
 		DTrees createStatModel() {
 			return DTrees.create();
+		}
+
+		@Override
+		Class<? extends StatModel> getStatModelClass() {
+			return DTrees.class;
 		}
 		
 	}
@@ -624,6 +670,11 @@ public class OpenCVClassifiers {
 			model.setCalculateVarImportance(calcImportance);
 		}
 		
+		@Override
+		Class<? extends StatModel> getStatModelClass() {
+			return RTrees.class;
+		}
+
 		
 		@Override
 		public void predictWithLock(Mat samples, Mat results, Mat probabilities) {
@@ -701,6 +752,12 @@ public class OpenCVClassifiers {
 		}
 		
 		@Override
+		Class<? extends StatModel> getStatModelClass() {
+			return Boost.class;
+		}
+
+		
+		@Override
 		ParameterList createParameterList(Boost model) {
 			ParameterList params = super.createParameterList(model);
 			
@@ -771,6 +828,11 @@ public class OpenCVClassifiers {
 		LogisticRegression createStatModel() {
 			return LogisticRegression.create();
 		}
+
+		@Override
+		Class<? extends StatModel> getStatModelClass() {
+			return LogisticRegression.class;
+		}
 		
 		@Override
 		void updateModel(LogisticRegression model, ParameterList params, TrainData trainData) {
@@ -815,6 +877,11 @@ public class OpenCVClassifiers {
 		NormalBayesClassifier createStatModel() {
 			return NormalBayesClassifier.create();
 		}
+		
+		@Override
+		Class<? extends StatModel> getStatModelClass() {
+			return NormalBayesClassifier.class;
+		}
 
 		@Override
 		void updateModel(NormalBayesClassifier model, ParameterList params, TrainData trainData) {}
@@ -848,6 +915,12 @@ public class OpenCVClassifiers {
 			return params;
 		}
 
+		@Override
+		Class<? extends StatModel> getStatModelClass() {
+			return EM.class;
+		}
+
+		
 		@Override
 		EM createStatModel() {
 			return EM.create();
@@ -885,6 +958,11 @@ public class OpenCVClassifiers {
 		public boolean supportsAutoUpdate() {
 			return false;
 		}
+		
+		@Override
+		Class<? extends StatModel> getStatModelClass() {
+			return SVM.class;
+		}
 
 		@Override
 		void updateModel(SVM model, ParameterList params, TrainData trainData) {
@@ -913,6 +991,11 @@ public class OpenCVClassifiers {
 		@Override
 		SVMSGD createStatModel() {
 			return SVMSGD.create();
+		}
+		
+		@Override
+		Class<? extends StatModel> getStatModelClass() {
+			return SVMSGD.class;
 		}
 		
 		@Override
@@ -949,6 +1032,11 @@ public class OpenCVClassifiers {
 		@Override
 		KNearest createStatModel() {
 			return KNearest.create();
+		}
+		
+		@Override
+		Class<? extends StatModel> getStatModelClass() {
+			return KNearest.class;
 		}
 
 		@Override
@@ -1006,6 +1094,12 @@ public class OpenCVClassifiers {
 		ANN_MLP createStatModel() {
 			return ANN_MLP.create();
 		}
+		
+		@Override
+		Class<? extends StatModel> getStatModelClass() {
+			return ANN_MLP.class;
+		}
+
 		
 		public TrainData createTrainData(Mat samples, Mat targets) {
 			

@@ -27,6 +27,7 @@ import ij.io.FileSaver;
 import qupath.imagej.images.servers.BufferedImagePlusServer;
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.classifiers.pixel.PixelClassifierMetadata.OutputType;
+import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.AbstractTileableImageServer;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
@@ -42,15 +43,17 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 	private String cacheDirectory;
 	private transient PersistentTileCache persistentTileCache;
 	
+	private ImageData<BufferedImage> imageData;
 	private ImageServer<BufferedImage> server;
 	private PixelClassifier classifier;
 	private ImageServerMetadata metadata;
 
-	protected PixelClassificationImageServer(String cacheDirectory, Map<RegionRequest, BufferedImage> cache, ImageServer<BufferedImage> server, PixelClassifier classifier) {
+	protected PixelClassificationImageServer(String cacheDirectory, Map<RegionRequest, BufferedImage> cache, ImageData<BufferedImage> imageData, PixelClassifier classifier) {
 		super(cache);
 		this.classifier = classifier;
 		this.cacheDirectory = cacheDirectory;
-		this.server = server;
+		this.imageData = imageData;
+		this.server = imageData.getServer();
 		
 		var classifierMetadata = classifier.getMetadata();
 		var path = server.getPath() + "::" + classifier.toString();
@@ -67,12 +70,24 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 		double inputSizeMicrons = classifierMetadata.getInputPixelSizeMicrons();
 		double downsample = inputSizeMicrons / server.getAveragedPixelSizeMicrons();
 		
+		// This code makes it possible for the classification server to return downsampled values
+		// The idea is that this might help performance... but it raises questions around interpolating 
+		// classifications and can result in the appearance not matching expectations.
+//		List<Double> downsampleValues = new ArrayList<>();
+//		double factor = 1;
+//		do {
+//			downsampleValues.add(downsample * factor);
+//			factor *= 4;
+//		} while (Math.min(tileWidth, tileHeight) / factor > 16);
+//		double[] downsamples = downsampleValues.stream().mapToDouble(d -> d).toArray();
+		double[] downsamples = new double[] {downsample};
+		
 		int width = server.getWidth();
 		int height = server.getHeight();
 		
 		metadata = new ImageServerMetadata.Builder(path, width, height)
 				.setPreferredTileSize(tileWidth, tileHeight)
-				.setPreferredDownsamples(downsample)
+				.setPreferredDownsamples(downsamples)
 				.setPixelSizeMicrons(server.getPixelWidthMicrons(), server.getPixelHeightMicrons())
 				.channels(classifierMetadata.getChannels())
 				.setSizeT(server.nTimepoints())
@@ -165,10 +180,19 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 		if (img != null && img.getRaster().getNumBands() != nChannels())
 			img = null;
 		if (img == null) {
-			var imgClassified = classifier.applyClassification(server, tileRequest.getRegionRequest());
-			img = imgClassified;
+			double fullResDownsample = getDownsampleForResolution(0);
+			if (tileRequest.getDownsample() != fullResDownsample && Math.abs(tileRequest.getDownsample() - fullResDownsample) > 1e-6) {
+				// If we're generating lower-resolution tiles, we need to request the higher-resolution data accordingly
+				var request2 = RegionRequest.createInstance(getPath(), fullResDownsample, tileRequest.getRegionRequest());
+				img = readBufferedImage(request2);
+				img = resize(img, tileRequest.getImageWidth(), tileRequest.getTileHeight());
+			} else {
+				// Classify at this resolution if need be
+				img = classifier.applyClassification(imageData, tileRequest.getRegionRequest());
+			}
 			// Save to cache in a background thread
 			// It helps to return fast so that the tile can be cached locally as soon as possible
+			var imgClassified = img;
 			CompletableFuture.runAsync(() -> trySaveToCache(tileRequest.getRegionRequest(), imgClassified));
 		}
 		return img;

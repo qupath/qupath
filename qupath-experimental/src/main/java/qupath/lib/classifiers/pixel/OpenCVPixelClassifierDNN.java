@@ -7,10 +7,10 @@ import org.bytedeco.javacpp.opencv_core.Rect;
 import org.bytedeco.javacpp.opencv_core.Scalar;
 import org.bytedeco.javacpp.opencv_dnn;
 import org.bytedeco.javacpp.opencv_dnn.Net;
-import org.bytedeco.javacpp.opencv_imgproc;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qupath.lib.images.servers.ImageServer;
+
+import qupath.lib.images.ImageData;
 import qupath.lib.regions.RegionRequest;
 import qupath.opencv.processing.OpenCVTools;
 
@@ -186,7 +186,7 @@ public class OpenCVPixelClassifierDNN extends AbstractOpenCVPixelClassifier {
 //    	opencv_core.extractChannel(mat, mat, 0);
 //    	mat.convertTo(mat, opencv_core.CV_32F);
     	
-    	opencv_imgproc.cvtColor(mat, mat, opencv_imgproc.COLOR_RGB2BGR);
+//    	opencv_imgproc.cvtColor(mat, mat, opencv_imgproc.COLOR_RGB2BGR);
     	
 //        opencv_imgproc.cvtColor(mat, mat, opencv_imgproc.COLOR_RGB2BGR);
     	mat.convertTo(mat, opencv_core.CV_32F);
@@ -218,8 +218,12 @@ public class OpenCVPixelClassifierDNN extends AbstractOpenCVPixelClassifier {
             else {
             	MatVector matvec = new MatVector();
                 opencv_core.split(mat, matvec);
-                for (int i = 0; i < matvec.size(); i++)
-                    opencv_core.multiplyPut(matvec.get(i), scales.get(i));
+                for (int i = 0; i < matvec.size(); i++) {
+                	if (scales.get(i) == 0)
+                		opencv_core.multiplyPut(matvec.get(i), 0.0);
+                	else
+                		opencv_core.multiplyPut(matvec.get(i), 1.0/scales.get(i));
+                }
                 opencv_core.merge(matvec, mat);
             }
         }
@@ -229,7 +233,11 @@ public class OpenCVPixelClassifierDNN extends AbstractOpenCVPixelClassifier {
         Mat prob = null;
         synchronized(model) {
         	long startTime = System.currentTimeMillis();
-            Mat blob = opencv_dnn.blobFromImage(mat, 1.0, null, null, true, false, opencv_core.CV_32F);
+            Mat blob = null;
+            if (mat.channels() == 3)
+            	blob = opencv_dnn.blobFromImage(mat, 1.0, null, null, false, false, opencv_core.CV_32F);
+            else
+            	blob = mat;
             model.setInput(blob);
             try {
             	prob = model.forward();
@@ -246,6 +254,9 @@ public class OpenCVPixelClassifierDNN extends AbstractOpenCVPixelClassifier {
         if (matvec.size() != 1)
         	throw new IllegalArgumentException("DNN result must be a single image - here, the result is " + matvec.size() + " images");
         Mat matResult = matvec.get(0L);
+        
+//    	System.err.println("Mean AFTER: " + opencv_core.mean(matResult));
+
                 
         // Sometimes, rather unfortunately, dimensions can be wrong
         int nChannels = metadata.getChannels().size();
@@ -308,11 +319,14 @@ public class OpenCVPixelClassifierDNN extends AbstractOpenCVPixelClassifier {
 	}
 
 	@Override
-    public BufferedImage applyClassification(final ImageServer<BufferedImage> server, final RegionRequest request) throws IOException {
+    public BufferedImage applyClassification(final ImageData<BufferedImage> imageData, final RegionRequest request) throws IOException {
         // Get the pixels into a friendly format
 //        Mat matInput = OpenCVTools.imageToMatRGB(img, false);
+		 
+		var server = imageData.getServer();
 		
 		Mat mat = OpenCVTools.imageToMat(server.readBufferedImage(request));
+		
 		Mat matResult = doClassification(mat, inputPadding);
     	        
         // If we have a floating point or multi-channel result, we have probabilities

@@ -10,7 +10,7 @@ import qupath.lib.classifiers.gui.PixelClassifierGUI.BasicFeatureCalculator;
 import qupath.lib.classifiers.opencv.OpenCVClassifiers.FeaturePreprocessor;
 import qupath.lib.classifiers.opencv.OpenCVClassifiers.OpenCVStatModel;
 import qupath.lib.classifiers.pixel.PixelClassifierMetadata.OutputType;
-import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.ImageData;
 import qupath.lib.regions.RegionRequest;
 import qupath.opencv.processing.OpenCVTools;
 
@@ -114,10 +114,11 @@ public class OpenCVPixelClassifier extends AbstractOpenCVPixelClassifier {
     
     
     @Override
-    public BufferedImage applyClassification(final ImageServer<BufferedImage> server, final RegionRequest request) throws IOException {
+    public BufferedImage applyClassification(final ImageData<BufferedImage> imageData, final RegionRequest request) throws IOException {
         // Get the pixels into a friendly format
 //        Mat matInput = OpenCVTools.imageToMatRGB(img, false);
     	
+    	var server = imageData.getServer();
     	Mat matFeatures = calculator.calculateFeatures(server, request);
     	
 //    	PixelClassifierMetadata metadata = getMetadata();

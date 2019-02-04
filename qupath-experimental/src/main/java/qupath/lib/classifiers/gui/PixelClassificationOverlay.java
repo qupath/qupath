@@ -29,7 +29,9 @@ import qupath.opencv.processing.TypeAdaptersCV;
 
 import java.awt.Color;
 import java.awt.Graphics2D;
+import java.awt.RenderingHints;
 import java.awt.Shape;
+import java.awt.geom.Ellipse2D;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBuffer;
 import java.awt.image.ImageObserver;
@@ -66,8 +68,8 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
     private PixelClassifier classifier;
     private PixelClassificationImageServer classifierServer;
     
-    private Map<RegionRequest, BufferedImage> cache = new HashMap<>();
-    private Map<BufferedImage, BufferedImage> cacheRGB = Collections.synchronizedMap(new HashMap<>());
+    private Map<RegionRequest, BufferedImage> cache = Collections.synchronizedMap(new HashMap<>());
+    private Map<RegionRequest, BufferedImage> cacheRGB = Collections.synchronizedMap(new HashMap<>());
     private Set<RegionRequest> pendingRequests = Collections.synchronizedSet(new HashSet<>());
     
     private Set<String> measurementsAdded = new HashSet<>();
@@ -157,6 +159,9 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
        	// Check if we've already measured this
     	if (measuredObjects.getOrDefault(pathObject, null) == pathObject.getROI())
     		return false;
+
+        if (classifier.getMetadata() == null || !Double.isNaN(classifier.getMetadata().getInputPixelSizeMicrons()))
+        	return false;
 
     	
         List<ImageChannel> channels = classifier.getMetadata().getChannels();
@@ -373,8 +378,15 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
 //        ImageServer<BufferedImage> server = imageData.getServer();
         var server = classifierServer;
 
-        double requestedDownsample = classifier.getMetadata().getInputPixelSizeMicrons() / server.getAveragedPixelSizeMicrons();
+//        double requestedDownsample = classifier.getMetadata().getInputPixelSizeMicrons() / server.getAveragedPixelSizeMicrons();
+        double requestedDownsample = server.getPreferredDownsampleFactor(downsampleFactor);
 
+        if (requestedDownsample > server.getDownsampleForResolution(0))
+        	g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+        else
+        	g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
+
+        
 //        boolean requestingTiles = downsampleFactor <= requestedDownsample * 4.0;
         boolean requestingTiles = true;
 
@@ -407,9 +419,14 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
         				continue;
         			if (roi.getZ() == request.getZ() &&
         					roi.getT() == request.getT() &&
-        					request.intersects(roi.getBoundsX(), roi.getBoundsY(), roi.getBoundsWidth(), roi.getBoundsHeight()) &&
-        					roi.getShape().intersects(request.getX(), request.getY(), request.getWidth(), request.getHeight())) {
-        				doPaint = true;
+        					request.intersects(roi.getBoundsX(), roi.getBoundsY(), roi.getBoundsWidth(), roi.getBoundsHeight())) {
+        				var shape = roi.getShape();
+        				// Intersects doesn't seem to be working nicely with Ellipse?
+        				if (shape instanceof Ellipse2D)
+        					shape = shape.getBounds();
+        				if (shape.intersects(request.getX(), request.getY(), request.getWidth(), request.getHeight())) {
+            				doPaint = true;
+        				}
         				break;
         			}
         		}
@@ -417,17 +434,15 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
         			continue;
         	}
         	
-        	// Get the cached raw classified image
-            BufferedImage img = cache.get(request);
-            if (img != null) {
+        	// Try to get an RGB image, supplying a cached probably tile (if we have one)
+            BufferedImage imgRGB = getCachedRGBImage(request, cache.get(request));
+            if (imgRGB != null) {
             	// Get the cached RGB painted version (since painting can be a fairly expensive operation)
-                BufferedImage imgRGB = getCachedRGBImage(img);
-                if (imgRGB != null)
-                	g2d.drawImage(imgRGB, request.getX(), request.getY(), request.getWidth(), request.getHeight(), null);
+                g2d.drawImage(imgRGB, request.getX(), request.getY(), request.getWidth(), request.getHeight(), null);
                 continue;
             }
-
-            // Don't want parallel requests, or requests when we've zoomed out (although maybe the latter is ok...?)
+            
+            // We might not necessarily want tiles (e.g. if we are zoomed out for a particularly slow classifier)
             if (!requestingTiles) {
                 continue;
             }
@@ -448,12 +463,22 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
         }
     }
     
-    
-    BufferedImage getCachedRGBImage(BufferedImage img) {
-    	var imgRGB = cacheRGB.get(img);
+    /**
+     * Get a cached RGB image if we have one.  If we don't, optionally supply an original image 
+     * that will be painted to create a new RGB image (which will then be cached).
+     * 
+     * @param request
+     * @param img
+     * @return
+     */
+    BufferedImage getCachedRGBImage(RegionRequest request, BufferedImage img) {
+    	var imgRGB = cacheRGB.get(request);
         // If we don't have an RGB version, create one
-        if (imgRGB == null) {
-            if (img.getType() == BufferedImage.TYPE_INT_ARGB) {
+        if (imgRGB == null && img != null) {
+            if (img.getType() == BufferedImage.TYPE_INT_ARGB ||
+            		img.getType() == BufferedImage.TYPE_INT_RGB ||
+            		img.getType() == BufferedImage.TYPE_BYTE_INDEXED ||
+            		img.getType() == BufferedImage.TYPE_BYTE_GRAY) {
                 imgRGB = img;
             } else {
                 imgRGB = new BufferedImage(img.getWidth(), img.getHeight(), BufferedImage.TYPE_INT_ARGB);
@@ -461,7 +486,7 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
                 g.drawImage(img, 0, 0, null);
                 g.dispose();
             }
-            cacheRGB.put(img, imgRGB);
+            cacheRGB.put(request, imgRGB);
         }
         return imgRGB;
     }
@@ -513,7 +538,7 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
             	}
                 try {
                 	BufferedImage imgResult = classifierServer.readBufferedImage(request);
-                    getCachedRGBImage(imgResult);
+                    getCachedRGBImage(request, imgResult);
                     cache.put(request, imgResult);
                     viewer.repaint();
                     Platform.runLater(() -> updateAnnotationMeasurements());
@@ -577,9 +602,26 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
 				} catch (IOException e) {
 					logger.error("Unable to create temp directory", e);
 					cacheDirectory = null;
+				} catch (Exception e) {
+					// We can have other errors if we can't manage Gson serialization
+					logger.error("Unable to write classifier", e);
+					cacheDirectory = null;					
 				}
 			}
-			classifierServer = new PixelClassificationImageServer(cacheDirectory, cache, imageDataNew.getServer(), classifier);
+			classifierServer = new PixelClassificationImageServer(cacheDirectory, cache, imageDataNew, classifier);
+			
+			long bytes;
+			long bytesRGB = 0L;
+			if (classifier.getMetadata().getOutputType() == OutputType.Classification) {
+				bytes = 1L;
+			} else {
+				bytes = 1L * classifier.getMetadata().nOutputChannels();
+				bytesRGB = 4L;
+			}
+			long totalPixels = classifierServer.getAllTileRequests().stream().mapToLong(t -> t.getTileWidth() * t.getTileHeight()).sum();
+			logger.info("Estimated memory needed to classify whole image (assuming 8-bit output): {} MB", GeneralTools.formatNumber(totalPixels * bytes / (1024.0 * 1024.0), 1));
+			if (bytesRGB > 0)
+				logger.info("Additional memory required to cache RGB display: {} MB", GeneralTools.formatNumber(totalPixels * bytesRGB / (1024.0 * 1024.0), 1));
 		}
 	}
 
