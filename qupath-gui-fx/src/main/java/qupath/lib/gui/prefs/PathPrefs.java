@@ -24,6 +24,9 @@
 package qupath.lib.gui.prefs;
 
 import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.Collections;
@@ -32,6 +35,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Locale.Category;
 import java.util.prefs.BackingStoreException;
+import java.util.prefs.InvalidPreferencesFormatException;
 import java.util.prefs.Preferences;
 
 import org.slf4j.Logger;
@@ -78,6 +82,34 @@ public class PathPrefs {
 	private static BooleanProperty resetProperty = new SimpleBooleanProperty(Boolean.FALSE);
 
 	public static BooleanProperty useProjectImageCache = createPersistentPreference("useProjectImageCache", Boolean.FALSE);
+	
+	/**
+	 * Export preferences to a stream.  Note that this will only export preferences that have been set explicitly; 
+	 * some preferences may be 'missing' because their defaults were never changed.  This behavior may change in the future.
+	 * 
+	 * @param stream
+	 * @throws IOException
+	 * @throws BackingStoreException
+	 */
+	public static void exportPreferences(OutputStream stream) throws IOException, BackingStoreException {
+		getUserPreferences().exportNode(stream);
+	}
+	
+	/**
+	 * Import preferences from a stream.
+	 * <p>
+	 * Note that if the plan is to re-import preferences previously exported by {@link #exportPreferences(OutputStream)} 
+	 * then it may be worthwhile to {@link #resetPreferences()} first to handle the fact that preferences may not have been 
+	 * saved because their default values were unchanged.
+	 * 
+	 * @param stream
+	 * @throws IOException
+	 * @throws InvalidPreferencesFormatException
+	 */
+	public static void importPreferences(InputStream stream) throws IOException, InvalidPreferencesFormatException  {
+		Preferences.importPreferences(stream);
+	}
+	
 	
 	/**
 	 * If true, then a 'cache' directory will be created within projects, and ImageServers that retrieve images in a lengthy way
