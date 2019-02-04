@@ -654,7 +654,7 @@ public class PathHierarchyPaintingHelper {
 		
 //		double radius = pathPointsROI == null ? PointsROI.getDefaultPointRadius() : pathPointsROI.getPointRadius();
 		// Ensure that points are drawn with at least a radius of one, after any transforms have been applied
-		double scale = downsample;
+		double scale = Math.max(1, downsample);
 		radius = (Math.max(1 / scale, radius));
 		
 		g2d.setStroke(stroke);
