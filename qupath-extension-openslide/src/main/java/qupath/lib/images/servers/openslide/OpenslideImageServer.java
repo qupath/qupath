@@ -30,6 +30,7 @@ import java.awt.image.DataBufferInt;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -64,6 +65,8 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 
 	private OpenSlide osr;
 	private Color backgroundColor;
+	
+	private int boundsX, boundsY, boundsWidth, boundsHeight;
 	
 	
 	private double readNumericPropertyOrDefault(Map<String, String> properties, String name, double defaultValue) {
@@ -100,10 +103,35 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 		int height = (int)osr.getLevel0Height();
 
 		Map<String, String> properties = osr.getProperties();
+		
+		// Read bounds
+		if (properties.keySet().containsAll(
+				Arrays.asList(
+						OpenSlide.PROPERTY_NAME_BOUNDS_X,
+						OpenSlide.PROPERTY_NAME_BOUNDS_Y,
+						OpenSlide.PROPERTY_NAME_BOUNDS_WIDTH,
+						OpenSlide.PROPERTY_NAME_BOUNDS_HEIGHT
+						)
+				)) {
+			try {
+				boundsX = Integer.parseInt(properties.get(OpenSlide.PROPERTY_NAME_BOUNDS_X));
+				boundsY = Integer.parseInt(properties.get(OpenSlide.PROPERTY_NAME_BOUNDS_Y));
+				boundsWidth = Integer.parseInt(properties.get(OpenSlide.PROPERTY_NAME_BOUNDS_WIDTH));
+				boundsHeight = Integer.parseInt(properties.get(OpenSlide.PROPERTY_NAME_BOUNDS_HEIGHT));
+			} catch (Exception e) {
+				boundsX = 0;
+				boundsY = 0;
+				boundsWidth = width;
+				boundsHeight = height;
+			}
+		} else {
+			boundsWidth = width;
+			boundsHeight = height;
+		}
 
 		// Try to read a tile size
-		int tileWidth = (int)readNumericPropertyOrDefault(properties, "openslide.level[0].tile-width", -1);
-		int tileHeight = (int)readNumericPropertyOrDefault(properties, "openslide.level[0].tile-height", -1);
+		int tileWidth = (int)readNumericPropertyOrDefault(properties, "openslide.level[0].tile-width", 256);
+		int tileHeight = (int)readNumericPropertyOrDefault(properties, "openslide.level[0].tile-height", 256);
 		// Read other properties
 		double pixelWidth = readNumericPropertyOrDefault(properties, OpenSlide.PROPERTY_NAME_MPP_X, Double.NaN);
 		double pixelHeight = readNumericPropertyOrDefault(properties, OpenSlide.PROPERTY_NAME_MPP_Y, Double.NaN);
@@ -122,9 +150,9 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 			downsamples[i] = estimateDownsample(width, height, (int)osr.getLevelWidth(i), (int)osr.getLevelHeight(i), i);
 //			downsamples[i] = osr.getLevelDownsample(i);
 		}
-
+		
 		// Create metadata objects
-		originalMetadata = new ImageServerMetadata.Builder(path, width, height).
+		originalMetadata = new ImageServerMetadata.Builder(path, boundsWidth, boundsHeight).
 				channels(ImageChannel.getDefaultRGBChannels()). // Assume 3 channels (RGB)
 				setRGB(true).
 				setBitDepth(8).
@@ -185,6 +213,8 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 	@Override
 	public BufferedImage readTile(TileRequest tileRequest) throws IOException {
 		
+		int tileX = tileRequest.getImageX()  + boundsX;
+		int tileY = tileRequest.getImageY()  + boundsY;
 		int tileWidth = tileRequest.getTileWidth();
 		int tileHeight = tileRequest.getTileHeight();
 
@@ -194,7 +224,7 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
         
 		// Create a thumbnail for the region
 //        	osr.paintRegionOfLevel(g, dx, dy, sx, sy, w, h, level);
-		osr.paintRegionARGB(data, tileRequest.getImageX(), tileRequest.getImageY(), tileRequest.getLevel(), tileWidth, tileHeight);
+		osr.paintRegionARGB(data, tileX, tileY, tileRequest.getLevel(), tileWidth, tileHeight);
 		
 		// Previously tried to take shortcut and only repaint if needed - 
 		// but transparent pixels happened too often, and it's really needed to repaint every time

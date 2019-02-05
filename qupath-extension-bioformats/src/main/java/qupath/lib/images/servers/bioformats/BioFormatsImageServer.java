@@ -231,6 +231,8 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 			
 			// Populate the image server list if we have more than one image
 			int seriesIndex = -1;
+			int largestSeries = -1;
+			long mostPixels = -1L;
 			
 			// If we have more than one series, we need to construct maps of 'analyzable' & associated images
 			if (reader.getSeriesCount() > 1) {
@@ -251,7 +253,13 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 						imageMap.put(name, s);
 					}
 					// Set this to be the series, if necessary
-					if (seriesName != null && seriesName.equals(name)) {
+					if (seriesName == null) {
+						long nPixels = (long)reader.getSizeX() * (long)reader.getSizeY() * (long)reader.getSizeZ() * (long)reader.getSizeT();
+						if (nPixels > mostPixels) {
+							largestSeries = s;
+							mostPixels = nPixels;
+						}
+					} else if (seriesName.equals(name)) {
 						seriesIndex = s;
 					}
 					logger.debug("Adding {}", name);
@@ -264,7 +272,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 				} else if (imageMap.size() > 1) {
 					// Set default series index, if we need to
 					if (seriesIndex < 0) {
-						seriesIndex = imageMap.values().iterator().next();
+						seriesIndex = largestSeries; // imageMap.values().iterator().next();
 					}
 					// If we have more than one image, ensure that we have the image name correctly encoded in the path
 					path = getSubImagePath(meta.getImageName(seriesIndex));

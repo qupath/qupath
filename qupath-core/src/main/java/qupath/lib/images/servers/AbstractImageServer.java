@@ -387,6 +387,8 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 	}
 	
 	
+	private static double LOG2 = Math.log10(2);
+	
 	/**
 	 * Estimate the downsample value for a specific level based on the full resolution image dimensions 
 	 * and the level dimensions.
@@ -404,6 +406,13 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 		// Calculate estimated downsamples for width & height independently
 		double downsampleX = (double)fullWidth / levelWidth;
 		double downsampleY = (double)fullHeight / levelHeight;
+		
+		// Check if the nearest power of 2 is within 1 pixel
+		double downsampleAverage = (downsampleX + downsampleY) / 2.0;
+		double closestPow2 = Math.pow(2, Math.round(Math.log10(downsampleAverage)/LOG2));
+		if (Math.abs(fullHeight / closestPow2 - levelHeight) < 2 && Math.abs(fullWidth / closestPow2 - levelWidth) < 2)
+			return closestPow2;
+		
 		
 		// If the difference is less than 1 pixel from what we'd get by downsampling by closest integer, 
 		// adjust the downsample factors - we're probably aiming at integer downsampling
