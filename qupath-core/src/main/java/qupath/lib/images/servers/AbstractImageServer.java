@@ -407,7 +407,7 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 		double downsampleX = (double)fullWidth / levelWidth;
 		double downsampleY = (double)fullHeight / levelHeight;
 		
-		// Check if the nearest power of 2 is within 1 pixel
+		// Check if the nearest power of 2 is within 2 pixel - since 2^n is the most common downsampling factor
 		double downsampleAverage = (downsampleX + downsampleY) / 2.0;
 		double closestPow2 = Math.pow(2, Math.round(Math.log10(downsampleAverage)/LOG2));
 		if (Math.abs(fullHeight / closestPow2 - levelHeight) < 2 && Math.abs(fullWidth / closestPow2 - levelWidth) < 2)
@@ -416,21 +416,19 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 		
 		// If the difference is less than 1 pixel from what we'd get by downsampling by closest integer, 
 		// adjust the downsample factors - we're probably aiming at integer downsampling
-		boolean xPow2 = false;
-		boolean yPow2 = false;
 		if (Math.abs(fullWidth / (double)Math.round(downsampleX)  - levelWidth) <= 1) {
 			downsampleX = Math.round(downsampleX);
-			xPow2 = Integer.bitCount((int)downsampleX) == 1;
 		}
 		if (Math.abs(fullHeight / (double)Math.round(downsampleY) - levelHeight) <= 1) {
 			downsampleY = Math.round(downsampleY);	
-			yPow2 = Integer.bitCount((int)downsampleY) == 1;
 		}
+		// If downsamples are equal, use that
+		if (downsampleX == downsampleY)
+			return downsampleX;
+		
 		// If one of these is a power of two, use it - this is usually the case
-		if (xPow2)
-			downsampleY = downsampleX;
-		else if (yPow2)
-			downsampleX = downsampleY;
+		if (downsampleX == closestPow2 || downsampleY == closestPow2)
+			return closestPow2;
 		
 		/*
 		 * Average the calculated downsamples for x & y, warning if they are substantially different.
