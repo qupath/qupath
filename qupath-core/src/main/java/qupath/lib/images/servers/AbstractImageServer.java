@@ -29,18 +29,20 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
+import org.locationtech.jts.geom.Envelope;
+import org.locationtech.jts.index.SpatialIndex;
+import org.locationtech.jts.index.quadtree.Quadtree;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.PathImage;
 import qupath.lib.images.DefaultPathImage;
+import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
 
 
@@ -516,7 +518,7 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 	private class TileRequestManager {
 		
 		private Collection<TileRequest> allTiles;
-		private Map<String, Set<TileRequest>> tiles = new LinkedHashMap<>();
+		private Map<String, SpatialIndex> tiles = new LinkedHashMap<>();
 		
 		private String getKey(TileRequest tile) {
 			return getKey(tile.getLevel(), tile.getZ(), tile.getT());
@@ -532,10 +534,11 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 				var key = getKey(tile);
 				var set = this.tiles.get(key);
 				if (set == null) {
-					set = new LinkedHashSet<>();
+					set = new Quadtree();
 					this.tiles.put(key, set);
 				}
-				set.add(tile);
+				set.insert(getEnvelope(tile.getRegionRequest()), tile);
+//				set.add(tile);
 			}
 		}
 		
@@ -547,12 +550,21 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 			var key = getKey(level, z, t);
 			var set = tiles.get(key);
 			if (set != null) {
-				for (var tile : tiles.get(key)) {
+				for (var obj : set.query(new Envelope(x, x, y, y))) {
+					TileRequest tile = (TileRequest)obj;
 					if (tile.getLevel() == level && tile.getRegionRequest().contains(x, y, z, t))
 						return tile;
 				}				
 			}
 			return null;
+		}
+		
+		private Envelope getEnvelope(ImageRegion region) {
+			return new Envelope(
+					region.getX(),
+					region.getX() + region.getWidth(),
+					region.getY(),
+					region.getY() + region.getHeight());
 		}
 		
 		public List<TileRequest> getTiles(RegionRequest request) {
@@ -561,10 +573,11 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 			var set = tiles.get(key);
 			var list = new ArrayList<TileRequest>();
 			if (set != null) {
-				for (var tile : set) {
+				for (var obj : set.query(getEnvelope(request))) {
+					TileRequest tile = (TileRequest)obj;
 					if (request.intersects(tile.getRegionRequest()))
 						list.add(tile);
-				}
+				}	
 			}
 			return list;
 		}
