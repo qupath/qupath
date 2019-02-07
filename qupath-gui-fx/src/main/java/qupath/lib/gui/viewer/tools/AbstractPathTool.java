@@ -282,7 +282,10 @@ abstract class AbstractPathTool implements PathTool, QuPathViewerListener {
 		PathObjectHierarchy hierarchy = viewer.getHierarchy();
 		if (hierarchy == null)
 			return Collections.emptyList();
-		Collection<PathObject> pathObjects = PathObjectTools.getObjectsForLocation(hierarchy, x, y, viewer.getZPosition(), viewer.getTPosition());
+		double downsample = viewer.getDownsampleFactor();
+		
+		Collection<PathObject> pathObjects = PathObjectTools.getObjectsForLocation(
+				hierarchy, x, y, viewer.getZPosition(), viewer.getTPosition(), viewer.getMaxROIHandleSize());
 		if (pathObjects.isEmpty())
 			return Collections.emptyList();
 		List<PathObject> pathObjectList = new ArrayList<>(pathObjects);
