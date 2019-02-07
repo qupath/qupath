@@ -32,9 +32,12 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.SortedSet;
+import java.util.TreeSet;
 
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.measurements.MeasurementListFactory;
@@ -58,7 +61,7 @@ public abstract class PathObject implements Externalizable {
 	protected static int DEFAULT_MEASUREMENT_LIST_CAPACITY = 16;
 
 	private PathObject parent = null;
-	private List<PathObject> childList = null; // Collections.synchronizedList(new ArrayList<>(0));
+	private SortedSet<PathObject> childList = null; // Collections.synchronizedList(new ArrayList<>(0));
 	private MeasurementList measurements = null;
 	
 	private MetadataMap metadata = null;
@@ -189,8 +192,8 @@ public abstract class PathObject implements Externalizable {
 		}
 		childList.add(pathObject);
 		
-		if (!isRootObject())
-			Collections.sort(childList, DefaultPathObjectComparator.getInstance());
+//		if (!isRootObject())
+//			Collections.sort(childList, DefaultPathObjectComparator.getInstance());
 	}
 
 	
@@ -249,9 +252,9 @@ public abstract class PathObject implements Externalizable {
 //				return;
 //			}
 //		}
-		// Sort if we aren't the root object
-		if (!this.isRootObject())
-			Collections.sort(childList, DefaultPathObjectComparator.getInstance());
+//		// Sort if we aren't the root object
+//		if (!this.isRootObject())
+//			Collections.sort(childList, DefaultPathObjectComparator.getInstance());
 	}
 	
 	
@@ -262,7 +265,7 @@ public abstract class PathObject implements Externalizable {
 	 * @param list
 	 * @param toRemove
 	 */
-	private static <T> void removeAllQuickly(List<T> list, Collection<T> toRemove) {
+	private static <T> void removeAllQuickly(Collection<T> list, Collection<T> toRemove) {
 		// This is rather implementation-specific, based on how ArrayLists do their object removal.
 		// In some implementations it might be better to switch the list to a set temporarily?
 		int size = 10;
@@ -271,6 +274,31 @@ public abstract class PathObject implements Externalizable {
 		}
 		list.removeAll(toRemove);
 	}
+	
+//	/**
+//	 * Remove all items from a list, but optionally using a (temporary) set 
+//	 * to improve performance.
+//	 * 
+//	 * @param list
+//	 * @param toRemove
+//	 */
+//	private static <T> void removeAllQuickly(List<T> list, Collection<T> toRemove) {
+//		// This is rather implementation-specific, based on how ArrayLists do their object removal.
+//		// In some implementations it might be better to switch the list to a set temporarily?
+//		int size = 10;
+//		if (list.size() > size || toRemove.size() > size) {
+//			var tempSet = new LinkedHashSet<>(list);
+//			tempSet.removeAll(toRemove);
+//			list.clear();
+//			list.addAll(tempSet);
+//		} else {
+//			if (!(toRemove instanceof Set)  && toRemove.size() > size) {
+//				toRemove = new HashSet<>(toRemove);
+//			}
+//			list.removeAll(toRemove);
+//		}
+////		list.removeAll(toRemove);
+//	}
 	
 	
 //	public void addPathObjects(int index, Collection<? extends PathObject> pathObjects) {
@@ -396,7 +424,7 @@ public abstract class PathObject implements Externalizable {
 		if (childList == null)
 			return Collections.emptyList();
 		if (cachedUnmodifiableChildren == null)
-			cachedUnmodifiableChildren = Collections.unmodifiableList(childList); // Could use collection (but be careful about hashcode & equals!)
+			cachedUnmodifiableChildren = Collections.unmodifiableCollection(childList); // Could use collection (but be careful about hashcode & equals!)
 		return cachedUnmodifiableChildren;
 	}
 	
@@ -465,7 +493,7 @@ public abstract class PathObject implements Externalizable {
 	 */
 	void ensureChildList(int capacity) {
 		if (childList == null)
-			childList = new ArrayList<>(capacity);
+			childList = new TreeSet<PathObject>(DefaultPathObjectComparator.getInstance());
 	}
 	
 	/**

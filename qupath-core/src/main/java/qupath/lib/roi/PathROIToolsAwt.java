@@ -34,12 +34,15 @@ import java.awt.geom.PathIterator;
 import java.awt.geom.Rectangle2D;
 import java.awt.geom.RoundRectangle2D;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.locationtech.jts.geom.Envelope;
+import org.locationtech.jts.index.quadtree.Quadtree;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -467,8 +470,95 @@ public class PathROIToolsAwt {
 		}
 		return pathROIs;
 	}
+	
+	
+	public static List<ROI> splitROI(final ROI roi) {
+		if (!roi.isArea())
+			throw new IllegalArgumentException("Invalid ROI " + roi + ", only PathArea ROIs are supported");
+		
+		if (!(roi instanceof AreaROI)) {
+			return Collections.singletonList(roi);
+		}
+		var polygons = splitAreaToPolygons(new Area(roi.getShape()), roi.getC(), roi.getZ(), roi.getT());
+		var holes = polygons[0];
+		if (holes.length == 0)
+			return Arrays.asList(polygons[1]);
+		
+		var index = new Quadtree();
+		for (var h : holes) {
+			index.insert(new Envelope(
+					h.getBoundsX(), h.getBoundsX()+h.getBoundsWidth(),
+					h.getBoundsY(), h.getBoundsY()+h.getBoundsHeight()), new Area(h.getShape()));
+		}
+		
+		var oldArea = getArea(roi);
+		var list = new ArrayList<ROI>();
+		int i = 0;
+		int n = polygons[1].length;
+		for (var poly : polygons[1]) {
+			if (i % 1000 == 0)
+				System.err.println(i + "/" + n);
+			i++;
+			var env = new Envelope(
+					poly.getBoundsX(), poly.getBoundsX()+poly.getBoundsWidth(),
+					poly.getBoundsY(), poly.getBoundsY()+poly.getBoundsHeight());
+			var nearbyHoles = index.query(env);
+			if (nearbyHoles.isEmpty()) {
+				list.add(poly);
+				continue;
+			}
+			var newArea = new Area(poly.getShape());
+			if (nearbyHoles.size() == 1)
+				newArea.subtract((Area)nearbyHoles.get(0));
+			else {
+				var toSubtract = new Path2D.Double();
+				for (var obj : nearbyHoles) {
+					var hole = (Area)obj;
+					if (newArea.intersects(hole.getBounds2D()))
+						toSubtract.append((Area)obj, false);
+				}
+				newArea.subtract(new Area(toSubtract));
+			}
+			list.add(getShapeROI(newArea, roi.getC(), roi.getZ(), roi.getT()));
+		}
+		return list;
+		
+//		var holeList = new ArrayList<Area>();
+//		for (var hole : holes)
+//			holeList.add(new Area(hole.getShape()));
+//
+//		var list = new ArrayList<ROI>();
+//		System.err.println(polygons[1].length);
+//		for (var poly : polygons[1]) {
+//			var iter = holeList.iterator();
+//			Path2D compositeHole = null;
+//			while (iter.hasNext()) {
+//				var hole = iter.next();
+//				if (hole.intersects(
+//						poly.getBoundsX(), poly.getBoundsY(),
+//						poly.getBoundsWidth(), poly.getBoundsHeight())) {
+//					if (compositeHole == null) {
+//						compositeHole = new Path2D.Double();
+//					}
+//					compositeHole.append(hole, false);
+//					iter.remove();
+//				}
+//			}
+//			System.err.println("Holes remaining: " + holeList.size());
+//			if (compositeHole == null)
+//				list.add(poly);
+//			else {
+//				var newArea = new Area(poly.getShape());
+//				newArea.subtract(new Area(compositeHole));
+//				list.add(getShapeROI(newArea, roi.getC(), roi.getZ(), roi.getT()));
+//			}
+//		}
+//		
+//		return list;
+	}
+	
 
-	public static PolygonROI[][] splitAreaToPolygons(final Area area) {
+	public static PolygonROI[][] splitAreaToPolygons(final Area area, int c, int z, int t) {
 
 		Map<Boolean, List<PolygonROI>> map = new HashMap<>();
 		map.put(Boolean.TRUE, new ArrayList<>());
@@ -548,10 +638,10 @@ public class PathROIToolsAwt {
 
 	public static PolygonROI[][] splitAreaToPolygons(final AreaROI pathROI) {
 		if (pathROI instanceof AWTAreaROI)
-			return splitAreaToPolygons(new Area(((AWTAreaROI)pathROI).getShape()));
+			return splitAreaToPolygons(new Area(pathROI.getShape()), pathROI.getC(), pathROI.getZ(), pathROI.getT());
 		else {
 			logger.debug("Converting {} to {}", pathROI, AWTAreaROI.class.getSimpleName());
-			return splitAreaToPolygons(new Area(new AWTAreaROI(pathROI).getShape()));
+			return splitAreaToPolygons(new Area(pathROI.getShape()), pathROI.getC(), pathROI.getZ(), pathROI.getT());
 		}
 		//		logger.error("Splitting non-AWT area ROIs not yet supported!"); // TODO: Support splitting non-AWT area ROIs!
 		//		return new PolygonROI[0][0];

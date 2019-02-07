@@ -117,6 +117,10 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
     }
     
     
+    public PixelClassifier getClassifier() {
+    	return classifier;
+    }
+    
     
     public String getResultsString(double x, double y) {
     	if (viewer == null || viewer.getServer() == null || classifierServer == null)

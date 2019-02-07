@@ -1,5 +1,7 @@
 package qupath.lib.classifiers.opencv.gui;
 
+import java.awt.geom.Area;
+import java.awt.geom.Path2D;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
@@ -84,12 +86,19 @@ import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.objects.PathDetectionObject;
+import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
+import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.RegionRequest;
+import qupath.lib.roi.PathROIToolsAwt;
+import qupath.lib.roi.ROIs;
+import qupath.lib.roi.interfaces.ROI;
+import qupath.lib.roi.interfaces.ROI.RoiType;
 
 public class PixelClassifierImageSelectionPane {
 	
@@ -733,8 +742,96 @@ public class PixelClassifierImageSelectionPane {
 	
 	
 	boolean createObjects() {
-		DisplayHelpers.showErrorMessage("Create objects", "Not implemented yet!");
-		return false;
+		var server = overlay.getPixelClassificationServer();
+		var classifier = overlay.getClassifier();
+		
+		var selectedObject = viewer.getSelectedObject();
+		RegionRequest request;
+		if (selectedObject == null) {
+			request = RegionRequest.createInstance(
+				server.getPath(), server.getDownsampleForResolution(0), 
+				0, 0, server.getWidth(), server.getHeight(),
+				viewer.getZPosition(), viewer.getTPosition());
+		} else {
+			request = RegionRequest.createInstance(
+					server.getPath(), server.getDownsampleForResolution(0), 
+					selectedObject.getROI());			
+		}
+		
+		Map<PathClass, List<PathObject>> pathObjectMap = overlay.getPixelClassificationServer().getTiles(request).parallelStream().map(t -> {
+			var list = new ArrayList<PathObject>();
+			try {
+				var img = server.readBufferedImage(t.getRegionRequest());
+				var nChannels = classifier.getMetadata().getChannels().size();
+				for (int c = 0; c < nChannels; c++) {
+					String name = server.getChannelName(c);
+					if (name == null || server.getDefaultChannelColor(c) == null)
+						continue;
+					var pathClass = PathClassFactory.getPathClass(name);
+					ROI roi;
+					if (classifier.getMetadata().getOutputType() == OutputType.Classification) {
+						roi = PixelClassifierGUI.thresholdToROI(img, c-0.5, c+0.5, 0, t);
+					} else {
+						roi = PixelClassifierGUI.thresholdToROI(img, 0.5, Double.POSITIVE_INFINITY, c, t);						
+					}
+//					if (classifier.getMetadata().getOutputType() == OutputType.Classification) {
+//						roi = PixelClassifierGUI.thresholdToROI(img, c-0.5, c+0.5, 0, t.getRegionRequest());
+//					} else {
+//						roi = PixelClassifierGUI.thresholdToROI(img, 0.5, Double.POSITIVE_INFINITY, c, t.getRegionRequest());						
+//					}
+					if (roi != null)
+						list.add(PathObjects.createDetectionObject(roi, pathClass));
+				}
+			} catch (Exception e) {
+				logger.error("Error requesting classified tile", e);
+			}
+			return list;
+		}).flatMap(p -> p.stream()).collect(Collectors.groupingBy(p -> p.getPathClass(), Collectors.toList()));
+		
+		// Merge objects with the same classification
+		var pathObjects = new ArrayList<PathObject>();
+		for (var entry : pathObjectMap.entrySet()) {
+			var pathClass = entry.getKey();
+			var list = entry.getValue();
+			Path2D path = new Path2D.Double();
+			for (var pathObject : list) {
+				var shape = PathROIToolsAwt.getShape(pathObject.getROI());
+				path.append(shape, false);
+			}
+			
+			var plane = ImagePlane.getDefaultPlane();
+			
+			var roi = PathROIToolsAwt.getShapeROI(path, plane.getC(), plane.getZ(), plane.getT(), 0.5);
+//			pathObjects.add(PathObjects.createAnnotationObject(roi, pathClass));
+			
+			var rois = PathROIToolsAwt.splitROI(roi);
+			for (var r : rois) {
+				pathObjects.add(PathObjects.createAnnotationObject(r, pathClass));
+			}
+			
+//			var roi = ROIs.createAreaROI(path, plane);
+//			var polygons = PathROIToolsAwt.splitAreaToPolygons(new Area(path));
+//			for (var p : polygons[1]) {
+//				pathObjects.add(PathObjects.createAnnotationObject(p, pathClass));
+////				pathObjects.add(PathObjects.createDetectionObject(p, pathClass));
+//			}
+//			System.err.println(roi);
+			
+//			int c = plane.getC();
+//			int z = plane.getZ();
+//			int t = plane.getT();
+////			var roi = PathROIToolsAwt.getShapeROI(path, c, z, t, 0.5);
+//			pathObjects.add(PathObjects.createDetectionObject(roi, pathClass));
+		}
+		
+		
+		
+		// add objects
+		viewer.getHierarchy().addPathObjects(pathObjects, false);
+		return true;
+		
+//		DisplayHelpers.showErrorMessage("Create objects", "Not implemented yet!");
+//		return false;
 	}
 	
 

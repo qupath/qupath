@@ -233,7 +233,7 @@ public class TileClassificationsToAnnotationsPlugin<T> extends AbstractDetection
 //						resultsString = "Created 1 annotation from " + tiles.size() + " tiles: " + pathSingleAnnotation;
 					}
 					else {
-						PolygonROI[][] polygons = PathROIToolsAwt.splitAreaToPolygons(area);
+						PolygonROI[][] polygons = PathROIToolsAwt.splitAreaToPolygons(area, pathShape.getC(), pathShape.getZ(), pathShape.getT());
 						for (PolygonROI poly : polygons[1]) {
 							PathShape shape = poly;
 							Iterator<PathObject> iter = tiles.iterator();

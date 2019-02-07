@@ -2,6 +2,7 @@ package qupath.lib.classifiers.gui;
 
 import ij.ImagePlus;
 import ij.ImageStack;
+import ij.plugin.filter.ThresholdToSelection;
 import ij.process.ByteProcessor;
 import ij.process.FloatProcessor;
 import ij.process.ImageProcessor;
@@ -20,12 +21,16 @@ import org.slf4j.LoggerFactory;
 
 import com.google.gson.annotations.JsonAdapter;
 
+import qupath.imagej.objects.ROIConverterIJ;
 import qupath.lib.classifiers.pixel.PixelClassifierMetadata;
 import qupath.lib.classifiers.pixel.features.OpenCVFeatureCalculator;
 import qupath.lib.common.ColorTools;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.TileRequest;
 import qupath.lib.regions.RegionRequest;
+import qupath.lib.roi.ROIHelpers;
+import qupath.lib.roi.interfaces.ROI;
 import qupath.opencv.processing.TypeAdaptersCV;
 
 import java.awt.image.BufferedImage;
@@ -46,6 +51,106 @@ public class PixelClassifierGUI {
 
     private static final Logger logger = LoggerFactory.getLogger(PixelClassifierGUI.class);
 
+    
+    /**
+     * Generate a QuPath ROI by thresholding an image channel image.
+     * 
+     * @param img the input image (any type)
+     * @param minThreshold minimum threshold; pixels &geq; minThreshold will be included
+     * @param maxThreshold maximum threshold; pixels &leq; maxThreshold will be included
+     * @param band the image band to threshold (channel)
+     * @param request a {@link RegionRequest} corresponding to this image, used to calibrate the coordinates.  If null, 
+     * 			we assume no downsampling and an origin at (0,0).
+     * @return
+     */
+    public static ROI thresholdToROI(BufferedImage img, double minThreshold, double maxThreshold, int band, RegionRequest request) {
+    	int w = img.getWidth();
+    	int h = img.getHeight();
+    	float[] pixels = new float[w * h];
+    	img.getRaster().getSamples(0, 0, w, h, band, pixels);
+    	var fp = new FloatProcessor(w, h, pixels);
+    	
+    	fp.setThreshold(minThreshold, maxThreshold, ImageProcessor.NO_LUT_UPDATE);
+    	return thresholdToROI(fp, request);
+    }
+    
+    
+    public static ROI thresholdToROI(BufferedImage img, double minThreshold, double maxThreshold, int band, TileRequest request) {
+    	int w = img.getWidth();
+    	int h = img.getHeight();
+    	float[] pixels = new float[w * h];
+    	img.getRaster().getSamples(0, 0, w, h, band, pixels);
+    	var fp = new FloatProcessor(w, h, pixels);
+    	
+    	fp.setThreshold(minThreshold, maxThreshold, ImageProcessor.NO_LUT_UPDATE);
+    	return thresholdToROI(fp, request);
+    }
+    
+    
+    
+    /**
+     * Generate a QuPath ROI from an ImageProcessor.  
+     * It is assumed that the ImageProcessor has had its min and max threshold values set.
+     * 
+     * @param ip
+     * @param request
+     * @return
+     */
+    static ROI thresholdToROI(ImageProcessor ip, RegionRequest request) {
+    	// Need to check we have any above-threshold pixels at all
+    	int n = ip.getWidth() * ip.getHeight();
+    	boolean noPixels = true;
+    	double min = ip.getMinThreshold();
+    	double max = ip.getMaxThreshold();
+    	for (int i = 0; i < n; i++) {
+    		double val = ip.getf(i);
+    		if (val >= min && val <= max) {
+    			noPixels = false;
+    			break;
+    		}
+    	}
+    	if (noPixels)
+    		return null;
+    	    	
+    	// Generate a shape, using the RegionRequest if we can
+    	var roiIJ = new ThresholdToSelection().convert(ip);
+    	if (request == null)
+    		return ROIConverterIJ.convertToPathROI(roiIJ, 0, 0, 1, -1, 0, 0);
+    	return ROIConverterIJ.convertToPathROI(
+    			roiIJ,
+    			-request.getX()/request.getDownsample(),
+    			-request.getY()/request.getDownsample(),
+    			request.getDownsample(), -1, request.getZ(), request.getT());
+    }
+    
+    static ROI thresholdToROI(ImageProcessor ip, TileRequest request) {
+    	// Need to check we have any above-threshold pixels at all
+    	int n = ip.getWidth() * ip.getHeight();
+    	boolean noPixels = true;
+    	double min = ip.getMinThreshold();
+    	double max = ip.getMaxThreshold();
+    	for (int i = 0; i < n; i++) {
+    		double val = ip.getf(i);
+    		if (val >= min && val <= max) {
+    			noPixels = false;
+    			break;
+    		}
+    	}
+    	if (noPixels)
+    		return null;
+    	    	
+    	// Generate a shape, using the TileRequest if we can
+    	var roiIJ = new ThresholdToSelection().convert(ip);
+    	if (request == null)
+    		return ROIConverterIJ.convertToPathROI(roiIJ, 0, 0, 1, -1, 0, 0);
+    	return ROIConverterIJ.convertToPathROI(
+    			roiIJ,
+    			-request.getTileX(),
+    			-request.getTileY(),
+    			request.getDownsample(), -1, request.getZ(), request.getT());
+    }
+    
+    
     /**
      * Convert an OpenCV {@code Mat} into an ImageJ {@code ImagePlus}.
      * 
