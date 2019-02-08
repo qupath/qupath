@@ -158,6 +158,64 @@ public class PixelClassifierHelper implements PathObjectHierarchyListener {
     public synchronized Map<Integer, PathClass> getPathClassLabels() {
     	return Collections.unmodifiableMap(pathClassesLabels);
     }
+    
+    
+//    private static Map<String, List<RegionRequest>> regionMap = Collections.synchronizedMap(new LinkedHashMap<>());
+//    
+//    static List<ImageRegion> getAllRegions(ImageServer<?> server) {
+//    	var list = regionMap.get(server.getPath());
+//    	
+//    	double downsample = 1.0;
+//    	int tileWidth = 256;
+//    	int tileHeight = 256;
+//    	int w = (int)(server.getWidth() / downsample);
+//    	int h = (int)(server.getHeight() / downsample);
+//    	
+//    	if (list == null) {
+//    		list = new ArrayList<>();
+//    		for (int t = 0; t < server.nTimepoints(); t++) {
+//    			for (int z = 0; z < server.nZSlices(); z++) {
+//    	    		for (int y = 0; y < h; y += tileHeight) {
+//    	            	for (int x = 0; x < w; x += tileWidth) {
+//    	            		tempObjects.clear();
+//    	            		hierarchy.getObjectsForRegion(PathAnnotationObject.class,
+//    	            				ImageRegion.createInstance(x, y, width, height, z, t),
+//    	            				tempObjects);
+//    	            		
+//    	            	}
+//    	        	}    				
+//    			}
+//    		}
+//    	}
+//    }
+//    
+//    public static void getTrainingData(ImageData<BufferedImage> imageData) {
+//    	
+//    	var server = imageData.getServer();
+//    	var hierarchy = imageData.getHierarchy();
+//    	var map = getAnnotatedROIs(hierarchy);
+//    	
+//    	var annotations = hierarchy.getObjects(null,  PathAnnotationObject.class);
+//    	
+//    	int w = (int)(server.getWidth() / downsample);
+//    	int h = (int)(server.getHeight() / downsample);
+//    	
+//    	var tempObjects = new ArrayList<PathObject>();
+//    	for (int y = 0; y < h; y += tileHeight) {
+//        	for (int x = 0; x < w; x += tileWidth) {
+//        		tempObjects.clear();
+//        		hierarchy.getObjectsForRegion(PathAnnotationObject.class,
+//        				ImageRegion.createInstance(x, y, width, height, z, t),
+//        				tempObjects);
+//        		
+//        	}    		
+//    	}
+//    	
+//    	for (int x = 0; x < )
+//    	
+//    }
+    
+    
 
     public synchronized boolean updateTrainingData() {
         if (imageData == null) {
@@ -182,7 +240,7 @@ public class PixelClassifierHelper implements PathObjectHierarchyListener {
 
         // Get the current image
         ImageServer<BufferedImage> server = imageData.getServer();
- 
+         
         List<PathClass> pathClasses = new ArrayList<>(map.keySet());
         pathClassesLabels.clear();
         
@@ -311,11 +369,11 @@ public class PixelClassifierHelper implements PathObjectHierarchyListener {
             matTraining = new Mat();
         if (matTargets == null)
             matTargets = new Mat();
-        opencv_core.vconcat(new MatVector(allFeatures.toArray(new Mat[0])), matTraining);
-        opencv_core.vconcat(new MatVector(allTargets.toArray(new Mat[0])), matTargets);
+        opencv_core.vconcat(new MatVector(allFeatures.toArray(Mat[]::new)), matTraining);
+        opencv_core.vconcat(new MatVector(allTargets.toArray(Mat[]::new)), matTargets);
 
         
-        opencv_core.patchNaNs(matTraining, 0.0);
+//        opencv_core.patchNaNs(matTraining, 0.0);
         
         this.preprocessor = new OpenCVClassifiers.FeaturePreprocessor.Builder()
         	.normalize(Normalization.MEAN_VARIANCE)

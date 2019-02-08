@@ -34,15 +34,12 @@ import java.awt.geom.PathIterator;
 import java.awt.geom.Rectangle2D;
 import java.awt.geom.RoundRectangle2D;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.locationtech.jts.geom.Envelope;
-import org.locationtech.jts.index.quadtree.Quadtree;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,6 +48,7 @@ import qupath.lib.geom.ImmutableDimension;
 import qupath.lib.geom.Point2;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
+import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.EllipseROI;
 import qupath.lib.roi.LineROI;
 import qupath.lib.roi.AreaROI;
@@ -59,6 +57,7 @@ import qupath.lib.roi.PolygonROI;
 import qupath.lib.roi.RectangleROI;
 import qupath.lib.roi.interfaces.PathArea;
 import qupath.lib.roi.interfaces.ROI;
+import qupath.lib.roi.jts.ConverterJTS;
 import qupath.lib.roi.interfaces.PathShape;
 
 /**
@@ -161,6 +160,11 @@ public class PathROIToolsAwt {
 		return new AWTAreaROI(area, c, z, t);		
 	}
 
+	public static PathShape getShapeROI(Shape shape, ImagePlane plane, double flatness) {
+		if (plane == null)
+			plane = ImagePlane.getDefaultPlane();
+		return getShapeROI(shape, plane.getC(), plane.getZ(), plane.getT(), flatness);
+	}
 
 	/**
 	 * Get a PathShape from an Area.
@@ -479,82 +483,14 @@ public class PathROIToolsAwt {
 		if (!(roi instanceof AreaROI)) {
 			return Collections.singletonList(roi);
 		}
-		var polygons = splitAreaToPolygons(new Area(roi.getShape()), roi.getC(), roi.getZ(), roi.getT());
-		var holes = polygons[0];
-		if (holes.length == 0)
-			return Arrays.asList(polygons[1]);
 		
-		var index = new Quadtree();
-		for (var h : holes) {
-			index.insert(new Envelope(
-					h.getBoundsX(), h.getBoundsX()+h.getBoundsWidth(),
-					h.getBoundsY(), h.getBoundsY()+h.getBoundsHeight()), new Area(h.getShape()));
-		}
-		
-		var oldArea = getArea(roi);
+		var geometry = roi.getGeometry();
 		var list = new ArrayList<ROI>();
-		int i = 0;
-		int n = polygons[1].length;
-		for (var poly : polygons[1]) {
-			if (i % 1000 == 0)
-				System.err.println(i + "/" + n);
-			i++;
-			var env = new Envelope(
-					poly.getBoundsX(), poly.getBoundsX()+poly.getBoundsWidth(),
-					poly.getBoundsY(), poly.getBoundsY()+poly.getBoundsHeight());
-			var nearbyHoles = index.query(env);
-			if (nearbyHoles.isEmpty()) {
-				list.add(poly);
-				continue;
-			}
-			var newArea = new Area(poly.getShape());
-			if (nearbyHoles.size() == 1)
-				newArea.subtract((Area)nearbyHoles.get(0));
-			else {
-				var toSubtract = new Path2D.Double();
-				for (var obj : nearbyHoles) {
-					var hole = (Area)obj;
-					if (newArea.intersects(hole.getBounds2D()))
-						toSubtract.append((Area)obj, false);
-				}
-				newArea.subtract(new Area(toSubtract));
-			}
-			list.add(getShapeROI(newArea, roi.getC(), roi.getZ(), roi.getT()));
+		var plane = ImagePlane.getPlane(roi);
+		for (int i = 0; i < geometry.getNumGeometries(); i++) {
+			list.add(ConverterJTS.convertGeometryToROI(geometry.getGeometryN(i), plane));
 		}
 		return list;
-		
-//		var holeList = new ArrayList<Area>();
-//		for (var hole : holes)
-//			holeList.add(new Area(hole.getShape()));
-//
-//		var list = new ArrayList<ROI>();
-//		System.err.println(polygons[1].length);
-//		for (var poly : polygons[1]) {
-//			var iter = holeList.iterator();
-//			Path2D compositeHole = null;
-//			while (iter.hasNext()) {
-//				var hole = iter.next();
-//				if (hole.intersects(
-//						poly.getBoundsX(), poly.getBoundsY(),
-//						poly.getBoundsWidth(), poly.getBoundsHeight())) {
-//					if (compositeHole == null) {
-//						compositeHole = new Path2D.Double();
-//					}
-//					compositeHole.append(hole, false);
-//					iter.remove();
-//				}
-//			}
-//			System.err.println("Holes remaining: " + holeList.size());
-//			if (compositeHole == null)
-//				list.add(poly);
-//			else {
-//				var newArea = new Area(poly.getShape());
-//				newArea.subtract(new Area(compositeHole));
-//				list.add(getShapeROI(newArea, roi.getC(), roi.getZ(), roi.getT()));
-//			}
-//		}
-//		
-//		return list;
 	}
 	
 

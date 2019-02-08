@@ -1,6 +1,5 @@
 package qupath.lib.classifiers.opencv.gui;
 
-import java.awt.geom.Area;
 import java.awt.geom.Path2D;
 import java.awt.image.BufferedImage;
 import java.io.File;
@@ -9,6 +8,7 @@ import java.io.PrintWriter;
 import java.nio.IntBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -65,6 +65,7 @@ import jfxtras.scene.layout.HBox;
 import qupath.imagej.helpers.IJTools;
 import qupath.lib.classifiers.gui.FeatureFilter;
 import qupath.lib.classifiers.gui.FeatureFilters;
+import qupath.lib.classifiers.gui.PixelClassificationImageServer;
 import qupath.lib.classifiers.gui.PixelClassificationOverlay;
 import qupath.lib.classifiers.gui.PixelClassifierGUI;
 import qupath.lib.classifiers.gui.PixelClassifierGUI.BasicFeatureCalculator;
@@ -85,20 +86,23 @@ import qupath.lib.gui.helpers.GridPaneTools;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageChannel;
+import qupath.lib.images.servers.TileRequest;
+import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.helpers.PathObjectTools;
+import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
+import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.PathROIToolsAwt;
-import qupath.lib.roi.ROIs;
+import qupath.lib.roi.PathROIToolsAwt.CombineOp;
 import qupath.lib.roi.interfaces.ROI;
-import qupath.lib.roi.interfaces.ROI.RoiType;
 
 public class PixelClassifierImageSelectionPane {
 	
@@ -327,7 +331,7 @@ public class PixelClassifierImageSelectionPane {
 
 
 		// Select the simple Gaussian features by default
-		comboFeatures.getCheckModel().checkIndices(0);
+		comboFeatures.getCheckModel().checkIndices(1);
 		
 		// I'd like more informative text to be displayed by default
 		comboFeatures.setSkin(new CheckComboBoxSkin<FeatureFilter>(comboFeatures) {
@@ -743,22 +747,74 @@ public class PixelClassifierImageSelectionPane {
 	
 	boolean createObjects() {
 		var server = overlay.getPixelClassificationServer();
-		var classifier = overlay.getClassifier();
 		
-		var selectedObject = viewer.getSelectedObject();
-		RegionRequest request;
+		var objectTypes = new String[] {
+				"Annotation", "Detection"
+		};
+		var availableChannels = new String[] {
+				
+		};
+		var minSize = 0.0;
+		var sizeUnits = new String[] {
+				"Pixels",
+				GeneralTools.micrometerSymbol()
+		};
+		
+		var params = new ParameterList()
+				.addChoiceParameter("objectType", "Object type", "Annotation", objectTypes)
+				.addBooleanParameter("doSplit", "Split objects", true);
+		
+		if (!DisplayHelpers.showParameterDialog("Create objects", params))
+			return false;
+		
+		PathObjectCreator creator;
+		if (params.getChoiceParameterValue("objectType").equals("Detection"))
+			creator = r -> PathObjects.createDetectionObject(r);
+		else
+			creator = r -> {
+				var annotation = PathObjects.createAnnotationObject(r);
+				((PathAnnotationObject)annotation).setLocked(true);
+				return annotation;
+			};
+		boolean doSplit = params.getBooleanParameterValue("doSplit");
+		
+		return createObjectsFromPixelClassifier(server, viewer.getHierarchy(), viewer.getSelectedObject(), creator, doSplit);
+	}
+	
+	static interface PathObjectCreator {
+		
+		public PathObject createObject(ROI roi);
+		
+	}
+	
+	
+	/**
+	 * Create objects & add them to an object hierarchy based on thresholding the output of a pixel classifier.
+	 * 
+	 * @param server
+	 * @param hierarchy
+	 * @param selectedObject
+	 * @param creator
+	 * @param doSplit
+	 * @return
+	 */
+	public static boolean createObjectsFromPixelClassifier(
+			PixelClassificationImageServer server, PathObjectHierarchy hierarchy, PathObject selectedObject, 
+			PathObjectCreator creator, boolean doSplit) {
+		var classifier = server.getClassifier();
+
+		var clipArea = selectedObject == null ? null : PathROIToolsAwt.getArea(selectedObject.getROI());
+		Collection<TileRequest> tiles;
 		if (selectedObject == null) {
-			request = RegionRequest.createInstance(
-				server.getPath(), server.getDownsampleForResolution(0), 
-				0, 0, server.getWidth(), server.getHeight(),
-				viewer.getZPosition(), viewer.getTPosition());
+			tiles = server.getAllTileRequests();
 		} else {
-			request = RegionRequest.createInstance(
+			var request = RegionRequest.createInstance(
 					server.getPath(), server.getDownsampleForResolution(0), 
 					selectedObject.getROI());			
+			tiles = server.getTiles(request);
 		}
-		
-		Map<PathClass, List<PathObject>> pathObjectMap = overlay.getPixelClassificationServer().getTiles(request).parallelStream().map(t -> {
+
+		Map<PathClass, List<PathObject>> pathObjectMap = tiles.parallelStream().map(t -> {
 			var list = new ArrayList<PathObject>();
 			try {
 				var img = server.readBufferedImage(t.getRegionRequest());
@@ -774,11 +830,14 @@ public class PixelClassifierImageSelectionPane {
 					} else {
 						roi = PixelClassifierGUI.thresholdToROI(img, 0.5, Double.POSITIVE_INFINITY, c, t);						
 					}
-//					if (classifier.getMetadata().getOutputType() == OutputType.Classification) {
-//						roi = PixelClassifierGUI.thresholdToROI(img, c-0.5, c+0.5, 0, t.getRegionRequest());
-//					} else {
-//						roi = PixelClassifierGUI.thresholdToROI(img, 0.5, Double.POSITIVE_INFINITY, c, t.getRegionRequest());						
-//					}
+					if (clipArea != null) {
+						var roiArea = PathROIToolsAwt.getArea(roi);
+						PathROIToolsAwt.combineAreas(roiArea, clipArea, CombineOp.INTERSECT);
+						if (roiArea.isEmpty())
+							roi = null;
+						else
+							roi = PathROIToolsAwt.getShapeROI(roiArea, roi.getC(), roi.getZ(), roi.getT());
+					}
 					if (roi != null)
 						list.add(PathObjects.createDetectionObject(roi, pathClass));
 				}
@@ -787,7 +846,7 @@ public class PixelClassifierImageSelectionPane {
 			}
 			return list;
 		}).flatMap(p -> p.stream()).collect(Collectors.groupingBy(p -> p.getPathClass(), Collectors.toList()));
-		
+
 		// Merge objects with the same classification
 		var pathObjects = new ArrayList<PathObject>();
 		for (var entry : pathObjectMap.entrySet()) {
@@ -798,41 +857,37 @@ public class PixelClassifierImageSelectionPane {
 				var shape = PathROIToolsAwt.getShape(pathObject.getROI());
 				path.append(shape, false);
 			}
-			
+
 			var plane = ImagePlane.getDefaultPlane();
-			
+
 			var roi = PathROIToolsAwt.getShapeROI(path, plane.getC(), plane.getZ(), plane.getT(), 0.5);
-//			pathObjects.add(PathObjects.createAnnotationObject(roi, pathClass));
-			
-			var rois = PathROIToolsAwt.splitROI(roi);
-			for (var r : rois) {
-				pathObjects.add(PathObjects.createAnnotationObject(r, pathClass));
+			if (doSplit) {
+				var rois = PathROIToolsAwt.splitROI(roi);
+				for (var r : rois) {
+					var annotation = creator.createObject(r);
+					annotation.setPathClass(pathClass);
+					pathObjects.add(annotation);
+				}
+			} else {
+				var annotation = creator.createObject(roi);
+				annotation.setPathClass(pathClass);
+				pathObjects.add(annotation);				
 			}
-			
-//			var roi = ROIs.createAreaROI(path, plane);
-//			var polygons = PathROIToolsAwt.splitAreaToPolygons(new Area(path));
-//			for (var p : polygons[1]) {
-//				pathObjects.add(PathObjects.createAnnotationObject(p, pathClass));
-////				pathObjects.add(PathObjects.createDetectionObject(p, pathClass));
-//			}
-//			System.err.println(roi);
-			
-//			int c = plane.getC();
-//			int z = plane.getZ();
-//			int t = plane.getT();
-////			var roi = PathROIToolsAwt.getShapeROI(path, c, z, t, 0.5);
-//			pathObjects.add(PathObjects.createDetectionObject(roi, pathClass));
 		}
-		
-		
-		
-		// add objects
-		viewer.getHierarchy().addPathObjects(pathObjects, false);
+
+		// Add objects
+		if (selectedObject == null)
+			hierarchy.addPathObjects(pathObjects, false);
+		else {
+			((PathAnnotationObject)selectedObject).setLocked(true);
+			selectedObject.clearPathObjects();
+			selectedObject.addPathObjects(pathObjects);
+			hierarchy.fireHierarchyChangedEvent(PixelClassifierImageSelectionPane.class, selectedObject);
+		}
 		return true;
-		
-//		DisplayHelpers.showErrorMessage("Create objects", "Not implemented yet!");
-//		return false;
 	}
+	
+	
 	
 
 	boolean editClassifierParameters() {

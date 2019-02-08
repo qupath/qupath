@@ -29,7 +29,6 @@ import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.TileRequest;
 import qupath.lib.regions.RegionRequest;
-import qupath.lib.roi.ROIHelpers;
 import qupath.lib.roi.interfaces.ROI;
 import qupath.opencv.processing.TypeAdaptersCV;
 
