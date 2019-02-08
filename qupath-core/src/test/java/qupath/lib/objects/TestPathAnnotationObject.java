@@ -24,6 +24,7 @@
 package qupath.lib.objects;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
@@ -115,15 +116,15 @@ public class TestPathAnnotationObject extends PathObjectTestWrapper {
 	}
 	@Test
 	public void test_AddingRemovingPOs() {
-		List<PathObject> colPO = new ArrayList<>();
+		Collection<PathObject> colPO = new ArrayList<>();
 		for (int i = 0; i < nPO; ++i) 
 			colPO.add(new PathRootObject());
 		test_nChildObjects(myPO, 0);
-		test_getPathObjectList(myPO, Collections.emptyList()); // no children yet
+		test_comparePathObjectListContents(myPO, Collections.emptyList()); // no children yet
 		test_addPathObjects(myPO, colPO, nPO);
-		test_getPathObjectList(myPO, colPO);
+		test_comparePathObjectListContents(myPO, colPO);
 		test_removePathObjects(myPO, colPO, 0);
-		test_getPathObjectList(myPO, Collections.emptyList());
+		test_comparePathObjectListContents(myPO, Collections.emptyList());
 		test_addPathObjects(myPO, colPO, nPO);
 		test_clearPathObjects(myPO, 0); 
 	}

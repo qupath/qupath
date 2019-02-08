@@ -29,8 +29,7 @@ import static org.junit.Assert.assertThat;
 
 import java.io.ByteArrayOutputStream;
 import java.util.Collection;
-import java.util.List;
-
+import java.util.HashSet;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.roi.interfaces.ROI;
@@ -137,9 +136,16 @@ public class PathObjectTestWrapper {
 	public void test_isEditable(PathObject myPO, Boolean iseditable) {
 		assertEquals(myPO.isEditable(), iseditable);
 	}
+	
+	/**
+	 * This tests the child objects have the same elements, but ignores order.
+	 * @param myPO
+	 * @param listPO
+	 */
 	//@Test
-	public void test_getPathObjectList(PathObject myPO, List<PathObject> listPO) {
-		assertEquals(myPO.getChildObjects(), listPO);
+	public void test_comparePathObjectListContents(PathObject myPO, Collection<PathObject> listPO) {
+		assertEquals(new HashSet<>(myPO.getChildObjects()), new HashSet<>(listPO));
+//		assertEquals(myPO.getChildObjects(), listPO);
 	}	
 	//@Test
 	public void test_getPathClass(PathObject myPO, PathClass PC) {

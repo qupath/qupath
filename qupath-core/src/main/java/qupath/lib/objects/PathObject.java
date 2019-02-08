@@ -36,8 +36,6 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.SortedSet;
-import java.util.TreeSet;
 
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.measurements.MeasurementListFactory;
@@ -61,7 +59,7 @@ public abstract class PathObject implements Externalizable {
 	protected static int DEFAULT_MEASUREMENT_LIST_CAPACITY = 16;
 
 	private PathObject parent = null;
-	private SortedSet<PathObject> childList = null; // Collections.synchronizedList(new ArrayList<>(0));
+	private Collection<PathObject> childList = null; // Collections.synchronizedList(new ArrayList<>(0));
 	private MeasurementList measurements = null;
 	
 	private MetadataMap metadata = null;
@@ -259,15 +257,12 @@ public abstract class PathObject implements Externalizable {
 	
 	
 	/**
-	 * Remove all items from a list, but optionally using a (temporary) set 
-	 * to improve performance.
+	 * When using an ArrayList previously, this method could (somewhat) improve object removal performance.
 	 * 
 	 * @param list
 	 * @param toRemove
 	 */
 	private static <T> void removeAllQuickly(Collection<T> list, Collection<T> toRemove) {
-		// This is rather implementation-specific, based on how ArrayLists do their object removal.
-		// In some implementations it might be better to switch the list to a set temporarily?
 		int size = 10;
 		if (!(toRemove instanceof Set)  && toRemove.size() > size) {
 			toRemove = new HashSet<>(toRemove);
@@ -493,7 +488,9 @@ public abstract class PathObject implements Externalizable {
 	 */
 	void ensureChildList(int capacity) {
 		if (childList == null)
-			childList = new TreeSet<PathObject>(DefaultPathObjectComparator.getInstance());
+			childList = new LinkedHashSet<PathObject>(8, 0.75f);
+//			childList = new TreeSet<PathObject>(DefaultPathObjectComparator.getInstance());
+//			childList = new ArrayList<PathObject>();
 	}
 	
 	/**
