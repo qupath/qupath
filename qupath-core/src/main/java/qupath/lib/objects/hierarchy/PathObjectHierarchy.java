@@ -217,7 +217,7 @@ public final class PathObjectHierarchy implements Serializable {
 	 * @param pathObjects
 	 * @param keepChildren
 	 */
-	public synchronized void removeObjects(Collection<PathObject> pathObjects, boolean keepChildren) {
+	public synchronized void removeObjects(Collection<? extends PathObject> pathObjects, boolean keepChildren) {
 		
 		if (pathObjects.isEmpty())
 			return;
@@ -505,7 +505,7 @@ public final class PathObjectHierarchy implements Serializable {
 		return addPathObjectToList(getRootObject(), pathObject, avoidDuplicates, fireUpdate);
 	}
 	
-	public synchronized boolean addPathObjects(Collection<PathObject> pathObjects, boolean avoidDuplicates) {
+	public synchronized boolean addPathObjects(Collection<? extends PathObject> pathObjects, boolean avoidDuplicates) {
 		boolean changes = false;
 		int n = pathObjects.size();
 		int counter = 0;

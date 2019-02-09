@@ -31,6 +31,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.TreeSet;
 
 import org.controlsfx.control.action.Action;
 import org.controlsfx.control.action.ActionUtils;
@@ -78,6 +79,7 @@ import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
+import qupath.lib.objects.DefaultPathObjectComparator;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
@@ -797,6 +799,9 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 		changingSelection = true;
 //		tableModel.setPathObject(pathObjectSelected);
 		
+		var hierarchySelected = new TreeSet<>(DefaultPathObjectComparator.getInstance());
+		hierarchySelected.addAll(hierarchy.getSelectionModel().getSelectedObjects());
+		
 		// TODO: Find a more robust way to do this - the check for the creation of a new object is rather hack-ish
 		if (pathObjectSelected != null && pathObjectSelected.getParent() == null && !pathObjectSelected.isRootObject() && pathObjectSelected.getPathClass() == null && PathPrefs.getAutoSetAnnotationClass()) {
 			PathClass pathClass = getSelectedPathClass();
@@ -807,7 +812,7 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 		// Determine the objects to select
 		MultipleSelectionModel<PathObject> model = listAnnotations.getSelectionModel();
 		List<PathObject> selected = new ArrayList<>();
-		for (PathObject pathObject : hierarchy.getSelectionModel().getSelectedObjects()) {
+		for (PathObject pathObject : hierarchySelected) {
 			if (pathObject == null)
 				logger.warn("Selected object is null!");
 			else if (pathObject.isAnnotation())
@@ -821,7 +826,7 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 		}
 		// Check if we're making changes
 		List<PathObject> currentlySelected = model.getSelectedItems();
-		if (selected.size() == currentlySelected.size() && (hierarchy.getSelectionModel().getSelectedObjects().containsAll(currentlySelected))) {
+		if (selected.size() == currentlySelected.size() && (hierarchySelected.containsAll(currentlySelected))) {
 			changingSelection = false;
 			listAnnotations.refresh();
 			return;
@@ -842,8 +847,8 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 			i++;
 		}
 		
-		if (inds.length == 1 && hierarchy.getSelectionModel().getSelectedObject() instanceof PathAnnotationObject)
-			listAnnotations.scrollTo(hierarchy.getSelectionModel().getSelectedObject());
+		if (inds.length == 1 && pathObjectSelected instanceof PathAnnotationObject)
+			listAnnotations.scrollTo(pathObjectSelected);
 		
 		if (firstInd) {
 			changingSelection = false;

@@ -322,9 +322,12 @@ import qupath.lib.plugins.AbstractPluginRunner;
 import qupath.lib.plugins.PathInteractivePlugin;
 import qupath.lib.plugins.PathPlugin;
 import qupath.lib.plugins.objects.DilateAnnotationPlugin;
+import qupath.lib.plugins.objects.FillAnnotationHolesPlugin;
 import qupath.lib.plugins.objects.FindConvexHullDetectionsPlugin;
+import qupath.lib.plugins.objects.RefineAnnotationsPlugin;
 import qupath.lib.plugins.objects.ShapeFeaturesPlugin;
 import qupath.lib.plugins.objects.SmoothFeaturesPlugin;
+import qupath.lib.plugins.objects.SplitAnnotationsPlugin;
 import qupath.lib.plugins.parameters.ParameterChangeListener;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.projects.Project;
@@ -3075,16 +3078,21 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 						createCommandAction(new SelectObjectsByMeasurementCommand(this), "Select by measurements (experimental)")
 						),
 				null,
-				getActionMenuItem(GUIActions.RIGID_OBJECT_EDITOR),
-				getActionMenuItem(GUIActions.SPECIFY_ANNOTATION),
-				createPluginAction("Expand annotations", DilateAnnotationPlugin.class, null),
-				getActionMenuItem(GUIActions.SELECT_ALL_ANNOTATION),
-				getActionMenuItem(GUIActions.ANNOTATION_DUPLICATE),
-				getActionMenuItem(GUIActions.TRANSFER_ANNOTATION),
-				null,
-				createCommandAction(new InverseObjectCommand(this), "Make inverse annotation"),
-				createCommandAction(new MergeSelectedAnnotationsCommand(this), "Merge selected annotations"),
-				createCommandAction(new ShapeSimplifierCommand(this), "Simplify annotation shape")
+				createMenu("Annotations...",
+					getActionMenuItem(GUIActions.RIGID_OBJECT_EDITOR),
+					getActionMenuItem(GUIActions.SPECIFY_ANNOTATION),
+					createPluginAction("Expand annotations", DilateAnnotationPlugin.class, null),
+					createPluginAction("Refine annotations", RefineAnnotationsPlugin.class, null),
+					createPluginAction("Fill holes", FillAnnotationHolesPlugin.class, null),
+					createPluginAction("Split annotations", SplitAnnotationsPlugin.class, null),
+					getActionMenuItem(GUIActions.SELECT_ALL_ANNOTATION),
+					getActionMenuItem(GUIActions.ANNOTATION_DUPLICATE),
+					getActionMenuItem(GUIActions.TRANSFER_ANNOTATION),
+					null,
+					createCommandAction(new InverseObjectCommand(this), "Make inverse"),
+					createCommandAction(new MergeSelectedAnnotationsCommand(this), "Merge selected"),
+					createCommandAction(new ShapeSimplifierCommand(this), "Simplify shape")
+				)
 				);
 
 		

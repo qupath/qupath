@@ -75,6 +75,17 @@ public class ParameterDialogWrapper<T> {
 	}
 
 	public void showDialog() {
+		// If we have no parameters, there is nothing to show... yet somehow we need to trigger the run button
+		// (I realize this is exceedingly awkward...)
+		if (panel.getParameters().getKeyValueParameters(false).isEmpty()) {
+			for (var node : dialog.getScene().getRoot().getChildrenUnmodifiable()) {
+				if (node instanceof Button && ((Button) node).getText().equals("Run")) {
+					((Button)node).fire();
+				}
+			}
+			return;
+		}
+		
 		if (dialog.isShowing())
 			dialog.toFront();
 		dialog.show();
@@ -145,7 +156,6 @@ public class ParameterDialogWrapper<T> {
 				// Strip off any of our extra parameters
 				params.removeParameter(KEY_REGIONS);
 
-				//					PathInteractivePlugin<T> pluginInteractive = (PaCollectionivePlugin<T>)plugin;
 				boolean alwaysPrompt = plugin.alwaysPromptForObjects();
 				Collection<? extends PathObject> parents = PathObjectTools.getSupportedObjects(pluginRunner.getHierarchy().getSelectionModel().getSelectedObjects(), plugin.getSupportedParentObjectClasses());
 				if (alwaysPrompt || parents == null || parents.isEmpty()) {

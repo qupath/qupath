@@ -105,7 +105,101 @@ public class PathROIToolsAwt {
 		// Return simplest ROI that works - prefer a rectangle or polygon over an area
 		return getShapeROI(area1, shape1.getC(), shape1.getZ(), shape1.getT(), flatness);
 	}
+	
+	/**
+	 * Fill the holes of an {@link AreaROI}, or return the ROI unchanged if it contains no holes.
+	 * 
+	 * @param roi
+	 * @return
+	 */
+	public static ROI fillHoles(ROI roi) {
+		if (roi instanceof AreaROI)
+			return removeSmallPieces((AreaROI)roi, 0, Double.POSITIVE_INFINITY);
+		return roi;
+	}
 
+	/**
+	 * Remove small pieces from a {@link ROI}.
+	 * <p>
+	 * If the ROI is an {@link AreaROI} this may be fragments that leave the ROI itself 
+	 * otherwise intact.  For other ROIs, if the area is &gt; minArea it will be returned, 
+	 * otherwise an empty ROI will be returned instead.
+	 * 
+	 * @param roi
+	 * @param minArea
+	 * @return
+	 */
+	public static ROI removeSmallPieces(ROI roi, double minArea) {
+		if (roi instanceof AreaROI || roi instanceof PolygonROI)
+			return removeSmallPieces((AreaROI)roi, minArea, -1);
+		if (roi instanceof PathArea && ((PathArea)roi).getArea() > minArea)
+			return roi;
+		return ROIs.createEmptyROI();
+	}
+
+	/**
+	 * Remove small pieces and fill small holes of an {@link AreaROI}.
+	 * 
+	 * @param roi
+	 * @param minArea
+	 * @param maxHoleArea
+	 * @return
+	 */
+	public static ROI removeSmallPieces(ROI roi, double minArea, double maxHoleArea) {
+		if (!roi.isArea())
+			throw new IllegalArgumentException("Only PathArea ROIs supported!");
+		
+		// We can't have holes if we don't have an AreaROI
+		if (!(roi instanceof AreaROI || roi instanceof PolygonROI)) {
+			return removeSmallPieces(roi, minArea);
+		}
+		
+		AreaROI areaROI;
+		if (roi instanceof AreaROI)
+			areaROI = (AreaROI)roi;
+		else
+			areaROI = (AreaROI)ROIs.createAreaROI(roi.getShape(), ImagePlane.getPlane(roi));
+		
+		var polygons = splitAreaToPolygons(areaROI);
+		
+		// Keep track of whether we are filtering out any pieces; if not, return the original ROI
+		boolean changes = false;
+		
+		var path = new Path2D.Double(Path2D.WIND_NON_ZERO);
+		for (var poly : polygons[1]) {
+			if (minArea <= 0 || poly.getArea() > minArea) {
+				var points = poly.getPolygonPoints();
+				var p = points.get(0);
+				path.moveTo(p.getX(), p.getY());
+				for (int i = 1; i < points.size(); i++) {
+					p = points.get(i);
+					path.lineTo(p.getX(), p.getY());
+				}
+				path.closePath();
+			} else
+				changes = true;
+		}
+	
+		for (var poly : polygons[0]) {
+			if (maxHoleArea <= 0 || poly.getArea() > maxHoleArea) {
+				var points = poly.getPolygonPoints();
+				var p = points.get(0);
+				path.moveTo(p.getX(), p.getY());
+				for (int i = 1; i < points.size(); i++) {
+					p = points.get(i);
+					path.lineTo(p.getX(), p.getY());
+				}
+				path.closePath();
+			} else
+				changes = true;
+		}
+		if (changes)
+			return getShapeROI(new Area(path), ImagePlane.getPlane(roi), 0.5);
+		else
+			return roi;
+	}
+
+	
 
 	public static void combineAreas(Area area1, Area area2, CombineOp op) {
 		switch (op) {
@@ -124,6 +218,11 @@ public class PathROIToolsAwt {
 		default:
 			throw new IllegalArgumentException("Invalid CombineOp " + op);
 		}
+	}
+	
+	
+	public static PathShape getShapeROI(Area area, ImagePlane plane, double flatness) {
+		return getShapeROI(area, plane.getC(), plane.getZ(), plane.getT(), flatness);
 	}
 
 
@@ -476,10 +575,15 @@ public class PathROIToolsAwt {
 	}
 	
 	
+	/**
+	 * Split a multi-part ROI into separate pieces.
+	 * <p>
+	 * If the ROI is already a distinct, single region or line it is returned as a singleton list.
+	 * 
+	 * @param roi
+	 * @return
+	 */
 	public static List<ROI> splitROI(final ROI roi) {
-		if (!roi.isArea())
-			throw new IllegalArgumentException("Invalid ROI " + roi + ", only PathArea ROIs are supported");
-		
 		if (!(roi instanceof AreaROI)) {
 			return Collections.singletonList(roi);
 		}
@@ -494,6 +598,26 @@ public class PathROIToolsAwt {
 	}
 	
 
+	/**
+	 * Split Area into PolygonROIs for the exterior and the holes.
+	 * <p>
+	 * The first array returned gives the <i>holes</i> and the second the positive regions (admittedly, it might have 
+	 * been more logical the other way around).
+	 * 
+	 * <pre>
+	 * {@code
+	 * var polygons = splitAreaToPolygons(area, -1, 0, 0);
+	 * var holes = polygons[0];
+	 * var regions = polygons[1];
+	 * }
+	 * </pre>
+	 * 
+	 * @param area
+	 * @param c
+	 * @param z
+	 * @param t
+	 * @return
+	 */
 	public static PolygonROI[][] splitAreaToPolygons(final Area area, int c, int z, int t) {
 
 		Map<Boolean, List<PolygonROI>> map = new HashMap<>();
@@ -577,10 +701,8 @@ public class PathROIToolsAwt {
 			return splitAreaToPolygons(new Area(pathROI.getShape()), pathROI.getC(), pathROI.getZ(), pathROI.getT());
 		else {
 			logger.debug("Converting {} to {}", pathROI, AWTAreaROI.class.getSimpleName());
-			return splitAreaToPolygons(new Area(pathROI.getShape()), pathROI.getC(), pathROI.getZ(), pathROI.getT());
+			return splitAreaToPolygons((AreaROI)ROIs.createAreaROI(pathROI.getShape(), ImagePlane.getPlane(pathROI)));
 		}
-		//		logger.error("Splitting non-AWT area ROIs not yet supported!"); // TODO: Support splitting non-AWT area ROIs!
-		//		return new PolygonROI[0][0];
 	}
 
 

@@ -61,11 +61,11 @@ public abstract class AbstractInteractivePlugin<T> extends AbstractPlugin<T> imp
 
 	/**
 	 * Get a reference to a ParameterList stored internally, and which will be used for analysis.
-	 * 
+	 * <p>
 	 * If there is no list presently available, getDefaultParameterList will be called.
-	 * 
+	 * <p>
 	 * If there is a list available, it will be returned.
-	 * 
+	 * <p>
 	 * The reason for needing this in addition to getDefaultParameterList, is that parseArgument could 
 	 * modify the internal ParameterList that will actually be used, while getDefaultParameterList is useful
 	 * when creating GUIs and ensuring that there is always a sensible starting point.

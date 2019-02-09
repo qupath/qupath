@@ -100,8 +100,11 @@ import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.RegionRequest;
+import qupath.lib.roi.AreaROI;
 import qupath.lib.roi.PathROIToolsAwt;
 import qupath.lib.roi.PathROIToolsAwt.CombineOp;
+import qupath.lib.roi.interfaces.PathArea;
+import qupath.lib.roi.interfaces.PathShape;
 import qupath.lib.roi.interfaces.ROI;
 
 public class PixelClassifierImageSelectionPane {
@@ -747,14 +750,14 @@ public class PixelClassifierImageSelectionPane {
 	
 	boolean createObjects() {
 		var server = overlay.getPixelClassificationServer();
+		var classifier = server.getClassifier();
 		
 		var objectTypes = new String[] {
 				"Annotation", "Detection"
 		};
-		var availableChannels = new String[] {
-				
-		};
-		var minSize = 0.0;
+//		var availableChannels = new String[] {
+//			server.getOriginalMetadata().getC
+//		};
 		var sizeUnits = new String[] {
 				"Pixels",
 				GeneralTools.micrometerSymbol()
@@ -762,7 +765,11 @@ public class PixelClassifierImageSelectionPane {
 		
 		var params = new ParameterList()
 				.addChoiceParameter("objectType", "Object type", "Annotation", objectTypes)
+				.addDoubleParameter("minSize", "Minimum object/hole size", 0)
+				.addChoiceParameter("minSizeUnits", "Minimum object/hole size units", "Pixels", sizeUnits)
 				.addBooleanParameter("doSplit", "Split objects", false);
+		
+		params.setHiddenParameters(!server.hasPixelSizeMicrons(), "minSizeUnits");
 		
 		if (!DisplayHelpers.showParameterDialog("Create objects", params))
 			return false;
@@ -777,8 +784,11 @@ public class PixelClassifierImageSelectionPane {
 				return annotation;
 			};
 		boolean doSplit = params.getBooleanParameterValue("doSplit");
+		double minSizePixels = params.getDoubleParameterValue("minSize");
+		if (server.hasPixelSizeMicrons() && !params.getChoiceParameterValue("minSizeUnits").equals("Pixels"))
+			minSizePixels /= server.getAveragedPixelSizeMicrons();
 		
-		return createObjectsFromPixelClassifier(server, viewer.getHierarchy(), viewer.getSelectedObject(), creator, doSplit);
+		return createObjectsFromPixelClassifier(server, viewer.getHierarchy(), viewer.getSelectedObject(), creator, minSizePixels, doSplit);
 	}
 	
 	static interface PathObjectCreator {
@@ -800,7 +810,7 @@ public class PixelClassifierImageSelectionPane {
 	 */
 	public static boolean createObjectsFromPixelClassifier(
 			PixelClassificationImageServer server, PathObjectHierarchy hierarchy, PathObject selectedObject, 
-			PathObjectCreator creator, boolean doSplit) {
+			PathObjectCreator creator, double minSizePixels, boolean doSplit) {
 		var classifier = server.getClassifier();
 
 		var clipArea = selectedObject == null ? null : PathROIToolsAwt.getArea(selectedObject.getROI());
@@ -830,6 +840,7 @@ public class PixelClassifierImageSelectionPane {
 					} else {
 						roi = PixelClassifierGUI.thresholdToROI(img, 0.5, Double.POSITIVE_INFINITY, c, t);						
 					}
+										
 					if (clipArea != null) {
 						var roiArea = PathROIToolsAwt.getArea(roi);
 						PathROIToolsAwt.combineAreas(roiArea, clipArea, CombineOp.INTERSECT);
@@ -838,6 +849,7 @@ public class PixelClassifierImageSelectionPane {
 						else
 							roi = PathROIToolsAwt.getShapeROI(roiArea, roi.getC(), roi.getZ(), roi.getT());
 					}
+					
 					if (roi != null)
 						list.add(PathObjects.createDetectionObject(roi, pathClass));
 				}
@@ -861,6 +873,16 @@ public class PixelClassifierImageSelectionPane {
 			var plane = ImagePlane.getDefaultPlane();
 
 			var roi = PathROIToolsAwt.getShapeROI(path, plane.getC(), plane.getZ(), plane.getT(), 0.5);
+			
+			// Apply size threshold
+			if (roi != null && minSizePixels > 0) {
+				if (roi instanceof AreaROI)
+					roi = (PathShape)PathROIToolsAwt.removeSmallPieces((AreaROI)roi, minSizePixels, minSizePixels);
+				else if (!(roi instanceof PathArea && ((PathArea)roi).getArea() > minSizePixels))
+					continue;
+			}
+
+			
 			if (doSplit) {
 				var rois = PathROIToolsAwt.splitROI(roi);
 				for (var r : rois) {
