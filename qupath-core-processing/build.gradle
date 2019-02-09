@@ -2,10 +2,10 @@
 description = 'qupath-core-processing'
 
 configurations {
-  compile.extendsFrom commonsmath
-  compile.extendsFrom gson
-  compile.extendsFrom imagej
-  compile.extendsFrom opencv
+  implementation.extendsFrom commonsmath
+  implementation.extendsFrom gson
+  implementation.extendsFrom imagej
+  implementation.extendsFrom opencv
 }
 
 dependencies {

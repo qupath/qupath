@@ -2,9 +2,9 @@
 description = 'qupath-core'
 
 configurations {
-  compile.extendsFrom commonsmath
-  compile.extendsFrom gson
-  compile.extendsFrom jts
-  compile.extendsFrom guava
-  compile.extendsFrom imagej
+  implementation.extendsFrom commonsmath
+  implementation.extendsFrom gson
+  implementation.extendsFrom jts
+  implementation.extendsFrom guava
+  implementation.extendsFrom imagej
 }

@@ -1,6 +1,17 @@
 description = 'qupath-experimental'
 
+configurations {
+  implementation.extendsFrom imagej
+  implementation.extendsFrom opencv
+  implementation.extendsFrom javafx
+  implementation.extendsFrom jfxtras
+  implementation.extendsFrom gson
+  implementation.extendsFrom guava
+  implementation.extendsFrom controlsfx
+}
+
 dependencies {
-    compile project(':qupath-extension-processing')
-    compile project(':qupath-gui-fx')
+    implementation project(':qupath-core-processing')
+    implementation project(':qupath-extension-processing')
+    implementation project(':qupath-gui-fx')
 }

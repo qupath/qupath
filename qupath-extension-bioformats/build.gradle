@@ -1,10 +1,15 @@
 description = 'qupath-extension-bioformats'
 
 configurations {
-  compile.extendsFrom bioformats
-  testCompile.extendsFrom imagej
+  // Consider using compileOnly for Bio-Formats, and installing bioformats_package.jar separately
+  implementation.extendsFrom bioformats
+  implementation.extendsFrom javafx
+  implementation.extendsFrom controlsfx
+  testImplementation.extendsFrom bioformats
+  testImplementation.extendsFrom bioformatsTest
+  testImplementation.extendsFrom imagej
 }
 
 dependencies {
-  compile project(':qupath-gui-fx')
+  implementation project(':qupath-gui-fx')
 }

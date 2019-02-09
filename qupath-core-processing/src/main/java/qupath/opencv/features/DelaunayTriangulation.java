@@ -40,7 +40,6 @@ import static org.bytedeco.javacpp.opencv_imgproc.Subdiv2D;
 
 import qupath.lib.analysis.stats.RunningStatistics;
 import qupath.lib.classifiers.PathClassificationLabellingHelper;
-import qupath.lib.common.GeneralTools;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.objects.PathCellObject;
 import qupath.lib.objects.PathObject;
@@ -169,7 +168,7 @@ public class DelaunayTriangulation implements PathObjectConnectionGroup {
 		}
 		
 		// Create Delaunay triangulation, updating vertex map
-		Subdiv2D subdiv = new Subdiv2D2();
+		Subdiv2D subdiv = new Subdiv2D();
 		Rect bounds = new Rect((int)minX-1, (int)minY-1, (int)(maxX-minX)+100, (int)(maxY-minY)+100);
 		subdiv.initDelaunay(bounds);
 		for (int i = 0; i < centroids.size(); i++) {
@@ -220,23 +219,6 @@ public class DelaunayTriangulation implements PathObjectConnectionGroup {
 //			node.ensureDistancesUpdated();
 //			node.ensureTrianglesCalculated();
 //		}
-	}
-	
-	
-	static class Subdiv2D2 extends Subdiv2D {
-		@Override
-		protected void finalize() throws Throwable  {
-			// TODO: This is bad... clearly this looks very bad... but finalize was killing the JVM on OSX
-			if (!GeneralTools.isMac())
-				super.finalize();
-//			System.out.println("I am finalizing! " + nativeObj);
-//			try {
-//				super.finalize();
-//			} catch (Throwable t) {
-//				System.out.println("I had some issue..." + t);
-//			}
-//			System.out.println("I am DONE finalizing! " + nativeObj);
-		}
 	}
 	
 	

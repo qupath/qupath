@@ -2,10 +2,11 @@
 description = 'qupath-extension-script-editor'
 
 configurations {
-  compile.extendsFrom groovy
-  compile.extendsFrom richtextfx
+  implementation.extendsFrom javafx
+  implementation.extendsFrom groovy
+  implementation.extendsFrom richtextfx
 }
 
 dependencies {
-  compile project(':qupath-gui-fx')
+  implementation project(':qupath-gui-fx')
 }

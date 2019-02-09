@@ -2,9 +2,10 @@
 description = 'qupath-extension-openslide'
 
 configurations {
-  compile.extendsFrom openslide
+  implementation.extendsFrom openslide
+  implementation.extendsFrom gson
 }
 
 dependencies {
-  compile project(':qupath-core')
+  implementation project(':qupath-core')
 }

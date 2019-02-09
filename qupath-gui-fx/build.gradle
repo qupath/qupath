@@ -2,10 +2,11 @@
 description = 'qupath-gui-fx'
 
 configurations {
-  compile.extendsFrom javafx
-  compile.extendsFrom gson
-  compile.extendsFrom controlsfx
-  compile.extendsFrom jfxtras
+  implementation.extendsFrom javafx
+  implementation.extendsFrom gson
+  implementation.extendsFrom controlsfx
+  implementation.extendsFrom jfxtras
+  implementation.extendsFrom commonsmath
 }
 
 dependencies {
