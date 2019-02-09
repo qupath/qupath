@@ -59,7 +59,9 @@ import javafx.scene.control.TextArea;
 import javafx.scene.control.TextInputDialog;
 import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
+import javafx.scene.robot.Robot;
 import javafx.stage.Modality;
+import javafx.stage.Screen;
 import javafx.stage.Stage;
 import javafx.stage.Window;
 import qupath.lib.color.ColorDeconvolutionHelper;
@@ -714,7 +716,12 @@ public class DisplayHelpers {
 //		return null;
 //	}
 	
-	
+	public static enum SnapshotType {
+		CURRENT_VIEWER,
+		MAIN_SCENE,
+		MAIN_WINDOW_SCREENSHOT,
+		FULL_SCREENSHOT
+	};
 	
 	/**
 	 * Make a snapshot (image) showing what is currently displayed in a QuPath window,
@@ -724,22 +731,34 @@ public class DisplayHelpers {
 	 * @param wholeWindow
 	 * @return
 	 */
-	public static BufferedImage makeSnapshot(final QuPathGUI qupath, final boolean wholeWindow) {
-		return SwingFXUtils.fromFXImage(makeSnapshotFX(qupath, wholeWindow), null);
+	public static BufferedImage makeSnapshot(final QuPathGUI qupath, final SnapshotType type) {
+		return SwingFXUtils.fromFXImage(makeSnapshotFX(qupath, type), null);
 	}
 	
 	
-	public static WritableImage makeSnapshotFX(final QuPathGUI qupath, final boolean wholeWindow) {
-		if (wholeWindow) {
-			Scene scene = qupath.getStage().getScene();
-			return scene.snapshot(null);
-		} else {
+	public static WritableImage makeSnapshotFX(final QuPathGUI qupath, final SnapshotType type) {
+		switch (type) {
+		case CURRENT_VIEWER:
 			// Temporarily remove the selected border color while copying
 			Color borderColor = qupath.getViewer().getBorderColor();
 			qupath.getViewer().setBorderColor(null);
 			WritableImage img = qupath.getViewer().getView().snapshot(null, null);
 			qupath.getViewer().setBorderColor(borderColor);
 			return img;
+		case MAIN_SCENE:
+			Scene scene = qupath.getStage().getScene();
+			return scene.snapshot(null);
+		case MAIN_WINDOW_SCREENSHOT:
+			var stage = qupath.getStage();
+			return new Robot().getScreenCapture(null,
+					stage.getX(), stage.getY(), stage.getWidth(), stage.getHeight());
+		case FULL_SCREENSHOT:
+			var screen = Screen.getPrimary();
+			var bounds = screen.getBounds();
+			return new Robot().getScreenCapture(null,
+					bounds.getMinX(), bounds.getMinY(), bounds.getWidth(), bounds.getHeight());
+		default:
+			throw new IllegalArgumentException("Unknown snaptop type " + type);
 		}
 	}
 

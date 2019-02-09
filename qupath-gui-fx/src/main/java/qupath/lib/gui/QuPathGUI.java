@@ -261,6 +261,7 @@ import qupath.lib.gui.helpers.ColorToolsFX;
 import qupath.lib.gui.helpers.CommandFinderTools;
 import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.gui.helpers.DisplayHelpers.DialogButton;
+import qupath.lib.gui.helpers.DisplayHelpers.SnapshotType;
 import qupath.lib.gui.helpers.dialogs.DialogHelper;
 import qupath.lib.gui.helpers.dialogs.DialogHelperFX;
 import qupath.lib.gui.helpers.dialogs.ParameterPanelFX;
@@ -374,7 +375,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 //	private static ServiceLoader<QuPathExtension> extensionLoader = ServiceLoader.load(QuPathExtension.class);
 	
 	public enum GUIActions { OPEN_IMAGE, OPEN_IMAGE_OR_URL, TMA_EXPORT_DATA, SAVE_DATA, SAVE_DATA_AS,
-								COPY_VIEW, COPY_WINDOW, ZOOM_IN, ZOOM_OUT, ZOOM_TO_FIT,
+								COPY_VIEW, COPY_FULL_SCREENSHOT, COPY_WINDOW_SCREENSHOT, COPY_WINDOW, ZOOM_IN, ZOOM_OUT, ZOOM_TO_FIT,
 								MOVE_TOOL, RECTANGLE_TOOL, ELLIPSE_TOOL, POLYGON_TOOL, POLYLINE_TOOL, BRUSH_TOOL, LINE_TOOL, POINTS_TOOL, WAND_TOOL,
 								BRIGHTNESS_CONTRAST,
 								SHOW_OVERVIEW, SHOW_LOCATION, SHOW_SCALEBAR, SHOW_GRID, SHOW_ANALYSIS_PANEL,
@@ -2892,8 +2893,9 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 						),
 				createMenu(
 						"Export snapshot...",
-						createCommandAction(new SaveViewCommand(this, true), "Window snapshot"),
-						createCommandAction(new SaveViewCommand(this, false), "Viewer snapshot")
+						createCommandAction(new SaveViewCommand(this, SnapshotType.MAIN_WINDOW_SCREENSHOT), "Main window screenshot"),
+						createCommandAction(new SaveViewCommand(this, SnapshotType.MAIN_SCENE), "Main window content"),
+						createCommandAction(new SaveViewCommand(this, SnapshotType.CURRENT_VIEWER), "Current viewer content")
 						),
 				null,
 				getActionMenuItem(GUIActions.TMA_SCORE_IMPORTER),
@@ -2934,8 +2936,12 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				getActionMenuItem(GUIActions.UNDO),
 				getActionMenuItem(GUIActions.REDO),
 				null,
-				getActionMenuItem(GUIActions.COPY_VIEW),
-				getActionMenuItem(GUIActions.COPY_WINDOW),
+				createMenu("Copy to clipboard...",
+					getActionMenuItem(GUIActions.COPY_VIEW),
+					getActionMenuItem(GUIActions.COPY_WINDOW),
+					getActionMenuItem(GUIActions.COPY_WINDOW_SCREENSHOT),
+					getActionMenuItem(GUIActions.COPY_FULL_SCREENSHOT)
+					),
 				null,
 				getActionMenuItem(GUIActions.PREFERENCES),
 				createCommandAction(new ResetPreferencesCommand(), "Reset preferences")
@@ -3534,10 +3540,14 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			return createCommandAction(new ZoomCommand.ZoomIn(this), "Zoom in", PathIconFactory.createNode(iconSize, iconSize, PathIconFactory.PathIcons.ZOOM_IN), new KeyCodeCombination(KeyCode.PLUS));
 		case ZOOM_OUT:
 			return createCommandAction(new ZoomCommand.ZoomOut(this), "Zoom out", PathIconFactory.createNode(iconSize, iconSize, PathIconFactory.PathIcons.ZOOM_OUT), new KeyCodeCombination(KeyCode.MINUS));
+		case COPY_FULL_SCREENSHOT:
+			return createCommandAction(new CopyViewToClipboardCommand(this, SnapshotType.FULL_SCREENSHOT), "Full screenshot");			
+		case COPY_WINDOW_SCREENSHOT:
+			return createCommandAction(new CopyViewToClipboardCommand(this, SnapshotType.MAIN_WINDOW_SCREENSHOT), "Main window screenshot");			
 		case COPY_VIEW:
-			return createCommandAction(new CopyViewToClipboardCommand(this, false), "Copy view to clipboard", null, new KeyCodeCombination(KeyCode.C, KeyCombination.SHORTCUT_DOWN));
+			return createCommandAction(new CopyViewToClipboardCommand(this, SnapshotType.CURRENT_VIEWER), "Current viewer", null, new KeyCodeCombination(KeyCode.C, KeyCombination.SHORTCUT_DOWN));
 		case COPY_WINDOW:
-			return createCommandAction(new CopyViewToClipboardCommand(this, true), "Copy window to clipboard");
+			return createCommandAction(new CopyViewToClipboardCommand(this, SnapshotType.MAIN_SCENE), "Main window content");
 		case OPEN_IMAGE:
 			return createCommandAction(new OpenCommand(this), "Open...", null, new KeyCodeCombination(KeyCode.O, KeyCombination.SHORTCUT_DOWN));
 		case OPEN_IMAGE_OR_URL:

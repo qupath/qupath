@@ -26,9 +26,7 @@ package qupath.lib.objects;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.List;
 
-//import org.apache.commons.lang.SerializationUtils;
 import org.junit.Test;
 
 import qupath.lib.measurements.MeasurementFactory;
