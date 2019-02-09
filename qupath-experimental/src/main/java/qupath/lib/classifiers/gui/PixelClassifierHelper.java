@@ -127,7 +127,7 @@ public class PixelClassifierHelper implements PathObjectHierarchyListener {
 
     public static Map<PathClass, Collection<ROI>> getAnnotatedROIs(PathObjectHierarchy hierarchy) {
         List<PathObject> annotations = hierarchy.getObjects(null, PathAnnotationObject.class).stream().filter((it) -> {
-            return it.getPathClass() != null && it.getPathClass() != PathClassFactory.getRegionClass() && it.hasROI();
+            return !it.isLocked() && it.getPathClass() != null && it.getPathClass() != PathClassFactory.getRegionClass() && it.hasROI();
         }).collect(Collectors.toList());
 
         Map<PathClass, Collection<ROI>> map = new TreeMap<>();

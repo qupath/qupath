@@ -15,6 +15,7 @@ import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerProvider;
+import qupath.lib.images.servers.TileRequest;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.TMACoreObject;
@@ -109,11 +110,21 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
     	
     	PathObjectHierarchy hierarchy = imageData.getHierarchy();
     	List<PathObject> changed = new ArrayList<>();
-    	for (PathObject annotation : hierarchy.getObjects(null, PathAnnotationObject.class)) {
-    		if (addPercentageMeasurements(annotation))
-    			changed.add(annotation);
+    	
+//    	hierarchy.getObjects(null, PathAnnotationObject.class).parallelStream().forEach(annotation -> {
+//    		if (addPercentageMeasurements(annotation))
+//    			changed.add(annotation);
+//    	});
+    	
+    	if (!pool.isShutdown()) {
+	    	pool.submit(() -> {
+	        	for (PathObject annotation : hierarchy.getObjects(null, PathAnnotationObject.class)) {
+	        		if (addPercentageMeasurements(annotation))
+	        			changed.add(annotation);
+	        	}
+	    		hierarchy.fireObjectMeasurementsChangedEvent(this, changed);    		
+	    	});
     	}
-		hierarchy.fireObjectMeasurementsChangedEvent(this, changed);
     }
     
     
@@ -158,15 +169,24 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
     }
     
     
+    private ThreadLocal<BufferedImage> imgTileMask = new ThreadLocal<>();
+    
+    /**
+     * Add percentage measurements if possible, or discard if not possible.
+     * <p>
+     * This method must be synchronized because it uses a common imgMask variable... otherwise it would need 
+     * 
+     * @param pathObject
+     * @return
+     */
     synchronized boolean addPercentageMeasurements(final PathObject pathObject) {
     	
        	// Check if we've already measured this
     	if (measuredObjects.getOrDefault(pathObject, null) == pathObject.getROI())
     		return false;
 
-        if (classifier.getMetadata() == null || !Double.isNaN(classifier.getMetadata().getInputPixelSizeMicrons()))
+        if (classifier.getMetadata() == null || Double.isNaN(classifier.getMetadata().getInputPixelSizeMicrons()))
         	return false;
-
     	
         List<ImageChannel> channels = classifier.getMetadata().getChannels();
         long[] counts = null;
@@ -201,21 +221,20 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
         Shape shape = PathROIToolsAwt.getShape(roi);
         
         // Get the regions we need
-        List<RegionRequest> requests = ImageRegionStoreHelpers.getTilesToRequest(
-			server, shape, requestedDownsample, roi.getZ(), roi.getT(), null);
+        var regionRequest = RegionRequest.createInstance(server.getPath(), requestedDownsample, roi);
+        Collection<TileRequest> requests = server.getTiles(regionRequest);
         
         if (requests.isEmpty()) {
         	logger.debug("Request empty for {}", pathObject);
         	return updateMeasurements(pathObject, channels, counts, total, pixelArea, pixelAreaUnits);
         }
         
-        requests = requests.stream().map(r -> RegionRequest.createInstance(r.getPath(), requestedDownsample, r)).collect(Collectors.toList());
 
 
         // Try to get all cached tiles - if this fails, return quickly (can't calculate measurement)
-        Map<RegionRequest, BufferedImage> localCache = new HashMap<>();
-        for (RegionRequest request : requests) {
-        	BufferedImage tile = cache.getOrDefault(request, null);
+        Map<TileRequest, BufferedImage> localCache = new HashMap<>();
+        for (TileRequest request : requests) {
+        	BufferedImage tile = cache.getOrDefault(request.getRegionRequest(), null);
         	if (tile == null)
         		return updateMeasurements(pathObject, channels, counts, total, pixelArea, pixelAreaUnits);
         	localCache.put(request, tile);
@@ -224,25 +243,34 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
         // Calculate stained proportions
         counts = new long[channels.size()];
         total = 0L;
-        BufferedImage imgMask = null;
-        for (Map.Entry<RegionRequest, BufferedImage> entry : localCache.entrySet()) {
-        	RegionRequest region = entry.getKey();
+        byte[] mask = null;
+    	BufferedImage imgMask = imgTileMask.get();
+        for (Map.Entry<TileRequest, BufferedImage> entry : localCache.entrySet()) {
+        	TileRequest region = entry.getKey();
         	BufferedImage tile = entry.getValue();
         	// Create a binary mask corresponding to the current tile        	
-        	if (imgMask == null || imgMask.getWidth() != tile.getWidth() || imgMask.getHeight() != tile.getHeight()) {
+        	if (imgMask == null || imgMask.getWidth() < tile.getWidth() || imgMask.getHeight() < tile.getHeight() || imgMask.getType() != BufferedImage.TYPE_BYTE_GRAY) {
         		imgMask = new BufferedImage(tile.getWidth(), tile.getHeight(), BufferedImage.TYPE_BYTE_GRAY);
+        		imgTileMask.set(imgMask);
         	}
+        	
+        	// Get the tile, which is needed for sub-pixel accuracy
         	Graphics2D g2d = imgMask.createGraphics();
         	g2d.setColor(Color.BLACK);
         	g2d.fillRect(0, 0, tile.getWidth(), tile.getHeight());
         	g2d.setColor(Color.WHITE);
         	g2d.scale(1.0/region.getDownsample(), 1.0/region.getDownsample());
-        	g2d.translate(-region.getX(), -region.getY());
+        	g2d.translate(-region.getTileX() * region.getDownsample(), -region.getTileY() * region.getDownsample());
         	g2d.fill(shape);
         	g2d.dispose();
         	
 //        	new ImagePlus("Tile: " + region.toString(), tile).show();
 //        	new ImagePlus("Mask: " + region.toString(), imgMask).show();
+        	
+			int h = tile.getHeight();
+			int w = tile.getWidth();
+			if (mask == null || mask.length != h*w)
+				mask = new byte[w * h];
         	
         	switch (type) {
 			case Classification:
@@ -250,9 +278,10 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
 				var rasterMask = imgMask.getRaster();
 				int b = 0;
 				try {
-					for (int y = 0; y < tile.getHeight(); y++) {
-						for (int x = 0; x < tile.getWidth(); x++) {
-							if (rasterMask.getSample(x, y, b) == 0)
+					rasterMask.getDataElements(0, 0, w, h, mask);
+					for (int y = 0; y < h; y++) {
+						for (int x = 0; x < w; x++) {
+							if (mask[y*w+x] == (byte)0)
 								continue;
 							int ind = raster.getSample(x, y, b);
 							// TODO: This could be out of range!  But shouldn't be...
@@ -270,8 +299,8 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
 				rasterMask = imgMask.getRaster();
 				int nChannels = Math.min(channels.size(), raster.getNumBands()); // Expecting these to be the same...
 				try {
-					for (int y = 0; y < tile.getHeight(); y++) {
-						for (int x = 0; x < tile.getWidth(); x++) {
+					for (int y = 0; y < h; y++) {
+						for (int x = 0; x < w; x++) {
 							if (rasterMask.getSample(x, y, 0) == 0)
 								continue;
 							double maxValue = raster.getSampleDouble(x, y, 0);

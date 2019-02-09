@@ -87,10 +87,17 @@ public abstract class PathROIObject extends PathObject {
 	 * 
 	 * @param locked
 	 */
+	@Override
 	public void setLocked(final boolean locked) {
 		this.lockedROI = locked;
 	}
 
+	/**
+	 * Query the locked status for the object, indicating whether it should be editable or not.
+	 * 
+	 * @return
+	 */
+	@Override
 	public boolean isLocked() {
 		return this.lockedROI;
 	}

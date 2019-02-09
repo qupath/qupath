@@ -762,7 +762,7 @@ public class PixelClassifierImageSelectionPane {
 		
 		var params = new ParameterList()
 				.addChoiceParameter("objectType", "Object type", "Annotation", objectTypes)
-				.addBooleanParameter("doSplit", "Split objects", true);
+				.addBooleanParameter("doSplit", "Split objects", false);
 		
 		if (!DisplayHelpers.showParameterDialog("Create objects", params))
 			return false;
