@@ -40,6 +40,7 @@ import java.util.function.Predicate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javafx.application.Platform;
 import javafx.beans.binding.Binding;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.DoubleBinding;
@@ -101,7 +102,10 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 	public void setImageData(final ImageData<?> imageData, final Collection<? extends PathObject> pathObjects) {
 		this.imageData = imageData;
 		list.setAll(pathObjects);
-		updateMeasurementList();
+		if (Platform.isFxApplicationThread())
+			updateMeasurementList();
+		else
+			Platform.runLater(() -> updateMeasurementList());
 	}
 	
 	
@@ -124,7 +128,8 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 		boolean containsAnnotations = false;
 		boolean containsParentAnnotations = false;
 		boolean containsTMACores = false;
-		for (PathObject temp : list) {
+		List<PathObject> pathObjectListCopy = new ArrayList<>(list);
+		for (PathObject temp : pathObjectListCopy) {
 			if (temp instanceof PathAnnotationObject) {
 				if (temp.hasChildren())
 					containsParentAnnotations = true;
@@ -171,7 +176,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 		// If we have metadata, store it
 		Set<String> metadataNames = new LinkedHashSet<>();
 		metadataNames.addAll(builderMap.keySet());
-		for (PathObject pathObject : list) {
+		for (PathObject pathObject : pathObjectListCopy) {
 			if (pathObject instanceof MetadataStore) {
 				metadataNames.addAll(((MetadataStore)pathObject).getMetadataKeys());
 			}
@@ -184,7 +189,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 		
 		
 		// Get all the 'built-in' feature measurements, stored in the measurement list
-		Collection<String> features = PathClassificationLabellingHelper.getAvailableFeatures(list);
+		Collection<String> features = PathClassificationLabellingHelper.getAvailableFeatures(pathObjectListCopy);
 		
 		// Add derived measurements if we don't have only detections
 		if (containsParentAnnotations || containsTMACores) {
@@ -209,7 +214,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 			boolean anyAreas = false;
 			boolean anyLines = false;
 			boolean anyPolygons = false;
-			for (PathObject pathObject : list) {
+			for (PathObject pathObject : pathObjectListCopy) {
 				if (!pathObject.isAnnotation())
 					continue;
 				if (pathObject.isPoint())

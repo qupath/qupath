@@ -119,8 +119,11 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
     	if (!pool.isShutdown()) {
 	    	pool.submit(() -> {
 	        	for (PathObject annotation : hierarchy.getObjects(null, PathAnnotationObject.class)) {
-	        		if (addPercentageMeasurements(annotation))
+	        		if (addPercentageMeasurements(annotation)) {
 	        			changed.add(annotation);
+	        			if (Thread.interrupted())
+	        				return;
+	        		}
 	        	}
 	    		hierarchy.fireObjectMeasurementsChangedEvent(this, changed);    		
 	    	});

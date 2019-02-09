@@ -23,7 +23,6 @@
 
 package qupath.lib.gui.helpers.dialogs;
 
-import java.awt.GridBagConstraints;
 import java.text.NumberFormat;
 import java.util.HashMap;
 import java.util.Locale;
@@ -43,20 +42,20 @@ import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
-import javafx.scene.control.Control;
 import javafx.scene.control.Label;
 import javafx.scene.control.Slider;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
-import javafx.scene.control.Tooltip;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
+import javafx.scene.layout.Priority;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.stage.Stage;
 import qupath.lib.common.GeneralTools;
+import qupath.lib.gui.helpers.GridPaneTools;
 import qupath.lib.plugins.parameters.BooleanParameter;
 import qupath.lib.plugins.parameters.ChoiceParameter;
 import qupath.lib.plugins.parameters.DoubleParameter;
@@ -244,6 +243,9 @@ public class ParameterPanelFX {
 	private void addCheckBoxParameter(BooleanParameter param) {
 		CheckBox cb = new CheckBox(param.getPrompt());
 		cb.setSelected(param.getValueOrDefault());
+//		cb.setStyle("-fx-background-color: red;");
+		cb.setMinWidth(CheckBox.USE_PREF_SIZE);
+		cb.setMaxWidth(Double.MAX_VALUE);
 		cb.selectedProperty().addListener((v, o, n) -> {
 			if (param.setValue(cb.isSelected()))
 				fireParameterChangedEvent(param, false);
@@ -343,77 +345,26 @@ public class ParameterPanelFX {
 		return tf;
 	}
 	
-	GridBagConstraints constraints = new GridBagConstraints();
+	private int currentRow = 0;
 	
 	// GridBagLayout version... TODO: Update for JavaFX
 	private void addParamComponent(Parameter<?> parameter, String text, Node component) {
 		
 		map.put(parameter, component);
 		String help = parameter.getHelpText();
-		Tooltip tooltip = help == null ? null : new Tooltip(help);
-		if (tooltip != null) {
-			Tooltip.install(component, tooltip);
-			// May not be necessary...?
-			if (component instanceof Parent) {
-				for (Node child : ((Parent)component).getChildrenUnmodifiable()) {
-					if (child instanceof Control) {
-						((Control)child).setTooltip(tooltip);
-					} 
-				}
-			}
-		}
-		if (constraints == null) {
-			constraints = new GridBagConstraints();
-			constraints.gridwidth = 1;
-			constraints.gridheight = 1;
-			constraints.gridy = 0;
-		}
-		constraints.gridy++;
-		constraints.gridx = 0;
+
+		GridPaneTools.setFillWidth(Boolean.TRUE, component);
+		GridPaneTools.setHGrowPriority(Priority.ALWAYS, component);
+
 		if (text == null) {
-			constraints.gridwidth = 2;
-			constraints.weightx = 1.0;
-			constraints.anchor = GridBagConstraints.CENTER;
-			add(component, constraints);
+			GridPaneTools.addGridRow(pane, currentRow++, 0, help, component, component);
 		} else {
-			constraints.weightx = 0;
-			constraints.gridwidth = 1;
-			constraints.anchor = GridBagConstraints.EAST;
 			Label label = new Label(text);
-			if (tooltip != null)
-				label.setTooltip(tooltip);
-//			label.setMinWidth(label.getPrefWidth());
-//			FlowPane pane = new FlowPane();
-//			pane.getChildren().add(label)
-			add(label, constraints);
+			label.setMaxWidth(Double.MAX_VALUE);
 			label.setLabelFor(component);
-			constraints.gridx++;
-			constraints.weightx = 1.0;
-			constraints.anchor = GridBagConstraints.WEST;
-//			component.setBorder(BorderFactory.createLineBorder(Color.RED, 2));
-			add(component, constraints);			
+			GridPaneTools.addGridRow(pane, currentRow++, 0, help, label, component);
 		}
 	}
-	
-	
-	
-	private void add(Node component, GridBagConstraints constraints) {
-//		if (component instanceof Pane)
-//			((Pane)component).setPadding(new Insets(2, 2, 2, 2));
-//		else if (component instanceof Control)
-//			((Control)component).setPadding(new Insets(2, 2, 2, 2));
-		
-//		logger.trace("Adding {} at {}, {}, {}, {}", component, constraints.gridx, constraints.gridy, constraints.gridwidth, constraints.gridheight);
-		
-		// Optional code to expand width...
-//		System.err.println((constraints.gridx + constraints.gridwidth) + ".... " + constraints.gridx + ", " + constraints.gridwidth + ":  " + component);
-//		if (component instanceof Pane) {
-//			((Pane)component).setMaxWidth(Double.MAX_VALUE);
-//			GridPane.setHgrow(component, Priority.ALWAYS);
-//		}
-		pane.add(component, constraints.gridx, constraints.gridy, constraints.gridwidth, constraints.gridheight);
-	}
-	
 	
 	
 	public boolean getParameterEnabled(String key) {

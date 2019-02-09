@@ -296,7 +296,7 @@ public class OpenCVClassifiers {
 		@Override
 		public ParameterList getParameterList() {
 			if (params == null)
-				params = createParameterList(model);
+				params = createParameterList(getStatModel());
 			return params;
 		}
 				
