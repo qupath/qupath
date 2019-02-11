@@ -62,7 +62,10 @@ import javafx.scene.layout.Region;
 import javafx.stage.Stage;
 import javafx.util.StringConverter;
 import jfxtras.scene.layout.HBox;
+import qupath.imagej.gui.IJExtension;
 import qupath.imagej.helpers.IJTools;
+import qupath.imagej.images.servers.BufferedImagePlusServer;
+import qupath.imagej.objects.ROIConverterIJ;
 import qupath.lib.classifiers.gui.FeatureFilter;
 import qupath.lib.classifiers.gui.FeatureFilters;
 import qupath.lib.classifiers.gui.PixelClassificationImageServer;
@@ -102,6 +105,7 @@ import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.AreaROI;
 import qupath.lib.roi.PathROIToolsAwt;
+import qupath.lib.roi.RectangleROI;
 import qupath.lib.roi.PathROIToolsAwt.CombineOp;
 import qupath.lib.roi.interfaces.PathArea;
 import qupath.lib.roi.interfaces.PathShape;
@@ -369,10 +373,12 @@ public class PixelClassifierImageSelectionPane {
 			updateClassifier();
 		});
 		comboOutput.getSelectionModel().clearAndSelect(0);
+		var btnShowOutput = new Button("Show");
+		btnShowOutput.setOnAction(e -> showOutput());
 		
 		GridPaneTools.addGridRow(pane, row++, 0, 
 				"Choose whether to output classifications only, or estimated probabilities per class (classifications only takes much less memory)",
-				labelOutput, comboOutput, comboOutput);
+				labelOutput, comboOutput, btnShowOutput);
 		
 		
 		// Region
@@ -393,20 +399,20 @@ public class PixelClassifierImageSelectionPane {
 
 		
 		// Live predict
+		var btnAdvancedOptions = new Button("Advanced options");
+		btnAdvancedOptions.setOnAction(e -> showAdvancedOptions());
+		
 		var btnLive = new ToggleButton("Live prediction");
 		btnLive.selectedProperty().bindBidirectional(livePrediction);
 		livePrediction.addListener((v, o, n) -> {
 			if (n)
 				updateClassifier(n);
 		});
-		
-		var btnSave = new Button("Save & Apply");
-		btnSave.setOnAction(e -> saveAndApply());
-		
-		var panePredict = new HBox(btnLive, btnSave);
-		GridPaneTools.setMaxWidth(Double.MAX_VALUE, btnLive, btnSave);
+				
+		var panePredict = new HBox(btnAdvancedOptions, btnLive);
+		GridPaneTools.setMaxWidth(Double.MAX_VALUE, btnLive, btnAdvancedOptions);
+		HBox.setHgrow(btnAdvancedOptions, Priority.ALWAYS);
 		HBox.setHgrow(btnLive, Priority.ALWAYS);
-		HBox.setHgrow(btnSave, Priority.ALWAYS);
 		
 		
 		pane.add(panePredict, 0, row++, pane.getColumnCount(), 1);
@@ -507,6 +513,11 @@ public class PixelClassifierImageSelectionPane {
 		HBox.setHgrow(btnClassifyObjects, Priority.ALWAYS);
 		var panePostProcess = new HBox(btnCreateObjects, btnClassifyObjects);
 		
+		var btnSave = new Button("Save & Apply");
+		btnSave.setMaxWidth(Double.MAX_VALUE);
+		btnSave.setOnAction(e -> saveAndApply());
+		pane.add(btnSave, 0, row++, pane.getColumnCount(), 1);
+		
 		pane.add(panePostProcess, 0, row++, pane.getColumnCount(), 1);
 
 		GridPaneTools.setMaxWidth(Double.MAX_VALUE, pane.getChildren().stream().filter(p -> p instanceof Region).toArray(Region[]::new));
@@ -594,6 +605,13 @@ public class PixelClassifierImageSelectionPane {
 			return downsample * server.getAveragedPixelSizeMicrons();
 		return downsample;
 	}
+	
+	
+	
+	boolean showAdvancedOptions() {
+		return false;
+	}
+	
 	
 	
 	void doClassification() {
@@ -786,7 +804,7 @@ public class PixelClassifierImageSelectionPane {
 		boolean doSplit = params.getBooleanParameterValue("doSplit");
 		double minSizePixels = params.getDoubleParameterValue("minSize");
 		if (server.hasPixelSizeMicrons() && !params.getChoiceParameterValue("minSizeUnits").equals("Pixels"))
-			minSizePixels /= server.getAveragedPixelSizeMicrons();
+			minSizePixels /= (server.getPixelWidthMicrons() * server.getPixelHeightMicrons());
 		
 		return createObjectsFromPixelClassifier(server, viewer.getHierarchy(), viewer.getSelectedObject(), creator, minSizePixels, doSplit);
 	}
@@ -922,6 +940,51 @@ public class PixelClassifierImageSelectionPane {
 		updateClassifier();
 		return true;
 	}
+	
+	
+	boolean showOutput() {
+		var server = overlay.getPixelClassificationServer();
+		if (server == null || featureCalculator == null)
+			return false;
+		var selected = viewer.getSelectedObject();
+		var roi = selected == null ? null : selected.getROI();
+		double downsample = server.getDownsampleForResolution(0);
+		RegionRequest request;
+		if (roi == null) {
+			request = RegionRequest.createInstance(
+					server.getPath(), downsample, 
+					0, 0, server.getWidth(), server.getHeight(), viewer.getZPosition(), viewer.getTPosition());			
+		} else {
+			request = RegionRequest.createInstance(server.getPath(), downsample, selected.getROI());
+		}
+		long estimatedPixels = (long)Math.ceil(request.getWidth()/request.getDownsample()) * (long)Math.ceil(request.getHeight()/request.getDownsample());
+		double estimatedMB = (estimatedPixels * server.nChannels() * (server.getBitsPerPixel()/8)) / (1024.0 * 1024.0);
+		if (estimatedPixels >= Integer.MAX_VALUE - 16) {
+			DisplayHelpers.showErrorMessage("Extract output", "Requested region is too big! Try selecting a smaller region.");
+			return false;
+		} else if (estimatedMB >= 200.0) {
+			if (!DisplayHelpers.showConfirmDialog("Extract output",
+					String.format("Extracting this region will require approximately %.1f MB - are you sure you want to try this?", estimatedMB)))
+				return false;
+		}
+		
+		try {
+//			var imp = IJExtension.extractROI(server, selected, request, true, null).getImage();
+			var pathImage = BufferedImagePlusServer.convertToImagePlus(
+					overlay.getPixelClassificationServer(),
+					request);
+			var imp = pathImage.getImage();
+			if (roi != null && !(roi instanceof RectangleROI)) {
+				imp.setRoi(ROIConverterIJ.convertToIJRoi(roi, pathImage));
+			}
+			imp.show();
+			return true;
+		} catch (IOException e) {
+			logger.error("Error showing output", e);
+		}
+		return false;
+	}
+	
 	
 	boolean showFeatures() {
 		double cx = viewer.getCenterPixelX();

@@ -58,6 +58,8 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 	
 	final private static Logger logger = LoggerFactory.getLogger(OpenslideImageServer.class);
 
+	private static boolean useBoundingBoxes = true;
+	
 	private ImageServerMetadata originalMetadata;
 
 	private List<String> associatedImageList = null;
@@ -105,7 +107,7 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 		Map<String, String> properties = osr.getProperties();
 		
 		// Read bounds
-		if (properties.keySet().containsAll(
+		if (useBoundingBoxes && properties.keySet().containsAll(
 				Arrays.asList(
 						OpenSlide.PROPERTY_NAME_BOUNDS_X,
 						OpenSlide.PROPERTY_NAME_BOUNDS_Y,
