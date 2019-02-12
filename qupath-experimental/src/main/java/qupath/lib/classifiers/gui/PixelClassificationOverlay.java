@@ -5,7 +5,6 @@ import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.classifiers.pixel.PixelClassifierMetadata.OutputType;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.common.SimpleThreadFactory;
-import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.images.stores.ImageRegionStoreHelpers;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.QuPathViewer;
@@ -26,8 +25,6 @@ import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.PathROIToolsAwt;
 import qupath.lib.roi.interfaces.ROI;
-import qupath.opencv.processing.TypeAdaptersCV;
-
 import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
@@ -36,10 +33,6 @@ import java.awt.geom.Ellipse2D;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBuffer;
 import java.awt.image.ImageObserver;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -53,8 +46,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.google.gson.GsonBuilder;
 
 import javafx.application.Platform;
 
@@ -598,51 +589,19 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
 			ImageData<BufferedImage> imageDataNew) {
 		if (this.imageData != null) {
 			this.imageData.getHierarchy().removePathObjectListener(this);
-			if (classifierServer != null)
+			if (classifierServer != null) {
 				try {
 					classifierServer.close();
-					// Delete the cached results
-					var path = classifierServer.getCacheDirectory();
-					if (path != null)
-						Files.deleteIfExists(Paths.get(path));
 				} catch (Exception e) {
 					logger.warn("Exception when closing classification server", e);
 				}
+			}
 		}
 		this.imageData = imageDataNew;
 		if (imageDataNew != null) {
 			imageDataNew.getHierarchy().addPathObjectListener(this);
 			
-			String cacheDirectory = null;
-			var project = QuPathGUI.getInstance().getProject();
-			if (project != null) {
-				Path tempDir;
-				try {
-					var baseDir = Paths.get(project.getBaseDirectory().getAbsolutePath(), "pixel_classification", "tmp");
-					if (!Files.exists(baseDir))
-						Files.createDirectories(baseDir);
-					tempDir = Files.createTempDirectory(
-							baseDir, "classifier");
-					cacheDirectory = Paths.get(tempDir.toString(), imageData.getServer().getShortServerName() + ".zip").toString();
-					var gson = new GsonBuilder()
-							.registerTypeAdapterFactory(TypeAdaptersCV.getOpenCVTypeAdaptorFactory())
-							.setPrettyPrinting().create();
-					var json = gson.toJson(classifier);
-						
-					var pathClassifier = Paths.get(tempDir.toString(), "classifier.json");
-					Files.writeString(pathClassifier, json);
-					
-					logger.info("Created cache directory: {}", cacheDirectory);
-				} catch (IOException e) {
-					logger.error("Unable to create temp directory", e);
-					cacheDirectory = null;
-				} catch (Exception e) {
-					// We can have other errors if we can't manage Gson serialization
-					logger.error("Unable to write classifier", e);
-					cacheDirectory = null;					
-				}
-			}
-			classifierServer = new PixelClassificationImageServer(cacheDirectory, cache, imageDataNew, classifier);
+			classifierServer = new PixelClassificationImageServer(cache, imageDataNew, classifier);
 			
 			long bytes;
 			long bytesRGB = 0L;

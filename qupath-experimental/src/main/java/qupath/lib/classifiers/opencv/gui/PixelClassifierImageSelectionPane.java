@@ -2,10 +2,19 @@ package qupath.lib.classifiers.opencv.gui;
 
 import java.awt.geom.Path2D;
 import java.awt.image.BufferedImage;
+import java.awt.image.DataBufferByte;
+import java.awt.image.IndexColorModel;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.IntBuffer;
+import java.nio.file.FileSystem;
+import java.nio.file.FileSystems;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -16,6 +25,8 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
 
+import javax.imageio.ImageIO;
+
 import org.bytedeco.javacpp.opencv_ml.ANN_MLP;
 import org.bytedeco.javacpp.opencv_ml.DTrees;
 import org.bytedeco.javacpp.opencv_ml.KNearest;
@@ -24,10 +35,15 @@ import org.bytedeco.javacpp.opencv_ml.NormalBayesClassifier;
 import org.bytedeco.javacpp.opencv_ml.RTrees;
 import org.bytedeco.javacpp.opencv_ml.TrainData;
 import org.controlsfx.control.CheckComboBox;
+import org.controlsfx.dialog.ProgressDialog;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.gson.GsonBuilder;
+
 import ij.CompositeImage;
+import ij.io.FileSaver;
+import ij.io.Opener;
 import impl.org.controlsfx.skin.CheckComboBoxSkin;
 import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
@@ -40,6 +56,7 @@ import javafx.beans.value.ObservableBooleanValue;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener.Change;
+import javafx.concurrent.Task;
 import javafx.collections.ObservableList;
 import javafx.event.EventHandler;
 import javafx.geometry.Insets;
@@ -62,10 +79,11 @@ import javafx.scene.layout.Region;
 import javafx.stage.Stage;
 import javafx.util.StringConverter;
 import jfxtras.scene.layout.HBox;
-import qupath.imagej.gui.IJExtension;
 import qupath.imagej.helpers.IJTools;
 import qupath.imagej.images.servers.BufferedImagePlusServer;
+import qupath.imagej.images.servers.ImageJServer;
 import qupath.imagej.objects.ROIConverterIJ;
+import qupath.lib.classifiers.gui.ClassificationColorModelFactory;
 import qupath.lib.classifiers.gui.FeatureFilter;
 import qupath.lib.classifiers.gui.FeatureFilters;
 import qupath.lib.classifiers.gui.PixelClassificationImageServer;
@@ -86,9 +104,11 @@ import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.MiniViewerCommand;
 import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.gui.helpers.GridPaneTools;
+import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageChannel;
+import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.TileRequest;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathDetectionObject;
@@ -110,6 +130,7 @@ import qupath.lib.roi.PathROIToolsAwt.CombineOp;
 import qupath.lib.roi.interfaces.PathArea;
 import qupath.lib.roi.interfaces.PathShape;
 import qupath.lib.roi.interfaces.ROI;
+import qupath.opencv.processing.TypeAdaptersCV;
 
 public class PixelClassifierImageSelectionPane {
 	
@@ -417,6 +438,11 @@ public class PixelClassifierImageSelectionPane {
 		
 		pane.add(panePredict, 0, row++, pane.getColumnCount(), 1);
 
+		var btnSave = new Button("Save & Apply");
+		btnSave.setMaxWidth(Double.MAX_VALUE);
+		btnSave.setOnAction(e -> saveAndApply());
+		pane.add(btnSave, 0, row++, pane.getColumnCount(), 1);
+
 		
 //		addGridRow(pane, row++, 0, btnPredict, btnPredict, btnPredict);
 
@@ -512,18 +538,15 @@ public class PixelClassifierImageSelectionPane {
 		HBox.setHgrow(btnCreateObjects, Priority.ALWAYS);
 		HBox.setHgrow(btnClassifyObjects, Priority.ALWAYS);
 		var panePostProcess = new HBox(btnCreateObjects, btnClassifyObjects);
-		
-		var btnSave = new Button("Save & Apply");
-		btnSave.setMaxWidth(Double.MAX_VALUE);
-		btnSave.setOnAction(e -> saveAndApply());
-		pane.add(btnSave, 0, row++, pane.getColumnCount(), 1);
-		
+				
 		pane.add(panePostProcess, 0, row++, pane.getColumnCount(), 1);
 
 		GridPaneTools.setMaxWidth(Double.MAX_VALUE, pane.getChildren().stream().filter(p -> p instanceof Region).toArray(Region[]::new));
 		
 		var splitPane = new SplitPane(pane, viewerPane);
-		viewerPane.setPrefSize(400, 400);
+		pane.setPrefWidth(300);
+		pane.setMinHeight(GridPane.USE_PREF_SIZE);
+		viewerPane.setPrefSize(300, 400);
 		splitPane.setDividerPositions(0.5);
 		
 		pane.setPadding(new Insets(5));
@@ -738,8 +761,115 @@ public class PixelClassifierImageSelectionPane {
 	boolean saveAndApply() {
 		logger.info("Only applying, not saving...");
 		updateClassifier(true);
-//		DisplayHelpers.showErrorMessage("Save & Apply", "Not implemented yet!");
-		return false;
+		
+		var server = overlay.getPixelClassificationServer();
+		var tiles = server.getAllTileRequests();
+		
+		var project = QuPathGUI.getInstance().getProject();
+		if (project == null) {
+			DisplayHelpers.showErrorMessage("Pixel classifier", "Saving pixel classification requires a project!");
+			return false;
+		}
+		var entry = project.getImageEntry(viewer.getServer().getPath());
+		if (entry == null) {
+			DisplayHelpers.showErrorMessage("Pixel classifier", "Unable to find current image in the current project!");
+			return false;
+		}
+		
+		var classifierName = DisplayHelpers.showInputDialog("Pixel classifier", "Pixel classifier name", "");
+		if (classifierName == null)
+			return false;
+		
+		var dataFileName = QuPathGUI.getImageDataFile(project, entry).getName();
+		int ind = dataFileName.indexOf(PathPrefs.getSerializationExtension());
+		if (ind >= 0)
+			dataFileName = dataFileName.substring(0, ind);
+		
+		var pathOutput = Paths.get(project.getBaseDirectory().getAbsolutePath(), "layers", dataFileName, classifierName, classifierName + ".zip");
+		try {
+			if (!Files.exists(pathOutput.getParent()) || !Files.isDirectory(pathOutput.getParent()))
+				Files.createDirectories(pathOutput.getParent());
+			
+			var pathClassifier = Paths.get(project.getBaseDirectory().getAbsolutePath(), "pixel_classifiers", classifierName + ".json");
+			if (!Files.exists(pathClassifier.getParent()) || !Files.isDirectory(pathClassifier.getParent()))
+				Files.createDirectories(pathClassifier.getParent());
+			
+			// Try writing the classifier; it's not *too* bad if this fails, as we may still write the classified image
+			try {
+				var gson = new GsonBuilder()
+						.registerTypeAdapterFactory(TypeAdaptersCV.getOpenCVTypeAdaptorFactory())
+						.setPrettyPrinting().create();
+				var json = gson.toJson(server.getClassifier());
+				Files.writeString(pathClassifier, json);
+			} catch (Exception e) {
+				DisplayHelpers.showWarningNotification("Pixel classifier", "Unable to write classifier to JSON - classifier can't be reloaded later");
+			}
+			
+			var persistentTileCache = new FileSystemPersistentTileCache(pathOutput, server);
+			persistentTileCache.writeJSON("metadata.json", server.getMetadata());
+			persistentTileCache.writeJSON("classifier.json", server.getClassifier());
+			
+			var task = new Task<Boolean>() {
+
+				@Override
+				protected Boolean call() throws Exception {
+					int n = tiles.size();
+					try {
+						int i = 0;
+						for (var tile : tiles) {
+							updateProgress(i++, n);
+							var request = tile.getRegionRequest();
+							persistentTileCache.saveToCache(request, server.readBufferedImage(request));
+//							var imp = BufferedImagePlusServer.convertToImagePlus("Tile", server, null, request).getImage();
+//							var bytes = new FileSaver(imp).serialize();
+//							var path = Paths.get(dirOutput.getAbsolutePath(), getCachedName(request));
+////							logger.info("Writing tile {}/{}", ++i, n);
+//							Files.write(path, bytes);				
+						}
+						return Boolean.TRUE;
+					} catch (IOException e) {
+						DisplayHelpers.showErrorMessage("Pixel classification", e);
+						return Boolean.FALSE;
+					} finally {
+						updateProgress(n, n);
+						persistentTileCache.close();
+					}
+				}
+			};
+			
+			var progress = new ProgressDialog(task);
+			progress.setTitle("Pixel classification");
+			progress.setContentText("Applying classifier: " + classifierName);
+			
+			var t = new Thread(task);
+			t.setDaemon(true);
+			t.start();
+			
+			return true;
+			
+		} catch (Exception e) {
+			DisplayHelpers.showErrorMessage("Pixel classifier", e);
+			return false;				
+		}
+
+		/*
+		 * - Prompt for classifier name.
+		 * - Get output directory for the image.
+		 * - Write the classifier
+		 * - Write the tiles (while showing progress dialog - remember to trim to annotations if needed)
+		 */
+	}
+	
+	
+	static String getCachedName(RegionRequest request) {
+		return String.format(
+				"tile(x=%d,y=%d,w=%d,h=%d,z=%d,t=%d).tif",
+				request.getX(),
+				request.getY(),
+				request.getWidth(),
+				request.getHeight(),
+				request.getZ(),
+				request.getT());
 	}
 	
 	
@@ -1271,5 +1401,137 @@ public class PixelClassifierImageSelectionPane {
 		
 	}
 	
+	
+	
+	
+	
+	
+	
+	interface PersistentTileCache extends AutoCloseable {
+		
+		default public String getCachedName(RegionRequest request) {
+			return String.format(
+					"tile(x=%d,y=%d,w=%d,h=%d,z=%d,t=%d).tif",
+					request.getX(),
+					request.getY(),
+					request.getWidth(),
+					request.getHeight(),
+					request.getZ(),
+					request.getT());
+		}
+		
+		public void writeJSON(String name, Object o) throws IOException;
+		
+		public BufferedImage readFromCache(RegionRequest request) throws IOException;
+		
+		public void saveToCache(RegionRequest request, BufferedImage img) throws IOException;
+		
+	}
+
+	
+	static class FileSystemPersistentTileCache implements PersistentTileCache {
+		
+		private Path path;
+		private ImageServer<BufferedImage> server;
+		private FileSystem fileSystem;
+		private String root;
+		
+		FileSystemPersistentTileCache(Path path, ImageServer<BufferedImage> server) throws IOException, URISyntaxException {
+			this.path = path;
+			this.server = server;
+			initializeFileSystem();
+		}
+		
+		private void initializeFileSystem() throws IOException {
+			if (path.toString().toLowerCase().endsWith(".zip")) {
+				var fileURI = path.toUri();
+				try {
+					var uri = new URI("jar:" + fileURI.getScheme(), fileURI.getPath(), null);
+					this.fileSystem = FileSystems.newFileSystem(uri, Collections.singletonMap("create", String.valueOf(Files.notExists(path))));
+					this.root = "/";
+				} catch (URISyntaxException e) {
+					logger.error("Problem constructing file system", e);
+				}
+			}
+			if (this.fileSystem == null) {
+				this.fileSystem = FileSystems.getDefault();
+				this.root = path.toString();
+			}
+		}
+		
+		
+		
+		
+		
+		
+		public void close() throws Exception {
+			if (this.fileSystem != FileSystems.getDefault())
+				this.fileSystem.close();
+		}
+		
+		
+		public void writeJSON(String name, Object o) throws IOException {
+			var gson = new GsonBuilder()
+					.setLenient()
+					.serializeSpecialFloatingPointValues()
+					.setPrettyPrinting()
+					.create();
+			var json = gson.toJson(o);
+			synchronized (fileSystem) {
+				var path = fileSystem.getPath(root, name);
+				Files.writeString(path, json);
+			}
+		}
+		
+		
+		
+		@Override
+		public BufferedImage readFromCache(RegionRequest request) throws IOException {
+			synchronized (fileSystem) {
+				var path = fileSystem.getPath(root, getCachedName(request));
+				if (Files.exists(path)) {
+					try (var stream = Files.newInputStream(path)) {
+						// TODO: Read using ImageJ
+						var imp = new Opener().openTiff(stream, "Anything");
+						return ImageJServer.convertToBufferedImage(imp, 1, 1, null);
+//						var img = ImageIO.read(stream);
+//						if (img.getColorModel() instanceof IndexColorModel)
+//							return new BufferedImage(
+//									ClassificationColorModelFactory.geClassificationColorModel(classifier.getMetadata().getChannels()),
+//									img.getRaster(),
+//									img.isAlphaPremultiplied(),
+//									null
+//									);
+//						else if (img.getRaster().getDataBuffer() instanceof DataBufferByte)
+//							return new BufferedImage(
+//									ClassificationColorModelFactory.geProbabilityColorModel8Bit(classifier.getMetadata().getChannels()),
+//									img.getRaster(),
+//									img.isAlphaPremultiplied(),
+//									null
+//									);
+//						else
+//							return new BufferedImage(
+//									ClassificationColorModelFactory.geProbabilityColorModel32Bit(classifier.getMetadata().getChannels()),
+//									img.getRaster(),
+//									img.isAlphaPremultiplied(),
+//									null
+//									);
+					}
+				}
+			}
+			return null;
+		}
+		
+		@Override
+		public void saveToCache(RegionRequest request, BufferedImage img) throws IOException {
+			var imp = BufferedImagePlusServer.convertToImagePlus("Tile", server, img, request).getImage();
+			var bytes = new FileSaver(imp).serialize();
+			synchronized (fileSystem) {
+				var path = fileSystem.getPath(root, getCachedName(request));
+				Files.write(path, bytes);				
+			}
+		}
+		
+	}
 
 }

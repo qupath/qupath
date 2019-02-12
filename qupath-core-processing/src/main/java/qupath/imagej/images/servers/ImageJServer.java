@@ -226,7 +226,31 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 			t = 1;
 		}
 
+		// If we don't have a color model yet, reuse this one
+		var img = convertToBufferedImage(imp2, z, t, colorModel);
+		if (colorModel == null)
+			colorModel = img.getColorModel();
+		return img;
+	}
+	
+	
+	/**
+	 * Convert an ImagePlus to a BufferedImage, for a specific z-slice and timepoint.
+	 * <p>
+	 * Note that ImageJ uses 1-based indices for z and t! Therefore these should be &geq; 1.
+	 * <p>
+	 * A {@link ColorModel} can optionally be provided; otherwise, a default ColorModel will be 
+	 * created for the image (with may not be particularly suitable).
+	 * 
+	 * @param imp2
+	 * @param z
+	 * @param t
+	 * @param colorModel
+	 * @return
+	 */
+	public static BufferedImage convertToBufferedImage(ImagePlus imp2, int z, int t, ColorModel colorModel) {
 		// Extract processor
+		int nChannels = imp2.getNChannels();
 		int ind = imp2.getStackIndex(1, z, t);
 		ImageProcessor ip = imp2.getStack().getProcessor(ind);
 
@@ -252,7 +276,7 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 				else
 					colorModel = ColorModelFactory.getDummyColorModel(32);
 			}
-			
+
 			if (ip instanceof ByteProcessor) {
 				model = new BandedSampleModel(DataBuffer.TYPE_BYTE, w, h, nChannels);
 				byte[][] bytes = new byte[nChannels][w*h];
@@ -284,10 +308,11 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 			logger.error("Sorry, currently only RGB & single-channel images supported with ImageJ");
 			return null;
 		}
-//		if (request.getX() == 0 && request.getY() == 0 && request.getWidth() == imp.getWidth() && request.getHeight() == imp.getHeight())
+		//				if (request.getX() == 0 && request.getY() == 0 && request.getWidth() == imp.getWidth() && request.getHeight() == imp.getHeight())
 		return img;
-//		return img.getSubimage(request.getX(), request.getY(), request.getWidth(), request.getHeight());
 	}
+	
+	
 
 	@Override
 	public String getServerType() {

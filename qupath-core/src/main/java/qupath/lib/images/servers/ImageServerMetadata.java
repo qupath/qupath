@@ -32,7 +32,7 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * Class for storing primary ImageServer metadata fields.
- * Could be used when the metadata needs ot be adjusted (e.g. to correct erroneous pixel sizes).
+ * Could be used when the metadata needs to be adjusted (e.g. to correct erroneous pixel sizes).
  * 
  * TODO: Support metadata changes, taking into consideration the need for scriptability and persistence
  * 
@@ -57,10 +57,7 @@ public class ImageServerMetadata {
 	
 	private List<ImageChannel> channels = new ArrayList<>();
 	
-	private double pixelWidthMicrons = Double.NaN;
-	private double pixelHeightMicrons = Double.NaN;
-	private double zSpacingMicrons = Double.NaN;
-	private TimeUnit timeUnit = TimeUnit.SECONDS;
+	private PixelCalibration pixelCalibration;
 	
 	private double magnification = Double.NaN;
 	
@@ -71,6 +68,7 @@ public class ImageServerMetadata {
 	public static class Builder {
 		
 		private ImageServerMetadata metadata;
+		private PixelCalibration.Builder pixelCalibrationBuilder = new PixelCalibration.Builder();
 		
 		public Builder(final ImageServerMetadata metadata) {
 			this.metadata = metadata.duplicate();
@@ -105,19 +103,18 @@ public class ImageServerMetadata {
 			return this;
 		}
 
-		public Builder setPixelSizeMicrons(final double pixelWidthMicrons, final double pixelHeightMicrons) {
-			metadata.pixelWidthMicrons = pixelWidthMicrons;
-			metadata.pixelHeightMicrons = pixelHeightMicrons;
+		public Builder setPixelSizeMicrons(final Number pixelWidthMicrons, final Number pixelHeightMicrons) {
+			pixelCalibrationBuilder.pixelSizeMicrons(pixelWidthMicrons, pixelHeightMicrons);
 			return this;
 		}
 
-		public Builder setZSpacingMicrons(final double zSpacingMicrons) {
-			metadata.zSpacingMicrons = zSpacingMicrons;
+		public Builder setZSpacingMicrons(final Number zSpacingMicrons) {
+			pixelCalibrationBuilder.zSpacingMicrons(zSpacingMicrons);
 			return this;
 		}
 
 		public Builder setTimeUnit(final TimeUnit timeUnit) {
-			metadata.timeUnit = timeUnit;
+			pixelCalibrationBuilder.timeUnit(timeUnit);
 			return this;
 		}
 		
@@ -148,6 +145,7 @@ public class ImageServerMetadata {
 		}
 		
 		public ImageServerMetadata build() {
+			metadata.pixelCalibration = pixelCalibrationBuilder.build();
 			return metadata;
 		}
 
@@ -177,10 +175,7 @@ public class ImageServerMetadata {
 		this.bitDepth = metadata.bitDepth;
 		this.downsamples = metadata.downsamples.clone();
 		
-		this.pixelWidthMicrons = metadata.pixelWidthMicrons;
-		this.pixelHeightMicrons = metadata.pixelHeightMicrons;
-		this.zSpacingMicrons = metadata.zSpacingMicrons;
-		this.timeUnit = metadata.timeUnit;
+		this.pixelCalibration = metadata.pixelCalibration;
 		
 		this.magnification = metadata.magnification;
 		
@@ -213,27 +208,27 @@ public class ImageServerMetadata {
 	}
 	
 	public boolean pixelSizeCalibrated() {
-		return !Double.isNaN(pixelHeightMicrons + pixelWidthMicrons);
+		return pixelCalibration.hasPixelSizeMicrons();
 	}
 	
 	public boolean zSpacingCalibrated() {
-		return !Double.isNaN(zSpacingMicrons);
+		return pixelCalibration.hasZSpacingMicrons();
 	}
 	
 	public double getAveragedPixelSize() {
-		return (pixelWidthMicrons + pixelHeightMicrons)/2;
+		return (getPixelWidthMicrons() + getPixelHeightMicrons())/2;
 	}
 	
 	public double getPixelWidthMicrons() {
-		return pixelWidthMicrons;
+		return pixelCalibration.getPixelWidthMicrons();
 	}
 
 	public double getPixelHeightMicrons() {
-		return pixelHeightMicrons;
+		return pixelCalibration.getPixelHeightMicrons();
 	}
 	
 	public double getZSpacingMicrons() {
-		return zSpacingMicrons;
+		return pixelCalibration.getZSpacingMicrons();
 	}
 	
 //	// TODO: Consider if mutability is permissible
@@ -243,7 +238,7 @@ public class ImageServerMetadata {
 //	}
 
 	public TimeUnit getTimeUnit() {
-		return timeUnit;
+		return pixelCalibration.getTimeUnit();
 	}
 	
 	public int getSizeZ() {
@@ -310,11 +305,11 @@ public class ImageServerMetadata {
 			sb.append(", ").append("\"sizeZ\": ").append(sizeZ);
 		if (sizeT != 1) {
 			sb.append(", ").append("\"sizeT\": ").append(sizeT);
-			sb.append(", ").append("\"timeUnit\": ").append(timeUnit);
+			sb.append(", ").append("\"timeUnit\": ").append(getTimeUnit());
 		}
 		if (pixelSizeCalibrated()) {
-			sb.append(", ").append("\"pixelWidthMicrons\": ").append(pixelWidthMicrons);
-			sb.append(", ").append("\"pixelHeightMicrons\": ").append(pixelHeightMicrons);
+			sb.append(", ").append("\"pixelWidthMicrons\": ").append(getPixelWidthMicrons());
+			sb.append(", ").append("\"pixelHeightMicrons\": ").append(getPixelHeightMicrons());
 		}
 		sb.append(" }");
 		return sb.toString();
@@ -335,18 +330,12 @@ public class ImageServerMetadata {
 		result = prime * result + (int) (temp ^ (temp >>> 32));
 		result = prime * result + ((name == null) ? 0 : name.hashCode());
 		result = prime * result + ((path == null) ? 0 : path.hashCode());
-		temp = Double.doubleToLongBits(pixelHeightMicrons);
-		result = prime * result + (int) (temp ^ (temp >>> 32));
-		temp = Double.doubleToLongBits(pixelWidthMicrons);
-		result = prime * result + (int) (temp ^ (temp >>> 32));
+		result = prime * result + ((pixelCalibration == null) ? 0 : pixelCalibration.hashCode());
 		result = prime * result + preferredTileHeight;
 		result = prime * result + preferredTileWidth;
 		result = prime * result + sizeT;
 		result = prime * result + sizeZ;
-		result = prime * result + ((timeUnit == null) ? 0 : timeUnit.hashCode());
 		result = prime * result + width;
-		temp = Double.doubleToLongBits(zSpacingMicrons);
-		result = prime * result + (int) (temp ^ (temp >>> 32));
 		return result;
 	}
 
@@ -385,9 +374,10 @@ public class ImageServerMetadata {
 				return false;
 		} else if (!path.equals(other.path))
 			return false;
-		if (Double.doubleToLongBits(pixelHeightMicrons) != Double.doubleToLongBits(other.pixelHeightMicrons))
-			return false;
-		if (Double.doubleToLongBits(pixelWidthMicrons) != Double.doubleToLongBits(other.pixelWidthMicrons))
+		if (pixelCalibration == null) {
+			if (other.pixelCalibration != null)
+				return false;
+		} else if (!pixelCalibration.equals(other.pixelCalibration))
 			return false;
 		if (preferredTileHeight != other.preferredTileHeight)
 			return false;
@@ -397,14 +387,11 @@ public class ImageServerMetadata {
 			return false;
 		if (sizeZ != other.sizeZ)
 			return false;
-		if (timeUnit != other.timeUnit)
-			return false;
 		if (width != other.width)
-			return false;
-		if (Double.doubleToLongBits(zSpacingMicrons) != Double.doubleToLongBits(other.zSpacingMicrons))
 			return false;
 		return true;
 	}
+
 
 
 	

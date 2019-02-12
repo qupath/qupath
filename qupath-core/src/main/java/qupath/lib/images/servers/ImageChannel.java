@@ -47,6 +47,14 @@ public class ImageChannel {
 		return channel;
 	}
 	
+	@Override
+	public String toString() {
+		if (color == null)
+			return "Image channel: " + name;
+		return String.format("Image channel: %s (a=%d, r=%d, g=%d, b=%d)", name, 
+				ColorTools.alpha(color), ColorTools.red(color), ColorTools.green(color), ColorTools.blue(color));
+	}
+	
 	
 //	/**
 //	 * Method that may be used to get RGB colors.
