@@ -123,21 +123,25 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 			channels = ImageChannel.getDefaultChannelList(imp.getNChannels());
 		
 		
-		originalMetadata = new ImageServerMetadata.Builder(path,
+		var builder = new ImageServerMetadata.Builder(path,
 				imp.getWidth(),
 				imp.getHeight()).
-				setPixelSizeMicrons(xMicrons, yMicrons).
 				channels(channels).
 				setSizeZ(imp.getNSlices()).
 				setSizeT(imp.getNFrames()).
-				setTimeUnit(timeUnit).
 				setRGB(isRGB).
 				setBitDepth(isRGB ? 8 : imp.getBitDepth()).
 				setZSpacingMicrons(zMicrons).
 				setPreferredDownsamples(1.0). // TODO: Consider an in-memory image pyramid for large images
-				setPreferredTileSize(imp.getWidth(), imp.getHeight()).
+				setPreferredTileSize(imp.getWidth(), imp.getHeight());
 //				setMagnification(pxlInfo.mag). // Don't know magnification...?
-				build();
+		if (!Double.isNaN(xMicrons + yMicrons))
+			builder = builder.setPixelSizeMicrons(xMicrons, yMicrons);
+		
+		if (timeUnit != null)
+			builder = builder.setTimeUnit(timeUnit);
+		
+		originalMetadata = builder.build();
 		
 //		if ((!isRGB() && nChannels() > 1) || getBitsPerPixel() == 32)
 //			throw new IOException("Sorry, currently only RGB & single-channel 8 & 16-bit images supported using ImageJ server");
@@ -259,12 +263,12 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 		int h = ip.getHeight();
 		if (ip instanceof ColorProcessor) {
 			img = ip.getBufferedImage();
-		} else if (nChannels == 1 && !(ip instanceof FloatProcessor)) {
-			// Take the easy way out for 8 and 16-bit images
-			if (ip instanceof ByteProcessor)
-				img = ip.getBufferedImage();
-			else if (ip instanceof ShortProcessor)
-				img = ((ShortProcessor)ip).get16BitBufferedImage();
+//		} else if (nChannels == 1 && !(ip instanceof FloatProcessor)) {
+//			// Take the easy way out for 8 and 16-bit images
+//			if (ip instanceof ByteProcessor)
+//				img = ip.getBufferedImage();
+//			else if (ip instanceof ShortProcessor)
+//				img = ((ShortProcessor)ip).get16BitBufferedImage();
 		} else {
 			// Try to create a suitable BufferedImage for whatever else we may need
 			SampleModel model;
@@ -285,7 +289,7 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 					bytes[i] = (byte[])imp2.getStack().getPixels(sliceInd);
 				}
 				DataBufferByte buffer = new DataBufferByte(bytes, w*h);
-				return new BufferedImage(colorModel, Raster.createWritableRaster(model, buffer, null), true, null);
+				return new BufferedImage(colorModel, Raster.createWritableRaster(model, buffer, null), false, null);
 			} else if (ip instanceof ShortProcessor) {
 				model = new BandedSampleModel(DataBuffer.TYPE_USHORT, w, h, nChannels);
 				short[][] bytes = new short[nChannels][w*h];
@@ -294,7 +298,7 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 					bytes[i] = (short[])imp2.getStack().getPixels(sliceInd);
 				}
 				DataBufferUShort buffer = new DataBufferUShort(bytes, w*h);
-				return new BufferedImage(colorModel, Raster.createWritableRaster(model, buffer, null), true, null);
+				return new BufferedImage(colorModel, Raster.createWritableRaster(model, buffer, null), false, null);
 			} else if (ip instanceof FloatProcessor){
 				model = new BandedSampleModel(DataBuffer.TYPE_FLOAT, w, h, nChannels);
 				float[][] bytes = new float[nChannels][w*h];
@@ -303,7 +307,7 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 					bytes[i] = (float[])imp2.getStack().getPixels(sliceInd);
 				}
 				DataBufferFloat buffer = new DataBufferFloat(bytes, w*h);
-				return new BufferedImage(colorModel, Raster.createWritableRaster(model, buffer, null), true, null);
+				return new BufferedImage(colorModel, Raster.createWritableRaster(model, buffer, null), false, null);
 			}
 			logger.error("Sorry, currently only RGB & single-channel images supported with ImageJ");
 			return null;

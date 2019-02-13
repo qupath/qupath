@@ -124,6 +124,11 @@ public class PixelClassifierHelper implements PathObjectHierarchyListener {
         changes = true;
     }
 
+    
+    public ImageData<BufferedImage> getImageData() {
+    	return imageData;
+    }
+    
 
     public static Map<PathClass, Collection<ROI>> getAnnotatedROIs(PathObjectHierarchy hierarchy) {
         List<PathObject> annotations = hierarchy.getObjects(null, PathAnnotationObject.class).stream().filter((it) -> {

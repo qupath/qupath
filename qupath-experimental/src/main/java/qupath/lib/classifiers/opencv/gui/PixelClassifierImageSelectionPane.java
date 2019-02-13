@@ -2,8 +2,6 @@ package qupath.lib.classifiers.opencv.gui;
 
 import java.awt.geom.Path2D;
 import java.awt.image.BufferedImage;
-import java.awt.image.DataBufferByte;
-import java.awt.image.IndexColorModel;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -24,8 +22,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
-
-import javax.imageio.ImageIO;
 
 import org.bytedeco.javacpp.opencv_ml.ANN_MLP;
 import org.bytedeco.javacpp.opencv_ml.DTrees;
@@ -95,6 +91,7 @@ import qupath.lib.classifiers.opencv.OpenCVClassifiers;
 import qupath.lib.classifiers.opencv.OpenCVClassifiers.OpenCVStatModel;
 import qupath.lib.classifiers.opencv.Reclassifier;
 import qupath.lib.classifiers.pixel.OpenCVPixelClassifier;
+import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.classifiers.pixel.PixelClassifierMetadata;
 import qupath.lib.classifiers.pixel.PixelClassifierMetadata.OutputType;
 import qupath.lib.classifiers.pixel.features.OpenCVFeatureCalculator;
@@ -109,6 +106,7 @@ import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.ImageServerProvider;
 import qupath.lib.images.servers.TileRequest;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathDetectionObject;
@@ -713,7 +711,10 @@ public class PixelClassifierImageSelectionPane {
 
 		 var classifier = new OpenCVPixelClassifier(model, (BasicFeatureCalculator)helper.getFeatureCalculator(), helper.getLastFeaturePreprocessor(), metadata, true);
 
-		 replaceOverlay(new PixelClassificationOverlay(viewer, classifier));
+		 var classifierServer = new PixelClassificationImageServer(
+				 ImageServerProvider.getCache(BufferedImage.class), helper.getImageData(), classifier);
+		 replaceOverlay(new PixelClassificationOverlay(viewer, classifierServer));
+//		 replaceOverlay(new PixelClassificationOverlay(viewer, classifier));
 	}
 	
 	private PixelClassificationOverlay overlay;
@@ -779,6 +780,11 @@ public class PixelClassifierImageSelectionPane {
 		var classifierName = DisplayHelpers.showInputDialog("Pixel classifier", "Pixel classifier name", "");
 		if (classifierName == null)
 			return false;
+		classifierName = classifierName.strip();
+		if (classifierName.isBlank() || classifierName.contains("\n")) {
+			DisplayHelpers.showErrorMessage("Pixel classifier", "Classifier name must be unique, non-empty, and not contain invalid characters");
+			return false;
+		}
 		
 		var dataFileName = QuPathGUI.getImageDataFile(project, entry).getName();
 		int ind = dataFileName.indexOf(PathPrefs.getSerializationExtension());
@@ -833,6 +839,15 @@ public class PixelClassifierImageSelectionPane {
 					} finally {
 						updateProgress(n, n);
 						persistentTileCache.close();
+						
+						System.err.println("Replacing overlay!");
+						var newServer = new PixelClassificationImageServer(
+								viewer.getImageRegionStore().getCache(),
+								viewer.getImageData(),
+								new ReadFromStorePixelClassifier(
+										new FileSystemPersistentTileCache(pathOutput, server), server.getClassifier().getMetadata()));
+						replaceOverlay(
+								new PixelClassificationOverlay(viewer, newServer));
 					}
 				}
 			};
@@ -1493,7 +1508,10 @@ public class PixelClassifierImageSelectionPane {
 					try (var stream = Files.newInputStream(path)) {
 						// TODO: Read using ImageJ
 						var imp = new Opener().openTiff(stream, "Anything");
-						return ImageJServer.convertToBufferedImage(imp, 1, 1, null);
+						
+						var colorModel = ClassificationColorModelFactory.geClassificationColorModel(server.getChannels());
+						
+						return ImageJServer.convertToBufferedImage(imp, 1, 1, colorModel);
 //						var img = ImageIO.read(stream);
 //						if (img.getColorModel() instanceof IndexColorModel)
 //							return new BufferedImage(
@@ -1534,4 +1552,31 @@ public class PixelClassifierImageSelectionPane {
 		
 	}
 
+	/**
+	 * A (@link PixelClassifier} that doesn't actually compute classifications itself, 
+	 * but rather reads them from storage.
+	 */
+	static class ReadFromStorePixelClassifier implements PixelClassifier {
+
+		private PixelClassifierMetadata metadata;
+		private PersistentTileCache store;
+
+		ReadFromStorePixelClassifier(PersistentTileCache store, PixelClassifierMetadata metadata) {
+			this.metadata = metadata;
+			this.store = store;
+		}
+
+		@Override
+		public BufferedImage applyClassification(ImageData<BufferedImage> server, RegionRequest request)
+				throws IOException {
+			return store.readFromCache(request);
+		}
+
+		@Override
+		public PixelClassifierMetadata getMetadata() {
+			return metadata;
+		}
+
+	}
+	
 }

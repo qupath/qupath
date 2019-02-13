@@ -388,6 +388,10 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 		return getMetadata().getChannel(channel).getName();
 	}
 	
+	@Override
+	public List<ImageChannel> getChannels() {
+		return getMetadata().getChannels();
+	}
 	
 	private static double LOG2 = Math.log10(2);
 	

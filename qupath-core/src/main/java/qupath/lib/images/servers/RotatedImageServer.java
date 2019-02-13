@@ -23,8 +23,6 @@
 
 package qupath.lib.images.servers;
 
-import java.awt.geom.AffineTransform;
-import java.awt.image.AffineTransformOp;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 
@@ -34,61 +32,242 @@ import qupath.lib.regions.RegionRequest;
 
 /**
  * ImageServer that wraps another ImageServer, but intercepts region requests to 
- * effectively rotate the image by 180 degrees.
+ * effectively rotate the image by 90, 180 or 270 degrees.
  * 
  * @author Pete Bankhead
  *
  */
 public class RotatedImageServer extends WrappedImageServer<BufferedImage> {
 	
+	public static enum Rotation{
+		
+		ROTATE_NONE, ROTATE_90, ROTATE_180, ROTATE_270;
+		
+		@Override
+		public String toString() {
+			switch(this) {
+			case ROTATE_180:
+				return "Rotate 180";
+			case ROTATE_270:
+				return "Rotate 270";
+			case ROTATE_90:
+				return "Rotate 90";
+			case ROTATE_NONE:
+				return "No rotation";
+			default:
+				return "Unknown rotation";
+			}
+		}
+		
+	}
+	
+	private ImageServerMetadata metadata;
+	private Rotation rotation;
+	
 	public RotatedImageServer(final ImageServer<BufferedImage> server) {
+		this(server, Rotation.ROTATE_180);
+	}
+	
+	public RotatedImageServer(final ImageServer<BufferedImage> server, final Rotation rotation) {
 		super(server);
+		this.rotation = rotation;
+		
+		switch (rotation) {
+		case ROTATE_270:
+		case ROTATE_90:
+			metadata = getRotatedMetadata(server.getOriginalMetadata());
+			break;
+		case ROTATE_180:
+			metadata = new ImageServerMetadata.Builder(server.getOriginalMetadata())
+						.path(getPath()).build();
+			break;
+		case ROTATE_NONE:
+		default:
+			metadata = server.getOriginalMetadata().duplicate();
+		}
+	}
+	
+	
+	@Override
+	public int getLevelWidth(int level) {
+		switch (rotation) {
+		case ROTATE_270:
+		case ROTATE_90:
+			return getWrappedServer().getLevelHeight(level);
+		case ROTATE_180:
+		case ROTATE_NONE:
+		default:
+			return getWrappedServer().getLevelWidth(level);
+		}
 	}
 
 	@Override
+	public int getLevelHeight(int level) {
+		switch (rotation) {
+		case ROTATE_270:
+		case ROTATE_90:
+			return getWrappedServer().getLevelWidth(level);
+		case ROTATE_180:
+		case ROTATE_NONE:
+		default:
+			return getWrappedServer().getLevelHeight(level);
+		}
+	}
+	
+	
+	private ImageServerMetadata getRotatedMetadata(ImageServerMetadata metadata) {
+		var builder = new ImageServerMetadata.Builder(metadata)
+				.path(getPath())
+				.width(metadata.getHeight())
+				.height(metadata.getWidth())
+				.setPreferredTileSize(metadata.getPreferredTileHeight(), metadata.getPreferredTileWidth())
+				;
+		
+		if (metadata.pixelSizeCalibrated())
+			builder.setPixelSizeMicrons(metadata.getPixelHeightMicrons(), metadata.getPixelWidthMicrons());
+		
+		return builder.build();
+	}
+	
+
+	@Override
 	public PathImage<BufferedImage> readRegion(RegionRequest request) throws IOException {
-		request = rotateRequest(request);
-		return new DefaultPathImage<>(this, request, readRotatedBufferedImage(request));
+		return new DefaultPathImage<>(this, rotateRequest(request), readBufferedImage(request));
 	}
 
 	@Override
 	public BufferedImage readBufferedImage(RegionRequest request) throws IOException {
-		request = rotateRequest(request);
-		return readRotatedBufferedImage(request);
+		switch (rotation) {
+		case ROTATE_180:
+			return rotate180(request);
+		case ROTATE_270:
+			return rotate270(request);
+		case ROTATE_90:
+			return rotate90(request);
+		case ROTATE_NONE:
+		default:
+			// Don't apply annotation rotation
+			return getWrappedServer().readBufferedImage(request);
+		}
+	}
+	
+	BufferedImage rotate90(RegionRequest request) throws IOException {
+		var request2 = rotateRequest(request);
+		
+		var img = getWrappedServer().readBufferedImage(request2);
+		var raster = img.getRaster();
+		int w = raster.getWidth();
+		int h = raster.getHeight();
+		var raster2 = raster.createCompatibleWritableRaster(h, w);
+		float[] samples = new float[w * h];
+		float[] samples2 = new float[w * h];
+		for (int b = 0; b < raster.getNumBands(); b++) {
+			samples = raster.getSamples(0, 0, w, h, b, samples);
+			for (int y = 0; y < h; y++) {
+				for (int x = 0; x < w; x++) {
+					int ind1 = y*w + x;
+					int ind2 = x*h + (h - y - 1);
+					float temp = samples[ind1];
+					samples[ind1] = samples[ind2];							
+					samples2[ind2] = temp;							
+				}				
+			}
+			raster2.setSamples(0, 0, h, w, b, samples2);
+		}
+		return new BufferedImage(img.getColorModel(), raster2, img.isAlphaPremultiplied(), null);
+	}
+
+	BufferedImage rotate180(RegionRequest request) throws IOException {
+		var request2 = rotateRequest(request);
+		
+		var img = getWrappedServer().readBufferedImage(request2);
+		var raster = img.getRaster();
+		int w = raster.getWidth();
+		int h = raster.getHeight();
+		float[] samples = new float[w * h];
+		for (int b = 0; b < raster.getNumBands(); b++) {
+			samples = raster.getSamples(0, 0, w, h, b, samples);
+			for (int ind1 = 0; ind1 < w*h/2; ind1++) {
+//				for (int x = 0; x < w/2; x++) {
+//					int ind1 = y*w + x;
+					int ind2 = w*h - ind1 - 1;
+					float temp = samples[ind1];
+					samples[ind1] = samples[ind2];							
+					samples[ind2] = temp;							
+//				}				
+			}
+			raster.setSamples(0, 0, w, h, b, samples);
+		}
+		return img;
+	}
+
+	BufferedImage rotate270(RegionRequest request) throws IOException {
+		var request2 = rotateRequest(request);
+		
+		var img = getWrappedServer().readBufferedImage(request2);
+		var raster = img.getRaster();
+		int w = raster.getWidth();
+		int h = raster.getHeight();
+		var raster2 = raster.createCompatibleWritableRaster(h, w);
+		float[] samples = new float[w * h];
+		float[] samples2 = new float[w * h];
+		for (int b = 0; b < raster.getNumBands(); b++) {
+			samples = raster.getSamples(0, 0, w, h, b, samples);
+			for (int y = 0; y < h; y++) {
+				for (int x = 0; x < w; x++) {
+					int ind1 = y*w + x;
+					int ind2 = (w - x - 1)*h + y;
+					float temp = samples[ind1];
+					samples[ind1] = samples[ind2];							
+					samples2[ind2] = temp;							
+				}				
+			}
+			raster2.setSamples(0, 0, h, w, b, samples2);
+		}
+		return new BufferedImage(img.getColorModel(), raster2, img.isAlphaPremultiplied(), null);
 	}
 
 	RegionRequest rotateRequest(RegionRequest request) {
-		return RegionRequest.createInstance(request.getPath() + " (before rotation)", request.getDownsample(), 
-				getWidth()-request.getX()-request.getWidth(),
-				getHeight() - request.getY() - request.getHeight(),
-				request.getWidth(), request.getHeight(), request.getZ(), request.getT());
-	}
-
-	
-	BufferedImage readRotatedBufferedImage(RegionRequest rotatedRequest) throws IOException {
-		BufferedImage img = getWrappedServer().readBufferedImage(rotatedRequest);
-		
-		if (img == null) {
-			return img;
+		System.err.println(request);
+		String path = getWrappedServer().getPath();
+		switch (rotation) {
+		case ROTATE_180:
+			return RegionRequest.createInstance(path, request.getDownsample(), 
+					getWidth()-request.getX()-request.getWidth(),
+					getHeight() - request.getY() - request.getHeight(),
+					request.getWidth(), request.getHeight(), request.getZ(), request.getT());
+		case ROTATE_270:
+			return RegionRequest.createInstance(path,
+					request.getDownsample(),
+					getHeight() - request.getY() - request.getHeight(),
+					request.getX(),
+					request.getHeight(), request.getWidth(), request.getZ(), request.getT());
+		case ROTATE_90:
+			return RegionRequest.createInstance(path,
+					request.getDownsample(), 
+					request.getY(),
+					getWidth()-request.getX()-request.getWidth(),
+					request.getHeight(), request.getWidth(), request.getZ(), request.getT());
+		case ROTATE_NONE:
+		default:
+			return request;
 		}
-		
-		// TODO: Improve efficiency of this...
-		AffineTransform transform = AffineTransform.getScaleInstance(-1, -1);
-		transform.translate(-img.getWidth(), -img.getHeight());
-	    AffineTransformOp op = new AffineTransformOp(transform, AffineTransformOp.TYPE_NEAREST_NEIGHBOR);
-	    img = op.filter(img, null);
-		
-		return img;
 	}
 	
 	@Override
+	public ImageServerMetadata getOriginalMetadata() {
+		return metadata;
+	}
+	
+	
+	@Override
 	public String getPath() {
-		return getWrappedServer().getPath() + " (rotated)";
+		return getWrappedServer().getPath() + " (" + rotation + ")";
 	}
 
 	@Override
 	public String getServerType() {
-		return getWrappedServer().getServerType() + " (rotated 180)";
+		return getWrappedServer().getServerType() + " (" + rotation + ")";
 	}
 
 }

@@ -26,7 +26,7 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 	private PixelClassifier classifier;
 	private ImageServerMetadata metadata;
 
-	protected PixelClassificationImageServer(Map<RegionRequest, BufferedImage> cache, ImageData<BufferedImage> imageData, PixelClassifier classifier) {
+	public PixelClassificationImageServer(Map<RegionRequest, BufferedImage> cache, ImageData<BufferedImage> imageData, PixelClassifier classifier) {
 		super(cache);
 		this.classifier = classifier;
 		this.imageData = imageData;
@@ -62,20 +62,32 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 		int width = server.getWidth();
 		int height = server.getHeight();
 		
-		metadata = new ImageServerMetadata.Builder(path, width, height)
+		var builder = new ImageServerMetadata.Builder(path, width, height)
 				.setPreferredTileSize(tileWidth, tileHeight)
 				.setPreferredDownsamples(downsamples)
-				.setPixelSizeMicrons(server.getPixelWidthMicrons(), server.getPixelHeightMicrons())
 				.channels(classifierMetadata.getChannels())
 				.setSizeT(server.nTimepoints())
 				.setSizeZ(server.nZSlices())
 				.setMagnification(server.getMagnification())
 				.setBitDepth(bitDepth)
-				.setRGB(false)
-				.build();
+				.setRGB(false);
+		
+		if (server.hasPixelSizeMicrons())
+			builder = builder.setPixelSizeMicrons(server.getPixelWidthMicrons(), server.getPixelHeightMicrons());
+		if (Double.isFinite(server.getMagnification()))
+			builder = builder.setMagnification(server.getMagnification());
+		if (server.getTimeUnit() != null)
+			builder = builder.setTimeUnit(server.getTimeUnit());
+		if (Double.isFinite(server.getZSpacingMicrons()))
+			builder = builder.setZSpacingMicrons(server.getZSpacingMicrons());
+		
+		metadata = builder.build();
 		
 	}
 	
+	public OutputType getOutputType() {
+		return classifier.getMetadata().getOutputType();
+	}
 	
 	public PixelClassifier getClassifier() {
 		return classifier;

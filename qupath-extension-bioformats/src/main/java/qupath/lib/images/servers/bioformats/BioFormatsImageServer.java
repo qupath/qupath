@@ -470,11 +470,19 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 					setSizeT(nTimepoints).
 					setPreferredDownsamples(downsamples).
 					setBitDepth(bpp).
-					setRGB(isRGB).
-					setPixelSizeMicrons(pixelWidth, pixelHeight).
-					setZSpacingMicrons(zSpacing).
-					setMagnification(magnification).
-					setTimeUnit(timeUnit);
+					setRGB(isRGB);
+			
+			if (Double.isFinite(magnification))
+				builder = builder.setMagnification(magnification);
+			
+			if (timeUnit != null)
+				builder = builder.setTimeUnit(timeUnit);
+
+			if (Double.isFinite(pixelWidth + pixelHeight))
+				builder = builder.setPixelSizeMicrons(pixelWidth, pixelHeight);
+
+			if (Double.isFinite(zSpacing))
+				builder = builder.setZSpacingMicrons(zSpacing);
 			
 			// Check the tile size if it is reasonable
 			if (tileWidth >= MIN_TILE_SIZE && tileWidth <= MAX_TILE_SIZE && tileHeight >= MIN_TILE_SIZE && tileHeight <= MAX_TILE_SIZE)

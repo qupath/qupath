@@ -2,6 +2,7 @@ package qupath.lib.classifiers.gui;
 
 import qupath.lib.classifiers.pixel.OpenCVPixelClassifierDNN;
 import qupath.lib.classifiers.pixel.PixelClassifier;
+import qupath.lib.classifiers.pixel.PixelClassifierMetadata;
 import qupath.lib.classifiers.pixel.PixelClassifierMetadata.OutputType;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.common.SimpleThreadFactory;
@@ -33,6 +34,7 @@ import java.awt.geom.Ellipse2D;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBuffer;
 import java.awt.image.ImageObserver;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -55,10 +57,9 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
 
     private QuPathViewer viewer;
 
-    private PixelClassifier classifier;
     private PixelClassificationImageServer classifierServer;
     
-    private Map<RegionRequest, BufferedImage> cache = Collections.synchronizedMap(new HashMap<>());
+    private Map<RegionRequest, BufferedImage> cache;
     private Map<RegionRequest, BufferedImage> cacheRGB = Collections.synchronizedMap(new HashMap<>());
     private Set<RegionRequest> pendingRequests = Collections.synchronizedSet(new HashSet<>());
     
@@ -72,23 +73,26 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
     
     private ImageData<BufferedImage> imageData;
     
-    public PixelClassificationOverlay(final QuPathViewer viewer, final PixelClassifier classifier) {
+    public PixelClassificationOverlay(final QuPathViewer viewer, final PixelClassificationImageServer classifierServer) {
         super();
-        this.cache = ImageServerProvider.getCache(BufferedImage.class);
+        this.cache = viewer.getImageRegionStore().getCache();
         
         // Choose number of threads based on how intensive the processing will be
         // TODO: Permit classifier to control request
         int nThreads = Math.max(1, PathPrefs.getNumCommandThreads());
-        if (classifier instanceof OpenCVPixelClassifierDNN)
+        if (classifierServer.getClassifier() instanceof OpenCVPixelClassifierDNN)
         	nThreads = 1;
         pool = Executors.newFixedThreadPool(
         		nThreads, new SimpleThreadFactory(
         				"classifier-overlay", true, Thread.NORM_PRIORITY-2));
         
-        this.classifier = classifier;
+        this.classifierServer = classifierServer;
         this.viewer = viewer;
         this.viewer.addViewerListener(this);
-        imageDataChanged(viewer, null, viewer.getImageData());
+        
+        this.imageData = viewer.getImageData();
+        imageData.getHierarchy().addPathObjectListener(this);
+//        imageDataChanged(viewer, null, viewer.getImageData());
     }
     
     
@@ -120,11 +124,6 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
     }
     
     
-    public PixelClassifier getClassifier() {
-    	return classifier;
-    }
-    
-    
     public String getResultsString(double x, double y) {
     	if (viewer == null || viewer.getServer() == null || classifierServer == null)
     		return null;
@@ -143,8 +142,8 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
     	
 //    	String coords = GeneralTools.formatNumber(x, 1) + "," + GeneralTools.formatNumber(y, 1);
     	
-    	var channels = classifier.getMetadata().getChannels();
-    	if (classifier.getMetadata().getOutputType() == OutputType.Classification) {
+    	var channels = classifierServer.getChannels();
+    	if (classifierServer.getOutputType() == OutputType.Classification) {
         	int sample = img.getRaster().getSample(xx, yy, 0); 		
         	return String.format("Classification: %s", channels.get(sample).getName());
 //        	return String.format("Classification (%s):\n%s", coords, channels.get(sample).getName());
@@ -177,10 +176,10 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
     	if (measuredObjects.getOrDefault(pathObject, null) == pathObject.getROI())
     		return false;
 
-        if (classifier.getMetadata() == null || Double.isNaN(classifier.getMetadata().getInputPixelSizeMicrons()))
+        if (!classifierServer.hasPixelSizeMicrons())
         	return false;
     	
-        List<ImageChannel> channels = classifier.getMetadata().getChannels();
+        List<ImageChannel> channels = classifierServer.getChannels();
         long[] counts = null;
         long total = 0L;
                 
@@ -192,7 +191,7 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
         ImageServer<BufferedImage> server = classifierServer;//imageData.getServer();
         
         // Calculate area of a pixel
-        double requestedDownsample = classifier.getMetadata().getInputPixelSizeMicrons() / server.getAveragedPixelSizeMicrons();
+        double requestedDownsample = classifierServer.getDownsampleForResolution(0);
         double pixelArea = (server.getPixelWidthMicrons() * requestedDownsample) * (server.getPixelHeightMicrons() * requestedDownsample);
         String pixelAreaUnits = GeneralTools.micrometerSymbol() + "^2";
         if (!pathObject.isDetection()) {
@@ -203,7 +202,7 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
 
         
         // Check we have a suitable output type
-        OutputType type = classifier.getMetadata().getOutputType();
+        OutputType type = classifierServer.getOutputType();
         if (type == OutputType.Features)
         	return updateMeasurements(pathObject, channels, counts, total, pixelArea, pixelAreaUnits);
         
@@ -325,7 +324,7 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
     private synchronized void resetMeasurements(PathObjectHierarchy hierarchy, Collection<PathObject> pathObjects) {
     	boolean changes = false;
     	for (PathObject pathObject : pathObjects) {
-    		if (updateMeasurements(pathObject, classifier.getMetadata().getChannels(), null, 0L, Double.NaN, null))
+    		if (updateMeasurements(pathObject, classifierServer.getChannels(), null, 0L, Double.NaN, null))
     			changes = true;
     	}
     	if (hierarchy != null && changes) {
@@ -522,6 +521,7 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
     	if (imageData != null) {
     		resetMeasurements(imageData.getHierarchy(), imageData.getHierarchy().getObjects(null, PathAnnotationObject.class));
     	}
+    	viewer.getImageRegionStore().clearCacheForServer(classifierServer);
     	imageDataChanged(viewer, imageData, null);
     	List<Runnable> pending = this.pool.shutdownNow();
     	viewer.removeViewerListener(this);
@@ -597,25 +597,26 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
 				}
 			}
 		}
-		this.imageData = imageDataNew;
-		if (imageDataNew != null) {
-			imageDataNew.getHierarchy().addPathObjectListener(this);
-			
-			classifierServer = new PixelClassificationImageServer(cache, imageDataNew, classifier);
-			
-			long bytes;
-			long bytesRGB = 0L;
-			if (classifier.getMetadata().getOutputType() == OutputType.Classification) {
-				bytes = 1L;
-			} else {
-				bytes = 1L * classifier.getMetadata().nOutputChannels();
-				bytesRGB = 4L;
-			}
-			long totalPixels = classifierServer.getAllTileRequests().stream().mapToLong(t -> t.getTileWidth() * t.getTileHeight()).sum();
-			logger.info("Estimated memory needed to classify whole image (assuming 8-bit output): {} MB", GeneralTools.formatNumber(totalPixels * bytes / (1024.0 * 1024.0), 1));
-			if (bytesRGB > 0)
-				logger.info("Additional memory required to cache RGB display: {} MB", GeneralTools.formatNumber(totalPixels * bytesRGB / (1024.0 * 1024.0), 1));
-		}
+		viewer.getCustomOverlayLayers().remove(this);
+//		this.imageData = imageDataNew;
+//		if (imageDataNew != null) {
+//			imageDataNew.getHierarchy().addPathObjectListener(this);
+//			
+//			classifierServer = new PixelClassificationImageServer(cache, imageDataNew, classifier);
+//			
+//			long bytes;
+//			long bytesRGB = 0L;
+//			if (classifierServer.getOutputType() == OutputType.Classification) {
+//				bytes = 1L;
+//			} else {
+//				bytes = 1L * classifierServer.nChannels();
+//				bytesRGB = 4L;
+//			}
+//			long totalPixels = classifierServer.getAllTileRequests().stream().mapToLong(t -> t.getTileWidth() * t.getTileHeight()).sum();
+//			logger.info("Estimated memory needed to classify whole image (assuming 8-bit output): {} MB", GeneralTools.formatNumber(totalPixels * bytes / (1024.0 * 1024.0), 1));
+//			if (bytesRGB > 0)
+//				logger.info("Additional memory required to cache RGB display: {} MB", GeneralTools.formatNumber(totalPixels * bytesRGB / (1024.0 * 1024.0), 1));
+//		}
 	}
 
 
@@ -629,6 +630,6 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
 
 	@Override
 	public void viewerClosed(QuPathViewer viewer) {}
-
+	
 
 }

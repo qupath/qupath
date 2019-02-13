@@ -74,6 +74,21 @@ public class ImageServerMetadata {
 			this.metadata = metadata.duplicate();
 		}
 		
+		public Builder path(final String path) {
+			this.metadata.path = path;
+			return this;
+		}
+
+		public Builder width(int width) {
+			this.metadata.width = width;
+			return this;
+		}
+		
+		public Builder height(int height) {
+			this.metadata.height = height;
+			return this;
+		}
+
 		public Builder(final String path, final int width, final int height) {
 			metadata = new ImageServerMetadata(path, width, height);
 		}
@@ -134,8 +149,7 @@ public class ImageServerMetadata {
 		}
 
 		public Builder channels(Collection<ImageChannel> channels) {
-			metadata.channels.clear();
-			metadata.channels.addAll(channels);
+			metadata.channels = Collections.unmodifiableList(new ArrayList<>(channels));
 			return this;
 		}
 
@@ -170,12 +184,14 @@ public class ImageServerMetadata {
 		
 		this.sizeZ = metadata.sizeZ;
 		this.sizeT = metadata.sizeT;
-		
+				
 		this.isRGB = metadata.isRGB;
 		this.bitDepth = metadata.bitDepth;
 		this.downsamples = metadata.downsamples.clone();
 		
 		this.pixelCalibration = metadata.pixelCalibration;
+		
+		this.channels = new ArrayList<>(metadata.getChannels());
 		
 		this.magnification = metadata.magnification;
 		
@@ -278,7 +294,7 @@ public class ImageServerMetadata {
 	}
 	
 	public List<ImageChannel> getChannels() {
-		return Collections.unmodifiableList(channels);
+		return channels;
 	}
 	
 	/**

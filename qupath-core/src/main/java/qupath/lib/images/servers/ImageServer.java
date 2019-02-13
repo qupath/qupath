@@ -396,6 +396,11 @@ public interface ImageServer<T> extends AutoCloseable {
 	 */
 	public String getChannelName(int channel);
 	
+	/**
+	 * Get a list providing the name & default color for each image channel.
+	 * @return
+	 */
+	public List<ImageChannel> getChannels();
 	
 	/**
 	 * Get essential metadata associated with the ImageServer as a distinct object.  This may be edited by the user.
