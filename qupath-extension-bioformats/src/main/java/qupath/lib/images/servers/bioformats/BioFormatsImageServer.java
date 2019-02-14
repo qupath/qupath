@@ -250,7 +250,10 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 						associatedImageMap.put(name, s);
 					}
 					else {
-						imageMap.put(name, s);
+						if (imageMap.containsKey(name))
+							logger.warn("Duplicate image called {} - only the first will be used", name);
+						else
+							imageMap.put(name, s);
 					}
 					// Set this to be the series, if necessary
 					if (seriesName == null) {
@@ -890,6 +893,10 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 
 	@Override
 	public String getSubImagePath(String imageName) {
+		// If we don't have an image name, return original file path
+		// TODO: Consider that this means only one image with no name is accessible
+		if (imageName.isEmpty())
+			return filePath;
 		if (imageMap.containsKey(imageName))
 			return filePath + delimiter + imageName;
 		throw new IllegalArgumentException(toString() + " does not contain sub-image with name " + imageName);
