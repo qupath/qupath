@@ -46,6 +46,7 @@ import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.FloatProperty;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleFloatProperty;
@@ -59,6 +60,7 @@ import javafx.collections.ObservableList;
 import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.helpers.CommandFinderTools.CommandBarDisplay;
+import qupath.lib.objects.classes.PathClass;
 import qupath.lib.projects.ProjectIO;
 
 /**
@@ -1115,17 +1117,17 @@ public class PathPrefs {
 	
 	
 	
-	private static BooleanProperty autoSetAnnotationClass = createTransientPreference("autoSetAnnotationClass", false); // Request that newly-created annotations be automatically classified
+	private static ObjectProperty<PathClass> autoSetAnnotationClass = createTransientPreference("autoSetAnnotationClass", (PathClass)null); // Request that newly-created annotations be automatically classified
 	
-	public static boolean getAutoSetAnnotationClass() {
+	public static PathClass getAutoSetAnnotationClass() {
 		return autoSetAnnotationClass.get();
 	}
 
-	public static void setAutoSetAnnotationClass(boolean autoSet) {
+	public static void setAutoSetAnnotationClass(PathClass autoSet) {
 		autoSetAnnotationClass.set(autoSet);
 	}
 	
-	public static BooleanProperty autoSetAnnotationClassProperty() {
+	public static ReadOnlyObjectProperty<PathClass> autoSetAnnotationClassProperty() {
 		return autoSetAnnotationClass;
 	}
 	

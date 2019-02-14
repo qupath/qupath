@@ -122,7 +122,10 @@ abstract class AbstractPathROITool extends AbstractPathTool {
 		// Set the current parent object based on the first click
 		setCurrentParent(hierarchy, getSelectableObject(xx, yy, 0), null);
 		
-		PathObject pathObject = PathObjects.createAnnotationObject(createNewROI(xx, yy, viewer.getZPosition(), viewer.getTPosition()));
+		PathObject pathObject = PathObjects.createAnnotationObject(
+				createNewROI(xx, yy, viewer.getZPosition(), viewer.getTPosition()),
+				PathPrefs.getAutoSetAnnotationClass()
+				);
 		viewer.setSelectedObject(pathObject);
 		// Start editing the ROI immediately
 		editor.setROI(pathObject.getROI());

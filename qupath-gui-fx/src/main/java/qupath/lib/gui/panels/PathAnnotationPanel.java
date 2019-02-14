@@ -39,6 +39,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javafx.application.Platform;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
@@ -116,6 +118,8 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 
 	private ListView<PathObject> listAnnotations;
 	private PathObjectHierarchy hierarchy;
+	
+	private BooleanProperty doAutoSetPathClass = new SimpleBooleanProperty(false);
 
 	// Available PathClasses
 	private ListView<PathClass> listClasses;
@@ -130,6 +134,8 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 		listClasses.setItems(qupath.getAvailablePathClasses());
 		listClasses.setTooltip(new Tooltip("Annotation classes available"));
 		//		listClasses.setCellRenderer(new PathClassListCellRenderer2()); // TODO: Use a good renderer!!!
+		
+		listClasses.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> updateAutoSetPathClassProperty());
 		
 		listClasses.setCellFactory(new Callback<ListView<PathClass>, ListCell<PathClass>>(){
 
@@ -527,9 +533,9 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 
 		Action autoClassifyAnnotationsAction = new Action("Auto set");
 		autoClassifyAnnotationsAction.setLongText("Automatically set all new annotations to the selected class");
-		autoClassifyAnnotationsAction.selectedProperty().addListener((e, f, g) ->
-		PathPrefs.setAutoSetAnnotationClass(g)
-				);
+		autoClassifyAnnotationsAction.selectedProperty().bindBidirectional(doAutoSetPathClass);
+		
+		doAutoSetPathClass.addListener((e, f, g) -> updateAutoSetPathClassProperty());
 
 		button = ActionUtils.createButton(setSelectedObjectClassAction);
 		panelButtons.add(button, 0, 0);
@@ -545,7 +551,17 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 	}
 
 
-
+	void updateAutoSetPathClassProperty() {
+		PathClass pathClass = null;
+		if (doAutoSetPathClass.get()) {
+			pathClass = getSelectedPathClass();
+		}
+		if (pathClass == null || pathClass.isDefault())
+			PathPrefs.setAutoSetAnnotationClass(null);
+		else
+			PathPrefs.setAutoSetAnnotationClass(pathClass);
+	}
+	
 	
 	
 	/**
@@ -801,13 +817,6 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 		
 		var hierarchySelected = new TreeSet<>(DefaultPathObjectComparator.getInstance());
 		hierarchySelected.addAll(hierarchy.getSelectionModel().getSelectedObjects());
-		
-		// TODO: Find a more robust way to do this - the check for the creation of a new object is rather hack-ish
-		if (pathObjectSelected != null && pathObjectSelected.getParent() == null && !pathObjectSelected.isRootObject() && pathObjectSelected.getPathClass() == null && PathPrefs.getAutoSetAnnotationClass()) {
-			PathClass pathClass = getSelectedPathClass();
-			if (pathClass != null)
-				pathObjectSelected.setPathClass(pathClass);
-		}
 		
 		// Determine the objects to select
 		MultipleSelectionModel<PathObject> model = listAnnotations.getSelectionModel();

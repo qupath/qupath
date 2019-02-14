@@ -1181,13 +1181,15 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 
 
 	/**
-	 * Create a new annotation object from a ROI, and set it to the current object
+	 * Create a new annotation object from a ROI, and set it to the current object.
+	 * <p>
+	 * Note that this will use the {@link PathPrefs#getAutoSetAnnotationClass()}
 	 */
 	public void createAnnotationObject(ROI pathROI) {
 		PathObjectHierarchy hierarchy = getHierarchy();
 		if (hierarchy == null)
 			return;
-		PathObject pathObject = PathObjects.createAnnotationObject(pathROI);
+		PathObject pathObject = PathObjects.createAnnotationObject(pathROI, PathPrefs.getAutoSetAnnotationClass());
 		hierarchy.addPathObject(pathObject, true);
 		setSelectedObject(pathObject);
 	}

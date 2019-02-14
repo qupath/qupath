@@ -226,11 +226,10 @@ public class BrushTool extends AbstractPathROITool {
 		PathShape shapeROI = createNew ? null : (PathShape)currentObject.getROI();
 		if (createNew) {
 			creatingTiledROI = false; // Reset this
-			viewer.setSelectedObject(
-					PathObjects.createAnnotationObject(
+			viewer.createAnnotationObject(
 							ROIs.createAreaROI(
 									new Rectangle2D.Double(p.getX(), p.getY(), 0, 0),
-									ImagePlane.getPlane(viewer.getZPosition(), viewer.getTPosition()))));
+									ImagePlane.getPlane(viewer.getZPosition(), viewer.getTPosition())));
 		} else
 			viewer.setSelectedObject(getUpdatedObject(e, shapeROI, currentObject, -1));
 	}
@@ -337,7 +336,7 @@ public class BrushTool extends AbstractPathROITool {
 		}
 		
 //		shapeNew = new PathAreaROI(new Area(shapeNew.getShape()));
-		PathObject pathObjectNew = PathObjects.createAnnotationObject(shapeNew);
+		PathObject pathObjectNew = PathObjects.createAnnotationObject(shapeNew, PathPrefs.getAutoSetAnnotationClass());
 		if (currentObject != null) {
 			pathObjectNew.setName(currentObject.getName());
 			pathObjectNew.setColorRGB(currentObject.getColorRGB());
