@@ -461,7 +461,7 @@ public class PathObjectHierarchyView implements ImageDataChangeListener<Buffered
 	public void hierarchyChanged(PathObjectHierarchyEvent event) {
 		if (imageData == null)
 			return;
-		if (event.isChanging())
+		if (event != null && event.isChanging())
 			return;
 		if (!Platform.isFxApplicationThread()) {
 			Platform.runLater(() -> hierarchyChanged(event));

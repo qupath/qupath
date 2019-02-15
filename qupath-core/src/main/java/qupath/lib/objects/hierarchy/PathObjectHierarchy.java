@@ -28,18 +28,16 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Vector;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import qupath.lib.geom.Point2;
 import qupath.lib.objects.PathAnnotationObject;
-import qupath.lib.objects.PathCellObject;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathRootObject;
@@ -50,9 +48,6 @@ import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
 import qupath.lib.objects.hierarchy.events.PathObjectSelectionModel;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent.HierarchyEventType;
 import qupath.lib.regions.ImageRegion;
-import qupath.lib.roi.PointsROI;
-import qupath.lib.roi.interfaces.PathArea;
-import qupath.lib.roi.interfaces.ROI;
 
 /**
  * A basic hierarchy in which to store PathObjects.
@@ -76,8 +71,7 @@ public final class PathObjectHierarchy implements Serializable {
 	private static final long serialVersionUID = 1L;
 	
 	final private static Logger logger = LoggerFactory.getLogger(PathObjectHierarchy.class);
-	
-	
+			
 	// TODO: Make this a choice - currently a cell object is considered 'inside' if its nucleus is fully contained (as cell boundaries themselves are a little more questionable)
 	/*
 	 * TODO: Consider how to explain this...
@@ -105,7 +99,7 @@ public final class PathObjectHierarchy implements Serializable {
 	transient private Vector<PathObjectHierarchyListener> listeners = new Vector<>();
 
 	// Cache enabling faster access of objects according to location
-	transient private PathObjectTileCache tileCache = new PathObjectTileCache(this, 512);
+	transient private PathObjectTileCache tileCache = new PathObjectTileCache(this);
 
 	
 	public PathObjectHierarchy() {
@@ -206,7 +200,6 @@ public final class PathObjectHierarchy implements Serializable {
 			else
 				fireHierarchyChangedEvent(this, pathObjectParent);
 		}
-		
 		return true;
 	}
 	
@@ -258,7 +251,6 @@ public final class PathObjectHierarchy implements Serializable {
 			}
 		}
 		fireHierarchyChangedEvent(this);
-		
 	}
 	
 	
@@ -323,150 +315,50 @@ public final class PathObjectHierarchy implements Serializable {
 		if (pathObject != null && !pathObject.isDetection())
 			logger.trace("Adding {} to hierarchy", pathObject);
 		
-//		// We can't add to a non-ROI
-//		if (!pathObjectParent.hasROI() && pathObjectParent != getRootObject())
-//			return false;
-		
-		if (pathObjectParent != null && !pathObjectParent.hasChildren()) {
-			// The parent doesn't have any other children - so we can just add the object directly
-			pathObjectParent.addPathObject(pathObject);
-			// Notify listeners of changes
-			if (fireChangeEvents)
-				fireObjectAddedEvent(this, pathObject);
-			logger.debug("Adding directly: {} has no child objects", pathObjectParent);
-			return true;
-		}
-		Collection<PathObject> pathObjects = pathObjectParent.getChildObjects();
-		if (avoidDuplicates && pathObjects.contains(pathObject)) {
-			logger.warn("Warning: Child object collection already contains {}, will not be added again", pathObject);
-			return false;
-		}
-		
-		
-		ROI pathROI = pathObject.getROI();
-		ROI pathROIInner = useCellNucleiForInsideTest && (pathObject instanceof PathCellObject) ? ((PathCellObject)pathObject).getNucleusROI() : pathROI; //J
-		if (useTileCentroidsForInsideTest && pathObject instanceof PathDetectionObject && !(pathROIInner instanceof PointsROI)) {
-			double cx = pathROIInner.getCentroidX();
-			double cy = pathROIInner.getCentroidY();
-			boolean usePoint = true;
-			if (pathROIInner instanceof PathArea) {
-				PathArea tempArea = (PathArea)pathROIInner;
-				// If the centroid is outside the tile, try the center of the bounding box instead
-				if (!tempArea.contains(cx, cy)) {
-					Point2 p = PathObjectTools.getContainedPoint(tempArea);
-					usePoint = p != null;
-					if (usePoint) {
-						cx = p.getX();
-						cy = p.getY();
-					}
-				}
-			}
-			if (usePoint)
-				pathROIInner = new PointsROI(cx, cy, pathROIInner.getC(), pathROIInner.getZ(), pathROIInner.getT());
-//			pathROIInner = new PointsROI(pathROIInner.getCentroidX(), pathROIInner.getCentroidY(), pathROIInner.getC(), pathROIInner.getZ(), pathROIInner.getT());
-		}
-		
-		PathObject possibleParent = pathObjectParent;
-		List<PathObject> possibleChildren = new ArrayList<>();
-		ImageRegion region = ImageRegion.createInstance(pathROI);
-		for (PathObject temp : tileCache.getObjectsForRegion(PathObject.class, region, null, true)) {
-			
-//			if (useTileCentroidsForInsideTest && temp.isDetection())
-//				continue;
-			
-//			if (!temp.hasROI() || !temp.getParent().hasROI())
-//				continue;
-			
-			ROI tempROI = temp.getROI();
-			ROI tempROIInner = tempROI;;
-			// Use the nucleus ROI of a cell if available & requested
-			if (temp instanceof PathCellObject && useCellNucleiForInsideTest) {
-				ROI nucleusROI = ((PathCellObject)temp).getNucleusROI();
-				if (nucleusROI != null)
-					tempROIInner = nucleusROI;
-			}
-//			= useCellNucleiForInsideTest && (temp instanceof PathCellObject) ? ((PathCellObject)temp).getNucleusROI() : tempROI; //J
-			
-//			if (useTileCentroidsForInsideTest && temp instanceof PathTileObject)
-			if (useTileCentroidsForInsideTest && temp instanceof PathDetectionObject) {
-				double cx = tempROIInner.getCentroidX();
-				double cy = tempROIInner.getCentroidY();
-				boolean usePoint = true;
-				if (tempROIInner instanceof PathArea) {
-					PathArea tempArea = (PathArea)tempROIInner;
-					// If the centroid is outside the tile, try the center of the bounding box instead
-					if (!tempArea.contains(cx, cy)) {
-						Point2 p = PathObjectTools.getContainedPoint(tempArea);
-						usePoint = p != null;
-						if (usePoint) {
-							cx = p.getX();
-							cy = p.getY();
-						}
-					}
-				}
-				if (usePoint)
-					tempROIInner = new PointsROI(cx, cy, tempROI.getC(), tempROI.getZ(), tempROI.getT());
-//				tempROIInner = new RectangleROI(tempROIInner.getCentroidX()-.5, tempROIInner.getCentroidY()-.5,  1,  1, tempROI.getC(), tempROI.getZ(), tempROI.getT());
-			}
+		// Get all the annotations that might be a parent of this object
+		var region = ImageRegion.createInstance(pathObject.getROI());
+		Collection<PathObject> tempSet = new HashSet<>();
+		tempSet.add(getRootObject());
+		tileCache.getObjectsForRegion(PathAnnotationObject.class, region, tempSet, true);
+		if (tmaGrid != null)
+			tileCache.getObjectsForRegion(TMACoreObject.class, region, tempSet, true);
 
-			if (!(temp instanceof TMACoreObject) && pathROI != tempROIInner && PathObjectTools.containsROI(pathROI, tempROIInner)){
-				possibleChildren.add(temp);
-			} else if (tempROI != pathROIInner && PathObjectTools.containsROI(tempROI, pathROIInner)) {
-				if (possibleParent == null)
-					possibleParent = temp;
-				else if (temp.getLevel() > possibleParent.getLevel()) // We want the highest level to be the parent, i.e. deepest in hierarchy
-					possibleParent = temp;
-			}
-		}
-		// Add the ROI, and reassign any children from the parent
-		Iterator<PathObject> iterChild = possibleChildren.iterator();
-		while (iterChild.hasNext()) {
-			if (iterChild.next().getParent() != possibleParent)
-				iterChild.remove();
-		}
-		pathObject.addPathObjects(possibleChildren);
-		possibleParent.addPathObject(pathObject);
-		
+		var possibleObjects = new ArrayList<PathObject>(tempSet);
+		Collections.sort(possibleObjects, (p1, p2) -> -Integer.compare(p1.getLevel(), p2.getLevel()));
 
+		for (PathObject possibleParent : possibleObjects) {
+			if (possibleParent == pathObject)
+				continue;
+			boolean addObject = possibleParent.isRootObject();
+			if (!addObject) {
+				if (pathObject.isDetection())
+					addObject = tileCache.containsCentroid(possibleParent, pathObject);
+				else
+					addObject = tileCache.covers(possibleParent, pathObject);
+			}
+			if (addObject) {
+				if (pathObject.getParent() == possibleParent)
+					return false;
 				
-//		// If an object completely contains the ROI of the object we want to add, then add it as child of the containing object
-//		for (PathObject pathObjectChild : pathObjectList) {
-//			if (containsROI(pathObjectChild.getROI(), pathROI)) {
-//				// Check the next level of the hierarchy, trying to add there
-//				return addPathObjectToList(pathObjectChild, pathObject, avoidDuplicates, fireChangeEvents);
-//			}
-//		}
-//		
-//		// We will be adding the object here - but first check to see if we need to set some new parents, i.e.
-//		// find out if there are any other objects at this level that should be added as children
-//		List<PathObject> childrenToReassign = null;
-//		for (PathObject child : pathObjectList) {
-//			if (!(child instanceof TMACoreObject ) && containsROI(pathROI, child.getROI())) {
-//				if (childrenToReassign == null)
-//					childrenToReassign = new ArrayList<>();
-//				childrenToReassign.add(child);
-//			}
-//		}
-//		if (childrenToReassign != null)
-//			pathObject.addPathObjects(childrenToReassign);
-//		
-////		Iterator<PathObject> iter = pathObjectList.iterator();
-////		while (iter.hasNext()) {
-//////			logger.info(pathObjectParent);
-////			PathObject pathObjectChild = iter.next();
-////			if (containsROI(pathObject.getROI(), pathObjectChild.getROI())) {
-////				iter.remove();
-//////				pathObjectChild.setParent(null);
-////				pathObject.addPathObject(pathObjectChild);
-////			}
-////		}
-//		
-//		// Add as a child
-//		pathObjectParent.addPathObject(pathObject);
-		
-		// Notify listeners of changes, if required
-		if (fireChangeEvents)
-			fireObjectAddedEvent(this, pathObject);
+				var previousChildren = new HashSet<>(possibleParent.getChildObjects());
+				possibleParent.addPathObject(pathObject);
+				for (var child : previousChildren) {
+					boolean reassignChild = false;
+					if (child.isDetection())
+						reassignChild = tileCache.containsCentroid(pathObject, child);
+					else if (!pathObject.isDetection())
+						reassignChild = tileCache.covers(pathObject, child);
+					if (reassignChild) {
+						pathObject.addPathObject(child);
+					}
+				}
+				
+				// Notify listeners of changes, if required
+				if (fireChangeEvents)
+					fireObjectAddedEvent(this, pathObject);
+				return true;
+			}
+		}
 		return true;
 	}
 	
@@ -512,9 +404,9 @@ public final class PathObjectHierarchy implements Serializable {
 		for (PathObject pathObject : pathObjects) {
 			if (n > 10000) {
 				if (counter % 1000 == 0)
-					logger.info("Adding {} of {}", counter, n);
+					logger.debug("Adding {} of {}", counter, n);
 			} else if (n > 1000 && counter % 100 == 0)
-				logger.info("Adding {} of {}", counter, n);
+				logger.debug("Adding {} of {}", counter, n);
 			changes = addPathObjectToList(getRootObject(), pathObject, avoidDuplicates, false) || changes;
 			counter++;
 		}
@@ -568,6 +460,18 @@ public final class PathObjectHierarchy implements Serializable {
 	//		default: 			return new ArrayList<>();
 	//	}
 	//}
+	
+	public Collection<PathObject> getCellObjects() {
+		return getObjects(null, PathDetectionObject.class);
+	}
+	
+	public Collection<PathObject> getDetectionObjects() {
+		return getObjects(null, PathDetectionObject.class);
+	}
+	
+	public Collection<PathObject> getAnnotationObjects() {
+		return getObjects(null, PathAnnotationObject.class);
+	}
 
 	public List<PathObject> getObjects(List<PathObject> pathObjects, Class<? extends PathObject> cls) {
 		if (pathObjects == null)
@@ -629,11 +533,6 @@ public final class PathObjectHierarchy implements Serializable {
 	}
 	
 	
-//	public Collection<PathObject> getObjectsForRegion(Class<? extends PathObject> cls, Rectangle region, Collection<PathObject>pathObjects) {
-//		return tileCache.getObjectsForRegion(cls, region, pathObjects, true);
-//	}
-	
-	
 	public Collection<PathObject> getObjectsForRegion(Class<? extends PathObject> cls, ImageRegion region, Collection<PathObject> pathObjects) {
 		return tileCache.getObjectsForRegion(cls, region, pathObjects, true);
 	}
@@ -673,12 +572,6 @@ public final class PathObjectHierarchy implements Serializable {
 		PathObjectHierarchyEvent event = PathObjectHierarchyEvent.createObjectsChangedEvent(source, this, HierarchyEventType.CHANGE_OTHER, pathObjects, isChanging);
 		fireEvent(event);
 	}
-//	
-//	public synchronized void fireObjectChangedEvent(Object source, PathObject pathObject) {
-//		PathObjectHierarchyEvent event = new PathObjectHierarchyEvent(source, this, HierarchyEventType.OBJECT_CHANGE, pathObject, true);
-//		for (PathObjectHierarchyListener listener : listeners)
-//			listener.hierarchyChanged(event);
-//	}
 	
 	public synchronized void fireHierarchyChangedEvent(Object source, PathObject pathObject) {
 		PathObjectHierarchyEvent event = PathObjectHierarchyEvent.createStructureChangeEvent(source, this, pathObject);
@@ -702,34 +595,5 @@ public final class PathObjectHierarchy implements Serializable {
 	public String toString() {
 		return "Hierarchy: " + nObjects() + " objects";
 	}
-	
-	
-//	@Deprecated
-//	List<TiledFeatureMap> getTiledFeatureMaps() {
-////		return new ArrayList<>(featureMaps);
-//		return featureMaps;
-//	}
-//	
-//	@Deprecated
-//	void addTiledFeatureMap(TiledFeatureMap map) {
-//		if (featureMaps.isEmpty()) {
-//			featureMaps.add(map);
-//			return;
-//		}
-//		featureMaps.add(map);
-//		featureMaps.sort(new Comparator<>() {
-//
-//			@Override
-//			public int compare(TiledFeatureMap map1, TiledFeatureMap map2) {
-//				return Double.compare(map1.getTileWidth(), map2.getTileWidth());
-//			}
-//			
-//		});
-//	}
-//	
-//	@Deprecated
-//	boolean removeTiledFeatureMap(TiledFeatureMap map) {
-//		return featureMaps.remove(map);
-//	}
 	
 }
