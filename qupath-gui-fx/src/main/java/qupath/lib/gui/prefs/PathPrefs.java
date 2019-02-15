@@ -391,6 +391,25 @@ public class PathPrefs {
 	}
 	
 	
+	private static BooleanProperty selectionMode = createTransientPreference("selectionMode", false);
+
+	/**
+	 * Convert drawing tools to select objects, rather than creating new objects.
+	 * @return
+	 */
+	public static BooleanProperty selectionModeProperty() {
+		return selectionMode;
+	}
+
+	public static void setSelectionMode(final boolean mode) {
+		selectionMode.set(mode);
+	}
+	
+	public static boolean isSelectionMode() {
+		return selectionMode.get();
+	}
+	
+	
 	
 	private static BooleanProperty clipROIsForHierarchy = createPersistentPreference("clipROIsForHierarchy", false);
 

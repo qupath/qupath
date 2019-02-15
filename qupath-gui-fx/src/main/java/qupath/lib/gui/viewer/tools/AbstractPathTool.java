@@ -32,6 +32,9 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javafx.scene.Cursor;
 import javafx.scene.Node;
 import javafx.scene.input.MouseEvent;
@@ -54,6 +57,8 @@ import qupath.lib.roi.interfaces.ROI;
  *
  */
 abstract class AbstractPathTool implements PathTool, QuPathViewerListener {
+	
+	private final static Logger logger = LoggerFactory.getLogger(AbstractPathTool.class);
 
 	QuPathViewer viewer;
 	ModeWrapper modes;
@@ -70,7 +75,6 @@ abstract class AbstractPathTool implements PathTool, QuPathViewerListener {
 	}
 	
 	void ensureCursorType(Cursor cursor) {
-//		System.err.println(cursor);
 		// We don't want to change a waiting cursor unnecessarily
 		Cursor currentCursor = viewer.getCursor();
 		if (currentCursor == null || currentCursor == Cursor.WAIT)
@@ -83,47 +87,6 @@ abstract class AbstractPathTool implements PathTool, QuPathViewerListener {
 		return viewer;
 	}
 
-	
-//	/**
-//	 * Try to select an object with a ROI overlapping a specified coordinate.
-//	 * 
-//	 * @param x
-//	 * @param y
-//	 * @param searchCount - how far up the hierarchy to go, i.e. how many parents to check if objects overlap
-//	 * @return true if any object was selected
-//	 */
-//	boolean tryToSelect(double x, double y, int searchCount) {
-//		PathObjectHierarchy hierarchy = viewer.getPathObjectHierarchy();
-//		if (hierarchy == null)
-//			return false;
-//		Set<PathObject> pathObjects = new HashSet<>(8);
-//		hierarchy.getObjectsForRegion(PathObject.class, ImageRegion.createInstance((int)x, (int)y, 1, 1, viewer.getZPosition(), viewer.getTPosition()), pathObjects);
-//		PathObjectHelpers.removePoints(pathObjects); // Ensure we don't have any PointROIs
-//		
-//		// Ensure the ROI contains the click
-//		Iterator<PathObject> iter = pathObjects.iterator();
-//		while (iter.hasNext()) {
-//			if (!iter.next().getROI().contains(x, y))
-//				iter.remove();
-//		}
-//		
-//		if (pathObjects.isEmpty()) {
-//			hierarchy.getSelectionModel().setSelectedPathObject(null);
-//			return false;
-//		}
-//		if (pathObjects.size() == 1) {
-//			hierarchy.getSelectionModel().setSelectedPathObject(pathObjects.iterator().next());
-//			return true;
-//		}
-//		List<PathObject> pathObjectList = new ArrayList<>(pathObjects);
-//		if (comparator == null)
-//			comparator = new LevelComparator();
-//		Collections.sort(pathObjectList, comparator);
-//		int ind = pathObjects.size() - searchCount % pathObjects.size() - 1;
-//		hierarchy.getSelectionModel().setSelectedPathObject(pathObjectList.get(ind));
-//		return true;
-//	}
-	
 	
 	/**
 	 * Query whether parent clipping should be applied.
@@ -282,7 +245,6 @@ abstract class AbstractPathTool implements PathTool, QuPathViewerListener {
 		PathObjectHierarchy hierarchy = viewer.getHierarchy();
 		if (hierarchy == null)
 			return Collections.emptyList();
-		double downsample = viewer.getDownsampleFactor();
 		
 		Collection<PathObject> pathObjects = PathObjectTools.getObjectsForLocation(
 				hierarchy, x, y, viewer.getZPosition(), viewer.getTPosition(), viewer.getMaxROIHandleSize());
@@ -357,13 +319,11 @@ abstract class AbstractPathTool implements PathTool, QuPathViewerListener {
 		// Disassociate from any previous viewer
 		if (this.viewer != null)
 			deregisterTool(this.viewer);
+		
 		// Associate with new viewer
 		this.viewer = viewer;
 		if (viewer != null) {
-//			if (viewer.getServer() == null)
-//				System.err.println("Registering null!");
-//			else
-//				System.err.println("Registering " + viewer.getServer().getShortServerName());
+			logger.trace("Registering {} to viewer {}", this, viewer);
 			Node canvas = viewer.getView();
 			
 			canvas.setOnMouseDragged(e -> mouseDragged(e));
@@ -385,6 +345,9 @@ abstract class AbstractPathTool implements PathTool, QuPathViewerListener {
 	@Override
 	public void deregisterTool(QuPathViewer viewer) {
 		if (this.viewer == viewer) {
+			
+			logger.trace("Deregistering {} from viewer {}", this, viewer);
+
 			this.viewer = null;
 			
 			Node canvas = viewer.getView();

@@ -28,18 +28,15 @@ import java.util.Collections;
 
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
-import qupath.lib.gui.QuPathGUI.Modes;
-import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.ModeWrapper;
-import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathROIObject;
-import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.roi.RoiEditor;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
- * Abstract PathTool for drawing ROIs that require clicking and dragging to draw.
+ * Abstract {@link PathTool} for drawing ROIs that require clicking and dragging to create 
+ * two end points (either for a bounding box or end points of a line).
  * 
  * @author Pete Bankhead
  *
@@ -94,9 +91,7 @@ abstract class AbstractPathDraggingROITool extends AbstractPathROITool {
 		
 		ROI currentROI = selectedObject.getROI();
 		if (currentROI != null && editor.getROI() == currentROI && editor.hasActiveHandle()) {
-//			Point2D p = viewer.componentPointToImagePoint(e.getX(), e.getY(), null, true);
 			editor.setROI(null);
-//			currentROI.finishAdjusting(p.getX(), p.getY(), e.isShiftDown());
 			// Remove empty ROIs
 			if (currentROI.isEmpty()) {
 				if (selectedObject.getParent() != null)
@@ -105,44 +100,11 @@ abstract class AbstractPathDraggingROITool extends AbstractPathROITool {
 			} else {
 				commitObjectToHierarchy(e, selectedObject);
 			}
-			editor.ensureHandlesUpdated();
-			editor.resetActiveHandle();
-			if (PathPrefs.getReturnToMoveMode())
-				modes.setMode(Modes.MOVE);
+//			editor.ensureHandlesUpdated();
+//			editor.resetActiveHandle();
+//			if (PathPrefs.getReturnToMoveMode())
+//				modes.setMode(Modes.MOVE);
 		}
-	}
-	
-	
-	
-	private void commitObjectToHierarchy(MouseEvent e, PathObject pathObject) {
-		PathObjectHierarchy hierarchy = viewer.getHierarchy();
-//		// Nothing to do for an empty object
-//		if (pathObject.getROI() == null || pathObject.getROI().isEmpty()) {
-//			if (pathObject.getParent() != null)
-//				hierarchy.removeObject(pathObject, true);
-//			return;
-//		}
-		
-		if (!requestParentClipping(e)) {
-			hierarchy.addPathObject(viewer.getSelectedObject(), true); // Ensure object is within the hierarchy
-		} else {
-			ROI roiNew = refineROIByParent(pathObject.getROI());
-			if (roiNew.isEmpty()) {
-				hierarchy.removeObject(pathObject, true);
-				pathObject = null;
-			} else {
-				((PathAnnotationObject)pathObject).setROI(roiNew);
-				hierarchy.addPathObjectBelowParent(getCurrentParent(), pathObject, false, true);
-			}
-		}
-		
-		viewer.setSelectedObject(pathObject);
-//		if (e.isAltDown()) {
-//			if (e.isShiftDown())
-//				PathObjectToolsAwt.combineAnnotations(viewer.getHierarchy(), pathObject, PathROIToolsAwt.CombineOp.ADD);
-//			else
-//				PathObjectToolsAwt.combineAnnotations(viewer.getHierarchy(), pathObject, PathROIToolsAwt.CombineOp.SUBTRACT);
-//		}
 	}
 	
 

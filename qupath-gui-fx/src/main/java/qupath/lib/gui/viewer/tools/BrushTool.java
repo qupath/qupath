@@ -49,13 +49,11 @@ import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.regions.ImagePlane;
-import qupath.lib.roi.AreaROI;
 import qupath.lib.roi.ROIHelpers;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.PathROIToolsAwt;
 import qupath.lib.roi.PolygonROI;
 import qupath.lib.roi.RectangleROI;
-import qupath.lib.roi.ShapeSimplifierAwt;
 import qupath.lib.roi.interfaces.PathArea;
 import qupath.lib.roi.interfaces.ROI;
 import qupath.lib.roi.interfaces.PathShape;
@@ -226,10 +224,7 @@ public class BrushTool extends AbstractPathROITool {
 		PathShape shapeROI = createNew ? null : (PathShape)currentObject.getROI();
 		if (createNew) {
 			creatingTiledROI = false; // Reset this
-			viewer.createAnnotationObject(
-							ROIs.createAreaROI(
-									new Rectangle2D.Double(p.getX(), p.getY(), 0, 0),
-									ImagePlane.getPlane(viewer.getZPosition(), viewer.getTPosition())));
+			createNewAnnotation(p.getX(), p.getY());
 		} else
 			viewer.setSelectedObject(getUpdatedObject(e, shapeROI, currentObject, -1));
 	}
@@ -260,7 +255,10 @@ public class BrushTool extends AbstractPathROITool {
 		PathShape shapeROI = (PathShape)currentROI;
 		
 		PathObject pathObjectUpdated = getUpdatedObject(e, shapeROI, pathObject, -1);
-		viewer.setSelectedObject(pathObjectUpdated);
+		if (pathObject != pathObjectUpdated)
+			viewer.setSelectedObject(pathObjectUpdated, PathPrefs.isSelectionMode());
+		else
+			viewer.repaint();
 	}
 	
 	
@@ -359,48 +357,7 @@ public class BrushTool extends AbstractPathROITool {
 		if (currentObject == null)
 			return;
 		
-		PathObjectHierarchy hierarchy = viewer.getHierarchy();
-		
-		if (requestParentClipping(e)) {
-			((PathAnnotationObject)currentObject).setROI(refineROIByParent(currentObject.getROI()));
-		}
-		
-		// Ensure the object is in the hierarchy, if it is non-empty
-		if (currentObject.getParent() == null) {
-			if (currentObject.getROI() == null || currentObject.getROI().isEmpty())
-				viewer.setSelectedObject(null);
-			else {
-				// Create a polygon ROI if possible
-				ROI pathROI = viewer.getCurrentROI();
-				if (pathROI instanceof AreaROI) {
-					// Simplify the shape as we go to discard unnecessary vertices
-					pathROI = ShapeSimplifierAwt.simplifyShape((PathShape)pathROI, 0.5);
-						
-					currentObject = getUpdatedObject(e, (PathShape)pathROI, currentObject, -1);
-					viewer.setSelectedObject(currentObject);
-				}
-				if (requestParentClipping(e))
-					hierarchy.addPathObjectBelowParent(getCurrentParent(), currentObject, false, true);
-				else
-					hierarchy.addPathObject(currentObject, true);
-			}
-		}
-		else if (currentObject.hasROI()) {
-			if (currentObject.getROI().isEmpty()) {
-				hierarchy.removeObject(currentObject, true);			
-				viewer.setSelectedObject(null);
-			}
-		}
-		
-//		if (currentObject.getParent() != null)
-//			hierarchy.removeObject(currentObject, true);
-//		else {
-//			hierarchy.addPathObject(currentObject, true);
-//			//		viewer.createAnnotationObject(currentROI);
-//		}
-//		if (PathPrefs.getReturnToPan())
-//			modes.setMode(Modes.MOVE);
-
+		commitObjectToHierarchy(e, currentObject);
 	}
 	
 	
@@ -426,7 +383,6 @@ public class BrushTool extends AbstractPathROITool {
 	protected Shape createShape(double x, double y, boolean useTiles, Shape addToShape) {
 		
 		// See if we're on top of a tile
-		// TODO: Add preference to turn on/off tile brush
 		if (useTiles) {
 			List<PathObject> listSelectable = getSelectableObjectList(x, y);
 			for (PathObject temp : listSelectable) {
@@ -464,11 +420,10 @@ public class BrushTool extends AbstractPathROITool {
 	private boolean creatingTiledROI = false;
 
 	@Override
-	protected ROI createNewROI(double x, double y, int z, int t) {
+	protected ROI createNewROI(double x, double y, ImagePlane plane) {
 		creatingTiledROI = false;
 		Shape shape = createShape(x, y, PathPrefs.getUseTileBrush(), null);
-		return ROIs.createAreaROI(shape, ImagePlane.getPlane(z, t));
-//		return new PathPolygonROI(x, y, -1, z, t);
+		return ROIs.createAreaROI(shape, plane);
 	}
 	
 }

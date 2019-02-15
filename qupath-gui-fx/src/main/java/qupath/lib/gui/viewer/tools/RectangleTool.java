@@ -41,8 +41,8 @@ public class RectangleTool extends AbstractPathDraggingROITool {
 	}
 
 	@Override
-	protected ROI createNewROI(double x, double y, int z, int t) {
-		return ROIs.createRectangleROI(x, y, 0, 0, ImagePlane.getPlane(z, t));
+	protected ROI createNewROI(double x, double y, ImagePlane plane) {
+		return ROIs.createRectangleROI(x, y, 0, 0, plane);
 	}
 
 }

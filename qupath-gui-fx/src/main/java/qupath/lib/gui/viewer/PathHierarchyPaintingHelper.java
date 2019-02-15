@@ -105,6 +105,7 @@ public class PathHierarchyPaintingHelper {
 	private static ShapeProvider shapeProvider = new ShapeProvider();
 	
 	private static Map<Number, Stroke> strokeMap = new HashMap<>();
+	private static Map<Number, Stroke> dashedStrokeMap = new HashMap<>();
 	
 	private PathHierarchyPaintingHelper() {}
 
@@ -376,7 +377,12 @@ public class PathHierarchyPaintingHelper {
 						}
 						else {
 							double thicknessScale = downsample * (isSelected && !PathPrefs.getUseSelectedColor() ? 1.6 : 1);
-							stroke = getCachedStroke(PathPrefs.getThickStrokeThickness() * thicknessScale);
+							float thickness = (float)(PathPrefs.getThickStrokeThickness() * thicknessScale);
+							if (isSelected && pathObject.getParent() == null && PathPrefs.isSelectionMode()) {
+								stroke = getCachedStrokeDashed(thickness);
+							} else {
+								stroke = getCachedStroke(thickness);
+							}
 						}
 						
 						g.setStroke(stroke);
@@ -672,6 +678,16 @@ public class PathHierarchyPaintingHelper {
 	}
 	
 	
+	static Stroke getCachedStrokeDashed(final Number thickness) {
+		Stroke stroke = dashedStrokeMap.get(thickness);
+		if (stroke == null) {
+			stroke = new BasicStroke(
+					thickness.floatValue(),
+					BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER, 10f, new float[] {thickness.floatValue() * 5f}, 0f);
+			dashedStrokeMap.put(thickness, stroke);
+		}
+		return stroke;
+	}
 	
 	static Stroke getCachedStroke(final Number thickness) {
 		Stroke stroke = strokeMap.get(thickness);

@@ -24,6 +24,7 @@
 package qupath.lib.gui.viewer;
 
 import java.awt.AlphaComposite;
+import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Composite;
 import java.awt.Dimension;
@@ -130,6 +131,7 @@ import qupath.lib.objects.hierarchy.TMAGrid;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
 import qupath.lib.objects.hierarchy.events.PathObjectSelectionListener;
+import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.RectangleROI;
@@ -1165,11 +1167,22 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		return selectedObject == null ? null : selectedObject.getROI();
 	}
 
+	
+	/**
+	 * Set selected object in the current hierarchy, without centering the viewer.
+	 * 
+	 * @param pathObject
+	 */
 	public void setSelectedObject(PathObject pathObject) {
 		setSelectedObject(pathObject, false);
 	}
 	
-	
+	/**
+	 * Set selected object in the current hierarchy, without centering the viewer.
+	 * 
+	 * @param pathObject
+	 * @param addToSelected
+	 */
 	public void setSelectedObject(final PathObject pathObject, final boolean addToSelected) {
 		PathObjectHierarchy hierarchy = getHierarchy();
 		if (hierarchy == null)
@@ -1179,20 +1192,6 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		settingSelectedObject = false;
 	}
 
-
-	/**
-	 * Create a new annotation object from a ROI, and set it to the current object.
-	 * <p>
-	 * Note that this will use the {@link PathPrefs#getAutoSetAnnotationClass()}
-	 */
-	public void createAnnotationObject(ROI pathROI) {
-		PathObjectHierarchy hierarchy = getHierarchy();
-		if (hierarchy == null)
-			return;
-		PathObject pathObject = PathObjects.createAnnotationObject(pathROI, PathPrefs.getAutoSetAnnotationClass());
-		hierarchy.addPathObject(pathObject, true);
-		setSelectedObject(pathObject);
-	}
 
 	public boolean hasROI() {
 		return getCurrentROI() != null;
@@ -1343,6 +1342,15 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 
 	public int getZPosition() {
 		return zPosition.get();
+	}
+	
+	/**
+	 * Get the {@link ImagePlane} currently being displayed, including z and t positions.
+	 * 
+	 * @return
+	 */
+	public ImagePlane getImagePlane() {
+		return ImagePlane.getPlane(getZPosition(), getTPosition());
 	}
 	
 	/**

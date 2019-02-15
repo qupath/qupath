@@ -85,6 +85,8 @@ public class PathIconFactory {
 									ELLIPSE_TOOL("\ue909", PathPrefs.colorDefaultAnnotationsProperty()),
 									EXTRACT_REGION("\ue90a"),
 
+									SELECTION_MODE("S"),
+									
 									GRID("\ue90b"),
 									
 									LINE_TOOL("\ue90c", PathPrefs.colorDefaultAnnotationsProperty()),

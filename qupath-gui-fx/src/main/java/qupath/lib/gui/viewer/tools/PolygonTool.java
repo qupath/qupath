@@ -23,18 +23,9 @@
 
 package qupath.lib.gui.viewer.tools;
 
-import java.awt.geom.Point2D;
-import java.util.Collections;
-
-import javafx.scene.input.MouseEvent;
-import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.ModeWrapper;
-import qupath.lib.objects.PathObject;
-import qupath.lib.objects.PathROIObject;
 import qupath.lib.regions.ImagePlane;
-import qupath.lib.roi.PolygonROI;
 import qupath.lib.roi.ROIs;
-import qupath.lib.roi.RoiEditor;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
@@ -43,86 +34,15 @@ import qupath.lib.roi.interfaces.ROI;
  * @author Pete Bankhead
  *
  */
-public class PolygonTool extends AbstractPathROITool {
-	
-	private boolean isFreehandPolygon = false;
+public class PolygonTool extends AbstractPolyROITool {
 	
 	public PolygonTool(ModeWrapper modes) {
 		super(modes);
 	}
 	
-	
 	@Override
-	public void mousePressed(MouseEvent e) {
-		super.mousePressed(e);
-		ROI currentROI = viewer != null ? viewer.getCurrentROI() : null;
-		if (currentROI instanceof PolygonROI && currentROI.isEmpty())
-			isFreehandPolygon = true;
-	}
-	
-	
-	@Override
-	public void mouseReleased(MouseEvent e) {
-		super.mouseReleased(e);
-		
-		ROI currentROI = viewer.getCurrentROI();
-		if (isFreehandPolygon) {
-			if (currentROI instanceof PolygonROI && currentROI.isEmpty()) {
-				isFreehandPolygon = false;
-			} else if (PathPrefs.enableFreehandTools()) {
-				completePolygon(e);
-			}
-		}
-	}
-	
-	
-	@Override
-	public void mouseMoved(MouseEvent e) {
-		super.mouseMoved(e);
-		
-		ROI currentROI = viewer.getCurrentROI();
-		RoiEditor editor = viewer.getROIEditor();
-		
-		if ((currentROI instanceof PolygonROI) && editor.getROI() == currentROI) {
-			Point2D p = viewer.componentPointToImagePoint(e.getX(), e.getY(), null, true);
-			ROI roiUpdated = editor.setActiveHandlePosition(p.getX(), p.getY(), viewer.getDownsampleFactor(), e.isShiftDown());
-//			ROI roiUpdated = editor.setActiveHandlePosition(p.getX(), p.getY(), viewer.getROIHandleSize() * 1.5, e.isShiftDown());
-			PathObject pathObject = viewer.getSelectedObject();
-			if (roiUpdated != currentROI && pathObject instanceof PathROIObject) {
-				((PathROIObject)pathObject).setROI(roiUpdated);
-				viewer.getHierarchy().fireObjectsChangedEvent(this, Collections.singleton(pathObject), true);
-			}
-		}
-	}
-	
-	@Override
-	public void mouseDragged(MouseEvent e) {
-		// Note: if the 'freehand' part of the polygon creation isn't desired, just comment out this whole method
-		super.mouseDragged(e);
-		if (!e.isPrimaryButtonDown()) {
-            return;
-        }
-
-		ROI currentROI = viewer.getCurrentROI();
-		RoiEditor editor = viewer.getROIEditor();
-		
-		if ((currentROI instanceof PolygonROI) && editor.getROI() == currentROI) {
-			Point2D p = viewer.componentPointToImagePoint(e.getX(), e.getY(), null, true);
-			double downsample = viewer.getDownsampleFactor();
-			ROI roiUpdated = editor.requestNewHandle(p.getX(), p.getY());
-			PathObject pathObject = viewer.getSelectedObject();
-			if (roiUpdated != currentROI && pathObject instanceof PathROIObject) {
-				((PathROIObject)pathObject).setROI(roiUpdated);
-				viewer.getHierarchy().fireObjectsChangedEvent(this, Collections.singleton(pathObject), true);
-			}
-		}
-	}
-	
-
-	@Override
-	protected ROI createNewROI(double x, double y, int z, int t) {
-		return ROIs.createPolyonROI(x, y, ImagePlane.getPlane(z, t));
-//		return new PolygonROI(new float[]{(float)x, (float)x}, new float[]{(float)y, (float)y}, -1, z, t);
+	protected ROI createNewROI(double x, double y, ImagePlane plane) {
+		return ROIs.createPolyonROI(x, y, plane);
 	}
 	
 }

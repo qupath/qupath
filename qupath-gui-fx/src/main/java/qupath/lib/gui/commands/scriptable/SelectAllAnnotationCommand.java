@@ -32,6 +32,7 @@ import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.plugins.workflow.DefaultScriptableWorkflowStep;
 import qupath.lib.regions.ImagePlane;
@@ -85,7 +86,10 @@ public class SelectAllAnnotationCommand implements PathCommand {
 				return;
 			}
 		}
-		viewer.createAnnotationObject(roi);
+		
+		PathObject pathObject = PathObjects.createAnnotationObject(roi);
+		hierarchy.addPathObject(pathObject, true);
+		viewer.setSelectedObject(pathObject);
 		
 		// Log in the history
 		imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep("Create full image annotation", "createSelectAllObject(true);"));

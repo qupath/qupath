@@ -321,7 +321,7 @@ public final class PathObjectHierarchy implements Serializable {
 	private synchronized boolean addPathObjectToList(PathObject pathObjectParent, PathObject pathObject, boolean avoidDuplicates, boolean fireChangeEvents) {
 		
 		if (pathObject != null && !pathObject.isDetection())
-			logger.debug("Adding {} to hierarchy", pathObject);
+			logger.trace("Adding {} to hierarchy", pathObject);
 		
 //		// We can't add to a non-ROI
 //		if (!pathObjectParent.hasROI() && pathObjectParent != getRootObject())
@@ -338,7 +338,7 @@ public final class PathObjectHierarchy implements Serializable {
 		}
 		Collection<PathObject> pathObjects = pathObjectParent.getChildObjects();
 		if (avoidDuplicates && pathObjects.contains(pathObject)) {
-			logger.warn("Warning: List already contains {}, will not be added again", pathObject);
+			logger.warn("Warning: Child object collection already contains {}, will not be added again", pathObject);
 			return false;
 		}
 		

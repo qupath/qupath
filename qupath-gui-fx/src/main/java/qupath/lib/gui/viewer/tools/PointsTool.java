@@ -34,6 +34,7 @@ import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.ModeWrapper;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.PathROIObject;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.regions.ImagePlane;
@@ -145,7 +146,6 @@ public class PointsTool extends AbstractPathTool {
 	 */
 	private boolean handleAltClick(double x, double y, PathObject currentObject) {
 		PathObjectHierarchy hierarchy = viewer.getHierarchy();
-		double downsample = viewer.getDownsampleFactor();
 		double distance = PathPrefs.getDefaultPointRadius();
 		// Remove a point if the current selection has one
 		if (currentObject != null && currentObject.isPoint()) {
@@ -217,7 +217,11 @@ public class PointsTool extends AbstractPathTool {
 		else if (points == null || (e.isShiftDown() && e.getClickCount() > 1)) {
 			// PathPoints is effectively ready from the start - don't need to finalize
 			points = ROIs.createPointsROI(xx, yy, ImagePlane.getDefaultPlane());
-			viewer.createAnnotationObject(points);
+			
+			currentObject = (PathROIObject)PathObjects.createAnnotationObject(points);
+			viewer.setSelectedObject(currentObject);
+			
+//			viewer.createAnnotationObject(points);
 			editor.setROI(points);
 			editor.grabHandle(xx, yy, radius, e.isShiftDown());
 		} else if (points != null) {
