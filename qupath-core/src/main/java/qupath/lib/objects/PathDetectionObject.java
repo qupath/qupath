@@ -31,7 +31,7 @@ import qupath.lib.roi.interfaces.ROI;
 
 /**
  * A detection PathObject.
- * 
+ * <p>
  * Detections tend to be very numerous (e.g. millions of nucleus, each one a detection), and so need to be 
  * represented and displayed very efficiently.
  * 

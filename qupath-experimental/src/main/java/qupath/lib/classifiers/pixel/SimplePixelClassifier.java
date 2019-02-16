@@ -37,7 +37,7 @@ public class SimplePixelClassifier implements PixelClassifier {
 	}
 	
 	static ImageChannel getChannel(PathClass pathClass) {
-		if (pathClass == null || pathClass.isDefault())
+		if (pathClass == null || !pathClass.isValid())
 			return ImageChannel.getInstance("None", null);
 		return ImageChannel.getInstance(pathClass.getName(), pathClass.getColor());
 	}

@@ -74,7 +74,7 @@ public class TestPathAnnotationObject extends PathObjectTestWrapper {
 	}
 	@Test
 	public void test_NamesAndColors() {
-		test_toString(myPO, "Unassigned"); 
+//		test_toString(myPO, "Unassigned"); 
 		test_getDisplayedName(myPO, myPO.getClass().getSimpleName()); // name of the class by default 
 		test_getName(myPO, null); // no name yet in PO
 		test_setName(myPO, "myPO");

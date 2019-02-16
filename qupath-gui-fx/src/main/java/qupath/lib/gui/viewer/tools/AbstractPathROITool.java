@@ -204,8 +204,8 @@ abstract class AbstractPathROITool extends AbstractPathTool {
 					viewer.getHierarchy().fireObjectClassificationsChangedEvent(this, reclassified);
 				if (pathObject.getParent() != null)
 					viewer.getHierarchy().removeObject(pathObject, true);
-				else
-					viewer.getHierarchy().fireHierarchyChangedEvent(this);
+//				else
+//					viewer.getHierarchy().fireHierarchyChangedEvent(this);
 				if (toSelect.isEmpty())
 					viewer.setSelectedObject(null);
 				else if (e.isShiftDown()) {

@@ -40,6 +40,7 @@ import java.util.Set;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.measurements.MeasurementListFactory;
 import qupath.lib.objects.classes.PathClass;
+import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.roi.PointsROI;
 import qupath.lib.roi.interfaces.PathPoints;
 import qupath.lib.roi.interfaces.ROI;
@@ -196,7 +197,8 @@ public abstract class PathObject implements Externalizable {
 			return getName() + postfix;
 		if (getROI() != null)
 			return getROI().toString() + postfix;
-		return "Unassigned" + postfix; // Entire image
+		String prefix = PathObjectTools.getSuitableName(getClass(), false);
+		return prefix + postfix; // Entire image
 	}
 	
 	public void addPathObject(PathObject pathObject) {

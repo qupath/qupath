@@ -364,6 +364,8 @@ public class PathObjectTools {
 	 */
 	public static String getSuitableName(Class<? extends PathObject> cls, boolean makePlural) {
 		if (makePlural) {
+			if (cls.equals(PathRootObject.class))
+				return "Root objects";
 			if (cls.equals(PathAnnotationObject.class))
 				return "Annotations";
 			if (cls.equals(TMACoreObject.class))
@@ -376,6 +378,8 @@ public class PathObjectTools {
 				return "Tiles";
 			return cls.getSimpleName() + " objects";
 		}
+		if (cls.equals(PathRootObject.class))
+			return "Root object";
 		if (cls.equals(PathAnnotationObject.class))
 			return "Annotation";
 		if (cls.equals(TMACoreObject.class))
@@ -388,7 +392,8 @@ public class PathObjectTools {
 			return "Tile";
 		return cls.getSimpleName();
 	}
-
+	
+	
 	/**
 	 * Test whether the ROI associated with one object can completely the ROI of a second object.
 	 * Returns false if either ROI is null.

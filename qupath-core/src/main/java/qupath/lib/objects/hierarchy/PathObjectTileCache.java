@@ -42,6 +42,7 @@ import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.Location;
 import org.locationtech.jts.index.SpatialIndex;
 import org.locationtech.jts.index.quadtree.Quadtree;
+import org.locationtech.jts.index.strtree.STRtree;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -120,14 +121,17 @@ class PathObjectTileCache implements PathObjectHierarchyListener {
 	
 //	int cacheCounter = 0;
 
-	private void constructCache() {
+	private void constructCache(Class<? extends PathObject> limitToClass) {
 		w.lock();
 		try {
 	//		logger.info("Skipping cache reconstruction...");
 			long startTime = System.currentTimeMillis();
 			isActive = true;
-			map.clear();
-			addToCache(hierarchy.getRootObject(), true);
+			if (limitToClass == null)
+				map.clear();
+			else
+				map.remove(limitToClass);
+			addToCache(hierarchy.getRootObject(), true, limitToClass);
 			long endTime = System.currentTimeMillis();
 			logger.info("Cache reconstructed in " + (endTime - startTime)/1000.);
 		} finally {
@@ -139,7 +143,7 @@ class PathObjectTileCache implements PathObjectHierarchyListener {
 	
 	private void ensureCacheConstructed() {
 		if (!isActive())
-			constructCache();
+			constructCache(null);
 	}
 	
 	// TRUE if the cache has been constructed
@@ -153,26 +157,28 @@ class PathObjectTileCache implements PathObjectHierarchyListener {
 	 * @param pathObject
 	 * @param includeChildren
 	 */
-	private void addToCache(PathObject pathObject, boolean includeChildren) {
+	private void addToCache(PathObject pathObject, boolean includeChildren, Class<? extends PathObject> limitToClass) {
 		// If the cache isn't active, we can ignore this... it will be constructed when it is needed
 		if (!isActive())
 			return;
 
 		if (pathObject.hasROI()) {
 			Class<? extends PathObject> cls = pathObject.getClass();
-			SpatialIndex mapObjects = map.get(cls);
-			if (mapObjects == null) {
-				mapObjects = createSpatialIndex();
-				map.put(cls, mapObjects);
+			if (limitToClass == null || cls == limitToClass) {
+				SpatialIndex mapObjects = map.get(cls);
+				if (mapObjects == null) {
+					mapObjects = createSpatialIndex();
+					map.put(cls, mapObjects);
+				}
+				Envelope envelope = getEnvelope(pathObject);
+				mapObjects.insert(envelope, pathObject);
 			}
-			Envelope envelope = getEnvelope(pathObject);
-			mapObjects.insert(envelope, pathObject);
 		}
 		
 		// Add the children
 		if (includeChildren && !(pathObject instanceof TemporaryObject) && pathObject.hasChildren()) {
 			for (PathObject child : pathObject.getChildObjects().toArray(PathObject[]::new))
-				addToCache(child, includeChildren);
+				addToCache(child, includeChildren, limitToClass);
 		}
 	}
 	
@@ -184,9 +190,12 @@ class PathObjectTileCache implements PathObjectHierarchyListener {
 			geometry = roi.getGeometry();
 			if (pathObject.isAnnotation() || pathObject.isTMACore())
 				geometryMap.put(roi, geometry);
+//			long startTime = System.currentTimeMillis();
+			if (!geometry.isValid())
+				logger.warn("{} is not a valid geometry! Actual geometry {}", pathObject, geometry);
+//			long endTime = System.currentTimeMillis();
+//			System.err.println("Testing " + (endTime - startTime) + " ms for " + geometry);
 		}
-		if (!geometry.isValid())
-			logger.warn("{} is not a valid geometry! Actual geometry {}", pathObject, geometry);
 		return geometry;
 	}
 	
@@ -194,7 +203,8 @@ class PathObjectTileCache implements PathObjectHierarchyListener {
 		ROI roi = PathObjectTools.getROI(pathObject, true);
 		Coordinate coordinate = centroidMap.get(roi);
 		if (coordinate == null) {
-			coordinate = getGeometry(pathObject).getCentroid().getCoordinate();
+			coordinate = new Coordinate(roi.getCentroidX(), roi.getCentroidY());
+//			coordinate = getGeometry(pathObject).getCentroid().getCoordinate();
 			centroidMap.put(roi, coordinate);
 		}
 		return coordinate;
@@ -227,6 +237,7 @@ class PathObjectTileCache implements PathObjectHierarchyListener {
 	
 	private SpatialIndex createSpatialIndex() {
 		return new Quadtree();
+//		return new STRtree();
 	}
 	
 	private Envelope getEnvelope(PathObject pathObject) {
@@ -264,7 +275,9 @@ class PathObjectTileCache implements PathObjectHierarchyListener {
 			return;
 		
 		SpatialIndex mapObjects = map.get(pathObject.getClass());
-		if (mapObjects != null) {
+		
+		// We can remove objects from a Quadtree
+		if (mapObjects instanceof Quadtree) {
 			Envelope envelope = lastEnvelopeMap.get(pathObject);
 			envelope = MAX_ENVELOPE;
 //				System.err.println("Before: " + mapObjects.query(MAX_ENVELOPE).size());
@@ -277,11 +290,17 @@ class PathObjectTileCache implements PathObjectHierarchyListener {
 				logger.debug("No envelope found for {}", pathObject);					
 			}
 //				System.err.println("After: " + mapObjects.query(MAX_ENVELOPE).size());
-		}
-		// Remove the children
-		if (removeChildren) {
-			for (PathObject child : pathObject.getChildObjects())
-				removeFromCache(child, removeChildren);
+			// Remove the children
+			if (removeChildren) {
+				for (PathObject child : pathObject.getChildObjects())
+					removeFromCache(child, removeChildren);
+			}
+		} else if (mapObjects instanceof SpatialIndex && !removeChildren) {
+			// We can't remove objects from a STRtree, but since we're just removing one object we can rebuild only the cache for this class
+			constructCache(pathObject.getClass());
+		} else {
+			// If we need to remove multiple objects, better to just rebuild the entire cache
+			constructCache(null);
 		}
 	}
 	
@@ -327,9 +346,13 @@ class PathObjectTileCache implements PathObjectHierarchyListener {
 					if (entry.getValue() != null) {
 						var list = entry.getValue().query(envelope);
 						if (pathObjects == null)
-							pathObjects = new HashSet<PathObject>(list);
-						else
-							pathObjects.addAll((List<PathObject>)list);
+							pathObjects = new HashSet<PathObject>();
+						
+						// Add all objects that have a parent, i.e. might be in the hierarchy
+						for (PathObject pathObject : (List<PathObject>)list) {
+							if (pathObject.getParent() != null || pathObject.isRootObject())
+								pathObjects.add(pathObject);
+						}
 					}
 //						pathObjects = entry.getValue().getObjectsForRegion(region, pathObjects);
 				}
@@ -401,20 +424,22 @@ class PathObjectTileCache implements PathObjectHierarchyListener {
 
 	@Override
 	public void hierarchyChanged(final PathObjectHierarchyEvent event) {
-//		logger.info("Type: " + event.getEventType());
 		w.lock();
 		try {
 			boolean singleChange = event.getChangedObjects().size() == 1;
+			PathObject singleObject = singleChange ? event.getChangedObjects().get(0) : null;
 			if (singleChange && event.getEventType() == HierarchyEventType.ADDED) {
-				removeFromCache(event.getChangedObjects().get(0), true);
-				addToCache(event.getChangedObjects().get(0), true);
+				removeFromCache(singleObject, false);
+				addToCache(singleObject, false, singleObject.getClass());
 			} else if (singleChange && event.getEventType() == HierarchyEventType.REMOVED) {
-				removeFromCache(event.getChangedObjects().get(0), false);
-			} else if (event.getEventType() == HierarchyEventType.OTHER_STRUCTURE_CHANGE || event.getEventType() == HierarchyEventType.CHANGE_OTHER) {
-				if (singleChange && !event.getChangedObjects().get(0).isRootObject()) {
-					removeFromCache(event.getChangedObjects().get(0), false);
-					addToCache(event.getChangedObjects().get(0), false);					
-				} else
+				removeFromCache(singleObject, false);
+			} else if (event.getEventType() == HierarchyEventType.OTHER_STRUCTURE_CHANGE) {// || event.getEventType() == HierarchyEventType.CHANGE_OTHER) {
+//				if (singleChange && !singleObject.isRootObject()) {
+//					removeFromCache(singleObject, false);
+//					addToCache(singleObject, false, singleObject.getClass());					
+//				} else
+//				System.err.println(event);
+				if (!event.isChanging())
 					resetCache();
 			}
 		} finally {

@@ -35,7 +35,7 @@ import qupath.lib.roi.ROIs;
 
 /**
  * A special PathObject used exclusively to represent TMA cores.
- * 
+ * <p>
  * Currently, these only contain circular (or elliptical) ROIs.
  * 
  * @author Pete Bankhead

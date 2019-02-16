@@ -1120,10 +1120,6 @@ public class QP {
 	 * @param pathClassName
 	 */
 	public static void classifySelected(final PathObjectHierarchy hierarchy, final String pathClassName) {
-		if (!PathClassFactory.pathClassExists(pathClassName)) {
-			logger.error("No class exists called {}", pathClassName);
-			return;
-		}
 		PathClass pathClass = PathClassFactory.getPathClass(pathClassName);
 		Collection<PathObject> selected = hierarchy.getSelectionModel().getSelectedObjects();
 		if (selected.isEmpty()) {

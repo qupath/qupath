@@ -256,8 +256,7 @@ public class PixelClassifierHelper implements PathObjectHierarchyListener {
         int label = 0;
         Set<PathClass> backgroundClasses = new HashSet<>(
         		Arrays.asList(
-        				PathClassFactory.getDefaultPathClass(PathClassFactory.PathClasses.WHITESPACE),
-        				PathClassFactory.getPathClass("Background")        				
+        				PathClassFactory.getDefaultPathClass(PathClassFactory.PathClasses.EMPTY)				
         				)
         		);
         for (PathClass pathClass : pathClasses) {

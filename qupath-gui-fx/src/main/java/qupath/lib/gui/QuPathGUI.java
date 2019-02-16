@@ -1359,7 +1359,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		pathClasses.add(PathClassFactory.getDefaultPathClass(PathClassFactory.PathClasses.IMMUNE_CELLS));
 		pathClasses.add(PathClassFactory.getDefaultPathClass(PathClassFactory.PathClasses.NECROSIS));
 		pathClasses.add(PathClassFactory.getDefaultPathClass(PathClassFactory.PathClasses.OTHER));
-		pathClasses.add(PathClassFactory.getDefaultPathClass(PathClassFactory.PathClasses.WHITESPACE));
+		pathClasses.add(PathClassFactory.getDefaultPathClass(PathClassFactory.PathClasses.EMPTY));
 		
 		if (availablePathClasses == null)
 			availablePathClasses = FXCollections.observableArrayList(pathClasses);

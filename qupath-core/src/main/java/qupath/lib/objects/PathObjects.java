@@ -4,6 +4,13 @@ import qupath.lib.measurements.MeasurementList;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.roi.interfaces.ROI;
 
+/**
+ * Helper class to create {@link PathObject}.  This should be used in preference of any constructors, 
+ * which linger only for historical reasons and compatibility.
+ * 
+ * @author Pete Bankhead
+ *
+ */
 public class PathObjects {
 	
 	/**

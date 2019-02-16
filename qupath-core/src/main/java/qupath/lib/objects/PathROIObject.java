@@ -27,6 +27,9 @@ import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
@@ -41,6 +44,8 @@ import qupath.lib.roi.interfaces.ROI;
  *
  */
 public abstract class PathROIObject extends PathObject {
+	
+	private static Logger logger = LoggerFactory.getLogger(PathROIObject.class);
 	
 	private static final long serialVersionUID = 1L;
 	
@@ -118,6 +123,10 @@ public abstract class PathROIObject extends PathObject {
 	
 	@Override
 	public void setPathClass(PathClass pathClass, double classProbability) {
+		if (pathClass != null && !pathClass.isValid()) {
+			logger.warn("Classification {} is invalid! Will be set to null instead", pathClass);
+			pathClass = null;
+		}
 		if (pathClass == null) {
 //			if (pathROI != null && this.pathClass != null && this.pathClass.getName().equals(pathROI.getName()))
 //				pathROI.setName(null);

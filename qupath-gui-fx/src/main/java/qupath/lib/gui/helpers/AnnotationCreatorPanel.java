@@ -295,7 +295,7 @@ public class AnnotationCreatorPanel {
 			}
 			
 			var pathClass = comboClassification.getSelectionModel().getSelectedItem();
-			if (pathClass != null && pathClass.isDefault())
+			if (pathClass != null && !pathClass.isValid())
 				pathClass = null;
 
 			var annotation = PathObjects.createAnnotationObject(roi, pathClass);

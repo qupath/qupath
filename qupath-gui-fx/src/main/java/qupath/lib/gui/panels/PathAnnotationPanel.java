@@ -556,7 +556,7 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 		if (doAutoSetPathClass.get()) {
 			pathClass = getSelectedPathClass();
 		}
-		if (pathClass == null || pathClass.isDefault())
+		if (pathClass == null || !pathClass.isValid())
 			PathPrefs.setAutoSetAnnotationClass(null);
 		else
 			PathPrefs.setAutoSetAnnotationClass(pathClass);
