@@ -30,7 +30,6 @@ import java.util.Collections;
 
 import org.junit.Test;
 
-import javafx.embed.swing.JFXPanel;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
@@ -55,8 +54,6 @@ public class ObservableMeasurementTableDataTest {
 	
 	@Test
 	public void test() {
-		
-		new JFXPanel();
 		
 		ImageData<BufferedImage> imageData = new ImageData<>(null);
 		

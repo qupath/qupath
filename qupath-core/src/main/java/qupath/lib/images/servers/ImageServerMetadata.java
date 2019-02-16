@@ -30,6 +30,11 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import qupath.lib.common.GeneralTools;
+
 /**
  * Class for storing primary ImageServer metadata fields.
  * Could be used when the metadata needs to be adjusted (e.g. to correct erroneous pixel sizes).
@@ -40,6 +45,8 @@ import java.util.concurrent.TimeUnit;
  *
  */
 public class ImageServerMetadata {
+	
+	private static int DEFAULT_TILE_SIZE = 256;
 
 	private String path;
 	private String name;
@@ -53,7 +60,7 @@ public class ImageServerMetadata {
 	private boolean isRGB = false;
 	private int bitDepth = 8;
 	
-	private double[] downsamples = new double[] {1};
+	private ImageResolutionLevel[] levels;
 	
 	private List<ImageChannel> channels = new ArrayList<>();
 	
@@ -72,73 +79,106 @@ public class ImageServerMetadata {
 		
 		public Builder(final ImageServerMetadata metadata) {
 			this.metadata = metadata.duplicate();
+			this.pixelCalibrationBuilder = new PixelCalibration.Builder(metadata.pixelCalibration);
+		}
+		
+		public Builder(final String path) {
+			metadata = new ImageServerMetadata();
+			metadata.path = path;
+		}
+		
+		public Builder(final String path, final int width, final int height) {
+			metadata = new ImageServerMetadata();
+			metadata.path = path;
+			metadata.width = width;
+			metadata.height = height;
+		}
+		
+		public Builder width(final int width) {
+			metadata.width = width;
+			return this;
+		}
+		
+		public Builder height(final int height) {
+			metadata.height = height;
+			return this;
 		}
 		
 		public Builder path(final String path) {
 			this.metadata.path = path;
 			return this;
 		}
-
-		public Builder width(int width) {
-			this.metadata.width = width;
-			return this;
-		}
 		
-		public Builder height(int height) {
-			this.metadata.height = height;
-			return this;
-		}
-
-		public Builder(final String path, final int width, final int height) {
-			metadata = new ImageServerMetadata(path, width, height);
-		}
-		
-		public Builder setRGB(boolean isRGB) {
+		public Builder rgb(boolean isRGB) {
 			metadata.isRGB = isRGB;
 			return this;
 		}
 		
-		public Builder setBitDepth(int bitDepth) {
+		public Builder bitDepth(int bitDepth) {
 			metadata.bitDepth = bitDepth;
 			return this;
 		}
 		
-		public Builder setPreferredDownsamples(double... downsamples) {
-			metadata.downsamples = downsamples.clone();
+		public Builder levelsFromDownsamples(double... downsamples) {
+			var levelBuilder = new ImageResolutionLevel.Builder(metadata.width, metadata.height);
+			for (double d : downsamples)
+				levelBuilder.addLevelByDownsample(d);
+			return this.levels(levelBuilder.build());
+		}
+		
+		public Builder levels(Collection<ImageResolutionLevel> levels) {
+			return levels(levels.toArray(ImageResolutionLevel[]::new));
+		}
+		
+		/**
+		 * Resolution levels; largest image should come first.
+		 * <p>
+		 * Normally {@code level[0].width == width && level[0].height == height}, but this is <i>not</i> 
+		 * strictly required; for example, it is permissible for the server to supply only resolutions lower than 
+		 * the full image if these ought to be upsampled elsewhere.
+		 * <p>
+		 * In other words, the {@code width} and {@code height} encode the size of the image as it should be 
+		 * interpreted, while the {@code levels} refer to the size of the rasters actually available here.
+		 * 
+		 * @param levels
+		 * @return
+		 */
+		public Builder levels(ImageResolutionLevel... levels) {
+			metadata.levels = levels.clone();
 			return this;
 		}
 		
-		public Builder setSizeZ(final int sizeZ) {
+		public Builder sizeZ(final int sizeZ) {
 			metadata.sizeZ = sizeZ;
 			return this;
 		}
 
-		public Builder setSizeT(final int sizeT) {
+		public Builder sizeT(final int sizeT) {
 			metadata.sizeT = sizeT;
 			return this;
 		}
 
-		public Builder setPixelSizeMicrons(final Number pixelWidthMicrons, final Number pixelHeightMicrons) {
+		public Builder pixelSizeMicrons(final Number pixelWidthMicrons, final Number pixelHeightMicrons) {
 			pixelCalibrationBuilder.pixelSizeMicrons(pixelWidthMicrons, pixelHeightMicrons);
 			return this;
 		}
 
-		public Builder setZSpacingMicrons(final Number zSpacingMicrons) {
+		public Builder zSpacingMicrons(final Number zSpacingMicrons) {
 			pixelCalibrationBuilder.zSpacingMicrons(zSpacingMicrons);
 			return this;
 		}
 
-		public Builder setTimeUnit(final TimeUnit timeUnit) {
-			pixelCalibrationBuilder.timeUnit(timeUnit);
+		public Builder timepoints(final TimeUnit timeUnit, double... timepoints) {
+			pixelCalibrationBuilder.timepoints(timeUnit, timepoints);
 			return this;
 		}
 		
-		public Builder setMagnification(final double magnification) {
+		public Builder magnification(final double magnification) {
 			metadata.magnification = magnification;
 			return this;
 		}
 		
-		public Builder setPreferredTileSize(final int tileWidth, final int tileHeight) {
+		public Builder preferredTileSize(final int tileWidth, final int tileHeight) {
 			metadata.preferredTileWidth = tileWidth;
 			metadata.preferredTileHeight = tileHeight;
 			return this;
@@ -153,13 +193,36 @@ public class ImageServerMetadata {
 			return this;
 		}
 
-		public Builder setName(final String name) {
+		public Builder name(final String name) {
 			metadata.name = name;
 			return this;
 		}
 		
 		public ImageServerMetadata build() {
 			metadata.pixelCalibration = pixelCalibrationBuilder.build();
+			
+			if (metadata.levels == null)
+				metadata.levels = new ImageResolutionLevel[] {new ImageResolutionLevel(1, metadata.width, metadata.height)};
+			
+			if (metadata.width <= 0 && metadata.height <= 0)
+				throw new IllegalArgumentException("Invalid metadata - width & height must be > 0");
+
+			if (metadata.path == null || metadata.path.isBlank())
+				throw new IllegalArgumentException("Invalid metadata - path must be set (and not be blank)");
+						
+			// Set sensible tile sizes, if required
+			if (metadata.preferredTileWidth <= 0) {
+				if (metadata.levels.length == 1)
+					metadata.preferredTileWidth = metadata.width;
+				else
+					metadata.preferredTileWidth = Math.min(metadata.width, DEFAULT_TILE_SIZE);
+			}
+			if (metadata.preferredTileHeight <= 0) {
+				if (metadata.levels.length == 1)
+					metadata.preferredTileHeight = metadata.height;
+				else
+					metadata.preferredTileHeight = Math.min(metadata.height, DEFAULT_TILE_SIZE);
+			}
 			return metadata;
 		}
 
@@ -168,17 +231,15 @@ public class ImageServerMetadata {
 	ImageServerMetadata() {};
 	
 	
-	ImageServerMetadata(final String path, final int width, final int height) {
+	ImageServerMetadata(final String path) {
 		this.path = path;
-		this.width = width;
-		this.height = height;
-		this.preferredTileWidth = width;
-		this.preferredTileHeight = height;
 	};
 
 	ImageServerMetadata(final ImageServerMetadata metadata) {
 		this.path = metadata.path;
 		this.name = metadata.name;
+		this.levels = metadata.levels.clone();
+		
 		this.width = metadata.width;
 		this.height = metadata.height;
 		
@@ -187,7 +248,6 @@ public class ImageServerMetadata {
 				
 		this.isRGB = metadata.isRGB;
 		this.bitDepth = metadata.bitDepth;
-		this.downsamples = metadata.downsamples.clone();
 		
 		this.pixelCalibration = metadata.pixelCalibration;
 		
@@ -211,8 +271,16 @@ public class ImageServerMetadata {
 		return height;
 	}
 	
-	public double[] getPreferredDownsamples() {
-		return downsamples;
+	public int nLevels() {
+		return levels.length;
+	}
+	
+	public double getDownsampleForLevel(int level) {
+		return levels[level].getDownsample();
+	}
+	
+	public ImageResolutionLevel getLevel(int level) {
+		return levels[level];
 	}
 	
 	public boolean isRGB() {
@@ -255,6 +323,10 @@ public class ImageServerMetadata {
 
 	public TimeUnit getTimeUnit() {
 		return pixelCalibration.getTimeUnit();
+	}
+	
+	public double getTimepoint(int ind) {
+		return pixelCalibration.getTimepoint(ind);
 	}
 	
 	public int getSizeZ() {
@@ -300,11 +372,16 @@ public class ImageServerMetadata {
 	/**
 	 * Returns true if a specified ImageServerMetadata is compatible with this one, i.e. it has the same path and dimensions
 	 * (but possibly different pixel sizes, magnifications etc.).
+	 * 
 	 * @param metadata
 	 * @return
 	 */
 	public boolean isCompatibleMetadata(final ImageServerMetadata metadata) {
-		return path.equals(metadata.path) && width == metadata.width && height == metadata.height && sizeT == metadata.sizeT && getSizeC() == metadata.getSizeC() &&
+		return path.equals(metadata.path) && 
+				bitDepth == metadata.bitDepth &&
+				Arrays.equals(levels, metadata.levels) && 
+				sizeT == metadata.sizeT && 
+				getSizeC() == metadata.getSizeC() &&
 				sizeZ == metadata.sizeZ;
 	}
 	
@@ -314,8 +391,9 @@ public class ImageServerMetadata {
 		StringBuilder sb = new StringBuilder("{ ");
 		sb.append("\"path\": \"").append(path).append("\", ");
 		sb.append("\"name\": \"").append(name).append("\", ");
-		sb.append("\"width\": ").append(width).append(", ");
-		sb.append("\"height\": ").append(height).append(", ");
+		sb.append("\"width\": ").append(getWidth()).append(", ");
+		sb.append("\"height\": ").append(getHeight()).append(", ");
+		sb.append("\"resolutions\": ").append(nLevels()).append(", ");
 		sb.append("\"sizeC\": ").append(getSizeC());
 		if (sizeZ != 1)
 			sb.append(", ").append("\"sizeZ\": ").append(sizeZ);
@@ -331,6 +409,8 @@ public class ImageServerMetadata {
 		return sb.toString();
 	}
 
+	
+
 
 	@Override
 	public int hashCode() {
@@ -338,9 +418,8 @@ public class ImageServerMetadata {
 		int result = 1;
 		result = prime * result + bitDepth;
 		result = prime * result + ((channels == null) ? 0 : channels.hashCode());
-		result = prime * result + Arrays.hashCode(downsamples);
-		result = prime * result + height;
 		result = prime * result + (isRGB ? 1231 : 1237);
+		result = prime * result + Arrays.hashCode(levels);
 		long temp;
 		temp = Double.doubleToLongBits(magnification);
 		result = prime * result + (int) (temp ^ (temp >>> 32));
@@ -351,7 +430,6 @@ public class ImageServerMetadata {
 		result = prime * result + preferredTileWidth;
 		result = prime * result + sizeT;
 		result = prime * result + sizeZ;
-		result = prime * result + width;
 		return result;
 	}
 
@@ -372,11 +450,9 @@ public class ImageServerMetadata {
 				return false;
 		} else if (!channels.equals(other.channels))
 			return false;
-		if (!Arrays.equals(downsamples, other.downsamples))
-			return false;
-		if (height != other.height)
-			return false;
 		if (isRGB != other.isRGB)
+			return false;
+		if (!Arrays.equals(levels, other.levels))
 			return false;
 		if (Double.doubleToLongBits(magnification) != Double.doubleToLongBits(other.magnification))
 			return false;
@@ -403,13 +479,154 @@ public class ImageServerMetadata {
 			return false;
 		if (sizeZ != other.sizeZ)
 			return false;
-		if (width != other.width)
-			return false;
 		return true;
 	}
 
 
 
+
+
+	/**
+	 * Width and height of each resolution in a multi-level image pyramid.
+	 */
+	public static class ImageResolutionLevel {
+		
+		private static final Logger logger = LoggerFactory.getLogger(ImageResolutionLevel.class);
+
+		private double downsample;
+		private final int width, height;
+		
+		private ImageResolutionLevel(final double downsample, final int width, final int height) {
+			this.downsample = downsample;
+			this.width = width;
+			this.height = height;
+		}
+		
+		public double getDownsample() {
+			return downsample;
+		}
+		
+		public int getWidth() {
+			return width;
+		}
+		
+		public int getHeight() {
+			return height;
+		}
+		
+		
+		
+		@Override
+		public String toString() {
+			return "Level: " + width + "x" + height + " (" + GeneralTools.formatNumber(downsample, 5) + ")";
+		}
+		
+		public static class Builder {
+			
+			private int fullWidth, fullHeight;
+			private List<ImageResolutionLevel> levels = new ArrayList<>();
+			
+			public Builder(int fullWidth, int fullHeight) {
+				this.fullWidth = fullWidth;
+				this.fullHeight = fullHeight;
+			}
+			
+			public Builder addLevelByDownsample(double downsample) {
+				int levelWidth = (int)(fullWidth / downsample);
+				int levelHeight = (int)(fullHeight / downsample);
+				return addLevel(downsample, levelWidth, levelHeight);
+			}
+			
+			public Builder addFullResolutionLevel() {
+				return addLevel(1, fullWidth, fullHeight);
+			}
+			
+			public Builder addLevel(double downsample, int levelWidth, int levelHeight) {
+				levels.add(new ImageResolutionLevel(downsample, levelWidth, levelHeight));
+				return this;
+			}
+			
+			public Builder addLevel(int levelWidth, int levelHeight) {
+				double downsample = estimateDownsample(fullWidth, fullHeight, levelWidth, levelHeight, levels.size());
+				return addLevel(downsample, levelWidth, levelHeight);
+			}
+			
+			public Builder addLevel(ImageResolutionLevel level) {
+				return addLevel(level.downsample, level.width, level.height);
+			}
+			
+			public List<ImageResolutionLevel> build() {
+				return levels;
+			}
+			
+			
+			
+			
+			private static double LOG2 = Math.log10(2);
+			
+			/**
+			 * Estimate the downsample value for a specific level based on the full resolution image dimensions 
+			 * and the level dimensions.
+			 * <p>
+			 * This method is provides so that different ImageServer implementations can potentially use the same logic.
+			 * 
+			 * @param fullWidth width of the full resolution image
+			 * @param fullHeight height of the full resolution image
+			 * @param levelWidth width of the pyramid level of interest
+			 * @param levelHeight height of the pyramid level of interest
+			 * @param level Resolution level.  Not required for the calculation, but if &geq; 0 and the computed x & y downsamples are very different a warning will be logged.
+			 * @return
+			 */
+			private double estimateDownsample(final int fullWidth, final int fullHeight, final int levelWidth, final int levelHeight, final int level) {
+				// Calculate estimated downsamples for width & height independently
+				double downsampleX = (double)fullWidth / levelWidth;
+				double downsampleY = (double)fullHeight / levelHeight;
+				
+				// Check if the nearest power of 2 is within 2 pixel - since 2^n is the most common downsampling factor
+				double downsampleAverage = (downsampleX + downsampleY) / 2.0;
+				double closestPow2 = Math.pow(2, Math.round(Math.log10(downsampleAverage)/LOG2));
+				if (Math.abs(fullHeight / closestPow2 - levelHeight) < 2 && Math.abs(fullWidth / closestPow2 - levelWidth) < 2)
+					return closestPow2;
+				
+				
+				// If the difference is less than 1 pixel from what we'd get by downsampling by closest integer, 
+				// adjust the downsample factors - we're probably aiming at integer downsampling
+				if (Math.abs(fullWidth / (double)Math.round(downsampleX)  - levelWidth) <= 1) {
+					downsampleX = Math.round(downsampleX);
+				}
+				if (Math.abs(fullHeight / (double)Math.round(downsampleY) - levelHeight) <= 1) {
+					downsampleY = Math.round(downsampleY);	
+				}
+				// If downsamples are equal, use that
+				if (downsampleX == downsampleY)
+					return downsampleX;
+				
+				// If one of these is a power of two, use it - this is usually the case
+				if (downsampleX == closestPow2 || downsampleY == closestPow2)
+					return closestPow2;
+				
+				/*
+				 * Average the calculated downsamples for x & y, warning if they are substantially different.
+				 * 
+				 * The 'right' way to do this is a bit unclear... 
+				 * * OpenSlide also seems to use averaging: https://github.com/openslide/openslide/blob/7b99a8604f38280d14a34db6bda7a916563f96e1/src/openslide.c#L272
+				 * * OMERO's rendering may use the 'lower' ratio: https://github.com/openmicroscopy/openmicroscopy/blob/v5.4.6/components/insight/SRC/org/openmicroscopy/shoola/env/rnd/data/ResolutionLevel.java#L96
+				 * 
+				 * However, because in the majority of cases the rounding checks above will have resolved discrepancies, it is less critical.
+				 */
+				
+				// Average the calculated downsamples for x & y
+				double downsample = (downsampleX + downsampleY) / 2;
+				
+				// Give a warning if the downsamples differ substantially
+				if (level >= 0 && !GeneralTools.almostTheSame(downsampleX, downsampleY, 0.001))
+					logger.warn("Calculated downsample values differ for x & y for level {}: x={} and y={} - will use value {}", level, downsampleX, downsampleY, downsample);
+				return downsample;
+			}
+			
+		}
+		
+	}
 	
 	
 

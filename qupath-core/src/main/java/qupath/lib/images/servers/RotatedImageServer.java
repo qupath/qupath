@@ -75,7 +75,7 @@ public class RotatedImageServer extends WrappedImageServer<BufferedImage> {
 		switch (rotation) {
 		case ROTATE_270:
 		case ROTATE_90:
-			metadata = getRotatedMetadata(server.getOriginalMetadata());
+			metadata = getQuarterRotatedMetadata(server.getOriginalMetadata());
 			break;
 		case ROTATE_180:
 			metadata = new ImageServerMetadata.Builder(server.getOriginalMetadata())
@@ -88,43 +88,30 @@ public class RotatedImageServer extends WrappedImageServer<BufferedImage> {
 	}
 	
 	
-	@Override
-	public int getLevelWidth(int level) {
-		switch (rotation) {
-		case ROTATE_270:
-		case ROTATE_90:
-			return getWrappedServer().getLevelHeight(level);
-		case ROTATE_180:
-		case ROTATE_NONE:
-		default:
-			return getWrappedServer().getLevelWidth(level);
+	/**
+	 * Need to rotate pixel & image dimensions if rotating by 90 or 270 degrees.
+	 * 
+	 * @param metadata
+	 * @return
+	 */
+	private ImageServerMetadata getQuarterRotatedMetadata(ImageServerMetadata metadata) {
+		
+		var levelBuilder = new ImageServerMetadata.ImageResolutionLevel.Builder(metadata.getHeight(), metadata.getWidth());
+		for (int i = 0; i < metadata.nLevels(); i++) {
+			var level = metadata.getLevel(i);
+			levelBuilder.addLevel(level.getDownsample(), level.getHeight(), level.getWidth());
 		}
-	}
-
-	@Override
-	public int getLevelHeight(int level) {
-		switch (rotation) {
-		case ROTATE_270:
-		case ROTATE_90:
-			return getWrappedServer().getLevelWidth(level);
-		case ROTATE_180:
-		case ROTATE_NONE:
-		default:
-			return getWrappedServer().getLevelHeight(level);
-		}
-	}
-	
-	
-	private ImageServerMetadata getRotatedMetadata(ImageServerMetadata metadata) {
+		
 		var builder = new ImageServerMetadata.Builder(metadata)
 				.path(getPath())
 				.width(metadata.getHeight())
 				.height(metadata.getWidth())
-				.setPreferredTileSize(metadata.getPreferredTileHeight(), metadata.getPreferredTileWidth())
+				.preferredTileSize(metadata.getPreferredTileHeight(), metadata.getPreferredTileWidth())
+				.levels(levelBuilder.build())
 				;
 		
 		if (metadata.pixelSizeCalibrated())
-			builder.setPixelSizeMicrons(metadata.getPixelHeightMicrons(), metadata.getPixelWidthMicrons());
+			builder.pixelSizeMicrons(metadata.getPixelHeightMicrons(), metadata.getPixelWidthMicrons());
 		
 		return builder.build();
 	}
@@ -155,6 +142,8 @@ public class RotatedImageServer extends WrappedImageServer<BufferedImage> {
 		var request2 = rotateRequest(request);
 		
 		var img = getWrappedServer().readBufferedImage(request2);
+		if (img == null)
+			throw new IOException("Unable to read image for " + request2);
 		var raster = img.getRaster();
 		int w = raster.getWidth();
 		int h = raster.getHeight();
@@ -228,7 +217,6 @@ public class RotatedImageServer extends WrappedImageServer<BufferedImage> {
 	}
 
 	RegionRequest rotateRequest(RegionRequest request) {
-		System.err.println(request);
 		String path = getWrappedServer().getPath();
 		switch (rotation) {
 		case ROTATE_180:

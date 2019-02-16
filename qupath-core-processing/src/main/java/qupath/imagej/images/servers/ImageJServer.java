@@ -34,7 +34,6 @@ import java.awt.image.Raster;
 import java.awt.image.SampleModel;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -53,8 +52,8 @@ import ij.process.FloatProcessor;
 import ij.process.ImageProcessor;
 import ij.process.LUT;
 import ij.process.ShortProcessor;
+import qupath.imagej.helpers.IJTools;
 import qupath.lib.awt.color.model.ColorModelFactory;
-import qupath.lib.common.GeneralTools;
 import qupath.lib.images.servers.AbstractImageServer;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServerMetadata;
@@ -73,9 +72,7 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 	private ImageServerMetadata originalMetadata;
 	
 	private ImagePlus imp;
-	
-	private static List<String> micronList = Arrays.asList("micron", "microns", "um", GeneralTools.micrometerSymbol());
-	
+		
 	private ColorModel colorModel;
 	
 	public ImageJServer(final String path) throws IOException {
@@ -88,13 +85,18 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 			throw new IOException("Could not open " + path + " with ImageJ");
 		
 		Calibration cal = imp.getCalibration();
-		double xMicrons = tryToParseMicrons(cal.pixelWidth, cal.getXUnit());
-		double yMicrons = tryToParseMicrons(cal.pixelHeight, cal.getYUnit());
-		double zMicrons = tryToParseMicrons(cal.pixelDepth, cal.getZUnit());
+		double xMicrons = IJTools.tryToParseMicrons(cal.pixelWidth, cal.getXUnit());
+		double yMicrons = IJTools.tryToParseMicrons(cal.pixelHeight, cal.getYUnit());
+		double zMicrons = IJTools.tryToParseMicrons(cal.pixelDepth, cal.getZUnit());
 		TimeUnit timeUnit = null;
+		double[] timepoints = null;
 		for (TimeUnit temp : TimeUnit.values()) {
 			if (temp.toString().toLowerCase().equals(cal.getTimeUnit())) {
 				timeUnit = temp;
+				timepoints = new double[imp.getNFrames()];
+				for (int i = 0; i < timepoints.length; i++) {
+					timepoints[i] = i * cal.frameInterval;
+				}
 				break;
 			}
 		}
@@ -123,23 +125,23 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 			channels = ImageChannel.getDefaultChannelList(imp.getNChannels());
 		
 		
-		var builder = new ImageServerMetadata.Builder(path,
-				imp.getWidth(),
-				imp.getHeight()).
-				channels(channels).
-				setSizeZ(imp.getNSlices()).
-				setSizeT(imp.getNFrames()).
-				setRGB(isRGB).
-				setBitDepth(isRGB ? 8 : imp.getBitDepth()).
-				setZSpacingMicrons(zMicrons).
-				setPreferredDownsamples(1.0). // TODO: Consider an in-memory image pyramid for large images
-				setPreferredTileSize(imp.getWidth(), imp.getHeight());
+		var builder = new ImageServerMetadata.Builder(path)
+				.width(imp.getWidth())
+				.height(imp.getHeight())
+				.channels(channels)
+				.sizeZ(imp.getNSlices())
+				.sizeT(imp.getNFrames())
+				.rgb(isRGB)
+				.bitDepth(isRGB ? 8 : imp.getBitDepth())
+				.zSpacingMicrons(zMicrons)
+				.preferredTileSize(imp.getWidth(), imp.getHeight());
 //				setMagnification(pxlInfo.mag). // Don't know magnification...?
+		
 		if (!Double.isNaN(xMicrons + yMicrons))
-			builder = builder.setPixelSizeMicrons(xMicrons, yMicrons);
+			builder = builder.pixelSizeMicrons(xMicrons, yMicrons);
 		
 		if (timeUnit != null)
-			builder = builder.setTimeUnit(timeUnit);
+			builder = builder.timepoints(timeUnit, timepoints);
 		
 		originalMetadata = builder.build();
 		
@@ -147,28 +149,6 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 //			throw new IOException("Sorry, currently only RGB & single-channel 8 & 16-bit images supported using ImageJ server");
 	}
 	
-	
-	/**
-	 * Based on a value and its units, try to get something suitable in microns.
-	 * (In other words, see if the units are 'microns' in some sense, and if not check if 
-	 * they are something else that can easily be converted).
-	 * 
-	 * @param value
-	 * @param unit
-	 * @return the parsed value in microns, or NaN if the unit couldn't be parsed
-	 */
-	private static double tryToParseMicrons(final double value, final String unit) {
-		if (unit == null)
-			return Double.NaN;
-		
-		String u = unit.toLowerCase();
-		boolean microns = micronList.contains(u);
-		if (microns)
-			return value;
-		if ("nm".equals(u))
-			return value * 1000;
-		return Double.NaN;
-	}
 	
 	@Override
 	public double getTimePoint(int ind) {

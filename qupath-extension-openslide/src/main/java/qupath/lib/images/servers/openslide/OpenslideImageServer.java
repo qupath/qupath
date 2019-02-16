@@ -45,6 +45,7 @@ import com.google.gson.GsonBuilder;
 import qupath.lib.images.servers.AbstractTileableImageServer;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServerMetadata;
+import qupath.lib.images.servers.ImageServerMetadata.ImageResolutionLevel;
 import qupath.lib.images.servers.TileRequest;
 import qupath.lib.regions.RegionRequest;
 
@@ -107,6 +108,7 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 		Map<String, String> properties = osr.getProperties();
 		
 		// Read bounds
+		boolean isCropped = false;
 		if (useBoundingBoxes && properties.keySet().containsAll(
 				Arrays.asList(
 						OpenSlide.PROPERTY_NAME_BOUNDS_X,
@@ -120,6 +122,7 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 				boundsY = Integer.parseInt(properties.get(OpenSlide.PROPERTY_NAME_BOUNDS_Y));
 				boundsWidth = Integer.parseInt(properties.get(OpenSlide.PROPERTY_NAME_BOUNDS_WIDTH));
 				boundsHeight = Integer.parseInt(properties.get(OpenSlide.PROPERTY_NAME_BOUNDS_HEIGHT));
+				isCropped = boundsWidth != width && boundsHeight != height;
 			} catch (Exception e) {
 				boundsX = 0;
 				boundsY = 0;
@@ -139,29 +142,39 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 		double pixelHeight = readNumericPropertyOrDefault(properties, OpenSlide.PROPERTY_NAME_MPP_Y, Double.NaN);
 		double magnification = readNumericPropertyOrDefault(properties, OpenSlide.PROPERTY_NAME_OBJECTIVE_POWER, Double.NaN);
 		
-		// Loop through the series again & determine downsamples
+		// Loop through the series again & determine downsamples - assume the image is not cropped for now
 		int levelCount = (int)osr.getLevelCount();
-		double[] downsamples = new double[levelCount];
-		downsamples[0] = 1;
-		for (int i = 1; i < levelCount; i++) {
+		var resolutionBuilder = new ImageResolutionLevel.Builder(width, height);
+		for (int i = 0; i < levelCount; i++) {
 			// When requesting downsamples from OpenSlide, these seem to be averaged from the width & height ratios:
 			// https://github.com/openslide/openslide/blob/7b99a8604f38280d14a34db6bda7a916563f96e1/src/openslide.c#L272
 			// However this can result in inexact floating point values whenever the 'true' downsample is 
 			// almost certainly an integer value, therefore we prefer to use our own calculation.
 			// Other ImageServer implementations can also draw on our calculation for consistency (or override it if they can do better).
-			downsamples[i] = estimateDownsample(width, height, (int)osr.getLevelWidth(i), (int)osr.getLevelHeight(i), i);
-//			downsamples[i] = osr.getLevelDownsample(i);
+			int w = (int)osr.getLevelWidth(i);
+			int h = (int)osr.getLevelHeight(i);
+			resolutionBuilder.addLevel(w, h);
+		}
+		var levels = resolutionBuilder.build();
+		
+		// If the image is cropped, create a new list of resolution levels based on the cropped values
+		// (We do it this elaborate way as we'd like to keep the default downsample calculations based on the full image)
+		if (isCropped) {
+			var resolutionBuilderCropped = new ImageResolutionLevel.Builder(boundsWidth, boundsHeight);
+			for (var level : levels)
+				resolutionBuilderCropped.addLevelByDownsample(level.getDownsample());
+			levels = resolutionBuilderCropped.build();
 		}
 		
 		// Create metadata objects
 		originalMetadata = new ImageServerMetadata.Builder(path, boundsWidth, boundsHeight).
 				channels(ImageChannel.getDefaultRGBChannels()). // Assume 3 channels (RGB)
-				setRGB(true).
-				setBitDepth(8).
-				setPreferredTileSize(tileWidth, tileHeight).
-				setPixelSizeMicrons(pixelWidth, pixelHeight).
-				setMagnification(magnification).
-				setPreferredDownsamples(downsamples).
+				rgb(true).
+				bitDepth(8).
+				preferredTileSize(tileWidth, tileHeight).
+				pixelSizeMicrons(pixelWidth, pixelHeight).
+				magnification(magnification).
+				levels(levels).
 				build();
 		
 		/*

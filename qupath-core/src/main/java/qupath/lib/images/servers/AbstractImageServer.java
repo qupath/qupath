@@ -39,7 +39,6 @@ import org.locationtech.jts.index.quadtree.Quadtree;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import qupath.lib.common.GeneralTools;
 import qupath.lib.images.PathImage;
 import qupath.lib.images.DefaultPathImage;
 import qupath.lib.regions.ImageRegion;
@@ -57,6 +56,7 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 	final private static Logger logger = LoggerFactory.getLogger(AbstractImageServer.class);
 	
 	private ImageServerMetadata userMetadata;
+	private double[] downsamples;
 	
 	private transient Long timestamp = null;
 	
@@ -133,7 +133,14 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 	 * @see #getPreferredDownsamples()
 	 */
 	protected double[] getPreferredDownsamplesArray() {
-		return getMetadata().getPreferredDownsamples();
+		if (downsamples == null) {
+			var metadata = getMetadata();
+			downsamples = new double[getMetadata().nLevels()];
+			for (int i = 0; i < downsamples.length; i++) {
+				downsamples[i] = metadata.getDownsampleForLevel(i);
+			}
+		}
+		return downsamples;
 	}
 	
 	@Override
@@ -150,7 +157,7 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 	 */
 	@Override
 	public double[] getPreferredDownsamples() {
-		return getMetadata().getPreferredDownsamples().clone();
+		return getPreferredDownsamplesArray().clone();
 	}
 	
 	@Override
@@ -164,29 +171,23 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 	}
 	
 	/**
-	 * Estimate image width for specified pyramid level.
-	 * <p>
-	 * Default implementation just divides the image width by the downsample; 
-	 * subclasses can override this if they have additional information.
+	 * Get the image width for a specified resolution level.
 	 * 
 	 * @param level
 	 * @return
 	 */
 	public int getLevelWidth(int level) {
-		return (int)(getWidth() / getPreferredDownsamplesArray()[level]);
+		return getMetadata().getLevel(level).getWidth();
 	}
 	
 	/**
-	 * Estimate image height for specified pyramid level.
-	 * <p>
-	 * Default implementation just divides the image height by the downsample; 
-	 * subclasses can override this if they have additional information.
+	 * Get the image height for a specified resolution level.
 	 * 
 	 * @param level
 	 * @return
 	 */
 	public int getLevelHeight(int level) {
-		return (int)(getHeight() / getPreferredDownsamplesArray()[level]);
+		return getMetadata().getLevel(level).getHeight();
 	}
 	
 	/**
@@ -391,68 +392,6 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 	@Override
 	public List<ImageChannel> getChannels() {
 		return getMetadata().getChannels();
-	}
-	
-	private static double LOG2 = Math.log10(2);
-	
-	/**
-	 * Estimate the downsample value for a specific level based on the full resolution image dimensions 
-	 * and the level dimensions.
-	 * <p>
-	 * This method is provides so that different ImageServer implementations can potentially use the same logic.
-	 * 
-	 * @param fullWidth width of the full resolution image
-	 * @param fullHeight height of the full resolution image
-	 * @param levelWidth width of the pyramid level of interest
-	 * @param levelHeight height of the pyramid level of interest
-	 * @param level Resolution level.  Not required for the calculation, but if &geq; 0 and the computed x & y downsamples are very different a warning will be logged.
-	 * @return
-	 */
-	protected static double estimateDownsample(final int fullWidth, final int fullHeight, final int levelWidth, final int levelHeight, final int level) {
-		// Calculate estimated downsamples for width & height independently
-		double downsampleX = (double)fullWidth / levelWidth;
-		double downsampleY = (double)fullHeight / levelHeight;
-		
-		// Check if the nearest power of 2 is within 2 pixel - since 2^n is the most common downsampling factor
-		double downsampleAverage = (downsampleX + downsampleY) / 2.0;
-		double closestPow2 = Math.pow(2, Math.round(Math.log10(downsampleAverage)/LOG2));
-		if (Math.abs(fullHeight / closestPow2 - levelHeight) < 2 && Math.abs(fullWidth / closestPow2 - levelWidth) < 2)
-			return closestPow2;
-		
-		
-		// If the difference is less than 1 pixel from what we'd get by downsampling by closest integer, 
-		// adjust the downsample factors - we're probably aiming at integer downsampling
-		if (Math.abs(fullWidth / (double)Math.round(downsampleX)  - levelWidth) <= 1) {
-			downsampleX = Math.round(downsampleX);
-		}
-		if (Math.abs(fullHeight / (double)Math.round(downsampleY) - levelHeight) <= 1) {
-			downsampleY = Math.round(downsampleY);	
-		}
-		// If downsamples are equal, use that
-		if (downsampleX == downsampleY)
-			return downsampleX;
-		
-		// If one of these is a power of two, use it - this is usually the case
-		if (downsampleX == closestPow2 || downsampleY == closestPow2)
-			return closestPow2;
-		
-		/*
-		 * Average the calculated downsamples for x & y, warning if they are substantially different.
-		 * 
-		 * The 'right' way to do this is a bit unclear... 
-		 * * OpenSlide also seems to use averaging: https://github.com/openslide/openslide/blob/7b99a8604f38280d14a34db6bda7a916563f96e1/src/openslide.c#L272
-		 * * OMERO's rendering may use the 'lower' ratio: https://github.com/openmicroscopy/openmicroscopy/blob/v5.4.6/components/insight/SRC/org/openmicroscopy/shoola/env/rnd/data/ResolutionLevel.java#L96
-		 * 
-		 * However, because in the majority of cases the rounding checks above will have resolved discrepancies, it is less critical.
-		 */
-		
-		// Average the calculated downsamples for x & y
-		double downsample = (downsampleX + downsampleY) / 2;
-		
-		// Give a warning if the downsamples differ substantially
-		if (level >= 0 && !GeneralTools.almostTheSame(downsampleX, downsampleY, 0.001))
-			logger.warn("Calculated downsample values differ for x & y for level {}: x={} and y={} - will use value {}", level, downsampleX, downsampleY, downsample);
-		return downsample;
 	}
 	
 		

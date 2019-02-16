@@ -104,18 +104,12 @@ public class SparseImageServer extends AbstractTileableImageServer {
 		int width = x2 - x1;
 		int height = y2 - y1;
 		
-		this.metadata = new ImageServerMetadata.Builder(path, width, height)
-				.setBitDepth(metadata.getBitDepth())
-				.setRGB(metadata.isRGB())
-				.setMagnification(metadata.getMagnification())
-				.setPixelSizeMicrons(metadata.getPixelWidthMicrons(), metadata.getPixelHeightMicrons())
-				.setPreferredTileSize(1024, 1024)
-				.channels(metadata.getChannels())
-				.setSizeT(metadata.getSizeT())
-				.setSizeZ(metadata.getSizeZ())
-				.setTimeUnit(metadata.getTimeUnit())
-				.setPreferredDownsamples(manager.getAvailableDownsamples())
-				.setZSpacingMicrons(metadata.getZSpacingMicrons())
+		this.metadata = new ImageServerMetadata.Builder(metadata)
+				.path(path)
+				.width(width)
+				.height(height)
+				.preferredTileSize(1024, 1024)
+				.levelsFromDownsamples(manager.getAvailableDownsamples())
 				.build();
 	}
 

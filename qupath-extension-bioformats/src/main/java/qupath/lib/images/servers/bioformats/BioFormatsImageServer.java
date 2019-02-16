@@ -71,10 +71,12 @@ import loci.formats.ome.OMEXMLMetadata;
 
 import qupath.lib.awt.color.model.ColorModelFactory;
 import qupath.lib.common.ColorTools;
+import qupath.lib.common.GeneralTools;
 import qupath.lib.images.servers.AbstractTileableImageServer;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
+import qupath.lib.images.servers.ImageServerMetadata.ImageResolutionLevel;
 import qupath.lib.images.servers.TileRequest;
 import qupath.lib.regions.RegionRequest;
 
@@ -123,12 +125,6 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 	private boolean doChannelZCorrectionVSI = false;
 	
 	/**
-	 * Representation of the different time points for a time series.
-	 * TODO: Test the use of different time points, if this ever becomes a common use of QuPath.
-	 */
-	private double[] timePoints = null;
-	
-	/**
 	 * A map linking an identifier (image name) to series number for 'full' images.
 	 */
 	private Map<String, Integer> imageMap = null;
@@ -149,6 +145,11 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 	private int series = 0;
 	
 	/**
+	 * Format for the current reader.
+	 */
+	private String format;
+	
+	/**
 	 * QuPath-specific options for how the image server should behave, such as using parallelization or memoization.
 	 */
 	private BioFormatsServerOptions options;
@@ -162,16 +163,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 	 * Try to parallelize multichannel requests (experimental!)
 	 */
 	private boolean parallelizeMultichannel = true;
-	
-	/**
-	 * Per-pyramid level image widths
-	 */
-	private int[] levelWidths;
 
-	/**
-	 * Per-pyramid level image widths
-	 */
-	private int[] levelHeights;
 
 	/**
 	 * Create an ImageServer using the Bio-Formats library for a specified image path.
@@ -294,7 +286,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 			reader.setSeries(series);
 			
 			// Get the format in case we need it
-			String format = reader.getFormat();
+			format = reader.getFormat();
 			logger.debug("Reading format: {}", format);
 			
 		    // Try getting the magnification
@@ -382,6 +374,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 			}
 			
 			// Try parsing pixel sizes in micrometers
+			double[] timepoints;
 		    try {
 		    	Length xSize = meta.getPixelsPhysicalSizeX(series);
 		    	Length ySize = meta.getPixelsPhysicalSizeY(series);
@@ -406,53 +399,53 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 				    // Here, we don't try to separate timings by z-slice & channel...
 				    int lastTimepoint = -1;
 				    int count = 0;
-				    timePoints = new double[nTimepoints];
+				    timepoints = new double[nTimepoints];
 				    logger.debug("PLANE COUNT: " + meta.getPlaneCount(series));
 				    for (int plane = 0; plane < meta.getPlaneCount(series); plane++) {
 				    	int timePoint = meta.getPlaneTheT(series, plane).getValue();
 				    	logger.debug("Checking " + timePoint);
 				    	if (timePoint != lastTimepoint) {
-				    		timePoints[count] = meta.getPlaneDeltaT(series, plane).value(UNITS.SECOND).doubleValue();
-				    		logger.debug(String.format("Timepoint %d: %.3f seconds", count, timePoints[count]));
+				    		timepoints[count] = meta.getPlaneDeltaT(series, plane).value(UNITS.SECOND).doubleValue();
+				    		logger.debug(String.format("Timepoint %d: %.3f seconds", count, timepoints[count]));
 				    		lastTimepoint = timePoint;
 				    		count++;
 				    	}
 				    }
 				    timeUnit = TimeUnit.SECONDS;
+			    } else {
+			    	timepoints = new double[0];
 			    }
 		    } catch (Exception e) {
 		    	logger.error("Error parsing metadata", e);
 		    	pixelWidth = Double.NaN;
 		    	pixelHeight = Double.NaN;
 		    	zSpacing = Double.NaN;
-		    	timePoints = null;
+		    	timepoints = null;
 		    	timeUnit = null;
 		    }
 		    
 			// Loop through the series & determine downsamples
 			int nResolutions = reader.getResolutionCount();
-			double[] downsamples = new double[nResolutions];
-			levelWidths = new int[nResolutions];
-			levelHeights = new int[nResolutions];
-			levelWidths[0] = width;
-			levelHeights[0] = height;
-			downsamples[0] = 1.0;
+			var resolutionBuilder = new ImageResolutionLevel.Builder(width, height)
+					.addFullResolutionLevel();
+			
 			for (int i = 1; i < nResolutions; i++) {
 				reader.setResolution(i);
 				int w = reader.getSizeX();
 				int h = reader.getSizeY();
-				levelWidths[i] = w;
-				levelHeights[i] = h;
-				
-				/*
-				 * Determining the downsamples from VSI files has proven troublesome, but they *appear* 
-				 * to always be a power of two.  So we make that assumption here until it's proven wrong...
-				 */
+				// In some VSI images, the calculated downsamples for width & height can be wildly discordant, 
+				// and we are better off using defaults
 				if ("CellSens VSI".equals(format)) {
-					downsamples[i] = Math.pow(2, i);
-				} else {
-					downsamples[i] = estimateDownsample(width, height, w, h, i);
+					double downsampleX = (double)width / w;
+					double downsampleY = (double)height / h;
+					double downsample = Math.pow(2, i);
+					if (!GeneralTools.almostTheSame(downsampleX, downsampleY, 0.01)) {
+						logger.warn("Non-matching downsamples calculated for level {} ({} and {}); will use {} instead", i, downsampleX, downsampleY, downsample);
+						resolutionBuilder.addLevel(downsample, w, h);
+						continue;
+					}
 				}
+				resolutionBuilder.addLevel(w, h);
 			}
 			
 //			// Estimate the image size from the lowest resolution of the pyramid; if it's substantially smaller, 
@@ -469,27 +462,27 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 			// Set metadata
 			ImageServerMetadata.Builder builder = new ImageServerMetadata.Builder(path, width, height).
 					channels(channels).
-					setSizeZ(nZSlices).
-					setSizeT(nTimepoints).
-					setPreferredDownsamples(downsamples).
-					setBitDepth(bpp).
-					setRGB(isRGB);
+					sizeZ(nZSlices).
+					sizeT(nTimepoints).
+					levels(resolutionBuilder.build()).
+					bitDepth(bpp).
+					rgb(isRGB);
 			
 			if (Double.isFinite(magnification))
-				builder = builder.setMagnification(magnification);
+				builder = builder.magnification(magnification);
 			
 			if (timeUnit != null)
-				builder = builder.setTimeUnit(timeUnit);
+				builder = builder.timepoints(timeUnit, timepoints);
 
 			if (Double.isFinite(pixelWidth + pixelHeight))
-				builder = builder.setPixelSizeMicrons(pixelWidth, pixelHeight);
+				builder = builder.pixelSizeMicrons(pixelWidth, pixelHeight);
 
 			if (Double.isFinite(zSpacing))
-				builder = builder.setZSpacingMicrons(zSpacing);
+				builder = builder.zSpacingMicrons(zSpacing);
 			
 			// Check the tile size if it is reasonable
 			if (tileWidth >= MIN_TILE_SIZE && tileWidth <= MAX_TILE_SIZE && tileHeight >= MIN_TILE_SIZE && tileHeight <= MAX_TILE_SIZE)
-				builder.setPreferredTileSize(tileWidth, tileHeight);
+				builder.preferredTileSize(tileWidth, tileHeight);
 			originalMetadata = builder.build();
 		}
 		
@@ -505,6 +498,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 		long endTime = System.currentTimeMillis();
 		logger.debug(String.format("Initialization time: %d ms", endTime-startTime));
 	}
+	
 	
 	
 	/**
@@ -523,17 +517,6 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 			filePath = path.substring(0, index);
 		}
 		return new String[] {filePath, seriesName};
-	}
-	
-	
-	@Override
-	public int getLevelWidth(int level) {
-		return levelWidths[level];
-	}
-	
-	@Override
-	public int getLevelHeight(int level) {
-		return levelHeights[level];
 	}
 	
 		
@@ -801,7 +784,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 	public double getTimePoint(int ind) {
 		if (nTimepoints() == 0)
 			return 0;
-		return timePoints[ind];
+		return getMetadata().getTimepoint(ind);
 	}
 
 	@Override

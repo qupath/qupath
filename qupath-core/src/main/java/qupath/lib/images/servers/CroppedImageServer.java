@@ -23,20 +23,24 @@ public class CroppedImageServer extends WrappedImageServer<BufferedImage> {
 		super(server);
 		this.region = region;
 		
-		metadata = new ImageServerMetadata.Builder(
-				server.getPath() + ": Cropped " + region.toString(), region.getWidth(), region.getHeight())
-				.setBitDepth(server.getMetadata().getBitDepth())
-				.setRGB(server.getMetadata().isRGB())
-				.setMagnification(server.getMetadata().getMagnification())
-				.setName(String.format("%s (%d, %d, %d, %d)", server.getMetadata().getName(), region.getX(), region.getY(), region.getWidth(), region.getHeight()))
-				.setPixelSizeMicrons(server.getMetadata().getPixelWidthMicrons(), server.getMetadata().getPixelHeightMicrons())
-				.setPreferredTileSize(server.getMetadata().getPreferredTileWidth(), server.getMetadata().getPreferredTileHeight())
-				.channels(server.getMetadata().getChannels())
-				.setSizeZ(server.getMetadata().getSizeZ())
-				.setSizeT(server.getMetadata().getSizeT())
-				.setTimeUnit(server.getMetadata().getTimeUnit())
-				.setZSpacingMicrons(server.getMetadata().getZSpacingMicrons())
-				.setPreferredDownsamples(server.getMetadata().getPreferredDownsamples())
+		var levelBuilder = new ImageServerMetadata.ImageResolutionLevel.Builder(region.getWidth(), region.getHeight());
+		boolean fullServer = server.getWidth() == region.getWidth() && server.getHeight() == region.getHeight();
+		int i = 0;
+		do {
+			var originalLevel = server.getMetadata().getLevel(i);
+			if (fullServer)
+				levelBuilder.addLevel(originalLevel);
+			else
+				levelBuilder.addLevelByDownsample(originalLevel.getDownsample());
+			i++;
+		} while (i < server.nResolutions() && region.getWidth() >= server.getPreferredTileWidth() && region.getHeight() >= server.getPreferredTileHeight());
+		
+		metadata = new ImageServerMetadata.Builder(server.getMetadata())
+				.path(server.getPath() + ": Cropped " + region.toString())
+				.width(region.getWidth())
+				.height(region.getHeight())
+				.name(String.format("%s (%d, %d, %d, %d)", server.getMetadata().getName(), region.getX(), region.getY(), region.getWidth(), region.getHeight()))
+				.levels(levelBuilder.build())
 				.build();
 	}
 	

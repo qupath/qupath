@@ -12,6 +12,7 @@ import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.AbstractTileableImageServer;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
+import qupath.lib.images.servers.ImageServerMetadata.ImageResolutionLevel;
 import qupath.lib.images.servers.TileRequest;
 import qupath.lib.regions.RegionRequest;
 
@@ -47,40 +48,23 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 		double inputSizeMicrons = classifierMetadata.getInputPixelSizeMicrons();
 		double downsample = inputSizeMicrons / server.getAveragedPixelSizeMicrons();
 		
-		// This code makes it possible for the classification server to return downsampled values
-		// The idea is that this might help performance... but it raises questions around interpolating 
-		// classifications and can result in the appearance not matching expectations.
-//		List<Double> downsampleValues = new ArrayList<>();
-//		double factor = 1;
-//		do {
-//			downsampleValues.add(downsample * factor);
-//			factor *= 4;
-//		} while (Math.min(tileWidth, tileHeight) / factor > 16);
-//		double[] downsamples = downsampleValues.stream().mapToDouble(d -> d).toArray();
-		double[] downsamples = new double[] {downsample};
-		
 		int width = server.getWidth();
 		int height = server.getHeight();
 		
-		var builder = new ImageServerMetadata.Builder(path, width, height)
-				.setPreferredTileSize(tileWidth, tileHeight)
-				.setPreferredDownsamples(downsamples)
+		var levels = new ImageResolutionLevel.Builder(width, height)
+						.addLevelByDownsample(downsample)
+						.build();
+		
+		var builder = new ImageServerMetadata.Builder(server.getMetadata())
+				.path(path)
+				.width(width)
+				.height(height)
+				.preferredTileSize(tileWidth, tileHeight)
+				.levels(levels)
 				.channels(classifierMetadata.getChannels())
-				.setSizeT(server.nTimepoints())
-				.setSizeZ(server.nZSlices())
-				.setMagnification(server.getMagnification())
-				.setBitDepth(bitDepth)
-				.setRGB(false);
-		
-		if (server.hasPixelSizeMicrons())
-			builder = builder.setPixelSizeMicrons(server.getPixelWidthMicrons(), server.getPixelHeightMicrons());
-		if (Double.isFinite(server.getMagnification()))
-			builder = builder.setMagnification(server.getMagnification());
-		if (server.getTimeUnit() != null)
-			builder = builder.setTimeUnit(server.getTimeUnit());
-		if (Double.isFinite(server.getZSpacingMicrons()))
-			builder = builder.setZSpacingMicrons(server.getZSpacingMicrons());
-		
+				.bitDepth(bitDepth)
+				.rgb(false);
+				
 		metadata = builder.build();
 		
 	}

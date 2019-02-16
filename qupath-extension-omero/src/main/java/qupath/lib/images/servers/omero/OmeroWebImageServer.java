@@ -86,7 +86,6 @@ public class OmeroWebImageServer extends AbstractTileableImageServer {
 
 		int sizeX;
 		int sizeY;
-		double[] downsamples = {1.0};
 
 		String imageName = null;
 		int sizeT = 1;
@@ -148,14 +147,17 @@ public class OmeroWebImageServer extends AbstractTileableImageServer {
 		if (sizeC != 3 || pixelsType != null && !"uint8".equals(pixelsType))
 			throw new IOException("Only 8-bit RGB images supported! Selected image has " + sizeC + " channel(s) & pixel type " + pixelsType);
 
+		var levelBuilder = new ImageServerMetadata.ImageResolutionLevel.Builder(sizeX, sizeY);
+		
 		if (map.getAsJsonPrimitive("tiles").getAsBoolean()) {
 			int levels = map.getAsJsonPrimitive("levels").getAsInt();
 			if (levels > 1) {
 				JsonObject zoom = map.getAsJsonObject("zoomLevelScaling");
-				downsamples = new double[levels];
 				for (int i = 0; i < levels; i++) {
-					downsamples[i] = 1.0 / zoom.getAsJsonPrimitive(Integer.toString(i)).getAsDouble();
+					levelBuilder.addLevelByDownsample(1.0 / zoom.getAsJsonPrimitive(Integer.toString(i)).getAsDouble());
 				}
+			} else {
+				levelBuilder.addFullResolutionLevel();
 			}
 
 			if (map.has("tile_size")) {
@@ -171,22 +173,25 @@ public class OmeroWebImageServer extends AbstractTileableImageServer {
 
 		if (map.has("nominalMagnification"))
 			magnification = map.getAsJsonPrimitive("nominalMagnification").getAsDouble();
-
-
+		
 		ImageServerMetadata.Builder builder = new ImageServerMetadata.Builder(path, sizeX, sizeY)
-				.setSizeT(sizeT)
+				.sizeT(sizeT)
 				.channels(ImageChannel.getDefaultRGBChannels())
-				.setSizeZ(sizeZ)
-				.setName(imageName)
-				.setBitDepth(bitDepth)
-				.setRGB(isRGB)
-				.setMagnification(magnification)
-				.setPreferredDownsamples(downsamples)
-				.setPixelSizeMicrons(pixelWidthMicrons, pixelHeightMicrons)
-				.setZSpacingMicrons(zSpacingMicrons);
+				.sizeZ(sizeZ)
+				.name(imageName)
+				.bitDepth(bitDepth)
+				.rgb(isRGB)
+				.magnification(magnification)
+				.levels(levelBuilder.build());
+		
+		if (Double.isFinite(pixelWidthMicrons + pixelHeightMicrons))
+			builder.pixelSizeMicrons(pixelWidthMicrons, pixelHeightMicrons);
+		
+		if (Double.isFinite(zSpacingMicrons) && zSpacingMicrons > 0)
+			builder.zSpacingMicrons(zSpacingMicrons);
 
 		if (tileSize != null && tileSize.length >= 2) {
-			builder.setPreferredTileSize(tileSize[0], tileSize[1]);
+			builder.preferredTileSize(tileSize[0], tileSize[1]);
 		}
 
 		originalMetadata = builder.build();

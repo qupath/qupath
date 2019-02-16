@@ -28,6 +28,9 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.text.DecimalFormat;
+import java.util.Arrays;
+import java.util.List;
+
 import javax.swing.SwingUtilities;
 
 import org.slf4j.Logger;
@@ -66,6 +69,8 @@ import qupath.lib.roi.interfaces.ROI;
 public class IJTools {
 	
 	final private static Logger logger = LoggerFactory.getLogger(IJTools.class);
+	
+	public static List<String> micronList = Arrays.asList("micron", "microns", "um", GeneralTools.micrometerSymbol());
 	
 	// Defines what fraction of total available memory can be allocated to transferring a single image to ImageJ 
 	private static double MEMORY_THRESHOLD = 0.5;
@@ -289,10 +294,21 @@ public class IJTools {
 		// Try to get the downsample factor from pixel size;
 		// if that doesn't work, resort to trying to get it from the image dimensions
 		double downsampleFactor;
-		if (server.hasPixelSizeMicrons())
-			downsampleFactor = imp.getCalibration().pixelWidth / server.getPixelWidthMicrons();
-		//			downsampleFactor = server.getPixelWidthMicrons() / imp.getCalibration().pixelWidth;
-		else {
+		
+		Calibration cal = imp.getCalibration();
+		double xMicrons = IJTools.tryToParseMicrons(cal.pixelWidth, cal.getXUnit());
+		double yMicrons = IJTools.tryToParseMicrons(cal.pixelHeight, cal.getYUnit());
+		boolean ijHasMicrons = !Double.isNaN(xMicrons) && !Double.isNaN(yMicrons);
+		
+		if (server.hasPixelSizeMicrons() && ijHasMicrons) {
+			double downsampleX = xMicrons / server.getPixelWidthMicrons();
+			double downsampleY = yMicrons / server.getPixelHeightMicrons();
+			if (GeneralTools.almostTheSame(downsampleX, downsampleY, 0.001))
+				logger.debug("ImageJ downsample factor is being estimated from pixel sizes");
+			else
+				logger.warn("ImageJ downsample factor is being estimated from pixel sizes (and these don't seem to match! {} and {})", downsampleX, downsampleY);
+			downsampleFactor = (downsampleX + downsampleY) / 2.0;
+		} else {
 			double downsampleX = (double)server.getWidth() / imp.getWidth();
 			double downsampleY = (double)server.getHeight() / imp.getHeight();
 			if (GeneralTools.almostTheSame(downsampleX, downsampleY, 0.001))
@@ -375,6 +391,28 @@ public class IJTools {
 	 */
 	public static void quickShowImage(final String name, final ImageProcessor... ips) {
 		quickShowImage(name, null, ips);
+	}
+
+	/**
+	 * Based on a value and its units, try to get something suitable in microns.
+	 * (In other words, see if the units are 'microns' in some sense, and if not check if 
+	 * they are something else that can easily be converted).
+	 * 
+	 * @param value
+	 * @param unit
+	 * @return the parsed value in microns, or NaN if the unit couldn't be parsed
+	 */
+	public static double tryToParseMicrons(final double value, final String unit) {
+		if (unit == null)
+			return Double.NaN;
+		
+		String u = unit.toLowerCase();
+		boolean microns = micronList.contains(u);
+		if (microns)
+			return value;
+		if ("nm".equals(u))
+			return value * 1000;
+		return Double.NaN;
 	}
 	
 

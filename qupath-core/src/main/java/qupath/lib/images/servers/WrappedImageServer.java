@@ -24,15 +24,6 @@ public abstract class WrappedImageServer<T> extends AbstractImageServer<T> {
 		this.server = server;
 	}
 	
-	@Override
-	public int getLevelWidth(int level) {
-		return server.getLevelWidth(level);
-	}
-
-	@Override
-	public int getLevelHeight(int level) {
-		return server.getLevelHeight(level);
-	}
 
 	@Override
 	public Integer getDefaultChannelColor(int channel) {

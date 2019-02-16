@@ -43,6 +43,7 @@ import qupath.lib.images.servers.GeneratingImageServer;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
+import qupath.lib.images.servers.ImageServerMetadata.ImageResolutionLevel;
 import qupath.lib.images.servers.TileRequest;
 import qupath.lib.objects.DefaultPathObjectConnectionGroup;
 import qupath.lib.objects.PathDetectionObject;
@@ -89,24 +90,25 @@ public class PathHierarchyImageServer extends AbstractTileableImageServer implem
 		this.hierarchy = imageData.getHierarchy();
 		this.options = options;
 		
-		List<Double> downsamples = new ArrayList<>();
 		double minDim = Math.min(server.getWidth(), server.getHeight());
+//		double maxDim = Math.max(server.getWidth(), server.getHeight());
 		double nextDownsample = 1.0;
-		while (minDim / nextDownsample > 1024 || downsamples.isEmpty()) {
-			downsamples.add(nextDownsample);
+		var levelBuilder = new ImageResolutionLevel.Builder(server.getWidth(), server.getHeight());
+		do {
+			levelBuilder.addLevelByDownsample(nextDownsample);
 			nextDownsample *= 4.0;
-		}
+		} while ((minDim / nextDownsample) >= 2048);
 		
 //		String path = getPath();
 //		cache.entrySet().removeIf(r -> path.equals(r.getKey().getPath()));
 		
 		// Set metadata, using the underlying server as a basis
 		this.originalMetadata = new ImageServerMetadata.Builder(server.getOriginalMetadata())
-				.setPreferredTileSize(256, 256)
-				.setPreferredDownsamples(downsamples.stream().mapToDouble(d -> d).toArray())
-				.setBitDepth(8)
+				.preferredTileSize(256, 256)
+				.levels(levelBuilder.build())
+				.bitDepth(8)
 				.channels(ImageChannel.getDefaultRGBChannels())
-				.setRGB(true)
+				.rgb(true)
 				.build();
 	}
 	

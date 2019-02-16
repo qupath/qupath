@@ -6,5 +6,6 @@ configurations {
 }
 
 dependencies {
+  implementation project(':qupath-core')
   implementation project(':qupath-gui-fx')
 }
