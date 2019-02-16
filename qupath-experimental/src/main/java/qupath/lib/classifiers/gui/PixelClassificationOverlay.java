@@ -1,8 +1,6 @@
 package qupath.lib.classifiers.gui;
 
 import qupath.lib.classifiers.pixel.OpenCVPixelClassifierDNN;
-import qupath.lib.classifiers.pixel.PixelClassifier;
-import qupath.lib.classifiers.pixel.PixelClassifierMetadata;
 import qupath.lib.classifiers.pixel.PixelClassifierMetadata.OutputType;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.common.SimpleThreadFactory;
@@ -14,7 +12,6 @@ import qupath.lib.gui.viewer.overlays.AbstractOverlay;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServer;
-import qupath.lib.images.servers.ImageServerProvider;
 import qupath.lib.images.servers.TileRequest;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
@@ -34,7 +31,6 @@ import java.awt.geom.Ellipse2D;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBuffer;
 import java.awt.image.ImageObserver;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -118,7 +114,8 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
 	        				return;
 	        		}
 	        	}
-	    		hierarchy.fireObjectMeasurementsChangedEvent(this, changed);    		
+	        	if (!changed.isEmpty())
+	        		Platform.runLater(() -> hierarchy.fireObjectMeasurementsChangedEvent(this, changed));    		
 	    	});
     	}
     }

@@ -327,7 +327,7 @@ public final class PathObjectHierarchy implements Serializable {
 		Collections.sort(possibleObjects, (p1, p2) -> -Integer.compare(p1.getLevel(), p2.getLevel()));
 
 		for (PathObject possibleParent : possibleObjects) {
-			if (possibleParent == pathObject)
+			if (possibleParent == pathObject || possibleParent.isDetection())
 				continue;
 			boolean addObject = possibleParent.isRootObject();
 			if (!addObject) {
@@ -342,14 +342,17 @@ public final class PathObjectHierarchy implements Serializable {
 				
 				var previousChildren = new HashSet<>(possibleParent.getChildObjects());
 				possibleParent.addPathObject(pathObject);
-				for (var child : previousChildren) {
-					boolean reassignChild = false;
-					if (child.isDetection())
-						reassignChild = tileCache.containsCentroid(pathObject, child);
-					else if (!pathObject.isDetection())
-						reassignChild = tileCache.covers(pathObject, child);
-					if (reassignChild) {
-						pathObject.addPathObject(child);
+				// If we have a non-detection, consider reassigning child objects
+				if (!pathObject.isDetection()) {
+					for (var child : previousChildren) {
+						boolean reassignChild = false;
+						if (child.isDetection())
+							reassignChild = tileCache.containsCentroid(pathObject, child);
+						else if (!pathObject.isDetection())
+							reassignChild = tileCache.covers(pathObject, child);
+						if (reassignChild) {
+							pathObject.addPathObject(child);
+						}
 					}
 				}
 				

@@ -45,7 +45,6 @@ import org.locationtech.jts.index.quadtree.Quadtree;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.TemporaryObject;
 import qupath.lib.objects.helpers.PathObjectTools;
@@ -219,7 +218,7 @@ class PathObjectTileCache implements PathObjectHierarchyListener {
 		Coordinate centroid = getCentroidCoordinate(possibleChild);
 		if (centroid == null)
 			return false;
-		if (possibleParent.isDetection())
+		if (possibleChild.isDetection())
 			return SimplePointInAreaLocator.locate(
 					centroid, getGeometry(possibleParent)) != Location.EXTERIOR;
 		return getLocator(possibleParent).locate(centroid) != Location.EXTERIOR;

@@ -99,13 +99,16 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 	private Map<String, MeasurementBuilder<?>> builderMap = new LinkedHashMap<>();
 	
 	
-	public void setImageData(final ImageData<?> imageData, final Collection<? extends PathObject> pathObjects) {
+	public synchronized void setImageData(final ImageData<?> imageData, final Collection<? extends PathObject> pathObjects) {
 		this.imageData = imageData;
 		list.setAll(pathObjects);
-		if (Platform.isFxApplicationThread())
-			updateMeasurementList();
-		else
-			Platform.runLater(() -> updateMeasurementList());
+		// Cannot force this to run in application thread as this can result in unexpected behavior if called from a different thread
+		if (!Platform.isFxApplicationThread())
+			logger.debug("Image data is being set by thread {}", Thread.currentThread());
+//		if (Platform.isFxApplicationThread())
+		updateMeasurementList();
+//		else
+//			Platform.runLater(() -> updateMeasurementList());
 	}
 	
 	
