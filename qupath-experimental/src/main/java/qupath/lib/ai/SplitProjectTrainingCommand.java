@@ -17,8 +17,10 @@ import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.gui.helpers.dialogs.ParameterPanelFX;
+import qupath.lib.gui.panels.ProjectBrowser;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.projects.Project;
+import qupath.lib.projects.ProjectFactory;
 import qupath.lib.projects.ProjectIO;
 import qupath.lib.projects.ProjectImageEntry;
 
@@ -206,19 +208,19 @@ public class SplitProjectTrainingCommand implements PathCommand {
 					File fileTest = new File(dir, baseName + "-test-"+num+ext);
 					if (!fileTrain.exists() && !fileValidation.exists() && !fileTest.exists()) {
 						if (!trainEntries.isEmpty()) {
-							Project<BufferedImage> projectTemp = new Project<>(fileTrain, BufferedImage.class);
+							Project<BufferedImage> projectTemp = ProjectFactory.createProject(fileTrain, BufferedImage.class);
 							projectTemp.addAllImages(trainEntries);
-							ProjectIO.writeProject(projectTemp);
+							ProjectBrowser.syncProject(projectTemp);
 						}
 						if (!validationEntries.isEmpty()) {
-							Project<BufferedImage> projectTemp = new Project<>(fileValidation, BufferedImage.class);
+							Project<BufferedImage> projectTemp = ProjectFactory.createProject(fileValidation, BufferedImage.class);
 							projectTemp.addAllImages(validationEntries);
-							ProjectIO.writeProject(projectTemp);
+							ProjectBrowser.syncProject(projectTemp);
 						}
 						if (!testEntries.isEmpty()) {
-							Project<BufferedImage> projectTemp = new Project<>(fileTest, BufferedImage.class);
+							Project<BufferedImage> projectTemp = ProjectFactory.createProject(fileTest, BufferedImage.class);
 							projectTemp.addAllImages(testEntries);
-							ProjectIO.writeProject(projectTemp);
+							ProjectBrowser.syncProject(projectTemp);
 						}
 						break;
 					}
@@ -228,7 +230,7 @@ public class SplitProjectTrainingCommand implements PathCommand {
 			}
 			
 			// Save the main project
-			ProjectIO.writeProject(project);
+			ProjectBrowser.syncProject(project);
 
 		}
 		

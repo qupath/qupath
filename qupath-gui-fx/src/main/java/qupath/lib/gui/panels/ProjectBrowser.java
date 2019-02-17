@@ -146,7 +146,6 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 
 		tree.setRoot(null);
 
-
 		tree.setContextMenu(getPopup());
 
 		tree.setOnKeyPressed(e -> {
@@ -220,7 +219,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 					model.rebuildModel();
 				}
 			}
-			ProjectIO.writeProject(project);
+			syncProject(project);
 			if (tree != null) {
 				boolean isExpanded = tree.getRoot() != null && tree.getRoot().isExpanded();
 				tree.setRoot(model.getRootFX());
@@ -268,7 +267,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 			if (project != null && entry != null) {
 				if (showDescriptionEditor(entry)) {
 					descriptionText.set(entry.getDescription());
-					ProjectIO.writeProject(project);						
+					syncProject(project);						
 				}
 			} else {
 				DisplayHelpers.showErrorMessage("Edit image description", "No entry is selected!");
@@ -330,7 +329,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 						logger.warn("Attempted to set metadata value for {}, but key was empty!", entry.getImageName());
 					} else {
 						entry.putMetadataValue(key, value);
-						ProjectIO.writeProject(project);
+						syncProject(project);
 					}
 				}
 							
@@ -428,6 +427,24 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 	}
 	
 	
+	/**
+	 * Try to save a project, showing an error message if this fails.
+	 * 
+	 * @param project
+	 * @return
+	 */
+	public static boolean syncProject(Project<?> project) {
+		try {
+			logger.info("Saving project {}...", project);
+			project.syncChanges();
+			return true;
+		} catch (IOException e) {
+			DisplayHelpers.showErrorMessage("Save project", e);
+			return false;
+		}
+	}
+	
+	
 	boolean showDescriptionEditor(ProjectImageEntry<?> entry) {
 		TextArea editor = new TextArea();
 		editor.setWrapText(true);
@@ -472,6 +489,18 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 		tree.getRoot().setExpanded(true);
 	}
 	
+	
+//	public List<String> findMissingPaths(final Project<?> project) {
+//		return project.getImageList().stream().f
+//	}
+	
+	private boolean pathMissing(String path) {
+		int ind = path.lastIndexOf("::");
+		return !path.startsWith("http") && !new File(path).exists() && 
+				(ind < 0 || !new File(path.substring(0, ind)).exists());
+	}
+	
+	
 	public void refreshProject() {
 		model = new ProjectImageTreeModel(project);
 		tree.setRoot(model.getRootFX());
@@ -483,9 +512,6 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 		if (server == null || project == null)
 			return;
 
-		//		project.addImagesForServer(server);
-		//		ProjectImageEntry entry = new ProjectImageEntry(project, server.getPath(), server.getDisplayedImageName());
-
 		if (project.addImagesForServer(server)) {
 			ProjectImageEntry<BufferedImage> entry = project.getImageEntry(server.getPath());
 			//			tree.setModel(new ProjectImageTreeModel(project)); // TODO: Update the model more elegantly!!!
@@ -493,8 +519,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 			if (entry != null) {
 				setSelectedEntry(tree, tree.getRoot(), entry);
 			}
-
-			ProjectIO.writeProject(project);
+			syncProject(project);
 		}
 	}
 
@@ -817,7 +842,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 	 * @param name
 	 * @return
 	 */
-	private static <T> ProjectImageEntry<T> setProjectEntryImageName(final Project<T> project, final ProjectImageEntry<T> entry, final String name) {
+	private synchronized static <T> ProjectImageEntry<T> setProjectEntryImageName(final Project<T> project, final ProjectImageEntry<T> entry, final String name) {
 		
 		if (entry.getImageName().equals(name)) {
 			logger.info("Project image name already set to {} - will be left unchanged", name);
@@ -831,15 +856,13 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 			}
 		}
 		
-		project.removeImage(entry);
 		File fileOld = QuPathGUI.getImageDataFile(project, entry);
+		entry.setName(name);
 		
-		ProjectImageEntry<T> entryNew = new ProjectImageEntry<>(project, entry.getServerPath(), name, entry.getMetadataMap());
-		project.addImage(entryNew);
-		File fileNew = QuPathGUI.getImageDataFile(project, entryNew);
+		File fileNew = QuPathGUI.getImageDataFile(project, entry);
 		
 		// Rename the data file
-		if (fileOld.exists()) {
+		if (fileOld.exists() && !fileOld.equals(fileNew)) {
 			try {
 				Files.move(fileOld.toPath(), fileNew.toPath(), StandardCopyOption.ATOMIC_MOVE);
 			} catch (IOException e) {
@@ -848,9 +871,9 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 		}
 		
 		// Ensure the project is updated
-		ProjectIO.writeProject(project);
+		syncProject(project);
 		
-		return entryNew;
+		return entry;
 	}
 	
 

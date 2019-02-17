@@ -24,19 +24,11 @@
 package qupath.lib.projects;
 
 import java.io.File;
-import java.util.ArrayList;
+import java.io.IOException;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Comparator;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import qupath.lib.images.servers.ImageServer;
-import qupath.lib.images.servers.ImageServerProvider;
 import qupath.lib.objects.classes.PathClass;
 
 /**
@@ -46,39 +38,13 @@ import qupath.lib.objects.classes.PathClass;
  *
  * @param <T>
  */
-public class Project<T> {
-	
-	private static Logger logger = LoggerFactory.getLogger(Project.class);
-	
-	private File file;
-	private File dirBase;
-	private Class<T> cls;
-	private String name = null;
-	
-	private List<PathClass> pathClasses = new ArrayList<>();
-	
-	private Map<String, ProjectImageEntry<T>> images = new LinkedHashMap<>();
-	long creationTimestamp;
-	long modificationTimestamp;
-	
-	public Project(final File file, final Class<T> cls) {
-		this.file = file;
-		if (file.isDirectory())
-			this.dirBase = file;
-		else
-			this.dirBase = file.getParentFile();
-		this.cls = cls;
-		creationTimestamp = System.currentTimeMillis();
-		modificationTimestamp = System.currentTimeMillis();
-	}
+public interface Project<T> {
 	
 	/**
 	 * Get an unmodifiable list representing the <code>PathClass</code>es associated with this project.
 	 * @return
 	 */
-	public List<PathClass> getPathClasses() {
-		return Collections.unmodifiableList(pathClasses);
-	}
+	public List<PathClass> getPathClasses();
 	
 	/**
 	 * Update the available PathClasses.
@@ -86,137 +52,44 @@ public class Project<T> {
 	 * @param pathClasses
 	 * @return <code>true</code> if the stored values changed, false otherwise.
 	 */
-	public boolean setPathClasses(Collection<? extends PathClass> pathClasses) {
-		if (this.pathClasses.size() == pathClasses.size() && this.pathClasses.containsAll(pathClasses))
-			return false;
-		this.pathClasses.clear();
-		this.pathClasses.addAll(pathClasses);
-		return true;
-	}
+	public boolean setPathClasses(Collection<? extends PathClass> pathClasses);
 
-	public boolean addImage(final ProjectImageEntry<T> entry) {
-		if (images.containsKey(cleanServerPath(entry.getServerPath())))
-			return false;
-		images.put(cleanServerPath(entry.getServerPath()), entry);
-		return true;
-	}
+	public boolean addImage(final ProjectImageEntry<T> entry);
 	
-	public File getFile() {
-		return file;
-	}
+	public File getFile();
 	
-	public File getBaseDirectory() {
-		return dirBase;
-	}
+	public File getBaseDirectory();
 	
-	public boolean addAllImages(final Collection<ProjectImageEntry<T>> entries) {
-		boolean changes = false;
-		for (ProjectImageEntry<T> entry : entries)
-			changes = addImage(entry) | changes;
-		return changes;
-	}
+	public boolean addAllImages(final Collection<ProjectImageEntry<T>> entries);
 	
-	public int size() {
-		return images.size();
-	}
+	public boolean isEmpty();
 
-	public boolean isEmpty() {
-		return images.isEmpty();
-	}
+	public boolean addImagesForServer(final ImageServer<T> server);
+	
+	public ProjectImageEntry<T> getImageEntry(final String path);
 
-	public boolean addImagesForServer(final ImageServer<T> server) {
-		
-		List<String> subImages = server.getSubImageList();
-		if (subImages.isEmpty()) {
-			return addImage(new ProjectImageEntry<>(this, server.getPath(), server.getDisplayedImageName(), null));
-		}
-		
-		boolean changes = false;
-		for (String name : subImages)
-			// The sub image name might be the same across images, we should append the server displayed name to it, just to make sure it is unique
-			changes = changes | addImage(new ProjectImageEntry<>(this, server.getSubImagePath(name), server.getDisplayedImageName()+" ("+name+")", null));
-		return changes;
-	}
+	String cleanServerPath(final String path);
 	
+	public boolean addImage(final String path);
 	
-	public ProjectImageEntry<T> getImageEntry(final String path) {
-		return images.get(cleanServerPath(path));
-	}
+	public void removeImage(final ProjectImageEntry<?> entry);
 
-	String cleanServerPath(final String path) {
-		String cleanedPath = path.replace("%20", " ").replace("%5C", "\\");
-		cleanedPath = cleanedPath.replace("{$PROJECT_DIR}", getBaseDirectory().getAbsolutePath());
-		return cleanedPath;
-	}
+	public void removeAllImages(final Collection<ProjectImageEntry<T>> entries);
 	
-	public boolean addImage(final String path) {
-		try {
-			ImageServer<T> server = ImageServerProvider.buildServer(path, cls);
-			boolean changes = addImagesForServer(server);
-			server.close();
-			return changes;
-		} catch (Exception e) {
-			logger.error("Error adding image: {} ({})", path, e.getLocalizedMessage());
-			return false;
-		}
-	}
+	public void syncChanges() throws IOException;
 	
-	public void removeImage(final ProjectImageEntry<?> entry) {
-		removeImage(entry.getServerPath());
-	}
-
-	public void removeAllImages(final Collection<ProjectImageEntry<T>> entries) {
-		for (ProjectImageEntry<T> entry : entries)
-			removeImage(entry);
-	}
-	
-	public void removeImage(final String path) {
-		images.remove(path);
-	}
-
 	/**
 	 * Get a list of image entries for the project.
 	 * 
 	 * @return
 	 */
-	public List<ProjectImageEntry<T>> getImageList() {
-		List<ProjectImageEntry<T>> list = new ArrayList<>(images.values());
-//		list.sort(ImageEntryComparator.instance);
-		return list;
-	}
+	public List<ProjectImageEntry<T>> getImageList();
+		
+	public String getName();
 	
-	public ImageServer<T> buildServer(final ProjectImageEntry<T> entry) {
-		return ImageServerProvider.buildServer(entry.getServerPath(), cls);
-	}
+	public long getCreationTimestamp();
 	
-	
-	public String getName() {
-		if (name != null)
-			return name;
-		if (dirBase == null || !dirBase.isDirectory()) {
-			return "(Project directory missing)";
-		}
-		if (file != null && file.exists() && file != dirBase) {
-			return dirBase.getName() + "/" + file.getName();
-		}
-		return dirBase.getName();
-	}
-	
-	@Override
-	public String toString() {
-		return "Project: " + getName();
-	}
-	
-	
-	public long getCreationTimestamp() {
-		return creationTimestamp;
-	}
-	
-	public long getModificationTimestamp() {
-		return modificationTimestamp;
-	}
-	
-	
+	public long getModificationTimestamp();
 	
 	static class ImageEntryComparator implements Comparator<ProjectImageEntry<?>> {
 

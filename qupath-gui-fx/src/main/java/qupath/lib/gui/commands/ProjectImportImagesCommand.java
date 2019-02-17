@@ -50,6 +50,7 @@ import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.gui.helpers.PanelToolsFX;
+import qupath.lib.gui.panels.ProjectBrowser;
 import qupath.lib.projects.ProjectIO;
 
 /**
@@ -157,7 +158,7 @@ public class ProjectImportImagesCommand implements PathCommand {
 				sb.append("\t" + path + "\n");
 			sb.append("\n");
 			qupath.refreshProject();
-			ProjectIO.writeProject(qupath.getProject());
+			ProjectBrowser.syncProject(qupath.getProject());
 		}
 		if (!pathFailed.isEmpty()) {
 			sb.append("Unable to import " + pathFailed.size() + " paths:\n");

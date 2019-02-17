@@ -1341,7 +1341,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			if (project != null) {
 				// Write the project, if necessary
 				if (project.setPathClasses(c.getList()))
-					ProjectIO.writeProject(project);
+					ProjectBrowser.syncProject(project);
 			}
 		});
 	}
@@ -2343,7 +2343,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		File dirData = new File(dirBase, "data");
 		if (!dirData.exists())
 			dirData.mkdir();
-		return new File(dirData, entry.getImageName() + "." + PathPrefs.getSerializationExtension());
+		return new File(dirData, entry.getUniqueName() + "." + PathPrefs.getSerializationExtension());
 	}
 	
 	

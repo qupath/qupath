@@ -23,14 +23,9 @@
 
 package qupath.lib.projects;
 
-import java.io.File;
 import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
-
-import qupath.lib.common.URLTools;
 
 /**
  * Class to represent an image entry within a project.
@@ -41,46 +36,7 @@ import qupath.lib.common.URLTools;
  *
  * @param <T> Depends upon the project used; typically BufferedImage for QuPath
  */
-// TODO: URGENTLY NEED TO CONSIDER ESCAPING CHARACTERS IN URLS MORE GENERALLY
-public class ProjectImageEntry<T> implements Comparable<ProjectImageEntry<T>> {
-
-	private Project<T> project;
-	private transient String cleanedPath = null;
-	
-	private String serverPath;
-	private String imageName;
-	
-	private Map<String, String> metadata = new HashMap<>();
-	
-	private String description;
-
-	public ProjectImageEntry(final Project<T> project, final String serverPath, final String imageName, final String description, final Map<String, String> metadataMap) {
-		this.project = project;
-		this.serverPath = serverPath;
-		
-		// TODO: Check if this is a remotely acceptable way to achieve relative pathnames!  I suspect it is not really...
-		String projectPath = project.getBaseDirectory().getAbsolutePath();
-		if (this.serverPath.startsWith(projectPath))
-			this.serverPath = "{$PROJECT_DIR}" + this.serverPath.substring(projectPath.length());
-		
-		if (imageName == null) {
-			if (URLTools.checkURL(serverPath))
-				this.imageName = URLTools.getNameFromBaseURL(serverPath);
-			else
-				this.imageName = new File(serverPath).getName();
-		} else
-			this.imageName = imageName;
-		
-		if (description != null)
-			setDescription(description);
-		
-		if (metadataMap != null)
-			metadata.putAll(metadataMap);		
-	}
-	
-	public ProjectImageEntry(final Project<T> project, final String serverPath, final String imageName, final Map<String, String> metadataMap) {
-		this(project, serverPath, imageName, null, metadataMap);
-	}
+public interface ProjectImageEntry<T> {
 	
 	/**
 	 * Get the path used to represent this image, which can be used to construct an <code>ImageServer</code>.
@@ -91,51 +47,42 @@ public class ProjectImageEntry<T> implements Comparable<ProjectImageEntry<T>> {
 	 * 
 	 * @return
 	 */
-	public String getServerPath() {
-//		return serverPath;
-		return getCleanedServerPath();
-	}
+	public String getServerPath();
+	
+	/**
+	 * Set the image name for this project entry.
+	 * 
+	 * @param name
+	 */
+	public void setName(String name);
 
 	/**
 	 * Get a name that may be used for this entry.
-	 * 
+	 * <p>
 	 * This may be derived automatically from the server path, or set explictly to be something else.
 	 * 
 	 * @return
 	 */
-	public String getImageName() {
-		return imageName;
-	}
-
-	@Override
-	public String toString() {
-		String s = getImageName();
-		if (!metadata.isEmpty())
-			s += " - " + getMetadataSummaryString();
-		return s;
-		//			return getServerPath();
-	}
+	public String getImageName();
+	
+	/**
+	 * Get a unique name that may be used to represent data associated with this entry.
+	 * <p>
+	 * It should be unique within the project. In early versions of QuPath, the image name was used - 
+	 * which caused trouble if multiple images had the same name.
+	 */
+	public String getUniqueName();
 	
 	/**
 	 * Get the path used to represent this image, as specified when this entry was created.
-	 * 
+	 * <p>
 	 * It is generally better to rely on <code>getServerPath</code>, especially if paths will be compared.
 	 * 
 	 * @see #getServerPath
 	 * 
 	 * @return
 	 */
-	public String getStoredServerPath() {
-		return serverPath;
-	}
-	
-	// TODO: Improve implementation!
-	private String getCleanedServerPath() {
-		if (cleanedPath != null)
-			return cleanedPath;
-		cleanedPath = project.cleanServerPath(serverPath);
-		return cleanedPath;
-	}
+	public String getStoredServerPath();
 	
 	/**
 	 * Check if this image entry refers to a specified image according to its path.
@@ -143,14 +90,10 @@ public class ProjectImageEntry<T> implements Comparable<ProjectImageEntry<T>> {
 	 * @param serverPath
 	 * @return <code>true</code> if the path is a match, <code>false</code> otherwise.
 	 */
-	public boolean equalsServerPath(final String serverPath) {
-		return getCleanedServerPath().equals(project.cleanServerPath(serverPath));
-	}
-	
-	@Override
-	public int compareTo(ProjectImageEntry<T> entry) {
-		return getCleanedServerPath().compareTo(entry.getCleanedServerPath());
-	}
+	public boolean equalsServerPath(final String serverPath);
+		
+	@Deprecated
+	public String getCleanedServerPath();
 	
 	/**
 	 * Remove a metadata value.
@@ -158,9 +101,7 @@ public class ProjectImageEntry<T> implements Comparable<ProjectImageEntry<T>> {
 	 * @param key
 	 * @return
 	 */
-	public String removeMetadataValue(final String key) {
-		return metadata.remove(key);
-	}
+	public String removeMetadataValue(final String key);
 	
 	/**
 	 * Request a metadata value.
@@ -169,9 +110,7 @@ public class ProjectImageEntry<T> implements Comparable<ProjectImageEntry<T>> {
 	 * @param key
 	 * @return
 	 */
-	public String getMetadataValue(final String key) {
-		return metadata.get(key);
-	}
+	public String getMetadataValue(final String key);
 
 	/**
 	 * Store a metadata value.
@@ -182,9 +121,7 @@ public class ProjectImageEntry<T> implements Comparable<ProjectImageEntry<T>> {
 	 * @param value
 	 * @return
 	 */
-	public String putMetadataValue(final String key, final String value) {
-		return metadata.put(key, value);
-	}
+	public String putMetadataValue(final String key, final String value);
 	
 	/**
 	 * Check if a metadata value is present for a specified key.
@@ -192,17 +129,13 @@ public class ProjectImageEntry<T> implements Comparable<ProjectImageEntry<T>> {
 	 * @param key
 	 * @return <code>true</code> if <code>getDescription()</code> does not return null or an empty string, <code>false</code> otherwise.
 	 */
-	public boolean containsMetadata(final String key) {
-		return metadata.containsKey(key);
-	}
+	public boolean containsMetadata(final String key);
 	
 	/**
 	 * Get a description; this is free text describing the image.
 	 * @return
 	 */
-	public String getDescription() {
-		return description;
-	}
+	public String getDescription();
 	
 	/**
 	 * Set the description.
@@ -210,53 +143,37 @@ public class ProjectImageEntry<T> implements Comparable<ProjectImageEntry<T>> {
 	 * @see #getDescription
 	 * @param description
 	 */
-	public void setDescription(final String description) {
-		this.description = description;
-	}
-	
-	/**
-	 * Check if a description is present.
-	 * 
-	 * @return <code>true</code> if <code>getDescription()</code> does not return null or an empty string, <code>false</code> otherwise.
-	 */
-	public boolean hasDescription() {
-		return this.description != null && !this.description.isEmpty();
-	}
+	public void setDescription(final String description);
 	
 	/**
 	 * Remove all metadata.
 	 */
-	public void clearMetadata() {
-		this.metadata.clear();
-	}
+	public void clearMetadata();
 	
 	/**
 	 * Get an unmodifiable view of the underlying metadata map.
 	 * 
 	 * @return
 	 */
-	public Map<String, String> getMetadataMap() {
-		return Collections.unmodifiableMap(metadata);
-	}
+	public Map<String, String> getMetadataMap();
 	
 	/**
 	 * Get an unmodifiable collection of the metadata map's keys.
 	 * 
 	 * @return
 	 */
-	public Collection<String> getMetadataKeys() {
-		return Collections.unmodifiableSet(metadata.keySet());
-	}
+	public Collection<String> getMetadataKeys();
+	
 	
 	/**
 	 * Get a formatted string representation of the metadata map's contents.
 	 * 
 	 * @return
 	 */
-	public String getMetadataSummaryString() {
+	default public String getMetadataSummaryString() {
 		StringBuilder sb = new StringBuilder();
 		sb.append("{");
-		for (Entry<String, String> entry : metadata.entrySet()) {
+		for (Entry<String, String> entry : getMetadataMap().entrySet()) {
 			if (sb.length() > 1)
 				sb.append(", ");
 			sb.append(entry.getKey());
@@ -266,6 +183,5 @@ public class ProjectImageEntry<T> implements Comparable<ProjectImageEntry<T>> {
 		sb.append("}");
 		return sb.toString();
 	}
-
 
 }

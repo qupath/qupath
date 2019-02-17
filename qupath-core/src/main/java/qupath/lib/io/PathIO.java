@@ -33,6 +33,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
@@ -658,7 +659,27 @@ public class PathIO {
 		return true;
 	}
 	
-	
+	/**
+	 * Read a hierarchy from a .qpdata file.
+	 * <p>
+	 * Deprecated in favor of alternative that reads from an InputStream.
+	 * 
+	 * @param file
+	 * @return
+	 */
+	@Deprecated
+	public static PathObjectHierarchy readHierarchy(final File file) {
+		logger.info("Reading hierarchy from {}...", file.getName());
+		try (FileInputStream stream = new FileInputStream(file)) {
+			var hierarchy = readHierarchy(stream);			
+			if (hierarchy == null)
+				logger.error("Unable to find object hierarchy in " + file);
+			return hierarchy;
+		} catch (IOException e) {
+			logger.error("Error reading hierarchy from file", e);
+			return null;
+		}
+	}
 	
 	/**
 	 * Read a PathObjectHierarchy from a saved data file (omitting all other contents).
@@ -666,73 +687,49 @@ public class PathIO {
 	 * @param file
 	 * @return
 	 */
-	public static PathObjectHierarchy readHierarchy(final File file) {
-		if (file == null)
-			return null;
-		
+	public static PathObjectHierarchy readHierarchy(final InputStream fileIn) throws IOException {
+
 		Locale locale = Locale.getDefault(Category.FORMAT);
 		boolean localeChanged = false;
-		
-		try {
-			logger.info("Reading hierarchy from {}...", file.getName());
-			FileInputStream fileIn = null;
-			ObjectInputStream inStream = null;
-			try {
-				fileIn = new FileInputStream(file);
-//				inStream = new ObjectInputStream(new InflaterInputStream(new BufferedInputStream(fileIn)));
-				inStream = new ObjectInputStream(new BufferedInputStream(fileIn));
-				if (!inStream.readUTF().startsWith("Data file version")) {
-					logger.error(file.getPath() + " is not a valid QuPath data file!");
-				}
-				while (true) {
-//					logger.debug("Starting read: " + inStream.available());
-					try {
-						// Try to read a relevant object from the stream
-						Object input = inStream.readObject();
-						logger.debug("Read: {}", input);
-						
-						// Set locale - may be needed (although probably isn't...)
-						if (input instanceof Locale) {
-							if (input != locale) {
-								Locale.setDefault(Category.FORMAT, (Locale)input);
-								localeChanged = true;
-							}
-						} else if (input instanceof PathObjectHierarchy) {
-							/* This would ideally be unnecessary, but it's needed to ensure that the PathObjectHierarchy
-							 * has been property initialized.  We can't count on the deserialized hierarchy being immediately functional.
-							 */
-							PathObjectHierarchy hierarchy = new PathObjectHierarchy();
-							hierarchy.setHierarchy((PathObjectHierarchy)input);
-							return hierarchy;
-						}
-						
-					} catch (ClassNotFoundException e) {
-						logger.error("Unable to find class", e);
-					} catch (EOFException e) {
-						logger.error("Reached end of file...");
-					}
-				}
-			} catch (IOException e) {
-				e.printStackTrace();
-			} finally {
-				if (fileIn != null)
-					fileIn.close();
-				if (inStream != null)
-					inStream.close();
+
+		try (ObjectInputStream inStream = new ObjectInputStream(new BufferedInputStream(fileIn))) {
+			if (!inStream.readUTF().startsWith("Data file version")) {
+				logger.error("Input stream is not from a valid QuPath data file!");
 			}
-		} catch (IOException e) {
-			e.printStackTrace();
+			while (true) {
+				//					logger.debug("Starting read: " + inStream.available());
+				try {
+					// Try to read a relevant object from the stream
+					Object input = inStream.readObject();
+					logger.debug("Read: {}", input);
+
+					// Set locale - may be needed (although probably isn't...)
+					if (input instanceof Locale) {
+						if (input != locale) {
+							Locale.setDefault(Category.FORMAT, (Locale)input);
+							localeChanged = true;
+						}
+					} else if (input instanceof PathObjectHierarchy) {
+						/* This would ideally be unnecessary, but it's needed to ensure that the PathObjectHierarchy
+						 * has been property initialized.  We can't count on the deserialized hierarchy being immediately functional.
+						 */
+						PathObjectHierarchy hierarchy = new PathObjectHierarchy();
+						hierarchy.setHierarchy((PathObjectHierarchy)input);
+						return hierarchy;
+					}
+
+				} catch (ClassNotFoundException e) {
+					logger.error("Unable to find class", e);
+				} catch (EOFException e) {
+					logger.error("Reached end of file...");
+				}
+			}
 		} finally {
 			if (localeChanged)
 				Locale.setDefault(Category.FORMAT, locale);
 		}
-		logger.error("Unable to find object hierarchy in " + file);
-		return null;
 	}
 
-	
-	
-	
 	
 	
 //	private static boolean serializePathObject(File file, PathObject pathObject) {
