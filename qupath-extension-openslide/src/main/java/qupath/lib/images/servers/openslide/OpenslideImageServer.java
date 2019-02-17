@@ -29,6 +29,7 @@ import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferInt;
 import java.io.File;
 import java.io.IOException;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -47,7 +48,6 @@ import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.ImageServerMetadata.ImageResolutionLevel;
 import qupath.lib.images.servers.TileRequest;
-import qupath.lib.regions.RegionRequest;
 
 /**
  * ImageServer implementation using OpenSlide.
@@ -87,19 +87,14 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 		}
 	}
 	
-	public OpenslideImageServer(String path) throws IOException {
-		this(null, path);
-	}
 
-
-	public OpenslideImageServer(Map<RegionRequest, BufferedImage> cache, String path) throws IOException {
-		super(cache);
+	public OpenslideImageServer(URI uri) throws IOException {
+		super();
 
 		// Ensure the garbage collector has run - otherwise any previous attempts to load the required native library
 		// from different classloader are likely to cause an error (although upon first further investigation it seems this doesn't really solve the problem...)
-		File file = new File(path);
 		System.gc();
-		osr = new OpenSlide(file);
+		osr = new OpenSlide(new File(uri));
 
 		// Parse the parameters
 		int width = (int)osr.getLevel0Width();
@@ -167,7 +162,7 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 		}
 		
 		// Create metadata objects
-		originalMetadata = new ImageServerMetadata.Builder(path, boundsWidth, boundsHeight).
+		originalMetadata = new ImageServerMetadata.Builder(uri.toString(), boundsWidth, boundsHeight).
 				channels(ImageChannel.getDefaultRGBChannels()). // Assume 3 channels (RGB)
 				rgb(true).
 				bitDepth(8).

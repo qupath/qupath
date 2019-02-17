@@ -550,7 +550,8 @@ public class ImageDisplay extends AbstractImageRenderer {
 		
 		histogramManager = cachedHistograms.get(server.getPath());
 		if (histogramManager == null) {
-			histogramManager = new HistogramManager(server.getLastChangeTimestamp());
+			histogramManager = new HistogramManager(0L);
+//			histogramManager = new HistogramManager(server.getLastChangeTimestamp());
 			histogramManager.ensureChannels(server, channelOptions);
 			channelOptions.stream().forEach(channel -> autoSetDisplayRange(channel, false));
 			cachedHistograms.put(server.getPath(), histogramManager);
@@ -601,7 +602,7 @@ public class ImageDisplay extends AbstractImageRenderer {
 			count -= nextCount;
 			ind--;
 		}
-		logger.info(String.format("Display range for {}: %.3f - %.3f (saturation %.3f)",  minDisplay, maxDisplay, saturation), info.getName());
+		logger.debug(String.format("Display range for {}: %.3f - %.3f (saturation %.3f)",  minDisplay, maxDisplay, saturation), info.getName());
 		setMinMaxDisplay(info, (float)minDisplay, (float)maxDisplay);
 	}
 
@@ -779,10 +780,10 @@ public class ImageDisplay extends AbstractImageRenderer {
 		}
 		
 		void ensureChannels(final ImageServer<BufferedImage> server, final List<ChannelDisplayInfo> channels) {
-			if (timestamp != server.getLastChangeTimestamp()) {
-				logger.warn("Timestamp changed for server!  Histograms will be rebuilt for {}", server.getPath());
-				map.clear();
-			}
+//			if (timestamp != server.getLastChangeTimestamp()) {
+//				logger.warn("Timestamp changed for server!  Histograms will be rebuilt for {}", server.getPath());
+//				map.clear();
+//			}
 			// Check what we might need to process
 			List<SingleChannelDisplayInfo> channelsToProcess = new ArrayList<>();
 			for (ChannelDisplayInfo channel : channels) {

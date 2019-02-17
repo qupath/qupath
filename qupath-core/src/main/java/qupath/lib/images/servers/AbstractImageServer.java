@@ -238,14 +238,6 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 	}
 	
 	@Override
-	public File getFile() {
-		File file = new File(getPath());
-		if (file.exists())
-			return file;
-		return null;
-	}
-	
-	@Override
 	public String getPath() {
 		return getMetadata().getPath();
 	}
@@ -392,21 +384,6 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 	@Override
 	public List<ImageChannel> getChannels() {
 		return getMetadata().getChannels();
-	}
-	
-		
-	/**
-	 * Default implementation, with returns {@code getFile().lastModified()} if a file is available, otherwise 0L.
-	 */
-	public long getLastChangeTimestamp() {
-		if (timestamp == null) {
-			File file = getFile();
-			if (file == null)
-				timestamp = Long.valueOf(0L);
-			else
-				timestamp = Long.valueOf(file.lastModified());
-		}
-		return timestamp.longValue();
 	}
 	
 	

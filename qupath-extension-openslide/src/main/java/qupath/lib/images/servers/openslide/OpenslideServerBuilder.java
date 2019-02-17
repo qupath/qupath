@@ -28,8 +28,6 @@ import java.io.File;
 import java.net.URI;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
-
 import org.openslide.OpenSlide;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,7 +35,6 @@ import org.slf4j.LoggerFactory;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerBuilder;
 import qupath.lib.images.servers.FileFormatInfo.ImageCheckType;
-import qupath.lib.regions.RegionRequest;
 
 /**
  * Builder for Openslide ImageServer.
@@ -98,27 +95,30 @@ public class OpenslideServerBuilder implements ImageServerBuilder<BufferedImage>
 	}
 	
 	@Override
-	public ImageServer<BufferedImage> buildServer(String path, Map<RegionRequest, BufferedImage> cache) {
+	public ImageServer<BufferedImage> buildServer(URI uri) {
 		if (openslideUnavailable) {
 			logger.debug("OpenSlide is unavailable - will be skipped");
 			return null;
 		}
 		try {
-			return new OpenslideImageServer(cache, path);
+			return new OpenslideImageServer(uri);
 		} catch (Exception e) {
-			logger.warn("Unable to open {} with OpenSlide: {}", path, e.getLocalizedMessage());
+			logger.warn("Unable to open {} with OpenSlide: {}", uri, e.getLocalizedMessage());
 		}
 		return null;
 	}
 
 	@Override
-	public float supportLevel(String path, ImageCheckType type, Class<?> cls) {
+	public float supportLevel(URI uri, ImageCheckType type, Class<?> cls) {
 		if (cls != BufferedImage.class || openslideUnavailable)
 			return 0;
 		
+		// Don't handle queries or fragments with OpenSlide
+		if (!"file".equals(uri.getScheme()) || uri.getQuery() != null || uri.getFragment() != null)
+			return 0;
+		
 		try {
-			URI uri = new URI(path);
-			File file = uri.isAbsolute() ? new File(uri) : new File(path);
+			File file = new File(uri);
 			if (OpenSlide.detectVendor(file) == null)
 				return 0;
 		} catch (Exception e) {

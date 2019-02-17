@@ -8,7 +8,6 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -31,7 +30,6 @@ import qupath.lib.images.servers.omero.OmeroWebImageServerBuilder.OmeroWebClient
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.regions.ImagePlane;
-import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.ROI;
 
@@ -60,10 +58,9 @@ public class OmeroWebImageServer extends AbstractTileableImageServer {
 	 */
 	private static int OMERO_MAX_SIZE = 1024;
 
-	protected OmeroWebImageServer(Map<RegionRequest, BufferedImage> cache, String path, OmeroWebClient client) throws IOException {
-		super(cache);
+	protected OmeroWebImageServer(URI uri, OmeroWebClient client) throws IOException {
+		super();
 
-		URI uri = URI.create(path);
 		this.scheme = uri.getScheme();
 		this.host = uri.getHost();
 
@@ -77,7 +74,7 @@ public class OmeroWebImageServer extends AbstractTileableImageServer {
 		String uriPath = uri.getPath();
 		if (uriPath != null && uriPath.startsWith("/webclient/img_detail")) {
 			Pattern pattern = Pattern.compile("webclient/img_detail/(\\d+)");
-			Matcher matcher = pattern.matcher(path);
+			Matcher matcher = pattern.matcher(uriPath);
 			if (matcher.find())
 				this.id = matcher.group(1);
 		}
@@ -174,7 +171,7 @@ public class OmeroWebImageServer extends AbstractTileableImageServer {
 		if (map.has("nominalMagnification"))
 			magnification = map.getAsJsonPrimitive("nominalMagnification").getAsDouble();
 		
-		ImageServerMetadata.Builder builder = new ImageServerMetadata.Builder(path, sizeX, sizeY)
+		ImageServerMetadata.Builder builder = new ImageServerMetadata.Builder(uri.toString(), sizeX, sizeY)
 				.sizeT(sizeT)
 				.channels(ImageChannel.getDefaultRGBChannels())
 				.sizeZ(sizeZ)

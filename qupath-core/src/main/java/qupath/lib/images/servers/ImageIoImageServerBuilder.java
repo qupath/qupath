@@ -26,10 +26,8 @@ package qupath.lib.images.servers;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.net.MalformedURLException;
-import java.util.Map;
-
+import java.net.URI;
 import qupath.lib.images.servers.FileFormatInfo.ImageCheckType;
-import qupath.lib.regions.RegionRequest;
 
 /**
  * Buidler for ImageServer using Java's ImageIO.
@@ -40,7 +38,7 @@ import qupath.lib.regions.RegionRequest;
 public class ImageIoImageServerBuilder implements ImageServerBuilder<BufferedImage> {
 
 	@Override
-	public float supportLevel(String path, ImageCheckType info, Class<?> cls) {
+	public float supportLevel(URI uri, ImageCheckType info, Class<?> cls) {
 		if (cls != BufferedImage.class)
 			return 0;
 		switch(info) {
@@ -61,8 +59,8 @@ public class ImageIoImageServerBuilder implements ImageServerBuilder<BufferedIma
 	}
 
 	@Override
-	public ImageServer<BufferedImage> buildServer(String path, Map<RegionRequest, BufferedImage> cache) throws MalformedURLException, IOException {
-		return new ImageIoImageServer(path);
+	public ImageServer<BufferedImage> buildServer(URI uri) throws MalformedURLException, IOException {
+		return new ImageIoImageServer(uri);
 	}
 
 	@Override

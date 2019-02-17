@@ -106,7 +106,6 @@ import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServer;
-import qupath.lib.images.servers.ImageServerProvider;
 import qupath.lib.images.servers.TileRequest;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathDetectionObject;
@@ -711,8 +710,7 @@ public class PixelClassifierImageSelectionPane {
 
 		 var classifier = new OpenCVPixelClassifier(model, (BasicFeatureCalculator)helper.getFeatureCalculator(), helper.getLastFeaturePreprocessor(), metadata, true);
 
-		 var classifierServer = new PixelClassificationImageServer(
-				 ImageServerProvider.getCache(BufferedImage.class), helper.getImageData(), classifier);
+		 var classifierServer = new PixelClassificationImageServer(helper.getImageData(), classifier);
 		 replaceOverlay(new PixelClassificationOverlay(viewer, classifierServer));
 //		 replaceOverlay(new PixelClassificationOverlay(viewer, classifier));
 	}
@@ -839,10 +837,7 @@ public class PixelClassifierImageSelectionPane {
 					} finally {
 						updateProgress(n, n);
 						persistentTileCache.close();
-						
-						System.err.println("Replacing overlay!");
 						var newServer = new PixelClassificationImageServer(
-								viewer.getImageRegionStore().getCache(),
 								viewer.getImageData(),
 								new ReadFromStorePixelClassifier(
 										new FileSystemPersistentTileCache(pathOutput, server), server.getClassifier().getMetadata()));

@@ -25,14 +25,11 @@ package qupath.lib.images.servers;
 
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
-import java.io.File;
 import java.io.IOException;
 import java.net.MalformedURLException;
-import java.net.URL;
-
+import java.net.URI;
 import javax.imageio.ImageIO;
 
-import qupath.lib.common.URLTools;
 import qupath.lib.regions.RegionRequest;
 
 /**
@@ -80,8 +77,8 @@ public class ImageIoImageServer extends AbstractImageServer<BufferedImage> {
 	 * @throws MalformedURLException
 	 * @throws IOException
 	 */
-	public ImageIoImageServer(String path) throws MalformedURLException, IOException {
-		this(path, null, URLTools.checkURL(path) ? ImageIO.read(new URL(path)) : ImageIO.read(new File(path)));
+	public ImageIoImageServer(URI uri) throws MalformedURLException, IOException {
+		this(uri.toString(), null, ImageIO.read(uri.toURL()));
 	}
 
 	@Override

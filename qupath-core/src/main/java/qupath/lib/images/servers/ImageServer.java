@@ -23,8 +23,8 @@
 
 package qupath.lib.images.servers;
 
-import java.io.File;
 import java.io.IOException;
+import java.net.URI;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -46,15 +46,20 @@ import qupath.lib.regions.RegionRequest;
 public interface ImageServer<T> extends AutoCloseable {
 	
 	/**
-	 * Get either the URL for this image, or the path to a file.
+	 * Get a String path that can uniquely identify this image.
 	 * <p>
-	 * This should uniquely identify the image; if multiple images are stored within the same file, then this information should be encoded (somehow) in the path.
+	 * For most standard images, this should be a String representation of an absolute URI. 
+	 * If multiple images are stored within the same file, then this information should be encoded in the URI.
+	 * <p>
+	 * For images that are generated some other way (e.g. created dynamically) the path may not lend itself to 
+	 * a URI representation, but must still be unique so that it can be used for caching tiles.
+	 * 
 	 * @return
 	 * 
 	 * @see #getFile
 	 */
 	public String getPath();
-
+	
 	/**
 	 * Get a short name for the server, derived from {@code getPath()}.
 	 * @return
@@ -345,13 +350,11 @@ public interface ImageServer<T> extends AutoCloseable {
 	public boolean usesBaseServer(ImageServer<?> server);
 	
 	
-	/**
-	 * Returns file containing the server (image) data, or null if the server does not receive its data from a stored file (e.g. it is computed dynamically or read from a URL).
-	 * <p>
-	 * Note that this is not necessarily the same as <code>new File(server.getPath());</code> but some implementations may encode additional information (e.g. regarding sub-images) in the server path.
-	 * @return
-	 */
-	public File getFile();
+//	/**
+//	 * Returns an absolute URI representing the server (image) data, or null if the server does not receive its data from a stored file (e.g. it is computed dynamically).
+//	 * @return
+//	 */
+//	public URI getURI();
 	
 	
 	/**
@@ -430,18 +433,6 @@ public interface ImageServer<T> extends AutoCloseable {
 	 * @see #getOriginalMetadata
 	 */
 	public boolean usesOriginalMetadata();
-	
-	/**
-	 * Get a timestamp for the last time the underlying data was modified (optional).
-	 * <p>
-	 * The purpose of this is to distinguish whether two servers with the same path really do 
-	 * refer to the same image, or if there might have been an update in between (e.g. a file 
-	 * overwritten by another file with the same name).  This is necessary because the path is 
-	 * used for caching image tiles.
-	 * 
-	 * @return a relevant timestamp, or 0L if no timestamps are available.
-	 */
-	public long getLastChangeTimestamp();
 
 	/**
 	 * Get the default thumbnail, without specifying the z-slice or timepoint.

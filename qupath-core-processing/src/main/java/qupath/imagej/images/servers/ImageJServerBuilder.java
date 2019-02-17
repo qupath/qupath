@@ -25,15 +25,13 @@ package qupath.imagej.images.servers;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;
-import java.util.Map;
-
+import java.net.URI;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerBuilder;
 import qupath.lib.images.servers.FileFormatInfo.ImageCheckType;
-import qupath.lib.regions.RegionRequest;
 
 /**
  * Builder for ImageServers that use ImageJ to read images.
@@ -46,17 +44,17 @@ public class ImageJServerBuilder implements ImageServerBuilder<BufferedImage> {
 	private static Logger logger = LoggerFactory.getLogger(ImageJServerBuilder.class);
 
 	@Override
-	public ImageServer<BufferedImage> buildServer(String path, Map<RegionRequest, BufferedImage> cache) {
+	public ImageServer<BufferedImage> buildServer(URI uri) {
 		try {
-			return new ImageJServer(path);
+			return new ImageJServer(uri);
 		} catch (IOException e) {
-			logger.warn("Error opening {} with ImageJ: {}", path, e.getLocalizedMessage());
+			logger.warn("Error opening {} with ImageJ: {}", uri, e.getLocalizedMessage());
 		}
 		return null;
 	}
 
 	@Override
-	public float supportLevel(String path, ImageCheckType type, Class<?> cls) {
+	public float supportLevel(URI uri, ImageCheckType type, Class<?> cls) {
 		if (cls != BufferedImage.class)
 			return 0;
 		switch (type) {

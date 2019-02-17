@@ -28,6 +28,7 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -40,6 +41,8 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.gson.GsonBuilder;
 
 import qupath.lib.common.URLTools;
 import qupath.lib.images.servers.ImageServer;
@@ -56,6 +59,8 @@ import qupath.lib.objects.classes.PathClass;
 public class DefaultProject implements Project<BufferedImage> {
 	
 	private static Logger logger = LoggerFactory.getLogger(DefaultProject.class);
+	
+	private String version = "0.2";
 
 	/**
 	 * Base directory.
@@ -79,7 +84,7 @@ public class DefaultProject implements Project<BufferedImage> {
 	
 	private AtomicLong count = new AtomicLong(0L);
 	
-	private Map<String, ProjectImageEntry<BufferedImage>> images = new LinkedHashMap<>();
+	private Map<String, DefaultProjectImageEntry> images = new LinkedHashMap<>();
 	
 	private long creationTimestamp;
 	private long modificationTimestamp;
@@ -156,23 +161,41 @@ public class DefaultProject implements Project<BufferedImage> {
 	public boolean isEmpty() {
 		return images.isEmpty();
 	}
-
+	
+	
 	public boolean addImagesForServer(final ImageServer<BufferedImage> server) {
-		List<String> subImages = server.getSubImageList();
-		if (subImages.isEmpty()) {
-			return addImage(new DefaultProjectImageEntry(server.getPath(), server.getDisplayedImageName(), null));
-		}
-		
+		return addImagesForServer(server, true);
+	}
+	
+
+	public boolean addImagesForServer(final ImageServer<BufferedImage> server, boolean includeSubImages) {
 		boolean changes = false;
-		for (String name : subImages)
-			// The sub image name might be the same across images, we should append the server displayed name to it, just to make sure it is unique
-			changes = changes | addImage(new DefaultProjectImageEntry(server.getSubImagePath(name), server.getDisplayedImageName()+" ("+name+")", null));
+		if (addImage(new DefaultProjectImageEntry(server.getPath(), server.getDisplayedImageName(), null))) {
+			// TODO: Write thumbnail
+			changes = true;
+		}
+
+		if (includeSubImages) {
+			List<String> subImages = server.getSubImageList();
+			for (String name : subImages) {
+				// TODO: Consider limiting classes
+//				try (var server2 = ImageServerProvider.buildServer(server.getSubImagePath(name), BufferedImage.class, server.getClass().getName())) {
+				try (var server2 = ImageServerProvider.buildServer(server.getSubImagePath(name), BufferedImage.class)) {
+					changes = changes | addImagesForServer(server2, false);
+				} catch (Exception e) {
+					logger.error("Error attempting to add sub-image " + name, e);
+				}
+				// The sub image name might be the same across images, we should append the server displayed name to it, just to make sure it is unique
+//				changes = changes | addImage(new DefaultProjectImageEntry(server.getSubImagePath(name), name, null));
+//				changes = changes | addImage(new DefaultProjectImageEntry(server.getSubImagePath(name), server.getDisplayedImageName()+" ("+name+")", null));
+			}
+		}
 		return changes;
 	}
 	
 	
 	public ProjectImageEntry<BufferedImage> getImageEntry(final String path) {
-		return images.get(new File(path).toURI().toString());
+		return images.get(path);
 	}
 
 	public String cleanServerPath(final String path) {
@@ -208,6 +231,10 @@ public class DefaultProject implements Project<BufferedImage> {
 	}
 	
 	public void syncChanges() throws IOException {
+//		if (file.isDirectory())
+//			file = new File(dirBase, "project.qpproj");
+//		var json = new GsonBuilder().setLenient().setPrettyPrinting().create().toJson(this);
+//		Files.writeString(file.toPath(), json);
 		logger.warn("Syncing project not yet implemented!");
 	}
 

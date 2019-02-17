@@ -59,12 +59,12 @@ public class SparseImageServer extends AbstractTileableImageServer {
 	
 	private int originX = 0, originY = 0;
 
-	public SparseImageServer(Map<RegionRequest, BufferedImage> cache, String path) throws IOException {
-		this(cache, path, SparseImageServerManager.fromJSON(new FileReader(new File(path))));
+	public SparseImageServer(String path) throws IOException {
+		this(path, SparseImageServerManager.fromJSON(new FileReader(new File(path))));
 	}
 	
-	public SparseImageServer(Map<RegionRequest, BufferedImage> cache, String path, SparseImageServerManager manager) throws IOException {
-		super(cache);
+	public SparseImageServer(String path, SparseImageServerManager manager) throws IOException {
+		super();
 		
 		this.manager = manager;
 		

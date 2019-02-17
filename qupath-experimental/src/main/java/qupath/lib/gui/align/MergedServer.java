@@ -245,11 +245,6 @@ public class MergedServer extends AbstractImageServer<BufferedImage> {
 	}
 
 	@Override
-	public File getFile() {
-		return new File(server.getPath());
-	}
-
-	@Override
 	public int getBitsPerPixel() {
 		return server.getBitsPerPixel();
 	}

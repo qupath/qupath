@@ -25,10 +25,8 @@ package qupath.lib.images.servers.bioformats;
 
 import java.awt.image.BufferedImage;
 import java.util.Map;
-import java.io.File;
-import java.util.HashSet;
-import java.util.Set;
-
+import java.net.URI;
+import java.util.HashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,7 +34,6 @@ import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerBuilder;
 import qupath.lib.images.servers.FileFormatInfo.ImageCheckType;
 import qupath.lib.images.servers.bioformats.BioFormatsServerOptions.UseBioformats;
-import qupath.lib.regions.RegionRequest;
 
 /**
  * Builder for ImageServers that make use of the Bio-Formats library.
@@ -48,25 +45,22 @@ public class BioFormatsServerBuilder implements ImageServerBuilder<BufferedImage
 	
 	final private static Logger logger = LoggerFactory.getLogger(BioFormatsServerBuilder.class);
 	
-	final private Set<File> previousFiles = new HashSet<>();
+	final private Map<URI, Float> lastSupportLevel = new HashMap<>();
 	
 	@Override
-	public ImageServer<BufferedImage> buildServer(String path, Map<RegionRequest, BufferedImage> cache) {
+	public ImageServer<BufferedImage> buildServer(URI uri) {
 		try {
-			BioFormatsImageServer server = new BioFormatsImageServer(cache, path);
-			// If we have successfully created a server from this path, store the file so we know we can use it again
-			File file = server.getFile();
-			if (file != null)
-				previousFiles.add(file);
+			BioFormatsImageServer server = new BioFormatsImageServer(uri);
 			return server;
 		} catch (Exception e) {
-			logger.error("Unable to open {}", path, e);
+			lastSupportLevel.put(uri, Float.valueOf(0f));
+			logger.error("Unable to open {}: {}", uri, e);
 		}
 		return null;
 	}
 
 	@Override
-	public float supportLevel(String path, ImageCheckType type, Class<?> cls) {
+	public float supportLevel(URI uri, ImageCheckType type, Class<?> cls) {
 		// We only support BufferedImages
 		if (cls != BufferedImage.class)
 			return 0;
@@ -74,6 +68,11 @@ public class BioFormatsServerBuilder implements ImageServerBuilder<BufferedImage
 		// We also can't do anything if Bio-Formats isn't installed
 		if (getBioFormatsVersion() == null)
 			return 0;
+		
+		if (!"file".equals(uri.getScheme()))
+			return 0;
+				
+		String path = uri.getPath();
 		
 		// Check the options to see whether we really really do or don't want to read this
 		BioFormatsServerOptions options = BioFormatsServerOptions.getInstance();
@@ -83,32 +82,41 @@ public class BioFormatsServerBuilder implements ImageServerBuilder<BufferedImage
 			case NO:
 				return 0;
 			default:
+				break;
 		}
 		
-		// Check if we've previously opened this file successfully with Bio-Formats -
-		// if so, return a high level of confidence
-		String[] splitPath = BioFormatsImageServer.splitFilePathAndSeriesName(path);
-		if (previousFiles.contains(new File(splitPath[0])))
-			return 5;
+		// Avoid calculated support again if we don't have to
+		Float lastSupport = lastSupportLevel.getOrDefault(uri, null);
+		if (lastSupport != null)
+			return lastSupport.floatValue();
 		
-		// Default to our normal checks
-		switch (type) {
-		case TIFF_2D_RGB:
-			// Good support for .qptiff
-			if (path.toLowerCase().endsWith(".qptiff"))
-				return 4;
-			return 3;
-		case TIFF_IMAGEJ:
-			return 3;
-		case TIFF_OTHER:
-			return 2;
-		case UNKNOWN:
-			return 2;
-		case URL:
-			return 0;
-		default:
-			return 2;
+		// We don't want to handle zip files (which are very slow)
+		float support;
+		if (path.toLowerCase().endsWith(".zip"))
+			support = 1f;
+		else {
+			// Default to our normal checks
+			switch (type) {
+			case TIFF_2D_RGB:
+				// Good support for .qptiff
+				if (path.toLowerCase().endsWith(".qptiff"))
+					support = 4f;
+				support = 3f;
+			case TIFF_IMAGEJ:
+				support = 3f;
+			case TIFF_OTHER:
+				support = 2f;
+			case UNKNOWN:
+				support = 2f;
+			case URL:
+				support = 0f;
+			default:
+				support = 2f;
+			}
 		}
+		
+		lastSupportLevel.put(uri, Float.valueOf(support));
+		return support;
 	}
 
 	@Override

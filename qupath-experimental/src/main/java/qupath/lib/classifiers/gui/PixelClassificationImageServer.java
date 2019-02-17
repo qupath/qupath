@@ -2,7 +2,6 @@ package qupath.lib.classifiers.gui;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;
-import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,8 +26,8 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 	private PixelClassifier classifier;
 	private ImageServerMetadata metadata;
 
-	public PixelClassificationImageServer(Map<RegionRequest, BufferedImage> cache, ImageData<BufferedImage> imageData, PixelClassifier classifier) {
-		super(cache);
+	public PixelClassificationImageServer(ImageData<BufferedImage> imageData, PixelClassifier classifier) {
+		super();
 		this.classifier = classifier;
 		this.imageData = imageData;
 		this.server = imageData.getServer();

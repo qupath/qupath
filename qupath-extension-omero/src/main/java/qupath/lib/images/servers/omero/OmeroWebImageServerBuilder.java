@@ -15,7 +15,6 @@ import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.PasswordAuthentication;
 import java.net.URI;
-import java.net.URL;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -44,7 +43,6 @@ import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerBuilder;
 import qupath.lib.images.servers.FileFormatInfo.ImageCheckType;
-import qupath.lib.regions.RegionRequest;
 
 /**
  * Builder for ImageServers that make requests from the OMERO web API.
@@ -75,15 +73,13 @@ public class OmeroWebImageServerBuilder implements ImageServerBuilder<BufferedIm
 	private String lastUsername = "";
 
 	@Override
-	public ImageServer<BufferedImage> buildServer(String path, Map<RegionRequest, BufferedImage> cache) {
+	public ImageServer<BufferedImage> buildServer(URI uri) {
 
-		URL uri;
 		try {
-			uri = new URL(path);
 			String host = uri.getHost();
 
-			if (supportLevel(path, null, BufferedImage.class) <= 0) {
-				logger.debug("OMERO web server does not support {}", path);
+			if (supportLevel(uri, null, BufferedImage.class) <= 0) {
+				logger.debug("OMERO web server does not support {}", uri);
 				return null;
 			}
 			OmeroWebClient client = clients.get(host);
@@ -108,7 +104,7 @@ public class OmeroWebImageServerBuilder implements ImageServerBuilder<BufferedIm
 				logger.info(result);
 			}
 
-			return new OmeroWebImageServer(cache, path, client);
+			return new OmeroWebImageServer(uri, client);
 		} catch (Exception e1) {
 			logger.error("Problem connecting to OMERO web server", e1);
 		}
@@ -116,17 +112,11 @@ public class OmeroWebImageServerBuilder implements ImageServerBuilder<BufferedIm
 	}
 
 	@Override
-	public float supportLevel(String path, ImageCheckType type, Class<?> cls) {
+	public float supportLevel(URI uri, ImageCheckType type, Class<?> cls) {
 		// We only support BufferedImages
 		if (cls != BufferedImage.class)
 			return 0;
 
-		URL uri;
-		try {
-			uri = new URL(path);
-		} catch (MalformedURLException e1) {
-			return 0;
-		}
 		String host = uri.getHost();
 
 		// If we tried, and failed, to treat this as an OMERO server before, fail early
@@ -137,7 +127,7 @@ public class OmeroWebImageServerBuilder implements ImageServerBuilder<BufferedIm
 		if (client != null)
 			return 4;
 
-		String scheme = uri.getProtocol();
+		String scheme = uri.getScheme();
 		if (scheme.startsWith("http")) {
 			// Try to connect (but don't log in yet)
 			try {

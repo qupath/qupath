@@ -7,7 +7,6 @@ import java.awt.image.ColorModel;
 import java.awt.image.Raster;
 import java.awt.image.WritableRaster;
 import java.io.IOException;
-import java.util.LinkedHashMap;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,23 +19,10 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 	
 	private static Logger logger = LoggerFactory.getLogger(AbstractTileableImageServer.class);
 	
-	private static int SHARED_TILE_CACHE_CAPACITY = 100;
-	
-	/**
-	 * Create a very small, backup shared tile cache (in case we aren't provided with one).
-	 */
-	private static Map<RegionRequest, BufferedImage> sharedCache = new LinkedHashMap<RegionRequest, BufferedImage>(SHARED_TILE_CACHE_CAPACITY+1, 1f, true) {
-		private static final long serialVersionUID = 1L;
-		@Override
-		protected synchronized boolean removeEldestEntry(Map.Entry<RegionRequest, BufferedImage> eldest) {
-			return size() > SHARED_TILE_CACHE_CAPACITY;
-		}
-	};
-	
 	/**
 	 * Cache to use for storing & retrieving tiles.
 	 */
-	private Map<RegionRequest, BufferedImage> cache;
+	private Map<RegionRequest, BufferedImage> cache = ImageServerProvider.getCache(BufferedImage.class);
 	
 	/**
 	 * Read a single image tile.
@@ -45,19 +31,7 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 	 * @return
 	 */
 	protected abstract BufferedImage readTile(final TileRequest tileRequest) throws IOException;
-	
-	
-	/**
-	 * Construct a tileable ImageServer, providing a cache in which to store &amp; retrieve tiles.
-	 * 
-	 * @param cache
-	 */
-	protected AbstractTileableImageServer(Map<RegionRequest, BufferedImage> cache) {
-		if (cache == null) {
-			cache = sharedCache;
-		}
-		this.cache = cache;
-	}
+
 	
 	/**
 	 * Get a tile for the request - ideally from the cache, but otherwise read it & 
@@ -79,7 +53,6 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 		cache.put(tileRequest.getRegionRequest(), imgCached);
 		return imgCached;
 	}
-	
 	
 	/**
 	 * Create the default (blank) RGB image for this server.

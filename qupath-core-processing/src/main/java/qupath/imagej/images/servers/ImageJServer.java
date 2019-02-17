@@ -32,7 +32,9 @@ import java.awt.image.DataBufferFloat;
 import java.awt.image.DataBufferUShort;
 import java.awt.image.Raster;
 import java.awt.image.SampleModel;
+import java.io.File;
 import java.io.IOException;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -75,7 +77,9 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 		
 	private ColorModel colorModel;
 	
-	public ImageJServer(final String path) throws IOException {
+	public ImageJServer(final URI uri) throws IOException {
+		File file = new File(uri);
+		String path = file.getAbsolutePath();
 		if (path.toLowerCase().endsWith(".tif") || path.toLowerCase().endsWith(".tiff")) {
 			imp = IJ.openVirtual(path);
 		}
@@ -125,7 +129,7 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 			channels = ImageChannel.getDefaultChannelList(imp.getNChannels());
 		
 		
-		var builder = new ImageServerMetadata.Builder(path)
+		var builder = new ImageServerMetadata.Builder(uri.toString())
 				.width(imp.getWidth())
 				.height(imp.getHeight())
 				.channels(channels)
