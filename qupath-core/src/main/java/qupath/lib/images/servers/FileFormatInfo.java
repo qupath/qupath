@@ -26,14 +26,13 @@ package qupath.lib.images.servers;
 import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import qupath.lib.common.URLTools;
 
 
 /**
@@ -77,24 +76,26 @@ public class FileFormatInfo {
 	static final int SAMPLE_FORMAT = 339;
 
 	
-	public static ImageCheckType checkImageType(final String path) {
+	public static ImageCheckType checkImageType(final URI uri) {
 		
-		if (URLTools.checkURL(path))
+		if (uri.getScheme().startsWith("http"))
 			return ImageCheckType.URL;
+		if (!uri.getScheme().equals("file"))
+			return ImageCheckType.UNKNOWN;
 		
-		File file = new File(path);
+		File file = new File(uri);
 		if (!file.exists())
 			return ImageCheckType.UNKNOWN;
 		
 		// Workaround for large .ndpi problem - TODO: consider longer-term .ndpi fix, or removing TIFF check
 		// See https://github.com/qupath/qupath-bioformats-extension/issues/2#issuecomment-437854123
-		if (path.toLowerCase().endsWith(".ndpi"))
+		if (file.getName().toLowerCase().endsWith(".ndpi"))
 			return ImageCheckType.UNKNOWN;
 		
 		RandomAccessFile in = null;
 		FileFormatInfo.ImageCheckType type = null;
 		try {
-			in = new RandomAccessFile(path, "r");
+			in = new RandomAccessFile(file, "r");
 			
 			boolean littleEndian;
 			int byteOrder = in.readShort();

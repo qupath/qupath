@@ -114,6 +114,11 @@ public class PreferencePanel {
 				category,
 				"Show the name of the current image in the main QuPath title bar (turn this off if the name shouldn't be seen).");
 		
+		addPropertyPreference(PathPrefs.maskImageNamesProperty(), Boolean.class,
+				"Mask image names in projects",
+				category,
+				"Mask the image names when using projects, to help reduce the potential for user bias during analysis.");
+		
 		
 		addPropertyPreference(PathPrefs.doCreateLogFilesProperty(), Boolean.class,
 				"Create log files",

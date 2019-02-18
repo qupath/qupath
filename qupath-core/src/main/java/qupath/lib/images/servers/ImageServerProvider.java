@@ -126,7 +126,7 @@ public class ImageServerProvider {
 		}
 		URI uri = uriTemp;
 
-		final ImageCheckType type = FileFormatInfo.checkImageType(path);
+		final ImageCheckType type = FileFormatInfo.checkImageType(uri);
 		Map<Number, ImageServerBuilder<?>> providers = new TreeMap<>();
 		List<String> requestedBuilders = Arrays.asList(requestedServerBuilderClassnames);
 		for (ImageServerBuilder<?> provider : serviceLoader) {

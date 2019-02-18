@@ -38,7 +38,6 @@ import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -351,7 +350,7 @@ public class LegacyProject<T> implements Project<T> {
 	 * 
 	 * @param project
 	 */
-	static void writeProject(final Project<?> project) {
+	static <T> void writeProject(final LegacyProject<T> project) {
 		writeProject(project, null);
 	}
 
@@ -361,7 +360,7 @@ public class LegacyProject<T> implements Project<T> {
 	 * @param project
 	 * @param name
 	 */
-	static void writeProject(final Project<?> project, final String name) {
+	static <T> void writeProject(final LegacyProject<T> project, final String name) {
 		File fileProject = ProjectIO.getProjectFile(project, name);
 		if (fileProject == null) {
 			logger.error("No file found, cannot write project: {}", project);
@@ -383,10 +382,14 @@ public class LegacyProject<T> implements Project<T> {
 		}		
 		
 		JsonArray array = new JsonArray();
-		for (ProjectImageEntry<?> entry : project.getImageList()) {
+		for (ProjectImageEntry<T> entry : project.getImageList()) {
 			JsonObject jsonEntry = new JsonObject();
-		    jsonEntry.addProperty("path", entry.getServerPath());
-		    jsonEntry.addProperty("name", entry.getImageName());
+			// Try to avoid changing server paths if possible
+			if (entry instanceof LegacyProject.LegacyProjectImageEntry)
+			    jsonEntry.addProperty("path", ((LegacyProject.LegacyProjectImageEntry)entry).serverPath);
+			else
+				jsonEntry.addProperty("path", entry.getServerPath());
+		    jsonEntry.addProperty("name", entry.getOriginalImageName());
 		    
 		    if (entry.getDescription() != null)
 		    		jsonEntry.addProperty("description", entry.getDescription());
@@ -482,7 +485,7 @@ public class LegacyProject<T> implements Project<T> {
 		URI tryToGetURI() {
 			try {
 				String path = serverPath.replace("{$PROJECT_DIR}", getBaseDirectory().getAbsolutePath());
-				if (path.startsWith("http"))
+				if (path.startsWith("http") || path.startsWith("file:"))
 					return new URI(path);
 				int ind = path.indexOf("::");
 				String query = null;
@@ -703,9 +706,12 @@ public class LegacyProject<T> implements Project<T> {
 		@Override
 		public ImageData<T> readImageData() {
 			File file = getImageDataFile();
+			var server = buildImageServer();
+			if (server == null)
+				return null;
 			if (file.exists())
-				return PathIO.readImageData(file, null, buildImageServer(), cls);
-			return new ImageData<>(buildImageServer());
+				return PathIO.readImageData(file, null, server, cls);
+			return new ImageData<>(server);
 		}
 
 		@Override

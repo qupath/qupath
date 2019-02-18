@@ -502,6 +502,19 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		
 		menuBar = new MenuBar();
 		
+		// Prepare for image name masking
+		project.addListener((v, o, n) -> {
+			if (n != null)
+				n.setMaskImageNames(PathPrefs.getMaskImageNames());
+			updateTitle();
+		});
+		PathPrefs.maskImageNamesProperty().addListener(((v, o, n) -> {
+			var currentProject = getProject();
+			if (currentProject != null) {
+				currentProject.setMaskImageNames(n);
+			}
+		}));
+		
 		// Create preferences panel
 		prefsPanel = new PreferencePanel(this);
 		
@@ -4410,9 +4423,11 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			return null;
 		var project = getProject();
 		var entry = project == null ? null : project.getImageEntry(imageData.getServer().getPath());
-		if (entry == null)
+		if (entry == null) {
+			if (PathPrefs.getMaskImageNames())
+				return "(Name masked)";
 			return imageData.getServer().getShortServerName();
-		else
+		} else
 			return entry.getImageName();
 	}
 	
@@ -4434,7 +4449,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 						return name;
 					return name + " - " + getDisplayedImageName(imageData);
 				},
-				project, imageDataProperty, PathPrefs.showImageNameInTitleProperty());
+				project, imageDataProperty, PathPrefs.showImageNameInTitleProperty(), PathPrefs.maskImageNamesProperty());
 	
 	
 	/**

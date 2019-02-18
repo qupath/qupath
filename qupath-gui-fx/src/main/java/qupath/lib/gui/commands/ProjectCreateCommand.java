@@ -32,7 +32,6 @@ import org.slf4j.LoggerFactory;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.helpers.DisplayHelpers;
-import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectFactory;
 
 /**

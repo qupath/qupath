@@ -39,6 +39,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Random;
 import java.util.Set;
 import java.util.TreeMap;
 
@@ -89,6 +90,7 @@ import qupath.lib.gui.QuPathGUI.GUIActions;
 import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.gui.helpers.PaintingToolsFX;
 import qupath.lib.gui.helpers.PanelToolsFX;
+import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerProvider;
@@ -131,6 +133,10 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 		this.qupath = qupath;
 
 		qupath.addImageDataChangeListener(this);
+		
+		PathPrefs.maskImageNamesProperty().addListener((v, o, n) -> {
+			tree.refresh();
+		});
 
 		panel = new BorderPane();
 
@@ -895,7 +901,9 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 
 			// Populate the map
 			String emptyKey = sortKeys.isEmpty() ? PROJECT_KEY : UNASSIGNED_NODE;
-			for (ProjectImageEntry<?> entry : project.getImageList()) {
+			var imageList = new ArrayList<>(project.getImageList());
+						
+			for (ProjectImageEntry<?> entry : imageList) {
 				String localKey = emptyKey;
 				for (String metadataKey : sortKeys) {
 					String temp = entry.getMetadataValue(metadataKey);
@@ -928,25 +936,32 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 			// Ensure unassigned is at the end
 			if (mapKeyList.remove(UNASSIGNED_NODE))
 				mapKeyList.add(UNASSIGNED_NODE);
-
-
-
-
 		}
 
 
 		public TreeItem<Object> getRootFX() {
 			rebuildModel();
+			
+			// If we are masking the image names, we should also shuffle the entries
+			boolean maskNames = PathPrefs.getMaskImageNames();
+			
+			Random rand = new Random(project.hashCode());
 			TreeItem<Object> root = new TreeItem<>(getRoot());
 			List<TreeItem<Object>> items = root.getChildren();
 			if (project != null) {
 				if (sortKeys.isEmpty()) {
-					for (ProjectImageEntry<?> entry : project.getImageList())
+					var imageList = project.getImageList();
+					if (maskNames)
+						Collections.shuffle(imageList, rand);
+					for (ProjectImageEntry<?> entry : imageList)
 						items.add(new TreeItem<>(entry));
 				} else {
 					for (String key : mapKeyList) {
 						TreeItem<Object> item = new TreeItem<>(key);
-						for (ProjectImageEntry<?> entry : map.get(key))
+						var imageList = map.get(key);
+						if (maskNames)
+							Collections.shuffle(imageList, rand);
+						for (ProjectImageEntry<?> entry : imageList)
 							item.getChildren().add(new TreeItem<>(entry));
 						items.add(item);
 					}

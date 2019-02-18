@@ -26,7 +26,6 @@ package qupath.lib.gui.commands;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.panels.ProjectBrowser;
-import qupath.lib.projects.ProjectIO;
 
 /**
  * Command to manually save a project.

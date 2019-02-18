@@ -24,7 +24,6 @@
 package qupath.lib.images.servers;
 
 import java.io.IOException;
-import java.net.URI;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.TimeUnit;

@@ -184,6 +184,21 @@ public class PathPrefs {
 
 	
 	
+	private static BooleanProperty maskImageNames = createPersistentPreference("maskImageNames", Boolean.FALSE);
+	
+	public static BooleanProperty maskImageNamesProperty() {
+		return maskImageNames;
+	}
+
+	public static boolean getMaskImageNames() {
+		return maskImageNames.get();
+	}
+	
+	public static void setMaskImageNames(final boolean doMask) {
+		maskImageNames.set(doMask);
+	}
+	
+	
 	
 	private static ObjectProperty<Locale> defaultLocaleFormat = createPersistentPreference("localeFormat", Locale.Category.FORMAT, Locale.US);
 	private static ObjectProperty<Locale> defaultLocaleDisplay = createPersistentPreference("localeDisplay", Locale.Category.DISPLAY, Locale.US);

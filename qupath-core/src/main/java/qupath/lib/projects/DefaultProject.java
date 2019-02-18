@@ -583,21 +583,24 @@ public class DefaultProject implements Project<BufferedImage> {
 		}
 		
 		private Path getImageDataPath() {
-			return Paths.get(getBasePath().toString(), "data", getUniqueName(), "data.qpdata");
+			return Paths.get(getEntryPath().toString(), "data.qpdata");
 		}
 		
 
 		@Override
 		public ImageData<BufferedImage> readImageData() {
 			Path path = getImageDataPath();
+			var server = buildImageServer();
+			if (server == null)
+				return null;
 			if (Files.exists(path)) {
 				try (var stream = Files.newInputStream(path)) {
-					return PathIO.readImageData(stream, null, buildImageServer(), BufferedImage.class);
+					return PathIO.readImageData(stream, null, server, BufferedImage.class);
 				} catch (IOException e) {
 					logger.error("Error reading image data from " + path, e);
 				}
 			}
-			return new ImageData<>(buildImageServer());
+			return new ImageData<>(server);
 		}
 
 		@Override

@@ -197,7 +197,12 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 		// Try reading a thumbnail... the point being that if this is going to fail,
 		// we want it to fail quickly so that it may yet be possible to try another server
 		// This can occur with corrupt .svs (.tif) files that Bioformats is able to handle better
-		logger.info("Test reading thumbnail with openslide: passed (" + getBufferedThumbnail(200, 200, 0).toString() + ")");
+		try {
+			logger.info("Test reading thumbnail with openslide: passed (" + getBufferedThumbnail(200, 200, 0).toString() + ")");
+		} catch (IOException e) {
+			logger.error("Unable to read thumbnail using OpenSlide: {}", e.getLocalizedMessage());
+			throw(e);
+		}
 	}
 	
 	@Override

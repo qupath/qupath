@@ -24,7 +24,6 @@
 package qupath.lib.projects;
 
 import java.util.Collection;
-import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
@@ -34,7 +33,7 @@ import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 
 /**
  * Class to represent an image entry within a project.
- * 
+ * <p>
  * This stores the path to the image, and some optional metadata.
  * 
  * @author Pete Bankhead
@@ -45,8 +44,6 @@ public interface ProjectImageEntry<T> {
 	
 	/**
 	 * Get the path used to represent this image, which can be used to construct an <code>ImageServer</code>.
-	 * 
-	 * Note that this may have been cleaned up.
 	 * 
 	 * @see #getStoredServerPath
 	 * 
@@ -169,6 +166,11 @@ public interface ProjectImageEntry<T> {
 	 */
 	public Collection<String> getMetadataKeys();
 
+	/**
+	 * Build an {@link ImageServer} for this image.
+	 * 
+	 * @return
+	 */
 	public ImageServer<T> buildImageServer();
 	
 	/**
@@ -193,8 +195,17 @@ public interface ProjectImageEntry<T> {
 	 */
 	public PathObjectHierarchy readHierarchy();
 	
+	/**
+	 * Check if this entry has saved {@link ImageData} already available.
+	 * 
+	 * @return
+	 */
 	public boolean hasImageData();
 	
+	/**
+	 * Get a summary string representing this image entry.
+	 * @return
+	 */
 	public String getSummary();
 	
 	

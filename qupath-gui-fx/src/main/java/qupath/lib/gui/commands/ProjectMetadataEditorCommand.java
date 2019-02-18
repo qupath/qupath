@@ -61,7 +61,6 @@ import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.gui.panels.ProjectBrowser;
 import qupath.lib.projects.Project;
-import qupath.lib.projects.ProjectIO;
 import qupath.lib.projects.ProjectImageEntry;
 
 /**

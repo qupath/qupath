@@ -51,7 +51,6 @@ import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.gui.helpers.PanelToolsFX;
 import qupath.lib.gui.panels.ProjectBrowser;
-import qupath.lib.projects.ProjectIO;
 
 /**
  * Command to import image paths into an existing project.
@@ -169,7 +168,10 @@ public class ProjectImportImagesCommand implements PathCommand {
 		if (!pathFailed.isEmpty()) {
 			TextArea textArea = new TextArea();
 			textArea.setText(sb.toString());
-			DisplayHelpers.showErrorMessage(commandName, textArea);
+			if (pathSucceeded.isEmpty())
+				DisplayHelpers.showErrorMessage(commandName, textArea);
+			else
+				DisplayHelpers.showMessageDialog(commandName, textArea);
 		}
 		logger.info(sb.toString());
 		

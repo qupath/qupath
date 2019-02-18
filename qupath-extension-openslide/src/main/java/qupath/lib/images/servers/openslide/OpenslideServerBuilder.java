@@ -119,7 +119,8 @@ public class OpenslideServerBuilder implements ImageServerBuilder<BufferedImage>
 		
 		try {
 			File file = new File(uri);
-			if (OpenSlide.detectVendor(file) == null)
+			String vendor = OpenSlide.detectVendor(file);
+			if (vendor == null)
 				return 0;
 		} catch (Exception e) {
 			logger.debug("Unable to read with OpenSlide: {}", e.getLocalizedMessage());
