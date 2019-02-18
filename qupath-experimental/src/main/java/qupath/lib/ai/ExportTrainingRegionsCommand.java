@@ -288,10 +288,9 @@ public class ExportTrainingRegionsCommand implements PathCommand {
 			}
 			Set<PathClass> set = new TreeSet<>();
 			for (ProjectImageEntry<?> entry : project.getImageList()) {
-				File fileData = QuPathGUI.getImageDataFile(project, entry);
-				if (!fileData.exists())
+				if (!entry.hasImageData())
 					continue;
-				PathObjectHierarchy hierarchy = PathIO.readHierarchy(fileData);
+				PathObjectHierarchy hierarchy = entry.readHierarchy();
 				int nullCount = 0;
 				for (PathObject annotation : hierarchy.getObjects(null, PathAnnotationObject.class)) {
 					if (annotation.getPathClass() == null)
@@ -387,7 +386,7 @@ public class ExportTrainingRegionsCommand implements PathCommand {
 			boolean useMPP = useMicronsPerPixel.get();
 			
 			// Find all project entries with associated data files
-			List<ProjectImageEntry<BufferedImage>> entries = project.getImageList().stream().filter(entry -> QuPathGUI.getImageDataFile(project, entry).exists()).collect(Collectors.toList());
+			List<ProjectImageEntry<BufferedImage>> entries = project.getImageList().stream().filter(entry -> entry.hasImageData()).collect(Collectors.toList());
 			
 			// Write JSON file with key
 			Gson gson = new GsonBuilder().setPrettyPrinting().create();
@@ -477,11 +476,10 @@ public class ExportTrainingRegionsCommand implements PathCommand {
 			
 			
 			// Read ImageData - be sure to get server path from the project
-			File fileData = QuPathGUI.getImageDataFile(project, entry);
-			if (!fileData.exists())
+			if (!entry.hasImageData())
 				return;
-			ImageServer<BufferedImage> server = ImageServerProvider.buildServer(entry.getServerPath(), BufferedImage.class);
-			ImageData<BufferedImage> imageData = PathIO.readImageData(fileData, null, server, BufferedImage.class);
+			ImageData<BufferedImage> imageData = entry.readImageData();
+			ImageServer<BufferedImage> server = imageData.getServer();
 			PathObjectHierarchy hierarchy = imageData.getHierarchy();
 
 			// Determine resolution

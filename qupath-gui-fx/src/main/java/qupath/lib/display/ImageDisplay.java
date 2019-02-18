@@ -603,7 +603,7 @@ public class ImageDisplay extends AbstractImageRenderer {
 			ind--;
 		}
 		logger.debug(String.format("Display range for {}: %.3f - %.3f (saturation %.3f)",  minDisplay, maxDisplay, saturation), info.getName());
-		setMinMaxDisplay(info, (float)minDisplay, (float)maxDisplay);
+		setMinMaxDisplay(info, (float)minDisplay, (float)maxDisplay, fireUpdate);
 	}
 
 	void autoSetDisplayRange(ChannelDisplayInfo info, boolean fireUpdate) {

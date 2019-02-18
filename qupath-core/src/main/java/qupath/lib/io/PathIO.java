@@ -121,162 +121,152 @@ public class PathIO {
 		return serverPath;
 	}
 	
-	
-	@SuppressWarnings("unchecked")
 	private static <T> ImageData<T> readImageDataSerialized(final File file, ImageData<T> imageData, ImageServer<T> server, Class<T> cls) {
 		if (file == null)
 			return null;
+		logger.info("Reading data from {}...", file.getName());
+		try (FileInputStream stream = new FileInputStream(file)) {
+			imageData = readImageDataSerialized(stream, imageData, server, cls);	
+			// Set the last saved path (actually the path from which this was opened)
+			if (imageData != null)
+				imageData.setLastSavedPath(file.getAbsolutePath(), true);
+			return imageData;
+		} catch (IOException e) {
+			logger.error("Error reading ImageData from file", e);
+			return null;
+		}
+	}
+	
+	@SuppressWarnings("unchecked")
+	private static <T> ImageData<T> readImageDataSerialized(final InputStream stream, ImageData<T> imageData, ImageServer<T> server, Class<T> cls) {
 		
+		long startTime = System.currentTimeMillis();
 		Locale locale = Locale.getDefault(Category.FORMAT);
 		boolean localeChanged = false;
-		
-		try {
-			long startTime = System.currentTimeMillis();
-			logger.info("Reading data from {}...", file.getName());
-			
-			FileInputStream fileIn = null;
-			ObjectInputStream inStream = null;
-			try {
-				fileIn = new FileInputStream(file);
-//				inStream = new ObjectInputStream(new InflaterInputStream(new BufferedInputStream(fileIn)));
-				inStream = new ObjectInputStream(new BufferedInputStream(fileIn));
-				
-				
-				String serverPath = null;
-				PathObjectHierarchy hierarchy = null;
-				ImageData.ImageType imageType = null;
-				ColorDeconvolutionStains stains = null;
-				Workflow workflow = null;
-				Map<String, Object> propertyMap = null;
-				
-				String firstLine = inStream.readUTF();
-//				int versionNumber = -1;
-				if (!firstLine.startsWith("Data file version")) {
-					logger.error(file.getPath() + " is not a valid QuPath data file!");
-				}
-//				else {
-//					// Could try to parse version number... although frankly, at this time, we don't really care...
-//					try {
-//						versionNumber = NumberFormat.getInstance(Locale.US).parse(firstLine.substring("Data file version".length()).trim()).intValue();
-//					} catch (Exception e) {
-//						logger.warn("Unable to parse version number from {}", firstLine);
-//					}
-//				}
-				
-				serverPath = (String)inStream.readObject();
-				serverPath = serverPath.substring("Image path: ".length()).trim();
-				
-				
-				while (true) {
-//					logger.debug("Starting read: " + inStream.available());
-					try {
-						// Try to read a relevant object from the stream
-						Object input = inStream.readObject();
-						logger.debug("Read: {}", input);
-						
-						// If we have a Locale, then set it
-						if (input instanceof Locale) {
-							if (input != locale) {
-								Locale.setDefault(Category.FORMAT, (Locale)input);
-								localeChanged = true;
-							}
-						} else if (input instanceof PathObjectHierarchy)
-							hierarchy = (PathObjectHierarchy)input;
-						else if (input instanceof ImageData.ImageType)
-							imageType = (ImageData.ImageType)input;
-						else if (input instanceof String && "EOF".equals(input))  {
-//							if (serverPath == null) // serverPath should be first string
-//								serverPath = (String)input;
-//							else if ("EOF".equals(input)) {
-								break;
-//							}
-						}
-						else if (input instanceof ColorDeconvolutionStains)
-							stains = (ColorDeconvolutionStains)input;
-						else if (input instanceof Workflow)
-							workflow = (Workflow)input;
-						else if (input instanceof Map)
-							propertyMap = (Map<String, Object>)input;
-						else if (input == null) {
-							logger.error("Null object will be skipped");
-						} else
-							logger.error("Unsupported object of class {} will be skipped: {}", input.getClass().getName(), input);
-						
-					} catch (ClassNotFoundException e) {
-						logger.error("Unable to find class", e);
-					} catch (EOFException e) {
-						// Try to recover from EOFExceptions - we may already have enough info
-						logger.error("Reached end of file...");
-						if (hierarchy == null)
-							e.printStackTrace();
-						break;
-					}
-				}
-				
-				// Create an entirely new ImageData if necessary
-				if (imageData == null || !(imageData.getServer().equals(server) || imageData.getServerPath().equals(serverPath))) {
-					// Create a new server if we need to
-					if (server == null) {
-						try {
-						server = ImageServerProvider.buildServer(serverPath, cls);
-						} catch (Exception e) {
-							logger.error(e.getLocalizedMessage());
-						};
-						if (server == null) {
-							logger.error("Warning: Unable to create server for path " + serverPath);
-//							throw new RuntimeException("Warning: Unable to create server for path " + serverPath);
-						}
-					}
-					// TODO: Make this less clumsy... but for now we need to ensure we have a fully-initialized hierarchy (which deserialization alone doesn't achieve)
-					PathObjectHierarchy hierarchy2 = new PathObjectHierarchy();
-					hierarchy2.setHierarchy(hierarchy);
-					hierarchy = hierarchy2;
-					
-					imageData = new ImageData<>(server, hierarchy, imageType);
-				} else {
-					if (imageType != null)
-						imageData.setImageType(imageType);
-					// Set the new hierarchy
-					imageData.getHierarchy().setHierarchy(hierarchy);
-				}
-				// Set the other properties we have just read
-				if (workflow != null) {
-					imageData.getHistoryWorkflow().clear();
-					imageData.getHistoryWorkflow().addSteps(workflow.getSteps());
-				}
-				if (stains != null) {
-					imageData.setColorDeconvolutionStains(stains);
-				}
-				if (propertyMap != null) {
-					for (Entry<String, Object> entry : propertyMap.entrySet())
-						imageData.setProperty(entry.getKey(), entry.getValue());
-				}
-				
-				// Set the last saved path (actually the path from which this was opened)
-				imageData.setLastSavedPath(file.getAbsolutePath(), true);
-					
-				
-				long endTime = System.currentTimeMillis();
-				
-//				if (hierarchy == null) {
-//					logger.error(String.format("%s does not contain a valid QUPath object hierarchy!", file.getAbsolutePath()));
-//					return null;
-//				}
-				logger.info(String.format("Hierarchy with %d object(s) read from %s in %.2f seconds", hierarchy.nObjects(), file.getAbsolutePath(), (endTime - startTime)/1000.));
-				
-				
-			} catch (IOException e) {
-				e.printStackTrace();
-			} catch (ClassNotFoundException e1) {
-				e1.printStackTrace();
-			} finally {
-				if (fileIn != null)
-					fileIn.close();
-				if (inStream != null)
-					inStream.close();
+
+		try (ObjectInputStream inStream = new ObjectInputStream(new BufferedInputStream(stream))) {
+			String serverPath = null;
+			PathObjectHierarchy hierarchy = null;
+			ImageData.ImageType imageType = null;
+			ColorDeconvolutionStains stains = null;
+			Workflow workflow = null;
+			Map<String, Object> propertyMap = null;
+
+			String firstLine = inStream.readUTF();
+			//				int versionNumber = -1;
+			if (!firstLine.startsWith("Data file version")) {
+				logger.error("Input stream does not contain valid QuPath data!");
 			}
+			//				else {
+			//					// Could try to parse version number... although frankly, at this time, we don't really care...
+			//					try {
+			//						versionNumber = NumberFormat.getInstance(Locale.US).parse(firstLine.substring("Data file version".length()).trim()).intValue();
+			//					} catch (Exception e) {
+			//						logger.warn("Unable to parse version number from {}", firstLine);
+			//					}
+			//				}
+
+			serverPath = (String)inStream.readObject();
+			serverPath = serverPath.substring("Image path: ".length()).trim();
+
+
+			while (true) {
+				//					logger.debug("Starting read: " + inStream.available());
+				try {
+					// Try to read a relevant object from the stream
+					Object input = inStream.readObject();
+					logger.debug("Read: {}", input);
+
+					// If we have a Locale, then set it
+					if (input instanceof Locale) {
+						if (input != locale) {
+							Locale.setDefault(Category.FORMAT, (Locale)input);
+							localeChanged = true;
+						}
+					} else if (input instanceof PathObjectHierarchy)
+						hierarchy = (PathObjectHierarchy)input;
+					else if (input instanceof ImageData.ImageType)
+						imageType = (ImageData.ImageType)input;
+					else if (input instanceof String && "EOF".equals(input))  {
+						//							if (serverPath == null) // serverPath should be first string
+						//								serverPath = (String)input;
+						//							else if ("EOF".equals(input)) {
+						break;
+						//							}
+					}
+					else if (input instanceof ColorDeconvolutionStains)
+						stains = (ColorDeconvolutionStains)input;
+					else if (input instanceof Workflow)
+						workflow = (Workflow)input;
+					else if (input instanceof Map)
+						propertyMap = (Map<String, Object>)input;
+					else if (input == null) {
+						logger.error("Null object will be skipped");
+					} else
+						logger.error("Unsupported object of class {} will be skipped: {}", input.getClass().getName(), input);
+
+				} catch (ClassNotFoundException e) {
+					logger.error("Unable to find class", e);
+				} catch (EOFException e) {
+					// Try to recover from EOFExceptions - we may already have enough info
+					logger.error("Reached end of file...");
+					if (hierarchy == null)
+						e.printStackTrace();
+					break;
+				}
+			}
+
+			// Create an entirely new ImageData if necessary
+			if (imageData == null || !(imageData.getServer().equals(server) || imageData.getServerPath().equals(serverPath))) {
+				// Create a new server if we need to
+				if (server == null) {
+					try {
+						server = ImageServerProvider.buildServer(serverPath, cls);
+					} catch (Exception e) {
+						logger.error(e.getLocalizedMessage());
+					};
+					if (server == null) {
+						logger.error("Warning: Unable to create server for path " + serverPath);
+						//							throw new RuntimeException("Warning: Unable to create server for path " + serverPath);
+					}
+				}
+				// TODO: Make this less clumsy... but for now we need to ensure we have a fully-initialized hierarchy (which deserialization alone doesn't achieve)
+				PathObjectHierarchy hierarchy2 = new PathObjectHierarchy();
+				hierarchy2.setHierarchy(hierarchy);
+				hierarchy = hierarchy2;
+
+				imageData = new ImageData<>(server, hierarchy, imageType);
+			} else {
+				if (imageType != null)
+					imageData.setImageType(imageType);
+				// Set the new hierarchy
+				imageData.getHierarchy().setHierarchy(hierarchy);
+			}
+			// Set the other properties we have just read
+			if (workflow != null) {
+				imageData.getHistoryWorkflow().clear();
+				imageData.getHistoryWorkflow().addSteps(workflow.getSteps());
+			}
+			if (stains != null) {
+				imageData.setColorDeconvolutionStains(stains);
+			}
+			if (propertyMap != null) {
+				for (Entry<String, Object> entry : propertyMap.entrySet())
+					imageData.setProperty(entry.getKey(), entry.getValue());
+			}
+
+			long endTime = System.currentTimeMillis();
+
+			//				if (hierarchy == null) {
+			//					logger.error(String.format("%s does not contain a valid QUPath object hierarchy!", file.getAbsolutePath()));
+			//					return null;
+			//				}
+			logger.debug(String.format("Hierarchy with %d object(s) read in %.2f seconds", hierarchy.nObjects(), (endTime - startTime)/1000.));
+
 		} catch (IOException e) {
-			e.printStackTrace();
+			logger.error("Error reading image data", e);
+		} catch (ClassNotFoundException e1) {
+			logger.warn("Class not found reading image data", e1);
 		} finally {
 			if (localeChanged)
 				Locale.setDefault(Category.FORMAT, locale);
@@ -318,6 +308,10 @@ public class PathIO {
 		return Integer.parseInt(name.replace("core_", "").replace(".qpobj", ""));
 	}
 	
+	public static <T> ImageData<T> readImageData(final InputStream stream, ImageData<T> imageData, ImageServer<T> server, Class<T> cls) {
+		return readImageDataSerialized(stream, imageData, server, cls);
+	}
+
 	
 	/**
 	 * Read ImageData into an existing ImageData object, or creating a new one if required.
@@ -334,6 +328,7 @@ public class PathIO {
 		if (!isZipFile(file))
 			return readImageDataSerialized(file, imageData, server, cls);
 		
+		// The zip file thing was experimental, shouldn't be encountered in practice
 		try (FileSystem fsZip = FileSystems.newFileSystem(file.toPath(), null)) {
 			
 			List<TMACoreObject> cores = null;
@@ -661,13 +656,10 @@ public class PathIO {
 	
 	/**
 	 * Read a hierarchy from a .qpdata file.
-	 * <p>
-	 * Deprecated in favor of alternative that reads from an InputStream.
 	 * 
 	 * @param file
 	 * @return
 	 */
-	@Deprecated
 	public static PathObjectHierarchy readHierarchy(final File file) {
 		logger.info("Reading hierarchy from {}...", file.getName());
 		try (FileInputStream stream = new FileInputStream(file)) {

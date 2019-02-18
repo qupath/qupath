@@ -29,19 +29,15 @@ import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.StandardCopyOption;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
@@ -197,7 +193,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 
 
 	ContextMenu getPopup() {
-
+		
 		Action actionOpenImage = new Action("Open image", e -> qupath.openImageEntry(getSelectedEntry()));
 		Action actionRemoveImage = new Action("Remove image", e -> {
 			TreeItem<?> path = tree.getSelectionModel().getSelectedItem();
@@ -681,25 +677,6 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 	}
 
 
-	File getImageDataPath(final ProjectImageEntry<?> entry) {
-		return getImageDataPath(project, entry);
-	}
-
-	/**
-	 * Get the file in which to save the ImageData for a specified project.
-	 * 
-	 * Deprecated now in favor of calling the static method in QuPathGUI instead.
-	 * 
-	 * @param project
-	 * @param entry
-	 * @return
-	 */
-	@Deprecated
-	public static File getImageDataPath(final Project<?> project, final ProjectImageEntry<?> entry) {
-		return QuPathGUI.getImageDataFile(project, entry);
-	}
-
-
 	File getProjectPath() {
 		File dirBase = getBaseDirectory();
 		if (dirBase == null || !dirBase.isDirectory())
@@ -718,7 +695,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 		File dirData = new File(dirBase, "thumbnails");
 		if (!dirData.exists())
 			dirData.mkdir();
-		return new File(dirData, entry.getImageName() + "." + THUMBNAIL_EXT);
+		return new File(dirData, entry.getUniqueName() + "." + THUMBNAIL_EXT);
 	}
 
 
@@ -726,7 +703,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 		ImageData<?> imageData = getCurrentImageData();
 		if (imageData == null || entry == null)
 			return false;
-		return entry.equalsServerPath(imageData.getServerPath());
+		return entry.sameServerPath(imageData.getServerPath());
 	}
 
 
@@ -856,19 +833,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 			}
 		}
 		
-		File fileOld = QuPathGUI.getImageDataFile(project, entry);
-		entry.setName(name);
-		
-		File fileNew = QuPathGUI.getImageDataFile(project, entry);
-		
-		// Rename the data file
-		if (fileOld.exists() && !fileOld.equals(fileNew)) {
-			try {
-				Files.move(fileOld.toPath(), fileNew.toPath(), StandardCopyOption.ATOMIC_MOVE);
-			} catch (IOException e) {
-				DisplayHelpers.showErrorMessage("Set Image Name", e);
-			}
-		}
+		entry.setImageName(name);
 		
 		// Ensure the project is updated
 		syncProject(project);
@@ -1088,7 +1053,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 			ProjectImageEntry<?> entry = item instanceof ProjectImageEntry ? (ProjectImageEntry<?>)item : null;
 			if (isCurrentImage(entry))
 				setStyle("-fx-font-weight: bold; -fx-font-family: arial");
-			else if (entry == null || getImageDataPath(entry).exists())
+			else if (entry == null || entry.hasImageData())
 				setStyle("-fx-font-weight: normal; -fx-font-family: arial");
 			else
 				setStyle("-fx-font-style: italic; -fx-font-family: arial");
@@ -1112,23 +1077,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 				//	        		 s = String.format("%s (%.2f MB)", s, sizeMB);
 				//	        	 }
 
-								StringBuilder sb = new StringBuilder();
-				sb.append(entry.getImageName()).append("\n\n");
-				if (!entry.getMetadataMap().isEmpty()) {
-					for (Entry<String, String> mapEntry : entry.getMetadataMap().entrySet()) {
-						sb.append(mapEntry.getKey()).append(":\t").append(mapEntry.getValue()).append("\n");
-					}
-					sb.append("\n");
-				}
-				File file = getImageDataPath(entry);
-				if (file != null && file.exists()) {
-					double sizeMB = file.length() / 1024.0 / 1024.0;
-					sb.append(String.format("Data file:\t%.2f MB", sizeMB)).append("\n");
-					sb.append("Modified:\t").append(dateFormat.format(new Date(file.lastModified())));
-				} else
-					sb.append("No data file");
-
-				tooltip.setText(sb.toString());
+				tooltip.setText(entry.getSummary());
 				//	        	 Tooltip tooltip = new Tooltip(sb.toString());
 
 				File fileThumbnail = getThumbnailFile(getProject(), entry);

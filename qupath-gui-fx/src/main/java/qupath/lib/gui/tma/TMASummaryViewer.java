@@ -1127,14 +1127,12 @@ public class TMASummaryViewer {
 		
 		List<TMAEntry> entries = new ArrayList<>();
 		for (ProjectImageEntry<BufferedImage> imageEntry : project.getImageList()) {
-			File file = QuPathGUI.getImageDataFile(project, imageEntry);
-			if (file.isFile()) {
-				logger.info("Reading from {}", file);
-				ImageData<BufferedImage> imageData = PathIO.readImageData(file, null, null, BufferedImage.class);
+			if (imageEntry.hasImageData()) {
+				ImageData<BufferedImage> imageData = imageEntry.readImageData();
 				if (imageData != null)
 					entries.addAll(getEntriesForTMAData(imageData));
 				else
-					logger.error("No ImageData read for {]", file);
+					logger.error("No ImageData read for {}", imageEntry.getImageName());
 			}
 		}
 		setTMAEntries(entries);

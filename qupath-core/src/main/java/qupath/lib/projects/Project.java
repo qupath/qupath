@@ -47,6 +47,27 @@ public interface Project<T> {
 	public List<PathClass> getPathClasses();
 	
 	/**
+	 * Query whether 'true' or masked image names are being returned.
+	 * 
+	 * @return
+	 * 
+	 * @see #setMaskImageNames(boolean)
+	 */
+	public boolean getMaskImageNames();
+	
+	/**
+	 * Request that entries return masked image names, rather than the 'true' image names.
+	 * <p>
+	 * The purpose of this is to support studies where the user ought not to see the image names during analysis, 
+	 * reducing the potential for user bias.
+	 * 
+	 * @param maskNames
+	 * 
+	 * @see #getMaskImageNames()
+	 */
+	public void setMaskImageNames(boolean maskNames);
+	
+	/**
 	 * Update the available PathClasses.
 	 * 
 	 * @param pathClasses
@@ -56,8 +77,12 @@ public interface Project<T> {
 
 	public boolean addImage(final ProjectImageEntry<T> entry);
 	
+	// TODO: Make this non-public (or at least less important)
+	@Deprecated
 	public File getFile();
 	
+	// TODO: Make this non-public (or at least less important)
+	@Deprecated
 	public File getBaseDirectory();
 	
 	public boolean addAllImages(final Collection<ProjectImageEntry<T>> entries);
@@ -68,8 +93,6 @@ public interface Project<T> {
 	
 	public ProjectImageEntry<T> getImageEntry(final String path);
 
-	String cleanServerPath(final String path);
-	
 	public boolean addImage(final String path);
 	
 	public void removeImage(final ProjectImageEntry<?> entry);

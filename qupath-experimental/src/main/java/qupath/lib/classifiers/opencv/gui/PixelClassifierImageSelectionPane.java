@@ -118,6 +118,7 @@ import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
 import qupath.lib.plugins.parameters.ParameterList;
+import qupath.lib.projects.Project;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.AreaROI;
@@ -784,7 +785,8 @@ public class PixelClassifierImageSelectionPane {
 			return false;
 		}
 		
-		var dataFileName = QuPathGUI.getImageDataFile(project, entry).getName();
+//		var dataFileName = QuPathGUI.getImageDataFile(project, entry).getName();
+		var dataFileName = entry.getUniqueName();
 		int ind = dataFileName.indexOf(PathPrefs.getSerializationExtension());
 		if (ind >= 0)
 			dataFileName = dataFileName.substring(0, ind);
@@ -793,7 +795,6 @@ public class PixelClassifierImageSelectionPane {
 		try {
 			if (!Files.exists(pathOutput.getParent()) || !Files.isDirectory(pathOutput.getParent()))
 				Files.createDirectories(pathOutput.getParent());
-			
 			var pathClassifier = Paths.get(project.getBaseDirectory().getAbsolutePath(), "pixel_classifiers", classifierName + ".json");
 			if (!Files.exists(pathClassifier.getParent()) || !Files.isDirectory(pathClassifier.getParent()))
 				Files.createDirectories(pathClassifier.getParent());
@@ -809,6 +810,7 @@ public class PixelClassifierImageSelectionPane {
 				DisplayHelpers.showWarningNotification("Pixel classifier", "Unable to write classifier to JSON - classifier can't be reloaded later");
 			}
 			
+			// TODO: Write through the project entry instead
 			var persistentTileCache = new FileSystemPersistentTileCache(pathOutput, server);
 			persistentTileCache.writeJSON("metadata.json", server.getMetadata());
 			persistentTileCache.writeJSON("classifier.json", server.getClassifier());
@@ -1573,5 +1575,87 @@ public class PixelClassifierImageSelectionPane {
 		}
 
 	}
+	
+	
+	
+//	private Path getPixelServerDirectory() {
+//		return Paths.get(getEntryPath().toString(), "layers");
+//	}
+//	
+//	public ImageServer<BufferedImage> buildPixelServer(String id) {
+//		throw new IllegalArgumentException("No pixel server available with ID: " + id);
+//	}
+//	
+//	public List<String> listPixelServers() {
+//		var path = getPixelServerDirectory();
+//		if (!Files.exists(path))
+//			return Collections.emptyList();
+//		try {
+//			return Files.list(path).filter(p -> Files.isDirectory(path)).map(p -> p.getFileName().toString()).collect(Collectors.toList());
+//		} catch (IOException e) {
+//			logger.error("Error requesting pixel server list", e);
+//			return Collections.emptyList();
+//		}
+//	}
+//
+//	public void writePixelServer(String id, ImageServer<BufferedImage> server) {
+//		throw new IllegalArgumentException("Pixel servers not supported with legacy projects!");
+//	}
+//	
+//	public void removePixelServer(String id) {
+//		throw new IllegalArgumentException("No pixel server available with ID: " + id);
+//	}
+	
+	static interface PixelLayerManager<T> {
+		
+		public ImageServer<T> buildPixelServer(String id);
+		
+		public List<String> listPixelServers();
+
+		public void writePixelServer(String id, ImageServer<T> server);
+		
+		public void removePixelServer(String id);
+		
+	}
+	
+	
+	static class DefaultPixelLayerManager implements PixelLayerManager<BufferedImage> {
+		
+		private Project<BufferedImage> project;
+		private Path baseDir;
+		
+		public DefaultPixelLayerManager(Project<BufferedImage> project, Path baseDir) {
+			this.project = project;
+			this.baseDir = baseDir;
+		}
+
+		@Override
+		public ImageServer<BufferedImage> buildPixelServer(String id) {
+			// TODO Auto-generated method stub
+			return null;
+		}
+
+		@Override
+		public List<String> listPixelServers() {
+			// TODO Auto-generated method stub
+			return null;
+		}
+
+		@Override
+		public void writePixelServer(String id, ImageServer<BufferedImage> server) {
+			// TODO Auto-generated method stub
+			
+		}
+
+		@Override
+		public void removePixelServer(String id) {
+			// TODO Auto-generated method stub
+			
+		}
+		
+	}
+	
+	
+	
 	
 }

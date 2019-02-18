@@ -29,6 +29,8 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -37,17 +39,19 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.Map.Entry;
 import java.util.concurrent.atomic.AtomicLong;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.gson.GsonBuilder;
-
 import qupath.lib.common.URLTools;
+import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerProvider;
+import qupath.lib.images.servers.RotatedImageServer;
+import qupath.lib.io.PathIO;
 import qupath.lib.objects.classes.PathClass;
+import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 
 /**
  * Data structure to store multiple images, relating these to a file system.
@@ -82,6 +86,8 @@ public class DefaultProject implements Project<BufferedImage> {
 	 */
 	private List<PathClass> pathClasses = new ArrayList<>();
 	
+	private boolean maskNames = false;
+	
 	private AtomicLong count = new AtomicLong(0L);
 	
 	private Map<String, DefaultProjectImageEntry> images = new LinkedHashMap<>();
@@ -91,12 +97,37 @@ public class DefaultProject implements Project<BufferedImage> {
 	
 	DefaultProject(final File file) {
 		this.file = file;
-		if (file.isDirectory())
+		if (file.isDirectory()) {
 			this.dirBase = file;
-		else
+			this.file = getUniqueFile(dirBase, "project", ".qpproj");
+		} else
 			this.dirBase = file.getParentFile();
 		creationTimestamp = System.currentTimeMillis();
 		modificationTimestamp = System.currentTimeMillis();
+	}
+	
+	/**
+	 * Get a File with a unique name, derived by appending an integer to the name if necessary.
+	 * <p>
+	 * The result will be {@code new File(dir, name+ext)} if possible, or 
+	 * {@code new File(dir, name+"-"+count+ext)} where {@code count} is the lowest positive integer 
+	 * necessary to give a unique file.
+	 * 
+	 * @param dir
+	 * @param name
+	 * @param ext
+	 * @return
+	 */
+	synchronized static File getUniqueFile(File dir, String name, String ext) {
+		if (!ext.startsWith("."))
+			ext = "." + ext;
+		File file = new File(dir, name + ext);
+		int count = 0;
+		while (file.exists()) {
+			count++;
+			file = new File(dir, name + "-" + count + ext);
+		}
+		return file;
 	}
 	
 	
@@ -128,7 +159,7 @@ public class DefaultProject implements Project<BufferedImage> {
 	}
 
 	public boolean addImage(final ProjectImageEntry<BufferedImage> entry) {
-		return addImage(new DefaultProjectImageEntry(entry.getServerPath(), entry.getImageName(), entry.getDescription(), entry.getMetadataMap()));
+		return addImage(new DefaultProjectImageEntry(entry.getServerPath(), entry.getOriginalImageName(), entry.getDescription(), entry.getMetadataMap()));
 	}
 	
 	
@@ -145,6 +176,10 @@ public class DefaultProject implements Project<BufferedImage> {
 	
 	public File getBaseDirectory() {
 		return dirBase;
+	}
+	
+	public Path getBasePath() {
+		return getBaseDirectory().toPath();
 	}
 	
 	public boolean addAllImages(final Collection<ProjectImageEntry<BufferedImage>> entries) {
@@ -198,13 +233,6 @@ public class DefaultProject implements Project<BufferedImage> {
 		return images.get(path);
 	}
 
-	public String cleanServerPath(final String path) {
-		return path;
-//		String cleanedPath = path.replace("%20", " ").replace("%5C", "\\");
-//		cleanedPath = cleanedPath.replace("{$PROJECT_DIR}", getBaseDirectory().getAbsolutePath());
-//		return cleanedPath;
-	}
-	
 	public boolean addImage(final String path) {
 		try {
 			ImageServer<BufferedImage> server = ImageServerProvider.buildServer(path, BufferedImage.class);
@@ -236,6 +264,27 @@ public class DefaultProject implements Project<BufferedImage> {
 //		var json = new GsonBuilder().setLenient().setPrettyPrinting().create().toJson(this);
 //		Files.writeString(file.toPath(), json);
 		logger.warn("Syncing project not yet implemented!");
+	}
+	
+	/**
+	 * Try syncing changes quietly, logging any exceptions.
+	 */
+	private void requestSyncQuietly() {
+		try {
+			syncChanges();
+		} catch (IOException e) {
+			logger.error("Error syncing project changes", e);
+		}
+	}
+	
+	@Override
+	public boolean getMaskImageNames() {
+		return maskNames;
+	}
+	
+	@Override
+	public void setMaskImageNames(boolean maskNames) {
+		this.maskNames = maskNames;
 	}
 
 	/**
@@ -298,6 +347,8 @@ public class DefaultProject implements Project<BufferedImage> {
 		
 		private String serverPath;
 		private URI uri;
+		
+		private String randomizedName = UUID.randomUUID().toString();
 		
 		private String imageName;
 		private String description;
@@ -373,11 +424,18 @@ public class DefaultProject implements Project<BufferedImage> {
 		/**
 		 * Get a name that may be used for this entry.
 		 * 
-		 * This may be derived automatically from the server path, or set explictly to be something else.
+		 * This may be derived automatically from the server path, or set explicitly to be something else.
 		 * 
 		 * @return
 		 */
 		public String getImageName() {
+			if (maskNames)
+				return randomizedName;
+			return imageName;
+		}
+		
+		@Override
+		public String getOriginalImageName() {
 			return imageName;
 		}
 
@@ -400,15 +458,7 @@ public class DefaultProject implements Project<BufferedImage> {
 			return getServerPath();
 		}
 		
-		// TODO: Improve implementation!
-		public String getCleanedServerPath() {
-			if (cleanedPath != null)
-				return cleanedPath;
-			cleanedPath = cleanServerPath(serverPath);
-			return cleanedPath;
-		}
-		
-		public void setName(String name) {
+		public void setImageName(String name) {
 			this.imageName = name;
 		}
 		
@@ -418,8 +468,8 @@ public class DefaultProject implements Project<BufferedImage> {
 		 * @param serverPath
 		 * @return <code>true</code> if the path is a match, <code>false</code> otherwise.
 		 */
-		public boolean equalsServerPath(final String serverPath) {
-			return getCleanedServerPath().equals(cleanServerPath(serverPath));
+		public boolean sameServerPath(final String serverPath) {
+			return getServerPath().equals(serverPath);
 		}
 		
 		/**
@@ -517,9 +567,84 @@ public class DefaultProject implements Project<BufferedImage> {
 		public Collection<String> getMetadataKeys() {
 			return Collections.unmodifiableSet(metadata.keySet());
 		}
+		
+		
+		public ImageServer<BufferedImage> buildImageServer() {
+			String value = metadata.getOrDefault("rotate180", "false");
+			boolean rotate180 = value.toLowerCase().equals("true");
+			var server = ImageServerProvider.buildServer(getServerPath(), BufferedImage.class);
+			if (rotate180)
+				return new RotatedImageServer(server, RotatedImageServer.Rotation.ROTATE_180);
+			return server;
+		}
+		
+		private Path getEntryPath() {
+			return Paths.get(getBasePath().toString(), "data", getUniqueName());
+		}
+		
+		private Path getImageDataPath() {
+			return Paths.get(getBasePath().toString(), "data", getUniqueName(), "data.qpdata");
+		}
+		
 
+		@Override
+		public ImageData<BufferedImage> readImageData() {
+			Path path = getImageDataPath();
+			if (Files.exists(path)) {
+				try (var stream = Files.newInputStream(path)) {
+					return PathIO.readImageData(stream, null, buildImageServer(), BufferedImage.class);
+				} catch (IOException e) {
+					logger.error("Error reading image data from " + path, e);
+				}
+			}
+			return new ImageData<>(buildImageServer());
+		}
 
+		@Override
+		public void saveImageData(ImageData<BufferedImage> imageData) {
+			// TODO: Switch to use paths...
+			File file = getImageDataPath().toFile();
+			if (!file.getParentFile().exists())
+				file.getParentFile().mkdirs();
+			PathIO.writeImageData(file, imageData);
+		}
+
+		@Override
+		public boolean hasImageData() {
+			return Files.exists(getImageDataPath());
+		}
+		
+		public PathObjectHierarchy readHierarchy() {
+			// TODO: Switch to use paths...
+			File file = getImageDataPath().toFile();
+			if (file.exists())
+				return PathIO.readHierarchy(file);
+			return new PathObjectHierarchy();
+		}
+		
+		
+		@Override
+		public String getSummary() {
+			StringBuilder sb = new StringBuilder();
+			sb.append(getImageName()).append("\n\n");
+			if (!getMetadataMap().isEmpty()) {
+				for (Entry<String, String> mapEntry : getMetadataMap().entrySet()) {
+					sb.append(mapEntry.getKey()).append(":\t").append(mapEntry.getValue()).append("\n");
+				}
+				sb.append("\n");
+			}
+
+			File file = getImageDataPath().toFile();
+			if (file != null && file.exists()) {
+				double sizeMB = file.length() / 1024.0 / 1024.0;
+				sb.append(String.format("Data file:\t%.2f MB", sizeMB)).append("\n");
+//				sb.append("Modified:\t").append(dateFormat.format(new Date(file.lastModified())));
+			} else
+				sb.append("No data file");
+			return sb.toString();
+		}
+		
+		
 	}
-	
 	
 }

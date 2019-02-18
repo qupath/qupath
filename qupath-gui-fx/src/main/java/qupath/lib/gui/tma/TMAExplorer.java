@@ -45,7 +45,6 @@ import qupath.lib.gui.tma.entries.DefaultTMAEntry;
 import qupath.lib.gui.tma.entries.TMAEntry;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
-import qupath.lib.io.PathIO;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.hierarchy.TMAGrid;
@@ -55,9 +54,9 @@ import qupath.lib.regions.RegionRequest;
 
 /**
  * The aim of this is to enable the exploration of TMA data from multiple images in a project.
- * 
+ * <p>
  * In the end, it might not last... since this overlaps considerably with the aim of the TMASummaryViewer.
- * 
+ * <p>
  * Therefore currently its primary task is to simply launch the TMASummaryViewer with the data it has gathered.
  * 
  * @author Pete Bankhead
@@ -98,8 +97,7 @@ public class TMAExplorer implements PathCommand {
 			
 			for (ProjectImageEntry<BufferedImage> imageEntry : project.getImageList()) {
 				// Look for data file
-				File fileData = QuPathGUI.getImageDataFile(project, imageEntry);
-				if (fileData == null || !fileData.isFile())
+				if (!imageEntry.hasImageData())
 					continue;
 				
 				File dirImageOutput = new File(dirBaseImageOutput, imageEntry.getImageName());
@@ -107,7 +105,7 @@ public class TMAExplorer implements PathCommand {
 					dirImageOutput.mkdirs();
 				
 				// Read data
-				ImageData<BufferedImage> imageData = PathIO.readImageData(fileData, null, null, BufferedImage.class);
+				ImageData<BufferedImage> imageData = imageEntry.readImageData();
 				TMAGrid tmaGrid = imageData.getHierarchy().getTMAGrid();
 				if (tmaGrid == null) {
 					logger.warn("No TMA data for {}", imageEntry.getImageName());

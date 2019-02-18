@@ -24,8 +24,13 @@
 package qupath.lib.projects;
 
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+
+import qupath.lib.images.ImageData;
+import qupath.lib.images.servers.ImageServer;
+import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 
 /**
  * Class to represent an image entry within a project.
@@ -54,35 +59,36 @@ public interface ProjectImageEntry<T> {
 	 * 
 	 * @param name
 	 */
-	public void setName(String name);
+	public void setImageName(String name);
 
 	/**
 	 * Get a name that may be used for this entry.
 	 * <p>
-	 * This may be derived automatically from the server path, or set explictly to be something else.
+	 * This may be derived automatically from the server path, or set explicitly to be something else. 
+	 * It may also be randomized to support blinded analysis.
 	 * 
 	 * @return
+	 * 
+	 * @see #getOriginalImageName()
+	 * @see qupath.lib.projects.Project#setMaskImageNames(boolean)
+	 * @see qupath.lib.projects.Project#getMaskImageNames()
 	 */
 	public String getImageName();
 	
 	/**
-	 * Get a unique name that may be used to represent data associated with this entry.
-	 * <p>
-	 * It should be unique within the project. In early versions of QuPath, the image name was used - 
-	 * which caused trouble if multiple images had the same name.
+	 * Get a unique name for this entry, which may be used for associated filenames.
+	 * @return
 	 */
 	public String getUniqueName();
 	
 	/**
-	 * Get the path used to represent this image, as specified when this entry was created.
-	 * <p>
-	 * It is generally better to rely on <code>getServerPath</code>, especially if paths will be compared.
-	 * 
-	 * @see #getServerPath
+	 * Get the original image name, without any randomization.  Most UI elements should prefer {@link getImageName} to 
+	 * ensure that the randomization does its job.
 	 * 
 	 * @return
 	 */
-	public String getStoredServerPath();
+	public String getOriginalImageName();
+	
 	
 	/**
 	 * Check if this image entry refers to a specified image according to its path.
@@ -90,10 +96,9 @@ public interface ProjectImageEntry<T> {
 	 * @param serverPath
 	 * @return <code>true</code> if the path is a match, <code>false</code> otherwise.
 	 */
-	public boolean equalsServerPath(final String serverPath);
+	public boolean sameServerPath(final String serverPath);
 		
-	@Deprecated
-	public String getCleanedServerPath();
+	
 	
 	/**
 	 * Remove a metadata value.
@@ -163,7 +168,39 @@ public interface ProjectImageEntry<T> {
 	 * @return
 	 */
 	public Collection<String> getMetadataKeys();
+
+	public ImageServer<T> buildImageServer();
 	
+	/**
+	 * Read the {@link ImageData} associated with this entry.
+	 * <p>
+	 * If the full data is not needed, but rather only the objects {@link #readHierarchy()} can be much faster.
+	 * 
+	 * @return
+	 * 
+	 * @see #readHierarchy()
+	 */
+	public ImageData<T> readImageData();
+	
+	public void saveImageData(ImageData<T> imageData);
+	
+	/**
+	 * Read the {@link PathObjectHierarchy} for this entry, or return an empty hierarchy if none is available.
+	 * @return
+	 * 
+	 * @see #readImageData()
+	 * @see #hasImageData()
+	 */
+	public PathObjectHierarchy readHierarchy();
+	
+	public boolean hasImageData();
+	
+	public String getSummary();
+	
+	
+//	public T getThumbnail();
+//	
+//	public void setThumbnail(T img);	
 	
 	/**
 	 * Get a formatted string representation of the metadata map's contents.

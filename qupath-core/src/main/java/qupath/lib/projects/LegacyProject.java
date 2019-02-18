@@ -23,6 +23,7 @@
 
 package qupath.lib.projects;
 
+import java.awt.image.BufferedImage;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -30,14 +31,20 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.Reader;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.UUID;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -49,10 +56,14 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
 import qupath.lib.common.URLTools;
+import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerProvider;
+import qupath.lib.images.servers.RotatedImageServer;
+import qupath.lib.io.PathIO;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
+import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 
 /**
  * Legacy Project implementation from QuPath 0.1.2 and earlier.
@@ -70,9 +81,11 @@ public class LegacyProject<T> implements Project<T> {
 	private Class<T> cls;
 	private String name = null;
 	
+	private boolean maskNames = false;
+	
 	private List<PathClass> pathClasses = new ArrayList<>();
 	
-	private Map<String, ProjectImageEntry<T>> images = new LinkedHashMap<>();
+	private Map<String, LegacyProjectImageEntry> images = new LinkedHashMap<>();
 	private long creationTimestamp;
 	private long modificationTimestamp;
 	
@@ -92,6 +105,16 @@ public class LegacyProject<T> implements Project<T> {
 		if (file.exists())
 			project.loadProject(file);
 		return project;
+	}
+	
+	@Override
+	public boolean getMaskImageNames() {
+		return maskNames;
+	}
+	
+	@Override
+	public void setMaskImageNames(boolean doMask) {
+		this.maskNames = doMask;
 	}
 	
 	
@@ -118,9 +141,13 @@ public class LegacyProject<T> implements Project<T> {
 	}
 
 	public boolean addImage(final ProjectImageEntry<T> entry) {
-		if (images.containsKey(cleanServerPath(entry.getServerPath())))
+		if (images.containsKey(entry.getServerPath()))
 			return false;
-		images.put(cleanServerPath(entry.getServerPath()), entry);
+		if (entry instanceof LegacyProject.LegacyProjectImageEntry)
+			images.put(entry.getServerPath(), (LegacyProjectImageEntry)entry);
+		else
+			images.put(entry.getServerPath(), new LegacyProjectImageEntry(
+					entry.getServerPath(), entry.getOriginalImageName(), entry.getDescription(), entry.getMetadataMap()));
 		return true;
 	}
 	
@@ -151,25 +178,19 @@ public class LegacyProject<T> implements Project<T> {
 		
 		List<String> subImages = server.getSubImageList();
 		if (subImages.isEmpty()) {
-			return addImage(new LegacyProjectImageEntry<>(this, server.getPath(), server.getDisplayedImageName(), null));
+			return addImage(new LegacyProjectImageEntry(server.getPath(), server.getDisplayedImageName(), null));
 		}
 		
 		boolean changes = false;
 		for (String name : subImages)
 			// The sub image name might be the same across images, we should append the server displayed name to it, just to make sure it is unique
-			changes = changes | addImage(new LegacyProjectImageEntry<>(this, server.getSubImagePath(name), server.getDisplayedImageName()+" ("+name+")", null));
+			changes = changes | addImage(new LegacyProjectImageEntry(server.getSubImagePath(name), server.getDisplayedImageName()+" ("+name+")", null));
 		return changes;
 	}
 	
 	
 	public ProjectImageEntry<T> getImageEntry(final String path) {
-		return images.get(cleanServerPath(path));
-	}
-
-	public String cleanServerPath(final String path) {
-		String cleanedPath = path.replace("%20", " ").replace("%5C", "\\");
-		cleanedPath = cleanedPath.replace("{$PROJECT_DIR}", getBaseDirectory().getAbsolutePath());
-		return cleanedPath;
+		return images.get(path);
 	}
 	
 	public boolean addImage(final String path) {
@@ -294,7 +315,7 @@ public class LegacyProject<T> implements Project<T> {
 					description = imageObject.get("description").getAsString();
 				String path = imageObject.get("path").getAsString();
 				String name = imageObject.has("name") ? imageObject.get("name").getAsString() : null;
-				addImage(new LegacyProjectImageEntry<>(this, path, name, description, metadataMap));
+				addImage(new LegacyProjectImageEntry(path, name, description, metadataMap));
 			}
 		} catch (Exception e) {
 			logger.error("Unable to read project from " + fileProject.getAbsolutePath(), e);
@@ -364,7 +385,7 @@ public class LegacyProject<T> implements Project<T> {
 		JsonArray array = new JsonArray();
 		for (ProjectImageEntry<?> entry : project.getImageList()) {
 			JsonObject jsonEntry = new JsonObject();
-		    jsonEntry.addProperty("path", entry.getStoredServerPath());
+		    jsonEntry.addProperty("path", entry.getServerPath());
 		    jsonEntry.addProperty("name", entry.getImageName());
 		    
 		    if (entry.getDescription() != null)
@@ -415,26 +436,29 @@ public class LegacyProject<T> implements Project<T> {
 	 * @param <T> Depends upon the project used; typically BufferedImage for QuPath
 	 */
 	// TODO: URGENTLY NEED TO CONSIDER ESCAPING CHARACTERS IN URLS MORE GENERALLY
-	static class LegacyProjectImageEntry<T> implements ProjectImageEntry<T> {
+	class LegacyProjectImageEntry implements ProjectImageEntry<T> {
 
-		private Project<T> project;
-		private transient String cleanedPath = null;
-		
 		private String serverPath;
 		private String imageName;
+		
+		private transient String randomizedName = UUID.randomUUID().toString();
+		
+		private transient URI uri;
 		
 		private Map<String, String> metadata = new HashMap<>();
 		
 		private String description;
 
-		LegacyProjectImageEntry(final Project<T> project, final String serverPath, final String imageName, final String description, final Map<String, String> metadataMap) {
-			this.project = project;
+		LegacyProjectImageEntry(final String serverPath, final String imageName, final String description, final Map<String, String> metadataMap) {
 			this.serverPath = serverPath;
 			
 			// TODO: Check if this is a remotely acceptable way to achieve relative pathnames!  I suspect it is not really...
-			String projectPath = project.getBaseDirectory().getAbsolutePath();
+			String projectPath = getBaseDirectory().getAbsolutePath();
 			if (this.serverPath.startsWith(projectPath))
 				this.serverPath = "{$PROJECT_DIR}" + this.serverPath.substring(projectPath.length());
+			
+			// Try to get a UR
+			uri = tryToGetURI();
 			
 			if (imageName == null) {
 				if (URLTools.checkURL(serverPath))
@@ -451,9 +475,29 @@ public class LegacyProject<T> implements Project<T> {
 				metadata.putAll(metadataMap);		
 		}
 		
-		LegacyProjectImageEntry(final Project<T> project, final String serverPath, final String imageName, final Map<String, String> metadataMap) {
-			this(project, serverPath, imageName, null, metadataMap);
+		LegacyProjectImageEntry(final String serverPath, final String imageName, final Map<String, String> metadataMap) {
+			this(serverPath, imageName, null, metadataMap);
 		}
+		
+		URI tryToGetURI() {
+			try {
+				String path = serverPath.replace("{$PROJECT_DIR}", getBaseDirectory().getAbsolutePath());
+				if (path.startsWith("http"))
+					return new URI(path);
+				int ind = path.indexOf("::");
+				String query = null;
+				if (ind >= 0) {
+					query = "name=" + path.substring(ind+2);
+					path = path.substring(0, ind);
+					var uri = new File(path).toURI();
+					return new URI(uri.getScheme(), uri.getHost(), uri.getPath(), query, null);
+				} else
+					return new File(path).toURI();
+			} catch (URISyntaxException e) {
+				return null;
+			}
+		}
+		
 		
 		/**
 		 * Get the path used to represent this image, which can be used to construct an <code>ImageServer</code>.
@@ -465,8 +509,10 @@ public class LegacyProject<T> implements Project<T> {
 		 * @return
 		 */
 		public String getServerPath() {
-//			return serverPath;
-			return getCleanedServerPath();
+			if (uri == null)
+				return serverPath;
+			else
+				return uri.toString();
 		}
 
 		/**
@@ -477,7 +523,9 @@ public class LegacyProject<T> implements Project<T> {
 		 * @return
 		 */
 		public String getImageName() {
-			return imageName;
+			if (maskNames)
+				return randomizedName;
+			return getOriginalImageName();
 		}
 
 		@Override
@@ -502,24 +550,19 @@ public class LegacyProject<T> implements Project<T> {
 			return serverPath;
 		}
 		
-		// TODO: Improve implementation!
-		public String getCleanedServerPath() {
-			if (cleanedPath != null)
-				return cleanedPath;
-			cleanedPath = project.cleanServerPath(serverPath);
-			return cleanedPath;
-		}
-		
-		public void setName(String name) {
+		public void setImageName(String name) {
+			String nameBefore = this.imageName;
+			File fileOld = getImageDataFile();
 			this.imageName = name;
-		}
-		
-		/**
-		 * This only returns the image name - which is a limitation of the legacy projects.
-		 * @return
-		 */
-		public String getUniqueName() {
-			return getImageName();
+			File fileNew = getImageDataFile();
+			if (fileNew.exists()) {
+				try {
+					Files.move(fileOld.toPath(), fileNew.toPath(), StandardCopyOption.ATOMIC_MOVE);
+				} catch (Exception e) {
+					logger.error("Unable to rename image from {} to {} - failed with message {}", nameBefore, name, e.getLocalizedMessage());
+					this.imageName = nameBefore;
+				}
+			}
 		}
 		
 		/**
@@ -528,8 +571,8 @@ public class LegacyProject<T> implements Project<T> {
 		 * @param serverPath
 		 * @return <code>true</code> if the path is a match, <code>false</code> otherwise.
 		 */
-		public boolean equalsServerPath(final String serverPath) {
-			return getCleanedServerPath().equals(project.cleanServerPath(serverPath));
+		public boolean sameServerPath(final String serverPath) {
+			return getServerPath().equals(serverPath);
 		}
 		
 		/**
@@ -564,6 +607,14 @@ public class LegacyProject<T> implements Project<T> {
 		 */
 		public String putMetadataValue(final String key, final String value) {
 			return metadata.put(key, value);
+		}
+		
+		/**
+		 * Legacy projects use the image name, which unfortunate consequences if this is not unique.
+		 */
+		@Override
+		public String getUniqueName() {
+			return imageName;
 		}
 		
 		/**
@@ -626,6 +677,83 @@ public class LegacyProject<T> implements Project<T> {
 		 */
 		public Collection<String> getMetadataKeys() {
 			return Collections.unmodifiableSet(metadata.keySet());
+		}
+		
+		
+		public ImageServer<T> buildImageServer() {
+			String value = metadata.getOrDefault("rotate180", "false");
+			boolean rotate180 = value.toLowerCase().equals("true");
+			var server = ImageServerProvider.buildServer(getServerPath(), cls);
+			if (rotate180)
+				return (ImageServer<T>)new RotatedImageServer((ImageServer<BufferedImage>)server, RotatedImageServer.Rotation.ROTATE_180);
+			return server;
+		}
+		
+		private File getImageDataFile() {
+			File dirBase = getBaseDirectory();
+			if (dirBase == null || !dirBase.isDirectory())
+				return null;
+
+			File dirData = new File(dirBase, "data");
+			if (!dirData.exists())
+				dirData.mkdir();
+			return new File(dirData, getUniqueName() + ".qpdata");
+		}
+
+		@Override
+		public ImageData<T> readImageData() {
+			File file = getImageDataFile();
+			if (file.exists())
+				return PathIO.readImageData(file, null, buildImageServer(), cls);
+			return new ImageData<>(buildImageServer());
+		}
+
+		@Override
+		public void saveImageData(ImageData<T> imageData) {
+			File file = getImageDataFile();
+			if (!file.getParentFile().exists())
+				file.getParentFile().mkdirs();
+			PathIO.writeImageData(file, imageData);
+		}
+		
+		public PathObjectHierarchy readHierarchy() {
+			File file = getImageDataFile();
+			if (file.exists())
+				return PathIO.readHierarchy(file);
+			return new PathObjectHierarchy();
+		}
+		
+		
+		@Override
+		public boolean hasImageData() {
+			return getImageDataFile().exists();
+		}
+		
+		@Override
+		public String getOriginalImageName() {
+			return imageName;
+		}
+		
+		@Override
+		public String getSummary() {
+
+			StringBuilder sb = new StringBuilder();
+			sb.append(getImageName()).append("\n\n");
+			if (!getMetadataMap().isEmpty()) {
+				for (Entry<String, String> mapEntry : getMetadataMap().entrySet()) {
+					sb.append(mapEntry.getKey()).append(":\t").append(mapEntry.getValue()).append("\n");
+				}
+				sb.append("\n");
+			}
+
+			File file = getImageDataFile();
+			if (file != null && file.exists()) {
+				double sizeMB = file.length() / 1024.0 / 1024.0;
+				sb.append(String.format("Data file:\t%.2f MB", sizeMB)).append("\n");
+//				sb.append("Modified:\t").append(dateFormat.format(new Date(file.lastModified())));
+			} else
+				sb.append("No data file");
+			return sb.toString();
 		}
 
 
