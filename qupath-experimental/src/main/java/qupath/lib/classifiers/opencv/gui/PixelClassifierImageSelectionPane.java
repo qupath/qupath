@@ -76,7 +76,6 @@ import javafx.stage.Stage;
 import javafx.util.StringConverter;
 import jfxtras.scene.layout.HBox;
 import qupath.imagej.helpers.IJTools;
-import qupath.imagej.images.servers.BufferedImagePlusServer;
 import qupath.imagej.images.servers.ImageJServer;
 import qupath.imagej.objects.ROIConverterIJ;
 import qupath.lib.classifiers.gui.ClassificationColorModelFactory;
@@ -1112,7 +1111,7 @@ public class PixelClassifierImageSelectionPane {
 		
 		try {
 //			var imp = IJExtension.extractROI(server, selected, request, true, null).getImage();
-			var pathImage = BufferedImagePlusServer.convertToImagePlus(
+			var pathImage = IJTools.convertToImagePlus(
 					overlay.getPixelClassificationServer(),
 					request);
 			var imp = pathImage.getImage();
@@ -1539,7 +1538,7 @@ public class PixelClassifierImageSelectionPane {
 		
 		@Override
 		public void saveToCache(RegionRequest request, BufferedImage img) throws IOException {
-			var imp = BufferedImagePlusServer.convertToImagePlus("Tile", server, img, request).getImage();
+			var imp = IJTools.convertToImagePlus("Tile", server, img, request).getImage();
 			var bytes = new FileSaver(imp).serialize();
 			synchronized (fileSystem) {
 				var path = fileSystem.getPath(root, getCachedName(request));

@@ -73,8 +73,6 @@ import qupath.imagej.detect.tissue.SimpleTissueDetection2;
 import qupath.imagej.gui.commands.ExtractRegionCommand;
 import qupath.imagej.gui.commands.ScreenshotCommand;
 import qupath.imagej.helpers.IJTools;
-import qupath.imagej.images.servers.ImagePlusServer;
-import qupath.imagej.images.servers.ImagePlusServerBuilder;
 import qupath.imagej.images.writers.TIFFWriterIJ;
 import qupath.imagej.images.writers.ZipWriterIJ;
 import qupath.imagej.objects.PathImagePlus;
@@ -366,8 +364,7 @@ public class IJExtension implements QuPathExtension {
 	
 		// If we don't have an image yet, try reading more simply
 		if (pathImage == null) {
-			ImagePlusServer serverIJ = ImagePlusServerBuilder.ensureImagePlusWholeSlideServer(server);
-			pathImage = serverIJ.readImagePlusRegion(request);
+			 pathImage = IJTools.convertToImagePlus(server, request);
 			if (pathImage == null || pathImage.getImage() == null)
 				return null;
 		}

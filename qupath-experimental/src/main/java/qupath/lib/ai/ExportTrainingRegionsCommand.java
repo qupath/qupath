@@ -57,7 +57,7 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
 import javafx.stage.Stage;
-import qupath.imagej.images.servers.BufferedImagePlusServer;
+import qupath.imagej.helpers.IJTools;
 import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
@@ -561,7 +561,7 @@ public class ExportTrainingRegionsCommand implements PathCommand {
 			    imgTempIndexed.getRaster().setRect(imgTemp.getRaster());
 
 			    try {
-			    	ImagePlus imp = BufferedImagePlusServer.convertToImagePlus("Image", server, img, request).getImage();
+			    	ImagePlus imp = IJTools.convertToImagePlus("Image", server, img, request).getImage();
 			    	IJ.saveAsTiff(imp, new File(dirOutput, name + ".tif").getAbsolutePath());
 //				    ImageIO.write(img, "PNG", new File(dirOutput, name + ".png"));
 				    ImageIO.write(imgTempIndexed, "PNG", new File(dirOutput, name + "-mask.png"));

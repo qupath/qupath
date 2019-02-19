@@ -25,6 +25,8 @@ package qupath.imagej.helpers;
 
 import java.awt.Color;
 import java.awt.image.BufferedImage;
+import java.awt.image.DataBuffer;
+import java.awt.image.SampleModel;
 import java.io.File;
 import java.io.IOException;
 import java.text.DecimalFormat;
@@ -42,14 +44,17 @@ import ij.ImageStack;
 import ij.gui.Roi;
 import ij.io.FileInfo;
 import ij.measure.Calibration;
+import ij.process.ByteProcessor;
 import ij.process.ColorProcessor;
+import ij.process.FloatProcessor;
 import ij.process.ImageProcessor;
 import ij.process.LUT;
-import qupath.imagej.images.servers.ImagePlusServer;
-import qupath.imagej.images.servers.ImagePlusServerBuilder;
+import ij.process.ShortProcessor;
+import qupath.imagej.objects.PathImagePlus;
 import qupath.imagej.objects.ROIConverterIJ;
 import qupath.lib.awt.color.ColorToolsAwt;
 import qupath.lib.common.GeneralTools;
+import qupath.lib.common.URLTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.PathImage;
 import qupath.lib.images.servers.ImageServer;
@@ -166,8 +171,6 @@ public class IJTools {
 	 */
 	public static ImagePlus extractHyperstack(ImageServer<BufferedImage> server, RegionRequest request, int zStart, int zEnd, int tStart, int tEnd) throws IOException {
 		
-		ImagePlusServer serverIJ = ImagePlusServerBuilder.ensureImagePlusWholeSlideServer(server);
-		
 		int nChannels = -1;
 		int nZ = zEnd - zStart;
 		int nT = tEnd - tStart;
@@ -180,7 +183,7 @@ public class IJTools {
 			            request.getX(), request.getY(), request.getWidth(), request.getHeight(),
 			            z, t
 			    );
-			    ImagePlus imp = serverIJ.readImagePlusRegion(request2).getImage();
+			    ImagePlus imp = IJTools.convertToImagePlus(server, request2).getImage();
 			    if (stack == null) {
 			    	stack = new ImageStack(imp.getWidth(), imp.getHeight());
 			    }
@@ -415,5 +418,159 @@ public class IJTools {
 		return Double.NaN;
 	}
 	
+	
+	
+	
+	
+	public static String getPathFromImagePlus(ImagePlus imp) {
+		String path = getURLFromImagePlus(imp);
+		if (path == null)
+			return getFilePathFromImagePlus(imp);
+		else
+			return path;
+	}
+	
+	private static String getFilePathFromImagePlus(ImagePlus imp) {
+		// Try to get path first from image info property
+		// (The info property should persist despite duplication, but the FileInfo probably doesn't)
+		String info = imp.getInfoProperty();
+		String path = null;
+		if (info != null) {
+			for (String s : GeneralTools.splitLines(info)) {
+				if (s.toLowerCase().startsWith("location")) {
+					path = s.substring(s.indexOf('=')+1).trim();
+					break;
+				}
+			}
+		}// If we haven't got a path yet, try the FileInfo
+		if (path == null) {
+			// Check the file info
+			FileInfo fi = imp.getOriginalFileInfo();
+			if (fi == null)
+				return null;
+			path = fi.directory + fi.fileName;
+		}
+		File file = new File(path);
+		if (file.exists())
+			return file.getAbsolutePath();
+		return null;
+	}
+	
+	private static String getURLFromImagePlus(ImagePlus imp) {
+		// Check the file info first
+		FileInfo fi = imp.getOriginalFileInfo();
+		if (fi == null)
+			return null;
+		if (fi.url != null && URLTools.checkURL(fi.url))
+			return fi.url;
+		// Check the image info property
+		// (The info property should persist despite duplication, but the FileInfo probably doesn't)
+		String info = imp.getInfoProperty();
+		if (info != null) {
+			for (String s : GeneralTools.splitLines(info)) {
+				if (s.toLowerCase().startsWith("url")) {
+					String url = s.substring(s.indexOf('=')+1).trim();
+					if (URLTools.checkURL(url))
+						return url;
+				}
+				if (s.toLowerCase().startsWith("location")) {
+					String url = s.substring(s.indexOf('=')+1).trim();
+					if (URLTools.checkURL(url))
+						return url;
+				}
+			}
+		}
+		return null;
+	}
+
+	public static ImagePlus convertToUncalibratedImagePlus(String title, BufferedImage img) {
+			ImagePlus imp = null;
+			SampleModel sampleModel = img.getSampleModel();
+			int dataType = sampleModel.getDataType();
+			int w = img.getWidth();
+			int h = img.getHeight();
+			if ((dataType == DataBuffer.TYPE_BYTE && (sampleModel.getNumBands() != 1 || img.getType() == BufferedImage.TYPE_BYTE_INDEXED)) ||
+					dataType == DataBuffer.TYPE_USHORT || dataType == DataBuffer.TYPE_SHORT || dataType == DataBuffer.TYPE_FLOAT || dataType == DataBuffer.TYPE_DOUBLE) {
+				// Handle non-8-bit images
+				ImageStack stack = new ImageStack(w, h);
+				for (int b = 0; b < sampleModel.getNumBands(); b++) {
+					// Read data as float (no matter what it is)
+					FloatProcessor fp = new FloatProcessor(w, h);
+					float[] pixels = (float[])fp.getPixels();
+					img.getRaster().getSamples(0, 0, w, h, b, pixels);
+	//				sampleModel.getSamples(0, 0, w, h, b, pixels, img.getRaster().getDataBuffer());
+					// Convert to 8 or 16-bit, if appropriate
+					if (dataType == DataBuffer.TYPE_BYTE) {
+						ByteProcessor bp = new ByteProcessor(w, h);
+						bp.setPixels(0, fp);
+						stack.addSlice(bp);
+					} else if (dataType == DataBuffer.TYPE_USHORT) {
+						ShortProcessor sp = new ShortProcessor(w, h);
+						sp.setPixels(0, fp);
+						stack.addSlice(sp);
+					} else
+						stack.addSlice(fp);
+				}
+				imp = new ImagePlus(title, stack);
+			} else {
+				// Create whatever image ImageJ will give us (worked for color or 8-bit gray)
+				imp = new ImagePlus(title, img);
+			}
+			return imp;
+		}
+
+	/**
+		 * Convert a {@code BufferedImage} into a {@code PathImage<ImagePlus>}.
+		 * <p>
+		 * An {@code ImageServer} and a {@code RegionRequest} are required to appropriate calibration.
+		 * 
+		 * @param title a name to use as the {@code ImagePlus} title.
+		 * @param server the {@code ImageServer} from which the image was requested
+		 * @param img the image to convert - if {@code null} this will be requested from {@code server}.
+		 * @param request the region to request, or that was requested to provide {@code img}
+		 * @return
+		 * @throws IOException 
+		 */
+		public static PathImage<ImagePlus> convertToImagePlus(String title, ImageServer<BufferedImage> server, BufferedImage img, RegionRequest request) throws IOException {
+			if (img == null)
+				img = server.readBufferedImage(request);
+			ImagePlus imp = convertToUncalibratedImagePlus(title, img);
+			// Set dimensions - because RegionRequest is only 2D, every 'slice' is a channel
+			imp.setDimensions(imp.getNSlices(), 1, 1);
+			// Set colors
+			SampleModel sampleModel = img.getSampleModel();
+			if (!server.isRGB() && sampleModel.getNumBands() > 1) {
+				CompositeImage impComp = new CompositeImage(imp, CompositeImage.COMPOSITE);
+				for (int b = 0; b < sampleModel.getNumBands(); b++) {
+					impComp.setChannelLut(
+							LUT.createLutFromColor(
+									new Color(server.getDefaultChannelColor(b))), b+1);
+				}
+				impComp.updateAllChannelsAndDraw();
+				impComp.resetDisplayRanges();
+				imp = impComp;
+			}
+	//		else if (img.getType() == BufferedImage.TYPE_BYTE_INDEXED) {
+	//			imp.getProcessor().setColorModel(img.getColorModel());
+	//		}
+			// Set calibration
+			calibrateImagePlus(imp, request, server);
+			return PathImagePlus.createPathImage(server, request, imp);
+		}
+
+	/**
+	 * Read a region from an {@code ImageServer<BufferedImage} as a {@code PathImage<ImagePlus>}.
+	 * <p>
+	 * The {@code PathImage} element wraps up handy metadata that can be used for translating ROIs.
+	 * 
+	 * @param server
+	 * @param request
+	 * @return
+	 * @throws IOException 
+	 */
+	public static PathImage<ImagePlus> convertToImagePlus(ImageServer<BufferedImage> server, RegionRequest request) throws IOException {
+		// Create an ImagePlus from a BufferedImage
+		return convertToImagePlus(server.getDisplayedImageName(), server, null, request);
+	}
 
 }
