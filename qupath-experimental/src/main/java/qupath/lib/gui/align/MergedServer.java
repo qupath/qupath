@@ -286,7 +286,7 @@ public class MergedServer extends AbstractImageServer<BufferedImage> {
 					);
 		}
 		
-		public static ServerTransformWrapper fromJSON(final String json) throws JsonSyntaxException, NoninvertibleTransformException {
+		public static ServerTransformWrapper fromJSON(final String json) throws JsonSyntaxException, NoninvertibleTransformException, IOException {
 			return new GsonBuilder().create().fromJson(json, ServerTransformJSONable.class).toServerTransformWrapper();
 		}
 		
@@ -341,7 +341,7 @@ public class MergedServer extends AbstractImageServer<BufferedImage> {
 			}
 			
 			
-			ServerTransformWrapper toServerTransformWrapper() throws NoninvertibleTransformException {
+			ServerTransformWrapper toServerTransformWrapper() throws NoninvertibleTransformException, IOException {
 				ImageServer<BufferedImage> server = ImageServerProvider.buildServer(path, BufferedImage.class);
 				ColorDeconvolutionStains stains = ColorDeconvolutionStains.parseColorDeconvolutionStainsArg(stainsString);
 				AffineTransform affine = new AffineTransform(

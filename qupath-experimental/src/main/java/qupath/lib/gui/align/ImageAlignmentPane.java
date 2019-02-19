@@ -342,13 +342,18 @@ public class ImageAlignmentPane {
 		for (ProjectImageEntry<BufferedImage> temp : toSelect) {
 			ImageData<BufferedImage> imageData = null;
 			// Read annotations from any data file
-			if (temp.hasImageData()) {
-				imageData = temp.readImageData();
-				List<PathObject> pathObjects = imageData.getHierarchy().getObjects(null, null);
-				Set<PathObject> pathObjectsToRemove = pathObjects.stream().filter(p -> !p.isAnnotation()).collect(Collectors.toSet());
-				imageData.getHierarchy().removeObjects(pathObjectsToRemove, true);
-			} else {
-				imageData = temp.readImageData();
+			try {
+				if (temp.hasImageData()) {
+					imageData = temp.readImageData();
+					List<PathObject> pathObjects = imageData.getHierarchy().getObjects(null, null);
+					Set<PathObject> pathObjectsToRemove = pathObjects.stream().filter(p -> !p.isAnnotation()).collect(Collectors.toSet());
+					imageData.getHierarchy().removeObjects(pathObjectsToRemove, true);
+				} else {
+					imageData = temp.readImageData();
+				}
+			} catch (IOException e) {
+				logger.error("Unable to read ImageData for " + temp.getImageName(), e);
+				continue;
 			}
 			ImageServerOverlay overlay = new ImageServerOverlay(viewer, imageData.getServer());
 			overlay.getAffine().addEventHandler(TransformChangedEvent.ANY, transformEventHandler);

@@ -23,6 +23,7 @@
 
 package qupath.lib.projects;
 
+import java.io.IOException;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -170,8 +171,9 @@ public interface ProjectImageEntry<T> {
 	 * Build an {@link ImageServer} for this image.
 	 * 
 	 * @return
+	 * @throws IOException
 	 */
-	public ImageServer<T> buildImageServer();
+	public ImageServer<T> buildImageServer() throws IOException;
 	
 	/**
 	 * Read the {@link ImageData} associated with this entry.
@@ -182,13 +184,13 @@ public interface ProjectImageEntry<T> {
 	 * 
 	 * @see #readHierarchy()
 	 */
-	public ImageData<T> readImageData();
+	public ImageData<T> readImageData() throws IOException;
 	
 	/**
 	 * Save the {@link ImageData} for this entry using the default storage location for the project.
 	 * @return
 	 */
-	public void saveImageData(ImageData<T> imageData);
+	public void saveImageData(ImageData<T> imageData) throws IOException;
 	
 	/**
 	 * Read the {@link PathObjectHierarchy} for this entry, or return an empty hierarchy if none is available.
@@ -197,7 +199,7 @@ public interface ProjectImageEntry<T> {
 	 * @see #readImageData()
 	 * @see #hasImageData()
 	 */
-	public PathObjectHierarchy readHierarchy();
+	public PathObjectHierarchy readHierarchy() throws IOException;
 	
 	/**
 	 * Check if this entry has saved {@link ImageData} already available.

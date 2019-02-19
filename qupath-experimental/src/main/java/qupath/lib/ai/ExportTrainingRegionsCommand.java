@@ -288,16 +288,20 @@ public class ExportTrainingRegionsCommand implements PathCommand {
 			for (ProjectImageEntry<?> entry : project.getImageList()) {
 				if (!entry.hasImageData())
 					continue;
-				PathObjectHierarchy hierarchy = entry.readHierarchy();
-				int nullCount = 0;
-				for (PathObject annotation : hierarchy.getObjects(null, PathAnnotationObject.class)) {
-					if (annotation.getPathClass() == null)
-						nullCount++;
-					else
-						set.add(annotation.getPathClass());					
-				}
-				if (nullCount > 0) {
-					logger.warn("{} contains {} annotations without classification - these will be skipped!", entry.getImageName(), nullCount);
+				try {
+					PathObjectHierarchy hierarchy = entry.readHierarchy();
+					int nullCount = 0;
+					for (PathObject annotation : hierarchy.getObjects(null, PathAnnotationObject.class)) {
+						if (annotation.getPathClass() == null)
+							nullCount++;
+						else
+							set.add(annotation.getPathClass());					
+					}
+					if (nullCount > 0) {
+						logger.warn("{} contains {} annotations without classification - these will be skipped!", entry.getImageName(), nullCount);
+					}
+				} catch (IOException e) {
+					logger.error("Error reading hierarchy", e);
 				}
 			}
 			updateClassificationLabels(set);
@@ -476,7 +480,13 @@ public class ExportTrainingRegionsCommand implements PathCommand {
 			// Read ImageData - be sure to get server path from the project
 			if (!entry.hasImageData())
 				return;
-			ImageData<BufferedImage> imageData = entry.readImageData();
+			ImageData<BufferedImage> imageData;
+			try {
+				imageData = entry.readImageData();
+			} catch (IOException e) {
+				logger.error("Unable to read ImageData for " + entry.getImageName(), e);
+				return;
+			}
 			ImageServer<BufferedImage> server = imageData.getServer();
 			PathObjectHierarchy hierarchy = imageData.getHierarchy();
 

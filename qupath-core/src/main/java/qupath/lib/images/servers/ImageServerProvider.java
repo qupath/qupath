@@ -24,7 +24,9 @@
 package qupath.lib.images.servers;
 
 import java.io.File;
+import java.io.IOException;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -95,8 +97,10 @@ public class ImageServerProvider {
 	 * @param cls
 	 * @param requestedServerBuilderClassnames optional list of full class names for server builders that should be used, or order of preference.
 	 * @return
+	 * @throws URISyntaxException 
+	 * @throws IOException 
 	 */
-	public static <T> ImageServer<T> buildServer(final String path, final Class<T> cls, String... requestedServerBuilderClassnames) {
+	public static <T> ImageServer<T> buildServer(final String path, final Class<T> cls, String... requestedServerBuilderClassnames) throws IOException {
 		
 //		if (path == null)
 //			return null;
@@ -120,10 +124,11 @@ public class ImageServerProvider {
 					uriTemp = new URI(uriTemp.getScheme(), uriTemp.getAuthority(), uriTemp.getPath(), "name="+seriesName, null);
 				}
 			}
-		} catch (Exception e) {
-			logger.error("Unable to build server for " + path, e);
-			return null;
+		} catch (URISyntaxException e) {
+			throw new IOException(e.getLocalizedMessage());
 		}
+
+		
 		URI uri = uriTemp;
 
 		final ImageCheckType type = FileFormatInfo.checkImageType(uri);
@@ -155,7 +160,7 @@ public class ImageServerProvider {
 				ImageServer<T> server = possibleProvider.buildServer(uri);
 				if (server != null) {
 					// Check size is reasonable - should be small, or large & tiled
-					if ((long)server.getWidth() * server.getHeight() * server.getBitsPerPixel() * server.nChannels() / 8 < maxImageSize || server.nResolutions() > 1) {
+					if (server.nResolutions() > 1 || (long)server.getWidth() * server.getHeight() * server.getBitsPerPixel() * server.nChannels() / 8 < maxImageSize) {
 						logger.info("Returning server: {} for {}", server.getServerType(), path);
 						return server;
 					} else
@@ -169,8 +174,7 @@ public class ImageServerProvider {
 		
 		logger.error("Unable to build whole slide server - check your classpath for a suitable library (e.g. OpenSlide, BioFormats)\n\t");
 		logger.error(System.getProperty("java.class.path"));
-//		throw new IOException("Unable to build a whole slide server for " + path);
-		return null;
+		throw new IOException("Unable to build a whole slide server for " + path);
 	}
 	
 	

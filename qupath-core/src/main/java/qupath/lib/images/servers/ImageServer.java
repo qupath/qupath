@@ -413,10 +413,11 @@ public interface ImageServer<T> extends AutoCloseable {
 	
 	/**
 	 * Set the metadata to use, e.g. to change the pixel size in microns.
-	 * @see #getMetadata
-	 * @see #getOriginalMetadata
+	 * 
+	 * @param metadata
+	 * @throws IllegalArgumentException if the metadata is incompatible (e.g. different image path, different bit-depth).
 	 */
-	public void setMetadata(ImageServerMetadata metadata);
+	public void setMetadata(ImageServerMetadata metadata) throws IllegalArgumentException;
 	
 	/**
 	 * Get the original metadata read during creation of the server.  This may or may not be correct.

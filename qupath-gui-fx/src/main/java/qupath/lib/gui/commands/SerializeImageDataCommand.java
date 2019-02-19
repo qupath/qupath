@@ -25,6 +25,7 @@ package qupath.lib.gui.commands;
 
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.io.IOException;
 
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
@@ -57,31 +58,37 @@ public class SerializeImageDataCommand implements PathCommand {
 				DisplayHelpers.showErrorMessage("Serialization error", "No image data to save!");
 				return;
 			}
-			var project = qupath.getProject();
-			var entry = project == null ? null : project.getImageEntry(imageData.getServerPath());
-			if (entry != null) {
-				if (overwriteExisting || DisplayHelpers.showConfirmDialog("Save changes", "Save changes to " + entry.getImageName() + "?"))
-						entry.saveImageData(imageData);
-			} else {
-				String lastSavedPath = imageData.getLastSavedPath();
-				File file = null;
-				if (lastSavedPath != null) {
-					// Use the last path, if required
-					if (overwriteExisting)
-						file = new File(lastSavedPath);
-					if (file == null || !file.isFile()) {
-						File fileDefault = new File(lastSavedPath);
-						file = qupath.getDialogHelper().promptToSaveFile(null, fileDefault.getParentFile(), fileDefault.getName(), "QuPath Serialized Data", PathPrefs.getSerializationExtension());
+			try {
+				var project = qupath.getProject();
+				var entry = project == null ? null : project.getImageEntry(imageData.getServerPath());
+				if (entry != null) {
+					if (overwriteExisting || DisplayHelpers.showConfirmDialog("Save changes", "Save changes to " + entry.getImageName() + "?")) {
+							entry.saveImageData(imageData);
+					} else
+						return;
+				} else {
+					String lastSavedPath = imageData.getLastSavedPath();
+					File file = null;
+					if (lastSavedPath != null) {
+						// Use the last path, if required
+						if (overwriteExisting)
+							file = new File(lastSavedPath);
+						if (file == null || !file.isFile()) {
+							File fileDefault = new File(lastSavedPath);
+							file = qupath.getDialogHelper().promptToSaveFile(null, fileDefault.getParentFile(), fileDefault.getName(), "QuPath Serialized Data", PathPrefs.getSerializationExtension());
+						}
 					}
+					else {
+						ImageServer<?> server = imageData.getServer();
+						file = qupath.getDialogHelper().promptToSaveFile(null, null, server.getShortServerName(), "QuPath Serialized Data", PathPrefs.getSerializationExtension());
+					}
+					if (file == null)
+						return;
+					
+					PathIO.writeImageData(file, imageData);
 				}
-				else {
-					ImageServer<?> server = imageData.getServer();
-					file = qupath.getDialogHelper().promptToSaveFile(null, null, server.getShortServerName(), "QuPath Serialized Data", PathPrefs.getSerializationExtension());
-				}
-				if (file == null)
-					return;
-				
-				PathIO.writeImageData(file, imageData);
+			} catch (IOException e) {
+				DisplayHelpers.showErrorMessage("Save ImageData", e);
 			}
 		}
 		

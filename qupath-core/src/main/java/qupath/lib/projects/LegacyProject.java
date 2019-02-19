@@ -72,7 +72,7 @@ import qupath.lib.objects.hierarchy.PathObjectHierarchy;
  *
  * @param <T>
  */
-public class LegacyProject<T> implements Project<T> {
+class LegacyProject<T> implements Project<T> {
 	
 	private static Logger logger = LoggerFactory.getLogger(LegacyProject.class);
 	
@@ -233,7 +233,7 @@ public class LegacyProject<T> implements Project<T> {
 		return list;
 	}
 	
-	public ImageServer<T> buildServer(final ProjectImageEntry<T> entry) {
+	public ImageServer<T> buildServer(final ProjectImageEntry<T> entry) throws URISyntaxException, IOException {
 		return ImageServerProvider.buildServer(entry.getServerPath(), cls);
 	}
 	
@@ -692,7 +692,7 @@ public class LegacyProject<T> implements Project<T> {
 		}
 		
 		
-		public ImageServer<T> buildImageServer() {
+		public ImageServer<T> buildImageServer() throws IOException {
 			String value = metadata.getOrDefault("rotate180", "false");
 			boolean rotate180 = value.toLowerCase().equals("true");
 			var server = ImageServerProvider.buildServer(getServerPath(), cls);
@@ -713,7 +713,7 @@ public class LegacyProject<T> implements Project<T> {
 		}
 
 		@Override
-		public ImageData<T> readImageData() {
+		public ImageData<T> readImageData() throws IOException {
 			File file = getImageDataFile();
 			var server = buildImageServer();
 			if (server == null)
@@ -724,14 +724,14 @@ public class LegacyProject<T> implements Project<T> {
 		}
 
 		@Override
-		public void saveImageData(ImageData<T> imageData) {
+		public void saveImageData(ImageData<T> imageData) throws IOException {
 			File file = getImageDataFile();
 			if (!file.getParentFile().exists())
 				file.getParentFile().mkdirs();
 			PathIO.writeImageData(file, imageData);
 		}
 		
-		public PathObjectHierarchy readHierarchy() {
+		public PathObjectHierarchy readHierarchy() throws IOException {
 			File file = getImageDataFile();
 			if (file.exists())
 				return PathIO.readHierarchy(file);

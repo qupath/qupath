@@ -2325,9 +2325,13 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		}
 
 		// Check if we need to rotate the image
-		imageData = entry.readImageData();
-		viewer.setImageData(imageData);
-		setInitialLocationAndMagnification(viewer);
+		try {
+			imageData = entry.readImageData();
+			viewer.setImageData(imageData);
+			setInitialLocationAndMagnification(viewer);
+		} catch (IOException e) {
+			DisplayHelpers.showErrorMessage("Load ImageData", e);
+		}
 	}
 	
 	
@@ -2355,32 +2359,45 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			return false;
 		if (response == DialogButton.NO)
 			return true;
-		if (entry == null) {
-			String lastPath = imageData.getLastSavedPath();
-			File lastFile = lastPath == null ? null : new File(lastPath);
-			File dirBase = lastFile == null ? null : lastFile.getParentFile();
-			String defaultName = lastFile == null ? null : lastFile.getName();
-			File file = getDialogHelper().promptToSaveFile("Save data", dirBase, defaultName, "QuPath data files", PathPrefs.getSerializationExtension());
-			if (file == null)
-				return false;
-			PathIO.writeImageData(file, imageData);
-		} else
-			entry.saveImageData(imageData);
-		return true;
+		
+		try {
+			if (entry == null) {
+				String lastPath = imageData.getLastSavedPath();
+				File lastFile = lastPath == null ? null : new File(lastPath);
+				File dirBase = lastFile == null ? null : lastFile.getParentFile();
+				String defaultName = lastFile == null ? null : lastFile.getName();
+				File file = getDialogHelper().promptToSaveFile("Save data", dirBase, defaultName, "QuPath data files", PathPrefs.getSerializationExtension());
+				if (file == null)
+					return false;
+				PathIO.writeImageData(file, imageData);
+			} else
+				entry.saveImageData(imageData);
+			return true;
+		} catch (IOException e) {
+			DisplayHelpers.showErrorMessage("Save ImageData", e);
+			return false;
+		}
 	}
 	
 		
 	
 	
 	/**
-	 * Open a new whole slide image server, or ImageData.
+	 * Open a new whole slide image server or ImageData.
 	 * If the path is the same as a currently-open server, do nothing.
+	 * <p>
+	 * If this encounters an exception, an error message will be shown.
 	 * 
 	 * @param prompt - if true, give the user the opportunity to cancel opening if a whole slide server is already set
 	 * @return true if the server was set for this GUI, false otherwise
 	 */
 	public boolean openImage(String pathNew, boolean prompt, boolean includeURLs, boolean rotate180) {
-		return openImage(getViewer(), pathNew, prompt, includeURLs, rotate180);
+		try {
+			return openImage(getViewer(), pathNew, prompt, includeURLs, rotate180);
+		} catch (IOException e) {
+			DisplayHelpers.showErrorMessage("Open image", e);
+			return false;
+		}
 	}
 
 	/**
@@ -2389,8 +2406,9 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	 * 
 	 * @param prompt - if true, give the user the opportunity to cancel opening if a whole slide server is already set
 	 * @return true if the server was set for this GUI, false otherwise
+	 * @throws IOException 
 	 */
-	public boolean openImage(QuPathViewer viewer, String pathNew, boolean prompt, boolean includeURLs, boolean rotate180) {
+	public boolean openImage(QuPathViewer viewer, String pathNew, boolean prompt, boolean includeURLs, boolean rotate180) throws IOException {
 		
 		if (viewer == null) {
 			if (getViewers().size() == 1)
@@ -2595,8 +2613,9 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	 * @param keepExistingServer if true and the viewer already has an ImageServer, then any ImageServer path recorded within the data file will be ignored
 	 * @param checkForChanges if true, the user will be prompted to ask whether to save changes or not
 	 * @return
+	 * @throws IOException 
 	 */
-	public boolean openSavedData(QuPathViewer viewer, final File file, final boolean keepExistingServer, boolean promptToSaveChanges) {
+	public boolean openSavedData(QuPathViewer viewer, final File file, final boolean keepExistingServer, boolean promptToSaveChanges) throws IOException {
 		
 		if (viewer == null) {
 			if (getViewers().size() == 1)
@@ -2620,7 +2639,11 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		ImageData<BufferedImage> imageData = viewer.getImageData();
 		
 		// If we are loading data related to the same image server, load into that - otherwise open a new image if we can find it
-		serverPath = PathIO.readSerializedServerPath(file);
+		try {
+			serverPath = PathIO.readSerializedServerPath(file);
+		} catch (Exception e) {
+			logger.warn("Unable to read server path from file: {}", e.getLocalizedMessage());
+		}
 		boolean sameServer = serverPath == null || (imageData != null && imageData.getServerPath().equals(serverPath));			
 		
 		
@@ -2676,20 +2699,17 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 //		
 //		ImageData<BufferedImage> imageData2 = task.getImageData();
 		
-		ImageData<BufferedImage> imageData2 = PathIO.readImageData(file, imageData, server, BufferedImage.class);
-		// Check it worked...
-		if (imageData2 == null)
-			return false;
-		
-		if (imageData2 != imageData) {
-			viewer.setImageData(imageData2);
-			// If we just have a single viewer, no harm in centering this
-			if (viewerManager.getViewers().size() == 1 || !viewerManager.synchronizeViewersProperty().get())
-				setInitialLocationAndMagnification(viewer);
+		try {
+			ImageData<BufferedImage> imageData2 = PathIO.readImageData(file, imageData, server, BufferedImage.class);
+			if (imageData2 != imageData) {
+				viewer.setImageData(imageData2);
+				// If we just have a single viewer, no harm in centering this
+				if (viewerManager.getViewers().size() == 1 || !viewerManager.synchronizeViewersProperty().get())
+					setInitialLocationAndMagnification(viewer);
+			}
+		} catch (IOException e) {
+			DisplayHelpers.showErrorMessage("Read image data", e);
 		}
-//		// Make sure that the color channels are loaded
-//		if (viewer.getImageDisplay().loadChannelColorProperties())
-//			viewer.repaintEntireImage();
 		
 		return true;
 	}
@@ -4757,10 +4777,14 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				if (filePrevious == null)
 					return false;
 			}
-			if (entry != null)
-				entry.saveImageData(imageData);
-			else
-				PathIO.writeImageData(filePrevious, imageData);
+			try {
+				if (entry != null)
+					entry.saveImageData(imageData);
+				else
+					PathIO.writeImageData(filePrevious, imageData);
+			} catch (IOException e) {
+				DisplayHelpers.showErrorMessage("Save ImageData", e);
+			}
 		}
 		return true;
 	}

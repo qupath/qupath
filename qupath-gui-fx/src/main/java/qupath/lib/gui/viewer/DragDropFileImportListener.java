@@ -25,6 +25,7 @@ package qupath.lib.gui.viewer;
 
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -115,7 +116,11 @@ public class DragDropFileImportListener implements EventHandler<DragEvent> {
         
 		if (dragboard.hasFiles()) {
 	        logger.debug("Files dragged onto {}", source);
-			handleFileDrop(viewer, dragboard.getFiles());
+			try {
+				handleFileDrop(viewer, dragboard.getFiles());
+			} catch (IOException e) {
+				DisplayHelpers.showErrorMessage("Drag & Drop", e);
+			}
 		}
 		event.setDropCompleted(true);
 		event.consume();
@@ -143,7 +148,7 @@ public class DragDropFileImportListener implements EventHandler<DragEvent> {
 	}
     
     
-    public void handleFileDrop(final QuPathViewer viewer, final List<File> list) {
+    public void handleFileDrop(final QuPathViewer viewer, final List<File> list) throws IOException {
 		
 		// Shouldn't occur... but keeps FindBugs happy to check
 		if (list == null) {
@@ -180,10 +185,14 @@ public class DragDropFileImportListener implements EventHandler<DragEvent> {
 
 				// If we have a different path, open as a new image
 				if (viewer == null) {
-					DisplayHelpers.showErrorMessage("Open data", "Please drag the file only a specific viewer to open!");
+					DisplayHelpers.showErrorMessage("Open data", "Please drag the file onto a specific viewer to open!");
 					break;
 				}
-				gui.openSavedData(viewer, file, false, true);
+				try {
+					gui.openSavedData(viewer, file, false, true);
+				} catch (IOException e) {
+					DisplayHelpers.showErrorMessage("Open image", e);
+				}
 				break;
 			}
 			

@@ -31,6 +31,8 @@ import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
+import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -41,16 +43,26 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.Map.Entry;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Collectors;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.stream.JsonWriter;
+
 import qupath.lib.common.URLTools;
 import qupath.lib.images.ImageData;
+import qupath.lib.images.ImageData.ImageType;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.ImageServerProvider;
 import qupath.lib.images.servers.RotatedImageServer;
 import qupath.lib.io.PathIO;
+import qupath.lib.objects.PathObject;
 import qupath.lib.objects.classes.PathClass;
+import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 
 /**
@@ -60,9 +72,11 @@ import qupath.lib.objects.hierarchy.PathObjectHierarchy;
  *
  * @param <BufferedImage>
  */
-public class DefaultProject implements Project<BufferedImage> {
+class DefaultProject implements Project<BufferedImage> {
 	
 	private static Logger logger = LoggerFactory.getLogger(DefaultProject.class);
+	
+	private static Gson gson = new GsonBuilder().setLenient().setPrettyPrinting().create();
 	
 	private String version = "0.2";
 
@@ -298,7 +312,7 @@ public class DefaultProject implements Project<BufferedImage> {
 		return list;
 	}
 	
-	public ImageServer<BufferedImage> buildServer(final ProjectImageEntry<BufferedImage> entry) {
+	public ImageServer<BufferedImage> buildServer(final ProjectImageEntry<BufferedImage> entry) throws URISyntaxException, IOException {
 		return ImageServerProvider.buildServer(entry.getServerPath(), BufferedImage.class);
 	}
 	
@@ -569,13 +583,32 @@ public class DefaultProject implements Project<BufferedImage> {
 		}
 		
 		
-		public ImageServer<BufferedImage> buildImageServer() {
+		public ImageServer<BufferedImage> buildImageServer() throws IOException {
 			String value = metadata.getOrDefault("rotate180", "false");
 			boolean rotate180 = value.toLowerCase().equals("true");
 			var server = ImageServerProvider.buildServer(getServerPath(), BufferedImage.class);
+			// TODO: Handle wrapped image servers
 			if (rotate180)
 				return new RotatedImageServer(server, RotatedImageServer.Rotation.ROTATE_180);
+			
+			var pathMetadata = getServerMetadataPath();
+			if (Files.exists(pathMetadata)) {
+				try (var reader = Files.newBufferedReader(pathMetadata)) {
+					var metadata = gson.fromJson(reader, ImageServerMetadata.class);
+					server.setMetadata(metadata);
+				} catch (Exception e) {
+					logger.warn("Unable to load server metadata from {}", pathMetadata);
+				}
+			}
+
 			return server;
+		}
+		
+		private Path getEntryPath(boolean create) throws IOException {
+			var path = getEntryPath();
+			if (create && !Files.exists(path))
+				Files.createDirectories(path);
+			return path;
 		}
 		
 		private Path getEntryPath() {
@@ -586,16 +619,26 @@ public class DefaultProject implements Project<BufferedImage> {
 			return Paths.get(getEntryPath().toString(), "data.qpdata");
 		}
 		
+		private Path getServerMetadataPath() {
+			return Paths.get(getEntryPath().toString(), "server.json");
+		}
+		
+		private Path getDataSummaryPath() {
+			return Paths.get(getEntryPath().toString(), "summary.json");
+		}
 
 		@Override
-		public ImageData<BufferedImage> readImageData() {
+		public synchronized ImageData<BufferedImage> readImageData() throws IOException {
 			Path path = getImageDataPath();
 			var server = buildImageServer();
 			if (server == null)
 				return null;
+			ImageData<BufferedImage> imageData = null;
 			if (Files.exists(path)) {
 				try (var stream = Files.newInputStream(path)) {
-					return PathIO.readImageData(stream, null, server, BufferedImage.class);
+					imageData = PathIO.readImageData(stream, null, server, BufferedImage.class);
+					imageData.setLastSavedPath(path.toString(), true);
+					return imageData;
 				} catch (IOException e) {
 					logger.error("Error reading image data from " + path, e);
 				}
@@ -604,20 +647,51 @@ public class DefaultProject implements Project<BufferedImage> {
 		}
 
 		@Override
-		public void saveImageData(ImageData<BufferedImage> imageData) {
-			// TODO: Switch to use paths...
-			File file = getImageDataPath().toFile();
-			if (!file.getParentFile().exists())
-				file.getParentFile().mkdirs();
-			PathIO.writeImageData(file, imageData);
+		public synchronized void saveImageData(ImageData<BufferedImage> imageData) throws IOException {
+			// Get entry path, creating if needed
+			var pathEntry = getEntryPath(true);
+			var pathData = getImageDataPath();
+			
+			// If we already have a file, back it up first
+			var pathBackup = Paths.get(pathData.toString() + ".bkp");
+			if (Files.exists(pathData))
+				Files.move(pathData, pathBackup, StandardCopyOption.REPLACE_EXISTING);
+			
+			// Write to a temp file first
+			long timestamp = 0L;
+			try (var stream = Files.newOutputStream(pathData)) {
+				PathIO.writeImageData(stream, imageData);
+				imageData.setLastSavedPath(pathData.toString(), true);
+				timestamp = Files.getLastModifiedTime(pathData).toMillis();
+				// Delete backup file if it exists
+				if (Files.exists(pathBackup))
+					Files.delete(pathBackup);
+			} catch (IOException e) {
+				// Try to restore the backup
+				Files.move(pathBackup, pathData, StandardCopyOption.REPLACE_EXISTING);				
+				throw e;
+			}
+			
+			// If successful, write the additional metadata
+			var server = imageData.getServer();
+			var pathServerMetadata = getServerMetadataPath();
+			try (var out = Files.newBufferedWriter(pathServerMetadata, StandardOpenOption.CREATE)) {
+				gson.toJson(server.getMetadata(), out);
+			}
+			
+			var pathSummary = getDataSummaryPath();
+			try (var out = Files.newBufferedWriter(pathSummary, StandardOpenOption.CREATE)) {
+				gson.toJson(new ImageDataSummary(imageData, timestamp), out);
+			}			
 		}
+		
 
 		@Override
 		public boolean hasImageData() {
 			return Files.exists(getImageDataPath());
 		}
 		
-		public PathObjectHierarchy readHierarchy() {
+		public synchronized PathObjectHierarchy readHierarchy() throws IOException {
 			// TODO: Switch to use paths...
 			File file = getImageDataPath().toFile();
 			if (file.exists())
@@ -647,6 +721,46 @@ public class DefaultProject implements Project<BufferedImage> {
 			return sb.toString();
 		}
 		
+	}
+	
+	
+	static class ImageDataSummary {
+		
+		private long timestamp;
+		private ImageType imageType;
+		private HierarchySummary hierarchy;
+		
+		ImageDataSummary(ImageData<?> imageData, long timestamp) {
+			this.imageType = imageData.getImageType();
+			this.timestamp = timestamp;
+			this.hierarchy = new HierarchySummary(imageData.getHierarchy());
+		}
+		
+	}
+	
+	
+	static class HierarchySummary {
+		
+		private int nObjects;
+		private Integer nTMACores;
+		private Map<String, Long> objectTypeCounts;
+		private Map<String, Long> annotationClassificationCounts;
+		private Map<String, Long> detectionClassificationCounts;
+		
+		HierarchySummary(PathObjectHierarchy hierarchy) {
+			List<PathObject> pathObjects = hierarchy.getObjects(null, null);
+			this.nObjects = pathObjects.size();
+			objectTypeCounts = pathObjects.stream()
+					.collect(Collectors.groupingBy(p -> PathObjectTools.getSuitableName(p.getClass(), true), Collectors.counting()));
+			annotationClassificationCounts = pathObjects.stream().filter(p -> p.isAnnotation())
+					.collect(Collectors.groupingBy(p -> pathClassToString(p.getPathClass()), Collectors.counting()));
+			detectionClassificationCounts = pathObjects.stream().filter(p -> p.isDetection())
+					.collect(Collectors.groupingBy(p -> pathClassToString(p.getPathClass()), Collectors.counting()));
+		}
+		
+		static String pathClassToString(PathClass pathClass) {
+			return pathClass == null ? "Unclassified" : pathClass.toString();
+		}
 		
 	}
 	

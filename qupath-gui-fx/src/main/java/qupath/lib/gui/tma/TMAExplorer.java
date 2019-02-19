@@ -25,6 +25,7 @@ package qupath.lib.gui.tma;
 
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 
 import java.util.HashMap;
@@ -105,7 +106,13 @@ public class TMAExplorer implements PathCommand {
 					dirImageOutput.mkdirs();
 				
 				// Read data
-				ImageData<BufferedImage> imageData = imageEntry.readImageData();
+				ImageData<BufferedImage> imageData;
+				try {
+					imageData = imageEntry.readImageData();
+				} catch (IOException e) {
+					logger.error("Error reading ImageData for " + imageEntry.getImageName(), e);
+					continue;
+				}
 				TMAGrid tmaGrid = imageData.getHierarchy().getTMAGrid();
 				if (tmaGrid == null) {
 					logger.warn("No TMA data for {}", imageEntry.getImageName());

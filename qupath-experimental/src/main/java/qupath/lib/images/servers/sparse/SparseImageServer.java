@@ -297,8 +297,9 @@ public class SparseImageServer extends AbstractTileableImageServer {
 		 * @param region specified region to which the server should correspond (must be found within {@code getRegions()})
 		 * @param downsample specified downsample for the server (must be found within {@code getDownsamples()})
 		 * @return
+		 * @throws IOException 
 		 */
-		public synchronized ImageServer<BufferedImage> getServer(ImageRegion region, double downsample) {
+		public synchronized ImageServer<BufferedImage> getServer(ImageRegion region, double downsample) throws IOException {
 			// Get the best resolution map for the specified region & return null if none found
 			List<SparseImageServerManagerResolution> resolutions = regionMap.get(region);
 			if (resolutions == null || resolutions.isEmpty())

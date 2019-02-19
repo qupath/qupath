@@ -73,6 +73,10 @@ public class ImageServerMetadata {
 	private int preferredTileWidth;
 	private int preferredTileHeight;
 	
+	// Cached variables
+	private transient List<ImageResolutionLevel> unmodifiableLevels;
+	private transient double[] downsamples;
+	
 	
 	public static class Builder {
 		
@@ -297,7 +301,38 @@ public class ImageServerMetadata {
 	public String getServerClassName() {
 		return this.serverClassName;
 	}
-
+	
+	/**
+	 * Request the preferred downsamples from the image metadata.
+	 * <p>
+	 * Note that this makes a defensive copy, and so should not be called often; it is generally preferably 
+	 * to request downsample values individually.
+	 * 
+	 * @return
+	 * 
+	 * @see #getPreferredDownsamples()
+	 */
+	public double[] getPreferredDownsamplesArray() {
+		if (downsamples == null) {
+			downsamples = new double[nLevels()];
+			for (int i = 0; i < downsamples.length; i++) {
+				downsamples[i] = getDownsampleForLevel(i);
+			}
+		}
+		return downsamples.clone();
+	}
+	
+	
+	/**
+	 * Get an unmodifiable list containing the resolution levels
+	 * @return
+	 */
+	public List<ImageResolutionLevel> getLevels() {
+		if (unmodifiableLevels == null)
+			unmodifiableLevels = Collections.unmodifiableList(Arrays.asList(levels));
+		return unmodifiableLevels;
+	}
+	
 	public String getPath() {
 		return path;
 	}
@@ -418,7 +453,7 @@ public class ImageServerMetadata {
 	public boolean isCompatibleMetadata(final ImageServerMetadata metadata) {
 		return path.equals(metadata.path) && 
 				bitDepth == metadata.bitDepth &&
-				Arrays.equals(levels, metadata.levels) && 
+//				Arrays.equals(levels, metadata.levels) && 
 				sizeT == metadata.sizeT && 
 				getSizeC() == metadata.getSizeC() &&
 				sizeZ == metadata.sizeZ;
@@ -565,8 +600,36 @@ public class ImageServerMetadata {
 			return height;
 		}
 		
-		
-		
+		@Override
+		public int hashCode() {
+			final int prime = 31;
+			int result = 1;
+			long temp;
+			temp = Double.doubleToLongBits(downsample);
+			result = prime * result + (int) (temp ^ (temp >>> 32));
+			result = prime * result + height;
+			result = prime * result + width;
+			return result;
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			if (this == obj)
+				return true;
+			if (obj == null)
+				return false;
+			if (getClass() != obj.getClass())
+				return false;
+			ImageResolutionLevel other = (ImageResolutionLevel) obj;
+			if (Double.doubleToLongBits(downsample) != Double.doubleToLongBits(other.downsample))
+				return false;
+			if (height != other.height)
+				return false;
+			if (width != other.width)
+				return false;
+			return true;
+		}
+
 		@Override
 		public String toString() {
 			return "Level: " + width + "x" + height + " (" + GeneralTools.formatNumber(downsample, 5) + ")";

@@ -39,6 +39,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.lib.images.PathImage;
+import qupath.lib.common.GeneralTools;
 import qupath.lib.images.DefaultPathImage;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
@@ -54,8 +55,10 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 	
 	final private static Logger logger = LoggerFactory.getLogger(AbstractImageServer.class);
 	
+	/**
+	 * User-defined metadata (e.g. if pixel sizes needed to be set explicitly).
+	 */
 	private ImageServerMetadata userMetadata;
-	private double[] downsamples;
 	
 	private transient Long timestamp = null;
 	
@@ -99,20 +102,31 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 	}
 	
 	protected int getPreferredResolutionLevel(double requestedDownsample) {
-		double[] downsamples = getPreferredDownsamplesArray();
-		return ServerTools.getClosestDownsampleIndex(downsamples, requestedDownsample);
+		var metadata = getMetadata();
+		double downsampleFactor = Math.max(requestedDownsample, metadata.getDownsampleForLevel(0));
+		int n = metadata.nLevels();
+		int bestDownsampleSeries = -1;
+		double bestDownsampleDiff = Double.POSITIVE_INFINITY;
+		for (int i = 0; i < n; i++) {
+			double d = metadata.getDownsampleForLevel(i);
+			double downsampleDiff = downsampleFactor - d;
+			if (!Double.isNaN(downsampleDiff) && (downsampleDiff >= 0 || GeneralTools.almostTheSame(downsampleFactor, d, 0.01)) && downsampleDiff < bestDownsampleDiff) {
+				bestDownsampleSeries = i;
+				bestDownsampleDiff = Math.abs(downsampleDiff);
+			}
+		}
+		return bestDownsampleSeries;
 	}
 	
 	@Override
 	public double getPreferredDownsampleFactor(double requestedDownsample) {
-		double[] downsamples = getPreferredDownsamplesArray();
-		int ind = getPreferredResolutionLevel(requestedDownsample);
-		return downsamples[ind];
+		int level = getPreferredResolutionLevel(requestedDownsample);
+		return getDownsampleForResolution(level);
 	}
 	
 	@Override
 	public double getDownsampleForResolution(int level) {
-		return getPreferredDownsamplesArray()[level];
+		return getMetadata().getDownsampleForLevel(level);
 	}
 	
 	@Override
@@ -120,43 +134,22 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 		logger.trace("Server " + this + " being closed now...");		
 	}
 	
-	/**
-	 * Request the preferred downsamples from the image metadata.
-	 * <p>
-	 * Note that this returns the array directly; any modifications may result 
-	 * in this array becoming corrupted.  This method exists for performance reasons 
-	 * to avoid always needing to make defensive copies.
-	 * 
-	 * @return
-	 * 
-	 * @see #getPreferredDownsamples()
-	 */
-	protected double[] getPreferredDownsamplesArray() {
-		if (downsamples == null) {
-			var metadata = getMetadata();
-			downsamples = new double[getMetadata().nLevels()];
-			for (int i = 0; i < downsamples.length; i++) {
-				downsamples[i] = metadata.getDownsampleForLevel(i);
-			}
-		}
-		return downsamples;
-	}
-	
 	@Override
 	public int nResolutions() {
-		return getPreferredDownsamplesArray().length;
+		return getMetadata().nLevels();
 	}
 	
 	/**
 	 * Request the preferred downsamples from the image metadata.
 	 * <p>
-	 * Note that this makes a defensive copy of the array.
+	 * Note that this makes a defensive copy of the array, so it is generally preferable to use 
+	 * {@code #getDownsampleForResolution(int)} where possible.
 	 * 
-	 * @see #getPreferredDownsamplesArray()
+	 * @see #getDownsampleForResolution(int)
 	 */
 	@Override
 	public double[] getPreferredDownsamples() {
-		return getPreferredDownsamplesArray().clone();
+		return getMetadata().getPreferredDownsamplesArray();
 	}
 	
 	@Override
@@ -314,9 +307,17 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 	}
 
 	@Override
-	public void setMetadata(ImageServerMetadata metadata) {
+	public synchronized void setMetadata(ImageServerMetadata metadata) {
+		if (metadata == getMetadata())
+			return;
+		
 		if (!getOriginalMetadata().isCompatibleMetadata(metadata))
-			throw new RuntimeException("Specified metadata is incompatible with original metadata for " + this);
+			throw new IllegalArgumentException("Specified metadata is incompatible with original metadata for " + this);
+		
+		// Reset the tile requests if the resolution levels differ
+		if (!getMetadata().getLevels().equals(metadata.getLevels()))
+			tileRequestManager = null;
+		
 		userMetadata = metadata;
 	}
 	
@@ -399,10 +400,10 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 	public T getDefaultThumbnail(int z, int t) throws IOException {
 		int ind = nResolutions() - 1;
 		double targetDownsample = Math.sqrt(getWidth() / 1024.0 * getHeight() / 1024.0);
-		double[] downsamples = getPreferredDownsamplesArray();
+		double[] downsamples = getPreferredDownsamples();
 		while (ind > 0 && downsamples[ind-1] >= targetDownsample)
 			ind--;
-		double downsample = getPreferredDownsamplesArray()[ind];
+		double downsample = downsamples[ind];
 		RegionRequest request = RegionRequest.createInstance(getPath(), downsample, 0, 0, getWidth(), getHeight(), z, t);
 		return readBufferedImage(request);
 	}
