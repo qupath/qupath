@@ -61,7 +61,7 @@ public class ImageIoImageServer extends AbstractImageServer<BufferedImage> {
 		int bitDepth = img.getSampleModel().getSampleSize(0);
 		int nChannels = img.getSampleModel().getNumBands();
 		boolean isRGB = (nChannels == 3 || nChannels == 4) && bitDepth == 8;
-		originalMetadata = new ImageServerMetadata.Builder(path)
+		originalMetadata = new ImageServerMetadata.Builder(getClass(), path)
 				.width(img.getWidth())
 				.height(img.getHeight())
 				.rgb(isRGB)

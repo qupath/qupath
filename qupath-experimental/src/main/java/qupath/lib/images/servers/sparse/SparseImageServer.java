@@ -104,7 +104,7 @@ public class SparseImageServer extends AbstractTileableImageServer {
 		int width = x2 - x1;
 		int height = y2 - y1;
 		
-		this.metadata = new ImageServerMetadata.Builder(metadata)
+		this.metadata = new ImageServerMetadata.Builder(getClass(), metadata)
 				.path(path)
 				.width(width)
 				.height(height)

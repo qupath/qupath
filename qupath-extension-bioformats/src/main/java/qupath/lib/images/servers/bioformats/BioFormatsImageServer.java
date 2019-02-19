@@ -470,7 +470,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 			imageName = getFile().getName() + " - " + imageName;
 			
 			// Set metadata
-			ImageServerMetadata.Builder builder = new ImageServerMetadata.Builder(uri.toString(), width, height).
+			ImageServerMetadata.Builder builder = new ImageServerMetadata.Builder(getClass(), uri.toString(), width, height).
 					name(imageName).
 					channels(channels).
 					sizeZ(nZSlices).

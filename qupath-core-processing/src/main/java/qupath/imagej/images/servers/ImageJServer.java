@@ -129,7 +129,7 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 			channels = ImageChannel.getDefaultChannelList(imp.getNChannels());
 		
 		
-		var builder = new ImageServerMetadata.Builder(uri.toString())
+		var builder = new ImageServerMetadata.Builder(getClass(), uri.toString())
 				.width(imp.getWidth())
 				.height(imp.getHeight())
 				.channels(channels)

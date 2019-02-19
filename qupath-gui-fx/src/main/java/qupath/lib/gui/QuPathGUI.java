@@ -468,11 +468,11 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	
 	/**
 	 * Create a QuPath instance, optionally initializing it with a path to open.
-	 * 
+	 * <p>
 	 * It is also possible to specify that QuPath runs as a standalone application or not.
 	 * The practical difference is that, if a standalone application, QuPath may call System.exit(0)
 	 * when its window is closed; otherwise, it must not for fear or bringing the host application with it.
-	 * 
+	 * <p>
 	 * If QuPath is launched, for example, as an ImageJ plugin then isStandalone should be false.
 	 * 
 	 * @param path Path of an image, project or data file to open - may be null.
@@ -681,8 +681,9 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		
 		stage.getScene().setOnKeyReleased(e -> {
 			// We only seem to need this to mop up shortcuts if the system menu bar is in use (at least on OSX)
-			if (e.isConsumed() || e.isShortcutDown() || !(GeneralTools.isMac() && getMenuBar().isUseSystemMenuBar()) || e.getTarget() instanceof TextInputControl)
+			if (e.isConsumed() || e.isShortcutDown() || !(GeneralTools.isMac() && getMenuBar().isUseSystemMenuBar()) || e.getTarget() instanceof TextInputControl) {
 				return;
+			}
 			
 			for (Entry<KeyCombination, Action> entry : mapActions.entrySet()) {
 				if (entry.getKey().match(e)) {

@@ -54,7 +54,7 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 						.addLevelByDownsample(downsample)
 						.build();
 		
-		var builder = new ImageServerMetadata.Builder(server.getMetadata())
+		var builder = new ImageServerMetadata.Builder(getClass(), server.getMetadata())
 				.path(path)
 				.width(width)
 				.height(height)

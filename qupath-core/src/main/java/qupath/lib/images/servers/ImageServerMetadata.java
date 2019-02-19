@@ -38,7 +38,7 @@ import qupath.lib.common.GeneralTools;
 /**
  * Class for storing primary ImageServer metadata fields.
  * Could be used when the metadata needs to be adjusted (e.g. to correct erroneous pixel sizes).
- * 
+ * <p>
  * TODO: Support metadata changes, taking into consideration the need for scriptability and persistence
  * 
  * @author Pete Bankhead
@@ -50,6 +50,8 @@ public class ImageServerMetadata {
 
 	private String path;
 	private String name;
+	
+	private String serverClassName;
 	
 	private int width;
 	private int height;
@@ -77,17 +79,43 @@ public class ImageServerMetadata {
 		private ImageServerMetadata metadata;
 		private PixelCalibration.Builder pixelCalibrationBuilder = new PixelCalibration.Builder();
 		
-		public Builder(final ImageServerMetadata metadata) {
+		/**
+		 * Builder for a new ImageServerMetadata object that takes an existing metadata object as a starting point, 
+		 * but allows individual properties to be overridden.
+		 * <p>
+		 * The existing metadata will be duplicated, therefore later changes in one metadata object will not be 
+		 * reflected in the other.
+		 * 
+		 * @param serverClass
+		 * @param metadata
+		 */
+		public Builder(final Class<? extends ImageServer<?>> serverClass, final ImageServerMetadata metadata) {
 			this.metadata = metadata.duplicate();
+			this.metadata.serverClassName = serverClass.getName();
 			this.pixelCalibrationBuilder = new PixelCalibration.Builder(metadata.pixelCalibration);
 		}
 		
-		public Builder(final String path) {
+		/**
+		 * Minimal builder for a new ImageServerMetadata; further properties must be set.
+		 * 
+		 * @param serverClass
+		 * @param path
+		 */
+		public Builder(final Class<? extends ImageServer<?>> serverClass, final String path) {
 			metadata = new ImageServerMetadata();
+			metadata.serverClassName = serverClass.getName();
 			metadata.path = path;
 		}
 		
-		public Builder(final String path, final int width, final int height) {
+		/**
+		 * Builder for a new ImageServerMetadata; further properties must be set.
+		 * 
+		 * @param serverClass
+		 * @param path
+		 * @param width
+		 * @param height
+		 */
+		public Builder(final Class<? extends ImageServer<?>> serverClass, final String path, final int width, final int height) {
 			metadata = new ImageServerMetadata();
 			metadata.path = path;
 			metadata.width = width;
@@ -236,6 +264,7 @@ public class ImageServerMetadata {
 	};
 
 	ImageServerMetadata(final ImageServerMetadata metadata) {
+		this.serverClassName = metadata.serverClassName;
 		this.path = metadata.path;
 		this.name = metadata.name;
 		this.levels = metadata.levels.clone();
@@ -258,6 +287,16 @@ public class ImageServerMetadata {
 		this.preferredTileWidth = metadata.preferredTileWidth;
 		this.preferredTileHeight = metadata.preferredTileHeight;
 	};
+	
+	/**
+	 * Full name for the Java Class of the ImageServer.  This is useful when attempting to recreate an 
+	 * ImageServer later and set the ImageServerMetadata, and aiming to use the same class.
+	 * 
+	 * @return
+	 */
+	public String getServerClassName() {
+		return this.serverClassName;
+	}
 
 	public String getPath() {
 		return path;
@@ -418,6 +457,7 @@ public class ImageServerMetadata {
 		int result = 1;
 		result = prime * result + bitDepth;
 		result = prime * result + ((channels == null) ? 0 : channels.hashCode());
+		result = prime * result + height;
 		result = prime * result + (isRGB ? 1231 : 1237);
 		result = prime * result + Arrays.hashCode(levels);
 		long temp;
@@ -428,8 +468,10 @@ public class ImageServerMetadata {
 		result = prime * result + ((pixelCalibration == null) ? 0 : pixelCalibration.hashCode());
 		result = prime * result + preferredTileHeight;
 		result = prime * result + preferredTileWidth;
+		result = prime * result + ((serverClassName == null) ? 0 : serverClassName.hashCode());
 		result = prime * result + sizeT;
 		result = prime * result + sizeZ;
+		result = prime * result + width;
 		return result;
 	}
 
@@ -449,6 +491,8 @@ public class ImageServerMetadata {
 			if (other.channels != null)
 				return false;
 		} else if (!channels.equals(other.channels))
+			return false;
+		if (height != other.height)
 			return false;
 		if (isRGB != other.isRGB)
 			return false;
@@ -475,9 +519,16 @@ public class ImageServerMetadata {
 			return false;
 		if (preferredTileWidth != other.preferredTileWidth)
 			return false;
+		if (serverClassName == null) {
+			if (other.serverClassName != null)
+				return false;
+		} else if (!serverClassName.equals(other.serverClassName))
+			return false;
 		if (sizeT != other.sizeT)
 			return false;
 		if (sizeZ != other.sizeZ)
+			return false;
+		if (width != other.width)
 			return false;
 		return true;
 	}

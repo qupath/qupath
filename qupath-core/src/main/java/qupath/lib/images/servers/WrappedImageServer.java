@@ -6,10 +6,10 @@ import qupath.lib.regions.RegionRequest;
 
 /**
  * An ImageServer that simply wraps around an existing ImageServer.
- * 
+ * <p>
  * Its purpose is to help implement other ImageServers that apply pixel or spatial 
  * transforms to an alternative ImageServer.
- * 
+ * <p>
  * Subclasses may only implement the methods necessary to apply the required transform.
  * 
  * @author Pete Bankhead

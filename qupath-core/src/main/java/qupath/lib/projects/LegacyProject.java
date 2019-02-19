@@ -34,6 +34,7 @@ import java.io.Reader;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -460,8 +461,16 @@ public class LegacyProject<T> implements Project<T> {
 			if (this.serverPath.startsWith(projectPath))
 				this.serverPath = "{$PROJECT_DIR}" + this.serverPath.substring(projectPath.length());
 			
-			// Try to get a UR
+			// Try to get a URI
 			uri = tryToGetURI();
+			
+			// Ideally we would look relative to the project directory... but alas this was not previously saved
+//			if (uri != null && "file".equals(uri.getScheme())) {
+//				File file = new File(uri.getPath());
+//				if (!file.exists()) {
+//					file.toPath().relativize(pathProject);
+//				}
+//			}
 			
 			if (imageName == null) {
 				if (URLTools.checkURL(serverPath))

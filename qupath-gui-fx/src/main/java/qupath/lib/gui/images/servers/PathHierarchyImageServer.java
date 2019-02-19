@@ -101,7 +101,7 @@ public class PathHierarchyImageServer extends AbstractTileableImageServer implem
 //		cache.entrySet().removeIf(r -> path.equals(r.getKey().getPath()));
 		
 		// Set metadata, using the underlying server as a basis
-		this.originalMetadata = new ImageServerMetadata.Builder(server.getOriginalMetadata())
+		this.originalMetadata = new ImageServerMetadata.Builder(getClass(), server.getOriginalMetadata())
 				.preferredTileSize(256, 256)
 				.levels(levelBuilder.build())
 				.bitDepth(8)

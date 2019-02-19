@@ -184,6 +184,10 @@ public interface ProjectImageEntry<T> {
 	 */
 	public ImageData<T> readImageData();
 	
+	/**
+	 * Save the {@link ImageData} for this entry using the default storage location for the project.
+	 * @return
+	 */
 	public void saveImageData(ImageData<T> imageData);
 	
 	/**

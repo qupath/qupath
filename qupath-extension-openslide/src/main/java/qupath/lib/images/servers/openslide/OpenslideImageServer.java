@@ -162,7 +162,7 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 		}
 		
 		// Create metadata objects
-		originalMetadata = new ImageServerMetadata.Builder(uri.toString(), boundsWidth, boundsHeight).
+		originalMetadata = new ImageServerMetadata.Builder(getClass(), uri.toString(), boundsWidth, boundsHeight).
 				channels(ImageChannel.getDefaultRGBChannels()). // Assume 3 channels (RGB)
 				rgb(true).
 				bitDepth(8).

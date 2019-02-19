@@ -115,9 +115,9 @@ subprojects {
 
     controlsfx 'org.controlsfx:controlsfx:9.0.0'
 
-///	bioformats 'ome:bioformats_package:6.0.0-rc1'
-	bioformats 'ome:formats-gpl:6.0.0-rc1'
-	bioformatsTest 'ome:bio-formats_plugins:6.0.0-rc1' // Only required for testing
+///	bioformats 'ome:bioformats_package:6.0.0'
+	bioformats 'ome:formats-gpl:6.0.0'
+	bioformatsTest 'ome:bio-formats_plugins:6.0.0' // Only required for testing
 
     jfxtras 'org.jfxtras:jfxtras-menu:10.0-r1'
 

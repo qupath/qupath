@@ -171,7 +171,7 @@ public class OmeroWebImageServer extends AbstractTileableImageServer {
 		if (map.has("nominalMagnification"))
 			magnification = map.getAsJsonPrimitive("nominalMagnification").getAsDouble();
 		
-		ImageServerMetadata.Builder builder = new ImageServerMetadata.Builder(uri.toString(), sizeX, sizeY)
+		ImageServerMetadata.Builder builder = new ImageServerMetadata.Builder(getClass(), uri.toString(), sizeX, sizeY)
 				.sizeT(sizeT)
 				.channels(ImageChannel.getDefaultRGBChannels())
 				.sizeZ(sizeZ)
