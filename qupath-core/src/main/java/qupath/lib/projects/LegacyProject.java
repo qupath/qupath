@@ -24,6 +24,7 @@
 package qupath.lib.projects;
 
 import java.awt.image.BufferedImage;
+import java.awt.image.RenderedImage;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -34,7 +35,6 @@ import java.io.Reader;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -45,6 +45,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.UUID;
+
+import javax.imageio.ImageIO;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -174,18 +176,11 @@ class LegacyProject<T> implements Project<T> {
 		return images.isEmpty();
 	}
 
-	public boolean addImagesForServer(final ImageServer<T> server) {
-		
-		List<String> subImages = server.getSubImageList();
-		if (subImages.isEmpty()) {
-			return addImage(new LegacyProjectImageEntry(server.getPath(), server.getDisplayedImageName(), null));
-		}
-		
-		boolean changes = false;
-		for (String name : subImages)
-			// The sub image name might be the same across images, we should append the server displayed name to it, just to make sure it is unique
-			changes = changes | addImage(new LegacyProjectImageEntry(server.getSubImagePath(name), server.getDisplayedImageName()+" ("+name+")", null));
-		return changes;
+	public ProjectImageEntry<T> addImage(final ImageServer<T> server) {
+		var entry = new LegacyProjectImageEntry(server.getPath(), server.getDisplayedImageName(), null);
+		if (addImage(entry))
+			return entry;
+		return null;
 	}
 	
 	
@@ -193,17 +188,17 @@ class LegacyProject<T> implements Project<T> {
 		return images.get(path);
 	}
 	
-	public boolean addImage(final String path) {
-		try {
-			ImageServer<T> server = ImageServerProvider.buildServer(path, cls);
-			boolean changes = addImagesForServer(server);
-			server.close();
-			return changes;
-		} catch (Exception e) {
-			logger.error("Error adding image: {} ({})", path, e.getLocalizedMessage());
-			return false;
-		}
-	}
+//	public boolean addImage(final String path) {
+//		try {
+//			ImageServer<T> server = ImageServerProvider.buildServer(path, cls);
+//			boolean changes = addImage(server) != null;
+//			server.close();
+//			return changes;
+//		} catch (Exception e) {
+//			logger.error("Error adding image: {} ({})", path, e.getLocalizedMessage());
+//			return false;
+//		}
+//	}
 	
 	public void removeImage(final ProjectImageEntry<?> entry) {
 		removeImage(entry.getServerPath());
@@ -738,6 +733,9 @@ class LegacyProject<T> implements Project<T> {
 			return new PathObjectHierarchy();
 		}
 		
+		private File getThumbnailFile() {
+			return new File(new File(getBaseDirectory(), "thumbnails"), getUniqueName() + ".jpg");
+		}
 		
 		@Override
 		public boolean hasImageData() {
@@ -769,6 +767,26 @@ class LegacyProject<T> implements Project<T> {
 			} else
 				sb.append("No data file");
 			return sb.toString();
+		}
+
+		@Override
+		public T getThumbnail() throws IOException {
+			if (!cls.equals(BufferedImage.class))
+				return null;
+			var file = getThumbnailFile();
+			if (file.exists())
+				return (T)ImageIO.read(file);
+			return null;
+		}
+
+		@Override
+		public void setThumbnail(T img) throws IOException {
+			if (!cls.equals(BufferedImage.class))
+				throw new UnsupportedOperationException("Only RenderedImage thumbnails are supported!");
+			var file = getThumbnailFile();
+			if (!file.getParentFile().isDirectory())
+				file.getParentFile().mkdirs();
+			ImageIO.write((RenderedImage)img, "JPEG", file);
 		}
 
 

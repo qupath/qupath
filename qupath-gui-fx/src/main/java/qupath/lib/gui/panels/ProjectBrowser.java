@@ -51,7 +51,6 @@ import org.controlsfx.control.action.ActionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javafx.application.Platform;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import javafx.embed.swing.SwingFXUtils;
@@ -250,11 +249,10 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 					logger.warn("Cannot refresh entry for image that is not open!");
 					return;
 				}
-				File fileThumbnail = getThumbnailFile(getProject(), entry);
 				BufferedImage imgThumbnail = qupath.getViewer().getRGBThumbnail();
 				imgThumbnail = resizeForThumbnail(imgThumbnail);
 				try {
-					ImageIO.write(imgThumbnail, THUMBNAIL_EXT, fileThumbnail);
+					entry.setThumbnail(imgThumbnail);
 				} catch (IOException e1) {
 					logger.error("Error writing thumbnail", e1);
 				}
@@ -514,9 +512,8 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 		if (server == null || project == null)
 			return;
 
-		if (project.addImagesForServer(server)) {
-			ProjectImageEntry<BufferedImage> entry = project.getImageEntry(server.getPath());
-			//			tree.setModel(new ProjectImageTreeModel(project)); // TODO: Update the model more elegantly!!!
+		var entry = project.addImage(server);
+		if (entry != null) {
 			tree.setRoot(model.getRootFX());
 			if (entry != null) {
 				setSelectedEntry(tree, tree.getRoot(), entry);
@@ -633,28 +630,6 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 		g2d.dispose();
 		return imgThumbnail2;
 	}
-	
-
-
-	void requestThumbnailInBackground(final String serverPath, final File fileThumbnail) {
-		// Don't do anything if already requested
-		if (serversRequested.contains(serverPath))
-			return;
-		Runnable r = new Runnable() {
-			@Override
-			public void run() {
-				try {
-					Image image = requestThumbnail(serverPath, fileThumbnail);
-					if (image != null)
-						Platform.runLater(() -> tree.refresh());
-				} catch (IOException e) {
-					logger.error("Problem loading thumbnail for {}", serverPath, e);
-				}
-			}
-		};
-		qupath.submitShortTask(r);
-	}
-
 
 
 	//	@Override
@@ -688,20 +663,6 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 		if (dirBase == null || !dirBase.isDirectory())
 			return null;
 		return new File(dirBase, "project." + ProjectIO.getProjectExtension());
-	}
-
-
-	static File getThumbnailFile(final Project<?> project, final ProjectImageEntry<?> entry) {
-		if (project == null || entry == null)
-			return null;
-		File dirBase = project.getBaseDirectory();
-		if (dirBase == null || !dirBase.isDirectory())
-			return null;
-
-		File dirData = new File(dirBase, "thumbnails");
-		if (!dirData.exists())
-			dirData.mkdir();
-		return new File(dirData, entry.getUniqueName() + "." + THUMBNAIL_EXT);
 	}
 
 
@@ -1095,14 +1056,15 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 				tooltip.setText(entry.getSummary());
 				//	        	 Tooltip tooltip = new Tooltip(sb.toString());
 
-				File fileThumbnail = getThumbnailFile(getProject(), entry);
-				if (fileThumbnail == null) {
-					setGraphic(null);
-					return;
+				BufferedImage img = null;
+				try {
+					img = (BufferedImage)entry.getThumbnail();
+				} catch (Exception e) {
+					logger.warn("Unable to read thumbnail for {} ({})" + entry.getImageName(), e.getLocalizedMessage());
 				}
 				
-				if (fileThumbnail.exists()) {
-					Image image = new Image(fileThumbnail.toURI().toString(), false);
+				if (img != null) {
+					Image image = SwingFXUtils.toFXImage(img, null);
 					viewTooltip.setImage(image);
 					tooltip.setGraphic(viewTooltip);
 					PaintingToolsFX.paintImage(viewCanvas, image);
@@ -1110,9 +1072,6 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 						setGraphic(label);
 				} else {
 					setGraphic(null);
-					// Put in a request for the thumbnail on a background thread
-					requestThumbnailInBackground(entry.getServerPath(), fileThumbnail);
-//					requestThumbnailInBackground(entry.getServerPath(), fileThumbnail, viewGraphic, viewTooltip);
 				}
 				
 			}

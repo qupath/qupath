@@ -214,10 +214,21 @@ public interface ProjectImageEntry<T> {
 	 */
 	public String getSummary();
 	
+	/**
+	 * Request a thumbnail for the image.
+	 * 
+	 * @return a thumbnail if one has already been set, otherwise null.
+	 * @throws IOException
+	 */
+	public T getThumbnail() throws IOException;
 	
-//	public T getThumbnail();
-//	
-//	public void setThumbnail(T img);	
+	/**
+	 * Set a thumbnail for the image. This will replace any existing thumbnail.
+	 * 
+	 * @param img
+	 * @throws IOException
+	 */
+	public void setThumbnail(T img) throws IOException;	
 	
 	/**
 	 * Get a formatted string representation of the metadata map's contents.

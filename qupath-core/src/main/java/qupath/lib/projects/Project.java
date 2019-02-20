@@ -75,8 +75,6 @@ public interface Project<T> {
 	 */
 	public boolean setPathClasses(Collection<? extends PathClass> pathClasses);
 
-	public boolean addImage(final ProjectImageEntry<T> entry);
-	
 	// TODO: Make this non-public (or at least less important)
 	@Deprecated
 	public File getFile();
@@ -89,11 +87,9 @@ public interface Project<T> {
 	
 	public boolean isEmpty();
 
-	public boolean addImagesForServer(final ImageServer<T> server);
+	public ProjectImageEntry<T> addImage(final ImageServer<T> server);
 	
 	public ProjectImageEntry<T> getImageEntry(final String path);
-
-	public boolean addImage(final String path);
 	
 	public void removeImage(final ProjectImageEntry<?> entry);
 

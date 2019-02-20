@@ -24,6 +24,7 @@
 package qupath.lib.images.servers;
 
 import java.io.File;
+import java.net.URI;
 
 import qupath.lib.common.GeneralTools;
 import qupath.lib.common.URLTools;
@@ -67,6 +68,12 @@ public class ServerTools {
 	 */
 	public static String getDefaultShortServerName(final String path) {
 		try {
+			if (path.startsWith("file") || path.startsWith("http")) {
+				var uri = new URI(path);
+				String path2 = uri.getPath();
+				int ind = path2.lastIndexOf("/") + 1;
+				return path2.substring(ind);
+			}
 			String name = new File(path).getName().replaceFirst("[.][^.]+$", "");
 			return name;
 		} catch (Exception e) {}
