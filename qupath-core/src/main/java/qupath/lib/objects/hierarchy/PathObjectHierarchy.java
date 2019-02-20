@@ -507,6 +507,18 @@ public final class PathObjectHierarchy implements Serializable {
 		return pathObjects;
 	}
 	
+	/**
+	 * Update an object that is already in the hierarchy (e.g. because its ROI has changed).
+	 * 
+	 * @param pathObject
+	 */
+	public void updateObject(PathObject pathObject) {
+		if (inHierarchy(pathObject))
+			removeObject(pathObject, true, false);
+		addPathObject(pathObject, true, false);
+		fireObjectsChangedEvent(this, Collections.singletonList(pathObject), false);
+	}
+	
 	
 	/**
 	 * Get a flattened list containing all PathObjects in the hierarchy (apart from the root object).

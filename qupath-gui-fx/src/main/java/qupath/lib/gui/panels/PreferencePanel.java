@@ -328,6 +328,11 @@ public class PreferencePanel {
 				"Scale brush by magnification",
 				category,
 				"Adapt brush size by magnification, so higher magnification gives a finer brush");
+		
+		addPropertyPreference(PathPrefs.multipointToolProperty(), Boolean.class,
+				"Use multipoint tool",
+				category,
+				"With the Counting tool, add points to an existing object if possible");
 
 		addPropertyPreference(PathPrefs.defaultPointRadiusProperty(), Integer.class,
 				"Point radius",

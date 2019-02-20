@@ -18,7 +18,11 @@ import org.locationtech.jts.simplify.VWSimplifier;
 import qupath.lib.geom.Point2;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.PathROIToolsAwt;
+import qupath.lib.roi.PointsROI;
 import qupath.lib.roi.PolygonROI;
+import qupath.lib.roi.interfaces.PathArea;
+import qupath.lib.roi.interfaces.PathLine;
+import qupath.lib.roi.interfaces.PathPoints;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
@@ -118,10 +122,32 @@ public class ConverterJTS {
      * @return
      */
     public Geometry roiToGeometry(ROI roi) {
-    	 Area shape = PathROIToolsAwt.getArea(roi);
-         PathIterator iterator = shape.getPathIterator(transform, flatness);
-         // Use simplifier to ensure a valid geometry
-         return VWSimplifier.simplify(getShapeReader().read(iterator), 0);
+    	if (roi instanceof PathPoints)
+    		return pointsToGeometry((PathPoints)roi);
+    	if (roi instanceof PathArea)
+    		return areaToGeometry((PathArea)roi);
+    	if (roi instanceof PathLine)
+    		return lineToGeometry((PathLine)roi);
+    	throw new UnsupportedOperationException("Unknown ROI " + roi + " - cannot convert to a Geometry!");
+    }
+    
+    private Geometry lineToGeometry(PathLine roi) {
+    	var coords = roi.getPolygonPoints().stream().map(p -> new Coordinate(p.getX(), p.getY())).toArray(Coordinate[]::new);
+    	return factory.createLineString(coords);
+    }
+    
+    private Geometry areaToGeometry(PathArea roi) {
+    	Shape shape = PathROIToolsAwt.getArea(roi);
+    	PathIterator iterator = shape.getPathIterator(transform, flatness);
+    	// Use simplifier to ensure a valid geometry
+    	return VWSimplifier.simplify(getShapeReader().read(iterator), 0);
+    }
+    
+    private Geometry pointsToGeometry(PathPoints points) {
+    	var coords = points.getPointList().stream().map(p -> new Coordinate(p.getX(), p.getY())).toArray(Coordinate[]::new);
+    	if (coords.length == 1)
+    		return factory.createPoint(coords[0]);
+    	return factory.createMultiPoint(coords);
     }
 
 

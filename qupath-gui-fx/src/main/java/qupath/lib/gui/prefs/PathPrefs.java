@@ -1007,6 +1007,21 @@ public class PathPrefs {
 	}
 	
 	
+	private static BooleanProperty multipointTool = createTransientPreference("multipointTool", true);
+	
+	public static BooleanProperty multipointToolProperty() {
+		return multipointTool;
+	}
+
+	public static boolean getMultipointTool() {
+		return multipointTool.get();
+	}
+
+	public static void setMultipointTool(boolean doMultipoint) {
+		multipointTool.set(doMultipoint);
+	}
+	
+	
 	private static DoubleProperty tmaExportDownsampleProperty = createPersistentPreference("tmaExportDownsample", 4.0);
 
 	public static void setTMAExportDownsample(final double downsample) {

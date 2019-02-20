@@ -906,10 +906,10 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 			// If we are masking the image names, we should also shuffle the entries
 			boolean maskNames = PathPrefs.getMaskImageNames();
 			
-			Random rand = new Random(project.hashCode());
 			TreeItem<Object> root = new TreeItem<>(getRoot());
 			List<TreeItem<Object>> items = root.getChildren();
 			if (project != null) {
+				Random rand = new Random(project.hashCode());
 				if (sortKeys.isEmpty()) {
 					var imageList = project.getImageList();
 					if (maskNames)
