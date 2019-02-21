@@ -60,8 +60,6 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.google.gson.stream.JsonWriter;
-
 import qupath.lib.common.URLTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.ImageData.ImageType;
@@ -75,7 +73,6 @@ import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
-import qupath.lib.projects.LegacyProject.LegacyProjectImageEntry;
 
 /**
  * Data structure to store multiple images, relating these to a file system.
@@ -88,7 +85,11 @@ class DefaultProject implements Project<BufferedImage> {
 	
 	private static Logger logger = LoggerFactory.getLogger(DefaultProject.class);
 	
-	private static Gson gson = new GsonBuilder().setLenient().setPrettyPrinting().create();
+	private static Gson gson = new GsonBuilder()
+			.setLenient()
+			.serializeSpecialFloatingPointValues()
+			.setPrettyPrinting()
+			.create();
 	
 	private String version = "0.2";
 
@@ -133,6 +134,56 @@ class DefaultProject implements Project<BufferedImage> {
 		creationTimestamp = System.currentTimeMillis();
 		modificationTimestamp = System.currentTimeMillis();
 	}
+	
+	
+	public List<String> validateLocalPaths(boolean relativize) {
+		var missing = new ArrayList<String>();
+		var uriCurrent = getBaseDirectory().toURI().resolve("..");
+		var lastParentURI = lastURI == null ? null : lastURI.resolve("..");
+		var iterator = images.entrySet().iterator();
+		var newMap = new LinkedHashMap<String, DefaultProjectImageEntry>();
+		while (iterator.hasNext()) {
+			var mapEntry = iterator.next();
+			var entry = mapEntry.getValue();
+			var path = mapEntry.getKey();
+			if (path.startsWith("file")) {
+				try {
+					var uri = new URI(path);
+					var file = new File(uri);
+					if (file.exists()) {
+						newMap.put(path, entry);
+						continue;
+					}
+					if (relativize && lastParentURI != null) {
+						var uriRelative = lastParentURI.relativize(uri);
+						uri = uriCurrent.resolve(uriRelative);
+						if (new File(uri).exists()) {
+							logger.info("Updating path {} to {}", path, uri);
+							var serverPath = uri.toString();
+							newMap.put(entry.serverPath, 
+									new DefaultProjectImageEntry(serverPath,
+											entry.getImageName(),
+											entry.getUniqueName(),
+											entry.getDescription(),
+											entry.getMetadataMap()));
+							continue;
+						}
+					}
+					newMap.put(path, entry);
+					missing.add(path);
+				} catch (URISyntaxException e) {
+					logger.warn("Failed to create URI for " + path);
+				}
+			} else
+				newMap.put(path, entry);
+		}
+		if (!images.equals(newMap)) {
+			images.clear();
+			images.putAll(newMap);
+		}
+		return missing;
+	}
+	
 	
 	/**
 	 * Get a File with a unique name, derived by appending an integer to the name if necessary.
@@ -181,10 +232,17 @@ class DefaultProject implements Project<BufferedImage> {
 	 * @return <code>true</code> if the stored values changed, false otherwise.
 	 */
 	public boolean setPathClasses(Collection<? extends PathClass> pathClasses) {
-		if (this.pathClasses.size() == pathClasses.size() && this.pathClasses.containsAll(pathClasses))
-			return false;
-		this.pathClasses.clear();
-		this.pathClasses.addAll(pathClasses);
+		if (this.pathClasses.size() != pathClasses.size() || this.pathClasses.containsAll(pathClasses)) {
+			this.pathClasses.clear();
+			this.pathClasses.addAll(pathClasses);			
+		}
+		// Write anyway, in case change was subtle (i.e. color only)
+		try {
+			logger.debug("Writing PathClasses to project");
+			writePathClasses(this.pathClasses);
+		} catch (IOException e) {
+			logger.warn("Unable to write classes to project", e);
+		}
 		return true;
 	}
 
@@ -200,18 +258,52 @@ class DefaultProject implements Project<BufferedImage> {
 		return true;
 	}
 	
-	public File getFile() {
+	File getFile() {
 		return file;
+	}
+	
+	public URI getURI() {
+		return getFile().toURI();
 	}
 	
 	public File getBaseDirectory() {
 		return dirBase;
 	}
 	
-	public Path getBasePath() {
+	private Path getBasePath() {
 		return getBaseDirectory().toPath();
 	}
 	
+	private Path getScriptsPath() {
+		return Paths.get(getBasePath().toString(), "scripts");
+	}
+	
+	private Path getClassifiersPath() {
+		return Paths.get(getBasePath().toString(), "classifiers");
+	}
+	
+	private Path getPixelClassifiersPath() {
+		return Paths.get(getClassifiersPath().toString(), "pixel_classifiers");
+	}
+
+	private Path getObjectClassifiersPath() {
+		return Paths.get(getClassifiersPath().toString(), "object_classifiers");
+	}
+	
+	List<String> listFilenames(Path path, String ext) throws IOException {
+		if (!Files.isDirectory(path))
+			return Collections.emptyList();
+		return Files.list(path).filter(p -> Files.isRegularFile(p) && p.endsWith(ext)).map(p -> nameWithoutExtension(p, ext)).collect(Collectors.toList());
+	}
+	
+	String nameWithoutExtension(Path path, String ext) {
+		String name = path.getFileName().toString();
+		if (name.endsWith(ext))
+			return name.substring(0, name.length()-ext.length());
+		return name;
+	}
+	
+
 	public boolean addAllImages(final Collection<ProjectImageEntry<BufferedImage>> entries) {
 		boolean changes = false;
 		for (ProjectImageEntry<BufferedImage> entry : entries)
@@ -266,12 +358,13 @@ class DefaultProject implements Project<BufferedImage> {
 	}
 	
 	public void syncChanges() throws IOException {
-		writeProject(this, getFile());
+		writeProject(getFile());
+		writePathClasses(pathClasses);
 //		if (file.isDirectory())
 //			file = new File(dirBase, "project.qpproj");
 //		var json = new GsonBuilder().setLenient().setPrettyPrinting().create().toJson(this);
 //		Files.writeString(file.toPath(), json);
-		logger.warn("Syncing project not yet implemented!");
+//		logger.warn("Syncing project not yet implemented!");
 	}
 	
 	/**
@@ -325,7 +418,7 @@ class DefaultProject implements Project<BufferedImage> {
 	
 	@Override
 	public String toString() {
-		return "Project: " + getName();
+		return "Project: " + Project.getNameFromURI(getURI());
 	}
 	
 	public long getCreationTimestamp() {
@@ -336,6 +429,32 @@ class DefaultProject implements Project<BufferedImage> {
 		return modificationTimestamp;
 	}
 	
+	
+	private String EXT_SCRIPT = ".groovy";
+	private String EXT_OBJECT_CLASSIFIER = ".classifier.pixels.json";
+	private String EXT_PIXEL_CLASSIFIER = ".classifier.objects.json";
+	
+	Path ensureDirectoryExists(Path path) throws IOException {
+		if (!Files.isDirectory(path))
+			Files.createDirectories(path);
+		return path;
+	}
+	
+	public List<String> listScripts() throws IOException {
+		return listFilenames(getScriptsPath(), EXT_SCRIPT);
+	}
+	
+	public String loadScript(String name) throws IOException {
+		var path = Paths.get(getScriptsPath().toString(), name + EXT_SCRIPT);
+		if (Files.exists(path))
+			return Files.readString(path);
+		throw new IOException("No script found with name '" + name + "'");
+	}
+	
+	public void saveScript(String name, String script) throws IOException {
+		var path = Paths.get(ensureDirectoryExists(getScriptsPath()).toString(), name + EXT_SCRIPT);
+		Files.writeString(path, script, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
+	}
 	
 	
 	/**
@@ -743,12 +862,37 @@ class DefaultProject implements Project<BufferedImage> {
 		
 		private long timestamp;
 		private ImageType imageType;
+		private ServerSummary server;
 		private HierarchySummary hierarchy;
 		
 		ImageDataSummary(ImageData<?> imageData, long timestamp) {
 			this.imageType = imageData.getImageType();
+			this.server = new ServerSummary(imageData.getServer());
 			this.timestamp = timestamp;
 			this.hierarchy = new HierarchySummary(imageData.getHierarchy());
+		}
+		
+		public String toString() {
+			return gson.toJson(this);
+		}
+		
+	}
+	
+	
+	static class ServerSummary {
+		
+		private int width;
+		private int height;
+		private int sizeC;
+		private int sizeZ;
+		private int sizeT;
+		
+		ServerSummary(ImageServer<?> server) {
+			this.width = server.getWidth();
+			this.height = server.getHeight();
+			this.sizeC = server.nChannels();
+			this.sizeZ = server.nZSlices();
+			this.sizeT = server.nTimepoints();
 		}
 		
 	}
@@ -786,28 +930,28 @@ class DefaultProject implements Project<BufferedImage> {
 	 * @param project
 	 * @param name
 	 */
-	static <T> void writeProject(final DefaultProject project, final File fileProject) {
+	<T> void writeProject(final File fileProject) {
 		if (fileProject == null) {
-			logger.error("No file found, cannot write project: {}", project);
+			logger.error("No file found, cannot write project: {}", this);
 			return;
 		}
 
 		Gson gson = new GsonBuilder().setPrettyPrinting().create();
 		
-		List<PathClass> pathClasses = project.getPathClasses();
-		JsonArray pathClassArray = null;
-		if (!pathClasses.isEmpty()) {
-			pathClassArray = new JsonArray();
-			for (PathClass pathClass : pathClasses) {
-				JsonObject jsonEntry = new JsonObject();
-				jsonEntry.addProperty("name", pathClass.toString());
-				jsonEntry.addProperty("color", pathClass.getColor());
-				pathClassArray.add(jsonEntry);
-			}
-		}		
+//		List<PathClass> pathClasses = project.getPathClasses();
+//		JsonArray pathClassArray = null;
+//		if (!pathClasses.isEmpty()) {
+//			pathClassArray = new JsonArray();
+//			for (PathClass pathClass : pathClasses) {
+//				JsonObject jsonEntry = new JsonObject();
+//				jsonEntry.addProperty("name", pathClass.toString());
+//				jsonEntry.addProperty("color", pathClass.getColor());
+//				pathClassArray.add(jsonEntry);
+//			}
+//		}		
 		
 		JsonArray array = new JsonArray();
-		for (ProjectImageEntry<BufferedImage> entry : project.getImageList()) {
+		for (ProjectImageEntry<BufferedImage> entry : getImageList()) {
 			JsonObject jsonEntry = new JsonObject();
 			jsonEntry.addProperty("path", entry.getServerPath());
 		    jsonEntry.addProperty("name", entry.getOriginalImageName());
@@ -828,12 +972,12 @@ class DefaultProject implements Project<BufferedImage> {
 
 		JsonObject builder = new JsonObject();
 		builder.addProperty("version", "0.2");
-		builder.addProperty("createTimestamp", project.getCreationTimestamp());
-		builder.addProperty("modifyTimestamp", project.getModificationTimestamp());
+		builder.addProperty("createTimestamp", getCreationTimestamp());
+		builder.addProperty("modifyTimestamp", getModificationTimestamp());
 		builder.addProperty("uri", fileProject.toURI().toString());
-		if (pathClassArray != null) {
-			builder.add("pathClasses", pathClassArray);			
-		}
+//		if (pathClassArray != null) {
+//			builder.add("pathClasses", pathClassArray);			
+//		}
 		builder.add("images", array);
 
 		// If we already have a project, back it up
@@ -862,23 +1006,23 @@ class DefaultProject implements Project<BufferedImage> {
 			modificationTimestamp = element.get("modifyTimestamp").getAsLong();
 			lastURI = new URI(element.get("uri").getAsString());
 			
-			JsonElement pathClassesElement = element.get("pathClasses");
-			if (pathClassesElement != null && pathClassesElement.isJsonArray()) {
-				try {
-					JsonArray pathClassesArray = pathClassesElement.getAsJsonArray();
-					List<PathClass> pathClasses = new ArrayList<>();
-					for (int i = 0; i < pathClassesArray.size(); i++) {
-						JsonObject pathClassObject = pathClassesArray.get(i).getAsJsonObject();
-						String name = pathClassObject.get("name").getAsString();
-						int color = pathClassObject.get("color").getAsInt();
-						PathClass pathClass = PathClassFactory.getPathClass(name, color);
-						pathClasses.add(pathClass);
-					}
-					setPathClasses(pathClasses);
-				} catch (Exception e) {
-					logger.error("Error parsing PathClass list", e);
-				}
-			}
+//			JsonElement pathClassesElement = element.get("pathClasses");
+//			if (pathClassesElement != null && pathClassesElement.isJsonArray()) {
+//				try {
+//					JsonArray pathClassesArray = pathClassesElement.getAsJsonArray();
+//					List<PathClass> pathClasses = new ArrayList<>();
+//					for (int i = 0; i < pathClassesArray.size(); i++) {
+//						JsonObject pathClassObject = pathClassesArray.get(i).getAsJsonObject();
+//						String name = pathClassObject.get("name").getAsString();
+//						int color = pathClassObject.get("color").getAsInt();
+//						PathClass pathClass = PathClassFactory.getPathClass(name, color);
+//						pathClasses.add(pathClass);
+//					}
+//					setPathClasses(pathClasses);
+//				} catch (Exception e) {
+//					logger.error("Error parsing PathClass list", e);
+//				}
+//			}
 
 			JsonArray images = element.getAsJsonArray("images");
 			for (JsonElement imageElement : images) {
@@ -904,10 +1048,59 @@ class DefaultProject implements Project<BufferedImage> {
 				String uniqueName = imageObject.has("uniqueName") ? imageObject.get("uniqueName").getAsString() : null;
 				addImage(new DefaultProjectImageEntry(path, name, uniqueName, description, metadataMap));
 			}
+			pathClasses.addAll(loadPathClasses());
 		} catch (Exception e) {
 			logger.error("Unable to read project from " + fileProject.getAbsolutePath(), e);
 		}
 	}
 	
+	
+	void writePathClasses(Collection<PathClass> pathClasses) throws IOException {
+		
+		var path = Paths.get(ensureDirectoryExists(getClassifiersPath()).toString(), "classes.json");
+		if (pathClasses == null || pathClasses.isEmpty()) {
+			Files.deleteIfExists(path);
+			return;
+		}
+		
+		JsonArray pathClassArray = new JsonArray();
+		for (PathClass pathClass : pathClasses) {
+			JsonObject jsonEntry = new JsonObject();
+			jsonEntry.addProperty("name", pathClass.toString());
+			jsonEntry.addProperty("color", pathClass.getColor());
+			pathClassArray.add(jsonEntry);
+		}
+		
+		var element = new JsonObject();
+		element.add("pathClasses", pathClassArray);
+		try (var writer = Files.newBufferedWriter(path)) {
+			gson.toJson(element, writer);
+		}
+	}
+	
+	
+	Collection<PathClass> loadPathClasses() throws Exception {
+		var path = Paths.get(ensureDirectoryExists(getClassifiersPath()).toString(), "classes.json");
+		if (!Files.isRegularFile(path))
+			return null;
+		try (var reader = Files.newBufferedReader(path)) {
+			var element = gson.fromJson(reader, JsonObject.class);
+			JsonElement pathClassesElement = element.get("pathClasses");
+			if (pathClassesElement != null && pathClassesElement.isJsonArray()) {
+				JsonArray pathClassesArray = pathClassesElement.getAsJsonArray();
+				List<PathClass> pathClasses = new ArrayList<>();
+				for (int i = 0; i < pathClassesArray.size(); i++) {
+					JsonObject pathClassObject = pathClassesArray.get(i).getAsJsonObject();
+					String name = pathClassObject.get("name").getAsString();
+					int color = pathClassObject.get("color").getAsInt();
+					PathClass pathClass = PathClassFactory.getPathClass(name, color);
+					pathClass.setColor(color); // Make sure we have the color we want
+					pathClasses.add(pathClass);
+				}
+				return pathClasses;
+			} else
+				return null;
+		}
+	}
 	
 }

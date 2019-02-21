@@ -192,12 +192,22 @@ public class SplitProjectTrainingCommand implements PathCommand {
 			
 			// Save projects if we need to
 			if (Boolean.TRUE.equals(params.getBooleanParameterValue("generateProjects"))) {
-				File fileOrig = project.getFile();
+				
+				String ext = ProjectIO.getProjectExtension(true);
+				File fileOrig;
+				if ("file".equals(project.getURI().getScheme()))
+					fileOrig = new File(project.getURI());
+				else {
+					fileOrig = QuPathGUI.getSharedDialogHelper().promptToSaveFile("Project file", null, null, "QuPath project", ext);
+					if (fileOrig == null) {
+						// Save the main project
+						ProjectBrowser.syncProject(project);
+						return;
+					}
+				}
+				
 				File dir = fileOrig.getParentFile();
 				
-				String ext = ProjectIO.getProjectExtension();
-				if (!ext.startsWith("."))
-					ext = "." + ext;
 				String baseName = fileOrig.getName();
 				if (baseName.toLowerCase().endsWith(ext))
 					baseName = baseName.substring(0, baseName.length()-ext.length());

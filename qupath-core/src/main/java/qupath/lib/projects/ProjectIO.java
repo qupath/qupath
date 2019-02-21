@@ -27,6 +27,8 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.Reader;
+import java.net.URI;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,7 +36,9 @@ import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 
 /**
- * Read/write QuPath projects.
+ * Read QuPath projects.
+ * <p>
+ * Projects should now be written with {@link Project#syncChanges()}
  * 
  * @author Pete Bankhead
  *
@@ -43,22 +47,29 @@ public class ProjectIO {
 
 	final private static Logger logger = LoggerFactory.getLogger(ProjectIO.class);
 	
-	private static final String DEFAULT_PROJECT_NAME = "project";
+	public static final String DEFAULT_PROJECT_NAME = "project";
 	
-	private static final String DEFAULT_PROJECT_EXTENSION = "qpproj";
-
+	public static final String DEFAULT_PROJECT_EXTENSION = "qpproj";
+	
 	/**
-	 * Read project from file.
+	 * Read project from URI.  Currently, this assumes that the URI refers to a local file.
+	 * 
+	 * @param fileProject
+	 * @param cls
+	 * @return
+	 */
+	public static <T> Project<T> loadProject(final URI uri, final Class<T> cls) {
+		return loadProject(new File(uri), cls);
+	}
+	
+	/**
+	 * Load a project from a local file.
 	 * 
 	 * @param fileProject
 	 * @param cls
 	 * @return
 	 */
 	public static <T> Project<T> loadProject(final File fileProject, final Class<T> cls) {
-		if (fileProject == null) {
-			return null;
-		}
-		
 		try (Reader fileReader = new BufferedReader(new FileReader(fileProject))){
 			Gson gson = new Gson();
 			JsonObject element = gson.fromJson(fileReader, JsonObject.class);
@@ -73,63 +84,21 @@ public class ProjectIO {
 		}
 	}
 	
-	
-	/**
-	 * Deprecated in favor of simply calling {@code project.syncProject()}.
-	 * 
-	 * @param project
-	 */
-	@Deprecated
-	public static void writeProject(final Project<?> project) {
-		try {
-			project.syncChanges();
-		} catch (Exception e) {
-			logger.error("Error writing project", e);
-		}
-	}
-
-
-	/**
-	 * Get a suitable project file.
-	 * 
-	 * Note: This behavior has changed from <= v0.1.2.
-	 * The earlier code often ignored the <code>name</code>.
-	 * 
-	 * @param project
-	 * @param name
-	 * @return
-	 */
-	static File getProjectFile(final Project<?> project, String name) {
-		if (project == null)
-			return null;
-		
-		// Use default name
-		if (name == null || name.length() == 0) {
-			// If we already have a file, use that
-			if (project.getFile() != null && (project.getFile() != project.getBaseDirectory()))
-				return project.getFile();
-			// Default to project.qpproj
-			name = DEFAULT_PROJECT_NAME;
-		}
-
-		// We need a base directory
-		File dirBase = project.getBaseDirectory();
-		if (dirBase == null || !dirBase.isDirectory()) {
-			logger.warn("No base directory for project!");
-			return null;
-		}
-		
-		// Return File with extension
-		if (!name.endsWith("."))
-			name += ".";
-		return new File(dirBase, name + ProjectIO.getProjectExtension());
-	}
-
 
 	/**
 	 * Get the default extension for a QuPath project file.
 	 * 
-	 * @return qpproj
+	 * @return
+	 */
+	public static String getProjectExtension(boolean includePeriod) {
+		return includePeriod ? "." + DEFAULT_PROJECT_EXTENSION : DEFAULT_PROJECT_EXTENSION;
+	}
+	
+	/**
+	 * Get the default extension for a QuPath project file, without the 'dot'.
+	 * @return
+	 * 
+	 * @see ProjectIO#getProjectExtension(boolean)
 	 */
 	public static String getProjectExtension() {
 		return DEFAULT_PROJECT_EXTENSION;

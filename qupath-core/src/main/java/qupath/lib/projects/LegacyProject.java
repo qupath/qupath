@@ -153,7 +153,7 @@ class LegacyProject<T> implements Project<T> {
 		return true;
 	}
 	
-	public File getFile() {
+	File getFile() {
 		return file;
 	}
 	
@@ -247,7 +247,7 @@ class LegacyProject<T> implements Project<T> {
 	
 	@Override
 	public String toString() {
-		return "Project: " + getName();
+		return "Project: " + Project.getNameFromURI(getURI());
 	}
 	
 	
@@ -260,7 +260,9 @@ class LegacyProject<T> implements Project<T> {
 	}
 	
 	
-	
+	public URI getURI() {
+		return getFile().toURI();
+	}
 	
 	
 	void loadProject(final File fileProject) {
@@ -281,6 +283,7 @@ class LegacyProject<T> implements Project<T> {
 						String name = pathClassObject.get("name").getAsString();
 						int color = pathClassObject.get("color").getAsInt();
 						PathClass pathClass = PathClassFactory.getPathClass(name, color);
+						pathClass.setColor(color);
 						pathClasses.add(pathClass);
 					}
 					setPathClasses(pathClasses);
@@ -357,7 +360,7 @@ class LegacyProject<T> implements Project<T> {
 	 * @param name
 	 */
 	static <T> void writeProject(final LegacyProject<T> project, final String name) {
-		File fileProject = ProjectIO.getProjectFile(project, name);
+		File fileProject = project.getFile();
 		if (fileProject == null) {
 			logger.error("No file found, cannot write project: {}", project);
 			return;
@@ -424,6 +427,34 @@ class LegacyProject<T> implements Project<T> {
 	}
 	
 	
+	
+	public List<String> listScripts() throws IOException {
+		throw new UnsupportedOperationException();
+	}
+	
+	public String loadScript(String name) throws IOException {
+		throw new UnsupportedOperationException();
+	}
+	
+	public void saveScript(String name, String script) throws IOException {
+		throw new UnsupportedOperationException();		
+	}
+	
+	public List<String> validateLocalPaths(boolean relativize) {
+		var missing = new ArrayList<String>();
+		for (String path : images.keySet()) {
+			if (path.startsWith("file")) {
+				try {
+					var uri = new URI(path);
+					if (!new File(uri).exists())
+						missing.add(path);
+				} catch (URISyntaxException e) {
+					logger.warn("Failed to create URI for " + path);
+				}
+			}
+		}
+		return missing;
+	}
 	
 	/**
 	 * Class to represent an image entry within a project.

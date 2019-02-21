@@ -455,7 +455,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 
 	private boolean isStandalone = false;
 	private ScriptMenuLoader sharedScriptMenuLoader;
-	private ScriptMenuLoader projectScriptMenuLoader;
+//	private ScriptMenuLoader projectScriptMenuLoader;
 	
 	private DragDropFileImportListener dragAndDrop = new DragDropFileImportListener(this);
 	
@@ -721,15 +721,16 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		Menu menuAutomate = getMenu("Automate", false);
 		ScriptEditor editor = getScriptEditor();
 		sharedScriptMenuLoader = new ScriptMenuLoader("Shared scripts...", PathPrefs.scriptsPathProperty(), (DefaultScriptEditor)editor);
-		StringBinding projectScriptsPath = Bindings.createStringBinding(() -> {
-			if (project.get() == null)
-				return null;
-			return getProjectScriptsDirectory(false).getAbsolutePath();
-		}, project);
-		projectScriptMenuLoader = new ScriptMenuLoader("Project scripts...", projectScriptsPath, (DefaultScriptEditor)editor);
-		projectScriptMenuLoader.getMenu().visibleProperty().bind(
-				Bindings.isNotNull(project).or(initializingMenus)
-				);
+		// TODO: Reintroduce project scripts
+//		StringBinding projectScriptsPath = Bindings.createStringBinding(() -> {
+//			if (project.get() == null)
+//				return null;
+//			return getProjectScriptsDirectory(false).getAbsolutePath();
+//		}, project);
+//		projectScriptMenuLoader = new ScriptMenuLoader("Project scripts...", projectScriptsPath, (DefaultScriptEditor)editor);
+//		projectScriptMenuLoader.getMenu().visibleProperty().bind(
+//				Bindings.isNotNull(project).or(initializingMenus)
+//				);
 		
 		StringBinding userScriptsPath = Bindings.createStringBinding(() -> {
 			String userPath = PathPrefs.getUserPath();
@@ -742,7 +743,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 
 		menuAutomate.setOnMenuValidation(e -> {
 			sharedScriptMenuLoader.updateMenu();
-			projectScriptMenuLoader.updateMenu();
+//			projectScriptMenuLoader.updateMenu();
 			userScriptMenuLoader.updateMenu();
 		});
 
@@ -751,7 +752,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 					menuAutomate,
 					null,
 					createCommandAction(new SampleScriptLoader(this), "Open sample scripts"),
-					projectScriptMenuLoader.getMenu(),
+//					projectScriptMenuLoader.getMenu(),
 					sharedScriptMenuLoader.getMenu(),
 					userScriptMenuLoader.getMenu()
 					);
@@ -944,79 +945,6 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		return new File(System.getProperty("user.home"), "QuPath");
 	}
 	
-	
-	/**
-	 * Get the base directory for the current project, or null if no
-	 * project is currently open.
-	 * 
-	 * @return
-	 */
-	public File getCurrentProjectDirectory() {
-		if (getProject() == null)
-			return null;
-		return getProject().getBaseDirectory();
-	}
-	
-	
-	/**
-	 * Get the scripts directory for the current project, or null if no project is open.
-	 * 
-	 * @param makeDirectory True if the directory should be made (if it doesn't already exist), false otherwise
-	 * @return
-	 */
-	public File getProjectScriptsDirectory(final boolean makeDirectory) {
-		return getProjectDirectory("scripts", makeDirectory);
-	}
-	
-	
-	/**
-	 * Get the classifiers directory for the current project, or null if no project is open.
-	 * 
-	 * @param makeDirectory True if the directory should be made (if it doesn't already exist), false otherwise
-	 * @return
-	 */
-	public File getProjectClassifierDirectory(final boolean makeDirectory) {
-		return getProjectDirectory("classifiers", makeDirectory);
-	}
-	
-	
-	/**
-	 * Get the data directory for the current project, or null if no project is open.
-	 * 
-	 * @param makeDirectory True if the directory should be made (if it doesn't already exist), false otherwise
-	 * @return
-	 */
-	public File getProjectDataDirectory(final boolean makeDirectory) {
-		return getProjectDirectory("data", makeDirectory);
-	}
-	
-	
-	/**
-	 * Get the export directory for the current project, or null if no project is open.
-	 * 
-	 * @param makeDirectory True if the directory should be made (if it doesn't already exist), false otherwise
-	 * @return
-	 */
-	public File getProjectExportDirectory(final boolean makeDirectory) {
-		return getProjectDirectory("export", makeDirectory);
-	}
-	
-	
-	/**
-	 * Get a named directory within the base directory of the current project, or null if no project is open.
-	 * 
-	 * @param makeDirectory True if the directory should be made (if it doesn't already exist), false otherwise
-	 * @return
-	 */
-	private File getProjectDirectory(final String name, final boolean makeDirectory) {
-		File dir = getCurrentProjectDirectory();
-		if (dir == null)
-			return null;
-		dir = new File(dir, name);
-		if (makeDirectory && !dir.exists())
-			dir.mkdirs();
-		return dir;
-	}
 	
 	
 	/**
@@ -2904,7 +2832,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	protected MenuBar createMenuBar() {
 		
 		// Create a recent projects list
-		ObservableList<File> recentProjects = PathPrefs.getRecentProjectList();
+		ObservableList<URI> recentProjects = PathPrefs.getRecentProjectList();
 		Menu menuRecent = createMenu("Recent projects...");
 		
 		
@@ -2950,23 +2878,24 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		
 		menuFile.setOnMenuValidation(e -> {
 			menuRecent.getItems().clear();
-			for (File fileProject : recentProjects) {
-				if (fileProject == null)
+			for (URI uri : recentProjects) {
+				if (uri == null)
 					continue;
 //				String name = fileProject.getAbsolutePath();
 //				int maxLength = 40;
 //				if (name.length() > maxLength)
 //					name = "..." + name.substring(name.length() - maxLength);
-				String name = fileProject.getParentFile() != null ? fileProject.getParentFile().getName() + "/" + fileProject.getName() : fileProject.getName();
+				String name = Project.getNameFromURI(uri);
 				name = ".../" + name;
 				MenuItem item = new MenuItem(name);
 				item.setOnAction(e2 -> {
 					Project<BufferedImage> project;
 					try {
-						project = ProjectIO.loadProject(fileProject, BufferedImage.class);
+						project = ProjectIO.loadProject(uri, BufferedImage.class);
 						setProject(project);
 					} catch (Exception e1) {
-						DisplayHelpers.showErrorMessage("Project error", "Cannot find project " + fileProject.getName());
+						DisplayHelpers.showErrorMessage("Project error", "Cannot find project " + uri);
+						logger.error("Error loading project", e1);
 					}
 				});
 				menuRecent.getItems().add(item);
@@ -4517,17 +4446,31 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		if (this.project.get() == project)
 			return;
 		
+		// Check if we want to save the current image; we could still veto the project change at this point
+		var viewer = getViewer();
+		var imageData = viewer.getImageData();
+		boolean addImageToProject = false;
+		if (imageData != null) {
+			ProjectImageEntry<BufferedImage> entry = getProjectImageEntry(imageData);
+			if (entry != null) {
+				if (!checkSaveChanges(imageData))
+					return;
+				getViewer().setImageData(null);
+			} else
+				ProjectImportImagesCommand.addSingleImageToProject(project, imageData.getServer());
+		}
+		
 		// Store in recent list, if needed
-		File file = project == null ? null : project.getFile();
-		if (file != null) {
-			ObservableList<File> list = PathPrefs.getRecentProjectList();			
-			if (list.contains(file)) {
-				if (!file.equals(list.get(0))) {
-					list.remove(file);
-					list.add(0, file);
+		URI uri = project == null ? null : project.getURI();
+		if (uri != null) {
+			ObservableList<URI> list = PathPrefs.getRecentProjectList();			
+			if (list.contains(uri)) {
+				if (!uri.equals(list.get(0))) {
+					list.remove(uri);
+					list.add(0, uri);
 				}
 			} else
-				list.add(0, file);
+				list.add(0, uri);
 		}
 		
 		this.project.set(project);

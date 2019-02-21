@@ -245,7 +245,7 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 			}
 
 			// Get a classifier file
-			File fileClassifier = QuPathGUI.getDialogHelper(btnSaveClassifier.getScene().getWindow()).promptToSaveFile("Save classifier", qupath.getProjectClassifierDirectory(true), null, "Classifier", PathPrefs.getClassifierExtension());
+			File fileClassifier = QuPathGUI.getDialogHelper(btnSaveClassifier.getScene().getWindow()).promptToSaveFile("Save classifier", null, null, "Classifier", PathPrefs.getClassifierExtension());
 			if (fileClassifier == null)
 				return;
 			if (fileClassifier.exists()) {

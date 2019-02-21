@@ -125,7 +125,7 @@ import qupath.lib.scripting.QP;
 /**
  * 
  * Default multilingual script editor.
- * 
+ * <p>
  * Lacks syntax highlighting and other pleasant features, unfortunately.
  * 
  * @author Pete Bankhead
@@ -834,9 +834,9 @@ public class DefaultScriptEditor implements ScriptEditor {
 				tab.saveToFile(tab.getFile());
 			else {
 				File dir = tab.getFile();
-				if (dir == null) {
-					dir = qupath.getProjectScriptsDirectory(true);
-				}
+//				if (dir == null) {
+//					dir = qupath.getProjectScriptsDirectory(true);
+//				}
 				File file = QuPathGUI.getDialogHelper(dialog).promptToSaveFile("Save script file", dir, tab.getName(), "Script file", tab.getRequestedExtension());
 				if (file == null)
 					return false;
@@ -1685,7 +1685,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 		
 		public void saveToFile(final File file) throws IOException {
 			String text = getCurrentText();
-			Files.write(file.toPath(), text.getBytes("UTF-8"));
+			Files.writeString(file.toPath(), text);
 			this.file = file;
 			this.name = file.getName();
 			this.lastSavedContents = text;

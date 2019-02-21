@@ -194,6 +194,11 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 			if (promptToEditClass(pathClassSelected)) {
 				//					listModelPathClasses.fireListDataChangedEvent();
 				refreshList(listClasses);
+				var project = qupath.getProject();
+				// Make sure we have updated the classes in the project
+				if (project != null) {
+					project.setPathClasses(listClasses.getItems());
+				}
 				if (hierarchy != null)
 					hierarchy.fireHierarchyChangedEvent(listClasses);
 			}

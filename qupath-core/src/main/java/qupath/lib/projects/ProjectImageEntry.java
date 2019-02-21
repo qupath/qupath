@@ -248,5 +248,18 @@ public interface ProjectImageEntry<T> {
 		sb.append("}");
 		return sb.toString();
 	}
+	
+	
+	
+	
+	
+	
+//	public Map<String, String> getScripts();
+//	
+//	public Map<String, PixelClassifier> getPixelClassifiers();
+//	
+//	public Map<String, ObjectClassifier> getPixelClassifiers();
+	
+	
 
 }

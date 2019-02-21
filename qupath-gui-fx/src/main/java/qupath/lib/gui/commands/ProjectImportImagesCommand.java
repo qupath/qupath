@@ -321,7 +321,7 @@ public class ProjectImportImagesCommand implements PathCommand {
 	}
 	
 	
-	static boolean addImageAndSubImagesToProject(Project<BufferedImage> project, ImageServer<BufferedImage> server) {
+	public static boolean addImageAndSubImagesToProject(Project<BufferedImage> project, ImageServer<BufferedImage> server) {
 		var subImages = server.getSubImageList();
 		if (subImages.isEmpty())
 			return addSingleImageToProject(project, server);
@@ -348,7 +348,7 @@ public class ProjectImportImagesCommand implements PathCommand {
 	 * @param server
 	 * @return
 	 */
-	static boolean addSingleImageToProject(Project<BufferedImage> project, ImageServer<BufferedImage> server) {
+	public static boolean addSingleImageToProject(Project<BufferedImage> project, ImageServer<BufferedImage> server) {
 		ProjectImageEntry<BufferedImage> entry = null;
 		try {
 			var img = getThumbnailRGB(server, null);

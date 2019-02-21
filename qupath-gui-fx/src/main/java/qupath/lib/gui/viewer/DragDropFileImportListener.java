@@ -218,6 +218,8 @@ public class DragDropFileImportListener implements EventHandler<DragEvent> {
 					if (DisplayHelpers.showYesNoDialog("Create project", "Create project for empty directory?")) {
 						Project<BufferedImage> project = ProjectFactory.createProject(file, BufferedImage.class);
 						gui.setProject(project);
+						if (!project.isEmpty())
+							project.syncChanges();
 						return;
 					}
 				}

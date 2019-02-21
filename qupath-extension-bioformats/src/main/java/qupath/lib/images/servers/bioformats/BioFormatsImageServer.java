@@ -341,7 +341,12 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 			}
 			nTimepoints = reader.getSizeT();
 			int bpp = reader.getBitsPerPixel();
-			boolean isRGB = reader.isRGB() && bpp == 8 && nChannels == 3;
+			boolean isRGB = reader.isRGB() && bpp == 8;
+			// Remove alpha channel
+			if (isRGB && nChannels == 4) {
+				logger.warn("Removing alpha channel");
+				nChannels = 3;
+			}
 			
 			// Try to read the default display colors for each channel from the file
 			if (isRGB) {
@@ -467,7 +472,8 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 			String imageName = meta.getImageName(seriesIndex);
 			if (imageName == null)
 				imageName = "Series " + seriesIndex;
-			imageName = getFile().getName() + " - " + imageName;
+			if (containsSubImages())
+				imageName = getFile().getName() + " - " + imageName;
 			
 			// Set metadata
 			ImageServerMetadata.Builder builder = new ImageServerMetadata.Builder(getClass(), uri.toString(), width, height).

@@ -88,7 +88,7 @@ public class TMAExplorer implements PathCommand {
 		if (project != null) {
 			
 			// Create an output directory for the images
-			File dirBaseImageOutput = new File(qupath.getCurrentProjectDirectory(), "TMA");
+			File dirBaseImageOutput = new File(project.getBaseDirectory(), "TMA");
 			dirBaseImageOutput = new File(dirBaseImageOutput, "images");
 			if (!dirBaseImageOutput.exists())
 				dirBaseImageOutput.mkdirs();

@@ -27,6 +27,10 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Type;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -117,6 +121,48 @@ public class GeneralTools {
 	public static boolean almostTheSame(double n1, double n2, double tolerance) {
 		return Math.abs(n1 - n2)/n1 < tolerance;
 	}
+	
+	
+	/**
+	 * Try to convert a path to a URI.
+	 * <p>
+	 * This currently does a very simple check for http:/https:/file: at the beginning to see if it 
+	 * can construct the URI directly; if not, it assumes the path refers to a local file (as it 
+	 * generally did in QuPath 0.1.2 and earlier).
+	 * 
+	 * @param path
+	 * @return
+	 * @throws URISyntaxException 
+	 */
+	public static URI toURI(String path) throws URISyntaxException {
+		if (path.startsWith("http:") || path.startsWith("https:") || path.startsWith("file:"))
+			return new URI(path);
+		return new File(path).toURI();
+	}
+	
+	
+	/**
+	 * Try to identify a Path from a URI, dropping any query or fragment elements.
+	 * <p>
+	 * This returns the Path if successful and null otherwise. There is no check whether the Path exists.
+	 * 
+	 * @param uri
+	 * @return
+	 */
+	public static Path toPath(URI uri) {
+		String scheme = uri.getScheme();
+		if (scheme != null && !"file".equals(scheme))
+			return null;
+		try {
+			if (uri.getFragment() != null || uri.getQuery() != null)
+				uri = new URI(uri.getScheme(), uri.getHost(), uri.getPath(), null);
+			return Paths.get(uri);
+		} catch (URISyntaxException e) {
+			logger.warn("Problem parsing file from URI", e);
+		}
+		return null;
+	}
+	
 
 	/**
 	 * Convert a double array to string, with a specified number of decimal places; trailing zeros are

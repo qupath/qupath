@@ -92,7 +92,7 @@ public class TestBioFormatsImageServer {
 		DebugTools.setRootLevel("error");
 		
 		List<ProjectImageEntry<BufferedImage>> entries = project.getImageList();
-		System.out.println("Testing project with " + entries.size() + " entries: " + project.getName());
+		System.out.println("Testing project with " + entries.size() + " entries: " + Project.getNameFromURI(project.getURI()));
 		for (ProjectImageEntry<BufferedImage> entry : entries) {
 			String serverPath = entry.getServerPath();
 //			System.out.println("Opening: " + serverPath);

@@ -86,6 +86,7 @@ import qupath.lib.gui.ImageDataChangeListener;
 import qupath.lib.gui.ImageDataWrapper;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.QuPathGUI.GUIActions;
+import qupath.lib.gui.commands.ProjectImportImagesCommand;
 import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.gui.helpers.PaintingToolsFX;
 import qupath.lib.gui.helpers.PanelToolsFX;
@@ -512,12 +513,10 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 		if (server == null || project == null)
 			return;
 
-		var entry = project.addImage(server);
-		if (entry != null) {
+		var changed = ProjectImportImagesCommand.addImageAndSubImagesToProject(project, server);
+		if (changed) {
 			tree.setRoot(model.getRootFX());
-			if (entry != null) {
-				setSelectedEntry(tree, tree.getRoot(), entry);
-			}
+			setSelectedEntry(tree, tree.getRoot(), project.getImageEntry(server.getPath()));
 			syncProject(project);
 		}
 	}
@@ -530,7 +529,8 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 			return;
 		ProjectImageEntry<BufferedImage> entry = project.getImageEntry(imageDataNew.getServerPath());
 		if (entry == null) {
-			if (DisplayHelpers.showYesNoDialog("Add to project", "Add " + imageDataNew.getServer().getShortServerName() + " to project?"))
+			// Previously we gave a choice... now we force the image to be included in the project to avoid complications
+//			if (DisplayHelpers.showYesNoDialog("Add to project", "Add " + imageDataNew.getServer().getShortServerName() + " to project?"))
 				ensureServerInWorkspace(imageDataNew.getServer());
 		}
 		else if (!entry.equals(getSelectedEntry()))
@@ -662,7 +662,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 		File dirBase = getBaseDirectory();
 		if (dirBase == null || !dirBase.isDirectory())
 			return null;
-		return new File(dirBase, "project." + ProjectIO.getProjectExtension());
+		return new File(dirBase, "project" + ProjectIO.getProjectExtension());
 	}
 
 
