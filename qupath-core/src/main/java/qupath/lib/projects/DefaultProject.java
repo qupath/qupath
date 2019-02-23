@@ -60,6 +60,8 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+
+import qupath.lib.common.GeneralTools;
 import qupath.lib.common.URLTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.ImageData.ImageType;
@@ -91,7 +93,10 @@ class DefaultProject implements Project<BufferedImage> {
 			.setPrettyPrinting()
 			.create();
 	
-	private String version = "0.2";
+	private final String LATEST_VERSION = GeneralTools.getVersion();
+	
+	
+	private String version = null;
 
 	/**
 	 * Base directory.
@@ -260,6 +265,10 @@ class DefaultProject implements Project<BufferedImage> {
 	
 	File getFile() {
 		return file;
+	}
+	
+	public Path getPath() {
+		return getFile().toPath();
 	}
 	
 	public URI getURI() {
@@ -721,7 +730,8 @@ class DefaultProject implements Project<BufferedImage> {
 			return path;
 		}
 		
-		private Path getEntryPath() {
+		@Override
+		public Path getEntryPath() {
 			return Paths.get(getBasePath().toString(), "data", getUniqueName());
 		}
 		
@@ -797,6 +807,14 @@ class DefaultProject implements Project<BufferedImage> {
 			try (var out = Files.newBufferedWriter(pathSummary, StandardOpenOption.CREATE)) {
 				gson.toJson(new ImageDataSummary(imageData, timestamp), out);
 			}			
+			
+			// A small text file with the name & path can help with generic searches using operating system 
+			// (e.g. searching on Windows for the project entry)
+			var pathDetails = Paths.get(pathEntry.toString(), "image.txt");
+			var sb = new StringBuilder();
+			sb.append("name=").append(getImageName()).append(System.lineSeparator());
+			sb.append("path=").append(getServerPath()).append(System.lineSeparator());
+			Files.writeString(pathDetails, sb.toString());
 		}
 		
 
@@ -805,11 +823,14 @@ class DefaultProject implements Project<BufferedImage> {
 			return Files.exists(getImageDataPath());
 		}
 		
+		@Override
 		public synchronized PathObjectHierarchy readHierarchy() throws IOException {
-			// TODO: Switch to use paths...
-			File file = getImageDataPath().toFile();
-			if (file.exists())
-				return PathIO.readHierarchy(file);
+			var path = getImageDataPath();
+			if (Files.exists(path)) {
+				try (var stream = Files.newInputStream(path)) {
+					return PathIO.readHierarchy(stream);
+				}
+			}
 			return new PathObjectHierarchy();
 		}
 		
@@ -971,7 +992,7 @@ class DefaultProject implements Project<BufferedImage> {
 		}
 
 		JsonObject builder = new JsonObject();
-		builder.addProperty("version", "0.2");
+		builder.addProperty("version", LATEST_VERSION);
 		builder.addProperty("createTimestamp", getCreationTimestamp());
 		builder.addProperty("modifyTimestamp", getModificationTimestamp());
 		builder.addProperty("uri", fileProject.toURI().toString());
@@ -1005,6 +1026,9 @@ class DefaultProject implements Project<BufferedImage> {
 			creationTimestamp = element.get("createTimestamp").getAsLong();
 			modificationTimestamp = element.get("modifyTimestamp").getAsLong();
 			lastURI = new URI(element.get("uri").getAsString());
+			
+			if (element.has("version"))
+				version = element.get("version").getAsString();
 			
 //			JsonElement pathClassesElement = element.get("pathClasses");
 //			if (pathClassesElement != null && pathClassesElement.isJsonArray()) {
@@ -1101,6 +1125,12 @@ class DefaultProject implements Project<BufferedImage> {
 			} else
 				return null;
 		}
+	}
+
+
+	@Override
+	public String getVersion() {
+		return version;
 	}
 	
 }

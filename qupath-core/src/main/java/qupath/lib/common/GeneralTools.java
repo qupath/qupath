@@ -29,6 +29,7 @@ import java.io.InputStream;
 import java.lang.reflect.Type;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.text.NumberFormat;
@@ -56,6 +57,41 @@ import com.google.gson.reflect.TypeToken;
 public class GeneralTools {
 	
 	final private static Logger logger = LoggerFactory.getLogger(GeneralTools.class);
+	
+	
+	private final static String LATEST_VERSION = getLatestVerion();
+	
+	/**
+	 * Request the version of QuPath.
+	 * 
+	 * @return
+	 */
+	public static String getVersion() {
+		return LATEST_VERSION;
+	}
+	
+	
+	/**
+	 * Try to determine latest QuPath version, first from the manifest and then from the source 
+	 * (useful if running from an IDE, for example).
+	 * 
+	 * @return
+	 */
+	private static String getLatestVerion() {
+		String version = GeneralTools.class.getPackage().getImplementationVersion();
+		if (version == null) {
+			var path = Paths.get("VERSION");
+			if (Files.exists(path)) {
+				try {
+					version = Files.readString(path);
+				} catch (IOException e) {
+					logger.error("Unable to read version from {}", path);
+				}
+			}
+		}
+		return version;
+	}
+	
 	
 	/**
 	 * Check if a string is blank, i.e. it is null or its length is 0.

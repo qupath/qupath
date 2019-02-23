@@ -9,8 +9,10 @@
 /**
  * Some metadata for the manifest
  */
-def qupathVersion = "0.2.0-SNAPSHOT"
+def qupathVersion = new File('VERSION').text.strip()
 def qupathVendor = "QuPath developers"
+
+println 'Building QuPath version ' + qupathVersion
 
 /**
  * Output location; once things are gathered here, they can be used as input for jpackager
@@ -234,6 +236,7 @@ task copyChangelog(type: Copy) {
   include 'CHANGELOG.md'
   include 'STARTUP.md'
   include 'LICENSE.txt'
+  include 'VERSION'
 }
 
 /**

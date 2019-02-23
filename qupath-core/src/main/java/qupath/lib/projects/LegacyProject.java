@@ -35,6 +35,7 @@ import java.io.Reader;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -161,6 +162,10 @@ class LegacyProject<T> implements Project<T> {
 		return dirBase;
 	}
 	
+	public Path getPath() {
+		return getFile().toPath();
+	}
+	
 	public boolean addAllImages(final Collection<ProjectImageEntry<T>> entries) {
 		boolean changes = false;
 		for (ProjectImageEntry<T> entry : entries)
@@ -214,7 +219,8 @@ class LegacyProject<T> implements Project<T> {
 	}
 	
 	public void syncChanges() throws IOException {
-		writeProject(this);
+		logger.warn("Legacy projects cannot be overwritten! Open instead with the version of QuPath used to create the project.");
+//		writeProject(this);
 	}
 
 	/**
@@ -738,6 +744,14 @@ class LegacyProject<T> implements Project<T> {
 			return new File(dirData, getUniqueName() + ".qpdata");
 		}
 
+		
+		@Override
+		public Path getEntryPath() {
+			var file = getImageDataFile();
+			return file == null ? null : file.toPath();
+		}
+		
+		
 		@Override
 		public ImageData<T> readImageData() throws IOException {
 			File file = getImageDataFile();
@@ -821,6 +835,11 @@ class LegacyProject<T> implements Project<T> {
 		}
 
 
+	}
+
+	@Override
+	public String getVersion() {
+		return null;
 	}
 	
 }

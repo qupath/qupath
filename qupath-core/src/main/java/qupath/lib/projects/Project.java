@@ -26,6 +26,7 @@ package qupath.lib.projects;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
+import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
@@ -123,6 +124,26 @@ public interface Project<T> {
 	 */
 	@Deprecated
 	public File getBaseDirectory();
+	
+	/**
+	 * The version string for this project, which can be used to distinguish new and older project 
+	 * (which may contain different information).
+	 * <p>
+	 * This may be null if the version information is not stored.
+	 * 
+	 * @return
+	 */
+	public String getVersion();
+	
+	/**
+	 * Get a path to this project, or null if this project on a local file system.
+	 * <p>
+	 * If not null, the path may be a file or a directory.
+	 * 
+	 * @return
+	 * @see ProjectImageEntry#getEntryPath()
+	 */
+	public Path getPath();
 	
 	/**
 	 * Add multiple images to the project. Note that it is implementation-specific whether 

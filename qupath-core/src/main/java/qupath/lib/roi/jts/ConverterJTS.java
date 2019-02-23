@@ -1,7 +1,6 @@
 package qupath.lib.roi.jts;
 import java.awt.Shape;
 import java.awt.geom.AffineTransform;
-import java.awt.geom.Area;
 import java.awt.geom.PathIterator;
 import java.awt.geom.Point2D;
 import org.locationtech.jts.awt.PointTransformation;
@@ -18,7 +17,6 @@ import org.locationtech.jts.simplify.VWSimplifier;
 import qupath.lib.geom.Point2;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.PathROIToolsAwt;
-import qupath.lib.roi.PointsROI;
 import qupath.lib.roi.PolygonROI;
 import qupath.lib.roi.interfaces.PathArea;
 import qupath.lib.roi.interfaces.PathLine;

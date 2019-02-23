@@ -24,6 +24,7 @@
 package qupath.lib.projects;
 
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -96,6 +97,17 @@ public interface ProjectImageEntry<T> {
 	 */
 	public boolean sameServerPath(final String serverPath);
 		
+	
+	/**
+	 * Get a path to the data for this image entry, or null if this entry is not 
+	 * stored on the local file system.
+	 * <p>
+	 * If not null, the path may be a file or a directory and is <i>not</i> guaranteed to exist. 
+	 * Rather, it represents where the data for this entry either is or would be stored.
+	 * 
+	 * @return
+	 */
+	public Path getEntryPath();
 	
 	
 	/**
@@ -176,7 +188,7 @@ public interface ProjectImageEntry<T> {
 	public ImageServer<T> buildImageServer() throws IOException;
 	
 	/**
-	 * Read the {@link ImageData} associated with this entry.
+	 * Read the {@link ImageData} associated with this entry, or create a new ImageData if none is currently present.
 	 * <p>
 	 * If the full data is not needed, but rather only the objects {@link #readHierarchy()} can be much faster.
 	 * 

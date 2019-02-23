@@ -29,6 +29,9 @@ import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.net.URISyntaxException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -42,6 +45,7 @@ import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.function.Supplier;
 
 import javax.imageio.ImageIO;
 
@@ -51,6 +55,7 @@ import org.controlsfx.control.action.ActionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javafx.beans.binding.Bindings;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import javafx.embed.swing.SwingFXUtils;
@@ -64,6 +69,7 @@ import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuItem;
+import javafx.scene.control.SelectionMode;
 import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
@@ -80,6 +86,7 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
 import javafx.util.Callback;
+import qupath.lib.common.GeneralTools;
 import qupath.lib.display.ChannelDisplayInfo;
 import qupath.lib.display.ImageDisplay;
 import qupath.lib.gui.ImageDataChangeListener;
@@ -170,6 +177,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 		MasterDetailPane mdTree = new MasterDetailPane(Side.BOTTOM, tree, textDescription, false);
 		mdTree.showDetailNodeProperty().bind(descriptionText.isNotNull());
 		
+		tree.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
 		tree.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> {
 			Object selected = n == null ? null : n.getValue();
 			if (selected instanceof ProjectImageEntry)
@@ -202,6 +210,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 		
 		Action actionOpenImage = new Action("Open image", e -> qupath.openImageEntry(getSelectedEntry()));
 		Action actionRemoveImage = new Action("Remove image", e -> {
+			// TODO: Handle removing multiple images; prevent image being removed if it is currently open in the project
 			TreeItem<?> path = tree.getSelectionModel().getSelectedItem();
 			if (path == null)
 				return;
@@ -340,26 +349,23 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 		});
 		
 		// Open the project directory using Explorer/Finder etc.
-		Action actionOpenProjectDirectory = new Action("Open project directory", e -> {
-			try {
-				Project<?> project = getProject();
-				if (project == null)
-					return;
-				File dir = project.getBaseDirectory();
-				if (dir.exists())
-					Desktop.getDesktop().open(dir);
-				else
-					logger.warn("Cannot find project directory {}", dir.getAbsolutePath());
-			} catch (IOException e1) {
-				DisplayHelpers.showErrorMessage("Open project directory", e1);
-			}
-		});
+		Action actionOpenProjectDirectory = createBrowsePathAction("Project...", () -> getProjectPath());
+		Action actionOpenProjectEntryDirectory = createBrowsePathAction("Project entry...", () -> getProjectEntryPath());
+		Action actionOpenImageServerDirectory = createBrowsePathAction("Image server...", () -> getImageServerPath());
 		
 
 		Menu menuSort = new Menu("Sort by...");
 		ContextMenu menu = new ContextMenu();
 		
-		MenuItem miOpenProjectDirectory = ActionUtils.createMenuItem(actionOpenProjectDirectory);
+		var hasProjectBinding = qupath.projectProperty().isNotNull();
+		var menuOpenDirectories = QuPathGUI.createMenu("Open directory...", 
+				actionOpenProjectDirectory,
+				actionOpenProjectEntryDirectory,
+				actionOpenImageServerDirectory);
+		menuOpenDirectories.visibleProperty().bind(hasProjectBinding);
+//		MenuItem miOpenProjectDirectory = ActionUtils.createMenuItem(actionOpenProjectDirectory);
+		
+		
 		MenuItem miOpenImage = ActionUtils.createMenuItem(actionOpenImage);
 		MenuItem miRemoveImage = ActionUtils.createMenuItem(actionRemoveImage);
 		MenuItem miSetImageName = ActionUtils.createMenuItem(actionSetImageName);
@@ -372,7 +378,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 		menu.setOnShowing(e -> {
 			TreeItem<Object> selected = tree.getSelectionModel().getSelectedItem();
 			boolean hasImageEntry = selected != null && selected.getValue() instanceof ProjectImageEntry;
-			miOpenProjectDirectory.setVisible(project != null && project.getBaseDirectory().exists());
+//			miOpenProjectDirectory.setVisible(project != null && project.getBaseDirectory().exists());
 			miOpenImage.setVisible(hasImageEntry);
 			miSetImageName.setVisible(hasImageEntry);
 			miAddMetadata.setVisible(hasImageEntry);
@@ -416,16 +422,79 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 				);
 		
 		separator = new SeparatorMenuItem();
-		separator.visibleProperty().bind(miOpenProjectDirectory.visibleProperty());
+		separator.visibleProperty().bind(menuOpenDirectories.visibleProperty());
 		if (Desktop.isDesktopSupported()) {
 			menu.getItems().addAll(
 					separator,
-					miOpenProjectDirectory);
+					menuOpenDirectories);
 		}
 
 		return menu;
 
 	}
+	
+	
+	Path getProjectPath() {
+		return project == null ? null : project.getPath();
+	}
+
+	Path getProjectEntryPath() {
+		var selected = tree.getSelectionModel().getSelectedItem();
+		if (selected == null)
+			return null;
+		var item = selected.getValue();
+		if (item instanceof ProjectImageEntry<?>)
+			return ((ProjectImageEntry)item).getEntryPath();
+		return null;
+	}
+	
+	Path getImageServerPath() {
+		var selected = tree.getSelectionModel().getSelectedItem();
+		if (selected == null)
+			return null;
+		var item = selected.getValue();
+		if (item instanceof ProjectImageEntry<?>) {
+			var serverPath = ((ProjectImageEntry)item).getServerPath();
+			try {
+				return GeneralTools.toPath(GeneralTools.toURI(serverPath));
+			} catch (URISyntaxException e) {
+				logger.debug("Error converting server path to file path", e);
+			}
+		}
+		return null;
+	}
+
+	
+	Action createBrowsePathAction(String text, Supplier<Path> func) {
+		var action = new Action(text, e -> {
+			var path = func.get();
+			if (path == null)
+				return;
+			// Get directory if we will need one
+			var desktop = Desktop.getDesktop();
+			if (!desktop.isSupported(Desktop.Action.BROWSE_FILE_DIR) && !Files.isDirectory(path))
+				path = path.getParent();
+			
+			if (Files.exists(path)) {
+				if (Files.isDirectory(path) && desktop.isSupported(Desktop.Action.OPEN)) {
+					try {
+						Desktop.getDesktop().open(path.toFile());
+						return;
+					} catch (IOException e1) {
+						logger.error("Error opening directory " + path, e1);
+					}
+				}
+				if (desktop.isSupported(Desktop.Action.BROWSE_FILE_DIR)) {
+					desktop.browseFileDirectory(path.toFile());
+					return;
+				}
+			}
+			logger.debug("Cannot browse path {}", path);
+		});
+		action.disabledProperty().bind(Bindings.createBooleanBinding(() -> func.get() == null, tree.getSelectionModel().selectedItemProperty()));
+		return action;
+	}
+	
 	
 	
 	/**
@@ -658,7 +727,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 	}
 
 
-	File getProjectPath() {
+	File getProjectFile() {
 		File dirBase = getBaseDirectory();
 		if (dirBase == null || !dirBase.isDirectory())
 			return null;
