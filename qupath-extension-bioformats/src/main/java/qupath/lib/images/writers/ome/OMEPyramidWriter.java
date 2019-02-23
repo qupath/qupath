@@ -324,8 +324,13 @@ public class OMEPyramidWriter {
 			writer.width = server.getWidth();
 			writer.height = server.getHeight();
 			writer.downsamples = server.getPreferredDownsamples();
-			writer.tileWidth = 256;
-			writer.tileHeight = 256;
+			if (server.getPreferredTileWidth() == server.getWidth() && server.getPreferredTileHeight() == server.getHeight()) {
+				writer.tileWidth = server.getPreferredTileWidth();
+				writer.tileHeight = server.getPreferredTileHeight();
+			} else {
+				writer.tileWidth = 256;
+				writer.tileHeight = 256;
+			}
 			writer.channels = IntStream.range(0, server.nChannels()).toArray();
 		}
 		

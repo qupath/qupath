@@ -448,11 +448,15 @@ public class DisplayHelpers {
 		String message = e.getLocalizedMessage();
 		if (message == null)
 			message = "QuPath has encountered a problem, sorry.\nIf you can replicate it, please notify a developer.\n\n" + e;
-		if (Platform.isFxApplicationThread())
+		if (Platform.isFxApplicationThread()) {
+			requestStageFocus();
 			Notifications.create().title(title).text(message).showError();
-		else {
+		} else {
 			String finalMessage = message;
-			Platform.runLater(() -> Notifications.create().title(title).text(finalMessage).showError());
+			Platform.runLater(() -> {
+				requestStageFocus();
+				Notifications.create().title(title).text(finalMessage).showError();
+			});
 		}
 	}
 
@@ -462,6 +466,7 @@ public class DisplayHelpers {
 			return;
 		}
 		logger.error(title + ": " + message);
+		requestStageFocus();
 		Notifications.create().title(title).text(message).showError();
 	}
 
@@ -471,6 +476,7 @@ public class DisplayHelpers {
 			return;
 		}
 		logger.warn(title + ": " + message);
+		requestStageFocus();
 		Notifications.create().title(title).text(message).showWarning();
 	}
 
@@ -480,6 +486,7 @@ public class DisplayHelpers {
 			return;
 		}
 		logger.info(title + ": " + message);
+		requestStageFocus();
 		Notifications.create().title(title).text(message).showInformation();
 	}
 
@@ -489,7 +496,17 @@ public class DisplayHelpers {
 			return;
 		}
 		logger.info(title + ": " + message);
+		requestStageFocus();
 		Notifications.create().title(title).text(message).show();
+	}
+	
+	/**
+	 * Necessary to have focussed stage when calling notifications (bug in controlsfx?).
+	 */
+	private static void requestStageFocus() {
+		var stage = QuPathGUI.getInstance().getStage();
+		if (stage != null)
+			stage.requestFocus();
 	}
 	
 	/**

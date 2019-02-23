@@ -23,6 +23,7 @@
 
 package qupath.lib.common;
 
+import java.awt.Desktop;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -434,19 +435,50 @@ public class GeneralTools {
 		return false;
 	}
 
+	/**
+	 * Returns true if running on macOS.
+	 * @return
+	 */
 	public static boolean isMac() {
 		String os = System.getProperty("os.name").toLowerCase();
 		return os.indexOf("mac") >= 0 || os.indexOf("darwin") >= 0;
 	}
 
+	/**
+	 * Returns true if running on Linux.
+	 * @return
+	 */
 	public static boolean isLinux() {
 		String os = System.getProperty("os.name").toLowerCase();
 		return os.indexOf("nux") >= 0;
 	}
 
+	/**
+	 * Returnst true if running on Windows.
+	 * @return
+	 */
 	public static boolean isWindows() {
 		String os = System.getProperty("os.name").toLowerCase();
 		return os.indexOf("win") >= 0;
+	}
+
+
+	/**
+	 * Delete a file, optionally requesting that it be moved to the trash rather than permanently deleted.
+	 * <p>
+	 * Note that the behavior of this method is system-dependent, and there is no guarantee the file will 
+	 * indeed be moved to the trash.
+	 * 
+	 * @param fileToDelete
+	 * @param preferTrash
+	 */
+	public static void deleteFile(File fileToDelete, boolean preferTrash) {
+		if (preferTrash && Desktop.isDesktopSupported()) {
+			var desktop = Desktop.getDesktop();
+			if (desktop.isSupported(Desktop.Action.MOVE_TO_TRASH) && desktop.moveToTrash(fileToDelete))
+				return;
+		}
+		fileToDelete.delete();
 	}
 
 }

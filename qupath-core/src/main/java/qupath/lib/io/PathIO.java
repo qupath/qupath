@@ -167,9 +167,9 @@ public class PathIO {
 					else if (input instanceof Map)
 						propertyMap = (Map<String, Object>)input;
 					else if (input == null) {
-						logger.error("Null object will be skipped");
+						logger.debug("Null object will be skipped");
 					} else
-						logger.error("Unsupported object of class {} will be skipped: {}", input.getClass().getName(), input);
+						logger.warn("Unsupported object of class {} will be skipped: {}", input.getClass().getName(), input);
 
 				} catch (ClassNotFoundException e) {
 					logger.error("Unable to find class", e);
@@ -260,17 +260,29 @@ public class PathIO {
 //		}
 //	}
 	
+	/**
+	 * Read ImageData from an InputStream into an existing ImageData object, or creating a new one if required.
+	 * 
+	 * @param stream
+	 * @param imageData
+	 * @param server an ImageServer to use rather than any that might be stored within the serialized data.  Should be null to use the serialized path to build a new server.
+	 * 								The main purpose of this is to make it possible to open ImageData where the original image location has been moved, so the
+	 * 								stored path is no longer accurate.
+	 * @param cls
+	 * @return
+	 * @throws IOException
+	 */
 	public static <T> ImageData<T> readImageData(final InputStream stream, ImageData<T> imageData, ImageServer<T> server, Class<T> cls) throws IOException {
 		return readImageDataSerialized(stream, imageData, server, cls);
 	}
 
 	
 	/**
-	 * Read ImageData into an existing ImageData object, or creating a new one if required.
+	 * Read ImageData from a File into an existing ImageData object, or create a new one if required.
 	 * 
 	 * @param file
 	 * @param imageData
-	 * @param server - an ImageServer to use rather than any that might be stored within the serialized file.  Should be null to use the serialized path to build a new server.
+	 * @param server an ImageServer to use rather than any that might be stored within the serialized data.  Should be null to use the serialized path to build a new server.
 	 * 								The main purpose of this is to make it possible to open ImageData where the original image location has been moved, so the
 	 * 								stored path is no longer accurate.
 	 * @return
@@ -310,6 +322,7 @@ public class PathIO {
 				backup.delete();
 		}
 	}
+	
 	
 	public static void writeImageData(final OutputStream stream, final ImageData<?> imageData) throws IOException {
 		writeImageDataSerialized(stream, imageData);

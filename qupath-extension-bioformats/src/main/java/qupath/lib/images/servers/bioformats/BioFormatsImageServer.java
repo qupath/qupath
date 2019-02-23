@@ -319,7 +319,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 			    		magnification = magnificationObject;		    		
 		    	}
 		    } catch (Exception e) {
-		    	logger.warn("Unable to parse magnification: {}", e.getLocalizedMessage());
+		    	logger.debug("Unable to parse magnification: {}", e.getLocalizedMessage());
 		    }
 		    		
 			// Get the dimensions for the requested series
