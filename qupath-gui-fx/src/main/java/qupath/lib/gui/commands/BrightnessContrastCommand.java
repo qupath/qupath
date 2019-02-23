@@ -27,9 +27,16 @@ import java.awt.image.BufferedImage;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 import java.text.DecimalFormat;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
@@ -57,8 +64,14 @@ import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableColumn.CellDataFeatures;
 import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
+import javafx.scene.control.TextArea;
 import javafx.scene.control.Tooltip;
 import javafx.scene.control.cell.CheckBoxTableCell;
+import javafx.scene.input.Clipboard;
+import javafx.scene.input.ClipboardContent;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyCodeCombination;
+import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.BorderPane;
@@ -73,6 +86,7 @@ import javafx.stage.Stage;
 import javafx.util.Callback;
 import qupath.lib.analysis.stats.Histogram;
 import qupath.lib.display.ChannelDisplayInfo;
+import qupath.lib.display.ChannelDisplayInfo.DirectServerChannelInfo;
 import qupath.lib.display.ImageDisplay;
 import qupath.lib.gui.ImageDataChangeListener;
 import qupath.lib.gui.ImageDataWrapper;
@@ -87,6 +101,9 @@ import qupath.lib.gui.plots.HistogramPanelFX.ThresholdedChartWrapper;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
+import qupath.lib.images.servers.ImageChannel;
+import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.ImageServerMetadata;
 
 /**
  * Command to show a Brightness/Contrast dialog to adjust the image display.
@@ -95,6 +112,8 @@ import qupath.lib.images.ImageData;
  *
  */
 public class BrightnessContrastCommand implements PathCommand, ImageDataChangeListener<BufferedImage>, PropertyChangeListener {
+	
+	private static Logger logger = LoggerFactory.getLogger(BrightnessContrastCommand.class);
 	
 	private static DecimalFormat df = new DecimalFormat("#.###");
 		
@@ -272,6 +291,7 @@ public class BrightnessContrastCommand implements PathCommand, ImageDataChangeLi
 		// Create color/channel display table
 		table = new TableView<>(imageDisplay == null ? FXCollections.observableArrayList() : imageDisplay.availableChannels());
 		table.setPlaceholder(new Text("No channels available"));
+		table.addEventHandler(KeyEvent.KEY_PRESSED, new CopyTableListener());
 		
 		table.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
 		table.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> {
@@ -374,8 +394,10 @@ public class BrightnessContrastCommand implements PathCommand, ImageDataChangeLi
 			row.setOnMouseClicked(e -> {
 				if (e.getClickCount() == 2) {
 					ChannelDisplayInfo info = row.getItem();
-					if (info instanceof ChannelDisplayInfo.MultiChannelInfo) {
-						ChannelDisplayInfo.MultiChannelInfo multiInfo = (ChannelDisplayInfo.MultiChannelInfo)info;
+					if (info instanceof ChannelDisplayInfo.DirectServerChannelInfo) {
+						ChannelDisplayInfo.DirectServerChannelInfo multiInfo = (ChannelDisplayInfo.DirectServerChannelInfo)info;
+						int c = multiInfo.getChannel();
+						
 						Color color = ColorToolsFX.getCachedColor(multiInfo.getColor());
 						picker.setValue(color);
 						
@@ -387,17 +409,33 @@ public class BrightnessContrastCommand implements PathCommand, ImageDataChangeLi
 						StackPane colorPane = new StackPane(picker);
 						colorDialog.getDialogPane().setContent(colorPane);
 						Optional<ButtonType> result = colorDialog.showAndWait();
-						if (result.isPresent() && result.get() == ButtonType.APPLY) {
+						if (result.orElseGet(() -> ButtonType.CANCEL) == ButtonType.APPLY) {
 //							if (!DisplayHelpers.showMessageDialog("Choose channel color", picker))
 //								return;
 							Color color2 = picker.getValue();
 							if (color == color2)
 								return;
+							
+							// Update the server metadata
+							var server = viewer.getServer();
+							int colorUpdated = ColorToolsFX.getRGB(color2);
+							if (server != null) {
+								var metadata = server.getMetadata();
+								var channels = new ArrayList<>(metadata.getChannels());
+								var channel = channels.get(c);
+								channels.set(c, ImageChannel.getInstance(channel.getName(), colorUpdated));
+								var metadata2 = new ImageServerMetadata.Builder(server.getClass(), metadata)
+										.channels(channels).build();
+								server.setMetadata(metadata2);
+							}
+							
+							// Update the display
 							multiInfo.setLUTColor(
 									(int)(color2.getRed() * 255),
 									(int)(color2.getGreen() * 255),
 									(int)(color2.getBlue() * 255)
 									);
+							
 							// Add color property
 							imageDisplay.saveChannelColorProperties();
 							viewer.repaintEntireImage();
@@ -878,6 +916,101 @@ public class BrightnessContrastCommand implements PathCommand, ImageDataChangeLi
 						table.getSelectionModel().select(c-1);
 					toggleDisplay(imageDisplay.availableChannels().get(c-1));
 					event.consume();
+				}
+			}
+		}
+		
+	}
+	
+	
+	class CopyTableListener implements EventHandler<KeyEvent> {
+		
+		private KeyCombination copyCombo = new KeyCodeCombination(KeyCode.C, KeyCombination.SHORTCUT_DOWN);
+		private KeyCombination pasteCombo = new KeyCodeCombination(KeyCode.V, KeyCombination.SHORTCUT_DOWN);
+
+		@Override
+		public void handle(KeyEvent event) {
+			if (copyCombo.match(event))
+				doCopy(event);
+			else if (pasteCombo.match(event))
+				doPaste(event);
+		}
+		
+		/**
+		 * Copy the channel names to the clipboard
+		 * @param event
+		 */
+		void doCopy(KeyEvent event) {
+			var names = table.getSelectionModel().getSelectedItems().stream().map(c -> c.getName()).collect(Collectors.toList());
+			var clipboard = Clipboard.getSystemClipboard();
+			var content = new ClipboardContent();
+			content.putString(String.join(System.lineSeparator(), names));
+			clipboard.setContent(content);
+		}
+		
+		void doPaste(KeyEvent event) {
+			ImageServer<BufferedImage> server = viewer.getServer();
+			if (server == null)
+				return;
+			
+			var clipboard = Clipboard.getSystemClipboard();
+			var string = clipboard.getString();
+			if (string == null)
+				return;
+			var selected = new ArrayList<>(table.getSelectionModel().getSelectedItems());
+			if (selected.isEmpty())
+				return;
+			
+			if (server.isRGB()) {
+				logger.warn("Cannot set channel names for RGB images");
+			}
+			var names = string.lines().collect(Collectors.toList());
+			if (selected.size() != names.size()) {
+				DisplayHelpers.showErrorNotification("Paste channel names", "The number of lines on the clipboard doesn't match the number of channel names to replace!");
+				return;
+			}
+			if (names.size() != new HashSet<>(names).size()) {
+				DisplayHelpers.showErrorNotification("Paste channel names", "Channel names should be unique!");
+				return;
+			}
+			var metadata = server.getMetadata();
+			var channels = new ArrayList<>(metadata.getChannels());
+			List<String> changes = new ArrayList<>();
+			for (int i = 0; i < selected.size(); i++) {
+				if (!(selected.get(i) instanceof DirectServerChannelInfo))
+					continue;
+				var info = (DirectServerChannelInfo)selected.get(i);
+				if (info.getName().equals(names.get(i)))
+					continue;
+				int c = info.getChannel();
+				var oldChannel = channels.get(c);
+				var newChannel = ImageChannel.getInstance(names.get(i), channels.get(c).getColor());
+				changes.add(oldChannel.getName() + " -> " + newChannel.getName());
+				channels.set(c, newChannel);
+			}
+			List<String> allNewNames = channels.stream().map(c -> c.getName()).collect(Collectors.toList());
+			Set<String> allNewNamesSet = new LinkedHashSet<>(allNewNames);
+			if (allNewNames.size() != allNewNamesSet.size()) {
+				DisplayHelpers.showErrorMessage("Channel", "Cannot paste channels - names would not be unique \n(check log for details)");
+				for (String n : allNewNamesSet)
+					allNewNames.remove(n);
+				logger.warn("Requested channel names would result in duplicates: " + String.join(", ", allNewNames));
+				return;
+			}
+			if (changes.isEmpty()) {
+				logger.debug("Channel names pasted, but no changes to make");
+			}
+			else {
+				var dialog = new Dialog<ButtonType>();
+				dialog.getDialogPane().getButtonTypes().addAll(ButtonType.APPLY, ButtonType.CANCEL);
+				dialog.setTitle("Channels");
+				dialog.setHeaderText("Confirm new channel names?");
+				dialog.getDialogPane().setContent(new TextArea(String.join("\n", changes)));
+				if (dialog.showAndWait().orElseGet(() -> ButtonType.CANCEL) == ButtonType.APPLY) {
+					var newMetadata = new ImageServerMetadata.Builder(server.getClass(), metadata)
+							.channels(channels).build();
+					server.setMetadata(newMetadata);
+					table.refresh();
 				}
 			}
 		}

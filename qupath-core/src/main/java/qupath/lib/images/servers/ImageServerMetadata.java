@@ -93,7 +93,7 @@ public class ImageServerMetadata {
 		 * @param serverClass
 		 * @param metadata
 		 */
-		public Builder(final Class<? extends ImageServer<?>> serverClass, final ImageServerMetadata metadata) {
+		public Builder(final Class<? extends ImageServer> serverClass, final ImageServerMetadata metadata) {
 			this.metadata = metadata.duplicate();
 			this.metadata.serverClassName = serverClass.getName();
 			this.pixelCalibrationBuilder = new PixelCalibration.Builder(metadata.pixelCalibration);

@@ -128,7 +128,7 @@ public class DragDropFileImportListener implements EventHandler<DragEvent> {
     
     /**
      * Add a new FileDropHandler.
-     * 
+     * <p>
      * This may be called on a drag-and-drop application on the main window, if no other 
      * handler deals with the event.
      * 

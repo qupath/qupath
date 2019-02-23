@@ -236,7 +236,7 @@ class DefaultProject implements Project<BufferedImage> {
 			this.pathClasses.clear();
 			this.pathClasses.addAll(pathClasses);			
 		}
-		// Write anyway, in case change was subtle (i.e. color only)
+		// Wri
 		try {
 			logger.debug("Writing PathClasses to project");
 			writePathClasses(this.pathClasses);

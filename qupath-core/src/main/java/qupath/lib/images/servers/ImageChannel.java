@@ -1,5 +1,6 @@
 package qupath.lib.images.servers;
 
+import java.awt.Color;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -77,26 +78,36 @@ public class ImageChannel {
 //
 //	
 	/**
-	 * Similar to getDefaultRGBChannelColors, but including Magenta, Cyan &amp; Yellow to return colors for up to 6 channels.
-	 * If only one channel is present, or a channel number &gt; 6 is requested, Color.WHITE is returned.
+	 * Similar to {@link #getDefaultRGBChannelColors()}, but including further colors.
+	 * <p>
+	 * Note that the exact colors returned may differ in future releases, and it is not guaranteed that all colors 
+	 * will be unique.  If the colors must be exactly reproducible then it is better to specify them rather than to
+	 * depend on this method.
 	 * 
 	 * @param channel
 	 * @return
 	 */
 	public static Integer getDefaultChannelColor(int channel) {
-		if (channel > 5) {
-			double scale = 1.0 / (channel / 6);
-			return ColorTools.makeScaledRGB(getDefaultChannelColor(channel % 6), scale);
+		int n = 360;
+		if (channel >= n) {
+			channel = channel % n;
+//			double scale = 1.0 / (channel / 6);
+//			return ColorTools.makeScaledRGB(getDefaultChannelColor(channel % 6), scale);
 		}
 		switch (channel) {
 		case 0: return ColorTools.makeRGB(255, 0, 0);
 		case 1: return ColorTools.makeRGB(0, 255, 0);
 		case 2: return ColorTools.makeRGB(0, 0, 255);
-		case 3: return ColorTools.makeRGB(255, 255, 0);
-		case 4: return ColorTools.makeRGB(0, 255, 255);
-		case 5: return ColorTools.makeRGB(255, 0, 255);
+		case 3: return ColorTools.makeRGB(255, 224, 0);
+		case 4: return ColorTools.makeRGB(0, 224, 224);
+		case 5: return ColorTools.makeRGB(255, 0, 224);
 		default:
-			return ColorTools.makeRGB(255, 255, 255);
+			int c = channel;
+			int hueInc = 128;
+			float hue = ((c * hueInc) % 360) / 360f;
+			float saturation = 1f - (c / 10) / 20f;
+			float brightness = 1f - (c / 10) / 20f;
+			return Color.HSBtoRGB(hue, saturation, brightness);
 		}
 	}
 	
