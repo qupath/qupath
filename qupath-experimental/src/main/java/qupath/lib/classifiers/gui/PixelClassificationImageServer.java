@@ -50,8 +50,10 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 		if (tileHeight <= 0)
 			tileHeight = DEFAULT_TILE_SIZE;
 		
-		double inputSizeMicrons = classifierMetadata.getInputPixelSizeMicrons();
-		double downsample = inputSizeMicrons / server.getAveragedPixelSizeMicrons();
+		double inputPixelSize = classifierMetadata.getInputPixelSize();
+		double downsample = inputPixelSize / server.getAveragedPixelSizeMicrons();
+		if (!Double.isFinite(downsample))
+			downsample = inputPixelSize;
 		
 		int width = server.getWidth();
 		int height = server.getHeight();

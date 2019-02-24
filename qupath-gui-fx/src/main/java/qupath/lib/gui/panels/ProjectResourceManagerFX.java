@@ -29,7 +29,6 @@ public class ProjectResourceManagerFX {
 		var validation = new ValidationSupport();
 		validation.registerValidator(dialog.getEditor(), Validator.createPredicateValidator(t -> !names.contains(t), "Name already exists!"));
 		
-		// Traditional way to get the response value.
 		Optional<String> result = dialog.showAndWait();
 		String name = result.orElseGet(null);
 		if (name == null)

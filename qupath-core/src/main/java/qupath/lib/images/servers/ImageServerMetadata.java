@@ -38,8 +38,6 @@ import qupath.lib.common.GeneralTools;
 /**
  * Class for storing primary ImageServer metadata fields.
  * Could be used when the metadata needs to be adjusted (e.g. to correct erroneous pixel sizes).
- * <p>
- * TODO: Support metadata changes, taking into consideration the need for scriptability and persistence
  * 
  * @author Pete Bankhead
  *

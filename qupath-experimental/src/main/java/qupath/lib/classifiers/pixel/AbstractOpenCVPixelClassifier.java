@@ -132,7 +132,7 @@ public abstract class AbstractOpenCVPixelClassifier implements PixelClassifier {
     }
 
     public double getRequestedPixelSizeMicrons() {
-        return metadata.getInputPixelSizeMicrons();
+        return metadata.getInputPixelSize();
     }
 
 }

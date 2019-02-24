@@ -142,7 +142,6 @@ public interface ProjectResourceManager<T> {
 		@Override
 		public T getResource(String name) throws IOException {
 			var path = Paths.get(dir.toString(), name + ext);
-			 gson = new GsonBuilder().setLenient().registerTypeAdapterFactory(new PixelClassifierTypeAdapterFactory()).serializeSpecialFloatingPointValues().create();
 			try (var reader = Files.newBufferedReader(path)) {
 				return gson.fromJson(reader, cls);
 			}
@@ -152,7 +151,6 @@ public interface ProjectResourceManager<T> {
 		public void putResource(String name, T resource) throws IOException {
 			if (!Files.exists(dir))
 				Files.createDirectories(dir);
-			 gson = new GsonBuilder().setLenient().registerTypeAdapterFactory(new PixelClassifierTypeAdapterFactory()).serializeSpecialFloatingPointValues().create();
 			var path = Paths.get(dir.toString(), name + ext);
 			
 			try (var writer = Files.newBufferedWriter(path, StandardOpenOption.CREATE)) {

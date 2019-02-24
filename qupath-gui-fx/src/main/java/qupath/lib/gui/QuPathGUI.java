@@ -1301,7 +1301,8 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		pathClasses.add(PathClassFactory.getDefaultPathClass(PathClassFactory.PathClasses.IMMUNE_CELLS));
 		pathClasses.add(PathClassFactory.getDefaultPathClass(PathClassFactory.PathClasses.NECROSIS));
 		pathClasses.add(PathClassFactory.getDefaultPathClass(PathClassFactory.PathClasses.OTHER));
-		pathClasses.add(PathClassFactory.getDefaultPathClass(PathClassFactory.PathClasses.EMPTY));
+		pathClasses.add(PathClassFactory.getDefaultPathClass(PathClassFactory.PathClasses.REGION));
+		pathClasses.add(PathClassFactory.getDefaultPathClass(PathClassFactory.PathClasses.IGNORE));
 		
 		if (availablePathClasses == null)
 			availablePathClasses = FXCollections.observableArrayList(pathClasses);
@@ -4377,8 +4378,11 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			if (PathPrefs.getMaskImageNames())
 				return "(Name masked)";
 			return imageData.getServer().getShortServerName();
-		} else
+		} else {
+			// Make sure that the status of name masking has been set in the project (in case it hasn't been triggered yet...)
+			project.setMaskImageNames(PathPrefs.getMaskImageNames());
 			return entry.getImageName();
+		}
 	}
 	
 	public void updateTitle() {

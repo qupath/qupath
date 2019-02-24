@@ -30,7 +30,7 @@ public class SimplePixelClassifier implements PixelClassifier {
 		this.threshold = threshold;
 		this.metadata = new PixelClassifierMetadata.Builder()
 				.channels(getChannel(belowThreshold), getChannel(aboveThreshold))
-				.inputPixelSizeMicrons(requestedPixelSizeMicrons)
+				.inputPixelSize(requestedPixelSizeMicrons)
 				.inputShape(512, 512)
 				.setOutputType(OutputType.Classification)
 				.build();

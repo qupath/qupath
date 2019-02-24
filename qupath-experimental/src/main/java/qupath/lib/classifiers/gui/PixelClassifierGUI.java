@@ -243,7 +243,7 @@ public class PixelClassifierGUI {
     				.toArray(ImageChannel[]::new);
     		metadata = new PixelClassifierMetadata.Builder()
     				.inputShape(256, 256)
-    				.inputPixelSizeMicrons(pixelSizeMicrons)
+    				.inputPixelSize(pixelSizeMicrons)
     				.channels(channels)
     				.build();
     	}
@@ -324,7 +324,7 @@ public class PixelClassifierGUI {
     		padding = filters.stream().mapToInt(f -> f.getPadding()).max().orElseGet(() -> 0);
     		metadata = new PixelClassifierMetadata.Builder()
     				.channels(outputChannels)
-    				.inputPixelSizeMicrons(pixelSizeMicrons)
+    				.inputPixelSize(pixelSizeMicrons)
     				.inputShape(512, 512)
     				.build();
     		

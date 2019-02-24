@@ -9,13 +9,17 @@ import qupath.lib.images.servers.ImageChannel;
 
 /**
  * Metadata to control the behavior of a pixel classifier.
+ * 
+ * @author Pete Bankhead
+ *
  */
 public class PixelClassifierMetadata {
 
-    public static enum PixelType { UInt8, UInt16, Float32, Float64 }
-    public static enum OutputType { Features, Classification, Probability }
+	public static enum PixelType { UInt8, UInt16, Float32, Float64 }
+	public static enum OutputType { Features, Classification, Probability }
 
-	private double inputPixelSizeMicrons;
+	private double inputPixelSize;
+	private String inputPixelSizeUnits;
 	private double[] inputChannelMeans;
 	private double[] inputChannelScales;
 	private boolean strictInputSize = false;
@@ -31,9 +35,21 @@ public class PixelClassifierMetadata {
     /**
      * Requested pixel size
      */
-    public double getInputPixelSizeMicrons() {
-    	return inputPixelSizeMicrons;
+	public double getInputPixelSize() {
+    	return inputPixelSize;
     };
+    
+    /**
+     * Units for input pixel size.
+     * 
+     * @return
+     * 
+     * @see qupath.lib.images.servers.PixelCalibration#PIXEL
+     * @see qupath.lib.images.servers.PixelCalibration#MICROMETER
+     */
+    public String getInputPixelSizeUnits() {
+    	return inputPixelSizeUnits;
+    }
     
     /**
      * Returns {@code true} if the input size must be strictly applied, {@code false} if 
@@ -47,7 +63,7 @@ public class PixelClassifierMetadata {
      * Mean value to subtract from a specified input channel
      * Returns 0 if no scaling is specified.
      */
-    public double getInputChannelMean(int channel) {
+    private double getInputChannelMean(int channel) {
     	return inputChannelMeans == null ? 0 : inputChannelMeans[channel];
     }
 
@@ -99,21 +115,21 @@ public class PixelClassifierMetadata {
     /**
      * Data type of input image; default is UInt8 (consistent with assuming RGB)
      */
-    public PixelType getInputDataType() {
+    private PixelType getInputDataType() {
     	return inputDataType;
     }
 
     /**
      * Output image width for a specified inputWidth, or -1 if the inputWidth is not specified
      */
-    public int getOutputWidth() {
+    private int getOutputWidth() {
     	return outputWidth;
     }
 
     /**
      * Output image height for a specified inputHeight, or -1 if the inputHeight is not specified
      */
-    public int getOutputHeight() {
+    private int getOutputHeight() {
     	return outputHeight;
     }
 
@@ -133,14 +149,15 @@ public class PixelClassifierMetadata {
     }
 
 
-    public int nOutputChannels() {
+    private int nOutputChannels() {
         return channels == null ? 0 : channels.size();
     }
     
     
     private PixelClassifierMetadata(Builder builder) {
+    	this.inputPixelSizeUnits = builder.inputPixelSizeUnits;
     	this.inputChannelMeans = builder.inputChannelMeans;
-    	this.inputPixelSizeMicrons = builder.inputPixelSizeMicrons;
+    	this.inputPixelSize = builder.inputPixelSize;
     	this.inputChannelMeans = builder.inputChannelMeans;
     	this.inputChannelScales = builder.inputChannelScales;
     	this.inputWidth = builder.inputWidth;
@@ -157,7 +174,8 @@ public class PixelClassifierMetadata {
     
     public static class Builder {
     	
-    	private double inputPixelSizeMicrons;
+    	private String inputPixelSizeUnits;
+    	private double inputPixelSize;
     	private double[] inputChannelMeans;
     	private double[] inputChannelScales;
     	private boolean strictInputSize = false;
@@ -179,8 +197,13 @@ public class PixelClassifierMetadata {
     		return this;
     	}
     	
-    	public Builder inputPixelSizeMicrons(double pixelSizeMicrons) {
-    		this.inputPixelSizeMicrons = pixelSizeMicrons;
+    	public Builder inputPixelSize(double pixelSizeMicrons) {
+    		this.inputPixelSize = pixelSizeMicrons;
+    		return this;
+    	}
+    	
+    	public Builder inputPixelSizeUnits(String inputPixelSizeUnits) {
+    		this.inputPixelSizeUnits = inputPixelSizeUnits;
     		return this;
     	}
     	
@@ -190,22 +213,22 @@ public class PixelClassifierMetadata {
     		return this;
     	}
     	
-    	public Builder strictInputSize() {
+    	private Builder strictInputSize() {
     		this.strictInputSize = true;
     		return this;
     	}
     	
-    	public Builder inputChannels(int nChannels) {
+    	private Builder inputChannels(int nChannels) {
     		this.inputNumChannels = nChannels;
     		return this;
     	}
     	
-    	public Builder inputChannelMeans(double... means) {
+    	private Builder inputChannelMeans(double... means) {
     		this.inputChannelMeans = means.clone();
     		return this;
     	}
     	
-    	public Builder inputChannelScales(double... scales) {
+    	private Builder inputChannelScales(double... scales) {
     		this.inputChannelScales = scales.clone();
     		return this;
     	}

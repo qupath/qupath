@@ -5,11 +5,19 @@ import java.util.concurrent.TimeUnit;
 
 import qupath.lib.common.GeneralTools;
 
-class PixelCalibration {
+/**
+ * Class used to represent pixel sizes.
+ * <p>
+ * Currently only 'pixel' and 'µm' units are supported.
+ * 
+ * @author Pete Bankhead
+ *
+ */
+public class PixelCalibration {
 
-	private static String PIXEL = "px";
+	public static String PIXEL = "px";
 	private static String Z_SLICE = "z-slice";
-	private static String MICROMETER = GeneralTools.micrometerSymbol();
+	public static String MICROMETER = GeneralTools.micrometerSymbol();
 	
 	private SimpleQuantity pixelWidth = SimpleQuantity.DEFAULT_PIXEL_SIZE;
 	private SimpleQuantity pixelHeight = SimpleQuantity.DEFAULT_PIXEL_SIZE;

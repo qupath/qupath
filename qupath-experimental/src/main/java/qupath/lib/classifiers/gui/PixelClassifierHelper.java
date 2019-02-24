@@ -86,10 +86,6 @@ public class PixelClassifierHelper implements PathObjectHierarchyListener {
         this.downsample = downsample;
     }
 
-    public double getDownsample() {
-        return downsample;
-    }
-
     public void setFeatureCalculator(OpenCVFeatureCalculator calculator) {
         if (this.calculator == calculator)
             return;
@@ -130,7 +126,7 @@ public class PixelClassifierHelper implements PathObjectHierarchyListener {
     }
     
 
-    public static Map<PathClass, Collection<ROI>> getAnnotatedROIs(PathObjectHierarchy hierarchy) {
+    private static Map<PathClass, Collection<ROI>> getAnnotatedROIs(PathObjectHierarchy hierarchy) {
         List<PathObject> annotations = hierarchy.getObjects(null, PathAnnotationObject.class).stream().filter((it) -> {
             return !it.isLocked() && it.getPathClass() != null && it.getPathClass() != PathClassFactory.getRegionClass() && it.hasROI();
         }).collect(Collectors.toList());
@@ -152,11 +148,6 @@ public class PixelClassifierHelper implements PathObjectHierarchyListener {
 
 
     private Map<PathClass, Collection<ROI>> lastAnnotatedROIs;
-
-
-    public Map<PathClass, Collection<ROI>> getLastTrainingROIs() {
-        return lastAnnotatedROIs;
-    }
 
     private Map<Integer, PathClass> pathClassesLabels = new LinkedHashMap<>();
     
@@ -194,7 +185,7 @@ public class PixelClassifierHelper implements PathObjectHierarchyListener {
 //    	}
 //    }
 //    
-//    public static void getTrainingData(ImageData<BufferedImage> imageData) {
+//    private static void getTrainingData(ImageData<BufferedImage> imageData) {
 //    	
 //    	var server = imageData.getServer();
 //    	var hierarchy = imageData.getHierarchy();
@@ -250,21 +241,29 @@ public class PixelClassifierHelper implements PathObjectHierarchyListener {
         pathClassesLabels.clear();
         
         List<ImageChannel> newChannels = new ArrayList<>();
-        String path = imageData.getServerPath();
         List<Mat> allFeatures = new ArrayList<>();
         List<Mat> allTargets = new ArrayList<>();
         int label = 0;
         Set<PathClass> backgroundClasses = new HashSet<>(
         		Arrays.asList(
-        				PathClassFactory.getDefaultPathClass(PathClassFactory.PathClasses.EMPTY)				
+        				PathClassFactory.getDefaultPathClass(PathClassFactory.PathClasses.IGNORE)				
         				)
         		);
         for (PathClass pathClass : pathClasses) {
             // Create a suitable channel
-            Integer color = backgroundClasses.contains(pathClass) ?
-            		null : pathClass.getColor();
+        	// For background classes, make the color (mostly?) transparent
+        	Integer color = pathClass.getColor();
+        	if (backgroundClasses.contains(pathClass.getBaseClass()))
+        		color = null;
+//        	if (backgroundClasses.contains(pathClass.getBaseClass()))
+//        		color = ColorTools.makeRGBA(ColorTools.red(color),
+//        				ColorTools.green(color),
+//        				ColorTools.blue(color),
+//        				32);
+        	
             ImageChannel channel = ImageChannel.getInstance(
                     pathClass.getName(), color);
+            
             newChannels.add(channel);
             pathClassesLabels.put(label, pathClass);
             // Loop through the object & get masks

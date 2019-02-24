@@ -519,18 +519,22 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 			hierarchy = QuPathGUI.getInstance().getImageData().getHierarchy();
 			if (hierarchy == null)
 				return;
-			PathObject pathObject = hierarchy.getSelectionModel().getSelectedObject();
-			if (!(pathObject instanceof PathAnnotationObject)) {
-				// TODO: Support classifying non-annotation objects?
-				logger.error("Sorry, only annotations can be classified manually.");
-				return;
-			}
-
+			
 			PathClass pathClass = getSelectedPathClass();
-			if (pathObject.getPathClass() == pathClass)
-				return;
-			pathObject.setPathClass(pathClass);
-			hierarchy.fireObjectClassificationsChangedEvent(this, Collections.singleton(pathObject));
+			var pathObjects = new ArrayList<>(hierarchy.getSelectionModel().getSelectedObjects());
+			for (PathObject pathObject : pathObjects) {
+//				if (!(pathObject instanceof PathAnnotationObject)) {
+//					// TODO: Support classifying non-annotation objects?
+//					logger.error("Sorry, only annotations can be classified manually.");
+//					return;
+//				}
+				if (pathObject.isTMACore())
+					continue;
+				if (pathObject.getPathClass() == pathClass)
+					continue;				
+				pathObject.setPathClass(pathClass);
+			}
+			hierarchy.fireObjectClassificationsChangedEvent(this, pathObjects);
 			refreshList(listClasses);
 		});
 		setSelectedObjectClassAction.setLongText("Set the class of the currently-selected annotation");

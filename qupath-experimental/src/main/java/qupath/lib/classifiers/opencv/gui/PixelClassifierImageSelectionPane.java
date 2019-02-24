@@ -2,6 +2,7 @@ package qupath.lib.classifiers.opencv.gui;
 
 import java.awt.geom.Path2D;
 import java.awt.image.BufferedImage;
+import java.awt.image.ColorModel;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -24,10 +25,7 @@ import java.util.TreeMap;
 import java.util.stream.Collectors;
 
 import org.bytedeco.javacpp.opencv_ml.ANN_MLP;
-import org.bytedeco.javacpp.opencv_ml.DTrees;
 import org.bytedeco.javacpp.opencv_ml.KNearest;
-import org.bytedeco.javacpp.opencv_ml.LogisticRegression;
-import org.bytedeco.javacpp.opencv_ml.NormalBayesClassifier;
 import org.bytedeco.javacpp.opencv_ml.RTrees;
 import org.bytedeco.javacpp.opencv_ml.TrainData;
 import org.controlsfx.control.CheckComboBox;
@@ -105,6 +103,7 @@ import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.images.servers.TileRequest;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathDetectionObject;
@@ -127,7 +126,7 @@ import qupath.lib.roi.PathROIToolsAwt.CombineOp;
 import qupath.lib.roi.interfaces.PathArea;
 import qupath.lib.roi.interfaces.PathShape;
 import qupath.lib.roi.interfaces.ROI;
-import qupath.opencv.processing.TypeAdaptersCV;
+
 
 public class PixelClassifierImageSelectionPane {
 	
@@ -149,41 +148,6 @@ public class PixelClassifierImageSelectionPane {
 			}
 		}
 	}
-	
-	
-	private static final ImageResolution RESOLUTION_FULL = DownsampledImageResolution.getInstance("Full", 1.0);
-	
-	private static final ImageResolution RESOLUTION_ULTRA_HIGH_CAL = SimpleImageResolution.getInstance("Ultra high", 0.5);
-	private static final ImageResolution RESOLUTION_VERY_HIGH_CAL = SimpleImageResolution.getInstance("Very high", 1.0);
-	private static final ImageResolution RESOLUTION_HIGH_CAL      = SimpleImageResolution.getInstance("High", 2.0);
-	private static final ImageResolution RESOLUTION_MODERATE_CAL  = SimpleImageResolution.getInstance("Moderate", 4.0);
-	private static final ImageResolution RESOLUTION_LOW_CAL 	  = SimpleImageResolution.getInstance("Low", 8.0);
-	private static final ImageResolution RESOLUTION_VERY_LOW_CAL  = SimpleImageResolution.getInstance("Very low", 16.0);
-
-	private static final ImageResolution RESOLUTION_VERY_HIGH = DownsampledImageResolution.getInstance("Very high", 2.0);
-	private static final ImageResolution RESOLUTION_HIGH      = DownsampledImageResolution.getInstance("High", 4.0);
-	private static final ImageResolution RESOLUTION_MODERATE  = DownsampledImageResolution.getInstance("Moderate", 8.0);
-	private static final ImageResolution RESOLUTION_LOW 	  = DownsampledImageResolution.getInstance("Low", 16.0);
-	private static final ImageResolution RESOLUTION_VERY_LOW  = DownsampledImageResolution.getInstance("Very low", 32.0);
-
-	private List<ImageResolution> DEFAULT_CALIBRATED_RESOLUTIONS = Collections.unmodifiableList(Arrays.asList(
-			RESOLUTION_FULL,
-			RESOLUTION_ULTRA_HIGH_CAL,
-			RESOLUTION_VERY_HIGH_CAL,
-			RESOLUTION_HIGH_CAL,
-			RESOLUTION_MODERATE_CAL,
-			RESOLUTION_LOW_CAL,
-			RESOLUTION_VERY_LOW_CAL
-			));
-	
-	private List<ImageResolution> DEFAULT_UNCALIBRATED_RESOLUTIONS = Collections.unmodifiableList(Arrays.asList(
-			RESOLUTION_FULL,
-			RESOLUTION_VERY_HIGH,
-			RESOLUTION_HIGH,
-			RESOLUTION_MODERATE,
-			RESOLUTION_LOW,
-			RESOLUTION_VERY_LOW
-			));
 	
 	
 	private QuPathViewer viewer;
@@ -223,6 +187,8 @@ public class PixelClassifierImageSelectionPane {
 				oldValue.getHierarchy().removePathObjectListener(hierarchyListener);
 			if (newValue != null)
 				newValue.getHierarchy().addPathObjectListener(hierarchyListener);
+			updateTitle();
+			updateAvailableResolutions();
 		}
 		
 	};
@@ -269,8 +235,8 @@ public class PixelClassifierImageSelectionPane {
 		
 		var labelChannels = new Label("Channels");
 		var comboChannels = new CheckComboBox<Integer>();
-		var btnChannels = new Button("Select");
-		btnChannels.setOnAction(e -> selectChannels());
+//		var btnChannels = new Button("Select");
+//		btnChannels.setOnAction(e -> selectChannels());
 		var server = QuPathGUI.getInstance().getViewer().getServer();
 		if (server != null) {
 			for (int c = 0; c < server.nChannels(); c++)
@@ -301,7 +267,10 @@ public class PixelClassifierImageSelectionPane {
 		
 		GridPaneTools.addGridRow(pane, row++, 0,
 				"Choose the image channels used to calculate features",
-				labelChannels, comboChannels, btnChannels);
+				labelChannels, comboChannels);		
+//		GridPaneTools.addGridRow(pane, row++, 0,
+//				"Choose the image channels used to calculate features",
+//				labelChannels, comboChannels, btnChannels);
 		
 		// Features
 		
@@ -400,7 +369,6 @@ public class PixelClassifierImageSelectionPane {
 		
 		
 		// Region
-		
 		var labelRegion = new Label("Region");
 		var comboRegion = new ComboBox<ClassificationRegion>();
 		comboRegion.getItems().addAll(ClassificationRegion.values());
@@ -476,11 +444,8 @@ public class PixelClassifierImageSelectionPane {
 		
 		comboClassifier.getItems().addAll(
 				OpenCVClassifiers.wrapStatModel(RTrees.class),
-				OpenCVClassifiers.wrapStatModel(DTrees.class),
 				OpenCVClassifiers.wrapStatModel(KNearest.class),
-				OpenCVClassifiers.wrapStatModel(ANN_MLP.class),
-				OpenCVClassifiers.wrapStatModel(LogisticRegression.class),
-				OpenCVClassifiers.wrapStatModel(NormalBayesClassifier.class)
+				OpenCVClassifiers.wrapStatModel(ANN_MLP.class)
 				);
 		
 //		comboClassifier.getItems().addAll(
@@ -508,10 +473,7 @@ public class PixelClassifierImageSelectionPane {
 		GridPane.setHgrow(viewerPane, Priority.ALWAYS);
 		GridPane.setVgrow(viewerPane, Priority.ALWAYS);
 		
-		if (viewer.getImageData().getServer().hasPixelSizeMicrons())
-			resolutions.setAll(DEFAULT_CALIBRATED_RESOLUTIONS);
-		else
-			resolutions.setAll(DEFAULT_UNCALIBRATED_RESOLUTIONS);			
+		updateAvailableResolutions();	
 		comboResolution.setItems(resolutions);
 		selectedResolution.addListener((v, o, n) -> {
 			updateResolution(n);
@@ -549,7 +511,6 @@ public class PixelClassifierImageSelectionPane {
 		pane.setPadding(new Insets(5));
 		
 		stage = new Stage();
-		stage.setTitle("Pixel classifier (demo)");
 		stage.setScene(new Scene(splitPane));
 		
 		stage.initOwner(QuPathGUI.getInstance().getStage());
@@ -557,6 +518,8 @@ public class PixelClassifierImageSelectionPane {
 		stage.getScene().getRoot().disableProperty().bind(
 				QuPathGUI.getInstance().viewerProperty().isNotEqualTo(viewer)
 				);
+		
+		updateTitle();
 		
 		stage.show();
 		stage.setOnCloseRequest(e -> destroy());
@@ -569,11 +532,46 @@ public class PixelClassifierImageSelectionPane {
 		
 	}
 	
+	private void updateTitle() {
+		if (stage == null)
+			return;
+//		var imageData = viewer.getImageData();
+//		if (imageData == null)
+			stage.setTitle("Pixel classifier");
+//		else
+//			stage.setTitle("Pixel classifier (" + imageData.getServer().getDisplayedImageName() + ")");
+	}
+	
 	private MouseListener mouseListener = new MouseListener();
 	
 	private OpenCVFeatureCalculator featureCalculator;
 	private PixelClassifierHelper helper;
 
+	
+	private List<String> resolutionNames = Arrays.asList("Full", "Very high", "High", "Moderate", "Low", "Very low", "Extremely low");
+	
+	void updateAvailableResolutions() {
+		var imageData = viewer.getImageData();
+		if (imageData == null) {
+			resolutions.clear();
+			return;
+		}
+		var temp = new ArrayList<ImageResolution>();
+		double originalDownsample = 1;
+		String units = null;
+		if (imageData.getServer().hasPixelSizeMicrons()) {
+			originalDownsample = imageData.getServer().getAveragedPixelSizeMicrons();
+			units = PixelCalibration.MICROMETER;
+		}
+		int scale = 1;
+		
+		for (String name : resolutionNames) {
+			temp.add(SimpleImageResolution.getInstance(name, originalDownsample * scale, units));
+			scale *= 2;
+		}
+		resolutions.setAll(temp);
+	}
+	
 	
 	void updateFeatureCalculator() {
 //		featureCalculator = new PixelClassifierGUI.ExtractNeighborsFeatureCalculator("Patch features", 
@@ -702,7 +700,7 @@ public class PixelClassifierImageSelectionPane {
 		 int inputWidth = helper.getFeatureCalculator().getMetadata().getInputWidth();
 		 int inputHeight = helper.getFeatureCalculator().getMetadata().getInputHeight();
 		 PixelClassifierMetadata metadata = new PixelClassifierMetadata.Builder()
-				 .inputPixelSizeMicrons(getRequestedPixelSizeMicrons())
+				 .inputPixelSize(getRequestedPixelSizeMicrons())
 				 .inputShape(inputWidth, inputHeight)
 				 .setOutputType(model.supportsProbabilities() ? selectedOutputType.get() : OutputType.Classification)
 				 .channels(channels)
@@ -1099,6 +1097,10 @@ public class PixelClassifierImageSelectionPane {
 	
 	
 	boolean showOutput() {
+		if (overlay == null) {
+			DisplayHelpers.showErrorMessage("Show output", "No pixel classifier has been trained yet!");
+			return false;
+		}
 		var server = overlay.getPixelClassificationServer();
 		if (server == null || featureCalculator == null)
 			return false;
@@ -1148,7 +1150,10 @@ public class PixelClassifierImageSelectionPane {
 		var server = viewer.getServer();
 		if (server == null || featureCalculator == null)
 			return false;
-		double downsample = selectedResolution.get().getDownsampleFactor(server.getAveragedPixelSizeMicrons());
+		double pixelSize = server.getAveragedPixelSizeMicrons();
+		if (!Double.isFinite(pixelSize))
+			pixelSize = 1;
+		double downsample = selectedResolution.get().getDownsampleFactor(pixelSize);
 		double width = featureCalculator.getMetadata().getInputWidth() * downsample;
 		double height = featureCalculator.getMetadata().getInputHeight() * downsample;
 		var request = RegionRequest.createInstance(
@@ -1230,82 +1235,48 @@ public class PixelClassifierImageSelectionPane {
 		
 	}
 	
-	
-
-	static class DownsampledImageResolution implements ImageResolution {
-		
-		private static Map<String, DownsampledImageResolution> map = new TreeMap<>();
-		
-		public synchronized static DownsampledImageResolution getInstance(final String name, final double downsample) {
-			var key = name + "::" + downsample;
-			var resolution = map.get(key);
-			if (resolution == null) {
-				resolution = new DownsampledImageResolution(name, downsample);
-				map.put(key, resolution);
-			}
-			return resolution;
-		}
-		
-
-		private final String name;
-		private final double downsample;
-		
-		private DownsampledImageResolution(String name, double downsample) {
-			this.name = name;
-			this.downsample = downsample;
-		}
-		
-		@Override
-		public double getDownsampleFactor(double pixelSizeMicrons) {
-			return downsample;
-		}
-		
-		@Override
-		public String toString() {
-			String text = "Downsample " + GeneralTools.formatNumber(downsample, 5);
-			if (name == null)
-				return text;
-			else if (downsample == 1)
-				return name;
-			else
-				return String.format("%s (%s)", name, text);
-		}
-		
-	}
-	
 	static class SimpleImageResolution implements ImageResolution {
 		
 		private static Map<String, SimpleImageResolution> map = new TreeMap<>();
 		
 		private final String name;
-		private final double requestedPixelSizeMicrons;
+		private final String units;
+		private final double requestedPixelSize;
 		
-		public synchronized static SimpleImageResolution getInstance(final String name, final double requestedPixelSizeMicrons) {
-			var key = name + "::" + requestedPixelSizeMicrons;
+		public synchronized static SimpleImageResolution getInstance(final String name, final double requestedPixelSize, final String units) {
+			var key = name + "::" + requestedPixelSize + "::" + units;
 			var resolution = map.get(key);
 			if (resolution == null) {
-				resolution = new SimpleImageResolution(name, requestedPixelSizeMicrons);
+				resolution = new SimpleImageResolution(name, requestedPixelSize, units);
 				map.put(key, resolution);
 			}
 			return resolution;
 		}
 		
-		private SimpleImageResolution(String name, double requestedPixelSizeMicrons) {
+		private SimpleImageResolution(String name, double requestedPixelSize, String units) {
 			this.name = name;
-			this.requestedPixelSizeMicrons = requestedPixelSizeMicrons;
+			this.requestedPixelSize = requestedPixelSize;
+			this.units = units;
 		}
 		
-		public double getDownsampleFactor(double pixelSizeMicrons) {
-			return requestedPixelSizeMicrons / pixelSizeMicrons;
+		public double getDownsampleFactor(double pixelSize) {
+			if (Double.isFinite(pixelSize))
+				return requestedPixelSize / pixelSize;
+			else
+				return requestedPixelSize;
 		}
 		
 		@Override
 		public String toString() {
-			String text = GeneralTools.formatNumber(requestedPixelSizeMicrons, 5) + " " + GeneralTools.micrometerSymbol() + " per pixel";
-			if (name == null)
-				return text;
-			else
-				return String.format("%s (%s)", name, text);
+			if (units != null) {
+				String text = GeneralTools.formatNumber(requestedPixelSize, 5) + " " + GeneralTools.micrometerSymbol() + " per pixel";
+				if (name == null)
+					return text;
+				else
+					return String.format("%s (%s)", name, text);
+			} else {
+				return "Downsample " + GeneralTools.formatNumber(requestedPixelSize, 5);
+			}
 		}
 		
 	}
@@ -1520,7 +1491,11 @@ public class PixelClassifierImageSelectionPane {
 						// TODO: Read using ImageJ
 						var imp = new Opener().openTiff(stream, "Anything");
 						
-						var colorModel = ClassificationColorModelFactory.geClassificationColorModel(server.getChannels());
+						ColorModel colorModel;
+						if (imp.getNChannels() == 1)
+							colorModel = ClassificationColorModelFactory.geClassificationColorModel(server.getChannels());
+						else
+							colorModel = ClassificationColorModelFactory.geProbabilityColorModel8Bit(server.getChannels());
 						
 						return ImageJServer.convertToBufferedImage(imp, 1, 1, colorModel);
 //						var img = ImageIO.read(stream);
