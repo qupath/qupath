@@ -748,6 +748,9 @@ public class PixelClassifierImageSelectionPane {
 		}
 		viewer.getView().removeEventFilter(MouseEvent.MOUSE_MOVED, mouseListener);
 		viewer.getImageDataProperty().removeListener(imageDataListener);
+		var hierarchy = viewer.getHierarchy();
+		if (hierarchy != null)
+			hierarchy.removePathObjectListener(hierarchyListener);
 //		setImageData(viewer, viewer.getImageData(), null);
 		if (helper != null)
 			helper.setImageData(null);
@@ -804,6 +807,7 @@ public class PixelClassifierImageSelectionPane {
 				project.getPixelClassifierManager().putResource(classifierName, server.getClassifier());
 			} catch (Exception e) {
 				DisplayHelpers.showWarningNotification("Pixel classifier", "Unable to write classifier to JSON - classifier can't be reloaded later");
+				logger.error("Error saving classifier", e);
 			}
 //			var pathClassifier = Paths.get(pathEntry.toString(), "pixel_classifiers", classifierName + ".json");
 //			if (!Files.exists(pathClassifier.getParent()) || !Files.isDirectory(pathClassifier.getParent()))

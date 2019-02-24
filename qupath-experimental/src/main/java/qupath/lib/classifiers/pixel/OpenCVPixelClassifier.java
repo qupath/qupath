@@ -17,7 +17,14 @@ import qupath.opencv.processing.OpenCVTools;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.gson.annotations.JsonAdapter;
+
+@JsonAdapter(PixelClassifiers.PixelClassifierTypeAdapterFactory.class)
 public class OpenCVPixelClassifier extends AbstractOpenCVPixelClassifier {
+	
+	static {
+		PixelClassifiers.PixelClassifierTypeAdapterFactory.registerSubtype(OpenCVPixelClassifier.class);
+	}
 	
 	private static final Logger logger = LoggerFactory.getLogger(OpenCVPixelClassifier.class);
 

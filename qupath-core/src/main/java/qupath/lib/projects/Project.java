@@ -37,7 +37,7 @@ import qupath.lib.images.servers.ImageServer;
 import qupath.lib.objects.classes.PathClass;
 
 /**
- * Data structure to store multiple images, relating these to a file system.
+ * Data structure to manage images and associated data in QuPath.
  * 
  * @author Pete Bankhead
  *

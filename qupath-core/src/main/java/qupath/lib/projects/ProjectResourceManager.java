@@ -18,6 +18,8 @@ import java.util.stream.Collectors;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
+import qupath.lib.classifiers.pixel.PixelClassifiers.PixelClassifierTypeAdapterFactory;
+
 public interface ProjectResourceManager<T> {
 	
 	public Collection<String> getNames() throws IOException;
@@ -140,6 +142,7 @@ public interface ProjectResourceManager<T> {
 		@Override
 		public T getResource(String name) throws IOException {
 			var path = Paths.get(dir.toString(), name + ext);
+			 gson = new GsonBuilder().setLenient().registerTypeAdapterFactory(new PixelClassifierTypeAdapterFactory()).serializeSpecialFloatingPointValues().create();
 			try (var reader = Files.newBufferedReader(path)) {
 				return gson.fromJson(reader, cls);
 			}
@@ -149,9 +152,11 @@ public interface ProjectResourceManager<T> {
 		public void putResource(String name, T resource) throws IOException {
 			if (!Files.exists(dir))
 				Files.createDirectories(dir);
+			 gson = new GsonBuilder().setLenient().registerTypeAdapterFactory(new PixelClassifierTypeAdapterFactory()).serializeSpecialFloatingPointValues().create();
 			var path = Paths.get(dir.toString(), name + ext);
-			try (var writer = Files.newBufferedWriter(path)) {
-				gson.toJson(resource, writer);
+			
+			try (var writer = Files.newBufferedWriter(path, StandardOpenOption.CREATE)) {
+				gson.toJson(resource, cls, writer);
 			}
 		}
 		

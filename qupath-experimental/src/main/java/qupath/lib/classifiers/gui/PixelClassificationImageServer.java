@@ -5,7 +5,10 @@ import java.io.IOException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.gson.annotations.JsonAdapter;
+
 import qupath.lib.classifiers.pixel.PixelClassifier;
+import qupath.lib.classifiers.pixel.PixelClassifiers;
 import qupath.lib.classifiers.pixel.PixelClassifierMetadata.OutputType;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.AbstractTileableImageServer;
@@ -23,7 +26,10 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 	
 	private ImageData<BufferedImage> imageData;
 	private ImageServer<BufferedImage> server;
+	
+	@JsonAdapter(PixelClassifiers.PixelClassifierTypeAdapterFactory.class)
 	private PixelClassifier classifier;
+	
 	private ImageServerMetadata metadata;
 
 	public PixelClassificationImageServer(ImageData<BufferedImage> imageData, PixelClassifier classifier) {
