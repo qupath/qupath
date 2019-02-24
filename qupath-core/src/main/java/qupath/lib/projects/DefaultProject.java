@@ -61,6 +61,8 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
+import qupath.lib.classifiers.PathObjectClassifier;
+import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.common.URLTools;
 import qupath.lib.images.ImageData;
@@ -302,7 +304,7 @@ class DefaultProject implements Project<BufferedImage> {
 	List<String> listFilenames(Path path, String ext) throws IOException {
 		if (!Files.isDirectory(path))
 			return Collections.emptyList();
-		return Files.list(path).filter(p -> Files.isRegularFile(p) && p.endsWith(ext)).map(p -> nameWithoutExtension(p, ext)).collect(Collectors.toList());
+		return Files.list(path).filter(p -> Files.isRegularFile(p) && p.toString().endsWith(ext)).map(p -> nameWithoutExtension(p, ext)).collect(Collectors.toList());
 	}
 	
 	String nameWithoutExtension(Path path, String ext) {
@@ -1131,6 +1133,23 @@ class DefaultProject implements Project<BufferedImage> {
 	@Override
 	public String getVersion() {
 		return version;
+	}
+	
+	@Override
+	public ProjectResourceManager<String> getScriptsManager() {
+		return new ProjectResourceManager.StringFileResourceManager(getScriptsPath(), ".groovy");
+	}
+
+
+	@Override
+	public ProjectResourceManager<PathObjectClassifier> getObjectClassifierManager() {
+		return new ProjectResourceManager.SerializableFileResourceManager(getObjectClassifiersPath(), PathObjectClassifier.class);
+	}
+
+
+	@Override
+	public ProjectResourceManager<PixelClassifier> getPixelClassifierManager() {
+		return new ProjectResourceManager.JsonFileResourceManager(getPixelClassifiersPath(), PixelClassifier.class);
 	}
 	
 }

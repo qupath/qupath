@@ -9,7 +9,8 @@
 /**
  * Some metadata for the manifest
  */
-def qupathVersion = new File('VERSION').text.strip()
+
+def qupathVersion = file('VERSION').text.trim()
 def qupathVendor = "QuPath developers"
 
 println 'Building QuPath version ' + qupathVersion

@@ -30,6 +30,7 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -414,8 +415,11 @@ public class DisplayHelpers {
 		return null;
 	}
 	
-	
 	public static <T> T showChoiceDialog(final String title, final String message, final T[] choices, final T defaultChoice) {
+		return showChoiceDialog(title, message, Arrays.asList(choices), defaultChoice);
+	}
+	
+	public static <T> T showChoiceDialog(final String title, final String message, final Collection<T> choices, final T defaultChoice) {
 		if (Platform.isFxApplicationThread()) {
 			ChoiceDialog<T> dialog = new ChoiceDialog<>(defaultChoice, choices);
 			dialog.setTitle(title);
@@ -427,7 +431,7 @@ public class DisplayHelpers {
 				return result.get();
 			return null;
 		} else
-			return (T)JOptionPane.showInputDialog(getPossibleParent(), message, title, JOptionPane.PLAIN_MESSAGE, null, choices, defaultChoice);
+			return (T)JOptionPane.showInputDialog(getPossibleParent(), message, title, JOptionPane.PLAIN_MESSAGE, null, choices.toArray(), defaultChoice);
 	}
 	
 	

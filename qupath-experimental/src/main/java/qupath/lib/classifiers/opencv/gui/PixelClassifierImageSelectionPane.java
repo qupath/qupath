@@ -541,9 +541,9 @@ public class PixelClassifierImageSelectionPane {
 		GridPaneTools.setMaxWidth(Double.MAX_VALUE, pane.getChildren().stream().filter(p -> p instanceof Region).toArray(Region[]::new));
 		
 		var splitPane = new SplitPane(pane, viewerPane);
-		pane.setPrefWidth(300);
+		pane.setPrefWidth(400);
 		pane.setMinHeight(GridPane.USE_PREF_SIZE);
-		viewerPane.setPrefSize(300, 400);
+		viewerPane.setPrefSize(400, 400);
 		splitPane.setDividerPositions(0.5);
 		
 		pane.setPadding(new Insets(5));
@@ -774,6 +774,11 @@ public class PixelClassifierImageSelectionPane {
 			DisplayHelpers.showErrorMessage("Pixel classifier", "Unable to find current image in the current project!");
 			return false;
 		}
+		var pathEntry = entry.getEntryPath();
+		if (pathEntry == null) {
+			DisplayHelpers.showErrorMessage("Pixel classifier", "Sorry, a new-style project is needed to save pixel classifier results");
+			return false;
+		}
 		
 		var classifierName = DisplayHelpers.showInputDialog("Pixel classifier", "Pixel classifier name", "");
 		if (classifierName == null)
@@ -790,24 +795,30 @@ public class PixelClassifierImageSelectionPane {
 		if (ind >= 0)
 			dataFileName = dataFileName.substring(0, ind);
 		
-		var pathOutput = Paths.get(project.getBaseDirectory().getAbsolutePath(), "layers", dataFileName, classifierName, classifierName + ".zip");
+		var pathOutput = Paths.get(pathEntry.toString(), "layers", classifierName, classifierName + ".zip");
 		try {
 			if (!Files.exists(pathOutput.getParent()) || !Files.isDirectory(pathOutput.getParent()))
 				Files.createDirectories(pathOutput.getParent());
-			var pathClassifier = Paths.get(project.getBaseDirectory().getAbsolutePath(), "pixel_classifiers", classifierName + ".json");
-			if (!Files.exists(pathClassifier.getParent()) || !Files.isDirectory(pathClassifier.getParent()))
-				Files.createDirectories(pathClassifier.getParent());
 			
-			// Try writing the classifier; it's not *too* bad if this fails, as we may still write the classified image
 			try {
-				var gson = new GsonBuilder()
-						.registerTypeAdapterFactory(TypeAdaptersCV.getOpenCVTypeAdaptorFactory())
-						.setPrettyPrinting().create();
-				var json = gson.toJson(server.getClassifier());
-				Files.writeString(pathClassifier, json);
+				project.getPixelClassifierManager().putResource(classifierName, server.getClassifier());
 			} catch (Exception e) {
 				DisplayHelpers.showWarningNotification("Pixel classifier", "Unable to write classifier to JSON - classifier can't be reloaded later");
 			}
+//			var pathClassifier = Paths.get(pathEntry.toString(), "pixel_classifiers", classifierName + ".json");
+//			if (!Files.exists(pathClassifier.getParent()) || !Files.isDirectory(pathClassifier.getParent()))
+//				Files.createDirectories(pathClassifier.getParent());
+//			
+//			// Try writing the classifier; it's not *too* bad if this fails, as we may still write the classified image
+//			try {
+//				var gson = new GsonBuilder()
+//						.registerTypeAdapterFactory(TypeAdaptersCV.getOpenCVTypeAdaptorFactory())
+//						.setPrettyPrinting().create();
+//				var json = gson.toJson(server.getClassifier());
+//				Files.writeString(pathClassifier, json);
+//			} catch (Exception e) {
+//				DisplayHelpers.showWarningNotification("Pixel classifier", "Unable to write classifier to JSON - classifier can't be reloaded later");
+//			}
 			
 			// TODO: Write through the project entry instead
 			var persistentTileCache = new FileSystemPersistentTileCache(pathOutput, server);

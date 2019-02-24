@@ -30,6 +30,9 @@ import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
+
+import qupath.lib.classifiers.PathObjectClassifier;
+import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.objects.classes.PathClass;
 
@@ -224,31 +227,25 @@ public interface Project<T> {
 	
 	
 	/**
-	 * List all scripts available in the project. Note that this currently provides only a snapshot in time, i.e. 
-	 * one should request the script names whenever they are needed and not retain the list.
+	 * Get a manager for scripts saved within this project.
 	 * 
 	 * @return
-	 * @throws IOException
 	 */
-	public List<String> listScripts() throws IOException;
+	public ProjectResourceManager<String> getScriptsManager();
 	
 	/**
-	 * Load a script with a name as returned by {@link listScripts}
+	 * Get a manager for object classifiers saved within this project.
 	 * 
-	 * @param name
 	 * @return
-	 * @throws IOException
 	 */
-	public String loadScript(String name) throws IOException;
+	public ProjectResourceManager<PathObjectClassifier> getObjectClassifierManager();
 	
 	/**
-	 * Save a script for this project.
+	 * Get a manager for pixel classifiers saved within this project.
 	 * 
-	 * @param name
-	 * @param script
-	 * @throws IOException
+	 * @return
 	 */
-	public void saveScript(String name, String script) throws IOException;
+	public ProjectResourceManager<PixelClassifier> getPixelClassifierManager();
 	
 	
 //	public List<String> listPixelClassifiers();

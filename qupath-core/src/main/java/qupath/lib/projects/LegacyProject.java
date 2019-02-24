@@ -58,6 +58,8 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
+import qupath.lib.classifiers.PathObjectClassifier;
+import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.common.URLTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
@@ -432,19 +434,6 @@ class LegacyProject<T> implements Project<T> {
 		}
 	}
 	
-	
-	
-	public List<String> listScripts() throws IOException {
-		throw new UnsupportedOperationException();
-	}
-	
-	public String loadScript(String name) throws IOException {
-		throw new UnsupportedOperationException();
-	}
-	
-	public void saveScript(String name, String script) throws IOException {
-		throw new UnsupportedOperationException();		
-	}
 	
 	public List<String> validateLocalPaths(boolean relativize) {
 		var missing = new ArrayList<String>();
@@ -840,6 +829,24 @@ class LegacyProject<T> implements Project<T> {
 	@Override
 	public String getVersion() {
 		return null;
+	}
+
+
+	@Override
+	public ProjectResourceManager<String> getScriptsManager() {
+		throw new UnsupportedOperationException();
+	}
+
+
+	@Override
+	public ProjectResourceManager<PathObjectClassifier> getObjectClassifierManager() {
+		throw new UnsupportedOperationException();
+	}
+
+
+	@Override
+	public ProjectResourceManager<PixelClassifier> getPixelClassifierManager() {
+		throw new UnsupportedOperationException();
 	}
 	
 }
