@@ -1655,6 +1655,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		g2d.transform(transform);
 		Composite previousComposite = g2d.getComposite();
 		boolean paintCompletely = thumbnailIsFullImage || !doFasterRepaint;
+//		var regionBounds = AwtTools.getImageRegion(clip, getZPosition(), getTPosition());
 		if (opacity > 0 || PathPrefs.getAlwaysPaintSelectedObjects()) {
 			if (opacity < 1) {
 				AlphaComposite composite = AlphaComposite.getInstance(AlphaComposite.SRC_OVER, opacity);
@@ -1663,8 +1664,9 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 
 			Color color = getSuggestedOverlayColor();
 			// Paint the overlay layers
-			for (PathOverlay overlay : allOverlayLayers.toArray(new PathOverlay[0])) {
+			for (PathOverlay overlay : allOverlayLayers.toArray(PathOverlay[]::new)) {
 				overlay.setPreferredOverlayColor(color);
+//				overlay.paintOverlay(g2d, regionBounds, downsample, null, paintCompletely);
 				overlay.paintOverlay(g2d, getServerBounds(), downsample, null, paintCompletely);
 			}
 //			if (hierarchyOverlay != null) {

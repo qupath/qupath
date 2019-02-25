@@ -32,6 +32,15 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 	 */
 	protected abstract BufferedImage readTile(final TileRequest tileRequest) throws IOException;
 
+	/**
+	 * Get the internal cache. This may be useful to check for the existence of a cached tile any time 
+	 * when speed is of the essence, and if no cached tile is available a request will not be made.
+	 * 
+	 * @return
+	 */
+	protected Map<RegionRequest, BufferedImage> getCache() {
+		return cache;
+	}
 	
 	/**
 	 * Get a tile for the request - ideally from the cache, but otherwise read it & 

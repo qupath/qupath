@@ -2,9 +2,12 @@ package qupath.lib.classifiers.gui;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.util.UUID;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.gson.Gson;
 import com.google.gson.annotations.JsonAdapter;
 
 import qupath.lib.classifiers.pixel.PixelClassifier;
@@ -39,7 +42,14 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 		this.server = imageData.getServer();
 		
 		var classifierMetadata = classifier.getMetadata();
-		var path = server.getPath() + "::" + classifier.toString();
+		
+		String path;
+		try {
+			// If we can construct a path (however long) that includes the full serialization info, then cached tiles can be reused even if the server is recreated
+			path = server.getPath() + "::" + new Gson().toJson(classifier);
+		} catch (Exception e) {
+			path = server.getPath() + "::" + UUID.randomUUID().toString();			
+		}
 		
 		var bitDepth = 8;
 		
@@ -74,6 +84,19 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 				
 		metadata = builder.build();
 		
+	}
+	
+	/**
+	 * Get a cached tile, or null if the tile has not been cached.
+	 * <p>
+	 * This is useful whenever it is important to return quickly rather than wait for a tile to be fetched or generated.
+	 * 
+	 * @param tile
+	 * @return
+	 */
+	public BufferedImage getCachedTile(TileRequest tile) {
+		var cache = getCache();
+		return cache == null ? null : cache.getOrDefault(tile.getRegionRequest(), null);
 	}
 	
 	public OutputType getOutputType() {

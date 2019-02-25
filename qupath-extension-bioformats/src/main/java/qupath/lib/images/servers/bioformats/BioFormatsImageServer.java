@@ -70,7 +70,6 @@ import loci.formats.meta.DummyMetadata;
 import loci.formats.meta.IMetadata;
 import loci.formats.meta.MetadataStore;
 import loci.formats.ome.OMEXMLMetadata;
-
 import qupath.lib.awt.color.model.ColorModelFactory;
 import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;

@@ -14,10 +14,10 @@ import qupath.lib.common.ColorTools;
 
 /**
  * Create a ColorModel, intended for displaying probability values.
- * 
+ * <p>
  * The performance isn't necessarily great; so it makes sense to draw the associated image 
  * and cache the RGB result if it will be repainted regularly (e.g. as an overlay).
- * 
+ * <p>
  * TODO: The actual implementation may change... it doesn't currently do all the checks it could/should...
  */
 class ProbabilityColorModel extends ColorModel {

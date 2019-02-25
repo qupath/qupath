@@ -5,7 +5,7 @@ import org.bytedeco.javacpp.opencv_core.Mat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import qupath.lib.classifiers.gui.ClassificationColorModelFactory;
+import qupath.lib.awt.color.model.ColorModelFactory;
 
 import java.awt.image.ColorModel;
 import java.util.List;
@@ -43,7 +43,7 @@ public abstract class AbstractOpenCVPixelClassifier implements PixelClassifier {
     
     protected synchronized ColorModel getClassificationsColorModel() {
     	if (colorModelClassifications == null) {
-            colorModelClassifications = ClassificationColorModelFactory.geClassificationColorModel(metadata.getChannels());
+            colorModelClassifications = ColorModelFactory.getIndexedColorModel(metadata.getChannels());
     	}
     	return colorModelClassifications;
     }
@@ -52,9 +52,9 @@ public abstract class AbstractOpenCVPixelClassifier implements PixelClassifier {
     protected synchronized ColorModel getProbabilityColorModel() {
     	if (colorModelProbabilities == null) {
     		if (do8Bit())
-    			colorModelProbabilities = ClassificationColorModelFactory.geProbabilityColorModel8Bit(metadata.getChannels());
+    			colorModelProbabilities = ColorModelFactory.geProbabilityColorModel8Bit(metadata.getChannels());
     		else
-    			colorModelProbabilities = ClassificationColorModelFactory.geProbabilityColorModel32Bit(metadata.getChannels());
+    			colorModelProbabilities = ColorModelFactory.geProbabilityColorModel32Bit(metadata.getChannels());
     	}
     	return colorModelProbabilities;
     }

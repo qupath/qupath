@@ -392,7 +392,7 @@ public class PixelClassifierHelper implements PathObjectHierarchyListener {
         else
             channels.clear();
         channels.addAll(newChannels);
-
+        
         lastAnnotatedROIs = Collections.unmodifiableMap(map);
         changes = false;
         return true;
