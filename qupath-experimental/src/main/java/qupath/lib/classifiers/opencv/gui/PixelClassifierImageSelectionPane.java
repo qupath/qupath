@@ -79,7 +79,6 @@ import qupath.lib.awt.color.model.ColorModelFactory;
 import qupath.lib.classifiers.gui.FeatureFilter;
 import qupath.lib.classifiers.gui.FeatureFilters;
 import qupath.lib.classifiers.gui.PixelClassificationImageServer;
-import qupath.lib.classifiers.gui.PixelClassificationMeasurementManager;
 import qupath.lib.classifiers.gui.PixelClassificationOverlay;
 import qupath.lib.classifiers.gui.PixelClassifierGUI;
 import qupath.lib.classifiers.gui.PixelClassifierGUI.BasicFeatureCalculator;
@@ -104,7 +103,6 @@ import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.objects.PathAnnotationObject;
-import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClass;
@@ -112,7 +110,6 @@ import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.projects.Project;
-import qupath.lib.projects.ProjectImageEntry;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.RectangleROI;
 import qupath.lib.roi.interfaces.ROI;
@@ -902,7 +899,7 @@ public class PixelClassifierImageSelectionPane {
 		var server = overlay.getPixelClassificationServer();
 		if (hierarchy == null || server == null)
 			return false;
-		PixelClassifierGUI.classifyObjects(hierarchy, hierarchy.getObjects(null, PathDetectionObject.class), server);
+		PixelClassifierGUI.classifyObjects(server, hierarchy.getDetectionObjects());
 		return true;
 	}
 	
@@ -946,7 +943,7 @@ public class PixelClassifierImageSelectionPane {
 		if (server.hasPixelSizeMicrons() && !params.getChoiceParameterValue("minSizeUnits").equals("Pixels"))
 			minSizePixels /= (server.getPixelWidthMicrons() * server.getPixelHeightMicrons());
 		
-		return PixelClassifierGUI.createObjectsFromPixelClassifier(server, viewer.getHierarchy(), viewer.getSelectedObject(), creator, minSizePixels, doSplit);
+		return PixelClassifierGUI.createObjectsFromPixelClassifier(server, viewer.getSelectedObject(), creator, minSizePixels, doSplit);
 	}
 	
 	static interface PathObjectCreator {

@@ -29,6 +29,7 @@ import qupath.lib.classifiers.pixel.PixelClassifierMetadata;
 import qupath.lib.classifiers.pixel.PixelClassifierMetadata.OutputType;
 import qupath.lib.classifiers.pixel.features.OpenCVFeatureCalculator;
 import qupath.lib.common.ColorTools;
+import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.TileRequest;
@@ -39,7 +40,6 @@ import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.classes.PathClassFactory.PathClasses;
 import qupath.lib.objects.helpers.PathObjectTools;
-import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.AreaROI;
@@ -50,7 +50,6 @@ import qupath.lib.roi.interfaces.PathShape;
 import qupath.lib.roi.interfaces.ROI;
 import qupath.opencv.processing.TypeAdaptersCV;
 
-import java.awt.geom.Area;
 import java.awt.geom.Path2D;
 import java.awt.image.BufferedImage;
 import java.awt.image.WritableRaster;
@@ -60,7 +59,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -575,21 +573,67 @@ public class PixelClassifierGUI {
 	//    	matSquaredE.release();
 	//    	return matESquared;
 	    }
+	    
+	    
+	    /**
+	     * Create detections objects via a pixel classifier.
+	     * 
+	     * @param imageData
+	     * @param classifier
+	     * @param selectedObject
+	     * @param minSizePixels
+	     * @param doSplit
+	     * @return
+	     */
+    public static boolean createDetectionsFromPixelClassifier(
+			ImageData<BufferedImage> imageData, PixelClassifier classifier, PathObject selectedObject, 
+			double minSizePixels, boolean doSplit) {
+		return createObjectsFromPixelClassifier(
+				new PixelClassificationImageServer(imageData, classifier),
+				selectedObject,
+				(var roi) -> PathObjects.createDetectionObject(roi),
+				minSizePixels, doSplit);
+	}
 
+    /**
+     * Create annotation objects via a pixel classifier.
+     * 
+     * @param imageData
+     * @param classifier
+     * @param selectedObject
+     * @param minSizePixels
+     * @param doSplit
+     * @return
+     */
+	public static boolean createAnnotationsFromPixelClassifier(
+			ImageData<BufferedImage> imageData, PixelClassifier classifier, PathObject selectedObject, 
+			double minSizePixels, boolean doSplit) {
+		
+		return createObjectsFromPixelClassifier(
+				new PixelClassificationImageServer(imageData, classifier),
+				selectedObject,
+				(var roi) -> {
+					var annotation = PathObjects.createAnnotationObject(roi);
+					annotation.setLocked(true);
+					return annotation;
+				},
+				minSizePixels, doSplit);
+	}
 
 	/**
 	 * Create objects & add them to an object hierarchy based on thresholding the output of a pixel classifier.
 	 * 
 	 * @param server
-	 * @param hierarchy
 	 * @param selectedObject
 	 * @param creator
 	 * @param doSplit
 	 * @return
 	 */
 	public static boolean createObjectsFromPixelClassifier(
-			PixelClassificationImageServer server, PathObjectHierarchy hierarchy, PathObject selectedObject, 
+			PixelClassificationImageServer server, PathObject selectedObject, 
 			Function<ROI, ? extends PathObject> creator, double minSizePixels, boolean doSplit) {
+		
+		var hierarchy = server.getImageData().getHierarchy();
 		var classifier = server.getClassifier();
 	
 		var clipArea = selectedObject == null ? null : PathROIToolsAwt.getArea(selectedObject.getROI());
@@ -697,7 +741,7 @@ public class PixelClassifierGUI {
 	 * @param pathObjects
 	 * @param server
 	 */
-	public static void classifyObjects(PathObjectHierarchy hierarchy, Collection<PathObject> pathObjects, PixelClassificationImageServer server) {
+	public static void classifyObjects(PixelClassificationImageServer server, Collection<PathObject> pathObjects) {
 		var reclassifiers = pathObjects.parallelStream().map(p -> {
 				try {
 					var roi = PathObjectTools.getROI(p, true);
@@ -710,7 +754,20 @@ public class PixelClassifierGUI {
 				}
 			}).collect(Collectors.toList());
 		reclassifiers.parallelStream().forEach(r -> r.apply());
-		hierarchy.fireObjectClassificationsChangedEvent(server, pathObjects);
+		server.getImageData().getHierarchy().fireObjectClassificationsChangedEvent(server, pathObjects);
+	}
+	
+	
+	public static void classifyCells(ImageData<BufferedImage> imageData, PixelClassifier classifier) {
+		classifyObjects(imageData, classifier, imageData.getHierarchy().getCellObjects());
+	}
+
+	public static void classifyDetections(ImageData<BufferedImage> imageData, PixelClassifier classifier) {
+		classifyObjects(imageData, classifier, imageData.getHierarchy().getDetectionObjects());
+	}
+	
+	public static void classifyObjects(ImageData<BufferedImage> imageData, PixelClassifier classifier, Collection<PathObject> pathObjects) {
+		classifyObjects(new PixelClassificationImageServer(imageData, classifier), pathObjects);
 	}
     
     

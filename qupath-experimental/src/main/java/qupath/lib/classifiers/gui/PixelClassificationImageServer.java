@@ -86,6 +86,10 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 		
 	}
 	
+	public ImageData<BufferedImage> getImageData() {
+		return imageData;
+	}
+	
 	/**
 	 * Get a cached tile, or null if the tile has not been cached.
 	 * <p>
