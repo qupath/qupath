@@ -24,12 +24,6 @@ public abstract class WrappedImageServer<T> extends AbstractImageServer<T> {
 		this.server = server;
 	}
 	
-
-	@Override
-	public Integer getDefaultChannelColor(int channel) {
-		return server.getDefaultChannelColor(channel);
-	}
-	
 	/**
 	 * Get underlying ImageServer, i.e. the one that is being wrapped.
 	 * 

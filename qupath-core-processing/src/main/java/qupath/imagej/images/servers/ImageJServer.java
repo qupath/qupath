@@ -189,6 +189,9 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 			Duplicator duplicator = new Duplicator();
 			imp2 = duplicator.run(this.imp, 1, nChannels, z, z, t, t);
 			this.imp.killRoi();
+			if (imp2.getHeight() != request.getHeight()||
+					imp2.getWidth() != request.getWidth())
+				logger.warn("Unexpected image size {}x{} for request {}", imp.getWidth(), imp.getHeight(), request);
 			z = 1;
 			t = 1;
 //			imp = imp.duplicate();

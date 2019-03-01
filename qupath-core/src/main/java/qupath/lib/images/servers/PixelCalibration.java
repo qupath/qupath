@@ -141,6 +141,11 @@ public class PixelCalibration {
 		}
 				
 		public Builder zSpacingMicrons(Number zSpacingMicrons) {
+			if (zSpacingMicrons == null || Double.isNaN(zSpacingMicrons.doubleValue())) {
+				cal.zSpacing = SimpleQuantity.DEFAULT_Z_SPACING;
+				return this;
+			}
+			
 			if (!Double.isFinite(zSpacingMicrons.doubleValue()) || zSpacingMicrons.doubleValue() <= 0)
 				throw new IllegalArgumentException("Z-spacing must be a finite number > 0, not " + zSpacingMicrons);
 			

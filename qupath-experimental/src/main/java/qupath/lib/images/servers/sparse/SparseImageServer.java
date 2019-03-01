@@ -24,6 +24,7 @@ import org.slf4j.LoggerFactory;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
+
 import qupath.lib.images.servers.AbstractTileableImageServer;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
@@ -51,9 +52,6 @@ public class SparseImageServer extends AbstractTileableImageServer {
 	private SparseImageServerManager manager;
 	
 	private Map<String, BufferedImage> emptyTileMap = new HashMap<>();
-	
-	private String[] channelNames;
-	private Integer[] channelColors;
 	
 	private ColorModel colorModel;
 	
@@ -85,12 +83,6 @@ public class SparseImageServer extends AbstractTileableImageServer {
 			// Read the first server
 			if (metadata == null) {
 				ImageServer<BufferedImage> server = manager.getServer(region, 1);
-				channelNames = new String[server.nChannels()];
-				channelColors = new Integer[server.nChannels()];
-				for (int c = 0; c < server.nChannels(); c++) {
-					channelNames[c] = server.getChannelName(c);
-					channelColors[c] = server.getDefaultChannelColor(c);
-				}
 				metadata = server.getMetadata();
 				colorModel = server.getBufferedThumbnail(100, 100, 0).getColorModel();
 			}
@@ -112,18 +104,7 @@ public class SparseImageServer extends AbstractTileableImageServer {
 				.levelsFromDownsamples(manager.getAvailableDownsamples())
 				.build();
 	}
-
 	
-	
-	@Override
-	public Integer getDefaultChannelColor(int channel) {
-		return channelColors[channel];
-	}
-
-	@Override
-	public String getChannelName(int channel) {
-		return channelNames[channel];
-	}
 
 	@Override
 	public String getServerType() {
@@ -153,6 +134,7 @@ public class SparseImageServer extends AbstractTileableImageServer {
 				// If we overlap, request the overlapping portion
 				ImageServer<BufferedImage> serverTemp = manager.getServer(subRegion, downsample);
 				
+				// Get image coordinates for bounding box of valid region
 				int x1 = Math.max(tileRequest.getImageX() + originX, subRegion.getX());
 				int y1 = Math.max(tileRequest.getImageY() + originY, subRegion.getY());
 				int x2 = Math.min(tileRequest.getImageX() + originX + tileRequest.getImageWidth(), subRegion.getX() + subRegion.getWidth());
@@ -166,11 +148,12 @@ public class SparseImageServer extends AbstractTileableImageServer {
 				int yr2 = y2 - subRegion.getY();
 				double requestDownsample = downsample;
 				if (requestDownsample > 1 && serverTemp.nResolutions() == 1) {
-					xr = (int)Math.round(xr / downsample);					
-					yr = (int)Math.round(yr / downsample);					
-					xr2 = (int)Math.round(xr2 / downsample);					
-					yr2 = (int)Math.round(yr2 / downsample);	
-					requestDownsample = 1;
+					requestDownsample = serverTemp.getDownsampleForResolution(0);
+					double scale = requestDownsample / downsample;
+					xr = (int)Math.round(xr * scale);					
+					yr = (int)Math.round(yr * scale);					
+					xr2 = (int)Math.round(xr2 * scale);					
+					yr2 = (int)Math.round(yr2 * scale);	
 				}
 				
 				RegionRequest requestTemp = RegionRequest.createInstance(
@@ -213,6 +196,7 @@ public class SparseImageServer extends AbstractTileableImageServer {
 			}
 			return imgEmpty;
 		}
+//		System.err.println(String.format("%.2f - %.2f", (double)tileRequest.getImageHeight()/raster.getHeight(), tileRequest.getDownsample()));
 		return new BufferedImage(colorModel, raster, false, null);
 	}
 	

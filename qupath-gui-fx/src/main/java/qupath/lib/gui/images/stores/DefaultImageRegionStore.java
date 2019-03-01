@@ -23,6 +23,7 @@
 
 package qupath.lib.gui.images.stores;
 
+import java.awt.Color;
 import java.awt.Graphics;
 import java.awt.Rectangle;
 import java.awt.Shape;
@@ -56,6 +57,8 @@ public class DefaultImageRegionStore extends AbstractImageRegionStore<BufferedIm
 	static final int DEFAULT_THUMBNAIL_WIDTH = 1000;
 
 	static Logger logger = LoggerFactory.getLogger(DefaultImageRegionStore.class);
+	
+	private static boolean DEBUG_TILES = false;
 
 	protected DefaultImageRegionStore(int thumbnailWidth, long tileCacheSize) {
 		super(new BufferedImageSizeEstimator(), thumbnailWidth, tileCacheSize);
@@ -275,7 +278,12 @@ public class DefaultImageRegionStore extends AbstractImageRegionStore<BufferedIm
 				}
 				img = imgTemp;
 			}
+//			System.err.println(String.format("%dx%d, %.2f - %.2f", img.getWidth(), img.getHeight(), (double)request.getHeight()/img.getHeight(), request.getDownsample()));
 			g.drawImage(img, request.getX(), request.getY(), request.getWidth(), request.getHeight(), observer);
+			if (DEBUG_TILES) {
+				g.setColor(Color.RED);
+				g.drawRect(request.getX(), request.getY(), request.getWidth(), request.getHeight());				
+			}
 		}
 
 	}

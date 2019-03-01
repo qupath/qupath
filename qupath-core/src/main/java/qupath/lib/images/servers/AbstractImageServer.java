@@ -415,7 +415,7 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 	private TileRequestManager tileRequestManager;
 	
 	protected synchronized TileRequestManager getTileRequestManager() {
-		if (tileRequestManager == null) {
+		if (tileRequestManager == null || tileRequestManager.currentMetadata != getMetadata()) {
 			tileRequestManager = new TileRequestManager(TileRequest.getAllTileRequests(this));
 		}
 		return tileRequestManager;
@@ -439,6 +439,7 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 		
 		private Collection<TileRequest> allTiles;
 		private Map<String, SpatialIndex> tiles = new LinkedHashMap<>();
+		private ImageServerMetadata currentMetadata;
 		
 		private String getKey(TileRequest tile) {
 			return getKey(tile.getLevel(), tile.getZ(), tile.getT());
@@ -449,6 +450,7 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 		}
 		
 		TileRequestManager(Collection<TileRequest> tiles) {
+			currentMetadata = getMetadata();
 			allTiles = Collections.unmodifiableList(new ArrayList<>(tiles));
 			for (var tile : allTiles) {
 				var key = getKey(tile);

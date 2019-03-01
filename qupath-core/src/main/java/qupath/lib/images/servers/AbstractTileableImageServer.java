@@ -13,6 +13,7 @@ import org.slf4j.LoggerFactory;
 
 import ij.process.FloatProcessor;
 import ij.process.ImageProcessor;
+import qupath.lib.common.GeneralTools;
 import qupath.lib.regions.RegionRequest;
 
 public abstract class AbstractTileableImageServer extends AbstractImageServer<BufferedImage> {
@@ -194,14 +195,19 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 			int xEnd = (int)Math.round((request.getX() + request.getWidth()) / tileDownsample) - tileMinX;
 			int yEnd = (int)Math.round((request.getY() + request.getHeight()) / tileDownsample) - tileMinY;
 			
+			if (xEnd > getWidth() || yEnd > getHeight())
+				logger.warn("Region request is too large for {}x{} image: {}", getWidth(), getHeight(), request);
+			
 			// Do cropping, if we need to
-			if (xStart > 0 || yStart > 0 || xEnd < raster.getWidth() || yEnd < raster.getHeight()) {
+			if (xStart > 0 || yStart > 0 || xEnd != raster.getWidth() || yEnd != raster.getHeight()) {
 				// Best avoid creating a child raster, for memory & convenience reasons
 				// (i.e. sometimes weird things happen when not expecting to have a child raster)
 				int x = Math.max(xStart, 0);
 				int y = Math.max(yStart, 0);
-				int w = Math.min(raster.getWidth() - xStart, xEnd - xStart);
-				int h = Math.min(raster.getHeight() - yStart, yEnd - yStart);
+				int w = xEnd - xStart;
+				int h = yEnd - yStart;
+//				int w = Math.min(raster.getWidth() - xStart, xEnd - xStart);
+//				int h = Math.min(raster.getHeight() - yStart, yEnd - yStart);
 				var raster2 = raster.createCompatibleWritableRaster(w, h);
 				raster2.setRect(-x, -y, (Raster)raster);
 				raster = raster2;
@@ -209,7 +215,10 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 
 			// Return the image, resizing if necessary
 			BufferedImage imgResult = new BufferedImage(colorModel, raster, alphaPremultiplied, null);
-			imgResult = resize(imgResult, width, height);
+			int currentWidth = imgResult.getWidth();
+			int currentHeight = imgResult.getHeight();
+			if (currentWidth != width || currentHeight != height)
+				imgResult = resize(imgResult, width, height);
 			
 			long endTime = System.currentTimeMillis();
 			logger.trace("Requested " + tiles.size() + " tiles in " + (endTime - startTime) + " ms (non-RGB)");
@@ -237,6 +246,12 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 			return img;
 		
 		logger.trace(String.format("Resizing %d x %d -> %d x %d", img.getWidth(), img.getHeight(), finalWidth, finalHeight));
+		
+		double fx = (double)img.getWidth()/finalWidth;
+		double fy = (double)img.getHeight()/finalHeight;
+		if (!GeneralTools.almostTheSame(fx, fy, 0.001)) {
+			logger.warn("Unexpected aspect ratio for resized image: {}x{} -> {}x{} ({}, {})", img.getWidth(), img.getHeight(), finalWidth, finalHeight, fx, fy);
+		}
 		
 		boolean areaAveraging = true;
 		
