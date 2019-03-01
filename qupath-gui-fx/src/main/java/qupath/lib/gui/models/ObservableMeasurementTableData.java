@@ -76,7 +76,7 @@ import qupath.lib.roi.interfaces.ROI;
 
 /**
  * A table data model to supply observable measurements of PathObjects.
- * 
+ * <p>
  * This includes dynamically-calculated summaries.
  * 
  * @author Pete Bankhead

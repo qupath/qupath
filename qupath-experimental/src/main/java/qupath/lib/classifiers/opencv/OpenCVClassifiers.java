@@ -369,7 +369,7 @@ public class OpenCVClassifiers {
 			else if (NormalBayesClassifier.class.equals(cls))
 				return "Normal Bayes classifier";
 			
-			return model.getClass().getSimpleName();
+			return getStatModel().getClass().getSimpleName();
 		}
 		
 		/**

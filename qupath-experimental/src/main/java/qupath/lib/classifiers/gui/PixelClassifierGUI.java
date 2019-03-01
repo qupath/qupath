@@ -22,7 +22,6 @@ import org.slf4j.LoggerFactory;
 import com.google.gson.annotations.JsonAdapter;
 
 import qupath.imagej.objects.ROIConverterIJ;
-import qupath.lib.classifiers.opencv.Reclassifier;
 import qupath.lib.classifiers.opencv.gui.PixelClassifierImageSelectionPane;
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.classifiers.pixel.PixelClassifierMetadata;
@@ -38,6 +37,7 @@ import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
+import qupath.lib.objects.classes.Reclassifier;
 import qupath.lib.objects.classes.PathClassFactory.PathClasses;
 import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.regions.ImagePlane;
@@ -748,9 +748,9 @@ public class PixelClassifierGUI {
 					int x = (int)Math.round(roi.getCentroidX());
 					int y = (int)Math.round(roi.getCentroidY());
 					int ind = server.getClassification(x, y, roi.getZ(), roi.getT());
-					return new Reclassifier(p, PathClassFactory.getPathClass(server.getChannelName(ind)));
+					return new Reclassifier(p, PathClassFactory.getPathClass(server.getChannelName(ind)), false);
 				} catch (Exception e) {
-					return new Reclassifier(p, null);
+					return new Reclassifier(p, null, false);
 				}
 			}).collect(Collectors.toList());
 		reclassifiers.parallelStream().forEach(r -> r.apply());

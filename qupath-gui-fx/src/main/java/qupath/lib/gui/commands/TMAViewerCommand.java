@@ -25,6 +25,10 @@ package qupath.lib.gui.commands;
 
 import java.awt.image.BufferedImage;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import javafx.stage.Screen;
 import javafx.stage.Stage;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
@@ -39,6 +43,8 @@ import qupath.lib.images.ImageData;
  */
 public class TMAViewerCommand implements PathCommand {
 	
+	private static Logger logger = LoggerFactory.getLogger(TMAViewerCommand.class);
+	
 	@Override
 	public void run() {
 		QuPathGUI qupath = QuPathGUI.getInstance();
@@ -51,7 +57,15 @@ public class TMAViewerCommand implements PathCommand {
 		if (imageData != null && imageData.getHierarchy().getTMAGrid() != null)
 			tmaViewer.setTMAEntriesFromImageData(imageData);
 		
-		tmaViewer.getStage().show();
+		try {
+			Screen screen = Screen.getPrimary();
+			stage.setWidth(screen.getBounds().getWidth()*0.75);
+			stage.setHeight(screen.getBounds().getHeight()*0.75);
+		} catch (Exception e) {
+			logger.error("Exception setting stage size", e);
+		}
+		
+		stage.show();
 		
 	}
 

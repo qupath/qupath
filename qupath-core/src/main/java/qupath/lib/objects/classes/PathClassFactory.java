@@ -167,7 +167,7 @@ public class PathClassFactory {
 
 	/**
 	 * Get the first ancestor class that is not an intensity class (i.e. not negative, positive, 1+, 2+ or 3+).
-	 * 
+	 * <p>
 	 * This will return null if pathClass is null, or if no non-intensity classes are found.
 	 * 
 	 * @param pathClass
@@ -207,15 +207,15 @@ public class PathClassFactory {
 			if (rgb == null) {
 				// Use default colors for intensity classes
 				if (name.equals(ONE_PLUS)) {
-					rgb = COLOR_ONE_PLUS;
+					rgb = ColorTools.makeScaledRGB(COLOR_ONE_PLUS, 1.5);
 				} else if (name.equals(TWO_PLUS)) {
-					rgb = COLOR_TWO_PLUS;
+					rgb = ColorTools.makeScaledRGB(COLOR_TWO_PLUS, 1.5);
 				} else if (name.equals(THREE_PLUS))
-					rgb = COLOR_THREE_PLUS;
+					rgb = ColorTools.makeScaledRGB(COLOR_THREE_PLUS, 1.5);
 				else if (name.equals(POSITIVE)) {
-					rgb = COLOR_POSITIVE;
+					rgb = ColorTools.makeScaledRGB(COLOR_POSITIVE, 1.5);
 				} else if (name.equals(NEGATIVE)) {
-					rgb = COLOR_NEGATIVE;
+					rgb = ColorTools.makeScaledRGB(COLOR_NEGATIVE, 1.5);
 				} else {
 					// Create a random color
 					// Use the hashcode of the String as a seed - so that the same 
