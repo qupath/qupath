@@ -282,6 +282,8 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
             if (livePrediction)
             	requestTile(tile);
         }
+        if (livePrediction)
+        	updateAnnotationMeasurements();
     }
     
     /**

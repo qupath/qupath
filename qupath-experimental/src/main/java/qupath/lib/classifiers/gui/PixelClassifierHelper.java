@@ -424,6 +424,41 @@ public class PixelClassifierHelper implements PathObjectHierarchyListener {
             updateTrainingData();
         if (matTraining == null || matTargets == null)
             return null;
+        
+//        // Calculate weights
+//        Mat matWeights = null;
+//        int[] counts = new int[channels.size()];
+//        try (IntIndexer indexer = matTargets.createIndexer()) {
+//	        for (long i = 0; i < indexer.size(0); i++) {
+//	        	counts[indexer.get(i)]++;
+//	        }
+//	        int minCount = Integer.MAX_VALUE;
+//	        for (int c : counts) {
+//	        	if (c > 0)
+//	        		minCount = Math.min(c, minCount);
+//	        }
+//	        
+//	        float[] weights = new float[counts.length];
+//	        for (int i = 0; i < counts.length; i++) {
+//	        	int c = counts[i];
+//	        	if (c == 0)
+//	        		weights[i] = 0f;
+//	        	else
+//	        		weights[i] = minCount / (float)c;
+//	        }
+//	        
+//	        matWeights = new Mat(matTargets.size(), opencv_core.CV_32FC1);
+//	        try (FloatIndexer idxWeights = matWeights.createIndexer()) {
+//		        for (long i = 0; i < indexer.size(0); i++) {
+//		        	idxWeights.put(i, weights[indexer.get(i)]);
+//		        }
+//	        }
+//        } catch (Exception e) {
+//        	logger.error("Error calculating weights", e);
+//        }
+//        
+//        return TrainData.create(matTraining, opencv_ml.ROW_SAMPLE, matTargets, null, null, matWeights, null);
+        
         return TrainData.create(matTraining, opencv_ml.ROW_SAMPLE, matTargets);
     }
 

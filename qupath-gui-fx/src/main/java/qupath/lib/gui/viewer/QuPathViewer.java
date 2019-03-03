@@ -165,13 +165,13 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	private GridOverlay gridOverlay;
 	
 	// Overlay layers that can be edited
-	private ObservableList<PathOverlay> customOverlayLayers = FXCollections.observableArrayList();
+	private ObservableList<PathOverlay> customOverlayLayers = FXCollections.synchronizedObservableList(FXCollections.observableArrayList());
 	
 	// Core overlay layers - these are always retained, and painted on top of any custom layers
-	private ObservableList<PathOverlay> coreOverlayLayers = FXCollections.observableArrayList();
+	private ObservableList<PathOverlay> coreOverlayLayers = FXCollections.synchronizedObservableList(FXCollections.observableArrayList());
 	
 	// List that concatenates the custom & core overlay layers in painting order
-	private ObservableList<PathOverlay> allOverlayLayers = FXCollections.observableArrayList();
+	private ObservableList<PathOverlay> allOverlayLayers = FXCollections.synchronizedObservableList(FXCollections.observableArrayList());
 
 	// Current we have two images - one transformed & one not - because the untransformed
 	// image is needed to determine pixel values as the mouse moves over the image
@@ -339,7 +339,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	/**
 	 * Update allOverlayLayers to make sure it contains all the required PathOverlays.
 	 */
-	private void refreshAllOverlayLayers() {
+	private synchronized void refreshAllOverlayLayers() {
 		List<PathOverlay> temp = new ArrayList<>();
 		temp.addAll(customOverlayLayers);
 		temp.addAll(coreOverlayLayers);

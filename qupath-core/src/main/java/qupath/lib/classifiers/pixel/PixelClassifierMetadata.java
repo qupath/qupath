@@ -33,7 +33,7 @@ public class PixelClassifierMetadata {
 	private List<ImageChannel> channels;
 	
     /**
-     * Requested pixel size
+     * Requested pixel size.
      */
 	public double getInputPixelSize() {
     	return inputPixelSize;

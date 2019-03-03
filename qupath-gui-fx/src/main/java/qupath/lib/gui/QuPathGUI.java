@@ -550,6 +550,9 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				DisplayHelpers.showErrorNotification("QuPath exception", e);
 				if (actionLog != null)
 					actionLog.handle(null);
+				// Try to reclaim any memory we can
+				if (e instanceof OutOfMemoryError)
+					getViewer().getImageRegionStore().clearCache(true, false);
 			}
 		});
 		
@@ -824,7 +827,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			textArea.setEditable(false);
 			Platform.runLater(() -> {
 				DisplayHelpers.showMessageDialog(
-						"QuPath experimental version v0.1.3",
+						"QuPath",
 						textArea);
 			});
 		} catch (Exception e) {

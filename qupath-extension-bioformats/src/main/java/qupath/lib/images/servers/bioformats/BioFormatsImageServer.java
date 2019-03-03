@@ -256,7 +256,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 								largestSeries = s;
 								mostPixels = nPixels;
 							}
-						} else if (requestedSeriesName.equals(name)) {
+						} else if (requestedSeriesName.equals(name) || requestedSeriesName.equals(meta.getImageName(s))) {
 							seriesIndex = s;
 						}
 					}

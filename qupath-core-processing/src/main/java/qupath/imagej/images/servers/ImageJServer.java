@@ -56,6 +56,7 @@ import ij.process.LUT;
 import ij.process.ShortProcessor;
 import qupath.imagej.helpers.IJTools;
 import qupath.lib.awt.color.model.ColorModelFactory;
+import qupath.lib.common.GeneralTools;
 import qupath.lib.images.servers.AbstractImageServer;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServerMetadata;
@@ -78,7 +79,7 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 	private ColorModel colorModel;
 	
 	public ImageJServer(final URI uri) throws IOException {
-		File file = new File(uri);
+		File file = GeneralTools.toPath(uri).toFile();
 		String path = file.getAbsolutePath();
 		if (path.toLowerCase().endsWith(".tif") || path.toLowerCase().endsWith(".tiff")) {
 			imp = IJ.openVirtual(path);

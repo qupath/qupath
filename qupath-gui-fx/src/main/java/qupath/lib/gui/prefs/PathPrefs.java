@@ -67,7 +67,7 @@ import qupath.lib.projects.ProjectIO;
 
 /**
  * Central storage of QuPath preferences.
- * 
+ * <p>
  * Most of these are 'persistent', and stored in a platform-dependent way using 
  * Java's Preferences API.
  * 
@@ -76,7 +76,10 @@ import qupath.lib.projects.ProjectIO;
  */
 public class PathPrefs {
 	
-	final private static String NODE_NAME = "io.github.qupath";
+	/**
+	 * Name for preference node - until 0.2.0 is stable, avoid using same storage as v0.1.2
+	 */
+	final private static String NODE_NAME = "io.github.qupath.0.2.0.m1";
 	
 	private static Logger logger = LoggerFactory.getLogger(PathPrefs.class);
 	
