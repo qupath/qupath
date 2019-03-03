@@ -307,8 +307,6 @@ public class ImageServerMetadata {
 	 * to request downsample values individually.
 	 * 
 	 * @return
-	 * 
-	 * @see #getPreferredDownsamples()
 	 */
 	public double[] getPreferredDownsamplesArray() {
 		if (downsamples == null) {

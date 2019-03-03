@@ -396,7 +396,6 @@ public class ImageDisplay extends AbstractImageRenderer {
 	 * 
 	 * @param channel
 	 * @param selected true if the channel should be selected, false if it should not
-	 * @return the current selection list, possibly modified by this operation
 	 */
 	public void setChannelSelected(ChannelDisplayInfo channel, boolean selected) {
 		// Try to minimize the number of events fired

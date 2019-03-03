@@ -47,8 +47,6 @@ public interface ProjectImageEntry<T> {
 	/**
 	 * Get the path used to represent this image, which can be used to construct an <code>ImageServer</code>.
 	 * 
-	 * @see #getStoredServerPath
-	 * 
 	 * @return
 	 */
 	public String getServerPath();
@@ -81,7 +79,7 @@ public interface ProjectImageEntry<T> {
 	public String getUniqueName();
 	
 	/**
-	 * Get the original image name, without any randomization.  Most UI elements should prefer {@link getImageName} to 
+	 * Get the original image name, without any randomization.  Most UI elements should prefer {@link #getImageName} to 
 	 * ensure that the randomization does its job.
 	 * 
 	 * @return
@@ -200,7 +198,6 @@ public interface ProjectImageEntry<T> {
 	
 	/**
 	 * Save the {@link ImageData} for this entry using the default storage location for the project.
-	 * @return
 	 */
 	public void saveImageData(ImageData<T> imageData) throws IOException;
 	

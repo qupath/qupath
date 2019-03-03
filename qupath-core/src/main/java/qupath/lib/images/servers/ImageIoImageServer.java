@@ -73,7 +73,7 @@ public class ImageIoImageServer extends AbstractImageServer<BufferedImage> {
 	/**
 	 * Create an {@code ImageServer<BufferedImage>} after first reading the image using ImageIO.
 	 * 
-	 * @param path
+	 * @param uri
 	 * @throws MalformedURLException
 	 * @throws IOException
 	 */

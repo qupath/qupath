@@ -384,10 +384,11 @@ public class OMEPyramidWriter {
 		/**
 		 * Define the region to export based on a bounding box.
 		 * 
-		 * @param region
+		 * @param x
+		 * @param y
+		 * @param width
+		 * @param height
 		 * @return
-		 * 
-		 * @see #region(ImageRegion)
 		 */
 		public Builder region(int x, int y, int width, int height) {
 			writer.x = x;
@@ -429,7 +430,8 @@ public class OMEPyramidWriter {
 		 * <p>
 		 * This is only a suggestion, and the OME reader may override it if the value is unsupported.
 		 * 
-		 * @param tileSize
+		 * @param tileWidth
+		 * @param tileHeight
 		 * @return
 		 */
 		public Builder tileSize(int tileWidth, int tileHeight) {

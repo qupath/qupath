@@ -244,7 +244,8 @@ public class ROIConverterIJ {
 	 * Create a ROI from an ImageJ Roi.
 	 * 
 	 * @param roi
-	 * @param cal
+	 * @param xOrigin
+	 * @param yOrigin
 	 * @param downsampleFactor
 	 * @param c
 	 * @param z

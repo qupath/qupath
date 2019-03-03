@@ -161,7 +161,6 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 	 * 
 	 * @param x
 	 * @param y
-	 * @param c
 	 * @param z
 	 * @param t
 	 * @return

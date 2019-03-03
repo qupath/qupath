@@ -97,7 +97,6 @@ public class ImageServerProvider {
 	 * @param cls
 	 * @param requestedServerBuilderClassnames optional list of full class names for server builders that should be used, or order of preference.
 	 * @return
-	 * @throws URISyntaxException 
 	 * @throws IOException 
 	 */
 	public static <T> ImageServer<T> buildServer(final String path, final Class<T> cls, String... requestedServerBuilderClassnames) throws IOException {

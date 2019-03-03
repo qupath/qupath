@@ -25,7 +25,7 @@ public interface PixelClassifier {
      * Practically, this means that there may be fewer pixels in the output because the classification 
      * inherently involves downsampling.
      *
-     * @param imageData
+     * @param server
      * @param request
      * @return a {@code BufferedImage} representing the pixel classifications as separate bands.
      * @throws IOException if unable to read pixels from {@code server}

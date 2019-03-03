@@ -170,7 +170,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 	 * <p>
 	 * This requires an <i>absolute</i> URI, where an integer fragment can be used to define the series number.
 	 * 
-	 * @param URI uri for the image that should be opened; this might include a sub-image as a query or fragment.
+	 * @param uri for the image that should be opened; this might include a sub-image as a query or fragment.
 	 * @throws FormatException
 	 * @throws IOException
 	 * @throws DependencyException

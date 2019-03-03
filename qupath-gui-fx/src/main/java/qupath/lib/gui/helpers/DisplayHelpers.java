@@ -745,11 +745,11 @@ public class DisplayHelpers {
 	};
 	
 	/**
-	 * Make a snapshot (image) showing what is currently displayed in a QuPath window,
-	 * or the active viewer within QuPath.
+	 * Make a snapshot (image) showing what is currently displayed in a QuPath window
+	 * or the active viewer within QuPath, as determined by the SnapshotType.
 	 * 
 	 * @param qupath
-	 * @param wholeWindow
+	 * @param type
 	 * @return
 	 */
 	public static BufferedImage makeSnapshot(final QuPathGUI qupath, final SnapshotType type) {
