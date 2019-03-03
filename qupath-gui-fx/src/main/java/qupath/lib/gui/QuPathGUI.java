@@ -815,7 +815,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	}
 	
 	
-	static void showStarupMesssage() {
+	void showStarupMesssage() {
 		File fileStartup = new File("STARTUP.md");
 		if (!fileStartup.exists()) {
 			return;
@@ -824,11 +824,19 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			TextArea textArea = new TextArea();
 			String text = GeneralTools.readFileAsString(fileStartup.getAbsolutePath());
 			textArea.setText(text);
+			textArea.setWrapText(true);
 			textArea.setEditable(false);
 			Platform.runLater(() -> {
-				DisplayHelpers.showMessageDialog(
-						"QuPath",
-						textArea);
+				Stage stage = new Stage();
+				stage.setTitle("QuPath");
+				stage.initOwner(getStage());
+				Scene scene = new Scene(textArea);
+				textArea.setPrefHeight(500);
+				stage.setScene(scene);
+				stage.showAndWait();
+//				DisplayHelpers.showMessageDialog(
+//						"QuPath",
+//						textArea);
 			});
 		} catch (Exception e) {
 			logger.error("Error reading " + fileStartup.getAbsolutePath(), e);
@@ -839,11 +847,11 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	
 	/**
 	 * Static method to launch QuPath on the JavaFX Platform thread.
-	 * 
+	 * <p>
 	 * This can be used from other applications (e.g. MATLAB).
-	 * 
+	 * <p>
 	 * Afterwards, calls to getInstance() will return the QuPath instance.
-	 * 
+	 * <p>
 	 * If there is already an instance of QuPath running, this ensures that it is visible - but otherwise does nothing.
 	 * 
 	 */
