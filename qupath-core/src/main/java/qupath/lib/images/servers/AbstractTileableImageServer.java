@@ -28,7 +28,7 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 	/**
 	 * Read a single image tile.
 	 * 
-	 * @param request
+	 * @param tileRequest
 	 * @return
 	 */
 	protected abstract BufferedImage readTile(final TileRequest tileRequest) throws IOException;
@@ -47,7 +47,7 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 	 * Get a tile for the request - ideally from the cache, but otherwise read it & 
 	 * then add it to the cache.
 	 * 
-	 * @param request
+	 * @param tileRequest
 	 * @return
 	 */
 	protected BufferedImage getTile(final TileRequest tileRequest) throws IOException {

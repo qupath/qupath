@@ -78,7 +78,7 @@ public class ImageChannel {
 //
 //	
 	/**
-	 * Similar to {@link #getDefaultRGBChannelColors()}, but including further colors.
+	 * Get the default color for a specified channel, for use when no channel colors are already known.
 	 * <p>
 	 * Note that the exact colors returned may differ in future releases, and it is not guaranteed that all colors 
 	 * will be unique.  If the colors must be exactly reproducible then it is better to specify them rather than to

@@ -32,7 +32,7 @@ import qupath.lib.plugins.parameters.ParameterList;
 /**
  * Command to set the spacing of the (counting) grid.
  * 
- * @deprecated in favour of using {@link PathPrefs} and the preference pane.
+ * @deprecated in favour of using {@link qupath.lib.gui.prefs.PathPrefs} and the preference pane.
  * 
  * @author Pete Bankhead
  *

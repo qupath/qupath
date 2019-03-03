@@ -393,7 +393,7 @@ public class IJExtension implements QuPathExtension {
 	 * @return
 	 * @throws IOException 
 	 * 
-	 * @see {@link #extractROI(ImageServer, ROI, RegionRequest, boolean, ImageDisplay)}
+	 * @see #extractROI(ImageServer, ROI, RegionRequest, boolean, ImageDisplay)
 	 */
 	public static PathImage<ImagePlus> extractROI(ImageServer<BufferedImage> server, PathObject pathObject, RegionRequest request, boolean setROI, ImageDisplay imageDisplay) throws IOException {
 		PathImage<ImagePlus> pathImage = extractROI(server, pathObject.getROI(), request, setROI, imageDisplay);

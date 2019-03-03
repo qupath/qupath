@@ -30,8 +30,8 @@ public class NotVeryUsefulStaticMethods {
 	 * @param classifier
 	 * @param pathClasses
 	 * @param samples
-	 * @param results
-	 * @param pathObject
+	 * @param pathObjects
+	 * @param reclassifications
 	 */
 	private static void calculatePredictedClass(final StatModel classifier, final List<PathClass> pathClasses, final Mat samples, final List<PathObject> pathObjects, final List<Reclassifier> reclassifications) {
 		// Use number of trees as a probability estimate for 2-class RTrees

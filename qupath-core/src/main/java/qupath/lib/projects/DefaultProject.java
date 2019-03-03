@@ -83,7 +83,6 @@ import qupath.lib.objects.hierarchy.PathObjectHierarchy;
  * 
  * @author Pete Bankhead
  *
- * @param <BufferedImage>
  */
 class DefaultProject implements Project<BufferedImage> {
 	
@@ -475,7 +474,6 @@ class DefaultProject implements Project<BufferedImage> {
 	 * 
 	 * @author Pete Bankhead
 	 *
-	 * @param <T> Depends upon the project used; typically BufferedImage for QuPath
 	 */
 	class DefaultProjectImageEntry implements ProjectImageEntry<BufferedImage> {
 
@@ -950,8 +948,7 @@ class DefaultProject implements Project<BufferedImage> {
 	/**
 	 * Write project, setting the name of the project file.
 	 * 
-	 * @param project
-	 * @param name
+	 * @param fileProject
 	 */
 	<T> void writeProject(final File fileProject) {
 		if (fileProject == null) {

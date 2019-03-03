@@ -55,16 +55,16 @@ public interface ImageServerBuilder<T> {
 	 * In practice, this is used by the ServiceLoader to rank potential ImageServerProviders so that the 'best' ones
 	 * are tried first for new image paths.  The ServiceLoader will not attempt to create the ImageServer if the support level is 0.
 	 * 
-	 * @param path
+	 * @param uri
 	 * @param info
+	 * @param cls
 	 * @return
 	 */
 	public float supportLevel(URI uri, ImageCheckType info, Class<?> cls);
 	
 	/**
 	 * Attempt to create {@code ImageServer<T>} from the specified path.
-	 * @param path
-	 * @param cache
+	 * @param uri
 	 * @return
 	 */
 	public ImageServer<T> buildServer(URI uri) throws Exception;

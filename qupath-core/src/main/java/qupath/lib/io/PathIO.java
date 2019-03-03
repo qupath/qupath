@@ -298,7 +298,6 @@ public class PathIO {
 	 * 
 	 * @param file
 	 * @param imageData
-	 * @return
 	 */
 	public static void writeImageData(final File file, final ImageData<?> imageData) throws FileNotFoundException, IOException {
 		File backup = null;
@@ -397,7 +396,7 @@ public class PathIO {
 	/**
 	 * Read a PathObjectHierarchy from a saved data file (omitting all other contents).
 	 * 
-	 * @param file
+	 * @param fileIn
 	 * @return
 	 */
 	public static PathObjectHierarchy readHierarchy(final InputStream fileIn) throws IOException {

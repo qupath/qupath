@@ -1225,7 +1225,6 @@ public class PathPrefs {
 	
 	/**
 	 * Always paint selected objects in the viewer, even if the opacity setting is 0.
-	 * @param autoClose
 	 */
 	public static void setAlwaysPaintSelectedObjects(boolean alwaysPaint) {
 		alwaysPaintSelectedObjects.set(alwaysPaint);

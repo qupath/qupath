@@ -458,7 +458,6 @@ class LegacyProject<T> implements Project<T> {
 	 * 
 	 * @author Pete Bankhead
 	 *
-	 * @param <T> Depends upon the project used; typically BufferedImage for QuPath
 	 */
 	// TODO: URGENTLY NEED TO CONSIDER ESCAPING CHARACTERS IN URLS MORE GENERALLY
 	class LegacyProjectImageEntry implements ProjectImageEntry<T> {

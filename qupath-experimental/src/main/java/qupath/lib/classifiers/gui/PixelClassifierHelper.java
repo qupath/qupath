@@ -77,7 +77,7 @@ public class PixelClassifierHelper implements PathObjectHierarchyListener {
      * 
      * @param imageData
      * @param calculator
-     * @param requestedPixelSizeMicrons
+     * @param downsample
      */
     public PixelClassifierHelper(ImageData<BufferedImage> imageData, OpenCVFeatureCalculator calculator, 
     		double downsample) {

@@ -2540,7 +2540,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	 * @param viewer
 	 * @param file
 	 * @param keepExistingServer if true and the viewer already has an ImageServer, then any ImageServer path recorded within the data file will be ignored
-	 * @param checkForChanges if true, the user will be prompted to ask whether to save changes or not
+	 * @param promptToSaveChanges if true, the user will be prompted to ask whether to save changes or not
 	 * @return
 	 * @throws IOException 
 	 */

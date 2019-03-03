@@ -737,9 +737,8 @@ public class PixelClassifierGUI {
 	/**
 	 * Apply classification from a server to a collection of objects.
 	 * 
-	 * @param hierarchy
-	 * @param pathObjects
 	 * @param server
+	 * @param pathObjects
 	 */
 	public static void classifyObjects(PixelClassificationImageServer server, Collection<PathObject> pathObjects) {
 		var reclassifiers = pathObjects.parallelStream().map(p -> {

@@ -54,8 +54,6 @@ public interface ImageServer<T> extends AutoCloseable {
 	 * a URI representation, but must still be unique so that it can be used for caching tiles.
 	 * 
 	 * @return
-	 * 
-	 * @see #getFile
 	 */
 	public String getPath();
 	

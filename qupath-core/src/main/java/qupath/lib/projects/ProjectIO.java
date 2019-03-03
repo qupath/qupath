@@ -54,7 +54,7 @@ public class ProjectIO {
 	/**
 	 * Read project from URI.  Currently, this assumes that the URI refers to a local file.
 	 * 
-	 * @param fileProject
+	 * @param uri
 	 * @param cls
 	 * @return
 	 */
