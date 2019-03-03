@@ -57,7 +57,7 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
 import javafx.stage.Stage;
-import qupath.imagej.images.servers.BufferedImagePlusServer;
+import qupath.imagej.helpers.IJTools;
 import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
@@ -65,8 +65,6 @@ import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
-import qupath.lib.images.servers.ImageServerProvider;
-import qupath.lib.io.PathIO;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
@@ -288,19 +286,22 @@ public class ExportTrainingRegionsCommand implements PathCommand {
 			}
 			Set<PathClass> set = new TreeSet<>();
 			for (ProjectImageEntry<?> entry : project.getImageList()) {
-				File fileData = QuPathGUI.getImageDataFile(project, entry);
-				if (!fileData.exists())
+				if (!entry.hasImageData())
 					continue;
-				PathObjectHierarchy hierarchy = PathIO.readHierarchy(fileData);
-				int nullCount = 0;
-				for (PathObject annotation : hierarchy.getObjects(null, PathAnnotationObject.class)) {
-					if (annotation.getPathClass() == null)
-						nullCount++;
-					else
-						set.add(annotation.getPathClass());					
-				}
-				if (nullCount > 0) {
-					logger.warn("{} contains {} annotations without classification - these will be skipped!", entry.getImageName(), nullCount);
+				try {
+					PathObjectHierarchy hierarchy = entry.readHierarchy();
+					int nullCount = 0;
+					for (PathObject annotation : hierarchy.getObjects(null, PathAnnotationObject.class)) {
+						if (annotation.getPathClass() == null)
+							nullCount++;
+						else
+							set.add(annotation.getPathClass());					
+					}
+					if (nullCount > 0) {
+						logger.warn("{} contains {} annotations without classification - these will be skipped!", entry.getImageName(), nullCount);
+					}
+				} catch (IOException e) {
+					logger.error("Error reading hierarchy", e);
 				}
 			}
 			updateClassificationLabels(set);
@@ -387,7 +388,7 @@ public class ExportTrainingRegionsCommand implements PathCommand {
 			boolean useMPP = useMicronsPerPixel.get();
 			
 			// Find all project entries with associated data files
-			List<ProjectImageEntry<BufferedImage>> entries = project.getImageList().stream().filter(entry -> QuPathGUI.getImageDataFile(project, entry).exists()).collect(Collectors.toList());
+			List<ProjectImageEntry<BufferedImage>> entries = project.getImageList().stream().filter(entry -> entry.hasImageData()).collect(Collectors.toList());
 			
 			// Write JSON file with key
 			Gson gson = new GsonBuilder().setPrettyPrinting().create();
@@ -477,11 +478,16 @@ public class ExportTrainingRegionsCommand implements PathCommand {
 			
 			
 			// Read ImageData - be sure to get server path from the project
-			File fileData = QuPathGUI.getImageDataFile(project, entry);
-			if (!fileData.exists())
+			if (!entry.hasImageData())
 				return;
-			ImageServer<BufferedImage> server = ImageServerProvider.buildServer(entry.getServerPath(), BufferedImage.class);
-			ImageData<BufferedImage> imageData = PathIO.readImageData(fileData, null, server, BufferedImage.class);
+			ImageData<BufferedImage> imageData;
+			try {
+				imageData = entry.readImageData();
+			} catch (IOException e) {
+				logger.error("Unable to read ImageData for " + entry.getImageName(), e);
+				return;
+			}
+			ImageServer<BufferedImage> server = imageData.getServer();
 			PathObjectHierarchy hierarchy = imageData.getHierarchy();
 
 			// Determine resolution
@@ -565,7 +571,7 @@ public class ExportTrainingRegionsCommand implements PathCommand {
 			    imgTempIndexed.getRaster().setRect(imgTemp.getRaster());
 
 			    try {
-			    	ImagePlus imp = BufferedImagePlusServer.convertToImagePlus("Image", server, img, request).getImage();
+			    	ImagePlus imp = IJTools.convertToImagePlus("Image", server, img, request).getImage();
 			    	IJ.saveAsTiff(imp, new File(dirOutput, name + ".tif").getAbsolutePath());
 //				    ImageIO.write(img, "PNG", new File(dirOutput, name + ".png"));
 				    ImageIO.write(imgTempIndexed, "PNG", new File(dirOutput, name + "-mask.png"));

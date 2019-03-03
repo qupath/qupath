@@ -163,8 +163,7 @@ class NumericMeasurementList {
 			return names.indexOf(name);
 		}
 		
-		@Override
-		public boolean add(Measurement measurement) {
+		private boolean add(Measurement measurement) {
 			if (measurement.isDynamic())
 				throw new UnsupportedOperationException("This MeasurementList does not support dynamic measurements");
 			return addMeasurement(measurement.getName(), measurement.getValue());
@@ -250,19 +249,6 @@ class NumericMeasurementList {
 				return;
 			if (names instanceof ArrayList)
 				((ArrayList<String>)names).trimToSize();
-		}
-		
-		/**
-		 * Always returns false, as the list does not support dynamic measurements.
-		 */
-		@Override
-		public boolean hasDynamicMeasurements() {
-			return false;
-		}
-		
-		@Override
-		public Iterator<Measurement> iterator() {
-			return new MeasurementIterator();
 		}
 		
 		

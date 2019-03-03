@@ -638,20 +638,28 @@ public class TMAGridView implements PathCommand, ImageDataChangeListener<Buffere
 				
 				if (doAnimate.get()) {
 					TranslateTransition translate = translationMap.get(node);
+					boolean doChanges = false;
 					if (translate == null) {
 						translate = new TranslateTransition(Duration.seconds(0.5));
 						translate.setNode(node);
 						translationMap.put(node, translate);
+						doChanges = true;
 					} else {
-						translate.stop();
-						translate.setDuration(Duration.seconds(0.5));
+						if (!GeneralTools.almostTheSame(x, translate.getToX(), 0.001)
+								|| !GeneralTools.almostTheSame(y, translate.getToY(), 0.001)) {
+							translate.stop();
+							translate.setDuration(Duration.seconds(0.5));
+							doChanges = true;
+						}
 					}
-					translate.setInterpolator(Interpolator.EASE_BOTH);
-					translate.setFromX(node.getTranslateX());
-					translate.setFromY(node.getTranslateY());
-					translate.setToX(x);
-					translate.setToY(y);
-					translate.playFromStart();
+					if (doChanges) {
+						translate.setInterpolator(Interpolator.EASE_BOTH);
+						translate.setFromX(node.getTranslateX());
+						translate.setFromY(node.getTranslateY());
+						translate.setToX(x);
+						translate.setToY(y);
+						translate.playFromStart();
+					}
 				} else {
 					node.setTranslateX(x);
 					node.setTranslateY(y);

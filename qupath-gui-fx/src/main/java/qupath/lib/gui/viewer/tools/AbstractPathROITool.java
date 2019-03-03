@@ -25,6 +25,8 @@ package qupath.lib.gui.viewer.tools;
 
 import java.awt.geom.Point2D;
 import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,6 +40,7 @@ import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
+import qupath.lib.objects.classes.Reclassifier;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.ImageRegion;
@@ -185,7 +188,7 @@ abstract class AbstractPathROITool extends AbstractPathTool {
 		if (PathPrefs.isSelectionMode()) {
 			var pathClass = PathPrefs.getAutoSetAnnotationClass();
 			var toSelect = new ArrayList<PathObject>();
-			var reclassified = new ArrayList<PathObject>();
+			List<Reclassifier> reclassified = new ArrayList<>();
 			if (currentROI instanceof PathArea) {
 				var pathArea = (PathArea)currentROI;
 				for (var object : viewer.getHierarchy().getObjectsForRegion(null, ImageRegion.createInstance(currentROI), null)) {
@@ -195,13 +198,14 @@ abstract class AbstractPathROITool extends AbstractPathTool {
 					if (pathArea.contains(temp.getCentroidX(), temp.getCentroidY())) {
 						toSelect.add(object);
 						if (pathClass != null && object.getPathClass() != pathClass) {
-							object.setPathClass(pathClass);
-							reclassified.add(object);
+							reclassified.add(new Reclassifier(object, pathClass, true));
 						}
 					}
 				}
-				if (!reclassified.isEmpty())
-					viewer.getHierarchy().fireObjectClassificationsChangedEvent(this, reclassified);
+				if (!reclassified.isEmpty()) {
+					var reclassifiedObjects = reclassified.stream().filter(r -> r.apply()).map(r -> r.getPathObject()).collect(Collectors.toList());
+					viewer.getHierarchy().fireObjectClassificationsChangedEvent(this, reclassifiedObjects);
+				}
 				if (pathObject.getParent() != null)
 					viewer.getHierarchy().removeObject(pathObject, true);
 //				else

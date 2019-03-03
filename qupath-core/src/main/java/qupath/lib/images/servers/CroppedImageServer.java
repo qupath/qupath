@@ -35,7 +35,7 @@ public class CroppedImageServer extends WrappedImageServer<BufferedImage> {
 			i++;
 		} while (i < server.nResolutions() && region.getWidth() >= server.getPreferredTileWidth() && region.getHeight() >= server.getPreferredTileHeight());
 		
-		metadata = new ImageServerMetadata.Builder(server.getMetadata())
+		metadata = new ImageServerMetadata.Builder(getClass(), server.getMetadata())
 				.path(server.getPath() + ": Cropped " + region.toString())
 				.width(region.getWidth())
 				.height(region.getHeight())

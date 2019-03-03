@@ -390,13 +390,13 @@ public class PointsROI extends AbstractPathROI implements ROIWithHull, PathPoint
 	}
 	
 	
-	/**
-	 * throws UnsupportedOperationException
-	 */
-	@Override
-	public Geometry getGeometry() throws UnsupportedOperationException {
-		throw new UnsupportedOperationException("PointROI does not support getGeometry()!");
-	}
+//	/**
+//	 * throws UnsupportedOperationException
+//	 */
+//	@Override
+//	public Geometry getGeometry() throws UnsupportedOperationException {
+//		throw new UnsupportedOperationException("PointROI does not support getGeometry()!");
+//	}
 	
 	
 	@Override

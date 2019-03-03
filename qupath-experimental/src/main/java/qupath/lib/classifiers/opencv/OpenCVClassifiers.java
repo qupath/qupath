@@ -333,7 +333,7 @@ public class OpenCVClassifiers {
 		 * 
 		 * @param trainData
 		 * 
-		 * @see predictWithLock
+		 * @see #predictWithLock
 		 */
 		public void trainWithLock(TrainData trainData) {
 			var statModel = getStatModel();
@@ -369,7 +369,7 @@ public class OpenCVClassifiers {
 			else if (NormalBayesClassifier.class.equals(cls))
 				return "Normal Bayes classifier";
 			
-			return model.getClass().getSimpleName();
+			return getStatModel().getClass().getSimpleName();
 		}
 		
 		/**
@@ -402,7 +402,7 @@ public class OpenCVClassifiers {
 		 * @param results
 		 * @param probabilities
 		 * 
-		 * @see trainWithLock
+		 * @see #trainWithLock
 		 */
 		protected void predictWithLock(Mat samples, Mat results, Mat probabilities) {
 			var statModel = getStatModel();

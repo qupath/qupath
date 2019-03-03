@@ -889,20 +889,20 @@ public interface ChannelDisplayInfo {
 	/**
 	 * ChannelInfo intended for use with a single or multichannel image (possibly fluorescence)
 	 * where the pixel's value is used to scale a single color according to a specified display range.
-	 *
+	 * <p>
 	 * If the pixel's value is &gt;= maxDisplay, the pure color is used.
-	 *
+	 * <p>
 	 * If the pixel's value is &lt;= minDisplay, the black is used.
-	 *
+	 * <p>
 	 * Otherwise, a scaled version of the color is used
-	 *
+	 * <p>
 	 * The end result is like having a lookup table (LUT) that stretches from black to the 'pure' color specified,
 	 * but without actually generating the LUT.
 	 * 
 	 * @author Pete Bankhead
 	 *
 	 */
-	static class MultiChannelInfo extends AbstractSingleChannelInfo {
+	public static class DirectServerChannelInfo extends AbstractSingleChannelInfo {
 		
 		private int channel;
 
@@ -912,10 +912,14 @@ public interface ChannelDisplayInfo {
 //		private int rgb, r, g, b;
 
 		// The 'channel' corresponds to the 'band' in Java parlance
-		public MultiChannelInfo(final ImageData<BufferedImage> imageData, int channel) {
+		public DirectServerChannelInfo(final ImageData<BufferedImage> imageData, int channel) {
 			super(imageData);
 			this.channel = channel;
 			setLUTColor(imageData.getServer().getDefaultChannelColor(channel));
+		}
+		
+		public int getChannel() {
+			return channel;
 		}
 		
 //		@Override
@@ -931,9 +935,10 @@ public interface ChannelDisplayInfo {
 			if (channelName == null) {
 				return name;
 			}
-			if (channelName.contains(name))
+			String postfix = " (C" + (channel + 1) + ")";
+			if (channelName.contains(name) || channelName.endsWith(postfix))
 				return channelName;
-			return channelName + " (C" + (channel + 1) + ")";		
+			return channelName + postfix;		
 		}
 				
 

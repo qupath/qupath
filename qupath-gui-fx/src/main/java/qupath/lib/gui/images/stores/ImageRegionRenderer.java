@@ -19,7 +19,7 @@ public interface ImageRegionRenderer {
 	 * @param tPosition
 	 * @param downsampleFactor
 	 * @param observer
-	 * @param imageDisplay
+	 * @param renderer
 	 * @param timeoutMilliseconds Timeout after which a request is made from the PathImageServer directly, rather than waiting for tile requests.
 	 */
 	public void paintRegionCompletely(ImageServer<BufferedImage> server, Graphics g, Shape clipShapeVisible, int zPosition, int tPosition, double downsampleFactor, ImageObserver observer, ImageRenderer renderer, long timeoutMilliseconds);

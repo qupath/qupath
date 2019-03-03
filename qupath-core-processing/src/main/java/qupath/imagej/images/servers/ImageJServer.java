@@ -32,7 +32,9 @@ import java.awt.image.DataBufferFloat;
 import java.awt.image.DataBufferUShort;
 import java.awt.image.Raster;
 import java.awt.image.SampleModel;
+import java.io.File;
 import java.io.IOException;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -54,6 +56,7 @@ import ij.process.LUT;
 import ij.process.ShortProcessor;
 import qupath.imagej.helpers.IJTools;
 import qupath.lib.awt.color.model.ColorModelFactory;
+import qupath.lib.common.GeneralTools;
 import qupath.lib.images.servers.AbstractImageServer;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServerMetadata;
@@ -75,7 +78,9 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 		
 	private ColorModel colorModel;
 	
-	public ImageJServer(final String path) throws IOException {
+	public ImageJServer(final URI uri) throws IOException {
+		File file = GeneralTools.toPath(uri).toFile();
+		String path = file.getAbsolutePath();
 		if (path.toLowerCase().endsWith(".tif") || path.toLowerCase().endsWith(".tiff")) {
 			imp = IJ.openVirtual(path);
 		}
@@ -125,7 +130,7 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 			channels = ImageChannel.getDefaultChannelList(imp.getNChannels());
 		
 		
-		var builder = new ImageServerMetadata.Builder(path)
+		var builder = new ImageServerMetadata.Builder(getClass(), uri.toString())
 				.width(imp.getWidth())
 				.height(imp.getHeight())
 				.channels(channels)
@@ -185,6 +190,9 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 			Duplicator duplicator = new Duplicator();
 			imp2 = duplicator.run(this.imp, 1, nChannels, z, z, t, t);
 			this.imp.killRoi();
+			if (imp2.getHeight() != request.getHeight()||
+					imp2.getWidth() != request.getWidth())
+				logger.warn("Unexpected image size {}x{} for request {}", imp.getWidth(), imp.getHeight(), request);
 			z = 1;
 			t = 1;
 //			imp = imp.duplicate();

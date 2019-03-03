@@ -455,7 +455,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 
 	private boolean isStandalone = false;
 	private ScriptMenuLoader sharedScriptMenuLoader;
-	private ScriptMenuLoader projectScriptMenuLoader;
+//	private ScriptMenuLoader projectScriptMenuLoader;
 	
 	private DragDropFileImportListener dragAndDrop = new DragDropFileImportListener(this);
 	
@@ -468,11 +468,11 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	
 	/**
 	 * Create a QuPath instance, optionally initializing it with a path to open.
-	 * 
+	 * <p>
 	 * It is also possible to specify that QuPath runs as a standalone application or not.
 	 * The practical difference is that, if a standalone application, QuPath may call System.exit(0)
 	 * when its window is closed; otherwise, it must not for fear or bringing the host application with it.
-	 * 
+	 * <p>
 	 * If QuPath is launched, for example, as an ImageJ plugin then isStandalone should be false.
 	 * 
 	 * @param path Path of an image, project or data file to open - may be null.
@@ -501,6 +501,19 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		this.isStandalone = isStandalone;
 		
 		menuBar = new MenuBar();
+		
+		// Prepare for image name masking
+		project.addListener((v, o, n) -> {
+			if (n != null)
+				n.setMaskImageNames(PathPrefs.getMaskImageNames());
+			updateTitle();
+		});
+		PathPrefs.maskImageNamesProperty().addListener(((v, o, n) -> {
+			var currentProject = getProject();
+			if (currentProject != null) {
+				currentProject.setMaskImageNames(n);
+			}
+		}));
 		
 		// Create preferences panel
 		prefsPanel = new PreferencePanel(this);
@@ -537,6 +550,9 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				DisplayHelpers.showErrorNotification("QuPath exception", e);
 				if (actionLog != null)
 					actionLog.handle(null);
+				// Try to reclaim any memory we can
+				if (e instanceof OutOfMemoryError)
+					getViewer().getImageRegionStore().clearCache(true, false);
 			}
 		});
 		
@@ -668,8 +684,9 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		
 		stage.getScene().setOnKeyReleased(e -> {
 			// We only seem to need this to mop up shortcuts if the system menu bar is in use (at least on OSX)
-			if (e.isConsumed() || e.isShortcutDown() || !(GeneralTools.isMac() && getMenuBar().isUseSystemMenuBar()) || e.getTarget() instanceof TextInputControl)
+			if (e.isConsumed() || e.isShortcutDown() || !(GeneralTools.isMac() && getMenuBar().isUseSystemMenuBar()) || e.getTarget() instanceof TextInputControl) {
 				return;
+			}
 			
 			for (Entry<KeyCombination, Action> entry : mapActions.entrySet()) {
 				if (entry.getKey().match(e)) {
@@ -707,15 +724,16 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		Menu menuAutomate = getMenu("Automate", false);
 		ScriptEditor editor = getScriptEditor();
 		sharedScriptMenuLoader = new ScriptMenuLoader("Shared scripts...", PathPrefs.scriptsPathProperty(), (DefaultScriptEditor)editor);
-		StringBinding projectScriptsPath = Bindings.createStringBinding(() -> {
-			if (project.get() == null)
-				return null;
-			return getProjectScriptsDirectory(false).getAbsolutePath();
-		}, project);
-		projectScriptMenuLoader = new ScriptMenuLoader("Project scripts...", projectScriptsPath, (DefaultScriptEditor)editor);
-		projectScriptMenuLoader.getMenu().visibleProperty().bind(
-				Bindings.isNotNull(project).or(initializingMenus)
-				);
+		// TODO: Reintroduce project scripts
+//		StringBinding projectScriptsPath = Bindings.createStringBinding(() -> {
+//			if (project.get() == null)
+//				return null;
+//			return getProjectScriptsDirectory(false).getAbsolutePath();
+//		}, project);
+//		projectScriptMenuLoader = new ScriptMenuLoader("Project scripts...", projectScriptsPath, (DefaultScriptEditor)editor);
+//		projectScriptMenuLoader.getMenu().visibleProperty().bind(
+//				Bindings.isNotNull(project).or(initializingMenus)
+//				);
 		
 		StringBinding userScriptsPath = Bindings.createStringBinding(() -> {
 			String userPath = PathPrefs.getUserPath();
@@ -728,7 +746,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 
 		menuAutomate.setOnMenuValidation(e -> {
 			sharedScriptMenuLoader.updateMenu();
-			projectScriptMenuLoader.updateMenu();
+//			projectScriptMenuLoader.updateMenu();
 			userScriptMenuLoader.updateMenu();
 		});
 
@@ -737,7 +755,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 					menuAutomate,
 					null,
 					createCommandAction(new SampleScriptLoader(this), "Open sample scripts"),
-					projectScriptMenuLoader.getMenu(),
+//					projectScriptMenuLoader.getMenu(),
 					sharedScriptMenuLoader.getMenu(),
 					userScriptMenuLoader.getMenu()
 					);
@@ -797,7 +815,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	}
 	
 	
-	static void showStarupMesssage() {
+	void showStarupMesssage() {
 		File fileStartup = new File("STARTUP.md");
 		if (!fileStartup.exists()) {
 			return;
@@ -806,11 +824,19 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			TextArea textArea = new TextArea();
 			String text = GeneralTools.readFileAsString(fileStartup.getAbsolutePath());
 			textArea.setText(text);
+			textArea.setWrapText(true);
 			textArea.setEditable(false);
 			Platform.runLater(() -> {
-				DisplayHelpers.showMessageDialog(
-						"QuPath experimental version v0.1.3",
-						textArea);
+				Stage stage = new Stage();
+				stage.setTitle("QuPath");
+				stage.initOwner(getStage());
+				Scene scene = new Scene(textArea);
+				textArea.setPrefHeight(500);
+				stage.setScene(scene);
+				stage.showAndWait();
+//				DisplayHelpers.showMessageDialog(
+//						"QuPath",
+//						textArea);
 			});
 		} catch (Exception e) {
 			logger.error("Error reading " + fileStartup.getAbsolutePath(), e);
@@ -821,11 +847,11 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	
 	/**
 	 * Static method to launch QuPath on the JavaFX Platform thread.
-	 * 
+	 * <p>
 	 * This can be used from other applications (e.g. MATLAB).
-	 * 
+	 * <p>
 	 * Afterwards, calls to getInstance() will return the QuPath instance.
-	 * 
+	 * <p>
 	 * If there is already an instance of QuPath running, this ensures that it is visible - but otherwise does nothing.
 	 * 
 	 */
@@ -930,79 +956,6 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		return new File(System.getProperty("user.home"), "QuPath");
 	}
 	
-	
-	/**
-	 * Get the base directory for the current project, or null if no
-	 * project is currently open.
-	 * 
-	 * @return
-	 */
-	public File getCurrentProjectDirectory() {
-		if (getProject() == null)
-			return null;
-		return getProject().getBaseDirectory();
-	}
-	
-	
-	/**
-	 * Get the scripts directory for the current project, or null if no project is open.
-	 * 
-	 * @param makeDirectory True if the directory should be made (if it doesn't already exist), false otherwise
-	 * @return
-	 */
-	public File getProjectScriptsDirectory(final boolean makeDirectory) {
-		return getProjectDirectory("scripts", makeDirectory);
-	}
-	
-	
-	/**
-	 * Get the classifiers directory for the current project, or null if no project is open.
-	 * 
-	 * @param makeDirectory True if the directory should be made (if it doesn't already exist), false otherwise
-	 * @return
-	 */
-	public File getProjectClassifierDirectory(final boolean makeDirectory) {
-		return getProjectDirectory("classifiers", makeDirectory);
-	}
-	
-	
-	/**
-	 * Get the data directory for the current project, or null if no project is open.
-	 * 
-	 * @param makeDirectory True if the directory should be made (if it doesn't already exist), false otherwise
-	 * @return
-	 */
-	public File getProjectDataDirectory(final boolean makeDirectory) {
-		return getProjectDirectory("data", makeDirectory);
-	}
-	
-	
-	/**
-	 * Get the export directory for the current project, or null if no project is open.
-	 * 
-	 * @param makeDirectory True if the directory should be made (if it doesn't already exist), false otherwise
-	 * @return
-	 */
-	public File getProjectExportDirectory(final boolean makeDirectory) {
-		return getProjectDirectory("export", makeDirectory);
-	}
-	
-	
-	/**
-	 * Get a named directory within the base directory of the current project, or null if no project is open.
-	 * 
-	 * @param makeDirectory True if the directory should be made (if it doesn't already exist), false otherwise
-	 * @return
-	 */
-	private File getProjectDirectory(final String name, final boolean makeDirectory) {
-		File dir = getCurrentProjectDirectory();
-		if (dir == null)
-			return null;
-		dir = new File(dir, name);
-		if (makeDirectory && !dir.exists())
-			dir.mkdirs();
-		return dir;
-	}
 	
 	
 	/**
@@ -1341,7 +1294,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			if (project != null) {
 				// Write the project, if necessary
 				if (project.setPathClasses(c.getList()))
-					ProjectIO.writeProject(project);
+					ProjectBrowser.syncProject(project);
 			}
 		});
 	}
@@ -1359,7 +1312,8 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		pathClasses.add(PathClassFactory.getDefaultPathClass(PathClassFactory.PathClasses.IMMUNE_CELLS));
 		pathClasses.add(PathClassFactory.getDefaultPathClass(PathClassFactory.PathClasses.NECROSIS));
 		pathClasses.add(PathClassFactory.getDefaultPathClass(PathClassFactory.PathClasses.OTHER));
-		pathClasses.add(PathClassFactory.getDefaultPathClass(PathClassFactory.PathClasses.EMPTY));
+		pathClasses.add(PathClassFactory.getDefaultPathClass(PathClassFactory.PathClasses.REGION));
+		pathClasses.add(PathClassFactory.getDefaultPathClass(PathClassFactory.PathClasses.IGNORE));
 		
 		if (availablePathClasses == null)
 			availablePathClasses = FXCollections.observableArrayList(pathClasses);
@@ -2286,78 +2240,104 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	public void openImageEntry(ProjectImageEntry<BufferedImage> entry) {
 		if (entry == null)
 			return;
-		// Check if we're changing ImageData
-		ImageData<BufferedImage> imageData = getImageData();
+		
+		// Check if we're changing ImageData at all
+		var viewer = getViewer();
+		ImageData<BufferedImage> imageData = viewer.getImageData();
 		if (imageData != null && imageData.getServerPath().equals(entry.getServerPath()))
 			return;
-		// If the current ImageData belongs to the current project, and there have been any changes, serialize these
-		Project<BufferedImage> project = getProject();
-		if (imageData != null && project != null) {
-			ProjectImageEntry<BufferedImage> entryPrevious = project.getImageEntry(imageData.getServerPath());
-			File filePrevious = getImageDataFile(project, entryPrevious);
-			if (filePrevious != null) {
-				// Write if the ImageData has changed, of if it has not previously been written
-				if (imageData.isChanged()) {
-					DialogButton response = DisplayHelpers.showYesNoCancelDialog("Save changes", "Save changes to " + entryPrevious.getImageName() + "?");
-					if (response == DialogButton.YES)
-						PathIO.writeImageData(filePrevious, imageData);
-					else if (response == DialogButton.CANCEL)
-						return;
-				}
+		
+		// Check to see if the ImageData is already open in another viewer - if so, just activate it
+		String path = entry.getServerPath();
+		for (QuPathViewerPlus v : viewerManager.getViewers()) {
+			ImageData<?> data = v.getImageData();
+			if (data != null && data.getServer().getPath().equals(path)) {
+				viewerManager.setActiveViewer(v);
+				return ;
 			}
 		}
-		File fileData = getImageDataFile(project, entry);
+		
+		// If the current ImageData belongs to the current project, check if there are changes to save
+		Project<BufferedImage> project = getProject();
+		if (imageData != null && project != null) {
+			if (!checkSaveChanges(imageData))
+				return;
+		}
 
-		//		boolean rotate180 = true;
 		// Check if we need to rotate the image
-		String value = entry.getMetadataValue("rotate180");
-		boolean rotate180 = value != null && value.toLowerCase().equals("true");
-
-		if (fileData != null && fileData.isFile()) {
-			// Open the image, and then the data if possible
-			if (openImage(entry.getServerPath(), false, false, rotate180))
-				openSavedData(getViewer(), fileData, true, false);
-			else
-				DisplayHelpers.showErrorMessage("Image open", "Unable to open image for path\n" + entry.getServerPath());
-		} else
-			openImage(entry.getServerPath(), false, false, rotate180);
+		try {
+			imageData = entry.readImageData();
+			viewer.setImageData(imageData);
+			setInitialLocationAndMagnification(viewer);
+		} catch (IOException e) {
+			DisplayHelpers.showErrorMessage("Load ImageData", e);
+		}
+	}
+	
+	
+	ProjectImageEntry<BufferedImage> getProjectImageEntry(ImageData<BufferedImage> imageData) {
+		var project = getProject();
+		return project == null ? null : project.getImageEntry(imageData.getServerPath());
 	}
 	
 	/**
-	 * Get the ImageData file for a specific entry of a project.
+	 * Check if changes need to be saved for an ImageData, prompting the user if necessary.
+	 * <p>
+	 * This will return true if the matter is adequately dealt with (no changes needed, 
+	 * user saves changes, user declines to save changes) and false otherwise (i.e. user cancelled).
 	 * 
-	 * This file does not necessarily exist, but it is the file that ought to be used for loading/saving 
-	 * within a project.
-	 * 
-	 * @param project
-	 * @param entry
+	 * @param imageData
 	 * @return
 	 */
-	public static File getImageDataFile(final Project<?> project, final ProjectImageEntry<?> entry) {
-		if (project == null || entry == null)
-			return null;
-		File dirBase = project.getBaseDirectory();
-		if (dirBase == null || !dirBase.isDirectory())
-			return null;
-
-		File dirData = new File(dirBase, "data");
-		if (!dirData.exists())
-			dirData.mkdir();
-		return new File(dirData, entry.getImageName() + "." + PathPrefs.getSerializationExtension());
+	boolean checkSaveChanges(ImageData<BufferedImage> imageData) {
+		if (!imageData.isChanged())
+			return true;
+		ProjectImageEntry<BufferedImage> entry = getProjectImageEntry(imageData);
+		String name = entry == null ? imageData.getServer().getDisplayedImageName() : entry.getImageName();
+		var response = DisplayHelpers.showYesNoCancelDialog("Save changes", "Save changes to " + name + "?");
+		if (response == DialogButton.CANCEL)
+			return false;
+		if (response == DialogButton.NO)
+			return true;
+		
+		try {
+			if (entry == null) {
+				String lastPath = imageData.getLastSavedPath();
+				File lastFile = lastPath == null ? null : new File(lastPath);
+				File dirBase = lastFile == null ? null : lastFile.getParentFile();
+				String defaultName = lastFile == null ? null : lastFile.getName();
+				File file = getDialogHelper().promptToSaveFile("Save data", dirBase, defaultName, "QuPath data files", PathPrefs.getSerializationExtension());
+				if (file == null)
+					return false;
+				PathIO.writeImageData(file, imageData);
+			} else
+				entry.saveImageData(imageData);
+			return true;
+		} catch (IOException e) {
+			DisplayHelpers.showErrorMessage("Save ImageData", e);
+			return false;
+		}
 	}
 	
-	
+		
 	
 	
 	/**
-	 * Open a new whole slide image server, or ImageData.
+	 * Open a new whole slide image server or ImageData.
 	 * If the path is the same as a currently-open server, do nothing.
+	 * <p>
+	 * If this encounters an exception, an error message will be shown.
 	 * 
 	 * @param prompt - if true, give the user the opportunity to cancel opening if a whole slide server is already set
 	 * @return true if the server was set for this GUI, false otherwise
 	 */
 	public boolean openImage(String pathNew, boolean prompt, boolean includeURLs, boolean rotate180) {
-		return openImage(getViewer(), pathNew, prompt, includeURLs, rotate180);
+		try {
+			return openImage(getViewer(), pathNew, prompt, includeURLs, rotate180);
+		} catch (IOException e) {
+			DisplayHelpers.showErrorMessage("Open image", e);
+			return false;
+		}
 	}
 
 	/**
@@ -2366,8 +2346,9 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	 * 
 	 * @param prompt - if true, give the user the opportunity to cancel opening if a whole slide server is already set
 	 * @return true if the server was set for this GUI, false otherwise
+	 * @throws IOException 
 	 */
-	public boolean openImage(QuPathViewer viewer, String pathNew, boolean prompt, boolean includeURLs, boolean rotate180) {
+	public boolean openImage(QuPathViewer viewer, String pathNew, boolean prompt, boolean includeURLs, boolean rotate180) throws IOException {
 		
 		if (viewer == null) {
 			if (getViewers().size() == 1)
@@ -2570,10 +2551,11 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	 * @param viewer
 	 * @param file
 	 * @param keepExistingServer if true and the viewer already has an ImageServer, then any ImageServer path recorded within the data file will be ignored
-	 * @param checkForChanges if true, the user will be prompted to ask whether to save changes or not
+	 * @param promptToSaveChanges if true, the user will be prompted to ask whether to save changes or not
 	 * @return
+	 * @throws IOException 
 	 */
-	public boolean openSavedData(QuPathViewer viewer, final File file, final boolean keepExistingServer, boolean promptToSaveChanges) {
+	public boolean openSavedData(QuPathViewer viewer, final File file, final boolean keepExistingServer, boolean promptToSaveChanges) throws IOException {
 		
 		if (viewer == null) {
 			if (getViewers().size() == 1)
@@ -2597,7 +2579,11 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		ImageData<BufferedImage> imageData = viewer.getImageData();
 		
 		// If we are loading data related to the same image server, load into that - otherwise open a new image if we can find it
-		serverPath = PathIO.readSerializedServerPath(file);
+		try {
+			serverPath = PathIO.readSerializedServerPath(file);
+		} catch (Exception e) {
+			logger.warn("Unable to read server path from file: {}", e.getLocalizedMessage());
+		}
 		boolean sameServer = serverPath == null || (imageData != null && imageData.getServerPath().equals(serverPath));			
 		
 		
@@ -2653,20 +2639,17 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 //		
 //		ImageData<BufferedImage> imageData2 = task.getImageData();
 		
-		ImageData<BufferedImage> imageData2 = PathIO.readImageData(file, imageData, server, BufferedImage.class);
-		// Check it worked...
-		if (imageData2 == null)
-			return false;
-		
-		if (imageData2 != imageData) {
-			viewer.setImageData(imageData2);
-			// If we just have a single viewer, no harm in centering this
-			if (viewerManager.getViewers().size() == 1 || !viewerManager.synchronizeViewersProperty().get())
-				setInitialLocationAndMagnification(viewer);
+		try {
+			ImageData<BufferedImage> imageData2 = PathIO.readImageData(file, imageData, server, BufferedImage.class);
+			if (imageData2 != imageData) {
+				viewer.setImageData(imageData2);
+				// If we just have a single viewer, no harm in centering this
+				if (viewerManager.getViewers().size() == 1 || !viewerManager.synchronizeViewersProperty().get())
+					setInitialLocationAndMagnification(viewer);
+			}
+		} catch (IOException e) {
+			DisplayHelpers.showErrorMessage("Read image data", e);
 		}
-//		// Make sure that the color channels are loaded
-//		if (viewer.getImageDisplay().loadChannelColorProperties())
-//			viewer.repaintEntireImage();
 		
 		return true;
 	}
@@ -2861,7 +2844,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	protected MenuBar createMenuBar() {
 		
 		// Create a recent projects list
-		ObservableList<File> recentProjects = PathPrefs.getRecentProjectList();
+		ObservableList<URI> recentProjects = PathPrefs.getRecentProjectList();
 		Menu menuRecent = createMenu("Recent projects...");
 		
 		
@@ -2907,23 +2890,24 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		
 		menuFile.setOnMenuValidation(e -> {
 			menuRecent.getItems().clear();
-			for (File fileProject : recentProjects) {
-				if (fileProject == null)
+			for (URI uri : recentProjects) {
+				if (uri == null)
 					continue;
 //				String name = fileProject.getAbsolutePath();
 //				int maxLength = 40;
 //				if (name.length() > maxLength)
 //					name = "..." + name.substring(name.length() - maxLength);
-				String name = fileProject.getParentFile() != null ? fileProject.getParentFile().getName() + "/" + fileProject.getName() : fileProject.getName();
+				String name = Project.getNameFromURI(uri);
 				name = ".../" + name;
 				MenuItem item = new MenuItem(name);
 				item.setOnAction(e2 -> {
 					Project<BufferedImage> project;
 					try {
-						project = ProjectIO.loadProject(fileProject, BufferedImage.class);
+						project = ProjectIO.loadProject(uri, BufferedImage.class);
 						setProject(project);
 					} catch (Exception e1) {
-						DisplayHelpers.showErrorMessage("Project error", "Cannot find project " + fileProject.getName());
+						DisplayHelpers.showErrorMessage("Project error", "Cannot find project " + uri);
+						logger.error("Error loading project", e1);
 					}
 				});
 				menuRecent.getItems().add(item);
@@ -4401,10 +4385,15 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			return null;
 		var project = getProject();
 		var entry = project == null ? null : project.getImageEntry(imageData.getServer().getPath());
-		if (entry == null)
+		if (entry == null) {
+			if (PathPrefs.getMaskImageNames())
+				return "(Name masked)";
 			return imageData.getServer().getShortServerName();
-		else
+		} else {
+			// Make sure that the status of name masking has been set in the project (in case it hasn't been triggered yet...)
+			project.setMaskImageNames(PathPrefs.getMaskImageNames());
 			return entry.getImageName();
+		}
 	}
 	
 	public void updateTitle() {
@@ -4425,7 +4414,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 						return name;
 					return name + " - " + getDisplayedImageName(imageData);
 				},
-				project, imageDataProperty, PathPrefs.showImageNameInTitleProperty());
+				project, imageDataProperty, PathPrefs.showImageNameInTitleProperty(), PathPrefs.maskImageNamesProperty());
 	
 	
 	/**
@@ -4472,17 +4461,31 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		if (this.project.get() == project)
 			return;
 		
+		// Check if we want to save the current image; we could still veto the project change at this point
+		var viewer = getViewer();
+		var imageData = viewer.getImageData();
+		boolean addImageToProject = false;
+		if (imageData != null) {
+			ProjectImageEntry<BufferedImage> entry = getProjectImageEntry(imageData);
+			if (entry != null) {
+				if (!checkSaveChanges(imageData))
+					return;
+				getViewer().setImageData(null);
+			} else
+				ProjectImportImagesCommand.addSingleImageToProject(project, imageData.getServer());
+		}
+		
 		// Store in recent list, if needed
-		File file = project == null ? null : project.getFile();
-		if (file != null) {
-			ObservableList<File> list = PathPrefs.getRecentProjectList();			
-			if (list.contains(file)) {
-				if (!file.equals(list.get(0))) {
-					list.remove(file);
-					list.add(0, file);
+		URI uri = project == null ? null : project.getURI();
+		if (uri != null) {
+			ObservableList<URI> list = PathPrefs.getRecentProjectList();			
+			if (list.contains(uri)) {
+				if (!uri.equals(list.get(0))) {
+					list.remove(uri);
+					list.add(0, uri);
 				}
 			} else
-				list.add(0, file);
+				list.add(0, uri);
 		}
 		
 		this.project.set(project);
@@ -4713,11 +4716,12 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	 * @return true if the prompt 'succeeded' (i.e. user chose 'Yes' or 'No'), false if it was cancelled.
 	 */
 	private boolean promptToSaveChangesOrCancel(String dialogTitle, ImageData<BufferedImage> imageData) {
-		String lastPath = imageData.getLastSavedPath();
-		File filePrevious = lastPath == null ? null : new File(lastPath);
-		if ((filePrevious == null || !filePrevious.exists()) && project.get() != null) {
-			ProjectImageEntry<BufferedImage> entryPrevious = project.get().getImageEntry(imageData.getServerPath());
-			filePrevious = getImageDataFile(project.get(), entryPrevious);
+		var project = getProject();
+		var entry = project == null ? null : project.getImageEntry(imageData.getServerPath());
+		File filePrevious = null;
+		if (entry == null) {
+			String lastPath = imageData.getLastSavedPath();
+			filePrevious = lastPath == null ? null : new File(lastPath);
 		}
 		DialogButton response = DialogButton.YES;
 		if (imageData.isChanged()) {
@@ -4726,12 +4730,19 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		if (response == DialogButton.CANCEL)
 			return false;
 		if (response == DialogButton.YES) {
-			if (filePrevious == null) {
+			if (filePrevious == null && entry == null) {
 				filePrevious = getDialogHelper().promptToSaveFile("Save image data", filePrevious, imageData.getServer().getShortServerName(), "QuPath Serialized Data", PathPrefs.getSerializationExtension());
 				if (filePrevious == null)
 					return false;
 			}
-			PathIO.writeImageData(filePrevious, imageData);
+			try {
+				if (entry != null)
+					entry.saveImageData(imageData);
+				else
+					PathIO.writeImageData(filePrevious, imageData);
+			} catch (IOException e) {
+				DisplayHelpers.showErrorMessage("Save ImageData", e);
+			}
 		}
 		return true;
 	}

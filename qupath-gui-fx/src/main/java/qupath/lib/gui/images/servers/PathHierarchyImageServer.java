@@ -25,13 +25,11 @@ package qupath.lib.gui.images.servers;
 
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
-import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import qupath.lib.awt.color.ColorToolsAwt;
 import qupath.lib.awt.common.AwtTools;
 import qupath.lib.gui.viewer.OverlayOptions;
@@ -74,16 +72,16 @@ public class PathHierarchyImageServer extends AbstractTileableImageServer implem
 	private OverlayOptions options;
 	private PathObjectHierarchy hierarchy;
 	
-	public PathHierarchyImageServer(final ImageData<BufferedImage> imageData, final Map<RegionRequest, BufferedImage> cache, final OverlayOptions options) {
-		this(DEFAULT_PREFIX + " " + counter + "::", imageData, cache, options);
+	public PathHierarchyImageServer(final ImageData<BufferedImage> imageData, final OverlayOptions options) {
+		this(DEFAULT_PREFIX + " " + counter + "::", imageData, options);
 	}
 	
 //	public PathHierarchyImageServer(final ImageServer<BufferedImage> server, final PathObjectHierarchy hierarchy, final OverlayOptions options) {
 //		this(DEFAULT_PREFIX + " " + counter + "::", server, hierarchy, options);
 //	}
 	
-	private PathHierarchyImageServer(final String prefix, final ImageData<BufferedImage> imageData, final Map<RegionRequest, BufferedImage> cache, final OverlayOptions options) {
-		super(cache);
+	private PathHierarchyImageServer(final String prefix, final ImageData<BufferedImage> imageData, final OverlayOptions options) {
+		super();
 		this.imageData = imageData;
 		this.prefix = prefix;
 		this.server = imageData.getServer();
@@ -103,7 +101,7 @@ public class PathHierarchyImageServer extends AbstractTileableImageServer implem
 //		cache.entrySet().removeIf(r -> path.equals(r.getKey().getPath()));
 		
 		// Set metadata, using the underlying server as a basis
-		this.originalMetadata = new ImageServerMetadata.Builder(server.getOriginalMetadata())
+		this.originalMetadata = new ImageServerMetadata.Builder(getClass(), server.getOriginalMetadata())
 				.preferredTileSize(256, 256)
 				.levels(levelBuilder.build())
 				.bitDepth(8)
@@ -156,14 +154,6 @@ public class PathHierarchyImageServer extends AbstractTileableImageServer implem
 	@Override
 	public boolean usesBaseServer(ImageServer<?> server) {
 		return this.server == server;
-	}
-	
-	/**
-	 * Currently, this always returns null.  May change in the future if hierarchies are read from files (although probably won't).
-	 */
-	@Override
-	public File getFile() {
-		return null;
 	}
 
 	@Override

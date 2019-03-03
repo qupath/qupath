@@ -153,7 +153,7 @@ public class TissueSegmentationCommand implements PathCommand, PathObjectHierarc
 			annotations.remove(annotation);
 		List<PathObject> background = new ArrayList<>();
 		List<PathObject> foreground = new ArrayList<>();
-		PathClass whitespaceClass = PathClassFactory.getDefaultPathClass(PathClasses.EMPTY);
+		PathClass whitespaceClass = PathClassFactory.getDefaultPathClass(PathClasses.IGNORE);
 		for (PathObject a : annotations) {
 			if (a == annotation)
 				continue;

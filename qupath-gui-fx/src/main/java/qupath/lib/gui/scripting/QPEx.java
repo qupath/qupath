@@ -26,6 +26,7 @@ package qupath.lib.gui.scripting;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.io.PrintWriter;
 import java.lang.reflect.Constructor;
 import java.util.ArrayList;
@@ -89,10 +90,11 @@ public class QPEx extends QP {
 	 * @param path Path to the file containing ImageData.
 	 * @param setBatchData If true, the <code>setBatchImageData(ImageData)</code> will be called if the loading is successful.
 	 * @return
+	 * @throws IOException 
 	 * 
 	 * @see #setBatchImageData
 	 */
-	public static ImageData<BufferedImage> loadImageData(final String path, final boolean setBatchData) {
+	public static ImageData<BufferedImage> loadImageData(final String path, final boolean setBatchData) throws IOException {
 		ImageData<BufferedImage> imageData = PathIO.readImageData(new File(resolvePath(path)), null, null, BufferedImage.class);
 		if (setBatchData && imageData != null)
 			setBatchImageData(imageData);

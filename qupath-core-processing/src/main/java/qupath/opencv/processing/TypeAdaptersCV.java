@@ -20,9 +20,12 @@ import org.bytedeco.javacpp.opencv_ml.StatModel;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.TypeAdapter;
 import com.google.gson.TypeAdapterFactory;
+import com.google.gson.internal.Streams;
 import com.google.gson.reflect.TypeToken;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
@@ -207,8 +210,13 @@ public class TypeAdaptersCV {
 				out.name("class");
 				out.value(value.getClass().getSimpleName());
 				out.name("statmodel");
+				
+				// jsonValue works for JsonWriter but not JsonTreeWriter, so we try to work around this...
+				var gson = new GsonBuilder().setLenient().create();
+				var element = gson.fromJson(json.trim(), JsonObject.class);
+				gson.toJson(element, out);
 //				out.jsonValue(obj.toString());
-				out.jsonValue(json.trim());
+//				out.jsonValue(json);
 				out.endObject();
 			}
 		}

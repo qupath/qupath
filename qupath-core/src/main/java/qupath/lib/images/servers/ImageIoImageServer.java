@@ -25,14 +25,11 @@ package qupath.lib.images.servers;
 
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
-import java.io.File;
 import java.io.IOException;
 import java.net.MalformedURLException;
-import java.net.URL;
-
+import java.net.URI;
 import javax.imageio.ImageIO;
 
-import qupath.lib.common.URLTools;
 import qupath.lib.regions.RegionRequest;
 
 /**
@@ -64,7 +61,7 @@ public class ImageIoImageServer extends AbstractImageServer<BufferedImage> {
 		int bitDepth = img.getSampleModel().getSampleSize(0);
 		int nChannels = img.getSampleModel().getNumBands();
 		boolean isRGB = (nChannels == 3 || nChannels == 4) && bitDepth == 8;
-		originalMetadata = new ImageServerMetadata.Builder(path)
+		originalMetadata = new ImageServerMetadata.Builder(getClass(), path)
 				.width(img.getWidth())
 				.height(img.getHeight())
 				.rgb(isRGB)
@@ -76,12 +73,12 @@ public class ImageIoImageServer extends AbstractImageServer<BufferedImage> {
 	/**
 	 * Create an {@code ImageServer<BufferedImage>} after first reading the image using ImageIO.
 	 * 
-	 * @param path
+	 * @param uri
 	 * @throws MalformedURLException
 	 * @throws IOException
 	 */
-	public ImageIoImageServer(String path) throws MalformedURLException, IOException {
-		this(path, null, URLTools.checkURL(path) ? ImageIO.read(new URL(path)) : ImageIO.read(new File(path)));
+	public ImageIoImageServer(URI uri) throws MalformedURLException, IOException {
+		this(uri.toString(), null, ImageIO.read(uri.toURL()));
 	}
 
 	@Override

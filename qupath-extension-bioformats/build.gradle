@@ -12,4 +12,8 @@ configurations {
 
 dependencies {
   implementation project(':qupath-gui-fx')
+//  implementation('ome:bioformats_package:6.0.0') {
+//  	transitive = false
+//  }
+//  testImplementation('ome:bioformats_package:6.0.0')
 }

@@ -1,5 +1,6 @@
 package qupath.lib.classifiers.gui;
 
+import java.util.ArrayList;
 import java.util.List;
 import org.bytedeco.javacpp.opencv_core;
 import org.bytedeco.javacpp.opencv_imgproc;
@@ -552,6 +553,112 @@ public class FeatureFilters {
 			opencv_imgproc.Laplacian(matGaussian, matOutput, -1);
 			output.add(matOutput);
 		}    	
+    	
+    }
+    
+    
+    public static class GaborFeatureFilter extends FeatureFilter {
+    	
+    	private transient List<Mat> kernels;
+    	
+    	private double sigma;
+    	private double gamma = 0.5;
+		private double lamda = 5.0;
+		private int nAngles = 4;
+    	
+    	public GaborFeatureFilter(final double sigma, double gamma, double lamda, int nAngles) {
+    		super();
+    		this.sigma = sigma;
+    		this.gamma = gamma;
+    		this.lamda = lamda;
+    		this.nAngles = nAngles;
+    	}
+
+		@Override
+		public String getName() {
+			return String.format("Gabor (\u03C3=%.2f, \u03B3=%.2f, \u03BB=%.2f)", sigma, gamma, lamda);
+		}
+
+		@Override
+		public int getPadding() {
+			return (int)Math.ceil(sigma * 4) * 2 + 1;
+		}
+		
+		private synchronized void initializeKernels() {
+			if (kernels != null)
+				return;
+			
+//			gamma = 1.0;
+			kernels = new ArrayList<>();
+//			nAngles = 6;
+//			lamda = 3 * sigma;
+			
+			int w = (int)Math.ceil(sigma * 4) * 2 + 1;
+			var size = new Size(w, w);
+			
+			for (int angle = 0; angle < nAngles; angle++) {
+				double theta = angle * (Math.PI / nAngles);
+				var kernel = opencv_imgproc.getGaborKernel(size, sigma, theta, lamda * sigma, gamma);
+				kernels.add(kernel);
+			}
+			
+		}
+
+		@Override
+		public void calculate(Mat matInput, List<Mat> output) {
+			kernels = null;
+			if (kernels == null)
+				initializeKernels();
+			
+//			Mat matSum = null;
+//			for (var kernel : kernels) {
+//				var matTemp = new Mat();
+//				opencv_imgproc.filter2D(matInput, matTemp, -1, kernel);
+//				matTemp.put(opencv_core.abs(matTemp));
+//				if (matSum == null)
+//					matSum = matTemp;
+//				else {
+//					opencv_core.max(matSum, matTemp, matSum);
+//					matTemp.release();
+//				}
+//			}
+//			output.add(matSum);
+			
+			Mat matSum = null;
+			for (var kernel : kernels) {
+				var matTemp = new Mat();
+				opencv_imgproc.filter2D(matInput, matTemp, -1, kernel);
+				opencv_core.multiply(matTemp, matTemp, matTemp);
+				if (matSum == null)
+					matSum = matTemp;
+				else {
+					opencv_core.addPut(matSum, matTemp);
+					matTemp.release();
+				}
+			}
+			opencv_core.sqrt(matSum, matSum);
+			output.add(matSum);
+			
+//			Mat matSum = null;
+//			for (var kernel : kernels) {
+//				var matTemp = new Mat();
+//				opencv_imgproc.filter2D(matInput, matTemp, -1, kernel);
+//				matTemp.put(opencv_core.abs(matTemp));
+//				if (matSum == null)
+//					matSum = matTemp;
+//				else {
+//					opencv_core.addPut(matSum, matTemp);
+//					matTemp.release();
+//				}
+//			}
+//			output.add(matSum);
+			
+//			for (var kernel : kernels) {
+//				var matTemp = new Mat();
+//				opencv_imgproc.filter2D(matInput, matTemp, -1, kernel);
+//				output.add(matTemp);
+//			}
+		}
     	
     }
     

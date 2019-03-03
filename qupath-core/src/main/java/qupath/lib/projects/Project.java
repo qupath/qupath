@@ -24,61 +24,53 @@
 package qupath.lib.projects;
 
 import java.io.File;
-import java.util.ArrayList;
+import java.io.IOException;
+import java.net.URI;
+import java.nio.file.Path;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Comparator;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
+import qupath.lib.classifiers.PathObjectClassifier;
+import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.images.servers.ImageServer;
-import qupath.lib.images.servers.ImageServerProvider;
 import qupath.lib.objects.classes.PathClass;
 
 /**
- * Data structure to store multiple images, relating these to a file system.
+ * Data structure to manage images and associated data in QuPath.
  * 
  * @author Pete Bankhead
  *
  * @param <T>
  */
-public class Project<T> {
-	
-	private static Logger logger = LoggerFactory.getLogger(Project.class);
-	
-	private File file;
-	private File dirBase;
-	private Class<T> cls;
-	private String name = null;
-	
-	private List<PathClass> pathClasses = new ArrayList<>();
-	
-	private Map<String, ProjectImageEntry<T>> images = new LinkedHashMap<>();
-	long creationTimestamp;
-	long modificationTimestamp;
-	
-	public Project(final File file, final Class<T> cls) {
-		this.file = file;
-		if (file.isDirectory())
-			this.dirBase = file;
-		else
-			this.dirBase = file.getParentFile();
-		this.cls = cls;
-		creationTimestamp = System.currentTimeMillis();
-		modificationTimestamp = System.currentTimeMillis();
-	}
+public interface Project<T> {
 	
 	/**
 	 * Get an unmodifiable list representing the <code>PathClass</code>es associated with this project.
 	 * @return
 	 */
-	public List<PathClass> getPathClasses() {
-		return Collections.unmodifiableList(pathClasses);
-	}
+	public List<PathClass> getPathClasses();
+	
+	/**
+	 * Query whether 'true' or masked image names are being returned.
+	 * 
+	 * @return
+	 * 
+	 * @see #setMaskImageNames(boolean)
+	 */
+	public boolean getMaskImageNames();
+	
+	/**
+	 * Request that entries return masked image names, rather than the 'true' image names.
+	 * <p>
+	 * The purpose of this is to support studies where the user ought not to see the image names during analysis, 
+	 * reducing the potential for user bias.
+	 * 
+	 * @param maskNames
+	 * 
+	 * @see #getMaskImageNames()
+	 */
+	public void setMaskImageNames(boolean maskNames);
 	
 	/**
 	 * Update the available PathClasses.
@@ -86,135 +78,183 @@ public class Project<T> {
 	 * @param pathClasses
 	 * @return <code>true</code> if the stored values changed, false otherwise.
 	 */
-	public boolean setPathClasses(Collection<? extends PathClass> pathClasses) {
-		if (this.pathClasses.size() == pathClasses.size() && this.pathClasses.containsAll(pathClasses))
-			return false;
-		this.pathClasses.clear();
-		this.pathClasses.addAll(pathClasses);
-		return true;
-	}
-
-	public boolean addImage(final ProjectImageEntry<T> entry) {
-		if (images.containsKey(cleanServerPath(entry.getServerPath())))
-			return false;
-		images.put(cleanServerPath(entry.getServerPath()), entry);
-		return true;
-	}
+	public boolean setPathClasses(Collection<? extends PathClass> pathClasses);
 	
-	public File getFile() {
-		return file;
-	}
+	/**
+	 * Check for missing paths.  This assumes local files; other URIs will be ignored.
+	 * 
+	 * @param relativize Optionally try to resolve relative paths.
+	 * @return a list of local file paths supposedly to images, but for which no files could be found.
+	 */
+	public List<String> validateLocalPaths(boolean relativize);
 	
-	public File getBaseDirectory() {
-		return dirBase;
-	}
+	/**
+	 * Get a URI that can be used when saving/reloading this project.
+	 * 
+	 * @return
+	 */
+	public URI getURI();
 	
-	public boolean addAllImages(final Collection<ProjectImageEntry<T>> entries) {
-		boolean changes = false;
-		for (ProjectImageEntry<T> entry : entries)
-			changes = addImage(entry) | changes;
-		return changes;
-	}
-	
-	public int size() {
-		return images.size();
-	}
-
-	public boolean isEmpty() {
-		return images.isEmpty();
-	}
-
-	public boolean addImagesForServer(final ImageServer<T> server) {
+	/**
+	 * Extract a usable project name from a URI.
+	 * 
+	 * @param uri
+	 * @return
+	 */
+	public static String getNameFromURI(URI uri) {
+		if (uri == null)
+			return "No URI";
+			
+		String[] path = uri.getPath().split("/");
+		if (path.length == 0)
+			return "No name";
+		String name = path[path.length-1];
 		
-		List<String> subImages = server.getSubImageList();
-		if (subImages.isEmpty()) {
-			return addImage(new ProjectImageEntry<>(this, server.getPath(), server.getDisplayedImageName(), null));
-		}
-		
-		boolean changes = false;
-		for (String name : subImages)
-			// The sub image name might be the same across images, we should append the server displayed name to it, just to make sure it is unique
-			changes = changes | addImage(new ProjectImageEntry<>(this, server.getSubImagePath(name), server.getDisplayedImageName()+" ("+name+")", null));
-		return changes;
+		String ext = ProjectIO.getProjectExtension(true);
+		if (name.endsWith(ext))
+			name = name.substring(0, name.length()-ext.length());
+		if (path.length == 1)
+			return name;
+		return path[path.length-2] + "-" + name;
 	}
 	
+	/**
+	 * Get the base directory containing this project, if possible.
+	 * <p>
+	 * This is relevant for projects using the local file system, but should return null in other cases.
+	 * 
+	 * @return
+	 */
+	@Deprecated
+	public File getBaseDirectory();
 	
-	public ProjectImageEntry<T> getImageEntry(final String path) {
-		return images.get(cleanServerPath(path));
-	}
+	/**
+	 * The version string for this project, which can be used to distinguish new and older project 
+	 * (which may contain different information).
+	 * <p>
+	 * This may be null if the version information is not stored.
+	 * 
+	 * @return
+	 */
+	public String getVersion();
+	
+	/**
+	 * Get a path to this project, or null if this project on a local file system.
+	 * <p>
+	 * If not null, the path may be a file or a directory.
+	 * 
+	 * @return
+	 * @see ProjectImageEntry#getEntryPath()
+	 */
+	public Path getPath();
+	
+	/**
+	 * Add multiple images to the project. Note that it is implementation-specific whether 
+	 * these images entries are duplicated or used directly, e.g. it is undefined whether or not 
+	 * subsequent changes to any entries within the collection will be reflected in this project or not.
+	 * 
+	 * @param entries
+	 * @return
+	 */
+	public boolean addAllImages(final Collection<ProjectImageEntry<T>> entries);
+	
+	/**
+	 * Test if the project contains any images.
+	 * @return
+	 */
+	public boolean isEmpty();
 
-	String cleanServerPath(final String path) {
-		String cleanedPath = path.replace("%20", " ").replace("%5C", "\\");
-		cleanedPath = cleanedPath.replace("{$PROJECT_DIR}", getBaseDirectory().getAbsolutePath());
-		return cleanedPath;
-	}
+	/**
+	 * Add an image for a particular ImageServer.
+	 * @param server
+	 * @return
+	 */
+	public ProjectImageEntry<T> addImage(final ImageServer<T> server);
 	
-	public boolean addImage(final String path) {
-		try {
-			ImageServer<T> server = ImageServerProvider.buildServer(path, cls);
-			boolean changes = addImagesForServer(server);
-			server.close();
-			return changes;
-		} catch (Exception e) {
-			logger.error("Error adding image: {} ({})", path, e.getLocalizedMessage());
-			return false;
-		}
-	}
+	/**
+	 * Request a {@link ProjectImageEntry} with an image server path.
+	 * @param path
+	 * @return
+	 */
+	public ProjectImageEntry<T> getImageEntry(final String path);
 	
-	public void removeImage(final ProjectImageEntry<?> entry) {
-		removeImage(entry.getServerPath());
-	}
+	/**
+	 * Remove an image from the project.
+	 * 
+	 * @param entry
+	 */
+	public void removeImage(final ProjectImageEntry<?> entry);
 
-	public void removeAllImages(final Collection<ProjectImageEntry<T>> entries) {
-		for (ProjectImageEntry<T> entry : entries)
-			removeImage(entry);
-	}
+	/**
+	 * Remove multiple images from the project.
+	 * 
+	 * @param entries
+	 */
+	public void removeAllImages(final Collection<ProjectImageEntry<T>> entries);
 	
-	public void removeImage(final String path) {
-		images.remove(path);
-	}
-
+	/**
+	 * Save the project.
+	 * 
+	 * @throws IOException
+	 */
+	public void syncChanges() throws IOException;
+	
 	/**
 	 * Get a list of image entries for the project.
 	 * 
 	 * @return
 	 */
-	public List<ProjectImageEntry<T>> getImageList() {
-		List<ProjectImageEntry<T>> list = new ArrayList<>(images.values());
-//		list.sort(ImageEntryComparator.instance);
-		return list;
-	}
+	public List<ProjectImageEntry<T>> getImageList();
 	
-	public ImageServer<T> buildServer(final ProjectImageEntry<T> entry) {
-		return ImageServerProvider.buildServer(entry.getServerPath(), cls);
-	}
+	public String getName();
 	
+	/**
+	 * Request a timestamp from when the project was created.
+	 * @return
+	 */
+	public long getCreationTimestamp();
 	
-	public String getName() {
-		if (name != null)
-			return name;
-		if (dirBase == null || !dirBase.isDirectory()) {
-			return "(Project directory missing)";
-		}
-		if (file != null && file.exists() && file != dirBase) {
-			return dirBase.getName() + "/" + file.getName();
-		}
-		return dirBase.getName();
-	}
-	
-	@Override
-	public String toString() {
-		return "Project: " + getName();
-	}
+	/**
+	 * Request a timestamp from when the project was last synchronized.
+	 * @return
+	 * 
+	 * @see #syncChanges()
+	 */
+	public long getModificationTimestamp();
 	
 	
-	public long getCreationTimestamp() {
-		return creationTimestamp;
-	}
 	
-	public long getModificationTimestamp() {
-		return modificationTimestamp;
-	}
+	
+	
+	/**
+	 * Get a manager for scripts saved within this project.
+	 * 
+	 * @return
+	 */
+	public ProjectResourceManager<String> getScriptsManager();
+	
+	/**
+	 * Get a manager for object classifiers saved within this project.
+	 * 
+	 * @return
+	 */
+	public ProjectResourceManager<PathObjectClassifier> getObjectClassifierManager();
+	
+	/**
+	 * Get a manager for pixel classifiers saved within this project.
+	 * 
+	 * @return
+	 */
+	public ProjectResourceManager<PixelClassifier> getPixelClassifierManager();
+	
+	
+//	public List<String> listPixelClassifiers();
+//	
+//	public PixelClassifier loadPixelClassifier(String name);
+//	
+//	public void savePixelClassifier(String name, String PixelClassifier);
+	
+	
 	
 	
 	

@@ -10,7 +10,6 @@ import java.awt.image.DataBuffer;
 import java.awt.image.DataBufferByte;
 import java.awt.image.Raster;
 import java.awt.image.WritableRaster;
-import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -245,11 +244,6 @@ public class MergedServer extends AbstractImageServer<BufferedImage> {
 	}
 
 	@Override
-	public File getFile() {
-		return new File(server.getPath());
-	}
-
-	@Override
 	public int getBitsPerPixel() {
 		return server.getBitsPerPixel();
 	}
@@ -292,7 +286,7 @@ public class MergedServer extends AbstractImageServer<BufferedImage> {
 					);
 		}
 		
-		public static ServerTransformWrapper fromJSON(final String json) throws JsonSyntaxException, NoninvertibleTransformException {
+		public static ServerTransformWrapper fromJSON(final String json) throws JsonSyntaxException, NoninvertibleTransformException, IOException {
 			return new GsonBuilder().create().fromJson(json, ServerTransformJSONable.class).toServerTransformWrapper();
 		}
 		
@@ -347,7 +341,7 @@ public class MergedServer extends AbstractImageServer<BufferedImage> {
 			}
 			
 			
-			ServerTransformWrapper toServerTransformWrapper() throws NoninvertibleTransformException {
+			ServerTransformWrapper toServerTransformWrapper() throws NoninvertibleTransformException, IOException {
 				ImageServer<BufferedImage> server = ImageServerProvider.buildServer(path, BufferedImage.class);
 				ColorDeconvolutionStains stains = ColorDeconvolutionStains.parseColorDeconvolutionStainsArg(stainsString);
 				AffineTransform affine = new AffineTransform(

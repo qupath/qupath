@@ -28,6 +28,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import javafx.scene.Cursor;
+import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import qupath.lib.geom.Point2;
 import qupath.lib.gui.prefs.PathPrefs;
@@ -69,7 +70,7 @@ public class PointsTool extends AbstractPathTool {
 	@Override
 	public void mouseReleased(MouseEvent e) {
 		super.mouseReleased(e);
-		if (!e.isPrimaryButtonDown() || e.isConsumed()) {
+		if (e.getButton() != MouseButton.PRIMARY || e.isConsumed()) {
             return;
         }
 		
@@ -80,7 +81,9 @@ public class PointsTool extends AbstractPathTool {
 		RoiEditor editor = viewer.getROIEditor();
 		editor.resetActiveHandle();
 		
-		viewer.getHierarchy().fireHierarchyChangedEvent(this, viewer.getSelectedObject());
+		var currentObject = viewer.getSelectedObject();
+		viewer.getHierarchy().updateObject(currentObject);
+//		viewer.getHierarchy().fireHierarchyChangedEvent(this, vcurrentObject);
 
 //		// Find out the coordinates in the image domain & update the adjustment
 //		Point2D p = viewer.componentPointToImagePoint(e.getX(), e.getY(), null, false);
@@ -153,7 +156,8 @@ public class PointsTool extends AbstractPathTool {
 			ROI points2 = removeNearbyPoint(points, x, y, distance);
 			if (points != points2) {
 				((PathROIObject)currentObject).setROI(points2);
-				hierarchy.fireHierarchyChangedEvent(this, currentObject);
+				hierarchy.updateObject(currentObject);
+//				hierarchy.fireHierarchyChangedEvent(this, currentObject);
 				return true;
 			}
 		}
@@ -212,13 +216,15 @@ public class PointsTool extends AbstractPathTool {
 		// If Alt is pressed, try to delete a point
 		if (e.isAltDown()) {
 			handleAltClick(xx, yy, currentObject);
-		}
+		} 
 		// Create a new ROI if we've got Alt & Shift pressed - or we just don't have a point ROI
-		else if (points == null || (e.isShiftDown() && e.getClickCount() > 1)) {
+		else if (points == null || (!PathPrefs.getMultipointTool() && !editor.grabHandle(xx, yy, radius, e.isShiftDown()))
+				|| (e.isShiftDown() && e.getClickCount() > 1)) {
 			// PathPoints is effectively ready from the start - don't need to finalize
 			points = ROIs.createPointsROI(xx, yy, ImagePlane.getDefaultPlane());
 			
-			currentObject = (PathROIObject)PathObjects.createAnnotationObject(points);
+			currentObject = (PathROIObject)PathObjects.createAnnotationObject(points, PathPrefs.getAutoSetAnnotationClass());
+			viewer.getHierarchy().addPathObject(currentObject, true);
 			viewer.setSelectedObject(currentObject);
 			
 //			viewer.createAnnotationObject(points);
@@ -238,7 +244,8 @@ public class PointsTool extends AbstractPathTool {
 			}
 			if (points2 != points) {
 				currentObject.setROI(points2);
-				viewer.getHierarchy().fireHierarchyChangedEvent(this, currentObject);
+				viewer.getHierarchy().updateObject(currentObject);
+//				viewer.getHierarchy().fireHierarchyChangedEvent(this, currentObject);
 			}
 		}
 		viewer.repaint();

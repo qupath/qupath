@@ -30,7 +30,6 @@ import static org.junit.Assert.assertTrue;
 
 import java.awt.image.BufferedImage;
 import java.io.File;
-import java.io.IOException;
 import java.util.List;
 import java.util.Locale;
 
@@ -39,13 +38,11 @@ import org.junit.Test;
 import ij.ImagePlus;
 import loci.common.DebugTools;
 import loci.common.Region;
-import loci.common.services.DependencyException;
-import loci.common.services.ServiceException;
-import loci.formats.FormatException;
 import loci.plugins.BF;
 import loci.plugins.in.ImporterOptions;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.ImageServerProvider;
 import qupath.lib.images.servers.bioformats.BioFormatsImageServer;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectIO;
@@ -95,7 +92,7 @@ public class TestBioFormatsImageServer {
 		DebugTools.setRootLevel("error");
 		
 		List<ProjectImageEntry<BufferedImage>> entries = project.getImageList();
-		System.out.println("Testing project with " + entries.size() + " entries: " + project.getName());
+		System.out.println("Testing project with " + entries.size() + " entries: " + Project.getNameFromURI(project.getURI()));
 		for (ProjectImageEntry<BufferedImage> entry : entries) {
 			String serverPath = entry.getServerPath();
 //			System.out.println("Opening: " + serverPath);
@@ -112,7 +109,7 @@ public class TestBioFormatsImageServer {
 			int t = 0;
 			try {
 				// Create the server
-				server = buildServer(serverPath);
+				server = (BioFormatsImageServer)ImageServerProvider.buildServer(serverPath, BufferedImage.class, BioFormatsServerBuilder.class.getName());
 				// Read a thumbnail
 				imgThumbnail = server.getBufferedThumbnail(200, -1, 0);
 				// Read from the center of the image
@@ -225,11 +222,6 @@ public class TestBioFormatsImageServer {
 						server.getBitsPerPixel(), server.getMagnification(), GeneralTools.arrayToString(Locale.getDefault(), server.getPreferredDownsamples(), 4),
 						server.getPixelWidthMicrons(), server.getPixelHeightMicrons(), server.getZSpacingMicrons())
 				);
-	}
-	
-	
-	BioFormatsImageServer buildServer(final String path) throws FormatException, IOException, DependencyException, ServiceException {
-		return new BioFormatsImageServer(path);
 	}
 	
 

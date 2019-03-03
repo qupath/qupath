@@ -29,22 +29,23 @@ import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.net.URISyntaxException;
 import java.nio.file.Files;
-import java.nio.file.StandardCopyOption;
+import java.nio.file.Path;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Optional;
+import java.util.Random;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.function.Supplier;
 
 import javax.imageio.ImageIO;
 
@@ -54,7 +55,7 @@ import org.controlsfx.control.action.ActionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javafx.application.Platform;
+import javafx.beans.binding.Bindings;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import javafx.embed.swing.SwingFXUtils;
@@ -68,6 +69,7 @@ import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuItem;
+import javafx.scene.control.SelectionMode;
 import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
@@ -84,15 +86,18 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
 import javafx.util.Callback;
+import qupath.lib.common.GeneralTools;
 import qupath.lib.display.ChannelDisplayInfo;
 import qupath.lib.display.ImageDisplay;
 import qupath.lib.gui.ImageDataChangeListener;
 import qupath.lib.gui.ImageDataWrapper;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.QuPathGUI.GUIActions;
+import qupath.lib.gui.commands.ProjectImportImagesCommand;
 import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.gui.helpers.PaintingToolsFX;
 import qupath.lib.gui.helpers.PanelToolsFX;
+import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerProvider;
@@ -135,6 +140,10 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 		this.qupath = qupath;
 
 		qupath.addImageDataChangeListener(this);
+		
+		PathPrefs.maskImageNamesProperty().addListener((v, o, n) -> {
+			tree.refresh();
+		});
 
 		panel = new BorderPane();
 
@@ -145,7 +154,6 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 		});
 
 		tree.setRoot(null);
-
 
 		tree.setContextMenu(getPopup());
 
@@ -169,6 +177,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 		MasterDetailPane mdTree = new MasterDetailPane(Side.BOTTOM, tree, textDescription, false);
 		mdTree.showDetailNodeProperty().bind(descriptionText.isNotNull());
 		
+		tree.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
 		tree.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> {
 			Object selected = n == null ? null : n.getValue();
 			if (selected instanceof ProjectImageEntry)
@@ -198,9 +207,10 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 
 
 	ContextMenu getPopup() {
-
+		
 		Action actionOpenImage = new Action("Open image", e -> qupath.openImageEntry(getSelectedEntry()));
 		Action actionRemoveImage = new Action("Remove image", e -> {
+			// TODO: Handle removing multiple images; prevent image being removed if it is currently open in the project
 			TreeItem<?> path = tree.getSelectionModel().getSelectedItem();
 			if (path == null)
 				return;
@@ -220,7 +230,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 					model.rebuildModel();
 				}
 			}
-			ProjectIO.writeProject(project);
+			syncProject(project);
 			if (tree != null) {
 				boolean isExpanded = tree.getRoot() != null && tree.getRoot().isExpanded();
 				tree.setRoot(model.getRootFX());
@@ -249,11 +259,10 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 					logger.warn("Cannot refresh entry for image that is not open!");
 					return;
 				}
-				File fileThumbnail = getThumbnailFile(getProject(), entry);
 				BufferedImage imgThumbnail = qupath.getViewer().getRGBThumbnail();
 				imgThumbnail = resizeForThumbnail(imgThumbnail);
 				try {
-					ImageIO.write(imgThumbnail, THUMBNAIL_EXT, fileThumbnail);
+					entry.setThumbnail(imgThumbnail);
 				} catch (IOException e1) {
 					logger.error("Error writing thumbnail", e1);
 				}
@@ -268,7 +277,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 			if (project != null && entry != null) {
 				if (showDescriptionEditor(entry)) {
 					descriptionText.set(entry.getDescription());
-					ProjectIO.writeProject(project);						
+					syncProject(project);						
 				}
 			} else {
 				DisplayHelpers.showErrorMessage("Edit image description", "No entry is selected!");
@@ -330,7 +339,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 						logger.warn("Attempted to set metadata value for {}, but key was empty!", entry.getImageName());
 					} else {
 						entry.putMetadataValue(key, value);
-						ProjectIO.writeProject(project);
+						syncProject(project);
 					}
 				}
 							
@@ -340,26 +349,23 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 		});
 		
 		// Open the project directory using Explorer/Finder etc.
-		Action actionOpenProjectDirectory = new Action("Open project directory", e -> {
-			try {
-				Project<?> project = getProject();
-				if (project == null)
-					return;
-				File dir = project.getBaseDirectory();
-				if (dir.exists())
-					Desktop.getDesktop().open(dir);
-				else
-					logger.warn("Cannot find project directory {}", dir.getAbsolutePath());
-			} catch (IOException e1) {
-				DisplayHelpers.showErrorMessage("Open project directory", e1);
-			}
-		});
+		Action actionOpenProjectDirectory = createBrowsePathAction("Project...", () -> getProjectPath());
+		Action actionOpenProjectEntryDirectory = createBrowsePathAction("Project entry...", () -> getProjectEntryPath());
+		Action actionOpenImageServerDirectory = createBrowsePathAction("Image server...", () -> getImageServerPath());
 		
 
 		Menu menuSort = new Menu("Sort by...");
 		ContextMenu menu = new ContextMenu();
 		
-		MenuItem miOpenProjectDirectory = ActionUtils.createMenuItem(actionOpenProjectDirectory);
+		var hasProjectBinding = qupath.projectProperty().isNotNull();
+		var menuOpenDirectories = QuPathGUI.createMenu("Open directory...", 
+				actionOpenProjectDirectory,
+				actionOpenProjectEntryDirectory,
+				actionOpenImageServerDirectory);
+		menuOpenDirectories.visibleProperty().bind(hasProjectBinding);
+//		MenuItem miOpenProjectDirectory = ActionUtils.createMenuItem(actionOpenProjectDirectory);
+		
+		
 		MenuItem miOpenImage = ActionUtils.createMenuItem(actionOpenImage);
 		MenuItem miRemoveImage = ActionUtils.createMenuItem(actionRemoveImage);
 		MenuItem miSetImageName = ActionUtils.createMenuItem(actionSetImageName);
@@ -372,7 +378,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 		menu.setOnShowing(e -> {
 			TreeItem<Object> selected = tree.getSelectionModel().getSelectedItem();
 			boolean hasImageEntry = selected != null && selected.getValue() instanceof ProjectImageEntry;
-			miOpenProjectDirectory.setVisible(project != null && project.getBaseDirectory().exists());
+//			miOpenProjectDirectory.setVisible(project != null && project.getBaseDirectory().exists());
 			miOpenImage.setVisible(hasImageEntry);
 			miSetImageName.setVisible(hasImageEntry);
 			miAddMetadata.setVisible(hasImageEntry);
@@ -416,15 +422,96 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 				);
 		
 		separator = new SeparatorMenuItem();
-		separator.visibleProperty().bind(miOpenProjectDirectory.visibleProperty());
+		separator.visibleProperty().bind(menuOpenDirectories.visibleProperty());
 		if (Desktop.isDesktopSupported()) {
 			menu.getItems().addAll(
 					separator,
-					miOpenProjectDirectory);
+					menuOpenDirectories);
 		}
 
 		return menu;
 
+	}
+	
+	
+	Path getProjectPath() {
+		return project == null ? null : project.getPath();
+	}
+
+	Path getProjectEntryPath() {
+		var selected = tree.getSelectionModel().getSelectedItem();
+		if (selected == null)
+			return null;
+		var item = selected.getValue();
+		if (item instanceof ProjectImageEntry<?>)
+			return ((ProjectImageEntry)item).getEntryPath();
+		return null;
+	}
+	
+	Path getImageServerPath() {
+		var selected = tree.getSelectionModel().getSelectedItem();
+		if (selected == null)
+			return null;
+		var item = selected.getValue();
+		if (item instanceof ProjectImageEntry<?>) {
+			var serverPath = ((ProjectImageEntry)item).getServerPath();
+			try {
+				return GeneralTools.toPath(GeneralTools.toURI(serverPath));
+			} catch (URISyntaxException e) {
+				logger.debug("Error converting server path to file path", e);
+			}
+		}
+		return null;
+	}
+
+	
+	Action createBrowsePathAction(String text, Supplier<Path> func) {
+		var action = new Action(text, e -> {
+			var path = func.get();
+			if (path == null)
+				return;
+			// Get directory if we will need one
+			var desktop = Desktop.getDesktop();
+			if (!desktop.isSupported(Desktop.Action.BROWSE_FILE_DIR) && !Files.isDirectory(path))
+				path = path.getParent();
+			
+			if (Files.exists(path)) {
+				if (Files.isDirectory(path) && desktop.isSupported(Desktop.Action.OPEN)) {
+					try {
+						Desktop.getDesktop().open(path.toFile());
+						return;
+					} catch (IOException e1) {
+						logger.error("Error opening directory " + path, e1);
+					}
+				}
+				if (desktop.isSupported(Desktop.Action.BROWSE_FILE_DIR)) {
+					desktop.browseFileDirectory(path.toFile());
+					return;
+				}
+			}
+			logger.debug("Cannot browse path {}", path);
+		});
+		action.disabledProperty().bind(Bindings.createBooleanBinding(() -> func.get() == null, tree.getSelectionModel().selectedItemProperty()));
+		return action;
+	}
+	
+	
+	
+	/**
+	 * Try to save a project, showing an error message if this fails.
+	 * 
+	 * @param project
+	 * @return
+	 */
+	public static boolean syncProject(Project<?> project) {
+		try {
+			logger.info("Saving project {}...", project);
+			project.syncChanges();
+			return true;
+		} catch (IOException e) {
+			DisplayHelpers.showErrorMessage("Save project", e);
+			return false;
+		}
 	}
 	
 	
@@ -472,6 +559,18 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 		tree.getRoot().setExpanded(true);
 	}
 	
+	
+//	public List<String> findMissingPaths(final Project<?> project) {
+//		return project.getImageList().stream().f
+//	}
+	
+	private boolean pathMissing(String path) {
+		int ind = path.lastIndexOf("::");
+		return !path.startsWith("http") && !new File(path).exists() && 
+				(ind < 0 || !new File(path.substring(0, ind)).exists());
+	}
+	
+	
 	public void refreshProject() {
 		model = new ProjectImageTreeModel(project);
 		tree.setRoot(model.getRootFX());
@@ -483,18 +582,11 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 		if (server == null || project == null)
 			return;
 
-		//		project.addImagesForServer(server);
-		//		ProjectImageEntry entry = new ProjectImageEntry(project, server.getPath(), server.getDisplayedImageName());
-
-		if (project.addImagesForServer(server)) {
-			ProjectImageEntry<BufferedImage> entry = project.getImageEntry(server.getPath());
-			//			tree.setModel(new ProjectImageTreeModel(project)); // TODO: Update the model more elegantly!!!
+		var changed = ProjectImportImagesCommand.addImageAndSubImagesToProject(project, server);
+		if (changed) {
 			tree.setRoot(model.getRootFX());
-			if (entry != null) {
-				setSelectedEntry(tree, tree.getRoot(), entry);
-			}
-
-			ProjectIO.writeProject(project);
+			setSelectedEntry(tree, tree.getRoot(), project.getImageEntry(server.getPath()));
+			syncProject(project);
 		}
 	}
 
@@ -506,7 +598,8 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 			return;
 		ProjectImageEntry<BufferedImage> entry = project.getImageEntry(imageDataNew.getServerPath());
 		if (entry == null) {
-			if (DisplayHelpers.showYesNoDialog("Add to project", "Add " + imageDataNew.getServer().getShortServerName() + " to project?"))
+			// Previously we gave a choice... now we force the image to be included in the project to avoid complications
+//			if (DisplayHelpers.showYesNoDialog("Add to project", "Add " + imageDataNew.getServer().getShortServerName() + " to project?"))
 				ensureServerInWorkspace(imageDataNew.getServer());
 		}
 		else if (!entry.equals(getSelectedEntry()))
@@ -606,28 +699,6 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 		g2d.dispose();
 		return imgThumbnail2;
 	}
-	
-
-
-	void requestThumbnailInBackground(final String serverPath, final File fileThumbnail) {
-		// Don't do anything if already requested
-		if (serversRequested.contains(serverPath))
-			return;
-		Runnable r = new Runnable() {
-			@Override
-			public void run() {
-				try {
-					Image image = requestThumbnail(serverPath, fileThumbnail);
-					if (image != null)
-						Platform.runLater(() -> tree.refresh());
-				} catch (IOException e) {
-					logger.error("Problem loading thumbnail for {}", serverPath, e);
-				}
-			}
-		};
-		qupath.submitShortTask(r);
-	}
-
 
 
 	//	@Override
@@ -656,44 +727,11 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 	}
 
 
-	File getImageDataPath(final ProjectImageEntry<?> entry) {
-		return getImageDataPath(project, entry);
-	}
-
-	/**
-	 * Get the file in which to save the ImageData for a specified project.
-	 * 
-	 * Deprecated now in favor of calling the static method in QuPathGUI instead.
-	 * 
-	 * @param project
-	 * @param entry
-	 * @return
-	 */
-	@Deprecated
-	public static File getImageDataPath(final Project<?> project, final ProjectImageEntry<?> entry) {
-		return QuPathGUI.getImageDataFile(project, entry);
-	}
-
-
-	File getProjectPath() {
+	File getProjectFile() {
 		File dirBase = getBaseDirectory();
 		if (dirBase == null || !dirBase.isDirectory())
 			return null;
-		return new File(dirBase, "project." + ProjectIO.getProjectExtension());
-	}
-
-
-	static File getThumbnailFile(final Project<?> project, final ProjectImageEntry<?> entry) {
-		if (project == null || entry == null)
-			return null;
-		File dirBase = project.getBaseDirectory();
-		if (dirBase == null || !dirBase.isDirectory())
-			return null;
-
-		File dirData = new File(dirBase, "thumbnails");
-		if (!dirData.exists())
-			dirData.mkdir();
-		return new File(dirData, entry.getImageName() + "." + THUMBNAIL_EXT);
+		return new File(dirBase, "project" + ProjectIO.getProjectExtension());
 	}
 
 
@@ -701,7 +739,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 		ImageData<?> imageData = getCurrentImageData();
 		if (imageData == null || entry == null)
 			return false;
-		return entry.equalsServerPath(imageData.getServerPath());
+		return entry.sameServerPath(imageData.getServerPath());
 	}
 
 
@@ -817,7 +855,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 	 * @param name
 	 * @return
 	 */
-	private static <T> ProjectImageEntry<T> setProjectEntryImageName(final Project<T> project, final ProjectImageEntry<T> entry, final String name) {
+	private synchronized static <T> ProjectImageEntry<T> setProjectEntryImageName(final Project<T> project, final ProjectImageEntry<T> entry, final String name) {
 		
 		if (entry.getImageName().equals(name)) {
 			logger.info("Project image name already set to {} - will be left unchanged", name);
@@ -831,26 +869,12 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 			}
 		}
 		
-		project.removeImage(entry);
-		File fileOld = QuPathGUI.getImageDataFile(project, entry);
-		
-		ProjectImageEntry<T> entryNew = new ProjectImageEntry<>(project, entry.getServerPath(), name, entry.getMetadataMap());
-		project.addImage(entryNew);
-		File fileNew = QuPathGUI.getImageDataFile(project, entryNew);
-		
-		// Rename the data file
-		if (fileOld.exists()) {
-			try {
-				Files.move(fileOld.toPath(), fileNew.toPath(), StandardCopyOption.ATOMIC_MOVE);
-			} catch (IOException e) {
-				DisplayHelpers.showErrorMessage("Set Image Name", e);
-			}
-		}
+		entry.setImageName(name);
 		
 		// Ensure the project is updated
-		ProjectIO.writeProject(project);
+		syncProject(project);
 		
-		return entryNew;
+		return entry;
 	}
 	
 
@@ -907,7 +931,9 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 
 			// Populate the map
 			String emptyKey = sortKeys.isEmpty() ? PROJECT_KEY : UNASSIGNED_NODE;
-			for (ProjectImageEntry<?> entry : project.getImageList()) {
+			var imageList = new ArrayList<>(project.getImageList());
+						
+			for (ProjectImageEntry<?> entry : imageList) {
 				String localKey = emptyKey;
 				for (String metadataKey : sortKeys) {
 					String temp = entry.getMetadataValue(metadataKey);
@@ -940,25 +966,32 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 			// Ensure unassigned is at the end
 			if (mapKeyList.remove(UNASSIGNED_NODE))
 				mapKeyList.add(UNASSIGNED_NODE);
-
-
-
-
 		}
 
 
 		public TreeItem<Object> getRootFX() {
 			rebuildModel();
+			
+			// If we are masking the image names, we should also shuffle the entries
+			boolean maskNames = PathPrefs.getMaskImageNames();
+			
 			TreeItem<Object> root = new TreeItem<>(getRoot());
 			List<TreeItem<Object>> items = root.getChildren();
 			if (project != null) {
+				Random rand = new Random(project.hashCode());
 				if (sortKeys.isEmpty()) {
-					for (ProjectImageEntry<?> entry : project.getImageList())
+					var imageList = project.getImageList();
+					if (maskNames)
+						Collections.shuffle(imageList, rand);
+					for (ProjectImageEntry<?> entry : imageList)
 						items.add(new TreeItem<>(entry));
 				} else {
 					for (String key : mapKeyList) {
 						TreeItem<Object> item = new TreeItem<>(key);
-						for (ProjectImageEntry<?> entry : map.get(key))
+						var imageList = map.get(key);
+						if (maskNames)
+							Collections.shuffle(imageList, rand);
+						for (ProjectImageEntry<?> entry : imageList)
 							item.getChildren().add(new TreeItem<>(entry));
 						items.add(item);
 					}
@@ -1065,7 +1098,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 			ProjectImageEntry<?> entry = item instanceof ProjectImageEntry ? (ProjectImageEntry<?>)item : null;
 			if (isCurrentImage(entry))
 				setStyle("-fx-font-weight: bold; -fx-font-family: arial");
-			else if (entry == null || getImageDataPath(entry).exists())
+			else if (entry == null || entry.hasImageData())
 				setStyle("-fx-font-weight: normal; -fx-font-family: arial");
 			else
 				setStyle("-fx-font-style: italic; -fx-font-family: arial");
@@ -1089,33 +1122,18 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 				//	        		 s = String.format("%s (%.2f MB)", s, sizeMB);
 				//	        	 }
 
-								StringBuilder sb = new StringBuilder();
-				sb.append(entry.getImageName()).append("\n\n");
-				if (!entry.getMetadataMap().isEmpty()) {
-					for (Entry<String, String> mapEntry : entry.getMetadataMap().entrySet()) {
-						sb.append(mapEntry.getKey()).append(":\t").append(mapEntry.getValue()).append("\n");
-					}
-					sb.append("\n");
-				}
-				File file = getImageDataPath(entry);
-				if (file != null && file.exists()) {
-					double sizeMB = file.length() / 1024.0 / 1024.0;
-					sb.append(String.format("Data file:\t%.2f MB", sizeMB)).append("\n");
-					sb.append("Modified:\t").append(dateFormat.format(new Date(file.lastModified())));
-				} else
-					sb.append("No data file");
-
-				tooltip.setText(sb.toString());
+				tooltip.setText(entry.getSummary());
 				//	        	 Tooltip tooltip = new Tooltip(sb.toString());
 
-				File fileThumbnail = getThumbnailFile(getProject(), entry);
-				if (fileThumbnail == null) {
-					setGraphic(null);
-					return;
+				BufferedImage img = null;
+				try {
+					img = (BufferedImage)entry.getThumbnail();
+				} catch (Exception e) {
+					logger.warn("Unable to read thumbnail for {} ({})" + entry.getImageName(), e.getLocalizedMessage());
 				}
 				
-				if (fileThumbnail.exists()) {
-					Image image = new Image(fileThumbnail.toURI().toString(), false);
+				if (img != null) {
+					Image image = SwingFXUtils.toFXImage(img, null);
 					viewTooltip.setImage(image);
 					tooltip.setGraphic(viewTooltip);
 					PaintingToolsFX.paintImage(viewCanvas, image);
@@ -1123,9 +1141,6 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 						setGraphic(label);
 				} else {
 					setGraphic(null);
-					// Put in a request for the thumbnail on a background thread
-					requestThumbnailInBackground(entry.getServerPath(), fileThumbnail);
-//					requestThumbnailInBackground(entry.getServerPath(), fileThumbnail, viewGraphic, viewTooltip);
 				}
 				
 			}

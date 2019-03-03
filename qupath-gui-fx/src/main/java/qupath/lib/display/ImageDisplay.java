@@ -57,7 +57,7 @@ import qupath.lib.analysis.stats.Histogram;
 import qupath.lib.color.ColorTransformer;
 import qupath.lib.color.ColorTransformer.ColorTransformMethod;
 import qupath.lib.display.ChannelDisplayInfo.ModifiableChannelDisplayInfo;
-import qupath.lib.display.ChannelDisplayInfo.MultiChannelInfo;
+import qupath.lib.display.ChannelDisplayInfo.DirectServerChannelInfo;
 import qupath.lib.display.ChannelDisplayInfo.RGBDirectChannelInfo;
 import qupath.lib.display.ChannelDisplayInfo.SingleChannelDisplayInfo;
 import qupath.lib.gui.images.stores.AbstractImageRenderer;
@@ -268,11 +268,11 @@ public class ImageDisplay extends AbstractImageRenderer {
 				tempSelectedChannels.add(tempChannelOptions.get(0));
 		} else if (serverChanged) {
 			if (server.nChannels() == 1) {
-				tempChannelOptions.add(new ChannelDisplayInfo.MultiChannelInfo(imageData, 0));
+				tempChannelOptions.add(new ChannelDisplayInfo.DirectServerChannelInfo(imageData, 0));
 			}
 			else {
 				for (int c = 0; c < server.nChannels(); c++) {
-					tempChannelOptions.add(new ChannelDisplayInfo.MultiChannelInfo(imageData, c));
+					tempChannelOptions.add(new ChannelDisplayInfo.DirectServerChannelInfo(imageData, c));
 				}
 			}
 		} else
@@ -315,8 +315,8 @@ public class ImageDisplay extends AbstractImageRenderer {
 		// Legacy code for the old color-only-storing property approach
 		int n = 0;
 		for (ChannelDisplayInfo info : channelOptions) {
-			if (info instanceof MultiChannelInfo) {
-				MultiChannelInfo multiInfo = (MultiChannelInfo)info;
+			if (info instanceof DirectServerChannelInfo) {
+				DirectServerChannelInfo multiInfo = (DirectServerChannelInfo)info;
 				Integer colorOld = multiInfo.getColor();
 				Object colorNew = imageData.getProperty("COLOR_CHANNEL:" + info.getName());
 				if (colorNew instanceof Integer && ((Integer) colorNew).equals(colorOld)) {
@@ -396,7 +396,6 @@ public class ImageDisplay extends AbstractImageRenderer {
 	 * 
 	 * @param channel
 	 * @param selected true if the channel should be selected, false if it should not
-	 * @return the current selection list, possibly modified by this operation
 	 */
 	public void setChannelSelected(ChannelDisplayInfo channel, boolean selected) {
 		// Try to minimize the number of events fired
@@ -550,7 +549,8 @@ public class ImageDisplay extends AbstractImageRenderer {
 		
 		histogramManager = cachedHistograms.get(server.getPath());
 		if (histogramManager == null) {
-			histogramManager = new HistogramManager(server.getLastChangeTimestamp());
+			histogramManager = new HistogramManager(0L);
+//			histogramManager = new HistogramManager(server.getLastChangeTimestamp());
 			histogramManager.ensureChannels(server, channelOptions);
 			channelOptions.stream().forEach(channel -> autoSetDisplayRange(channel, false));
 			cachedHistograms.put(server.getPath(), histogramManager);
@@ -601,8 +601,8 @@ public class ImageDisplay extends AbstractImageRenderer {
 			count -= nextCount;
 			ind--;
 		}
-		logger.info(String.format("Display range for {}: %.3f - %.3f (saturation %.3f)",  minDisplay, maxDisplay, saturation), info.getName());
-		setMinMaxDisplay(info, (float)minDisplay, (float)maxDisplay);
+		logger.debug(String.format("Display range for {}: %.3f - %.3f (saturation %.3f)",  minDisplay, maxDisplay, saturation), info.getName());
+		setMinMaxDisplay(info, (float)minDisplay, (float)maxDisplay, fireUpdate);
 	}
 
 	void autoSetDisplayRange(ChannelDisplayInfo info, boolean fireUpdate) {
@@ -735,8 +735,8 @@ public class ImageDisplay extends AbstractImageRenderer {
 				if (maxDisplay != null)
 					((ModifiableChannelDisplayInfo)info).setMaxDisplay(maxDisplay);				
 			}
-			if (color != null && info instanceof MultiChannelInfo)
-				((MultiChannelInfo)info).setLUTColor(color);
+			if (color != null && info instanceof DirectServerChannelInfo)
+				((DirectServerChannelInfo)info).setLUTColor(color);
 			return true;
 		}
 	}
@@ -779,10 +779,10 @@ public class ImageDisplay extends AbstractImageRenderer {
 		}
 		
 		void ensureChannels(final ImageServer<BufferedImage> server, final List<ChannelDisplayInfo> channels) {
-			if (timestamp != server.getLastChangeTimestamp()) {
-				logger.warn("Timestamp changed for server!  Histograms will be rebuilt for {}", server.getPath());
-				map.clear();
-			}
+//			if (timestamp != server.getLastChangeTimestamp()) {
+//				logger.warn("Timestamp changed for server!  Histograms will be rebuilt for {}", server.getPath());
+//				map.clear();
+//			}
 			// Check what we might need to process
 			List<SingleChannelDisplayInfo> channelsToProcess = new ArrayList<>();
 			for (ChannelDisplayInfo channel : channels) {

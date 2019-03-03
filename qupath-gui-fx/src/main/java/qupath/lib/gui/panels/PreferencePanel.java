@@ -114,6 +114,11 @@ public class PreferencePanel {
 				category,
 				"Show the name of the current image in the main QuPath title bar (turn this off if the name shouldn't be seen).");
 		
+		addPropertyPreference(PathPrefs.maskImageNamesProperty(), Boolean.class,
+				"Mask image names in projects",
+				category,
+				"Mask the image names when using projects, to help reduce the potential for user bias during analysis.");
+		
 		
 		addPropertyPreference(PathPrefs.doCreateLogFilesProperty(), Boolean.class,
 				"Create log files",
@@ -323,6 +328,11 @@ public class PreferencePanel {
 				"Scale brush by magnification",
 				category,
 				"Adapt brush size by magnification, so higher magnification gives a finer brush");
+		
+		addPropertyPreference(PathPrefs.multipointToolProperty(), Boolean.class,
+				"Use multipoint tool",
+				category,
+				"With the Counting tool, add points to an existing object if possible");
 
 		addPropertyPreference(PathPrefs.defaultPointRadiusProperty(), Integer.class,
 				"Point radius",

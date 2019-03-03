@@ -26,6 +26,8 @@ package qupath.lib.images.servers;
 import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
+import java.net.URI;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -33,7 +35,7 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import qupath.lib.common.URLTools;
+import qupath.lib.common.GeneralTools;
 
 
 /**
@@ -77,58 +79,72 @@ public class FileFormatInfo {
 	static final int SAMPLE_FORMAT = 339;
 
 	
-	public static ImageCheckType checkImageType(final String path) {
+	public static ImageCheckType checkImageType(final URI uri) {
 		
-		if (URLTools.checkURL(path))
+		var scheme = uri.getScheme();
+		if (scheme == null)
+			return ImageCheckType.UNKNOWN;
+		
+		if (scheme.startsWith("http"))
 			return ImageCheckType.URL;
 		
-		File file = new File(path);
-		if (!file.exists())
+		var path = GeneralTools.toPath(uri);
+		if (path == null || !Files.exists(path))
 			return ImageCheckType.UNKNOWN;
 		
-		// Workaround for large .ndpi problem - TODO: consider longer-term .ndpi fix, or removing TIFF check
-		// See https://github.com/qupath/qupath-bioformats-extension/issues/2#issuecomment-437854123
-		if (path.toLowerCase().endsWith(".ndpi"))
-			return ImageCheckType.UNKNOWN;
+		File file = path.toFile();
+
 		
-		RandomAccessFile in = null;
-		FileFormatInfo.ImageCheckType type = null;
+		// Need to get a URI for image, without any extra bits
 		try {
-			in = new RandomAccessFile(path, "r");
 			
-			boolean littleEndian;
-			int byteOrder = in.readShort();
-			if (byteOrder == 0x4949) // "II"
-				littleEndian = true;
-			else if (byteOrder == 0x4d4d) // "MM"
-				littleEndian = false;
-			else {
-				in.close();
+			// Workaround for large .ndpi problem - TODO: consider longer-term .ndpi fix, or removing TIFF check
+			// See https://github.com/qupath/qupath-bioformats-extension/issues/2#issuecomment-437854123
+			if (file.getName().toLowerCase().endsWith(".ndpi"))
 				return ImageCheckType.UNKNOWN;
-			}
 			
-			// Check if standard (key: 42) or BigTiff (key: 43)
-			int special = readShort(in, littleEndian);
-			if (special == 42)
-				type = checkStandardTiff(in, littleEndian);
-			else if (special == 43)
-				type = checkBigTiff(in, littleEndian); 
-			else
-				type = ImageCheckType.UNKNOWN;
-			
-		} catch (Exception e) {
-			logger.error("TIFF check problem", e);
-			return ImageCheckType.UNKNOWN;
-		} finally {
-			if (in != null) {
-				try {
+			RandomAccessFile in = null;
+			FileFormatInfo.ImageCheckType type = null;
+			try {
+				in = new RandomAccessFile(file, "r");
+				
+				boolean littleEndian;
+				int byteOrder = in.readShort();
+				if (byteOrder == 0x4949) // "II"
+					littleEndian = true;
+				else if (byteOrder == 0x4d4d) // "MM"
+					littleEndian = false;
+				else {
 					in.close();
-				} catch (IOException e) {
-					logger.error("TIFF check problem", e);
+					return ImageCheckType.UNKNOWN;
+				}
+				
+				// Check if standard (key: 42) or BigTiff (key: 43)
+				int special = readShort(in, littleEndian);
+				if (special == 42)
+					type = checkStandardTiff(in, littleEndian);
+				else if (special == 43)
+					type = checkBigTiff(in, littleEndian); 
+				else
+					type = ImageCheckType.UNKNOWN;
+				
+			} catch (Exception e) {
+				logger.error("TIFF check problem", e);
+				return ImageCheckType.UNKNOWN;
+			} finally {
+				if (in != null) {
+					try {
+						in.close();
+					} catch (IOException e) {
+						logger.error("TIFF check problem", e);
+					}
 				}
 			}
+			return type;
+		} catch (Exception e) {
+			logger.warn("Unable to estimate image type: {}", e.getLocalizedMessage());
+			return ImageCheckType.UNKNOWN;
 		}
-		return type;
 	}
 	
 	

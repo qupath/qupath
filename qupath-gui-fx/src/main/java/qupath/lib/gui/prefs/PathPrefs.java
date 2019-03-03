@@ -28,6 +28,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.reflect.Method;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -65,7 +67,7 @@ import qupath.lib.projects.ProjectIO;
 
 /**
  * Central storage of QuPath preferences.
- * 
+ * <p>
  * Most of these are 'persistent', and stored in a platform-dependent way using 
  * Java's Preferences API.
  * 
@@ -74,7 +76,10 @@ import qupath.lib.projects.ProjectIO;
  */
 public class PathPrefs {
 	
-	final private static String NODE_NAME = "io.github.qupath";
+	/**
+	 * Name for preference node - until 0.2.0 is stable, avoid using same storage as v0.1.2
+	 */
+	final private static String NODE_NAME = "io.github.qupath.0.2.0.m1";
 	
 	private static Logger logger = LoggerFactory.getLogger(PathPrefs.class);
 	
@@ -182,6 +187,21 @@ public class PathPrefs {
 		doAutoUpdateCheck.set(doCheck);
 	}
 
+	
+	
+	private static BooleanProperty maskImageNames = createPersistentPreference("maskImageNames", Boolean.FALSE);
+	
+	public static BooleanProperty maskImageNamesProperty() {
+		return maskImageNames;
+	}
+
+	public static boolean getMaskImageNames() {
+		return maskImageNames.get();
+	}
+	
+	public static void setMaskImageNames(final boolean doMask) {
+		maskImageNames.set(doMask);
+	}
 	
 	
 	
@@ -530,7 +550,7 @@ public class PathPrefs {
 	
 	
 	private static int nRecentProjects = 5;
-	private static ObservableList<File> recentProjects = FXCollections.observableArrayList();
+	private static ObservableList<URI> recentProjects = FXCollections.observableArrayList();
 	
 	static {
 		// Try to load the recent projects
@@ -539,16 +559,20 @@ public class PathPrefs {
 			if (project == null || project.length() == 0)
 				break;
 			// Only allow project files
-			if (!(project.toLowerCase().endsWith(ProjectIO.getProjectExtension()) && new File(project).isFile())) {
+			if (!(project.toLowerCase().endsWith(ProjectIO.getProjectExtension()))) {
 				continue;
 			}
-			recentProjects.add(new File(project));
+			try {
+				recentProjects.add(GeneralTools.toURI(project));
+			} catch (URISyntaxException e) {
+				logger.warn("Unable to parse URI from " + project, e);
+			}
 		}
 		// Add a listener to keep storing the preferences, as required
-		recentProjects.addListener((Change<? extends File> c) -> {
+		recentProjects.addListener((Change<? extends URI> c) -> {
 			int i = 0;
-			for (File project : recentProjects) {
-				getUserPreferences().put("recentProject" + i, project.getAbsolutePath());
+			for (URI project : recentProjects) {
+				getUserPreferences().put("recentProject" + i, project.toString());
 				i++;
 			}
 			while (i < nRecentProjects) {
@@ -558,7 +582,7 @@ public class PathPrefs {
 		});
 	}
 	
-	public static ObservableList<File> getRecentProjectList() {
+	public static ObservableList<URI> getRecentProjectList() {
 		return recentProjects;
 	}
 	
@@ -992,6 +1016,21 @@ public class PathPrefs {
 	}
 	
 	
+	private static BooleanProperty multipointTool = createTransientPreference("multipointTool", true);
+	
+	public static BooleanProperty multipointToolProperty() {
+		return multipointTool;
+	}
+
+	public static boolean getMultipointTool() {
+		return multipointTool.get();
+	}
+
+	public static void setMultipointTool(boolean doMultipoint) {
+		multipointTool.set(doMultipoint);
+	}
+	
+	
 	private static DoubleProperty tmaExportDownsampleProperty = createPersistentPreference("tmaExportDownsample", 4.0);
 
 	public static void setTMAExportDownsample(final double downsample) {
@@ -1189,7 +1228,6 @@ public class PathPrefs {
 	
 	/**
 	 * Always paint selected objects in the viewer, even if the opacity setting is 0.
-	 * @param autoClose
 	 */
 	public static void setAlwaysPaintSelectedObjects(boolean alwaysPaint) {
 		alwaysPaintSelectedObjects.set(alwaysPaint);

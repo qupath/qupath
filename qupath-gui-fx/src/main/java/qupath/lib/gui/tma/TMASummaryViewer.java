@@ -25,6 +25,7 @@ package qupath.lib.gui.tma;
 
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -1127,14 +1128,13 @@ public class TMASummaryViewer {
 		
 		List<TMAEntry> entries = new ArrayList<>();
 		for (ProjectImageEntry<BufferedImage> imageEntry : project.getImageList()) {
-			File file = QuPathGUI.getImageDataFile(project, imageEntry);
-			if (file.isFile()) {
-				logger.info("Reading from {}", file);
-				ImageData<BufferedImage> imageData = PathIO.readImageData(file, null, null, BufferedImage.class);
-				if (imageData != null)
+			if (imageEntry.hasImageData()) {
+				try {
+					ImageData<BufferedImage> imageData = imageEntry.readImageData();
 					entries.addAll(getEntriesForTMAData(imageData));
-				else
-					logger.error("No ImageData read for {]", file);
+				} catch (IOException e) {
+					logger.error("Unable to read ImageData for {} ({})", imageEntry.getImageName(), e.getLocalizedMessage());
+				}
 			}
 		}
 		setTMAEntries(entries);
@@ -1172,8 +1172,12 @@ public class TMASummaryViewer {
 			return;
 		
 		if (file.getName().toLowerCase().endsWith(PathPrefs.getSerializationExtension())) {
-			ImageData<BufferedImage> imageData = PathIO.readImageData(file, null, null, BufferedImage.class);
-			setTMAEntriesFromImageData(imageData);
+			try {
+				ImageData<BufferedImage> imageData = PathIO.readImageData(file, null, null, BufferedImage.class);
+				setTMAEntriesFromImageData(imageData);
+			} catch (IOException e) {
+				logger.error("Error reading image data", e);
+			}
 			return;
 		}
 

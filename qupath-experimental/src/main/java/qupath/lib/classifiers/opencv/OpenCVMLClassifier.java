@@ -39,6 +39,7 @@ import qupath.lib.classifiers.opencv.OpenCVClassifiers.SVMClassifierCV;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.classes.PathClass;
+import qupath.lib.objects.classes.Reclassifier;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.plugins.parameters.Parameterizable;
 
@@ -282,9 +283,9 @@ public class OpenCVMLClassifier implements PathObjectClassifier, Parameterizable
 					int prediction = idxResults.get(row);
 					var pathClass = pathClasses.get(prediction);
 					if (idxProbabilities == null)
-						reclassifiers.add(new Reclassifier(pathObject, pathClass));
+						reclassifiers.add(new Reclassifier(pathObject, pathClass, true));
 					else
-						reclassifiers.add(new Reclassifier(pathObject, pathClass, idxProbabilities.get(row, prediction)));							
+						reclassifiers.add(new Reclassifier(pathObject, pathClass, true, idxProbabilities.get(row, prediction)));							
 					row++;
 				}
 				idxResults.release();
@@ -324,6 +325,7 @@ public class OpenCVMLClassifier implements PathObjectClassifier, Parameterizable
 
 	@Override
 	public String getName() {
+		System.err.println(getClass() + ": " + classifier);
 		return classifier.getName();
 	}
 

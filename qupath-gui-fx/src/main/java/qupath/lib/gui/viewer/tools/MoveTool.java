@@ -148,7 +148,8 @@ public class MoveTool extends AbstractPathTool {
 					if (editor.grabHandle(xx, yy, viewer.getMaxROIHandleSize() * 1.5, e.isShiftDown()))
 						e.consume();
 				}
-				if (!e.isConsumed() && ROIHelpers.areaContains(currentROI, xx, yy) && canTranslate(viewer.getSelectedObject())) {
+				if (!e.isConsumed() && canTranslate(currentObject) &&
+						(ROIHelpers.areaContains(currentROI, xx, yy) || getSelectableObjectList(xx, yy).contains(currentObject))) {
 					// If we have a translatable ROI, try starting translation
 					if (editor.startTranslation(xx, yy))
 						e.consume();

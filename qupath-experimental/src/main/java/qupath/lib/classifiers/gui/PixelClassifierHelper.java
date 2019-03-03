@@ -77,17 +77,13 @@ public class PixelClassifierHelper implements PathObjectHierarchyListener {
      * 
      * @param imageData
      * @param calculator
-     * @param requestedPixelSizeMicrons
+     * @param downsample
      */
     public PixelClassifierHelper(ImageData<BufferedImage> imageData, OpenCVFeatureCalculator calculator, 
     		double downsample) {
         setImageData(imageData);
         this.calculator = calculator;
         this.downsample = downsample;
-    }
-
-    public double getDownsample() {
-        return downsample;
     }
 
     public void setFeatureCalculator(OpenCVFeatureCalculator calculator) {
@@ -130,7 +126,7 @@ public class PixelClassifierHelper implements PathObjectHierarchyListener {
     }
     
 
-    public static Map<PathClass, Collection<ROI>> getAnnotatedROIs(PathObjectHierarchy hierarchy) {
+    private static Map<PathClass, Collection<ROI>> getAnnotatedROIs(PathObjectHierarchy hierarchy) {
         List<PathObject> annotations = hierarchy.getObjects(null, PathAnnotationObject.class).stream().filter((it) -> {
             return !it.isLocked() && it.getPathClass() != null && it.getPathClass() != PathClassFactory.getRegionClass() && it.hasROI();
         }).collect(Collectors.toList());
@@ -152,11 +148,6 @@ public class PixelClassifierHelper implements PathObjectHierarchyListener {
 
 
     private Map<PathClass, Collection<ROI>> lastAnnotatedROIs;
-
-
-    public Map<PathClass, Collection<ROI>> getLastTrainingROIs() {
-        return lastAnnotatedROIs;
-    }
 
     private Map<Integer, PathClass> pathClassesLabels = new LinkedHashMap<>();
     
@@ -194,7 +185,7 @@ public class PixelClassifierHelper implements PathObjectHierarchyListener {
 //    	}
 //    }
 //    
-//    public static void getTrainingData(ImageData<BufferedImage> imageData) {
+//    private static void getTrainingData(ImageData<BufferedImage> imageData) {
 //    	
 //    	var server = imageData.getServer();
 //    	var hierarchy = imageData.getHierarchy();
@@ -250,21 +241,29 @@ public class PixelClassifierHelper implements PathObjectHierarchyListener {
         pathClassesLabels.clear();
         
         List<ImageChannel> newChannels = new ArrayList<>();
-        String path = imageData.getServerPath();
         List<Mat> allFeatures = new ArrayList<>();
         List<Mat> allTargets = new ArrayList<>();
         int label = 0;
         Set<PathClass> backgroundClasses = new HashSet<>(
         		Arrays.asList(
-        				PathClassFactory.getDefaultPathClass(PathClassFactory.PathClasses.EMPTY)				
+        				PathClassFactory.getDefaultPathClass(PathClassFactory.PathClasses.IGNORE)				
         				)
         		);
         for (PathClass pathClass : pathClasses) {
             // Create a suitable channel
-            Integer color = backgroundClasses.contains(pathClass) ?
-            		null : pathClass.getColor();
+        	// For background classes, make the color (mostly?) transparent
+        	Integer color = pathClass.getColor();
+        	if (backgroundClasses.contains(pathClass.getBaseClass()))
+        		color = null;
+//        	if (backgroundClasses.contains(pathClass.getBaseClass()))
+//        		color = ColorTools.makeRGBA(ColorTools.red(color),
+//        				ColorTools.green(color),
+//        				ColorTools.blue(color),
+//        				32);
+        	
             ImageChannel channel = ImageChannel.getInstance(
                     pathClass.getName(), color);
+            
             newChannels.add(channel);
             pathClassesLabels.put(label, pathClass);
             // Loop through the object & get masks
@@ -393,7 +392,7 @@ public class PixelClassifierHelper implements PathObjectHierarchyListener {
         else
             channels.clear();
         channels.addAll(newChannels);
-
+        
         lastAnnotatedROIs = Collections.unmodifiableMap(map);
         changes = false;
         return true;
@@ -425,6 +424,41 @@ public class PixelClassifierHelper implements PathObjectHierarchyListener {
             updateTrainingData();
         if (matTraining == null || matTargets == null)
             return null;
+        
+//        // Calculate weights
+//        Mat matWeights = null;
+//        int[] counts = new int[channels.size()];
+//        try (IntIndexer indexer = matTargets.createIndexer()) {
+//	        for (long i = 0; i < indexer.size(0); i++) {
+//	        	counts[indexer.get(i)]++;
+//	        }
+//	        int minCount = Integer.MAX_VALUE;
+//	        for (int c : counts) {
+//	        	if (c > 0)
+//	        		minCount = Math.min(c, minCount);
+//	        }
+//	        
+//	        float[] weights = new float[counts.length];
+//	        for (int i = 0; i < counts.length; i++) {
+//	        	int c = counts[i];
+//	        	if (c == 0)
+//	        		weights[i] = 0f;
+//	        	else
+//	        		weights[i] = minCount / (float)c;
+//	        }
+//	        
+//	        matWeights = new Mat(matTargets.size(), opencv_core.CV_32FC1);
+//	        try (FloatIndexer idxWeights = matWeights.createIndexer()) {
+//		        for (long i = 0; i < indexer.size(0); i++) {
+//		        	idxWeights.put(i, weights[indexer.get(i)]);
+//		        }
+//	        }
+//        } catch (Exception e) {
+//        	logger.error("Error calculating weights", e);
+//        }
+//        
+//        return TrainData.create(matTraining, opencv_ml.ROW_SAMPLE, matTargets, null, null, matWeights, null);
+        
         return TrainData.create(matTraining, opencv_ml.ROW_SAMPLE, matTargets);
     }
 

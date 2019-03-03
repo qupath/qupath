@@ -2,11 +2,16 @@ package qupath.lib.classifiers.gui;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;
-import java.util.Map;
+import java.util.UUID;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.gson.Gson;
+import com.google.gson.annotations.JsonAdapter;
+
 import qupath.lib.classifiers.pixel.PixelClassifier;
+import qupath.lib.classifiers.pixel.PixelClassifiers;
 import qupath.lib.classifiers.pixel.PixelClassifierMetadata.OutputType;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.AbstractTileableImageServer;
@@ -24,17 +29,27 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 	
 	private ImageData<BufferedImage> imageData;
 	private ImageServer<BufferedImage> server;
+	
+	@JsonAdapter(PixelClassifiers.PixelClassifierTypeAdapterFactory.class)
 	private PixelClassifier classifier;
+	
 	private ImageServerMetadata metadata;
 
-	public PixelClassificationImageServer(Map<RegionRequest, BufferedImage> cache, ImageData<BufferedImage> imageData, PixelClassifier classifier) {
-		super(cache);
+	public PixelClassificationImageServer(ImageData<BufferedImage> imageData, PixelClassifier classifier) {
+		super();
 		this.classifier = classifier;
 		this.imageData = imageData;
 		this.server = imageData.getServer();
 		
 		var classifierMetadata = classifier.getMetadata();
-		var path = server.getPath() + "::" + classifier.toString();
+		
+		String path;
+		try {
+			// If we can construct a path (however long) that includes the full serialization info, then cached tiles can be reused even if the server is recreated
+			path = server.getPath() + "::" + new Gson().toJson(classifier);
+		} catch (Exception e) {
+			path = server.getPath() + "::" + UUID.randomUUID().toString();			
+		}
 		
 		var bitDepth = 8;
 		
@@ -45,8 +60,10 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 		if (tileHeight <= 0)
 			tileHeight = DEFAULT_TILE_SIZE;
 		
-		double inputSizeMicrons = classifierMetadata.getInputPixelSizeMicrons();
-		double downsample = inputSizeMicrons / server.getAveragedPixelSizeMicrons();
+		double inputPixelSize = classifierMetadata.getInputPixelSize();
+		double downsample = inputPixelSize / server.getAveragedPixelSizeMicrons();
+		if (!Double.isFinite(downsample))
+			downsample = inputPixelSize;
 		
 		int width = server.getWidth();
 		int height = server.getHeight();
@@ -55,7 +72,7 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 						.addLevelByDownsample(downsample)
 						.build();
 		
-		var builder = new ImageServerMetadata.Builder(server.getMetadata())
+		var builder = new ImageServerMetadata.Builder(getClass(), server.getMetadata())
 				.path(path)
 				.width(width)
 				.height(height)
@@ -67,6 +84,23 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 				
 		metadata = builder.build();
 		
+	}
+	
+	public ImageData<BufferedImage> getImageData() {
+		return imageData;
+	}
+	
+	/**
+	 * Get a cached tile, or null if the tile has not been cached.
+	 * <p>
+	 * This is useful whenever it is important to return quickly rather than wait for a tile to be fetched or generated.
+	 * 
+	 * @param tile
+	 * @return
+	 */
+	public BufferedImage getCachedTile(TileRequest tile) {
+		var cache = getCache();
+		return cache == null ? null : cache.getOrDefault(tile.getRegionRequest(), null);
 	}
 	
 	public OutputType getOutputType() {
@@ -127,7 +161,6 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 	 * 
 	 * @param x
 	 * @param y
-	 * @param c
 	 * @param z
 	 * @param t
 	 * @return

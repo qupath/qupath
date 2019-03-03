@@ -6,10 +6,10 @@ import qupath.lib.regions.RegionRequest;
 
 /**
  * An ImageServer that simply wraps around an existing ImageServer.
- * 
+ * <p>
  * Its purpose is to help implement other ImageServers that apply pixel or spatial 
  * transforms to an alternative ImageServer.
- * 
+ * <p>
  * Subclasses may only implement the methods necessary to apply the required transform.
  * 
  * @author Pete Bankhead
@@ -22,12 +22,6 @@ public abstract class WrappedImageServer<T> extends AbstractImageServer<T> {
 	
 	protected WrappedImageServer(ImageServer<T> server) {
 		this.server = server;
-	}
-	
-
-	@Override
-	public Integer getDefaultChannelColor(int channel) {
-		return server.getDefaultChannelColor(channel);
 	}
 	
 	/**

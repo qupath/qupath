@@ -78,7 +78,7 @@ public class RotatedImageServer extends WrappedImageServer<BufferedImage> {
 			metadata = getQuarterRotatedMetadata(server.getOriginalMetadata());
 			break;
 		case ROTATE_180:
-			metadata = new ImageServerMetadata.Builder(server.getOriginalMetadata())
+			metadata = new ImageServerMetadata.Builder(getClass(), server.getOriginalMetadata())
 						.path(getPath()).build();
 			break;
 		case ROTATE_NONE:
@@ -102,7 +102,7 @@ public class RotatedImageServer extends WrappedImageServer<BufferedImage> {
 			levelBuilder.addLevel(level.getDownsample(), level.getHeight(), level.getWidth());
 		}
 		
-		var builder = new ImageServerMetadata.Builder(metadata)
+		var builder = new ImageServerMetadata.Builder(getClass(), metadata)
 				.path(getPath())
 				.width(metadata.getHeight())
 				.height(metadata.getWidth())

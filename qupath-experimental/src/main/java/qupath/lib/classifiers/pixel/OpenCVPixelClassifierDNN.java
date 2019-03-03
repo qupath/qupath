@@ -25,7 +25,6 @@ public class OpenCVPixelClassifierDNN extends AbstractOpenCVPixelClassifier {
     private static final Logger logger = LoggerFactory.getLogger(OpenCVPixelClassifier.class);
 
     private opencv_dnn.Net model;
-    private ColorModel colorModel;
     private boolean doSoftMax;
     
     private int inputPadding;
@@ -245,7 +244,7 @@ public class OpenCVPixelClassifierDNN extends AbstractOpenCVPixelClassifier {
             	logger.error("Error applying classifier", e2);
             }
         	long endTime = System.currentTimeMillis();
-//        	System.err.println("Classification time: " + (endTime - startTime) + " ms");
+        	logger.trace("Classification time: {} ms", endTime - startTime);
         }
         
         MatVector matvec = new MatVector();
@@ -331,7 +330,7 @@ public class OpenCVPixelClassifierDNN extends AbstractOpenCVPixelClassifier {
     	        
         // If we have a floating point or multi-channel result, we have probabilities
         ColorModel colorModelLocal;
-        if (matResult.channels() > 1) {
+        if (matResult.channels() > 1 || matResult.type() == opencv_core.CV_32F) {
         	// Do softmax if needed
             if (doSoftMax)
                 applySoftmax(matResult);

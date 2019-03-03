@@ -5,7 +5,7 @@ import java.awt.image.DataBufferByte;
 import java.awt.image.IndexColorModel;
 import java.io.IOException;
 
-import qupath.lib.classifiers.gui.ClassificationColorModelFactory;
+import qupath.lib.awt.color.model.ColorModelFactory;
 import qupath.lib.classifiers.pixel.PixelClassifierMetadata.OutputType;
 import qupath.lib.display.ChannelDisplayInfo.SingleChannelDisplayInfo;
 import qupath.lib.images.ImageData;
@@ -30,7 +30,7 @@ public class SimplePixelClassifier implements PixelClassifier {
 		this.threshold = threshold;
 		this.metadata = new PixelClassifierMetadata.Builder()
 				.channels(getChannel(belowThreshold), getChannel(aboveThreshold))
-				.inputPixelSizeMicrons(requestedPixelSizeMicrons)
+				.inputPixelSize(requestedPixelSizeMicrons)
 				.inputShape(512, 512)
 				.setOutputType(OutputType.Classification)
 				.build();
@@ -52,7 +52,7 @@ public class SimplePixelClassifier implements PixelClassifier {
 
 		var transformed = channel.getValues(img, 0, 0, img.getWidth(), img.getHeight(), null);
 		
-		var colorModel = (IndexColorModel)ClassificationColorModelFactory.geClassificationColorModel(metadata.getChannels());
+		var colorModel = (IndexColorModel)ColorModelFactory.getIndexedColorModel(metadata.getChannels());
 		var imgResult = new BufferedImage(img.getWidth(), img.getHeight(), BufferedImage.TYPE_BYTE_INDEXED, colorModel);
 		var raster = imgResult.getRaster();
 		var bytes = ((DataBufferByte)raster.getDataBuffer()).getData();

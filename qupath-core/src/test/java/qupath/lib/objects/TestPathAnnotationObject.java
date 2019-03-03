@@ -86,7 +86,7 @@ public class TestPathAnnotationObject extends PathObjectTestWrapper {
 	@Test
 	public void test_MeasurementList() {
 		MeasurementList tML = MeasurementListFactory.createMeasurementList(16, MeasurementList.TYPE.GENERAL);
-		tML.add(MeasurementFactory.createMeasurement(nameML, valueML));
+		tML.putMeasurement(MeasurementFactory.createMeasurement(nameML, valueML));
 		PathAnnotationObject tPO = new PathAnnotationObject(myROI, myPC, tML);
 		test_hasMeasurements(myPO, Boolean.FALSE); // no measurements
 		test_nMeasurements(myPO, 0); // no measurements

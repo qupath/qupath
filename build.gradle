@@ -9,8 +9,11 @@
 /**
  * Some metadata for the manifest
  */
-def qupathVersion = "0.2.0-SNAPSHOT"
+
+def qupathVersion = file('VERSION').text.trim()
 def qupathVendor = "QuPath developers"
+
+println 'Building QuPath version ' + qupathVersion
 
 /**
  * Output location; once things are gathered here, they can be used as input for jpackager
@@ -115,9 +118,9 @@ subprojects {
 
     controlsfx 'org.controlsfx:controlsfx:9.0.0'
 
-///	bioformats 'ome:bioformats_package:6.0.0-rc1'
-	bioformats 'ome:formats-gpl:6.0.0-rc1'
-	bioformatsTest 'ome:bio-formats_plugins:6.0.0-rc1' // Only required for testing
+//	bioformats 'ome:bioformats_package:6.0.0'
+	bioformats 'ome:formats-gpl:6.0.0'
+	bioformatsTest 'ome:bio-formats_plugins:6.0.0' // Only required for testing
 
     jfxtras 'org.jfxtras:jfxtras-menu:10.0-r1'
 
@@ -234,6 +237,7 @@ task copyChangelog(type: Copy) {
   include 'CHANGELOG.md'
   include 'STARTUP.md'
   include 'LICENSE.txt'
+  include 'VERSION'
 }
 
 /**
@@ -417,14 +421,12 @@ task createPackage(dependsOn:createRuntime, type:Exec) {
 
     params << '--main-jar' << jar.archiveName
 
-    params << '--name' << 'QuPath-JDK11-alpha'
-    params << '--class' << 'qupath.QuPath'
+    params << '--name' << 'QuPath-' + qupathVersion
+//    params << '--class' << 'qupath.QuPath'
 
     // Strip off any SNAPSHOT part, which can cause trouble
     params << '--app-version' << qupathVersion.replace('-SNAPSHOT', '')
-    
-    params << '--force'
-    
+        
     // Not entirely clear this is effective...?
     params << '--strip-native-commands'
 

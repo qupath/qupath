@@ -46,8 +46,7 @@ import ij.plugin.filter.RankFilters;
 import ij.process.Blitter;
 import ij.process.ByteProcessor;
 import ij.process.ImageProcessor;
-import qupath.imagej.images.servers.ImagePlusServer;
-import qupath.imagej.images.servers.ImagePlusServerBuilder;
+import qupath.imagej.helpers.IJTools;
 import qupath.imagej.objects.ROIConverterIJ;
 import qupath.imagej.processing.MorphologicalReconstruction;
 import qupath.imagej.processing.ROILabeling;
@@ -55,6 +54,7 @@ import qupath.imagej.processing.SimpleThresholding;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.PathImage;
+import qupath.lib.images.servers.ImageServer;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
@@ -128,7 +128,7 @@ public class SimpleTissueDetection2 extends AbstractDetectionPlugin<BufferedImag
 		@Override
 		public Collection<PathObject> runDetection(final ImageData<BufferedImage> imageData, final ParameterList params, final ROI pathROI) throws IOException {
 			
-			ImagePlusServer server = ImagePlusServerBuilder.ensureImagePlusWholeSlideServer(imageData.getServer());
+			ImageServer<BufferedImage> server = imageData.getServer();
 			
 			double downsample;
 			if (server.hasPixelSizeMicrons()) {
@@ -153,7 +153,7 @@ public class SimpleTissueDetection2 extends AbstractDetectionPlugin<BufferedImag
 					request = RegionRequest.createInstance(server.getPath(), downsample, pathROI);
 
 				
-				PathImage<ImagePlus> pathImage = server.readImagePlusRegion(request); // TODO: Implement z-stack support
+				PathImage<ImagePlus> pathImage = IJTools.convertToImagePlus(server, request); // TODO: Implement z-stack support
 			
 			double threshold = params.getIntParameterValue("threshold");
 			double minAreaMicrons = 1, maxHoleAreaMicrons = 1, minAreaPixels = 1, maxHoleAreaPixels = 1;

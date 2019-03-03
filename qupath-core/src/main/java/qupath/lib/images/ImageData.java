@@ -88,7 +88,7 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
 	
 	private String serverPath;
 	private PathObjectHierarchy hierarchy;
-	private ImageType type;
+	private ImageType type = ImageType.UNSET;
 	
 	// A log of steps that have been applied
 	private Workflow workflow = new Workflow();
@@ -316,7 +316,8 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
 	    	if (oldValue == null)
 	    		changes = value != null;
 	    	else
-	    		changes = !oldValue.equals(changes);
+	    		changes = changes || !oldValue.equals(value);
+//	    	System.err.println(changes + " setting " + key + " to " + value);
 	    	return oldValue;
     }
 

@@ -83,7 +83,7 @@ public class ProjectExportImageListCommand implements PathCommand {
 			writer.println();
 			
 			for (ProjectImageEntry<?> entry : qupath.getProject().getImageList()) {
-				String path = entry.getStoredServerPath();
+				String path = entry.getServerPath();
 				writer.print(path);
 				writer.print(PathPrefs.getTableDelimiter());				
 				writer.print(entry.getImageName());

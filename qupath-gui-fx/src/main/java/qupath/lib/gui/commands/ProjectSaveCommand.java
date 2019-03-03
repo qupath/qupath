@@ -25,7 +25,7 @@ package qupath.lib.gui.commands;
 
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
-import qupath.lib.projects.ProjectIO;
+import qupath.lib.gui.panels.ProjectBrowser;
 
 /**
  * Command to manually save a project.
@@ -47,7 +47,7 @@ public class ProjectSaveCommand implements PathCommand {
 	
 	@Override
 	public void run() {
-		ProjectIO.writeProject(qupath.getProject());
+		ProjectBrowser.syncProject(qupath.getProject());
 	}
 	
 }

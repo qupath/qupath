@@ -23,119 +23,69 @@
 
 package qupath.lib.projects;
 
-import java.io.File;
+import java.io.IOException;
+import java.nio.file.Path;
 import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import qupath.lib.common.URLTools;
+import qupath.lib.images.ImageData;
+import qupath.lib.images.servers.ImageServer;
+import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 
 /**
  * Class to represent an image entry within a project.
- * 
+ * <p>
  * This stores the path to the image, and some optional metadata.
  * 
  * @author Pete Bankhead
  *
  * @param <T> Depends upon the project used; typically BufferedImage for QuPath
  */
-// TODO: URGENTLY NEED TO CONSIDER ESCAPING CHARACTERS IN URLS MORE GENERALLY
-public class ProjectImageEntry<T> implements Comparable<ProjectImageEntry<T>> {
-
-	private Project<T> project;
-	private transient String cleanedPath = null;
-	
-	private String serverPath;
-	private String imageName;
-	
-	private Map<String, String> metadata = new HashMap<>();
-	
-	private String description;
-
-	public ProjectImageEntry(final Project<T> project, final String serverPath, final String imageName, final String description, final Map<String, String> metadataMap) {
-		this.project = project;
-		this.serverPath = serverPath;
-		
-		// TODO: Check if this is a remotely acceptable way to achieve relative pathnames!  I suspect it is not really...
-		String projectPath = project.getBaseDirectory().getAbsolutePath();
-		if (this.serverPath.startsWith(projectPath))
-			this.serverPath = "{$PROJECT_DIR}" + this.serverPath.substring(projectPath.length());
-		
-		if (imageName == null) {
-			if (URLTools.checkURL(serverPath))
-				this.imageName = URLTools.getNameFromBaseURL(serverPath);
-			else
-				this.imageName = new File(serverPath).getName();
-		} else
-			this.imageName = imageName;
-		
-		if (description != null)
-			setDescription(description);
-		
-		if (metadataMap != null)
-			metadata.putAll(metadataMap);		
-	}
-	
-	public ProjectImageEntry(final Project<T> project, final String serverPath, final String imageName, final Map<String, String> metadataMap) {
-		this(project, serverPath, imageName, null, metadataMap);
-	}
+public interface ProjectImageEntry<T> {
 	
 	/**
 	 * Get the path used to represent this image, which can be used to construct an <code>ImageServer</code>.
 	 * 
-	 * Note that this may have been cleaned up.
-	 * 
-	 * @see #getStoredServerPath
-	 * 
 	 * @return
 	 */
-	public String getServerPath() {
-//		return serverPath;
-		return getCleanedServerPath();
-	}
+	public String getServerPath();
+	
+	/**
+	 * Set the image name for this project entry.
+	 * 
+	 * @param name
+	 */
+	public void setImageName(String name);
 
 	/**
 	 * Get a name that may be used for this entry.
-	 * 
-	 * This may be derived automatically from the server path, or set explictly to be something else.
+	 * <p>
+	 * This may be derived automatically from the server path, or set explicitly to be something else. 
+	 * It may also be randomized to support blinded analysis.
 	 * 
 	 * @return
+	 * 
+	 * @see #getOriginalImageName()
+	 * @see qupath.lib.projects.Project#setMaskImageNames(boolean)
+	 * @see qupath.lib.projects.Project#getMaskImageNames()
 	 */
-	public String getImageName() {
-		return imageName;
-	}
-
-	@Override
-	public String toString() {
-		String s = getImageName();
-		if (!metadata.isEmpty())
-			s += " - " + getMetadataSummaryString();
-		return s;
-		//			return getServerPath();
-	}
+	public String getImageName();
 	
 	/**
-	 * Get the path used to represent this image, as specified when this entry was created.
-	 * 
-	 * It is generally better to rely on <code>getServerPath</code>, especially if paths will be compared.
-	 * 
-	 * @see #getServerPath
+	 * Get a unique name for this entry, which may be used for associated filenames.
+	 * @return
+	 */
+	public String getUniqueName();
+	
+	/**
+	 * Get the original image name, without any randomization.  Most UI elements should prefer {@link #getImageName} to 
+	 * ensure that the randomization does its job.
 	 * 
 	 * @return
 	 */
-	public String getStoredServerPath() {
-		return serverPath;
-	}
+	public String getOriginalImageName();
 	
-	// TODO: Improve implementation!
-	private String getCleanedServerPath() {
-		if (cleanedPath != null)
-			return cleanedPath;
-		cleanedPath = project.cleanServerPath(serverPath);
-		return cleanedPath;
-	}
 	
 	/**
 	 * Check if this image entry refers to a specified image according to its path.
@@ -143,14 +93,20 @@ public class ProjectImageEntry<T> implements Comparable<ProjectImageEntry<T>> {
 	 * @param serverPath
 	 * @return <code>true</code> if the path is a match, <code>false</code> otherwise.
 	 */
-	public boolean equalsServerPath(final String serverPath) {
-		return getCleanedServerPath().equals(project.cleanServerPath(serverPath));
-	}
+	public boolean sameServerPath(final String serverPath);
+		
 	
-	@Override
-	public int compareTo(ProjectImageEntry<T> entry) {
-		return getCleanedServerPath().compareTo(entry.getCleanedServerPath());
-	}
+	/**
+	 * Get a path to the data for this image entry, or null if this entry is not 
+	 * stored on the local file system.
+	 * <p>
+	 * If not null, the path may be a file or a directory and is <i>not</i> guaranteed to exist. 
+	 * Rather, it represents where the data for this entry either is or would be stored.
+	 * 
+	 * @return
+	 */
+	public Path getEntryPath();
+	
 	
 	/**
 	 * Remove a metadata value.
@@ -158,9 +114,7 @@ public class ProjectImageEntry<T> implements Comparable<ProjectImageEntry<T>> {
 	 * @param key
 	 * @return
 	 */
-	public String removeMetadataValue(final String key) {
-		return metadata.remove(key);
-	}
+	public String removeMetadataValue(final String key);
 	
 	/**
 	 * Request a metadata value.
@@ -169,9 +123,7 @@ public class ProjectImageEntry<T> implements Comparable<ProjectImageEntry<T>> {
 	 * @param key
 	 * @return
 	 */
-	public String getMetadataValue(final String key) {
-		return metadata.get(key);
-	}
+	public String getMetadataValue(final String key);
 
 	/**
 	 * Store a metadata value.
@@ -182,9 +134,7 @@ public class ProjectImageEntry<T> implements Comparable<ProjectImageEntry<T>> {
 	 * @param value
 	 * @return
 	 */
-	public String putMetadataValue(final String key, final String value) {
-		return metadata.put(key, value);
-	}
+	public String putMetadataValue(final String key, final String value);
 	
 	/**
 	 * Check if a metadata value is present for a specified key.
@@ -192,17 +142,13 @@ public class ProjectImageEntry<T> implements Comparable<ProjectImageEntry<T>> {
 	 * @param key
 	 * @return <code>true</code> if <code>getDescription()</code> does not return null or an empty string, <code>false</code> otherwise.
 	 */
-	public boolean containsMetadata(final String key) {
-		return metadata.containsKey(key);
-	}
+	public boolean containsMetadata(final String key);
 	
 	/**
 	 * Get a description; this is free text describing the image.
 	 * @return
 	 */
-	public String getDescription() {
-		return description;
-	}
+	public String getDescription();
 	
 	/**
 	 * Set the description.
@@ -210,53 +156,98 @@ public class ProjectImageEntry<T> implements Comparable<ProjectImageEntry<T>> {
 	 * @see #getDescription
 	 * @param description
 	 */
-	public void setDescription(final String description) {
-		this.description = description;
-	}
-	
-	/**
-	 * Check if a description is present.
-	 * 
-	 * @return <code>true</code> if <code>getDescription()</code> does not return null or an empty string, <code>false</code> otherwise.
-	 */
-	public boolean hasDescription() {
-		return this.description != null && !this.description.isEmpty();
-	}
+	public void setDescription(final String description);
 	
 	/**
 	 * Remove all metadata.
 	 */
-	public void clearMetadata() {
-		this.metadata.clear();
-	}
+	public void clearMetadata();
 	
 	/**
 	 * Get an unmodifiable view of the underlying metadata map.
 	 * 
 	 * @return
 	 */
-	public Map<String, String> getMetadataMap() {
-		return Collections.unmodifiableMap(metadata);
-	}
+	public Map<String, String> getMetadataMap();
 	
 	/**
 	 * Get an unmodifiable collection of the metadata map's keys.
 	 * 
 	 * @return
 	 */
-	public Collection<String> getMetadataKeys() {
-		return Collections.unmodifiableSet(metadata.keySet());
-	}
+	public Collection<String> getMetadataKeys();
+
+	/**
+	 * Build an {@link ImageServer} for this image.
+	 * 
+	 * @return
+	 * @throws IOException
+	 */
+	public ImageServer<T> buildImageServer() throws IOException;
+	
+	/**
+	 * Read the {@link ImageData} associated with this entry, or create a new ImageData if none is currently present.
+	 * <p>
+	 * If the full data is not needed, but rather only the objects {@link #readHierarchy()} can be much faster.
+	 * 
+	 * @return
+	 * 
+	 * @see #readHierarchy()
+	 */
+	public ImageData<T> readImageData() throws IOException;
+	
+	/**
+	 * Save the {@link ImageData} for this entry using the default storage location for the project.
+	 */
+	public void saveImageData(ImageData<T> imageData) throws IOException;
+	
+	/**
+	 * Read the {@link PathObjectHierarchy} for this entry, or return an empty hierarchy if none is available.
+	 * @return
+	 * 
+	 * @see #readImageData()
+	 * @see #hasImageData()
+	 */
+	public PathObjectHierarchy readHierarchy() throws IOException;
+	
+	/**
+	 * Check if this entry has saved {@link ImageData} already available.
+	 * 
+	 * @return
+	 */
+	public boolean hasImageData();
+	
+	/**
+	 * Get a summary string representing this image entry.
+	 * @return
+	 */
+	public String getSummary();
+	
+	/**
+	 * Request a thumbnail for the image.
+	 * 
+	 * @return a thumbnail if one has already been set, otherwise null.
+	 * @throws IOException
+	 */
+	public T getThumbnail() throws IOException;
+	
+	/**
+	 * Set a thumbnail for the image. This will replace any existing thumbnail.
+	 * 
+	 * @param img
+	 * @throws IOException
+	 */
+	public void setThumbnail(T img) throws IOException;	
 	
 	/**
 	 * Get a formatted string representation of the metadata map's contents.
 	 * 
 	 * @return
 	 */
-	public String getMetadataSummaryString() {
+	default public String getMetadataSummaryString() {
 		StringBuilder sb = new StringBuilder();
 		sb.append("{");
-		for (Entry<String, String> entry : metadata.entrySet()) {
+		for (Entry<String, String> entry : getMetadataMap().entrySet()) {
 			if (sb.length() > 1)
 				sb.append(", ");
 			sb.append(entry.getKey());
@@ -266,6 +257,18 @@ public class ProjectImageEntry<T> implements Comparable<ProjectImageEntry<T>> {
 		sb.append("}");
 		return sb.toString();
 	}
-
+	
+	
+	
+	
+	
+	
+//	public Map<String, String> getScripts();
+//	
+//	public Map<String, PixelClassifier> getPixelClassifiers();
+//	
+//	public Map<String, ObjectClassifier> getPixelClassifiers();
+	
+	
 
 }

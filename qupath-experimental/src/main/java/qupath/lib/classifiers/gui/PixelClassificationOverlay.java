@@ -1,17 +1,15 @@
 package qupath.lib.classifiers.gui;
 
+import qupath.lib.awt.common.AwtTools;
 import qupath.lib.classifiers.pixel.OpenCVPixelClassifierDNN;
 import qupath.lib.classifiers.pixel.PixelClassifierMetadata.OutputType;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.common.SimpleThreadFactory;
-import qupath.lib.gui.images.stores.ImageRegionStoreHelpers;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.QuPathViewerListener;
 import qupath.lib.gui.viewer.overlays.AbstractOverlay;
 import qupath.lib.images.ImageData;
-import qupath.lib.images.servers.ImageChannel;
-import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.TileRequest;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
@@ -21,9 +19,8 @@ import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
-import qupath.lib.roi.PathROIToolsAwt;
 import qupath.lib.roi.interfaces.ROI;
-import java.awt.Color;
+
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.Shape;
@@ -39,7 +36,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.WeakHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import org.slf4j.Logger;
@@ -55,23 +51,21 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
 
     private PixelClassificationImageServer classifierServer;
     
-    private Map<RegionRequest, BufferedImage> cache;
     private Map<RegionRequest, BufferedImage> cacheRGB = Collections.synchronizedMap(new HashMap<>());
-    private Set<RegionRequest> pendingRequests = Collections.synchronizedSet(new HashSet<>());
+    private Set<TileRequest> pendingRequests = Collections.synchronizedSet(new HashSet<>());
     
-    private Set<String> measurementsAdded = new HashSet<>();
-    
-    private boolean useAnnotationMask = false;
-
     private ExecutorService pool;
-
-    private Map<PathObject, ROI> measuredObjects = new WeakHashMap<>();
     
     private ImageData<BufferedImage> imageData;
     
+    private PixelClassificationMeasurementManager manager;
+    
+    private boolean useAnnotationMask = false;
+    private boolean livePrediction = false;
+    
     public PixelClassificationOverlay(final QuPathViewer viewer, final PixelClassificationImageServer classifierServer) {
         super();
-        this.cache = viewer.getImageRegionStore().getCache();
+        this.manager = new PixelClassificationMeasurementManager(classifierServer);
         
         // Choose number of threads based on how intensive the processing will be
         // TODO: Permit classifier to control request
@@ -92,6 +86,18 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
     }
     
     
+    
+    public boolean getLivePrediction() {
+    	return livePrediction;
+    }
+    
+    public void setLivePrediction(boolean livePrediction) {
+    	this.livePrediction = livePrediction;
+    	if (livePrediction)
+    		viewer.repaint();
+    }
+    
+    
     private synchronized void updateAnnotationMeasurements() {
     	if (imageData == null) {
     		return;
@@ -108,7 +114,7 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
     	if (!pool.isShutdown()) {
 	    	pool.submit(() -> {
 	        	for (PathObject annotation : hierarchy.getObjects(null, PathAnnotationObject.class)) {
-	        		if (addPercentageMeasurements(annotation)) {
+	        		if (manager.addPercentageMeasurements(annotation, true)) {
 	        			changed.add(annotation);
 	        			if (Thread.interrupted())
 	        				return;
@@ -120,15 +126,23 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
     	}
     }
     
-    
     public String getResultsString(double x, double y) {
-    	if (viewer == null || viewer.getServer() == null || classifierServer == null)
+    	if (viewer == null || classifierServer == null)
     		return null;
+    	return getResultsString(classifierServer, x, y, viewer.getZPosition(), viewer.getTPosition());
+    }
+
+    
+    
+    public static String getResultsString(PixelClassificationImageServer classifierServer, double x, double y, int z, int t) {
+    	if (classifierServer == null)
+    		return null;
+    	
     	int level = 0;
-    	var tile = classifierServer.getTile(level, (int)Math.round(x), (int)Math.round(y), viewer.getZPosition(), viewer.getTPosition());
+    	var tile = classifierServer.getTile(level, (int)Math.round(x), (int)Math.round(y), z, t);
     	if (tile == null)
     		return null;
-    	var img = cache.get(tile.getRegionRequest());
+    	var img = classifierServer.getCachedTile(tile);
     	if (img == null)
     		return null;
 
@@ -157,237 +171,7 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
     }
     
     
-    private ThreadLocal<BufferedImage> imgTileMask = new ThreadLocal<>();
     
-    /**
-     * Add percentage measurements if possible, or discard if not possible.
-     * <p>
-     * This method must be synchronized because it uses a common imgMask variable... otherwise it would need 
-     * 
-     * @param pathObject
-     * @return
-     */
-    synchronized boolean addPercentageMeasurements(final PathObject pathObject) {
-    	
-       	// Check if we've already measured this
-    	if (measuredObjects.getOrDefault(pathObject, null) == pathObject.getROI())
-    		return false;
-
-        if (!classifierServer.hasPixelSizeMicrons())
-        	return false;
-    	
-        List<ImageChannel> channels = classifierServer.getChannels();
-        long[] counts = null;
-        long total = 0L;
-                
- 
-    	if (imageData == null || !pathObject.getROI().isArea()) {
-  			return updateMeasurements(pathObject, channels, null, 0L, Double.NaN, null);
-    	}
-
-        ImageServer<BufferedImage> server = classifierServer;//imageData.getServer();
-        
-        // Calculate area of a pixel
-        double requestedDownsample = classifierServer.getDownsampleForResolution(0);
-        double pixelArea = (server.getPixelWidthMicrons() * requestedDownsample) * (server.getPixelHeightMicrons() * requestedDownsample);
-        String pixelAreaUnits = GeneralTools.micrometerSymbol() + "^2";
-        if (!pathObject.isDetection()) {
-        	double scale = requestedDownsample / 1000.0;
-            pixelArea = (server.getPixelWidthMicrons() * scale) * (server.getPixelHeightMicrons() * scale);
-            pixelAreaUnits = "mm^2";
-        }
-
-        
-        // Check we have a suitable output type
-        OutputType type = classifierServer.getOutputType();
-        if (type == OutputType.Features)
-        	return updateMeasurements(pathObject, channels, counts, total, pixelArea, pixelAreaUnits);
-        
-        
-    	ROI roi = pathObject.getROI();
-
-        Shape shape = PathROIToolsAwt.getShape(roi);
-        
-        // Get the regions we need
-        var regionRequest = RegionRequest.createInstance(server.getPath(), requestedDownsample, roi);
-        Collection<TileRequest> requests = server.getTiles(regionRequest);
-        
-        if (requests.isEmpty()) {
-        	logger.debug("Request empty for {}", pathObject);
-        	return updateMeasurements(pathObject, channels, counts, total, pixelArea, pixelAreaUnits);
-        }
-        
-
-
-        // Try to get all cached tiles - if this fails, return quickly (can't calculate measurement)
-        Map<TileRequest, BufferedImage> localCache = new HashMap<>();
-        for (TileRequest request : requests) {
-        	BufferedImage tile = cache.getOrDefault(request.getRegionRequest(), null);
-        	if (tile == null)
-        		return updateMeasurements(pathObject, channels, counts, total, pixelArea, pixelAreaUnits);
-        	localCache.put(request, tile);
-        }
-        
-        // Calculate stained proportions
-        counts = new long[channels.size()];
-        total = 0L;
-        byte[] mask = null;
-    	BufferedImage imgMask = imgTileMask.get();
-        for (Map.Entry<TileRequest, BufferedImage> entry : localCache.entrySet()) {
-        	TileRequest region = entry.getKey();
-        	BufferedImage tile = entry.getValue();
-        	// Create a binary mask corresponding to the current tile        	
-        	if (imgMask == null || imgMask.getWidth() < tile.getWidth() || imgMask.getHeight() < tile.getHeight() || imgMask.getType() != BufferedImage.TYPE_BYTE_GRAY) {
-        		imgMask = new BufferedImage(tile.getWidth(), tile.getHeight(), BufferedImage.TYPE_BYTE_GRAY);
-        		imgTileMask.set(imgMask);
-        	}
-        	
-        	// Get the tile, which is needed for sub-pixel accuracy
-        	Graphics2D g2d = imgMask.createGraphics();
-        	g2d.setColor(Color.BLACK);
-        	g2d.fillRect(0, 0, tile.getWidth(), tile.getHeight());
-        	g2d.setColor(Color.WHITE);
-        	g2d.scale(1.0/region.getDownsample(), 1.0/region.getDownsample());
-        	g2d.translate(-region.getTileX() * region.getDownsample(), -region.getTileY() * region.getDownsample());
-        	g2d.fill(shape);
-        	g2d.dispose();
-        	
-//        	new ImagePlus("Tile: " + region.toString(), tile).show();
-//        	new ImagePlus("Mask: " + region.toString(), imgMask).show();
-        	
-			int h = tile.getHeight();
-			int w = tile.getWidth();
-			if (mask == null || mask.length != h*w)
-				mask = new byte[w * h];
-        	
-        	switch (type) {
-			case Classification:
-				var raster = tile.getRaster();
-				var rasterMask = imgMask.getRaster();
-				int b = 0;
-				try {
-					rasterMask.getDataElements(0, 0, w, h, mask);
-					for (int y = 0; y < h; y++) {
-						for (int x = 0; x < w; x++) {
-							if (mask[y*w+x] == (byte)0)
-								continue;
-							int ind = raster.getSample(x, y, b);
-							// TODO: This could be out of range!  But shouldn't be...
-							counts[ind]++;
-							total++;
-						}					
-					}
-				} catch (Exception e) {
-					logger.error("Error calculating classification areas", e);
-				}
-				break;
-			case Probability:
-				// Take classification from the channel with the highest value
-				raster = tile.getRaster();
-				rasterMask = imgMask.getRaster();
-				int nChannels = Math.min(channels.size(), raster.getNumBands()); // Expecting these to be the same...
-				try {
-					for (int y = 0; y < h; y++) {
-						for (int x = 0; x < w; x++) {
-							if (rasterMask.getSample(x, y, 0) == 0)
-								continue;
-							double maxValue = raster.getSampleDouble(x, y, 0);
-							int ind = 0;
-							for (int i = 1; i < nChannels; i++) {
-								double val = raster.getSampleDouble(x, y, i);
-								if (val > maxValue) {
-									maxValue = val;
-									ind = i;
-								}
-							}
-							counts[ind]++;
-							total++;
-						}					
-					}
-				} catch (Exception e) {
-					logger.error("Error calculating classification areas", e);
-				}
-				break;
-			case Features:
-				return false;
-			default:
-				return updateMeasurements(pathObject, channels, counts, total, pixelArea, pixelAreaUnits);
-        	}
-        }
-    	return updateMeasurements(pathObject, channels, counts, total, pixelArea, pixelAreaUnits);
-    }
-
-    
-    private synchronized void resetMeasurements(PathObjectHierarchy hierarchy, Collection<PathObject> pathObjects) {
-    	boolean changes = false;
-    	for (PathObject pathObject : pathObjects) {
-    		if (updateMeasurements(pathObject, classifierServer.getChannels(), null, 0L, Double.NaN, null))
-    			changes = true;
-    	}
-    	if (hierarchy != null && changes) {
-        	hierarchy.fireObjectMeasurementsChangedEvent(this, pathObjects);    		
-    	}
-    }
-
-    
-    
-    private synchronized boolean updateMeasurements(PathObject pathObject, List<ImageChannel> channels, long[] counts, long total, double pixelArea, String pixelAreaUnits) {
-    	// Remove any existing measurements
-    	int nBefore = pathObject.getMeasurementList().size();
-  		pathObject.getMeasurementList().removeMeasurements(measurementsAdded.toArray(new String[0]));
-  		boolean changes = nBefore != pathObject.getMeasurementList().size();
-    	
-  		
-    	long totalWithoutIgnored = 0L;
-    	if (counts != null) {
-    		for (int c = 0; c < channels.size(); c++) {
-    			if (channels.get(c).isTransparent())
-        			continue;
-    			totalWithoutIgnored += counts[c];
-    		}
-    	}
-    	
-    	for (int c = 0; c < channels.size(); c++) {
-    		// Skip background channels
-    		if (channels.get(c).isTransparent())
-    			continue;
-    		
-    		String namePercentage = "Classifier: " + channels.get(c).getName() + " %";
-    		String nameArea = "Classifier: " + channels.get(c).getName() + " area " + pixelAreaUnits;
-    		if (counts != null) {
-    			pathObject.getMeasurementList().putMeasurement(namePercentage, (double)counts[c]/totalWithoutIgnored * 100.0);
-    			measurementsAdded.add(namePercentage);
-    			if (!Double.isNaN(pixelArea)) {
-    				pathObject.getMeasurementList().putMeasurement(nameArea, counts[c] * pixelArea);
-        			measurementsAdded.add(nameArea);
-    			}
-    			changes = true;
-    		}
-    	}
-
-    	// Add total area (useful as a check)
-		String nameArea = "Classifier: Total annotated area " + pixelAreaUnits;
-		String nameAreaWithoutIgnored = "Classifier: Total quantified area " + pixelAreaUnits;
-		if (counts != null && !Double.isNaN(pixelArea)) {
-			pathObject.getMeasurementList().putMeasurement(nameAreaWithoutIgnored, totalWithoutIgnored * pixelArea);
-			pathObject.getMeasurementList().putMeasurement(nameArea, total * pixelArea);
-			measurementsAdded.add(nameAreaWithoutIgnored);
-			measurementsAdded.add(nameArea);
-			changes = true;
-		}
-
-    	if (changes)
-    		pathObject.getMeasurementList().closeList();
-    	if (counts == null) {
-        	measuredObjects.remove(pathObject);
-    		return changes;
-    	}
-    	measuredObjects.put(pathObject, pathObject.getROI());
-    	return changes;
-    }
-    
-    
-
     @Override
 	public void paintOverlay(Graphics2D g2d, ImageRegion imageRegion, double downsampleFactor, ImageObserver observer, boolean paintCompletely) {
         // For now, bind the display to the display of detections
@@ -396,9 +180,14 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
 
         if (imageData == null)
             return;
+        
 //        ImageServer<BufferedImage> server = imageData.getServer();
         var server = classifierServer;
 
+//        viewer.getImageRegionStore().paintRegion(server, g2d, AwtTools.getBounds(imageRegion), viewer.getZPosition(), viewer.getTPosition(), downsampleFactor, null, observer, null);
+//        if (5 > 2)
+//        	return;
+        
 //        double requestedDownsample = classifier.getMetadata().getInputPixelSizeMicrons() / server.getAveragedPixelSizeMicrons();
         double requestedDownsample = server.getPreferredDownsampleFactor(downsampleFactor);
 
@@ -417,8 +206,16 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
         }
 
         // Request tiles, of the size that the classifier wants to receive
-        List<RegionRequest> requests = ImageRegionStoreHelpers.getTilesToRequest(
-			classifierServer, g2d.getClip(), requestedDownsample, imageRegion.getZ(), imageRegion.getT(), null);
+
+     // Get the displayed clip bounds for fast checking if ROIs need to be drawn
+        RegionRequest fullRequest;
+    	Shape shapeRegion = g2d.getClip();
+     	if (shapeRegion == null)
+     		fullRequest = RegionRequest.createInstance(server.getPath(), downsampleFactor, imageRegion);
+     	else
+     		fullRequest = RegionRequest.createInstance(server.getPath(), downsampleFactor, AwtTools.getImageRegion(shapeRegion, imageRegion.getZ(), imageRegion.getT()));
+        
+        Collection<TileRequest> tiles = classifierServer.getTiles(fullRequest);
 
 //        requests = requests.stream().map(r -> RegionRequest.createInstance(r.getPath(), requestedDownsample, r)).collect(Collectors.toList());
         
@@ -430,7 +227,9 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
 //        g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR)
 
         // Loop through & paint classified tiles if we have them, or request tiles if we don't
-        for (RegionRequest request : requests) {
+        for (TileRequest tile : tiles) {
+        	
+        	var request = tile.getRegionRequest();
         	
         	if (useAnnotationMask) {
         		boolean doPaint = false;
@@ -456,7 +255,7 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
         	}
         	
         	// Try to get an RGB image, supplying a cached probably tile (if we have one)
-            BufferedImage imgRGB = getCachedRGBImage(request, cache.get(request));
+            BufferedImage imgRGB = getCachedRGBImage(request, server.getCachedTile(tile));
             if (imgRGB != null) {
             	// Get the cached RGB painted version (since painting can be a fairly expensive operation)
                 g2d.drawImage(imgRGB, request.getX(), request.getY(), request.getWidth(), request.getHeight(), null);
@@ -480,8 +279,11 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
             }
 
             // Request a tile
-            requestTile(request);
+            if (livePrediction)
+            	requestTile(tile);
         }
+        if (livePrediction)
+        	updateAnnotationMeasurements();
     }
     
     /**
@@ -516,9 +318,9 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
     
     public void stop() {
     	if (imageData != null) {
-    		resetMeasurements(imageData.getHierarchy(), imageData.getHierarchy().getObjects(null, PathAnnotationObject.class));
+    		manager.resetMeasurements(imageData.getHierarchy(), imageData.getHierarchy().getObjects(null, PathAnnotationObject.class));
     	}
-    	viewer.getImageRegionStore().clearCacheForServer(classifierServer);
+//    	viewer.getImageRegionStore().clearCacheForServer(classifierServer);
     	imageDataChanged(viewer, imageData, null);
     	List<Runnable> pending = this.pool.shutdownNow();
     	viewer.removeViewerListener(this);
@@ -548,26 +350,25 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
     }
     
 
-    void requestTile(RegionRequest request) {
+    void requestTile(TileRequest tile) {
         // Make the request, if it isn't already pending
-        if (!cache.containsKey(request) && pendingRequests.add(request)) {
+        if (pendingRequests.add(tile)) {
             pool.submit(() -> {
             	if (pool.isShutdown())
             		return;
             	// Check we still need to make the request
-            	if (cache.containsKey(request) || !pendingRequests.contains(request)) {
+            	if (!pendingRequests.contains(tile)) {
             		return;
             	}
                 try {
-                	BufferedImage imgResult = classifierServer.readBufferedImage(request);
-                    getCachedRGBImage(request, imgResult);
-                    cache.put(request, imgResult);
+                	BufferedImage imgResult = classifierServer.readBufferedImage(tile.getRegionRequest());
+                    getCachedRGBImage(tile.getRegionRequest(), imgResult);
                     viewer.repaint();
                     Platform.runLater(() -> updateAnnotationMeasurements());
                 } catch (Exception e) {
                    logger.error("Error requesting tile classification", e);
                 } finally {
-                    pendingRequests.remove(request);
+                    pendingRequests.remove(tile);
                 }
             });
         }
@@ -595,25 +396,6 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
 			}
 		}
 		viewer.getCustomOverlayLayers().remove(this);
-//		this.imageData = imageDataNew;
-//		if (imageDataNew != null) {
-//			imageDataNew.getHierarchy().addPathObjectListener(this);
-//			
-//			classifierServer = new PixelClassificationImageServer(cache, imageDataNew, classifier);
-//			
-//			long bytes;
-//			long bytesRGB = 0L;
-//			if (classifierServer.getOutputType() == OutputType.Classification) {
-//				bytes = 1L;
-//			} else {
-//				bytes = 1L * classifierServer.nChannels();
-//				bytesRGB = 4L;
-//			}
-//			long totalPixels = classifierServer.getAllTileRequests().stream().mapToLong(t -> t.getTileWidth() * t.getTileHeight()).sum();
-//			logger.info("Estimated memory needed to classify whole image (assuming 8-bit output): {} MB", GeneralTools.formatNumber(totalPixels * bytes / (1024.0 * 1024.0), 1));
-//			if (bytesRGB > 0)
-//				logger.info("Additional memory required to cache RGB display: {} MB", GeneralTools.formatNumber(totalPixels * bytesRGB / (1024.0 * 1024.0), 1));
-//		}
 	}
 
 

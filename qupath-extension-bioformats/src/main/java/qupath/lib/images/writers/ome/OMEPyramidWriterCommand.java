@@ -140,9 +140,13 @@ public class OMEPyramidWriterCommand implements PathCommand {
 		OMEPyramidWriter.Builder builder = new OMEPyramidWriter.Builder(server)
 				.region(region);
 		
-		// Set tile size
-		if (getDefaultTileSize() > 0)
+		// Set tile size; if we just have one tile, use the image width & height
+		if (server.getAllTileRequests().size() == 1)
+			builder = builder.tileSize(server.getWidth(), server.getHeight());
+		else if (getDefaultTileSize() > 0)
 			builder = builder.tileSize(getDefaultTileSize());
+		else
+			builder = builder.tileSize(server.getPreferredTileWidth(), server.getPreferredTileHeight());
 
 		// Decide whether to write pyramid or not based on image size
 		if (Math.max(region.getWidth(), region.getHeight()) > getMinSizeForTiling())

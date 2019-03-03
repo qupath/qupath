@@ -13,6 +13,7 @@ import org.bytedeco.javacpp.opencv_ml.StatModel;
 
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.classes.PathClass;
+import qupath.lib.objects.classes.Reclassifier;
 
 public class NotVeryUsefulStaticMethods {
 	
@@ -20,19 +21,19 @@ public class NotVeryUsefulStaticMethods {
 	/**
 	 * Default prediction method.  Makes no attempt to populate results matrix or to provide probabilities.
 	 * (Results matrix only given as a parameter in case it is needed)
-	 * 
+	 * <p>
 	 * Subclasses may choose to override this method if they can do a better prediction, e.g. providing probabilities as well.
-	 * 
+	 * <p>
 	 * Upon returning, it is assumed that the PathClass of the PathObject will be correct, but it is not assumed that the results matrix will
 	 * have been updated.
 	 * 
 	 * @param classifier
 	 * @param pathClasses
 	 * @param samples
-	 * @param results
-	 * @param pathObject
+	 * @param pathObjects
+	 * @param reclassifications
 	 */
-	static void calculatePredictedClass(final StatModel classifier, final List<PathClass> pathClasses, final Mat samples, final List<PathObject> pathObjects, final List<Reclassifier> reclassifications) {
+	private static void calculatePredictedClass(final StatModel classifier, final List<PathClass> pathClasses, final Mat samples, final List<PathObject> pathObjects, final List<Reclassifier> reclassifications) {
 		// Use number of trees as a probability estimate for 2-class RTrees
 		var results = new Mat();
 		
@@ -64,7 +65,7 @@ public class NotVeryUsefulStaticMethods {
 				}
 				pathClass = orderedPathClasses.get(maxInd);
 				double probability = maxCount / sum;
-				reclassifications.add(new Reclassifier(pathObject, pathClass, probability));
+				reclassifications.add(new Reclassifier(pathObject, pathClass, true, probability));
 				row++;
 			}
 			return;
@@ -95,7 +96,7 @@ public class NotVeryUsefulStaticMethods {
 					probability = rawProbValue / sum;
 				if (probability > 1)
 					System.err.println(probability);
-				reclassifications.add(new Reclassifier(pathObject, pathClass, probability));
+				reclassifications.add(new Reclassifier(pathObject, pathClass, true, probability));
 				row++;
 			}
 			matProbabilities.close();
@@ -113,7 +114,7 @@ public class NotVeryUsefulStaticMethods {
 				double rawPrediction = indexer.getDouble(row);
 				int prediction = (int)rawPrediction;
 				PathClass pathClass = pathClasses.get(prediction);
-				reclassifications.add(new Reclassifier(pathObject, pathClass));
+				reclassifications.add(new Reclassifier(pathObject, pathClass, true));
 				row++;
 			}
 		} else {
@@ -131,7 +132,7 @@ public class NotVeryUsefulStaticMethods {
 				}
 				double probability = maxCount; // / sum;
 				PathClass pathClass = pathClasses.get(maxInd);
-				reclassifications.add(new Reclassifier(pathObject, pathClass, probability));
+				reclassifications.add(new Reclassifier(pathObject, pathClass, true, probability));
 				row++;
 			}				
 		}

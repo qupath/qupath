@@ -3,7 +3,6 @@ package qupath.lib.gui.align;
 import java.awt.Graphics2D;
 import java.awt.geom.Point2D;
 import java.awt.image.BufferedImage;
-import java.io.File;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -69,8 +68,6 @@ import qupath.lib.gui.helpers.PaintingToolsFX;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
-import qupath.lib.images.servers.ImageServerProvider;
-import qupath.lib.io.PathIO;
 import qupath.lib.objects.PathObject;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectImageEntry;
@@ -290,12 +287,12 @@ public class ImageAlignmentPane {
 		List<ProjectImageEntry<BufferedImage>> entries = new ArrayList<>(project.getImageList());
 		ImageServer<?> currentServer = viewer.getServer();
 		String baseServerPath = currentServer == null ? null : currentServer.getPath();
-		entries.removeIf(e -> e.equalsServerPath(baseServerPath));
+		entries.removeIf(e -> e.sameServerPath(baseServerPath));
 		
 		// Find the entries currently selected
 		Set<ProjectImageEntry<BufferedImage>> alreadySelected = 
 				images.stream().map(i -> project.getImageEntry(i.getServerPath())).collect(Collectors.toSet());
-		alreadySelected.removeIf(e -> e.equalsServerPath(baseServerPath));
+		alreadySelected.removeIf(e -> e.sameServerPath(baseServerPath));
 		
 		// Create a list to display, with the appropriate selections
 		ListView<ProjectImageEntry<BufferedImage>>  list = new ListView<>();
@@ -326,7 +323,7 @@ public class ImageAlignmentPane {
 			List<ImageData<BufferedImage>> imagesToRemove = new ArrayList<>();
 			for (ImageData<BufferedImage> temp : images) {
 				for (ProjectImageEntry<BufferedImage> entry : toRemove) {
-					if (entry.equalsServerPath(temp.getServerPath()))
+					if (entry.sameServerPath(temp.getServerPath()))
 						imagesToRemove.add(temp);
 				}
 			}
@@ -343,19 +340,22 @@ public class ImageAlignmentPane {
 		// Add any images that need to be added
 		List<ImageData<BufferedImage>> imagesToAdd = new ArrayList<>();
 		for (ProjectImageEntry<BufferedImage> temp : toSelect) {
-			ImageServer<BufferedImage> server = ImageServerProvider.buildServer(temp.getServerPath(), BufferedImage.class);
-			File fileData = QuPathGUI.getImageDataFile(project, temp);
 			ImageData<BufferedImage> imageData = null;
 			// Read annotations from any data file
-			if (fileData.exists()) {
-				imageData = PathIO.readImageData(fileData, null, server, BufferedImage.class);
-				List<PathObject> pathObjects = imageData.getHierarchy().getObjects(null, null);
-				Set<PathObject> pathObjectsToRemove = pathObjects.stream().filter(p -> !p.isAnnotation()).collect(Collectors.toSet());
-				imageData.getHierarchy().removeObjects(pathObjectsToRemove, true);
-			} else {
-				imageData = new ImageData<>(server);
+			try {
+				if (temp.hasImageData()) {
+					imageData = temp.readImageData();
+					List<PathObject> pathObjects = imageData.getHierarchy().getObjects(null, null);
+					Set<PathObject> pathObjectsToRemove = pathObjects.stream().filter(p -> !p.isAnnotation()).collect(Collectors.toSet());
+					imageData.getHierarchy().removeObjects(pathObjectsToRemove, true);
+				} else {
+					imageData = temp.readImageData();
+				}
+			} catch (IOException e) {
+				logger.error("Unable to read ImageData for " + temp.getImageName(), e);
+				continue;
 			}
-			ImageServerOverlay overlay = new ImageServerOverlay(viewer, server);
+			ImageServerOverlay overlay = new ImageServerOverlay(viewer, imageData.getServer());
 			overlay.getAffine().addEventHandler(TransformChangedEvent.ANY, transformEventHandler);
 			mapOverlays.put(imageData, overlay);
 //			viewer.getCustomOverlayLayers().add(overlay);

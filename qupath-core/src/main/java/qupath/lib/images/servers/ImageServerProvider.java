@@ -23,13 +23,17 @@
 
 package qupath.lib.images.servers;
 
+import java.io.File;
+import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
+import java.util.TreeMap;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -91,47 +95,71 @@ public class ImageServerProvider {
 	 * 
 	 * @param path
 	 * @param cls
+	 * @param requestedServerBuilderClassnames optional list of full class names for server builders that should be used, or order of preference.
 	 * @return
+	 * @throws IOException 
 	 */
-	public static <T> ImageServer<T> buildServer(final String path, final Class<T> cls) {
+	public static <T> ImageServer<T> buildServer(final String path, final Class<T> cls, String... requestedServerBuilderClassnames) throws IOException {
 		
 //		if (path == null)
 //			return null;
 		
-		List<ImageServerBuilder<?>> providers = new ArrayList<ImageServerBuilder<?>>();
-		for (ImageServerBuilder<?> provider : serviceLoader) {
-			providers.add(provider);
-		}
-		
-		final ImageCheckType type = FileFormatInfo.checkImageType(path);
-		Collections.sort(providers, new Comparator<ImageServerBuilder<?>>() {
-
-			@Override
-			public int compare(ImageServerBuilder<?> o1, ImageServerBuilder<?> o2) {
-				return (int)Math.signum(o2.supportLevel(path, type, cls) - o1.supportLevel(path, type, cls));
+		URI uriTemp;
+		try {
+			if (path.startsWith("file:") || path.startsWith("http"))
+				uriTemp = new URI(path);
+			else {
+				// Handle legacy Bio-Formats paths
+				String delimiter = "::";
+				int index = path.indexOf(delimiter);
+				String seriesName = null;
+				String filePath = path;
+				if (index > 0 && index < path.length()-delimiter.length() && !new File(path).exists()) {
+					seriesName = path.substring(index+delimiter.length());
+					filePath = path.substring(0, index);
+				}
+				uriTemp = new File(filePath).toURI();
+				if (seriesName != null) {
+					uriTemp = new URI(uriTemp.getScheme(), uriTemp.getAuthority(), uriTemp.getPath(), "name="+seriesName, null);
+				}
 			}
-			
-		});
+		} catch (URISyntaxException e) {
+			throw new IOException(e.getLocalizedMessage());
+		}
+
+		
+		URI uri = uriTemp;
+
+		final ImageCheckType type = FileFormatInfo.checkImageType(uri);
+		Map<Number, ImageServerBuilder<?>> providers = new TreeMap<>();
+		List<String> requestedBuilders = Arrays.asList(requestedServerBuilderClassnames);
+		for (ImageServerBuilder<?> provider : serviceLoader) {
+			if (requestedBuilders.isEmpty()) {
+				providers.put(-provider.supportLevel(uri, type, cls), provider);
+			} else {
+				int index = requestedBuilders.indexOf(provider.getClass().getName());
+				if (index >= 0)
+					providers.put(index, provider);
+			}
+		}
 		
 		if (logger.isDebugEnabled()) {
-			for (ImageServerBuilder<?> provider : providers)
-				logger.debug("{}: rank {} ", provider, provider.supportLevel(path, type, cls));				
+			for (ImageServerBuilder<?> provider : providers.values())
+				logger.debug("{}: rank {} ", provider, provider.supportLevel(uri, type, cls));				
 		}
 		long maxImageSize = Runtime.getRuntime().maxMemory() / 2;
-		for (ImageServerBuilder<?> provider : providers) {
-			if (provider.supportLevel(path, type, cls) == 0) {
+		for (ImageServerBuilder<?> provider : providers.values()) {
+			if (provider.supportLevel(uri, type, cls) == 0) {
 				logger.error("No image server provider found for {}", path);
 				return null;
 			}
 			try {
 				@SuppressWarnings("unchecked")
-				Map<RegionRequest, T> cache = (Map<RegionRequest, T>)cacheMap.getOrDefault(cls, null);
-				@SuppressWarnings("unchecked")
 				ImageServerBuilder<T> possibleProvider = (ImageServerBuilder<T>)provider;
-				ImageServer<T> server = possibleProvider.buildServer(path, cache);
+				ImageServer<T> server = possibleProvider.buildServer(uri);
 				if (server != null) {
 					// Check size is reasonable - should be small, or large & tiled
-					if ((long)server.getWidth() * server.getHeight() * server.getBitsPerPixel() * server.nChannels() / 8 < maxImageSize || server.nResolutions() > 1) {
+					if (server.nResolutions() > 1 || (long)server.getWidth() * server.getHeight() * server.getBitsPerPixel() * server.nChannels() / 8 < maxImageSize) {
 						logger.info("Returning server: {} for {}", server.getServerType(), path);
 						return server;
 					} else
@@ -140,13 +168,12 @@ public class ImageServerProvider {
 			} catch (Exception e) {
 				logger.warn("ImageServer creation failed", e);
 			}
-			logger.debug("Provider " + provider + " support level " + provider.supportLevel(path,  type, cls));
+			logger.debug("Provider " + provider + " support level " + provider.supportLevel(uri, type, cls));
 		}
 		
 		logger.error("Unable to build whole slide server - check your classpath for a suitable library (e.g. OpenSlide, BioFormats)\n\t");
 		logger.error(System.getProperty("java.class.path"));
-//		throw new IOException("Unable to build a whole slide server for " + path);
-		return null;
+		throw new IOException("Unable to build a whole slide server for " + path);
 	}
 	
 	

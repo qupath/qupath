@@ -30,6 +30,7 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -414,8 +415,11 @@ public class DisplayHelpers {
 		return null;
 	}
 	
-	
 	public static <T> T showChoiceDialog(final String title, final String message, final T[] choices, final T defaultChoice) {
+		return showChoiceDialog(title, message, Arrays.asList(choices), defaultChoice);
+	}
+	
+	public static <T> T showChoiceDialog(final String title, final String message, final Collection<T> choices, final T defaultChoice) {
 		if (Platform.isFxApplicationThread()) {
 			ChoiceDialog<T> dialog = new ChoiceDialog<>(defaultChoice, choices);
 			dialog.setTitle(title);
@@ -427,7 +431,7 @@ public class DisplayHelpers {
 				return result.get();
 			return null;
 		} else
-			return (T)JOptionPane.showInputDialog(getPossibleParent(), message, title, JOptionPane.PLAIN_MESSAGE, null, choices, defaultChoice);
+			return (T)JOptionPane.showInputDialog(getPossibleParent(), message, title, JOptionPane.PLAIN_MESSAGE, null, choices.toArray(), defaultChoice);
 	}
 	
 	
@@ -448,11 +452,15 @@ public class DisplayHelpers {
 		String message = e.getLocalizedMessage();
 		if (message == null)
 			message = "QuPath has encountered a problem, sorry.\nIf you can replicate it, please notify a developer.\n\n" + e;
-		if (Platform.isFxApplicationThread())
+		if (Platform.isFxApplicationThread()) {
+			requestStageFocus();
 			Notifications.create().title(title).text(message).showError();
-		else {
+		} else {
 			String finalMessage = message;
-			Platform.runLater(() -> Notifications.create().title(title).text(finalMessage).showError());
+			Platform.runLater(() -> {
+				requestStageFocus();
+				Notifications.create().title(title).text(finalMessage).showError();
+			});
 		}
 	}
 
@@ -462,6 +470,7 @@ public class DisplayHelpers {
 			return;
 		}
 		logger.error(title + ": " + message);
+		requestStageFocus();
 		Notifications.create().title(title).text(message).showError();
 	}
 
@@ -471,6 +480,7 @@ public class DisplayHelpers {
 			return;
 		}
 		logger.warn(title + ": " + message);
+		requestStageFocus();
 		Notifications.create().title(title).text(message).showWarning();
 	}
 
@@ -480,6 +490,7 @@ public class DisplayHelpers {
 			return;
 		}
 		logger.info(title + ": " + message);
+		requestStageFocus();
 		Notifications.create().title(title).text(message).showInformation();
 	}
 
@@ -489,7 +500,17 @@ public class DisplayHelpers {
 			return;
 		}
 		logger.info(title + ": " + message);
+		requestStageFocus();
 		Notifications.create().title(title).text(message).show();
+	}
+	
+	/**
+	 * Necessary to have focussed stage when calling notifications (bug in controlsfx?).
+	 */
+	private static void requestStageFocus() {
+		var stage = QuPathGUI.getInstance().getStage();
+		if (stage != null)
+			stage.requestFocus();
 	}
 	
 	/**
@@ -724,11 +745,11 @@ public class DisplayHelpers {
 	};
 	
 	/**
-	 * Make a snapshot (image) showing what is currently displayed in a QuPath window,
-	 * or the active viewer within QuPath.
+	 * Make a snapshot (image) showing what is currently displayed in a QuPath window
+	 * or the active viewer within QuPath, as determined by the SnapshotType.
 	 * 
 	 * @param qupath
-	 * @param wholeWindow
+	 * @param type
 	 * @return
 	 */
 	public static BufferedImage makeSnapshot(final QuPathGUI qupath, final SnapshotType type) {
@@ -741,17 +762,27 @@ public class DisplayHelpers {
 		case CURRENT_VIEWER:
 			// Temporarily remove the selected border color while copying
 			Color borderColor = qupath.getViewer().getBorderColor();
-			qupath.getViewer().setBorderColor(null);
-			WritableImage img = qupath.getViewer().getView().snapshot(null, null);
-			qupath.getViewer().setBorderColor(borderColor);
-			return img;
+			try {
+				qupath.getViewer().setBorderColor(null);
+				return qupath.getViewer().getView().snapshot(null, null);
+			} finally {
+				qupath.getViewer().setBorderColor(borderColor);
+			}
 		case MAIN_SCENE:
 			Scene scene = qupath.getStage().getScene();
 			return scene.snapshot(null);
 		case MAIN_WINDOW_SCREENSHOT:
 			var stage = qupath.getStage();
-			return new Robot().getScreenCapture(null,
-					stage.getX(), stage.getY(), stage.getWidth(), stage.getHeight());
+			try {
+				// For reasons I do not understand, this occasionally throws an ArrayIndexOutOfBoundsException
+				return new Robot().getScreenCapture(null,
+						stage.getX(), stage.getY(), stage.getWidth(), stage.getHeight());
+			} catch (Exception e) {
+				logger.error("Unable to make main window screenshot, will resort to trying to crop a full screenshot instead", e);
+				var img2 = makeSnapshotFX(qupath, SnapshotType.FULL_SCREENSHOT);
+				return new WritableImage(img2.getPixelReader(), 
+						(int)stage.getX(), (int)stage.getY(), (int)stage.getWidth(), (int)stage.getHeight());
+			}
 		case FULL_SCREENSHOT:
 			var screen = Screen.getPrimary();
 			var bounds = screen.getBounds();

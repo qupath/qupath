@@ -37,8 +37,6 @@ import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.interfaces.ROI;
 import qupath.imagej.helpers.IJTools;
-import qupath.imagej.images.servers.ImagePlusServer;
-import qupath.imagej.images.servers.ImagePlusServerBuilder;
 
 /**
  * PathImage implementation backed by an ImageJ ImagePlus object.
@@ -50,7 +48,7 @@ public class PathImagePlus implements PathImage<ImagePlus> {
 	
 	final private static Logger logger = LoggerFactory.getLogger(PathImagePlus.class);
 	
-	transient private ImagePlusServer server;
+	transient private ImageServer<BufferedImage> server;
 	transient private ImagePlus imp = null;
 	private RegionRequest request;
 	private double pixelWidthMicrons = Double.NaN, pixelHeightMicrons = Double.NaN;
@@ -82,8 +80,7 @@ public class PathImagePlus implements PathImage<ImagePlus> {
 	PathImagePlus(ImageServer<BufferedImage> server, RegionRequest request, ImagePlus imp) {
 		this.request = request;
 		// Store the server if we don't have an ImagePlus
-		if (imp == null)
-			this.server = ImagePlusServerBuilder.ensureImagePlusWholeSlideServer(server);
+		this.server = server;
 		this.pixelWidthMicrons = server.getPixelWidthMicrons() * request.getDownsample();
 		this.pixelHeightMicrons = server.getPixelHeightMicrons() * request.getDownsample();
 		this.imp = imp;
@@ -146,17 +143,17 @@ public class PathImagePlus implements PathImage<ImagePlus> {
 			return imp;
 		else if (request != null) {
 			ImagePlus impTemp;
-			// Create a server if necessary, or use one if possible
-			if (server == null) {
-				ImagePlusServer server = new ImagePlusServerBuilder().buildServer(request.getPath());
-				impTemp = server.readImagePlusRegion(request).getImage();
-				try {
-					server.close();
-				} catch (Exception e) {
-					logger.warn("Problem closing server", e);
-				}
-			} else
-				impTemp = server.readImagePlusRegion(request).getImage();
+//			// Create a server if necessary, or use one if possible
+//			if (server == null) {
+//				ImagePlusServer server = new ImagePlusServerBuilder().buildServer(request.getPath());
+//				impTemp = server.readImagePlusRegion(request).getImage();
+//				try {
+//					server.close();
+//				} catch (Exception e) {
+//					logger.warn("Problem closing server", e);
+//				}
+//			} else
+				impTemp = IJTools.convertToImagePlus(server, request).getImage();
 			if (cache)
 				imp = impTemp;
 			return impTemp;

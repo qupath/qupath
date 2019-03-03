@@ -17,8 +17,10 @@ import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.gui.helpers.dialogs.ParameterPanelFX;
+import qupath.lib.gui.panels.ProjectBrowser;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.projects.Project;
+import qupath.lib.projects.ProjectFactory;
 import qupath.lib.projects.ProjectIO;
 import qupath.lib.projects.ProjectImageEntry;
 
@@ -190,12 +192,22 @@ public class SplitProjectTrainingCommand implements PathCommand {
 			
 			// Save projects if we need to
 			if (Boolean.TRUE.equals(params.getBooleanParameterValue("generateProjects"))) {
-				File fileOrig = project.getFile();
+				
+				String ext = ProjectIO.getProjectExtension(true);
+				File fileOrig;
+				if ("file".equals(project.getURI().getScheme()))
+					fileOrig = new File(project.getURI());
+				else {
+					fileOrig = QuPathGUI.getSharedDialogHelper().promptToSaveFile("Project file", null, null, "QuPath project", ext);
+					if (fileOrig == null) {
+						// Save the main project
+						ProjectBrowser.syncProject(project);
+						return;
+					}
+				}
+				
 				File dir = fileOrig.getParentFile();
 				
-				String ext = ProjectIO.getProjectExtension();
-				if (!ext.startsWith("."))
-					ext = "." + ext;
 				String baseName = fileOrig.getName();
 				if (baseName.toLowerCase().endsWith(ext))
 					baseName = baseName.substring(0, baseName.length()-ext.length());
@@ -206,19 +218,19 @@ public class SplitProjectTrainingCommand implements PathCommand {
 					File fileTest = new File(dir, baseName + "-test-"+num+ext);
 					if (!fileTrain.exists() && !fileValidation.exists() && !fileTest.exists()) {
 						if (!trainEntries.isEmpty()) {
-							Project<BufferedImage> projectTemp = new Project<>(fileTrain, BufferedImage.class);
+							Project<BufferedImage> projectTemp = ProjectFactory.createProject(fileTrain, BufferedImage.class);
 							projectTemp.addAllImages(trainEntries);
-							ProjectIO.writeProject(projectTemp);
+							ProjectBrowser.syncProject(projectTemp);
 						}
 						if (!validationEntries.isEmpty()) {
-							Project<BufferedImage> projectTemp = new Project<>(fileValidation, BufferedImage.class);
+							Project<BufferedImage> projectTemp = ProjectFactory.createProject(fileValidation, BufferedImage.class);
 							projectTemp.addAllImages(validationEntries);
-							ProjectIO.writeProject(projectTemp);
+							ProjectBrowser.syncProject(projectTemp);
 						}
 						if (!testEntries.isEmpty()) {
-							Project<BufferedImage> projectTemp = new Project<>(fileTest, BufferedImage.class);
+							Project<BufferedImage> projectTemp = ProjectFactory.createProject(fileTest, BufferedImage.class);
 							projectTemp.addAllImages(testEntries);
-							ProjectIO.writeProject(projectTemp);
+							ProjectBrowser.syncProject(projectTemp);
 						}
 						break;
 					}
@@ -228,7 +240,7 @@ public class SplitProjectTrainingCommand implements PathCommand {
 			}
 			
 			// Save the main project
-			ProjectIO.writeProject(project);
+			ProjectBrowser.syncProject(project);
 
 		}
 		

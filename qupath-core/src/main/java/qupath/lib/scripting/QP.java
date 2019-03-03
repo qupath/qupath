@@ -56,6 +56,7 @@ import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
+import qupath.lib.objects.classes.PathClassFactory.PathClasses;
 import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.TMAGrid;
@@ -1297,6 +1298,11 @@ public class QP {
 			throw new IllegalArgumentException("Between 1 and 3 intensity thresholds required!");
 		
 		PathClass baseClass = getNonIntensityAncestorPathClass(pathObject);
+		
+		// Don't do anything with the 'ignore' class
+		if (baseClass == PathClassFactory.getDefaultPathClass(PathClasses.IGNORE))
+			return pathObject.getPathClass();
+		
 		double intensityValue = pathObject.getMeasurementList().getMeasurementValue(measurementName);
 		
 		boolean singleThreshold = thresholds.length == 1;

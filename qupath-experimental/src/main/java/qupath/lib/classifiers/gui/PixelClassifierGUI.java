@@ -22,22 +22,45 @@ import org.slf4j.LoggerFactory;
 import com.google.gson.annotations.JsonAdapter;
 
 import qupath.imagej.objects.ROIConverterIJ;
+import qupath.lib.classifiers.opencv.gui.PixelClassifierImageSelectionPane;
+import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.classifiers.pixel.PixelClassifierMetadata;
+import qupath.lib.classifiers.pixel.PixelClassifierMetadata.OutputType;
 import qupath.lib.classifiers.pixel.features.OpenCVFeatureCalculator;
 import qupath.lib.common.ColorTools;
+import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.TileRequest;
+import qupath.lib.objects.PathAnnotationObject;
+import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjects;
+import qupath.lib.objects.classes.PathClass;
+import qupath.lib.objects.classes.PathClassFactory;
+import qupath.lib.objects.classes.Reclassifier;
+import qupath.lib.objects.classes.PathClassFactory.PathClasses;
+import qupath.lib.objects.helpers.PathObjectTools;
+import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.RegionRequest;
+import qupath.lib.roi.AreaROI;
+import qupath.lib.roi.PathROIToolsAwt;
+import qupath.lib.roi.PathROIToolsAwt.CombineOp;
+import qupath.lib.roi.interfaces.PathArea;
+import qupath.lib.roi.interfaces.PathShape;
 import qupath.lib.roi.interfaces.ROI;
 import qupath.opencv.processing.TypeAdaptersCV;
 
+import java.awt.geom.Path2D;
 import java.awt.image.BufferedImage;
 import java.awt.image.WritableRaster;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 /**
@@ -243,7 +266,7 @@ public class PixelClassifierGUI {
     				.toArray(ImageChannel[]::new);
     		metadata = new PixelClassifierMetadata.Builder()
     				.inputShape(256, 256)
-    				.inputPixelSizeMicrons(pixelSizeMicrons)
+    				.inputPixelSize(pixelSizeMicrons)
     				.channels(channels)
     				.build();
     	}
@@ -324,7 +347,7 @@ public class PixelClassifierGUI {
     		padding = filters.stream().mapToInt(f -> f.getPadding()).max().orElseGet(() -> 0);
     		metadata = new PixelClassifierMetadata.Builder()
     				.channels(outputChannels)
-    				.inputPixelSizeMicrons(pixelSizeMicrons)
+    				.inputPixelSize(pixelSizeMicrons)
     				.inputShape(512, 512)
     				.build();
     		
@@ -550,6 +573,201 @@ public class PixelClassifierGUI {
 	//    	matSquaredE.release();
 	//    	return matESquared;
 	    }
+	    
+	    
+	    /**
+	     * Create detections objects via a pixel classifier.
+	     * 
+	     * @param imageData
+	     * @param classifier
+	     * @param selectedObject
+	     * @param minSizePixels
+	     * @param doSplit
+	     * @return
+	     */
+    public static boolean createDetectionsFromPixelClassifier(
+			ImageData<BufferedImage> imageData, PixelClassifier classifier, PathObject selectedObject, 
+			double minSizePixels, boolean doSplit) {
+		return createObjectsFromPixelClassifier(
+				new PixelClassificationImageServer(imageData, classifier),
+				selectedObject,
+				(var roi) -> PathObjects.createDetectionObject(roi),
+				minSizePixels, doSplit);
+	}
+
+    /**
+     * Create annotation objects via a pixel classifier.
+     * 
+     * @param imageData
+     * @param classifier
+     * @param selectedObject
+     * @param minSizePixels
+     * @param doSplit
+     * @return
+     */
+	public static boolean createAnnotationsFromPixelClassifier(
+			ImageData<BufferedImage> imageData, PixelClassifier classifier, PathObject selectedObject, 
+			double minSizePixels, boolean doSplit) {
+		
+		return createObjectsFromPixelClassifier(
+				new PixelClassificationImageServer(imageData, classifier),
+				selectedObject,
+				(var roi) -> {
+					var annotation = PathObjects.createAnnotationObject(roi);
+					annotation.setLocked(true);
+					return annotation;
+				},
+				minSizePixels, doSplit);
+	}
+
+	/**
+	 * Create objects & add them to an object hierarchy based on thresholding the output of a pixel classifier.
+	 * 
+	 * @param server
+	 * @param selectedObject
+	 * @param creator
+	 * @param doSplit
+	 * @return
+	 */
+	public static boolean createObjectsFromPixelClassifier(
+			PixelClassificationImageServer server, PathObject selectedObject, 
+			Function<ROI, ? extends PathObject> creator, double minSizePixels, boolean doSplit) {
+		
+		var hierarchy = server.getImageData().getHierarchy();
+		var classifier = server.getClassifier();
+	
+		var clipArea = selectedObject == null ? null : PathROIToolsAwt.getArea(selectedObject.getROI());
+		Collection<TileRequest> tiles;
+		if (selectedObject == null) {
+			tiles = server.getAllTileRequests();
+		} else {
+			var request = RegionRequest.createInstance(
+					server.getPath(), server.getDownsampleForResolution(0), 
+					selectedObject.getROI());			
+			tiles = server.getTiles(request);
+		}
+	
+		Map<PathClass, List<PathObject>> pathObjectMap = tiles.parallelStream().map(t -> {
+			var list = new ArrayList<PathObject>();
+			try {
+				var img = server.readBufferedImage(t.getRegionRequest());
+				var nChannels = classifier.getMetadata().getChannels().size();
+				for (int c = 0; c < nChannels; c++) {
+					String name = server.getChannelName(c);
+					if (name == null || server.getDefaultChannelColor(c) == null)
+						continue;
+					var pathClass = PathClassFactory.getPathClass(name);
+					if (pathClass == PathClassFactory.getDefaultPathClass(PathClasses.IGNORE))
+						continue;
+					ROI roi;
+					if (classifier.getMetadata().getOutputType() == OutputType.Classification) {
+						roi = thresholdToROI(img, c-0.5, c+0.5, 0, t);
+					} else {
+						roi = thresholdToROI(img, 0.5, Double.POSITIVE_INFINITY, c, t);						
+					}
+										
+					if (roi != null && clipArea != null) {
+						var roiArea = PathROIToolsAwt.getArea(roi);
+						PathROIToolsAwt.combineAreas(roiArea, clipArea, CombineOp.INTERSECT);
+						if (roiArea.isEmpty())
+							roi = null;
+						else
+							roi = PathROIToolsAwt.getShapeROI(roiArea, roi.getC(), roi.getZ(), roi.getT());
+					}
+					
+					if (roi != null)
+						list.add(PathObjects.createDetectionObject(roi, pathClass));
+				}
+			} catch (Exception e) {
+				logger.error("Error requesting classified tile", e);
+			}
+			return list;
+		}).flatMap(p -> p.stream()).collect(Collectors.groupingBy(p -> p.getPathClass(), Collectors.toList()));
+	
+		// Merge objects with the same classification
+		var pathObjects = new ArrayList<PathObject>();
+		for (var entry : pathObjectMap.entrySet()) {
+			var pathClass = entry.getKey();
+			var list = entry.getValue();
+			Path2D path = new Path2D.Double();
+			for (var pathObject : list) {
+				var shape = PathROIToolsAwt.getShape(pathObject.getROI());
+				path.append(shape, false);
+			}
+	
+			var plane = ImagePlane.getDefaultPlane();
+			var roi = PathROIToolsAwt.getShapeROI(path, plane.getC(), plane.getZ(), plane.getT(), 0.5);
+			
+			// Apply size threshold
+			if (roi != null && minSizePixels > 0) {
+				if (roi instanceof AreaROI)
+					roi = (PathShape)PathROIToolsAwt.removeSmallPieces((AreaROI)roi, minSizePixels, minSizePixels);
+				else if (!(roi instanceof PathArea && ((PathArea)roi).getArea() > minSizePixels))
+					continue;
+			}
+	
+			
+			if (doSplit) {
+				var rois = PathROIToolsAwt.splitROI(roi);
+				for (var r : rois) {
+					var annotation = creator.apply(r);
+					annotation.setPathClass(pathClass);
+					pathObjects.add(annotation);
+				}
+			} else {
+				var annotation = creator.apply(roi);
+				annotation.setPathClass(pathClass);
+				pathObjects.add(annotation);				
+			}
+		}
+	
+		// Add objects
+		if (selectedObject == null)
+			hierarchy.addPathObjects(pathObjects, false);
+		else {
+			((PathAnnotationObject)selectedObject).setLocked(true);
+			selectedObject.clearPathObjects();
+			selectedObject.addPathObjects(pathObjects);
+			hierarchy.fireHierarchyChangedEvent(PixelClassifierImageSelectionPane.class, selectedObject);
+		}
+		return true;
+	}
+
+
+	/**
+	 * Apply classification from a server to a collection of objects.
+	 * 
+	 * @param server
+	 * @param pathObjects
+	 */
+	public static void classifyObjects(PixelClassificationImageServer server, Collection<PathObject> pathObjects) {
+		var reclassifiers = pathObjects.parallelStream().map(p -> {
+				try {
+					var roi = PathObjectTools.getROI(p, true);
+					int x = (int)Math.round(roi.getCentroidX());
+					int y = (int)Math.round(roi.getCentroidY());
+					int ind = server.getClassification(x, y, roi.getZ(), roi.getT());
+					return new Reclassifier(p, PathClassFactory.getPathClass(server.getChannelName(ind)), false);
+				} catch (Exception e) {
+					return new Reclassifier(p, null, false);
+				}
+			}).collect(Collectors.toList());
+		reclassifiers.parallelStream().forEach(r -> r.apply());
+		server.getImageData().getHierarchy().fireObjectClassificationsChangedEvent(server, pathObjects);
+	}
+	
+	
+	public static void classifyCells(ImageData<BufferedImage> imageData, PixelClassifier classifier) {
+		classifyObjects(imageData, classifier, imageData.getHierarchy().getCellObjects());
+	}
+
+	public static void classifyDetections(ImageData<BufferedImage> imageData, PixelClassifier classifier) {
+		classifyObjects(imageData, classifier, imageData.getHierarchy().getDetectionObjects());
+	}
+	
+	public static void classifyObjects(ImageData<BufferedImage> imageData, PixelClassifier classifier, Collection<PathObject> pathObjects) {
+		classifyObjects(new PixelClassificationImageServer(imageData, classifier), pathObjects);
+	}
     
     
     

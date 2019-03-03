@@ -117,10 +117,6 @@ import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.scripting.QPEx;
 import qupath.lib.gui.scripting.ScriptEditor;
 import qupath.lib.images.ImageData;
-import qupath.lib.images.servers.ImageServer;
-import qupath.lib.images.servers.ImageServerProvider;
-import qupath.lib.images.servers.RotatedImageServer;
-import qupath.lib.io.PathIO;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectImageEntry;
 import qupath.lib.scripting.QP;
@@ -129,7 +125,7 @@ import qupath.lib.scripting.QP;
 /**
  * 
  * Default multilingual script editor.
- * 
+ * <p>
  * Lacks syntax highlighting and other pleasant features, unfortunately.
  * 
  * @author Pete Bankhead
@@ -838,9 +834,9 @@ public class DefaultScriptEditor implements ScriptEditor {
 				tab.saveToFile(tab.getFile());
 			else {
 				File dir = tab.getFile();
-				if (dir == null) {
-					dir = qupath.getProjectScriptsDirectory(true);
-				}
+//				if (dir == null) {
+//					dir = qupath.getProjectScriptsDirectory(true);
+//				}
 				File file = QuPathGUI.getDialogHelper(dialog).promptToSaveFile("Save script file", dir, tab.getName(), "Script file", tab.getRequestedExtension());
 				if (file == null)
 					return false;
@@ -1059,13 +1055,13 @@ public class DefaultScriptEditor implements ScriptEditor {
 		return action;
 	}
 	
-	private List<ProjectImageEntry<?>> previousImages = new ArrayList<>();
+	private List<ProjectImageEntry<BufferedImage>> previousImages = new ArrayList<>();
 	
 	/**
 	 * Request project image entries to run script for.
 	 */
 	void handleRunProject(final boolean doSave) {
-		Project<?> project = qupath.getProject();
+		Project<BufferedImage> project = qupath.getProject();
 		if (project == null) {
 			DisplayHelpers.showErrorMessage("Script editor", "No project open");
 			return;
@@ -1081,7 +1077,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 		}
 		
 		// Unfortunately ListSelectionView doesn't directly support filtered lists...
-		ListSelectionView<ProjectImageEntry<?>> listSelectionView = new ListSelectionView<>();
+		ListSelectionView<ProjectImageEntry<BufferedImage>> listSelectionView = new ListSelectionView<>();
 		// Ensure that the previous images remain selected if the project still contains them
 //		FilteredList<ProjectImageEntry<?>> sourceList = new FilteredList<>(FXCollections.observableArrayList(project.getImageList()));
 		
@@ -1090,14 +1086,14 @@ public class DefaultScriptEditor implements ScriptEditor {
 			listSelectionView.getSourceItems().removeAll(previousImages);
 			listSelectionView.getTargetItems().addAll(previousImages);
 		}
-		listSelectionView.setCellFactory(new Callback<ListView<ProjectImageEntry<?>>, 
-	            ListCell<ProjectImageEntry<?>>>() {
+		listSelectionView.setCellFactory(new Callback<ListView<ProjectImageEntry<BufferedImage>>, 
+	            ListCell<ProjectImageEntry<BufferedImage>>>() {
             @Override 
-            public ListCell<ProjectImageEntry<?>> call(ListView<ProjectImageEntry<?>> list) {
-                return new ListCell<ProjectImageEntry<?>>() {
+            public ListCell<ProjectImageEntry<BufferedImage>> call(ListView<ProjectImageEntry<BufferedImage>> list) {
+                return new ListCell<ProjectImageEntry<BufferedImage>>() {
                 	private Tooltip tooltip = new Tooltip();
                 	@Override
-            		protected void updateItem(ProjectImageEntry<?> item, boolean empty) {
+            		protected void updateItem(ProjectImageEntry<BufferedImage> item, boolean empty) {
                 		super.updateItem(item, empty);
                 		if (item == null || empty) {
                 			setText(null);
@@ -1165,7 +1161,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 		if (previousImages.isEmpty())
 			return;
 		
-		List<ProjectImageEntry<?>> imagesToProcess = new ArrayList<>(previousImages);
+		List<ProjectImageEntry<BufferedImage>> imagesToProcess = new ArrayList<>(previousImages);
 
 		ProjectTask worker = new ProjectTask(project, imagesToProcess, tab, doSave);
 		
@@ -1198,19 +1194,19 @@ public class DefaultScriptEditor implements ScriptEditor {
 	
 	
 	
-	private void updateImageList(final ListSelectionView<ProjectImageEntry<?>> listSelectionView, final Project<?> project, final String filterText, final boolean withDataOnly) {
+	private void updateImageList(final ListSelectionView<ProjectImageEntry<BufferedImage>> listSelectionView, final Project<BufferedImage> project, final String filterText, final boolean withDataOnly) {
 		String text = filterText.trim().toLowerCase();
 		
 		// Get an update source items list
-		List<ProjectImageEntry<?>> sourceItems = new ArrayList<>(project.getImageList());
+		List<ProjectImageEntry<BufferedImage>> sourceItems = new ArrayList<>(project.getImageList());
 		sourceItems.removeAll(listSelectionView.getTargetItems());
 		// Remove those without a data file, if necessary
 		if (withDataOnly) {
-			sourceItems.removeIf(p -> !QuPathGUI.getImageDataFile(project, p).exists());
+			sourceItems.removeIf(p -> !p.hasImageData());
 		}
 		// Apply filter text
 		if (text.length() > 0 && !sourceItems.isEmpty()) {
-			Iterator<ProjectImageEntry<?>> iter = sourceItems.iterator();
+			Iterator<ProjectImageEntry<BufferedImage>> iter = sourceItems.iterator();
 			while (iter.hasNext()) {
 				if (!iter.next().getImageName().toLowerCase().contains(text))
 					iter.remove();
@@ -1225,13 +1221,13 @@ public class DefaultScriptEditor implements ScriptEditor {
 	
 	class ProjectTask extends Task<Void> {
 		
-		private Project<?> project;
-		private Collection<ProjectImageEntry<?>> imagesToProcess;
+		private Project<BufferedImage> project;
+		private Collection<ProjectImageEntry<BufferedImage>> imagesToProcess;
 		private ScriptTab tab;
 		private boolean quietCancel = false;
 		private boolean doSave = false;
 		
-		ProjectTask(final Project<?> project, final Collection<ProjectImageEntry<?>> imagesToProcess, final ScriptTab tab, final boolean doSave) {
+		ProjectTask(final Project<BufferedImage> project, final Collection<ProjectImageEntry<BufferedImage>> imagesToProcess, final ScriptTab tab, final boolean doSave) {
 			this.project = project;
 			this.imagesToProcess = imagesToProcess;
 			this.tab = tab;
@@ -1252,7 +1248,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 			long startTime = System.currentTimeMillis();
 			
 			int counter = 0;
-			for (ProjectImageEntry<?> entry : imagesToProcess) {
+			for (ProjectImageEntry<BufferedImage> entry : imagesToProcess) {
 				try {
 					// Stop
 					if (isQuietlyCancelled() || isCancelled()) {
@@ -1267,25 +1263,8 @@ public class DefaultScriptEditor implements ScriptEditor {
 					// Create a new region store if we need one
 					System.gc();
 
-					File fileEntry = QuPathGUI.getImageDataFile(project, entry);
-//					// TODO: Check rotate flag!
-					boolean doRotate = "true".equals(entry.getMetadataValue("rotate180"));
-//					boolean opened;
 					// Open saved data if there is any, or else the image itself
-					ImageServer<BufferedImage> server = ImageServerProvider.buildServer(entry.getServerPath(), BufferedImage.class);
-					if (doRotate)
-						server = new RotatedImageServer(server);
-					ImageData<BufferedImage> imageData = null;
-					if (fileEntry.exists()) {
-						// It's important to build the server first in case the stored path is out of sync with the project one
-						imageData = PathIO.readImageData(fileEntry, null, server, BufferedImage.class);
-//						opened = qupath.openImage(fileEntry.getAbsolutePath(), false, false, doRotate);
-					} else {
-						imageData = new ImageData<>(server);
-//						opened = qupath.openImage(entry.getServerPath(), false, false, doRotate);
-//						opened = qupath.openImage(entry.getServerPath(), false, false, doRotate);
-					}
-//					if (!opened) {
+					ImageData<BufferedImage> imageData = (ImageData<BufferedImage>)entry.readImageData();
 					if (imageData == null) {
 						logger.warn("Unable to open {} - will be skipped", entry.getImageName());
 						continue;
@@ -1293,7 +1272,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 //					QPEx.setBatchImageData(imageData);
 					executeScript(tab, tab.getEditorComponent().getText(), imageData);
 					if (doSave)
-						PathIO.writeImageData(fileEntry, imageData);
+						entry.saveImageData(imageData);
 					imageData.getServer().close();
 				} catch (Exception e) {
 					logger.error("Error running batch script: {}", e);
@@ -1706,7 +1685,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 		
 		public void saveToFile(final File file) throws IOException {
 			String text = getCurrentText();
-			Files.write(file.toPath(), text.getBytes("UTF-8"));
+			Files.writeString(file.toPath(), text);
 			this.file = file;
 			this.name = file.getName();
 			this.lastSavedContents = text;

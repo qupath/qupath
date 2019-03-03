@@ -71,7 +71,7 @@ public interface PathImage<T> {
 	 * @return
 	 * @throws IOException 
 	 * 
-	 * @see {@link #getImage()}
+	 * @see #getImage()
 	 */
 	public T getImage(boolean cache) throws IOException;
 	

@@ -18,8 +18,8 @@ public class ExperimentalExtension implements QuPathExtension {
     public void installExtension(QuPathGUI qupath) {
         QuPathGUI.addMenuItems(
                 qupath.getMenu("Classify", true),
-                QuPathGUI.createCommandAction(new PixelClassifierCommand(), "Pixel classifier (updated)"),
-                QuPathGUI.createCommandAction(new OpenCvClassifierCommand2(qupath), "Object classifier (experimental)")
+                QuPathGUI.createCommandAction(new PixelClassifierCommand(), "Pixel classifier (experimental)")
+//                QuPathGUI.createCommandAction(new OpenCvClassifierCommand2(qupath), "Object classifier (experimental)")
         );
         QuPathGUI.addMenuItems(
                 qupath.getMenu("Analyze", true),

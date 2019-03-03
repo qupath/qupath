@@ -25,6 +25,7 @@ package qupath.lib.gui.viewer;
 
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -48,6 +49,7 @@ import qupath.lib.images.ImageData;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.TMAGrid;
 import qupath.lib.projects.Project;
+import qupath.lib.projects.ProjectFactory;
 import qupath.lib.projects.ProjectIO;
 import qupath.lib.gui.scripting.DefaultScriptEditor;
 
@@ -114,7 +116,11 @@ public class DragDropFileImportListener implements EventHandler<DragEvent> {
         
 		if (dragboard.hasFiles()) {
 	        logger.debug("Files dragged onto {}", source);
-			handleFileDrop(viewer, dragboard.getFiles());
+			try {
+				handleFileDrop(viewer, dragboard.getFiles());
+			} catch (IOException e) {
+				DisplayHelpers.showErrorMessage("Drag & Drop", e);
+			}
 		}
 		event.setDropCompleted(true);
 		event.consume();
@@ -122,7 +128,7 @@ public class DragDropFileImportListener implements EventHandler<DragEvent> {
     
     /**
      * Add a new FileDropHandler.
-     * 
+     * <p>
      * This may be called on a drag-and-drop application on the main window, if no other 
      * handler deals with the event.
      * 
@@ -142,7 +148,7 @@ public class DragDropFileImportListener implements EventHandler<DragEvent> {
 	}
     
     
-    public void handleFileDrop(final QuPathViewer viewer, final List<File> list) {
+    public void handleFileDrop(final QuPathViewer viewer, final List<File> list) throws IOException {
 		
 		// Shouldn't occur... but keeps FindBugs happy to check
 		if (list == null) {
@@ -179,10 +185,14 @@ public class DragDropFileImportListener implements EventHandler<DragEvent> {
 
 				// If we have a different path, open as a new image
 				if (viewer == null) {
-					DisplayHelpers.showErrorMessage("Open data", "Please drag the file only a specific viewer to open!");
+					DisplayHelpers.showErrorMessage("Open data", "Please drag the file onto a specific viewer to open!");
 					break;
 				}
-				gui.openSavedData(viewer, file, false, true);
+				try {
+					gui.openSavedData(viewer, file, false, true);
+				} catch (IOException e) {
+					DisplayHelpers.showErrorMessage("Open image", e);
+				}
 				break;
 			}
 			
@@ -206,8 +216,10 @@ public class DragDropFileImportListener implements EventHandler<DragEvent> {
 				} else if (filesInDirectory.length == 0) {
 					// If we have an empty directory, offer to set it as a project
 					if (DisplayHelpers.showYesNoDialog("Create project", "Create project for empty directory?")) {
-						Project<BufferedImage> project = new Project<>(file, BufferedImage.class);
+						Project<BufferedImage> project = ProjectFactory.createProject(file, BufferedImage.class);
 						gui.setProject(project);
+						if (!project.isEmpty())
+							project.syncChanges();
 						return;
 					}
 				}
