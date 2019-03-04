@@ -411,7 +411,7 @@ public class ROIConverterIJ {
 		List<Point2> points = convertToPointsList(roi.getFloatPolygon(), cal, downsampleFactor);
 		if (points == null)
 			return null;
-		return ROIs.createPolyonROI(points, ImagePlane.getPlaneWithChannel(c, z, t));
+		return ROIs.createPolygonROI(points, ImagePlane.getPlaneWithChannel(c, z, t));
 	}
 	
 	public static List<Point2> convertToPointsList(FloatPolygon polygon, Calibration cal, double downsampleFactor) {

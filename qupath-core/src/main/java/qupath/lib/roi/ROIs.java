@@ -84,11 +84,11 @@ public class ROIs {
 		return new PointsROI(points, plane.getC(), plane.getZ(), plane.getT());
 	}
 
-	public static PolygonROI createPolyonROI(List<Point2> points, ImagePlane plane) {
+	public static PolygonROI createPolygonROI(List<Point2> points, ImagePlane plane) {
 		return new PolygonROI(points, plane.getC(), plane.getZ(), plane.getT());
 	}
 	
-	public static PolygonROI createPolyonROI(double x, double y, ImagePlane plane) {
+	public static PolygonROI createPolygonROI(double x, double y, ImagePlane plane) {
 		return new PolygonROI(Collections.singletonList(new Point2(x, y)), plane.getC(), plane.getZ(), plane.getT());
 	}
 	

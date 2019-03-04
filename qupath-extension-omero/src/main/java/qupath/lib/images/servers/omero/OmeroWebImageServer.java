@@ -275,7 +275,7 @@ public class OmeroWebImageServer extends AbstractTileableImageServer {
 						roi = ROIs.createPolylineROI(points, plane);
 					} else if (type.toLowerCase().endsWith("#polygon")) {
 						logger.debug("FOUND A POLYGON: " + id);
-						roi = ROIs.createPolyonROI(points, plane);
+						roi = ROIs.createPolygonROI(points, plane);
 					} else if (type.toLowerCase().endsWith("#label")) {
 						logger.warn("I found a label and I don't know what to do with it: " + id);
 					}

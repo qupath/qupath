@@ -246,7 +246,7 @@ public class WatershedNucleiCV extends AbstractTileableDetectionPlugin<BufferedI
 						}
 
 						// Add new polygon if it is contained within the ROI & measurable
-						PolygonROI pathPolygon = ROIs.createPolyonROI(points, ImagePlane.getPlaneWithChannel(pathROI));
+						PolygonROI pathPolygon = ROIs.createPolygonROI(points, ImagePlane.getPlaneWithChannel(pathROI));
 						if (!(pathPolygon.getArea() >= minArea)) {
 							// Don't do a simpler < because we also want to discard the region if the area couldn't be measured (although this is unlikely)
 							continue;

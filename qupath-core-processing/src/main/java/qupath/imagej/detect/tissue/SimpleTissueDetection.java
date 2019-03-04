@@ -278,7 +278,7 @@ public class SimpleTissueDetection extends AbstractDetectionPlugin<BufferedImage
 //				continue;
 			// Smooth the coordinates, if we downsampled quite a lot
 			if (smoothCoordinates) {
-				pathPolygon = ROIs.createPolyonROI(ROIHelpers.smoothPoints(pathPolygon.getPolygonPoints()), ImagePlane.getPlane(pathPolygon));
+				pathPolygon = ROIs.createPolygonROI(ROIHelpers.smoothPoints(pathPolygon.getPolygonPoints()), ImagePlane.getPlane(pathPolygon));
 			}
 			pathObjects.add(PathObjects.createAnnotationObject(pathPolygon));
 		}

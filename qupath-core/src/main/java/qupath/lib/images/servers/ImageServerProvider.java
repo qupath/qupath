@@ -29,12 +29,11 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
-import java.util.TreeMap;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -131,24 +130,32 @@ public class ImageServerProvider {
 		URI uri = uriTemp;
 
 		final ImageCheckType type = FileFormatInfo.checkImageType(uri);
-		Map<Number, ImageServerBuilder<?>> providers = new TreeMap<>();
+		List<ImageServerBuilder<?>> providers = new ArrayList<>();
 		List<String> requestedBuilders = Arrays.asList(requestedServerBuilderClassnames);
 		for (ImageServerBuilder<?> provider : serviceLoader) {
 			if (requestedBuilders.isEmpty()) {
-				providers.put(-provider.supportLevel(uri, type, cls), provider);
+				providers.add(provider);
 			} else {
 				int index = requestedBuilders.indexOf(provider.getClass().getName());
 				if (index >= 0)
-					providers.put(index, provider);
+					providers.add(provider);
 			}
 		}
 		
+		// Sort by support level, then by name
+		Collections.sort(providers, (p1, p2) -> {
+			int support = -Float.compare(p1.supportLevel(uri, type, cls), p2.supportLevel(uri, type, cls));
+			if (support == 0)
+				return p1.getClass().getName().compareTo(p2.getClass().getName());
+			return support;
+		});
+		
 		if (logger.isDebugEnabled()) {
-			for (ImageServerBuilder<?> provider : providers.values())
+			for (ImageServerBuilder<?> provider : providers)
 				logger.debug("{}: rank {} ", provider, provider.supportLevel(uri, type, cls));				
 		}
 		long maxImageSize = Runtime.getRuntime().maxMemory() / 2;
-		for (ImageServerBuilder<?> provider : providers.values()) {
+		for (ImageServerBuilder<?> provider : providers) {
 			if (provider.supportLevel(uri, type, cls) == 0) {
 				logger.error("No image server provider found for {}", path);
 				return null;
