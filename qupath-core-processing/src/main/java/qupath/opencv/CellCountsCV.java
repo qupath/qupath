@@ -307,7 +307,7 @@ public class CellCountsCV extends AbstractTileableDetectionPlugin<BufferedImage>
 					tempROI = ROIs.createEllipseROI(p.getX()-radius, p.getY()-radius, radius*2, radius*2, ImagePlane.getPlane(pathROI));
 				}
 				else {
-					tempROI = ROIs.createPolyonROI(points, ImagePlane.getPlane(pathROI));
+					tempROI = ROIs.createPolygonROI(points, ImagePlane.getPlane(pathROI));
 					// Check we're inside
 					if (area != null && !area.contains(tempROI.getCentroidX(), tempROI.getCentroidY()))
 						continue;

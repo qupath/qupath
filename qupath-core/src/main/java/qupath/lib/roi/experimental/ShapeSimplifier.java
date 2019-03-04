@@ -147,7 +147,7 @@ public class ShapeSimplifier {
 		List<Point2> points = polygon.getPolygonPoints();
 		simplifyPolygonPoints(points, altitudeThreshold);
 		// Construct a new polygon
-		return ROIs.createPolyonROI(points, ImagePlane.getPlaneWithChannel(polygon));
+		return ROIs.createPolygonROI(points, ImagePlane.getPlaneWithChannel(polygon));
 	}
 	
 	

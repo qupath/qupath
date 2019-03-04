@@ -42,7 +42,7 @@ public class PolygonTool extends AbstractPolyROITool {
 	
 	@Override
 	protected ROI createNewROI(double x, double y, ImagePlane plane) {
-		return ROIs.createPolyonROI(x, y, plane);
+		return ROIs.createPolygonROI(x, y, plane);
 	}
 	
 }

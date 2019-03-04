@@ -136,14 +136,14 @@ public class ShowSystemInfoCommand implements PathCommand {
 			sb.append("--- WARNING: Memory almost all in use (< 1GB remaining).").append("\n");
 		
 		
-		// File system info
-		sb.append("\n");
-	    for (File root : File.listRoots()) {
-	      sb.append("File system: \t\t" + root.getAbsolutePath()).append("\n");
-	      sb.append("Total space: \t\t" + root.getTotalSpace()/toMB).append(" MB").append("\n");
-	      sb.append("Free space:  \t\t" + root.getFreeSpace()/toMB).append(" MB").append("\n");
-	      sb.append("Usable space:\t\t" + root.getUsableSpace()/toMB).append(" MB").append("\n");
-	    }
+//		// File system info - excluded (can be very slow to access!)
+//		sb.append("\n");
+//	    for (File root : File.listRoots()) {
+//	      sb.append("File system: \t\t" + root.getAbsolutePath()).append("\n");
+//	      sb.append("Total space: \t\t" + root.getTotalSpace()/toMB).append(" MB").append("\n");
+//	      sb.append("Free space:  \t\t" + root.getFreeSpace()/toMB).append(" MB").append("\n");
+//	      sb.append("Usable space:\t\t" + root.getUsableSpace()/toMB).append(" MB").append("\n");
+//	    }
 	    
 	    // Show paths (at the end, since they may be rather long)
 		sb.append("\n");
