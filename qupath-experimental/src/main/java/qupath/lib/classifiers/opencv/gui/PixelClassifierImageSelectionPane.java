@@ -106,6 +106,7 @@ import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClass;
+import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
 import qupath.lib.plugins.parameters.ParameterList;
@@ -951,7 +952,25 @@ public class PixelClassifierImageSelectionPane {
 		if (server.hasPixelSizeMicrons() && !params.getChoiceParameterValue("minSizeUnits").equals("Pixels"))
 			minSizePixels /= (server.getPixelWidthMicrons() * server.getPixelHeightMicrons());
 		
-		return PixelClassifierGUI.createObjectsFromPixelClassifier(server, viewer.getSelectedObject(), creator, minSizePixels, doSplit);
+		var selected = viewer.getSelectedObject();
+		
+		int nChildObjects = 0;
+		var hierarchy = server.getImageData().getHierarchy();
+		if (selected == null)
+			nChildObjects = hierarchy.nObjects();
+		else
+			nChildObjects = PathObjectTools.countDescendants(selected);
+		if (nChildObjects > 0) {
+			String message = "Existing child object will be deleted - is that ok?";
+			if (nChildObjects > 1)
+				message = nChildObjects + " existing descendant object will be deleted - is that ok?";
+			if (!DisplayHelpers.showConfirmDialog("Create objects", message))
+				return false;
+		}
+		// Need to turn off live prediction so we don't start training on the results...
+		livePrediction.set(false);
+		
+		return PixelClassifierGUI.createObjectsFromPixelClassifier(server, selected, creator, minSizePixels, doSplit);
 	}
 	
 	static interface PathObjectCreator {

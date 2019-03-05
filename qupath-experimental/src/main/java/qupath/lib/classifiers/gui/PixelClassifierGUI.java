@@ -722,13 +722,15 @@ public class PixelClassifierGUI {
 		}
 	
 		// Add objects
-		if (selectedObject == null)
-			hierarchy.addPathObjects(pathObjects, false);
-		else {
+		if (selectedObject == null) {
+			hierarchy.clearAll();
+			hierarchy.getRootObject().addPathObjects(pathObjects);
+			hierarchy.fireHierarchyChangedEvent(PixelClassifierGUI.class);
+		} else {
 			((PathAnnotationObject)selectedObject).setLocked(true);
 			selectedObject.clearPathObjects();
 			selectedObject.addPathObjects(pathObjects);
-			hierarchy.fireHierarchyChangedEvent(PixelClassifierImageSelectionPane.class, selectedObject);
+			hierarchy.fireHierarchyChangedEvent(PixelClassifierGUI.class, selectedObject);
 		}
 		return true;
 	}
