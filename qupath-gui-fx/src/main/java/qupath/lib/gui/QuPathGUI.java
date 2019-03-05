@@ -90,6 +90,7 @@ import org.controlsfx.glyphfont.Glyph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javafx.application.HostServices;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
@@ -461,8 +462,14 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	
 	private UndoRedoManager undoRedoManager;
 	
+	private HostServices hostServices;
+	
 	public QuPathGUI(final Stage stage) {
-		this(stage, null, true);
+		this(null, stage);
+	}
+	
+	public QuPathGUI(final HostServices services, final Stage stage) {
+		this(services, stage, null, true);
 	}
 
 	
@@ -478,8 +485,10 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	 * @param path Path of an image, project or data file to open - may be null.
 	 * @param isStandalone True if QuPath should be run as a standalone application.
 	 */
-	public QuPathGUI(final Stage stage, final String path, final boolean isStandalone) {
+	public QuPathGUI(final HostServices services, final Stage stage, final String path, final boolean isStandalone) {
 		super();
+		
+		this.hostServices = services;
 		
 		if (PathPrefs.doCreateLogFilesProperty().get()) {
 			File fileLogging = tryToStartLogFile();
@@ -859,12 +868,12 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	 * If there is already an instance of QuPath running, this ensures that it is visible - but otherwise does nothing.
 	 * 
 	 */
-	public static void launchQuPath() {
+	public static void launchQuPath(HostServices hostServices) {
 		if (!Platform.isFxApplicationThread()) {
 			System.out.println("Requesting QuPath launch in JavaFX thread...");
 			logger.info("Requesting QuPath launch in JavaFX thread...");
 			new JFXPanel(); // To initialize
-			Platform.runLater(() -> launchQuPath());
+			Platform.runLater(() -> launchQuPath(hostServices));
 			logger.info("Request sent");
 			System.out.println("Request sent");
 			return;
@@ -874,7 +883,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				System.out.println("Launching new QuPath instance...");
 				logger.info("Launching new QuPath instance...");
 				Stage stage = new Stage();
-				QuPathGUI qupath = new QuPathGUI(stage, (String)null, false);
+				QuPathGUI qupath = new QuPathGUI(hostServices, stage, (String)null, false);
 				qupath.getStage().show();
 				System.out.println("Done!");
 			} else {
@@ -892,20 +901,29 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	
 	/**
 	 * Try to launch a browser window for a specified URL.
-	 * 
+	 * <p>
 	 * Returns true if this was (as far as we know...) successful, and false otherwise.
-	 * 
-	 * (Current implementation uses Java AWT, but may change to something more JavaFX-friendly... possibly)
 	 * 
 	 * @param url
 	 * @return
 	 */
 	public static boolean launchBrowserWindow(final String url) {
-		try {
-			Desktop.getDesktop().browse(new URI(url));
+		var instance = getInstance();
+		if (instance != null && instance.hostServices != null) {
+			logger.debug("Showing URL with host services: {}", url);
+			instance.hostServices.showDocument(url);
 			return true;
-		} catch (Exception e) {
-			logger.error("Failed to launch browser window for {}", url, e);
+		}
+		if (Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.APP_OPEN_URI)) {
+			try {
+				Desktop.getDesktop().browse(new URI(url));
+				return true;
+			} catch (Exception e) {
+				logger.error("Failed to launch browser window for {}", url, e);
+				return false;
+			}
+		} else {
+			DisplayHelpers.showErrorMessage("Show URL", "Sorry, unable to launch a browser to open \n" + url);
 			return false;
 		}
 	}
