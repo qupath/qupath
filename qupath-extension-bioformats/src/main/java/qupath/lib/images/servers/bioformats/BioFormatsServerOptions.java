@@ -45,7 +45,7 @@ public class BioFormatsServerOptions {
 	
 	private boolean requestParallelization = true;
 	private int memoizationTimeMillis = 500;
-	private boolean requestParallelizeMultichannel = false;
+//	private boolean requestParallelizeMultichannel = false;
 	private String pathMemoization;
 	
 	private boolean requestChannelZCorrectionVSI = false;
@@ -104,13 +104,13 @@ public class BioFormatsServerOptions {
 		return useExtensions;
 	}
 
-	public boolean requestParallelizeMultichannel() {
-		return requestParallelizeMultichannel;
-	}
-
-	public void setRequestParallelizeMultichannel(final boolean requestParallelizeMultichannel) {
-		this.requestParallelizeMultichannel = requestParallelizeMultichannel;
-	}
+//	public boolean requestParallelizeMultichannel() {
+//		return requestParallelizeMultichannel;
+//	}
+//
+//	public void setRequestParallelizeMultichannel(final boolean requestParallelizeMultichannel) {
+//		this.requestParallelizeMultichannel = requestParallelizeMultichannel;
+//	}
 
 
 }

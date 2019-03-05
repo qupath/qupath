@@ -79,7 +79,7 @@ public class BioFormatsOptionsExtension implements QuPathExtension {
 		BooleanProperty enableBioformats = PathPrefs.createPersistentPreference("bfEnableBioformats", options.bioformatsEnabled());
 		BooleanProperty useParallelization = PathPrefs.createPersistentPreference("bfUseParallization", options.requestParallelization());
 		IntegerProperty memoizationTimeMillis = PathPrefs.createPersistentPreference("bfMemoizationTimeMS", options.getMemoizationTimeMillis());
-		BooleanProperty parallelizeMultichannel = PathPrefs.createPersistentPreference("bfParallelizeMultichannel", options.requestParallelizeMultichannel());
+//		BooleanProperty parallelizeMultichannel = PathPrefs.createPersistentPreference("bfParallelizeMultichannel", options.requestParallelizeMultichannel());
 
 		BooleanProperty requestChannelZCorrectionVSI = PathPrefs.createPersistentPreference("bfChannelZCorrectionVSI", options.requestChannelZCorrectionVSI());
 
@@ -92,7 +92,7 @@ public class BioFormatsOptionsExtension implements QuPathExtension {
 		options.setBioformatsEnabled(enableBioformats.get());
 		options.setRequestParallelization(useParallelization.get());
 		options.setMemoizationTimeMillis(memoizationTimeMillis.get());
-		options.setRequestParallelizeMultichannel(parallelizeMultichannel.get());
+//		options.setRequestParallelizeMultichannel(parallelizeMultichannel.get());
 		options.setRequestChannelZCorrectionVSI(requestChannelZCorrectionVSI.get());
 		fillCollectionWithTokens(useExtensions.get(), options.getUseAlwaysExtensions());
 		fillCollectionWithTokens(skipExtensions.get(), options.getSkipAlwaysExtensions());
@@ -101,7 +101,7 @@ public class BioFormatsOptionsExtension implements QuPathExtension {
 		enableBioformats.addListener((v, o, n) -> options.setBioformatsEnabled(n));
 		useParallelization.addListener((v, o, n) -> options.setRequestParallelization(n));
 		memoizationTimeMillis.addListener((v, o, n) -> options.setMemoizationTimeMillis(n.intValue()));
-		parallelizeMultichannel.addListener((v, o, n) -> options.setRequestParallelizeMultichannel(n));
+//		parallelizeMultichannel.addListener((v, o, n) -> options.setRequestParallelizeMultichannel(n));
 
 		requestChannelZCorrectionVSI.addListener((v, o, n) -> options.setRequestChannelZCorrectionVSI(n));
 
@@ -113,8 +113,8 @@ public class BioFormatsOptionsExtension implements QuPathExtension {
 		PreferencePanel prefs = QuPathGUI.getInstance().getPreferencePanel();
 		prefs.addPropertyPreference(enableBioformats, Boolean.class, "Enable Bio-Formats", "Bio-Formats", "Allow QuPath to use Bio-Formats for image reading");
 		prefs.addPropertyPreference(useParallelization, Boolean.class, "Enable Bio-Formats tile parallelization", "Bio-Formats", "Enable reading image tiles in parallel when using Bio-Formats");
-		prefs.addPropertyPreference(parallelizeMultichannel, Boolean.class, "Enable Bio-Formats channel parallelization (experimental)", "Bio-Formats", "Request multiple image channels in parallel, even if parallelization of tiles is turned off - "
-				+ "only relevant for multichannel images, and may fail for some image formats");
+//		prefs.addPropertyPreference(parallelizeMultichannel, Boolean.class, "Enable Bio-Formats channel parallelization (experimental)", "Bio-Formats", "Request multiple image channels in parallel, even if parallelization of tiles is turned off - "
+//				+ "only relevant for multichannel images, and may fail for some image formats");
 		prefs.addPropertyPreference(memoizationTimeMillis, Integer.class, "Bio-Formats memoization time (ms)", "Bio-Formats", "Specify how long a file requires to open before Bio-Formats will create a .bfmemo file to improve performance (set < 0 to never use memoization)");
 		
 		prefs.addDirectoryPropertyPreference(pathMemoization, "Bio-Formats memoization directory", "Bio-Formats",

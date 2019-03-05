@@ -47,8 +47,6 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.WeakHashMap;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.IntStream;
-
 import javax.imageio.ImageIO;
 
 import org.slf4j.Logger;
@@ -159,10 +157,10 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 	 */
 	private static BioFormatsReaderManager manager = new BioFormatsReaderManager();
 	
-	/**
-	 * Try to parallelize multichannel requests (experimental!)
-	 */
-	private boolean parallelizeMultichannel = true;
+//	/**
+//	 * Try to parallelize multichannel requests (experimental!)
+//	 */
+//	private boolean parallelizeMultichannel = true;
 
 	
 	/**
@@ -514,10 +512,10 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 		// TODO: Document - or improve - the setting of ImageIO disk cache
 		ImageIO.setUseCache(false);
 		
-		// No need to parallelize for single-channel images
-		parallelizeMultichannel = options.requestParallelizeMultichannel();
-		if (nChannels() == 1 || isRGB())
-			parallelizeMultichannel = false;
+//		// No need to parallelize for single-channel images
+//		parallelizeMultichannel = options.requestParallelizeMultichannel();
+//		if (nChannels() == 1 || isRGB())
+//			parallelizeMultichannel = false;
 		
 		long endTime = System.currentTimeMillis();
 		logger.debug(String.format("Initialization time: %d ms", endTime-startTime));
@@ -618,22 +616,22 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 				
 				BufferedImage[] images = null;
 				int nChannels = nChannels();
-				// We can make an effort to read channels in parallel - but need to be cautious with some readers, and fall back to sequential
-				if (nChannels > 1 && parallelizeMultichannel && !willParallelize()) {
-					images = IntStream.range(0, nChannels).parallel().mapToObj(c -> {
-						logger.trace("Requesting to parallelize channel access");
-						int ind = ipReader.getIndex(z, c, t);
-						BufferedImage img2;
-						try {
-							img2 = ipReader.openImage(ind, tileX, tileY, tileWidth, tileHeight);
-							return img2;
-						} catch (Exception e) {
-							logger.error("Exception reading " + tileRequest.getRegionRequest() + " - turning off parallel channel reading", e);
-							parallelizeMultichannel = false;
-							return null;
-						}
-					}).toArray(n -> new BufferedImage[n]);
-				}
+//				// We can make an effort to read channels in parallel - but need to be cautious with some readers, and fall back to sequential
+//				if (nChannels > 1 && parallelizeMultichannel && !willParallelize()) {
+//					images = IntStream.range(0, nChannels).parallel().mapToObj(c -> {
+//						logger.trace("Requesting to parallelize channel access");
+//						int ind = ipReader.getIndex(z, c, t);
+//						BufferedImage img2;
+//						try {
+//							img2 = ipReader.openImage(ind, tileX, tileY, tileWidth, tileHeight);
+//							return img2;
+//						} catch (Exception e) {
+//							logger.error("Exception reading " + tileRequest.getRegionRequest() + " - turning off parallel channel reading", e);
+//							parallelizeMultichannel = false;
+//							return null;
+//						}
+//					}).toArray(n -> new BufferedImage[n]);
+//				}
 				if (images == null)
 					images = new BufferedImage[nChannels];
 				for (int c = 0; c < nChannels; c++) {
