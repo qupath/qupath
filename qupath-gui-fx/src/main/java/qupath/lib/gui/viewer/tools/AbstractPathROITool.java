@@ -101,7 +101,7 @@ abstract class AbstractPathROITool extends AbstractPathTool {
 		PathObject pathObject = PathObjects.createAnnotationObject(roi, PathPrefs.getAutoSetAnnotationClass());
 		var selectionModel = hierarchy.getSelectionModel();
 		if (PathPrefs.isSelectionMode() && !selectionModel.noSelection())
-			selectionModel.setSelectedObject(pathObject, true);			
+			viewer.setSelectedObject(pathObject, true);		
 		else
 			viewer.setSelectedObject(pathObject);
 		return pathObject;
@@ -195,7 +195,14 @@ abstract class AbstractPathROITool extends AbstractPathTool {
 					if (object == pathObject)
 						continue;
 					var temp = object.getROI();
-					if (pathArea.contains(temp.getCentroidX(), temp.getCentroidY())) {
+					boolean addToSelection = false;
+					// Do centroid test for detections, fuller test for annotations
+					if (object.isDetection()) {
+						addToSelection = pathArea.contains(temp.getCentroidX(), temp.getCentroidY());
+					} else {
+						addToSelection = pathArea.getGeometry().covers(temp.getGeometry());
+					}
+					if (addToSelection) {
 						toSelect.add(object);
 						if (pathClass != null && object.getPathClass() != pathClass) {
 							reclassified.add(new Reclassifier(object, pathClass, true));

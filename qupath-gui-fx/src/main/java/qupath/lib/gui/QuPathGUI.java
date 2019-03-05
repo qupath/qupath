@@ -833,6 +833,10 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				Scene scene = new Scene(textArea);
 				textArea.setPrefHeight(500);
 				stage.setScene(scene);
+				textArea.addEventHandler(MouseEvent.MOUSE_CLICKED, e -> {
+					if (e.getClickCount() == 2)
+						stage.hide();
+				});
 				stage.showAndWait();
 //				DisplayHelpers.showMessageDialog(
 //						"QuPath",

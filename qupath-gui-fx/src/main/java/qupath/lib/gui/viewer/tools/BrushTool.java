@@ -170,7 +170,7 @@ public class BrushTool extends AbstractPathROITool {
 //		boolean createNew = currentObject == null || e.getClickCount() > 1;// || (!currentObject.getROI().contains(p.getX(), p.getY()) && !e.isAltDown());
 		Point2D p = viewer.componentPointToImagePoint(e.getX(), e.getY(), null, true);
 //		boolean createNew = currentObject == null || !(currentObject instanceof PathAnnotationObject) || (currentObject.hasChildren()) || (PathPrefs.getBrushCreateNewObjects() && !ROIHelpers.areaContains(currentObject.getROI(), p.getX(), p.getY()) && !isSubtractMode(e));
-		boolean createNew = currentObject == null || !(currentObject instanceof PathAnnotationObject) || (!currentObject.isEditable()) || currentObject.getROI().getZ() != viewer.getZPosition() || currentObject.getROI().getT() != viewer.getTPosition() || (!e.isShiftDown() && PathPrefs.getBrushCreateNewObjects() && !ROIHelpers.areaContains(currentObject.getROI(), p.getX(), p.getY()) && !isSubtractMode(e));
+		boolean createNew = currentObject == null || PathPrefs.isSelectionMode() || !(currentObject instanceof PathAnnotationObject) || (!currentObject.isEditable()) || currentObject.getROI().getZ() != viewer.getZPosition() || currentObject.getROI().getT() != viewer.getTPosition() || (!e.isShiftDown() && PathPrefs.getBrushCreateNewObjects() && !ROIHelpers.areaContains(currentObject.getROI(), p.getX(), p.getY()) && !isSubtractMode(e));
 		
 		// See if, rather than creating something, we can instead reactivate a current object
 		boolean multipleClicks = e.getClickCount() > 1;
@@ -186,7 +186,7 @@ public class BrushTool extends AbstractPathROITool {
 					viewer.setSelectedObject(null);
 					currentObject = null;
 				}
-			} else {
+			} else if (!PathPrefs.isSelectionMode()) {
 					List<PathObject> listSelectable = getSelectableObjectList(p.getX(), p.getY());
 					PathObject objectSelectable = null;
 					for (int i = listSelectable.size()-1; i >= 0; i--) {
