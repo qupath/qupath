@@ -49,6 +49,7 @@ import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
 import qupath.lib.objects.hierarchy.events.PathObjectSelectionModel;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent.HierarchyEventType;
 import qupath.lib.regions.ImageRegion;
+import qupath.lib.roi.interfaces.ROI;
 
 /**
  * A basic hierarchy in which to store PathObjects.
@@ -343,16 +344,8 @@ public final class PathObjectHierarchy implements Serializable {
 				possibleParent.addPathObject(pathObject);
 				// If we have a non-detection, consider reassigning child objects
 				if (!pathObject.isDetection()) {
-					long startTime = System.currentTimeMillis();
-					var locator = tileCache.getLocator(pathObject);
-					var preparedGeometry = tileCache.getPreparedGeometry(tileCache.getGeometry(pathObject));
-					var toAdd = previousChildren.parallelStream().filter(child -> {
-						if (child.isDetection())
-							return tileCache.containsCentroid(locator, child);
-						else
-							return tileCache.covers(preparedGeometry, child);
-					}).collect(Collectors.toList());
-					pathObject.addPathObjects(toAdd);
+//					long startTime = System.currentTimeMillis();
+					pathObject.addPathObjects(filterObjectsForROI(pathObject.getROI(), previousChildren));
 					
 //					var toAdd = previousChildren.parallelStream().filter(child -> {
 //						if (child.isDetection())
@@ -372,8 +365,8 @@ public final class PathObjectHierarchy implements Serializable {
 //							pathObject.addPathObject(child);
 //						}
 //					}
-					long endTime = System.currentTimeMillis();
-					System.err.println("Add time: " + (endTime - startTime));
+//					long endTime = System.currentTimeMillis();
+//					System.err.println("Add time: " + (endTime - startTime));
 				}
 				
 				// Notify listeners of changes, if required
@@ -567,7 +560,50 @@ public final class PathObjectHierarchy implements Serializable {
 		fireHierarchyChangedEvent(rootObject);
 	}
 	
+	/**
+	 * Get the objects within a specified ROI, as defined by the general rules for resolving the hierarchy 
+	 * (i.e. centroids for detections, 'covers' rule for others).
+	 * 
+	 * @param roi
+	 * @return
+	 */
+	public Collection<PathObject> getObjectsForROI(ROI roi) {
+		if (roi.isEmpty() || !roi.isArea())
+			return Collections.emptyList();
+		
+		Collection<PathObject> pathObjects = tileCache.getObjectsForRegion(null, ImageRegion.createInstance(roi), null, true);
+		return filterObjectsForROI(roi, pathObjects);
+	}
 	
+	/**
+	 * Filter the objects in a specified collection, returning only those contained 'inside' a ROI 
+	 * as defined by the general rules for resolving the hierarchy 
+	 * (i.e. centroids for detections, 'covers' rule for others).
+	 * 
+	 * @param roi
+	 * @return
+	 */
+	Collection<PathObject> filterObjectsForROI(ROI roi, Collection<PathObject> pathObjects) {
+		if (pathObjects.isEmpty())
+			return Collections.emptyList();
+		
+		var locator = tileCache.getLocator(roi, false);
+		var preparedGeometry = tileCache.getPreparedGeometry(tileCache.getGeometry(roi));
+		return pathObjects.parallelStream().filter(child -> {
+			if (child.isDetection())
+				return tileCache.containsCentroid(locator, child);
+			else
+				return tileCache.covers(preparedGeometry, child);
+		}).collect(Collectors.toList());
+	}
+	
+	/**
+	 * Get the objects within a specified region.
+	 * @param cls
+	 * @param region
+	 * @param pathObjects
+	 * @return
+	 */
 	public Collection<PathObject> getObjectsForRegion(Class<? extends PathObject> cls, ImageRegion region, Collection<PathObject> pathObjects) {
 		return tileCache.getObjectsForRegion(cls, region, pathObjects, true);
 	}

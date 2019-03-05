@@ -182,7 +182,14 @@ class PathObjectTileCache implements PathObjectHierarchyListener {
 				addToCache(child, includeChildren, limitToClass);
 		}
 	}
-	
+
+	Geometry getGeometry(ROI roi) {
+		var geometry = geometryMap.get(roi);
+		if (geometry == null)
+			return roi.getGeometry();
+		else
+			return geometry;
+	}
 	
 	Geometry getGeometry(PathObject pathObject) {
 		ROI roi = pathObject.getROI();
@@ -214,11 +221,10 @@ class PathObjectTileCache implements PathObjectHierarchyListener {
 //		return coordinate;
 	}
 	
-	IndexedPointInAreaLocator getLocator(PathObject pathObject) {
-		ROI roi = pathObject.getROI();
+	IndexedPointInAreaLocator getLocator(ROI roi, boolean addToCache) {
 		var locator = locatorMap.get(roi);
 		if (locator == null) {
-			locator = new IndexedPointInAreaLocator(getGeometry(pathObject));
+			locator = new IndexedPointInAreaLocator(getGeometry(roi));
 			locatorMap.put(roi, locator);
 		}
 		return locator;
@@ -253,7 +259,7 @@ class PathObjectTileCache implements PathObjectHierarchyListener {
 	
 	boolean covers(PreparedGeometry parent, PathObject possibleChild) {
 		var child = getGeometry(possibleChild);
-		return parent.containsProperly(child);
+		return parent.covers(child);
 	}
 	
 	boolean containsCentroid(PathObject possibleParent, PathObject possibleChild) {
@@ -263,7 +269,7 @@ class PathObjectTileCache implements PathObjectHierarchyListener {
 		if (possibleParent.isDetection())
 			return SimplePointInAreaLocator.locate(
 					centroid, getGeometry(possibleParent)) != Location.EXTERIOR;
-		return getLocator(possibleParent).locate(centroid) != Location.EXTERIOR;
+		return getLocator(possibleParent.getROI(), true).locate(centroid) != Location.EXTERIOR;
 	}
 	
 	boolean containsCentroid(IndexedPointInAreaLocator locator, PathObject possibleChild) {

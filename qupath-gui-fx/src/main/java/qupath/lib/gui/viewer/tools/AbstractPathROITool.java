@@ -187,44 +187,29 @@ abstract class AbstractPathROITool extends AbstractPathTool {
 		// If we are in selection mode, try to get objects to select
 		if (PathPrefs.isSelectionMode()) {
 			var pathClass = PathPrefs.getAutoSetAnnotationClass();
-			var toSelect = new ArrayList<PathObject>();
-			List<Reclassifier> reclassified = new ArrayList<>();
-			if (currentROI instanceof PathArea) {
-				var pathArea = (PathArea)currentROI;
-				for (var object : viewer.getHierarchy().getObjectsForRegion(null, ImageRegion.createInstance(currentROI), null)) {
-					if (object == pathObject)
-						continue;
-					var temp = object.getROI();
-					boolean addToSelection = false;
-					// Do centroid test for detections, fuller test for annotations
-					if (object.isDetection()) {
-						addToSelection = pathArea.contains(temp.getCentroidX(), temp.getCentroidY());
-					} else {
-						addToSelection = pathArea.getGeometry().covers(temp.getGeometry());
-					}
-					if (addToSelection) {
-						toSelect.add(object);
-						if (pathClass != null && object.getPathClass() != pathClass) {
-							reclassified.add(new Reclassifier(object, pathClass, true));
-						}
-					}
-				}
+			var toSelect = hierarchy.getObjectsForROI(currentROI);
+			if (!toSelect.isEmpty() && pathClass != null) {
+				var reclassified = toSelect.stream()
+						.filter(p -> p.getPathClass() != pathClass)
+						.map(p -> new Reclassifier(p, pathClass, true))
+						.filter(r -> r.apply())
+						.map(r -> r.getPathObject())
+						.collect(Collectors.toList());
 				if (!reclassified.isEmpty()) {
-					var reclassifiedObjects = reclassified.stream().filter(r -> r.apply()).map(r -> r.getPathObject()).collect(Collectors.toList());
-					viewer.getHierarchy().fireObjectClassificationsChangedEvent(this, reclassifiedObjects);
+					hierarchy.fireObjectClassificationsChangedEvent(this, reclassified);
 				}
-				if (pathObject.getParent() != null)
-					viewer.getHierarchy().removeObject(pathObject, true);
-//				else
-//					viewer.getHierarchy().fireHierarchyChangedEvent(this);
-				if (toSelect.isEmpty())
-					viewer.setSelectedObject(null);
-				else if (e.isShiftDown()) {
-					viewer.getHierarchy().getSelectionModel().deselectObject(pathObject);
-					viewer.getHierarchy().getSelectionModel().selectObjects(toSelect);
-				} else
-					viewer.getHierarchy().getSelectionModel().setSelectedObjects(toSelect, null);
 			}
+			if (pathObject.getParent() != null)
+				hierarchy.removeObject(pathObject, true);
+			//				else
+			//					viewer.getHierarchy().fireHierarchyChangedEvent(this);
+			if (toSelect.isEmpty())
+				viewer.setSelectedObject(null);
+			else if (e.isShiftDown()) {
+				hierarchy.getSelectionModel().deselectObject(pathObject);
+				hierarchy.getSelectionModel().selectObjects(toSelect);
+			} else
+				hierarchy.getSelectionModel().setSelectedObjects(toSelect, null);
 		} else {
 			if (!requestParentClipping(e)) {
 				if (currentROI.isEmpty()) {
