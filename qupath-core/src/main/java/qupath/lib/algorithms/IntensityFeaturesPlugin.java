@@ -68,7 +68,7 @@ import qupath.lib.roi.interfaces.ROI;
 
 /**
  * Plugin for calculating intensity-based features, including Haralick textures, within or around detections or tiles.
- * 
+ * <p>
  * The ROIs of the detections can be used directly as masks, or else the textures can alternatively be 
  * calculated within square or circular regions around the object centroids.
  * This latter option makes it possible to calculate a high density of tiles (for example), and then to 
@@ -983,8 +983,8 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 			params.addBooleanParameter("doHaralick", "Compute Haralick features", false);
 			
 			if (!imageData.getServer().isRGB()) {
-				params.addDoubleParameter("haralickMin", "Haralick min", Double.NaN, null, "Maximum value used when calculating grayscale cooccurrence matrix for Haralick features -\nThis should be approximately the largest pixel value in the image for which textures are meaningful.")
-						.addDoubleParameter("haralickMax", "Haralick max", Double.NaN, null, "Minimum value used when calculating grayscale cooccurrence matrix for Haralick features -\nThis should be approximately the smallest pixel value in the image for which textures are meaningful.");
+				params.addDoubleParameter("haralickMin", "Haralick min", Double.NaN, null, "Minimum value used when calculating grayscale cooccurrence matrix for Haralick features -\nThis should be approximately the largest pixel value in the image for which textures are meaningful.")
+						.addDoubleParameter("haralickMax", "Haralick max", Double.NaN, null, "Maximum value used when calculating grayscale cooccurrence matrix for Haralick features -\nThis should be approximately the smallest pixel value in the image for which textures are meaningful.");
 			}
 			params.addIntParameter("haralickDistance", "Haralick distance", 1, null, "Spacing between pixels used in computing the co-occurrence matrix for Haralick textures (default = 1)")
 					.addIntParameter("haralickBins", "Haralick number of bins", 32, null, 8, 256, "Number of intensity bins to use when computing the co-occurrence matrix for Haralick textures (default = 32)");

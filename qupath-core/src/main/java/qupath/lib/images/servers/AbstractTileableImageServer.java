@@ -247,10 +247,10 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 		
 		logger.trace(String.format("Resizing %d x %d -> %d x %d", img.getWidth(), img.getHeight(), finalWidth, finalHeight));
 		
-		double fx = (double)img.getWidth()/finalWidth;
-		double fy = (double)img.getHeight()/finalHeight;
-		if (!GeneralTools.almostTheSame(fx, fy, 0.001)) {
-			logger.warn("Unexpected aspect ratio for resized image: {}x{} -> {}x{} ({}, {})", img.getWidth(), img.getHeight(), finalWidth, finalHeight, fx, fy);
+		double aspectRatio = (double)img.getWidth()/img.getHeight();
+		double finalAspectRatio = (double)finalWidth/finalHeight;
+		if (!GeneralTools.almostTheSame(aspectRatio, finalAspectRatio, 0.01)) {
+			logger.warn("Unexpected aspect ratio for resized image: {}x{} -> {}x{} ({}, {})", img.getWidth(), img.getHeight(), finalWidth, finalHeight, aspectRatio, finalAspectRatio);
 		}
 		
 		boolean areaAveraging = true;
