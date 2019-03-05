@@ -67,6 +67,7 @@ import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.helpers.PathObjectTools;
+import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.roi.AreaROI;
 import qupath.lib.roi.PolygonROI;
 import qupath.lib.roi.interfaces.PathArea;
@@ -129,13 +130,13 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 		// Check if we have any annotations / TMA cores
 		boolean containsDetections = false;
 		boolean containsAnnotations = false;
-		boolean containsParentAnnotations = false;
+//		boolean containsParentAnnotations = false;
 		boolean containsTMACores = false;
 		List<PathObject> pathObjectListCopy = new ArrayList<>(list);
 		for (PathObject temp : pathObjectListCopy) {
 			if (temp instanceof PathAnnotationObject) {
-				if (temp.hasChildren())
-					containsParentAnnotations = true;
+//				if (temp.hasChildren())
+//					containsParentAnnotations = true;
 				containsAnnotations = true;
 			} else if (temp instanceof TMACoreObject) {
 				containsTMACores = true;
@@ -195,7 +196,8 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 		Collection<String> features = PathClassificationLabellingHelper.getAvailableFeatures(pathObjectListCopy);
 		
 		// Add derived measurements if we don't have only detections
-		if (containsParentAnnotations || containsTMACores) {
+		if (containsAnnotations || containsTMACores) {
+//		if (containsParentAnnotations || containsTMACores) {
 			MeasurementBuilder<?> builder = new ObjectTypeCountMeasurementBuilder(PathAnnotationObject.class);
 			builderMap.put(builder.getName(), builder);
 			features.add(builder.getName());
@@ -419,7 +421,10 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 		
 		@Override
 		protected int computeValue() {
-			return PathObjectTools.countChildren(pathObject, cls, true);
+			var pathObjects = imageData.getHierarchy().getObjectsForROI(cls, pathObject.getROI());
+			pathObjects.remove(pathObject);
+			return pathObjects.size();
+//			return PathObjectTools.countChildren(pathObject, cls, true);
 		}
 		
 	}
@@ -586,7 +591,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 			protected int computeValue() {
 				DetectionPathClassCounts counts = map.get(pathObject);
 				if (counts == null) {
-					counts = new DetectionPathClassCounts(pathObject);
+					counts = new DetectionPathClassCounts(imageData.getHierarchy(), pathObject);
 					map.put(pathObject, counts);
 				}
 				if (baseClassification)
@@ -627,7 +632,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 				
 				DetectionPathClassCounts counts = map.get(pathObjectTemp);
 				if (counts == null) {
-					counts = new DetectionPathClassCounts(pathObjectTemp);
+					counts = new DetectionPathClassCounts(imageData.getHierarchy(), pathObjectTemp);
 					map.put(pathObject, counts);
 				}
 				int n = counts.getCountForAncestor(pathClass);
@@ -661,7 +666,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 			protected double computeValue() {
 				DetectionPathClassCounts counts = map.get(pathObject);
 				if (counts == null) {
-					counts = new DetectionPathClassCounts(pathObject);
+					counts = new DetectionPathClassCounts(imageData.getHierarchy(), pathObject);
 					map.put(pathObject, counts);
 				}
 				return counts.getHScore(pathClasses);
@@ -686,7 +691,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 			protected double computeValue() {
 				DetectionPathClassCounts counts = map.get(pathObject);
 				if (counts == null) {
-					counts = new DetectionPathClassCounts(pathObject);
+					counts = new DetectionPathClassCounts(imageData.getHierarchy(), pathObject);
 					map.put(pathObject, counts);
 				}
 				return counts.getAllredIntensity(minPositivePercentage.doubleValue() / 100, pathClasses);
@@ -711,7 +716,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 			protected double computeValue() {
 				DetectionPathClassCounts counts = map.get(pathObject);
 				if (counts == null) {
-					counts = new DetectionPathClassCounts(pathObject);
+					counts = new DetectionPathClassCounts(imageData.getHierarchy(), pathObject);
 					map.put(pathObject, counts);
 				}
 				return counts.getAllredProportion(minPositivePercentage.doubleValue() / 100, pathClasses);
@@ -735,7 +740,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 			protected double computeValue() {
 				DetectionPathClassCounts counts = map.get(pathObject);
 				if (counts == null) {
-					counts = new DetectionPathClassCounts(pathObject);
+					counts = new DetectionPathClassCounts(imageData.getHierarchy(), pathObject);
 					map.put(pathObject, counts);
 				}
 				return counts.getAllredScore(minPositivePercentage.doubleValue() / 100, pathClasses);
@@ -758,7 +763,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 			protected double computeValue() {
 				DetectionPathClassCounts counts = map.get(pathObject);
 				if (counts == null) {
-					counts = new DetectionPathClassCounts(pathObject);
+					counts = new DetectionPathClassCounts(imageData.getHierarchy(), pathObject);
 					map.put(pathObject, counts);
 				}
 				return counts.getPositivePercentage(pathClasses);
@@ -1440,11 +1445,14 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 		private Map<PathClass, Integer> counts = new HashMap<>();
 		
 		/**
-		 * @param parentObject the parent object.  PathClasses will be counted for descendant detection objects only.
+		 * Create a structure to count detections inside a specified parent.
+		 * 
+		 * @param parentObject the parent object.
 		 */
-		DetectionPathClassCounts(final PathObject parentObject) {
-			for (PathObject child : PathObjectTools.getFlattenedObjectList(parentObject, null, true)) {
-				if (!(child instanceof PathDetectionObject))
+		DetectionPathClassCounts(final PathObjectHierarchy hierarchy, final PathObject parentObject) {
+//			for (PathObject child : PathObjectTools.getFlattenedObjectList(parentObject, null, true)) {
+			for (PathObject child : hierarchy.getObjectsForROI(PathDetectionObject.class, parentObject.getROI())) {
+				if (child == parentObject || !child.isDetection())
 					continue;
 				PathClass pathClass = child.getPathClass();
 //				if (pathClass == null)

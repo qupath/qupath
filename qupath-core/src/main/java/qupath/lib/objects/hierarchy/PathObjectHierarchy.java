@@ -564,14 +564,15 @@ public final class PathObjectHierarchy implements Serializable {
 	 * Get the objects within a specified ROI, as defined by the general rules for resolving the hierarchy 
 	 * (i.e. centroids for detections, 'covers' rule for others).
 	 * 
+	 * @param cls Class of PathObjects (e.g. PathDetectionObject), or null to accept all
 	 * @param roi
 	 * @return
 	 */
-	public Collection<PathObject> getObjectsForROI(ROI roi) {
+	public Collection<PathObject> getObjectsForROI(Class<? extends PathObject> cls, ROI roi) {
 		if (roi.isEmpty() || !roi.isArea())
 			return Collections.emptyList();
 		
-		Collection<PathObject> pathObjects = tileCache.getObjectsForRegion(null, ImageRegion.createInstance(roi), null, true);
+		Collection<PathObject> pathObjects = tileCache.getObjectsForRegion(cls, ImageRegion.createInstance(roi), null, true);
 		return filterObjectsForROI(roi, pathObjects);
 	}
 	
@@ -584,7 +585,7 @@ public final class PathObjectHierarchy implements Serializable {
 	 * @return
 	 */
 	Collection<PathObject> filterObjectsForROI(ROI roi, Collection<PathObject> pathObjects) {
-		if (pathObjects.isEmpty())
+		if (pathObjects.isEmpty() || !roi.isArea() || roi.isEmpty())
 			return Collections.emptyList();
 		
 		var locator = tileCache.getLocator(roi, false);

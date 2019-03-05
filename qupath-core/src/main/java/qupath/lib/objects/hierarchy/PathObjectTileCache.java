@@ -35,11 +35,14 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import org.locationtech.jts.algorithm.locate.IndexedPointInAreaLocator;
+import org.locationtech.jts.algorithm.locate.PointOnGeometryLocator;
 import org.locationtech.jts.algorithm.locate.SimplePointInAreaLocator;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.LinearRing;
 import org.locationtech.jts.geom.Location;
+import org.locationtech.jts.geom.Polygonal;
 import org.locationtech.jts.geom.prep.PreparedGeometry;
 import org.locationtech.jts.geom.prep.PreparedGeometryFactory;
 import org.locationtech.jts.index.SpatialIndex;
@@ -98,7 +101,7 @@ class PathObjectTileCache implements PathObjectHierarchyListener {
 	 * Map to cache Geometries, specifically for annotations.
 	 */
 	final private static Map<ROI, Geometry> geometryMap = Collections.synchronizedMap(new WeakHashMap<>());
-	final private static Map<ROI, IndexedPointInAreaLocator> locatorMap = Collections.synchronizedMap(new WeakHashMap<>());
+	final private static Map<ROI, PointOnGeometryLocator> locatorMap = Collections.synchronizedMap(new WeakHashMap<>());
 //	final private static Map<ROI, Coordinate> centroidMap = Collections.synchronizedMap(new WeakHashMap<>());
 
 	private PathObjectHierarchy hierarchy;
@@ -221,10 +224,14 @@ class PathObjectTileCache implements PathObjectHierarchyListener {
 //		return coordinate;
 	}
 	
-	IndexedPointInAreaLocator getLocator(ROI roi, boolean addToCache) {
+	PointOnGeometryLocator getLocator(ROI roi, boolean addToCache) {
 		var locator = locatorMap.get(roi);
 		if (locator == null) {
-			locator = new IndexedPointInAreaLocator(getGeometry(roi));
+			var geometry = getGeometry(roi);
+			if (geometry instanceof Polygonal || geometry instanceof LinearRing)
+				locator = new IndexedPointInAreaLocator(geometry);
+			else
+				locator = new SimplePointInAreaLocator(geometry);
 			locatorMap.put(roi, locator);
 		}
 		return locator;
@@ -272,7 +279,7 @@ class PathObjectTileCache implements PathObjectHierarchyListener {
 		return getLocator(possibleParent.getROI(), true).locate(centroid) != Location.EXTERIOR;
 	}
 	
-	boolean containsCentroid(IndexedPointInAreaLocator locator, PathObject possibleChild) {
+	boolean containsCentroid(PointOnGeometryLocator locator, PathObject possibleChild) {
 		Coordinate centroid = getCentroidCoordinate(possibleChild);
 		if (centroid == null)
 			return false;

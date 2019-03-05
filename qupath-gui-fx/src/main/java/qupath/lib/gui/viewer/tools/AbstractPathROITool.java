@@ -187,7 +187,7 @@ abstract class AbstractPathROITool extends AbstractPathTool {
 		// If we are in selection mode, try to get objects to select
 		if (PathPrefs.isSelectionMode()) {
 			var pathClass = PathPrefs.getAutoSetAnnotationClass();
-			var toSelect = hierarchy.getObjectsForROI(currentROI);
+			var toSelect = hierarchy.getObjectsForROI(null, currentROI);
 			if (!toSelect.isEmpty() && pathClass != null) {
 				var reclassified = toSelect.stream()
 						.filter(p -> p.getPathClass() != pathClass)
