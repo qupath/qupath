@@ -2561,7 +2561,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 
 
 	@Override
-	public void selectedPathObjectChanged(PathObject pathObjectSelected, PathObject previousObject) {
+	public void selectedPathObjectChanged(PathObject pathObjectSelected, PathObject previousObject, Collection<PathObject> allSelected) {
 
 		// We only want to shift the object ROI to the center under certain conditions, otherwise the screen jerks annoyingly
 		if (!settingSelectedObject && !getZoomToFit() && pathObjectSelected != null && pathObjectSelected.getROI() instanceof PathShape) {

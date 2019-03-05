@@ -63,6 +63,13 @@ import qupath.lib.objects.hierarchy.events.PathObjectSelectionModel;
 public class PathObjectHierarchyView implements ImageDataChangeListener<BufferedImage>, PathObjectSelectionListener, PathObjectHierarchyListener {
 	
 	/**
+	 * Request that we only synchronize to the primary selection; otherwise synchronizing to 
+	 * multiple selections from long lists can be a performance bottleneck
+	 */
+	private static boolean synchronizePrimarySelectionOnly = true;
+
+	
+	/**
 	 * Control how detections are displayed in this tree view.
 	 * 
 	 * Showing all detections can be a bad idea, since there may be serious performance issues 
@@ -243,30 +250,55 @@ public class PathObjectHierarchyView implements ImageDataChangeListener<Buffered
 	private PathObjectSelectionModel getHierarchySelectionModel() {
 		return imageData == null ? null : imageData.getHierarchy().getSelectionModel();
 	}
-	
-	
+
 	private void synchronizeTreeToSelectionModel() {
+		var model = getHierarchySelectionModel();
+		if (model == null)
+			synchronizeTreeToSelectionModel(null, Collections.emptySet());
+		else
+			synchronizeTreeToSelectionModel(model.getSelectedObject(), model.getSelectedObjects());
+	}
+	
+	private void synchronizeTreeToSelectionModel(PathObject primarySelected, Collection<PathObject> allSelected) {
 		if (synchronizingModelToTree)
 			return;
+		
+		if (synchronizePrimarySelectionOnly) {
+			try {
+				synchronizingTreeToModel = true;
+				MultipleSelectionModel<TreeItem<PathObject>> treeModel = treeView.getSelectionModel();
+				if (primarySelected == null)
+					treeModel.clearSelection();
+				else
+					selectSingleObject(primarySelected);
+				return;
+			} finally {
+				synchronizingTreeToModel = false;
+			}
+		}
+		
+		
 		boolean ownsChanges = !synchronizingTreeToModel;
 		try {
 			synchronizingTreeToModel = true;
-			
-			PathObjectSelectionModel model = getHierarchySelectionModel();
+						
 			MultipleSelectionModel<TreeItem<PathObject>> treeModel = treeView.getSelectionModel();
-			if (model == null || model.noSelection()) {
+			if (primarySelected == null && allSelected.isEmpty()) {
 				treeModel.clearSelection();
 				return;
 			}
 			
-			if (model.singleSelection()) {
-				selectSingleObject(model.getSelectedObject());
+			if (allSelected.size() == 1) {
+				selectSingleObject(primarySelected);
 				return;
 			}
 			
+			// Need a Set for reasonable performance
+			if (!(allSelected instanceof Set))
+				allSelected = new HashSet<>(allSelected);
+			
 			// Loop through all possible selections, and select them if they should be selected (and not if they shouldn't)
 			int n = treeView.getExpandedItemCount();
-			PathObject mainSelectedObject = model.getSelectedObject();
 			int mainObjectInd = -1;
 			
 			for (int i = 0; i < n; i++) {
@@ -276,9 +308,9 @@ public class PathObjectHierarchyView implements ImageDataChangeListener<Buffered
 					continue;
 				}
 				PathObject temp = item.getValue();
-				if (temp == mainSelectedObject)
+				if (temp == primarySelected)
 					mainObjectInd = i;
-				if (model.isSelected(temp)) {
+				if (allSelected.contains(temp)) {
 					// Only select if necessary, or if this is the main selected object
 					if (!treeModel.isSelected(i))
 						treeModel.select(i);
@@ -405,11 +437,12 @@ public class PathObjectHierarchyView implements ImageDataChangeListener<Buffered
 	}
 	
 	@Override
-	public void selectedPathObjectChanged(PathObject pathObjectSelected, PathObject previousObject) {
+	public void selectedPathObjectChanged(PathObject pathObjectSelected, PathObject previousObject, Collection<PathObject> allSelected) {
 		if (Platform.isFxApplicationThread())
-			synchronizeTreeToSelectionModel();
-		else
-			Platform.runLater(() -> selectedPathObjectChanged(pathObjectSelected, previousObject));
+			synchronizeTreeToSelectionModel(pathObjectSelected, allSelected);
+		// Do not synchronize to changes in other threads, as these may interfere with scripts
+//		else
+//			Platform.runLater(() -> synchronizeTreeToSelectionModel(pathObjectSelected, allSelected));
 	}
 	
 	public ImageData<?> getImageData() {

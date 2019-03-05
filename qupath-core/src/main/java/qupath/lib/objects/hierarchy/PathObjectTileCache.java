@@ -134,7 +134,7 @@ class PathObjectTileCache implements PathObjectHierarchyListener {
 				map.remove(limitToClass);
 			addToCache(hierarchy.getRootObject(), true, limitToClass);
 			long endTime = System.currentTimeMillis();
-			logger.info("Cache reconstructed in " + (endTime - startTime)/1000.);
+			logger.debug("Cache reconstructed in " + (endTime - startTime)/1000.);
 		} finally {
 			w.unlock();
 		}

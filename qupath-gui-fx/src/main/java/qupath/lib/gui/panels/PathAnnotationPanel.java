@@ -101,7 +101,7 @@ import qupath.lib.roi.interfaces.ROI;
 
 /**
  * Component for displaying annotations within the active image.
- * 
+ * <p>
  * Also shows the PathClass list.
  * 
  * @author Pete Bankhead
@@ -111,6 +111,12 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 
 	static Logger logger = LoggerFactory.getLogger(PathAnnotationPanel.class);
 
+	/**
+	 * Request that we only synchronize to the primary selection; otherwise synchronizing to 
+	 * multiple selections from long lists can be a performance bottleneck
+	 */
+	private static boolean synchronizePrimarySelectionOnly = true;
+	
 	private QuPathGUI qupath;
 	
 	private BorderPane pane = new BorderPane();
@@ -394,11 +400,13 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 //				if (listAnnotations.getSelectionModel().getSelectedItems().contains(null)) {
 //					System.out.println("I HAVE A NULL: " + listAnnotations.getItems());
 //				}
+				changingSelection = true;
 				Set<PathObject> selectedSet = new HashSet<>(listAnnotations.getSelectionModel().getSelectedItems());
 				PathObject selectedObject = listAnnotations.getSelectionModel().getSelectedItem();
 				if (!selectedSet.contains(selectedObject))
 					selectedObject = null;
 				hierarchy.getSelectionModel().setSelectedObjects(selectedSet, selectedObject);
+				changingSelection = false;
 			}
 		});
 
@@ -816,69 +824,95 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 	
 
 	@Override
-	public void selectedPathObjectChanged(final PathObject pathObjectSelected, final PathObject previousObject) {
+	public void selectedPathObjectChanged(final PathObject pathObjectSelected, final PathObject previousObject, Collection<PathObject> allSelected) {
 		if (!Platform.isFxApplicationThread()) {
-			Platform.runLater(() -> selectedPathObjectChanged(pathObjectSelected, previousObject));
+			// Do not synchronize to changes on other threads (since these may interfere with scripts)
+//			Platform.runLater(() -> selectedPathObjectChanged(pathObjectSelected, previousObject, allSelected));
 			return;
 		}
+
+		if (changingSelection)
+			return;
 		
 		changingSelection = true;
-//		tableModel.setPathObject(pathObjectSelected);
-		
-		var hierarchySelected = new TreeSet<>(DefaultPathObjectComparator.getInstance());
-		hierarchySelected.addAll(hierarchy.getSelectionModel().getSelectedObjects());
-		
-		// Determine the objects to select
-		MultipleSelectionModel<PathObject> model = listAnnotations.getSelectionModel();
-		List<PathObject> selected = new ArrayList<>();
-		for (PathObject pathObject : hierarchySelected) {
-			if (pathObject == null)
-				logger.warn("Selected object is null!");
-			else if (pathObject.isAnnotation())
-				selected.add(pathObject);
-		}
-		if (selected.isEmpty()) {
-			if (!model.isEmpty())
-				model.clearSelection();
-			changingSelection = false;
-			return;
-		}
-		// Check if we're making changes
-		List<PathObject> currentlySelected = model.getSelectedItems();
-		if (selected.size() == currentlySelected.size() && (hierarchySelected.containsAll(currentlySelected))) {
-			changingSelection = false;
-			listAnnotations.refresh();
-			return;
-		}
-		
-//		System.err.println("Setting " + currentlySelected + " to " + selected);
-		int[] inds = new int[selected.size()];
-		int i = 0;
-		model.clearSelection();
-		boolean firstInd = true;
-		for (PathObject temp : selected) {
-			int idx = listAnnotations.getItems().indexOf(temp);
-			if (idx >= 0 && firstInd) {
-				Arrays.fill(inds, idx);
-				firstInd = false;
+		if (synchronizePrimarySelectionOnly) {
+			try {
+				var listSelectionModel = listAnnotations.getSelectionModel();
+				listSelectionModel.clearSelection();
+				if (pathObjectSelected != null && pathObjectSelected.isAnnotation()) {
+					listSelectionModel.select(pathObjectSelected);
+					listAnnotations.scrollTo(pathObjectSelected);
+				}
+				return;
+			} finally {
+				changingSelection = false;
 			}
-			inds[i] = idx;
-			i++;
 		}
 		
-		if (inds.length == 1 && pathObjectSelected instanceof PathAnnotationObject)
-			listAnnotations.scrollTo(pathObjectSelected);
-		
-		if (firstInd) {
-			changingSelection = false;
-			return;
+		try {
+			
+			var hierarchySelected = new TreeSet<>(DefaultPathObjectComparator.getInstance());
+			hierarchySelected.addAll(allSelected);
+			
+			// Determine the objects to select
+			MultipleSelectionModel<PathObject> model = listAnnotations.getSelectionModel();
+			List<PathObject> selected = new ArrayList<>();
+			for (PathObject pathObject : hierarchySelected) {
+				if (pathObject == null)
+					logger.warn("Selected object is null!");
+				else if (pathObject.isAnnotation())
+					selected.add(pathObject);
+			}
+			if (selected.isEmpty()) {
+				if (!model.isEmpty())
+					model.clearSelection();
+				return;
+			}
+			// Check if we're making changes
+			List<PathObject> currentlySelected = model.getSelectedItems();
+			if (selected.size() == currentlySelected.size() && (hierarchySelected.containsAll(currentlySelected))) {
+				listAnnotations.refresh();
+				return;
+			}
+			
+//			System.err.println("Starting...");
+//			System.err.println(hierarchy.getAnnotationObjects().size());
+//			System.err.println(hierarchySelected.size());
+//			System.err.println(listAnnotations.getItems().size());
+			if (hierarchySelected.containsAll(listAnnotations.getItems())) {
+				model.selectAll();
+				return;
+			}
+			
+	//		System.err.println("Setting " + currentlySelected + " to " + selected);
+			int[] inds = new int[selected.size()];
+			int i = 0;
+			model.clearSelection();
+			boolean firstInd = true;
+			for (PathObject temp : selected) {
+				int idx = listAnnotations.getItems().indexOf(temp);
+				if (idx >= 0 && firstInd) {
+					Arrays.fill(inds, idx);
+					firstInd = false;
+				}
+				inds[i] = idx;
+				i++;
+			}
+			
+			if (inds.length == 1 && pathObjectSelected instanceof PathAnnotationObject)
+				listAnnotations.scrollTo(pathObjectSelected);
+			
+			if (firstInd) {
+				changingSelection = false;
+				return;
+			}
+			if (inds.length == 1)
+				model.select(inds[0]);
+			else if (inds.length > 1)
+				model.selectIndices(inds[0], inds);
+		} finally {
+			changingSelection = false;			
 		}
-		if (inds.length == 1)
-			model.select(inds[0]);
-		else if (inds.length > 1)
-			model.selectIndices(inds[0], inds);
-		
-		changingSelection = false;
 	}
 
 

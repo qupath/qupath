@@ -392,7 +392,7 @@ public class PathIntensityClassifierPanel implements PathObjectSelectionListener
 
 
 	@Override
-	public void selectedPathObjectChanged(final PathObject pathObjectSelected, final PathObject previousObject) {
+	public void selectedPathObjectChanged(final PathObject pathObjectSelected, final PathObject previousObject, Collection<PathObject> allSelected) {
 		updateIntensityHistogram();
 	}
 	

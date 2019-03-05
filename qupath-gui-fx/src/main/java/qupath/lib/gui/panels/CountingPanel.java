@@ -194,7 +194,7 @@ public class CountingPanel implements PathObjectSelectionListener, PathObjectHie
 	
 	
 	@Override
-	public void selectedPathObjectChanged(PathObject pathObjectSelected, PathObject previousObject) {
+	public void selectedPathObjectChanged(PathObject pathObjectSelected, PathObject previousObject, Collection<PathObject> allSelected) {
 		// Check if we have points
 		boolean hasPoints = pathObjectSelected != null && pathObjectSelected.isPoint();
 		btnEdit.setDisabled(!hasPoints);
