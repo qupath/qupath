@@ -33,6 +33,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.stream.Collectors;
 import java.util.Vector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -342,16 +343,37 @@ public final class PathObjectHierarchy implements Serializable {
 				possibleParent.addPathObject(pathObject);
 				// If we have a non-detection, consider reassigning child objects
 				if (!pathObject.isDetection()) {
-					for (var child : previousChildren) {
-						boolean reassignChild = false;
+					long startTime = System.currentTimeMillis();
+					var locator = tileCache.getLocator(pathObject);
+					var preparedGeometry = tileCache.getPreparedGeometry(tileCache.getGeometry(pathObject));
+					var toAdd = previousChildren.parallelStream().filter(child -> {
 						if (child.isDetection())
-							reassignChild = tileCache.containsCentroid(pathObject, child);
-						else if (!pathObject.isDetection())
-							reassignChild = tileCache.covers(pathObject, child);
-						if (reassignChild) {
-							pathObject.addPathObject(child);
-						}
-					}
+							return tileCache.containsCentroid(locator, child);
+						else
+							return tileCache.covers(preparedGeometry, child);
+					}).collect(Collectors.toList());
+					pathObject.addPathObjects(toAdd);
+					
+//					var toAdd = previousChildren.parallelStream().filter(child -> {
+//						if (child.isDetection())
+//							return tileCache.containsCentroid(pathObject, child);
+//						else
+//							return tileCache.covers(pathObject, child);
+//					}).collect(Collectors.toList());
+//					pathObject.addPathObjects(toAdd);
+					
+//					for (var child : previousChildren) {
+//						boolean reassignChild = false;
+//						if (child.isDetection())
+//							reassignChild = tileCache.containsCentroid(pathObject, child);
+//						else if (!pathObject.isDetection())
+//							reassignChild = tileCache.covers(pathObject, child);
+//						if (reassignChild) {
+//							pathObject.addPathObject(child);
+//						}
+//					}
+					long endTime = System.currentTimeMillis();
+					System.err.println("Add time: " + (endTime - startTime));
 				}
 				
 				// Notify listeners of changes, if required

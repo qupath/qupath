@@ -97,9 +97,9 @@ class PathObjectTileCache implements PathObjectHierarchyListener {
 	/**
 	 * Map to cache Geometries, specifically for annotations.
 	 */
-	final private static Map<ROI, Geometry> geometryMap = new WeakHashMap<>();
-	final private static Map<ROI, IndexedPointInAreaLocator> locatorMap = new WeakHashMap<>();
-	final private static Map<ROI, Coordinate> centroidMap = new WeakHashMap<>();
+	final private static Map<ROI, Geometry> geometryMap = Collections.synchronizedMap(new WeakHashMap<>());
+	final private static Map<ROI, IndexedPointInAreaLocator> locatorMap = Collections.synchronizedMap(new WeakHashMap<>());
+//	final private static Map<ROI, Coordinate> centroidMap = Collections.synchronizedMap(new WeakHashMap<>());
 
 	private PathObjectHierarchy hierarchy;
 	private boolean isActive = false;
@@ -184,7 +184,7 @@ class PathObjectTileCache implements PathObjectHierarchyListener {
 	}
 	
 	
-	private Geometry getGeometry(PathObject pathObject) {
+	Geometry getGeometry(PathObject pathObject) {
 		ROI roi = pathObject.getROI();
 		Geometry geometry = geometryMap.get(roi);
 		if (geometry == null) {
@@ -203,16 +203,18 @@ class PathObjectTileCache implements PathObjectHierarchyListener {
 	
 	private Coordinate getCentroidCoordinate(PathObject pathObject) {
 		ROI roi = PathObjectTools.getROI(pathObject, true);
-		Coordinate coordinate = centroidMap.get(roi);
-		if (coordinate == null) {
-			coordinate = new Coordinate(roi.getCentroidX(), roi.getCentroidY());
-//			coordinate = getGeometry(pathObject).getCentroid().getCoordinate();
-			centroidMap.put(roi, coordinate);
-		}
-		return coordinate;
+		// It's faster not to rely on a synchronized map
+		return new Coordinate(roi.getCentroidX(), roi.getCentroidY());
+//		Coordinate coordinate = centroidMap.get(roi);
+//		if (coordinate == null) {
+//			coordinate = new Coordinate(roi.getCentroidX(), roi.getCentroidY());
+////			coordinate = getGeometry(pathObject).getCentroid().getCoordinate();
+//			centroidMap.put(roi, coordinate);
+//		}
+//		return coordinate;
 	}
 	
-	private IndexedPointInAreaLocator getLocator(PathObject pathObject) {
+	IndexedPointInAreaLocator getLocator(PathObject pathObject) {
 		ROI roi = pathObject.getROI();
 		var locator = locatorMap.get(roi);
 		if (locator == null) {
@@ -228,8 +230,7 @@ class PathObjectTileCache implements PathObjectHierarchyListener {
 	
 	private Map<Geometry, PreparedGeometry> preparedGeometryMap = new WeakHashMap<>();
 	
-	PreparedGeometry getPreparedGeometry(PathObject pathObject) {
-		var geometry = getGeometry(pathObject);
+	PreparedGeometry getPreparedGeometry(Geometry geometry) {
 		var prepared = preparedGeometryMap.get(geometry);
 		if (prepared != null)
 			return prepared;
@@ -244,20 +245,39 @@ class PathObjectTileCache implements PathObjectHierarchyListener {
 		}
 	}
 	
-	public boolean covers(PathObject possibleParent, PathObject possibleChild) {
-		var parent = getPreparedGeometry(possibleParent);
+	boolean covers(PathObject possibleParent, PathObject possibleChild) {
+		var parent = getPreparedGeometry(getGeometry(possibleParent));
 		var child = getGeometry(possibleChild);
 		return parent.covers(child);
 	}
 	
-	public boolean containsCentroid(PathObject possibleParent, PathObject possibleChild) {
+	boolean covers(PreparedGeometry parent, PathObject possibleChild) {
+		var child = getGeometry(possibleChild);
+		return parent.containsProperly(child);
+	}
+	
+	boolean containsCentroid(PathObject possibleParent, PathObject possibleChild) {
 		Coordinate centroid = getCentroidCoordinate(possibleChild);
 		if (centroid == null)
 			return false;
-		if (possibleChild.isDetection())
+		if (possibleParent.isDetection())
 			return SimplePointInAreaLocator.locate(
 					centroid, getGeometry(possibleParent)) != Location.EXTERIOR;
 		return getLocator(possibleParent).locate(centroid) != Location.EXTERIOR;
+	}
+	
+	boolean containsCentroid(IndexedPointInAreaLocator locator, PathObject possibleChild) {
+		Coordinate centroid = getCentroidCoordinate(possibleChild);
+		if (centroid == null)
+			return false;
+		return locator.locate(centroid) != Location.EXTERIOR;
+	}
+	
+	boolean containsCentroid(Geometry possibleParent, PathObject possibleChild) {
+		Coordinate centroid = getCentroidCoordinate(possibleChild);
+		if (centroid == null)
+			return false;
+		return SimplePointInAreaLocator.locate(centroid, possibleParent) != Location.EXTERIOR;
 	}
 	
 	

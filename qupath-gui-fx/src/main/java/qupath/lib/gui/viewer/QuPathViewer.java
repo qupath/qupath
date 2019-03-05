@@ -2532,6 +2532,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		if (event != null)
 			logger.trace(event.toString());
 		// Clear any cached regions of the overlay, if necessary
+		// TODO: Make this update a bit less conservative - it isn't really needed if we don't modify detections?
 		if (event == null || event.isStructureChangeEvent())
 			hierarchyOverlay.clearCachedOverlay();
 		else {
