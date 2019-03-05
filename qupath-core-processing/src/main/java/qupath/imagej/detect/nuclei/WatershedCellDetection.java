@@ -893,6 +893,16 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 			for (PathObject pathObject : pathObjects)
 				pathObject.getMeasurementList().closeList();
 			
+			// Sometimes smoothing can cause nuclei of cell boundaries to be removed - in this case, 
+			// filter out the invalid ROIs now
+			int sizeBefore = pathObjects.size();
+			pathObjects.removeIf(p -> PathObjectTools.getROI(p, false).isEmpty() ||
+					PathObjectTools.getROI(p, true).isEmpty());
+			int sizeAfter = pathObjects.size();
+			if (sizeBefore != sizeAfter) {
+				logger.debug("Filtered out {} invalid cells (empty ROIs)", sizeBefore - sizeAfter);
+			}
+			
 			lastRunCompleted = true;
 		}
 		

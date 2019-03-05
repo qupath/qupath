@@ -48,7 +48,7 @@ public class ImageJServerBuilder implements ImageServerBuilder<BufferedImage> {
 		try {
 			return new ImageJServer(uri);
 		} catch (IOException e) {
-			logger.warn("Error opening {} with ImageJ: {}", uri, e.getLocalizedMessage());
+			logger.debug("Unable to open {} with ImageJ: {}", uri, e.getLocalizedMessage());
 		}
 		return null;
 	}
