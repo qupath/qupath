@@ -240,6 +240,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 					if (!imageName.isEmpty())
 						name += " (" + imageName + ")";
 					if (reader.isThumbnailSeries() || (reader.getResolutionCount() == 1 && extraImageNames.contains(name.toLowerCase().trim()))) {
+						logger.debug("Adding associated image {} (thumbnail={})", name, reader.isThumbnailSeries());
 						associatedImageMap.put(name, s);
 					}
 					else {
@@ -249,6 +250,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 							imageMap.put(name, s);
 					}
 					// Set this to be the series, if necessary
+					logger.debug("Found image '{}', size: {} x {} x {} x {} x {} (xyczt)", imageName, reader.getSizeX(), reader.getSizeY(), reader.getSizeC(), reader.getSizeZ(), reader.getSizeT());
 					if (seriesIndex < 0) {
 						if (requestedSeriesName == null) {
 							long nPixels = (long)reader.getSizeX() * (long)reader.getSizeY() * (long)reader.getSizeZ() * (long)reader.getSizeT();
@@ -441,6 +443,10 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 				reader.setResolution(i);
 				int w = reader.getSizeX();
 				int h = reader.getSizeY();
+				if (w <= 0 || h <= 0) {
+					logger.warn("Invalid resolution size {} x {}! Will skip this level, but something seems wrong...", w, h);
+					continue;
+				}
 				// In some VSI images, the calculated downsamples for width & height can be wildly discordant, 
 				// and we are better off using defaults
 				if ("CellSens VSI".equals(format)) {
@@ -469,9 +475,11 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 			
 			// Generate a suitable name for this image
 			String imageName = meta.getImageName(seriesIndex);
-			if (imageName == null)
-				imageName = "Series " + seriesIndex;
-			if (containsSubImages())
+			if (imageName == null || imageName.isBlank()) {
+				imageName = getFile().getName();
+				if (containsSubImages())
+					imageName = imageName + " - Series " + seriesIndex;
+			} else if (containsSubImages())
 				imageName = getFile().getName() + " - " + imageName;
 			
 			// Set metadata
