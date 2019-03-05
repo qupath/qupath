@@ -56,9 +56,7 @@ import qupath.lib.regions.ImageRegion;
  * However, by adding/removing objects via this hierarchy (rather than through the child lists directly), it is possible
  * to maintain a more consistent structure (e.g. by automatically inserting objects as children of the objects whose ROI completely
  * contains the object to be added), along with a spatial cache so that objects can be extracted if their ROIs overlap with a specified region.
- * 
- * TODO: Convert to more sustainable serialization
- * 
+ * <p>
  * Note: Be cautious when deserializing - it may not result in a hierarchy in a valid state.
  * As a workaround, you can construct a new PathObjectHierarchy and call setHierarchy(deserializedHierarchy) to
  * ensure that you have a properly-constructed hierarchy with the same data within it.

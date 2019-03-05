@@ -40,6 +40,8 @@ import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.Location;
+import org.locationtech.jts.geom.prep.PreparedGeometry;
+import org.locationtech.jts.geom.prep.PreparedGeometryFactory;
 import org.locationtech.jts.index.SpatialIndex;
 import org.locationtech.jts.index.quadtree.Quadtree;
 import org.slf4j.Logger;
@@ -187,8 +189,9 @@ class PathObjectTileCache implements PathObjectHierarchyListener {
 		Geometry geometry = geometryMap.get(roi);
 		if (geometry == null) {
 			geometry = roi.getGeometry();
-			if (pathObject.isAnnotation() || pathObject.isTMACore())
+			if (pathObject.isAnnotation() || pathObject.isTMACore()) {
 				geometryMap.put(roi, geometry);
+			}
 //			long startTime = System.currentTimeMillis();
 			if (!geometry.isValid())
 				logger.warn("{} is not a valid geometry! Actual geometry {}", pathObject, geometry);
@@ -219,8 +222,32 @@ class PathObjectTileCache implements PathObjectHierarchyListener {
 		return locator;
 	}
 	
+//	public boolean covers(PathObject possibleParent, PathObject possibleChild) {
+//		return getGeometry(possibleParent).covers(getGeometry(possibleChild));
+//	}
+	
+	private Map<Geometry, PreparedGeometry> preparedGeometryMap = new WeakHashMap<>();
+	
+	PreparedGeometry getPreparedGeometry(PathObject pathObject) {
+		var geometry = getGeometry(pathObject);
+		var prepared = preparedGeometryMap.get(geometry);
+		if (prepared != null)
+			return prepared;
+		
+		synchronized (preparedGeometryMap) {
+			prepared = preparedGeometryMap.get(geometry);
+			if (prepared != null)
+				return prepared;
+			prepared = PreparedGeometryFactory.prepare(geometry);
+			preparedGeometryMap.put(geometry, prepared);
+			return prepared;
+		}
+	}
+	
 	public boolean covers(PathObject possibleParent, PathObject possibleChild) {
-		return getGeometry(possibleParent).covers(getGeometry(possibleChild));
+		var parent = getPreparedGeometry(possibleParent);
+		var child = getGeometry(possibleChild);
+		return parent.covers(child);
 	}
 	
 	public boolean containsCentroid(PathObject possibleParent, PathObject possibleChild) {
