@@ -218,6 +218,20 @@ public class QP {
 	}
 	
 	/**
+	 * Get the {@code ImageServer} of the current {@code ImageData}.
+	 * 
+	 * @return
+	 * 
+	 * @see #getCurrentImageData()
+	 */
+	public static ImageServer<?> getCurrentServer() {
+		ImageData<?> imageData = getCurrentImageData();
+		if (imageData == null)
+			return null;
+		return imageData.getServer();
+	}
+	
+	/**
 	 * Get the selected objects within the current {@code PathObjectHierarchy}.
 	 * <p>
 	 * Note: this implementation returns the selected objects directly.  The returned collection 
