@@ -953,6 +953,10 @@ public class PixelClassifierImageSelectionPane {
 			minSizePixels /= (server.getPixelWidthMicrons() * server.getPixelHeightMicrons());
 		
 		var selected = viewer.getSelectedObject();
+		if (selected != null && !selected.getROI().isArea()) {
+			DisplayHelpers.showErrorMessage("Create objects", "You either need an area selection or no selected object");
+			return false;
+		}
 		
 		int nChildObjects = 0;
 		var hierarchy = server.getImageData().getHierarchy();

@@ -52,6 +52,8 @@ import qupath.opencv.processing.TypeAdaptersCV;
 
 import java.awt.geom.Path2D;
 import java.awt.image.BufferedImage;
+import java.awt.image.DataBufferByte;
+import java.awt.image.Raster;
 import java.awt.image.WritableRaster;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -97,11 +99,11 @@ public class PixelClassifierGUI {
     }
     
     
-    public static ROI thresholdToROI(BufferedImage img, double minThreshold, double maxThreshold, int band, TileRequest request) {
-    	int w = img.getWidth();
-    	int h = img.getHeight();
+    public static ROI thresholdToROI(Raster raster, double minThreshold, double maxThreshold, int band, TileRequest request) {
+    	int w = raster.getWidth();
+    	int h = raster.getHeight();
     	float[] pixels = new float[w * h];
-    	img.getRaster().getSamples(0, 0, w, h, band, pixels);
+    	raster.getSamples(0, 0, w, h, band, pixels);
     	var fp = new FloatProcessor(w, h, pixels);
     	
     	fp.setThreshold(minThreshold, maxThreshold, ImageProcessor.NO_LUT_UPDATE);
@@ -652,6 +654,29 @@ public class PixelClassifierGUI {
 			try {
 				var img = server.readBufferedImage(t.getRegionRequest());
 				var nChannels = classifier.getMetadata().getChannels().size();
+				// Get raster containing classifications and integer values, by taking the argmax
+				var raster = img.getRaster();
+				if (classifier.getMetadata().getOutputType() != OutputType.Classification) {
+					int h = raster.getHeight();
+					int w = raster.getWidth();
+					byte[] output = new byte[w * h];
+					for (int y = 0; y < h; y++) {
+						for (int x = 0; x < w; x++) {
+							int maxInd = 0;
+							float maxVal = raster.getSampleFloat(x, y, 0);
+							for (int c = 1; c < nChannels; c++) {
+								float val = raster.getSampleFloat(x, y, c);						
+								if (val > maxVal) {
+									maxInd = c;
+									maxVal = val;
+								}
+								output[y*w+x] = (byte)maxInd;
+							}
+						}
+					}
+					raster = WritableRaster.createPackedRaster(
+							new DataBufferByte(output, w*h), w, h, 8, null);
+				}
 				for (int c = 0; c < nChannels; c++) {
 					String name = server.getChannelName(c);
 					if (name == null || server.getDefaultChannelColor(c) == null)
@@ -659,12 +684,7 @@ public class PixelClassifierGUI {
 					var pathClass = PathClassFactory.getPathClass(name);
 					if (pathClass == PathClassFactory.getDefaultPathClass(PathClasses.IGNORE))
 						continue;
-					ROI roi;
-					if (classifier.getMetadata().getOutputType() == OutputType.Classification) {
-						roi = thresholdToROI(img, c-0.5, c+0.5, 0, t);
-					} else {
-						roi = thresholdToROI(img, 0.5, Double.POSITIVE_INFINITY, c, t);						
-					}
+					ROI roi = thresholdToROI(raster, c-0.5, c+0.5, 0, t);
 										
 					if (roi != null && clipArea != null) {
 						var roiArea = PathROIToolsAwt.getArea(roi);
