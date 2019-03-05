@@ -198,10 +198,10 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 		// Add derived measurements if we don't have only detections
 		if (containsAnnotations || containsTMACores) {
 //		if (containsParentAnnotations || containsTMACores) {
-			MeasurementBuilder<?> builder = new ObjectTypeCountMeasurementBuilder(PathAnnotationObject.class);
-			builderMap.put(builder.getName(), builder);
-			features.add(builder.getName());
-			builder = new ObjectTypeCountMeasurementBuilder(PathDetectionObject.class);
+//			MeasurementBuilder<?> builder = new ObjectTypeCountMeasurementBuilder(PathAnnotationObject.class);
+//			builderMap.put(builder.getName(), builder);
+//			features.add(builder.getName());
+			var builder = new ObjectTypeCountMeasurementBuilder(PathDetectionObject.class);
 			builderMap.put(builder.getName(), builder);
 			features.add(builder.getName());
 			
