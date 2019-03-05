@@ -265,7 +265,7 @@ public class ParameterDialogWrapper<T> {
 			return false;
 
 		// Check what possible parent types are available
-		List<PathObject> possibleParents = null;
+		Collection<PathObject> possibleParents = null;
 		int nParents = 0;
 		List<Class<? extends PathObject>> availableTypes = new ArrayList<>();
 		for (Class<? extends PathObject> cls : supportedParents) {

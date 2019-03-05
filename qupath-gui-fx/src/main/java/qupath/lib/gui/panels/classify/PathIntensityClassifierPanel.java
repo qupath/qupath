@@ -124,7 +124,7 @@ public class PathIntensityClassifierPanel implements PathObjectSelectionListener
 		// Try to make a histogram & set it in the panel
 //		PathObject pathObjectSelected = hierarchy.getSelectionModel().getSelectedPathObject();
 		// For now, always use all objects (not direct descendants only)
-		List<PathObject> pathObjects = null;
+		Collection<PathObject> pathObjects = null;
 //		if (pathObjectSelected == null || !pathObjectSelected.hasChildren())
 			pathObjects = hierarchy.getObjects(pathObjects, PathDetectionObject.class);
 //		else

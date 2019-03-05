@@ -424,13 +424,13 @@ public final class PathObjectHierarchy implements Serializable {
 	}
 	
 	
-	private synchronized void addPathObjectsRecursively(PathObject pathObject, List<PathObject> pathObjects, Class<? extends PathObject> cls) {
+	private synchronized void addPathObjectsRecursively(PathObject pathObject, Collection<PathObject> pathObjects, Class<? extends PathObject> cls) {
 		// Prefer to iterate through long lists and process as we go, rather than handle one object per method call
 		addPathObjectsRecursively(Collections.singleton(pathObject), pathObjects, cls);
 	}
 	
 	
-	private static void addPathObjectsRecursively(Collection<PathObject> pathObjectsInput, List<PathObject> pathObjects, Class<? extends PathObject> cls) {
+	private static void addPathObjectsRecursively(Collection<PathObject> pathObjectsInput, Collection<PathObject> pathObjects, Class<? extends PathObject> cls) {
 		for (PathObject childObject : pathObjectsInput) {
 			if (cls == null || cls.isInstance(childObject)) {
 				pathObjects.add(childObject);
@@ -440,8 +440,8 @@ public final class PathObjectHierarchy implements Serializable {
 		}
 	}
 
-	public synchronized List<PathObject> getPointObjects(Class<? extends PathObject> cls) {
-		List<PathObject> pathObjects = getObjects(null, cls);
+	public synchronized Collection<PathObject> getPointObjects(Class<? extends PathObject> cls) {
+		Collection<PathObject> pathObjects = getObjects(null, cls);
 		if (!pathObjects.isEmpty()) {
 			Iterator<PathObject> iter = pathObjects.iterator();
 			while (iter.hasNext()) {
@@ -474,7 +474,7 @@ public final class PathObjectHierarchy implements Serializable {
 		return getObjects(null, PathAnnotationObject.class);
 	}
 
-	public List<PathObject> getObjects(List<PathObject> pathObjects, Class<? extends PathObject> cls) {
+	public Collection<PathObject> getObjects(Collection<PathObject> pathObjects, Class<? extends PathObject> cls) {
 		if (pathObjects == null)
 			pathObjects = new ArrayList<>();
 		

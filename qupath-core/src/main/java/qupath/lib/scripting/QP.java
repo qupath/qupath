@@ -429,7 +429,7 @@ public class QP {
 		PathObjectHierarchy hierarchy = getCurrentHierarchy();
 		if (hierarchy == null)
 			return;
-		List<PathObject> pathObjects = hierarchy.getObjects(null, cls);
+		Collection<PathObject> pathObjects = hierarchy.getObjects(null, cls);
 		hierarchy.removeObjects(pathObjects, true);
 		
 		PathObject selected = hierarchy.getSelectionModel().getSelectedObject();
@@ -549,7 +549,7 @@ public class QP {
 	 * 
 	 * @see #getCurrentHierarchy
 	 */
-	public static List<PathObject> getAnnotationObjects() {
+	public static Collection<PathObject> getAnnotationObjects() {
 		PathObjectHierarchy hierarchy = getCurrentHierarchy();
 		if (hierarchy == null)
 			return Collections.emptyList();
@@ -576,7 +576,7 @@ public class QP {
 	 * 
 	 * @see #getCurrentHierarchy
 	 */
-	public static List<PathObject> getDetectionObjects() {
+	public static Collection<PathObject> getDetectionObjects() {
 		PathObjectHierarchy hierarchy = getCurrentHierarchy();
 		if (hierarchy == null)
 			return Collections.emptyList();
@@ -590,7 +590,7 @@ public class QP {
 	 * 
 	 * @see #getCurrentHierarchy
 	 */
-	public static List<PathObject> getCellObjects() {
+	public static Collection<PathObject> getCellObjects() {
 		PathObjectHierarchy hierarchy = getCurrentHierarchy();
 		if (hierarchy == null)
 			return Collections.emptyList();
@@ -791,7 +791,7 @@ public class QP {
 	public static void resetClassifications(final PathObjectHierarchy hierarchy, final Class<? extends PathObject> cls) {
 		if (hierarchy == null)
 			return;
-		List<PathObject> objects = hierarchy.getObjects(null, cls);
+		Collection<PathObject> objects = hierarchy.getObjects(null, cls);
 		if (objects.isEmpty()) {
 			logger.warn("No objects to reset classifications!");
 			return;
@@ -1228,7 +1228,7 @@ public class QP {
 	public static void removeMeasurements(final PathObjectHierarchy hierarchy, final Class<? extends PathObject> cls, final String... measurementNames) {
 		if (hierarchy == null)
 			return;
-		List<PathObject> pathObjects = hierarchy.getObjects(null, cls);
+		Collection<PathObject> pathObjects = hierarchy.getObjects(null, cls);
 		for (PathObject pathObject : pathObjects) {
 			// A little check, to handle possible subclasses being returned
 			if (pathObject.getClass() != cls)
@@ -1343,7 +1343,7 @@ public class QP {
 	}
 	
 	public static void setIntensityClassifications(final PathObjectHierarchy hierarchy, final Class<? extends PathObject> cls, final String measurementName, final double... thresholds) {
-		List<PathObject> pathObjects = hierarchy.getObjects(null, cls);
+		Collection<PathObject> pathObjects = hierarchy.getObjects(null, cls);
 		setIntensityClassifications(pathObjects, measurementName, thresholds);
 		hierarchy.fireObjectClassificationsChangedEvent(QP.class, pathObjects);
 	}
@@ -1384,7 +1384,7 @@ public class QP {
 	 * @param hierarchy
 	 */
 	public static void resetIntensityClassifications(final PathObjectHierarchy hierarchy) {
-		List<PathObject> pathObjects = hierarchy.getObjects(null, PathDetectionObject.class);
+		Collection<PathObject> pathObjects = hierarchy.getObjects(null, PathDetectionObject.class);
 		resetIntensityClassifications(pathObjects);
 		hierarchy.fireObjectClassificationsChangedEvent(QP.class, pathObjects);
 	}

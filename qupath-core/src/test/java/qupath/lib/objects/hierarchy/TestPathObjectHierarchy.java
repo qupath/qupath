@@ -76,7 +76,7 @@ public class TestPathObjectHierarchy {
 		// Firing indirect events (adding/removing from hierarchy)
 		// Adding one PO with a child (so 2)
 		myPH.addPathObject(myChild1PAO, true);
-		List<PathObject> POAL1 = new ArrayList<>();
+		Collection<PathObject> POAL1 = new ArrayList<>();
 		POAL1 = myPH.getObjects(POAL1, PathAnnotationObject.class);
 		assertEquals(POAL1.size(), 2); // 1 + child
 		assertEquals(myPH.getObjects(null, PathAnnotationObject.class), POAL1);
@@ -88,7 +88,7 @@ public class TestPathObjectHierarchy {
 
 		// Adding one PO without a child (so 1) - this PO, however, is fully contained within Child1 
 		myPH.addPathObject(myChild2PAO, true);
-		List<PathObject> POAL2 = new ArrayList<>();
+		Collection<PathObject> POAL2 = new ArrayList<>();
 		POAL2 = myPH.getObjects(POAL2, PathAnnotationObject.class);
 		assertEquals(POAL2.size(), 3); //  2 + 1 
 		assertEquals(myPH.getObjects(null, PathAnnotationObject.class), POAL2);
@@ -120,7 +120,7 @@ public class TestPathObjectHierarchy {
 		
 		// Remove one PO without a child (so 2 left)		
 		myPH.removeObject(myChild2PAO, true); // no children, so a removed event will fire 
-		List<PathObject> POAL5 = new ArrayList<>();
+		Collection<PathObject> POAL5 = new ArrayList<>();
 		POAL5 = myPH.getObjects(POAL5, PathAnnotationObject.class);
 		assertEquals(POAL5.size(), 2); // 3 - 1  
 		assertEquals(myPH.getObjects(null, PathAnnotationObject.class), POAL5);		
@@ -130,7 +130,7 @@ public class TestPathObjectHierarchy {
 		
 		// Remove one PO with a child but keep child (so 1 left)		
 		myPH.removeObject(myChild1PAO, true);
-		List<PathObject> POAL6 = new ArrayList<>();
+		Collection<PathObject> POAL6 = new ArrayList<>();
 		POAL6 = myPH.getObjects(POAL6, PathAnnotationObject.class);
 		assertEquals(POAL6.size(), 1); // 2 - 1  
 		assertEquals(myPH.getObjects(null, PathAnnotationObject.class), POAL6);		

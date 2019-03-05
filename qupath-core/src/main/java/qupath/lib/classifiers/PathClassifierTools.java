@@ -64,7 +64,7 @@ public class PathClassifierTools {
 				pathObjects.clear();
 			}
 		} else {
-			pathObjects = hierarchy.getObjects(null, PathDetectionObject.class);
+			hierarchy.getObjects(pathObjects, PathDetectionObject.class);
 			nClassified = classifier.classifyPathObjects(pathObjects);
 		}
 		long endTime = System.currentTimeMillis();

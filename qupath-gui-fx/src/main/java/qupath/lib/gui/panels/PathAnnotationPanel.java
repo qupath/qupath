@@ -27,6 +27,7 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -970,7 +971,7 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 			return;
 		}
 
-		List<PathObject> newList = hierarchy.getObjects(null, PathAnnotationObject.class);
+		Collection<PathObject> newList = hierarchy.getObjects(new HashSet<>(), PathAnnotationObject.class);
 		listClasses.refresh();
 		// If the lists are the same, we just need to refresh the appearance (because e.g. classifications or measurements now differ)
 		// For some reason, 'equals' alone wasn't behaving nicely (perhaps due to ordering?)... so try a more manual test instead

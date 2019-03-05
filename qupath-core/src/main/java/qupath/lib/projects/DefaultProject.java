@@ -928,7 +928,7 @@ class DefaultProject implements Project<BufferedImage> {
 		private Map<String, Long> detectionClassificationCounts;
 		
 		HierarchySummary(PathObjectHierarchy hierarchy) {
-			List<PathObject> pathObjects = hierarchy.getObjects(null, null);
+			Collection<PathObject> pathObjects = hierarchy.getObjects(null, null);
 			this.nObjects = pathObjects.size();
 			objectTypeCounts = pathObjects.stream()
 					.collect(Collectors.groupingBy(p -> PathObjectTools.getSuitableName(p.getClass(), true), Collectors.counting()));

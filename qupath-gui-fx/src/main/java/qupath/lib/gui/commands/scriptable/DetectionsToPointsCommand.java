@@ -24,6 +24,7 @@
 package qupath.lib.gui.commands.scriptable;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -66,7 +67,7 @@ public class DetectionsToPointsCommand implements PathCommand {
 		if (imageData == null)
 			return;
 		PathObjectHierarchy hierarchy = imageData.getHierarchy();
-		List<PathObject> pathObjects = hierarchy.getObjects(null, PathDetectionObject.class);
+		Collection<PathObject> pathObjects = hierarchy.getObjects(null, PathDetectionObject.class);
 		if (pathObjects.isEmpty()) {
 			DisplayHelpers.showErrorMessage("Detections to points", "No detections found!");
 			return;

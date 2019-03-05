@@ -27,6 +27,7 @@ import java.awt.Toolkit;
 import java.awt.datatransfer.Clipboard;
 import java.awt.datatransfer.StringSelection;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 import org.controlsfx.control.action.Action;
@@ -231,7 +232,7 @@ public class CountingPanel implements PathObjectSelectionListener, PathObjectHie
 			return;
 		}
 		
-		List<PathObject> newList = hierarchy.getPointObjects(PathAnnotationObject.class);
+		Collection<PathObject> newList = hierarchy.getPointObjects(PathAnnotationObject.class);
 		
 		if (newList.equals(listCounts.getItems())) {
 //			if (event != null && event.getEventType() == HierarchyEventType.CHANGE_CLASSIFICATION || event.getEventType() == HierarchyEventType.CHANGE_MEASUREMENTS || (event.getStructureChangeBase() != null && event.getStructureChangeBase().isPoint()) || PathObjectTools.containsPointObject(event.getChangedObjects()))

@@ -6,6 +6,7 @@ import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -345,7 +346,7 @@ public class ImageAlignmentPane {
 			try {
 				if (temp.hasImageData()) {
 					imageData = temp.readImageData();
-					List<PathObject> pathObjects = imageData.getHierarchy().getObjects(null, null);
+					Collection<PathObject> pathObjects = imageData.getHierarchy().getObjects(null, null);
 					Set<PathObject> pathObjectsToRemove = pathObjects.stream().filter(p -> !p.isAnnotation()).collect(Collectors.toSet());
 					imageData.getHierarchy().removeObjects(pathObjectsToRemove, true);
 				} else {

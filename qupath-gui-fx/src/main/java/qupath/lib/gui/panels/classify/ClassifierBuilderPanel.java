@@ -35,6 +35,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.PrintWriter;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -679,7 +680,7 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 					if (imageDataTemp == null || imageDataTemp.getHierarchy().isEmpty())
 						continue;
 
-					List<PathObject> pathObjects = imageDataTemp.getHierarchy().getObjects(null, PathDetectionObject.class);
+					Collection<PathObject> pathObjects = imageDataTemp.getHierarchy().getObjects(null, PathDetectionObject.class);
 					if (pathObjects.isEmpty()) {
 						updateLog("No detection objects for " + entry.getImageName() + " - skipping");
 						continue;
@@ -1140,7 +1141,7 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 		if (hierarchyChanged)
 			maybeUpdate();
 		else {
-			List<PathObject> pathObjects = hierarchy.getObjects(null, PathDetectionObject.class);
+			Collection<PathObject> pathObjects = hierarchy.getObjects(null, PathDetectionObject.class);
 			if (intensityClassifier.classifyPathObjects(pathObjects) > 0) {
 				// Update displayed list - names may have changed - and classifier summary
 				updateClassifierSummary(null);
@@ -1345,11 +1346,11 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 		PathIntensityClassifier intensityClassifier = panelIntensities.getIntensityClassifier();
 
 		// Apply classifier to everything
-		List<PathObject> pathObjectsOrig = hierarchy.getObjects(null, PathDetectionObject.class);
+		Collection<PathObject> pathObjectsOrig = hierarchy.getObjects(null, PathDetectionObject.class);
 		int nClassified = 0;
 		
 		// Possible get proxy objects, depending on the thread we're on
-		List<PathObject> pathObjects;
+		Collection<PathObject> pathObjects;
 		if (Platform.isFxApplicationThread())
 			pathObjects = pathObjectsOrig;
 		else
@@ -1398,7 +1399,7 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 	}
 	
 	
-	private void completeClassification(final PathObjectHierarchy hierarchy, final List<PathObject> classifiedObjects, final List<PathObject> originalObjects, final Map<PathClass, List<PathObject>> mapTest, final boolean testOnTrainingData) {
+	private void completeClassification(final PathObjectHierarchy hierarchy, final Collection<PathObject> classifiedObjects, final Collection<PathObject> originalObjects, final Map<PathClass, List<PathObject>> mapTest, final boolean testOnTrainingData) {
 		if (!Platform.isFxApplicationThread())
 			Platform.runLater(() -> completeClassification(hierarchy, classifiedObjects, originalObjects, mapTest, testOnTrainingData));
 		else {

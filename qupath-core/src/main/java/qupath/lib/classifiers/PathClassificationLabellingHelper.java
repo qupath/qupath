@@ -119,7 +119,7 @@ public class PathClassificationLabellingHelper {
 	}
 	
 	
-	private static List<PathObject> getAnnotations(PathObjectHierarchy hierarchy) {
+	private static Collection<PathObject> getAnnotations(PathObjectHierarchy hierarchy) {
 		if (hierarchy == null)
 			return Collections.emptyList();
 		else
@@ -194,7 +194,7 @@ public class PathClassificationLabellingHelper {
 		Map<PathClass, List<PathObject>> classifications = new TreeMap<>();
 		
 		// Get the annotations & filter out those that are useful
-		List<PathObject> annotations = getAnnotations(hierarchy);
+		List<PathObject> annotations = new ArrayList<>(getAnnotations(hierarchy));
 		Iterator<PathObject> iter = annotations.iterator();
 		while (iter.hasNext()) {
 			PathObject pathObject = iter.next();

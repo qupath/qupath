@@ -32,6 +32,7 @@ import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 
 import org.slf4j.Logger;
@@ -148,7 +149,7 @@ public class TissueSegmentationCommand implements PathCommand, PathObjectHierarc
 		if (img == null || isChanging || event.isChanging())
 			return;
 		
-		List<PathObject> annotations = hierarchy.getObjects(null, PathAnnotationObject.class);
+		Collection<PathObject> annotations = hierarchy.getObjects(null, PathAnnotationObject.class);
 		if (annotation != null)
 			annotations.remove(annotation);
 		List<PathObject> background = new ArrayList<>();
