@@ -572,7 +572,7 @@ public final class PathObjectHierarchy implements Serializable {
 		if (roi.isEmpty() || !roi.isArea())
 			return Collections.emptyList();
 		
-		Collection<PathObject> pathObjects = tileCache.getObjectsForRegion(cls, ImageRegion.createInstance(roi), null, true);
+		Collection<PathObject> pathObjects = tileCache.getObjectsForRegion(cls, ImageRegion.createInstance(roi), new HashSet<>(), true);
 		return filterObjectsForROI(roi, pathObjects);
 	}
 	

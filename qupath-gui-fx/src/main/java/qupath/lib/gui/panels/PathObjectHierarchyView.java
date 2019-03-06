@@ -502,8 +502,8 @@ public class PathObjectHierarchyView implements ImageDataChangeListener<Buffered
 		}
 		synchronizingTreeToModel = true;
 		treeView.setRoot(createNode(imageData.getHierarchy().getRootObject()));
-		synchronizingTreeToModel = false;
 		synchronizeTreeToSelectionModel();
+		synchronizingTreeToModel = false;
 	}
 	
 	

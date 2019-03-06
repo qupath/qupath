@@ -377,14 +377,13 @@ class PathObjectTileCache implements PathObjectHierarchyListener {
 	 * Get all the PathObjects stored in this cache of a specified type and having ROIs with bounds overlapping a specified region.
 	 * This does not guarantee that the ROI (which may not be rectangular) overlaps the region...
 	 * but a quick test is preferred over a more expensive one.
-	 * 
+	 * <p>
 	 * Note that pathObjects will be added to the collection provided, if there is one.
 	 * The same object will be added to this collection multiple times if it overlaps different tiles -
 	 * again in the interests of speed, no check is made.
 	 * However this can be addressed by using a Set as the collection.
-	 * 
-	 * If a collection is not provided, a HashSet is created & used instead.
-	 * Either way, the collection actually used is returned.
+	 * <p>
+	 * If a collection is not provided, another Collection is created & used instead.
 	 * 
 	 * @param cls a PathObject class, or null if all object types should be returned
 	 * @param region an image region, or null if all objects with ROIs should be return
