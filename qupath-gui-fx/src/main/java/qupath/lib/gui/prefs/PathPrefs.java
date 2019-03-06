@@ -27,18 +27,22 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.lang.reflect.Method;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
+import java.nio.file.StandardOpenOption;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import java.util.Locale.Category;
 import java.util.prefs.BackingStoreException;
 import java.util.prefs.InvalidPreferencesFormatException;
 import java.util.prefs.Preferences;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -254,25 +258,32 @@ public class PathPrefs {
 	 */
 	public static boolean hasJavaPreferences() {
 		try {
-			Class<?> clsJVM = Class.forName("jdk.packager.services.UserJvmOptionsService");
-			Method methodGetDefaults = clsJVM.getMethod("getUserJVMDefaults");
-			Object options = methodGetDefaults.invoke(null);
-			return options != null;
-		} catch (Throwable t) {
-			logger.trace("Unable to load user JVM preferences", t);
+			Path path = getConfigPath();
+			if (path == null)
+				return false;
+			return Files.exists(path);
+		} catch (IOException e) {
+			logger.error("Error trying to find config file", e);
 			return false;
 		}
+	}
+	
+	static Path getConfigPath() throws IOException {
+		Path path = Paths.get(".");
+		List<Path> list = Files.list(path).filter(p -> p.getFileName().toString().endsWith(".cfg")).collect(Collectors.toList());
+		if (list.size() != 1) {
+			return null;
+		}
+		return list.get(0);
 	}
 	
 	/**
 	 * Get property representing the maximum memory for the Java Virtual Machine, 
 	 * applied after restarting the application.
-	 * 
-	 * Setting this will attempt to set -Xmx by means of UserJvmOptionsService.
-	 * 
-	 * If successful, any value &lt;= 0 will result in the -Xmx option being removed
-	 * (i.e. reverting to the default).  Otherwise, -Xmx will be set to the value that is 
-	 * specified or 100M, whichever is larger.
+	 * <p>
+	 * Setting this will attempt to set -Xmx by writing to a .cfg file in the home launch directory.
+	 * <p>
+	 * If successful, -Xmx will be set to the value that is specified or 512M, whichever is larger.
 	 * 
 	 * @return
 	 */
@@ -282,19 +293,42 @@ public class PathPrefs {
 			// Update Java preferences for restart
 			maxMemoryMB.addListener((v, o, n) -> {
 				try {
-					// Use reflection to ease setup - packager.jar may well not be on classpath during development
-					Class<?> clsJVM = Class.forName("jdk.packager.services.UserJvmOptionsService");
-					Method methodGetDefaults = clsJVM.getMethod("getUserJVMDefaults");
-					Method methodSetOptions = clsJVM.getMethod("setUserJVMOptions", Map.class);
-					Object options = methodGetDefaults.invoke(null);
-					if (n == null || n.intValue() <= 0) {
-						logger.info("Resetting JVM options");
-						methodSetOptions.invoke(options, Collections.emptyMap());
-					} else {
-						long val = Math.max(n.longValue(), 100);
-						logger.info("Setting JVM option -Xmx" + val + "M");
-						methodSetOptions.invoke(options, Collections.singletonMap("-Xmx", val + "M"));
+					if (n.intValue() <= 512) {
+						logger.warn("Cannot set memory to {}, must be >= 512 MB", n);
+						n = 512;
 					}
+					String memory = "-Xmx" + n.intValue() + "M";
+					Path config = getConfigPath();
+					if (!Files.exists(config)) {
+						logger.error("Cannot find config file!");
+						return;
+					}
+					logger.info("Reading config file {}", config);
+					List<String> lines = Files.readAllLines(config);
+					int jvmOptions = -1;
+					int argOptions = -1;
+					int lineXmx = -1;
+					int i = 0;
+					for (String line : lines) {
+					    if (line.startsWith("[JVMOptions]"))
+					        jvmOptions = i;
+					    if (line.startsWith("[ArgOptions]"))
+					        argOptions = i;
+					    if (line.toLowerCase().contains("-xmx"))
+					        lineXmx = i;
+					    i++;
+					}
+					if (lineXmx >= 0)
+					    lines.set(lineXmx, memory);
+					else if (argOptions > jvmOptions && jvmOptions >= 0) {
+					    lines.add(jvmOptions+1, memory);
+					} else {
+					    logger.error("Cannot find where to insert memory request to .cfg file!");
+					    return;
+					}
+					logger.info("Setting JVM option to {}", memory);
+					Files.copy(config, Paths.get(config.toString() + ".bkp"), StandardCopyOption.REPLACE_EXISTING);
+					Files.write(config, lines, StandardOpenOption.WRITE);
 					return;
 				} catch (Exception e) {
 					logger.error("Unable to set max memory", e);

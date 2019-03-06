@@ -116,7 +116,8 @@ subprojects {
 
     gson 'com.google.code.gson:gson:2.8.5'
 
-    controlsfx 'org.controlsfx:controlsfx:9.0.0'
+    controlsfx 'org.controlsfx:controlsfx:11.0.0-RC2'
+//    controlsfx 'org.controlsfx:controlsfx:9.0.0'
 
 //	bioformats 'ome:bioformats_package:6.0.0'
 	bioformats 'ome:formats-gpl:6.0.0'

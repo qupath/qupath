@@ -1453,13 +1453,13 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		PathPrefs.setDoAutoUpdateCheck(paramsSetup.getBooleanParameterValue("checkForUpdates"));
 		
 		if (PathPrefs.hasJavaPreferences()) {
-			int maxMemorySpecifiedMB = (int)(paramsSetup.getDoubleParameterValue("maxMemoryGB") * 1024 + 0.5);
+			int maxMemorySpecifiedMB = (int)(Math.round(paramsSetup.getDoubleParameterValue("maxMemoryGB") * 1024));
 			if (maxMemorySpecifiedMB > 512) {
 				PathPrefs.maxMemoryMBProperty().set(maxMemorySpecifiedMB);
 			} else {
 				if (maxMemorySpecifiedMB >= 0)
-					DisplayHelpers.showErrorNotification("Max memory setting", "Specified maximum memory setting too low - will reset to default");
-				PathPrefs.maxMemoryMBProperty().set(-1);
+					DisplayHelpers.showErrorNotification("Max memory setting", "Specified maximum memory setting too low - will ignore");
+//				PathPrefs.maxMemoryMBProperty().set(-1);
 			}
 		} else {
 			DisplayHelpers.showWarningNotification("Max memory", "Cannot set maximum memory preferences");
