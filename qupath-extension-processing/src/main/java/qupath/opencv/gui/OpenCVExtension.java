@@ -23,6 +23,12 @@
 
 package qupath.opencv.gui;
 
+import org.bytedeco.javacpp.PointerScope;
+import org.bytedeco.javacpp.opencv_core;
+import org.bytedeco.javacpp.opencv_ml.ANN_MLP;
+import org.bytedeco.javacpp.opencv_ml.DTrees;
+import org.bytedeco.javacpp.opencv_ml.KNearest;
+import org.bytedeco.javacpp.opencv_ml.RTrees;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -90,10 +96,28 @@ public class OpenCVExtension implements QuPathExtension {
 		WandToolCV wandTool = new WandToolCV(qupath);
 		qupath.putToolForMode(Modes.WAND, wandTool);
 	}
+	
+	private void ensureClassesLoaded() {
+		try (var scope = new PointerScope(true)) {
+			var mat = new opencv_core.Mat();
+			opencv_core.Scalar.all(1.0);
+			RTrees.create();
+			ANN_MLP.create();
+			KNearest.create();
+			DTrees.create();
+			mat.release();
+		}
+	}
 
 
 	@Override
 	public void installExtension(QuPathGUI qupath) {
+		// Can be annoying waiting a few seconds while classes are loaded later on
+		var t = new Thread(() -> ensureClassesLoaded());
+		t.setDaemon(true);
+		t.start();
+
+		
 		addQuPathCommands(qupath);
 	}
 	

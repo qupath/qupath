@@ -96,6 +96,7 @@ import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.MiniViewerCommand;
 import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.gui.helpers.GridPaneTools;
+import qupath.lib.gui.helpers.DisplayHelpers.DialogButton;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
@@ -106,6 +107,8 @@ import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClass;
+import qupath.lib.objects.classes.PathClassFactory;
+import qupath.lib.objects.classes.PathClassFactory.PathClasses;
 import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
@@ -628,6 +631,7 @@ public class PixelClassifierImageSelectionPane {
 	
 	
 	boolean showAdvancedOptions() {
+		DisplayHelpers.showMessageDialog("Pixel classifier", "Advanced options not available yet, sorry!");
 		return false;
 	}
 	
@@ -902,19 +906,41 @@ public class PixelClassifierImageSelectionPane {
 	}
 	
 	
+	PixelClassificationImageServer getClassificationServerOrShowError() {
+		var hierarchy = viewer.getHierarchy();
+		if (hierarchy == null)
+			return null;
+		var server = overlay == null ? null : overlay.getPixelClassificationServer();
+		if (overlay == null) {
+			DisplayHelpers.showErrorMessage("Pixel classifier", "No classifier available yet!");
+			return null;
+		}
+		return server;
+	}
+	
 	
 	boolean classifyObjects() {
 		var hierarchy = viewer.getHierarchy();
-		var server = overlay.getPixelClassificationServer();
-		if (hierarchy == null || server == null)
+		if (hierarchy == null)
 			return false;
+		var server = getClassificationServerOrShowError();
+		if (server == null) {
+			return false;
+		}
 		PixelClassifierGUI.classifyObjects(server, hierarchy.getDetectionObjects());
 		return true;
 	}
 	
 	
 	boolean createObjects() {
-		var server = overlay.getPixelClassificationServer();
+		var hierarchy = viewer.getHierarchy();
+		if (hierarchy == null)
+			return false;
+		
+		var server = getClassificationServerOrShowError();
+		if (server == null) {
+			return false;
+		}
 		
 		var objectTypes = new String[] {
 				"Annotation", "Detection"
@@ -953,13 +979,21 @@ public class PixelClassifierImageSelectionPane {
 			minSizePixels /= (server.getPixelWidthMicrons() * server.getPixelHeightMicrons());
 		
 		var selected = viewer.getSelectedObject();
+		if (selected != null && selected.isDetection())
+			selected = null;
 		if (selected != null && !selected.getROI().isArea()) {
 			DisplayHelpers.showErrorMessage("Create objects", "You either need an area selection or no selected object");
 			return false;
 		}
+		if (selected != null && selected.getPathClass() != null && selected.getPathClass() != PathClassFactory.getDefaultPathClass(PathClasses.REGION)) {
+			var btn = DisplayHelpers.showYesNoCancelDialog("Create objects", "Create objects for selected annotation?\nChoose 'no' to use the entire image.");
+			if (btn == DialogButton.CANCEL)
+				return false;
+			if (btn == DialogButton.NO)
+				selected = null;
+		}
 		
 		int nChildObjects = 0;
-		var hierarchy = server.getImageData().getHierarchy();
 		if (selected == null)
 			nChildObjects = hierarchy.nObjects();
 		else
@@ -1135,6 +1169,7 @@ public class PixelClassifierImageSelectionPane {
 		var server = viewer == null ? null : viewer.getServer();
 		if (server == null || miniViewer == null || resolution == null)
 			return;
+		Tooltip.install(miniViewer.getPane(), new Tooltip("Classification resolution: \n" + resolution));
 		miniViewer.setDownsample(resolution.getDownsampleFactor(server.getAveragedPixelSizeMicrons()));
 	}
 	

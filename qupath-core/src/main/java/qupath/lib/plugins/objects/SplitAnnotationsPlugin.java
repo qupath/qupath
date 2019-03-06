@@ -102,10 +102,20 @@ public class SplitAnnotationsPlugin<T> extends AbstractInteractivePlugin<T> {
 		PathObject selected = hierarchy.getSelectionModel().getSelectedObject();
 		
 		tasks.add(() -> {
+			
+			/*
+			 * Resolving the hierarchy with many objects can be very slow.
+			 * Here, we take an object, split it and then add it below the original object in the hierarchy.
+			 * We then just need to remove the originals, allowing the newly-added objects to have their 
+			 * parents reassigned.
+			 */
+			
 			List<PathObject> toAdd = new ArrayList<>();
 			List<PathObject> toRemove = new ArrayList<>();
+			List<PathObject> localSplit = new ArrayList<>();
 			Set<PathObject> toSelect = new HashSet<>();
 			for (PathObject pathObject : parentObjects) {
+				localSplit.clear();
 				ROI roiOrig = pathObject.getROI();
 				if (roiOrig == null || !roiOrig.isArea()) {
 					toSelect.add(pathObject);
@@ -115,15 +125,24 @@ public class SplitAnnotationsPlugin<T> extends AbstractInteractivePlugin<T> {
 				if (splitROIs.size() == 1)
 					continue;
 				toRemove.add(pathObject);
-				for (var r : splitROIs)
-					toAdd.add(PathObjects.createAnnotationObject(r, pathObject.getPathClass()));
+				for (var r : splitROIs) {
+					var annotation = PathObjects.createAnnotationObject(r, pathObject.getPathClass());
+					annotation.setLocked(pathObject.isLocked());
+					localSplit.add(annotation);
+				}
+				if (pathObject.hasChildren()) {
+					for (var temp : localSplit)
+						hierarchy.addPathObjectBelowParent(pathObject, temp, false, false);
+				} else 
+					pathObject.addPathObjects(localSplit);
+				toAdd.addAll(localSplit);
 			}
 			if (toAdd.isEmpty() && toRemove.isEmpty())
 				return;
 			hierarchy.getSelectionModel().clearSelection();
 			toSelect.addAll(toAdd);
 			hierarchy.removeObjects(toRemove, true);
-			hierarchy.addPathObjects(toAdd, false);
+//			hierarchy.addPathObjects(toAdd, false);
 			
 			hierarchy.getSelectionModel().selectObjects(toSelect);
 			if (toSelect.contains(selected))
