@@ -53,7 +53,12 @@ import java.util.TreeMap;
 import java.util.WeakHashMap;
 import java.util.stream.Collectors;
 
-
+/**
+ * Helper class for training a pixel classifier.
+ * 
+ * @author Pete Bankhead
+ *
+ */
 public class PixelClassifierHelper implements PathObjectHierarchyListener {
 	
 	private static final Logger logger = LoggerFactory.getLogger(PixelClassifierHelper.class);

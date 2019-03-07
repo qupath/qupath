@@ -15,6 +15,12 @@ import com.google.gson.TypeAdapterFactory;
 import com.google.gson.reflect.TypeToken;
 import qupath.lib.common.GeneralTools;
 
+/**
+ * Static methods to generate FeatureFilters.
+ * 
+ * @author Pete Bankhead
+ *
+ */
 public class FeatureFilters {
 	
 	public static final String ORIGINAL_PIXELS = "Original pixels";
