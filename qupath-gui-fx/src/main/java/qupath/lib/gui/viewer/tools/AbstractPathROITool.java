@@ -24,8 +24,6 @@
 package qupath.lib.gui.viewer.tools;
 
 import java.awt.geom.Point2D;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
@@ -43,11 +41,9 @@ import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.Reclassifier;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.regions.ImagePlane;
-import qupath.lib.regions.ImageRegion;
 import qupath.lib.roi.PolygonROI;
 import qupath.lib.roi.PolylineROI;
 import qupath.lib.roi.RoiEditor;
-import qupath.lib.roi.interfaces.PathArea;
 import qupath.lib.roi.interfaces.ROI;
 
 /**

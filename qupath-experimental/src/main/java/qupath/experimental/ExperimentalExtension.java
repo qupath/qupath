@@ -3,7 +3,6 @@ package qupath.experimental;
 import qupath.lib.ai.CreateRegionAnnotationsCommand;
 import qupath.lib.ai.ExportTrainingRegionsCommand;
 import qupath.lib.ai.SplitProjectTrainingCommand;
-import qupath.lib.classifiers.gui.OpenCvClassifierCommand2;
 import qupath.lib.classifiers.opencv.gui.PixelClassifierCommand;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.align.InteractiveImageAlignmentCommand;

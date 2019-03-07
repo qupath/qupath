@@ -10,7 +10,7 @@ import org.bytedeco.javacpp.opencv_dnn.Net;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import qupath.lib.classifiers.gui.PixelClassifierGUI;
+import qupath.lib.classifiers.gui.PixelClassifierStatic;
 import qupath.lib.images.ImageData;
 import qupath.lib.regions.RegionRequest;
 import qupath.opencv.processing.OpenCVTools;
@@ -326,7 +326,7 @@ public class OpenCVPixelClassifierDNN extends AbstractOpenCVPixelClassifier {
 		int inputPadding = getMetadata().getInputPadding();
 		
 //		BufferedImage img = PixelClassifierGUI.getPaddedRequest(server, request, inputPadding);
-		BufferedImage img = PixelClassifierGUI.getPaddedRequest(server, request, inputPadding);
+		BufferedImage img = PixelClassifierStatic.getPaddedRequest(server, request, inputPadding);
 		Mat mat = OpenCVTools.imageToMat(img);
 		
 		Mat matResult = doClassification(mat, 0);
