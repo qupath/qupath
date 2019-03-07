@@ -21,7 +21,7 @@
  * #L%
  */
 
-package qupath.imagej.detect.nuclei;
+package qupath.imagej.detect.cells;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;

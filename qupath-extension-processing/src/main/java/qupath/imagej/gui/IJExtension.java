@@ -62,11 +62,11 @@ import org.controlsfx.control.action.Action;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import qupath.imagej.detect.cells.PositiveCellDetection;
 import qupath.imagej.detect.cells.SubcellularDetection;
+import qupath.imagej.detect.cells.WatershedCellDetection;
+import qupath.imagej.detect.cells.WatershedCellMembraneDetection;
 import qupath.imagej.detect.dearray.TMADearrayerPluginIJ;
-import qupath.imagej.detect.nuclei.PositiveCellDetection;
-import qupath.imagej.detect.nuclei.WatershedCellDetection;
-import qupath.imagej.detect.nuclei.WatershedCellMembraneDetection;
 import qupath.imagej.detect.tissue.PositivePixelCounterIJ;
 import qupath.imagej.detect.tissue.SimpleTissueDetection;
 import qupath.imagej.detect.tissue.SimpleTissueDetection2;
