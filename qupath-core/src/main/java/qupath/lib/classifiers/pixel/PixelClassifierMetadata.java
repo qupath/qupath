@@ -17,7 +17,9 @@ public class PixelClassifierMetadata {
 
 	public static enum PixelType { UInt8, UInt16, Float32, Float64 }
 	public static enum OutputType { Features, Classification, Probability }
-
+	
+	private int inputPadding = 0;
+	
 	private double inputPixelSize;
 	private String inputPixelSizeUnits;
 	private double[] inputChannelMeans;
@@ -38,6 +40,14 @@ public class PixelClassifierMetadata {
 	public double getInputPixelSize() {
     	return inputPixelSize;
     };
+    
+    /**
+     * Requested input padding (above, below, left & right).
+     * @return
+     */
+    public int getInputPadding() {
+    	return inputPadding;
+    }
     
     /**
      * Units for input pixel size.
@@ -157,6 +167,7 @@ public class PixelClassifierMetadata {
     private PixelClassifierMetadata(Builder builder) {
     	this.inputPixelSizeUnits = builder.inputPixelSizeUnits;
     	this.inputChannelMeans = builder.inputChannelMeans;
+    	this.inputPadding = builder.inputPadding;
     	this.inputPixelSize = builder.inputPixelSize;
     	this.inputChannelMeans = builder.inputChannelMeans;
     	this.inputChannelScales = builder.inputChannelScales;
@@ -179,6 +190,7 @@ public class PixelClassifierMetadata {
     	private double[] inputChannelMeans;
     	private double[] inputChannelScales;
     	private boolean strictInputSize = false;
+    	private int inputPadding = 0;
     	private int inputWidth = -1;
     	private int inputHeight = -1;
     	private int inputNumChannels = 3;
@@ -190,6 +202,11 @@ public class PixelClassifierMetadata {
     	
     	public PixelClassifierMetadata build() {
     		return new PixelClassifierMetadata(this);
+    	}
+    	
+    	public Builder inputPadding(int inputPadding) {
+    		this.inputPadding = inputPadding;
+    		return this;
     	}
     	
     	public Builder setOutputType(OutputType type) {

@@ -240,13 +240,13 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
         			if (roi.getZ() == request.getZ() &&
         					roi.getT() == request.getT() &&
         					request.intersects(roi.getBoundsX(), roi.getBoundsY(), roi.getBoundsWidth(), roi.getBoundsHeight())) {
-        				var shape = roi.getShape();
-        				// Intersects doesn't seem to be working nicely with Ellipse?
-        				if (shape instanceof Ellipse2D)
-        					shape = shape.getBounds();
-        				if (shape.intersects(request.getX(), request.getY(), request.getWidth(), request.getHeight())) {
+//        				var shape = roi.getShape();
+//        				// Intersects doesn't seem to be working nicely with Ellipse?
+////        				if (shape instanceof Ellipse2D)
+//        					shape = shape.getBounds();
+//        				if (shape.intersects(request.getX(), request.getY(), request.getWidth(), request.getHeight())) {
             				doPaint = true;
-        				}
+//        				}
         				break;
         			}
         		}
