@@ -12,7 +12,7 @@ import org.bytedeco.javacpp.opencv_dnn.Net;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import qupath.lib.classifiers.gui.PixelClassifierGUI;
+import qupath.lib.classifiers.gui.PixelClassifierStatic;
 import qupath.lib.classifiers.pixel.PixelClassifierMetadata;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.regions.RegionRequest;
@@ -173,7 +173,7 @@ public class OpenCVFeatureCalculatorDNN implements OpenCVFeatureCalculator {
 
 	@Override
 	public Mat calculateFeatures(ImageServer<BufferedImage> server, RegionRequest request) throws IOException {
-		BufferedImage img = PixelClassifierGUI.getPaddedRequest(server, request, inputPadding);
+		BufferedImage img = PixelClassifierStatic.getPaddedRequest(server, request, inputPadding);
 		
 		Mat mat = OpenCVTools.imageToMat(img);
 		

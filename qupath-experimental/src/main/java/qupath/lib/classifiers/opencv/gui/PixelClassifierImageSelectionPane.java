@@ -37,7 +37,6 @@ import com.google.gson.GsonBuilder;
 import ij.CompositeImage;
 import ij.io.FileSaver;
 import ij.io.Opener;
-import impl.org.controlsfx.skin.CheckComboBoxSkin;
 import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ReadOnlyObjectProperty;
@@ -80,8 +79,8 @@ import qupath.lib.classifiers.gui.FeatureFilter;
 import qupath.lib.classifiers.gui.FeatureFilters;
 import qupath.lib.classifiers.gui.PixelClassificationImageServer;
 import qupath.lib.classifiers.gui.PixelClassificationOverlay;
-import qupath.lib.classifiers.gui.PixelClassifierGUI;
-import qupath.lib.classifiers.gui.PixelClassifierGUI.BasicFeatureCalculator;
+import qupath.lib.classifiers.gui.PixelClassifierStatic;
+import qupath.lib.classifiers.gui.PixelClassifierStatic.BasicFeatureCalculator;
 import qupath.lib.classifiers.gui.PixelClassifierHelper;
 import qupath.lib.classifiers.opencv.OpenCVClassifiers;
 import qupath.lib.classifiers.opencv.OpenCVClassifiers.OpenCVStatModel;
@@ -327,18 +326,20 @@ public class PixelClassifierImageSelectionPane {
 		comboFeatures.getCheckModel().checkIndices(1);
 		
 		// I'd like more informative text to be displayed by default
-		comboFeatures.setSkin(new CheckComboBoxSkin<FeatureFilter>(comboFeatures) {
-			
-			protected String buildString() {
-				int n = comboFeatures.getCheckModel().getCheckedItems().size();
-				if (n == 0)
-					return "No features selected!";
-				if (n == 1)
-					return "1 feature selected";
-				return n + " features selected";
-			}
-			
-		});
+		comboFeatures.setTitle("Selected");
+		comboFeatures.setShowCheckedCount(true);
+//		comboFeatures.setSkin(new CheckComboBoxSkin<FeatureFilter>(comboFeatures) {
+//			
+//			protected String buildString() {
+//				int n = comboFeatures.getCheckModel().getCheckedItems().size();
+//				if (n == 0)
+//					return "No features selected!";
+//				if (n == 1)
+//					return "1 feature selected";
+//				return n + " features selected";
+//			}
+//			
+//		});
 
 		
 		var labelFeaturesSummary = new Label("No features selected");
@@ -581,7 +582,7 @@ public class PixelClassifierImageSelectionPane {
 //				5,
 //				0
 //				);
-		featureCalculator = new PixelClassifierGUI.BasicFeatureCalculator("Basic features", selectedChannels, selectedFeatures, 
+		featureCalculator = new PixelClassifierStatic.BasicFeatureCalculator("Basic features", selectedChannels, selectedFeatures, 
 				getRequestedPixelSizeMicrons());
 		updateClassifier();
 	}
@@ -927,7 +928,7 @@ public class PixelClassifierImageSelectionPane {
 		if (server == null) {
 			return false;
 		}
-		PixelClassifierGUI.classifyObjects(server, hierarchy.getDetectionObjects());
+		PixelClassifierStatic.classifyObjects(server, hierarchy.getDetectionObjects());
 		return true;
 	}
 	
@@ -1008,7 +1009,7 @@ public class PixelClassifierImageSelectionPane {
 		// Need to turn off live prediction so we don't start training on the results...
 		livePrediction.set(false);
 		
-		return PixelClassifierGUI.createObjectsFromPixelClassifier(server, selected, creator, minSizePixels, doSplit);
+		return PixelClassifierStatic.createObjectsFromPixelClassifier(server, selected, creator, minSizePixels, doSplit);
 	}
 	
 	static interface PathObjectCreator {
@@ -1096,7 +1097,7 @@ public class PixelClassifierImageSelectionPane {
 		
 		try {
 			var features = featureCalculator.calculateFeatures(viewer.getServer(), request);
-			var imp = PixelClassifierGUI.matToImagePlus(features, "Features");
+			var imp = PixelClassifierStatic.matToImagePlus(features, "Features");
 			int s = 1;
 			IJTools.calibrateImagePlus(imp, request, server);
 			var impComp = new CompositeImage(imp, CompositeImage.GRAYSCALE);

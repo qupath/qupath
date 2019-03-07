@@ -6,7 +6,7 @@ import java.io.IOException;
 import org.bytedeco.javacpp.opencv_core;
 import org.bytedeco.javacpp.opencv_core.Mat;
 
-import qupath.lib.classifiers.gui.PixelClassifierGUI.BasicFeatureCalculator;
+import qupath.lib.classifiers.gui.PixelClassifierStatic.BasicFeatureCalculator;
 import qupath.lib.classifiers.opencv.OpenCVClassifiers.FeaturePreprocessor;
 import qupath.lib.classifiers.opencv.OpenCVClassifiers.OpenCVStatModel;
 import qupath.lib.classifiers.pixel.PixelClassifierMetadata.OutputType;

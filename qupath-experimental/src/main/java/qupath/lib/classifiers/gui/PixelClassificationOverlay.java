@@ -43,6 +43,12 @@ import org.slf4j.LoggerFactory;
 
 import javafx.application.Platform;
 
+/**
+ * PathOverlay that gives the results of pixel classification.
+ * 
+ * @author Pete Bankhead
+ *
+ */
 public class PixelClassificationOverlay extends AbstractOverlay implements PathObjectHierarchyListener, QuPathViewerListener {
 	
 	private static Logger logger = LoggerFactory.getLogger(PixelClassificationOverlay.class);

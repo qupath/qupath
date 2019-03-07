@@ -21,6 +21,12 @@ import qupath.lib.images.servers.ImageServerMetadata.ImageResolutionLevel;
 import qupath.lib.images.servers.TileRequest;
 import qupath.lib.regions.RegionRequest;
 
+/**
+ * ImageServer that delivers pixels derived from applying a PixelClassifier to another ImageServer.
+ *
+ * @author Pete Bankhead
+ *
+ */
 public class PixelClassificationImageServer extends AbstractTileableImageServer {
 	
 	private static Logger logger = LoggerFactory.getLogger(PixelClassificationImageServer.class);
