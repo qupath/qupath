@@ -1,3 +1,6 @@
+## Version v0.1.3 (not released)
+* To read about what has changed, see [here](https://petebankhead.github.io/qupath/2018/03/19/qupath-updates.html).
+
 ## Version 0.1.2
 
 * Saving measurement tables is now logged, and can be called from scripts

@@ -1,3 +1,13 @@
+This is an older, never-quite-released version of QuPath that requires Java 8.
+
+It remains largely faithful to v0.1.2, but with many improvements as described [here](https://petebankhead.github.io/qupath/2018/03/19/qupath-updates.html). It exists for anyone wanting to use v0.1.2, but just a bit better.
+
+However, it isn't maintained and the main branch of QuPath has switched to embrace Java 11 and beyond - with bigger changes.
+
+There are no plans to make v0.1.3 available with an installer.  If you want to try it, you can build it yourself using the steps provided in the link above.
+
+-----
+
 QuPath
 ======
 
