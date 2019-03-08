@@ -48,6 +48,7 @@ import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.helpers.ColorToolsFX;
 import qupath.lib.gui.helpers.CommandFinderTools.CommandBarDisplay;
 import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.gui.prefs.PathPrefs.ImageTypeSetting;
 import qupath.lib.gui.prefs.QuPathStyleManager;
 
 /**
@@ -133,11 +134,11 @@ public class PreferencePanel {
 						+ "\nIf outside this range, it will default to the available processors (here, " + Runtime.getRuntime().availableProcessors() + ")"
 						+ "\nIt's usually fine to use the default, but it may help to decrease it if you encounter out-of-memory errors.");
 
-		addPropertyPreference(PathPrefs.autoEstimateImageTypeProperty(), Boolean.class,
-				"Auto-estimate image type on opening",
+		addPropertyPreference(PathPrefs.imageTypeSettingProperty(), ImageTypeSetting.class,
+				"Set image type",
 				category,
-				"Automatically estimate & set the image type on first opening (e.g. H&E, H-DAB, fluorescence)." + 
-						"\nThis can be handy, but be aware it might not always be correct - and you should always check!" + 
+				"Automically estimate & set the image type on first opening (e.g. H&E, H-DAB, fluorescence), prompt or leave unset." + 
+						"\nEstimating can be handy, but be aware it might not always be correct - and you should always check!" + 
 						"\nThe image type influences some available commands, e.g. how stains are separated for display or cell detections.");
 
 		addPropertyPreference(PathPrefs.commandBarDisplayProperty(), CommandBarDisplay.class,

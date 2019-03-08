@@ -757,19 +757,39 @@ public class PathPrefs {
 		doubleClickToZoom.set(doDoubleClick);
 	}
 	
+	public static enum ImageTypeSetting {AUTO_ESTIMATE, PROMPT, NONE;
+		
+		public String toString() {
+			switch(this) {
+			case AUTO_ESTIMATE:
+				return "Auto estimate";
+			case NONE:
+				return "Unset";
+			case PROMPT:
+				return "Prompt";
+			default:
+				return "Unknown";
+			}
+		}
+		
+	}
+		
+	private static ObjectProperty<ImageTypeSetting> imageTypeSettingProperty = createPersistentPreference("imageTypeSetting", ImageTypeSetting.PROMPT, ImageTypeSetting.class);
 	
-	private static BooleanProperty autoEstimateImageType = createPersistentPreference("autoEstimateImageType", true);
+	public static ObjectProperty<ImageTypeSetting> imageTypeSettingProperty() {
+		return imageTypeSettingProperty;
+	}
 	
-	public static BooleanProperty autoEstimateImageTypeProperty() {
-		return autoEstimateImageType;
+	public static ImageTypeSetting getImageTypeSetting() {
+		return imageTypeSettingProperty.get();
 	}
 	
 	public static boolean getAutoEstimateImageType() {
-		return autoEstimateImageType.get();
+		return imageTypeSettingProperty.get() == ImageTypeSetting.AUTO_ESTIMATE;
 	}
 	
-	public static void setAutoEstimateImageType(boolean autoSet) {
-		autoEstimateImageType.set(autoSet);
+	public static boolean getPromptForImageType() {
+		return imageTypeSettingProperty.get() == ImageTypeSetting.PROMPT;
 	}
 
 	

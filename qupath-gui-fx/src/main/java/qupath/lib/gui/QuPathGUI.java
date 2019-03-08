@@ -304,6 +304,7 @@ import qupath.lib.gui.viewer.tools.PolygonTool;
 import qupath.lib.gui.viewer.tools.PolylineTool;
 import qupath.lib.gui.viewer.tools.RectangleTool;
 import qupath.lib.images.ImageData;
+import qupath.lib.images.ImageData.ImageType;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerBuilder;
 import qupath.lib.images.servers.ImageServerProvider;
@@ -2291,7 +2292,16 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			imageData = entry.readImageData();
 			viewer.setImageData(imageData);
 			setInitialLocationAndMagnification(viewer);
-		} catch (IOException e) {
+			if (imageData != null && (imageData.getImageType() == null || imageData.getImageType() == ImageType.UNSET)) {
+				if (PathPrefs.getAutoEstimateImageType()) {
+					var type = DisplayHelpers.estimateImageType(imageData.getServer(), imageRegionStore.getThumbnail(imageData.getServer(), 0, 0, true));
+					logger.info("Image type estimated to be {}", type);
+					imageData.setImageType(type);
+				} else if (PathPrefs.getPromptForImageType()) {
+					PathImageDetailsPanel.promptToSetImageType(imageData);
+				}
+			}
+		} catch (Exception e) {
 			DisplayHelpers.showErrorMessage("Load ImageData", e);
 		}
 	}
@@ -2448,7 +2458,10 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				
 				viewer.setImageData(imageData);
 				setInitialLocationAndMagnification(viewer);
-				
+
+				if (imageData.getImageType() == ImageType.UNSET && PathPrefs.getPromptForImageType())
+					PathImageDetailsPanel.promptToSetImageType(imageData);
+
 //				// Reset the object hierarchy to clear any ROIs etc.
 //				hierarchy.clearAll();
 //				hierarchy.getSelectionModel().resetSelection();
