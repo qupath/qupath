@@ -51,7 +51,7 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 	 * @return
 	 */
 	protected BufferedImage getTile(final TileRequest tileRequest) throws IOException {
-		BufferedImage imgCached = cache.get(tileRequest.getRegionRequest());
+		BufferedImage imgCached = cache == null ? null : cache.get(tileRequest.getRegionRequest());
 		if (imgCached != null) { 
 			logger.trace("Returning cached tile: {}", tileRequest.getRegionRequest());
 			return imgCached;
@@ -60,7 +60,8 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 		
 		imgCached = readTile(tileRequest);
 		
-		cache.put(tileRequest.getRegionRequest(), imgCached);
+		if (cache != null)
+			cache.put(tileRequest.getRegionRequest(), imgCached);
 		return imgCached;
 	}
 	
@@ -92,7 +93,7 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 	public BufferedImage readBufferedImage(final RegionRequest request) throws IOException {
 		// Check if we already have a tile for precisely this occasion - with the right server path
 		// Make a defensive copy, since the cache is critical
-		BufferedImage img = request.getPath().equals(getPath()) ? cache.get(request) : null;
+		BufferedImage img = request.getPath().equals(getPath()) && cache != null ? cache.get(request) : null;
 		if (img != null)
 			return duplicate(img);
 		
