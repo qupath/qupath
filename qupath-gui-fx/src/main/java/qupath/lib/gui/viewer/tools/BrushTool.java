@@ -174,7 +174,7 @@ public class BrushTool extends AbstractPathROITool {
 		
 		// See if, rather than creating something, we can instead reactivate a current object
 		boolean multipleClicks = e.getClickCount() > 1;
-		if (multipleClicks || (createNew && !e.isShiftDown())) {
+		if (!PathPrefs.isSelectionMode() && (multipleClicks || (createNew && !e.isShiftDown()))) {
 			// See if, rather than creating something, we can instead reactivate a current object
 			if (multipleClicks) {
 				PathObject objectSelectable = getSelectableObject(p.getX(), p.getY(), e.getClickCount() - 1);
