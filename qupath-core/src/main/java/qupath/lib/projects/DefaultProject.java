@@ -1116,7 +1116,10 @@ class DefaultProject implements Project<BufferedImage> {
 					JsonObject pathClassObject = pathClassesArray.get(i).getAsJsonObject();
 					if (pathClassObject.has("name")) {
 						String name = pathClassObject.get("name").getAsString();
-						int color = pathClassObject.get("color").getAsInt();
+						Integer color = null;
+						if (pathClassObject.has("color") && !pathClassObject.get("color").isJsonNull()) {
+							color = pathClassObject.get("color").getAsInt();							
+						}
 						PathClass pathClass = PathClassFactory.getPathClass(name, color);
 						pathClass.setColor(color); // Make sure we have the color we want
 						pathClasses.add(pathClass);
