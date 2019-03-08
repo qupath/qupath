@@ -137,7 +137,7 @@ abstract class AbstractPathROITool extends AbstractPathTool {
 		double yy = p2.getY();
 						
 		// If we are double-clicking & we don't have a polygon, see if we can access a ROI
-		if (e.getClickCount() > 1) {
+		if (!PathPrefs.isSelectionMode() && e.getClickCount() > 1) {
 			// Reset parent... for now
 			resetCurrentParent();		
 			tryToSelect(xx, yy, e.getClickCount()-2, false);
