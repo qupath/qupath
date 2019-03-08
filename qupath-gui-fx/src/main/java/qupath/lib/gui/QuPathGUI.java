@@ -1152,7 +1152,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			return;
 		
 		if (result.get().equals(btDownload)) {
-			String url = "https://github.com/qupath/qupath/releases/latest";
+			String url = "https://qupath.github.io";
 			try {
 				DisplayHelpers.browseURI(new URI(url));
 			} catch (URISyntaxException e) {

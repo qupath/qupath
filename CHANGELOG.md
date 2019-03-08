@@ -1,3 +1,18 @@
+## Version 0.2.0-m1
+* This is a *milestone* (i.e. still in development) version made available to try out new features early
+* Highlights include:
+  * All-new pixel classifier!
+  * Multichannel viewer
+  * Bio-Formats by default (no separate installation)
+  * Support to read images from OMERO
+  * Many annotation tool improvements
+  * A better object hierarchy
+  * Improved image reading & project management
+  * A move to JDK 11
+  * _Many_ other fixes and performance improvements
+* See https://qupath.github.io/QuPath-v0.2.0 for full details
+
+
 ## Version 0.1.2
 
 * Saving measurement tables is now logged, and can be called from scripts
