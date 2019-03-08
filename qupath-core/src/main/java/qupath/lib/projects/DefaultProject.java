@@ -1121,7 +1121,8 @@ class DefaultProject implements Project<BufferedImage> {
 							color = pathClassObject.get("color").getAsInt();							
 						}
 						PathClass pathClass = PathClassFactory.getPathClass(name, color);
-						pathClass.setColor(color); // Make sure we have the color we want
+						if (color != null)
+							pathClass.setColor(color); // Make sure we have the color we want
 						pathClasses.add(pathClass);
 					}
 				}
