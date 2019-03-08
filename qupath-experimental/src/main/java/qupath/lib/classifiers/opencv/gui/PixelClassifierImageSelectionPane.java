@@ -166,6 +166,8 @@ public class PixelClassifierImageSelectionPane {
 	private ObservableList<Integer> selectedChannels;
 	
 	private ClassificationPieChart pieChart;
+	
+	private boolean wasApplied = false;
 
 	private HierarchyListener hierarchyListener = new HierarchyListener();
 
@@ -740,7 +742,7 @@ public class PixelClassifierImageSelectionPane {
 			return;
 		}
 		if (overlay != null) {
-			overlay.stop();
+			overlay.stop(!wasApplied);
 			viewer.getCustomOverlayLayers().remove(overlay);
 		}
 		overlay = newOverlay;
@@ -748,6 +750,7 @@ public class PixelClassifierImageSelectionPane {
 			overlay.setUseAnnotationMask(selectedRegion.get() == ClassificationRegion.ANNOTATIONS_ONLY);
 			viewer.getCustomOverlayLayers().add(overlay);
 			overlay.setLivePrediction(livePrediction.get());
+			wasApplied = false;
 		}
 	}
 
@@ -755,7 +758,7 @@ public class PixelClassifierImageSelectionPane {
 
 	public void destroy() {
 		if (overlay != null) {
-			overlay.stop();
+			overlay.stop(!wasApplied);
 			viewer.getCustomOverlayLayers().remove(overlay);
 			overlay = null;
 		}
@@ -785,7 +788,11 @@ public class PixelClassifierImageSelectionPane {
 			return false;
 		}
 	
-		return saveAndApply(project, viewer.getImageData(), server.getClassifier());
+		if (saveAndApply(project, viewer.getImageData(), server.getClassifier())) {
+			wasApplied = true;
+			return true;
+		} else
+			return false;
 	}
 	
 	

@@ -28,6 +28,9 @@ import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Locale;
 import java.util.Locale.Category;
 
@@ -175,9 +178,7 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 					if (value instanceof StainVector || value instanceof double[])
 						editStainVector(value);
 					else if (value instanceof ImageType) {
-						ImageType type = (ImageType)DisplayHelpers.showChoiceDialog("Image type", "Set image type", ImageType.values(), (ImageType)value);
-						if (type != null)
-							imageData.setImageType(type);
+						promptToSetImageType(imageData);
 					}
 				});
 				
@@ -280,6 +281,29 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 		Accordion accordion = new Accordion(panelTable, panelImages, panelAssociatedImages);
 		accordion.setExpandedPane(panelTable);
 		pane.getChildren().add(accordion);
+	}
+	
+	
+	/**
+	 * Prompt the user to set the ImageType for the image.
+	 * @param imageData
+	 * @return
+	 */
+	public static boolean promptToSetImageType(ImageData<BufferedImage> imageData) {
+		List<ImageType> values = Arrays.asList(ImageType.values());
+		if (!imageData.getServer().isRGB()) {
+			values =new ArrayList<>(values);
+			values.remove(ImageType.BRIGHTFIELD_H_DAB);
+			values.remove(ImageType.BRIGHTFIELD_H_E);
+			values.remove(ImageType.BRIGHTFIELD_OTHER);
+		}
+		
+		ImageType type = (ImageType)DisplayHelpers.showChoiceDialog("Image type", "Set image type", values, imageData.getImageType());
+		if (type != null && type != imageData.getImageType()) {
+			imageData.setImageType(type);
+			return true;
+		}
+		return false;
 	}
 	
 	

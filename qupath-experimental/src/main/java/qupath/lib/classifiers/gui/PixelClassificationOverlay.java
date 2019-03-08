@@ -321,8 +321,8 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
     
     
     
-    public void stop() {
-    	if (imageData != null) {
+    public void stop(boolean resetMeasurements) {
+    	if (imageData != null && resetMeasurements) {
     		manager.resetMeasurements(imageData.getHierarchy(), imageData.getHierarchy().getObjects(null, PathAnnotationObject.class));
     	}
 //    	viewer.getImageRegionStore().clearCacheForServer(classifierServer);
