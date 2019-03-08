@@ -10,6 +10,7 @@ import org.bytedeco.javacpp.opencv_dnn.Net;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import qupath.lib.classifiers.gui.PixelClassifierStatic;
 import qupath.lib.images.ImageData;
 import qupath.lib.regions.RegionRequest;
 import qupath.opencv.processing.OpenCVTools;
@@ -27,25 +28,23 @@ public class OpenCVPixelClassifierDNN extends AbstractOpenCVPixelClassifier {
     private opencv_dnn.Net model;
     private boolean doSoftMax;
     
-    private int inputPadding;
     private int stripOutputPadding;
 
     private Scalar means;
     private Scalar scales;
     private boolean scalesMatch;
     
-    public static PixelClassifier createDNN(Net net, PixelClassifierMetadata metadata, boolean do8Bit, int inputPadding, int stripOutputPadding) {
-    	return new OpenCVPixelClassifierDNN(net, metadata, do8Bit, inputPadding, stripOutputPadding);
+    public static PixelClassifier createDNN(Net net, PixelClassifierMetadata metadata, boolean do8Bit, int stripOutputPadding) {
+    	return new OpenCVPixelClassifierDNN(net, metadata, do8Bit, stripOutputPadding);
     }
     
     OpenCVPixelClassifierDNN(Net net, PixelClassifierMetadata metadata, boolean do8Bit) {
-    	this(net, metadata, do8Bit, 0, 0);
+    	this(net, metadata, do8Bit, 0);
     }
 
-    OpenCVPixelClassifierDNN(Net net, PixelClassifierMetadata metadata, boolean do8Bit, int inputPadding, int stripOutputPadding) {
+    OpenCVPixelClassifierDNN(Net net, PixelClassifierMetadata metadata, boolean do8Bit, int stripOutputPadding) {
         super(metadata, do8Bit);
         
-        this.inputPadding = inputPadding;
         this.stripOutputPadding = stripOutputPadding;
 
         // TODO: Fix creation of unnecessary objects
@@ -324,9 +323,17 @@ public class OpenCVPixelClassifierDNN extends AbstractOpenCVPixelClassifier {
 		 
 		var server = imageData.getServer();
 		
-		Mat mat = OpenCVTools.imageToMat(server.readBufferedImage(request));
+		int inputPadding = getMetadata().getInputPadding();
 		
-		Mat matResult = doClassification(mat, inputPadding);
+//		BufferedImage img = PixelClassifierGUI.getPaddedRequest(server, request, inputPadding);
+		BufferedImage img = PixelClassifierStatic.getPaddedRequest(server, request, inputPadding);
+		Mat mat = OpenCVTools.imageToMat(img);
+		
+		Mat matResult = doClassification(mat, 0);
+		
+		if (inputPadding > 0)
+			matResult.put(matResult.apply(new opencv_core.Rect(inputPadding, inputPadding, matResult.cols()-inputPadding*2, matResult.rows()-inputPadding*2)).clone());
+		
     	        
         // If we have a floating point or multi-channel result, we have probabilities
         ColorModel colorModelLocal;
@@ -348,6 +355,7 @@ public class OpenCVPixelClassifierDNN extends AbstractOpenCVPixelClassifier {
         BufferedImage imgResult = OpenCVTools.matToBufferedImage(matResult, colorModelLocal);
 
         // Free matrix
+        mat.release(); 
         if (matResult != null)
             matResult.release();
 

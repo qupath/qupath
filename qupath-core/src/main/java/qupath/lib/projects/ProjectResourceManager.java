@@ -18,8 +18,6 @@ import java.util.stream.Collectors;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
-import qupath.lib.classifiers.pixel.PixelClassifiers.PixelClassifierTypeAdapterFactory;
-
 public interface ProjectResourceManager<T> {
 	
 	public Collection<String> getNames() throws IOException;

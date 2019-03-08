@@ -208,7 +208,7 @@ public class MiniViewerCommand implements PathCommand {
 				ActionUtils.createCheckMenuItem(QuPathGUI.createSelectableCommandAction(manager.showOverlays, "Show overlays"))
 				);
 
-		group.selectToggle(radioItems.get(3));
+		group.selectToggle(radioItems.get(2));
 		
 		Pane pane = manager.getPane();
 		pane.setOnContextMenuRequested(e -> {

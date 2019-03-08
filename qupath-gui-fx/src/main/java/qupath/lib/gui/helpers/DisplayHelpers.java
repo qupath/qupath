@@ -545,15 +545,7 @@ public class DisplayHelpers {
 	 * @return True if the request succeeded, false otherwise.
 	 */
 	public static boolean browseURI(final URI uri) {
-		try {
-			// TODO: Look for a more elegant JavaFX solution...
-			Desktop.getDesktop().browse(uri);
-			return true;
-		} catch (Exception e) {
-			DisplayHelpers.showErrorMessage("Web error", "Unable to open URI:\n" + uri);
-			logger.info("Unable to show webpage", e);
-			return false;
-		}
+		return QuPathGUI.launchBrowserWindow(uri.toString());
 	}
 	
 

@@ -38,6 +38,7 @@ import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.text.TextAlignment;
+import javafx.stage.Screen;
 import javafx.stage.Stage;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.scriptable.SelectObjectsByClassCommand;
@@ -89,6 +90,11 @@ public class ParameterDialogWrapper<T> {
 		if (dialog.isShowing())
 			dialog.toFront();
 		dialog.show();
+		double maxHeight = Screen.getPrimary().getBounds().getHeight() * 0.8;
+		if (dialog.getHeight() > maxHeight) {
+			dialog.setMaxHeight(maxHeight);
+			dialog.centerOnScreen();			
+		}
 		dialog.toFront();
 
 		dialog.requestFocus();

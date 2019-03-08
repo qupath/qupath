@@ -22,7 +22,6 @@ import org.slf4j.LoggerFactory;
 import com.google.gson.annotations.JsonAdapter;
 
 import qupath.imagej.objects.ROIConverterIJ;
-import qupath.lib.classifiers.opencv.gui.PixelClassifierImageSelectionPane;
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.classifiers.pixel.PixelClassifierMetadata;
 import qupath.lib.classifiers.pixel.PixelClassifierMetadata.OutputType;
@@ -71,9 +70,9 @@ import java.util.stream.IntStream;
  * @author Pete Bankhead
  *
  */
-public class PixelClassifierGUI {
+public class PixelClassifierStatic {
 
-    private static final Logger logger = LoggerFactory.getLogger(PixelClassifierGUI.class);
+    private static final Logger logger = LoggerFactory.getLogger(PixelClassifierStatic.class);
 
     
     /**
@@ -86,6 +85,8 @@ public class PixelClassifierGUI {
      * @param request a {@link RegionRequest} corresponding to this image, used to calibrate the coordinates.  If null, 
      * 			we assume no downsampling and an origin at (0,0).
      * @return
+     * 
+     * @see #thresholdToROI(ImageProcessor, TileRequest)
      */
     public static ROI thresholdToROI(BufferedImage img, double minThreshold, double maxThreshold, int band, RegionRequest request) {
     	int w = img.getWidth();
@@ -98,7 +99,20 @@ public class PixelClassifierGUI {
     	return thresholdToROI(fp, request);
     }
     
-    
+    /**
+     * Generate a QuPath ROI by thresholding an image channel image, deriving coordinates from a TileRequest.
+     * <p>
+     * This can give a more accurate result than depending on a RegionRequest because it is possible to avoid some loss of precision.
+     * 
+     * @param raster
+     * @param minThreshold
+     * @param maxThreshold
+     * @param band
+     * @param request
+     * @return
+     * 
+     * @see #thresholdToROI(ImageProcessor, RegionRequest)
+     */
     public static ROI thresholdToROI(Raster raster, double minThreshold, double maxThreshold, int band, TileRequest request) {
     	int w = raster.getWidth();
     	int h = raster.getHeight();
@@ -113,7 +127,8 @@ public class PixelClassifierGUI {
     
     
     /**
-     * Generate a QuPath ROI from an ImageProcessor.  
+     * Generate a QuPath ROI from an ImageProcessor.
+     * <p>
      * It is assumed that the ImageProcessor has had its min and max threshold values set.
      * 
      * @param ip
@@ -367,7 +382,7 @@ public class PixelClassifierGUI {
 		@Override
 		public Mat calculateFeatures(ImageServer<BufferedImage> server, RegionRequest request) throws IOException {
 			
-			BufferedImage img = PixelClassifierGUI.getPaddedRequest(server, request, padding);
+			BufferedImage img = PixelClassifierStatic.getPaddedRequest(server, request, padding);
 			
 			List<Mat> output = new ArrayList<opencv_core.Mat>();
 			
@@ -745,12 +760,12 @@ public class PixelClassifierGUI {
 		if (selectedObject == null) {
 			hierarchy.clearAll();
 			hierarchy.getRootObject().addPathObjects(pathObjects);
-			hierarchy.fireHierarchyChangedEvent(PixelClassifierGUI.class);
+			hierarchy.fireHierarchyChangedEvent(PixelClassifierStatic.class);
 		} else {
 			((PathAnnotationObject)selectedObject).setLocked(true);
 			selectedObject.clearPathObjects();
 			selectedObject.addPathObjects(pathObjects);
-			hierarchy.fireHierarchyChangedEvent(PixelClassifierGUI.class, selectedObject);
+			hierarchy.fireHierarchyChangedEvent(PixelClassifierStatic.class, selectedObject);
 		}
 		return true;
 	}

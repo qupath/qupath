@@ -31,8 +31,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import org.locationtech.jts.geom.Geometry;
-
 import qupath.lib.geom.Point2;
 import qupath.lib.roi.interfaces.PathArea;
 import qupath.lib.roi.interfaces.PathPoints;

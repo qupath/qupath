@@ -37,7 +37,6 @@ import com.google.gson.GsonBuilder;
 import ij.CompositeImage;
 import ij.io.FileSaver;
 import ij.io.Opener;
-import impl.org.controlsfx.skin.CheckComboBoxSkin;
 import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ReadOnlyObjectProperty;
@@ -80,8 +79,8 @@ import qupath.lib.classifiers.gui.FeatureFilter;
 import qupath.lib.classifiers.gui.FeatureFilters;
 import qupath.lib.classifiers.gui.PixelClassificationImageServer;
 import qupath.lib.classifiers.gui.PixelClassificationOverlay;
-import qupath.lib.classifiers.gui.PixelClassifierGUI;
-import qupath.lib.classifiers.gui.PixelClassifierGUI.BasicFeatureCalculator;
+import qupath.lib.classifiers.gui.PixelClassifierStatic;
+import qupath.lib.classifiers.gui.PixelClassifierStatic.BasicFeatureCalculator;
 import qupath.lib.classifiers.gui.PixelClassifierHelper;
 import qupath.lib.classifiers.opencv.OpenCVClassifiers;
 import qupath.lib.classifiers.opencv.OpenCVClassifiers.OpenCVStatModel;
@@ -96,6 +95,7 @@ import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.MiniViewerCommand;
 import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.gui.helpers.GridPaneTools;
+import qupath.lib.gui.helpers.DisplayHelpers.DialogButton;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
@@ -106,6 +106,8 @@ import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClass;
+import qupath.lib.objects.classes.PathClassFactory;
+import qupath.lib.objects.classes.PathClassFactory.PathClasses;
 import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
@@ -324,18 +326,20 @@ public class PixelClassifierImageSelectionPane {
 		comboFeatures.getCheckModel().checkIndices(1);
 		
 		// I'd like more informative text to be displayed by default
-		comboFeatures.setSkin(new CheckComboBoxSkin<FeatureFilter>(comboFeatures) {
-			
-			protected String buildString() {
-				int n = comboFeatures.getCheckModel().getCheckedItems().size();
-				if (n == 0)
-					return "No features selected!";
-				if (n == 1)
-					return "1 feature selected";
-				return n + " features selected";
-			}
-			
-		});
+		comboFeatures.setTitle("Selected");
+		comboFeatures.setShowCheckedCount(true);
+//		comboFeatures.setSkin(new CheckComboBoxSkin<FeatureFilter>(comboFeatures) {
+//			
+//			protected String buildString() {
+//				int n = comboFeatures.getCheckModel().getCheckedItems().size();
+//				if (n == 0)
+//					return "No features selected!";
+//				if (n == 1)
+//					return "1 feature selected";
+//				return n + " features selected";
+//			}
+//			
+//		});
 
 		
 		var labelFeaturesSummary = new Label("No features selected");
@@ -578,7 +582,7 @@ public class PixelClassifierImageSelectionPane {
 //				5,
 //				0
 //				);
-		featureCalculator = new PixelClassifierGUI.BasicFeatureCalculator("Basic features", selectedChannels, selectedFeatures, 
+		featureCalculator = new PixelClassifierStatic.BasicFeatureCalculator("Basic features", selectedChannels, selectedFeatures, 
 				getRequestedPixelSizeMicrons());
 		updateClassifier();
 	}
@@ -628,6 +632,7 @@ public class PixelClassifierImageSelectionPane {
 	
 	
 	boolean showAdvancedOptions() {
+		DisplayHelpers.showMessageDialog("Pixel classifier", "Advanced options not available yet, sorry!");
 		return false;
 	}
 	
@@ -902,19 +907,41 @@ public class PixelClassifierImageSelectionPane {
 	}
 	
 	
+	PixelClassificationImageServer getClassificationServerOrShowError() {
+		var hierarchy = viewer.getHierarchy();
+		if (hierarchy == null)
+			return null;
+		var server = overlay == null ? null : overlay.getPixelClassificationServer();
+		if (overlay == null) {
+			DisplayHelpers.showErrorMessage("Pixel classifier", "No classifier available yet!");
+			return null;
+		}
+		return server;
+	}
+	
 	
 	boolean classifyObjects() {
 		var hierarchy = viewer.getHierarchy();
-		var server = overlay.getPixelClassificationServer();
-		if (hierarchy == null || server == null)
+		if (hierarchy == null)
 			return false;
-		PixelClassifierGUI.classifyObjects(server, hierarchy.getDetectionObjects());
+		var server = getClassificationServerOrShowError();
+		if (server == null) {
+			return false;
+		}
+		PixelClassifierStatic.classifyObjects(server, hierarchy.getDetectionObjects());
 		return true;
 	}
 	
 	
 	boolean createObjects() {
-		var server = overlay.getPixelClassificationServer();
+		var hierarchy = viewer.getHierarchy();
+		if (hierarchy == null)
+			return false;
+		
+		var server = getClassificationServerOrShowError();
+		if (server == null) {
+			return false;
+		}
 		
 		var objectTypes = new String[] {
 				"Annotation", "Detection"
@@ -953,13 +980,21 @@ public class PixelClassifierImageSelectionPane {
 			minSizePixels /= (server.getPixelWidthMicrons() * server.getPixelHeightMicrons());
 		
 		var selected = viewer.getSelectedObject();
+		if (selected != null && selected.isDetection())
+			selected = null;
 		if (selected != null && !selected.getROI().isArea()) {
 			DisplayHelpers.showErrorMessage("Create objects", "You either need an area selection or no selected object");
 			return false;
 		}
+		if (selected != null && selected.getPathClass() != null && selected.getPathClass() != PathClassFactory.getDefaultPathClass(PathClasses.REGION)) {
+			var btn = DisplayHelpers.showYesNoCancelDialog("Create objects", "Create objects for selected annotation?\nChoose 'no' to use the entire image.");
+			if (btn == DialogButton.CANCEL)
+				return false;
+			if (btn == DialogButton.NO)
+				selected = null;
+		}
 		
 		int nChildObjects = 0;
-		var hierarchy = server.getImageData().getHierarchy();
 		if (selected == null)
 			nChildObjects = hierarchy.nObjects();
 		else
@@ -974,7 +1009,7 @@ public class PixelClassifierImageSelectionPane {
 		// Need to turn off live prediction so we don't start training on the results...
 		livePrediction.set(false);
 		
-		return PixelClassifierGUI.createObjectsFromPixelClassifier(server, selected, creator, minSizePixels, doSplit);
+		return PixelClassifierStatic.createObjectsFromPixelClassifier(server, selected, creator, minSizePixels, doSplit);
 	}
 	
 	static interface PathObjectCreator {
@@ -1062,7 +1097,7 @@ public class PixelClassifierImageSelectionPane {
 		
 		try {
 			var features = featureCalculator.calculateFeatures(viewer.getServer(), request);
-			var imp = PixelClassifierGUI.matToImagePlus(features, "Features");
+			var imp = PixelClassifierStatic.matToImagePlus(features, "Features");
 			int s = 1;
 			IJTools.calibrateImagePlus(imp, request, server);
 			var impComp = new CompositeImage(imp, CompositeImage.GRAYSCALE);
@@ -1135,6 +1170,7 @@ public class PixelClassifierImageSelectionPane {
 		var server = viewer == null ? null : viewer.getServer();
 		if (server == null || miniViewer == null || resolution == null)
 			return;
+		Tooltip.install(miniViewer.getPane(), new Tooltip("Classification resolution: \n" + resolution));
 		miniViewer.setDownsample(resolution.getDownsampleFactor(server.getAveragedPixelSizeMicrons()));
 	}
 	

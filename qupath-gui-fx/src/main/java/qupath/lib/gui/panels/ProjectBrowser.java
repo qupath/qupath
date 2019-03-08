@@ -46,6 +46,7 @@ import java.util.Random;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 import javax.imageio.ImageIO;
 
@@ -211,25 +212,26 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 		Action actionOpenImage = new Action("Open image", e -> qupath.openImageEntry(getSelectedEntry()));
 		Action actionRemoveImage = new Action("Remove image", e -> {
 			// TODO: Handle removing multiple images; prevent image being removed if it is currently open in the project
-			TreeItem<?> path = tree.getSelectionModel().getSelectedItem();
-			if (path == null)
+			List<TreeItem<Object>> selected = tree.getSelectionModel().getSelectedItems();
+			if (selected == null)
 				return;
-			if (path.getValue() instanceof ProjectImageEntry) {
-				ProjectImageEntry<?> entry = (ProjectImageEntry<?>)path.getValue();
-				if (DisplayHelpers.showConfirmDialog("Delete project entry", "Remove " + entry.getImageName() + " from project?")) {
-					logger.info("Removing entry {} from project {}", path.getValue(), project);
-					project.removeImage(entry);
-					model.rebuildModel();
-				}
-			} else {
-				Collection<ProjectImageEntry<BufferedImage>> entries = getImageEntries(path, null);
-				if (!entries.isEmpty() && (entries.size() == 1 || 
-						DisplayHelpers.showYesNoDialog("Remove project entries", String.format("Remove %d entries?", entries.size())))) {
-					logger.info("Removing {} entries from project {}", entries.size(), project);
-					project.removeAllImages(entries);
-					model.rebuildModel();
-				}
-			}
+			List<ProjectImageEntry<BufferedImage>> entries = selected.stream().map(p -> {
+				if (p.getValue() instanceof ProjectImageEntry)
+					return Collections.singletonList((ProjectImageEntry)p.getValue());
+				else
+					return getImageEntries(p, null);
+			}).flatMap(Collection::stream).collect(Collectors.toList());
+			
+			if (entries.isEmpty())
+				return;
+			if (entries.size() == 1) {
+				if (!DisplayHelpers.showConfirmDialog("Delete project entry", "Remove " + entries.get(0).getImageName() + " from project?"))
+					return;
+			} else if (!DisplayHelpers.showYesNoDialog("Remove project entries", String.format("Remove %d entries?", entries.size())))
+				return;
+			
+			project.removeAllImages(entries);
+			model.rebuildModel();
 			syncProject(project);
 			if (tree != null) {
 				boolean isExpanded = tree.getRoot() != null && tree.getRoot().isExpanded();
@@ -444,7 +446,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 			return null;
 		var item = selected.getValue();
 		if (item instanceof ProjectImageEntry<?>)
-			return ((ProjectImageEntry)item).getEntryPath();
+			return ((ProjectImageEntry<?>)item).getEntryPath();
 		return null;
 	}
 	
@@ -454,7 +456,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 			return null;
 		var item = selected.getValue();
 		if (item instanceof ProjectImageEntry<?>) {
-			var serverPath = ((ProjectImageEntry)item).getServerPath();
+			var serverPath = ((ProjectImageEntry<?>)item).getServerPath();
 			try {
 				return GeneralTools.toPath(GeneralTools.toURI(serverPath));
 			} catch (URISyntaxException e) {
@@ -752,11 +754,11 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 	}
 
 
-	static <T> Collection<ProjectImageEntry<T>> getImageEntries(final TreeItem<?> item, Collection<ProjectImageEntry<T>> entries) {
+	static Collection<ProjectImageEntry<BufferedImage>> getImageEntries(final TreeItem<?> item, Collection<ProjectImageEntry<BufferedImage>> entries) {
 		if (entries == null)
 			entries = new HashSet<>();
 		if (item.getValue() instanceof ProjectImageEntry)
-			entries.add((ProjectImageEntry<T>)item.getValue());
+			entries.add((ProjectImageEntry<BufferedImage>)item.getValue());
 		for (TreeItem<?> child : item.getChildren()) {
 			entries = getImageEntries(child, entries);
 		}

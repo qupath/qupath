@@ -472,13 +472,13 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 //			}
 			
 			// Generate a suitable name for this image
-			String imageName = meta.getImageName(seriesIndex);
-			if (imageName == null || imageName.isBlank()) {
-				imageName = getFile().getName();
+			String imageName = getFile().getName();
+			String shortName = meta.getImageName(seriesIndex);
+			if (shortName == null || shortName.isBlank()) {
 				if (containsSubImages())
 					imageName = imageName + " - Series " + seriesIndex;
-			} else if (containsSubImages())
-				imageName = getFile().getName() + " - " + imageName;
+			} else
+				imageName = imageName + " - " + shortName;
 			
 			// Set metadata
 			ImageServerMetadata.Builder builder = new ImageServerMetadata.Builder(getClass(), uri.toString(), width, height).

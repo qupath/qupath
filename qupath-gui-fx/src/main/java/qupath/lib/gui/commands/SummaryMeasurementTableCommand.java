@@ -396,6 +396,9 @@ public class SummaryMeasurementTableCommand implements PathCommand {
 
 			@Override
 			public void hierarchyChanged(PathObjectHierarchyEvent event) {
+				if (event.isChanging())
+					return;
+				
 				if (!Platform.isFxApplicationThread()) {
 					Platform.runLater(() -> hierarchyChanged(event));
 					return;

@@ -60,7 +60,7 @@ public class QuPathApp extends Application {
 		}
 		
 		// Create main GUI
-		QuPathGUI gui = new QuPathGUI(stage);
+		QuPathGUI gui = new QuPathGUI(getHostServices(), stage);
 		logger.info("Starting QuPath with parameters: " + args);
 		
 		// Try to open an image, if required

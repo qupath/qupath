@@ -24,7 +24,6 @@ import qupath.lib.roi.interfaces.ROI;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.Shape;
-import java.awt.geom.Ellipse2D;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBuffer;
 import java.awt.image.ImageObserver;
@@ -43,6 +42,12 @@ import org.slf4j.LoggerFactory;
 
 import javafx.application.Platform;
 
+/**
+ * PathOverlay that gives the results of pixel classification.
+ * 
+ * @author Pete Bankhead
+ *
+ */
 public class PixelClassificationOverlay extends AbstractOverlay implements PathObjectHierarchyListener, QuPathViewerListener {
 	
 	private static Logger logger = LoggerFactory.getLogger(PixelClassificationOverlay.class);
@@ -240,13 +245,13 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
         			if (roi.getZ() == request.getZ() &&
         					roi.getT() == request.getT() &&
         					request.intersects(roi.getBoundsX(), roi.getBoundsY(), roi.getBoundsWidth(), roi.getBoundsHeight())) {
-        				var shape = roi.getShape();
-        				// Intersects doesn't seem to be working nicely with Ellipse?
-        				if (shape instanceof Ellipse2D)
-        					shape = shape.getBounds();
-        				if (shape.intersects(request.getX(), request.getY(), request.getWidth(), request.getHeight())) {
+//        				var shape = roi.getShape();
+//        				// Intersects doesn't seem to be working nicely with Ellipse?
+////        				if (shape instanceof Ellipse2D)
+//        					shape = shape.getBounds();
+//        				if (shape.intersects(request.getX(), request.getY(), request.getWidth(), request.getHeight())) {
             				doPaint = true;
-        				}
+//        				}
         				break;
         			}
         		}

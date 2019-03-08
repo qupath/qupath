@@ -67,6 +67,7 @@ import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathCellObject;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
@@ -313,17 +314,19 @@ public class SubcellularDetection extends AbstractInteractivePlugin<BufferedImag
 				fpDetection.setRoi(spotRoi);
 				ImageStatistics stats = fpDetection.getStatistics();
 
-				SubcellularObject cluster = null;
+				PathObject cluster = null;
 				if (stats.pixelCount > minSpotArea && stats.pixelCount <= maxSpotArea) {
 					ROI roi = ROIConverterIJ.convertToPathROI(spotRoi, cal, downsample, spotRoi.getCPosition(), spotRoi.getZPosition(), spotRoi.getTPosition());
-					cluster = new SubcellularObject(roi, 1);
+//					cluster = new SubcellularObject(roi, 1);
+					cluster = createSubcellularObject(roi, 1);
 					estimatedSpots += 1;
 				} else if (includeClusters && stats.pixelCount > minSpotArea) {
 					// Add a cluster
 					ROI roi = ROIConverterIJ.convertToPathROI(spotRoi, cal, downsample, spotRoi.getCPosition(), spotRoi.getZPosition(), spotRoi.getTPosition());
 					double nSpots = stats.pixelCount / singleSpotArea;
 					estimatedSpots += nSpots;
-					cluster = new SubcellularObject(roi, nSpots);
+//					cluster = new SubcellularObject(roi, nSpots);
+					cluster = createSubcellularObject(roi, nSpots);
 				}
 				if (cluster != null) {
 					
@@ -422,13 +425,27 @@ public class SubcellularDetection extends AbstractInteractivePlugin<BufferedImag
 	}
 	
 	
+	static PathObject createSubcellularObject(final ROI roi, final double nSpots) {
+		var pathObject = PathObjects.createDetectionObject(roi);
+		if (nSpots != 1)
+			pathObject.setPathClass(PathClassFactory.getPathClass("Subcellular cluster", ColorTools.makeRGB(220, 200, 50)));
+		else
+			pathObject.setPathClass(PathClassFactory.getPathClass("Subcellular spot", ColorTools.makeRGB(100, 220, 50)));
+		pathObject.getMeasurementList().putMeasurement("Num spots", nSpots);
+		pathObject.getMeasurementList().closeList();
+		return pathObject;
+	}
+	
 	
 	/**
 	 * Special class for representing a subcellular detection object.
+	 * <p>
+	 * This should NO LONGER BE USED; subclassing PathObjects is <i>not</i> a good idea.
 	 * 
 	 * @author Pete Bankhead
 	 *
 	 */
+	@Deprecated
 	static class SubcellularObject extends PathDetectionObject {
 		
 		final private static long serialVersionUID = 1L;
@@ -489,7 +506,7 @@ public class SubcellularDetection extends AbstractInteractivePlugin<BufferedImag
 	/**
 	 * Wrapper class to help extract multiple channels from an image that may or may not 
 	 * require color deconvolution for meaningful channel separation.
-	 * 
+	 * <p>
 	 * Note: This may be moved into its own class at a later date...
 	 * 
 	 * @author Pete Bankhead

@@ -145,13 +145,14 @@ public class ProjectImportImagesCommand implements PathCommand {
 			protected Void call() throws Exception {
 				long max = listView.getItems().size();
 				AtomicLong counter = new AtomicLong(0L);
-				
+				// TODO: The parallel stream is bringing nothing here... refactor to return entries then add, or else add then sort later
 				listView.getItems().parallelStream().forEachOrdered(p -> {
 					try (var server = ImageServerProvider.buildServer(p, BufferedImage.class)) {
 						addImageAndSubImagesToProject(project, server);
-						updateProgress(counter.incrementAndGet(), max);
 					} catch (Exception e) {
 						logger.warn("Exception adding " + p, e);
+					} finally {
+						updateProgress(counter.incrementAndGet(), max);
 					}
 				});
 				
@@ -315,9 +316,20 @@ public class ProjectImportImagesCommand implements PathCommand {
 		return possiblePaths.size();
 	}
 	
-	
+	/**
+	 * Checks is a path relates to an existing file, or a URI with a different scheme.
+	 * @param path
+	 * @return
+	 */
 	static boolean isPossiblePath(final String path) {
-		return path.toLowerCase().startsWith("http") || new File(path).isFile();
+		try {
+			var uri = GeneralTools.toURI(path);
+			if ("file".equals(uri.getScheme()))
+				return GeneralTools.toPath(uri).toFile().exists();
+			return true;
+		} catch (Exception e) {
+			return false;
+		}
 	}
 	
 	

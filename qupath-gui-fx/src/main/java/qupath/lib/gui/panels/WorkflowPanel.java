@@ -301,7 +301,7 @@ public class WorkflowPanel {
 		builder = new WizardStepBuilder("Detect cells")
 				.essential()
 				.setDescriptionByResource(base + count + "/description.html")
-				.setAction(qupath.createPluginAction("Cell detection", "qupath.imagej.detect.nuclei.WatershedCellDetection", false, null))
+				.setAction(qupath.createPluginAction("Cell detection", "qupath.imagej.detect.cells.WatershedCellDetection", false, null))
 				;
 		count++;
 		steps.add(builder.build());

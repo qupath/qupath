@@ -30,6 +30,7 @@ import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -56,6 +57,7 @@ import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.tools.BufferedImageTools;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.objects.PathAnnotationObject;
+import qupath.lib.objects.PathCellObject;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.TMACoreObject;
@@ -73,7 +75,7 @@ import qupath.lib.roi.interfaces.ROI;
  * calculated within square or circular regions around the object centroids.
  * This latter option makes it possible to calculate a high density of tiles (for example), and then to 
  * compute textures at different resolutions independently of the tile size.
- * 
+ * <p>
  * TODO: Read entire region (where suitable) &amp; tile that (if it makes sense...? may not scale up to whole slide images though...)
  * TODO: Improve use of static/non-static methods
  * 
@@ -85,6 +87,8 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 	private final static Logger logger = LoggerFactory.getLogger(IntensityFeaturesPlugin.class);
 	
 	private boolean parametersInitialized = false;
+	
+	private static Map<Integer, BasicChannel> channelMap = new HashMap<>();
 	
 	static enum RegionType {
 		ROI, SQUARE, CIRCLE;
@@ -104,8 +108,79 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 		
 	}
 	
+	static interface FeatureColorTransform {
+		
+		public String getPrompt(final ImageData<?> imageData);
+		
+		public float[] getTransformedPixels(final BufferedImage img, int[] buf, final ColorDeconvolutionStains stains, float[] pixels);
+		
+		public boolean supportsImage(ImageData<?> imageData);
+		
+		public String getKey();
+		
+		public double[] getHaralickMinMax();
+		
+		public String getName(final ColorDeconvolutionStains stains);
+		
+	}
 	
-	static enum FeatureColorTransform {
+	static class BasicChannel implements FeatureColorTransform {
+		
+		private int channel;
+		
+		BasicChannel(int channel) {
+			this.channel = channel;
+		}
+
+		@Override
+		public String getPrompt(ImageData<?> imageData) {
+			return imageData.getServer().getChannelName(channel);
+		}
+
+		@Override
+		public float[] getTransformedPixels(BufferedImage img, int[] buf, ColorDeconvolutionStains stains,
+				float[] pixels) {
+			return img.getRaster().getSamples(0, 0, img.getWidth(), img.getHeight(), channel, pixels);
+		}
+
+		@Override
+		public boolean supportsImage(ImageData<?> imageData) {
+			return !imageData.getServer().isRGB() && channel >= 0 && channel < imageData.getServer().nChannels();
+		}
+
+		@Override
+		public String getKey() {
+			return "channel" + (channel+1);
+		}
+
+		@Override
+		public double[] getHaralickMinMax() {
+			return null;
+		}
+
+		@Override
+		public String getName(ColorDeconvolutionStains stains) {
+			return "Channel " + channel;
+		}
+		
+	}
+	
+	
+	static synchronized List<FeatureColorTransform> getBasicChannelTransforms(int nChannels) {
+		var list = new ArrayList<FeatureColorTransform>();
+		for (int i = 0; i < nChannels; i++) {
+			var channel = channelMap.get(i);
+			if (channel == null) {
+				channel = new BasicChannel(i);
+				channelMap.put(i, channel);
+			}
+			list.add(channel);
+		}
+		return list;
+	}
+	
+	
+	static enum FeatureColorTransformEnum implements FeatureColorTransform {
 		
 		OD("colorOD", "Optical density sum"),
 		STAIN_1("colorStain1", "Color Deconvolution Stain 1"),
@@ -117,22 +192,12 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 		HUE("colorHue", "Hue (mean only)"),
 		SATURATION("colorSaturation", "Saturation"),
 		BRIGHTNESS("colorBrightness", "Brightness"),
-		
-		CHANNEL_1("channel1", "Channel 1"),
-		CHANNEL_2("channel2", "Channel 2"),
-		CHANNEL_3("channel3", "Channel 3"),
-		CHANNEL_4("channel4", "Channel 4"),
-		CHANNEL_5("channel5", "Channel 5"),
-		CHANNEL_6("channel6", "Channel 6"),
-		CHANNEL_7("channel7", "Channel 7"),
-		CHANNEL_8("channel8", "Channel 8"),
-		
 		;
 		
 		private String key;
 		private String prompt;
 		
-		FeatureColorTransform(final String key, final String prompt) {
+		FeatureColorTransformEnum(final String key, final String prompt) {
 			this.key = key;
 			this.prompt = prompt;
 		}
@@ -214,26 +279,11 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 			case STAIN_2:
 			case STAIN_3:
 				return imageData.isBrightfield() && imageData.getServer().isRGB();
-			case CHANNEL_1:
-				return !imageData.getServer().isRGB() && imageData.getServer().nChannels() >= 1;
-			case CHANNEL_2:
-				return !imageData.getServer().isRGB() && imageData.getServer().nChannels() >= 2;
-			case CHANNEL_3:
-				return !imageData.getServer().isRGB() && imageData.getServer().nChannels() >= 3;
-			case CHANNEL_4:
-				return !imageData.getServer().isRGB() && imageData.getServer().nChannels() >= 4;
-			case CHANNEL_5:
-				return !imageData.getServer().isRGB() && imageData.getServer().nChannels() >= 5;
-			case CHANNEL_6:
-				return !imageData.getServer().isRGB() && imageData.getServer().nChannels() >= 6;
-			case CHANNEL_7:
-				return !imageData.getServer().isRGB() && imageData.getServer().nChannels() >= 7;
-			case CHANNEL_8:
-				return !imageData.getServer().isRGB() && imageData.getServer().nChannels() >= 8;
 			default:
 				return false;
 			}
 		}
+
 		
 		public float[] getTransformedPixels(final BufferedImage img, int[] buf, final ColorDeconvolutionStains stains, float[] pixels) {
 			if (pixels == null)
@@ -260,23 +310,6 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 				return ColorTransformer.getTransformedPixels(buf, ColorTransformMethod.Stain_2, pixels, stains);
 			case STAIN_3:
 				return ColorTransformer.getTransformedPixels(buf, ColorTransformMethod.Stain_3, pixels, stains);
-				
-			case CHANNEL_1:
-				return img.getRaster().getSamples(0, 0, img.getWidth(), img.getHeight(), 0, pixels);
-			case CHANNEL_2:
-				return img.getRaster().getSamples(0, 0, img.getWidth(), img.getHeight(), 1, pixels);
-			case CHANNEL_3:
-				return img.getRaster().getSamples(0, 0, img.getWidth(), img.getHeight(), 2, pixels);
-			case CHANNEL_4:
-				return img.getRaster().getSamples(0, 0, img.getWidth(), img.getHeight(), 3, pixels);
-			case CHANNEL_5:
-				return img.getRaster().getSamples(0, 0, img.getWidth(), img.getHeight(), 4, pixels);
-			case CHANNEL_6:
-				return img.getRaster().getSamples(0, 0, img.getWidth(), img.getHeight(), 5, pixels);
-			case CHANNEL_7:
-				return img.getRaster().getSamples(0, 0, img.getWidth(), img.getHeight(), 6, pixels);
-			case CHANNEL_8:
-				return img.getRaster().getSamples(0, 0, img.getWidth(), img.getHeight(), 7, pixels);
 			default:
 				break;
 			}
@@ -367,6 +400,7 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 //	}
 	
 	
+	
 	static class IntensityFeatureRunnable implements Runnable {
 		
 		private ImageServer<BufferedImage> server;
@@ -426,11 +460,21 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 		
 		// Create a map - this is useful for occasions when tiling is needed
 		Map<FeatureColorTransform, List<FeatureComputer>> map = new LinkedHashMap<>();
-		for (FeatureColorTransform transform : FeatureColorTransform.values()) {
-			List<FeatureComputer> list = new ArrayList<>();
-			map.put(transform, list);
-			for (FeatureComputerBuilder builder : builders) {
-				list.add(builder.build());
+		if (server.isRGB()) {
+			for (FeatureColorTransform transform : FeatureColorTransformEnum.values()) {
+				List<FeatureComputer> list = new ArrayList<>();
+				map.put(transform, list);
+				for (FeatureComputerBuilder builder : builders) {
+					list.add(builder.build());
+				}
+			}
+		} else {
+			for (FeatureColorTransform transform : getBasicChannelTransforms(server.nChannels())) {
+				List<FeatureComputer> list = new ArrayList<>();
+				map.put(transform, list);
+				for (FeatureComputerBuilder builder : builders) {
+					list.add(builder.build());
+				}
 			}
 		}
 		
@@ -485,13 +529,18 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 				maskBytes = ((DataBufferByte)imgMask.getRaster().getDataBuffer()).getData();
 			}
 			
-			
 			boolean isRGB = server.isRGB();
+			List<FeatureColorTransform> transforms;
+			if (isRGB)
+				transforms = Arrays.asList(FeatureColorTransformEnum.values());
+			else
+				transforms = getBasicChannelTransforms(server.nChannels());
+			
 			int w = img.getWidth();
 	 		int h = img.getHeight();
 			int[] rgbBuffer = isRGB ? img.getRGB(0, 0, w, h, null, 0, w) : null;
 			float[] pixels = null;
-			for (FeatureColorTransform transform : FeatureColorTransform.values()) {
+			for (FeatureColorTransform transform : transforms) {
 				// Check if the color transform is requested
 				if (Boolean.TRUE.equals(params.getBooleanParameterValue(transform.getKey()))) {
 					
@@ -575,9 +624,15 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 			
 			// Color transforms
 			params.addTitleParameter("Color transforms");
-			for (FeatureColorTransform transform : FeatureColorTransform.values()) {
-				if (transform.supportsImage(imageData))
+			if (imageData.getServer().isRGB()) {
+				for (FeatureColorTransform transform : FeatureColorTransformEnum.values()) {
+					if (transform.supportsImage(imageData))
+						params.addBooleanParameter(transform.getKey(), transform.getPrompt(imageData), false);
+				}
+			} else {
+				for (FeatureColorTransform transform : getBasicChannelTransforms(imageData.getServer().nChannels())) {
 					params.addBooleanParameter(transform.getKey(), transform.getPrompt(imageData), false);
+				}
 			}
 	
 			// Add feature-related parameters
@@ -614,6 +669,7 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 	@Override
 	public Collection<Class<? extends PathObject>> getSupportedParentObjectClasses() {
 		List<Class<? extends PathObject>> parents = new ArrayList<>();
+		parents.add(PathCellObject.class);
 		parents.add(PathDetectionObject.class);
 		parents.add(PathAnnotationObject.class);
 		parents.add(TMACoreObject.class);
@@ -713,7 +769,7 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 				return;
 			
 			// Handle Hue differently (due to its circular nature)
-			if (transform == FeatureColorTransform.HUE) {
+			if (transform == FeatureColorTransformEnum.HUE) {
 				if (hueStats == null)
 					hueStats = new HueStats();
 				hueStats.update(img);
@@ -791,33 +847,42 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 		@Override
 		public void updateFeatures(SimpleImage img, FeatureColorTransform transform, ParameterList params) {
 			// Don't do anything if we don't have a meaningful transform
-			if (transform == null || transform == FeatureColorTransform.HUE || (histogram != null && histogram.length == 0))
+			if (transform == null || transform == FeatureColorTransformEnum.HUE || (histogram != null && histogram.length == 0))
 				return;
 			
 			// Create a new histogram if we need one
 			if (histogram == null) {
-				switch(transform) {
-				case BLUE:
-				case GREEN:
-				case RED:
-					nBins = 256;
-					minBin = 0;
-					maxBin = 255;
-					break;
-				case SATURATION:
-				case BRIGHTNESS:
-					nBins = 1001;
-					minBin = 0;
-					maxBin = 1;
-					break;
-				case CHANNEL_1:
-				case CHANNEL_2:
-				case CHANNEL_3:
-				case CHANNEL_4:
-				case CHANNEL_5:
-				case CHANNEL_6:
-				case CHANNEL_7:
-				case CHANNEL_8:
+				if (transform instanceof FeatureColorTransformEnum) {
+					switch((FeatureColorTransformEnum)transform) {
+					case BLUE:
+					case GREEN:
+					case RED:
+						nBins = 256;
+						minBin = 0;
+						maxBin = 255;
+						break;
+					case SATURATION:
+					case BRIGHTNESS:
+						nBins = 1001;
+						minBin = 0;
+						maxBin = 1;
+						break;
+					case HUE:
+						break;
+					case OD:
+					case STAIN_1:
+					case STAIN_2:
+					case STAIN_3:
+						nBins = 4001;
+						minBin = 0;
+						maxBin = 4.0;
+						break;
+					default:
+						// We have something that unfortunately we can't handle...
+						histogram = new long[0];
+						return;
+					}
+				} else {
 					if (originalBitsPerPixel <= 16) {
 						nBins = (int)Math.pow(2, originalBitsPerPixel);
 						minBin = 0;
@@ -827,21 +892,6 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 						histogram = new long[0];
 						return;
 					}
-					break;
-				case HUE:
-					break;
-				case OD:
-				case STAIN_1:
-				case STAIN_2:
-				case STAIN_3:
-					nBins = 4001;
-					minBin = 0;
-					maxBin = 4.0;
-					break;
-				default:
-					// We have something that unfortunately we can't handle...
-					histogram = new long[0];
-					return;
 				}
 				// Create histogram
 				histogram = new long[nBins];
@@ -944,7 +994,7 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 				return;
 			
 			// Don't compute results for Hue - would be confusing...
-			if (transform == FeatureColorTransform.HUE)
+			if (transform == FeatureColorTransformEnum.HUE)
 				return;
 			
 			double[] minMax = transform.getHaralickMinMax();
@@ -1087,7 +1137,7 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 		@Override
 		public void updateFeatures(SimpleImage img, FeatureColorTransform transform, ParameterList params) {
 			// Don't do anything if we don't have a meaningful transform
-			if (!Boolean.TRUE.equals(params.getBooleanParameterValue("doCumulativeHistogram")) || transform == null || transform == FeatureColorTransform.HUE || (histogram != null && histogram.length == 0))
+			if (!Boolean.TRUE.equals(params.getBooleanParameterValue("doCumulativeHistogram")) || transform == null || transform == FeatureColorTransformEnum.HUE || (histogram != null && histogram.length == 0))
 				return;
 			
 			// Create a new histogram if we need one

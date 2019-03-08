@@ -24,8 +24,6 @@
 package qupath.lib.gui.viewer.tools;
 
 import java.awt.geom.Point2D;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
@@ -43,11 +41,9 @@ import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.Reclassifier;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.regions.ImagePlane;
-import qupath.lib.regions.ImageRegion;
 import qupath.lib.roi.PolygonROI;
 import qupath.lib.roi.PolylineROI;
 import qupath.lib.roi.RoiEditor;
-import qupath.lib.roi.interfaces.PathArea;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
@@ -141,7 +137,7 @@ abstract class AbstractPathROITool extends AbstractPathTool {
 		double yy = p2.getY();
 						
 		// If we are double-clicking & we don't have a polygon, see if we can access a ROI
-		if (e.getClickCount() > 1) {
+		if (!PathPrefs.isSelectionMode() && e.getClickCount() > 1) {
 			// Reset parent... for now
 			resetCurrentParent();		
 			tryToSelect(xx, yy, e.getClickCount()-2, false);
@@ -187,7 +183,7 @@ abstract class AbstractPathROITool extends AbstractPathTool {
 		// If we are in selection mode, try to get objects to select
 		if (PathPrefs.isSelectionMode()) {
 			var pathClass = PathPrefs.getAutoSetAnnotationClass();
-			var toSelect = hierarchy.getObjectsForROI(currentROI);
+			var toSelect = hierarchy.getObjectsForROI(null, currentROI);
 			if (!toSelect.isEmpty() && pathClass != null) {
 				var reclassified = toSelect.stream()
 						.filter(p -> p.getPathClass() != pathClass)

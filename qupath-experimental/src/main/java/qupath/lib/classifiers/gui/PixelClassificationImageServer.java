@@ -21,6 +21,12 @@ import qupath.lib.images.servers.ImageServerMetadata.ImageResolutionLevel;
 import qupath.lib.images.servers.TileRequest;
 import qupath.lib.regions.RegionRequest;
 
+/**
+ * ImageServer that delivers pixels derived from applying a PixelClassifier to another ImageServer.
+ *
+ * @author Pete Bankhead
+ *
+ */
 public class PixelClassificationImageServer extends AbstractTileableImageServer {
 	
 	private static Logger logger = LoggerFactory.getLogger(PixelClassificationImageServer.class);
@@ -72,11 +78,13 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 						.addLevelByDownsample(downsample)
 						.build();
 		
+		int pad = classifierMetadata.strictInputSize() ? classifierMetadata.getInputPadding() : 0;
+		
 		var builder = new ImageServerMetadata.Builder(getClass(), server.getMetadata())
 				.path(path)
 				.width(width)
 				.height(height)
-				.preferredTileSize(tileWidth, tileHeight)
+				.preferredTileSize(tileWidth-pad*2, tileHeight-pad*2)
 				.levels(levels)
 				.channels(classifierMetadata.getChannels())
 				.bitDepth(bitDepth)
