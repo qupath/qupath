@@ -24,6 +24,7 @@
 package qupath.lib.gui.panels;
 
 import java.awt.image.BufferedImage;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
@@ -108,7 +109,10 @@ public class SelectedMeasurementTableView implements PathObjectSelectionListener
 	}
 
 	private String getSelectedObjectMeasurementValue(final String name) {
-		return tableModel.getStringValue(getSelectedObject(), name, nDecimalPlaces);
+		var selected = getSelectedObject();
+		if (selected == null)
+			return null;
+		return tableModel.getStringValue(selected, name, nDecimalPlaces);
 	}
 	
 	public TableView<?> getTable() {
@@ -160,7 +164,7 @@ public class SelectedMeasurementTableView implements PathObjectSelectionListener
 	}
 
 	@Override
-	public void selectedPathObjectChanged(PathObject pathObjectSelected, PathObject previousObject) {
+	public void selectedPathObjectChanged(PathObject pathObjectSelected, PathObject previousObject, Collection<PathObject> allSelected) {
 		updateTableModel();
 	}
 	

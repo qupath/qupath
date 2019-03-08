@@ -134,7 +134,7 @@ public class HistogramPanelFX {
 	
 	
 	/**
-	 * Create a HistogramData object to wrap a histogram & some info about its display.
+	 * Create a HistogramData object to wrap a histogram &amp; some info about its display.
 	 * 
 	 * @param histogram
 	 * @param areaPlot If true, an area plot (simplified, fewer vertices) will be used instead.  Good for approximate display of dense histograms, less good if there are few bins.
@@ -147,7 +147,7 @@ public class HistogramPanelFX {
 	
 	
 	/**
-	 * Create a HistogramData object to wrap a histogram & some info about its display.
+	 * Create a HistogramData object to wrap a histogram &amp; some info about its display.
 	 * 
 	 * @param histogram
 	 * @param areaPlot If true, an area plot (simplified, fewer vertices) will be used instead.  Good for approximate display of dense histograms, less good if there are few bins.
@@ -205,11 +205,13 @@ public class HistogramPanelFX {
 		private Histogram histogram;
 		private Color colorStroke;
 		private Color colorFill;
-		private Series<Number,Number> series;
+		private Series<Number, Number> series;
 		private boolean areaPlot;
 		
+		private boolean doNormalizeCounts;
+		
 		/**
-		 * Wrapper for histogram & data relevant to its display.
+		 * Wrapper for histogram &amp; data relevant to its display.
 		 * 
 		 * @param histogram
 		 * @param areaPlot If true, an area plot (simplified, fewer vertices) will be used instead.  Good for approximate display of dense histograms, less good if there are few bins.
@@ -220,6 +222,14 @@ public class HistogramPanelFX {
 			this.areaPlot = areaPlot;
 //			setColor(color == null ? DisplayHelpers.TRANSLUCENT_BLACK_FX : color);
 			setColor(color);
+		}
+		
+		public boolean doNormalizeCounts() {
+			return doNormalizeCounts;
+		}
+		
+		public void setDoNormalizeCounts(final boolean doNormalizeCounts) {
+			this.doNormalizeCounts = doNormalizeCounts;
 		}
 		
 		private void setColor(final Color color) {
@@ -246,7 +256,7 @@ public class HistogramPanelFX {
 					if (areaPlot) {
 						XYChart.Data<Number,Number> dataElement = new XYChart.Data<>(
 								(histogram.getBinLeftEdge(i)/2+histogram.getBinRightEdge(i)/2),
-								histogram.getCountsForBin(i));
+								getCounts(histogram, i));
 						data.add(dataElement);
 					} else {
 						// For a proper, 'bar-like' appearance use the following
@@ -256,11 +266,11 @@ public class HistogramPanelFX {
 						data.add(dataElement);
 						dataElement = new XYChart.Data<>(
 								histogram.getBinLeftEdge(i),
-								histogram.getCountsForBin(i));
+								getCounts(histogram, i));
 						data.add(dataElement);
 						dataElement = new XYChart.Data<>(
 								histogram.getBinRightEdge(i),
-								histogram.getCountsForBin(i));
+								getCounts(histogram, i));
 						data.add(dataElement);
 						dataElement = new XYChart.Data<>(
 								histogram.getBinRightEdge(i),
@@ -279,6 +289,14 @@ public class HistogramPanelFX {
 			}
 			series.getData().setAll(data);
 			updateNodeColors();
+		}
+		
+		
+		
+		double getCounts(Histogram histogram, int bin) {
+			if (doNormalizeCounts)
+				return histogram.getNormalizedCountsForBin(bin);
+			return histogram.getCountsForBin(bin);
 		}
 		
 		

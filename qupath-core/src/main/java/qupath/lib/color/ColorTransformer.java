@@ -179,28 +179,6 @@ public class ColorTransformer {
 			return 255;
 		}
 	}
-
-	public static float[] getTransformedMinAndMax(int[] buf, ColorTransformMethod method) {
-			if (method == ColorTransformMethod.Original || method == ColorTransformMethod.Red || method == ColorTransformMethod.Green || method == ColorTransformMethod.Blue)
-				return new float[]{0f, 255f};
-			if (method == ColorTransformMethod.White || method == ColorTransformMethod.Black)
-				return new float[]{0f, 1f};
-			if (method == ColorTransformMethod.Hematoxylin_H_E || method == ColorTransformMethod.Hematoxylin_H_DAB || method == ColorTransformMethod.Eosin_H_E || method == ColorTransformMethod.DAB_H_DAB)
-				return new float[]{0f, 2.f};
-			if (method == ColorTransformMethod.Hue || method == ColorTransformMethod.Saturation || method == ColorTransformMethod.Brightness)
-				return new float[]{0f, 1f};
-	//		if (method == IntColorMethod.Red_chromaticity || method == IntColorMethod.Green_chromaticity || method == IntColorMethod.Blue_chromaticity)
-			float min = Float.POSITIVE_INFINITY;
-			float max = Float.NEGATIVE_INFINITY;
-			for (int v : buf) {
-				float val = ColorTransformer.getPixelValue(v, method);
-				if (val < min)
-					min = val;
-				if (val > max)
-					max = val;
-			}
-			return new float[]{min, max};
-		}
 	
 	
 	/**
@@ -621,9 +599,9 @@ public class ColorTransformer {
 	
 	public static float deconvolve(int rgb, double[][] invMat, double[] od_lut_red, double[] od_lut_green, double[] od_lut_blue, int stain) {
 		// Extract RGB values & convert to optical densities using a lookup table
-		double r = od_lut[(rgb & 0xff0000) >> 16];
-		double g = od_lut[(rgb & 0xff00) >> 8];
-		double b = od_lut[rgb & 0xff];
+		double r = od_lut_red[(rgb & 0xff0000) >> 16];
+		double g = od_lut_green[(rgb & 0xff00) >> 8];
+		double b = od_lut_blue[rgb & 0xff];
 		// Apply deconvolution & store the results
 		return (float)(r * invMat[0][stain-1] + g * invMat[1][stain-1] + b * invMat[2][stain-1]);
 }
@@ -638,11 +616,6 @@ public class ColorTransformer {
 			return (float)(r * invMat[0][stain-1] + g * invMat[1][stain-1] + b * invMat[2][stain-1]);
 	}
 
-	public static int deconvolve8bit(int rgb, double[][] invMat, double[] od_lut, int stain) {
-		// Apply deconvolution & store the results
-		return ColorTools.do8BitRangeCheck(Math.exp(-deconvolve(rgb, invMat, od_lut, stain)) * 255);
-	}
-	
 	public static int deconvolve8bit(int rgb, double[][] invMat, double[] od_lut_red, double[] od_lut_green, double[] od_lut_blue, int stain) {
 		// Apply deconvolution & store the results
 		return ColorTools.do8BitRangeCheck(Math.exp(-deconvolve(rgb, invMat, od_lut_red, od_lut_green, od_lut_blue, stain)) * 255);
@@ -709,8 +682,12 @@ public class ColorTransformer {
 		int b = rgb & ColorTools.MASK_BLUE;
 		return Color.RGBtoHSB(r, g, b, null)[2];
 	}
-
+	
 	public static float getPixelValue(int rgb, ColorTransformMethod method) {
+		return getPixelValue(rgb, method, null);
+	}
+
+	public static float getPixelValue(int rgb, ColorTransformMethod method, ColorDeconvolutionStains stains) {
 		switch (method) {
 		case Red:
 			return ColorTools.red(rgb);
@@ -749,6 +726,35 @@ public class ColorTransformer {
 		case Saturation:
 			return saturation(rgb);
 		case Original:
+			return Float.NaN;
+			
+			
+		case Stain_1:
+			if (stains != null) {
+				double[] od_lut_red = ColorDeconvolutionHelper.makeODLUT(stains.getMaxRed());
+				double[] od_lut_green = ColorDeconvolutionHelper.makeODLUT(stains.getMaxGreen());
+				double[] od_lut_blue = ColorDeconvolutionHelper.makeODLUT(stains.getMaxBlue());
+				double[][] inverse = stains.getMatrixInverse();
+				return ColorTransformer.deconvolve(rgb, inverse, od_lut_red, od_lut_green, od_lut_blue, 1);
+			}
+			return Float.NaN;
+		case Stain_2:
+			if (stains != null) {
+				double[] od_lut_red = ColorDeconvolutionHelper.makeODLUT(stains.getMaxRed());
+				double[] od_lut_green = ColorDeconvolutionHelper.makeODLUT(stains.getMaxGreen());
+				double[] od_lut_blue = ColorDeconvolutionHelper.makeODLUT(stains.getMaxBlue());
+				double[][] inverse = stains.getMatrixInverse();
+				return ColorTransformer.deconvolve(rgb, inverse, od_lut_red, od_lut_green, od_lut_blue, 2);
+			}
+			return Float.NaN;
+		case Stain_3:
+			if (stains != null) {
+				double[] od_lut_red = ColorDeconvolutionHelper.makeODLUT(stains.getMaxRed());
+				double[] od_lut_green = ColorDeconvolutionHelper.makeODLUT(stains.getMaxGreen());
+				double[] od_lut_blue = ColorDeconvolutionHelper.makeODLUT(stains.getMaxBlue());
+				double[][] inverse = stains.getMatrixInverse();
+				return ColorTransformer.deconvolve(rgb, inverse, od_lut_red, od_lut_green, od_lut_blue, 3);
+			}
 			return Float.NaN;
 		default:
 			return Float.NaN;

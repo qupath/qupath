@@ -301,7 +301,7 @@ public class WorkflowPanel {
 		builder = new WizardStepBuilder("Detect cells")
 				.essential()
 				.setDescriptionByResource(base + count + "/description.html")
-				.setAction(qupath.createPluginAction("Cell detection", "qupath.imagej.detect.nuclei.WatershedCellDetection", false, null))
+				.setAction(qupath.createPluginAction("Cell detection", "qupath.imagej.detect.cells.WatershedCellDetection", false, null))
 				;
 		count++;
 		steps.add(builder.build());
@@ -315,7 +315,7 @@ public class WorkflowPanel {
 		count++;
 		steps.add(builder.build());
 
-		Action action = qupath.createCommandAction("qupath.opencv.classify.OpenCvClassifierCommand", "Create detection classifier", qupath);
+		Action action = qupath.createCommandAction("qupath.opencv.gui.classify.OpenCvClassifierCommand", "Create detection classifier", qupath);
 		builder = new WizardStepBuilder("Set up & run tumor classifier")
 				.essential()
 				.setDescriptionByResource(base + count + "/description.html")

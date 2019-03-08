@@ -51,12 +51,12 @@ public class PathCellObject extends PathDetectionObject {
 		super();
 	}
 	
-	public PathCellObject(ROI pathROI, ROI nucleusROI, PathClass pathClass, MeasurementList measurementList) {
+	PathCellObject(ROI pathROI, ROI nucleusROI, PathClass pathClass, MeasurementList measurementList) {
 		super(pathROI, pathClass, measurementList);
 		this.nucleus = nucleusROI;
 	}
 
-	public PathCellObject(ROI pathROI, ROI nucleusROI, PathClass pathClass) {
+	PathCellObject(ROI pathROI, ROI nucleusROI, PathClass pathClass) {
 		this(pathROI, nucleusROI, pathClass, null);
 	}
 

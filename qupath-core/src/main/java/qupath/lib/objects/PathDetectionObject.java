@@ -31,7 +31,7 @@ import qupath.lib.roi.interfaces.ROI;
 
 /**
  * A detection PathObject.
- * 
+ * <p>
  * Detections tend to be very numerous (e.g. millions of nucleus, each one a detection), and so need to be 
  * represented and displayed very efficiently.
  * 
@@ -52,9 +52,9 @@ public class PathDetectionObject extends PathROIObject {
 	 * 
 	 * @param pathROI
 	 * @param pathClass
-	 * @param measurementCapacity - request for measurement list capacity; may be used to improve efficiency & avoid wasted space
+	 * @param measurements
 	 */
-	public PathDetectionObject(ROI pathROI, PathClass pathClass, MeasurementList measurements) {
+	PathDetectionObject(ROI pathROI, PathClass pathClass, MeasurementList measurements) {
 		super(pathROI, pathClass, measurements);
 	}
 
@@ -64,11 +64,11 @@ public class PathDetectionObject extends PathROIObject {
 	 * @param pathROI
 	 * @param pathClass
 	 */
-	public PathDetectionObject(ROI pathROI, PathClass pathClass) {
+	protected PathDetectionObject(ROI pathROI, PathClass pathClass) {
 		super(pathROI, pathClass);
 	}
 	
-	public PathDetectionObject(ROI pathROI) {
+	PathDetectionObject(ROI pathROI) {
 		this(pathROI, null);
 	}
 	

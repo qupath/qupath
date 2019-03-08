@@ -1,0 +1,458 @@
+/*
+ * Gradle script for building QuPath.
+ *
+ * To create a complete build including associated license files, try the following:
+ *
+ * ./gradlew clean build createPackage -Ppackager=/path/to/jpackage
+ */
+
+/**
+ * Some metadata for the manifest
+ */
+
+def qupathVersion = file('VERSION').text.trim()
+def qupathVendor = "QuPath developers"
+
+println 'Building QuPath version ' + qupathVersion
+
+/**
+ * Output location; once things are gathered here, they can be used as input for jpackager
+ */
+def qupathOutputDir = 'qupath'
+def additionalResourcesDir = "build/${qupathOutputDir}"
+
+/**
+ * Include OpenCV binaries with GPU support (quite big, may not be used?)
+ */
+def useGPU = false
+
+/**
+ * JavaFX version
+*/
+def jfxVersion = '11.0.2'
+
+/**
+ * Good to know what JDK is (sometimes accidentally) being used
+ */
+println 'Current Java version: ' + JavaVersion.current()
+println System.properties['java.home']
+
+/**
+ * Handle OS-specific decisions
+ */
+
+import org.gradle.internal.os.OperatingSystem
+println 'Operating system: ' + OperatingSystem.current()
+def nativesCPP
+def platform
+def nativesClassifier
+String iconName
+if (OperatingSystem.current().isMacOsX()) {
+  nativesClassifier = 'natives-osx'
+  nativesCPP = 'macosx-x86_64'
+  platform = 'mac'
+  iconName = 'macosx/qupath.icns'
+} else if (OperatingSystem.current().isLinux()) {
+  nativesClassifier = 'natives-linux'
+  nativesCPP = 'linux-x86_64'
+  platform = 'linux'
+  iconName = 'linux/QuPath.png'
+} else if (OperatingSystem.current().isWindows()) {
+  nativesClassifier = 'natives-windows'
+  nativesCPP = 'windows-x86_64'
+  platform = 'win'
+  iconName = 'windows/QuPath.ico'
+} else {
+  println 'Unknown operating system!'
+}
+
+/**
+ * Define managed dependencies for use within sub-projects
+ */
+subprojects {
+  configurations {
+  	jts
+    groovy
+    richtextfx
+    commonsmath
+    gson
+    controlsfx
+    jfxtras
+    opencv
+    jpen
+    imagej
+    bioformats
+    bioformatsTest
+    openslide
+    javafx
+    nativeloader
+    guava
+    
+    // Guave tries to bring in extra dependencies not required at runtime
+    implementation {
+    	exclude group: 'com.google.code.findbugs'
+    	exclude group: 'org.codehaus.mojo', module: 'animal-sniffer-annotations'
+    	exclude group: 'com.google.errorprone', module: 'error_prone_annotations'
+    	exclude group: 'com.google.j2objc', module: 'j2objc-annotations'
+    	exclude group: 'org.checkerframework', module: 'checker-qual'
+    }
+  }
+
+  dependencies {
+
+    jts "org.locationtech.jts:jts-core:1.16.1"
+
+    groovy "org.codehaus.groovy:groovy:2.5.6"
+    groovy "org.codehaus.groovy:groovy-jsr223:2.5.6"
+
+    for (fx in ['javafx-base', 'javafx-controls', 'javafx-graphics', 'javafx-media', 'javafx-web', 'javafx-swing']) {
+      javafx "org.openjfx:${fx}:${jfxVersion}"
+      javafx "org.openjfx:${fx}:${jfxVersion}:${platform}"
+    }
+
+    richtextfx 'org.fxmisc.richtext:richtextfx:0.9.2'
+
+    commonsmath 'org.apache.commons:commons-math3:3.6.1'
+
+    gson 'com.google.code.gson:gson:2.8.5'
+
+    controlsfx 'org.controlsfx:controlsfx:11.0.0-RC2'
+//    controlsfx 'org.controlsfx:controlsfx:9.0.0'
+
+//	bioformats 'ome:bioformats_package:6.0.0'
+	bioformats 'ome:formats-gpl:6.0.0'
+	bioformatsTest 'ome:bio-formats_plugins:6.0.0' // Only required for testing
+
+    jfxtras 'org.jfxtras:jfxtras-menu:10.0-r1'
+
+    opencv 'org.bytedeco.javacpp-presets:opencv:4.0.1-1.4.4'
+    if (nativesCPP != null) {
+      if (useGPU)
+        opencv "org.bytedeco.javacpp-presets:opencv:4.0.1-1.4.4:${nativesCPP}-gpu"
+      else
+	    opencv "org.bytedeco.javacpp-presets:opencv:4.0.1-1.4.4:${nativesCPP}"
+    }
+
+    jpen 'net.sourceforge.jpen:jpen:2-150301'
+    if (nativesClassifier != null)
+      jpen 'net.sourceforge.jpen:jpen:2-150301:' + nativesClassifier
+
+    imagej 'net.imagej:ij:1.52k'
+
+    openslide 'org.openslide:openslide:3.4.1_2'
+    if (nativesClassifier != null)
+      openslide 'org.openslide:openslide:3.4.1_2:' + nativesClassifier
+
+    nativeloader 'org.scijava:native-lib-loader:2.3.2'
+    
+    guava 'com.google.guava:guava:27.0.1-jre'
+  }
+}
+
+/**
+ * Set group & version
+ */
+allprojects  {
+  group = 'qupath'
+  version = qupathVersion
+}
+
+/**
+ * Build all projects
+ */
+allprojects {
+  apply plugin: 'java'
+  sourceCompatibility = JavaVersion.VERSION_11
+  targetCompatibility = JavaVersion.VERSION_11
+  
+  repositories {
+    mavenLocal()
+    mavenCentral()
+    
+    maven {
+      name 'Unidata'
+      url 'https://artifacts.unidata.ucar.edu/content/repositories/unidata-releases'
+    }
+    maven {
+      url 'https://artifacts.openmicroscopy.org/artifactory/maven/'
+    }
+    maven { url "../maven/repo" }
+  }
+
+  dependencies {
+    implementation group: 'ch.qos.logback', name: 'logback-classic', version:'1.2.3'
+    testImplementation group: 'junit', name: 'junit', version:'4.12'
+  }
+}
+
+
+
+/**
+ * Build the main launcher class
+ */
+apply plugin: 'java'
+rootProject.libsDirName = qupathOutputDir
+
+//println 'BASE NAME: ' + jar.archiveName
+
+
+repositories {
+  mavenLocal()
+  mavenCentral()
+  maven { url "./maven/repo" }
+}
+
+/**
+ * I suspect there may be a cleaner way to specify subprojects...
+ */
+dependencies {
+  compile "org.openjfx:javafx-graphics:${jfxVersion}"    
+  compile "org.openjfx:javafx-graphics:${jfxVersion}:${platform}"    
+  subprojects {
+    compile it
+  }
+}
+
+/**
+ * Copy licenses from subprojects to include in distribution
+ */
+task copyLicenses(type: Copy) {
+  def licenseDirs = []
+  subprojects.each {
+    def dir = new File(it.projectDir, 'src/main/resources/licenses')
+    if (dir.isDirectory())
+      licenseDirs << dir
+  }
+  println 'Copying license directories: '
+  licenseDirs.each { println '  ' + it }
+  from licenseDirs
+  into additionalResourcesDir + '/licenses'
+}
+
+/**
+ * Get the main changelog & license
+ */
+task copyChangelog(type: Copy) {
+  from project.rootDir
+  into additionalResourcesDir
+  include 'CHANGELOG.md'
+  include 'STARTUP.md'
+  include 'LICENSE.txt'
+  include 'VERSION'
+}
+
+/**
+ * Extract native libraries where necessary
+ */
+task extractNativeLibraries() {
+  if (nativesClassifier == null)
+    return
+  configurations.compile.files.findAll({ it.getName().contains(nativesClassifier) }).each { file ->
+    println 'Extracting native libraries from ' + file
+    doLast {
+      copy {
+        from zipTree(file)
+        into additionalResourcesDir
+      }
+    }
+  }
+}
+
+/**
+ * Copy required jars all into one directory
+ */
+task copyRuntimeLibs(type: Copy) {
+  into additionalResourcesDir
+  from configurations.runtime
+}
+
+/**
+ * Run automated license generation (in addition to manually-curated licenses)
+ */
+apply plugin: 'com.github.jk1.dependency-license-report'
+import com.github.jk1.license.render.*
+
+import java.nio.file.Paths
+
+licenseReport {
+  renderers = [new TextReportRenderer('THIRD-PARTY.txt'),
+               new CsvReportRenderer(),
+               new InventoryHtmlReportRenderer()]
+}
+task copyLicenseReport(type: Copy) {
+  from 'build/reports/dependency-license/THIRD-PARTY.txt'
+  into additionalResourcesDir + '/licenses'
+}
+
+/**
+ * Configure build script
+ */
+buildscript {
+
+  dependencies {
+      classpath 'gradle.plugin.com.github.jk1:gradle-license-report:1.3'
+  }
+
+  repositories {
+      mavenLocal()
+      mavenCentral()
+      maven { url "https://oss.sonatype.org/content/repositories/snapshots" }
+      maven { url 'https://plugins.gradle.org/m2/' }
+  }
+  
+  // Request latest commit by a command line call to Git, if required
+  def requestLatestCommit = project.findProperty('request-git-tag') == 'true'
+
+  // Try to get version number
+  ext {
+  	latestGitCommit = null
+  }
+  if (requestLatestCommit) {
+	  try {
+	  	def stdout = new ByteArrayOutputStream()
+	    def result = exec {
+	        commandLine 'git', 'describe', '--tags'
+	        standardOutput = stdout
+	    }
+	    latestGitCommit = stdout.toString().trim()
+	    println 'Latest commit: ' + latestGitCommit
+	  } catch (Exception e) {
+	  	println 'Unable to get latest commit: ' + e.getLocalizedMessage()
+	  	latestGitCommit = 'Unknown (is Git installed?)'
+	  }
+  } else {
+    println "I won't try to get the last commit - consider running with '-Prequest-git-tag=true' if you want this next time (assuming Git is installed)"
+  }
+  
+}
+
+/**
+ * Specify the order of some operations
+ */
+copyLicenses.dependsOn generateLicenseReport
+jar.dependsOn copyLicenses
+jar.dependsOn copyChangelog
+jar.dependsOn extractNativeLibraries
+build.dependsOn copyLicenseReport
+build.dependsOn copyRuntimeLibs
+
+/**
+ * Squeeze some useful metadata into the Manifest of the main jar -
+ * QuPath can display this through the GUI
+ */
+jar {
+  manifest {
+    def manifestAttributes = [
+       "Implementation-Vendor": qupathVendor,
+       "Implementation-Title": 'QuPath',
+       "Implementation-Version": qupathVersion,
+       "Main-Class": "qupath.QuPath",
+       "Class-Path": configurations.compile.collect { it.getName() }.join(' '),
+       "QuPath-build-time": new Date().format("yyyy-MM-dd, HH:mm")
+    ]
+    if (latestGitCommit != null)
+       manifestAttributes["QuPath-latest-commit"] = latestGitCommit
+
+    attributes(manifestAttributes)
+  }
+}
+
+
+/**
+ * Create a custom runtime.  Mostly to avoid using the same one as jpackager for now.
+ */
+task createRuntime(dependsOn:build, type:Exec) {
+	
+  def outputDir = new File(rootProject.libsDir.getParentFile(), 'jre')
+
+  // Reuse existing JRE if available
+  onlyIf { !outputDir.exists() }
+
+  doFirst {
+
+   def params = ["${System.properties['java.home']}/bin/jlink"]
+	
+    params << '--output' << outputDir.getAbsolutePath()
+    params << '--add-modules' << 'java.desktop,java.xml,java.scripting,java.sql,java.naming,jdk.unsupported'
+
+//	params << '--module-path' << System.properties.'java.home' + '/jmods' 
+
+    print String.join(' ', params)
+    
+    commandLine = params
+  }
+
+}
+
+/**
+ * If we have a packager (somewhere), use it.
+ *
+ * To call this:
+ *   gradlew createPackage -Ppackager=/path/to/jpackager
+ *
+ * Or to make an installer:
+ *   gradlew createPackage -Ppackager=/path/to/jpackager -Ptype=installer}
+ */
+task createPackage(dependsOn:createRuntime, type:Exec) {
+
+  doFirst {
+
+    def packager = findProperty('packager')
+    if (packager == null || !new File(packager).exists()) {
+      println '-------'
+      println 'Please specify where I can find a suitable packager!  Something like this:'
+      println 'gradlew createPackage -Ppackager=/path/to/jpackager'
+      println '-------'
+      throw new GradleException('Please specify where I can find a suitable jpackage!')
+    }
+    println 'Using packager: ' + packager
+
+    def packageType = findProperty('type')
+
+    def params = [packager]
+
+    if (packageType == 'installer') {
+    	params << 'create-installer'
+    } else {
+		params << 'create-image'
+	}
+
+    params << '--input' << rootProject.libsDir.getAbsolutePath()
+    params << '--output' << new File(rootProject.libsDir.getParentFile(), 'dist').getAbsolutePath()
+
+    params << '--main-jar' << jar.archiveName
+
+    params << '--name' << 'QuPath-' + qupathVersion
+//    params << '--class' << 'qupath.QuPath'
+
+	if (OperatingSystem.current().isMacOsX()) {
+		params << '--mac-bundle-name' << 'QuPath'
+		if (packageType == 'installer') {
+			params << '--installer-type' << 'dmg'
+		}
+	}
+
+    // Strip off any SNAPSHOT part, which can cause trouble
+    params << '--app-version' << qupathVersion.replace('-SNAPSHOT', '')
+        
+    // Not entirely clear this is effective...?
+    params << '--strip-native-commands'
+
+    // Try to find the icon
+    def pathIcon = Paths.get(
+            rootProject.libsDir.getParentFile().getAbsolutePath(),
+            'resources', 'main', 'package',
+            iconName).toFile().getAbsolutePath()
+    params << '--icon' << pathIcon
+
+	params << '--runtime-image' << new File(rootProject.libsDir.getParentFile(), 'jre').getAbsolutePath()
+//    params << '--add-modules' << 'java.desktop,java.xml,java.scripting,java.sql,java.naming,jdk.unsupported'
+
+//	params << '--module-path' << System.properties.'java.home' + '/jmods' 
+
+    println String.join(' ', params)
+    
+    commandLine = params
+  }
+
+}

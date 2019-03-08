@@ -26,6 +26,7 @@ package qupath.lib.gui.commands;
 import java.io.IOException;
 import java.io.Writer;
 import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
 import java.util.ArrayList;
@@ -43,8 +44,6 @@ import javax.script.SimpleScriptContext;
 import org.controlsfx.control.MasterDetailPane;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.sun.javafx.scene.control.skin.TextAreaSkin;
 
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
@@ -65,6 +64,7 @@ import javafx.scene.control.MenuBar;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.RadioMenuItem;
 import javafx.scene.control.SelectionMode;
+import javafx.scene.control.Skin;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 import javafx.scene.control.TabPane.TabClosingPolicy;
@@ -88,8 +88,8 @@ import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.gui.panels.ObjectTreeBrowser;
+import qupath.lib.gui.scripting.QPEx;
 import qupath.lib.images.ImageData;
-import qupath.lib.scripting.QPEx;
 
 
 /**
@@ -177,9 +177,6 @@ public class ScriptInterpreterCommand implements PathCommand {
 		
 		/**
 		 * For inputting new commands.
-		 * 
-		 * @param qupath
-		 * @param classLoader
 		 */
 		private TextArea textAreaInput = new TextArea();
 		
@@ -380,8 +377,17 @@ public class ScriptInterpreterCommand implements PathCommand {
 //				resetHistoryPointer();
 				if (menuAutocomplete.isShowing() || (e.isControlDown() && e.getCode() == KeyCode.SPACE)) {
 					updateAutocompleteMenu();
-					TextAreaSkin skin = (TextAreaSkin)textAreaInput.getSkin();
-					Bounds b = skin.getCaretBounds();
+					// Using reflection for compatibility with Java 8 and Java 9
+					Skin<?> skin = textAreaInput.getSkin();
+					Bounds b = null;
+					try {
+						b = (Bounds)skin.getClass().getMethod("getCaretBounds").invoke(skin);
+					} catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException
+							| NoSuchMethodException | SecurityException e1) {
+						logger.error("Error requesting caret bounds - cannot display autocomplete menu", e1);
+					}
+//					TextAreaSkin skin = (TextAreaSkin)textAreaInput.getSkin();
+//					Bounds b = skin.getCaretBounds();
 					// If there's only one open, and we aren't already showing, just use it
 					if (!menuAutocomplete.isShowing() && menuAutocomplete.getItems().size() == 1) {
 						menuAutocomplete.getItems().get(0).fire();
@@ -389,7 +395,7 @@ public class ScriptInterpreterCommand implements PathCommand {
 						return;
 					}
 					
-					if (!menuAutocomplete.getItems().isEmpty()) {
+					if (b != null && !menuAutocomplete.getItems().isEmpty()) {
 						menuAutocomplete.show(textAreaInput,
 								Side.TOP,
 								b.getMaxX()+5,

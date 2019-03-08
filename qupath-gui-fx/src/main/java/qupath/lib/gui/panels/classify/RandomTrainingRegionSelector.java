@@ -76,13 +76,17 @@ import qupath.lib.measurements.MeasurementList;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.TMAGrid;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
 import qupath.lib.plugins.parameters.ParameterList;
+import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.PointsROI;
+import qupath.lib.roi.ROIs;
+import qupath.lib.roi.interfaces.PathPoints;
 import qupath.lib.roi.interfaces.ROI;
 
 
@@ -434,7 +438,7 @@ public class RandomTrainingRegionSelector implements PathCommand {
 		private QuPathViewer viewer;
 		
 		private ObjectCache objectCache = new ObjectCache();
-		private PointsROI currentPoint;
+		private PathPoints currentPoint;
 		
 		private int nextCluster = 0;
 		
@@ -466,21 +470,21 @@ public class RandomTrainingRegionSelector implements PathCommand {
 					logger.error("Cannot classify - no point available!");
 					return;
 				}
-				PathAnnotationObject pathObject = objectCache.getPointObject(pathClass);
+				PathObject pathObject = objectCache.getPointObject(pathClass);
 				boolean newPoint = pathObject == null;
 				if (newPoint)
-					pathObject = new PathAnnotationObject(new PointsROI(), pathClass);
+					pathObject = PathObjects.createAnnotationObject(ROIs.createPointsROI(ImagePlane.getDefaultPlane()), pathClass);
 				double x = currentPoint.getCentroidX();
 				double y = currentPoint.getCentroidY();
 				PathObjectHierarchy hierarchy = viewer.getHierarchy();
 				if (newPoint) {
-					pathObject.setROI(new PointsROI(x, y));
+					((PathAnnotationObject)pathObject).setROI(ROIs.createPointsROI(x, y, ImagePlane.getDefaultPlane()));
 					hierarchy.addPathObject(pathObject, true);
 				} else {
 					PointsROI pointsROI = ((PointsROI)pathObject.getROI());
 					List<Point2> points = new ArrayList<Point2>(pointsROI.getPointList());
 					points.add(new Point2(x, y));
-					pathObject.setROI(new PointsROI(points));
+					((PathAnnotationObject)pathObject).setROI(ROIs.createPointsROI(points, ImagePlane.getDefaultPlane()));
 					hierarchy.fireObjectsChangedEvent(this, Collections.singleton(pathObject));
 				}
 				// Unfortunately, this horrible hack that prevents this being a static class...
@@ -527,9 +531,9 @@ public class RandomTrainingRegionSelector implements PathCommand {
 				x = temp.getROI().getCentroidX();
 				y = temp.getROI().getCentroidY();
 			}
-			currentPoint = new PointsROI(x, y);
+			currentPoint = ROIs.createPointsROI(x, y, ImagePlane.getDefaultPlane());
 			viewer.setCenterPixelLocation(x, y);
-			viewer.setSelectedObject(new PathAnnotationObject(currentPoint));
+			viewer.setSelectedObject(PathObjects.createAnnotationObject(currentPoint));
 		}
 		
 		

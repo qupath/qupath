@@ -96,7 +96,7 @@ public class CountingPanelCommand implements PathCommand, ImageDataChangeListene
 				qupath.getActionToggleButton(GUIActions.POINTS_TOOL, true),
 				new Separator(Orientation.VERTICAL),
 				qupath.getActionToggleButton(GUIActions.SHOW_ANNOTATIONS, true),
-				qupath.getActionToggleButton(GUIActions.FILL_OBJECTS, true),
+				qupath.getActionToggleButton(GUIActions.FILL_DETECTIONS, true),
 				qupath.getActionToggleButton(GUIActions.SHOW_GRID, true));
 		return toolbar;
 	}

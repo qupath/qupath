@@ -27,6 +27,10 @@ import java.awt.image.BufferedImage;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 import java.io.File;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Locale;
 import java.util.Locale.Category;
 
@@ -57,6 +61,8 @@ import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
+import javafx.scene.layout.Background;
+import javafx.scene.layout.BackgroundFill;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
@@ -73,6 +79,7 @@ import qupath.lib.gui.ImageDataChangeListener;
 import qupath.lib.gui.ImageDataWrapper;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.helpers.DisplayHelpers;
+import qupath.lib.gui.helpers.dialogs.ParameterPanelFX;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.ImageData.ImageType;
 import qupath.lib.images.servers.ImageServer;
@@ -143,12 +150,13 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 							return;
 						}
 						//			             ComboBoxTableCell<TableEntry, Object>
+						Color textColor = Color.BLACK;
 						String text = item == null ? "" : item.toString();
 						if (item instanceof double[]) {
 							text = GeneralTools.arrayToString(Locale.getDefault(Category.FORMAT), (double[])item, 2);
 						} else if (item instanceof StainVector) {
 							StainVector stain = (StainVector)item;
-							setTextFill(getColorFX(stain.getColor()));
+							textColor = getColorFX(stain.getColor());
 						}
 						//			             if (item instanceof ImageType) {
 						//			            	 ComboBox<ImageType> combo = new ComboBox<>();
@@ -156,6 +164,7 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 						//			            	 combo.getSelectionModel().select((ImageType)item);
 						//			            	 getChildren().add(combo);
 						//			             } else
+						setTextFill(textColor);
 						setText(text);
 						setTooltip(new Tooltip(text));
 					}
@@ -169,9 +178,7 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 					if (value instanceof StainVector || value instanceof double[])
 						editStainVector(value);
 					else if (value instanceof ImageType) {
-						ImageType type = (ImageType)DisplayHelpers.showChoiceDialog("Image type", "Set image type", ImageType.values(), (ImageType)value);
-						if (type != null)
-							imageData.setImageType(type);
+						promptToSetImageType(imageData);
 					}
 				});
 				
@@ -240,11 +247,18 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 				Image img = SwingFXUtils.toFXImage(imageData.getServer().getAssociatedImage(name), null);
 				ImageView imageView = new ImageView(img);
 				BorderPane pane = new BorderPane();
+				imageView.fitWidthProperty().bind(pane.widthProperty());
+				imageView.fitHeightProperty().bind(pane.heightProperty());
+				imageView.setPreserveRatio(true);
 				pane.setCenter(imageView);
 				pane.setTop(menubar);
+				Scene scene = new Scene(pane);
+				pane.prefWidthProperty().bind(scene.widthProperty());
+				pane.prefHeightProperty().bind(scene.heightProperty());
 				menubar.setUseSystemMenuBar(true);
+				pane.setBackground(new Background(new BackgroundFill(Color.BLACK, null, null)));
 				
-				dialog.setScene(new Scene(pane));
+				dialog.setScene(scene);
 				dialog.show();
 			}
 		);
@@ -267,6 +281,29 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 		Accordion accordion = new Accordion(panelTable, panelImages, panelAssociatedImages);
 		accordion.setExpandedPane(panelTable);
 		pane.getChildren().add(accordion);
+	}
+	
+	
+	/**
+	 * Prompt the user to set the ImageType for the image.
+	 * @param imageData
+	 * @return
+	 */
+	public static boolean promptToSetImageType(ImageData<BufferedImage> imageData) {
+		List<ImageType> values = Arrays.asList(ImageType.values());
+		if (!imageData.getServer().isRGB()) {
+			values =new ArrayList<>(values);
+			values.remove(ImageType.BRIGHTFIELD_H_DAB);
+			values.remove(ImageType.BRIGHTFIELD_H_E);
+			values.remove(ImageType.BRIGHTFIELD_OTHER);
+		}
+		
+		ImageType type = (ImageType)DisplayHelpers.showChoiceDialog("Image type", "Set image type", values, imageData.getImageType());
+		if (type != null && type != imageData.getImageType()) {
+			imageData.setImageType(type);
+			return true;
+		}
+		return false;
 	}
 	
 	
@@ -295,7 +332,7 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 	
 	
 	
-	void editStainVector(final Object value) {
+	void editStainVector(Object value) {
 		if (!(value instanceof StainVector || value instanceof double[]))
 			return;
 		//					JOptionPane.showMessageDialog(null, "Modifying stain vectors not yet implemented...");
@@ -327,71 +364,93 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 
 		ROI pathROI = imageData.getHierarchy().getSelectionModel().getSelectedROI();
 		boolean wasChanged = false;
-		if ((pathROI instanceof RectangleROI) && 
-				!pathROI.isEmpty() &&
-				((RectangleROI) pathROI).getArea() < 500*500 && 
-				DisplayHelpers.showYesNoDialog("Color deconvolution stains", message)) {
-
-			ImageServer<BufferedImage> server = imageData.getServer();
-			BufferedImage img = server.readBufferedImage(RegionRequest.createInstance(server.getPath(), 1, pathROI));
-			int rgb = ColorDeconvolutionHelper.getMedianRGB(img.getRGB(0, 0, img.getWidth(), img.getHeight(), null, 0, img.getWidth()));
-			if (num >= 0) {
-				StainVector stainNew = ColorDeconvolutionHelper.generateMedianStainVectorFromPixels(name, img.getRGB(0, 0, img.getWidth(), img.getHeight(), null, 0, img.getWidth()), stains.getMaxRed(), stains.getMaxGreen(), stains.getMaxBlue());
-				stains = stains.changeStain(stainNew, num);
+		String warningMessage = null;
+		boolean editableName = imageData.getImageType() == ImageType.BRIGHTFIELD_OTHER;
+		if (pathROI != null) {
+			if ((pathROI instanceof RectangleROI) && 
+					!pathROI.isEmpty() &&
+					((RectangleROI) pathROI).getArea() < 500*500) {
+				if (DisplayHelpers.showYesNoDialog("Color deconvolution stains", message)) {
+					ImageServer<BufferedImage> server = imageData.getServer();
+					BufferedImage img = null;
+					try {
+						img = server.readBufferedImage(RegionRequest.createInstance(server.getPath(), 1, pathROI));
+					} catch (IOException e) {
+						DisplayHelpers.showErrorMessage("Set stain vector", "Unable to read image region");
+						logger.error("Unable to read region", e);
+					}
+					int rgb = ColorDeconvolutionHelper.getMedianRGB(img.getRGB(0, 0, img.getWidth(), img.getHeight(), null, 0, img.getWidth()));
+					if (num >= 0) {
+						value = ColorDeconvolutionHelper.generateMedianStainVectorFromPixels(name, img.getRGB(0, 0, img.getWidth(), img.getHeight(), null, 0, img.getWidth()), stains.getMaxRed(), stains.getMaxGreen(), stains.getMaxBlue());
+					} else {
+						// Update the background
+						value = new double[] {ColorTools.red(rgb), ColorTools.green(rgb), ColorTools.blue(rgb)};
+					}
+					wasChanged = true;
+				}
 			} else {
-				// Update the background
-				stains = stains.changeMaxValues(ColorTools.red(rgb), ColorTools.green(rgb), ColorTools.blue(rgb));
-			}
-			wasChanged = true;
-		}
-
-		// If nothing has changed, try prompting
-		if (!wasChanged) {
-
-			ParameterList params = new ParameterList();
-			String title;
-			String nameBefore = null;
-			String valuesBefore = null;
-			if (value instanceof StainVector) {
-				nameBefore = ((StainVector)value).getName();
-				valuesBefore = ((StainVector)value).arrayAsString(Locale.getDefault(Category.FORMAT));
-				params.addStringParameter("name", "Name", nameBefore, "Enter stain name")
-				.addStringParameter("values", "Values", valuesBefore, "Enter 3 values (red, green, blue) defining color deconvolution stain vector, separated by spaces");
-				title = "Set stain vector";
-			} else {
-				nameBefore = "Background";
-				valuesBefore = GeneralTools.arrayToString(Locale.getDefault(Category.FORMAT), (double[])value, 2);
-				params.addStringParameter("name", "Name", nameBefore);
-				params.addStringParameter("values", "Values", valuesBefore, "Enter 3 values (red, green, blue) defining background, separated by spaces");
-				params.setHiddenParameters(true, "name");
-				title = "Set background";
-			}
-
-			if (!DisplayHelpers.showParameterDialog(title, params))
-				return;
-
-			// Check if anything changed
-			String nameAfter = params.getStringParameterValue("name");
-			String valuesAfter = params.getStringParameterValue("values");
-			if (nameAfter.equals(nameBefore) && valuesAfter.equals(valuesBefore))
-				return;
-
-			double[] valuesParsed = ColorDeconvolutionStains.parseStainValues(Locale.getDefault(Category.FORMAT), valuesAfter);
-			if (valuesParsed == null) {
-				logger.error("Input for setting color deconvolution information invalid! Cannot parse 3 numbers from {}", valuesAfter);
-				return;
-			}
-
-
-			if (num >= 0) {
-				stains = stains.changeStain(new StainVector(nameAfter, valuesParsed), num);
-			} else {
-				// Update the background
-				stains = stains.changeMaxValues(valuesParsed[0], valuesParsed[1], valuesParsed[2]);
+				warningMessage = "Note: To set stain values from an image region, draw a small, rectangular ROI first";
 			}
 		}
 
+		// Prompt to set the name / verify stains
+		ParameterList params = new ParameterList();
+		String title;
+		String nameBefore = null;
+		String valuesBefore = null;
+		String collectiveNameBefore = stains.getName();
+		params.addStringParameter("collectiveName", "Collective name", collectiveNameBefore, "Enter collective name for all 3 stains (e.g. H-DAB Scanner A, H&E Scanner B)");
+		if (value instanceof StainVector) {
+			nameBefore = ((StainVector)value).getName();
+			valuesBefore = ((StainVector)value).arrayAsString(Locale.getDefault(Category.FORMAT));
+			params.addStringParameter("name", "Name", nameBefore, "Enter stain name")
+			.addStringParameter("values", "Values", valuesBefore, "Enter 3 values (red, green, blue) defining color deconvolution stain vector, separated by spaces");
+			title = "Set stain vector";
+		} else {
+			nameBefore = "Background";
+			valuesBefore = GeneralTools.arrayToString(Locale.getDefault(Category.FORMAT), (double[])value, 2);
+			params.addStringParameter("name", "Stain name", nameBefore);
+			params.addStringParameter("values", "Stain values", valuesBefore, "Enter 3 values (red, green, blue) defining background, separated by spaces");
+			params.setHiddenParameters(true, "name");
+			title = "Set background";
+		}
 
+		if (warningMessage != null)
+			params.addEmptyParameter("warning", warningMessage);
+
+		// Disable editing the name if it should be fixed
+		ParameterPanelFX parameterPanel = new ParameterPanelFX(params);
+		parameterPanel.setParameterEnabled("name", editableName);;
+		if (!DisplayHelpers.showConfirmDialog(title, parameterPanel.getPane()))
+			return;
+
+		// Check if anything changed
+		String collectiveName = params.getStringParameterValue("collectiveName");
+		String nameAfter = params.getStringParameterValue("name");
+		String valuesAfter = params.getStringParameterValue("values");
+		if (collectiveName.equals(collectiveNameBefore) && nameAfter.equals(nameBefore) && valuesAfter.equals(valuesBefore) && !wasChanged)
+			return;
+
+		double[] valuesParsed = ColorDeconvolutionStains.parseStainValues(Locale.getDefault(Category.FORMAT), valuesAfter);
+		if (valuesParsed == null) {
+			logger.error("Input for setting color deconvolution information invalid! Cannot parse 3 numbers from {}", valuesAfter);
+			return;
+		}
+
+		if (num >= 0) {
+			try {
+				stains = stains.changeStain(new StainVector(nameAfter, valuesParsed), num);					
+			} catch (Exception e) {
+				logger.error("Error setting stain vectors", e);
+				DisplayHelpers.showErrorMessage("Set stain vectors", "Requested stain vectors are not valid!\nAre two stains equal?");
+			}
+		} else {
+			// Update the background
+			stains = stains.changeMaxValues(valuesParsed[0], valuesParsed[1], valuesParsed[2]);
+		}
+		
+		// Set the collective name
+		stains = stains.changeName(collectiveName);
 
 		imageData.setColorDeconvolutionStains(stains);
 		
@@ -552,7 +611,7 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 		
 		private ImageData<BufferedImage> imageData;
 		
-		protected enum ROW_TYPE {NAME, PATH, IMAGE_TYPE, BIT_DEPTH, MAGNIFICATION, WIDTH, HEIGHT, PIXEL_WIDTH, PIXEL_HEIGHT, SERVER_TYPE};
+		protected enum ROW_TYPE {NAME, PATH, IMAGE_TYPE, BIT_DEPTH, MAGNIFICATION, WIDTH, HEIGHT, DIMENSIONS, PIXEL_WIDTH, PIXEL_HEIGHT, SERVER_TYPE, PYRAMID};
 
 //		protected enum ROW_TYPE {PATH, IMAGE_TYPE, MAGNIFICATION, WIDTH, HEIGHT, PIXEL_WIDTH, PIXEL_HEIGHT,
 //				CHANNEL_1, CHANNEL_1_STAIN, CHANNEL_2, CHANNEL_2_STAIN, CHANNEL_3, CHANNEL_3_STAIN
@@ -615,12 +674,16 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 				return "Width";
 			case HEIGHT:
 				return "Height";
+			case DIMENSIONS:
+				return "Dimensions (CZT)";
 			case PIXEL_WIDTH:
 				return "Pixel width";
 			case PIXEL_HEIGHT:
 				return "Pixel height";
 			case SERVER_TYPE:
 				return "Server type";
+			case PYRAMID:
+				return "Pyramid";
 			default:
 				return null;
 			}
@@ -661,6 +724,8 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 					return String.format("%s px (%.2f %s)", server.getHeight(), server.getHeight() * server.getPixelHeightMicrons(), GeneralTools.micrometerSymbol());
 				else
 					return String.format("%s px", server.getHeight());
+			case DIMENSIONS:
+				return String.format("%d x %d x %d", server.nChannels(), server.nZSlices(), server.nTimepoints());
 			case PIXEL_WIDTH:
 				if (server.hasPixelSizeMicrons())
 					return String.format("%.4f %s", server.getPixelWidthMicrons(), GeneralTools.micrometerSymbol());
@@ -673,6 +738,10 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 					return "Unknown";
 			case SERVER_TYPE:
 				return server.getServerType();
+			case PYRAMID:
+				if (server.nResolutions() == 1)
+					return "No";
+				return GeneralTools.arrayToString(Locale.getDefault(), server.getPreferredDownsamples(), 1);
 //			case TMA_GRID:
 //				return new Boolean(details.hasTMAGrid());
 			default:

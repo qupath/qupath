@@ -25,19 +25,18 @@ package qupath.lib.measurements;
 
 import java.io.Serializable;
 import java.util.Collection;
-import java.util.Iterator;
 import java.util.List;
 
 /**
  * Interface defining a feature measurement list, consisting of key value pairs.
- * 
+ * <p>
  * To help enable efficiency for large sets of PathObjects requiring measurement lists,
  * only String keys and numeric values are included.
  * 
  * @author Pete Bankhead
  *
  */
-public interface MeasurementList extends Serializable, Iterable<Measurement> {
+public interface MeasurementList extends Serializable {
 	
 	public enum TYPE {GENERAL, DOUBLE, FLOAT}
 	
@@ -52,8 +51,7 @@ public interface MeasurementList extends Serializable, Iterable<Measurement> {
 	 * putMeasurement can be must slower than add or addMeasurement - so adding should be preferred if it is
 	 * known that a measurement with the same name is not present.
 	 * 
-	 * @param name
-	 * @param value
+	 * @param measurement
 	 * @return
 	 */
 	public Measurement putMeasurement(Measurement measurement);
@@ -92,21 +90,7 @@ public interface MeasurementList extends Serializable, Iterable<Measurement> {
 	
 	public int size();
 	
-	public boolean add(Measurement measurement);
-
-	@Override
-	public Iterator<Measurement> iterator();
-
 	public boolean supportsDynamicMeasurements();
-
-	/**
-	 * Returns TRUE if this list contains any dynamic measurements, false if all measurements are stored.
-	 * This can be useful for determining if the list can be represented by another list that only supports
-	 * stored measurements.
-	 * 
-	 * @return
-	 */
-	public boolean hasDynamicMeasurements();
 
 //	/**
 //	 * TRUE if the list is closed (i.e. cannot be modified), FALSE if it can accept new measurements.

@@ -23,10 +23,12 @@
 
 package qupath.lib.images;
 
+import java.io.IOException;
+
 import qupath.lib.regions.ImageRegion;
 
 /**
- * Interface used when wanting to store pixel data, in some format dependent on <T> (e.g. BufferedImage, ImagePlus, Mat...), along
+ * Interface used when wanting to store pixel data, in some format dependent on {@code <T>} (e.g. BufferedImage, ImagePlus, Mat...), along
  * with information of the image from which the pixel data was obtained, including the downsample factor used to extract it.
  * 
  * @author Pete Bankhead
@@ -38,22 +40,13 @@ public interface PathImage<T> {
 	public String getImageTitle();
 	
 	/**
-	 * Get the pixel data (image)
-	 * @return
+	 * Get the pixel data (image).
+	 * 
+	 * @return the stored image, or {@code null} if it is not possible to retrieve the image.
+	 * 
+	 * @see #getImage(boolean)
 	 */
 	public T getImage();
-	
-	/**
-	 * The width of the stored image, in pixels
-	 * @return
-	 */
-	public int getWidth();
-
-	/**
-	 * The height of the stored image, in pixels
-	 * @return
-	 */
-	public int getHeight();
 	
 	/**
 	 * Get the downsample factor originally used when obtaining the image from an ImageServer; will be 1 if the image is full-resolution.
@@ -69,12 +62,18 @@ public interface PathImage<T> {
 	
 	/**
 	 * Version of getImage() that makes it possible to specified whether the image should be cached or not;
-	 * if the pixel data will not be required again, getImage(false) may improve efficiency.
+	 * if the pixel data will not be required again, {@code getImage(false)} may improve efficiency.
 	 * <p>
-	 * This only makes a difference is the image is not already cached, i.e. hasCachedImage() returns false.
+	 * This only really makes a difference is the image is not already cached, i.e. {@code hasCachedImage()} returns false.
+	 * <p>
+	 * Unlike {@code getImage}, this method may throw an exception if the image is unavailable, rather than returning {@code null}.
+	 * 
 	 * @return
+	 * @throws IOException 
+	 * 
+	 * @see #getImage()
 	 */
-	public T getImage(boolean cache);
+	public T getImage(boolean cache) throws IOException;
 	
 	/**
 	 * Test whether getPixelWidthMicrons() is equal to getPixelHeightMicrons() (with a small floating-point tolerance).
@@ -95,7 +94,7 @@ public interface PathImage<T> {
 	public double getPixelHeightMicrons();
 	
 	/**
-	 * Query whether the horizontal & vertical pixel sizes are available in microns.
+	 * Query whether the horizontal &amp; vertical pixel sizes are available in microns.
 	 * @return true if both getPixelWidthMicrons() and getPixelHeightMicrons() return non-NaN values; false otherwise.
 	 */
 	public boolean hasPixelSizeMicrons();

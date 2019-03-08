@@ -23,12 +23,17 @@
 
 package qupath.lib.gui.commands;
 
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
+import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Scanner;
+import java.util.concurrent.atomic.AtomicLong;
 
 import org.controlsfx.dialog.ProgressDialog;
 import org.slf4j.Logger;
@@ -46,11 +51,18 @@ import javafx.scene.input.Clipboard;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import qupath.lib.common.GeneralTools;
+import qupath.lib.display.ChannelDisplayInfo;
+import qupath.lib.display.ImageDisplay;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.gui.helpers.PanelToolsFX;
-import qupath.lib.projects.ProjectIO;
+import qupath.lib.gui.panels.ProjectBrowser;
+import qupath.lib.images.ImageData;
+import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.ImageServerProvider;
+import qupath.lib.projects.Project;
+import qupath.lib.projects.ProjectImageEntry;
 
 /**
  * Command to import image paths into an existing project.
@@ -127,20 +139,23 @@ public class ProjectImportImagesCommand implements PathCommand {
 		
 		List<String> pathSucceeded = new ArrayList<>();
 		List<String> pathFailed = new ArrayList<>();
+		var project = qupath.getProject();
 		Task<Void> worker = new Task<Void>() {
 			@Override
 			protected Void call() throws Exception {
 				long max = listView.getItems().size();
-				long counter = 0;
-				for (String path : listView.getItems()) {
-					updateMessage(path);
-					updateProgress(counter, max);
-					if (qupath.getProject().addImage(path.trim()))
-						pathSucceeded.add(path);
-					else
-						pathFailed.add(path);
-					counter++;
-				}
+				AtomicLong counter = new AtomicLong(0L);
+				// TODO: The parallel stream is bringing nothing here... refactor to return entries then add, or else add then sort later
+				listView.getItems().parallelStream().forEachOrdered(p -> {
+					try (var server = ImageServerProvider.buildServer(p, BufferedImage.class)) {
+						addImageAndSubImagesToProject(project, server);
+					} catch (Exception e) {
+						logger.warn("Exception adding " + p, e);
+					} finally {
+						updateProgress(counter.incrementAndGet(), max);
+					}
+				});
+				
 				updateProgress(max, max);
 				return null;
 	         }
@@ -149,6 +164,12 @@ public class ProjectImportImagesCommand implements PathCommand {
 		progress.setTitle("Project import");
 		qupath.submitShortTask(worker);
 		progress.showAndWait();
+		try {
+			project.syncChanges();
+		} catch (IOException e1) {
+			DisplayHelpers.showErrorMessage("Sync project", e1);
+		}
+		qupath.refreshProject();
 		
 		StringBuilder sb = new StringBuilder();
 		if (!pathSucceeded.isEmpty()) {
@@ -157,7 +178,7 @@ public class ProjectImportImagesCommand implements PathCommand {
 				sb.append("\t" + path + "\n");
 			sb.append("\n");
 			qupath.refreshProject();
-			ProjectIO.writeProject(qupath.getProject());
+			ProjectBrowser.syncProject(qupath.getProject());
 		}
 		if (!pathFailed.isEmpty()) {
 			sb.append("Unable to import " + pathFailed.size() + " paths:\n");
@@ -168,7 +189,10 @@ public class ProjectImportImagesCommand implements PathCommand {
 		if (!pathFailed.isEmpty()) {
 			TextArea textArea = new TextArea();
 			textArea.setText(sb.toString());
-			DisplayHelpers.showErrorMessage(commandName, textArea);
+			if (pathSucceeded.isEmpty())
+				DisplayHelpers.showErrorMessage(commandName, textArea);
+			else
+				DisplayHelpers.showMessageDialog(commandName, textArea);
 		}
 		logger.info(sb.toString());
 		
@@ -191,7 +215,7 @@ public class ProjectImportImagesCommand implements PathCommand {
 	
 	
 	boolean loadFromFileChooser(final List<String> list) {
-		List<File> files = QuPathGUI.getSharedDialogHelper().promptForMultipleFiles(commandName, null, null, null);
+		List<File> files = QuPathGUI.getSharedDialogHelper().promptForMultipleFiles(commandName, null, null);
 		if (files == null)
 			return false;
 		boolean changes = false;
@@ -208,7 +232,7 @@ public class ProjectImportImagesCommand implements PathCommand {
 	
 	
 	boolean loadFromSingleURL(final List<String> list) {
-		String path = QuPathGUI.getSharedDialogHelper().promptForFilePathOrURL("Enter image path", null, null, null, null);
+		String path = QuPathGUI.getSharedDialogHelper().promptForFilePathOrURL("Enter image path", null, null, null);
 		if (path == null)
 			return false;
 		if (list.contains(path)) {
@@ -257,9 +281,9 @@ public class ProjectImportImagesCommand implements PathCommand {
 	
 	
 	/**
-	 * Load potential image paths into a list
+	 * Load potential image paths into a list.
 	 * 
-	 * @param listView
+	 * @param list
 	 */
 	int loadFromClipboard(final List<String> list) {
 		int changes = 0;
@@ -292,10 +316,108 @@ public class ProjectImportImagesCommand implements PathCommand {
 		return possiblePaths.size();
 	}
 	
-	
+	/**
+	 * Checks is a path relates to an existing file, or a URI with a different scheme.
+	 * @param path
+	 * @return
+	 */
 	static boolean isPossiblePath(final String path) {
-		return path.toLowerCase().startsWith("http") || new File(path).isFile();
+		try {
+			var uri = GeneralTools.toURI(path);
+			if ("file".equals(uri.getScheme()))
+				return GeneralTools.toPath(uri).toFile().exists();
+			return true;
+		} catch (Exception e) {
+			return false;
+		}
 	}
+	
+	
+	public static boolean addImageAndSubImagesToProject(Project<BufferedImage> project, ImageServer<BufferedImage> server) {
+		var subImages = server.getSubImageList();
+		if (subImages.isEmpty())
+			return addSingleImageToProject(project, server);
+		boolean changes = false;
+		for (var name : subImages) {
+			// TODO: Consider using specifically this server class
+			var path = server.getSubImagePath(name);
+			try {
+				var server2 = ImageServerProvider.buildServer(path, BufferedImage.class);
+				changes = changes | addSingleImageToProject(project, server2);
+			} catch (IOException e) {
+				logger.warn("Could not build server for " + name + " (" + path + ")", e);
+			}
+		}
+		return changes;
+	}
+	
+	/**
+	 * Add a single ImageServer to a project, without considering sub-images.
+	 * <p>
+	 * This includes an optional attempt to request a thumbnail; if this fails, the image will not be added.
+	 * 
+	 * @param project
+	 * @param server
+	 * @return
+	 */
+	public static boolean addSingleImageToProject(Project<BufferedImage> project, ImageServer<BufferedImage> server) {
+		ProjectImageEntry<BufferedImage> entry = null;
+		try {
+			var img = getThumbnailRGB(server, null);
+			entry = project.addImage(server);
+			if (entry != null)
+				entry.setThumbnail(img);
+		} catch (IOException e) {
+			logger.warn("Error attempting to add " + server, e);
+		}
+		return entry != null;
+	}
+	
+	
+	static BufferedImage getThumbnailRGB(ImageServer<BufferedImage> server, ImageDisplay imageDisplay) throws IOException {
+		var img2 = server.getDefaultThumbnail();
+		// Try to write RGB images directly
+		boolean success = false;
+		if (imageDisplay == null && (server.isRGB() || img2.getType() == BufferedImage.TYPE_BYTE_GRAY)) {
+			return resizeForThumbnail(img2);
+		}
+		if (!success) {
+			// Try with display transforms
+			if (imageDisplay == null)
+				imageDisplay = new ImageDisplay(new ImageData<>(server));
+			for (ChannelDisplayInfo info : imageDisplay.selectedChannels()) {
+				imageDisplay.autoSetDisplayRange(info);
+			}
+			img2 = imageDisplay.applyTransforms(img2, null);
+			return resizeForThumbnail(img2);
+		}
+		return img2;
+	}
+	
+	private static int thumbnailWidth = 1000;
+	private static int thumbnailHeight = 600;
+
+	
+	/**
+	 * Resize an image so that its dimensions fit inside thumbnailWidth x thumbnailHeight.
+	 * 
+	 * Note: this assumes the image can be drawn to a Graphics object.
+	 * 
+	 * @param imgThumbnail
+	 * @return
+	 */
+	static BufferedImage resizeForThumbnail(BufferedImage imgThumbnail) {
+		double scale = Math.min((double)thumbnailWidth / imgThumbnail.getWidth(), (double)thumbnailHeight / imgThumbnail.getHeight());
+		if (scale > 1)
+			return imgThumbnail;
+		BufferedImage imgThumbnail2 = new BufferedImage((int)(imgThumbnail.getWidth() * scale), (int)(imgThumbnail.getHeight() * scale), imgThumbnail.getType());
+		Graphics2D g2d = imgThumbnail2.createGraphics();
+		g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+		g2d.drawImage(imgThumbnail, 0, 0, imgThumbnail2.getWidth(), imgThumbnail2.getHeight(), null);
+		g2d.dispose();
+		return imgThumbnail2;
+	}
+	
 	
 	
 }

@@ -35,8 +35,10 @@ import javafx.beans.value.ObservableStringValue;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.SeparatorMenuItem;
+import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.helpers.DisplayHelpers;
-import qupath.lib.scripting.DefaultScriptEditor;
+import qupath.lib.gui.scripting.DefaultScriptEditor;
+import qupath.lib.gui.scripting.DefaultScriptEditor.Language;
 
 /**
  * Helper class for creating a dynamic menu to a directory containing scripts.
@@ -73,6 +75,11 @@ public class ScriptMenuLoader {
 			File scriptFile = new File(dir, scriptName);
 			if (!scriptFile.exists()) {
 				try {
+					// If we need to create the scripts directory, try to do so
+					// (This helps for project scripts, when the directory might not exist yet)
+					File dirScripts = new File(dir);
+					if (!dirScripts.exists())
+						dirScripts.mkdir();
 					scriptFile.createNewFile();
 				} catch (Exception e1) {
 					DisplayHelpers.showErrorMessage("New script error", "Unable to create new script!");
@@ -86,7 +93,11 @@ public class ScriptMenuLoader {
 		miOpenDirectory.disableProperty().bind(Bindings.isNotNull(scriptDirectory).not());
 		miOpenDirectory.setOnAction(e -> {
 			// Try to reveal directory in Finder/Windows Explorer etc.
-			DisplayHelpers.openFile(new File(scriptDirectory.get()));
+			File dir = new File(scriptDirectory.get());
+			if (!dir.exists()) {
+				dir.mkdir();
+			}
+			DisplayHelpers.openFile(dir);
 		});
 		
 		if (scriptDirectory instanceof StringProperty) {
@@ -146,7 +157,7 @@ public class ScriptMenuLoader {
 				menu.getItems().add(subMenu);
 			}
 		} else {
-			if (scriptEditor.supportsFile(path.toFile())) {
+			if (scriptEditor == null || scriptEditor.supportsFile(path.toFile())) {
 				String name = path.getFileName().toString();
 				boolean cleanName = true;
 				if (cleanName) {
@@ -157,7 +168,20 @@ public class ScriptMenuLoader {
 				}
 				MenuItem item = new MenuItem(name);
 				item.setOnAction(e -> {
-					scriptEditor.showScript(path.toFile());
+					File scriptFile = path.toFile();
+					if (scriptEditor != null)
+						scriptEditor.showScript(scriptFile);
+					else {
+						Language language = DefaultScriptEditor.getLanguageFromName(scriptFile.getName());		
+						try {
+							String script = GeneralTools.readFileAsString(scriptFile.getAbsolutePath());
+							DefaultScriptEditor.executeScript(language, script, QuPathGUI.getInstance().getImageData(), true, null);
+						} catch (Exception e2) {
+							DisplayHelpers.showErrorMessage("Script error", e2);
+						}
+					}
+					
+//					scriptEditor.showScript(path.toFile());
 				});
 				menu.getItems().add(item);
 			}

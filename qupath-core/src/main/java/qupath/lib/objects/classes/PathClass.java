@@ -42,17 +42,35 @@ public class PathClass implements Comparable<PathClass>, Serializable {
 	private static final long serialVersionUID = 1L;
 
 	private static String defaultName = "Unclassified";
+	private static Integer DEFAULT_COLOR = ColorTools.makeRGB(64, 64, 64);
 	
-	private PathClass parentClass = null;
-	private String name = null;
-	private Integer colorRGB = ColorTools.makeRGB(64, 64, 64);
+	private final PathClass parentClass;
+	private final String name;
+	private Integer colorRGB;
 
-	PathClass() {}
+	PathClass() {
+		parentClass = null;
+		name = null;
+		colorRGB = null;
+	}
 
+	/**
+	 * This constructor should <i>not<i> be called explicitly; rather, use {@link PathClassFactory}. 
+	 * <p>
+	 * Only one instance of a PathClass should exist for any given name and list of ancestors.
+	 * 
+	 * @param parent
+	 * @param name
+	 * @param colorRGB
+	 */
 	PathClass(PathClass parent, String name, Integer colorRGB) {
+		if (parent != null && name == null)
+			throw new IllegalArgumentException("Cannot create a derived PathClass with name == null");
 		this.parentClass = parent;
 		this.name = name;
-		if (colorRGB != null)
+		if (colorRGB == null)
+			this.colorRGB = DEFAULT_COLOR;
+		else
 			this.colorRGB = colorRGB;
 	}
 	
@@ -63,20 +81,6 @@ public class PathClass implements Comparable<PathClass>, Serializable {
 	public PathClass getParentClass() {
 		return parentClass;
 	}
-	
-//	/**
-//	 * Derive a new PathClass from this one.
-//	 * The purpose is to create multiple classes for sub-categorization e.g. of intensity.
-//	 * 
-//	 * @return
-//	 */
-//	public PathClass deriveClass(String name, Color color) {
-//		if (color == null)
-//			color = this.getColor();
-//		PathClass childClass = new PathClass(name, color);
-//		childClass.parentClass = this;
-//		return childClass;
-//	}
 	
 	public boolean isDerivedClass() {
 		return parentClass != null;
@@ -100,9 +104,10 @@ public class PathClass implements Comparable<PathClass>, Serializable {
 	
 	
 	/**
-	 * Returns TRUE if this class is equal to the specified child class.
+	 * Returns {@code true} if this class is equal to the specified child class, 
+	 * or an ancestor of that class.
 	 * 
-	 * @param parentClass
+	 * @param childClass
 	 * @return
 	 */
 	public boolean isAncestorOf(PathClass childClass) {
@@ -144,7 +149,7 @@ public class PathClass implements Comparable<PathClass>, Serializable {
 	}
 	
 	static String derivedClassToString(PathClass parent, String name) {
-		return parent == null ? name : parent.getName() + ": " + name;
+		return parent == null ? name : parent.toString() + ": " + name;
 	}
 	
 	@Override
@@ -157,20 +162,44 @@ public class PathClass implements Comparable<PathClass>, Serializable {
 			return name;
 	}
 	
-	public boolean isDefault() {
-		return name == null;
+	/**
+	 * A PathClass is valid if its name is not null.
+	 * <p>
+	 * This should generally the case, but a single (invalid) PathClass with a null name 
+	 * can be used to indicate the absence of a classification; however, it should not be assigned 
+	 * to any object.  Rather, objects should be assigned either a valid PathClass or null to indicate 
+	 * that they have no classification.
+	 * 
+	 * @return
+	 */
+	public boolean isValid() {
+		return name != null;
 	}
 
+	/**
+	 * This is now equivalent to {@code this.toString().compareTo(o.toString())}.
+	 * <p>
+	 * Note that in previous versions (&lt; 0.1.2), the comparison was made based on the name only.
+	 * <p>
+	 * This could result in unexpected behavior whenever comparing with equality and using 
+	 * derived {@code PathClass} objects, because only the (final) name part was being compared 
+	 * and this could potentially result in classifications (wrongly) being considered equal 
+	 * (e.g. "Tumor: Positive" and "Stroma: Positive").
+	 * <p>
+	 * This was most significant when working with Groovy, where {@code == } is replaced by {@code compareTo}.
+	 */
 	@Override
 	public int compareTo(PathClass o) {
-		if (name == null) {
-			if (o.getName() == null)
-				return 0;
-			else
-				return -1;
-		} else if (o.getName() == null)
-			return 1;
-		return name.compareTo(o.getName());
+		return toString().compareTo(o.toString());
+		// Old behavior (v0.1.2) - can give unexpected results with Groovy == comparisons
+//		if (name == null) {
+//			if (o.getName() == null)
+//				return 0;
+//			else
+//				return -1;
+//		} else if (o.getName() == null)
+//			return 1;
+//		return name.compareTo(o.getName());
 	}
 	
 }

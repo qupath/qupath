@@ -23,7 +23,8 @@
 
 package qupath.lib.images.servers;
 
-import java.io.File;
+import java.io.IOException;
+import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -41,23 +42,24 @@ import qupath.lib.regions.RegionRequest;
  *
  * @param <T>
  */
-public interface ImageServer<T> {
+public interface ImageServer<T> extends AutoCloseable {
 	
 	/**
-	 * Get either the URL for this image, or the path to a file.
+	 * Get a String path that can uniquely identify this image.
 	 * <p>
-	 * This should uniquely identify the image; if multiple images are stored within the same file, then this information should be encoded (somehow) in the path.
-	 * @return
+	 * For most standard images, this should be a String representation of an absolute URI. 
+	 * If multiple images are stored within the same file, then this information should be encoded in the URI.
+	 * <p>
+	 * For images that are generated some other way (e.g. created dynamically) the path may not lend itself to 
+	 * a URI representation, but must still be unique so that it can be used for caching tiles.
 	 * 
-	 * @see getFile
+	 * @return
 	 */
 	public String getPath();
-
+	
 	/**
-	 * Get a short name for the server, derived from getServerPath().
+	 * Get a short name for the server, derived from {@code getPath()}.
 	 * @return
-	 * 
-	 * @see getShortServerName(String)
 	 */
 	public String getShortServerName();
 
@@ -68,14 +70,32 @@ public interface ImageServer<T> {
 	public double[] getPreferredDownsamples();
 	
 	/**
+	 * Number of resolutions for the image.
+	 * <p>
+	 * This is equivalent to {@code getPreferredDownsamples().length}.
+	 * 
+	 * @return
+	 */
+	public int nResolutions();
+	
+	/**
 	 * Get the downsample factor supported by the server that is the best match for the requested downsample.
-	 * Generally, this will be <= the requested downsample (but it may be slightly more if the error introduced
+	 * Generally, this will be &lt;= the requested downsample (but it may be slightly more if the error introduced
 	 * would be very small, i.e. if 4 is requested and 4.0001 is available, 4.0001 would be returned).
 	 * 
 	 * @param requestedDownsample
 	 * @return
 	 */
 	public double getPreferredDownsampleFactor(double requestedDownsample);
+	
+	/**
+	 * Get the downsample factor for a specified resolution level, where level 0 is the full resolution image 
+	 * and nResolutions() - 1 is the lowest resolution available.
+	 * 
+	 * @param level Resolution level, should be 0 &leq; level &lt; nResolutions().
+	 * @return
+	 */
+	public double getDownsampleForResolution(int level);
 	
 	/**
 	 * A suggested tile width (in pixels), derived from the full-resolution image.
@@ -108,6 +128,18 @@ public interface ImageServer<T> {
 	 * @return
 	 */
 	public int getHeight();
+	
+	/**
+	 * Width of image for a specific resolution level in pixels.
+	 * @return
+	 */
+	public int getLevelWidth(int level);
+
+	/**
+	 * Height of image for a specific resolution level in pixels.
+	 * @return
+	 */
+	public int getLevelHeight(int level);
 
 	/**
 	 * Number of channels (3 for RGB).
@@ -116,7 +148,7 @@ public interface ImageServer<T> {
 	public int nChannels();
 	
 	/**
-	 * TRUE if the image has 8-bit red, green & blue channels (and nothing else), false otherwise.
+	 * TRUE if the image has 8-bit red, green &amp; blue channels (and nothing else), false otherwise.
 	 * @return
 	 */
 	public boolean isRGB();
@@ -164,7 +196,7 @@ public interface ImageServer<T> {
 	public double getPixelHeightMicrons();
 	
 	/**
-	 * The mean of the pixel width & height, if available; for square pixels this is the same as either width * height
+	 * The mean of the pixel width &amp; height, if available; for square pixels this is the same as either width * height
 	 * @return
 	 */
 	public double getAveragedPixelSizeMicrons();
@@ -176,7 +208,7 @@ public interface ImageServer<T> {
 	public boolean hasPixelSizeMicrons();
 	
 	/**
-	 * Obtain a T thumbnail, no larger than the maxWidth & maxHeigth specified.
+	 * Obtain a T thumbnail, no larger than the maxWidth &amp; maxHeigth specified.
 	 * Aspect ratio will be maintained, so only one dimension needs to be specified - the other can be -1.
 	 * <p>
 	 * Note: The aim of this method is to supply a T that would look sensible when drawn,
@@ -188,13 +220,13 @@ public interface ImageServer<T> {
 	 * @param zPosition
 	 * @return
 	 */
-	public T getBufferedThumbnail(int maxWidth, int maxHeight, int zPosition);
+	public T getBufferedThumbnail(int maxWidth, int maxHeight, int zPosition) throws IOException;
 
 	/**
 	 * Read a requested region, returning PathImage containing additional metadata.
 	 * <p>
 	 * 'region' must contain integer pixel coordinates from the full-resolution image, while downsampleFactor can be any double 
-	 * (generally >= 1; 'upsampling' may not be supported, depending on the concrete implementations).
+	 * (generally &gt;= 1; 'upsampling' may not be supported, depending on the concrete implementations).
 	 * <p>
 	 * For pyramid images, no guarantee is provided as to which level will actually be used, but it is most likely
 	 * to be the level closest to - but not lower-resolution than - the requested downsampleFactor.
@@ -211,7 +243,7 @@ public interface ImageServer<T> {
 	 * @param request - the image region being requested, including the downsample factor
 	 * @return
 	 */
-	public PathImage<T> readRegion(RegionRequest request);
+	public PathImage<T> readRegion(RegionRequest request) throws IOException;
 	
 	/**
 	 * Read a buffered image for a specified RegionRequest, cropping and downsampling as required.  No specific checking is guaranteed
@@ -222,12 +254,7 @@ public interface ImageServer<T> {
 	 * @param request
 	 * @return
 	 */
-	public T readBufferedImage(RegionRequest request);
-
-	/**
-	 * Method that may be required by some servers.
-	 */
-	public void close();
+	public T readBufferedImage(RegionRequest request) throws IOException;
         
 	
 	/**
@@ -244,8 +271,8 @@ public interface ImageServer<T> {
 	 * 
 	 * @return
 	 * 
-	 * @see getSubImagePath
-	 * @see getAssociatedImage
+	 * @see #getSubImagePath
+	 * @see #getAssociatedImage
 	 */
 	public List<String> getSubImageList();
 	
@@ -254,7 +281,7 @@ public interface ImageServer<T> {
 	 * 
 	 * @return
 	 * 
-	 * @see getSubImageList
+	 * @see #getSubImageList
 	 */
 	public String getSubImagePath(String imageName);
 	
@@ -276,7 +303,7 @@ public interface ImageServer<T> {
 	 * <p>
 	 * Each associated image is simply a T that does not warrant (or require) a full ImageServer, and most likely would never be analyzed.
 	 * 
-	 * @see getAssociatedImage
+	 * @see #getAssociatedImage
 	 * 
 	 * @return
 	 */
@@ -285,7 +312,7 @@ public interface ImageServer<T> {
 	/**
 	 * Get the T for a given AssociatedImage name.
 	 * 
-	 * @see getAssociatedImageList
+	 * @see #getAssociatedImageList
 	 * 
 	 * @param name
 	 * @return
@@ -298,7 +325,7 @@ public interface ImageServer<T> {
 	 * <p>
 	 * If the server only has one image, then it will be the same as getShortServerName().
 	 * However if the server contains multiple images, this will identify the image whose
-	 * metadata & pixels are provided by the server.
+	 * metadata &amp; pixels are provided by the server.
 	 * 
 	 * @return
 	 */
@@ -320,13 +347,11 @@ public interface ImageServer<T> {
 	public boolean usesBaseServer(ImageServer<?> server);
 	
 	
-	/**
-	 * Returns file containing the server (image) data, or null if the server does not receive its data from a stored file (e.g. it is computed dynamically or read from a URL).
-	 * <p>
-	 * Note that this is not necessarily the same as <code>new File(server.getPath());</code> but some implementations may encode additional information (e.g. regarding sub-images) in the server path.
-	 * @return
-	 */
-	public File getFile();
+//	/**
+//	 * Returns an absolute URI representing the server (image) data, or null if the server does not receive its data from a stored file (e.g. it is computed dynamically).
+//	 * @return
+//	 */
+//	public URI getURI();
 	
 	
 	/**
@@ -365,33 +390,100 @@ public interface ImageServer<T> {
 	
 	
 	/**
+	 * Get a name for the channel.
+	 * @param channel
+	 * @return
+	 */
+	public String getChannelName(int channel);
+	
+	/**
+	 * Get a list providing the name & default color for each image channel.
+	 * @return
+	 */
+	public List<ImageChannel> getChannels();
+	
+	/**
 	 * Get essential metadata associated with the ImageServer as a distinct object.  This may be edited by the user.
 	 * @return
-	 * @see getOriginalMetadata
+	 * @see #getOriginalMetadata
 	 */
 	public ImageServerMetadata getMetadata();
 	
 	/**
 	 * Set the metadata to use, e.g. to change the pixel size in microns.
-	 * @see getMetadata
-	 * @see getOriginalMetadata
+	 * 
+	 * @param metadata
+	 * @throws IllegalArgumentException if the metadata is incompatible (e.g. different image path, different bit-depth).
 	 */
-	public void setMetadata(ImageServerMetadata metadata);
+	public void setMetadata(ImageServerMetadata metadata) throws IllegalArgumentException;
 	
 	/**
 	 * Get the original metadata read during creation of the server.  This may or may not be correct.
 	 * @return
-	 * @see getMetadata
+	 * @see #getMetadata
 	 */
 	public ImageServerMetadata getOriginalMetadata();
 	
 	/**
 	 * Tests whether the original metadata (e.g. pixel sizes in microns, magnification) is being used.
 	 * @return
-	 * @see getMetadata
-	 * @see getOriginalMetadata
+	 * @see #getMetadata
+	 * @see #getOriginalMetadata
 	 */
 	public boolean usesOriginalMetadata();
+
+	/**
+	 * Get the default thumbnail, without specifying the z-slice or timepoint.
+	 * <p>
+	 * This is useful for a general representation of the image appearance.  A specific 
+	 * z-slice or timepoint should not be assumed, e.g. it may be the first or it may be selected 
+	 * based on other criteria.
+	 * 
+	 * @return
+	 * @see #getDefaultThumbnail(int, int)
+	 */
+	public T getDefaultThumbnail() throws IOException;
+	
+	/**
+	 * Get the default thumbnail for a specified z-slice and timepoint.
+	 * <p>
+	 * This should be the lowest resolution image that is available in the case of the multiresolution 
+	 * image, or else the full image.  For large datasets, it may be used to determine basic statistics or 
+	 * histograms without requiring every pixel to be visited in the full resolution image.
+	 * 
+	 * @param z
+	 * @param t
+	 * @return
+	 */
+	public T getDefaultThumbnail(int z, int t) throws IOException;
+	
+	
+	/**
+	 * Get {@link TileRequest} objects for <i>all</i> tiles that this server supports.
+	 * 
+	 * @return
+	 */
+	public Collection<TileRequest> getAllTileRequests();
+	
+	/**
+	 * Get the {@link TileRequest} containing a specified pixel, or null if no such request exists.
+	 * 
+	 * @param level
+	 * @param x
+	 * @param y
+	 * @param z
+	 * @param t
+	 * @return
+	 */
+	public TileRequest getTile(int level, int x, int y, int z, int t);
+	
+	/**
+	 * Get a collection of {@link TileRequest} objects necessary to fulfil a specific {@link RegionRequest}.
+	 * 
+	 * @param request
+	 * @return
+	 */
+	public Collection<TileRequest> getTiles(final RegionRequest request);
 	
 	
 }

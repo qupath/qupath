@@ -32,7 +32,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A 2D point (x & y coordinates).
+ * A 2D point (x &amp; y coordinates).
  * 
  * @author Pete Bankhead
  *

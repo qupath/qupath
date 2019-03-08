@@ -58,6 +58,7 @@ import qupath.lib.awt.color.ColorToolsAwt;
 import qupath.lib.awt.common.AwtTools;
 import qupath.lib.geom.Point2;
 import qupath.lib.gui.helpers.MeasurementMapper;
+import qupath.lib.gui.objects.helpers.PathObjectColorToolsAwt;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.objects.PathCellObject;
 import qupath.lib.objects.PathDetectionObject;
@@ -67,7 +68,7 @@ import qupath.lib.objects.PathObjectConnections;
 import qupath.lib.objects.PathTileObject;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.classes.PathClass;
-import qupath.lib.objects.helpers.PathObjectColorToolsAwt;
+import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.TMAGrid;
@@ -104,12 +105,13 @@ public class PathHierarchyPaintingHelper {
 	private static ShapeProvider shapeProvider = new ShapeProvider();
 	
 	private static Map<Number, Stroke> strokeMap = new HashMap<>();
+	private static Map<Number, Stroke> dashedStrokeMap = new HashMap<>();
 	
 	private PathHierarchyPaintingHelper() {}
 
 	/**
 	 * Create a thumbnail image, with the overlay painted.
-	 * If a BufferedImage is supplied, it will be used if it has the required width & height - otherwise a new one will be generated.
+	 * If a BufferedImage is supplied, it will be used if it has the required width &amp; height - otherwise a new one will be generated.
 	 * 
 	 * @param overlayOptions
 	 * @param serverWidth
@@ -293,7 +295,7 @@ public class PathHierarchyPaintingHelper {
 					boundsDisplayed.intersects(roiBoundsX, roiBoundsY, Math.max(roiBoundsWidth, 1), Math.max(roiBoundsHeight, 1))) {
 			
 				// Paint the ROI, if necessary
-				if (isSelected || (overlayOptions.getShowObjects() && isDetectedObject) || (overlayOptions.getShowAnnotations() && pathObject.isAnnotation()) || (overlayOptions.getShowTMAGrid() && pathObject.isTMACore())) {
+				if (isSelected || (overlayOptions.getShowDetections() && isDetectedObject) || (overlayOptions.getShowAnnotations() && pathObject.isAnnotation()) || (overlayOptions.getShowTMAGrid() && pathObject.isTMACore())) {
 		
 					boolean doFill = overlayOptions.getFillObjects() || pathObject instanceof ParallelTileObject;
 					boolean doOutline = true;
@@ -375,7 +377,12 @@ public class PathHierarchyPaintingHelper {
 						}
 						else {
 							double thicknessScale = downsample * (isSelected && !PathPrefs.getUseSelectedColor() ? 1.6 : 1);
-							stroke = getCachedStroke(PathPrefs.getThickStrokeThickness() * thicknessScale);
+							float thickness = (float)(PathPrefs.getThickStrokeThickness() * thicknessScale);
+							if (isSelected && pathObject.getParent() == null && PathPrefs.isSelectionMode()) {
+								stroke = getCachedStrokeDashed(thickness);
+							} else {
+								stroke = getCachedStroke(thickness);
+							}
 						}
 						
 						g.setStroke(stroke);
@@ -387,7 +394,7 @@ public class PathHierarchyPaintingHelper {
 								paintROI(cell.getNucleusROI(), g, colorStroke, stroke, colorFill, downsample);
 							painted = true;
 						} else {
-							if ((overlayOptions.getFillAnnotations() && pathObject.isAnnotation()) || (pathObject.isTMACore() && overlayOptions.getShowTMACoreLabels()))
+							if ((overlayOptions.getFillAnnotations() && pathObject.isAnnotation() && pathObject.getPathClass() != PathClassFactory.getRegionClass()) || (pathObject.isTMACore() && overlayOptions.getShowTMACoreLabels()))
 								paintROI(pathROI, g, colorStroke, stroke, ColorToolsAwt.getMoreTranslucentColor(colorStroke), downsample);
 							else
 								paintROI(pathROI, g, colorStroke, stroke, colorFill, downsample);
@@ -425,7 +432,11 @@ public class PathHierarchyPaintingHelper {
 		if (pathROI instanceof PathShape) {
 			Shape shape = shapeProvider.getShape((PathShape)pathROI, downsample);
 //			Shape shape = PathROIToolsAwt.getShape(pathROI);
-			paintShape(shape, g, colorStroke, stroke, colorFill, downsample);
+			// Only pass the colorFill if we have an area (i.e. not a line/polyline)
+			if (pathROI instanceof PathArea)
+				paintShape(shape, g, colorStroke, stroke, colorFill, downsample);
+			else
+				paintShape(shape, g, colorStroke, stroke, null, downsample);
 		} else if (pathROI instanceof PathPoints) {
 			paintPoints((PathPoints)pathROI, g2d, PathPrefs.getDefaultPointRadius(), colorStroke, stroke, colorFill, downsample);
 		}
@@ -527,11 +538,11 @@ public class PathHierarchyPaintingHelper {
 		
 		private Shape simplifyByDownsample(final Shape shape, final double downsample) {
 			if (downsample > 50)
-				return ShapeSimplifierAwt.simplifyPath(shape instanceof Path2D ? (Path2D)shape : new Path2D.Float(shape), 100);
+				return ShapeSimplifierAwt.simplifyPath(shape instanceof Path2D ? (Path2D)shape : new Path2D.Float(shape), 50);
 			if (downsample > 20)
-				return ShapeSimplifierAwt.simplifyPath(shape instanceof Path2D ? (Path2D)shape : new Path2D.Float(shape), 40);
-			if (downsample > 10)
 				return ShapeSimplifierAwt.simplifyPath(shape instanceof Path2D ? (Path2D)shape : new Path2D.Float(shape), 20);
+			if (downsample > 10)
+				return ShapeSimplifierAwt.simplifyPath(shape instanceof Path2D ? (Path2D)shape : new Path2D.Float(shape), 10);
 			return shape;
 		}
 		
@@ -607,6 +618,28 @@ public class PathHierarchyPaintingHelper {
 			g2d.setColor(colorStroke);
 			g2d.draw(shape);
 		}
+		
+		// TODO: Find a way to incorporate arrow heads
+//		if (shape instanceof Line2D) {
+//			Line2D line = (Line2D)shape;
+//			double x1 = line.getX1();
+//			double y1 = line.getY1();
+//			double x2 = line.getX2();
+//			double y2 = line.getY2();
+//			double dx = x1 - x2;
+//			double dy = y1 - y2;
+//			double length = Math.sqrt(dx*dx + dy*dy);
+//			// Unit vectors & perpendicular
+//			dx /= length;
+//			dy /= length;
+//			double px = dy;
+//			double py = -dx;
+//			double scale = Math.min(length / 5.0, downsample * 40);
+//			line.setLine(x1, y1, x1-dx*scale+px*scale/2, y1-dy*scale+py*scale/2);
+//			g2d.draw(line);
+//			line.setLine(x1, y1, x1-dx*scale-px*scale/2, y1-dy*scale-py*scale/2);
+//			g2d.draw(line);
+//		}
 	}
 	
 	
@@ -627,7 +660,7 @@ public class PathHierarchyPaintingHelper {
 		
 //		double radius = pathPointsROI == null ? PointsROI.getDefaultPointRadius() : pathPointsROI.getPointRadius();
 		// Ensure that points are drawn with at least a radius of one, after any transforms have been applied
-		double scale = g2d.getTransform().getScaleX();
+		double scale = Math.max(1, downsample);
 		radius = (Math.max(1 / scale, radius));
 		
 		g2d.setStroke(stroke);
@@ -645,6 +678,16 @@ public class PathHierarchyPaintingHelper {
 	}
 	
 	
+	static Stroke getCachedStrokeDashed(final Number thickness) {
+		Stroke stroke = dashedStrokeMap.get(thickness);
+		if (stroke == null) {
+			stroke = new BasicStroke(
+					thickness.floatValue(),
+					BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER, 10f, new float[] {thickness.floatValue() * 5f}, 0f);
+			dashedStrokeMap.put(thickness, stroke);
+		}
+		return stroke;
+	}
 	
 	static Stroke getCachedStroke(final Number thickness) {
 		Stroke stroke = strokeMap.get(thickness);
@@ -662,44 +705,87 @@ public class PathHierarchyPaintingHelper {
 	public static Stroke getCachedStroke(final double thickness) {
 		if (thickness == Math.rint(thickness))
 			return getCachedStroke((int)thickness);
-		return getCachedStroke(new Float(thickness));
+		return getCachedStroke(Float.valueOf((float)thickness));
 	}
 	
 	
 	/**
 	 * Paint the handles onto a Graphics object, if we have a suitable (non-point) ROI.
+	 * <p>
+	 * The minimum and maximum handle size can be specified; if the same, all handles will have the same size.  If different, 
+	 * then the distance between consecutive handles will be used to influence the actual handle size.  This is helpful 
+	 * when handles are densely packed.
 	 * 
 	 * @param g2d
-	 * @param handleSize The width & height of the shape used to draw the handles
+	 * @param minHandleSize
+	 * @param maxHandleSize
 	 * @param colorStroke
 	 * @param colorFill
 	 */
-	public static void paintHandles(final RoiEditor roiEditor, final Graphics2D g2d, final double handleSize, final Color colorStroke, final Color colorFill) {		
+	public static void paintHandles(final RoiEditor roiEditor, final Graphics2D g2d, final double minHandleSize, final double maxHandleSize, final Color colorStroke, final Color colorFill) {		
 		if (!(roiEditor.getROI() instanceof PointsROI))
-			paintHandles(roiEditor.getHandles(), g2d, handleSize, colorStroke, colorFill);
+			paintHandles(roiEditor.getHandles(), g2d, minHandleSize, maxHandleSize, colorStroke, colorFill);
 	}
 
 		/**
 		 * Paint the handles onto a Graphics object.
 		 * 
 		 * @param g2d
-		 * @param handleSize The width & height of the shape used to draw the handles
+		 * @param handleSize The width &amp; height of the shape used to draw the handles
 		 * @param colorStroke
 		 * @param colorFill
 		 */
-		public static void paintHandles(final List<Point2> handles, final Graphics2D g2d, final double handleSize, final Color colorStroke, final Color colorFill) {		
+	/**
+	 * Paint the handles onto a Graphics object, if we have a suitable (non-point) ROI.
+	 * <p>
+	 * The minimum and maximum handle size can be specified; if the same, all handles will have the same size.  If different, 
+	 * then the distance between consecutive handles will be used to influence the actual handle size.  This is helpful 
+	 * when handles are densely packed.
+	 * 
+	 * @param handles
+	 * @param g2d
+	 * @param minHandleSize
+	 * @param maxHandleSize
+	 * @param colorStroke
+	 * @param colorFill
+	 */
+	public static void paintHandles(final List<Point2> handles, final Graphics2D g2d, final double minHandleSize, final double maxHandleSize, final Color colorStroke, final Color colorFill) {		
 			RectangularShape handleShape = new Rectangle2D.Double();
 //			handleShape = new Ellipse2D.Double();
 		
-		for (Point2 p : handles) {
-			handleShape.setFrame(p.getX()-handleSize/2, p.getY()-handleSize/2, handleSize, handleSize);
-			if (colorFill != null) {
-				g2d.setColor(colorFill);
-				g2d.fill(handleShape);
+		int n = handles.size();
+		if (minHandleSize == maxHandleSize) {
+			for (Point2 p : handles) {
+				double handleSize = minHandleSize;
+				handleShape.setFrame(p.getX()-handleSize/2, p.getY()-handleSize/2, handleSize, handleSize);
+				if (colorFill != null) {
+					g2d.setColor(colorFill);
+					g2d.fill(handleShape);
+				}
+				if (colorStroke != null) {
+					g2d.setColor(colorStroke);
+					g2d.draw(handleShape);
+				}
 			}
-			if (colorStroke != null) {
-				g2d.setColor(colorStroke);
-				g2d.draw(handleShape);
+			return;
+		} else {
+			for (int i = 0; i < handles.size(); i++) {
+				var current = handles.get(i);
+				var before = handles.get((i + n - 1) % n);
+				var after = handles.get((i + 1) % n);
+				double distance = Math.sqrt(Math.min(current.distanceSq(before), current.distanceSq(after))) * 0.5;
+				double size = Math.max(minHandleSize, Math.min(distance, maxHandleSize));
+				
+				var p = current;
+				handleShape.setFrame(p.getX()-size/2, p.getY()-size/2, size, size);
+				if (colorFill != null) {
+					g2d.setColor(colorFill);
+					g2d.fill(handleShape);
+				}
+				if (colorStroke != null) {
+					g2d.setColor(colorStroke);
+					g2d.draw(handleShape);
+				}
 			}
 		}
 	}

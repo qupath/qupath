@@ -29,7 +29,7 @@ import java.io.ObjectInput;
 import java.io.ObjectOutput;
 
 /**
- * A 2D point (x, y & z coordinates).
+ * A 3D point (x, y &amp; z coordinates).
  * 
  * @author Pete Bankhead
  *

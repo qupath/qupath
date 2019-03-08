@@ -43,7 +43,6 @@ public class ViewerSetDownsampleCommand implements PathCommand {
 	 * Set the downsample.  May be locked to a particular QuPathViewer or, if this is null, applied to the active viewer.
 	 * 
 	 * @param viewer
-	 * @param text
 	 * @param downsample
 	 */
 	public ViewerSetDownsampleCommand(final QuPathViewer viewer, final double downsample) {

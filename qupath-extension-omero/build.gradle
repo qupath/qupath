@@ -1,0 +1,11 @@
+description = 'qupath-extension-omero'
+
+configurations {
+  implementation.extendsFrom javafx
+  implementation.extendsFrom gson
+}
+
+dependencies {
+  implementation project(':qupath-core')
+  implementation project(':qupath-gui-fx')
+}

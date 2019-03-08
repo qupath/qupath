@@ -42,14 +42,13 @@ import org.slf4j.LoggerFactory;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathApp;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.scripting.QPEx;
 import qupath.lib.gui.tma.QuPathTMAViewer;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerProvider;
 import qupath.lib.io.PathIO;
 import qupath.lib.scripting.QP;
-import qupath.lib.scripting.QPEx;
-import qupath.opencv.OpenCVExtension;
 
 /**
  * Main QuPath launcher.
@@ -65,7 +64,7 @@ public class QuPath {
 		
 		logger.info("Launching QuPath with args: {}", String.join(", ", args));
 		
-		if (args != null && args.length > 0 && "tma".equals(args[0].toLowerCase()))
+		if (args.length > 0 && "tma".equals(args[0].toLowerCase()))
 				QuPathTMAViewer.launch(QuPathTMAViewer.class, args);
 		else {
 //			// This was an attempt to register a file listener at an early stage, so as to be able to launch QuPath
@@ -106,9 +105,9 @@ public class QuPath {
 				
 				String scriptName = map.get(SCRIPT_KEY);
 				
-				// Try to load OpenCV native library
-				if (!OpenCVExtension.loadNativeLibrary())
-					logger.warn("Unable to load OpenCV native library!");
+//				// Try to load OpenCV native library
+//				if (!OpenCVExtension.loadNativeLibrary())
+//					logger.warn("Unable to load OpenCV native library!");
 				
 				// 
 				ClassLoader classLoader = new QuPathGUI.ExtensionClassLoader();

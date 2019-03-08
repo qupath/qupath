@@ -55,7 +55,7 @@ import qupath.lib.gui.logging.TextAppendable;
 
 /**
  * Basic log display functionality.
- * 
+ * <p>
  * TODO: Nicer, color-coded implementation - possible using a ListView.
  * Ideally, this would also be filterable.
  * 

@@ -27,7 +27,9 @@ import java.util.List;
 import java.util.PriorityQueue;
 
 import qupath.lib.geom.Point2;
+import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.PolygonROI;
+import qupath.lib.roi.ROIs;
 
 /**
  * Helper methods for simplifying shapes, i.e. removing polygon points while retaining the same overall 
@@ -52,9 +54,8 @@ public class ShapeSimplifier {
 	 * https://www.jasondavies.com/simplify/
 	 * http://bost.ocks.org/mike/simplify/
 	 * 
-	 * @param polygon
-	 * @param areaThreshold
-	 * @return
+	 * @param points
+	 * @param altitudeThreshold
 	 */
 	public static void simplifyPolygonPoints(final List<Point2> points, final double altitudeThreshold) {
 		
@@ -139,14 +140,14 @@ public class ShapeSimplifier {
 	 * http://bost.ocks.org/mike/simplify/
 	 * 
 	 * @param polygon
-	 * @param areaThreshold
+	 * @param altitudeThreshold
 	 * @return
 	 */
 	public static PolygonROI simplifyPolygon(PolygonROI polygon, final double altitudeThreshold) {
 		List<Point2> points = polygon.getPolygonPoints();
 		simplifyPolygonPoints(points, altitudeThreshold);
 		// Construct a new polygon
-		return new PolygonROI(points, polygon.getC(), polygon.getZ(), polygon.getT());
+		return ROIs.createPolygonROI(points, ImagePlane.getPlaneWithChannel(polygon));
 	}
 	
 	

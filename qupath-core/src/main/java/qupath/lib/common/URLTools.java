@@ -62,17 +62,6 @@ public class URLTools {
 		}
 	}
 
-	
-	/**
-	 * Read URL as String, with default timeout of 5 seconds.
-	 * 
-	 * @param url
-	 * @return
-	 */
-	public static String readURLAsString(final URL url) throws IOException {
-		return readURLAsString(url, 5000); // Here, use 5 second timeout
-	}
-
 
 	/**
 	 * Read URL as String, with specified timeout in milliseconds.

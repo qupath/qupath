@@ -25,8 +25,12 @@
 package qupath.lib.gui.tma.entries;
 
 import java.awt.image.BufferedImage;
+import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javafx.embed.swing.SwingFXUtils;
 import javafx.scene.image.Image;
@@ -43,6 +47,8 @@ import qupath.lib.roi.interfaces.ROI;
  *
  */
 public class TMAObjectEntry implements TMAEntry {
+	
+	private static final Logger logger = LoggerFactory.getLogger(TMAObjectEntry.class);
 
 	private ImageData<BufferedImage> imageData;
 
@@ -55,7 +61,6 @@ public class TMAObjectEntry implements TMAEntry {
 	 * 
 	 * @param imageData
 	 * @param data
-	 * @param serverPath
 	 * @param core
 	 */
 	public TMAObjectEntry(ImageData<BufferedImage> imageData, ObservableMeasurementTableData data, TMACoreObject core) {
@@ -67,9 +72,8 @@ public class TMAObjectEntry implements TMAEntry {
 	 * 
 	 * @param imageData
 	 * @param data
-	 * @param serverPath
 	 * @param core
-	 * @param preferredDownsample The preferred amount to downsample any region requests used to return an image.  This is useful to limit 
+	 * @param preferredDownsample the preferred amount to downsample any region requests used to return an image.  This is useful to limit 
 	 * requests to avoid looking for an excessively-high resolution image.
 	 */
 	public TMAObjectEntry(ImageData<BufferedImage> imageData, ObservableMeasurementTableData data, TMACoreObject core, final double preferredDownsample) {
@@ -140,12 +144,14 @@ public class TMAObjectEntry implements TMAEntry {
 			downsample = Math.max(roi.getBoundsWidth() / maxWidth, preferredDownsample);
 		}
 		
-		BufferedImage img = imageData.getServer().readBufferedImage(
-				RegionRequest.createInstance(imageData.getServerPath(), downsample, roi));
-		
-		if (img == null)
+		try {
+			BufferedImage img = imageData.getServer().readBufferedImage(
+					RegionRequest.createInstance(imageData.getServerPath(), downsample, roi));
+			return SwingFXUtils.toFXImage(img, null);
+		} catch (IOException e) {
+			logger.warn("Unable to return TMA core image for " + this, e);
 			return null;
-		return SwingFXUtils.toFXImage(img, null);
+		}
 	}
 
 	@Override

@@ -25,6 +25,7 @@ package qupath.lib.gui.commands;
 
 import java.awt.geom.Point2D;
 import java.awt.image.BufferedImage;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -66,13 +67,14 @@ import qupath.lib.gui.plots.ScatterPlot;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
 import qupath.lib.plugins.parameters.ParameterList;
+import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.RegionRequest;
-import qupath.lib.roi.RectangleROI;
+import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
  * Command to help set stain vectors for brightfield chromogenic stains,
- * e.g. H-DAB or H&E.
+ * e.g. H-DAB or H&amp;E.
  * 
  * @author Pete Bankhead
  *
@@ -123,11 +125,18 @@ public class EstimateStainVectorsCommand implements PathCommand {
 		PathObject pathObject = imageData.getHierarchy().getSelectionModel().getSelectedObject();
 		ROI roi = pathObject == null ? null : pathObject.getROI();
 		if (roi == null)
-			roi = new RectangleROI(0, 0, imageData.getServer().getWidth(), imageData.getServer().getHeight());
+			roi = ROIs.createRectangleROI(0, 0, imageData.getServer().getWidth(), imageData.getServer().getHeight(), ImagePlane.getDefaultPlane());
 		
 		double downsample = Math.max(1, Math.sqrt((roi.getBoundsWidth() * roi.getBoundsHeight()) / MAX_PIXELS));
 		RegionRequest request = RegionRequest.createInstance(imageData.getServerPath(), downsample, roi);
-		BufferedImage img = imageData.getServer().readBufferedImage(request);
+		BufferedImage img = null;
+		
+		try {
+			img = imageData.getServer().readBufferedImage(request);
+		} catch (IOException e) {
+			DisplayHelpers.showErrorMessage("Estimate stain vectors", e);
+			logger.error("Unable to obtain pixels for " + request.toString(), e);
+		}
 		
 		// Apply small amount of smoothing to reduce compression artefacts
 		img = EstimateStainVectors.smoothImage(img);

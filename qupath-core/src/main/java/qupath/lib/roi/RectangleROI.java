@@ -23,6 +23,8 @@
 
 package qupath.lib.roi;
 
+import java.awt.Shape;
+import java.awt.geom.Rectangle2D;
 import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
 import java.io.Serializable;
@@ -44,23 +46,23 @@ public class RectangleROI extends AbstractPathBoundedROI implements PathArea, Se
 
 	private static final long serialVersionUID = 1L;
 	
-	protected RectangleROI() {
+	RectangleROI() {
 		super();
 	}
 	
-	public RectangleROI(double x, double y) {
+	RectangleROI(double x, double y) {
 		super(x, y);
 	}
 	
-	public RectangleROI(double x, double y, int c, int z, int t) {
+	RectangleROI(double x, double y, int c, int z, int t) {
 		super(x, y, c, z, t);
 	}
 
-	public RectangleROI(double x, double y, double width, double height) {
+	RectangleROI(double x, double y, double width, double height) {
 		this(x, y, width, height, -1, 0, 0);
 	}
 
-	public RectangleROI(double x, double y, double width, double height, int c, int z, int t) {
+	RectangleROI(double x, double y, double width, double height, int c, int z, int t) {
 		super(x, y, width, height, c, z, t);
 	}
 	
@@ -70,11 +72,9 @@ public class RectangleROI extends AbstractPathBoundedROI implements PathArea, Se
 	}
 	
 	@Override
-	public String getROIType() {
+	public String getRoiName() {
 		return "Rectangle";
 	}
-	
-	
 	
 
 	@Override
@@ -113,6 +113,11 @@ public class RectangleROI extends AbstractPathBoundedROI implements PathArea, Se
 //		return new Rectangle2D.Double(getBoundsX(), getBoundsY(), getBoundsWidth(), getBoundsHeight());
 //	}
 	
+	
+	@Override
+	public Shape getShape() {
+		return new Rectangle2D.Double(x, y, x2, y2);
+	}
 	
 	
 	@Override

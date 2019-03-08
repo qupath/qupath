@@ -59,8 +59,8 @@ import javafx.scene.layout.BorderPane;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.helpers.DisplayHelpers;
+import qupath.lib.gui.panels.ProjectBrowser;
 import qupath.lib.projects.Project;
-import qupath.lib.projects.ProjectIO;
 import qupath.lib.projects.ProjectImageEntry;
 
 /**
@@ -201,8 +201,7 @@ public class ProjectMetadataEditorCommand implements PathCommand {
 				wrapper.commitChanges();
 			}
 			// Write the project
-			ProjectIO.writeProject(project);
-			logger.info("Committing project metadata changes");
+			ProjectBrowser.syncProject(project);
 		}
 		
 //		Stage stage = new Stage();

@@ -23,7 +23,10 @@
 
 package qupath.lib.roi.interfaces;
 
+import java.awt.Shape;
 import java.util.List;
+
+import org.locationtech.jts.geom.Geometry;
 
 import qupath.lib.geom.Point2;
 
@@ -38,7 +41,13 @@ import qupath.lib.geom.Point2;
  */
 public interface ROI {
 
-	public abstract String getROIType();
+	/**
+	 * Get a String representation of the kind of ROI we have, 
+	 * e.g. "Rectangle", "Ellipse", "Polygon"
+	 * 
+	 * @return
+	 */
+	public abstract String getRoiName();
 
 	/**
 	 * Get channel index, or -1 if the ROI relates to all available channels.
@@ -61,24 +70,53 @@ public interface ROI {
 	 */
 	public abstract int getZ();
 
-	// Centroid functions
+	/**
+	 * Returns the x coordinate for the ROI centroid.
+	 * 
+	 * @return
+	 */
 	public abstract double getCentroidX();
 
+	/**
+	 * Returns the y coordinate for the ROI centroid.
+	 * 
+	 * @return
+	 */
 	public abstract double getCentroidY();
 
-	// Bounding box
+	/**
+	 * Returns the x coordinate for the top left of the ROI bounding box.
+	 * 
+	 * @return
+	 */
 	public abstract double getBoundsX();
 
+	/**
+	 * Returns the y coordinate for the top left of the ROI bounding box.
+	 * 
+	 * @return
+	 */
 	public abstract double getBoundsY();
 
+	/**
+	 * Returns the width of the ROI bounding box.
+	 * 
+	 * @return
+	 */
 	public abstract double getBoundsWidth();
 
+	/**
+	 * Returns the height of the ROI bounding box.
+	 * 
+	 * @return
+	 */
 	public abstract double getBoundsHeight();
 	
 	public List<Point2> getPolygonPoints();
 
 	/**
-	 * A ROI is 'empty' if its bounds have no width or height.
+	 * Returns true if the ROI bounds have zero width and height.
+	 * 
 	 * @return
 	 */
 	public abstract boolean isEmpty();
@@ -92,5 +130,63 @@ public interface ROI {
 	 */
 	@Deprecated
 	public abstract ROI duplicate();
+	
+	/**
+	 * Returns a java.awt.Shape representing this ROI, if possible.
+	 * 
+	 * <p>Note that PointROI throws an UnsupportedOperationException as it cannot 
+	 * adequately be represented by a Shape object.
+	 * 
+	 * @return
+	 */
+	public Shape getShape();
+
+	
+	/**
+	 * Returns a org.locationtech.jts.geom.Geometry object.
+	 * 
+	 * @return
+	 */
+	public Geometry getGeometry();
+	
+	
+	public enum RoiType {
+		/**
+		 * ROI represents a closed area (possibly with holes).
+		 */
+		AREA,
+		/**
+		 * ROI represents a line or polyline.
+		 */	
+		LINE,
+		/**
+		 * ROI represents points.
+		 */
+		POINT
+	}
+	
+	public RoiType getRoiType();
+	
+	/**
+	 * Returns true if this ROI consists of line segments and does not enclose an area.
+	 * 
+	 * @return
+	 */
+	public boolean isLine();
+	
+	/**
+	 * Returns true if this ROI encloses an area.
+	 * 
+	 * @return
+	 */
+	public boolean isArea();
+	
+	/**
+	 * Returns true if this ROI represents distinct (unconnected) points.
+	 * 
+	 * @return
+	 */
+	public boolean isPoint();
+	
 
 }

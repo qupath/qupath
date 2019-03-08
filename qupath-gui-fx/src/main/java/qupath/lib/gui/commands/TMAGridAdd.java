@@ -31,7 +31,6 @@ import qupath.lib.analysis.stats.RunningStatistics;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.QuPathGUI.GUIActions;
 import qupath.lib.gui.commands.interfaces.PathCommand;
-import qupath.lib.gui.commands.scriptable.TMAGridRelabel;
 import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
@@ -98,8 +97,7 @@ public class TMAGridAdd implements PathCommand {
 	/**
 	 * Add a new row or column to a TMA grid.
 	 * 
-	 * @param hierarchy
-	 * @param selectedCore
+	 * @param imageData
 	 * @param type
 	 */
 	public static boolean addToTMA(final ImageData<?> imageData, final TMAAddType type) {

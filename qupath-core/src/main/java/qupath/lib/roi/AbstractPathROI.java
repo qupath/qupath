@@ -23,7 +23,10 @@
 
 package qupath.lib.roi;
 
+import org.locationtech.jts.geom.Geometry;
+
 import qupath.lib.roi.interfaces.ROI;
+import qupath.lib.roi.jts.ConverterJTS;
 
 /**
  * Abstract implementation of a ROI.
@@ -31,7 +34,7 @@ import qupath.lib.roi.interfaces.ROI;
  * @author Pete Bankhead
  *
  */
-public abstract class AbstractPathROI implements ROI {
+abstract class AbstractPathROI implements ROI {
 	
 	// Dimension variables
 	int c = -1; // Defaults to -1, indicating all channels
@@ -50,13 +53,17 @@ public abstract class AbstractPathROI implements ROI {
 	}
 	
 	
-//	public boolean isAdjusting() {
-//		return isAdjusting;
-//	}
-	
-//	public void finishAdjusting(double x, double y, boolean shiftDown) {
-//		updateAdjustment(x, y, shiftDown);
-//		isAdjusting = false;
+//	Object asType(Class<?> cls) {
+//		if (cls.isInstance(this))
+//			return this;
+//		
+//		if (cls == Geometry.class)
+//			return ConverterJTS.getGeometry(this);
+//
+//		if (cls == Shape.class)
+//			return PathROIToolsAwt.getShape(this);
+//		
+//		throw new ClassCastException("Cannot convert " + t + " to " + cls);
 //	}
 	
 	@Override
@@ -90,9 +97,33 @@ public abstract class AbstractPathROI implements ROI {
 //		if (name != null)
 ////			return name;			
 //			return name + " - " + getROIType();			
-		return getROIType();
+		return getRoiName();
 //		return String.format("%s (%.1f, %.1f)", getROIType(), getCentroidX(), getCentroidY());
 //		return "Me";
 	}
-		
+	
+
+	@Override
+	public boolean isLine() {
+		return getRoiType() == RoiType.LINE;
+	}
+	
+	@Override
+	public boolean isArea() {
+		return getRoiType() == RoiType.AREA;
+	}
+	
+	@Override
+	public boolean isPoint() {
+		return getRoiType() == RoiType.POINT;
+	}
+	
+	private static ConverterJTS converter = new ConverterJTS.Builder().build();
+	
+	@Override
+	public Geometry getGeometry() {
+		return converter.roiToGeometry(this);
+	}
+	
+	
 }

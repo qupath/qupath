@@ -66,8 +66,11 @@ public class ColorDeconvolutionStains implements Externalizable {
 	private static String[] DAB_SPELLINGS = {"dab", "d"};
 	
 	
-	public enum DEFAULT_CD_STAINS {H_E("H&E"), H_DAB("H-DAB");
+	public enum DEFAULT_CD_STAINS {
+		H_E("H&E"), H_DAB("H-DAB");
+		
 		private String name;
+		
 		DEFAULT_CD_STAINS(String name) {
 			this.name = name;
 		};
@@ -113,7 +116,7 @@ public class ColorDeconvolutionStains implements Externalizable {
 	 * as it would be orthogonal to the old stain rather than the new one).
 	 * 
 	 * @param stains
-	 * @param stain
+	 * @param stainNew
 	 * @param stainNumber
 	 * @return
 	 */
@@ -183,7 +186,7 @@ public class ColorDeconvolutionStains implements Externalizable {
 	}
 	
 	/**
-	 * Check if we have H&E staining, by checking the names of the first two stains and confirming that the third stain is a residual.
+	 * Check if we have H&amp;E staining, by checking the names of the first two stains and confirming that the third stain is a residual.
 	 * Note the order of the stains must be 1-Hematoxylin, 2-Eosin, 3-residual (missing)
 	 * @return
 	 */
@@ -475,16 +478,7 @@ public class ColorDeconvolutionStains implements Externalizable {
 	@Override
 	public void writeExternal(ObjectOutput out) throws IOException {
 		out.writeInt(version);
-		
 		out.writeObject(getColorDeconvolutionStainsAsString(this, 8));
-		
-//		out.writeUTF(name);
-//		out.writeObject(stain1);
-//		out.writeObject(stain2);
-//		out.writeObject(stain3);
-//		out.writeDouble(maxRed);
-//		out.writeDouble(maxGreen);
-//		out.writeDouble(maxBlue);
 	}
 
 
@@ -505,14 +499,6 @@ public class ColorDeconvolutionStains implements Externalizable {
 			maxGreen = stains.maxGreen;
 			maxBlue = stains.maxBlue;
 		}
-
-//		name = in.readUTF();
-//		stain1 = (StainVector)in.readObject();
-//		stain2 = (StainVector)in.readObject();
-//		stain3 = (StainVector)in.readObject();
-//		maxRed = in.readDouble();
-//		maxGreen = in.readDouble();
-//		maxBlue = in.readDouble();
 	}
 	
 }

@@ -43,23 +43,44 @@ public class PathAnnotationObject extends PathROIObject {
 	
 	private static final long serialVersionUID = 1L;
 	
+	private final static String KEY_ANNOTATION_TEXT = "ANNOTATION_DESCRIPTION";
+	
 	public PathAnnotationObject() {
 		super();
 	}
 
-	public PathAnnotationObject(ROI pathROI) {
+	PathAnnotationObject(ROI pathROI) {
 		super(pathROI, null);
 	}
 	
-	public PathAnnotationObject(ROI pathROI, PathClass pathClass) {
+	PathAnnotationObject(ROI pathROI, PathClass pathClass) {
 		super(pathROI, pathClass);
 	}
 	
-	public PathAnnotationObject(ROI pathROI, PathClass pathClass, MeasurementList measurements) {
+	PathAnnotationObject(ROI pathROI, PathClass pathClass, MeasurementList measurements) {
 		super(pathROI, pathClass, measurements);
 	}
 	
-	
+	/**
+	 * Set a free text description for this annotation.
+	 * 
+	 * @param text
+	 */
+	public void setDescription(final String text) {
+		// Don't store unless we need to (which can also help avoid creating unnecessary metadata stores)
+		Object existing = retrieveMetadataValue(KEY_ANNOTATION_TEXT);
+		if (text == null && existing == null || text.equals(existing))
+			return;
+		this.storeMetadataValue(KEY_ANNOTATION_TEXT, text);
+	}
+
+	/**
+	 * Get a free text description previously set for this annotation.
+	 */
+	public String getDescription() {
+		return (String)retrieveMetadataValue(KEY_ANNOTATION_TEXT);
+	}
+
 //	PathAnnotationObject(PathAnnotationObject pathObject, PathROI pathROI) {
 //		super(pathROI, pathObject.getPathClass(), pathObject.getMeasurementList());
 //	}

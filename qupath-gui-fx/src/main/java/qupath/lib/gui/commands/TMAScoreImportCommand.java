@@ -25,6 +25,7 @@ package qupath.lib.gui.commands;
 
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -63,7 +64,7 @@ import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.TMAGrid;
 
 /**
- * Command for importing TMA maps & additional info (e.g. manual scores).
+ * Command for importing TMA maps &amp; additional info (e.g. manual scores).
  * 
  * @author Pete Bankhead
  *
@@ -212,7 +213,7 @@ public class TMAScoreImportCommand implements PathCommand {
 				DisplayHelpers.showMessageDialog(name, "Updated " + nScores + " cores");
 //			logger.info(String.format("Scores read for %d core(s)", nScores));
 			return nScores > 0;
-		} catch (FileNotFoundException e) {
+		} catch (IOException e) {
 			DisplayHelpers.showErrorMessage(name, e.getLocalizedMessage());
 			return false;
 		}
@@ -223,7 +224,7 @@ public class TMAScoreImportCommand implements PathCommand {
 	 * Creating a pseudo hierarchy makes it possible to make changes without modifying the 'true' underlying hierarchy,
 	 * i.e. enabling them to be reversible.
 	 * 
-	 * @param infoGrid
+	 * @param grid
 	 * @return
 	 */
 	private static PathObjectHierarchy createPseudoHierarchy(final TMAGrid grid) {

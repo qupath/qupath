@@ -25,8 +25,11 @@ package qupath.lib.gui.viewer;
 
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,15 +42,16 @@ import javafx.scene.input.Dragboard;
 import javafx.scene.input.TransferMode;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.helpers.DisplayHelpers;
+import qupath.lib.gui.io.PathAwtIO;
 import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.gui.scripting.ScriptEditor;
 import qupath.lib.images.ImageData;
-import qupath.lib.io.PathAwtIO;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.TMAGrid;
 import qupath.lib.projects.Project;
+import qupath.lib.projects.ProjectFactory;
 import qupath.lib.projects.ProjectIO;
-import qupath.lib.scripting.DefaultScriptEditor;
-import qupath.lib.scripting.ScriptEditor;
+import qupath.lib.gui.scripting.DefaultScriptEditor;
 
 
 /**
@@ -112,7 +116,11 @@ public class DragDropFileImportListener implements EventHandler<DragEvent> {
         
 		if (dragboard.hasFiles()) {
 	        logger.debug("Files dragged onto {}", source);
-			handleFileDrop(viewer, dragboard.getFiles());
+			try {
+				handleFileDrop(viewer, dragboard.getFiles());
+			} catch (IOException e) {
+				DisplayHelpers.showErrorMessage("Drag & Drop", e);
+			}
 		}
 		event.setDropCompleted(true);
 		event.consume();
@@ -120,7 +128,7 @@ public class DragDropFileImportListener implements EventHandler<DragEvent> {
     
     /**
      * Add a new FileDropHandler.
-     * 
+     * <p>
      * This may be called on a drag-and-drop application on the main window, if no other 
      * handler deals with the event.
      * 
@@ -140,7 +148,7 @@ public class DragDropFileImportListener implements EventHandler<DragEvent> {
 	}
     
     
-    public void handleFileDrop(final QuPathViewer viewer, final List<File> list) {
+    public void handleFileDrop(final QuPathViewer viewer, final List<File> list) throws IOException {
 		
 		// Shouldn't occur... but keeps FindBugs happy to check
 		if (list == null) {
@@ -177,27 +185,43 @@ public class DragDropFileImportListener implements EventHandler<DragEvent> {
 
 				// If we have a different path, open as a new image
 				if (viewer == null) {
-					DisplayHelpers.showErrorMessage("Open data", "Please drag the file only a specific viewer to open!");
+					DisplayHelpers.showErrorMessage("Open data", "Please drag the file onto a specific viewer to open!");
 					break;
 				}
-				gui.openSavedData(viewer, file, false);
+				try {
+					gui.openSavedData(viewer, file, false, true);
+				} catch (IOException e) {
+					DisplayHelpers.showErrorMessage("Open image", e);
+				}
 				break;
 			}
 			
 			// Check if this is a directory - if so, look for a single project file
 			if (singleFile && file.isDirectory()) {
-				List<File> projectFiles = new ArrayList<>();
-				for (File temp : file.listFiles()) {
-					if (temp.isHidden() || !temp.isFile())
-						continue;
-					if (temp.getAbsolutePath().toLowerCase().endsWith(ProjectIO.getProjectExtension()))
-						projectFiles.add(temp);
-				}
+				// Identify all files in the directory, and also all potential project files
+				File[] filesInDirectory = file.listFiles(f -> !f.isHidden());
+				List<File> projectFiles = Arrays.stream(filesInDirectory).filter(f -> f.isFile() && 
+						f.getAbsolutePath().toLowerCase().endsWith(ProjectIO.getProjectExtension())).collect(Collectors.toList());
 				if (projectFiles.size() == 1) {
 					file = projectFiles.get(0);
 					logger.warn("Selecting project file {}", file);
 				} else if (projectFiles.size() > 1) {
-					logger.warn("Multiple project files found in directory {}", file);
+					// Prompt to select which project file to open
+					logger.debug("Multiple project files found in directory {}", file);
+					String[] fileNames = projectFiles.stream().map(f -> f.getName()).toArray(n -> new String[n]);
+					String selectedName = DisplayHelpers.showChoiceDialog("Select project", "Select project to open", fileNames, fileNames[0]);
+					if (selectedName == null)
+						return;
+					file = new File(file, selectedName);
+				} else if (filesInDirectory.length == 0) {
+					// If we have an empty directory, offer to set it as a project
+					if (DisplayHelpers.showYesNoDialog("Create project", "Create project for empty directory?")) {
+						Project<BufferedImage> project = ProjectFactory.createProject(file, BufferedImage.class);
+						gui.setProject(project);
+						if (!project.isEmpty())
+							project.syncChanges();
+						return;
+					}
 				}
 			}
 

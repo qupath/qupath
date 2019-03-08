@@ -32,7 +32,7 @@ import qupath.lib.roi.interfaces.TranslatableROI;
  * @author Pete Bankhead
  *
  */
-public abstract class AbstractPathBoundedROI extends AbstractPathAreaROI implements TranslatableROI {
+abstract class AbstractPathBoundedROI extends AbstractPathAreaROI implements TranslatableROI {
 	
 	protected double x, y, x2, y2;
 	
@@ -41,11 +41,11 @@ public abstract class AbstractPathBoundedROI extends AbstractPathAreaROI impleme
 	 * @param x
 	 * @param y
 	 */
-	public AbstractPathBoundedROI(double x, double y, int c, int z, int t) {
+	AbstractPathBoundedROI(double x, double y, int c, int z, int t) {
 		this(x, y, 0, 0, c, z, t);
 	}
 	
-	public AbstractPathBoundedROI(double x, double y) {
+	AbstractPathBoundedROI(double x, double y) {
 		this(x, y, 0, 0, -1, 0, 0);
 	}
 	
@@ -53,7 +53,7 @@ public abstract class AbstractPathBoundedROI extends AbstractPathAreaROI impleme
 		super();
 	}
 	
-	public AbstractPathBoundedROI(double x, double y, double width, double height, int c, int z, int t) {
+	AbstractPathBoundedROI(double x, double y, double width, double height, int c, int z, int t) {
 		super(c, z, t);
 		this.x = x;
 		this.y = y;

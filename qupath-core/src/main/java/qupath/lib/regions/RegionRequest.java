@@ -71,14 +71,6 @@ public class RegionRequest extends ImageRegion {
 	public static RegionRequest createInstance(String path, double downsample, int x, int y, int width, int height) {
 		return createInstance(path, downsample, x, y, width, height, 0, 0);
 	}
-
-//	public static RegionRequest createInstance(String path, double downsample, Rectangle bounds, int z, int t) {
-//		return createInstance(path, downsample, bounds.x, bounds.y, bounds.width, bounds.height, z, t);
-//	}
-//
-//	public static RegionRequest createInstance(String path, double downsample, Rectangle bounds) {
-//		return createInstance(path, downsample, bounds, 0, 0);
-//	}
 	
 	/**
 	 * Returns true if the region specified by this request overlaps with that of another request.
@@ -93,6 +85,7 @@ public class RegionRequest extends ImageRegion {
 					super.intersects(request);
 		return false;
 	}
+
 
 	public String getPath() {
 		return path;

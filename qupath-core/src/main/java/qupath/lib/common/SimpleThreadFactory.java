@@ -40,8 +40,13 @@ public class SimpleThreadFactory implements ThreadFactory {
 	private final AtomicInteger threadNumber = new AtomicInteger(1);
 	private String prefix;
 	private boolean daemon;
-	 
+	private int priority;
+	
 	public SimpleThreadFactory(final String prefix, final boolean daemon) {
+		this(prefix, daemon, Thread.NORM_PRIORITY);
+	}
+	 
+	public SimpleThreadFactory(final String prefix, final boolean daemon, final int priority) {
 		SecurityManager s = System.getSecurityManager();
 		if (s == null)
 			group = Thread.currentThread().getThreadGroup();
@@ -49,6 +54,8 @@ public class SimpleThreadFactory implements ThreadFactory {
 			group = s.getThreadGroup();
 		this.prefix = prefix;
 		this.daemon = daemon;
+		this.priority = Math.max(Thread.MIN_PRIORITY, Math.min(Thread.MAX_PRIORITY, priority));
+				
 	}
 
 	@Override
@@ -56,8 +63,8 @@ public class SimpleThreadFactory implements ThreadFactory {
 		String name = prefix + threadNumber.getAndIncrement();
 		Thread t = new Thread(group, r, name, 0);
 		t.setDaemon(daemon);
-		if (t.getPriority() != Thread.NORM_PRIORITY)
-			t.setPriority(Thread.NORM_PRIORITY);
+		if (t.getPriority() != priority)
+			t.setPriority(priority);
 		return t;
 	}
 	

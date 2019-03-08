@@ -24,6 +24,7 @@
 package qupath.lib.images.servers;
 
 import java.io.File;
+import java.net.URI;
 
 import qupath.lib.common.GeneralTools;
 import qupath.lib.common.URLTools;
@@ -38,7 +39,7 @@ public class ServerTools {
 
 	/**
 	 * Get the index of the closest downsample factor from an array of available factors.
-	 * 
+	 * <p>
 	 * The array is assumed to be sorted in ascending order.
 	 * 
 	 * @param preferredDownsamples
@@ -46,7 +47,7 @@ public class ServerTools {
 	 * @return
 	 */
 	public static int getClosestDownsampleIndex(double[] preferredDownsamples, double downsampleFactor) {
-		downsampleFactor = Math.max(downsampleFactor, 1.0);
+		downsampleFactor = Math.max(downsampleFactor, preferredDownsamples[0]);
 		int bestDownsampleSeries = -1;
 		double bestDownsampleDiff = Double.POSITIVE_INFINITY;
 		for (int i = 0; i < preferredDownsamples.length; i++) {
@@ -67,6 +68,12 @@ public class ServerTools {
 	 */
 	public static String getDefaultShortServerName(final String path) {
 		try {
+			if (path.startsWith("file") || path.startsWith("http")) {
+				var uri = new URI(path);
+				String path2 = uri.getPath();
+				int ind = path2.lastIndexOf("/") + 1;
+				return path2.substring(ind);
+			}
 			String name = new File(path).getName().replaceFirst("[.][^.]+$", "");
 			return name;
 		} catch (Exception e) {}
@@ -80,12 +87,12 @@ public class ServerTools {
 	 * 
 	 * Optionally ensure that the downsample is a power of 2 (i.e. the closest power of 2 available to the 'ideal' downsample).
 	 * 
-	 * @param server
-	 * @param preferredPixelSizeMicrons
+	 * @param serverPixelSizeMicrons
+	 * @param requestedPixelSizeMicrons
 	 * @param doLog2
 	 * @return
 	 */
-	public static double getPreferredDownsampleForPixelSizeMicrons(double serverPixelSizeMicrons, double requestedPixelSizeMicrons, boolean doLog2) {
+	static double getPreferredDownsampleForPixelSizeMicrons(double serverPixelSizeMicrons, double requestedPixelSizeMicrons, boolean doLog2) {
 		// If we have NaN input, we have NaN output
 		if (Double.isNaN(serverPixelSizeMicrons + requestedPixelSizeMicrons))
 			return Double.NaN;

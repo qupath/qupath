@@ -27,6 +27,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 
 import qupath.lib.common.ColorTools;
 
@@ -45,15 +46,16 @@ public class PathClassFactory {
 //	public enum DEFAULT_PATH_CLASSES_ENUM {NUCLEUS, POSITIVE, NEGATIVE, ONE_PLUS, TWO_PLUS, THREE_PLUS, TUMOR, NON_TUMOR, STROMA, BACKGROUND};
 
 //	public enum PathClasses { TUMOR, NON_TUMOR, STROMA, IMMUNE_CELLS, NUCLEUS, CELL, WHITESPACE, NEGATIVE, POSITIVE, ONE_PLUS, TWO_PLUS, THREE_PLUS, ARTIFACT, IMAGE_ROOT, NECROSIS, OTHER }
-	public enum PathClasses { TUMOR, NON_TUMOR, STROMA, IMMUNE_CELLS, NUCLEUS, CELL, WHITESPACE, NEGATIVE, POSITIVE, ARTIFACT, IMAGE_ROOT, NECROSIS, OTHER }
+	public enum PathClasses { TUMOR, NON_TUMOR, STROMA, IMMUNE_CELLS, NUCLEUS, CELL, IGNORE, NEGATIVE, POSITIVE, ARTIFACT, IMAGE_ROOT, NECROSIS, OTHER, REGION }
 
 	private static Map<PathClasses, PathClass> DEFAULT_PATH_CLASSES;
 	
-	private static Map<String, PathClass> mapPathBaseClasses = new HashMap<>();
-	private static Map<String, PathClass> mapPathDerivedClasses = new HashMap<>();
+	private static Map<String, PathClass> mapPathClasses = new HashMap<>();
 
 	private final static PathClass NULL_CLASS = new PathClass();
-	
+
+	private final static String REGION = "Region";
+
 	private final static String POSITIVE = "Positive";
 	private final static String NEGATIVE = "Negative";
 	private final static String ONE_PLUS = "1+";
@@ -69,7 +71,7 @@ public class PathClassFactory {
 		DEFAULT_PATH_CLASSES.put(PathClasses.IMMUNE_CELLS, new PathClass("Immune cells", ColorTools.makeRGB(160, 90, 160)));
 		DEFAULT_PATH_CLASSES.put(PathClasses.NUCLEUS, new PathClass("Nucleus", ColorTools.makeRGB(20, 200, 20)));
 		DEFAULT_PATH_CLASSES.put(PathClasses.CELL, new PathClass("Cell", ColorTools.makeRGB(220, 0, 0)));
-		DEFAULT_PATH_CLASSES.put(PathClasses.WHITESPACE, new PathClass("Whitespace", ColorTools.makeRGB(180, 180, 180)));
+		DEFAULT_PATH_CLASSES.put(PathClasses.IGNORE, new PathClass("Ignore", ColorTools.makeRGB(180, 180, 180)));
 		DEFAULT_PATH_CLASSES.put(PathClasses.POSITIVE, new PathClass(POSITIVE, ColorTools.makeRGB(200, 50, 50)));
 		DEFAULT_PATH_CLASSES.put(PathClasses.NEGATIVE, new PathClass(NEGATIVE, ColorTools.makeRGB(90, 90, 180)));
 //		DEFAULT_PATH_CLASSES.put(PathClasses.ONE_PLUS, new PathClass(ONE_PLUS, ColorTools.makeRGB(255, 215, 0)));
@@ -77,12 +79,14 @@ public class PathClassFactory {
 //		DEFAULT_PATH_CLASSES.put(PathClasses.THREE_PLUS, new PathClass(THREE_PLUS, ColorTools.makeRGB(200, 50, 50)));
 		DEFAULT_PATH_CLASSES.put(PathClasses.ARTIFACT, new PathClass("Artefact", ColorTools.makeRGB(180, 180, 180)));
 		DEFAULT_PATH_CLASSES.put(PathClasses.IMAGE_ROOT,  new PathClass("Image", ColorTools.makeRGB(128, 128, 128)));
+		
+		DEFAULT_PATH_CLASSES.put(PathClasses.REGION, new PathClass(REGION, ColorTools.makeRGB(0, 0, 180)));
 
 		DEFAULT_PATH_CLASSES.put(PathClasses.NECROSIS, new PathClass("Necrosis", ColorTools.makeRGB(50, 50, 50)));
 		DEFAULT_PATH_CLASSES.put(PathClasses.OTHER, new PathClass("Other", ColorTools.makeRGB(255, 200, 0)));
 
 		for (PathClass pathClass : DEFAULT_PATH_CLASSES.values())
-			mapPathBaseClasses.put(pathClass.toString(), pathClass);
+			mapPathClasses.put(pathClass.toString(), pathClass);
 		
 	}
 	
@@ -99,6 +103,19 @@ public class PathClassFactory {
 //		return getPathClass(name, color == null ? null : color.getRGB());
 //	}
 	
+	
+	/**
+	 * Get the 'Region' class.
+	 * 
+	 * This behaves slightly differently from other classes, e.g. it is not filled in when applied to
+	 * annotations.  Consequently it is good to heavily annotated regions, or possibly detected tissue 
+	 * containing further annotations inside.
+	 * 
+	 * @return
+	 */
+	public static PathClass getRegionClass() {
+		return getDefaultPathClass(PathClasses.REGION);
+	}
 	
 	/**
 	 * Returns true if the PathClass represents a built-in intensity class.
@@ -150,7 +167,7 @@ public class PathClassFactory {
 
 	/**
 	 * Get the first ancestor class that is not an intensity class (i.e. not negative, positive, 1+, 2+ or 3+).
-	 * 
+	 * <p>
 	 * This will return null if pathClass is null, or if no non-intensity classes are found.
 	 * 
 	 * @param pathClass
@@ -162,52 +179,78 @@ public class PathClassFactory {
 		return pathClass;
 	}
 	
+	/**
+	 * Validate a non-null name, throwing an IllegalArgumentException if the name contains invalid characters.
+	 * @param name
+	 */
+	private static void validateName(String name) {
+		if (name.contains(":") || name.contains("\n"))
+			throw new IllegalArgumentException("PathClass names cannot contain new line or colon (:) characters!");
+	}
 	
+	/**
+	 * Get the PathClass object associated with a specific name.  Note that this name must not contain newline or 
+	 * colon characters; doing so will result in an IllegalArgumentException being thrown.
+	 * 
+	 * @param name
+	 * @param rgb
+	 * @return
+	 */
 	public static PathClass getPathClass(String name, Integer rgb) {
-		if (name == null)
+		if (name == null || name.equals(NULL_CLASS.toString()) || name.equals(NULL_CLASS.getName()))
 			return NULL_CLASS;
-		PathClass pathClass = mapPathBaseClasses.get(name);
+		
+		validateName(name);
+		
+		PathClass pathClass = mapPathClasses.get(name);
 		if (pathClass == null) {
 			if (rgb == null) {
 				// Use default colors for intensity classes
 				if (name.equals(ONE_PLUS)) {
-					rgb = COLOR_ONE_PLUS;
+					rgb = ColorTools.makeScaledRGB(COLOR_ONE_PLUS, 1.5);
 				} else if (name.equals(TWO_PLUS)) {
-					rgb = COLOR_TWO_PLUS;
+					rgb = ColorTools.makeScaledRGB(COLOR_TWO_PLUS, 1.5);
 				} else if (name.equals(THREE_PLUS))
-					rgb = COLOR_THREE_PLUS;
+					rgb = ColorTools.makeScaledRGB(COLOR_THREE_PLUS, 1.5);
 				else if (name.equals(POSITIVE)) {
-					rgb = COLOR_POSITIVE;
+					rgb = ColorTools.makeScaledRGB(COLOR_POSITIVE, 1.5);
 				} else if (name.equals(NEGATIVE)) {
-					rgb = COLOR_NEGATIVE;
+					rgb = ColorTools.makeScaledRGB(COLOR_NEGATIVE, 1.5);
 				} else {
 					// Create a random color
+					// Use the hashcode of the String as a seed - so that the same 
+					// color is generated reproducibly for the same name.
+					Random random = new Random(name.hashCode());
 					rgb = ColorTools.makeRGB(
-							(int)(Math.random()*255),
-							(int)(Math.random()*255),
-							(int)(Math.random()*255));
+							random.nextInt(256),
+							random.nextInt(256),
+							random.nextInt(256));
 				}
 			}
 			pathClass = new PathClass(null, name, rgb);
-			mapPathBaseClasses.put(pathClass.toString(), pathClass);
+			mapPathClasses.put(pathClass.toString(), pathClass);
 		}
 		return pathClass;
 	}
 	
+	/**
+	 * Get the PathClass object associated with a specific name, using the default color.  
+	 * Note that this name must not contain newline or colon characters; doing so will 
+	 * result in an IllegalArgumentException being thrown.
+	 * 
+	 * @param name
+	 * @return
+	 * 
+	 * @see #getPathClass(String, Integer)
+	 */
 	public static PathClass getPathClass(String name) {
 		return getPathClass(name, (Integer)null);
 	}
 	
 	
-	public static boolean pathClassExists(String name) {
-		if (name == null)
-			return true;
-		return mapPathBaseClasses.containsKey(name) || mapPathDerivedClasses.containsKey(name);
-	}
-	
-	
 	/**
-	 * Return a singleton version of a specific PathClass.
+	 * Return a singleton version of a specific PathClass.  This is useful during deserialization, which can 
+	 * circumvent the 'right' way to request PathClass objects via static methods.
 	 * 
 	 * @param pathClass
 	 * @return
@@ -223,13 +266,20 @@ public class PathClassFactory {
 //		return getDerivedPathClass(parentClass, name, color == null ? null : color.getRGB());
 //	}
 	
-	
+	/**
+	 * Get a PathClass that has been derived from a parent class.
+	 * 
+	 * @param parentClass
+	 * @param name
+	 * @param rgb
+	 * @return
+	 */
 	public static PathClass getDerivedPathClass(PathClass parentClass, String name, Integer rgb) {
-		if (parentClass == null || parentClass.isDefault())
+		if (parentClass == null || !parentClass.isValid())
 			return getPathClass(name, rgb);
 		String nameNew = PathClass.derivedClassToString(parentClass, name);
 //		mapPathDerivedClasses.clear();
-		PathClass pathClass = mapPathDerivedClasses.get(nameNew);
+		PathClass pathClass = mapPathClasses.get(nameNew);
 		if (pathClass == null) {
 			if (rgb == null) {
 				boolean isTumor = DEFAULT_PATH_CLASSES.get(PathClasses.TUMOR) == parentClass;
@@ -251,7 +301,7 @@ public class PathClassFactory {
 			}
 //				rgb = new Color(parentClass.getColor()).brighter().getRGB();
 			pathClass = new PathClass(parentClass, name, rgb);
-			mapPathDerivedClasses.put(pathClass.toString(), pathClass);
+			mapPathClasses.put(pathClass.toString(), pathClass);
 		}
 		return pathClass;
 	}
@@ -275,10 +325,6 @@ public class PathClassFactory {
 	public static PathClass getPositive(PathClass parentClass, Integer color) {
 		return getDerivedPathClass(parentClass, POSITIVE, color);
 	}
-
-	public static PathClass getNucleusClass() {
-		return getPathClass("Nucleus");
-	}
 	
 	public static PathClass getDefaultPathClass(PathClasses pathClass) {
 		return DEFAULT_PATH_CLASSES.get(pathClass);
@@ -294,10 +340,10 @@ public class PathClassFactory {
 
 	/**
 	 * Return a special 'null' class to represent no classification.
+	 * <p>
+	 * This is useful for displaying available classes; <i>it should not be set as the class for any object<i>, 
+	 * rather an object that is unclassified should have a classification of null.
 	 * 
-	 * This is useful for displaying available classes; it should not be set as the class for any object.
-	 * 
-	 * @param pathClass
 	 * @return
 	 */
 	public static PathClass getPathClassUnclassified() {

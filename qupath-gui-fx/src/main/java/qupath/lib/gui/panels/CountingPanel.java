@@ -27,6 +27,7 @@ import java.awt.Toolkit;
 import java.awt.datatransfer.Clipboard;
 import java.awt.datatransfer.StringSelection;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 import org.controlsfx.control.action.Action;
@@ -43,12 +44,15 @@ import qupath.lib.geom.Point2;
 import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
 import qupath.lib.objects.hierarchy.events.PathObjectSelectionListener;
 import qupath.lib.objects.hierarchy.events.PathObjectSelectionModel;
+import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.PointsROI;
+import qupath.lib.roi.ROIs;
 
 /**
  * Component for creating and modifying point objects.
@@ -65,7 +69,7 @@ public class CountingPanel implements PathObjectSelectionListener, PathObjectHie
 	private ListView<PathObject> listCounts;
 	
 	private Action btnAdd = new Action("Add", e -> {
-		PathObject pathObjectCounts = new PathAnnotationObject(new PointsROI());
+		PathObject pathObjectCounts = PathObjects.createAnnotationObject(ROIs.createPointsROI(ImagePlane.getDefaultPlane()));
 		hierarchy.addPathObject(pathObjectCounts, false);
 //		hierarchy.fireChangeEvent(pathObjectCounts.getParent());
 		hierarchy.getSelectionModel().setSelectedObject(pathObjectCounts);
@@ -190,7 +194,7 @@ public class CountingPanel implements PathObjectSelectionListener, PathObjectHie
 	
 	
 	@Override
-	public void selectedPathObjectChanged(PathObject pathObjectSelected, PathObject previousObject) {
+	public void selectedPathObjectChanged(PathObject pathObjectSelected, PathObject previousObject, Collection<PathObject> allSelected) {
 		// Check if we have points
 		boolean hasPoints = pathObjectSelected != null && pathObjectSelected.isPoint();
 		btnEdit.setDisabled(!hasPoints);
@@ -228,7 +232,7 @@ public class CountingPanel implements PathObjectSelectionListener, PathObjectHie
 			return;
 		}
 		
-		List<PathObject> newList = hierarchy.getPointObjects(PathAnnotationObject.class);
+		Collection<PathObject> newList = hierarchy.getPointObjects(PathAnnotationObject.class);
 		
 		if (newList.equals(listCounts.getItems())) {
 //			if (event != null && event.getEventType() == HierarchyEventType.CHANGE_CLASSIFICATION || event.getEventType() == HierarchyEventType.CHANGE_MEASUREMENTS || (event.getStructureChangeBase() != null && event.getStructureChangeBase().isPoint()) || PathObjectTools.containsPointObject(event.getChangedObjects()))

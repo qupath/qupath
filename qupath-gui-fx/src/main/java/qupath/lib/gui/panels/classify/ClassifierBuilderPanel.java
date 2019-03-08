@@ -35,6 +35,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.PrintWriter;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -96,7 +97,6 @@ import qupath.lib.gui.helpers.dialogs.ParameterPanelFX;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ServerTools;
-import qupath.lib.io.PathIO;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
@@ -246,7 +246,7 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 			}
 
 			// Get a classifier file
-			File fileClassifier = QuPathGUI.getDialogHelper(btnSaveClassifier.getScene().getWindow()).promptToSaveFile("Save classifier", qupath.getProjectClassifierDirectory(true), null, "Classifier", PathPrefs.getClassifierExtension());
+			File fileClassifier = QuPathGUI.getDialogHelper(btnSaveClassifier.getScene().getWindow()).promptToSaveFile("Save classifier", null, null, "Classifier", PathPrefs.getClassifierExtension());
 			if (fileClassifier == null)
 				return;
 			if (fileClassifier.exists()) {
@@ -656,22 +656,13 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 			// Clean the project list to remove files that don't contain any data -
 			// this makes the progress bar more accurate
 			// TODO: Parallelize classification if the file sizes are small enough?
-			long maxFileSize = 0;
 			Iterator<ProjectImageEntry<BufferedImage>> iter = entries.iterator();
 			while (iter.hasNext()) {
 				// Get the data file, and check it exists
-				File fileData = QuPathGUI.getImageDataFile(project, iter.next());
-				if (fileData == null || !fileData.exists()) {
+				if (!iter.next().hasImageData()) {
 					iter.remove();
 					continue;
 				}
-				long size = fileData.length();
-				if (size == 0) {
-					iter.remove();
-					continue;    				
-				}
-				if (size > maxFileSize)
-					maxFileSize = size;
 			}
 
 
@@ -680,17 +671,16 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 				updateProgress(counter, entries.size());
 				counter++;
 
-				File fileData = QuPathGUI.getImageDataFile(project, entry);
-				if (fileData == null || !fileData.exists())
+				if (!entry.hasImageData())
 					continue;
 
 				try {
 					// TODO: Remove BufferedImage dependency!
-					ImageData<BufferedImage> imageDataTemp = PathIO.readImageData(fileData, null, null, BufferedImage.class);
+					ImageData<BufferedImage> imageDataTemp = entry.readImageData();
 					if (imageDataTemp == null || imageDataTemp.getHierarchy().isEmpty())
 						continue;
 
-					List<PathObject> pathObjects = imageDataTemp.getHierarchy().getObjects(null, PathDetectionObject.class);
+					Collection<PathObject> pathObjects = imageDataTemp.getHierarchy().getObjects(null, PathDetectionObject.class);
 					if (pathObjects.isEmpty()) {
 						updateLog("No detection objects for " + entry.getImageName() + " - skipping");
 						continue;
@@ -699,7 +689,7 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 					if (n > 0) {
 						updateLog("Classified " + n + " objects for " + entry.getImageName());
 						// Save the image again
-						PathIO.writeImageData(fileData, imageDataTemp);
+						entry.saveImageData(imageDataTemp);
 					} else
 						updateLog("Unable to classify any objects for " + entry.getImageName() + " - skipping");
 
@@ -793,22 +783,13 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 			// this makes the progress bar more accurate
 			// TODO: Parallelize loading if the file sizes are small enough?
 			// TODO: Reduce duplication with project classification
-			long maxFileSize = 0;
 			Iterator<ProjectImageEntry<BufferedImage>> iter = entries.iterator();
 			while (iter.hasNext()) {
 				// Get the data file, and check it exists
-				File fileData = QuPathGUI.getImageDataFile(project, iter.next());
-				if (fileData == null || !fileData.exists()) {
+				if (!iter.next().hasImageData()) {
 					iter.remove();
 					continue;
 				}
-				long size = fileData.length();
-				if (size == 0) {
-					iter.remove();
-					continue;    				
-				}
-				if (size > maxFileSize)
-					maxFileSize = size;
 			}
 
 
@@ -819,12 +800,11 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 				updateProgress(counter, entries.size());
 				counter++;
 
-				File fileData = QuPathGUI.getImageDataFile(project, entry);
-				if (fileData == null || !fileData.exists())
+				if (!entry.hasImageData())
 					continue;
 
 				try {
-					PathObjectHierarchy hierarchy = PathIO.readHierarchy(fileData);
+					PathObjectHierarchy hierarchy = entry.readHierarchy();
 					if (hierarchy == null || hierarchy.isEmpty())
 						continue;
 
@@ -838,7 +818,7 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 					}
 
 					if (!map.isEmpty() && !retainedObjectsMap.containsValue(map)) {
-						retainedObjectsMap.put(entry.getStoredServerPath(), map);
+						retainedObjectsMap.put(entry.getServerPath(), map);
 						updateLog("Training objects read from " + entry.getImageName());
 					} else {
 						updateLog("No training objects found in " + entry.getImageName());					
@@ -1161,7 +1141,7 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 		if (hierarchyChanged)
 			maybeUpdate();
 		else {
-			List<PathObject> pathObjects = hierarchy.getObjects(null, PathDetectionObject.class);
+			Collection<PathObject> pathObjects = hierarchy.getObjects(null, PathDetectionObject.class);
 			if (intensityClassifier.classifyPathObjects(pathObjects) > 0) {
 				// Update displayed list - names may have changed - and classifier summary
 				updateClassifierSummary(null);
@@ -1343,7 +1323,7 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 		String errorMessage = null;
 		boolean classifierChanged = classifier != lastClassifierCompleted;
 		try {
-			classifierChanged = classifier.updateClassifier(mapTraining, features, normalization);
+			classifierChanged = classifier.updateClassifier(mapTraining, features, normalization) || classifierChanged;
 		} catch (Exception e) {
 			errorMessage = "Classifier training failed with message:\n" + e.getLocalizedMessage() + 
 					"\nPlease try again with different settings.";
@@ -1366,11 +1346,11 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 		PathIntensityClassifier intensityClassifier = panelIntensities.getIntensityClassifier();
 
 		// Apply classifier to everything
-		List<PathObject> pathObjectsOrig = hierarchy.getObjects(null, PathDetectionObject.class);
+		Collection<PathObject> pathObjectsOrig = hierarchy.getObjects(null, PathDetectionObject.class);
 		int nClassified = 0;
 		
 		// Possible get proxy objects, depending on the thread we're on
-		List<PathObject> pathObjects;
+		Collection<PathObject> pathObjects;
 		if (Platform.isFxApplicationThread())
 			pathObjects = pathObjectsOrig;
 		else
@@ -1419,7 +1399,7 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 	}
 	
 	
-	private void completeClassification(final PathObjectHierarchy hierarchy, final List<PathObject> classifiedObjects, final List<PathObject> originalObjects, final Map<PathClass, List<PathObject>> mapTest, final boolean testOnTrainingData) {
+	private void completeClassification(final PathObjectHierarchy hierarchy, final Collection<PathObject> classifiedObjects, final Collection<PathObject> originalObjects, final Map<PathClass, List<PathObject>> mapTest, final boolean testOnTrainingData) {
 		if (!Platform.isFxApplicationThread())
 			Platform.runLater(() -> completeClassification(hierarchy, classifiedObjects, originalObjects, mapTest, testOnTrainingData));
 		else {
@@ -1537,8 +1517,6 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 	 * Decide whether to update.
 	 * This this decision involves checking if the selected object is in the hierarchy, need a special 
 	 * flag to indicate that this was called due to a object removal event - in which case this check should be adapted.
-	 * 
-	 * @param removedEvent
 	 */
 	private void maybeUpdate() { 
 		if (!tbAutoUpdate.isDisabled() && 
@@ -1642,7 +1620,7 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 	 * 
 	 * The reason is that we wouldn't want to interrupt a half-finished classification... by classifying these
 	 * stand-in objects in a background thread, we can make sure not to be modifying any PathObjects during the
-	 * (possibly-lengthy) training & application of a classifier, and then return to the Platform JavaFX thread for the final update.
+	 * (possibly-lengthy) training &amp; application of a classifier, and then return to the Platform JavaFX thread for the final update.
 	 * 
 	 * This somewhat-awkward approach is used to keep the complexity here, while retaining a simple definition of a PathObjectClassifier.
 	 * 
@@ -1695,10 +1673,9 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 		 * @return
 		 */
 		public boolean updateObject() {
-			if (pathObject.getPathClass() == pathClass)
-				return false;
+			boolean changed = pathObject.getPathClass() != pathClass;
 			pathObject.setPathClass(pathClass, classificationProbability);
-			return true;
+			return changed;
 		}
 
 

@@ -23,6 +23,8 @@
 
 package qupath.lib.roi;
 
+import java.awt.Shape;
+import java.awt.geom.Ellipse2D;
 import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
 import java.io.Serializable;
@@ -45,23 +47,23 @@ public class EllipseROI extends AbstractPathBoundedROI implements PathArea, Seri
 	
 	private static final long serialVersionUID = 1L;
 	
-	protected EllipseROI() {
+	EllipseROI() {
 		super();
 	}
 	
-	public EllipseROI(double x, double y) {
+	EllipseROI(double x, double y) {
 		super(x, y);
 	}
 	
-	public EllipseROI(double x, double y, int c, int z, int t) {
+	EllipseROI(double x, double y, int c, int z, int t) {
 		super(x, y, c, z, t);
 	}
 
-	public EllipseROI(double x, double y, double width, double height) {
+	EllipseROI(double x, double y, double width, double height) {
 		super(x, y, width, height, -1, 0, 0);
 	}
 
-	public EllipseROI(double x, double y, double width, double height, int c, int z, int t) {
+	EllipseROI(double x, double y, double width, double height, int c, int z, int t) {
 		super(x, y, width, height, c, z, t);
 	}
 	
@@ -76,7 +78,7 @@ public class EllipseROI extends AbstractPathBoundedROI implements PathArea, Seri
 	}
 	
 	@Override
-	public String getROIType() {
+	public String getRoiName() {
 		return "Ellipse";
 	}
 	
@@ -131,6 +133,10 @@ public class EllipseROI extends AbstractPathBoundedROI implements PathArea, Seri
 	}
 
 	
+	@Override
+	public Shape getShape() {
+		return new Ellipse2D.Double(x, y, x2, y2);
+	}
 	
 	
 	private Object writeReplace() {

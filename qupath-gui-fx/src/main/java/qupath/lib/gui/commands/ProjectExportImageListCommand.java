@@ -39,7 +39,7 @@ import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.projects.ProjectImageEntry;
 
 /**
- * Command to export image paths & metadata from a current project.
+ * Command to export image paths &amp; metadata from a current project.
  * 
  * @author Pete Bankhead
  */
@@ -83,7 +83,7 @@ public class ProjectExportImageListCommand implements PathCommand {
 			writer.println();
 			
 			for (ProjectImageEntry<?> entry : qupath.getProject().getImageList()) {
-				String path = entry.getStoredServerPath();
+				String path = entry.getServerPath();
 				writer.print(path);
 				writer.print(PathPrefs.getTableDelimiter());				
 				writer.print(entry.getImageName());

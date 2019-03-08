@@ -47,7 +47,7 @@ import qupath.lib.plugins.workflow.WorkflowStep;
 /**
  * Class that brings together the main data in connection with the analysis of a single image.
  * 
- * Currently, this is really the server (to access the image & its pixels) and the object hierarchy that represents detections.
+ * Currently, this is really the server (to access the image &amp; its pixels) and the object hierarchy that represents detections.
  * In addition, there is an ImageType - as some options may change depending on this.
  * One particularly significant example is that of Brightfield images in pathology, for which stain vectors are often required for
  * effective stain separation.
@@ -88,7 +88,7 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
 	
 	private String serverPath;
 	private PathObjectHierarchy hierarchy;
-	private ImageType type;
+	private ImageType type = ImageType.UNSET;
 	
 	// A log of steps that have been applied
 	private Workflow workflow = new Workflow();
@@ -101,7 +101,7 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
 	private Map<String, Object> propertiesMap = new HashMap<>();
 	
 	
-	protected boolean changes = false; // Indicating changes since this ImageData was last saved
+	private boolean changes = false; // Indicating changes since this ImageData was last saved
 	
 	
 	public ImageData(ImageServer<T> server, PathObjectHierarchy hierarchy, ImageType type) {
@@ -151,7 +151,6 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
 	 * Create a new ImageData with ImageType.UNKNOWN and a new PathObjectHierarchy.
 	 * 
 	 * @param server
-	 * @param hierarchy
 	 */
 	public ImageData(ImageServer<T> server) {
 		this(server, new PathObjectHierarchy());
@@ -309,24 +308,29 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
 
     
     public Object getProperty(String key) {
-    	return propertiesMap.get(key);
+    		return propertiesMap.get(key);
     }
 
     public Object setProperty(String key, Object value) {
-    	changes = true;
-    	return propertiesMap.put(key, value);
+	    	Object oldValue = propertiesMap.put(key, value);
+	    	if (oldValue == null)
+	    		changes = value != null;
+	    	else
+	    		changes = changes || !oldValue.equals(value);
+//	    	System.err.println(changes + " setting " + key + " to " + value);
+	    	return oldValue;
     }
 
     public Object removeProperty(String key) {
-    	if (propertiesMap.containsKey(key)) {
-    		changes = true;
-    		return propertiesMap.remove(key);
-    	}
-    	return null;
+	    	if (propertiesMap.containsKey(key)) {
+	    		changes = true;
+	    		return propertiesMap.remove(key);
+	    	}
+	    	return null;
     }
 
     public Map<String, Object> getProperties() {
-    	return Collections.unmodifiableMap(propertiesMap);
+    		return Collections.unmodifiableMap(propertiesMap);
     }
     
     
@@ -335,7 +339,7 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
      * @return
      */
     public String getLastSavedPath() {
-    	return lastSavedPath;
+    		return lastSavedPath;
     }
     
     /**
@@ -343,10 +347,10 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
      * 
      * @return
      * 
-     * @see setLastSavedPath
+     * @see #setLastSavedPath
      */
     public boolean isChanged() {
-    	return changes;
+    		return changes;
     }
     
     /**

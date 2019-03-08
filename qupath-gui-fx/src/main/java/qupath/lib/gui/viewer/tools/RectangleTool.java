@@ -24,7 +24,8 @@
 package qupath.lib.gui.viewer.tools;
 
 import qupath.lib.gui.viewer.ModeWrapper;
-import qupath.lib.roi.RectangleROI;
+import qupath.lib.regions.ImagePlane;
+import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
@@ -40,8 +41,8 @@ public class RectangleTool extends AbstractPathDraggingROITool {
 	}
 
 	@Override
-	protected ROI createNewROI(double x, double y, int z, int t) {
-		return new RectangleROI(x, y, -1, z, t);
+	protected ROI createNewROI(double x, double y, ImagePlane plane) {
+		return ROIs.createRectangleROI(x, y, 0, 0, plane);
 	}
 
 }

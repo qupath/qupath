@@ -23,14 +23,19 @@
 
 package qupath.lib.gui.viewer.overlays;
 
+import java.awt.AlphaComposite;
+import java.awt.Composite;
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
 import java.awt.RenderingHints;
 import java.awt.Shape;
 import java.awt.image.BufferedImage;
 import java.awt.image.ImageObserver;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Comparator;
+import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 
@@ -39,13 +44,13 @@ import org.slf4j.LoggerFactory;
 
 import qupath.lib.awt.color.ColorToolsAwt;
 import qupath.lib.awt.common.AwtTools;
+import qupath.lib.gui.images.servers.PathHierarchyImageServer;
+import qupath.lib.gui.images.stores.DefaultImageRegionStore;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.gui.viewer.PathHierarchyPaintingHelper;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
-import qupath.lib.images.servers.PathHierarchyImageServer;
-import qupath.lib.images.stores.DefaultImageRegionStore;
 import qupath.lib.objects.DefaultPathObjectComparator;
 import qupath.lib.objects.DefaultPathObjectConnectionGroup;
 import qupath.lib.objects.PathAnnotationObject;
@@ -116,7 +121,13 @@ public class HierarchyOverlay extends AbstractImageDataOverlay {
 
 	@Override
 	public void paintOverlay(final Graphics2D g2d, final ImageRegion imageRegion, final double downsampleFactor, final ImageObserver observer, final boolean paintCompletely) {
-		if (isInvisible())
+		
+		// Get the selection model, which can influence colours (TODO: this might not be the best way to do it!)
+		PathObjectHierarchy hierarchy = getHierarchy();
+		if (hierarchy == null)
+			return;
+		
+		if (isInvisible() && hierarchy.getSelectionModel().noSelection())
 			return;
 
 		Rectangle serverBounds = AwtTools.getBounds(imageRegion);
@@ -135,23 +146,20 @@ public class HierarchyOverlay extends AbstractImageDataOverlay {
 		// Ensure the bounds do not extend beyond what the server actually contains
 		//			if (boundsDisplayed.getMinX() < serverBounds.getMinX() || boundsDisplayed.getMaxX() > serverBounds.getMaxX() || boundsDisplayed.getMinY() < serverBounds.getMinY() || boundsDisplayed.getMaxY() > serverBounds.getMaxY())
 		boundsDisplayed = boundsDisplayed.intersection(serverBounds);
+		if (boundsDisplayed.width <= 0 || boundsDisplayed.height <= 0)
+			return;
 		ImageRegion region = AwtTools.getImageRegion(boundsDisplayed, z, t);
 		//		System.out.println("Displayed clip: " + clip);
-
-		// Get the selection model, which can influence colours (TODO: this might not be the best way to do it!)
-		PathObjectHierarchy hierarchy = getHierarchy();
-		if (hierarchy == null)
-			return;
 
 		// Paint detection objects
 		long startTime = System.currentTimeMillis();
 
 		// TODO: Cache detections on an overlay image for faster repainting e.g. when drawing ROIs
 		OverlayOptions overlayOptions = getOverlayOptions();
-		if (overlayOptions.getShowObjects() && !hierarchy.isEmpty()) {
+		if (overlayOptions.getShowDetections() && !hierarchy.isEmpty()) {
 
 			// If we aren't downsampling by much, or we're upsampling, paint directly - making sure to paint the right number of times, and in the right order
-			if (smallImage || overlayServer == null || regionStore == null || downsampleFactor <= overlayServer.getPreferredDownsamples()[0]) {
+			if (smallImage || overlayServer == null || regionStore == null || downsampleFactor < 1.0) {
 				Set<PathObject> pathObjectsToPaint = new TreeSet<>(comparator);
 				Collection<PathObject> pathObjects = hierarchy.getObjectsForRegion(PathDetectionObject.class, region, pathObjectsToPaint);
 				g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
@@ -180,13 +188,35 @@ public class HierarchyOverlay extends AbstractImageDataOverlay {
 		long endTime = System.currentTimeMillis();
 		if (endTime - startTime > 500)
 			logger.debug(String.format("Painting time: %.4f seconds", (endTime-startTime)/1000.));
-
+		
 		// Paint the annotations
 		Collection<PathObject> pathObjects = hierarchy.getObjectsForRegion(PathAnnotationObject.class, region, null);
+
+		Collection<PathObject> selectedObjects = hierarchy.getSelectionModel().getSelectedObjects();
+		pathObjects.removeAll(selectedObjects);
+
+		List<PathObject> pathObjectList = new ArrayList<>(pathObjects);
+		Collections.sort(pathObjectList, (p1, p2) -> {
+			return Integer.compare(p1.getLevel(), p2.getLevel());
+		});
+		
 		g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 		// The setting below stops some weird 'jiggling' effects during zooming in/out, or poor rendering of shape ROIs
 		g2d.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
-		PathHierarchyPaintingHelper.paintSpecifiedObjects(g2d, boundsDisplayed, pathObjects, overlayOptions, hierarchy.getSelectionModel(), downsampleFactor);
+		// Ensure that selected objects are painted last, to make sure they aren't obscured
+		if (!selectedObjects.isEmpty()) {
+			PathHierarchyPaintingHelper.paintSpecifiedObjects(g2d, boundsDisplayed, pathObjectList, overlayOptions, null, downsampleFactor);
+			Composite previousComposite = g2d.getComposite();
+			float opacity = overlayOptions.getOpacity();
+			if (opacity < 1) {
+				g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER));
+				PathHierarchyPaintingHelper.paintSpecifiedObjects(g2d, boundsDisplayed, hierarchy.getSelectionModel().getSelectedObjects(), overlayOptions, hierarchy.getSelectionModel(), downsampleFactor);
+				g2d.setComposite(previousComposite);
+			} else {
+				PathHierarchyPaintingHelper.paintSpecifiedObjects(g2d, boundsDisplayed, hierarchy.getSelectionModel().getSelectedObjects(), overlayOptions, hierarchy.getSelectionModel(), downsampleFactor);				
+			}			
+		} else
+			PathHierarchyPaintingHelper.paintSpecifiedObjects(g2d, boundsDisplayed, pathObjectList, overlayOptions, null, downsampleFactor);
 	}
 
 

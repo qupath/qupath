@@ -25,6 +25,7 @@ package qupath.lib.gui.tma;
 
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 
 import java.util.HashMap;
@@ -45,7 +46,6 @@ import qupath.lib.gui.tma.entries.DefaultTMAEntry;
 import qupath.lib.gui.tma.entries.TMAEntry;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
-import qupath.lib.io.PathIO;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.hierarchy.TMAGrid;
@@ -55,9 +55,9 @@ import qupath.lib.regions.RegionRequest;
 
 /**
  * The aim of this is to enable the exploration of TMA data from multiple images in a project.
- * 
+ * <p>
  * In the end, it might not last... since this overlaps considerably with the aim of the TMASummaryViewer.
- * 
+ * <p>
  * Therefore currently its primary task is to simply launch the TMASummaryViewer with the data it has gathered.
  * 
  * @author Pete Bankhead
@@ -88,7 +88,7 @@ public class TMAExplorer implements PathCommand {
 		if (project != null) {
 			
 			// Create an output directory for the images
-			File dirBaseImageOutput = new File(qupath.getCurrentProjectDirectory(), "TMA");
+			File dirBaseImageOutput = new File(project.getBaseDirectory(), "TMA");
 			dirBaseImageOutput = new File(dirBaseImageOutput, "images");
 			if (!dirBaseImageOutput.exists())
 				dirBaseImageOutput.mkdirs();
@@ -98,8 +98,7 @@ public class TMAExplorer implements PathCommand {
 			
 			for (ProjectImageEntry<BufferedImage> imageEntry : project.getImageList()) {
 				// Look for data file
-				File fileData = QuPathGUI.getImageDataFile(project, imageEntry);
-				if (fileData == null || !fileData.isFile())
+				if (!imageEntry.hasImageData())
 					continue;
 				
 				File dirImageOutput = new File(dirBaseImageOutput, imageEntry.getImageName());
@@ -107,7 +106,13 @@ public class TMAExplorer implements PathCommand {
 					dirImageOutput.mkdirs();
 				
 				// Read data
-				ImageData<BufferedImage> imageData = PathIO.readImageData(fileData, null, null, BufferedImage.class);
+				ImageData<BufferedImage> imageData;
+				try {
+					imageData = imageEntry.readImageData();
+				} catch (IOException e) {
+					logger.error("Error reading ImageData for " + imageEntry.getImageName(), e);
+					continue;
+				}
 				TMAGrid tmaGrid = imageData.getHierarchy().getTMAGrid();
 				if (tmaGrid == null) {
 					logger.warn("No TMA data for {}", imageEntry.getImageName());
@@ -160,7 +165,11 @@ public class TMAExplorer implements PathCommand {
 					entries.add(entry);
 				}
 				
-				server.close();
+				try {
+					server.close();
+				} catch (Exception e) {
+					logger.warn("Problem closing server", e);
+				}
 
 			}
 			

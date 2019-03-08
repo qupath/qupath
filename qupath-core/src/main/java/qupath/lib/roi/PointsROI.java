@@ -23,6 +23,7 @@
 
 package qupath.lib.roi;
 
+import java.awt.Shape;
 import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
 import java.io.Serializable;
@@ -47,21 +48,21 @@ public class PointsROI extends AbstractPathROI implements ROIWithHull, PathPoint
 	
 	private static final long serialVersionUID = 1L;
 	
-	protected List<Point2> points = new ArrayList<>();
+	private List<Point2> points = new ArrayList<>();
 	
 //	// Point radius no longer sorted internally (it's really a display thing)
 //	@Deprecated
 //	protected double pointRadius = -1;
 	
-	transient protected double xMin = Double.NaN, yMin = Double.NaN, xMax = Double.NaN, yMax = Double.NaN;
-	transient protected PathArea convexHull = null;
+	transient private double xMin = Double.NaN, yMin = Double.NaN, xMax = Double.NaN, yMax = Double.NaN;
+	transient private PathArea convexHull = null;
 //	transient protected Point2 pointAdjusting = null;
 	
-	public PointsROI() {
+	PointsROI() {
 		this(Double.NaN, Double.NaN);
 	}
 	
-	public PointsROI(double x, double y) {
+	private PointsROI(double x, double y) {
 		this(x, y, -1, 0, 0);
 	}
 	
@@ -71,18 +72,14 @@ public class PointsROI extends AbstractPathROI implements ROIWithHull, PathPoint
 		recomputeBounds();
 	}
 	
-	public PointsROI(List<Point2> points) {
-		this(points, -1, 0, 0);
-	}
-	
-	public PointsROI(List<Point2> points, int c, int z, int t) {
+	PointsROI(List<? extends Point2> points, int c, int z, int t) {
 		super(c, z, t);
 		for (Point2 p : points)
 			addPoint(p.getX(), p.getY());
 		recomputeBounds();
 	}
 	
-	public PointsROI(float[] x, float[] y, int c, int z, int t) {
+	private PointsROI(float[] x, float[] y, int c, int z, int t) {
 		super(c, z, t);
 		if (x.length != y.length)
 			throw new IllegalArgumentException("Lengths of x and y arrays are not the same! " + x.length + " and " + y.length);
@@ -259,7 +256,7 @@ public class PointsROI extends AbstractPathROI implements ROIWithHull, PathPoint
 	
 	
 	@Override
-	public String getROIType() {
+	public String getRoiName() {
 		return "Points";
 	}
 	
@@ -267,7 +264,7 @@ public class PointsROI extends AbstractPathROI implements ROIWithHull, PathPoint
 	public String toString() {
 //		if (getName() != null)
 //			return String.format("%s (%d points)", getName(), points.size());			
-		return String.format("%s (%d points)", getROIType(), points.size());
+		return String.format("%s (%d points)", getRoiName(), points.size());
 	}
 	
 	@Override
@@ -380,6 +377,30 @@ public class PointsROI extends AbstractPathROI implements ROIWithHull, PathPoint
 		return getPointList();
 	}
 	
+	
+	
+	/**
+	 * throws UnsupportedOperationException
+	 */
+	@Override
+	public Shape getShape() throws UnsupportedOperationException {
+		throw new UnsupportedOperationException("PointROI does not support getShape()!");
+	}
+	
+	
+//	/**
+//	 * throws UnsupportedOperationException
+//	 */
+//	@Override
+//	public Geometry getGeometry() throws UnsupportedOperationException {
+//		throw new UnsupportedOperationException("PointROI does not support getGeometry()!");
+//	}
+	
+	
+	@Override
+	public RoiType getRoiType() {
+		return RoiType.POINT;
+	}
 	
 	
 	private Object writeReplace() {

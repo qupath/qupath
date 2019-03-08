@@ -28,8 +28,8 @@ import java.awt.Window;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.panels.WorkflowCommandLogView;
+import qupath.lib.gui.scripting.ScriptEditor;
 import qupath.lib.images.ImageData;
-import qupath.lib.scripting.ScriptEditor;
 
 /**
  * Command to show the script editor associated with a QuPathGUI.

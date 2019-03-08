@@ -24,10 +24,9 @@
 package qupath.lib.objects;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
-import java.util.List;
 
-//import org.apache.commons.lang.SerializationUtils;
 import org.junit.Test;
 
 import qupath.lib.measurements.MeasurementFactory;
@@ -35,7 +34,9 @@ import qupath.lib.measurements.MeasurementList;
 import qupath.lib.measurements.MeasurementListFactory;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
-import qupath.lib.roi.LineROI;
+import qupath.lib.regions.ImagePlane;
+import qupath.lib.roi.ROIs;
+import qupath.lib.roi.interfaces.ROI;
 
 public class TestPathAnnotationObject extends PathObjectTestWrapper { 
 	private final Integer nPO = 10; // number of (child) objects to be added
@@ -45,7 +46,7 @@ public class TestPathAnnotationObject extends PathObjectTestWrapper {
 	private final String nameML = "JJJ";
 	private final Double valueML = 10.0;
 	//private final double epsilon = 1e-15; 
-	LineROI myROI = new LineROI(line_x,line_y);
+	ROI myROI = ROIs.createLineROI(line_x,line_y, ImagePlane.getDefaultPlane());
 	PathClass myPC = PathClassFactory.getDefaultPathClass(PathClassFactory.PathClasses.IMAGE_ROOT);
 	PathAnnotationObject myPO = new PathAnnotationObject();
 	PathAnnotationObject myPO2 = new PathAnnotationObject(myROI);
@@ -73,7 +74,7 @@ public class TestPathAnnotationObject extends PathObjectTestWrapper {
 	}
 	@Test
 	public void test_NamesAndColors() {
-		test_toString(myPO, "Unassigned"); 
+//		test_toString(myPO, "Unassigned"); 
 		test_getDisplayedName(myPO, myPO.getClass().getSimpleName()); // name of the class by default 
 		test_getName(myPO, null); // no name yet in PO
 		test_setName(myPO, "myPO");
@@ -85,7 +86,7 @@ public class TestPathAnnotationObject extends PathObjectTestWrapper {
 	@Test
 	public void test_MeasurementList() {
 		MeasurementList tML = MeasurementListFactory.createMeasurementList(16, MeasurementList.TYPE.GENERAL);
-		tML.add(MeasurementFactory.createMeasurement(nameML, valueML));
+		tML.putMeasurement(MeasurementFactory.createMeasurement(nameML, valueML));
 		PathAnnotationObject tPO = new PathAnnotationObject(myROI, myPC, tML);
 		test_hasMeasurements(myPO, Boolean.FALSE); // no measurements
 		test_nMeasurements(myPO, 0); // no measurements
@@ -113,15 +114,15 @@ public class TestPathAnnotationObject extends PathObjectTestWrapper {
 	}
 	@Test
 	public void test_AddingRemovingPOs() {
-		List<PathObject> colPO = new ArrayList<>();
+		Collection<PathObject> colPO = new ArrayList<>();
 		for (int i = 0; i < nPO; ++i) 
 			colPO.add(new PathRootObject());
 		test_nChildObjects(myPO, 0);
-		test_getPathObjectList(myPO, Collections.emptyList()); // no children yet
+		test_comparePathObjectListContents(myPO, Collections.emptyList()); // no children yet
 		test_addPathObjects(myPO, colPO, nPO);
-		test_getPathObjectList(myPO, colPO);
+		test_comparePathObjectListContents(myPO, colPO);
 		test_removePathObjects(myPO, colPO, 0);
-		test_getPathObjectList(myPO, Collections.emptyList());
+		test_comparePathObjectListContents(myPO, Collections.emptyList());
 		test_addPathObjects(myPO, colPO, nPO);
 		test_clearPathObjects(myPO, 0); 
 	}

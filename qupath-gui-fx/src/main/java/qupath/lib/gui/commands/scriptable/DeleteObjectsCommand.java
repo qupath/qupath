@@ -23,8 +23,7 @@
 
 package qupath.lib.gui.commands.scriptable;
 
-import java.util.List;
-
+import java.util.Collection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -96,7 +95,7 @@ public class DeleteObjectsCommand implements PathCommand {
 		
 		
 		// Handle clearing objects of another specified type
-		List<PathObject> pathObjects = hierarchy.getObjects(null, cls);
+		Collection<PathObject> pathObjects = hierarchy.getObjects(null, cls);
 		if (pathObjects.isEmpty())
 			return;
 		int n = pathObjects.size();

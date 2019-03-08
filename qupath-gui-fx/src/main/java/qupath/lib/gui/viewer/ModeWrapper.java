@@ -35,8 +35,6 @@ import qupath.lib.gui.QuPathGUI.Modes;
  * implemented, e.g. to request a 'Move' input mode but without knowing  
  * how that will be implemented.
  * 
- * @see PathPrefs.getReturnToMoveMode()
- * 
  * @author Pete Bankhead
  *
  */

@@ -132,7 +132,7 @@ public class DefaultViewTracker implements ViewTracker, QuPathViewerListener {
 		visibleRegionChanged(viewer, viewer.getDisplayedRegionShape());
 
 		logger.info("--------------------------------------\n" + 
-					"View tracking for image: " + viewer.getServerPath() + "\n" +
+					"View tracking for image: " + server.getPath() + "\n" +
 					getLogHeadings(LOG_DELIMITER, doCursorTracking, supportsEyeTracking()));
 		
 		initialized = true;
@@ -526,9 +526,6 @@ public class DefaultViewTracker implements ViewTracker, QuPathViewerListener {
 	}
 
 	@Override
-	public void imageDataChanged(QuPathViewer viewer, ImageData<BufferedImage> imageDataOld, ImageData<BufferedImage> imageDataNew) {}
-
-	@Override
 	public void visibleRegionChanged(final QuPathViewer viewer, final Shape shape) {
 		// If the image has been updated, then it could be because a change of view that we want to track
 		if (lastFrame != null && lastFrame.getImageShape().equals(shape) && lastFrame.getSize().equals(viewer.getSize()))
@@ -578,6 +575,12 @@ public class DefaultViewTracker implements ViewTracker, QuPathViewerListener {
 		}		
 		
 	}
+
+
+
+	@Override
+	public void imageDataChanged(QuPathViewer viewer, ImageData<BufferedImage> imageDataOld,
+			ImageData<BufferedImage> imageDataNew) {}
 	
 
 }

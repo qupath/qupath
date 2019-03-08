@@ -1,0 +1,15 @@
+
+description = 'qupath-gui-fx'
+
+configurations {
+  implementation.extendsFrom javafx
+  implementation.extendsFrom gson
+  implementation.extendsFrom controlsfx
+  implementation.extendsFrom jfxtras
+  implementation.extendsFrom commonsmath
+  implementation.extendsFrom jts
+}
+
+dependencies {
+  compile project(':qupath-core')
+}

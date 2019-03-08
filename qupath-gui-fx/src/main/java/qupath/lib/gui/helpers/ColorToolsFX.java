@@ -30,9 +30,9 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import javafx.scene.paint.Color;
 import qupath.lib.common.ColorTools;
+import qupath.lib.gui.objects.helpers.PathObjectColorToolsAwt;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.classes.PathClass;
-import qupath.lib.objects.helpers.PathObjectColorToolsAwt;
 
 /**
  * Helper class for converting between packed RGB colors and Java's AWT representation, as well as creating some ColorModels for BufferedImages.

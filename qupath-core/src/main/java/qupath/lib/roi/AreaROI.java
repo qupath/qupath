@@ -23,6 +23,7 @@
 
 package qupath.lib.roi;
 
+import java.awt.Shape;
 import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
 import java.io.Serializable;
@@ -32,11 +33,8 @@ import java.util.List;
 
 import qupath.lib.common.GeneralTools;
 import qupath.lib.geom.Point2;
-import qupath.lib.roi.experimental.WindingTest;
 import qupath.lib.roi.interfaces.ROI;
 import qupath.lib.roi.interfaces.TranslatableROI;
-import qupath.lib.rois.vertices.MutableVertices;
-import qupath.lib.rois.vertices.Vertices;
 
 /**
  * Implementation of an arbitrary area ROI - which could contain disjointed or hollow regions.
@@ -53,8 +51,6 @@ import qupath.lib.rois.vertices.Vertices;
  * since potentially a deserialized version of this could then be used to create different kinds of Area 
  * (e.g. java.awt.Area or some JavaFX alternative.)
  * 
- * @see AWTAreaROI
- * 
  * @author Pete Bankhead
  *
  */
@@ -68,11 +64,7 @@ public class AreaROI extends AbstractPathAreaROI implements TranslatableROI, Ser
 	
 	// We potentially spend a lot of time drawing polygons & assessing whether or not to draw them...
 	// By caching the bounds this can be speeded up
-	transient ClosedShapeStatistics stats = null;
-	
-	AreaROI(List<? extends Vertices> vertices) {
-		this(vertices, -1, 0, 0);
-	}
+	transient private ClosedShapeStatistics stats = null;
 	
 	// TODO: Consider making this protected - better not to use directly, to ensure validity of vertices
 	AreaROI(List<? extends Vertices> vertices, int c, int z, int t) {
@@ -82,7 +74,7 @@ public class AreaROI extends AbstractPathAreaROI implements TranslatableROI, Ser
 			this.vertices.add(new DefaultMutableVertices(v));
 	}
 	
-	AreaROI(float[][] x, float[][] y, int c, int z, int t) {
+	private AreaROI(float[][] x, float[][] y, int c, int z, int t) {
 		super(c, z, t);
 		this.vertices = new ArrayList<>();
 		if (x.length != y.length)
@@ -129,7 +121,7 @@ public class AreaROI extends AbstractPathAreaROI implements TranslatableROI, Ser
 	}
 
 	@Override
-	public String getROIType() {
+	public String getRoiName() {
 		return "Area";
 	}
 
@@ -328,6 +320,10 @@ public class AreaROI extends AbstractPathAreaROI implements TranslatableROI, Ser
 		}
 		
 	}
-	
+
+	@Override
+	public Shape getShape() {
+		return PathROIToolsAwt.getShape(this);
+	}
 	
 }

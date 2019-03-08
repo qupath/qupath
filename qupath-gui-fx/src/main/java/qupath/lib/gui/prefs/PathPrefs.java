@@ -24,15 +24,25 @@
 package qupath.lib.gui.prefs;
 
 import java.io.File;
-import java.lang.reflect.Method;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
+import java.nio.file.StandardOpenOption;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import java.util.Locale.Category;
 import java.util.prefs.BackingStoreException;
+import java.util.prefs.InvalidPreferencesFormatException;
 import java.util.prefs.Preferences;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,6 +52,7 @@ import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.FloatProperty;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleFloatProperty;
@@ -55,11 +66,12 @@ import javafx.collections.ObservableList;
 import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.helpers.CommandFinderTools.CommandBarDisplay;
+import qupath.lib.objects.classes.PathClass;
 import qupath.lib.projects.ProjectIO;
 
 /**
  * Central storage of QuPath preferences.
- * 
+ * <p>
  * Most of these are 'persistent', and stored in a platform-dependent way using 
  * Java's Preferences API.
  * 
@@ -68,7 +80,10 @@ import qupath.lib.projects.ProjectIO;
  */
 public class PathPrefs {
 	
-	final private static String NODE_NAME = "io.github.qupath";
+	/**
+	 * Name for preference node - until 0.2.0 is stable, avoid using same storage as v0.1.2
+	 */
+	final private static String NODE_NAME = "io.github.qupath.0.2.0.m1";
 	
 	private static Logger logger = LoggerFactory.getLogger(PathPrefs.class);
 	
@@ -78,6 +93,34 @@ public class PathPrefs {
 	private static BooleanProperty resetProperty = new SimpleBooleanProperty(Boolean.FALSE);
 
 	public static BooleanProperty useProjectImageCache = createPersistentPreference("useProjectImageCache", Boolean.FALSE);
+	
+	/**
+	 * Export preferences to a stream.  Note that this will only export preferences that have been set explicitly; 
+	 * some preferences may be 'missing' because their defaults were never changed.  This behavior may change in the future.
+	 * 
+	 * @param stream
+	 * @throws IOException
+	 * @throws BackingStoreException
+	 */
+	public static void exportPreferences(OutputStream stream) throws IOException, BackingStoreException {
+		getUserPreferences().exportNode(stream);
+	}
+	
+	/**
+	 * Import preferences from a stream.
+	 * <p>
+	 * Note that if the plan is to re-import preferences previously exported by {@link #exportPreferences(OutputStream)} 
+	 * then it may be worthwhile to {@link #resetPreferences()} first to handle the fact that preferences may not have been 
+	 * saved because their default values were unchanged.
+	 * 
+	 * @param stream
+	 * @throws IOException
+	 * @throws InvalidPreferencesFormatException
+	 */
+	public static void importPreferences(InputStream stream) throws IOException, InvalidPreferencesFormatException  {
+		Preferences.importPreferences(stream);
+	}
+	
 	
 	/**
 	 * If true, then a 'cache' directory will be created within projects, and ImageServers that retrieve images in a lengthy way
@@ -101,28 +144,7 @@ public class PathPrefs {
 		useProjectImageCache.set(useCache);
 	}
 
-	private static StringProperty scriptsPath = createPersistentPreference("scriptsPath", null); // Base directory containing scripts
-
-	// Known whole slide image extensions
-	private static String[] knownImageExtensions = new String[]{
-		"tif",
-		"tiff",
-		"jpeg",
-		"jpg", 
-		"svs",
-		"ndpi",
-		"scn",
-		"mrxs",
-		"vms",
-		"vmu",
-		"svslide",
-		"bif",
-		"zvi",
-		"lif"
-	};
-	
-	
-	
+	private static StringProperty scriptsPath = createPersistentPreference("scriptsPath", (String)null); // Base directory containing scripts
 	
 	
 	private static IntegerProperty numCommandThreads = createPersistentPreference("Requested number of threads", Runtime.getRuntime().availableProcessors());
@@ -140,6 +162,20 @@ public class PathPrefs {
 	}
 	
 	
+	private static BooleanProperty showImageNameInTitle = createPersistentPreference("showImageNameInTitle", Boolean.TRUE);
+	
+	public static BooleanProperty showImageNameInTitleProperty() {
+		return showImageNameInTitle;
+	}
+
+	public static boolean showImageNameInTitle() {
+		return showImageNameInTitle.get();
+	}
+	
+	public static void setShowImageNameInTitle(final boolean show) {
+		showImageNameInTitle.set(show);
+	}
+	
 	
 	private static BooleanProperty doAutoUpdateCheck = createPersistentPreference("doAutoUpdateCheck", Boolean.TRUE);
 	
@@ -155,6 +191,21 @@ public class PathPrefs {
 		doAutoUpdateCheck.set(doCheck);
 	}
 
+	
+	
+	private static BooleanProperty maskImageNames = createPersistentPreference("maskImageNames", Boolean.FALSE);
+	
+	public static BooleanProperty maskImageNamesProperty() {
+		return maskImageNames;
+	}
+
+	public static boolean getMaskImageNames() {
+		return maskImageNames.get();
+	}
+	
+	public static void setMaskImageNames(final boolean doMask) {
+		maskImageNames.set(doMask);
+	}
 	
 	
 	
@@ -207,47 +258,77 @@ public class PathPrefs {
 	 */
 	public static boolean hasJavaPreferences() {
 		try {
-			Class<?> clsJVM = Class.forName("jdk.packager.services.UserJvmOptionsService");
-			Method methodGetDefaults = clsJVM.getMethod("getUserJVMDefaults");
-			Object options = methodGetDefaults.invoke(null);
-			return options != null;
-		} catch (Throwable t) {
-			logger.trace("Unable to load user JVM preferences", t);
+			Path path = getConfigPath();
+			if (path == null)
+				return false;
+			return Files.exists(path);
+		} catch (IOException e) {
+			logger.error("Error trying to find config file", e);
 			return false;
 		}
+	}
+	
+	static Path getConfigPath() throws IOException {
+		Path path = Paths.get(".");
+		List<Path> list = Files.list(path).filter(p -> p.getFileName().toString().endsWith(".cfg")).collect(Collectors.toList());
+		if (list.size() != 1) {
+			return null;
+		}
+		return list.get(0);
 	}
 	
 	/**
 	 * Get property representing the maximum memory for the Java Virtual Machine, 
 	 * applied after restarting the application.
-	 * 
-	 * Setting this will attempt to set -Xmx by means of UserJvmOptionsService.
-	 * 
-	 * If successful, any value <= 0 will result in the -Xmx option being removed 
-	 * (i.e. reverting to the default).  Otherwise, -Xmx will be set to the value that is 
-	 * specified or 100M, whichever is larger.
+	 * <p>
+	 * Setting this will attempt to set -Xmx by writing to a .cfg file in the home launch directory.
+	 * <p>
+	 * If successful, -Xmx will be set to the value that is specified or 512M, whichever is larger.
 	 * 
 	 * @return
 	 */
-	public static IntegerProperty maxMemoryMBProperty() {
+	public synchronized static IntegerProperty maxMemoryMBProperty() {
 		if (maxMemoryMB == null) {
 			maxMemoryMB = createPersistentPreference("maxMemoryMB", -1);
 			// Update Java preferences for restart
 			maxMemoryMB.addListener((v, o, n) -> {
 				try {
-					// Use reflection to ease setup - packager.jar may well not be on classpath during development
-					Class<?> clsJVM = Class.forName("jdk.packager.services.UserJvmOptionsService");
-					Method methodGetDefaults = clsJVM.getMethod("getUserJVMDefaults");
-					Method methodSetOptions = clsJVM.getMethod("setUserJVMOptions", Map.class);
-					Object options = methodGetDefaults.invoke(null);
-					if (n == null || n.intValue() <= 0) {
-						logger.info("Resetting JVM options");
-						methodSetOptions.invoke(options, Collections.emptyMap());
-					} else {
-						long val = Math.max(n.longValue(), 100);
-						logger.info("Setting JVM option -Xmx" + val + "M");
-						methodSetOptions.invoke(options, Collections.singletonMap("-Xmx", val + "M"));
+					if (n.intValue() <= 512) {
+						logger.warn("Cannot set memory to {}, must be >= 512 MB", n);
+						n = 512;
 					}
+					String memory = "-Xmx" + n.intValue() + "M";
+					Path config = getConfigPath();
+					if (!Files.exists(config)) {
+						logger.error("Cannot find config file!");
+						return;
+					}
+					logger.info("Reading config file {}", config);
+					List<String> lines = Files.readAllLines(config);
+					int jvmOptions = -1;
+					int argOptions = -1;
+					int lineXmx = -1;
+					int i = 0;
+					for (String line : lines) {
+					    if (line.startsWith("[JVMOptions]"))
+					        jvmOptions = i;
+					    if (line.startsWith("[ArgOptions]"))
+					        argOptions = i;
+					    if (line.toLowerCase().contains("-xmx"))
+					        lineXmx = i;
+					    i++;
+					}
+					if (lineXmx >= 0)
+					    lines.set(lineXmx, memory);
+					else if (argOptions > jvmOptions && jvmOptions >= 0) {
+					    lines.add(jvmOptions+1, memory);
+					} else {
+					    logger.error("Cannot find where to insert memory request to .cfg file!");
+					    return;
+					}
+					logger.info("Setting JVM option to {}", memory);
+					Files.copy(config, Paths.get(config.toString() + ".bkp"), StandardCopyOption.REPLACE_EXISTING);
+					Files.write(config, lines, StandardOpenOption.WRITE);
 					return;
 				} catch (Exception e) {
 					logger.error("Unable to set max memory", e);
@@ -317,7 +398,7 @@ public class PathPrefs {
 	/**
 	 * Get scroll speed scaled into a proportion, i.e. 100% becomes 1.
 	 * 
-	 * This also enforces a range check to ensure if is finite and > 0.
+	 * This also enforces a range check to ensure if is finite and &gt; 0.
 	 * 
 	 * @return
 	 */
@@ -364,6 +445,48 @@ public class PathPrefs {
 	}
 	
 	
+	private static BooleanProperty selectionMode = createTransientPreference("selectionMode", false);
+
+	/**
+	 * Convert drawing tools to select objects, rather than creating new objects.
+	 * @return
+	 */
+	public static BooleanProperty selectionModeProperty() {
+		return selectionMode;
+	}
+
+	public static void setSelectionMode(final boolean mode) {
+		selectionMode.set(mode);
+	}
+	
+	public static boolean isSelectionMode() {
+		return selectionMode.get();
+	}
+	
+	
+	
+	private static BooleanProperty clipROIsForHierarchy = createPersistentPreference("clipROIsForHierarchy", false);
+
+	/**
+	 * Request ROIs to be clipped and inserted as the right place in the hierarchy when drawing 
+	 * (to prevent overlapping ROIs being created accidentally).
+	 * @return
+	 */
+	public static BooleanProperty clipROIsForHierarchyProperty() {
+		return clipROIsForHierarchy;
+	}
+
+	public static void setClipROIsForHierarchy(final boolean clipROIs) {
+		clipROIsForHierarchy.set(clipROIs);
+	}
+	
+	public static boolean getClipROIsForHierarchy() {
+		return clipROIsForHierarchy.get();
+	}
+	
+	
+	
+	
 	private static BooleanProperty showExperimentalOptions = createPersistentPreference("showExperimentalOptions", true);
 	
 	/**
@@ -402,7 +525,7 @@ public class PathPrefs {
 	
 	private static ObjectProperty<CommandBarDisplay> commandBarDisplay;
 	
-	public static ObjectProperty<CommandBarDisplay> commandBarDisplayProperty() {
+	public synchronized static ObjectProperty<CommandBarDisplay> commandBarDisplayProperty() {
 		if (commandBarDisplay == null) {
 			String name = PathPrefs.getUserPreferences().get("commandFinderDisplayMode", CommandBarDisplay.NEVER.name());
 			CommandBarDisplay display = CommandBarDisplay.valueOf(name);
@@ -415,27 +538,53 @@ public class PathPrefs {
 		}
 		return commandBarDisplay;
 	}
+	
+	
+	private static BooleanProperty doCreateLogFilesProperty = createPersistentPreference("requestCreateLogFiles", true);
+
+	/**
+	 * Request a log file to be generated.  Requires the <code>userPathProperty()</code> to be set to a directory.
+	 * 
+	 * @return
+	 */
+	public static BooleanProperty doCreateLogFilesProperty() {
+		return doCreateLogFilesProperty;
+	}
 		
 	
-	private static StringProperty extensionsPath = createPersistentPreference("extensionsPath", null); // Base directory containing extensions
+	private static StringProperty userPath = createPersistentPreference("userPath", (String)null); // Base directory containing extensions
 
 	
-	public static StringProperty extensionsPathProperty() {
-		return extensionsPath;
+	public static StringProperty userPathProperty() {
+		return userPath;
+	}
+	
+	public static String getUserPath() {
+		return userPath.get();
 	}
 	
 	public static String getExtensionsPath() {
-		return extensionsPath.get();
+		String userPath = getUserPath();
+		if (userPath == null)
+			return null;
+		return new File(userPath, "extensions").getAbsolutePath();
+	}
+	
+	public static String getLoggingPath() {
+		String userPath = getUserPath();
+		if (userPath == null)
+			return null;
+		return new File(userPath, "logs").getAbsolutePath();
 	}
 
-	public static void setExtensionsPath(final String path) {
-		extensionsPath.set(path);
+	public static void setUserPath(final String path) {
+		userPath.set(path);
 	}
 	
 	
 	
 	private static int nRecentProjects = 5;
-	private static ObservableList<File> recentProjects = FXCollections.observableArrayList();
+	private static ObservableList<URI> recentProjects = FXCollections.observableArrayList();
 	
 	static {
 		// Try to load the recent projects
@@ -444,16 +593,20 @@ public class PathPrefs {
 			if (project == null || project.length() == 0)
 				break;
 			// Only allow project files
-			if (!(project.toLowerCase().endsWith(ProjectIO.getProjectExtension()) && new File(project).isFile())) {
+			if (!(project.toLowerCase().endsWith(ProjectIO.getProjectExtension()))) {
 				continue;
 			}
-			recentProjects.add(new File(project));
+			try {
+				recentProjects.add(GeneralTools.toURI(project));
+			} catch (URISyntaxException e) {
+				logger.warn("Unable to parse URI from " + project, e);
+			}
 		}
 		// Add a listener to keep storing the preferences, as required
-		recentProjects.addListener((Change<? extends File> c) -> {
+		recentProjects.addListener((Change<? extends URI> c) -> {
 			int i = 0;
-			for (File project : recentProjects) {
-				getUserPreferences().put("recentProject" + i, project.getAbsolutePath());
+			for (URI project : recentProjects) {
+				getUserPreferences().put("recentProject" + i, project.toString());
 				i++;
 			}
 			while (i < nRecentProjects) {
@@ -463,7 +616,7 @@ public class PathPrefs {
 		});
 	}
 	
-	public static ObservableList<File> getRecentProjectList() {
+	public static ObservableList<URI> getRecentProjectList() {
 		return recentProjects;
 	}
 	
@@ -511,6 +664,85 @@ public class PathPrefs {
 	
 	
 	
+	/**
+	 * Grid properties
+	 */
+	
+	private static DoubleProperty gridStartX = createPersistentPreference("gridStartX", 0.0);
+
+	private static DoubleProperty gridStartY = createPersistentPreference("gridStartY", 0.0);
+	
+	private static DoubleProperty gridSpacingX = createPersistentPreference("gridSpacingX", 250.0);
+
+	private static DoubleProperty gridSpacingY = createPersistentPreference("gridSpacingY", 250.0);
+
+	private static BooleanProperty gridScaleMicrons = createPersistentPreference("gridScaleMicrons", true);
+
+
+	public static DoubleProperty gridStartXProperty() {
+		return gridStartX;
+	}
+	
+	public static DoubleProperty gridStartYProperty() {
+		return gridStartY;
+	}
+
+	public static DoubleProperty gridSpacingXProperty() {
+		return gridSpacingX;
+	}
+
+	public static DoubleProperty gridSpacingYProperty() {
+		return gridSpacingY;
+	}
+
+	public static BooleanProperty gridScaleMicrons() {
+		return gridScaleMicrons;
+	}
+
+	
+	
+	private static DoubleProperty autoBrightnessContrastSaturation = PathPrefs.createPersistentPreference("autoBrightnessContrastSaturationPercentage", 0.1);
+
+	/**
+	 * Controls percentage of saturated pixels to apply when automatically setting brightness/contrast.
+	 * <p>
+	 * A value of 1 indicates that approximately 1% dark pixels and 1% bright pixels should be saturated.
+	 */
+	public static DoubleProperty autoBrightnessContrastSaturationPercentProperty() {
+		return autoBrightnessContrastSaturation;
+	}
+	
+	public static double getAutoBrightnessContrastSaturationPercent() {
+		return autoBrightnessContrastSaturation.get();
+	}
+	
+	public static void setAutoBrightnessContrastSaturationPercent(double saturation) {
+		autoBrightnessContrastSaturation.set(saturation);
+	}
+	
+	
+	private static BooleanProperty keepDisplaySettings = createPersistentPreference("keepDisplaySettings", true);
+	
+	/**
+	 * Retain display settings (channel colors, brightness/contrast) when opening new images 
+	 * that have the same properties (i.e. channels, channel names, bit-depths).
+	 * 
+	 * @return
+	 */
+	public static BooleanProperty keepDisplaySettingsProperty() {
+		return keepDisplaySettings;
+	}
+	
+	public static boolean getKeepDisplaySettings() {
+		return keepDisplaySettings.get();
+	}
+	
+	public static void setKeepDisplaySettings(boolean keep) {
+		keepDisplaySettings.set(keep);
+	}
+	
+	
+	
 	private static BooleanProperty doubleClickToZoom = createPersistentPreference("doubleClickToZoom", false);
 	
 	public static BooleanProperty doubleClickToZoomProperty() {
@@ -525,19 +757,39 @@ public class PathPrefs {
 		doubleClickToZoom.set(doDoubleClick);
 	}
 	
+	public static enum ImageTypeSetting {AUTO_ESTIMATE, PROMPT, NONE;
+		
+		public String toString() {
+			switch(this) {
+			case AUTO_ESTIMATE:
+				return "Auto estimate";
+			case NONE:
+				return "Unset";
+			case PROMPT:
+				return "Prompt";
+			default:
+				return "Unknown";
+			}
+		}
+		
+	}
+		
+	private static ObjectProperty<ImageTypeSetting> imageTypeSettingProperty = createPersistentPreference("imageTypeSetting", ImageTypeSetting.PROMPT, ImageTypeSetting.class);
 	
-	private static BooleanProperty autoEstimateImageType = createPersistentPreference("autoEstimateImageType", true);
+	public static ObjectProperty<ImageTypeSetting> imageTypeSettingProperty() {
+		return imageTypeSettingProperty;
+	}
 	
-	public static BooleanProperty autoEstimateImageTypeProperty() {
-		return autoEstimateImageType;
+	public static ImageTypeSetting getImageTypeSetting() {
+		return imageTypeSettingProperty.get();
 	}
 	
 	public static boolean getAutoEstimateImageType() {
-		return autoEstimateImageType.get();
+		return imageTypeSettingProperty.get() == ImageTypeSetting.AUTO_ESTIMATE;
 	}
 	
-	public static void setAutoEstimateImageType(boolean autoSet) {
-		autoEstimateImageType.set(autoSet);
+	public static boolean getPromptForImageType() {
+		return imageTypeSettingProperty.get() == ImageTypeSetting.PROMPT;
 	}
 
 	
@@ -598,6 +850,27 @@ public class PathPrefs {
 		return trackCursorPosition;
 	}
 	
+	
+	
+	private static BooleanProperty enableFreehandTools = createPersistentPreference("enableFreehandTools", true);
+	
+	public static boolean enableFreehandTools() {
+		return enableFreehandTools.get();
+	}
+	
+	public static void setEnableFreehandTools(boolean enable) {
+		enableFreehandTools.set(enable);
+	}
+	
+	/**
+	 * Enable polygon/polyline tools to support 'freehand' mode; this means that if the ROI is 
+	 * started by dragging, then it will end by lifting the mouse (rather than requiring a double-click).
+	 * 
+	 * @return
+	 */
+	public static BooleanProperty enableFreehandToolsProperty() {
+		return enableFreehandTools;
+	}
 	
 	
 	
@@ -723,32 +996,14 @@ public class PathPrefs {
 	
 	
 	/**
-	 * An image with width & height < maxNonWholeTiledImageLength() should not be tiled -
-	 * rather, the entirely image should always be read & used
+	 * An image with width &amp; height &lt; maxNonWholeTiledImageLength() should not be tiled -
+	 * rather, the entirely image should always be read &amp; used
 	 * @return
 	 */
 	public static int maxNonWholeTiledImageLength() {
 		return 5000;
 	}
 	
-	
-	public static String[] getKnownImageExtensions() {
-		return knownImageExtensions.clone();
-	}
-	
-	
-	/**
-	 * Returns true if a filename ends with a known image file extension
-	 * @param fileName
-	 * @return
-	 */
-	public static boolean hasKnownImageFileExtension(String fileName) {
-		for (String extKnown : knownImageExtensions) {
-			if (fileName.endsWith(extKnown))
-				return true;
-		}
-		return false;
-	}
 
 	
 //	// Number of tiles to keep in cache when displaying image
@@ -815,6 +1070,21 @@ public class PathPrefs {
 	}
 	
 	
+	private static BooleanProperty multipointTool = createTransientPreference("multipointTool", true);
+	
+	public static BooleanProperty multipointToolProperty() {
+		return multipointTool;
+	}
+
+	public static boolean getMultipointTool() {
+		return multipointTool.get();
+	}
+
+	public static void setMultipointTool(boolean doMultipoint) {
+		multipointTool.set(doMultipoint);
+	}
+	
+	
 	private static DoubleProperty tmaExportDownsampleProperty = createPersistentPreference("tmaExportDownsample", 4.0);
 
 	public static void setTMAExportDownsample(final double downsample) {
@@ -828,6 +1098,27 @@ public class PathPrefs {
 	public static double getTMAExportDownsample() {
 		return tmaExportDownsampleProperty.get();
 	}
+	
+	
+	
+	private static DoubleProperty viewerGammaProperty = createPersistentPreference("viewerGammaProperty", 1.0);
+
+	public static void setViewerGamma(final double gamma) {
+		viewerGammaProperty.set(gamma);
+	}
+
+	/**
+	 * Requested gamma value applied to the image in each viewer (for display only).
+	 * @return
+	 */
+	public static DoubleProperty viewerGammaProperty() {
+		return viewerGammaProperty;
+	}
+
+	public static double getViewerGamma() {
+		return viewerGammaProperty.get();
+	}
+	
 
 	
 	/**
@@ -849,6 +1140,24 @@ public class PathPrefs {
 //		return dirCache;
 //	}
 	
+	private static IntegerProperty viewerBackgroundColor = createPersistentPreference("viewerBackgroundColor", ColorTools.makeRGB(0, 0, 0));
+	
+	public static Integer getViewerBackgroundColor() {
+		return viewerBackgroundColor.get();
+	}
+	
+	public static void setViewerBackgroundColor(int color) {
+		viewerBackgroundColor.set(color);
+	}
+
+	/**
+	 * Color to paint behind any image.
+	 * @return
+	 */
+	public static IntegerProperty viewerBackgroundColorProperty() {
+		return viewerBackgroundColor;
+	}
+
 	
 	private static IntegerProperty colorDefaultAnnotations = createPersistentPreference("colorDefaultAnnotations", ColorTools.makeRGB(255, 0, 0));
 	
@@ -920,17 +1229,17 @@ public class PathPrefs {
 	
 	
 	
-	private static BooleanProperty autoSetAnnotationClass = createTransientPreference("autoSetAnnotationClass", false); // Request that newly-created annotations be automatically classified
+	private static ObjectProperty<PathClass> autoSetAnnotationClass = createTransientPreference("autoSetAnnotationClass", (PathClass)null); // Request that newly-created annotations be automatically classified
 	
-	public static boolean getAutoSetAnnotationClass() {
+	public static PathClass getAutoSetAnnotationClass() {
 		return autoSetAnnotationClass.get();
 	}
 
-	public static void setAutoSetAnnotationClass(boolean autoSet) {
+	public static void setAutoSetAnnotationClass(PathClass autoSet) {
 		autoSetAnnotationClass.set(autoSet);
 	}
 	
-	public static BooleanProperty autoSetAnnotationClassProperty() {
+	public static ReadOnlyObjectProperty<PathClass> autoSetAnnotationClassProperty() {
 		return autoSetAnnotationClass;
 	}
 	
@@ -965,6 +1274,41 @@ public class PathPrefs {
 	
 	public static boolean getAutoCloseCommandList() {
 		return autoCloseCommandList.get();
+	}
+	
+	
+	
+	private static BooleanProperty alwaysPaintSelectedObjects = createPersistentPreference("alwaysPaintSelectedObjects", true);
+	
+	/**
+	 * Always paint selected objects in the viewer, even if the opacity setting is 0.
+	 */
+	public static void setAlwaysPaintSelectedObjects(boolean alwaysPaint) {
+		alwaysPaintSelectedObjects.set(alwaysPaint);
+	}
+	
+	public static BooleanProperty alwaysPaintSelectedObjectsProperty() {
+		return alwaysPaintSelectedObjects;
+	}
+	
+	public static boolean getAlwaysPaintSelectedObjects() {
+		return alwaysPaintSelectedObjects.get();
+	}
+	
+	
+
+ private static BooleanProperty viewerInterpolateBilinear = createPersistentPreference("viewerInterpolateBilinear", false);
+	
+	public static void setViewerInterpolationBilinear(boolean doBilinear) {
+		viewerInterpolateBilinear.set(doBilinear);
+	}
+	
+	public static BooleanProperty viewerInterpolateBilinearProperty() {
+		return viewerInterpolateBilinear;
+	}
+	
+	public static boolean getViewerInterpolationBilinear() {
+		return viewerInterpolateBilinear.get();
 	}
 	
 	
@@ -1127,6 +1471,29 @@ public class PathPrefs {
 		return property;
 	}
 	
+	/**
+	 * Create a persistent property, i.e. one that will be saved to/reloaded from the user preferences.
+	 * 
+	 * @param name
+	 * @param defaultValue
+	 * @return
+	 */
+	public static <T extends Enum<T>> ObjectProperty<T> createPersistentPreference(final String name, final T defaultValue, final Class<T> enumType) {
+		ObjectProperty<T> property = createTransientPreference(name, defaultValue);
+		property.set(
+				Enum.valueOf(enumType, getUserPreferences().get(name, defaultValue.name()))
+				);
+		property.addListener((v, o, n) -> {
+			if (n == null)
+				getUserPreferences().remove(name);
+			else
+				getUserPreferences().put(name, n.name());
+		});
+		// Triggered when reset is called
+		resetProperty.addListener((c, o, v) -> property.setValue(defaultValue));
+		return property;
+	}
+	
 	
 	/**
 	 * Create a preference for storing Locales.
@@ -1188,6 +1555,18 @@ public class PathPrefs {
 	 */
 	static StringProperty createTransientPreference(final String name, final String defaultValue) {
 		return new SimpleStringProperty(null, name, defaultValue);
+	}
+	
+	
+	/**
+	 * Create a transient property, i.e. one that won't be saved in the user preferences later.
+	 * 
+	 * @param name
+	 * @param defaultValue
+	 * @return
+	 */
+	static <T> ObjectProperty<T> createTransientPreference(final String name, final T defaultValue) {
+		return new SimpleObjectProperty<>(null, name, defaultValue);
 	}
 
 

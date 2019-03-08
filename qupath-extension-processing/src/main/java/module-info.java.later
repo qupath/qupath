@@ -1,0 +1,18 @@
+module qupath.extension.ij {
+	
+	requires java.base;
+	requires java.desktop;
+	
+	requires javafx.controls;
+	
+	requires qupath.core;
+    requires qupath.core.processing;
+    requires qupath.gui.fx;
+
+    requires slf4j.api;
+    requires ij;
+    requires opencv;
+//    requires javacpp;
+	requires controlsfx;
+
+}

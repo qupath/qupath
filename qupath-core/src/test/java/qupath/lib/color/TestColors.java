@@ -226,19 +226,21 @@ public class TestColors {
 		assertEquals(deconv_pixel_ch1, ColorTransformer.deconvolve(rgb, myMatInv, ColorDeconvolutionHelper.makeODLUT(MAX_RGB), 2), EPSILON2);
 		assertEquals(deconv_pixel_ch2, ColorTransformer.deconvolve(rgb, myMatInv, ColorDeconvolutionHelper.makeODLUT(MAX_RGB), 3), EPSILON2);
 
-		// Continue testing ColorDeconvolution
-		assertEquals((float)deconv_pixel_ch0, ColorDeconvolution.colorDeconvolveRGBPixel(rgb, myCDS2, 0), EPSILON);
-		assertEquals((float)deconv_pixel_ch1, ColorDeconvolution.colorDeconvolveRGBPixel(rgb, myCDS2, 1), EPSILON);
-		assertEquals((float)deconv_pixel_ch2, ColorDeconvolution.colorDeconvolveRGBPixel(rgb, myCDS2, 2), EPSILON);
+//		// Continue testing ColorDeconvolution
+//		assertEquals((float)deconv_pixel_ch0, ColorDeconvolution.colorDeconvolveRGBPixel(rgb, myCDS2, 0), EPSILON);
+//		assertEquals((float)deconv_pixel_ch1, ColorDeconvolution.colorDeconvolveRGBPixel(rgb, myCDS2, 1), EPSILON);
+//		assertEquals((float)deconv_pixel_ch2, ColorDeconvolution.colorDeconvolveRGBPixel(rgb, myCDS2, 2), EPSILON);
 		
 		int[] buf = new int[]{ rgb, rgb, rgb, rgb, rgb, rgb, rgb, rgb, rgb, rgb }; // array of 10 rgb pixels with the same value
 		float[] output_ch0 = new float[buf.length];
 		float[] output_ch1 = new float[buf.length];
 		float[] output_ch2 = new float[buf.length];
 		
-		output_ch0 = ColorDeconvolution.colorDeconvolveRGBArray(buf, myCDS2, 0, output_ch0);
-		output_ch1 = ColorDeconvolution.colorDeconvolveRGBArray(buf, myCDS2, 1, output_ch1);
-		output_ch2 = ColorDeconvolution.colorDeconvolveRGBArray(buf, myCDS2, 2, output_ch2);
+		output_ch0 = ColorTransformer.getTransformedPixels(buf, ColorTransformer.ColorTransformMethod.Stain_1, output_ch0, myCDS2);
+		output_ch1 = ColorTransformer.getTransformedPixels(buf, ColorTransformer.ColorTransformMethod.Stain_2, output_ch1, myCDS2);
+		output_ch2 = ColorTransformer.getTransformedPixels(buf, ColorTransformer.ColorTransformMethod.Stain_3, output_ch2, myCDS2);
+//		output_ch1 = ColorDeconvolution.colorDeconvolveRGBArray(buf, myCDS2, 1, output_ch1);
+//		output_ch2 = ColorDeconvolution.colorDeconvolveRGBArray(buf, myCDS2, 2, output_ch2);
 		
 		// Check all 3 channels (stains)
 		for (int i = 0; i < buf.length; i++) {
@@ -247,18 +249,17 @@ public class TestColors {
 			assertEquals(output_ch2[i], (float)deconv_pixel_ch2, EPSILON);
 		}
 		
-		int[] buf_output = new int[buf.length];
+//		int[] buf_output = new int[buf.length];
 		
-		buf_output = ColorDeconvolution.colorDeconvolveReconvolveRGBArray(buf, myCDS2, myCDS2, false, buf_output);
+//		buf_output = ColorDeconvolution.colorDeconvolveReconvolveRGBArray(buf, myCDS2, myCDS2, false, buf_output);
 		
-		for (int i = 0; i < buf.length; i++)
-			assertEquals(buf_output[i], buf[i], EPSILON);
+//		for (int i = 0; i < buf.length; i++)
+//			assertEquals(buf_output[i], buf[i], EPSILON);
 		
 		// Check functions don't break with extreme RGB values (no exceptions)
-		ColorDeconvolution.colorDeconvolveRGBPixel(MIN_RGB, myCDS2, 0);
-		ColorDeconvolution.colorDeconvolveRGBPixel(MAX_RGB, myCDS2, 0);
-		ColorDeconvolution.colorDeconvolveRGBArray(new int[]{MIN_RGB, MAX_RGB}, myCDS2, 0, output_ch0);
-		ColorDeconvolution.colorDeconvolveReconvolveRGBArray(new int[]{MIN_RGB, MAX_RGB}, myCDS2, myCDS2, false, buf_output);
+//		ColorDeconvolution.colorDeconvolveRGBPixel(MIN_RGB, myCDS2, 0);
+//		ColorDeconvolution.colorDeconvolveRGBPixel(MAX_RGB, myCDS2, 0);
+//		ColorDeconvolution.colorDeconvolveReconvolveRGBArray(new int[]{MIN_RGB, MAX_RGB}, myCDS2, myCDS2, false, buf_output);
 		
 	}
 	

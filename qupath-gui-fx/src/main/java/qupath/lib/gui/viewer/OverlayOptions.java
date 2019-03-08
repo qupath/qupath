@@ -48,9 +48,10 @@ public class OverlayOptions {
 	private ObjectProperty<MeasurementMapper> measurementMapper = new SimpleObjectProperty<>();
 	private BooleanProperty showAnnotations = new SimpleBooleanProperty(true);
 	private BooleanProperty showTMAGrid = new SimpleBooleanProperty(true);
-	private BooleanProperty showObjects = new SimpleBooleanProperty(true);
+	private BooleanProperty showPixelClassification = new SimpleBooleanProperty(true);
+	private BooleanProperty showDetections = new SimpleBooleanProperty(true);
 	private BooleanProperty showConnections = new SimpleBooleanProperty(true);
-	private BooleanProperty fillObjects = new SimpleBooleanProperty(false);
+	private BooleanProperty fillDetections = new SimpleBooleanProperty(false);
 	private BooleanProperty fillAnnotations = new SimpleBooleanProperty(false);
 	private BooleanProperty showTMACoreLabels = new SimpleBooleanProperty(false);
 	private BooleanProperty showGrid = new SimpleBooleanProperty(false);
@@ -136,8 +137,17 @@ public class OverlayOptions {
 	 * 
 	 * @param show
 	 */
-	public void setShowObjects(boolean show) {
-		this.showObjects.set(show);
+	public void setShowDetections(boolean show) {
+		this.showDetections.set(show);
+	}
+	
+	/**
+	 * Show pixel classification overlays.
+	 * 
+	 * @param show
+	 */
+	public void setShowPixelClassification(boolean show) {
+		this.showPixelClassification.set(show);
 	}
 	
 	/**
@@ -146,7 +156,7 @@ public class OverlayOptions {
 	 * @param fill
 	 */
 	public void setFillObjects(boolean fill) {
-		this.fillObjects.set(fill);
+		this.fillDetections.set(fill);
 	}
 	
 	/**
@@ -170,7 +180,7 @@ public class OverlayOptions {
 	/**
 	 * Show TMA core names on top of the image.
 	 * 
-	 * @param fill
+	 * @param showTMALabels
 	 */
 	public void setShowTMACoreLabels(boolean showTMALabels) {
 		showTMACoreLabels.set(showTMALabels);
@@ -188,6 +198,10 @@ public class OverlayOptions {
 		return showConnections;
 	}
 	
+	public boolean getShowPixelClassification() {
+		return showPixelClassification.get();
+	}
+
 	public boolean getShowAnnotations() {
 		return showAnnotations.get();
 	}
@@ -196,8 +210,8 @@ public class OverlayOptions {
 		return showTMAGrid.get();
 	}
 	
-	public boolean getShowObjects() {
-		return showObjects.get();
+	public boolean getShowDetections() {
+		return showDetections.get();
 	}
 	
 	public boolean getShowConnections() {
@@ -205,7 +219,7 @@ public class OverlayOptions {
 	}
 	
 	public boolean getFillObjects() {
-		return fillObjects.get();
+		return fillDetections.get();
 	}
 	
 	public boolean getFillAnnotations() {
@@ -286,13 +300,17 @@ public class OverlayOptions {
 	public BooleanProperty showTMAGridProperty() {
 		return showTMAGrid;
 	}
-
-	public BooleanProperty showObjectsProperty() {
-		return showObjects;
+	
+	public BooleanProperty showPixelClassificationProperty() {
+		return showPixelClassification;
 	}
 
-	public BooleanProperty fillObjectsProperty() {
-		return fillObjects;
+	public BooleanProperty showDetectionsProperty() {
+		return showDetections;
+	}
+
+	public BooleanProperty fillDetectionsProperty() {
+		return fillDetections;
 	}
 
 	public BooleanProperty fillAnnotationsProperty() {

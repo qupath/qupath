@@ -23,6 +23,7 @@
 
 package qupath.lib.objects.hierarchy.events;
 
+import java.util.Collection;
 import java.util.EventListener;
 
 import qupath.lib.objects.PathObject;
@@ -35,6 +36,13 @@ import qupath.lib.objects.PathObject;
  */
 public interface PathObjectSelectionListener extends EventListener {
 	
-	public void selectedPathObjectChanged(PathObject pathObjectSelected, PathObject previousObject);
+	/**
+	 * Fired when the selected objects have changed.
+	 * 
+	 * @param pathObjectSelected the primary selected object
+	 * @param previousObject the previous primary selected object
+	 * @param allSelected all currently selected objects (including the primary)
+	 */
+	public void selectedPathObjectChanged(PathObject pathObjectSelected, PathObject previousObject, Collection<PathObject> allSelected);
 
 }

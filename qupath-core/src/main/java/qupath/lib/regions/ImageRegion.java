@@ -27,7 +27,7 @@ import qupath.lib.roi.interfaces.ROI;
 
 /**
  * Class for defining an image region.
- * A boundary box is given in pixel coordinates, while z & t values are given as indices.
+ * A boundary box is given in pixel coordinates, while z &amp; t values are given as indices.
  * 
  * @author Pete Bankhead
  *
@@ -58,6 +58,10 @@ public class ImageRegion {
 	}
 	
 	public static ImageRegion createInstance(final int x, final int y, final int width, final int height, final int z, final int t) {
+		if (width < 0)
+			throw new IllegalArgumentException("Width must be >= 0! Requested width = " + width);
+		if (height < 0)
+			throw new IllegalArgumentException("Height must be >= 0! Requested height = " + height);
 		return new ImageRegion(x, y, width, height, z, t);
 	}
 	
@@ -70,8 +74,9 @@ public class ImageRegion {
 	}
 	
 	/**
-	 * Returns true if the region specified by this request overlaps with that of another request.
-	 * The test includes insuring that they refer to the same image.
+	 * Returns true if the region specified by this region overlaps with another.
+	 * <p>
+	 * If either z or t is &lt; 0 then that value will be ignored.
 	 * 
 	 * @param request
 	 * @return
@@ -88,9 +93,27 @@ public class ImageRegion {
                 y2 + h2 > y &&
                 x2 < x + width &&
                 y2 < y + height);
-//		return new Rectangle(x, y, width, height).intersects(x2, y2, w2, h2);
 	}
 
+	/**
+	 * Check if this region contains a specified coordinate.
+	 * 
+	 * @param x
+	 * @param y
+	 * @param z
+	 * @param t
+	 * @return
+	 */
+	public boolean contains(int x, int y, int z, int t) {
+		return getZ() == z &&
+			   getT() == t &&
+			   x >= getX() &&
+			   x < getX() + getWidth() &&
+			   y >= getY() &&
+			   y < getY() + getHeight();
+	}
+	
+	
 	public int getX() {
 		return x;
 	}
@@ -114,6 +137,26 @@ public class ImageRegion {
 	public int getT() {
 		return t;
 	}
+	
+	
+	
+	public int getMinX() {
+		return Math.min(getX(), getX() + getWidth());
+	}
+
+	public int getMaxX() {
+		return Math.max(getX(), getX() + getWidth());
+	}
+	
+	public int getMinY() {
+		return Math.min(getY(), getY() + getHeight());
+	}
+
+	public int getMaxY() {
+		return Math.max(getY(), getY() + getHeight());
+	}
+
+	
 	
 	/* (non-Javadoc)
 	 * @see java.lang.Object#hashCode()

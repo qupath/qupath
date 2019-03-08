@@ -24,6 +24,7 @@
 package qupath.lib.objects;
 
 import java.util.Comparator;
+import java.util.Objects;
 
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.roi.DefaultROIComparator;
@@ -44,17 +45,21 @@ public class DefaultPathObjectComparator implements Comparator<PathObject> {
 
 	@Override
 	public int compare(PathObject o1, PathObject o2) {
+		
+		Objects.nonNull(o1);
+		Objects.nonNull(o2);
+		
 		// Quick check...
 		if (o1 == o2)
 			return 0;
 		
-		// Handle nulls
-		if (o1 == null) {
-			if (o2 == null)
-				return 0;
-			return 1;
-		} else if (o2 == null)
-			return -1;
+//		// Handle nulls
+//		if (o1 == null) {
+//			if (o2 == null)
+//				return 0;
+//			return 1;
+//		} else if (o2 == null)
+//			return -1;
 		
 		// Handle class order
 		int temp = -Boolean.compare(o1.isRootObject(), o2.isRootObject());

@@ -23,6 +23,8 @@
 
 package qupath.lib.roi;
 
+import java.awt.Shape;
+import java.awt.geom.Line2D;
 import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
 import java.io.Serializable;
@@ -46,19 +48,19 @@ public class LineROI extends AbstractPathROI implements PathLine, TranslatableRO
 	
 	private double x = Double.NaN, y = Double.NaN, x2 = Double.NaN, y2 = Double.NaN;
 	
-	protected LineROI() {
+	LineROI() {
 		super();
 	}
 	
-	public LineROI(double x, double y) {
+	LineROI(double x, double y) {
 		this(x, y, x, y);
 	}
 	
-	public LineROI(double x, double y, double x2, double y2) {
+	LineROI(double x, double y, double x2, double y2) {
 		this(x, y, x2, y2, -1, 0, 0);
 	}
 	
-	public LineROI(double x, double y, double x2, double y2, int c, int z, int t) {
+	LineROI(double x, double y, double x2, double y2, int c, int z, int t) {
 		super(c, z, t);
 		this.x = x;
 		this.y = y;
@@ -70,7 +72,7 @@ public class LineROI extends AbstractPathROI implements PathLine, TranslatableRO
 	 * @see qupath.lib.rois.LineROI#getROIType()
 	 */
 	@Override
-	public String getROIType() {
+	public String getRoiName() {
 		return "Line";
 	}
 
@@ -193,6 +195,22 @@ public class LineROI extends AbstractPathROI implements PathLine, TranslatableRO
 	}
 	
 	
+	@Override
+	public Shape getShape() {
+		return new Line2D.Double(x, y, x2, y2);
+	}
+	
+	
+//	public Geometry getGeometry() {
+//		GeometryFactory factory = new GeometryFactory();
+//	}
+	
+	
+	@Override
+	public RoiType getRoiType() {
+		return RoiType.LINE;
+	}
+	
 	
 	
 	private Object writeReplace() {
@@ -225,7 +243,7 @@ public class LineROI extends AbstractPathROI implements PathLine, TranslatableRO
 		}
 		
 		private Object readResolve() {
-			LineROI roi = new LineROI(x, y, x2-x, y2-y, c, z, t);
+			LineROI roi = new LineROI(x, y, x2, y2, c, z, t);
 //			if (name != null)
 //				roi.setName(name);
 			return roi;

@@ -29,10 +29,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.lib.common.ColorTools;
+import qupath.lib.gui.objects.helpers.PathObjectColorToolsAwt;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathTileObject;
-import qupath.lib.objects.helpers.PathObjectColorToolsAwt;
 
 /**
  * Helpers class that can be used to map an object's measurement to a color (packed RGB int).
@@ -95,7 +95,6 @@ public class MeasurementMapper {
 
 	/**
 	 * Returns true if objects with values outside the specified min/max range have the min/max colors returned, false if null should be returned instead.
-	 * @return
 	 */
 	public void setExcludeOutsideRange(boolean excludeOutsideRange) {
 		this.excludeOutsideRange = excludeOutsideRange;

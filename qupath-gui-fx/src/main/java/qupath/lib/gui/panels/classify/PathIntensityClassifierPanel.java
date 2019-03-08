@@ -26,7 +26,6 @@ package qupath.lib.gui.panels.classify;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.List;
 import java.util.function.Predicate;
 
 import org.slf4j.Logger;
@@ -53,7 +52,7 @@ import qupath.lib.gui.helpers.dialogs.ParameterPanelFX;
 import qupath.lib.gui.plots.HistogramPanelFX;
 import qupath.lib.gui.plots.HistogramPanelFX.ThresholdedChartWrapper;
 import qupath.lib.images.ImageData;
-import qupath.lib.objects.classes.PathClassFactory;
+import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.events.PathObjectSelectionListener;
 import qupath.lib.objects.PathDetectionObject;
@@ -124,7 +123,7 @@ public class PathIntensityClassifierPanel implements PathObjectSelectionListener
 		// Try to make a histogram & set it in the panel
 //		PathObject pathObjectSelected = hierarchy.getSelectionModel().getSelectedPathObject();
 		// For now, always use all objects (not direct descendants only)
-		List<PathObject> pathObjects = null;
+		Collection<PathObject> pathObjects = null;
 //		if (pathObjectSelected == null || !pathObjectSelected.hasChildren())
 			pathObjects = hierarchy.getObjects(pathObjects, PathDetectionObject.class);
 //		else
@@ -268,15 +267,17 @@ public class PathIntensityClassifierPanel implements PathObjectSelectionListener
 		if (intensityMeasurement != null && !intensityMeasurement.equals("None")) {
 			boolean singleThreshold = paramsIntensity.getBooleanParameterValue("single_threshold");
 			double t1 = paramsIntensity.getDoubleParameterValue("threshold_1");
+//			PathClass baseClass = PathClassFactory.getDefaultPathClass(PathClassFactory.PathClasses.TUMOR);
+			PathClass baseClass = null;
 			if (singleThreshold) {
 				intensityClassifier = new PathIntensityClassifier(
-						PathClassFactory.getDefaultPathClass(PathClassFactory.PathClasses.TUMOR),
+						baseClass,
 						intensityMeasurement, t1);
 			} else {
 				double t2 = Math.max(t1, paramsIntensity.getDoubleParameterValue("threshold_2"));
 				double t3 = Math.max(t2, paramsIntensity.getDoubleParameterValue("threshold_3"));
 				intensityClassifier = new PathIntensityClassifier(
-						PathClassFactory.getDefaultPathClass(PathClassFactory.PathClasses.TUMOR),
+						baseClass,
 						intensityMeasurement,
 						t1, t2, t3);
 			}
@@ -324,7 +325,6 @@ public class PathIntensityClassifierPanel implements PathObjectSelectionListener
 	 * Set the available measurements, optionally filtering them to permit only measurements containing the text filter (case insensitive).
 	 * 
 	 * @param measurements
-	 * @param filter
 	 */
 	public void setAvailableMeasurements(final Collection<String> measurements) {
 		
@@ -354,7 +354,7 @@ public class PathIntensityClassifierPanel implements PathObjectSelectionListener
 //			comboIntensities.getItems().setAll(measurements);
 		
 		// Ensure we have 'none'
-		if (availableMeasurements.isEmpty() || !availableMeasurements.equals("None"))
+		if (availableMeasurements.isEmpty() || !availableMeasurements.get(0).equals("None"))
 			availableMeasurements.add(0, "None");
 		
 		if (filteredAvailableMeasurements.contains(selected))
@@ -391,7 +391,7 @@ public class PathIntensityClassifierPanel implements PathObjectSelectionListener
 
 
 	@Override
-	public void selectedPathObjectChanged(final PathObject pathObjectSelected, final PathObject previousObject) {
+	public void selectedPathObjectChanged(final PathObject pathObjectSelected, final PathObject previousObject, Collection<PathObject> allSelected) {
 		updateIntensityHistogram();
 	}
 	

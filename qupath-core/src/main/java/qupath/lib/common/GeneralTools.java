@@ -23,24 +23,31 @@
 
 package qupath.lib.common;
 
+import java.awt.Desktop;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.Type;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Scanner;
 import java.util.Locale.Category;
-import java.util.regex.Pattern;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 
 /**
  * Collection of generally useful static methods.
@@ -51,6 +58,41 @@ import org.slf4j.LoggerFactory;
 public class GeneralTools {
 	
 	final private static Logger logger = LoggerFactory.getLogger(GeneralTools.class);
+	
+	
+	private final static String LATEST_VERSION = getLatestVerion();
+	
+	/**
+	 * Request the version of QuPath.
+	 * 
+	 * @return
+	 */
+	public static String getVersion() {
+		return LATEST_VERSION;
+	}
+	
+	
+	/**
+	 * Try to determine latest QuPath version, first from the manifest and then from the source 
+	 * (useful if running from an IDE, for example).
+	 * 
+	 * @return
+	 */
+	private static String getLatestVerion() {
+		String version = GeneralTools.class.getPackage().getImplementationVersion();
+		if (version == null) {
+			var path = Paths.get("VERSION");
+			if (Files.exists(path)) {
+				try {
+					version = Files.readString(path);
+				} catch (IOException e) {
+					logger.error("Unable to read version from {}", path);
+				}
+			}
+		}
+		return version;
+	}
+	
 	
 	/**
 	 * Check if a string is blank, i.e. it is null or its length is 0.
@@ -116,6 +158,48 @@ public class GeneralTools {
 	public static boolean almostTheSame(double n1, double n2, double tolerance) {
 		return Math.abs(n1 - n2)/n1 < tolerance;
 	}
+	
+	
+	/**
+	 * Try to convert a path to a URI.
+	 * <p>
+	 * This currently does a very simple check for http:/https:/file: at the beginning to see if it 
+	 * can construct the URI directly; if not, it assumes the path refers to a local file (as it 
+	 * generally did in QuPath 0.1.2 and earlier).
+	 * 
+	 * @param path
+	 * @return
+	 * @throws URISyntaxException 
+	 */
+	public static URI toURI(String path) throws URISyntaxException {
+		if (path.startsWith("http:") || path.startsWith("https:") || path.startsWith("file:"))
+			return new URI(path);
+		return new File(path).toURI();
+	}
+	
+	
+	/**
+	 * Try to identify a Path from a URI, dropping any query or fragment elements.
+	 * <p>
+	 * This returns the Path if successful and null otherwise. There is no check whether the Path exists.
+	 * 
+	 * @param uri
+	 * @return
+	 */
+	public static Path toPath(URI uri) {
+		String scheme = uri.getScheme();
+		if (scheme != null && !"file".equals(scheme))
+			return null;
+		try {
+			if (uri.getFragment() != null || uri.getQuery() != null)
+				uri = new URI(uri.getScheme(), uri.getHost(), uri.getPath(), null);
+			return Paths.get(uri);
+		} catch (URISyntaxException e) {
+			logger.warn("Problem parsing file from URI", e);
+		}
+		return null;
+	}
+	
 
 	/**
 	 * Convert a double array to string, with a specified number of decimal places; trailing zeros are
@@ -154,7 +238,7 @@ public class GeneralTools {
 	/**
 	 * Convert a String array to a single string, with a specified separator string.
 	 * @param array
-	 * @param nDecimalPlaces
+	 * @param separator
 	 * @return
 	 */
 	public static String arrayToString(final Object[] array, final String separator) {
@@ -230,7 +314,7 @@ public class GeneralTools {
 	 * Format a value with a maximum number of decimal places, using the default Locale.
 	 * 
 	 * @param value
-	 * @param nDecimalPlaces
+	 * @param maxDecimalPlaces
 	 * @return
 	 */
 	public synchronized static String formatNumber(final double value, final int maxDecimalPlaces) {
@@ -240,8 +324,9 @@ public class GeneralTools {
 	/**
 	 * Format a value with a maximum number of decimal places, using a specified Locale.
 	 * 
+	 * @param locale
 	 * @param value
-	 * @param nDecimalPlaces
+	 * @param maxDecimalPlaces
 	 * @return
 	 */
 	public synchronized static String formatNumber(final Locale locale, final double value, final int maxDecimalPlaces) {
@@ -270,61 +355,8 @@ public class GeneralTools {
 	public static Map<String, String> parseArgStringValues(String s) {
 		if (s == null)
 			return Collections.emptyMap();
-
-		s = s.trim();
-		if (!s.startsWith("{")) { // || !s.startsWith("{")) { // Don't know what I was planning here...?
-			throw new IllegalArgumentException(s + " is not a valid parameter string!");
-		}
-
-		// Minimum length of 7, for {"a":1}
-		if (s.replace(" ",  "").length() < 7 || !s.contains("\"") || !s.contains(":"))
-			return Collections.emptyMap();
-
-		//		logger.info(s);
-		//		s = s.substring(s.indexOf("\""), s.lastIndexOf("\"") + 1);
-
-		Map<String, String> map = new LinkedHashMap<>();
-
-
-		String quotedString = "\"([^\"]*)\"[\\s]*";
-		// Match quoted strings, followed by : (potential keys)
-		Pattern p = Pattern.compile(quotedString + ":");
-		// Match everything up to the next potential key, or to the end brace }
-		Pattern p2 = Pattern.compile(".+?(?=("+quotedString+"[:])|})");
-
-		Scanner scanner = new Scanner(s);
-		scanner.useDelimiter("");
-		String key;
-		while ((key = scanner.findInLine(p)) != null) {
-
-			// Trim the key
-			key = key.substring(key.indexOf("\"")+1, key.lastIndexOf("\""));
-
-			String value = scanner.findInLine(p2);
-			if (value == null) {
-				logger.error("Unable to associated value with key {}", key);
-				continue;
-			}
-
-			// Trim any whitespace, commas or quotation marks
-			value = value.trim();
-			if (value.endsWith(","))
-				value = value.substring(0, value.length()-1);
-			if (value.startsWith("\"") && value.endsWith("\"") && value.length() >= 2) {
-				value = value.substring(value.indexOf("\"")+1, value.lastIndexOf("\""));
-			}
-
-			if (value.length() == 0) {
-				logger.warn("Unable to associate value with key {}", key);
-				continue;
-			}
-
-			// Decide what we have & put into the map
-			map.put(key, value);
-		}
-		scanner.close();
-
-		return map;
+		Type type = new TypeToken<Map<String, String>>() {}.getType();
+		return new Gson().fromJson(s, type);
 	}
 
 	
@@ -373,7 +405,7 @@ public class GeneralTools {
 	/**
 	 * Read the entire contents of an InputStream into a single String.
 	 * 
-	 * @param path
+	 * @param stream
 	 * @return
 	 * @throws IOException
 	 */
@@ -403,19 +435,50 @@ public class GeneralTools {
 		return false;
 	}
 
+	/**
+	 * Returns true if running on macOS.
+	 * @return
+	 */
 	public static boolean isMac() {
 		String os = System.getProperty("os.name").toLowerCase();
 		return os.indexOf("mac") >= 0 || os.indexOf("darwin") >= 0;
 	}
 
+	/**
+	 * Returns true if running on Linux.
+	 * @return
+	 */
 	public static boolean isLinux() {
 		String os = System.getProperty("os.name").toLowerCase();
 		return os.indexOf("nux") >= 0;
 	}
 
+	/**
+	 * Returnst true if running on Windows.
+	 * @return
+	 */
 	public static boolean isWindows() {
 		String os = System.getProperty("os.name").toLowerCase();
 		return os.indexOf("win") >= 0;
+	}
+
+
+	/**
+	 * Delete a file, optionally requesting that it be moved to the trash rather than permanently deleted.
+	 * <p>
+	 * Note that the behavior of this method is system-dependent, and there is no guarantee the file will 
+	 * indeed be moved to the trash.
+	 * 
+	 * @param fileToDelete
+	 * @param preferTrash
+	 */
+	public static void deleteFile(File fileToDelete, boolean preferTrash) {
+		if (preferTrash && Desktop.isDesktopSupported()) {
+			var desktop = Desktop.getDesktop();
+			if (desktop.isSupported(Desktop.Action.MOVE_TO_TRASH) && desktop.moveToTrash(fileToDelete))
+				return;
+		}
+		fileToDelete.delete();
 	}
 
 }

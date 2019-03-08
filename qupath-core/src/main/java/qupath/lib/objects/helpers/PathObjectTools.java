@@ -23,6 +23,7 @@
 
 package qupath.lib.objects.helpers;
 
+import java.awt.geom.Line2D;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -49,7 +50,8 @@ import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.TMAGrid;
 import qupath.lib.regions.ImageRegion;
-import qupath.lib.roi.AreaROI;
+import qupath.lib.roi.LineROI;
+import qupath.lib.roi.PolylineROI;
 import qupath.lib.roi.ROIHelpers;
 import qupath.lib.roi.interfaces.PathArea;
 import qupath.lib.roi.interfaces.PathPoints;
@@ -362,6 +364,8 @@ public class PathObjectTools {
 	 */
 	public static String getSuitableName(Class<? extends PathObject> cls, boolean makePlural) {
 		if (makePlural) {
+			if (cls.equals(PathRootObject.class))
+				return "Root objects";
 			if (cls.equals(PathAnnotationObject.class))
 				return "Annotations";
 			if (cls.equals(TMACoreObject.class))
@@ -374,6 +378,8 @@ public class PathObjectTools {
 				return "Tiles";
 			return cls.getSimpleName() + " objects";
 		}
+		if (cls.equals(PathRootObject.class))
+			return "Root object";
 		if (cls.equals(PathAnnotationObject.class))
 			return "Annotation";
 		if (cls.equals(TMACoreObject.class))
@@ -386,13 +392,14 @@ public class PathObjectTools {
 			return "Tile";
 		return cls.getSimpleName();
 	}
-
+	
+	
 	/**
 	 * Test whether the ROI associated with one object can completely the ROI of a second object.
 	 * Returns false if either ROI is null.
 	 * 
-	 * @param parentROI
-	 * @param childROI
+	 * @param parentObject
+	 * @param childObject
 	 * @return
 	 */
 	public static boolean containsObject(PathObject parentObject, PathObject childObject) {
@@ -474,7 +481,7 @@ public class PathObjectTools {
 	}
 
 	/**
-	 * Get the TMA core that contains the specified x & y coordinate, or null if no core is available for the coordinates give.
+	 * Get the TMA core that contains the specified x &amp; y coordinate, or null if no core is available for the coordinates give.
 	 * 
 	 * @param hierarchy
 	 * @param x
@@ -505,21 +512,81 @@ public class PathObjectTools {
 			testObject = testObject.getParent();
 		return testObject == hierarchy.getRootObject();
 	}
+	
+	@Deprecated
+	public static Collection<PathObject> getObjectsForLocation(final PathObjectHierarchy hierarchy, 
+			final double x, final double y, final int zPos, final int tPos) {
+		return getObjectsForLocation(hierarchy, x, y, zPos, tPos, -1);
+	}
 
-	public static Collection<PathObject> getObjectsForLocation(final PathObjectHierarchy hierarchy, final double x, final double y, final int zPos, final int tPos) {
+	/**
+	 * Get a collection of objects that overlap a specified pixel location.
+	 * <p>
+	 * For area ROIs, this means the ROI should contain the pixel.  For non-area ROIs an 
+	 * optional vertex distance can be used to define a distance tolerance to the nearest vertex 
+	 * or line segment.
+	 * 
+	 * @param hierarchy object hierarchy within which to find the object
+	 * @param x x-coordinate of the pixel
+	 * @param y y-coordinate of the pixel
+	 * @param zPos z-slice number
+	 * @param tPos time-point number
+	 * @param vertexDistance for non-area ROIs, the distance from the closest vertex or line segment (or < 0 to ignore non-area ROIs).
+	 * @return
+	 */
+	public static Collection<PathObject> getObjectsForLocation(final PathObjectHierarchy hierarchy, 
+			final double x, final double y, final int zPos, final int tPos, double vertexDistance) {
 			if (hierarchy == null)
 				return Collections.emptyList();
 			Set<PathObject> pathObjects = new HashSet<>(8);
 			hierarchy.getObjectsForRegion(PathObject.class, ImageRegion.createInstance((int)x, (int)y, 1, 1, zPos, tPos), pathObjects);
-			removePoints(pathObjects); // Ensure we don't have any PointROIs
+			if (vertexDistance < 0)
+				removePoints(pathObjects); // Ensure we don't have any PointROIs
 			
 			// Ensure the ROI contains the click
 			Iterator<PathObject> iter = pathObjects.iterator();
+			double distSq = vertexDistance * vertexDistance;
 			while (iter.hasNext()) {
 				PathObject temp = iter.next();
-	//			if ((temp.isHidden() && temp.hasChildren()) || !PathROIHelpers.areaContains(temp.getROI(), x, y))
-				if (!ROIHelpers.areaContains(temp.getROI(), x, y))
-					iter.remove();
+				var roi = temp.getROI();
+				if (!ROIHelpers.areaContains(temp.getROI(), x, y)) {
+					if (!roi.isArea() && vertexDistance >= 0) {
+						boolean isClose = false;
+						if (roi instanceof LineROI) {
+							var line = (LineROI)roi;
+							if (Line2D.ptSegDistSq(
+									line.getX1(), line.getY1(),
+									line.getX2(), line.getY2(),
+									x, y) <= distSq)
+								isClose = true;
+						} else if (roi instanceof PolylineROI) {
+							Point2 lastPoint = null;
+							for (var p : temp.getROI().getPolygonPoints()) {
+								if (p.distanceSq(x, y) <= distSq ||
+										(lastPoint != null && Line2D.ptSegDistSq(
+												p.getX(), p.getY(),
+												lastPoint.getX(), lastPoint.getY(),
+												x, y
+												) <= distSq)) {
+									isClose = true;
+									break;
+								} else
+									lastPoint = p;
+							}
+						} else {
+							for (var p : temp.getROI().getPolygonPoints()) {
+								if (p.distanceSq(x, y) <= distSq) {
+									isClose = true;
+									break;
+								}
+							}
+						}
+						if (isClose)
+							continue;
+					}
+					iter.remove();					
+				}
+
 			}
 			
 			if (pathObjects.isEmpty()) {
@@ -613,7 +680,7 @@ public class PathObjectTools {
 	/**
 	 * From a collection of available objects, extract those that are instances of specified supported classes.
 	 * 
-	 * @param hierarchy
+	 * @param availableObjects
 	 * @param supportedClasses
 	 * @return
 	 */

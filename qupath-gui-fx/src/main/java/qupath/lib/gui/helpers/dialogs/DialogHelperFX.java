@@ -301,13 +301,6 @@ public class DialogHelperFX implements DialogHelper {
 	}
 	
 	
-	@Override
-	public String promptForFilePathOrURL(String defaultPath, File dirBase, String filterDescription, String... exts) {
-		return promptForFilePathOrURL(null, defaultPath, dirBase, filterDescription, exts);
-	}
-	
-	
-	
 	/**
 	 * Return a result after executing a Callable on the JavaFX Platform thread.
 	 * 

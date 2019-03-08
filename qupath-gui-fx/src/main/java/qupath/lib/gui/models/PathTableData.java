@@ -50,7 +50,6 @@ public interface PathTableData<T> {
 	 * 
 	 * @param pathObject
 	 * @param column
-	 * @param decimalPlaces
 	 * @return
 	 */
 	public String getStringValue(final T pathObject, final String column);

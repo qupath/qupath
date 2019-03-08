@@ -86,7 +86,7 @@ public class ImageWriterTools {
 		imageWriters.put(writer.getClass(), writer);
 	}
 	
-	public static BufferedImage writeImageRegion(final ImageServer<BufferedImage> server, final RegionRequest request) {
+	public static BufferedImage writeImageRegion(final ImageServer<BufferedImage> server, final RegionRequest request) throws IOException {
 		return writeImageRegion(server, request, null);
 	}
 	
@@ -151,7 +151,7 @@ public class ImageWriterTools {
 	
 	
 	
-	public static BufferedImage writeImageRegion(final ImageServer<BufferedImage> server, final RegionRequest request, final String path) {
+	public static BufferedImage writeImageRegion(final ImageServer<BufferedImage> server, final RegionRequest request, final String path) throws IOException {
 		// Create a sorted map of potential image writers, putting first those that can handle pixel sizes
 		String ext = null;
 		if (path != null) {
@@ -167,12 +167,7 @@ public class ImageWriterTools {
 		// If we have a path, use the 'best' writer we have, i.e. the first one that supports pixel sizes
 		if (path != null) {
 			for (ImageWriter<BufferedImage> writer : compatibleWriters.keySet()) {
-				try {
-					return compatibleWriters.firstKey().writeImage(server, request, path);
-				} catch (Exception e) {
-					logger.error("Error writing " + path + " with " + writer.getName());
-					e.printStackTrace();
-				}
+				return compatibleWriters.firstKey().writeImage(server, request, path);
 			}
 			logger.error("Unable to write " + path + "!  No compatible writer found.");
 			return null;
@@ -232,12 +227,12 @@ public class ImageWriterTools {
 	
 	
 	
-	public static BufferedImage writeImageRegionWithOverlay(final QuPathViewer viewer, final RegionRequest request, final String path) {
+	public static BufferedImage writeImageRegionWithOverlay(final QuPathViewer viewer, final RegionRequest request, final String path) throws IOException {
 		return writeImageRegionWithOverlay(viewer.getServer(), viewer.getOverlayLayers(), request, path);
 	}
 	
 	
-	public static BufferedImage writeImageRegionWithOverlay(final ImageData<BufferedImage> imageData, final OverlayOptions overlayOptions, final RegionRequest request, final String path) {
+	public static BufferedImage writeImageRegionWithOverlay(final ImageData<BufferedImage> imageData, final OverlayOptions overlayOptions, final RegionRequest request, final String path) throws IOException {
 		HierarchyOverlay overlay = new HierarchyOverlay(null, overlayOptions, imageData);
 		return writeImageRegionWithOverlay(imageData.getServer(), Collections.singletonList(overlay), request, path);
 	}
@@ -248,7 +243,7 @@ public class ImageWriterTools {
 	}
 	
 	
-	public static BufferedImage writeImageRegionWithOverlay(final ImageServer<BufferedImage> server, final List<? extends PathOverlay> overlayLayers, final RegionRequest request, final String path) {
+	public static BufferedImage writeImageRegionWithOverlay(final ImageServer<BufferedImage> server, final List<? extends PathOverlay> overlayLayers, final RegionRequest request, final String path) throws IOException {
 		if (server == null)
 			return null;
 //		SortedMap<ImageWriter, String> compatibleWriters = getRGBWriters(ext);
