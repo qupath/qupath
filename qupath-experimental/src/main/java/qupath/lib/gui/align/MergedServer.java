@@ -48,6 +48,7 @@ import qupath.lib.regions.RegionRequest;
  * 
  * @deprecated
  */
+@Deprecated
 public class MergedServer extends AbstractImageServer<BufferedImage> {
 
 	private Logger logger = LoggerFactory.getLogger(MergedServer.class);

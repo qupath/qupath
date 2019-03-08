@@ -217,7 +217,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 				return;
 			List<ProjectImageEntry<BufferedImage>> entries = selected.stream().map(p -> {
 				if (p.getValue() instanceof ProjectImageEntry)
-					return Collections.singletonList((ProjectImageEntry)p.getValue());
+					return Collections.singletonList((ProjectImageEntry<BufferedImage>)p.getValue());
 				else
 					return getImageEntries(p, null);
 			}).flatMap(Collection::stream).collect(Collectors.toList());
