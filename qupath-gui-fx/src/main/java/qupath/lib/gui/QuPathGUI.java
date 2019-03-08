@@ -2858,7 +2858,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	private final static String URL_CITATION   = "https://github.com/qupath/qupath/wiki/Citing-QuPath";
 	private final static String URL_EXTENSIONS = "https://github.com/qupath/qupath/wiki/Extensions";
 	private final static String URL_BUGS       = "https://github.com/qupath/qupath/issues";
-	private final static String URL_FORUM      = "https://groups.google.com/forum/#!forum/qupath-users";
+	private final static String URL_FORUM      = "https://forum.image.sc/tags/qupath";
 	private final static String URL_SOURCE     = "https://github.com/qupath/qupath";
 
 	
