@@ -384,7 +384,6 @@ task createRuntime(dependsOn:build, type:Exec) {
 
 }
 
-
 /**
  * If we have a packager (somewhere), use it.
  *
@@ -412,10 +411,11 @@ task createPackage(dependsOn:createRuntime, type:Exec) {
 
     def params = [packager]
 
-    if (packageType == 'installer')
-      params << 'create-installer'
-    else
-      params << 'create-image'
+    if (packageType == 'installer') {
+    	params << 'create-installer'
+    } else {
+		params << 'create-image'
+	}
 
     params << '--input' << rootProject.libsDir.getAbsolutePath()
     params << '--output' << new File(rootProject.libsDir.getParentFile(), 'dist').getAbsolutePath()
@@ -424,6 +424,13 @@ task createPackage(dependsOn:createRuntime, type:Exec) {
 
     params << '--name' << 'QuPath-' + qupathVersion
 //    params << '--class' << 'qupath.QuPath'
+
+	if (OperatingSystem.current().isMacOsX()) {
+		params << '--mac-bundle-name' << 'QuPath'
+		if (packageType == 'installer') {
+			params << '--installer-type' << 'dmg'
+		}
+	}
 
     // Strip off any SNAPSHOT part, which can cause trouble
     params << '--app-version' << qupathVersion.replace('-SNAPSHOT', '')
@@ -443,7 +450,7 @@ task createPackage(dependsOn:createRuntime, type:Exec) {
 
 //	params << '--module-path' << System.properties.'java.home' + '/jmods' 
 
-    print String.join(' ', params)
+    println String.join(' ', params)
     
     commandLine = params
   }
