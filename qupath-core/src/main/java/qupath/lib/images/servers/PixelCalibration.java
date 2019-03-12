@@ -122,6 +122,14 @@ public class PixelCalibration {
 		}
 		
 		public Builder pixelSizeMicrons(Number pixelWidthMicrons, Number pixelHeightMicrons) {
+			// Support resetting both pixel sizes to default
+			if ((pixelWidthMicrons == null || Double.isNaN(pixelWidthMicrons.doubleValue())) && 
+					(pixelHeightMicrons == null || Double.isNaN(pixelHeightMicrons.doubleValue()))) {
+				cal.pixelWidth = SimpleQuantity.DEFAULT_PIXEL_SIZE;
+				cal.pixelHeight = SimpleQuantity.DEFAULT_PIXEL_SIZE;
+				return this;
+			}
+				
 			if (!Double.isFinite(pixelWidthMicrons.doubleValue()) || pixelWidthMicrons.doubleValue() <= 0)
 				throw new IllegalArgumentException("Pixel width must be a finite number > 0, not " + pixelWidthMicrons);
 			
