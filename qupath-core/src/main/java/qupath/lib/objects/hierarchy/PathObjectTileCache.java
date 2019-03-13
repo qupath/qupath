@@ -396,6 +396,8 @@ class PathObjectTileCache implements PathObjectHierarchyListener {
 		
 		var envelope = region == null ? MAX_ENVELOPE : getEnvelope(region);
 		
+		int z = region == null ? -1 : region.getZ();
+		int t = region == null ? -1 : region.getT();
 		r.lock();
 		try {
 			// Iterate through all the classes, getting objects of the specified class or subclasses thereof
@@ -408,8 +410,11 @@ class PathObjectTileCache implements PathObjectHierarchyListener {
 						
 						// Add all objects that have a parent, i.e. might be in the hierarchy
 						for (PathObject pathObject : (List<PathObject>)list) {
-							if (pathObject.getParent() != null || pathObject.isRootObject())
-								pathObjects.add(pathObject);
+							var roi = pathObject.getROI();
+							if (roi == null || region == null || (roi.getZ() == z && roi.getT() == t)) {
+								if (pathObject.getParent() != null || pathObject.isRootObject())
+									pathObjects.add(pathObject);
+							}
 						}
 					}
 //						pathObjects = entry.getValue().getObjectsForRegion(region, pathObjects);
@@ -429,13 +434,17 @@ class PathObjectTileCache implements PathObjectHierarchyListener {
 		
 		var envelope = getEnvelope(region);
 		
+		int z = region == null ? -1 : region.getZ();
+		int t = region == null ? -1 : region.getT();
 		r.lock();
 		try {
 			// Iterate through all the classes, getting objects of the specified class or subclasses thereof
 			for (Entry<Class<? extends PathObject>, SpatialIndex> entry : map.entrySet()) {
 				if (cls == null || cls.isInstance(entry.getKey()) || (includeSubclasses && cls.isAssignableFrom(entry.getKey()))) {
 					if (entry.getValue() != null) {
-						if (!entry.getValue().query(envelope).isEmpty())
+						var list = (List<PathObject>)entry.getValue().query(envelope);
+						if (list.stream().anyMatch(p -> p.hasROI() && 
+								(region == null || (p.getROI().getZ() == z && p.getROI().getT() == t))))
 							return true;
 //						if (entry.getValue().hasObjectsForRegion(region))
 //							return true;

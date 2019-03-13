@@ -116,7 +116,7 @@ public class RectangleROI extends AbstractPathBoundedROI implements PathArea, Se
 	
 	@Override
 	public Shape getShape() {
-		return new Rectangle2D.Double(x, y, x2, y2);
+		return new Rectangle2D.Double(x, y, x2-x, y2-y);
 	}
 	
 	

@@ -292,6 +292,7 @@ public class PathROIToolsAwt {
 			Line2D line = (Line2D)shape;
 			return new LineROI(line.getX1(), line.getY1(), line.getX2(), line.getY2(), c, z, t);
 		}
+		// TODO: Handle Polyline! This method does not deal with 'open' PathIterators
 		return getShapeROI(new Area(shape), c, z, t, flatness);
 	}
 
