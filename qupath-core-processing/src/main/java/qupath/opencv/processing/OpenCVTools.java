@@ -479,6 +479,11 @@ public class OpenCVTools {
 		Indexer indexer = mat.createIndexer();
 		if (indexer instanceof ByteIndexer) {
 			((ByteIndexer) indexer).put(0, pixels);
+		} else if (indexer instanceof UByteIndexer) {
+			int n = pixels.length;
+			for (int i = 0; i < n; i++) {
+				((UByteIndexer) indexer).put(0, pixels[i] & 0xFF);
+			}
 		} else
 			throw new IllegalArgumentException("Expected a ByteIndexer, but instead got " + indexer.getClass());
 	}
