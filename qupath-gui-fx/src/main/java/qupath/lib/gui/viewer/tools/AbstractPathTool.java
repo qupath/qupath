@@ -103,7 +103,7 @@ abstract class AbstractPathTool implements PathTool, QuPathViewerListener {
 	
 	/**
 	 * Apply clipping based on the current parent object.
-	 * 
+	 * <p>
 	 * Returns an empty ROI if this result of the clipping is an empty area.
 	 * 
 	 * @param currentROI
@@ -173,7 +173,7 @@ abstract class AbstractPathTool implements PathTool, QuPathViewerListener {
 			return null;
 		if (parentAnnotationsArea == null) {
 			for (PathObject child : PathObjectTools.getFlattenedObjectList(currentParent, null, false)) {
-				if (!child.isAnnotation() || child == currentObject)
+				if (child.isDetection() || child == currentObject)
 					continue;
 				if (child.hasROI() && child.getROI().isArea()) {
 					Area childArea = PathROIToolsAwt.getArea(child.getROI());
