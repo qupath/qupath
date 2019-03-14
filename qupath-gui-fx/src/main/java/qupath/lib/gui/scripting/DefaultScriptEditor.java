@@ -64,6 +64,7 @@ import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.StringProperty;
 import javafx.beans.value.ObservableValue;
+import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.concurrent.Task;
 import javafx.event.ActionEvent;
@@ -1081,6 +1082,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 		// Ensure that the previous images remain selected if the project still contains them
 //		FilteredList<ProjectImageEntry<?>> sourceList = new FilteredList<>(FXCollections.observableArrayList(project.getImageList()));
 		
+		
 		listSelectionView.getSourceItems().setAll(project.getImageList());
 		if (listSelectionView.getSourceItems().containsAll(previousImages)) {
 			listSelectionView.getSourceItems().removeAll(previousImages);
@@ -1157,7 +1159,20 @@ public class DefaultScriptEditor implements ScriptEditor {
 			return;
 		
 		previousImages.clear();
-		previousImages.addAll(listSelectionView.getTargetItems());
+//		previousImages.addAll(listSelectionView.getTargetItems());
+
+		// TODO: Remove this when controlsfx bug fixed
+		var skin = listSelectionView.getSkin();
+		try {
+			logger.warn("Attempting to access target list by reflection (required for controls-fx 11.0.0-RC2)");
+			var method = skin.getClass().getMethod("getTargetListView");
+			var view = (ListView<?>)method.invoke(skin);
+			previousImages.addAll((List<ProjectImageEntry<BufferedImage>>)view.getItems());
+		} catch (Exception e) {
+			logger.warn("Unable to access target list by reflection, sorry");
+			previousImages.addAll(listSelectionView.getTargetItems());
+		}
+
 		if (previousImages.isEmpty())
 			return;
 		
