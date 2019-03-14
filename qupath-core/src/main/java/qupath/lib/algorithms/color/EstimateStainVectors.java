@@ -43,7 +43,7 @@ import qupath.lib.common.ColorTools;
 
 /**
  * Code for estimating stain vectors automatically from an image, or to launch an editor for visually/interactively modifying stain vectors.
- * 
+ * <p>
  * Aspects of the automated method take inspiration from Macenko's 2009 paper
  * 'A METHOD FOR NORMALIZING HISTOLOGY SLIDES FOR QUANTITATIVE ANALYSIS'
  * although it also differs through its use of preprocessing and parameters, as well as its selection of an actual pixel value 
@@ -116,7 +116,7 @@ public class EstimateStainVectors {
 			float g = green[i];
 			float b = blue[i];
 			double magSquared = r*r + g*g + b*b;
-			if (magSquared > maxStainSq || r < minStain || g < minStain || b < minStain)
+			if (magSquared > maxStainSq || r < minStain || g < minStain || b < minStain || magSquared <= 0)
 				continue;
 			// Check for consistency with H&E staining, if required (i.e. only keep red/pink/purple/blue pixels and the like)
 			if (doColorTestForHE && (r > g || b > g)) {
@@ -189,8 +189,8 @@ public class EstimateStainVectors {
 		 * been chosen automatically.
 		 */
 		int[] inds = rank(phi);
-		int ind1 = inds[(int)(alpha * keepCount + .5)];
-		int ind2 = inds[(int)((1 - alpha) * keepCount + .5)];
+		int ind1 = inds[Math.max(0, (int)(alpha * keepCount + .5))];
+		int ind2 = inds[Math.min(inds.length-1, (int)((1 - alpha) * keepCount + .5))];
 		
 		// Create new stain vectors
 		StainVector s1 = new StainVector(stainsOriginal.getStain(1).getName(), red[ind1], green[ind1], blue[ind1]);
@@ -301,7 +301,7 @@ public class EstimateStainVectors {
 	 * Subsample an array so that it contains no more than maxEntries.
 	 * No guarantee is made that the resulting array will contain *exactly* maxEntries,
 	 * but rather equal spacing between entries will be used.
-	 * 
+	 * <p>
 	 * If arr.length &lt;= maxEntries, the array is returned unchanged.
 	 * 
 	 * @param arr
