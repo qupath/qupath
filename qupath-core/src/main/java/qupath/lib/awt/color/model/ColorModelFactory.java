@@ -55,7 +55,7 @@ public class ColorModelFactory {
     	var map = probabilityModels8.get(channels);
     	if (map == null) {
             int[] colors = channels.stream().mapToInt(c -> c.getColor()).toArray();
-    		map = ColorModelFactory.createProbabilityColorModel(8, channels.size(), false, colors);
+    		map = ColorModelFactory.createProbabilityColorModel(8, channels.size(), channels.size() == 1, colors);
     		probabilityModels8.put(new ArrayList<>(channels), map);
     	}
     	return map;
@@ -74,7 +74,7 @@ public class ColorModelFactory {
     	var map = probabilityModels32.get(channels);
     	if (map == null) {
             int[] colors = channels.stream().mapToInt(c -> c.getColor()).toArray();
-    		map = ColorModelFactory.createProbabilityColorModel(32, channels.size(), false, colors);
+    		map = ColorModelFactory.createProbabilityColorModel(32, channels.size(), channels.size() == 1, colors);
     		probabilityModels32.put(new ArrayList<>(channels), map);
     	}
     	return map;
