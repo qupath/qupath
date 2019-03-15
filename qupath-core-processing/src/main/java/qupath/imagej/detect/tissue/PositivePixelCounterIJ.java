@@ -225,7 +225,7 @@ public class PositivePixelCounterIJ extends AbstractDetectionPlugin<BufferedImag
 					pathClass = PathClassFactory.getPathClass("Pixel count negative", ColorTools.makeScaledRGB(PathClassFactory.COLOR_NEGATIVE, 1.25));
 				}
 				pathObject.setPathClass(pathClass);
-				pathObject.getMeasurementList().closeList();
+				pathObject.getMeasurementList().close();
 				pathObjects.add(pathObject);
 			}
 			if (roiDAB != null) {
@@ -244,7 +244,7 @@ public class PositivePixelCounterIJ extends AbstractDetectionPlugin<BufferedImag
 					pathClass = PathClassFactory.getPathClass("Pixel count positive", ColorTools.makeScaledRGB(PathClassFactory.COLOR_POSITIVE, 1.25));
 				}
 				pathObject.setPathClass(pathClass);
-				pathObject.getMeasurementList().closeList();
+				pathObject.getMeasurementList().close();
 				pathObjects.add(pathObject);
 			}
 			
@@ -253,7 +253,7 @@ public class PositivePixelCounterIJ extends AbstractDetectionPlugin<BufferedImag
 						
 			if (clearParentMeasurements && !parent.getMeasurementList().isEmpty()) {
 				parent.getMeasurementList().clear();				
-				parent.getMeasurementList().closeList();			
+				parent.getMeasurementList().close();			
 			}
 			
 			if (addMeasurements) {
@@ -263,7 +263,7 @@ public class PositivePixelCounterIJ extends AbstractDetectionPlugin<BufferedImag
 					parent.getMeasurementList().putMeasurement("Negative pixel count", nNegative);
 					parent.getMeasurementList().putMeasurement("Mean positive DAB staining OD", meanPositive);
 					parent.getMeasurementList().putMeasurement("Stained pixel count", nPositive + nNegative);
-					parent.getMeasurementList().closeList();
+					parent.getMeasurementList().close();
 				} else {
 					parent.getMeasurementList().putMeasurement("Positive % of stained pixels" + paramsString, positivePercentage);
 					parent.getMeasurementList().putMeasurement("Positive pixel area " + areaUnits + paramsString, areaPositive);
@@ -290,7 +290,7 @@ public class PositivePixelCounterIJ extends AbstractDetectionPlugin<BufferedImag
 						parent.getMeasurementList().putMeasurement("Positive % of total ROI area" + paramsString, Math.min(100, areaPositive / areaROI * 100.0));
 					}
 					
-					parent.getMeasurementList().closeList();					
+					parent.getMeasurementList().close();					
 				}
 			}
 			

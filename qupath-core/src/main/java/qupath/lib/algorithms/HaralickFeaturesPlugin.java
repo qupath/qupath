@@ -174,7 +174,7 @@ public class HaralickFeaturesPlugin extends AbstractInteractivePlugin<BufferedIm
 			} catch (IOException e) {
 				logger.error("Unable to process " + parentObject, e);
 			} finally {
-				parentObject.getMeasurementList().closeList();
+				parentObject.getMeasurementList().close();
 				server = null;
 				params = null;
 			}
@@ -351,7 +351,7 @@ public class HaralickFeaturesPlugin extends AbstractInteractivePlugin<BufferedIm
 			processTransformedImage(new FloatArraySimpleImage(pixelsSaturation, w, h), buf, pixelsSaturation, measurementList, "Saturation"+postfix, null, minValue, maxValue, d, nBins, stains, maskBytes, includeStats, doCircular);
 			processTransformedImage(new FloatArraySimpleImage(pixelsBrightness, w, h), buf, pixelsBrightness, measurementList, "Brightness"+postfix, null, minValue, maxValue, d, nBins, stains, maskBytes, includeStats, doCircular);
 		}
-		measurementList.closeList();
+		measurementList.close();
 		
 		return true;
 		

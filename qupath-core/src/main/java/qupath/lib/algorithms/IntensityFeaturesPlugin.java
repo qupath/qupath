@@ -422,7 +422,7 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 			} catch (IOException e) {
 				logger.error("Unable to process " + parentObject, e);
 			} finally {
-				parentObject.getMeasurementList().closeList();
+				parentObject.getMeasurementList().close();
 				server = null;
 				params = null;
 			}
@@ -584,7 +584,7 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 			for (FeatureComputer computer : entry.getValue())
 				computer.addMeasurements(pathObject, name, params);
 		}
-		pathObject.getMeasurementList().closeList();
+		pathObject.getMeasurementList().close();
 		
 		// Lock any measurements that require it
 		if (pathObject instanceof PathAnnotationObject)

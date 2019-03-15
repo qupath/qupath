@@ -451,7 +451,7 @@ public class TMAScoreImportCommand implements PathCommand {
 			for (String name : getMeasurementList().getMeasurementNames()) {
 				core.getMeasurementList().putMeasurement(name, getMeasurementList().getMeasurementValue(name));
 			}
-			core.getMeasurementList().closeList();
+			core.getMeasurementList().close();
 			for (Entry<String, String> entry : getMetadataMap().entrySet()) {
 				core.putMetadataValue(entry.getKey(), (String)entry.getValue());
 			}

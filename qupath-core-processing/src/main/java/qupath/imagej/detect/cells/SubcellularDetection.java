@@ -156,7 +156,7 @@ public class SubcellularDetection extends AbstractInteractivePlugin<BufferedImag
 			} catch (IOException e) {
 				logger.error("Error processing " + parentObject, e);
 			} finally {
-				parentObject.getMeasurementList().closeList();
+				parentObject.getMeasurementList().close();
 				imageData = null;
 				params = null;
 			}
@@ -196,7 +196,7 @@ public class SubcellularDetection extends AbstractInteractivePlugin<BufferedImag
 		String[] existingMeasurements = pathObject.getMeasurementList().getMeasurementNames().stream().filter(n -> n.startsWith("Subcellular:")).toArray(n -> new String[n]);
 		if (existingMeasurements.length > 0) {
 			pathObject.getMeasurementList().removeMeasurements(existingMeasurements);
-			pathObject.getMeasurementList().closeList();
+			pathObject.getMeasurementList().close();
 		}
 
 		//		// If we're part of a TMA core, request the whole core...
@@ -339,7 +339,7 @@ public class SubcellularDetection extends AbstractInteractivePlugin<BufferedImag
 					cluster.getMeasurementList().putMeasurement("Subcellular cluster: " + channelName + ": Area", stats.pixelCount * pixelWidth * pixelHeight);					
 					cluster.getMeasurementList().putMeasurement("Subcellular cluster: " + channelName +  ": Mean channel intensity", stats.mean);
 //					cluster.getMeasurementList().putMeasurement("Subcellular cluster: " + channelName +  ": Max channel intensity", stats.max);
-					cluster.getMeasurementList().closeList();
+					cluster.getMeasurementList().close();
 					spotObjects.add(cluster);
 				}
 			}
@@ -432,7 +432,7 @@ public class SubcellularDetection extends AbstractInteractivePlugin<BufferedImag
 		else
 			pathObject.setPathClass(PathClassFactory.getPathClass("Subcellular spot", ColorTools.makeRGB(100, 220, 50)));
 		pathObject.getMeasurementList().putMeasurement("Num spots", nSpots);
-		pathObject.getMeasurementList().closeList();
+		pathObject.getMeasurementList().close();
 		return pathObject;
 	}
 	
@@ -463,7 +463,7 @@ public class SubcellularDetection extends AbstractInteractivePlugin<BufferedImag
 			else
 				setPathClass(PathClassFactory.getPathClass("Subcellular spot", ColorTools.makeRGB(100, 220, 50)));
 			getMeasurementList().putMeasurement("Num spots", nSpots);
-			getMeasurementList().closeList();
+			getMeasurementList().close();
 //			color = isCluster ? ColorTools.makeRGB(220, 200, 50) : ColorTools.makeRGB(100, 220, 50);
 		}
 		

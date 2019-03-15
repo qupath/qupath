@@ -265,7 +265,7 @@ public class PixelClassificationMeasurementManager {
 		}
 
     	if (changes)
-    		pathObject.getMeasurementList().closeList();
+    		pathObject.getMeasurementList().close();
     	if (counts == null) {
         	measuredObjects.remove(pathObject);
     		return changes;

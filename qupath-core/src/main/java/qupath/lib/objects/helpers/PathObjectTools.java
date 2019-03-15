@@ -429,7 +429,7 @@ public class PathObjectTools {
 		for (PathObject pathObject : pathObjects) {
 			MeasurementList list = pathObject.getMeasurementList();
 			list.removeMeasurements(measurementName);
-			list.closeList();
+			list.close();
 		}
 	}
 

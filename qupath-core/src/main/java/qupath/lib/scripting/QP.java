@@ -1249,7 +1249,7 @@ public class QP {
 				continue;
 			// Remove the measurements
 			pathObject.getMeasurementList().removeMeasurements(measurementNames);
-			pathObject.getMeasurementList().closeList();
+			pathObject.getMeasurementList().close();
 		}
 		hierarchy.fireObjectMeasurementsChangedEvent(null, pathObjects);
 	}

@@ -161,7 +161,7 @@ public class DefaultMeasurementList implements MeasurementList {
 //	}
 
 	@Override
-	public synchronized void closeList() {
+	public synchronized void close() {
 		compactStorage();
 	}
 

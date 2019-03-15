@@ -135,7 +135,7 @@ public class CoherenceFeaturePlugin extends AbstractInteractivePlugin<BufferedIm
 			} catch (IOException e) {
 				logger.error("Unable to get pixels for " + parentObject, e);
 			} finally {
-				parentObject.getMeasurementList().closeList();
+				parentObject.getMeasurementList().close();
 				server = null;
 				params = null;
 			}
@@ -221,7 +221,7 @@ public class CoherenceFeaturePlugin extends AbstractInteractivePlugin<BufferedIm
 		} else if (stainsName.equals("Grayscale")) {
 			processTransformedImage(pxImg, buf, pixels, measurementList, "Grayscale"+postfix, ColorTransformer.ColorTransformMethod.RGB_mean, stains, includeStats, doCircular);
 		}
-		measurementList.closeList();
+		measurementList.close();
 		
 		return true;
 		

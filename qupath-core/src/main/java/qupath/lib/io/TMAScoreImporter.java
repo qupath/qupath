@@ -196,7 +196,7 @@ public class TMAScoreImporter {
 			for (TMACoreObject core : coreList) {
 				if (core == null)
 					continue;
-				core.getMeasurementList().closeList();
+				core.getMeasurementList().close();
 				changed.add(core);
 			}
 		}

@@ -376,7 +376,7 @@ public class SmoothFeaturesPlugin<T> extends AbstractInteractivePlugin<T> {
 				measurementList.putMeasurement(countsName, nearbyDetectionCounts[i]);
 //				measurementsAdded.add(countsName);
 			}
-			measurementList.closeList();
+			measurementList.close();
 		}
 		
 		System.currentTimeMillis();
