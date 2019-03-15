@@ -715,93 +715,95 @@ public class PathROIToolsAwt {
 	 * @return
 	 */
 	public static PathShape roiMorphology(final ROI roi, final double radius) {
-		return getShapeROI(shapeMorphology(getShape(roi), radius), roi.getC(), roi.getZ(), roi.getT());
+		// Much faster to use JTS...
+		return (PathShape)ConverterJTS.convertGeometryToROI(roi.getGeometry().buffer(radius), ImagePlane.getPlane(roi));
+//		return getShapeROI(shapeMorphology(getShape(roi), radius), roi.getC(), roi.getZ(), roi.getT());
 	}
 
-	/**
-	 * Dilate or erode a java.awt.Shape using a circular structuring element.
-	 * 
-	 * @param shape The shape to dilate or erode.
-	 * @param radius The radius of the structuring element to use.  If positive this will be a dilation, if negative an erosion.
-	 * @return
-	 */
-	public static Area shapeMorphology(final Shape shape, double radius) {
-
-		PathIterator iterator = shape.getPathIterator(null, 0.5);
-
-		double[] coords = new double[6];
-		
-		boolean doErode = radius < 0;
-		radius = Math.abs(radius);
-
-		//Path2D path = new Path2D.Double(shape)
-		Area path = new Area(shape);
-		//Rectangle2D rect = new Rectangle2D.Double()
-		RoundRectangle2D rect = new RoundRectangle2D.Double();
-		AffineTransform transform = new AffineTransform();
-		double startX = Double.NaN;
-		double startY = Double.NaN;
-		double x = Double.NaN;
-		double y = Double.NaN;
-		double x2 = Double.NaN;
-		double y2 = Double.NaN;
-		while (!iterator.isDone()) {
-
-			int type = iterator.currentSegment(coords);
-					boolean done = false;
-
-					switch(type) {
-					case PathIterator.SEG_MOVETO:
-						x2 = coords[0];
-						y2 = coords[1];
-						startX = x2;
-						startY = y2;
-						break;
-					case PathIterator.SEG_LINETO:
-						x2 = coords[0];
-						y2 = coords[1];
-
-						double length = Math.sqrt((x-x2)*(x-x2) + (y-y2)*(y-y2)) + radius*2;
-						rect.setRoundRect(-length/2, -radius, length, radius*2, radius*2, radius*2);
-						transform.setToIdentity();
-						transform.translate((x+x2)/2, (y+y2)/2);
-						transform.rotate(Math.atan2(y2-y, x2-x));
-						Area transformedRect = new Area(new Path2D.Double(rect, transform));
-						if (doErode)
-							path.subtract(transformedRect);
-						else
-							path.add(transformedRect);
-						break;
-					case PathIterator.SEG_CLOSE:
-
-						x2 = startX;
-						y2 = startY;
-
-						length = Math.sqrt((x-x2)*(x-x2) + (y-y2)*(y-y2)) + radius*2;
-						rect.setRoundRect(-length/2, -radius, length, radius*2, radius*2, radius*2);
-						transform.setToIdentity();
-						transform.translate((x+x2)/2, (y+y2)/2);
-						transform.rotate(Math.atan2(y2-y, x2-x));
-						transformedRect = new Area(new Path2D.Double(rect, transform));
-						if (doErode)
-							path.subtract(transformedRect);
-						else
-							path.add(transformedRect);
-					default:
-						break;
-					}
-
-			x = x2;
-			y = y2;
-
-			iterator.next();
-			if (done)
-				break;
-
-		}
-		
-		return path;
-	}
+//	/**
+//	 * Dilate or erode a java.awt.Shape using a circular structuring element.
+//	 * 
+//	 * @param shape The shape to dilate or erode.
+//	 * @param radius The radius of the structuring element to use.  If positive this will be a dilation, if negative an erosion.
+//	 * @return
+//	 */
+//	public static Area shapeMorphology(final Shape shape, double radius) {
+//
+//		PathIterator iterator = shape.getPathIterator(null, 0.5);
+//
+//		double[] coords = new double[6];
+//		
+//		boolean doErode = radius < 0;
+//		radius = Math.abs(radius);
+//
+////		Path2D path = new Path2D.Double(shape);
+//		Area path = new Area(shape);
+//		//Rectangle2D rect = new Rectangle2D.Double()
+//		RoundRectangle2D rect = new RoundRectangle2D.Double();
+//		AffineTransform transform = new AffineTransform();
+//		double startX = Double.NaN;
+//		double startY = Double.NaN;
+//		double x = Double.NaN;
+//		double y = Double.NaN;
+//		double x2 = Double.NaN;
+//		double y2 = Double.NaN;
+//		while (!iterator.isDone()) {
+//
+//			int type = iterator.currentSegment(coords);
+//					boolean done = false;
+//
+//					switch(type) {
+//					case PathIterator.SEG_MOVETO:
+//						x2 = coords[0];
+//						y2 = coords[1];
+//						startX = x2;
+//						startY = y2;
+//						break;
+//					case PathIterator.SEG_LINETO:
+//						x2 = coords[0];
+//						y2 = coords[1];
+//
+//						double length = Math.sqrt((x-x2)*(x-x2) + (y-y2)*(y-y2)) + radius*2;
+//						rect.setRoundRect(-length/2, -radius, length, radius*2, radius*2, radius*2);
+//						transform.setToIdentity();
+//						transform.translate((x+x2)/2, (y+y2)/2);
+//						transform.rotate(Math.atan2(y2-y, x2-x));
+//						Area transformedRect = new Area(new Path2D.Double(rect, transform));
+//						if (doErode)
+//							path.subtract(transformedRect);
+//						else
+//							path.add(transformedRect);
+//						break;
+//					case PathIterator.SEG_CLOSE:
+//
+//						x2 = startX;
+//						y2 = startY;
+//
+//						length = Math.sqrt((x-x2)*(x-x2) + (y-y2)*(y-y2)) + radius*2;
+//						rect.setRoundRect(-length/2, -radius, length, radius*2, radius*2, radius*2);
+//						transform.setToIdentity();
+//						transform.translate((x+x2)/2, (y+y2)/2);
+//						transform.rotate(Math.atan2(y2-y, x2-x));
+//						transformedRect = new Area(new Path2D.Double(rect, transform));
+//						if (doErode)
+//							path.subtract(transformedRect);
+//						else
+//							path.add(transformedRect);
+//					default:
+//						break;
+//					}
+//
+//			x = x2;
+//			y = y2;
+//
+//			iterator.next();
+//			if (done)
+//				break;
+//
+//		}
+//		
+//		return path;
+//	}
 	
 	
 

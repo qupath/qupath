@@ -24,13 +24,13 @@
 package qupath.lib.plugins.objects;
 
 import java.awt.Rectangle;
-import java.awt.Shape;
-import java.awt.geom.Area;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
+
+import org.locationtech.jts.geom.Geometry;
 
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.ImageData;
@@ -41,8 +41,10 @@ import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.plugins.AbstractInteractivePlugin;
 import qupath.lib.plugins.PluginRunner;
 import qupath.lib.plugins.parameters.ParameterList;
-import qupath.lib.roi.PathROIToolsAwt;
+import qupath.lib.regions.ImagePlane;
+import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.ROI;
+import qupath.lib.roi.jts.ConverterJTS;
 
 /**
  * Plugin to create new annotations by expanding the size of existing annotations.
@@ -146,32 +148,31 @@ public class DilateAnnotationPlugin<T> extends AbstractInteractivePlugin<T> {
 	private static void addExpandedAnnotation(final Rectangle bounds, final PathObjectHierarchy hierarchy, final PathObject pathObject, final double radiusPixels, final boolean constrainToParent, final boolean removeInterior) {
 		
 		ROI roi = pathObject.getROI();
-		Shape shape = PathROIToolsAwt.getShape(pathObject.getROI());
 		
-		Area area = PathROIToolsAwt.shapeMorphology(shape, radiusPixels);
+		Geometry geometry = roi.getGeometry();
+		
+		Geometry geometry2 = geometry.buffer(radiusPixels);
 		
 		// If the radius is negative (i.e. a dilation), then the parent will be the original object itself
 		boolean isErosion = radiusPixels < 0;
 	    PathObject parent = isErosion ? pathObject : pathObject.getParent();
 		if (constrainToParent && !isErosion) {
-		    Area parentShape;
+		    Geometry parentShape;
 		    if (parent == null || parent.getROI() == null)
-		        parentShape = new Area(bounds);
+		        parentShape = ROIs.createRectangleROI(bounds.getX(), bounds.getY(), bounds.getWidth(), bounds.getHeight(), ImagePlane.getPlane(roi)).getGeometry();
 		    else
-		        parentShape = PathROIToolsAwt.getArea(parent.getROI());
-		    area.intersect(parentShape);
+		        parentShape = parent.getROI().getGeometry();
+		    geometry2 = geometry2.intersection(parentShape);
 		}
 
 		if (removeInterior) {
-			if (isErosion) {
-				Area area2 = new Area(shape);
-				area2.subtract(area);
-				area = area2;
-			} else
-				area.subtract(new Area(shape));
+			if (isErosion)
+				geometry2 = geometry.difference(geometry2);
+			else
+				geometry2 = geometry2.difference(geometry);
 		}
 
-		ROI roi2 = PathROIToolsAwt.getShapeROI(area, roi.getC(), roi.getZ(), roi.getT(), 0.5);
+		ROI roi2 = ConverterJTS.convertGeometryToROI(geometry2, ImagePlane.getPlane(roi));
 		
 		// Create a new annotation, with properties based on the original
 		PathObject annotation2 = PathObjects.createAnnotationObject(roi2, pathObject.getPathClass());
