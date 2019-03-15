@@ -71,6 +71,7 @@ import qupath.lib.regions.ImageRegion;
 import qupath.lib.roi.PathROIToolsAwt;
 import qupath.lib.roi.PolylineROI;
 import qupath.lib.roi.ROIs;
+import qupath.lib.roi.PathROIToolsAwt.CombineOp;
 import qupath.lib.roi.interfaces.PathArea;
 import qupath.lib.roi.interfaces.PathShape;
 import qupath.lib.roi.interfaces.ROI;
@@ -140,6 +141,7 @@ public class RigidObjectEditorCommand implements PathCommand, ImageDataChangeLis
 		PathObject pathObject = getSelectedObject(viewer);
 		if (pathObject == null)
 			return;
+		ImageRegion bounds = viewer.getServerBounds();
 		
 		if (pathObject instanceof TMACoreObject) {
 			for (PathObject child : pathObject.getChildObjects()) {
@@ -164,7 +166,7 @@ public class RigidObjectEditorCommand implements PathCommand, ImageDataChangeLis
 //		// Remove selected object & create an overlay showing the currently-being-edited version
 //		viewer.getHierarchy().removeObject(originalObject, true, true);
 		
-		transformer = new RoiAffineTransformer(originalObject.getROI());
+		transformer = new RoiAffineTransformer(bounds, originalObject.getROI());
 //		editingROI = new RotatedROI((PathArea)originalObject.getROI());
 //		editingROI.setAngle(Math.PI/3);
 		
@@ -335,8 +337,10 @@ public class RigidObjectEditorCommand implements PathCommand, ImageDataChangeLis
 			}
 			lastPoint = p;
 			
-			for (Entry<PathObject, ROI> entry : originalObjectROIs.entrySet())
-				((PathROIObject)entry.getKey()).setROI(transformer.getTransformedROI(entry.getValue()));
+			for (Entry<PathObject, ROI> entry : originalObjectROIs.entrySet()) {
+				ROI roiTransformed = transformer.getTransformedROI(entry.getValue());
+				((PathROIObject)entry.getKey()).setROI(roiTransformed);
+			}
 			viewer.repaint();
 		}
 		
@@ -364,6 +368,7 @@ public class RigidObjectEditorCommand implements PathCommand, ImageDataChangeLis
 		
 //		private PathArea roi;
 		// Starting anchors
+		private PathShape roiBounds;
 		private double anchorX;
 		private double anchorY;
 		
@@ -377,7 +382,9 @@ public class RigidObjectEditorCommand implements PathCommand, ImageDataChangeLis
 		private double theta = 0;
 		private AffineTransform transform;
 		
-		RoiAffineTransformer(final ROI roi) {
+		RoiAffineTransformer(final ImageRegion bounds, final ROI roi) {
+			if (bounds != null)
+				roiBounds = ROIs.createRectangleROI(bounds.getX(), bounds.getY(), bounds.getWidth(), bounds.getHeight(), ImagePlane.getPlane(bounds));
 //			this.roi = roi;
 			this.shapeOrig = PathROIToolsAwt.getShape(roi);
 			this.boundsOrig = shapeOrig.getBounds2D();
@@ -392,8 +399,14 @@ public class RigidObjectEditorCommand implements PathCommand, ImageDataChangeLis
 			this.boundsTransformed = null;
 		}
 		
-		
 		public ROI getTransformedROI(final ROI roi) {
+			ROI transformedROI = getUnclippedTransformedROI(roi);
+			if (roiBounds == null || !(transformedROI instanceof PathShape))
+				return transformedROI;
+			return PathROIToolsAwt.combineROIs((PathShape)transformedROI, roiBounds, CombineOp.INTERSECT);
+		}
+		
+		public ROI getUnclippedTransformedROI(final ROI roi) {
 			Shape shape = PathROIToolsAwt.getShape(roi);
 			
 			double flatness = 0.5;
