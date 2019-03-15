@@ -311,7 +311,8 @@ buildscript {
 	  try {
 	  	def stdout = new ByteArrayOutputStream()
 	    def result = exec {
-	        commandLine 'git', 'describe', '--tags'
+	        commandLine 'git', 'log', "--pretty=format:'%h'", "-n 1"
+//	        commandLine 'git', 'describe', '--tags'
 	        standardOutput = stdout
 	    }
 	    latestGitCommit = stdout.toString().trim()
