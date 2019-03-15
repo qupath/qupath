@@ -31,6 +31,8 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import org.locationtech.jts.geom.Geometry;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.ImageData;
@@ -54,6 +56,8 @@ import qupath.lib.roi.jts.ConverterJTS;
  * @param <T>
  */
 public class DilateAnnotationPlugin<T> extends AbstractInteractivePlugin<T> {
+	
+	private static Logger logger = LoggerFactory.getLogger(DilateAnnotationPlugin.class);
 	
 	private ParameterList params = new ParameterList()
 			.addDoubleParameter("radiusMicrons", "Expansion radius", 100, GeneralTools.micrometerSymbol(), "Distance to expand ROI")
@@ -173,6 +177,11 @@ public class DilateAnnotationPlugin<T> extends AbstractInteractivePlugin<T> {
 		}
 
 		ROI roi2 = ConverterJTS.convertGeometryToROI(geometry2, ImagePlane.getPlane(roi));
+		
+		if (roi2.isEmpty()) {
+			logger.debug("Updated ROI is empty after {} px expansion", radiusPixels);
+			return;
+		}
 		
 		// Create a new annotation, with properties based on the original
 		PathObject annotation2 = PathObjects.createAnnotationObject(roi2, pathObject.getPathClass());
