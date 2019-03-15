@@ -627,7 +627,7 @@ public abstract class PathObject implements Externalizable {
 		// This is rather hack-ish... but re-closing a list can prompt it to be stored more efficiently
 		if (nextObject instanceof MeasurementList) {
 			measurements = (MeasurementList)nextObject;
-			measurements.closeList();
+			measurements.close();
 		}
 		
 		// Read child objects

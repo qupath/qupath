@@ -124,7 +124,7 @@ class NumericMeasurementList {
 		}
 
 		@Override
-		public void closeList() {
+		public void close() {
 			if (isClosed())
 				return;
 			compactStorage();
@@ -329,7 +329,7 @@ class NumericMeasurementList {
 			super(capacity);
 			this.values = new double[capacity];
 			// Close from the start... will be opened as needed
-			closeList();
+			close();
 		}
 		
 		@Override
@@ -383,7 +383,7 @@ class NumericMeasurementList {
 			super(capacity);
 			this.values = new float[capacity];
 			// Close from the start... will be opened as needed
-			closeList();
+			close();
 		}
 
 		@Override

@@ -35,6 +35,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
@@ -192,7 +193,9 @@ public class HierarchyOverlay extends AbstractImageDataOverlay {
 		// Paint the annotations
 		Collection<PathObject> pathObjects = hierarchy.getObjectsForRegion(PathAnnotationObject.class, region, null);
 
-		Collection<PathObject> selectedObjects = hierarchy.getSelectionModel().getSelectedObjects();
+		Collection<PathObject> selectedObjects = new ArrayList<>(hierarchy.getSelectionModel().getSelectedObjects());
+		selectedObjects.removeIf(p -> p.getROI().getZ() != z || p.getROI().getT() != t);
+		
 		pathObjects.removeAll(selectedObjects);
 
 		List<PathObject> pathObjectList = new ArrayList<>(pathObjects);

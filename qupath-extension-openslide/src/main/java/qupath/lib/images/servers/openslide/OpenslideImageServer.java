@@ -137,6 +137,13 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 		double pixelHeight = readNumericPropertyOrDefault(properties, OpenSlide.PROPERTY_NAME_MPP_Y, Double.NaN);
 		double magnification = readNumericPropertyOrDefault(properties, OpenSlide.PROPERTY_NAME_OBJECTIVE_POWER, Double.NaN);
 		
+		// Make sure the pixel sizes are valid
+		if (pixelWidth <= 0 || pixelHeight <= 0 || Double.isInfinite(pixelWidth) || Double.isInfinite(pixelHeight)) {
+			logger.warn("Invalid pixel sizes {} and {}, will use default", pixelWidth, pixelHeight);
+			pixelWidth = Double.NaN;
+			pixelHeight = Double.NaN;
+		}
+		
 		// Loop through the series again & determine downsamples - assume the image is not cropped for now
 		int levelCount = (int)osr.getLevelCount();
 		var resolutionBuilder = new ImageResolutionLevel.Builder(width, height);

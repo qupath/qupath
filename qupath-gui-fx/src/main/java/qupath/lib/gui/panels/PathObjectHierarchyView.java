@@ -264,6 +264,7 @@ public class PathObjectHierarchyView implements ImageDataChangeListener<Buffered
 			return;
 		
 		if (synchronizePrimarySelectionOnly) {
+			boolean currentlySynchronizing = synchronizingTreeToModel;
 			try {
 				synchronizingTreeToModel = true;
 				MultipleSelectionModel<TreeItem<PathObject>> treeModel = treeView.getSelectionModel();
@@ -273,7 +274,7 @@ public class PathObjectHierarchyView implements ImageDataChangeListener<Buffered
 					selectSingleObject(primarySelected);
 				return;
 			} finally {
-				synchronizingTreeToModel = false;
+				synchronizingTreeToModel = currentlySynchronizing;
 			}
 		}
 		

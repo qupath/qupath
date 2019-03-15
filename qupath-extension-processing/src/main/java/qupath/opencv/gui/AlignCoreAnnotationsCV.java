@@ -58,10 +58,10 @@ import qupath.opencv.processing.OpenCVTools;
 
 /**
  * Experimental method to try to align annotations to a TMA core.
- * 
+ * <p>
  * The purpose of this was to handle annotations made on a second core / consecutive section (cytokeratin staining),
  * and then transferred.
- * 
+ * <p>
  * It was, at best, a limited success.
  * 
  * @author Pete Bankhead

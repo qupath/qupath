@@ -433,7 +433,7 @@ public class DelaunayTriangulation implements PathObjectConnectionGroup {
 					ml.putMeasurement(key + " mean: " + measurementNames.get(i), averagedMeasurements[i]);
 				}
 				ml.putMeasurement(key + " size", n);
-				ml.closeList();
+				ml.close();
 			}
 
 		}
@@ -508,7 +508,7 @@ public class DelaunayTriangulation implements PathObjectConnectionGroup {
 				}			
 			}
 			
-			measurementList.closeList();
+			measurementList.close();
 		}
 	}
 		

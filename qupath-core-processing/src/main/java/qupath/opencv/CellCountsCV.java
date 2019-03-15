@@ -325,7 +325,7 @@ public class CellCountsCV extends AbstractTileableDetectionPlugin<BufferedImage>
 					else
 						pathObject.setPathClass(PathClassFactory.getNegative(null, null));
 					pathObject.getMeasurementList().putMeasurement(stain2Name + " OD", stain2Value);
-					pathObject.getMeasurementList().closeList();
+					pathObject.getMeasurementList().close();
 				} else
 					pathObject.setColorRGB(color);
 

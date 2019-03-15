@@ -59,11 +59,11 @@ public class OpenCVExtension implements QuPathExtension {
 	
 	public static void addQuPathCommands(final QuPathGUI qupath) {
 
-		Menu menuTMA = qupath.getMenu("TMA", true);
-		QuPathGUI.addMenuItems(
-				menuTMA,
-				QuPathGUI.createCommandAction(new AlignCoreAnnotationsCV(qupath), "Align annotations within TMA core (TMA, experimental)")
-				);
+//		Menu menuTMA = qupath.getMenu("TMA", true);
+//		QuPathGUI.addMenuItems(
+//				menuTMA,
+//				QuPathGUI.createCommandAction(new AlignCoreAnnotationsCV(qupath), "Align annotations within TMA core (TMA, experimental)")
+//				);
 		
 		Menu menuFeatures = qupath.getMenu("Analyze>Calculate features", true);
 		QuPathGUI.addMenuItems(

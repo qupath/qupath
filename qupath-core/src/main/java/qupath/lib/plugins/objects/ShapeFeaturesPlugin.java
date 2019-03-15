@@ -131,7 +131,7 @@ public class ShapeFeaturesPlugin<T> extends AbstractInteractivePlugin<T> {
 								addMeasurements(measurementList, (PathArea)roi, "ROI Shape: ", pixelWidth, pixelHeight, unit, doArea, doPerimeter, doCircularity);
 						}
 						
-						measurementList.closeList();
+						measurementList.close();
 					} catch (Exception e) {
 						e.printStackTrace();
 						throw(e);

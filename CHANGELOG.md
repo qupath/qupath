@@ -1,3 +1,15 @@
+## Version 0.2.0-m2
+* Re-written 'Expand annotations' to use Java Topology Suite
+* New experimental 'Distance to annotations' command (a work in progress!)
+* 'Rotate annotation' now clips to image bounds
+* Updated Bio-Formats to v6.0.1
+* Improved behavior using Ctrl+Shift when annotating
+* Bug fixes
+  * Handle missing pixel sizes with OpenSlide
+  * ROI.getShape() corrected for rectangles and ellipses
+  * Avoid 'Estimate stain vectors' errors with extreme parameter values
+
+
 ## Version 0.2.0-m1
 * This is a *milestone* (i.e. still in development) version made available to try out new features early
 * Highlights include:

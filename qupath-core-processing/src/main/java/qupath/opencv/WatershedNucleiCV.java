@@ -306,7 +306,7 @@ public class WatershedNucleiCV extends AbstractTileableDetectionPlugin<BufferedI
 							measurementList.addMeasurement("DAB range", statsDAB.getRange());
 						}
 
-						measurementList.closeList();
+						measurementList.close();
 						ind++;
 					}
 					logger.info("Found " + pathObjects.size() + " contours");

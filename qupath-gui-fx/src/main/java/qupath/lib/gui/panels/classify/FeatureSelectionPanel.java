@@ -187,7 +187,7 @@ class FeatureSelectionPanel {
 				MeasurementList ml = pathObject.getMeasurementList();
 				int sizeBefore = ml.size();
 				ml.removeMeasurements(highlightedFeatures.toArray(new String[0]));
-				ml.closeList();
+				ml.close();
 				int sizeAfter = ml.size();
 				if (sizeAfter != sizeBefore)
 					changedObjects.add(pathObject);

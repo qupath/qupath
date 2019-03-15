@@ -91,7 +91,7 @@ public class MoveTool extends AbstractPathTool {
 		if (!e.isPrimaryButtonDown() || e.isConsumed())
             return;
 		
-		Point2D p = viewer.componentPointToImagePoint(e.getX(), e.getY(), null, true);
+		Point2D p = viewer.componentPointToImagePoint(e.getX(), e.getY(), null, false);
 		double xx = p.getX();
 		double yy = p.getY();
 		
@@ -131,10 +131,10 @@ public class MoveTool extends AbstractPathTool {
 			
 			// Set the current parent object based on the first click
 			PathObject currentObject = viewer.getSelectedObject();
-			if (currentObject != null)
-				setCurrentParent(viewer.getHierarchy(), currentObject.getParent(), currentObject);
-			else
-				setCurrentParent(viewer.getHierarchy(), null, currentObject);
+			PathObject parent = currentObject == null ? null : currentObject.getParent();
+			if (parent != null && parent.isDetection())
+				parent = null;
+			setCurrentParent(viewer.getHierarchy(), parent, currentObject);
 			
 			// See if we can get a handle to edit the ROI
 			// Don't want to edit detections / TMA cores

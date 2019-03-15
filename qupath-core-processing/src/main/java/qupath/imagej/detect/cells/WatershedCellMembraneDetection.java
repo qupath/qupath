@@ -1020,7 +1020,7 @@ public class WatershedCellMembraneDetection extends AbstractTileableDetectionPlu
 			
 			// Close the measurement lists
 			for (PathObject pathObject : pathObjects)
-				pathObject.getMeasurementList().closeList();
+				pathObject.getMeasurementList().close();
 			
 			lastRunCompleted = true;
 		}

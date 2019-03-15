@@ -36,7 +36,7 @@ import java.util.List;
  * @author Pete Bankhead
  *
  */
-public interface MeasurementList extends Serializable {
+public interface MeasurementList extends Serializable, AutoCloseable {
 	
 	public enum TYPE {GENERAL, DOUBLE, FLOAT}
 	
@@ -46,7 +46,7 @@ public interface MeasurementList extends Serializable {
 	 * Put a measurement into the list, replacing any previous measurement with the same name.
 	 * This is similar to add, but with a check to remove any existing measurement with the same name
 	 * (if multiple measurements have the same name, the first will be replaced)
-	 * 
+	 * <p>
 	 * While it's probably a good idea for measurements to always have unique names, for some implementations
 	 * putMeasurement can be must slower than add or addMeasurement - so adding should be preferred if it is
 	 * known that a measurement with the same name is not present.
@@ -99,16 +99,22 @@ public interface MeasurementList extends Serializable {
 //	public boolean isClosed();
 	
 	/**
-	 * Close the list so that it cannot accept new measurements.
-	 * Depending on the implementation, the list may then adjust its internal storage to be
+	 * Close the list. Depending on the implementation, the list may then adjust its internal storage to be
 	 * more efficient.
 	 * 
-	 * Any attempt to modify the list after closing it will lead to an UnsupportedOperationException.
-	 * 
-	 * Note: a closed list cannot be reopened!
 	 */
-	public void closeList();
-	
+	@Override
+	public void close();
+
+//	public void closeList();
+
+	/**
+	 * @deprecated in favor of using {@link #close()}
+	 */
+	@Deprecated
+	default void closeList() {
+		close();
+	}
 	
 //	public void ensureListOpen();
 	

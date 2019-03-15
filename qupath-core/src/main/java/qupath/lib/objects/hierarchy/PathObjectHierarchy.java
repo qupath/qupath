@@ -322,6 +322,10 @@ public final class PathObjectHierarchy implements Serializable {
 		tileCache.getObjectsForRegion(PathAnnotationObject.class, region, tempSet, true);
 		if (tmaGrid != null)
 			tileCache.getObjectsForRegion(TMACoreObject.class, region, tempSet, true);
+		
+		if (pathObjectParent != null) {
+			tempSet.removeIf(p -> p != pathObjectParent && !PathObjectTools.isAncestor(p, pathObjectParent));
+		}
 
 		var possibleObjects = new ArrayList<PathObject>(tempSet);
 		Collections.sort(possibleObjects, (p1, p2) -> -Integer.compare(p1.getLevel(), p2.getLevel()));
@@ -334,7 +338,8 @@ public final class PathObjectHierarchy implements Serializable {
 				if (pathObject.isDetection())
 					addObject = tileCache.containsCentroid(possibleParent, pathObject);
 				else
-					addObject = tileCache.covers(possibleParent, pathObject);
+					addObject = tileCache.covers(possibleParent, pathObject) ||
+									pathObjectParent != null && possibleParent == pathObjectParent;
 			}
 			if (addObject) {
 				if (pathObject.getParent() == possibleParent)

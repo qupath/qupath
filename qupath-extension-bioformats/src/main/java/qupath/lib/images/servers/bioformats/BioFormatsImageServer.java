@@ -209,8 +209,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 				requestedSeriesName = query.substring(nameQuery.length());
 			}
 		}
-		File file = new File(new URI(uri.getScheme(), uri.getHost(), uri.getPath(), null));
-		filePath = file.getAbsolutePath();
+		filePath = new File(uri.getPath()).getAbsolutePath();
 		
 	    // Create a reader & extract the metadata
 		BufferedImageReader reader = manager.getPrimaryReader(this, filePath);

@@ -213,7 +213,18 @@ public class BrushTool extends AbstractPathROITool {
 			return;
 						
 		// Get the parent, in case we need to constrain the shape
-		PathObject parent = currentObject == null ? getSelectableObject(p.getX(), p.getY(), 0) : currentObject.getParent();
+		PathObject parent = null;
+		if (currentObject != null) {
+			parent = currentObject.getParent();
+		}
+		var currentObject2 = currentObject;
+		if (parent == null || parent.isDetection()) {
+			parent = getSelectableObjectList(p.getX(), p.getY())
+					.stream()
+					.filter(o -> !o.isDetection() && o != currentObject2)
+					.findFirst()
+					.orElseGet(() -> null);
+		}
 		setCurrentParent(hierarchy, parent, currentObject);
 		
 		// Need to remove the object from the hierarchy while editing it
@@ -225,8 +236,10 @@ public class BrushTool extends AbstractPathROITool {
 		if (createNew) {
 			creatingTiledROI = false; // Reset this
 			createNewAnnotation(p.getX(), p.getY());
-		} else
+		} else {
 			viewer.setSelectedObject(getUpdatedObject(e, shapeROI, currentObject, -1));
+			viewer.getROIEditor().setROI(null); // Avoids handles appearing?
+		}
 	}
 	
 	

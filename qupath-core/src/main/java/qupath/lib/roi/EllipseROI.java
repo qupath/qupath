@@ -124,6 +124,11 @@ public class EllipseROI extends AbstractPathBoundedROI implements PathArea, Seri
 	}
 
 	// TODO: Fix the ellipse polygon points to make it less diamond-y
+	/**
+	 * Since ellipses aren't represented internally with simple polygon points, 
+	 * this currently returns only 4 points (rather more diamond-like that would be ideal).
+	 * This behavior may change.
+	 */
 	@Override
 	public List<Point2> getPolygonPoints() {
 		return Arrays.asList(new Point2(x/2+x2/2, y),
@@ -135,7 +140,7 @@ public class EllipseROI extends AbstractPathBoundedROI implements PathArea, Seri
 	
 	@Override
 	public Shape getShape() {
-		return new Ellipse2D.Double(x, y, x2, y2);
+		return new Ellipse2D.Double(x, y, x2-x, y2-y);
 	}
 	
 	

@@ -897,7 +897,7 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 			
 			// Close the measurement lists
 			for (PathObject pathObject : pathObjects)
-				pathObject.getMeasurementList().closeList();
+				pathObject.getMeasurementList().close();
 			
 			// Sometimes smoothing can cause nuclei of cell boundaries to be removed - in this case, 
 			// filter out the invalid ROIs now

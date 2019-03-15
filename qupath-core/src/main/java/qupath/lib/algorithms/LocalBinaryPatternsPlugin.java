@@ -134,7 +134,7 @@ public class LocalBinaryPatternsPlugin extends AbstractInteractivePlugin<Buffere
 			} catch (IOException e) {
 				logger.warn("Error processing " + parentObject, e);
 			} finally {
-				parentObject.getMeasurementList().closeList();
+				parentObject.getMeasurementList().close();
 				server = null;
 				params = null;
 			}
@@ -216,7 +216,7 @@ public class LocalBinaryPatternsPlugin extends AbstractInteractivePlugin<Buffere
 		} else if (stainsName.equals("Grayscale")) {
 			processTransformedImage(pxImg, buf, pixels, measurementList, "Grayscale"+postfix, ColorTransformer.ColorTransformMethod.RGB_mean, stains, includeStats, doCircular);
 		}
-		measurementList.closeList();
+		measurementList.close();
 		
 		return true;
 		

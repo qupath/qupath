@@ -137,7 +137,7 @@ public class QUPath_Send_Overlay_to_QuPath implements PlugIn {
 							continue;
 						ml.putMeasurement(h, rt.getValue(h, row));
 					}
-					ml.closeList();
+					ml.close();
 				}
 				pathObjects.add(pathObject);
 			}

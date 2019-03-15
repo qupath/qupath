@@ -51,7 +51,6 @@ import javafx.scene.control.TitledPane;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
-import javafx.scene.layout.TilePane;
 import qupath.lib.algorithms.color.EstimateStainVectors;
 import qupath.lib.color.ColorDeconvolutionHelper;
 import qupath.lib.color.ColorDeconvolutionStains;
@@ -209,10 +208,12 @@ public class EstimateStainVectorsCommand implements PathCommand {
 		Node panelGreenBlue = createScatterPanel(new ScatterPlot(green, blue, null, rgb), stainsWrapper, AxisColor.GREEN, AxisColor.BLUE);
 		
 //		GridPane panelPlots = PanelToolsFX.createColumnGrid(panelRedGreen, panelRedBlue, panelGreenBlue);
-		TilePane panelPlots = new TilePane();
-		panelPlots.setPrefColumns(3);
+		GridPane panelPlots = new GridPane();
 		panelPlots.setHgap(10);
-		panelPlots.getChildren().addAll(panelRedGreen, panelRedBlue, panelGreenBlue);
+		panelPlots.add(panelRedGreen, 0, 0);
+		panelPlots.add(panelRedBlue, 1, 0);
+		panelPlots.add(panelGreenBlue, 2, 0);
+//		panelPlots.getChildren().addAll(panelRedGreen, panelRedBlue, panelGreenBlue);
 		panelPlots.setPadding(new Insets(0, 0, 10, 0));
 		
 		BorderPane panelSouth = new BorderPane();
@@ -245,7 +246,7 @@ public class EstimateStainVectorsCommand implements PathCommand {
 					);
 		});//new SimpleStringProperty(stainsWrapper.getStains().getStain(v.getValue()).arrayAsString(", ", 3)));
 		table.getColumns().addAll(colName, colOrig, colCurrent, colAngle);
-		table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+		table.setColumnResizePolicy(TableView.UNCONSTRAINED_RESIZE_POLICY);
 		table.setPrefHeight(120);
 		
 		
@@ -286,8 +287,12 @@ public class EstimateStainVectorsCommand implements PathCommand {
 				boolean checkColors = params.getBooleanParameterValue("checkColors") && stainsWrapper.getOriginalStains().isH_E(); // Only accept if H&E
 				ignore = Math.max(0, Math.min(ignore, 100));
 //				ColorDeconvolutionStains stains = estimateStains(imgFinal, stainsWrapper.getStains(), minOD, maxOD, ignore);
-				ColorDeconvolutionStains stainsNew = EstimateStainVectors.estimateStains(img, stainsWrapper.getStains(), minOD, maxOD, ignore, checkColors);
-				stainsWrapper.setStains(stainsNew);
+				try {
+					ColorDeconvolutionStains stainsNew = EstimateStainVectors.estimateStains(img, stainsWrapper.getStains(), minOD, maxOD, ignore, checkColors);
+					stainsWrapper.setStains(stainsNew);
+				} catch (Exception e2) {
+					DisplayHelpers.showErrorMessage("Estimate stain vectors", e2);
+				}
 		});
 		
 		ParameterPanelFX panelParams = new ParameterPanelFX(params);

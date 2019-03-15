@@ -146,7 +146,12 @@ abstract class AbstractPathROITool extends AbstractPathTool {
 		}
 
 		// Set the current parent object based on the first click
-		setCurrentParent(hierarchy, getSelectableObject(xx, yy, 0), null);
+		setCurrentParent(hierarchy, getSelectableObjectList(xx, yy)
+				.stream()
+				.filter(p -> !p.isDetection())
+				.findFirst()
+				.orElseGet(() -> null),
+				null);
 		
 		// Create a new annotation
 		PathObject pathObject = createNewAnnotation(xx, yy);
