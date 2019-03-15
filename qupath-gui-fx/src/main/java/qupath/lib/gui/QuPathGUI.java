@@ -192,6 +192,7 @@ import qupath.lib.gui.commands.BrightnessContrastCommand;
 import qupath.lib.gui.commands.CommandListDisplayCommand;
 import qupath.lib.gui.commands.CopyViewToClipboardCommand;
 import qupath.lib.gui.commands.CountingPanelCommand;
+import qupath.lib.gui.commands.DistanceToAnnotationsCommand;
 import qupath.lib.gui.commands.EstimateStainVectorsCommand;
 import qupath.lib.gui.commands.LoadClassifierCommand;
 import qupath.lib.gui.commands.LogViewerCommand;
@@ -3197,7 +3198,9 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 						createPluginAction("Add Smoothed features", SmoothFeaturesPlugin.class, this, null),
 						createPluginAction("Add Shape features (experimental)", ShapeFeaturesPlugin.class, this, null),
 						null,
-						createPluginAction("Add Local Binary Pattern features (experimental)", LocalBinaryPatternsPlugin.class, this, null)
+						createPluginAction("Add Local Binary Pattern features (experimental)", LocalBinaryPatternsPlugin.class, this, null),
+						null,
+						createCommandAction(new DistanceToAnnotationsCommand(this), "Distance to annotations (experimental)")
 						)
 				);
 
@@ -3795,10 +3798,10 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	
 	/**
 	 * Request that a specified Jar file be added to the extension classpath.
-	 * 
+	 * <p>
 	 * Note: This is really intended for dependencies that should remain where they are 
 	 * on disk (e.g. because they are included in other applications).
-	 * 
+	 * <p>
 	 * Jars containing QuPath extensions should be copied directly into the extensions 
 	 * directory instead.
 	 * 
