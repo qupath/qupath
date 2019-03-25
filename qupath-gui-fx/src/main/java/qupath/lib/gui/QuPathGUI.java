@@ -1267,6 +1267,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 					logger.info("No QuPath user directory set - extensions not installed");
 					return;
 				}
+				PathPrefs.setUserPath(dirUser.getAbsolutePath());
 			}
 			// Now get the extensions directory (within the user directory)
 			dir = getExtensionDirectory();
@@ -2091,7 +2092,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		// Enable circle pop-up for quick classification on right-click
 		CirclePopupMenu circlePopup = new CirclePopupMenu(viewer.getView(), null);
 		viewer.getView().addEventHandler(MouseEvent.MOUSE_PRESSED, e -> {
-			if (e.isPopupTrigger() && e.isShiftDown() && !getAvailablePathClasses().isEmpty()) {
+			if ((e.isPopupTrigger() || e.isSecondaryButtonDown()) && e.isShiftDown() && !getAvailablePathClasses().isEmpty()) {
 				circlePopup.setAnimationDuration(Duration.millis(200));
 				updateSetAnnotationPathClassMenu(circlePopup, viewer);
 				circlePopup.show(e.getScreenX(), e.getScreenY());
@@ -2100,7 +2101,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			} else if (circlePopup.isShown())
 				circlePopup.hide();
 				
-			if (e.isPopupTrigger()) {
+			if (e.isPopupTrigger() || e.isSecondaryButtonDown()) {
 				popup.show(viewer.getView().getScene().getWindow(), e.getScreenX(), e.getScreenY());				
 				e.consume();
 			}
