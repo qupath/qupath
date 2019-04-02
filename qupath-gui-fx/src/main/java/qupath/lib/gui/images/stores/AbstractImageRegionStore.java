@@ -87,7 +87,15 @@ abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {
 	// Cache image thumbnails
 	protected DefaultRegionCache<T> thumbnailCache;
 	
-	private int thumbnailWidth;
+	/**
+	 * Maximum size of thumbnail, in any dimension.
+	 */
+	private int maxThumbnailSize;
+	
+	/**
+	 * Minimum size of thumbnail, in any dimension.
+	 */
+	private int minThumbnailSize = 16;
 
 	
 	private TileRequestManager manager = new TileRequestManager(10);
@@ -100,8 +108,8 @@ abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {
 	
 	
 
-	protected AbstractImageRegionStore(final SizeEstimator<T> sizeEstimator, final int thumbnailWidth, final long tileCacheSizeBytes) {
-		this.thumbnailWidth = thumbnailWidth;
+	protected AbstractImageRegionStore(final SizeEstimator<T> sizeEstimator, final int thumbnailSize, final long tileCacheSizeBytes) {
+		this.maxThumbnailSize = thumbnailSize;
 		cache = new DefaultRegionCache<>(sizeEstimator, tileCacheSizeBytes);
 		thumbnailCache = new DefaultRegionCache<>(sizeEstimator, tileCacheSizeBytes/4);
 	}
@@ -111,14 +119,30 @@ abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {
 		this(sizeEstimator, DEFAULT_THUMBNAIL_WIDTH, tileCacheSizeBytes);
 	}
 	
+	
+	/**
+	 * 
+	 * @param width
+	 * @param height
+	 * @return
+	 */
+	double calculateThumbnailDownsample(int width, int height) {
+		// We'll have trouble if we try to downsample until we have very few pixels in any dimension
+		double maxDim = Math.max(width, height);
+		double minDim = Math.min(width, height);
+		if (minDim > minThumbnailSize) {
+			double maxDownsample = minDim / minThumbnailSize;
+			return Math.max(1, Math.min((double)maxDim / maxThumbnailSize, maxDownsample));				
+		}
+		return 1.0;
+	}
+	
 
 	RegionRequest getThumbnailRequest(final ImageServer<T> server, final int zPosition, final int tPosition) {
 		// Determine thumbnail size
-		double downsample;
+		double downsample = 1;
 		if (isTiledImageServer(server)) {
-			downsample = (double)server.getWidth() / thumbnailWidth;
-		} else {
-			downsample = 1;
+			downsample = calculateThumbnailDownsample(server.getWidth(), server.getHeight());
 		}
 		// Ensure we aren't accidentally upsampling (shouldn't actually happen)
 		downsample = Math.max(downsample, 1);

@@ -149,4 +149,10 @@ public class TileRequest {
 		return tileRegion.getT();
 	}
 	
+	@Override
+	public String toString() {
+		return String.format("Tile: level=%d, bounds=(%d, %d, %d, %d), %s", level,
+				tileRegion.getX(), tileRegion.getY(), tileRegion.getWidth(), tileRegion.getHeight(), request.toString());
+	}
+	
 }

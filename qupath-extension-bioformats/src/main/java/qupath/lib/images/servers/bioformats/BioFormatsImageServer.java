@@ -328,6 +328,16 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 			tileHeight = reader.getOptimalTileHeight();
 			nChannels = reader.getSizeC();
 			
+			// Make sure tile sizes are within range
+			if (tileWidth <= 0)
+				tileWidth = 256;
+			if (tileHeight <= 0)
+				tileHeight = 256;
+			if (tileWidth > width)
+				tileWidth = width;
+			if (tileHeight > height)
+				tileHeight = height;
+			
 			// Prepared to set channel colors
 			var channels = new ArrayList<ImageChannel>();
 						
