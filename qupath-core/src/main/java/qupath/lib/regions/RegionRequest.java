@@ -24,6 +24,8 @@
 package qupath.lib.regions;
 
 import java.text.DecimalFormat;
+import java.util.HashMap;
+import java.util.Map;
 
 import qupath.lib.roi.interfaces.ROI;
 
@@ -39,6 +41,8 @@ public class RegionRequest extends ImageRegion {
 	
 	private static DecimalFormat df = new DecimalFormat("#.##");
 	
+	private static Map<String, String> strings = new HashMap<>();
+	
 	private final String path;
 	
 	private final double downsample;
@@ -52,7 +56,11 @@ public class RegionRequest extends ImageRegion {
 	
 	RegionRequest(String path, double downsample, int x, int y, int width, int height, int z, int t) {
 		super(x, y, width, height, z, t);
-		this.path = path.intern();
+		// Using String.intern() can be a performance issue, so use a map instead
+		String interned = strings.putIfAbsent(path, path);
+		if (interned == null)
+			interned = path;
+		this.path = path;
 		this.downsample = downsample;
 	}
 

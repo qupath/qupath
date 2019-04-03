@@ -542,7 +542,7 @@ class DefaultProject implements Project<BufferedImage> {
 		
 		/**
 		 * Get the path used to represent this image, which can be used to construct an <code>ImageServer</code>.
-		 * 
+		 * <p>
 		 * Note that this may have been cleaned up.
 		 * 
 		 * @see #getStoredServerPath
@@ -551,7 +551,7 @@ class DefaultProject implements Project<BufferedImage> {
 		 */
 		public String getServerPath() {
 //			return serverPath;
-			return uri.toString();
+			return uri == null ? serverPath : uri.toString();
 		}
 
 		/**
