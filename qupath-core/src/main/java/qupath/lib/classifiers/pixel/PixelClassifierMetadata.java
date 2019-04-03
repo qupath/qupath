@@ -230,7 +230,7 @@ public class PixelClassifierMetadata {
     		return this;
     	}
     	
-    	private Builder strictInputSize() {
+    	public Builder strictInputSize() {
     		this.strictInputSize = true;
     		return this;
     	}
@@ -240,12 +240,12 @@ public class PixelClassifierMetadata {
     		return this;
     	}
     	
-    	private Builder inputChannelMeans(double... means) {
+    	public Builder inputChannelMeans(double... means) {
     		this.inputChannelMeans = means.clone();
     		return this;
     	}
     	
-    	private Builder inputChannelScales(double... scales) {
+    	public Builder inputChannelScales(double... scales) {
     		this.inputChannelScales = scales.clone();
     		return this;
     	}

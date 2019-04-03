@@ -25,6 +25,7 @@ import qupath.imagej.objects.ROIConverterIJ;
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.classifiers.pixel.PixelClassifierMetadata;
 import qupath.lib.classifiers.pixel.PixelClassifierMetadata.OutputType;
+import qupath.lib.classifiers.pixel.features.FeatureCalculators;
 import qupath.lib.classifiers.pixel.features.OpenCVFeatureCalculator;
 import qupath.lib.common.ColorTools;
 import qupath.lib.images.ImageData;
@@ -337,6 +338,10 @@ public class PixelClassifierStatic {
     
     @JsonAdapter(TypeAdaptersCV.OpenCVTypeAdaptorFactory.class)
     public static class BasicFeatureCalculator implements OpenCVFeatureCalculator {
+    	
+    	static {
+    		FeatureCalculators.FeatureCalculatorTypeAdapterFactory.registerSubtype(BasicFeatureCalculator.class);
+    	}
     	
     	private String name;
     	private List<Integer> channels = new ArrayList<>();

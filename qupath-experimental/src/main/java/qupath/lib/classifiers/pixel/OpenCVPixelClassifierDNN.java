@@ -22,6 +22,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class OpenCVPixelClassifierDNN extends AbstractOpenCVPixelClassifier {
+	
+	static {
+		PixelClassifiers.PixelClassifierTypeAdapterFactory.registerSubtype(OpenCVPixelClassifierDNN.class);
+	}
 
     private static final Logger logger = LoggerFactory.getLogger(OpenCVPixelClassifier.class);
 

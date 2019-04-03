@@ -10,6 +10,7 @@ import qupath.lib.classifiers.gui.PixelClassifierStatic.BasicFeatureCalculator;
 import qupath.lib.classifiers.opencv.OpenCVClassifiers.FeaturePreprocessor;
 import qupath.lib.classifiers.opencv.OpenCVClassifiers.OpenCVStatModel;
 import qupath.lib.classifiers.pixel.PixelClassifierMetadata.OutputType;
+import qupath.lib.classifiers.pixel.features.OpenCVFeatureCalculator;
 import qupath.lib.images.ImageData;
 import qupath.lib.regions.RegionRequest;
 import qupath.opencv.processing.OpenCVTools;
@@ -30,7 +31,7 @@ public class OpenCVPixelClassifier extends AbstractOpenCVPixelClassifier {
 
     private OpenCVStatModel model;
 	
-    private BasicFeatureCalculator calculator;
+    private OpenCVFeatureCalculator calculator;
 	
     private FeaturePreprocessor preprocessor;
     
@@ -42,11 +43,11 @@ public class OpenCVPixelClassifier extends AbstractOpenCVPixelClassifier {
     	return model;
     }
     
-    public OpenCVPixelClassifier(OpenCVStatModel statModel, BasicFeatureCalculator calculator, FeaturePreprocessor preprocessor, PixelClassifierMetadata metadata) {
+    public OpenCVPixelClassifier(OpenCVStatModel statModel, OpenCVFeatureCalculator calculator, FeaturePreprocessor preprocessor, PixelClassifierMetadata metadata) {
     	this(statModel, calculator, preprocessor, metadata, false);
     }
 
-    public OpenCVPixelClassifier(OpenCVStatModel statModel, BasicFeatureCalculator calculator, FeaturePreprocessor preprocessor, PixelClassifierMetadata metadata, boolean do8Bit) {
+    public OpenCVPixelClassifier(OpenCVStatModel statModel, OpenCVFeatureCalculator calculator, FeaturePreprocessor preprocessor, PixelClassifierMetadata metadata, boolean do8Bit) {
         super(metadata, do8Bit);
         this.model = statModel;
         this.calculator = calculator;

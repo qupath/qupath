@@ -38,6 +38,7 @@ import ij.CompositeImage;
 import ij.io.FileSaver;
 import ij.io.Opener;
 import javafx.application.Platform;
+import javafx.beans.binding.Bindings;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
@@ -47,7 +48,6 @@ import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableBooleanValue;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
-import javafx.collections.ListChangeListener.Change;
 import javafx.concurrent.Task;
 import javafx.collections.ObservableList;
 import javafx.event.EventHandler;
@@ -80,7 +80,6 @@ import qupath.lib.classifiers.gui.FeatureFilters;
 import qupath.lib.classifiers.gui.PixelClassificationImageServer;
 import qupath.lib.classifiers.gui.PixelClassificationOverlay;
 import qupath.lib.classifiers.gui.PixelClassifierStatic;
-import qupath.lib.classifiers.gui.PixelClassifierStatic.BasicFeatureCalculator;
 import qupath.lib.classifiers.gui.PixelClassifierHelper;
 import qupath.lib.classifiers.opencv.OpenCVClassifiers;
 import qupath.lib.classifiers.opencv.OpenCVClassifiers.OpenCVStatModel;
@@ -140,6 +139,9 @@ public class PixelClassifierImageSelectionPane {
 	}
 	
 	
+	private static ObservableList<FeatureCalculatorBuilder> defaultFeatureCalculatorBuilders = FXCollections.observableArrayList();
+	
+	
 	private QuPathViewer viewer;
 	private GridPane pane;
 	
@@ -155,15 +157,12 @@ public class PixelClassifierImageSelectionPane {
 	private ReadOnlyObjectProperty<OpenCVStatModel> selectedClassifier;
 
 	private ReadOnlyObjectProperty<ClassificationRegion> selectedRegion;
+	
+	private ReadOnlyObjectProperty<FeatureCalculatorBuilder> selectedFeatureCalculatorBuilder;
 
 	private ReadOnlyObjectProperty<OutputType> selectedOutputType;
 	
 	private StringProperty cursorLocation = new SimpleStringProperty();
-
-	private ObservableList<FeatureFilter> selectedFeatures;
-
-	private ObservableList<Integer> availableChannels;
-	private ObservableList<Integer> selectedChannels;
 	
 	private ClassificationPieChart pieChart;
 	
@@ -208,7 +207,7 @@ public class PixelClassifierImageSelectionPane {
 		
 		GridPaneTools.addGridRow(pane, row++, 0, 
 				"Choose classifier type (RTrees is generally a good default)",
-				labelClassifier, comboClassifier, btnEditClassifier);
+				labelClassifier, comboClassifier, comboClassifier, btnEditClassifier);
 		
 		
 		// Image resolution
@@ -220,138 +219,41 @@ public class PixelClassifierImageSelectionPane {
 		
 		GridPaneTools.addGridRow(pane, row++, 0, 
 				"Choose the base image resolution based upon required detail in the classification (see preview on the right)",
-				labelResolution, comboResolutions, btnResolution);
+				labelResolution, comboResolutions, comboResolutions, btnResolution);
 		
-		
-		// Selected channels
-		
-		var labelChannels = new Label("Channels");
-		var comboChannels = new CheckComboBox<Integer>();
-//		var btnChannels = new Button("Select");
-//		btnChannels.setOnAction(e -> selectChannels());
-		var server = QuPathGUI.getInstance().getViewer().getServer();
-		if (server != null) {
-			for (int c = 0; c < server.nChannels(); c++)
-				comboChannels.getItems().add(c);			
-			comboChannels.getCheckModel().checkAll();
-		}
-		comboChannels.setConverter(new StringConverter<Integer>() {
-			
-			@Override
-			public String toString(Integer object) {
-				return server.getChannelName(object);
-			}
-			
-			@Override
-			public Integer fromString(String string) {
-				for (int i = 0; i < server.nChannels(); i++) {
-					if (string.equals(server.getChannelName(i)))
-						return i;
-				}
-				return null;
-			}
-		});
-		availableChannels = comboChannels.getItems();
-		selectedChannels = comboChannels.getCheckModel().getCheckedItems();
-		selectedChannels.addListener((Change<? extends Integer> c) -> updateFeatureCalculator());
-		
-		labelResolution.setLabelFor(comboChannels);
-		
-		GridPaneTools.addGridRow(pane, row++, 0,
-				"Choose the image channels used to calculate features",
-				labelChannels, comboChannels);		
-//		GridPaneTools.addGridRow(pane, row++, 0,
-//				"Choose the image channels used to calculate features",
-//				labelChannels, comboChannels, btnChannels);
 		
 		// Features
-		
 		var labelFeatures = new Label("Features");
-		var comboFeatures = new CheckComboBox<FeatureFilter>();
-		selectedFeatures = comboFeatures.getCheckModel().getCheckedItems();
-		selectedFeatures.addListener((Change<? extends FeatureFilter> c) -> updateFeatureCalculator());
-
-		comboFeatures.getItems().add(FeatureFilters.getFeatureFilter(FeatureFilters.ORIGINAL_PIXELS, -1));
+		var comboFeatures = new ComboBox<FeatureCalculatorBuilder>();
+		comboFeatures.getItems().add(new DefaultFeatureCalculatorBuilder());
+		labelFeatures.setLabelFor(comboFeatures);
+		selectedFeatureCalculatorBuilder = comboFeatures.getSelectionModel().selectedItemProperty();
 		
-		var sigmas = new double[] {1, 2, 4, 8};
-		for (var s : sigmas)
-			comboFeatures.getItems().add(FeatureFilters.getFeatureFilter(FeatureFilters.GAUSSIAN_FILTER, s));
-		
-		for (var s : sigmas)
-			comboFeatures.getItems().add(FeatureFilters.getFeatureFilter(FeatureFilters.LAPLACIAN_OF_GAUSSIAN_FILTER, s));
-		
-		for (var s : sigmas)
-			comboFeatures.getItems().add(FeatureFilters.getFeatureFilter(FeatureFilters.SOBEL_FILTER, s));
-		
-//		for (var s : sigmas)
-//			comboFeatures.getItems().add(FeatureFilters.getFeatureFilter(FeatureFilters.NORMALIZED_INTENSITY_FILTER, s));
-//
-//		for (var s : sigmas)
-//			comboFeatures.getItems().add(FeatureFilters.getFeatureFilter(FeatureFilters.COHERENCE_FILTER, s));
-//		
-//		int nAngles = 4;
-//		for (double lamda : new double[] {5, 10}) {
-//			for (double gamma : new double[] {0.5, 1.0}) {
-//				for (var s : sigmas)
-//					comboFeatures.getItems().add(new FeatureFilters.GaborFeatureFilter(s, gamma, lamda, nAngles));
-//			}
-//		}
-		
-		comboFeatures.getItems().add(FeatureFilters.getFeatureFilter(FeatureFilters.MEDIAN_FILTER, 3));
-		comboFeatures.getItems().add(FeatureFilters.getFeatureFilter(FeatureFilters.MEDIAN_FILTER, 5));
-		
-		var radii = new int[] {1, 2, 4, 8};
-		
-		for (var r : radii)
-			comboFeatures.getItems().add(FeatureFilters.getFeatureFilter(FeatureFilters.STANDARD_DEVIATION_FILTER, r));
-		
-////		for (var r : radii)
-////			comboFeatures.getItems().add(FeatureFilters.getFeatureFilter(FeatureFilters.PEAK_DENSITY_FILTER, r));
-//
-////		for (var r : radii)
-////			comboFeatures.getItems().add(FeatureFilters.getFeatureFilter(FeatureFilters.VALLEY_DENSITY_FILTER, r));
-//
-//		for (var r : radii)
-//			comboFeatures.getItems().add(FeatureFilters.getFeatureFilter(FeatureFilters.MORPHOLOGICAL_OPEN_FILTER, r));
-//		
-//		for (var r : radii)
-//			comboFeatures.getItems().add(FeatureFilters.getFeatureFilter(FeatureFilters.MORPHOLOGICAL_CLOSE_FILTER, r));
-//		
-//		for (var r : radii)
-//			comboFeatures.getItems().add(FeatureFilters.getFeatureFilter(FeatureFilters.MORPHOLOGICAL_ERODE_FILTER, r));
-//
-//		for (var r : radii)
-//			comboFeatures.getItems().add(FeatureFilters.getFeatureFilter(FeatureFilters.MORPHOLOGICAL_DILATE_FILTER, r));
-
-
-		// Select the simple Gaussian features by default
-		comboFeatures.getCheckModel().checkIndices(1);
-		
-		// I'd like more informative text to be displayed by default
-		comboFeatures.setTitle("Selected");
-		comboFeatures.setShowCheckedCount(true);
-//		comboFeatures.setSkin(new CheckComboBoxSkin<FeatureFilter>(comboFeatures) {
-//			
-//			protected String buildString() {
-//				int n = comboFeatures.getCheckModel().getCheckedItems().size();
-//				if (n == 0)
-//					return "No features selected!";
-//				if (n == 1)
-//					return "1 feature selected";
-//				return n + " features selected";
-//			}
-//			
-//		});
-
-		
-		var labelFeaturesSummary = new Label("No features selected");
+//		var labelFeaturesSummary = new Label("No features selected");
 		var btnShowFeatures = new Button("Show");
 		btnShowFeatures.setOnAction(e -> showFeatures());
 		
+		var btnCustomizeFeatures = new Button("Edit");
+		btnCustomizeFeatures.disableProperty().bind(Bindings.createBooleanBinding(() -> {
+			var calc = selectedFeatureCalculatorBuilder.get();
+			return calc == null || !calc.canCustomize();
+		},
+				selectedFeatureCalculatorBuilder));
+		btnCustomizeFeatures.setOnAction(e -> {
+			if (selectedFeatureCalculatorBuilder.get().doCustomize()) {
+				updateFeatureCalculator();
+			}
+		});
+		comboFeatures.getItems().addAll(defaultFeatureCalculatorBuilders);
+		
+		comboFeatures.getSelectionModel().select(0);
+		comboFeatures.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> updateFeatureCalculator());
+//		btnCustomizeFeatures.setOnAction(e -> showFeatures());
+		
 		GridPaneTools.addGridRow(pane, row++, 0, 
-				"Choose the features that are available to the classifier (e.g. smoothed pixels, edges, other textures)",
-				labelFeatures, comboFeatures, btnShowFeatures);
-//		addGridRow(pane, row++, 0, labelFeatures, labelFeaturesSummary, btnEditFeatures);
+				"Select features for the classifier",
+				labelFeatures, comboFeatures, btnCustomizeFeatures, btnShowFeatures);
+
 		
 		// Output
 		var labelOutput = new Label("Output");
@@ -367,7 +269,7 @@ public class PixelClassifierImageSelectionPane {
 		
 		GridPaneTools.addGridRow(pane, row++, 0, 
 				"Choose whether to output classifications only, or estimated probabilities per class (classifications only takes much less memory)",
-				labelOutput, comboOutput, btnShowOutput);
+				labelOutput, comboOutput, comboOutput, btnShowOutput);
 		
 		
 		// Region
@@ -383,7 +285,7 @@ public class PixelClassifierImageSelectionPane {
 		
 		GridPaneTools.addGridRow(pane, row++, 0, 
 				"Choose whether to apply the classifier to the whole image, or only regions containing annotations",
-				labelRegion, comboRegion, comboRegion);
+				labelRegion, comboRegion, comboRegion, comboRegion);
 
 		
 		// Live predict
@@ -467,8 +369,8 @@ public class PixelClassifierImageSelectionPane {
 //		comboResolution.setMaxWidth(Double.MAX_VALUE);
 //		labelFeaturesSummary.setMaxWidth(Double.MAX_VALUE);
 		
-		GridPaneTools.setHGrowPriority(Priority.ALWAYS, comboResolutions, comboChannels, comboClassifier, comboFeatures, labelFeaturesSummary);
-		GridPaneTools.setFillWidth(Boolean.TRUE, comboResolutions, comboChannels, comboClassifier, comboFeatures, labelFeaturesSummary);
+		GridPaneTools.setHGrowPriority(Priority.ALWAYS, comboResolutions, comboClassifier, comboFeatures);
+		GridPaneTools.setFillWidth(Boolean.TRUE, comboResolutions, comboClassifier, comboFeatures);
 		
 		
 		
@@ -526,6 +428,8 @@ public class PixelClassifierImageSelectionPane {
 		
 		updateTitle();
 		
+		updateFeatureCalculator();
+		
 		stage.show();
 		stage.setOnCloseRequest(e -> destroy());
 		
@@ -536,6 +440,25 @@ public class PixelClassifierImageSelectionPane {
 			viewer.getImageData().getHierarchy().addPathObjectListener(hierarchyListener);
 		
 	}
+	
+	/**
+	 * Get a list of default feature calculator builders that will be available when 
+	 * this pane is opened.
+	 * <p>
+	 * This provides a mechanism to install additional feature calculators.
+	 * <p>
+	 * Note that the builder will only be added if it is not already present.
+	 * 
+	 * @return true if the builder was added, false otherwise.
+	 */
+	public synchronized static boolean installDefaultFeatureClassificationBuilder(FeatureCalculatorBuilder builder) {
+		if (!defaultFeatureCalculatorBuilders.contains(builder)) {
+			defaultFeatureCalculatorBuilders.add(builder);
+			return true;
+		}
+		return false;
+	}
+	
 	
 	private void updateTitle() {
 		if (stage == null)
@@ -579,13 +502,7 @@ public class PixelClassifierImageSelectionPane {
 	
 	
 	void updateFeatureCalculator() {
-//		featureCalculator = new PixelClassifierGUI.ExtractNeighborsFeatureCalculator("Patch features", 
-//				getRequestedPixelSizeMicrons(),
-//				5,
-//				0
-//				);
-		featureCalculator = new PixelClassifierStatic.BasicFeatureCalculator("Basic features", selectedChannels, selectedFeatures, 
-				getRequestedPixelSizeMicrons());
+		featureCalculator = selectedFeatureCalculatorBuilder.get().build(getRequestedPixelSizeMicrons());
 		updateClassifier();
 	}
 	
@@ -655,16 +572,6 @@ public class PixelClassifierImageSelectionPane {
 			DisplayHelpers.showErrorNotification("Pixel classifier", "No classifier selected!");
 			return;
 		}
-		
-		if (selectedChannels == null || selectedChannels.isEmpty()) {
-			DisplayHelpers.showErrorNotification("Pixel classifier", "No channels selected!");
-			return;
-		}
-
-		if (selectedFeatures == null || selectedFeatures.isEmpty()) {
-			DisplayHelpers.showErrorNotification("Pixel classifier", "No features selected!");
-			return;
-		}
 
 		 helper.updateTrainingData();
 		 
@@ -722,7 +629,7 @@ public class PixelClassifierImageSelectionPane {
 				 .channels(channels)
 				 .build();
 
-		 var classifier = new OpenCVPixelClassifier(model, (BasicFeatureCalculator)helper.getFeatureCalculator(), helper.getLastFeaturePreprocessor(), metadata, true);
+		 var classifier = new OpenCVPixelClassifier(model, helper.getFeatureCalculator(), helper.getLastFeaturePreprocessor(), metadata, true);
 
 		 var classifierServer = new PixelClassificationImageServer(helper.getImageData(), classifier);
 		 replaceOverlay(new PixelClassificationOverlay(viewer, classifierServer));
@@ -1174,7 +1081,9 @@ public class PixelClassifierImageSelectionPane {
 	
 	
 	void updateResolution(ImageResolution resolution) {
-		var server = viewer == null ? null : viewer.getServer();
+		ImageServer<BufferedImage> server = null;
+		if (viewer != null)
+			server = viewer.getServer();
 		if (server == null || miniViewer == null || resolution == null)
 			return;
 		Tooltip.install(miniViewer.getPane(), new Tooltip("Classification resolution: \n" + resolution));
@@ -1541,12 +1450,211 @@ public class PixelClassifierImageSelectionPane {
 		@Override
 		public void removePixelServer(String id) {
 			// TODO Auto-generated method stub
-			
 		}
 		
 	}
 	
 	
+	/**
+	 * Helper class capable of building (or returning) a FeatureCalculator.
+	 * 
+	 * @author Pete Bankhead
+	 *
+	 * @param <T>
+	 */
+	public static abstract class FeatureCalculatorBuilder {
+		
+		public abstract OpenCVFeatureCalculator build(double requestedPixelSize);
+		
+		public boolean canCustomize() {
+			return false;
+		}
+		
+		public boolean doCustomize() {
+			throw new UnsupportedOperationException("Cannot customize this feature calculator!");
+		}
+		
+		public String getName() {
+			OpenCVFeatureCalculator calculator = build(1);
+			if (calculator == null)
+				return "No feature calculator";
+			return calculator.toString();
+		}
+		
+		public String toString() {
+			return getName();
+		}
+		
+	}
+	
+	
+	
+	class DefaultFeatureCalculatorBuilder extends FeatureCalculatorBuilder {
+		
+		private GridPane pane;
+		
+		private ObservableList<FeatureFilter> selectedFeatures;
+		
+		private ObservableList<Integer> availableChannels;
+		private ObservableList<Integer> selectedChannels;
+		
+		DefaultFeatureCalculatorBuilder() {
+			
+			int row = 0;
+			
+			pane = new GridPane();
+			
+			// Selected channels
+			
+			var labelChannels = new Label("Channels");
+			var comboChannels = new CheckComboBox<Integer>();
+//			var btnChannels = new Button("Select");
+//			btnChannels.setOnAction(e -> selectChannels());
+			var server = QuPathGUI.getInstance().getViewer().getServer();
+			if (server != null) {
+				for (int c = 0; c < server.nChannels(); c++)
+					comboChannels.getItems().add(c);			
+				comboChannels.getCheckModel().checkAll();
+			}
+			comboChannels.setConverter(new StringConverter<Integer>() {
+				
+				@Override
+				public String toString(Integer object) {
+					return server.getChannelName(object);
+				}
+				
+				@Override
+				public Integer fromString(String string) {
+					for (int i = 0; i < server.nChannels(); i++) {
+						if (string.equals(server.getChannelName(i)))
+							return i;
+					}
+					return null;
+				}
+			});
+			availableChannels = comboChannels.getItems();
+			selectedChannels = comboChannels.getCheckModel().getCheckedItems();
+//			selectedChannels.addListener((Change<? extends Integer> c) -> updateFeatureCalculator());
+			
+			GridPaneTools.addGridRow(pane, row++, 0,
+					"Choose the image channels used to calculate features",
+					labelChannels, comboChannels);		
+//			GridPaneTools.addGridRow(pane, row++, 0,
+//					"Choose the image channels used to calculate features",
+//					labelChannels, comboChannels, btnChannels);
+			
+			
+			
+			var labelFeatures = new Label("Features");
+			var comboFeatures = new CheckComboBox<FeatureFilter>();
+			selectedFeatures = comboFeatures.getCheckModel().getCheckedItems();
+//			selectedFeatures.addListener((Change<? extends FeatureFilter> c) -> updateFeatureCalculator());
+
+			comboFeatures.getItems().add(FeatureFilters.getFeatureFilter(FeatureFilters.ORIGINAL_PIXELS, -1));
+			
+			var sigmas = new double[] {1, 2, 4, 8};
+			for (var s : sigmas)
+				comboFeatures.getItems().add(FeatureFilters.getFeatureFilter(FeatureFilters.GAUSSIAN_FILTER, s));
+			
+			for (var s : sigmas)
+				comboFeatures.getItems().add(FeatureFilters.getFeatureFilter(FeatureFilters.LAPLACIAN_OF_GAUSSIAN_FILTER, s));
+			
+			for (var s : sigmas)
+				comboFeatures.getItems().add(FeatureFilters.getFeatureFilter(FeatureFilters.SOBEL_FILTER, s));
+			
+//			for (var s : sigmas)
+//				comboFeatures.getItems().add(FeatureFilters.getFeatureFilter(FeatureFilters.NORMALIZED_INTENSITY_FILTER, s));
+	//
+//			for (var s : sigmas)
+//				comboFeatures.getItems().add(FeatureFilters.getFeatureFilter(FeatureFilters.COHERENCE_FILTER, s));
+//			
+//			int nAngles = 4;
+//			for (double lamda : new double[] {5, 10}) {
+//				for (double gamma : new double[] {0.5, 1.0}) {
+//					for (var s : sigmas)
+//						comboFeatures.getItems().add(new FeatureFilters.GaborFeatureFilter(s, gamma, lamda, nAngles));
+//				}
+//			}
+			
+			comboFeatures.getItems().add(FeatureFilters.getFeatureFilter(FeatureFilters.MEDIAN_FILTER, 3));
+			comboFeatures.getItems().add(FeatureFilters.getFeatureFilter(FeatureFilters.MEDIAN_FILTER, 5));
+			
+			var radii = new int[] {1, 2, 4, 8};
+			
+			for (var r : radii)
+				comboFeatures.getItems().add(FeatureFilters.getFeatureFilter(FeatureFilters.STANDARD_DEVIATION_FILTER, r));
+			
+////			for (var r : radii)
+////				comboFeatures.getItems().add(FeatureFilters.getFeatureFilter(FeatureFilters.PEAK_DENSITY_FILTER, r));
+	//
+////			for (var r : radii)
+////				comboFeatures.getItems().add(FeatureFilters.getFeatureFilter(FeatureFilters.VALLEY_DENSITY_FILTER, r));
+	//
+//			for (var r : radii)
+//				comboFeatures.getItems().add(FeatureFilters.getFeatureFilter(FeatureFilters.MORPHOLOGICAL_OPEN_FILTER, r));
+//			
+//			for (var r : radii)
+//				comboFeatures.getItems().add(FeatureFilters.getFeatureFilter(FeatureFilters.MORPHOLOGICAL_CLOSE_FILTER, r));
+//			
+//			for (var r : radii)
+//				comboFeatures.getItems().add(FeatureFilters.getFeatureFilter(FeatureFilters.MORPHOLOGICAL_ERODE_FILTER, r));
+	//
+//			for (var r : radii)
+//				comboFeatures.getItems().add(FeatureFilters.getFeatureFilter(FeatureFilters.MORPHOLOGICAL_DILATE_FILTER, r));
+
+
+			// Select the simple Gaussian features by default
+			comboFeatures.getCheckModel().checkIndices(1);
+			
+			// I'd like more informative text to be displayed by default
+			comboFeatures.setTitle("Selected");
+			comboFeatures.setShowCheckedCount(true);
+						
+			GridPaneTools.addGridRow(pane, row++, 0, 
+					"Choose the features that are available to the classifier (e.g. smoothed pixels, edges, other textures)",
+					labelFeatures, comboFeatures);
+			
+			comboChannels.setMaxWidth(Double.MAX_VALUE);
+			comboFeatures.setMaxWidth(Double.MAX_VALUE);
+			GridPaneTools.setHGrowPriority(Priority.ALWAYS, comboChannels, comboFeatures);
+			GridPaneTools.setFillWidth(Boolean.TRUE, comboChannels, comboFeatures);
+			
+			pane.setHgap(5);
+			pane.setVgap(6);
+			
+		}
+
+		@Override
+		public OpenCVFeatureCalculator build(double requestedPixelSize) {
+			return new PixelClassifierStatic.BasicFeatureCalculator(
+					"Custom features", selectedChannels, selectedFeatures, 
+					requestedPixelSize);
+		}
+		
+		public boolean canCustomize() {
+			return true;
+		}
+		
+		public boolean doCustomize() {
+			
+			boolean success = DisplayHelpers.showMessageDialog("Select features", pane);
+			if (success) {
+				if (selectedChannels == null || selectedChannels.isEmpty()) {
+					DisplayHelpers.showErrorNotification("Pixel classifier", "No channels selected!");
+					return false;
+				}
+	
+				if (selectedFeatures == null || selectedFeatures.isEmpty()) {
+					DisplayHelpers.showErrorNotification("Pixel classifier", "No features selected!");
+					return false;
+				}
+			}
+			return success;
+//			
+//			throw new UnsupportedOperationException("Cannot customize this feature calculator!");
+		}
+		
+	}
 	
 	
 }
