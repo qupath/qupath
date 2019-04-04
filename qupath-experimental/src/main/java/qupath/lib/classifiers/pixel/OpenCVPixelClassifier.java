@@ -6,7 +6,6 @@ import java.io.IOException;
 import org.bytedeco.javacpp.opencv_core;
 import org.bytedeco.javacpp.opencv_core.Mat;
 
-import qupath.lib.classifiers.gui.PixelClassifierStatic.BasicFeatureCalculator;
 import qupath.lib.classifiers.opencv.OpenCVClassifiers.FeaturePreprocessor;
 import qupath.lib.classifiers.opencv.OpenCVClassifiers.OpenCVStatModel;
 import qupath.lib.classifiers.pixel.PixelClassifierMetadata.OutputType;
@@ -22,10 +21,6 @@ import com.google.gson.annotations.JsonAdapter;
 
 @JsonAdapter(PixelClassifiers.PixelClassifierTypeAdapterFactory.class)
 public class OpenCVPixelClassifier extends AbstractOpenCVPixelClassifier {
-	
-	static {
-		PixelClassifiers.PixelClassifierTypeAdapterFactory.registerSubtype(OpenCVPixelClassifier.class);
-	}
 	
 	private static final Logger logger = LoggerFactory.getLogger(OpenCVPixelClassifier.class);
 

@@ -1,9 +1,8 @@
 package qupath.lib.classifiers.gui;
 
 import qupath.lib.awt.common.AwtTools;
+import qupath.lib.classifiers.opencv.gui.PixelClassifierImageSelectionPane.PersistentTileCache;
 import qupath.lib.classifiers.pixel.OpenCVPixelClassifierDNN;
-import qupath.lib.classifiers.pixel.PixelClassifierMetadata.OutputType;
-import qupath.lib.common.GeneralTools;
 import qupath.lib.common.SimpleThreadFactory;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.QuPathViewer;
@@ -25,7 +24,6 @@ import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.Shape;
 import java.awt.image.BufferedImage;
-import java.awt.image.DataBuffer;
 import java.awt.image.ImageObserver;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -68,7 +66,13 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
     private boolean useAnnotationMask = false;
     private boolean livePrediction = false;
     
+    private PersistentTileCache tileCache;
+    
     public PixelClassificationOverlay(final QuPathViewer viewer, final PixelClassificationImageServer classifierServer) {
+    	this(viewer, classifierServer, null);
+    }
+    
+    public PixelClassificationOverlay(final QuPathViewer viewer, final PixelClassificationImageServer classifierServer, final PersistentTileCache tileCache) {
         super();
         this.manager = new PixelClassificationMeasurementManager(classifierServer);
         
@@ -128,50 +132,6 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
 	        	if (!changed.isEmpty())
 	        		Platform.runLater(() -> hierarchy.fireObjectMeasurementsChangedEvent(this, changed));    		
 	    	});
-    	}
-    }
-    
-    public String getResultsString(double x, double y) {
-    	if (viewer == null || classifierServer == null)
-    		return null;
-    	return getResultsString(classifierServer, x, y, viewer.getZPosition(), viewer.getTPosition());
-    }
-
-    
-    
-    public static String getResultsString(PixelClassificationImageServer classifierServer, double x, double y, int z, int t) {
-    	if (classifierServer == null)
-    		return null;
-    	
-    	int level = 0;
-    	var tile = classifierServer.getTile(level, (int)Math.round(x), (int)Math.round(y), z, t);
-    	if (tile == null)
-    		return null;
-    	var img = classifierServer.getCachedTile(tile);
-    	if (img == null)
-    		return null;
-
-    	int xx = (int)Math.floor((x - tile.getImageX()) / tile.getDownsample());
-    	int yy = (int)Math.floor((y - tile.getImageY()) / tile.getDownsample());
-    	if (xx < 0 || yy < 0 || xx >= img.getWidth() || yy >= img.getHeight())
-    		return null;
-    	
-//    	String coords = GeneralTools.formatNumber(x, 1) + "," + GeneralTools.formatNumber(y, 1);
-    	
-    	var channels = classifierServer.getChannels();
-    	if (classifierServer.getOutputType() == OutputType.Classification) {
-        	int sample = img.getRaster().getSample(xx, yy, 0); 		
-        	return String.format("Classification: %s", channels.get(sample).getName());
-//        	return String.format("Classification (%s):\n%s", coords, channels.get(sample).getName());
-    	} else {
-    		var array = new String[channels.size()];
-    		for (int c = 0; c < channels.size(); c++) {
-    			float sample = img.getRaster().getSampleFloat(xx, yy, c);
-    			if (img.getRaster().getDataBuffer().getDataType() == DataBuffer.TYPE_BYTE)
-    				sample /= 255f;
-    			array[c] = channels.get(c).getName() + ": " + GeneralTools.formatNumber(sample, 2);
-    		}
-        	return String.format("Prediction: %s", String.join(", ", array));
     	}
     }
     
@@ -366,7 +326,14 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
             		return;
             	}
                 try {
-                	BufferedImage imgResult = classifierServer.readBufferedImage(tile.getRegionRequest());
+                	BufferedImage imgResult = null;
+                	if (tileCache != null)
+                		imgResult = tileCache.readFromCache(tile.getRegionRequest());
+                	if (imgResult == null)
+                		imgResult = classifierServer.readBufferedImage(tile.getRegionRequest());
+                	else {
+                		logger.info("Read cached tile: {}", tile);
+                	}
                     getCachedRGBImage(tile.getRegionRequest(), imgResult);
                     viewer.repaint();
                     Platform.runLater(() -> updateAnnotationMeasurements());

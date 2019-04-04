@@ -16,9 +16,7 @@ import com.google.gson.annotations.JsonAdapter;
 
 import qupath.lib.classifiers.gui.PixelClassifierStatic;
 import qupath.lib.classifiers.opencv.OpenCVDNN;
-import qupath.lib.classifiers.pixel.OpenCVPixelClassifierDNN;
 import qupath.lib.classifiers.pixel.PixelClassifierMetadata;
-import qupath.lib.classifiers.pixel.PixelClassifiers;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.regions.RegionRequest;
 import qupath.opencv.processing.OpenCVTools;
@@ -27,9 +25,9 @@ import qupath.opencv.processing.TypeAdaptersCV;
 @JsonAdapter(TypeAdaptersCV.OpenCVTypeAdaptorFactory.class)
 public class OpenCVFeatureCalculatorDNN implements OpenCVFeatureCalculator {
 	
-	static {
-		FeatureCalculators.FeatureCalculatorTypeAdapterFactory.registerSubtype(OpenCVFeatureCalculatorDNN.class);
-	}
+//	static {
+//		FeatureCalculators.FeatureCalculatorTypeAdapterFactory.registerSubtype(OpenCVFeatureCalculatorDNN.class);
+//	}
 	
 	private static Logger logger = LoggerFactory.getLogger(OpenCVFeatureCalculatorDNN.class);
 

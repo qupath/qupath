@@ -19,17 +19,10 @@ import org.bytedeco.javacpp.opencv_imgproc;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.gson.annotations.JsonAdapter;
-
 import qupath.imagej.objects.ROIConverterIJ;
 import qupath.lib.classifiers.pixel.PixelClassifier;
-import qupath.lib.classifiers.pixel.PixelClassifierMetadata;
 import qupath.lib.classifiers.pixel.PixelClassifierMetadata.OutputType;
-import qupath.lib.classifiers.pixel.features.FeatureCalculators;
-import qupath.lib.classifiers.pixel.features.OpenCVFeatureCalculator;
-import qupath.lib.common.ColorTools;
 import qupath.lib.images.ImageData;
-import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.TileRequest;
 import qupath.lib.objects.PathAnnotationObject;
@@ -48,7 +41,6 @@ import qupath.lib.roi.PathROIToolsAwt.CombineOp;
 import qupath.lib.roi.interfaces.PathArea;
 import qupath.lib.roi.interfaces.PathShape;
 import qupath.lib.roi.interfaces.ROI;
-import qupath.opencv.processing.TypeAdaptersCV;
 
 import java.awt.geom.Path2D;
 import java.awt.image.BufferedImage;
@@ -58,12 +50,10 @@ import java.awt.image.WritableRaster;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 /**
  * User interface for interacting with pixel classification.
@@ -253,213 +243,6 @@ public class PixelClassifierStatic {
     }
     
     /**
-     * Feature calculator that simply takes a square of neighboring pixels as the features.
-     * <p>
-     * Warning! This is far from complete and may well be removed.
-     * <p>
-     * Note also that it only extends BasicFeatureCalculator because that is required by the OpenCVPixelClassifier... it shouldn't really.
-     * 
-     * @author Pete Bankhead
-     *
-     */
-    @JsonAdapter(TypeAdaptersCV.OpenCVTypeAdaptorFactory.class)
-    public static class ExtractNeighborsFeatureCalculator extends BasicFeatureCalculator {
-    	
-    	private int radius;
-    	private PixelClassifierMetadata metadata;
-    	private int[] inputChannels;
-    	private int n;
-    	
-    	public ExtractNeighborsFeatureCalculator(String name, double pixelSizeMicrons, int radius, int...inputChannels) {
-    		super(name, Collections.emptyList(), Collections.emptyList(), pixelSizeMicrons);
-    		this.radius = radius;
-			
-    		inputChannels = new int[] {0, 1, 2};
-    		
-    		n = (radius * 2 + 1) * (radius * 2 + 1) * inputChannels.length;
-			this.inputChannels = inputChannels;
-					
-    		var channels = IntStream.range(0, n)
-    				.mapToObj(c -> ImageChannel.getInstance("Feature " + c, Integer.MAX_VALUE))
-    				.toArray(ImageChannel[]::new);
-    		metadata = new PixelClassifierMetadata.Builder()
-    				.inputShape(256, 256)
-    				.inputPixelSize(pixelSizeMicrons)
-    				.channels(channels)
-    				.build();
-    	}
-
-		@Override
-		public Mat calculateFeatures(ImageServer<BufferedImage> server, RegionRequest request) throws IOException {
-			var img = getPaddedRequest(server, request, radius);
-			var raster = img.getRaster();
-			
-			n = (radius * 2 + 1) * (radius * 2 + 1) * inputChannels.length;
-			
-			var mat = new Mat(img.getHeight()-radius*2, img.getWidth()-radius*2, opencv_core.CV_32FC(n));
-			
-			int rows = mat.rows();
-			int cols = mat.cols();
-			
-			FloatIndexer idx = mat.createIndexer();
-			
-			for (long r = 0; r < rows; r++) {
-				for (long c = 0; c < cols; c++) {
-					long k = 0;
-					for (int b : inputChannels) {
-						for (int y = (int)r; y < r + radius * 2 + 1; y++) {
-							for (int x = (int)c; x < c + radius * 2 + 1; x++) {
-								float val = raster.getSampleFloat(x, y, b);
-								//								System.err.println(r + ", " + c + ", " + k);
-								idx.put(r, c, k, val);
-								k++;
-							}							
-						}
-					}				
-				}
-			}
-			idx.release();
-			
-//			matToImagePlus(mat, "Features").show();
-			
-			return mat;
-		}
-
-		@Override
-		public PixelClassifierMetadata getMetadata() {
-			return metadata;
-		}
-    	
-    	
-    }
-    
-    
-    
-    
-    @JsonAdapter(TypeAdaptersCV.OpenCVTypeAdaptorFactory.class)
-    public static class BasicFeatureCalculator implements OpenCVFeatureCalculator {
-    	
-    	static {
-    		FeatureCalculators.FeatureCalculatorTypeAdapterFactory.registerSubtype(BasicFeatureCalculator.class);
-    	}
-    	
-    	private String name;
-    	private List<Integer> channels = new ArrayList<>();
-    	
-    	@JsonAdapter(FeatureFilters.FeatureFilterTypeAdapterFactory.class)
-    	private List<FeatureFilter> filters = new ArrayList<>();
-    	private PixelClassifierMetadata metadata;
-    	
-    	private int nPyramidLevels = 1;
-    	private int padding = 0;
-    	
-    	public BasicFeatureCalculator(String name, List<Integer> channels, List<FeatureFilter> filters, double pixelSizeMicrons) {
-    		this.name = name;
-    		this.channels.addAll(channels);
-    		this.filters.addAll(filters);
-    		
-    		var outputChannels = new ArrayList<ImageChannel>();
-    		for (var channel : channels) {
-    			for (var filter : filters) {
-    				outputChannels.add(ImageChannel.getInstance("Channel " + channel + ": " + filter.getName(), ColorTools.makeRGB(255, 255, 255)));
-//    				outputChannels.add(new PixelClassifierOutputChannel(channel.getName() + ": " + filter.getName(), ColorTools.makeRGB(255, 255, 255)));
-    			}
-    		}
-    		
-    		padding = filters.stream().mapToInt(f -> f.getPadding()).max().orElseGet(() -> 0);
-    		metadata = new PixelClassifierMetadata.Builder()
-    				.channels(outputChannels)
-    				.inputPixelSize(pixelSizeMicrons)
-    				.inputShape(512, 512)
-    				.build();
-    		
-    		
-    		for (int i = 1; i< nPyramidLevels; i++) {
-    			padding *= 2;
-    		}
-    		
-    	}
-    	
-    	public String toString() {
-    		return name;
-    	}
-    	
-		@Override
-		public Mat calculateFeatures(ImageServer<BufferedImage> server, RegionRequest request) throws IOException {
-			
-			BufferedImage img = PixelClassifierStatic.getPaddedRequest(server, request, padding);
-			
-			List<Mat> output = new ArrayList<opencv_core.Mat>();
-			
-			int w = img.getWidth();
-			int h = img.getHeight();
-			float[] pixels = new float[w * h];
-			var mat = new Mat(h, w, opencv_core.CV_32FC1);
-			FloatIndexer idx = mat.createIndexer();
-			for (var channel : channels) {
-				pixels = img.getRaster().getSamples(0, 0, w, h, channel, pixels);
-//				channel.getValues(img, 0, 0, w, h, pixels);
-				idx.put(0L, pixels);
-				
-				addFeatures(mat, output);
-				
-				if (nPyramidLevels > 1) {
-					var matLastLevel = mat;
-        			var size = mat.size();
-	    			for (int i = 1; i < nPyramidLevels; i++) {
-	    				// Downsample pyramid level
-	    				var matPyramid = new Mat();
-	    				opencv_imgproc.pyrDown(matLastLevel, matPyramid);
-	    				// Add features to a temporary list (because we'll need to resize them
-	    				var tempList = new ArrayList<Mat>();
-	    				addFeatures(matPyramid, tempList);
-	    				for (var temp : tempList) {
-	    					// Upsample
-	    					for (int k = i; k > 0; k--)
-	    						opencv_imgproc.pyrUp(temp, temp);
-	    					// Adjust size if necessary
-	    					if (temp.rows() != size.height() || temp.cols() != size.width())
-	    						opencv_imgproc.resize(temp, temp, size, 0, 0, opencv_imgproc.INTER_CUBIC);
-	    					output.add(temp);
-	    				}
-	    				if (matLastLevel != mat)
-	    					matLastLevel.release();
-	    				matLastLevel = matPyramid;
-	    			}
-	    			matLastLevel.release();
-				}
-    			
-			}
-			
-			opencv_core.merge(new MatVector(output.toArray(Mat[]::new)), mat);
-			if (padding > 0)
-				mat.put(mat.apply(new opencv_core.Rect(padding, padding, mat.cols()-padding*2, mat.rows()-padding*2)).clone());
-			
-			return mat;
-		}
-		
-		
-		void addFeatures(Mat mat, List<Mat> output) {
-			for (var filter : filters) {
-				filter.calculate(mat, output);
-			}
-	    }
-		
-
-		@Override
-		public PixelClassifierMetadata getMetadata() {
-			return metadata;
-		}
-    	
-    }
-    
-        
-    
-    
-
-
-
-	/**
 	 * Get a raster, padded by the specified amount, to the left, right, above and below.
 	 * <p>
 	 * Note that the padding is defined in terms of the <i>destination</i> pixels.

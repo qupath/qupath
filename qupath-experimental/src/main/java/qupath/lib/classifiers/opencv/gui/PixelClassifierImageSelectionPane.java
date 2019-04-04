@@ -2,6 +2,7 @@ package qupath.lib.classifiers.opencv.gui;
 
 import java.awt.image.BufferedImage;
 import java.awt.image.ColorModel;
+import java.awt.image.DataBuffer;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -75,8 +76,6 @@ import qupath.imagej.helpers.IJTools;
 import qupath.imagej.images.servers.ImageJServer;
 import qupath.imagej.objects.ROIConverterIJ;
 import qupath.lib.awt.color.model.ColorModelFactory;
-import qupath.lib.classifiers.gui.FeatureFilter;
-import qupath.lib.classifiers.gui.FeatureFilters;
 import qupath.lib.classifiers.gui.PixelClassificationImageServer;
 import qupath.lib.classifiers.gui.PixelClassificationOverlay;
 import qupath.lib.classifiers.gui.PixelClassifierStatic;
@@ -87,6 +86,9 @@ import qupath.lib.classifiers.pixel.OpenCVPixelClassifier;
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.classifiers.pixel.PixelClassifierMetadata;
 import qupath.lib.classifiers.pixel.PixelClassifierMetadata.OutputType;
+import qupath.lib.classifiers.pixel.features.BasicFeatureCalculator;
+import qupath.lib.classifiers.pixel.features.FeatureFilter;
+import qupath.lib.classifiers.pixel.features.FeatureFilters;
 import qupath.lib.classifiers.pixel.features.OpenCVFeatureCalculator;
 import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
@@ -695,15 +697,53 @@ public class PixelClassifierImageSelectionPane {
 			return false;
 		}
 	
-		if (saveAndApply(project, viewer.getImageData(), server.getClassifier())) {
-			wasApplied = true;
-			return true;
-		} else
-			return false;
+		try {
+			if (saveAndApply(project, viewer.getImageData(), server.getClassifier())) {
+				wasApplied = true;
+				return true;
+			}
+		} catch (Exception e) {
+			DisplayHelpers.showErrorMessage("Pixel classifier", e);
+		}
+		return false;
 	}
 	
 	
-	static boolean saveAndApply(Project<BufferedImage> project, ImageData<BufferedImage> imageData, PixelClassifier classifier) {
+	static String promptToSaveClassifier(Project<BufferedImage> project, PixelClassifier classifier) throws IOException {
+		var classifierName = DisplayHelpers.showInputDialog("Pixel classifier", "Pixel classifier name", "");
+		if (classifierName == null)
+			return null;
+		classifierName = classifierName.strip();
+		if (classifierName.isBlank() || classifierName.contains("\n")) {
+			DisplayHelpers.showErrorMessage("Pixel classifier", "Classifier name must be unique, non-empty, and not contain invalid characters");
+			return null;
+		}
+		
+		// Save the classifier in the project
+		try {
+			saveClassifier(project, classifier, classifierName);
+		} catch (IOException e) {
+			DisplayHelpers.showWarningNotification("Pixel classifier", "Unable to write classifier to JSON - classifier can't be reloaded later");
+			logger.error("Error saving classifier", e);
+			throw e;
+		}
+		
+		return classifierName;
+	}
+	
+	
+	static void saveClassifier(Project<BufferedImage> project, PixelClassifier classifier, String classifierName) throws IOException {
+		project.getPixelClassifierManager().putResource(classifierName, classifier);
+	}
+	
+	static boolean saveAndApply(Project<BufferedImage> project, ImageData<BufferedImage> imageData, PixelClassifier classifier) throws IOException {
+		String name = promptToSaveClassifier(project, classifier);
+		if (name == null)
+			return false;
+		return applyClassifier(project, imageData, classifier, name);
+	}
+	
+	public static boolean applyClassifier(Project<BufferedImage> project, ImageData<BufferedImage> imageData, PixelClassifier classifier, String classifierName) throws IOException {
 		
 		var server = new PixelClassificationImageServer(imageData, classifier);
 		
@@ -719,15 +759,6 @@ public class PixelClassifierImageSelectionPane {
 			return false;
 		}
 		
-		var classifierName = DisplayHelpers.showInputDialog("Pixel classifier", "Pixel classifier name", "");
-		if (classifierName == null)
-			return false;
-		classifierName = classifierName.strip();
-		if (classifierName.isBlank() || classifierName.contains("\n")) {
-			DisplayHelpers.showErrorMessage("Pixel classifier", "Classifier name must be unique, non-empty, and not contain invalid characters");
-			return false;
-		}
-		
 //		var dataFileName = QuPathGUI.getImageDataFile(project, entry).getName();
 		var dataFileName = entry.getUniqueName();
 		int ind = dataFileName.indexOf(PathPrefs.getSerializationExtension());
@@ -738,14 +769,6 @@ public class PixelClassifierImageSelectionPane {
 		try {
 			if (!Files.exists(pathOutput.getParent()) || !Files.isDirectory(pathOutput.getParent()))
 				Files.createDirectories(pathOutput.getParent());
-			
-			// Save the classifier in the project
-			try {
-				project.getPixelClassifierManager().putResource(classifierName, server.getClassifier());
-			} catch (Exception e) {
-				DisplayHelpers.showWarningNotification("Pixel classifier", "Unable to write classifier to JSON - classifier can't be reloaded later");
-				logger.error("Error saving classifier", e);
-			}
 			
 			// TODO: Write through the project entry instead
 			
@@ -790,9 +813,10 @@ public class PixelClassifierImageSelectionPane {
 			
 			return true;
 			
+		} catch (IOException e) {
+			throw e;
 		} catch (Exception e) {
-			DisplayHelpers.showErrorMessage("Pixel classifier", e);
-			return false;				
+			throw new IOException(e);
 		}
 
 		/*
@@ -1246,7 +1270,10 @@ public class PixelClassifierImageSelectionPane {
 			if (overlay == null)
 				return;
 			var p = viewer.componentPointToImagePoint(event.getX(), event.getY(), null, false);
-			String results = overlay.getResultsString(p.getX(), p.getY());
+			var server = overlay.getPixelClassificationServer();
+			String results = null;
+			if (server != null)
+				results = getResultsString(server, p.getX(), p.getY(), viewer.getZPosition(), viewer.getTPosition());
 			if (results == null)
 				cursorLocation.set("");
 			else
@@ -1254,6 +1281,53 @@ public class PixelClassifierImageSelectionPane {
 		}
 		
 	}
+	
+	
+	/**
+	 * Get a String summarizing the pixel classification values at a specified pixel location.
+	 * 
+	 * @param classifierServer
+	 * @param x
+	 * @param y
+	 * @param z
+	 * @param t
+	 * @return
+	 */
+    static String getResultsString(PixelClassificationImageServer classifierServer, double x, double y, int z, int t) {
+    	if (classifierServer == null)
+    		return null;
+    	
+    	int level = 0;
+    	var tile = classifierServer.getTile(level, (int)Math.round(x), (int)Math.round(y), z, t);
+    	if (tile == null)
+    		return null;
+    	var img = classifierServer.getCachedTile(tile);
+    	if (img == null)
+    		return null;
+
+    	int xx = (int)Math.floor((x - tile.getImageX()) / tile.getDownsample());
+    	int yy = (int)Math.floor((y - tile.getImageY()) / tile.getDownsample());
+    	if (xx < 0 || yy < 0 || xx >= img.getWidth() || yy >= img.getHeight())
+    		return null;
+    	
+//    	String coords = GeneralTools.formatNumber(x, 1) + "," + GeneralTools.formatNumber(y, 1);
+    	
+    	var channels = classifierServer.getChannels();
+    	if (classifierServer.getOutputType() == OutputType.Classification) {
+        	int sample = img.getRaster().getSample(xx, yy, 0); 		
+        	return String.format("Classification: %s", channels.get(sample).getName());
+//        	return String.format("Classification (%s):\n%s", coords, channels.get(sample).getName());
+    	} else {
+    		var array = new String[channels.size()];
+    		for (int c = 0; c < channels.size(); c++) {
+    			float sample = img.getRaster().getSampleFloat(xx, yy, c);
+    			if (img.getRaster().getDataBuffer().getDataType() == DataBuffer.TYPE_BYTE)
+    				sample /= 255f;
+    			array[c] = channels.get(c).getName() + ": " + GeneralTools.formatNumber(sample, 2);
+    		}
+        	return String.format("Prediction: %s", String.join(", ", array));
+    	}
+    }
 	
 	
 	class HierarchyListener implements PathObjectHierarchyListener {
@@ -1276,7 +1350,7 @@ public class PixelClassifierImageSelectionPane {
 	
 	
 	
-	interface PersistentTileCache extends AutoCloseable {
+	public interface PersistentTileCache extends AutoCloseable {
 		
 		default public String getCachedName(RegionRequest request) {
 			return String.format(
@@ -1378,81 +1452,81 @@ public class PixelClassifierImageSelectionPane {
 		
 	}
 
-	/**
-	 * A (@link PixelClassifier} that doesn't actually compute classifications itself, 
-	 * but rather reads them from storage.
-	 */
-	static class ReadFromStorePixelClassifier implements PixelClassifier {
-
-		private PixelClassifierMetadata metadata;
-		private PersistentTileCache store;
-
-		ReadFromStorePixelClassifier(PersistentTileCache store, PixelClassifierMetadata metadata) {
-			this.metadata = metadata;
-			this.store = store;
-		}
-
-		@Override
-		public BufferedImage applyClassification(ImageData<BufferedImage> server, RegionRequest request)
-				throws IOException {
-			return store.readFromCache(request);
-		}
-
-		@Override
-		public PixelClassifierMetadata getMetadata() {
-			return metadata;
-		}
-
-	}
+//	/**
+//	 * A (@link PixelClassifier} that doesn't actually compute classifications itself, 
+//	 * but rather reads them from storage.
+//	 */
+//	static class ReadFromStorePixelClassifier implements PixelClassifier {
+//
+//		private PixelClassifierMetadata metadata;
+//		private PersistentTileCache store;
+//
+//		ReadFromStorePixelClassifier(PersistentTileCache store, PixelClassifierMetadata metadata) {
+//			this.metadata = metadata;
+//			this.store = store;
+//		}
+//
+//		@Override
+//		public BufferedImage applyClassification(ImageData<BufferedImage> server, RegionRequest request)
+//				throws IOException {
+//			return store.readFromCache(request);
+//		}
+//
+//		@Override
+//		public PixelClassifierMetadata getMetadata() {
+//			return metadata;
+//		}
+//
+//	}
 	
 	
-	static interface PixelLayerManager<T> {
-		
-		public ImageServer<T> buildPixelServer(String id);
-		
-		public List<String> listPixelServers();
-
-		public void writePixelServer(String id, ImageServer<T> server);
-		
-		public void removePixelServer(String id);
-		
-	}
-	
-	
-	static class DefaultPixelLayerManager implements PixelLayerManager<BufferedImage> {
-		
-		private Project<BufferedImage> project;
-		private Path baseDir;
-		
-		public DefaultPixelLayerManager(Project<BufferedImage> project, Path baseDir) {
-			this.project = project;
-			this.baseDir = baseDir;
-		}
-
-		@Override
-		public ImageServer<BufferedImage> buildPixelServer(String id) {
-			// TODO Auto-generated method stub
-			return null;
-		}
-
-		@Override
-		public List<String> listPixelServers() {
-			// TODO Auto-generated method stub
-			return null;
-		}
-
-		@Override
-		public void writePixelServer(String id, ImageServer<BufferedImage> server) {
-			// TODO Auto-generated method stub
-			
-		}
-
-		@Override
-		public void removePixelServer(String id) {
-			// TODO Auto-generated method stub
-		}
-		
-	}
+//	static interface PixelLayerManager<T> {
+//		
+//		public ImageServer<T> buildPixelServer(String id);
+//		
+//		public List<String> listPixelServers();
+//
+//		public void writePixelServer(String id, ImageServer<T> server);
+//		
+//		public void removePixelServer(String id);
+//		
+//	}
+//	
+//	
+//	static class DefaultPixelLayerManager implements PixelLayerManager<BufferedImage> {
+//		
+//		private Project<BufferedImage> project;
+//		private Path baseDir;
+//		
+//		public DefaultPixelLayerManager(Project<BufferedImage> project, Path baseDir) {
+//			this.project = project;
+//			this.baseDir = baseDir;
+//		}
+//
+//		@Override
+//		public ImageServer<BufferedImage> buildPixelServer(String id) {
+//			// TODO Auto-generated method stub
+//			return null;
+//		}
+//
+//		@Override
+//		public List<String> listPixelServers() {
+//			// TODO Auto-generated method stub
+//			return null;
+//		}
+//
+//		@Override
+//		public void writePixelServer(String id, ImageServer<BufferedImage> server) {
+//			// TODO Auto-generated method stub
+//			
+//		}
+//
+//		@Override
+//		public void removePixelServer(String id) {
+//			// TODO Auto-generated method stub
+//		}
+//		
+//	}
 	
 	
 	/**
@@ -1626,7 +1700,7 @@ public class PixelClassifierImageSelectionPane {
 
 		@Override
 		public OpenCVFeatureCalculator build(double requestedPixelSize) {
-			return new PixelClassifierStatic.BasicFeatureCalculator(
+			return new BasicFeatureCalculator(
 					"Custom features", selectedChannels, selectedFeatures, 
 					requestedPixelSize);
 		}

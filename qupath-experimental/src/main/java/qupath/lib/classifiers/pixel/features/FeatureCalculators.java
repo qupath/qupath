@@ -8,6 +8,11 @@ import com.google.gson.reflect.TypeToken;
 
 public class FeatureCalculators {
 	
+	public static void initialize() {
+		FeatureCalculatorTypeAdapterFactory.registerSubtype(BasicFeatureCalculator.class);
+		FeatureCalculatorTypeAdapterFactory.registerSubtype(OpenCVFeatureCalculatorDNN.class);
+	}
+	
 	public static class FeatureCalculatorTypeAdapterFactory implements TypeAdapterFactory {
 
 		public FeatureCalculatorTypeAdapterFactory() {}
@@ -17,7 +22,7 @@ public class FeatureCalculators {
 		private final static RuntimeTypeAdapterFactory<OpenCVFeatureCalculator> featureCalculatorTypeAdapter = 
 				RuntimeTypeAdapterFactory.of(OpenCVFeatureCalculator.class, typeName);
 		
-		public static void registerSubtype(Class<? extends OpenCVFeatureCalculator> cls) {
+		private static void registerSubtype(Class<? extends OpenCVFeatureCalculator> cls) {
 			featureCalculatorTypeAdapter.registerSubtype(cls);
 		}
 		

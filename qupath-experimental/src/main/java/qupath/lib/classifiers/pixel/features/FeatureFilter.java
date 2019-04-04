@@ -1,4 +1,4 @@
-package qupath.lib.classifiers.gui;
+package qupath.lib.classifiers.pixel.features;
 
 import java.util.List;
 
