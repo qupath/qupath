@@ -1723,6 +1723,10 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 					return;
 				}
 				
+				// Avoid zooming at the end of a gesture when using touchscreens
+				if (e.isInertia())
+					return;
+				
 				if (PathPrefs.getInvertScrolling())
 					scrollUnits = -scrollUnits;
 				double newDownsampleFactor = viewer.getDownsampleFactor() * Math.pow(viewer.getDefaultZoomFactor(), scrollUnits);
