@@ -23,6 +23,7 @@
 
 package qupath.lib.images.servers;
 
+import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
@@ -206,6 +207,16 @@ public interface ImageServer<T> extends AutoCloseable {
 	 * @return
 	 */
 	public boolean hasPixelSizeMicrons();
+
+	/**
+	 * Get a cached tile, or null if the tile has not been cached.
+	 * <p>
+	 * This is useful whenever it is important to return quickly rather than wait for a tile to be fetched or generated.
+	 * 
+	 * @param tile
+	 * @return the tile if it has been cached, or null if no cached tile is available for the request.
+	 */
+	public BufferedImage getCachedTile(TileRequest tile);
 	
 	/**
 	 * Obtain a T thumbnail, no larger than the maxWidth &amp; maxHeigth specified.

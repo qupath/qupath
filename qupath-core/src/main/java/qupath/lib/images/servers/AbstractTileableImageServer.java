@@ -7,7 +7,6 @@ import java.awt.image.ColorModel;
 import java.awt.image.Raster;
 import java.awt.image.WritableRaster;
 import java.io.IOException;
-import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -19,12 +18,7 @@ import qupath.lib.regions.RegionRequest;
 public abstract class AbstractTileableImageServer extends AbstractImageServer<BufferedImage> {
 	
 	private static Logger logger = LoggerFactory.getLogger(AbstractTileableImageServer.class);
-	
-	/**
-	 * Cache to use for storing & retrieving tiles.
-	 */
-	private Map<RegionRequest, BufferedImage> cache = ImageServerProvider.getCache(BufferedImage.class);
-	
+		
 	/**
 	 * Read a single image tile.
 	 * 
@@ -32,16 +26,7 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 	 * @return
 	 */
 	protected abstract BufferedImage readTile(final TileRequest tileRequest) throws IOException;
-
-	/**
-	 * Get the internal cache. This may be useful to check for the existence of a cached tile any time 
-	 * when speed is of the essence, and if no cached tile is available a request will not be made.
-	 * 
-	 * @return
-	 */
-	protected Map<RegionRequest, BufferedImage> getCache() {
-		return cache;
-	}
+	
 	
 	/**
 	 * Get a tile for the request - ideally from the cache, but otherwise read it & 
@@ -51,6 +36,7 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 	 * @return
 	 */
 	protected BufferedImage getTile(final TileRequest tileRequest) throws IOException {
+		var cache = getCache();
 		BufferedImage imgCached = cache == null ? null : cache.get(tileRequest.getRegionRequest());
 		if (imgCached != null) { 
 			logger.trace("Returning cached tile: {}", tileRequest.getRegionRequest());
@@ -93,6 +79,7 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 	public BufferedImage readBufferedImage(final RegionRequest request) throws IOException {
 		// Check if we already have a tile for precisely this occasion - with the right server path
 		// Make a defensive copy, since the cache is critical
+		var cache = getCache();
 		BufferedImage img = request.getPath().equals(getPath()) && cache != null ? cache.get(request) : null;
 		if (img != null)
 			return duplicate(img);

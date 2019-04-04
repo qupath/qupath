@@ -98,19 +98,6 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 		return imageData;
 	}
 	
-	/**
-	 * Get a cached tile, or null if the tile has not been cached.
-	 * <p>
-	 * This is useful whenever it is important to return quickly rather than wait for a tile to be fetched or generated.
-	 * 
-	 * @param tile
-	 * @return
-	 */
-	public BufferedImage getCachedTile(TileRequest tile) {
-		var cache = getCache();
-		return cache == null ? null : cache.getOrDefault(tile.getRegionRequest(), null);
-	}
-	
 	public OutputType getOutputType() {
 		return classifier.getMetadata().getOutputType();
 	}

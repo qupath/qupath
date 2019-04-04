@@ -23,6 +23,7 @@
 
 package qupath.lib.images.servers;
 
+import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -60,7 +61,20 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 	 */
 	private ImageServerMetadata userMetadata;
 	
-	private transient Long timestamp = null;
+	/**
+	 * Cache to use for storing & retrieving tiles.
+	 */
+	private Map<RegionRequest, BufferedImage> cache = ImageServerProvider.getCache(BufferedImage.class);
+
+	/**
+	 * Get the internal cache. This may be useful to check for the existence of a cached tile any time 
+	 * when speed is of the essence, and if no cached tile is available a request will not be made.
+	 * 
+	 * @return
+	 */
+	protected Map<RegionRequest, BufferedImage> getCache() {
+		return cache;
+	}
 	
 	protected double getThumbnailDownsampleFactor(int maxWidth, int maxHeight) {
 		if (maxWidth <= 0) {
@@ -223,6 +237,11 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 //		return getDefaultShortServerName(path);
 //	}
 	
+	@Override
+	public BufferedImage getCachedTile(TileRequest tile) {
+		var cache = getCache();
+		return cache == null ? null : cache.getOrDefault(tile.getRegionRequest(), null);
+	}
 	
 	@Override
 	public String getSubImagePath(String imageName) {
