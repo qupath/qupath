@@ -392,23 +392,11 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 		listAnnotations.getSelectionModel().getSelectedItems().addListener(new ListChangeListener<PathObject>() {
 			@Override
 			public void onChanged(Change<? extends PathObject> c) {
-				if (hierarchy == null || changingSelection)
-					return;
-//				hierarchy.getSelectionModel().setSelectedObject(listAnnotations.getSelectionModel().getSelectedItem());
-//				System.err.println(listAnnotations.getSelectionModel().getSelectedItems());
-				
-//				if (listAnnotations.getSelectionModel().getSelectedItems().contains(null)) {
-//					System.out.println("I HAVE A NULL: " + listAnnotations.getItems());
-//				}
-				changingSelection = true;
-				Set<PathObject> selectedSet = new HashSet<>(listAnnotations.getSelectionModel().getSelectedItems());
-				PathObject selectedObject = listAnnotations.getSelectionModel().getSelectedItem();
-				if (!selectedSet.contains(selectedObject))
-					selectedObject = null;
-				hierarchy.getSelectionModel().setSelectedObjects(selectedSet, selectedObject);
-				changingSelection = false;
+				synchronizeListSelectionToHierarchy();
 			}
 		});
+		
+		listAnnotations.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> synchronizeListSelectionToHierarchy());
 
 		listAnnotations.setOnMouseClicked(e -> {
 			if (e.getClickCount() > 1) {
@@ -568,6 +556,19 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 		qupath.addImageDataChangeListener(this);
 	}
 
+	
+	void synchronizeListSelectionToHierarchy() {
+		if (hierarchy == null || changingSelection)
+			return;
+		changingSelection = true;
+		Set<PathObject> selectedSet = new HashSet<>(listAnnotations.getSelectionModel().getSelectedItems());
+		PathObject selectedObject = listAnnotations.getSelectionModel().getSelectedItem();
+		if (!selectedSet.contains(selectedObject))
+			selectedObject = null;
+		hierarchy.getSelectionModel().setSelectedObjects(selectedSet, selectedObject);
+		changingSelection = false;
+	}
+	
 
 	void updateAutoSetPathClassProperty() {
 		PathClass pathClass = null;

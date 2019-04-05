@@ -121,6 +121,7 @@ public class PathObjectHierarchyView implements ImageDataChangeListener<Buffered
 				synchronizeSelectionModelToTree(c);
 			}
 		});
+		treeView.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> synchronizeSelectionModelToTree(null));
 		// When nodes are expanded, we need to ensure selections are handled
 		treeView.expandedItemCountProperty().addListener((v, o, n) -> synchronizeTreeToSelectionModel());
 		
@@ -202,8 +203,10 @@ public class PathObjectHierarchyView implements ImageDataChangeListener<Buffered
 			
 			// Check - was anything removed?
 			boolean removed = false;
-			while (change.next())
-				removed = removed | change.wasRemoved();
+			if (change != null) {
+				while (change.next())
+					removed = removed | change.wasRemoved();
+			}
 			
 			MultipleSelectionModel<TreeItem<PathObject>> treeModel = treeView.getSelectionModel();
 			List<TreeItem<PathObject>> selectedItems = treeModel.getSelectedItems();
@@ -236,7 +239,8 @@ public class PathObjectHierarchyView implements ImageDataChangeListener<Buffered
 			model.selectObjects(toSelect);
 			
 			// Ensure that we have the main selected object
-			TreeItem<PathObject> mainSelection = treeView.getFocusModel().getFocusedItem();
+			TreeItem<PathObject> mainSelection = treeView.getSelectionModel().getSelectedItem();
+//			TreeItem<PathObject> mainSelection = treeView.getFocusModel().getFocusedItem();
 			if (mainSelection != null && model.isSelected(mainSelection.getValue()))
 				model.setSelectedObject(mainSelection.getValue(), true);
 			
