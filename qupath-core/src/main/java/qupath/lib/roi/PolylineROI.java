@@ -195,12 +195,23 @@ public class PolylineROI extends AbstractPathROI implements PathLine, Translatab
 			double yMin = y;
 			double yMax = y;
 			
+			double sumCenterX = 0;
+			double sumCenterY = 0;
+			
 			for (int i = 1; i < vertices.size(); i++) {
 				double x2 = vertices.getX(i) * pixelWidth;
 				double y2 = vertices.getY(i) * pixelHeight;
 				double dx = (x2 - x) * pixelWidth;
 				double dy = (y2 - y) * pixelHeight;
-				this.length += Math.sqrt(dx*dx + dy*dy);
+				double segLength = Math.sqrt(dx*dx + dy*dy);;
+				this.length += segLength;
+				
+				double xCenter = (x + x2) / 2.0;
+				double yCenter = (y + y2) / 2.0;
+				
+				sumCenterX += xCenter * segLength;
+				sumCenterY += yCenter * segLength;
+				
 				x = x2;
 				y = y2;
 				if (x < xMin)
@@ -217,8 +228,13 @@ public class PolylineROI extends AbstractPathROI implements PathLine, Translatab
 			this.boundsWidth = xMax - xMin;
 			this.boundsHeight = yMax - yMin;
 			
-			this.centroidX = boundsX + boundsWidth / 2.0;
-			this.centroidY = boundsY + boundsHeight / 2.0;
+			this.centroidX = sumCenterX / this.length;
+			this.centroidY = sumCenterY / this.length;
+			
+			assert this.centroidX >= this.boundsX && this.centroidX <= this.boundsX + this.boundsWidth;
+			assert this.centroidY >= this.boundsY && this.centroidY <= this.boundsY + this.boundsHeight;
+//			this.centroidX = boundsX + boundsWidth / 2.0;
+//			this.centroidY = boundsY + boundsHeight / 2.0;
 		}
 		
 	}

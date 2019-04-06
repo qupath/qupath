@@ -25,14 +25,12 @@ package qupath.lib.roi;
 
 import java.awt.Rectangle;
 import java.awt.Shape;
-import java.awt.geom.AffineTransform;
 import java.awt.geom.Area;
 import java.awt.geom.Ellipse2D;
 import java.awt.geom.Line2D;
 import java.awt.geom.Path2D;
 import java.awt.geom.PathIterator;
 import java.awt.geom.Rectangle2D;
-import java.awt.geom.RoundRectangle2D;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -413,11 +411,11 @@ public class PathROIToolsAwt {
 	}
 
 	/**
-	 * Warning: Currently, this only compares the actual shape, *not* the channel, timepoint or z-slice.
-	 * However this may change in the future.
-	 * A
+	 * Warning: This can only compare the actual shape, *not* the channel, timepoint or z-slice of a ROI.
 	 * 
-	 * TODO: Consider comparing channels, time-points &amp; z-slices.
+	 * @param shape1
+	 * @param shape2
+	 * @return
 	 */
 	public static boolean containsShape(final Shape shape1, final Shape shape2) {
 		PathIterator iterator = shape2.getPathIterator(null);

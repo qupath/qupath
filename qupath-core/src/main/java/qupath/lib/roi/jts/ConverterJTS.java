@@ -1,23 +1,29 @@
 package qupath.lib.roi.jts;
 import java.awt.Shape;
 import java.awt.geom.AffineTransform;
+import java.awt.geom.Area;
 import java.awt.geom.PathIterator;
 import java.awt.geom.Point2D;
+import java.util.ArrayList;
+import java.util.List;
 import org.locationtech.jts.awt.PointTransformation;
 import org.locationtech.jts.awt.ShapeReader;
 import org.locationtech.jts.awt.ShapeWriter;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateList;
-import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
-import org.locationtech.jts.geom.impl.CoordinateArraySequence;
+import org.locationtech.jts.operation.overlay.snap.GeometrySnapper;
+import org.locationtech.jts.operation.union.UnaryUnionOp;
+import org.locationtech.jts.operation.valid.IsValidOp;
+import org.locationtech.jts.operation.valid.TopologyValidationError;
 import org.locationtech.jts.simplify.VWSimplifier;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import qupath.lib.geom.Point2;
+import qupath.lib.common.GeneralTools;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.PathROIToolsAwt;
-import qupath.lib.roi.PolygonROI;
 import qupath.lib.roi.interfaces.PathArea;
 import qupath.lib.roi.interfaces.PathLine;
 import qupath.lib.roi.interfaces.PathPoints;
@@ -30,11 +36,13 @@ import qupath.lib.roi.interfaces.ROI;
  *
  */
 public class ConverterJTS {
+	
+	private static Logger logger = LoggerFactory.getLogger(ConverterJTS.class);
 
     private GeometryFactory factory;
 
     private double pixelHeight, pixelWidth;
-    private double flatness = 1;
+    private double flatness = 0.5;
 
     private AffineTransform transform = null;
 
@@ -135,17 +143,144 @@ public class ConverterJTS {
     }
     
     private Geometry areaToGeometry(PathArea roi) {
-    	Shape shape = PathROIToolsAwt.getArea(roi);
-    	PathIterator iterator = shape.getPathIterator(transform, flatness);
+    	if (roi.isEmpty())
+    		return factory.createPolygon();
+    	
+    	Area shape = PathROIToolsAwt.getArea(roi);
+    	Geometry geometry = null;
+    	if (shape.isSingular()) {
+        	PathIterator iterator = shape.getPathIterator(transform, flatness);
+        	geometry = getShapeReader().read(iterator);
+    	} else {
+    		geometry = convertAreaToGeometry(shape, transform, flatness, factory);
+    	}
     	// Use simplifier to ensure a valid geometry
-    	return VWSimplifier.simplify(getShapeReader().read(iterator), 0);
+    	return VWSimplifier.simplify(geometry, 0);    		
     }
+    
+    
+    /**
+     * Convert a java.awt.geom.Area to a JTS Geometry, trying to correctly distinguish holes.
+     * 
+     * @param area
+     * @param transform
+     * @param flatness
+     * @param factory
+     * @return
+     */
+    private static Geometry convertAreaToGeometry(final Area area, final AffineTransform transform, final double flatness, final GeometryFactory factory) {
+
+		List<Geometry> positive = new ArrayList<>();
+		List<Geometry> negative = new ArrayList<>();
+
+		PathIterator iter = area.getPathIterator(transform, flatness);
+
+		CoordinateList points = new CoordinateList();
+		
+		double areaTempSigned = 0;
+		double areaCached = 0;
+
+		double[] seg = new double[6];
+		double startX = Double.NaN, startY = Double.NaN;
+		double x0 = 0, y0 = 0, x1 = 0, y1 = 0;
+		boolean closed = false;
+		while (!iter.isDone()) {
+			switch(iter.currentSegment(seg)) {
+			case PathIterator.SEG_MOVETO:
+				// Log starting positions - need them again for closing the path
+				startX = seg[0];
+				startY = seg[1];
+				x0 = startX;
+				y0 = startY;
+				iter.next();
+				areaCached += areaTempSigned;
+				areaTempSigned = 0;
+				points.clear();
+				points.add(new Coordinate(startX, startY));
+				closed = false;
+				continue;
+			case PathIterator.SEG_CLOSE:
+				x1 = startX;
+				y1 = startY;
+				closed = true;
+				break;
+			case PathIterator.SEG_LINETO:
+				x1 = seg[0];
+				y1 = seg[1];
+				points.add(new Coordinate(x1, y1));
+				closed = false;
+				break;
+			default:
+				// Shouldn't happen because of flattened PathIterator
+				throw new RuntimeException("Invalid area computation!");
+			};
+			areaTempSigned += 0.5 * (x0 * y1 - x1 * y0);
+			// Add polygon if it has just been closed
+			if (closed) {
+				points.closeRing();
+				Coordinate[] coords = points.toCoordinateArray();
+//				for (Coordinate c : coords)
+//					model.makePrecise(c);
+				
+				// Need to ensure polygons are valid at this point
+				// Sometimes, self-intersections can thwart validity
+				Geometry polygon = factory.createPolygon(coords);
+				TopologyValidationError error = new IsValidOp(polygon).getValidationError();
+				if (error != null) {
+					logger.debug("Invalid polygon detected! Attempting to correct {}", error.toString());
+					double areaBefore = polygon.getArea();
+					Geometry geom = GeometrySnapper.snapToSelf(polygon,
+							GeometrySnapper.computeSizeBasedSnapTolerance(polygon),
+							true);
+					double areaAfter = geom.getArea();
+					if (!GeneralTools.almostTheSame(areaBefore, areaAfter, 0.0001)) {
+						logger.warn("Unable to fix geometry (area before: {}, area after: {}): {}", polygon);
+						logger.warn("Will attempt to proceed using {}", geom);
+					} else {
+						logger.debug("Geometry fix looks ok (area before: {}, area after: {})", areaBefore, areaAfter);
+					}
+					polygon = geom;
+				}
+				if (areaTempSigned < 0)
+					negative.add(polygon);
+				else if (areaTempSigned > 0)
+					positive.add(polygon);
+				// Zero indicates the shape is empty...
+			}
+			// Update the coordinates
+			x0 = x1;
+			y0 = y1;
+			iter.next();
+		}
+		// TODO: Can I count on outer polygons and holes always being either positive or negative?
+		// Since I'm not sure, I decide here based on signed areas
+		areaCached += areaTempSigned;
+		List<Geometry> outer;
+		List<Geometry> holes;
+		if (areaCached < 0) {
+			outer = negative;
+			holes = positive;
+		} else if (areaCached > 0) {
+			outer = positive;
+			holes = negative;
+		} else {
+			return factory.createPolygon();
+		}
+		Geometry geometry = UnaryUnionOp.union(outer);
+
+		if (!holes.isEmpty()) {
+			Geometry hole = UnaryUnionOp.union(holes);
+			geometry = geometry.difference((Geometry)hole);
+		}
+		return geometry;
+	}
+    
     
     private Geometry pointsToGeometry(PathPoints points) {
     	var coords = points.getPointList().stream().map(p -> new Coordinate(p.getX(), p.getY())).toArray(Coordinate[]::new);
     	if (coords.length == 1)
     		return factory.createPoint(coords[0]);
-    	return factory.createMultiPoint(coords);
+    	return factory.createMultiPointFromCoords(coords);
     }
 
 
@@ -163,12 +298,12 @@ public class ConverterJTS {
     }
 
 
-    private CoordinateSequence toCoordinates(PolygonROI roi) {
-        CoordinateList list = new CoordinateList();
-        for (Point2 p : roi.getPolygonPoints())
-            list.add(new Coordinate(p.getX() * pixelWidth, p.getY() * pixelHeight));
-        return new CoordinateArraySequence(list.toCoordinateArray());
-    }
+//    private CoordinateSequence toCoordinates(PolygonROI roi) {
+//        CoordinateList list = new CoordinateList();
+//        for (Point2 p : roi.getPolygonPoints())
+//            list.add(new Coordinate(p.getX() * pixelWidth, p.getY() * pixelHeight));
+//        return new CoordinateArraySequence(list.toCoordinateArray());
+//    }
 
     public Shape geometryToShape(Geometry geometry) {
         return getShapeWriter().toShape(geometry);

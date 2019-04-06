@@ -1,20 +1,101 @@
 package qupath.lib.roi;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.nio.file.Files;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.junit.Test;
+import org.locationtech.jts.geom.Geometry;
 
 import qupath.lib.geom.Point2;
+import qupath.lib.objects.hierarchy.PathObjectHierarchy;
+import qupath.lib.regions.ImagePlane;
+import qupath.lib.roi.PathROIToolsAwt.CombineOp;
+import qupath.lib.roi.interfaces.PathArea;
+import qupath.lib.roi.interfaces.PathLine;
+import qupath.lib.roi.interfaces.PathPoints;
 import qupath.lib.roi.interfaces.ROI;
 
 public class TestROIs {
+	
+	/**
+	 * Compare areas as returned from ROIs and after converting to JTS Geometry objects.
+	 */
+	@Test
+	public void testAreas() {
+		
+		double delta = 0.01;
+		
+		PathArea rectangle = ROIs.createRectangleROI(0, 0, 1000, 1000, ImagePlane.getDefaultPlane());
+		double targetAreaRectangle = 1000.0 * 1000.0;
+		assertEquals(rectangle.getArea(), targetAreaRectangle, delta);
+		assertEquals(rectangle.getArea(), rectangle.getGeometry().getArea(), delta);
+		assertTrue(rectangle.getGeometry().isValid());
+		
+		PathArea ellipse = ROIs.createEllipseROI(50, 00, 500, 300, ImagePlane.getDefaultPlane());
+		double targetAreaEllipse = Math.PI * 250 * 150;
+		assertEquals(targetAreaEllipse, ellipse.getArea(), delta);
+		// Flattening the path results in a more substantial area difference
+		assertTrue(Math.abs(targetAreaEllipse - ellipse.getGeometry().getArea())/targetAreaEllipse < 0.01);
+		assertTrue(ellipse.getGeometry().isValid());
+		
+		// ROIs with holes can be troublesome, JTS may consider holes as 'positive' regions
+		PathArea areaSubtracted = (PathArea)PathROIToolsAwt.combineROIs(rectangle, ellipse, CombineOp.SUBTRACT);
+		assertEquals(areaSubtracted.getArea(), areaSubtracted.getGeometry().getArea(), delta);
+		assertNotEquals(areaSubtracted.getArea(), rectangle.getArea(), delta);
+		assertTrue(areaSubtracted.getGeometry().isValid());
+
+		PathArea areaAdded = (PathArea)PathROIToolsAwt.combineROIs(rectangle, ellipse, CombineOp.ADD);
+		assertEquals(areaAdded.getArea(), areaAdded.getGeometry().getArea(), delta);
+		assertEquals(rectangle.getArea(), areaAdded.getArea(), delta);
+		assertTrue(areaAdded.getGeometry().isValid());
+		
+		File fileHierarchy = new File("src/test/resources/data/test-objects.hierarchy");
+		try (InputStream stream = Files.newInputStream(fileHierarchy.toPath())) {
+			PathObjectHierarchy hierarchy = (PathObjectHierarchy)new ObjectInputStream(stream).readObject();
+			List<ROI> rois = hierarchy.getFlattenedObjectList(null).stream().filter(p -> p.hasROI()).map(p -> p.getROI()).collect(Collectors.toList());
+			assertNotEquals(0L, rois.size());
+			for (ROI roi : rois) {
+				Geometry geom = roi.getGeometry();
+				assertEquals(roi.isEmpty(), geom.isEmpty());
+				assertTrue(geom.isValid());
+				if (roi.isArea()) {
+					PathArea pathArea = (PathArea)roi;
+					assertEquals(roi.isEmpty(), geom.isEmpty());
+					if (roi instanceof EllipseROI) {
+						assertTrue(Math.abs(pathArea.getArea() - geom.getArea())/pathArea.getArea() < 0.01);
+					} else
+						assertEquals(pathArea.getArea(), geom.getArea(), delta);
+				} else if (roi.isLine()) {
+					PathLine pathLine = (PathLine)roi;
+					assertEquals(pathLine.getLength(), geom.getLength(), delta);				
+				} else if (roi.isPoint()) {
+					PathPoints pathPoints = (PathPoints)roi;
+					assertEquals(pathPoints.getNPoints(), geom.getNumPoints(), delta);										
+				}
+				assertEquals(roi.getCentroidX(), geom.getCentroid().getX(), delta);					
+				assertEquals(roi.getCentroidY(), geom.getCentroid().getY(), delta);					
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getLocalizedMessage());
+		}
+		
+
+	}
+	
 	
 	@Test
 	public void roiSerialization() {
