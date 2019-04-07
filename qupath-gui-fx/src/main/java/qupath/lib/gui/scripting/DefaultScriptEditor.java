@@ -64,7 +64,6 @@ import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.StringProperty;
 import javafx.beans.value.ObservableValue;
-import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.concurrent.Task;
 import javafx.event.ActionEvent;
@@ -1744,7 +1743,8 @@ public class DefaultScriptEditor implements ScriptEditor {
 			File dir = null;
 			if (dirPath != null)
 				dir = new File(dirPath);
-			File file = QuPathGUI.getSharedDialogHelper().promptForFile("Choose script file", dir, "Known script files", SCRIPT_EXTENSIONS);
+//			File file = QuPathGUI.getSharedDialogHelper().promptForFile("Choose script file", dir, "Known script files", SCRIPT_EXTENSIONS);
+			File file = QuPathGUI.getSharedDialogHelper().promptForFile("Choose script file", dir, "Groovy script", ".groovy");
 			if (file == null)
 				return;
 			try {
