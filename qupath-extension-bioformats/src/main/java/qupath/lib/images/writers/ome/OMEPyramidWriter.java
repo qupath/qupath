@@ -1,6 +1,7 @@
 package qupath.lib.images.writers.ome;
 
 import java.awt.image.BufferedImage;
+import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -118,7 +119,7 @@ public class OMEPyramidWriter {
 		meta.setPixelsSizeT(new PositiveInteger(sizeT), series);
 		
 		int nSamples = 1;
-		int nChannels = server.nChannels();
+		int nChannels = this.channels.length;
 		boolean isRGB = server.isRGB() && Arrays.equals(channels, new int[] {0, 1, 2});
 		int[] channel = this.channels;
 		if (isRGB)
@@ -133,7 +134,7 @@ public class OMEPyramidWriter {
 		meta.setPixelsSizeC(new PositiveInteger(nChannels), series);
 		if (isRGB) {
 			nSamples = 3;
-			nChannels = 1;
+//			nChannels = 1;
 			meta.setChannelID("Channel:0", series, 0);			
 			meta.setChannelSamplesPerPixel(new PositiveInteger(nSamples), series, 0);			
 		} else {
@@ -181,6 +182,12 @@ public class OMEPyramidWriter {
 			int tileWidth = writer.setTileSizeX(this.tileWidth);
 			int tileHeight = writer.setTileSizeY(this.tileHeight);
 
+			File file = new File(path);
+			if (file.exists()) {
+				logger.warn("Deleting file {}", path);
+				file.delete();
+			}
+			
 			writer.setId(path);
 			writer.setSeries(series);
 
@@ -188,12 +195,15 @@ public class OMEPyramidWriter {
 
 			writer.setSeries(series);
 			for (int level = 0; level < downsamples.length; level++) {
-
+				
 				//				writer.setTileSizeX(tileWidth);
 				//				writer.setTileSizeY(tileHeight);
 				writer.setResolution(level);
 
 				double d = downsamples[level];
+				
+				logger.info("Writing resolution {} of {} (downsample={})", level, downsamples.length, d);
+				
 				int w = (int)(this.width / d);
 				int h = (int)(this.height / d);
 				int bpp = server.getBitsPerPixel() / 8;
@@ -204,15 +214,17 @@ public class OMEPyramidWriter {
 
 //				int sizeZ = zEnd - zStart + 1;
 //				int sizeT = tEnd - tStart + 1;
-				int nPlanes = channels.length * sizeZ * sizeT;
+				int nPlanes = (nChannels / nSamples) * sizeZ * sizeT;
 
 				int plane = 0;
+				int tInc = tEnd >= tStart ? 1 : -1;
+				int zInc = zEnd >= zStart ? 1 : -1;
 
-				for (int t = tStart; t < tEnd; t++) {
-					for (int z = zStart; z < zEnd; z++) {
+				for (int t = tStart; t < tEnd; t += tInc) {
+					for (int z = zStart; z < zEnd; z += zInc) {
 						for (int c : channel) {
 							
-							logger.debug("Writing plane {} of {}", plane, nPlanes);
+							logger.info("Writing plane {} of {}", plane, nPlanes);
 
 							IFD ifd = new IFD();
 							ifd.put(IFD.TILE_WIDTH, tileWidth);
@@ -244,7 +256,7 @@ public class OMEPyramidWriter {
 									ByteBuffer buf = null;
 									ww = img.getWidth();
 									hh = img.getHeight();
-									if (server.isRGB()) {
+									if (isRGB) {
 										int[] rgba = img.getRGB(0, 0, ww, hh, null, 0, ww);
 										buf = ByteBuffer.allocate(ww * hh * 3);						
 										for (int val : rgba) {
@@ -303,6 +315,9 @@ public class OMEPyramidWriter {
 					}
 				}
 			}
+			logger.trace("Image count: {}", meta.getImageCount());
+			logger.trace("Plane count: {}", writer.getPlaneCount());
+			logger.trace("Resolution count: {}", writer.getResolutionCount());
 		}
 	}
 
@@ -331,6 +346,10 @@ public class OMEPyramidWriter {
 				writer.tileWidth = 256;
 				writer.tileHeight = 256;
 			}
+			writer.zStart = 0;
+			writer.zEnd = server.nZSlices();
+			writer.tStart = 0;
+			writer.tEnd = server.nTimepoints();
 			writer.channels = IntStream.range(0, server.nChannels()).toArray();
 		}
 		
@@ -490,7 +509,7 @@ public class OMEPyramidWriter {
 		 */
 		public Builder scaledDownsampling(double minDownsample, double scale) {
 			// Calculate default downsamples, if we need to
-			if (writer.downsamples == null) {
+//			if (writer.downsamples == null) {
 				List<Double> downsampleList = new ArrayList<>();
 				double nextDownsample = minDownsample;
 				do {
@@ -498,7 +517,7 @@ public class OMEPyramidWriter {
 					nextDownsample *= scale;
 				} while ((int)(writer.width / nextDownsample) > writer.tileWidth && (int)(writer.height / nextDownsample) > writer.tileHeight);
 				writer.downsamples = downsampleList.stream().mapToDouble(d -> d).toArray();
-			}
+//			}
 			return this;
 		}
 
