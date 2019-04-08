@@ -154,19 +154,20 @@ class DefaultProject implements Project<BufferedImage> {
 			var path = mapEntry.getKey();
 			if (path.startsWith("file")) {
 				try {
-					var uri = new URI(path);
-					var file = new File(uri);
-					if (file.exists()) {
+					var uri = GeneralTools.toURI(path);
+					var tempPath = GeneralTools.toPath(uri);
+					if (Files.exists(tempPath)) {
 						newMap.put(path, entry);
 						continue;
 					}
 					if (relativize && lastParentURI != null) {
 						var uriRelative = lastParentURI.relativize(uri);
 						uri = uriCurrent.resolve(uriRelative);
-						if (new File(uri).exists()) {
+						tempPath = GeneralTools.toPath(uri);
+						if (Files.exists(tempPath)) {
 							logger.info("Updating path {} to {}", path, uri);
 							var serverPath = uri.toString();
-							newMap.put(entry.serverPath, 
+							newMap.put(serverPath, 
 									new DefaultProjectImageEntry(serverPath,
 											entry.getImageName(),
 											entry.getUniqueName(),
@@ -1072,6 +1073,12 @@ class DefaultProject implements Project<BufferedImage> {
 				addImage(new DefaultProjectImageEntry(path, name, uniqueName, description, metadataMap));
 			}
 			pathClasses.addAll(loadPathClasses());
+			
+			List<String> troublesome = validateLocalPaths(true);
+			if (!troublesome.isEmpty()) {
+				logger.warn("Could not find {} image(s): {}", troublesome.size(), troublesome);
+			}
+
 		} catch (Exception e) {
 			logger.error("Unable to read project from " + fileProject.getAbsolutePath(), e);
 		}
