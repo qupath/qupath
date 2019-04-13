@@ -159,7 +159,6 @@ import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
-import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.input.RotateEvent;
 import javafx.scene.input.ScrollEvent;
@@ -686,9 +685,14 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				else if (e.getEventType() == KeyEvent.KEY_RELEASED)
 					pressed = Boolean.FALSE;
 				if (pressed != null) {
-					for (QuPathViewer viewer : viewerManager.getOpenViewers()) {
-						viewer.setSpaceDown(pressed.booleanValue());
-					}
+					// Set spacebar for only the active viewer (since it results in registering 
+					// tools, and we don't want tools to be registered to inactive viewers...)
+					var active = viewerManager.getActiveViewer();
+					if (active != null)
+						active.setSpaceDown(pressed.booleanValue());
+//					for (QuPathViewer viewer : viewerManager.getOpenViewers()) {
+//						viewer.setSpaceDown(pressed.booleanValue());
+//					}
 				}
 			}
 		});

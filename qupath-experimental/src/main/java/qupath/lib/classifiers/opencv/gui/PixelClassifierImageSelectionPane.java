@@ -22,7 +22,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.function.Function;
-
 import org.bytedeco.javacpp.opencv_core;
 import org.bytedeco.javacpp.opencv_ml.ANN_MLP;
 import org.bytedeco.javacpp.opencv_ml.KNearest;
@@ -76,16 +75,15 @@ import qupath.imagej.helpers.IJTools;
 import qupath.imagej.images.servers.ImageJServer;
 import qupath.imagej.objects.ROIConverterIJ;
 import qupath.lib.awt.color.model.ColorModelFactory;
-import qupath.lib.classifiers.gui.PixelClassificationImageServer;
 import qupath.lib.classifiers.gui.PixelClassificationOverlay;
 import qupath.lib.classifiers.gui.PixelClassifierStatic;
 import qupath.lib.classifiers.gui.PixelClassifierHelper;
 import qupath.lib.classifiers.opencv.OpenCVClassifiers;
 import qupath.lib.classifiers.opencv.OpenCVClassifiers.OpenCVStatModel;
 import qupath.lib.classifiers.pixel.OpenCVPixelClassifier;
+import qupath.lib.classifiers.pixel.PixelClassificationImageServer;
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.classifiers.pixel.PixelClassifierMetadata;
-import qupath.lib.classifiers.pixel.PixelClassifierMetadata.OutputType;
 import qupath.lib.classifiers.pixel.features.BasicFeatureCalculator;
 import qupath.lib.classifiers.pixel.features.FeatureFilter;
 import qupath.lib.classifiers.pixel.features.FeatureFilters;
@@ -102,6 +100,7 @@ import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
@@ -162,7 +161,7 @@ public class PixelClassifierImageSelectionPane {
 	
 	private ReadOnlyObjectProperty<FeatureCalculatorBuilder> selectedFeatureCalculatorBuilder;
 
-	private ReadOnlyObjectProperty<OutputType> selectedOutputType;
+	private ReadOnlyObjectProperty<ImageServerMetadata.OutputType> selectedOutputType;
 	
 	private StringProperty cursorLocation = new SimpleStringProperty();
 	
@@ -259,8 +258,8 @@ public class PixelClassifierImageSelectionPane {
 		
 		// Output
 		var labelOutput = new Label("Output");
-		var comboOutput = new ComboBox<OutputType>();
-		comboOutput.getItems().addAll(OutputType.Classification, OutputType.Probability);
+		var comboOutput = new ComboBox<ImageServerMetadata.OutputType>();
+		comboOutput.getItems().addAll(ImageServerMetadata.OutputType.CLASSIFICATION, ImageServerMetadata.OutputType.PROBABILITIES);
 		selectedOutputType = comboOutput.getSelectionModel().selectedItemProperty();
 		selectedOutputType.addListener((v, o, n) -> {
 			updateClassifier();
@@ -298,11 +297,15 @@ public class PixelClassifierImageSelectionPane {
 		btnLive.selectedProperty().bindBidirectional(livePrediction);
 		livePrediction.addListener((v, o, n) -> {
 			if (overlay == null) {
-				if (n)
+				if (n) {
 					updateClassifier(n);				
+//					viewer.setSuppressPixelLayer(true);
+					return;
+				}
 			} else {
 				overlay.setLivePrediction(n);
 			}
+//			viewer.setSuppressPixelLayer(false);
 		});
 				
 		var panePredict = new HBox(btnAdvancedOptions, btnLive);
@@ -627,7 +630,7 @@ public class PixelClassifierImageSelectionPane {
 		 PixelClassifierMetadata metadata = new PixelClassifierMetadata.Builder()
 				 .inputPixelSize(getRequestedPixelSizeMicrons())
 				 .inputShape(inputWidth, inputHeight)
-				 .setOutputType(model.supportsProbabilities() ? selectedOutputType.get() : OutputType.Classification)
+				 .setOutputType(model.supportsProbabilities() ? selectedOutputType.get() : ImageServerMetadata.OutputType.CLASSIFICATION)
 				 .channels(channels)
 				 .build();
 
@@ -650,25 +653,34 @@ public class PixelClassifierImageSelectionPane {
 			Platform.runLater(() -> replaceOverlay(newOverlay));
 			return;
 		}
+		var imageData = viewer.getImageData();
 		if (overlay != null) {
 			overlay.stop(!wasApplied);
-			viewer.getCustomOverlayLayers().remove(overlay);
+			if (imageData != null && imageData.getProperty("PIXEL_LAYER") == overlay.getPixelClassificationServer())
+				imageData.removeProperty("PIXEL_LAYER");
+//			viewer.getCustomOverlayLayers().remove(overlay);
 		}
 		overlay = newOverlay;
 		if (overlay != null) {
 			overlay.setUseAnnotationMask(selectedRegion.get() == ClassificationRegion.ANNOTATIONS_ONLY);
-			viewer.getCustomOverlayLayers().add(overlay);
+//			viewer.getCustomOverlayLayers().add(overlay);
 			overlay.setLivePrediction(livePrediction.get());
+			if (imageData != null)
+				imageData.setProperty("PIXEL_LAYER", overlay.getPixelClassificationServer());
 			wasApplied = false;
 		}
+		viewer.setCustomPixelLayerOverlay(overlay);
 	}
 
 
 
 	public void destroy() {
 		if (overlay != null) {
+			var imageData = viewer.getImageData();
+			if (imageData != null && imageData.getProperty("PIXEL_LAYER") == overlay.getPixelClassificationServer())
+				imageData.removeProperty("PIXEL_LAYER");
 			overlay.stop(!wasApplied);
-			viewer.getCustomOverlayLayers().remove(overlay);
+			viewer.resetCustomPixelLayerOverlay();
 			overlay = null;
 		}
 		viewer.getView().removeEventFilter(MouseEvent.MOUSE_MOVED, mouseListener);
@@ -698,8 +710,12 @@ public class PixelClassifierImageSelectionPane {
 		}
 	
 		try {
-			if (saveAndApply(project, viewer.getImageData(), server.getClassifier())) {
+			var imageData = viewer.getImageData();
+			var resultServer = saveAndApply(project, imageData, server.getClassifier());
+			if (resultServer != null) {
+				imageData.setProperty("PIXEL_LAYER", resultServer);
 				wasApplied = true;
+				replaceOverlay(null);
 				return true;
 			}
 		} catch (Exception e) {
@@ -736,27 +752,27 @@ public class PixelClassifierImageSelectionPane {
 		project.getPixelClassifierManager().putResource(classifierName, classifier);
 	}
 	
-	static boolean saveAndApply(Project<BufferedImage> project, ImageData<BufferedImage> imageData, PixelClassifier classifier) throws IOException {
+	static PixelClassificationImageServer saveAndApply(Project<BufferedImage> project, ImageData<BufferedImage> imageData, PixelClassifier classifier) throws IOException {
 		String name = promptToSaveClassifier(project, classifier);
 		if (name == null)
-			return false;
+			return null;
 		return applyClassifier(project, imageData, classifier, name);
 	}
 	
-	public static boolean applyClassifier(Project<BufferedImage> project, ImageData<BufferedImage> imageData, PixelClassifier classifier, String classifierName) throws IOException {
+	public static PixelClassificationImageServer applyClassifier(Project<BufferedImage> project, ImageData<BufferedImage> imageData, PixelClassifier classifier, String classifierName) throws IOException {
 		
 		var server = new PixelClassificationImageServer(imageData, classifier);
 		
 		var entry = project.getImageEntry(imageData.getServer().getPath());
 		if (entry == null) {
 			DisplayHelpers.showErrorMessage("Pixel classifier", "Unable to find current image in the current project!");
-			return false;
+			return null;
 		}
 		
 		var pathEntry = entry.getEntryPath();
 		if (pathEntry == null) {
 			DisplayHelpers.showErrorMessage("Pixel classifier", "Sorry, a new-style project is needed to save pixel classifier results");
-			return false;
+			return null;
 		}
 		
 //		var dataFileName = QuPathGUI.getImageDataFile(project, entry).getName();
@@ -769,15 +785,22 @@ public class PixelClassifierImageSelectionPane {
 		try {
 			if (!Files.exists(pathOutput.getParent()) || !Files.isDirectory(pathOutput.getParent()))
 				Files.createDirectories(pathOutput.getParent());
+			else if (Files.exists(pathOutput)) {
+				logger.warn("Classification already exists at {}", pathOutput);
+				return new PixelClassificationImageServer(
+						imageData,
+						new ReadFromStorePixelClassifier(
+								new FileSystemPersistentTileCache(pathOutput, server), server.getClassifier()));
+			}
 			
 			// TODO: Write through the project entry instead
-			
-			var task = new Task<Boolean>() {
+			var task = new Task<PixelClassificationImageServer>() {
 
 				@Override
-				protected Boolean call() throws Exception {
+				protected PixelClassificationImageServer call() throws Exception {
 					var tiles = server.getAllTileRequests();
 					int n = tiles.size();
+					boolean success = false;
 					try (var persistentTileCache = new FileSystemPersistentTileCache(pathOutput, server)) {
 						persistentTileCache.writeJSON("metadata.json", server.getMetadata());
 						persistentTileCache.writeJSON("classifier.json", server.getClassifier());
@@ -787,19 +810,21 @@ public class PixelClassifierImageSelectionPane {
 							var request = tile.getRegionRequest();
 							persistentTileCache.saveToCache(request, server.readBufferedImage(request));			
 						}
-						return Boolean.TRUE;
+						success = true;
 					} catch (IOException e) {
 						DisplayHelpers.showErrorMessage("Pixel classification", e);
-						return Boolean.FALSE;
 					} finally {
 						updateProgress(n, n);
-//						var newServer = new PixelClassificationImageServer(
-//								imageData,
-//								new ReadFromStorePixelClassifier(
-//										new FileSystemPersistentTileCache(pathOutput, server), server.getClassifier().getMetadata()));
 //						replaceOverlay(
 //								new PixelClassificationOverlay(viewer, newServer));
 					}
+					if (success)
+						return new PixelClassificationImageServer(
+							imageData,
+							new ReadFromStorePixelClassifier(
+									new FileSystemPersistentTileCache(pathOutput, server), server.getClassifier()));
+					else
+						return null;
 				}
 			};
 			
@@ -811,7 +836,7 @@ public class PixelClassifierImageSelectionPane {
 			t.setDaemon(true);
 			t.start();
 			
-			return true;
+			return task.get();
 			
 		} catch (IOException e) {
 			throw e;
@@ -1313,7 +1338,7 @@ public class PixelClassifierImageSelectionPane {
 //    	String coords = GeneralTools.formatNumber(x, 1) + "," + GeneralTools.formatNumber(y, 1);
     	
     	var channels = classifierServer.getChannels();
-    	if (classifierServer.getOutputType() == OutputType.Classification) {
+    	if (classifierServer.getOutputType() == ImageServerMetadata.OutputType.CLASSIFICATION) {
         	int sample = img.getRaster().getSample(xx, yy, 0); 		
         	return String.format("Classification: %s", channels.get(sample).getName());
 //        	return String.format("Classification (%s):\n%s", coords, channels.get(sample).getName());
@@ -1375,17 +1400,19 @@ public class PixelClassifierImageSelectionPane {
 	static class FileSystemPersistentTileCache implements PersistentTileCache {
 		
 		private Path path;
-		private ImageServer<BufferedImage> server;
-		private FileSystem fileSystem;
-		private String root;
+		private transient ImageServer<BufferedImage> server;
+		private transient FileSystem fileSystem;
+		private transient String root;
 		
 		FileSystemPersistentTileCache(Path path, ImageServer<BufferedImage> server) throws IOException, URISyntaxException {
 			this.path = path;
 			this.server = server;
-			initializeFileSystem();
 		}
 		
-		private void initializeFileSystem() throws IOException {
+		private synchronized void ensureFileSystemOpen() throws IOException {
+			if (fileSystem != null && fileSystem.isOpen())
+				return;
+			fileSystem = null;
 			if (path.toString().toLowerCase().endsWith(".zip")) {
 				var fileURI = path.toUri();
 				try {
@@ -1402,128 +1429,143 @@ public class PixelClassifierImageSelectionPane {
 			}
 		}
 		
-		public void close() throws Exception {
+		public synchronized void close() throws Exception {
 			if (this.fileSystem != FileSystems.getDefault())
 				this.fileSystem.close();
 		}
 		
 		
-		public void writeJSON(String name, Object o) throws IOException {
+		public synchronized void writeJSON(String name, Object o) throws IOException {
 			var gson = new GsonBuilder()
 					.setLenient()
 					.serializeSpecialFloatingPointValues()
 					.setPrettyPrinting()
 					.create();
 			var json = gson.toJson(o);
-			synchronized (fileSystem) {
-				var path = fileSystem.getPath(root, name);
-				Files.writeString(path, json);
-			}
+			ensureFileSystemOpen();
+			var path = fileSystem.getPath(root, name);
+			Files.writeString(path, json);
 		}
 		
 		@Override
-		public BufferedImage readFromCache(RegionRequest request) throws IOException {
-			synchronized (fileSystem) {
-				var path = fileSystem.getPath(root, getCachedName(request));
-				if (Files.exists(path)) {
-					try (var stream = Files.newInputStream(path)) {
-						var imp = new Opener().openTiff(stream, "Anything");
-						ColorModel colorModel;
-						if (imp.getNChannels() == 1)
-							colorModel = ColorModelFactory.getIndexedColorModel(server.getChannels());
-						else
-							colorModel = ColorModelFactory.geProbabilityColorModel8Bit(server.getChannels());
-						return ImageJServer.convertToBufferedImage(imp, 1, 1, colorModel);
-					}
-				}
+		public synchronized BufferedImage readFromCache(RegionRequest request) throws IOException {
+			ensureFileSystemOpen();
+			var path = fileSystem.getPath(root, getCachedName(request));
+			try (var stream = Files.newInputStream(path)) {
+				var imp = new Opener().openTiff(stream, "Anything");
+				ColorModel colorModel;
+				if (imp.getNChannels() == 1)
+					colorModel = ColorModelFactory.getIndexedColorModel(server.getChannels());
+				else
+					colorModel = ColorModelFactory.geProbabilityColorModel8Bit(server.getChannels());
+				return ImageJServer.convertToBufferedImage(imp, 1, 1, colorModel);
 			}
-			return null;
 		}
 		
 		@Override
 		public void saveToCache(RegionRequest request, BufferedImage img) throws IOException {
 			var imp = IJTools.convertToImagePlus("Tile", server, img, request).getImage();
 			var bytes = new FileSaver(imp).serialize();
-			synchronized (fileSystem) {
-				var path = fileSystem.getPath(root, getCachedName(request));
-				Files.write(path, bytes);				
-			}
+			saveToCache(request, bytes);
+		}
+		
+		public synchronized void saveToCache(RegionRequest request, byte[] bytes) throws IOException {
+			ensureFileSystemOpen();
+			var path = fileSystem.getPath(root, getCachedName(request));
+			Files.write(path, bytes);
 		}
 		
 	}
 
-//	/**
-//	 * A (@link PixelClassifier} that doesn't actually compute classifications itself, 
-//	 * but rather reads them from storage.
-//	 */
-//	static class ReadFromStorePixelClassifier implements PixelClassifier {
-//
-//		private PixelClassifierMetadata metadata;
-//		private PersistentTileCache store;
-//
-//		ReadFromStorePixelClassifier(PersistentTileCache store, PixelClassifierMetadata metadata) {
-//			this.metadata = metadata;
-//			this.store = store;
-//		}
-//
-//		@Override
-//		public BufferedImage applyClassification(ImageData<BufferedImage> server, RegionRequest request)
-//				throws IOException {
-//			return store.readFromCache(request);
-//		}
-//
-//		@Override
-//		public PixelClassifierMetadata getMetadata() {
-//			return metadata;
-//		}
-//
-//	}
+	/**
+	 * A (@link PixelClassifier} that doesn't actually compute classifications itself, 
+	 * but rather reads them from storage.
+	 */
+	static class ReadFromStorePixelClassifier implements PixelClassifier {
+
+		private PixelClassifier classifier;
+		private PersistentTileCache store;
+
+		ReadFromStorePixelClassifier(PersistentTileCache store, PixelClassifier classifier) {
+			this.store = store;
+			this.classifier = classifier;
+		}
+
+		@Override
+		public BufferedImage applyClassification(ImageData<BufferedImage> server, RegionRequest request)
+				throws IOException {
+			BufferedImage img = store.readFromCache(request);
+			if (img == null)
+				return classifier.applyClassification(server, request);
+			else
+				return img;
+		}
+
+		@Override
+		public PixelClassifierMetadata getMetadata() {
+			return classifier.getMetadata();
+		}
+
+	}
 	
 	
 //	static interface PixelLayerManager<T> {
 //		
-//		public ImageServer<T> buildPixelServer(String id);
+//		public ImageServer<T> buildPixelServer(String id) throws IOException;
 //		
-//		public List<String> listPixelServers();
+//		public List<String> listPixelServers() throws IOException;
 //
-//		public void writePixelServer(String id, ImageServer<T> server);
+//		public void writePixelServer(String id, PixelClassificationImageServer server, Predicate<TileRequest> predicate) throws IOException;
 //		
-//		public void removePixelServer(String id);
+//		public void removePixelServer(String id) throws IOException;
 //		
 //	}
 //	
 //	
 //	static class DefaultPixelLayerManager implements PixelLayerManager<BufferedImage> {
 //		
-//		private Project<BufferedImage> project;
+//		private ProjectImageEntry<BufferedImage> entry;
 //		private Path baseDir;
 //		
-//		public DefaultPixelLayerManager(Project<BufferedImage> project, Path baseDir) {
-//			this.project = project;
-//			this.baseDir = baseDir;
+//		public DefaultPixelLayerManager(ProjectImageEntry<BufferedImage> entry, Path baseDir) {
+//			this.entry = entry;
+//			baseDir = Paths.get(entry.getEntryPath().toString(), "layers");
 //		}
+//		
+//		
 //
 //		@Override
-//		public ImageServer<BufferedImage> buildPixelServer(String id) {
+//		public ImageServer<BufferedImage> buildPixelServer(String id) throws IOException {
 //			// TODO Auto-generated method stub
 //			return null;
 //		}
 //
 //		@Override
-//		public List<String> listPixelServers() {
-//			// TODO Auto-generated method stub
-//			return null;
+//		public List<String> listPixelServers() throws IOException {
+//			return Files.list(baseDir).filter(p -> {
+//				try {
+//					return Files.isDirectory(p) && !Files.isHidden(p);
+//				} catch (IOException e) {
+//					return false;
+//				}
+//					}).map(p -> p.getFileName().toString())
+//					.collect(Collectors.toList());
 //		}
 //
 //		@Override
-//		public void writePixelServer(String id, ImageServer<BufferedImage> server) {
-//			// TODO Auto-generated method stub
+//		public void writePixelServer(String id, PixelClassificationImageServer server, Predicate<TileRequest> predicate) throws IOException {
+//			var tiles = server.getAllTileRequests();
+//			if (predicate != null)
+//				tiles = tiles.stream().filter(predicate).collect(Collectors.toList());
+//			for (var tile : tiles) {
+//				var img = server.readBufferedImage(tile.getRegionRequest());
+//			}
 //			
 //		}
 //
 //		@Override
-//		public void removePixelServer(String id) {
-//			// TODO Auto-generated method stub
+//		public void removePixelServer(String id) throws IOException {
+//			
 //		}
 //		
 //	}

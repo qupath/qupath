@@ -6,6 +6,7 @@ import java.util.Collections;
 import java.util.List;
 
 import qupath.lib.images.servers.ImageChannel;
+import qupath.lib.images.servers.ImageServerMetadata;
 
 /**
  * Metadata to control the behavior of a pixel classifier.
@@ -16,8 +17,6 @@ import qupath.lib.images.servers.ImageChannel;
 public class PixelClassifierMetadata {
 
 	public static enum PixelType { UInt8, UInt16, Float32, Float64 }
-	public static enum OutputType { Features, Classification, Probability }
-	
 	private int inputPadding = 0;
 	
 	private double inputPixelSize;
@@ -31,7 +30,7 @@ public class PixelClassifierMetadata {
 	private PixelType inputDataType = PixelType.UInt8;
 	private int outputWidth = -1;
 	private int outputHeight = -1;
-	private OutputType outputType = OutputType.Classification;
+	private ImageServerMetadata.OutputType outputType = ImageServerMetadata.OutputType.CLASSIFICATION;
 	private List<ImageChannel> channels;
 	
     /**
@@ -146,7 +145,7 @@ public class PixelClassifierMetadata {
     /**
      * Type of output; default is OutputType.Probability
      */
-    public OutputType getOutputType() {
+    public ImageServerMetadata.OutputType getOutputType() {
     	return outputType;
     }
 
@@ -197,7 +196,7 @@ public class PixelClassifierMetadata {
     	private PixelType inputDataType = PixelType.UInt8;
     	private int outputWidth = -1;
     	private int outputHeight = -1;
-    	private OutputType outputType = OutputType.Probability;
+    	private ImageServerMetadata.OutputType outputType = ImageServerMetadata.OutputType.PROBABILITIES;
     	private List<ImageChannel> channels = new ArrayList<>();
     	
     	public PixelClassifierMetadata build() {
@@ -209,7 +208,7 @@ public class PixelClassifierMetadata {
     		return this;
     	}
     	
-    	public Builder setOutputType(OutputType type) {
+    	public Builder setOutputType(ImageServerMetadata.OutputType type) {
     		this.outputType = type;
     		return this;
     	}

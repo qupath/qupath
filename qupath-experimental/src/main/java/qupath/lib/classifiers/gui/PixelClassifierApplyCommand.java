@@ -2,7 +2,6 @@ package qupath.lib.classifiers.gui;
 
 import java.io.IOException;
 import java.util.Collection;
-
 import qupath.lib.classifiers.opencv.gui.PixelClassifierImageSelectionPane;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
@@ -44,19 +43,24 @@ public class PixelClassifierApplyCommand implements PathCommand {
 			
 			// Apply the classification
 			var classifier = project.getPixelClassifierManager().getResource(name);
-			PixelClassifierImageSelectionPane.applyClassifier(project, imageData, classifier, name);
+			var classifierServer = PixelClassifierImageSelectionPane.applyClassifier(project, imageData, classifier, name);
 			
 			// Display on the image
-			viewer.getCustomOverlayLayers().removeIf(v -> v instanceof PixelClassificationOverlay);
-			var classifierServer = new PixelClassificationImageServer(viewer.getImageData(), classifier);
-			var overlay = new PixelClassificationOverlay(viewer, classifierServer);
-			overlay.setLivePrediction(true);
-			viewer.getCustomOverlayLayers().add(overlay);
+//			var classifierServer = new PixelClassificationImageServer(viewer.getImageData(), classifier);
+			imageData.setProperty("PIXEL_LAYER", classifierServer);
+			viewer.repaint();
+			
+//			viewer.getCustomOverlayLayers().removeIf(v -> v instanceof PixelClassificationOverlay);
+//			var classifierServer = new PixelClassificationImageServer(viewer.getImageData(), classifier);
+//			var overlay = new PixelClassificationOverlay(viewer, classifierServer);
+//			overlay.setLivePrediction(true);
+//			viewer.getCustomOverlayLayers().add(overlay);
 			
 		} catch (IOException e) {
 			DisplayHelpers.showErrorMessage("Apply pixel classifier", e);
 		}
-
+		
 	}
+	
 
 }

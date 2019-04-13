@@ -23,6 +23,7 @@
 
 package qupath.lib.gui.models;
 
+import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -59,6 +60,7 @@ import qupath.lib.gui.models.ObservableMeasurementTableData.ROICentroidMeasureme
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.objects.MetadataStore;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathDetectionObject;
@@ -257,6 +259,21 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 				features.add(builder.getName());
 			}
 		}
+		
+		if (containsAnnotations) {
+			var pixelClassifier = imageData.getProperty("PIXEL_LAYER");
+			if (pixelClassifier instanceof ImageServer<?>) {
+				ImageServer<BufferedImage> server = (ImageServer<BufferedImage>)pixelClassifier;
+				if (server.getOutputType() == ImageServerMetadata.OutputType.CLASSIFICATION || server.getOutputType() == ImageServerMetadata.OutputType.PROBABILITIES) {
+					var pixelManager = new PixelClassificationMeasurementManager(server);
+					for (String name : pixelManager.getMeasurementNames()) {
+						builderMap.put(name, new PixelClassifierMeasurementBuilder(pixelManager, name));
+						features.add(name);
+					}
+				}
+			}
+		}
+		
 		
 		// Update all the lists, if necessary
 		boolean changes = false;
@@ -1215,7 +1232,15 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 		
 		public double computeValue(final PathObject pathObject) {
 			// TODO: Flip this around!  Create binding from value, not value from binding...
-			return createMeasurement(pathObject).getValue().doubleValue();
+			try {
+				var val = createMeasurement(pathObject).getValue();
+				if (val == null)
+					return Double.NaN;
+				else
+					return val.doubleValue();
+			} catch (NullPointerException e) {
+				return Double.NaN;
+			}
 		}
 		
 		public String getStringValue(final PathObject pathObject, final int decimalPlaces) {
@@ -1586,6 +1611,29 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 
 	}
 
+	
+	
+	static class PixelClassifierMeasurementBuilder extends NumericMeasurementBuilder {
+		
+		private PixelClassificationMeasurementManager manager;
+		private String name;
+		
+		PixelClassifierMeasurementBuilder(PixelClassificationMeasurementManager manager, String name) {
+			this.manager = manager;
+			this.name = name;
+		}
+
+		@Override
+		public String getName() {
+			return name;
+		}
+
+		@Override
+		public Binding<Number> createMeasurement(PathObject pathObject) {
+			return Bindings.createObjectBinding(() -> manager.getMeasurementValue(pathObject, name));
+		}
+		
+	}
 
 
 

@@ -1,4 +1,4 @@
-package qupath.lib.classifiers.gui;
+package qupath.lib.classifiers.pixel;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;
@@ -7,12 +7,8 @@ import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.gson.Gson;
 import com.google.gson.annotations.JsonAdapter;
 
-import qupath.lib.classifiers.pixel.PixelClassifier;
-import qupath.lib.classifiers.pixel.PixelClassifiers;
-import qupath.lib.classifiers.pixel.PixelClassifierMetadata.OutputType;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.AbstractTileableImageServer;
 import qupath.lib.images.servers.ImageServer;
@@ -50,12 +46,12 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 		var classifierMetadata = classifier.getMetadata();
 		
 		String path;
-		try {
-			// If we can construct a path (however long) that includes the full serialization info, then cached tiles can be reused even if the server is recreated
-			path = server.getPath() + "::" + new Gson().toJson(classifier);
-		} catch (Exception e) {
+//		try {
+//			// If we can construct a path (however long) that includes the full serialization info, then cached tiles can be reused even if the server is recreated
+//			path = server.getPath() + "::" + new Gson().toJson(classifier);
+//		} catch (Exception e) {
 			path = server.getPath() + "::" + UUID.randomUUID().toString();			
-		}
+//		}
 		
 		var bitDepth = 8;
 		
@@ -84,6 +80,7 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 				.path(path)
 				.width(width)
 				.height(height)
+				.output(classifierMetadata.getOutputType())
 				.preferredTileSize(tileWidth-pad*2, tileHeight-pad*2)
 				.levels(levels)
 				.channels(classifierMetadata.getChannels())
@@ -96,10 +93,6 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 	
 	public ImageData<BufferedImage> getImageData() {
 		return imageData;
-	}
-	
-	public OutputType getOutputType() {
-		return classifier.getMetadata().getOutputType();
 	}
 	
 	public PixelClassifier getClassifier() {
@@ -164,7 +157,7 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 	public int getClassification(int x, int y, int z, int t) throws IOException {
 		
 		var type = classifier.getMetadata().getOutputType();
-		if (type != OutputType.Classification && type != OutputType.Probability)
+		if (type != ImageServerMetadata.OutputType.CLASSIFICATION && type != ImageServerMetadata.OutputType.PROBABILITIES)
 			return -1;
 		
 		var tile = getTile(0, x, y, z, t);
@@ -186,14 +179,14 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 			yy = 0;
 
 		int nBands = img.getRaster().getNumBands();
-		if (nBands == 1 && type == OutputType.Classification) {
+		if (nBands == 1 && type == ImageServerMetadata.OutputType.CLASSIFICATION) {
 			try {
 				return img.getRaster().getSample(xx, yy, 0);
 			} catch (Exception e) {
 				logger.error("Error requesting classification", e);
 				return -1;
 			}
-		} else if (type == OutputType.Probability) {
+		} else if (type == ImageServerMetadata.OutputType.PROBABILITIES) {
 			int maxInd = -1;
 			double maxVal = Double.NEGATIVE_INFINITY;
 			var raster = img.getRaster();

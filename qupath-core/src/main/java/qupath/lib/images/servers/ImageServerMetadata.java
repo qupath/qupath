@@ -37,12 +37,33 @@ import qupath.lib.common.GeneralTools;
 
 /**
  * Class for storing primary ImageServer metadata fields.
- * Could be used when the metadata needs to be adjusted (e.g. to correct erroneous pixel sizes).
+ * <p>
+ * Can be used when the metadata needs to be adjusted (e.g. to correct erroneous pixel sizes).
  * 
  * @author Pete Bankhead
  *
  */
 public class ImageServerMetadata {
+	
+	public static enum OutputType { CHANNELS, FEATURES, PROBABILITIES, CLASSIFICATION;
+		
+		@Override
+		public String toString() {
+			switch (this) {
+			case CHANNELS:
+				return "Channels";
+			case FEATURES:
+				return "Features";
+			case PROBABILITIES:
+				return "Probabilities";
+			case CLASSIFICATION:
+				return "Classification";
+			default:
+				return super.toString();
+			}
+		}
+	
+	}
 	
 	private static int DEFAULT_TILE_SIZE = 256;
 
@@ -56,6 +77,8 @@ public class ImageServerMetadata {
 	
 	private int sizeZ = 1;
 	private int sizeT = 1;
+	
+	public ImageServerMetadata.OutputType outputType = ImageServerMetadata.OutputType.CHANNELS;
 	
 	private boolean isRGB = false;
 	private int bitDepth = 8;
@@ -136,6 +159,11 @@ public class ImageServerMetadata {
 		
 		public Builder path(final String path) {
 			this.metadata.path = path;
+			return this;
+		}
+		
+		public Builder output(final ImageServerMetadata.OutputType type) {
+			this.metadata.outputType = type;
 			return this;
 		}
 		
@@ -439,6 +467,10 @@ public class ImageServerMetadata {
 		return channels;
 	}
 	
+	public ImageServerMetadata.OutputType getOutputType() {
+		return outputType;
+	}
+	
 	/**
 	 * Returns true if a specified ImageServerMetadata is compatible with this one, i.e. it has the same path and dimensions
 	 * (but possibly different pixel sizes, magnifications etc.).
@@ -737,7 +769,6 @@ public class ImageServerMetadata {
 		}
 		
 	}
-	
 	
 
 }

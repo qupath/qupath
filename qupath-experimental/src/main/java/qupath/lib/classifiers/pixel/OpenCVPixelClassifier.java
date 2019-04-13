@@ -8,9 +8,9 @@ import org.bytedeco.javacpp.opencv_core.Mat;
 
 import qupath.lib.classifiers.opencv.OpenCVClassifiers.FeaturePreprocessor;
 import qupath.lib.classifiers.opencv.OpenCVClassifiers.OpenCVStatModel;
-import qupath.lib.classifiers.pixel.PixelClassifierMetadata.OutputType;
 import qupath.lib.classifiers.pixel.features.OpenCVFeatureCalculator;
 import qupath.lib.images.ImageData;
+import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.regions.RegionRequest;
 import qupath.opencv.processing.OpenCVTools;
 
@@ -138,7 +138,7 @@ public class OpenCVPixelClassifier extends AbstractOpenCVPixelClassifier {
 
         
     	var type = getMetadata().getOutputType();
-    	if (type == OutputType.Classification) {
+    	if (type == ImageServerMetadata.OutputType.CLASSIFICATION) {
         	model.predict(matFeatures, matOutput, null);    		
     	} else {
     		var matTemp = new Mat();
@@ -149,7 +149,7 @@ public class OpenCVPixelClassifier extends AbstractOpenCVPixelClassifier {
     	
     	ColorModel colorModelLocal = null;
     	
-    	if (type == OutputType.Probability) {
+    	if (type == ImageServerMetadata.OutputType.PROBABILITIES) {
     		var matProbabilities = matOutput;
     		double maxValue = 1.0;
     		if (do8Bit()) {
@@ -162,7 +162,7 @@ public class OpenCVPixelClassifier extends AbstractOpenCVPixelClassifier {
     			matOutput = matProbabilities;
     		}
     		colorModelLocal = getProbabilityColorModel();
-    	} else if (type == OutputType.Classification) {
+    	} else if (type == ImageServerMetadata.OutputType.CLASSIFICATION) {
     		matOutput.convertTo(matOutput, opencv_core.CV_8U);
     		colorModelLocal = getClassificationsColorModel();
     	}

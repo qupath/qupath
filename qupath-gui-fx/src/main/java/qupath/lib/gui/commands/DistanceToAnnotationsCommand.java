@@ -54,7 +54,7 @@ public class DistanceToAnnotationsCommand implements PathCommand {
 			return;
 		
 		var hierarchy = imageData.getHierarchy();
-		var ignoreClasses = new HashSet<>(Arrays.asList(PathClassFactory.getDefaultPathClass(PathClasses.IGNORE), PathClassFactory.getDefaultPathClass(PathClasses.REGION)));
+		var ignoreClasses = new HashSet<>(Arrays.asList(null, PathClassFactory.getDefaultPathClass(PathClasses.IGNORE), PathClassFactory.getDefaultPathClass(PathClasses.REGION)));
 		var pathClasses = hierarchy.getAnnotationObjects().stream()
 				.map(p -> p.getPathClass())
 				.filter(p -> !ignoreClasses.contains(p))

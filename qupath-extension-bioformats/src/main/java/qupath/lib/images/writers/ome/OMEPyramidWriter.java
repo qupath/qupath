@@ -31,6 +31,7 @@ import ome.xml.model.primitives.Color;
 import ome.xml.model.primitives.PositiveInteger;
 import qupath.lib.common.ColorTools;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
 
@@ -350,7 +351,10 @@ public class OMEPyramidWriter {
 			writer.zEnd = server.nZSlices();
 			writer.tStart = 0;
 			writer.tEnd = server.nTimepoints();
-			writer.channels = IntStream.range(0, server.nChannels()).toArray();
+			if (server.getOutputType() == ImageServerMetadata.OutputType.CLASSIFICATION)
+				writer.channels = new int[] {0};
+			else
+				writer.channels = IntStream.range(0, server.nChannels()).toArray();
 		}
 		
 		/**

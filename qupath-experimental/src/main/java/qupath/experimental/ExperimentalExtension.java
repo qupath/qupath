@@ -5,6 +5,7 @@ import qupath.lib.ai.ExportTrainingRegionsCommand;
 import qupath.lib.ai.SplitProjectTrainingCommand;
 import qupath.lib.classifiers.gui.PixelClassifierApplyCommand;
 import qupath.lib.classifiers.opencv.gui.PixelClassifierCommand;
+import qupath.lib.classifiers.opencv.gui.SimpleThresholdCommand;
 import qupath.lib.classifiers.pixel.OpenCVPixelClassifier;
 import qupath.lib.classifiers.pixel.OpenCVPixelClassifierDNN;
 import qupath.lib.classifiers.pixel.PixelClassifiers;
@@ -28,7 +29,8 @@ public class ExperimentalExtension implements QuPathExtension {
         QuPathGUI.addMenuItems(
                 qupath.getMenu("Classify", true),
                 QuPathGUI.createCommandAction(new PixelClassifierCommand(), "Pixel classifier (experimental)"),
-                QuPathGUI.createCommandAction(new PixelClassifierApplyCommand(qupath), "Apply pixel classifier (experimental)")
+                QuPathGUI.createCommandAction(new PixelClassifierApplyCommand(qupath), "Apply pixel classifier (experimental)"),
+                QuPathGUI.createCommandAction(new SimpleThresholdCommand(qupath), "Simple threshold (experimental)")
 //                QuPathGUI.createCommandAction(new OpenCvClassifierCommand2(qupath), "Object classifier (experimental)")
         );
         QuPathGUI.addMenuItems(

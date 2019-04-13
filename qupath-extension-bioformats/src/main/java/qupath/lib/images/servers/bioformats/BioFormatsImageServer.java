@@ -354,7 +354,8 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 			if (isRGB && nChannels == 4) {
 				logger.warn("Removing alpha channel");
 				nChannels = 3;
-			}
+			} else if (nChannels != 3)
+				isRGB = false;
 			
 			// Try to read the default display colors for each channel from the file
 			if (isRGB) {
@@ -608,7 +609,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 				}
 
 				// Single-channel & RGB images are straightforward... nothing more to do
-				if (ipReader.isRGB() || nChannels() == 1) {
+				if ((ipReader.isRGB() && isRGB()) || nChannels() == 1) {
 					// Read the image - or at least the first channel
 					int ind = ipReader.getIndex(z, 0, t);
 					img = null;

@@ -81,11 +81,13 @@ public class DialogHelperFX implements DialogHelper {
 
 	@Override
 	public void setLastDirectory(File dir) {
-		if (dir == null || !dir.exists())
+		if (dir == null)
 			lastDir = null;
-		else if (dir.isDirectory())
-			lastDir = dir;
-		else
+		else if (dir.isDirectory()) {
+			if (dir.exists())
+				lastDir = dir;
+			return;
+		} else if (dir.isFile())
 			setLastDirectory(dir.getParentFile());
 	}
 

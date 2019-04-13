@@ -76,6 +76,10 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 		return cache;
 	}
 	
+	public ImageServerMetadata.OutputType getOutputType() {
+		return getMetadata().getOutputType();
+	}
+	
 	protected double getThumbnailDownsampleFactor(int maxWidth, int maxHeight) {
 		if (maxWidth <= 0) {
 			if (maxHeight <= 0) {

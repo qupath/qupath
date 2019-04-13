@@ -203,10 +203,19 @@ public interface ImageServer<T> extends AutoCloseable {
 	public double getAveragedPixelSizeMicrons();
 
 	/**
-	 * TRUE if the pixel size is known, FALSE otherwise.
+	 * True if the pixel size is known, False otherwise.
 	 * @return
 	 */
 	public boolean hasPixelSizeMicrons();
+	
+	/**
+	 * Get the output type, used to interpret what channels mean.
+	 * 
+	 * @return
+	 */
+	public default ImageServerMetadata.OutputType getOutputType() {
+		return ImageServerMetadata.OutputType.CHANNELS;
+	}
 
 	/**
 	 * Get a cached tile, or null if the tile has not been cached.

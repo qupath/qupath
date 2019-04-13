@@ -20,10 +20,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.imagej.objects.ROIConverterIJ;
+import qupath.lib.classifiers.pixel.PixelClassificationImageServer;
 import qupath.lib.classifiers.pixel.PixelClassifier;
-import qupath.lib.classifiers.pixel.PixelClassifierMetadata.OutputType;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.TileRequest;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
@@ -459,7 +460,7 @@ public class PixelClassifierStatic {
 				var nChannels = classifier.getMetadata().getChannels().size();
 				// Get raster containing classifications and integer values, by taking the argmax
 				var raster = img.getRaster();
-				if (classifier.getMetadata().getOutputType() != OutputType.Classification) {
+				if (classifier.getMetadata().getOutputType() != ImageServerMetadata.OutputType.CLASSIFICATION) {
 					int h = raster.getHeight();
 					int w = raster.getWidth();
 					byte[] output = new byte[w * h];

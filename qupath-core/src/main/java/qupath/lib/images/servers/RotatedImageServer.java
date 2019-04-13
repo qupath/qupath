@@ -250,7 +250,23 @@ public class RotatedImageServer extends WrappedImageServer<BufferedImage> {
 	
 	@Override
 	public String getPath() {
-		return getWrappedServer().getPath() + " (" + rotation + ")";
+		int rot = 0;
+		switch (rotation) {
+		case ROTATE_180:
+			rot = 180;
+			break;
+		case ROTATE_270:
+			rot = 270;
+			break;
+		case ROTATE_90:
+			rot = 90;
+			break;
+		case ROTATE_NONE:
+		default:
+			rot = 0;
+			break;
+		}
+		return getWrappedServer().getPath() + "?rotate=" + rot;
 	}
 
 	@Override
