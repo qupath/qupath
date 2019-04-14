@@ -61,6 +61,8 @@ public class AffineTransformImageServer extends WrappedImageServer<BufferedImage
 			i++;
 		} while (i < server.nResolutions() && region.getWidth() >= server.getPreferredTileWidth() && region.getHeight() >= server.getPreferredTileHeight());
 		
+		// TODO: Apply AffineTransform to pixel sizes! Perhaps create a Shape or point and transform that?
+		
 		metadata = new ImageServerMetadata.Builder(getClass(), server.getMetadata())
 				.path(server.getPath() + ": Affine " + transform.toString())
 				.width(region.getWidth())

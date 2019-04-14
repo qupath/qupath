@@ -80,17 +80,21 @@ import qupath.lib.gui.ImageDataWrapper;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.gui.helpers.dialogs.ParameterPanelFX;
+import qupath.lib.gui.panels.PathImageDetailsPanel.PathImageDetailsTableModel.ROW_TYPE;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.ImageData.ImageType;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.RectangleROI;
+import qupath.lib.roi.interfaces.PathArea;
+import qupath.lib.roi.interfaces.PathLine;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
  * A panel used for displaying basic info about an image, e.g. its path, width, height, pixel size etc.
- * 
+ * <p>
  * It also includes displaying color deconvolution vectors for RGB brightfield images.
  * 
  * @author Pete Bankhead
@@ -179,6 +183,14 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 						editStainVector(value);
 					else if (value instanceof ImageType) {
 						promptToSetImageType(imageData);
+					} else {
+						// TODO: Support z-spacing
+						var type = model.getRowType(c.getIndex());
+						if (type == ROW_TYPE.PIXEL_WIDTH ||
+								type == ROW_TYPE.PIXEL_HEIGHT) {
+							promptToSetPixelSize(imageData, false);
+							c.getTableView().refresh();
+						}
 					}
 				});
 				
@@ -282,6 +294,104 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 		accordion.setExpandedPane(panelTable);
 		pane.getChildren().add(accordion);
 	}
+	
+	
+	static boolean promptToSetPixelSize(ImageData<BufferedImage> imageData, boolean requestZSpacing) {
+		var server = imageData.getServer();
+		var hierarchy = imageData.getHierarchy();
+		var selected = hierarchy.getSelectionModel().getSelectedObject();
+		var roi = selected == null ? null : selected.getROI();
+		
+		double pixelWidthMicrons = server.getPixelWidthMicrons();
+		double pixelHeightMicrons = server.getPixelHeightMicrons();
+		double zSpacingMicrons = server.getZSpacingMicrons();
+		
+		// Use line or area ROI if possible
+		if (!requestZSpacing && roi != null && !roi.isEmpty() && (roi.isArea() || roi.isLine())) {
+			boolean setPixelHeight = true;
+			boolean setPixelWidth = true;	
+			String message;
+			if (roi.isLine()) {
+				setPixelHeight = roi.getBoundsHeight() != 0;
+				setPixelWidth = roi.getBoundsWidth() != 0;
+				message = "Enter selected line length in " + GeneralTools.micrometerSymbol();
+			} else {
+				message = "Enter selected ROI area in " + GeneralTools.micrometerSymbol() + "^2";
+			}
+			Double defaultValue = null;
+			if (setPixelHeight && setPixelWidth) {
+				defaultValue = server.getAveragedPixelSizeMicrons();
+			} else if (setPixelHeight) {
+				defaultValue = server.getPixelHeightMicrons();					
+			} else if (setPixelWidth) {
+				defaultValue = server.getPixelWidthMicrons();					
+			}
+			if (Double.isNaN(defaultValue))
+				defaultValue = 1.0;
+			Double result = DisplayHelpers.showInputDialog("Set pixel size", message, defaultValue);
+			if (result == null)
+				return false;
+			
+			double sizeMicrons;
+			if (roi.isLine())
+				sizeMicrons = result.doubleValue() / ((PathLine)roi).getLength();
+			else
+				sizeMicrons = Math.sqrt(result.doubleValue() / ((PathArea)roi).getArea());
+			
+			if (setPixelHeight)
+				pixelHeightMicrons = sizeMicrons;
+			if (setPixelWidth)
+				pixelWidthMicrons = sizeMicrons;
+		} else {
+			// Prompt for all required values
+			ParameterList params = new ParameterList()
+					.addDoubleParameter("pixelWidth", "Pixel width", pixelWidthMicrons, GeneralTools.micrometerSymbol())
+					.addDoubleParameter("pixelHeight", "Pixel height", pixelHeightMicrons, GeneralTools.micrometerSymbol())
+					.addDoubleParameter("zSpacing", "Z-spacing", zSpacingMicrons, GeneralTools.micrometerSymbol());
+			params.setHiddenParameters(server.nZSlices() == 1, "zSpacing");
+			if (!DisplayHelpers.showParameterDialog("Set pixel size", params))
+				return false;
+			if (server.nZSlices() != 1) {
+				zSpacingMicrons = params.getDoubleParameterValue("zSpacing");
+			}
+			pixelWidthMicrons = params.getDoubleParameterValue("pixelWidth");
+			pixelHeightMicrons = params.getDoubleParameterValue("pixelHeight");
+		}
+		return setPixelSizeMicrons(server, pixelWidthMicrons, pixelHeightMicrons, zSpacingMicrons);
+	}
+	
+	
+	/**
+	 * Set the metadata for an ImageServer to have the required pixel sizes.
+	 * <p>
+	 * Returns true if changes were made, false otherwise.
+	 * 
+	 * @param server
+	 * @param pixelWidthMicrons
+	 * @param pixelHeightMicrons
+	 * @param zSpacingMicrons
+	 * @return
+	 */
+	static boolean setPixelSizeMicrons(ImageServer<BufferedImage> server, Number pixelWidthMicrons, Number pixelHeightMicrons, Number zSpacingMicrons) {
+		if (isFinite(pixelWidthMicrons) && !isFinite(pixelHeightMicrons))
+			pixelHeightMicrons = pixelWidthMicrons;
+		else if (isFinite(pixelHeightMicrons) && !isFinite(pixelWidthMicrons))
+			pixelWidthMicrons = pixelHeightMicrons;
+		
+		var metadataNew = new ImageServerMetadata.Builder(server.getClass(), server.getMetadata())
+			.pixelSizeMicrons(pixelWidthMicrons, pixelHeightMicrons)
+			.zSpacingMicrons(zSpacingMicrons)
+			.build();
+		if (server.getMetadata().equals(metadataNew))
+			return false;
+		server.setMetadata(metadataNew);
+		return true;
+	}
+	
+	static boolean isFinite(Number val) {
+		return val != null && Double.isFinite(val.doubleValue());
+	}
+	
 	
 	
 	/**
