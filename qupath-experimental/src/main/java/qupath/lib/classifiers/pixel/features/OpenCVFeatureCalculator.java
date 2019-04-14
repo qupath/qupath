@@ -1,6 +1,6 @@
 package qupath.lib.classifiers.pixel.features;
 
-import org.bytedeco.javacpp.opencv_core.Mat;
+import org.bytedeco.opencv.opencv_core.Mat;
 
 import com.google.gson.annotations.JsonAdapter;
 

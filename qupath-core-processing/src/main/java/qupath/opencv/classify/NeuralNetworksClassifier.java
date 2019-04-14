@@ -23,13 +23,15 @@
 
 package qupath.opencv.classify;
 
-import static org.bytedeco.javacpp.opencv_core.*;
+import static org.bytedeco.opencv.global.opencv_core.*;
+
+import org.bytedeco.opencv.global.opencv_ml;
+import org.bytedeco.opencv.opencv_core.*;
+import org.bytedeco.opencv.opencv_ml.*;
 
 import java.nio.FloatBuffer;
 
-import org.bytedeco.javacpp.opencv_ml.ANN_MLP;
 import org.bytedeco.javacpp.indexer.FloatIndexer;
-import org.bytedeco.javacpp.opencv_ml;
 
 import qupath.lib.plugins.parameters.ParameterList;
 

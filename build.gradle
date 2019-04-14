@@ -93,6 +93,7 @@ subprojects {
     javafx
     nativeloader
     guava
+    picocli
     
     // Guave tries to bring in extra dependencies not required at runtime
     implementation {
@@ -116,6 +117,8 @@ subprojects {
       javafx "org.openjfx:${fx}:${jfxVersion}:${platform}"
     }
 
+	picocli 'info.picocli:picocli:3.9.6'
+
     richtextfx 'org.fxmisc.richtext:richtextfx:0.9.3'
 
     commonsmath 'org.apache.commons:commons-math3:3.6.1'
@@ -131,12 +134,12 @@ subprojects {
 
     jfxtras 'org.jfxtras:jfxtras-menu:10.0-r1'
 
-    opencv 'org.bytedeco.javacpp-presets:opencv:4.0.1-1.4.4'
+    opencv 'org.bytedeco:opencv:4.0.1-1.5'
     if (nativesCPP != null) {
       if (useGPU)
-        opencv "org.bytedeco.javacpp-presets:opencv:4.0.1-1.4.4:${nativesCPP}-gpu"
+        opencv "org.bytedeco:opencv:4.0.1-1.5:${nativesCPP}-gpu"
       else
-	    opencv "org.bytedeco.javacpp-presets:opencv:4.0.1-1.4.4:${nativesCPP}"
+	    opencv "org.bytedeco:opencv:4.0.1-1.5:${nativesCPP}"
     }
 
     jpen 'net.sourceforge.jpen:jpen:2-150301'
@@ -149,7 +152,7 @@ subprojects {
     if (nativesClassifier != null)
       openslide 'org.openslide:openslide:3.4.1_2:' + nativesClassifier
 
-    nativeloader 'org.scijava:native-lib-loader:2.3.2'
+    nativeloader 'org.scijava:native-lib-loader:2.3.4'
     
     guava 'com.google.guava:guava:27.1-jre'
   }

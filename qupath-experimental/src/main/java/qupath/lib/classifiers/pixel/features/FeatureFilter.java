@@ -2,7 +2,7 @@ package qupath.lib.classifiers.pixel.features;
 
 import java.util.List;
 
-import org.bytedeco.javacpp.opencv_core.Mat;
+import org.bytedeco.opencv.opencv_core.Mat;
 
 import com.google.gson.annotations.JsonAdapter;
 

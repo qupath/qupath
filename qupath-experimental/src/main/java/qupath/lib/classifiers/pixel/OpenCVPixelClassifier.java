@@ -3,8 +3,8 @@ package qupath.lib.classifiers.pixel;
 import java.awt.image.BufferedImage;
 import java.awt.image.ColorModel;
 import java.io.IOException;
-import org.bytedeco.javacpp.opencv_core;
-import org.bytedeco.javacpp.opencv_core.Mat;
+import org.bytedeco.opencv.global.opencv_core;
+import org.bytedeco.opencv.opencv_core.Mat;
 
 import qupath.lib.classifiers.opencv.OpenCVClassifiers.FeaturePreprocessor;
 import qupath.lib.classifiers.opencv.OpenCVClassifiers.OpenCVStatModel;

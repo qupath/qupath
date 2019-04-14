@@ -8,10 +8,10 @@ import java.util.List;
 import org.bytedeco.javacpp.IntPointer;
 import org.bytedeco.javacpp.PointerScope;
 import org.bytedeco.javacpp.SizeTPointer;
-import org.bytedeco.javacpp.opencv_core.StringVector;
-import org.bytedeco.javacpp.opencv_dnn;
-import org.bytedeco.javacpp.opencv_dnn.MatShapeVector;
-import org.bytedeco.javacpp.opencv_dnn.Net;
+import org.bytedeco.opencv.opencv_core.StringVector;
+import org.bytedeco.opencv.global.opencv_dnn;
+import org.bytedeco.opencv.opencv_dnn.MatShapeVector;
+import org.bytedeco.opencv.opencv_dnn.Net;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

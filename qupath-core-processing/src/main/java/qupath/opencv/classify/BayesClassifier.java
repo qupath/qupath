@@ -23,7 +23,7 @@
 
 package qupath.opencv.classify;
 
-import org.bytedeco.javacpp.opencv_ml.NormalBayesClassifier;
+import org.bytedeco.opencv.opencv_ml.NormalBayesClassifier;
 
 /**
  * Wrapper for OpenCV's Normal Bayes classifier.

@@ -24,11 +24,11 @@
 package qupath.opencv.gui;
 
 import org.bytedeco.javacpp.PointerScope;
-import org.bytedeco.javacpp.opencv_core;
-import org.bytedeco.javacpp.opencv_ml.ANN_MLP;
-import org.bytedeco.javacpp.opencv_ml.DTrees;
-import org.bytedeco.javacpp.opencv_ml.KNearest;
-import org.bytedeco.javacpp.opencv_ml.RTrees;
+import org.bytedeco.opencv.opencv_core.*;
+import org.bytedeco.opencv.opencv_ml.ANN_MLP;
+import org.bytedeco.opencv.opencv_ml.DTrees;
+import org.bytedeco.opencv.opencv_ml.KNearest;
+import org.bytedeco.opencv.opencv_ml.RTrees;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -99,8 +99,8 @@ public class OpenCVExtension implements QuPathExtension {
 	
 	private void ensureClassesLoaded() {
 		try (var scope = new PointerScope(true)) {
-			var mat = new opencv_core.Mat();
-			opencv_core.Scalar.all(1.0);
+			var mat = new Mat();
+			Scalar.all(1.0);
 			RTrees.create();
 			ANN_MLP.create();
 			KNearest.create();

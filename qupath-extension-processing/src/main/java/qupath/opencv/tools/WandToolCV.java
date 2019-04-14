@@ -36,10 +36,15 @@ import java.awt.image.DataBufferByte;
 import java.nio.ByteBuffer;
 import java.nio.DoubleBuffer;
 
-import static org.bytedeco.javacpp.opencv_core.*;
+import static org.bytedeco.opencv.global.opencv_core.*;
 
-import org.bytedeco.javacpp.opencv_core;
-import org.bytedeco.javacpp.opencv_imgproc;
+import org.bytedeco.opencv.global.opencv_core;
+import org.bytedeco.opencv.global.opencv_imgproc;
+import org.bytedeco.opencv.opencv_core.Mat;
+import org.bytedeco.opencv.opencv_core.MatVector;
+import org.bytedeco.opencv.opencv_core.Point;
+import org.bytedeco.opencv.opencv_core.Scalar;
+import org.bytedeco.opencv.opencv_core.Size;
 import org.bytedeco.javacpp.indexer.IntIndexer;
 
 import org.slf4j.Logger;

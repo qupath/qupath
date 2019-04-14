@@ -3,12 +3,12 @@ package qupath.lib.classifiers.pixel.features;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 
-import org.bytedeco.javacpp.opencv_core;
-import org.bytedeco.javacpp.opencv_core.Mat;
-import org.bytedeco.javacpp.opencv_core.MatVector;
-import org.bytedeco.javacpp.opencv_dnn;
-import org.bytedeco.javacpp.opencv_dnn.Net;
-import org.bytedeco.javacpp.opencv_imgproc;
+import org.bytedeco.opencv.global.opencv_core;
+import org.bytedeco.opencv.opencv_core.Mat;
+import org.bytedeco.opencv.opencv_core.MatVector;
+import org.bytedeco.opencv.global.opencv_dnn;
+import org.bytedeco.opencv.opencv_dnn.Net;
+import org.bytedeco.opencv.global.opencv_imgproc;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

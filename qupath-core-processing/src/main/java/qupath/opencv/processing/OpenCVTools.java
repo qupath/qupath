@@ -30,8 +30,8 @@ import java.awt.image.IndexColorModel;
 import java.awt.image.Raster;
 import java.awt.image.WritableRaster;
 import java.nio.FloatBuffer;
-import static org.bytedeco.javacpp.opencv_core.*;
-import org.bytedeco.javacpp.opencv_imgproc;
+import static org.bytedeco.opencv.global.opencv_core.*;
+import org.bytedeco.opencv.global.opencv_imgproc;
 import org.bytedeco.javacpp.indexer.ByteIndexer;
 import org.bytedeco.javacpp.indexer.DoubleIndexer;
 import org.bytedeco.javacpp.indexer.FloatIndexer;
@@ -41,8 +41,10 @@ import org.bytedeco.javacpp.indexer.UByteIndexer;
 import org.bytedeco.javacpp.indexer.UShortIndexer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.bytedeco.javacpp.opencv_core.Mat;
-import org.bytedeco.javacpp.opencv_core.Scalar;
+import org.bytedeco.opencv.opencv_core.Mat;
+import org.bytedeco.opencv.opencv_core.MatVector;
+import org.bytedeco.opencv.opencv_core.Point;
+import org.bytedeco.opencv.opencv_core.Scalar;
 
 import qupath.lib.common.ColorTools;
 

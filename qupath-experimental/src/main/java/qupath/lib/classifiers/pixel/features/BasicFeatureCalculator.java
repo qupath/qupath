@@ -5,11 +5,12 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.bytedeco.javacpp.opencv_core;
-import org.bytedeco.javacpp.opencv_imgproc;
+import org.bytedeco.opencv.global.opencv_core;
+import org.bytedeco.opencv.global.opencv_imgproc;
 import org.bytedeco.javacpp.indexer.FloatIndexer;
-import org.bytedeco.javacpp.opencv_core.Mat;
-import org.bytedeco.javacpp.opencv_core.MatVector;
+import org.bytedeco.opencv.opencv_core.Mat;
+import org.bytedeco.opencv.opencv_core.MatVector;
+import org.bytedeco.opencv.opencv_core.Rect;
 
 import com.google.gson.annotations.JsonAdapter;
 
@@ -74,7 +75,7 @@ public class BasicFeatureCalculator implements OpenCVFeatureCalculator {
 
 		BufferedImage img = PixelClassifierStatic.getPaddedRequest(server, request, padding);
 
-		List<Mat> output = new ArrayList<opencv_core.Mat>();
+		List<Mat> output = new ArrayList<Mat>();
 
 		int w = img.getWidth();
 		int h = img.getHeight();
@@ -118,7 +119,7 @@ public class BasicFeatureCalculator implements OpenCVFeatureCalculator {
 
 		opencv_core.merge(new MatVector(output.toArray(Mat[]::new)), mat);
 		if (padding > 0)
-			mat.put(mat.apply(new opencv_core.Rect(padding, padding, mat.cols()-padding*2, mat.rows()-padding*2)).clone());
+			mat.put(mat.apply(new Rect(padding, padding, mat.cols()-padding*2, mat.rows()-padding*2)).clone());
 
 		return mat;
 	}

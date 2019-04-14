@@ -23,9 +23,12 @@
 
 package qupath.opencv.processing;
 
-import static org.bytedeco.javacpp.opencv_core.*;
+import static org.bytedeco.opencv.global.opencv_core.*;
 
 import java.nio.FloatBuffer;
+
+import org.bytedeco.opencv.opencv_core.Mat;
+import org.bytedeco.opencv.opencv_core.Scalar;
 
 import qupath.lib.analysis.algorithms.SimpleModifiableImage;
 

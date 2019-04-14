@@ -1,12 +1,12 @@
 package qupath.lib.classifiers.pixel;
 
-import org.bytedeco.javacpp.opencv_core;
-import org.bytedeco.javacpp.opencv_core.Mat;
-import org.bytedeco.javacpp.opencv_core.MatVector;
-import org.bytedeco.javacpp.opencv_core.Rect;
-import org.bytedeco.javacpp.opencv_core.Scalar;
-import org.bytedeco.javacpp.opencv_dnn;
-import org.bytedeco.javacpp.opencv_dnn.Net;
+import org.bytedeco.opencv.global.opencv_core;
+import org.bytedeco.opencv.opencv_core.Mat;
+import org.bytedeco.opencv.opencv_core.MatVector;
+import org.bytedeco.opencv.opencv_core.Rect;
+import org.bytedeco.opencv.opencv_core.Scalar;
+import org.bytedeco.opencv.global.opencv_dnn;
+import org.bytedeco.opencv.opencv_dnn.Net;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -25,7 +25,7 @@ public class OpenCVPixelClassifierDNN extends AbstractOpenCVPixelClassifier {
 	
     private static final Logger logger = LoggerFactory.getLogger(OpenCVPixelClassifier.class);
 
-    private opencv_dnn.Net model;
+    private Net model;
     private boolean doSoftMax;
     
     private int stripOutputPadding;
@@ -303,7 +303,7 @@ public class OpenCVPixelClassifierDNN extends AbstractOpenCVPixelClassifier {
         if (stripOutputPadding > 0) {
             matResult.put(
             		matResult.apply(
-            				new opencv_core.Rect(
+            				new Rect(
             						stripOutputPadding, stripOutputPadding,
             						matResult.cols()-stripOutputPadding*2, matResult.rows()-stripOutputPadding*2)).clone());
         }
@@ -332,7 +332,7 @@ public class OpenCVPixelClassifierDNN extends AbstractOpenCVPixelClassifier {
 		Mat matResult = doClassification(mat, 0);
 		
 		if (inputPadding > 0)
-			matResult.put(matResult.apply(new opencv_core.Rect(inputPadding, inputPadding, matResult.cols()-inputPadding*2, matResult.rows()-inputPadding*2)).clone());
+			matResult.put(matResult.apply(new Rect(inputPadding, inputPadding, matResult.cols()-inputPadding*2, matResult.rows()-inputPadding*2)).clone());
 		
     	        
         // If we have a floating point or multi-channel result, we have probabilities

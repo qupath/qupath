@@ -5,9 +5,9 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.stream.IntStream;
 
-import org.bytedeco.javacpp.opencv_core;
+import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.javacpp.indexer.FloatIndexer;
-import org.bytedeco.javacpp.opencv_core.Mat;
+import org.bytedeco.opencv.opencv_core.Mat;
 
 import com.google.gson.annotations.JsonAdapter;
 

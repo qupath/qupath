@@ -31,8 +31,16 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
-import static org.bytedeco.javacpp.opencv_core.*;
-import org.bytedeco.javacpp.opencv_imgproc;
+import static org.bytedeco.opencv.global.opencv_core.*;
+import org.bytedeco.opencv.global.opencv_imgproc;
+import org.bytedeco.opencv.opencv_core.Mat;
+import org.bytedeco.opencv.opencv_core.MatVector;
+import org.bytedeco.opencv.opencv_core.Point;
+import org.bytedeco.opencv.opencv_core.Rect;
+import org.bytedeco.opencv.opencv_core.RotatedRect;
+import org.bytedeco.opencv.opencv_core.Scalar;
+import org.bytedeco.opencv.opencv_core.Size;
+import org.bytedeco.opencv.opencv_core.Size2f;
 import org.bytedeco.javacpp.indexer.Indexer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

@@ -9,8 +9,10 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
-import org.bytedeco.javacpp.opencv_core;
-import org.bytedeco.javacpp.opencv_ml;
+import org.bytedeco.opencv.global.opencv_core;
+import org.bytedeco.opencv.global.opencv_ml;
+import org.bytedeco.opencv.opencv_core.*;
+import org.bytedeco.opencv.opencv_ml.*;
 import org.bytedeco.javacpp.indexer.DoubleIndexer;
 import org.bytedeco.javacpp.indexer.FloatIndexer;
 import org.bytedeco.javacpp.indexer.IntIndexer;
@@ -21,23 +23,6 @@ import com.google.gson.TypeAdapter;
 import com.google.gson.annotations.JsonAdapter;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
-
-import org.bytedeco.javacpp.opencv_core.Mat;
-import org.bytedeco.javacpp.opencv_core.Scalar;
-import org.bytedeco.javacpp.opencv_core.TermCriteria;
-import org.bytedeco.javacpp.opencv_core.UMat;
-import org.bytedeco.javacpp.opencv_ml.ANN_MLP;
-import org.bytedeco.javacpp.opencv_ml.Boost;
-import org.bytedeco.javacpp.opencv_ml.DTrees;
-import org.bytedeco.javacpp.opencv_ml.EM;
-import org.bytedeco.javacpp.opencv_ml.KNearest;
-import org.bytedeco.javacpp.opencv_ml.LogisticRegression;
-import org.bytedeco.javacpp.opencv_ml.NormalBayesClassifier;
-import org.bytedeco.javacpp.opencv_ml.RTrees;
-import org.bytedeco.javacpp.opencv_ml.SVM;
-import org.bytedeco.javacpp.opencv_ml.SVMSGD;
-import org.bytedeco.javacpp.opencv_ml.StatModel;
-import org.bytedeco.javacpp.opencv_ml.TrainData;
 
 import qupath.lib.classifiers.Normalization;
 import qupath.lib.common.GeneralTools;

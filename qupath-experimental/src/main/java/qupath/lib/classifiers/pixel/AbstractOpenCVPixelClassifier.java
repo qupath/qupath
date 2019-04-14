@@ -1,7 +1,7 @@
 package qupath.lib.classifiers.pixel;
 
-import org.bytedeco.javacpp.opencv_core;
-import org.bytedeco.javacpp.opencv_core.Mat;
+import org.bytedeco.opencv.opencv_core.Mat;
+import org.bytedeco.opencv.opencv_core.Scalar;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -114,15 +114,15 @@ public abstract class AbstractOpenCVPixelClassifier implements PixelClassifier {
      * @param values
      * @return
      */
-    opencv_core.Scalar toScalar(double... values) {
+    Scalar toScalar(double... values) {
         if (values.length == 1)
-            return opencv_core.Scalar.all(values[0]);
+            return Scalar.all(values[0]);
         else if (values.length == 2)
-            return new opencv_core.Scalar(values[0], values[1]);
+            return new Scalar(values[0], values[1]);
         else if (values.length == 3)
-            return new opencv_core.Scalar(values[0], values[1], values[2], 0);
+            return new Scalar(values[0], values[1], values[2], 0);
         else if (values.length == 4)
-            return new opencv_core.Scalar(values[0], values[1], values[2], values[3]);
+            return new Scalar(values[0], values[1], values[2], values[3]);
         throw new IllegalArgumentException("Invalid number of entries - need between 1 & 4 entries to create an OpenCV scalar, not " + values.length);
     }
 

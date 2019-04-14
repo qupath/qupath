@@ -2,9 +2,9 @@ package qupath.lib.classifiers.opencv;
 
 import java.nio.FloatBuffer;
 
-import org.bytedeco.javacpp.opencv_core;
-import org.bytedeco.javacpp.opencv_core.Mat;
-import org.bytedeco.javacpp.opencv_core.Scalar;
+import org.bytedeco.opencv.global.opencv_core;
+import org.bytedeco.opencv.opencv_core.Mat;
+import org.bytedeco.opencv.opencv_core.Scalar;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

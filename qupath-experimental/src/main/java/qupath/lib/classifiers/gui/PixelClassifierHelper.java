@@ -1,9 +1,9 @@
 package qupath.lib.classifiers.gui;
 
-import org.bytedeco.javacpp.opencv_core;
-import org.bytedeco.javacpp.opencv_imgproc;
-import org.bytedeco.javacpp.opencv_ml;
-import org.bytedeco.javacpp.opencv_ml.TrainData;
+import org.bytedeco.opencv.global.opencv_core;
+import org.bytedeco.opencv.global.opencv_imgproc;
+import org.bytedeco.opencv.global.opencv_ml;
+import org.bytedeco.opencv.opencv_ml.TrainData;
 import org.bytedeco.javacpp.indexer.UByteIndexer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,8 +16,10 @@ import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServer;
 
-import org.bytedeco.javacpp.opencv_core.Mat;
-import org.bytedeco.javacpp.opencv_core.MatVector;
+import org.bytedeco.opencv.opencv_core.Mat;
+import org.bytedeco.opencv.opencv_core.MatVector;
+import org.bytedeco.opencv.opencv_core.Scalar;
+import org.bytedeco.opencv.opencv_core.Size;
 
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
@@ -401,7 +403,7 @@ public class PixelClassifierHelper implements PathObjectHierarchyListener {
                         int heightFeatures = matFeaturesFull.rows();
                         int widthFeatures = matFeaturesFull.cols();
                         if (heightFeatures != matMask.rows() || widthFeatures != matMask.cols()) {
-                            opencv_imgproc.resize(matMask, matMask, new opencv_core.Size(widthFeatures, heightFeatures));
+                            opencv_imgproc.resize(matMask, matMask, new Size(widthFeatures, heightFeatures));
                         }
                         // Reshape mask to a column matrix
                         matMask.put(matMask.reshape(1, matMask.rows()*matMask.cols()));
@@ -427,7 +429,7 @@ public class PixelClassifierHelper implements PathObjectHierarchyListener {
                 }
                 if (matFeatures != null && !matFeatures.empty()) {
                     allFeatures.add(matFeatures.clone()); // Clone to be careful... not sure if normalization could impact this under adverse conditions
-                    Mat targets = new Mat(matFeatures.rows(), 1, opencv_core.CV_32SC1, opencv_core.Scalar.all(label));
+                    Mat targets = new Mat(matFeatures.rows(), 1, opencv_core.CV_32SC1, Scalar.all(label));
                     allTargets.add(targets);
                 }
             }

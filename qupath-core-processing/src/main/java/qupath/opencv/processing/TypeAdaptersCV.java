@@ -2,21 +2,9 @@ package qupath.opencv.processing;
 
 import java.io.IOException;
 
-import org.bytedeco.javacpp.opencv_core;
-import org.bytedeco.javacpp.opencv_core.FileStorage;
-import org.bytedeco.javacpp.opencv_core.Mat;
-import org.bytedeco.javacpp.opencv_core.SparseMat;
-import org.bytedeco.javacpp.opencv_ml.ANN_MLP;
-import org.bytedeco.javacpp.opencv_ml.Boost;
-import org.bytedeco.javacpp.opencv_ml.DTrees;
-import org.bytedeco.javacpp.opencv_ml.EM;
-import org.bytedeco.javacpp.opencv_ml.KNearest;
-import org.bytedeco.javacpp.opencv_ml.LogisticRegression;
-import org.bytedeco.javacpp.opencv_ml.NormalBayesClassifier;
-import org.bytedeco.javacpp.opencv_ml.RTrees;
-import org.bytedeco.javacpp.opencv_ml.SVM;
-import org.bytedeco.javacpp.opencv_ml.SVMSGD;
-import org.bytedeco.javacpp.opencv_ml.StatModel;
+import org.bytedeco.opencv.global.opencv_core;
+import org.bytedeco.opencv.opencv_core.*;
+import org.bytedeco.opencv.opencv_ml.*;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;

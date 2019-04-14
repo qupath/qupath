@@ -2,11 +2,11 @@ package qupath.lib.classifiers.pixel.features;
 
 import java.util.ArrayList;
 import java.util.List;
-import org.bytedeco.javacpp.opencv_core;
-import org.bytedeco.javacpp.opencv_imgproc;
+import org.bytedeco.opencv.global.opencv_core;
+import org.bytedeco.opencv.global.opencv_imgproc;
 import org.bytedeco.javacpp.indexer.FloatIndexer;
-import org.bytedeco.javacpp.opencv_core.Mat;
-import org.bytedeco.javacpp.opencv_core.Size;
+import org.bytedeco.opencv.opencv_core.Mat;
+import org.bytedeco.opencv.opencv_core.Size;
 
 import com.google.gson.Gson;
 import com.google.gson.RuntimeTypeAdapterFactory;

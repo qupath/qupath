@@ -35,10 +35,13 @@ import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
 
-import static org.bytedeco.javacpp.opencv_core.*;
-import static org.bytedeco.javacpp.opencv_video.*;
+import static org.bytedeco.opencv.global.opencv_core.*;
+import static org.bytedeco.opencv.global.opencv_video.*;
 
 import org.bytedeco.javacpp.indexer.Indexer;
+import org.bytedeco.opencv.opencv_core.Mat;
+import org.bytedeco.opencv.opencv_core.Scalar;
+import org.bytedeco.opencv.opencv_core.TermCriteria;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

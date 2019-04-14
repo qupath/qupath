@@ -35,11 +35,13 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 
+import org.bytedeco.opencv.opencv_core.Mat;
+import org.bytedeco.opencv.opencv_ml.RTrees;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import static org.bytedeco.javacpp.opencv_core.*;
-import static org.bytedeco.javacpp.opencv_ml.*;
+import static org.bytedeco.opencv.global.opencv_core.*;
+import static org.bytedeco.opencv.global.opencv_ml.*;
 
 import qupath.lib.common.ColorTools;
 import qupath.lib.gui.QuPathGUI;

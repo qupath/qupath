@@ -49,15 +49,17 @@ import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.plugins.parameters.Parameterizable;
 
-import static org.bytedeco.javacpp.opencv_core.*;
-import static org.bytedeco.javacpp.opencv_ml.*;
+import static org.bytedeco.opencv.global.opencv_core.*;
+import static org.bytedeco.opencv.global.opencv_ml.*;
+import org.bytedeco.opencv.opencv_core.*;
+import org.bytedeco.opencv.opencv_ml.*;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * Abstract base class for OpenCV classifiers.
- * 
+ * <p>
  * Note: We cannot directly serialize an OpenCV classifier, so instead the training data is serialized and the classifier
  * rebuilt as required.  This means that potentially if a classifier is reloaded with a different version of the OpenCV library,
  * if the training algorithm has changed then there may be a different result.

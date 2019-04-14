@@ -25,9 +25,9 @@ package qupath.opencv.classify;
 
 import java.util.List;
 
-import org.bytedeco.javacpp.opencv_ml.RTrees;
-import org.bytedeco.javacpp.opencv_core.Mat;
-import org.bytedeco.javacpp.opencv_core.TermCriteria;
+import org.bytedeco.opencv.opencv_ml.RTrees;
+import org.bytedeco.opencv.opencv_core.Mat;
+import org.bytedeco.opencv.opencv_core.TermCriteria;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

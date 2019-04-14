@@ -2,8 +2,8 @@ package qupath.lib.classifiers.opencv;
 
 import java.util.Arrays;
 
-import org.bytedeco.javacpp.opencv_core;
-import org.bytedeco.javacpp.opencv_core.Mat;
+import org.bytedeco.opencv.global.opencv_core;
+import org.bytedeco.opencv.opencv_core.Mat;
 import qupath.lib.analysis.stats.RunningStatistics;
 import qupath.lib.classifiers.Normalization;
 

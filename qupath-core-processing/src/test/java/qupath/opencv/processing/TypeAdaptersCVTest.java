@@ -3,13 +3,13 @@ package qupath.opencv.processing;
 import static org.junit.Assert.*;
 
 import org.bytedeco.javacpp.PointerScope;
-import org.bytedeco.javacpp.opencv_core;
-import org.bytedeco.javacpp.opencv_core.Mat;
-import org.bytedeco.javacpp.opencv_core.Scalar;
-import org.bytedeco.javacpp.opencv_core.SparseMat;
-import org.bytedeco.javacpp.opencv_ml.EM;
-import org.bytedeco.javacpp.opencv_ml.StatModel;
-import org.bytedeco.javacpp.opencv_core.TermCriteria;
+import org.bytedeco.opencv.global.opencv_core;
+import org.bytedeco.opencv.opencv_core.Mat;
+import org.bytedeco.opencv.opencv_core.Scalar;
+import org.bytedeco.opencv.opencv_core.SparseMat;
+import org.bytedeco.opencv.opencv_ml.EM;
+import org.bytedeco.opencv.opencv_ml.StatModel;
+import org.bytedeco.opencv.opencv_core.TermCriteria;
 import org.junit.Test;
 
 import com.google.gson.GsonBuilder;

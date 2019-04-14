@@ -35,8 +35,9 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import static org.bytedeco.javacpp.opencv_core.*;
-import static org.bytedeco.javacpp.opencv_imgproc.Subdiv2D;
+import org.bytedeco.opencv.opencv_core.Point2f;
+import org.bytedeco.opencv.opencv_core.Rect;
+import org.bytedeco.opencv.opencv_imgproc.Subdiv2D;
 
 import qupath.lib.analysis.stats.RunningStatistics;
 import qupath.lib.classifiers.PathClassificationLabellingHelper;
