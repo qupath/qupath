@@ -157,7 +157,7 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 	public int getClassification(int x, int y, int z, int t) throws IOException {
 		
 		var type = classifier.getMetadata().getOutputType();
-		if (type != ImageServerMetadata.OutputType.CLASSIFICATION && type != ImageServerMetadata.OutputType.PROBABILITIES)
+		if (type != ImageServerMetadata.OutputType.CLASSIFICATION && type != ImageServerMetadata.OutputType.PROBABILITY)
 			return -1;
 		
 		var tile = getTile(0, x, y, z, t);
@@ -186,7 +186,7 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 				logger.error("Error requesting classification", e);
 				return -1;
 			}
-		} else if (type == ImageServerMetadata.OutputType.PROBABILITIES) {
+		} else if (type == ImageServerMetadata.OutputType.PROBABILITY) {
 			int maxInd = -1;
 			double maxVal = Double.NEGATIVE_INFINITY;
 			var raster = img.getRaster();

@@ -124,7 +124,7 @@ public class PixelClassificationMeasurementManager {
         
         // Check we have a suitable output type
         ImageServerMetadata.OutputType type = classifierServer.getOutputType();
-        if (type == ImageServerMetadata.OutputType.FEATURES)
+        if (type == ImageServerMetadata.OutputType.FEATURE)
   			return null;
         
         
@@ -204,7 +204,7 @@ public class PixelClassificationMeasurementManager {
 					logger.error("Error calculating classification areas", e);
 				}
 				break;
-			case PROBABILITIES:
+			case PROBABILITY:
 				// Take classification from the channel with the highest value
 				raster = tile.getRaster();
 				rasterMask = imgMask.getRaster();

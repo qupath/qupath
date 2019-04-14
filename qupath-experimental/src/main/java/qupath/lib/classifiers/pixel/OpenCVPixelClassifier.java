@@ -149,7 +149,7 @@ public class OpenCVPixelClassifier extends AbstractOpenCVPixelClassifier {
     	
     	ColorModel colorModelLocal = null;
     	
-    	if (type == ImageServerMetadata.OutputType.PROBABILITIES) {
+    	if (type == ImageServerMetadata.OutputType.PROBABILITY) {
     		var matProbabilities = matOutput;
     		double maxValue = 1.0;
     		if (do8Bit()) {

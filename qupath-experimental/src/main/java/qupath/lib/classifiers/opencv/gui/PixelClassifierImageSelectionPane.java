@@ -259,7 +259,7 @@ public class PixelClassifierImageSelectionPane {
 		// Output
 		var labelOutput = new Label("Output");
 		var comboOutput = new ComboBox<ImageServerMetadata.OutputType>();
-		comboOutput.getItems().addAll(ImageServerMetadata.OutputType.CLASSIFICATION, ImageServerMetadata.OutputType.PROBABILITIES);
+		comboOutput.getItems().addAll(ImageServerMetadata.OutputType.CLASSIFICATION, ImageServerMetadata.OutputType.PROBABILITY);
 		selectedOutputType = comboOutput.getSelectionModel().selectedItemProperty();
 		selectedOutputType.addListener((v, o, n) -> {
 			updateClassifier();

@@ -196,7 +196,7 @@ public class PixelClassifierMetadata {
     	private PixelType inputDataType = PixelType.UInt8;
     	private int outputWidth = -1;
     	private int outputHeight = -1;
-    	private ImageServerMetadata.OutputType outputType = ImageServerMetadata.OutputType.PROBABILITIES;
+    	private ImageServerMetadata.OutputType outputType = ImageServerMetadata.OutputType.PROBABILITY;
     	private List<ImageChannel> channels = new ArrayList<>();
     	
     	public PixelClassifierMetadata build() {

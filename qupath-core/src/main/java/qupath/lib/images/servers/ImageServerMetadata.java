@@ -45,17 +45,19 @@ import qupath.lib.common.GeneralTools;
  */
 public class ImageServerMetadata {
 	
-	public static enum OutputType { CHANNELS, FEATURES, PROBABILITIES, CLASSIFICATION;
+	public static enum OutputType { CHANNEL, FEATURE, PROBABILITY, MULTICLASS_PROBABILITY, CLASSIFICATION;
 		
 		@Override
 		public String toString() {
 			switch (this) {
-			case CHANNELS:
-				return "Channels";
-			case FEATURES:
-				return "Features";
-			case PROBABILITIES:
-				return "Probabilities";
+			case CHANNEL:
+				return "Channel";
+			case FEATURE:
+				return "Feature";
+			case PROBABILITY:
+				return "Probability";
+			case MULTICLASS_PROBABILITY:
+				return "Multiclass probability";
 			case CLASSIFICATION:
 				return "Classification";
 			default:
@@ -78,7 +80,7 @@ public class ImageServerMetadata {
 	private int sizeZ = 1;
 	private int sizeT = 1;
 	
-	public ImageServerMetadata.OutputType outputType = ImageServerMetadata.OutputType.CHANNELS;
+	public ImageServerMetadata.OutputType outputType = ImageServerMetadata.OutputType.CHANNEL;
 	
 	private boolean isRGB = false;
 	private int bitDepth = 8;

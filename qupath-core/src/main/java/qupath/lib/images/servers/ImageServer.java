@@ -214,7 +214,7 @@ public interface ImageServer<T> extends AutoCloseable {
 	 * @return
 	 */
 	public default ImageServerMetadata.OutputType getOutputType() {
-		return ImageServerMetadata.OutputType.CHANNELS;
+		return ImageServerMetadata.OutputType.CHANNEL;
 	}
 
 	/**
