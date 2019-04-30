@@ -302,24 +302,25 @@ public class PathIO {
 	public static void writeImageData(final File file, final ImageData<?> imageData) throws FileNotFoundException, IOException {
 		File backup = null;
 		
+		// Backup any existing file... just in case of disaster
+		if (file.exists()) {
+			File fileCopy = new File(file.toURI());
+			backup = new File(fileCopy.getAbsolutePath() + ".backup");
+			fileCopy.renameTo(backup);
+		}
+		
+		// Write the data
 		try (var stream = new FileOutputStream(file)) {
-
-			// Backup any existing file... just in case of disaster
-			if (file.exists()) {
-				File fileCopy = new File(file.toURI());
-				backup = new File(fileCopy.getAbsolutePath() + ".backup");
-				fileCopy.renameTo(backup);
-			}
-			
 			writeImageDataSerialized(stream, imageData);
 			
 			// Remember the saved path
 			imageData.setLastSavedPath(file.getAbsolutePath(), true);
-			
-			// Delete the backup file
-			if (backup != null && !backup.equals(file))
-				backup.delete();
 		}
+		
+		// Delete the backup file
+		if (backup != null && !backup.equals(file))
+			backup.delete();
+
 	}
 	
 	

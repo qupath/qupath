@@ -21,6 +21,7 @@ import org.bytedeco.opencv.opencv_core.MatVector;
 import org.bytedeco.opencv.opencv_core.Scalar;
 import org.bytedeco.opencv.opencv_core.Size;
 
+import qupath.lib.objects.DefaultPathObjectComparator;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.classes.PathClass;
@@ -30,6 +31,7 @@ import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
 import qupath.lib.regions.RegionRequest;
+import qupath.lib.roi.DefaultROIComparator;
 import qupath.lib.roi.PathROIToolsAwt;
 import qupath.lib.roi.interfaces.PathArea;
 import qupath.lib.roi.interfaces.PathLine;
@@ -53,6 +55,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.WeakHashMap;
 import java.util.stream.Collectors;
 
@@ -158,7 +161,8 @@ public class PixelClassifierHelper implements PathObjectHierarchyListener {
                 map.get(pathClass).add(it.getROI());
             else {
             	// TODO: Check if this needs to be a set at all
-            	Set<ROI> list = new LinkedHashSet<>();
+//            	Set<ROI> list = new LinkedHashSet<>();
+            	Set<ROI> list = new TreeSet<ROI>(DefaultROIComparator.getInstance());
             	list.add(it.getROI());
                 map.put(pathClass, list);
             }

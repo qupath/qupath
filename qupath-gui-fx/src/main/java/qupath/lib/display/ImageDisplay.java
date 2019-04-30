@@ -824,7 +824,7 @@ public class ImageDisplay extends AbstractImageRenderer {
 					if (counter >= Integer.MAX_VALUE)
 						break;
 				}
-				Histogram histogram = new Histogram(values, NUM_BINS);
+				Histogram histogram = new Histogram(pixels == null ? values : pixels, NUM_BINS);
 				
 				// If we have more than an 8-bit image, set the display range according to actual values
 				if (channel instanceof ModifiableChannelDisplayInfo) {

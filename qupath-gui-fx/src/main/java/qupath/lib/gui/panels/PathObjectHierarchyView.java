@@ -476,13 +476,13 @@ public class PathObjectHierarchyView implements ImageDataChangeListener<Buffered
 		        		  List<TreeItem<PathObject>> newChildren = new ArrayList<>();
 		        		  Collection<PathObject> currentChildren = getValue().getChildObjects();
 		        		  boolean includeDetections = detectionDisplay.get() != TreeDetectionDisplay.NONE;
-	                  for (PathObject child : currentChildren.toArray(new PathObject[currentChildren.size()])) {
-	                	  	if (includeDetections || child.hasChildren() || !child.isDetection())
-	                	  		newChildren.add(createNode(child));
-	                  }
+		        		  for (PathObject child : currentChildren.toArray(new PathObject[currentChildren.size()])) {
+		        			  if (includeDetections || child.hasChildren() || !child.isDetection())
+		        				  newChildren.add(createNode(child));
+		        		  }
 		        		  super.getChildren().setAll(newChildren);
 		        	  }
-		              return children;
+		        	  return children;
 		          }
 	
 		          @Override

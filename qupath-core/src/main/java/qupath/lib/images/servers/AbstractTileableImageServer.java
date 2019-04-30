@@ -92,7 +92,8 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 			return null;
 		
 		// Check for the special case where we are requesting a single tile, which exactly matches the request
-		if (tiles.size() == 1) {
+		boolean singleTile = tiles.size() == 1;
+		if (singleTile) {
 			var firstTile = tiles.iterator().next();
 			if (firstTile.getRegionRequest().equals(request)) {
 				var imgTile = getTile(firstTile);
@@ -147,30 +148,41 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 				tileMaxY = Math.max(tileRequest.getTileY() + tileRequest.getTileHeight(), tileMaxY);
 			}
 			
-			
-			for (var tileRequest : tiles) {
-				
-				BufferedImage imgTile = getTile(tileRequest);
+			if (singleTile) {
+				// Use the raster directly, if appropriate (because copying can be expensive)
+				BufferedImage imgTile = getTile(tiles.iterator().next());
 				if (imgTile != null) {
-					// Preallocate a raster if we need to, and everything else the tile might give us
-					if (raster == null) {
-						raster = imgTile.getRaster().createCompatibleWritableRaster(tileMaxX - tileMinX, tileMaxY - tileMinY);
-						colorModel = imgTile.getColorModel();
-						alphaPremultiplied = imgTile.isAlphaPremultiplied();							
+					raster = imgTile.getRaster();
+					colorModel = imgTile.getColorModel();
+					alphaPremultiplied = imgTile.isAlphaPremultiplied();
+				}
+			} else {
+				for (var tileRequest : tiles) {
+					BufferedImage imgTile = getTile(tileRequest);
+					if (imgTile != null) {
+						// Figure out coordinates
+						int dx = tileRequest.getTileX() - tileMinX;
+						int dy = tileRequest.getTileY() - tileMinY;
+						int tileWidth = tileMaxX - tileMinX;
+						int tileHeight = tileMaxY - tileMinY;
+						// Preallocate a raster if we need to, and everything else the tile might give us
+						if (raster == null) {
+							raster = imgTile.getRaster().createCompatibleWritableRaster(tileWidth, tileHeight);
+							colorModel = imgTile.getColorModel();
+							alphaPremultiplied = imgTile.isAlphaPremultiplied();							
+						}
+						// Insert the tile into the raster
+						if (dx >= raster.getWidth() ||
+								dy >= raster.getHeight()
+								)
+							continue;
+						raster.setRect(
+								dx,
+								dy,
+	//							Math.min(raster.getWidth() - tileMinX, imgTile.getWidth()),
+	//							Math.min(raster.getHeight() - tileMinY, imgTile.getHeight()),							
+								imgTile.getRaster());
 					}
-					// Insert the tile into the raster
-					int dx = tileRequest.getTileX() - tileMinX;
-					int dy = tileRequest.getTileY() - tileMinY;
-					if (dx >= raster.getWidth() ||
-							dy >= raster.getHeight()
-							)
-						continue;
-					raster.setRect(
-							dx,
-							dy,
-//							Math.min(raster.getWidth() - tileMinX, imgTile.getWidth()),
-//							Math.min(raster.getHeight() - tileMinY, imgTile.getHeight()),							
-							imgTile.getRaster());
 				}
 			}
 			// Maybe we don't have anything at all (which is not an error if the image is sparse!)
