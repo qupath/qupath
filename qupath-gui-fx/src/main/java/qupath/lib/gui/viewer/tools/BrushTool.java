@@ -23,9 +23,11 @@
 
 package qupath.lib.gui.viewer.tools;
 
+import java.awt.BasicStroke;
 import java.awt.Shape;
 import java.awt.geom.Area;
 import java.awt.geom.Ellipse2D;
+import java.awt.geom.Line2D;
 import java.awt.geom.Path2D;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
@@ -73,6 +75,8 @@ public class BrushTool extends AbstractPathROITool {
 	
 	double lastRequestedCursorDiameter = Double.NaN;
 	Cursor requestedCursor;
+	
+	Point2D lastPoint;
 	
 //	/**
 //	 * Cache the last 50 cursors we saw
@@ -286,9 +290,11 @@ public class BrushTool extends AbstractPathROITool {
 		PathShape shapeNew;
 		boolean subtractMode = isSubtractMode(e);
 		Shape shapeCurrent = shapeROI == null ? null : PathROIToolsAwt.getShape(shapeROI);
+		
 		Shape shapeDrawn = createShape(p.getX(), p.getY(),
 				PathPrefs.getUseTileBrush() && !e.isShiftDown(),
 				subtractMode ? null : shapeCurrent);
+		lastPoint = p;
 		if (shapeROI != null) {
 			// Check to see if any changes are required at all
 			if (shapeDrawn == null || (subtractMode && !shapeCurrent.intersects(shapeDrawn.getBounds2D())) || 
@@ -370,6 +376,7 @@ public class BrushTool extends AbstractPathROITool {
 		if (currentObject == null)
 			return;
 		
+		lastPoint = null;
 		commitObjectToHierarchy(e, currentObject);
 	}
 	
@@ -410,9 +417,20 @@ public class BrushTool extends AbstractPathROITool {
 				return null;
 		}
 
+		
 		// Compute a diameter scaled according to the pressure being applied
 		double diameter = getBrushDiameter();
-		Shape shape = new Ellipse2D.Double(x-diameter/2, y-diameter/2, diameter, diameter);
+		
+		Shape shape;
+		if (lastPoint == null) {
+			shape = new Ellipse2D.Double(x-diameter/2, y-diameter/2, diameter, diameter);
+		} else {
+			if (lastPoint.distanceSq(x, y) == 0)
+				return null;
+			BasicStroke stroke = new BasicStroke((float)diameter, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
+			shape = stroke.createStrokedShape(new Line2D.Double(lastPoint.getX(), lastPoint.getY(), x, y));
+		}
+		
 		// Flattening now helps improve performance - especially when drawing at a low magnification
 		Path2D path = new Path2D.Float();
 		path.append(shape.getPathIterator(null, viewer.getDownsampleFactor()/2.0), true);
@@ -435,6 +453,7 @@ public class BrushTool extends AbstractPathROITool {
 	@Override
 	protected ROI createNewROI(double x, double y, ImagePlane plane) {
 		creatingTiledROI = false;
+		lastPoint = null;
 		Shape shape = createShape(x, y, PathPrefs.getUseTileBrush(), null);
 		return ROIs.createAreaROI(shape, plane);
 	}
