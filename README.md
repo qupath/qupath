@@ -17,33 +17,33 @@ All in all, QuPath aims to provide researchers with a new set of tools to help w
 
 QuPath is free and open source, using GPLv3.
 
-To download a version of QuPath to install, go to the [Latest Releases](https://github.com/qupath/qupath/releases/latest) page.
+To **download QuPath**, go to the [Latest Releases](https://github.com/qupath/qupath/releases/latest) page.
 
-For documentation and more information, see the [QuPath Wiki](https://github.com/qupath/qupath/wiki)
+For **documentation**, see the [QuPath Wiki](https://github.com/qupath/qupath/wiki)
+
+For **help & support**, try [image.sc](https://forum.image.sc/tags/qupath) or the [links here](https://github.com/qupath/qupath/wiki/Getting-help)
 
 ----
 
 ## Building QuPath with Gradle
 
-To get the latest QuPath, you will need to build it yourself.
-
 Building software can be tricky, but hopefully this won't be at all - thanks to [*Gradle*](http://gradle.org).
 
 What you need is:
-* A Java 11 JDK
+* OpenJDK JDK 11 (or later)
 * JPackage (currently there is an early access build at [jdk.java.net](https://jdk.java.net/jpackage/))
 * The QuPath source code (you can get it from GitHub with the *Clone or download* button)
 
 You should then start a command prompt, find your way to the directory containing QuPath, and run
 
 ```
-./gradlew.bat createPackage -Ppackager=/path/to/jpackage
+gradlew.bat createPackage -Ppackager=/full/path/to/jpackage.exe
 ```
 
 for Windows, or
 
 ```
-./gradlew createPackage -Ppackager=/path/to/jpackage
+./gradlew createPackage -Ppackager=/full/path/to/jpackage
 ```
 
 for MacOS and Linux.
