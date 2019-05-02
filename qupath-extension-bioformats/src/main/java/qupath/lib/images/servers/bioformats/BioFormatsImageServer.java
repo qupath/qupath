@@ -26,15 +26,24 @@ package qupath.lib.images.servers.bioformats;
 import java.awt.image.BandedSampleModel;
 import java.awt.image.BufferedImage;
 import java.awt.image.ColorModel;
+import java.awt.image.ComponentSampleModel;
 import java.awt.image.DataBuffer;
 import java.awt.image.DataBufferByte;
+import java.awt.image.DataBufferDouble;
 import java.awt.image.DataBufferFloat;
 import java.awt.image.DataBufferUShort;
+import java.awt.image.PixelInterleavedSampleModel;
+import java.awt.image.SampleModel;
 import java.awt.image.WritableRaster;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.DoubleBuffer;
+import java.nio.FloatBuffer;
+import java.nio.ShortBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -54,15 +63,16 @@ import org.slf4j.LoggerFactory;
 
 import ome.units.UNITS;
 import ome.units.quantity.Length;
+import loci.common.DataTools;
 import loci.common.services.DependencyException;
 import loci.common.services.ServiceException;
 import loci.formats.ClassList;
 import loci.formats.FormatException;
+import loci.formats.FormatTools;
 import loci.formats.IFormatReader;
 import loci.formats.ImageReader;
 import loci.formats.Memoizer;
 import loci.formats.MetadataTools;
-import loci.formats.gui.AWTImageTools;
 import loci.formats.gui.BufferedImageReader;
 import loci.formats.meta.DummyMetadata;
 import loci.formats.meta.IMetadata;
@@ -156,6 +166,11 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 	 * Manager to help keep multithreading under control.
 	 */
 	private static BioFormatsReaderManager manager = new BioFormatsReaderManager();
+	
+	/**
+	 * ColorModel to use with all BufferedImage requests.
+	 */
+	private ColorModel colorModel;
 	
 //	/**
 //	 * Try to parallelize multichannel requests (experimental!)
@@ -339,7 +354,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 				tileHeight = height;
 			
 			// Prepared to set channel colors
-			var channels = new ArrayList<ImageChannel>();
+			List<ImageChannel> channels = new ArrayList<>();
 						
 			nZSlices = reader.getSizeZ();
 			// Workaround bug whereby VSI channels can also be replicated as z-slices
@@ -387,8 +402,12 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 				if (nChannels == 3 && 
 						bpp == 8 &&
 						channels.equals(ImageChannel.getDefaultRGBChannels())
-						)
+						) {
 					isRGB = true;
+					colorModel = ColorModel.getRGBdefault();
+				} else {
+					colorModel = ColorModelFactory.createProbabilityColorModel(bpp, nChannels, false, channels.stream().mapToInt(c -> c.getColor()).toArray());
+				}
 			}
 			
 			// Try parsing pixel sizes in micrometers
@@ -534,7 +553,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 		
 	/**
 	 * Returns true if the reader accepts parallel tile requests, without synchronization.
-	 * 
+	 * <p>
 	 * This is true if parallelization is requested, and any memoization file is less than 10 MB.
 	 * The idea is that larger memoization files indicate more heavyweight readers, and these need 
 	 * to be kept restricted.
@@ -542,13 +561,14 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 	 * @return
 	 */
 	public boolean willParallelize() {
-		return options.requestParallelization() && getWidth() > 8192 && getHeight() > 8192 && manager.getMemoizationFileSize(this) < 1024L*1024L * 10L;
+		return options.requestParallelization() && (getWidth() > getPreferredTileWidth() || getHeight() > getPreferredTileHeight()) && manager.getMemoizationFileSize(this) < 1024L*1024L * 10L;
+//		return options.requestParallelization() && getWidth() > 8192 && getHeight() > 8192 && manager.getMemoizationFileSize(this) < 1024L*1024L * 10L;
 	}
 	
 	
 	/**
 	 * Get a BufferedImageReader for use by the current thread.
-	 * 
+	 * <p>
 	 * If willParallelize() returns false, then the global reader will be provided.
 	 * 
 	 * @return
@@ -573,203 +593,130 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 	
 
 	@Override
-	public BufferedImage readTile(TileRequest tileRequest) {
+	public BufferedImage readTile(TileRequest tileRequest) throws IOException {
 
 		int level = tileRequest.getLevel();
-		
+
 		int tileX = tileRequest.getTileX();
 		int tileY = tileRequest.getTileY();
 		int tileWidth = tileRequest.getTileWidth();
 		int tileHeight = tileRequest.getTileHeight();
 		int z = tileRequest.getZ();
 		int t = tileRequest.getT();
-		
-		BufferedImage img;
-		
+
 		BufferedImageReader ipReader = getBufferedImageReader();
 		if (ipReader == null) {
-			logger.warn("Reader is null - was the image already closed? " + filePath);
-			return null;
+			throw new IOException("Reader is null - was the image already closed? " + filePath);
 		}
+
+		// Check if this is non-zero
+		if (tileWidth <= 0 || tileHeight <= 0) {
+			throw new IOException("Unable to request pixels for region with downsampled size " + tileWidth + " x " + tileHeight);
+		}
+
+		byte[][] bytes = null;
+		int effectiveC;
+		int sizeC = nChannels();
+		int length = 0;
+		ByteOrder order = ByteOrder.BIG_ENDIAN;
+		boolean interleaved;
+		int pixelType;
+		boolean normalizeFloats = false;
+
 		synchronized(ipReader) {
+			ipReader.setSeries(series);
+			ipReader.setResolution(level);
+			order = ipReader.isLittleEndian() ? ByteOrder.LITTLE_ENDIAN : ByteOrder.BIG_ENDIAN;
+			interleaved = ipReader.isInterleaved();
+			pixelType = ipReader.getPixelType();
+			normalizeFloats = ipReader.isNormalized();
+
+			// Single-channel & RGB images are straightforward... nothing more to do
+			if ((ipReader.isRGB() && isRGB()) || nChannels() == 1) {
+				// Read the image - or at least the first channel
+				int ind = ipReader.getIndex(z, 0, t);
+				try {
+					return ipReader.openImage(ind, tileX, tileY, tileWidth, tileHeight);
+				} catch (Exception e) {
+					logger.error("Error opening image " + ind + " for " + tileRequest.getRegionRequest(), e);
+				}
+			}
+
+			// Read bytes for all the required channels
+			effectiveC = ipReader.getEffectiveSizeC();
+			bytes = new byte[effectiveC][];
 			try {
-				ipReader.setSeries(series);
-				ipReader.setResolution(level);
-				
-//				// Don't ensure the region coordinates are within range - force this check elsewhere
-//				if (tileX + tileWidth > ipReader.getSizeX())
-//					tileWidth = ipReader.getSizeX() - tileX;
-//				if (tileY + tileHeight > ipReader.getSizeY())
-//					tileHeight = ipReader.getSizeY() - tileY;
-				
-				// Check if this is non-zero
-				if (tileWidth <= 0 || tileHeight <= 0) {
-					logger.warn("Unable to request pixels for region with downsampled size {} x {}", tileWidth, tileHeight);
-					return null;
+				for (int c = 0; c < effectiveC; c++) {
+					int ind = ipReader.getIndex(z, c, t);
+					bytes[c] = ipReader.openBytes(ind, tileX, tileY, tileWidth, tileHeight);
+					length = bytes[c].length;
 				}
-
-				// Single-channel & RGB images are straightforward... nothing more to do
-				if ((ipReader.isRGB() && isRGB()) || nChannels() == 1) {
-					// Read the image - or at least the first channel
-					int ind = ipReader.getIndex(z, 0, t);
-					img = null;
-					try {
-						img = ipReader.openImage(ind, tileX, tileY, tileWidth, tileHeight);
-					} catch (Exception e) {
-						logger.error("Error opening image " + ind + " for " + tileRequest.getRegionRequest(), e);
-					}
-					return img;
-				}
-				
-				// If we have multiple channels, merge them
-//				BufferedImage[] images = new BufferedImage[nChannels()];
-				
-				BufferedImage[] images = null;
-				int nChannels = nChannels();
-//				// We can make an effort to read channels in parallel - but need to be cautious with some readers, and fall back to sequential
-//				if (nChannels > 1 && parallelizeMultichannel && !willParallelize()) {
-//					images = IntStream.range(0, nChannels).parallel().mapToObj(c -> {
-//						logger.trace("Requesting to parallelize channel access");
-//						int ind = ipReader.getIndex(z, c, t);
-//						BufferedImage img2;
-//						try {
-//							img2 = ipReader.openImage(ind, tileX, tileY, tileWidth, tileHeight);
-//							return img2;
-//						} catch (Exception e) {
-//							logger.error("Exception reading " + tileRequest.getRegionRequest() + " - turning off parallel channel reading", e);
-//							parallelizeMultichannel = false;
-//							return null;
-//						}
-//					}).toArray(n -> new BufferedImage[n]);
-//				}
-				if (images == null)
-					images = new BufferedImage[nChannels];
-				for (int c = 0; c < nChannels; c++) {
-					// Check if we've already read the channel previously (i.e. in parallel)
-					if (images[c] != null)
-						continue;
-					// Read the region
-					int ind;
-					if (doChannelZCorrectionVSI)
-						ind = ipReader.getIndex(c, 0, t);
-					else
-						ind = ipReader.getIndex(z, c, t);
-					BufferedImage img2;
-					try {
-						img2 = ipReader.openImage(ind, tileX, tileY, tileWidth, tileHeight);
-						images[c] = img2;
-					} catch (FormatException e) {
-						logger.error("Format exception reading " + tileRequest.getRegionRequest(), e);
-					} catch (IOException e) {
-						logger.error("IOException exception reading " + tileRequest.getRegionRequest(), e);
-					}
-				}
-				BufferedImage imgMerged;
-				if (isRGB()) { //images.length <= 4) {
-					// Can use the Bio-Formats merge - but seems limited to 4 channels
-					imgMerged = AWTImageTools.mergeChannels(images);
-				} else {
-					// Try our own merge - this makes no real effort with ColorModels, and supports only 8-bit and 16-bit unsigned
-					imgMerged = mergeChannels(images, getMetadata().getChannels().stream().mapToInt(c -> c.getColor()).toArray());
-				}
-				return imgMerged;
-
-			} catch (Exception e) {
-				logger.error("Error reading image region " + tileRequest.getRegionRequest()
-								+ " for image size " + ipReader.getSizeX() + " x " + ipReader.getSizeY(), e);
+			} catch (FormatException e) {
+				throw new IOException(e);
 			}
 		}
-		return null;
-	}
-	
-	
-	
-	/**
-	 * Attempt to merge 8-bit and 16-bit unsigned integer images.
-	 * 
-	 * @param images
-	 * @return
-	 */
-	static BufferedImage mergeChannels(final BufferedImage images[], final int[] colors) {
 
-		BufferedImage imgFirst = images[0];
-		if (images.length == 1)
-			return imgFirst;
-
-		int w = imgFirst.getWidth();
-		int h = imgFirst.getHeight();
-		int type = imgFirst.getType();
-		
-		// If we have a custom type, try to use the transfer type
-		if (type == BufferedImage.TYPE_CUSTOM) {
-			int transferType = imgFirst.getRaster().getTransferType();
-			switch (transferType) {
-				case DataBuffer.TYPE_BYTE:
-					type = BufferedImage.TYPE_BYTE_GRAY;
-					break;
-				case DataBuffer.TYPE_USHORT:
-					type = BufferedImage.TYPE_USHORT_GRAY;
-					break;
+		DataBuffer dataBuffer;
+		switch (pixelType) {
+		case (FormatTools.UINT8):
+			dataBuffer = new DataBufferByte(bytes, length);
+		break;
+		case (FormatTools.UINT16):
+			short[][] array = new short[bytes.length][length];
+			for (int i = 0; i < bytes.length; i++) {
+				ShortBuffer buffer = ByteBuffer.wrap(bytes[i]).order(order).asShortBuffer();
+				array[i] = new short[buffer.limit()];
+				buffer.get(array[i]);
 			}
+			dataBuffer = new DataBufferUShort(array, length);
+			break;
+		case (FormatTools.FLOAT):
+			float[][] floatArray = new float[bytes.length][length];
+		for (int i = 0; i < bytes.length; i++) {
+			FloatBuffer buffer = ByteBuffer.wrap(bytes[i]).order(order).asFloatBuffer();
+			floatArray[i] = new float[buffer.limit()];
+			buffer.get(floatArray[i]);
+			if (normalizeFloats)
+				floatArray[i] = DataTools.normalizeFloats(floatArray[i]);
 		}
-		
-		WritableRaster raster = null;
-		int[] bandIndices;
-		switch (type) {
-			case (BufferedImage.TYPE_BYTE_INDEXED):
-				logger.debug("Merging {} images, with TYPE_BYTE_INDEXED", images.length);
-			case (BufferedImage.TYPE_BYTE_GRAY):
-				byte[][] bytes = new byte[images.length][];
-				bandIndices = new int[images.length];
-				for (int b = 0; b < images.length; b++) {
-					bandIndices[b] = b;
-					DataBuffer bandBuffer = images[b].getRaster().getDataBuffer();
-					if (!(bandBuffer instanceof DataBufferByte))
-						throw new IllegalArgumentException("Invalid DataBuffer - expected DataBufferByte, but got " + bandBuffer);
-					bytes[b] = ((DataBufferByte)bandBuffer).getData();
-				}
-				raster = WritableRaster.createBandedRaster(
-						new DataBufferByte(bytes, w*h),
-						w, h, w,bandIndices, new int[images.length], null);
-				return new BufferedImage(
-						ColorModelFactory.createProbabilityColorModel(8, images.length, false, colors),
-//						ColorModelFactory.getDummyColorModel(8*images.length),
-						raster, false, null);
-			case (BufferedImage.TYPE_USHORT_GRAY):
-				short[][] shorts = new short[images.length][];
-				bandIndices = new int[images.length];
-				for (int b = 0; b < images.length; b++) {
-					bandIndices[b] = b;
-					DataBuffer bandBuffer = images[b].getRaster().getDataBuffer();
-					if (!(bandBuffer instanceof DataBufferUShort))
-						throw new IllegalArgumentException("Invalid DataBuffer - expected DataBufferUShort, but got " + bandBuffer);
-					shorts[b] = ((DataBufferUShort)bandBuffer).getData();
-				}
-				raster = WritableRaster.createBandedRaster(
-						new DataBufferUShort(shorts, w*h), w, h, w,bandIndices, new int[images.length], null);
-				return new BufferedImage(
-					ColorModelFactory.createProbabilityColorModel(16, images.length, false, colors),
-					raster, false, null);
-			case (BufferedImage.TYPE_CUSTOM):
-				if (imgFirst.getRaster().getTransferType() == DataBuffer.TYPE_FLOAT) {
-					BandedSampleModel sampleModel = new BandedSampleModel(DataBuffer.TYPE_FLOAT, w, h, images.length);
-					raster = WritableRaster.createWritableRaster(sampleModel, null);
-					float[] floats = null;
-					bandIndices = new int[images.length];
-					for (int b = 0; b < images.length; b++) {
-						bandIndices[b] = b;
-						DataBuffer bandBuffer = images[b].getRaster().getDataBuffer();
-						if (!(bandBuffer instanceof DataBufferFloat))
-							throw new IllegalArgumentException("Invalid DataBuffer - expected DataBufferFloat, but got " + bandBuffer);
-						floats = ((DataBufferFloat)bandBuffer).getData();
-						raster.setSamples(0, 0, w, h, b, floats);
-					}
-					ColorModel colorModel = ColorModelFactory.createProbabilityColorModel(32, images.length, false, colors);
-					return new BufferedImage(colorModel, raster, false, null);
-				}
-			default:
-				throw new IllegalArgumentException("Only 8-bit or 16-bit unsigned integer images can be merged!");
+		dataBuffer = new DataBufferFloat(floatArray, length);
+		break;
+		case (FormatTools.DOUBLE):
+			double[][] doubleArray = new double[bytes.length][length];
+		for (int i = 0; i < bytes.length; i++) {
+			DoubleBuffer buffer = ByteBuffer.wrap(bytes[i]).order(order).asDoubleBuffer();
+			doubleArray[i] = new double[buffer.limit()];
+			buffer.get(doubleArray[i]);
+			if (normalizeFloats)
+				doubleArray[i] = DataTools.normalizeDoubles(doubleArray[i]);
 		}
+		dataBuffer = new DataBufferDouble(doubleArray, length);
+		break;
+		default:
+			throw new UnsupportedOperationException("Unsupported pixel type " + pixelType);
+		}
+
+		SampleModel sampleModel;
+
+		if (effectiveC == 1 && sizeC > 1) {
+			// Handle channels stored in the same plane
+			int[] offsets = new int[sizeC];
+			if (interleaved) {
+				for (int b = 0; b < sizeC; b++)
+					offsets[b] = b;
+				sampleModel = new PixelInterleavedSampleModel(dataBuffer.getDataType(), tileWidth, tileHeight, sizeC, sizeC*tileWidth, offsets);
+			} else {
+				for (int b = 0; b < sizeC; b++)
+					offsets[b] = b * tileWidth * tileHeight;
+				sampleModel = new ComponentSampleModel(dataBuffer.getDataType(), tileWidth, tileHeight, 1, tileWidth, offsets);
+			}
+		} else {
+			// Merge channels on different planes
+			sampleModel = new BandedSampleModel(dataBuffer.getDataType(), tileWidth, tileHeight, sizeC);
+		}
+
+		WritableRaster raster = WritableRaster.createWritableRaster(sampleModel, dataBuffer, null);
+		return new BufferedImage(colorModel, raster, false, null);
 	}
 	
 	
@@ -783,14 +730,6 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 		super.close();
 		manager.closeServer(this);
 	}
-	
-//	@Override
-//	public BufferedImage getBufferedThumbnail(int maxWidth, int maxHeight, int zPosition) {
-//		BufferedImage img = super.getBufferedThumbnail(maxWidth, maxHeight, zPosition);
-//		if (isRGB())
-//			return img;
-//		return AWTImageTools.autoscale(img);
-//	}
 	
 	@Override
 	public double getTimePoint(int ind) {
@@ -916,15 +855,16 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 	
 	/**
 	 * Helper class to manage multiple Bio-Formats image readers.
-	 * 
+	 * <p>
 	 * This has two purposes:
-	 *  1. To allow BioFormatsImageServers reading from the same image to request pixels from the same BioFormats reader
-	 *  2. To allow BioFormatsImageServers to request separate Bio-Formats image readers for different threads.
-	 *  
+	 * <ol>
+	 *   <li>To allow BioFormatsImageServers reading from the same image to request pixels from the same BioFormats reader.</li>
+	 *   <li>To allow BioFormatsImageServers to request separate Bio-Formats image readers for different threads.</li>
+	 * </ol> 
 	 * These are to address somewhat conflicting challenges.  Firstly, some readers are very memory-hungry, and 
 	 * should be created as rarely as possible.  On the other side, some readers are very lightweight - and having multiple 
 	 * such readers active at a time can help rapidly respond to tile requests.
-	 * 
+	 * <p>
 	 * It's up to any consumers to ensure that heavyweight readers aren't called for each thread.
 	 */
 	static class BioFormatsReaderManager {
@@ -951,7 +891,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 		
 		/**
 		 * Request a BufferedImageReader for a specified path that is unique for the calling thread.
-		 * 
+		 * <p>
 		 * Note that the state of the reader is not specified; setSeries should be called before use.
 		 * 
 		 * @param server
@@ -984,7 +924,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 		 * Request a BufferedImageReader for the specified path.
 		 * This reader will have metadata in an accessible form, but will *not* be unique for the calling thread.
 		 * Therefore care needs to be taken with regard to synchronization.
-		 * 
+		 * <p>
 		 * Note that the state of the reader is not specified; setSeries should be called before use.
 		 * 
 		 * @param server
@@ -1019,7 +959,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 		
 		/**
 		 * Explicitly register that a server has been closed.
-		 * 
+		 * <p>
 		 * This prompts a refresh of the primary server map, during which unused readers are closed.
 		 * 
 		 * @param server
@@ -1160,9 +1100,9 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 					}
 					memoizationFileSize = fileMemo == null ? 0L : fileMemo.length();
 					if (memoizationFileSize == 0L)
-						logger.info("No memoization file generated for {}", id);
+						logger.debug("No memoization file generated for {}", id);
 					else if (!memoFileExists)
-						logger.info(String.format("Generating memoization file %s (%.2f MB)", fileMemo.getAbsolutePath(), memoizationFileSize/1024.0/1024.0));
+						logger.debug(String.format("Generating memoization file %s (%.2f MB)", fileMemo.getAbsolutePath(), memoizationFileSize/1024.0/1024.0));
 					else
 						logger.debug("Memoization file exists at {}", fileMemo.getAbsolutePath());
 				} else {
