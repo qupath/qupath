@@ -47,8 +47,10 @@ import java.nio.FloatBuffer;
 import java.nio.ShortBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -101,6 +103,13 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 	private static final Logger logger = LoggerFactory.getLogger(BioFormatsImageServer.class);
 	
 	/**
+	 * Define a maximum memoization file size above which parallelization is disabled. 
+	 * This is necessary to avoid creating multiple readers that are too large (e.g. sometimes 
+	 * a memoization file can be over 1GB...)
+	 */
+	private static long MAX_PARALLELIZATION_MEMO_SIZE = 1024L * 1024L * 8L;
+	
+	/**
 	 * The original URI requested for this server.
 	 */
 	private URI uri;
@@ -118,7 +127,8 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 	/**
 	 * Image names (in lower case) normally associated with 'extra' images, but probably not representing the main image in the file.
 	 */
-	private static List<String> extraImageNames = Arrays.asList("overview", "label", "thumbnail", "macro");
+	private static Collection<String> extraImageNames = new HashSet<>(
+			Arrays.asList("overview", "label", "thumbnail", "macro", "macro image", "macro mask image", "label image", "overview image", "thumbnail image"));
 	
 	/**
 	 * Original metadata, populated when reading the file.
@@ -170,8 +180,14 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 	 */
 	private ColorModel colorModel;
 	
+	/**
+	 * Primary reader for the current server.
+	 */
 	private IFormatReader reader;
 	
+	/**
+	 * Primary metadata store.
+	 */
 	private OMEPyramidStore meta;
 	
 //	/**
@@ -199,7 +215,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 
 	BioFormatsImageServer(URI uri, final BioFormatsServerOptions options) throws FormatException, IOException, DependencyException, ServiceException, URISyntaxException {
 		super();
-		
+
 		long startTime = System.currentTimeMillis();
 
 		this.uri = uri;
@@ -209,7 +225,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 		int width = 0, height = 0, nChannels = 1, nZSlices = 1, nTimepoints = 1, tileWidth = 0, tileHeight = 0;
 		double pixelWidth = Double.NaN, pixelHeight = Double.NaN, zSpacing = Double.NaN, magnification = Double.NaN;
 		TimeUnit timeUnit = null;
-		
+
 		// See if there is a series name embedded in the path
 		String requestedSeriesName = null;
 		int seriesIndex = -1;
@@ -227,67 +243,113 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 			}
 		}
 		filePath = new File(uri.getPath()).getAbsolutePath();
-		
-	    // Create a reader & extract the metadata
+
+		// Create a reader & extract the metadata
 		meta = new OMEPyramidStore();
 		reader = manager.createPrimaryReader(options, filePath, meta);
-		
+
+		// Populate the image server list if we have more than one image
+		int largestSeries = -1;
+		int firstSeries = -1;
+		long mostPixels = -1L;
+		long firstPixels = -1L;
+
+		// If we have more than one series, we need to construct maps of 'analyzable' & associated images
 		synchronized(reader) {
-			
-			// Populate the image server list if we have more than one image
-			int largestSeries = -1;
-			long mostPixels = -1L;
-			
-			// If we have more than one series, we need to construct maps of 'analyzable' & associated images
-			if (reader.getSeriesCount() > 1) {
-				imageMap = new LinkedHashMap<>(reader.getSeriesCount());
-				associatedImageMap = new LinkedHashMap<>(reader.getSeriesCount());
-				// Series in the reader API should correspond to images according to the metadata API
-				if (reader.getSeriesCount() != meta.getImageCount())
-					logger.error("Bio-Formats series and image counts do not match");
-				
+			int nImages = meta.getImageCount();
+			if (nImages > 1) {
+				imageMap = new LinkedHashMap<>(nImages);
+				associatedImageMap = new LinkedHashMap<>(nImages);
+
 				// Loop through series to find out whether we have multiresolution images, or associated images (e.g. thumbnails)
-				for (int s = 0; s < meta.getImageCount(); s++) {	
-					
-					reader.setSeries(s);
+				for (int s = 0; s < nImages; s++) {
 					String name = "Series " + s;
-					String imageName = meta.getImageName(s);
-					if (!imageName.isEmpty())
-						name += " (" + imageName + ")";
-					if (reader.isThumbnailSeries() || (reader.getResolutionCount() == 1 && extraImageNames.contains(name.toLowerCase().trim()))) {
-						logger.debug("Adding associated image {} (thumbnail={})", name, reader.isThumbnailSeries());
-						associatedImageMap.put(name, s);
-					}
-					else {
-						if (imageMap.containsKey(name))
-							logger.warn("Duplicate image called {} - only the first will be used", name);
-						else
-							imageMap.put(name, s);
-					}
-					// Set this to be the series, if necessary
-					logger.info("Found image '{}', size: {} x {} x {} x {} x {} (xyczt)", imageName, reader.getSizeX(), reader.getSizeY(), reader.getSizeC(), reader.getSizeZ(), reader.getSizeT());
-					if (seriesIndex < 0) {
-						if (requestedSeriesName == null) {
-							long nPixels = (long)reader.getSizeX() * (long)reader.getSizeY() * (long)reader.getSizeZ() * (long)reader.getSizeT();
-							if (nPixels > mostPixels) {
-								largestSeries = s;
-								mostPixels = nPixels;
-							}
-						} else if (requestedSeriesName.equals(name) || requestedSeriesName.equals(meta.getImageName(s))) {
-							seriesIndex = s;
+					String originalImageName = meta.getImageName(s);
+					if (originalImageName == null)
+						originalImageName = "";
+					String imageName = originalImageName;
+					try {
+						if (!imageName.isEmpty())
+							name += " (" + imageName + ")";
+
+						// Set this to be the series, if necessary
+						long sizeX = meta.getPixelsSizeX(s).getNumberValue().longValue();
+						long sizeY = meta.getPixelsSizeY(s).getNumberValue().longValue();
+						long sizeC = meta.getPixelsSizeC(s).getNumberValue().longValue();
+						long sizeZ = meta.getPixelsSizeZ(s).getNumberValue().longValue();
+						long sizeT = meta.getPixelsSizeT(s).getNumberValue().longValue();
+
+						// Check the resolutions
+						//						int nResolutions = meta.getResolutionCount(s);
+						//						for (int r = 1; r < nResolutions; r++) {
+						//							int sizeXR = meta.getResolutionSizeX(s, r).getValue();
+						//							int sizeYR = meta.getResolutionSizeY(s, r).getValue();
+						//							if (sizeXR <= 0 || sizeYR <= 0 || sizeXR > sizeX || sizeYR > sizeY)
+						//								throw new IllegalArgumentException("Resolution " + r + " size " + sizeXR + " x " + sizeYR + " invalid!");
+						//						}
+						// It seems we can't get the resolutions from the metadata object... instead we need to set the series of the reader
+						reader.setSeries(s);
+						assert reader.getSizeX() == sizeX;
+						assert reader.getSizeY() == sizeY;
+						int nResolutions = reader.getResolutionCount();
+						for (int r = 1; r < nResolutions; r++) {
+							reader.setResolution(r);
+							int sizeXR = reader.getSizeX();
+							int sizeYR = reader.getSizeY();
+							if (sizeXR <= 0 || sizeYR <= 0 || sizeXR > sizeX || sizeYR > sizeY)
+								throw new IllegalArgumentException("Resolution " + r + " size " + sizeXR + " x " + sizeYR + " invalid!");
 						}
+
+						// If we got this far, we have an image we can add
+						if (reader.getResolutionCount() == 1 && (
+								extraImageNames.contains(originalImageName.toLowerCase()) || extraImageNames.contains(name.toLowerCase().trim()))) {
+							logger.info("Adding associated image {} (thumbnail={})", name, reader.isThumbnailSeries());
+							associatedImageMap.put(name, s);
+						} else {
+							if (imageMap.containsKey(name))
+								logger.warn("Duplicate image called {} - only the first will be used", name);
+							else {
+								if (firstSeries < 0) {
+									firstSeries = s;
+									firstPixels = sizeX * sizeY * sizeZ * sizeT;
+								}
+								imageMap.put(name, s);
+							}
+						}
+
+						if (seriesIndex < 0) {
+							if (requestedSeriesName == null) {
+								long nPixels = sizeX * sizeY * sizeZ * sizeT;
+								if (nPixels > mostPixels) {
+									largestSeries = s;
+									mostPixels = nPixels;
+								}
+							} else if (requestedSeriesName.equals(name) || requestedSeriesName.equals(meta.getImageName(s))) {
+								seriesIndex = s;
+							}
+						}
+						logger.info("Found image '{}', size: {} x {} x {} x {} x {} (xyczt)", imageName, sizeX, sizeY, sizeC, sizeZ, sizeT);
+					} catch (Exception e) {
+						// We don't want to log this prominently if we're requesting a different series anyway
+						if ((seriesIndex < 0 || seriesIndex == s) && (requestedSeriesName == null || requestedSeriesName.equals(imageName)))
+							logger.warn("Error attempting to read series " + s + " (" + imageName + ") - will be skipped", e);
+						else
+							logger.trace("Error attempting to read series " + s + " (" + imageName + ") - will be skipped", e);
 					}
-					logger.debug("Adding {}", name);
 				}
-				
+
 				// If we have just one image in the image list, then reset to none - we can't switch
 				if (imageMap.size() == 1 && seriesIndex < 0) {
-					seriesIndex = imageMap.values().iterator().next();
+					seriesIndex = firstSeries;
 					imageMap.clear();
 				} else if (imageMap.size() > 1) {
 					// Set default series index, if we need to
 					if (seriesIndex < 0) {
-						seriesIndex = largestSeries; // imageMap.values().iterator().next();
+						// Choose the first series unless it is substantially smaller than the largest series (e.g. it's a label or macro image)
+						if (mostPixels > firstPixels * 4L)
+							seriesIndex = largestSeries; // imageMap.values().iterator().next();
+						else
+							seriesIndex = firstSeries;
 					}
 					// If we have more than one image, ensure that we have the image name correctly encoded in the path
 					uri = new URI(uri.getScheme(), uri.getHost(), uri.getPath(), Integer.toString(seriesIndex));
@@ -297,47 +359,47 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 					seriesIndex = 0;
 				imageMap = Collections.emptyMap();
 			}
-			
+
 			if (seriesIndex < 0)
-				throw new RuntimeException("Unable to find any valid images within " + uri);
-			
+				throw new IOException("Unable to find any valid images within " + uri);
+
 			// Store the series we are actually using
 			this.series = seriesIndex;
 			reader.setSeries(series);
-			
+
 			// Get the format in case we need it
 			format = reader.getFormat();
 			logger.debug("Reading format: {}", format);
-			
-		    // Try getting the magnification
-		    try {
-		    	String objectiveID = meta.getObjectiveSettingsID(series);
-		    	int objectiveIndex = -1;
-		    	int instrumentIndex = -1;
-		    	int nInstruments = meta.getInstrumentCount();
-		    	for (int i = 0; i < nInstruments; i++) {
-			    	int nObjectives = meta.getObjectiveCount(i);
-			    	for (int o = 0; 0 < nObjectives; o++) {
-			    		if (objectiveID.equals(meta.getObjectiveID(i, o))) {
-			    			instrumentIndex = i;
-			    			objectiveIndex = o;
-			    			break;
-			    		}
-			    	}	    		
-		    	}
-		    	if (instrumentIndex < 0) {
-		    		logger.warn("Cannot find objective for ref {}", objectiveID);
-		    	} else {
-			    	Double magnificationObject = meta.getObjectiveNominalMagnification(instrumentIndex, objectiveIndex);
-			    	if (magnificationObject == null) {
-			    		logger.warn("Nominal objective magnification missing for {}:{}", instrumentIndex, objectiveIndex);
-			    	} else
-			    		magnification = magnificationObject;		    		
-		    	}
-		    } catch (Exception e) {
-		    	logger.debug("Unable to parse magnification: {}", e.getLocalizedMessage());
-		    }
-		    		
+
+			// Try getting the magnification
+			try {
+				String objectiveID = meta.getObjectiveSettingsID(series);
+				int objectiveIndex = -1;
+				int instrumentIndex = -1;
+				int nInstruments = meta.getInstrumentCount();
+				for (int i = 0; i < nInstruments; i++) {
+					int nObjectives = meta.getObjectiveCount(i);
+					for (int o = 0; 0 < nObjectives; o++) {
+						if (objectiveID.equals(meta.getObjectiveID(i, o))) {
+							instrumentIndex = i;
+							objectiveIndex = o;
+							break;
+						}
+					}	    		
+				}
+				if (instrumentIndex < 0) {
+					logger.warn("Cannot find objective for ref {}", objectiveID);
+				} else {
+					Double magnificationObject = meta.getObjectiveNominalMagnification(instrumentIndex, objectiveIndex);
+					if (magnificationObject == null) {
+						logger.warn("Nominal objective magnification missing for {}:{}", instrumentIndex, objectiveIndex);
+					} else
+						magnification = magnificationObject;		    		
+				}
+			} catch (Exception e) {
+				logger.debug("Unable to parse magnification: {}", e.getLocalizedMessage());
+			}
+
 			// Get the dimensions for the requested series
 			// The first resolution is the highest, i.e. the largest image
 			width = reader.getSizeX();
@@ -345,7 +407,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 			tileWidth = reader.getOptimalTileWidth();
 			tileHeight = reader.getOptimalTileHeight();
 			nChannels = reader.getSizeC();
-			
+
 			// Make sure tile sizes are within range
 			if (tileWidth <= 0)
 				tileWidth = 256;
@@ -355,10 +417,10 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 				tileWidth = width;
 			if (tileHeight > height)
 				tileHeight = height;
-			
+
 			// Prepared to set channel colors
 			List<ImageChannel> channels = new ArrayList<>();
-						
+
 			nZSlices = reader.getSizeZ();
 			// Workaround bug whereby VSI channels can also be replicated as z-slices
 			if (options.requestChannelZCorrectionVSI() && nZSlices == nChannels && nChannels > 1 && "CellSens VSI".equals(format)) {
@@ -374,7 +436,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 				nChannels = 3;
 			} else if (nChannels != 3)
 				isRGB = false;
-			
+
 			// Try to read the default display colors for each channel from the file
 			if (isRGB) {
 				channels.addAll(ImageChannel.getDefaultRGBChannels());
@@ -412,63 +474,63 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 					colorModel = ColorModelFactory.createProbabilityColorModel(bpp, nChannels, false, channels.stream().mapToInt(c -> c.getColor()).toArray());
 				}
 			}
-			
+
 			// Try parsing pixel sizes in micrometers
 			double[] timepoints;
-		    try {
-		    	Length xSize = meta.getPixelsPhysicalSizeX(series);
-		    	Length ySize = meta.getPixelsPhysicalSizeY(series);
-		    	if (xSize != null && ySize != null) {
-		    		pixelWidth = xSize.value(UNITS.MICROMETER).doubleValue();
-		    		pixelHeight = ySize.value(UNITS.MICROMETER).doubleValue();
-		    	} else {
-		    		pixelWidth = Double.NaN;
-		    		pixelHeight = Double.NaN;			    		
-		    	}
-		    	// If we have multiple z-slices, parse the spacing
+			try {
+				Length xSize = meta.getPixelsPhysicalSizeX(series);
+				Length ySize = meta.getPixelsPhysicalSizeY(series);
+				if (xSize != null && ySize != null) {
+					pixelWidth = xSize.value(UNITS.MICROMETER).doubleValue();
+					pixelHeight = ySize.value(UNITS.MICROMETER).doubleValue();
+				} else {
+					pixelWidth = Double.NaN;
+					pixelHeight = Double.NaN;			    		
+				}
+				// If we have multiple z-slices, parse the spacing
 				if (nZSlices > 1) {
-			    	Length zSize = meta.getPixelsPhysicalSizeZ(series);
-			    	if (zSize != null)
-			    		zSpacing = zSize.value(UNITS.MICROMETER).doubleValue();
-			    	else
-			    		zSpacing = Double.NaN;
-			    }
-			    // TODO: Check the Bioformats TimeStamps
-			    if (nTimepoints > 1) {
-				    logger.warn("Time stamps read from Bioformats have not been fully verified & should not be relied upon");
-				    // Here, we don't try to separate timings by z-slice & channel...
-				    int lastTimepoint = -1;
-				    int count = 0;
-				    timepoints = new double[nTimepoints];
-				    logger.debug("PLANE COUNT: " + meta.getPlaneCount(series));
-				    for (int plane = 0; plane < meta.getPlaneCount(series); plane++) {
-				    	int timePoint = meta.getPlaneTheT(series, plane).getValue();
-				    	logger.debug("Checking " + timePoint);
-				    	if (timePoint != lastTimepoint) {
-				    		timepoints[count] = meta.getPlaneDeltaT(series, plane).value(UNITS.SECOND).doubleValue();
-				    		logger.debug(String.format("Timepoint %d: %.3f seconds", count, timepoints[count]));
-				    		lastTimepoint = timePoint;
-				    		count++;
-				    	}
-				    }
-				    timeUnit = TimeUnit.SECONDS;
-			    } else {
-			    	timepoints = new double[0];
-			    }
-		    } catch (Exception e) {
-		    	logger.error("Error parsing metadata", e);
-		    	pixelWidth = Double.NaN;
-		    	pixelHeight = Double.NaN;
-		    	zSpacing = Double.NaN;
-		    	timepoints = null;
-		    	timeUnit = null;
-		    }
-		    
+					Length zSize = meta.getPixelsPhysicalSizeZ(series);
+					if (zSize != null)
+						zSpacing = zSize.value(UNITS.MICROMETER).doubleValue();
+					else
+						zSpacing = Double.NaN;
+				}
+				// TODO: Check the Bioformats TimeStamps
+				if (nTimepoints > 1) {
+					logger.warn("Time stamps read from Bioformats have not been fully verified & should not be relied upon");
+					// Here, we don't try to separate timings by z-slice & channel...
+					int lastTimepoint = -1;
+					int count = 0;
+					timepoints = new double[nTimepoints];
+					logger.debug("PLANE COUNT: " + meta.getPlaneCount(series));
+					for (int plane = 0; plane < meta.getPlaneCount(series); plane++) {
+						int timePoint = meta.getPlaneTheT(series, plane).getValue();
+						logger.debug("Checking " + timePoint);
+						if (timePoint != lastTimepoint) {
+							timepoints[count] = meta.getPlaneDeltaT(series, plane).value(UNITS.SECOND).doubleValue();
+							logger.debug(String.format("Timepoint %d: %.3f seconds", count, timepoints[count]));
+							lastTimepoint = timePoint;
+							count++;
+						}
+					}
+					timeUnit = TimeUnit.SECONDS;
+				} else {
+					timepoints = new double[0];
+				}
+			} catch (Exception e) {
+				logger.error("Error parsing metadata", e);
+				pixelWidth = Double.NaN;
+				pixelHeight = Double.NaN;
+				zSpacing = Double.NaN;
+				timepoints = null;
+				timeUnit = null;
+			}
+
 			// Loop through the series & determine downsamples
 			int nResolutions = reader.getResolutionCount();
 			var resolutionBuilder = new ImageResolutionLevel.Builder(width, height)
 					.addFullResolutionLevel();
-			
+
 			// I have seen czi files where the resolutions are not read correctly & this results in an IndexOutOfBoundsException
 			for (int i = 1; i < nResolutions; i++) {
 				reader.setResolution(i);
@@ -498,17 +560,6 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 				}
 			}
 			
-//			// Estimate the image size from the lowest resolution of the pyramid; if it's substantially smaller, 
-//			// this implies pixels would be missing at the lowest levels, which can result in strange behavior.
-//			// In this case, use the truncated image dimensions instead.
-//			int width2 = (int)Math.min(width, Math.ceil(reader.getSizeX() * downsamples[nResolutions-1]));
-//			int height2 = (int)Math.min(height, Math.ceil(reader.getSizeY() * downsamples[nResolutions-1]));
-//			if ((width - width2 > downsamples[nResolutions-1]) || (height - height2 > downsamples[nResolutions-1])) {
-//				logger.error("Original image size ({} x {}) is not compatible with the predicted size from lower pyramid levels - will adapt to {} x {} instead", width, height, width2, height2);
-//				width = width2;
-//				height = height2;
-//			}
-			
 			// Generate a suitable name for this image
 			String imageName = getFile().getName();
 			String shortName = meta.getImageName(seriesIndex);
@@ -517,7 +568,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 					imageName = imageName + " - Series " + seriesIndex;
 			} else
 				imageName = imageName + " - " + shortName;
-			
+
 			// Set metadata
 			ImageServerMetadata.Builder builder = new ImageServerMetadata.Builder(getClass(), uri.toString(), width, height).
 					name(imageName).
@@ -527,10 +578,10 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 					levels(resolutionBuilder.build()).
 					bitDepth(bpp).
 					rgb(isRGB);
-			
+
 			if (Double.isFinite(magnification))
 				builder = builder.magnification(magnification);
-			
+
 			if (timeUnit != null)
 				builder = builder.timepoints(timeUnit, timepoints);
 
@@ -539,39 +590,33 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 
 			if (Double.isFinite(zSpacing))
 				builder = builder.zSpacingMicrons(zSpacing);
-			
+
 			// Check the tile size if it is reasonable
 			if (tileWidth >= MIN_TILE_SIZE && tileWidth <= MAX_TILE_SIZE && tileHeight >= MIN_TILE_SIZE && tileHeight <= MAX_TILE_SIZE)
 				builder.preferredTileSize(tileWidth, tileHeight);
 			originalMetadata = builder.build();
 		}
-		
+
 		// Bioformats can use ImageIO for JPEG decoding, and permitting the disk-based cache can slow it down... so here we turn it off
 		// TODO: Document - or improve - the setting of ImageIO disk cache
 		ImageIO.setUseCache(false);
-		
-//		// No need to parallelize for single-channel images
-//		parallelizeMultichannel = options.requestParallelizeMultichannel();
-//		if (nChannels() == 1 || isRGB())
-//			parallelizeMultichannel = false;
-		
+
 		long endTime = System.currentTimeMillis();
 		logger.debug(String.format("Initialization time: %d ms", endTime-startTime));
 	}
-	
+
 		
 	/**
 	 * Returns true if the reader accepts parallel tile requests, without synchronization.
 	 * <p>
-	 * This is true if parallelization is requested, and any memoization file is less than 10 MB.
+	 * This is true if parallelization is requested, and any memoization file is 'small enough'.
 	 * The idea is that larger memoization files indicate more heavyweight readers, and these need 
-	 * to be kept restricted.
+	 * to be kept restricted to reduce the risk of memory errors.
 	 * 
 	 * @return
 	 */
 	public boolean willParallelize() {
-		return options.requestParallelization() && (getWidth() > getPreferredTileWidth() || getHeight() > getPreferredTileHeight());// && manager.getMemoizationFileSize(this) < 1024L*1024L * 10L;
-//		return options.requestParallelization() && getWidth() > 8192 && getHeight() > 8192 && manager.getMemoizationFileSize(this) < 1024L*1024L * 10L;
+		return options.requestParallelization() && (getWidth() > getPreferredTileWidth() || getHeight() > getPreferredTileHeight()) && manager.getMemoizationFileSize(filePath) <= MAX_PARALLELIZATION_MEMO_SIZE;
 	}
 	
 	
@@ -650,7 +695,6 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 					logger.error("Error opening image " + ind + " for " + tileRequest.getRegionRequest(), e);
 				}
 			}
-
 			// Read bytes for all the required channels
 			effectiveC = ipReader.getEffectiveSizeC();
 			bytes = new byte[effectiveC][];
@@ -1034,16 +1078,20 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 						imageReader.setId(id);
 					} catch (Exception e) {
 						if (memoFileExists) {
-							logger.warn("Problem with memoization file {} ({}), will delete", fileMemo.getName(), e.getLocalizedMessage());
+							logger.warn("Problem with memoization file {} ({}), will try to delete it", fileMemo.getName(), e.getLocalizedMessage());
 							fileMemo.delete();
 						}
 						imageReader.close();
 						imageReader.setId(id);
 					}
 					memoizationFileSize = fileMemo == null ? 0L : fileMemo.length();
-					if (memoizationFileSize > 0L)
+					if (memoizationFileSize > 0L) {
+						if (memoizationFileSize > MAX_PARALLELIZATION_MEMO_SIZE) {
+							logger.warn(String.format("The memoization file is very large (%.1f MB) - parallelization may be turned off to save memory",
+									memoizationFileSize/(1024.0*1024.0)));
+						}
 						memoizationSizeMap.put(id, memoizationFileSize);
-					if (memoizationFileSize == 0L)
+					} if (memoizationFileSize == 0L)
 						logger.debug("No memoization file generated for {}", id);
 					else if (!memoFileExists)
 						logger.debug(String.format("Generating memoization file %s (%.2f MB)", fileMemo.getAbsolutePath(), memoizationFileSize/1024.0/1024.0));
