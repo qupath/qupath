@@ -278,7 +278,7 @@ public class ImageWriterTools {
 		
 //		ImageServer server2 = new ImageServer<BufferedImage>(server.getServerPath() + ": (" + request.getX() + ", " + request.getY() + ", " + request.getWidth() + ", " + request.getHeight() + ")", null, img);
 		try {
-			ImageServer<BufferedImage> server2 = new ImageIoImageServer(request.toString(), null, img);
+			ImageServer<BufferedImage> server2 = new ImageIoImageServer(null, request.toString(), null, img);
 			BufferedImage success = writeImageRegion(server2, RegionRequest.createInstance(server2.getPath(), 1, 0, 0, server2.getWidth(), server2.getHeight()), path);
 			server2.close();
 			return success;

@@ -31,7 +31,7 @@ import qupath.lib.regions.RegionRequest;
  * @author Pete Bankhead
  *
  */
-public class ColorDeconvolutionImageServer extends WrappedImageServer<BufferedImage> {
+class ColorDeconvolutionImageServer extends TransformingImageServer<BufferedImage> {
 	
 	private final static Logger logger = LoggerFactory.getLogger(ColorDeconvolutionImageServer.class);
 	

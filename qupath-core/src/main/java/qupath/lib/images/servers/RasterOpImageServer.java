@@ -16,11 +16,13 @@ import qupath.lib.regions.RegionRequest;
  * Note: it is assumed that the image dimensions are not changed (although this is not strictly 
  * enforced); this may give unexpected results for arbitrary transformations.  Its intended 
  * use is for color transforms (e.g. rescaling, background subtraction).
+ * <p>
+ * Warning: this is unfinished, and is not currently JSON-serializable (and perhaps never shall be...).
  * 
  * @author Pete Bankhead
  *
  */
-public class RasterOpImageServer extends WrappedImageServer<BufferedImage> {
+class RasterOpImageServer extends TransformingImageServer<BufferedImage> {
 	
 	private static final Logger logger = LoggerFactory.getLogger(RasterOpImageServer.class);
 	

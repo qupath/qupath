@@ -26,6 +26,9 @@ package qupath.imagej.images.servers;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.net.URI;
+import java.util.Collection;
+import java.util.Collections;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,9 +47,9 @@ public class ImageJServerBuilder implements ImageServerBuilder<BufferedImage> {
 	private static Logger logger = LoggerFactory.getLogger(ImageJServerBuilder.class);
 
 	@Override
-	public ImageServer<BufferedImage> buildServer(URI uri) {
+	public ImageServer<BufferedImage> buildServer(URI uri, String...args) {
 		try {
-			return new ImageJServer(uri);
+			return new ImageJServer(uri, args);
 		} catch (IOException e) {
 			logger.debug("Unable to open {} with ImageJ: {}", uri, e.getLocalizedMessage());
 		}
@@ -54,7 +57,7 @@ public class ImageJServerBuilder implements ImageServerBuilder<BufferedImage> {
 	}
 
 	@Override
-	public float supportLevel(URI uri, ImageCheckType type, Class<?> cls) {
+	public float supportLevel(URI uri, ImageCheckType type, Class<?> cls, String...args) {
 		if (cls != BufferedImage.class)
 			return 0;
 		switch (type) {
@@ -73,6 +76,10 @@ public class ImageJServerBuilder implements ImageServerBuilder<BufferedImage> {
 		}
 	}
 	
+	@Override
+	public Collection<String> getServerClassNames() {
+		return Collections.singleton(ImageJServer.class.getName());
+	}
 	
 	@Override
 	public String getName() {
@@ -81,7 +88,7 @@ public class ImageJServerBuilder implements ImageServerBuilder<BufferedImage> {
 
 	@Override
 	public String getDescription() {
-		return "Reads images using ImageJ's default methods - best for TIFF files originally written by ImageJ, with calibration data available";
+		return "Read images using ImageJ's default methods - best for TIFF files originally written by ImageJ, with calibration data available";
 	}
 
 }

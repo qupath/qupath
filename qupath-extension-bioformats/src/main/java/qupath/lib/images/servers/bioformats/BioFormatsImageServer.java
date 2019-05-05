@@ -202,46 +202,68 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 	 * This requires an <i>absolute</i> URI, where an integer fragment can be used to define the series number.
 	 * 
 	 * @param uri for the image that should be opened; this might include a sub-image as a query or fragment.
+	 * @param args optional arguments
 	 * @throws FormatException
 	 * @throws IOException
 	 * @throws DependencyException
 	 * @throws ServiceException
 	 * @throws URISyntaxException 
 	 */
-	public BioFormatsImageServer(final URI uri) throws FormatException, IOException, DependencyException, ServiceException, URISyntaxException {
-		this(uri, BioFormatsServerOptions.getInstance());
+	public BioFormatsImageServer(final URI uri, String...args) throws FormatException, IOException, DependencyException, ServiceException, URISyntaxException {
+		this(uri, BioFormatsServerOptions.getInstance(), args);
 	}
 	
 
-	BioFormatsImageServer(URI uri, final BioFormatsServerOptions options) throws FormatException, IOException, DependencyException, ServiceException, URISyntaxException {
-		super();
+	static boolean isSeriesOption(String name) {
+		return "-s".equals(name) || "--series".equals(name);
+	}
+	
+	static boolean isSeriesNameOption(String name) {
+		return "-n".equals(name) || "--name".equals(name);
+	}
+	
+	BioFormatsImageServer(URI uri, final BioFormatsServerOptions options, String...args) throws FormatException, IOException, DependencyException, ServiceException, URISyntaxException {
+		super(uri);
 
 		long startTime = System.currentTimeMillis();
 
-		this.uri = uri;
 		this.options = options;
-
+		
 		// Create variables for metadata
 		int width = 0, height = 0, nChannels = 1, nZSlices = 1, nTimepoints = 1, tileWidth = 0, tileHeight = 0;
 		double pixelWidth = Double.NaN, pixelHeight = Double.NaN, zSpacing = Double.NaN, magnification = Double.NaN;
 		TimeUnit timeUnit = null;
 
-		// See if there is a series name embedded in the path
+		// See if there is a series name embedded in the path (temporarily the way things were done in v0.2.0-m1 and v0.2.0-m2)
+		if (args.length == 0) {
+			if (uri.getFragment() != null) {
+				args = new String[] {"--series", uri.getFragment()};
+			} else if (uri.getQuery() != null) {
+				// Queries supported name=image-name or series=series-number... only one or the other!
+				String query = uri.getQuery();
+				String seriesQuery = "series=";
+				String nameQuery = "name=";
+				if (query.startsWith(seriesQuery)) {
+					args = new String[] {"--series", query.substring(seriesQuery.length())};
+				} else if (query.startsWith(nameQuery)) {
+					args = new String[] {"--name", query.substring(nameQuery.length())};
+				}
+			}
+			uri = new URI(uri.getScheme(), uri.getHost(), uri.getPath(), null);
+		}
+		this.uri = uri;
+		
+		// Try to parse args
 		String requestedSeriesName = null;
 		int seriesIndex = -1;
-		if (uri.getFragment() != null) {
-			seriesIndex = Integer.parseInt(uri.getFragment());
-		} else if (uri.getQuery() != null) {
-			// Queries supported name=image-name or series=series-number... only one or the other!
-			String query = uri.getQuery();
-			String seriesQuery = "series=";
-			String nameQuery = "name=";
-			if (query.startsWith(seriesQuery)) {
-				seriesIndex = Integer.parseInt(query.substring(seriesQuery.length()));
-			} else if (query.startsWith(nameQuery)) {
-				requestedSeriesName = query.substring(nameQuery.length());
+		for (int i = 0; i < args.length-1; i++) {
+			if (isSeriesOption(args[i])) {
+				seriesIndex = Integer.parseInt(args[i+1]);
+			} else if (isSeriesNameOption(args[i])) {
+				requestedSeriesName = args[i+1];
 			}
 		}
+		
 		filePath = new File(uri.getPath()).getAbsolutePath();
 
 		// Create a reader & extract the metadata
@@ -303,7 +325,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 						// If we got this far, we have an image we can add
 						if (reader.getResolutionCount() == 1 && (
 								extraImageNames.contains(originalImageName.toLowerCase()) || extraImageNames.contains(name.toLowerCase().trim()))) {
-							logger.info("Adding associated image {} (thumbnail={})", name, reader.isThumbnailSeries());
+							logger.debug("Adding associated image {} (thumbnail={})", name, reader.isThumbnailSeries());
 							associatedImageMap.put(name, s);
 						} else {
 							if (imageMap.containsKey(name))
@@ -328,7 +350,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 								seriesIndex = s;
 							}
 						}
-						logger.info("Found image '{}', size: {} x {} x {} x {} x {} (xyczt)", imageName, sizeX, sizeY, sizeC, sizeZ, sizeT);
+						logger.debug("Found image '{}', size: {} x {} x {} x {} x {} (xyczt)", imageName, sizeX, sizeY, sizeC, sizeZ, sizeT);
 					} catch (Exception e) {
 						// We don't want to log this prominently if we're requesting a different series anyway
 						if ((seriesIndex < 0 || seriesIndex == s) && (requestedSeriesName == null || requestedSeriesName.equals(imageName)))
@@ -569,8 +591,12 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 			} else
 				imageName = imageName + " - " + shortName;
 
+
+			String path = String.format("%s [series=%d]", uri.toString(), series);
+			
 			// Set metadata
-			ImageServerMetadata.Builder builder = new ImageServerMetadata.Builder(getClass(), uri.toString(), width, height).
+			ImageServerMetadata.Builder builder = new ImageServerMetadata.Builder(
+					getClass(), path, width, height).
 					name(imageName).
 					channels(channels).
 					sizeZ(nZSlices).
@@ -882,20 +908,21 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 
 
 	@Override
-	public String getSubImagePath(String imageName) {
+	public ImageServer<BufferedImage> openSubImage(String imageName) throws IOException {
 		// If we don't have an image name, return original file path
-		// TODO: Consider that this means only one image with no name is accessible
-		if (imageName.isEmpty())
-			return filePath;
 		Integer series = imageMap.getOrDefault(imageName, null);
+		if (imageName.isEmpty())
+			series = Integer.valueOf(0);
 		if (series != null) {
 			try {
-				return new URI(uri.getScheme(), uri.getHost(), uri.getPath(), Integer.toString(series)).toString();
-			} catch (URISyntaxException e) {
-				logger.error("Unable to create URI for series " + series, e);
+				return new BioFormatsImageServer(uri, "--series", series.toString());
+			} catch (Exception e) {
+				if (e instanceof IOException)
+					throw (IOException)e;
+				throw new IOException(e);
 			}
 		}
-		throw new IllegalArgumentException(toString() + " does not contain sub-image with name " + imageName);
+		throw new IOException(toString() + " does not contain sub-image with name " + imageName);
 	}
 
 
@@ -1145,7 +1172,6 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 			}
 			
 		}
-		
 		
 	}
 	

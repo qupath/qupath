@@ -75,6 +75,7 @@ public class MergedServer extends AbstractImageServer<BufferedImage> {
 	private int nChannels;
 
 	MergedServer(List<ServerTransformWrapper> wrappers, ServerTransformWrapper serverMain) {
+		super(null, BufferedImage.class);
 		logger.info("Number of wrappers: " + wrappers.size());
 		this.wrappers.addAll(wrappers);
 		// Take the first server if none specified

@@ -87,9 +87,18 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 		}
 	}
 	
-
-	public OpenslideImageServer(URI uri) throws IOException {
-		super();
+	/**
+	 * Create an ImageServer using OpenSlide for the specified file.
+	 * <p>
+	 * The only supported arg is {@code --no-crop}, to specify that any bounding box should not be 
+	 * applied (which was the default in QuPath &leq; v0.1.2).
+	 * 
+	 * @param uri
+	 * @param args
+	 * @throws IOException
+	 */
+	public OpenslideImageServer(URI uri, String...args) throws IOException {
+		super(uri);
 
 		// Ensure the garbage collector has run - otherwise any previous attempts to load the required native library
 		// from different classloader are likely to cause an error (although upon first further investigation it seems this doesn't really solve the problem...)
@@ -102,9 +111,15 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 
 		Map<String, String> properties = osr.getProperties();
 		
+		boolean applyBounds = useBoundingBoxes;
+		for (String arg : args) {
+			if ("--no-crop".equals(arg))
+				applyBounds = false;
+		}
+		
 		// Read bounds
 		boolean isCropped = false;
-		if (useBoundingBoxes && properties.keySet().containsAll(
+		if (applyBounds && properties.keySet().containsAll(
 				Arrays.asList(
 						OpenSlide.PROPERTY_NAME_BOUNDS_X,
 						OpenSlide.PROPERTY_NAME_BOUNDS_Y,
@@ -159,6 +174,8 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 		}
 		var levels = resolutionBuilder.build();
 		
+		String path = uri.toString();
+		
 		// If the image is cropped, create a new list of resolution levels based on the cropped values
 		// (We do it this elaborate way as we'd like to keep the default downsample calculations based on the full image)
 		if (isCropped) {
@@ -166,12 +183,15 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 			for (var level : levels)
 				resolutionBuilderCropped.addLevelByDownsample(level.getDownsample());
 			levels = resolutionBuilderCropped.build();
+			path = String.format("%s [x=%d,y=%d,w=%d,h=%d]", path, boundsX, boundsY, boundsWidth, boundsHeight);
 		}
 		
 		// Create metadata objects
-		originalMetadata = new ImageServerMetadata.Builder(getClass(), uri.toString(), boundsWidth, boundsHeight).
+		originalMetadata = new ImageServerMetadata.Builder(getClass(),
+				path, boundsWidth, boundsHeight).
 				channels(ImageChannel.getDefaultRGBChannels()). // Assume 3 channels (RGB)
 				rgb(true).
+				args(args).
 				bitDepth(8).
 				preferredTileSize(tileWidth, tileHeight).
 				pixelSizeMicrons(pixelWidth, pixelHeight).

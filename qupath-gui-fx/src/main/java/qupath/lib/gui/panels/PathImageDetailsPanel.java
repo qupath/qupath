@@ -86,6 +86,7 @@ import qupath.lib.images.ImageData.ImageType;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.plugins.parameters.ParameterList;
+import qupath.lib.projects.ProjectImageEntry;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.RectangleROI;
 import qupath.lib.roi.interfaces.PathArea;
@@ -419,7 +420,7 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 	
 	/**
 	 * Try to open the selected image from the list.
-	 * 
+	 * <p>
 	 * This will involve prompting the user if required, so it is not guaranteed that this method will change 
 	 * the current image.
 	 */
@@ -432,12 +433,23 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 		if (serverPrevious != null && name.equals(serverPrevious.getDisplayedImageName()))
 			return;
 		
-		String newServerPath = serverPrevious.getSubImagePath(name);
-		if (qupath.getProject() != null) {
-			qupath.openImageEntry(qupath.getProject().getImageEntry(newServerPath));
-			return;
-		} else
-			qupath.openImage(newServerPath, true, true, false);
+		try {
+			ImageServer<BufferedImage> server2 = serverPrevious.openSubImage(name);
+			String path = server2.getPath();
+			ProjectImageEntry<BufferedImage> entry = qupath.getProject() == null ? null : qupath.getProject().getImageEntry(path);
+			if (entry != null)
+				qupath.openImageEntry(entry);
+			else
+				qupath.getViewer().setImageData(new ImageData<>(server2));	
+		} catch (IOException e) {
+			DisplayHelpers.showErrorMessage("Open sub-image", e);
+		}
+//		String newServerPath = serverPrevious.getSubImagePath(name);
+//		if (qupath.getProject() != null) {
+//			qupath.openImageEntry(qupath.getProject().getImageEntry(newServerPath));
+//			return;
+//		} else
+//			qupath.openImage(newServerPath, true, true, false);
 	}
 	
 	

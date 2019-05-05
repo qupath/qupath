@@ -166,7 +166,7 @@ public class LogViewerCommand implements PathCommand {
 		
 		// Keep scrolling to the last message
 		textPane.textProperty().addListener((v, o, n) ->  {
-			if (miLockScroll.isSelected())
+			if (dialog.isShowing() && miLockScroll.isSelected())
 				Platform.runLater(() -> textPane.setScrollTop(Double.MAX_VALUE));
 		});
 

@@ -28,6 +28,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
@@ -82,6 +83,8 @@ public class ImageServerMetadata {
 	
 	public ImageServerMetadata.OutputType outputType = ImageServerMetadata.OutputType.CHANNEL;
 	
+	private String[] args;
+	
 	private boolean isRGB = false;
 	private int bitDepth = 8;
 	
@@ -132,6 +135,11 @@ public class ImageServerMetadata {
 			metadata = new ImageServerMetadata();
 			metadata.serverClassName = serverClass.getName();
 			metadata.path = path;
+		}
+		
+		public Builder args(String...args) {
+			metadata.args = args.clone();
+			return this;
 		}
 		
 		/**
@@ -261,6 +269,10 @@ public class ImageServerMetadata {
 		public ImageServerMetadata build() {
 			metadata.pixelCalibration = pixelCalibrationBuilder.build();
 			
+			// We need a unique path, somehow
+			if (metadata.path == null)
+				metadata.path = UUID.randomUUID().toString();
+			
 			if (metadata.levels == null)
 				metadata.levels = new ImageResolutionLevel[] {new ImageResolutionLevel(1, metadata.width, metadata.height)};
 			
@@ -303,6 +315,8 @@ public class ImageServerMetadata {
 		
 		this.width = metadata.width;
 		this.height = metadata.height;
+		
+		this.args = args == null ? null : args.clone();
 		
 		this.sizeZ = metadata.sizeZ;
 		this.sizeT = metadata.sizeT;
@@ -473,6 +487,10 @@ public class ImageServerMetadata {
 		return outputType;
 	}
 	
+	public String[] getArguments() {
+		return args == null ? new String[0] : args.clone();
+	}
+	
 	/**
 	 * Returns true if a specified ImageServerMetadata is compatible with this one, i.e. it has the same path and dimensions
 	 * (but possibly different pixel sizes, magnifications etc.).
@@ -520,6 +538,7 @@ public class ImageServerMetadata {
 	public int hashCode() {
 		final int prime = 31;
 		int result = 1;
+		result = prime * result + Arrays.hashCode(args);
 		result = prime * result + bitDepth;
 		result = prime * result + ((channels == null) ? 0 : channels.hashCode());
 		result = prime * result + height;
@@ -529,6 +548,7 @@ public class ImageServerMetadata {
 		temp = Double.doubleToLongBits(magnification);
 		result = prime * result + (int) (temp ^ (temp >>> 32));
 		result = prime * result + ((name == null) ? 0 : name.hashCode());
+		result = prime * result + ((outputType == null) ? 0 : outputType.hashCode());
 		result = prime * result + ((path == null) ? 0 : path.hashCode());
 		result = prime * result + ((pixelCalibration == null) ? 0 : pixelCalibration.hashCode());
 		result = prime * result + preferredTileHeight;
@@ -550,6 +570,8 @@ public class ImageServerMetadata {
 		if (getClass() != obj.getClass())
 			return false;
 		ImageServerMetadata other = (ImageServerMetadata) obj;
+		if (!Arrays.equals(args, other.args))
+			return false;
 		if (bitDepth != other.bitDepth)
 			return false;
 		if (channels == null) {
@@ -569,6 +591,8 @@ public class ImageServerMetadata {
 			if (other.name != null)
 				return false;
 		} else if (!name.equals(other.name))
+			return false;
+		if (outputType != other.outputType)
 			return false;
 		if (path == null) {
 			if (other.path != null)

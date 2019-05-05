@@ -1,12 +1,9 @@
-package qupath.lib.images.servers.sparse;
+package qupath.lib.images.servers;
 
 import java.awt.image.BufferedImage;
 import java.awt.image.ColorModel;
 import java.awt.image.WritableRaster;
-import java.io.File;
-import java.io.FileReader;
 import java.io.IOException;
-import java.io.Reader;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -17,24 +14,14 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.TreeSet;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.reflect.TypeToken;
-
-import qupath.lib.images.servers.AbstractTileableImageServer;
-import qupath.lib.images.servers.ImageServer;
-import qupath.lib.images.servers.ImageServerMetadata;
-import qupath.lib.images.servers.ImageServerProvider;
-import qupath.lib.images.servers.TileRequest;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
 
 /**
- * A prototype ImageServer that combines regions from multiple separate ImageServers, 
+ * An ImageServer that combines regions from multiple separate ImageServers, 
  * repositioning these as necessary to generate one larger field of view.
  * <p>
  * Regions are currently defined within a JSON file passed as the 'path' argument, 
@@ -51,18 +38,19 @@ public class SparseImageServer extends AbstractTileableImageServer {
 	
 	private SparseImageServerManager manager;
 	
-	private Map<String, BufferedImage> emptyTileMap = new HashMap<>();
+	private transient Map<String, BufferedImage> emptyTileMap = new HashMap<>();
 	
-	private ColorModel colorModel;
+	private transient ColorModel colorModel;
 	
 	private int originX = 0, originY = 0;
-
-	public SparseImageServer(String path) throws IOException {
-		this(path, SparseImageServerManager.fromJSON(new FileReader(new File(path))));
+	
+	SparseImageServer(List<SparseImageServerManagerRegion> regions) throws IOException {
+		this(createManager(regions));
 	}
 	
-	public SparseImageServer(String path, SparseImageServerManager manager) throws IOException {
-		super();
+
+	public SparseImageServer(SparseImageServerManager manager) throws IOException {
+		super(null);
 		
 		this.manager = manager;
 		
@@ -84,7 +72,7 @@ public class SparseImageServer extends AbstractTileableImageServer {
 			if (metadata == null) {
 				ImageServer<BufferedImage> server = manager.getServer(region, 1);
 				metadata = server.getMetadata();
-				colorModel = server.getBufferedThumbnail(100, 100, 0).getColorModel();
+				colorModel = server.getDefaultThumbnail().getColorModel();
 			}
 		}
 		// Here, we assume origin at zero
@@ -97,14 +85,17 @@ public class SparseImageServer extends AbstractTileableImageServer {
 		int height = y2 - y1;
 		
 		this.metadata = new ImageServerMetadata.Builder(getClass(), metadata)
-				.path(path)
 				.width(width)
 				.height(height)
 				.preferredTileSize(1024, 1024)
 				.levelsFromDownsamples(manager.getAvailableDownsamples())
 				.build();
+		
 	}
 	
+	public SparseImageServerManager getManager() {
+		return manager;
+	}
 
 	@Override
 	public String getServerType() {
@@ -201,6 +192,44 @@ public class SparseImageServer extends AbstractTileableImageServer {
 	}
 	
 	
+	public static class Builder {
+		
+		private SparseImageServerManager manager = new SparseImageServerManager();
+		
+		public synchronized Builder jsonRegion(ImageRegion region, double downsample, String json) {
+			manager.addRegionServer(region, downsample, json);
+			return this;
+		}
+		
+		public synchronized Builder serverRegion(ImageRegion region, double downsample, ImageServer<BufferedImage> server) {
+			manager.addRegionServer(region, downsample, server);
+			return this;
+		}
+		
+		public SparseImageServer build() throws IOException {
+			return new SparseImageServer(manager);
+		}
+		
+	}
+	
+	
+	List<SparseImageServerManagerRegion> getRegions() {
+		List<SparseImageServerManagerRegion> regions = new ArrayList<>();
+		for (Entry<ImageRegion, List<SparseImageServerManagerResolution>> entry : manager.regionMap.entrySet()) {
+			regions.add(new SparseImageServerManagerRegion(entry.getKey(), entry.getValue()));
+		}
+		return regions;
+	}
+
+	static SparseImageServerManager createManager(List<SparseImageServerManagerRegion> regions) {
+		SparseImageServerManager manager = new SparseImageServerManager();
+		for (SparseImageServerManagerRegion region : regions) {
+			for (SparseImageServerManagerResolution resolution : region.resolutions)
+				manager.addRegionServer(region.region, resolution.getDownsample(), resolution.getServerJson());
+		} 
+		return manager;
+	}
+	
 		
 	/**
 	 * Helper class for SparseImageServers, capable of returning the appropriate ImageServer for 
@@ -218,11 +247,12 @@ public class SparseImageServer extends AbstractTileableImageServer {
 		
 		/**
 		 * Add the path to a new ImageServer for a specified region & downsample.
-		 * @param path
+		 * 
 		 * @param region
 		 * @param downsample
+		 * @param json a JSON String representing the server
 		 */
-		public synchronized void addRegionServer(String path, ImageRegion region, double downsample) {
+		private synchronized void addRegionServer(ImageRegion region, double downsample, String json) {
 			resetCaches();
 			
 			List<SparseImageServerManagerResolution> resolutions = regionMap.get(region);
@@ -235,7 +265,7 @@ public class SparseImageServer extends AbstractTileableImageServer {
 			while (ind < resolutions.size() && downsample > resolutions.get(ind).getDownsample()) {
 				ind++;
 			}
-			resolutions.add(ind, new SparseImageServerManagerResolution(path, downsample));
+			resolutions.add(ind, new SparseImageServerManagerResolution(json, downsample));
 		}
 		
 		/**
@@ -243,14 +273,15 @@ public class SparseImageServer extends AbstractTileableImageServer {
 		 * <p>
 		 * This is useful for creating a sparse server in a script, relying on pre-created servers.
 		 * 
-		 * @param server
 		 * @param region
 		 * @param downsample
+		 * @param server
 		 */
-		public synchronized void addRegionServer(ImageServer<BufferedImage> server, ImageRegion region, double downsample) {
-			 if (!serverMap.containsKey(server.getPath()))
+		private synchronized void addRegionServer(ImageRegion region, double downsample, ImageServer<BufferedImage> server) {
+			String json = ImageServers.toJson(server);
+			 if (!serverMap.containsKey(json))
 				serverMap.put(server.getPath(), server);
-			 addRegionServer(server.getPath(), region, downsample);
+			 addRegionServer(region, downsample, json);
 		 }
 		
 		private void resetCaches() {
@@ -295,11 +326,11 @@ public class SparseImageServer extends AbstractTileableImageServer {
 			
 			// Create a new ImageServer if we need to, or reuse an existing one
 			// Note: the same server might be reused for multiple regions/resolutions if they have the same path
-			String path = resolutions.get(level).getPath();
-			ImageServer<BufferedImage> server = serverMap.get(path);
+			String json = resolutions.get(level).getServerJson();
+			ImageServer<BufferedImage> server = serverMap.get(json);
 			if (server == null) {
-				server = ImageServerProvider.buildServer(path, BufferedImage.class);
-				serverMap.put(path, server);
+				server = ImageServers.fromJson(json);
+				serverMap.put(json, server);
 			}
 			return server;
 		}
@@ -312,32 +343,6 @@ public class SparseImageServer extends AbstractTileableImageServer {
 		
 		double[] getAvailableDownsamples() {
 			return downsamples.stream().mapToDouble(d -> d).toArray();
-		}
-		
-		public String toJSON() {
-			return toJSON(false);
-		}
-		
-		public String toJSON(boolean prettyPrint) {
-			
-			List<SparseImageServerManagerRegion> regions = new ArrayList<>();
-			for (Entry<ImageRegion, List<SparseImageServerManagerResolution>> entry : regionMap.entrySet()) {
-				regions.add(new SparseImageServerManagerRegion(entry.getKey(), entry.getValue()));
-			}
-			GsonBuilder builder = new GsonBuilder();
-			if (prettyPrint)
-				builder.setPrettyPrinting();
-			return builder.create().toJson(regions);
-		}
-		
-		public static SparseImageServerManager fromJSON(Reader input) {
-			List<SparseImageServerManagerRegion> list = new Gson().fromJson(input, new TypeToken<ArrayList<SparseImageServerManagerRegion>>() {}.getType());
-			SparseImageServerManager manager = new SparseImageServerManager();
-			for (SparseImageServerManagerRegion region : list) {
-				for (SparseImageServerManagerResolution resolution : region.resolutions)
-					manager.addRegionServer(resolution.getPath(), region.region, resolution.getDownsample());
-			}
-			return manager;
 		}
 		
 	}
@@ -355,18 +360,18 @@ public class SparseImageServer extends AbstractTileableImageServer {
 	}
 	
 	
-	static class SparseImageServerManagerResolution {
+	private static class SparseImageServerManagerResolution {
 		
 		private final double downsample;
-		private final String path;
+		private final String serverJson;
 
-		SparseImageServerManagerResolution(String path, double downsample) {
-			this.path = path;
+		SparseImageServerManagerResolution(String serverJson, double downsample) {
+			this.serverJson = serverJson;
 			this.downsample = downsample;
 		}
 		
-		String getPath() {
-			return path;
+		String getServerJson() {
+			return serverJson;
 		}
 		
 		double getDownsample() {
@@ -375,5 +380,4 @@ public class SparseImageServer extends AbstractTileableImageServer {
 				
 	}
 	
-
 }

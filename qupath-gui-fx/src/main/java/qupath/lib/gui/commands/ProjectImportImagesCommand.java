@@ -338,14 +338,17 @@ public class ProjectImportImagesCommand implements PathCommand {
 		if (subImages.isEmpty())
 			return addSingleImageToProject(project, server);
 		boolean changes = false;
+		int count = 0;
+		int n = subImages.size();
 		for (var name : subImages) {
-			// TODO: Consider using specifically this server class
-			var path = server.getSubImagePath(name);
-			try {
-				var server2 = ImageServerProvider.buildServer(path, BufferedImage.class);
+			count++;
+			logger.info("Adding sub-image {} ({}/{})", name, count, n);
+			try (ImageServer<BufferedImage> server2 = server.openSubImage(name)) {
 				changes = changes | addSingleImageToProject(project, server2);
 			} catch (IOException e) {
-				logger.warn("Could not build server for " + name + " (" + path + ")", e);
+				logger.warn("Could not build server for " + name, e);
+			} catch (Exception e1) {
+				logger.warn("Error attempting to add server for " + name, e1);
 			}
 		}
 		return changes;

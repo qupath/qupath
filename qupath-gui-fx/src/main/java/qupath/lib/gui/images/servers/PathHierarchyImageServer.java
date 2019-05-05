@@ -81,7 +81,7 @@ public class PathHierarchyImageServer extends AbstractTileableImageServer implem
 //	}
 	
 	private PathHierarchyImageServer(final String prefix, final ImageData<BufferedImage> imageData, final OverlayOptions options) {
-		super();
+		super(null);
 		this.imageData = imageData;
 		this.prefix = prefix;
 		this.server = imageData.getServer();
@@ -154,11 +154,6 @@ public class PathHierarchyImageServer extends AbstractTileableImageServer implem
 	@Override
 	public boolean usesBaseServer(ImageServer<?> server) {
 		return this.server == server;
-	}
-
-	@Override
-	public String getSubImagePath(String imageName) {
-		throw new RuntimeException("Cannot construct sub-image with name " + imageName + " for " + getClass().getSimpleName());
 	}
 
 	@Override

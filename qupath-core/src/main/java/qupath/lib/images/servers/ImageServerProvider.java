@@ -29,8 +29,10 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
@@ -68,7 +70,7 @@ public class ImageServerProvider {
 	
 	/**
 	 * Replace the default service loader with another.
-	 * 
+	 * <p>
 	 * This can be handy if the ServiceLoader should be using an alternative ClassLoader,
 	 * e.g. to auto-discover ImageServerBuilders in alternative directories.
 	 * 
@@ -98,17 +100,14 @@ public class ImageServerProvider {
 	 * @return
 	 * @throws IOException 
 	 */
-	public static <T> ImageServer<T> buildServer(final String path, final Class<T> cls, String... requestedServerBuilderClassnames) throws IOException {
-		
-//		if (path == null)
-//			return null;
+	public static <T> ImageServer<T> buildServer(final String path, final Class<T> cls, String... args) throws IOException {
 		
 		URI uriTemp;
 		try {
-			if (path.startsWith("file:") || path.startsWith("http"))
+			if (path.startsWith("file:") || path.startsWith("http")) {
 				uriTemp = new URI(path);
-			else {
-				// Handle legacy Bio-Formats paths
+			} else {
+				// Handle legacy file paths (optionally with Bio-Formats series names included)
 				String delimiter = "::";
 				int index = path.indexOf(delimiter);
 				String seriesName = null;
@@ -131,13 +130,33 @@ public class ImageServerProvider {
 
 		final ImageCheckType type = FileFormatInfo.checkImageType(uri);
 		List<ImageServerBuilder<?>> providers = new ArrayList<>();
-		List<String> requestedBuilders = Arrays.asList(requestedServerBuilderClassnames);
+		Collection<String> requestedClassnames = new HashSet<>();
+		String key = "--classname";
+		if (args.length > 0) {
+			int i = key.equals(args[0]) ? 1 : 0;
+			while (i < args.length && !args[i].startsWith("-")) {
+				requestedClassnames.add(args[i]);
+				i++;
+			}
+			// Remove classname-related args
+			args = Arrays.copyOfRange(args, i, args.length);
+		}
+		
+		// Check which providers we can use
 		for (ImageServerBuilder<?> provider : serviceLoader) {
-			if (requestedBuilders.isEmpty()) {
+			if (requestedClassnames.isEmpty()) {
 				providers.add(provider);
 			} else {
-				int index = requestedBuilders.indexOf(provider.getClass().getName());
-				if (index >= 0)
+				boolean include = requestedClassnames.contains(provider.getClass().getName());
+				if (!include) {
+					for (String supported : provider.getServerClassNames()) {
+						if (requestedClassnames.contains(supported)) {
+							include = true;
+							break;
+						}
+					}
+				}
+				if (include)
 					providers.add(provider);
 			}
 		}

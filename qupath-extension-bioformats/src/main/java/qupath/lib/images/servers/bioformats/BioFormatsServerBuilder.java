@@ -26,6 +26,8 @@ package qupath.lib.images.servers.bioformats;
 import java.awt.image.BufferedImage;
 import java.util.Map;
 import java.net.URI;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,7 +50,7 @@ public class BioFormatsServerBuilder implements ImageServerBuilder<BufferedImage
 	final private Map<URI, Float> lastSupportLevel = new HashMap<>();
 	
 	@Override
-	public ImageServer<BufferedImage> buildServer(URI uri) {
+	public ImageServer<BufferedImage> buildServer(URI uri, String...args) {
 		try {
 			BioFormatsImageServer server = new BioFormatsImageServer(uri);
 			return server;
@@ -60,7 +62,7 @@ public class BioFormatsServerBuilder implements ImageServerBuilder<BufferedImage
 	}
 
 	@Override
-	public float supportLevel(URI uri, ImageCheckType type, Class<?> cls) {
+	public float supportLevel(URI uri, ImageCheckType type, Class<?> cls, String... args) {
 		// We only support BufferedImages
 		if (cls != BufferedImage.class)
 			return 0;
@@ -117,6 +119,10 @@ public class BioFormatsServerBuilder implements ImageServerBuilder<BufferedImage
 		
 		lastSupportLevel.put(uri, Float.valueOf(support));
 		return support;
+	}
+	
+	public Collection<String> getServerClassNames() {
+		return Collections.singleton(BioFormatsImageServer.class.getName());
 	}
 
 	@Override

@@ -18,36 +18,35 @@ import qupath.lib.regions.RegionRequest;
  * @author Pete Bankhead
  *
  */
-public class AffineTransformImageServer extends WrappedImageServer<BufferedImage> {
+public class AffineTransformImageServer extends TransformingImageServer<BufferedImage> {
 	
 	private ImageServerMetadata metadata;
 	
-	private ImageRegion region;
+	private transient ImageRegion region;
 	private AffineTransform transform;
-	private AffineTransform transformInverse;
+	private transient AffineTransform transformInverse;
 
 	protected AffineTransformImageServer(final ImageServer<BufferedImage> server, AffineTransform transform) throws NoninvertibleTransformException {
 		super(server);
 		
-		this.transform = transform;
+		this.transform = new AffineTransform(transform);
 		this.transformInverse = transform.createInverse();
 		
 		var boundsTransformed = transform.createTransformedShape(
 				new Rectangle2D.Double(0, 0, server.getWidth(), server.getHeight())).getBounds2D();
 		
-		int minX = Math.max(0, (int)boundsTransformed.getMinX());
-		int maxX = Math.min(server.getWidth(), (int)Math.ceil(boundsTransformed.getMaxX()));
-		int minY = Math.max(0, (int)boundsTransformed.getMinY());
-		int maxY = Math.min(server.getHeight(), (int)Math.ceil(boundsTransformed.getMaxY()));
-		this.region = ImageRegion.createInstance(
-				minX, minY, maxX-minX, maxY-minY, 0, 0);
+//		int minX = Math.max(0, (int)boundsTransformed.getMinX());
+//		int maxX = Math.min(server.getWidth(), (int)Math.ceil(boundsTransformed.getMaxX()));
+//		int minY = Math.max(0, (int)boundsTransformed.getMinY());
+//		int maxY = Math.min(server.getHeight(), (int)Math.ceil(boundsTransformed.getMaxY()));
+//		this.region = ImageRegion.createInstance(
+//				minX, minY, maxX-minX, maxY-minY, 0, 0);
 		
 		this.region = ImageRegion.createInstance(
 				(int)boundsTransformed.getMinX(),
 				(int)boundsTransformed.getMinY(),
 				(int)Math.ceil(boundsTransformed.getWidth()),
 				(int)Math.ceil(boundsTransformed.getHeight()), 0, 0);
-		
 		
 		var levelBuilder = new ImageServerMetadata.ImageResolutionLevel.Builder(region.getWidth(), region.getHeight());
 		boolean fullServer = server.getWidth() == region.getWidth() && server.getHeight() == region.getHeight();
@@ -62,7 +61,6 @@ public class AffineTransformImageServer extends WrappedImageServer<BufferedImage
 		} while (i < server.nResolutions() && region.getWidth() >= server.getPreferredTileWidth() && region.getHeight() >= server.getPreferredTileHeight());
 		
 		// TODO: Apply AffineTransform to pixel sizes! Perhaps create a Shape or point and transform that?
-		
 		metadata = new ImageServerMetadata.Builder(getClass(), server.getMetadata())
 				.path(server.getPath() + ": Affine " + transform.toString())
 				.width(region.getWidth())
@@ -93,6 +91,7 @@ public class AffineTransformImageServer extends WrappedImageServer<BufferedImage
 				request.getZ(),
 				request.getT()
 				);
+		
 		
 		AffineTransform transform2 = new AffineTransform();
 //		AffineTransform transform2 = new AffineTransform(transformInverse);
@@ -145,15 +144,18 @@ public class AffineTransformImageServer extends WrappedImageServer<BufferedImage
 		return new BufferedImage(img.getColorModel(), raster, img.isAlphaPremultiplied(), null);
 	}
 	
+	public AffineTransform getTransform() {
+		return new AffineTransform(transform);
+	}
+	
 	@Override
 	public ImageServerMetadata getOriginalMetadata() {
 		return metadata;
 	}
 	
-	
 	@Override
 	public String getServerType() {
-		return "Cropped image server";
+		return "Affine transform server";
 	}
 
 }

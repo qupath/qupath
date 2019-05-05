@@ -27,6 +27,9 @@ import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URI;
+import java.util.Collection;
+import java.util.Collections;
+
 import qupath.lib.images.servers.FileFormatInfo.ImageCheckType;
 
 /**
@@ -38,7 +41,7 @@ import qupath.lib.images.servers.FileFormatInfo.ImageCheckType;
 public class ImageIoImageServerBuilder implements ImageServerBuilder<BufferedImage> {
 
 	@Override
-	public float supportLevel(URI uri, ImageCheckType info, Class<?> cls) {
+	public float supportLevel(URI uri, ImageCheckType info, Class<?> cls, String...args) {
 		if (cls != BufferedImage.class)
 			return 0;
 		switch(info) {
@@ -59,8 +62,13 @@ public class ImageIoImageServerBuilder implements ImageServerBuilder<BufferedIma
 	}
 
 	@Override
-	public ImageServer<BufferedImage> buildServer(URI uri) throws MalformedURLException, IOException {
-		return new ImageIoImageServer(uri);
+	public ImageServer<BufferedImage> buildServer(URI uri, String...args) throws MalformedURLException, IOException {
+		return new ImageIoImageServer(uri, args);
+	}
+	
+	@Override
+	public Collection<String> getServerClassNames() {
+		return Collections.singleton(ImageIoImageServer.class.getName());
 	}
 
 	@Override

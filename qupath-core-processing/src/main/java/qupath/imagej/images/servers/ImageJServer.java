@@ -78,7 +78,8 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 		
 	private ColorModel colorModel;
 	
-	public ImageJServer(final URI uri) throws IOException {
+	public ImageJServer(final URI uri, final String...args) throws IOException {
+		super(uri, BufferedImage.class);
 		File file = GeneralTools.toPath(uri).toFile();
 		String path = file.getAbsolutePath();
 		if (path.toLowerCase().endsWith(".tif") || path.toLowerCase().endsWith(".tiff")) {
@@ -106,7 +107,6 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 			}
 		}
 		
-		
 		boolean isRGB = imp.getType() == ImagePlus.COLOR_RGB;
 
 		List<ImageChannel> channels;
@@ -133,6 +133,7 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 		var builder = new ImageServerMetadata.Builder(getClass(), uri.toString())
 				.width(imp.getWidth())
 				.height(imp.getHeight())
+				.args(args)
 				.channels(channels)
 				.sizeZ(imp.getNSlices())
 				.sizeT(imp.getNFrames())

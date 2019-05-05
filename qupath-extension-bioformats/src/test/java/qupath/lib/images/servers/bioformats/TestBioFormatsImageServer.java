@@ -109,7 +109,7 @@ public class TestBioFormatsImageServer {
 			int t = 0;
 			try {
 				// Create the server
-				server = (BioFormatsImageServer)ImageServerProvider.buildServer(serverPath, BufferedImage.class, BioFormatsServerBuilder.class.getName());
+				server = (BioFormatsImageServer)ImageServerProvider.buildServer(serverPath, BufferedImage.class, "--classname", BioFormatsServerBuilder.class.getName());
 				// Read a thumbnail
 				imgThumbnail = server.getBufferedThumbnail(200, -1, 0);
 				// Read from the center of the image

@@ -23,8 +23,8 @@
 
 package qupath.lib.images.servers;
 
-import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.net.URI;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -57,6 +57,13 @@ public interface ImageServer<T> extends AutoCloseable {
 	 * @return
 	 */
 	public String getPath();
+	
+	/**
+	 * Get the URI for this ImageServer, or null if no URI is associated with the server.
+	 * 
+	 * @return
+	 */
+	public URI getURI();
 	
 	/**
 	 * Get a short name for the server, derived from {@code getPath()}.
@@ -225,7 +232,7 @@ public interface ImageServer<T> extends AutoCloseable {
 	 * @param tile
 	 * @return the tile if it has been cached, or null if no cached tile is available for the request.
 	 */
-	public BufferedImage getCachedTile(TileRequest tile);
+	public T getCachedTile(TileRequest tile);
 	
 	/**
 	 * Obtain a T thumbnail, no larger than the maxWidth &amp; maxHeigth specified.
@@ -297,13 +304,13 @@ public interface ImageServer<T> extends AutoCloseable {
 	public List<String> getSubImageList();
 	
 	/**
-	 * Get a full path for a sub-image of this server.
+	 * Open a sub-image as a new ImageServer.
 	 * 
 	 * @return
 	 * 
 	 * @see #getSubImageList
 	 */
-	public String getSubImagePath(String imageName);
+	public ImageServer<T> openSubImage(String imageName) throws IOException;
 	
 //	/**
 //	 * Create a (child) image server to be used to access an image contained within the images that this server supports.
@@ -505,5 +512,10 @@ public interface ImageServer<T> extends AutoCloseable {
 	 */
 	public Collection<TileRequest> getTiles(final RegionRequest request);
 	
+	/**
+	 * Get the class of the image representation returned by this ImageServer.
+	 * @return
+	 */
+	public Class<T> getImageClass();
 	
 }

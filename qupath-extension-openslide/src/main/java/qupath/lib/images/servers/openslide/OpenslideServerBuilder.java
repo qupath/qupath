@@ -27,6 +27,8 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.net.URI;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import org.openslide.OpenSlide;
 import org.slf4j.Logger;
@@ -95,13 +97,13 @@ public class OpenslideServerBuilder implements ImageServerBuilder<BufferedImage>
 	}
 	
 	@Override
-	public ImageServer<BufferedImage> buildServer(URI uri) {
+	public ImageServer<BufferedImage> buildServer(URI uri, String...args) {
 		if (openslideUnavailable) {
 			logger.debug("OpenSlide is unavailable - will be skipped");
 			return null;
 		}
 		try {
-			return new OpenslideImageServer(uri);
+			return new OpenslideImageServer(uri, args);
 		} catch (Exception e) {
 			logger.warn("Unable to open {} with OpenSlide: {}", uri, e.getLocalizedMessage());
 		}
@@ -109,7 +111,7 @@ public class OpenslideServerBuilder implements ImageServerBuilder<BufferedImage>
 	}
 
 	@Override
-	public float supportLevel(URI uri, ImageCheckType type, Class<?> cls) {
+	public float supportLevel(URI uri, ImageCheckType type, Class<?> cls, String...args) {
 		if (cls != BufferedImage.class || openslideUnavailable)
 			return 0;
 		
@@ -150,6 +152,11 @@ public class OpenslideServerBuilder implements ImageServerBuilder<BufferedImage>
 	@Override
 	public String getDescription() {
 		return "Provides basic access to whole slide image formats supported by OpenSlide - see http://openslide.org";
+	}
+
+	@Override
+	public Collection<String> getServerClassNames() {
+		return Collections.singleton(OpenslideImageServer.class.getName());
 	}
 	
 }

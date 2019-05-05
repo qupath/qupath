@@ -23,8 +23,8 @@
 
 package qupath.lib.images.servers;
 
-import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -64,15 +64,34 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 	/**
 	 * Cache to use for storing & retrieving tiles.
 	 */
-	private Map<RegionRequest, BufferedImage> cache = ImageServerProvider.getCache(BufferedImage.class);
+	private transient Map<RegionRequest, T> cache;
+	
+	private Class<T> imageClass;
+	
+	private URI uri;
+	
+	protected AbstractImageServer(URI uri, Class<T> imageClass) {
+		this.uri = uri;
+		this.imageClass = imageClass;
+		this.cache = ImageServerProvider.getCache(imageClass);
+	}
 
+	@Override
+	public URI getURI() {
+		return uri;
+	}
+	
+	public Class<T> getImageClass() {
+		return imageClass;
+	}
+	
 	/**
 	 * Get the internal cache. This may be useful to check for the existence of a cached tile any time 
 	 * when speed is of the essence, and if no cached tile is available a request will not be made.
 	 * 
 	 * @return
 	 */
-	protected Map<RegionRequest, BufferedImage> getCache() {
+	protected Map<RegionRequest, T> getCache() {
 		return cache;
 	}
 	
@@ -236,20 +255,19 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 		return ServerTools.getDefaultShortServerName(getPath());
 	}
 	
-	
 //	public String getShortServerName(final String path) {
 //		return getDefaultShortServerName(path);
 //	}
 	
 	@Override
-	public BufferedImage getCachedTile(TileRequest tile) {
+	public T getCachedTile(TileRequest tile) {
 		var cache = getCache();
 		return cache == null ? null : cache.getOrDefault(tile.getRegionRequest(), null);
 	}
 	
 	@Override
-	public String getSubImagePath(String imageName) {
-		throw new RuntimeException("Cannot construct sub-image with name " + imageName + " for " + getClass().getSimpleName());
+	public ImageServer<T> openSubImage(String imageName) throws IOException {
+		throw new UnsupportedOperationException("Cannot construct sub-image with name " + imageName + " for " + getClass().getSimpleName());
 	}
 	
 	@Override

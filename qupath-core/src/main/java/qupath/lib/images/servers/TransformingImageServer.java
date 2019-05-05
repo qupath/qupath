@@ -5,22 +5,23 @@ import java.io.IOException;
 import qupath.lib.regions.RegionRequest;
 
 /**
- * An ImageServer that simply wraps around an existing ImageServer.
+ * An ImageServer implementation used to apply transforms to another ImageServer, 
+ * e.g. spatial or pixel transformations.
  * <p>
- * Its purpose is to help implement other ImageServers that apply pixel or spatial 
- * transforms to an alternative ImageServer.
- * <p>
- * Subclasses may only implement the methods necessary to apply the required transform.
+ * Subclasses may only implement the methods necessary to apply the required transform, 
+ * such as {@link #readBufferedImage(RegionRequest)} since much of the remaining functionality 
+ * is left up to the {@link AbstractImageServer} implementation.
  * 
  * @author Pete Bankhead
  *
  * @param <T>
  */
-public abstract class WrappedImageServer<T> extends AbstractImageServer<T> {
+public abstract class TransformingImageServer<T> extends AbstractImageServer<T> {
 	
 	private ImageServer<T> server;
 	
-	protected WrappedImageServer(ImageServer<T> server) {
+	protected TransformingImageServer(ImageServer<T> server) {
+		super(null, server.getImageClass());
 		this.server = server;
 	}
 	

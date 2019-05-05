@@ -24,6 +24,8 @@
 package qupath.lib.images.servers;
 
 import java.net.URI;
+import java.util.Collection;
+
 import qupath.lib.images.servers.FileFormatInfo.ImageCheckType;
 
 /**
@@ -58,16 +60,27 @@ public interface ImageServerBuilder<T> {
 	 * @param uri
 	 * @param info
 	 * @param cls
+	 * @param args
 	 * @return
 	 */
-	public float supportLevel(URI uri, ImageCheckType info, Class<?> cls);
+	public float supportLevel(URI uri, ImageCheckType info, Class<?> cls, String...args);
 	
 	/**
 	 * Attempt to create {@code ImageServer<T>} from the specified path.
 	 * @param uri
+	 * @param args optional String arguments that may be used by the builder.
 	 * @return
 	 */
-	public ImageServer<T> buildServer(URI uri) throws Exception;
+	public ImageServer<T> buildServer(URI uri, String... args) throws Exception;
+	
+	/**
+	 * Get a collection of all the full Java class names that this builder may return.
+	 * <p>
+	 * The purpose of this is to help choose the appropriate builder whenever a particular class is 
+	 * requested (e.g. to give the same class as a previous server).
+	 * @return
+	 */
+	public Collection<String> getServerClassNames();
 	
 	/**
 	 * Get a human-readable name for the kind of ImageServer this builds.

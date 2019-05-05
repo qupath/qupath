@@ -35,10 +35,10 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 	@JsonAdapter(PixelClassifiers.PixelClassifierTypeAdapterFactory.class)
 	private PixelClassifier classifier;
 	
-	private ImageServerMetadata metadata;
+	private ImageServerMetadata originalMetadata;
 
 	public PixelClassificationImageServer(ImageData<BufferedImage> imageData, PixelClassifier classifier) {
-		super();
+		super(null);
 		this.classifier = classifier;
 		this.imageData = imageData;
 		this.server = imageData.getServer();
@@ -87,7 +87,7 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 				.bitDepth(bitDepth)
 				.rgb(false);
 				
-		metadata = builder.build();
+		originalMetadata = builder.build();
 		
 	}
 	
@@ -106,7 +106,7 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 
 	@Override
 	public ImageServerMetadata getOriginalMetadata() {
-		return metadata;
+		return originalMetadata;
 	}
 	
 	/**

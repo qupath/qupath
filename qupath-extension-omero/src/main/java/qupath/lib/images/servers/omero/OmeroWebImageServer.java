@@ -58,8 +58,8 @@ public class OmeroWebImageServer extends AbstractTileableImageServer {
 	 */
 	private static int OMERO_MAX_SIZE = 1024;
 
-	protected OmeroWebImageServer(URI uri, OmeroWebClient client) throws IOException {
-		super();
+	protected OmeroWebImageServer(URI uri, OmeroWebClient client, String...args) throws IOException {
+		super(uri);
 
 		this.scheme = uri.getScheme();
 		this.host = uri.getHost();
@@ -175,6 +175,7 @@ public class OmeroWebImageServer extends AbstractTileableImageServer {
 				.sizeT(sizeT)
 				.channels(ImageChannel.getDefaultRGBChannels())
 				.sizeZ(sizeZ)
+				.args(args)
 				.name(imageName)
 				.bitDepth(bitDepth)
 				.rgb(isRGB)

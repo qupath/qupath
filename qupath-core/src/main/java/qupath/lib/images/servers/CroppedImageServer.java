@@ -13,13 +13,13 @@ import qupath.lib.regions.RegionRequest;
  * @author Pete Bankhead
  *
  */
-public class CroppedImageServer extends WrappedImageServer<BufferedImage> {
+public class CroppedImageServer extends TransformingImageServer<BufferedImage> {
 	
 	private ImageServerMetadata metadata;
 	
 	private ImageRegion region;
 
-	protected CroppedImageServer(final ImageServer<BufferedImage> server, ImageRegion region) {
+	public CroppedImageServer(final ImageServer<BufferedImage> server, ImageRegion region) {
 		super(server);
 		this.region = region;
 		
@@ -57,6 +57,9 @@ public class CroppedImageServer extends WrappedImageServer<BufferedImage> {
 		return img;
 	}
 	
+	public ImageRegion getCropRegion() {
+		return region;
+	}
 	
 	public ImageServerMetadata getOriginalMetadata() {
 		return metadata;

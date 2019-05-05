@@ -225,6 +225,7 @@ import qupath.lib.gui.commands.ShowScriptEditorCommand;
 import qupath.lib.gui.commands.ShowSystemInfoCommand;
 import qupath.lib.gui.commands.TMAGridView;
 import qupath.lib.gui.commands.SingleFeatureClassifierCommand;
+import qupath.lib.gui.commands.SparseImageServerCommand;
 import qupath.lib.gui.commands.SummaryMeasurementTableCommand;
 import qupath.lib.gui.commands.TMAAddNote;
 import qupath.lib.gui.commands.TMAViewerCommand;
@@ -2265,7 +2266,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	
 	/**
 	 * Opan the image represented by the specified ProjectImageEntry.
-	 * 
+	 * <p>
 	 * If an image is currently open, this command will prompt to save any changes.
 	 * 
 	 * @param entry
@@ -3217,6 +3218,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		Menu menuClassifiers = createMenu(
 				"Classify",
 				createCommandAction(new LoadClassifierCommand(this), "Load classifier"),
+				createCommandAction(new SparseImageServerCommand(this), "Create training region image"),
 				null);
 
 		addMenuItems(

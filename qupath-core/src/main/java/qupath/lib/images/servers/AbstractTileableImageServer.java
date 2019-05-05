@@ -7,6 +7,8 @@ import java.awt.image.ColorModel;
 import java.awt.image.Raster;
 import java.awt.image.WritableRaster;
 import java.io.IOException;
+import java.net.URI;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -17,8 +19,14 @@ import qupath.lib.regions.RegionRequest;
 
 public abstract class AbstractTileableImageServer extends AbstractImageServer<BufferedImage> {
 	
+	protected AbstractTileableImageServer(URI uri) {
+		super(uri, BufferedImage.class);
+	}
+
+
 	private static Logger logger = LoggerFactory.getLogger(AbstractTileableImageServer.class);
-		
+	
+	
 	/**
 	 * Read a single image tile.
 	 * 

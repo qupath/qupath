@@ -7,6 +7,7 @@ import java.awt.image.WritableRaster;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -19,7 +20,7 @@ import qupath.lib.regions.RegionRequest;
  * @author Pete Bankhead
  *
  */
-public class ConcatChannelsImageServer extends WrappedImageServer<BufferedImage> {
+public class ConcatChannelsImageServer extends TransformingImageServer<BufferedImage> {
 	
 	private ImageServerMetadata originalMetadata;
 	private List<ImageServer<BufferedImage>> allServers = new ArrayList<>();
@@ -39,7 +40,7 @@ public class ConcatChannelsImageServer extends WrappedImageServer<BufferedImage>
 	public ConcatChannelsImageServer(ImageServer<BufferedImage> server, Collection<ImageServer<BufferedImage>> imageServers) {
 		super(server);
 		if (!imageServers.contains(server))
-			allServers.add(server);
+			allServers.add(0, server);
 		allServers.addAll(imageServers);
 		
 		var channels = new ArrayList<ImageChannel>();
@@ -60,6 +61,10 @@ public class ConcatChannelsImageServer extends WrappedImageServer<BufferedImage>
 	@Override
 	public ImageServerMetadata getOriginalMetadata() {
 		return originalMetadata;
+	}
+	
+	public List<ImageServer<BufferedImage>> getAllServers() {
+		return Collections.unmodifiableList(allServers);
 	}
 	
 	@Override

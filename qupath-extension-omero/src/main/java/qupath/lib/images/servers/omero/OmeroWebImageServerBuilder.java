@@ -15,7 +15,9 @@ import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.PasswordAuthentication;
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -73,7 +75,7 @@ public class OmeroWebImageServerBuilder implements ImageServerBuilder<BufferedIm
 	private String lastUsername = "";
 
 	@Override
-	public ImageServer<BufferedImage> buildServer(URI uri) {
+	public ImageServer<BufferedImage> buildServer(URI uri, String...args) {
 
 		try {
 			String host = uri.getHost();
@@ -92,19 +94,43 @@ public class OmeroWebImageServerBuilder implements ImageServerBuilder<BufferedIm
 				if (client.getServers().size() > 1) {
 					logger.warn("Found multiple servers for {} - will take the first one", host);
 				}
-
-				PasswordAuthentication authentication = OmeroAuthenticatorFX.getPasswordAuthentication(
-						"Please enter your login details for OMERO server", uri.getHost(), lastUsername);
+				
+				// TODO: Parse args to look for password (or password file - and don't store them!)
+				String username = lastUsername;
+				char[] password = null;
+				List<String> cleanedArgs = new ArrayList<>();
+				String authenticationFile = null;
+				int i = 0;
+				while (i < args.length-1) {
+					String name = args[i++];
+					if ("--username".equals(name) || "-u".equals(name))
+						username = args[i++];
+					else if ("--password".equals(name) || "-p".equals(name)) {
+						password = args[i++].toCharArray();
+					} else
+						cleanedArgs.add(name);
+				}
+				if (cleanedArgs.size() < args.length)
+					args = cleanedArgs.toArray(String[]::new);
+				
+				PasswordAuthentication authentication;
+				if (username != null && password != null) {
+					logger.info("Username & password parsed from args");
+					authentication = new PasswordAuthentication(username, password);
+				} else 
+					authentication = OmeroAuthenticatorFX.getPasswordAuthentication(
+						"Please enter your login details for OMERO server", uri.getHost(), username);
 				if (authentication == null) {
 					logger.warn("Could not log in to {}!", host);
 					return null;
 				}
 				lastUsername = authentication.getUserName();
 				String result = client.login(authentication, client.getServers().get(0).id);
+				Arrays.fill(authentication.getPassword(), (char)0);
 				logger.info(result);
 			}
 
-			return new OmeroWebImageServer(uri, client);
+			return new OmeroWebImageServer(uri, client, args);
 		} catch (Exception e1) {
 			logger.error("Problem connecting to OMERO web server", e1);
 		}
@@ -112,7 +138,7 @@ public class OmeroWebImageServerBuilder implements ImageServerBuilder<BufferedIm
 	}
 
 	@Override
-	public float supportLevel(URI uri, ImageCheckType type, Class<?> cls) {
+	public float supportLevel(URI uri, ImageCheckType type, Class<?> cls, String...args) {
 		// We only support BufferedImages
 		if (cls != BufferedImage.class)
 			return 0;
@@ -427,6 +453,11 @@ public class OmeroWebImageServerBuilder implements ImageServerBuilder<BufferedIm
 			return new PasswordAuthentication(userName, tfPassword.getText().toCharArray());
 		}
 
+	}
+
+	@Override
+	public Collection<String> getServerClassNames() {
+		return Collections.singleton(OmeroServer.class.getName());
 	}
 
 }

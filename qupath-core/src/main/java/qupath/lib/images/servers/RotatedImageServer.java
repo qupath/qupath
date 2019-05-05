@@ -37,7 +37,7 @@ import qupath.lib.regions.RegionRequest;
  * @author Pete Bankhead
  *
  */
-public class RotatedImageServer extends WrappedImageServer<BufferedImage> {
+public class RotatedImageServer extends TransformingImageServer<BufferedImage> {
 	
 	public static enum Rotation{
 		
@@ -85,6 +85,11 @@ public class RotatedImageServer extends WrappedImageServer<BufferedImage> {
 		default:
 			metadata = server.getOriginalMetadata().duplicate();
 		}
+	}
+	
+	
+	public Rotation getRotation() {
+		return rotation;
 	}
 	
 	

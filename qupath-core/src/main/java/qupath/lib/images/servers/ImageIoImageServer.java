@@ -47,23 +47,31 @@ public class ImageIoImageServer extends AbstractImageServer<BufferedImage> {
 	private BufferedImage img;
 	private String imageName;
 	
+	private final int[] rgbTypes = new int[] {
+			BufferedImage.TYPE_INT_ARGB, BufferedImage.TYPE_INT_ARGB_PRE, BufferedImage.TYPE_INT_RGB
+	};
+	
 	/**
 	 * Create an {@code ImageServer<BufferedImage>} using an image that has been provided directly.
 	 * 
 	 * @param path
 	 */
-	public ImageIoImageServer(final String path, final String imageName, final BufferedImage img) {
-		super();
+	public ImageIoImageServer(final URI uri, final String path, final String imageName, final BufferedImage img, String...args) {
+		super(uri, BufferedImage.class);
 		this.img = img;
 		this.imageName = imageName;
 
 		// Create metadata objects
 		int bitDepth = img.getSampleModel().getSampleSize(0);
 		int nChannels = img.getSampleModel().getNumBands();
-		boolean isRGB = (nChannels == 3 || nChannels == 4) && bitDepth == 8;
+		boolean isRGB = false;
+		for (int type : rgbTypes) {
+			isRGB = isRGB | type == img.getType();
+		}
 		originalMetadata = new ImageServerMetadata.Builder(getClass(), path)
 				.width(img.getWidth())
 				.height(img.getHeight())
+				.args(args)
 				.rgb(isRGB)
 				.bitDepth(bitDepth)
 				.channels(ImageChannel.getDefaultChannelList(nChannels)).
@@ -77,8 +85,8 @@ public class ImageIoImageServer extends AbstractImageServer<BufferedImage> {
 	 * @throws MalformedURLException
 	 * @throws IOException
 	 */
-	public ImageIoImageServer(URI uri) throws MalformedURLException, IOException {
-		this(uri.toString(), null, ImageIO.read(uri.toURL()));
+	public ImageIoImageServer(URI uri, String...args) throws MalformedURLException, IOException {
+		this(uri, uri.toString(), null, ImageIO.read(uri.toURL()), args);
 	}
 
 	@Override

@@ -490,7 +490,7 @@ class DefaultProject implements Project<BufferedImage> {
 		private String imageName;
 		private String description;
 
-		private Map<String, String> metadata = new HashMap<>();
+		private Map<String, String> metadata = new LinkedHashMap<>();
 		
 		DefaultProjectImageEntry(final String serverPath, final String imageName, final String uniqueName, final String description, final Map<String, String> metadataMap) {
 //			this.project = project;
