@@ -74,6 +74,7 @@ import qupath.lib.objects.classes.PathClassFactory.PathClasses;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectImageEntry;
+import qupath.lib.projects.Projects;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
@@ -602,7 +603,7 @@ public class ExportTrainingRegionsCommand implements PathCommand {
 		File promptForDirectory() {
 			Project<?> project = qupath.getProject();
 			if (dirExport == null && project != null) {
-				dirExport = project.getBaseDirectory();
+				dirExport = Projects.getBaseDirectory(project);
 			}
 			File dirSelected = QuPathGUI.getDialogHelper(pane.getScene().getWindow()).promptForDirectory(dirExport);
 			if (dirSelected == null)

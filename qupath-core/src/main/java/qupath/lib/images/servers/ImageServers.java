@@ -3,6 +3,7 @@ package qupath.lib.images.servers;
 import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.io.Reader;
 import java.io.StringWriter;
 import java.net.URI;
 import java.util.ArrayList;
@@ -67,34 +68,69 @@ public class ImageServers {
 		    .registerTypeHierarchyAdapter(ImageServer.class, new ImageServers.ImageServerTypeAdapter())
 		    .create();
 	
+	private static Gson gsonNoMetadata = new GsonBuilder()
+		    .serializeSpecialFloatingPointValues()
+		    .setLenient()
+		    .setPrettyPrinting()
+		    .registerTypeHierarchyAdapter(ImageServer.class, new ImageServers.ImageServerTypeAdapter(false))
+		    .create();
+	
 	private static final java.lang.reflect.Type type = new TypeToken<ImageServer<BufferedImage>>() {}.getType();
 	
-	public static String toJson(ImageServer<BufferedImage> server) {
-		return gson.toJson(server);
+	public static String toJson(ImageServer<BufferedImage> server, boolean includeMetadata) {
+		if (includeMetadata)
+			return gson.toJson(server);
+		else
+			return gsonNoMetadata.toJson(server);
 	}
 	
-	public static String toJson(URI uri, String... args) throws IOException {
-		StringWriter writer = new StringWriter();
-		try (JsonWriter out = gson.newJsonWriter(writer)) {
-			out.name("uri");
-			out.value(uri.toString());
-			out.name("args");
-			out.beginArray();
-			for (String arg: args)
-				out.value(arg);
-			out.endArray();
-		}
-		return writer.toString();
+	public static JsonElement toJsonElement(ImageServer<BufferedImage> server, boolean includeMetadata) {
+		if (includeMetadata)
+			return gson.toJsonTree(server);
+		else
+			return gsonNoMetadata.toJsonTree(server);
 	}
+	
+	public static ImageServer<BufferedImage> fromJson(JsonElement element) {
+		return gson.fromJson(element, type);
+	}
+	
+//	public static String toJson(URI uri, String... args) throws IOException {
+//		StringWriter writer = new StringWriter();
+//		try (JsonWriter out = gson.newJsonWriter(writer)) {
+//			out.name("uri");
+//			out.value(uri.toString());
+//			out.name("args");
+//			out.beginArray();
+//			for (String arg: args)
+//				out.value(arg);
+//			out.endArray();
+//		}
+//		return writer.toString();
+//	}
 	
 	public static ImageServer<BufferedImage> fromJson(String json) {
 		return gson.fromJson(json, type);
+	}
+	
+	public static ImageServer<BufferedImage> fromJson(Reader reader) {
+		return gson.fromJson(reader, type);
 	}
 		    
 	
 	public static class ImageServerTypeAdapter extends TypeAdapter<ImageServer<BufferedImage>> {
 		
 		private static Logger logger = LoggerFactory.getLogger(ImageServerTypeAdapter.class);
+		
+		private final boolean includeMetadata;
+		
+		public ImageServerTypeAdapter() {
+			this(true);
+		}
+		
+		public ImageServerTypeAdapter(boolean includeMetadata) {
+			this.includeMetadata = includeMetadata;
+		}
 		
 		private Gson gson = new GsonBuilder().setLenient()
 				.setPrettyPrinting()
@@ -177,6 +213,11 @@ public class ImageServers {
 			for (String arg: server.getMetadata().getArguments())
 				out.value(arg);
 			out.endArray();
+			
+			if (includeMetadata) {
+				out.name("metadata");
+				Streams.write(gson.toJsonTree(server.getMetadata()), out);
+			}
 
 			out.endObject();
 			
@@ -246,7 +287,7 @@ public class ImageServers {
 					if (serverType.equals(SparseImageServer.class.getName())) {
 						List<SparseImageServerManagerRegion> regions = gson.fromJson(obj.get("sparseRegions"),
 								new TypeToken<List<SparseImageServerManagerRegion>>() {}.getType());
-						server = new SparseImageServer(regions);
+						server = new SparseImageServer(regions, null);
 					}
 					
 					// Cropped

@@ -23,7 +23,6 @@
 
 package qupath.lib.projects;
 
-import java.awt.Desktop;
 import java.awt.image.BufferedImage;
 import java.io.BufferedReader;
 import java.io.File;
@@ -42,6 +41,7 @@ import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -60,18 +60,17 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonPrimitive;
-import com.google.gson.reflect.TypeToken;
 
 import qupath.lib.classifiers.PathObjectClassifier;
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.common.GeneralTools;
+import qupath.lib.common.URLTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.ImageData.ImageType;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.ImageServerProvider;
-import qupath.lib.images.servers.ImageServers;
+import qupath.lib.images.servers.RotatedImageServer;
 import qupath.lib.io.PathIO;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.classes.PathClass;
@@ -80,16 +79,17 @@ import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 
 /**
- * Data structure to store multiple images, relating these to a file system.
+ * Projects as temporarily used for v0.2.0-m1 and v0.2.0-m2.
+ * <p>
+ * Included here as a temporary measure to ease transition to newer-style projects.
  * 
  * @author Pete Bankhead
  *
  */
-class DefaultProject implements Project<BufferedImage> {
+@Deprecated
+class MilestoneProject {
 	
-	private static String ext = "qpproj";
-	
-	private static Logger logger = LoggerFactory.getLogger(DefaultProject.class);
+	private static Logger logger = LoggerFactory.getLogger(MilestoneProject.class);
 	
 	private static Gson gson = new GsonBuilder()
 			.setLenient()
@@ -117,10 +117,7 @@ class DefaultProject implements Project<BufferedImage> {
 	 */
 	private String name = null;
 	
-	/**
-	 * The URI the last time this project was saved. This can be helpful when resolving relative paths.
-	 */
-	private URI previousURI;
+	private URI lastURI;
 	
 	/**
 	 * Default classifications.
@@ -129,16 +126,18 @@ class DefaultProject implements Project<BufferedImage> {
 	
 	private boolean maskNames = false;
 	
+	private AtomicLong count = new AtomicLong(0L);
+	
 	private Map<String, DefaultProjectImageEntry> images = new LinkedHashMap<>();
 	
 	private long creationTimestamp;
 	private long modificationTimestamp;
 	
-	DefaultProject(final File file) {
+	MilestoneProject(final File file) {
 		this.file = file;
 		if (file.isDirectory()) {
 			this.dirBase = file;
-			this.file = getUniqueFile(dirBase, "project", ext);
+			this.file = getUniqueFile(dirBase, "project", ".qpproj");
 		} else
 			this.dirBase = file.getParentFile();
 		creationTimestamp = System.currentTimeMillis();
@@ -146,58 +145,53 @@ class DefaultProject implements Project<BufferedImage> {
 	}
 	
 	
-//	public List<String> validateLocalPaths(boolean relativize) {
-//		var missing = new ArrayList<String>();
-//		var uriCurrent = getBaseDirectory().toURI().resolve("..");
-//		var lastParentURI = lastURI == null ? null : lastURI.resolve("..");
-//		var iterator = images.entrySet().iterator();
-//		var newMap = new LinkedHashMap<String, DefaultProjectImageEntry>();
-//		while (iterator.hasNext()) {
-//			var mapEntry = iterator.next();
-//			var entry = mapEntry.getValue();
-//			var path = mapEntry.getKey();
-//			if (path.startsWith("file")) {
-//				try {
-//					var uri = GeneralTools.toURI(path);
-//					var tempPath = GeneralTools.toPath(uri);
-//					if (Files.exists(tempPath)) {
-//						newMap.put(path, entry);
-//						continue;
-//					}
-//					if (relativize && lastParentURI != null) {
-//						var uriRelative = lastParentURI.relativize(uri);
-//						uri = uriCurrent.resolve(uriRelative);
-//						tempPath = GeneralTools.toPath(uri);
-//						if (Files.exists(tempPath)) {
-//							logger.info("Updating path {} to {}", path, uri);
-//							var serverPath = uri.toString();
-//							newMap.put(serverPath, 
-//									new DefaultProjectImageEntry(serverPath,
-//											entry.getImageName(),
-//											entry.getUniqueName(),
-//											entry.getDescription(),
-//											entry.getMetadataMap()));
-//							continue;
-//						}
-//					}
-//					newMap.put(path, entry);
-//					missing.add(path);
-//				} catch (URISyntaxException e) {
-//					logger.warn("Failed to create URI for " + path);
-//				}
-//			} else
-//				newMap.put(path, entry);
-//		}
-//		if (!images.equals(newMap)) {
-//			images.clear();
-//			images.putAll(newMap);
-//		}
-//		return missing;
-//	}
-	
-	@Override
-	public URI getPreviousURI() {
-		return previousURI;
+	public List<String> validateLocalPaths(boolean relativize) {
+		var missing = new ArrayList<String>();
+		var uriCurrent = getBaseDirectory().toURI().resolve("..");
+		var lastParentURI = lastURI == null ? null : lastURI.resolve("..");
+		var iterator = images.entrySet().iterator();
+		var newMap = new LinkedHashMap<String, DefaultProjectImageEntry>();
+		while (iterator.hasNext()) {
+			var mapEntry = iterator.next();
+			var entry = mapEntry.getValue();
+			var path = mapEntry.getKey();
+			if (path.startsWith("file")) {
+				try {
+					var uri = GeneralTools.toURI(path);
+					var tempPath = GeneralTools.toPath(uri);
+					if (Files.exists(tempPath)) {
+						newMap.put(path, entry);
+						continue;
+					}
+					if (relativize && lastParentURI != null) {
+						var uriRelative = lastParentURI.relativize(uri);
+						uri = uriCurrent.resolve(uriRelative);
+						tempPath = GeneralTools.toPath(uri);
+						if (Files.exists(tempPath)) {
+							logger.info("Updating path {} to {}", path, uri);
+							var serverPath = uri.toString();
+							newMap.put(serverPath, 
+									new DefaultProjectImageEntry(serverPath,
+											entry.getImageName(),
+											entry.getUniqueName(),
+											entry.getDescription(),
+											entry.getMetadataMap()));
+							continue;
+						}
+					}
+					newMap.put(path, entry);
+					missing.add(path);
+				} catch (URISyntaxException e) {
+					logger.warn("Failed to create URI for " + path);
+				}
+			} else
+				newMap.put(path, entry);
+		}
+		if (!images.equals(newMap)) {
+			images.clear();
+			images.putAll(newMap);
+		}
+		return missing;
 	}
 	
 	
@@ -226,8 +220,8 @@ class DefaultProject implements Project<BufferedImage> {
 	}
 	
 	
-	static DefaultProject loadFromFile(File file) throws IOException {
-		var project = new DefaultProject(file);
+	static MilestoneProject loadFromFile(File file) {
+		var project = new MilestoneProject(file);
 		project.loadProject();
 		return project;
 	}
@@ -262,16 +256,10 @@ class DefaultProject implements Project<BufferedImage> {
 		return true;
 	}
 
-	private boolean addImage(final ProjectImageEntry<BufferedImage> entry) {
-		if (entry instanceof DefaultProjectImageEntry)
-			return addImage((DefaultProjectImageEntry)entry);
-		try {
-			return addImage(new DefaultProjectImageEntry(entry.buildImageServer(), null, entry.getDescription(), entry.getMetadataMap()));
-		} catch (IOException e) {
-			logger.error("Unable to add entry " + entry, e);
-			return false;
-		}
+	public boolean addImage(final ProjectImageEntry<BufferedImage> entry) {
+		return addImage(new DefaultProjectImageEntry(entry.getServerPath(), entry.getOriginalImageName(), null, entry.getDescription(), entry.getMetadataMap()));
 	}
+	
 	
 	private boolean addImage(final DefaultProjectImageEntry entry) {
 		if (images.containsKey(entry.getServerPath()))
@@ -280,21 +268,19 @@ class DefaultProject implements Project<BufferedImage> {
 		return true;
 	}
 	
-	private File getFile() {
+	File getFile() {
 		return file;
 	}
 	
-	@Override
 	public Path getPath() {
 		return getFile().toPath();
 	}
 	
-	@Override
 	public URI getURI() {
 		return getFile().toURI();
 	}
 	
-	private File getBaseDirectory() {
+	public File getBaseDirectory() {
 		return dirBase;
 	}
 	
@@ -331,26 +317,32 @@ class DefaultProject implements Project<BufferedImage> {
 		return name;
 	}
 	
+
+	public boolean addAllImages(final Collection<ProjectImageEntry<BufferedImage>> entries) {
+		boolean changes = false;
+		for (ProjectImageEntry<BufferedImage> entry : entries)
+			changes = addImage(entry) | changes;
+		return changes;
+	}
+	
 	public int size() {
 		return images.size();
 	}
 
-	@Override
 	public boolean isEmpty() {
 		return images.isEmpty();
 	}
 	
-	@Override
-	public ProjectImageEntry<BufferedImage> addImage(final ImageServer<BufferedImage> server) {
-		var entry = new DefaultProjectImageEntry(server, null, null, null);
+	public DefaultProjectImageEntry addImage(final ImageServer<BufferedImage> server) {
+		var entry = new DefaultProjectImageEntry(server.getPath(), server.getDisplayedImageName(), null, null, null);
 		if (addImage(entry)) {
 			return entry;
 		}
 		return null;
 	}
 	
-	@Override
-	public ProjectImageEntry<BufferedImage> getImageEntry(final String path) {
+	
+	public DefaultProjectImageEntry getImageEntry(final String path) {
 		return images.get(path);
 	}
 
@@ -366,25 +358,19 @@ class DefaultProject implements Project<BufferedImage> {
 		}
 	}
 	
-	@Override
-	public void removeImage(final ProjectImageEntry<?> entry, boolean removeAllData) {
+	public void removeImage(final ProjectImageEntry<?> entry) {
 		removeImage(entry.getServerPath());
-		if (removeAllData && entry instanceof DefaultProjectImageEntry) {
-			((DefaultProjectImageEntry)entry).moveDataToTrash();
-		}
 	}
 
-	@Override
-	public void removeAllImages(final Collection<ProjectImageEntry<BufferedImage>> entries, boolean removeAllData) {
+	public void removeAllImages(final Collection<ProjectImageEntry<BufferedImage>> entries) {
 		for (ProjectImageEntry<BufferedImage> entry : entries)
-			removeImage(entry, removeAllData);
+			removeImage(entry);
 	}
 	
 	public void removeImage(final String path) {
 		images.remove(path);
 	}
 	
-	@Override
 	public void syncChanges() throws IOException {
 		writeProject(getFile());
 		writePathClasses(pathClasses);
@@ -406,12 +392,10 @@ class DefaultProject implements Project<BufferedImage> {
 		}
 	}
 	
-	@Override
 	public boolean getMaskImageNames() {
 		return maskNames;
 	}
 	
-	@Override
 	public void setMaskImageNames(boolean maskNames) {
 		this.maskNames = maskNames;
 	}
@@ -421,9 +405,8 @@ class DefaultProject implements Project<BufferedImage> {
 	 * 
 	 * @return
 	 */
-	@Override
-	public List<ProjectImageEntry<BufferedImage>> getImageList() {
-		List<ProjectImageEntry<BufferedImage>> list = new ArrayList<>(images.values());
+	public List<DefaultProjectImageEntry> getImageList() {
+		List<DefaultProjectImageEntry> list = new ArrayList<>(images.values());
 //		list.sort(ImageEntryComparator.instance);
 		return list;
 	}
@@ -433,7 +416,6 @@ class DefaultProject implements Project<BufferedImage> {
 	}
 	
 	
-	@Override
 	public String getName() {
 		if (name != null)
 			return name;
@@ -451,12 +433,10 @@ class DefaultProject implements Project<BufferedImage> {
 		return "Project: " + Project.getNameFromURI(getURI());
 	}
 	
-	@Override
 	public long getCreationTimestamp() {
 		return creationTimestamp;
 	}
 	
-	@Override
 	public long getModificationTimestamp() {
 		return modificationTimestamp;
 	}
@@ -488,126 +468,58 @@ class DefaultProject implements Project<BufferedImage> {
 		Files.writeString(path, script, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
 	}
 	
-	private AtomicLong counter = new AtomicLong(0L);
-	
-	/**
-	 * Request all the (String) URI's found within a JSON object, seaching recursively.
-	 * 
-	 * @param obj
-	 * @param uris
-	 * @return
-	 */
-	static List<String> getURIsRecursive(JsonObject obj, List<String> uris) {
-		if (uris == null) {
-			uris = new ArrayList<>();
-		}
-		String uri = getStringField(obj, "uri");
-		if (uri != null)
-			uris.add(uri);			
-		for (var entry : obj.entrySet()) {
-			if (entry.getValue().isJsonObject())
-				getURIsRecursive((JsonObject)entry.getValue(), uris);
-		}
-		return uris;
-	}
-	
-	/**
-	 * Get a String field with a given name from an object (non-recursive), or null if the field is not present.
-	 * @param obj
-	 * @param name
-	 * @return
-	 */
-	static String getStringField(JsonObject obj, String name) {
-		if (obj.has(name)) {
-			JsonElement element = obj.get(name);
-			if (element.isJsonPrimitive()) {
-				JsonPrimitive primitive = element.getAsJsonPrimitive();
-				if (primitive.isString())
-					return primitive.getAsString();			
-			}
-		}
-		return null;
-	}
-	
-	/**
-	 * Request all the (String) URI's found within a JSON object, searching recursively.
-	 * 
-	 * @param obj
-	 * @param uris
-	 * @return
-	 */
-	static int replaceURIsRecursive(JsonObject obj, Map<String, String> replacements, int nReplacements) {
-		String uri = getStringField(obj, "uri");
-		if (uri != null) {
-			String replacement = replacements.getOrDefault(uri, null);
-			if (replacement != null) {
-				obj.addProperty("uri", replacement);
-				nReplacements++;
-			}
-		}
-		for (var entry : obj.entrySet()) {
-			if (entry.getValue().isJsonObject())
-				nReplacements = replaceURIsRecursive((JsonObject)entry.getValue(), replacements, nReplacements);
-		}
-		return nReplacements;
-	}
-	
 	
 	/**
 	 * Class to represent an image entry within a project.
-	 * <p>
+	 * 
 	 * This stores the path to the image, and some optional metadata.
 	 * 
 	 * @author Pete Bankhead
 	 *
 	 */
-	class DefaultProjectImageEntry implements ProjectImageEntry<BufferedImage> {
-		
-		/**
-		 * JSON representation of the server.
-		 */
-		private JsonElement server;
-		
-		/**
-		 * Result of server.getPath()
-		 */
-		private String serverPath;
-		
-		/**
-		 * Unique name that will be used to identify associated data files.
-		 */
-		private long entryID;
+	class DefaultProjectImageEntry {
 
-		/**
-		 * Randomized name that will be used when masking image names.
-		 */
+		private transient String cleanedPath = null;
+		
+		private String uniqueName;
+		
+		private String serverPath;
+		private URI uri;
+		
 		private String randomizedName = UUID.randomUUID().toString();
 		
-		/**
-		 * Image name to display.
-		 */
 		private String imageName;
-		
-		/**
-		 * Image description to display.
-		 */
 		private String description;
 
-		/**
-		 * Map of associated metadata for the entry.
-		 */
 		private Map<String, String> metadata = new LinkedHashMap<>();
 		
-		
-		DefaultProjectImageEntry(final ImageServer<BufferedImage> server, final Long entryID, final String description, final Map<String, String> metadataMap) {
-			this.server = ImageServers.toJsonElement(server, false);
-			if (entryID == null)
-				this.entryID = counter.incrementAndGet();
-			else
-				this.entryID = entryID;
+		DefaultProjectImageEntry(final String serverPath, final String imageName, final String uniqueName, final String description, final Map<String, String> metadataMap) {
+//			this.project = project;
+			this.serverPath = serverPath;
+			this.uniqueName = uniqueName;
 			
-			this.serverPath = server.getPath();
-			this.imageName = server.getDisplayedImageName();
+			// TODO: Check if this is a remotely acceptable way to achieve relative pathnames!  I suspect it is not really...
+			try {
+				File file = new File(serverPath);
+				if (file.exists())
+					uri = file.toURI();
+				else
+					uri = new URI(serverPath);
+			} catch (URISyntaxException e) {
+				logger.error("Not a valid URI!", e);
+			}
+			
+			String projectPath = getBaseDirectory().getAbsolutePath();
+			if (this.serverPath.startsWith(projectPath))
+				this.serverPath = "{$PROJECT_DIR}" + this.serverPath.substring(projectPath.length());
+			
+			if (imageName == null) {
+				if (URLTools.checkURL(serverPath))
+					this.imageName = URLTools.getNameFromBaseURL(serverPath);
+				else
+					this.imageName = new File(serverPath).getName();
+			} else
+				this.imageName = imageName;
 			
 			if (description != null)
 				setDescription(description);
@@ -616,113 +528,192 @@ class DefaultProject implements Project<BufferedImage> {
 				metadata.putAll(metadataMap);		
 		}
 		
-		DefaultProjectImageEntry(final DefaultProjectImageEntry entry) {
-			this.server = entry.server;
-			this.entryID = entry.entryID;
-			this.serverPath = entry.serverPath;
-			this.imageName = entry.imageName;
-			this.description = entry.description;
-			this.metadata = entry.metadata;
-		}
 		
-		
-		@Override
+		/**
+		 * Get a name that uniquely identifies the image within this project.
+		 * 
+		 * @return
+		 */
 		public String getUniqueName() {
-			return Long.toString(entryID);
+			if (uniqueName == null) {
+				uniqueName = UUID.randomUUID().toString();
+			}
+			return uniqueName;
 		}
 		
-		@Override
+		
+		/**
+		 * Get the path used to represent this image, which can be used to construct an <code>ImageServer</code>.
+		 * <p>
+		 * Note that this may have been cleaned up.
+		 * 
+		 * @see #getStoredServerPath
+		 * 
+		 * @return
+		 */
 		public String getServerPath() {
-			return serverPath;
+//			return serverPath;
+			return uri == null ? serverPath : uri.toString();
 		}
 
-		@Override
+		/**
+		 * Get a name that may be used for this entry.
+		 * 
+		 * This may be derived automatically from the server path, or set explicitly to be something else.
+		 * 
+		 * @return
+		 */
 		public String getImageName() {
 			if (maskNames)
 				return randomizedName;
 			return imageName;
 		}
 		
-		@Override
 		public String getOriginalImageName() {
 			return imageName;
 		}
-
-		@Override
-		public String toString() {
-			String s = getImageName();
-			if (!metadata.isEmpty())
-				s += " - " + getMetadataSummaryString();
-			return s;
+		
+		/**
+		 * Same as <code>getServerPath</code>.
+		 * 
+		 * @see #getServerPath
+		 * 
+		 * @return
+		 */
+		public String getStoredServerPath() {
+			return getServerPath();
 		}
 		
-		@Override
 		public void setImageName(String name) {
 			this.imageName = name;
 		}
 		
-		@Override
-		public boolean sameServer(final ImageServer<BufferedImage> server) {
-			// TODO: Use JSON representation instead?
-			return server == null ? false : getServerPath().equals(server.getPath());
+		/**
+		 * Check if this image entry refers to a specified image according to its path.
+		 * 
+		 * @param serverPath
+		 * @return <code>true</code> if the path is a match, <code>false</code> otherwise.
+		 */
+		public boolean sameServerPath(final String serverPath) {
+			return getServerPath().equals(serverPath);
 		}
 		
-		@Override
+		/**
+		 * Remove a metadata value.
+		 * 
+		 * @param key
+		 * @return
+		 */
 		public String removeMetadataValue(final String key) {
 			return metadata.remove(key);
 		}
 		
-		@Override
+		/**
+		 * Request a metadata value.
+		 * Note that this may return <code>null</code>.
+		 * 
+		 * @param key
+		 * @return
+		 */
 		public String getMetadataValue(final String key) {
 			return metadata.get(key);
 		}
 
-		@Override
+		/**
+		 * Store a metadata value.
+		 * This is intended as storage of short key-value pairs.
+		 * Extended text should be stored under <code>setDescription</code>.
+		 * 
+		 * @param key
+		 * @param value
+		 * @return
+		 */
 		public String putMetadataValue(final String key, final String value) {
 			return metadata.put(key, value);
 		}
 		
-		@Override
+		/**
+		 * Check if a metadata value is present for a specified key.
+		 * 
+		 * @param key
+		 * @return <code>true</code> if <code>getDescription()</code> does not return null or an empty string, <code>false</code> otherwise.
+		 */
 		public boolean containsMetadata(final String key) {
 			return metadata.containsKey(key);
 		}
 		
-		@Override
+		/**
+		 * Get a description; this is free text describing the image.
+		 * @return
+		 */
 		public String getDescription() {
 			return description;
 		}
 		
-		@Override
+		/**
+		 * Set the description.
+		 * 
+		 * @see #getDescription
+		 * @param description
+		 */
 		public void setDescription(final String description) {
 			this.description = description;
 		}
 		
-		@Override
+		/**
+		 * Check if a description is present.
+		 * 
+		 * @return <code>true</code> if <code>getDescription()</code> does not return null or an empty string, <code>false</code> otherwise.
+		 */
+		public boolean hasDescription() {
+			return this.description != null && !this.description.isEmpty();
+		}
+		
+		/**
+		 * Remove all metadata.
+		 */
 		public void clearMetadata() {
 			this.metadata.clear();
 		}
 		
-		@Override
+		/**
+		 * Get an unmodifiable view of the underlying metadata map.
+		 * 
+		 * @return
+		 */
 		public Map<String, String> getMetadataMap() {
 			return Collections.unmodifiableMap(metadata);
 		}
 		
-		@Override
+		/**
+		 * Get an unmodifiable collection of the metadata map's keys.
+		 * 
+		 * @return
+		 */
 		public Collection<String> getMetadataKeys() {
 			return Collections.unmodifiableSet(metadata.keySet());
 		}
 		
-		@Override
+		
 		public ImageServer<BufferedImage> buildImageServer() throws IOException {
-			var imageServer = ImageServers.fromJson(server);
-			var pathServerMetadata = getServerMetadataPath();
-			if (Files.exists(pathServerMetadata)) {
-				try (var reader = Files.newBufferedReader(pathServerMetadata)) {
-					ImageServerMetadata metadata = gson.fromJson(reader, ImageServerMetadata.class);
-					imageServer.setMetadata(metadata);
+			String value = metadata.getOrDefault("rotate180", "false");
+			boolean rotate180 = value.toLowerCase().equals("true");
+			var server = ImageServerProvider.buildServer(getServerPath(), BufferedImage.class);
+			// TODO: Handle wrapped image servers
+			if (rotate180)
+				return new RotatedImageServer(server, RotatedImageServer.Rotation.ROTATE_180);
+			
+			var pathMetadata = getServerMetadataPath();
+			if (Files.exists(pathMetadata)) {
+				try (var reader = Files.newBufferedReader(pathMetadata)) {
+					var metadata = gson.fromJson(reader, ImageServerMetadata.class);
+					server.setMetadata(metadata);
+				} catch (Exception e) {
+					logger.warn("Unable to load server metadata from {}", pathMetadata);
 				}
 			}
-			return imageServer;
+
+			return server;
 		}
 		
 		private Path getEntryPath(boolean create) throws IOException {
@@ -732,7 +723,6 @@ class DefaultProject implements Project<BufferedImage> {
 			return path;
 		}
 		
-		@Override
 		public Path getEntryPath() {
 			return Paths.get(getBasePath().toString(), "data", getUniqueName());
 		}
@@ -753,7 +743,6 @@ class DefaultProject implements Project<BufferedImage> {
 			return Paths.get(getEntryPath().toString(), "thumbnail.jpg");
 		}
 
-		@Override
 		public synchronized ImageData<BufferedImage> readImageData() throws IOException {
 			Path path = getImageDataPath();
 			var server = buildImageServer();
@@ -772,7 +761,6 @@ class DefaultProject implements Project<BufferedImage> {
 			return new ImageData<>(server);
 		}
 
-		@Override
 		public synchronized void saveImageData(ImageData<BufferedImage> imageData) throws IOException {
 			// Get entry path, creating if needed
 			var pathEntry = getEntryPath(true);
@@ -819,13 +807,10 @@ class DefaultProject implements Project<BufferedImage> {
 			Files.writeString(pathDetails, sb.toString());
 		}
 		
-
-		@Override
 		public boolean hasImageData() {
 			return Files.exists(getImageDataPath());
 		}
 		
-		@Override
 		public synchronized PathObjectHierarchy readHierarchy() throws IOException {
 			var path = getImageDataPath();
 			if (Files.exists(path)) {
@@ -837,7 +822,6 @@ class DefaultProject implements Project<BufferedImage> {
 		}
 		
 		
-		@Override
 		public String getSummary() {
 			StringBuilder sb = new StringBuilder();
 			sb.append(getImageName()).append("\n\n");
@@ -858,7 +842,6 @@ class DefaultProject implements Project<BufferedImage> {
 			return sb.toString();
 		}
 
-		@Override
 		public synchronized BufferedImage getThumbnail() throws IOException {
 			var path = getThumbnailPath();
 			if (Files.exists(path)) {
@@ -869,26 +852,12 @@ class DefaultProject implements Project<BufferedImage> {
 			return null;
 		}
 
-		@Override
 		public synchronized void setThumbnail(BufferedImage img) throws IOException {
 			getEntryPath(true);
 			var path = getThumbnailPath();
 			try (var stream = Files.newOutputStream(path)) {
 				ImageIO.write(img, "JPEG", stream);
 			}
-		}
-		
-		synchronized boolean moveDataToTrash() {
-			Path path = getEntryPath();
-			if (!Files.exists(path))
-				return true;
-			if (Desktop.isDesktopSupported()) {
-				var desktop = Desktop.getDesktop();
-				if (desktop.isSupported(Desktop.Action.MOVE_TO_TRASH))
-					return desktop.moveToTrash(path.toFile());
-			}
-			logger.warn("Unable to move {} to trash - please delete manually if required", path);
-			return false;
 		}
 		
 	}
@@ -985,14 +954,31 @@ class DefaultProject implements Project<BufferedImage> {
 //			}
 //		}		
 		
-		JsonElement array = gson.toJsonTree(images.values());
+		JsonArray array = new JsonArray();
+		for (var entry : getImageList()) {
+			JsonObject jsonEntry = new JsonObject();
+			jsonEntry.addProperty("path", entry.getServerPath());
+		    jsonEntry.addProperty("name", entry.getOriginalImageName());
+		    jsonEntry.addProperty("uniqueName", entry.getUniqueName());
+		    
+		    if (entry.getDescription() != null)
+		    		jsonEntry.addProperty("description", entry.getDescription());
+
+		    Map<String, String> metadata = entry.getMetadataMap();
+		    if (!metadata.isEmpty()) {
+		    	JsonObject metadataBuilder = new JsonObject();
+		        for (Map.Entry<String, String> metadataEntry : metadata.entrySet())
+		            metadataBuilder.addProperty(metadataEntry.getKey(), metadataEntry.getValue());
+		        jsonEntry.add("metadata", metadataBuilder);
+			}
+			array.add(jsonEntry);
+		}
 
 		JsonObject builder = new JsonObject();
 		builder.addProperty("version", LATEST_VERSION);
 		builder.addProperty("createTimestamp", getCreationTimestamp());
 		builder.addProperty("modifyTimestamp", getModificationTimestamp());
 		builder.addProperty("uri", fileProject.toURI().toString());
-		builder.addProperty("lastID", counter.get());
 //		if (pathClassArray != null) {
 //			builder.add("pathClasses", pathClassArray);			
 //		}
@@ -1014,7 +1000,7 @@ class DefaultProject implements Project<BufferedImage> {
 	}
 	
 	
-	void loadProject() throws IOException {
+	void loadProject() {
 		File fileProject = getFile();
 		try (Reader fileReader = new BufferedReader(new FileReader(fileProject))){
 			Gson gson = new Gson();
@@ -1022,36 +1008,62 @@ class DefaultProject implements Project<BufferedImage> {
 			
 			creationTimestamp = element.get("createTimestamp").getAsLong();
 			modificationTimestamp = element.get("modifyTimestamp").getAsLong();
-			previousURI = new URI(element.get("uri").getAsString());
+			lastURI = new URI(element.get("uri").getAsString());
 			
 			if (element.has("version"))
 				version = element.get("version").getAsString();
 			
-			if (version == null || version.equals("v0.2.0-m1") || version.equals("v0.2.0-m2") || !element.has("lastID"))
-				throw new IOException("Older projects are not supported in this version of QuPath, sorry!");
-						
-			long lastID = 0;
-			List<DefaultProjectImageEntry> images = element.has("images") ? gson.fromJson(element.get("images"), new TypeToken<ArrayList<DefaultProjectImageEntry>>() {}.getType()) : Collections.emptyList();
-			for (DefaultProjectImageEntry entry: images) {
-				addImage(new DefaultProjectImageEntry(entry)); // Need to construct a new one to ensure project is set
-				lastID = Math.max(lastID, entry.entryID);
-			}
-			
-			if (element.has("lastID")) {
-				lastID = Math.max(lastID, element.get("lastID").getAsLong());
-			}
-			counter.set(lastID);
-
-			
-			pathClasses.addAll(loadPathClasses());
-			
-//			List<String> troublesome = validateLocalPaths(true);
-//			if (!troublesome.isEmpty()) {
-//				logger.warn("Could not find {} image(s): {}", troublesome.size(), troublesome);
+//			JsonElement pathClassesElement = element.get("pathClasses");
+//			if (pathClassesElement != null && pathClassesElement.isJsonArray()) {
+//				try {
+//					JsonArray pathClassesArray = pathClassesElement.getAsJsonArray();
+//					List<PathClass> pathClasses = new ArrayList<>();
+//					for (int i = 0; i < pathClassesArray.size(); i++) {
+//						JsonObject pathClassObject = pathClassesArray.get(i).getAsJsonObject();
+//						String name = pathClassObject.get("name").getAsString();
+//						int color = pathClassObject.get("color").getAsInt();
+//						PathClass pathClass = PathClassFactory.getPathClass(name, color);
+//						pathClasses.add(pathClass);
+//					}
+//					setPathClasses(pathClasses);
+//				} catch (Exception e) {
+//					logger.error("Error parsing PathClass list", e);
+//				}
 //			}
 
-		} catch (URISyntaxException e) {
-			throw new IOException(e);
+			JsonArray images = element.getAsJsonArray("images");
+			for (JsonElement imageElement : images) {
+				JsonObject imageObject = imageElement.getAsJsonObject();
+				JsonElement metadataObject = imageObject.get("metadata");
+				Map<String, String> metadataMap = null;
+				if (metadataObject != null) {
+					JsonObject metadata = metadataObject.getAsJsonObject();
+					if (metadata != null) {
+						metadataMap = new HashMap<>();
+						for (Entry<String, JsonElement> entry : metadata.entrySet()) {
+							String value = entry.getValue().getAsString();
+							if (value != null)
+								metadataMap.put(entry.getKey(), value);
+						}
+					}
+				}
+				String description = null;
+				if (imageObject.has("description"))
+					description = imageObject.get("description").getAsString();
+				String path = imageObject.get("path").getAsString();
+				String name = imageObject.has("name") ? imageObject.get("name").getAsString() : null;
+				String uniqueName = imageObject.has("uniqueName") ? imageObject.get("uniqueName").getAsString() : null;
+				addImage(new DefaultProjectImageEntry(path, name, uniqueName, description, metadataMap));
+			}
+			pathClasses.addAll(loadPathClasses());
+			
+			List<String> troublesome = validateLocalPaths(true);
+			if (!troublesome.isEmpty()) {
+				logger.warn("Could not find {} image(s): {}", troublesome.size(), troublesome);
+			}
+
+		} catch (Exception e) {
+			logger.error("Unable to read project from " + fileProject.getAbsolutePath(), e);
 		}
 	}
 	
@@ -1080,7 +1092,7 @@ class DefaultProject implements Project<BufferedImage> {
 	}
 	
 	
-	Collection<PathClass> loadPathClasses() throws IOException {
+	Collection<PathClass> loadPathClasses() throws Exception {
 		var path = Paths.get(ensureDirectoryExists(getClassifiersPath()).toString(), "classes.json");
 		if (!Files.isRegularFile(path))
 			return null;
@@ -1111,43 +1123,20 @@ class DefaultProject implements Project<BufferedImage> {
 	}
 
 
-	@Override
 	public String getVersion() {
 		return version;
 	}
 	
-	@Override
 	public ProjectResourceManager<String> getScriptsManager() {
 		return new ProjectResourceManager.StringFileResourceManager(getScriptsPath(), ".groovy");
 	}
 
-
-	@Override
 	public ProjectResourceManager<PathObjectClassifier> getObjectClassifierManager() {
 		return new ProjectResourceManager.SerializableFileResourceManager(getObjectClassifiersPath(), PathObjectClassifier.class);
 	}
 
-
-	@Override
 	public ProjectResourceManager<PixelClassifier> getPixelClassifierManager() {
 		return new ProjectResourceManager.JsonFileResourceManager(getPixelClassifiersPath(), PixelClassifier.class);
-	}
-
-
-	@Override
-	public Project<BufferedImage> createSubProject(String name, Collection<ProjectImageEntry<BufferedImage>> entries) {
-		if (!name.endsWith(ext)) {
-			if (name.endsWith("."))
-				name = name + ext;
-			else
-				name = name + "." + ext;
-		}
-		File file = new File(getBaseDirectory(), name);
-		DefaultProject project = new DefaultProject(file);
-		boolean changes = false;
-		for (ProjectImageEntry<BufferedImage> entry : entries)
-			changes = project.addImage(entry) | changes;
-		return project;
 	}
 	
 }

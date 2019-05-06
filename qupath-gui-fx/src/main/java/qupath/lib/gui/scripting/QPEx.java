@@ -63,6 +63,7 @@ import qupath.lib.plugins.PathPlugin;
 import qupath.lib.plugins.PluginRunner;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectImageEntry;
+import qupath.lib.projects.Projects;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.PathROIToolsAwt;
 import qupath.lib.roi.ROIs;
@@ -186,8 +187,8 @@ public class QPEx extends QP {
 	 * @return
 	 */
 	private static String getProjectBaseDirectory() {
-		Project<?> project = getProject();
-		return project == null ? null : project.getBaseDirectory().getAbsolutePath();
+		File dir = Projects.getBaseDirectory(getProject());
+		return dir == null ? null : dir.getAbsolutePath();
 	}
 	
 	/**

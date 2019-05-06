@@ -231,7 +231,8 @@ public class DragDropFileImportListener implements EventHandler<DragEvent> {
 					Project<BufferedImage> project = ProjectIO.loadProject(file, BufferedImage.class);
 					gui.setProject(project);
 				} catch (Exception e) {
-					logger.error("Could not open as project file: {}", e);
+					DisplayHelpers.showErrorMessage("Project error", e);
+//					logger.error("Could not open as project file: {}", e);
 				}
 				break;
 			}

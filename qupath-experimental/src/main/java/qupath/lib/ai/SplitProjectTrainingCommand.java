@@ -20,7 +20,6 @@ import qupath.lib.gui.helpers.dialogs.ParameterPanelFX;
 import qupath.lib.gui.panels.ProjectBrowser;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.projects.Project;
-import qupath.lib.projects.ProjectFactory;
 import qupath.lib.projects.ProjectIO;
 import qupath.lib.projects.ProjectImageEntry;
 
@@ -211,32 +210,22 @@ public class SplitProjectTrainingCommand implements PathCommand {
 				String baseName = fileOrig.getName();
 				if (baseName.toLowerCase().endsWith(ext))
 					baseName = baseName.substring(0, baseName.length()-ext.length());
-				int num = 1;
-				while (true) {
-					File fileTrain = new File(dir, baseName + "-train-"+num+ext);
-					File fileValidation = new File(dir, baseName + "-validation-"+num+ext);
-					File fileTest = new File(dir, baseName + "-test-"+num+ext);
-					if (!fileTrain.exists() && !fileValidation.exists() && !fileTest.exists()) {
-						if (!trainEntries.isEmpty()) {
-							Project<BufferedImage> projectTemp = ProjectFactory.createProject(fileTrain, BufferedImage.class);
-							projectTemp.addAllImages(trainEntries);
-							ProjectBrowser.syncProject(projectTemp);
-						}
-						if (!validationEntries.isEmpty()) {
-							Project<BufferedImage> projectTemp = ProjectFactory.createProject(fileValidation, BufferedImage.class);
-							projectTemp.addAllImages(validationEntries);
-							ProjectBrowser.syncProject(projectTemp);
-						}
-						if (!testEntries.isEmpty()) {
-							Project<BufferedImage> projectTemp = ProjectFactory.createProject(fileTest, BufferedImage.class);
-							projectTemp.addAllImages(testEntries);
-							ProjectBrowser.syncProject(projectTemp);
-						}
-						break;
-					}
-					num++;
+
+				String nameTrain = baseName + "-train";
+				String nameValidation = baseName + "-validation";
+				String nameTest = baseName + "-test";
+				if (!trainEntries.isEmpty()) {
+					Project<BufferedImage> projectTemp = project.createSubProject(nameTrain, trainEntries);
+					ProjectBrowser.syncProject(projectTemp);
 				}
-				
+				if (!validationEntries.isEmpty()) {
+					Project<BufferedImage> projectTemp = project.createSubProject(nameValidation, validationEntries);
+					ProjectBrowser.syncProject(projectTemp);
+				}
+				if (!testEntries.isEmpty()) {
+					Project<BufferedImage> projectTemp = project.createSubProject(nameTest, testEntries);
+					ProjectBrowser.syncProject(projectTemp);
+				}
 			}
 			
 			// Save the main project

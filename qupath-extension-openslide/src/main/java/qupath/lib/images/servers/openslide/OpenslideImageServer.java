@@ -103,7 +103,8 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 		// Ensure the garbage collector has run - otherwise any previous attempts to load the required native library
 		// from different classloader are likely to cause an error (although upon first further investigation it seems this doesn't really solve the problem...)
 		System.gc();
-		osr = new OpenSlide(new File(uri));
+		File file = new File(uri);
+		osr = new OpenSlide(file);
 
 		// Parse the parameters
 		int width = (int)osr.getLevel0Width();
@@ -190,6 +191,7 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 		originalMetadata = new ImageServerMetadata.Builder(getClass(),
 				path, boundsWidth, boundsHeight).
 				channels(ImageChannel.getDefaultRGBChannels()). // Assume 3 channels (RGB)
+				name(file.getName()).
 				rgb(true).
 				args(args).
 				bitDepth(8).

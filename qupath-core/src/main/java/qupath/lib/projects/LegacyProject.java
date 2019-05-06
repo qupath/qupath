@@ -72,12 +72,15 @@ import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 
 /**
  * Legacy Project implementation from QuPath 0.1.2 and earlier.
+ * <p>
+ * Included here as a temporary measure to ease transition to newer-style projects.
  * 
  * @author Pete Bankhead
  *
  * @param <T>
  */
-class LegacyProject<T> implements Project<T> {
+@Deprecated
+class LegacyProject<T> {
 	
 	private static Logger logger = LoggerFactory.getLogger(LegacyProject.class);
 	
@@ -112,12 +115,10 @@ class LegacyProject<T> implements Project<T> {
 		return project;
 	}
 	
-	@Override
 	public boolean getMaskImageNames() {
 		return maskNames;
 	}
 	
-	@Override
 	public void setMaskImageNames(boolean doMask) {
 		this.maskNames = doMask;
 	}
@@ -145,7 +146,7 @@ class LegacyProject<T> implements Project<T> {
 		return true;
 	}
 
-	public boolean addImage(final ProjectImageEntry<T> entry) {
+	public boolean addImage(final LegacyProjectImageEntry entry) {
 		if (images.containsKey(entry.getServerPath()))
 			return false;
 		if (entry instanceof LegacyProject.LegacyProjectImageEntry)
@@ -168,9 +169,9 @@ class LegacyProject<T> implements Project<T> {
 		return getFile().toPath();
 	}
 	
-	public boolean addAllImages(final Collection<ProjectImageEntry<T>> entries) {
+	public boolean addAllImages(final Collection<LegacyProjectImageEntry> entries) {
 		boolean changes = false;
-		for (ProjectImageEntry<T> entry : entries)
+		for (LegacyProjectImageEntry entry : entries)
 			changes = addImage(entry) | changes;
 		return changes;
 	}
@@ -183,7 +184,7 @@ class LegacyProject<T> implements Project<T> {
 		return images.isEmpty();
 	}
 
-	public ProjectImageEntry<T> addImage(final ImageServer<T> server) {
+	public LegacyProjectImageEntry addImage(final ImageServer<T> server) {
 		var entry = new LegacyProjectImageEntry(server.getPath(), server.getDisplayedImageName(), null);
 		if (addImage(entry))
 			return entry;
@@ -191,7 +192,7 @@ class LegacyProject<T> implements Project<T> {
 	}
 	
 	
-	public ProjectImageEntry<T> getImageEntry(final String path) {
+	public LegacyProjectImageEntry getImageEntry(final String path) {
 		return images.get(path);
 	}
 	
@@ -230,8 +231,8 @@ class LegacyProject<T> implements Project<T> {
 	 * 
 	 * @return
 	 */
-	public List<ProjectImageEntry<T>> getImageList() {
-		List<ProjectImageEntry<T>> list = new ArrayList<>(images.values());
+	public List<LegacyProjectImageEntry> getImageList() {
+		List<LegacyProjectImageEntry> list = new ArrayList<>(images.values());
 //		list.sort(ImageEntryComparator.instance);
 		return list;
 	}
@@ -389,7 +390,7 @@ class LegacyProject<T> implements Project<T> {
 		}		
 		
 		JsonArray array = new JsonArray();
-		for (ProjectImageEntry<T> entry : project.getImageList()) {
+		for (var entry : project.getImageList()) {
 			JsonObject jsonEntry = new JsonObject();
 			// Try to avoid changing server paths if possible
 			if (entry instanceof LegacyProject.LegacyProjectImageEntry)
@@ -460,7 +461,7 @@ class LegacyProject<T> implements Project<T> {
 	 *
 	 */
 	// TODO: URGENTLY NEED TO CONSIDER ESCAPING CHARACTERS IN URLS MORE GENERALLY
-	class LegacyProjectImageEntry implements ProjectImageEntry<T> {
+	class LegacyProjectImageEntry {
 
 		private String serverPath;
 		private String imageName;
@@ -560,15 +561,6 @@ class LegacyProject<T> implements Project<T> {
 			return getOriginalImageName();
 		}
 
-		@Override
-		public String toString() {
-			String s = getImageName();
-			if (!metadata.isEmpty())
-				s += " - " + getMetadataSummaryString();
-			return s;
-			//			return getServerPath();
-		}
-		
 		/**
 		 * Get the path used to represent this image, as specified when this entry was created.
 		 * 
@@ -644,7 +636,6 @@ class LegacyProject<T> implements Project<T> {
 		/**
 		 * Legacy projects use the image name, which unfortunate consequences if this is not unique.
 		 */
-		@Override
 		public String getUniqueName() {
 			return imageName;
 		}
@@ -732,15 +723,11 @@ class LegacyProject<T> implements Project<T> {
 			return new File(dirData, getUniqueName() + ".qpdata");
 		}
 
-		
-		@Override
 		public Path getEntryPath() {
 			var file = getImageDataFile();
 			return file == null ? null : file.toPath();
 		}
 		
-		
-		@Override
 		public ImageData<T> readImageData() throws IOException {
 			File file = getImageDataFile();
 			var server = buildImageServer();
@@ -751,7 +738,6 @@ class LegacyProject<T> implements Project<T> {
 			return new ImageData<>(server);
 		}
 
-		@Override
 		public void saveImageData(ImageData<T> imageData) throws IOException {
 			File file = getImageDataFile();
 			if (!file.getParentFile().exists())
@@ -770,39 +756,14 @@ class LegacyProject<T> implements Project<T> {
 			return new File(new File(getBaseDirectory(), "thumbnails"), getUniqueName() + ".jpg");
 		}
 		
-		@Override
 		public boolean hasImageData() {
 			return getImageDataFile().exists();
 		}
 		
-		@Override
 		public String getOriginalImageName() {
 			return imageName;
 		}
 		
-		@Override
-		public String getSummary() {
-
-			StringBuilder sb = new StringBuilder();
-			sb.append(getImageName()).append("\n\n");
-			if (!getMetadataMap().isEmpty()) {
-				for (Entry<String, String> mapEntry : getMetadataMap().entrySet()) {
-					sb.append(mapEntry.getKey()).append(":\t").append(mapEntry.getValue()).append("\n");
-				}
-				sb.append("\n");
-			}
-
-			File file = getImageDataFile();
-			if (file != null && file.exists()) {
-				double sizeMB = file.length() / 1024.0 / 1024.0;
-				sb.append(String.format("Data file:\t%.2f MB", sizeMB)).append("\n");
-//				sb.append("Modified:\t").append(dateFormat.format(new Date(file.lastModified())));
-			} else
-				sb.append("No data file");
-			return sb.toString();
-		}
-
-		@Override
 		public T getThumbnail() throws IOException {
 			if (!cls.equals(BufferedImage.class))
 				return null;
@@ -812,7 +773,6 @@ class LegacyProject<T> implements Project<T> {
 			return null;
 		}
 
-		@Override
 		public void setThumbnail(T img) throws IOException {
 			if (!cls.equals(BufferedImage.class))
 				throw new UnsupportedOperationException("Only RenderedImage thumbnails are supported!");
@@ -825,25 +785,21 @@ class LegacyProject<T> implements Project<T> {
 
 	}
 
-	@Override
 	public String getVersion() {
 		return null;
 	}
 
 
-	@Override
 	public ProjectResourceManager<String> getScriptsManager() {
 		throw new UnsupportedOperationException();
 	}
 
 
-	@Override
 	public ProjectResourceManager<PathObjectClassifier> getObjectClassifierManager() {
 		throw new UnsupportedOperationException();
 	}
 
 
-	@Override
 	public ProjectResourceManager<PixelClassifier> getPixelClassifierManager() {
 		throw new UnsupportedOperationException();
 	}

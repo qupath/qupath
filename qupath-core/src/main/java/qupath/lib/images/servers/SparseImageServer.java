@@ -44,12 +44,12 @@ public class SparseImageServer extends AbstractTileableImageServer {
 	
 	private int originX = 0, originY = 0;
 	
-	SparseImageServer(List<SparseImageServerManagerRegion> regions) throws IOException {
-		this(createManager(regions));
+	SparseImageServer(List<SparseImageServerManagerRegion> regions, String path) throws IOException {
+		this(createManager(regions), path);
 	}
 	
 
-	public SparseImageServer(SparseImageServerManager manager) throws IOException {
+	public SparseImageServer(SparseImageServerManager manager, String path) throws IOException {
 		super(null);
 		
 		this.manager = manager;
@@ -57,6 +57,8 @@ public class SparseImageServer extends AbstractTileableImageServer {
 		ImageServerMetadata metadata = null;
 		
 		int x1 = Integer.MAX_VALUE, y1 = Integer.MAX_VALUE, x2 = -Integer.MAX_VALUE, y2 = -Integer.MAX_VALUE;
+		
+		List<String> paths = new ArrayList<>();
 		
 		for (ImageRegion region: manager.getRegions()) {
 			if (region.getX() < x1)
@@ -67,14 +69,22 @@ public class SparseImageServer extends AbstractTileableImageServer {
 				x2 = region.getX() + region.getWidth();
 			if (region.getY() + region.getHeight() > y2)
 				y2 = region.getY() + region.getHeight();
+
+			ImageServer<BufferedImage> server = null;
 			
-			// Read the first server
-			if (metadata == null) {
-				ImageServer<BufferedImage> server = manager.getServer(region, 1);
-				metadata = server.getMetadata();
-				colorModel = server.getDefaultThumbnail().getColorModel();
+			// Read the first server if we need it
+			if (metadata == null || path == null) {
+				server = manager.getServer(region, 1);
+				if (metadata == null) {
+					metadata = server.getMetadata();
+					colorModel = server.getDefaultThumbnail().getColorModel();
+				}
+				if (path == null)
+					paths.add(region.toString() + " (" + server.getPath() + ")");
 			}
 		}
+		if (path == null)
+			path = String.join(", ", paths);
 		// Here, we assume origin at zero
 //		int width = x2;
 //		int height = y2;
@@ -85,6 +95,8 @@ public class SparseImageServer extends AbstractTileableImageServer {
 		int height = y2 - y1;
 		
 		this.metadata = new ImageServerMetadata.Builder(getClass(), metadata)
+				.path(path)
+				.name("Sparse image (" + manager.getRegions().size() + " regions)")
 				.width(width)
 				.height(height)
 				.preferredTileSize(1024, 1024)
@@ -207,7 +219,7 @@ public class SparseImageServer extends AbstractTileableImageServer {
 		}
 		
 		public SparseImageServer build() throws IOException {
-			return new SparseImageServer(manager);
+			return new SparseImageServer(manager, null);
 		}
 		
 	}
@@ -278,7 +290,7 @@ public class SparseImageServer extends AbstractTileableImageServer {
 		 * @param server
 		 */
 		private synchronized void addRegionServer(ImageRegion region, double downsample, ImageServer<BufferedImage> server) {
-			String json = ImageServers.toJson(server);
+			String json = ImageServers.toJson(server, false);
 			 if (!serverMap.containsKey(json))
 				serverMap.put(server.getPath(), server);
 			 addRegionServer(region, downsample, json);

@@ -2,7 +2,6 @@ package qupath.lib.gui.commands;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;
-import java.nio.file.Files;
 import java.util.Collection;
 import java.util.function.Predicate;
 
@@ -13,7 +12,6 @@ import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.images.servers.CroppedImageServer;
-import qupath.lib.images.servers.ImageServers;
 import qupath.lib.images.servers.SparseImageServer;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.classes.PathClassFactory;
@@ -39,20 +37,24 @@ public class SparseImageServerCommand implements PathCommand {
 		}
 
 		try {
-			var server = createSparseServer(project.getImageList(), p -> p.getPathClass() != PathClassFactory.getPathClass("Region"));
+			var server = createSparseServer(project.getImageList(), p -> p.getPathClass() == PathClassFactory.getPathClass("Region"));
 			if (server.getManager().getRegions().isEmpty()) {
 				DisplayHelpers.showErrorMessage("Sparse image server", "No 'Region' annotations found!");
 				return;			
 			}
 			
-			var file = qupath.getDialogHelper().promptToSaveFile("Save sparse server", null, null, "Sparse server", "server.json");
-			if (file == null)
-				return;
-		
-			try (var writer = Files.newBufferedWriter(file.toPath())) {
-				writer.write(ImageServers.toJson(server));
-			}
-			project.addImage(server);
+			var entry = project.addImage(server);
+			qupath.refreshProject();
+			qupath.openImageEntry(entry);
+			
+//			var file = qupath.getDialogHelper().promptToSaveFile("Save sparse server", null, null, "Sparse server", "server.json");
+//			if (file == null)
+//				return;
+//		
+//			try (var writer = Files.newBufferedWriter(file.toPath())) {
+//				writer.write(ImageServers.toJson(server));
+//			}
+//			project.addImage(server);
 		} catch (Exception e) {
 			DisplayHelpers.showErrorMessage("Sparse image server", e);
 		}

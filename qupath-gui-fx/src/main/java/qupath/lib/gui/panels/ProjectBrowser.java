@@ -98,6 +98,7 @@ import qupath.lib.gui.commands.ProjectImportImagesCommand;
 import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.gui.helpers.PaintingToolsFX;
 import qupath.lib.gui.helpers.PanelToolsFX;
+import qupath.lib.gui.helpers.DisplayHelpers.DialogButton;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
@@ -105,6 +106,7 @@ import qupath.lib.images.servers.ImageServerProvider;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectIO;
 import qupath.lib.projects.ProjectImageEntry;
+import qupath.lib.projects.Projects;
 
 /**
  * Component for previewing and selecting images within a project.
@@ -224,13 +226,32 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 			
 			if (entries.isEmpty())
 				return;
+			
+			// Don't allow us to remove any entries that are currently open (in any viewer)
+			var project = getProject();
+			if (project != null) {
+				for (var viewer : qupath.getViewers()) {
+					var imageData = viewer.getImageData();
+					var entry = imageData == null ? null : getProject().getImageEntry(imageData.getServerPath());
+					if (entry != null && entries.contains(entry)) {
+						DisplayHelpers.showErrorMessage("Remove project entries", "Please close all images you want to remove!");
+						return;
+					}
+				}
+			}
+			
 			if (entries.size() == 1) {
-				if (!DisplayHelpers.showConfirmDialog("Delete project entry", "Remove " + entries.get(0).getImageName() + " from project?"))
+				if (!DisplayHelpers.showConfirmDialog("Remove project entry", "Remove " + entries.get(0).getImageName() + " from project?"))
 					return;
 			} else if (!DisplayHelpers.showYesNoDialog("Remove project entries", String.format("Remove %d entries?", entries.size())))
 				return;
 			
-			project.removeAllImages(entries);
+			var result = DisplayHelpers.showYesNoCancelDialog("Remove project entries",
+					"Delete all associated data?");
+			if (result == DialogButton.CANCEL)
+				return;
+			
+			project.removeAllImages(entries, result == DialogButton.YES);
 			model.rebuildModel();
 			syncProject(project);
 			if (tree != null) {
@@ -723,9 +744,8 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 	}
 
 
-
 	File getBaseDirectory() {
-		return project == null ? null : project.getBaseDirectory();
+		return Projects.getBaseDirectory(project);
 	}
 
 
@@ -737,11 +757,11 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 	}
 
 
-	boolean isCurrentImage(final ProjectImageEntry<?> entry) {
-		ImageData<?> imageData = getCurrentImageData();
+	boolean isCurrentImage(final ProjectImageEntry<BufferedImage> entry) {
+		ImageData<BufferedImage> imageData = getCurrentImageData();
 		if (imageData == null || entry == null)
 			return false;
-		return entry.sameServerPath(imageData.getServerPath());
+		return entry.sameServer(imageData.getServer());
 	}
 
 
@@ -1097,7 +1117,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 				return;
 			}
 
-			ProjectImageEntry<?> entry = item instanceof ProjectImageEntry ? (ProjectImageEntry<?>)item : null;
+			ProjectImageEntry<BufferedImage> entry = item instanceof ProjectImageEntry ? (ProjectImageEntry<BufferedImage>)item : null;
 			if (isCurrentImage(entry))
 				setStyle("-fx-font-weight: bold; -fx-font-family: arial");
 			else if (entry == null || entry.hasImageData())

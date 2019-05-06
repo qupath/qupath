@@ -191,6 +191,7 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 								type == ROW_TYPE.PIXEL_HEIGHT) {
 							promptToSetPixelSize(imageData, false);
 							c.getTableView().refresh();
+							imageData.getHierarchy().fireHierarchyChangedEvent(this);
 						}
 					}
 				});
@@ -312,21 +313,31 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 			boolean setPixelHeight = true;
 			boolean setPixelWidth = true;	
 			String message;
+			
+			double pixelWidth = server.getPixelWidthMicrons();
+			double pixelHeight = server.getPixelHeightMicrons();
+			if (!Double.isFinite(pixelWidth))
+				pixelWidth = 1;
+			if (!Double.isFinite(pixelHeight))
+				pixelHeight = 1;
+			
+			Double defaultValue = null;
 			if (roi.isLine()) {
 				setPixelHeight = roi.getBoundsHeight() != 0;
 				setPixelWidth = roi.getBoundsWidth() != 0;
 				message = "Enter selected line length in " + GeneralTools.micrometerSymbol();
+				defaultValue = ((PathLine)roi).getScaledLength(pixelWidth, pixelHeight);
 			} else {
 				message = "Enter selected ROI area in " + GeneralTools.micrometerSymbol() + "^2";
+				defaultValue = ((PathArea)roi).getScaledArea(pixelWidth, pixelHeight);
 			}
-			Double defaultValue = null;
-			if (setPixelHeight && setPixelWidth) {
-				defaultValue = server.getAveragedPixelSizeMicrons();
-			} else if (setPixelHeight) {
-				defaultValue = server.getPixelHeightMicrons();					
-			} else if (setPixelWidth) {
-				defaultValue = server.getPixelWidthMicrons();					
-			}
+//			if (setPixelHeight && setPixelWidth) {
+//				defaultValue = server.getAveragedPixelSizeMicrons();
+//			} else if (setPixelHeight) {
+//				defaultValue = server.getPixelHeightMicrons();					
+//			} else if (setPixelWidth) {
+//				defaultValue = server.getPixelWidthMicrons();					
+//			}
 			if (Double.isNaN(defaultValue))
 				defaultValue = 1.0;
 			Double result = DisplayHelpers.showInputDialog("Set pixel size", message, defaultValue);

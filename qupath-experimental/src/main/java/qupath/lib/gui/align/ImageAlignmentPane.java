@@ -286,14 +286,14 @@ public class ImageAlignmentPane {
 		// Get all the other project entries - except for the base image (which is fixed)
 		Project<BufferedImage> project = qupath.getProject();
 		List<ProjectImageEntry<BufferedImage>> entries = new ArrayList<>(project.getImageList());
-		ImageServer<?> currentServer = viewer.getServer();
+		ImageServer<BufferedImage> currentServer = viewer.getServer();
 		String baseServerPath = currentServer == null ? null : currentServer.getPath();
-		entries.removeIf(e -> e.sameServerPath(baseServerPath));
+		entries.removeIf(e -> e.sameServer(currentServer));
 		
 		// Find the entries currently selected
 		Set<ProjectImageEntry<BufferedImage>> alreadySelected = 
 				images.stream().map(i -> project.getImageEntry(i.getServerPath())).collect(Collectors.toSet());
-		alreadySelected.removeIf(e -> e.sameServerPath(baseServerPath));
+		alreadySelected.removeIf(e -> e.sameServer(currentServer));
 		
 		// Create a list to display, with the appropriate selections
 		ListView<ProjectImageEntry<BufferedImage>>  list = new ListView<>();
@@ -324,7 +324,7 @@ public class ImageAlignmentPane {
 			List<ImageData<BufferedImage>> imagesToRemove = new ArrayList<>();
 			for (ImageData<BufferedImage> temp : images) {
 				for (ProjectImageEntry<BufferedImage> entry : toRemove) {
-					if (entry.sameServerPath(temp.getServerPath()))
+					if (entry.sameServer(temp.getServer()))
 						imagesToRemove.add(temp);
 				}
 			}

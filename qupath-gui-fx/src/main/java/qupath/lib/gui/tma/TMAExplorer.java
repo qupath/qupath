@@ -51,6 +51,7 @@ import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.hierarchy.TMAGrid;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectImageEntry;
+import qupath.lib.projects.Projects;
 import qupath.lib.regions.RegionRequest;
 
 /**
@@ -88,7 +89,8 @@ public class TMAExplorer implements PathCommand {
 		if (project != null) {
 			
 			// Create an output directory for the images
-			File dirBaseImageOutput = new File(project.getBaseDirectory(), "TMA");
+			File dirBaseImageOutput = Projects.getBaseDirectory(project);
+			dirBaseImageOutput = new File(dirBaseImageOutput, "TMA");
 			dirBaseImageOutput = new File(dirBaseImageOutput, "images");
 			if (!dirBaseImageOutput.exists())
 				dirBaseImageOutput.mkdirs();

@@ -776,10 +776,10 @@ public class PixelClassifierImageSelectionPane {
 		}
 		
 //		var dataFileName = QuPathGUI.getImageDataFile(project, entry).getName();
-		var dataFileName = entry.getUniqueName();
-		int ind = dataFileName.indexOf(PathPrefs.getSerializationExtension());
-		if (ind >= 0)
-			dataFileName = dataFileName.substring(0, ind);
+//		var dataFileName = entry.getUniqueName();
+//		int ind = dataFileName.indexOf(PathPrefs.getSerializationExtension());
+//		if (ind >= 0)
+//			dataFileName = dataFileName.substring(0, ind);
 		
 		var pathOutput = Paths.get(pathEntry.toString(), "layers", classifierName, classifierName + ".zip");
 		try {

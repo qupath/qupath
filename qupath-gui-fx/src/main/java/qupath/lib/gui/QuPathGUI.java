@@ -337,6 +337,7 @@ import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectIO;
 import qupath.lib.projects.ProjectImageEntry;
+import qupath.lib.projects.Projects;
 import qupath.lib.roi.PathROIToolsAwt;
 import qupath.lib.roi.interfaces.ROI;
 import qupath.lib.roi.interfaces.TranslatableROI;
@@ -2450,6 +2451,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 					}
 				} catch (Exception e) {
 					DisplayHelpers.showErrorMessage("Open project", "Could not open " + fileNew.getName() + " as a QuPath project");
+					logger.error("Error opening project", e);
 					return false;
 				}
 		}
@@ -4573,8 +4575,9 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		// Ensure the URLHelpers status is appropriately set
 		FileSystem fileSystem = null;
 		String fileSystemRoot = null;
-		if (project != null && PathPrefs.useProjectImageCache()) {
-			File cache = new File(project.getBaseDirectory(), "cache");
+		File dirBase = Projects.getBaseDirectory(project);
+		if (dirBase != null && PathPrefs.useProjectImageCache()) {
+			File cache = new File(dirBase, "cache");
 			if (!cache.exists())
 				cache.mkdirs();
 			try {

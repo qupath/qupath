@@ -23,7 +23,6 @@
 
 package qupath.lib.projects;
 
-import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Path;
@@ -81,19 +80,20 @@ public interface Project<T> {
 	public boolean setPathClasses(Collection<? extends PathClass> pathClasses);
 	
 	/**
-	 * Check for missing paths.  This assumes local files; other URIs will be ignored.
-	 * 
-	 * @param relativize Optionally try to resolve relative paths.
-	 * @return a list of local file paths supposedly to images, but for which no files could be found.
-	 */
-	public List<String> validateLocalPaths(boolean relativize);
-	
-	/**
 	 * Get a URI that can be used when saving/reloading this project.
 	 * 
 	 * @return
 	 */
 	public URI getURI();
+	
+	/**
+	 * Sometimes projects move (unfortunately). This returns the previous URI, if known - 
+	 * which can be helpful for resolving relative paths to images in the event that 
+	 * both project and images have moved together.
+	 * 
+	 * @return
+	 */
+	public URI getPreviousURI();
 	
 	/**
 	 * Extract a usable project name from a URI.
@@ -119,16 +119,6 @@ public interface Project<T> {
 	}
 	
 	/**
-	 * Get the base directory containing this project, if possible.
-	 * <p>
-	 * This is relevant for projects using the local file system, but should return null in other cases.
-	 * 
-	 * @return
-	 */
-	@Deprecated
-	public File getBaseDirectory();
-	
-	/**
 	 * The version string for this project, which can be used to distinguish new and older project 
 	 * (which may contain different information).
 	 * <p>
@@ -139,7 +129,7 @@ public interface Project<T> {
 	public String getVersion();
 	
 	/**
-	 * Get a path to this project, or null if this project on a local file system.
+	 * Get a path to this project, or null if this project is not on a local file system.
 	 * <p>
 	 * If not null, the path may be a file or a directory.
 	 * 
@@ -149,14 +139,16 @@ public interface Project<T> {
 	public Path getPath();
 	
 	/**
-	 * Add multiple images to the project. Note that it is implementation-specific whether 
-	 * these images entries are duplicated or used directly, e.g. it is undefined whether or not 
-	 * subsequent changes to any entries within the collection will be reflected in this project or not.
+	 * Create a sub-project that provides a view on the specified entries.
+	 * <p>
+	 * The retains exactly the same references and data, i.e. it does not duplicate entries or data files - 
+	 * rather it is used to generate projects that provide access to a subset of the entries in the original project.
 	 * 
-	 * @param entries
+	 * @param name the name of the sub-project
+	 * @param entries the entries to retain within the sub-project
 	 * @return
 	 */
-	public boolean addAllImages(final Collection<ProjectImageEntry<T>> entries);
+	public Project<T> createSubProject(final String name, final Collection<ProjectImageEntry<T>> entries);
 	
 	/**
 	 * Test if the project contains any images.
@@ -179,18 +171,19 @@ public interface Project<T> {
 	public ProjectImageEntry<T> getImageEntry(final String path);
 	
 	/**
-	 * Remove an image from the project.
+	 * Remove an image from the project, optionally including associated data.
 	 * 
 	 * @param entry
 	 */
-	public void removeImage(final ProjectImageEntry<?> entry);
+	public void removeImage(final ProjectImageEntry<?> entry, boolean removeAllData);
 
 	/**
-	 * Remove multiple images from the project.
+	 * Remove multiple images from the project, optionally including associated data.
 	 * 
 	 * @param entries
+	 * @param removeAllData
 	 */
-	public void removeAllImages(final Collection<ProjectImageEntry<T>> entries);
+	public void removeAllImages(final Collection<ProjectImageEntry<T>> entries, boolean removeAllData);
 	
 	/**
 	 * Save the project.

@@ -88,12 +88,12 @@ public interface ProjectImageEntry<T> {
 	
 	
 	/**
-	 * Check if this image entry refers to a specified image according to its path.
+	 * Check if the provided ImageServer is the same as the one used by this entry.
 	 * 
-	 * @param serverPath
-	 * @return <code>true</code> if the path is a match, <code>false</code> otherwise.
+	 * @param server
+	 * @return <code>true</code> if the server is a match, <code>false</code> otherwise.
 	 */
-	public boolean sameServerPath(final String serverPath);
+	public boolean sameServer(final ImageServer<T> server);
 		
 	
 	/**
@@ -118,6 +118,7 @@ public interface ProjectImageEntry<T> {
 	
 	/**
 	 * Request a metadata value.
+	 * <p>
 	 * Note that this may return <code>null</code>.
 	 * 
 	 * @param key
@@ -127,6 +128,7 @@ public interface ProjectImageEntry<T> {
 
 	/**
 	 * Store a metadata value.
+	 * <p>
 	 * This is intended as storage of short key-value pairs.
 	 * Extended text should be stored under <code>setDescription</code>.
 	 * 
