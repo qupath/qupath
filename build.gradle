@@ -31,7 +31,7 @@ def useGPU = false
 /**
  * JavaFX version
 */
-def jfxVersion = '12'
+def jfxVersion = '12.0.1'
 
 /**
  * Good to know what JDK is (sometimes accidentally) being used
@@ -108,6 +108,7 @@ subprojects {
   dependencies {
 
     jts "org.locationtech.jts:jts-core:1.16.1"
+//    jts "org.locationtech.jts.io:jts-io-common:1.16.1" // Optionally add GeoJSON support (brings in json-simple as sub-dependency)
 
     groovy "org.codehaus.groovy:groovy:2.5.6"
     groovy "org.codehaus.groovy:groovy-jsr223:2.5.6"
@@ -119,13 +120,13 @@ subprojects {
 
 	picocli 'info.picocli:picocli:3.9.6'
 
-    richtextfx 'org.fxmisc.richtext:richtextfx:0.9.3'
+    richtextfx 'org.fxmisc.richtext:richtextfx:0.10.0'
 
     commonsmath 'org.apache.commons:commons-math3:3.6.1'
 
     gson 'com.google.code.gson:gson:2.8.5'
 
-    controlsfx 'org.controlsfx:controlsfx:11.0.0-RC2'
+    controlsfx 'org.controlsfx:controlsfx:11.0.0'
 //    controlsfx 'org.controlsfx:controlsfx:9.0.0'
 
 //	bioformats 'ome:bioformats_package:6.0.0'
@@ -433,7 +434,7 @@ task createPackage(dependsOn:createRuntime, type:Exec) {
     if (packageType == 'installer') {
     	params << 'create-installer'
     } else {
-		params << 'create-image'
+		params << 'create-app-image'
 	}
 
     params << '--input' << rootProject.libsDir.getAbsolutePath()
