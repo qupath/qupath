@@ -242,6 +242,26 @@ public interface ProjectImageEntry<T> {
 	public void setThumbnail(T img) throws IOException;	
 	
 	/**
+	 * Get a collection of the URIs required by this project's ImageServer.
+	 * <p>
+	 * The purpose of this is to help query if they can be found. They might not be 
+	 * e.g. if the images have been moved.
+	 * 
+	 * @return
+	 * @throws IOException
+	 */
+	public Collection<String> getServerURIs() throws IOException;
+	
+	/**
+	 * Update the URIs for the server (optional operation).
+	 * 
+	 * @param replacements a map with current URIs as keys, and desired URIs as values.
+	 * @return the number of URIs that were replaced.
+	 * @throws IOException
+	 */
+	public int updateServerURIs(Map<String, String> replacements) throws IOException;
+	
+	/**
 	 * Get a formatted string representation of the metadata map's contents.
 	 * 
 	 * @return

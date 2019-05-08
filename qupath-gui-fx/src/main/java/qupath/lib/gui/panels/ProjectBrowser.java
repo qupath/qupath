@@ -29,9 +29,11 @@ import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -39,12 +41,14 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -577,6 +581,55 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 		if (this.project == project)
 			return;
 		this.project = project;
+		
+		try {
+			Set<String> uris = new TreeSet<>();
+			for (var entry: project.getImageList()) {
+				uris.addAll(entry.getServerURIs());
+			}
+			URI projectURI = project.getURI();
+			URI previousURI = project.getPreviousURI();
+
+			Path pathProject = projectURI == null || !"file".equals(projectURI.getScheme()) ? null : Paths.get(projectURI);
+			Path pathPrevious = previousURI == null || !"file".equals(previousURI.getScheme()) ? null : Paths.get(previousURI);
+			boolean tryRelative = pathProject != null && pathPrevious != null && !pathProject.equals(pathPrevious);
+			
+			Map<String, String> replacements = new LinkedHashMap<>();
+			for (String s : uris) {
+				try {
+					URI uri = new URI(s);
+					if (!"file".equals(uri.getScheme()))
+						continue;
+					// Check if the path exists, without changes
+					Path path = Paths.get(uri);
+					if (Files.exists(path))
+						continue;
+					// Check if a relative path would work
+					if (tryRelative) {
+						Path pathRelative = pathProject.resolve(pathPrevious.relativize(path));
+						if (Files.exists(pathRelative)) {
+							String s2 = pathRelative.normalize().toUri().normalize().toString();
+							logger.info("Updating path: {} -> {}", s, s2);
+							replacements.put(s, s2);
+							continue;
+						}
+					}
+				} catch (Exception e) {
+					logger.warn("Exception converting path {} ({})", s, e.getLocalizedMessage());
+				}
+			}
+			
+			if (!replacements.isEmpty()) {
+				logger.info("Updating {} paths", replacements.size());
+				for (var entry: project.getImageList()) {
+					entry.updateServerURIs(replacements);
+				}
+			}
+			
+		} catch (IOException e) {
+			logger.error("Error checking URIs", e);
+		}
+		
 		model = new ProjectImageTreeModel(project);
 		tree.setRoot(model.getRootFX());
 		tree.getRoot().setExpanded(true);
@@ -804,10 +857,8 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 	/**
 	 * Prompt the user to set a new name for a ProjectImageEntry.
 	 * 
-	 * (Currently, this means creating a new entry with the required name, and adding it to the project instead of the current one.
-	 * 
 	 * @param entry
-	 * @return True if the entry was changed, false otherwise.
+	 * @return true if the entry was changed, false otherwise.
 	 */
 	private boolean setProjectEntryImageName(final ProjectImageEntry<BufferedImage> entry) {
 		Project<BufferedImage> project = qupath.getProject();
@@ -826,23 +877,12 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 		}
 		
 		// Try to set the name
-		ProjectImageEntry<BufferedImage> entryNew = setProjectEntryImageName(project, entry, name);
-		if (entry == entryNew)
-			return false;
-		
-		model.rebuildModel();
-		tree.setRoot(model.getRootFX());
-		tree.getRoot().setExpanded(true);
-		tree.refresh();
-		if (recursiveSelectObject(tree, tree.getRoot(), entryNew)) {
-			// Getting the scroll to behave intuitively is tricky...
-//			int ind = tree.getSelectionModel().getSelectedIndex();
-//			if (ind >= 0)
-//				Platform.runLater(() -> tree.scrollTo(ind));
+		boolean changed = setProjectEntryImageName(entry, name);
+		if (changed) {
+			tree.refresh();
+			qupath.updateTitle();
 		}
-		// Ensure we have an up-to-date title in QuPath
-		qupath.updateTitle();
-		return true;
+		return changed;
 	}
 	
 	
@@ -877,26 +917,21 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 	 * @param name
 	 * @return
 	 */
-	private synchronized static <T> ProjectImageEntry<T> setProjectEntryImageName(final Project<T> project, final ProjectImageEntry<T> entry, final String name) {
+	private synchronized static <T> boolean setProjectEntryImageName(final ProjectImageEntry<T> entry, final String name) {
 		
 		if (entry.getImageName().equals(name)) {
-			logger.info("Project image name already set to {} - will be left unchanged", name);
-			return entry;
+			logger.warn("Project image name already set to {} - will be left unchanged", name);
+			return false;
 		}
-		
-		for (ProjectImageEntry<?> entry2 : project.getImageList()) {
-			if (entry2.getImageName().equals(name)) {
-				DisplayHelpers.showErrorMessage("Set Image Name", "Cannot set image name to " + name + " -\nan image with this name already exists in the project");
-				return entry;
-			}
+
+		if (name.equals(null)) {
+			logger.warn("Project entry name cannot be null!");
+			return false;
 		}
-		
+
 		entry.setImageName(name);
 		
-		// Ensure the project is updated
-		syncProject(project);
-		
-		return entry;
+		return true;
 	}
 	
 

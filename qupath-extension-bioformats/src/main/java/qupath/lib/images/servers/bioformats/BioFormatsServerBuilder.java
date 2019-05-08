@@ -52,7 +52,7 @@ public class BioFormatsServerBuilder implements ImageServerBuilder<BufferedImage
 	@Override
 	public ImageServer<BufferedImage> buildServer(URI uri, String...args) {
 		try {
-			BioFormatsImageServer server = new BioFormatsImageServer(uri);
+			BioFormatsImageServer server = new BioFormatsImageServer(uri, args);
 			return server;
 		} catch (Exception e) {
 			lastSupportLevel.put(uri, Float.valueOf(0f));

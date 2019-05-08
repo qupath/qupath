@@ -597,6 +597,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 			// Set metadata
 			ImageServerMetadata.Builder builder = new ImageServerMetadata.Builder(
 					getClass(), path, width, height).
+					args(args).
 					name(imageName).
 					channels(channels).
 					sizeZ(nZSlices).
@@ -915,7 +916,8 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 			series = Integer.valueOf(0);
 		if (series != null) {
 			try {
-				return new BioFormatsImageServer(uri, "--series", series.toString());
+				BioFormatsImageServer server = new BioFormatsImageServer(uri, "--series", series.toString());
+				return server;
 			} catch (Exception e) {
 				if (e instanceof IOException)
 					throw (IOException)e;

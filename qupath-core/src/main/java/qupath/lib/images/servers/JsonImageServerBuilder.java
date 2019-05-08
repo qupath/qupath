@@ -24,11 +24,15 @@ public class JsonImageServerBuilder implements ImageServerBuilder<BufferedImage>
 	public float supportLevel(URI uri, ImageCheckType info, Class<?> cls, String...args) {
 		if (uri.toString().toLowerCase().endsWith(".json"))
 			return 4;
-		if (uri.getScheme().startsWith("http")) {
+		String scheme = uri.getScheme();
+		if (scheme != null && scheme.startsWith("http")) {
 			logger.debug("Reading JSON servers via HTTP requests currently not supported - will not check");
+			return 0;
 		}
 		try {
 			String type = Files.probeContentType(Paths.get(uri));
+			if (type == null)
+				return 1;
 			if (type.endsWith("/json"))
 				return 4;
 			if (type.equals("text/plain"))

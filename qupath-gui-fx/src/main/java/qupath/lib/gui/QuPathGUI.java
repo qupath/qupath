@@ -4509,8 +4509,20 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	 * @param project
 	 */
 	public void setProject(final Project<BufferedImage> project) {
-		if (this.project.get() == project)
+		var currentProject = this.project.get();
+		if (currentProject == project)
 			return;
+		
+		// Ensure we save the current project
+		if (currentProject != null) {
+			try {
+				currentProject.syncChanges();
+			} catch (IOException e) {
+				logger.error("Error syncing project", e);
+				if (!DisplayHelpers.showYesNoDialog("Project error", "A problem occurred while saving the last project - do you want to continue?"))
+					return;
+			}
+		}
 		
 		// Check if we want to save the current image; we could still veto the project change at this point
 		var viewer = getViewer();

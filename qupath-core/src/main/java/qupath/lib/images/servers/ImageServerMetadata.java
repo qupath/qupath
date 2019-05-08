@@ -46,6 +46,8 @@ import qupath.lib.common.GeneralTools;
  */
 public class ImageServerMetadata {
 	
+	private static Logger logger = LoggerFactory.getLogger(ImageServerMetadata.class);
+	
 	public static enum OutputType { CHANNEL, FEATURE, PROBABILITY, MULTICLASS_PROBABILITY, CLASSIFICATION;
 		
 		@Override
@@ -499,12 +501,25 @@ public class ImageServerMetadata {
 	 * @return
 	 */
 	public boolean isCompatibleMetadata(final ImageServerMetadata metadata) {
-		return path.equals(metadata.path) && 
-				bitDepth == metadata.bitDepth &&
-//				Arrays.equals(levels, metadata.levels) && 
-				sizeT == metadata.sizeT && 
-				getSizeC() == metadata.getSizeC() &&
-				sizeZ == metadata.sizeZ;
+		if (!path.equals(metadata.path)) {
+			logger.warn("Metadata paths are not compatible: \n{}\n{}", path, metadata.path);
+			return false;
+		}
+		if (bitDepth != metadata.bitDepth) {
+			logger.warn("Metadata bit-depths are not compatible: {} vs {}", bitDepth, metadata.bitDepth);
+			return false;
+		}
+		if (bitDepth != metadata.bitDepth) {
+			logger.warn("Metadata bit-depths are not compatible: {} vs {}", bitDepth, metadata.bitDepth);
+			return false;
+		}
+		if (sizeT != metadata.sizeT ||
+				getSizeC() != metadata.getSizeC() ||
+				sizeZ != metadata.sizeZ) {
+			logger.warn("Metadata image dimensions are not the same!");
+			return false;			
+		}
+		return true;
 	}
 	
 	

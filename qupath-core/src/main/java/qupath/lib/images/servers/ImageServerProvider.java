@@ -182,7 +182,7 @@ public class ImageServerProvider {
 			try {
 				@SuppressWarnings("unchecked")
 				ImageServerBuilder<T> possibleProvider = (ImageServerBuilder<T>)provider;
-				ImageServer<T> server = possibleProvider.buildServer(uri);
+				ImageServer<T> server = possibleProvider.buildServer(uri, args);
 				if (server != null) {
 					// Check size is reasonable - should be small, or large & tiled
 					if (server.nResolutions() > 1 || (long)server.getWidth() * server.getHeight() * server.getBitsPerPixel() * server.nChannels() / 8 < maxImageSize) {

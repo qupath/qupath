@@ -47,6 +47,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.Map.Entry;
+import java.util.TreeSet;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
@@ -60,8 +61,10 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.google.gson.JsonPrimitive;
 import com.google.gson.reflect.TypeToken;
+import com.google.gson.stream.JsonReader;
 
 import qupath.lib.classifiers.PathObjectClassifier;
 import qupath.lib.classifiers.pixel.PixelClassifier;
@@ -341,7 +344,7 @@ class DefaultProject implements Project<BufferedImage> {
 	}
 	
 	@Override
-	public ProjectImageEntry<BufferedImage> addImage(final ImageServer<BufferedImage> server) {
+	public ProjectImageEntry<BufferedImage> addImage(final ImageServer<BufferedImage> server) throws IOException {
 		var entry = new DefaultProjectImageEntry(server, null, null, null);
 		if (addImage(entry)) {
 			return entry;
@@ -491,28 +494,36 @@ class DefaultProject implements Project<BufferedImage> {
 	private AtomicLong counter = new AtomicLong(0L);
 	
 	/**
-	 * Request all the (String) URI's found within a JSON object, seaching recursively.
+	 * Request all the (String) URI's found within a JSON object, searching recursively.
 	 * 
 	 * @param obj
 	 * @param uris
 	 * @return
 	 */
-	static List<String> getURIsRecursive(JsonObject obj, List<String> uris) {
+	static Collection<String> getURIsRecursive(JsonElement element, Collection<String> uris) {
 		if (uris == null) {
 			uris = new ArrayList<>();
 		}
-		String uri = getStringField(obj, "uri");
-		if (uri != null)
-			uris.add(uri);			
-		for (var entry : obj.entrySet()) {
-			if (entry.getValue().isJsonObject())
-				getURIsRecursive((JsonObject)entry.getValue(), uris);
+		if (element instanceof JsonObject) {
+			JsonObject obj = (JsonObject)element;
+			String uri = getStringField(obj, "uri");
+			if (uri != null)
+				uris.add(uri);			
+			for (var entry : obj.entrySet()) {
+				if (entry.getValue().isJsonObject())
+					getURIsRecursive((JsonObject)entry.getValue(), uris);
+			}
+		} else if (element instanceof JsonArray) {
+			JsonArray array = (JsonArray)element;
+			for (int i = 0; i < array.size(); i++)
+				getURIsRecursive(((JsonArray)array).get(i), uris);
 		}
 		return uris;
 	}
 	
 	/**
 	 * Get a String field with a given name from an object (non-recursive), or null if the field is not present.
+	 * 
 	 * @param obj
 	 * @param name
 	 * @return
@@ -552,6 +563,17 @@ class DefaultProject implements Project<BufferedImage> {
 		return nReplacements;
 	}
 	
+	static int replaceURIsRecursive(JsonElement element, Map<String, String> replacements, int nReplacements) {
+		if (element instanceof JsonObject)
+			nReplacements = replaceURIsRecursive((JsonObject)element, replacements, nReplacements);
+		else if (element instanceof JsonArray) {
+			JsonArray array = (JsonArray)element;
+			for (int i = 0; i < array.size(); i++)
+				nReplacements = replaceURIsRecursive(array.get(i), replacements, nReplacements);
+		}
+		return nReplacements;
+	}
+	
 	
 	/**
 	 * Class to represent an image entry within a project.
@@ -565,8 +587,9 @@ class DefaultProject implements Project<BufferedImage> {
 		
 		/**
 		 * JSON representation of the server.
+		 * Transient because it is stored separately in its own JSON file.
 		 */
-		private JsonElement server;
+		private transient JsonElement server;
 		
 		/**
 		 * Result of server.getPath()
@@ -599,13 +622,16 @@ class DefaultProject implements Project<BufferedImage> {
 		private Map<String, String> metadata = new LinkedHashMap<>();
 		
 		
-		DefaultProjectImageEntry(final ImageServer<BufferedImage> server, final Long entryID, final String description, final Map<String, String> metadataMap) {
+		DefaultProjectImageEntry(final ImageServer<BufferedImage> server, final Long entryID, final String description, final Map<String, String> metadataMap) throws IOException {
 			this.server = ImageServers.toJsonElement(server, false);
 			if (entryID == null)
 				this.entryID = counter.incrementAndGet();
 			else
 				this.entryID = entryID;
 			
+			// If successful, write the server (including metadata)
+			this.server = ImageServers.toJsonElement(server, true);
+			syncServer();
 			this.serverPath = server.getPath();
 			this.imageName = server.getDisplayedImageName();
 			
@@ -623,6 +649,21 @@ class DefaultProject implements Project<BufferedImage> {
 			this.imageName = entry.imageName;
 			this.description = entry.description;
 			this.metadata = entry.metadata;
+		}
+		
+		@Override
+		public Collection<String> getServerURIs() throws IOException {
+			ensureJsonServerCached();
+			return getURIsRecursive(server, new TreeSet<>());
+		}
+		
+		@Override
+		public int updateServerURIs(Map<String, String> replacements) throws IOException {
+			ensureJsonServerCached();
+			int n = replaceURIsRecursive(server, replacements, 0);
+			if (n > 0)
+				syncServer();
+			return n;
 		}
 		
 		
@@ -712,17 +753,22 @@ class DefaultProject implements Project<BufferedImage> {
 			return Collections.unmodifiableSet(metadata.keySet());
 		}
 		
+		boolean ensureJsonServerCached() throws IOException {
+			if (server == null) {
+				var pathServerMetadata = getServerMetadataPath();
+				if (Files.exists(pathServerMetadata)) {
+					try (var reader = Files.newBufferedReader(pathServerMetadata)) {
+						server = new JsonParser().parse(reader);
+					}
+				}				
+			}
+			return server != null;
+		}
+		
 		@Override
 		public ImageServer<BufferedImage> buildImageServer() throws IOException {
-			var imageServer = ImageServers.fromJson(server);
-			var pathServerMetadata = getServerMetadataPath();
-			if (Files.exists(pathServerMetadata)) {
-				try (var reader = Files.newBufferedReader(pathServerMetadata)) {
-					ImageServerMetadata metadata = gson.fromJson(reader, ImageServerMetadata.class);
-					imageServer.setMetadata(metadata);
-				}
-			}
-			return imageServer;
+			ensureJsonServerCached();
+			return ImageServers.fromJson(server);
 		}
 		
 		private Path getEntryPath(boolean create) throws IOException {
@@ -798,12 +844,9 @@ class DefaultProject implements Project<BufferedImage> {
 				throw e;
 			}
 			
-			// If successful, write the additional metadata
-			var server = imageData.getServer();
-			var pathServerMetadata = getServerMetadataPath();
-			try (var out = Files.newBufferedWriter(pathServerMetadata, StandardOpenOption.CREATE)) {
-				gson.toJson(server.getMetadata(), out);
-			}
+			// If successful, write the server (including metadata)
+			this.server = ImageServers.toJsonElement(imageData.getServer(), true);
+			syncServer();
 			
 			var pathSummary = getDataSummaryPath();
 			try (var out = Files.newBufferedWriter(pathSummary, StandardOpenOption.CREATE)) {
@@ -817,6 +860,17 @@ class DefaultProject implements Project<BufferedImage> {
 			sb.append("name=").append(getImageName()).append(System.lineSeparator());
 			sb.append("path=").append(getServerPath()).append(System.lineSeparator());
 			Files.writeString(pathDetails, sb.toString());
+		}
+		
+		void syncServer() throws IOException {
+			if (server != null) {
+				var pathServerMetadata = getServerMetadataPath();
+				ensureDirectoryExists(pathServerMetadata.getParent());
+				try (var out = Files.newBufferedWriter(pathServerMetadata, StandardOpenOption.CREATE)) {
+					gson.toJson(server, out);
+				}
+			} else
+				logger.warn("Server is null - cannot synchronize!");
 		}
 		
 
@@ -971,7 +1025,10 @@ class DefaultProject implements Project<BufferedImage> {
 			return;
 		}
 
-		Gson gson = new GsonBuilder().setPrettyPrinting().create();
+		Gson gson = new GsonBuilder()
+				.serializeSpecialFloatingPointValues()
+				.setPrettyPrinting()
+				.create();
 		
 //		List<PathClass> pathClasses = project.getPathClasses();
 //		JsonArray pathClassArray = null;
@@ -985,8 +1042,6 @@ class DefaultProject implements Project<BufferedImage> {
 //			}
 //		}		
 		
-		JsonElement array = gson.toJsonTree(images.values());
-
 		JsonObject builder = new JsonObject();
 		builder.addProperty("version", LATEST_VERSION);
 		builder.addProperty("createTimestamp", getCreationTimestamp());
@@ -996,7 +1051,14 @@ class DefaultProject implements Project<BufferedImage> {
 //		if (pathClassArray != null) {
 //			builder.add("pathClasses", pathClassArray);			
 //		}
-		builder.add("images", array);
+		
+//		JsonElement array = new JsonArray();
+//		for (var entry : images.values()) {
+//			entry.
+//			builder.add("images", array);
+//		}
+		builder.add("images", gson.toJsonTree(images.values()));
+		
 
 		// If we already have a project, back it up
 		if (fileProject.exists()) {

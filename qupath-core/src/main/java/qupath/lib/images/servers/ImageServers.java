@@ -4,7 +4,6 @@ import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.Reader;
-import java.io.StringWriter;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
@@ -132,7 +131,9 @@ public class ImageServers {
 			this.includeMetadata = includeMetadata;
 		}
 		
-		private Gson gson = new GsonBuilder().setLenient()
+		private Gson gson = new GsonBuilder()
+				.setLenient()
+				.serializeSpecialFloatingPointValues()
 				.setPrettyPrinting()
 //				.registerTypeAdapterFactory(new ImageServerTypeAdapterFactory())
 				.create();
@@ -142,7 +143,9 @@ public class ImageServers {
 			if (server instanceof TransformingImageServer<?>) {
 				
 				ImageServer<BufferedImage> wrappedServer = ((TransformingImageServer)server).getWrappedServer();
-				Gson gson = new GsonBuilder().setLenient()
+				Gson gson = new GsonBuilder()
+						.setLenient()
+						.serializeSpecialFloatingPointValues()
 						.registerTypeHierarchyAdapter(ImageServer.class, this)
 						.create();
 				
@@ -199,7 +202,7 @@ public class ImageServers {
 			URI uri = server.getURI();
 			if (uri != null) {
 				out.name("uri");
-				out.value(uri.toString());
+				out.value(uri.normalize().toString());
 			}
 			
 			String path = server.getPath();
@@ -243,7 +246,7 @@ public class ImageServers {
 				
 				// Try to get a URI, if possible
 				if (obj.has("uri")) {
-					uri = new URI(obj.get("uri").getAsString());
+					uri = new URI(obj.get("uri").getAsString()).normalize();
 				}
 //				if (obj.has("path")) {
 //					String path = obj.get("path").getAsString();
@@ -279,7 +282,9 @@ public class ImageServers {
 				
 				if (server == null && serverType != null) {
 					
-					Gson gson = new GsonBuilder().setLenient()
+					Gson gson = new GsonBuilder()
+							.setLenient()
+							.serializeSpecialFloatingPointValues()
 							.registerTypeHierarchyAdapter(ImageServer.class, this)
 							.create();
 					
@@ -331,6 +336,14 @@ public class ImageServers {
 				// Set the metadata, if we have any
 				if (obj.has("metadata")) {
 					var metadata = gson.fromJson(obj.get("metadata"), ImageServerMetadata.class);
+					if (!server.getPath().equals(metadata.getPath())) {
+						logger.warn("Server and metadata paths are different! Metadata path will be updated to match.");
+						logger.warn("Server:  \t {}", server.getPath());
+						logger.warn("Metadata:\t {}", metadata.getPath());
+						metadata = new ImageServerMetadata.Builder(server.getClass(), metadata)
+								.path(server.getPath())
+								.build();
+					}
 					server.setMetadata(metadata);
 				}
 								
