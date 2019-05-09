@@ -64,15 +64,12 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.JsonPrimitive;
 import com.google.gson.reflect.TypeToken;
-import com.google.gson.stream.JsonReader;
-
 import qupath.lib.classifiers.PathObjectClassifier;
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.ImageData.ImageType;
 import qupath.lib.images.servers.ImageServer;
-import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.ImageServerProvider;
 import qupath.lib.images.servers.ImageServers;
 import qupath.lib.io.PathIO;
@@ -89,7 +86,9 @@ import qupath.lib.objects.hierarchy.PathObjectHierarchy;
  *
  */
 class DefaultProject implements Project<BufferedImage> {
-	
+
+	public final static String IMAGE_ID = "PROJECT_ENTRY_ID";
+
 	private static String ext = "qpproj";
 	
 	private static Logger logger = LoggerFactory.getLogger(DefaultProject.class);
@@ -279,7 +278,7 @@ class DefaultProject implements Project<BufferedImage> {
 	private boolean addImage(final DefaultProjectImageEntry entry) {
 		if (images.containsKey(entry.getServerPath()))
 			return false;
-		images.put(entry.getServerPath(), entry);
+		images.put(entry.getID(), entry);
 		return true;
 	}
 	
@@ -353,8 +352,8 @@ class DefaultProject implements Project<BufferedImage> {
 	}
 	
 	@Override
-	public ProjectImageEntry<BufferedImage> getImageEntry(final String path) {
-		return images.get(path);
+	public ProjectImageEntry<BufferedImage> getEntry(final ImageData<BufferedImage> imageData) {
+		return images.get(imageData.getProperty(IMAGE_ID));
 	}
 
 	public boolean addImage(final String path) {
@@ -651,6 +650,10 @@ class DefaultProject implements Project<BufferedImage> {
 			this.metadata = entry.metadata;
 		}
 		
+		public String getID() {
+			return Long.toString(entryID);
+		}
+		
 		@Override
 		public Collection<String> getServerURIs() throws IOException {
 			ensureJsonServerCached();
@@ -815,7 +818,10 @@ class DefaultProject implements Project<BufferedImage> {
 					logger.error("Error reading image data from " + path, e);
 				}
 			}
-			return new ImageData<>(server);
+			if (imageData == null)
+				imageData = new ImageData<>(server);
+			imageData.setProperty(IMAGE_ID, getID()); // Required to be able to test for the ID later
+			return imageData;
 		}
 
 		@Override
@@ -1019,10 +1025,9 @@ class DefaultProject implements Project<BufferedImage> {
 	 * 
 	 * @param fileProject
 	 */
-	<T> void writeProject(final File fileProject) {
+	<T> void writeProject(final File fileProject) throws IOException {
 		if (fileProject == null) {
-			logger.error("No file found, cannot write project: {}", this);
-			return;
+			throw new IOException("No file found, cannot write project: " + this);
 		}
 
 		Gson gson = new GsonBuilder()
@@ -1070,8 +1075,6 @@ class DefaultProject implements Project<BufferedImage> {
 		// Write project
 		try (PrintWriter writer = new PrintWriter(fileProject)) {
 			writer.write(gson.toJson(builder));
-		} catch (FileNotFoundException e) {
-			logger.error("Error writing project", e);
 		}
 	}
 	

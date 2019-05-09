@@ -32,6 +32,7 @@ import java.util.List;
 
 import qupath.lib.classifiers.PathObjectClassifier;
 import qupath.lib.classifiers.pixel.PixelClassifier;
+import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.objects.classes.PathClass;
 
@@ -43,7 +44,7 @@ import qupath.lib.objects.classes.PathClass;
  * @param <T>
  */
 public interface Project<T> {
-	
+		
 	/**
 	 * Get an unmodifiable list representing the <code>PathClass</code>es associated with this project.
 	 * @return
@@ -164,11 +165,11 @@ public interface Project<T> {
 	public ProjectImageEntry<T> addImage(final ImageServer<T> server) throws IOException;
 	
 	/**
-	 * Request a {@link ProjectImageEntry} with an image server path.
+	 * Request a {@link ProjectImageEntry} with an image.
 	 * @param path
 	 * @return
 	 */
-	public ProjectImageEntry<T> getImageEntry(final String path);
+	public ProjectImageEntry<T> getEntry(final ImageData<T> imageData);
 	
 	/**
 	 * Remove an image from the project, optionally including associated data.
@@ -199,6 +200,11 @@ public interface Project<T> {
 	 */
 	public List<ProjectImageEntry<T>> getImageList();
 	
+	/**
+	 * Get the name of the project.
+	 * 
+	 * @return
+	 */
 	public String getName();
 	
 	/**

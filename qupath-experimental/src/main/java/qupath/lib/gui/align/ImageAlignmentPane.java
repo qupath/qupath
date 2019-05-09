@@ -292,7 +292,7 @@ public class ImageAlignmentPane {
 		
 		// Find the entries currently selected
 		Set<ProjectImageEntry<BufferedImage>> alreadySelected = 
-				images.stream().map(i -> project.getImageEntry(i.getServerPath())).collect(Collectors.toSet());
+				images.stream().map(i -> project.getEntry(i)).collect(Collectors.toSet());
 		alreadySelected.removeIf(e -> e.sameServer(currentServer));
 		
 		// Create a list to display, with the appropriate selections
@@ -607,10 +607,10 @@ public class ImageAlignmentPane {
 				setStyle("-fx-font-weight: normal; -fx-font-family: arial");
 			
 			// Get the name from the project, if possible
-			Project<?> project = qupath.getProject();
+			Project<BufferedImage> project = qupath.getProject();
 			String name = item.getServer().getDisplayedImageName();
 			if (project != null) {
-				ProjectImageEntry<?> entry = project.getImageEntry(item.getServerPath());
+				ProjectImageEntry<BufferedImage> entry = project.getEntry(item);
 				if (entry != null)
 					name = entry.getImageName();
 			}

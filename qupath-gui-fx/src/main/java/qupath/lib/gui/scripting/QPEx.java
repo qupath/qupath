@@ -212,11 +212,11 @@ public class QPEx extends QP {
 	 * @return
 	 */
 	public static ProjectImageEntry<BufferedImage> getProjectEntry() {
-		Project<BufferedImage> project = getProject();
-		String path = getCurrentServerPath();
-		if (project == null || path == null)
+		Project project = getProject();
+		ImageData imageData = getCurrentImageData();
+		if (project == null || imageData == null)
 			return null;
-		return project.getImageEntry(path);
+		return project.getEntry(imageData);
 	}
 	
 	

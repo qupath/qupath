@@ -2321,7 +2321,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	
 	ProjectImageEntry<BufferedImage> getProjectImageEntry(ImageData<BufferedImage> imageData) {
 		var project = getProject();
-		return project == null ? null : project.getImageEntry(imageData.getServerPath());
+		return project == null ? null : project.getEntry(imageData);
 	}
 	
 	/**
@@ -4431,11 +4431,11 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	}
 	
 	
-	private String getDisplayedImageName(ImageData<?> imageData) {
+	private String getDisplayedImageName(ImageData<BufferedImage> imageData) {
 		if (imageData == null)
 			return null;
 		var project = getProject();
-		var entry = project == null ? null : project.getImageEntry(imageData.getServer().getPath());
+		var entry = project == null ? null : project.getEntry(imageData);
 		if (entry == null) {
 			if (PathPrefs.getMaskImageNames())
 				return "(Name masked)";
@@ -4781,7 +4781,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	 */
 	private boolean promptToSaveChangesOrCancel(String dialogTitle, ImageData<BufferedImage> imageData) {
 		var project = getProject();
-		var entry = project == null ? null : project.getImageEntry(imageData.getServerPath());
+		var entry = project == null ? null : project.getEntry(imageData);
 		File filePrevious = null;
 		if (entry == null) {
 			String lastPath = imageData.getLastSavedPath();

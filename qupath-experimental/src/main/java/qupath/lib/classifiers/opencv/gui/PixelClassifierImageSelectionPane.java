@@ -763,7 +763,7 @@ public class PixelClassifierImageSelectionPane {
 		
 		var server = new PixelClassificationImageServer(imageData, classifier);
 		
-		var entry = project.getImageEntry(imageData.getServer().getPath());
+		var entry = project.getEntry(imageData);
 		if (entry == null) {
 			DisplayHelpers.showErrorMessage("Pixel classifier", "Unable to find current image in the current project!");
 			return null;

@@ -60,7 +60,7 @@ public class SerializeImageDataCommand implements PathCommand {
 			}
 			try {
 				var project = qupath.getProject();
-				var entry = project == null ? null : project.getImageEntry(imageData.getServerPath());
+				var entry = project == null ? null : project.getEntry(imageData);
 				if (entry != null) {
 					if (overwriteExisting || DisplayHelpers.showConfirmDialog("Save changes", "Save changes to " + entry.getImageName() + "?")) {
 							entry.saveImageData(imageData);

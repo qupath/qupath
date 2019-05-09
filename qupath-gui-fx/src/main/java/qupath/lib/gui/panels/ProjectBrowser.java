@@ -236,7 +236,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 			if (project != null) {
 				for (var viewer : qupath.getViewers()) {
 					var imageData = viewer.getImageData();
-					var entry = imageData == null ? null : getProject().getImageEntry(imageData.getServerPath());
+					var entry = imageData == null ? null : getProject().getEntry(imageData);
 					if (entry != null && entries.contains(entry)) {
 						DisplayHelpers.showErrorMessage("Remove project entries", "Please close all images you want to remove!");
 						return;
@@ -654,14 +654,17 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 	}
 
 
-	void ensureServerInWorkspace(final ImageServer<BufferedImage> server) {
-		if (server == null || project == null)
+	void ensureServerInWorkspace(final ImageData<BufferedImage> imageData) {
+		if (imageData == null || project == null)
+			return;
+		
+		if (project.getEntry(imageData) != null)
 			return;
 
-		var changed = ProjectImportImagesCommand.addImageAndSubImagesToProject(project, server);
+		var changed = ProjectImportImagesCommand.addImageAndSubImagesToProject(project, imageData.getServer());
 		if (changed) {
 			tree.setRoot(model.getRootFX());
-			setSelectedEntry(tree, tree.getRoot(), project.getImageEntry(server.getPath()));
+			setSelectedEntry(tree, tree.getRoot(), project.getEntry(imageData));
 			syncProject(project);
 		}
 	}
@@ -672,11 +675,11 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 	public void imageDataChanged(final ImageDataWrapper<BufferedImage> viewer, final ImageData<BufferedImage> imageDataOld, final ImageData<BufferedImage> imageDataNew) {
 		if (imageDataNew == null || project == null)
 			return;
-		ProjectImageEntry<BufferedImage> entry = project.getImageEntry(imageDataNew.getServerPath());
+		ProjectImageEntry<BufferedImage> entry = project.getEntry(imageDataNew);
 		if (entry == null) {
 			// Previously we gave a choice... now we force the image to be included in the project to avoid complications
 //			if (DisplayHelpers.showYesNoDialog("Add to project", "Add " + imageDataNew.getServer().getShortServerName() + " to project?"))
-				ensureServerInWorkspace(imageDataNew.getServer());
+				ensureServerInWorkspace(imageDataNew);
 		}
 		else if (!entry.equals(getSelectedEntry()))
 			setSelectedEntry(tree, tree.getRoot(), entry);

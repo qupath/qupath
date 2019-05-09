@@ -446,11 +446,12 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 		
 		try {
 			ImageServer<BufferedImage> server2 = serverPrevious.openSubImage(name);
-			String path = server2.getPath();
-			ProjectImageEntry<BufferedImage> entry = qupath.getProject() == null ? null : qupath.getProject().getImageEntry(path);
-			if (entry != null)
-				qupath.openImageEntry(entry);
-			else
+			// Previously (v0.1.2) we tested the path... but now we are allowed duplicate images (but can't trust the path so much...)
+//			String path = server2.getPath();
+//			ProjectImageEntry<BufferedImage> entry = qupath.getProject() == null ? null : qupath.getProject().getImageEntry(path);
+//			if (entry != null)
+//				qupath.openImageEntry(entry);
+//			else
 				qupath.getViewer().setImageData(new ImageData<>(server2));	
 		} catch (IOException e) {
 			DisplayHelpers.showErrorMessage("Open sub-image", e);
