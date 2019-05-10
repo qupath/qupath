@@ -49,7 +49,7 @@ public class JsonImageServerBuilder implements ImageServerBuilder<BufferedImage>
 	@Override
 	public ImageServer<BufferedImage> buildServer(URI uri, String...args) throws Exception {
 		try (Reader reader = new BufferedReader(new InputStreamReader(uri.toURL().openStream()))) {
-			return ImageServers.fromJson(reader);
+			return ImageServers.fromJson(reader, BufferedImage.class);
 		}
 	}
 

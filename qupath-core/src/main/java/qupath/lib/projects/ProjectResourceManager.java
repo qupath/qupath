@@ -18,6 +18,9 @@ import java.util.stream.Collectors;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
+import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.ImageServers;
+
 public interface ProjectResourceManager<T> {
 	
 	public Collection<String> getNames() throws IOException;
@@ -97,6 +100,33 @@ public interface ProjectResourceManager<T> {
 	}
 	
 	
+	static class ImageResourceManager<T> extends FileResourceManager<ImageServer<T>> {
+
+		private Class<T> cls;
+		
+		ImageResourceManager(Path dir, Class<T> cls) {
+			super(dir, ".json");
+			this.cls = cls;
+		}
+
+		@Override
+		public ImageServer<T> getResource(String name) throws IOException {
+			var path = Paths.get(dir.toString(), name + ext);
+			try (var reader = Files.newBufferedReader(path)) {
+				return ImageServers.fromJson(reader, cls);
+			}
+		}
+
+		@Override
+		public void putResource(String name, ImageServer<T> server) throws IOException {
+			var path = Paths.get(ensureDirectoryExists(dir).toString(), name + ext);
+			var json = ImageServers.toJson(server, true);
+			Files.writeString(path, json, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
+		}
+		
+	}
+	
+	
 	static class SerializableFileResourceManager<T extends Serializable> extends FileResourceManager<T> {
 
 		private Class<T> cls;
@@ -110,7 +140,7 @@ public interface ProjectResourceManager<T> {
 		public T getResource(String name) throws IOException {
 			var path = Paths.get(dir.toString(), name + ext);
 			try (var stream = Files.newInputStream(path)) {
-				return (T)new ObjectInputStream(new BufferedInputStream(stream)).readObject();
+				return cls.cast(new ObjectInputStream(new BufferedInputStream(stream)).readObject());
 			} catch (ClassNotFoundException e) {
 				throw new IOException(e);
 			}

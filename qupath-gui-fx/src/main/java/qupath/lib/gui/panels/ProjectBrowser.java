@@ -815,9 +815,9 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 
 	boolean isCurrentImage(final ProjectImageEntry<BufferedImage> entry) {
 		ImageData<BufferedImage> imageData = getCurrentImageData();
-		if (imageData == null || entry == null)
+		if (imageData == null || entry == null || project == null)
 			return false;
-		return entry.sameServer(imageData.getServer());
+		return project.getEntry(imageData) == entry;
 	}
 
 

@@ -73,27 +73,12 @@ public interface ProjectImageEntry<T> {
 	public String getImageName();
 	
 	/**
-	 * Get a unique name for this entry, which may be used for associated filenames.
-	 * @return
-	 */
-	public String getUniqueName();
-	
-	/**
 	 * Get the original image name, without any randomization.  Most UI elements should prefer {@link #getImageName} to 
 	 * ensure that the randomization does its job.
 	 * 
 	 * @return
 	 */
 	public String getOriginalImageName();
-	
-	
-	/**
-	 * Check if the provided ImageServer is the same as the one used by this entry.
-	 * 
-	 * @param server
-	 * @return <code>true</code> if the server is a match, <code>false</code> otherwise.
-	 */
-	public boolean sameServer(final ImageServer<T> server);
 		
 	
 	/**
@@ -281,15 +266,13 @@ public interface ProjectImageEntry<T> {
 	}
 	
 	
-	
-	
-	
-	
-//	public Map<String, String> getScripts();
-//	
-//	public Map<String, PixelClassifier> getPixelClassifiers();
-//	
-//	public Map<String, ObjectClassifier> getPixelClassifiers();
+	/**
+	 * Access additional images associated with the project entry, e.g. pixel classifications or
+	 * aligned slides.
+	 * 
+	 * @return
+	 */
+	public ProjectResourceManager<ImageServer<T>> getImages();
 	
 	
 

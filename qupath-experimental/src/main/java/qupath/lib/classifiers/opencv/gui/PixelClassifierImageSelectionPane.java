@@ -95,7 +95,6 @@ import qupath.lib.gui.commands.MiniViewerCommand;
 import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.gui.helpers.GridPaneTools;
 import qupath.lib.gui.helpers.DisplayHelpers.DialogButton;
-import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageChannel;
@@ -708,7 +707,7 @@ public class PixelClassifierImageSelectionPane {
 			DisplayHelpers.showErrorMessage("Pixel classifier", "Saving pixel classification requires a project!");
 			return false;
 		}
-	
+			
 		try {
 			var imageData = viewer.getImageData();
 			var resultServer = saveAndApply(project, imageData, server.getClassifier());
@@ -749,7 +748,7 @@ public class PixelClassifierImageSelectionPane {
 	
 	
 	static void saveClassifier(Project<BufferedImage> project, PixelClassifier classifier, String classifierName) throws IOException {
-		project.getPixelClassifierManager().putResource(classifierName, classifier);
+		project.getPixelClassifiers().putResource(classifierName, classifier);
 	}
 	
 	static PixelClassificationImageServer saveAndApply(Project<BufferedImage> project, ImageData<BufferedImage> imageData, PixelClassifier classifier) throws IOException {

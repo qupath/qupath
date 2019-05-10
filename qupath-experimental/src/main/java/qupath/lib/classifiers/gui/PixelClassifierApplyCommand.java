@@ -32,7 +32,7 @@ public class PixelClassifierApplyCommand implements PathCommand {
 		}
 		
 		try {
-			Collection<String> names = project.getPixelClassifierManager().getNames();
+			Collection<String> names = project.getPixelClassifiers().getNames();
 			if (names.isEmpty()) {
 				DisplayHelpers.showErrorMessage("Apply pixel classifier", "No pixel classifiers were found in the current project!");
 				return;
@@ -42,7 +42,7 @@ public class PixelClassifierApplyCommand implements PathCommand {
 				return;
 			
 			// Apply the classification
-			var classifier = project.getPixelClassifierManager().getResource(name);
+			var classifier = project.getPixelClassifiers().getResource(name);
 			var classifierServer = PixelClassifierImageSelectionPane.applyClassifier(project, imageData, classifier, name);
 			
 			// Display on the image

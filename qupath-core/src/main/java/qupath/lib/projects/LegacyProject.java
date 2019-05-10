@@ -790,17 +790,17 @@ class LegacyProject<T> {
 	}
 
 
-	public ProjectResourceManager<String> getScriptsManager() {
+	public ProjectResourceManager<String> getScripts() {
 		throw new UnsupportedOperationException();
 	}
 
 
-	public ProjectResourceManager<PathObjectClassifier> getObjectClassifierManager() {
+	public ProjectResourceManager<PathObjectClassifier> getObjectClassifiers() {
 		throw new UnsupportedOperationException();
 	}
 
 
-	public ProjectResourceManager<PixelClassifier> getPixelClassifierManager() {
+	public ProjectResourceManager<PixelClassifier> getPixelClassifiers() {
 		throw new UnsupportedOperationException();
 	}
 	

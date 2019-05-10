@@ -341,7 +341,7 @@ public class SparseImageServer extends AbstractTileableImageServer {
 			String json = resolutions.get(level).getServerJson();
 			ImageServer<BufferedImage> server = serverMap.get(json);
 			if (server == null) {
-				server = ImageServers.fromJson(json);
+				server = ImageServers.fromJson(json, BufferedImage.class);
 				serverMap.put(json, server);
 			}
 			return server;

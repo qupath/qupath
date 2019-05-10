@@ -76,14 +76,14 @@ public class ImageServers {
 	
 	private static final java.lang.reflect.Type type = new TypeToken<ImageServer<BufferedImage>>() {}.getType();
 	
-	public static String toJson(ImageServer<BufferedImage> server, boolean includeMetadata) {
+	public static <T> String toJson(ImageServer<T> server, boolean includeMetadata) {
 		if (includeMetadata)
 			return gson.toJson(server);
 		else
 			return gsonNoMetadata.toJson(server);
 	}
 	
-	public static JsonElement toJsonElement(ImageServer<BufferedImage> server, boolean includeMetadata) {
+	public static <T> JsonElement toJsonElement(ImageServer<T> server, boolean includeMetadata) {
 		if (includeMetadata)
 			return gson.toJsonTree(server);
 		else
@@ -108,11 +108,11 @@ public class ImageServers {
 //		return writer.toString();
 //	}
 	
-	public static ImageServer<BufferedImage> fromJson(String json) {
+	public static <T> ImageServer<T> fromJson(String json, Class<T> cls) {
 		return gson.fromJson(json, type);
 	}
 	
-	public static ImageServer<BufferedImage> fromJson(Reader reader) {
+	public static <T> ImageServer<T> fromJson(Reader reader, Class<T> cls) {
 		return gson.fromJson(reader, type);
 	}
 		    

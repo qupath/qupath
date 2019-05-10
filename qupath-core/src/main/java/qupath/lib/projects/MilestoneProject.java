@@ -1127,15 +1127,15 @@ class MilestoneProject {
 		return version;
 	}
 	
-	public ProjectResourceManager<String> getScriptsManager() {
+	public ProjectResourceManager<String> getScripts() {
 		return new ProjectResourceManager.StringFileResourceManager(getScriptsPath(), ".groovy");
 	}
 
-	public ProjectResourceManager<PathObjectClassifier> getObjectClassifierManager() {
+	public ProjectResourceManager<PathObjectClassifier> getObjectClassifiers() {
 		return new ProjectResourceManager.SerializableFileResourceManager(getObjectClassifiersPath(), PathObjectClassifier.class);
 	}
 
-	public ProjectResourceManager<PixelClassifier> getPixelClassifierManager() {
+	public ProjectResourceManager<PixelClassifier> getPixelClassifiers() {
 		return new ProjectResourceManager.JsonFileResourceManager(getPixelClassifiersPath(), PixelClassifier.class);
 	}
 	

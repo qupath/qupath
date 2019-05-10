@@ -27,7 +27,6 @@ import java.awt.Desktop;
 import java.awt.image.BufferedImage;
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -397,17 +396,6 @@ class DefaultProject implements Project<BufferedImage> {
 //		logger.warn("Syncing project not yet implemented!");
 	}
 	
-	/**
-	 * Try syncing changes quietly, logging any exceptions.
-	 */
-	private void requestSyncQuietly() {
-		try {
-			syncChanges();
-		} catch (IOException e) {
-			logger.error("Error syncing project changes", e);
-		}
-	}
-	
 	@Override
 	public boolean getMaskImageNames() {
 		return maskNames;
@@ -465,8 +453,8 @@ class DefaultProject implements Project<BufferedImage> {
 	
 	
 	private String EXT_SCRIPT = ".groovy";
-	private String EXT_OBJECT_CLASSIFIER = ".classifier.pixels.json";
-	private String EXT_PIXEL_CLASSIFIER = ".classifier.objects.json";
+//	private String EXT_OBJECT_CLASSIFIER = ".classifier.pixels.json";
+//	private String EXT_PIXEL_CLASSIFIER = ".classifier.objects.json";
 	
 	Path ensureDirectoryExists(Path path) throws IOException {
 		if (!Files.isDirectory(path))
@@ -650,6 +638,15 @@ class DefaultProject implements Project<BufferedImage> {
 			this.metadata = entry.metadata;
 		}
 		
+		private transient ProjectResourceManager.ImageResourceManager<BufferedImage> imageManager = null;
+		
+		public synchronized ProjectResourceManager<ImageServer<BufferedImage>> getImages() {
+			if (imageManager == null) {
+				imageManager = new ProjectResourceManager.ImageResourceManager<>(getPath(), BufferedImage.class);
+			}
+			return imageManager;
+		}
+		
 		public String getID() {
 			return Long.toString(entryID);
 		}
@@ -670,8 +667,7 @@ class DefaultProject implements Project<BufferedImage> {
 		}
 		
 		
-		@Override
-		public String getUniqueName() {
+		String getUniqueName() {
 			return Long.toString(entryID);
 		}
 		
@@ -703,12 +699,6 @@ class DefaultProject implements Project<BufferedImage> {
 		@Override
 		public void setImageName(String name) {
 			this.imageName = name;
-		}
-		
-		@Override
-		public boolean sameServer(final ImageServer<BufferedImage> server) {
-			// TODO: Use JSON representation instead?
-			return server == null ? false : getServerPath().equals(server.getPath());
 		}
 		
 		@Override
@@ -1182,19 +1172,19 @@ class DefaultProject implements Project<BufferedImage> {
 	}
 	
 	@Override
-	public ProjectResourceManager<String> getScriptsManager() {
+	public ProjectResourceManager<String> getScripts() {
 		return new ProjectResourceManager.StringFileResourceManager(getScriptsPath(), ".groovy");
 	}
 
 
 	@Override
-	public ProjectResourceManager<PathObjectClassifier> getObjectClassifierManager() {
+	public ProjectResourceManager<PathObjectClassifier> getObjectClassifiers() {
 		return new ProjectResourceManager.SerializableFileResourceManager(getObjectClassifiersPath(), PathObjectClassifier.class);
 	}
 
 
 	@Override
-	public ProjectResourceManager<PixelClassifier> getPixelClassifierManager() {
+	public ProjectResourceManager<PixelClassifier> getPixelClassifiers() {
 		return new ProjectResourceManager.JsonFileResourceManager(getPixelClassifiersPath(), PixelClassifier.class);
 	}
 

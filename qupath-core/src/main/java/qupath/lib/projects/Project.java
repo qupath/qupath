@@ -230,21 +230,21 @@ public interface Project<T> {
 	 * 
 	 * @return
 	 */
-	public ProjectResourceManager<String> getScriptsManager();
+	public ProjectResourceManager<String> getScripts();
 	
 	/**
 	 * Get a manager for object classifiers saved within this project.
 	 * 
 	 * @return
 	 */
-	public ProjectResourceManager<PathObjectClassifier> getObjectClassifierManager();
+	public ProjectResourceManager<PathObjectClassifier> getObjectClassifiers();
 	
 	/**
 	 * Get a manager for pixel classifiers saved within this project.
 	 * 
 	 * @return
 	 */
-	public ProjectResourceManager<PixelClassifier> getPixelClassifierManager();
+	public ProjectResourceManager<PixelClassifier> getPixelClassifiers();
 	
 	
 //	public List<String> listPixelClassifiers();
