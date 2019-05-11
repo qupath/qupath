@@ -395,7 +395,6 @@ public class OMEPyramidWriter {
 	 * @param buf the buffer to which the pixels should be extracted
 	 * @param startInd the starting index in the buffer, where the first pixel should be written
 	 * @param inc the increment (in bytes) between each pixel that is written
-	 * @param pixelBuffer optional primitive array buffer that can be used to extract pixels; should be int[], float[] or double[] as appropriate
 	 */
 	boolean channelToBuffer(WritableRaster raster, int c, ByteBuffer buf, int startInd, int inc) {
 		int ind = startInd;

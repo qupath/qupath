@@ -165,8 +165,8 @@ public interface Project<T> {
 	public ProjectImageEntry<T> addImage(final ImageServer<T> server) throws IOException;
 	
 	/**
-	 * Request a {@link ProjectImageEntry} with an image.
-	 * @param path
+	 * Request a {@link ProjectImageEntry} associated with an {@link ImageData}
+	 * @param imageData
 	 * @return
 	 */
 	public ProjectImageEntry<T> getEntry(final ImageData<T> imageData);

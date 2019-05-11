@@ -41,7 +41,7 @@ public class PixelClassifierMetadata {
     };
     
     /**
-     * Requested input padding (above, below, left & right).
+     * Requested input padding (above, below, left and right).
      * @return
      */
     public int getInputPadding() {

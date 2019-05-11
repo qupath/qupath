@@ -54,8 +54,8 @@ import qupath.lib.regions.RegionRequest;
  * <ul>
  *   <li>Checking images can be opened at all</li>
  *   <li>Sanity checking dimensions</li>
- *   <li>Comparing metadata & pixels with requests via ImageJ</li>
- * <ul>
+ *   <li>Comparing metadata and pixels with requests via ImageJ</li>
+ * </ul>
  * 
  * The 'current directory' is required to contain one or more QuPath projects, 
  * i.e. {@code .qpproj} files containing paths to images.

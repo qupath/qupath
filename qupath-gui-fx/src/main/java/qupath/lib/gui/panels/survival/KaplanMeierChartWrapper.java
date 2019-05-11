@@ -98,6 +98,7 @@ public class KaplanMeierChartWrapper {
 			super(xAxis, yAxis);
 		}
 		
+		@Override
 		protected void updateLegend() {
 			super.updateLegend();
 			

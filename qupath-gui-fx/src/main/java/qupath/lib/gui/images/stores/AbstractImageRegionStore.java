@@ -153,6 +153,7 @@ abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {
 	/* (non-Javadoc)
 	 * @see qupath.lib.images.stores.ImageRegionStore#getCachedThumbnail(qupath.lib.images.servers.ImageServer, int, int)
 	 */
+	@Override
 	public T getCachedThumbnail(ImageServer<T> server, int zPosition, int tPosition) {
 		RegionRequest request = getThumbnailRequest(server, zPosition, tPosition);
 		return thumbnailCache.get(request);

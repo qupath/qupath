@@ -975,6 +975,7 @@ public class RoiEditor {
 			return (x-x2)*(x-x2) + (y-y2)*(y-y2);
 		}
 		
+		@Override
 		public String toString() {
 			return String.format("Mutable point: %.2f, %.2f", x, y);
 		}

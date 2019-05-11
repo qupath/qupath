@@ -104,7 +104,7 @@ public class DisplayHelpers {
 	 * Make a semi-educated guess at the image type of a PathImageServer.
 	 * 
 	 * @param server
-	 * @param imgThumbnail Thumbnail for the image. This is now a required parameter (previously &leq; 0.1.2 it was optional).
+	 * @param imgThumbnail Thumbnail for the image. This is now a required parameter (previously &lt;= 0.1.2 it was optional).
 	 * 
 	 * @return
 	 */

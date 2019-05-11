@@ -97,6 +97,7 @@ public class RefineAnnotationsPlugin<T> extends AbstractInteractivePlugin<T> {
 	@Override
 	protected void addRunnableTasks(ImageData<T> imageData, PathObject parentObject, List<Runnable> tasks) {}
 	
+	@Override
 	protected Collection<Runnable> getTasks(final PluginRunner<T> runner) {
 		Collection<? extends PathObject> parentObjects = getParentObjects(runner);
 		if (parentObjects == null || parentObjects.isEmpty())

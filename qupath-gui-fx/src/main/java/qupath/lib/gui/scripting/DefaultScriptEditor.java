@@ -1911,6 +1911,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 		
 		public void paste();
 		
+		@Override
 		public void appendText(final String text);
 		
 		public void clear();

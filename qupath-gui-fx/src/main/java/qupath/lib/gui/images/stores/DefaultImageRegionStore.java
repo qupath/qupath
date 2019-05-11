@@ -93,6 +93,7 @@ public class DefaultImageRegionStore extends AbstractImageRegionStore<BufferedIm
 	 * @param imageDisplay
 	 * @param timeoutMilliseconds Timeout after which a request is made from the PathImageServer directly, rather than waiting for tile requests.
 	 */
+	@Override
 	@SuppressWarnings("unchecked")
 	public void paintRegionCompletely(ImageServer<BufferedImage> server, Graphics g, Shape clipShapeVisible, int zPosition, int tPosition, double downsampleFactor, ImageObserver observer, ImageRenderer imageDisplay, long timeoutMilliseconds) {
 
@@ -180,6 +181,7 @@ public class DefaultImageRegionStore extends AbstractImageRegionStore<BufferedIm
 
 
 
+	@Override
 	public void paintRegion(ImageServer<BufferedImage> server, Graphics g, Shape clipShapeVisible, int zPosition, int tPosition, double downsampleFactor, BufferedImage imgThumbnail, ImageObserver observer, ImageRenderer imageDisplay) {
 		registerRequest(null, server, clipShapeVisible, downsampleFactor, zPosition, tPosition);
 		paintRegionInternal(server, g, clipShapeVisible, zPosition, tPosition, downsampleFactor, imgThumbnail, observer, imageDisplay);

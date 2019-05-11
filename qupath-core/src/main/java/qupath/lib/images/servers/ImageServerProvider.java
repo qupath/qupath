@@ -96,7 +96,7 @@ public class ImageServerProvider {
 	 * 
 	 * @param path
 	 * @param cls
-	 * @param requestedServerBuilderClassnames optional list of full class names for server builders that should be used, or order of preference.
+	 * @param args optional arguments, which may be used by some builders
 	 * @return
 	 * @throws IOException 
 	 */

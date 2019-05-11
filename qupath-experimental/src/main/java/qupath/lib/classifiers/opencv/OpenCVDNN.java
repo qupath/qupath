@@ -19,7 +19,7 @@ import org.slf4j.LoggerFactory;
  * Wrapper for an OpenCV Net, including essential metadata about how it should be used.
  * <p>
  * The main purpose of this is to support serializing models to JSON... kind of. In truth currently the paths 
- * to the original model files are serialized, since (to my knowledge) there is no way to save & reload a Net directly.
+ * to the original model files are serialized, since (to my knowledge) there is no way to save and reload a Net directly.
  * 
  * @author Pete Bankhead
  *
@@ -192,6 +192,7 @@ public class OpenCVDNN {
 			return outputShapes.clone();
 		}
 		
+		@Override
 		public String toString() {
 			return String.format("%s \t%s -> %s" ,
 					name, Arrays.toString(inputShapes), Arrays.toString(outputShapes));

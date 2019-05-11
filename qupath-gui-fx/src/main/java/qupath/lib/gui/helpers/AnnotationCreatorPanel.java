@@ -109,6 +109,7 @@ public class AnnotationCreatorPanel {
 	
 	
 	private static enum ROI_TYPE { RECTANGLE, ELLIPSE; 
+		@Override
 		public String toString() {
 			switch(this) {
 			case ELLIPSE:

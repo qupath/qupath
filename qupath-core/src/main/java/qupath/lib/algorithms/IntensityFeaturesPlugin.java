@@ -93,6 +93,7 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 	static enum RegionType {
 		ROI, SQUARE, CIRCLE;
 		
+		@Override
 		public String toString() {
 			switch(this) {
 			case CIRCLE:
@@ -202,6 +203,7 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 			this.prompt = prompt;
 		}
 
+		@Override
 		public String getPrompt(final ImageData<?> imageData) {
 			ColorDeconvolutionStains stains = imageData == null ? null : imageData.getColorDeconvolutionStains();
 			if (stains != null) {
@@ -219,10 +221,12 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 			return prompt;
 		}
 
+		@Override
 		public String getKey() {
 			return key;
 		}
 
+		@Override
 		public double[] getHaralickMinMax() {
 			switch (this) {
 			case HUE:
@@ -247,6 +251,7 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 		}
 		
 		
+		@Override
 		public String getName(final ColorDeconvolutionStains stains) {
 			switch (this) {
 			case STAIN_1:
@@ -265,6 +270,7 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 		}
 		
 
+		@Override
 		public boolean supportsImage(final ImageData<?> imageData) {
 			switch (this) {
 			case BRIGHTNESS:
@@ -285,6 +291,7 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 		}
 
 		
+		@Override
 		public float[] getTransformedPixels(final BufferedImage img, int[] buf, final ColorDeconvolutionStains stains, float[] pixels) {
 			if (pixels == null)
 				pixels = new float[img.getWidth() * img.getHeight()];
@@ -596,6 +603,7 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 	}
 	
 	
+	@Override
 	public ParameterList getDefaultParameterList(final ImageData<BufferedImage> imageData) {
 		
 		if (!parametersInitialized) {
@@ -756,6 +764,7 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 		private RunningStatistics stats;
 		private HueStats hueStats;
 
+		@Override
 		public void updateFeatures(final SimpleImage img,  FeatureColorTransform transform, final ParameterList params) {
 			// Check if we need to do these computations at all
 			boolean requireFeatures = false;

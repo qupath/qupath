@@ -224,7 +224,7 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 	/**
 	 * Convert an ImagePlus to a BufferedImage, for a specific z-slice and timepoint.
 	 * <p>
-	 * Note that ImageJ uses 1-based indices for z and t! Therefore these should be &geq; 1.
+	 * Note that ImageJ uses 1-based indices for z and t! Therefore these should be &gt;= 1.
 	 * <p>
 	 * A {@link ColorModel} can optionally be provided; otherwise, a default ColorModel will be 
 	 * created for the image (with may not be particularly suitable).

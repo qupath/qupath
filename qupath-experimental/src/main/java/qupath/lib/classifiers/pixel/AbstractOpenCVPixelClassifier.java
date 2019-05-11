@@ -60,7 +60,8 @@ public abstract class AbstractOpenCVPixelClassifier implements PixelClassifier {
     }
     
 
-    public PixelClassifierMetadata getMetadata() {
+    @Override
+	public PixelClassifierMetadata getMetadata() {
         return metadata;
     }
 

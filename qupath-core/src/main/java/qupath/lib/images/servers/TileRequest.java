@@ -13,7 +13,7 @@ import qupath.lib.regions.RegionRequest;
  * Why?
  * <p>
  * Because downsamples can be defined with floating point precision, and are not always unambiguous when 
- * calculated as the ratios of pyramid level dimensions (i.e. different apparent horizontal & vertical scaling), 
+ * calculated as the ratios of pyramid level dimensions (i.e. different apparent horizontal and vertical scaling), 
  * a RegionRequest is too fuzzy a way to refer to a specific rectangle of pixels from a specific pyramid level. 
  * Rounding errors can easily occur, and different image readers might respond differently to the same request.
  * <p>

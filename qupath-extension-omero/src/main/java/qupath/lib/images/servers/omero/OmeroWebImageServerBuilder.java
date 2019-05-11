@@ -399,6 +399,7 @@ public class OmeroWebImageServerBuilder implements ImageServerBuilder<BufferedIm
 		private int id;
 		private int port;
 
+		@Override
 		public String toString() {
 			return String.format("Host: %s, Server: %s, ID: %d, Port: %d", host, server, id, port);
 		}

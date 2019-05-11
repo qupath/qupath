@@ -39,7 +39,7 @@ import qupath.lib.regions.RegionRequest;
  * <p>
  * One 'main' image is also used to get a counterstain.
  * <p>
- * Note: this is incomplete!  For example, it does not properly handle metadata & image channels.
+ * Note: this is incomplete!  For example, it does not properly handle metadata and image channels.
  * 
  * @author Pete Bankhead
  * 
@@ -98,6 +98,7 @@ public class MergedServer extends AbstractImageServer<BufferedImage> {
 		logger.info("Number of channels: " + this.nChannels + " (" +wrappers.size() + ")");
 	}
 
+	@Override
 	public String getPath() {
 		return path;
 	}

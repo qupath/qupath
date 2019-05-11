@@ -86,7 +86,7 @@ public class OpenCVPixelClassifierDNN extends AbstractOpenCVPixelClassifier {
     }
     
     /**
-     * Attempt to read a Net from a single file & optional config file.
+     * Attempt to read a Net from a single file and optional config file.
      * Depending on the file extension for the first parameter, this will use the importer for
      * <ul>
      * 	<li>Tensorflow (.pb)</li>

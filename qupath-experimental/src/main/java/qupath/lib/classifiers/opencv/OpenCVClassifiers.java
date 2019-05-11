@@ -267,6 +267,7 @@ public class OpenCVClassifiers {
 					model instanceof NormalBayesClassifier;
 		}
 		
+		@Override
 		T getStatModel() {
 			if (model == null)
 				model = createStatModel();
@@ -290,6 +291,7 @@ public class OpenCVClassifiers {
 			return getName();
 		}
 		
+		@Override
 		public TrainData createTrainData(Mat samples, Mat targets) {
 			if (useUMat()) {
 				UMat uSamples = samples.getUMat(opencv_core.ACCESS_READ);
@@ -303,6 +305,7 @@ public class OpenCVClassifiers {
 			return false;
 		}
 
+		@Override
 		public void train(TrainData trainData) {
 			lock.writeLock().lock();
 			try {
@@ -436,6 +439,7 @@ public class OpenCVClassifiers {
 		/**
 		 * Tree classifiers in OpenCV support missing values, others do not.
 		 */
+		@Override
 		public boolean supportsMissingValues() {
 			return getStatModel() instanceof DTrees;
 		}
@@ -804,6 +808,7 @@ public class OpenCVClassifiers {
 			return params;
 		}
 		
+		@Override
 		public TrainData createTrainData(Mat samples, Mat targets) {
 			targets.convertTo(targets, opencv_core.CV_32F);
 			return super.createTrainData(samples, targets);
@@ -871,6 +876,7 @@ public class OpenCVClassifiers {
 		@Override
 		void updateModel(NormalBayesClassifier model, ParameterList params, TrainData trainData) {}
 		
+		@Override
 		public void predictWithLock(Mat samples, Mat results, Mat probabilities) {
 			var model = getStatModel();
 			if (probabilities == null)
@@ -1071,6 +1077,7 @@ public class OpenCVClassifiers {
 			return params;
 		}
 		
+		@Override
 		protected int getTrainFlags() {
 			return ANN_MLP.NO_OUTPUT_SCALE;
 		}
@@ -1086,6 +1093,7 @@ public class OpenCVClassifiers {
 		}
 
 		
+		@Override
 		public TrainData createTrainData(Mat samples, Mat targets) {
 			
 			IntBuffer buffer = targets.createBuffer();
@@ -1106,6 +1114,7 @@ public class OpenCVClassifiers {
 		}
 		
 		
+		@Override
 		public void predictWithLock(Mat samples, Mat results, Mat probabilities) {
 			double beta = activationBeta;
 			if (probabilities == null)

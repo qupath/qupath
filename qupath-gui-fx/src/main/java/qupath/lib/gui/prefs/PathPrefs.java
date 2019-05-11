@@ -759,6 +759,7 @@ public class PathPrefs {
 	
 	public static enum ImageTypeSetting {AUTO_ESTIMATE, PROMPT, NONE;
 		
+		@Override
 		public String toString() {
 			switch(this) {
 			case AUTO_ESTIMATE:
@@ -1579,6 +1580,7 @@ public class PathPrefs {
 			super(null, name, val);
 		}
 		
+		@Override
 		public void set(float thickness) {
 			if (thickness > 0f)
 	    		super.set(thickness);

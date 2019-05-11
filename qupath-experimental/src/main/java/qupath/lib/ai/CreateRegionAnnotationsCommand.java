@@ -62,6 +62,7 @@ public class CreateRegionAnnotationsCommand implements PathCommand {
 		
 		public static enum RegionLocation {VIEW_CENTER, IMAGE_CENTER, RANDOM;
 			
+			@Override
 			public String toString() {
 				switch (this) {
 				case IMAGE_CENTER:
@@ -79,6 +80,7 @@ public class CreateRegionAnnotationsCommand implements PathCommand {
 		
 		public static enum RegionUnits {PIXELS, MICRONS;
 			
+			@Override
 			public String toString() {
 				switch (this) {
 				case PIXELS:

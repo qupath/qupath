@@ -653,10 +653,12 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 			this.listener = listener;
 		}
 		
+		@Override
 		public void attach() {
 			this.observable.addListener(listener);
 		}
 		
+		@Override
 		public void detach() {
 			this.observable.removeListener(listener);
 		}
@@ -1182,7 +1184,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	 * <p>
 	 * This is useful to support live prediction based on a specific field of view, for example.
 	 * 
-	 * @param doSuppress
+	 * @param pathOverlay
 	 */
 	public void setCustomPixelLayerOverlay(PathOverlay pathOverlay) {
 		if (this.customPixelLayerOverlay == pathOverlay)
@@ -1818,7 +1820,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	 * @param h
 	 * @return
 	 */
-	protected BufferedImage createBufferedImage(final int w, final int h) {
+	static BufferedImage createBufferedImage(final int w, final int h) {
 		return new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB_PRE);
 	}
 

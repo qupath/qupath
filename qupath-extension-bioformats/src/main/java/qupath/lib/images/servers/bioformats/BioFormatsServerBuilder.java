@@ -114,6 +114,7 @@ public class BioFormatsServerBuilder implements ImageServerBuilder<BufferedImage
 		return support;
 	}
 	
+	@Override
 	public Collection<String> getServerClassNames() {
 		return Collections.singleton(BioFormatsImageServer.class.getName());
 	}

@@ -72,8 +72,8 @@ public class PixelClassifierStatic {
      * Generate a QuPath ROI by thresholding an image channel image.
      * 
      * @param img the input image (any type)
-     * @param minThreshold minimum threshold; pixels &geq; minThreshold will be included
-     * @param maxThreshold maximum threshold; pixels &leq; maxThreshold will be included
+     * @param minThreshold minimum threshold; pixels &gt;= minThreshold will be included
+     * @param maxThreshold maximum threshold; pixels &lt;= maxThreshold will be included
      * @param band the image band to threshold (channel)
      * @param request a {@link RegionRequest} corresponding to this image, used to calibrate the coordinates.  If null, 
      * 			we assume no downsampling and an origin at (0,0).
@@ -428,7 +428,7 @@ public class PixelClassifierStatic {
 	}
 
 	/**
-	 * Create objects & add them to an object hierarchy based on thresholding the output of a pixel classifier.
+	 * Create objects and add them to an object hierarchy based on thresholding the output of a pixel classifier.
 	 * 
 	 * @param server
 	 * @param selectedObject

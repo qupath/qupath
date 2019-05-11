@@ -66,6 +66,7 @@ public class BasicFeatureCalculator implements OpenCVFeatureCalculator {
 
 	}
 
+	@Override
 	public String toString() {
 		return name;
 	}

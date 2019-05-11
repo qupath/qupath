@@ -12,7 +12,7 @@ import java.util.Objects;
 import qupath.lib.common.ColorTools;
 
 /**
- * The name & display color for a single image channel.
+ * The name and display color for a single image channel.
  * 
  * @author Pete Bankhead
  *
@@ -31,7 +31,7 @@ public class ImageChannel {
 	public final static ImageChannel BLUE  = getInstance("Blue", ColorTools.makeRGB(0, 0, 0255));
 	
 	/**
-	 * Get a channel instance with the specified name & color.
+	 * Get a channel instance with the specified name and color.
 	 * 
 	 * @param name Name for the channel - this must not be null.
 	 * @param color Color as a packed (A)RGB value.
@@ -146,7 +146,9 @@ public class ImageChannel {
 	}
 	
 	/**
-	 * Name of the output channel
+	 * Name of the output channel.
+	 * 
+	 * @return
 	 */
 	public String getName() {
 		return name;
@@ -154,6 +156,8 @@ public class ImageChannel {
 	
 	/**
 	 * Color used to display the output channel
+	 * 
+	 * @return
 	 */
 	public Integer getColor() {
 		return color;

@@ -77,6 +77,7 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 		return uri;
 	}
 	
+	@Override
 	public Class<T> getImageClass() {
 		return imageClass;
 	}
@@ -91,6 +92,7 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 		return cache;
 	}
 	
+	@Override
 	public ImageServerMetadata.OutputType getOutputType() {
 		return getMetadata().getOutputType();
 	}
@@ -384,14 +386,17 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 		return tileRequestManager;
 	}
 	
+	@Override
 	public Collection<TileRequest> getAllTileRequests() {
 		return getTileRequestManager().getAllTiles();
 	}
 	
+	@Override
 	public TileRequest getTile(int level, int x, int y, int z, int t) {
 		return getTileRequestManager().getTile(level, x, y, z, t);
 	}
 	
+	@Override
 	public Collection<TileRequest> getTiles(final RegionRequest request) {
 		return getTileRequestManager().getTiles(request);
 	}

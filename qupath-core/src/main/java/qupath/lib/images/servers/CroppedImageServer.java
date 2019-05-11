@@ -63,6 +63,7 @@ public class CroppedImageServer extends TransformingImageServer<BufferedImage> {
 		return region;
 	}
 	
+	@Override
 	public ImageServerMetadata getOriginalMetadata() {
 		return metadata;
 	}

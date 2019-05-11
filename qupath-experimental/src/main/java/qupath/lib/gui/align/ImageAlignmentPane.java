@@ -547,6 +547,7 @@ public class ImageAlignmentPane {
 		
 		private Point2D pDragging;
 		
+		@Override
 		public void handle(MouseEvent event) {
 			if (!event.isPrimaryButtonDown() || event.isConsumed())
 				return;

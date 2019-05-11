@@ -98,6 +98,7 @@ public interface TMAEntry {
 
 	Image getOverlay(int maxWidth);
 
+	@Override
 	String toString();
 
 }

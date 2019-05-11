@@ -99,7 +99,7 @@ public interface ImageServer<T> extends AutoCloseable {
 	 * Get the downsample factor for a specified resolution level, where level 0 is the full resolution image 
 	 * and nResolutions() - 1 is the lowest resolution available.
 	 * 
-	 * @param level Resolution level, should be 0 &leq; level &lt; nResolutions().
+	 * @param level Resolution level, should be 0 &lt;= level &lt; nResolutions().
 	 * @return
 	 */
 	public double getDownsampleForResolution(int level);
@@ -217,7 +217,7 @@ public interface ImageServer<T> extends AutoCloseable {
 	 * 
 	 * @return
 	 * 
-	 * @see #getSubImagePath
+	 * @see #openSubImage(String)
 	 * @see #getAssociatedImage
 	 */
 	public List<String> getSubImageList();
@@ -324,7 +324,7 @@ public interface ImageServer<T> extends AutoCloseable {
 	
 	
 	/**
-	 * Get a list providing the name & default color for each image channel.
+	 * Get a list providing the name and default color for each image channel.
 	 * @return
 	 */
 	public List<ImageChannel> getChannels();

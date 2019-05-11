@@ -48,14 +48,17 @@ class PixelFeatureExtractorDNN extends PixelFeatureExtractor {
 			this.measurements.add("Feature " + i);
 	}
 	
+	@Override
 	public List<String> getFeatureNames() {
 		return Collections.unmodifiableList(measurements);
 	}
 	
+	@Override
 	public int nFeatures() {
 		return nFeatures;
 	}
 	
+	@Override
 	protected void extractFeatures(final List<BufferedImage> images, final FloatBuffer buffer) {
 		try (PointerScope scope = new PointerScope()) {
 			

@@ -77,6 +77,7 @@ public class PathObjectHierarchyView implements ImageDataChangeListener<Buffered
 	 */
 	public static enum TreeDetectionDisplay {
 		NONE, WITHOUT_ICONS, WITH_ICONS;
+			@Override
 			public String toString() {
 				switch(this) {
 				case NONE:

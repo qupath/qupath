@@ -37,7 +37,7 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 	
 	
 	/**
-	 * Get a tile for the request - ideally from the cache, but otherwise read it & 
+	 * Get a tile for the request - ideally from the cache, but otherwise read it and 
 	 * then add it to the cache.
 	 * 
 	 * @param tileRequest
@@ -236,7 +236,7 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 
 	
 	/**
-	 * Resize the image to have the requested width/height, using area averaging & bilinear interpolation.
+	 * Resize the image to have the requested width/height, using area averaging and bilinear interpolation.
 	 * 
 	 * @param img input image to be resized
 	 * @param finalWidth target output width

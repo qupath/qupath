@@ -341,7 +341,7 @@ public class PathClassFactory {
 	/**
 	 * Return a special 'null' class to represent no classification.
 	 * <p>
-	 * This is useful for displaying available classes; <i>it should not be set as the class for any object<i>, 
+	 * This is useful for displaying available classes; <i>it should not be set as the class for any object</i>, 
 	 * rather an object that is unclassified should have a classification of null.
 	 * 
 	 * @return

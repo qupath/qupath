@@ -238,6 +238,7 @@ class DefaultProject implements Project<BufferedImage> {
 	 * Get an unmodifiable list representing the <code>PathClass</code>es associated with this project.
 	 * @return
 	 */
+	@Override
 	public List<PathClass> getPathClasses() {
 		return Collections.unmodifiableList(pathClasses);
 	}
@@ -248,6 +249,7 @@ class DefaultProject implements Project<BufferedImage> {
 	 * @param pathClasses
 	 * @return <code>true</code> if the stored values changed, false otherwise.
 	 */
+	@Override
 	public boolean setPathClasses(Collection<? extends PathClass> pathClasses) {
 		if (this.pathClasses.size() != pathClasses.size() || this.pathClasses.containsAll(pathClasses)) {
 			this.pathClasses.clear();
@@ -483,7 +485,7 @@ class DefaultProject implements Project<BufferedImage> {
 	/**
 	 * Request all the (String) URI's found within a JSON object, searching recursively.
 	 * 
-	 * @param obj
+	 * @param element
 	 * @param uris
 	 * @return
 	 */
@@ -531,7 +533,8 @@ class DefaultProject implements Project<BufferedImage> {
 	 * Request all the (String) URI's found within a JSON object, searching recursively.
 	 * 
 	 * @param obj
-	 * @param uris
+	 * @param replacements
+	 * @param nReplacements running count of the number of replacements so far
 	 * @return
 	 */
 	static int replaceURIsRecursive(JsonObject obj, Map<String, String> replacements, int nReplacements) {
@@ -640,6 +643,7 @@ class DefaultProject implements Project<BufferedImage> {
 		
 		private transient ProjectResourceManager.ImageResourceManager<BufferedImage> imageManager = null;
 		
+		@Override
 		public synchronized ProjectResourceManager<ImageServer<BufferedImage>> getImages() {
 			if (imageManager == null) {
 				imageManager = new ProjectResourceManager.ImageResourceManager<>(getPath(), BufferedImage.class);
@@ -958,6 +962,7 @@ class DefaultProject implements Project<BufferedImage> {
 			this.hierarchy = new HierarchySummary(imageData.getHierarchy());
 		}
 		
+		@Override
 		public String toString() {
 			return gson.toJson(this);
 		}

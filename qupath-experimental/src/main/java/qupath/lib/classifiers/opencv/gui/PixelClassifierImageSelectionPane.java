@@ -1179,6 +1179,7 @@ public class PixelClassifierImageSelectionPane {
 			this.units = units;
 		}
 		
+		@Override
 		public double getDownsampleFactor(double pixelSize) {
 			if (Double.isFinite(pixelSize))
 				return requestedPixelSize / pixelSize;
@@ -1428,12 +1429,14 @@ public class PixelClassifierImageSelectionPane {
 			}
 		}
 		
+		@Override
 		public synchronized void close() throws Exception {
 			if (this.fileSystem != FileSystems.getDefault())
 				this.fileSystem.close();
 		}
 		
 		
+		@Override
 		public synchronized void writeJSON(String name, Object o) throws IOException {
 			var gson = new GsonBuilder()
 					.setLenient()
@@ -1574,8 +1577,6 @@ public class PixelClassifierImageSelectionPane {
 	 * Helper class capable of building (or returning) a FeatureCalculator.
 	 * 
 	 * @author Pete Bankhead
-	 *
-	 * @param <T>
 	 */
 	public static abstract class FeatureCalculatorBuilder {
 		
@@ -1596,6 +1597,7 @@ public class PixelClassifierImageSelectionPane {
 			return calculator.toString();
 		}
 		
+		@Override
 		public String toString() {
 			return getName();
 		}
@@ -1746,10 +1748,12 @@ public class PixelClassifierImageSelectionPane {
 					requestedPixelSize);
 		}
 		
+		@Override
 		public boolean canCustomize() {
 			return true;
 		}
 		
+		@Override
 		public boolean doCustomize() {
 			
 			boolean success = DisplayHelpers.showMessageDialog("Select features", pane);

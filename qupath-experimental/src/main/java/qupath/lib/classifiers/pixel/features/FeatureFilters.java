@@ -475,11 +475,13 @@ public class FeatureFilters {
     		return sigma;
     	}
     	
-    	public int getPadding() {
+    	@Override
+		public int getPadding() {
     		return (int)Math.ceil(sigma * 4);
     	}
     	
-    	public void calculate(Mat matInput, List<Mat> output) {
+    	@Override
+		public void calculate(Mat matInput, List<Mat> output) {
     		var matGaussian = new Mat();
     		gaussianFilter(matInput, sigma, matGaussian);
     		calculate(matInput, matGaussian, output);
@@ -509,7 +511,8 @@ public class FeatureFilters {
     		super(sigma);
     	}
     	
-    	public String getName() {
+    	@Override
+		public String getName() {
     		return "Gaussian" + sigmaString();
     	}
 
@@ -526,7 +529,8 @@ public class FeatureFilters {
     		super(sigma);
     	}
     	
-    	public String getName() {
+    	@Override
+		public String getName() {
     		return "Gradient magnitude" + sigmaString();
     	}
 
@@ -549,7 +553,8 @@ public class FeatureFilters {
     		super(sigma);
     	}
     	
-    	public String getName() {
+    	@Override
+		public String getName() {
     		return "LoG" + sigmaString();
     	}
 
@@ -677,7 +682,8 @@ public class FeatureFilters {
     		super(sigma);
     	}
     	
-    	public String getName() {
+    	@Override
+		public String getName() {
     		return "Coherence" + sigmaString();
     	}
 

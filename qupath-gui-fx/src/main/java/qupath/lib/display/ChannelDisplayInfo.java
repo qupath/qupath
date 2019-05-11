@@ -83,7 +83,7 @@ import qupath.lib.images.servers.ImageServer;
 public interface ChannelDisplayInfo {
 
 	/**
-	 * Get the channel name.  This may also be returned by the {@link #toString()} method.
+	 * Get the channel name.  This may also be returned by the {@code toString()} method.
 	 * 
 	 * @return
 	 */

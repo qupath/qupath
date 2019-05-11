@@ -104,12 +104,13 @@ public class PixelClassificationMeasurementManager {
 	}
 	
 		    
-    /**
-     * Add percentage measurements if possible, or discard if not possible.
-     * 
-     * @param pathObject
-     * @return
-     */
+	/**
+	 * Calculate measurements for a specified ROI if possible.
+	 * 
+	 * @param roi
+	 * @param cachedOnly abort the mission if required tiles are not cached
+	 * @return
+	 */
 	synchronized MeasurementList calculateMeasurements(final ROI roi, final boolean cachedOnly) {
     	
 //        if (!classifierServer.hasPixelSizeMicrons())

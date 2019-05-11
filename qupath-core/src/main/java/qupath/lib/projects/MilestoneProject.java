@@ -877,6 +877,7 @@ class MilestoneProject {
 			this.hierarchy = new HierarchySummary(imageData.getHierarchy());
 		}
 		
+		@Override
 		public String toString() {
 			return gson.toJson(this);
 		}

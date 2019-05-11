@@ -357,6 +357,7 @@ public class WandToolCV extends BrushTool {
 	/**
 	 * Don't actually need the diameter for calculations here, but it's helpful for setting the cursor
 	 */
+	@Override
 	protected double getBrushDiameter() {
 		QuPathViewer viewer = getViewer();
 		if (viewer == null)

@@ -44,15 +44,18 @@ class PixelFeatureExtractor extends FeatureExtractor {
 				scale = 1/65535f;
 	}
 	
+	@Override
 	public void extractFeatures(final Collection<PathObject> pathObjects, FloatBuffer buffer) {
 		List<BufferedImage> images = pathObjects.parallelStream().map(p -> extractImage(p)).collect(Collectors.toList());
 		extractFeatures(images, buffer);
 	}
 	
+	@Override
 	public List<String> getFeatureNames() {
 		return Collections.unmodifiableList(measurements);
 	}
 	
+	@Override
 	public int nFeatures() {
 		return measurements.size();
 	}
@@ -68,6 +71,7 @@ class PixelFeatureExtractor extends FeatureExtractor {
 		}
 	}
 	
+	@Override
 	public void extractFeatures(final PathObject pathObject, FloatBuffer buffer) {
 		extractFeatures(Collections.singletonList(extractImage(pathObject)), buffer);
 	}

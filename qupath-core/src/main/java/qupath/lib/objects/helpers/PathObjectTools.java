@@ -531,7 +531,7 @@ public class PathObjectTools {
 	 * @param y y-coordinate of the pixel
 	 * @param zPos z-slice number
 	 * @param tPos time-point number
-	 * @param vertexDistance for non-area ROIs, the distance from the closest vertex or line segment (or < 0 to ignore non-area ROIs).
+	 * @param vertexDistance for non-area ROIs, the distance from the closest vertex or line segment (or &lt; 0 to ignore non-area ROIs).
 	 * @return
 	 */
 	public static Collection<PathObject> getObjectsForLocation(final PathObjectHierarchy hierarchy, 

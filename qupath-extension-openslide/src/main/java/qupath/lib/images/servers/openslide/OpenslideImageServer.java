@@ -91,7 +91,7 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 	 * Create an ImageServer using OpenSlide for the specified file.
 	 * <p>
 	 * The only supported arg is {@code --no-crop}, to specify that any bounding box should not be 
-	 * applied (which was the default in QuPath &leq; v0.1.2).
+	 * applied (which was the default in QuPath &lt;= v0.1.2).
 	 * 
 	 * @param uri
 	 * @param args

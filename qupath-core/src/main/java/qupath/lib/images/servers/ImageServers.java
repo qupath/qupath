@@ -26,6 +26,7 @@ import com.google.gson.stream.JsonWriter;
 
 import qupath.lib.images.servers.RotatedImageServer.Rotation;
 import qupath.lib.images.servers.SparseImageServer.SparseImageServerManagerRegion;
+import qupath.lib.projects.Project;
 import qupath.lib.regions.ImageRegion;
 
 /**
