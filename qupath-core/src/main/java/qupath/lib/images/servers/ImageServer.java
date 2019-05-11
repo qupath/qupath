@@ -27,14 +27,12 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
-import qupath.lib.images.PathImage;
 import qupath.lib.regions.RegionRequest;
 
 /**
  * 
- * Generic ImageServer, able to return image tiles.
+ * Generic ImageServer, able to return pixels and metadata.
  * <p>
  * The idea behind making this generic is that so that it can be used on various platforms and with different UIs, e.g. Swing, JavaFX.
  * For Swing/AWT, the expected generic parameter is BufferedImage.
@@ -88,6 +86,7 @@ public interface ImageServer<T> extends AutoCloseable {
 	
 	/**
 	 * Get the downsample factor supported by the server that is the best match for the requested downsample.
+	 * <p>
 	 * Generally, this will be &lt;= the requested downsample (but it may be slightly more if the error introduced
 	 * would be very small, i.e. if 4 is requested and 4.0001 is available, 4.0001 would be returned).
 	 * 
@@ -106,26 +105,6 @@ public interface ImageServer<T> extends AutoCloseable {
 	public double getDownsampleForResolution(int level);
 	
 	/**
-	 * A suggested tile width (in pixels), derived from the full-resolution image.
-	 * If no tile size suggestion can be provided from the file, this returns -1.
-	 * @return
-	 */
-	public int getPreferredTileWidth();
-
-	/**
-	 * A suggested tile height (in pixels), derived from the full-resolution image.
-	 * If no tile size suggestion can be provided from the file, this returns -1.
-	 * @return
-	 */
-	public int getPreferredTileHeight();
-
-	/**
-	 * The magnification at which the full-resolution image was acquired, or Double.NaN if this is unknown.
-	 * @return
-	 */
-	public double getMagnification();
-	
-	/**
 	 * Width of the full-resolution image in pixels.
 	 * @return
 	 */
@@ -136,18 +115,6 @@ public interface ImageServer<T> extends AutoCloseable {
 	 * @return
 	 */
 	public int getHeight();
-	
-	/**
-	 * Width of image for a specific resolution level in pixels.
-	 * @return
-	 */
-	public int getLevelWidth(int level);
-
-	/**
-	 * Height of image for a specific resolution level in pixels.
-	 * @return
-	 */
-	public int getLevelHeight(int level);
 
 	/**
 	 * Number of channels (3 for RGB).
@@ -172,18 +139,6 @@ public interface ImageServer<T> extends AutoCloseable {
 	 * @return
 	 */
 	public int nTimepoints();
-	
-	/**
-	 * Time point (in getTimeUnits() for a time series; returns 0 if the image is not a time series
-	 * @return
-	 */
-	public double getTimePoint(int ind);
-	
-	/**
-	 * Time interval units for a time series
-	 * @return
-	 */
-	public TimeUnit getTimeUnit();
 	
 	/**
 	 * Spacing between slices of a z-stack, or Double.NaN if this is unknown of the image is not a z-stack.
@@ -235,45 +190,9 @@ public interface ImageServer<T> extends AutoCloseable {
 	public T getCachedTile(TileRequest tile);
 	
 	/**
-	 * Obtain a T thumbnail, no larger than the maxWidth &amp; maxHeigth specified.
-	 * Aspect ratio will be maintained, so only one dimension needs to be specified - the other can be -1.
+	 * Read a buffered image for a specified RegionRequest, cropping and downsampling as required.
 	 * <p>
-	 * Note: The aim of this method is to supply a T that would look sensible when drawn,
-	 *       *not* one that preserves (resampled) pixel values.  Therefore some brightness/contrast scaling
-	 *       may have been applied, particularly for non-8-bit images.
-	 * 
-	 * @param maxWidth
-	 * @param maxHeight
-	 * @param zPosition
-	 * @return
-	 */
-	public T getBufferedThumbnail(int maxWidth, int maxHeight, int zPosition) throws IOException;
-
-	/**
-	 * Read a requested region, returning PathImage containing additional metadata.
-	 * <p>
-	 * 'region' must contain integer pixel coordinates from the full-resolution image, while downsampleFactor can be any double 
-	 * (generally &gt;= 1; 'upsampling' may not be supported, depending on the concrete implementations).
-	 * <p>
-	 * For pyramid images, no guarantee is provided as to which level will actually be used, but it is most likely
-	 * to be the level closest to - but not lower-resolution than - the requested downsampleFactor.
-	 * <p>
-	 * While the downsampleFactor can be a double, it should be kept in mind that this can lead to rounding issues.
-	 * Therefore if it is essential that extracted regions will later need to be related back to the full-resolution data
-	 * (e.g. after segmenting objects at a lower magnification), then the region and downsampleFactor should be chosen cautiously.
-	 * <p>
-	 * In general, in such cases it is a good idea to make downsampleFactor a power of 2, and ensure at least that the requested
-	 * width and height are multiples of the downsampleFactor.  This can be ensured by first refining the region with
-	 * 		WholeSlideImageHelper.refineRegion(Rectangle region, double downsampleFactor)
-	 * 
-	 * 
-	 * @param request - the image region being requested, including the downsample factor
-	 * @return
-	 */
-	public PathImage<T> readRegion(RegionRequest request) throws IOException;
-	
-	/**
-	 * Read a buffered image for a specified RegionRequest, cropping and downsampling as required.  No specific checking is guaranteed
+	 * No specific checking is guaranteed
 	 * to ensure that the request is valid, e.g. if it extends beyond the image boundary then it is likely (but not certain) that
 	 * the returned image will be cropped accordingly - but some implementations may contain empty padding instead.  Therefore
 	 * it is up to the caller to ensure that the requests are within range.
@@ -358,21 +277,6 @@ public interface ImageServer<T> extends AutoCloseable {
 	 */
 	public String getDisplayedImageName();
 	
-	/**
-	 * Returns true if this is a sub-image stored within the same file as other images.
-	 * 
-	 * @return
-	 */
-	public boolean containsSubImages();
-	
-	
-	/**
-	 * Returns true either if this server *is* the specified PathImageServer, or if it is a wrapper for it.
-	 * @param server
-	 * @return
-	 */
-	public boolean usesBaseServer(ImageServer<?> server);
-	
 	
 //	/**
 //	 * Returns an absolute URI representing the server (image) data, or null if the server does not receive its data from a stored file (e.g. it is computed dynamically).
@@ -401,6 +305,7 @@ public interface ImageServer<T> extends AutoCloseable {
 	
 	/**
 	 * The bit-depth of the image.
+	 * <p>
 	 * For an RGB image, this is considered to be 8, i.e. color channels are considered separately.
 	 * 
 	 * @return
@@ -409,19 +314,14 @@ public interface ImageServer<T> extends AutoCloseable {
 	
 	
 	/**
-	 * In cases where multiple channels are available, return the default color for the specified channel (first channel is 0).
+	 * Request information for one channel.
+	 * 
 	 * @param channel
 	 * @return
+	 * 
 	 */
-	public Integer getDefaultChannelColor(int channel);
+	public ImageChannel getChannel(int channel);
 	
-	
-	/**
-	 * Get a name for the channel.
-	 * @param channel
-	 * @return
-	 */
-	public String getChannelName(int channel);
 	
 	/**
 	 * Get a list providing the name & default color for each image channel.
@@ -450,26 +350,6 @@ public interface ImageServer<T> extends AutoCloseable {
 	 * @see #getMetadata
 	 */
 	public ImageServerMetadata getOriginalMetadata();
-	
-	/**
-	 * Tests whether the original metadata (e.g. pixel sizes in microns, magnification) is being used.
-	 * @return
-	 * @see #getMetadata
-	 * @see #getOriginalMetadata
-	 */
-	public boolean usesOriginalMetadata();
-
-	/**
-	 * Get the default thumbnail, without specifying the z-slice or timepoint.
-	 * <p>
-	 * This is useful for a general representation of the image appearance.  A specific 
-	 * z-slice or timepoint should not be assumed, e.g. it may be the first or it may be selected 
-	 * based on other criteria.
-	 * 
-	 * @return
-	 * @see #getDefaultThumbnail(int, int)
-	 */
-	public T getDefaultThumbnail() throws IOException;
 	
 	/**
 	 * Get the default thumbnail for a specified z-slice and timepoint.

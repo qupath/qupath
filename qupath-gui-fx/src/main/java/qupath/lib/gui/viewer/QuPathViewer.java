@@ -1542,7 +1542,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	public double getFullMagnification() {
 		if (!hasServer())
 			return 1.0;
-		double magnification = getServer().getMagnification();
+		double magnification = getServer().getMetadata().getMagnification();
 		if (Double.isNaN(magnification))
 			return 1.0;
 		else

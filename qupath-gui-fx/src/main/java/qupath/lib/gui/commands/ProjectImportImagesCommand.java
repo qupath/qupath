@@ -378,7 +378,7 @@ public class ProjectImportImagesCommand implements PathCommand {
 	
 	
 	static BufferedImage getThumbnailRGB(ImageServer<BufferedImage> server, ImageDisplay imageDisplay) throws IOException {
-		var img2 = server.getDefaultThumbnail();
+		var img2 = server.getDefaultThumbnail(server.nZSlices()/2, 0);
 		// Try to write RGB images directly
 		boolean success = false;
 		if (imageDisplay == null && (server.isRGB() || img2.getType() == BufferedImage.TYPE_BYTE_GRAY)) {

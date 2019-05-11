@@ -23,6 +23,7 @@ import qupath.imagej.objects.ROIConverterIJ;
 import qupath.lib.classifiers.pixel.PixelClassificationImageServer;
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.images.ImageData;
+import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.TileRequest;
@@ -482,10 +483,10 @@ public class PixelClassifierStatic {
 							new DataBufferByte(output, w*h), w, h, 8, null);
 				}
 				for (int c = 0; c < nChannels; c++) {
-					String name = server.getChannelName(c);
-					if (name == null || server.getDefaultChannelColor(c) == null)
+					ImageChannel channel = server.getChannel(c);
+					if (channel == null || channel.getName() == null)
 						continue;
-					var pathClass = PathClassFactory.getPathClass(name);
+					var pathClass = PathClassFactory.getPathClass(channel.getName());
 					if (pathClass == PathClassFactory.getDefaultPathClass(PathClasses.IGNORE))
 						continue;
 					ROI roi = thresholdToROI(raster, c-0.5, c+0.5, 0, t);
@@ -573,7 +574,7 @@ public class PixelClassifierStatic {
 					int x = (int)Math.round(roi.getCentroidX());
 					int y = (int)Math.round(roi.getCentroidY());
 					int ind = server.getClassification(x, y, roi.getZ(), roi.getT());
-					return new Reclassifier(p, PathClassFactory.getPathClass(server.getChannelName(ind)), false);
+					return new Reclassifier(p, PathClassFactory.getPathClass(server.getChannel(ind).getName()), false);
 				} catch (Exception e) {
 					return new Reclassifier(p, null, false);
 				}

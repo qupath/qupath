@@ -134,7 +134,7 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 
 		@Override
 		public String getPrompt(ImageData<?> imageData) {
-			return imageData.getServer().getChannelName(channel);
+			return imageData.getServer().getChannel(channel).getName();
 		}
 
 		@Override

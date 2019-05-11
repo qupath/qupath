@@ -77,7 +77,7 @@ public class SparseImageServer extends AbstractTileableImageServer {
 				server = manager.getServer(region, 1);
 				if (metadata == null) {
 					metadata = server.getMetadata();
-					colorModel = server.getDefaultThumbnail().getColorModel();
+					colorModel = server.getDefaultThumbnail(0, 0).getColorModel();
 				}
 				if (path == null)
 					paths.add(region.toString() + " (" + server.getPath() + ")");

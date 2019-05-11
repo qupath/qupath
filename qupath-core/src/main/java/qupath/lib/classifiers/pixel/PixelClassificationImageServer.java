@@ -116,16 +116,6 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 	public void setMetadata(ImageServerMetadata metadata) throws UnsupportedOperationException {
 		throw new UnsupportedOperationException("Setting metadata is not allowed!");
 	}
-	
-	@Override
-	public String getChannelName(int channel) {
-		return classifier.getMetadata().getChannels().get(channel).getName();
-	}
-	
-	@Override
-	public Integer getDefaultChannelColor(int channel) {
-		return classifier.getMetadata().getChannels().get(channel).getColor();
-	}
 
 
 	@Override

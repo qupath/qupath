@@ -4,11 +4,9 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 import com.google.gson.annotations.JsonAdapter;
 
-import qupath.lib.images.PathImage;
 import qupath.lib.regions.RegionRequest;
 
 /**
@@ -90,21 +88,6 @@ class SimpleWrappedImageServer<T> implements ImageServer<T> {
 	}
 
 	@Override
-	public int getPreferredTileWidth() {
-		return server.getPreferredTileWidth();
-	}
-
-	@Override
-	public int getPreferredTileHeight() {
-		return server.getPreferredTileHeight();
-	}
-
-	@Override
-	public double getMagnification() {
-		return server.getMagnification();
-	}
-
-	@Override
 	public int getWidth() {
 		return server.getWidth();
 	}
@@ -112,16 +95,6 @@ class SimpleWrappedImageServer<T> implements ImageServer<T> {
 	@Override
 	public int getHeight() {
 		return server.getHeight();
-	}
-
-	@Override
-	public int getLevelWidth(int level) {
-		return server.getLevelWidth(level);
-	}
-
-	@Override
-	public int getLevelHeight(int level) {
-		return server.getLevelHeight(level);
 	}
 
 	@Override
@@ -142,16 +115,6 @@ class SimpleWrappedImageServer<T> implements ImageServer<T> {
 	@Override
 	public int nTimepoints() {
 		return server.nTimepoints();
-	}
-
-	@Override
-	public double getTimePoint(int ind) {
-		return server.getTimePoint(ind);
-	}
-
-	@Override
-	public TimeUnit getTimeUnit() {
-		return server.getTimeUnit();
 	}
 
 	@Override
@@ -185,16 +148,6 @@ class SimpleWrappedImageServer<T> implements ImageServer<T> {
 	}
 
 	@Override
-	public T getBufferedThumbnail(int maxWidth, int maxHeight, int zPosition) throws IOException {
-		return server.getBufferedThumbnail(maxWidth, maxHeight, zPosition);
-	}
-
-	@Override
-	public PathImage<T> readRegion(RegionRequest request) throws IOException {
-		return server.readRegion(request);
-	}
-
-	@Override
 	public String getServerType() {
 		return server.getServerType();
 	}
@@ -225,16 +178,6 @@ class SimpleWrappedImageServer<T> implements ImageServer<T> {
 	}
 
 	@Override
-	public boolean containsSubImages() {
-		return server.containsSubImages();
-	}
-
-	@Override
-	public boolean usesBaseServer(ImageServer<?> server) {
-		return this == server || this.server == server || this.server.usesBaseServer(server);
-	}
-
-	@Override
 	public boolean isEmptyRegion(RegionRequest request) {
 		return server.isEmptyRegion(request);
 	}
@@ -245,13 +188,8 @@ class SimpleWrappedImageServer<T> implements ImageServer<T> {
 	}
 
 	@Override
-	public Integer getDefaultChannelColor(int channel) {
-		return server.getDefaultChannelColor(channel);
-	}
-
-	@Override
-	public String getChannelName(int channel) {
-		return server.getChannelName(channel);
+	public ImageChannel getChannel(int channel) {
+		return server.getChannel(channel);
 	}
 
 	@Override
@@ -267,16 +205,6 @@ class SimpleWrappedImageServer<T> implements ImageServer<T> {
 	@Override
 	public void setMetadata(ImageServerMetadata metadata) throws IllegalArgumentException {
 		server.setMetadata(metadata);
-	}
-
-	@Override
-	public boolean usesOriginalMetadata() {
-		return server.usesOriginalMetadata();
-	}
-
-	@Override
-	public T getDefaultThumbnail() throws IOException {
-		return server.getDefaultThumbnail();
 	}
 
 	@Override

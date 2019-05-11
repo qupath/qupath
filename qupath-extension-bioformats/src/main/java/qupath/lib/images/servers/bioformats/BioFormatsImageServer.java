@@ -646,6 +646,14 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 		return options.requestParallelization() && (getWidth() > getPreferredTileWidth() || getHeight() > getPreferredTileHeight()) && manager.getMemoizationFileSize(filePath) <= MAX_PARALLELIZATION_MEMO_SIZE;
 	}
 	
+	int getPreferredTileWidth() {
+		return getMetadata().getPreferredTileWidth();
+	}
+
+	int getPreferredTileHeight() {
+		return getMetadata().getPreferredTileHeight();
+	}
+
 	
 	/**
 	 * Get a IFormatReader for use by the current thread.
@@ -810,13 +818,6 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 		super.close();
 		reader.close(false);
 	}
-	
-	@Override
-	public double getTimePoint(int ind) {
-		if (nTimepoints() == 0)
-			return 0;
-		return getMetadata().getTimepoint(ind);
-	}
 
 	@Override
 	public List<String> getSubImageList() {
@@ -833,15 +834,8 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 		return name;
 	}
 
-	@Override
-	public boolean containsSubImages() {
+	boolean containsSubImages() {
 		return imageMap != null && !imageMap.isEmpty();
-	}
-
-
-	@Override
-	public boolean usesBaseServer(ImageServer<?> server) {
-		return this == server;
 	}
 
 	MetadataStore getMetadataStore() throws DependencyException, ServiceException, FormatException, IOException {

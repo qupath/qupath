@@ -26,8 +26,6 @@ package qupath.lib.images.servers;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 
-import qupath.lib.images.DefaultPathImage;
-import qupath.lib.images.PathImage;
 import qupath.lib.regions.RegionRequest;
 
 /**
@@ -119,12 +117,6 @@ public class RotatedImageServer extends TransformingImageServer<BufferedImage> {
 			builder.pixelSizeMicrons(metadata.getPixelHeightMicrons(), metadata.getPixelWidthMicrons());
 		
 		return builder.build();
-	}
-	
-
-	@Override
-	public PathImage<BufferedImage> readRegion(RegionRequest request) throws IOException {
-		return new DefaultPathImage<>(this, rotateRequest(request), readBufferedImage(request));
 	}
 
 	@Override

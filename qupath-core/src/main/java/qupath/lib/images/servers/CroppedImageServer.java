@@ -33,7 +33,9 @@ public class CroppedImageServer extends TransformingImageServer<BufferedImage> {
 			else
 				levelBuilder.addLevelByDownsample(originalLevel.getDownsample());
 			i++;
-		} while (i < server.nResolutions() && region.getWidth() >= server.getPreferredTileWidth() && region.getHeight() >= server.getPreferredTileHeight());
+		} while (i < server.nResolutions() && 
+				region.getWidth() >= server.getMetadata().getPreferredTileWidth() && 
+				region.getHeight() >= server.getMetadata().getPreferredTileHeight());
 		
 		metadata = new ImageServerMetadata.Builder(getClass(), server.getMetadata())
 				.path(server.getPath() + ": Cropped " + region.toString())

@@ -215,7 +215,7 @@ public class IJTools {
 		    	impComp.setChannelLut(
 		    			LUT.createLutFromColor(
 		    					ColorToolsAwt.getCachedColor(
-		    							server.getDefaultChannelColor(c))), c+1);
+		    							server.getChannel(c).getColor())), c+1);
 		    }
 	    }
 	    return imp;
@@ -256,9 +256,9 @@ public class IJTools {
 			cal.pixelHeight = pixelHeight * downsampleFactor;
 			cal.pixelDepth = server.getZSpacingMicrons();
 			if (server.nTimepoints() > 1) {
-				cal.frameInterval = server.getTimePoint(1);
-				if (server.getTimeUnit() != null)
-					cal.setTimeUnit(server.getTimeUnit().toString());
+				cal.frameInterval = server.getMetadata().getTimepoint(1);
+				if (server.getMetadata().getTimeUnit() != null)
+					cal.setTimeUnit(server.getMetadata().getTimeUnit().toString());
 			}
 			cal.setUnit("um");
 		}
@@ -544,7 +544,7 @@ public class IJTools {
 				for (int b = 0; b < sampleModel.getNumBands(); b++) {
 					impComp.setChannelLut(
 							LUT.createLutFromColor(
-									new Color(server.getDefaultChannelColor(b))), b+1);
+									new Color(server.getChannel(b).getColor())), b+1);
 				}
 				impComp.updateAllChannelsAndDraw();
 				impComp.resetDisplayRanges();

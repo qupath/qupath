@@ -27,10 +27,7 @@ import qupath.lib.color.ColorDeconvolutionStains;
 import qupath.lib.color.ColorTransformer;
 import qupath.lib.color.ColorTransformer.ColorTransformMethod;
 import qupath.lib.common.ColorTools;
-import qupath.lib.images.DefaultPathImage;
-import qupath.lib.images.PathImage;
 import qupath.lib.images.servers.AbstractImageServer;
-import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.ImageServerProvider;
@@ -119,16 +116,6 @@ public class MergedServer extends AbstractImageServer<BufferedImage> {
 	@Override
 	public boolean isRGB() {
 		return false;
-	}
-
-	@Override
-	public double getTimePoint(int ind) {
-		return server.getTimePoint(ind);
-	}
-
-	@Override
-	public PathImage<BufferedImage> readRegion(RegionRequest request) throws IOException {
-		return new DefaultPathImage<BufferedImage>(this, request, readBufferedImage(request));
 	}
 
 	@Override
@@ -236,25 +223,8 @@ public class MergedServer extends AbstractImageServer<BufferedImage> {
 	}
 
 	@Override
-	public boolean containsSubImages() {
-		return false;
-	}
-
-	@Override
-	public boolean usesBaseServer(ImageServer<?> server) {
-		return this == server;
-	}
-
-	@Override
 	public int getBitsPerPixel() {
 		return server.getBitsPerPixel();
-	}
-
-	@Override
-	public Integer getDefaultChannelColor(int channel) {
-		if (channel < baseColors.size())
-			return baseColors.get(channel);
-		return ImageChannel.getDefaultChannelColor(channel);
 	}
 
 	@Override

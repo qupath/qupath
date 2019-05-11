@@ -86,7 +86,6 @@ import qupath.lib.images.ImageData.ImageType;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.plugins.parameters.ParameterList;
-import qupath.lib.projects.ProjectImageEntry;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.RectangleROI;
 import qupath.lib.roi.interfaces.PathArea;
@@ -847,7 +846,7 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 			case BIT_DEPTH:
 				return server.isRGB() ? "8-bit (RGB)" : server.getBitsPerPixel();
 			case MAGNIFICATION:
-				return server.getMagnification();
+				return server.getMetadata().getMagnification();
 			case WIDTH:
 				if (server.hasPixelSizeMicrons())
 					return String.format("%s px (%.2f %s)", server.getWidth(), server.getWidth() * server.getPixelWidthMicrons(), GeneralTools.micrometerSymbol());

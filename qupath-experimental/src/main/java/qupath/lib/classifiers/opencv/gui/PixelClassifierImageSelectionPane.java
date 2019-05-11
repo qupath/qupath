@@ -1635,13 +1635,13 @@ public class PixelClassifierImageSelectionPane {
 				
 				@Override
 				public String toString(Integer object) {
-					return server.getChannelName(object);
+					return server.getChannel(object).getName();
 				}
 				
 				@Override
 				public Integer fromString(String string) {
 					for (int i = 0; i < server.nChannels(); i++) {
-						if (string.equals(server.getChannelName(i)))
+						if (string.equals(server.getChannel(i).getName()))
 							return i;
 					}
 					return null;

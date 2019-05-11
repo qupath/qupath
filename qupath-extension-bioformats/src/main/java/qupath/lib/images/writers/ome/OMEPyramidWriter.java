@@ -33,6 +33,7 @@ import ome.xml.model.enums.PixelType;
 import ome.xml.model.primitives.Color;
 import ome.xml.model.primitives.PositiveInteger;
 import qupath.lib.common.ColorTools;
+import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.regions.ImageRegion;
@@ -177,14 +178,15 @@ public class OMEPyramidWriter {
 				meta.setChannelID("Channel:0:" + c, series, c);			
 //				meta.setChannelSamplesPerPixel(new PositiveInteger(nSamples), series, c);
 //				Integer color = server.getChannels().get(c).getColor();
-				Integer color = server.getDefaultChannelColor(c);
+				ImageChannel channel = server.getChannel(c);
+				Integer color = channel.getColor();
 				meta.setChannelColor(new Color(
 						ColorTools.red(color),
 						ColorTools.green(color),
 						ColorTools.blue(color),
 						0
 						), series, c);
-				meta.setChannelName(server.getChannelName(c), series, c);
+				meta.setChannelName(channel.getName(), series, c);
 			}			
 		}
 
@@ -506,9 +508,9 @@ public class OMEPyramidWriter {
 			writer.width = server.getWidth();
 			writer.height = server.getHeight();
 			writer.downsamples = server.getPreferredDownsamples();
-			if (server.getPreferredTileWidth() == server.getWidth() && server.getPreferredTileHeight() == server.getHeight()) {
-				writer.tileWidth = server.getPreferredTileWidth();
-				writer.tileHeight = server.getPreferredTileHeight();
+			if (server.getMetadata().getPreferredTileWidth() == server.getWidth() && server.getMetadata().getPreferredTileHeight() == server.getHeight()) {
+				writer.tileWidth = server.getMetadata().getPreferredTileWidth();
+				writer.tileHeight = server.getMetadata().getPreferredTileHeight();
 			} else {
 				writer.tileWidth = 256;
 				writer.tileHeight = 256;

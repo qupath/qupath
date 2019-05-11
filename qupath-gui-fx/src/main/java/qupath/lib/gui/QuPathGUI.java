@@ -4215,7 +4215,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 					QuPathViewer viewer = qupath.getViewer();
 					if (viewer == null || e.getClickCount() != 2 || !viewer.hasServer())
 						return;
-					double fullMagnification = viewer.getServer().getMagnification();
+					double fullMagnification = viewer.getServer().getMetadata().getMagnification();
 					boolean hasMagnification = !Double.isNaN(fullMagnification);
 					ParameterList params = new ParameterList();
 					if (hasMagnification) {
@@ -4486,7 +4486,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		if (toolbar != null && toolbar.tooltipMag != null) {
 			if (imageDataNew == null)
 				toolbar.tooltipMag.setText("Magnification");
-			else if (!Double.isNaN(imageDataNew.getServer().getMagnification()))
+			else if (!Double.isNaN(imageDataNew.getServer().getMetadata().getMagnification()))
 				toolbar.tooltipMag.setText("Current magnification - double-click to edit");
 			else
 				toolbar.tooltipMag.setText("Current downsample value - double-click to edit");

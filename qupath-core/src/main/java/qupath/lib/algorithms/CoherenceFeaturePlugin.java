@@ -159,7 +159,7 @@ public class CoherenceFeaturePlugin extends AbstractInteractivePlugin<BufferedIm
 		boolean includeStats = params.getBooleanParameterValue("includeStats");
 		boolean doCircular = params.getBooleanParameterValue("doCircular");
 
-		double downsample = server.getMagnification() / mag;
+		double downsample = server.getMetadata().getMagnification() / mag;
 		
 		ROI pathROI = pathObject.getROI();
 		if (pathROI == null)

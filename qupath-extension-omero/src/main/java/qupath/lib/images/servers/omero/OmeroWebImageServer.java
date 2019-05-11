@@ -307,6 +307,14 @@ public class OmeroWebImageServer extends AbstractTileableImageServer {
 	public ImageServerMetadata getOriginalMetadata() {
 		return originalMetadata;
 	}
+	
+	int getPreferredTileWidth() {
+		return getMetadata().getPreferredTileWidth();
+	}
+
+	int getPreferredTileHeight() {
+		return getMetadata().getPreferredTileHeight();
+	}
 
 	@Override
 	protected BufferedImage readTile(TileRequest request) throws IOException {

@@ -246,8 +246,8 @@ public class ImageRegionStoreHelpers {
 
 		// Determine what the tile size will be in the original image space for the requested downsample
 		// Aim for a round number - preferred downsamples can be a bit off due to rounding
-		int tileWidth = server.getPreferredTileWidth();
-		int tileHeight = server.getPreferredTileHeight();
+		int tileWidth = server.getMetadata().getPreferredTileWidth();
+		int tileHeight = server.getMetadata().getPreferredTileHeight();
 		if (tileWidth < 0)
 			tileWidth = 256;
 		if (tileHeight < 0)

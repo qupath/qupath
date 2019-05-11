@@ -156,7 +156,9 @@ public class ImageRegion {
 		return Math.max(getY(), getY() + getHeight());
 	}
 
-	
+	public ImagePlane getPlane() {
+		return ImagePlane.getPlane(getZ(), getT());
+	}
 	
 	/* (non-Javadoc)
 	 * @see java.lang.Object#hashCode()

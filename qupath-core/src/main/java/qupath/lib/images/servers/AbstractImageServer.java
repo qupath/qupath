@@ -31,17 +31,13 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
-
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.index.SpatialIndex;
 import org.locationtech.jts.index.quadtree.Quadtree;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import qupath.lib.images.PathImage;
 import qupath.lib.common.GeneralTools;
-import qupath.lib.images.DefaultPathImage;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
 
@@ -119,13 +115,6 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 		if (downsample < 1)
 			downsample = 1;
 		return downsample;
-	}
-	
-	@Override
-	public T getBufferedThumbnail(int maxWidth, int maxHeight, int zPosition) throws IOException {
-		double downsample = getThumbnailDownsampleFactor(maxWidth, maxHeight);
-		return readBufferedImage(
-				RegionRequest.createInstance(getPath(), downsample, 0, 0, getWidth(), getHeight(), zPosition, 0));
 	}
 
 	@Override
@@ -276,11 +265,6 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 	}
 
 	@Override
-	public double getMagnification() {
-		return getMetadata().getMagnification();
-	}
-
-	@Override
 	public int getWidth() {
 		return getMetadata().getWidth();
 	}
@@ -306,18 +290,6 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 	}
 	
 	@Override
-	public int getPreferredTileWidth() {
-//		return 1024; // Some servers default to 256, however in a few cases (e.g. NDPI z-stacks) this is too small; here, we aim for a compromise choosing larger tiles
-		return getMetadata().getPreferredTileWidth();
-	}
-
-	@Override
-	public int getPreferredTileHeight() {
-//		return 1024;
-		return getMetadata().getPreferredTileHeight();
-	}
-
-	@Override
 	public int nZSlices() {
 		return getMetadata().getSizeZ();
 	}
@@ -330,16 +302,6 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 	@Override
 	public int nTimepoints() {
 		return getMetadata().getSizeT();
-	}
-	
-	@Override
-	public TimeUnit getTimeUnit() {
-		return getMetadata().getTimeUnit();
-	}
-	
-	@Override
-	public boolean usesOriginalMetadata() {
-		return getOriginalMetadata().equals(getMetadata());
 	}
 	
 	@Override
@@ -361,20 +323,6 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 		
 		userMetadata = metadata;
 	}
-	
-	@Override
-	public double getTimePoint(int ind) {
-		return ind * getMetadata().getSizeT();
-	}
-	
-	@Override
-	public PathImage<T> readRegion(RegionRequest request) throws IOException {
-		T img = readBufferedImage(request);
-		if (img == null)
-			return null;
-		return new DefaultPathImage<>(this, request, img);
-	}
-	
 	
 	@Override
 	public List<String> getSubImageList() {
@@ -399,43 +347,17 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 		else
 			return name;
 	}
-
-	@Override
-	public boolean containsSubImages() {
-		return false;
-	}
-
-	@Override
-	public boolean usesBaseServer(ImageServer<?> server) {
-		return this == server;
-	}
-	
 	
 	@Override
-	public Integer getDefaultChannelColor(int channel) {
-		return getMetadata().getChannel(channel).getColor();
-	}
-	
-	
-	@Override
-	public String getChannelName(int channel) {
-		return getMetadata().getChannel(channel).getName();
+	public ImageChannel getChannel(int channel) {
+		return getMetadata().getChannel(channel);
 	}
 	
 	@Override
 	public List<ImageChannel> getChannels() {
 		return getMetadata().getChannels();
 	}
-	
-	
-	/**
-	 * Default implementation that requests a thumbnail from the first timepoint and 
-	 * the center of the z-stack.
-	 */
-	@Override
-	public T getDefaultThumbnail() throws IOException {
-		return getDefaultThumbnail(nZSlices()/2, 0);
-	}
+
 	
 	@Override
 	public T getDefaultThumbnail(int z, int t) throws IOException {

@@ -3,6 +3,7 @@ package qupath.lib.images.servers;
 import java.util.Collection;
 import java.util.LinkedHashSet;
 
+import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
 
@@ -35,13 +36,14 @@ public class TileRequest {
 	static Collection<TileRequest> getAllTileRequests(ImageServer<?> server) {
 		var set = new LinkedHashSet<TileRequest>();
 		
-		var tileWidth = server.getPreferredTileWidth();
-		var tileHeight = server.getPreferredTileHeight();
+		var tileWidth = server.getMetadata().getPreferredTileWidth();
+		var tileHeight = server.getMetadata().getPreferredTileHeight();
 		var downsamples = server.getPreferredDownsamples();
 		
 		for (int level = 0; level < downsamples.length; level++) {
-			int height = server.getLevelHeight(level);
-			int width = server.getLevelWidth(level);
+			var resolutionLevel = server.getMetadata().getLevel(level);
+			int height = resolutionLevel.getHeight();
+			int width = resolutionLevel.getWidth();
 			for (int t = 0; t < server.nTimepoints(); t++) {
 				for (int z = 0; z < server.nZSlices(); z++) {
 					for (int y = 0; y < height; y += tileHeight) {
@@ -147,6 +149,10 @@ public class TileRequest {
 	
 	public int getT() {
 		return tileRegion.getT();
+	}
+	
+	public ImagePlane getPlane() {
+		return ImagePlane.getPlane(getZ(), getT());
 	}
 	
 	@Override

@@ -111,7 +111,7 @@ public class TestBioFormatsImageServer {
 				// Create the server
 				server = (BioFormatsImageServer)ImageServerProvider.buildServer(serverPath, BufferedImage.class, "--classname", BioFormatsServerBuilder.class.getName());
 				// Read a thumbnail
-				imgThumbnail = server.getBufferedThumbnail(200, -1, 0);
+				imgThumbnail = server.getDefaultThumbnail(server.nZSlices()/2, 0);
 				// Read from the center of the image
 				int w = server.getWidth() < tileSize ? server.getWidth() : tileSize;
 				int h = server.getHeight() < tileSize ? server.getHeight() : tileSize;
@@ -219,7 +219,7 @@ public class TestBioFormatsImageServer {
 						"%s: %d x %d (c=%d, z=%d, t=%d), bpp=%d, mag=%.2f, downsamples=[%s], res=[%.4f,%.4f,%.4f]",
 						server.getPath(), server.getWidth(), server.getHeight(),
 						server.nChannels(), server.nZSlices(), server.nTimepoints(),
-						server.getBitsPerPixel(), server.getMagnification(), GeneralTools.arrayToString(Locale.getDefault(), server.getPreferredDownsamples(), 4),
+						server.getBitsPerPixel(), server.getMetadata().getMagnification(), GeneralTools.arrayToString(Locale.getDefault(), server.getPreferredDownsamples(), 4),
 						server.getPixelWidthMicrons(), server.getPixelHeightMicrons(), server.getZSpacingMicrons())
 				);
 	}

@@ -154,12 +154,6 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 //		if ((!isRGB() && nChannels() > 1) || getBitsPerPixel() == 32)
 //			throw new IOException("Sorry, currently only RGB & single-channel 8 & 16-bit images supported using ImageJ server");
 	}
-	
-	
-	@Override
-	public double getTimePoint(int ind) {
-		return imp.getCalibration().frameInterval * ind;
-	}
 
 	@Override
 	public synchronized BufferedImage readBufferedImage(RegionRequest request) {

@@ -58,7 +58,9 @@ public class AffineTransformImageServer extends TransformingImageServer<Buffered
 			else
 				levelBuilder.addLevelByDownsample(originalLevel.getDownsample());
 			i++;
-		} while (i < server.nResolutions() && region.getWidth() >= server.getPreferredTileWidth() && region.getHeight() >= server.getPreferredTileHeight());
+		} while (i < server.nResolutions() && 
+				region.getWidth() >= server.getMetadata().getPreferredTileWidth() && 
+				region.getHeight() >= server.getMetadata().getPreferredTileHeight());
 		
 		// TODO: Apply AffineTransform to pixel sizes! Perhaps create a Shape or point and transform that?
 		metadata = new ImageServerMetadata.Builder(getClass(), server.getMetadata())

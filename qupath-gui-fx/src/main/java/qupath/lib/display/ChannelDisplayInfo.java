@@ -915,7 +915,7 @@ public interface ChannelDisplayInfo {
 		public DirectServerChannelInfo(final ImageData<BufferedImage> imageData, int channel) {
 			super(imageData);
 			this.channel = channel;
-			setLUTColor(imageData.getServer().getDefaultChannelColor(channel));
+			setLUTColor(imageData.getServer().getChannel(channel).getColor());
 		}
 		
 		public int getChannel() {
@@ -931,7 +931,7 @@ public interface ChannelDisplayInfo {
 		public String getName() {
 			String name = "Channel " + (channel + 1);
 			ImageData<BufferedImage> imageData = getImageData();
-			String channelName = imageData == null ? null : imageData.getServer().getChannelName(channel);
+			String channelName = imageData == null ? null : imageData.getServer().getChannel(channel).getName();
 			if (channelName == null) {
 				return name;
 			}

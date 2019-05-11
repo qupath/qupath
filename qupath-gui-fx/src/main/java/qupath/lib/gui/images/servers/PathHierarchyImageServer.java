@@ -119,11 +119,6 @@ public class PathHierarchyImageServer extends AbstractTileableImageServer implem
 	public String getShortServerName() {
 		return prefix + server.getShortServerName();
 	}
-
-	@Override
-	public BufferedImage getBufferedThumbnail(int maxWidth, int maxHeight, int zPosition) {
-		return PathHierarchyPaintingHelper.createThumbnail(hierarchy, options, getWidth(), getHeight(), null, null);
-	}
 	
 	private Collection<PathObject> getObjectsToPaint(RegionRequest request) {
 //		Rectangle region = request.getBounds();
@@ -152,11 +147,6 @@ public class PathHierarchyImageServer extends AbstractTileableImageServer implem
 	}
 
 	@Override
-	public boolean usesBaseServer(ImageServer<?> server) {
-		return this.server == server;
-	}
-
-	@Override
 	public ImageServerMetadata getOriginalMetadata() {
 		return originalMetadata;
 	}
@@ -168,11 +158,6 @@ public class PathHierarchyImageServer extends AbstractTileableImageServer implem
 	@Override
 	public void setMetadata(ImageServerMetadata metadata) {
 		throw new RuntimeException("Metadata cannot be set for a hierarchy image server!");
-	}
-
-	@Override
-	public String getChannelName(int channel) {
-		return "Channel " + (channel + 1);
 	}
 
 	@Override

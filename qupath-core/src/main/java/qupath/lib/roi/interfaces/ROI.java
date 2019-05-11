@@ -32,7 +32,7 @@ import qupath.lib.geom.Point2;
 
 /**
  * Base interface for defining regions of interest (ROIs) within QuPath.
- * 
+ * <p>
  * In general, anything that returns a coordinate should be defined in terms of pixels 
  * from the top left of the full-resolution image.
  * 

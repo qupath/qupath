@@ -597,7 +597,7 @@ public class SubcellularDetection extends AbstractInteractivePlugin<BufferedImag
 			}
 			for (int i = 0; i < nChannels(); i++) {
 				if (channelName.equals(getChannelName(i)))
-					return imageData.getServer().getDefaultChannelColor(i);
+					return imageData.getServer().getChannel(i).getColor();
 			}
 			return 0;
 		}

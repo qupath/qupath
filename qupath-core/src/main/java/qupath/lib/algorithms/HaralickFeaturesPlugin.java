@@ -201,9 +201,9 @@ public class HaralickFeaturesPlugin extends AbstractInteractivePlugin<BufferedIm
 		boolean doCircular = params.getBooleanParameterValue("doCircular");
 
 		double downsample;
-		boolean hasMagnification = !Double.isNaN(server.getMagnification());
+		boolean hasMagnification = !Double.isNaN(server.getMetadata().getMagnification());
 		if (hasMagnification)
-			downsample = server.getMagnification() / mag;
+			downsample = server.getMetadata().getMagnification() / mag;
 		else if (server.hasPixelSizeMicrons()) {
 			downsample = params.getDoubleParameterValue("pixelSizeMicrons") / server.getAveragedPixelSizeMicrons();
 		} else
@@ -444,7 +444,7 @@ public class HaralickFeaturesPlugin extends AbstractInteractivePlugin<BufferedIm
 	@Override
 	public ParameterList getDefaultParameterList(final ImageData<BufferedImage> imageData) {
 		boolean hasMicrons = imageData.getServer().hasPixelSizeMicrons();
-		boolean hasMagnification = !Double.isNaN(imageData.getServer().getMagnification());
+		boolean hasMagnification = !Double.isNaN(imageData.getServer().getMetadata().getMagnification());
 		
 		params.getParameters().get("tileSizeMicrons").setHidden(!hasMicrons);
 		params.getParameters().get("tileSizePx").setHidden(hasMicrons);
