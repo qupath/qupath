@@ -116,7 +116,7 @@ public class OpenslideServerBuilder implements ImageServerBuilder<BufferedImage>
 			return 0;
 		
 		// Don't handle queries or fragments with OpenSlide
-		if (!"file".equals(uri.getScheme()) || uri.getQuery() != null || uri.getFragment() != null)
+		if (type.isURL() || type.getFile() == null)
 			return 0;
 		
 		try {
@@ -128,20 +128,17 @@ public class OpenslideServerBuilder implements ImageServerBuilder<BufferedImage>
 			logger.debug("Unable to read with OpenSlide: {}", e.getLocalizedMessage());
 		}
 		
-		switch (type) {
-		case TIFF_2D_RGB:
+		// We can only handle RGB images with OpenSlide... so if we don't think it's RGB, use only as a last resort
+		if (type.isNotRGB())
+			return 1f;
+		
+		// We're pretty good on 2D RGB, not great if we have more images
+		if (type.nImagesLargest() == 1)
 			return 3.5f;
-		case TIFF_IMAGEJ:
-			return 1;
-		case TIFF_OTHER:
-			return 1;
-		case UNKNOWN:
-			return 3;
-		case URL:
-			return 0;
-		default:
-			return 2;
-		}
+		else if (type.nImagesLargest() == -1)
+			return 2f;
+		else
+			return 1f;
 	}
 	
 	@Override

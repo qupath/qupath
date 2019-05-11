@@ -33,7 +33,7 @@ import java.util.Collections;
 import qupath.lib.images.servers.FileFormatInfo.ImageCheckType;
 
 /**
- * Buidler for ImageServer using Java's ImageIO.
+ * Builder for ImageServer using Java's ImageIO.
  * 
  * @author Pete Bankhead
  *
@@ -44,21 +44,8 @@ public class ImageIoImageServerBuilder implements ImageServerBuilder<BufferedIma
 	public float supportLevel(URI uri, ImageCheckType info, Class<?> cls, String...args) {
 		if (cls != BufferedImage.class)
 			return 0;
-		switch(info) {
-		case TIFF_2D_RGB:
-			return 1;
-		case TIFF_IMAGEJ:
-			return 1;
-		case TIFF_OTHER:
-			return 1;
-		case UNKNOWN:
-			return 1;
-		case URL:
-			return 1;
-		default:
-			break;
-		}
-		return 1;
+		// We'll try anything... but not with huge confidence (not least because metadata support here is poor)
+		return 1f;
 	}
 
 	@Override

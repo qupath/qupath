@@ -60,20 +60,15 @@ public class ImageJServerBuilder implements ImageServerBuilder<BufferedImage> {
 	public float supportLevel(URI uri, ImageCheckType type, Class<?> cls, String...args) {
 		if (cls != BufferedImage.class)
 			return 0;
-		switch (type) {
-		case TIFF_2D_RGB:
-			return 1;
-		case TIFF_IMAGEJ:
+		
+		String description = type.getDescription();
+		if (description != null && description.contains("imagej"))
 			return 4;
-		case TIFF_OTHER:
-			return 1;
-		case UNKNOWN:
-			return 2;
-		case URL:
+		
+		if (type.isURL())
 			return 0;
-		default:
-			return 2;
-		}
+		
+		return 1;
 	}
 	
 	@Override

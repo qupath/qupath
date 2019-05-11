@@ -71,7 +71,7 @@ public class BioFormatsServerBuilder implements ImageServerBuilder<BufferedImage
 		if (getBioFormatsVersion() == null)
 			return 0;
 		
-		if (!"file".equals(uri.getScheme()))
+		if (type.isURL())
 			return 0;
 				
 		String path = uri.getPath();
@@ -93,28 +93,21 @@ public class BioFormatsServerBuilder implements ImageServerBuilder<BufferedImage
 			return lastSupport.floatValue();
 		
 		// We don't want to handle zip files (which are very slow)
-		float support;
+		float support = 3f;
+		String description = type.getDescription();
 		if (path.toLowerCase().endsWith(".zip"))
 			support = 1f;
-		else {
-			// Default to our normal checks
-			switch (type) {
-			case TIFF_2D_RGB:
-				// Good support for .qptiff
-				if (path.toLowerCase().endsWith(".qptiff"))
-					support = 4f;
-				support = 3f;
-			case TIFF_IMAGEJ:
-				support = 3f;
-			case TIFF_OTHER:
-				support = 2f;
-			case UNKNOWN:
-				support = 2f;
-			case URL:
-				support = 0f;
-			default:
-				support = 2f;
-			}
+		else if (type.isTiff() && description != null) {
+			if (description.contains("<OME "))
+				support = 5f;
+			if (description.contains("imagej"))
+				support = 3.5f;
+			if (path.endsWith(".qptiff"))
+				support = 3.5f;
+		}
+		// Some nasty files seem to be larger than they think they are - which can be troublesome
+		if (type.isTiff() && !type.isBigTiff() && type.getFile().length() >= 1024L * 1024L * 1024L * 4L) {
+			support = 2f;
 		}
 		
 		lastSupportLevel.put(uri, Float.valueOf(support));
@@ -141,7 +134,7 @@ public class BioFormatsServerBuilder implements ImageServerBuilder<BufferedImage
 	
 	/**
 	 * Request the Bio-Formats version number from {@code loci.formats.FormatTools.VERSION}.
-	 * 
+	 * <p>
 	 * This uses reflection, returning {@code null} if Bio-Formats cannot be found.
 	 * 
 	 * @return

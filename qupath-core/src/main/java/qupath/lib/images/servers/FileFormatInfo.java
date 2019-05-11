@@ -28,9 +28,14 @@ import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.net.URI;
 import java.nio.file.Files;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import java.nio.file.Path;
+import javax.imageio.ImageIO;
+import javax.imageio.ImageReader;
+import javax.imageio.ImageTypeSpecifier;
+import javax.imageio.plugins.tiff.BaselineTIFFTagSet;
+import javax.imageio.plugins.tiff.TIFFDirectory;
+import javax.imageio.plugins.tiff.TIFFField;
+import javax.imageio.stream.ImageInputStream;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,202 +47,252 @@ import qupath.lib.common.GeneralTools;
  * Helper class that, given a path, determines some basic file format information without enlisting
  * the help of an external library or performing extensive parsing of the data.
  * <p>
- *  investigates whether a file is:
- * 	 - a TIFF file at all
- * 	 - an ImageJ TIFF
- *   - some other kind of 2D, RGB TIFF
- *   - some other kind of potentially multidimensional TIFF
- * <p>
- * To improve the likelihood of accurate metadata parsing &amp; all dimensions being present,
- * it is better to choose a the right ImageServer.  For example ImageJ should be used for
- * ImageJ TIFFs, while OpenSlide should only be used for TIFFs (or TIFF-based formats) that
- * are 2D and RGB.
- * <p>
- * The code is based on a (very much stripped down and adapted) version of ImageJ's TiffDecoder
- * (i.e. it was written while looking at that code, and the Tiff specifications at
- * https://partners.adobe.com/public/developer/en/tiff/TIFF6.pdf and
- * http://bigtiff.org )
+ * In particular, it attempts to extract some usable information from TIFF images using ImageIO to help 
+ * a reader determine whether or not it should attempt to read the image.
  * 
  * @author Pete Bankhead
  *
  */
 public class FileFormatInfo {
 	
-	public enum ImageCheckType {UNKNOWN, URL, TIFF_IMAGEJ, TIFF_2D_RGB, TIFF_OTHER};
-	
 	final private static Logger logger = LoggerFactory.getLogger(FileFormatInfo.class);
 	
-	static final int IMAGE_WIDTH = 256;
-	static final int IMAGE_LENGTH = 257;
-	static final int BITS_PER_SAMPLE = 258;
-	static final int EXTRA_SAMPLES = 338;
-	static final int COMPRESSION = 259;
-	static final int PHOTO_INTERP = 262;
-	static final int IMAGE_DESCRIPTION = 270;
-	static final int SAMPLES_PER_PIXEL = 277;
-	static final int SOFTWARE = 305;
-	static final int SAMPLE_FORMAT = 339;
-
 	
-	public static ImageCheckType checkImageType(final URI uri) {
+	public static interface ImageCheckType {
 		
-		var scheme = uri.getScheme();
-		if (scheme == null)
-			return ImageCheckType.UNKNOWN;
+		/**
+		 * Return true if URI has a scheme beginning with http.
+		 * @return
+		 */
+		public boolean isURL();
 		
-		if (scheme.startsWith("http"))
-			return ImageCheckType.URL;
+		/**
+		 * Returns true if URI is for a local file known/expected to be a TIFF image.
+		 * @return
+		 */
+		public boolean isTiff();
 		
-		var path = GeneralTools.toPath(uri);
-		if (path == null || !Files.exists(path))
-			return ImageCheckType.UNKNOWN;
+		/**
+		 * Returns true if URI is for a local file known/expected to be a BigTIFF image.
+		 * @return
+		 */
+		public boolean isBigTiff();
 		
-		File file = path.toFile();
-
+		/**
+		 * Get the image description, as stored in a TIFF, or null if no description is available.
+		 * @return
+		 */
+		public String getDescription();
 		
-		// Need to get a URI for image, without any extra bits
-		try {
-			
-			// Workaround for large .ndpi problem - TODO: consider longer-term .ndpi fix, or removing TIFF check
-			// See https://github.com/qupath/qupath-bioformats-extension/issues/2#issuecomment-437854123
-			if (file.getName().toLowerCase().endsWith(".ndpi"))
-				return ImageCheckType.UNKNOWN;
-			
-			RandomAccessFile in = null;
-			FileFormatInfo.ImageCheckType type = null;
-			try {
-				in = new RandomAccessFile(file, "r");
+		/**
+		 * Get a File object representing the local image file - or null if no file could be found.
+		 * @return
+		 */
+		public File getFile();
+		
+		/**
+		 * Return an estimate of the number of images if known, or -1 if unknown.
+		 * <p>
+		 * Note that the maximum value returned may be less than the total number of images, if scanning the full 
+		 * file risks being prohibitively expensive (this has been found to be the case with some non-standard TIFF 
+		 * images).
+		 * @return
+		 */
+		public int nImages();
 				
-				boolean littleEndian;
-				int byteOrder = in.readShort();
-				if (byteOrder == 0x4949) // "II"
-					littleEndian = true;
-				else if (byteOrder == 0x4d4d) // "MM"
-					littleEndian = false;
-				else {
-					in.close();
-					return ImageCheckType.UNKNOWN;
+		/**
+		 * Return the number of images with the largest image size, if known, or -1 if unknown.
+		 * <p>
+		 * This can be used to help distinguish images that contain multiple images where each image is really 
+		 * another z-slice, channel or time point - rather than a macro or label, for example.
+		 * @return
+		 */
+		public int nImagesLargest();
+		
+		/**
+		 * Returns true if we can say with reasonable confidence that the image is not RGB.
+		 * <p>
+		 * This information can be used to prevent readers that only support RGB images from trying to read this one.
+		 * However, note that it is permissible to return false in cases where the RGB status of the image is unclear.
+		 * @return
+		 */
+		public boolean isNotRGB();
+
+	}
+	
+	static class DefaultFormatInfo implements ImageCheckType {
+		
+		private static int MAX_IMAGES = 100;
+		
+		private boolean isURL = false;
+		private File file = null;
+		
+		private boolean isTiff = false;
+		private boolean isBigTiff = false;
+		
+		private boolean notRGB = false;
+		
+		private int nImages = -1;
+		private int nImagesLargest = -1;
+		private String description;
+		
+		DefaultFormatInfo(URI uri) {
+			String scheme = uri.getScheme();
+			if (scheme != null && scheme.startsWith("http")) {
+				isURL = true;
+				return;
+			}
+			Path path = GeneralTools.toPath(uri);
+			if (!Files.exists(path)) {
+				return;
+			}
+			File file = path.toFile();
+			if (!file.isFile()) {
+				return;
+			}
+			this.file = file;
+			
+			// Check if we have a TIFF
+			try {
+				try (RandomAccessFile in = new RandomAccessFile(file, "r")) {				
+					boolean littleEndian;
+					int byteOrder = in.readShort();
+					if (byteOrder == 0x4949) // "II"
+						littleEndian = true;
+					else if (byteOrder == 0x4d4d) // "MM"
+						littleEndian = false;
+					else {
+						in.close();
+						return;
+					}
+					
+					// Check if standard (key: 42) or BigTiff (key: 43)
+					int special = readShort(in, littleEndian);
+					if (special == 42)
+						isTiff = true;
+					else if (special == 43) {
+						isTiff = true;
+						isBigTiff = true;
+					} else
+						return;
 				}
 				
-				// Check if standard (key: 42) or BigTiff (key: 43)
-				int special = readShort(in, littleEndian);
-				if (special == 42)
-					type = checkStandardTiff(in, littleEndian);
-				else if (special == 43)
-					type = checkBigTiff(in, littleEndian); 
-				else
-					type = ImageCheckType.UNKNOWN;
+
+				// If we do have a TIFF, try to get more from the metadata
+				
+				try (ImageInputStream stream = ImageIO.createImageInputStream(file)) {
+					ImageReader reader = ImageIO.getImageReaders(stream).next();
+					reader.setInput(stream);
+
+					TIFFDirectory tiffDir = TIFFDirectory.createFromMetadata(reader.getImageMetadata(0));
+					TIFFField tempDescription = tiffDir.getTIFFField(BaselineTIFFTagSet.TAG_IMAGE_DESCRIPTION);
+					description = tempDescription == null ? null : tempDescription.getAsString(0);
+
+					nImages = reader.getNumImages(false);
+					int nTestImages = nImages >= 0 ? nImages : MAX_IMAGES;
+
+					if (nTestImages > 0) {
+						int i = 0;
+						try {
+							int largestCount = 0;
+							long maxNumPixels = 0L;
+							boolean largestMaybeRGB = false;
+							while (i < nTestImages) {
+								long nPixels = (long)reader.getWidth(i) * (long)reader.getHeight(i);
+								ImageTypeSpecifier specifier = reader.getRawImageType(i);
+								if (nPixels > maxNumPixels) {
+									maxNumPixels = nPixels;
+									largestCount = 1;
+									largestMaybeRGB = maybeRGB(specifier);
+								} else if (nPixels == maxNumPixels) {
+									largestCount++;
+									largestMaybeRGB = largestMaybeRGB && maybeRGB(specifier);
+								}
+								i++;
+								nImagesLargest = largestCount;
+								notRGB = !largestMaybeRGB;
+							}
+						} catch (IndexOutOfBoundsException e) {
+							nImages = i - 1;
+							logger.warn("Checked first {} images only of {}", i-1, uri);
+						}
+					}
+				}
 				
 			} catch (Exception e) {
-				logger.error("TIFF check problem", e);
-				return ImageCheckType.UNKNOWN;
-			} finally {
-				if (in != null) {
-					try {
-						in.close();
-					} catch (IOException e) {
-						logger.error("TIFF check problem", e);
-					}
-				}
+				logger.warn("Unable to obtain full image format info for {} ({})", uri, e.getLocalizedMessage());
+				logger.debug("Format info error", e);
 			}
-			return type;
-		} catch (Exception e) {
-			logger.warn("Unable to estimate image type: {}", e.getLocalizedMessage());
-			return ImageCheckType.UNKNOWN;
 		}
-	}
-	
-	
-	static ImageCheckType checkStandardTiff(final RandomAccessFile in, final boolean littleEndian) throws IOException {
-		long offset = readUnsignedInt(in, littleEndian);
-		if (offset < 0)
-			return ImageCheckType.UNKNOWN;
-		
-		List<Long> nPixels = new ArrayList<>();
-		while (offset > 0L && offset < in.length()) {
-			in.seek(offset);
-			
-			long width = -1;
-			long height = -1;
-			long samplesPerPixel = -1;
-			int[] bitsPerSample = null;
-			int extraSamples = 0;
 
-			
-			int nEntries = readShort(in, littleEndian);
-			for (int i = 0; i < nEntries; i++) {
-				int tag = readShort(in, littleEndian);
-				readShort(in, littleEndian);
-				long count = readUnsignedInt(in, littleEndian);
-				long valueOrOffset = readUnsignedInt(in, littleEndian);
-				
-				switch (tag) {
-				case IMAGE_DESCRIPTION:
-					String s = getString(in, (int)count, valueOrOffset);
-					if (s.toLowerCase().contains("imagej"))
-						return ImageCheckType.TIFF_IMAGEJ;
-					break;
-				case IMAGE_WIDTH:
-					width = valueOrOffset;
-					break;
-				case IMAGE_LENGTH:
-					height = valueOrOffset;
-					break;
-				case SAMPLES_PER_PIXEL:
-					samplesPerPixel = valueOrOffset;
-					break;
-				case BITS_PER_SAMPLE:
-					if (count==1) {
-						// TODO: Check this... could be quite questionable...
-						int val = littleEndian ? (int)((valueOrOffset & 0x00ff0000) >> 16) : (int)((valueOrOffset & 0xff000000) >> 24);
-						if (val > 64 || val <= 0)
-							logger.warn("Strange 'bits per sample' of {}", val);
-						bitsPerSample = new int[]{val};
-//						bitsPerSample = new int[]{readShort(in, littleEndian)};
-					} else if (count > 1) {
-						long loc = in.getFilePointer();
-						in.seek(valueOrOffset);
-						bitsPerSample = new int[(int)count];
-						for (int b = 0; b < count; b++)
-							bitsPerSample[b] = readShort(in, littleEndian);
-						in.seek(loc);
-					}
-					break;
-				case EXTRA_SAMPLES:
-					extraSamples = readShort(in, littleEndian);
-					break;
-				}
-			}
-			
-			// If we have read a valid image, check if it could be RGB
-			if (samplesPerPixel > 0) {
-				if (!(samplesPerPixel - extraSamples == 3 && (bitsPerSample != null && bitsPerSample[0] == 8)))
-					return ImageCheckType.TIFF_OTHER;
-				
-				// Store the number of pixels
-				nPixels.add(width * height);
-			}
-			
-			// Read the next offset
-			offset = readUnsignedInt(in, littleEndian);
+		@Override
+		public boolean isURL() {
+			return isURL;
 		}
 		
-		// Sort by the number of pixels
-		Collections.sort(nPixels);
+		@Override
+		public String getDescription() {
+			return description;
+		}
+
+		@Override
+		public boolean isTiff() {
+			return isTiff;
+		}
+
+		@Override
+		public boolean isBigTiff() {
+			return isBigTiff;
+		}
+
+		@Override
+		public File getFile() {
+			return file;
+		}
+
+		@Override
+		public int nImages() {
+			return nImages;
+		}
 		
-		// If we got this far and only one image has the maximum number of pixels, then we can assume 2D RGB
-		if (nPixels.size() == 1 || !nPixels.get(nPixels.size()-1).equals(nPixels.get(nPixels.size()-2)))
-			return ImageCheckType.TIFF_2D_RGB;
-		return ImageCheckType.TIFF_OTHER;
+		@Override
+		public int nImagesLargest() {
+			return nImagesLargest;
+		}
+
+		@Override
+		public boolean isNotRGB() {
+			return notRGB;
+		}
+		
+		@Override
+		public String toString() {
+			return "DefaultFormatInfo [isURL=" + isURL + ", file=" + file + ", isTiff=" + isTiff + ", isBigTiff="
+					+ isBigTiff + ", notRGB=" + notRGB + ", nImages=" + nImages + ", nImagesLargest=" + nImagesLargest
+					+ ", description=" + Boolean.toString(description != null) + "]";
+		}
+		
 	}
 	
-	static ImageCheckType checkBigTiff(final RandomAccessFile in, final boolean littleEndian) throws IOException {
-		
-		logger.error("Checking Big TIFF images currently not supported!!!");
-		
-		return ImageCheckType.TIFF_OTHER;			
+	/**
+	 * Try to determine from a specifier whether it might refer to an RGB image or not.
+	 * @param specifier
+	 * @return
+	 */
+	static boolean maybeRGB(ImageTypeSpecifier specifier) {
+		int nBands = specifier.getNumBands();
+		if (nBands < 3 || nBands > 4)
+			return false;
+		for (int i = 0; i < nBands; i++) {
+			if (specifier.getBitsPerBand(i) != 8)
+				return false;
+		}
+		return true;
 	}
 	
+	static ImageCheckType checkImageType(final URI uri) {
+		return new DefaultFormatInfo(uri);
+	}
 	
 	static int readShort(final RandomAccessFile in, final boolean littleEndian) throws IOException {
 		int b1 = in.read();
@@ -247,33 +302,5 @@ public class FileFormatInfo {
 		else
 			return ((b1<<8) + b2);
 	}
-	
-	static int readInt(final RandomAccessFile in, final boolean littleEndian) throws IOException {
-		int b1 = in.read();
-		int b2 = in.read();
-		int b3 = in.read();
-		int b4 = in.read();
-		if (littleEndian)
-			return ((b4 << 24) + (b3 << 16) + (b2 << 8) + (b1 << 0));
-		else
-			return ((b1 << 24) + (b2 << 16) + (b3 << 8) + b4);
-	}
-	
-	static long readUnsignedInt(final RandomAccessFile in, final boolean littleEndian) throws IOException {
-		return ((long)readInt(in, littleEndian)) & 0xffffffffL;
-	}
-	
-	
-	
-	static String getString(final RandomAccessFile in, final int count, final long offset) throws IOException {
-		byte[] bytes = new byte[count - 1]; // Skip null byte
-		long saveLoc = in.getFilePointer();
-		in.seek(offset);
-		in.readFully(bytes);
-		in.seek(saveLoc);
-		return new String(bytes);
-	}
-	
-	
 	
 }
