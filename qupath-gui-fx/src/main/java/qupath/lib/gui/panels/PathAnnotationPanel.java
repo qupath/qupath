@@ -434,7 +434,7 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 			int t = points.getT();
 			PathClass pathClass = pathObject.getPathClass();
 			for (Point2 p : points.getPointList()) {
-				PathObject temp = PathObjects.createAnnotationObject(new PointsROI(p.getX(), p.getY(), c, z, t), pathClass);
+				PathObject temp = PathObjects.createAnnotationObject(ROIs.createPointsROI(p.getX(), p.getY(), ImagePlane.getPlaneWithChannel(c, z, t)), pathClass);
 				newObjects.add(temp);
 			}
 			hierarchy.addPathObjects(newObjects, false);

@@ -190,25 +190,6 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 		return getMetadata().getBitDepth();
 	}
 	
-	/**
-	 * Get the image width for a specified resolution level.
-	 * 
-	 * @param level
-	 * @return
-	 */
-	public int getLevelWidth(int level) {
-		return getMetadata().getLevel(level).getWidth();
-	}
-	
-	/**
-	 * Get the image height for a specified resolution level.
-	 * 
-	 * @param level
-	 * @return
-	 */
-	public int getLevelHeight(int level) {
-		return getMetadata().getLevel(level).getHeight();
-	}
 	
 	/**
 	 * Attempt to close the server.  While not at all a good idea to rely on this, it may help clean up after some forgotten servers.

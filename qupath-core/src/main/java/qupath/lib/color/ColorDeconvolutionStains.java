@@ -55,7 +55,7 @@ public class ColorDeconvolutionStains implements Externalizable {
 	
 	final private static Logger logger = LoggerFactory.getLogger(ColorDeconvolutionStains.class);
 
-	static int version = 1;
+	private static int version = 1;
 	
 	public static final String HEMATOXYLIN = "Hematoxylin";
 	public static final String EOSIN = "Eosin";
@@ -112,6 +112,7 @@ public class ColorDeconvolutionStains implements Externalizable {
 	
 	/**
 	 * Create a new ColorDeconvolutionStains object, with all settings the same except one of the stains has been changed.
+	 * <p>
 	 * If the third stain was a residual, it will also be regenerated (i.e. it won't remain the same residual... which would be wrong,
 	 * as it would be orthogonal to the old stain rather than the new one).
 	 * 
@@ -120,7 +121,7 @@ public class ColorDeconvolutionStains implements Externalizable {
 	 * @param stainNumber
 	 * @return
 	 */
-	public static ColorDeconvolutionStains makeModifiedStains(ColorDeconvolutionStains stains, StainVector stainNew, int stainNumber) {
+	private static ColorDeconvolutionStains makeModifiedStains(ColorDeconvolutionStains stains, StainVector stainNew, int stainNumber) {
 		StainVector[] stainVectors = new StainVector[3];
 		stainVectors[0] = stains.getStain(1);
 		stainVectors[1] = stains.getStain(2);
@@ -255,11 +256,11 @@ public class ColorDeconvolutionStains implements Externalizable {
 		this(name, stain1, stain2, null, maxRed, maxGreen, maxBlue);
 	}
 
-	public ColorDeconvolutionStains(String name, StainVector stain1, StainVector stain2, double maxValue) {
+	private ColorDeconvolutionStains(String name, StainVector stain1, StainVector stain2, double maxValue) {
 		this(name, stain1, stain2, null, maxValue, maxValue, maxValue);
 	}
 	
-	public ColorDeconvolutionStains(String name, StainVector stain1, StainVector stain2) {
+	private ColorDeconvolutionStains(String name, StainVector stain1, StainVector stain2) {
 		this(name, stain1, stain2, 255);
 	}
 	

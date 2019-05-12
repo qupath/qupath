@@ -21,7 +21,7 @@
  * #L%
  */
 
-package qupath.lib.rois.measure;
+package qupath.lib.roi;
 
 import java.util.ArrayList;
 import java.util.List;

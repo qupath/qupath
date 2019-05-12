@@ -132,7 +132,7 @@ public class DefaultMeasurementList implements MeasurementList {
 //		list.clear();
 //	}
 
-	void compactStorage() {
+	private void compactStorage() {
 		list.trimToSize();
 	}
 

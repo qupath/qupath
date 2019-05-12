@@ -11,7 +11,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import qupath.lib.awt.color.model.ColorModelFactory;
+import qupath.lib.awt.color.ColorModelFactory;
 import qupath.lib.regions.RegionRequest;
 
 /**

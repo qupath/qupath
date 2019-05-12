@@ -5,7 +5,7 @@ import java.awt.image.DataBufferByte;
 import java.awt.image.IndexColorModel;
 import java.io.IOException;
 
-import qupath.lib.awt.color.model.ColorModelFactory;
+import qupath.lib.awt.color.ColorModelFactory;
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.classifiers.pixel.PixelClassifierMetadata;
 import qupath.lib.display.ChannelDisplayInfo.SingleChannelDisplayInfo;

@@ -70,7 +70,7 @@ import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.ROIHelpers;
 import qupath.lib.roi.ROIs;
-import qupath.lib.roi.experimental.ShapeSimplifier;
+import qupath.lib.roi.ShapeSimplifier;
 import qupath.lib.roi.PathROIToolsAwt;
 import qupath.lib.roi.PathROIToolsAwt.CombineOp;
 import qupath.lib.roi.PolygonROI;

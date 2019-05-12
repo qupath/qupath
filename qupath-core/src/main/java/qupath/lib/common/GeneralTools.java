@@ -103,15 +103,6 @@ public class GeneralTools {
 	public static boolean blankString(final String s, final boolean trim) {
 		return s == null || s.trim().length() == 0;
 	}
-
-	/**
-	 * Check if a string is blank, i.e. it is null or its length is 0.
-	 * @param s
-	 * @return True if the string is null or empty.
-	 */
-	public static boolean blankString(final String s) {
-		return s == null || s.length() == 0;
-	}
 	
 	/**
 	 * Escape backslashes in an absolute file path - useful when scripting.
@@ -367,23 +358,6 @@ public class GeneralTools {
 	 */
 	public final static String micrometerSymbol() {
 		return '\u00B5' + "m";
-	}
-
-	/**
-	 * Check if a collection returns at least one object of a specified class.
-	 * 
-	 * @param collection
-	 * @param cls
-	 * @return true if an object is contained within the collection that is an instance of the specified class (including subclasses), false otherwise
-	 */
-	public static boolean containsClass(Collection<?> collection, Class<?> cls) {
-		if (collection == null)
-			return false;
-		for (Object o : collection) {
-			if (cls.isInstance(o))
-				return true;
-		}
-		return false;
 	}
 	
 	

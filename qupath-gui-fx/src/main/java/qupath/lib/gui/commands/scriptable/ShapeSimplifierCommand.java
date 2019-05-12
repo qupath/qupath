@@ -35,8 +35,8 @@ import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.roi.PolygonROI;
+import qupath.lib.roi.ShapeSimplifier;
 import qupath.lib.roi.ShapeSimplifierAwt;
-import qupath.lib.roi.experimental.ShapeSimplifier;
 import qupath.lib.roi.interfaces.PathShape;
 
 

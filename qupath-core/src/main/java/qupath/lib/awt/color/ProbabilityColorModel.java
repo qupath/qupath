@@ -1,4 +1,4 @@
-package qupath.lib.awt.color.model;
+package qupath.lib.awt.color;
 
 import java.awt.image.BandedSampleModel;
 import java.awt.image.ColorModel;
@@ -133,19 +133,19 @@ class ProbabilityColorModel extends ColorModel {
 		return 255;
 	}
 	
-	public int getRed(byte[] pixel) {
+	private int getRed(byte[] pixel) {
 		return scaledPixelColor(pixel, rScale);
 	}
 
-	public int getGreen(byte[] pixel) {
+	private int getGreen(byte[] pixel) {
 		return scaledPixelColor(pixel, gScale);
 	}
 
-	public int getBlue(byte[] pixel) {
+	private int getBlue(byte[] pixel) {
 		return scaledPixelColor(pixel, bScale);
 	}
 
-	public int getAlpha(byte[] pixel) {
+	private int getAlpha(byte[] pixel) {
 		if (backgroundChannel >= 0)
 			return (int)(255 * (1f - byteToFloat(pixel[backgroundChannel])));
 		if (residualBackground) {
@@ -157,32 +157,32 @@ class ProbabilityColorModel extends ColorModel {
 		return 255;
 	}
 	
-	public int getRed(float[] pixel) {
+	private int getRed(float[] pixel) {
 		return scaledPixelColor(pixel, rScale);
 	}
 
-	public int getGreen(float[] pixel) {
+	private int getGreen(float[] pixel) {
 		return scaledPixelColor(pixel, gScale);
 	}
 
-	public int getBlue(float[] pixel) {
+	private int getBlue(float[] pixel) {
 		return scaledPixelColor(pixel, bScale);
 	}
 	
 	
-	public int getRed(short[] pixel) {
+	private int getRed(short[] pixel) {
 		return scaledPixelColorU16(pixel, rScale);
 	}
 
-	public int getGreen(short[] pixel) {
+	private int getGreen(short[] pixel) {
 		return scaledPixelColorU16(pixel, gScale);
 	}
 
-	public int getBlue(short[] pixel) {
+	private int getBlue(short[] pixel) {
 		return scaledPixelColorU16(pixel, bScale);
 	}
 	
-	public int getAlpha(short[] pixel) {
+	private int getAlpha(short[] pixel) {
 		if (backgroundChannel >= 0)
 			return (int)(255 * (1f - ushortToFloat(pixel[backgroundChannel])));
 		if (residualBackground) {
@@ -195,7 +195,7 @@ class ProbabilityColorModel extends ColorModel {
 	}
 	
 	
-	public int scaledPixelColor(float[] pixel, float[] scale) {
+	private int scaledPixelColor(float[] pixel, float[] scale) {
 		float sum = 0;
 		for (int i = 0; i < pixel.length; i++) {
 			if (backgroundChannel != i)
@@ -205,7 +205,7 @@ class ProbabilityColorModel extends ColorModel {
 	}
 	
 	
-	public int scaledPixelColor(byte[] pixel, float[] scale) {
+	private int scaledPixelColor(byte[] pixel, float[] scale) {
 		float sum = 0;
 		for (int i = 0; i < pixel.length; i++) {
 			if (backgroundChannel != i)
@@ -215,7 +215,7 @@ class ProbabilityColorModel extends ColorModel {
 	}
 	
 	
-	public int scaledPixelColorU16(short[] pixel, float[] scale) {
+	private int scaledPixelColorU16(short[] pixel, float[] scale) {
 		float sum = 0;
 		for (int i = 0; i < pixel.length; i++) {
 			if (backgroundChannel != i)
@@ -225,7 +225,7 @@ class ProbabilityColorModel extends ColorModel {
 	}
 	
 
-	public int getAlpha(float[] pixel) {
+	private int getAlpha(float[] pixel) {
 		if (backgroundChannel >= 0)
 			return (int)(255 * clipFloat(1f - pixel[backgroundChannel]));
 		if (residualBackground) {

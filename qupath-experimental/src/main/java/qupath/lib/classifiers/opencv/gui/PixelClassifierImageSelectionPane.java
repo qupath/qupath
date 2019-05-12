@@ -74,7 +74,7 @@ import jfxtras.scene.layout.HBox;
 import qupath.imagej.helpers.IJTools;
 import qupath.imagej.images.servers.ImageJServer;
 import qupath.imagej.objects.ROIConverterIJ;
-import qupath.lib.awt.color.model.ColorModelFactory;
+import qupath.lib.awt.color.ColorModelFactory;
 import qupath.lib.classifiers.gui.PixelClassificationOverlay;
 import qupath.lib.classifiers.gui.PixelClassifierStatic;
 import qupath.lib.classifiers.gui.PixelClassifierHelper;

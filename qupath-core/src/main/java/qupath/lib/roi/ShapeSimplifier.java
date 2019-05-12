@@ -21,15 +21,13 @@
  * #L%
  */
 
-package qupath.lib.roi.experimental;
+package qupath.lib.roi;
 
 import java.util.List;
 import java.util.PriorityQueue;
 
 import qupath.lib.geom.Point2;
 import qupath.lib.regions.ImagePlane;
-import qupath.lib.roi.PolygonROI;
-import qupath.lib.roi.ROIs;
 
 /**
  * Helper methods for simplifying shapes, i.e. removing polygon points while retaining the same overall 

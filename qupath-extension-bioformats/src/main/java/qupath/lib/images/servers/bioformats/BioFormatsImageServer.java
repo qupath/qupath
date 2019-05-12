@@ -78,7 +78,7 @@ import loci.formats.meta.IMetadata;
 import loci.formats.meta.MetadataStore;
 import loci.formats.ome.OMEPyramidStore;
 import loci.formats.ome.OMEXMLMetadata;
-import qupath.lib.awt.color.model.ColorModelFactory;
+import qupath.lib.awt.color.ColorModelFactory;
 import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.servers.AbstractTileableImageServer;

@@ -135,7 +135,7 @@ public class RotatedImageServer extends TransformingImageServer<BufferedImage> {
 		}
 	}
 	
-	BufferedImage rotate90(RegionRequest request) throws IOException {
+	private BufferedImage rotate90(RegionRequest request) throws IOException {
 		var request2 = rotateRequest(request);
 		
 		var img = getWrappedServer().readBufferedImage(request2);
@@ -163,7 +163,7 @@ public class RotatedImageServer extends TransformingImageServer<BufferedImage> {
 		return new BufferedImage(img.getColorModel(), raster2, img.isAlphaPremultiplied(), null);
 	}
 
-	BufferedImage rotate180(RegionRequest request) throws IOException {
+	private BufferedImage rotate180(RegionRequest request) throws IOException {
 		var request2 = rotateRequest(request);
 		
 		var img = getWrappedServer().readBufferedImage(request2);
@@ -187,7 +187,7 @@ public class RotatedImageServer extends TransformingImageServer<BufferedImage> {
 		return img;
 	}
 
-	BufferedImage rotate270(RegionRequest request) throws IOException {
+	private BufferedImage rotate270(RegionRequest request) throws IOException {
 		var request2 = rotateRequest(request);
 		
 		var img = getWrappedServer().readBufferedImage(request2);
@@ -213,7 +213,7 @@ public class RotatedImageServer extends TransformingImageServer<BufferedImage> {
 		return new BufferedImage(img.getColorModel(), raster2, img.isAlphaPremultiplied(), null);
 	}
 
-	RegionRequest rotateRequest(RegionRequest request) {
+	private RegionRequest rotateRequest(RegionRequest request) {
 		String path = getWrappedServer().getPath();
 		switch (rotation) {
 		case ROTATE_180:

@@ -582,52 +582,54 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 			return;
 		this.project = project;
 		
-		try {
-			Set<String> uris = new TreeSet<>();
-			for (var entry: project.getImageList()) {
-				uris.addAll(entry.getServerURIs());
-			}
-			URI projectURI = project.getURI();
-			URI previousURI = project.getPreviousURI();
-
-			Path pathProject = projectURI == null || !"file".equals(projectURI.getScheme()) ? null : Paths.get(projectURI);
-			Path pathPrevious = previousURI == null || !"file".equals(previousURI.getScheme()) ? null : Paths.get(previousURI);
-			boolean tryRelative = pathProject != null && pathPrevious != null && !pathProject.equals(pathPrevious);
-			
-			Map<String, String> replacements = new LinkedHashMap<>();
-			for (String s : uris) {
-				try {
-					URI uri = new URI(s);
-					if (!"file".equals(uri.getScheme()))
-						continue;
-					// Check if the path exists, without changes
-					Path path = Paths.get(uri);
-					if (Files.exists(path))
-						continue;
-					// Check if a relative path would work
-					if (tryRelative) {
-						Path pathRelative = pathProject.resolve(pathPrevious.relativize(path));
-						if (Files.exists(pathRelative)) {
-							String s2 = pathRelative.normalize().toUri().normalize().toString();
-							logger.info("Updating path: {} -> {}", s, s2);
-							replacements.put(s, s2);
-							continue;
-						}
-					}
-				} catch (Exception e) {
-					logger.warn("Exception converting path {} ({})", s, e.getLocalizedMessage());
-				}
-			}
-			
-			if (!replacements.isEmpty()) {
-				logger.info("Updating {} paths", replacements.size());
+		if (project != null) {
+			try {
+				Set<String> uris = new TreeSet<>();
 				for (var entry: project.getImageList()) {
-					entry.updateServerURIs(replacements);
+					uris.addAll(entry.getServerURIs());
 				}
+				URI projectURI = project.getURI();
+				URI previousURI = project.getPreviousURI();
+	
+				Path pathProject = projectURI == null || !"file".equals(projectURI.getScheme()) ? null : Paths.get(projectURI);
+				Path pathPrevious = previousURI == null || !"file".equals(previousURI.getScheme()) ? null : Paths.get(previousURI);
+				boolean tryRelative = pathProject != null && pathPrevious != null && !pathProject.equals(pathPrevious);
+				
+				Map<String, String> replacements = new LinkedHashMap<>();
+				for (String s : uris) {
+					try {
+						URI uri = new URI(s);
+						if (!"file".equals(uri.getScheme()))
+							continue;
+						// Check if the path exists, without changes
+						Path path = Paths.get(uri);
+						if (Files.exists(path))
+							continue;
+						// Check if a relative path would work
+						if (tryRelative) {
+							Path pathRelative = pathProject.resolve(pathPrevious.relativize(path));
+							if (Files.exists(pathRelative)) {
+								String s2 = pathRelative.normalize().toUri().normalize().toString();
+								logger.info("Updating path: {} -> {}", s, s2);
+								replacements.put(s, s2);
+								continue;
+							}
+						}
+					} catch (Exception e) {
+						logger.warn("Exception converting path {} ({})", s, e.getLocalizedMessage());
+					}
+				}
+				
+				if (!replacements.isEmpty()) {
+					logger.info("Updating {} paths", replacements.size());
+					for (var entry: project.getImageList()) {
+						entry.updateServerURIs(replacements);
+					}
+				}
+				
+			} catch (IOException e) {
+				logger.error("Error checking URIs", e);
 			}
-			
-		} catch (IOException e) {
-			logger.error("Error checking URIs", e);
 		}
 		
 		model = new ProjectImageTreeModel(project);

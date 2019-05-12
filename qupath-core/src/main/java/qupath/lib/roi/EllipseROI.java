@@ -50,18 +50,6 @@ public class EllipseROI extends AbstractPathBoundedROI implements PathArea, Seri
 	EllipseROI() {
 		super();
 	}
-	
-	EllipseROI(double x, double y) {
-		super(x, y);
-	}
-	
-	EllipseROI(double x, double y, int c, int z, int t) {
-		super(x, y, c, z, t);
-	}
-
-	EllipseROI(double x, double y, double width, double height) {
-		super(x, y, width, height, -1, 0, 0);
-	}
 
 	EllipseROI(double x, double y, double width, double height, int c, int z, int t) {
 		super(x, y, width, height, c, z, t);

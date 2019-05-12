@@ -55,14 +55,6 @@ public class PolylineROI extends AbstractPathROI implements PathLine, Translatab
 	
 	private transient PolylineStats stats;
 	
-	PolylineROI(double x, double y, int c, int z, int t) {
-		this((float)x, (float)y, c, z, t);
-	}
-	
-	PolylineROI(float x, float y, int c, int z, int t) {
-		this(new float[]{x}, new float[]{y}, c, z, t, false);
-	}
-	
 	PolylineROI(List<Point2> points, int c, int z, int t) {
 		super(c, z, t);
 		float[] x = new float[points.size()];
@@ -75,7 +67,7 @@ public class PolylineROI extends AbstractPathROI implements PathLine, Translatab
 		vertices = VerticesFactory.createVertices(x, y, false);
 	}
 	
-	PolylineROI(final float[] x, final float[] y, final int c, final int z, final int t) {
+	private PolylineROI(final float[] x, final float[] y, final int c, final int z, final int t) {
 		this(x, y, c, z, t, true);
 	}
 	

@@ -232,29 +232,6 @@ public class StainVector implements Externalizable {
 	public String toString() {
 		return name + ": " + arrayAsString(Locale.getDefault(Category.FORMAT));
 	}
-	
-	
-	/**
-	 * Convert to a unit vector
-	 * @param vec
-	 */
-	public static void normalizeVector(double[] vec) {
-		double len = vectorLength(vec);
-		for (int i = 0; i < vec.length; i++)
-			vec[i] /= len;
-	}
-
-	/**
-	 * Euclidean length of a vector
-	 * @param vec
-	 * @return
-	 */
-	public static double vectorLength(double[] vec) {
-		double len = 0;
-		for (double v : vec)
-			len += (v * v);
-		return Math.sqrt(len);
-	}
 
 //	private static StainVector parseStainVector(String s) {
 //		return parseStainVector(null, s);

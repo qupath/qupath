@@ -129,8 +129,6 @@ public class PathPrefs {
 	 * Currently, this preference triggers the directory cache to be set within <code>URLHelpers</code>.
 	 * 
 	 * @return
-	 * 
-	 * @see qupath.lib.www.URLHelpers
 	 */
 	public static BooleanProperty useProjectImageCacheProperty() {
 		return useProjectImageCache;

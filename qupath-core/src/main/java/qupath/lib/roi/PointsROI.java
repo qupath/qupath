@@ -36,7 +36,6 @@ import qupath.lib.roi.interfaces.PathArea;
 import qupath.lib.roi.interfaces.PathPoints;
 import qupath.lib.roi.interfaces.ROIWithHull;
 import qupath.lib.roi.interfaces.ROI;
-import qupath.lib.rois.measure.ConvexHull;
 
 /**
  * ROI representing a collection of 2D points, i.e. distinct x,y coordinates.
@@ -66,7 +65,7 @@ public class PointsROI extends AbstractPathROI implements ROIWithHull, PathPoint
 		this(x, y, -1, 0, 0);
 	}
 	
-	public PointsROI(double x, double y, int c, int z, int t) {
+	PointsROI(double x, double y, int c, int z, int t) {
 		super(c, z, t);
 		addPoint(x, y);
 		recomputeBounds();

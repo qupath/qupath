@@ -49,14 +49,6 @@ public class RectangleROI extends AbstractPathBoundedROI implements PathArea, Se
 	RectangleROI() {
 		super();
 	}
-	
-	RectangleROI(double x, double y) {
-		super(x, y);
-	}
-	
-	RectangleROI(double x, double y, int c, int z, int t) {
-		super(x, y, c, z, t);
-	}
 
 	RectangleROI(double x, double y, double width, double height) {
 		this(x, y, width, height, -1, 0, 0);

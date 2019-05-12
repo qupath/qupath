@@ -233,7 +233,7 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
 	
 	
 	// TODO: REINTRODUCE LOGGING!
-	static void addColorDeconvolutionStainsToWorkflow(ImageData<?> imageData) {
+	private static void addColorDeconvolutionStainsToWorkflow(ImageData<?> imageData) {
 //		logger.warn("Color deconvolution stain logging not currently enabled!");
 
 		ColorDeconvolutionStains stains = imageData.getColorDeconvolutionStains();

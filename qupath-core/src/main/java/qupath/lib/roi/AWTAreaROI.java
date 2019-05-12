@@ -45,7 +45,7 @@ import qupath.lib.roi.interfaces.TranslatableROI;
  * @author Pete Bankhead
  *
  */
-public class AWTAreaROI extends AreaROI implements TranslatableROI, Serializable {
+class AWTAreaROI extends AreaROI implements TranslatableROI, Serializable {
 	
 	private static final long serialVersionUID = 1L;
 	

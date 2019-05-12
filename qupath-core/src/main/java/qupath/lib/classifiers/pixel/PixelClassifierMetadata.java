@@ -203,10 +203,10 @@ public class PixelClassifierMetadata {
     		return new PixelClassifierMetadata(this);
     	}
     	
-    	public Builder inputPadding(int inputPadding) {
-    		this.inputPadding = inputPadding;
-    		return this;
-    	}
+//    	public Builder inputPadding(int inputPadding) {
+//    		this.inputPadding = inputPadding;
+//    		return this;
+//    	}
     	
     	public Builder setOutputType(ImageServerMetadata.OutputType type) {
     		this.outputType = type;

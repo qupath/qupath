@@ -45,7 +45,7 @@ public class ROIHelpers {
 	 * @param roi2
 	 * @return
 	 */
-	public static boolean sameImagePlane(ROI roi1, ROI roi2) {
+	static boolean sameImagePlane(ROI roi1, ROI roi2) {
 //		if (roi1.getC() != roi2.getC())
 //			logger.info("Channels differ");
 //		if (roi1.getT() != roi2.getT())

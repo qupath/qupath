@@ -117,29 +117,6 @@ public class ColorToolsAwt {
 		}
 	}
 
-	
-	
-	public static IndexColorModel createIndexColorModel(Color color, boolean whiteBackground) {
-		if (!whiteBackground)
-			return ColorToolsAwt.createIndexColorModel(color);
-		byte[] rLut = new byte[256];
-		byte[] gLut = new byte[256];
-		byte[] bLut = new byte[256];
-		int red = color.getRed();
-		int green = color.getGreen();
-		int blue = color.getBlue();
-		double len = Math.sqrt(red*red + green*green + blue*blue);
-		double rIncr = 1-((double)red)/len;
-		double gIncr = 1-((double)green)/len;
-		double bIncr = 1-((double)blue)/len;
-		for (int i=0; i<256; ++i) {
-			rLut[i] = (byte)StainVector.clip255(255 - i*rIncr);
-			gLut[i] = (byte)StainVector.clip255(255 - i*gIncr);
-			bLut[i] = (byte)StainVector.clip255(255 - i*bIncr);
-		}
-		return new IndexColorModel(8, 256, rLut, gLut, bLut);
-	}
-
 	/**
 	 * Create an 8-bit ColorModel stretching from black (0) to the specified color (255).
 	 * <p>
@@ -148,7 +125,7 @@ public class ColorToolsAwt {
 	 * @param color
 	 * @return
 	 */
-	public static IndexColorModel createIndexColorModel(Color color) {
+	static IndexColorModel createIndexColorModel(Color color) {
 		byte[] rLut = new byte[256];
 		byte[] gLut = new byte[256];
 		byte[] bLut = new byte[256];
@@ -168,7 +145,7 @@ public class ColorToolsAwt {
 
 
 
-	public static IndexColorModel getIndexColorModel(final StainVector stain, boolean whiteBackground) {
+	static IndexColorModel getIndexColorModel(final StainVector stain, boolean whiteBackground) {
 		if (!whiteBackground)
 			return createIndexColorModel(new Color(stain.getColor()));
 		double r = stain.getRed();
@@ -189,7 +166,7 @@ public class ColorToolsAwt {
 	}
 	
 	
-	public static IndexColorModel createHueColorModel() {
+	static IndexColorModel createHueColorModel() {
 		byte[] r2 = new byte[256];
 		byte[] g2 = new byte[256];
 		byte[] b2 = new byte[256];

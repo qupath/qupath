@@ -84,7 +84,7 @@ import qupath.lib.plugins.ObjectDetector;
 import qupath.lib.plugins.parameters.Parameter;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.roi.PolygonROI;
-import qupath.lib.roi.experimental.ShapeSimplifier;
+import qupath.lib.roi.ShapeSimplifier;
 import qupath.lib.roi.interfaces.PathArea;
 import qupath.lib.roi.interfaces.ROI;
 

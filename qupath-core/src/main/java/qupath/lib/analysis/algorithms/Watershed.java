@@ -91,7 +91,7 @@ public class Watershed {
 	}
 	
 	
-	static float getNeighborLabels4(final SimpleImage ipLabels, final int x, final int y, final int w, final int h) {
+	private static float getNeighborLabels4(final SimpleImage ipLabels, final int x, final int y, final int w, final int h) {
 		float lastLabel = Float.NaN;
 		if (x > 0) {
 			float label = ipLabels.getValue(x-1, y);
@@ -133,7 +133,7 @@ public class Watershed {
 	}
 	
 	
-	static void addNeighboursToQueue4(final WatershedQueueWrapper queue, final int x, final int y , int w, final int h) {
+	private static void addNeighboursToQueue4(final WatershedQueueWrapper queue, final int x, final int y , int w, final int h) {
 		queue.add(x, y-1);
 		queue.add(x-1, y);
 		queue.add(x+1, y);
@@ -141,7 +141,7 @@ public class Watershed {
 	}
 	
 	
-	static float getNeighborLabels8(final SimpleImage ipLabels, final int x, final int y, final int w, final int h) {
+	private static float getNeighborLabels8(final SimpleImage ipLabels, final int x, final int y, final int w, final int h) {
 		float lastLabel = Float.NaN;
 		for (int yy = Math.max(y-1, 0); yy <= Math.min(h-1, y+1); yy++) {
 			for (int xx = Math.max(x-1, 0); xx <= Math.min(w-1, x+1); xx++) {
@@ -161,7 +161,7 @@ public class Watershed {
 	}
 	
 	
-	static void addNeighboursToQueue8(final WatershedQueueWrapper queue, final int x, final int y, final int w, final int h) {
+	private static void addNeighboursToQueue8(final WatershedQueueWrapper queue, final int x, final int y, final int w, final int h) {
 		queue.add(x-1, y-1);
 		queue.add(x, y-1);
 		queue.add(x+1, y-1);
@@ -174,7 +174,7 @@ public class Watershed {
 		queue.add(x+1, y+1);
 	}
 	
-	static class WatershedQueueWrapper {
+	private final static class WatershedQueueWrapper {
 
 		private PriorityQueue<PixelWithValue> queue = new PriorityQueue<>();
 		private boolean[] queued = null;
@@ -249,7 +249,7 @@ public class Watershed {
 	}
 
 
-	static class PixelWithValue implements Comparable<PixelWithValue> {
+	private final static class PixelWithValue implements Comparable<PixelWithValue> {
 		
 		public int x, y;
 		public float value;

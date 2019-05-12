@@ -52,10 +52,6 @@ public class LineROI extends AbstractPathROI implements PathLine, TranslatableRO
 		super();
 	}
 	
-	LineROI(double x, double y) {
-		this(x, y, x, y);
-	}
-	
 	LineROI(double x, double y, double x2, double y2) {
 		this(x, y, x2, y2, -1, 0, 0);
 	}

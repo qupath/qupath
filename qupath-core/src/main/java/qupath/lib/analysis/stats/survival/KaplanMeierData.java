@@ -146,19 +146,6 @@ public class KaplanMeierData {
 	}
 
 
-	public int censorAtTime(final double t) {
-		int count = 0;
-		for (KaplanMeierEvent event : events) {
-			if (event.getTimeToEvent() > t) {
-				event.timeToEvent = t;
-				event.isCensored = true;
-				count++;
-			}
-		}
-		return count;
-	}
-
-
 	public double[] getAllTimes() {
 		ensureComputed();
 		return Arrays.copyOf(timesAllCached, timesAllCached.length);

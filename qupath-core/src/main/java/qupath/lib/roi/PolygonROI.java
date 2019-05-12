@@ -35,7 +35,6 @@ import qupath.lib.roi.interfaces.PathArea;
 import qupath.lib.roi.interfaces.ROIWithHull;
 import qupath.lib.roi.interfaces.ROI;
 import qupath.lib.roi.interfaces.TranslatableROI;
-import qupath.lib.rois.measure.ConvexHull;
 
 
 /**

@@ -342,7 +342,6 @@ import qupath.lib.roi.PathROIToolsAwt;
 import qupath.lib.roi.interfaces.ROI;
 import qupath.lib.roi.interfaces.TranslatableROI;
 import qupath.lib.gui.scripting.DefaultScriptEditor;
-import qupath.lib.www.URLHelpers;
 
 
 
@@ -624,16 +623,6 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			// Stop any painter requests
 			if (imageRegionStore != null)
 				imageRegionStore.close();
-			
-			// Close any cached file system
-			FileSystem fileSystemOld = URLHelpers.getCacheFileSystem();
-			if (fileSystemOld != null && fileSystemOld != FileSystems.getDefault()) {
-				try {
-					fileSystemOld.close();
-				} catch (Exception e1) {
-					logger.error("Error closing file system", e1);
-				}
-			}
 			
 			// Save the PathClasses
 			savePathClasses();
@@ -4604,17 +4593,6 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				logger.error("Error creating file system", e);
 			}
 		}
-		FileSystem fileSystemOld = URLHelpers.getCacheFileSystem();
-//		if (fileSystemOld == fileSystem)
-//			return;
-		if (fileSystemOld != null && fileSystemOld != FileSystems.getDefault()) {
-			try {
-				fileSystemOld.close();
-			} catch (IOException e) {
-				logger.error("Error closing file system", e);
-			}
-		}
-		URLHelpers.setCacheFileSystem(fileSystem, fileSystemRoot);
 	}
 	
 	

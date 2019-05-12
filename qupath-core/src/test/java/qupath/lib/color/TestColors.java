@@ -140,7 +140,7 @@ public class TestColors {
 		StainVector mySVr1 = StainVector.makeResidualStainVector(mySV1, mySV2);
 		StainVector mySVr2 = StainVector.makeResidualStainVector(mySV1, mySV3);
 		
-		ColorDeconvolutionStains myCDS1 = new ColorDeconvolutionStains("myCDS1", mySV1, mySV2); // residual created automatically
+		ColorDeconvolutionStains myCDS1 = new ColorDeconvolutionStains("myCDS1", mySV1, mySV2, 255, 255, 255); // residual created automatically
 		ColorDeconvolutionStains myCDS2 = new ColorDeconvolutionStains("myCDS1", mySV1, mySV2, mySV3, 255, 255, 255); 
 		
 		assertTrue(myCDS1.isH_E());

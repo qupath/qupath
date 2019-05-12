@@ -41,7 +41,7 @@ import qupath.lib.plugins.AbstractInteractivePlugin;
 import qupath.lib.plugins.PathTask;
 import qupath.lib.plugins.PluginRunner;
 import qupath.lib.plugins.parameters.ParameterList;
-import qupath.lib.rois.measure.ConvexHull;
+import qupath.lib.roi.ConvexHull;
 
 /**
  * Plugin to identify/remove detections from the convex hull of all detections.

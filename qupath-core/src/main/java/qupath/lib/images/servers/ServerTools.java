@@ -84,7 +84,7 @@ public class ServerTools {
 
 	/**
 	 * Calculate a downsample factor for a server given a preferred pixel size and the pixel size of the server itself.
-	 * 
+	 * <p>
 	 * Optionally ensure that the downsample is a power of 2 (i.e. the closest power of 2 available to the 'ideal' downsample).
 	 * 
 	 * @param serverPixelSizeMicrons
@@ -92,7 +92,7 @@ public class ServerTools {
 	 * @param doLog2
 	 * @return
 	 */
-	static double getPreferredDownsampleForPixelSizeMicrons(double serverPixelSizeMicrons, double requestedPixelSizeMicrons, boolean doLog2) {
+	private static double getPreferredDownsampleForPixelSizeMicrons(double serverPixelSizeMicrons, double requestedPixelSizeMicrons, boolean doLog2) {
 		// If we have NaN input, we have NaN output
 		if (Double.isNaN(serverPixelSizeMicrons + requestedPixelSizeMicrons))
 			return Double.NaN;

@@ -5,8 +5,8 @@ import java.io.IOException;
 import qupath.lib.regions.RegionRequest;
 
 /**
- * An ImageServer implementation used to apply transforms to another ImageServer, 
- * e.g. spatial or pixel transformations.
+ * An ImageServer implementation used to apply transforms to another ImageServer.
+ * This might be a spatial or pixel intensity transformation, for example.
  * <p>
  * Subclasses may only implement the methods necessary to apply the required transform, 
  * such as {@link #readBufferedImage(RegionRequest)} since much of the remaining functionality 

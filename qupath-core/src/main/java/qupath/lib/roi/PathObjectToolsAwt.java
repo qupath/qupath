@@ -37,7 +37,6 @@ import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
-import qupath.lib.roi.experimental.ShapeSimplifier;
 import qupath.lib.roi.interfaces.PathShape;
 
 /**
@@ -51,7 +50,7 @@ public class PathObjectToolsAwt {
 	private final static Logger logger = LoggerFactory.getLogger(PathObjectToolsAwt.class);
 	
 
-	public static PathObject simplifyShapeAnnotation(PathAnnotationObject pathObject, final double altitudeThreshold) {
+	private static PathObject simplifyShapeAnnotation(PathAnnotationObject pathObject, final double altitudeThreshold) {
 		
 		PathShape pathROI = (PathShape)pathObject.getROI();
 		PathObject pathObjectNew = null;
@@ -68,7 +67,7 @@ public class PathObjectToolsAwt {
 
 	/**
 	 * Combine all the annotations that overlap with a selected object.
-	 * 
+	 * <p>
 	 * The selected object should itself be an annotation.
 	 * 
 	 * @param hierarchy
@@ -147,29 +146,29 @@ public class PathObjectToolsAwt {
 	}
 
 	/**
-		 * 
-		 * Given an input list of annotations, simplify the ROIs (fewer coordinates) 
-		 * using method based on Visvalingam’s Algorithm.
-		 * 
-		 * See references:
-		 * https://hydra.hull.ac.uk/resources/hull:8338
-		 * https://www.jasondavies.com/simplify/
-		 * http://bost.ocks.org/mike/simplify/
-		 * 
-		 * @param pathObjects
-		 * @param altitudeThreshold
-		 * @return
-		 */
-		public static List<PathObject> simplifyAllShapeAnnotations(Collection<? extends PathObject> pathObjects, final double altitudeThreshold) {
-			List<PathObject> simplifiedObjects = new ArrayList<>();
-			for (PathObject temp : pathObjects) {
-				if (!(temp instanceof PathAnnotationObject)) {
-					logger.warn("Cannot simplify {} - not an annotation object", temp);
-					simplifiedObjects.add(temp);
-				}
-				simplifiedObjects.add(simplifyShapeAnnotation((PathAnnotationObject)temp, altitudeThreshold));
+	 * 
+	 * Given an input list of annotations, simplify the ROIs (fewer coordinates) 
+	 * using method based on Visvalingam’s Algorithm.
+	 * <p>
+	 * See references:
+	 * https://hydra.hull.ac.uk/resources/hull:8338
+	 * https://www.jasondavies.com/simplify/
+	 * http://bost.ocks.org/mike/simplify/
+	 * 
+	 * @param pathObjects
+	 * @param altitudeThreshold
+	 * @return
+	 */
+	public static List<PathObject> simplifyAllShapeAnnotations(Collection<? extends PathObject> pathObjects, final double altitudeThreshold) {
+		List<PathObject> simplifiedObjects = new ArrayList<>();
+		for (PathObject temp : pathObjects) {
+			if (!(temp instanceof PathAnnotationObject)) {
+				logger.warn("Cannot simplify {} - not an annotation object", temp);
+				simplifiedObjects.add(temp);
 			}
-			return simplifiedObjects;
+			simplifiedObjects.add(simplifyShapeAnnotation((PathAnnotationObject)temp, altitudeThreshold));
 		}
+		return simplifiedObjects;
+	}
 
 }

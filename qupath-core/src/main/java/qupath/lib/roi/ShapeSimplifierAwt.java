@@ -33,7 +33,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.lib.geom.Point2;
-import qupath.lib.roi.experimental.ShapeSimplifier;
 import qupath.lib.roi.interfaces.PathShape;
 
 /**

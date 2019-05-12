@@ -21,7 +21,7 @@
  * #L%
  */
 
-package qupath.lib.images.tools;
+package qupath.lib.awt.common;
 
 import java.awt.Color;
 import java.awt.Graphics2D;
@@ -45,10 +45,10 @@ public class BufferedImageTools {
 	 * <p>
 	 * Pixels inside the ROI will be 255, pixels outside will be 0.
 	 * 
-	 * @param width Width of the requested mask image
-	 * @param height Height of the requested mask image
+	 * @param width width of the requested mask image
+	 * @param height height of the requested mask image
 	 * @param roi ROI for mask
-	 * @param request Region that the mask should correspond to, including the origin (x &amp; y) and downsample factor to use.
+	 * @param request region that the mask should correspond to, including the origin (x &amp; y) and downsample factor to use.
 	 * @return
 	 */
 	public static BufferedImage createROIMask(final int width, final int height, final ROI roi, final RegionRequest request) {
@@ -60,12 +60,12 @@ public class BufferedImageTools {
 	 * <p>
 	 * Pixels inside the ROI will be 255, pixels outside will be 0.
 	 * 
-	 * @param width Width of the requested mask image
-	 * @param height Height of the requested mask image
+	 * @param width width of the requested mask image
+	 * @param height height of the requested mask image
 	 * @param roi ROI for mask
-	 * @param xOrigin Pixel x coordinate of the top left of the region to include in the mask.
-	 * @param yOrigin Pixel y coordinate of the top left of the region to include in the mask.
-	 * @param downsample Downsample factor to use when generating the mask, i.e. the amoutn to scale.
+	 * @param xOrigin pixel x coordinate of the top left of the region to include in the mask.
+	 * @param yOrigin pixel y coordinate of the top left of the region to include in the mask.
+	 * @param downsample downsample factor to use when generating the mask, i.e. the amoutn to scale.
 	 * @return
 	 */
 	public static BufferedImage createROIMask(final int width, final int height, final ROI roi, final double xOrigin, final double yOrigin, final double downsample) {
@@ -80,5 +80,34 @@ public class BufferedImageTools {
 		g2d.dispose();
 		return imgMask;
 	}
+
+	/**
+		 * Ensure that an RGB image is the same kind of RGB, so that the int arrays can be treated as 
+		 * storing the pixels as packed RGB values.
+		 * <p>
+		 * Running this command results in byte array variations, or BGR images are converted to have BufferedImage.TYPE_INT_RGB.
+		 * <p>
+		 * Images that are already RGB, or RGBA are returned unchanged.
+		 * 
+		 * @param img
+		 * @return
+		 */
+		public static BufferedImage ensureIntRGB(final BufferedImage img) {
+			if (img == null)
+				return null;
+			switch (img.getType()) {
+			case BufferedImage.TYPE_3BYTE_BGR:
+			case BufferedImage.TYPE_4BYTE_ABGR:
+			case BufferedImage.TYPE_4BYTE_ABGR_PRE:
+			case BufferedImage.TYPE_INT_BGR:
+				BufferedImage img2 = new BufferedImage(img.getWidth(), img.getHeight(), BufferedImage.TYPE_INT_RGB);
+	//			BufferedImage img2 = new BufferedImage(img.getWidth(), img.getHeight(), BufferedImage.TYPE_INT_ARGB_PRE);
+				Graphics2D g2d = img2.createGraphics();
+				g2d.drawImage(img, 0, 0, null);
+				g2d.dispose();
+				return img2;
+			}
+			return img;
+		}
 
 }

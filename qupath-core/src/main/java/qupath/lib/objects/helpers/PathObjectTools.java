@@ -50,13 +50,13 @@ import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.TMAGrid;
 import qupath.lib.regions.ImageRegion;
+import qupath.lib.roi.ConvexHull;
 import qupath.lib.roi.LineROI;
 import qupath.lib.roi.PolylineROI;
 import qupath.lib.roi.ROIHelpers;
 import qupath.lib.roi.interfaces.PathArea;
 import qupath.lib.roi.interfaces.PathPoints;
 import qupath.lib.roi.interfaces.ROI;
-import qupath.lib.rois.measure.ConvexHull;
 
 /**
  * A collection of static methods to help work with PathObjects.

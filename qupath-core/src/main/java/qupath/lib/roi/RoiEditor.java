@@ -81,7 +81,7 @@ public class RoiEditor {
 	}
 	
 	
-	public void setROI(ROI pathROI, boolean stopTranslating) {
+	private void setROI(ROI pathROI, boolean stopTranslating) {
 //		if (stopTranslating)
 //			System.out.println("Stopping translating: " + stopTranslating + " - " + pathROI);
 
