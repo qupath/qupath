@@ -27,11 +27,11 @@ import qupath.lib.regions.ImageRegion;
 
 /**
  * Class for monitoring the process of a plugin and displaying feedback to the user.
- * 
+ * <p>
  * Implementing classes receive notifications from the plugin as it executes, and should display these in an appropriate way -
  * such as with a dialog box and progress bar, or logging the progress to the system output.
  * Classes may also choose to send cancel requests to the plugin, e.g. if the user presses a 'cancel' button.
- * 
+ * <p>
  * PluginProgressMonitors are not intended for reuse, i.e. the startMonitoring method should only be called once.
  * 
  * @author Pete Bankhead

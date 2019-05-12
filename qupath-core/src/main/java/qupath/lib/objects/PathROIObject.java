@@ -37,7 +37,7 @@ import qupath.lib.roi.interfaces.ROI;
 
 /**
  * Abstract class used for PathObjects that have ROIs associated with them.
- * 
+ * <p>
  * In practice, this is almost all PathObjects (with the notable exception of PathRootObjects).
  * 
  * @author Pete Bankhead

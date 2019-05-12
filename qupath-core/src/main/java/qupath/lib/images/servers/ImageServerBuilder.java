@@ -29,10 +29,7 @@ import java.util.Collection;
 import qupath.lib.images.servers.FileFormatInfo.ImageCheckType;
 
 /**
- * Helper class for creating ImageServers from a given path - which may be a file path or URL.
- * <p>
- * This class is responsible for hunting through potential constructors to find a server that works.
- * <p>
+ * Helper class for creating ImageServers from a given URI and optional argument list.
  * 
  * @author Pete Bankhead
  *

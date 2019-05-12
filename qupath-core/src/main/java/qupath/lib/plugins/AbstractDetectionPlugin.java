@@ -36,7 +36,7 @@ import qupath.lib.objects.helpers.PathObjectTools;
 
 /**
  * Abstract plugin aimed towards cases where new objects will be detected inside existing objects (normally TMA cores or annotations).
- * 
+ * <p>
  * TODO: Note this isn't a very stable API (because it's quite awkward), and it's therefore liable to change...
  * 
  * @author Pete Bankhead

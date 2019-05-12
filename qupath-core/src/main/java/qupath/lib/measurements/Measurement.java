@@ -27,7 +27,7 @@ import java.io.Serializable;
 
 /**
  * Basic interface to define a measurement.
- * 
+ * <p>
  * This was originally intended to support both static and dynamic measurements, 
  * but the functionality is rarely used now.  It may be removed in the future.
  * 

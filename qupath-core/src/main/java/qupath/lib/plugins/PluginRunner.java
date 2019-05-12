@@ -32,10 +32,10 @@ import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 
 /**
  * Implementing classes encapsulate the data and functionality needed to run a plugin on a single image.
- * 
+ * <p>
  * This means access to an ImageData object (along with helper methods to access its server, hierarchy &amp;
  * selected objects), as well as the ability to run a collection of tasks - possibly in parallel.
- * 
+ * <p>
  * This implementation may also (optionally) provide useful feedback on progress when running tasks.
  * 
  * @author Pete Bankhead

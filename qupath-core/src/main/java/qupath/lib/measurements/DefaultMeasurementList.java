@@ -30,7 +30,9 @@ import java.util.List;
 
 /**
  * A MeasurementList implementation that simply stores a list of Measurement objects.
+ * <p>
  * These can be of any kind, including dynamic measurements (computed on request).
+ * <p>
  * Generally, if only simple, non-dynamic numeric measurements are required, then
  * another MeasurementList would be preferable to reduce memory requirements.
  * 

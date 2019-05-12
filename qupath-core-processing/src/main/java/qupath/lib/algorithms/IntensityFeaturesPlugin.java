@@ -813,7 +813,7 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 				measurementList.putMeasurement(name + " Max", stats.getMax());
 			}
 			
-			logger.trace("Measured pixel count: {}", stats.nPixels());
+			logger.trace("Measured pixel count: {}", stats.size());
 			
 		}
 		

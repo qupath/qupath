@@ -41,7 +41,7 @@ import qupath.lib.common.GeneralTools;
 
 /**
  * Helper class for storing stain vectors and maximum channel values to be used for color deconvolution.
- * 
+ * <p>
  * The maximum channel values are the RGB values corresponding to pixels that have no staining of any kind
  * (i.e. all light has passed through... the pixel should look close to white).
  * By default, these are 255.

@@ -34,11 +34,11 @@ import java.util.Set;
 
 /**
  * Helper class for storing metadata key/value pairs.
- * 
+ * <p>
  * Currently wraps a LinkedHashMap, but this implementation may change.
- * 
+ * <p>
  * Serializes itself efficiently by using Object arrays.
- * 
+ * <p>
  * Warning: everything that goes into the map should be serializable, or bad things may happen...
  * in practice, only Strings and Numbers should be used.  As such, this class isn't exposed publicly to the world.
  * 

@@ -31,9 +31,7 @@ import qupath.lib.objects.PathObject;
 
 /**
  * Class for storing histogram data &amp; basic statistics.
- * 
- * See also HistogramPanel.
- * 
+ * <p>
  * TODO: Document int check - if all values are integers, the bin size cannot be &lt; 1.
  * 
  * @author Pete Bankhead

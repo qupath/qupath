@@ -34,7 +34,7 @@ import qupath.lib.roi.ROIs;
 /**
  * Helper methods for simplifying shapes, i.e. removing polygon points while retaining the same overall 
  * shape at a coarser level.
- * 
+ * <p>
  * This can help manage storage and performance requirements when working with large numbers of ROIs,
  * especially in terms of repainting speed.
  * 
@@ -48,7 +48,7 @@ public class ShapeSimplifier {
 	 * Create a simplified polygon (fewer coordinates) using method based on Visvalingam’s Algorithm.
 	 * The input is a list of points (the vertices) belonging to a closed polygon.
 	 * This list is modified in place.
-	 * 
+	 * <p>
 	 * See references:
 	 * https://hydra.hull.ac.uk/resources/hull:8338
 	 * https://www.jasondavies.com/simplify/
@@ -133,7 +133,7 @@ public class ShapeSimplifier {
 	/**
 	 * 
 	 * Create a simplified polygon (fewer coordinates) using method based on Visvalingam’s Algorithm.
-	 * 
+	 * <p>
 	 * See references:
 	 * https://hydra.hull.ac.uk/resources/hull:8338
 	 * https://www.jasondavies.com/simplify/

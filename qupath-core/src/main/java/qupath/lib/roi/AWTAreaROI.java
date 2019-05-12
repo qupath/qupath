@@ -38,8 +38,9 @@ import qupath.lib.roi.interfaces.ROI;
 import qupath.lib.roi.interfaces.TranslatableROI;
 
 /**
- * An implementation of AreaROI that makes use of Java AWT Shapes.  If available, this is a better choice than using
- * AreaROI directly, due to the extra checking involved with AWT.
+ * An implementation of AreaROI that makes use of Java AWT Shapes.
+ * <p>
+ * If available, this is a better choice than using AreaROI directly, due to the extra checking involved with AWT.
  * 
  * @author Pete Bankhead
  *

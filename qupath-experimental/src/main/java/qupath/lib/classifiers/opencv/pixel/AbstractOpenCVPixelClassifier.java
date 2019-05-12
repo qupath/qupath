@@ -13,7 +13,7 @@ import java.awt.image.ColorModel;
 import java.util.List;
 import java.util.stream.Collectors;
 
-public abstract class AbstractOpenCVPixelClassifier implements PixelClassifier {
+abstract class AbstractOpenCVPixelClassifier implements PixelClassifier {
 
     private static final Logger logger = LoggerFactory.getLogger(AbstractOpenCVPixelClassifier.class);
 

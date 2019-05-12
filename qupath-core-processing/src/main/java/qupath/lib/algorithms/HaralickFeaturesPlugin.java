@@ -409,7 +409,7 @@ public class HaralickFeaturesPlugin extends AbstractInteractivePlugin<BufferedIm
 		double skewness = 0;
 		double kurtosis = 0;
 		double variance = 0;
-		double n = stats.nPixels();
+		double n = stats.size();
 		for (int y = 0; y < img.getHeight(); y++) {
 			for (int x = 0; x < img.getWidth(); x++) {
 				float val = img.getValue(x, y);

@@ -30,7 +30,7 @@ package qupath.lib.plugins.parameters;
  *
  * @param <S>
  */
-public abstract class AbstractParameter<S> implements Parameter<S> {
+abstract class AbstractParameter<S> implements Parameter<S> {
 
 	private static final long serialVersionUID = 1L;
 	

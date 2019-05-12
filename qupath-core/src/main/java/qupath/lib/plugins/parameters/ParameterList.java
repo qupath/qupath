@@ -38,9 +38,9 @@ import org.slf4j.LoggerFactory;
 
 /**
  * A collection of Parameters, which can be used for analysis &amp; queried to construct appropriate GUIs.
- * 
+ * <p>
  * Each Parameter requires a key to be associated with it.
- * 
+ * <p>
  * The order or parameters is maintained.
  * 
  * @author Pete Bankhead

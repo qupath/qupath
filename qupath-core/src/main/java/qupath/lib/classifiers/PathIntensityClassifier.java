@@ -39,7 +39,7 @@ import qupath.lib.objects.PathObject;
 
 /**
  * A (sub)classifier that specializes in assigning intensity classifications.
- * 
+ * <p>
  * This is generally applied to distinguish positive from negative cells, often
  * after applying another classifier to distinguish cell types.
  * 

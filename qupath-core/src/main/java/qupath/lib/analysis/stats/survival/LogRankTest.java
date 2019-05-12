@@ -30,7 +30,7 @@ import org.slf4j.LoggerFactory;
 import qupath.lib.common.GeneralTools;
 
 /**
- * Helper class for applying log-rank test.
+ * Helper class to apply a log-rank test.
  * 
  * @author Pete Bankhead
  *

@@ -34,7 +34,7 @@ import qupath.lib.roi.interfaces.ROI;
 /**
  * Minimal interface that may be used to plugins that perform detection within a specified ROI 
  * and using a specified ImageData with set parameters.
- * 
+ * <p>
  * This enables new detection plugins to be written with somewhat less boilerplate code.
  * 
  * @author Pete Bankhead

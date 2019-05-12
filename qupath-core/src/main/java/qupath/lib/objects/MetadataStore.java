@@ -28,7 +28,7 @@ import java.util.Set;
 
 /**
  * Interface that may be used to indicate that a PathObject (or other object) can store metadata.
- * 
+ * <p>
  * Implementing classes should ensure that entries are stored in insertion order.
  * 
  * @author Pete Bankhead

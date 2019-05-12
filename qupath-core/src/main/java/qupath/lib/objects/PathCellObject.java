@@ -34,7 +34,7 @@ import qupath.lib.roi.interfaces.ROI;
 /**
  * A subclass of a PathDetectionObject, which also supports storing an (optional) extra ROI to represent 
  * the cell nucleus.
- * 
+ * <p>
  * The primary ROI represents the cell boundary.
  * 
  * @author Pete Bankhead

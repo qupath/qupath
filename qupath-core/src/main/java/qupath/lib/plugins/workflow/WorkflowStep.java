@@ -28,7 +28,7 @@ import java.util.Map;
 
 /**
  * Basic interface for a loggable workflow step.
- * 
+ * <p>
  * Not as useful as a ScriptableWorkflowStep (which should be used where possible),
  * but here just in case.
  * 

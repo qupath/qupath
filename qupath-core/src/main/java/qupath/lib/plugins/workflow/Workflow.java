@@ -38,9 +38,9 @@ import org.slf4j.LoggerFactory;
 
 /**
  * A collection of steps that relate to how an image has been - or should be - processed.
- * 
+ * <p>
  * This can also be used to implement a 'command history'.
- * 
+ * <p>
  * Where the WorkflowSteps contained in the Workflow are scriptable, then a 
  * script can be created automatically.
  * 

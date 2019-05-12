@@ -29,7 +29,7 @@ import java.util.Locale;
 
 /**
  * Parameter that supports a list of choices.
- * 
+ * <p>
  * May be displayed as a drop-down list.
  * 
  * @author Pete Bankhead

@@ -40,7 +40,7 @@ import qupath.lib.roi.interfaces.ROI;
 /**
  * Abstract plugin used for detection tasks that support breaking large regions into smaller ones,
  * and analyzing these in parallel - optionally with overlaps.
- * 
+ * <p>
  * Particularly useful for tasks such as cell detection.
  * 
  * @author Pete Bankhead

@@ -34,8 +34,8 @@ import qupath.lib.regions.RegionRequest;
 
 /**
  * Implementation of an ImageServer using Java's ImageIO.
- * 
- * In truth, this isn't actually used for anything... and is quite untested.
+ * <p>
+ * In truth, this isn't actually used for much... and is quite untested.
  * 
  * @author Pete Bankhead
  *

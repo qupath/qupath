@@ -235,7 +235,7 @@ public class ColorToolsAwt {
 
 	/**
 	 * Get a (slightly) darker version of the specified color.
-	 * 
+	 * <p>
 	 * If possible, a cached version will be used.
 	 * 
 	 * @param color
@@ -252,7 +252,7 @@ public class ColorToolsAwt {
 
 	/**
 	 * Get a (slightly) translucent version of the specified color.
-	 * 
+	 * <p>
 	 * If possible, a cached version will be used.
 	 * 
 	 * @param color
@@ -270,7 +270,7 @@ public class ColorToolsAwt {
 
 	/**
 	 * Get a scaled version of the specified color, where the RGB values are independently scaled by a specified factor.
-	 * 
+	 * <p>
 	 * The alpha value is preserved unchanged.
 	 * 
 	 * @param color

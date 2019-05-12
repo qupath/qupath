@@ -25,9 +25,9 @@ package qupath.lib.measurements;
 
 /**
  * Factory for creating new Measurement objects.
- * 
+ * <p>
  * Made more sense when dynamic measurements were in use.
- * 
+ * <p>
  * May not be particularly useful now (?).
  * 
  * @author Pete Bankhead

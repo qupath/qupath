@@ -25,7 +25,7 @@ package qupath.lib.measurements;
 
 /**
  * Factory for creating new measurement lists.
- * 
+ * <p>
  * For efficiently, (static) Float lists are generally preferred for detection objects.
  * 
  * @author Pete Bankhead

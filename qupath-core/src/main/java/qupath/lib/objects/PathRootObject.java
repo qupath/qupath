@@ -32,7 +32,7 @@ import qupath.lib.roi.interfaces.ROI;
 
 /**
  * The root object used at the base of a PathObjectHierarchy.
- * 
+ * <p>
  * This doesn't have a ROI, and can't have its PathClass set.
  * 
  * @author Pete Bankhead

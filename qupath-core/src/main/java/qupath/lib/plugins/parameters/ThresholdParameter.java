@@ -27,7 +27,7 @@ import qupath.lib.analysis.stats.Histogram;
 
 /**
  * Parameter to represent a value for thresholding.
- * 
+ * <p>
  * Unfinished and not used; the idea was to be able to store histogram data here as well.
  * 
  * @author Pete Bankhead

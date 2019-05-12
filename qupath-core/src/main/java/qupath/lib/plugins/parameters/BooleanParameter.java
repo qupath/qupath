@@ -27,7 +27,7 @@ import java.util.Locale;
 
 /**
  * Parameter that can take on true of false value - or null.
- * 
+ * <p>
  * May be displayed as a checkbox.
  * 
  * @author Pete Bankhead

@@ -53,11 +53,10 @@ import qupath.lib.roi.interfaces.PathArea;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
- * 
  * Helper methods to convert ObjectDetectors into runnable tasks, which take care of resolving 
  * overlaps when using ParallelTileObjects after the detection is complete and firing notification 
  * events in a PathObjectHierarchy.
- * 
+ * <p>
  * Internally, a PathTask is used with the important resolution/event-firing occurring within the
  * taskComplete method.
  * 

@@ -24,7 +24,6 @@
 package qupath.lib.geom;
 
 /**
- * 
  * An immutable alternative to Java's AWT Dimension.
  * 
  * @author Pete Bankhead

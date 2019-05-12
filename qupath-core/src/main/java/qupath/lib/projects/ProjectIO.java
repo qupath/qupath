@@ -45,7 +45,6 @@ import qupath.lib.common.GeneralTools;
  * Projects should now be written with {@link Project#syncChanges()}
  * 
  * @author Pete Bankhead
- *
  */
 public class ProjectIO {
 

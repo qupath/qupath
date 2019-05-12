@@ -38,18 +38,18 @@ import qupath.lib.roi.interfaces.TranslatableROI;
 
 /**
  * Class used for modifying existing ROIs.
- * 
+ * <p>
  * Modification of ROIs has been made intentionally quite awkward to help ensure they are fairly consistent
  * (i.e. limited mutability), but this can be a bit infuriating when the user wishes to make annotations interactively.
- * 
+ * <p>
  * Also, currently PathObjects have their ROIs set at creation time - adding further annoyance to the lack of easy ROI editability.
- * 
+ * <p>
  * RoiEditors provide GUIs with a mechanism for controlled ROI manipulation, when the natural alternative 
  * (creating new ROIs) might be too computationally expensive.
  * By consciously having to make changes via a RoiEditor, it is hoped that programmers will remember inform the PathObjectHierarchy
  * whenever an object has been changed (note that this does not happen automatically - the RoiEditor knows nothing of PathObjects
  * and hierarchies... only ROIs of various flavors).
- * 
+ * <p>
  * Where any other ROI processing is required, the 'correct' approach is to create a new PathObject as required.
  * 
  * @author Pete Bankhead

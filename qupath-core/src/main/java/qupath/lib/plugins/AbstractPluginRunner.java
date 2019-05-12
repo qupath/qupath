@@ -45,7 +45,7 @@ import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 /**
  * Abstract PluginRunner to help with the creation of plugin runners for specific circumstances,
  * e.g. running through a GUI, or from a command line only.
- * 
+ * <p>
  * Note!  This makes use of a static threadpool, which will be reused by all inheriting classes.
  * 
  * @author Pete Bankhead

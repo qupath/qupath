@@ -51,7 +51,7 @@ import qupath.lib.roi.interfaces.ROI;
 /**
  * A temporary object, used during parallel processing to represent a tile currently being used for object
  * detection.
- * 
+ * <p>
  * ParallelTileObjects maintain knowledge of adjacent tiles, and are thereby able to resolve overlaps
  * after detection is complete (here, based on keeping the object with the larger area).
  * 

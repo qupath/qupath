@@ -6,7 +6,7 @@ import java.awt.image.WritableRaster;
 
 /**
  * A { @ColorModel } for times when you don't really want a { @ColorModel }.
- * 
+ * <p>
  * Just a placeholder, pixels will be displayed as black, regardless of values.
  * 
  * @author Pete Bankhead

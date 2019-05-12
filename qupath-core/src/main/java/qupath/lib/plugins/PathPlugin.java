@@ -25,10 +25,10 @@ package qupath.lib.plugins;
 
 /**
  * Primary interface for defining a 'plugin' command.
- * 
+ * <p>
  * Although the interface is very basic, developers wanting to create new plugins should general start 
  * by modifying an existing plugin that does something similar.
- * 
+ * <p>
  * By paying attention to the type hierarchy and making use of the most appropriate interfaces/abstract classes, 
  * it is possible to get quite a bit of functionality 'for free', including scriptability and parallelization 
  * with appropriate calls to update the object hierarchy.

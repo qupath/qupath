@@ -31,6 +31,7 @@ import qupath.lib.roi.interfaces.ROI;
 
 /**
  * Class for defining an image region that can also be used to request these region from a PathImageServer.
+ * <p>
  * In addition to the information contained within an ImageRegion, also contains the path to the image
  * (and optionally an additional image name stored within it) and a downsample value.
  * 

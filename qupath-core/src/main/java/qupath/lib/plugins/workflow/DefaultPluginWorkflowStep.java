@@ -35,9 +35,9 @@ import qupath.lib.plugins.workflow.ScriptableWorkflowStep;
 /**
  * Old plugin workflow step... unnecessarily stored (and serialized) Class object - which was susceptible to ClassNotFoundExceptions on
  * refactoring, which compromised loading the entire workflow.
- * 
+ * <p>
  * Replaced by (similarly non-excellent, but better) SimplePluginWorkflowStep.
- * 
+ * <p>
  * This is only kept for backwards compatibility - should not be used in new code!
  * 
  * @author Pete Bankhead

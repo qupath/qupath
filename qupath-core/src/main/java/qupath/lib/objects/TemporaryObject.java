@@ -25,6 +25,7 @@ package qupath.lib.objects;
 
 /**
  * Marker interface used to indicate that child objects shouldn't be added to any cache for display.
+ * <p>
  * It can be used to create temporary objects that can be displayed faster while performing lengthy
  * processing operations.
  * <p>

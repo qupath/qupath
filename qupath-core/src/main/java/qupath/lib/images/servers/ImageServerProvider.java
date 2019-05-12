@@ -46,7 +46,6 @@ import qupath.lib.regions.RegionRequest;
  * Service provider for creating ImageServers from a given path - which may be a file path or URL.
  * <p>
  * This class is responsible for hunting through potential ImageServerBuilders, ranked by support level, to find the first that works.
- * <p>
  * 
  * @author Pete Bankhead
  *

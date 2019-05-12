@@ -33,7 +33,7 @@ import qupath.lib.common.ColorTools;
 
 /**
  * Factory for creating PathClasses.
- * 
+ * <p>
  * This is used, rather than creating PathClass objects directly, to ensure that 
  * only one PathClass with a specified name (and, optionally, ancestry) can exist 
  * at any time.

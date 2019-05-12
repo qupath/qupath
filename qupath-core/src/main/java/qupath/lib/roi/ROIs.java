@@ -37,8 +37,8 @@ import qupath.lib.roi.interfaces.ROI;
 
 /**
  * This class consists exclusively of static methods that operate on or return regions of interest (ROIs).
- * 
- * <p>These methods should be used rather than constructors for individual ROI types.
+ * <p>
+ * These methods should be used rather than constructors for individual ROI types.
  * 
  * @author Pete Bankhead
  */

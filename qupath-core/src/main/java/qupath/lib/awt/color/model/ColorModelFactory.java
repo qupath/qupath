@@ -11,7 +11,7 @@ import java.util.Map;
 
 import qupath.lib.images.servers.ImageChannel;
 
-public class ColorModelFactory {
+public final class ColorModelFactory {
 	
 	private static Map<List<ImageChannel>, IndexColorModel> classificationModels = Collections.synchronizedMap(new HashMap<>());
 
@@ -82,6 +82,7 @@ public class ColorModelFactory {
 
 	/**
 	 * Get a dummy ColorModel instance.
+	 * <p>
 	 * This isn't very highly recommended; it is here to help in cases where a {@code BufferedImage} 
 	 * is required, but really only a raster is needed.
 	 * 
@@ -95,7 +96,7 @@ public class ColorModelFactory {
 	/**
 	 * Create a ColorModel that can be used to display an image where pixels per channel reflect 
 	 * probabilities, either as float or byte.
-	 * 
+	 * <p>
 	 * It is assumed that the probabilities sum to 1; if they sum to less than 1, <code>alphaResidual</code> 
 	 * can be used to make 'unknown' pixels transparent/translucent rather than black.
 	 * 

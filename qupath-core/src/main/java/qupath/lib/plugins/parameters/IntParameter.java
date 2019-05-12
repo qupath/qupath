@@ -25,7 +25,7 @@ package qupath.lib.plugins.parameters;
 
 /**
  * Parameter to represent an integer numeric value.
- * 
+ * <p>
  * May be bounded.
  * 
  * @author Pete Bankhead

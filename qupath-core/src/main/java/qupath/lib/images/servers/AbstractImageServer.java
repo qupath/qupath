@@ -307,7 +307,7 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 	}
 	
 	@Override
-	public ImageServerMetadata getMetadata() {
+	public synchronized ImageServerMetadata getMetadata() {
 		return userMetadata == null ? getOriginalMetadata() : userMetadata;
 	}
 

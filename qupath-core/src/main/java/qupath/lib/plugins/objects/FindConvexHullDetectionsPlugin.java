@@ -45,9 +45,9 @@ import qupath.lib.rois.measure.ConvexHull;
 
 /**
  * Plugin to identify/remove detections from the convex hull of all detections.
- * 
+ * <p>
  * Currently works only for TMA cores.
- * 
+ * <p>
  * Purpose is to remove edge detections, where the tissue quality tends to be lower.
  * 
  * @author Pete Bankhead

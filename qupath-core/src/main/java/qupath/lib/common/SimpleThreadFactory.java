@@ -28,8 +28,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Thread factory that enables selecting a prefix for the thread name, and daemon status.
- * 
- * This helps with debugging, e.g. using jvisualvm
+ * <p>
+ * This helps with debugging, e.g. using visualvm
  * 
  * @author Pete Bankhead
  *

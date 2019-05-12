@@ -48,7 +48,7 @@ import qupath.lib.objects.hierarchy.TMAGrid;
 
 /**
  * Helper class for importing data in connection with TMA slides.
- * 
+ * <p>
  * Some methods may be changed / moved in the future, e.g. because they are more generally useful,
  * such as those related to parsing CSV data.  However, the attempts by these methods to auto-detect 
  * numeric data are not entirely robust - so more improvement is needed.

@@ -42,7 +42,7 @@ public class BufferedImageTools {
 	
 	/**
 	 * Create a grayscale BufferedImage representing a mask for a specified ROI.
-	 * 
+	 * <p>
 	 * Pixels inside the ROI will be 255, pixels outside will be 0.
 	 * 
 	 * @param width Width of the requested mask image
@@ -57,7 +57,7 @@ public class BufferedImageTools {
 
 	/**
 	 * Create a grayscale BufferedImage representing a mask for a specified ROI.
-	 * 
+	 * <p>
 	 * Pixels inside the ROI will be 255, pixels outside will be 0.
 	 * 
 	 * @param width Width of the requested mask image

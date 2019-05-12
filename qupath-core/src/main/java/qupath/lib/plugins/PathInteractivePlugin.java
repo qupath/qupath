@@ -31,7 +31,7 @@ import qupath.lib.plugins.parameters.ParameterList;
 
 /**
  * Interface to define a PathPlugin that requires a list of (user-adjustable) parameters.
- * 
+ * <p>
  * By using this interface, QuPath is able to show a standardized dialog box within which 
  * the parameters are set.
  * 

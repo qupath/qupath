@@ -30,7 +30,7 @@ import qupath.lib.roi.interfaces.ROI;
 
 /**
  * Default comparator to enable ROIs to be sorted in a more predictable manner.
- * 
+ * <p>
  * The aim is to help sorted lists to sort first on ROI location (time, z, channel, y coordinate, then x)
  * and afterwards on ROI type.
  * 

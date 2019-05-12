@@ -28,7 +28,7 @@ import qupath.lib.objects.classes.PathClass;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
- * A subclass of PathDetectionObject, which is generally used to represent an image region that doesn't 
+ * A subclass of PathDetectionObject, generally used to represent an image region that doesn't 
  * (in itself) correspond to any particularly interesting structure, e.g. a square tile or irregularly-shaped 'superpixel'.
  * 
  * @author Pete Bankhead

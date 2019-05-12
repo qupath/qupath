@@ -38,15 +38,15 @@ import qupath.lib.roi.interfaces.TranslatableROI;
 
 /**
  * Implementation of an arbitrary area ROI - which could contain disjointed or hollow regions.
- * 
+ * <p>
  * It may be decomposed into one or more polygons (vertices), in which case the sign of the area is important 
  * in indicating whether the region should be considered 'positive' or a hole.
- * 
+ * <p>
  * The underlying idea is based on java.awt.Area, but implemented so as to avoid a dependency on AWT.
- * 
+ * <p>
  * However, because this implementation is relatively simple, it doesn't do the complicated checking and 
  * computations of AWT Areas - and so ought not be used directly.  Rather, AWTAreaROI is strongly to be preferred.
- * 
+ * <p>
  * The real usefulness of this class is in enabling Serialization of all ROIs to avoid a dependency on AWT,
  * since potentially a deserialized version of this could then be used to create different kinds of Area 
  * (e.g. java.awt.Area or some JavaFX alternative.)

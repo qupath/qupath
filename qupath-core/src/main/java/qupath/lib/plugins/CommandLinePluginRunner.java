@@ -33,7 +33,7 @@ import qupath.lib.regions.ImageRegion;
 
 /**
  * A PluginRunner that simple logs progress and output.
- * 
+ * <p>
  * This doesn't need to be run on any particular thread (e.g. Platform of EDT).
  * 
  * @author Pete Bankhead

@@ -54,7 +54,7 @@ import qupath.lib.roi.interfaces.ROI;
 /**
  * Plugin to supplement the measurements for detection objects with the weighted sum of measurements 
  * from nearby objects, using weights derived from a 2D Gaussian function.
- * 
+ * <p>
  * This effectively adds in some contextual information.
  * 
  * @author Pete Bankhead

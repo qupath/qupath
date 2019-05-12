@@ -30,9 +30,9 @@ import qupath.lib.regions.RegionRequest;
 
 /**
  * Interface for defining class that can write images.
- * 
+ * <p>
  * This may not have been a particularly good idea and may change in the future... (e.g. using services?).
- * 
+ * <p>
  * As it is, it's best to avoid using it because the design is rather clumsy (and goes back to a day whenever 
  * external dependencies were avoided with an enthusiasm that may have been a bit too much).
  * 
