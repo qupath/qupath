@@ -1,3 +1,5 @@
+ext.moduleName = 'qupath.extension.experimental'
+
 description = 'qupath-experimental'
 
 configurations {

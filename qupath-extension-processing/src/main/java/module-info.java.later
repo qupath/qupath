@@ -1,4 +1,4 @@
-module qupath.extension.ij {
+module qupath.extension.processing {
 	
 	requires java.base;
 	requires java.desktop;
@@ -11,8 +11,14 @@ module qupath.extension.ij {
 
     requires slf4j.api;
     requires ij;
-    requires opencv;
+    requires org.bytedeco.opencv;
 //    requires javacpp;
-	requires controlsfx;
+	requires org.controlsfx.controls;
+	
+	exports qupath.imagej.gui;
+	exports qupath.imagej.gui.commands;
+	exports qupath.imagej.plugins;
+	exports qupath.opencv.gui;
+	exports qupath.opencv.tools;
 
 }

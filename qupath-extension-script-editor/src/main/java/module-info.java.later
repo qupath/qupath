@@ -1,4 +1,4 @@
-module qupath.extension.script.editor {
+module qupath.extension.scripteditor {
 	
     requires javafx.controls;
 

@@ -1,3 +1,4 @@
+ext.moduleName = 'qupath.core'
 
 description = 'qupath-core'
 

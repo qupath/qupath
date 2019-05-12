@@ -1,4 +1,4 @@
-package qupath.lib.classifiers.pixel;
+package qupath.lib.classifiers.opencv.pixel;
 
 import org.bytedeco.opencv.opencv_core.Mat;
 import org.bytedeco.opencv.opencv_core.Scalar;
@@ -6,6 +6,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.lib.awt.color.model.ColorModelFactory;
+import qupath.lib.classifiers.pixel.PixelClassifier;
+import qupath.lib.classifiers.pixel.PixelClassifierMetadata;
 
 import java.awt.image.ColorModel;
 import java.util.List;

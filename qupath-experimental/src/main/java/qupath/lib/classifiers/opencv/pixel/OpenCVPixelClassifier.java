@@ -1,4 +1,4 @@
-package qupath.lib.classifiers.pixel;
+package qupath.lib.classifiers.opencv.pixel;
 
 import java.awt.image.BufferedImage;
 import java.awt.image.ColorModel;
@@ -8,7 +8,9 @@ import org.bytedeco.opencv.opencv_core.Mat;
 
 import qupath.lib.classifiers.opencv.OpenCVClassifiers.FeaturePreprocessor;
 import qupath.lib.classifiers.opencv.OpenCVClassifiers.OpenCVStatModel;
-import qupath.lib.classifiers.pixel.features.OpenCVFeatureCalculator;
+import qupath.lib.classifiers.opencv.pixel.features.OpenCVFeatureCalculator;
+import qupath.lib.classifiers.pixel.PixelClassifierMetadata;
+import qupath.lib.classifiers.pixel.PixelClassifiers;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.regions.RegionRequest;

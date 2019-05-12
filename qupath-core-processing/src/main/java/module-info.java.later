@@ -1,5 +1,3 @@
-// This can't be come a module yet because of the dependency on opencv,
-// which has same package conflicts with javacpp incompatible with Java modules
 module qupath.core.processing {
 	
 	requires java.base;
@@ -9,13 +7,11 @@ module qupath.core.processing {
 
     requires slf4j.api;
     requires ij;
-    requires opencv;
+    requires org.bytedeco.opencv;
     
     exports qupath.imagej.color;
     exports qupath.imagej.detect.cells;
     exports qupath.imagej.detect.dearray;
-    exports qupath.imagej.detect.features;
-    exports qupath.imagej.detect.nuclei;
     exports qupath.imagej.detect.tissue;
     exports qupath.imagej.helpers;
     exports qupath.imagej.images.servers;

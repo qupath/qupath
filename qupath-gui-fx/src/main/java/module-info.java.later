@@ -13,14 +13,19 @@ module qupath.gui.fx {
 	
 	requires qupath.core;
 	
-	requires controlsfx;
+	requires org.controlsfx.controls;
 	requires jfxtras.menu;
 	requires slf4j.api;
+	requires org.locationtech.jts;
 
+	exports qupath.lib.display;
 	exports qupath.lib.gui;
+	exports qupath.lib.gui.commands;
 	exports qupath.lib.gui.extensions;
 	exports qupath.lib.gui.scripting;
 	exports qupath.lib.gui.commands.interfaces;
+	exports qupath.lib.gui.images.stores;
+	exports qupath.lib.gui.models;
 	exports qupath.lib.gui.viewer;
 	exports qupath.lib.gui.viewer.tools;
 	exports qupath.lib.gui.viewer.overlays;

@@ -11,7 +11,7 @@ import org.slf4j.LoggerFactory;
 import qupath.lib.classifiers.Normalization;
 import qupath.lib.classifiers.opencv.OpenCVClassifiers.FeaturePreprocessor;
 import qupath.lib.classifiers.opencv.OpenCVClassifiers;
-import qupath.lib.classifiers.pixel.features.OpenCVFeatureCalculator;
+import qupath.lib.classifiers.opencv.pixel.features.OpenCVFeatureCalculator;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServer;

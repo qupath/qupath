@@ -1,4 +1,4 @@
-package qupath.lib.classifiers.pixel;
+package qupath.lib.classifiers.opencv.pixel;
 
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferByte;
@@ -6,6 +6,8 @@ import java.awt.image.IndexColorModel;
 import java.io.IOException;
 
 import qupath.lib.awt.color.model.ColorModelFactory;
+import qupath.lib.classifiers.pixel.PixelClassifier;
+import qupath.lib.classifiers.pixel.PixelClassifierMetadata;
 import qupath.lib.display.ChannelDisplayInfo.SingleChannelDisplayInfo;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageChannel;

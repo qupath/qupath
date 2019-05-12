@@ -2,7 +2,7 @@ package qupath.lib.classifiers.gui;
 
 import qupath.lib.awt.common.AwtTools;
 import qupath.lib.classifiers.opencv.gui.PixelClassifierImageSelectionPane.PersistentTileCache;
-import qupath.lib.classifiers.pixel.OpenCVPixelClassifierDNN;
+import qupath.lib.classifiers.opencv.pixel.OpenCVPixelClassifierDNN;
 import qupath.lib.classifiers.pixel.PixelClassificationImageServer;
 import qupath.lib.common.SimpleThreadFactory;
 import qupath.lib.gui.prefs.PathPrefs;

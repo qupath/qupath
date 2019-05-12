@@ -17,32 +17,38 @@ def qupathVendor = "QuPath developers"
 
 println 'Building QuPath version ' + qupathVersion
 
-/**
+/*
  * Output location; once things are gathered here, they can be used as input for jpackager
  */
 def qupathOutputDir = 'qupath'
 def additionalResourcesDir = "build/${qupathOutputDir}"
 
-/**
+/*
  * Include OpenCV binaries with GPU support (quite big, may not be used?)
  */
 def useGPU = false
 
-/**
+/*
  * JavaFX version
-*/
+ */
 def jfxVersion = '12.0.1'
 
-/**
+/*
+ * Modules not yet supported (because of some dependency troubles).
+ * This disables code that would otherwise try to move in a modular direction.
+ */
+def doModular = false
+
+
+/*
  * Good to know what JDK is (sometimes accidentally) being used
  */
 println 'Current Java version: ' + JavaVersion.current()
 println System.properties['java.home']
 
-/**
+/*
  * Handle OS-specific decisions
  */
-
 import org.gradle.internal.os.OperatingSystem
 println 'Operating system: ' + OperatingSystem.current()
 def nativesCPP
@@ -72,6 +78,15 @@ if (OperatingSystem.current().isMacOsX()) {
   println 'Unknown operating system!'
 }
 
+/*
+ * jarjar makes it possible to remove the troublesome MacAdapter in ij.jar, 
+ * which doesn't work for JDK 9+ and causes module issue because it is not contained 
+ * within any package.
+ *
+ * Only required if building modules. Currently all instances commented out.
+ */
+//apply plugin: 'org.anarres.jarjar'
+
 /**
  * Define managed dependencies for use within sub-projects
  */
@@ -95,7 +110,7 @@ subprojects {
     guava
     picocli
     
-    // Guave tries to bring in extra dependencies not required at runtime
+    // Guava tries to bring in extra dependencies not required at runtime
     implementation {
     	exclude group: 'com.google.code.findbugs'
     	exclude group: 'org.codehaus.mojo', module: 'animal-sniffer-annotations'
@@ -118,7 +133,7 @@ subprojects {
       javafx "org.openjfx:${fx}:${jfxVersion}:${platform}"
     }
 
-	picocli 'info.picocli:picocli:3.9.6'
+//	picocli 'info.picocli:picocli:3.9.6'
 
     richtextfx 'org.fxmisc.richtext:richtextfx:0.10.0'
 
@@ -127,7 +142,6 @@ subprojects {
     gson 'com.google.code.gson:gson:2.8.5'
 
     controlsfx 'org.controlsfx:controlsfx:11.0.0'
-//    controlsfx 'org.controlsfx:controlsfx:9.0.0'
 
 //	bioformats 'ome:bioformats_package:6.0.0'
 	bioformats 'ome:formats-gpl:6.0.1'
@@ -148,13 +162,17 @@ subprojects {
       jpen 'net.sourceforge.jpen:jpen:2-150301:' + nativesClassifier
 
     imagej 'net.imagej:ij:1.52n'
+//    imagej jarjar.repackage {
+//    	from 'net.imagej:ij:1.52n'
+//    	classDelete 'MacAdapter'
+//	}
 
     openslide 'org.openslide:openslide:3.4.1_2'
     if (nativesClassifier != null)
       openslide 'org.openslide:openslide:3.4.1_2:' + nativesClassifier
 
-    nativeloader 'org.scijava:native-lib-loader:2.3.4'
-    
+//    nativeloader 'org.scijava:native-lib-loader:2.3.4'
+
     guava 'com.google.guava:guava:27.1-jre'
   }
 }
@@ -167,6 +185,69 @@ allprojects  {
   version = qupathVersion
 }
 
+/*
+ * Not everybody is ready to be a module yet... 
+ */
+def moduleExclusionFilter = {String moduleName -> !doModular || moduleName.contains('bioformats') || moduleName.contains('jpen')}
+
+subprojects {
+
+    afterEvaluate {
+
+        compileJava {
+            if (moduleExclusionFilter(moduleName))
+                return
+
+            inputs.property("moduleName", moduleName)
+            doFirst {
+                options.compilerArgs = [
+                        '--module-path', classpath.asPath,
+                ]
+                classpath = files()
+            }
+        }
+
+        jar {
+            inputs.property("moduleName", moduleName)
+            manifest {
+                attributes('Automatic-Module-Name': moduleName)
+            }
+        }
+
+        compileTestJava {
+            if (moduleExclusionFilter(moduleName))
+                return
+
+            inputs.property("moduleName", moduleName)
+            doFirst {
+                options.compilerArgs = [
+                        '--module-path', classpath.asPath,
+                        '--add-modules', 'junit',
+                        '--add-reads', "$moduleName=junit",
+                        '--patch-module', "$moduleName=" + files(sourceSets.test.java.srcDirs).asPath,
+                ]
+                classpath = files()
+            }
+        }
+
+        test {
+            if (moduleExclusionFilter(moduleName))
+                return
+
+            inputs.property("moduleName", moduleName)
+            doFirst {
+                jvmArgs = [
+                        '--module-path', classpath.asPath,
+                        '--add-modules', 'ALL-MODULE-PATH',
+                        '--add-reads', "$moduleName=junit",
+                        '--patch-module', "$moduleName=" + files(sourceSets.test.java.outputDir).asPath,
+                ]
+                classpath = files()
+            }
+        }
+    }
+}
+
 /**
  * Build all projects
  */
@@ -174,11 +255,11 @@ allprojects {
   apply plugin: 'java'
   sourceCompatibility = JavaVersion.VERSION_11
   targetCompatibility = JavaVersion.VERSION_11
-  
+
   repositories {
     mavenLocal()
     mavenCentral()
-    
+
     maven {
       name 'Unidata'
       url 'https://artifacts.unidata.ucar.edu/content/repositories/unidata-releases'
@@ -193,6 +274,7 @@ allprojects {
     implementation group: 'ch.qos.logback', name: 'logback-classic', version:'1.2.3'
     testImplementation group: 'junit', name: 'junit', version:'4.12'
   }
+  
 }
 
 
@@ -294,6 +376,8 @@ task copyLicenseReport(type: Copy) {
   into additionalResourcesDir + '/licenses'
 }
 
+
+
 /**
  * Configure build script
  */
@@ -301,6 +385,7 @@ buildscript {
 
   dependencies {
       classpath 'gradle.plugin.com.github.jk1:gradle-license-report:1.3'
+//      classpath 'org.anarres.jarjar:jarjar-gradle:1.0.1'
   }
 
   repositories {

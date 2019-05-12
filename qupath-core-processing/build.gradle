@@ -1,3 +1,4 @@
+ext.moduleName = 'qupath.core.processing'
 
 description = 'qupath-core-processing'
 

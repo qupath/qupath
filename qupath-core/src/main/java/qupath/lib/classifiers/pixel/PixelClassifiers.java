@@ -1,9 +1,9 @@
 package qupath.lib.classifiers.pixel;
 
 import com.google.gson.Gson;
-import com.google.gson.RuntimeTypeAdapterFactory;
 import com.google.gson.TypeAdapter;
 import com.google.gson.TypeAdapterFactory;
+import com.google.gson.RuntimeTypeAdapterFactory;
 import com.google.gson.reflect.TypeToken;
 
 public class PixelClassifiers {

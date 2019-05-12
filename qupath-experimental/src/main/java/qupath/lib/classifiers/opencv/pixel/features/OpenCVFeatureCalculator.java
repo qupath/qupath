@@ -1,4 +1,4 @@
-package qupath.lib.classifiers.pixel.features;
+package qupath.lib.classifiers.opencv.pixel.features;
 
 import org.bytedeco.opencv.opencv_core.Mat;
 
