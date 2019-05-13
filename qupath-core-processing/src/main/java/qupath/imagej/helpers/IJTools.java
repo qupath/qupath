@@ -29,6 +29,8 @@ import java.awt.image.DataBuffer;
 import java.awt.image.SampleModel;
 import java.io.File;
 import java.io.IOException;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.text.DecimalFormat;
 import java.util.Arrays;
 import java.util.List;
@@ -50,11 +52,9 @@ import ij.process.FloatProcessor;
 import ij.process.ImageProcessor;
 import ij.process.LUT;
 import ij.process.ShortProcessor;
-import qupath.imagej.objects.PathImagePlus;
 import qupath.imagej.objects.ROIConverterIJ;
 import qupath.lib.awt.color.ColorToolsAwt;
 import qupath.lib.common.GeneralTools;
-import qupath.lib.common.URLTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.PathImage;
 import qupath.lib.images.servers.ImageServer;
@@ -461,7 +461,7 @@ public class IJTools {
 		FileInfo fi = imp.getOriginalFileInfo();
 		if (fi == null)
 			return null;
-		if (fi.url != null && URLTools.checkURL(fi.url))
+		if (fi.url != null && checkURL(fi.url))
 			return fi.url;
 		// Check the image info property
 		// (The info property should persist despite duplication, but the FileInfo probably doesn't)
@@ -470,17 +470,28 @@ public class IJTools {
 			for (String s : GeneralTools.splitLines(info)) {
 				if (s.toLowerCase().startsWith("url")) {
 					String url = s.substring(s.indexOf('=')+1).trim();
-					if (URLTools.checkURL(url))
+					if (checkURL(url))
 						return url;
 				}
 				if (s.toLowerCase().startsWith("location")) {
 					String url = s.substring(s.indexOf('=')+1).trim();
-					if (URLTools.checkURL(url))
+					if (checkURL(url))
 						return url;
 				}
 			}
 		}
 		return null;
+	}
+	
+	private static boolean checkURL(String url) {
+		// See if we can create a URL
+		try {
+			@SuppressWarnings("unused")
+			URL url2 = new URL(url);
+			return true;
+		} catch (MalformedURLException e) {
+			return false;
+		}
 	}
 
 	public static ImagePlus convertToUncalibratedImagePlus(String title, BufferedImage img) {
@@ -555,7 +566,7 @@ public class IJTools {
 	//		}
 			// Set calibration
 			calibrateImagePlus(imp, request, server);
-			return PathImagePlus.createPathImage(server, request, imp);
+			return createPathImage(server, request, imp);
 		}
 
 	/**
@@ -572,5 +583,21 @@ public class IJTools {
 		// Create an ImagePlus from a BufferedImage
 		return convertToImagePlus(server.getDisplayedImageName(), server, null, request);
 	}
+
+	public static PathImage<ImagePlus> createPathImage(final ImageServer<BufferedImage> server, final RegionRequest request, final ImagePlus imp) {
+		return new PathImagePlus(server, request, imp);
+	}
+
+//	private static PathImage<ImagePlus> createPathImage(final ImageServer<BufferedImage> server, final RegionRequest request) {
+//		return new PathImagePlus(server, request, null);
+//	}
+//
+//	private static PathImage<ImagePlus> createPathImage(final ImageServer<BufferedImage> server, final double downsample) {
+//		return createPathImage(server, RegionRequest.createInstance(server.getPath(), downsample, 0, 0, server.getWidth(), server.getHeight()));
+//	}
+//
+//	private static PathImage<ImagePlus> createPathImage(final ImageServer<BufferedImage> server, final ROI pathROI, final double downsample) {
+//		return createPathImage(server, RegionRequest.createInstance(server.getPath(), downsample, pathROI));
+//	}
 
 }

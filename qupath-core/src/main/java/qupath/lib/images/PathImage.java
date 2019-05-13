@@ -28,16 +28,15 @@ import java.io.IOException;
 import qupath.lib.regions.ImageRegion;
 
 /**
- * Interface used when wanting to store pixel data, in some format dependent on {@code <T>} (e.g. BufferedImage, ImagePlus, Mat...), along
- * with information of the image from which the pixel data was obtained, including the downsample factor used to extract it.
+ * Interface used when needing to associate pixel data with information regarding the image from which it was obtained.
+ * <p>
+ * The generic parameter defines the type of the image (e.g. BufferedImage, ImagePlus, Mat...).
  * 
  * @author Pete Bankhead
  *
  * @param <T>
  */
 public interface PathImage<T> {
-
-	public String getImageTitle();
 	
 	/**
 	 * Get the pixel data (image).

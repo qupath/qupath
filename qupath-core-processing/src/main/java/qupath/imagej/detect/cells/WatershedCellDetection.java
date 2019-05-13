@@ -24,6 +24,7 @@
 package qupath.imagej.detect.cells;
 
 import java.awt.image.BufferedImage;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -55,7 +56,6 @@ import ij.process.ImageStatistics;
 import ij.process.ShortProcessor;
 import qupath.imagej.color.ColorDeconvolutionIJ;
 import qupath.imagej.helpers.IJTools;
-import qupath.imagej.objects.PathImagePlus;
 import qupath.imagej.objects.ROIConverterIJ;
 import qupath.imagej.objects.measure.ObjectMeasurements;
 import qupath.imagej.processing.MorphologicalReconstruction;
@@ -84,6 +84,7 @@ import qupath.lib.plugins.ObjectDetector;
 import qupath.lib.plugins.parameters.DoubleParameter;
 import qupath.lib.plugins.parameters.Parameter;
 import qupath.lib.plugins.parameters.ParameterList;
+import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.PolygonROI;
 import qupath.lib.roi.ShapeSimplifier;
 import qupath.lib.roi.interfaces.PathArea;
@@ -247,17 +248,18 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 		
 	
 		@Override
-		public Collection<PathObject> runDetection(final ImageData<BufferedImage> imageData, ParameterList params, ROI pathROI) {
-			// TODO: Give a sensible error
+		public Collection<PathObject> runDetection(final ImageData<BufferedImage> imageData, ParameterList params, ROI pathROI) throws IOException {
 			if (pathROI == null)
-				return null;
+				throw new IOException("Cell detection requires a ROI!");
 			// Get a PathImage if we have a new ROI
 //			boolean imageChanged = false;
 			PathImage<ImagePlus> pathImage = null;
 			if (lastServerPath == null || !lastServerPath.equals(imageData.getServerPath()) || pathImage == null || !pathROI.equals(this.pathROI)) {
 				ImageServer<BufferedImage> server = imageData.getServer();
 				lastServerPath = imageData.getServerPath();
-				pathImage = PathImagePlus.createPathImage(server, pathROI, ServerTools.getDownsampleFactor(server, getPreferredPixelSizeMicrons(imageData, params), false));
+				double downsample = ServerTools.getDownsampleFactor(server, getPreferredPixelSizeMicrons(imageData, params));
+				pathImage = IJTools.convertToImagePlus(server, RegionRequest.createInstance(server.getPath(), downsample, pathROI));
+//				pathImage = IJTools.createPathImage(server, pathROI, ServerTools.getDownsampleFactor(server, getPreferredPixelSizeMicrons(imageData, params), false));
 				logger.trace("Cell detection with downsample: {}", pathImage.getDownsampleFactor());
 				this.pathROI = pathROI;
 //				imageChanged = true;

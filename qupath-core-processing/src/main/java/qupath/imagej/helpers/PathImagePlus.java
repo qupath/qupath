@@ -21,7 +21,7 @@
  * #L%
  */
 
-package qupath.imagej.objects;
+package qupath.imagej.helpers;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;
@@ -35,8 +35,6 @@ import qupath.lib.images.PathImage;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
-import qupath.lib.roi.interfaces.ROI;
-import qupath.imagej.helpers.IJTools;
 
 /**
  * PathImage implementation backed by an ImageJ ImagePlus object.
@@ -44,7 +42,7 @@ import qupath.imagej.helpers.IJTools;
  * @author Pete Bankhead
  *
  */
-public class PathImagePlus implements PathImage<ImagePlus> {
+class PathImagePlus implements PathImage<ImagePlus> {
 	
 	final private static Logger logger = LoggerFactory.getLogger(PathImagePlus.class);
 	
@@ -53,22 +51,6 @@ public class PathImagePlus implements PathImage<ImagePlus> {
 	private RegionRequest request;
 	private double pixelWidthMicrons = Double.NaN, pixelHeightMicrons = Double.NaN;
 
-	
-	public static PathImage<ImagePlus> createPathImage(final ImageServer<BufferedImage> server, final ROI pathROI, final double downsample) {
-		return createPathImage(server, RegionRequest.createInstance(server.getPath(), downsample, pathROI));
-	}
-
-	public static PathImage<ImagePlus> createPathImage(final ImageServer<BufferedImage> server, final double downsample) {
-		return createPathImage(server, RegionRequest.createInstance(server.getPath(), downsample, 0, 0, server.getWidth(), server.getHeight()));
-	}
-
-	public static PathImage<ImagePlus> createPathImage(final ImageServer<BufferedImage> server, final RegionRequest request) {
-		return new PathImagePlus(server, request, null);
-	}
-	
-	public static PathImage<ImagePlus> createPathImage(final ImageServer<BufferedImage> server, final RegionRequest request, final ImagePlus imp) {
-		return new PathImagePlus(server, request, imp);
-	}
 	
 	/**
 	 * Create a PathImage for which the image will be read lazily.
@@ -92,10 +74,6 @@ public class PathImagePlus implements PathImage<ImagePlus> {
 		}
 	}
 	
-	public void removeCachedImagePlus() {
-		this.imp = null;
-	}
-	
 //	protected void setImagePlusOrigin(ImagePlus imp) {
 //		if (imp == null || request == null)
 //			return;
@@ -105,14 +83,6 @@ public class PathImagePlus implements PathImage<ImagePlus> {
 //		cal.xOrigin = -bounds.x / downsampleFactor;
 //		cal.yOrigin = -bounds.y / downsampleFactor;
 //	}
-	
-	@Override
-	public String getImageTitle() {
-		if (hasCachedImage())
-			return imp.getTitle();
-		else
-			return "Untitled"; // TODO: RETURN TITLE BASED ON CACHED IMAGE OR PATH
-	}
 	
 	@Override
 	public ImagePlus getImage() {
@@ -161,7 +131,7 @@ public class PathImagePlus implements PathImage<ImagePlus> {
 		return null;
 	}
 	
-	public Calibration getCalibration() {
+	private Calibration getCalibration() {
 		return getImage().getCalibration();
 	}
 	
@@ -171,7 +141,7 @@ public class PathImagePlus implements PathImage<ImagePlus> {
 		return Math.abs(cal.pixelWidth - cal.pixelHeight) / cal.pixelWidth < 0.001;
 	}
 	
-	public static boolean calibrationMicrons(Calibration cal) {
+	private static boolean calibrationMicrons(Calibration cal) {
 		if (cal == null)
 			return false;
 		String unit = cal.getUnit().toLowerCase();

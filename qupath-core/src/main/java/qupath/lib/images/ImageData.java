@@ -49,6 +49,7 @@ import qupath.lib.plugins.workflow.WorkflowStep;
  * <p>
  * Currently, this is really the server (to access the image &amp; its pixels) and the object hierarchy that represents detections.
  * In addition, there is an ImageType - as some options may change depending on this.
+ * <p>
  * One particularly significant example is that of Brightfield images in pathology, for which stain vectors are often required for
  * effective stain separation.
  * 

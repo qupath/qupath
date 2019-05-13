@@ -11,6 +11,12 @@ import java.util.Map;
 
 import qupath.lib.images.servers.ImageChannel;
 
+/**
+ * Factory methods to help create ColorModels for use with BufferedImages.
+ * 
+ * @author Pete Bankhead
+ *
+ */
 public final class ColorModelFactory {
 	
 	private static Map<List<ImageChannel>, IndexColorModel> classificationModels = Collections.synchronizedMap(new HashMap<>());

@@ -25,6 +25,7 @@ package qupath.imagej.detect.dearray;
 
 import java.awt.Polygon;
 import java.awt.image.BufferedImage;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -38,7 +39,7 @@ import ij.plugin.ZProjector;
 import ij.process.ByteProcessor;
 import ij.process.ImageProcessor;
 import qupath.imagej.detect.dearray.TMADearrayer.TMAGridShape;
-import qupath.imagej.objects.PathImagePlus;
+import qupath.imagej.helpers.IJTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.PathImage;
 import qupath.lib.images.servers.ImageServer;
@@ -55,6 +56,7 @@ import qupath.lib.plugins.PluginRunner;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.plugins.workflow.SimplePluginWorkflowStep;
 import qupath.lib.plugins.workflow.WorkflowStep;
+import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.interfaces.ROI;
 
 
@@ -122,14 +124,14 @@ public class TMADearrayerPluginIJ extends AbstractInteractivePlugin<BufferedImag
 		if (dearrayer == null)
 			dearrayer = new Dearrayer();
 
-		tasks.add(new Runnable() {
-
-			@Override
-			public void run() {
+		tasks.add(() -> {
+			try {
 				dearrayer.runDetection(imageData, getParameterList(imageData), null);
 				TMAGrid tmaGrid = dearrayer.getTMAGrid();
 				if (tmaGrid != null)
 					imageData.getHierarchy().setTMAGrid(tmaGrid);
+			} catch (Exception e) {
+				logger.error("Error running TMA dearrayer", e);
 			}
 		});
 	}
@@ -184,7 +186,7 @@ public class TMADearrayerPluginIJ extends AbstractInteractivePlugin<BufferedImag
 		
 		
 		@Override
-		public Collection<PathObject> runDetection(final ImageData<BufferedImage> imageData, ParameterList params, ROI pathROI) {
+		public Collection<PathObject> runDetection(final ImageData<BufferedImage> imageData, ParameterList params, ROI pathROI) throws IOException {
 					
 			double fullCoreDiameterPx;
 			ImageServer<BufferedImage> server = imageData.getServer();
@@ -229,7 +231,9 @@ public class TMADearrayerPluginIJ extends AbstractInteractivePlugin<BufferedImag
 			}
 
 			// Read the image
-			PathImage<ImagePlus> pathImage = PathImagePlus.createPathImage(server, downsample);
+			PathImage<ImagePlus> pathImage = IJTools.convertToImagePlus(server,
+					RegionRequest.createInstance(server.getPath(), downsample, 0, 0, server.getWidth(), server.getHeight()));
+//			PathImage<ImagePlus> pathImage = IJTools.createPathImage(server, downsample);
 			ImagePlus imp = pathImage.getImage();
 
 			if (imp.getType() == ImagePlus.COLOR_RGB || imp.getNChannels() == 1)

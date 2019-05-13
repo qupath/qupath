@@ -39,7 +39,7 @@ import java.util.List;
  * @author Pete Bankhead
  *
  */
-public class DefaultMeasurementList implements MeasurementList {
+class DefaultMeasurementList implements MeasurementList {
 	
 	private static final long serialVersionUID = 1L;
 	

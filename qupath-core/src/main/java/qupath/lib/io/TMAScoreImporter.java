@@ -68,7 +68,7 @@ public class TMAScoreImporter {
 		return importFromCSV(readCSV(text), hierarchy);
 	}
 
-	static int importFromCSV(final Map<String, List<String>> map, final PathObjectHierarchy hierarchy) {
+	private static int importFromCSV(final Map<String, List<String>> map, final PathObjectHierarchy hierarchy) {
 		
 		TMAGrid tmaGrid = hierarchy.getTMAGrid();
 		if (tmaGrid == null || tmaGrid.nCores() == 0) {
@@ -217,13 +217,13 @@ public class TMAScoreImporter {
 	}
 
 	/**
-	 * Parse numeric values.
+	 * Parse numeric values from a list of strings.
+	 * <p>
 	 * 
-	 * If allOrNothing is true, the assumption is made that all values will be numeric or none of them will.
-	 * Consequently, if any non-missing, non-numeric value is found then null is returned.
-	 * Otherwise, NaNs are returned for any value that couldn't be parsed.
-	 * 
-	 * @param list
+	 * @param list			list of strings containing the input text. Empty or null strings are treated as missing and returned as NaN.
+	 * @param allOrNothing 	is true, the assumption is made that all values will be numeric or none of them will.
+	 * 						Consequently, if any non-missing, non-numeric value is found then null is returned.
+	 * 						Otherwise, NaNs are returned for any value that couldn't be parsed.
 	 * @return
 	 */
 	public static double[] parseNumeric(List<String> list, boolean allOrNothing) {
@@ -231,17 +231,6 @@ public class TMAScoreImporter {
 		int i = 0;
 		NumberFormat format = NumberFormat.getInstance();
 		for (String s : list) {
-			
-//			if (s.equals("Yes")) {
-//				vals[i] = 1;
-//				i++;
-//				continue;
-//			} else if (s.equals("No")){
-//				vals[i] = 0;
-//				i++;
-//				continue;
-//			}
-			
 			if (s == null || s.trim().length() == 0)
 				vals[i] = Double.NaN;
 			else {
@@ -257,21 +246,6 @@ public class TMAScoreImporter {
 						}						
 					}
 				}
-			}
-			i++;
-		}
-		return vals;
-	}
-	
-	
-	public static boolean[] parseBoolean(List<String> list) {
-		boolean[] vals = new boolean[list.size()];
-		int i = 0;
-		for (String s : list) {
-			if (s == null || s.trim().length() == 0)
-				vals[i] = false;
-			else {
-				vals[i] = Boolean.parseBoolean(s);
 			}
 			i++;
 		}
@@ -330,26 +304,4 @@ public class TMAScoreImporter {
 
 		return map;
 	}
-	
-	
-//	static class TMAScore {
-//		
-//		final private String name;
-//		final private MeasurementList measurements;
-//		
-//		public TMAScore(String name, MeasurementList measurements) {
-//			this.name = name;
-//			this.measurements = measurements;
-//		}
-//		
-//		public String getName() {
-//			return name;
-//		}
-//		
-//		public MeasurementList getMeasurements() {
-//			return measurements;
-//		}
-//		
-//	}
-	
 }

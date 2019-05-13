@@ -181,7 +181,7 @@ public class PathAwtIO {
 
 			
 			
-			final double downsample = Double.isNaN(downsampleFactor) ? (server.hasPixelSizeMicrons() ? ServerTools.getDownsampleFactor(server, PathPrefs.getPreferredTMAExportPixelSizeMicrons(), false) : 1) : downsampleFactor;
+			final double downsample = Double.isNaN(downsampleFactor) ? (server.hasPixelSizeMicrons() ? ServerTools.getDownsampleFactor(server, PathPrefs.getPreferredTMAExportPixelSizeMicrons()) : 1) : downsampleFactor;
 			
 			// Creating a plugin makes it possible to parallelize & show progress easily
 			ExportCoresPlugin plugin = new ExportCoresPlugin(dirData, options, downsample);

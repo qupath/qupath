@@ -24,18 +24,21 @@
 package qupath.lib.common;
 
 import java.awt.Desktop;
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.lang.reflect.Type;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.net.URL;
+import java.net.URLConnection;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.text.NumberFormat;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -139,8 +142,10 @@ public class GeneralTools {
 	}
 
 	/**
-	 * Test if two doubles are approximately equal, within a specified tolerance;
-	 * the absolute difference is divided by the first of the numbers before the tolerance is checked.
+	 * Test if two doubles are approximately equal, within a specified tolerance.
+	 * <p>
+	 * The absolute difference is divided by the first of the numbers before the tolerance is checked.
+	 * 
 	 * @param n1
 	 * @param n2
 	 * @param tolerance
@@ -193,8 +198,8 @@ public class GeneralTools {
 	
 
 	/**
-	 * Convert a double array to string, with a specified number of decimal places; trailing zeros are
-	 * not included.
+	 * Convert a double array to string, with a specified number of decimal places.
+	 * Trailing zeros are not included.
 	 * 
 	 * @param locale
 	 * @param array
@@ -335,7 +340,7 @@ public class GeneralTools {
 
 	/**
 	 * Parse the contents of a JSON String.
-	 * 
+	 * <p>
 	 * Note that this is pretty unsophisticated... also, no localization is performed (using Java's Locales, for example) -
 	 * so that decimal values should be provided in the form 1.234 (and not e.g. 1,234).
 	 * 
@@ -453,6 +458,31 @@ public class GeneralTools {
 				return;
 		}
 		fileToDelete.delete();
+	}
+
+
+	/**
+	 * Read URL as String, with specified timeout in milliseconds.
+	 * <p>
+	 * The content type is checked, and an IOException is thrown if this doesn't start with text/plain.
+	 * 
+	 * @param url
+	 * @param timeoutMillis
+	 * @return
+	 */
+	public static String readURLAsString(final URL url, final int timeoutMillis) throws IOException {
+		StringBuilder response = new StringBuilder();
+		String line = null;
+		URLConnection connection = url.openConnection();
+		connection.setConnectTimeout(timeoutMillis);
+		String contentType = connection.getContentType();
+		if (contentType.startsWith("text/plain")) {
+			try (BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream()))) {
+				while ((line = in.readLine()) != null) 
+					response.append(line + "\n");
+			}
+			return response.toString();
+		} else throw new IOException("Expected content type text/plain, but got " + contentType);
 	}
 
 }

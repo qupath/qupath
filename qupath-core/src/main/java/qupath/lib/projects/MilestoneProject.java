@@ -64,13 +64,13 @@ import com.google.gson.JsonObject;
 import qupath.lib.classifiers.PathObjectClassifier;
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.common.GeneralTools;
-import qupath.lib.common.URLTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.ImageData.ImageType;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.ImageServerProvider;
 import qupath.lib.images.servers.RotatedImageServer;
+import qupath.lib.images.servers.ServerTools;
 import qupath.lib.io.PathIO;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.classes.PathClass;
@@ -514,10 +514,7 @@ class MilestoneProject {
 				this.serverPath = "{$PROJECT_DIR}" + this.serverPath.substring(projectPath.length());
 			
 			if (imageName == null) {
-				if (URLTools.checkURL(serverPath))
-					this.imageName = URLTools.getNameFromBaseURL(serverPath);
-				else
-					this.imageName = new File(serverPath).getName();
+				this.imageName = ServerTools.getDefaultShortServerName(serverPath);
 			} else
 				this.imageName = imageName;
 			

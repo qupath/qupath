@@ -33,7 +33,7 @@ import qupath.lib.roi.PathROIToolsAwt;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
- * Some helpful static methods for working with BufferedImages and QuPath objects.
+ * Static methods for working with BufferedImages and QuPath objects.
  * 
  * @author Pete Bankhead
  *
@@ -82,32 +82,32 @@ public class BufferedImageTools {
 	}
 
 	/**
-		 * Ensure that an RGB image is the same kind of RGB, so that the int arrays can be treated as 
-		 * storing the pixels as packed RGB values.
-		 * <p>
-		 * Running this command results in byte array variations, or BGR images are converted to have BufferedImage.TYPE_INT_RGB.
-		 * <p>
-		 * Images that are already RGB, or RGBA are returned unchanged.
-		 * 
-		 * @param img
-		 * @return
-		 */
-		public static BufferedImage ensureIntRGB(final BufferedImage img) {
-			if (img == null)
-				return null;
-			switch (img.getType()) {
-			case BufferedImage.TYPE_3BYTE_BGR:
-			case BufferedImage.TYPE_4BYTE_ABGR:
-			case BufferedImage.TYPE_4BYTE_ABGR_PRE:
-			case BufferedImage.TYPE_INT_BGR:
-				BufferedImage img2 = new BufferedImage(img.getWidth(), img.getHeight(), BufferedImage.TYPE_INT_RGB);
-	//			BufferedImage img2 = new BufferedImage(img.getWidth(), img.getHeight(), BufferedImage.TYPE_INT_ARGB_PRE);
-				Graphics2D g2d = img2.createGraphics();
-				g2d.drawImage(img, 0, 0, null);
-				g2d.dispose();
-				return img2;
-			}
-			return img;
+	 * Ensure that an RGB image is the same kind of RGB, so that the int arrays can be treated as 
+	 * storing the pixels as packed RGB values.
+	 * <p>
+	 * Running this command results in byte array variations, or BGR images are converted to have BufferedImage.TYPE_INT_RGB.
+	 * <p>
+	 * Images that are already RGB, or RGBA are returned unchanged.
+	 * 
+	 * @param img
+	 * @return
+	 */
+	public static BufferedImage ensureIntRGB(final BufferedImage img) {
+		if (img == null)
+			return null;
+		switch (img.getType()) {
+		case BufferedImage.TYPE_3BYTE_BGR:
+		case BufferedImage.TYPE_4BYTE_ABGR:
+		case BufferedImage.TYPE_4BYTE_ABGR_PRE:
+		case BufferedImage.TYPE_INT_BGR:
+			BufferedImage img2 = new BufferedImage(img.getWidth(), img.getHeight(), BufferedImage.TYPE_INT_RGB);
+//			BufferedImage img2 = new BufferedImage(img.getWidth(), img.getHeight(), BufferedImage.TYPE_INT_ARGB_PRE);
+			Graphics2D g2d = img2.createGraphics();
+			g2d.drawImage(img, 0, 0, null);
+			g2d.dispose();
+			return img2;
 		}
+		return img;
+	}
 
 }

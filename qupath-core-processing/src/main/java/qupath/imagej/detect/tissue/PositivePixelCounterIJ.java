@@ -24,6 +24,7 @@
 package qupath.imagej.detect.tissue;
 
 import java.awt.image.BufferedImage;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -39,7 +40,7 @@ import ij.process.ByteProcessor;
 import ij.process.ColorProcessor;
 import ij.process.FloatProcessor;
 import ij.process.ImageProcessor;
-import qupath.imagej.objects.PathImagePlus;
+import qupath.imagej.helpers.IJTools;
 import qupath.imagej.objects.ROIConverterIJ;
 import qupath.lib.color.ColorDeconvolutionStains;
 import qupath.lib.color.ColorTransformer;
@@ -88,7 +89,7 @@ public class PositivePixelCounterIJ extends AbstractDetectionPlugin<BufferedImag
 		}
 	
 		@Override
-		public Collection<PathObject> runDetection(final ImageData<BufferedImage> imageData, ParameterList params, ROI pathROI) {
+		public Collection<PathObject> runDetection(final ImageData<BufferedImage> imageData, ParameterList params, ROI pathROI) throws IOException {
 			// Reset any detected objects
 			List< PathObject> pathObjects = new ArrayList<>();
 			
@@ -117,7 +118,7 @@ public class PositivePixelCounterIJ extends AbstractDetectionPlugin<BufferedImag
 			// Read the image, if necessary
 			ImageServer<BufferedImage> server = imageData.getServer();
 			RegionRequest request = RegionRequest.createInstance(imageData.getServerPath(), downsample, pathROI);
-			PathImage<ImagePlus> pathImage = PathImagePlus.createPathImage(imageData.getServer(), request);
+			PathImage<ImagePlus> pathImage = IJTools.convertToImagePlus(imageData.getServer(), request);
 			ImagePlus imp = pathImage.getImage();
 			
 			int w = imp.getWidth();

@@ -75,7 +75,6 @@ import qupath.imagej.gui.commands.ScreenshotCommand;
 import qupath.imagej.helpers.IJTools;
 import qupath.imagej.images.writers.TIFFWriterIJ;
 import qupath.imagej.images.writers.ZipWriterIJ;
-import qupath.imagej.objects.PathImagePlus;
 import qupath.imagej.objects.ROIConverterIJ;
 import qupath.imagej.plugins.ImageJMacroRunner;
 import qupath.imagej.superpixels.DoGSuperpixelsPlugin;
@@ -355,7 +354,7 @@ public class IJExtension implements QuPathExtension {
 					}
 					if (imp != null) {
 						IJTools.calibrateImagePlus(imp, request, server);
-						pathImage = PathImagePlus.createPathImage(server, request, imp);;
+						pathImage = IJTools.createPathImage(server, request, imp);
 					}
 				}
 			}

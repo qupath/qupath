@@ -24,6 +24,7 @@
 package qupath.imagej.detect.cells;
 
 import java.awt.image.BufferedImage;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -54,7 +55,7 @@ import ij.process.ImageProcessor;
 import ij.process.ImageStatistics;
 import ij.process.ShortProcessor;
 import qupath.imagej.color.ColorDeconvolutionIJ;
-import qupath.imagej.objects.PathImagePlus;
+import qupath.imagej.helpers.IJTools;
 import qupath.imagej.objects.ROIConverterIJ;
 import qupath.imagej.objects.measure.ObjectMeasurements;
 import qupath.imagej.processing.MorphologicalReconstruction;
@@ -83,6 +84,7 @@ import qupath.lib.plugins.AbstractTileableDetectionPlugin;
 import qupath.lib.plugins.ObjectDetector;
 import qupath.lib.plugins.parameters.Parameter;
 import qupath.lib.plugins.parameters.ParameterList;
+import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.PolygonROI;
 import qupath.lib.roi.ShapeSimplifier;
 import qupath.lib.roi.interfaces.PathArea;
@@ -221,7 +223,7 @@ public class WatershedCellMembraneDetection extends AbstractTileableDetectionPlu
 		
 	
 		@Override
-		public Collection<PathObject> runDetection(final ImageData<BufferedImage> imageData, ParameterList params, ROI pathROI) {
+		public Collection<PathObject> runDetection(final ImageData<BufferedImage> imageData, ParameterList params, ROI pathROI) throws IOException {
 			// TODO: Give a sensible error
 			if (pathROI == null)
 				return null;
@@ -230,7 +232,9 @@ public class WatershedCellMembraneDetection extends AbstractTileableDetectionPlu
 			PathImage<ImagePlus> pathImage = null;
 //			if (pathImage == null || lastServerPath == null || !lastServerPath.equals(imageData.getServerPath()) || !pathROI.equals(this.pathROI)) {
 				ImageServer<BufferedImage> server = imageData.getServer();
-				pathImage = PathImagePlus.createPathImage(server, pathROI, ServerTools.getDownsampleFactor(server, getPreferredPixelSizeMicrons(imageData, params), false));
+				pathImage = IJTools.convertToImagePlus(server, RegionRequest.createInstance(server.getPath(),
+						ServerTools.getDownsampleFactor(server, getPreferredPixelSizeMicrons(imageData, params)),
+						pathROI));
 //				System.out.println("Downsample: " + pathImage.getDownsampleFactor());
 //				this.pathROI = pathROI;
 //				lastServerPath = imageData.getServerPath();

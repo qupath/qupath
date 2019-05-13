@@ -58,8 +58,6 @@ public abstract class PathObject implements Externalizable {
 	
 	private static final long serialVersionUID = 1L;
 	
-	protected static int DEFAULT_MEASUREMENT_LIST_CAPACITY = 16;
-
 	private PathObject parent = null;
 	private Collection<PathObject> childList = null; // Collections.synchronizedList(new ArrayList<>(0));
 	private MeasurementList measurements = null;

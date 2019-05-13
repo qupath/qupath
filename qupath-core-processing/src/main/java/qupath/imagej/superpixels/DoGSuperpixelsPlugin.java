@@ -35,11 +35,12 @@ import ij.process.ImageProcessor;
 import ij.process.ShortProcessor;
 
 import java.awt.image.BufferedImage;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
-import qupath.imagej.objects.PathImagePlus;
+import qupath.imagej.helpers.IJTools;
 import qupath.imagej.objects.ROIConverterIJ;
 import qupath.imagej.processing.ROILabeling;
 import qupath.lib.common.GeneralTools;
@@ -52,13 +53,14 @@ import qupath.lib.plugins.AbstractTileableDetectionPlugin;
 import qupath.lib.plugins.ObjectDetector;
 import qupath.lib.plugins.PluginRunner;
 import qupath.lib.plugins.parameters.ParameterList;
+import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.interfaces.PathArea;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
  * A simple superpixel-generating command based upon applying ImageJ's watershed transform to the
  * absolute values of a Difference-of-Gaussians filtered image.
- * 
+ * <p>
  * This provides tile objects that generally correspond to regions containing reasonably similar 
  * intensities or textures, which might then be classified.
  * 
@@ -124,7 +126,7 @@ public class DoGSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffer
 		private String lastResultSummary = null;
 
 		@Override
-		public Collection<PathObject> runDetection(final ImageData<BufferedImage> imageData, final ParameterList params, final ROI pathROI) {
+		public Collection<PathObject> runDetection(final ImageData<BufferedImage> imageData, final ParameterList params, final ROI pathROI) throws IOException {
 			
 			// TODO: Give a sensible error
 			if (pathROI == null) {
@@ -134,7 +136,8 @@ public class DoGSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffer
 			// Get a PathImage if we have a new ROI
 			if (!pathROI.equals(this.pathROI)) {
 				ImageServer<BufferedImage> server = imageData.getServer();
-				this.pathImage = PathImagePlus.createPathImage(server, pathROI, params.getDoubleParameterValue("downsampleFactor"));
+				this.pathImage = IJTools.convertToImagePlus(server, RegionRequest.createInstance(server.getPath(), params.getDoubleParameterValue("downsampleFactor"), pathROI));
+//				this.pathImage = IJTools.createPathImage(server, pathROI, params.getDoubleParameterValue("downsampleFactor"));
 				this.pathROI = pathROI;
 			}
 			

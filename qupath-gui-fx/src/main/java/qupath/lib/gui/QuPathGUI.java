@@ -185,7 +185,6 @@ import qupath.lib.algorithms.LocalBinaryPatternsPlugin;
 import qupath.lib.algorithms.TilerPlugin;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.common.SimpleThreadFactory;
-import qupath.lib.common.URLTools;
 import qupath.lib.gui.commands.AnnotationCombineCommand;
 import qupath.lib.gui.commands.BrightnessContrastCommand;
 import qupath.lib.gui.commands.CommandListDisplayCommand;
@@ -1052,7 +1051,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			try {
 				// Try to download latest changelog
 				URL url = new URL("https://raw.githubusercontent.com/qupath/qupath/master/CHANGELOG.md");
-				String changeLogOnline = URLTools.readURLAsString(url, 2000);
+				String changeLogOnline = GeneralTools.readURLAsString(url, 2000);
 				
 				// Store last update check time
 				PathPrefs.getUserPreferences().putLong("lastUpdateCheck", System.currentTimeMillis());

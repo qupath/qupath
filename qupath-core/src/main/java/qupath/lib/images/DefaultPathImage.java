@@ -42,6 +42,7 @@ public class DefaultPathImage<T> implements PathImage<T> {
 	
 	/**
 	 * The bounds are the coordinates in the original image space (in pixels) from which this image was extracted.
+	 * <p>
 	 * This is useful for whole slide images, from which this may be a downsampled part.
 	 * 
 	 * @param server
@@ -53,11 +54,6 @@ public class DefaultPathImage<T> implements PathImage<T> {
 		this.request = request;
 		this.pixelWidthMicrons = server.getPixelWidthMicrons() * request.getDownsample();
 		this.pixelHeightMicrons = server.getPixelHeightMicrons() * request.getDownsample();
-	}
-	
-	@Override
-	public String getImageTitle() {
-		return request.getPath(); // TODO: Consider shortening the path
 	}
 
 	@Override

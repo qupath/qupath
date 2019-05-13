@@ -32,7 +32,9 @@ package qupath.lib.roi.interfaces;
 public interface ROIWithHull extends ROI {
 
 	/**
-	 * Get a PathArea representing the convex hull of this ROI, i.e. the smallest convex shape that may completely contain it.
+	 * Get a PathArea representing the convex hull of this ROI.
+	 * <p>
+	 * This is the smallest convex shape that may completely contain the ROI.
 	 * @return
 	 */
 	public PathArea getConvexHull();

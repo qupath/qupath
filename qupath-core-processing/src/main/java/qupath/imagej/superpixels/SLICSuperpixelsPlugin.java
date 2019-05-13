@@ -32,6 +32,7 @@ import ij.process.ColorSpaceConverter;
 import ij.process.ImageProcessor;
 import ij.process.ShortProcessor;
 import java.awt.image.BufferedImage;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -42,7 +43,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.imagej.color.ColorDeconvolutionIJ;
-import qupath.imagej.objects.PathImagePlus;
+import qupath.imagej.helpers.IJTools;
 import qupath.imagej.objects.ROIConverterIJ;
 import qupath.imagej.processing.ROILabeling;
 import qupath.lib.analysis.stats.RunningStatistics;
@@ -56,6 +57,7 @@ import qupath.lib.plugins.AbstractTileableDetectionPlugin;
 import qupath.lib.plugins.ObjectDetector;
 import qupath.lib.plugins.PluginRunner;
 import qupath.lib.plugins.parameters.ParameterList;
+import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.interfaces.PathArea;
 import qupath.lib.roi.interfaces.ROI;
 
@@ -161,7 +163,7 @@ public class SLICSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffe
 		private String lastResultSummary = null;
 
 		@Override
-		public Collection<PathObject> runDetection(final ImageData<BufferedImage> imageData, final ParameterList params, final ROI pathROI) {
+		public Collection<PathObject> runDetection(final ImageData<BufferedImage> imageData, final ParameterList params, final ROI pathROI) throws IOException {
 			
 			// TODO: Give a sensible error
 			if (pathROI == null) {
@@ -171,7 +173,7 @@ public class SLICSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffe
 			// Get a PathImage if we have a new ROI
 			if (!pathROI.equals(this.pathROI)) {
 				ImageServer<BufferedImage> server = imageData.getServer();
-				this.pathImage = PathImagePlus.createPathImage(server, pathROI, getPreferredDownsample(imageData, params));
+				this.pathImage = IJTools.convertToImagePlus(server, RegionRequest.createInstance(server.getPath(), getPreferredDownsample(imageData, params), pathROI));
 				this.pathROI = pathROI;
 			}
 			

@@ -26,9 +26,6 @@ package qupath.lib.images.servers;
 import java.io.File;
 import java.net.URI;
 
-import qupath.lib.common.GeneralTools;
-import qupath.lib.common.URLTools;
-
 /**
  * Static methods helpful when dealing with ImageServers.
  * 
@@ -36,29 +33,6 @@ import qupath.lib.common.URLTools;
  *
  */
 public class ServerTools {
-
-	/**
-	 * Get the index of the closest downsample factor from an array of available factors.
-	 * <p>
-	 * The array is assumed to be sorted in ascending order.
-	 * 
-	 * @param preferredDownsamples
-	 * @param downsampleFactor
-	 * @return
-	 */
-	public static int getClosestDownsampleIndex(double[] preferredDownsamples, double downsampleFactor) {
-		downsampleFactor = Math.max(downsampleFactor, preferredDownsamples[0]);
-		int bestDownsampleSeries = -1;
-		double bestDownsampleDiff = Double.POSITIVE_INFINITY;
-		for (int i = 0; i < preferredDownsamples.length; i++) {
-			double downsampleDiff = downsampleFactor - preferredDownsamples[i];
-			if (!Double.isNaN(downsampleDiff) && (downsampleDiff >= 0 || GeneralTools.almostTheSame(downsampleFactor, preferredDownsamples[i], 0.01)) && downsampleDiff < bestDownsampleDiff) {
-				bestDownsampleSeries = i;
-				bestDownsampleDiff = Math.abs(downsampleDiff);
-			}
-		}
-		return bestDownsampleSeries;
-	}
 
 	/**
 	 * Get the default shortened server name given the server's path.
@@ -76,12 +50,14 @@ public class ServerTools {
 			}
 			String name = new File(path).getName().replaceFirst("[.][^.]+$", "");
 			return name;
-		} catch (Exception e) {}
-		if (URLTools.checkURL(path))
-			return URLTools.getNameFromBaseURL(path);
-		return path;		
+		} catch (Exception e) {
+			int ind = Math.max(path.lastIndexOf("/"), path.lastIndexOf("\\"));
+			if (ind > 0 || ind < path.length()-1)
+				return path.substring(ind+1);
+			return path;
+		}
 	}
-
+	
 	/**
 	 * Calculate a downsample factor for a server given a preferred pixel size and the pixel size of the server itself.
 	 * <p>
@@ -107,17 +83,14 @@ public class ServerTools {
 	/**
 	 * Calculate a downsample factor for a server given a preferred pixel size.
 	 * 
-	 * Optionally ensure that the downsample is a power of 2 (i.e. the closest power of 2 available to the 'ideal' downsample).
-	 * 
 	 * @param server
 	 * @param preferredPixelSizeMicrons
-	 * @param doLog2
 	 * @return
 	 */
-	public static double getDownsampleFactor(final ImageServer<?> server, final double preferredPixelSizeMicrons, boolean doLog2) {
+	public static double getDownsampleFactor(final ImageServer<?> server, final double preferredPixelSizeMicrons) {
 		if (server == null)
 			return Double.NaN;
-		double downsampleFactor = getPreferredDownsampleForPixelSizeMicrons(server.getAveragedPixelSizeMicrons(), preferredPixelSizeMicrons, doLog2);
+		double downsampleFactor = getPreferredDownsampleForPixelSizeMicrons(server.getAveragedPixelSizeMicrons(), preferredPixelSizeMicrons, false);
 		if (Double.isNaN(downsampleFactor) || downsampleFactor < 1)
 			downsampleFactor = 1;
 		return downsampleFactor;

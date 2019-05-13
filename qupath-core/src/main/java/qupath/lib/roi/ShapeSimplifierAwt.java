@@ -48,7 +48,7 @@ public class ShapeSimplifierAwt {
 	/**
 	 * 
 	 * Create a simplified path (fewer coordinates) using method based on Visvalingam’s Algorithm.
-	 * 
+	 * <p>
 	 * See references:
 	 * https://hydra.hull.ac.uk/resources/hull:8338
 	 * https://www.jasondavies.com/simplify/
@@ -98,7 +98,7 @@ public class ShapeSimplifierAwt {
 	/**
 	 * 
 	 * Create a simplified shape (fewer coordinates) using method based on Visvalingam’s Algorithm.
-	 * 
+	 * <p>
 	 * See references:
 	 * https://hydra.hull.ac.uk/resources/hull:8338
 	 * https://www.jasondavies.com/simplify/
@@ -116,7 +116,7 @@ public class ShapeSimplifierAwt {
 		return new AWTAreaROI(path, shapeROI.getC(), shapeROI.getZ(), shapeROI.getT());
 	}
 
-	static void getNextClosedSegment(PathIterator iter, List<Point2> points) {
+	private static void getNextClosedSegment(PathIterator iter, List<Point2> points) {
 		double[] seg = new double[6];
 		while (!iter.isDone()) {
 			switch(iter.currentSegment(seg)) {

@@ -35,8 +35,16 @@ import qupath.lib.geom.Point2;
  */
 public interface PathPoints extends ROI {
 	
+	/**
+	 * Get the total number of points in the ROI.
+	 * @return
+	 */
 	public int getNPoints();
 	
+	/**
+	 * Get a list of individual points in the ROI.
+	 * @return
+	 */
 	public List<Point2> getPointList();
 
 }
