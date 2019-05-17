@@ -30,7 +30,7 @@ import java.nio.FloatBuffer;
 import org.bytedeco.opencv.opencv_core.Mat;
 import org.bytedeco.opencv.opencv_core.Scalar;
 
-import qupath.lib.analysis.algorithms.SimpleModifiableImage;
+import qupath.lib.analysis.images.SimpleModifiableImage;
 
 /**
  * A very simple class to access pixel values from a 1-channel OpenCV Mat... 

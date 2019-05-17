@@ -21,22 +21,16 @@
  * #L%
  */
 
-package qupath.lib.images.writers;
-
-import qupath.lib.io.ImageWriter;
+package qupath.lib.analysis.images;
 
 /**
- * Abstract ImageWriter implementation.
+ * A minimal interface to define a means to provide access to pixel values from a 2D, 1-channel image.
  * 
  * @author Pete Bankhead
  *
- * @param <T>
  */
-public abstract class AbstractImageWriter<T> implements ImageWriter<T> {
+public interface SimpleModifiableImage extends SimpleImage {
 	
-	@Override
-	public String toString() {
-		return getName();
-	}
+	public void setValue(int x, int y, float val);
 	
 }

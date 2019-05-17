@@ -167,6 +167,7 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
 	
 	/**
 	 * Set the color deconvolution stain vectors for the current image type.
+	 * <p>
 	 * If the type is not brightfield, an IllegalArgumentException is thrown.
 	 * 
 	 * @param stains
@@ -184,23 +185,30 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
 	}
 	
 	
-	public void setColorDeconvolutionStains(final String stainsString) {
-		setColorDeconvolutionStains(ColorDeconvolutionStains.parseColorDeconvolutionStainsArg(stainsString));
-	}
+//	public void setColorDeconvolutionStains(final String stainsString) {
+//		setColorDeconvolutionStains(ColorDeconvolutionStains.parseColorDeconvolutionStainsArg(stainsString));
+//	}
+//	
+//	public void setImageType(final String type) {
+//		setImageType(ImageType.valueOf(type));
+//	}
 	
-	
+	/**
+	 * Returns true if the image type is set to brightfield.
+	 * @return
+	 */
 	public boolean isBrightfield() {
 		return getImageType().toString().toLowerCase().startsWith("brightfield");
 	}
 	
+	/**
+	 * Returns true if the image type is set to fluorescence.
+	 * @return
+	 */
 	public boolean isFluorescence() {
 		return getImageType() == ImageType.FLUORESCENCE;
 	}
 	
-	
-	public void setImageType(final String type) {
-		setImageType(ImageType.valueOf(type));
-	}
 	
 	public void setImageType(final ImageType type) {
 		if (this.type == type)
@@ -294,7 +302,6 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
 	public ColorDeconvolutionStains getColorDeconvolutionStains() {
 		return stainMap.get(getImageType());
 	}
-	
 	
 	public void addPropertyChangeListener(PropertyChangeListener listener) {
 		if (pcs == null)

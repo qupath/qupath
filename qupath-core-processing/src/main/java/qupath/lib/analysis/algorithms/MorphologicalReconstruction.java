@@ -23,9 +23,11 @@
 
 package qupath.lib.analysis.algorithms;
 
+import qupath.lib.analysis.images.SimpleImage;
+import qupath.lib.analysis.images.SimpleModifiableImage;
 
 /**
- * Implementation of 2D morphological reconstruction, using 8-connectivity & a hybrid method.
+ * Implementation of 2D morphological reconstruction, using 8-connectivity &amp; a hybrid method.
  * <p>
  * TODO: Implement any further optimizations added to the ImageJ version
  * 

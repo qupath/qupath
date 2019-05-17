@@ -136,7 +136,7 @@ public class OpenslideServerBuilder implements ImageServerBuilder<BufferedImage>
 		if (type.nImagesLargest() == 1)
 			return 3.5f;
 		else if (type.nImagesLargest() == -1)
-			return 2f;
+			return 2.5f;
 		else
 			return 1f;
 	}

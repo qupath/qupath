@@ -24,6 +24,7 @@
 package qupath.lib.images.servers.bioformats;
 
 import java.awt.image.BufferedImage;
+import java.io.File;
 import java.util.Map;
 import java.net.URI;
 import java.util.Collection;
@@ -94,22 +95,40 @@ public class BioFormatsServerBuilder implements ImageServerBuilder<BufferedImage
 		
 		// We don't want to handle zip files (which are very slow)
 		float support = 3f;
+				
 		String description = type.getDescription();
 		if (path.toLowerCase().endsWith(".zip"))
 			support = 1f;
-		else if (type.isTiff() && description != null) {
-			if (description.contains("<OME "))
-				support = 5f;
-			if (description.contains("imagej"))
-				support = 3.5f;
-			if (path.endsWith(".qptiff"))
-				support = 3.5f;
+		else if (type.isTiff()) {
+			// Some nasty files seem to be larger than they think they are - which can be troublesome
+			if (!type.isBigTiff() && type.getFile().length() >= 1024L * 1024L * 1024L * 4L) {
+				support = 2f;
+			}
+			if (description != null) {
+				if (description.contains("<OME "))
+					support = 5f;
+				if (description.contains("imagej"))
+					support = 3.5f;
+				if (path.endsWith(".qptiff"))
+					support = 3.5f;
+			}
+		} else {
+			// Check if we know the file type
+			File file = type.getFile();
+			if (file != null) {
+				String supportedReader = null;
+				try {
+					supportedReader = BioFormatsImageServer.getSupportedReaderClass(file.getAbsolutePath());
+				} catch (Exception e) {
+					logger.warn("Error checking file " + file.getAbsolutePath(), e);
+				}
+				if (supportedReader == null) {
+					logger.debug("No supported reader found for {}", file.getAbsolutePath());
+					return 1f;
+				} 
+				logger.debug("Potential Bio-Formats reader: {}", supportedReader);
+			}
 		}
-		// Some nasty files seem to be larger than they think they are - which can be troublesome
-		if (type.isTiff() && !type.isBigTiff() && type.getFile().length() >= 1024L * 1024L * 1024L * 4L) {
-			support = 2f;
-		}
-		
 		lastSupportLevel.put(uri, Float.valueOf(support));
 		return support;
 	}

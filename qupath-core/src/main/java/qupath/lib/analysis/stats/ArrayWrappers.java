@@ -86,7 +86,9 @@ public class ArrayWrappers {
 		return new UnsignedShortArrayWrapper(array);
 	}
 
-	
+	/**
+	 * Simple wrapper for an array or list, enabling values to be returned as doubles.
+	 */
 	public static interface ArrayWrapper {
 		
 		/**

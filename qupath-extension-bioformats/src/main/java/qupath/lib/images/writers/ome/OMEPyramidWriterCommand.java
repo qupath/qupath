@@ -14,7 +14,7 @@ import org.slf4j.LoggerFactory;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.StringProperty;
 import javafx.collections.FXCollections;
-import qupath.lib.common.SimpleThreadFactory;
+import qupath.lib.common.ThreadTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.helpers.DisplayHelpers;
@@ -112,7 +112,7 @@ public class OMEPyramidWriterCommand implements PathCommand {
 		}
 		
 		if (pool == null) {
-			pool = Executors.newSingleThreadExecutor(new SimpleThreadFactory("ome-pyramid-export", false));
+			pool = Executors.newSingleThreadExecutor(ThreadTools.createThreadFactory("ome-pyramid-export", false));
 		}
 		QuPathViewer viewer = qupath.getViewer();
 		ImageData<BufferedImage> imageData = viewer.getImageData();

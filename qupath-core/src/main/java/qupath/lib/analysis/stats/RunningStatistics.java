@@ -103,7 +103,7 @@ public class RunningStatistics {
 	 * Get count of the number of NaN values added.
 	 * @return
 	 * 
-	 * @see #nPixels()
+	 * @see #size()
 	 */
 	public long getNumNaNs() {
 		return numNaNs;

@@ -35,7 +35,7 @@ import java.util.concurrent.Future;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import qupath.lib.common.SimpleThreadFactory;
+import qupath.lib.common.ThreadTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.objects.PathObject;
@@ -182,7 +182,7 @@ public abstract class AbstractPluginRunner<T> implements PluginRunner<T> {
 		// Ensure we have a pool
 		if (pool == null || pool.isShutdown()) {
 			int n = getNumThreads();
-			pool = Executors.newFixedThreadPool(n, new SimpleThreadFactory("plugin-runner-"+(+counter)+"-", false));
+			pool = Executors.newFixedThreadPool(n, ThreadTools.createThreadFactory("plugin-runner-"+(+counter)+"-", false));
 			logger.debug("New threadpool created with {} threads", n);
 			service = new ExecutorCompletionService<>(pool);
 		} else if (service == null)

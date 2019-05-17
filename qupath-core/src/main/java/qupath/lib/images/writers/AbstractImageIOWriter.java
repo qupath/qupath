@@ -38,7 +38,7 @@ import qupath.lib.regions.RegionRequest;
  * @author Pete Bankhead
  *
  */
-abstract class AbstractImageIOWriter extends AbstractImageWriter<BufferedImage> {
+abstract class AbstractImageIOWriter implements ImageWriter<BufferedImage> {
 
 	@Override
 	public boolean supportsT() {

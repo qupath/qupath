@@ -9,6 +9,7 @@ import org.slf4j.LoggerFactory;
 
 import com.google.gson.annotations.JsonAdapter;
 
+import qupath.lib.awt.common.BufferedImageTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.AbstractTileableImageServer;
 import qupath.lib.images.servers.ImageServer;
@@ -126,7 +127,7 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 			// If we're generating lower-resolution tiles, we need to request the higher-resolution data accordingly
 			var request2 = RegionRequest.createInstance(getPath(), fullResDownsample, tileRequest.getRegionRequest());
 			img = readBufferedImage(request2);
-			img = resize(img, tileRequest.getImageWidth(), tileRequest.getTileHeight());
+			img = BufferedImageTools.resize(img, tileRequest.getImageWidth(), tileRequest.getTileHeight());
 		} else {
 			// Classify at this resolution if need be
 			img = classifier.applyClassification(imageData, tileRequest.getRegionRequest());

@@ -12,19 +12,26 @@ import java.net.URI;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import ij.process.FloatProcessor;
-import ij.process.ImageProcessor;
-import qupath.lib.common.GeneralTools;
+import qupath.lib.awt.common.BufferedImageTools;
 import qupath.lib.regions.RegionRequest;
 
+/**
+ * Abstract {@link ImageServer} for BufferedImages that internally breaks up requests into constituent tiles.
+ * <p>
+ * The actual request is then handled by assembling the tiles, resizing as required.
+ * This makes it possible to cache tiles and reuse them more efficiently, and often requires less effort 
+ * to implement a new {@link ImageServer}.
+ * 
+ * @author Pete Bankhead
+ *
+ */
 public abstract class AbstractTileableImageServer extends AbstractImageServer<BufferedImage> {
 	
+	private static final Logger logger = LoggerFactory.getLogger(AbstractTileableImageServer.class);
+		
 	protected AbstractTileableImageServer(URI uri) {
 		super(uri, BufferedImage.class);
 	}
-
-
-	private static Logger logger = LoggerFactory.getLogger(AbstractTileableImageServer.class);
 	
 	
 	/**
@@ -226,123 +233,12 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 			int currentWidth = imgResult.getWidth();
 			int currentHeight = imgResult.getHeight();
 			if (currentWidth != width || currentHeight != height)
-				imgResult = resize(imgResult, width, height);
+				imgResult = BufferedImageTools.resize(imgResult, width, height);
 			
 			long endTime = System.currentTimeMillis();
 			logger.trace("Requested " + tiles.size() + " tiles in " + (endTime - startTime) + " ms (non-RGB)");
 			return imgResult;
 		}
-	}
-
-	
-	/**
-	 * Resize the image to have the requested width/height, using area averaging and bilinear interpolation.
-	 * 
-	 * @param img input image to be resized
-	 * @param finalWidth target output width
-	 * @param finalHeight target output height
-	 * @return resized image
-	 */
-	public static BufferedImage resize(final BufferedImage img, final int finalWidth, final int finalHeight) {
-		
-//		boolean useLegacyResizing = false;
-//		if (useLegacyResizing) {
-//			return resize(img, finalWidth, finalHeight, false);
-//		}
-		
-		if (img.getWidth() == finalWidth && img.getHeight() == finalHeight)
-			return img;
-		
-		logger.trace(String.format("Resizing %d x %d -> %d x %d", img.getWidth(), img.getHeight(), finalWidth, finalHeight));
-		
-		double aspectRatio = (double)img.getWidth()/img.getHeight();
-		double finalAspectRatio = (double)finalWidth/finalHeight;
-		if (!GeneralTools.almostTheSame(aspectRatio, finalAspectRatio, 0.01)) {
-			if (!GeneralTools.almostTheSame(aspectRatio, finalAspectRatio, 0.05))
-				logger.warn("Substantial difference in aspect ratio for resized image: {}x{} -> {}x{} ({}, {})", img.getWidth(), img.getHeight(), finalWidth, finalHeight, aspectRatio, finalAspectRatio);
-			else
-				logger.warn("Slight difference in aspect ratio for resized image: {}x{} -> {}x{} ({}, {})", img.getWidth(), img.getHeight(), finalWidth, finalHeight, aspectRatio, finalAspectRatio);
-		}
-		
-		boolean areaAveraging = true;
-		
-		var raster = img.getRaster();
-		var raster2 = raster.createCompatibleWritableRaster(finalWidth, finalHeight);
-
-		int w = img.getWidth();
-		int h = img.getHeight();
-		
-		var fp = new FloatProcessor(w, h);
-		fp.setInterpolationMethod(ImageProcessor.BILINEAR);
-		for (int b = 0; b < raster.getNumBands(); b++) {
-			float[] pixels = (float[])fp.getPixels();
-			raster.getSamples(0, 0, w, h, b, pixels);
-			var fp2 = fp.resize(finalWidth, finalHeight, areaAveraging);
-			raster2.setSamples(0, 0, finalWidth, finalHeight, b, (float[])fp2.getPixels());
-		}
-		
-		return new BufferedImage(img.getColorModel(), raster2, img.isAlphaPremultiplied(), null);
-	}
-	
-	
-	/**
-	 * Resize the image to have the requested width/height, using nearest neighbor interpolation.
-	 * 
-	 * @param img input image to be resized
-	 * @param finalWidth target output width
-	 * @param finalHeight target output height
-	 * @param isRGB request that the image be handled as RGB; this is typically faster, but might fail depending on
-	 *  the image type and need to fall back on slower (default) resizing
-	 * @return
-	 */
-	public static BufferedImage resize(final BufferedImage img, final int finalWidth, final int finalHeight, final boolean isRGB) {
-		// Check if we need to do anything
-		if (img.getWidth() == finalWidth && img.getHeight() == finalHeight)
-			return img;
-		
-		// RGB can generally be converted more easily
-		if (isRGB) {
-			try {
-				BufferedImage img2 = new BufferedImage(finalWidth, finalHeight, img.getType());
-				Graphics2D g2d = img2.createGraphics();
-				g2d.drawImage(img, 0, 0, finalWidth, finalHeight, null);
-				g2d.dispose();
-				return img2;
-			} catch (Exception e) {
-				logger.debug("Error rescaling (supposedly) RGB image {}, will default to slower rescaling: {}", img, e.getLocalizedMessage());
-			}
-		}
-		
-		// Create an image with the same ColorModel / data type as the original
-		WritableRaster raster = img.getColorModel().createCompatibleWritableRaster(finalWidth, finalHeight);
-
-		// Get the pixels & resize for each band
-		float[] pixels = null;
-		for (int b = 0; b < raster.getNumBands(); b++) {
-			pixels = img.getRaster().getSamples(0, 0, img.getWidth(), img.getHeight(), b, pixels);
-			double xScale = (double)img.getWidth() / finalWidth;
-			double yScale = (double)img.getHeight() / finalHeight;
-			
-			// Perform rescaling with nearest neighbor interpolation
-			// TODO: Consider 'better' forms of interpolation
-			float[] pixelsNew = new float[finalWidth*finalHeight];
-			int w = img.getWidth();
-			int h = img.getHeight();
-			for (int y = 0; y < finalHeight; y++) {
-				int row = (int)(y * yScale + 0.5);
-				if (row >= h)
-					row = h-1;
-				for (int x = 0; x < finalWidth; x++) {
-					int col = (int)(x * xScale + 0.5);
-					if (col >= w)
-						col = w-1;
-					int ind = row*img.getWidth() + col;
-					pixelsNew[y*finalWidth + x] = pixels[ind];
-				}			
-			}
-			raster.setSamples(0, 0, finalWidth, finalHeight, b, pixelsNew);
-		}
-		return new BufferedImage(img.getColorModel(), raster, img.getColorModel().isAlphaPremultiplied(), null);
 	}
 	
 	

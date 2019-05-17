@@ -24,7 +24,7 @@
 package qupath.imagej.wrappers;
 
 import ij.process.ImageProcessor;
-import qupath.lib.analysis.algorithms.SimpleModifiableImage;
+import qupath.lib.analysis.images.SimpleModifiableImage;
 
 /**
  * Very simple wrapper that allows some non-ImageJ-oriented QuPath commands to access ImageProcessor pixel values.

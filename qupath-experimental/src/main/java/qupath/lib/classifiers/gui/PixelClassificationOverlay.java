@@ -4,7 +4,7 @@ import qupath.lib.awt.common.AwtTools;
 import qupath.lib.classifiers.opencv.gui.PixelClassifierImageSelectionPane.PersistentTileCache;
 import qupath.lib.classifiers.opencv.pixel.OpenCVPixelClassifierDNN;
 import qupath.lib.classifiers.pixel.PixelClassificationImageServer;
-import qupath.lib.common.SimpleThreadFactory;
+import qupath.lib.common.ThreadTools;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.overlays.AbstractImageDataOverlay;
@@ -71,7 +71,7 @@ public class PixelClassificationOverlay extends AbstractImageDataOverlay  {
         if (classifierServer.getClassifier() instanceof OpenCVPixelClassifierDNN)
         	nThreads = 1;
         pool = Executors.newFixedThreadPool(
-        		nThreads, new SimpleThreadFactory(
+        		nThreads, ThreadTools.createThreadFactory(
         				"classifier-overlay", true, Thread.NORM_PRIORITY-2));
         
         this.classifierServer = classifierServer;

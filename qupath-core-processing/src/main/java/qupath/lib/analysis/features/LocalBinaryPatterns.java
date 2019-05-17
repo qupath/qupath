@@ -27,8 +27,8 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 
-import qupath.lib.analysis.algorithms.FloatArraySimpleImage;
-import qupath.lib.analysis.algorithms.SimpleImage;
+import qupath.lib.analysis.images.SimpleImages;
+import qupath.lib.analysis.images.SimpleImage;
 
 /**
  * Initial test implementation of Local Binary Patterns.
@@ -181,7 +181,7 @@ public class LocalBinaryPatterns {
 		
 		
 		// TODO: Move to test code location
-		SimpleImage img = new FloatArraySimpleImage(new float[]{1f, 2f, 3f, 4f}, 2, 2);
+		SimpleImage img = SimpleImages.createFloatImage(new float[]{1f, 2f, 3f, 4f}, 2, 2);
 		double[] xx = {0, 0.25, 0.5, 0.75, 1};
 		for (double y = 0; y <= 1; y += 0.25) {
 			for (double x : xx)

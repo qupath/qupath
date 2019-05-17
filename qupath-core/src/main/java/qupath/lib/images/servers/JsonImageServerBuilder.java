@@ -32,7 +32,7 @@ public class JsonImageServerBuilder implements ImageServerBuilder<BufferedImage>
 		try {
 			String type = Files.probeContentType(Paths.get(uri));
 			if (type == null)
-				return 1;
+				return 0f;
 			if (type.endsWith("/json"))
 				return 4;
 			if (type.equals("text/plain"))

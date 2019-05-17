@@ -27,7 +27,13 @@ import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.Shape;
 import java.awt.image.BufferedImage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import ij.process.FloatProcessor;
+import ij.process.ImageProcessor;
+import qupath.lib.common.GeneralTools;
+import qupath.lib.images.servers.AbstractTileableImageServer;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.PathROIToolsAwt;
 import qupath.lib.roi.interfaces.ROI;
@@ -39,6 +45,8 @@ import qupath.lib.roi.interfaces.ROI;
  *
  */
 public class BufferedImageTools {
+	
+	private static final Logger logger = LoggerFactory.getLogger(AbstractTileableImageServer.class);
 	
 	/**
 	 * Create a grayscale BufferedImage representing a mask for a specified ROI.
@@ -108,6 +116,57 @@ public class BufferedImageTools {
 			return img2;
 		}
 		return img;
+	}
+	
+
+
+	/**
+	 * Resize the image to have the requested width/height, using area averaging and bilinear interpolation.
+	 * 
+	 * @param img input image to be resized
+	 * @param finalWidth target output width
+	 * @param finalHeight target output height
+	 * @return resized image
+	 */
+	public static BufferedImage resize(final BufferedImage img, final int finalWidth, final int finalHeight) {
+
+		//		boolean useLegacyResizing = false;
+		//		if (useLegacyResizing) {
+		//			return resize(img, finalWidth, finalHeight, false);
+		//		}
+
+		if (img.getWidth() == finalWidth && img.getHeight() == finalHeight)
+			return img;
+
+		logger.trace(String.format("Resizing %d x %d -> %d x %d", img.getWidth(), img.getHeight(), finalWidth, finalHeight));
+
+		double aspectRatio = (double)img.getWidth()/img.getHeight();
+		double finalAspectRatio = (double)finalWidth/finalHeight;
+		if (!GeneralTools.almostTheSame(aspectRatio, finalAspectRatio, 0.01)) {
+			if (!GeneralTools.almostTheSame(aspectRatio, finalAspectRatio, 0.05))
+				logger.warn("Substantial difference in aspect ratio for resized image: {}x{} -> {}x{} ({}, {})", img.getWidth(), img.getHeight(), finalWidth, finalHeight, aspectRatio, finalAspectRatio);
+			else
+				logger.warn("Slight difference in aspect ratio for resized image: {}x{} -> {}x{} ({}, {})", img.getWidth(), img.getHeight(), finalWidth, finalHeight, aspectRatio, finalAspectRatio);
+		}
+
+		boolean areaAveraging = true;
+
+		var raster = img.getRaster();
+		var raster2 = raster.createCompatibleWritableRaster(finalWidth, finalHeight);
+
+		int w = img.getWidth();
+		int h = img.getHeight();
+
+		var fp = new FloatProcessor(w, h);
+		fp.setInterpolationMethod(ImageProcessor.BILINEAR);
+		for (int b = 0; b < raster.getNumBands(); b++) {
+			float[] pixels = (float[])fp.getPixels();
+			raster.getSamples(0, 0, w, h, b, pixels);
+			var fp2 = fp.resize(finalWidth, finalHeight, areaAveraging);
+			raster2.setSamples(0, 0, finalWidth, finalHeight, b, (float[])fp2.getPixels());
+		}
+
+		return new BufferedImage(img.getColorModel(), raster2, img.isAlphaPremultiplied(), null);
 	}
 
 }

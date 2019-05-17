@@ -146,6 +146,10 @@ public class AffineTransformImageServer extends TransformingImageServer<Buffered
 		return new BufferedImage(img.getColorModel(), raster, img.isAlphaPremultiplied(), null);
 	}
 	
+	/**
+	 * Get the affine transform for this server.
+	 * @return
+	 */
 	public AffineTransform getTransform() {
 		return new AffineTransform(transform);
 	}

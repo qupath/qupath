@@ -40,11 +40,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.lib.algorithms.IntensityFeaturesPlugin.BasicFeatureComputer.Feature;
-import qupath.lib.analysis.algorithms.FloatArraySimpleImage;
-import qupath.lib.analysis.algorithms.SimpleImage;
 import qupath.lib.analysis.features.CoocurranceMatrices;
 import qupath.lib.analysis.features.HaralickFeatureComputer;
 import qupath.lib.analysis.features.HaralickFeatures;
+import qupath.lib.analysis.images.SimpleImages;
+import qupath.lib.analysis.images.SimpleModifiableImage;
+import qupath.lib.analysis.images.SimpleImage;
 import qupath.lib.analysis.stats.RunningStatistics;
 import qupath.lib.analysis.stats.StatisticsHelper;
 import qupath.lib.awt.common.BufferedImageTools;
@@ -555,7 +556,7 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 					pixels = transform.getTransformedPixels(img, rgbBuffer, stains, pixels);
 					
 					// Create the simple image
-					FloatArraySimpleImage pixelImage = new FloatArraySimpleImage(pixels, w, h);
+					SimpleModifiableImage pixelImage = SimpleImages.createFloatImage(pixels, w, h);
 					
 					// Apply any arbitrary mask
 					if (maskBytes != null) {

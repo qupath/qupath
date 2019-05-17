@@ -30,9 +30,11 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.Vector;
 import org.slf4j.Logger;
@@ -235,22 +237,43 @@ public final class PathObjectHierarchy implements Serializable {
 		if (map.isEmpty())
 			return;
 		
-		// Loop through and remove objects
+		// Loop through and remove objects, keeping children if necessary
+		Set<PathObject> childrenToKeep = new LinkedHashSet<>();
 		for (Entry<PathObject, List<PathObject>> entry : map.entrySet()) {
 			PathObject parent = entry.getKey();
 			List<PathObject> children = entry.getValue();
 			parent.removePathObjects(children);
 			if (keepChildren) {
-				for (PathObject child : children) {
-					if (child.hasChildren()) {
-						List<PathObject> newChildList = new ArrayList<>(child.getChildObjects());
-						newChildList.removeAll(pathObjects);
-						parent.addPathObjects(newChildList);
-					}
-				}
+				for (PathObject child : children)
+					childrenToKeep.addAll(child.getChildObjects());
 			}
 		}
+		childrenToKeep.removeAll(pathObjects);
+		// Add children back if required (note: this can be quite slow!)
+		tileCache.resetCache();
+		for (PathObject pathObject : childrenToKeep) {
+			addPathObject(pathObject, false, false);
+		}
 		fireHierarchyChangedEvent(this);
+		
+		// This previously could result in child objects being deleted even if keepChildren was 
+		// true, depending upon the order in which objects were removed.
+//		// Loop through and remove objects
+//		for (Entry<PathObject, List<PathObject>> entry : map.entrySet()) {
+//			PathObject parent = entry.getKey();
+//			List<PathObject> children = entry.getValue();
+//			parent.removePathObjects(children);
+//			if (keepChildren) {
+//				for (PathObject child : children) {
+//					if (child.hasChildren()) {
+//						List<PathObject> newChildList = new ArrayList<>(child.getChildObjects());
+//						newChildList.removeAll(pathObjects);
+//						parent.addPathObjects(newChildList);
+//					}
+//				}
+//			}
+//		}
+//		fireHierarchyChangedEvent(this);
 	}
 	
 	

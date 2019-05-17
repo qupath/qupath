@@ -26,7 +26,7 @@ package qupath.lib.analysis.features;
 import java.util.ArrayList;
 import java.util.List;
 
-import qupath.lib.analysis.algorithms.SimpleImage;
+import qupath.lib.analysis.images.SimpleImage;
 import qupath.lib.analysis.stats.RunningStatistics;
 
 /**

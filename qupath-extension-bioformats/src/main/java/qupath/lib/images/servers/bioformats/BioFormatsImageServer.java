@@ -38,6 +38,7 @@ import java.awt.image.WritableRaster;
 import java.io.File;
 import java.io.IOException;
 import java.lang.ref.Cleaner;
+import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.ByteBuffer;
@@ -73,6 +74,7 @@ import loci.formats.ImageReader;
 import loci.formats.Memoizer;
 import loci.formats.MetadataTools;
 import loci.formats.gui.AWTImageTools;
+import loci.formats.in.ZeissCZIReader;
 import loci.formats.meta.DummyMetadata;
 import loci.formats.meta.IMetadata;
 import loci.formats.meta.MetadataStore;
@@ -926,6 +928,36 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 	public ImageServerMetadata getOriginalMetadata() {
 		return originalMetadata;
 	}	
+	
+	/**
+	 * Get the class name of the first reader that potentially supports the file type, or null if no reader can be found.
+	 * <p>
+	 * This method only uses the path and file extensions, generously returning the first potential 
+	 * reader based on the extension. Its purpose is to help filter out hopeless cases, not to establish 
+	 * the 'correct' reader.
+	 * 
+	 * @param path
+	 * @return
+	 * @throws InstantiationException
+	 * @throws IllegalAccessException
+	 * @throws IllegalArgumentException
+	 * @throws InvocationTargetException
+	 * @throws NoSuchMethodException
+	 * @throws SecurityException
+	 */
+	static String getSupportedReaderClass(String path) throws InstantiationException, IllegalAccessException, IllegalArgumentException, InvocationTargetException, NoSuchMethodException, SecurityException {
+		path = path.toLowerCase();
+		for (var cls : ImageReader.getDefaultReaderClasses().getClasses()) {
+			var reader = cls.getConstructor().newInstance();
+			if (reader.isThisType(path, false))
+				return cls.getName();
+			for (String s : reader.getSuffixes()) {
+				if (s != null && !s.isBlank() && path.endsWith(s.toLowerCase()))
+					return cls.getName();
+			}
+		}
+		return null;
+	}
 	
 	
 	/**

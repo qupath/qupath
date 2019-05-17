@@ -64,7 +64,7 @@ import qupath.imagej.processing.RegionalExtrema;
 import qupath.imagej.processing.SimpleThresholding;
 import qupath.imagej.processing.Watershed;
 import qupath.imagej.wrappers.PixelImageIJ;
-import qupath.lib.analysis.algorithms.SimpleImage;
+import qupath.lib.analysis.images.SimpleImage;
 import qupath.lib.analysis.stats.RunningStatistics;
 import qupath.lib.analysis.stats.StatisticsHelper;
 import qupath.lib.color.ColorDeconvolutionStains;

@@ -21,6 +21,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
+import qupath.lib.awt.common.BufferedImageTools;
 import qupath.lib.geom.Point2;
 import qupath.lib.images.servers.AbstractTileableImageServer;
 import qupath.lib.images.servers.ImageChannel;
@@ -393,7 +394,7 @@ public class OmeroWebImageServer extends AbstractTileableImageServer {
 
 		BufferedImage img = ImageIO.read(url);
 
-		return resize(img, targetWidth, targetHeight);
+		return BufferedImageTools.resize(img, targetWidth, targetHeight);
 	}
 
 }

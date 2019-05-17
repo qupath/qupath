@@ -21,7 +21,7 @@
  * #L%
  */
 
-package qupath.lib.io;
+package qupath.lib.images.writers;
 
 import java.io.IOException;
 
@@ -67,6 +67,7 @@ public interface ImageWriter<T> {
 	
 	/**
 	 * Test whether images provided by a specified ImageServer can be successfully written.
+	 * <p>
 	 * Reasons why it might not be are the number of channels and/or bit-depth.
 	 * @param server
 	 * @return
@@ -82,12 +83,5 @@ public interface ImageWriter<T> {
 	public T writeImage(ImageServer<T> server, RegionRequest region, String pathOutput) throws IOException;
 
 	public void writeImage(T img, String pathOutput) throws IOException;
-	
-	/**
-	 * Should return a displayable name for the ImageWriter.
-	 * @return
-	 */
-	@Override
-	public String toString();
 
 }

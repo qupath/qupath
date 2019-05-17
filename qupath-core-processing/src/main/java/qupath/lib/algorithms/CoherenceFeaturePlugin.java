@@ -32,9 +32,9 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import qupath.lib.analysis.algorithms.FloatArraySimpleImage;
-import qupath.lib.analysis.algorithms.SimpleImage;
-import qupath.lib.analysis.algorithms.SimpleModifiableImage;
+import qupath.lib.analysis.images.SimpleImage;
+import qupath.lib.analysis.images.SimpleImages;
+import qupath.lib.analysis.images.SimpleModifiableImage;
 import qupath.lib.analysis.stats.RunningStatistics;
 import qupath.lib.analysis.stats.StatisticsHelper;
 import qupath.lib.color.ColorDeconvolutionStains;
@@ -192,7 +192,7 @@ public class CoherenceFeaturePlugin extends AbstractInteractivePlugin<BufferedIm
 
 		// Create a color transformer to get the images we need
 		float[] pixels = new float[buf.length];
-		SimpleModifiableImage pxImg = new FloatArraySimpleImage(pixels, w, h);
+		SimpleModifiableImage pxImg = SimpleImages.createFloatImage(pixels, w, h);
 		
 		MeasurementList measurementList = pathObject.getMeasurementList();
 		

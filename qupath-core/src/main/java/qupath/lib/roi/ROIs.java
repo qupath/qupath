@@ -174,7 +174,8 @@ public class ROIs {
 	
 	/**
 	 * Create an empty polyline ROI consisting of a single point.
-	 * @param points
+	 * @param x
+	 * @param y
 	 * @param plane
 	 * @return
 	 */

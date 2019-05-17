@@ -45,7 +45,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.lib.awt.common.AwtTools;
-import qupath.lib.common.SimpleThreadFactory;
+import qupath.lib.common.ThreadTools;
 import qupath.lib.gui.images.stores.DefaultRegionCache;
 import qupath.lib.gui.images.stores.SizeEstimator;
 import qupath.lib.gui.images.stores.TileWorker;
@@ -103,8 +103,8 @@ abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {
 	// Create two threadpools: a larger one for images that need to be fetched (e.g. from disk, cloud storage), and a smaller one
 	// for painting image tiles... the reason being that the high latency of distantly-stored images otherwise risks lowering
 	// repainting performance
-	private ExecutorService pool = Executors.newFixedThreadPool(Math.max(8, Math.min(Runtime.getRuntime().availableProcessors() * 4, 32)), new SimpleThreadFactory("region-store-", false));
-	private ExecutorService poolLocal = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors(), new SimpleThreadFactory("region-store-local-", false));
+	private ExecutorService pool = Executors.newFixedThreadPool(Math.max(8, Math.min(Runtime.getRuntime().availableProcessors() * 4, 32)), ThreadTools.createThreadFactory("region-store-", false));
+	private ExecutorService poolLocal = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors(), ThreadTools.createThreadFactory("region-store-local-", false));
 	
 	
 

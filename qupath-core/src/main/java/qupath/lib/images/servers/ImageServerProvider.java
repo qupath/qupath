@@ -161,8 +161,9 @@ public class ImageServerProvider {
 		}
 		
 		// Sort by support level, then by name
+		String[] finalArgs = args;
 		Collections.sort(providers, (p1, p2) -> {
-			int support = -Float.compare(p1.supportLevel(uri, type, cls), p2.supportLevel(uri, type, cls));
+			int support = -Float.compare(p1.supportLevel(uri, type, cls, finalArgs), p2.supportLevel(uri, type, cls, finalArgs));
 			if (support == 0)
 				return p1.getClass().getName().compareTo(p2.getClass().getName());
 			return support;
@@ -170,7 +171,7 @@ public class ImageServerProvider {
 		
 		if (logger.isDebugEnabled()) {
 			for (ImageServerBuilder<?> provider : providers)
-				logger.debug("{}: rank {} ", provider, provider.supportLevel(uri, type, cls));				
+				logger.debug("{}: rank {} ", provider, provider.supportLevel(uri, type, cls, args));				
 		}
 		long maxImageSize = Runtime.getRuntime().maxMemory() / 2;
 		for (ImageServerBuilder<?> provider : providers) {

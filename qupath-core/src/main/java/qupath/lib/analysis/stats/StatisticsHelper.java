@@ -26,7 +26,8 @@ package qupath.lib.analysis.stats;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import qupath.lib.analysis.algorithms.SimpleImage;
+
+import qupath.lib.analysis.images.SimpleImage;
 
 /**
  * Static methods for computing statistics from images, with or without a corresponding labeled image.
@@ -52,7 +53,6 @@ public class StatisticsHelper {
 	 * Add all pixels from a SimpleImage to an existing RunningStatistics object.
 	 * 
 	 * @param img
-	 * @return
 	 */
 	public static void updateRunningStatistics(RunningStatistics stats, SimpleImage img) {
 		for (int y = 0; y < img.getHeight(); y++) {

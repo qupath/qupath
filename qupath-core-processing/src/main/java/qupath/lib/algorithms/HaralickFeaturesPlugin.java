@@ -34,11 +34,11 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import qupath.lib.analysis.algorithms.FloatArraySimpleImage;
-import qupath.lib.analysis.algorithms.SimpleImage;
-import qupath.lib.analysis.algorithms.SimpleModifiableImage;
 import qupath.lib.analysis.features.HaralickFeatureComputer;
 import qupath.lib.analysis.features.HaralickFeatures;
+import qupath.lib.analysis.images.SimpleImage;
+import qupath.lib.analysis.images.SimpleImages;
+import qupath.lib.analysis.images.SimpleModifiableImage;
 import qupath.lib.analysis.stats.RunningStatistics;
 import qupath.lib.analysis.stats.StatisticsHelper;
 import qupath.lib.awt.common.BufferedImageTools;
@@ -276,7 +276,7 @@ public class HaralickFeaturesPlugin extends AbstractInteractivePlugin<BufferedIm
 
 		// Create a color transformer to get the images we need
 		float[] pixels = new float[buf.length];
-		SimpleModifiableImage pxImg = new FloatArraySimpleImage(pixels, w, h);
+		SimpleModifiableImage pxImg = SimpleImages.createFloatImage(pixels, w, h);
 		
 		MeasurementList measurementList = pathObject.getMeasurementList();
 		
@@ -348,8 +348,8 @@ public class HaralickFeaturesPlugin extends AbstractInteractivePlugin<BufferedIm
 			measurementList.putMeasurement("Mean hue", Math.atan2(sinX, cosX) / (2 * Math.PI) + 0.5);
 //			measurementList.putMeasurement("Mean saturation", hsb[1]);
 //			measurementList.putMeasurement("Mean brightness", hsb[2]);
-			processTransformedImage(new FloatArraySimpleImage(pixelsSaturation, w, h), buf, pixelsSaturation, measurementList, "Saturation"+postfix, null, minValue, maxValue, d, nBins, stains, maskBytes, includeStats, doCircular);
-			processTransformedImage(new FloatArraySimpleImage(pixelsBrightness, w, h), buf, pixelsBrightness, measurementList, "Brightness"+postfix, null, minValue, maxValue, d, nBins, stains, maskBytes, includeStats, doCircular);
+			processTransformedImage(SimpleImages.createFloatImage(pixelsSaturation, w, h), buf, pixelsSaturation, measurementList, "Saturation"+postfix, null, minValue, maxValue, d, nBins, stains, maskBytes, includeStats, doCircular);
+			processTransformedImage(SimpleImages.createFloatImage(pixelsBrightness, w, h), buf, pixelsBrightness, measurementList, "Brightness"+postfix, null, minValue, maxValue, d, nBins, stains, maskBytes, includeStats, doCircular);
 		}
 		measurementList.close();
 		

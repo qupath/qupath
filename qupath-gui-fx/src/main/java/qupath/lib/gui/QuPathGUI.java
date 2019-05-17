@@ -184,7 +184,7 @@ import qupath.lib.algorithms.IntensityFeaturesPlugin;
 import qupath.lib.algorithms.LocalBinaryPatternsPlugin;
 import qupath.lib.algorithms.TilerPlugin;
 import qupath.lib.common.GeneralTools;
-import qupath.lib.common.SimpleThreadFactory;
+import qupath.lib.common.ThreadTools;
 import qupath.lib.gui.commands.AnnotationCombineCommand;
 import qupath.lib.gui.commands.BrightnessContrastCommand;
 import qupath.lib.gui.commands.CommandListDisplayCommand;
@@ -405,7 +405,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	// ExecutorServices for single & multiple threads
 	private Map<Object, ExecutorService> mapSingleThreadPools = new HashMap<>();
 //	private Set<ExecutorService> managedThreadPools = new HashSet<>();
-	private ExecutorService poolMultipleThreads = Executors.newFixedThreadPool(Math.max(2, Runtime.getRuntime().availableProcessors()), new SimpleThreadFactory("qupath-shared-", false));	
+	private ExecutorService poolMultipleThreads = Executors.newFixedThreadPool(Math.max(2, Runtime.getRuntime().availableProcessors()), ThreadTools.createThreadFactory("qupath-shared-", false));	
 	
 	private Map<KeyCombination, Action> mapActions = new HashMap<>();
 	
@@ -2817,13 +2817,13 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	
 	/**
 	 * Create an executor using a single thread.
-	 * 
+	 * <p>
 	 * Optionally specify an owner, in which case the same Executor will be returned for the owner 
 	 * for so long as the Executor has not been shut down; if it has been shut down, a new Executor will be returned.
-	 * 
+	 * <p>
 	 * Specifying an owner is a good idea if there is a chance that any submitted tasks could block,
 	 * since the same Executor will be returned for all requests that give a null owner.
-	 * 
+	 * <p>
 	 * The advantage of using this over creating an ExecutorService some other way is that
 	 * shutdown will be called on any pools created this way whenever QuPath is quit.
 	 * 
@@ -2833,7 +2833,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	public ExecutorService createSingleThreadExecutor(final Object owner) {
 		ExecutorService pool = mapSingleThreadPools.get(owner);
 		if (pool == null || pool.isShutdown()) {
-			pool = Executors.newSingleThreadExecutor(new SimpleThreadFactory(owner.getClass().getSimpleName().toLowerCase() + "-", false));
+			pool = Executors.newSingleThreadExecutor(ThreadTools.createThreadFactory(owner.getClass().getSimpleName().toLowerCase() + "-", false));
 			mapSingleThreadPools.put(owner, pool);
 		}
 		return pool;

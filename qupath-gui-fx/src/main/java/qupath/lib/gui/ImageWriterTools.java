@@ -51,14 +51,14 @@ import qupath.lib.gui.viewer.overlays.PathOverlay;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageIoImageServer;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.writers.ImageWriter;
 import qupath.lib.images.writers.JpegWriter;
 import qupath.lib.images.writers.PNGWriter;
-import qupath.lib.io.ImageWriter;
 import qupath.lib.regions.RegionRequest;
 
 /**
  * Class for writing image regions.
- * 
+ * <p>
  * Unfortunately, it has a rather unpleasant design, and isn't to be recommended...
  * 
  * @author Pete Bankhead

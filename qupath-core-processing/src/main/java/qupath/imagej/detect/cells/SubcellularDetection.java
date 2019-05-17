@@ -50,8 +50,8 @@ import ij.process.ImageStatistics;
 import qupath.imagej.objects.ROIConverterIJ;
 import qupath.imagej.processing.ROILabeling;
 import qupath.imagej.processing.SimpleThresholding;
-import qupath.lib.analysis.algorithms.FloatArraySimpleImage;
-import qupath.lib.analysis.algorithms.SimpleImage;
+import qupath.lib.analysis.images.SimpleImages;
+import qupath.lib.analysis.images.SimpleImage;
 import qupath.lib.color.ColorDeconvolutionStains;
 import qupath.lib.color.ColorTransformer;
 import qupath.lib.color.StainVector;
@@ -578,7 +578,7 @@ public class SubcellularDetection extends AbstractInteractivePlugin<BufferedImag
 			} else {
 				pixels = img.getData().getSamples(0, 0, w, h, channel, pixels);
 			}
-			return new FloatArraySimpleImage(pixels, w, h);
+			return SimpleImages.createFloatImage(pixels, w, h);
 		}
 		
 		/**

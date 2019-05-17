@@ -15,7 +15,6 @@
  * Each object can have a parent and multiple child objects. This means that all objects associated with an image can be found by traversing this hierarchical 
  * arrangement, starting from the root object for the image.
  * <p>
- * {@linkplain}
  * Objects also have optional {@linkplain qupath.lib.objects.classes.PathClass classifications} and  {@linkplain qupath.lib.measurements.MeasurementList measurement lists}.
  */
 package qupath.lib.objects;

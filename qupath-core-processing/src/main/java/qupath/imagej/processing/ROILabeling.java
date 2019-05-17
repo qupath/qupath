@@ -47,8 +47,9 @@ import ij.process.ImageStatistics;
 import ij.process.ShortProcessor;
 
 /**
- * Collection of static methods to help work with ROIs, binary &amp; labelled images in ImageJ -
- * switching between the different methods of representing regions as required.
+ * Collection of static methods to help work with ROIs, binary &amp; labelled images in ImageJ.
+ * <p>
+ * This enables switching between different methods of representing regions as required.
  * 
  * @author Pete Bankhead
  *
@@ -112,6 +113,7 @@ public class ROILabeling {
 	
 	/**
 	 * Experimental 8-connected ROI creation; non-zero pixels considered within objects
+	 * <p>
 	 * TODO: Improve experimental getFillPolygonROIs!!!  Consider efficiency (i.e. no min filter) &amp; standard ImageJ compatibility
 	 * 			Using standard ImageJ draw/fill, the original binary image is NOT reconstructed.
 	 * 
@@ -233,7 +235,9 @@ public class ROILabeling {
 	
 	/**
 	 * Convert a labelled image into a list of PolygonRois by tracing.
+	 * <p>
 	 * Note that labels are assumed not to contain any holes or nested ROIs; ROIs produced by this command will not contain holes.
+	 * <p>
 	 * Some entries in the resulting array may be null if this is not the case, or if not all labels are found.
 	 * Otherwise, pixels with the integer label L will belong to the Roi in the output array at entry L-1
 	 * 
@@ -268,9 +272,9 @@ public class ROILabeling {
 	
 	/**
 	 * Convert a labelled image into a list of PolygonRois by tracing.
-	 * 
+	 * <p>
 	 * Unlike labelsToFilledROIs, the order in which ROIs are returned is arbitrary.
-	 * 
+	 * <p>
 	 * Also, the multiple Rois may be created for the same label, if unconnected regions are used.
 	 * 
 	 * @param ipLabels
@@ -304,7 +308,7 @@ public class ROILabeling {
 	
 	/**
 	 * Create ROIs from labels in an image.
-	 * 
+	 * <p>
 	 * This differs from labelsToConnectedROIs in that the ROIs created may be
 	 * disconnected and contain holes.
 	 * 
@@ -478,9 +482,9 @@ public class ROILabeling {
 	
 	/**
 	 * Fill holes in a binary image.
-	 * 
+	 * <p>
 	 * Assumes 255 is foreground, 0 is background.
-	 * 
+	 * <p>
 	 * Based on code in ImageJ's Binary class.
 	 * 
 	 * @param bp
@@ -590,9 +594,10 @@ public class ROILabeling {
 	
 	
 	/**
+	 * Remove objects having small areas, defined in terms of pixels
 	 * 
 	 * @param bp
-	 * @param minPixels - the minimum number of pixels in an object that should be kept
+	 * @param minPixels minimum number of pixels in an object that should be kept
 	 * @param conn8
 	 */
 	public static void removeSmallAreas(ByteProcessor bp, double minPixels, boolean conn8) {
@@ -692,6 +697,7 @@ public class ROILabeling {
 
 	/**
 	 * Fill in a region outside a specified ROI
+	 * 
 	 * @param ip
 	 * @param roi
 	 */
@@ -723,6 +729,7 @@ public class ROILabeling {
 
 	/**
 	 * Clear (i.e. set pixels to zero) in a region outside a specified ROI
+	 * 
 	 * @param ip
 	 * @param roi
 	 */

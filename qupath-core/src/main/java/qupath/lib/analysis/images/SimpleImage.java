@@ -21,50 +21,20 @@
  * #L%
  */
 
-package qupath.lib.analysis.algorithms;
+package qupath.lib.analysis.images;
 
 /**
- * Implementation of a SimpleImage backed by an array of floats.
+ * A minimal interface for accessing pixel values in a single-channel image.
  * 
  * @author Pete Bankhead
  *
  */
-public class FloatArraySimpleImage implements SimpleModifiableImage {
+public interface SimpleImage {
 
-	private float[] data;
-	private int width;
-	private int height;
-	
-	public FloatArraySimpleImage(float[] data, int width, int height) {
-		this.data = data;
-		this.width = width;
-		this.height = height;
-	}
-	
-	public FloatArraySimpleImage(int width, int height) {
-		this.data = new float[width * height];
-		this.width = width;
-		this.height = height;
-	}
-	
-	@Override
-	public float getValue(int x, int y) {
-		return data[y * width + x];
-	}
+	float getValue(int x, int y);
 
-	@Override
-	public void setValue(int x, int y, float val) {
-		data[y * width + x] = val;
-	}
+	int getWidth();
 
-	@Override
-	public int getWidth() {
-		return width;
-	}
-
-	@Override
-	public int getHeight() {
-		return height;
-	}
+	int getHeight();
 
 }

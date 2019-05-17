@@ -125,8 +125,8 @@ subprojects {
     jts "org.locationtech.jts:jts-core:1.16.1"
 //    jts "org.locationtech.jts.io:jts-io-common:1.16.1" // Optionally add GeoJSON support (brings in json-simple as sub-dependency)
 
-    groovy "org.codehaus.groovy:groovy:2.5.6"
-    groovy "org.codehaus.groovy:groovy-jsr223:2.5.6"
+    groovy "org.codehaus.groovy:groovy:2.5.7"
+    groovy "org.codehaus.groovy:groovy-jsr223:2.5.7"
 
     for (fx in ['javafx-base', 'javafx-controls', 'javafx-graphics', 'javafx-media', 'javafx-web', 'javafx-swing']) {
       javafx "org.openjfx:${fx}:${jfxVersion}"
@@ -161,9 +161,9 @@ subprojects {
     if (nativesClassifier != null)
       jpen 'net.sourceforge.jpen:jpen:2-150301:' + nativesClassifier
 
-    imagej 'net.imagej:ij:1.52n'
+    imagej 'net.imagej:ij:1.52o'
 //    imagej jarjar.repackage {
-//    	from 'net.imagej:ij:1.52n'
+//    	from 'net.imagej:ij:1.52o'
 //    	classDelete 'MacAdapter'
 //	}
 
@@ -274,7 +274,6 @@ allprojects {
     implementation group: 'ch.qos.logback', name: 'logback-classic', version:'1.2.3'
     testImplementation group: 'junit', name: 'junit', version:'4.12'
   }
-  
 }
 
 
@@ -455,11 +454,26 @@ jar {
 
 
 /**
+ * Create javadocs for all modules/packages in one place.
+ */
+task mergedJavadocs(type: Javadoc) {
+    source subprojects.collect { project ->
+        project.sourceSets.main.allJava
+    }
+    destinationDir = new File(buildDir, 'merged-docs')
+    classpath = files(subprojects.collect { project ->
+        project.sourceSets.main.compileClasspath
+    })
+}
+
+
+
+/**
  * Create a custom runtime.  Mostly to avoid using the same one as jpackager for now.
  */
 task createRuntime(dependsOn:build, type:Exec) {
 	
-  def outputDir = new File(rootProject.libsDir.getParentFile(), 'jre')
+  def outputDir = new File(rootProject.buildDir, 'jre')
 
   // Reuse existing JRE if available
   onlyIf { !outputDir.exists() }
@@ -507,6 +521,7 @@ task createPackage(dependsOn:createRuntime, type:Exec) {
 	      println 'gradlew.bat createPackage -Ppackager=/full/path/to/jpackage.exe'
 	  else
 	      println 'gradlew createPackage -Ppackager=/full/path/to/jpackage'
+      println 'Current value of -Ppackager is ' + packager
       println '-------'
       throw new GradleException('Please specify where I can find a suitable jpackage!')
     }
@@ -522,8 +537,8 @@ task createPackage(dependsOn:createRuntime, type:Exec) {
 		params << 'create-app-image'
 	}
 
-    params << '--input' << rootProject.libsDir.getAbsolutePath()
-    params << '--output' << new File(rootProject.libsDir.getParentFile(), 'dist').getAbsolutePath()
+    params << '--input' << new File(rootProject.buildDir, rootProject.libsDirName).getAbsolutePath()
+    params << '--output' << new File(rootProject.buildDir, 'dist').getAbsolutePath()
 
     params << '--main-jar' << jar.archiveName
 
@@ -542,12 +557,12 @@ task createPackage(dependsOn:createRuntime, type:Exec) {
         
     // Try to find the icon
     def pathIcon = Paths.get(
-            rootProject.libsDir.getParentFile().getAbsolutePath(),
+            rootProject.buildDir.getAbsolutePath(),
             'resources', 'main', 'package',
             iconName).toFile().getAbsolutePath()
     params << '--icon' << pathIcon
 
-	params << '--runtime-image' << new File(rootProject.libsDir.getParentFile(), 'jre').getAbsolutePath()
+	params << '--runtime-image' << new File(rootProject.buildDir, 'jre').getAbsolutePath()
 //    params << '--add-modules' << 'java.desktop,java.xml,java.scripting,java.sql,java.naming,jdk.unsupported'
 
 //	params << '--module-path' << System.properties.'java.home' + '/jmods' 
