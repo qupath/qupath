@@ -391,7 +391,7 @@ public class ImageAlignmentPane {
 		Affine affine = overlay.getAffine();
 		affineStringProperty.set(
 				String.format("Transform: [\n" +
-				"  %.3f, %.3f, %.3f\n" + 
+				"  %.3f, %.3f, %.3f,\n" + 
 				"  %.3f, %.3f, %.3f\n" + 
 				"]",
 				affine.getMxx(), affine.getMxy(), affine.getTx(),
