@@ -1,5 +1,6 @@
 package qupath.lib.classifiers.opencv.pixel.features;
 
+import java.util.Collections;
 import java.util.List;
 
 import org.bytedeco.opencv.opencv_core.Mat;
@@ -14,6 +15,12 @@ public abstract class FeatureFilter {
 	 * @return
 	 */
 	public abstract String getName();
+	
+	/**
+	 * Name for each of the features added by this calculator.
+	 * @return
+	 */
+	public abstract List<String> getFeatureNames();
 	
 	/**
 	 * Requested padding, in pixels, that should be added prior to calculating these 

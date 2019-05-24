@@ -1,18 +1,11 @@
 package qupath.lib.classifiers.gui;
 
-import ij.ImagePlus;
-import ij.ImageStack;
 import ij.plugin.filter.ThresholdToSelection;
-import ij.process.ByteProcessor;
 import ij.process.FloatProcessor;
 import ij.process.ImageProcessor;
-import ij.process.ShortProcessor;
-import org.bytedeco.javacpp.indexer.FloatIndexer;
-import org.bytedeco.javacpp.indexer.UByteIndexer;
-import org.bytedeco.javacpp.indexer.UShortIndexer;
+
 import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.opencv_core.Mat;
-import org.bytedeco.opencv.opencv_core.MatVector;
 import org.bytedeco.opencv.opencv_core.Scalar;
 import org.bytedeco.opencv.opencv_core.Size;
 import org.bytedeco.opencv.global.opencv_imgproc;
@@ -182,67 +175,6 @@ public class PixelClassifierStatic {
     			request.getDownsample(), -1, request.getZ(), request.getT());
     }
     
-    
-    /**
-     * Convert an OpenCV {@code Mat} into an ImageJ {@code ImagePlus}.
-     * 
-     * @param mat
-     * @param title
-     * @return
-     */
-    public static ImagePlus matToImagePlus(Mat mat, String title) {
-        if (mat.channels() == 1) {
-            return new ImagePlus(title, matToImageProcessor(mat));
-        }
-        MatVector matvec = new MatVector();
-        opencv_core.split(mat, matvec);
-        ImageStack stack = new ImageStack(mat.cols(), mat.rows());
-        for (int s = 0; s < matvec.size(); s++) {
-            stack.addSlice(matToImageProcessor(matvec.get(s)));
-        }
-        return new ImagePlus(title, stack);
-    }
-
-    /**
-     * Convert a single-channel OpenCV {@code Mat} into an ImageJ {@code ImageProcessor}.
-     * 
-     * @param mat
-     * @return
-     */
-    public static ImageProcessor matToImageProcessor(Mat mat) {
-    	if (mat.channels() != 1)
-    		throw new IllegalArgumentException("Only a single-channel Mat can be converted to an ImageProcessor! Specified Mat has " + mat.channels() + " channels");
-        int w = mat.cols();
-        int h = mat.rows();
-        if (mat.depth() == opencv_core.CV_32F) {
-            FloatIndexer indexer = mat.createIndexer();
-            float[] pixels = new float[w*h];
-            indexer.get(0L, pixels);
-            return new FloatProcessor(w, h, pixels);
-        } else if (mat.depth() == opencv_core.CV_8U) {
-            UByteIndexer indexer = mat.createIndexer();
-            int[] pixels = new int[w*h];
-            indexer.get(0L, pixels);
-            ByteProcessor bp = new ByteProcessor(w, h);
-            for (int i = 0; i < pixels.length; i++)
-            	bp.set(i, pixels[i]);
-            return bp;
-        } else if (mat.depth() == opencv_core.CV_16U) {
-            UShortIndexer indexer = mat.createIndexer();
-            int[] pixels = new int[w*h];
-            indexer.get(0L, pixels);
-            short[] shortPixels = new short[pixels.length];
-            for (int i = 0; i < pixels.length; i++)
-            	shortPixels[i] = (short)pixels[i];
-            return new ShortProcessor(w, h, shortPixels, null); // TODO: Test!
-        } else {
-        	Mat mat2 = new Mat();
-            mat.convertTo(mat2, opencv_core.CV_32F);
-            ImageProcessor ip = matToImageProcessor(mat2);
-            mat2.release();
-            return ip;
-        }
-    }
     
     /**
 	 * Get a raster, padded by the specified amount, to the left, right, above and below.

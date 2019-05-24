@@ -47,8 +47,6 @@ public class RunningStatistics {
 	
 	private static double LARGE_DOUBLE_THRESHOLD = Math.pow(2, 53) - 1; // Largest integer that can be stored, maintaining accuracy of all smaller integers?
 	
-	public static int MAX_EXPAND = 100;
-	
 	private int numNaNs = 0;
 	
 	protected long size = 0;
@@ -56,7 +54,9 @@ public class RunningStatistics {
 
 	private double m1 = 0, s1 = 0;
 	
-	
+	/**
+	 * Default constructor.
+	 */
 	public RunningStatistics() {}
 	
 	/**

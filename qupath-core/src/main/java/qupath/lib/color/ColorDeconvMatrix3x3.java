@@ -46,7 +46,15 @@ public class ColorDeconvMatrix3x3 {
 	private final double m32;
 	private final double m33;
 	
-	public ColorDeconvMatrix3x3(double[][] M) {
+	/**
+	 * Constructor for a 3x3 matrix.
+	 * 
+	 * @param M
+	 * @throws IllegalArgumentException if the matrix is not 3x3
+	 */
+	public ColorDeconvMatrix3x3(double[][] M) throws IllegalArgumentException {
+		if (M.length != 3 || M[0].length != 3 || M[1].length != 3 || M[2].length != 3)
+			throw new IllegalArgumentException("Invalid matrix size! Must be 3x3.");
 		m11 = M[0][0];
 		m12 = M[0][1];
 		m13 = M[0][2];
@@ -62,12 +70,20 @@ public class ColorDeconvMatrix3x3 {
 		return a11*a22 - a12*a21;
 	}
 
+	/**
+	 * Calculate the determinant of the matrix.
+	 * @return
+	 */
 	public double determinant() {
 		return m11*det2(m22, m23, m32, m33) -
 			m12*det2(m21, m23, m31, m33) +
 			m13*det2(m21, m22, m31, m32);
 	}
 
+	/**
+	 * Calculate the 3x3 matrix inverse.
+	 * @return
+	 */
 	public double[][] inverse() {
 		double invDet3 = 1/determinant();
 		return new double[][]{

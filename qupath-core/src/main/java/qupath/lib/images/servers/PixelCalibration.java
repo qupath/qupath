@@ -42,6 +42,19 @@ public class PixelCalibration {
 		return cal;
 	}
 	
+//	public SimpleQuantity getPixelWidth() {
+//		return pixelWidth;
+//	}
+//	
+//	public SimpleQuantity getPixelHeight() {
+//		return pixelHeight;
+//	}
+//
+//	public SimpleQuantity getZSpacing() {
+//		return zSpacing;
+//	}
+
+	
 	public boolean hasPixelSizeMicrons() {
 		return MICROMETER.equals(pixelWidth.unit) && MICROMETER.endsWith(pixelHeight.unit);
 	}
@@ -97,12 +110,20 @@ public class PixelCalibration {
 		static SimpleQuantity getLengthMicrometers(Number value) {
 			return new SimpleQuantity(value, MICROMETER);
 		}
-		
+				
 		private SimpleQuantity(Number value, String unit) {
 			this.value = value;
 			this.unit = unit;
 		}
 		
+//		public Number getValue() {
+//			return value;
+//		}
+//		
+//		public String getUnit() {
+//			return unit;
+//		}
+
 		@Override
 		public String toString() {
 			return value + " " + unit;

@@ -115,6 +115,7 @@ import qupath.lib.projects.Project;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.RectangleROI;
 import qupath.lib.roi.interfaces.ROI;
+import qupath.opencv.processing.OpenCVTools;
 
 
 public class PixelClassifierImageSelectionPane {
@@ -1059,7 +1060,7 @@ public class PixelClassifierImageSelectionPane {
 		
 		try {
 			var features = featureCalculator.calculateFeatures(viewer.getServer(), request);
-			var imp = PixelClassifierStatic.matToImagePlus(features, "Features");
+			var imp = OpenCVTools.matToImagePlus(features, "Features");
 			int s = 1;
 			IJTools.calibrateImagePlus(imp, request, server);
 			var impComp = new CompositeImage(imp, CompositeImage.GRAYSCALE);
@@ -1678,7 +1679,10 @@ public class PixelClassifierImageSelectionPane {
 			
 			for (var s : sigmas)
 				comboFeatures.getItems().add(FeatureFilters.getFeatureFilter(FeatureFilters.SOBEL_FILTER, s));
-			
+
+			for (var s : sigmas)
+				comboFeatures.getItems().add(FeatureFilters.getFeatureFilter(FeatureFilters.HESSIAN_EIGENVALUES_AND_DETERMINANT_FILTER, s));
+
 //			for (var s : sigmas)
 //				comboFeatures.getItems().add(FeatureFilters.getFeatureFilter(FeatureFilters.NORMALIZED_INTENSITY_FILTER, s));
 	//

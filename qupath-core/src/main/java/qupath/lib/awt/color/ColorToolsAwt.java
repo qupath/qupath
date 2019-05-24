@@ -179,7 +179,12 @@ public class ColorToolsAwt {
 		return new IndexColorModel(8, 256, r2, g2, b2);		
 	}
 	
-
+	/**
+	 * Create an IndexColorModel, ranging from white (low values) to a stain vector color (high values).
+	 * 
+	 * @param stain
+	 * @return
+	 */
 	public static IndexColorModel getIndexColorModel(final StainVector stain) {
 		return getIndexColorModel(stain, true);
 	}
@@ -187,12 +192,20 @@ public class ColorToolsAwt {
 	private static Map<Color, Color> colorsTransparent = Collections.synchronizedMap(new HashMap<>());
 	private static Map<Color, Color> colorsDarkened = Collections.synchronizedMap(new HashMap<>());
 	private static Map<Color, Color> colorsMoreTransparent = Collections.synchronizedMap(new HashMap<>());
+	
+	/**
+	 * White, with 50% opacity.
+	 */
 	public static final Color TRANSLUCENT_WHITE = new Color(255, 255, 255, 128);
+	
+	/**
+	 * Black, with 50% opacity.
+	 */
 	public static final Color TRANSLUCENT_BLACK = new Color(0, 0, 0, 128);
 
 	/**
 	 * Get a (slightly more) translucent version of the specified color.
-	 * 
+	 * <p>
 	 * If possible, a cached version will be used.
 	 * 
 	 * @param color

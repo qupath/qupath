@@ -74,7 +74,7 @@ import qupath.opencv.processing.ProcessingCV;
 
 /**
  * Alternative (incomplete) attempt at nucleus segmentation.
- * 
+ * <p>
  * It's reasonably fast... but not particularly good.
  * 
  * @author Pete Bankhead

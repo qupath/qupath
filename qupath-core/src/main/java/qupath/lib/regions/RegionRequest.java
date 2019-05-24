@@ -27,6 +27,7 @@ import java.text.DecimalFormat;
 import java.util.HashMap;
 import java.util.Map;
 
+import qupath.lib.images.servers.ImageServer;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
@@ -63,6 +64,14 @@ public class RegionRequest extends ImageRegion {
 			interned = path;
 		this.path = path;
 		this.downsample = downsample;
+	}
+	
+	public static RegionRequest createInstance(ImageServer<?> server) {
+		return createInstance(server, 1.0);
+	}
+	
+	public static RegionRequest createInstance(ImageServer<?> server, double downsample) {
+		return createInstance(server.getPath(), downsample, 0, 0, server.getWidth(), server.getHeight());
 	}
 
 	public static RegionRequest createInstance(String path, double downsample, ROI pathROI) {

@@ -31,6 +31,12 @@ package qupath.lib.analysis.images;
  */
 public interface SimpleModifiableImage extends SimpleImage {
 	
+	/**
+	 * Set the value of a single pixel.
+	 * @param x x-coordinate of the pixel to set
+	 * @param y y-coordinate of the pixel to set
+	 * @param val new pixel value
+	 */
 	public void setValue(int x, int y, float val);
 	
 }

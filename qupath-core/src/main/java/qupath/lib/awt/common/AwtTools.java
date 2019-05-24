@@ -31,7 +31,7 @@ import qupath.lib.regions.ImageRegion;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
- * A collection of static methods useful when working with AWT.
+ * A collection of static methods useful when working with AWT shapes and {@link ImageRegion ImageRegions}.
  * 
  * @author Pete Bankhead
  *

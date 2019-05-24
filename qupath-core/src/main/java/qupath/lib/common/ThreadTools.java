@@ -45,7 +45,7 @@ public class ThreadTools {
 	 * @return
 	 */
 	public static ThreadFactory createThreadFactory(String prefix, boolean daemon, int priority) {
-		return createThreadFactory(prefix, daemon, priority);
+		return new SimpleThreadFactory(prefix, daemon, priority);
 	}
 	
 	/**
@@ -56,7 +56,7 @@ public class ThreadTools {
 	 * @return
 	 */
 	public static ThreadFactory createThreadFactory(String prefix, boolean daemon) {
-		return new SimpleThreadFactory(prefix, daemon, Thread.NORM_PRIORITY);
+		return createThreadFactory(prefix, daemon, Thread.NORM_PRIORITY);
 	}
 	
 	

@@ -1,11 +1,14 @@
 package qupath.lib.classifiers.opencv.pixel.features;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.global.opencv_imgproc;
 import org.bytedeco.javacpp.indexer.FloatIndexer;
 import org.bytedeco.opencv.opencv_core.Mat;
+import org.bytedeco.opencv.opencv_core.MatVector;
 import org.bytedeco.opencv.opencv_core.Size;
 
 import com.google.gson.Gson;
@@ -14,6 +17,7 @@ import com.google.gson.TypeAdapter;
 import com.google.gson.TypeAdapterFactory;
 import com.google.gson.reflect.TypeToken;
 import qupath.lib.common.GeneralTools;
+import qupath.opencv.processing.HessianCalculator;
 
 /**
  * Static methods to generate FeatureFilters.
@@ -34,7 +38,11 @@ public class FeatureFilters {
 	public static final String SOBEL_FILTER = "Sobel filter";
 	public static final String LAPLACIAN_OF_GAUSSIAN_FILTER = "Laplacian of Gaussian filter";
 	public static final String COHERENCE_FILTER = "Coherence filter";
-	
+
+	public static final String HESSIAN_EIGENVALUES_AND_DETERMINANT_FILTER = "Hessian determinant & eigenvalues";
+	public static final String HESSIAN_EIGENVALUES_FILTER = "Hessian eigenvalues";
+	public static final String HESSIAN_DETERMINANT_FILTER = "Hessian determinant";
+
 	public static final String NORMALIZED_INTENSITY_FILTER = "Normalized intensity filter";
 	public static final String PEAK_DENSITY_FILTER = "Peak density filter";
 	public static final String VALLEY_DENSITY_FILTER = "Valley density filter";
@@ -45,6 +53,12 @@ public class FeatureFilters {
 			return new OriginalPixels();
 		case GAUSSIAN_FILTER:
 			return new GaussianFeatureFilter(size);
+		case HESSIAN_EIGENVALUES_AND_DETERMINANT_FILTER:
+			return new HessianFeatureFilter(size, true, true);
+		case HESSIAN_EIGENVALUES_FILTER:
+			return new HessianFeatureFilter(size, true, false);
+		case HESSIAN_DETERMINANT_FILTER:
+			return new HessianFeatureFilter(size, false, true);
 		case STANDARD_DEVIATION_FILTER:
 			return new StdDevFeatureFilter((int)Math.round(size));
 		case MEDIAN_FILTER:
@@ -97,6 +111,7 @@ public class FeatureFilters {
 			.registerSubtype(LoGFeatureFilter.class)
 			.registerSubtype(MorphFilter.class)
 			.registerSubtype(PeakDensityFilter.class)
+			.registerSubtype(HessianFeatureFilter.class)
 			.registerSubtype(NormalizedIntensityFilter.class);
 	
 //	static class FeatureFilterTypeAdapter extends TypeAdapter<FeatureFilter> {
@@ -142,7 +157,8 @@ public class FeatureFilters {
     	int s = (int)Math.ceil(sigma * 3) * 2 + 1;
     	opencv_imgproc.GaussianBlur(matInput, matOutput, new Size(s, s), sigma);
     }
-    
+	
+	    
     /**
      * Clone the input image without further modification.
      */
@@ -152,6 +168,11 @@ public class FeatureFilters {
 		public String getName() {
 			return "Original pixels";
 		}
+		
+		@Override
+		public List<String> getFeatureNames() {
+    		return Collections.singletonList(getName());
+    	}
 
 		@Override
 		public int getPadding() {
@@ -190,13 +211,14 @@ public class FeatureFilters {
     	
     	private transient Mat kernel;
     	
-    	/**
-    	 * Median filter.  Note that only size of 3 or 5 is supported in general 
-    	 * (other filter sizes require 8-bit images for OpenCV).
-    	 */
     	public StdDevFeatureFilter(final int radius) {
 //    		this.includeMean = includeMean;
     		this.radius = radius;
+    	}
+    	
+    	@Override
+		public List<String> getFeatureNames() {
+    		return Collections.singletonList(getName());
     	}
 
 		@Override
@@ -372,6 +394,11 @@ public class FeatureFilters {
 		public String getName() {
 			return "Median filter (" + size + "x" + size + ")";
 		}
+		
+		@Override
+		public List<String> getFeatureNames() {
+    		return Collections.singletonList(getName());
+    	}
 
 		@Override
 		public int getPadding() {
@@ -430,6 +457,11 @@ public class FeatureFilters {
     		}
     		return opName;
     	}
+    	
+    	@Override
+		public List<String> getFeatureNames() {
+    		return Collections.singletonList(getName());
+    	}
 
 		@Override
 		public String getName() {
@@ -473,6 +505,11 @@ public class FeatureFilters {
     	
     	public double getSigma() {
     		return sigma;
+    	}
+    	
+    	@Override
+		public List<String> getFeatureNames() {
+    		return Collections.singletonList(getName());
     	}
     	
     	@Override
@@ -522,6 +559,63 @@ public class FeatureFilters {
 		}    	
     	
     }
+    
+    
+    public static class HessianFeatureFilter extends AbstractGaussianFeatureFilter {
+    	
+    	private boolean doEigenvalues = false;
+    	private boolean doDeterminant = false;
+    	
+    	public HessianFeatureFilter(double sigma, boolean doEigenvalues, boolean doDeterminant) {
+    		super(sigma);
+    		this.doDeterminant = doDeterminant;
+    		this.doEigenvalues = doEigenvalues;
+    	}
+    	
+    	@Override
+		public String getName() {
+    		if (doEigenvalues) {
+    			if (doDeterminant)
+    	    		return "Hessian eigenvalues & determinant" + sigmaString();
+    			else
+    	    		return "Hessian eigenvalues" + sigmaString();
+    		} else
+        		return "Hessian determinant" + sigmaString();
+    	}
+    	
+    	@Override
+		public List<String> getFeatureNames() {
+    		List<String> names = new ArrayList<>();
+    		String str = sigmaString();
+    		if (doDeterminant)
+    			names.add("Hessian determinant" + str);
+    		if (doEigenvalues) {
+    			names.add("Hessian max eigenvalues" + str);
+    			names.add("Hessian min eigenvalues" + str);
+    		}
+    		return names;
+    	}
+
+		@Override
+		public void calculate(Mat matInput, Mat matGaussian, List<Mat> output) {
+			var results = new HessianCalculator.HessianResultsBuilder()
+				.sigma(getSigma())
+				.build(matInput);
+			for (var result : results) {
+				if (doDeterminant) {
+					output.add(result.getDeterminant());
+				}
+				if (doEigenvalues) {
+					MatVector eigenvalues = result.getEigenvalues();
+					for (int i = 0; i < eigenvalues.size(); i++)
+						output.add(eigenvalues.get(i));
+				}
+			}
+		}    	
+    	
+    }
+    
+
     
     public static class SobelFeatureFilter extends AbstractGaussianFeatureFilter {
     	
@@ -589,6 +683,11 @@ public class FeatureFilters {
 		public String getName() {
 			return String.format("Gabor (\u03C3=%.2f, \u03B3=%.2f, \u03BB=%.2f)", sigma, gamma, lamda);
 		}
+		
+		@Override
+		public List<String> getFeatureNames() {
+    		return Collections.singletonList(getName());
+    	}
 
 		@Override
 		public int getPadding() {

@@ -31,10 +31,24 @@ package qupath.lib.analysis.images;
  */
 public interface SimpleImage {
 
+	/**
+	 * Get the value of a single pixel as a float.
+	 * @param x x-coordinate of the pixel
+	 * @param y y-coordinate of the pixel
+	 * @return
+	 */
 	float getValue(int x, int y);
 
+	/**
+	 * Get the image width.
+	 * @return
+	 */
 	int getWidth();
 
+	/**
+	 * Get the image height.
+	 * @return
+	 */
 	int getHeight();
 
 }

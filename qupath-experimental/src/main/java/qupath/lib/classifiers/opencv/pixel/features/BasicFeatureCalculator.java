@@ -47,7 +47,8 @@ public class BasicFeatureCalculator implements OpenCVFeatureCalculator {
 		var outputChannels = new ArrayList<ImageChannel>();
 		for (var channel : channels) {
 			for (var filter : filters) {
-				outputChannels.add(ImageChannel.getInstance("Channel " + channel + ": " + filter.getName(), ColorTools.makeRGB(255, 255, 255)));
+				for (String featureName : filter.getFeatureNames())
+					outputChannels.add(ImageChannel.getInstance("Channel " + channel + ": " + featureName, ColorTools.makeRGB(255, 255, 255)));
 				//    				outputChannels.add(new PixelClassifierOutputChannel(channel.getName() + ": " + filter.getName(), ColorTools.makeRGB(255, 255, 255)));
 			}
 		}
@@ -81,7 +82,7 @@ public class BasicFeatureCalculator implements OpenCVFeatureCalculator {
 		int w = img.getWidth();
 		int h = img.getHeight();
 		float[] pixels = new float[w * h];
-		var mat = new Mat(h, w, opencv_core.CV_32FC1);
+		Mat mat = new Mat(h, w, opencv_core.CV_32FC1);
 		FloatIndexer idx = mat.createIndexer();
 		for (var channel : channels) {
 			pixels = img.getRaster().getSamples(0, 0, w, h, channel, pixels);
@@ -91,14 +92,14 @@ public class BasicFeatureCalculator implements OpenCVFeatureCalculator {
 			addFeatures(mat, output);
 
 			if (nPyramidLevels > 1) {
-				var matLastLevel = mat;
+				Mat matLastLevel = mat;
 				var size = mat.size();
 				for (int i = 1; i < nPyramidLevels; i++) {
 					// Downsample pyramid level
-					var matPyramid = new Mat();
+					Mat matPyramid = new Mat();
 					opencv_imgproc.pyrDown(matLastLevel, matPyramid);
 					// Add features to a temporary list (because we'll need to resize them
-					var tempList = new ArrayList<Mat>();
+					List<Mat> tempList = new ArrayList<>();
 					addFeatures(matPyramid, tempList);
 					for (var temp : tempList) {
 						// Upsample

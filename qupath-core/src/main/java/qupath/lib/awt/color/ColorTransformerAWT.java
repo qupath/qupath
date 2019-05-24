@@ -268,7 +268,13 @@ public class ColorTransformerAWT {
 		
 	}
 	
-	
+	/**
+	 * Calculate the color deconvolved value for a single pixel, stored as a packed (A)RGB int.
+	 * @param rgb
+	 * @param stains
+	 * @param channel
+	 * @return
+	 */
 	public static float colorDeconvolveRGBPixel(int rgb, ColorDeconvolutionStains stains, int channel) {
 		double[][] matInv = stains.getMatrixInverse();
 

@@ -64,9 +64,9 @@ import qupath.lib.roi.interfaces.ROI;
 
 /**
  * Simple plugin to attempt a very fast cell counting based upon (smoothed) peak detection.
- * 
+ * <p>
  * Currently, only H&amp;E or hematoxylin and DAB are supported.
- * 
+ * <p>
  * An improved plugin would be desirable to perform the task in a more general way, and without 
  * requesting the 'magnification' by default (which is less meaningful than resolution/pixel size).
  * 
