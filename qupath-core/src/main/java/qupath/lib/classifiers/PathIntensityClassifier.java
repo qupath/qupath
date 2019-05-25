@@ -46,7 +46,7 @@ import qupath.lib.objects.PathObject;
  * @author Pete Bankhead
  *
  */
-public class PathIntensityClassifier implements Serializable, PathObjectClassifier {
+class PathIntensityClassifier implements Serializable, PathObjectClassifier {
 	
 	private static final long serialVersionUID = 1L;
 	
@@ -61,7 +61,7 @@ public class PathIntensityClassifier implements Serializable, PathObjectClassifi
 	
 	static DecimalFormat df = new DecimalFormat("#.###");
 	
-	public PathIntensityClassifier(final PathClass classSelected, final String intensityMeasurement, final double t1, final double t2, final double t3) {
+	PathIntensityClassifier(final PathClass classSelected, final String intensityMeasurement, final double t1, final double t2, final double t3) {
 		this.classSelected = classSelected;
 		this.intensityMeasurement = intensityMeasurement;
 		this.t1 = t1;
@@ -71,7 +71,7 @@ public class PathIntensityClassifier implements Serializable, PathObjectClassifi
 		lastModifiedTimestamp = System.currentTimeMillis();
 	}
 	
-	public PathIntensityClassifier(final PathClass classSelected, final String intensityMeasurement, final double threshold) {
+	PathIntensityClassifier(final PathClass classSelected, final String intensityMeasurement, final double threshold) {
 		this(classSelected, intensityMeasurement, threshold, Double.NaN, Double.NaN);
 	}
 	
@@ -218,7 +218,7 @@ public class PathIntensityClassifier implements Serializable, PathObjectClassifi
 
 	/**
 	 * Does nothing - intensity classifiers require no training.
-	 * 
+	 * <p>
 	 * Returns true if this is the first time updateClassifier was called, false otherwise.
 	 * 
 	 */

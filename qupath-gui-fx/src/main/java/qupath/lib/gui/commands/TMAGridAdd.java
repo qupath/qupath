@@ -290,7 +290,7 @@ public class TMAGridAdd implements PathCommand {
 		}
 		
 		// Update with a new TMAGrid
-		return new DefaultTMAGrid(coresNew, newWidth);
+		return DefaultTMAGrid.create(coresNew, newWidth);
 	}
 	
 	

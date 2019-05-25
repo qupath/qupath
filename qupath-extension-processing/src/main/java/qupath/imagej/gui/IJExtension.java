@@ -130,14 +130,26 @@ public class IJExtension implements QuPathExtension {
 			imageJPath = PathPrefs.createPersistentPreference("ijPath", null);
 	}
 	
+	/**
+	 * Set the path for a local ImageJ installation, if required. This can be used to help load external ImageJ plugins.
+	 * @param path
+	 */
 	public static void setImageJPath(final String path) {
 		imageJPath.set(path);
 	}
 	
+	/**
+	 * Get the path for a local ImageJ installation, if set.
+	 * @param path
+	 */
 	public static String getImageJPath() {
 		return imageJPath.get();
 	}
 	
+	/**
+	 * Property representing the path to a local ImageJ installation, or null if no path has been set.
+	 * @return
+	 */
 	public static StringProperty imageJPathProperty() {
 		return imageJPath;
 	}
@@ -401,7 +413,19 @@ public class IJExtension implements QuPathExtension {
 	}
 	
 
-
+	/**
+	 * Extract an image region as an ImagePlus, optionally setting ImageJ Rois corresponding to QuPath objects.
+	 * 
+	 * @param server server from which pixels should be requested
+	 * @param pathObject the primary object, which may have its ROI set on the image
+	 * @param hierarchy object hierarchy containing objects whose ROIs should be added to the ImagePlus overlay
+	 * @param request the region being requested
+	 * @param setROI if true, the ROI of the pathObject will be set on the image as the 'main' ROI (i.e. not an overlay)
+	 * @param options options determining which kinds of objects will have ROIs added, to match with the display in the QuPath viewer
+	 * @param imageDisplay options determining any color transform to apply
+	 * @return
+	 * @throws IOException
+	 */
 	public static PathImage<ImagePlus> extractROIWithOverlay(ImageServer<BufferedImage> server, PathObject pathObject, PathObjectHierarchy hierarchy, RegionRequest request, boolean setROI, OverlayOptions options, ImageDisplay imageDisplay) throws IOException {
 		ROI pathROI;
 		if (pathObject == null || !pathObject.hasROI()) {

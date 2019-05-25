@@ -25,6 +25,7 @@ package qupath.lib.gui.commands;
 
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.io.IOException;
 import java.util.List;
 
 import org.slf4j.Logger;
@@ -135,10 +136,14 @@ public class CountingPanelCommand implements PathCommand, ImageDataChangeListene
 				File file = qupath.getDialogHelper().promptForFile(null, null, "zip files", new String[]{"zip"});
 				if (file == null)
 					return;
-				List<PathObject> pointsList = PointIO.readPointsObjectList(file);
-				if (pointsList != null) {
-					for (PathObject points : pointsList)
-						hierarchy.addPathObject(points, true);
+				try {
+					List<PathObject> pointsList = PointIO.readPointsObjectList(file);
+					if (pointsList != null) {
+						for (PathObject points : pointsList)
+							hierarchy.addPathObject(points, true);
+					}
+				} catch (IOException e) {
+					DisplayHelpers.showErrorMessage("Load points error", e);
 				}
 			}
 		);
@@ -160,7 +165,11 @@ public class CountingPanelCommand implements PathCommand, ImageDataChangeListene
 				File file = QuPathGUI.getSharedDialogHelper().promptToSaveFile(null, null, defaultName, "zip files", "zip");
 				if (file == null)
 					return;
-				PointIO.writePointsObjectsList(file, pointsList, PathPrefs.getColorDefaultAnnotations());
+				try {
+					PointIO.writePointsObjectsList(file, pointsList, PathPrefs.getColorDefaultAnnotations());
+				} catch (IOException e) {
+					DisplayHelpers.showErrorMessage("Save points error", e);
+				}
 			}
 		);
 		

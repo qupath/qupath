@@ -40,6 +40,7 @@ import java.util.Enumeration;
 import java.util.List;
 import java.util.Scanner;
 import java.util.zip.ZipEntry;
+import java.util.zip.ZipException;
 import java.util.zip.ZipFile;
 import java.util.zip.ZipOutputStream;
 
@@ -65,12 +66,10 @@ public class PointIO {
 	
 	final private static Logger logger = LoggerFactory.getLogger(PointIO.class);
 	
-	public static List<PathObject> readPointsObjectList(File file) {
+	public static List<PathObject> readPointsObjectList(File file) throws ZipException, IOException {
 		List<PathObject> pathObjects = new ArrayList<>();
-		ZipFile zipFile;
 		Scanner s = null;
-		try {
-			zipFile = new ZipFile(file);
+		try (ZipFile zipFile = new ZipFile(file)) {
 			Enumeration<? extends ZipEntry> entries = zipFile.entries();
 			while (entries.hasMoreElements()) {
 				ZipEntry entry = entries.nextElement();
@@ -82,12 +81,6 @@ public class PointIO {
 				s.close();
 			}
 			zipFile.close();
-		} catch (FileNotFoundException e1) {
-			// TODO Auto-generated catch block
-			e1.printStackTrace();
-		} catch (IOException e1) {
-			// TODO Auto-generated catch block
-			e1.printStackTrace();
 		} finally {
 			if (s != null)
 				s.close();
@@ -111,10 +104,8 @@ public class PointIO {
 	}
 	
 
-	public static void writePointsObjectsList(File file, List<? extends PathObject> pathObjects, final Integer defaultColor) {
-		ZipOutputStream out;
-		try {
-			out = new ZipOutputStream(new BufferedOutputStream(new FileOutputStream(file)));
+	public static void writePointsObjectsList(File file, List<? extends PathObject> pathObjects, final Integer defaultColor) throws IOException {
+		try (ZipOutputStream out = new ZipOutputStream(new BufferedOutputStream(new FileOutputStream(file)))) {
 			Charset charset = Charset.forName("UTF-8");
 			
 			int ind = 0;
@@ -135,13 +126,6 @@ public class PointIO {
 				out.write(getPointsAsString(points).getBytes(charset));
 				out.closeEntry();
 			}
-			out.close();
-		} catch (FileNotFoundException e1) {
-			// TODO Auto-generated catch block
-			e1.printStackTrace();
-		} catch (IOException e1) {
-			// TODO Auto-generated catch block
-			e1.printStackTrace();
 		}
 	}
 	
@@ -152,12 +136,10 @@ public class PointIO {
 	
 	
 	
-	public static List<? extends PathPoints> readPointsList(File file) {
+	public static List<? extends PathPoints> readPointsList(File file) throws IOException {
 		List<PathPoints> pointsList = new ArrayList<>();
-		ZipFile zipFile;
 		Scanner s = null;
-		try {
-			zipFile = new ZipFile(file);
+		try (ZipFile zipFile = new ZipFile(file)){
 			Enumeration<? extends ZipEntry> entries = zipFile.entries();
 			while (entries.hasMoreElements()) {
 				ZipEntry entry = entries.nextElement();
@@ -169,12 +151,6 @@ public class PointIO {
 				s.close();
 			}
 			zipFile.close();
-		} catch (FileNotFoundException e1) {
-			// TODO Auto-generated catch block
-			e1.printStackTrace();
-		} catch (IOException e1) {
-			// TODO Auto-generated catch block
-			e1.printStackTrace();
 		} finally {
 			if (s != null)
 				s.close();
@@ -182,10 +158,8 @@ public class PointIO {
 		return pointsList;
 	}
 
-	public static void writePointsList(File file, List<? extends PointsROI> pointsList) {
-		ZipOutputStream out;
-		try {
-			out = new ZipOutputStream(new BufferedOutputStream(new FileOutputStream(file)));
+	public static void writePointsList(File file, List<? extends PointsROI> pointsList) throws FileNotFoundException, IOException {
+		try (ZipOutputStream out = new ZipOutputStream(new BufferedOutputStream(new FileOutputStream(file)))) {
 			Charset charset = Charset.forName("UTF-8");
 			
 			int ind = 0;
@@ -196,12 +170,6 @@ public class PointIO {
 				out.closeEntry();
 			}
 			out.close();
-		} catch (FileNotFoundException e1) {
-			// TODO Auto-generated catch block
-			e1.printStackTrace();
-		} catch (IOException e1) {
-			// TODO Auto-generated catch block
-			e1.printStackTrace();
 		}
 	}
 	

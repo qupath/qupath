@@ -34,6 +34,15 @@ import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.ROI;
 
+/**
+ * ImageServer that reads pixels using the OMERO web API.
+ * <p>
+ * Note that this does not provide access to the raw data, but rather RGB tiles only in the manner of a web viewer. 
+ * Consequently, only RGB images are supported and some small changes in pixel values can be expected due to compression.
+ * 
+ * @author Pete Bankhead
+ *
+ */
 public class OmeroWebImageServer extends AbstractTileableImageServer {
 
 	private static final Logger logger = LoggerFactory.getLogger(OmeroWebImageServer.class);
@@ -57,9 +66,9 @@ public class OmeroWebImageServer extends AbstractTileableImageServer {
 	 * There appears to be a max size (hard-coded?) in OMERO, so we need to make sure we don't exceed that.
 	 * Requesting anything larger just returns a truncated image.
 	 */
-	private static int OMERO_MAX_SIZE = 1024;
+//	private static int OMERO_MAX_SIZE = 1024;
 
-	protected OmeroWebImageServer(URI uri, OmeroWebClient client, String...args) throws IOException {
+	OmeroWebImageServer(URI uri, OmeroWebClient client, String...args) throws IOException {
 		super(uri);
 
 		this.scheme = uri.getScheme();
@@ -196,7 +205,14 @@ public class OmeroWebImageServer extends AbstractTileableImageServer {
 		originalMetadata = builder.build();
 	}
 
-
+	/**
+	 * Retrieve any ROIs stored with this image as annotation objects.
+	 * <p>
+	 * Warning: This method is subject to change in the future.
+	 * 
+	 * @return
+	 * @throws IOException
+	 */
 	public Collection<PathObject> getROIs() throws IOException {
 
 		//		URL urlROIs = new URL(

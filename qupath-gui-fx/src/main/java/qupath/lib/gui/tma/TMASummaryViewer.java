@@ -756,7 +756,7 @@ public class TMASummaryViewer {
 //			logger.info(entry.getKey() + "\t" + score);
 		}
 
-		TMAGrid grid = new DefaultTMAGrid(cores, 1);
+		TMAGrid grid = DefaultTMAGrid.create(cores, 1);
 		PathObjectHierarchy hierarchy = new PathObjectHierarchy();
 		hierarchy.setTMAGrid(grid);
 		kmDisplay.setHierarchy(hierarchy, colSurvival, colCensoredRequested);

@@ -50,6 +50,10 @@ public class ScreenshotCommand implements PathCommand {
 
 	private QuPathGUI qupath;
 
+	/**
+	 * Constructor.
+	 * @param qupath QuPath instance where the command should be installed.
+	 */
 	public ScreenshotCommand(QuPathGUI qupath) {
 //		super("Make screenshot", PathIconFactory.createIcon(QuPathGUI.iconSize, QuPathGUI.iconSize, PathIconFactory.PathIcons.SCREENSHOT));
 		this.qupath = qupath;

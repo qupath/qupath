@@ -40,6 +40,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.lib.geom.Point2;
+import qupath.lib.measurements.MeasurementList;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
@@ -79,18 +80,6 @@ public class PathClassificationLabellingHelper {
 		}
 	};
 	
-	
-//	/**
-//	 * Add a PathClass to the available list, without adding a corresponding object.
-//	 * Useful for initializing a list of available classes before starting to assign objects to classes.
-//	 * 
-//	 * @param pathClass
-//	 * @return
-//	 */
-//	private boolean addPathClass(PathClass pathClass) {
-//		return pathClasses.add(pathClass);
-//	}
-	
 	public static int nLabelledObjectsForClass(final PathObjectHierarchy hierarchy, final PathClass pathClass) {
 		int n = 0;
 		for (PathObject pathObject : getAnnotationsForClass(hierarchy, pathClass)) {
@@ -127,24 +116,6 @@ public class PathClassificationLabellingHelper {
 	}
 	
 	
-//	/**
-//	 * For all PathAnnotationObjects, set the PathClasses to null.
-//	 * 
-//	 * @param hierarchy
-//	 */
-//	private static void resetAllClassifications(PathObjectHierarchy hierarchy) {
-//		List<PathObject> changedList = new ArrayList<>();
-//		for (PathObject pathObject : getAnnotations(hierarchy)) {
-//			if (pathObject.getPathClass() == null)
-//				continue;
-//			pathObject.setPathClass(null);
-//			changedList.add(pathObject);
-//		}
-//		if (!changedList.isEmpty())
-//			hierarchy.fireObjectClassificationsChangedEvent(null, changedList);
-//	}
-	
-	
 	public static List<PathObject> getLabelledObjectsForClass(final PathObjectHierarchy hierarchy, final PathClass pathClass) {
 		List<PathObject> pathObjects = new ArrayList<>();
 		for (PathObject pathObject : getAnnotations(hierarchy)) {
@@ -164,29 +135,12 @@ public class PathClassificationLabellingHelper {
 		return annotations;
 	}
 	
-	
-//	/**
-//	 * Search for an existing PathClass using a specified name.
-//	 * 
-//	 * @param name
-//	 * @return a PathClass with the specified name, or null if none is found
-//	 */
-//	private PathClass getPathClassByName(String name, boolean ignoreCase) {
-//		if (ignoreCase)
-//			name = name.toLowerCase();
-//		for (PathClass pathClass : pathClasses) {
-//			if (pathClass.getName().equals(name) || (ignoreCase && pathClass.getName().toLowerCase().equals(name)))
-//				return pathClass;
-//		}
-//		return null;
-//	}
-	
 
 	/**
 	 * Get a map of training data, based on the child objects of some classified annotations.
 	 * 
-	 * @param hierarchy The hierarchy containing all the objects and annotations.
-	 * @param pointsOnly If true, only Point annotations will be used for training.
+	 * @param hierarchy the hierarchy containing all the objects and annotations.
+	 * @param pointsOnly if true, only Point annotations will be used for training.
 
 	 * @return
 	 */
@@ -387,16 +341,28 @@ public class PathClassificationLabellingHelper {
 	}
 
 
-	
-	
-	
+	/**
+	 * Get a set containing the names of all measurements found in the measurement lists objects in a hierarchy.
+	 * 
+	 * @param hierarchy the hierarchy containing objects being queried
+	 * @param cls optionally restrict to objects of a specified class
+	 * @return
+	 * 
+	 * @see PathClassificationLabellingHelper#getAvailableFeatures(Collection)
+	 * @see MeasurementList#getMeasurementNames()
+	 */
 	public static Set<String> getAvailableFeatures(final PathObjectHierarchy hierarchy, final Class<? extends PathObject> cls) {
 		if (hierarchy == null)
 			return Collections.emptySet();
 		return getAvailableFeatures(hierarchy.getObjects(null, cls));
 	}
 	
-	
+	/**
+	 * Get a set containing the names of all measurements found in the measurement lists of a specified object collection.
+	 * 
+	 * @param pathObjects
+	 * @return
+	 */
 	public static Set<String> getAvailableFeatures(final Collection<PathObject> pathObjects) {
 		LinkedHashSet<String> featureSet = new LinkedHashSet<>();
 		// This has a small optimization that takes into consideration the fact that many objects share references to exactly the same MeasurementLists -
@@ -421,13 +387,11 @@ public class PathClassificationLabellingHelper {
 	 * @return
 	 */
 	public static int countObjectsInMap(final Map<?, ? extends Collection<? extends PathObject>> map) {
-		int n = 0;
-		for (Collection<?> list : map.values())
-			n += list.size();
-		return n;
+		return map.values().stream().mapToInt(v -> v.size()).sum();
+//		int n = 0;
+//		for (Collection<?> list : map.values())
+//			n += list.size();
+//		return n;
 	}
-	
-	
-	
 	
 }

@@ -69,8 +69,10 @@ public class PixelClassifierMetadata {
     }
 
     /**
-     * Mean value to subtract from a specified input channel
-     * Returns 0 if no scaling is specified.
+     * Mean value to subtract from a specified input channel, or 0 if no scaling is specified.
+     * 
+     * @param channel
+     * @return
      */
     private double getInputChannelMean(int channel) {
     	return inputChannelMeans == null ? 0 : inputChannelMeans[channel];
@@ -93,7 +95,8 @@ public class PixelClassifierMetadata {
     }
 
     /**
-     * Scale values used to divide each input channel (after possible mean subtraction), if required
+     * Scale values used to divide each input channel (after possible mean subtraction), if required.
+     * <p>
      * May return null if no scaling is required.
      */
     public double[] getInputChannelScales() {
@@ -155,11 +158,6 @@ public class PixelClassifierMetadata {
      */
     public List<ImageChannel> getChannels() {
     	return Collections.unmodifiableList(channels);
-    }
-
-
-    private int nOutputChannels() {
-        return channels == null ? 0 : channels.size();
     }
     
     

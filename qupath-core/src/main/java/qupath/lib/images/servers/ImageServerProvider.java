@@ -59,10 +59,23 @@ public class ImageServerProvider {
 	@SuppressWarnings("rawtypes")
 	private static ServiceLoader<ImageServerBuilder> serviceLoader = ServiceLoader.load(ImageServerBuilder.class);
 	
+	/**
+	 * Set the cache to be used for image tiles of a specific type.
+	 * @param <T>
+	 * @param cache
+	 * @param cls
+	 */
 	public static <T> void setCache(Map<RegionRequest, T> cache, final Class<T> cls) {
 		cacheMap.put(cls, cache);
 	}
 	
+	/**
+	 * Get the cache in use for image tiles of a specific type.
+	 * @param <T>
+	 * @param cls
+	 * @return
+	 */
+	@SuppressWarnings("unchecked")
 	public static <T> Map<RegionRequest, T> getCache(final Class<T> cls) {
 		return (Map<RegionRequest, T>)cacheMap.get(cls);
 	}
@@ -75,11 +88,14 @@ public class ImageServerProvider {
 	 * 
 	 * @param newLoader
 	 */
-	public static void setServiceLoader(final ServiceLoader<ImageServerBuilder> newLoader) {
+	public static void setServiceLoader(@SuppressWarnings("rawtypes") final ServiceLoader<ImageServerBuilder> newLoader) {
 		serviceLoader = newLoader;
 	}
 
-	
+	/**
+	 * Request all available {@link ImageServerBuilder ImageServerBuilders}.
+	 * @return
+	 */
 	public static List<ImageServerBuilder<?>> getInstalledImageServerBuilders() {
 		List<ImageServerBuilder<?>> builders = new ArrayList<>();
 		for (ImageServerBuilder<?> b : serviceLoader)
@@ -89,12 +105,10 @@ public class ImageServerProvider {
 	
 	
 	/**
-	 * Attempt to create {@code ImageServer<T>} from the specified path, which returns images of the specified class
-	 * (e.g. BufferedImage).  The class needs to be passed to assist with ensuring the correct generic type of
-	 * the returned {@code ImageServer<T>}.
+	 * Attempt to create {@code ImageServer<T>} from the specified path and arguments.
 	 * 
-	 * @param path
-	 * @param cls
+	 * @param path path to an image - typically a URI
+	 * @param cls desired generic type for the ImageServer, e.g. BufferedImage.class
 	 * @param args optional arguments, which may be used by some builders
 	 * @return
 	 * @throws IOException 

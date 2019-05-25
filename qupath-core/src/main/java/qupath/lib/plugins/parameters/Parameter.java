@@ -82,6 +82,11 @@ public interface Parameter<S> extends Serializable {
 	 */
 	public String getPrompt();
 	
+	/**
+	 * Query if a specified value would be valid for this parameter.
+	 * @param value
+	 * @return true if the value would be valid, false otherwise
+	 */
 	public boolean isValidInput(S value);
 	
 	/**

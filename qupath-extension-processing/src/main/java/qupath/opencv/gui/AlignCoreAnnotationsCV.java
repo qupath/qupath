@@ -78,6 +78,10 @@ public class AlignCoreAnnotationsCV implements PathCommand {
 	
 	private final QuPathGUI qupath;
 	
+	/**
+	 * Constructor.
+	 * @param qupath QuPath instance where the command should be installed.
+	 */
 	public AlignCoreAnnotationsCV(final QuPathGUI qupath) {
 		this.qupath = qupath;
 	}

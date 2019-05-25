@@ -24,7 +24,6 @@
 package qupath.lib.measurements;
 
 import java.io.Serializable;
-import java.util.Collection;
 import java.util.List;
 
 /**
@@ -38,14 +37,18 @@ import java.util.List;
  */
 public interface MeasurementList extends Serializable, AutoCloseable {
 	
-	public enum TYPE {GENERAL, DOUBLE, FLOAT}
+	public enum TYPE {
+		GENERAL,
+		DOUBLE,
+		FLOAT}
 	
 	public boolean addMeasurement(String name, double value);
 	
 	/**
 	 * Put a measurement into the list, replacing any previous measurement with the same name.
+	 * <p>
 	 * This is similar to add, but with a check to remove any existing measurement with the same name
-	 * (if multiple measurements have the same name, the first will be replaced)
+	 * (if multiple measurements have the same name, the first will be replaced).
 	 * <p>
 	 * While it's probably a good idea for measurements to always have unique names, for some implementations
 	 * putMeasurement can be must slower than add or addMeasurement - so adding should be preferred if it is
@@ -65,38 +68,14 @@ public interface MeasurementList extends Serializable, AutoCloseable {
 	public double getMeasurementValue(int ind);
 
 	public double getMeasurementValue(String name);
-	
 
-//	/**
-//	 * Request that the list tries to reduce the memory requirements internally - 
-//	 * this may be useful if no more measurements will be added,
-//	 * and potentially large numbers of similar lists will be created.
-//	 */
-//	public void compactStorage();
-
-	public boolean containsAllNamedMeasurements(Collection<String> keys);
-	
 	public boolean containsNamedMeasurement(String name);
-	
-//	/**
-//	 * Create a new MeasurementList with the same type as the current MeasurementList.
-//	 * 
-//	 * @param retainValues
-//	 * @return
-//	 */
-//	public MeasurementList newInstance();
 
 	public boolean isEmpty();
 	
 	public int size();
 	
 	public boolean supportsDynamicMeasurements();
-
-//	/**
-//	 * TRUE if the list is closed (i.e. cannot be modified), FALSE if it can accept new measurements.
-//	 * @return
-//	 */
-//	public boolean isClosed();
 	
 	/**
 	 * Close the list. Depending on the implementation, the list may then adjust its internal storage to be
@@ -105,32 +84,9 @@ public interface MeasurementList extends Serializable, AutoCloseable {
 	 */
 	@Override
 	public void close();
-
-//	public void closeList();
-
-	/**
-	 * @deprecated in favor of using {@link #close()}
-	 */
-	@Deprecated
-	default void closeList() {
-		close();
-	}
-	
-//	public void ensureListOpen();
-	
 	
 	public void removeMeasurements(String...measurementNames);
 	
-	
 	public void clear();
-
-//	/**
-//	 * Remove a specific Measurement object (note, *not* the String name).
-//	 * (Optional operation)
-//	 * 
-//	 * @param o
-//	 * @return
-//	 */
-//	public boolean remove(Object o);
 
 }

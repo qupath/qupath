@@ -185,13 +185,6 @@ class NumericMeasurementList {
 		}
 
 		@Override
-		public boolean containsAllNamedMeasurements(Collection<String> measurementNames) {
-			if (!isClosed)
-				logger.debug("containsAllNamedMeasurements called on open NumericMeasurementList - consider closing list earlier for efficiency");
-			return names == measurementNames || names.equals(measurementNames) || names.containsAll(measurementNames);
-		}		
-		
-		@Override
 		public boolean containsNamedMeasurement(String measurementName) {
 			if (!isClosed)
 				logger.trace("containsNamedMeasurement called on open NumericMeasurementList - consider closing list earlier for efficiency");

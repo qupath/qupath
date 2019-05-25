@@ -62,7 +62,10 @@ public class OpenCvClassifierCommand implements PathCommand {
 	private Stage dialog;
 	private ClassifierBuilderPanel<OpenCvClassifier<?>> panel;
 
-	
+	/**
+	 * Constructor.
+	 * @param qupath QuPath instance to which the command should be installed.
+	 */
 	public OpenCvClassifierCommand(final QuPathGUI qupath) {
 		this.qupath = qupath;
 	}

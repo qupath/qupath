@@ -28,9 +28,10 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
-import java.util.stream.Collectors;
 import java.util.Scanner;
 
 import org.slf4j.Logger;
@@ -59,7 +60,6 @@ import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.images.ImageData;
 import qupath.lib.io.TMAScoreImporter;
 import qupath.lib.objects.TMACoreObject;
-import qupath.lib.objects.hierarchy.DefaultTMAGrid;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.TMAGrid;
 
@@ -396,18 +396,24 @@ public class TMAScoreImportCommand implements PathCommand {
 	 * the reason being to intercept modifications, thereby allowing them to 
 	 * be either applied to the underlying 'true' TMAGrid or reverted.
 	 */
-	private static class CoreInfoGrid extends DefaultTMAGrid {
+	private static class CoreInfoGrid implements TMAGrid {
 		
 		private static final long serialVersionUID = 1L;
 		
+		private TMAGrid grid;
+		private Map<TMACoreObject, CoreInfo> coreMap = new LinkedHashMap<>();
 		private List<CoreInfoRow> rows = new ArrayList<>();
 				
 		CoreInfoGrid(final TMAGrid grid) {
-			super(grid.getTMACoreList().stream().map(c -> new CoreInfo(c)).collect(Collectors.toList()), grid.getGridWidth());
+			this.grid = grid;
 			for (int y = 0; y < getGridHeight(); y++) {
 				CoreInfoRow row = new CoreInfoRow(getGridWidth());
-				for (int x = 0; x < getGridWidth(); x++)
-					row.set((CoreInfo)getTMACore(y, x), x);
+				for (int x = 0; x < getGridWidth(); x++) {
+					TMACoreObject core = grid.getTMACore(y, x);
+					CoreInfo coreInfo = new CoreInfo(core);
+					row.set(coreInfo, x);
+					coreMap.put(core, coreInfo);
+				}
 				rows.add(row);
 			}
 		}
@@ -417,14 +423,86 @@ public class TMAScoreImportCommand implements PathCommand {
 		}
 		
 		public void synchronizeTMAGridToInfo() {
-			for (int row = 0; row < getGridHeight(); row++) {
-				for (int col = 0; col < getGridWidth(); col++) {
-					((CoreInfo)getTMACore(row, col)).synchronizeCoreToFields();
-				}
-			}
+			coreMap.values().forEach(c -> c.synchronizeCoreToFields());
+		}
+
+		@Override
+		public int nCores() {
+			return grid.nCores();
+		}
+
+		@Override
+		public int getGridWidth() {
+			return grid.getGridWidth();
+		}
+
+		@Override
+		public int getGridHeight() {
+			return grid.getGridHeight();
+		}
+
+		@Override
+		public TMACoreObject getTMACore(String coreName) {
+			return coreMap.get(grid.getTMACore(coreName));
+		}
+
+		@Override
+		public TMACoreObject getTMACore(int ind) {
+			return coreMap.get(grid.getTMACore(ind));
+		}
+
+		@Override
+		public TMACoreObject getTMACore(int row, int col) {
+			return coreMap.get(grid.getTMACore(row, col));
+		}
+
+		@Override
+		public List<TMACoreObject> getTMACoreList() {
+			return new ArrayList<>(coreMap.values());
+		}
+
+		@Override
+		public TMACoreObject getTMACoreForPixel(double x, double y) {
+			return coreMap.get(grid.getTMACoreForPixel(x, y));
 		}
 		
 	}
+	
+	
+//	/**
+//	 * Specialized TMAGrid to replace TMACoreObjects with CoreInfo objects -
+//	 * the reason being to intercept modifications, thereby allowing them to 
+//	 * be either applied to the underlying 'true' TMAGrid or reverted.
+//	 */
+//	private static class CoreInfoGrid extends DefaultTMAGrid {
+//		
+//		private static final long serialVersionUID = 1L;
+//		
+//		private List<CoreInfoRow> rows = new ArrayList<>();
+//				
+//		CoreInfoGrid(final TMAGrid grid) {
+//			super(grid.getTMACoreList().stream().map(c -> new CoreInfo(c)).collect(Collectors.toList()), grid.getGridWidth());
+//			for (int y = 0; y < getGridHeight(); y++) {
+//				CoreInfoRow row = new CoreInfoRow(getGridWidth());
+//				for (int x = 0; x < getGridWidth(); x++)
+//					row.set((CoreInfo)getTMACore(y, x), x);
+//				rows.add(row);
+//			}
+//		}
+//		
+//		public List<CoreInfoRow> getRows() {
+//			return Collections.unmodifiableList(rows);
+//		}
+//		
+//		public void synchronizeTMAGridToInfo() {
+//			for (int row = 0; row < getGridHeight(); row++) {
+//				for (int col = 0; col < getGridWidth(); col++) {
+//					((CoreInfo)getTMACore(row, col)).synchronizeCoreToFields();
+//				}
+//			}
+//		}
+//		
+//	}
 	
 	
 	/**

@@ -57,7 +57,9 @@ public class OpenCVExtension implements QuPathExtension {
 	
 	final private static Logger logger = LoggerFactory.getLogger(OpenCVExtension.class);
 	
-	public static void addQuPathCommands(final QuPathGUI qupath) {
+	static void addQuPathCommands(final QuPathGUI qupath) {
+		
+		logger.debug("Installing " + OpenCVExtension.class);
 
 //		Menu menuTMA = qupath.getMenu("TMA", true);
 //		QuPathGUI.addMenuItems(
@@ -93,11 +95,13 @@ public class OpenCVExtension implements QuPathExtension {
 		
 		
 		// Add the Wand tool
+		logger.debug("Installing wand tool");
 		WandToolCV wandTool = new WandToolCV(qupath);
 		qupath.putToolForMode(Modes.WAND, wandTool);
 	}
 	
-	private void ensureClassesLoaded() {
+	private static void ensureClassesLoaded() {
+		logger.debug("Ensuring OpenCV classes are loaded");
 		try (var scope = new PointerScope(true)) {
 			var mat = new Mat();
 			Scalar.all(1.0);
@@ -105,7 +109,7 @@ public class OpenCVExtension implements QuPathExtension {
 			ANN_MLP.create();
 			KNearest.create();
 			DTrees.create();
-			mat.release();
+			mat.close();
 		}
 	}
 

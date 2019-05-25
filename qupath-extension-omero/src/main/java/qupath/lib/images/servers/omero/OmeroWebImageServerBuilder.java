@@ -339,7 +339,7 @@ public class OmeroWebImageServerBuilder implements ImageServerBuilder<BufferedIm
 			return parseJSON(Map.class, base, query);
 		}
 
-		private String getJSONString(String base, String... query) throws MalformedURLException, IOException {
+		private static String getJSONString(String base, String... query) throws MalformedURLException, IOException {
 
 			StringBuilder sb = new StringBuilder(base);
 			for (String q : query)
@@ -349,8 +349,10 @@ public class OmeroWebImageServerBuilder implements ImageServerBuilder<BufferedIm
 			connection.setRequestProperty("Content-Type", "application/json");
 			connection.setRequestMethod("GET");
 			connection.setDoInput(true);
-			Scanner s = new Scanner(connection.getInputStream()).useDelimiter("\\A");
-			return s.hasNext() ? s.next() : "";
+			try (InputStream stream = connection.getInputStream()) {
+				Scanner s = new Scanner(stream).useDelimiter("\\A");
+				return s.hasNext() ? s.next() : "";
+			}
 		}
 
 		private <T> T parseJSON(Class<T> cls, String base, String... query)
@@ -358,6 +360,7 @@ public class OmeroWebImageServerBuilder implements ImageServerBuilder<BufferedIm
 			return gson.fromJson(getJSONString(base, query), cls);
 		}
 
+		@SuppressWarnings("unchecked")
 		private <T> T parseJSON(Type type, String base, String... query)
 				throws JsonSyntaxException, MalformedURLException, IOException {
 			return (T) gson.fromJson(getJSONString(base, query), type);

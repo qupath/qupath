@@ -72,7 +72,7 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 	private int boundsX, boundsY, boundsWidth, boundsHeight;
 	
 	
-	private double readNumericPropertyOrDefault(Map<String, String> properties, String name, double defaultValue) {
+	private static double readNumericPropertyOrDefault(Map<String, String> properties, String name, double defaultValue) {
 		// Try to read a tile size
 		String value = properties.get(name);
 		if (value == null) {

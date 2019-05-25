@@ -36,8 +36,16 @@ import java.io.Serializable;
  */
 public interface Measurement extends Serializable {
 		 
+	/**
+	 * Get the name of the measurement.
+	 * @return
+	 */
      public String getName();
 
+     /**
+      * Get the numeric value of the measurement.
+      * @return
+      */
      public double getValue();
 	 
      @Deprecated

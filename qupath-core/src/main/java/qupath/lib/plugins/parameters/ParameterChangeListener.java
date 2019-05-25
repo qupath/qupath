@@ -31,6 +31,13 @@ package qupath.lib.plugins.parameters;
  */
 public interface ParameterChangeListener {
 	
+	/**
+	 * Notify listener that a parameter value has changed.
+	 * 
+	 * @param parameterList list containing the parameter
+	 * @param key key to identify the parameter
+	 * @param isAdjusting if the parameter is in the process of being changed
+	 */
 	public void parameterChanged(ParameterList parameterList, String key, boolean isAdjusting);
 	
 }

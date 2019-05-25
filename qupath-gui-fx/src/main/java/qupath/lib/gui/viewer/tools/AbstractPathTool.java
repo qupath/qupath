@@ -69,7 +69,10 @@ abstract class AbstractPathTool implements PathTool, QuPathViewerListener {
 	
 	transient LevelComparator comparator;
 	
-	
+	/**
+	 * Constructor.
+	 * @param modes property storing the current selected {@link Modes} within QuPath.
+	 */
 	AbstractPathTool(ModeWrapper modes) {
 		this.modes = modes;
 	}

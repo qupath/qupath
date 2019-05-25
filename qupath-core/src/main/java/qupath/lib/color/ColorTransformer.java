@@ -103,14 +103,16 @@ public class ColorTransformer {
 	}
 
 	/**
-	 * Create a 'normalized' color by converting RGB values to optical densities, putting the RGB ODs into
+	 * Create a 'normalized' color for visualization.
+	 * 
+	 * This is achieved by converting RGB values to optical densities, putting the RGB ODs into
 	 * a 3x1 vector and normalizing this to unit length, then rescaling the result to give an RGB representation.
 	 * Because of the somewhat strange rescaling involved, the final RGB values produced should not be over-interpreted -
 	 * this is really intended for visualization, such as when interactively looking for regions of single stains
 	 * when selecting color deconvolution stain vectors.
 	 * 
 	 * @param rgb original 8-bit RGB values
-	 * @param minOD the minimum OD - pixels with an OD less than this will be considered unstained, and shown as white
+	 * @param minOD the minimum OD; pixels with an OD less than this will be considered unstained, and shown as white
 	 * @param offset brightness and contrast offset
 	 * @param scale brightness and contrast scale value
 	 * @return normalized color, as packed RGB value
@@ -182,19 +184,30 @@ public class ColorTransformer {
 	
 	
 	/**
-	 * This method is *only* compatible with color transforms that do not require a ColorDeconvolutionStains object -
-	 * other transforms will throw an illegal argument exception.
+	 * Apply a color transform to all pixels in a packed (A)RGB array.
+	 * <p>
+	 * This method is *only* compatible with color transforms that do not require a {@link ColorDeconvolutionStains} object -
+	 * other transforms will throw an {@link IllegalArgumentException}.
 	 * 
-	 * @param buf
-	 * @param method
-	 * @param pixels
-	 * @return
+	 * @param buf the input pixel buffer to be transformed
+	 * @param method the transfor method to apply
+	 * @param pixels optional output array to store the results; if null or of the wrong length, a new array will be created
+	 * @return either the input array {@code pixels}, or a new array if required
 	 */
 	public static float[] getSimpleTransformedPixels(final int[] buf, final ColorTransformMethod method, float[] pixels) {
 		return getTransformedPixels(buf, method, pixels, null);
 	}
 	
 
+	/**
+	 * Apply a color transform to all pixels in a packed (A)RGB array.
+	 * 
+	 * @param buf the input pixel buffer to be transformed
+	 * @param method the transfor method to apply
+	 * @param pixels optional output array to store the results; if null or of the wrong length, a new array will be created
+	 * @param stains a {@link ColorDeconvolutionStains} object, required for some transforms (and ignored otherwise).
+	 * @return either the input array {@code pixels}, or a new array if required
+	 */
 	public static float[] getTransformedPixels(final int[] buf, ColorTransformMethod method, float[] pixels, final ColorDeconvolutionStains stains) {
 		if (pixels == null || pixels.length != buf.length)
 			pixels = new float[buf.length];

@@ -155,9 +155,9 @@ public class ColorToolsAwt {
 		byte[] g2 = new byte[256];
 		byte[] b2 = new byte[256];
 		for (int i = 0; i < 256; i++) {
-			r2[i] = (byte)StainVector.clip255(255.0 - r * i);
-			g2[i] = (byte)StainVector.clip255(255.0 - g * i);
-			b2[i] = (byte)StainVector.clip255(255.0 - b * i);
+			r2[i] = (byte)ColorTools.clip255(255.0 - r * i);
+			g2[i] = (byte)ColorTools.clip255(255.0 - g * i);
+			b2[i] = (byte)ColorTools.clip255(255.0 - b * i);
 			//		r2[i] = (byte)clip255(Math.exp(-r) * (255 - i));
 			//		g2[i] = (byte)clip255(Math.exp(-g) * (255 - i));
 			//		b2[i] = (byte)clip255(Math.exp(-b) * (255 - i));

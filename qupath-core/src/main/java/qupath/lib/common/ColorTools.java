@@ -30,13 +30,33 @@ package qupath.lib.common;
  *
  */
 public class ColorTools {
+	
+	/**
+	 * Mask for use when extracting the alpha component from a packed ARGB int value.
+	 */
+	final public static int MASK_ALPHA = 0xff000000;
+	
+	/**
+	 * Mask for use when extracting the red component from a packed (A)RGB int value.
+	 */
+	final public static int MASK_RED = 0xff0000;
+	
+	/**
+	 * Mask for use when extracting the green component from a packed (A)RGB int value.
+	 */
+	final public static int MASK_GREEN = 0xff00;
+	
+	/**
+	 * Mask for use when extracting the blue component from a packed (A)RGB int value.
+	 */
+	final public static int MASK_BLUE = 0xff;
 
 	/**
 	 * Make a packed RGB value from specified input values.
-	 * 
+	 * <p>
 	 * Input r, g and b should be in the range 0-255 - but no checking is applied.
-	 * Rather, the input values are simply masked and shifted as they are.
-	 * 
+	 * Rather, the input values are simply shifted as they are.
+	 * <p>
 	 * The alpha value is 255.
 	 * 
 	 * @param r
@@ -45,23 +65,23 @@ public class ColorTools {
 	 * @return
 	 */
 	public static int makeRGB(int r, int g, int b) {
-		// TODO: Consider inclusion of alpha
 		return (255<<24) + (r<<16) + (g<<8) + b;
 	}
 
 	/**
 	 * Make a packed RGBA value from specified input values.
-	 * 
+	 * <p>
 	 * Input r, g, b and a should be in the range 0-255 - but no checking is applied.
-	 * Rather, the input values are simply masked and shifted as they are.
+	 * Rather, the input values are simply shifted as they are.
 	 * 
 	 * @param r
 	 * @param g
 	 * @param b
+	 * @param a
 	 * @return
 	 */
+	// TODO: RENAME! The order here may be misleading...
 	public static int makeRGBA(int r, int g, int b, int a) {
-		// TODO: Consider inclusion of alpha
 		return (a<<24) + (r<<16) + (g<<8) + b;
 	}
 
@@ -127,7 +147,7 @@ public class ColorTools {
 	
 	/**
 	 * Scale the RGB channels for a color by a fixed amount.
-	 * 
+	 * <p>
 	 * This is useful for brightening/darkening an input color.
 	 * 
 	 * @param rgb
@@ -140,11 +160,14 @@ public class ColorTools {
 				(int)Math.min(255, (ColorTools.green(rgb)*scale)),
 				(int)Math.min(255, (ColorTools.blue(rgb)*scale)));
 	}
-
-	// Masks to extract ARGB values
-	final public static int MASK_ALPHA = 0xff000000;
-	final public static int MASK_RED = 0xff0000;
-	final public static int MASK_GREEN = 0xff00;
-	final public static int MASK_BLUE = 0xff;
+	
+	/**
+	 * Convert a double value to an int, flooring and clipping to the range 0-255.
+	 * @param val
+	 * @return
+	 */
+	public static int clip255(double val) {
+		return (int)Math.min(255, Math.max(val, 0));
+	}
 
 }

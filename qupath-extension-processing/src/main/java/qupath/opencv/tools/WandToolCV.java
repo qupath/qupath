@@ -96,14 +96,29 @@ public class WandToolCV extends BrushTool {
 	 */
 	private static BooleanProperty wandUseOverlays = PathPrefs.createPersistentPreference("wandUseOverlays", true);
 
+	/**
+	 * Property specifying whether the wand tool should be influenced by pixel values painted on image overlays.
+	 * @return
+	 */
 	public static BooleanProperty wandUseOverlaysProperty() {
 		return wandUseOverlays;
 	}
 	
+	/**
+	 * Query whether the wand tool should be influenced by pixel values painted on image overlays.
+	 * <p>
+	 * If false, only RGB values of the underlying image will be used.
+	 * @return
+	 */
 	public static boolean getWandUseOverlays() {
 		return wandUseOverlays.get();
 	}
 	
+	/**
+	 * Set whether the wand tool should be influenced by pixel values painted on image overlays.
+	 * <p>
+	 * If false, only RGB values of the underlying image will be used.
+	 */
 	public static void setWandUseOverlays(final boolean useOverlays) {
 		wandUseOverlays.set(useOverlays);
 	}
@@ -115,14 +130,26 @@ public class WandToolCV extends BrushTool {
 	 */
 	private static DoubleProperty wandSigmaPixels = PathPrefs.createPersistentPreference("wandSigmaPixels", 4.0);
 
+	/**
+	 * Property representing the Gaussian sigma value used to smooth the image when applying the wand.
+	 * @return
+	 */
 	public static DoubleProperty wandSigmaPixelsProperty() {
 		return wandSigmaPixels;
 	}
 	
+	/**
+	 * Query the Gaussian sigma value used to smooth the image when applying the wand.
+	 * @return
+	 */
 	public static double getWandSigmaPixels() {
 		return wandSigmaPixels.get();
 	}
 	
+	/**
+	 * Set the Gaussian sigma value used to smooth the image when applying the wand.
+	 * @param sigma
+	 */
 	public static void setWandSigmaPixels(final double sigma) {
 		wandSigmaPixels.set(sigma);
 	}
@@ -133,20 +160,34 @@ public class WandToolCV extends BrushTool {
 	 */
 	private static DoubleProperty wandSensitivityProperty = PathPrefs.createPersistentPreference("wandSensitivityPixels", 2.0);
 
+	
+	/**
+	 * Property representing the wand sensitivity value, which influences how similar local intensity values must be for the wand region growing.
+	 * @return
+	 */
 	public static DoubleProperty wandSensitivityProperty() {
 		return wandSensitivityProperty;
 	}
 	
+	/**
+	 * Query the wand sensitivity value, which influences how similar local intensity values must be for the wand region growing.
+	 * @return
+	 */
 	public static double getWandSensitivity() {
 		return wandSensitivityProperty.get();
 	}
 	
+	/**
+	 * Set the wand sensitivity value, which influences how similar local intensity values must be for the wand region growing.
+	 */
 	public static void setWandSensitivity(final double sensitivity) {
 		wandSensitivityProperty.set(sensitivity);
 	}
 	
-	
-
+	/**
+	 * Constructor.
+	 * @param qupath
+	 */
 	public WandToolCV(QuPathGUI qupath) {
 		super(qupath);
 		

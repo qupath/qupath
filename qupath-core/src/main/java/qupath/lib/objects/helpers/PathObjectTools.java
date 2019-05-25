@@ -83,7 +83,11 @@ public class PathObjectTools {
 		}
 	}
 
-	public static void removePoints(Collection<PathObject> pathObjects) {
+	/**
+	 * Remove objects with PointsROI from a collection.
+	 * @param pathObjects
+	 */
+	private static void removePoints(Collection<PathObject> pathObjects) {
 		Iterator<PathObject> iter = pathObjects.iterator();
 		while (iter.hasNext()) {
 			if (iter.next().isPoint())
@@ -111,7 +115,7 @@ public class PathObjectTools {
 		return count;
 	}
 	
-
+	
 	public static List<PathObject> getObjectsOfClass(final Collection<PathObject> pathObjects, final Class<? extends PathObject> cls) {
 		List<PathObject> pathObjectsFiltered = new ArrayList<>(pathObjects.size());
 		for (PathObject temp : pathObjects) {

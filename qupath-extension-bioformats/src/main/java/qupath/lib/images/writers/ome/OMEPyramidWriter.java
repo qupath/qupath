@@ -59,7 +59,26 @@ public class OMEPyramidWriter {
 	
 	private static Logger logger = LoggerFactory.getLogger(OMEPyramidWriter.class);
 	
-	public static enum ChannelExportType {DEFAULT, INTERLEAVED, PLANAR, IMAGES}
+	/**
+	 * Enum representing different ways in which channels may be written to a file.
+	 */
+	public static enum ChannelExportType {
+		/**
+		 * Leave it up to the writer to choose the appropriate method.
+		 */
+		DEFAULT,
+		/**
+		 * Channels are interleaved ('PLANARCONFIG_CONTIG').
+		 */
+		INTERLEAVED,
+		/**
+		 * Channels are stored as separate image planes ('PLANARCONFIG_SEPARATE').
+		 */
+		PLANAR,
+		/**
+		 * Channels are stored as separate images (this is not yet supported!).
+		 */
+		IMAGES}
 	
 	private ImageServer<BufferedImage> server;
 
@@ -490,8 +509,8 @@ public class OMEPyramidWriter {
 	
 
 	/**
-	 * Builder class to define parameters when exporting an image region as OME-TIFF 
-	 * (possibly as an image pyramid).
+	 * Builder class to define parameters when exporting an image region as OME-TIFF,
+	 * possibly as an image pyramid.
 	 * 
 	 * @author Pete Bankhead
 	 *
@@ -500,6 +519,10 @@ public class OMEPyramidWriter {
 
 		private OMEPyramidWriter writer = new OMEPyramidWriter();
 
+		/**
+		 * Constructor.
+		 * @param server the ImageServer from which pixels will be requested and written to the OME-TIFF.
+		 */
 		public Builder(ImageServer<BufferedImage> server) {
 			writer.server = server;
 			writer.x = 0;
@@ -533,26 +556,46 @@ public class OMEPyramidWriter {
 			return this;
 		}
 		
+		/**
+		 * Request that channels are written as separate image planes.
+		 * @return
+		 */
 		public Builder channelsPlanar() {
 			writer.channelExportType = ChannelExportType.PLANAR;
 			return this;
 		}
 
+		/**
+		 * Request that channels are written interleaved within a single image plane.
+		 * @return
+		 */
 		public Builder channelsInterleaved() {
 			writer.channelExportType = ChannelExportType.INTERLEAVED;
 			return this;
 		}
 
+		/**
+		 * Request that channels are written as separate images.
+		 * @return
+		 */
 		public Builder channelsImages() {
 			writer.channelExportType = ChannelExportType.IMAGES;
 			return this;
 		}
 
+		/**
+		 * Request that the image is written in BigTIFF format.
+		 * @return
+		 */
 		public Builder bigTiff() {
 			writer.bigTiff = Boolean.TRUE;
 			return this;
 		}
 
+		/**
+		 * Specifiy whether the image should be written in BigTIFF format.
+		 * @return
+		 */
 		public Builder bigTiff(boolean doBigTiff) {
 			writer.bigTiff = doBigTiff;
 			return this;
@@ -605,20 +648,41 @@ public class OMEPyramidWriter {
 			return this.zSlices(z, z+1);
 		}
 
+		/**
+		 * Specify the start (inclusive) and end (exclusive) z-slices.
+		 * @param zStart
+		 * @param zEnd
+		 * @return
+		 */
 		public Builder zSlices(int zStart, int zEnd) {
 			writer.zStart = zStart;
 			writer.zEnd = zEnd;
 			return this;
 		}
 
+		/**
+		 * Specify a single timepoint to be written from a time series.
+		 * @param t the index identifying the requested timepoint
+		 * @return
+		 */
 		public Builder timePoint(int t) {
 			return this.timePoints(t, t+1);
 		}
 		
+		/**
+		 * Request that all timepoints of a time series will be written.
+		 * @return
+		 */
 		public Builder allTimePoints() {
 			return this.timePoints(0, writer.server.nTimepoints());
 		}
 
+		/**
+		 * Specify a range of timepoints to be written from a time series.
+		 * @param tStart first timepoint (inclusive)
+		 * @param tEnd last timepoint (exclusive)
+		 * @return
+		 */
 		private Builder timePoints(int tStart, int tEnd) {
 			writer.tStart = tStart;
 			writer.tEnd = tEnd;

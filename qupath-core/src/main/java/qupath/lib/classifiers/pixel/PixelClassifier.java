@@ -8,6 +8,14 @@ import com.google.gson.annotations.JsonAdapter;
 import qupath.lib.images.ImageData;
 import qupath.lib.regions.RegionRequest;
 
+/**
+ * Interface defining a pixel classifier.
+ * <p>
+ * Pixel classifiers can be applied directly to an image, typically using colors and textures.
+ * 
+ * @author Pete Bankhead
+ *
+ */
 @JsonAdapter(PixelClassifiers.PixelClassifierTypeAdapterFactory.class)
 public interface PixelClassifier {
 
@@ -33,8 +41,7 @@ public interface PixelClassifier {
     public BufferedImage applyClassification(ImageData<BufferedImage> server, RegionRequest request) throws IOException;
 
     /**
-     * Get metadata that describes how the classifier should be called,
-     * and the kind of output it provides.
+     * Get metadata that describes how the classifier should be called, and the kind of output it provides.
      *
      * @return
      */

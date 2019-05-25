@@ -46,14 +46,27 @@ public class OMEPyramidWriterCommand implements PathCommand {
 	private static IntegerProperty minSizeForTiling = PathPrefs.createPersistentPreference(
 			"ome-pyramid-default-min-size-for-tiling", 4096);
 
+	/**
+	 * Query the default compression type when writing OME-TIFF images.
+	 * @return
+	 */
 	public static String getDefaultPyramidCompression() {
 		return defaultPyramidCompression.get();
 	}
 	
+	/**
+	 * Query the default tile size when writing OME-TIFF images.
+	 * @return
+	 */
 	public static int getDefaultTileSize() {
 		return defaultTileSize.get();
 	}
 
+	/**
+	 * Query the default minimum image size when writing OME-TIFF images.
+	 * This is used as a hint to disable tiling for images with widths and heights smaller than this value.
+	 * @return
+	 */
 	public static int getMinSizeForTiling() {
 		return minSizeForTiling.get();
 	}
@@ -67,6 +80,10 @@ public class OMEPyramidWriterCommand implements PathCommand {
 	private ExecutorService pool;
 	private Future<?> currentTask;
 	
+	/**
+	 * Constructor.
+	 * @param qupath current QuPath instance.
+	 */
 	public OMEPyramidWriterCommand(final QuPathGUI qupath) {
 		this.qupath = qupath;
 		

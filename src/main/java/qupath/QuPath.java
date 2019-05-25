@@ -60,6 +60,13 @@ public class QuPath {
 	
 	private final static Logger logger = LoggerFactory.getLogger(QuPath.class);
 	
+	/**
+	 * Main class to launch QuPath.
+	 * <p>
+	 * TODO: Command line arguments need to be documented... once they are decided upon.
+	 * 
+	 * @param args
+	 */
 	public static void main(String[] args) {
 		
 		logger.info("Launching QuPath with args: {}", String.join(", ", args));

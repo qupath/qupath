@@ -37,7 +37,6 @@ import qupath.lib.common.ColorTools;
  * @author Pete Bankhead
  *
  */
-
 public class ColorDeconvolutionHelper {
 	
 	final private static Logger logger = LoggerFactory.getLogger(ColorDeconvolutionHelper.class);

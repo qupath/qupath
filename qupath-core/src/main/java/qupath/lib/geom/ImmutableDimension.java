@@ -31,18 +31,38 @@ package qupath.lib.geom;
  */
 public class ImmutableDimension {
 	
+	/**
+	 * Width of the ImmutableDimension.
+	 */
 	final public int width;
+	
+	/**
+	 * Height of the ImmutableDimension.
+	 */
 	final public int height;
 	
+	/**
+	 * Constructor for a new ImmutableDimension.
+	 * @param width
+	 * @param height
+	 */
 	public ImmutableDimension(final int width, final int height) {
 		this.width = width;
 		this.height = height;
 	}
 	
+	/**
+	 * Get the ImmutableDimension width.
+	 * @return
+	 */
 	public int getWidth() {
 		return width;
 	}
 	
+	/**
+	 * Get the ImmutableDimension height.
+	 * @return
+	 */
 	public int getHeight() {
 		return height;
 	}

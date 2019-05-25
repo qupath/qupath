@@ -46,7 +46,8 @@ import javafx.scene.paint.Color;
 import qupath.lib.analysis.stats.Histogram;
 import qupath.lib.analysis.stats.RunningStatistics;
 import qupath.lib.analysis.stats.StatisticsHelper;
-import qupath.lib.classifiers.PathIntensityClassifier;
+import qupath.lib.classifiers.PathClassifierTools;
+import qupath.lib.classifiers.PathObjectClassifier;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.helpers.dialogs.ParameterPanelFX;
 import qupath.lib.gui.plots.HistogramPanelFX;
@@ -64,13 +65,13 @@ import qupath.lib.plugins.parameters.ParameterList;
 /**
  * 
  * Panel for adjusting intensity classification thresholds.
- * 
+ * <p>
  * Other objects can register as a change listener to be notified when anything happens, e.g. a slider moves or a different measurement is selected -
  * however this is deprecated, and may be removed in the future.
- * 
+ * <p>
  * The reason for this is that the current implementation is a bit clumsy... rather than use a ParameterList for everything, it uses it for most features but
  * a separate combo box for the intensity feature - because the selection objects can change regularly depending upon the measurements that are present.
- * 
+ * <p>
  * In the future, it is (tentatively) planned to address this and support ParameterChangeListeners instead.
  * 
  * @author Pete Bankhead
@@ -261,22 +262,22 @@ public class PathIntensityClassifierPanel implements PathObjectSelectionListener
 	 * Returns a PathIntensityClassifier, or null if none was requested by the user's interactions with this JPanel.
 	 * @return
 	 */
-	public PathIntensityClassifier getIntensityClassifier() {
+	public PathObjectClassifier getIntensityClassifier() {
 		String intensityMeasurement = comboIntensities.getSelectionModel().getSelectedItem();
-		PathIntensityClassifier intensityClassifier = null;
+		PathObjectClassifier intensityClassifier = null;
 		if (intensityMeasurement != null && !intensityMeasurement.equals("None")) {
 			boolean singleThreshold = paramsIntensity.getBooleanParameterValue("single_threshold");
 			double t1 = paramsIntensity.getDoubleParameterValue("threshold_1");
 //			PathClass baseClass = PathClassFactory.getDefaultPathClass(PathClassFactory.PathClasses.TUMOR);
 			PathClass baseClass = null;
 			if (singleThreshold) {
-				intensityClassifier = new PathIntensityClassifier(
+				intensityClassifier = PathClassifierTools.createIntensityClassifier(
 						baseClass,
 						intensityMeasurement, t1);
 			} else {
 				double t2 = Math.max(t1, paramsIntensity.getDoubleParameterValue("threshold_2"));
 				double t3 = Math.max(t2, paramsIntensity.getDoubleParameterValue("threshold_3"));
-				intensityClassifier = new PathIntensityClassifier(
+				intensityClassifier = PathClassifierTools.createIntensityClassifier(
 						baseClass,
 						intensityMeasurement,
 						t1, t2, t3);

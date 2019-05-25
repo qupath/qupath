@@ -36,7 +36,6 @@ import qupath.lib.roi.ROIHelpers;
  * Default implementation of a TMAGrid.
  * 
  * @author Pete Bankhead
- *
  */
 public class DefaultTMAGrid implements TMAGrid {
 	
@@ -48,14 +47,25 @@ public class DefaultTMAGrid implements TMAGrid {
 	private int gridWidth = -1;
 	private int gridHeight = -1;
 	
-	public DefaultTMAGrid(List<TMACoreObject> cores, int gridWidth) {
+	private DefaultTMAGrid(List<TMACoreObject> cores, int gridWidth) {
 		this.cores.addAll(cores);
 		this.gridWidth = gridWidth;
 		this.gridHeight = cores.size() / gridWidth;
 	}
 
-	@Override
-	public int getCoreIndex(String coreName) {
+	/**
+	 * Create a new TMAGrid based on a list of cores and grid width.
+	 * <p>
+	 * It is assumed that the grid height may be calculated as {@code cores.size() / gridWidth}.
+	 * @param cores
+	 * @param gridWidth
+	 * @return
+	 */
+	public static TMAGrid create(List<TMACoreObject> cores, int gridWidth) {
+		return new DefaultTMAGrid(cores, gridWidth);
+	}
+	
+	int getCoreIndex(String coreName) {
 		int ind = 0;
 		for (TMACoreObject core : cores) {
 			String name = core.getName();
@@ -74,7 +84,7 @@ public class DefaultTMAGrid implements TMAGrid {
 		return cores.size();
 	}
 	
-	public int getNMissingCores() {
+	int getNMissingCores() {
 		int missing = 0;
 		for (TMACoreObject core : cores)
 			if (core.isMissing())
@@ -136,15 +146,6 @@ public class DefaultTMAGrid implements TMAGrid {
 	@Override
 	public String toString() {
 		return "TMA Grid: " + nCores() + " cores ("+ getGridWidth() + " x " + getGridHeight() + "), " + getNMissingCores() + " missing";
-	}
-
-	@Override
-	public TMACoreObject getTMACoreByUniqueID(String uniqueID) {
-		for (TMACoreObject core : cores) {
-			if (uniqueID.equals(core.getUniqueID()))
-				return core;
-		}
-		return null;
 	}
 
 }

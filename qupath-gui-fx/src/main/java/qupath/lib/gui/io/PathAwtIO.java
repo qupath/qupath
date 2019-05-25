@@ -253,7 +253,7 @@ public class PathAwtIO {
 					core.setUniqueID(id);
 				cores.add(core);
 			}
-			return new DefaultTMAGrid(cores, gridWidth);
+			return DefaultTMAGrid.create(cores, gridWidth);
 		} catch (FileNotFoundException e) {
 			logger.error("Cannot find file: {}", file);
 			return null;

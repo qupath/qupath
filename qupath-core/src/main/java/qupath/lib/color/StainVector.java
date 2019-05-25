@@ -86,15 +86,17 @@ public class StainVector implements Externalizable {
 		return null;
 	}
 	
-	
+	/**
+	 * Default constructor, required for {@link Externalizable} interface.
+	 */
 	public StainVector() {}
 	
 	
-	public StainVector(String name, double[] vector, boolean isResidual) {
+	StainVector(String name, double[] vector, boolean isResidual) {
 		this(name, vector[0], vector[1], vector[2], isResidual);
 	}
 
-	public StainVector(String name, double[] vector) {
+	StainVector(String name, double[] vector) {
 		this(name, vector[0], vector[1], vector[2]);
 	}
 
@@ -108,10 +110,18 @@ public class StainVector implements Externalizable {
 		this.isResidual = isResidual;
 	}
 
+	/**
+	 * Returns true if this vector represents the residual (orthogonal) stain, used whenever color deconvolution is required with two stains only.
+	 * @return
+	 */
 	public boolean isResidual() {
 		return isResidual;
 	}
 	
+	/**
+	 * Returns the name of the stain vector.
+	 * @return
+	 */
 	public String getName() {
 		return name;
 	}
@@ -120,14 +130,26 @@ public class StainVector implements Externalizable {
 		return Math.sqrt(r*r + g*g + b*b);
 	}
 	
+	/**
+	 * Get the red component of the (normalized) stain vector.
+	 * @return
+	 */
 	public double getRed() {
 		return this.r;
 	}
 
+	/**
+	 * Get the green component of the (normalized) stain vector.
+	 * @return
+	 */
 	public double getGreen() {
 		return this.g;
 	}
 
+	/**
+	 * Get the blue component of the (normalized) stain vector.
+	 * @return
+	 */
 	public double getBlue() {
 		return this.b;
 	}
@@ -150,12 +172,12 @@ public class StainVector implements Externalizable {
 		this.b = b / length;
 	}
 	
+	/**
+	 * Get the stain vector as a 3 element array (red, green, blue).
+	 * @return
+	 */
 	public double[] getArray() {
 		return new double[]{r, g, b};
-	}
-	
-	public static int clip255(double val) {
-		return (int)Math.min(255, Math.max(val, 0));
 	}
 	
 	/**
@@ -165,46 +187,11 @@ public class StainVector implements Externalizable {
 	 * @return
 	 */
 	public int getColor() {
-		int r2 = clip255(255.0 - r * 255);
-		int g2 = clip255(255.0 - g * 255);
-		int b2 = clip255(255.0 - b * 255);
+		int r2 = ColorTools.clip255(255.0 - r * 255);
+		int g2 = ColorTools.clip255(255.0 - g * 255);
+		int b2 = ColorTools.clip255(255.0 - b * 255);
 		return ColorTools.makeRGB(r2, g2, b2);
 	}
-	
-	// This seems to produce visually more similar colors for single stains...
-	// but it's hard to get a suitable scaling factor (here 2) for normalized stain view across whole image using a similar method for mixed stains
-	// (the contrast is very low)
-//	public Color getColor() {
-//		if (!isValid())
-//			return null;
-////		int r2 = clip255(255.0 - r * 255);
-////		int g2 = clip255(255.0 - g * 255);
-////		int b2 = clip255(255.0 - b * 255);
-//		int r2 = clip255(Math.exp(-r * 2) * 255);
-//		int g2 = clip255(Math.exp(-g * 2) * 255);
-//		int b2 = clip255(Math.exp(-b * 2) * 255);
-//		return new Color(r2, g2, b2);
-//	}
-
-//	/*
-//	 * Create an 8-bit LUT for the stain color.
-//	 * This maps the color from getColor() to the value 127 and and white to 0; linear RGB interpolation is used for the other colors.
-//	 */
-//	public LUT getLUT(boolean whiteBackground) {
-//		if (!isValid())
-//			return LUT.createLutFromColor(Color.WHITE);
-//		else if (!whiteBackground)
-//			return LUT.createLutFromColor(getColor());
-//		byte[] r2 = new byte[256];
-//		byte[] g2 = new byte[256];
-//		byte[] b2 = new byte[256];
-//		for (int i = 0; i < 256; i++) {
-//			r2[i] = (byte)clip255(255 - (255 - Math.exp(-r) * 255)/128 * i);
-//			g2[i] = (byte)clip255(255 - (255 - Math.exp(-g) * 255)/128 * i);
-//			b2[i] = (byte)clip255(255 - (255 - Math.exp(-b) * 255)/128 * i);
-//		}
-//		return new LUT(r2, g2, b2);		
-//	}
 	
 	
 	public String arrayAsString(final Locale locale, final String delimiter, final int nDecimalPlaces) {
@@ -216,7 +203,7 @@ public class StainVector implements Externalizable {
 	}
 	
 	
-	public String arrayAsString(final Locale locale, final int nDecimalPlaces) {
+	String arrayAsString(final Locale locale, final int nDecimalPlaces) {
 		return GeneralTools.arrayToString(locale, new double[]{r, g, b}, nDecimalPlaces);
 //		return String.format( "%.Nf %.Nf %.Nf".replace("N", Integer.toString(nDecimalPlaces)), r, g, b );
 //		return String.format( "%.Nf, %.Nf, %.Nf".replace("N", Integer.toString(nDecimalPlaces)), r, g, b );
@@ -268,7 +255,7 @@ public class StainVector implements Externalizable {
 	
 	
 	/**
-	 * Compute cross product of two vectors
+	 * Compute the cross product of two vectors.
 	 * @param u
 	 * @param v
 	 * @return
@@ -288,12 +275,12 @@ public class StainVector implements Externalizable {
 	 * @param s2
 	 * @return
 	 */
-	public static StainVector makeResidualStainVector(StainVector s1, StainVector s2) {
+	static StainVector makeResidualStainVector(StainVector s1, StainVector s2) {
 		return makeOrthogonalStainVector("Residual", s1, s2, true);
 	}
 
 	
-	public static StainVector makeOrthogonalStainVector(String name, StainVector s1, StainVector s2, boolean isResidual) {
+	static StainVector makeOrthogonalStainVector(String name, StainVector s1, StainVector s2, boolean isResidual) {
 		return new StainVector(name, cross3(s1.getArray(), s2.getArray()), isResidual);
 	}
 	

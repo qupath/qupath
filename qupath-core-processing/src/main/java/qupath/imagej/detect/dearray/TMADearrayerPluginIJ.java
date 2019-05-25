@@ -348,7 +348,7 @@ public class TMADearrayerPluginIJ extends AbstractInteractivePlugin<BufferedImag
 						nMissing++;
 				}
 			}
-			TMAGrid tmaGrid = new DefaultTMAGrid(coords, nHorizontal);
+			TMAGrid tmaGrid = DefaultTMAGrid.create(coords, nHorizontal);
 			
 			lastMessage = String.format("%d x %d TMA grid created (%d missing)", nHorizontal, nVertical, nMissing);
 			

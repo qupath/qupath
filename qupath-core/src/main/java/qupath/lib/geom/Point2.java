@@ -111,7 +111,7 @@ public class Point2 extends AbstractPoint implements Externalizable {
 			return x;
 		else if (dim == 1)
 			return y;
-		throw new RuntimeException("Requested dimension " + dim + " for Point2 - allowable values are 0 and 1");
+		throw new IllegalArgumentException("Requested dimension " + dim + " for Point2 - allowable values are 0 and 1");
 	}
 
 	@Override

@@ -80,7 +80,7 @@ import qupath.lib.gui.scripting.QPEx;
 /**
  * 
  * Rich text script editor for QuPath.
- * 
+ * <p>
  * Makes use of RichTextFX, Copyright (c) 2013-2014, Tomas Mikula (BSD 2-clause license).
  * 
  * @author Pete Bankhead
@@ -176,6 +176,10 @@ public class RichScriptEditor extends DefaultScriptEditor {
 	    );
 	}
 	
+	/**
+	 * Constructor.
+	 * @param qupath the current QuPath instance.
+	 */
 	public RichScriptEditor(QuPathGUI qupath) {
 		super(qupath);
 	}

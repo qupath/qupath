@@ -86,13 +86,7 @@ class DefaultMeasurementList implements MeasurementList {
 		}
 		return Double.NaN;
 	}
-	
-	
-	@Override
-	public synchronized boolean containsAllNamedMeasurements(Collection<String> measurements) {
-		return getMeasurementNames().containsAll(measurements);
-	}
-	
+		
 	@Override
 	public synchronized boolean containsNamedMeasurement(String measurement) {
 		for (Measurement m : list)

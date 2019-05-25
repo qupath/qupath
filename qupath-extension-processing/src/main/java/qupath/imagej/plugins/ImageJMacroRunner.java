@@ -95,6 +95,10 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 
 	transient private Stage dialog;
 		
+	/**
+	 * Constructor.
+	 * @param qupath QuPath instance where the command should be installed.
+	 */
 	public ImageJMacroRunner(final QuPathGUI qupath) {
 		this.qupath = qupath;
 	}
@@ -367,7 +371,7 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 	}
 
 
-	public ParameterList getParameterList(final ImageData<BufferedImage> imageData) {
+	ParameterList getParameterList(final ImageData<BufferedImage> imageData) {
 		if (params == null)
 			params = new ParameterList()
 				.addTitleParameter("Setup")

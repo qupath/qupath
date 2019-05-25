@@ -54,7 +54,11 @@ import qupath.lib.gui.viewer.tools.BrushTool;
 public class BrushToolEx extends BrushTool {	
 	
 	private PenManager pm = null;
-		
+	
+	/**
+	 * Constructor.
+	 * @param modes the ModeWrapper used to store the current Mode set in QuPath.
+	 */
 	public BrushToolEx(ModeWrapper modes) {
 		super(modes);
 	}
@@ -103,7 +107,7 @@ public class BrushToolEx extends BrushTool {
 	/**
 	 * 
 	 * PenOwner implementation for JavaFX.
-	 * 
+	 * <p>
 	 * This doesn't bother checking clips/turning off things when outside the active window...
 	 * 
 	 * @author Pete Bankhead

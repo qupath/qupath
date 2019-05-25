@@ -83,11 +83,10 @@ import javafx.scene.paint.Color;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.util.Callback;
-import qupath.lib.classifiers.CompositeClassifier;
 import qupath.lib.classifiers.Normalization;
 import qupath.lib.classifiers.PathClassificationLabellingHelper;
 import qupath.lib.classifiers.PathClassificationLabellingHelper.SplitType;
-import qupath.lib.classifiers.PathIntensityClassifier;
+import qupath.lib.classifiers.PathClassifierTools;
 import qupath.lib.classifiers.PathObjectClassifier;
 import qupath.lib.gui.ImageDataChangeListener;
 import qupath.lib.gui.ImageDataWrapper;
@@ -310,7 +309,7 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 		if (intensityClassifier == null)
 			return classifier;
 		else
-			return new CompositeClassifier(classifier, intensityClassifier);
+			return PathClassifierTools.createCompositeClassifier(classifier, intensityClassifier);
 	}
 
 
@@ -1134,7 +1133,7 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 
 	private void updateIntensityPanelCallback() {
 		PathObjectHierarchy hierarchy = getHierarchy();
-		PathIntensityClassifier intensityClassifier = panelIntensities.getIntensityClassifier();
+		PathObjectClassifier intensityClassifier = panelIntensities.getIntensityClassifier();
 		if (intensityClassifier == null || hierarchy == null || classifier == null || !classifier.isValid() || !tbAutoUpdate.isSelected() || updatingClassification)
 			return;
 		// We may need to do a bigger reclassification
@@ -1343,7 +1342,7 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 		logger.info(String.format("Classifier training time: %.2f seconds", (middleTime-startTime)/1000.));
 
 		// Create an intensity classifier, if required
-		PathIntensityClassifier intensityClassifier = panelIntensities.getIntensityClassifier();
+		PathObjectClassifier intensityClassifier = panelIntensities.getIntensityClassifier();
 
 		// Apply classifier to everything
 		Collection<PathObject> pathObjectsOrig = hierarchy.getObjects(null, PathDetectionObject.class);

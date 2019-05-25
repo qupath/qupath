@@ -47,7 +47,7 @@ import qupath.lib.regions.RegionRequest;
 
 /**
  * Extract a region from QuPath, and display it within ImageJ.
- * 
+ * <p>
  * This command also attempts to set properties appropriately so that it's possible to determine from 
  * within ImageJ exactly where in the image was selected.  This is needed to be able to transfer back 
  * Rois from ImageJ as QuPath objects.
@@ -61,6 +61,12 @@ public class ExtractRegionCommand implements PathCommand {
 	private double downsample;
 	private boolean prompt;
 	
+	/**
+	 * Constructor.
+	 * @param qupath QuPath instance where the command should be installed.
+	 * @param downsample default downsample value to apply to the extracted region
+	 * @param doPrompt prompt the user to specified the downsample they require
+	 */
 	public ExtractRegionCommand(QuPathGUI qupath, double downsample, boolean doPrompt) {
 //		super("Extract region (custom)", PathIconFactory.createIcon(QuPathGUI.iconSize, QuPathGUI.iconSize, PathIconFactory.PathIcons.EXTRACT_REGION));
 		this.qupath = qupath;
@@ -70,6 +76,10 @@ public class ExtractRegionCommand implements PathCommand {
 		this.prompt = doPrompt;
 	}
 	
+	/**
+	 * Get the name of the command.
+	 * @return
+	 */
 	public String getName() {
 		if (prompt)
 			return "Extract region (custom)";

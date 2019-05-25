@@ -245,31 +245,7 @@ public class Histogram { // implements Serializable {
 	 */
 	public long getCountSum() {
 		return countSum;
-	}
-
-//	public Histogram(double[] edges, double[] counts) {
-//		this.edges = edges;
-//		this.counts = counts;
-//		maxCount = 0;
-//		countSum = 0;
-//		for (double c : counts) {
-//			if (c > maxCount)
-//				maxCount = c;
-//			countSum += c;
-//		}
-//		edgeMin = edges[0];
-//		edgeMax = edges[edges.length-1];
-//	}
-	
-	
-	public Histogram(double[] values, int nBins) {
-		this(values, nBins, Double.NaN, Double.NaN);
-	}
-	
-	public Histogram(float[] values, int nBins) {
-		this(values, nBins, Double.NaN, Double.NaN);
-	}
-	
+	}	
 	
 	@Override
 	public String toString() {
@@ -322,6 +298,25 @@ public class Histogram { // implements Serializable {
 		ArrayWrappers.ArrayWrapper values = ArrayWrappers.makeIntArrayWrapper(valuesArray);
 		buildHistogram(values, nBins, minEdge, maxEdge);
 	}
+	
+	/**
+	 * Create histogram from a double array, using a specified number of bins and the data min/max as the min/max edges.
+	 * @param values
+	 * @param nBins
+	 */
+	public Histogram(double[] values, int nBins) {
+		this(values, nBins, Double.NaN, Double.NaN);
+	}
+	
+	/**
+	 * Create histogram from a float array, using a specified number of bins and the data min/max as the min/max edges.
+	 * @param values
+	 * @param nBins
+	 */
+	public Histogram(float[] values, int nBins) {
+		this(values, nBins, Double.NaN, Double.NaN);
+	}
+
 
 	
 	private void buildHistogram(final ArrayWrappers.ArrayWrapper values, int nBins, double minEdge, double maxEdge) {

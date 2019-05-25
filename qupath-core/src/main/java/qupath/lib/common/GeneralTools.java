@@ -281,24 +281,6 @@ public class GeneralTools {
 		NumberFormat nf = NumberFormat.getInstance();
 		nf.setMaximumFractionDigits(nDecimalPlaces);
 		return nf;
-//		switch (nDecimalPlaces) {
-//		case 0: return new DecimalFormat("#."); // TODO: Check if this is correct!
-//		case 1: return new DecimalFormat("#.#");
-//		case 2: return new DecimalFormat("#.##");
-//		case 3: return new DecimalFormat("#.###");
-//		case 4: return new DecimalFormat("#.####");
-//		case 5: return new DecimalFormat("#.#####");
-//		case 6: return new DecimalFormat("#.######");
-//		case 7: return new DecimalFormat("#.#######");
-//		case 8: return new DecimalFormat("#.########");
-//		case 9: return new DecimalFormat("#.#########");
-//		default:
-//			StringBuilder sb = new StringBuilder();
-//			sb.append("#.");
-//			for (int i = 0; i < nDecimalPlaces; i++)
-//				sb.append("#");
-//			return new DecimalFormat(sb.toString());
-//		}
 	}
 	
 	/**

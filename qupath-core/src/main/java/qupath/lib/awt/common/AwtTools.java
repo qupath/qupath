@@ -38,10 +38,24 @@ import qupath.lib.roi.interfaces.ROI;
  */
 public class AwtTools {
 
+	/**
+	 * Create a {@link Rectangle} corresponding to the x,y,width,height of an {@link ImageRegion}.
+	 * @param region
+	 * @return
+	 */
 	public static Rectangle getBounds(final ImageRegion region) {
 		return getBounds(region, new Rectangle());
 	}
 
+
+	/**
+	 * Set the bounds of an existing {@link Rectangle} to the x,y,width,height of an {@link ImageRegion}.
+	 * <p>
+	 * If no {@code Rectangle} is provided, a new one will be created.
+	 * @param region
+	 * @param rect
+	 * @return
+	 */
 	public static Rectangle getBounds(final ImageRegion region, Rectangle rect) {
 		if (rect == null)
 			rect = new Rectangle();
@@ -49,10 +63,24 @@ public class AwtTools {
 		return rect;
 	}
 
+	/**
+	 * Create a {@link Rectangle2D} corresponding to bounding box of a {@link ROI}.
+	 * @param region
+	 * @param rect
+	 * @return
+	 */
 	public static Rectangle2D getBounds2D(final ROI pathROI) {
 		return getBounds2D(pathROI, new Rectangle2D.Double());
 	}
 	
+	/**
+	 * Set the bounds of an existing {@link Rectangle2D} to the x,y,width,height of a {@link ROI}.
+	 * <p>
+	 * If no {@code Rectangle2D} is provided, a new one will be created.
+	 * @param region
+	 * @param rect
+	 * @return
+	 */
 	public static Rectangle2D getBounds2D(final ROI pathROI, Rectangle2D rect) {
 		if (rect == null)
 			rect = new Rectangle2D.Double();
@@ -60,6 +88,13 @@ public class AwtTools {
 		return rect;
 	}
 	
+	/**
+	 * Create a {@link Rectangle} corresponding to bounding box of a {@link ROI}.
+	 * <p>
+	 * This differs from {@link #getBounds2D(ROI)} in that the bounding box must consist of integer values.
+	 * @param region
+	 * @return
+	 */
 	public static Rectangle getBounds(final ROI pathROI) {
 		if (pathROI.isEmpty())
             return new Rectangle();
@@ -70,10 +105,24 @@ public class AwtTools {
         return new Rectangle(x1, y1, x2 - x1, y2 - y1);
 	}
 	
+	/**
+	 * Create an {@link ImageRegion} corresponding to a specified {@link Rectangle} bounding box.
+	 * @param rectangle
+	 * @param z the z position of the region
+	 * @param t the t position of the region
+	 * @return
+	 */
 	public static ImageRegion getImageRegion(final Rectangle rectangle, final int z, final int t) {
 		return ImageRegion.createInstance(rectangle.x, rectangle.y, rectangle.width, rectangle.height, z, t);
 	}
 	
+	/**
+	 * Create an {@link ImageRegion} corresponding to a the bounding box of a {@link Shape}.
+	 * @param rectangle
+	 * @param z the z position of the region
+	 * @param t the t position of the region
+	 * @return
+	 */
 	public static ImageRegion getImageRegion(final Shape shape, final int z, final int t) {
 		if (shape instanceof Rectangle)
 			return getImageRegion((Rectangle)shape, z, t);

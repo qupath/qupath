@@ -74,7 +74,6 @@ import loci.formats.ImageReader;
 import loci.formats.Memoizer;
 import loci.formats.MetadataTools;
 import loci.formats.gui.AWTImageTools;
-import loci.formats.in.ZeissCZIReader;
 import loci.formats.meta.DummyMetadata;
 import loci.formats.meta.IMetadata;
 import loci.formats.meta.MetadataStore;
@@ -145,7 +144,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 	/**
 	 * Fix issue related to VSI images having (wrong) z-slices
 	 */
-	private boolean doChannelZCorrectionVSI = false;
+//	private boolean doChannelZCorrectionVSI = false;
 	
 	/**
 	 * A map linking an identifier (image name) to series number for 'full' images.
@@ -446,11 +445,11 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 			List<ImageChannel> channels = new ArrayList<>();
 
 			nZSlices = reader.getSizeZ();
-			// Workaround bug whereby VSI channels can also be replicated as z-slices
-			if (options.requestChannelZCorrectionVSI() && nZSlices == nChannels && nChannels > 1 && "CellSens VSI".equals(format)) {
-				doChannelZCorrectionVSI = true;
-				nZSlices = 1;
-			}
+//			// Workaround bug whereby VSI channels can also be replicated as z-slices
+//			if (options.requestChannelZCorrectionVSI() && nZSlices == nChannels && nChannels > 1 && "CellSens VSI".equals(format)) {
+//				doChannelZCorrectionVSI = true;
+//				nZSlices = 1;
+//			}
 			nTimepoints = reader.getSizeT();
 			int bpp = reader.getBitsPerPixel();
 			boolean isRGB = reader.isRGB() && bpp == 8;
@@ -1065,7 +1064,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 		 * @throws FormatException
 		 * @throws IOException
 		 */
-		private IFormatReader createReader(final BioFormatsServerOptions options, final String id, final MetadataStore store) throws FormatException, IOException {
+		private static IFormatReader createReader(final BioFormatsServerOptions options, final String id, final MetadataStore store) throws FormatException, IOException {
 			return createReader(options, null, id, store);
 		}
 		
@@ -1090,7 +1089,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 		 * @throws FormatException
 		 * @throws IOException
 		 */
-		private synchronized IFormatReader createReader(final BioFormatsServerOptions options, final Class<? extends IFormatReader> cls, final String id, final MetadataStore store) throws FormatException, IOException {
+		private static synchronized IFormatReader createReader(final BioFormatsServerOptions options, final Class<? extends IFormatReader> cls, final String id, final MetadataStore store) throws FormatException, IOException {
 			IFormatReader imageReader;
 			if (cls != null) {
 				ClassList<IFormatReader> list = new ClassList<>(IFormatReader.class);
