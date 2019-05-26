@@ -3,6 +3,8 @@ package qupath.lib.classifiers.opencv.pixel.features;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.util.Collections;
+import java.util.List;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import org.bytedeco.opencv.global.opencv_core;
@@ -45,9 +47,9 @@ import qupath.opencv.processing.TypeAdaptersCV;
     		n = (radius * 2 + 1) * (radius * 2 + 1) * inputChannels.length;
 			this.inputChannels = inputChannels;
 					
-    		var channels = IntStream.range(0, n)
+    		List<ImageChannel> channels = IntStream.range(0, n)
     				.mapToObj(c -> ImageChannel.getInstance("Feature " + c, Integer.MAX_VALUE))
-    				.toArray(ImageChannel[]::new);
+    				.collect(Collectors.toList());
     		metadata = new PixelClassifierMetadata.Builder()
     				.inputShape(256, 256)
     				.inputPixelSize(pixelSizeMicrons)

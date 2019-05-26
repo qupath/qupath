@@ -90,7 +90,7 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 				.path(path)
 				.width(width)
 				.height(height)
-				.output(classifierMetadata.getOutputType())
+				.channelType(classifierMetadata.getOutputType())
 				.preferredTileSize(tileWidth-pad*2, tileHeight-pad*2)
 				.levels(levels)
 				.channels(classifierMetadata.getChannels())
@@ -165,7 +165,7 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 	public int getClassification(int x, int y, int z, int t) throws IOException {
 		
 		var type = classifier.getMetadata().getOutputType();
-		if (type != ImageServerMetadata.OutputType.CLASSIFICATION && type != ImageServerMetadata.OutputType.PROBABILITY)
+		if (type != ImageServerMetadata.ChannelType.CLASSIFICATION && type != ImageServerMetadata.ChannelType.PROBABILITY)
 			return -1;
 		
 		var tile = getTile(0, x, y, z, t);
@@ -187,14 +187,14 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 			yy = 0;
 
 		int nBands = img.getRaster().getNumBands();
-		if (nBands == 1 && type == ImageServerMetadata.OutputType.CLASSIFICATION) {
+		if (nBands == 1 && type == ImageServerMetadata.ChannelType.CLASSIFICATION) {
 			try {
 				return img.getRaster().getSample(xx, yy, 0);
 			} catch (Exception e) {
 				logger.error("Error requesting classification", e);
 				return -1;
 			}
-		} else if (type == ImageServerMetadata.OutputType.PROBABILITY) {
+		} else if (type == ImageServerMetadata.ChannelType.PROBABILITY) {
 			int maxInd = -1;
 			double maxVal = Double.NEGATIVE_INFINITY;
 			var raster = img.getRaster();

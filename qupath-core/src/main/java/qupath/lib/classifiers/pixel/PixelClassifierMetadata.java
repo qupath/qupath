@@ -1,7 +1,6 @@
 package qupath.lib.classifiers.pixel;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
@@ -16,7 +15,28 @@ import qupath.lib.images.servers.ImageServerMetadata;
  */
 public class PixelClassifierMetadata {
 
-	public static enum PixelType { UInt8, UInt16, Float32, Float64 }
+	/**
+	 * Supported pixel value types.
+	 */
+	public static enum PixelType { 
+		/**
+		 * 8-bit unsigned integer
+		 */
+		UInt8,
+		/**
+		 * 16-bit unsigned integer
+		 */
+		UInt16,
+		/**
+		 * 32-bit floating point
+		 */
+		Float32,
+		/**
+		 * 64-bit floating point
+		 */
+		Float64
+	}
+	
 	private int inputPadding = 0;
 	
 	private double inputPixelSize;
@@ -30,7 +50,7 @@ public class PixelClassifierMetadata {
 	private PixelType inputDataType = PixelType.UInt8;
 	private int outputWidth = -1;
 	private int outputHeight = -1;
-	private ImageServerMetadata.OutputType outputType = ImageServerMetadata.OutputType.CLASSIFICATION;
+	private ImageServerMetadata.ChannelType outputType = ImageServerMetadata.ChannelType.CLASSIFICATION;
 	private List<ImageChannel> channels;
 	
     /**
@@ -81,6 +101,9 @@ public class PixelClassifierMetadata {
     /**
      * Scale value used to divide a specified input channel (after possible mean subtraction), if required.
      * Returns 1 if no scaling is specified;
+     * 
+     * @param channel
+     * @return
      */
     public double getInputChannelScale(int channel) {
     	return inputChannelScales == null ? 0 : inputChannelScales[channel];
@@ -89,6 +112,8 @@ public class PixelClassifierMetadata {
     /**
      * Mean values to subtract from each input channel, if required.
      * May return null if no mean subtraction is required.
+     * 
+     * @return
      */
     public double[] getInputChannelMeans() {
     	return inputChannelMeans == null ? null : inputChannelMeans.clone();
@@ -148,7 +173,7 @@ public class PixelClassifierMetadata {
     /**
      * Type of output; default is OutputType.Probability
      */
-    public ImageServerMetadata.OutputType getOutputType() {
+    public ImageServerMetadata.ChannelType getOutputType() {
     	return outputType;
     }
 
@@ -180,6 +205,9 @@ public class PixelClassifierMetadata {
     }
     
     
+    /**
+     * Builder to create {@link PixelClassifierMetadata} objects.
+     */
     public static class Builder {
     	
     	private String inputPixelSizeUnits;
@@ -194,7 +222,7 @@ public class PixelClassifierMetadata {
     	private PixelType inputDataType = PixelType.UInt8;
     	private int outputWidth = -1;
     	private int outputHeight = -1;
-    	private ImageServerMetadata.OutputType outputType = ImageServerMetadata.OutputType.PROBABILITY;
+    	private ImageServerMetadata.ChannelType outputType = ImageServerMetadata.ChannelType.PROBABILITY;
     	private List<ImageChannel> channels = new ArrayList<>();
     	
     	public PixelClassifierMetadata build() {
@@ -206,7 +234,12 @@ public class PixelClassifierMetadata {
 //    		return this;
 //    	}
     	
-    	public Builder setOutputType(ImageServerMetadata.OutputType type) {
+    	/**
+    	 * Specify the output channel type.
+    	 * @param type
+    	 * @return
+    	 */
+    	public Builder setChannelType(ImageServerMetadata.ChannelType type) {
     		this.outputType = type;
     		return this;
     	}
@@ -247,15 +280,15 @@ public class PixelClassifierMetadata {
     		return this;
     	}
     	
-    	public Builder channels(ImageChannel...channels) {
-    		return channels(Arrays.asList(channels));
-    	}
-    	
+    	/**
+    	 * Specify channels for output.
+    	 * @param channels
+    	 * @return
+    	 */
     	public Builder channels(List<ImageChannel> channels) {
     		this.channels.addAll(channels);
     		return this;
     	}
-    	
     	    	
     }
     

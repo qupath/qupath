@@ -63,6 +63,10 @@ public class ConcatChannelsImageServer extends TransformingImageServer<BufferedI
 		return originalMetadata;
 	}
 	
+	/**
+	 * Get an unmodifiable list of all ImageServers being concatenated.
+	 * @return
+	 */
 	public List<ImageServer<BufferedImage>> getAllServers() {
 		return Collections.unmodifiableList(allServers);
 	}

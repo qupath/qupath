@@ -58,12 +58,35 @@ import qupath.lib.plugins.workflow.WorkflowStep;
  */
 public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListener {
 	
+	/**
+	 * Enum representing possible image types.
+	 * <p>
+	 * TODO: Warning! This is liable to change in the future to remove specific stain information.
+	 */
 	public enum ImageType {
+			/**
+			 * Brightfield image with hematoxylin and DAB stains.
+			 */
 			BRIGHTFIELD_H_DAB("Brightfield (H-DAB)"),
+			/**
+			 * Brightfield image with hematoxylin and eosin stains.
+			 */
 			BRIGHTFIELD_H_E("Brightfield (H&E)"),
+			/**
+			 * Brightfield image with any stains.
+			 */
 			BRIGHTFIELD_OTHER("Brightfield (other)"),
+			/**
+			 * Fluorescence image.
+			 */
 			FLUORESCENCE("Fluorescence"),
+			/**
+			 * Other image type, not covered by any of the alternatives above.
+			 */
 			OTHER("Other"),
+			/**
+			 * Image type has not been set.
+			 */
 			UNSET("Not set");
 		
 		private final String text;
@@ -105,6 +128,11 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
 	private boolean changes = false; // Indicating changes since this ImageData was last saved
 	
 	
+	/**
+	 * Create a new ImageData with a specified object hierarchy and type.
+	 * @param server
+	 * @param type
+	 */
 	public ImageData(ImageServer<T> server, PathObjectHierarchy hierarchy, ImageType type) {
 		pcs = new PropertyChangeSupport(this);
 		this.server = server;
@@ -123,6 +151,11 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
 		changes = false;
 	}
 	
+	/**
+	 * Create a new ImageData with a specified type and creating a new object hierarchy.
+	 * @param server
+	 * @param type
+	 */
 	public ImageData(ImageServer<T> server, ImageType type) {
 		this(server, new PathObjectHierarchy(), type);
 	}
@@ -209,7 +242,10 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
 		return getImageType() == ImageType.FLUORESCENCE;
 	}
 	
-	
+	/**
+	 * Set the image type.
+	 * @param type
+	 */
 	public void setImageType(final ImageType type) {
 		if (this.type == type)
 			return;
@@ -282,43 +318,81 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
 //			imageData.getWorkflow().addStep(newStep);
 	}
 	
-	
+	/**
+	 * Get the ImageServer.
+	 * @return
+	 */
 	public ImageServer<T> getServer() {
 		return server;
 	}
 	
+	/**
+	 * Get the path of the ImageServer.
+	 * @return
+	 */
 	public String getServerPath() {
 		return serverPath;
 	}
 	
+	/**
+	 * Get the object hierarchy.
+	 * @return
+	 */
 	public PathObjectHierarchy getHierarchy() {
 		return hierarchy;
 	}
 	
+	/**
+	 * Get the image type
+	 * @return
+	 */
 	public ImageType getImageType() {
 		return type;
 	}
 	
+	/**
+	 * Get the stains defined for this image, or null if this is not a brightfield image suitable for color deconvolution.
+	 * @return
+	 */
 	public ColorDeconvolutionStains getColorDeconvolutionStains() {
 		return stainMap.get(getImageType());
 	}
 	
+	/**
+	 * Add a new property change listener.
+	 * @param listener
+	 */
 	public void addPropertyChangeListener(PropertyChangeListener listener) {
 		if (pcs == null)
 			pcs = new PropertyChangeSupport(this);
         this.pcs.addPropertyChangeListener(listener);
     }
 
+	/**
+	 * Remove a property change listener.
+	 * @param listener
+	 */
     public void removePropertyChangeListener(PropertyChangeListener listener) {
         this.pcs.removePropertyChangeListener(listener);
     }
 
 
-    
+    /**
+     * Get a specified property.
+     * @param key
+     * @return
+     */
     public Object getProperty(String key) {
     		return propertiesMap.get(key);
     }
 
+    /**
+     * Set a property. Not that if properties are Serializable, they will be included in 
+     * associated data files - otherwise they are stored only transiently.
+     * @param key
+     * @param value
+     * @return
+     */
     public Object setProperty(String key, Object value) {
 	    	Object oldValue = propertiesMap.put(key, value);
 	    	if (oldValue == null)
@@ -329,6 +403,11 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
 	    	return oldValue;
     }
 
+    /**
+     * Remove a specified property.
+     * @param key
+     * @return
+     */
     public Object removeProperty(String key) {
 	    	if (propertiesMap.containsKey(key)) {
 	    		changes = true;
@@ -337,6 +416,10 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
 	    	return null;
     }
 
+    /**
+     * Get an unmodifiable map representing all known properties for this ImageData.
+     * @return
+     */
     public Map<String, Object> getProperties() {
     		return Collections.unmodifiableMap(propertiesMap);
     }

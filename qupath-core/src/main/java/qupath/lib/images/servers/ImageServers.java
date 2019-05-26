@@ -77,6 +77,14 @@ public class ImageServers {
 	
 	private static final java.lang.reflect.Type type = new TypeToken<ImageServer<BufferedImage>>() {}.getType();
 	
+	/**
+	 * Serialize an ImageServer to a JSON String. Note that not all servers support this.
+	 * @param <T>
+	 * @param server the server to serialize
+	 * @param includeMetadata optionally include the metadata in the representation;
+	 * 						  this will require more space, but means the representation is more self-contained.
+	 * @return
+	 */
 	public static <T> String toJson(ImageServer<T> server, boolean includeMetadata) {
 		if (includeMetadata)
 			return gson.toJson(server);
@@ -84,6 +92,14 @@ public class ImageServers {
 			return gsonNoMetadata.toJson(server);
 	}
 	
+	/**
+	 * Serialize an ImageServer to a JSON element. Note that not all servers support this.
+	 * @param <T>
+	 * @param server the server to serialize
+	 * @param includeMetadata optionally include the metadata in the representation;
+	 * 						  this will require more space, but means the representation is more self-contained.
+	 * @return
+	 */
 	public static <T> JsonElement toJsonElement(ImageServer<T> server, boolean includeMetadata) {
 		if (includeMetadata)
 			return gson.toJsonTree(server);
@@ -91,6 +107,11 @@ public class ImageServers {
 			return gsonNoMetadata.toJsonTree(server);
 	}
 	
+	/**
+	 * Read an {@code ImageServer<BufferedImage>} from its JSON element representation.
+	 * @param element JSON representation of the server
+	 * @return
+	 */
 	public static ImageServer<BufferedImage> fromJson(JsonElement element) {
 		return gson.fromJson(element, type);
 	}
@@ -109,26 +130,45 @@ public class ImageServers {
 //		return writer.toString();
 //	}
 	
+	/**
+	 * Read an ImageServer from its JSON String representation.
+	 * @param <T>
+	 * @param json JSON representation of the server
+	 * @param cls generic type of the ImageServer, usually BufferedImage.class
+	 * @return
+	 */
 	public static <T> ImageServer<T> fromJson(String json, Class<T> cls) {
 		return gson.fromJson(json, type);
 	}
 	
+	
+	/**
+	 * Read an ImageServer from its JSON representation.
+	 * @param <T>
+	 * @param reader reader that provides the JSON representation of the server
+	 * @param cls generic type of the ImageServer, usually BufferedImage.class
+	 * @return
+	 */
 	public static <T> ImageServer<T> fromJson(Reader reader, Class<T> cls) {
 		return gson.fromJson(reader, type);
 	}
 		    
 	
+	/**
+	 * @author Pete Bankhead
+	 *
+	 */
 	public static class ImageServerTypeAdapter extends TypeAdapter<ImageServer<BufferedImage>> {
 		
 		private static Logger logger = LoggerFactory.getLogger(ImageServerTypeAdapter.class);
 		
 		private final boolean includeMetadata;
 		
-		public ImageServerTypeAdapter() {
+		ImageServerTypeAdapter() {
 			this(true);
 		}
 		
-		public ImageServerTypeAdapter(boolean includeMetadata) {
+		ImageServerTypeAdapter(boolean includeMetadata) {
 			this.includeMetadata = includeMetadata;
 		}
 		

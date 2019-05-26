@@ -93,8 +93,8 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 	}
 	
 	@Override
-	public ImageServerMetadata.OutputType getOutputType() {
-		return getMetadata().getOutputType();
+	public ImageServerMetadata.ChannelType getOutputType() {
+		return getMetadata().getChannelType();
 	}
 	
 	protected double getThumbnailDownsampleFactor(int maxWidth, int maxHeight) {

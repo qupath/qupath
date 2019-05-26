@@ -15,9 +15,17 @@ import qupath.lib.common.GeneralTools;
  */
 public class PixelCalibration {
 
+	/**
+	 * String to represent 'pixel' units. This is the default when no pixel size calibration is known.
+	 */
 	public static String PIXEL = "px";
-	private static String Z_SLICE = "z-slice";
+
+	/**
+	 * String to represent 'micrometer' units.
+	 */
 	public static String MICROMETER = GeneralTools.micrometerSymbol();
+
+	private static String Z_SLICE = "z-slice";
 	
 	private SimpleQuantity pixelWidth = SimpleQuantity.DEFAULT_PIXEL_SIZE;
 	private SimpleQuantity pixelHeight = SimpleQuantity.DEFAULT_PIXEL_SIZE;
@@ -25,7 +33,7 @@ public class PixelCalibration {
 	private SimpleQuantity zSpacing = SimpleQuantity.DEFAULT_Z_SPACING;
 	
 	private TimeUnit timeUnit = TimeUnit.SECONDS;
-	private double[] timepoints;
+	private double[] timepoints = new double[0];
 	
 	private static PixelCalibration DEFAULT_INSTANCE = new Builder()
 			.build();
@@ -54,39 +62,71 @@ public class PixelCalibration {
 //		return zSpacing;
 //	}
 
-	
+	/**
+	 * Returns true if the pixel width and height information in microns is known.
+	 * @return
+	 */
 	public boolean hasPixelSizeMicrons() {
-		return MICROMETER.equals(pixelWidth.unit) && MICROMETER.endsWith(pixelHeight.unit);
+		return MICROMETER.equals(pixelWidth.unit) && MICROMETER.equals(pixelHeight.unit);
 	}
 	
+	/**
+	 * Returns true if the z-spacing is known in microns.
+	 * @return
+	 */
 	public boolean hasZSpacingMicrons() {
 		return MICROMETER.equals(zSpacing.unit);
 	}
 	
+	/**
+	 * Get the time unit for a time series.
+	 * @return
+	 */
 	public TimeUnit getTimeUnit() {
 		return timeUnit;
 	}
 	
+	/**
+	 * Get the number of known time points.
+	 * @return
+	 */
 	public int nTimepoints() {
 		return timepoints.length;
 	}
 	
+	/**
+	 * Get the time for the specified time point, or Double.NaN if this is unknown.
+	 * @param ind
+	 * @return
+	 */
 	public double getTimepoint(int ind) {
-		return timepoints[ind];
+		return ind >= timepoints.length ? Double.NaN : timepoints[ind];
 	}
 	
+	/**
+	 * Get the z-spacing in microns, or Double.NaN if this is unknown.
+	 * @return
+	 */
 	public double getZSpacingMicrons() {
 		if (hasZSpacingMicrons())
 			return zSpacing.value.doubleValue();
 		return Double.NaN;
 	}
 	
+	/**
+	 * Get the pixel width in microns, or Double.NaN if this is unknown.
+	 * @return
+	 */
 	public double getPixelWidthMicrons() {
 		if (hasPixelSizeMicrons())
 			return pixelWidth.value.doubleValue();
 		return Double.NaN;
 	}
 	
+	/**
+	 * Get the pixel height in microns, or Double.NaN if this is unknown.
+	 * @return
+	 */
 	public double getPixelHeightMicrons() {
 		if (hasPixelSizeMicrons())
 			return pixelHeight.value.doubleValue();
@@ -132,17 +172,17 @@ public class PixelCalibration {
 	}
 	
 	
-	public static class Builder {
+	static class Builder {
 		
 		PixelCalibration cal = new PixelCalibration();
 		
-		public Builder() {}
+		Builder() {}
 		
 		Builder(PixelCalibration cal) {
 			this.cal = cal.duplicate();
 		}
 		
-		public Builder pixelSizeMicrons(Number pixelWidthMicrons, Number pixelHeightMicrons) {
+		Builder pixelSizeMicrons(Number pixelWidthMicrons, Number pixelHeightMicrons) {
 			// Support resetting both pixel sizes to default
 			if ((pixelWidthMicrons == null || Double.isNaN(pixelWidthMicrons.doubleValue())) && 
 					(pixelHeightMicrons == null || Double.isNaN(pixelHeightMicrons.doubleValue()))) {
@@ -163,13 +203,13 @@ public class PixelCalibration {
 			return this;
 		}
 		
-		public Builder timepoints(TimeUnit timeUnit, double... timepoints) {
+		Builder timepoints(TimeUnit timeUnit, double... timepoints) {
 			cal.timeUnit = timeUnit;
 			cal.timepoints = timepoints.clone();
 			return this;
 		}
 				
-		public Builder zSpacingMicrons(Number zSpacingMicrons) {
+		Builder zSpacingMicrons(Number zSpacingMicrons) {
 			if (zSpacingMicrons == null || Double.isNaN(zSpacingMicrons.doubleValue())) {
 				cal.zSpacing = SimpleQuantity.DEFAULT_Z_SPACING;
 				return this;
@@ -182,12 +222,17 @@ public class PixelCalibration {
 			return this;
 		}
 		
-		public PixelCalibration build() {
+		PixelCalibration build() {
 			return cal;
 		}
 		
 	}
 	
+	/**
+	 * Get the default PixelCalibration.
+	 * This isn't terribly informative, giving pixel sizes in pixel units.
+	 * @return
+	 */
 	public static PixelCalibration getDefaultInstance() {
 		return DEFAULT_INSTANCE;
 	}

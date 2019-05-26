@@ -1054,6 +1054,8 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 	}
 
 	static List<PathObject> getAnnotationsForClass(PathObjectHierarchy hierarchy, PathClass pathClass) {
+		if (hierarchy == null)
+			return Collections.emptyList();
 		List<PathObject> annotations = new ArrayList<>();
 		for (PathObject pathObject : hierarchy.getAnnotationObjects()) {
 			if (pathClass.equals(pathObject.getPathClass()))

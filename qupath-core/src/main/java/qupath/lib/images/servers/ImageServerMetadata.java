@@ -48,12 +48,37 @@ public class ImageServerMetadata {
 	
 	private static Logger logger = LoggerFactory.getLogger(ImageServerMetadata.class);
 	
-	public static enum OutputType { CHANNEL, FEATURE, PROBABILITY, MULTICLASS_PROBABILITY, CLASSIFICATION;
+	/**
+	 * Enum representing possible channel (band) types for an image.
+	 * The purpose of this is to support images where channels have different interpretations, 
+	 * such as probabilities or classifications.
+	 */
+	public static enum ChannelType {
+		/**
+		 * Default channel interpretation. This is true for most 'normal' images.
+		 */
+		DEFAULT,
+		/**
+		 * Each channel represents a feature for a pixel classifier.
+		 */
+		FEATURE,
+		/**
+		 * Each channel represents a probability value, where it is assumed that there is only one true class per pixel.
+		 */
+		PROBABILITY,
+		/**
+		 * Each channel represents a probability value, where each pixel is potentially part of multiple classes.
+		 */
+		MULTICLASS_PROBABILITY,
+		/**
+		 * Each channel represents a classification, such as in a labelled image.
+		 */
+		CLASSIFICATION;
 		
 		@Override
 		public String toString() {
 			switch (this) {
-			case CHANNEL:
+			case DEFAULT:
 				return "Channel";
 			case FEATURE:
 				return "Feature";
@@ -83,7 +108,7 @@ public class ImageServerMetadata {
 	private int sizeZ = 1;
 	private int sizeT = 1;
 	
-	public ImageServerMetadata.OutputType outputType = ImageServerMetadata.OutputType.CHANNEL;
+	private ImageServerMetadata.ChannelType channelType = ImageServerMetadata.ChannelType.DEFAULT;
 	
 	private String[] args;
 	
@@ -105,7 +130,9 @@ public class ImageServerMetadata {
 	private transient List<ImageResolutionLevel> unmodifiableLevels;
 	private transient double[] downsamples;
 	
-	
+	/**
+	 * Builder to create a new {@link ImageServerMetadata} object.
+	 */
 	public static class Builder {
 		
 		private ImageServerMetadata metadata;
@@ -121,7 +148,7 @@ public class ImageServerMetadata {
 		 * @param serverClass
 		 * @param metadata
 		 */
-		public Builder(final Class<? extends ImageServer> serverClass, final ImageServerMetadata metadata) {
+		public Builder(@SuppressWarnings("rawtypes") final Class<? extends ImageServer> serverClass, final ImageServerMetadata metadata) {
 			this.metadata = metadata.duplicate();
 			this.metadata.serverClassName = serverClass.getName();
 			this.pixelCalibrationBuilder = new PixelCalibration.Builder(metadata.pixelCalibration);
@@ -139,6 +166,13 @@ public class ImageServerMetadata {
 			metadata.path = path;
 		}
 		
+		/**
+		 * Specify any (optional) String arguments required to create the ImageServer.
+		 * @param args
+		 * @return
+		 * 
+		 * @see ImageServerBuilder
+		 */
 		public Builder args(String...args) {
 			metadata.args = args.clone();
 			return this;
@@ -159,36 +193,76 @@ public class ImageServerMetadata {
 			metadata.height = height;
 		}
 		
+		/**
+		 * Specify the full-resolution image width.
+		 * @param width
+		 * @return
+		 */
 		public Builder width(final int width) {
 			metadata.width = width;
 			return this;
 		}
 		
+		/**
+		 * Specify the full-resolution image height.
+		 * @param height
+		 * @return
+		 */
 		public Builder height(final int height) {
 			metadata.height = height;
 			return this;
 		}
 		
+		/**
+		 * Specify the image path.
+		 * @param path
+		 * @return
+		 * 
+		 * @see ImageServerBuilder
+		 */
 		public Builder path(final String path) {
 			this.metadata.path = path;
 			return this;
 		}
 		
-		public Builder output(final ImageServerMetadata.OutputType type) {
-			this.metadata.outputType = type;
+		/**
+		 * Specify the interpretation of channels.
+		 * @param type
+		 * @return
+		 */
+		public Builder channelType(final ImageServerMetadata.ChannelType type) {
+			this.metadata.channelType = type;
 			return this;
 		}
 		
+		/**
+		 * Specify that the image stores pixels in (A)RGB form.
+		 * @param isRGB
+		 * @return
+		 */
 		public Builder rgb(boolean isRGB) {
 			metadata.isRGB = isRGB;
 			return this;
 		}
 		
+		/**
+		 * Specify the bit-depth of the image.
+		 * @param bitDepth
+		 * @return
+		 */
 		public Builder bitDepth(int bitDepth) {
 			metadata.bitDepth = bitDepth;
 			return this;
 		}
 		
+		/**
+		 * Specify downsample values for pyramidal levels.
+		 * The appropriate image sizes will be computed based upon these.
+		 * @param downsamples
+		 * @return
+		 * 
+		 * @see #levels(Collection)
+		 */
 		public Builder levelsFromDownsamples(double... downsamples) {
 			var levelBuilder = new ImageResolutionLevel.Builder(metadata.width, metadata.height);
 			for (double d : downsamples)
@@ -196,12 +270,8 @@ public class ImageServerMetadata {
 			return this.levels(levelBuilder.build());
 		}
 		
-		public Builder levels(Collection<ImageResolutionLevel> levels) {
-			return levels(levels.toArray(ImageResolutionLevel[]::new));
-		}
-		
 		/**
-		 * Resolution levels; largest image should come first.
+		 * Specify resolution levels, where the largest image should come first.
 		 * <p>
 		 * Normally {@code level[0].width == width && level[0].height == height}, but this is <i>not</i> 
 		 * strictly required; for example, it is permissible for the server to supply only resolutions lower than 
@@ -213,61 +283,111 @@ public class ImageServerMetadata {
 		 * @param levels
 		 * @return
 		 */
-		public Builder levels(ImageResolutionLevel... levels) {
-			metadata.levels = levels.clone();
+		public Builder levels(Collection<ImageResolutionLevel> levels) {
+			metadata.levels = levels.toArray(ImageResolutionLevel[]::new);
 			return this;
 		}
 		
+		/**
+		 * Specify the number of z-slices.
+		 * @param sizeZ
+		 * @return
+		 */
 		public Builder sizeZ(final int sizeZ) {
 			metadata.sizeZ = sizeZ;
 			return this;
 		}
 
+		/**
+		 * Specify the number of time points.
+		 * @param sizeT
+		 * @return
+		 */
 		public Builder sizeT(final int sizeT) {
 			metadata.sizeT = sizeT;
 			return this;
 		}
 
+		/**
+		 * Specify the pixel sizes, in microns.
+		 * @param pixelWidthMicrons
+		 * @param pixelHeightMicrons
+		 * @return
+		 */
 		public Builder pixelSizeMicrons(final Number pixelWidthMicrons, final Number pixelHeightMicrons) {
 			pixelCalibrationBuilder.pixelSizeMicrons(pixelWidthMicrons, pixelHeightMicrons);
 			return this;
 		}
 
+		/**
+		 * Specify the spacing between z-slices, in microns.
+		 * @param zSpacingMicrons
+		 * @return
+		 */
 		public Builder zSpacingMicrons(final Number zSpacingMicrons) {
 			pixelCalibrationBuilder.zSpacingMicrons(zSpacingMicrons);
 			return this;
 		}
 
+		/**
+		 * Specify the time unit and individual time points.
+		 * @param timeUnit
+		 * @param timepoints time points, defined in terms of timeUnits.
+		 * @return
+		 */
 		public Builder timepoints(final TimeUnit timeUnit, double... timepoints) {
 			pixelCalibrationBuilder.timepoints(timeUnit, timepoints);
 			return this;
 		}
 		
+		/**
+		 * Specify a magnfication value for the highest-resolution image.
+		 * @param magnification
+		 * @return
+		 */
 		public Builder magnification(final double magnification) {
 			metadata.magnification = magnification;
 			return this;
 		}
 		
+		/**
+		 * Specify the preferred tile height and width.
+		 * @param tileWidth
+		 * @param tileHeight
+		 * @return
+		 */
 		public Builder preferredTileSize(final int tileWidth, final int tileHeight) {
 			metadata.preferredTileWidth = tileWidth;
 			metadata.preferredTileHeight = tileHeight;
 			return this;
 		}
 		
-		public Builder channels(ImageChannel... channels) {
-			return this.channels(Arrays.asList(channels));
-		}
-
+		/**
+		 * Specify the image channels.
+		 * @param channels
+		 * @return
+		 */
 		public Builder channels(Collection<ImageChannel> channels) {
 			metadata.channels = Collections.unmodifiableList(new ArrayList<>(channels));
 			return this;
 		}
 
+		/**
+		 * Specify the image name.
+		 * @param name
+		 * @return
+		 */
 		public Builder name(final String name) {
 			metadata.name = name;
 			return this;
 		}
 		
+		/**
+		 * Build an {@link ImageServerMetadata}.
+		 * Note that the builder should only be used once. If a second builder is required, a new one should be 
+		 * initialized from an existing ImageServerMetadata object.
+		 * @return
+		 */
 		public ImageServerMetadata build() {
 			metadata.pixelCalibration = pixelCalibrationBuilder.build();
 			
@@ -375,58 +495,116 @@ public class ImageServerMetadata {
 		return unmodifiableLevels;
 	}
 	
+	/**
+	 * Get the image path, which should be unique and may be used as an identifier.
+	 * @return
+	 */
 	public String getPath() {
 		return path;
 	}
 	
+	/**
+	 * Get the full-resolution image width.
+	 * @return
+	 */
 	public int getWidth() {
 		return width;
 	}
 
+	/**
+	 * Get the full-resolution image height.
+	 * @return
+	 */
 	public int getHeight() {
 		return height;
 	}
 	
+	/**
+	 * Get the number of resolution levels. For a non-pyramidal image, this is 1.
+	 * @return
+	 */
 	public int nLevels() {
 		return levels.length;
 	}
 	
+	/**
+	 * Get the downsample factor for a specific resolution level.
+	 * @param level
+	 * @return
+	 */
 	public double getDownsampleForLevel(int level) {
 		return levels[level].getDownsample();
 	}
 	
+	/**
+	 * Get resolution information for a specified pyramidal level.
+	 * @param level
+	 * @return
+	 */
 	public ImageResolutionLevel getLevel(int level) {
 		return levels[level];
 	}
 	
+	/**
+	 * Returns true if the pixels are stored in (A)RGB form.
+	 * @return
+	 */
 	public boolean isRGB() {
 		return isRGB;
 	}
 	
+	/**
+	 * Returns the bit-depth for individual pixels in the image.
+	 * @return
+	 */
 	public int getBitDepth() {
 		return bitDepth;
 	}
 	
+	/**
+	 * Returns true if pixel width and height calibration information is available for the image.
+	 * @return
+	 */
 	public boolean pixelSizeCalibrated() {
 		return pixelCalibration.hasPixelSizeMicrons();
 	}
 	
+	/**
+	 * Returns true if z-spacing calibration information is available for the image.
+	 * @return
+	 */
 	public boolean zSpacingCalibrated() {
 		return pixelCalibration.hasZSpacingMicrons();
 	}
 	
+	/**
+	 * Get the averaged pixel size in microns, if available - or Double.NaN otherwise.
+	 * @return
+	 */
 	public double getAveragedPixelSize() {
 		return (getPixelWidthMicrons() + getPixelHeightMicrons())/2;
 	}
 	
+	/**
+	 * Get the pixel width in microns, if available - or Double.NaN otherwise.
+	 * @return
+	 */
 	public double getPixelWidthMicrons() {
 		return pixelCalibration.getPixelWidthMicrons();
 	}
 
+	/**
+	 * Get the pixel height in microns, if available - or Double.NaN otherwise.
+	 * @return
+	 */
 	public double getPixelHeightMicrons() {
 		return pixelCalibration.getPixelHeightMicrons();
 	}
 	
+	/**
+	 * Get the z-spacing in microns, if available - or Double.NaN otherwise.
+	 * @return
+	 */
 	public double getZSpacingMicrons() {
 		return pixelCalibration.getZSpacingMicrons();
 	}
@@ -437,64 +615,123 @@ public class ImageServerMetadata {
 //		this.pixelHeightMicrons = pixelHeight;
 //	}
 
+	/**
+	 * Get the time unit for a time series.
+	 * @return
+	 */
 	public TimeUnit getTimeUnit() {
 		return pixelCalibration.getTimeUnit();
 	}
 	
+	/**
+	 * Get the time point, defined in {@link #getTimeUnit()}, or Double.NaN if this is unknown.
+	 * @param ind
+	 * @return
+	 */
 	public double getTimepoint(int ind) {
 		return pixelCalibration.getTimepoint(ind);
 	}
 	
+	/**
+	 * Get the number of z-slices.
+	 * @return
+	 */
 	public int getSizeZ() {
 		return sizeZ;
 	}
 
+	/**
+	 * Get the number of time points.
+	 * @return
+	 */
 	public int getSizeT() {
 		return sizeT;
 	}
 
+	/**
+	 * Get the number of image channels.
+	 * @return
+	 */
 	public int getSizeC() {
 		return channels.size();
 	}
 	
+	/**
+	 * Get the magnification value, or Double.NaN if this is unavailable.
+	 * @return
+	 */
 	public double getMagnification() {
 		return magnification;
 	}
 	
+	/**
+	 * Get the preferred tile width, which can be used to optimize pixel requests for large images.
+	 * @return
+	 */
 	public int getPreferredTileWidth() {
 		return preferredTileWidth;
 	}
 
+	/**
+	 * Get the preferred tile height, which can be used to optimize pixel requests for large images.
+	 * @return
+	 */
 	public int getPreferredTileHeight() {
 		return preferredTileHeight;
 	}
 
+	/**
+	 * Duplicate this metatadata.
+	 * @return
+	 */
 	public ImageServerMetadata duplicate() {
 		return new ImageServerMetadata(this);
 	}
 	
+	/**
+	 * Get the image name.
+	 * @return
+	 */
 	public String getName() {
 		return name;
 	}
 	
+	/**
+	 * Get the specified channel.
+	 * @param n channel index, starting at 0.
+	 * @return
+	 */
 	public ImageChannel getChannel(int n) {
 		return channels.get(n);
 	}
 	
+	/**
+	 * Get an unmodifiable list of all channels.
+	 * @return
+	 */
 	public List<ImageChannel> getChannels() {
 		return channels;
 	}
 	
-	public ImageServerMetadata.OutputType getOutputType() {
-		return outputType;
+	/**
+	 * Get the channel type, which can be used to interpret the channels.
+	 * @return
+	 */
+	public ImageServerMetadata.ChannelType getChannelType() {
+		return channelType;
 	}
 	
+	/**
+	 * Get any string arguments recorded as being used in the construction of the ImageServer. 
+	 * If no arguments were used, an empty array is returned.
+	 * @return
+	 */
 	public String[] getArguments() {
 		return args == null ? new String[0] : args.clone();
 	}
 	
 	/**
-	 * Returns true if a specified ImageServerMetadata is compatible with this one, i.e. it has the same path and dimensions
+	 * Returns true if a specified ImageServerMetadata is compatible with this one, that is it has the same path and dimensions
 	 * (but possibly different pixel sizes, magnifications etc.).
 	 * 
 	 * @param metadata
@@ -563,7 +800,7 @@ public class ImageServerMetadata {
 		temp = Double.doubleToLongBits(magnification);
 		result = prime * result + (int) (temp ^ (temp >>> 32));
 		result = prime * result + ((name == null) ? 0 : name.hashCode());
-		result = prime * result + ((outputType == null) ? 0 : outputType.hashCode());
+		result = prime * result + ((channelType == null) ? 0 : channelType.hashCode());
 		result = prime * result + ((path == null) ? 0 : path.hashCode());
 		result = prime * result + ((pixelCalibration == null) ? 0 : pixelCalibration.hashCode());
 		result = prime * result + preferredTileHeight;
@@ -607,7 +844,7 @@ public class ImageServerMetadata {
 				return false;
 		} else if (!name.equals(other.name))
 			return false;
-		if (outputType != other.outputType)
+		if (channelType != other.channelType)
 			return false;
 		if (path == null) {
 			if (other.path != null)
@@ -657,14 +894,26 @@ public class ImageServerMetadata {
 			this.height = height;
 		}
 		
+		/**
+		 * Get the downsample factor for this level.
+		 * @return
+		 */
 		public double getDownsample() {
 			return downsample;
 		}
 		
+		/**
+		 * Get the image width at this level.
+		 * @return
+		 */
 		public int getWidth() {
 			return width;
 		}
 		
+		/**
+		 * Get the image height at this level.
+		 * @return
+		 */
 		public int getHeight() {
 			return height;
 		}
@@ -704,44 +953,87 @@ public class ImageServerMetadata {
 			return "Level: " + width + "x" + height + " (" + GeneralTools.formatNumber(downsample, 5) + ")";
 		}
 		
+		/**
+		 * Builder to create a list of {@link ImageResolutionLevel} to represent pyramidal resolutions.
+		 */
 		public static class Builder {
 			
 			private int fullWidth, fullHeight;
 			private List<ImageResolutionLevel> levels = new ArrayList<>();
 			
+			/**
+			 * Constructor to help build a list of {@link ImageResolutionLevel} objects to represent pyramidal resolutions.
+			 * 
+			 * @param fullWidth full-resolution image width
+			 * @param fullHeight full-resolution image height
+			 */
 			public Builder(int fullWidth, int fullHeight) {
 				this.fullWidth = fullWidth;
 				this.fullHeight = fullHeight;
 			}
 			
+			/**
+			 * Add a new level, calculating dimensions using a downsample factor applied to the full-resolution image.
+			 * @param downsample
+			 * @return
+			 */
 			public Builder addLevelByDownsample(double downsample) {
 				int levelWidth = (int)(fullWidth / downsample);
 				int levelHeight = (int)(fullHeight / downsample);
 				return addLevel(downsample, levelWidth, levelHeight);
 			}
 			
+			/**
+			 * Add the full-resolution image as a level of the pyramid.
+			 * It is not required that this form part of the pyramid in cases where this image pyramid might 
+			 * be used to provide a smaller overlay of a larger image, and not itself contain 
+			 * pixels at the highest resolution.
+			 * @return
+			 */
 			public Builder addFullResolutionLevel() {
 				return addLevel(1, fullWidth, fullHeight);
 			}
 			
+			/**
+			 * Add a new level by providing a downsample value, width and height.
+			 * This avoids relying on any rounding decisions made when specifying the dimensions or downsample value only.
+			 * @param downsample
+			 * @param levelWidth
+			 * @param levelHeight
+			 * @return
+			 */
 			public Builder addLevel(double downsample, int levelWidth, int levelHeight) {
 				levels.add(new ImageResolutionLevel(downsample, levelWidth, levelHeight));
 				return this;
 			}
 			
+			/**
+			 * Add a new level based on level dimensions, estimating the corresponding downsample value as required.
+			 * @param levelWidth
+			 * @param levelHeight
+			 * @return
+			 */
 			public Builder addLevel(int levelWidth, int levelHeight) {
 				double downsample = estimateDownsample(fullWidth, fullHeight, levelWidth, levelHeight, levels.size());
 				return addLevel(downsample, levelWidth, levelHeight);
 			}
 			
+			/**
+			 * Add a new level directly.
+			 * @param level
+			 * @return
+			 */
 			public Builder addLevel(ImageResolutionLevel level) {
 				return addLevel(level.downsample, level.width, level.height);
 			}
 			
+			/**
+			 * Build a list of ImageResolutionLevels, which can be used with an {@link ImageServerMetadata} object.
+			 * @return
+			 */
 			public List<ImageResolutionLevel> build() {
 				return levels;
 			}
-			
 			
 			
 			
@@ -760,7 +1052,7 @@ public class ImageServerMetadata {
 			 * @param level Resolution level.  Not required for the calculation, but if &geq; 0 and the computed x & y downsamples are very different a warning will be logged.
 			 * @return
 			 */
-			private double estimateDownsample(final int fullWidth, final int fullHeight, final int levelWidth, final int levelHeight, final int level) {
+			private static double estimateDownsample(final int fullWidth, final int fullHeight, final int levelWidth, final int levelHeight, final int level) {
 				// Calculate estimated downsamples for width & height independently
 				double downsampleX = (double)fullWidth / levelWidth;
 				double downsampleY = (double)fullHeight / levelHeight;

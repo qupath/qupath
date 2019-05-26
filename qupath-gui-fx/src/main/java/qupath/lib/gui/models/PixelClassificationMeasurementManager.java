@@ -124,8 +124,8 @@ public class PixelClassificationMeasurementManager {
         ImageServer<BufferedImage> server = classifierServer;//imageData.getServer();
         
         // Check we have a suitable output type
-        ImageServerMetadata.OutputType type = classifierServer.getOutputType();
-        if (type == ImageServerMetadata.OutputType.FEATURE)
+        ImageServerMetadata.ChannelType type = classifierServer.getOutputType();
+        if (type == ImageServerMetadata.ChannelType.FEATURE)
   			return null;
         
         

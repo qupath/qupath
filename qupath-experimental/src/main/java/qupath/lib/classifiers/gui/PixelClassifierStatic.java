@@ -393,7 +393,7 @@ public class PixelClassifierStatic {
 				var nChannels = classifier.getMetadata().getChannels().size();
 				// Get raster containing classifications and integer values, by taking the argmax
 				var raster = img.getRaster();
-				if (classifier.getMetadata().getOutputType() != ImageServerMetadata.OutputType.CLASSIFICATION) {
+				if (classifier.getMetadata().getOutputType() != ImageServerMetadata.ChannelType.CLASSIFICATION) {
 					int h = raster.getHeight();
 					int w = raster.getWidth();
 					byte[] output = new byte[w * h];

@@ -8,15 +8,22 @@ import com.google.gson.reflect.TypeToken;
 
 public class PixelClassifiers {
 	
+	/**
+	 * Support for serializing PixelClassifiers to JSON, via Gson.
+	 */
 	public static class PixelClassifierTypeAdapterFactory implements TypeAdapterFactory {
 
-		public PixelClassifierTypeAdapterFactory() {}
+		PixelClassifierTypeAdapterFactory() {}
 		
 		private static String typeName = "pixel_classifier_type";
 		
 		private final static RuntimeTypeAdapterFactory<PixelClassifier> pixelClassifierTypeAdapter = 
 				RuntimeTypeAdapterFactory.of(PixelClassifier.class, typeName);
 		
+		/**
+		 * Register that a specific PixelClassifier implementation can be serialized to Json.
+		 * @param cls
+		 */
 		public static void registerSubtype(Class<? extends PixelClassifier> cls) {
 			pixelClassifierTypeAdapter.registerSubtype(cls);
 		}

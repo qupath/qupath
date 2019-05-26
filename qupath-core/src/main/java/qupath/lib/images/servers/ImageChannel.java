@@ -21,13 +21,27 @@ public class ImageChannel {
 	
 	private static Map<String, ImageChannel> cache = new HashMap<>();
 	
+	/**
+	 * Special color indicating pixel values for a channel indicate levels of transparency.
+	 */
 	public static final Integer TRANSPARENT = ColorTools.makeRGBA(255, 253, 254, 0);
 	
 	private String name;
 	private Integer color;
 	
+	/**
+	 * Default red channel for RGB images.
+	 */
 	public final static ImageChannel RED   = getInstance("Red", ColorTools.makeRGB(255, 0, 0));
+	
+	/**
+	 * Default green channel for RGB images.
+	 */
 	public final static ImageChannel GREEN = getInstance("Green", ColorTools.makeRGB(0, 255, 0));
+	
+	/**
+	 * Default blue channel for RGB images.
+	 */
 	public final static ImageChannel BLUE  = getInstance("Blue", ColorTools.makeRGB(0, 0, 0255));
 	
 	/**
@@ -111,11 +125,20 @@ public class ImageChannel {
 		}
 	}
 	
+	/**
+	 * Get default channel list for RGB images.
+	 * @return
+	 */
 	public static List<ImageChannel> getDefaultRGBChannels() {
 		return Arrays.asList(RED, GREEN, BLUE);
 	}
 	
-	
+	/**
+	 * Get default channel list for an image with a specified number of channels.
+	 * This is useful whenever no further channel name or color information is available.
+	 * @param nChannels
+	 * @return
+	 */
 	public static List<ImageChannel> getDefaultChannelList(int nChannels) {
 		if (nChannels == 1)
 			return Collections.singletonList(getInstance("Channel 1", ColorTools.makeRGB(255, 255, 255)));

@@ -264,7 +264,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 			var pixelClassifier = imageData.getProperty("PIXEL_LAYER");
 			if (pixelClassifier instanceof ImageServer<?>) {
 				ImageServer<BufferedImage> server = (ImageServer<BufferedImage>)pixelClassifier;
-				if (server.getOutputType() == ImageServerMetadata.OutputType.CLASSIFICATION || server.getOutputType() == ImageServerMetadata.OutputType.PROBABILITY) {
+				if (server.getOutputType() == ImageServerMetadata.ChannelType.CLASSIFICATION || server.getOutputType() == ImageServerMetadata.ChannelType.PROBABILITY) {
 					var pixelManager = new PixelClassificationMeasurementManager(server);
 					for (String name : pixelManager.getMeasurementNames()) {
 						builderMap.put(name, new PixelClassifierMeasurementBuilder(pixelManager, name));

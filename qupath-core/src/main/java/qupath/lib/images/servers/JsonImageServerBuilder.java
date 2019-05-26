@@ -16,6 +16,12 @@ import org.slf4j.LoggerFactory;
 
 import qupath.lib.images.servers.FileFormatInfo.ImageCheckType;
 
+/**
+ * ImageServerBuilder that constructs an ImageServer from a JSON representation.
+ * 
+ * @author Pete Bankhead
+ *
+ */
 public class JsonImageServerBuilder implements ImageServerBuilder<BufferedImage> {
 	
 	private static final Logger logger = LoggerFactory.getLogger(JsonImageServerBuilder.class);

@@ -161,7 +161,7 @@ public class PixelClassifierImageSelectionPane {
 	
 	private ReadOnlyObjectProperty<FeatureCalculatorBuilder> selectedFeatureCalculatorBuilder;
 
-	private ReadOnlyObjectProperty<ImageServerMetadata.OutputType> selectedOutputType;
+	private ReadOnlyObjectProperty<ImageServerMetadata.ChannelType> selectedOutputType;
 	
 	private StringProperty cursorLocation = new SimpleStringProperty();
 	
@@ -258,8 +258,8 @@ public class PixelClassifierImageSelectionPane {
 		
 		// Output
 		var labelOutput = new Label("Output");
-		var comboOutput = new ComboBox<ImageServerMetadata.OutputType>();
-		comboOutput.getItems().addAll(ImageServerMetadata.OutputType.CLASSIFICATION, ImageServerMetadata.OutputType.PROBABILITY);
+		var comboOutput = new ComboBox<ImageServerMetadata.ChannelType>();
+		comboOutput.getItems().addAll(ImageServerMetadata.ChannelType.CLASSIFICATION, ImageServerMetadata.ChannelType.PROBABILITY);
 		selectedOutputType = comboOutput.getSelectionModel().selectedItemProperty();
 		selectedOutputType.addListener((v, o, n) -> {
 			updateClassifier();
@@ -630,7 +630,7 @@ public class PixelClassifierImageSelectionPane {
 		 PixelClassifierMetadata metadata = new PixelClassifierMetadata.Builder()
 				 .inputPixelSize(getRequestedPixelSizeMicrons())
 				 .inputShape(inputWidth, inputHeight)
-				 .setOutputType(model.supportsProbabilities() ? selectedOutputType.get() : ImageServerMetadata.OutputType.CLASSIFICATION)
+				 .setChannelType(model.supportsProbabilities() ? selectedOutputType.get() : ImageServerMetadata.ChannelType.CLASSIFICATION)
 				 .channels(channels)
 				 .build();
 
@@ -1339,7 +1339,7 @@ public class PixelClassifierImageSelectionPane {
 //    	String coords = GeneralTools.formatNumber(x, 1) + "," + GeneralTools.formatNumber(y, 1);
     	
     	var channels = classifierServer.getChannels();
-    	if (classifierServer.getOutputType() == ImageServerMetadata.OutputType.CLASSIFICATION) {
+    	if (classifierServer.getOutputType() == ImageServerMetadata.ChannelType.CLASSIFICATION) {
         	int sample = img.getRaster().getSample(xx, yy, 0); 		
         	return String.format("Classification: %s", channels.get(sample).getName());
 //        	return String.format("Classification (%s):\n%s", coords, channels.get(sample).getName());

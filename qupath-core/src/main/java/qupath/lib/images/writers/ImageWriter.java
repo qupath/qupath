@@ -43,8 +43,16 @@ import qupath.lib.regions.RegionRequest;
 @Deprecated
 public interface ImageWriter<T> {
 	
+	/**
+	 * Get the name of the image writer.
+	 * @return
+	 */
 	public String getName();
 
+	/**
+	 * Get the file extension used by the image writer.
+	 * @return
+	 */
 	public String getExtension();
 
 	/**
@@ -74,14 +82,40 @@ public interface ImageWriter<T> {
 	 */
 	public boolean suportsImageType(ImageServer<T> server);
 
+	/**
+	 * Returns true if the writer is capable of writing pyramidal images.
+	 * @return
+	 */
 	public boolean supportsPyramidal();
 
+	/**
+	 * Returns true if the writer is capable of storing pixel size information.
+	 * @return
+	 */
 	public boolean supportsPixelSize();
 	
+	/**
+	 * Get further details of the writer, which may be displayed to a user.
+	 * @return
+	 */
 	public String getDetails();
 	
+	/**
+	 * Write an image region to a specified path.
+	 * @param server
+	 * @param region
+	 * @param pathOutput
+	 * @return
+	 * @throws IOException
+	 */
 	public T writeImage(ImageServer<T> server, RegionRequest region, String pathOutput) throws IOException;
 
+	/**
+	 * Write a full image to a specified path.
+	 * @param img
+	 * @param pathOutput
+	 * @throws IOException
+	 */
 	public void writeImage(T img, String pathOutput) throws IOException;
 
 }

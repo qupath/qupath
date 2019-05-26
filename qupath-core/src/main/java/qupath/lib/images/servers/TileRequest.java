@@ -69,7 +69,13 @@ public class TileRequest {
 		return set;
 	}
 	
-	
+	/**
+	 * Create a new tile request for a specified region and resolution level.
+	 * @param server
+	 * @param level
+	 * @param tileRegion
+	 * @return
+	 */
 	public static TileRequest createInstance(ImageServer<?> server, int level, ImageRegion tileRegion) {
 		double downsample = server.getDownsampleForResolution(level);
 		return new TileRequest(
@@ -93,6 +99,10 @@ public class TileRequest {
 				tileRegion.getT());
 	}
 	
+	/**
+	 * Get the RegionRequest that this tile represents.
+	 * @return
+	 */
 	public RegionRequest getRegionRequest() {
 		return request;
 	}
@@ -102,57 +112,109 @@ public class TileRequest {
 		this.level = level;
 		this.tileRegion = tileRegion;
 	}
-	
+
+	/**
+	 * Get the downsample value for this tile.
+	 * @return
+	 */
 	public double getDownsample() {
 		return request.getDownsample();
 	}
 	
+	/**
+	 * Get the resolution level.
+	 * @return
+	 */
 	public int getLevel() {
 		return level;
 	}
 	
+	/**
+	 * Get the x-coordinate of the bounding box for this tile in the full resolution image.
+	 * @return
+	 */
 	public int getImageX() {
 		return request.getX();
 	}
 	
+	/**
+	 * Get the y-coordinate of the bounding box for this tile in the full resolution image.
+	 * @return
+	 */
 	public int getImageY() {
 		return request.getY();
 	}
 	
+	/**
+	 * Get the width of the bounding box for this tile in the full resolution image.
+	 * @return
+	 */
 	public int getImageWidth() {
 		return request.getWidth();
 	}
 	
+	/**
+	 * Get the height of the bounding box for this tile in the full resolution image.
+	 * @return
+	 */
 	public int getImageHeight() {
 		return request.getHeight();
 	}
 	
+	/**
+	 * Get the x-coordinate of the bounding box for this tile at the tile resolution.
+	 * @return
+	 */
 	public int getTileX() {
 		return tileRegion.getX();
 	}
 	
+	/**
+	 * Get the y-coordinate of the bounding box for this tile at the tile resolution.
+	 * @return
+	 */
 	public int getTileY() {
 		return tileRegion.getY();
 	}
 	
+	/**
+	 * Get the width of the bounding box for this tile at the tile resolution.
+	 * @return
+	 */
 	public int getTileWidth() {
 		return tileRegion.getWidth();
 	}
 	
+	/**
+	 * Get the height of the bounding box for this tile at the tile resolution.
+	 * @return
+	 */
 	public int getTileHeight() {
 		return tileRegion.getHeight();
 	}
 	
+	/**
+	 * Get the z-slice index for this request.
+	 * @return
+	 */
 	public int getZ() {
 		return tileRegion.getZ();
 	}
 	
+	/**
+	 * Get the time point index for this request.
+	 * @return
+	 */
 	public int getT() {
 		return tileRegion.getT();
 	}
 	
+	/**
+	 * Get the ImagePlane for this request.
+	 * @return
+	 */
 	public ImagePlane getPlane() {
-		return ImagePlane.getPlane(getZ(), getT());
+		return tileRegion.getPlane();
 	}
 	
 	@Override

@@ -541,7 +541,7 @@ public class OMEPyramidWriter {
 			writer.zEnd = server.nZSlices();
 			writer.tStart = 0;
 			writer.tEnd = server.nTimepoints();
-			if (server.getOutputType() == ImageServerMetadata.OutputType.CLASSIFICATION)
+			if (server.getOutputType() == ImageServerMetadata.ChannelType.CLASSIFICATION)
 				writer.channels = new int[] {0};
 			else
 				writer.channels = IntStream.range(0, server.nChannels()).toArray();

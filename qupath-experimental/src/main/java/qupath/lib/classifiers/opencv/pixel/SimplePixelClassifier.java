@@ -4,6 +4,7 @@ import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferByte;
 import java.awt.image.IndexColorModel;
 import java.io.IOException;
+import java.util.Arrays;
 
 import qupath.lib.awt.color.ColorModelFactory;
 import qupath.lib.classifiers.pixel.PixelClassifier;
@@ -31,10 +32,10 @@ public class SimplePixelClassifier implements PixelClassifier {
 		this.channel = channel;
 		this.threshold = threshold;
 		this.metadata = new PixelClassifierMetadata.Builder()
-				.channels(getChannel(belowThreshold), getChannel(aboveThreshold))
+				.channels(Arrays.asList(getChannel(belowThreshold), getChannel(aboveThreshold)))
 				.inputPixelSize(requestedPixelSizeMicrons)
 				.inputShape(512, 512)
-				.setOutputType(ImageServerMetadata.OutputType.CLASSIFICATION)
+				.setChannelType(ImageServerMetadata.ChannelType.CLASSIFICATION)
 				.build();
 	}
 	

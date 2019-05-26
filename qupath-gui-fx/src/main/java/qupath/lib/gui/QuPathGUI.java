@@ -309,6 +309,7 @@ import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerBuilder;
 import qupath.lib.images.servers.ImageServerProvider;
 import qupath.lib.images.servers.RotatedImageServer;
+import qupath.lib.images.servers.RotatedImageServer.Rotation;
 import qupath.lib.io.PathIO;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathCellObject;
@@ -2454,7 +2455,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 						return false;
 				}
 				if (rotate180)
-					serverNew = new RotatedImageServer(serverNew);
+					serverNew = new RotatedImageServer(serverNew, Rotation.ROTATE_180);
 				ImageData<BufferedImage> imageData = serverNew == null ? null : createNewImageData(serverNew); // TODO: DEAL WITH PATHOBJECT HIERARCHIES!
 				
 				viewer.setImageData(imageData);

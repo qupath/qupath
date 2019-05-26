@@ -57,7 +57,10 @@ public class FileFormatInfo {
 	
 	final private static Logger logger = LoggerFactory.getLogger(FileFormatInfo.class);
 	
-	
+	/**
+	 * Interface defining some basic image metadata that may be extracted from an image file 
+	 * to help ascertain whether an {@link ImageServerBuilder} can handle it.
+	 */
 	public static interface ImageCheckType {
 		
 		/**

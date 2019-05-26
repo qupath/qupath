@@ -19,6 +19,11 @@ public class CroppedImageServer extends TransformingImageServer<BufferedImage> {
 	
 	private ImageRegion region;
 
+	/**
+	 * Create an ImageServer that represents a cropped region of another (larger) server.
+	 * @param server the 'base' server to be cropped
+	 * @param region the region within the 'base' server that should be cropped
+	 */
 	public CroppedImageServer(final ImageServer<BufferedImage> server, ImageRegion region) {
 		super(server);
 		this.region = region;
@@ -59,6 +64,10 @@ public class CroppedImageServer extends TransformingImageServer<BufferedImage> {
 		return img;
 	}
 	
+	/**
+	 * Get the region being cropped, in terms of the bounding box within the base ImageServer.
+	 * @return
+	 */
 	public ImageRegion getCropRegion() {
 		return region;
 	}

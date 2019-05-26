@@ -140,7 +140,7 @@ public class OpenCVPixelClassifier extends AbstractOpenCVPixelClassifier {
 
         
     	var type = getMetadata().getOutputType();
-    	if (type == ImageServerMetadata.OutputType.CLASSIFICATION) {
+    	if (type == ImageServerMetadata.ChannelType.CLASSIFICATION) {
         	model.predict(matFeatures, matOutput, null);    		
     	} else {
     		var matTemp = new Mat();
@@ -151,7 +151,7 @@ public class OpenCVPixelClassifier extends AbstractOpenCVPixelClassifier {
     	
     	ColorModel colorModelLocal = null;
     	
-    	if (type == ImageServerMetadata.OutputType.PROBABILITY) {
+    	if (type == ImageServerMetadata.ChannelType.PROBABILITY) {
     		var matProbabilities = matOutput;
     		double maxValue = 1.0;
     		if (do8Bit()) {
@@ -164,7 +164,7 @@ public class OpenCVPixelClassifier extends AbstractOpenCVPixelClassifier {
     			matOutput = matProbabilities;
     		}
     		colorModelLocal = getProbabilityColorModel();
-    	} else if (type == ImageServerMetadata.OutputType.CLASSIFICATION) {
+    	} else if (type == ImageServerMetadata.ChannelType.CLASSIFICATION) {
     		matOutput.convertTo(matOutput, opencv_core.CV_8U);
     		colorModelLocal = getClassificationsColorModel();
     	}

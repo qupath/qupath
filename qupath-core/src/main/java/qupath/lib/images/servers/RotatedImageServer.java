@@ -37,9 +37,30 @@ import qupath.lib.regions.RegionRequest;
  */
 public class RotatedImageServer extends TransformingImageServer<BufferedImage> {
 	
+	/**
+	 * Enum for rotations in increments of 90 degrees.
+	 */
 	public static enum Rotation{
 		
-		ROTATE_NONE, ROTATE_90, ROTATE_180, ROTATE_270;
+		/**
+		 * No rotation.
+		 */
+		ROTATE_NONE,
+		
+		/**
+		 * Rotate 90 degrees clockwise.
+		 */
+		ROTATE_90,
+		
+		/**
+		 * Rotate 180 degrees.
+		 */
+		ROTATE_180,
+		
+		/**
+		 * Rotate 270 degrees clockwise.
+		 */
+		ROTATE_270;
 		
 		@Override
 		public String toString() {
@@ -62,10 +83,11 @@ public class RotatedImageServer extends TransformingImageServer<BufferedImage> {
 	private ImageServerMetadata metadata;
 	private Rotation rotation;
 	
-	public RotatedImageServer(final ImageServer<BufferedImage> server) {
-		this(server, Rotation.ROTATE_180);
-	}
-	
+	/**
+	 * Create an image server that rotates pixel requests for a second server by a specified increment of 90 degrees.
+	 * @param server
+	 * @param rotation
+	 */
 	public RotatedImageServer(final ImageServer<BufferedImage> server, final Rotation rotation) {
 		super(server);
 		this.rotation = rotation;
@@ -85,7 +107,10 @@ public class RotatedImageServer extends TransformingImageServer<BufferedImage> {
 		}
 	}
 	
-	
+	/**
+	 * Get the rotation applied by this server.
+	 * @return
+	 */
 	public Rotation getRotation() {
 		return rotation;
 	}

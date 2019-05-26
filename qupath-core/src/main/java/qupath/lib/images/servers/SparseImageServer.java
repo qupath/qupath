@@ -48,7 +48,12 @@ public class SparseImageServer extends AbstractTileableImageServer {
 		this(createManager(regions), path);
 	}
 	
-
+	/**
+	 * Create a new SparseImageServer.
+	 * @param manager manager defining the regions to include
+	 * @param path path to use as an identifier for the server
+	 * @throws IOException
+	 */
 	public SparseImageServer(SparseImageServerManager manager, String path) throws IOException {
 		super(null);
 		
@@ -105,6 +110,10 @@ public class SparseImageServer extends AbstractTileableImageServer {
 		
 	}
 	
+	/**
+	 * Get the manager, which defines from whence the regions originate.
+	 * @return
+	 */
 	public SparseImageServerManager getManager() {
 		return manager;
 	}
@@ -204,20 +213,44 @@ public class SparseImageServer extends AbstractTileableImageServer {
 	}
 	
 	
+	/**
+	 * Builder to create a new {@link SparseImageServer}.
+	 */
 	public static class Builder {
 		
 		private SparseImageServerManager manager = new SparseImageServerManager();
 		
+		/**
+		 * Add a region based on a JSON representation of an ImageServer.
+		 * @param region the region within this image where the pixels requested from the server should be positioned
+		 * @param downsample the downsample value for the represented region
+		 * @param json the JSON representation of the server to include
+		 * @return
+		 * 
+		 * @see ImageServers
+		 */
 		public synchronized Builder jsonRegion(ImageRegion region, double downsample, String json) {
 			manager.addRegionServer(region, downsample, json);
 			return this;
 		}
 		
+		/**
+		 * Add a region based on an existing ImageServer.
+		 * @param region the region within this image where the pixels requested from the server should be positioned
+		 * @param downsample the downsample value for the represented region
+		 * @param server the server to include, supplying pixels for the region
+		 * @return
+		 */
 		public synchronized Builder serverRegion(ImageRegion region, double downsample, ImageServer<BufferedImage> server) {
 			manager.addRegionServer(region, downsample, server);
 			return this;
 		}
 		
+		/**
+		 * Build a new SparseImageServer.
+		 * @return
+		 * @throws IOException
+		 */
 		public SparseImageServer build() throws IOException {
 			return new SparseImageServer(manager, null);
 		}
