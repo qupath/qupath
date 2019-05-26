@@ -36,10 +36,22 @@ package qupath.lib.measurements;
 @Deprecated
 public class MeasurementFactory {
 	
+	/**
+	 * Create a measurement with a double value.
+	 * @param name
+	 * @param value
+	 * @return
+	 */
 	public static Measurement createMeasurement(final String name, final double value) {
 		return new DoubleMeasurement(name, value);
 	}
 
+	/**
+	 * Create a measurement with a float value.
+	 * @param name
+	 * @param value
+	 * @return
+	 */
 	public static Measurement createMeasurement(final String name, final float value) {
 		return new FloatMeasurement(name, (float)value);
 	}

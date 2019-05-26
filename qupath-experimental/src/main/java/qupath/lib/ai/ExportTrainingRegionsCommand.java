@@ -70,7 +70,7 @@ import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
-import qupath.lib.objects.classes.PathClassFactory.PathClasses;
+import qupath.lib.objects.classes.PathClassFactory.StandardPathClasses;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectImageEntry;
@@ -316,7 +316,7 @@ public class ExportTrainingRegionsCommand implements PathCommand {
 			String s = "";
 			int i = 1;
 			// Handle 'regions' separately
-			PathClass regionClass = PathClassFactory.getDefaultPathClass(PathClasses.REGION);
+			PathClass regionClass = PathClassFactory.getPathClass(StandardPathClasses.REGION);
 			for (PathClass pathClass : pathClasses) {
 				if (pathClass == regionClass)
 					continue;
@@ -499,7 +499,7 @@ public class ExportTrainingRegionsCommand implements PathCommand {
 				downsample = resolution;
 			
 			// Split by region & non-region classified annotations
-			PathClass regionClass = PathClassFactory.getDefaultPathClass(PathClasses.REGION);
+			PathClass regionClass = PathClassFactory.getPathClass(StandardPathClasses.REGION);
 			List<PathObject> regionAnnotations = hierarchy.getObjects(null, PathAnnotationObject.class).stream().filter(p -> p.getPathClass() == regionClass).collect(Collectors.toList());
 			List<PathObject> otherAnnotations = hierarchy.getObjects(null, PathAnnotationObject.class).stream().filter(p -> p.getPathClass() != regionClass && p.getROI().isArea()).collect(Collectors.toList());
 

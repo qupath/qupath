@@ -101,7 +101,7 @@ import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
-import qupath.lib.objects.classes.PathClassFactory.PathClasses;
+import qupath.lib.objects.classes.PathClassFactory.StandardPathClasses;
 import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
@@ -1414,7 +1414,7 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 				//			int nWrong = 0;
 				int nUnclassified = 0;
 				int n = 0;
-				PathClass tumorClass = PathClassFactory.getDefaultPathClass(PathClasses.TUMOR);
+				PathClass tumorClass = PathClassFactory.getPathClass(StandardPathClasses.TUMOR);
 				// If we have multiple classes, it can be beneficial to see how tumor vs. everything else performs
 				boolean multiclassContainsTumor = mapTest.containsKey(tumorClass) && mapTest.size() > 2; // Create a tumor vs. everything else classifier
 				for (Entry<PathClass, List<PathObject>> entry : mapTest.entrySet()) {

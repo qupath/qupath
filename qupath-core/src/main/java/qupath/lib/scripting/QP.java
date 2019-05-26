@@ -56,7 +56,8 @@ import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
-import qupath.lib.objects.classes.PathClassFactory.PathClasses;
+import qupath.lib.objects.classes.PathClassTools;
+import qupath.lib.objects.classes.PathClassFactory.StandardPathClasses;
 import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.TMAGrid;
@@ -1265,9 +1266,9 @@ public class QP {
 	/**
 	 * Get a base class - which is either a valid PathClass which is *not* an intensity class, or else null.
 	 * 
-	 * This will be null if pathObject.getPathClass() == null.
+	 * This will be null if {@code pathObject.getPathClass() == null}.
 	 * 
-	 * Otherwise, it will be pathObject.getPathClass().getBaseClass() assuming the result isn't an intensity class - or null otherwise.
+	 * Otherwise, it will be {@code pathObject.getPathClass().getBaseClass()} assuming the result isn't an intensity class - or null otherwise.
 	 * 
 	 * @param pathObject
 	 * @return
@@ -1277,7 +1278,7 @@ public class QP {
 		if (baseClass != null) {
 			baseClass = baseClass.getBaseClass();
 			// Check our base isn't an intensity class
-			if (PathClassFactory.isPositiveOrPositiveIntensityClass(baseClass) || PathClassFactory.isNegativeClass(baseClass))
+			if (PathClassTools.isPositiveOrGradedIntensityClass(baseClass) || PathClassTools.isNegativeClass(baseClass))
 				baseClass = null;
 		}
 		return baseClass;
@@ -1293,7 +1294,7 @@ public class QP {
 	 * @return
 	 */
 	public static PathClass getNonIntensityAncestorPathClass(final PathObject pathObject) {
-		return PathClassFactory.getNonIntensityAncestorClass(pathObject.getPathClass());
+		return PathClassTools.getNonIntensityAncestorClass(pathObject.getPathClass());
 	}
 	
 	
@@ -1314,7 +1315,7 @@ public class QP {
 		PathClass baseClass = getNonIntensityAncestorPathClass(pathObject);
 		
 		// Don't do anything with the 'ignore' class
-		if (baseClass == PathClassFactory.getDefaultPathClass(PathClasses.IGNORE))
+		if (baseClass == PathClassFactory.getPathClass(StandardPathClasses.IGNORE))
 			return pathObject.getPathClass();
 		
 		double intensityValue = pathObject.getMeasurementList().getMeasurementValue(measurementName);
@@ -1322,16 +1323,16 @@ public class QP {
 		boolean singleThreshold = thresholds.length == 1;
 		
 		if (intensityValue < thresholds[0]) {
-			pathObject.setPathClass(PathClassFactory.getNegative(baseClass, null));
+			pathObject.setPathClass(PathClassFactory.getNegative(baseClass));
 		} else {
 			if (singleThreshold)
-				pathObject.setPathClass(PathClassFactory.getPositive(baseClass, null));
+				pathObject.setPathClass(PathClassFactory.getPositive(baseClass));
 			else if (thresholds.length >= 3 && intensityValue >= thresholds[2])
-				pathObject.setPathClass(PathClassFactory.getThreePlus(baseClass, null));				
+				pathObject.setPathClass(PathClassFactory.getThreePlus(baseClass));				
 			else if (thresholds.length >= 2 && intensityValue >= thresholds[1])
-				pathObject.setPathClass(PathClassFactory.getTwoPlus(baseClass, null));				
+				pathObject.setPathClass(PathClassFactory.getTwoPlus(baseClass));				
 			else if (intensityValue >= thresholds[0])
-				pathObject.setPathClass(PathClassFactory.getOnePlus(baseClass, null));				
+				pathObject.setPathClass(PathClassFactory.getOnePlus(baseClass));				
 		}
 		return pathObject.getPathClass();
 	}
@@ -1385,7 +1386,7 @@ public class QP {
 	public static void resetIntensityClassifications(final Collection<PathObject> pathObjects) {
 		for (PathObject pathObject : pathObjects) {
 			PathClass currentClass = pathObject.getPathClass();
-			if (PathClassFactory.isPositiveOrPositiveIntensityClass(currentClass) || PathClassFactory.isNegativeClass(currentClass))
+			if (PathClassTools.isPositiveOrGradedIntensityClass(currentClass) || PathClassTools.isNegativeClass(currentClass))
 				pathObject.setPathClass(getNonIntensityAncestorPathClass(pathObject));
 		}
 	}

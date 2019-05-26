@@ -103,11 +103,11 @@ class PathIntensityClassifier implements Serializable, PathObjectClassifier {
 		// Ensure we have the correct singleton class so we can do an equality check
 		classSelected = PathClassFactory.getSingletonPathClass(classSelected);
 		
-		PathClass classPositive = PathClassFactory.getPositive(classSelected, PathClassFactory.COLOR_POSITIVE);
-		PathClass classNegative = PathClassFactory.getNegative(classSelected, PathClassFactory.COLOR_NEGATIVE);
-		PathClass classOnePlus = PathClassFactory.getOnePlus(classSelected, PathClassFactory.COLOR_ONE_PLUS);
-		PathClass classTwoPlus = PathClassFactory.getTwoPlus(classSelected, PathClassFactory.COLOR_TWO_PLUS);
-		PathClass classThreePlus = PathClassFactory.getThreePlus(classSelected, PathClassFactory.COLOR_THREE_PLUS);
+		PathClass classPositive = PathClassFactory.getPositive(classSelected);
+		PathClass classNegative = PathClassFactory.getNegative(classSelected);
+		PathClass classOnePlus = PathClassFactory.getOnePlus(classSelected);
+		PathClass classTwoPlus = PathClassFactory.getTwoPlus(classSelected);
+		PathClass classThreePlus = PathClassFactory.getThreePlus(classSelected);
 
 		// Because the classifications are really sub-classifications, retain the same probability
 		for (PathObject pathObjectTemp : pathObjects) {
@@ -157,15 +157,15 @@ class PathIntensityClassifier implements Serializable, PathObjectClassifier {
 	public Collection<PathClass> getPathClasses() {
 		if (singleThreshold) {
 			return Arrays.asList(
-					PathClassFactory.getPositive(classSelected, PathClassFactory.COLOR_POSITIVE),
-					PathClassFactory.getNegative(classSelected, PathClassFactory.COLOR_NEGATIVE)
+					PathClassFactory.getPositive(classSelected),
+					PathClassFactory.getNegative(classSelected)
 					);
 		}
 		return Arrays.asList(
-				PathClassFactory.getNegative(classSelected, PathClassFactory.COLOR_NEGATIVE),
-				PathClassFactory.getOnePlus(classSelected, PathClassFactory.COLOR_ONE_PLUS),
-				PathClassFactory.getTwoPlus(classSelected, PathClassFactory.COLOR_TWO_PLUS),
-				PathClassFactory.getThreePlus(classSelected, PathClassFactory.COLOR_THREE_PLUS)
+				PathClassFactory.getNegative(classSelected),
+				PathClassFactory.getOnePlus(classSelected),
+				PathClassFactory.getTwoPlus(classSelected),
+				PathClassFactory.getThreePlus(classSelected)
 				);
 	}
 

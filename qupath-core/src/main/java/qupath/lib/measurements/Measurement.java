@@ -48,6 +48,11 @@ public interface Measurement extends Serializable {
       */
      public double getValue();
 	 
+     /**
+      * Returns true if a measurement can change its value, for example because of changes in 
+      * a object or hierarchy.
+      * @return
+      */
      @Deprecated
 	 public boolean isDynamic();
 	

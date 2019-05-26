@@ -69,6 +69,7 @@ import qupath.lib.objects.PathTileObject;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
+import qupath.lib.objects.classes.PathClassFactory.StandardPathClasses;
 import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.TMAGrid;
@@ -394,7 +395,7 @@ public class PathHierarchyPaintingHelper {
 								paintROI(cell.getNucleusROI(), g, colorStroke, stroke, colorFill, downsample);
 							painted = true;
 						} else {
-							if ((overlayOptions.getFillAnnotations() && pathObject.isAnnotation() && pathObject.getPathClass() != PathClassFactory.getRegionClass()) || (pathObject.isTMACore() && overlayOptions.getShowTMACoreLabels()))
+							if ((overlayOptions.getFillAnnotations() && pathObject.isAnnotation() && pathObject.getPathClass() != PathClassFactory.getPathClass(StandardPathClasses.REGION)) || (pathObject.isTMACore() && overlayOptions.getShowTMACoreLabels()))
 								paintROI(pathROI, g, colorStroke, stroke, ColorToolsAwt.getMoreTranslucentColor(colorStroke), downsample);
 							else
 								paintROI(pathROI, g, colorStroke, stroke, colorFill, downsample);

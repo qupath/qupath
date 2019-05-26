@@ -222,7 +222,7 @@ public class TMAScoreImportCommand implements PathCommand {
 	
 	/**
 	 * Creating a pseudo hierarchy makes it possible to make changes without modifying the 'true' underlying hierarchy,
-	 * i.e. enabling them to be reversible.
+	 * which enables them to be reversible.
 	 * 
 	 * @param grid
 	 * @return

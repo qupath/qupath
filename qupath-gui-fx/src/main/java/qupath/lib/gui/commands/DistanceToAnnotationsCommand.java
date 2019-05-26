@@ -23,7 +23,7 @@ import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
-import qupath.lib.objects.classes.PathClassFactory.PathClasses;
+import qupath.lib.objects.classes.PathClassFactory.StandardPathClasses;
 import qupath.lib.roi.interfaces.ROI;
 import qupath.lib.roi.jts.ConverterJTS;
 
@@ -54,7 +54,7 @@ public class DistanceToAnnotationsCommand implements PathCommand {
 			return;
 		
 		var hierarchy = imageData.getHierarchy();
-		var ignoreClasses = new HashSet<>(Arrays.asList(null, PathClassFactory.getDefaultPathClass(PathClasses.IGNORE), PathClassFactory.getDefaultPathClass(PathClasses.REGION)));
+		var ignoreClasses = new HashSet<>(Arrays.asList(null, PathClassFactory.getPathClass(StandardPathClasses.IGNORE), PathClassFactory.getPathClass(StandardPathClasses.REGION)));
 		var pathClasses = hierarchy.getAnnotationObjects().stream()
 				.map(p -> p.getPathClass())
 				.filter(p -> !ignoreClasses.contains(p))

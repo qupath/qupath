@@ -114,7 +114,7 @@ public class TestPathRootObject extends PathObjectTestWrapper {
 	}
 	@Test
 	public void test_SetGetPathClass() {
-		test_getPathClass(myPO, PathClassFactory.getDefaultPathClass(PathClassFactory.PathClasses.IMAGE_ROOT)); 
+		test_getPathClass(myPO, PathClassFactory.getPathClass(PathClassFactory.StandardPathClasses.IMAGE_ROOT)); 
 		//test_setPathClass(myPO, unclassErrMsg, errContent); // cannot be set
 		test_getClassProbability(myPO, Double.NaN);
 	}

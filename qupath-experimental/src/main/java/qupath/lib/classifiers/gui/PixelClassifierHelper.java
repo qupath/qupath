@@ -25,7 +25,7 @@ import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
-import qupath.lib.objects.classes.PathClassFactory.PathClasses;
+import qupath.lib.objects.classes.PathClassFactory.StandardPathClasses;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
@@ -149,7 +149,7 @@ public class PixelClassifierHelper implements PathObjectHierarchyListener {
 
     private static Map<PathClass, Collection<ROI>> getAnnotatedROIs(PathObjectHierarchy hierarchy) {
         List<PathObject> annotations = hierarchy.getObjects(null, PathAnnotationObject.class).stream().filter((it) -> {
-            return !it.isLocked() && it.getPathClass() != null && it.getPathClass() != PathClassFactory.getRegionClass() && it.hasROI();
+            return !it.isLocked() && it.getPathClass() != null && it.getPathClass() != PathClassFactory.getPathClass(StandardPathClasses.REGION) && it.hasROI();
         }).collect(Collectors.toList());
 
         Map<PathClass, Collection<ROI>> map = new TreeMap<>();
@@ -244,7 +244,7 @@ public class PixelClassifierHelper implements PathObjectHierarchyListener {
         
         Set<PathClass> backgroundClasses = new HashSet<>(
         		Arrays.asList(
-        				PathClassFactory.getDefaultPathClass(PathClasses.IGNORE)				
+        				PathClassFactory.getPathClass(StandardPathClasses.IGNORE)				
         				)
         		);
 
@@ -254,7 +254,7 @@ public class PixelClassifierHelper implements PathObjectHierarchyListener {
         if (boundaryStrategy == BoundaryStrategy.CLASSIFY_BOUNDARY)
         	boundaryClass = PathClassFactory.getPathClass("Boundary", 0);
         else if (boundaryStrategy == BoundaryStrategy.CLASSIFY_IGNORE) {
-        	boundaryClass = PathClassFactory.getDefaultPathClass(PathClasses.IGNORE);        	
+        	boundaryClass = PathClassFactory.getPathClass(StandardPathClasses.IGNORE);        	
         }
         boolean trainBoundaries = boundaryClass != null;
         

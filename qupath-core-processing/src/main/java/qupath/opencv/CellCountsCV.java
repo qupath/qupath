@@ -324,9 +324,9 @@ public class CellCountsCV extends AbstractTileableDetectionPlugin<BufferedImage>
 					int cy = (int)((tempROI.getCentroidY() - y)/scaleY);
 					float stain2Value = indexerStain2.get(cy, cx);
 					if (detectInPositiveChannel || stain2Value >= stain2Threshold)
-						pathObject.setPathClass(PathClassFactory.getPositive(null, null));
+						pathObject.setPathClass(PathClassFactory.getPositive(null));
 					else
-						pathObject.setPathClass(PathClassFactory.getNegative(null, null));
+						pathObject.setPathClass(PathClassFactory.getNegative(null));
 					pathObject.getMeasurementList().putMeasurement(stain2Name + " OD", stain2Value);
 					pathObject.getMeasurementList().close();
 				} else

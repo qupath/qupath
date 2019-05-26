@@ -175,7 +175,7 @@ public abstract class PathObject implements Externalizable {
 	 * @return
 	 */
 	protected MeasurementList createEmptyMeasurementList() {
-		MeasurementList list = MeasurementListFactory.createMeasurementList(16, MeasurementList.TYPE.GENERAL);
+		MeasurementList list = MeasurementListFactory.createMeasurementList(16, MeasurementList.MeasurementListType.GENERAL);
 		return list;
 	}
 	

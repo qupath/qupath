@@ -218,12 +218,12 @@ public class PositivePixelCounterIJ extends AbstractDetectionPlugin<BufferedImag
 				if (useLegacyMeasurements) {
 					pathObject.getMeasurementList().addMeasurement("Num pixels", nNegative);
 					pathObject.getMeasurementList().addMeasurement("Mean hematoxylin OD", meanNegative);
-					pathClass = PathClassFactory.getNegative(null, PathClassFactory.COLOR_NEGATIVE);
+					pathClass = PathClassFactory.getNegative(null);
 				} else {
 					areaNegative = ((PathArea)roiTissue).getScaledArea(pixelWidth, pixelHeight);
 					pathObject.getMeasurementList().addMeasurement("Stained area " + areaUnits + paramsString, areaNegative);
 					pathObject.getMeasurementList().addMeasurement("Mean " + stains.getStain(1).getName() + " OD" + paramsString, meanNegative);
-					pathClass = PathClassFactory.getPathClass("Pixel count negative", ColorTools.makeScaledRGB(PathClassFactory.COLOR_NEGATIVE, 1.25));
+					pathClass = PathClassFactory.getPathClass("Pixel count negative", ColorTools.makeScaledRGB(PathClassFactory.getNegative(null).getColor(), 1.25));
 				}
 				pathObject.setPathClass(pathClass);
 				pathObject.getMeasurementList().close();
@@ -237,12 +237,12 @@ public class PositivePixelCounterIJ extends AbstractDetectionPlugin<BufferedImag
 				if (useLegacyMeasurements) {
 					pathObject.getMeasurementList().addMeasurement("Num pixels", nPositive);
 					pathObject.getMeasurementList().addMeasurement("Mean DAB OD", meanPositive);
-					pathClass = PathClassFactory.getPositive(null, PathClassFactory.COLOR_POSITIVE);
+					pathClass = PathClassFactory.getPositive(null);
 				} else {
 					areaPositive = ((PathArea)roiPositive).getScaledArea(pixelWidth, pixelHeight);
 					pathObject.getMeasurementList().addMeasurement("Stained area " + areaUnits + paramsString, areaPositive);
 					pathObject.getMeasurementList().addMeasurement("Mean " + stains.getStain(2).getName() + " OD" + paramsString, meanPositive);
-					pathClass = PathClassFactory.getPathClass("Pixel count positive", ColorTools.makeScaledRGB(PathClassFactory.COLOR_POSITIVE, 1.25));
+					pathClass = PathClassFactory.getPathClass("Pixel count positive", ColorTools.makeScaledRGB(PathClassFactory.getPositive(null).getColor(), 1.25));
 				}
 				pathObject.setPathClass(pathClass);
 				pathObject.getMeasurementList().close();

@@ -96,19 +96,19 @@ public class PositiveCellDetection extends WatershedCellDetection {
 				double val = pathObject.getMeasurementList().getMeasurementValue(measurement);
 				if (singleThreshold) {
 					if (val >= threshold1) {
-						pathObject.setPathClass(PathClassFactory.getPositive(pathObject.getPathClass(), PathClassFactory.COLOR_POSITIVE));
+						pathObject.setPathClass(PathClassFactory.getPositive(pathObject.getPathClass()));
 					} else {
-						pathObject.setPathClass(PathClassFactory.getNegative(pathObject.getPathClass(), PathClassFactory.COLOR_NEGATIVE));
+						pathObject.setPathClass(PathClassFactory.getNegative(pathObject.getPathClass()));
 					}
 				} else {
 					if (val >= threshold3) {
-						pathObject.setPathClass(PathClassFactory.getThreePlus(pathObject.getPathClass(), PathClassFactory.COLOR_THREE_PLUS));
+						pathObject.setPathClass(PathClassFactory.getThreePlus(pathObject.getPathClass()));
 					} else if (val >= threshold2){
-						pathObject.setPathClass(PathClassFactory.getTwoPlus(pathObject.getPathClass(), PathClassFactory.COLOR_TWO_PLUS));
+						pathObject.setPathClass(PathClassFactory.getTwoPlus(pathObject.getPathClass()));
 					} else if (val >= threshold1){
-						pathObject.setPathClass(PathClassFactory.getOnePlus(pathObject.getPathClass(), PathClassFactory.COLOR_ONE_PLUS));
+						pathObject.setPathClass(PathClassFactory.getOnePlus(pathObject.getPathClass()));
 					} else
-						pathObject.setPathClass(PathClassFactory.getNegative(pathObject.getPathClass(), PathClassFactory.COLOR_NEGATIVE));
+						pathObject.setPathClass(PathClassFactory.getNegative(pathObject.getPathClass()));
 				}
 			}
 			return detections;

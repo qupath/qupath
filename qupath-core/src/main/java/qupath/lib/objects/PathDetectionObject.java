@@ -24,7 +24,7 @@
 package qupath.lib.objects;
 
 import qupath.lib.measurements.MeasurementList;
-import qupath.lib.measurements.MeasurementList.TYPE;
+import qupath.lib.measurements.MeasurementList.MeasurementListType;
 import qupath.lib.measurements.MeasurementListFactory;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.roi.interfaces.ROI;
@@ -85,7 +85,7 @@ public class PathDetectionObject extends PathROIObject {
 	 */
 	@Override
 	protected MeasurementList createEmptyMeasurementList() {
-		return MeasurementListFactory.createMeasurementList(0, TYPE.FLOAT);
+		return MeasurementListFactory.createMeasurementList(0, MeasurementListType.FLOAT);
 	}
 	
 }

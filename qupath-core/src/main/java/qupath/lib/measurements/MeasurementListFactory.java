@@ -35,7 +35,13 @@ public class MeasurementListFactory {
 	
 	private MeasurementListFactory() {}
 
-	public static MeasurementList createMeasurementList(int capacity, MeasurementList.TYPE type) {
+	/**
+	 * Create a measurement list.
+	 * @param capacity
+	 * @param type
+	 * @return
+	 */
+	public static MeasurementList createMeasurementList(int capacity, MeasurementList.MeasurementListType type) {
 		switch (type) {
 		case DOUBLE:
 			return new NumericMeasurementList.DoubleList(capacity);

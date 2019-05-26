@@ -106,7 +106,7 @@ import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
-import qupath.lib.objects.classes.PathClassFactory.PathClasses;
+import qupath.lib.objects.classes.PathClassFactory.StandardPathClasses;
 import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
@@ -949,7 +949,7 @@ public class PixelClassifierImageSelectionPane {
 			DisplayHelpers.showErrorMessage("Create objects", "You either need an area selection or no selected object");
 			return false;
 		}
-		if (selected != null && selected.getPathClass() != null && selected.getPathClass() != PathClassFactory.getDefaultPathClass(PathClasses.REGION)) {
+		if (selected != null && selected.getPathClass() != null && selected.getPathClass() != PathClassFactory.getPathClass(StandardPathClasses.REGION)) {
 			var btn = DisplayHelpers.showYesNoCancelDialog("Create objects", "Create objects for selected annotation?\nChoose 'no' to use the entire image.");
 			if (btn == DialogButton.CANCEL)
 				return false;

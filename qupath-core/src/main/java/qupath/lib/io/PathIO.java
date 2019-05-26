@@ -323,7 +323,12 @@ public class PathIO {
 
 	}
 	
-	
+	/**
+	 * Serialize an ImageData object to an output stream.
+	 * @param stream
+	 * @param imageData
+	 * @throws IOException
+	 */
 	public static void writeImageData(final OutputStream stream, final ImageData<?> imageData) throws IOException {
 		writeImageDataSerialized(stream, imageData);
 	}

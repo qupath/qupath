@@ -25,6 +25,7 @@ import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
+import qupath.lib.objects.classes.PathClassFactory.StandardPathClasses;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.ROIs;
 
@@ -123,8 +124,8 @@ public class CreateRegionAnnotationsCommand implements PathCommand {
 				comboUnits.getSelectionModel().select(RegionUnits.MICRONS);
 			
 			comboClassification.setItems(qupath.getAvailablePathClasses());
-			if (comboClassification.getItems().contains(PathClassFactory.getRegionClass()))
-				comboClassification.getSelectionModel().select(PathClassFactory.getRegionClass());
+			if (comboClassification.getItems().contains(PathClassFactory.getPathClass(StandardPathClasses.REGION)))
+				comboClassification.getSelectionModel().select(PathClassFactory.getPathClass(StandardPathClasses.REGION));
 			else
 				comboClassification.getSelectionModel().select(PathClassFactory.getPathClassUnclassified());
 			

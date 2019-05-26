@@ -263,7 +263,7 @@ public class WatershedNucleiCV extends AbstractTileableDetectionPlugin<BufferedI
 						//	        logger.info("Area comparison: " + opencv_imgproc.contourArea(contour) + ",\t" + (pathPolygon.getArea() / downsample / downsample));
 						//	        Mat matSmall = new Mat();
 						if (pathROI instanceof RectangleROI || PathObjectTools.containsROI(pathROI, pathPolygon)) {
-							MeasurementList measurementList = MeasurementListFactory.createMeasurementList(20, MeasurementList.TYPE.FLOAT);
+							MeasurementList measurementList = MeasurementListFactory.createMeasurementList(20, MeasurementList.MeasurementListType.FLOAT);
 							PathObject pathObject = PathObjects.createDetectionObject(pathPolygon, null, measurementList);
 
 							measurementList.addMeasurement("Area", pathPolygon.getArea());

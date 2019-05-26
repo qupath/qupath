@@ -41,6 +41,7 @@ import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import qupath.lib.common.GeneralTools;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
@@ -60,10 +61,26 @@ public class TMAScoreImporter {
 	
 	final private static Logger logger = LoggerFactory.getLogger(TMAScoreImporter.class);
 	
+	/**
+	 * Import TMA scores from a file into the TMAGrid of an object hierarchy.
+	 * 
+	 * @param file
+	 * @param hierarchy
+	 * @return
+	 * @throws IOException
+	 */
 	public static int importFromCSV(final File file, final PathObjectHierarchy hierarchy) throws IOException {
 		return importFromCSV(readCSV(file), hierarchy);
 	}
 	
+	/**
+	 * Import TMA scores from a String into the TMAGrid of an object hierarchy.
+	 * 
+	 * @param file
+	 * @param hierarchy
+	 * @return
+	 * @throws IOException
+	 */
 	public static int importFromCSV(final String text, final PathObjectHierarchy hierarchy) {
 		return importFromCSV(readCSV(text), hierarchy);
 	}
@@ -163,7 +180,7 @@ public class TMAScoreImporter {
 			boolean isSurvivalRelated = isOverallSurvival || isRecurrenceFreeSurvival || isOSCensored || isRFSCensored;
 			double[] vals = parseNumeric(entry.getValue(), !isSurvivalRelated);
 
-			if (isSurvivalRelated || vals == null || vals.length == numNaNs(vals)) {
+			if (isSurvivalRelated || vals == null || vals.length == GeneralTools.numNaNs(vals)) {
 				for (int i : cores.keySet()) {
 					for (TMACoreObject core : cores.get(i)) {
 						if (core == null)
@@ -206,16 +223,6 @@ public class TMAScoreImporter {
 		return changed.size();
 	}
 	
-
-	public static int numNaNs(double[] vals) {
-		int count = 0;
-		for (double v : vals) {
-			if (Double.isNaN(v))
-				count++;
-		}
-		return count;
-	}
-
 	/**
 	 * Parse numeric values from a list of strings.
 	 * <p>
@@ -253,17 +260,31 @@ public class TMAScoreImporter {
 	}
 	
 
+	/**
+	 * Read CSV data from a String into a map connecting column headers (keys) to lists of Strings (entries).
+	 * @param text
+	 * @return
+	 */
 	public static Map<String, List<String>> readCSV(final String text) {
 		return readCSV(new Scanner(text));
 	}
 
+	/**
+	 * Read CSV data from a file into a map connecting column headers (keys) to lists of Strings (entries).
+	 * @param file
+	 * @return
+	 */
 	public static Map<String, List<String>> readCSV(final File file) throws IOException {
 		try (Scanner scanner = new Scanner(file)) {
 			return readCSV(scanner);
 		}
 	}
 
-	
+	/**
+	 * Read CSV data into a map connecting column headers (keys) to lists of Strings (entries).
+	 * @param scanner
+	 * @return
+	 */
 	public static Map<String, List<String>> readCSV(final Scanner scanner) {
 
 		String delimiter = null;

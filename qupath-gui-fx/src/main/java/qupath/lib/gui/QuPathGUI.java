@@ -1327,13 +1327,13 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		List<PathClass> pathClasses = new ArrayList<>(); 
 		pathClasses.add(PathClassFactory.getPathClassUnclassified());
 		
-		pathClasses.add(PathClassFactory.getDefaultPathClass(PathClassFactory.PathClasses.TUMOR));
-		pathClasses.add(PathClassFactory.getDefaultPathClass(PathClassFactory.PathClasses.STROMA));
-		pathClasses.add(PathClassFactory.getDefaultPathClass(PathClassFactory.PathClasses.IMMUNE_CELLS));
-		pathClasses.add(PathClassFactory.getDefaultPathClass(PathClassFactory.PathClasses.NECROSIS));
-		pathClasses.add(PathClassFactory.getDefaultPathClass(PathClassFactory.PathClasses.OTHER));
-		pathClasses.add(PathClassFactory.getDefaultPathClass(PathClassFactory.PathClasses.REGION));
-		pathClasses.add(PathClassFactory.getDefaultPathClass(PathClassFactory.PathClasses.IGNORE));
+		pathClasses.add(PathClassFactory.getPathClass(PathClassFactory.StandardPathClasses.TUMOR));
+		pathClasses.add(PathClassFactory.getPathClass(PathClassFactory.StandardPathClasses.STROMA));
+		pathClasses.add(PathClassFactory.getPathClass(PathClassFactory.StandardPathClasses.IMMUNE_CELLS));
+		pathClasses.add(PathClassFactory.getPathClass(PathClassFactory.StandardPathClasses.NECROSIS));
+		pathClasses.add(PathClassFactory.getPathClass(PathClassFactory.StandardPathClasses.OTHER));
+		pathClasses.add(PathClassFactory.getPathClass(PathClassFactory.StandardPathClasses.REGION));
+		pathClasses.add(PathClassFactory.getPathClass(PathClassFactory.StandardPathClasses.IGNORE));
 		
 		if (availablePathClasses == null)
 			availablePathClasses = FXCollections.observableArrayList(pathClasses);

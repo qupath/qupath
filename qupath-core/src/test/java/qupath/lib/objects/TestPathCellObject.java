@@ -39,7 +39,7 @@ public class TestPathCellObject {
 	private final Double xn = 0.0, yn = 0.0, wn = 5.0, hn = 5.0;
 	ROI myROI = ROIs.createEllipseROI(x, y, w, h, ImagePlane.getDefaultPlane());
 	ROI myNROI = ROIs.createEllipseROI(xn, yn, wn, hn, ImagePlane.getDefaultPlane());
-	PathClass myPC = PathClassFactory.getDefaultPathClass(PathClassFactory.PathClasses.IMAGE_ROOT);
+	PathClass myPC = PathClassFactory.getPathClass(PathClassFactory.StandardPathClasses.IMAGE_ROOT);
 	PathCellObject myPO = new PathCellObject();
 	PathCellObject myPO2 = new PathCellObject(myROI, myNROI, myPC);
 	

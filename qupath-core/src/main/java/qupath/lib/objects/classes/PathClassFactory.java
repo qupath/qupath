@@ -42,136 +42,94 @@ import qupath.lib.common.ColorTools;
  */
 public class PathClassFactory {
 	
-//	public enum DEFAULT_PATH_CLASSES_ENUM {NUCLEUS, POSITIVE, NEGATIVE, ONE_PLUS, TWO_PLUS, THREE_PLUS, TUMOR, NON_TUMOR, STROMA, BACKGROUND};
+	/**
+	 * Enum representing standard classifications. Exists mostly to ensure consisting naming (including capitalization).
+	 */
+	public enum StandardPathClasses { 
+		/**
+		 * Tumor classification
+		 */
+		TUMOR,
+		/**
+		 * Stroma classification
+		 */
+		STROMA,
+		/**
+		 * Immune cell classification
+		 */
+		IMMUNE_CELLS,
+		/**
+		 * Ignore classification, indicating what should not be further measured (e.g. background, whitespace)
+		 */
+		IGNORE,
+		/**
+		 * Root object classification
+		 */
+		IMAGE_ROOT,
+		/**
+		 * Necrosis classification
+		 */
+		NECROSIS,
+		/**
+		 * Other classification
+		 */
+		OTHER,
+		/**
+		 * Region class. This behaves slightly differently from other classes, e.g. it is not filled in when applied to
+		 * annotations.  Consequently it is good to heavily annotated regions, or possibly detected tissue 
+		 * containing further annotations inside.
+		 */
+		REGION;
+		
+		
+		PathClass getPathClass() {
+			switch (this) {
+			case IGNORE:
+				return PathClassFactory.getPathClass("Ignore*", ColorTools.makeRGB(180, 180, 180));
+			case IMAGE_ROOT:
+				return PathClassFactory.getPathClass("Image", ColorTools.makeRGB(128, 128, 128));
+			case IMMUNE_CELLS:
+				return PathClassFactory.getPathClass("Immune cells", ColorTools.makeRGB(160, 90, 160));
+			case NECROSIS:
+				return PathClassFactory.getPathClass("Necrosis", ColorTools.makeRGB(50, 50, 50));
+			case OTHER:
+				return PathClassFactory.getPathClass("Other", ColorTools.makeRGB(255, 200, 0));
+			case REGION:
+				return PathClassFactory.getPathClass("Region*", ColorTools.makeRGB(0, 0, 180));
+			case STROMA:
+				return PathClassFactory.getPathClass("Stroma", ColorTools.makeRGB(150, 200, 150));
+			case TUMOR:
+				return PathClassFactory.getPathClass("Tumor", ColorTools.makeRGB(200, 0, 0));
+			default:
+				throw new IllegalArgumentException("Unknown value!");
+			}
+		}
+		
+	}
 
-//	public enum PathClasses { TUMOR, NON_TUMOR, STROMA, IMMUNE_CELLS, NUCLEUS, CELL, WHITESPACE, NEGATIVE, POSITIVE, ONE_PLUS, TWO_PLUS, THREE_PLUS, ARTIFACT, IMAGE_ROOT, NECROSIS, OTHER }
-	public enum PathClasses { TUMOR, NON_TUMOR, STROMA, IMMUNE_CELLS, NUCLEUS, CELL, IGNORE, NEGATIVE, POSITIVE, ARTIFACT, IMAGE_ROOT, NECROSIS, OTHER, REGION }
-
-	private static Map<PathClasses, PathClass> DEFAULT_PATH_CLASSES;
-	
 	private static Map<String, PathClass> mapPathClasses = new HashMap<>();
 
 	private final static PathClass NULL_CLASS = new PathClass();
-
-	private final static String REGION = "Region";
-
-	private final static String POSITIVE = "Positive";
-	private final static String NEGATIVE = "Negative";
-	private final static String ONE_PLUS = "1+";
-	private final static String TWO_PLUS = "2+";
-	private final static String THREE_PLUS = "3+";
-	private static List<String> intensityClassNames = Arrays.asList(ONE_PLUS, TWO_PLUS, THREE_PLUS);
 	
-	static  {
-		DEFAULT_PATH_CLASSES = new HashMap<>();
-		DEFAULT_PATH_CLASSES.put(PathClasses.TUMOR, new PathClass("Tumor", ColorTools.makeRGB(200, 0, 0)));
-		DEFAULT_PATH_CLASSES.put(PathClasses.NON_TUMOR, new PathClass("Non-tumor", ColorTools.makeRGB(140, 220, 90)));
-		DEFAULT_PATH_CLASSES.put(PathClasses.STROMA, new PathClass("Stroma", ColorTools.makeRGB(150, 200, 150)));
-		DEFAULT_PATH_CLASSES.put(PathClasses.IMMUNE_CELLS, new PathClass("Immune cells", ColorTools.makeRGB(160, 90, 160)));
-		DEFAULT_PATH_CLASSES.put(PathClasses.NUCLEUS, new PathClass("Nucleus", ColorTools.makeRGB(20, 200, 20)));
-		DEFAULT_PATH_CLASSES.put(PathClasses.CELL, new PathClass("Cell", ColorTools.makeRGB(220, 0, 0)));
-		DEFAULT_PATH_CLASSES.put(PathClasses.IGNORE, new PathClass("Ignore", ColorTools.makeRGB(180, 180, 180)));
-		DEFAULT_PATH_CLASSES.put(PathClasses.POSITIVE, new PathClass(POSITIVE, ColorTools.makeRGB(200, 50, 50)));
-		DEFAULT_PATH_CLASSES.put(PathClasses.NEGATIVE, new PathClass(NEGATIVE, ColorTools.makeRGB(90, 90, 180)));
-//		DEFAULT_PATH_CLASSES.put(PathClasses.ONE_PLUS, new PathClass(ONE_PLUS, ColorTools.makeRGB(255, 215, 0)));
-//		DEFAULT_PATH_CLASSES.put(PathClasses.TWO_PLUS, new PathClass(TWO_PLUS, ColorTools.makeRGB(225, 150, 50)));
-//		DEFAULT_PATH_CLASSES.put(PathClasses.THREE_PLUS, new PathClass(THREE_PLUS, ColorTools.makeRGB(200, 50, 50)));
-		DEFAULT_PATH_CLASSES.put(PathClasses.ARTIFACT, new PathClass("Artefact", ColorTools.makeRGB(180, 180, 180)));
-		DEFAULT_PATH_CLASSES.put(PathClasses.IMAGE_ROOT,  new PathClass("Image", ColorTools.makeRGB(128, 128, 128)));
-		
-		DEFAULT_PATH_CLASSES.put(PathClasses.REGION, new PathClass(REGION, ColorTools.makeRGB(0, 0, 180)));
-
-		DEFAULT_PATH_CLASSES.put(PathClasses.NECROSIS, new PathClass("Necrosis", ColorTools.makeRGB(50, 50, 50)));
-		DEFAULT_PATH_CLASSES.put(PathClasses.OTHER, new PathClass("Other", ColorTools.makeRGB(255, 200, 0)));
-
-		for (PathClass pathClass : DEFAULT_PATH_CLASSES.values())
-			mapPathClasses.put(pathClass.toString(), pathClass);
-		
-	}
+	final static String POSITIVE = "Positive";
+	final static String NEGATIVE = "Negative";
+	final static String ONE_PLUS = "1+";
+	final static String TWO_PLUS = "2+";
+	final static String THREE_PLUS = "3+";
+	static List<String> intensityClassNames = Arrays.asList(ONE_PLUS, TWO_PLUS, THREE_PLUS);
 	
-	
-	public static final Integer COLOR_POSITIVE = ColorTools.makeRGB(200, 50, 50);
-	public static final Integer COLOR_NEGATIVE = ColorTools.makeRGB(90, 90, 180);
-	public static final Integer COLOR_ONE_PLUS = ColorTools.makeRGB(255, 215, 0);
-	public static final Integer COLOR_TWO_PLUS = ColorTools.makeRGB(225, 150, 50);
-	public static final Integer COLOR_THREE_PLUS = ColorTools.makeRGB(200, 50, 50);
+	private static final Integer COLOR_POSITIVE = ColorTools.makeRGB(200, 50, 50);
+	private static final Integer COLOR_NEGATIVE = ColorTools.makeRGB(90, 90, 180);
+	private static final Integer COLOR_ONE_PLUS = ColorTools.makeRGB(255, 215, 0);
+	private static final Integer COLOR_TWO_PLUS = ColorTools.makeRGB(225, 150, 50);
+	private static final Integer COLOR_THREE_PLUS = ColorTools.makeRGB(200, 50, 50);
 	
 	
 	
-	/**
-	 * Get the 'Region' class.
-	 * 
-	 * This behaves slightly differently from other classes, e.g. it is not filled in when applied to
-	 * annotations.  Consequently it is good to heavily annotated regions, or possibly detected tissue 
-	 * containing further annotations inside.
-	 * 
-	 * @return
-	 */
-	public static PathClass getRegionClass() {
-		return getDefaultPathClass(PathClasses.REGION);
+	static boolean classExists(String classString) {
+		return mapPathClasses.containsKey(classString);
 	}
 	
-	/**
-	 * Returns true if the PathClass represents a built-in intensity class.
-	 * 
-	 * Here, this means its name is equal to 1+, 2+ or 3+.
-	 * 
-	 * @param pathClass
-	 * @return
-	 */
-	public static boolean isDefaultIntensityClass(final PathClass pathClass) {
-		return pathClass != null && intensityClassNames.contains(pathClass.getName());
-	}
-	
-	public static boolean isOnePlus(final PathClass pathClass) {
-		return pathClass != null && ONE_PLUS.equals(pathClass.getName());
-	}
-
-	public static boolean isTwoPlus(final PathClass pathClass) {
-		return pathClass != null && TWO_PLUS.equals(pathClass.getName());
-	}
-
-	public static boolean isThreePlus(final PathClass pathClass) {
-		return pathClass != null && THREE_PLUS.equals(pathClass.getName());
-	}
-
-	/**
-	 * Returns {@code true} if the PathClass has the name "Positive".
-	 * 
-	 * @param pathClass
-	 * @return
-	 */
-	public static boolean isPositiveClass(final PathClass pathClass) {
-		return pathClass != null && POSITIVE.equals(pathClass.getName());
-	}
-	
-	public static boolean isPositiveOrPositiveIntensityClass(final PathClass pathClass) {
-		return pathClass != null && (isPositiveClass(pathClass) || isOnePlus(pathClass) || isTwoPlus(pathClass) || isThreePlus(pathClass));
-	}
-	
-	/**
-	 * Returns {@code true} if the PathClass has the name "Negative".
-	 * 
-	 * @param pathClass
-	 * @return
-	 */
-	public static boolean isNegativeClass(final PathClass pathClass) {
-		return pathClass != null && NEGATIVE.equals(pathClass.getName());
-	}
-
-	/**
-	 * Get the first ancestor class that is not an intensity class (i.e. not negative, positive, 1+, 2+ or 3+).
-	 * <p>
-	 * This will return null if pathClass is null, or if no non-intensity classes are found.
-	 * 
-	 * @param pathClass
-	 * @return
-	 */
-	public static PathClass getNonIntensityAncestorClass(PathClass pathClass) {
-		while (pathClass != null && (PathClassFactory.isPositiveOrPositiveIntensityClass(pathClass) || PathClassFactory.isNegativeClass(pathClass)))
-			pathClass = pathClass.getParentClass();
-		return pathClass;
-	}
 	
 	/**
 	 * Validate a non-null name, throwing an IllegalArgumentException if the name contains invalid characters.
@@ -255,11 +213,6 @@ public class PathClassFactory {
 		return getDerivedPathClass(getSingletonPathClass(pathClass.getParentClass()), pathClass.getName(), pathClass.getColor());
 	}
 	
-	
-//	public static PathClass getDerivedPathClass(PathClass parentClass, String name, Color color) {
-//		return getDerivedPathClass(parentClass, name, color == null ? null : color.getRGB());
-//	}
-	
 	/**
 	 * Get a PathClass that has been derived from a parent class.
 	 * 
@@ -276,7 +229,7 @@ public class PathClassFactory {
 		PathClass pathClass = mapPathClasses.get(nameNew);
 		if (pathClass == null) {
 			if (rgb == null) {
-				boolean isTumor = DEFAULT_PATH_CLASSES.get(PathClasses.TUMOR) == parentClass;
+				boolean isTumor = getPathClass(StandardPathClasses.TUMOR) == parentClass;
 				int parentRGB = parentClass.getColor();
 				if (name.equals(ONE_PLUS)) {
 					rgb = isTumor ? COLOR_ONE_PLUS : ColorTools.makeScaledRGB(parentRGB, 0.9);
@@ -300,36 +253,58 @@ public class PathClassFactory {
 		return pathClass;
 	}
 	
-	public static PathClass getOnePlus(PathClass parentClass, Integer color) {
-		return getDerivedPathClass(parentClass, ONE_PLUS, color);
+	/**
+	 * Get a standalone or derived 1+ classification, indicating weak positivity
+	 * @param parentClass parent classification (may be null)
+	 * @return
+	 */
+	public static PathClass getOnePlus(PathClass parentClass) {
+		return getDerivedPathClass(parentClass, ONE_PLUS, COLOR_ONE_PLUS);
 	}
 
-	public static PathClass getTwoPlus(PathClass parentClass, Integer color) {
-		return getDerivedPathClass(parentClass, TWO_PLUS, color);
+	/**
+	 * Get a standalone or derived 2+ classification, indicating moderate positivity
+	 * @param parentClass parent classification (may be null)
+	 * @return
+	 */
+	public static PathClass getTwoPlus(PathClass parentClass) {
+		return getDerivedPathClass(parentClass, TWO_PLUS, COLOR_TWO_PLUS);
 	}
 
-	public static PathClass getThreePlus(PathClass parentClass, Integer color) {
-		return getDerivedPathClass(parentClass, THREE_PLUS, color);
+	/**
+	 * Get a standalone or derived 3+ classification, indicating strong positivity
+	 * @param parentClass parent classification (may be null)
+	 * @return
+	 */
+	public static PathClass getThreePlus(PathClass parentClass) {
+		return getDerivedPathClass(parentClass, THREE_PLUS, COLOR_THREE_PLUS);
 	}
 	
-	public static PathClass getNegative(PathClass parentClass, Integer color) {
-		return getDerivedPathClass(parentClass, NEGATIVE, color);
+	/**
+	 * Get a standalone or derived Negative classification
+	 * @param parentClass parent classification (may be null)
+	 * @return
+	 */
+	public static PathClass getNegative(PathClass parentClass) {
+		return getDerivedPathClass(parentClass, NEGATIVE, COLOR_NEGATIVE);
 	}
 	
-	public static PathClass getPositive(PathClass parentClass, Integer color) {
-		return getDerivedPathClass(parentClass, POSITIVE, color);
+	/**
+	 * Get a standalone or derived Positive classification
+	 * @param parentClass parent classification (may be null)
+	 * @return
+	 */
+	public static PathClass getPositive(PathClass parentClass) {
+		return getDerivedPathClass(parentClass, POSITIVE, COLOR_POSITIVE);
 	}
 	
-	public static PathClass getDefaultPathClass(PathClasses pathClass) {
-		return DEFAULT_PATH_CLASSES.get(pathClass);
-	}
-	
-	public static String getNegativeClassName() {
-		return NEGATIVE;
-	}
-
-	public static String getPositiveClassName() {
-		return POSITIVE;
+	/**
+	 * Get a standard PathClass.
+	 * @param pathClass
+	 * @return
+	 */
+	public static PathClass getPathClass(StandardPathClasses pathClass) {
+		return pathClass.getPathClass();
 	}
 
 	/**

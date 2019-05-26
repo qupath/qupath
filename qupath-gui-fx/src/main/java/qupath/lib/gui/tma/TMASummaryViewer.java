@@ -1616,7 +1616,7 @@ public class TMASummaryViewer {
 				List<String> list = entry.getValue();
 				n = list.size();
 				double[] values = TMAScoreImporter.parseNumeric(list, true);
-				if (values == null || TMAScoreImporter.numNaNs(values) == list.size())
+				if (values == null || GeneralTools.numNaNs(values) == list.size())
 					metadataColumns.put(entry.getKey(), list);
 				else
 					measurementColumns.put(entry.getKey(), values);
@@ -1921,8 +1921,8 @@ public class TMASummaryViewer {
 				return;
 			}
 			int len = x.length;
-			int nNanX = TMAScoreImporter.numNaNs(x);
-			int nNanY = TMAScoreImporter.numNaNs(y);
+			int nNanX = GeneralTools.numNaNs(x);
+			int nNanY = GeneralTools.numNaNs(y);
 			if (count < x.length) {
 				x = Arrays.copyOf(x, count);
 				y = Arrays.copyOf(y, count);
@@ -1983,7 +1983,7 @@ public class TMASummaryViewer {
 		Map<String, double[]> dataNumeric = new HashMap<>();
 		for (String key : data.keySet().toArray(new String[0])) {
 			double[] vals = TMAScoreImporter.parseNumeric(data.get(key), true);
-			if (vals != null && TMAScoreImporter.numNaNs(vals) != vals.length) {
+			if (vals != null && GeneralTools.numNaNs(vals) != vals.length) {
 				dataNumeric.put(key, vals);
 				data.remove(key);
 			}

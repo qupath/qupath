@@ -68,6 +68,7 @@ import qupath.lib.objects.PathObject;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
+import qupath.lib.objects.classes.PathClassTools;
 import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.roi.AreaROI;
@@ -518,11 +519,11 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 			Set<PathClass> parentIntensityClasses = new LinkedHashSet<>();
 			Set<PathClass> parentPositiveNegativeClasses = new LinkedHashSet<>();
 			for (PathClass pathClass : pathClasses) {
-				if (PathClassFactory.isDefaultIntensityClass(pathClass)) {
+				if (PathClassTools.isGradedIntensityClass(pathClass)) {
 					parentIntensityClasses.add(pathClass.getParentClass());
 					parentPositiveNegativeClasses.add(pathClass.getParentClass());
 				}
-				else if (PathClassFactory.isPositiveClass(pathClass) || PathClassFactory.isNegativeClass(pathClass))
+				else if (PathClassTools.isPositiveClass(pathClass) || PathClassTools.isNegativeClass(pathClass))
 					parentPositiveNegativeClasses.add(pathClass.getParentClass());
 			}
 			
@@ -563,7 +564,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 				builders.add(new AllredMeasurementBuilder(pathClass));
 			}
 			if (parentIntensityClasses.size() > 1) {
-				PathClass[] parentIntensityClassesArray = parentIntensityClasses.toArray(new PathClass[0]);
+				PathClass[] parentIntensityClassesArray = parentIntensityClasses.toArray(PathClass[]::new);
 				builders.add(new HScoreMeasurementBuilder(parentIntensityClassesArray));
 				builders.add(new AllredProportionMeasurementBuilder(parentIntensityClassesArray));
 				builders.add(new AllredIntensityMeasurementBuilder(parentIntensityClassesArray));
@@ -575,7 +576,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 			// Additionally, these are only non-NaN if we have an annotation, or a TMA core containing a single annotation
 //			if (containsAnnotations) {
 				for (PathClass pathClass : pathClassList) {
-					if (PathClassFactory.isPositiveClass(pathClass) && pathClass.getBaseClass() == pathClass)
+					if (PathClassTools.isPositiveClass(pathClass) && pathClass.getBaseClass() == pathClass)
 	//				if (!(PathClassFactory.isDefaultIntensityClass(pathClass) || PathClassFactory.isNegativeClass(pathClass)))
 						builders.add(new ClassDensityMeasurementBuilder(imageData.getServer(), pathClass));
 				}
@@ -1518,23 +1519,23 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 		}
 		
 		public int getOnePlus(final PathClass... ancestors) {
-			return getCountForAncestor(pathClass -> PathClassFactory.isOnePlus(pathClass), ancestors);
+			return getCountForAncestor(pathClass -> PathClassTools.isOnePlus(pathClass), ancestors);
 		}
 		
 		public int getTwoPlus(final PathClass... ancestors) {
-			return getCountForAncestor(pathClass -> PathClassFactory.isTwoPlus(pathClass), ancestors);
+			return getCountForAncestor(pathClass -> PathClassTools.isTwoPlus(pathClass), ancestors);
 		}
 
 		public int getThreePlus(final PathClass... ancestors) {
-			return getCountForAncestor(pathClass -> PathClassFactory.isThreePlus(pathClass), ancestors);
+			return getCountForAncestor(pathClass -> PathClassTools.isThreePlus(pathClass), ancestors);
 		}
 
 		public int getNegative(final PathClass... ancestors) {
-			return getCountForAncestor(pathClass -> PathClassFactory.isNegativeClass(pathClass), ancestors);
+			return getCountForAncestor(pathClass -> PathClassTools.isNegativeClass(pathClass), ancestors);
 		}
 
 		public int getPositive(final PathClass... ancestors) {
-			return getCountForAncestor(pathClass -> PathClassFactory.isPositiveOrPositiveIntensityClass(pathClass), ancestors);
+			return getCountForAncestor(pathClass -> PathClassTools.isPositiveOrGradedIntensityClass(pathClass), ancestors);
 		}
 		
 		public double getHScore(final PathClass... ancestors) {

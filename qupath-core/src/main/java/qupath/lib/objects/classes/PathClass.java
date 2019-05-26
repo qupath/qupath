@@ -72,6 +72,9 @@ public class PathClass implements Comparable<PathClass>, Serializable {
 			this.colorRGB = DEFAULT_COLOR;
 		else
 			this.colorRGB = colorRGB;
+		
+		if (PathClassFactory.classExists(toString()))
+			throw new UnsupportedOperationException("PathClass '" + toString() + "' already exists! Use PathClassFactory.getPathClass() instead of calling the the PathClass constructor directly.");
 	}
 	
 	PathClass(String name, Integer colorRGB) {
@@ -188,7 +191,7 @@ public class PathClass implements Comparable<PathClass>, Serializable {
 	 * A PathClass is valid if its name is not null.
 	 * <p>
 	 * This should generally the case, but a single (invalid) PathClass with a null name 
-	 * can be used to indicate the absence of a classification; however, it should not be assigned 
+	 * can be used to indicate the absence of a classification; however, it should <i>not</i> be assigned 
 	 * to any object.  Rather, objects should be assigned either a valid PathClass or null to indicate 
 	 * that they have no classification.
 	 * 

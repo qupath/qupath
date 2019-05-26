@@ -335,8 +335,8 @@ public class WatershedCellMembraneDetection extends AbstractTileableDetectionPlu
 				return "1 nucleus detected";
 			String s = String.format("%d nuclei detected", nDetections);
 			if (nucleiClassified) {
-				int nPositive = PathObjectTools.countObjectsWithClass(pathObjects, PathClassFactory.getPathClass(PathClassFactory.getPositiveClassName()), false);
-				int nNegative = PathObjectTools.countObjectsWithClass(pathObjects, PathClassFactory.getPathClass(PathClassFactory.getNegativeClassName()), false);
+				int nPositive = PathObjectTools.countObjectsWithClass(pathObjects, PathClassFactory.getPositive(null), false);
+				int nNegative = PathObjectTools.countObjectsWithClass(pathObjects, PathClassFactory.getNegative(null), false);
 				return String.format("%s (%.3f%% positive)", s, ((double)nPositive * 100.0 / (nPositive + nNegative)));			
 			} else
 				return s;
@@ -803,7 +803,7 @@ public class WatershedCellMembraneDetection extends AbstractTileableDetectionPlu
 				}
 				
 				// Create a new shared measurement list
-				MeasurementList measurementList = MeasurementListFactory.createMeasurementList(makeMeasurements ? 30 : 0, MeasurementList.TYPE.FLOAT);
+				MeasurementList measurementList = MeasurementListFactory.createMeasurementList(makeMeasurements ? 30 : 0, MeasurementList.MeasurementListType.FLOAT);
 				
 				if (makeMeasurements) {
 					ObjectMeasurements.addShapeStatistics(measurementList, r, fpH, cal, "Nucleus: ");
@@ -964,7 +964,7 @@ public class WatershedCellMembraneDetection extends AbstractTileableDetectionPlu
 						measurementList = nucleus.getMeasurementList();					
 					} else {
 						// Create a new measurement list
-						measurementList = MeasurementListFactory.createMeasurementList(makeMeasurements ? 12 : 0, MeasurementList.TYPE.GENERAL);
+						measurementList = MeasurementListFactory.createMeasurementList(makeMeasurements ? 12 : 0, MeasurementList.MeasurementListType.GENERAL);
 						nucleus = null;
 					}
 					

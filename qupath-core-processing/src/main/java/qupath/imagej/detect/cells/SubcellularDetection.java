@@ -62,7 +62,7 @@ import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.measurements.MeasurementListFactory;
-import qupath.lib.measurements.MeasurementList.TYPE;
+import qupath.lib.measurements.MeasurementList.MeasurementListType;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathCellObject;
 import qupath.lib.objects.PathDetectionObject;
@@ -71,6 +71,7 @@ import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
+import qupath.lib.objects.classes.PathClassTools;
 import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.plugins.AbstractInteractivePlugin;
 import qupath.lib.plugins.PluginRunner;
@@ -184,7 +185,7 @@ public class SubcellularDetection extends AbstractInteractivePlugin<BufferedImag
 	static boolean processObject(final PathObject pathObject, final ParameterList params, final ImageWrapper imageWrapper) throws InterruptedException, IOException {
 
 		// Get the base classification for the object as it currently stands
-		PathClass baseClass = PathClassFactory.getNonIntensityAncestorClass(pathObject.getPathClass());
+		PathClass baseClass = PathClassTools.getNonIntensityAncestorClass(pathObject.getPathClass());
 		
 		// Variable to hold estimated spot count
 		double estimatedSpots;
@@ -480,7 +481,7 @@ public class SubcellularDetection extends AbstractInteractivePlugin<BufferedImag
 		 */
 		@Override
 		protected MeasurementList createEmptyMeasurementList() {
-			return MeasurementListFactory.createMeasurementList(0, TYPE.FLOAT);
+			return MeasurementListFactory.createMeasurementList(0, MeasurementListType.FLOAT);
 		}
 		
 		@Override

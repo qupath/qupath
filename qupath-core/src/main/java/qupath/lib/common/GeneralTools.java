@@ -467,4 +467,19 @@ public class GeneralTools {
 		} else throw new IOException("Expected content type text/plain, but got " + contentType);
 	}
 
+
+	/**
+	 * Count the number of NaN values in an array.
+	 * @param vals
+	 * @return
+	 */
+	public static int numNaNs(double[] vals) {
+		int count = 0;
+		for (double v : vals) {
+			if (Double.isNaN(v))
+				count++;
+		}
+		return count;
+	}
+
 }

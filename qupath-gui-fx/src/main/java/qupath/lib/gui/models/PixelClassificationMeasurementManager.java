@@ -22,7 +22,7 @@ import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.TileRequest;
 import qupath.lib.measurements.MeasurementList;
-import qupath.lib.measurements.MeasurementList.TYPE;
+import qupath.lib.measurements.MeasurementList.MeasurementListType;
 import qupath.lib.measurements.MeasurementListFactory;
 import qupath.lib.objects.PathObject;
 import qupath.lib.regions.ImagePlane;
@@ -253,7 +253,7 @@ public class PixelClassificationMeasurementManager {
     	} else
     		nMeasurements = measurementNames.size();
     	
-    	MeasurementList measurementList = MeasurementListFactory.createMeasurementList(nMeasurements, TYPE.DOUBLE);
+    	MeasurementList measurementList = MeasurementListFactory.createMeasurementList(nMeasurements, MeasurementListType.DOUBLE);
     	
     	long totalWithoutIgnored = 0L;
     	if (counts != null) {

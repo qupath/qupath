@@ -51,7 +51,7 @@ public class PathRootObject extends PathObject {
 
 	@Override
 	public PathClass getPathClass() {
-		return PathClassFactory.getDefaultPathClass(PathClassFactory.PathClasses.IMAGE_ROOT);
+		return PathClassFactory.getPathClass(PathClassFactory.StandardPathClasses.IMAGE_ROOT);
 	}
 
 	@Override
