@@ -53,7 +53,8 @@ import qupath.lib.plugins.AbstractDetectionPlugin;
 import qupath.lib.plugins.PathTask;
 import qupath.lib.plugins.PluginRunner;
 import qupath.lib.plugins.parameters.ParameterList;
-import qupath.lib.roi.PathROIToolsAwt;
+import qupath.lib.regions.ImagePlane;
+import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.PolygonROI;
 import qupath.lib.roi.interfaces.ROI;
 import qupath.lib.roi.interfaces.PathShape;
@@ -201,9 +202,9 @@ public class TileClassificationsToAnnotationsPlugin<T> extends AbstractDetection
 						if ((pathObject instanceof PathTileObject) && (pathObject.getROI() instanceof PathShape) && pathClass.equals(pathObject.getPathClass())) {
 							PathShape pathShape = (PathShape)pathObject.getROI();
 							if (path == null)
-								path = new Path2D.Float(PathROIToolsAwt.getShape(pathShape));
+								path = new Path2D.Float(RoiTools.getShape(pathShape));
 							else
-								path.append(PathROIToolsAwt.getShape(pathShape), false);
+								path.append(RoiTools.getShape(pathShape), false);
 							tiles.add(pathObject);
 						}
 					}
@@ -211,9 +212,9 @@ public class TileClassificationsToAnnotationsPlugin<T> extends AbstractDetection
 						ROI pathROINew = null;
 						ROI parentROI = parentObject.getROI();
 						if (parentROI != null)
-							pathROINew = PathROIToolsAwt.getShapeROI(new Area(path), parentROI.getC(), parentROI.getZ(), parentROI.getT());
+							pathROINew = RoiTools.getShapeROI(new Area(path), parentROI.getImagePlane());
 						else
-							pathROINew = PathROIToolsAwt.getShapeROI(new Area(path), -1, 0, 0);
+							pathROINew = RoiTools.getShapeROI(new Area(path), ImagePlane.getDefaultPlane());
 						pathSingleAnnotation = PathObjects.createAnnotationObject(pathROINew, pathClass);
 						if (!deleteTiles)
 							pathSingleAnnotation.addPathObjects(tiles);
@@ -227,13 +228,13 @@ public class TileClassificationsToAnnotationsPlugin<T> extends AbstractDetection
 				// Split if necessary
 				if (doSplit) {
 					PathShape pathShape = (PathShape)pathSingleAnnotation.getROI();
-					Area area = PathROIToolsAwt.getArea(pathShape);
+					Area area = RoiTools.getArea(pathShape);
 					if (area.isSingular()) {
 						pathAnnotations.add(pathSingleAnnotation);
 //						resultsString = "Created 1 annotation from " + tiles.size() + " tiles: " + pathSingleAnnotation;
 					}
 					else {
-						PolygonROI[][] polygons = PathROIToolsAwt.splitAreaToPolygons(area, pathShape.getC(), pathShape.getZ(), pathShape.getT());
+						PolygonROI[][] polygons = RoiTools.splitAreaToPolygons(area, pathShape.getC(), pathShape.getZ(), pathShape.getT());
 						for (PolygonROI poly : polygons[1]) {
 							PathShape shape = poly;
 							Iterator<PathObject> iter = tiles.iterator();
@@ -251,7 +252,7 @@ public class TileClassificationsToAnnotationsPlugin<T> extends AbstractDetection
 							
 							for (PolygonROI hole : polygons[0]) {
 								if (PathObjectTools.containsROI(poly, hole))
-									shape = PathROIToolsAwt.combineROIs(shape, hole, PathROIToolsAwt.CombineOp.SUBTRACT);
+									shape = RoiTools.combineROIs(shape, hole, RoiTools.CombineOp.SUBTRACT);
 							}
 //							PathObjectTools.containsObject(pathSingleAnnotation, childObject)
 							PathObject annotation = PathObjects.createAnnotationObject(shape, pathClass);

@@ -69,8 +69,8 @@ import qupath.lib.plugins.PluginRunner;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.LineROI;
-import qupath.lib.roi.PathROIToolsAwt;
-import qupath.lib.roi.PathROIToolsAwt.CombineOp;
+import qupath.lib.roi.RoiTools;
+import qupath.lib.roi.RoiTools.CombineOp;
 import qupath.lib.roi.RectangleROI;
 import qupath.lib.roi.interfaces.PathShape;
 import qupath.lib.roi.interfaces.ROI;
@@ -316,7 +316,7 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 					if (pathObjectNew != null) {
 						// If necessary, trim any returned annotation
 						if (pathROI != null && !(pathROI instanceof RectangleROI) && pathObjectNew.isAnnotation() && pathROI instanceof PathShape && pathObjectNew.getROI() instanceof PathShape) {
-							ROI roiNew = PathROIToolsAwt.combineROIs((PathShape)pathROI, (PathShape)pathObjectNew.getROI(), CombineOp.INTERSECT);
+							ROI roiNew = RoiTools.combineROIs((PathShape)pathROI, (PathShape)pathObjectNew.getROI(), CombineOp.INTERSECT);
 							((PathAnnotationObject)pathObjectNew).setROI(roiNew);
 						}
 						// Only add if we have something

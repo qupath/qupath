@@ -34,9 +34,8 @@ import qupath.lib.common.ColorTools;
 /**
  * Factory for creating PathClasses.
  * <p>
- * This is used, rather than creating PathClass objects directly, to ensure that 
- * only one PathClass with a specified name (and, optionally, ancestry) can exist 
- * at any time.
+ * This must be used in favor of creating PathClass objects directly to ensure that 
+ * only one PathClass with a specified name (and, optionally, ancestry) can exist at any time.
  * 
  * @author Pete Bankhead
  *
@@ -98,11 +97,6 @@ public class PathClassFactory {
 	public static final Integer COLOR_THREE_PLUS = ColorTools.makeRGB(200, 50, 50);
 	
 	
-
-//	public static PathClass getPathClass(String name, Color color) {
-//		return getPathClass(name, color == null ? null : color.getRGB());
-//	}
-	
 	
 	/**
 	 * Get the 'Region' class.
@@ -142,7 +136,7 @@ public class PathClassFactory {
 	}
 
 	/**
-	 * Returns true if the PathClass has the name "Positive".
+	 * Returns {@code true} if the PathClass has the name "Positive".
 	 * 
 	 * @param pathClass
 	 * @return
@@ -156,7 +150,7 @@ public class PathClassFactory {
 	}
 	
 	/**
-	 * Returns true if the PathClass has the name "Negative".
+	 * Returns {@code true} if the PathClass has the name "Negative".
 	 * 
 	 * @param pathClass
 	 * @return
@@ -349,7 +343,5 @@ public class PathClassFactory {
 	public static PathClass getPathClassUnclassified() {
 		return NULL_CLASS;
 	}
-	
-//	public static PathClass
 
 }

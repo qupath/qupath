@@ -58,7 +58,7 @@ public interface PathObjectConnectionGroup {
 	
 	/**
 	 * Get all the connections to a specified PathObject stored in this group.
-	 * 
+	 * <p>
 	 * If containsObject(pathObject) returns null, this will return an empty list (and not null).
 	 * 
 	 * @param pathObject

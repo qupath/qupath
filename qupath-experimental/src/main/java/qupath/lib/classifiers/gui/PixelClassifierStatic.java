@@ -31,8 +31,8 @@ import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.AreaROI;
-import qupath.lib.roi.PathROIToolsAwt;
-import qupath.lib.roi.PathROIToolsAwt.CombineOp;
+import qupath.lib.roi.RoiTools;
+import qupath.lib.roi.RoiTools.CombineOp;
 import qupath.lib.roi.interfaces.PathArea;
 import qupath.lib.roi.interfaces.PathShape;
 import qupath.lib.roi.interfaces.ROI;
@@ -375,7 +375,7 @@ public class PixelClassifierStatic {
 		var hierarchy = server.getImageData().getHierarchy();
 		var classifier = server.getClassifier();
 	
-		var clipArea = selectedObject == null ? null : PathROIToolsAwt.getArea(selectedObject.getROI());
+		var clipArea = selectedObject == null ? null : RoiTools.getArea(selectedObject.getROI());
 		Collection<TileRequest> tiles;
 		if (selectedObject == null) {
 			tiles = server.getAllTileRequests();
@@ -424,12 +424,12 @@ public class PixelClassifierStatic {
 					ROI roi = thresholdToROI(raster, c-0.5, c+0.5, 0, t);
 										
 					if (roi != null && clipArea != null) {
-						var roiArea = PathROIToolsAwt.getArea(roi);
-						PathROIToolsAwt.combineAreas(roiArea, clipArea, CombineOp.INTERSECT);
+						var roiArea = RoiTools.getArea(roi);
+						RoiTools.combineAreas(roiArea, clipArea, CombineOp.INTERSECT);
 						if (roiArea.isEmpty())
 							roi = null;
 						else
-							roi = PathROIToolsAwt.getShapeROI(roiArea, roi.getC(), roi.getZ(), roi.getT());
+							roi = RoiTools.getShapeROI(roiArea, roi.getImagePlane());
 					}
 					
 					if (roi != null)
@@ -448,24 +448,24 @@ public class PixelClassifierStatic {
 			var list = entry.getValue();
 			Path2D path = new Path2D.Double();
 			for (var pathObject : list) {
-				var shape = PathROIToolsAwt.getShape(pathObject.getROI());
+				var shape = RoiTools.getShape(pathObject.getROI());
 				path.append(shape, false);
 			}
 	
 			var plane = ImagePlane.getDefaultPlane();
-			var roi = PathROIToolsAwt.getShapeROI(path, plane.getC(), plane.getZ(), plane.getT(), 0.5);
+			var roi = RoiTools.getShapeROI(path, plane, 0.5);
 			
 			// Apply size threshold
 			if (roi != null && minSizePixels > 0) {
 				if (roi instanceof AreaROI)
-					roi = (PathShape)PathROIToolsAwt.removeSmallPieces((AreaROI)roi, minSizePixels, minSizePixels);
+					roi = (PathShape)RoiTools.removeSmallPieces((AreaROI)roi, minSizePixels, minSizePixels);
 				else if (!(roi instanceof PathArea && ((PathArea)roi).getArea() > minSizePixels))
 					continue;
 			}
 	
 			
 			if (doSplit) {
-				var rois = PathROIToolsAwt.splitROI(roi);
+				var rois = RoiTools.splitROI(roi);
 				for (var r : rois) {
 					var annotation = creator.apply(r);
 					annotation.setPathClass(pathClass);

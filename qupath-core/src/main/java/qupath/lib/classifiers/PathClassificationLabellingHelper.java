@@ -40,7 +40,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.lib.geom.Point2;
-import qupath.lib.measurements.MeasurementList;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
@@ -60,7 +59,35 @@ public class PathClassificationLabellingHelper {
 	
 	final private static Logger logger = LoggerFactory.getLogger(PathClassificationLabellingHelper.class);
 	
-	public enum SplitType {FIRST_SAMPLES, LAST_SAMPLES, RANDOM_NO_REPLACEMENT, RANDOM_WITH_REPLACEMENT, EQUIDISTANT;
+	/**
+	 * Enum representing different ways of extracting a subset of elements from a collection.
+	 */
+	public enum SplitType {
+		/**
+		 * Extract the first samples in the collection
+		 */
+		FIRST_SAMPLES,
+		
+		/**
+		 * Extract the last samples in the collection
+		 */
+		LAST_SAMPLES,
+		
+		/**
+		 * Extract samples randomly, without replacement
+		 */
+		RANDOM_NO_REPLACEMENT,
+		
+		/**
+		 * Extract samples randomly, with replacement
+		 */
+		RANDOM_WITH_REPLACEMENT,
+		
+		/**
+		 * Extract samples with (approximately) equal separation between them
+		 */
+		EQUIDISTANT;
+		
 		@Override
 		public String toString() {
 			switch (this) {
@@ -80,59 +107,12 @@ public class PathClassificationLabellingHelper {
 		}
 	};
 	
-	public static int nLabelledObjectsForClass(final PathObjectHierarchy hierarchy, final PathClass pathClass) {
-		int n = 0;
-		for (PathObject pathObject : getAnnotationsForClass(hierarchy, pathClass)) {
-			n += pathObject.nChildObjects();
-		}
-		return n;
-//		return getLabelledObjectsForClass(hierarchy, pathClass).size(); // TODO: Consider a more efficient implementation
-	}
-	
-	
-	/**
-	 * Remove all the classifications for a particular class.
-	 * 
-	 * @param pathClass
-	 */
-	public static void resetClassifications(final PathObjectHierarchy hierarchy, final PathClass pathClass) {
-		List<PathObject> changedList = new ArrayList<>();
-		for (PathObject pathObject : getAnnotations(hierarchy)) {
-			if (pathClass.equals(pathObject.getPathClass())) {
-				pathObject.setPathClass(null);
-				changedList.add(pathObject);
-			}
-		}
-		if (!changedList.isEmpty())
-			hierarchy.fireObjectClassificationsChangedEvent(null, changedList);
-	}
-	
 	
 	private static Collection<PathObject> getAnnotations(PathObjectHierarchy hierarchy) {
 		if (hierarchy == null)
 			return Collections.emptyList();
 		else
-			return hierarchy.getObjects(null, PathAnnotationObject.class);
-	}
-	
-	
-	public static List<PathObject> getLabelledObjectsForClass(final PathObjectHierarchy hierarchy, final PathClass pathClass) {
-		List<PathObject> pathObjects = new ArrayList<>();
-		for (PathObject pathObject : getAnnotations(hierarchy)) {
-			if (pathClass.equals(pathObject.getPathClass()))
-				hierarchy.getDescendantObjects(pathObject, pathObjects, PathDetectionObject.class);
-		}
-		return pathObjects;
-	}
-	
-	
-	public static List<PathObject> getAnnotationsForClass(PathObjectHierarchy hierarchy, PathClass pathClass) {
-		List<PathObject> annotations = new ArrayList<>();
-		for (PathObject pathObject : getAnnotations(hierarchy)) {
-			if (pathClass.equals(pathObject.getPathClass()))
-				annotations.add(pathObject);
-		}
-		return annotations;
+			return hierarchy.getAnnotationObjects();
 	}
 	
 
@@ -202,7 +182,7 @@ public class PathClassificationLabellingHelper {
 			if (pathObject.isPoint()) {
 				for (Point2 p : ((PointsROI)pathObject.getROI()).getPointList()) {
 					// TODO: Pay attention to z & t position!
-					Collection<PathObject> pathObjectsTemp = PathObjectTools.getObjectsForLocation(hierarchy, p.getX(), p.getY(), 0, 0);
+					Collection<PathObject> pathObjectsTemp = PathObjectTools.getObjectsForLocation(hierarchy, p.getX(), p.getY(), 0, 0, -1);
 					pathObjectsTemp = PathObjectTools.getObjectsOfClass(pathObjectsTemp, PathDetectionObject.class);
 					list.removeAll(pathObjectsTemp); // Clumsy way to avoid duplicates...
 					list.addAll(pathObjectsTemp);
@@ -225,7 +205,7 @@ public class PathClassificationLabellingHelper {
 	 * 
 	 * @param map
 	 * @param splitType
-	 * @param proportion Between 0 (empty map) and 1
+	 * @param proportion between 0 (empty map) and 1
 	 * @return
 	 */
 	public static Map<PathClass, List<PathObject>> resampleClassificationMap(final Map<PathClass, List<PathObject>> map, final SplitType splitType, final double proportion, final long seed) {
@@ -339,23 +319,6 @@ public class PathClassificationLabellingHelper {
 		}
 		return pathClassSet;
 	}
-
-
-	/**
-	 * Get a set containing the names of all measurements found in the measurement lists objects in a hierarchy.
-	 * 
-	 * @param hierarchy the hierarchy containing objects being queried
-	 * @param cls optionally restrict to objects of a specified class
-	 * @return
-	 * 
-	 * @see PathClassificationLabellingHelper#getAvailableFeatures(Collection)
-	 * @see MeasurementList#getMeasurementNames()
-	 */
-	public static Set<String> getAvailableFeatures(final PathObjectHierarchy hierarchy, final Class<? extends PathObject> cls) {
-		if (hierarchy == null)
-			return Collections.emptySet();
-		return getAvailableFeatures(hierarchy.getObjects(null, cls));
-	}
 	
 	/**
 	 * Get a set containing the names of all measurements found in the measurement lists of a specified object collection.
@@ -364,7 +327,7 @@ public class PathClassificationLabellingHelper {
 	 * @return
 	 */
 	public static Set<String> getAvailableFeatures(final Collection<PathObject> pathObjects) {
-		LinkedHashSet<String> featureSet = new LinkedHashSet<>();
+		Set<String> featureSet = new LinkedHashSet<>();
 		// This has a small optimization that takes into consideration the fact that many objects share references to exactly the same MeasurementLists -
 		// so by checking the last list that was added, there is no need to bother the set to add the same thing again.
 		List<String> lastNames = null;

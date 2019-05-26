@@ -59,9 +59,9 @@ import qupath.lib.plugins.DetectionPluginTools;
 import qupath.lib.plugins.ObjectDetector;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.regions.RegionRequest;
-import qupath.lib.roi.PathROIToolsAwt;
+import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.RectangleROI;
-import qupath.lib.roi.ShapeSimplifierAwt;
+import qupath.lib.roi.ShapeSimplifier;
 import qupath.lib.roi.interfaces.PathShape;
 import qupath.lib.roi.interfaces.ROI;
 import qupath.opencv.processing.OpenCVTools;
@@ -205,7 +205,7 @@ public class DetectCytokeratinCV extends AbstractDetectionPlugin<BufferedImage> 
 
 			Area areaROI = null;
 			if (pathROI != null && !(pathROI instanceof RectangleROI)) {
-				areaROI = PathROIToolsAwt.getArea(pathROI);
+				areaROI = RoiTools.getArea(pathROI);
 			}
 
 
@@ -216,8 +216,8 @@ public class DetectCytokeratinCV extends AbstractDetectionPlugin<BufferedImage> 
 					areaTissue.intersect(areaROI);
 
 				if (!areaTissue.isEmpty()) {
-					PathShape roiTissue = PathROIToolsAwt.getShapeROI(areaTissue, -1, request.getZ(), request.getT());
-					roiTissue = ShapeSimplifierAwt.simplifyShape(roiTissue, simplifyAmount);
+					PathShape roiTissue = RoiTools.getShapeROI(areaTissue, request.getPlane());
+					roiTissue = ShapeSimplifier.simplifyShape(roiTissue, simplifyAmount);
 					pathObjects.add(PathObjects.createAnnotationObject(roiTissue, PathClassFactory.getDefaultPathClass(PathClasses.STROMA)));
 				}
 			}
@@ -227,8 +227,8 @@ public class DetectCytokeratinCV extends AbstractDetectionPlugin<BufferedImage> 
 					areaDAB.intersect(areaROI);
 
 				if (!areaDAB.isEmpty()) {
-					PathShape roiDAB = PathROIToolsAwt.getShapeROI(areaDAB, -1, request.getZ(), request.getT());
-					roiDAB = ShapeSimplifierAwt.simplifyShape(roiDAB, simplifyAmount);
+					PathShape roiDAB = RoiTools.getShapeROI(areaDAB, request.getPlane());
+					roiDAB = ShapeSimplifier.simplifyShape(roiDAB, simplifyAmount);
 					pathObjects.add(PathObjects.createAnnotationObject(roiDAB, PathClassFactory.getDefaultPathClass(PathClasses.TUMOR)));
 				}
 			}

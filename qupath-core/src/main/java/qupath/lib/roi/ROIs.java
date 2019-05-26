@@ -66,7 +66,7 @@ public class ROIs {
 	 * @return
 	 */
 	public static PathArea createRectangleROI(double x, double y, double width, double height, ImagePlane plane) {
-		return new RectangleROI(x, y, width, height, plane.getC(), plane.getZ(), plane.getT());
+		return new RectangleROI(x, y, width, height, plane);
 	}
 
 	/**
@@ -80,7 +80,7 @@ public class ROIs {
 	 * @return
 	 */
 	public static PathArea createEllipseROI(double x, double y, double width, double height, ImagePlane plane) {
-		return new EllipseROI(x, y, width, height, plane.getC(), plane.getZ(), plane.getT());
+		return new EllipseROI(x, y, width, height, plane);
 	}
 
 	/**
@@ -94,7 +94,7 @@ public class ROIs {
 	 * @return
 	 */
 	public static PathLine createLineROI(double x, double y, double x2, double y2, ImagePlane plane) {
-		return new LineROI(x, y, x2, y2, plane.getC(), plane.getZ(), plane.getT());
+		return new LineROI(x, y, x2, y2, plane);
 	}
 
 	/**
@@ -127,7 +127,7 @@ public class ROIs {
 	 * @return
 	 */
 	public static PathPoints createPointsROI(double x, double y, ImagePlane plane) {
-		return new PointsROI(x, y, plane.getC(), plane.getZ(), plane.getT());
+		return new PointsROI(x, y, plane);
 	}
 	
 	/**
@@ -137,7 +137,7 @@ public class ROIs {
 	 * @return
 	 */
 	public static PathPoints createPointsROI(List<? extends Point2> points, ImagePlane plane) {
-		return new PointsROI(points, plane.getC(), plane.getZ(), plane.getT());
+		return new PointsROI(points, plane);
 	}
 
 	/**
@@ -147,7 +147,7 @@ public class ROIs {
 	 * @return
 	 */
 	public static PolygonROI createPolygonROI(List<Point2> points, ImagePlane plane) {
-		return new PolygonROI(points, plane.getC(), plane.getZ(), plane.getT());
+		return new PolygonROI(points, plane);
 	}
 	
 	/**
@@ -159,7 +159,7 @@ public class ROIs {
 	 * @return
 	 */
 	public static PolygonROI createPolygonROI(double x, double y, ImagePlane plane) {
-		return new PolygonROI(Collections.singletonList(new Point2(x, y)), plane.getC(), plane.getZ(), plane.getT());
+		return new PolygonROI(Collections.singletonList(new Point2(x, y)), plane);
 	}
 	
 	/**
@@ -169,7 +169,7 @@ public class ROIs {
 	 * @return
 	 */
 	public static PolylineROI createPolylineROI(List<Point2> points, ImagePlane plane) {
-		return new PolylineROI(points, plane.getC(), plane.getZ(), plane.getT());
+		return new PolylineROI(points, plane);
 	}
 	
 	/**
@@ -180,7 +180,7 @@ public class ROIs {
 	 * @return
 	 */
 	public static PolylineROI createPolylineROI(double x, double y, ImagePlane plane) {
-		return new PolylineROI(Collections.singletonList(new Point2(x, y)), plane.getC(), plane.getZ(), plane.getT());
+		return new PolylineROI(Collections.singletonList(new Point2(x, y)), plane);
 	}
 	
 	/**
@@ -193,7 +193,7 @@ public class ROIs {
 	 * @return
 	 */
 	public static PathArea createAreaROI(Shape shape, ImagePlane plane) {
-		return new AWTAreaROI(shape, plane.getC(), plane.getZ(), plane.getT());
+		return new AWTAreaROI(shape, plane);
 	}
 
 }

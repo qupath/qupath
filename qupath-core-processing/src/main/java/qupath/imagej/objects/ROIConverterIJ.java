@@ -39,7 +39,7 @@ import qupath.lib.regions.ImageRegion;
 import qupath.lib.roi.EllipseROI;
 import qupath.lib.roi.LineROI;
 import qupath.lib.roi.AreaROI;
-import qupath.lib.roi.PathROIToolsAwt;
+import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.PointsROI;
 import qupath.lib.roi.PolygonROI;
 import qupath.lib.roi.PolylineROI;
@@ -185,7 +185,7 @@ public class ROIConverterIJ {
 			return convertToPointROI((PointsROI)pathROI, xOrigin, yOrigin, downsampleFactor);
 		// If we have any other kind of shape, create a general shape roi
 		if (pathROI instanceof AreaROI) { // TODO: Deal with non-AWT area ROIs!
-			Shape shape = PathROIToolsAwt.getArea(pathROI);
+			Shape shape = RoiTools.getArea(pathROI);
 //			"scaleX", "shearY", "shearX", "scaleY", "translateX", "translateY"
 			shape = new AffineTransform(1.0/downsampleFactor, 0, 0, 1.0/downsampleFactor, xOrigin, yOrigin).createTransformedShape(shape);
 			return setIJRoiProperties(new ShapeRoi(shape), pathROI);

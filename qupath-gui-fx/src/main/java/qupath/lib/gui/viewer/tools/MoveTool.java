@@ -45,7 +45,7 @@ import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathROIObject;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
-import qupath.lib.roi.ROIHelpers;
+import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.RoiEditor;
 import qupath.lib.roi.interfaces.ROI;
 import qupath.lib.roi.interfaces.TranslatableROI;
@@ -149,7 +149,7 @@ public class MoveTool extends AbstractPathTool {
 						e.consume();
 				}
 				if (!e.isConsumed() && canTranslate(currentObject) &&
-						(ROIHelpers.areaContains(currentROI, xx, yy) || getSelectableObjectList(xx, yy).contains(currentObject))) {
+						(RoiTools.areaContains(currentROI, xx, yy) || getSelectableObjectList(xx, yy).contains(currentObject))) {
 					// If we have a translatable ROI, try starting translation
 					if (editor.startTranslation(xx, yy))
 						e.consume();
@@ -356,7 +356,7 @@ public class MoveTool extends AbstractPathTool {
 			Point2D p2 = viewer.componentPointToImagePoint(e.getX(), e.getY(), null, true);
 			double xx = p2.getX();
 			double yy = p2.getY();
-			if (ROIHelpers.areaContains(currentROI, xx, yy)) {
+			if (RoiTools.areaContains(currentROI, xx, yy)) {
 				ensureCursorType(Cursor.MOVE);
 				return;
 			}

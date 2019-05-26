@@ -52,10 +52,10 @@ public class PathObjectConnections implements Externalizable {
 	
 	/**
 	 * Get all the connections to a specified PathObject.
-	 * 
+	 * <p>
 	 * This will iterate through all the groups and return the connections from the first group 
 	 * containing this object.
-	 * 
+	 * <p>
 	 * If the object may be contained in multiple groups, then the groups will need to be requested 
 	 * instead with getConnectionGroups(), and searched elsewhere.
 	 * 

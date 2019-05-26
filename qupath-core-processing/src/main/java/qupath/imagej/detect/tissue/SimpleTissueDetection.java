@@ -69,9 +69,9 @@ import qupath.lib.plugins.parameters.Parameter;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.RegionRequest;
-import qupath.lib.roi.ROIHelpers;
 import qupath.lib.roi.ROIs;
-import qupath.lib.roi.PathROIToolsAwt;
+import qupath.lib.roi.ShapeSimplifier;
+import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.PolygonROI;
 import qupath.lib.roi.interfaces.PathShape;
 import qupath.lib.roi.interfaces.ROI;
@@ -278,7 +278,7 @@ public class SimpleTissueDetection extends AbstractDetectionPlugin<BufferedImage
 //				continue;
 			// Smooth the coordinates, if we downsampled quite a lot
 			if (smoothCoordinates) {
-				pathPolygon = ROIs.createPolygonROI(ROIHelpers.smoothPoints(pathPolygon.getPolygonPoints()), ImagePlane.getPlane(pathPolygon));
+				pathPolygon = ROIs.createPolygonROI(ShapeSimplifier.smoothPoints(pathPolygon.getPolygonPoints()), ImagePlane.getPlane(pathPolygon));
 			}
 			pathObjects.add(PathObjects.createAnnotationObject(pathPolygon));
 		}
@@ -308,7 +308,7 @@ public class SimpleTissueDetection extends AbstractDetectionPlugin<BufferedImage
 				while (iter.hasNext()) {
 					PathObject hole = iter.next();
 					if (PathObjectTools.containsObject(pathObject, hole)) {
-						areaList.add(PathROIToolsAwt.getArea(hole.getROI()));
+						areaList.add(RoiTools.getArea(hole.getROI()));
 						iter.remove();
 					}
 				}
@@ -329,9 +329,9 @@ public class SimpleTissueDetection extends AbstractDetectionPlugin<BufferedImage
 				// Now subtract & create a new object
 				ROI pathROI = pathObject.getROI();
 				if (pathROI instanceof PathShape) {
-					Area areaMain = PathROIToolsAwt.getArea(pathROI);
+					Area areaMain = RoiTools.getArea(pathROI);
 					areaMain.subtract(hole);
-					pathROI = PathROIToolsAwt.getShapeROI(areaMain, pathROI.getC(), pathROI.getZ(), pathROI.getT());
+					pathROI = RoiTools.getShapeROI(areaMain, pathROI.getImagePlane());
 					pathObjects.set(ind, PathObjects.createAnnotationObject(pathROI));
 				}
 			}

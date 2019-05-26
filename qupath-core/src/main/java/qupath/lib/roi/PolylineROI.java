@@ -33,12 +33,13 @@ import java.util.List;
 
 import qupath.lib.common.GeneralTools;
 import qupath.lib.geom.Point2;
+import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.interfaces.PathLine;
 import qupath.lib.roi.interfaces.ROI;
 import qupath.lib.roi.interfaces.TranslatableROI;
 
 /**
- * ROI representing an arbitrary open polygon.
+ * ROI representing an arbitrary open polyline.
  * 
  * @see PolygonROI
  * 
@@ -55,8 +56,8 @@ public class PolylineROI extends AbstractPathROI implements PathLine, Translatab
 	
 	private transient PolylineStats stats;
 	
-	PolylineROI(List<Point2> points, int c, int z, int t) {
-		super(c, z, t);
+	PolylineROI(List<Point2> points, ImagePlane plane) {
+		super(plane);
 		float[] x = new float[points.size()];
 		float[] y = new float[points.size()];
 		for (int i = 0; i < points.size(); i++) {
@@ -67,12 +68,12 @@ public class PolylineROI extends AbstractPathROI implements PathLine, Translatab
 		vertices = VerticesFactory.createVertices(x, y, false);
 	}
 	
-	private PolylineROI(final float[] x, final float[] y, final int c, final int z, final int t) {
-		this(x, y, c, z, t, true);
+	private PolylineROI(final float[] x, final float[] y, ImagePlane plane) {
+		this(x, y, plane, true);
 	}
 	
-	private PolylineROI(final float[] x, final float[] y, final int c, final int z, final int t, boolean copyVertices) {
-		super(c, z, t);
+	private PolylineROI(final float[] x, final float[] y, ImagePlane plane, boolean copyVertices) {
+		super(plane);
 		this.vertices = VerticesFactory.createVertices(x, y, copyVertices);
 	}
 		
@@ -122,13 +123,13 @@ public class PolylineROI extends AbstractPathROI implements PathLine, Translatab
 		return vertices.getPoints();
 	}
 	
-	public Vertices getVertices() {
+	Vertices getVertices() {
 		return vertices;
 	}
 
 	@Override
 	public ROI duplicate() {
-		return new PolylineROI(vertices.getX(null), vertices.getY(null), getC(), getZ(), getT());
+		return new PolylineROI(vertices.getX(null), vertices.getY(null), getImagePlane());
 	}
 
 	@Override
@@ -143,7 +144,7 @@ public class PolylineROI extends AbstractPathROI implements PathLine, Translatab
 			x[i] = (float)(x[i] + dx);
 			y[i] = (float)(y[i] + dy);
 		}
-		return new PolylineROI(x, y, getC(), getZ(), getT(), false);
+		return new PolylineROI(x, y, getImagePlane(), false);
 	}
 
 	@Override
@@ -240,7 +241,7 @@ public class PolylineROI extends AbstractPathROI implements PathLine, Translatab
 	
 	@Override
 	public Shape getShape() {
-		return PathROIToolsAwt.getShape(this);
+		return RoiTools.getShape(this);
 	}
 	
 	
@@ -270,7 +271,7 @@ public class PolylineROI extends AbstractPathROI implements PathLine, Translatab
 		}
 		
 		private Object readResolve() {
-			return new PolylineROI(x, y, c, z, t, false);
+			return new PolylineROI(x, y, ImagePlane.getPlaneWithChannel(c, z, t), false);
 		}
 		
 	}

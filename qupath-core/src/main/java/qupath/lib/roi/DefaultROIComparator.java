@@ -212,6 +212,10 @@ public class DefaultROIComparator implements Comparator<ROI>{
 		return 0;
 	}
 
+	/**
+	 * Get a static instance of this comparator, to avoid needing to construct it.
+	 * @return
+	 */
 	public static Comparator<ROI> getInstance() {
 		return instance;
 	}

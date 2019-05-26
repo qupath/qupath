@@ -40,7 +40,7 @@ import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.plugins.AbstractInteractivePlugin;
 import qupath.lib.plugins.PluginRunner;
 import qupath.lib.plugins.parameters.ParameterList;
-import qupath.lib.roi.PathROIToolsAwt;
+import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
@@ -134,7 +134,7 @@ public class RefineAnnotationsPlugin<T> extends AbstractInteractivePlugin<T> {
 				ROI roiOrig = pathObject.getROI();
 				if (roiOrig == null || !roiOrig.isArea())
 					continue;
-				ROI roiUpdated = PathROIToolsAwt.removeSmallPieces(roiOrig, minFragmentSize, maxHoleSize);
+				ROI roiUpdated = RoiTools.removeSmallPieces(roiOrig, minFragmentSize, maxHoleSize);
 				if (roiUpdated.isEmpty())
 					toRemove.add(pathObject);
 				else if (roiOrig != roiUpdated && pathObject instanceof PathROIObject) {

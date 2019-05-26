@@ -68,10 +68,10 @@ import qupath.lib.objects.PathROIObject;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.ImageRegion;
-import qupath.lib.roi.PathROIToolsAwt;
+import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.PolylineROI;
 import qupath.lib.roi.ROIs;
-import qupath.lib.roi.PathROIToolsAwt.CombineOp;
+import qupath.lib.roi.RoiTools.CombineOp;
 import qupath.lib.roi.interfaces.PathArea;
 import qupath.lib.roi.interfaces.PathShape;
 import qupath.lib.roi.interfaces.ROI;
@@ -234,7 +234,7 @@ public class RigidObjectEditorCommand implements PathCommand, ImageDataChangeLis
 	
 	PathObject createTransformedObject() {
 		ROI roi = originalObject.getROI();
-		PathShape shape = PathROIToolsAwt.getShapeROI(new Area(transformer.getTransformedShape()), roi.getC(), roi.getZ(), roi.getT());
+		PathShape shape = RoiTools.getShapeROI(new Area(transformer.getTransformedShape()), roi.getImagePlane());
 		return PathObjects.createAnnotationObject(shape, originalObject.getPathClass());
 	}
 	
@@ -386,7 +386,7 @@ public class RigidObjectEditorCommand implements PathCommand, ImageDataChangeLis
 			if (bounds != null)
 				roiBounds = ROIs.createRectangleROI(bounds.getX(), bounds.getY(), bounds.getWidth(), bounds.getHeight(), ImagePlane.getPlane(bounds));
 //			this.roi = roi;
-			this.shapeOrig = PathROIToolsAwt.getShape(roi);
+			this.shapeOrig = RoiTools.getShape(roi);
 			this.boundsOrig = shapeOrig.getBounds2D();
 			this.transform = new AffineTransform();
 			
@@ -403,11 +403,11 @@ public class RigidObjectEditorCommand implements PathCommand, ImageDataChangeLis
 			ROI transformedROI = getUnclippedTransformedROI(roi);
 			if (roiBounds == null || !(transformedROI instanceof PathShape))
 				return transformedROI;
-			return PathROIToolsAwt.combineROIs((PathShape)transformedROI, roiBounds, CombineOp.INTERSECT);
+			return RoiTools.combineROIs((PathShape)transformedROI, roiBounds, CombineOp.INTERSECT);
 		}
 		
 		public ROI getUnclippedTransformedROI(final ROI roi) {
-			Shape shape = PathROIToolsAwt.getShape(roi);
+			Shape shape = RoiTools.getShape(roi);
 			
 			double flatness = 0.5;
 			// Try to return an ellipse, if appropriate
@@ -424,7 +424,7 @@ public class RigidObjectEditorCommand implements PathCommand, ImageDataChangeLis
 			shape = transform.createTransformedShape(shape);
 			// TODO: Improve the choice of shape this returns
 			if (roi instanceof PathArea)
-				return PathROIToolsAwt.getShapeROI(shape, roi.getC(), roi.getZ(), roi.getT(), flatness);
+				return RoiTools.getShapeROI(shape, roi.getImagePlane(), flatness);
 			else {
 				// Check if we have a line
 				if (shape instanceof Line2D) {

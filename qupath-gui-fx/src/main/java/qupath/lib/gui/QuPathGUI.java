@@ -337,7 +337,7 @@ import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectIO;
 import qupath.lib.projects.ProjectImageEntry;
 import qupath.lib.projects.Projects;
-import qupath.lib.roi.PathROIToolsAwt;
+import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.interfaces.ROI;
 import qupath.lib.roi.interfaces.TranslatableROI;
 import qupath.lib.gui.scripting.DefaultScriptEditor;
@@ -1954,9 +1954,9 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		// Add annotation options
 		Menu menuCombine = createMenu(
 				"Annotations",
-				createCommandAction(new AnnotationCombineCommand(viewer, PathROIToolsAwt.CombineOp.ADD), "Merge selected annotations"),
-				createCommandAction(new AnnotationCombineCommand(viewer, PathROIToolsAwt.CombineOp.SUBTRACT), "Subtract selected annotations"), // TODO: Make this less ambiguous!
-				createCommandAction(new AnnotationCombineCommand(viewer, PathROIToolsAwt.CombineOp.INTERSECT), "Intersect selected annotations")
+				createCommandAction(new AnnotationCombineCommand(viewer, RoiTools.CombineOp.ADD), "Merge selected annotations"),
+				createCommandAction(new AnnotationCombineCommand(viewer, RoiTools.CombineOp.SUBTRACT), "Subtract selected annotations"), // TODO: Make this less ambiguous!
+				createCommandAction(new AnnotationCombineCommand(viewer, RoiTools.CombineOp.INTERSECT), "Intersect selected annotations")
 				);
 		
 		// Handle awkward 'TMA core missing' option
@@ -5295,9 +5295,9 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 							AffineTransform transform = new AffineTransform();
 							transform.rotate(-rotation, coreNewParent.getROI().getCentroidX(), coreNewParent.getROI().getCentroidY());
 							logger.info("ROTATING: " + transform);
-							Area area = PathROIToolsAwt.getArea(roi);
+							Area area = RoiTools.getArea(roi);
 							area.transform(transform);
-							roi = PathROIToolsAwt.getShapeROI(area, roi.getC(), roi.getZ(), roi.getT());
+							roi = RoiTools.getShapeROI(area, roi.getImagePlane());
 						}
 					}
 				}

@@ -68,11 +68,10 @@ import qupath.lib.plugins.PluginRunner;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.RegionRequest;
-import qupath.lib.roi.ROIHelpers;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.ShapeSimplifier;
-import qupath.lib.roi.PathROIToolsAwt;
-import qupath.lib.roi.PathROIToolsAwt.CombineOp;
+import qupath.lib.roi.RoiTools;
+import qupath.lib.roi.RoiTools.CombineOp;
 import qupath.lib.roi.PolygonROI;
 import qupath.lib.roi.interfaces.PathShape;
 import qupath.lib.roi.interfaces.ROI;
@@ -304,7 +303,7 @@ public class SimpleTissueDetection2 extends AbstractDetectionPlugin<BufferedImag
 //				continue;
 			// Smooth the coordinates, if we downsampled quite a lot
 			if (smoothCoordinates) {
-				pathPolygon = ROIs.createPolygonROI(ROIHelpers.smoothPoints(pathPolygon.getPolygonPoints()), ImagePlane.getPlaneWithChannel(pathPolygon));
+				pathPolygon = ROIs.createPolygonROI(ShapeSimplifier.smoothPoints(pathPolygon.getPolygonPoints()), ImagePlane.getPlaneWithChannel(pathPolygon));
 				pathPolygon = ShapeSimplifier.simplifyPolygon(pathPolygon, downsample/2);
 			}
 			pathObjects.add(PathObjects.createAnnotationObject(pathPolygon));
@@ -335,7 +334,7 @@ public class SimpleTissueDetection2 extends AbstractDetectionPlugin<BufferedImag
 				while (iter.hasNext()) {
 					PathObject hole = iter.next();
 					if (PathObjectTools.containsObject(pathObject, hole)) {
-						areaList.add(PathROIToolsAwt.getArea(hole.getROI()));
+						areaList.add(RoiTools.getArea(hole.getROI()));
 						iter.remove();
 					}
 				}
@@ -357,9 +356,9 @@ public class SimpleTissueDetection2 extends AbstractDetectionPlugin<BufferedImag
 				// Now subtract & create a new object
 				ROI pathROI = pathObject.getROI();
 				if (pathROI instanceof PathShape) {
-					Area areaMain = PathROIToolsAwt.getArea(pathROI);
+					Area areaMain = RoiTools.getArea(pathROI);
 					areaMain.subtract(hole);
-					pathROI = PathROIToolsAwt.getShapeROI(areaMain, pathROI.getC(), pathROI.getZ(), pathROI.getT());
+					pathROI = RoiTools.getShapeROI(areaMain, pathROI.getImagePlane());
 					pathObjects.set(ind, PathObjects.createAnnotationObject(pathROI));
 				}
 			}
@@ -374,7 +373,7 @@ public class SimpleTissueDetection2 extends AbstractDetectionPlugin<BufferedImag
 				if (roi == null)
 					roi = currentShape;
 				else
-					roi = PathROIToolsAwt.combineROIs(roi, currentShape, CombineOp.ADD);
+					roi = RoiTools.combineROIs(roi, currentShape, CombineOp.ADD);
 			}
 			pathObjects.clear();
 			if (roi != null)

@@ -46,7 +46,7 @@ import qupath.lib.objects.PathROIObject;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.ImageRegion;
-import qupath.lib.roi.PathROIToolsAwt;
+import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.PointsROI;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.PathArea;
@@ -177,7 +177,7 @@ public class DetectionPluginTools {
 					Map<Area, PathObject> mapOld = new HashMap<>();
 					for (PathObject tempObject : overlapObjects) {
 						if (tempObject.getROI() instanceof PathArea) {
-							Shape shapeTemp = PathROIToolsAwt.getShape(tempObject.getROI());
+							Shape shapeTemp = RoiTools.getShape(tempObject.getROI());
 							Area areaTemp = new Area(shapeTemp);
 							mapOld.put(areaTemp, tempObject);
 							((Path2D)pathOldComposite).append(shapeTemp, false);
@@ -222,7 +222,7 @@ public class DetectionPluginTools {
 							// If the bounds are intersected, check for an actual intersection between the areas
 							Area temp = new Area(areaOld);
 							if (areaNew == null)
-								areaNew = PathROIToolsAwt.getArea(pathAreaNew);
+								areaNew = RoiTools.getArea(pathAreaNew);
 							temp.intersect(areaNew);
 							if (temp.isEmpty())
 								continue;

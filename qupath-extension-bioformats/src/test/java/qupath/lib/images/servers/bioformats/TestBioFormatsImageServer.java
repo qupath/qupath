@@ -66,7 +66,7 @@ import qupath.lib.regions.RegionRequest;
 public class TestBioFormatsImageServer {
 	
 	/**
-	 * Test the creation of BioFormatsImageServers based upon whatever projects are found within the current directory.
+	 * Test the creation of BioFormatsImageServers by trying to open all images in whatever projects are found within the current directory.
 	 */
 	@Test
 	public void test_BioFormatsImageServerProjects() {

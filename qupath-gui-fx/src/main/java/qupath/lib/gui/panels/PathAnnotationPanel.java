@@ -66,7 +66,6 @@ import javafx.scene.layout.RowConstraints;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
 import javafx.util.Callback;
-import qupath.lib.classifiers.PathClassificationLabellingHelper;
 import qupath.lib.geom.Point2;
 import qupath.lib.gui.ImageDataChangeListener;
 import qupath.lib.gui.ImageDataWrapper;
@@ -166,7 +165,7 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 							try {
 								// Try to count objects for class
 								// May be possibility of concurrent modification exception?
-								n = PathClassificationLabellingHelper.nLabelledObjectsForClass(hierarchy, value);
+								n = nLabelledObjectsForClass(hierarchy, value);
 							} catch (Exception e) {
 								logger.error("Exception while counting objects for class", e);
 							}
@@ -253,13 +252,13 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 			PathClass pathClass = getSelectedPathClass();
 			if (pathClass == null)
 				return;
-			List<PathObject> pathObjectsToReset = PathClassificationLabellingHelper.getAnnotationsForClass(hierarchy, pathClass);
+			List<PathObject> pathObjectsToReset = getAnnotationsForClass(hierarchy, pathClass);
 			if (pathObjectsToReset.isEmpty())
 				return;
 			if (pathObjectsToReset.size() > 1)
 				if (!DisplayHelpers.showYesNoDialog("Confirm reset labels", String.format("Reset %d annotated objects from class %s?", pathObjectsToReset.size(), pathClass.getName())))
 					return;
-			PathClassificationLabellingHelper.resetClassifications(hierarchy, pathClass);
+			resetAnnotationClassifications(hierarchy, pathClass);
 		});		
 
 		MenuItem miToggleClassVisible = new MenuItem("Toggle display class");
@@ -1027,4 +1026,39 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 		listAnnotations.getItems().setAll(newList);
 	}
 	
+	
+	/**
+	 * Remove all the classifications for a particular class.
+	 * 
+	 * @param pathClass
+	 */
+	static void resetAnnotationClassifications(final PathObjectHierarchy hierarchy, final PathClass pathClass) {
+		List<PathObject> changedList = new ArrayList<>();
+		for (PathObject pathObject : hierarchy.getAnnotationObjects()) {
+			if (pathClass.equals(pathObject.getPathClass())) {
+				pathObject.setPathClass(null);
+				changedList.add(pathObject);
+			}
+		}
+		if (!changedList.isEmpty())
+			hierarchy.fireObjectClassificationsChangedEvent(null, changedList);
+	}
+	
+	static int nLabelledObjectsForClass(final PathObjectHierarchy hierarchy, final PathClass pathClass) {
+		int n = 0;
+		for (PathObject pathObject : getAnnotationsForClass(hierarchy, pathClass)) {
+			n += pathObject.nChildObjects();
+		}
+		return n;
+//		return getLabelledObjectsForClass(hierarchy, pathClass).size(); // TODO: Consider a more efficient implementation
+	}
+
+	static List<PathObject> getAnnotationsForClass(PathObjectHierarchy hierarchy, PathClass pathClass) {
+		List<PathObject> annotations = new ArrayList<>();
+		for (PathObject pathObject : hierarchy.getAnnotationObjects()) {
+			if (pathClass.equals(pathObject.getPathClass()))
+				annotations.add(pathObject);
+		}
+		return annotations;
+	}
 }

@@ -27,7 +27,7 @@ import qupath.lib.measurements.MeasurementListFactory;
 import qupath.lib.objects.PathObject;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.RegionRequest;
-import qupath.lib.roi.PathROIToolsAwt;
+import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.ROI;
  
@@ -129,7 +129,7 @@ public class PixelClassificationMeasurementManager {
   			return null;
         
         
-        Shape shape = PathROIToolsAwt.getShape(roi);
+        Shape shape = RoiTools.getShape(roi);
         
         // Get the regions we need
         var regionRequest = RegionRequest.createInstance(server.getPath(), requestedDownsample, roi);

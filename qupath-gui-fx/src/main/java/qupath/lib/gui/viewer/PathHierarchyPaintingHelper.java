@@ -78,12 +78,12 @@ import qupath.lib.regions.ImageRegion;
 import qupath.lib.roi.AreaROI;
 import qupath.lib.roi.EllipseROI;
 import qupath.lib.roi.LineROI;
-import qupath.lib.roi.PathROIToolsAwt;
+import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.PointsROI;
 import qupath.lib.roi.PolygonROI;
 import qupath.lib.roi.RectangleROI;
 import qupath.lib.roi.RoiEditor;
-import qupath.lib.roi.ShapeSimplifierAwt;
+import qupath.lib.roi.ShapeSimplifier;
 import qupath.lib.roi.interfaces.PathArea;
 import qupath.lib.roi.interfaces.PathPoints;
 import qupath.lib.roi.interfaces.PathShape;
@@ -536,13 +536,13 @@ public class PathHierarchyPaintingHelper {
 			return map;
 		}
 		
-		private Shape simplifyByDownsample(final Shape shape, final double downsample) {
+		private static Shape simplifyByDownsample(final Shape shape, final double downsample) {
 			if (downsample > 50)
-				return ShapeSimplifierAwt.simplifyPath(shape instanceof Path2D ? (Path2D)shape : new Path2D.Float(shape), 50);
+				return ShapeSimplifier.simplifyPath(shape instanceof Path2D ? (Path2D)shape : new Path2D.Float(shape), 50);
 			if (downsample > 20)
-				return ShapeSimplifierAwt.simplifyPath(shape instanceof Path2D ? (Path2D)shape : new Path2D.Float(shape), 20);
+				return ShapeSimplifier.simplifyPath(shape instanceof Path2D ? (Path2D)shape : new Path2D.Float(shape), 20);
 			if (downsample > 10)
-				return ShapeSimplifierAwt.simplifyPath(shape instanceof Path2D ? (Path2D)shape : new Path2D.Float(shape), 10);
+				return ShapeSimplifier.simplifyPath(shape instanceof Path2D ? (Path2D)shape : new Path2D.Float(shape), 10);
 			return shape;
 		}
 		
@@ -571,7 +571,7 @@ public class PathHierarchyPaintingHelper {
 //			map.clear();
 			Shape shape = map.get(roi);
 			if (shape == null) {
-				shape = PathROIToolsAwt.getShape(roi);
+				shape = RoiTools.getShape(roi);
 				// Downsample if we have to
 				if (map != this.map)
 					shape = simplifyByDownsample(shape, downsample);
@@ -651,7 +651,7 @@ public class PathHierarchyPaintingHelper {
 				Color colorHull = colorFill != null ? colorFill : colorStroke;
 				colorHull = ColorToolsAwt.getColorWithOpacity(colorHull, 0.1);
 				if (colorHull != null)
-					paintShape(PathROIToolsAwt.getShape(convexHull), g2d, null, null, colorHull, downsample);
+					paintShape(RoiTools.getShape(convexHull), g2d, null, null, colorHull, downsample);
 //					getConvexHull().draw(g, null, colorHull);
 			}
 		}

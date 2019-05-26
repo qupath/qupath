@@ -30,7 +30,6 @@ import java.io.ObjectOutput;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -38,8 +37,6 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import qupath.lib.analysis.stats.RunningStatistics;
-import qupath.lib.measurements.MeasurementList;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.roi.interfaces.ROI;

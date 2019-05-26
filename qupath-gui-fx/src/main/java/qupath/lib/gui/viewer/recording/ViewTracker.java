@@ -27,9 +27,12 @@ import javafx.beans.property.BooleanProperty;
 
 /**
  * General interface for a view tracker.
- * 
+ * <p>
  * Implementations of this may optionally integrate with eye tracking hardware 
  * to supply extra information.
+ * <p>
+ * Warning! This interface is subject to change in the future. It is currently too AWT/Swing-focused 
+ * for historical reasons and should be updated for better use with JavaFX.
  * 
  * @author Pete Bankhead
  *

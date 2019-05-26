@@ -57,7 +57,7 @@ import qupath.lib.plugins.ObjectDetector;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.RegionRequest;
-import qupath.lib.roi.PathROIToolsAwt;
+import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.PathArea;
 import qupath.lib.roi.interfaces.ROI;
@@ -269,7 +269,7 @@ public class CellCountsCV extends AbstractTileableDetectionPlugin<BufferedImage>
 			temp.release();
 			ArrayList<qupath.lib.geom.Point2> points = new ArrayList<>();
 
-			Shape shape = pathROI instanceof PathArea ? PathROIToolsAwt.getShape(pathROI) : null;
+			Shape shape = pathROI instanceof PathArea ? RoiTools.getShape(pathROI) : null;
 			Integer color = ColorTools.makeRGB(0, 255, 0);
 			String stain2Name = stains.getStain(2).getName();
 			PathArea area = pathROI instanceof PathArea ? (PathArea)pathROI : null;

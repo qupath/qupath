@@ -23,14 +23,19 @@
 
 package qupath.lib.roi;
 
+import java.awt.Shape;
+import java.awt.geom.Path2D;
+import java.awt.geom.PathIterator;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.PriorityQueue;
 
 import qupath.lib.geom.Point2;
 import qupath.lib.regions.ImagePlane;
+import qupath.lib.roi.interfaces.PathShape;
 
 /**
- * Helper methods for simplifying shapes, i.e. removing polygon points while retaining the same overall 
+ * Helper methods for simplifying shapes, such removing polygon points while retaining the a similar overall 
  * shape at a coarser level.
  * <p>
  * This can help manage storage and performance requirements when working with large numbers of ROIs,
@@ -230,6 +235,120 @@ public class ShapeSimplifier {
 		
 
 	}
+
+
+	/**
+	 * 
+	 * Create a simplified shape (fewer coordinates) using method based on Visvalingam’s Algorithm.
+	 * <p>
+	 * See references:
+	 * https://hydra.hull.ac.uk/resources/hull:8338
+	 * https://www.jasondavies.com/simplify/
+	 * http://bost.ocks.org/mike/simplify/
+	 * 
+	 * @param shapeROI
+	 * @param altitudeThreshold
+	 * @return
+	 */
+	public static PathShape simplifyShape(PathShape shapeROI, double altitudeThreshold) {
+		Shape shape = RoiTools.getShape(shapeROI);
+		Path2D path = shape instanceof Path2D ? (Path2D)shape : new Path2D.Float(shape);
+		path = simplifyPath(path, altitudeThreshold);
+		// Construct a new polygon
+		return new AWTAreaROI(path, shapeROI.getImagePlane());
+	}
 	
+	
+	
+	
+	/**
+	 * 
+	 * Create a simplified path (fewer coordinates) using method based on Visvalingam’s Algorithm.
+	 * <p>
+	 * See references:
+	 * https://hydra.hull.ac.uk/resources/hull:8338
+	 * https://www.jasondavies.com/simplify/
+	 * http://bost.ocks.org/mike/simplify/
+	 * 
+	 * @param path
+	 * @param altitudeThreshold
+	 * @return
+	 */
+	public static Path2D simplifyPath(Path2D path, double altitudeThreshold) {
+		
+		List<Point2> points = new ArrayList<>();
+		PathIterator iter = path.getPathIterator(null, 0.5);
+//		int nVerticesBefore = 0;
+//		int nVerticesAfter = 0;
+		
+		Path2D pathNew = new Path2D.Float();
+		while (!iter.isDone()) {
+			points.clear();
+			getNextClosedSegment(iter, points);
+//			nVerticesBefore += points.size();
+			if (points.isEmpty())
+				break;
+			
+			ShapeSimplifier.simplifyPolygonPoints(points, altitudeThreshold);
+//			nVerticesAfter += points.size();
+			
+			boolean firstPoint = true;
+			for (Point2 p : points) {
+				double xx = p.getX();
+				double yy = p.getY();
+				if (firstPoint) {
+					pathNew.moveTo(xx, yy);
+					firstPoint = false;
+				} else
+					pathNew.lineTo(xx, yy);
+			}
+			pathNew.closePath();
+		}
+		
+//		logger.trace("Path simplified: {} vertices reduced to {} ({}%)", nVerticesBefore, nVerticesAfter, (nVerticesAfter*100./nVerticesBefore));
+		
+		return pathNew;
+	}
+
+	
+	private static void getNextClosedSegment(PathIterator iter, List<Point2> points) {
+		double[] seg = new double[6];
+		while (!iter.isDone()) {
+			switch(iter.currentSegment(seg)) {
+			case PathIterator.SEG_MOVETO:
+				// Fall through
+			case PathIterator.SEG_LINETO:
+//				points.add(new Point2(Math.round(seg[0]), Math.round(seg[1])));
+				points.add(new Point2(seg[0], seg[1]));
+				break;
+			case PathIterator.SEG_CLOSE:
+				iter.next();
+				return;
+			default:
+				throw new RuntimeException("Invalid path iterator " + iter + " - only line connections are allowed");
+			};
+			iter.next();
+		}
+	}
+
+
+
+
+	/**
+	 * Apply a simple 3-point moving average to a list of points.
+	 * 
+	 * @param points
+	 * @return
+	 */
+	public static List<Point2> smoothPoints(List<Point2> points) {
+		List<Point2> points2 = new ArrayList<>(points.size());
+		for (int i = 0; i < points.size(); i++) {
+			Point2 p1 = points.get((i+points.size()-1)%points.size());
+			Point2 p2 = points.get(i);
+			Point2 p3 = points.get((i+1)%points.size());
+			points2.add(new Point2((p1.getX() + p2.getX() + p3.getX())/3, (p1.getY() + p2.getY() + p3.getY())/3));
+		}
+		return points2;
+	}
 
 }

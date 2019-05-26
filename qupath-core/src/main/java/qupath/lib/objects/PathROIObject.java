@@ -86,7 +86,7 @@ public abstract class PathROIObject extends PathObject {
 	 * <p>
 	 * Note that this is only a hint that other code should pay attention to - it is not
 	 * enforced locally.
-	 * 
+	 * <p>
 	 * TODO: Consider shifting this method into PathObject rather than PathROIObject (even
 	 * if it doesn't really do anything there).
 	 * 

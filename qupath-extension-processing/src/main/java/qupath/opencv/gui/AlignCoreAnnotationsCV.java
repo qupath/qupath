@@ -55,7 +55,7 @@ import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathROIObject;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.regions.RegionRequest;
-import qupath.lib.roi.PathROIToolsAwt;
+import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.interfaces.ROI;
 import qupath.opencv.processing.OpenCVTools;
 
@@ -163,7 +163,7 @@ public class AlignCoreAnnotationsCV implements PathCommand {
 			g2d.setTransform(transformForward);
 			g2d.setColor(Color.WHITE);
 			for (PathObject temp : pathObjects) {
-				Shape shape = PathROIToolsAwt.getShape(temp.getROI());
+				Shape shape = RoiTools.getShape(temp.getROI());
 				g2d.fill(shape);
 			}
 			g2d.dispose();
@@ -196,7 +196,7 @@ public class AlignCoreAnnotationsCV implements PathCommand {
 					indexerWarp.getDouble(1, 2));
 			for (PathObject temp : pathObjects) {
 				ROI roi = temp.getROI();
-				Shape shape = PathROIToolsAwt.getShape(roi);
+				Shape shape = RoiTools.getShape(roi);
 				shape = transformForward.createTransformedShape(shape);
 				shape = transformRefine.createTransformedShape(shape);
 				try {
@@ -205,7 +205,7 @@ public class AlignCoreAnnotationsCV implements PathCommand {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
-				((PathROIObject)temp).setROI(PathROIToolsAwt.getShapeROI(shape, roi.getC(), roi.getZ(), roi.getT(), -1));
+				((PathROIObject)temp).setROI(RoiTools.getShapeROI(shape, roi.getImagePlane(), -1));
 			}
 			imageData.getHierarchy().fireHierarchyChangedEvent(this, parentObject);
 			

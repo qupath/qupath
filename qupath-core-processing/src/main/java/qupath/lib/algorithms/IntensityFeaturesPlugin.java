@@ -66,7 +66,7 @@ import qupath.lib.plugins.AbstractInteractivePlugin;
 import qupath.lib.plugins.PluginRunner;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.regions.RegionRequest;
-import qupath.lib.roi.PathROIToolsAwt;
+import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
@@ -491,7 +491,7 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 		// Create tiled ROIs, if required
 		ImmutableDimension sizePreferred = new ImmutableDimension((int)(2000*downsample), (int)(2000*downsample));
 //		ImmutableDimension sizePreferred = new ImmutableDimension((int)(200*downsample), (int)(200*downsample));
-		Collection<? extends ROI> rois = PathROIToolsAwt.computeTiledROIs(roi, sizePreferred, sizePreferred, false, 0);
+		Collection<? extends ROI> rois = RoiTools.computeTiledROIs(roi, sizePreferred, sizePreferred, false, 0);
 		if (rois.size() > 1)
 			logger.info("Splitting {} into {} tiles for intensity measurements", roi, rois.size());
 		

@@ -36,7 +36,6 @@ import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.roi.PolygonROI;
 import qupath.lib.roi.ShapeSimplifier;
-import qupath.lib.roi.ShapeSimplifierAwt;
 import qupath.lib.roi.interfaces.PathShape;
 
 
@@ -90,7 +89,7 @@ public class ShapeSimplifierCommand implements PathCommand {
 			polygonROI = ShapeSimplifier.simplifyPolygon(polygonROI, altitudeThreshold);
 			pathObjectNew = PathObjects.createAnnotationObject(polygonROI, pathObject.getPathClass(), pathObject.getMeasurementList());
 		} else {
-			pathROI = ShapeSimplifierAwt.simplifyShape(pathROI, altitudeThreshold);
+			pathROI = ShapeSimplifier.simplifyShape(pathROI, altitudeThreshold);
 			pathObjectNew = PathObjects.createAnnotationObject(pathROI, pathObject.getPathClass(), pathObject.getMeasurementList());			
 		}
 		long endTime = System.currentTimeMillis();

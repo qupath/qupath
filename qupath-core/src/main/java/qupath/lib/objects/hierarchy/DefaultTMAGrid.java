@@ -30,7 +30,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.lib.objects.TMACoreObject;
-import qupath.lib.roi.ROIHelpers;
+import qupath.lib.roi.RoiTools;
 
 /**
  * Default implementation of a TMAGrid.
@@ -123,7 +123,7 @@ public class DefaultTMAGrid implements TMAGrid {
 	public TMACoreObject getTMACoreForPixel(double x, double y) {
 		// TODO: Consider overlapping cores - would be slightly nicer to return core with closest centroid
 		for (TMACoreObject core : cores) {
-			if (ROIHelpers.areaContains(core.getROI(), x, y))
+			if (RoiTools.areaContains(core.getROI(), x, y))
 				return core;
 		}
 		return null;

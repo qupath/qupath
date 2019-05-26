@@ -33,7 +33,9 @@ import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ServerTools;
 import qupath.lib.objects.PathObject;
 import qupath.lib.plugins.parameters.ParameterList;
-import qupath.lib.roi.PathROIToolsAwt;
+import qupath.lib.regions.ImagePlane;
+import qupath.lib.roi.ROIs;
+import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.interfaces.ROI;
 
 
@@ -119,8 +121,15 @@ public abstract class AbstractTileableDetectionPlugin<T> extends AbstractDetecti
 		
 		parentObject.clearPathObjects();
 		
+		// Extract (or create) suitable ROI
+		ROI parentROI = parentObject.getROI();
+		if (parentROI == null)
+			parentROI = ROIs.createRectangleROI(0, 0, imageData.getServer().getWidth(), imageData.getServer().getHeight(), ImagePlane.getDefaultPlane());
+
+		// Make tiles
+		Collection<? extends ROI> pathROIs = RoiTools.computeTiledROIs(parentROI, sizePreferred, sizeMax, false, getTileOverlap(imageData, params));
+		
 		// No tasks to complete
-		Collection<? extends ROI> pathROIs = PathROIToolsAwt.computeTiledROIs(imageData, parentObject, sizePreferred, sizeMax, false, getTileOverlap(imageData, params));
 		if (pathROIs.isEmpty())
 			return;
 		

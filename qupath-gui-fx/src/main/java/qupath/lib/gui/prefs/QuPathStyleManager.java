@@ -36,8 +36,8 @@ import javafx.collections.ObservableList;
 
 /**
  * Class to facilitate the use of different styles within QuPath.
- * 
- * These register themselves with PathPrefs so that they can be persistent across restarts.
+ * <p>
+ * These register themselves with {@link PathPrefs} so that they can be persistent across restarts.
  * 
  * @author Pete Bankhead
  *

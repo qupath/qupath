@@ -78,16 +78,24 @@ public class PathClass implements Comparable<PathClass>, Serializable {
 		this(null, name, colorRGB);
 	}
 	
+	/**
+	 * Get the parent classification, or null if this classification has no parent.
+	 * @return
+	 */
 	public PathClass getParentClass() {
 		return parentClass;
 	}
 	
+	/**
+	 * Returns {@code true} if {@code #getParentClass() != null}.
+	 * @return
+	 */
 	public boolean isDerivedClass() {
 		return parentClass != null;
 	}
 	
 	/**
-	 * Returns TRUE if this class, or any ancestor class, is equal to the specified parent class.
+	 * Returns {@code true} if this class, or any ancestor class, is equal to the specified parent class.
 	 * 
 	 * @param parentClass
 	 * @return
@@ -122,8 +130,8 @@ public class PathClass implements Comparable<PathClass>, Serializable {
 	
 	
 	/**
-	 * Get the 'base' class, i.e. trace back through getParentClass() until no parent is available.
-	 * 
+	 * Get the 'base' class, i.e. trace back through {@link #getParentClass()} until no parent is available.
+	 * <p>
 	 * For a PathClass with no parent, this just returns itself.
 	 * 
 	 * @return
@@ -135,15 +143,29 @@ public class PathClass implements Comparable<PathClass>, Serializable {
 		return temp;
 	}
 	
+	/**
+	 * Set the color that should be used to display objects with this classification.
+	 * @param colorRGB color, as a packed (A)RGB value
+	 */
 	public void setColor(Integer colorRGB) {
 		if (colorRGB == null || !colorRGB.equals(this.colorRGB))
 			this.colorRGB = colorRGB;
 	}
 	
+	/**
+	 * Get the color that should be used to display objects with this classification.
+	 * @return packed (A)RGB value representing the classification color.
+	 */
 	public Integer getColor() {
 		return colorRGB;
 	}
 	
+	/**
+	 * Get the name of this classification. 
+	 * Note that this does not incorporate information from any parent classifications; to access this, 
+	 * use {@link #toString()} instead.
+	 * @return
+	 */
 	public String getName() {
 		return name;
 	}

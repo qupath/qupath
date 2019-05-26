@@ -16,18 +16,26 @@ public class Reclassifier {
 	private double probability = Double.NaN;
 	private boolean retainIntensityClass;
 	
-	public Reclassifier(final PathObject pathObject, final PathClass pathClass, boolean retainIntensityClass) {
-		this(pathObject, pathClass, retainIntensityClass, Double.NaN);
-	}
-	
 	/**
 	 * Helper class to store an object prior to reclassifying it.
 	 * 
 	 * @param pathObject
 	 * @param pathClass
-	 * @param retainIntensityClass If we have a single-level or two-level PathClass, with the second element an intensity classification, 
+	 * @param retainIntensityClass of we have a single-level or two-level PathClass, with the second element an intensity classification, 
 	 * 								optionally retain this and only update the base class.
-	 * @param probability
+	 */
+	public Reclassifier(final PathObject pathObject, final PathClass pathClass, boolean retainIntensityClass) {
+		this(pathObject, pathClass, retainIntensityClass, Double.NaN);
+	}
+	
+	/**
+	 * Helper class to store an object prior to reclassifying it, including a classification probability.
+	 * 
+	 * @param pathObject an object whose classification may be set by a subsequent call to {@link #apply()}
+	 * @param pathClass the classification that may be applied to pathObject
+	 * @param retainIntensityClass of we have a single-level or two-level PathClass, with the second element an intensity classification, 
+	 * 								optionally retain this and only update the base class.
+	 * @param probability optional classification probability value to store in the object (may be Double.NaN if this should be ignored).
 	 */
 	public Reclassifier(final PathObject pathObject, final PathClass pathClass, boolean retainIntensityClass, final double probability) {
 		this.pathObject = pathObject;
@@ -52,6 +60,10 @@ public class Reclassifier {
 		return previousClass != pathClass;
 	}
 	
+	/**
+	 * Get the stored PathObject for which the PathClass may be set.
+	 * @return
+	 */
 	public PathObject getPathObject() {
 		return pathObject;
 	}

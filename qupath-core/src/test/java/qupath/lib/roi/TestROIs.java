@@ -22,12 +22,15 @@ import org.locationtech.jts.geom.Geometry;
 import qupath.lib.geom.Point2;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.regions.ImagePlane;
-import qupath.lib.roi.PathROIToolsAwt.CombineOp;
+import qupath.lib.roi.RoiTools.CombineOp;
 import qupath.lib.roi.interfaces.PathArea;
 import qupath.lib.roi.interfaces.PathLine;
 import qupath.lib.roi.interfaces.PathPoints;
 import qupath.lib.roi.interfaces.ROI;
 
+/**
+ * Test ROI behavior.
+ */
 public class TestROIs {
 	
 	/**
@@ -52,12 +55,12 @@ public class TestROIs {
 		assertTrue(ellipse.getGeometry().isValid());
 		
 		// ROIs with holes can be troublesome, JTS may consider holes as 'positive' regions
-		PathArea areaSubtracted = (PathArea)PathROIToolsAwt.combineROIs(rectangle, ellipse, CombineOp.SUBTRACT);
+		PathArea areaSubtracted = (PathArea)RoiTools.combineROIs(rectangle, ellipse, CombineOp.SUBTRACT);
 		assertEquals(areaSubtracted.getArea(), areaSubtracted.getGeometry().getArea(), delta);
 		assertNotEquals(areaSubtracted.getArea(), rectangle.getArea(), delta);
 		assertTrue(areaSubtracted.getGeometry().isValid());
 
-		PathArea areaAdded = (PathArea)PathROIToolsAwt.combineROIs(rectangle, ellipse, CombineOp.ADD);
+		PathArea areaAdded = (PathArea)RoiTools.combineROIs(rectangle, ellipse, CombineOp.ADD);
 		assertEquals(areaAdded.getArea(), areaAdded.getGeometry().getArea(), delta);
 		assertEquals(rectangle.getArea(), areaAdded.getArea(), delta);
 		assertTrue(areaAdded.getGeometry().isValid());
@@ -109,26 +112,26 @@ public class TestROIs {
 		testEqualLines(roi, roi2, tol);
 		assertEquals(0, DefaultROIComparator.getInstance().compare(roi, roi2));
 		
-		RectangleROI rect = new RectangleROI(100, 200, 300, 400, 0, 1, 2);
+		RectangleROI rect = new RectangleROI(100, 200, 300, 400, ImagePlane.getPlaneWithChannel(0, 1, 2));
 		ROI rect2 = (ROI)objectFromBytes(objectToBytes(rect));
 		testEqualBounds(rect, rect2, tol);
 		testEqualPolygonPoints(rect, rect2, tol);
 		assertEquals(0, DefaultROIComparator.getInstance().compare(rect, rect2));
 		
-		EllipseROI ellipse = new EllipseROI(100, 200, 300, 400, 0, 1, 2);
+		EllipseROI ellipse = new EllipseROI(100, 200, 300, 400, ImagePlane.getPlaneWithChannel(0, 1, 2));
 		ROI ellipse2 = (ROI)objectFromBytes(objectToBytes(ellipse));
 		testEqualBounds(ellipse, ellipse2, tol);
 		testEqualPolygonPoints(ellipse, ellipse2, tol);
 		assertEquals(0, DefaultROIComparator.getInstance().compare(ellipse, ellipse2));
 		
-		PolygonROI poly = new PolygonROI(new float[] {1.0f, 2.5f, 5.0f}, new float[] {10.0f, 11.0f, 12.0f}, 0, 1, 2);
+		PolygonROI poly = new PolygonROI(new float[] {1.0f, 2.5f, 5.0f}, new float[] {10.0f, 11.0f, 12.0f}, ImagePlane.getPlaneWithChannel(0, 1, 2));
 		ROI poly2 = (ROI)objectFromBytes(objectToBytes(poly));
 		testEqualBounds(poly, poly2, tol);
 		testEqualPolygonPoints(poly, poly2, tol);
 		assertEquals(0, DefaultROIComparator.getInstance().compare(poly, poly2));
 		
 		// Test polygon construction from points
-		PolygonROI poly3 = new PolygonROI(poly.getPolygonPoints(), 0, 1, 2);
+		PolygonROI poly3 = new PolygonROI(poly.getPolygonPoints(), ImagePlane.getPlaneWithChannel(0, 1, 2));
 		testEqualBounds(poly, poly3, tol);
 		testEqualPolygonPoints(poly, poly3, tol);
 		assertEquals(0, DefaultROIComparator.getInstance().compare(poly, poly3));

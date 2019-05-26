@@ -31,6 +31,7 @@ import java.util.List;
 
 import qupath.lib.common.GeneralTools;
 import qupath.lib.geom.Point2;
+import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.interfaces.PathArea;
 import qupath.lib.roi.interfaces.ROIWithHull;
 import qupath.lib.roi.interfaces.ROI;
@@ -69,24 +70,24 @@ public class PolygonROI extends AbstractPathAreaROI implements ROIWithHull, Tran
 	 * @param y
 	 */
 	PolygonROI(double x, double y) {
-		this(x, y, -1, 0, 0);
+		this(x, y, null);
 	}
 	
 	PolygonROI(List<Point2> points) {
-		this(points, -1, 0, 0);
+		this(points, null);
 	}
 	
 	
-	PolygonROI(double x, double y, int c, int z, int t) {
-		super(c, z, t);
+	PolygonROI(double x, double y, ImagePlane plane) {
+		super(plane);
 		vertices = VerticesFactory.createVertices(new float[]{(float)x, (float)x}, new float[]{(float)y, (float)y}, false);
 //		vertices = VerticesFactory.createMutableVertices();
 //		vertices.add(x, y);
 //		vertices.close();
 	}
 	
-	PolygonROI(List<Point2> points, int c, int z, int t) {
-		super(c, z, t);
+	PolygonROI(List<Point2> points, ImagePlane plane) {
+		super(plane);
 //		vertices = VerticesFactory.createMutableVertices(points.size()+1);
 //		setPoints(points);
 //		vertices.close();
@@ -101,8 +102,8 @@ public class PolygonROI extends AbstractPathAreaROI implements ROIWithHull, Tran
 	}
 	
 	
-	PolygonROI(float[] x, float[] y, int c, int z, int t) {
-		this(x, y, c, z, t, true);
+	PolygonROI(float[] x, float[] y, ImagePlane plane) {
+		this(x, y, plane, true);
 //		List<Point2> points = new ArrayList<>();
 //		for (int i = 0; i < x.length; i++) {
 //			points.add(new Point2(x[i], y[i]));
@@ -113,8 +114,8 @@ public class PolygonROI extends AbstractPathAreaROI implements ROIWithHull, Tran
 	}
 	
 	
-	PolygonROI(float[] x, float[] y, int c, int z, int t, boolean copyVertices) {
-		super(c, z, t);
+	PolygonROI(float[] x, float[] y, ImagePlane plane, boolean copyVertices) {
+		super(plane);
 		vertices = VerticesFactory.createVertices(x, y, copyVertices);
 	}
 	
@@ -126,7 +127,10 @@ public class PolygonROI extends AbstractPathAreaROI implements ROIWithHull, Tran
 //		isAdjusting = false;
 //	}
 	
-	
+	/**
+	 * Get the total number of vertices in the polygon.
+	 * @return
+	 */
 	public int nVertices() {
 		if (stats == null)
 			calculateShapeMeasurements();
@@ -139,7 +143,7 @@ public class PolygonROI extends AbstractPathAreaROI implements ROIWithHull, Tran
 	 */
 	@Override
 	public ROI duplicate() {
-		return new PolygonROI(vertices.getPoints(), getC(), getZ(), getT());
+		return new PolygonROI(vertices.getPoints(), getImagePlane());
 	}
 	
 
@@ -186,7 +190,7 @@ public class PolygonROI extends AbstractPathAreaROI implements ROIWithHull, Tran
 			x[i] = (float)(x[i] + dx);
 			y[i] = (float)(y[i] + dy);
 		}
-		return new PolygonROI(x, y, getC(), getZ(), getT());
+		return new PolygonROI(x, y, getImagePlane());
 	}
 	
 	
@@ -231,10 +235,18 @@ public class PolygonROI extends AbstractPathAreaROI implements ROIWithHull, Tran
 		return Double.NaN;
 	}
 
+	/**
+	 * Get the solidity of the polygon assuming 'square' pixels, defined as {@code getArea()/getConvexArea()}.
+	 * @return
+	 */
 	public double getSolidity() {
 		return getArea() / getConvexArea();
 	}
 	
+	/**
+	 * Get the solidity of the polygon, defined as {@code getScaledArea(pixelWidth, pixelHeight)/getScaledConvexArea(pixelWidth, pixelHeight)}.
+	 * @return
+	 */
 	public double getSolidity(double pixelWidth, double pixelHeight) {
 		return getScaledArea(pixelWidth, pixelHeight) / getScaledConvexArea(pixelWidth, pixelHeight);
 	}
@@ -242,7 +254,7 @@ public class PolygonROI extends AbstractPathAreaROI implements ROIWithHull, Tran
 	
 	@Override
 	public Shape getShape() {
-		return PathROIToolsAwt.getShape(this);
+		return RoiTools.getShape(this);
 	}
 	
 	
@@ -340,7 +352,7 @@ public class PolygonROI extends AbstractPathAreaROI implements ROIWithHull, Tran
 	}
 	
 	
-	public Vertices getVertices() {
+	Vertices getVertices() {
 		return vertices;
 	}
 	
@@ -496,7 +508,7 @@ public class PolygonROI extends AbstractPathAreaROI implements ROIWithHull, Tran
 		}
 		
 		private Object readResolve() {
-			PolygonROI roi = new PolygonROI(x, y, c, z, t, false);
+			PolygonROI roi = new PolygonROI(x, y, ImagePlane.getPlaneWithChannel(c, z, t), false);
 			roi.stats = this.stats; // Doesn't matter if this is null...
 //			if (roi.stats == null) {
 //				System.err.println("Null count: " + (++nullCounter));

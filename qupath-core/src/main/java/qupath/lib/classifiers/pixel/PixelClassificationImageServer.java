@@ -38,6 +38,15 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 	
 	private ImageServerMetadata originalMetadata;
 
+	/**
+	 * Constructor.
+	 * <p>
+	 * An {@link ImageData} is required because some forms of classification may required additional image properties 
+	 * (e.g. image type, stains), not simply an {@link ImageServer}.
+	 * 
+	 * @param imageData
+	 * @param classifier
+	 */
 	public PixelClassificationImageServer(ImageData<BufferedImage> imageData, PixelClassifier classifier) {
 		super(null);
 		this.classifier = classifier;
@@ -92,10 +101,18 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 		
 	}
 	
+	/**
+	 * Get the underlying ImageData used for classification.
+	 * @return
+	 */
 	public ImageData<BufferedImage> getImageData() {
 		return imageData;
 	}
 	
+	/**
+	 * Get the PixelClassifier performing the classification.
+	 * @return
+	 */
 	public PixelClassifier getClassifier() {
 		return classifier;
 	}

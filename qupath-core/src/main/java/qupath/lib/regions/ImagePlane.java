@@ -27,6 +27,16 @@ package qupath.lib.regions;
 
 import qupath.lib.roi.interfaces.ROI;
 
+/**
+ * Helper class to store z-slice and time point indices, optionally along with a channel index as well.
+ * <p>
+ * These values are frequently required together, such as with {@link ROI ROIs} and {@link RegionRequest RegionRequests}. 
+ * It is more convenient (and less error-prone) to use a single ImagePlane instance rather than passing the indices as 
+ * separate integers each time they are needed.
+ * 
+ * @author Pete Bankhead
+ *
+ */
 public class ImagePlane implements Comparable<ImagePlane> {
 	
 	private final int c, z, t;
@@ -55,14 +65,26 @@ public class ImagePlane implements Comparable<ImagePlane> {
 		this.t = t;
 	}
 	
+	/**
+	 * Get the channel index. This may be -1 to indicate no channel is specified.
+	 * @return
+	 */
 	public int getC() {
 		return c;
 	}
 	
+	/**
+	 * Get the z-slice index.
+	 * @return
+	 */
 	public int getZ() {
 		return z;
 	}
 	
+	/**
+	 * Get the time point index.
+	 * @return
+	 */
 	public int getT() {
 		return t;
 	}
@@ -176,8 +198,9 @@ public class ImagePlane implements Comparable<ImagePlane> {
 	}
 
 	/**
-	 * Returns an ImagePlus, where the channel, z-slice and time point can be specified.
+	 * Returns an ImagePlane, where the channel, z-slice and time point can be specified.
 	 * 
+	 * @param c
 	 * @param z
 	 * @param t
 	 * @return

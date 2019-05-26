@@ -31,7 +31,7 @@ import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.DefaultROIComparator;
-import qupath.lib.roi.PathROIToolsAwt;
+import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.interfaces.PathArea;
 import qupath.lib.roi.interfaces.PathLine;
 import qupath.lib.roi.interfaces.ROI;
@@ -335,7 +335,7 @@ public class PixelClassifierHelper implements PathObjectHierarchyListener {
                 Mat matFeatures = isLine ? cacheLineFeatures.get(roi) : cacheAreaFeatures.get(roi);
                 if (matFeatures == null) {
                 	                	
-                    Shape shape = PathROIToolsAwt.getShape(roi);
+                    Shape shape = RoiTools.getShape(roi);
                     
                     List<RegionRequest> requests = new ArrayList<>();
                     int tw = (int)Math.round(calculator.getMetadata().getInputWidth() * downsample);

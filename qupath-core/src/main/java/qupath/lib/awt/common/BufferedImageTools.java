@@ -35,7 +35,7 @@ import ij.process.ImageProcessor;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.servers.AbstractTileableImageServer;
 import qupath.lib.regions.RegionRequest;
-import qupath.lib.roi.PathROIToolsAwt;
+import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
@@ -78,7 +78,7 @@ public class BufferedImageTools {
 	 */
 	public static BufferedImage createROIMask(final int width, final int height, final ROI roi, final double xOrigin, final double yOrigin, final double downsample) {
 		BufferedImage imgMask = new BufferedImage(width, height, BufferedImage.TYPE_BYTE_GRAY);
-		Shape shape = PathROIToolsAwt.getShape(roi);
+		Shape shape = RoiTools.getShape(roi);
 		Graphics2D g2d = imgMask.createGraphics();
 		g2d.scale(1.0/downsample, 1.0/downsample);
 		g2d.translate(-xOrigin, -yOrigin);

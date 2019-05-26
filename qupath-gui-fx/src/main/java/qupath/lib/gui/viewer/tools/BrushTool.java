@@ -51,9 +51,8 @@ import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.regions.ImagePlane;
-import qupath.lib.roi.ROIHelpers;
 import qupath.lib.roi.ROIs;
-import qupath.lib.roi.PathROIToolsAwt;
+import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.PolygonROI;
 import qupath.lib.roi.RectangleROI;
 import qupath.lib.roi.interfaces.PathArea;
@@ -174,7 +173,7 @@ public class BrushTool extends AbstractPathROITool {
 //		boolean createNew = currentObject == null || e.getClickCount() > 1;// || (!currentObject.getROI().contains(p.getX(), p.getY()) && !e.isAltDown());
 		Point2D p = viewer.componentPointToImagePoint(e.getX(), e.getY(), null, true);
 //		boolean createNew = currentObject == null || !(currentObject instanceof PathAnnotationObject) || (currentObject.hasChildren()) || (PathPrefs.getBrushCreateNewObjects() && !ROIHelpers.areaContains(currentObject.getROI(), p.getX(), p.getY()) && !isSubtractMode(e));
-		boolean createNew = currentObject == null || PathPrefs.isSelectionMode() || !(currentObject instanceof PathAnnotationObject) || (!currentObject.isEditable()) || currentObject.getROI().getZ() != viewer.getZPosition() || currentObject.getROI().getT() != viewer.getTPosition() || (!e.isShiftDown() && PathPrefs.getBrushCreateNewObjects() && !ROIHelpers.areaContains(currentObject.getROI(), p.getX(), p.getY()) && !isSubtractMode(e));
+		boolean createNew = currentObject == null || PathPrefs.isSelectionMode() || !(currentObject instanceof PathAnnotationObject) || (!currentObject.isEditable()) || currentObject.getROI().getZ() != viewer.getZPosition() || currentObject.getROI().getT() != viewer.getTPosition() || (!e.isShiftDown() && PathPrefs.getBrushCreateNewObjects() && !RoiTools.areaContains(currentObject.getROI(), p.getX(), p.getY()) && !isSubtractMode(e));
 		
 		// See if, rather than creating something, we can instead reactivate a current object
 		boolean multipleClicks = e.getClickCount() > 1;
@@ -289,7 +288,7 @@ public class BrushTool extends AbstractPathROITool {
 		Point2D p = viewer.componentPointToImagePoint(e.getX(), e.getY(), null, true);
 		PathShape shapeNew;
 		boolean subtractMode = isSubtractMode(e);
-		Shape shapeCurrent = shapeROI == null ? null : PathROIToolsAwt.getShape(shapeROI);
+		Shape shapeCurrent = shapeROI == null ? null : RoiTools.getShape(shapeROI);
 		
 		Shape shapeDrawn = createShape(p.getX(), p.getY(),
 				PathPrefs.getUseTileBrush() && !e.isShiftDown(),
@@ -306,8 +305,8 @@ public class BrushTool extends AbstractPathROITool {
 			boolean avoidOtherAnnotations = requestParentClipping(e);
 			if (subtractMode) {
 				// If subtracting... then just subtract
-				shapeNew = PathROIToolsAwt.combineROIs(shapeROI,
-						ROIs.createAreaROI(shapeDrawn, ImagePlane.getPlaneWithChannel(shapeROI.getC(), shapeROI.getZ(), shapeROI.getT())), PathROIToolsAwt.CombineOp.SUBTRACT, flatness);
+				shapeNew = RoiTools.combineROIs(shapeROI,
+						ROIs.createAreaROI(shapeDrawn, ImagePlane.getPlaneWithChannel(shapeROI.getC(), shapeROI.getZ(), shapeROI.getT())), RoiTools.CombineOp.SUBTRACT, flatness);
 			} else if (avoidOtherAnnotations) {
 				
 				Area area = new Area(shapeCurrent);
@@ -332,16 +331,16 @@ public class BrushTool extends AbstractPathROITool {
 //						}
 //					}
 //				}
-				shapeNew = PathROIToolsAwt.getShapeROI(area, shapeROI.getC(), shapeROI.getZ(), shapeROI.getT());
+				shapeNew = RoiTools.getShapeROI(area, shapeROI.getImagePlane());
 			} else {
 				// Just add, regardless of whether there are other annotations below or not
-				shapeNew = PathROIToolsAwt.combineROIs(shapeROI,
-						ROIs.createAreaROI(shapeDrawn, ImagePlane.getPlaneWithChannel(shapeROI)), PathROIToolsAwt.CombineOp.ADD, flatness);
+				shapeNew = RoiTools.combineROIs(shapeROI,
+						ROIs.createAreaROI(shapeDrawn, ImagePlane.getPlaneWithChannel(shapeROI)), RoiTools.CombineOp.ADD, flatness);
 			}
 			
 			// Convert complete polygons to areas
 			if (shapeNew instanceof PolygonROI && ((PolygonROI)shapeNew).nVertices() > 50) {
-				shapeNew = ROIs.createAreaROI(PathROIToolsAwt.getShape(shapeNew), ImagePlane.getPlane(shapeNew));
+				shapeNew = ROIs.createAreaROI(RoiTools.getShape(shapeNew), ImagePlane.getPlane(shapeNew));
 			}
 		} else {
 			shapeNew = ROIs.createAreaROI(shapeDrawn, ImagePlane.getPlane(viewer.getZPosition(), viewer.getTPosition()));
@@ -409,7 +408,7 @@ public class BrushTool extends AbstractPathROITool {
 //				if ((temp instanceof PathDetectionObject) && temp.getROI() instanceof PathArea)
 				if (temp instanceof PathTileObject && temp.getROI() instanceof PathArea && !(temp.getROI() instanceof RectangleROI)) {
 					creatingTiledROI = true;
-					return PathROIToolsAwt.getShape(temp.getROI());
+					return RoiTools.getShape(temp.getROI());
 				}
 			}
 			// If we're currently creating a tiled, ROI, but now not clicked on a tile, just return

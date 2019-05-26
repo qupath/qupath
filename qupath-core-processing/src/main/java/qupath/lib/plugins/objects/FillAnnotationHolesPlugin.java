@@ -39,7 +39,7 @@ import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.plugins.AbstractInteractivePlugin;
 import qupath.lib.plugins.PluginRunner;
 import qupath.lib.plugins.parameters.ParameterList;
-import qupath.lib.roi.PathROIToolsAwt;
+import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
@@ -110,7 +110,7 @@ public class FillAnnotationHolesPlugin<T> extends AbstractInteractivePlugin<T> {
 				if (roiOrig == null || !roiOrig.isArea())
 					continue;
 				ROI roiUpdated = roiOrig;
-				roiUpdated = PathROIToolsAwt.fillHoles(roiUpdated);
+				roiUpdated = RoiTools.fillHoles(roiUpdated);
 				if (roiOrig != roiUpdated && pathObject instanceof PathROIObject) {
 					toUpdate.put((PathROIObject)pathObject, roiUpdated);
 				}

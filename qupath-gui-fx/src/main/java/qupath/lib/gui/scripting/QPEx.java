@@ -65,7 +65,7 @@ import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectImageEntry;
 import qupath.lib.projects.Projects;
 import qupath.lib.regions.ImagePlane;
-import qupath.lib.roi.PathROIToolsAwt;
+import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.PathArea;
 import qupath.lib.roi.interfaces.PathShape;
@@ -315,7 +315,7 @@ public class QPEx extends QP {
 				if (shapeNew == null)
 					shapeNew = (PathShape)child.getROI();//.duplicate();
 				else
-					shapeNew = PathROIToolsAwt.combineROIs(shapeNew, (PathArea)child.getROI(), PathROIToolsAwt.CombineOp.ADD);
+					shapeNew = RoiTools.combineROIs(shapeNew, (PathArea)child.getROI(), RoiTools.CombineOp.ADD);
 				if (child.getPathClass() != null)
 					pathClasses.add(child.getPathClass());
 				children.add(child);
@@ -372,7 +372,7 @@ public class QPEx extends QP {
 			shape = ROIs.createRectangleROI(0, 0, imageData.getServer().getWidth(), imageData.getServer().getHeight(), ImagePlane.getPlaneWithChannel(shapeSelected));
 
 		// Create the new ROI
-		PathShape shapeNew = PathROIToolsAwt.combineROIs(shape, shapeSelected, PathROIToolsAwt.CombineOp.SUBTRACT);
+		PathShape shapeNew = RoiTools.combineROIs(shape, shapeSelected, RoiTools.CombineOp.SUBTRACT);
 		PathObject pathObjectNew = PathObjects.createAnnotationObject(shapeNew);
 
 		// Reassign all other children to the new parent

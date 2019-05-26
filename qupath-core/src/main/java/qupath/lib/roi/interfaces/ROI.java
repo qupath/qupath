@@ -29,6 +29,7 @@ import java.util.List;
 import org.locationtech.jts.geom.Geometry;
 
 import qupath.lib.geom.Point2;
+import qupath.lib.regions.ImagePlane;
 
 /**
  * Base interface for defining regions of interest (ROIs) within QuPath.
@@ -51,6 +52,7 @@ public interface ROI {
 
 	/**
 	 * Get channel index, or -1 if the ROI relates to all available channels.
+	 * <p>
 	 * (This is not currently used, but may be in the future)
 	 * @return
 	 */
@@ -58,6 +60,7 @@ public interface ROI {
 
 	/**
 	 * Get time point index.
+	 * <p>
 	 * Default is 0 if the image it relates to is not a time series.
 	 * @return
 	 */
@@ -65,11 +68,17 @@ public interface ROI {
 
 	/**
 	 * Get z-stack slice index.
+	 * <p>
 	 * Default is 0 if the image it relates to is not a z-stack.
 	 * @return
 	 */
 	public abstract int getZ();
 
+	/**
+	 * Get the ImagePlane, which contains the values for c, z and t in a single object.
+	 */
+	public ImagePlane getImagePlane();
+	
 	/**
 	 * Returns the x coordinate for the ROI centroid.
 	 * 
@@ -112,6 +121,13 @@ public interface ROI {
 	 */
 	public abstract double getBoundsHeight();
 	
+	/**
+	 * Get a list of points representing the vertices of the ROI.
+	 * <p>
+	 * This is only really well-defined for ROIs where a single set of vertices represents the shape completely; 
+	 * the expected output for a ROI that contains holes or disconnected regions is (currently) undefined.
+	 * @return
+	 */
 	public List<Point2> getPolygonPoints();
 
 	/**
@@ -123,7 +139,7 @@ public interface ROI {
 
 	/**
 	 * Create a duplicate of the ROI.
-	 * 
+	 * <p>
 	 * This method is deprecated, since ROIs are (or are moving towards being) immutable... making it pointless to duplicate them.
 	 * 
 	 * @return
@@ -133,8 +149,8 @@ public interface ROI {
 	
 	/**
 	 * Returns a java.awt.Shape representing this ROI, if possible.
-	 * 
-	 * <p>Note that PointROI throws an UnsupportedOperationException as it cannot 
+	 * <p>
+	 * Note that PointROI throws an UnsupportedOperationException as it cannot 
 	 * adequately be represented by a Shape object.
 	 * 
 	 * @return
@@ -149,7 +165,9 @@ public interface ROI {
 	 */
 	public Geometry getGeometry();
 	
-	
+	/**
+	 * Enum representing the major different types of ROI.
+	 */
 	public enum RoiType {
 		/**
 		 * ROI represents a closed area (possibly with holes).
@@ -165,6 +183,10 @@ public interface ROI {
 		POINT
 	}
 	
+	/**
+	 * Get the RoiType, used to distinguish between points, lines and areas.
+	 * @return
+	 */
 	public RoiType getRoiType();
 	
 	/**

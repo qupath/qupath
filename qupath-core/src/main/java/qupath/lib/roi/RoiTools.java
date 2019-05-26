@@ -44,13 +44,10 @@ import org.slf4j.LoggerFactory;
 import qupath.lib.awt.common.AwtTools;
 import qupath.lib.geom.ImmutableDimension;
 import qupath.lib.geom.Point2;
-import qupath.lib.images.ImageData;
-import qupath.lib.objects.PathObject;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.EllipseROI;
 import qupath.lib.roi.LineROI;
 import qupath.lib.roi.AreaROI;
-import qupath.lib.roi.ROIHelpers;
 import qupath.lib.roi.PolygonROI;
 import qupath.lib.roi.RectangleROI;
 import qupath.lib.roi.interfaces.PathArea;
@@ -59,25 +56,59 @@ import qupath.lib.roi.jts.ConverterJTS;
 import qupath.lib.roi.interfaces.PathShape;
 
 /**
- * A collection of static methods to help converting between PathROIs and AWT shapes, or using AWT shapes to add
- * useful functionality when using PathROIs.
+ * A collection of static methods for working with ROIs.
  * 
  * @author Pete Bankhead
  *
  */
-public class PathROIToolsAwt {
+public class RoiTools {
 
-	private final static Logger logger = LoggerFactory.getLogger(PathROIToolsAwt.class);
+	private final static Logger logger = LoggerFactory.getLogger(RoiTools.class);
 
-	public enum CombineOp {ADD, SUBTRACT, INTERSECT}//, XOR}
+	/**
+	 * Methods of combining two ROIs.
+	 */
+	public enum CombineOp {
+		/**
+		 * Add ROIs (union).
+		 */
+		ADD,
+		
+		/**
+		 * Subtract from first ROI.
+		 */
+		SUBTRACT,
+		
+		/**
+		 * Calculate intersection (overlap) between ROIs.
+		 */
+		INTERSECT
+		}//, XOR}
 
+	/**
+	 * Combine two shape ROIs together.
+	 * 
+	 * @param shape1
+	 * @param shape2
+	 * @param op
+	 * @return
+	 */
 	public static PathShape combineROIs(PathShape shape1, PathShape shape2, CombineOp op) {
 		return combineROIs(shape1, shape2, op, -1);
 	}
 
+	/**
+	 * Compute two shape ROIs together, using the specified 'flatness' to handle curved segments.
+	 * 
+	 * @param shape1
+	 * @param shape2
+	 * @param op
+	 * @param flatness
+	 * @return
+	 */
 	public static PathShape combineROIs(PathShape shape1, PathShape shape2, CombineOp op, double flatness) {
 		// Check we can combine
-		if (!ROIHelpers.sameImagePlane(shape1, shape2))
+		if (!RoiTools.sameImagePlane(shape1, shape2))
 			throw new IllegalArgumentException("Cannot combine - shapes " + shape1 + " and " + shape2 + " do not share the same image plane");
 		Area area1 = getArea(shape1);
 		Area area2 = getArea(shape2);
@@ -101,7 +132,7 @@ public class PathROIToolsAwt {
 		// conversion seems to help
 		//		area1 = new Area(new Path2D.Float(area1));
 		// Return simplest ROI that works - prefer a rectangle or polygon over an area
-		return getShapeROI(area1, shape1.getC(), shape1.getZ(), shape1.getT(), flatness);
+		return getShapeROI(area1, shape1.getImagePlane(), flatness);
 	}
 	
 	/**
@@ -127,7 +158,7 @@ public class PathROIToolsAwt {
 	 * @param minArea
 	 * @return
 	 */
-	public static ROI removeSmallPieces(ROI roi, double minArea) {
+	static ROI removeSmallPieces(ROI roi, double minArea) {
 		if (roi instanceof AreaROI || roi instanceof PolygonROI)
 			return removeSmallPieces((AreaROI)roi, minArea, -1);
 		if (roi instanceof PathArea && ((PathArea)roi).getArea() > minArea)
@@ -198,7 +229,13 @@ public class PathROIToolsAwt {
 	}
 
 	
-
+	/**
+	 * Compute two Areas together, modifying the first.
+	 * 
+	 * @param area1 the primary Area, which will be modified by this operation
+	 * @param area2 the secondary Area, which will be unchanged
+	 * @param op method of combination
+	 */
 	public static void combineAreas(Area area1, Area area2, CombineOp op) {
 		switch (op) {
 		case ADD:
@@ -217,35 +254,28 @@ public class PathROIToolsAwt {
 			throw new IllegalArgumentException("Invalid CombineOp " + op);
 		}
 	}
-	
-	
-	public static PathShape getShapeROI(Area area, ImagePlane plane, double flatness) {
-		return getShapeROI(area, plane.getC(), plane.getZ(), plane.getT(), flatness);
-	}
 
 
 	/**
 	 * Get a PathShape from an Area.
-	 * This will try to return a PathRectangleROI or PathPolygonROI if possible,
-	 * or PathAreaROI if neither of the other classes can adequately represent the area.
+	 * This will try to return a RectangleROI or PolygonROI if possible,
+	 * or AreaROI if neither of the other classes can adequately represent the area.
 	 * 
 	 * @param area
-	 * @param c
-	 * @param z
-	 * @param t
+	 * @param plane
 	 * @param flatness - can be used to prefer polygons, see Shape.getPathIterator(AffineTransform at, double flatness)
 	 * @return
 	 */
-	public static PathShape getShapeROI(Area area, int c, int z, int t, double flatness) {
+	static PathShape getShapeROI(Area area, ImagePlane plane, double flatness) {
 		if (area.isRectangular()) {
 			Rectangle2D bounds = area.getBounds2D();
-			return new RectangleROI(bounds.getX(), bounds.getY(), bounds.getWidth(), bounds.getHeight(), c, z, t);
+			return new RectangleROI(bounds.getX(), bounds.getY(), bounds.getWidth(), bounds.getHeight(), plane);
 		}
 		//		else if (area.isPolygonal() && area.isSingular())
 		else if (area.isSingular() && (area.isPolygonal() || flatness > 0)) {
 			Path2D path = new Path2D.Float(area);
 			List<Point2> points = flatness > 0 ? AWTAreaROI.getLinearPathPoints(path, path.getPathIterator(null, flatness)) : AWTAreaROI.getLinearPathPoints(path, path.getPathIterator(null));
-			return new PolygonROI(points, c, z, t);
+			return new PolygonROI(points, plane);
 			//			if (area.isPolygonal())
 			//				return new PolygonROI(new Path2D.Float(area), c, z, t);
 			//			else if (flatness > 0) {
@@ -254,50 +284,52 @@ public class PathROIToolsAwt {
 			//				return new PolygonROI(path, c, z, t);
 			//			}
 		}
-		return new AWTAreaROI(area, c, z, t);		
-	}
-
-	public static PathShape getShapeROI(Shape shape, ImagePlane plane, double flatness) {
-		if (plane == null)
-			plane = ImagePlane.getDefaultPlane();
-		return getShapeROI(shape, plane.getC(), plane.getZ(), plane.getT(), flatness);
+		return new AWTAreaROI(area, plane);		
 	}
 
 	/**
-	 * Get a PathShape from an Area.
-	 * This will try to return a PathRectangleROI or PathPolygonROI if possible,
-	 * or PathAreaROI if neither of the other classes can adequately represent the area.
+	 * Create a {@link PathShape} from an Shape with a specified 'flatness'.
+	 * This will try to return a RectangleROI or PolygonROI if possible,
+	 * or AreaROI if neither of the other classes can adequately represent the area.
 	 * 
 	 * In the input shape is an Ellipse2D then an EllipseROI will be returned.
 	 * 
 	 * @param shape
-	 * @param c
-	 * @param z
-	 * @param t
+	 * @param plane
 	 * @param flatness - can be used to prefer polygons, see Shape.getPathIterator(AffineTransform at, double flatness)
 	 * @return
 	 */
-	public static PathShape getShapeROI(Shape shape, int c, int z, int t, double flatness) {
+	public static PathShape getShapeROI(Shape shape, ImagePlane plane, double flatness) {
 		if (shape instanceof Rectangle2D) {
 			Rectangle2D bounds = shape.getBounds2D();
-			return new RectangleROI(bounds.getX(), bounds.getY(), bounds.getWidth(), bounds.getHeight(), c, z, t);
+			return new RectangleROI(bounds.getX(), bounds.getY(), bounds.getWidth(), bounds.getHeight(), plane);
 		}
 		if (shape instanceof Ellipse2D) {
 			Rectangle2D bounds = shape.getBounds2D();
-			return new EllipseROI(bounds.getX(), bounds.getY(), bounds.getWidth(), bounds.getHeight(), c, z, t);
+			return new EllipseROI(bounds.getX(), bounds.getY(), bounds.getWidth(), bounds.getHeight(), plane);
 		}
 		if (shape instanceof Line2D) {
 			Line2D line = (Line2D)shape;
-			return new LineROI(line.getX1(), line.getY1(), line.getX2(), line.getY2(), c, z, t);
+			return new LineROI(line.getX1(), line.getY1(), line.getX2(), line.getY2(), plane);
 		}
 		// TODO: Handle Polyline! This method does not deal with 'open' PathIterators
-		return getShapeROI(new Area(shape), c, z, t, flatness);
+		return getShapeROI(new Area(shape), plane, flatness);
 	}
 
 
-
-	public static PathShape getShapeROI(Area area, int c, int z, int t) {
-		return getShapeROI(area, c, z, t, -1);
+	/**
+	 * Create a {@link PathShape} from an Shape.
+	 * This will try to return a RectangleROI or PolygonROI if possible,
+	 * or AreaROI if neither of the other classes can adequately represent the area.
+	 * 
+	 * In the input shape is an Ellipse2D then an EllipseROI will be returned.
+	 * 
+	 * @param shape
+	 * @param plane
+	 * @return
+	 */
+	public static PathShape getShapeROI(Area area, ImagePlane plane) {
+		return getShapeROI(area, plane, -1);
 	}
 
 
@@ -392,7 +424,7 @@ public class PathROIToolsAwt {
 		}
 
 
-		throw new RuntimeException(roi + " cannot be converted to a shape!");
+		throw new IllegalArgumentException(roi + " cannot be converted to a shape!");
 	}
 
 
@@ -410,42 +442,20 @@ public class PathROIToolsAwt {
 
 	}
 
+	
 	/**
-	 * Warning: This can only compare the actual shape, *not* the channel, timepoint or z-slice of a ROI.
+	 * Make fixed-size rectangular tile ROIs for a specified area.
 	 * 
-	 * @param shape1
-	 * @param shape2
+	 * @param roi area to be tiled
+	 * @param tileWidth requested tile width, in pixels
+	 * @param tileHeight requested tile height, in pixels
+	 * @param trimToROI if true, trim tiles at the ROI boundary according to the ROI shape, otherwise retain full tiles that may only partially overlap
 	 * @return
 	 */
-	public static boolean containsShape(final Shape shape1, final Shape shape2) {
-		PathIterator iterator = shape2.getPathIterator(null);
-		double[] coords = new double[6];
-		while (!iterator.isDone()) {
-			int type = iterator.currentSegment(coords);
-			if (type == PathIterator.SEG_LINETO || type == PathIterator.SEG_MOVETO)
-				if (!shape1.contains(coords[0], coords[1]))
-					return false;
-			iterator.next();
-		}
-		return true;
-	}
-
-
-	/**
-	 * Warning: Currently, this only compares the actual shape, *not* the channel, timepoint or z-slice.
-	 * However this may change in the future.
-	 * A
-	 * 
-	 * TODO: Consider comparing channels, time-points &amp; z-slices.
-	 */
-	public static boolean containsShape(final PathShape shape1, final PathShape shape2) {
-		return containsShape(getShape(shape1), getShape(shape2));
-	}
-
-	public static List<ROI> makeTiles(final PathArea pathROI, final int tileWidth, final int tileHeight, final boolean trimToROI) {
+	public static List<ROI> makeTiles(final PathArea roi, final int tileWidth, final int tileHeight, final boolean trimToROI) {
 		// Create a collection of tiles
-		Rectangle bounds = AwtTools.getBounds(pathROI);
-		Area area = getArea(pathROI);
+		Rectangle bounds = AwtTools.getBounds(roi);
+		Area area = getArea(roi);
 		List<ROI> tiles = new ArrayList<>();
 		//		int ind = 0;
 		for (int y = bounds.y; y < bounds.y + bounds.height; y += tileHeight) {
@@ -492,25 +502,20 @@ public class PathROIToolsAwt {
 	
 	
 	
-	public static Collection<? extends ROI> computeTiledROIs(ImageData<?> imageData, PathObject parentObject, ImmutableDimension sizePreferred, ImmutableDimension sizeMax, boolean fixedSize, int overlap) {
-		ROI parentROI = parentObject.getROI();
-		if (parentROI == null)
-			parentROI = new RectangleROI(0, 0, imageData.getServer().getWidth(), imageData.getServer().getHeight());
-		return computeTiledROIs(parentROI, sizePreferred, sizeMax, fixedSize, overlap);
-	}
-	
-
 	/**
-	 * Create a collection of tiled ROIs corresponding to a specified parentROI if it is larger than sizeMax.
+	 * Create a collection of tiled ROIs corresponding to a specified parentROI if it is larger than sizeMax, with optional overlaps.
+	 * <p>
+	 * The purpose of this is to create useful tiles whenever the exact tile size may not be essential, and overlaps may be required.
+	 * Tiles at the parentROI boundary will be trimmed to fit inside. If the parentROI is smaller, it is returned as is.
 	 * 
-	 * If the parentROI is smaller, it is returned as is.
-	 * 
-	 * @param parentROI
-	 * @param sizePreferred
-	 * @param sizeMax
-	 * @param fixedSize
-	 * @param overlap
+	 * @param parentROI main ROI to be tiled
+	 * @param sizePreferred the preferred size; in general tiles should have this size
+	 * @param sizeMax the maximum allowed size; occasionally it is more efficient to have a tile larger than the preferred size towards a ROI boundary to avoid creating very small tiles unnecessarily
+	 * @param fixedSize if true, the tile size is enforced so that complete tiles have the same size
+	 * @param overlap optional requested overlap between tiles
 	 * @return
+	 * 
+	 * @see #makeTiles(PathArea, int, int, boolean)
 	 */
 	public static Collection<? extends ROI> computeTiledROIs(ROI parentROI, ImmutableDimension sizePreferred, ImmutableDimension sizeMax, boolean fixedSize, int overlap) {
 
@@ -552,10 +557,10 @@ public class PathROIToolsAwt {
 				ROI pathROI = null;
 				Shape shape = getShape(pathArea);
 				if (shape.contains(boundsTile))
-					pathROI = new RectangleROI(boundsTile.getX(), boundsTile.getY(), boundsTile.getWidth(), boundsTile.getHeight(), parentROI.getC(), parentROI.getZ(), parentROI.getT());
+					pathROI = new RectangleROI(boundsTile.getX(), boundsTile.getY(), boundsTile.getWidth(), boundsTile.getHeight(), parentROI.getImagePlane());
 				else if (pathArea instanceof RectangleROI) {
 					Rectangle2D bounds2 = boundsTile.createIntersection(bounds);
-					pathROI = new RectangleROI(bounds2.getX(), bounds2.getY(), bounds2.getWidth(), bounds2.getHeight(), parentROI.getC(), parentROI.getZ(), parentROI.getT());
+					pathROI = new RectangleROI(bounds2.getX(), bounds2.getY(), bounds2.getWidth(), bounds2.getHeight(), parentROI.getImagePlane());
 				}
 				else {
 					if (!area.intersects(boundsTile))
@@ -563,7 +568,7 @@ public class PathROIToolsAwt {
 					Area areaTemp = new Area(boundsTile);
 					areaTemp.intersect(area);
 					if (!areaTemp.isEmpty())
-						pathROI = new AWTAreaROI(areaTemp, parentROI.getC(), parentROI.getZ(), parentROI.getT());					
+						pathROI = new AWTAreaROI(areaTemp, parentROI.getImagePlane());					
 				}
 				if (pathROI != null)
 					pathROIs.add(pathROI);
@@ -695,7 +700,7 @@ public class PathROIToolsAwt {
 		return polyOutput;
 	}
 
-	public static PolygonROI[][] splitAreaToPolygons(final AreaROI pathROI) {
+	static PolygonROI[][] splitAreaToPolygons(final AreaROI pathROI) {
 		if (pathROI instanceof AWTAreaROI)
 			return splitAreaToPolygons(new Area(pathROI.getShape()), pathROI.getC(), pathROI.getZ(), pathROI.getT());
 		else {
@@ -704,106 +709,93 @@ public class PathROIToolsAwt {
 		}
 	}
 
+	/**
+		 * Test if two PathROIs share the same channel, z-slice &amp; time-point
+		 * 
+		 * @param roi1
+		 * @param roi2
+		 * @return
+		 */
+		static boolean sameImagePlane(ROI roi1, ROI roi2) {
+	//		if (roi1.getC() != roi2.getC())
+	//			logger.info("Channels differ");
+	//		if (roi1.getT() != roi2.getT())
+	//			logger.info("Timepoints differ");
+	//		if (roi1.getZ() != roi2.getZ())
+	//			logger.info("Z-slices differ");
+			return roi1.getC() == roi2.getC() && roi1.getT() == roi2.getT() && roi1.getZ() == roi2.getZ();
+		}
 
 	/**
-	 * Dilate or erode a ROI using a circular structuring element.
+	 * Returns true if pathROI is an area that contains x &amp; y somewhere within it.
 	 * 
-	 * @param roi The ROI to dilate or erode.
-	 * @param radius The radius of the structuring element to use.  If positive this will be a dilation, if negative an erosion.
+	 * @param pathROI
+	 * @param x
+	 * @param y
 	 * @return
 	 */
-	public static PathShape roiMorphology(final ROI roi, final double radius) {
-		// Much faster to use JTS...
-		return (PathShape)ConverterJTS.convertGeometryToROI(roi.getGeometry().buffer(radius), ImagePlane.getPlane(roi));
-//		return getShapeROI(shapeMorphology(getShape(roi), radius), roi.getC(), roi.getZ(), roi.getT());
+	public static boolean areaContains(final ROI pathROI, final double x, final double y) {
+		return (pathROI instanceof PathArea) && ((PathArea)pathROI).contains(x, y);
 	}
 
+
 //	/**
-//	 * Dilate or erode a java.awt.Shape using a circular structuring element.
+//	 * Dilate or erode a ROI using a circular structuring element.
 //	 * 
-//	 * @param shape The shape to dilate or erode.
+//	 * @param roi The ROI to dilate or erode.
 //	 * @param radius The radius of the structuring element to use.  If positive this will be a dilation, if negative an erosion.
 //	 * @return
 //	 */
-//	public static Area shapeMorphology(final Shape shape, double radius) {
-//
-//		PathIterator iterator = shape.getPathIterator(null, 0.5);
-//
-//		double[] coords = new double[6];
-//		
-//		boolean doErode = radius < 0;
-//		radius = Math.abs(radius);
-//
-////		Path2D path = new Path2D.Double(shape);
-//		Area path = new Area(shape);
-//		//Rectangle2D rect = new Rectangle2D.Double()
-//		RoundRectangle2D rect = new RoundRectangle2D.Double();
-//		AffineTransform transform = new AffineTransform();
-//		double startX = Double.NaN;
-//		double startY = Double.NaN;
-//		double x = Double.NaN;
-//		double y = Double.NaN;
-//		double x2 = Double.NaN;
-//		double y2 = Double.NaN;
-//		while (!iterator.isDone()) {
-//
-//			int type = iterator.currentSegment(coords);
-//					boolean done = false;
-//
-//					switch(type) {
-//					case PathIterator.SEG_MOVETO:
-//						x2 = coords[0];
-//						y2 = coords[1];
-//						startX = x2;
-//						startY = y2;
-//						break;
-//					case PathIterator.SEG_LINETO:
-//						x2 = coords[0];
-//						y2 = coords[1];
-//
-//						double length = Math.sqrt((x-x2)*(x-x2) + (y-y2)*(y-y2)) + radius*2;
-//						rect.setRoundRect(-length/2, -radius, length, radius*2, radius*2, radius*2);
-//						transform.setToIdentity();
-//						transform.translate((x+x2)/2, (y+y2)/2);
-//						transform.rotate(Math.atan2(y2-y, x2-x));
-//						Area transformedRect = new Area(new Path2D.Double(rect, transform));
-//						if (doErode)
-//							path.subtract(transformedRect);
-//						else
-//							path.add(transformedRect);
-//						break;
-//					case PathIterator.SEG_CLOSE:
-//
-//						x2 = startX;
-//						y2 = startY;
-//
-//						length = Math.sqrt((x-x2)*(x-x2) + (y-y2)*(y-y2)) + radius*2;
-//						rect.setRoundRect(-length/2, -radius, length, radius*2, radius*2, radius*2);
-//						transform.setToIdentity();
-//						transform.translate((x+x2)/2, (y+y2)/2);
-//						transform.rotate(Math.atan2(y2-y, x2-x));
-//						transformedRect = new Area(new Path2D.Double(rect, transform));
-//						if (doErode)
-//							path.subtract(transformedRect);
-//						else
-//							path.add(transformedRect);
-//					default:
-//						break;
-//					}
-//
-//			x = x2;
-//			y = y2;
-//
-//			iterator.next();
-//			if (done)
-//				break;
-//
-//		}
-//		
-//		return path;
+//	public static PathShape roiMorphology(final ROI roi, final double radius) {
+//		// Much faster to use JTS...
+//		return (PathShape)ConverterJTS.convertGeometryToROI(roi.getGeometry().buffer(radius), ImagePlane.getPlane(roi));
+////		return getShapeROI(shapeMorphology(getShape(roi), radius), roi.getC(), roi.getZ(), roi.getT());
 //	}
 	
 	
-
+	
+//	/**
+//	 * Query if a ROI represents a rectangle.
+//	 * <p>
+//	 * Note that this checks the representation of the ROI; it does <i>not<i/>
+//	 * check for polygons or other shapes that happen to define a rectangular shape.
+//	 * @param roi
+//	 * @return
+//	 */
+//	public static boolean isSimpleRectangle(final ROI roi) {
+//		return roi instanceof RectangleROI;
+//	}
+//
+//	/**
+//	 * Query if a ROI represents an ellipse.
+//	 * @param roi
+//	 * @return
+//	 */
+//	public static boolean isSimpleEllipse(final ROI roi) {
+//		return roi instanceof EllipseROI;
+//	}
+//
+//	/**
+//	 * Query if a ROI represents a simple closed polygon, without holes.
+//	 * <p>
+//	 * Note that this checks the representation of the ROI; it does <i>not<i/>
+//	 * check for more complex ROIs that may happen to define a simple polygonal shapes.
+//	 * @param roi
+//	 * @return
+//	 */
+//	public static boolean isSimplePolygon(final ROI roi) {
+//		return roi instanceof PolygonROI;
+//	}
+//
+//	/**
+//	 * Query if a ROI represents a simple (open) polyline.
+//	 * <p>
+//	 * Note that this checks the representation of the ROI; it returns false for (straight) Line ROIs.
+//	 * @param roi
+//	 * @return
+//	 */
+//	public static boolean isSimplePolyline(final ROI roi) {
+//		return roi instanceof PolylineROI;
+//	}
 
 }

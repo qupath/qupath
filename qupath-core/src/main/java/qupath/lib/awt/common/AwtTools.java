@@ -65,26 +65,25 @@ public class AwtTools {
 
 	/**
 	 * Create a {@link Rectangle2D} corresponding to bounding box of a {@link ROI}.
-	 * @param region
-	 * @param rect
+	 * @param roi
 	 * @return
 	 */
-	public static Rectangle2D getBounds2D(final ROI pathROI) {
-		return getBounds2D(pathROI, new Rectangle2D.Double());
+	public static Rectangle2D getBounds2D(final ROI roi) {
+		return getBounds2D(roi, new Rectangle2D.Double());
 	}
 	
 	/**
 	 * Set the bounds of an existing {@link Rectangle2D} to the x,y,width,height of a {@link ROI}.
 	 * <p>
 	 * If no {@code Rectangle2D} is provided, a new one will be created.
-	 * @param region
+	 * @param roi
 	 * @param rect
 	 * @return
 	 */
-	public static Rectangle2D getBounds2D(final ROI pathROI, Rectangle2D rect) {
+	public static Rectangle2D getBounds2D(final ROI roi, Rectangle2D rect) {
 		if (rect == null)
 			rect = new Rectangle2D.Double();
-		rect.setFrame(pathROI.getBoundsX(), pathROI.getBoundsY(), pathROI.getBoundsWidth(), pathROI.getBoundsHeight());
+		rect.setFrame(roi.getBoundsX(), roi.getBoundsY(), roi.getBoundsWidth(), roi.getBoundsHeight());
 		return rect;
 	}
 	
@@ -92,16 +91,16 @@ public class AwtTools {
 	 * Create a {@link Rectangle} corresponding to bounding box of a {@link ROI}.
 	 * <p>
 	 * This differs from {@link #getBounds2D(ROI)} in that the bounding box must consist of integer values.
-	 * @param region
+	 * @param roi
 	 * @return
 	 */
-	public static Rectangle getBounds(final ROI pathROI) {
-		if (pathROI.isEmpty())
+	public static Rectangle getBounds(final ROI roi) {
+		if (roi.isEmpty())
             return new Rectangle();
-        int x1 = (int)pathROI.getBoundsX();
-        int y1 = (int)pathROI.getBoundsY();
-        int x2 = (int)Math.ceil(pathROI.getBoundsX() + pathROI.getBoundsWidth());
-        int y2 = (int)Math.ceil(pathROI.getBoundsY() + pathROI.getBoundsHeight());
+        int x1 = (int)roi.getBoundsX();
+        int y1 = (int)roi.getBoundsY();
+        int x2 = (int)Math.ceil(roi.getBoundsX() + roi.getBoundsWidth());
+        int y2 = (int)Math.ceil(roi.getBoundsY() + roi.getBoundsHeight());
         return new Rectangle(x1, y1, x2 - x1, y2 - y1);
 	}
 	
@@ -118,7 +117,7 @@ public class AwtTools {
 	
 	/**
 	 * Create an {@link ImageRegion} corresponding to a the bounding box of a {@link Shape}.
-	 * @param rectangle
+	 * @param shape
 	 * @param z the z position of the region
 	 * @param t the t position of the region
 	 * @return

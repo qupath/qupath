@@ -39,7 +39,7 @@ import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.plugins.AbstractInteractivePlugin;
 import qupath.lib.plugins.PluginRunner;
 import qupath.lib.plugins.parameters.ParameterList;
-import qupath.lib.roi.PathROIToolsAwt;
+import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
@@ -122,7 +122,7 @@ public class SplitAnnotationsPlugin<T> extends AbstractInteractivePlugin<T> {
 					toSelect.add(pathObject);
 					continue;
 				}
-				var splitROIs = PathROIToolsAwt.splitROI(roiOrig);
+				var splitROIs = RoiTools.splitROI(roiOrig);
 				if (splitROIs.size() == 1)
 					continue;
 				toRemove.add(pathObject);

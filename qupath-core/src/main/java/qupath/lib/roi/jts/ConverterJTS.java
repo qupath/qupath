@@ -23,7 +23,7 @@ import org.slf4j.LoggerFactory;
 
 import qupath.lib.common.GeneralTools;
 import qupath.lib.regions.ImagePlane;
-import qupath.lib.roi.PathROIToolsAwt;
+import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.interfaces.PathArea;
 import qupath.lib.roi.interfaces.PathLine;
 import qupath.lib.roi.interfaces.PathPoints;
@@ -33,7 +33,6 @@ import qupath.lib.roi.interfaces.ROI;
  * Convert between QuPath {@code ROI} objects and Java Topology Suite {@code Geometry} objects.
  *
  * @author Pete Bankhead
- *
  */
 public class ConverterJTS {
 	
@@ -79,6 +78,9 @@ public class ConverterJTS {
     }
 
     
+    /**
+     * Builder to help define how ROIs and Geometry objects should be converted.
+     */
     public static class Builder {
     	
     	private GeometryFactory factory;
@@ -87,24 +89,47 @@ public class ConverterJTS {
         private double pixelWidth = 1;
         private double flatness = 0.5;
     	
+        /**
+         * Default constructor for a builder with flatness 0.5 and pixel width/height of 1.0.
+         */
     	public Builder() {}
     	
+    	/**
+    	 * Specify the pixel width and height, used to scale x and y coordinates during conversion (default is 1.0 for both).
+    	 * @param pixelWidth
+    	 * @param pixelHeight
+    	 * @return
+    	 */
     	public Builder pixelSize(double pixelWidth, double pixelHeight) {
     		this.pixelWidth = pixelWidth;
     		this.pixelHeight = pixelHeight;
     		return this;
     	}
     	
+    	/**
+    	 * Specify the flatness for any operation where a PathIterator is required.
+    	 * @param flatness
+    	 * @return
+    	 */
     	public Builder flatness(double flatness) {
     		this.flatness = flatness;
     		return this;
     	}
     	
+    	/**
+    	 * Specify the GeometryFactory, which can define a precision model in JTS.
+    	 * @param factory
+    	 * @return
+    	 */
     	public Builder factory(GeometryFactory factory) {
     		this.factory = factory;
     		return this;
     	}
     	
+    	/**
+    	 * Build a new converter with the specified parameters.
+    	 * @return
+    	 */
     	public ConverterJTS build() {
     		return new ConverterJTS(factory, pixelWidth, pixelHeight, flatness);
     	}
@@ -146,7 +171,7 @@ public class ConverterJTS {
     	if (roi.isEmpty())
     		return factory.createPolygon();
     	
-    	Area shape = PathROIToolsAwt.getArea(roi);
+    	Area shape = RoiTools.getArea(roi);
     	Geometry geometry = null;
     	if (shape.isSingular()) {
         	PathIterator iterator = shape.getPathIterator(transform, flatness);
@@ -305,12 +330,12 @@ public class ConverterJTS {
 //        return new CoordinateArraySequence(list.toCoordinateArray());
 //    }
 
-    public Shape geometryToShape(Geometry geometry) {
+    private Shape geometryToShape(Geometry geometry) {
         return getShapeWriter().toShape(geometry);
     }
 
-    public ROI geometryToROI(Geometry geometry, ImagePlane plane) {
-        return PathROIToolsAwt.getShapeROI(geometryToShape(geometry), plane, flatness);
+    private ROI geometryToROI(Geometry geometry, ImagePlane plane) {
+        return RoiTools.getShapeROI(geometryToShape(geometry), plane, flatness);
     }
 
 

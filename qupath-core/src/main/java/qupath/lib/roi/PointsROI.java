@@ -32,13 +32,14 @@ import java.util.Collections;
 import java.util.List;
 
 import qupath.lib.geom.Point2;
+import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.interfaces.PathArea;
 import qupath.lib.roi.interfaces.PathPoints;
 import qupath.lib.roi.interfaces.ROIWithHull;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
- * ROI representing a collection of 2D points, i.e. distinct x,y coordinates.
+ * ROI representing a collection of 2D points (distinct x,y coordinates).
  * 
  * @author Pete Bankhead
  *
@@ -62,24 +63,24 @@ public class PointsROI extends AbstractPathROI implements ROIWithHull, PathPoint
 	}
 	
 	private PointsROI(double x, double y) {
-		this(x, y, -1, 0, 0);
+		this(x, y, null);
 	}
 	
-	PointsROI(double x, double y, int c, int z, int t) {
-		super(c, z, t);
+	PointsROI(double x, double y, ImagePlane plane) {
+		super(plane);
 		addPoint(x, y);
 		recomputeBounds();
 	}
 	
-	PointsROI(List<? extends Point2> points, int c, int z, int t) {
-		super(c, z, t);
+	PointsROI(List<? extends Point2> points, ImagePlane plane) {
+		super(plane);
 		for (Point2 p : points)
 			addPoint(p.getX(), p.getY());
 		recomputeBounds();
 	}
 	
-	private PointsROI(float[] x, float[] y, int c, int z, int t) {
-		super(c, z, t);
+	private PointsROI(float[] x, float[] y, ImagePlane plane) {
+		super(plane);
 		if (x.length != y.length)
 			throw new IllegalArgumentException("Lengths of x and y arrays are not the same! " + x.length + " and " + y.length);
 		for (int i = 0; i < x.length; i++)
@@ -149,13 +150,6 @@ public class PointsROI extends AbstractPathROI implements ROIWithHull, PathPoint
 		return pClosest;
 	}
 
-	public boolean containsPoint(double x, double y) {
-		for (Point2 p : points) {
-			if (x == p.getX() && y == p.getY())
-				return true;
-		}
-		return false;
-	}
 
 //	@Deprecated
 //	public boolean startAdjusting(double x, double y, int modifiers) {
@@ -279,7 +273,7 @@ public class PointsROI extends AbstractPathROI implements ROIWithHull, PathPoint
 
 	@Override
 	public ROI duplicate() {
-		PointsROI roi = new PointsROI(points, getC(), getZ(), getT());
+		PointsROI roi = new PointsROI(points, getImagePlane());
 //		roi.setPointRadius(pointRadius);
 		return roi;
 	}
@@ -437,7 +431,7 @@ public class PointsROI extends AbstractPathROI implements ROIWithHull, PathPoint
 		}
 		
 		private Object readResolve() {
-			PointsROI roi = new PointsROI(x, y, c, z, t);
+			PointsROI roi = new PointsROI(x, y, ImagePlane.getPlaneWithChannel(c, z, t));
 			return roi;
 		}
 		

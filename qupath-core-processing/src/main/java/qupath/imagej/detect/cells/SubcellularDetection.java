@@ -76,7 +76,7 @@ import qupath.lib.plugins.AbstractInteractivePlugin;
 import qupath.lib.plugins.PluginRunner;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.regions.RegionRequest;
-import qupath.lib.roi.PathROIToolsAwt;
+import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
@@ -264,7 +264,7 @@ public class SubcellularDetection extends AbstractInteractivePlugin<BufferedImag
 					g2d.scale(1.0/downsample, 1.0/downsample);
 				g2d.translate(-xStart, -yStart);
 
-				Shape shape = PathROIToolsAwt.getShape(pathROI);
+				Shape shape = RoiTools.getShape(pathROI);
 				g2d.setColor(Color.WHITE);
 				g2d.fill(shape);
 				g2d.dispose();
