@@ -96,7 +96,7 @@ public class ShapeSimplifierCommand implements PathCommand {
 //		logger.debug("Polygon simplified in " + (endTime - startTime)/1000. + " seconds");
 		logger.debug("Shape simplified in " + (endTime - startTime) + " ms");
 		hierarchy.removeObject(pathObject, true);
-		hierarchy.addPathObject(pathObjectNew, false);
+		hierarchy.addPathObject(pathObjectNew);
 		hierarchy.getSelectionModel().setSelectedObject(pathObjectNew);
 //		viewer.setSelectedObject(pathObjectNew);
 	}

@@ -318,7 +318,7 @@ public class QP {
 		PathObjectHierarchy hierarchy = getCurrentHierarchy();
 		if (hierarchy == null)
 			return;
-		hierarchy.addPathObject(pathObject, true);
+		hierarchy.addPathObject(pathObject);
 	}
 	
 	/**
@@ -344,7 +344,7 @@ public class QP {
 		PathObjectHierarchy hierarchy = getCurrentHierarchy();
 		if (hierarchy == null)
 			return;
-		hierarchy.addPathObjects(pathObjects, true);
+		hierarchy.addPathObjects(pathObjects);
 	}
 	
 	/**
@@ -712,7 +712,7 @@ public class QP {
 		PathObject pathObject = PathObjects.createAnnotationObject(
 				ROIs.createRectangleROI(0, 0, server.getWidth(), server.getHeight(), ImagePlane.getDefaultPlane())
 				);
-		imageData.getHierarchy().addPathObject(pathObject, false);
+		imageData.getHierarchy().addPathObject(pathObject);
 		if (setSelected)
 			imageData.getHierarchy().getSelectionModel().setSelectedObject(pathObject);
 	}

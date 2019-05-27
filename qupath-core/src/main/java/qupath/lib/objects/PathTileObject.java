@@ -40,6 +40,9 @@ public class PathTileObject extends PathDetectionObject {
 
 	private static final long serialVersionUID = 1L;
 	
+	/**
+	 * Default constructor. Should not be used directly, instead use {@link PathObjects#createTileObject(ROI)}.
+	 */
 	public PathTileObject() {
 		super();
 	}

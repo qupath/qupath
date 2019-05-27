@@ -45,6 +45,7 @@ import qupath.lib.geom.Point2;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClass;
+import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.PointsROI;
 import qupath.lib.roi.ROIs;
@@ -117,7 +118,7 @@ public class PointIO {
 			
 			int ind = 0;
 			for (PathObject pathObject : pathObjects) {
-				if (!pathObject.isPoint())
+				if (!PathObjectTools.hasPointROI(pathObject))
 					continue;
 				PointsROI points = (PointsROI)pathObject.getROI();
 				ZipEntry e = new ZipEntry(String.format("Points %d.txt", ++ind));

@@ -55,14 +55,21 @@ public class DefaultPathObjectConnectionGroup implements PathObjectConnectionGro
 	
 	private Map<PathObject, ObjectConnector> map = new LinkedHashMap<>();
 	
+	/**
+	 * Key to use when storing object connections as a property of an {@link ImageData} object.
+	 */
 	public static final String KEY_OBJECT_CONNECTIONS = "OBJECT_CONNECTIONS";
 	
+	/**
+	 * Default constructor.
+	 */
 	public DefaultPathObjectConnectionGroup() {}
 	
-	public DefaultPathObjectConnectionGroup(final Collection<PathObject> pathObjects) {
-		pathObjects.stream().forEach(p -> map.put(p, new ObjectConnector(p)));
-	}
-	
+	/**
+	 * Create a connections group, copying the connections from an existing group.
+	 * This may be useful if the other PathObjectConnectionGroup is not itself serializable.
+	 * @param connections
+	 */
 	public DefaultPathObjectConnectionGroup(final PathObjectConnectionGroup connections) {
 		connections.getPathObjects().stream().forEach(p -> map.put(p, new ObjectConnector(p, connections.getConnectedObjects(p))));
 	}

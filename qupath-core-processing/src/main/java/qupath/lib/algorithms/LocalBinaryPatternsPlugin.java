@@ -304,7 +304,7 @@ public class LocalBinaryPatternsPlugin extends AbstractInteractivePlugin<Buffere
 
 	@Override
 	protected Collection<PathObject> getParentObjects(final PluginRunner<BufferedImage> runner) {
-		return runner.getImageData().getHierarchy().getObjects(null, PathDetectionObject.class);
+		return runner.getImageData().getHierarchy().getDetectionObjects();
 	}
 
 	@Override

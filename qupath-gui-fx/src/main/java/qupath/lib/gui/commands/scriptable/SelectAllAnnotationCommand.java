@@ -71,7 +71,7 @@ public class SelectAllAnnotationCommand implements PathCommand {
 		// Check if we already have a comparable annotation
 		ImageRegion bounds = viewer.getServerBounds();
 		ROI roi = ROIs.createRectangleROI(bounds.getX(), bounds.getY(), bounds.getWidth(), bounds.getHeight(), ImagePlane.getPlane(viewer.getZPosition(), viewer.getTPosition()));
-		for (PathObject pathObject : hierarchy.getObjects(null, PathAnnotationObject.class)) {
+		for (PathObject pathObject : hierarchy.getAnnotationObjects()) {
 			ROI r2 = pathObject.getROI();
 			if (r2 instanceof RectangleROI && 
 					roi.getBoundsX() == r2.getBoundsX() && 
@@ -88,7 +88,7 @@ public class SelectAllAnnotationCommand implements PathCommand {
 		}
 		
 		PathObject pathObject = PathObjects.createAnnotationObject(roi);
-		hierarchy.addPathObject(pathObject, true);
+		hierarchy.addPathObject(pathObject);
 		viewer.setSelectedObject(pathObject);
 		
 		// Log in the history

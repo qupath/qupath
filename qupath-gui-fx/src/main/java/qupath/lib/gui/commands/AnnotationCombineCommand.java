@@ -139,7 +139,7 @@ public class AnnotationCombineCommand implements PathCommand {
 			return;			
 		}
 		// Add new objects
-		hierarchy.addPathObjects(objectsToAdd, false);
+		hierarchy.addPathObjects(objectsToAdd);
 		// TODO: Avoid unnecessary calls to the full hierarchy change
 		hierarchy.fireHierarchyChangedEvent(null);
 		//		hierarchy.getSelectionModel().setSelectedPathObject(pathObjectNew);

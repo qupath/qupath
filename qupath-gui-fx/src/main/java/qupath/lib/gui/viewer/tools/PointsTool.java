@@ -37,6 +37,7 @@ import qupath.lib.images.servers.ImageServer;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.PathROIObject;
+import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.PointsROI;
@@ -151,7 +152,7 @@ public class PointsTool extends AbstractPathTool {
 		PathObjectHierarchy hierarchy = viewer.getHierarchy();
 		double distance = PathPrefs.getDefaultPointRadius();
 		// Remove a point if the current selection has one
-		if (currentObject != null && currentObject.isPoint()) {
+		if (currentObject != null && PathObjectTools.hasPointROI(currentObject)) {
 			PointsROI points = (PointsROI)currentObject.getROI();
 			ROI points2 = removeNearbyPoint(points, x, y, distance);
 			if (points != points2) {
@@ -224,7 +225,7 @@ public class PointsTool extends AbstractPathTool {
 			points = ROIs.createPointsROI(xx, yy, ImagePlane.getDefaultPlane());
 			
 			currentObject = (PathROIObject)PathObjects.createAnnotationObject(points, PathPrefs.getAutoSetAnnotationClass());
-			viewer.getHierarchy().addPathObject(currentObject, true);
+			viewer.getHierarchy().addPathObject(currentObject);
 			viewer.setSelectedObject(currentObject);
 			
 //			viewer.createAnnotationObject(points);

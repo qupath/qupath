@@ -108,7 +108,7 @@ public class TileClassificationsToAnnotationsPlugin<T> extends AbstractDetection
 		ParameterList params = getParameterList(imageData);
 		if (params.getBooleanParameterValue("clearAnnotations")) {
 			PathObjectHierarchy hierarchy = imageData.getHierarchy();
-			List<PathObject> annotations = hierarchy.getDescendantObjects(parentObject, null, PathAnnotationObject.class);
+			Collection<PathObject> annotations = PathObjectTools.getDescendantObjects(parentObject, null, PathAnnotationObject.class);
 			hierarchy.removeObjects(annotations, true);
 		}
 		tasks.add(new ClassificationToAnnotationRunnable(params, imageData, parentObject));

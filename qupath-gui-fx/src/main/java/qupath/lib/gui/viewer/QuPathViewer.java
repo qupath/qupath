@@ -2070,11 +2070,12 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	public String getTooltipText(final double x, final double y) {
 		// Try to show which TMA core is selected - if we have a TMA image
 		PathObjectHierarchy hierarchy = getHierarchy();
-		if (PathPrefs.showTMAToolTips() && hierarchy != null && hierarchy.getTMAGrid() != null) {
+		TMAGrid tmaGrid = hierarchy == null ? null : hierarchy.getTMAGrid();
+		if (PathPrefs.showTMAToolTips() && tmaGrid != null) {
 			Point2D p = componentPointToImagePoint(x, y, null, false);
 //						double xx = componentXtoImageX(x);
 //						double yy = componentYtoImageY(y);
-			TMACoreObject core = PathObjectTools.getTMACoreForLocation(hierarchy, p.getX(), p.getY());
+			TMACoreObject core = PathObjectTools.getTMACoreForPixel(tmaGrid, p.getX(), p.getY());
 			if (core != null) {
 				if (core.isMissing())
 					return String.format("TMA Core %s\n(missing)", core.getName());
@@ -2368,8 +2369,9 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		
 		// See if we're on top of a TMA core
 		String prefix = "";
-		if (getHierarchy().getTMAGrid() != null) {
-			TMACoreObject core = getHierarchy().getTMAGrid().getTMACoreForPixel(xx, yy);
+		TMAGrid tmaGrid = getHierarchy().getTMAGrid();
+		if (tmaGrid != null) {
+			TMACoreObject core = PathObjectTools.getTMACoreForPixel(tmaGrid, xx, yy);
 			if (core != null && core.getName() != null)
 				prefix = "Core: " + core.getName() + "\n";
 		}
@@ -2795,6 +2797,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 
 			// Use arrow keys to navigate, either or directly or using a TMA grid
 			TMAGrid tmaGrid = hierarchy.getTMAGrid();
+			List<TMACoreObject> cores = new ArrayList<>(tmaGrid.getTMACoreList());
 			if (!event.isShiftDown() && tmaGrid != null && tmaGrid.nCores() > 0) {
 				if (event.getEventType() != KeyEvent.KEY_PRESSED)
 					return;
@@ -2809,8 +2812,9 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 				if (ind < 0) {
 					// Find the closest TMA core to the current position
 					double minDisplacementSq = Double.POSITIVE_INFINITY;
-					for (int i = 0; i < tmaGrid.nCores(); i++) {
-						ROI coreROI = tmaGrid.getTMACore(i).getROI();
+					int i = 0;
+					for (TMACoreObject core : cores) {
+						ROI coreROI = core.getROI();
 						double dx = coreROI.getCentroidX() - getCenterPixelX();
 						double dy = coreROI.getCentroidY() - getCenterPixelY();
 						double displacementSq = dx*dx + dy*dy;
@@ -2818,6 +2822,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 							ind = i;
 							minDisplacementSq = displacementSq;
 						}
+						i++;
 					}
 				}
 
@@ -2851,7 +2856,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 				}
 				// Set the selected object & center the viewer
 				if (ind >= 0 && ind < w*h) {
-					PathObject selectedObject = tmaGrid.getTMACore(ind);
+					PathObject selectedObject = cores.get(ind);
 					hierarchy.getSelectionModel().setSelectedObject(selectedObject);
 					if (selectedObject != null && selectedObject.hasROI())
 						setCenterPixelLocation(selectedObject.getROI().getCentroidX(), selectedObject.getROI().getCentroidY());

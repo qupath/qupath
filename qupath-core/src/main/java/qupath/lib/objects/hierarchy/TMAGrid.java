@@ -63,12 +63,18 @@ public interface TMAGrid extends Serializable {
 	 */
 	public TMACoreObject getTMACore(String coreName);
 	
-	public TMACoreObject getTMACore(int ind);
-
+	/**
+	 * Get the TMACoreObject for a specified grid location.
+	 * @param row
+	 * @param col
+	 * @return
+	 */
 	public TMACoreObject getTMACore(int row, int col);
 
+	/**
+	 * Get an unmodifiable list of all TMA core objects.
+	 * @return
+	 */
 	public List<TMACoreObject> getTMACoreList();
 	
-	public TMACoreObject getTMACoreForPixel(double x, double y);
-
 }

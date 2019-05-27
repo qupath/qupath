@@ -149,7 +149,7 @@ public class RefineAnnotationsPlugin<T> extends AbstractInteractivePlugin<T> {
 			if (!toUpdate.isEmpty()) {
 				hierarchy.removeObjects(toUpdate.keySet(), true);
 				toUpdate.forEach((p, r) -> p.setROI(r));
-				hierarchy.addPathObjects(toUpdate.keySet(), false);
+				hierarchy.addPathObjects(toUpdate.keySet());
 			}
 			hierarchy.getSelectionModel().selectObjects(previousSelection);
 			hierarchy.getSelectionModel().setSelectedObject(selected, true);

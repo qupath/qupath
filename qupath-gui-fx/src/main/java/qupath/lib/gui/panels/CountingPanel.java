@@ -45,6 +45,7 @@ import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
+import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
@@ -70,7 +71,7 @@ public class CountingPanel implements PathObjectSelectionListener, PathObjectHie
 	
 	private Action btnAdd = new Action("Add", e -> {
 		PathObject pathObjectCounts = PathObjects.createAnnotationObject(ROIs.createPointsROI(ImagePlane.getDefaultPlane()));
-		hierarchy.addPathObject(pathObjectCounts, false);
+		hierarchy.addPathObject(pathObjectCounts);
 //		hierarchy.fireChangeEvent(pathObjectCounts.getParent());
 		hierarchy.getSelectionModel().setSelectedObject(pathObjectCounts);
 //		promptToSetProperties();
@@ -78,7 +79,7 @@ public class CountingPanel implements PathObjectSelectionListener, PathObjectHie
 	private Action btnEdit = new Action("Edit", e -> promptToSetProperties());
 	private Action btnDelete = new Action("Delete", e -> {
 		PathObject pathObjectSelected = listCounts.getSelectionModel().getSelectedItem();
-		if (pathObjectSelected != null && pathObjectSelected.isPoint())
+		if (pathObjectSelected != null && PathObjectTools.hasPointROI(pathObjectSelected))
 			DisplayHelpers.promptToRemoveSelectedObject(pathObjectSelected, hierarchy);
 	});
 	
@@ -165,7 +166,7 @@ public class CountingPanel implements PathObjectSelectionListener, PathObjectHie
 			this.hierarchy.addPathObjectListener(this);
 		}
 		// Update selected object in list, if suitable
-		if (objectSelected != null && objectSelected.isPoint())
+		if (objectSelected != null && PathObjectTools.hasPointROI(objectSelected))
 			listCounts.getSelectionModel().select(objectSelected);
 		else
 			listCounts.getSelectionModel().clearSelection();
@@ -196,12 +197,12 @@ public class CountingPanel implements PathObjectSelectionListener, PathObjectHie
 	@Override
 	public void selectedPathObjectChanged(PathObject pathObjectSelected, PathObject previousObject, Collection<PathObject> allSelected) {
 		// Check if we have points
-		boolean hasPoints = pathObjectSelected != null && pathObjectSelected.isPoint();
+		boolean hasPoints = pathObjectSelected != null && PathObjectTools.hasPointROI(pathObjectSelected);
 		btnEdit.setDisabled(!hasPoints);
 		btnDelete.setDisabled(!hasPoints);
 		if (pathObjectSelected == listCounts.getSelectionModel().getSelectedItem())
 			return;
-		if (pathObjectSelected != null && pathObjectSelected.isPoint())
+		if (pathObjectSelected != null && PathObjectTools.hasPointROI(pathObjectSelected))
 			listCounts.getSelectionModel().select(pathObjectSelected);
 		else
 			listCounts.getSelectionModel().clearSelection();
@@ -210,7 +211,7 @@ public class CountingPanel implements PathObjectSelectionListener, PathObjectHie
 
 	private void promptToSetProperties() {
 		PathObject pathObjectSelected = listCounts.getSelectionModel().getSelectedItem();
-		if (pathObjectSelected != null && pathObjectSelected.isPoint()) {
+		if (pathObjectSelected != null && PathObjectTools.hasPointROI(pathObjectSelected)) {
 			PathAnnotationPanel.promptToSetActiveAnnotationProperties(hierarchy);
 		}
 	}

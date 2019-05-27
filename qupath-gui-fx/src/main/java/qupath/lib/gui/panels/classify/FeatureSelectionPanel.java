@@ -265,7 +265,7 @@ class FeatureSelectionPanel {
 
 	void updateMeasurements(final ImageData<?> imageData) {
 		if (imageData != null)
-			updateMeasurements(imageData.getHierarchy().getObjects(null, PathDetectionObject.class));
+			updateMeasurements(imageData.getHierarchy().getDetectionObjects());
 	}
 
 	void updateMeasurementsByNames(final Collection<String> availableFeatureNames) {

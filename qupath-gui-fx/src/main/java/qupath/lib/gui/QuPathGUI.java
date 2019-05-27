@@ -2035,7 +2035,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			if (imageData == null)
 				menuCells.setVisible(false);
 			else
-				menuCells.setVisible(!imageData.getHierarchy().getObjects(null, PathCellObject.class).isEmpty());
+				menuCells.setVisible(!imageData.getHierarchy().getCellObjects().isEmpty());
 			
 			
 			// Check what to show for TMA cores or annotations
@@ -5309,7 +5309,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 //			hierarchy.addPathObject(annotation, false);
 			
 //			// Make sure any core parent is set
-			hierarchy.addPathObjectBelowParent(coreNewParent, annotation, false, true);
+			hierarchy.addPathObjectBelowParent(coreNewParent, annotation, true);
 			
 			activeViewer.setSelectedObject(annotation);
 			return true;

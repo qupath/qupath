@@ -225,7 +225,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 			for (PathObject pathObject : pathObjectListCopy) {
 				if (!pathObject.isAnnotation())
 					continue;
-				if (pathObject.isPoint())
+				if (PathObjectTools.hasPointROI(pathObject))
 					anyPoints = true;
 				if (pathObject.getROI() instanceof PathArea)
 					anyAreas = true;

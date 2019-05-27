@@ -103,11 +103,6 @@ public class DefaultTMAGrid implements TMAGrid {
 	}
 
 	@Override
-	public TMACoreObject getTMACore(int ind) {
-		return cores.get(ind);
-	}
-
-	@Override
 	public TMACoreObject getTMACore(int row, int col) {
 		return cores.get(row * gridWidth + col);
 	}
@@ -117,16 +112,6 @@ public class DefaultTMAGrid implements TMAGrid {
 		ArrayList<TMACoreObject> list = new ArrayList<>();
 		list.addAll(cores);
 		return list;
-	}
-
-	@Override
-	public TMACoreObject getTMACoreForPixel(double x, double y) {
-		// TODO: Consider overlapping cores - would be slightly nicer to return core with closest centroid
-		for (TMACoreObject core : cores) {
-			if (RoiTools.areaContains(core.getROI(), x, y))
-				return core;
-		}
-		return null;
 	}
 
 	@Override

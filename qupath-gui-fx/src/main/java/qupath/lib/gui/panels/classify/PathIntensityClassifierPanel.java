@@ -126,7 +126,7 @@ public class PathIntensityClassifierPanel implements PathObjectSelectionListener
 		// For now, always use all objects (not direct descendants only)
 		Collection<PathObject> pathObjects = null;
 //		if (pathObjectSelected == null || !pathObjectSelected.hasChildren())
-			pathObjects = hierarchy.getObjects(pathObjects, PathDetectionObject.class);
+			pathObjects = hierarchy.getDetectionObjects();
 //		else
 //			pathObjects = hierarchy.getDescendantObjects(pathObjectSelected, pathObjects, PathDetectionObject.class);			
 			

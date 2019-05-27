@@ -74,15 +74,20 @@ public abstract class PathROIObject extends PathObject {
 		setPathClass(pc);
 	}
 	
-	public void setROI(final ROI pathROI) {
-		if (pathROI == null)
+	/**
+	 * Set the ROI for this object. If this is called, one should remember to update any associated 
+	 * hierarchy to notify it of the change.
+	 * @param roi
+	 */
+	public void setROI(final ROI roi) {
+		if (roi == null)
 			throw new IllegalArgumentException("PathROIObject.setROI cannot be called with null!");
-		this.pathROI = pathROI;
+		this.pathROI = roi;
 	}
 	
 	/**
 	 * Set locked flag, indicating that the object ROI should not be modified.
-	 * It directly impacts on isEditable.
+	 * It directly impacts on {@link #isEditable()}
 	 * <p>
 	 * Note that this is only a hint that other code should pay attention to - it is not
 	 * enforced locally.

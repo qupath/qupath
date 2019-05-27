@@ -44,6 +44,7 @@ import qupath.lib.images.ImageData;
 import qupath.lib.images.PathImage;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.PathRootObject;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.helpers.PathObjectTools;
@@ -340,7 +341,7 @@ public class TMADearrayerPluginIJ extends AbstractInteractivePlugin<BufferedImag
 						name += vLabel + "-" + hLabel;
 					
 					boolean missing = coreDensities[ind] < densityThreshold;
-					TMACoreObject core = new TMACoreObject(xx, yy, coreSize, missing);
+					TMACoreObject core = PathObjects.createTMACoreObject(xx, yy, coreSize, missing);
 					core.setName(name);
 					coords.add(core);
 					ind++;

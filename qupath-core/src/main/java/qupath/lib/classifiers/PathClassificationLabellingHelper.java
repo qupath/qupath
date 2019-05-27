@@ -135,7 +135,7 @@ public class PathClassificationLabellingHelper {
 			PathObject pathObject = iter.next();
 			// We need a PathClass, and may need to only include points
 			if (pathObject.getPathClass() == null || pathObject.getPathClass() == PathClassFactory.getPathClass(StandardPathClasses.REGION) ||
-					(pointsOnly && !pathObject.isPoint()) || (!pathObject.isPoint() && !pathObject.hasChildren()))
+					(pointsOnly && !PathObjectTools.hasPointROI(pathObject)) || (!PathObjectTools.hasPointROI(pathObject) && !pathObject.hasChildren()))
 				iter.remove();
 			else
 				classifications.put(pathObject.getPathClass(), new ArrayList<>());
@@ -180,7 +180,7 @@ public class PathClassificationLabellingHelper {
 			// TODO: Consider using overlaps, rather than direct child objects
 			list.addAll(pathObject.getChildObjects());
 //			sb.append(list.size() + ", ");
-			if (pathObject.isPoint()) {
+			if (PathObjectTools.hasPointROI(pathObject)) {
 				for (Point2 p : ((PointsROI)pathObject.getROI()).getPointList()) {
 					// TODO: Pay attention to z & t position!
 					Collection<PathObject> pathObjectsTemp = PathObjectTools.getObjectsForLocation(hierarchy, p.getX(), p.getY(), 0, 0, -1);

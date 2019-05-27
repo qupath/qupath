@@ -43,6 +43,9 @@ public class PathDetectionObject extends PathROIObject {
 
 	private static final long serialVersionUID = 1L;
 	
+	/**
+	 * Default constructor. Should not be used directly, instead use {@link PathObjects#createDetectionObject(ROI)}.
+	 */
 	public PathDetectionObject() {
 		super();
 	}

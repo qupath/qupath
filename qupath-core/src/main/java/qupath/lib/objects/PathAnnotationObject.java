@@ -45,6 +45,9 @@ public class PathAnnotationObject extends PathROIObject {
 	
 	private final static String KEY_ANNOTATION_TEXT = "ANNOTATION_DESCRIPTION";
 	
+	/**
+	 * Default constructor. Should not be used directly, instead use {@link PathObjects#createAnnotationObject(ROI)}.
+	 */
 	public PathAnnotationObject() {
 		super();
 	}

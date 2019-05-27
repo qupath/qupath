@@ -59,6 +59,7 @@ import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.images.ImageData;
 import qupath.lib.io.PointIO;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 
 /**
@@ -140,7 +141,7 @@ public class CountingPanelCommand implements PathCommand, ImageDataChangeListene
 					List<PathObject> pointsList = PointIO.readPointsObjectList(file);
 					if (pointsList != null) {
 						for (PathObject points : pointsList)
-							hierarchy.addPathObject(points, true);
+							hierarchy.addPathObject(points);
 					}
 				} catch (IOException e) {
 					DisplayHelpers.showErrorMessage("Load points error", e);
@@ -214,7 +215,7 @@ public class CountingPanelCommand implements PathCommand, ImageDataChangeListene
 		logger.trace("Attempting to select");
 		PathObject pathObjectSelected = hierarchy.getSelectionModel().getSelectedObject();
 		// Try to set selected object to be a Point object
-		if (pathObjectSelected == null || !pathObjectSelected.isPoint()) {
+		if (pathObjectSelected == null || !PathObjectTools.hasPointROI(pathObjectSelected)) {
 			List<PathObject> pointObjects = countingPanel.getPathObjects();
 			if (pointObjects.isEmpty())
 				hierarchy.getSelectionModel().setSelectedObject(null);

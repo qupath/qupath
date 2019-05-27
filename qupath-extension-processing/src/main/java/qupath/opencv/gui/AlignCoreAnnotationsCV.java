@@ -32,6 +32,7 @@ import java.awt.geom.NoninvertibleTransformException;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferByte;
 import java.io.IOException;
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 
@@ -54,6 +55,7 @@ import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathROIObject;
 import qupath.lib.objects.TMACoreObject;
+import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.interfaces.ROI;
@@ -118,7 +120,7 @@ public class AlignCoreAnnotationsCV implements PathCommand {
 		@Override
 		public void run() {
 			
-			List<PathObject> pathObjects = imageData.getHierarchy().getDescendantObjects(parentObject, null, PathAnnotationObject.class);
+			Collection<PathObject> pathObjects = PathObjectTools.getDescendantObjects(parentObject, null, PathAnnotationObject.class);
 			Iterator<PathObject> iter = pathObjects.iterator();
 			while (iter.hasNext()) {
 				if (iter.next().hasChildren())

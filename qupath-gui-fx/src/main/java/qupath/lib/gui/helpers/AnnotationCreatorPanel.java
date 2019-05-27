@@ -309,7 +309,7 @@ public class AnnotationCreatorPanel {
 			if (cbLock.isSelected())
 				((PathAnnotationObject)annotation).setLocked(true);
 			
-			hierarchy.addPathObject(annotation, false);
+			hierarchy.addPathObject(annotation);
 		});
 		
 		btnAdd.setMaxWidth(Double.MAX_VALUE);

@@ -72,9 +72,18 @@ public class PathObjectTools {
 	private static void removePoints(Collection<PathObject> pathObjects) {
 		Iterator<PathObject> iter = pathObjects.iterator();
 		while (iter.hasNext()) {
-			if (iter.next().isPoint())
+			if (hasPointROI(iter.next()))
 				iter.remove();
 		}
+	}
+	
+	/**
+	 * Returns true if a PathObject has a Point ROI.
+	 * @param pathObject
+	 * @return
+	 */
+	public static boolean hasPointROI(PathObject pathObject) {
+		return pathObject.hasROI() && pathObject.getROI().isPoint();
 	}
 	
 	/**
@@ -98,6 +107,13 @@ public class PathObjectTools {
 	}
 	
 	
+	/**
+	 * Get the PathObjects in a collection that are instances of a specified class.
+	 * 
+	 * @param pathObjects
+	 * @param pathClass
+	 * @return
+	 */
 	public static List<PathObject> getObjectsOfClass(final Collection<PathObject> pathObjects, final Class<? extends PathObject> cls) {
 		List<PathObject> pathObjectsFiltered = new ArrayList<>(pathObjects.size());
 		for (PathObject temp : pathObjects) {
@@ -108,14 +124,15 @@ public class PathObjectTools {
 		return pathObjectsFiltered;
 	}
 
-	public static boolean containsObjectsOfClass(final Collection<PathObject> pathObjects, final Class<? extends PathObject> cls) {
-		for (PathObject temp : pathObjects) {
-			if (cls == null || cls.isInstance(temp))
-				return true;
-		}
-		return false;
-	}
 
+	/**
+	 * Get all descendant objects as a flattened list.
+	 * 
+	 * @param parentObject the parent objects whose children and descendants should be added to the list
+	 * @param list output list, optional
+	 * @param includeParent if true, parentObject will be included in the output list
+	 * @return either list, or a new list created if necessary
+	 */
 	public static List<PathObject> getFlattenedObjectList(PathObject parentObject, List<PathObject> list, boolean includeParent) {
 		if (list == null)
 			list = new ArrayList<>();
@@ -156,15 +173,7 @@ public class PathObjectTools {
 		return count;
 	}
 
-	public static boolean containsChildOfClass(final PathObject pathObject, final Class<? extends PathObject> cls, final boolean allDescendents) {
-		for (PathObject childObject : pathObject.getChildObjects()) {
-			if (cls.isAssignableFrom(childObject.getClass()))
-				return true;
-			if (childObject.hasChildren() && allDescendents && containsChildOfClass(childObject, cls, allDescendents))
-				return true;
-		}
-		return false;
-	}
+	
 
 	/**
 	 * Count the descendants of a PathObject recursively, limited to a specific PathClass.
@@ -339,6 +348,12 @@ public class PathObjectTools {
 		return containsROI(parentObject.getROI(), childObject.getROI());
 	}
 
+	/**
+	 * Query if one object is the ancestor of another.
+	 * @param pathObject
+	 * @param possibleAncestor
+	 * @return
+	 */
 	public static boolean isAncestor(final PathObject pathObject, final PathObject possibleAncestor) {
 		PathObject parent = pathObject.getParent();
 		while (parent != null) {
@@ -394,13 +409,17 @@ public class PathObjectTools {
 	 * @param y
 	 * @return
 	 */
-	public static TMACoreObject getTMACoreForLocation(final PathObjectHierarchy hierarchy, final double x, final double y) {
-		TMAGrid tmaGrid = hierarchy.getTMAGrid();
-		if (tmaGrid == null)
-			return null;
-		return tmaGrid.getTMACoreForPixel(x, y);
+	public static TMACoreObject getTMACoreForPixel(final TMAGrid tmaGrid, final double x, final double y) {
+		return getPathObjectContainingPixel(tmaGrid.getTMACoreList(), x, y);
 	}
 
+	private static <T extends PathObject> T getPathObjectContainingPixel(Collection<T> pathObjects, double x, double y) {
+		for (T pathObject: pathObjects) {
+			if (RoiTools.areaContains(pathObject.getROI(), x, y))
+				return pathObject;
+		}
+		return null;
+	}
 	
 	/**
 	 * Check if a hierarchy contains a specified PathObject.
@@ -608,6 +627,32 @@ public class PathObjectTools {
 		}
 		return pathObject.getROI();
 	}
+
+	/**
+	 * Get all descendant objects with a specified type.
+	 * 
+	 * @param pathObject
+	 * @param pathObjects
+	 * @param cls
+	 * @return
+	 */
+	public static Collection<PathObject> getDescendantObjects(PathObject pathObject, Collection<PathObject> pathObjects, Class<? extends PathObject> cls) {
+		if (pathObjects == null)
+			pathObjects = new ArrayList<>();
+		if (pathObject == null || !pathObject.hasChildren())
+			return pathObjects;
+		addPathObjectsRecursively(pathObject.getChildObjects(), pathObjects, cls);
+		return pathObjects;
+	}
 	
+	private static void addPathObjectsRecursively(Collection<PathObject> pathObjectsInput, Collection<PathObject> pathObjects, Class<? extends PathObject> cls) {
+		for (PathObject childObject : pathObjectsInput) {
+			if (cls == null || cls.isInstance(childObject)) {
+				pathObjects.add(childObject);
+			}
+			if (childObject.hasChildren())
+				addPathObjectsRecursively(childObject.getChildObjects(), pathObjects, cls);
+		}
+	}
 	
 }

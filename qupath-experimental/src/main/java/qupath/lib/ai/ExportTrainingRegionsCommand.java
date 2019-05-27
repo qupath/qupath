@@ -292,7 +292,7 @@ public class ExportTrainingRegionsCommand implements PathCommand {
 				try {
 					PathObjectHierarchy hierarchy = entry.readHierarchy();
 					int nullCount = 0;
-					for (PathObject annotation : hierarchy.getObjects(null, PathAnnotationObject.class)) {
+					for (PathObject annotation : hierarchy.getAnnotationObjects()) {
 						if (annotation.getPathClass() == null)
 							nullCount++;
 						else
@@ -500,8 +500,8 @@ public class ExportTrainingRegionsCommand implements PathCommand {
 			
 			// Split by region & non-region classified annotations
 			PathClass regionClass = PathClassFactory.getPathClass(StandardPathClasses.REGION);
-			List<PathObject> regionAnnotations = hierarchy.getObjects(null, PathAnnotationObject.class).stream().filter(p -> p.getPathClass() == regionClass).collect(Collectors.toList());
-			List<PathObject> otherAnnotations = hierarchy.getObjects(null, PathAnnotationObject.class).stream().filter(p -> p.getPathClass() != regionClass && p.getROI().isArea()).collect(Collectors.toList());
+			List<PathObject> regionAnnotations = hierarchy.getAnnotationObjects().stream().filter(p -> p.getPathClass() == regionClass).collect(Collectors.toList());
+			List<PathObject> otherAnnotations = hierarchy.getAnnotationObjects().stream().filter(p -> p.getPathClass() != regionClass && p.getROI().isArea()).collect(Collectors.toList());
 
 			// Sort by area - we want to annotate largest regions first
 			otherAnnotations.sort((a, b) -> -Double.compare(((PathArea)a.getROI()).getArea(), ((PathArea)b.getROI()).getArea()));

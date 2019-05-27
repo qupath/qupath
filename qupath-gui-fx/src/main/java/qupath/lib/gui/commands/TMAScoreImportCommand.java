@@ -447,11 +447,6 @@ public class TMAScoreImportCommand implements PathCommand {
 		}
 
 		@Override
-		public TMACoreObject getTMACore(int ind) {
-			return coreMap.get(grid.getTMACore(ind));
-		}
-
-		@Override
 		public TMACoreObject getTMACore(int row, int col) {
 			return coreMap.get(grid.getTMACore(row, col));
 		}
@@ -459,11 +454,6 @@ public class TMAScoreImportCommand implements PathCommand {
 		@Override
 		public List<TMACoreObject> getTMACoreList() {
 			return new ArrayList<>(coreMap.values());
-		}
-
-		@Override
-		public TMACoreObject getTMACoreForPixel(double x, double y) {
-			return coreMap.get(grid.getTMACoreForPixel(x, y));
 		}
 		
 	}

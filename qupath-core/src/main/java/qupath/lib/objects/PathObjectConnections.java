@@ -48,6 +48,9 @@ public class PathObjectConnections implements Externalizable {
 	
 	private List<PathObjectConnectionGroup> connections = new ArrayList<>();
 	
+	/**
+	 * Default constructor.
+	 */
 	public PathObjectConnections() {}
 	
 	/**
@@ -70,22 +73,42 @@ public class PathObjectConnections implements Externalizable {
 		return Collections.emptyList();
 	}
 	
+	/**
+	 * Get an unmodifiable list containing all connections groups.
+	 * @return
+	 */
 	public List<PathObjectConnectionGroup> getConnectionGroups() {
 		return Collections.unmodifiableList(connections);
 	}
 	
+	/**
+	 * Add a new connections group.
+	 * @param group
+	 */
 	public void addGroup(final PathObjectConnectionGroup group) {
 		connections.add(group);
 	}
 
+	/**
+	 * Remove a connections group.
+	 * @param group
+	 * @return
+	 */
 	public boolean removeGroup(final PathObjectConnectionGroup group) {
 		return connections.remove(group);
 	}
 	
+	/**
+	 * Returns true if the group is empty.
+	 * @return
+	 */
 	public boolean isEmpty() {
 		return connections.isEmpty();
 	}
 	
+	/**
+	 * Clear all existing connections.
+	 */
 	public void clear() {
 		connections.clear();
 	}

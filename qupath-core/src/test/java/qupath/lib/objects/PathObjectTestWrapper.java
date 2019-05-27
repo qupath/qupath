@@ -32,6 +32,7 @@ import java.util.Collection;
 import java.util.HashSet;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.objects.classes.PathClass;
+import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.roi.interfaces.ROI;
 
 public class PathObjectTestWrapper {
@@ -51,7 +52,7 @@ public class PathObjectTestWrapper {
 	}
 	//@Test
 	public void test_isPoint(PathObject myPO, Boolean ispoint) {
-		assertEquals(myPO.isPoint(), ispoint);
+		assertEquals(PathObjectTools.hasPointROI(myPO), ispoint);
 	}
 	//@Test
 	public void test_getMeasurementList(PathObject myPO) {

@@ -94,7 +94,7 @@ public class QUPath_Send_Overlay_to_QuPath implements PlugIn {
 		
 		List<PathObject> pathObjects = createPathObjectsFromROIs(imp, overlay.toArray(), server, downsample, asDetection, includeMeasurements, -1, viewer.getZPosition(), viewer.getTPosition());
 		if (!pathObjects.isEmpty()) {
-			Platform.runLater(() -> hierarchy.addPathObjects(pathObjects, true));
+			Platform.runLater(() -> hierarchy.addPathObjects(pathObjects));
 		}
 	}
 

@@ -679,7 +679,7 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 					if (imageDataTemp == null || imageDataTemp.getHierarchy().isEmpty())
 						continue;
 
-					Collection<PathObject> pathObjects = imageDataTemp.getHierarchy().getObjects(null, PathDetectionObject.class);
+					Collection<PathObject> pathObjects = imageDataTemp.getHierarchy().getDetectionObjects();
 					if (pathObjects.isEmpty()) {
 						updateLog("No detection objects for " + entry.getImageName() + " - skipping");
 						continue;
@@ -1140,7 +1140,7 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 		if (hierarchyChanged)
 			maybeUpdate();
 		else {
-			Collection<PathObject> pathObjects = hierarchy.getObjects(null, PathDetectionObject.class);
+			Collection<PathObject> pathObjects = hierarchy.getDetectionObjects();
 			if (intensityClassifier.classifyPathObjects(pathObjects) > 0) {
 				// Update displayed list - names may have changed - and classifier summary
 				updateClassifierSummary(null);
@@ -1345,7 +1345,7 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 		PathObjectClassifier intensityClassifier = panelIntensities.getIntensityClassifier();
 
 		// Apply classifier to everything
-		Collection<PathObject> pathObjectsOrig = hierarchy.getObjects(null, PathDetectionObject.class);
+		Collection<PathObject> pathObjectsOrig = hierarchy.getDetectionObjects();
 		int nClassified = 0;
 		
 		// Possible get proxy objects, depending on the thread we're on
@@ -1535,6 +1535,13 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 		}
 	}
 
+	private static boolean containsObjectsOfClass(final Collection<PathObject> pathObjects, final Class<? extends PathObject> cls) {
+		for (PathObject temp : pathObjects) {
+			if (cls == null || cls.isInstance(temp))
+				return true;
+		}
+		return false;
+	}
 
 	@Override
 	public void hierarchyChanged(PathObjectHierarchyEvent event) {
@@ -1560,7 +1567,7 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 			}
 		} else if (event.isObjectClassificationEvent()) {
 			// If classifications have changed, we only care if these contain annotations
-			boolean containsAnnotations = PathObjectTools.containsObjectsOfClass(event.getChangedObjects(), PathAnnotationObject.class);
+			boolean containsAnnotations = containsObjectsOfClass(event.getChangedObjects(), PathAnnotationObject.class);
 			if (!containsAnnotations)
 				return;
 		} else if (event.getEventType() == HierarchyEventType.CHANGE_OTHER) {

@@ -140,7 +140,7 @@ public class PixelClassificationOverlay extends AbstractImageDataOverlay  {
 
 //        requests = requests.stream().map(r -> RegionRequest.createInstance(r.getPath(), requestedDownsample, r)).collect(Collectors.toList());
         
-        var annotations = hierarchy.getObjects(null, PathAnnotationObject.class);
+        var annotations = hierarchy.getAnnotationObjects();
         
         // Clear pending requests, since we'll insert new ones (perhaps in a different order)
     	this.pendingRequests.clear();

@@ -39,6 +39,7 @@ import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.classes.PathClass;
+import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.TMAGrid;
 
@@ -62,12 +63,12 @@ public class PathClassifierTools {
 		// If we have a TMA grid, do one core at a time
 		long startTime = System.currentTimeMillis();
 		TMAGrid tmaGrid = hierarchy.getTMAGrid();
-		List<PathObject> pathObjects = new ArrayList<>();
+		Collection<PathObject> pathObjects = new ArrayList<>();
 		int nClassified = 0;
 		//			tmaGrid = null;
 		if (tmaGrid != null) {
 			for (TMACoreObject core : tmaGrid.getTMACoreList()) {
-				pathObjects = hierarchy.getDescendantObjects(core, pathObjects, PathDetectionObject.class);
+				pathObjects = PathObjectTools.getDescendantObjects(core, pathObjects, PathDetectionObject.class);
 				nClassified += classifier.classifyPathObjects(pathObjects);
 				pathObjects.clear();
 			}

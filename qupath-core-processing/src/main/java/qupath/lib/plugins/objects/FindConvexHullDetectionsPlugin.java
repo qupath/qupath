@@ -36,6 +36,7 @@ import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.TMACoreObject;
+import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.plugins.AbstractInteractivePlugin;
 import qupath.lib.plugins.PathTask;
@@ -64,7 +65,7 @@ public class FindConvexHullDetectionsPlugin<T> extends AbstractInteractivePlugin
 		Map<Point2, PathObject> pointsMap = new HashMap<>();
 		List<PathObject> convexDetections = new ArrayList<>();
 
-		List<PathObject> pathObjects = hierarchy.getDescendantObjects(parent, null, PathDetectionObject.class);
+		Collection<PathObject> pathObjects = PathObjectTools.getDescendantObjects(parent, null, PathDetectionObject.class);
 		if (pathObjects.isEmpty())
 			return Collections.emptyList();
 

@@ -422,7 +422,7 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 		MenuItem miSplitPoints = new MenuItem("Split points");
 		miSplitPoints.setOnAction(e -> {
 			PathObject pathObject = listAnnotations.getSelectionModel().getSelectedItem();
-			if (pathObject == null || !pathObject.isPoint() || hierarchy == null)
+			if (pathObject == null || !PathObjectTools.hasPointROI(pathObject) || hierarchy == null)
 				return;
 			PointsROI points = (PointsROI)pathObject.getROI();
 			if (points.getNPoints() <= 1)
@@ -436,8 +436,8 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 				PathObject temp = PathObjects.createAnnotationObject(ROIs.createPointsROI(p.getX(), p.getY(), ImagePlane.getPlaneWithChannel(c, z, t)), pathClass);
 				newObjects.add(temp);
 			}
-			hierarchy.addPathObjects(newObjects, false);
-			hierarchy.removeObject(pathObject, true, true);
+			hierarchy.addPathObjects(newObjects);
+			hierarchy.removeObject(pathObject, true);
 			// Reset the selection if necessary
 			if (hierarchy.getSelectionModel().getSelectedObject() == pathObject)
 				hierarchy.getSelectionModel().setSelectedObject(null);
@@ -446,7 +446,7 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 		MenuItem miMergePoints = new MenuItem("Merge points for class");
 		miMergePoints.setOnAction(e -> {
 			PathObject pathObject = listAnnotations.getSelectionModel().getSelectedItem();
-			if (pathObject == null || !pathObject.isPoint() || hierarchy == null)
+			if (pathObject == null || !PathObjectTools.hasPointROI(pathObject) || hierarchy == null)
 				return;
 			PathClass pathClass = pathObject.getPathClass();
 			if (pathClass == null) {
@@ -473,7 +473,7 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 			}
 			PathObject pathObjectNew = PathObjects.createAnnotationObject(ROIs.createPointsROI(pointsList, ImagePlane.getPlaneWithChannel(c, z, t)), pathClass);
 			hierarchy.removeObjects(objectsToMerge, true);
-			hierarchy.addPathObject(pathObjectNew, false);
+			hierarchy.addPathObject(pathObjectNew);
 		});
 
 		menuPoints.getItems().addAll(
@@ -719,7 +719,7 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 			hierarchy.getSelectionModel().addPathObjectSelectionListener(this);
 			hierarchy.addPathObjectListener(this);
 			PathObject selected = hierarchy.getSelectionModel().getSelectedObject();
-			listAnnotations.getItems().setAll(hierarchy.getObjects(null, PathAnnotationObject.class));
+			listAnnotations.getItems().setAll(hierarchy.getAnnotationObjects());
 			hierarchy.getSelectionModel().setSelectedObject(selected);
 		} else {
 			listAnnotations.getItems().clear();

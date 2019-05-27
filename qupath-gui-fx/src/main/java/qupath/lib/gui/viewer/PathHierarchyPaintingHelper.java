@@ -274,7 +274,7 @@ public class PathHierarchyPaintingHelper {
 		// Always paint the selected object
 		// Note: this makes the assumption that child ROIs are completely contained within their parents;
 		//			this probably should be the case, but isn't guaranteed
-		boolean isSelected = (selectionModel != null && selectionModel.isSelected(pathObject)) && (PathPrefs.getUseSelectedColor() || !pathObject.isPoint());
+		boolean isSelected = (selectionModel != null && selectionModel.isSelected(pathObject)) && (PathPrefs.getUseSelectedColor() || !PathObjectTools.hasPointROI(pathObject));
 		boolean isDetectedObject = pathObject.isDetection() || (pathObject.isTile() && pathObject.hasMeasurements());
 		
 		// Check if the PathClass isn't being shown
@@ -291,7 +291,7 @@ public class PathHierarchyPaintingHelper {
 			double roiBoundsY = pathROI.getBoundsY();
 			double roiBoundsWidth = pathROI.getBoundsWidth();
 			double roiBoundsHeight = pathROI.getBoundsHeight();
-			if (pathObject.isPoint() || boundsDisplayed == null || 
+			if (PathObjectTools.hasPointROI(pathObject) || boundsDisplayed == null || 
 					pathROI instanceof LineROI || 
 					boundsDisplayed.intersects(roiBoundsX, roiBoundsY, Math.max(roiBoundsWidth, 1), Math.max(roiBoundsHeight, 1))) {
 			
@@ -349,7 +349,7 @@ public class PathHierarchyPaintingHelper {
 					} else {
 						Stroke stroke = null;
 						// Decide whether to fill or not
-						Color colorFill = doFill && (isDetectedObject || pathObject.isPoint()) ? color : null;
+						Color colorFill = doFill && (isDetectedObject || PathObjectTools.hasPointROI(pathObject)) ? color : null;
 						if (colorFill != null && fillOpacity != 1) {
 							if (pathObject instanceof ParallelTileObject)
 								colorFill = ColorToolsAwt.getMoreTranslucentColor(colorFill);

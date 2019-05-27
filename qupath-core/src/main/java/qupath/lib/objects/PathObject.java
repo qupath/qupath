@@ -82,6 +82,9 @@ public abstract class PathObject implements Externalizable {
 		this.measurements = measurements;
 	}
 
+	/**
+	 * Default constructor. Used for Externalizable support, not intended to be used by other consumers.
+	 */
 	public PathObject() {}
 	
 	/**
@@ -147,10 +150,6 @@ public abstract class PathObject implements Externalizable {
 	 */
 	public boolean isRootObject() {
 		return this instanceof PathRootObject;
-	}
-	
-	public boolean isPoint() {
-		return getROI() instanceof PointsROI; // TODO: Check the 'isPoint' method of PathObject
 	}
 	
 	/**

@@ -47,6 +47,9 @@ public class PathCellObject extends PathDetectionObject {
 	
 	private ROI nucleus;
 
+	/**
+	 * Default constructor. Should not be used directly, instead use {@link PathObjects#createCellObject(ROI, ROI, PathClass, MeasurementList)}.
+	 */
 	public PathCellObject() {
 		super();
 	}
@@ -60,14 +63,22 @@ public class PathCellObject extends PathDetectionObject {
 		this(pathROI, nucleusROI, pathClass, null);
 	}
 
+	/**
+	 * Returns true if a nucleus ROI is stored for this cell.
+	 * @return
+	 */
 	public boolean hasNucleus() {
 		return nucleus != null;
 	}
 	
+	/**
+	 * Get the nucleus ROI for this cell. This may be null, or may be a ROI stored in addition to {@link #getROI()}, 
+	 * which returns the overall cell boundary.
+	 * @return
+	 */
 	public ROI getNucleusROI() {
 		return nucleus;
 	}
-	
 	
 	
 	@Override

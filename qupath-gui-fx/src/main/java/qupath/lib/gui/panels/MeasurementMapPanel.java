@@ -326,7 +326,7 @@ public class MeasurementMapPanel {
 			return;
 		}
 		
-		Collection<PathObject> pathObjects = hierarchy.getObjects(null, PathDetectionObject.class);
+		Collection<PathObject> pathObjects = hierarchy.getDetectionObjects();
 		Set<String> measurements = PathClassificationLabellingHelper.getAvailableFeatures(pathObjects);
 		for (PathObject pathObject : pathObjects) {
 			if (!Double.isNaN(pathObject.getClassProbability())) {

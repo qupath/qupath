@@ -43,6 +43,7 @@ import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.PathImage;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.regions.RegionRequest;
 
 /**
@@ -142,7 +143,7 @@ public class ExtractRegionCommand implements PathCommand {
 		
 		//		PathImage<ImagePlus> pathImage = ImageJWholeSlideViewerGUI.extractROI(viewer.getImageServer(), viewer.getCurrentROI(), downsample, viewer.getZPosition(), true);
 		RegionRequest region;
-		if (pathObject == null || !pathObject.hasROI() || pathObject.isPoint()) {
+		if (pathObject == null || !pathObject.hasROI() || PathObjectTools.hasPointROI(pathObject)) {
 			region = RegionRequest.createInstance(server.getPath(), downsample, 0, 0, server.getWidth(), server.getHeight(), viewer.getZPosition(), viewer.getTPosition());
 		} else
 			region = RegionRequest.createInstance(server.getPath(), downsample, pathObject.getROI());

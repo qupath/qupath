@@ -334,7 +334,7 @@ public class QPEx extends QP {
 		else
 			logger.warn("Cannot assign class unambiguously - " + pathClasses.size() + " classes represented in selection");
 		hierarchy.removeObjects(children, true);
-		hierarchy.addPathObject(pathObjectNew, false);
+		hierarchy.addPathObject(pathObjectNew);
 		//				pathObject.removePathObjects(children);
 		//				pathObject.addPathObject(pathObjectNew);
 		//				hierarchy.fireHierarchyChangedEvent(pathObject);

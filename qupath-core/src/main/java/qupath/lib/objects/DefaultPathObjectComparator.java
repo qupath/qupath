@@ -100,7 +100,10 @@ public class DefaultPathObjectComparator implements Comparator<PathObject> {
 		return 0;
 	}
 	
-	
+	/**
+	 * Get shared comparator instance to sort PathObjects repeatably.
+	 * @return
+	 */
 	public static Comparator<PathObject> getInstance() {
 		return instance;
 	}

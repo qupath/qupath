@@ -55,7 +55,6 @@ import qupath.lib.roi.interfaces.ROI;
  * @author Pete Bankhead
  *
  */
-// I'm not trying to make a secret of it (although possibly should) - the 'finalize' method of Subdiv2D isn't called on OSX
 public class DelaunayTriangulation implements PathObjectConnectionGroup {
 	
 	private double distanceThreshold = Double.NaN;

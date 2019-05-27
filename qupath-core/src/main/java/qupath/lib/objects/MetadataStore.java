@@ -36,10 +36,19 @@ import java.util.Set;
  */
 public interface MetadataStore {
 	
+	/**
+	 * Store a new metadata value.
+	 * @param key
+	 * @param value
+	 * @return
+	 */
 	public Object putMetadataValue(final String key, final String value);
 	
-	public boolean containsMetadataString(final String key);
-
+	/**
+	 * Get a metadata value, cast as a String if possible.
+	 * @param key
+	 * @return
+	 */
 	public String getMetadataString(final String key);
 	
 	/**

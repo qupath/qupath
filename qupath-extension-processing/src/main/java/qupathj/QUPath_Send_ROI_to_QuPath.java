@@ -71,7 +71,7 @@ public class QUPath_Send_ROI_to_QuPath implements PlugIn {
 			return;
 		}
 		
-		Platform.runLater(() -> gui.getViewer().getHierarchy().addPathObject(pathObject, true));		
+		Platform.runLater(() -> gui.getViewer().getHierarchy().addPathObject(pathObject));		
 	}
 
 }

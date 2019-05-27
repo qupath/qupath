@@ -39,14 +39,40 @@ import qupath.lib.objects.hierarchy.PathObjectHierarchy;
  */
 public class PathObjectHierarchyEvent {
 	
+	/**
+	 * Enum representing different ways in which the hierarchy may have been updated.
+	 */
 	public static enum HierarchyEventType {
-		ADDED, // An object has been added
-		REMOVED, // An object has been removed
-		OTHER_STRUCTURE_CHANGE, // A more complex structural change was made
-		CHANGE_CLASSIFICATION, // A change was made to one or more object classifications
-		CHANGE_MEASUREMENTS, // A change was made to one or more object measurements
+		/**
+		 * An object has been added
+		 */
+		ADDED,
+		
+		/**
+		 * An object has been removed
+		 */
+		REMOVED,
+		
+		/**
+		 * A more complex structural change was made than simply either adding or removing objects
+		 */
+		OTHER_STRUCTURE_CHANGE,
+		
+		/**
+		 * A change was made to one or more object classifications
+		 */
+		CHANGE_CLASSIFICATION,
+		
+		/**
+		 * A change was made to one or more object measurements
+		 */
+		CHANGE_MEASUREMENTS,
 //		CHANGE_ROI, // A change was made to one or more object ROIs
-		CHANGE_OTHER // A change was made to one or more objects that is more complex than the other changes allow for
+		
+		/**
+		 * A change was made to one or more objects that is more complex than the other changes allow for
+		 */
+		CHANGE_OTHER
 		};
 	
 	private Object source;
@@ -70,19 +96,50 @@ public class PathObjectHierarchyEvent {
 		return "Hierarchy change event: Source=" + source + ", Type="+type + ", Parent="+parentObject;
 	}
 	
-	
+	/**
+	 * Create a hierarchy event indicating that the hierarchy structure has been changed.
+	 * @param source
+	 * @param hierarchy
+	 * @param parentObject
+	 * @return
+	 */
 	public static PathObjectHierarchyEvent createStructureChangeEvent(Object source, PathObjectHierarchy hierarchy, PathObject parentObject) {
 		return new PathObjectHierarchyEvent(source, hierarchy, HierarchyEventType.OTHER_STRUCTURE_CHANGE, parentObject, new ArrayList<>(0), false);						
 	}
 
+	/**
+	 * Create a hierarchy event indicated objects were added.
+	 * @param source
+	 * @param hierarchy
+	 * @param parentObject
+	 * @param pathObjectAdded
+	 * @return
+	 */
 	public static PathObjectHierarchyEvent createObjectAddedEvent(Object source, PathObjectHierarchy hierarchy, PathObject parentObject, PathObject pathObjectAdded) {
 		return new PathObjectHierarchyEvent(source, hierarchy, HierarchyEventType.ADDED, parentObject, Collections.singletonList(pathObjectAdded), false);				
 	}
 
+	/**
+	 * Create a hierarchy event indicating objects were removed.
+	 * @param source
+	 * @param hierarchy
+	 * @param parentObject
+	 * @param pathObjectRemoved
+	 * @return
+	 */
 	public static PathObjectHierarchyEvent createObjectRemovedEvent(Object source, PathObjectHierarchy hierarchy, PathObject parentObject, PathObject pathObjectRemoved) {
 		return new PathObjectHierarchyEvent(source, hierarchy, HierarchyEventType.REMOVED, parentObject, Collections.singletonList(pathObjectRemoved), false);		
 	}
 	
+	/**
+	 * Create a hierarchy event indicating objects have changed in a way consistent with the specified event type.
+	 * @param source
+	 * @param hierarchy
+	 * @param type
+	 * @param pathObjects
+	 * @param isChanging
+	 * @return
+	 */
 	public static PathObjectHierarchyEvent createObjectsChangedEvent(Object source, PathObjectHierarchy hierarchy, HierarchyEventType type, Collection<? extends PathObject> pathObjects, boolean isChanging) {
 		return new PathObjectHierarchyEvent(source, hierarchy, type, null, new ArrayList<>(pathObjects), isChanging);
 	}
@@ -114,10 +171,18 @@ public class PathObjectHierarchyEvent {
 		return pathObjects;
 	}
 	
+	/**
+	 * Get the hierarchy event type.
+	 * @return
+	 */
 	public HierarchyEventType getEventType() {
 		return type;
 	}
 	
+	/**
+	 * Get the source that triggered the event.
+	 * @return
+	 */
 	public Object getSource() {
 		return source;
 	}
@@ -130,14 +195,26 @@ public class PathObjectHierarchyEvent {
 		return isAddedOrRemovedEvent() || type == HierarchyEventType.OTHER_STRUCTURE_CHANGE;
 	}
 	
+	/**
+	 * Returns true if objects have been added or removed from the hierarchy.
+	 * @return
+	 */
 	public boolean isAddedOrRemovedEvent() {
 		return type == HierarchyEventType.ADDED || type == HierarchyEventType.REMOVED;
 	}
 	
+	/**
+	 * Returns true if the event indicates that object classifications have changed.
+	 * @return
+	 */
 	public boolean isObjectClassificationEvent() {
 		return type == HierarchyEventType.CHANGE_CLASSIFICATION;
 	}
 
+	/**
+	 * Returns true if the event indicates that object measurements have changed.
+	 * @return
+	 */
 	public boolean isObjectMeasurementEvent() {
 		return type == HierarchyEventType.CHANGE_MEASUREMENTS;
 	}

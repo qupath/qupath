@@ -221,7 +221,7 @@ public class CreateRegionAnnotationsCommand implements PathCommand {
 			PathObject annotation = PathObjects.createAnnotationObject(
 					ROIs.createRectangleROI(x, y, width, height, ImagePlane.getPlane(viewer.getZPosition(), viewer.getTPosition())),
 					pathClass);
-			imageData.getHierarchy().addPathObject(annotation, false);
+			imageData.getHierarchy().addPathObject(annotation);
 		}
 		
 		

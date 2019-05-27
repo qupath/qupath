@@ -51,6 +51,7 @@ import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ServerTools;
 import qupath.lib.io.TMAScoreImporter;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.objects.hierarchy.DefaultTMAGrid;
@@ -246,7 +247,7 @@ public class PathAwtIO {
 				boolean present = colPresent == null ? true : Boolean.parseBoolean(colPresent.get(i));
 				String name = colNames == null ? null : colNames.get(i);
 				String id = colID == null ? null : colID.get(i);
-				TMACoreObject core = new TMACoreObject(x, y, w, h, !present);
+				TMACoreObject core = PathObjects.createTMACoreObject(x, y, w, h, !present);
 				if (name != null)
 					core.setName(name);
 				if (id != null && !id.isEmpty())

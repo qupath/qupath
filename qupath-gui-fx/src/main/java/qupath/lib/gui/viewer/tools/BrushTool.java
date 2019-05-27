@@ -232,7 +232,7 @@ public class BrushTool extends AbstractPathROITool {
 		
 		// Need to remove the object from the hierarchy while editing it
 		if (!createNew && currentObject != null) {
-			hierarchy.removeObject(currentObject, true, false);
+			hierarchy.removeObjectWithoutUpdate(currentObject, true);
 		}
 
 		PathShape shapeROI = createNew ? null : (PathShape)currentObject.getROI();

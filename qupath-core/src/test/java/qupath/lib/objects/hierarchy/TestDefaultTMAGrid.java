@@ -30,7 +30,10 @@ import java.util.List;
 
 import org.junit.Before;
 import org.junit.Test;
+
+import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.TMACoreObject;
+import qupath.lib.objects.helpers.PathObjectTools;
 
 public class TestDefaultTMAGrid {
 	private final Integer w = 9;
@@ -41,23 +44,23 @@ public class TestDefaultTMAGrid {
 	private final Double ycenter = 0.0;
 	private final Double diameter = 10.0;
 	List<TMACoreObject> cores = new ArrayList<>(ncores); 
-	TMACoreObject myPO2 = new TMACoreObject(xcenter, ycenter, diameter, Boolean.TRUE);
+	TMACoreObject myPO2 = PathObjects.createTMACoreObject(xcenter, ycenter, diameter, Boolean.TRUE);
 	TMAGrid myTMAGrid;
 	
 	@Before
 	public void InitCores(){
 		cores.add(myPO2); // missing core
 		for (int i=0;i<ncores-1;++i) // initialize TMAGrid with 'ncores' cores, one of them missing
-			cores.add(new TMACoreObject(xcenter, ycenter, diameter, Boolean.FALSE));
+			cores.add(PathObjects.createTMACoreObject(xcenter, ycenter, diameter, Boolean.FALSE));
 		myTMAGrid = DefaultTMAGrid.create(cores, w);
-		myTMAGrid.getTMACore(0).setName(tcoreName);
+		myTMAGrid.getTMACore(0, 0).setName(tcoreName);
 	}
 	
 	@Test
 	public void test_BasicTMA() {
 		assertEquals((Integer)myTMAGrid.nCores(), ncores);
-		assertEquals(myTMAGrid.getTMACore(0).getDisplayedName(), tcoreName);
-		assertEquals(myTMAGrid.getTMACore(1).getDisplayedName(), coreName);
+		assertEquals(myTMAGrid.getTMACore(0, 0).getDisplayedName(), tcoreName);
+		assertEquals(myTMAGrid.getTMACore(0, 1).getDisplayedName(), coreName);
 		assertEquals(myTMAGrid.getTMACore(tcoreName), myPO2);
 //		assertEquals(myTMAGrid.getCoreIndex(tcoreName), 0);
 //		assertEquals(myTMAGrid.getCoreIndex(coreName), -1); // the displayed name is different from the actual name
@@ -66,6 +69,6 @@ public class TestDefaultTMAGrid {
 		assertEquals((Integer)myTMAGrid.getGridWidth(), w);
 		assertEquals(myTMAGrid.getGridHeight(), cores.size()/w); // integer division rounds up
 		assertEquals(myTMAGrid.getTMACoreList(), cores);
-		assertEquals(myTMAGrid.getTMACoreForPixel(0, 0).getName(), tcoreName); // returns first core for that pixel 
+		assertEquals(PathObjectTools.getTMACoreForPixel(myTMAGrid, 0, 0).getName(), tcoreName); // returns first core for that pixel 
 	}
 }
