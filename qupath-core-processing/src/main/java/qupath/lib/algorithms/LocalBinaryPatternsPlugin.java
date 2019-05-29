@@ -26,6 +26,7 @@ package qupath.lib.algorithms;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 
@@ -67,10 +68,10 @@ public class LocalBinaryPatternsPlugin extends AbstractInteractivePlugin<Buffere
 	public LocalBinaryPatternsPlugin() {
 		params = new ParameterList().
 				addDoubleParameter("magnification", "Magnification", 5).
-				addChoiceParameter("stainChoice", "Stains", "Optical density", new String[]{"Optical density", "H-DAB", "H&E", "H-DAB (8-bit)", "H&E (8-bit)", "RGB", "Grayscale"});
+				addChoiceParameter("stainChoice", "Stains", "Optical density", Arrays.asList("Optical density", "H-DAB", "H&E", "H-DAB (8-bit)", "H&E (8-bit)", "RGB", "Grayscale"));
 		
-		params.addDoubleParameter("tileSizeMicrons", "Tile diameter", 25, GeneralTools.micrometerSymbol());
-		params.addDoubleParameter("tileSizePx", "Tile diameter", 200, "px (full resolution image)");
+		params.addDoubleParameter("tileSizeMicrons", "Tile diameter", 25, GeneralTools.micrometerSymbol(), "Size of image tile within which to calculate local binary patterns");
+		params.addDoubleParameter("tileSizePx", "Tile diameter", 200, "px (full resolution image)", "Size of image tile within which to calculate local binary patterns");
 
 		params.addBooleanParameter("includeStats", "Include basic statistics", false).
 				addBooleanParameter("doCircular", "Use circular tiles", false);

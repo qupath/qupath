@@ -27,6 +27,7 @@ import java.awt.Polygon;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -84,14 +85,14 @@ public class TMADearrayerPluginIJ extends AbstractInteractivePlugin<BufferedImag
 		params.addDoubleParameter("coreDiameterMM", "TMA core diameter", 1.2, "mm", "Enter the approximate diameter or each TMA core in mm");
 		params.addDoubleParameter("coreDiameterPixels", "TMA core diameter", 5000, "px", "Enter the approximate diameter or each TMA core in pixels");
 		
-		params.addEmptyParameter("labels", "Enter the horizontal and vertical labels for each core, with a space between each label."); 
-		params.addEmptyParameter("labels2", "The number of labels will define the array dimensions.");
-		params.addEmptyParameter("labels3", "Labels may also be entered as a range (e.g. 1-10 or A-G).");
+		params.addEmptyParameter("Enter the horizontal and vertical labels for each core, with a space between each label."); 
+		params.addEmptyParameter("The number of labels will define the array dimensions.");
+		params.addEmptyParameter("Labels may also be entered as a range (e.g. 1-10 or A-G).");
 		
 		params.addStringParameter("labelsHorizontal", "Column labels", "1-16", "Enter column labels.\nThis can be a continuous range of letters or numbers (e.g. 1-10 or A-J),\nor a discontinuous list separated by spaces (e.g. A B C E F G).");
 		params.addStringParameter("labelsVertical", "Row labels", "A-J", "Enter row labels.\nThis can be a continuous range of letters or numbers (e.g. 1-10 or A-J),\nor a discontinuous list separated by spaces (e.g. A B C E F G).");
 		
-		params.addChoiceParameter("labelOrder", "Label order", "Row first", new String[]{"Column first", "Row first"}, "Create TMA labels either in the form Row-Column or Column-Row");
+		params.addChoiceParameter("labelOrder", "Label order", "Row first", Arrays.asList("Column first", "Row first"), "Create TMA labels either in the form Row-Column or Column-Row");
 
 		//-------------
 //		gd.addMessage("Core size & density", boldFont);

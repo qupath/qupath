@@ -28,6 +28,7 @@ import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferByte;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 
@@ -86,7 +87,7 @@ public class HaralickFeaturesPlugin extends AbstractInteractivePlugin<BufferedIm
 				addDoubleParameter("downsample", "Downsample", 1, null, "Amount to downsample the image before calculating textures; choose 1 to use full resolution, or a higher value to use a smaller image").
 				addDoubleParameter("magnification", "Magnification", 5, null, "Magnification factor of the image used to calculate the textures").
 				addDoubleParameter("pixelSizeMicrons", "Preferred pixel size", 2, GeneralTools.micrometerSymbol(), "Preferred pixel size of the image used to calculate the tetures - higher values means coarser (lower resolution) images").
-				addChoiceParameter("stainChoice", "Color transforms", "Optical density", new String[]{"Optical density", "H-DAB", "H&E", "H-DAB (8-bit)", "H&E (8-bit)", "RGB OD", "RGB", "Grayscale", "HSB"}, "Color transforms to apply before calculating textures");
+				addChoiceParameter("stainChoice", "Color transforms", "Optical density", Arrays.asList("Optical density", "H-DAB", "H&E", "H-DAB (8-bit)", "H&E (8-bit)", "RGB OD", "RGB", "Grayscale", "HSB"), "Color transforms to apply before calculating textures");
 		
 		params.addDoubleParameter("tileSizeMicrons", "Tile diameter", 25, GeneralTools.micrometerSymbol(), "Diameter of square tile around the object centroid used to calculate textures.\nIf <= 0, the tile itself will be used to defined the ROI in which textures are calculated");
 		params.addDoubleParameter("tileSizePx", "Tile diameter", 200, "px (full resolution image)", "Diameter of square tile around the object centroid used to calculate textures.\nIf <= 0, the tile itself will be used to defined the ROI in which textures are calculated");

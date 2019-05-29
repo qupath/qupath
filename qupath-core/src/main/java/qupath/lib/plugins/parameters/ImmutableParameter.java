@@ -32,13 +32,13 @@ import java.util.Locale;
  *
  * @param <S>
  */
-public class ImmutableParameter<S> implements Parameter<S> {
+class ImmutableParameter<S> implements Parameter<S> {
 	
 	private static final long serialVersionUID = 1L;
 	
 	private Parameter<S> parameter;
 	
-	public ImmutableParameter(Parameter<S> parameter) {
+	ImmutableParameter(Parameter<S> parameter) {
 		this.parameter = parameter;
 	}
 

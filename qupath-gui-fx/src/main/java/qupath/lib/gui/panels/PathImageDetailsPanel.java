@@ -356,9 +356,9 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 		} else {
 			// Prompt for all required values
 			ParameterList params = new ParameterList()
-					.addDoubleParameter("pixelWidth", "Pixel width", pixelWidthMicrons, GeneralTools.micrometerSymbol())
-					.addDoubleParameter("pixelHeight", "Pixel height", pixelHeightMicrons, GeneralTools.micrometerSymbol())
-					.addDoubleParameter("zSpacing", "Z-spacing", zSpacingMicrons, GeneralTools.micrometerSymbol());
+					.addDoubleParameter("pixelWidth", "Pixel width", pixelWidthMicrons, GeneralTools.micrometerSymbol(), "Enter the pixel width")
+					.addDoubleParameter("pixelHeight", "Pixel height", pixelHeightMicrons, GeneralTools.micrometerSymbol(), "Entry the pixel height")
+					.addDoubleParameter("zSpacing", "Z-spacing", zSpacingMicrons, GeneralTools.micrometerSymbol(), "Enter the spacing between slices of a z-stack");
 			params.setHiddenParameters(server.nZSlices() == 1, "zSpacing");
 			if (!DisplayHelpers.showParameterDialog("Set pixel size", params))
 				return false;
@@ -549,7 +549,7 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 		}
 
 		if (warningMessage != null)
-			params.addEmptyParameter("warning", warningMessage);
+			params.addEmptyParameter(warningMessage);
 
 		// Disable editing the name if it should be fixed
 		ParameterPanelFX parameterPanel = new ParameterPanelFX(params);

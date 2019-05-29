@@ -1401,12 +1401,12 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		
 		ParameterList paramsSetup = new ParameterList()
 				.addTitleParameter("Memory")
-				.addEmptyParameter("memoryString", "Set the maximum memory used by QuPath, or -1 to use the default.")
-				.addEmptyParameter("memoryString2", maxMemoryString);
+				.addEmptyParameter("Set the maximum memory used by QuPath, or -1 to use the default.")
+				.addEmptyParameter(maxMemoryString);
 
 		boolean lowMemory = maxMemoryMB < 1024*6;
 		if (lowMemory) {
-			paramsSetup.addEmptyParameter("memoryStringWarning",
+			paramsSetup.addEmptyParameter(
 					"It is suggested to increase the memory limit to approximately\nhalf of the RAM available on your computer."
 					);
 		}
@@ -1414,9 +1414,9 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 //				.addEmptyParameter("memoryString2", "Current ")
 		paramsSetup.addDoubleParameter("maxMemoryGB", "Maximum memory (GB)", Math.ceil(maxMemoryMB/1024.0), null, "Set the maximum memory for QuPath - considering using approximately half the total RAM for the system")
 				.addTitleParameter("Region")
-				.addEmptyParameter("localeString", "Set the region for QuPath to use for displaying numbers and messages.")
-				.addEmptyParameter("localeString2", "Note: It is highly recommended to keep the default (English, US) region settings.")
-				.addEmptyParameter("localeString3", "Support for regions that use different number formatting (e.g. commas as decimal marks)\nis still experimental, and may give unexpected results.")
+				.addEmptyParameter("Set the region for QuPath to use for displaying numbers and messages.")
+				.addEmptyParameter("Note: It is highly recommended to keep the default (English, US) region settings.")
+				.addEmptyParameter("Support for regions that use different number formatting (e.g. commas as decimal marks)\nis still experimental, and may give unexpected results.")
 				.addChoiceParameter("localeFormatting", "Numbers & dates", Locale.getDefault(Category.FORMAT).getDisplayName(), localeList, "Choose region settings used to format numbers and dates")
 				.addChoiceParameter("localeDisplay", "Messages", Locale.getDefault(Category.DISPLAY).getDisplayName(), localeList, "Choose region settings used for other formatting, e.g. in dialog boxes")
 				.addTitleParameter("Updates")
@@ -4257,7 +4257,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 					return;
 
 				final ParameterList params = new ParameterList()
-						.addDoubleParameter("brushSize", "Brush diameter", PathPrefs.getBrushDiameter(), "pixels")
+						.addDoubleParameter("brushSize", "Brush diameter", PathPrefs.getBrushDiameter(), "pixels", "Enter the default brush diameter, in pixels")
 						.addBooleanParameter("brushScaleMag", "Scale brush size by magnification", PathPrefs.getBrushScaleByMag())
 						.addBooleanParameter("brushCreateNew", "Create new objects when painting", PathPrefs.getBrushCreateNewObjects());
 				final ParameterPanelFX panel = new ParameterPanelFX(params);

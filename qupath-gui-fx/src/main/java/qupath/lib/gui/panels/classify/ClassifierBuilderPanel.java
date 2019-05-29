@@ -35,6 +35,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.PrintWriter;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
@@ -180,9 +181,9 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 
 
 	private ParameterList paramsUpdate = new ParameterList()
-			.addChoiceParameter("normalizationMethod", "Normalization method", Normalization.NONE, Normalization.values(), "Method to normalize features - some classifiers (e.g. SVM) require this, while others (e.g. decision trees, random forests) don't")
+			.addChoiceParameter("normalizationMethod", "Normalization method", Normalization.NONE, Arrays.asList(Normalization.values()), "Method to normalize features - some classifiers (e.g. SVM) require this, while others (e.g. decision trees, random forests) don't")
 			.addIntParameter("maxTrainingPercent", "Training set split", 100, "%", 1, 100, "Percentage of the data to use for training - the rest will be used for testing")
-			.addChoiceParameter("splitType", "Training set split type", SplitType.EQUIDISTANT, SplitType.values(), "Method of splitting the data for training")
+			.addChoiceParameter("splitType", "Training set split type", SplitType.EQUIDISTANT, Arrays.asList(SplitType.values()), "Method of splitting the data for training")
 			.addIntParameter("randomSeed", "Random seed", 1, null, "Seed used to generate random splits in a reproducible way (ignore if no random splitting is used)")
 			.addBooleanParameter("balanceClasses", "Balance classes", false, "Ensure classes contain equal numbers of samples by randomly duplicating samples from classes with less representation")
 			//		.addBooleanParameter("showTrainingSamples", "Show training samples", false, "Show the objects that will be used for training instead of actually creating the classifier - useful only for checking what is happening")

@@ -39,11 +39,11 @@ public class DoubleParameter extends NumericParameter<Double> {
 		super(prompt, defaultValue, unit, minValue, maxValue, lastValue, helpText, isHidden);
 	}
 
-	public DoubleParameter(String prompt, Double defaultValue, String unit, Double minValue, Double maxValue, String helpText) {
+	DoubleParameter(String prompt, Double defaultValue, String unit, Double minValue, Double maxValue, String helpText) {
 		super(prompt, defaultValue, unit, minValue, maxValue, helpText);
 	}
 
-	public DoubleParameter(String prompt, Double defaultValue, String unit, String helpText) {
+	DoubleParameter(String prompt, Double defaultValue, String unit, String helpText) {
 		super(prompt, defaultValue, unit, helpText);
 	}
 	

@@ -338,23 +338,24 @@ public class WatershedNucleiCV extends AbstractTileableDetectionPlugin<BufferedI
 	@Override
 	public ParameterList getDefaultParameterList(final ImageData<BufferedImage> imageData) {
 		ParameterList params = new ParameterList();
-		params.addDoubleParameter("preferredMicrons", "Preferred pixel size", 0.5, GeneralTools.micrometerSymbol());
+		params.addDoubleParameter("preferredMicrons", "Preferred pixel size", 0.5, GeneralTools.micrometerSymbol(),
+				"Preferred image resolution for detection (higher values mean lower resolution)");
 		//				addIntParameter("downsampleFactor", "Downsample factor", 2, "", 1, 4);
 
 		if (imageData.getServer().hasPixelSizeMicrons()) {
 			String um = GeneralTools.micrometerSymbol();
-			params.addDoubleParameter("medianRadius", "Median radius", 1, um).
-			addDoubleParameter("gaussianSigma", "Gaussian sigma", 1.5, um).
-			addDoubleParameter("openingRadius", "Opening radius", 8, um).
-			addDoubleParameter("threshold", "Threshold", 0.1, null, 0, 1.0).
-			addDoubleParameter("minArea", "Minimum area", 25, um+"^2");
+			params.addDoubleParameter("medianRadius", "Median radius", 1, um, "Median filter radius").
+			addDoubleParameter("gaussianSigma", "Gaussian sigma", 1.5, um, "Gaussian filter sigma").
+			addDoubleParameter("openingRadius", "Opening radius", 8, um, "Morphological opening filter radius").
+			addDoubleParameter("threshold", "Threshold", 0.1, null, 0, 1.0, "Intensity threshold").
+			addDoubleParameter("minArea", "Minimum area", 25, um+"^2", "Minimum area threshold");
 		} else {
 			params.setHiddenParameters(true, "preferredMicrons");
-			params.addDoubleParameter("medianRadius", "Median radius", 1, "px").
-			addDoubleParameter("gaussianSigma", "Gaussian sigma", 2, "px").
-			addDoubleParameter("openingRadius", "Opening radius", 20, "px").
-			addDoubleParameter("threshold", "Threshold", 0.1, null, 0, 1.0).
-			addDoubleParameter("minArea", "Minimum area", 100, "px^2");
+			params.addDoubleParameter("medianRadius", "Median radius", 1, "px", "Median filter radius").
+			addDoubleParameter("gaussianSigma", "Gaussian sigma", 2, "px", "Gaussian filter sigma").
+			addDoubleParameter("openingRadius", "Opening radius", 20, "px", "Morphological opening filter radius").
+			addDoubleParameter("threshold", "Threshold", 0.1, null, 0, 1.0, "Intensity threshold").
+			addDoubleParameter("minArea", "Minimum area", 100, "px^2", "Minimum area threshold");
 		}
 		params.addBooleanParameter("splitShape", "Split by shape", true);			
 		return params;

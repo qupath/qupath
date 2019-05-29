@@ -39,11 +39,11 @@ public class IntParameter extends NumericParameter<Integer> {
 		super(prompt, defaultValue, unit, minValue, maxValue, lastValue, helpText, isHidden);
 	}
 	
-	public IntParameter(String prompt, Integer defaultValue, String unit, Double minValue, Double maxValue, String helpText) {
+	IntParameter(String prompt, Integer defaultValue, String unit, Double minValue, Double maxValue, String helpText) {
 		this(prompt, defaultValue, unit, minValue, maxValue, null, helpText, false);
 	}
 
-	public IntParameter(String prompt, Integer defaultValue, String unit, String helpText) {
+	IntParameter(String prompt, Integer defaultValue, String unit, String helpText) {
 		super(prompt, defaultValue, unit, helpText);
 	}
 

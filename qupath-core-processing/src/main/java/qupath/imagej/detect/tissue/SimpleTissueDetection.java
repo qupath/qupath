@@ -99,13 +99,13 @@ public class SimpleTissueDetection extends AbstractDetectionPlugin<BufferedImage
 	
 	public SimpleTissueDetection() {
 		params = new ParameterList().
-				addIntParameter("threshold", "Threshold", 127, null, 0, 255);
+				addIntParameter("threshold", "Threshold", 127, null, 0, 255, "Intensity thereshold (8-bit)");
 		
-		params.addDoubleParameter("minAreaMicrons", "Minimum area", 10000, GeneralTools.micrometerSymbol()+"^2");
-		params.addDoubleParameter("maxHoleAreaMicrons", "Max fill area", 1000000, GeneralTools.micrometerSymbol()+"^2");
+		params.addDoubleParameter("minAreaMicrons", "Minimum area", 10000, GeneralTools.micrometerSymbol()+"^2", "Minimum area of a region (smaller regions will be discarded)");
+		params.addDoubleParameter("maxHoleAreaMicrons", "Max fill area", 1000000, GeneralTools.micrometerSymbol()+"^2", "Maximum hole area to be filled (smaller holes will be removed)");
 		
-		params.addDoubleParameter("minAreaPixels", "Minimum area", 100000, "px^2");
-		params.addDoubleParameter("maxHoleAreaPixels", "Max fill area", 500, "px^2");
+		params.addDoubleParameter("minAreaPixels", "Minimum area", 100000, "px^2", "Minimum area of a region (smaller regions will be discarded)");
+		params.addDoubleParameter("maxHoleAreaPixels", "Max fill area", 500, "px^2", "Maximum hole area to be filled (smaller holes will be removed)");
 		
 		params.addBooleanParameter("darkBackground", "Dark background", false);
 		params.addBooleanParameter("medianCleanup", "Cleanup with median filter", true);

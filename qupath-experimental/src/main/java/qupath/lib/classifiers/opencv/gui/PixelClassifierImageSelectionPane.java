@@ -906,16 +906,16 @@ public class PixelClassifierImageSelectionPane {
 			return false;
 		}
 		
-		var objectTypes = new String[] {
+		var objectTypes = Arrays.asList(
 				"Annotation", "Detection"
-		};
+		);
 //		var availableChannels = new String[] {
 //			server.getOriginalMetadata().getC
 //		};
-		var sizeUnits = new String[] {
+		var sizeUnits = Arrays.asList(
 				"Pixels",
 				GeneralTools.micrometerSymbol()
-		};
+		);
 		
 		var params = new ParameterList()
 				.addChoiceParameter("objectType", "Object type", "Annotation", objectTypes)

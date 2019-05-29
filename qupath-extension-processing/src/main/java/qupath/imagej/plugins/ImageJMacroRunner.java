@@ -42,6 +42,7 @@ import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -384,7 +385,7 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 				.addBooleanParameter("clearObjects", "Clear current child objects", false)
 				.addBooleanParameter("getROI", "Create annotation from ImageJ ROI", false)
 				.addBooleanParameter("getOverlay", "Get objects from ImageJ overlay", false)
-				.addChoiceParameter("getOverlayAs", "Get objects as", "Detections", new String[]{"Detections", "Annotations"} )
+				.addChoiceParameter("getOverlayAs", "Get objects as", "Detections", Arrays.asList("Detections", "Annotations"), "Return ROIs from the ImageJ overlay as QuPath detections or annotations")
 				;
 		return params;
 	}

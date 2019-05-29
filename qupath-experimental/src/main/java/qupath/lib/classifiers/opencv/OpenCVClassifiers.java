@@ -803,7 +803,7 @@ public class OpenCVClassifiers {
 			params.addDoubleParameter("learningRate", "Learning rate", learningRate);
 			params.addIntParameter("nIterations", "Number of iterations", nIterations);
 //			params.addIntParameter("miniBatchSize", "Mini batch size", miniBatchSize);
-			params.addChoiceParameter("regularization", "Regularization", regularization.get(reg), regularization.values().toArray(new String[0]));
+			params.addChoiceParameter("regularization", "Regularization", regularization.get(reg), Arrays.asList(regularization.values()));
 			
 			return params;
 		}

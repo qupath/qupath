@@ -45,15 +45,14 @@ public class PositiveCellDetection extends WatershedCellDetection {
 	
 	public PositiveCellDetection() {
 		super();
-		params.addEmptyParameter("thresholdTitle", "Intensity threshold parameters", true
-				);
+		params.addTitleParameter("Intensity threshold parameters");
 		params.addChoiceParameter("thresholdCompartment", "Score compartment", "Nucleus: DAB OD mean",
 				Arrays.asList("Nucleus: DAB OD mean", "Nucleus: DAB OD max",
 						"Cytoplasm: DAB OD mean", "Cytoplasm: DAB OD max",
 						"Cell: DAB OD mean", "Cell: DAB OD max"));
-		params.addDoubleParameter("thresholdPositive1", "Threshold 1+", 0.2, null, 0, 1.5);
-		params.addDoubleParameter("thresholdPositive2", "Threshold 2+", 0.4, null, 0, 1.5);
-		params.addDoubleParameter("thresholdPositive3", "Threshold 3+", 0.6, null, 0, 1.5);
+		params.addDoubleParameter("thresholdPositive1", "Threshold 1+", 0.2, null, 0, 1.5, "Low positive intensity threshold");
+		params.addDoubleParameter("thresholdPositive2", "Threshold 2+", 0.4, null, 0, 1.5, "Moderate positive intensity threshold");
+		params.addDoubleParameter("thresholdPositive3", "Threshold 3+", 0.6, null, 0, 1.5, "High positive intensity threshold");
 		params.addBooleanParameter("singleThreshold", "Single threshold", true);
 	}
 	

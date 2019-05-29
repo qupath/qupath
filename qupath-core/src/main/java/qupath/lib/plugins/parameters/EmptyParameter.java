@@ -50,14 +50,18 @@ public class EmptyParameter extends AbstractParameter<String> {
 	 * @param isTitle identifies whether the prompt corresponds to a title, 
 	 * so that it might be displayed differently (e.g. in bold)
 	 */
-	public EmptyParameter(String prompt, boolean isTitle) {
+	EmptyParameter(String prompt, boolean isTitle) {
 		this(prompt, isTitle, false);
 	}
 	
-	public EmptyParameter(String prompt) {
+	EmptyParameter(String prompt) {
 		this(prompt, false);
 	}
 	
+	/**
+	 * Returns true if the parameter should be considered a title. It may therefore be displayed differently.
+	 * @return
+	 */
 	public boolean isTitle() {
 		return isTitle;
 	}

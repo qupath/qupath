@@ -101,27 +101,6 @@ abstract class AbstractParameter<S> implements Parameter<S> {
 		return getPrompt().replace(":", "-") + ":\t" + getValueOrDefault();
 	}
 	
-//	/**
-//	 * Compare whether a second parameter has the same prompt and value...
-//	 * a pretty good indication it refers to the same parameter, unchanged.
-//	 * 
-//	 * A use case is in comparing whether 
-//	 * 
-//	 * Note, the values stored internally might not be the same in both parameters...
-//	 * rather the comparison is made with the results of getLastValueOrDefault()
-//	 */
-//	public boolean samePromptAndValue(Parameter<?> param) {
-//		if (param == null)
-//			return false;
-//		if (getPrompt() == null) {
-//			if (param.getPrompt() != null)
-//				return false;
-//		} else if (!getPrompt().equals(param.getPrompt()))
-//			return false;
-//		S value = getLastValueOrDefault();
-//		return value.equals(param.getLastValueOrDefault());
-//	}
-	
 	@Override
 	public boolean hasHelpText() {
 		return getHelpText() != null;

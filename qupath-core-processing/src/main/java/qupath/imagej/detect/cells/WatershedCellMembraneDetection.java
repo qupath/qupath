@@ -135,7 +135,7 @@ public class WatershedCellMembraneDetection extends AbstractTileableDetectionPlu
 
 		String microns = GeneralTools.micrometerSymbol();
 		
-		params.addEmptyParameter("paramsResolution", "Setup parameters", true);
+		params.addTitleParameter("Setup parameters");
 		
 		params.addChoiceParameter("detectionImageBrightfield", "Choose detection image", IMAGE_HEMATOXYLIN, Arrays.asList(IMAGE_HEMATOXYLIN, IMAGE_OPTICAL_DENSITY),
 				"Transformed image to which to apply the detection");
@@ -145,7 +145,7 @@ public class WatershedCellMembraneDetection extends AbstractTileableDetectionPlu
 //		params.addDoubleParameter("requestedPixelSize", "Requested downsample factor", 1, "");
 
 		
-		params.addEmptyParameter("paramsNuclei", "Nucleus parameters", true);
+		params.addTitleParameter("Nucleus parameters");
 		
 		params.addDoubleParameter("backgroundRadiusMicrons", "Background radius", 8, microns, 
 				"Radius for background estimation, should be > the largest nucleus radius, or <= 0 to turn off background subtraction");
@@ -181,7 +181,7 @@ public class WatershedCellMembraneDetection extends AbstractTileableDetectionPlu
 				"Set to 'true' if regions of high DAB staining should not be considered nuclei; useful if DAB stains cell membranes");
 		
 		
-		params.addEmptyParameter("paramsCells", "Cell parameters", true);
+		params.addTitleParameter("Cell parameters");
 
 		params.addDoubleParameter("cellExpansionMicrons", "Cell expansion", 8, microns, 0, 25,
 				"Amount by which to expand detected nuclei to approximate the full cell area");
@@ -194,7 +194,7 @@ public class WatershedCellMembraneDetection extends AbstractTileableDetectionPlu
 				"If cell expansion is used, optionally include/exclude the nuclei within the detected cells");
 		
 		
-		params.addEmptyParameter("paramsGeneral", "General parameters", true);
+		params.addTitleParameter("General parameters");
 		params.addBooleanParameter("smoothBoundaries", "Smooth boundaries", false,
 				"Smooth the detected nucleus/cell boundaries");
 		params.addBooleanParameter("makeMeasurements", "Make measurements", true,

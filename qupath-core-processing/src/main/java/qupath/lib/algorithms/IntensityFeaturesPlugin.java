@@ -619,7 +619,7 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 
 			// Regions & resolution
 			params.addTitleParameter("Regions");
-			params.addChoiceParameter("region", "Region", RegionType.ROI, RegionType.values(), "The region within which to calculate the features");
+			params.addChoiceParameter("region", "Region", RegionType.ROI, Arrays.asList(RegionType.values()), "The region within which to calculate the features");
 			params.addDoubleParameter("tileSizeMicrons", "Tile diameter", 25, GeneralTools.micrometerSymbol(), "Diameter of tile around the object centroid used to calculate textures.\nOnly matters if tiles are being used (i.e. the region parameter isn't ROI).");
 			params.addDoubleParameter("tileSizePixels", "Tile diameter", 200, "px (full resolution image)", "Diameter of tile around the object centroid used to calculate textures.\nOnly matters if tiles are being used (i.e. the region parameter isn't ROI).");
 			

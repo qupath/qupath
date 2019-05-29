@@ -41,11 +41,11 @@ public class BooleanParameter extends AbstractParameter<Boolean> {
 		super(prompt, defaultValue, lastValue, helpText, isHidden);
 	}
 	
-	public BooleanParameter(String prompt, Boolean defaultValue, Boolean lastValue, String helpText) {
+	BooleanParameter(String prompt, Boolean defaultValue, Boolean lastValue, String helpText) {
 		this(prompt, defaultValue, lastValue, helpText, false);
 	}
 
-	public BooleanParameter(String prompt, Boolean defaultValue, String helpText) {
+	BooleanParameter(String prompt, Boolean defaultValue, String helpText) {
 		this(prompt, defaultValue, null, helpText);
 	}
 
