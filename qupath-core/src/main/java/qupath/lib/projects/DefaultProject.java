@@ -641,12 +641,12 @@ class DefaultProject implements Project<BufferedImage> {
 			this.metadata = entry.metadata;
 		}
 		
-		private transient ProjectResourceManager.ImageResourceManager<BufferedImage> imageManager = null;
+		private transient ImageResourceManager<BufferedImage> imageManager = null;
 		
 		@Override
 		public synchronized ProjectResourceManager<ImageServer<BufferedImage>> getImages() {
 			if (imageManager == null) {
-				imageManager = new ProjectResourceManager.ImageResourceManager<>(getPath(), BufferedImage.class);
+				imageManager = new ImageResourceManager<>(getPath(), BufferedImage.class);
 			}
 			return imageManager;
 		}
@@ -1178,19 +1178,19 @@ class DefaultProject implements Project<BufferedImage> {
 	
 	@Override
 	public ProjectResourceManager<String> getScripts() {
-		return new ProjectResourceManager.StringFileResourceManager(getScriptsPath(), ".groovy");
+		return new StringFileResourceManager(getScriptsPath(), ".groovy");
 	}
 
 
 	@Override
 	public ProjectResourceManager<PathObjectClassifier> getObjectClassifiers() {
-		return new ProjectResourceManager.SerializableFileResourceManager(getObjectClassifiersPath(), PathObjectClassifier.class);
+		return new SerializableFileResourceManager(getObjectClassifiersPath(), PathObjectClassifier.class);
 	}
 
 
 	@Override
 	public ProjectResourceManager<PixelClassifier> getPixelClassifiers() {
-		return new ProjectResourceManager.JsonFileResourceManager(getPixelClassifiersPath(), PixelClassifier.class);
+		return new JsonFileResourceManager(getPixelClassifiersPath(), PixelClassifier.class);
 	}
 
 

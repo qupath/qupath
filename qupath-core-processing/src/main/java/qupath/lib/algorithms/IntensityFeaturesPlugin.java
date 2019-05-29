@@ -336,7 +336,7 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 	@Override
 	public boolean runPlugin(final PluginRunner<BufferedImage> pluginRunner, final String arg) {
 		boolean success = super.runPlugin(pluginRunner, arg);
-		pluginRunner.getHierarchy().fireHierarchyChangedEvent(this);
+		getHierarchy(pluginRunner).fireHierarchyChangedEvent(this);
 		return success;
 	}
 	

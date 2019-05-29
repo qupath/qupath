@@ -44,7 +44,7 @@ import qupath.lib.plugins.workflow.ScriptableWorkflowStep;
  *
  */
 @Deprecated
-public class DefaultPluginWorkflowStep implements ScriptableWorkflowStep {
+class DefaultPluginWorkflowStep implements ScriptableWorkflowStep {
 	
 	private static final long serialVersionUID = 1L;
 	
@@ -55,11 +55,11 @@ public class DefaultPluginWorkflowStep implements ScriptableWorkflowStep {
 	private String scriptAfter; // Script to insert after plugin is called
 
 	
-	public DefaultPluginWorkflowStep(final String name, final Class<? extends PathPlugin<?>> pluginClass, final String arg) {
+	DefaultPluginWorkflowStep(final String name, final Class<? extends PathPlugin<?>> pluginClass, final String arg) {
 		this(name, pluginClass, arg, null, null);
 	}
 	
-	public DefaultPluginWorkflowStep(final String name, final Class<? extends PathPlugin<?>> pluginClass, final String arg, final String scriptBefore, final String scriptAfter) {
+	DefaultPluginWorkflowStep(final String name, final Class<? extends PathPlugin<?>> pluginClass, final String arg, final String scriptBefore, final String scriptAfter) {
 		this.name = name;
 		this.pluginClass = pluginClass;
 		this.arg = arg;
@@ -103,7 +103,7 @@ public class DefaultPluginWorkflowStep implements ScriptableWorkflowStep {
 	
 
 	@Override
-	public String getJavascript() {
+	public String getScript() {
 		StringBuilder sb = new StringBuilder();
 		if (scriptBefore != null)
 			sb.append(scriptBefore);
@@ -120,6 +120,4 @@ public class DefaultPluginWorkflowStep implements ScriptableWorkflowStep {
 		return sb.toString();
 	}
 	
-	
-
 }

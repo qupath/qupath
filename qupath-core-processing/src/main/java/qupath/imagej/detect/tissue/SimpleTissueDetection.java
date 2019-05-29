@@ -407,7 +407,7 @@ public class SimpleTissueDetection extends AbstractDetectionPlugin<BufferedImage
 	@Override
 	protected Collection<? extends PathObject> getParentObjects(final PluginRunner<BufferedImage> runner) {
 		PathObjectHierarchy hierarchy = runner.getImageData().getHierarchy();
-		PathObject pathObjectSelected = runner.getSelectedObject();
+		PathObject pathObjectSelected = hierarchy.getSelectionModel().getSelectedObject();
 		if (pathObjectSelected instanceof PathAnnotationObject || pathObjectSelected instanceof TMACoreObject)
 			return Collections.singleton(pathObjectSelected);
 		return Collections.singleton(hierarchy.getRootObject());

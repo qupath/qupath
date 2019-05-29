@@ -39,10 +39,16 @@ import java.util.Map;
  */
 public interface WorkflowStep extends Serializable {
 	
+	/**
+	 * Get the name of the workflow step.
+	 * @return
+	 */
 	public String getName();
 	
-//	public String getDescription();
-
+	/**
+	 * Get a map of parameters required for this step.
+	 * @return
+	 */
 	public Map<String, ?> getParameterMap();
 
 }

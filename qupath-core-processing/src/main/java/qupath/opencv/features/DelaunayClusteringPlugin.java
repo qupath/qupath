@@ -44,6 +44,7 @@ import qupath.lib.objects.PathObjectConnections;
 import qupath.lib.objects.PathRootObject;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.helpers.PathObjectTools;
+import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.plugins.AbstractInteractivePlugin;
 import qupath.lib.plugins.PathTask;
 import qupath.lib.plugins.PluginRunner;
@@ -75,7 +76,7 @@ public class DelaunayClusteringPlugin<T> extends AbstractInteractivePlugin<T> {
 	@Override
 	protected void postprocess(PluginRunner<T> pluginRunner) {
 		super.postprocess(pluginRunner);
-		pluginRunner.getHierarchy().fireHierarchyChangedEvent(this);
+		getHierarchy(pluginRunner).fireHierarchyChangedEvent(this);
 	}
 	
 
@@ -118,12 +119,13 @@ public class DelaunayClusteringPlugin<T> extends AbstractInteractivePlugin<T> {
 
 	@Override
 	protected Collection<? extends PathObject> getParentObjects(PluginRunner<T> runner) {
-		if (runner.getHierarchy() == null)
+		PathObjectHierarchy hierarchy = getHierarchy(runner);
+		if (hierarchy == null)
 			return Collections.emptyList();
 		
-		List<PathObject> selected = new ArrayList<>(runner.getHierarchy().getSelectionModel().getSelectedObjects());
+		List<PathObject> selected = new ArrayList<>(hierarchy.getSelectionModel().getSelectedObjects());
 		if (selected.isEmpty())
-			return Collections.singletonList(runner.getHierarchy().getRootObject());
+			return Collections.singletonList(hierarchy.getRootObject());
 		else
 			return selected;
 //		List<PathObject> selected = runner.getHierarchy().getSelectionModel().getSelectedObjects().stream().filter(p -> p.isTMACore()).collect(Collectors.toList());

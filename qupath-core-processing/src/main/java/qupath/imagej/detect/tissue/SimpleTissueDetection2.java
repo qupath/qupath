@@ -61,6 +61,7 @@ import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.PathRootObject;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.helpers.PathObjectTools;
+import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.plugins.AbstractDetectionPlugin;
 import qupath.lib.plugins.DetectionPluginTools;
 import qupath.lib.plugins.ObjectDetector;
@@ -424,10 +425,11 @@ public class SimpleTissueDetection2 extends AbstractDetectionPlugin<BufferedImag
 	@Override
 	protected Collection<? extends PathObject> getParentObjects(final PluginRunner<BufferedImage> runner) {
 		
-		if (runner.getHierarchy().getTMAGrid() == null)
-			return Collections.singleton(runner.getHierarchy().getRootObject());
+		PathObjectHierarchy hierarchy = getHierarchy(runner);
+		if (hierarchy.getTMAGrid() == null)
+			return Collections.singleton(hierarchy.getRootObject());
 		
-		return runner.getHierarchy().getSelectionModel().getSelectedObjects().stream().filter(p -> p.isTMACore()).collect(Collectors.toList());
+		return hierarchy.getSelectionModel().getSelectedObjects().stream().filter(p -> p.isTMACore()).collect(Collectors.toList());
 //		PathObjectHierarchy hierarchy = runner.getImageData().getHierarchy();
 //		PathObject pathObjectSelected = runner.getSelectedObject();
 //		if (pathObjectSelected instanceof PathAnnotationObject || pathObjectSelected instanceof TMACoreObject)

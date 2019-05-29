@@ -50,8 +50,14 @@ public class ProjectIO {
 
 	final private static Logger logger = LoggerFactory.getLogger(ProjectIO.class);
 	
+	/**
+	 * Default file name for a QuPath project.
+	 */
 	public static final String DEFAULT_PROJECT_NAME = "project";
 	
+	/**
+	 * Default file extension for a QuPath project.
+	 */
 	public static final String DEFAULT_PROJECT_EXTENSION = "qpproj";
 	
 	/**

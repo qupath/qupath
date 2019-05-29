@@ -31,6 +31,10 @@ package qupath.lib.plugins.workflow;
  */
 public interface WorkflowListener {
 	
+	/**
+	 * Called whenever a Workflow has been updated in some way, such as a new step added.
+	 * @param workflow
+	 */
 	public void workflowUpdated(Workflow workflow);
 
 }

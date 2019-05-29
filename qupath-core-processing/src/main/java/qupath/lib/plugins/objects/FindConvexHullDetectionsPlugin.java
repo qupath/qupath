@@ -113,11 +113,12 @@ public class FindConvexHullDetectionsPlugin<T> extends AbstractInteractivePlugin
 
 	@Override
 	protected Collection<? extends PathObject> getParentObjects(PluginRunner<T> runner) {
-		PathObject selected = runner.getSelectedObject();
+		PathObjectHierarchy hierarchy = getHierarchy(runner);
+		PathObject selected = hierarchy.getSelectionModel().getSelectedObject();
 		if (selected instanceof TMACoreObject)
 			return Collections.singleton(selected);
-		if (runner.getHierarchy().getTMAGrid() != null)
-			return runner.getHierarchy().getTMAGrid().getTMACoreList();
+		if (hierarchy.getTMAGrid() != null)
+			return hierarchy.getTMAGrid().getTMACoreList();
 		else
 			return Collections.emptyList();
 	}

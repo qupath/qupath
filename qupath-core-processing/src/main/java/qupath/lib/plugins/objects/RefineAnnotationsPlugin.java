@@ -33,6 +33,7 @@ import java.util.stream.Collectors;
 
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.ImageData;
+import qupath.lib.images.servers.ImageServer;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathROIObject;
@@ -91,7 +92,7 @@ public class RefineAnnotationsPlugin<T> extends AbstractInteractivePlugin<T> {
 
 	@Override
 	protected Collection<? extends PathObject> getParentObjects(PluginRunner<T> runner) {
-		return runner.getHierarchy().getSelectionModel().getSelectedObjects().stream().filter(p -> p.isAnnotation()).collect(Collectors.toList());
+		return getHierarchy(runner).getSelectionModel().getSelectedObjects().stream().filter(p -> p.isAnnotation()).collect(Collectors.toList());
 	}
 
 	@Override
@@ -105,12 +106,13 @@ public class RefineAnnotationsPlugin<T> extends AbstractInteractivePlugin<T> {
 		
 		// Add a single task, to avoid multithreading - which may complicate setting parents
 		List<Runnable> tasks = new ArrayList<>(1);
-		PathObjectHierarchy hierarchy = runner.getHierarchy();
+		PathObjectHierarchy hierarchy = getHierarchy(runner);
 		
 		double minFragmentSize;
 		double maxHoleSize, maxHoleSizeTemp;
-		if (runner.getImageServer().hasPixelSizeMicrons()) {
-			double pixelAreaMicrons = runner.getImageServer().getPixelWidthMicrons() * runner.getImageServer().getPixelHeightMicrons();
+		ImageServer<T> server = getServer(runner);
+		if (server.hasPixelSizeMicrons()) {
+			double pixelAreaMicrons = server.getPixelWidthMicrons() * server.getPixelHeightMicrons();
 			minFragmentSize = params.getDoubleParameterValue("minFragmentSizeMicrons") / pixelAreaMicrons;
 			maxHoleSizeTemp = params.getDoubleParameterValue("maxHoleSizeMicrons") / pixelAreaMicrons;
 		} else {

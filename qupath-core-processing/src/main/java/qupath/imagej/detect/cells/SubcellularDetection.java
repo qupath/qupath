@@ -94,7 +94,7 @@ public class SubcellularDetection extends AbstractInteractivePlugin<BufferedImag
 	@Override
 	public boolean runPlugin(final PluginRunner<BufferedImage> pluginRunner, final String arg) {
 		boolean success = super.runPlugin(pluginRunner, arg);
-		pluginRunner.getHierarchy().fireHierarchyChangedEvent(this);
+		getHierarchy(pluginRunner).fireHierarchyChangedEvent(this);
 		return success;
 	}
 	
@@ -405,7 +405,7 @@ public class SubcellularDetection extends AbstractInteractivePlugin<BufferedImag
 	protected Collection<PathObject> getParentObjects(final PluginRunner<BufferedImage> runner) {
 		Collection<Class<? extends PathObject>> parentClasses = getSupportedParentObjectClasses();
 		List<PathObject> parents = new ArrayList<>();
-		for (PathObject parent : runner.getHierarchy().getSelectionModel().getSelectedObjects()) {
+		for (PathObject parent : getHierarchy(runner).getSelectionModel().getSelectedObjects()) {
 			for (Class<? extends PathObject> cls : parentClasses) {
 				if (cls.isAssignableFrom(parent.getClass())) {
 					parents.add(parent);

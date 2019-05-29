@@ -37,9 +37,6 @@ import org.slf4j.LoggerFactory;
 
 import qupath.lib.common.ThreadTools;
 import qupath.lib.images.ImageData;
-import qupath.lib.images.servers.ImageServer;
-import qupath.lib.objects.PathObject;
-import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 
 
 /**
@@ -64,22 +61,9 @@ public abstract class AbstractPluginRunner<T> implements PluginRunner<T> {
 
 	private Map<Future<Runnable>, Runnable> pendingTasks = new HashMap<>();
 	
-	private boolean batchMode = false;
 	private SimpleProgressMonitor monitor;
 	
 	private boolean tasksCancelled = false;
-	
-	protected AbstractPluginRunner(final boolean batchMode) {
-		this.batchMode = batchMode;
-	}
-
-	/* (non-Javadoc)
-	 * @see qupath.lib.plugins.PluginRunner#isBatchMode()
-	 */
-	@Override
-	public boolean isBatchMode() {
-		return batchMode;
-	}
 	
 	/**
 	 * Set the number of threads requested to be used for the next threadpool created.
@@ -138,34 +122,6 @@ public abstract class AbstractPluginRunner<T> implements PluginRunner<T> {
 	 */
 	@Override
 	public abstract ImageData<T> getImageData();
-
-	/* (non-Javadoc)
-	 * @see qupath.lib.plugins.PluginRunner#getImageServer()
-	 */
-	@Override
-	public ImageServer<T> getImageServer() {
-		ImageData<T> imageData = getImageData();
-		return imageData == null ? null : imageData.getServer();
-	}
-	
-	/* (non-Javadoc)
-	 * @see qupath.lib.plugins.PluginRunner#getHierarchy()
-	 */
-	@Override
-	public PathObjectHierarchy getHierarchy() {
-		ImageData<T> imageData = getImageData();
-		return imageData == null ? null : imageData.getHierarchy();
-	}
-	
-	/* (non-Javadoc)
-	 * @see qupath.lib.plugins.PluginRunner#getSelectedObject()
-	 */
-	@Override
-	public PathObject getSelectedObject() {
-		PathObjectHierarchy hierarchy = getHierarchy();
-		return hierarchy == null ? null : hierarchy.getSelectionModel().getSelectedObject();
-	}
-
 	
 	/* (non-Javadoc)
 	 * @see qupath.lib.plugins.PluginRunner#runTasks(java.util.Collection)

@@ -3289,12 +3289,12 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			try {
 				if (plugin instanceof PathInteractivePlugin) {
 					PathInteractivePlugin<BufferedImage> pluginInteractive = (PathInteractivePlugin<BufferedImage>)plugin;
-					ParameterDialogWrapper<BufferedImage> dialog = new ParameterDialogWrapper<>(pluginInteractive, pluginInteractive.getDefaultParameterList(getImageData()), new PluginRunnerFX(this, false));
+					ParameterDialogWrapper<BufferedImage> dialog = new ParameterDialogWrapper<>(pluginInteractive, pluginInteractive.getDefaultParameterList(getImageData()), new PluginRunnerFX(this));
 					dialog.showDialog();
 //					((PathInteractivePlugin<BufferedImage>)plugin).runInteractive(new PluginRunnerFX(this, false), arg);
 				}
 				else
-					((PathPlugin<BufferedImage>)plugin).runPlugin(new PluginRunnerFX(this, false), arg);
+					((PathPlugin<BufferedImage>)plugin).runPlugin(new PluginRunnerFX(this), arg);
 
 			} catch (Exception e) {
 				DisplayHelpers.showErrorMessage("Error", "Error running " + plugin.getName());
@@ -3346,11 +3346,11 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 					// We use the US locale because we need to ensure decimal points (not commas)
 					ParameterList.updateParameterList(params, map, Locale.US);
 				}
-				ParameterDialogWrapper<BufferedImage> dialog = new ParameterDialogWrapper<>(pluginInteractive, params, new PluginRunnerFX(this, false));
+				ParameterDialogWrapper<BufferedImage> dialog = new ParameterDialogWrapper<>(pluginInteractive, params, new PluginRunnerFX(this));
 				dialog.showDialog();
 			}
 			else
-				plugin.runPlugin(new PluginRunnerFX(this, false), arg);
+				plugin.runPlugin(new PluginRunnerFX(this), arg);
 
 		} catch (Exception e) {
 			logger.error("Unable to run plugin " + plugin, e);

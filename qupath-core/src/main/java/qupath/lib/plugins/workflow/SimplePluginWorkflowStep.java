@@ -57,10 +57,24 @@ public class SimplePluginWorkflowStep implements ScriptableWorkflowStep, Externa
 	 */
 	public SimplePluginWorkflowStep() {}
 	
+	/**
+	 * Constructor for a workflow step that calls a plugin.
+	 * @param name
+	 * @param pluginClass
+	 * @param arg
+	 */
 	public SimplePluginWorkflowStep(final String name, final Class<? extends PathPlugin<?>> pluginClass, final String arg) {
 		this(name, pluginClass, arg, null, null);
 	}
 	
+	/**
+	 * Constructor for a workflow step that calls a plugin, which optionally should include additional scripting lines before or afterwards.
+	 * @param name
+	 * @param pluginClass
+	 * @param arg
+	 * @param scriptBefore
+	 * @param scriptAfter
+	 */
 	public SimplePluginWorkflowStep(final String name, final Class<? extends PathPlugin<?>> pluginClass, final String arg, final String scriptBefore, final String scriptAfter) {
 		this.name = name;
 		this.pluginClass = pluginClass.getName();
@@ -109,7 +123,7 @@ public class SimplePluginWorkflowStep implements ScriptableWorkflowStep, Externa
 	
 
 	@Override
-	public String getJavascript() {
+	public String getScript() {
 		StringBuilder sb = new StringBuilder();
 		if (scriptBefore != null)
 			sb.append(scriptBefore);

@@ -36,6 +36,7 @@ import org.slf4j.LoggerFactory;
 
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.ImageData;
+import qupath.lib.images.servers.ImageServer;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
@@ -98,7 +99,7 @@ public class DilateAnnotationPlugin<T> extends AbstractInteractivePlugin<T> {
 
 	@Override
 	protected Collection<? extends PathObject> getParentObjects(PluginRunner<T> runner) {
-		return runner.getHierarchy().getSelectionModel().getSelectedObjects().stream().filter(p -> p.isAnnotation()).collect(Collectors.toList());
+		return getHierarchy(runner).getSelectionModel().getSelectedObjects().stream().filter(p -> p.isAnnotation()).collect(Collectors.toList());
 	}
 
 	@Override
@@ -112,12 +113,13 @@ public class DilateAnnotationPlugin<T> extends AbstractInteractivePlugin<T> {
 		
 		// Add a single task, to avoid multithreading - which may complicate setting parents
 		List<Runnable> tasks = new ArrayList<>(parentObjects.size());
-		Rectangle bounds = new Rectangle(0, 0, runner.getImageServer().getWidth(), runner.getImageServer().getHeight());
-		PathObjectHierarchy hierarchy = runner.getHierarchy();
+		ImageServer<T> server = getServer(runner);
+		Rectangle bounds = new Rectangle(0, 0, server.getWidth(), server.getHeight());
+		PathObjectHierarchy hierarchy = getHierarchy(runner);
 		
 		double radiusPixels;
-		if (runner.getImageServer().hasPixelSizeMicrons())
-			radiusPixels = params.getDoubleParameterValue("radiusMicrons") / runner.getImageServer().getAveragedPixelSizeMicrons();
+		if (server.hasPixelSizeMicrons())
+			radiusPixels = params.getDoubleParameterValue("radiusMicrons") / server.getAveragedPixelSizeMicrons();
 		else
 			radiusPixels = params.getDoubleParameterValue("radiusPixels");
 		

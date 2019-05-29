@@ -32,6 +32,7 @@ import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.helpers.PathObjectTools;
+import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 
 
 /**
@@ -64,8 +65,8 @@ public abstract class AbstractDetectionPlugin<T> extends AbstractInteractivePlug
 	@Override
 	protected Collection<? extends PathObject> getParentObjects(final PluginRunner<T> runner) {
 		Collection<Class<? extends PathObject>> supported = getSupportedParentObjectClasses();
-		Collection<PathObject> selectedObjects = runner
-				.getHierarchy()
+		PathObjectHierarchy hierarchy = getHierarchy(runner);
+		Collection<PathObject> selectedObjects = hierarchy
 				.getSelectionModel()
 				.getSelectedObjects();
 		Collection<? extends PathObject> objects = PathObjectTools.getSupportedObjects(selectedObjects, supported);
@@ -73,7 +74,7 @@ public abstract class AbstractDetectionPlugin<T> extends AbstractInteractivePlug
 		if (!objects.isEmpty() && selectedObjects.size() > objects.size()) {
 			Set<PathObject> objectsToDeselect = new HashSet<>(selectedObjects);
 			objectsToDeselect.removeAll(objects);
-			runner.getHierarchy().getSelectionModel().deselectObjects(objectsToDeselect);
+			hierarchy.getSelectionModel().deselectObjects(objectsToDeselect);
 		}
 		return objects;
 //		return InteractivePluginTools.getObjectsForChoice(runner.getHierarchy(), getSupportedParentObjectClasses(), getParameterList(runner.getImageData()));

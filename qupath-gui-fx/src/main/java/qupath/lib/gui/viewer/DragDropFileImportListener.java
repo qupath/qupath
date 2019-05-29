@@ -49,8 +49,8 @@ import qupath.lib.images.ImageData;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.TMAGrid;
 import qupath.lib.projects.Project;
-import qupath.lib.projects.ProjectFactory;
 import qupath.lib.projects.ProjectIO;
+import qupath.lib.projects.Projects;
 import qupath.lib.gui.scripting.DefaultScriptEditor;
 
 
@@ -216,7 +216,7 @@ public class DragDropFileImportListener implements EventHandler<DragEvent> {
 				} else if (filesInDirectory.length == 0) {
 					// If we have an empty directory, offer to set it as a project
 					if (DisplayHelpers.showYesNoDialog("Create project", "Create project for empty directory?")) {
-						Project<BufferedImage> project = ProjectFactory.createProject(file, BufferedImage.class);
+						Project<BufferedImage> project = Projects.createProject(file, BufferedImage.class);
 						gui.setProject(project);
 						if (!project.isEmpty())
 							project.syncChanges();

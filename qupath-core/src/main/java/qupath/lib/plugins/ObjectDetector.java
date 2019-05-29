@@ -43,8 +43,21 @@ import qupath.lib.roi.interfaces.ROI;
  */
 public interface ObjectDetector<T> {
 	
-	public Collection<PathObject> runDetection(ImageData<T> imageData, ParameterList params, ROI pathROI) throws IOException;
+	/**
+	 * Detect objects.
+	 * 
+	 * @param imageData the {@link ImageData} for which objects should be detected
+	 * @param params optional list of parameters required for the detection
+	 * @param roi specific region within which the detection should be applied
+	 * @return
+	 * @throws IOException
+	 */
+	public Collection<PathObject> runDetection(ImageData<T> imageData, ParameterList params, ROI roi) throws IOException;
 
+	/**
+	 * Get a String summarizing the result, which may be displayed to a user or logged.
+	 * @return
+	 */
 	public String getLastResultsDescription();
 
 }

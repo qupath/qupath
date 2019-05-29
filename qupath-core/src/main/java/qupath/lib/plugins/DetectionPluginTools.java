@@ -67,11 +67,21 @@ import qupath.lib.roi.interfaces.ROI;
 public class DetectionPluginTools {
 	
 	
-	public static <T> Runnable createRunnableTask(final ObjectDetector<T> task, final ParameterList params, final ImageData<T> imageData, final PathObject parentObject, final ROI pathROI, final int overlapAmount) {
+	private static <T> Runnable createRunnableTask(final ObjectDetector<T> task, final ParameterList params, final ImageData<T> imageData, final PathObject parentObject, final ROI pathROI, final int overlapAmount) {
 		return new DetectionRunnable<>(task, params, imageData, parentObject, pathROI, overlapAmount);
 	}
 
-
+	/**
+	 * Create a task that applies an object detector to a parent object.
+	 * <p>
+	 * Detected objects will be added as children of the parent. If the parent has a ROI, this may define the detection ROI.
+	 * @param <T>
+	 * @param task
+	 * @param params
+	 * @param imageData
+	 * @param parentObject
+	 * @return
+	 */
 	public static <T> Runnable createRunnableTask(final ObjectDetector<T> task, final ParameterList params, final ImageData<T> imageData, final PathObject parentObject) {
 		return createRunnableTask(task, params, imageData, parentObject, parentObject.getROI(), 0);
 	}
@@ -137,7 +147,7 @@ public class DetectionPluginTools {
 
 
 
-		private void tryToSetObjectLock(final PathObject pathObject, final boolean locked) {
+		private static void tryToSetObjectLock(final PathObject pathObject, final boolean locked) {
 			if (pathObject instanceof PathROIObject)
 				((PathROIObject)pathObject).setLocked(locked);
 		}

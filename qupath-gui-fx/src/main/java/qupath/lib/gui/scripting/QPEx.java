@@ -251,10 +251,10 @@ public class QPEx extends QP {
 			PluginRunner runner;
 			// TODO: Give potential of passing a plugin runner
 			if (isBatchMode() || imageData != getQuPath().getImageData()) {
-				runner = new CommandLinePluginRunner(imageData, true);
+				runner = new CommandLinePluginRunner(imageData);
 			}
 			else {
-				runner = new PluginRunnerFX(getQuPath(), true);
+				runner = new PluginRunnerFX(getQuPath());
 			}
 			completed = plugin.runPlugin(runner, args);
 			cancelled = runner.isCancelled();

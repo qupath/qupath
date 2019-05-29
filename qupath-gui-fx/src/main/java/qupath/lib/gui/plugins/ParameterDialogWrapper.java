@@ -25,6 +25,7 @@ package qupath.lib.gui.plugins;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 
@@ -163,7 +164,9 @@ public class ParameterDialogWrapper<T> {
 				params.removeParameter(KEY_REGIONS);
 
 				boolean alwaysPrompt = plugin.alwaysPromptForObjects();
-				Collection<? extends PathObject> parents = PathObjectTools.getSupportedObjects(pluginRunner.getHierarchy().getSelectionModel().getSelectedObjects(), plugin.getSupportedParentObjectClasses());
+				ImageData<?> imageData = pluginRunner.getImageData();
+				Collection<PathObject> selected = imageData == null ? Collections.emptyList() : imageData.getHierarchy().getSelectionModel().getSelectedObjects();
+				Collection<? extends PathObject> parents = PathObjectTools.getSupportedObjects(selected, plugin.getSupportedParentObjectClasses());
 				if (alwaysPrompt || parents == null || parents.isEmpty()) {
 					if (!ParameterDialogWrapper.promptForParentObjects(pluginRunner, plugin, alwaysPrompt && !parents.isEmpty()))
 						return;
@@ -298,7 +301,7 @@ public class ParameterDialogWrapper<T> {
 		String name = plugin.getName();
 
 		// Determine the currently-selected object
-		PathObject pathObjectSelected = runner.getSelectedObject();
+		PathObject pathObjectSelected = hierarchy.getSelectionModel().getSelectedObject();
 
 		// If the currently-selected object is supported, use it as the parent
 		if (!includeSelected && pathObjectSelected != null && !pathObjectSelected.isRootObject()) {

@@ -87,7 +87,7 @@ public class DefaultScriptableWorkflowStep implements ScriptableWorkflowStep {
 	
 	
 	@Override
-	public String getJavascript() {
+	public String getScript() {
 		return script;
 	}
 	

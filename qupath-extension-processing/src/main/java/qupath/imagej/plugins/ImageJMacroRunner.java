@@ -65,6 +65,7 @@ import qupath.lib.images.PathImage;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.TMACoreObject;
+import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.plugins.AbstractPlugin;
 import qupath.lib.plugins.PluginRunner;
 import qupath.lib.plugins.parameters.ParameterList;
@@ -155,7 +156,8 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 					if (macroText.length() == 0)
 						return;
 
-					PathObject pathObject = runner.getHierarchy().getSelectionModel().singleSelection() ? runner.getSelectedObject() : null;
+					PathObjectHierarchy hierarchy = getHierarchy(runner);
+					PathObject pathObject = hierarchy.getSelectionModel().singleSelection() ? hierarchy.getSelectionModel().getSelectedObject() : null;
 					if (pathObject instanceof PathAnnotationObject || pathObject instanceof TMACoreObject) {
 						SwingUtilities.invokeLater(() -> {
 							runMacro(params, 
@@ -431,11 +433,12 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 	@Override
 	protected Collection<? extends PathObject> getParentObjects(final PluginRunner<BufferedImage> runner) {
 		// Try to get currently-selected objects
-		List<PathObject> pathObjects = runner.getHierarchy().getSelectionModel().getSelectedObjects().stream()
+		PathObjectHierarchy hierarchy = getHierarchy(runner);
+		List<PathObject> pathObjects = hierarchy.getSelectionModel().getSelectedObjects().stream()
 				.filter(p -> p.isAnnotation() || p.isTMACore()).collect(Collectors.toList());
 		if (pathObjects.isEmpty()) {
 			if (ParameterDialogWrapper.promptForParentObjects(runner, this, false, getSupportedParentObjectClasses()))
-				pathObjects = new ArrayList<>(runner.getHierarchy().getSelectionModel().getSelectedObjects());
+				pathObjects = new ArrayList<>(hierarchy.getSelectionModel().getSelectedObjects());
 		}
 		return pathObjects;
 		

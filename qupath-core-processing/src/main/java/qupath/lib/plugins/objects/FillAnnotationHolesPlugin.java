@@ -83,7 +83,7 @@ public class FillAnnotationHolesPlugin<T> extends AbstractInteractivePlugin<T> {
 
 	@Override
 	protected Collection<? extends PathObject> getParentObjects(PluginRunner<T> runner) {
-		return runner.getHierarchy().getSelectionModel().getSelectedObjects().stream().filter(p -> p.isAnnotation()).collect(Collectors.toList());
+		return getHierarchy(runner).getSelectionModel().getSelectedObjects().stream().filter(p -> p.isAnnotation()).collect(Collectors.toList());
 	}
 
 	@Override
@@ -97,7 +97,7 @@ public class FillAnnotationHolesPlugin<T> extends AbstractInteractivePlugin<T> {
 		
 		// Add a single task, to avoid multithreading - which may complicate setting parents
 		List<Runnable> tasks = new ArrayList<>(1);
-		PathObjectHierarchy hierarchy = runner.getHierarchy();
+		PathObjectHierarchy hierarchy = getHierarchy(runner);
 		
 		// Want to reset selection
 		PathObject selected = hierarchy.getSelectionModel().getSelectedObject();

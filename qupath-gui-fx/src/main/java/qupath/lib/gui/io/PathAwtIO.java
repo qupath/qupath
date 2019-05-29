@@ -188,10 +188,10 @@ public class PathAwtIO {
 			ExportCoresPlugin plugin = new ExportCoresPlugin(dirData, options, downsample);
 			PluginRunner<BufferedImage> runner;
 			if (QuPathGUI.getInstance() == null || QuPathGUI.getInstance().getImageData() != imageData) {
-				runner = new CommandLinePluginRunner<>(imageData, true);
+				runner = new CommandLinePluginRunner<>(imageData);
 				plugin.runPlugin(runner, null);
 			} else {
-				runner = new PluginRunnerFX(QuPathGUI.getInstance(), false);				
+				runner = new PluginRunnerFX(QuPathGUI.getInstance());				
 				new Thread(() -> plugin.runPlugin(runner, null)).start();
 			}
 		}
@@ -319,7 +319,7 @@ public class PathAwtIO {
 
 		@Override
 		protected Collection<? extends PathObject> getParentObjects(PluginRunner<BufferedImage> runner) {
-			return PathObjectTools.getTMACoreObjects(runner.getHierarchy(), true);
+			return PathObjectTools.getTMACoreObjects(getHierarchy(runner), true);
 		}
 
 		@Override

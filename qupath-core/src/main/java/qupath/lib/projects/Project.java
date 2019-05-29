@@ -27,7 +27,6 @@ import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Path;
 import java.util.Collection;
-import java.util.Comparator;
 import java.util.List;
 
 import qupath.lib.classifiers.PathObjectClassifier;
@@ -252,29 +251,6 @@ public interface Project<T> {
 //	public PixelClassifier loadPixelClassifier(String name);
 //	
 //	public void savePixelClassifier(String name, String PixelClassifier);
-	
-	
-	
-	
-	
-	static class ImageEntryComparator implements Comparator<ProjectImageEntry<?>> {
 
-		static ImageEntryComparator instance = new ImageEntryComparator();
-		
-		@Override
-		public int compare(ProjectImageEntry<?> o1, ProjectImageEntry<?> o2) {
-			String n1 = o1.getImageName();
-			String n2 = o2.getImageName();
-			if (n1 == null) {
-				if (n2 == null)
-					return 0;
-				else
-					return 1;
-			} else if (n2 == null)
-				return -1;
-			return n1.compareTo(n2);
-		}
-		
-	}
 	
 }
