@@ -126,8 +126,7 @@ public class Point2 extends AbstractPoint implements Externalizable {
 	
 	/**
 	 * Calculate the distance between this point and another point.
-	 * @param x
-	 * @param y
+	 * @param p
 	 * @return
 	 */
 	public double distance(final Point2 p) {

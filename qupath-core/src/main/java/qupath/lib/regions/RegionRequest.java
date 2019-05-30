@@ -90,7 +90,7 @@ public class RegionRequest extends ImageRegion {
 	 * This is calculated using the ROI bounding box.
 	 * @param path
 	 * @param downsample
-	 * @param pathROI
+	 * @param roi
 	 * @return
 	 */
 	public static RegionRequest createInstance(String path, double downsample, ROI roi) {

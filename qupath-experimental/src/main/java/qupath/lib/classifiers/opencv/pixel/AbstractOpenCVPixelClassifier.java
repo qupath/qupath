@@ -5,9 +5,9 @@ import org.bytedeco.opencv.opencv_core.Scalar;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import qupath.lib.awt.color.ColorModelFactory;
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.classifiers.pixel.PixelClassifierMetadata;
+import qupath.lib.color.ColorModelFactory;
 
 import java.awt.image.ColorModel;
 import java.util.List;

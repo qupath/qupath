@@ -225,6 +225,10 @@ public class PixelClassifierMetadata {
     	private ImageServerMetadata.ChannelType outputType = ImageServerMetadata.ChannelType.PROBABILITY;
     	private List<ImageChannel> channels = new ArrayList<>();
     	
+    	/**
+    	 * Build a new PixelClassifierMetadata object.
+    	 * @return
+    	 */
     	public PixelClassifierMetadata build() {
     		return new PixelClassifierMetadata(this);
     	}
@@ -244,22 +248,50 @@ public class PixelClassifierMetadata {
     		return this;
     	}
     	
-    	public Builder inputPixelSize(double pixelSizeMicrons) {
-    		this.inputPixelSize = pixelSizeMicrons;
+    	/**
+    	 * Pixel size defining the resolution at which the classifier should operate.
+    	 * @param pixelSize
+    	 * @return
+    	 * 
+    	 * @see PixelClassifierMetadata#getInputPixelSize()
+    	 * @see #inputPixelSizeUnits(String)
+    	 */
+    	public Builder inputPixelSize(double pixelSize) {
+    		this.inputPixelSize = pixelSize;
     		return this;
     	}
     	
+    	/**
+    	 * Units for the input pixel size.
+    	 * @param inputPixelSizeUnits
+    	 * @return
+    	 * 
+    	 * @see PixelClassifierMetadata#getInputPixelSizeUnits()
+    	 * @see #inputPixelSize(double)
+    	 */
     	public Builder inputPixelSizeUnits(String inputPixelSizeUnits) {
     		this.inputPixelSizeUnits = inputPixelSizeUnits;
     		return this;
     	}
     	
+    	/**
+    	 * Preferred input image width and height. This may either be a hint or strictly enforced.
+    	 * @param width
+    	 * @param height
+    	 * @return
+    	 * 
+    	 * @see #strictInputSize
+    	 */
     	public Builder inputShape(int width, int height) {
     		this.inputWidth = width;
     		this.inputHeight = height;
     		return this;
     	}
     	
+    	/**
+    	 * Strictly enforce the input shape. Otherwise it is simply a request, but the pixel classifier may use a different size.
+    	 * @return
+    	 */
     	public Builder strictInputSize() {
     		this.strictInputSize = true;
     		return this;
@@ -270,11 +302,21 @@ public class PixelClassifierMetadata {
     		return this;
     	}
     	
+    	/**
+    	 * Values to subtract from each input channel.
+    	 * @param means
+    	 * @return
+    	 */
     	public Builder inputChannelMeans(double... means) {
     		this.inputChannelMeans = means.clone();
     		return this;
     	}
     	
+    	/**
+    	 * Scale values to apply to each input channel.
+    	 * @param scales
+    	 * @return
+    	 */
     	public Builder inputChannelScales(double... scales) {
     		this.inputChannelScales = scales.clone();
     		return this;

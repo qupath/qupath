@@ -53,7 +53,7 @@ import ij.process.ImageProcessor;
 import ij.process.LUT;
 import ij.process.ShortProcessor;
 import qupath.imagej.objects.ROIConverterIJ;
-import qupath.lib.awt.color.ColorToolsAwt;
+import qupath.lib.color.ColorToolsAwt;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.PathImage;

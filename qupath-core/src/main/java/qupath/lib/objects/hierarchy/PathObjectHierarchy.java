@@ -483,7 +483,6 @@ public final class PathObjectHierarchy implements Serializable {
 	 * 
 	 * @param pathObjectParent
 	 * @param pathObject
-	 * @param avoidDuplicates
 	 * @param fireUpdate
 	 * @return
 	 */

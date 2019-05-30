@@ -30,7 +30,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.lib.objects.TMACoreObject;
-import qupath.lib.roi.RoiTools;
 
 /**
  * Default implementation of a TMAGrid.

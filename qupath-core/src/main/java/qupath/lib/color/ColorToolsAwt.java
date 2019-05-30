@@ -21,7 +21,7 @@
  * #L%
  */
 
-package qupath.lib.awt.color;
+package qupath.lib.color;
 
 import java.awt.Color;
 import java.awt.image.IndexColorModel;
@@ -31,7 +31,6 @@ import java.util.Map;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
-import qupath.lib.color.StainVector;
 import qupath.lib.common.ColorTools;
 
 /**

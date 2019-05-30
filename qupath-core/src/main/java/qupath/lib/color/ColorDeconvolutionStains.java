@@ -35,7 +35,7 @@ import java.util.StringTokenizer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import qupath.lib.color.StainVector.DEFAULT_STAINS;
+import qupath.lib.color.StainVector.DefaultStains;
 import qupath.lib.common.GeneralTools;
 
 
@@ -57,21 +57,44 @@ public class ColorDeconvolutionStains implements Externalizable {
 
 	private static int version = 1;
 	
+	/**
+	 * Default name (and spelling) for hematoxylin stain
+	 */
 	public static final String HEMATOXYLIN = "Hematoxylin";
+	
+	/**
+	 * Default name for eosin stain
+	 */
 	public static final String EOSIN = "Eosin";
+	
+	/**
+	 * Default name for DAB stain
+	 */
 	public static final String DAB = "DAB";
 	
 	private static String[] HEMATOXYLIN_SPELLINGS = {"haematoxylin", "hematoxylin", "haem", "h"};
 	private static String[] EOSIN_SPELLINGS = {"eosin", "eos", "e"};
 	private static String[] DAB_SPELLINGS = {"dab", "d"};
 	
-	
-	public enum DEFAULT_CD_STAINS {
-		H_E("H&E"), H_DAB("H-DAB");
+	/**
+	 * Enum for common stain defaults.
+	 * <p>
+	 * TODO: Switch to using an interface and permitting alternatives
+	 */
+	public enum DefaultColorDeconvolutionStains {
+		/**
+		 * Hematoxylin and eosin
+		 */
+		H_E("H&E"),
+		
+		/**
+		 * Hematoxylin and DAB
+		 */
+		H_DAB("H-DAB");
 		
 		private String name;
 		
-		DEFAULT_CD_STAINS(String name) {
+		DefaultColorDeconvolutionStains(String name) {
 			this.name = name;
 		};
 		@Override
@@ -95,16 +118,18 @@ public class ColorDeconvolutionStains implements Externalizable {
 	 * @param stains
 	 * @return
 	 */
-	public static ColorDeconvolutionStains makeDefaultColorDeconvolutionStains(DEFAULT_CD_STAINS stains) {
+	public static ColorDeconvolutionStains makeDefaultColorDeconvolutionStains(DefaultColorDeconvolutionStains stains) {
 		switch(stains) {
 		case H_E:
 			return new ColorDeconvolutionStains("H&E default",
-												StainVector.makeDefaultStainVector(StainVector.DEFAULT_STAINS.HEMATOXYLIN),
-												StainVector.makeDefaultStainVector(StainVector.DEFAULT_STAINS.EOSIN));
+												StainVector.makeDefaultStainVector(StainVector.DefaultStains.HEMATOXYLIN),
+												StainVector.makeDefaultStainVector(StainVector.DefaultStains.EOSIN),
+												255, 255, 255);
 		case H_DAB:
 			return new ColorDeconvolutionStains("H-DAB default",
-												StainVector.makeDefaultStainVector(StainVector.DEFAULT_STAINS.HEMATOXYLIN),
-												StainVector.makeDefaultStainVector(StainVector.DEFAULT_STAINS.DAB));
+												StainVector.makeDefaultStainVector(StainVector.DefaultStains.HEMATOXYLIN),
+												StainVector.makeDefaultStainVector(StainVector.DefaultStains.DAB),
+												255, 255, 255);
 		}
 		return null;
 	}
@@ -238,7 +263,16 @@ public class ColorDeconvolutionStains implements Externalizable {
 		return new ColorDeconvolutionStains(getName(), getStain(1), getStain(2), getStain(3), maxRed, maxGreen, maxBlue);
 	}
 
-	
+	/**
+	 * Constructor for ColorDeconvolutionStains with three stain vectors.
+	 * @param name
+	 * @param stain1
+	 * @param stain2
+	 * @param stain3
+	 * @param maxRed background (white) value for red channel
+	 * @param maxGreen background (white) value for green channel
+	 * @param maxBlue background (white) value for blue channel
+	 */
 	public ColorDeconvolutionStains(String name, StainVector stain1, StainVector stain2, StainVector stain3, double maxRed, double maxGreen, double maxBlue) {
 		this.name = name;
 		this.stain1 = stain1;
@@ -252,24 +286,28 @@ public class ColorDeconvolutionStains implements Externalizable {
 		this.maxBlue = maxBlue;
 	}
 	
+	/**
+	 * Constructor for ColorDeconvolutionStains with two stain vectors.
+	 * @param name
+	 * @param stain1
+	 * @param stain2
+	 * @param maxRed background (white) value for red channel
+	 * @param maxGreen background (white) value for green channel
+	 * @param maxBlue background (white) value for blue channel
+	 */
 	public ColorDeconvolutionStains(String name, StainVector stain1, StainVector stain2, double maxRed, double maxGreen, double maxBlue) {
 		this(name, stain1, stain2, null, maxRed, maxGreen, maxBlue);
 	}
-
-	private ColorDeconvolutionStains(String name, StainVector stain1, StainVector stain2, double maxValue) {
-		this(name, stain1, stain2, null, maxValue, maxValue, maxValue);
-	}
 	
-	private ColorDeconvolutionStains(String name, StainVector stain1, StainVector stain2) {
-		this(name, stain1, stain2, 255);
-	}
-	
+	/**
+	 * Default constructor, for Externalizable. Should not be used directly.
+	 */
 	public ColorDeconvolutionStains() {}
 
 	/**
 	 * Get a specified color deconvolution stain vector, where n should be 1, 2 or 3 
 	 * (because color deconvolution on a 3-channel image can recover [to some extent] up to 3 stains).
-	 * 
+	 * <p>
 	 * If only 2 stains are set (i.e. stain1 and stain2), then a third stain is computed
 	 * orthogonal to the first two, with the name 'residual'.
 	 * 
@@ -289,12 +327,19 @@ public class ColorDeconvolutionStains implements Externalizable {
 		return null;
 	}
 	
-	
+	/**
+	 * Get the stains name.
+	 * @return
+	 */
 	public String getName() {
 		return name;
 	}
 	
-	// Only reference equality is checked
+	/**
+	 * Get the number for a specific stain (1, 2 or 3).
+	 * @param stain
+	 * @return
+	 */
 	public int getStainNumber(StainVector stain) {
 		if (stain1.equals(stain))
 			return 1;
@@ -359,7 +404,14 @@ public class ColorDeconvolutionStains implements Externalizable {
 	}
 
 
-	
+	/**
+	 * Get a String representation of the stains and background.
+	 * @param stains
+	 * @param nDecimalPlaces
+	 * @return
+	 * 
+	 * @see #parseColorDeconvolutionStainsArg(String)
+	 */
 	public static String getColorDeconvolutionStainsAsString(final ColorDeconvolutionStains stains, final int nDecimalPlaces) {
 		if (stains == null)
 			return "";
@@ -387,7 +439,13 @@ public class ColorDeconvolutionStains implements Externalizable {
 		return sb.toString();
 	}
 
-
+	/**
+	 * Parse color deconvolution stains from a JSON String, with keys 'Stain 1', 'Stain 2', (optionally) 'Stain 3' and 'Background'.
+	 * @param s
+	 * @return
+	 * 
+	 * @see #getColorDeconvolutionStainsAsString(ColorDeconvolutionStains, int)
+	 */
 	public static ColorDeconvolutionStains parseColorDeconvolutionStainsArg(final String s) {
 		
 		Map<String, String> map = GeneralTools.parseArgStringValues(s);
@@ -406,7 +464,14 @@ public class ColorDeconvolutionStains implements Externalizable {
 	}
 	
 	
-	public static StainVector parseStainVector(Locale locale, String name, String s) {
+	/**
+	 * Parse a stain vector from a string containing three numbers separated by spaces.
+	 * @param locale
+	 * @param name
+	 * @param s
+	 * @return
+	 */
+	private static StainVector parseStainVector(Locale locale, String name, String s) {
 		if (s == null)
 			return null;
 		s = s.trim();
@@ -415,15 +480,15 @@ public class ColorDeconvolutionStains implements Externalizable {
 		if (s.length() == 1) {
 			s = s.toLowerCase();
 			if (s.equals("h"))
-				return StainVector.makeDefaultStainVector(DEFAULT_STAINS.HEMATOXYLIN);
+				return StainVector.makeDefaultStainVector(DefaultStains.HEMATOXYLIN);
 			else if (s.equals("e"))
-				return StainVector.makeDefaultStainVector(DEFAULT_STAINS.EOSIN);
+				return StainVector.makeDefaultStainVector(DefaultStains.EOSIN);
 			else if (s.equals("d"))
-				return StainVector.makeDefaultStainVector(DEFAULT_STAINS.DAB);
+				return StainVector.makeDefaultStainVector(DefaultStains.DAB);
 		}
 		double[] vector = parseStainValues(locale, s);
 		if (vector != null)
-			return new StainVector(name, vector[0], vector[1], vector[2]);
+			return StainVector.createStainVector(name, vector[0], vector[1], vector[2]);
 		// If we got here, we didn't find 3 numbers
 		return null;
 	}

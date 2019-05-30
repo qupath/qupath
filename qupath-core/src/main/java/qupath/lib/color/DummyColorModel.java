@@ -1,4 +1,4 @@
-package qupath.lib.awt.color;
+package qupath.lib.color;
 
 import java.awt.image.ColorModel;
 import java.awt.image.Raster;

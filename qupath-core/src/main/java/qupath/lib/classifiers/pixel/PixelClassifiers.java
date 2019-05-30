@@ -6,6 +6,12 @@ import com.google.gson.TypeAdapterFactory;
 import com.google.gson.RuntimeTypeAdapterFactory;
 import com.google.gson.reflect.TypeToken;
 
+/**
+ * Static methods and classes for working with pixel classifiers.
+ * 
+ * @author Pete Bankhead
+ *
+ */
 public class PixelClassifiers {
 	
 	/**

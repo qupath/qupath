@@ -1,5 +1,4 @@
 /**
- * Classes to assist with stain separation by color deconvolution, based on the method of 
- * Ruifrok &amp; Johnston (2001).
+ * Classes to assist with color, including stain separation and color transforms.
  */
 package qupath.lib.color;

@@ -44,7 +44,7 @@ import java.util.Map.Entry;
 
 import javafx.event.EventHandler;
 import javafx.scene.input.MouseEvent;
-import qupath.lib.awt.color.ColorToolsAwt;
+import qupath.lib.color.ColorToolsAwt;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.geom.Point2;
 import qupath.lib.gui.ImageDataChangeListener;

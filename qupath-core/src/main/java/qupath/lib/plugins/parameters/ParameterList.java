@@ -191,7 +191,6 @@ public class ParameterList implements Serializable {
 	 * The purpose of this is to give a mechanism to add a free text prompt whenever parameter lists are being displayed.
 	 * <p>
 	 * These will be called empty1, empty2 etc. (so similar names must not be used for other parameters).
-	 * @param key
 	 * @param prompt
 	 * @return
 	 * 

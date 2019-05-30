@@ -152,8 +152,6 @@ public class PathObjects {
 	 * (e.g. it is a superpixel or square tile representing a local collection of pixels used on the path to region segmentation).
 	 * 
 	 * @param roi
-	 * @param pathClass
-	 * @param measurements
 	 * @return
 	 * 
 	 * @see #createDetectionObject

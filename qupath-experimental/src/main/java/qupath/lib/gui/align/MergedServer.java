@@ -22,8 +22,8 @@ import org.slf4j.LoggerFactory;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonSyntaxException;
 
-import qupath.lib.awt.color.ColorModelFactory;
 import qupath.lib.color.ColorDeconvolutionStains;
+import qupath.lib.color.ColorModelFactory;
 import qupath.lib.color.ColorTransformer;
 import qupath.lib.color.ColorTransformer.ColorTransformMethod;
 import qupath.lib.common.ColorTools;

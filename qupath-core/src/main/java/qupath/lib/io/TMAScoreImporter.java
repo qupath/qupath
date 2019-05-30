@@ -76,10 +76,9 @@ public class TMAScoreImporter {
 	/**
 	 * Import TMA scores from a String into the TMAGrid of an object hierarchy.
 	 * 
-	 * @param file
+	 * @param text
 	 * @param hierarchy
 	 * @return
-	 * @throws IOException
 	 */
 	public static int importFromCSV(final String text, final PathObjectHierarchy hierarchy) {
 		return importFromCSV(readCSV(text), hierarchy);

@@ -324,7 +324,7 @@ public class RoiTools {
 	 * 
 	 * In the input shape is an Ellipse2D then an EllipseROI will be returned.
 	 * 
-	 * @param shape
+	 * @param area
 	 * @param plane
 	 * @return
 	 */

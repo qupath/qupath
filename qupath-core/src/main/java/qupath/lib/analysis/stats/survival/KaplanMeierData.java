@@ -44,22 +44,42 @@ public class KaplanMeierData {
 	private double [] timesEventsCached;
 	private int [] atRiskCached;
 	
+	/**
+	 * Create a new KaplanMeierData object with the specified display name.
+	 * @param name
+	 */
 	public KaplanMeierData(final String name) {
 		this.name = name;
 	}
 
+	/**
+	 * Create a new KaplanMeierData object with the specified display name and events.
+	 * @param name
+	 * @param events
+	 */	
 	public KaplanMeierData(final String name, final Collection<KaplanMeierEvent> events) {
 		this(name);
 		this.events.addAll(events);
 		Collections.sort(this.events);
 	}
 
+	/**
+	 * Add a collection of events.
+	 * @param events
+	 * @return
+	 */
 	public KaplanMeierData addEvents(final Collection<KaplanMeierEvent> events) {
 		this.events.addAll(events);
 		Collections.sort(this.events);
 		return this;
 	}
 
+	/**
+	 * Insert a new event.
+	 * @param time the time of the event (units are not specified, but should be consistent for all events added)
+	 * @param censored if true the event is censored, if false the event is observed.
+	 * @return
+	 */
 	public KaplanMeierData addEvent(final double time, final boolean censored) {
 		KaplanMeierEvent event = new KaplanMeierEvent(time, censored);
 		int ind = Collections.binarySearch(events, event);
@@ -73,10 +93,18 @@ public class KaplanMeierData {
 		return this;
 	}
 
+	/**
+	 * Get the name of this data, generally used for display.
+	 * @return
+	 */
 	public String getName() {
 		return name;
 	}
 
+	/**
+	 * Returns true if there are no events included.
+	 * @return
+	 */
 	public boolean isEmpty() {
 		return this.events.isEmpty();
 	}
@@ -136,6 +164,10 @@ public class KaplanMeierData {
 		}
 	}
 
+	/**
+	 * Get an unmodifiable list of all events.
+	 * @return
+	 */
 	public List<KaplanMeierEvent> getEvents() {
 		return Collections.unmodifiableList(events);
 	}
@@ -145,27 +177,40 @@ public class KaplanMeierData {
 			compute();
 	}
 
-
+	/**
+	 * Retrieve a sorted array containing all times where 'something happened' (observed or censored).
+	 * @return
+	 * @see #getStatistic()
+	 */
 	public double[] getAllTimes() {
 		ensureComputed();
 		return Arrays.copyOf(timesAllCached, timesAllCached.length);
 	}
 
-	public double[] getEventTimes() {
-		ensureComputed();
-		return Arrays.copyOf(timesEventsCached, timesEventsCached.length);
-	}
+//	public double[] getEventTimes() {
+//		ensureComputed();
+//		return Arrays.copyOf(timesEventsCached, timesEventsCached.length);
+//	}
+//
+//	public int[] getAtRiskNumber() {
+//		ensureComputed();
+//		return Arrays.copyOf(atRiskCached, atRiskCached.length);
+//	}
 
-	public int[] getAtRiskNumber() {
-		ensureComputed();
-		return Arrays.copyOf(atRiskCached, atRiskCached.length);
-	}
-
+	/**
+	 * Retrieve a sorted array containing the value corresponding to a time from {@link #getAllTimes()}.
+	 * @return
+	 * @see #getAllTimes()
+	 */
 	public double[] getStatistic() {
 		ensureComputed();
 		return Arrays.copyOf(statisticCached, statisticCached.length);
 	}
 
+	/**
+	 * Get the time of the last event, or -1 if there are no events.
+	 * @return
+	 */
 	public double getMaxTime() {
 		if (events.isEmpty())
 			return -1;
@@ -185,6 +230,11 @@ public class KaplanMeierData {
 	//			return i;
 	//		}
 
+	/**
+	 * Get the number at risk at a specified time. This includes events that occur precisely at the time specified.
+	 * @param t
+	 * @return
+	 */
 	public int getAtRisk(final double t) {
 		int n = events.size();
 		for (KaplanMeierEvent event : events) {
@@ -196,6 +246,11 @@ public class KaplanMeierData {
 		return n;
 	}
 
+	/**
+	 * Get the number of events at a specified time (exactly).
+	 * @param t
+	 * @return
+	 */
 	public int getEventsAtTime(final double t) {
 		int n = 0;
 		for (KaplanMeierEvent event : events) {
@@ -233,10 +288,18 @@ public class KaplanMeierData {
 	//			return n;
 	//		}
 
+	/**
+	 * Get the number of events, either observed or censored.
+	 * @return
+	 */
 	public int nEvents() {
 		return events.size();
 	}
 
+	/**
+	 * Get the number of observed (not censored) events.
+	 * @return
+	 */
 	public int nObserved() {
 		int n = 0;
 		for (KaplanMeierEvent event : events) {
@@ -246,6 +309,10 @@ public class KaplanMeierData {
 		return n;
 	}
 
+	/**
+	 * Get the number of censored events.
+	 * @return
+	 */
 	public int nCensored() {
 		int n = 0;
 		for (KaplanMeierEvent event : events) {
@@ -262,23 +329,31 @@ public class KaplanMeierData {
 	
 	
 	
-	
-	
-	
+	/**
+	 * Simple class to store event time and censored flag.
+	 */
 	public static class KaplanMeierEvent implements Comparable<KaplanMeierEvent> {
 		
-		double timeToEvent;
-		boolean isCensored;
+		private double timeToEvent;
+		private boolean isCensored;
 		
-		public KaplanMeierEvent(final double timeToEvent, final boolean isCensored) {
+		KaplanMeierEvent(final double timeToEvent, final boolean isCensored) {
 			this.timeToEvent = timeToEvent;
 			this.isCensored = isCensored;
 		}
 		
+		/**
+		 * Get the stored time to event (units are unspecified).
+		 * @return
+		 */
 		public double getTimeToEvent() {
 			return timeToEvent;
 		}
 		
+		/**
+		 * Returns true if the event should be considered right-censored.
+		 * @return
+		 */
 		public boolean isCensored() {
 			return isCensored;
 		}

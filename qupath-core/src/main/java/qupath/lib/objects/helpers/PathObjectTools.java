@@ -111,7 +111,7 @@ public class PathObjectTools {
 	 * Get the PathObjects in a collection that are instances of a specified class.
 	 * 
 	 * @param pathObjects
-	 * @param pathClass
+	 * @param cls
 	 * @return
 	 */
 	public static List<PathObject> getObjectsOfClass(final Collection<PathObject> pathObjects, final Class<? extends PathObject> cls) {
@@ -404,7 +404,7 @@ public class PathObjectTools {
 	/**
 	 * Get the TMA core that contains the specified x &amp; y coordinate, or null if no core is available for the coordinates give.
 	 * 
-	 * @param hierarchy
+	 * @param tmaGrid
 	 * @param x
 	 * @param y
 	 * @return

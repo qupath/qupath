@@ -204,7 +204,7 @@ public interface ImageServer<T> extends AutoCloseable {
         
 	
 	/**
-	 * A string describing the type of server, e.g. the name of the library used (Openslide, Bioformats...)
+	 * A string describing the type of server, for example the name of the library used (Openslide, Bioformats...)
 	 */
 	public String getServerType();
 	
@@ -249,16 +249,16 @@ public interface ImageServer<T> extends AutoCloseable {
 	 * <p>
 	 * Each associated image is simply a T that does not warrant (or require) a full ImageServer, and most likely would never be analyzed.
 	 * 
-	 * @see #getAssociatedImage
+	 * @see #getAssociatedImage(String)
 	 * 
 	 * @return
 	 */
 	public List<String> getAssociatedImageList();
 	
 	/**
-	 * Get the T for a given AssociatedImage name.
+	 * Get the image for a given associated image name.
 	 * 
-	 * @see #getAssociatedImageList
+	 * @see #getAssociatedImageList()
 	 * 
 	 * @param name
 	 * @return
@@ -332,7 +332,7 @@ public interface ImageServer<T> extends AutoCloseable {
 	/**
 	 * Get essential metadata associated with the ImageServer as a distinct object.  This may be edited by the user.
 	 * @return
-	 * @see #getOriginalMetadata
+	 * @see #getOriginalMetadata()
 	 */
 	public ImageServerMetadata getMetadata();
 	
@@ -347,7 +347,7 @@ public interface ImageServer<T> extends AutoCloseable {
 	/**
 	 * Get the original metadata read during creation of the server.  This may or may not be correct.
 	 * @return
-	 * @see #getMetadata
+	 * @see #getMetadata()
 	 */
 	public ImageServerMetadata getOriginalMetadata();
 	

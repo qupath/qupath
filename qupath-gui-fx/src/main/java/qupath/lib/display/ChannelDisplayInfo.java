@@ -28,10 +28,9 @@ import java.awt.image.ColorModel;
 import java.awt.image.IndexColorModel;
 import java.text.DecimalFormat;
 
-import qupath.lib.awt.color.ColorToolsAwt;
-import qupath.lib.awt.color.ColorTransformerAWT;
 import qupath.lib.color.ColorDeconvolutionHelper;
 import qupath.lib.color.ColorDeconvolutionStains;
+import qupath.lib.color.ColorToolsAwt;
 import qupath.lib.color.ColorTransformer;
 import qupath.lib.color.ColorTransformer.ColorTransformMethod;
 import qupath.lib.common.ColorTools;
@@ -644,7 +643,7 @@ public interface ChannelDisplayInfo {
 			// Rescale only if we must
 			float offset = getOffset();
 			float scale = getScaleToByte();
-			ColorTransformerAWT.transformRGB(buffer, rgb, ColorTransformer.ColorTransformMethod.OD_Normalized, offset, scale, false);
+			ColorTransformer.transformRGB(buffer, rgb, ColorTransformer.ColorTransformMethod.OD_Normalized, offset, scale, false);
 			return rgb;
 		}
 
@@ -685,7 +684,7 @@ public interface ChannelDisplayInfo {
 			setMinDisplay(0);
 			setMaxDisplay(getMaxAllowed());
 			
-			colorModel = ColorTransformerAWT.getDefaultColorModel(method);
+			colorModel = ColorTransformer.getDefaultColorModel(method);
 			if (colorModel != null)
 				color = colorModel.getRGB(255);				
 		}
@@ -714,7 +713,7 @@ public interface ChannelDisplayInfo {
 
 		@Override
 		public int getRGB(float value, boolean useColorLUT) {
-			return ColorTransformerAWT.makeScaledRGBwithRangeCheck(value, minDisplay, 255.f/(maxDisplay - minDisplay), useColorLUT ? colorModel : null);
+			return ColorTransformer.makeScaledRGBwithRangeCheck(value, minDisplay, 255.f/(maxDisplay - minDisplay), useColorLUT ? colorModel : null);
 			//		transformer.transformImage(buf, bufOutput, method, offset, scale, useColorLUT);
 			// TODO Auto-generated method stub
 			//		return 0;
@@ -789,7 +788,7 @@ public interface ChannelDisplayInfo {
 			stains = imageData == null ? null : imageData.getColorDeconvolutionStains();
 			if (stainNumber < 0) {
 				color = ColorTools.makeRGB(255, 255, 255);
-				colorModel = ColorTransformerAWT.getDefaultColorModel(method);
+				colorModel = ColorTransformer.getDefaultColorModel(method);
 			} else if (stains != null) {
 				color = stains.getStain(stainNumber).getColor();
 				colorModel = ColorToolsAwt.getIndexColorModel(stains.getStain(stainNumber));
@@ -803,7 +802,7 @@ public interface ChannelDisplayInfo {
 				return 0f;
 			int rgb = img.getRGB(x, y);
 			if (method == null)
-				return ColorTransformerAWT.colorDeconvolveRGBPixel(rgb, stains, stainNumber-1);
+				return ColorTransformer.colorDeconvolveRGBPixel(rgb, stains, stainNumber-1);
 			else if (method == ColorTransformMethod.Optical_density_sum) {
 				int r = ColorTools.red(rgb);
 				int g = ColorTools.green(rgb);
@@ -831,7 +830,7 @@ public interface ChannelDisplayInfo {
 
 		@Override
 		public int getRGB(float value, boolean useColorLUT) {
-			return ColorTransformerAWT.makeScaledRGBwithRangeCheck(value, minDisplay, 255.f/(maxDisplay - minDisplay), useColorLUT ? colorModel : null);
+			return ColorTransformer.makeScaledRGBwithRangeCheck(value, minDisplay, 255.f/(maxDisplay - minDisplay), useColorLUT ? colorModel : null);
 			//		transformer.transformImage(buf, bufOutput, method, offset, scale, useColorLUT);
 			// TODO Auto-generated method stub
 			//		return 0;
@@ -994,7 +993,7 @@ public interface ChannelDisplayInfo {
 
 		@Override
 		public int getRGB(float value, boolean useColorLUT) {
-			return ColorTransformerAWT.makeScaledRGBwithRangeCheck(value, minDisplay, 255.f/(maxDisplay - minDisplay), useColorLUT ? cm : null);
+			return ColorTransformer.makeScaledRGBwithRangeCheck(value, minDisplay, 255.f/(maxDisplay - minDisplay), useColorLUT ? cm : null);
 		}
 
 		@Override

@@ -16,8 +16,8 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import qupath.lib.awt.color.ColorModelFactory;
 import qupath.lib.color.ColorDeconvolutionStains;
+import qupath.lib.color.ColorModelFactory;
 import qupath.lib.color.ColorTransformer;
 import qupath.lib.color.StainVector;
 import qupath.lib.color.ColorTransformer.ColorTransformMethod;
@@ -50,7 +50,6 @@ class ColorDeconvolutionImageServer extends TransformingImageServer<BufferedImag
 			stainNumbers = new int[] {1, 2, 3};
 		List<ImageChannel> channels = new ArrayList<>();
 		StringBuilder sb = new StringBuilder();
-		int i = 0;
 		for (int s : stainNumbers) {
 			if (s < 1 || s > 3) {
 				logger.warn("Invalid stain number {}, must be >= 1 and <= 3 (i.e. 'one-based')", s);

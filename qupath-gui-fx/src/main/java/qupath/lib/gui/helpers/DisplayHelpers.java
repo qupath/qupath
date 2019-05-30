@@ -67,7 +67,7 @@ import javafx.stage.Stage;
 import javafx.stage.Window;
 import qupath.lib.color.ColorDeconvolutionHelper;
 import qupath.lib.color.ColorDeconvolutionStains;
-import qupath.lib.color.ColorDeconvolutionStains.DEFAULT_CD_STAINS;
+import qupath.lib.color.ColorDeconvolutionStains.DefaultColorDeconvolutionStains;
 import qupath.lib.color.StainVector;
 import qupath.lib.common.ColorTools;
 import qupath.lib.gui.QuPathGUI;
@@ -165,14 +165,14 @@ public class DisplayHelpers {
 //		logger.debug("Color: " + color.toString());
 
 		// Compare optical density vector angles with the defaults for hematoxylin, eosin & DAB
-		ColorDeconvolutionStains stainsH_E = ColorDeconvolutionStains.makeDefaultColorDeconvolutionStains(DEFAULT_CD_STAINS.H_E);
+		ColorDeconvolutionStains stainsH_E = ColorDeconvolutionStains.makeDefaultColorDeconvolutionStains(DefaultColorDeconvolutionStains.H_E);
 		double rOD = ColorDeconvolutionHelper.makeOD(rSum/n, stainsH_E.getMaxRed());
 		double gOD = ColorDeconvolutionHelper.makeOD(gSum/n, stainsH_E.getMaxGreen());
 		double bOD = ColorDeconvolutionHelper.makeOD(bSum/n, stainsH_E.getMaxBlue());
-		StainVector stainMean = new StainVector("Mean Stain", rOD, gOD, bOD);
+		StainVector stainMean = StainVector.createStainVector("Mean Stain", rOD, gOD, bOD);
 		double angleH = StainVector.computeAngle(stainMean, stainsH_E.getStain(1));
 		double angleE = StainVector.computeAngle(stainMean, stainsH_E.getStain(2));
-		ColorDeconvolutionStains stainsH_DAB = ColorDeconvolutionStains.makeDefaultColorDeconvolutionStains(DEFAULT_CD_STAINS.H_DAB);
+		ColorDeconvolutionStains stainsH_DAB = ColorDeconvolutionStains.makeDefaultColorDeconvolutionStains(DefaultColorDeconvolutionStains.H_DAB);
 		double angleDAB = StainVector.computeAngle(stainMean, stainsH_DAB.getStain(2));
 	
 		// For H&E staining, eosin is expected to predominate... if it doesn't, assume H-DAB

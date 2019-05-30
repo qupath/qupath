@@ -121,7 +121,7 @@ public interface MeasurementList extends Serializable, AutoCloseable {
 	/**
 	 * Get value for the measurement with the specified name.
 	 * Note that the behavior is undefined if multiple measurements have the same name.
-	 * @param ind
+	 * @param name
 	 * @return
 	 * 
 	 * @see #addMeasurement(String, double)

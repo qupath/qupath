@@ -56,7 +56,7 @@ public class DefaultPathObjectConnectionGroup implements PathObjectConnectionGro
 	private Map<PathObject, ObjectConnector> map = new LinkedHashMap<>();
 	
 	/**
-	 * Key to use when storing object connections as a property of an {@link ImageData} object.
+	 * Key to use when storing object connections as a property of an ImageData object.
 	 */
 	public static final String KEY_OBJECT_CONNECTIONS = "OBJECT_CONNECTIONS";
 	

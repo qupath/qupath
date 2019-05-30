@@ -572,7 +572,7 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 
 		if (num >= 0) {
 			try {
-				stains = stains.changeStain(new StainVector(nameAfter, valuesParsed[0], valuesParsed[1], valuesParsed[2]), num);					
+				stains = stains.changeStain(StainVector.createStainVector(nameAfter, valuesParsed[0], valuesParsed[1], valuesParsed[2]), num);					
 			} catch (Exception e) {
 				logger.error("Error setting stain vectors", e);
 				DisplayHelpers.showErrorMessage("Set stain vectors", "Requested stain vectors are not valid!\nAre two stains equal?");

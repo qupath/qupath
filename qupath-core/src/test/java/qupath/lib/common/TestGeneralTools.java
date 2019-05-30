@@ -38,7 +38,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.lib.color.ColorDeconvolutionStains;
-import qupath.lib.color.ColorDeconvolutionStains.DEFAULT_CD_STAINS;
+import qupath.lib.color.ColorDeconvolutionStains.DefaultColorDeconvolutionStains;
 
 public class TestGeneralTools {
 	
@@ -47,7 +47,7 @@ public class TestGeneralTools {
 	@Test
 	public void test_parseArgStringValues() {
 		// Generate some Strings to parse
-		ColorDeconvolutionStains stains = ColorDeconvolutionStains.makeDefaultColorDeconvolutionStains(DEFAULT_CD_STAINS.H_E);
+		ColorDeconvolutionStains stains = ColorDeconvolutionStains.makeDefaultColorDeconvolutionStains(DefaultColorDeconvolutionStains.H_E);
 		String argsStains = ColorDeconvolutionStains.getColorDeconvolutionStainsAsString(stains, 3);
 		String argsStains2 = "{\"Name\" : \"H-DAB default\", \"Stain 1\" : \"Hematoxylin\", \"Values 1\" : \"0.65111 0.70119 0.29049 \", \"Stain 2\" : \"DAB\", \"Values 2\" : \"0.26917 0.56824 0.77759 \", \"Background\" : \" 255 255 255 \"}";
 		String argsDetection = "{\"detectionImageBrightfield\": \"Hematoxylin OD\",  \"requestedPixelSizeMicrons\": 0.5,  \"backgroundRadiusMicrons\": 8.0,  \"medianRadiusMicrons\": 0.0,  \"sigmaMicrons\": 1.5,  \"minAreaMicrons\": 10.0,  \"maxAreaMicrons\": 400.0,  \"threshold\": 0.1,  \"maxBackground\": 2.0,  \"watershedPostProcess\": true,  \"excludeDAB\": false,  \"cellExpansionMicrons\": 5.0,  \"includeNuclei\": true,  \"smoothBoundaries\": true,  \"makeMeasurements\": true}";

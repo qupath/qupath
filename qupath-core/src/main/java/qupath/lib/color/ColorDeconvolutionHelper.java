@@ -41,24 +41,63 @@ public class ColorDeconvolutionHelper {
 	
 	final private static Logger logger = LoggerFactory.getLogger(ColorDeconvolutionHelper.class);
 
+	/**
+	 * Convert a single pixel value to an optical density as {@code max(0, -log10(val/max)}. where {@code val} is clipped to be &gt;= 1.
+	 * @param val
+	 * @param max
+	 * @return
+	 */
 	public static final double makeOD(double val, double max) {
 		return Math.max(0, -Math.log10(Math.max(val, 1)/max));
 	}
 	
+	/**
+	 * Convert an int pixel to an optical density value using a pre-computed lookup table. 
+	 * This is likely to be much faster than calling {@link #makeOD(double, double)}.
+	 * @param val
+	 * @param OD_LUT
+	 * @return
+	 * 
+	 * @see #makeOD(double, double)
+	 */
 	public static final double makeODByLUT(int val, double[] OD_LUT) {
 		if (val >= 0 && val < OD_LUT.length)
 			return OD_LUT[val];
 		return Double.NaN;
 	}
+	
+	/**
+	 * Convert a float pixel to an optical density value using a pre-computed lookup table. 
+	 * This is likely to be much faster than calling {@link #makeOD(double, double)}, but involves 
+	 * rounding the float first.
+	 * @param val
+	 * @param OD_LUT
+	 * @return
+	 * 
+	 * @see #makeOD(double, double)
+	 */
 	public static final double makeODByLUT(float val, double[] OD_LUT) {
         return ColorDeconvolutionHelper.makeODByLUT((int)Math.round(val), OD_LUT);
     }	
 	
+	/**
+	 * Create an optical density lookup table with 256 entries, normalizing to the specified background value.
+	 * @param maxValue
+	 * @return
+	 * 
+	 * @see #makeOD(double, double)
+	 * @see #makeODByLUT(int, double[])
+	 */
 	public static double[] makeODLUT(double maxValue) {
 		return ColorDeconvolutionHelper.makeODLUT(maxValue, 256);
 	}
 
-	// Create Optical Density LUT (to avoid needing to compute lots of logarithms)
+	/**
+	 * Create an optical density lookup table, normalizing to the specified background value.
+	 * @param maxValue background (white value)
+	 * @param nValues number of values to include in the lookup table
+	 * @return
+	 */
 	public static double[] makeODLUT(double maxValue, int nValues) {
 		double[] OD_LUT = new double[nValues];
 		for (int i = 0; i < nValues; i++) //J
@@ -69,7 +108,7 @@ public class ColorDeconvolutionHelper {
 
 	/**
 	 * For originally-8-bit images, optical densities can usually be computed faster by preallocating a LUT with the 0-255 required values.
-	 * Otherwise, logs need to be calculated for every pixel (which can be relatively slow).
+	 * Otherwise, log values need to be calculated for every pixel (which can be relatively slow).
 	 * 
 	 * @param px
 	 * @param maxValue
@@ -187,7 +226,7 @@ public class ColorDeconvolutionHelper {
 		double g = green[medianInd];
 		double b = blue[medianInd];
 
-		return new StainVector(name, r, g, b); 
+		return StainVector.createStainVector(name, r, g, b); 
 	}
 
 
@@ -320,11 +359,11 @@ public class ColorDeconvolutionHelper {
 		}
 
 		// Create refined stains using means - these determine the main plane upon which pixels containing these stains are expected to fall
-		StainVector stainBase1 = new StainVector("Basis 1", r1Sum/n1, g1Sum/n1, b1Sum/n1);
-		StainVector stainBase2 = new StainVector("Basis 2", r2Sum/n2, g2Sum/n2, b2Sum/n2);
+		StainVector stainBase1 = StainVector.createStainVector("Basis 1", r1Sum/n1, g1Sum/n1, b1Sum/n1);
+		StainVector stainBase2 = StainVector.createStainVector("Basis 2", r2Sum/n2, g2Sum/n2, b2Sum/n2);
 
 		// Create orthonormal vectors
-		stainBase1 = new StainVector("Basis 1", (stainBase1.getRed() + stainBase2.getRed())/2, (stainBase1.getGreen() + stainBase2.getGreen())/2, (stainBase1.getBlue() + stainBase2.getBlue())/2);
+		stainBase1 = StainVector.createStainVector("Basis 1", (stainBase1.getRed() + stainBase2.getRed())/2, (stainBase1.getGreen() + stainBase2.getGreen())/2, (stainBase1.getBlue() + stainBase2.getBlue())/2);
 		StainVector stainNorm = StainVector.makeResidualStainVector(stainBase1, stainBase2);
 		stainBase2 = StainVector.makeOrthogonalStainVector("Basis 2", stainBase1, stainNorm, false);
 
@@ -363,11 +402,11 @@ public class ColorDeconvolutionHelper {
 		// Compute new stain vectors
 		double cos = Math.cos(minAngle);
 		double sin = Math.sin(minAngle);
-		StainVector stain2Refined = new StainVector(stains.getStain(2).getName(), 
+		StainVector stain2Refined = StainVector.createStainVector(stains.getStain(2).getName(), 
 				base1[0]*cos + base2[0]*sin, base1[1]*cos + base2[1]*sin, base1[2]*cos + base2[2]*sin);
 		cos = Math.cos(maxAngle);
 		sin = Math.sin(maxAngle);
-		StainVector stain1Refined = new StainVector(stains.getStain(1).getName(), 
+		StainVector stain1Refined = StainVector.createStainVector(stains.getStain(1).getName(), 
 				base1[0]*cos + base2[0]*sin, base1[1]*cos + base2[1]*sin, base1[2]*cos + base2[2]*sin);
 
 
@@ -379,7 +418,7 @@ public class ColorDeconvolutionHelper {
 
 
 
-	public static boolean[] createStainMask(float[] redOD, float[] greenOD, float[] blueOD, double stainThreshold, boolean excludeGray, boolean excludeUncommonColors, boolean[] mask) {
+	private static boolean[] createStainMask(float[] redOD, float[] greenOD, float[] blueOD, double stainThreshold, boolean excludeGray, boolean excludeUncommonColors, boolean[] mask) {
 		if (mask == null) {
 			mask = new boolean[redOD.length];
 			Arrays.fill(mask, true);

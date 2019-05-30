@@ -193,15 +193,15 @@ public class EstimateStainVectors {
 		int ind2 = inds[Math.min(inds.length-1, (int)((1 - alpha) * keepCount + .5))];
 		
 		// Create new stain vectors
-		StainVector s1 = new StainVector(stainsOriginal.getStain(1).getName(), red[ind1], green[ind1], blue[ind1]);
-		StainVector s2 = new StainVector(stainsOriginal.getStain(2).getName(), red[ind2], green[ind2], blue[ind2]);
+		StainVector s1 = StainVector.createStainVector(stainsOriginal.getStain(1).getName(), red[ind1], green[ind1], blue[ind1]);
+		StainVector s2 = StainVector.createStainVector(stainsOriginal.getStain(2).getName(), red[ind2], green[ind2], blue[ind2]);
 		
 		// If working with H&E, we can use the simple heuristic of comparing the red values
 		if (stainsOriginal.isH_E()) {
 			// Need to check within the stain vectors (*not* original indexed values) because normalisation is important (I think... there were errors before)
 			if (s1.getRed() < s2.getRed()) {
-				s1 = new StainVector(stainsOriginal.getStain(1).getName(), red[ind2], green[ind2], blue[ind2]);
-				s2 = new StainVector(stainsOriginal.getStain(2).getName(), red[ind1], green[ind1], blue[ind1]);
+				s1 = StainVector.createStainVector(stainsOriginal.getStain(1).getName(), red[ind2], green[ind2], blue[ind2]);
+				s2 = StainVector.createStainVector(stainsOriginal.getStain(2).getName(), red[ind1], green[ind1], blue[ind1]);
 			}
 		} else {
 			// Check we've got the closest match - if not, switch the order
@@ -210,8 +210,8 @@ public class EstimateStainVectors {
 			double angle21 = StainVector.computeAngle(s2, stainsOriginal.getStain(1));
 			double angle22 = StainVector.computeAngle(s2, stainsOriginal.getStain(2));
 			if (Math.min(angle12, angle21) < Math.min(angle11, angle22)) {
-				s1 = new StainVector(stainsOriginal.getStain(1).getName(), red[ind2], green[ind2], blue[ind2]);
-				s2 = new StainVector(stainsOriginal.getStain(2).getName(), red[ind1], green[ind1], blue[ind1]);
+				s1 = StainVector.createStainVector(stainsOriginal.getStain(1).getName(), red[ind2], green[ind2], blue[ind2]);
+				s2 = StainVector.createStainVector(stainsOriginal.getStain(2).getName(), red[ind1], green[ind1], blue[ind1]);
 			}			
 		}
 		

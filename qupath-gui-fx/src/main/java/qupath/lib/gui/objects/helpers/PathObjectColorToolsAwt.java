@@ -25,7 +25,7 @@ package qupath.lib.gui.objects.helpers;
 
 import java.awt.Color;
 
-import qupath.lib.awt.color.ColorToolsAwt;
+import qupath.lib.color.ColorToolsAwt;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathTileObject;
