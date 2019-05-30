@@ -161,6 +161,7 @@ allprojects  {
  * Build all projects
  */
 allprojects {
+  apply plugin: 'maven'
   apply plugin: 'java'
   sourceCompatibility = JavaVersion.VERSION_11
   targetCompatibility = JavaVersion.VERSION_11
