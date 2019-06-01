@@ -36,13 +36,16 @@ import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
- * Modified version of cell detection command, which automatically applies 1 or 3 intensity thresholds to classify cells.
+ * Alternative implementation of {@link WatershedCellDetection} that automatically applies 1 or 3 intensity thresholds to classify cells.
  * 
  * @author Pete Bankhead
  *
  */
 public class PositiveCellDetection extends WatershedCellDetection {
 	
+	/**
+	 * Default constructor.
+	 */
 	public PositiveCellDetection() {
 		super();
 		params.addTitleParameter("Intensity threshold parameters");

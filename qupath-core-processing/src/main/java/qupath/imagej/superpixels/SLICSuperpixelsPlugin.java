@@ -42,10 +42,8 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import qupath.imagej.color.ColorDeconvolutionIJ;
-import qupath.imagej.helpers.IJTools;
-import qupath.imagej.objects.ROIConverterIJ;
-import qupath.imagej.processing.ROILabeling;
+import qupath.imagej.processing.RoiLabeling;
+import qupath.imagej.tools.IJTools;
 import qupath.lib.analysis.stats.RunningStatistics;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.ImageData;
@@ -191,7 +189,7 @@ public class SLICSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffe
 			if (imp.getType() == ImagePlus.COLOR_RGB) {
 				ColorProcessor cp = (ColorProcessor)imp.getProcessor();
 				if (doDeconvolve && imageData.isBrightfield() && imageData.getColorDeconvolutionStains() != null) {
-					ipColor = ColorDeconvolutionIJ.colorDeconvolve(cp, imageData.getColorDeconvolutionStains());
+					ipColor = IJTools.colorDeconvolve(cp, imageData.getColorDeconvolutionStains());
 //					fpDeconvolved = Arrays.copyOf(fpDeconvolved, 1);
 //					for (ImageProcessor fp : fpDeconvolved)
 //						System.err.println(fp.getStatistics().stdDev);
@@ -390,8 +388,8 @@ public class SLICSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffe
 			
 			// Remove everything outside the ROI, if required
 			if (pathROI != null) {
-				Roi roi = ROIConverterIJ.convertToIJRoi(pathROI, pathImage);
-				ROILabeling.clearOutside(ipLabels, roi);
+				Roi roi = IJTools.convertToIJRoi(pathROI, pathImage);
+				RoiLabeling.clearOutside(ipLabels, roi);
 				// It's important to move away from the containing ROI, to help with brush selections ending up
 				// having the correct parent (i.e. don't want to risk moving slightly outside the parent object's ROI)
 				// (Or at least it previously seemed important... it has an unwanted effect when tiling though)
@@ -402,14 +400,14 @@ public class SLICSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffe
 			
 			
 			// Convert to tiles & create a labelled image for later
-			List<PolygonRoi> polygons = ROILabeling.labelsToFilledRoiList(ipLabels, true);
+			List<PolygonRoi> polygons = RoiLabeling.labelsToFilledRoiList(ipLabels, true);
 			List<PathObject> pathObjects = new ArrayList<>(polygons.size());
 			label = 0;
 			try {
 				for (Roi roi : polygons) {
 					if (roi == null)
 						continue;
-					PathArea superpixelROI = (PathArea)ROIConverterIJ.convertToPathROI(roi, pathImage);
+					PathArea superpixelROI = (PathArea)IJTools.convertToROI(roi, pathImage);
 					if (pathROI == null)
 						continue;
 					PathObject tile = PathObjects.createTileObject(superpixelROI);

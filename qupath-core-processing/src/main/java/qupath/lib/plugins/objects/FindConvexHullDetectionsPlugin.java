@@ -60,7 +60,7 @@ public class FindConvexHullDetectionsPlugin<T> extends AbstractInteractivePlugin
 	
 	private transient AtomicInteger nObjectsRemoved = new AtomicInteger();
 	
-	public static List<PathObject> getConvexHullDetections(final PathObjectHierarchy hierarchy, final PathObject parent, final int nIterations) {
+	static List<PathObject> getConvexHullDetections(final PathObjectHierarchy hierarchy, final PathObject parent, final int nIterations) {
 		
 		Map<Point2, PathObject> pointsMap = new HashMap<>();
 		List<PathObject> convexDetections = new ArrayList<>();

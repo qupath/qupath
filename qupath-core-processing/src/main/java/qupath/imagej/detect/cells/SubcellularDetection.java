@@ -40,6 +40,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import ij.gui.PolygonRoi;
+import ij.gui.Wand;
 import ij.measure.Calibration;
 import ij.plugin.filter.EDM;
 import ij.plugin.filter.MaximumFinder;
@@ -47,9 +48,9 @@ import ij.process.ByteProcessor;
 import ij.process.FloatProcessor;
 import ij.process.ImageProcessor;
 import ij.process.ImageStatistics;
-import qupath.imagej.objects.ROIConverterIJ;
-import qupath.imagej.processing.ROILabeling;
+import qupath.imagej.processing.RoiLabeling;
 import qupath.imagej.processing.SimpleThresholding;
+import qupath.imagej.tools.IJTools;
 import qupath.lib.analysis.images.SimpleImages;
 import qupath.lib.analysis.images.SimpleImage;
 import qupath.lib.color.ColorDeconvolutionStains;
@@ -76,6 +77,7 @@ import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.plugins.AbstractInteractivePlugin;
 import qupath.lib.plugins.PluginRunner;
 import qupath.lib.plugins.parameters.ParameterList;
+import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.interfaces.ROI;
@@ -307,23 +309,25 @@ public class SubcellularDetection extends AbstractInteractivePlugin<BufferedImag
 
 			// Loop through spot ROIs & make a decision
 			bpSpots.setThreshold(1, ImageProcessor.NO_THRESHOLD, ImageProcessor.NO_LUT_UPDATE);
-			List<PolygonRoi> possibleSpotRois = ROILabeling.getFilledROIs4(bpSpots);
+			List<PolygonRoi> possibleSpotRois = RoiLabeling.getFilledPolygonROIs(bpSpots, Wand.FOUR_CONNECTED);
 			List<PathObject> spotObjects = new ArrayList<>();
 			List<PathObject> clusterObjects = new ArrayList<>();
 			estimatedSpots = 0;
 			for (PolygonRoi spotRoi : possibleSpotRois) {
 				fpDetection.setRoi(spotRoi);
 				ImageStatistics stats = fpDetection.getStatistics();
+				
+				ImagePlane plane = ImagePlane.getPlaneWithChannel(spotRoi.getCPosition(), spotRoi.getZPosition(), spotRoi.getTPosition());
 
 				PathObject cluster = null;
 				if (stats.pixelCount > minSpotArea && stats.pixelCount <= maxSpotArea) {
-					ROI roi = ROIConverterIJ.convertToPathROI(spotRoi, cal, downsample, spotRoi.getCPosition(), spotRoi.getZPosition(), spotRoi.getTPosition());
+					ROI roi = IJTools.convertToROI(spotRoi, cal, downsample, plane);
 //					cluster = new SubcellularObject(roi, 1);
 					cluster = createSubcellularObject(roi, 1);
 					estimatedSpots += 1;
 				} else if (includeClusters && stats.pixelCount > minSpotArea) {
 					// Add a cluster
-					ROI roi = ROIConverterIJ.convertToPathROI(spotRoi, cal, downsample, spotRoi.getCPosition(), spotRoi.getZPosition(), spotRoi.getTPosition());
+					ROI roi = IJTools.convertToROI(spotRoi, cal, downsample, plane);
 					double nSpots = stats.pixelCount / singleSpotArea;
 					estimatedSpots += nSpots;
 //					cluster = new SubcellularObject(roi, nSpots);

@@ -21,16 +21,16 @@
  * #L%
  */
 
-package qupath.imagej.helpers;
+package qupath.imagej.tools;
 
 import java.awt.Color;
+import java.awt.Shape;
+import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBuffer;
 import java.awt.image.SampleModel;
 import java.io.File;
 import java.io.IOException;
-import java.net.MalformedURLException;
-import java.net.URL;
 import java.text.DecimalFormat;
 import java.util.Arrays;
 import java.util.List;
@@ -43,26 +43,45 @@ import org.slf4j.LoggerFactory;
 import ij.CompositeImage;
 import ij.ImagePlus;
 import ij.ImageStack;
+import ij.gui.Line;
+import ij.gui.PointRoi;
+import ij.gui.PolygonRoi;
 import ij.gui.Roi;
+import ij.gui.ShapeRoi;
 import ij.io.FileInfo;
 import ij.measure.Calibration;
+import ij.process.Blitter;
 import ij.process.ByteProcessor;
 import ij.process.ColorProcessor;
 import ij.process.FloatProcessor;
 import ij.process.ImageProcessor;
 import ij.process.LUT;
 import ij.process.ShortProcessor;
-import qupath.imagej.objects.ROIConverterIJ;
+import qupath.lib.color.ColorDeconvolutionHelper;
+import qupath.lib.color.ColorDeconvolutionStains;
 import qupath.lib.color.ColorToolsAwt;
+import qupath.lib.color.ColorTransformer;
+import qupath.lib.color.ColorTransformer.ColorTransformMethod;
 import qupath.lib.common.GeneralTools;
+import qupath.lib.geom.Point2;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.PathImage;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.TMACoreObject;
+import qupath.lib.regions.ImagePlane;
+import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
+import qupath.lib.roi.AreaROI;
+import qupath.lib.roi.EllipseROI;
+import qupath.lib.roi.LineROI;
 import qupath.lib.roi.PointsROI;
+import qupath.lib.roi.PolygonROI;
+import qupath.lib.roi.PolylineROI;
+import qupath.lib.roi.ROIs;
+import qupath.lib.roi.RectangleROI;
+import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
@@ -75,7 +94,7 @@ public class IJTools {
 	
 	final private static Logger logger = LoggerFactory.getLogger(IJTools.class);
 	
-	public static List<String> micronList = Arrays.asList("micron", "microns", "um", GeneralTools.micrometerSymbol());
+	private static List<String> micronList = Arrays.asList("micron", "microns", "um", GeneralTools.micrometerSymbol());
 	
 	// Defines what fraction of total available memory can be allocated to transferring a single image to ImageJ 
 	private static double MEMORY_THRESHOLD = 0.5;
@@ -331,14 +350,12 @@ public class IJTools {
 	 * @param roi
 	 * @param downsampleFactor
 	 * @param makeDetection
-	 * @param c
-	 * @param z
-	 * @param t
+	 * @param plane
 	 * @return
 	 */
-	public static PathObject convertToPathObject(ImagePlus imp, ImageServer<?> server, Roi roi, double downsampleFactor, boolean makeDetection, int c, int z, int t) {
+	public static PathObject convertToPathObject(ImagePlus imp, ImageServer<?> server, Roi roi, double downsampleFactor, boolean makeDetection, ImagePlane plane) {
 		Calibration cal = imp.getCalibration();
-		ROI pathROI = ROIConverterIJ.convertToPathROI(roi, cal, downsampleFactor, c, z, t);
+		ROI pathROI = IJTools.convertToROI(roi, cal, downsampleFactor, plane);
 		if (pathROI == null)
 			return null;
 		PathObject pathObject;
@@ -419,81 +436,12 @@ public class IJTools {
 	}
 	
 	
-	
-	
-	
-	public static String getPathFromImagePlus(ImagePlus imp) {
-		String path = getURLFromImagePlus(imp);
-		if (path == null)
-			return getFilePathFromImagePlus(imp);
-		else
-			return path;
-	}
-	
-	private static String getFilePathFromImagePlus(ImagePlus imp) {
-		// Try to get path first from image info property
-		// (The info property should persist despite duplication, but the FileInfo probably doesn't)
-		String info = imp.getInfoProperty();
-		String path = null;
-		if (info != null) {
-			for (String s : GeneralTools.splitLines(info)) {
-				if (s.toLowerCase().startsWith("location")) {
-					path = s.substring(s.indexOf('=')+1).trim();
-					break;
-				}
-			}
-		}// If we haven't got a path yet, try the FileInfo
-		if (path == null) {
-			// Check the file info
-			FileInfo fi = imp.getOriginalFileInfo();
-			if (fi == null)
-				return null;
-			path = fi.directory + fi.fileName;
-		}
-		File file = new File(path);
-		if (file.exists())
-			return file.getAbsolutePath();
-		return null;
-	}
-	
-	private static String getURLFromImagePlus(ImagePlus imp) {
-		// Check the file info first
-		FileInfo fi = imp.getOriginalFileInfo();
-		if (fi == null)
-			return null;
-		if (fi.url != null && checkURL(fi.url))
-			return fi.url;
-		// Check the image info property
-		// (The info property should persist despite duplication, but the FileInfo probably doesn't)
-		String info = imp.getInfoProperty();
-		if (info != null) {
-			for (String s : GeneralTools.splitLines(info)) {
-				if (s.toLowerCase().startsWith("url")) {
-					String url = s.substring(s.indexOf('=')+1).trim();
-					if (checkURL(url))
-						return url;
-				}
-				if (s.toLowerCase().startsWith("location")) {
-					String url = s.substring(s.indexOf('=')+1).trim();
-					if (checkURL(url))
-						return url;
-				}
-			}
-		}
-		return null;
-	}
-	
-	private static boolean checkURL(String url) {
-		// See if we can create a URL
-		try {
-			@SuppressWarnings("unused")
-			URL url2 = new URL(url);
-			return true;
-		} catch (MalformedURLException e) {
-			return false;
-		}
-	}
-
+	/**
+	 * Convert a BufferedImage to an ImagePlus, without pixel size information or other calibration.
+	 * @param title
+	 * @param img
+	 * @return
+	 */
 	public static ImagePlus convertToUncalibratedImagePlus(String title, BufferedImage img) {
 			ImagePlus imp = null;
 			SampleModel sampleModel = img.getSampleModel();
@@ -566,7 +514,7 @@ public class IJTools {
 	//		}
 			// Set calibration
 			calibrateImagePlus(imp, request, server);
-			return createPathImage(server, request, imp);
+			return createPathImage(server, imp, request);
 		}
 
 	/**
@@ -584,8 +532,209 @@ public class IJTools {
 		return convertToImagePlus(server.getDisplayedImageName(), server, null, request);
 	}
 
-	public static PathImage<ImagePlus> createPathImage(final ImageServer<BufferedImage> server, final RegionRequest request, final ImagePlus imp) {
+	/**
+	 * Create a {@link PathImage} from an ImagePlus and region.
+	 * 
+	 * @param server
+	 * @param request
+	 * @param imp
+	 * @return
+	 */
+	public static PathImage<ImagePlus> createPathImage(final ImageServer<BufferedImage> server, final ImagePlus imp, final RegionRequest request) {
 		return new PathImagePlus(server, request, imp);
+	}
+
+	/**
+	 * Create an ImageJ Roi from a ROI, suitable for displaying on the ImagePlus of an {@code PathImage<ImagePlus>}.
+	 * 
+	 * @param pathROI
+	 * @param pathImage
+	 * @return
+	 */
+	public static <T extends PathImage<ImagePlus>> Roi convertToIJRoi(ROI pathROI, T pathImage) {
+		Calibration cal = null;
+		double downsampleFactor = 1;
+		if (pathImage != null) {
+			cal = pathImage.getImage().getCalibration();
+			downsampleFactor = pathImage.getDownsampleFactor();
+		}
+		return IJTools.convertToIJRoi(pathROI, cal, downsampleFactor);		
+	}
+
+	/**
+	 * Convert a QuPath ROI to an ImageJ Roi for an image with the specified calibration.
+	 * @param <T>
+	 * @param pathROI
+	 * @param cal
+	 * @param downsampleFactor 
+	 * @return
+	 * 
+	 * @see #convertToIJRoi(ROI, double, double, double)
+	 */
+	public static <T extends PathImage<ImagePlus>> Roi convertToIJRoi(ROI pathROI, Calibration cal, double downsampleFactor) {
+		if (cal != null)
+			return IJTools.convertToIJRoi(pathROI, cal.xOrigin, cal.yOrigin, downsampleFactor);
+		else
+			return IJTools.convertToIJRoi(pathROI, 0, 0, downsampleFactor);
+	}
+
+	/**
+	 * Create a ROI from an ImageJ Roi, using the Calibration object of an ImagePlus.
+	 * 
+	 * @param roi ImageJ Roi
+	 * @param cal calibration object, including original information
+	 * @param downsampleFactor the downsample factor of the original image
+	 * @param plane plane defining c, z and t indices
+	 * @return
+	 */
+	public static ROI convertToROI(Roi roi, Calibration cal, double downsampleFactor, ImagePlane plane) {
+		double x = cal == null ? 0 : cal.xOrigin;
+		double y = cal == null ? 0 : cal.yOrigin;
+		return IJTools.convertToROI(roi, x, y, downsampleFactor, plane);
+	}
+
+	/**
+	 * Create a ROI from an ImageJ Roi.
+	 * 
+	 * @param roi
+	 * @param pathImage
+	 * @return
+	 */
+	public static <T extends PathImage<? extends ImagePlus>> ROI convertToROI(Roi roi, T pathImage) {
+		Calibration cal = null;
+		double downsampleFactor = 1;
+		ImageRegion region = pathImage.getImageRegion();
+		if (pathImage != null) {
+			cal = pathImage.getImage().getCalibration();
+			downsampleFactor = pathImage.getDownsampleFactor();
+		}
+		return convertToROI(roi, cal, downsampleFactor, region.getPlane());	
+	}
+
+	/**
+	 * Convert an ImageJ PolygonRoi to a QuPath PolygonROI.
+	 * @param roi
+	 * @param cal
+	 * @param downsampleFactor
+	 * @param plane
+	 * @return
+	 */
+	public static PolygonROI convertToPolygonROI(PolygonRoi roi, Calibration cal, double downsampleFactor, final ImagePlane plane) {
+		List<Point2> points = ROIConverterIJ.convertToPointsList(roi.getFloatPolygon(), cal, downsampleFactor);
+		if (points == null)
+			return null;
+		return ROIs.createPolygonROI(points, plane);
+	}
+
+	/**
+		 * Convert a QuPath ROI to an ImageJ Roi.
+		 * @param <T>
+		 * @param pathROI
+		 * @param xOrigin x-origin indicating relationship of ImagePlus to the original image, as stored in ImageJ Calibration object
+		 * @param yOrigin y-origin indicating relationship of ImagePlus to the original image, as stored in ImageJ Calibration object
+		 * @param downsampleFactor downsample factor at which the ImagePlus was extracted from the full-resolution image
+		 * @return
+		 */
+		public static <T extends PathImage<ImagePlus>> Roi convertToIJRoi(ROI pathROI, double xOrigin, double yOrigin, double downsampleFactor) {
+			if (pathROI instanceof PolygonROI)
+				return ROIConverterIJ.convertToPolygonROI((PolygonROI)pathROI, xOrigin, yOrigin, downsampleFactor);
+			if (pathROI instanceof RectangleROI)
+				return ROIConverterIJ.getRectangleROI((RectangleROI)pathROI, xOrigin, yOrigin, downsampleFactor);
+			if (pathROI instanceof EllipseROI)
+				return ROIConverterIJ.convertToOvalROI((EllipseROI)pathROI, xOrigin, yOrigin, downsampleFactor);
+			if (pathROI instanceof LineROI)
+				return ROIConverterIJ.convertToLineROI((LineROI)pathROI, xOrigin, yOrigin, downsampleFactor);
+			if (pathROI instanceof PolylineROI)
+				return ROIConverterIJ.convertToPolygonROI((PolylineROI)pathROI, xOrigin, yOrigin, downsampleFactor);
+			if (pathROI instanceof PointsROI)
+				return ROIConverterIJ.convertToPointROI((PointsROI)pathROI, xOrigin, yOrigin, downsampleFactor);
+			// If we have any other kind of shape, create a general shape roi
+			if (pathROI instanceof AreaROI) { // TODO: Deal with non-AWT area ROIs!
+				Shape shape = RoiTools.getArea(pathROI);
+	//			"scaleX", "shearY", "shearX", "scaleY", "translateX", "translateY"
+				shape = new AffineTransform(1.0/downsampleFactor, 0, 0, 1.0/downsampleFactor, xOrigin, yOrigin).createTransformedShape(shape);
+				return ROIConverterIJ.setIJRoiProperties(new ShapeRoi(shape), pathROI);
+			}
+			// TODO: Integrate ROI not supported exception...?
+			return null;		
+		}
+
+	/**
+		 * Create a ROI from an ImageJ Roi.
+		 * 
+		 * @param roi ImageJ Roi
+		 * @param xOrigin x-origin, as stored in an ImageJ Calibration object
+		 * @param yOrigin y-origin, as stored in an ImageJ Calibration object
+		 * @param downsampleFactor
+		 * @param plane plane defining c, z and t indices
+		 * @return
+		 */
+		public static ROI convertToROI(Roi roi, double xOrigin, double yOrigin, double downsampleFactor, ImagePlane plane) {
+			int c = plane.getC();
+			int z = plane.getZ();
+			int t = plane.getT();
+	//		if (roi.getType() == Roi.POLYGON || roi.getType() == Roi.TRACED_ROI)
+	//			return convertToPolygonROI((PolygonRoi)roi, cal, downsampleFactor);
+			if (roi.getType() == Roi.RECTANGLE && roi.getCornerDiameter() == 0)
+				return ROIConverterIJ.getRectangleROI(roi, xOrigin, yOrigin, downsampleFactor, c, z, t);
+			if (roi.getType() == Roi.OVAL)
+				return ROIConverterIJ.convertToEllipseROI(roi, xOrigin, yOrigin, downsampleFactor, c, z, t);
+			if (roi instanceof Line)
+				return ROIConverterIJ.convertToLineROI((Line)roi, xOrigin, yOrigin, downsampleFactor, c, z, t);
+			if (roi instanceof PointRoi)
+				return ROIConverterIJ.convertToPointROI((PolygonRoi)roi, xOrigin, yOrigin, downsampleFactor, c, z, t);
+	//		if (roi instanceof ShapeRoi)
+	//			return convertToAreaROI((ShapeRoi)roi, cal, downsampleFactor);
+	//		// Shape ROIs should be able to handle most eventualities
+			if (roi instanceof ShapeRoi)
+				return ROIConverterIJ.convertToAreaROI((ShapeRoi)roi, xOrigin, yOrigin, downsampleFactor, c, z, t);
+			if (roi.isArea())
+				return ROIConverterIJ.convertToPolygonOrAreaROI(roi, xOrigin, yOrigin, downsampleFactor, c, z, t);
+			if (roi instanceof PolygonRoi) {
+				if (roi.getType() == Roi.FREELINE || roi.getType() == Roi.POLYLINE)
+					return ROIConverterIJ.convertToPolylineROI((PolygonRoi)roi, xOrigin, yOrigin, downsampleFactor, c, z, t);
+			}
+			throw new IllegalArgumentException("Unknown Roi: " + roi);	
+		}
+
+	/**
+	 * Calculate optical density values for the red, green and blue channels, then add these all together.
+	 * 
+	 * @param cp
+	 * @param maxRed
+	 * @param maxGreen
+	 * @param maxBlue
+	 * @return
+	 */
+	public static FloatProcessor convertToOpticalDensitySum(ColorProcessor cp, double maxRed, double maxGreen, double maxBlue) {
+		FloatProcessor fp = cp.toFloat(0, null);
+		ColorDeconvolutionHelper.convertPixelsToOpticalDensities((float[])fp.getPixels(), maxRed, true);
+	
+		FloatProcessor fpTemp = cp.toFloat(1, null);
+		ColorDeconvolutionHelper.convertPixelsToOpticalDensities((float[])fpTemp.getPixels(), maxGreen, true);
+		fp.copyBits(fpTemp, 0, 0, Blitter.ADD);
+		
+		fpTemp = cp.toFloat(2, fpTemp);
+		ColorDeconvolutionHelper.convertPixelsToOpticalDensities((float[])fpTemp.getPixels(), maxBlue, true);
+		fp.copyBits(fpTemp, 0, 0, Blitter.ADD);
+		return fp;
+	}
+
+	/**
+	 * Apply color deconvolution, outputting 3 'stain' images in the same order as the stain vectors.
+	 * 
+	 * @param cp      input RGB color image
+	 * @param stains  color deconvolution stain vectors
+	 * @return array containing three {@code FloatProcessor}s, representing the deconvolved stains
+	 */
+	public static FloatProcessor[] colorDeconvolve(ColorProcessor cp, ColorDeconvolutionStains stains) {
+		int width = cp.getWidth();
+		int height = cp.getHeight();
+		int[] rgb = (int[])cp.getPixels();
+		FloatProcessor fpStain1 = new FloatProcessor(width, height, ColorTransformer.getTransformedPixels(rgb, ColorTransformMethod.Stain_1, null, stains));
+		FloatProcessor fpStain2 = new FloatProcessor(width, height, ColorTransformer.getTransformedPixels(rgb, ColorTransformMethod.Stain_2, null, stains));
+		FloatProcessor fpStain3 = new FloatProcessor(width, height, ColorTransformer.getTransformedPixels(rgb, ColorTransformMethod.Stain_3, null, stains));
+		return new FloatProcessor[] {fpStain1, fpStain2, fpStain3};
 	}
 
 //	private static PathImage<ImagePlus> createPathImage(final ImageServer<BufferedImage> server, final RegionRequest request) {

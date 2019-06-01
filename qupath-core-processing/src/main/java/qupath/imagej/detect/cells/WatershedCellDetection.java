@@ -54,16 +54,12 @@ import ij.process.FloatProcessor;
 import ij.process.ImageProcessor;
 import ij.process.ImageStatistics;
 import ij.process.ShortProcessor;
-import qupath.imagej.color.ColorDeconvolutionIJ;
-import qupath.imagej.helpers.IJTools;
-import qupath.imagej.objects.ROIConverterIJ;
-import qupath.imagej.objects.measure.ObjectMeasurements;
 import qupath.imagej.processing.MorphologicalReconstruction;
-import qupath.imagej.processing.ROILabeling;
-import qupath.imagej.processing.RegionalExtrema;
+import qupath.imagej.processing.RoiLabeling;
 import qupath.imagej.processing.SimpleThresholding;
 import qupath.imagej.processing.Watershed;
-import qupath.imagej.wrappers.PixelImageIJ;
+import qupath.imagej.tools.IJTools;
+import qupath.imagej.tools.PixelImageIJ;
 import qupath.lib.analysis.images.SimpleImage;
 import qupath.lib.analysis.stats.RunningStatistics;
 import qupath.lib.analysis.stats.StatisticsHelper;
@@ -84,6 +80,7 @@ import qupath.lib.plugins.ObjectDetector;
 import qupath.lib.plugins.parameters.DoubleParameter;
 import qupath.lib.plugins.parameters.Parameter;
 import qupath.lib.plugins.parameters.ParameterList;
+import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.PolygonROI;
 import qupath.lib.roi.ShapeSimplifier;
@@ -91,11 +88,11 @@ import qupath.lib.roi.interfaces.PathArea;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
- * Default command for cell detection within QuPath.
+ * Default command for cell detection within QuPath, assuming either a nuclear or cytoplasmic staining.
  * <p>
- * Assumes either a nuclear or cytoplasmic staining.
+ * To automatically classify cells as positive or negative along with detection, see {@link PositiveCellDetection}.
  * <p>
- * Quantification of membranous staining requires a separate detection command.
+ * To quantify membranous staining see {@link WatershedCellMembraneDetection}.
  * 
  * @author Pete Bankhead
  *
@@ -140,7 +137,9 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 	
 	ParameterList params;
 	
-	
+	/**
+	 * Default constructor.
+	 */
 	public WatershedCellDetection() {
 		params = new ParameterList();
 		// TODO: Use a better way to determining if pixel size is available in microns
@@ -275,9 +274,9 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 			Map<String, FloatProcessor> channelsCell = new LinkedHashMap<>();
 			Roi roi = null;
 			if (pathROI != null)
-				roi = ROIConverterIJ.convertToIJRoi(pathROI, pathImage);
+				roi = IJTools.convertToIJRoi(pathROI, pathImage);
 			if (ip instanceof ColorProcessor && stains != null && isBrightfield) {
-				FloatProcessor[] fps = ColorDeconvolutionIJ.colorDeconvolve((ColorProcessor)ip, stains);
+				FloatProcessor[] fps = IJTools.colorDeconvolve((ColorProcessor)ip, stains);
 				for (int i = 0; i < 3; i++) {
 					StainVector stain = stains.getStain(i+1);
 					if (!stain.isResidual()) {
@@ -298,7 +297,7 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 
 				if (!params.getParameters().get("detectionImageBrightfield").isHidden()) {
 					if (params.getChoiceParameterValue("detectionImageBrightfield").equals(IMAGE_OPTICAL_DENSITY))
-						fpDetection = ColorDeconvolutionIJ.convertToOpticalDensitySum((ColorProcessor)ip, stains.getMaxRed(), stains.getMaxGreen(), stains.getMaxBlue());
+						fpDetection = IJTools.convertToOpticalDensitySum((ColorProcessor)ip, stains.getMaxRed(), stains.getMaxGreen(), stains.getMaxBlue());
 					else
 						fpDetection = (FloatProcessor)fps[0].duplicate();
 				}
@@ -607,13 +606,13 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 				// TODO: DECIDE ON USING MY WATERSHED OR IMAGEJ'S....
 				fpLoG.setRoi(roi);
 				
-				ImageProcessor ipTemp = RegionalExtrema.findRegionalMaxima(fpLoG, 0.001f, false);
-				ImageProcessor ipLabels = ROILabeling.labelImage(ipTemp, 0, false);
+				ImageProcessor ipTemp = MorphologicalReconstruction.findRegionalMaxima(fpLoG, 0.001f, false);
+				ImageProcessor ipLabels = RoiLabeling.labelImage(ipTemp, 0, false);
 				Watershed.doWatershed(fpLoG, ipLabels, 0, false);
 				
 				ipLabels.setThreshold(0.5, Double.POSITIVE_INFINITY, ImageProcessor.NO_LUT_UPDATE);
 				// TODO: Consider 4/8 connectivity for watershed nucleus ROIs
-				rois = ROILabeling.getFilledPolygonROIs(ipLabels, Wand.FOUR_CONNECTED);			
+				rois = RoiLabeling.getFilledPolygonROIs(ipLabels, Wand.FOUR_CONNECTED);			
 				
 				if (Thread.currentThread().isInterrupted())
 					return;
@@ -658,7 +657,7 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 				bp.copyBits(bpLoG, 0, 0, Blitter.AND);	
 				if (watershedPostProcess) {
 					// TODO: ARRANGE A MORE EFFICIENT FILL HOLES
-					List<PolygonRoi> rois2 = ROILabeling.getFilledPolygonROIs(bp, Wand.FOUR_CONNECTED);
+					List<PolygonRoi> rois2 = RoiLabeling.getFilledPolygonROIs(bp, Wand.FOUR_CONNECTED);
 					bp.setValue(255);
 					for (Roi r : rois2)
 						bp.fill(r);
@@ -667,7 +666,7 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 			}
 			// TODO: Look at the better boundary clearing implemented in Fast_nucleus_counts
 			if (roi != null)
-				ROILabeling.clearOutside(bp, roi);
+				RoiLabeling.clearOutside(bp, roi);
 			
 			// Locate nucleus ROIs
 			bp.setThreshold(127, Double.POSITIVE_INFINITY, ImageProcessor.NO_LUT_UPDATE);
@@ -694,7 +693,7 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 			
 			//----------------------------
 			
-			roisNuclei = ROILabeling.getFilledPolygonROIs(bp, Wand.FOUR_CONNECTED);
+			roisNuclei = RoiLabeling.getFilledPolygonROIs(bp, Wand.FOUR_CONNECTED);
 
 			if (Thread.currentThread().isInterrupted())
 				return;
@@ -719,7 +718,7 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 			
 			// Label nuclei
 			ShortProcessor ipLabels = new ShortProcessor(width, height);
-			ROILabeling.labelROIs(ipLabels, roisNuclei);
+			RoiLabeling.labelROIs(ipLabels, roisNuclei);
 			
 			// Measure nuclei for all required channels
 			Map<String, List<RunningStatistics>> statsMap = new LinkedHashMap<>();
@@ -740,6 +739,7 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 			// TODO: Set the measurement capacity to improve efficiency
 			List<PathObject> nucleiObjects = new ArrayList<>();
 			Calibration cal = pathImage.getImage().getCalibration();
+			ImagePlane plane = ImagePlane.getPlane(z, t);
 			for (int i = 0; i < roisNuclei.size(); i++) {
 				PolygonRoi rOrig = roisNuclei.get(i);
 				
@@ -747,7 +747,7 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 				if (smoothBoundaries)
 					r = new PolygonRoi(rOrig.getInterpolatedPolygon(Math.min(2.5, rOrig.getNCoordinates()*0.1), true), Roi.POLYGON);
 				
-				PolygonROI pathROI = ROIConverterIJ.convertToPolygonROI(r, cal, pathImage.getDownsampleFactor(), 0, z, t);
+				PolygonROI pathROI = IJTools.convertToPolygonROI(r, cal, pathImage.getDownsampleFactor(), plane);
 				
 				if (smoothBoundaries) {
 					pathROI = ShapeSimplifier.simplifyPolygon(pathROI, pathImage.getDownsampleFactor()/4.0);
@@ -792,7 +792,7 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 				// Create cell ROIs
 				ImageProcessor ipLabelsCells = ipLabels.duplicate();
 				Watershed.doWatershed(fpEDM, ipLabelsCells, cellExpansionThreshold, false);
-				PolygonRoi[] roisCells = ROILabeling.labelsToFilledROIs(ipLabelsCells, roisNuclei.size());
+				PolygonRoi[] roisCells = RoiLabeling.labelsToFilledROIs(ipLabelsCells, roisNuclei.size());
 				
 				// Compute cell DAB stats
 				Map<String, List<RunningStatistics>> statsMapCell = new LinkedHashMap<>();
@@ -832,7 +832,7 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 						r = new PolygonRoi(r.getInterpolatedPolygon(Math.min(2.5, r.getNCoordinates()*0.1), false), Roi.POLYGON); // TODO: Check this smoothing - it can be troublesome, causing nuclei to be outside cells
 //						r = smoothPolygonRoi(r);
 
-					PolygonROI pathROI = ROIConverterIJ.convertToPolygonROI(r, pathImage.getImage().getCalibration(), pathImage.getDownsampleFactor(), 0, z, t);
+					PolygonROI pathROI = IJTools.convertToPolygonROI(r, pathImage.getImage().getCalibration(), pathImage.getDownsampleFactor(), plane);
 					if (smoothBoundaries)
 						pathROI = ShapeSimplifier.simplifyPolygon(pathROI, pathImage.getDownsampleFactor()/4.0);
 

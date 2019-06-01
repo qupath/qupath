@@ -25,7 +25,7 @@ package qupathj;
 
 import java.awt.image.BufferedImage;
 
-import qupath.imagej.helpers.IJTools;
+import qupath.imagej.tools.IJTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.servers.ImageServer;
@@ -65,7 +65,7 @@ public class QUPath_Send_ROI_to_QuPath implements PlugIn {
 		QuPathViewer viewer = gui.getViewer();
 		ImageServer<BufferedImage> server = viewer.getServer();
 		double downsample = IJTools.estimateDownsampleFactor(imp, server);
-		PathObject pathObject = IJTools.convertToPathObject(imp, server, roi, downsample, false, -1, viewer.getZPosition(), viewer.getTPosition());
+		PathObject pathObject = IJTools.convertToPathObject(imp, server, roi, downsample, false, viewer.getImagePlane());
 		if (pathObject == null) {
 			IJ.error("Sorry, I could not convert " + roi + " to a value QuPath object");
 			return;

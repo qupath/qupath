@@ -57,7 +57,7 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
 import javafx.stage.Stage;
-import qupath.imagej.helpers.IJTools;
+import qupath.imagej.tools.IJTools;
 import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;

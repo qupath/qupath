@@ -37,6 +37,10 @@ public class CoocurranceMatrices {
 	
 	private HaralickFeatures[] features = null;
 	
+	/**
+	 * Initialize coocurrence matrices.
+	 * @param n number of bins
+	 */
 	public CoocurranceMatrices(int n) {
 		mat0 = new CoocMatrix(n);
 		mat45 = new CoocMatrix(n);
@@ -44,26 +48,49 @@ public class CoocurranceMatrices {
 		mat135 = new CoocMatrix(n);
 	}
 	
+	/**
+	 * Record coocurrence for a (binned) value pair without rotation
+	 * @param i
+	 * @param j
+	 */
 	public void put0(int i, int j) {
 		if (i >= 0 && j >= 0)
 			mat0.addToEntrySymmetric(i, j);
 	}
 
+	/**
+	 * Record coocurrence for a (binned) value pair with 45 degree rotation
+	 * @param i
+	 * @param j
+	 */
 	public void put45(int i, int j) {
 		if (i >= 0 && j >= 0)
 			mat45.addToEntrySymmetric(i, j);
 	}
 
+	/**
+	 * Record coocurrence for a (binned) value pair with 90 degree rotation
+	 * @param i
+	 * @param j
+	 */
 	public void put90(int i, int j) {
 		if (i >= 0 && j >= 0)
 			mat90.addToEntrySymmetric(i, j);
 	}
 
+	/**
+	 * Record coocurrence for a (binned) value pair with 135 degree rotation
+	 * @param i
+	 * @param j
+	 */
 	public void put135(int i, int j) {
 		if (i >= 0 && j >= 0)
 			mat135.addToEntrySymmetric(i, j);
 	}
 	
+	/**
+	 * Compute features.
+	 */
 	public void computeFeatures() {
 		features = new HaralickFeatures[4];
 		features[0] = new HaralickFeatures(mat0);
@@ -74,6 +101,10 @@ public class CoocurranceMatrices {
 //		System.out.println("Num entries: " + mat0.getMean()*n2 + ", " + mat45.getMean()*n2 + ", " + mat90.getMean()*n2 + ", " + mat135.getMean()*n2);
 	}
 	
+	/**
+	 * Compute averaged features over all four rotations
+	 * @return
+	 */
 	public HaralickFeatures getMeanFeatures() {
 		if (features == null)
 			computeFeatures();
@@ -90,6 +121,10 @@ public class CoocurranceMatrices {
 		return featuresMean;
 	}
 	
+	/**
+	 * Compute minimum features from all four rotations
+	 * @return
+	 */
 	public HaralickFeatures getMinFeatures() {
 		if (features == null)
 			computeFeatures();
@@ -108,6 +143,10 @@ public class CoocurranceMatrices {
 		return featuresMin;
 	}
 	
+	/**
+	 * Compute maximum features from all four rotations
+	 * @return
+	 */
 	public HaralickFeatures getMaxFeatures() {
 		if (features == null)
 			computeFeatures();

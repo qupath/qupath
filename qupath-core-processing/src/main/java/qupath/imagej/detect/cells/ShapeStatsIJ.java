@@ -21,11 +21,16 @@
  * #L%
  */
 
-package qupath.imagej.objects.measure;
+package qupath.imagej.detect.cells;
 
+import ij.ImagePlus;
 import ij.gui.Roi;
+import ij.measure.Calibration;
 import ij.measure.Measurements;
+import ij.process.ImageProcessor;
 import ij.process.ImageStatistics;
+import qupath.lib.measurements.MeasurementList;
+import qupath.lib.roi.PolygonROI;
 
 /**
  * Class to help with adding shape measurements calculated by ImageJ to PathObjects.

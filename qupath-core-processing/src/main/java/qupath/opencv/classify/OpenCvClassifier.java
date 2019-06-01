@@ -478,6 +478,7 @@ public abstract class OpenCvClassifier<T extends StatModel> implements PathObjec
 	}
 
 
+	@SuppressWarnings("unchecked")
 	@Override
 	public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
 		

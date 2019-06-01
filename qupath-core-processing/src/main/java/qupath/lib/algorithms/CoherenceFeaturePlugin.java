@@ -54,9 +54,7 @@ import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
- * TODO: Read entire region (where suitable) &amp; tile that (if it makes sense...? may not scale up to whole slide images though...)
- * TODO: Improve use of static/non-static methods
- * TODO: Integrate masking
+ * Plugin to calculate coherence features for image tiles.
  * 
  * @author Pete Bankhead
  *
@@ -65,6 +63,9 @@ public class CoherenceFeaturePlugin extends AbstractInteractivePlugin<BufferedIm
 	
 	private ParameterList params;
 	
+	/**
+	 * Default constructor.
+	 */
 	public CoherenceFeaturePlugin() {
 		
 		params = new ParameterList().

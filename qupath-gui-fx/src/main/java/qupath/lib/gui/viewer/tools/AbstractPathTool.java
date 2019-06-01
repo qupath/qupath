@@ -71,7 +71,7 @@ abstract class AbstractPathTool implements PathTool, QuPathViewerListener {
 	
 	/**
 	 * Constructor.
-	 * @param modes property storing the current selected {@link Modes} within QuPath.
+	 * @param modes property storing the current selected Mode within QuPath.
 	 */
 	AbstractPathTool(ModeWrapper modes) {
 		this.modes = modes;

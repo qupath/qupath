@@ -76,9 +76,6 @@ import qupath.lib.roi.interfaces.ROI;
  * calculated within square or circular regions around the object centroids.
  * This latter option makes it possible to calculate a high density of tiles (for example), and then to 
  * compute textures at different resolutions independently of the tile size.
- * <p>
- * TODO: Read entire region (where suitable) &amp; tile that (if it makes sense...? may not scale up to whole slide images though...)
- * TODO: Improve use of static/non-static methods
  * 
  * @author Pete Bankhead
  *

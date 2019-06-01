@@ -40,8 +40,7 @@ import ij.process.ByteProcessor;
 import ij.process.ColorProcessor;
 import ij.process.FloatProcessor;
 import ij.process.ImageProcessor;
-import qupath.imagej.helpers.IJTools;
-import qupath.imagej.objects.ROIConverterIJ;
+import qupath.imagej.tools.IJTools;
 import qupath.lib.color.ColorDeconvolutionStains;
 import qupath.lib.color.ColorTransformer;
 import qupath.lib.color.ColorTransformer.ColorTransformMethod;
@@ -155,7 +154,7 @@ public class PositivePixelCounterIJ extends AbstractDetectionPlugin<BufferedImag
 			// Apply mask, if necessary
 			if (pathROI != null && !(pathROI instanceof RectangleROI)) {
 				bpH.set(1);
-				Roi roi = ROIConverterIJ.convertToIJRoi(pathROI, pathImage);
+				Roi roi = IJTools.convertToIJRoi(pathROI, pathImage);
 				bpH.setValue(0);
 				bpH.fill(roi);
 			}
@@ -212,7 +211,7 @@ public class PositivePixelCounterIJ extends AbstractDetectionPlugin<BufferedImag
 						
 			
 			if (roiStained != null) {
-				ROI roiTissue = ROIConverterIJ.convertToPathROI(roiStained, pathImage);
+				ROI roiTissue = IJTools.convertToROI(roiStained, pathImage);
 				PathObject pathObject = PathObjects.createDetectionObject(roiTissue);
 				PathClass pathClass = null;
 				if (useLegacyMeasurements) {
@@ -230,7 +229,7 @@ public class PositivePixelCounterIJ extends AbstractDetectionPlugin<BufferedImag
 				pathObjects.add(pathObject);
 			}
 			if (roiDAB != null) {
-				ROI roiPositive = ROIConverterIJ.convertToPathROI(roiDAB, pathImage);
+				ROI roiPositive = IJTools.convertToROI(roiDAB, pathImage);
 //				roiDAB = ShapeSimplifierAwt.simplifyShape(roiDAB, simplifyAmount);
 				PathClass pathClass = null;
 				PathObject pathObject = PathObjects.createDetectionObject(roiPositive);

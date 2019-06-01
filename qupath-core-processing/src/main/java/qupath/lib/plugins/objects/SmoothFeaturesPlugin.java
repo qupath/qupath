@@ -67,6 +67,9 @@ public class SmoothFeaturesPlugin<T> extends AbstractInteractivePlugin<T> {
 	
 	final private static Logger logger = LoggerFactory.getLogger(SmoothFeaturesPlugin.class);
 	
+	/**
+	 * Default constructor.
+	 */
 	public SmoothFeaturesPlugin() {
 		params = new ParameterList()
 				.addDoubleParameter("fwhmMicrons", "Radius (FWHM)", 25, GeneralTools.micrometerSymbol(), "Smoothing filter size - higher values indicate more smoothing")

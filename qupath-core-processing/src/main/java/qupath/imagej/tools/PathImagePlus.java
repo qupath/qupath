@@ -21,7 +21,7 @@
  * #L%
  */
 
-package qupath.imagej.helpers;
+package qupath.imagej.tools;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;

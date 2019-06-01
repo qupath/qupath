@@ -166,6 +166,11 @@ public class HessianCalculator {
 			return matDerivs;
 		}
 		
+		/**
+		 * Get the Laplacian of Gaussian filtered image, if available.
+		 * @return
+		 * @throws UnsupportedOperationException if the required image was not calculated
+		 */
 		public Mat getLaplacian() {
 			if (matLaplacian == null)
 				throw new UnsupportedOperationException("Laplacian image was not calculated - remember to specify this in the builder!");
@@ -175,6 +180,7 @@ public class HessianCalculator {
 		/**
 		 * Get the Gaussian-smoothed image, or throws an {@code UnsupportedOperationException} if these were not calculated.
 		 * @return
+		 * @throws UnsupportedOperationException if the required image was not calculated
 		 */
 		public Mat getSmoothed() {
 			if (matSmoothed == null)
@@ -185,6 +191,7 @@ public class HessianCalculator {
 		/**
 		 * Get the determinant of the Hessian matrix per pixel, or throws an {@code UnsupportedOperationException} if this was not calculated.
 		 * @return
+		 * @throws UnsupportedOperationException if the required image was not calculated
 		 */
 		public Mat getDeterminant() {
 			if (matDeterminant == null)
@@ -197,6 +204,7 @@ public class HessianCalculator {
 		 * <p>
 		 * Eigenvalues are ordered from highest to lowest.
 		 * @return
+		 * @throws UnsupportedOperationException if the required image was not calculated
 		 */
 		public MatVector getEigenvalues() {
 			if (matvecEigenvalues == null)
@@ -209,6 +217,7 @@ public class HessianCalculator {
 		 * <p>
 		 * Eigenvectors are ordered according to the corresponding eigenvalue (from highest to lowest eigenvalue).
 		 * @return
+		 * @throws UnsupportedOperationException if the required image was not calculated
 		 */
 		public MatVector getEigenvectors() {
 			if (matvecEigenvectors == null)
@@ -363,9 +372,12 @@ public class HessianCalculator {
 		
 		private int border = BORDER_DEFAULT;
 		
+		/**
+		 * Default constructor.
+		 */
 		public HessianResultsBuilder() {}
 
-		public HessianResultsBuilder(HessianResultsBuilder builder) {
+		HessianResultsBuilder(HessianResultsBuilder builder) {
 			this.pixelCalibration = builder.pixelCalibration;
 			this.sigmaX = builder.sigmaX;
 			this.sigmaY = builder.sigmaY;
@@ -485,8 +497,8 @@ public class HessianCalculator {
 		 * @see #sigmaY(double)
 		 * @see #sigmaZ(double)
 		 */
-		public HessianResultsBuilder sigmaX(double sigmaX) {
-			this.sigmaX = sigmaX;
+		public HessianResultsBuilder sigmaX(double sigma) {
+			this.sigmaX = sigma;
 			return this;
 		}
 
@@ -504,8 +516,8 @@ public class HessianCalculator {
 		 * @see #sigmaX(double)
 		 * @see #sigmaZ(double)
 		 */
-		public HessianResultsBuilder sigmaY(double sigmaY) {
-			this.sigmaY = sigmaY;
+		public HessianResultsBuilder sigmaY(double sigma) {
+			this.sigmaY = sigma;
 			return this;
 		}
 			
@@ -523,8 +535,8 @@ public class HessianCalculator {
 		 * @see #sigmaX(double)
 		 * @see #sigmaY(double)
 		 */
-		public HessianResultsBuilder sigmaZ(double sigmaZ) {
-			this.sigmaZ = sigmaZ;
+		public HessianResultsBuilder sigmaZ(double sigma) {
+			this.sigmaZ = sigma;
 			return this;
 		}
 		

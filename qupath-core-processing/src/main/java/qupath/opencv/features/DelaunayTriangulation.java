@@ -441,7 +441,9 @@ public class DelaunayTriangulation implements PathObjectConnectionGroup {
 	}
 	
 	
-	
+	/**
+	 * Add Delaunay measurements to each pathObject.
+	 */
 	public void addNodeMeasurements() {
 		if (nodeMap == null)
 			return;

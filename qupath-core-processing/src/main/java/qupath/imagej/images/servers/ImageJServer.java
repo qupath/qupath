@@ -54,7 +54,7 @@ import ij.process.FloatProcessor;
 import ij.process.ImageProcessor;
 import ij.process.LUT;
 import ij.process.ShortProcessor;
-import qupath.imagej.helpers.IJTools;
+import qupath.imagej.tools.IJTools;
 import qupath.lib.color.ColorModelFactory;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.servers.AbstractImageServer;
@@ -78,6 +78,12 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 		
 	private ColorModel colorModel;
 	
+	/**
+	 * Constructor.
+	 * @param uri URI representing the local file or an ImageJ-compatible URL
+	 * @param args optional arguments (not currently used)
+	 * @throws IOException
+	 */
 	public ImageJServer(final URI uri, final String...args) throws IOException {
 		super(uri, BufferedImage.class);
 		File file = GeneralTools.toPath(uri).toFile();

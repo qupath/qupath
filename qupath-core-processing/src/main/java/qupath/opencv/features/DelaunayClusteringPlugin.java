@@ -52,7 +52,7 @@ import qupath.lib.plugins.parameters.ParameterList;
 
 /**
  * Plugin for calculating Delaunay clustering, and associated features.
- * 
+ * <p>
  * Warning! Because the implementation will have to change in the future, it is best not to rely on this class!
  * 
  * @author Pete Bankhead
@@ -62,6 +62,9 @@ public class DelaunayClusteringPlugin<T> extends AbstractInteractivePlugin<T> {
 
 	final private static Logger logger = LoggerFactory.getLogger(DelaunayClusteringPlugin.class);
 	
+	/**
+	 * Constructor.
+	 */
 	public DelaunayClusteringPlugin() {
 		super();
 	}	

@@ -256,8 +256,12 @@ public class DetectCytokeratinCV extends AbstractDetectionPlugin<BufferedImage> 
 
 
 
-
-	public static Area getArea(final Mat mat) {
+	/**
+	 * Get an Area object corresponding to contours in a binary image from OpenCV.
+	 * @param mat
+	 * @return
+	 */
+	private static Area getArea(final Mat mat) {
 		if (mat.empty())
 			return null;
 
@@ -280,7 +284,7 @@ public class DetectCytokeratinCV extends AbstractDetectionPlugin<BufferedImage> 
 
 
 
-	public static void updateArea(final MatVector contours, final Mat hierarchy, final Area area, int row, int depth) {
+	private static void updateArea(final MatVector contours, final Mat hierarchy, final Area area, int row, int depth) {
 		IntIndexer indexer = hierarchy.createIndexer();
 		while (row >= 0) {
 			int[] data = new int[4];
@@ -310,7 +314,7 @@ public class DetectCytokeratinCV extends AbstractDetectionPlugin<BufferedImage> 
 
 
 
-	public static Path2D getContour(Mat contour) {
+	private static Path2D getContour(Mat contour) {
 		// Create a path for the contour
 		Path2D path = new Path2D.Float();
 		boolean firstPoint = true;

@@ -53,7 +53,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.imagej.gui.IJExtension;
-import qupath.imagej.helpers.IJTools;
+import qupath.imagej.tools.IJTools;
 import qupath.lib.display.ImageDisplay;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.helpers.DisplayHelpers;
@@ -315,7 +315,7 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 				}
 				if (params.getBooleanParameterValue("getROI") && impResult.getRoi() != null) {
 					Roi roi = impResult.getRoi();
-					PathObject pathObjectNew = roi == null ? null : IJTools.convertToPathObject(impResult, imageData.getServer(), roi, downsampleFactor, false, -1, region.getZ(), region.getT());
+					PathObject pathObjectNew = roi == null ? null : IJTools.convertToPathObject(impResult, imageData.getServer(), roi, downsampleFactor, false, region.getPlane());
 					if (pathObjectNew != null) {
 						// If necessary, trim any returned annotation
 						if (pathROI != null && !(pathROI instanceof RectangleROI) && pathObjectNew.isAnnotation() && pathROI instanceof PathShape && pathObjectNew.getROI() instanceof PathShape) {
@@ -333,7 +333,7 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 				
 				boolean exportAsDetection = ((String) params.getChoiceParameterValue("getOverlayAs")).equals("Detections") ? true : false;
 				if (params.getBooleanParameterValue("getOverlay") && impResult.getOverlay() != null) {
-					List<PathObject> childObjects = QUPath_Send_Overlay_to_QuPath.createPathObjectsFromROIs(imp, impResult.getOverlay().toArray(), imageData.getServer(), downsampleFactor, exportAsDetection, true, -1, region.getZ(), region.getT());
+					List<PathObject> childObjects = QUPath_Send_Overlay_to_QuPath.createPathObjectsFromROIs(imp, impResult.getOverlay().toArray(), imageData.getServer(), downsampleFactor, exportAsDetection, true, region.getPlane());
 					if (!childObjects.isEmpty()) {
 						pathObject.addPathObjects(childObjects);
 						changes = true;

@@ -464,19 +464,22 @@ public class OpenCVTools {
 		return mat;
 	}
 	
-
-	static void labelImage(Mat matBinary, Mat matLabels, int contourType) {
+	/**
+	 * Create a labelled image from a binary image using findContours and drawContours.
+	 * @param matBinary
+	 * @param matLabels
+	 * @param contourRetrievalMode defined within OpenCV findContours
+	 */
+	public static void labelImage(Mat matBinary, Mat matLabels, int contourRetrievalMode) {
 		MatVector contours = new MatVector();
 		Mat hierarchy = new Mat();
-		opencv_imgproc.findContours(matBinary, contours, hierarchy, contourType, opencv_imgproc.CHAIN_APPROX_SIMPLE);
-		int i = 2;
-		int ind = 0;
+		opencv_imgproc.findContours(matBinary, contours, hierarchy, contourRetrievalMode, opencv_imgproc.CHAIN_APPROX_SIMPLE);
 		Point offset = new Point(0, 0);
 		for (int c = 0; c < contours.size(); c++) {
-			opencv_imgproc.drawContours(matLabels, contours, c, Scalar.all(i++), -1, 8, hierarchy.col(ind), 2, offset);
-//			opencv_imgproc.drawContours(matLabels, temp, 0, new Scalar(i++), -1);
-			ind++;
+			opencv_imgproc.drawContours(matLabels, contours, c, Scalar.all(c+1), -1, 8, hierarchy, 2, offset);
 		}
+		hierarchy.close();
+		contours.close();
 	}
 	
 	
@@ -516,40 +519,6 @@ public class OpenCVTools {
 		} else
 			throw new IllegalArgumentException("Expected a FloatIndexer, but instead got " + indexer.getClass());
 	}
-	
-
-	public static void watershedDistanceTransformSplit(Mat matBinary, int maxFilterRadius) {
-			Mat matWatershedSeedsBinary;
-			
-			// Create a background mask
-			Mat matBackground = new Mat();
-			compare(matBinary, new Mat(1, 1, CV_32FC1, Scalar.WHITE), matBackground, CMP_NE);
-	
-			// Separate by shape using the watershed transform
-			Mat matDistanceTransform = new Mat();
-			opencv_imgproc.distanceTransform(matBinary, matDistanceTransform, opencv_imgproc.CV_DIST_L2, opencv_imgproc.CV_DIST_MASK_PRECISE);
-			// Find local maxima
-			matWatershedSeedsBinary = new Mat();
-			opencv_imgproc.dilate(matDistanceTransform, matWatershedSeedsBinary, OpenCVTools.getCircularStructuringElement(maxFilterRadius));
-			compare(matDistanceTransform, matWatershedSeedsBinary, matWatershedSeedsBinary, CMP_EQ);
-			matWatershedSeedsBinary.setTo(new Mat(1, 1, matWatershedSeedsBinary.type(), Scalar.ZERO), matBackground);
-			// Dilate slightly to merge nearby maxima
-			opencv_imgproc.dilate(matWatershedSeedsBinary, matWatershedSeedsBinary, OpenCVTools.getCircularStructuringElement(2));
-	
-			// Create labels for watershed
-			Mat matLabels = new Mat(matDistanceTransform.size(), CV_32F, Scalar.ZERO);
-			labelImage(matWatershedSeedsBinary, matLabels, opencv_imgproc.RETR_CCOMP);
-	
-			// Remove everything outside the thresholded region
-			matLabels.setTo(new Mat(1, 1, matLabels.type(), Scalar.ZERO), matBackground);
-	
-			// Do watershed
-			// 8-connectivity is essential for the watershed lines to be preserved - otherwise OpenCV's findContours could not be used
-			ProcessingCV.doWatershed(matDistanceTransform, matLabels, 0.1, true);
-	
-			// Update the binary image to remove the watershed lines
-			multiply(matBinary, matLabels, matBinary, 1, matBinary.type());
-		}
 
 	/**
 	 * Create a Mat depicting a circle of the specified radius.
@@ -733,9 +702,8 @@ public class OpenCVTools {
 	/**
 	 * Convert an OpenCV {@code MatVector} into an ImageJ {@code ImagePlus}.
 	 * 
-	 * @param mat
 	 * @param title
-	 * @return
+	 * @param mats
 	 */
 	public static ImagePlus matToImagePlus(String title, Mat... mats) {
 		ImageStack stack = null;
@@ -916,7 +884,7 @@ public class OpenCVTools {
 	 * @param request
 	 * @return
 	 * @throws IOException
-	 * @see {@link extractZStack}
+	 * @see #extractZStack(ImageServer, RegionRequest, int, int)
 	 */
 	public static List<Mat> extractZStack(ImageServer<BufferedImage> server, RegionRequest request) throws IOException {
 		return extractZStack(server, request, 0, server.nZSlices());

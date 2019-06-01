@@ -21,7 +21,7 @@
  * #L%
  */
 
-package qupath.lib.analysis.objects;
+package qupath.lib.plugins.objects;
 
 import java.awt.geom.Area;
 import java.awt.geom.Path2D;
@@ -72,9 +72,7 @@ public class TileClassificationsToAnnotationsPlugin<T> extends AbstractDetection
 	
 	private ParameterList params;
 	private boolean parametersInitialized = false;
-	
-	public TileClassificationsToAnnotationsPlugin() {}
-	
+		
 	
 
 	@Override

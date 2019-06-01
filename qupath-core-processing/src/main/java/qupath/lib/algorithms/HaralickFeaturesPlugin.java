@@ -63,15 +63,11 @@ import qupath.lib.roi.interfaces.ROI;
 
 /**
  * Plugin for calculating Haralick texture features, within or around detections or tiles.
- * 
+ * <p>
  * The ROIs of the detections can be used directly as masks, or else the textures can alternatively be 
  * calculated within square or circular regions around the object centroids.
  * This latter option makes it possible to calculate a high density of tiles (for example), and then to 
  * compute textures at different resolutions independently of the tile size.
- * 
- * TODO: Read entire region (where suitable) &amp; tile that (if it makes sense...? may not scale up to whole slide images though...)
- * TODO: Improve use of static/non-static methods
- * TODO: Integrate masking
  * 
  * @author Pete Bankhead
  *
@@ -82,6 +78,9 @@ public class HaralickFeaturesPlugin extends AbstractInteractivePlugin<BufferedIm
 	
 	private ParameterList params;
 	
+	/**
+	 * Default constructor.
+	 */
 	public HaralickFeaturesPlugin() {
 		params = new ParameterList().
 				addDoubleParameter("downsample", "Downsample", 1, null, "Amount to downsample the image before calculating textures; choose 1 to use full resolution, or a higher value to use a smaller image").

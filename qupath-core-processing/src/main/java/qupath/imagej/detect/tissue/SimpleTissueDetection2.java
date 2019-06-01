@@ -46,11 +46,10 @@ import ij.plugin.filter.RankFilters;
 import ij.process.Blitter;
 import ij.process.ByteProcessor;
 import ij.process.ImageProcessor;
-import qupath.imagej.helpers.IJTools;
-import qupath.imagej.objects.ROIConverterIJ;
 import qupath.imagej.processing.MorphologicalReconstruction;
-import qupath.imagej.processing.ROILabeling;
+import qupath.imagej.processing.RoiLabeling;
 import qupath.imagej.processing.SimpleThresholding;
+import qupath.imagej.tools.IJTools;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.PathImage;
@@ -96,6 +95,9 @@ public class SimpleTissueDetection2 extends AbstractDetectionPlugin<BufferedImag
 
 	private String lastResults = null;
 	
+	/**
+	 * Constructor.
+	 */
 	public SimpleTissueDetection2() {
 		
 		params = new ParameterList().
@@ -206,8 +208,8 @@ public class SimpleTissueDetection2 extends AbstractDetectionPlugin<BufferedImag
 			// If there is a ROI, clear everything outside
 			Roi roiIJ = null;
 			if (pathROI != null) {
-				roiIJ = ROIConverterIJ.convertToIJRoi(pathROI, imp.getCalibration(), downsample);
-				ROILabeling.clearOutside(bp, roiIJ);
+				roiIJ = IJTools.convertToIJRoi(pathROI, imp.getCalibration(), downsample);
+				RoiLabeling.clearOutside(bp, roiIJ);
 			}
 			
 			// Exclude on image boundary now, if required
@@ -243,7 +245,7 @@ public class SimpleTissueDetection2 extends AbstractDetectionPlugin<BufferedImag
 				return null;
 			
 			bp.setThreshold(127, Double.POSITIVE_INFINITY, ImageProcessor.NO_LUT_UPDATE);
-			List<PathObject> pathObjects = convertToPathObjects(bp, minArea, smoothCoordinates, imp.getCalibration(), downsample, maxHoleArea, excludeOnBoundary, singleAnnotation, null);
+			List<PathObject> pathObjects = convertToPathObjects(bp, minArea, smoothCoordinates, imp.getCalibration(), downsample, maxHoleArea, excludeOnBoundary, singleAnnotation, pathImage.getImageRegion().getPlane(), null);
 
 			if (Thread.currentThread().isInterrupted())
 				return null;
@@ -270,8 +272,8 @@ public class SimpleTissueDetection2 extends AbstractDetectionPlugin<BufferedImag
 	
 	
 	
-	public static List<PathObject> convertToPathObjects(ByteProcessor bp, double minArea, boolean smoothCoordinates, Calibration cal, double downsample, double maxHoleArea, boolean excludeOnBoundary, boolean singleAnnotation, List<PathObject> pathObjects) {
-		List<PolygonRoi> rois = ROILabeling.getFilledPolygonROIs(bp, Wand.FOUR_CONNECTED);
+	private static List<PathObject> convertToPathObjects(ByteProcessor bp, double minArea, boolean smoothCoordinates, Calibration cal, double downsample, double maxHoleArea, boolean excludeOnBoundary, boolean singleAnnotation, ImagePlane plane, List<PathObject> pathObjects) {
+		List<PolygonRoi> rois = RoiLabeling.getFilledPolygonROIs(bp, Wand.FOUR_CONNECTED);
 		if (pathObjects == null)
 			pathObjects = new ArrayList<>(rois.size());
 		
@@ -299,7 +301,7 @@ public class SimpleTissueDetection2 extends AbstractDetectionPlugin<BufferedImag
 //				r = new PolygonRoi(r.getInterpolatedPolygon(Math.min(2.5, r.getNCoordinates()*0.1), false), Roi.POLYGON); // TODO: Check this smoothing - it can be troublesome, causing nuclei to be outside cells
 //			}
 			
-			PolygonROI pathPolygon = ROIConverterIJ.convertToPolygonROI(r, cal, downsample);
+			PolygonROI pathPolygon = IJTools.convertToPolygonROI(r, cal, downsample, plane);
 //			if (pathPolygon.getArea() < minArea)
 //				continue;
 			// Smooth the coordinates, if we downsampled quite a lot
@@ -321,7 +323,7 @@ public class SimpleTissueDetection2 extends AbstractDetectionPlugin<BufferedImag
 //			new ImagePlus("Binary", bp).show();
 			bp.setThreshold(127, Double.POSITIVE_INFINITY, ImageProcessor.NO_LUT_UPDATE);
 			
-			List<PathObject> holes = convertToPathObjects(bp, maxHoleArea, smoothCoordinates, cal, downsample, 0, false, false, null);
+			List<PathObject> holes = convertToPathObjects(bp, maxHoleArea, smoothCoordinates, cal, downsample, 0, false, false, plane, null);
 			
 			// For each object, fill in any associated holes
 			List<Area> areaList = new ArrayList<>();

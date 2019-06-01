@@ -189,9 +189,8 @@ public class WatershedNucleiCV extends AbstractTileableDetectionPlugin<BufferedI
 					int label = 0;
 					Point offset = new Point(0, 0);
 					for (int c = 0; c < contours.size(); c++) {
-						Mat contour = contours.get(c);
 						label++;
-						opencv_imgproc.drawContours(matLabels, contours, 0, Scalar.all(label), -1, opencv_imgproc.LINE_8, null, Integer.MAX_VALUE, offset);
+						opencv_imgproc.drawContours(matLabels, contours, c, Scalar.all(label), -1, opencv_imgproc.LINE_8, null, Integer.MAX_VALUE, offset);
 						statsList.add(new RunningStatistics());
 					}
 					// Compute mean for each contour, keep those that are sufficiently intense
@@ -216,7 +215,7 @@ public class WatershedNucleiCV extends AbstractTileableDetectionPlugin<BufferedI
 
 					// Split using distance transform, if necessary
 					if (splitShape)
-						OpenCVTools.watershedDistanceTransformSplit(matBinary, openingRadius/4);
+						watershedDistanceTransformSplit(matBinary, openingRadius/4);
 
 					// Create path objects from contours		
 					contours = new MatVector();
@@ -334,6 +333,38 @@ public class WatershedNucleiCV extends AbstractTileableDetectionPlugin<BufferedI
 	}
 
 
+	private static void watershedDistanceTransformSplit(Mat matBinary, int maxFilterRadius) {
+		Mat matWatershedSeedsBinary;
+		
+		// Create a background mask
+		Mat matBackground = new Mat();
+		compare(matBinary, new Mat(1, 1, CV_32FC1, Scalar.WHITE), matBackground, CMP_NE);
+
+		// Separate by shape using the watershed transform
+		Mat matDistanceTransform = new Mat();
+		opencv_imgproc.distanceTransform(matBinary, matDistanceTransform, opencv_imgproc.CV_DIST_L2, opencv_imgproc.CV_DIST_MASK_PRECISE);
+		// Find local maxima
+		matWatershedSeedsBinary = new Mat();
+		opencv_imgproc.dilate(matDistanceTransform, matWatershedSeedsBinary, OpenCVTools.getCircularStructuringElement(maxFilterRadius));
+		compare(matDistanceTransform, matWatershedSeedsBinary, matWatershedSeedsBinary, CMP_EQ);
+		matWatershedSeedsBinary.setTo(new Mat(1, 1, matWatershedSeedsBinary.type(), Scalar.ZERO), matBackground);
+		// Dilate slightly to merge nearby maxima
+		opencv_imgproc.dilate(matWatershedSeedsBinary, matWatershedSeedsBinary, OpenCVTools.getCircularStructuringElement(2));
+
+		// Create labels for watershed
+		Mat matLabels = new Mat(matDistanceTransform.size(), CV_32F, Scalar.ZERO);
+		OpenCVTools.labelImage(matWatershedSeedsBinary, matLabels, opencv_imgproc.RETR_CCOMP);
+
+		// Remove everything outside the thresholded region
+		matLabels.setTo(new Mat(1, 1, matLabels.type(), Scalar.ZERO), matBackground);
+
+		// Do watershed
+		// 8-connectivity is essential for the watershed lines to be preserved - otherwise OpenCV's findContours could not be used
+		ProcessingCV.doWatershed(matDistanceTransform, matLabels, 0.1, true);
+
+		// Update the binary image to remove the watershed lines
+		multiply(matBinary, matLabels, matBinary, 1, matBinary.type());
+	}
 
 	@Override
 	public ParameterList getDefaultParameterList(final ImageData<BufferedImage> imageData) {
@@ -366,7 +397,7 @@ public class WatershedNucleiCV extends AbstractTileableDetectionPlugin<BufferedI
 		return "OpenCV nucleus experiment";
 	}
 
-	public RunningStatistics computeRunningStatistics(float[] pxIntensities, byte[] pxMask, int width, Rect bounds) {
+	private RunningStatistics computeRunningStatistics(float[] pxIntensities, byte[] pxMask, int width, Rect bounds) {
 		RunningStatistics stats = new RunningStatistics();
 		for (int i = 0; i < pxMask.length; i++) {
 			if (pxMask[i] == 0)
@@ -394,9 +425,9 @@ public class WatershedNucleiCV extends AbstractTileableDetectionPlugin<BufferedI
 
 
 
-	// TODO: If this ever becomes important, switch to using the QuPathCore implementation instead of this one
+	// TODO: If this ever becomes important, switch to using the QuPath core implementation instead of this one
 	@Deprecated
-	public static float[][] colorDeconvolve(BufferedImage img, double[] stain1, double[] stain2, double[] stain3, int nStains) {
+	private static float[][] colorDeconvolve(BufferedImage img, double[] stain1, double[] stain2, double[] stain3, int nStains) {
 		// TODO: Precompute the default matrix inversion
 		if (stain3 == null)
 			stain3 = StainVector.cross3(stain1, stain2);

@@ -280,7 +280,7 @@ public class PixelClassifierMetadata {
     	 * @param height
     	 * @return
     	 * 
-    	 * @see #strictInputSize
+    	 * @see #strictInputSize()
     	 */
     	public Builder inputShape(int width, int height) {
     		this.inputWidth = width;

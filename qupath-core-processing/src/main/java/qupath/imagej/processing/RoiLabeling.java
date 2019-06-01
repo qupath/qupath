@@ -54,17 +54,30 @@ import ij.process.ShortProcessor;
  * @author Pete Bankhead
  *
  */
-public class ROILabeling {
+public class RoiLabeling {
 	
-	static Logger logger = LoggerFactory.getLogger(ROILabeling.class);
+	static Logger logger = LoggerFactory.getLogger(RoiLabeling.class);
 	
+	/**
+	 * Create a binary image for pixels that have a higher value than their neighbors.
+	 * Comparisons are made horizontally, vertically and diagonally. Pixels meeting the criterion 
+	 * have the value 255, all others are 0.
+	 * @param ip
+	 * @return
+	 */
 	public static ByteProcessor findDirectionalMaxima(ImageProcessor ip) {
 		ImageProcessor ip2 = ip.duplicate();
 		ip2.invert();
 		return findDirectionalMinima(ip2);
 	}
 	
-	
+	/**
+	 * Create a binary image for pixels that have a lower value than their neighbors.
+	 * Comparisons are made horizontally, vertically and diagonally. Pixels meeting the criterion 
+	 * have the value 255, all others are 0.
+	 * @param ip
+	 * @return
+	 */
 	public static ByteProcessor findDirectionalMinima(ImageProcessor ip) {
 		int w = ip.getWidth();
 		int h = ip.getHeight();
@@ -85,28 +98,6 @@ public class ROILabeling {
 			}			
 		}
 		return bp;
-	}
-	
-	
-	public static void removeWeakPixels(ByteProcessor bp) {
-		int w = bp.getWidth();
-		int h = bp.getHeight();
-		for (int y = 1; y < h-1; y++) {
-			for (int x = 1; x < w-1; x++) {
-				// Check if this is a nonzero pixel
-				if (bp.get(x, y) == 0)
-					continue;
-				// Check nonzero neighbours
-				if ((bp.get(x-1, y) == 0 && bp.get(x+1, y) == 0) ||
-						(bp.get(x-1, y-1) == 0 && bp.get(x+1, y+1) == 0) ||
-						(bp.get(x, y-1) == 0 && bp.get(x, y+1) == 0) ||
-						(bp.get(x-1, y+1) == 0 && bp.get(x+1, y-1) == 0)) {
-					// If we have 2 zero neighbours, in any direction, break the connection
-					bp.set(x, y, 0);
-				}
-					
-			}			
-		}
 	}
 	
 	
@@ -242,7 +233,7 @@ public class ROILabeling {
 	 * Otherwise, pixels with the integer label L will belong to the Roi in the output array at entry L-1
 	 * 
 	 * @param ipLabels
-	 * @param n - maximum number of labels
+	 * @param n maximum number of labels
 	 * @return
 	 */
 	public static PolygonRoi[] labelsToFilledROIs(ImageProcessor ipLabels, int n) {
@@ -396,7 +387,17 @@ public class ROILabeling {
 		return map;
 	}
 	
-	
+	/**
+	 * Get filled PolygonRois for connected pixels with the same value in an image.
+	 * Because this uses ImageJ's Wand tool, holes will be filled.
+	 * <p>
+	 * Note that this command applies any thresholds that were set in the ImageProcessor, returning 
+	 * only Rois for values within these limits. Therefore to identify only non-zero pixels in a labelled image
+	 * you may need to first call {@code ip.setThreshold(0.5, Double.POSITIVE_INFINITY, ImageProcessor.NO_LUT_UPDATE);}
+	 * @param ip
+	 * @param wandMode
+	 * @return
+	 */
 	public static List<PolygonRoi> getFilledPolygonROIs(ImageProcessor ip, int wandMode) {
 //		Wand wand = new Wand(ip);
 		double threshLower = ip.getMinThreshold();
@@ -427,7 +428,11 @@ public class ROILabeling {
 		return rois;
 	}
 	
-	
+	/**
+	 * Convert a traced outline from the ImageJ Wand into a PolygonRoi.
+	 * @param wand
+	 * @return
+	 */
 	public static PolygonRoi wandToRoi(Wand wand) {
 		// TODO: CONSIDER IF SHOULD BE TRACED OR POLYGON!
 //		PolygonRoi roi = new PolygonRoi(wand.xpoints, wand.ypoints, wand.npoints, Roi.POLYGON);
@@ -471,15 +476,6 @@ public class ROILabeling {
 		return roi;
 	}
 	
-	
-	public static List<PolygonRoi> getFilledROIs4(ImageProcessor ip) {
-		return getFilledPolygonROIs(ip, Wand.FOUR_CONNECTED);
-	}
-
-	public static List<PolygonRoi> getFilledROIs8(ImageProcessor ip) {
-		return getFilledPolygonROIs(ip, Wand.EIGHT_CONNECTED);
-	}
-	
 	/**
 	 * Fill holes in a binary image.
 	 * <p>
@@ -514,6 +510,13 @@ public class ROILabeling {
 		}
 	}
 	
+	/**
+	 * Label ROIs by filling each pixel with an integer value corresponding to the index of the Roi 
+	 * in the list + 1.
+	 * @param ipLabels
+	 * @param rois
+	 * @return
+	 */
 	public static ImageProcessor labelROIs(ImageProcessor ipLabels, List<? extends Roi> rois) {
 		int label = 0;
 		for (Roi r : rois) {
@@ -524,51 +527,19 @@ public class ROILabeling {
 		return ipLabels;
 	}
 	
-	public static ImageProcessor getFilledLabels(ImageProcessor ip, int wandMode, ImageProcessor ipLabels) {
-		List<PolygonRoi> rois = getFilledPolygonROIs(ip, wandMode);
-		if (ipLabels == null) {
-			if (rois.size() < 255)
-				ipLabels = new ByteProcessor(ip.getWidth(), ip.getHeight());
-			else
-				ipLabels = new ShortProcessor(ip.getWidth(), ip.getHeight());
-		}
-		return labelROIs(ipLabels, rois);
-	}
 	
-	public static ShortProcessor labelImage(ByteProcessor bp, boolean conn8) {
-		int w = bp.getWidth();
-		int h = bp.getHeight();
-		short shortMax = (short)65535;
-		ShortProcessor sp = new ShortProcessor(w, h);
-		byte[] pxByte = (byte[])bp.getPixels();
-		short[] pxShort = (short[])sp.getPixels();
-		for (int i = 0; i < pxByte.length; i++) {
-			if (pxByte[i] != 0)
-				pxShort[i] = shortMax;
-		}
-		// Loop through and flood fill
-		FloodFiller ff = new FloodFiller(sp);
-		double label = 0;
-		for (int i = 0; i < pxShort.length; i++) {
-			if (pxShort[i] == shortMax) {
-				label++;
-				sp.setValue(label);
-				if (conn8)
-					ff.fill8(i % w, i / w);
-				else
-					ff.fill(i % w, i / w);
-			}
-		}
-		sp.setMinAndMax(0, label);
-		return sp;
-	}
-	
-	
-	public static ShortProcessor labelImage(ImageProcessor ip, float threshold, boolean conn8) {
+	/**
+	 * Create a labelled image from above-threshold pixels for an image.
+	 * @param ip
+	 * @param threshold
+	 * @param conn8
+	 * @return labelled image, as a ShortProcessor (if possible) or FloatProcessor (if necessary)
+	 */
+	public static ImageProcessor labelImage(ImageProcessor ip, float threshold, boolean conn8) {
 		int w = ip.getWidth();
 		int h = ip.getHeight();
 		short shortMax = (short)65535;
-		ShortProcessor sp = new ShortProcessor(w, h);
+		ImageProcessor sp = new ShortProcessor(w, h);
 		short[] pxShort = (short[])sp.getPixels();
 		for (int i = 0; i < w*h; i++) {
 			if (ip.getf(i) > threshold)
@@ -577,9 +548,16 @@ public class ROILabeling {
 		// Loop through and flood fill
 		FloodFiller ff = new FloodFiller(sp);
 		double label = 0;
+		double maxSupported = 65535;
 		for (int i = 0; i < pxShort.length; i++) {
 			if (pxShort[i] == shortMax) {
 				label++;
+				// We would overflow the max int value for a ShortProcessor - convert now to 32-bit
+				if (label == maxSupported) {
+					sp = sp.convertToFloatProcessor();
+					ff = new FloodFiller(sp);
+					maxSupported = -1;
+				}
 				sp.setValue(label);
 				if (conn8)
 					ff.fill8(i % w, i / w);
@@ -618,11 +596,11 @@ public class ROILabeling {
 		int w = bp.getWidth();
 		int h = bp.getHeight();
 		int shortMax = 65535;
-		ShortProcessor sp = labelImage(bp, conn8);
+		ImageProcessor ipLabels = labelImage(bp, 0.5f, conn8);
 		// Loop through pixels & compute a histogram
 		long[] histogram = new long[shortMax+1];
 		for (int i = 0; i < w*h; i++) {
-			int val = sp.get(i);
+			int val = (int)ipLabels.getf(i);
 			if (val != 0)
 				histogram[val] += 1;
 		}
@@ -638,7 +616,7 @@ public class ROILabeling {
 		}
 		// Loop through and set to zero and below threshold objects
 		for (int i = 0; i < w*h; i++) {
-			int val = sp.get(i);
+			int val = (int)ipLabels.getf(i);
 			if (val != 0 && !histThresholded[val])
 				bp.set(i, 0);
 		}
@@ -647,52 +625,53 @@ public class ROILabeling {
 	
 	
 	
-	protected static final boolean binaryOn(ByteProcessor bp, int x, int y) {
-		return bp.get(x, y) != 0;
-	}
-	
-	public static ByteProcessor removeSpurs(ByteProcessor bp, ByteProcessor bpOutput) {
-		int w = bp.getWidth();
-		int h = bp.getHeight();
-		if (bpOutput == null)
-			bpOutput = new ByteProcessor(w, h);
-		int[] xOffsets = new int[]{-1, 0, 1, 1, 1, 0, -1, -1};
-		int[] yOffsets = new int[]{-1, -1, -1, 0, 1, 1, 1, 0};
-		for (int y = 0; y < h; y++) {
-			for (int x = 0; x < w; x++) {
-				boolean val = binaryOn(bp, x, y);
-				if (!val)
-					continue;
-				// Loop around the central pixel & count the 'on' neighbors
-				// Remove pixel if it only has one group of continuous 'on' neighbors
-				int count = 0;
-				boolean lastOn = x-1 >= 0 && binaryOn(bp, x-1, y);
-				for (int i = 0; i < xOffsets.length; i++) {
-					int xx = x + xOffsets[i];
-					int yy = y + yOffsets[i];
-					// Check if we are outside the image
-					if (xx < 0 || xx >= w || yy < 0 || yy >= h) {
-						lastOn = false;
-					} else {
-						if (binaryOn(bp, xx, yy)) {
-							if (!lastOn) {
-								count++;
-								lastOn = true;
-							}
-						} else
-							lastOn = false;
-					}
-				}
-				if (count > 1)
-					bpOutput.set(x, y, (byte)255);
-				else
-					bpOutput.set(x, y, 0);
-//				if (count <= 1)
-//					bp.set(x, y, 0);
-			}
-		}
-		return bpOutput;
-	}
+//	private static final boolean binaryOn(ByteProcessor bp, int x, int y) {
+//		return bp.get(x, y) != 0;
+//	}
+//	
+//	
+//	public static ByteProcessor removeSpurs(ByteProcessor bp, ByteProcessor bpOutput) {
+//		int w = bp.getWidth();
+//		int h = bp.getHeight();
+//		if (bpOutput == null)
+//			bpOutput = new ByteProcessor(w, h);
+//		int[] xOffsets = new int[]{-1, 0, 1, 1, 1, 0, -1, -1};
+//		int[] yOffsets = new int[]{-1, -1, -1, 0, 1, 1, 1, 0};
+//		for (int y = 0; y < h; y++) {
+//			for (int x = 0; x < w; x++) {
+//				boolean val = binaryOn(bp, x, y);
+//				if (!val)
+//					continue;
+//				// Loop around the central pixel & count the 'on' neighbors
+//				// Remove pixel if it only has one group of continuous 'on' neighbors
+//				int count = 0;
+//				boolean lastOn = x-1 >= 0 && binaryOn(bp, x-1, y);
+//				for (int i = 0; i < xOffsets.length; i++) {
+//					int xx = x + xOffsets[i];
+//					int yy = y + yOffsets[i];
+//					// Check if we are outside the image
+//					if (xx < 0 || xx >= w || yy < 0 || yy >= h) {
+//						lastOn = false;
+//					} else {
+//						if (binaryOn(bp, xx, yy)) {
+//							if (!lastOn) {
+//								count++;
+//								lastOn = true;
+//							}
+//						} else
+//							lastOn = false;
+//					}
+//				}
+//				if (count > 1)
+//					bpOutput.set(x, y, (byte)255);
+//				else
+//					bpOutput.set(x, y, 0);
+////				if (count <= 1)
+////					bp.set(x, y, 0);
+//			}
+//		}
+//		return bpOutput;
+//	}
 
 
 	/**

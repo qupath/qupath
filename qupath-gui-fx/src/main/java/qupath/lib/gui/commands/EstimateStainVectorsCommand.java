@@ -51,7 +51,7 @@ import javafx.scene.control.TitledPane;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
-import qupath.lib.algorithms.color.EstimateStainVectors;
+import qupath.lib.analysis.algorithms.EstimateStainVectors;
 import qupath.lib.color.ColorDeconvolutionHelper;
 import qupath.lib.color.ColorDeconvolutionStains;
 import qupath.lib.color.StainVector;

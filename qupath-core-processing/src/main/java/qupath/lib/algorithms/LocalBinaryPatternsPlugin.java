@@ -55,16 +55,20 @@ import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
- * TODO: Read entire region (where suitable) &amp; tile that (if it makes sense...? may not scale up to whole slide images though...)
- * TODO: Improve use of static/non-static methods
- * TODO: Integrate masking
+ * Calculate local binary pattern features.
+ * <p>
+ * TODO: This plugin has not been extensively tested and may be of limited use.
+ * 
  * @author Pete Bankhead
  *
  */
 public class LocalBinaryPatternsPlugin extends AbstractInteractivePlugin<BufferedImage> {
 	
 	private ParameterList params;
-	
+
+	/**
+	 * Default constructor.
+	 */
 	public LocalBinaryPatternsPlugin() {
 		params = new ParameterList().
 				addDoubleParameter("magnification", "Magnification", 5).

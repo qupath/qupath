@@ -40,9 +40,8 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
-import qupath.imagej.helpers.IJTools;
-import qupath.imagej.objects.ROIConverterIJ;
-import qupath.imagej.processing.ROILabeling;
+import qupath.imagej.processing.RoiLabeling;
+import qupath.imagej.tools.IJTools;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.PathImage;
@@ -180,13 +179,13 @@ public class DoGSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffer
 			
 			// Dilate to remove outlines
 			bp.setThreshold(128, Double.POSITIVE_INFINITY, ImageProcessor.NO_LUT_UPDATE);
-			ShortProcessor ipLabels = ROILabeling.labelImage(bp, false);
+			ImageProcessor ipLabels = RoiLabeling.labelImage(bp, 0.5f, false);
 			new RankFilters().rank(ipLabels, 1, RankFilters.MAX);
 			
 			// Remove everything outside the ROI, if required
 			if (pathROI != null) {
-				Roi roi = ROIConverterIJ.convertToIJRoi(pathROI, pathImage);
-				ROILabeling.clearOutside(ipLabels, roi);
+				Roi roi = IJTools.convertToIJRoi(pathROI, pathImage);
+				RoiLabeling.clearOutside(ipLabels, roi);
 				// It's important to move away from the containing ROI, to help with brush selections ending up
 				// having the correct parent (i.e. don't want to risk moving slightly outside the parent object's ROI)
 				ipLabels.setValue(0);
@@ -195,7 +194,7 @@ public class DoGSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffer
 			}
 			
 			// Convert to tiles & create a labelled image for later
-			PolygonRoi[] polygons = ROILabeling.labelsToFilledROIs(ipLabels, (int)ipLabels.getMax());
+			PolygonRoi[] polygons = RoiLabeling.labelsToFilledROIs(ipLabels, (int)ipLabels.getMax());
 			List<PathObject> pathObjects = new ArrayList<>(polygons.length);
 			int label = 0;
 			// Set thresholds - regions means must be within specified range
@@ -216,7 +215,7 @@ public class DoGSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffer
 						if (meanValue < minThreshold || meanValue > maxThreshold)
 							continue;
 					}
-					PathArea superpixelROI = (PathArea)ROIConverterIJ.convertToPathROI(roi, pathImage);
+					PathArea superpixelROI = (PathArea)IJTools.convertToROI(roi, pathImage);
 					if (pathROI == null)
 						continue;
 					PathObject tile = PathObjects.createTileObject(superpixelROI);

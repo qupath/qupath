@@ -21,7 +21,7 @@
  * #L%
  */
 
-package qupath.imagej.wrappers;
+package qupath.imagej.tools;
 
 import ij.process.ImageProcessor;
 import qupath.lib.analysis.images.SimpleModifiableImage;
@@ -36,6 +36,10 @@ public class PixelImageIJ implements SimpleModifiableImage {
 	
 	private ImageProcessor ip;
 	
+	/**
+	 * Constructor.
+	 * @param ip ImageProcessor to wrap
+	 */
 	public PixelImageIJ(ImageProcessor ip) {
 		this.ip = ip;
 	}

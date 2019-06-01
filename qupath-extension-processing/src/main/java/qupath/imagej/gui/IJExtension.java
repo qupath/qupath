@@ -68,18 +68,15 @@ import qupath.imagej.detect.cells.WatershedCellDetection;
 import qupath.imagej.detect.cells.WatershedCellMembraneDetection;
 import qupath.imagej.detect.dearray.TMADearrayerPluginIJ;
 import qupath.imagej.detect.tissue.PositivePixelCounterIJ;
-import qupath.imagej.detect.tissue.SimpleTissueDetection;
 import qupath.imagej.detect.tissue.SimpleTissueDetection2;
 import qupath.imagej.gui.commands.ExtractRegionCommand;
 import qupath.imagej.gui.commands.ScreenshotCommand;
-import qupath.imagej.helpers.IJTools;
 import qupath.imagej.images.writers.TIFFWriterIJ;
 import qupath.imagej.images.writers.ZipWriterIJ;
-import qupath.imagej.objects.ROIConverterIJ;
 import qupath.imagej.plugins.ImageJMacroRunner;
 import qupath.imagej.superpixels.DoGSuperpixelsPlugin;
 import qupath.imagej.superpixels.SLICSuperpixelsPlugin;
-import qupath.lib.analysis.objects.TileClassificationsToAnnotationsPlugin;
+import qupath.imagej.tools.IJTools;
 import qupath.lib.awt.common.AwtTools;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.display.ChannelDisplayInfo;
@@ -101,6 +98,7 @@ import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
+import qupath.lib.plugins.objects.TileClassificationsToAnnotationsPlugin;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.ROIs;
@@ -140,7 +138,6 @@ public class IJExtension implements QuPathExtension {
 	
 	/**
 	 * Get the path for a local ImageJ installation, if set.
-	 * @param path
 	 */
 	public static String getImageJPath() {
 		return imageJPath.get();
@@ -366,7 +363,7 @@ public class IJExtension implements QuPathExtension {
 					}
 					if (imp != null) {
 						IJTools.calibrateImagePlus(imp, request, server);
-						pathImage = IJTools.createPathImage(server, request, imp);
+						pathImage = IJTools.createPathImage(server, imp, request);
 					}
 				}
 			}
@@ -385,7 +382,7 @@ public class IJExtension implements QuPathExtension {
 		if (setROI) {
 			ImagePlus imp = pathImage.getImage();
 			if (!(pathROI instanceof RectangleROI)) {
-				Roi roi = ROIConverterIJ.convertToIJRoi(pathROI, pathImage);
+				Roi roi = IJTools.convertToIJRoi(pathROI, pathImage);
 				imp.setRoi(roi);
 			}
 		}
@@ -463,7 +460,7 @@ public class IJExtension implements QuPathExtension {
 					
 					Color color = PathObjectColorToolsAwt.getDisplayedColorAWT(child);
 					if (!(isCell && (options == null || !options.getShowCellBoundaries()))) {
-						Roi roi = ROIConverterIJ.convertToIJRoi(child.getROI(), pathImage);
+						Roi roi = IJTools.convertToIJRoi(child.getROI(), pathImage);
 						roi.setStrokeColor(color);
 						roi.setName(child.getDisplayedName());
 						//						roi.setStrokeWidth(2);
@@ -475,7 +472,7 @@ public class IJExtension implements QuPathExtension {
 						ROI nucleus = ((PathCellObject)child).getNucleusROI();
 						if (nucleus == null)
 							continue;
-						Roi roi = ROIConverterIJ.convertToIJRoi(((PathCellObject)child).getNucleusROI(), pathImage);
+						Roi roi = IJTools.convertToIJRoi(((PathCellObject)child).getNucleusROI(), pathImage);
 						roi.setStrokeColor(color);
 						roi.setName(child.getDisplayedName() + " - nucleus");
 						overlay.add(roi);
@@ -651,8 +648,7 @@ public class IJExtension implements QuPathExtension {
 		QuPathGUI.addMenuItems(
 				menuPreprocessing,
 				null,
-				qupath.createPluginAction("Simple tissue detection", SimpleTissueDetection2.class, null),
-				qupath.createPluginAction("Simple tissue detection (legacy)", SimpleTissueDetection.class, null)
+				qupath.createPluginAction("Simple tissue detection", SimpleTissueDetection2.class, null)
 				);
 		
 		

@@ -55,6 +55,9 @@ public class TilerPlugin<T> extends AbstractDetectionPlugin<T> {
 	
 	private ParameterList params;
 
+	/**
+	 * Default constructor.
+	 */
 	public TilerPlugin() {
 		// Set up initial parameters
 		params = new ParameterList();
@@ -202,10 +205,6 @@ public class TilerPlugin<T> extends AbstractDetectionPlugin<T> {
 	@Override
 	public String getLastResultsDescription() {
 		return null;
-	}
-
-	public PathPlugin<T> makePluginCopy() {
-		return new TilerPlugin<>();
 	}
 
 	@Override

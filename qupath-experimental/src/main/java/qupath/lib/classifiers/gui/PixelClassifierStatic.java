@@ -12,7 +12,7 @@ import org.bytedeco.opencv.global.opencv_imgproc;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import qupath.imagej.objects.ROIConverterIJ;
+import qupath.imagej.tools.IJTools;
 import qupath.lib.classifiers.pixel.PixelClassificationImageServer;
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.images.ImageData;
@@ -140,12 +140,12 @@ public class PixelClassifierStatic {
     	// Generate a shape, using the RegionRequest if we can
     	var roiIJ = new ThresholdToSelection().convert(ip);
     	if (request == null)
-    		return ROIConverterIJ.convertToPathROI(roiIJ, 0, 0, 1, -1, 0, 0);
-    	return ROIConverterIJ.convertToPathROI(
+    		return IJTools.convertToROI(roiIJ, 0, 0, 1, request.getPlane());
+    	return IJTools.convertToROI(
     			roiIJ,
     			-request.getX()/request.getDownsample(),
     			-request.getY()/request.getDownsample(),
-    			request.getDownsample(), -1, request.getZ(), request.getT());
+    			request.getDownsample(), request.getPlane());
     }
     
     static ROI thresholdToROI(ImageProcessor ip, TileRequest request) {
@@ -167,12 +167,12 @@ public class PixelClassifierStatic {
     	// Generate a shape, using the TileRequest if we can
     	var roiIJ = new ThresholdToSelection().convert(ip);
     	if (request == null)
-    		return ROIConverterIJ.convertToPathROI(roiIJ, 0, 0, 1, -1, 0, 0);
-    	return ROIConverterIJ.convertToPathROI(
+    		return IJTools.convertToROI(roiIJ, 0, 0, 1, request.getPlane());
+    	return IJTools.convertToROI(
     			roiIJ,
     			-request.getTileX(),
     			-request.getTileY(),
-    			request.getDownsample(), -1, request.getZ(), request.getT());
+    			request.getDownsample(), request.getPlane());
     }
     
     

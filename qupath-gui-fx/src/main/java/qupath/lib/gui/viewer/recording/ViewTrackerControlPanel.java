@@ -67,7 +67,7 @@ public class ViewTrackerControlPanel {
 	/**
 	 * Constructor.
 	 * @param viewer the viewer to track
-	 * @param ViewTracker the tracker to use
+	 * @param viewTracker the tracker to use
 	 */
 	ViewTrackerControlPanel(final QuPathViewer viewer, final ViewTracker viewTracker) {
 		this.tracker = viewTracker;

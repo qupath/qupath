@@ -21,7 +21,7 @@
  * #L%
  */
 
-package qupath.lib.algorithms.color;
+package qupath.lib.analysis.algorithms;
 
 import java.awt.image.BufferedImage;
 import java.awt.image.ConvolveOp;
@@ -56,6 +56,13 @@ public class EstimateStainVectors {
 	
 	final private static Logger logger = LoggerFactory.getLogger(EstimateStainVectors.class);
 	
+	/**
+	 * Estimate two stains from a BufferedImage, with default parameter settings.
+	 * @param img original RGB image
+	 * @param stainsOriginal original stains, including the background (white) values for red, green and blue and stain names
+	 * @param checkColors if true, avoid colors far from H&amp;E
+	 * @return
+	 */
 	public static ColorDeconvolutionStains estimateStains(final BufferedImage img, final ColorDeconvolutionStains stainsOriginal, final boolean checkColors) {
 		double maxStain = 1;
 		double minStain = 0.05;
@@ -63,6 +70,16 @@ public class EstimateStainVectors {
 		return estimateStains(img, stainsOriginal, minStain, maxStain, ignorePercentage, checkColors);
 	}
 	
+	/**
+	 * Estimate two stains from a BufferedImage.
+	 * @param img original RGB image
+	 * @param stainsOriginal original stains, including the background (white) values for red, green and blue and stain names
+	 * @param minStain minimum optical density to use
+	 * @param maxStain maximum optical density to use
+	 * @param ignorePercentage percentage of extrema pixels to ignore
+	 * @param checkColors if true, avoid colors far from H&amp;E
+	 * @return
+	 */
 	public static ColorDeconvolutionStains estimateStains(final BufferedImage img, final ColorDeconvolutionStains stainsOriginal, final double minStain, final double maxStain, final double ignorePercentage, final boolean checkColors) {
 		int[] buf = img.getRGB(0, 0, img.getWidth(), img.getHeight(), null, 0, img.getWidth());
 		int[] rgb = buf;
@@ -269,11 +286,17 @@ public class EstimateStainVectors {
 	}
 	
 	
-	public static double covariance(final float[] x, final float[] y) {
+	/**
+	 * Calculate covariance of two vectors, which must have the same length.
+	 * @param x
+	 * @param y
+	 * @return
+	 */
+	static double covariance(final float[] x, final float[] y) {
 		
 		int n = x.length;
 		if (n != y.length)
-			throw new RuntimeException("Cannot compute covariance - array lengths are not the same");
+			throw new IllegalArgumentException("Cannot compute covariance - array lengths are not the same");
 		
 		double xMean = 0;
 		for (float v : x)

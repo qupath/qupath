@@ -40,7 +40,7 @@ import ij.plugin.ZProjector;
 import ij.process.ByteProcessor;
 import ij.process.ImageProcessor;
 import qupath.imagej.detect.dearray.TMADearrayer.TMAGridShape;
-import qupath.imagej.helpers.IJTools;
+import qupath.imagej.tools.IJTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.PathImage;
 import qupath.lib.images.servers.ImageServer;
@@ -77,7 +77,9 @@ public class TMADearrayerPluginIJ extends AbstractInteractivePlugin<BufferedImag
 	
 	transient private Dearrayer dearrayer;
 	
-	
+	/**
+	 * Default constructor.
+	 */
 	public TMADearrayerPluginIJ() {
 		
 		// Create default parameter list
@@ -103,12 +105,6 @@ public class TMADearrayerPluginIJ extends AbstractInteractivePlugin<BufferedImag
 //		gd.addMessage("1 means the ROI will have the same diameter as the core specified above; higher values add padding.");
 		params.addIntParameter("boundsScale", "Bounds scale factor", 105, "%", 50, 150, "Scaling factor to adjust the core size.\nA scale factor of 100% will give cores with the diameter specified above.\nA higher scale factor will increase the size, a lower factor will decrease the size.");
 
-	}
-	
-	
-	
-	public boolean requestLiveUpdate() {
-		return false;
 	}
 	
 	
@@ -163,11 +159,6 @@ public class TMADearrayerPluginIJ extends AbstractInteractivePlugin<BufferedImag
 		return dearrayer == null ? "" : dearrayer.getLastResultsDescription();
 	}
 
-	public TMAGrid getTMAGrid() {
-		return dearrayer == null ? null : dearrayer.getTMAGrid();
-	}
-	
-	
 	
 	static class Dearrayer implements ObjectDetector<BufferedImage> {
 		

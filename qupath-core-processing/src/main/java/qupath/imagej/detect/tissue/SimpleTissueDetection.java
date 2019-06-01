@@ -46,10 +46,9 @@ import ij.plugin.filter.RankFilters;
 import ij.process.Blitter;
 import ij.process.ByteProcessor;
 import ij.process.ImageProcessor;
-import qupath.imagej.helpers.IJTools;
-import qupath.imagej.objects.ROIConverterIJ;
-import qupath.imagej.processing.ROILabeling;
+import qupath.imagej.processing.RoiLabeling;
 import qupath.imagej.processing.SimpleThresholding;
+import qupath.imagej.tools.IJTools;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.PathImage;
@@ -78,7 +77,7 @@ import qupath.lib.roi.interfaces.ROI;
 
 /**
  * Very basic global thresholding command to identify tissue regions.
- * 
+ * <p>
  * Uses fixed approach to downsampling images &amp; global threshold applied to RGB images only.
  * 
  * TODO: Provide choice of channels to threshold
@@ -88,7 +87,7 @@ import qupath.lib.roi.interfaces.ROI;
  * @author Pete Bankhead
  *
  */
-public class SimpleTissueDetection extends AbstractDetectionPlugin<BufferedImage> {
+class SimpleTissueDetection extends AbstractDetectionPlugin<BufferedImage> {
 	
 	final private static Logger logger = LoggerFactory.getLogger(SimpleTissueDetection.class);
 	
@@ -194,8 +193,8 @@ public class SimpleTissueDetection extends AbstractDetectionPlugin<BufferedImage
 			
 			// If there is a ROI, clear everything outside
 			if (pathROI != null) {
-				Roi roi = ROIConverterIJ.convertToIJRoi(pathROI, imp.getCalibration(), downsample);
-				ROILabeling.clearOutside(bp, roi);
+				Roi roi = IJTools.convertToIJRoi(pathROI, imp.getCalibration(), downsample);
+				RoiLabeling.clearOutside(bp, roi);
 			}
 			
 			if (Thread.currentThread().isInterrupted())
@@ -219,7 +218,7 @@ public class SimpleTissueDetection extends AbstractDetectionPlugin<BufferedImage
 				return null;
 
 			bp.setThreshold(127, Double.POSITIVE_INFINITY, ImageProcessor.NO_LUT_UPDATE);
-			List<PathObject> pathObjects = convertToPathObjects(bp, minArea, smoothCoordinates, imp.getCalibration(), downsample, maxHoleArea, excludeOnBoundary, null);
+			List<PathObject> pathObjects = convertToPathObjects(bp, minArea, smoothCoordinates, imp.getCalibration(), downsample, maxHoleArea, excludeOnBoundary, pathImage.getImageRegion().getPlane(), null);
 
 			if (Thread.currentThread().isInterrupted())
 				return null;
@@ -246,8 +245,8 @@ public class SimpleTissueDetection extends AbstractDetectionPlugin<BufferedImage
 	
 	
 	
-	public static List<PathObject> convertToPathObjects(ByteProcessor bp, double minArea, boolean smoothCoordinates, Calibration cal, double downsample, double maxHoleArea, boolean excludeOnBoundary, List<PathObject> pathObjects) {
-		List<PolygonRoi> rois = ROILabeling.getFilledPolygonROIs(bp, Wand.FOUR_CONNECTED);
+	private static List<PathObject> convertToPathObjects(ByteProcessor bp, double minArea, boolean smoothCoordinates, Calibration cal, double downsample, double maxHoleArea, boolean excludeOnBoundary, ImagePlane plane, List<PathObject> pathObjects) {
+		List<PolygonRoi> rois = RoiLabeling.getFilledPolygonROIs(bp, Wand.FOUR_CONNECTED);
 		if (pathObjects == null)
 			pathObjects = new ArrayList<>(rois.size());
 		
@@ -273,7 +272,7 @@ public class SimpleTissueDetection extends AbstractDetectionPlugin<BufferedImage
 			if (smoothCoordinates)
 				r = new PolygonRoi(r.getInterpolatedPolygon(2.5, false), Roi.POLYGON);
 
-			PolygonROI pathPolygon = ROIConverterIJ.convertToPolygonROI(r, cal, downsample);
+			PolygonROI pathPolygon = IJTools.convertToPolygonROI(r, cal, downsample, plane);
 //			if (pathPolygon.getArea() < minArea)
 //				continue;
 			// Smooth the coordinates, if we downsampled quite a lot
@@ -294,7 +293,7 @@ public class SimpleTissueDetection extends AbstractDetectionPlugin<BufferedImage
 //			new ImagePlus("Binary", bp).show();
 			bp.setThreshold(127, Double.POSITIVE_INFINITY, ImageProcessor.NO_LUT_UPDATE);
 			
-			List<PathObject> holes = convertToPathObjects(bp, maxHoleArea, smoothCoordinates, cal, downsample, 0, false, null);
+			List<PathObject> holes = convertToPathObjects(bp, maxHoleArea, smoothCoordinates, cal, downsample, 0, false, plane, null);
 			
 			// For each object, fill in any associated holes
 			List<Area> areaList = new ArrayList<>();

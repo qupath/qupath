@@ -55,6 +55,7 @@ public class TypeAdaptersCV {
 	 * @param cls
 	 * @return the required TypeAdaptor, or null if no supported adapter is available for the class.
 	 */
+	@SuppressWarnings("unchecked")
 	public static <T> TypeAdapter<T> getTypeAdaptor(Class<T> cls) {
 		if (Mat.class == cls)
 			return (TypeAdapter<T>)new MatTypeAdapter();
@@ -66,9 +67,12 @@ public class TypeAdaptersCV {
 	}
 	
 	
-	
+	/**
+	 * TypeAdapterFactory that helps make OpenCV's serialization methods more compatible with custom JSON/Gson serialization.
+	 */
 	public static class OpenCVTypeAdaptorFactory implements TypeAdapterFactory {
 
+		@SuppressWarnings("unchecked")
 		@Override
 		public <T> TypeAdapter<T> create(Gson gson, TypeToken<T> type) {
 			return getTypeAdaptor((Class<T>)type.getRawType());
@@ -77,6 +81,9 @@ public class TypeAdaptersCV {
 	}
 	
 	
+	/**
+	 * TypeAdapter that helps include OpenCV-based objects within a Java object being serialized to JSON.
+	 */
 	public static abstract class OpenCVTypeAdapter<T> extends TypeAdapter<T> {
 
 		@Override

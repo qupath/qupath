@@ -1383,6 +1383,10 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		return temp == null ? null : temp.getServer();
 	}
 
+	/**
+	 * Returns true if there is currently an ImageServer being displayed in this viewer.
+	 * @return
+	 */
 	public boolean hasServer() {
 		return getServer() != null;
 	}
@@ -1391,24 +1395,40 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	private IntegerProperty tPosition = new SimpleIntegerProperty(0);
 	private IntegerProperty zPosition = new SimpleIntegerProperty(0);
 
+	/**
+	 * Set the requested z-slice to be visible.
+	 * @param zPos
+	 */
 	public void setZPosition(int zPos) {
 		zPosition.set(zPos);
 	}
 
+	/**
+	 * Get the currently-visible time point.
+	 * @return
+	 */
 	public int getTPosition() {
 		return tPosition.get();
 	}
 
+	/**
+	 * Set the requested time point to be visible.
+	 * @param tPosition
+	 */
 	public void setTPosition(int tPosition) {
 		this.tPosition.set(tPosition);
 	}
 
+	/**
+	 * Get the currently-visible z-slice.
+	 * @return
+	 */
 	public int getZPosition() {
 		return zPosition.get();
 	}
 	
 	/**
-	 * Get the {@link ImagePlane} currently being displayed, including z and t positions.
+	 * Get the {@link ImagePlane} currently being displayed, including z and t positions. Channels are ignored.
 	 * 
 	 * @return
 	 */
