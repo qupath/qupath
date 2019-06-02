@@ -19,10 +19,10 @@ import qupath.lib.classifiers.pixel.PixelClassifierMetadata;
 import qupath.lib.common.ColorTools;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.io.OpenCVTypeAdapters;
 import qupath.lib.regions.RegionRequest;
-import qupath.opencv.processing.TypeAdaptersCV;
 
-@JsonAdapter(TypeAdaptersCV.OpenCVTypeAdaptorFactory.class)
+@JsonAdapter(OpenCVTypeAdapters.OpenCVTypeAdaptorFactory.class)
 public class BasicFeatureCalculator implements OpenCVFeatureCalculator {
 
 //	static {

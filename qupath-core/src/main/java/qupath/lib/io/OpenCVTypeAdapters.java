@@ -1,4 +1,4 @@
-package qupath.opencv.processing;
+package qupath.lib.io;
 
 import java.io.IOException;
 
@@ -8,6 +8,7 @@ import org.bytedeco.opencv.opencv_ml.*;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.TypeAdapter;
@@ -23,7 +24,7 @@ import com.google.gson.stream.JsonWriter;
  * Sample use:
  * <pre>
  * Gson gson = new GsonBuilder()
- * 				.registerTypeAdapterFactory(TypeAdaptersCV.getOpenCVTypeAdaptorFactory())
+ * 				.registerTypeAdapterFactory(OpenCVTypeAdapters.getOpenCVTypeAdaptorFactory())
  * 				.setPrettyPrinting()
  * 				.create();
  * 
@@ -35,7 +36,7 @@ import com.google.gson.stream.JsonWriter;
  * @author Pete Bankhead
  *
  */
-public class TypeAdaptersCV {
+public class OpenCVTypeAdapters {
 	
 	/**
 	 * Get a TypeAdapterFactory to pass to a GsonBuilder to aid with serializing OpenCV objects 
@@ -89,10 +90,10 @@ public class TypeAdaptersCV {
 		@Override
 		public void write(JsonWriter out, T value) throws IOException {
 			boolean lenient = out.isLenient();
-			try (var fs = new FileStorage()) {
+			try (FileStorage fs = new FileStorage()) {
 				fs.open("anything.json", FileStorage.FORMAT_JSON + FileStorage.WRITE + FileStorage.MEMORY);
 				write(fs, value);
-				var json = fs.releaseAndGetString().getString();
+				String json = fs.releaseAndGetString().getString();
 				out.jsonValue(json.trim());
 			} finally {
 				out.setLenient(lenient);
@@ -107,10 +108,10 @@ public class TypeAdaptersCV {
 		public T read(JsonReader in) throws IOException {
 			boolean lenient = in.isLenient();
 			try {
-				var element = new JsonParser().parse(in);
-				var obj = element.getAsJsonObject();
-				var inputString = obj.toString();//obj.get("mat").toString();
-				try (var fs = new FileStorage()) {
+				JsonElement element = new JsonParser().parse(in);
+				JsonObject obj = element.getAsJsonObject();
+				String inputString = obj.toString();//obj.get("mat").toString();
+				try (FileStorage fs = new FileStorage()) {
 					fs.open(inputString, FileStorage.FORMAT_JSON + FileStorage.READ + FileStorage.MEMORY);
 					return read(fs);
 				}
@@ -145,7 +146,7 @@ public class TypeAdaptersCV {
 
 		@Override
 		SparseMat read(FileStorage fs) {
-			var mat = new SparseMat();
+			SparseMat mat = new SparseMat();
 			opencv_core.read(fs.getFirstTopLevelNode(), mat);
 			return mat;
 		}
@@ -153,51 +154,14 @@ public class TypeAdaptersCV {
 	}
 	
 	
-	
-//	static class MatTypeAdapter extends TypeAdapter<Mat> {
-//
-//		@Override
-//		public void write(JsonWriter out, Mat value) throws IOException {
-//			try (var fs = new FileStorage()) {
-//				fs.open("anything.json", FileStorage.FORMAT_JSON + FileStorage.WRITE + FileStorage.MEMORY);
-//				fs.write("mat", value);
-////				opencv_core.
-////				opencv_core.write(fs, "", mat);
-//				var json = fs.releaseAndGetString().getString();
-//				out.jsonValue(json.trim());
-//			}
-//		}
-//
-//		@Override
-//		public Mat read(JsonReader in) throws IOException {
-//			boolean lenient = in.isLenient();
-//			try {
-//				var element = new JsonParser().parse(in);
-//				var obj = element.getAsJsonObject();
-//				var matString = obj.toString();//obj.get("mat").toString();
-//				
-//				try (var fs = new FileStorage()) {
-//					fs.open(matString, FileStorage.FORMAT_JSON + FileStorage.READ + FileStorage.MEMORY);
-////					var fn = fs.root();
-//					var fn = fs.getFirstTopLevelNode();
-//					return fn.mat();
-//				}
-//			} finally {
-//				in.setLenient(lenient);
-//			}
-//		}
-//		
-//	}
-	
-	
 	private static class StatModelTypeAdapter extends TypeAdapter<StatModel> {
 
 		@Override
 		public void write(JsonWriter out, StatModel value) throws IOException {
-			try (var fs = new FileStorage()) {
+			try (FileStorage fs = new FileStorage()) {
 				fs.open("anything.json", FileStorage.FORMAT_JSON + FileStorage.WRITE + FileStorage.MEMORY);
 				value.write(fs);
-				var json = fs.releaseAndGetString().getString();
+				String json = fs.releaseAndGetString().getString();
 				
 				out.beginObject();
 				out.name("class");
@@ -205,8 +169,8 @@ public class TypeAdaptersCV {
 				out.name("statmodel");
 				
 				// jsonValue works for JsonWriter but not JsonTreeWriter, so we try to work around this...
-				var gson = new GsonBuilder().setLenient().create();
-				var element = gson.fromJson(json.trim(), JsonObject.class);
+				Gson gson = new GsonBuilder().setLenient().create();
+				JsonObject element = gson.fromJson(json.trim(), JsonObject.class);
 				gson.toJson(element, out);
 //				out.jsonValue(obj.toString());
 //				out.jsonValue(json);
@@ -220,16 +184,15 @@ public class TypeAdaptersCV {
 			boolean lenient = in.isLenient();
 			
 			try {
-				var element = new JsonParser().parse(in);
+				JsonElement element = new JsonParser().parse(in);
 				
-				var obj = element.getAsJsonObject();
+				JsonObject obj = element.getAsJsonObject();
 				
-				var className = obj.get("class").getAsString();
+				String className = obj.get("class").getAsString();
 				
 				// It's a bit roundabout... but toString() gives Strings that are too long and unsupported 
 				// by OpenCV, so we take another tour through Gson.
-//				var modelString = obj.get("statmodel").toString();
-				var modelString = new GsonBuilder().setPrettyPrinting().create().toJson(obj.get("statmodel"));
+				String modelString = new GsonBuilder().setPrettyPrinting().create().toJson(obj.get("statmodel"));
 				
 				StatModel model = null;
 				
@@ -257,9 +220,9 @@ public class TypeAdaptersCV {
 					throw new IOException("Unknown StatModel class name " + className);
 				
 				// Load from the JSON data
-				try (var fs = new FileStorage()) {
+				try (FileStorage fs = new FileStorage()) {
 					fs.open(modelString, FileStorage.FORMAT_JSON + FileStorage.READ + FileStorage.MEMORY);
-					var fn = fs.root();
+					FileNode fn = fs.root();
 					model.read(fn);
 					return model;
 				}

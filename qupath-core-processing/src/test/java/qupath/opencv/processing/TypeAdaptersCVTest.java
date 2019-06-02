@@ -14,13 +14,15 @@ import org.junit.Test;
 
 import com.google.gson.GsonBuilder;
 
+import qupath.lib.io.OpenCVTypeAdapters;
+
 public class TypeAdaptersCVTest {
 
 	@Test
 	public void testGetOpenCVTypeAdaptorFactory() {
 		
 		var gson = new GsonBuilder()
-				.registerTypeAdapterFactory(TypeAdaptersCV.getOpenCVTypeAdaptorFactory())
+				.registerTypeAdapterFactory(OpenCVTypeAdapters.getOpenCVTypeAdaptorFactory())
 				.create();
 
 		
@@ -86,8 +88,8 @@ public class TypeAdaptersCVTest {
 	@Test
 	public void testGetTypeAdaptor() {
 		var gson = new GsonBuilder()
-				.registerTypeAdapter(Mat.class, TypeAdaptersCV.getTypeAdaptor(Mat.class))
-				.registerTypeAdapter(SparseMat.class, TypeAdaptersCV.getTypeAdaptor(SparseMat.class))
+				.registerTypeAdapter(Mat.class, OpenCVTypeAdapters.getTypeAdaptor(Mat.class))
+				.registerTypeAdapter(SparseMat.class, OpenCVTypeAdapters.getTypeAdaptor(SparseMat.class))
 				.create();
 
 		

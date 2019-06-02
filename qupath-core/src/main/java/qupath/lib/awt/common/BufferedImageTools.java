@@ -27,11 +27,16 @@ import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.Shape;
 import java.awt.image.BufferedImage;
+import java.awt.image.WritableRaster;
+
+import org.bytedeco.javacpp.indexer.FloatIndexer;
+import org.bytedeco.opencv.global.opencv_core;
+import org.bytedeco.opencv.global.opencv_imgproc;
+import org.bytedeco.opencv.opencv_core.Mat;
+import org.bytedeco.opencv.opencv_core.Size;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import ij.process.FloatProcessor;
-import ij.process.ImageProcessor;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.servers.AbstractTileableImageServer;
 import qupath.lib.regions.RegionRequest;
@@ -119,7 +124,6 @@ public class BufferedImageTools {
 	}
 	
 
-
 	/**
 	 * Resize the image to have the requested width/height, using area averaging and bilinear interpolation.
 	 * 
@@ -129,11 +133,6 @@ public class BufferedImageTools {
 	 * @return resized image
 	 */
 	public static BufferedImage resize(final BufferedImage img, final int finalWidth, final int finalHeight) {
-
-		//		boolean useLegacyResizing = false;
-		//		if (useLegacyResizing) {
-		//			return resize(img, finalWidth, finalHeight, false);
-		//		}
 
 		if (img.getWidth() == finalWidth && img.getHeight() == finalHeight)
 			return img;
@@ -149,24 +148,81 @@ public class BufferedImageTools {
 				logger.warn("Slight difference in aspect ratio for resized image: {}x{} -> {}x{} ({}, {})", img.getWidth(), img.getHeight(), finalWidth, finalHeight, aspectRatio, finalAspectRatio);
 		}
 
-		boolean areaAveraging = true;
-
-		var raster = img.getRaster();
-		var raster2 = raster.createCompatibleWritableRaster(finalWidth, finalHeight);
+		WritableRaster raster = img.getRaster();
+		WritableRaster raster2 = raster.createCompatibleWritableRaster(finalWidth, finalHeight);
 
 		int w = img.getWidth();
 		int h = img.getHeight();
-
-		var fp = new FloatProcessor(w, h);
-		fp.setInterpolationMethod(ImageProcessor.BILINEAR);
+		
+		Mat matInput = new Mat(h, w, opencv_core.CV_32FC1);
+		Size sizeOutput = new Size(finalWidth, finalHeight);
+		Mat matOutput = new Mat(sizeOutput, opencv_core.CV_32FC1);
+		FloatIndexer idxInput = matInput.createIndexer(true);
+		FloatIndexer idxOutput = matOutput.createIndexer(true);
+		float[] pixels = new float[w*h];
+		float[] pixelsOut = new float[finalWidth*finalHeight];
+		
 		for (int b = 0; b < raster.getNumBands(); b++) {
-			float[] pixels = (float[])fp.getPixels();
 			raster.getSamples(0, 0, w, h, b, pixels);
-			var fp2 = fp.resize(finalWidth, finalHeight, areaAveraging);
-			raster2.setSamples(0, 0, finalWidth, finalHeight, b, (float[])fp2.getPixels());
+			idxInput.put(0L, pixels);
+			opencv_imgproc.resize(matInput, matOutput, sizeOutput, 0, 0, opencv_imgproc.INTER_AREA);
+			idxOutput.get(0, pixelsOut);
+			raster2.setSamples(0, 0, finalWidth, finalHeight, b, pixelsOut);
 		}
+		
+		idxInput.release();
+		idxOutput.release();
+		matInput.close();
+		matOutput.close();
+		sizeOutput.close();
+		
+//		System.err.println(String.format("Resizing from %d x %d to %d x %d", w, h, finalWidth, finalHeight));
 
 		return new BufferedImage(img.getColorModel(), raster2, img.isAlphaPremultiplied(), null);
 	}
+
+//	/**
+//	 * Resize the image to have the requested width/height, using area averaging and bilinear interpolation.
+//	 * 
+//	 * @param img input image to be resized
+//	 * @param finalWidth target output width
+//	 * @param finalHeight target output height
+//	 * @return resized image
+//	 */
+//	public static BufferedImage resize(final BufferedImage img, final int finalWidth, final int finalHeight) {
+//
+//		if (img.getWidth() == finalWidth && img.getHeight() == finalHeight)
+//			return img;
+//
+//		logger.trace(String.format("Resizing %d x %d -> %d x %d", img.getWidth(), img.getHeight(), finalWidth, finalHeight));
+//
+//		double aspectRatio = (double)img.getWidth()/img.getHeight();
+//		double finalAspectRatio = (double)finalWidth/finalHeight;
+//		if (!GeneralTools.almostTheSame(aspectRatio, finalAspectRatio, 0.01)) {
+//			if (!GeneralTools.almostTheSame(aspectRatio, finalAspectRatio, 0.05))
+//				logger.warn("Substantial difference in aspect ratio for resized image: {}x{} -> {}x{} ({}, {})", img.getWidth(), img.getHeight(), finalWidth, finalHeight, aspectRatio, finalAspectRatio);
+//			else
+//				logger.warn("Slight difference in aspect ratio for resized image: {}x{} -> {}x{} ({}, {})", img.getWidth(), img.getHeight(), finalWidth, finalHeight, aspectRatio, finalAspectRatio);
+//		}
+//
+//		boolean areaAveraging = true;
+//
+//		var raster = img.getRaster();
+//		var raster2 = raster.createCompatibleWritableRaster(finalWidth, finalHeight);
+//
+//		int w = img.getWidth();
+//		int h = img.getHeight();
+//
+//		var fp = new FloatProcessor(w, h);
+//		fp.setInterpolationMethod(ImageProcessor.BILINEAR);
+//		for (int b = 0; b < raster.getNumBands(); b++) {
+//			float[] pixels = (float[])fp.getPixels();
+//			raster.getSamples(0, 0, w, h, b, pixels);
+//			var fp2 = fp.resize(finalWidth, finalHeight, areaAveraging);
+//			raster2.setSamples(0, 0, finalWidth, finalHeight, b, (float[])fp2.getPixels());
+//		}
+//
+//		return new BufferedImage(img.getColorModel(), raster2, img.isAlphaPremultiplied(), null);
+//	}
 
 }

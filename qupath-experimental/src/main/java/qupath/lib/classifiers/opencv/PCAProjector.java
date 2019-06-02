@@ -10,25 +10,25 @@ import org.slf4j.LoggerFactory;
 
 import com.google.gson.annotations.JsonAdapter;
 
-import qupath.opencv.processing.TypeAdaptersCV;
+import qupath.lib.io.OpenCVTypeAdapters;
 
-@JsonAdapter(TypeAdaptersCV.OpenCVTypeAdaptorFactory.class)
+@JsonAdapter(OpenCVTypeAdapters.OpenCVTypeAdaptorFactory.class)
 public class PCAProjector implements AutoCloseable {
 		
 		private static final Logger logger = LoggerFactory.getLogger(PCAProjector.class);
 		
 		public static final double EPSILON = 1e-5;
 		
-		@JsonAdapter(TypeAdaptersCV.OpenCVTypeAdaptorFactory.class)
+		@JsonAdapter(OpenCVTypeAdapters.OpenCVTypeAdaptorFactory.class)
 		private Mat mean = new Mat();
 		
-		@JsonAdapter(TypeAdaptersCV.OpenCVTypeAdaptorFactory.class)
+		@JsonAdapter(OpenCVTypeAdapters.OpenCVTypeAdaptorFactory.class)
 		private Mat eigenvectors = new Mat();
 		
-		@JsonAdapter(TypeAdaptersCV.OpenCVTypeAdaptorFactory.class)
+		@JsonAdapter(OpenCVTypeAdapters.OpenCVTypeAdaptorFactory.class)
 		private Mat eigenvalues = new Mat();
 		
-		@JsonAdapter(TypeAdaptersCV.OpenCVTypeAdaptorFactory.class)
+		@JsonAdapter(OpenCVTypeAdapters.OpenCVTypeAdaptorFactory.class)
 		private transient Mat eigenvaluesSqrt;
 		
 		private double retainedVariance = -1;

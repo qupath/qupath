@@ -26,8 +26,8 @@ import com.google.gson.stream.JsonWriter;
 
 import qupath.lib.classifiers.Normalization;
 import qupath.lib.common.GeneralTools;
+import qupath.lib.io.OpenCVTypeAdapters;
 import qupath.lib.plugins.parameters.ParameterList;
-import qupath.opencv.processing.TypeAdaptersCV;
 
 public class OpenCVClassifiers {
 	
@@ -220,12 +220,12 @@ public class OpenCVClassifiers {
 
 		@Override
 		public void write(JsonWriter out, OpenCVStatModel value) throws IOException {
-			TypeAdaptersCV.getTypeAdaptor(StatModel.class).write(out, value.getStatModel());
+			OpenCVTypeAdapters.getTypeAdaptor(StatModel.class).write(out, value.getStatModel());
 		}
 
 		@Override
 		public OpenCVStatModel read(JsonReader in) throws IOException {
-			var statModel = TypeAdaptersCV.getTypeAdaptor(StatModel.class).read(in);
+			var statModel = OpenCVTypeAdapters.getTypeAdaptor(StatModel.class).read(in);
 			return new DefaultOpenCVStatModel<StatModel>(statModel);
 		}
 		
@@ -235,7 +235,7 @@ public class OpenCVClassifiers {
 	
 	static abstract class AbstractOpenCVClassifierML<T extends StatModel> extends OpenCVStatModel {
 
-		@JsonAdapter(TypeAdaptersCV.OpenCVTypeAdaptorFactory.class)
+		@JsonAdapter(OpenCVTypeAdapters.OpenCVTypeAdaptorFactory.class)
 		private T model;
 		private transient ParameterList params; // Should take defaults from the serialized model
 		

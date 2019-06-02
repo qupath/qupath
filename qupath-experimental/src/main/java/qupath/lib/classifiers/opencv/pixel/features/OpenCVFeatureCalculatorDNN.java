@@ -18,11 +18,11 @@ import qupath.lib.classifiers.gui.PixelClassifierStatic;
 import qupath.lib.classifiers.opencv.OpenCVDNN;
 import qupath.lib.classifiers.pixel.PixelClassifierMetadata;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.io.OpenCVTypeAdapters;
 import qupath.lib.regions.RegionRequest;
 import qupath.opencv.processing.OpenCVTools;
-import qupath.opencv.processing.TypeAdaptersCV;
 
-@JsonAdapter(TypeAdaptersCV.OpenCVTypeAdaptorFactory.class)
+@JsonAdapter(OpenCVTypeAdapters.OpenCVTypeAdaptorFactory.class)
 public class OpenCVFeatureCalculatorDNN implements OpenCVFeatureCalculator {
 	
 //	static {

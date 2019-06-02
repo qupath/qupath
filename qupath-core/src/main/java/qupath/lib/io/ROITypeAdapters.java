@@ -27,70 +27,82 @@ import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
 
 import qupath.lib.common.GeneralTools;
+import qupath.lib.io.GsonTools.ImagePlaneTypeAdapter;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.interfaces.ROI;
 import qupath.lib.roi.jts.ConverterJTS;
 
 /**
- * Gson-compatible TypeAdapter that converts ROIs to and from a Geo-JSON representation.
+ * Gson-compatible TypeAdapter that converts ROIs and Geometry objects to and from a Geo-JSON representation.
  * 
  * @author Pete Bankhead
  */
-class ROITypeAdapter extends TypeAdapter<ROI> {
-
-	@Override
-	public void write(JsonWriter out, ROI roi) throws IOException {
-		/*
-		 * A Collection<PathObject> is a "FeatureCollection"
-		 * A PathObject is a "Feature"
-		 *   The type of object is the "id" (detection, annotation, cell, tile...)
-		 *   Additional info should be in the "Properties"
-		 * A ROI is a "Geometry"
-		 */
-		
-		Geometry geometry = roi.getGeometry();
-		
-		out.beginObject();
-		writeGeometry(geometry, out, 2);
-		
-		// Write the plane info if it isn't the default
-		ImagePlane plane = roi.getImagePlane();
-		if (!ImagePlane.getDefaultPlane().equals(plane)) {
-			out.name("plane");
-			out.beginObject();
-			out.name("c");
-			out.value(plane.getC());
-			out.name("z");
-			out.value(plane.getZ());
-			out.name("t");
-			out.value(plane.getT());
-			out.endObject();
-		}
-		
-		out.endObject();
-	}
-
-	@Override
-	public ROI read(JsonReader in) throws IOException {
-		
-		Gson gson = new GsonBuilder()
+class ROITypeAdapters {
+	
+	static ROITypeAdapter ROI_ADAPTER_INSTANCE = new ROITypeAdapter();
+	static GeometryTypeAdapter GEOMETRY_ADAPTER_INSTANCE = new GeometryTypeAdapter();
+	
+	private static Gson gson = new GsonBuilder()
 			.setLenient()
 			.create();
+	
+	static class ROITypeAdapter extends TypeAdapter<ROI> {
 		
-		JsonObject obj = gson.fromJson(in, JsonObject.class);
-		Geometry geometry = parseGeometry(obj, new GeometryFactory());
+		private int numDecimalPlaces = 2;
+	
+		@Override
+		public void write(JsonWriter out, ROI roi) throws IOException {
+			
+			Geometry geometry = roi.getGeometry();
+			
+			out.beginObject();
+			writeGeometry(geometry, out, numDecimalPlaces);
+			
+			// Write the plane info if it isn't the default
+			ImagePlane plane = roi.getImagePlane();
+			if (!ImagePlane.getDefaultPlane().equals(plane)) {
+				out.name("plane");
+				ImagePlaneTypeAdapter.INSTANCE.write(out, plane);
+			}
+			
+			out.endObject();
+		}
+	
+		@Override
+		public ROI read(JsonReader in) throws IOException {
+			
+			JsonObject obj = gson.fromJson(in, JsonObject.class);
+			Geometry geometry = parseGeometry(obj, new GeometryFactory());
+			
+			ImagePlane plane;
+			if (obj.has("plane"))
+				plane = ImagePlaneTypeAdapter.INSTANCE.fromJsonTree(obj.get("plane"));
+			else
+				plane = ImagePlane.getDefaultPlane();
+			
+			return ConverterJTS.convertGeometryToROI(geometry, plane);
+		}
 		
-		ImagePlane plane;
-		if (obj.has("plane")) {
-			JsonObject planeObj = obj.get("plane").getAsJsonObject();
-			int c = planeObj.get("c").getAsInt();
-			int z = planeObj.get("z").getAsInt();
-			int t = planeObj.get("t").getAsInt();
-			plane = ImagePlane.getPlaneWithChannel(c, z, t);
-		} else
-			plane = ImagePlane.getDefaultPlane();
+	}
+	
+	
+	static class GeometryTypeAdapter extends TypeAdapter<Geometry> {
 		
-		return ConverterJTS.convertGeometryToROI(geometry, plane);
+		private int numDecimalPlaces = 2;
+
+		@Override
+		public void write(JsonWriter out, Geometry geometry) throws IOException {
+			out.beginObject();
+			writeGeometry(geometry, out, numDecimalPlaces);
+			out.endObject();
+		}
+
+		@Override
+		public Geometry read(JsonReader in) throws IOException {
+			JsonObject obj = gson.fromJson(in, JsonObject.class);
+			return parseGeometry(obj, new GeometryFactory());
+		}
+		
 	}
 	
 	

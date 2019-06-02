@@ -17,8 +17,8 @@ import qupath.lib.classifiers.gui.PixelClassifierStatic;
 import qupath.lib.classifiers.pixel.PixelClassifierMetadata;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.io.OpenCVTypeAdapters;
 import qupath.lib.regions.RegionRequest;
-import qupath.opencv.processing.TypeAdaptersCV;
 
 /**
      * Feature calculator that simply takes a square of neighboring pixels as the features.
@@ -30,7 +30,7 @@ import qupath.opencv.processing.TypeAdaptersCV;
      * @author Pete Bankhead
      *
      */
-    @JsonAdapter(TypeAdaptersCV.OpenCVTypeAdaptorFactory.class)
+    @JsonAdapter(OpenCVTypeAdapters.OpenCVTypeAdaptorFactory.class)
     public class ExtractNeighborsFeatureCalculator extends BasicFeatureCalculator {
     	
     	private int radius;
