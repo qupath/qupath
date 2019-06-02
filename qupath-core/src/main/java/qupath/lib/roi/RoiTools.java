@@ -312,8 +312,40 @@ public class RoiTools {
 			Line2D line = (Line2D)shape;
 			return new LineROI(line.getX1(), line.getY1(), line.getX2(), line.getY2(), plane);
 		}
-		// TODO: Handle Polyline! This method does not deal with 'open' PathIterators
-		return getShapeROI(new Area(shape), plane, flatness);
+		boolean isClosed = false;
+		List<Point2> points = null;
+		if (!(shape instanceof Area)) {
+			PathIterator iterator = shape.getPathIterator(null, flatness);
+			double[] coords = new double[6];
+			points = new ArrayList<>();
+			while (!iterator.isDone()) {
+				int type = iterator.currentSegment(coords);
+				if (type == PathIterator.SEG_CLOSE) {
+					isClosed = true;
+					break;
+				} else
+					points.add(new Point2(coords[0], coords[1]));
+				iterator.next();
+			}
+		}
+		
+		// Handle closed shapes via Area objects, as this gives more options to simplify 
+		// (e.g. by checking isRectangular, isPolygonal)
+		if (isClosed) {
+			Area area;
+			if (shape instanceof Area) {
+				area = (Area)shape;
+			} else
+				area = new Area(shape);
+			return getShapeROI(area, plane, flatness);
+		} else if (points.size() == 2) {
+			// Handle straight lines, with only two end points
+			Point2 p1 = points.get(0);
+			Point2 p2 = points.get(1);
+			return ROIs.createLineROI(p1.getX(), p1.getY(), p2.getX(), p2.getY(), plane);
+		} else
+			// Handle polylines
+			return new PolylineROI(points, plane);
 	}
 
 

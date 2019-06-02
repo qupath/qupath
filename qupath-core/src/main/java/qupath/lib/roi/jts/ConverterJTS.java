@@ -5,7 +5,10 @@ import java.awt.geom.Area;
 import java.awt.geom.PathIterator;
 import java.awt.geom.Point2D;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
+
 import org.locationtech.jts.awt.PointTransformation;
 import org.locationtech.jts.awt.ShapeReader;
 import org.locationtech.jts.awt.ShapeWriter;
@@ -13,6 +16,8 @@ import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateList;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
+import org.locationtech.jts.geom.MultiPoint;
+import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.operation.overlay.snap.GeometrySnapper;
 import org.locationtech.jts.operation.union.UnaryUnionOp;
 import org.locationtech.jts.operation.valid.IsValidOp;
@@ -22,7 +27,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.lib.common.GeneralTools;
+import qupath.lib.geom.Point2;
 import qupath.lib.regions.ImagePlane;
+import qupath.lib.roi.ROIs;
 import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.interfaces.PathArea;
 import qupath.lib.roi.interfaces.PathLine;
@@ -335,6 +342,14 @@ public class ConverterJTS {
     }
 
     private ROI geometryToROI(Geometry geometry, ImagePlane plane) {
+    	if (geometry instanceof Point) {
+    		Coordinate coord = geometry.getCoordinate();
+    		return ROIs.createPointsROI(coord.x, coord.y, plane);
+    	} else if (geometry instanceof MultiPoint) {
+    		Coordinate[] coords = geometry.getCoordinates();
+    		List<Point2> points = Arrays.stream(coords).map(c -> new Point2(c.x, c.y)).collect(Collectors.toList());
+    		return ROIs.createPointsROI(points, plane);
+    	}
         return RoiTools.getShapeROI(geometryToShape(geometry), plane, flatness);
     }
 
