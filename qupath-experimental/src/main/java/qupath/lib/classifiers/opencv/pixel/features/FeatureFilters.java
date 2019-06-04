@@ -8,7 +8,6 @@ import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.global.opencv_imgproc;
 import org.bytedeco.javacpp.indexer.FloatIndexer;
 import org.bytedeco.opencv.opencv_core.Mat;
-import org.bytedeco.opencv.opencv_core.MatVector;
 import org.bytedeco.opencv.opencv_core.Size;
 
 import com.google.gson.Gson;
@@ -17,7 +16,6 @@ import com.google.gson.TypeAdapter;
 import com.google.gson.TypeAdapterFactory;
 import com.google.gson.reflect.TypeToken;
 import qupath.lib.common.GeneralTools;
-import qupath.opencv.processing.HessianCalculator;
 
 /**
  * Static methods to generate FeatureFilters.
@@ -39,10 +37,6 @@ public class FeatureFilters {
 	public static final String LAPLACIAN_OF_GAUSSIAN_FILTER = "Laplacian of Gaussian filter";
 	public static final String COHERENCE_FILTER = "Coherence filter";
 
-	public static final String HESSIAN_EIGENVALUES_AND_DETERMINANT_FILTER = "Hessian determinant & eigenvalues";
-	public static final String HESSIAN_EIGENVALUES_FILTER = "Hessian eigenvalues";
-	public static final String HESSIAN_DETERMINANT_FILTER = "Hessian determinant";
-
 	public static final String NORMALIZED_INTENSITY_FILTER = "Normalized intensity filter";
 	public static final String PEAK_DENSITY_FILTER = "Peak density filter";
 	public static final String VALLEY_DENSITY_FILTER = "Valley density filter";
@@ -53,12 +47,6 @@ public class FeatureFilters {
 			return new OriginalPixels();
 		case GAUSSIAN_FILTER:
 			return new GaussianFeatureFilter(size);
-		case HESSIAN_EIGENVALUES_AND_DETERMINANT_FILTER:
-			return new HessianFeatureFilter(size, true, true);
-		case HESSIAN_EIGENVALUES_FILTER:
-			return new HessianFeatureFilter(size, true, false);
-		case HESSIAN_DETERMINANT_FILTER:
-			return new HessianFeatureFilter(size, false, true);
 		case STANDARD_DEVIATION_FILTER:
 			return new StdDevFeatureFilter((int)Math.round(size));
 		case MEDIAN_FILTER:
@@ -111,7 +99,6 @@ public class FeatureFilters {
 			.registerSubtype(LoGFeatureFilter.class)
 			.registerSubtype(MorphFilter.class)
 			.registerSubtype(PeakDensityFilter.class)
-			.registerSubtype(HessianFeatureFilter.class)
 			.registerSubtype(NormalizedIntensityFilter.class);
 	
 //	static class FeatureFilterTypeAdapter extends TypeAdapter<FeatureFilter> {
@@ -559,62 +546,6 @@ public class FeatureFilters {
 		}    	
     	
     }
-    
-    
-    public static class HessianFeatureFilter extends AbstractGaussianFeatureFilter {
-    	
-    	private boolean doEigenvalues = false;
-    	private boolean doDeterminant = false;
-    	
-    	public HessianFeatureFilter(double sigma, boolean doEigenvalues, boolean doDeterminant) {
-    		super(sigma);
-    		this.doDeterminant = doDeterminant;
-    		this.doEigenvalues = doEigenvalues;
-    	}
-    	
-    	@Override
-		public String getName() {
-    		if (doEigenvalues) {
-    			if (doDeterminant)
-    	    		return "Hessian eigenvalues & determinant" + sigmaString();
-    			else
-    	    		return "Hessian eigenvalues" + sigmaString();
-    		} else
-        		return "Hessian determinant" + sigmaString();
-    	}
-    	
-    	@Override
-		public List<String> getFeatureNames() {
-    		List<String> names = new ArrayList<>();
-    		String str = sigmaString();
-    		if (doDeterminant)
-    			names.add("Hessian determinant" + str);
-    		if (doEigenvalues) {
-    			names.add("Hessian max eigenvalues" + str);
-    			names.add("Hessian min eigenvalues" + str);
-    		}
-    		return names;
-    	}
-
-		@Override
-		public void calculate(Mat matInput, Mat matGaussian, List<Mat> output) {
-			var results = new HessianCalculator.HessianResultsBuilder()
-				.sigma(getSigma())
-				.build(matInput);
-			for (var result : results) {
-				if (doDeterminant) {
-					output.add(result.getDeterminant());
-				}
-				if (doEigenvalues) {
-					MatVector eigenvalues = result.getEigenvalues();
-					for (int i = 0; i < eigenvalues.size(); i++)
-						output.add(eigenvalues.get(i));
-				}
-			}
-		}    	
-    	
-    }
-    
 
     
     public static class SobelFeatureFilter extends AbstractGaussianFeatureFilter {

@@ -528,6 +528,14 @@ public class ImageServerMetadata {
 	}
 	
 	/**
+	 * Get a {@link PixelCalibration} object representing the pixel size information for this metadata object.
+	 * @return
+	 */
+	public PixelCalibration getPixelCalibration() {
+		return pixelCalibration;
+	}
+	
+	/**
 	 * Get the downsample factor for a specific resolution level.
 	 * @param level
 	 * @return

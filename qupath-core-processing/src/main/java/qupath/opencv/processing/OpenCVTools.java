@@ -29,10 +29,9 @@ import java.awt.image.DataBuffer;
 import java.awt.image.IndexColorModel;
 import java.awt.image.WritableRaster;
 import java.io.IOException;
-import java.nio.FloatBuffer;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
-
 import static org.bytedeco.opencv.global.opencv_core.*;
 
 import org.bytedeco.opencv.global.opencv_core;
@@ -567,8 +566,12 @@ public class OpenCVTools {
 			mat.convertTo(mat2, CV_32F);
 			mat = mat2;
 		}
-		FloatBuffer buffer = mat.createBuffer();
-		buffer.get(pixels);
+		FloatIndexer idx = mat.createIndexer();
+		idx.get(0L, pixels);
+		idx.release();
+		
+//		FloatBuffer buffer = mat.createBuffer();
+//		buffer.get(pixels);
 		if (mat2 != null)
 			mat2.release();
 		return pixels;
@@ -798,6 +801,96 @@ public class OpenCVTools {
 	}
 
 
+	static int ensureInRange(int ind, int max, int border) {
+		if (ind < 0) {
+			switch(border) {
+			case opencv_core.BORDER_REFLECT:
+				return ensureInRange(-(ind + 1), max, border);
+			case opencv_core.BORDER_REFLECT_101:
+				return ensureInRange(-ind, max, border);
+			case opencv_core.BORDER_REPLICATE:
+			default:
+				return 0;
+			}
+		}
+		
+		if (ind >= max) {
+			switch(border) {
+			case opencv_core.BORDER_REFLECT:
+				return ensureInRange(2*max - ind - 1, max, border);
+			case opencv_core.BORDER_REFLECT_101:
+				return ensureInRange(2*max - ind - 2, max, border);
+			case opencv_core.BORDER_REPLICATE:
+			default:
+				return max-1;
+			}
+		}
+		return ind;
+	}
+	
+	
+	static void weightedSum(List<Mat> mats, double[] weights, Mat dest) {
+		boolean isFirst = true;
+		for (int i = 0; i < weights.length; i++) {
+			double w = weights[i];
+			if (w == 0)
+				continue;
+			if (isFirst) {
+				dest.put(opencv_core.multiply(mats.get(i), w));
+				isFirst = false;
+			} else
+				opencv_core.scaleAdd(mats.get(i), w, dest, dest);
+		}
+		// TODO: Check this does something sensible!
+		if (isFirst) {
+			dest.create(mats.get(0).size(), mats.get(0).type());
+			dest.put(Scalar.ZERO);
+		}
+		
+//		MatExpr expr = null;
+//		for (int i = 0; i < weights.length; i++) {
+//			double w = weights[i];
+//			if (w == 0)
+//				continue;
+//			if (expr == null)
+//				expr = opencv_core.multiply(mats.get(i), w);
+//			else {
+//				MatExpr expr2 = opencv_core.add(expr, opencv_core.multiply(mats.get(i), w));
+//				expr.close();
+//				expr = expr2;
+//			}
+//		}
+//		dest.put(expr);
+	}
+	
+	/**
+	 * Apply a filter along the 'list' dimension for a list of Mats, computing the value 
+	 * for a single entry. This is effectively computing a weighted sum of images in the list.
+	 * @param mats
+	 * @param kernel
+	 * @param ind3D
+	 * @param border
+	 * @return
+	 */
+	public static Mat filterSingleZ(List<Mat> mats, double[] kernel, int ind3D, int border) {
+		// Calculate weights for each image
+		int n = mats.size();
+		int halfSize = kernel.length / 2;
+		int startInd = ind3D - halfSize;
+		int endInd = startInd + kernel.length;
+		double[] weights = new double[mats.size()];
+		int k = 0;
+		for (int i = startInd; i < endInd; i++) {
+			int ind = ensureInRange(i, n, border);
+			weights[ind] += kernel[k];
+			k++;
+		}
+		Mat result = new Mat();
+		weightedSum(mats, weights, result);
+		return result;
+	}
+	
+	
 	/**
 	 * Filter filter along entries in the input list.
 	 * <p>
@@ -812,13 +905,34 @@ public class OpenCVTools {
 	public static List<Mat> filterZ(List<Mat> mats, Mat kernelZ, int ind3D, int border) {
 		
 		/*
-		 * if (ind3D >= 0) {
-		 * 	Potentially we could avoid the rigmarole of applying the full filtering 
-		 *  by instead simply calculating the weighted sum corresponding to the convolution 
-		 *  around the pixel of interest only.
-		 * }
+		 * We can avoid the rigmarole of applying the full filtering 
+		 * by instead simply calculating the weighted sum corresponding to the convolution 
+		 * around the z-slice of interest only.
 		 */
 		
+		boolean doWeightedSums = true;//ind3D >= 0;
+
+		if (doWeightedSums) {
+			// Extract kernel values
+			int ks = (int)kernelZ.total();
+			double[] kernelArray = new double[ks];
+			DoubleIndexer idx = kernelZ.createIndexer();
+			idx.get(0L, kernelArray);
+			idx.release();
+	
+			if (ind3D >= 0) {
+				// Calculate weights for each image
+				Mat result = filterSingleZ(mats, kernelArray, ind3D, border);
+				return Arrays.asList(result);
+			} else {
+				List<Mat> output = new ArrayList<>();
+				for (int i = 0; i < mats.size(); i++) {
+					Mat result = filterSingleZ(mats, kernelArray, i, border);
+					output.add(result);
+				}
+				return output;
+			}
+		}		
 		
 		// Create a an array of images reshaped as column vectors
 		Mat[] columns = new Mat[mats.size()];
@@ -836,6 +950,9 @@ public class OpenCVTools {
 		// Apply z filtering along rows
 		if (kernelZ.rows() > 1)
 			kernelZ = kernelZ.t().asMat();
+		
+//		Mat empty = new Mat(1, 1, opencv_core.CV_64FC1, Scalar.ONE);
+//		opencv_imgproc.sepFilter2D(matConcatZ, matConcatZ, opencv_core.CV_32F, kernelZ, empty, null, 0.0, border);
 		opencv_imgproc.filter2D(matConcatZ, matConcatZ, opencv_core.CV_32F, kernelZ, null, 0.0, border);
 		
 		int start = 0;

@@ -5,19 +5,18 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.stream.Collectors;
-
+import org.bytedeco.javacpp.FloatPointer;
 import org.bytedeco.javacpp.indexer.FloatIndexer;
 import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.global.opencv_imgproc;
 import org.bytedeco.opencv.opencv_core.Mat;
-import org.bytedeco.opencv.opencv_core.MatVector;
-import org.bytedeco.opencv.opencv_core.Scalar;
-
-import ij.CompositeImage;
+import org.bytedeco.opencv.opencv_core.MatExpr;
+import qupath.lib.common.GeneralTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.regions.RegionRequest;
@@ -35,28 +34,38 @@ public class HessianCalculator {
 	 */
 	private static final int BORDER_DEFAULT = opencv_core.BORDER_REPLICATE;
 	
-	public static void testMe(ImageData<BufferedImage> imageData) throws IOException {
+	/**
+	 * Temporary(!) method to facilitate interactively testing the code from a script 
+	 * during development.
+	 * @param imageData
+	 * @throws IOException
+	 */
+	static void testMe(ImageData<BufferedImage> imageData, double... sigmas) throws IOException {
 				
 		var server = imageData.getServer();
 		var hierarchy = imageData.getHierarchy();
 		var selectedROI = hierarchy.getSelectionModel().getSelectedROI();
+		if (sigmas.length == 0)
+			sigmas = new double[] {1.0};
+		double downsample = Math.max(1.0, sigmas[0] / server.getAveragedPixelSizeMicrons() / 2.0);
+		System.err.println(downsample);
 		RegionRequest request = RegionRequest.createInstance(server);
 		if (selectedROI != null)
-			request = RegionRequest.createInstance(server.getPath(), 1.0, selectedROI);
+			request = RegionRequest.createInstance(server.getPath(), downsample, selectedROI);
+		
+//		IJTools.extractHyperstack(server, request).show();
 		
 		var stack = OpenCVTools.extractZStack(server, request);
 		
-		int sizeZ = stack.size();
+//		int sizeZ = stack.size();
 		
-		List<HessianResults> results = Collections.synchronizedList(new ArrayList<>());
+		List<Map<String, Mat>> results = Collections.synchronizedList(new ArrayList<>());
 		
-		int[] channels = new int[] {0};
-//		double[] sigmas = new double[] {0.5, 1.0};
-		double[] sigmas = new double[] {1.0, 2.0, 4.0, 8.0};
+		int[] channels = new int[] {2};
 		
 		var pool = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
 		
-		List<Future<List<HessianResults>>> futures = new ArrayList<>();
+		List<Future<List<Map<String, Mat>>>> futures = new ArrayList<>();
 		for (int channel : channels) {
 		
 			Mat[] mats = new Mat[stack.size()];
@@ -66,12 +75,12 @@ public class HessianCalculator {
 				opencv_core.extractChannel(mat, temp, channel);
 				
 				temp.convertTo(temp, opencv_core.CV_32F);
-				temp.put(opencv_core.multiply(temp, -1.0));
+//				temp.put(opencv_core.multiply(temp, -1.0));
 				mats[i] = temp;
 			}
 			
 			// Do local normalization
-			double sigmaNormalizeMicrons = 5.0;		
+//			double sigmaNormalizeMicrons = 5.0;		
 //			normalize3D(
 //					Arrays.asList(mats), 
 //					sigmaNormalizeMicrons/server.getPixelWidthMicrons(), 
@@ -85,16 +94,18 @@ public class HessianCalculator {
 				
 					long startTime = System.currentTimeMillis();
 			
-					List<HessianResults> resultsTemp = new HessianResultsBuilder()
-						.sigmaX(sigmaMicrons / server.getPixelWidthMicrons())
-						.sigmaY(sigmaMicrons / server.getPixelHeightMicrons())
-						.sigmaZ(sigmaMicrons / server.getZSpacingMicrons())
-			//			.skipDeterminant()
-			//			.ind3D(5)
-						.skipEigenvectors()
-						.retainSmoothed()
-			//			.skipEigenvalues()
-//						.do3D()
+					List<Map<String, Mat>> resultsTemp = new MultiscaleResultsBuilder()
+						.sigmaX(sigmaMicrons)
+						.sigmaY(sigmaMicrons)
+						.sigmaZ(sigmaMicrons)
+						.pixelCalibration(server.getMetadata().getPixelCalibration(), downsample)
+						.ind3D(3)
+						.gaussianSmoothed(true)
+						.weightedStdDev(true)
+//						.gradientMagnitude(true)
+						.laplacianOfGaussian(true)
+//						.hessianEigenvalues(true)
+						.hessianDeterminant(true)
 						.build(mats);
 					
 					long endTime = System.currentTimeMillis();
@@ -114,259 +125,66 @@ public class HessianCalculator {
 		}
 		
 		List<Mat> output = new ArrayList<>();
-		int n = 1;
+		int n = 0;
+		List<String> names = new ArrayList<>();
 		for (var r : results) {
-			n = (int)r.getEigenvalues().size();
-			output.add(r.getSmoothed());
-			output.add(r.getDeterminant());
-//			for (var m : r.getEigenvalues().get())
+			int before = output.size();
+//			output.add(r.getSmoothed());
+//			output.add(r.getDeterminant());
+//			output.add(r.getLaplacian());
+//			for (var m : r.getEigenvalues())
 //				output.add(m);
-//			for (var m : r.getEigenvectors().get())
-//				output.add(m);
+			
+			for (var m : r.values())
+				output.add(m);
+
+			names.addAll(r.keySet());
+			
+			n = output.size() - before;
 		}
 		
 		var imp = OpenCVTools.matToImagePlus("My stack", output.toArray(Mat[]::new));
-		imp = new CompositeImage(imp);
-		imp.setDimensions(output.size() / sizeZ, sizeZ, 1);
-		((CompositeImage)imp).resetDisplayRanges();
+//		imp = new CompositeImage(imp);
+//		imp.setDimensions(n, sizeZ, output.size() / n / sizeZ);
+		
+		int s = 1;
+		for (String name : names) {
+			imp.getStack().setSliceLabel(name, s++);
+		}
+		
+//		imp.setDimensions(output.size() / sizeZ, sizeZ, 1);
+//		((CompositeImage)imp).resetDisplayRanges();
 		imp.show();
 	}
 	
 	
-	/**
-	 * 
-	 * TODO: Consider alternative 2x2 eigenvalue calculation
-	 * TODO: Calculate determinant by multiplying eigenvalues
-	 * TODO: Calculate Laplacian as Lxx + Lyy (+ Lzz)
-	 * 
-	 * @author Pete Bankhead
-	 *
-	 */
-	public static class HessianResults {
-		
-		private HessianResultsBuilder builder;
-		
-		private Mat matDerivs;
-		
-		private Mat matSmoothed;
-		
-		private MatVector matvecEigenvalues;
-		private MatVector matvecEigenvectors;
-		private Mat matDeterminant;
-		private Mat matLaplacian;
-		
-		private HessianResults(HessianResultsBuilder builder, Mat matSmooth, Mat matDerivs) {
-			this.builder = new HessianResultsBuilder(builder);
-			if (this.builder.retainSmoothed)
-				this.matSmoothed = matSmooth;
-			initialize(matDerivs);
-		}
-		
-		public Mat getPartialDerivatives() {
-			return matDerivs;
-		}
-		
-		/**
-		 * Get the Laplacian of Gaussian filtered image, if available.
-		 * @return
-		 * @throws UnsupportedOperationException if the required image was not calculated
-		 */
-		public Mat getLaplacian() {
-			if (matLaplacian == null)
-				throw new UnsupportedOperationException("Laplacian image was not calculated - remember to specify this in the builder!");
-			return matLaplacian;
-		}
-		
-		/**
-		 * Get the Gaussian-smoothed image, or throws an {@code UnsupportedOperationException} if these were not calculated.
-		 * @return
-		 * @throws UnsupportedOperationException if the required image was not calculated
-		 */
-		public Mat getSmoothed() {
-			if (matSmoothed == null)
-				throw new UnsupportedOperationException("Smoothed image was not calculated - remember to specify this in the builder!");
-			return matSmoothed;
-		}
-		
-		/**
-		 * Get the determinant of the Hessian matrix per pixel, or throws an {@code UnsupportedOperationException} if this was not calculated.
-		 * @return
-		 * @throws UnsupportedOperationException if the required image was not calculated
-		 */
-		public Mat getDeterminant() {
-			if (matDeterminant == null)
-				throw new UnsupportedOperationException("Determinants were not calculated - remember to specify them in the builder!");
-			return matDeterminant;
-		}
-		
-		/**
-		 * Get the eigenvalues of the Hessian matrix per pixel, or throws an {@code UnsupportedOperationException} if these were not calculated.
-		 * <p>
-		 * Eigenvalues are ordered from highest to lowest.
-		 * @return
-		 * @throws UnsupportedOperationException if the required image was not calculated
-		 */
-		public MatVector getEigenvalues() {
-			if (matvecEigenvalues == null)
-				throw new UnsupportedOperationException("Eigenvalues were not calculated - remember to specify them in the builder!");
-			return matvecEigenvalues;
-		}
-		
-		/**
-		 * Get the eigenvectors of the Hessian matrix per pixel, or throws an {@code UnsupportedOperationException} if these were not calculated.
-		 * <p>
-		 * Eigenvectors are ordered according to the corresponding eigenvalue (from highest to lowest eigenvalue).
-		 * @return
-		 * @throws UnsupportedOperationException if the required image was not calculated
-		 */
-		public MatVector getEigenvectors() {
-			if (matvecEigenvectors == null)
-				throw new UnsupportedOperationException("Eigenvectors were not calculated - remember to specify them in the builder!");
-			return matvecEigenvectors;
-		}
-
-			
-		void initialize(Mat matDerivs) {
-			if (builder.retainHessian)
-				this.matDerivs = matDerivs;
-			
-			if (builder.skipDeterminant && builder.skipEigenvalues && builder.skipEigenvectors)
-				return;
-			
-			boolean doDeterminant = !builder.skipDeterminant;
-			boolean doEigenvalues = !builder.skipEigenvalues;
-			boolean doEigenvectors = !builder.skipEigenvectors;
-			boolean doLaplacian = !builder.skipLaplacian;
-			
-			int width = matDerivs.cols();
-			int height = matDerivs.rows();
-			
-			FloatIndexer indexerDerivs = matDerivs.createIndexer();
-			int nChannels = (int)indexerDerivs.channels();
-			int vecLength;
-			if (nChannels == 4)
-				vecLength = 2;
-			else if (nChannels == 9)
-				vecLength = 3;
-			else
-				throw new IllegalArgumentException("Input to Hessian calculation should have 4 of 9 channels!");
-			
-			if (doDeterminant) {
-				matDeterminant = new Mat(height, width, opencv_core.CV_32F);
-			} 
-			if (doEigenvalues) {
-				Mat[] array = new Mat[vecLength];
-				for (int i = 0; i < vecLength; i++)
-					array[i] = new Mat(height, width, opencv_core.CV_32F);
-				matvecEigenvalues = new MatVector(array);
-			}
-			if (doEigenvectors) {
-				Mat[] array = new Mat[vecLength];
-				for (int i = 0; i < vecLength; i++)
-					array[i] = new Mat(height, width, opencv_core.CV_32FC(vecLength));
-				matvecEigenvectors = new MatVector(array);
-			}
-			if (doLaplacian) {
-				Mat temp = new Mat();
-				opencv_core.extractChannel(matDerivs, temp, 0);
-				matLaplacian = temp.clone();
-				for (int c = vecLength+1; c < nChannels; c += vecLength+1) {
-					opencv_core.extractChannel(matDerivs, temp, c);
-					opencv_core.add(matLaplacian, temp, matLaplacian);					
-				}
-				temp.release();
-			}
-			
-//			try (PointerScope scope = new PointerScope()) {
-
-				Mat matInput = new Mat(vecLength, vecLength, opencv_core.CV_32F);
-				Mat matEigenvalues = doEigenvalues || doEigenvectors ? new Mat(vecLength, 1, opencv_core.CV_32F, Scalar.ZERO) : null;
-				Mat matEigenvectors = doEigenvectors ? new Mat(vecLength, vecLength, opencv_core.CV_32F, Scalar.ZERO) : null;
-
-				float[] eigenvalueData = new float[vecLength];
-				float[] eigenvectorData = new float[vecLength*vecLength];
-
-				FloatIndexer indexer = matInput.createIndexer(true);
-				FloatIndexer indexerEigen = matEigenvalues == null ? null : matEigenvalues.createIndexer(true);
-				FloatIndexer indexerEigenvectors = matEigenvectors == null ? null : matEigenvectors.createIndexer(true);
-				
-				
-				FloatIndexer indexerDeterminant = matDeterminant == null ? null : matDeterminant.createIndexer();
-				List<FloatIndexer> indexersEigenvalues = matvecEigenvalues == null ? null : Arrays.stream(matvecEigenvalues.get()).map(m -> (FloatIndexer)m.createIndexer()).collect(Collectors.toList());
-				List<FloatIndexer> indexersEigenvectors = matvecEigenvectors == null ? null : Arrays.stream(matvecEigenvectors.get()).map(m -> (FloatIndexer)m.createIndexer()).collect(Collectors.toList());
-
-				long[] inds = new long[3];
-
-				float det = Float.NaN;
-				for (long y = 0; y < height; y++) {
-					inds[0] = y;
-					for (long x = 0; x < width; x++) {
-						inds[1] = x;
-						
-						// Populate the Hessian matrix
-						for (long c = 0; c < nChannels; c++) {
-							inds[2] = c;
-							float v = indexerDerivs.get(inds);
-							indexer.put(c, v);
-						}
-						
-						// Calculate required values
-						if (doEigenvectors) {
-							opencv_core.eigen(matInput, matEigenvalues, matEigenvectors);
-						} else if (doEigenvalues) {
-							opencv_core.eigen(matInput, matEigenvalues);						
-						}
-						if (doDeterminant) {
-							det = (float)opencv_core.determinant(matInput);
-						}
-						
-						// Populate output Mats
-						if (doEigenvectors) {
-							indexerEigenvectors.get(0L, eigenvectorData);
-							for (int c = 0; c < vecLength; c++) {
-								FloatIndexer temp = indexersEigenvectors.get(c);
-								for (int k = 0; k < vecLength; k++) {
-									temp.put(y, x, k, eigenvectorData[c * vecLength + k]); // TODO: Check ordering!									
-								}
-							}
-						}
-						if (doEigenvalues) {
-							indexerEigen.get(0L, eigenvalueData);
-							for (int c = 0; c < vecLength; c++) {
-								indexersEigenvalues.get(c).put(y, x, eigenvalueData[c]);
-							}
-						}
-						if (doDeterminant) {
-							indexerDeterminant.put(y, x, det);
-						}
-					}
-				}
-				if (indexersEigenvalues != null) {
-					for (var idx : indexersEigenvalues)
-						idx.release();
-				}
-				if (indexersEigenvectors != null) {
-					for (var idx : indexersEigenvectors)
-						idx.release();
-				}
-//			}
-		}
-		
-	}
 	
-	public static class HessianResultsBuilder {
+	/**
+	 * Helper-class for computing pixel-features at a specified scale.
+	 */
+	public static class MultiscaleResultsBuilder {
+		
+		private String name = "";
 		
 		private PixelCalibration pixelCalibration = PixelCalibration.getDefaultInstance();
+		private double downsampleXY = 1.0;
 		
 		private double sigmaX = 1.0, sigmaY = 1.0, sigmaZ = 0.0;
-		private boolean skipDeterminant = false;
-		private boolean skipEigenvalues = false;
-		private boolean skipEigenvectors = false;
-		private boolean skipLaplacian = false;
-		private boolean retainHessian = false;
-		private boolean retainSmoothed = false;
 		
-		private boolean do3D = false;
+//		private boolean scaleNormalize = true;
+		
+		private boolean gaussianSmoothed = false;
+		private boolean weightedStdDev = false;
+
+		private boolean gradientMagnitude = false;
+
+		private boolean structureTensorEigenvalues = false;
+//		private boolean structureTensorCoherence = false;
+
+		private boolean laplacianOfGaussian = false;
+		private boolean hessianEigenvalues = false;
+//		private boolean hessianEigenvectors = false;
+		private boolean hessianDeterminant = false;
 		
 		private int ind3D = -1;
 		
@@ -375,77 +193,146 @@ public class HessianCalculator {
 		/**
 		 * Default constructor.
 		 */
-		public HessianResultsBuilder() {}
+		public MultiscaleResultsBuilder() {}
 
-		HessianResultsBuilder(HessianResultsBuilder builder) {
+		MultiscaleResultsBuilder(MultiscaleResultsBuilder builder) {
 			this.pixelCalibration = builder.pixelCalibration;
+			this.downsampleXY = builder.downsampleXY;
 			this.sigmaX = builder.sigmaX;
 			this.sigmaY = builder.sigmaY;
 			this.sigmaZ = builder.sigmaZ;
-			this.skipDeterminant = builder.skipDeterminant;
-			this.skipEigenvalues = builder.skipEigenvalues;
-			this.skipEigenvectors = builder.skipEigenvectors;
-			this.skipLaplacian = builder.skipLaplacian;
-			this.retainHessian = builder.retainHessian;
-			this.retainSmoothed = builder.retainSmoothed;
+//			this.scaleNormalize = builder.scaleNormalize;
+			this.gaussianSmoothed = builder.gaussianSmoothed;
+			this.gradientMagnitude = builder.gradientMagnitude;
+			this.structureTensorEigenvalues = builder.structureTensorEigenvalues;
+//			this.structureTensorCoherence = builder.structureTensorCoherence;
+			this.laplacianOfGaussian = builder.laplacianOfGaussian;
+			this.hessianEigenvalues = builder.hessianEigenvalues;
+//			this.hessianEigenvectors = builder.hessianEigenvectors;
+			this.hessianDeterminant = builder.hessianDeterminant;
 			this.border = builder.border;
 			this.ind3D = builder.ind3D;
-			this.do3D = builder.do3D;
 		}
-
-		public HessianResultsBuilder retainHessian() {
-			this.retainHessian = true;
+		
+		/**
+		 * Calculate the Gaussian-smoothed image.
+		 * @param calculate
+		 * @return
+		 */
+		public MultiscaleResultsBuilder gaussianSmoothed(boolean calculate) {
+			this.gaussianSmoothed = calculate;
 			return this;
 		}
 		
-		public HessianResultsBuilder do3D() {
-			this.do3D = true;
+		/**
+		 * Calculate a Gaussian-weighted standard deviation.
+		 * @param calculate
+		 * @return
+		 */
+		public MultiscaleResultsBuilder weightedStdDev(boolean calculate) {
+			this.weightedStdDev = calculate;
+			return this;
+		}
+			
+		/**
+		 * Calculate the gradient magnitude.
+		 * @param calculate
+		 * @return
+		 */
+		public MultiscaleResultsBuilder gradientMagnitude(boolean calculate) {
+			this.gradientMagnitude = calculate;
 			return this;
 		}
 		
-		public HessianResultsBuilder skipEigenvalues() {
-			this.skipEigenvalues = true;
-			return this;
-		}
-		
-		public HessianResultsBuilder skipLaplacian() {
-			this.skipLaplacian = true;
-			return this;
-		}
-		
-		public HessianResultsBuilder skipEigenvectors() {
-			this.skipEigenvectors = true;
-			return this;
-		}
-		
-		public HessianResultsBuilder skipDeterminant() {
-			this.skipDeterminant = true;
-			return this;
-		}
-		
-		public HessianResultsBuilder retainSmoothed() {
-			this.retainSmoothed = true;
+		/**
+		 * Calculate the eigenvalues of the structure tensor (not yet implemented!).
+		 * @param calculate
+		 * @return
+		 */
+		public MultiscaleResultsBuilder structureTensorEigenvalues(boolean calculate) {
+			this.structureTensorEigenvalues = calculate;
 			return this;
 		}
 
 		/**
-		 * Set the pixel calibration.
+		 * Calculate the Laplacian of Gaussian image.
+		 * @param calculate
+		 * @return
+		 */
+		public MultiscaleResultsBuilder laplacianOfGaussian(boolean calculate) {
+			this.laplacianOfGaussian = calculate;
+			return this;
+		}
+		
+		/**
+		 * Calculate the eigenvalues of the Hessian matrix per pixel.
+		 * @param calculate
+		 * @return
+		 */
+		public MultiscaleResultsBuilder hessianEigenvalues(boolean calculate) {
+			this.hessianEigenvalues = calculate;
+			return this;
+		}
+		
+//		public HessianResultsBuilder hessianEigenvectors(boolean calculate) {
+//			this.hessianEigenvectors = calculate;
+//			return this;
+//		}
+		
+		/**
+		 * Calculate the determinant of the Hessian matrix per pixel.
+		 * @param calculate
+		 * @return
+		 */
+		public MultiscaleResultsBuilder hessianDeterminant(boolean calculate) {
+			this.hessianDeterminant = calculate;
+			return this;
+		}
+		
+		/**
+		 * Name that may be used to identify these features.
+		 * @param name
+		 * @return
+		 */
+		public MultiscaleResultsBuilder name(String name) {
+			this.name = name;
+			return this;
+		}
+		
+//		/**
+//		 * Apply scale normalization for the features
+//		 * @param doNormalize
+//		 * @return
+//		 */
+//		public HessianResultsBuilder scaleNormalize(boolean doNormalize) {
+//			this.scaleNormalize = doNormalize;
+//			return this;
+//		}
+		
+		/**
+		 * Set the pixel calibration, with optional x,y scaling.
 		 * <p>
 		 * If available, this will convert the units in which Gaussian sigma values are applied.
 		 * This helps apply an isotropic filtering more easily, by specifying a single sigma value 
 		 * and supplying the pixel calibration so that any differences in pixel dimensions is 
 		 * automatically adjusted for.
+		 * <p>
+		 * DownsampleXY may be further used to scale the pixel units, meaning that even when working 
+		 * with a downsampled image it is possible to pass the original {@code PixelCalibration} object 
+		 * and specify the level of downsampling (rather than need to create a new scaled {@code PixelCalibration}).
 		 * 
 		 * @param cal
+		 * @param downsampleXY
 		 * @return
 		 * 
-		 * @see #sigma(double)
+		 * @see #sigmaXY(double)
 		 * @see #sigmaX(double)
 		 * @see #sigmaY(double)
 		 * @see #sigmaZ(double)
 		 */
-		public HessianResultsBuilder pixelCalibration(PixelCalibration cal) {
+		public MultiscaleResultsBuilder pixelCalibration(PixelCalibration cal, double downsampleXY) {
 			this.pixelCalibration = cal;
+			this.downsampleXY = downsampleXY;
 			return this;
 		}
 		
@@ -457,13 +344,13 @@ public class HessianCalculator {
 		 * @param ind
 		 * @return
 		 */
-		public HessianResultsBuilder ind3D(int ind) {
+		public MultiscaleResultsBuilder ind3D(int ind) {
 			this.ind3D = ind;
 			return this;
 		}
 		
 		/**
-		 * Set all Gaussian sigma values (x, y and z) to the same value.
+		 * Set all Gaussian sigma values (x, y) to the same value.
 		 * <p>
 		 * Note that this value is in pixels by default, or may be microns is supported 
 		 * by setting the pixel calibration.
@@ -471,15 +358,13 @@ public class HessianCalculator {
 		 * @param sigma
 		 * @return
 		 * 
-		 * @see #pixelCalibration(PixelCalibration)
+		 * @see #pixelCalibration(PixelCalibration, double)
 		 * @see #sigmaX(double)
 		 * @see #sigmaY(double)
-		 * @see #sigmaZ(double)
 		 */
-		public HessianResultsBuilder sigma(double sigma) {
+		public MultiscaleResultsBuilder sigmaXY(double sigma) {
 			this.sigmaX = sigma;
 			this.sigmaY = sigma;
-			this.sigmaZ = sigma;
 			return this;
 		}
 		
@@ -492,12 +377,12 @@ public class HessianCalculator {
 		 * @param sigma
 		 * @return
 		 * 
-		 * @see #pixelCalibration(PixelCalibration)
-		 * @see #sigma(double)
+		 * @see #pixelCalibration(PixelCalibration, double)
+		 * @see #sigmaXY(double)
 		 * @see #sigmaY(double)
 		 * @see #sigmaZ(double)
 		 */
-		public HessianResultsBuilder sigmaX(double sigma) {
+		public MultiscaleResultsBuilder sigmaX(double sigma) {
 			this.sigmaX = sigma;
 			return this;
 		}
@@ -511,12 +396,12 @@ public class HessianCalculator {
 		 * @param sigma
 		 * @return
 		 * 
-		 * @see #pixelCalibration(PixelCalibration)
-		 * @see #sigma(double)
+		 * @see #pixelCalibration(PixelCalibration, double)
+		 * @see #sigmaXY(double)
 		 * @see #sigmaX(double)
 		 * @see #sigmaZ(double)
 		 */
-		public HessianResultsBuilder sigmaY(double sigma) {
+		public MultiscaleResultsBuilder sigmaY(double sigma) {
 			this.sigmaY = sigma;
 			return this;
 		}
@@ -530,12 +415,12 @@ public class HessianCalculator {
 		 * @param sigma
 		 * @return
 		 * 
-		 * @see #pixelCalibration(PixelCalibration)
-		 * @see #sigma(double)
+		 * @see #pixelCalibration(PixelCalibration, double)
+		 * @see #sigmaXY(double)
 		 * @see #sigmaX(double)
 		 * @see #sigmaY(double)
 		 */
-		public HessianResultsBuilder sigmaZ(double sigma) {
+		public MultiscaleResultsBuilder sigmaZ(double sigma) {
 			this.sigmaZ = sigma;
 			return this;
 		}
@@ -545,7 +430,7 @@ public class HessianCalculator {
 		 * @param mats
 		 * @return
 		 */
-		public List<HessianResults> build(Mat... mats) {
+		public List<Map<String, Mat>> build(Mat... mats) {
 			return build(Arrays.asList(mats));
 		}
 		
@@ -554,19 +439,32 @@ public class HessianCalculator {
 		 * @param mats
 		 * @return
 		 */
-		public List<HessianResults> build(List<Mat> mats) {
-			if (do3D && mats.size() > 1)
+		public List<Map<String, Mat>> build(List<Mat> mats) {
+			if (sigmaZ > 0 && mats.size() > 1)
 				return build3D(mats);
 			return build2D(mats);
 		}
 		
-		private List<HessianResults> build2D(List<Mat> mats) {
+		private String getSigmaString() {
+			String sigmaString = "(\u03C3=%s)";
+			if (sigmaX == sigmaY && (sigmaX == sigmaZ || sigmaZ <= 0))
+				sigmaString = String.format(sigmaString, GeneralTools.formatNumber(sigmaX, 2));
+			else {
+				String temp = "x="+GeneralTools.formatNumber(sigmaX, 2) + ", y=" + GeneralTools.formatNumber(sigmaY, 2);
+				if (sigmaZ > 0)
+					temp += ", z=" + GeneralTools.formatNumber(sigmaZ, 2);
+				sigmaString = String.format(sigmaString, temp);
+			}
+			return sigmaString;
+		}
+		
+		private List<Map<String, Mat>> build2D(List<Mat> mats) {
 			
 			double sigmaX = this.sigmaX;
 			double sigmaY = this.sigmaY;
 			if (pixelCalibration.hasPixelSizeMicrons()) {
-				sigmaX /= pixelCalibration.getPixelWidthMicrons();
-				sigmaY /= pixelCalibration.getPixelHeightMicrons();
+				sigmaX /= pixelCalibration.getPixelWidthMicrons() * downsampleXY;
+				sigmaY /= pixelCalibration.getPixelHeightMicrons() * downsampleXY;
 			}
 			
 			Mat kx0 = OpenCVTools.getGaussianDerivKernel(sigmaX, 0, false);
@@ -582,24 +480,82 @@ public class HessianCalculator {
 			Mat dxy = new Mat();
 			Mat dyy = new Mat();
 			
-			List<HessianResults> results = new ArrayList<>();
+			String sigmaString = getSigmaString();
+			
+			// Check if we do Hessian or Structure Tensor-based features
+			boolean doSmoothed = weightedStdDev || gaussianSmoothed;
+//			boolean doStructureTensor = structureTensorEigenvalues;
+			boolean doHessian = hessianDeterminant || hessianEigenvalues || laplacianOfGaussian; // || hessianEigenvectors;
+
+			List<Map<String, Mat>> results = new ArrayList<>();
+			
+			Hessian2D hessian = null;
+			
+//			double scaleT = sigmaX * sigmaY;
+			
 			for (Mat mat : mats) {
+				
+				Map<String, Mat> features = new LinkedHashMap<>();
+				
 				Mat matSmooth = null;
-				if (retainSmoothed) {
+				if (doSmoothed) {
 					matSmooth = new Mat();
 					opencv_imgproc.sepFilter2D(mat, matSmooth, opencv_core.CV_32F, kx0, kx0, null, 0.0, border);
+					if (gaussianSmoothed)
+						features.put(name + "Smoothed " + sigmaString, matSmooth);
+					
+					if (weightedStdDev) {
+						Mat matSquaredSmoothed = mat.mul(mat).asMat();
+						opencv_imgproc.sepFilter2D(matSquaredSmoothed, matSquaredSmoothed, opencv_core.CV_32F, kx0, kx0, null, 0.0, border);
+						matSquaredSmoothed.put(opencv_core.subtract(matSquaredSmoothed, matSmooth.mul(matSmooth)));
+						opencv_core.sqrt(matSquaredSmoothed, matSquaredSmoothed);
+						features.put(name + "Weighted std dev " + sigmaString, matSquaredSmoothed);					
+					}
 				}
-				opencv_imgproc.sepFilter2D(mat, dxx, opencv_core.CV_32F, kx2, ky0, null, 0.0, border);
-				opencv_imgproc.sepFilter2D(mat, dyy, opencv_core.CV_32F, kx0, ky2, null, 0.0, border);
-				opencv_imgproc.sepFilter2D(mat, dxy, opencv_core.CV_32F, kx1, ky1, null, 0.0, border);
 				
-				Mat matDerivs = new Mat();
-				opencv_core.merge(new MatVector(
-						dxx, dxy,
-						dxy, dyy), matDerivs);
+				if (gradientMagnitude) {
+					opencv_imgproc.sepFilter2D(mat, dxx, opencv_core.CV_32F, kx1, ky0, null, 0.0, border);
+					opencv_imgproc.sepFilter2D(mat, dyy, opencv_core.CV_32F, kx0, ky1, null, 0.0, border);					
+					Mat magnitude = new Mat();
+					opencv_core.magnitude(dxx, dyy, magnitude);
+					features.put(name + "Gradient Magnitude " + sigmaString, magnitude);
+				}
 				
-				results.add(new HessianResults(this, matSmooth, matDerivs));
+				if (doHessian) {
+					opencv_imgproc.sepFilter2D(mat, dxx, opencv_core.CV_32F, kx2, ky0, null, 0.0, border);
+					opencv_imgproc.sepFilter2D(mat, dyy, opencv_core.CV_32F, kx0, ky2, null, 0.0, border);
+					opencv_imgproc.sepFilter2D(mat, dxy, opencv_core.CV_32F, kx1, ky1, null, 0.0, border);
+					
+					hessian = new Hessian2D(dxx, dxy, dyy, false);
+					if (laplacianOfGaussian) {
+						Mat temp = hessian.getLaplacian();
+//						if (scaleNormalize)
+//							opencv_core.multiplyPut(temp, scaleT);
+						features.put(name + "LoG " + sigmaString, temp);
+					}
+					
+					if (hessianDeterminant) {
+						Mat temp = hessian.getDeterminant();
+//						if (scaleNormalize)
+//							opencv_core.multiplyPut(temp, scaleT * scaleT);
+						features.put(name + "Hessian determinant " + sigmaString, temp);
+					}
+					
+					if (hessianEigenvalues) {
+						int eig = 0;
+						for (Mat temp : hessian.getEigenvalues()) {
+							features.put(name + "Hessian eigenvalues " + eig + sigmaString, temp);
+							eig++;
+						}
+					}
+					
+				}
+				
+				results.add(features);
 			}
+			
+//			if (hessian != null)
+//				hessian.close();
 
 			kx0.release();
 			kx1.release();
@@ -611,7 +567,7 @@ public class HessianCalculator {
 			return results;
 		}
 		
-		private List<HessianResults> build3D(List<Mat> mats) {
+		private List<Map<String, Mat>> build3D(List<Mat> mats) {
 			if (mats.size() == 0)
 				return Collections.emptyList();
 			
@@ -619,12 +575,17 @@ public class HessianCalculator {
 			double sigmaY = this.sigmaY;
 			double sigmaZ = this.sigmaZ;
 			if (pixelCalibration.hasPixelSizeMicrons()) {
-				sigmaX /= pixelCalibration.getPixelWidthMicrons();
-				sigmaY /= pixelCalibration.getPixelHeightMicrons();
+				sigmaX /= pixelCalibration.getPixelWidthMicrons() * downsampleXY;
+				sigmaY /= pixelCalibration.getPixelHeightMicrons() * downsampleXY;
 			}
 			if (pixelCalibration.hasZSpacingMicrons()) {
 				sigmaZ /= pixelCalibration.getZSpacingMicrons();
 			}
+			
+			// Check if we do Hessian or Structure Tensor-based features
+			boolean doSmoothed = weightedStdDev || gaussianSmoothed;
+//			boolean doStructureTensor = structureTensorEigenvalues;
+			boolean doHessian = hessianDeterminant || hessianEigenvalues || laplacianOfGaussian; // || hessianEigenvectors;
 			
 			// Get all the kernels we will need
 			Mat kx0 = OpenCVTools.getGaussianDerivKernel(sigmaX, 0, false);
@@ -640,9 +601,27 @@ public class HessianCalculator {
 			Mat kz2 = OpenCVTools.getGaussianDerivKernel(sigmaZ, 2, true);
 			
 			// Apply the awkward filtering along the z-dimension first
-			List<Mat> matsZ0 = OpenCVTools.filterZ(mats, kz0, ind3D, border);
-			List<Mat> matsZ1 = OpenCVTools.filterZ(mats, kz1, ind3D, border);
-			List<Mat> matsZ2 = OpenCVTools.filterZ(mats, kz2, ind3D, border);
+			List<Mat> matsZ0 = null;
+			if (doSmoothed || gradientMagnitude  || doHessian)
+				matsZ0 = OpenCVTools.filterZ(mats, kz0, ind3D, border);
+			List<Mat> matsZ1 = null;
+			if (doHessian || gradientMagnitude)
+				matsZ1 = OpenCVTools.filterZ(mats, kz1, ind3D, border);
+			List<Mat> matsZ2 = null;
+			if (doHessian)
+				matsZ2 = OpenCVTools.filterZ(mats, kz2, ind3D, border);
+			
+			int nSlices = ind3D >= 0 ? 1 : mats.size();
+			
+			// Need to square original pixels for weighted std dev calculation
+			List<Mat> matsSquaredZ0 = null;
+			if (weightedStdDev) {
+				matsSquaredZ0 = new ArrayList<>();
+				for (Mat mat : mats)
+					matsSquaredZ0.add(mat.mul(mat).asMat());
+				matsSquaredZ0 = OpenCVTools.filterZ(matsSquaredZ0, kz0, ind3D, border);
+			}
+			
 			
 			// We need some Mats for each plane, but we can reuse them
 			Mat dxx = new Mat();
@@ -653,48 +632,496 @@ public class HessianCalculator {
 			Mat dyz = new Mat();
 			
 			Mat dzz = new Mat();
+						
+			String sigmaString = getSigmaString();
 			
-			Mat matDerivs = new Mat();
-			
+			Hessian3D hessian = null;
 			
 			// Loop through and handle the remaining 2D filtering
 			// We do this 1 plane at a time so that we don't need to retain all filtered images in memory
-			List<HessianResults> output = new ArrayList<>();
-			for (int i = 0; i < matsZ0.size(); i++) {
+			List<Map<String, Mat>> output = new ArrayList<>();
+			for (int i = 0; i < nSlices; i++) {
 				
-				Mat z0 = matsZ0.get(i);
-				Mat z1 = matsZ1.get(i);
-				Mat z2 = matsZ2.get(i);
+				Map<String, Mat> features = new LinkedHashMap<>();
 				
-				Mat matSmooth = null;
-				if (retainSmoothed) {
-					matSmooth = new Mat();
+				if (doSmoothed) {
+					Mat z0 = matsZ0.get(i);
+					Mat matSmooth = new Mat();
 					opencv_imgproc.sepFilter2D(z0, matSmooth, opencv_core.CV_32F, kx0, ky0, null, 0.0, border);
+					if (gaussianSmoothed)
+						features.put(name + "Smoothed " + sigmaString, matSmooth);
+					
+					if (weightedStdDev) {
+						// Note that here we modify the original images in-place, since from now on we just need 2D planes
+						Mat matSquaredSmoothed = matsSquaredZ0.get(i);
+						opencv_imgproc.sepFilter2D(matSquaredSmoothed, matSquaredSmoothed, opencv_core.CV_32F, kx0, kx0, null, 0.0, border);
+						matSquaredSmoothed.put(opencv_core.subtract(matSquaredSmoothed, matSmooth.mul(matSmooth)));
+						opencv_core.sqrt(matSquaredSmoothed, matSquaredSmoothed);
+						features.put(name + "Weighted std dev " + sigmaString, matSquaredSmoothed);					
+					}
+				}
+
+				if (gradientMagnitude) {
+					Mat z0 = matsZ0.get(i);
+					Mat z1 = matsZ1.get(i);
+					opencv_imgproc.sepFilter2D(z0, dxx, opencv_core.CV_32F, kx1, ky0, null, 0.0, border);
+					opencv_imgproc.sepFilter2D(z0, dyy, opencv_core.CV_32F, kx0, ky1, null, 0.0, border);					
+					opencv_imgproc.sepFilter2D(z1, dzz, opencv_core.CV_32F, kx0, ky0, null, 0.0, border);
+					Mat magnitude = opencv_core.add(opencv_core.add(dxx.mul(dxx), dyy.mul(dyy)), dzz.mul(dzz)).asMat();
+					features.put(name + "Gradient Magnitude " + sigmaString, magnitude);
 				}
 				
-				opencv_imgproc.sepFilter2D(z0, dxx, opencv_core.CV_32F, kx2, ky0, null, 0.0, border);
-				opencv_imgproc.sepFilter2D(z0, dxy, opencv_core.CV_32F, kx1, ky1, null, 0.0, border);
-				opencv_imgproc.sepFilter2D(z1, dxz, opencv_core.CV_32F, kx1, ky0, null, 0.0, border);
+				if (doHessian) {
+					
+					Mat z0 = matsZ0.get(i);
+					Mat z1 = matsZ1.get(i);
+					Mat z2 = matsZ2.get(i);
+
+					opencv_imgproc.sepFilter2D(z0, dxx, opencv_core.CV_32F, kx2, ky0, null, 0.0, border);
+					opencv_imgproc.sepFilter2D(z0, dxy, opencv_core.CV_32F, kx1, ky1, null, 0.0, border);
+					opencv_imgproc.sepFilter2D(z1, dxz, opencv_core.CV_32F, kx1, ky0, null, 0.0, border);
+					
+					opencv_imgproc.sepFilter2D(z0, dyy, opencv_core.CV_32F, kx0, ky2, null, 0.0, border);
+					opencv_imgproc.sepFilter2D(z1, dyz, opencv_core.CV_32F, kx0, ky1, null, 0.0, border);
+					
+					opencv_imgproc.sepFilter2D(z2, dzz, opencv_core.CV_32F, kx0, ky0, null, 0.0, border);
 				
-				opencv_imgproc.sepFilter2D(z0, dyy, opencv_core.CV_32F, kx0, ky2, null, 0.0, border);
-				opencv_imgproc.sepFilter2D(z1, dyz, opencv_core.CV_32F, kx0, ky1, null, 0.0, border);
-				
-				opencv_imgproc.sepFilter2D(z2, dzz, opencv_core.CV_32F, kx0, ky0, null, 0.0, border);
-				
-				opencv_core.merge(new MatVector(
-						dxx, dxy, dxz,
-						dxy, dyy, dyz,
-						dxz, dyz, dzz
-						), matDerivs);
-				
-				if (retainHessian)
-					matDerivs = matDerivs.clone();
-				
-				output.add(new HessianResults(this, matSmooth, matDerivs));
+					hessian = new Hessian3D(dxx, dxy, dxz, dyy, dyz, dzz, true);
+					if (laplacianOfGaussian)
+						features.put(name + "LoG " + sigmaString, hessian.getLaplacian());
+					
+					if (hessianDeterminant)
+						features.put(name + "Hessian determinant " + sigmaString, hessian.getDeterminant());
+					
+					if (hessianEigenvalues) {
+						int eig = 0;
+						for (Mat temp : hessian.getEigenvalues()) {
+							features.put(name + "Hessian eigenvalues " + eig + sigmaString, temp);
+							eig++;
+						}
+					}
+				}
+				output.add(features);
 			}
+			
+			dxx.close();
+			dxy.close();
+			dxz.close();
+			dyz.close();
+			dyy.close();
+			dzz.close();
+//			if (hessian != null)
+//				hessian.close();
+			
+			
 			return output;
 		}
 		
 	}
+	
+	
+	static interface StructureTensor extends AutoCloseable {
+		
+		Mat getEigenvalues(int n);
+		
+		Mat getCoherence();
+		
+	}
+	
+//	static class StructureTensor2D implements StructureTensor {
+//		
+//		private Mat dx, dy, dz;
+//		
+//		StructureTensor2D(Mat dx, Mat dy, Mat dz) {
+//			
+//		}
+//
+//		@Override
+//		public Mat getEigenvalues(int n) {
+//			// TODO Auto-generated method stub
+//			return null;
+//		}
+//
+//		@Override
+//		public Mat getCoherence() {
+//			// TODO Auto-generated method stub
+//			return null;
+//		}
+//
+//		@Override
+//		public void close() throws Exception {
+//			// TODO Auto-generated method stub
+//			
+//		}
+//
+//	}
+	
+	
+	
+	
+	/**
+	 * Helper class for storing and computing pixel features from Hessian matrices.
+	 */
+	public static interface Hessian extends AutoCloseable {
+		
+		/**
+		 * Get Laplacian of Gaussian image (calculated by summation without requiring eigenvalues).
+		 * @return
+		 */
+		Mat getLaplacian();
+
+		/**
+		 * Get the determinant for each pixel.
+		 * @return
+		 */
+		Mat getDeterminant();
+		
+		/**
+		 * Get the eigenvalues, ranked from highest to lowest.
+		 * @return
+		 */
+		List<Mat> getEigenvalues();
+		
+		/**
+		 * Get the eigenvectors, returned in the same order as the eigenvalues.
+		 * Vector elements are stored along the 'channels' dimension.
+		 * @return
+		 */
+		List<Mat> getEigenvectors();
+
+	}
+	
+	static class Hessian2D implements Hessian {
+		
+		private boolean doEigenvectors;
+		private Mat dxx, dxy, dyy;
+		private EigenSymm2 eigen;
+		
+		Hessian2D(Mat dxx, Mat dxy, Mat dyy, boolean doEigenvectors) {
+			this.dxx = dxx;
+			this.dxy = dxy;
+			this.dyy = dyy;
+			this.doEigenvectors = doEigenvectors;
+		}
+		
+		@Override
+		public Mat getLaplacian() {
+			return opencv_core.add(dxx, dyy).asMat();
+		}
+		
+		private void ensureEigenvalues() {
+			if (eigen == null) {
+				eigen = new EigenSymm2(dxx, dxy, dyy, doEigenvectors);
+			}
+		}
+		
+		@Override
+		public List<Mat> getEigenvalues() {
+			ensureEigenvalues();
+			return Arrays.asList(eigen.eigvalMax, eigen.eigvalMin);
+		}
+		
+		@Override
+		public List<Mat> getEigenvectors() {
+			ensureEigenvalues();
+			if (eigen.eigvecMax == null)
+				throw new UnsupportedOperationException("Eigenvectors were not calculated!");
+			return Arrays.asList(eigen.eigvecMax, eigen.eigvecMin);
+		}
+		
+		@Override
+		public Mat getDeterminant() {
+			return EigenSymm2.getDeterminantExpr2x2(dxx, dxy, dyy).asMat();
+		}
+
+		@Override
+		public void close() {
+			dxx.close();
+			dxy.close();
+			dyy.close();
+			if (eigen != null) {
+				eigen.close();
+			}
+		}
+		
+	}
+	
+	static class Hessian3D implements Hessian {
+		
+		private boolean doEigenvectors;
+		private Mat dxx, dxy, dxz, dyy, dyz, dzz;
+		private EigenSymm3 eigen;
+		
+		Hessian3D(Mat dxx, Mat dxy, Mat dxz, Mat dyy, Mat dyz, Mat dzz, boolean doEigenvectors) {
+			this.dxx = dxx;
+			this.dxy = dxy;
+			this.dxz = dxz;
+			this.dyy = dyy;
+			this.dyz = dyz;
+			this.dzz = dzz;
+			this.doEigenvectors = doEigenvectors;
+		}
+
+		@Override
+		public Mat getLaplacian() {
+			return opencv_core.add(opencv_core.add(dxx, dyy), dzz).asMat();
+		}
+
+		private void ensureEigenvalues() {
+			if (eigen == null) {
+				eigen = new EigenSymm3(dxx, dxy, dxz, dyy, dyz, dzz, doEigenvectors);
+			}
+		}
+		
+		@Override
+		public List<Mat> getEigenvectors() {
+			ensureEigenvalues();
+			if (eigen.eigvecMax == null)
+				throw new UnsupportedOperationException("Eigenvectors were not calculated!");
+			return Arrays.asList(eigen.eigvecMax, eigen.eigvecMiddle, eigen.eigvecMin);
+		}
+		
+		@Override
+		public List<Mat> getEigenvalues() {
+			ensureEigenvalues();
+			return Arrays.asList(eigen.eigvalMax, eigen.eigvalMiddle, eigen.eigvalMin);
+		}
+		
+		@Override
+		public Mat getDeterminant() {
+			ensureEigenvalues();
+			return eigen.eigvalMin.mul(eigen.eigvalMiddle).mul(eigen.eigvalMax).asMat();
+		}
+
+		@Override
+		public void close() {
+			dxx.close();
+			dxy.close();
+			dxz.close();
+			dyy.close();
+			dyz.close();
+			dzz.close();
+			if (eigen != null) {
+				eigen.close();
+			}
+		}
+		
+	}
+	
+	
+	/**
+	 * Calculate eigenvalues and (optionally) eigenvectors for a 2x2 symmetric matrix.
+	 */
+	private static class EigenSymm2 implements AutoCloseable {
+		
+		private Mat eigvalMin, eigvalMax;
+		private Mat eigvecMin, eigvecMax;
+		
+		EigenSymm2(Mat dxx, Mat dxy, Mat dyy, boolean doEigenvectors) {
+			MatExpr trace = opencv_core.add(dxx, dyy);
+			MatExpr det = getDeterminantExpr2x2(dxx, dxy, dyy);
+			
+			MatExpr t1 = opencv_core.divide(trace, 2.0);
+			Mat t2 = opencv_core.subtract(
+					trace.mul(trace, 1.0/4.0),
+					det).asMat();
+			opencv_core.sqrt(t2, t2);
+			
+			eigvalMin = opencv_core.subtract(t1, t2).asMat();
+			eigvalMax = opencv_core.add(t1, t2).asMat();
+			
+			if (doEigenvectors) {
+				int width = dxx.cols();
+				int height = dxx.rows();
+				int n = width * height;
+				float[] bufMinVec = new float[n * 2];
+				float[] bufMaxVec = new float[n * 2];
+				
+				float[] c = OpenCVTools.extractPixels(dxy, null);
+				float[] d = OpenCVTools.extractPixels(dyy, null);
+				float[] l1 = OpenCVTools.extractPixels(eigvalMax, null);
+				float[] l2 = OpenCVTools.extractPixels(eigvalMin, null);
+				for (int i = 0; i < n; i++) {
+					float offDiag = c[i];
+					if (offDiag == 0f) {
+						bufMaxVec[i*2] = 1f;
+						bufMaxVec[i*2+1] = 0f;
+						bufMinVec[i*2] = 0f;
+						bufMinVec[i*2+1] = 1f;
+					} else {
+						double temp1 = l1[i] - d[i];
+						double temp2 = c[i];
+						double len = Math.sqrt(temp1*temp1 + temp2*temp2);
+						bufMaxVec[i*2] = (float)(temp1/len);
+						bufMaxVec[i*2+1] = (float)(temp2/len);
+						
+						temp1 = l2[i] - d[i];
+						len = Math.sqrt(temp1*temp1 + temp2*temp2);
+						bufMinVec[i*2] = (float)(temp1/len);
+						bufMinVec[i*2+1] = (float)(temp2/len);
+					}
+				}
+				eigvecMin = new Mat(height, width, opencv_core.CV_32FC2, new FloatPointer(bufMinVec));
+				eigvecMax = new Mat(height, width, opencv_core.CV_32FC2, new FloatPointer(bufMaxVec));			
+			}
+			
+			t1.close();
+			t2.close();
+			trace.close();
+			det.close();
+		}
+		
+		static MatExpr getDeterminantExpr2x2(Mat dxx, Mat dxy, Mat dyy) {
+			return opencv_core.subtract(
+					dxx.mul(dyy),
+					dxy.mul(dxy)
+					);
+		}
+
+		@Override
+		public void close() {
+			eigvalMin.close();
+			eigvalMax.close();
+			if (eigvecMax != null)
+				eigvecMax.close();
+			if (eigvecMin != null)
+				eigvecMin.close();
+		}
+		
+	}
+	
+	
+	
+	/**
+	 * Calculate eigenvalues and (optionally) eigenvectors for a 3x3 symmetric matrix.
+	 */
+	private static class EigenSymm3 implements AutoCloseable {
+		
+		private Mat eigvalMin, eigvalMiddle, eigvalMax;
+		private Mat eigvecMin, eigvecMiddle, eigvecMax;
+		
+		EigenSymm3(Mat dxx, Mat dxy, Mat dxz, Mat dyy, Mat dyz, Mat dzz, boolean doEigenvectors) {
+			
+			int height = dxx.rows();
+			int width = dxx.cols();
+			
+			Mat matInput = new Mat(3, 3, opencv_core.CV_32FC1);
+			Mat matEigenvalues = new Mat(3, 1, opencv_core.CV_32FC1);
+			Mat matEigenvectors = new Mat(3, 3, opencv_core.CV_32FC1);
+			
+			float[] pxDxx = OpenCVTools.extractPixels(dxx, null);
+			float[] pxDxy = OpenCVTools.extractPixels(dxy, null);
+			float[] pxDxz = OpenCVTools.extractPixels(dxz, null);
+			float[] pxDyy = OpenCVTools.extractPixels(dyy, null);
+			float[] pxDyz = OpenCVTools.extractPixels(dyz, null);
+			float[] pxDzz = OpenCVTools.extractPixels(dzz, null);
+			
+			// Buffer to contain values for each row of the Hessian matrices
+			float[] bufMin = new float[width * height];
+			float[] bufMiddle = new float[width * height];
+			float[] bufMax = new float[width * height];
+
+			float[] bufMinVec = doEigenvectors ? new float[width * height * 3] : null;
+			float[] bufMiddleVec = doEigenvectors ? new float[width * height * 3] : null;
+			float[] bufMaxVec = doEigenvectors ? new float[width * height * 3] : null;
+
+			FloatIndexer idxInput = matInput.createIndexer();
+			FloatIndexer idxEigenvalues = matEigenvalues.createIndexer();
+			FloatIndexer idxEigenvectors = matEigenvectors.createIndexer();
+			
+			float[] input = new float[9];
+			float[] eigenvalues = new float[3];
+			float[] eigenvectors = new float[9];
+			
+			int ind = 0;
+			for (int y = 0; y < height; y++) {
+				for (int x = 0; x < width; x++) {
+					
+					// Arrange values for 3x3 symmetric matrix
+					input[0] = pxDxx[ind];
+					input[1] = pxDxy[ind];
+					input[2] = pxDxz[ind];
+
+					input[3] = pxDxy[ind];
+					input[4] = pxDyy[ind];
+					input[5] = pxDyz[ind];
+
+					input[6] = pxDxz[ind];
+					input[7] = pxDyz[ind];
+					input[8] = pxDzz[ind];
+
+					// Populate the Hessian matrix
+					idxInput.put(0L, input);
+					
+					// Calculate required values
+					// TODO: Compare performance using opencv_core.eigen vs commons math vs jama
+					if (doEigenvectors)
+						opencv_core.eigen(matInput, matEigenvalues, matEigenvectors);
+					else
+						opencv_core.eigen(matInput, matEigenvalues);
+					
+					// Extract the eigenvalues
+					idxEigenvalues.get(0L, eigenvalues);
+					bufMax[ind] = eigenvalues[0];
+					bufMiddle[ind] = eigenvalues[1];
+					bufMin[ind] = eigenvalues[2];
+					
+					// Extract the eigenvectors if required
+					if (doEigenvectors) {
+						idxEigenvectors.get(0L, eigenvectors);
+						
+						bufMinVec[ind * 3] = eigenvectors[0];
+						bufMinVec[ind * 3 + 1] = eigenvectors[1];
+						bufMinVec[ind * 3 + 2] = eigenvectors[2];
+						
+						bufMiddleVec[ind * 3] = eigenvectors[3];
+						bufMiddleVec[ind * 3 + 1] = eigenvectors[4];
+						bufMiddleVec[ind * 3 + 2] = eigenvectors[5];
+						
+						bufMaxVec[ind * 3] = eigenvectors[6];
+						bufMaxVec[ind * 3 + 1] = eigenvectors[7];
+						bufMaxVec[ind * 3 + 2] = eigenvectors[8];
+					}
+					
+					ind++;
+				}
+			}
+			
+			idxInput.release();
+			idxEigenvalues.release();
+			idxEigenvectors.release();
+			
+			matInput.close();
+			matEigenvalues.close();
+			matEigenvectors.close();
+			
+			// Store the eigenvalues as Mats
+			eigvalMin = new Mat(height, width, opencv_core.CV_32FC1, new FloatPointer(bufMin));
+			eigvalMiddle = new Mat(height, width, opencv_core.CV_32FC1, new FloatPointer(bufMiddle));
+			eigvalMax = new Mat(height, width, opencv_core.CV_32FC1, new FloatPointer(bufMax));
+			
+			// Store the eigenvectors
+			if (doEigenvectors) {
+				eigvecMin = new Mat(height, width, opencv_core.CV_32FC3, new FloatPointer(bufMinVec));
+				eigvecMiddle = new Mat(height, width, opencv_core.CV_32FC3, new FloatPointer(bufMiddleVec));
+				eigvecMax = new Mat(height, width, opencv_core.CV_32FC3, new FloatPointer(bufMaxVec));				
+			}
+		}
+
+		@Override
+		public void close() {
+			eigvalMin.close();
+			eigvalMiddle.close();
+			eigvalMax.close();
+			if (eigvecMax != null)
+				eigvecMax.close();
+			if (eigvecMiddle != null)
+				eigvecMiddle.close();
+			if (eigvecMin != null)
+				eigvecMin.close();
+		}
+		
+	}
+	
 
 }

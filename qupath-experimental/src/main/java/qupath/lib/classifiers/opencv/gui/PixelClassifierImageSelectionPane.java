@@ -1679,9 +1679,6 @@ public class PixelClassifierImageSelectionPane {
 			for (var s : sigmas)
 				comboFeatures.getItems().add(FeatureFilters.getFeatureFilter(FeatureFilters.SOBEL_FILTER, s));
 
-			for (var s : sigmas)
-				comboFeatures.getItems().add(FeatureFilters.getFeatureFilter(FeatureFilters.HESSIAN_EIGENVALUES_AND_DETERMINANT_FILTER, s));
-
 //			for (var s : sigmas)
 //				comboFeatures.getItems().add(FeatureFilters.getFeatureFilter(FeatureFilters.NORMALIZED_INTENSITY_FILTER, s));
 	//
