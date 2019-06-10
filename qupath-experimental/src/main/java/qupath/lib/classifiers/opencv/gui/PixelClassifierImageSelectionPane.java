@@ -624,8 +624,8 @@ public class PixelClassifierImageSelectionPane {
 		 
 		 trainData.close();
 
-		 int inputWidth = helper.getFeatureCalculator().getMetadata().getInputWidth();
-		 int inputHeight = helper.getFeatureCalculator().getMetadata().getInputHeight();
+		 int inputWidth = helper.getFeatureCalculator().getInputSize().getWidth();
+		 int inputHeight = helper.getFeatureCalculator().getInputSize().getHeight();
 		 PixelClassifierMetadata metadata = new PixelClassifierMetadata.Builder()
 				 .inputPixelSize(getRequestedPixelSizeMicrons())
 				 .inputShape(inputWidth, inputHeight)
@@ -1051,8 +1051,8 @@ public class PixelClassifierImageSelectionPane {
 		if (!Double.isFinite(pixelSize))
 			pixelSize = 1;
 		double downsample = selectedResolution.get().getDownsampleFactor(pixelSize);
-		double width = featureCalculator.getMetadata().getInputWidth() * downsample;
-		double height = featureCalculator.getMetadata().getInputHeight() * downsample;
+		double width = featureCalculator.getInputSize().getWidth() * downsample;
+		double height = featureCalculator.getInputSize().getHeight() * downsample;
 		var request = RegionRequest.createInstance(
 				server.getPath(), downsample, 
 				(int)(cx - width/2), (int)(cy - height/2), (int)width, (int)height, viewer.getZPosition(), viewer.getTPosition());
@@ -1064,10 +1064,10 @@ public class PixelClassifierImageSelectionPane {
 			IJTools.calibrateImagePlus(imp, request, server);
 			var impComp = new CompositeImage(imp, CompositeImage.GRAYSCALE);
 			impComp.setDimensions(imp.getStackSize(), 1, 1);
-			for (var c : featureCalculator.getMetadata().getChannels()) {
+			for (String name : featureCalculator.getFeatureNames()) {
 				impComp.setPosition(s);
 				impComp.resetDisplayRange();
-				impComp.getStack().setSliceLabel(c.getName(), s++);
+				impComp.getStack().setSliceLabel(name, s++);
 			}
 			impComp.setPosition(1);
 			impComp.show();

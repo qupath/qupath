@@ -21,7 +21,6 @@ import org.bytedeco.opencv.opencv_core.MatVector;
 import org.bytedeco.opencv.opencv_core.Scalar;
 import org.bytedeco.opencv.opencv_core.Size;
 
-import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
@@ -338,8 +337,8 @@ public class PixelClassifierHelper implements PathObjectHierarchyListener {
                     Shape shape = RoiTools.getShape(roi);
                     
                     List<RegionRequest> requests = new ArrayList<>();
-                    int tw = (int)Math.round(calculator.getMetadata().getInputWidth() * downsample);
-                    int th = (int)Math.round(calculator.getMetadata().getInputHeight() * downsample);
+                    int tw = (int)Math.round(calculator.getInputSize().getWidth() * downsample);
+                    int th = (int)Math.round(calculator.getInputSize().getHeight() * downsample);
                     for (int y = (int)roi.getBoundsY(); y < (int)Math.ceil(roi.getBoundsY() + roi.getBoundsHeight()); y += th) {
                         for (int x = (int)roi.getBoundsX(); x < (int)Math.ceil(roi.getBoundsX() + roi.getBoundsWidth()); x += tw) {
                         	requests.add(RegionRequest.createInstance(

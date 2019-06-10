@@ -117,13 +117,15 @@ subprojects {
     	exclude group: 'com.google.errorprone', module: 'error_prone_annotations'
     	exclude group: 'com.google.j2objc', module: 'j2objc-annotations'
     	exclude group: 'org.checkerframework', module: 'checker-qual'
-    }
+    }    
   }
 
   dependencies {
 
     jts "org.locationtech.jts:jts-core:1.16.1"
-//    jts "org.locationtech.jts.io:jts-io-common:1.16.1" // Optionally add GeoJSON support (brings in json-simple as sub-dependency)
+    // Optionally add GeoJSON support (brings in json-simple as sub-dependency)
+    // However, the use of simple-json is troublesome since it brings in an old version of junit
+//   jts "org.locationtech.jts.io:jts-io-common:1.16.1"
 
     groovy "org.codehaus.groovy:groovy:2.5.7"
     groovy "org.codehaus.groovy:groovy-jsr223:2.5.7"
@@ -135,7 +137,7 @@ subprojects {
 
 //	picocli 'info.picocli:picocli:3.9.6'
 
-    richtextfx 'org.fxmisc.richtext:richtextfx:0.10.0'
+    richtextfx 'org.fxmisc.richtext:richtextfx:0.10.1'
 
     commonsmath 'org.apache.commons:commons-math3:3.6.1'
 
@@ -144,8 +146,8 @@ subprojects {
     controlsfx 'org.controlsfx:controlsfx:11.0.0'
 
 //	bioformats 'ome:bioformats_package:6.0.0'
-	bioformats 'ome:formats-gpl:6.0.1'
-	bioformatsTest 'ome:bio-formats_plugins:6.0.1' // Only required for testing
+	bioformats 'ome:formats-gpl:6.1.0'
+	bioformatsTest 'ome:bio-formats_plugins:6.1.0' // Only required for testing
 
     jfxtras 'org.jfxtras:jfxtras-menu:10.0-r1'
 

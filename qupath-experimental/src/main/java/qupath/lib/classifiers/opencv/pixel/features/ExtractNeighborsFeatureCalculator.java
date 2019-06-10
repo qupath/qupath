@@ -14,8 +14,7 @@ import org.bytedeco.opencv.opencv_core.Mat;
 import com.google.gson.annotations.JsonAdapter;
 
 import qupath.lib.classifiers.gui.PixelClassifierStatic;
-import qupath.lib.classifiers.pixel.PixelClassifierMetadata;
-import qupath.lib.images.servers.ImageChannel;
+import qupath.lib.geom.ImmutableDimension;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.io.OpenCVTypeAdapters;
 import qupath.lib.regions.RegionRequest;
@@ -34,9 +33,11 @@ import qupath.lib.regions.RegionRequest;
     public class ExtractNeighborsFeatureCalculator extends BasicFeatureCalculator {
     	
     	private int radius;
-    	private PixelClassifierMetadata metadata;
+    	private List<String> featureNames;
     	private int[] inputChannels;
     	private int n;
+    	
+    	private ImmutableDimension inputShape = new ImmutableDimension(256, 256);
     	
     	public ExtractNeighborsFeatureCalculator(String name, double pixelSizeMicrons, int radius, int...inputChannels) {
     		super(name, Collections.emptyList(), Collections.emptyList(), pixelSizeMicrons);
@@ -47,14 +48,9 @@ import qupath.lib.regions.RegionRequest;
     		n = (radius * 2 + 1) * (radius * 2 + 1) * inputChannels.length;
 			this.inputChannels = inputChannels;
 					
-    		List<ImageChannel> channels = IntStream.range(0, n)
-    				.mapToObj(c -> ImageChannel.getInstance("Feature " + c, Integer.MAX_VALUE))
+			featureNames = IntStream.range(0, n)
+    				.mapToObj(c -> "Feature " + c)
     				.collect(Collectors.toList());
-    		metadata = new PixelClassifierMetadata.Builder()
-    				.inputShape(256, 256)
-    				.inputPixelSize(pixelSizeMicrons)
-    				.channels(channels)
-    				.build();
     	}
 
 		@Override
@@ -94,8 +90,8 @@ import qupath.lib.regions.RegionRequest;
 		}
 
 		@Override
-		public PixelClassifierMetadata getMetadata() {
-			return metadata;
+		public List<String> getFeatureNames() {
+			return featureNames;
 		}
     	
     	

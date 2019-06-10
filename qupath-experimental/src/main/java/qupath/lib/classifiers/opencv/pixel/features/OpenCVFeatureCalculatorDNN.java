@@ -2,6 +2,8 @@ package qupath.lib.classifiers.opencv.pixel.features;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.util.List;
+import java.util.stream.Collectors;
 
 import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.opencv_core.Mat;
@@ -17,6 +19,7 @@ import com.google.gson.annotations.JsonAdapter;
 import qupath.lib.classifiers.gui.PixelClassifierStatic;
 import qupath.lib.classifiers.opencv.OpenCVDNN;
 import qupath.lib.classifiers.pixel.PixelClassifierMetadata;
+import qupath.lib.geom.ImmutableDimension;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.io.OpenCVTypeAdapters;
 import qupath.lib.regions.RegionRequest;
@@ -88,7 +91,7 @@ public class OpenCVFeatureCalculatorDNN implements OpenCVFeatureCalculator {
 
 	@Override
 	public Mat calculateFeatures(ImageServer<BufferedImage> server, RegionRequest request) throws IOException {
-		int padding = getMetadata().getInputPadding();
+		int padding = 0;//getMetadata().getInputPadding(); // TODO: Check necessity of padding
 		BufferedImage img = PixelClassifierStatic.getPaddedRequest(server, request, padding);
 		
 		Mat mat = OpenCVTools.imageToMat(img);
@@ -129,10 +132,15 @@ public class OpenCVFeatureCalculatorDNN implements OpenCVFeatureCalculator {
 
         return matResult;
 	}
+	
+	@Override
+	public ImmutableDimension getInputSize() {
+		return new ImmutableDimension(metadata.getInputWidth(), metadata.getInputHeight());
+	}
 
 	@Override
-	public PixelClassifierMetadata getMetadata() {
-		return metadata;
+	public List<String> getFeatureNames() {
+		return metadata.getChannels().stream().map(c -> c.getName()).collect(Collectors.toList());
 	}
 
 }

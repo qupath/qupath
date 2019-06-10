@@ -3,8 +3,8 @@ package qupath.lib.classifiers.opencv.pixel.features;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
-
 import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.global.opencv_imgproc;
 import org.bytedeco.javacpp.indexer.FloatIndexer;
@@ -15,9 +15,7 @@ import org.bytedeco.opencv.opencv_core.Rect;
 import com.google.gson.annotations.JsonAdapter;
 
 import qupath.lib.classifiers.gui.PixelClassifierStatic;
-import qupath.lib.classifiers.pixel.PixelClassifierMetadata;
-import qupath.lib.common.ColorTools;
-import qupath.lib.images.servers.ImageChannel;
+import qupath.lib.geom.ImmutableDimension;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.io.OpenCVTypeAdapters;
 import qupath.lib.regions.RegionRequest;
@@ -34,32 +32,30 @@ public class BasicFeatureCalculator implements OpenCVFeatureCalculator {
 
 	@JsonAdapter(FeatureFilters.FeatureFilterTypeAdapterFactory.class)
 	private List<FeatureFilter> filters = new ArrayList<>();
-	private PixelClassifierMetadata metadata;
 
+	private List<String> featureNames;
+	
 	private int nPyramidLevels = 1;
 	private int padding = 0;
+	
+	private ImmutableDimension inputShape = new ImmutableDimension(512, 512);
 
 	public BasicFeatureCalculator(String name, List<Integer> channels, List<FeatureFilter> filters, double pixelSizeMicrons) {
 		this.name = name;
 		this.channels.addAll(channels);
 		this.filters.addAll(filters);
 
-		var outputChannels = new ArrayList<ImageChannel>();
+		featureNames = new ArrayList<>();
 		for (var channel : channels) {
 			for (var filter : filters) {
 				for (String featureName : filter.getFeatureNames())
-					outputChannels.add(ImageChannel.getInstance("Channel " + channel + ": " + featureName, ColorTools.makeRGB(255, 255, 255)));
+					featureNames.add("Channel " + channel + ": " + featureName);
 				//    				outputChannels.add(new PixelClassifierOutputChannel(channel.getName() + ": " + filter.getName(), ColorTools.makeRGB(255, 255, 255)));
 			}
 		}
+		featureNames = Collections.unmodifiableList(featureNames);
 
 		padding = filters.stream().mapToInt(f -> f.getPadding()).max().orElseGet(() -> 0);
-		metadata = new PixelClassifierMetadata.Builder()
-				.channels(outputChannels)
-				.inputPixelSize(pixelSizeMicrons)
-				.inputShape(512, 512)
-				.build();
-
 
 		for (int i = 1; i< nPyramidLevels; i++) {
 			padding *= 2;
@@ -135,8 +131,13 @@ public class BasicFeatureCalculator implements OpenCVFeatureCalculator {
 
 
 	@Override
-	public PixelClassifierMetadata getMetadata() {
-		return metadata;
+	public ImmutableDimension getInputSize() {
+		return inputShape;
+	}
+	
+	@Override
+	public List<String> getFeatureNames() {
+		return featureNames;
 	}
 
 }

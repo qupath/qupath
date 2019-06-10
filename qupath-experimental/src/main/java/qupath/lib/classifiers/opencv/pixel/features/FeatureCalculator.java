@@ -2,8 +2,9 @@ package qupath.lib.classifiers.opencv.pixel.features;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.util.List;
 
-import qupath.lib.classifiers.pixel.PixelClassifierMetadata;
+import qupath.lib.geom.ImmutableDimension;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.regions.RegionRequest;
 
@@ -30,13 +31,27 @@ public interface FeatureCalculator<T> {
      * @throws IOException if unable to read pixels from {@code server}
      */
     public T calculateFeatures(ImageServer<BufferedImage> server, RegionRequest request) throws IOException;
-
+    
+    /**
+     * Get the input image size requested by this calculator.
+     * @return
+     */
+    public ImmutableDimension getInputSize();
+    
+    /*
+     * Get a list containing the names of each feature, in the order that they are returned.
+     * @return
+     * 
+     * TODO: Consider if this is really necessary or if it can be removed
+     */
+    public List<String> getFeatureNames();
+    
     /**
      * Get metadata that describes how the classifier should be called,
      * and the kind of output it provides.
      *
      * @return
      */
-    public PixelClassifierMetadata getMetadata();
+//    public PixelClassifierMetadata getMetadata();
 
 }
