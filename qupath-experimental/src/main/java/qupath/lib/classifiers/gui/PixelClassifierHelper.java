@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory;
 import qupath.lib.classifiers.Normalization;
 import qupath.lib.classifiers.opencv.OpenCVClassifiers.FeaturePreprocessor;
 import qupath.lib.classifiers.opencv.OpenCVClassifiers;
+import qupath.lib.classifiers.opencv.pixel.features.Feature;
 import qupath.lib.classifiers.opencv.pixel.features.OpenCVFeatureCalculator;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageChannel;
@@ -341,8 +342,10 @@ public class PixelClassifierHelper implements PathObjectHierarchyListener {
                     int th = (int)Math.round(calculator.getInputSize().getHeight() * downsample);
                     for (int y = (int)roi.getBoundsY(); y < (int)Math.ceil(roi.getBoundsY() + roi.getBoundsHeight()); y += th) {
                         for (int x = (int)roi.getBoundsX(); x < (int)Math.ceil(roi.getBoundsX() + roi.getBoundsWidth()); x += tw) {
+                        	int x2 = Math.min(x + tw, server.getWidth());
+                        	int y2 = Math.min(y + tw, server.getHeight());
                         	requests.add(RegionRequest.createInstance(
-                        			server.getPath(), downsample, x, y, tw, th, roi.getZ(), roi.getT()));
+                        			server.getPath(), downsample, x, y, x2-x, y2-y, roi.getZ(), roi.getT()));
                         }                    	
                     }
                     
@@ -358,7 +361,9 @@ public class PixelClassifierHelper implements PathObjectHierarchyListener {
                         Mat matFeaturesFull;
 						try {
 							// TODO: FIX THE DOWNSAMPLE - IT IS LIKELY TO BE WRONG!
-							matFeaturesFull = calculator.calculateFeatures(server, request);
+							List<Feature<Mat>> features = calculator.calculateFeatures(imageData, request);
+							matFeaturesFull = new Mat();
+							opencv_core.merge(new MatVector(features.stream().map(f -> f.getFeature()).toArray(Mat[]::new)), matFeaturesFull);
 						} catch (IOException e) {
 							logger.warn("Unable to calculate features for " + request + " - will be skipped", e);
 							continue;

@@ -3,11 +3,15 @@ package qupath.lib.classifiers.opencv.pixel;
 import java.awt.image.BufferedImage;
 import java.awt.image.ColorModel;
 import java.io.IOException;
+import java.util.List;
+
 import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.opencv_core.Mat;
+import org.bytedeco.opencv.opencv_core.MatVector;
 
 import qupath.lib.classifiers.opencv.OpenCVClassifiers.FeaturePreprocessor;
 import qupath.lib.classifiers.opencv.OpenCVClassifiers.OpenCVStatModel;
+import qupath.lib.classifiers.opencv.pixel.features.Feature;
 import qupath.lib.classifiers.opencv.pixel.features.OpenCVFeatureCalculator;
 import qupath.lib.classifiers.pixel.PixelClassifierMetadata;
 import qupath.lib.classifiers.pixel.PixelClassifiers;
@@ -123,17 +127,26 @@ public class OpenCVPixelClassifier extends AbstractOpenCVPixelClassifier {
         // Get the pixels into a friendly format
 //        Mat matInput = OpenCVTools.imageToMatRGB(img, false);
     	
-    	var server = imageData.getServer();
-    	Mat matFeatures = calculator.calculateFeatures(server, request);
+    	List<Feature<Mat>> features = calculator.calculateFeatures(imageData, request);
     	
 //    	PixelClassifierMetadata metadata = getMetadata();
 //        normalizeFeatures(matFeatures, metadata.getInputChannelMeans(), metadata.getInputChannelScales());
 
-        int heightFeatures = matFeatures.rows();
+    	Mat firstFeature = features.get(0).getFeature();
+        int heightFeatures = firstFeature.rows();
 
         // Get probabilities
         Mat matOutput = new Mat();
-        matFeatures = matFeatures.reshape(1, matFeatures.rows()*matFeatures.cols());
+        Mat[] columns = new Mat[features.size()];
+        int i = 0;
+        for (Feature<Mat> feature : features) {
+        	Mat temp = feature.getFeature();
+        	columns[i++] = temp.reshape(1, (int)temp.total());
+        }
+        Mat matFeatures = new Mat();
+    	opencv_core.hconcat(new MatVector(columns), matFeatures);
+    	if (matFeatures.channels() > 1)
+    		matFeatures.put(matFeatures.reshape(1, matFeatures.rows()*matFeatures.channels()));
         
     	if (preprocessor != null)
     		preprocessor.apply(matFeatures);

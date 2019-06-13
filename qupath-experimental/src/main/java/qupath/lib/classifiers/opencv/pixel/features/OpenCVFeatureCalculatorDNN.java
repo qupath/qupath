@@ -2,9 +2,8 @@ package qupath.lib.classifiers.opencv.pixel.features;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
-
 import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.opencv_core.Mat;
 import org.bytedeco.opencv.opencv_core.MatVector;
@@ -20,7 +19,7 @@ import qupath.lib.classifiers.gui.PixelClassifierStatic;
 import qupath.lib.classifiers.opencv.OpenCVDNN;
 import qupath.lib.classifiers.pixel.PixelClassifierMetadata;
 import qupath.lib.geom.ImmutableDimension;
-import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.ImageData;
 import qupath.lib.io.OpenCVTypeAdapters;
 import qupath.lib.regions.RegionRequest;
 import qupath.opencv.processing.OpenCVTools;
@@ -90,9 +89,9 @@ public class OpenCVFeatureCalculatorDNN implements OpenCVFeatureCalculator {
     }
 
 	@Override
-	public Mat calculateFeatures(ImageServer<BufferedImage> server, RegionRequest request) throws IOException {
+	public List<Feature<Mat>> calculateFeatures(ImageData<BufferedImage> imageData, RegionRequest request) throws IOException {
 		int padding = 0;//getMetadata().getInputPadding(); // TODO: Check necessity of padding
-		BufferedImage img = PixelClassifierStatic.getPaddedRequest(server, request, padding);
+		BufferedImage img = PixelClassifierStatic.getPaddedRequest(imageData.getServer(), request, padding);
 		
 		Mat mat = OpenCVTools.imageToMat(img);
 		
@@ -118,7 +117,7 @@ public class OpenCVFeatureCalculatorDNN implements OpenCVFeatureCalculator {
         		Mat matTemp = matResult.rowRange(padding, height-padding-yPad).colRange(padding, width-padding-xPad).clone();
 //        		Mat matTemp = matResult.apply(new opencv_core.Rect(padding, padding, width-padding*2-xPad, height-padding*2-yPad)).clone();
 	        	matResult.release();
-	        	return matTemp;
+	        	matResult = matTemp;
         	} catch (Exception e) {
         		logger.error(
         				String.format("Error cropped Mat %d x %d with rectangle (%d, %d, %d, %d)",
@@ -129,8 +128,15 @@ public class OpenCVFeatureCalculatorDNN implements OpenCVFeatureCalculator {
 //        			rect.close();        		
         	}
         }
+        
+        MatVector output = new MatVector();
+        opencv_core.split(matResult, output);
+        List<Feature<Mat>> features = new ArrayList<>();
+        for (int i = 0; i < output.size(); i++) {
+        	features.add(new DefaultFeature<>(metadata.getChannels().get(i).getName(), output.get(i)));
+        }
 
-        return matResult;
+        return features;
 	}
 	
 	@Override
@@ -138,9 +144,9 @@ public class OpenCVFeatureCalculatorDNN implements OpenCVFeatureCalculator {
 		return new ImmutableDimension(metadata.getInputWidth(), metadata.getInputHeight());
 	}
 
-	@Override
-	public List<String> getFeatureNames() {
-		return metadata.getChannels().stream().map(c -> c.getName()).collect(Collectors.toList());
-	}
+//	@Override
+//	public List<String> getFeatureNames() {
+//		return metadata.getChannels().stream().map(c -> c.getName()).collect(Collectors.toList());
+//	}
 
 }

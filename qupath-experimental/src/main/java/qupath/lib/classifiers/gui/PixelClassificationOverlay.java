@@ -10,7 +10,6 @@ import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.overlays.AbstractImageDataOverlay;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.TileRequest;
-import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.regions.ImageRegion;
@@ -33,6 +32,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javafx.application.Platform;
 
 /**
  * PathOverlay that gives the results of pixel classification.
@@ -295,8 +296,11 @@ public class PixelClassificationOverlay extends AbstractImageDataOverlay  {
                     var hierarchy = imageData == null ? null : imageData.getHierarchy();
                     if (hierarchy != null) {
 	                    var annotations = hierarchy.getAnnotationObjects();
-	                    if (!annotations.isEmpty())
-	                    	hierarchy.fireObjectMeasurementsChangedEvent(this, annotations);
+	                    if (!annotations.isEmpty()) {
+	                    	Platform.runLater(() -> {
+	                    		hierarchy.fireObjectMeasurementsChangedEvent(this, annotations);
+	                    	});
+	                    }
                     }
                     
                 } catch (Exception e) {

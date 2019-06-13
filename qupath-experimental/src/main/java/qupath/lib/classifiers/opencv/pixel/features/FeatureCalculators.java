@@ -9,7 +9,6 @@ import com.google.gson.reflect.TypeToken;
 public class FeatureCalculators {
 	
 	public static void initialize() {
-		FeatureCalculatorTypeAdapterFactory.registerSubtype(BasicFeatureCalculator.class);
 		FeatureCalculatorTypeAdapterFactory.registerSubtype(OpenCVFeatureCalculatorDNN.class);
 	}
 	
