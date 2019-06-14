@@ -36,6 +36,7 @@ import qupath.lib.common.ColorTools;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
+import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
 
@@ -210,12 +211,13 @@ public class OMEPyramidWriter {
 		}
 
 		// Set physical units, if we have them
-		if (server.hasPixelSizeMicrons()) {
-			meta.setPixelsPhysicalSizeX(new Length(server.getPixelWidthMicrons() * downsamples[0], UNITS.MICROMETER), series);
-			meta.setPixelsPhysicalSizeY(new Length(server.getPixelHeightMicrons() * downsamples[0], UNITS.MICROMETER), series);
+		PixelCalibration cal = server.getPixelCalibration();
+		if (cal.hasPixelSizeMicrons()) {
+			meta.setPixelsPhysicalSizeX(new Length(cal.getPixelWidthMicrons() * downsamples[0], UNITS.MICROMETER), series);
+			meta.setPixelsPhysicalSizeY(new Length(cal.getPixelHeightMicrons() * downsamples[0], UNITS.MICROMETER), series);
 		}
-		if (!Double.isNaN(server.getZSpacingMicrons()))
-			meta.setPixelsPhysicalSizeZ(new Length(server.getZSpacingMicrons(), UNITS.MICROMETER), series);
+		if (!Double.isNaN(cal.getZSpacingMicrons()))
+			meta.setPixelsPhysicalSizeZ(new Length(cal.getZSpacingMicrons(), UNITS.MICROMETER), series);
 
 		// TODO: Consider setting the magnification
 

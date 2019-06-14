@@ -90,7 +90,7 @@ public class ServerTools {
 	public static double getDownsampleFactor(final ImageServer<?> server, final double preferredPixelSizeMicrons) {
 		if (server == null)
 			return Double.NaN;
-		double downsampleFactor = getPreferredDownsampleForPixelSizeMicrons(server.getAveragedPixelSizeMicrons(), preferredPixelSizeMicrons, false);
+		double downsampleFactor = getPreferredDownsampleForPixelSizeMicrons(server.getPixelCalibration().getAveragedPixelSizeMicrons(), preferredPixelSizeMicrons, false);
 		if (Double.isNaN(downsampleFactor) || downsampleFactor < 1)
 			downsampleFactor = 1;
 		return downsampleFactor;

@@ -34,6 +34,7 @@ import java.util.stream.Collectors;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathROIObject;
@@ -84,7 +85,7 @@ public class RefineAnnotationsPlugin<T> extends AbstractInteractivePlugin<T> {
 
 	@Override
 	public ParameterList getDefaultParameterList(ImageData<T> imageData) {
-		boolean hasMicrons = imageData.getServer().hasPixelSizeMicrons();
+		boolean hasMicrons = imageData.getServer().getPixelCalibration().hasPixelSizeMicrons();
 		params.setHiddenParameters(hasMicrons, "minFragmentSizePixels", "maxHoleSizePixels");
 		params.setHiddenParameters(!hasMicrons, "minFragmentSizeMicrons", "maxHoleSizeMicrons");
 		return params;
@@ -111,8 +112,9 @@ public class RefineAnnotationsPlugin<T> extends AbstractInteractivePlugin<T> {
 		double minFragmentSize;
 		double maxHoleSize, maxHoleSizeTemp;
 		ImageServer<T> server = getServer(runner);
-		if (server.hasPixelSizeMicrons()) {
-			double pixelAreaMicrons = server.getPixelWidthMicrons() * server.getPixelHeightMicrons();
+		PixelCalibration cal = server.getPixelCalibration();
+		if (cal.hasPixelSizeMicrons()) {
+			double pixelAreaMicrons = cal.getPixelWidthMicrons() * cal.getPixelHeightMicrons();
 			minFragmentSize = params.getDoubleParameterValue("minFragmentSizeMicrons") / pixelAreaMicrons;
 			maxHoleSizeTemp = params.getDoubleParameterValue("maxHoleSizeMicrons") / pixelAreaMicrons;
 		} else {

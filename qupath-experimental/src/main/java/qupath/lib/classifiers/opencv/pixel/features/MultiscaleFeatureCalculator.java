@@ -23,6 +23,7 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.geom.ImmutableDimension;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.io.OpenCVTypeAdapters;
 import qupath.lib.regions.RegionRequest;
 import qupath.opencv.processing.HessianCalculator;
@@ -50,7 +51,8 @@ public class MultiscaleFeatureCalculator implements OpenCVFeatureCalculator {
 			for (double sigma : sigmaValues) {
 				GaussianScale scale;
 				if (do3D) {
-					double sigmaZ = sigma / imageData.getServer().getZSpacingMicrons() * imageData.getServer().getAveragedPixelSizeMicrons();
+					PixelCalibration cal = imageData.getServer().getPixelCalibration();
+					double sigmaZ = sigma / cal.getZSpacingMicrons() * cal.getAveragedPixelSizeMicrons();
 					scale = GaussianScale.create(sigma, sigma, sigmaZ);
 				} else {
 					scale = GaussianScale.create(sigma, sigma, 0);
@@ -136,8 +138,9 @@ public class MultiscaleFeatureCalculator implements OpenCVFeatureCalculator {
 			
 			if (localNormalizeSigma > 0) {
 				double downsample = request.getDownsample();
-				double pixelSize = server.hasPixelSizeMicrons() ? server.getAveragedPixelSizeMicrons() * downsample : downsample;
-				double zSpacing = server.getZSpacingMicrons();
+				PixelCalibration cal = server.getPixelCalibration();
+				double pixelSize = cal.hasPixelSizeMicrons() ? cal.getAveragedPixelSizeMicrons() * downsample : downsample;
+				double zSpacing = cal.getZSpacingMicrons();
 				if (!Double.isFinite(zSpacing))
 					zSpacing = 1.0;
 				double sigmaX = localNormalizeSigma;
@@ -239,6 +242,7 @@ public class MultiscaleFeatureCalculator implements OpenCVFeatureCalculator {
 		private Collection<HessianCalculator.MultiscaleFeature> features;
 		
 		MultiscaleFeatureComputer(String baseName, GaussianScale scale, MultiscaleFeature... features) {
+			this.scale = scale;
 			this.baseName = baseName;
 			this.features = Arrays.asList(features);
 		}

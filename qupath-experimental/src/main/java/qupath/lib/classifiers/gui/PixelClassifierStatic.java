@@ -383,7 +383,7 @@ public class PixelClassifierStatic {
 			var request = RegionRequest.createInstance(
 					server.getPath(), server.getDownsampleForResolution(0), 
 					selectedObject.getROI());			
-			tiles = server.getTiles(request);
+			tiles = server.getTileRequests(request);
 		}
 	
 		Map<PathClass, List<PathObject>> pathObjectMap = tiles.parallelStream().map(t -> {

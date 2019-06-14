@@ -33,12 +33,12 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.geom.ImmutableDimension;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.plugins.AbstractDetectionPlugin;
-import qupath.lib.plugins.PathPlugin;
 import qupath.lib.plugins.PathTask;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.roi.RoiTools;
@@ -103,10 +103,11 @@ public class TilerPlugin<T> extends AbstractDetectionPlugin<T> {
 		public static <T> ImmutableDimension getPreferredTileSizePixels(final ParameterList params, final ImageServer<T> server) {
 			// Determine tile size
 			int tileWidth, tileHeight;
-			if (server.hasPixelSizeMicrons()) {
+			PixelCalibration cal = server.getPixelCalibration();
+			if (cal.hasPixelSizeMicrons()) {
 				double tileSize = params.getDoubleParameterValue("tileSizeMicrons");
-				tileWidth = (int)(tileSize / server.getPixelWidthMicrons() + .5);
-				tileHeight = (int)(tileSize / server.getPixelHeightMicrons() + .5);
+				tileWidth = (int)(tileSize / cal.getPixelWidthMicrons() + .5);
+				tileHeight = (int)(tileSize / cal.getPixelHeightMicrons() + .5);
 			} else {
 				tileWidth = (int)(params.getDoubleParameterValue("tileSizePx") + .5);
 				tileHeight = tileWidth;
@@ -190,7 +191,7 @@ public class TilerPlugin<T> extends AbstractDetectionPlugin<T> {
 	@Override
 	public ParameterList getDefaultParameterList(final ImageData<T> imageData) {
 		
-		boolean pixelsInMicrons = imageData.getServer().hasPixelSizeMicrons();
+		boolean pixelsInMicrons = imageData.getServer().getPixelCalibration().hasPixelSizeMicrons();
 		params.getParameters().get("tileSizeMicrons").setHidden(!pixelsInMicrons);
 		params.getParameters().get("tileSizePx").setHidden(pixelsInMicrons);
 		

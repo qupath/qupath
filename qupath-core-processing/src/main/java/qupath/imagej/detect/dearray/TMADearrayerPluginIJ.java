@@ -44,6 +44,7 @@ import qupath.imagej.tools.IJTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.PathImage;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.PathRootObject;
@@ -138,7 +139,7 @@ public class TMADearrayerPluginIJ extends AbstractInteractivePlugin<BufferedImag
 	
 	@Override
 	public ParameterList getDefaultParameterList(final ImageData<BufferedImage> imageData) {
-		if (imageData.getServer().hasPixelSizeMicrons()) {
+		if (imageData.getServer().getPixelCalibration().hasPixelSizeMicrons()) {
 			params.getParameters().get("coreDiameterPixels").setHidden(true);
 			params.getParameters().get("coreDiameterMM").setHidden(false);
 		}
@@ -183,8 +184,9 @@ public class TMADearrayerPluginIJ extends AbstractInteractivePlugin<BufferedImag
 					
 			double fullCoreDiameterPx;
 			ImageServer<BufferedImage> server = imageData.getServer();
-			if (server.hasPixelSizeMicrons())
-				fullCoreDiameterPx = params.getDoubleParameterValue("coreDiameterMM") / server.getAveragedPixelSizeMicrons() * 1000;
+			PixelCalibration cal = server.getPixelCalibration();
+			if (cal.hasPixelSizeMicrons())
+				fullCoreDiameterPx = params.getDoubleParameterValue("coreDiameterMM") / cal.getAveragedPixelSizeMicrons() * 1000;
 			else
 				fullCoreDiameterPx = params.getDoubleParameterValue("coreDiameterPixels");
 
@@ -216,9 +218,10 @@ public class TMADearrayerPluginIJ extends AbstractInteractivePlugin<BufferedImag
 
 			// Compute alternative downsample factor based on requested pixel size
 			// This is likely to be a bit more reproducible - so use it instead
-			if (server.hasPixelSizeMicrons()) {
+			PixelCalibration pixelCalibration = server.getPixelCalibration();
+			if (pixelCalibration.hasPixelSizeMicrons()) {
 				double preferredPixelSizeMicrons = 25;
-				double downsample2 = Math.round(preferredPixelSizeMicrons / server.getAveragedPixelSizeMicrons());
+				double downsample2 = Math.round(preferredPixelSizeMicrons / pixelCalibration.getAveragedPixelSizeMicrons());
 				if (downsample2 > 1 && (maxDimLength / downsample2 < dimRequested*2))
 					downsample = downsample2;
 			}

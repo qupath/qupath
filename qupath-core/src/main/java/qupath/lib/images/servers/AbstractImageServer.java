@@ -118,16 +118,6 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 			downsample = 1;
 		return downsample;
 	}
-
-	@Override
-	public boolean hasPixelSizeMicrons() {
-		return !Double.isNaN(getPixelWidthMicrons() + getPixelHeightMicrons());
-	}
-	
-	@Override
-	public double getAveragedPixelSizeMicrons() {
-		return 0.5 * (getPixelWidthMicrons() + getPixelHeightMicrons());
-	}
 	
 	protected int getPreferredResolutionLevel(double requestedDownsample) {
 		var metadata = getMetadata();
@@ -261,25 +251,10 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 	public int nChannels() {
 		return getMetadata().getSizeC(); // Only RGB
 	}
-
-	@Override
-	public double getPixelWidthMicrons() {
-		return getMetadata().getPixelWidthMicrons();
-	}
-
-	@Override
-	public double getPixelHeightMicrons() {
-		return getMetadata().getPixelHeightMicrons();
-	}
 	
 	@Override
 	public int nZSlices() {
 		return getMetadata().getSizeZ();
-	}
-
-	@Override
-	public double getZSpacingMicrons() {
-		return getMetadata().getZSpacingMicrons();
 	}
 	
 	@Override
@@ -373,12 +348,12 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 	}
 	
 	@Override
-	public TileRequest getTile(int level, int x, int y, int z, int t) {
+	public TileRequest getTileRequest(int level, int x, int y, int z, int t) {
 		return getTileRequestManager().getTile(level, x, y, z, t);
 	}
 	
 	@Override
-	public Collection<TileRequest> getTiles(final RegionRequest request) {
+	public Collection<TileRequest> getTileRequests(final RegionRequest request) {
 		return getTileRequestManager().getTiles(request);
 	}
 	

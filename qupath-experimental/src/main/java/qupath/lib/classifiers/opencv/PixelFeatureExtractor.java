@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.objects.PathObject;
 import qupath.lib.regions.RegionRequest;
 
@@ -26,7 +27,8 @@ class PixelFeatureExtractor extends FeatureExtractor {
 	PixelFeatureExtractor(final ImageServer<BufferedImage> server, final int width, final int height, final double requestedPixelSizeMicrons) {
 		super(Collections.emptyList());
 		this.server = server;
-		this.downsample = server.hasPixelSizeMicrons() ? requestedPixelSizeMicrons / server.getAveragedPixelSizeMicrons() : requestedPixelSizeMicrons;
+		PixelCalibration cal = server.getPixelCalibration();
+		this.downsample = cal.hasPixelSizeMicrons() ? requestedPixelSizeMicrons / cal.getAveragedPixelSizeMicrons() : requestedPixelSizeMicrons;
 		this.width = width;
 		this.height = height;
 		for (int c = 0; c < server.nChannels(); c++) {

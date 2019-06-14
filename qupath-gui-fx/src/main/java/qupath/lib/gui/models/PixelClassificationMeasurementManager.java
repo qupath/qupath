@@ -20,6 +20,7 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
+import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.images.servers.TileRequest;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.measurements.MeasurementList.MeasurementListType;
@@ -57,12 +58,13 @@ public class PixelClassificationMeasurementManager {
 		
         // Calculate area of a pixel
         requestedDownsample = classifierServer.getDownsampleForResolution(0);
-        if (classifierServer.hasPixelSizeMicrons()) {
-	        pixelArea = (classifierServer.getPixelWidthMicrons() * requestedDownsample) * (classifierServer.getPixelHeightMicrons() * requestedDownsample);
+        PixelCalibration cal = classifierServer.getPixelCalibration();
+        if (cal.hasPixelSizeMicrons()) {
+	        pixelArea = (cal.getPixelWidthMicrons() * requestedDownsample) * (cal.getPixelHeightMicrons() * requestedDownsample);
 	        pixelAreaUnits = GeneralTools.micrometerSymbol() + "^2";
 	//        if (!pathObject.isDetection()) {
 	        	double scale = requestedDownsample / 1000.0;
-	            pixelArea = (classifierServer.getPixelWidthMicrons() * scale) * (classifierServer.getPixelHeightMicrons() * scale);
+	            pixelArea = (cal.getPixelWidthMicrons() * scale) * (cal.getPixelHeightMicrons() * scale);
 	            pixelAreaUnits = "mm^2";
 	//        }
         } else {
@@ -133,7 +135,7 @@ public class PixelClassificationMeasurementManager {
         
         // Get the regions we need
         var regionRequest = RegionRequest.createInstance(server.getPath(), requestedDownsample, roi);
-        Collection<TileRequest> requests = server.getTiles(regionRequest);
+        Collection<TileRequest> requests = server.getTileRequests(regionRequest);
         
         if (requests.isEmpty()) {
         	logger.debug("Request empty for {}", roi);

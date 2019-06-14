@@ -34,7 +34,6 @@ import java.awt.image.DataBufferByte;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Iterator;
-import java.util.List;
 
 import static org.bytedeco.opencv.global.opencv_core.*;
 import static org.bytedeco.opencv.global.opencv_video.*;
@@ -51,6 +50,7 @@ import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathROIObject;
@@ -136,8 +136,9 @@ public class AlignCoreAnnotationsCV implements PathCommand {
 			ImageServer<BufferedImage> server = imageData.getServer();
 			double downsample = 1;
 			double preferredPixelSizeMicrons = 4;
-			if (server.hasPixelSizeMicrons() && server.getAveragedPixelSizeMicrons() < preferredPixelSizeMicrons) {
-				downsample = preferredPixelSizeMicrons / server.getAveragedPixelSizeMicrons();
+			PixelCalibration cal = server.getPixelCalibration();
+			if (cal.hasPixelSizeMicrons() && cal.getAveragedPixelSizeMicrons() < preferredPixelSizeMicrons) {
+				downsample = preferredPixelSizeMicrons / cal.getAveragedPixelSizeMicrons();
 			}
 			RegionRequest request = RegionRequest.createInstance(server.getPath(), downsample, parentObject.getROI());
 			BufferedImage img = null;

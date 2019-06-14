@@ -61,6 +61,7 @@ import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.measurements.MeasurementListFactory;
 import qupath.lib.measurements.MeasurementList.MeasurementListType;
@@ -216,11 +217,12 @@ public class SubcellularDetection extends AbstractInteractivePlugin<BufferedImag
 
 		// Determine spot size
 		ImageServer<BufferedImage> server = imageWrapper.getServer();
-		double spotSizeMicrons = server.hasPixelSizeMicrons() ? params.getDoubleParameterValue("spotSizeMicrons") : Double.NaN;
-		double minSpotSizeMicrons = server.hasPixelSizeMicrons() ? params.getDoubleParameterValue("minSpotSizeMicrons") : Double.NaN;
-		double maxSpotSizeMicrons = server.hasPixelSizeMicrons() ? params.getDoubleParameterValue("maxSpotSizeMicrons") : Double.NaN;
-		double pixelWidth = server.getPixelWidthMicrons() * downsample;
-		double pixelHeight = server.getPixelHeightMicrons() * downsample;
+		PixelCalibration cal = server.getPixelCalibration();
+		double spotSizeMicrons = cal.hasPixelSizeMicrons() ? params.getDoubleParameterValue("spotSizeMicrons") : Double.NaN;
+		double minSpotSizeMicrons = cal.hasPixelSizeMicrons() ? params.getDoubleParameterValue("minSpotSizeMicrons") : Double.NaN;
+		double maxSpotSizeMicrons = cal.hasPixelSizeMicrons() ? params.getDoubleParameterValue("maxSpotSizeMicrons") : Double.NaN;
+		double pixelWidth = cal.getPixelWidthMicrons() * downsample;
+		double pixelHeight = cal.getPixelHeightMicrons() * downsample;
 		double singleSpotArea = spotSizeMicrons / (pixelWidth * pixelHeight);
 		double minSpotArea = minSpotSizeMicrons / (pixelWidth * pixelHeight);
 		double maxSpotArea = maxSpotSizeMicrons / (pixelWidth * pixelHeight);
@@ -255,9 +257,9 @@ public class SubcellularDetection extends AbstractInteractivePlugin<BufferedImag
 			SimpleImage img = imageWrapper.getRegion(region, channelName);
 
 			// Get an ImageJ-friendly calibration for ROI conversion
-			Calibration cal = new Calibration();
-			cal.xOrigin = -xStart/downsample;
-			cal.yOrigin = -yStart/downsample;
+			Calibration calIJ = new Calibration();
+			calIJ.xOrigin = -xStart/downsample;
+			calIJ.yOrigin = -yStart/downsample;
 
 			// Create a cell mask
 			if (cellMask == null) {
@@ -321,13 +323,13 @@ public class SubcellularDetection extends AbstractInteractivePlugin<BufferedImag
 
 				PathObject cluster = null;
 				if (stats.pixelCount > minSpotArea && stats.pixelCount <= maxSpotArea) {
-					ROI roi = IJTools.convertToROI(spotRoi, cal, downsample, plane);
+					ROI roi = IJTools.convertToROI(spotRoi, calIJ, downsample, plane);
 //					cluster = new SubcellularObject(roi, 1);
 					cluster = createSubcellularObject(roi, 1);
 					estimatedSpots += 1;
 				} else if (includeClusters && stats.pixelCount > minSpotArea) {
 					// Add a cluster
-					ROI roi = IJTools.convertToROI(spotRoi, cal, downsample, plane);
+					ROI roi = IJTools.convertToROI(spotRoi, calIJ, downsample, plane);
 					double nSpots = stats.pixelCount / singleSpotArea;
 					estimatedSpots += nSpots;
 //					cluster = new SubcellularObject(roi, nSpots);
@@ -385,7 +387,7 @@ public class SubcellularDetection extends AbstractInteractivePlugin<BufferedImag
 		
 		params.addBooleanParameter("includeClusters", "Include clusters", true, "Store anything larger than 'Max spot size' as a cluster, instead of ignoring it");
 		
-		boolean hasMicrons = imageData.getServer().hasPixelSizeMicrons();
+		boolean hasMicrons = imageData.getServer().getPixelCalibration().hasPixelSizeMicrons();
 		params.setHiddenParameters(!hasMicrons, "spotSizeMicrons", "minSpotSizeMicrons", "maxSpotSizeMicrons", "includeClusters");
 		return params;
 	}

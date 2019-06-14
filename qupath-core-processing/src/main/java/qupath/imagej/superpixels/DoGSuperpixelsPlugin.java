@@ -32,8 +32,6 @@ import ij.process.Blitter;
 import ij.process.ByteProcessor;
 import ij.process.FloatProcessor;
 import ij.process.ImageProcessor;
-import ij.process.ShortProcessor;
-
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -83,8 +81,9 @@ public class DoGSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffer
 	@Override
 	protected double getPreferredPixelSizeMicrons(final ImageData<BufferedImage> imageData, final ParameterList params) {
 		double pixelSize = params.getDoubleParameterValue("downsampleFactor");
-		if (imageData != null && imageData.getServer().hasPixelSizeMicrons())
-			pixelSize *= imageData.getServer().getAveragedPixelSizeMicrons();
+		PixelCalibration cal = imageData.getServer().getPixelCalibration();
+		if (imageData != null && cal.hasPixelSizeMicrons())
+			pixelSize *= cal.getAveragedPixelSizeMicrons();
 		return pixelSize;
 	}
 
@@ -109,7 +108,7 @@ public class DoGSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffer
 				addDoubleParameter("noiseThreshold", "Noise threshold", 1, null, "Local threshold used to determine the number of regions created")
 				;
 		
-		boolean hasMicrons = imageData != null && imageData.getServer().hasPixelSizeMicrons();
+		boolean hasMicrons = imageData != null && imageData.getServer().getPixelCalibration().hasPixelSizeMicrons();
 		params.getParameters().get("sigmaPixels").setHidden(hasMicrons);
 		params.getParameters().get("sigmaMicrons").setHidden(!hasMicrons);
 		
@@ -269,7 +268,7 @@ public class DoGSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffer
 		
 		
 		static double getSigma(final PathImage<?> pathImage, final ParameterList params) {
-			double pixelSizeMicrons = PixelCalibration.getAveragePixelSizeMicrons(pathImage.getPixelCalibration());
+			double pixelSizeMicrons = pathImage.getPixelCalibration().getAveragedPixelSizeMicrons();
 			if (Double.isNaN(pixelSizeMicrons)) {
 				return params.getDoubleParameterValue("sigmaPixels") * params.getDoubleParameterValue("downsampleFactor");				
 			} else

@@ -39,6 +39,7 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.helpers.ColorToolsFX;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.objects.PathObject;
 
 /**
@@ -123,8 +124,9 @@ public class Scalebar implements QuPathViewerListener {
 			// The scalebar is shown horizontally - so request the horizontal scale, if known
 			double scale = 1.0;
 			String unit = "px";
-			if (server.hasPixelSizeMicrons()) {
-				scale = server.getPixelWidthMicrons();
+			PixelCalibration cal = server.getPixelCalibration();
+			if (cal.hasPixelSizeMicrons()) {
+				scale = cal.getPixelWidthMicrons();
 				unit = GeneralTools.micrometerSymbol();
 			}
 			// The size of one pixel... in some kind of units

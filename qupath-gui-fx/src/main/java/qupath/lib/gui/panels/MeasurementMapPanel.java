@@ -57,7 +57,6 @@ import qupath.lib.gui.helpers.MeasurementMapper;
 import qupath.lib.gui.helpers.MeasurementMapper.ColorMapper;
 import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.gui.viewer.QuPathViewer;
-import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 

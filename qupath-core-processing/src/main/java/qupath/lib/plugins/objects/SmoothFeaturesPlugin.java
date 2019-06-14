@@ -37,6 +37,7 @@ import qupath.lib.classifiers.PathClassificationLabellingHelper;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathDetectionObject;
@@ -112,10 +113,11 @@ public class SmoothFeaturesPlugin<T> extends AbstractInteractivePlugin<T> {
 		double fwhm;
 		ImageServer<T> server = imageData.getServer();
 		String fwhmStringTemp;
-		if (server != null && server.hasPixelSizeMicrons()) {
+		PixelCalibration cal = server == null ? null : server.getPixelCalibration();
+		if (cal != null && cal.hasPixelSizeMicrons()) {
 			fwhm = getParameterList(imageData).getDoubleParameterValue("fwhmMicrons");
 			fwhmStringTemp = GeneralTools.createFormatter(2).format(fwhm) + " " + GeneralTools.micrometerSymbol();
-			fwhm /= server.getAveragedPixelSizeMicrons();
+			fwhm /= cal.getAveragedPixelSizeMicrons();
 //			params.addDoubleParameter("fwhmPixels", "Radius (FWHM)", fwhm, "pixels"); // Set the FWHM in pixels too
 		}
 		else {
@@ -390,7 +392,7 @@ public class SmoothFeaturesPlugin<T> extends AbstractInteractivePlugin<T> {
 	@Override
 	public ParameterList getDefaultParameterList(final ImageData<T> imageData) {
 		ImageServer<? extends T> server = imageData.getServer();
-		boolean pixelSizeMicrons = server != null && server.hasPixelSizeMicrons();
+		boolean pixelSizeMicrons = server != null && server.getPixelCalibration().hasPixelSizeMicrons();
 		params.getParameters().get("fwhmMicrons").setHidden(!pixelSizeMicrons);
 		params.getParameters().get("fwhmPixels").setHidden(pixelSizeMicrons);
 		return params;

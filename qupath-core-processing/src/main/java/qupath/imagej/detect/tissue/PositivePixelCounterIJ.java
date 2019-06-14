@@ -49,6 +49,7 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.PathImage;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClass;
@@ -111,7 +112,8 @@ public class PositivePixelCounterIJ extends AbstractDetectionPlugin<BufferedImag
 			}
 			
 			// Derive more useful values
-			double pixelSize = imageData.getServer().getAveragedPixelSizeMicrons() * downsample;
+			PixelCalibration cal = imageData.getServer().getPixelCalibration();
+			double pixelSize = cal.getAveragedPixelSizeMicrons() * downsample;
 			double gaussianSigma = gaussianSigmaMicrons / pixelSize;
 			
 			// Read the image, if necessary
@@ -192,10 +194,10 @@ public class PositivePixelCounterIJ extends AbstractDetectionPlugin<BufferedImag
 			double meanPositive = nPositive == 0 ? Double.NaN : sumPositive / nPositive;
 			double meanNegative = nNegative == 0 ? Double.NaN : sumNegative / nNegative;
 			
-			boolean hasPixelSizeMicrons = server.hasPixelSizeMicrons();
+			boolean hasPixelSizeMicrons = cal.hasPixelSizeMicrons();
 			String areaUnits = hasPixelSizeMicrons ? GeneralTools.micrometerSymbol() + "^2" : "px^2";
-			double pixelWidth = hasPixelSizeMicrons ? server.getPixelWidthMicrons() : 1;
-			double pixelHeight = hasPixelSizeMicrons ? server.getPixelHeightMicrons() : 1;
+			double pixelWidth = hasPixelSizeMicrons ? cal.getPixelWidthMicrons() : 1;
+			double pixelHeight = hasPixelSizeMicrons ? cal.getPixelHeightMicrons() : 1;
 			double areaNegative = 0;
 			double areaPositive = 0;
 			

@@ -141,34 +141,12 @@ public interface ImageServer<T> extends AutoCloseable {
 	public int nTimepoints();
 	
 	/**
-	 * Spacing between slices of a z-stack, or Double.NaN if this is unknown of the image is not a z-stack.
+	 * Get the PixelCalibration object from the current metadata.
 	 * @return
 	 */
-	public double getZSpacingMicrons();
-
-	/**
-	 * The pixel width of the full-resolution image in microns, or Double.NaN if this is unknown.
-	 * @return
-	 */
-	public double getPixelWidthMicrons();
-
-	/**
-	 * The pixel height of the full-resolution image in microns, or Double.NaN if this is unknown.
-	 * @return
-	 */
-	public double getPixelHeightMicrons();
-	
-	/**
-	 * The mean of the pixel width &amp; height, if available; for square pixels this is the same as either width * height
-	 * @return
-	 */
-	public double getAveragedPixelSizeMicrons();
-
-	/**
-	 * True if the pixel size is known, False otherwise.
-	 * @return
-	 */
-	public boolean hasPixelSizeMicrons();
+	public default PixelCalibration getPixelCalibration() {
+		return getMetadata().getPixelCalibration();
+	}
 	
 	/**
 	 * Get the output type, used to interpret what channels mean.
@@ -382,7 +360,7 @@ public interface ImageServer<T> extends AutoCloseable {
 	 * @param t
 	 * @return
 	 */
-	public TileRequest getTile(int level, int x, int y, int z, int t);
+	public TileRequest getTileRequest(int level, int x, int y, int z, int t);
 	
 	/**
 	 * Get a collection of {@link TileRequest} objects necessary to fulfil a specific {@link RegionRequest}.
@@ -390,7 +368,7 @@ public interface ImageServer<T> extends AutoCloseable {
 	 * @param request
 	 * @return
 	 */
-	public Collection<TileRequest> getTiles(final RegionRequest request);
+	public Collection<TileRequest> getTileRequests(final RegionRequest request);
 	
 	/**
 	 * Get the class of the image representation returned by this ImageServer.

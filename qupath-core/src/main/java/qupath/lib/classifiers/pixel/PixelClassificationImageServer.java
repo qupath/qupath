@@ -73,7 +73,7 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 			tileHeight = DEFAULT_TILE_SIZE;
 		
 		double inputPixelSize = classifierMetadata.getInputPixelSize();
-		double downsample = inputPixelSize / server.getAveragedPixelSizeMicrons();
+		double downsample = inputPixelSize / server.getPixelCalibration().getAveragedPixelSizeMicrons();
 		if (!Double.isFinite(downsample))
 			downsample = inputPixelSize;
 		
@@ -168,7 +168,7 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 		if (type != ImageServerMetadata.ChannelType.CLASSIFICATION && type != ImageServerMetadata.ChannelType.PROBABILITY)
 			return -1;
 		
-		var tile = getTile(0, x, y, z, t);
+		var tile = getTileRequest(0, x, y, z, t);
 		if (tile == null)
 			return -1;
 		

@@ -54,6 +54,7 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.PathImage;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
@@ -133,8 +134,9 @@ public class SimpleTissueDetection2 extends AbstractDetectionPlugin<BufferedImag
 			ImageServer<BufferedImage> server = imageData.getServer();
 			
 			double downsample;
-			if (server.hasPixelSizeMicrons()) {
-				downsample = params.getDoubleParameterValue("requestedPixelSizeMicrons") / server.getAveragedPixelSizeMicrons();
+			PixelCalibration cal = server.getPixelCalibration();
+			if (cal.hasPixelSizeMicrons()) {
+				downsample = params.getDoubleParameterValue("requestedPixelSizeMicrons") / cal.getAveragedPixelSizeMicrons();
 			} else
 				downsample = params.getDoubleParameterValue("requestedDownsample");
 			
@@ -159,7 +161,7 @@ public class SimpleTissueDetection2 extends AbstractDetectionPlugin<BufferedImag
 			
 			double threshold = params.getIntParameterValue("threshold");
 			double minAreaMicrons = 1, maxHoleAreaMicrons = 1, minAreaPixels = 1, maxHoleAreaPixels = 1;
-			if (server.hasPixelSizeMicrons()) {
+			if (cal.hasPixelSizeMicrons()) {
 				minAreaMicrons = params.getDoubleParameterValue("minAreaMicrons");
 				maxHoleAreaMicrons = params.getDoubleParameterValue("maxHoleAreaMicrons");
 			} else {
@@ -230,8 +232,8 @@ public class SimpleTissueDetection2 extends AbstractDetectionPlugin<BufferedImag
 			
 			// Convert to objects
 			double minArea, maxHoleArea;
-			if (server.hasPixelSizeMicrons()) {
-				double areaScale = 1.0 / (server.getAveragedPixelSizeMicrons() * server.getAveragedPixelSizeMicrons() * downsample * downsample);
+			if (cal.hasPixelSizeMicrons()) {
+				double areaScale = 1.0 / (cal.getAveragedPixelSizeMicrons() * cal.getAveragedPixelSizeMicrons() * downsample * downsample);
 				minArea = minAreaMicrons * areaScale;
 				maxHoleArea = maxHoleAreaMicrons * areaScale;
 			} else {
@@ -395,7 +397,7 @@ public class SimpleTissueDetection2 extends AbstractDetectionPlugin<BufferedImag
 
 	@Override
 	public ParameterList getDefaultParameterList(final ImageData<BufferedImage> imageData) {
-		boolean micronsKnown = imageData.getServer().hasPixelSizeMicrons();
+		boolean micronsKnown = imageData.getServer().getPixelCalibration().hasPixelSizeMicrons();
 		params.setHiddenParameters(!micronsKnown, "requestedPixelSizeMicrons", "minAreaMicrons", "maxHoleAreaMicrons");
 		params.setHiddenParameters(micronsKnown, "requestedDownsample", "minAreaPixels", "maxHoleAreaPixels");
 		return params;

@@ -118,31 +118,6 @@ class SimpleWrappedImageServer<T> implements ImageServer<T> {
 	}
 
 	@Override
-	public double getZSpacingMicrons() {
-		return server.getZSpacingMicrons();
-	}
-
-	@Override
-	public double getPixelWidthMicrons() {
-		return server.getPixelWidthMicrons();
-	}
-
-	@Override
-	public double getPixelHeightMicrons() {
-		return server.getPixelHeightMicrons();
-	}
-
-	@Override
-	public double getAveragedPixelSizeMicrons() {
-		return server.getAveragedPixelSizeMicrons();
-	}
-
-	@Override
-	public boolean hasPixelSizeMicrons() {
-		return server.hasPixelSizeMicrons();
-	}
-
-	@Override
 	public T getCachedTile(TileRequest tile) {
 		return server.getCachedTile(tile);
 	}
@@ -218,13 +193,13 @@ class SimpleWrappedImageServer<T> implements ImageServer<T> {
 	}
 
 	@Override
-	public TileRequest getTile(int level, int x, int y, int z, int t) {
-		return server.getTile(level, x, y, z, t);
+	public TileRequest getTileRequest(int level, int x, int y, int z, int t) {
+		return server.getTileRequest(level, x, y, z, t);
 	}
 
 	@Override
-	public Collection<TileRequest> getTiles(RegionRequest request) {
-		return server.getTiles(request);
+	public Collection<TileRequest> getTileRequests(RegionRequest request) {
+		return server.getTileRequests(request);
 	}
 
 	@Override

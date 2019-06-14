@@ -123,7 +123,7 @@ public class TMAExplorer implements PathCommand {
 				
 				// Figure out downsample value
 				ImageServer<BufferedImage> server = imageData.getServer();
-				double downsample = Math.round(5 / server.getAveragedPixelSizeMicrons());
+				double downsample = Math.round(5 / server.getPixelCalibration().getAveragedPixelSizeMicrons());
 				
 				// Read the TMA entries
 				int counter = 0;

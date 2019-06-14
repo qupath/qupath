@@ -35,6 +35,7 @@ import qupath.lib.gui.viewer.GridLines;
 import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.regions.ImageRegion;
 
 
@@ -84,7 +85,7 @@ public class GridOverlay extends AbstractImageDataOverlay {
 
 	private static void drawGrid(final GridLines gridLines, final Graphics g, final ImageServer<?> server, final double downsample, final ImageRegion imageRegion, final Color color) {
 			// Get the image server, and check if we know the pixel size in microns
-			if (server == null || (gridLines.useMicrons() && !server.hasPixelSizeMicrons()))
+			if (server == null || (gridLines.useMicrons() && !server.getPixelCalibration().hasPixelSizeMicrons()))
 				return;
 			
 			Graphics2D g2d = (Graphics2D)g.create();
@@ -95,10 +96,11 @@ public class GridOverlay extends AbstractImageDataOverlay {
 			double spaceXpx = gridLines.getSpaceX();
 			double spaceYpx = gridLines.getSpaceY();
 			if (gridLines.useMicrons()) {
-				startXpx /= server.getPixelWidthMicrons();
-				startYpx /= server.getPixelHeightMicrons();
-				spaceXpx /= server.getPixelWidthMicrons();
-				spaceYpx /= server.getPixelHeightMicrons();
+				PixelCalibration cal = server.getPixelCalibration();
+				startXpx /= cal.getPixelWidthMicrons();
+				startYpx /= cal.getPixelHeightMicrons();
+				spaceXpx /= cal.getPixelWidthMicrons();
+				spaceYpx /= cal.getPixelHeightMicrons();
 			}
 			
 			// Do the painting

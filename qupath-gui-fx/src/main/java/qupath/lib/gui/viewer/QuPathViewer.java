@@ -121,6 +121,7 @@ import qupath.lib.gui.viewer.tools.MoveTool;
 import qupath.lib.gui.viewer.tools.PathTool;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.TMACoreObject;
@@ -2338,14 +2339,14 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		ImageServer<BufferedImage> server = getServer();
 		if (server == null)
 			return Double.NaN;
-		return server.getPixelWidthMicrons() * getDownsampleFactor();
+		return server.getPixelCalibration().getPixelWidthMicrons() * getDownsampleFactor();
 	}
 
 	public double getDisplayedPixelHeightMicrons() {
 		ImageServer<BufferedImage> server = getServer();
 		if (server == null)
 			return Double.NaN;
-		return server.getPixelHeightMicrons() * getDownsampleFactor();
+		return server.getPixelCalibration().getPixelHeightMicrons() * getDownsampleFactor();
 	}
 
 
@@ -2379,10 +2380,11 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 
 		double xDisplay = xx;
 		double yDisplay = yy;
-		if (useCalibratedUnits && server.hasPixelSizeMicrons()) {
-			units = '\u00B5' + "m";
-			xDisplay *= server.getPixelWidthMicrons();
-			yDisplay *= server.getPixelHeightMicrons();
+		PixelCalibration cal = server.getPixelCalibration();
+		if (useCalibratedUnits && cal.hasPixelSizeMicrons()) {
+			units = GeneralTools.micrometerSymbol();
+			xDisplay *= cal.getPixelWidthMicrons();
+			yDisplay *= cal.getPixelHeightMicrons();
 		} else {
 			units = "px";
 		}
@@ -2427,7 +2429,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		// Append z, t position if required
 		String zString = null;
 		if (server.nZSlices() > 1) {
-			double zSpacing = server.getZSpacingMicrons();
+			double zSpacing = server.getPixelCalibration().getZSpacingMicrons();
 			if (!useCalibratedUnits || Double.isNaN(zSpacing))
 				zString = "z = " + getZPosition();
 			else

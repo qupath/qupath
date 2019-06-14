@@ -85,6 +85,7 @@ import qupath.lib.images.ImageData;
 import qupath.lib.images.ImageData.ImageType;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
+import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.RectangleROI;
@@ -303,9 +304,10 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 		var selected = hierarchy.getSelectionModel().getSelectedObject();
 		var roi = selected == null ? null : selected.getROI();
 		
-		double pixelWidthMicrons = server.getPixelWidthMicrons();
-		double pixelHeightMicrons = server.getPixelHeightMicrons();
-		double zSpacingMicrons = server.getZSpacingMicrons();
+		PixelCalibration cal = server.getPixelCalibration();
+		double pixelWidthMicrons = cal.getPixelWidthMicrons();
+		double pixelHeightMicrons = cal.getPixelHeightMicrons();
+		double zSpacingMicrons = cal.getZSpacingMicrons();
 		
 		// Use line or area ROI if possible
 		if (!requestZSpacing && roi != null && !roi.isEmpty() && (roi.isArea() || roi.isLine())) {
@@ -313,8 +315,8 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 			boolean setPixelWidth = true;	
 			String message;
 			
-			double pixelWidth = server.getPixelWidthMicrons();
-			double pixelHeight = server.getPixelHeightMicrons();
+			double pixelWidth = cal.getPixelWidthMicrons();
+			double pixelHeight = cal.getPixelHeightMicrons();
 			if (!Double.isFinite(pixelWidth))
 				pixelWidth = 1;
 			if (!Double.isFinite(pixelHeight))
@@ -836,6 +838,7 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 					return null;
 			}
 			ImageServer<BufferedImage> server = imageData.getServer();
+			PixelCalibration cal = server.getPixelCalibration();
 			switch (rowType) {
 			case NAME:
 				return server.getDisplayedImageName();
@@ -848,25 +851,25 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 			case MAGNIFICATION:
 				return server.getMetadata().getMagnification();
 			case WIDTH:
-				if (server.hasPixelSizeMicrons())
-					return String.format("%s px (%.2f %s)", server.getWidth(), server.getWidth() * server.getPixelWidthMicrons(), GeneralTools.micrometerSymbol());
+				if (cal.hasPixelSizeMicrons())
+					return String.format("%s px (%.2f %s)", server.getWidth(), server.getWidth() * cal.getPixelWidthMicrons(), GeneralTools.micrometerSymbol());
 				else
 					return String.format("%s px", server.getWidth());
 			case HEIGHT:
-				if (server.hasPixelSizeMicrons())
-					return String.format("%s px (%.2f %s)", server.getHeight(), server.getHeight() * server.getPixelHeightMicrons(), GeneralTools.micrometerSymbol());
+				if (cal.hasPixelSizeMicrons())
+					return String.format("%s px (%.2f %s)", server.getHeight(), server.getHeight() * cal.getPixelHeightMicrons(), GeneralTools.micrometerSymbol());
 				else
 					return String.format("%s px", server.getHeight());
 			case DIMENSIONS:
 				return String.format("%d x %d x %d", server.nChannels(), server.nZSlices(), server.nTimepoints());
 			case PIXEL_WIDTH:
-				if (server.hasPixelSizeMicrons())
-					return String.format("%.4f %s", server.getPixelWidthMicrons(), GeneralTools.micrometerSymbol());
+				if (cal.hasPixelSizeMicrons())
+					return String.format("%.4f %s", cal.getPixelWidthMicrons(), GeneralTools.micrometerSymbol());
 				else
 					return "Unknown";
 			case PIXEL_HEIGHT:
-				if (server.hasPixelSizeMicrons())
-					return String.format("%.4f %s", server.getPixelHeightMicrons(), GeneralTools.micrometerSymbol());
+				if (cal.hasPixelSizeMicrons())
+					return String.format("%.4f %s", cal.getPixelHeightMicrons(), GeneralTools.micrometerSymbol());
 				else
 					return "Unknown";
 			case SERVER_TYPE:

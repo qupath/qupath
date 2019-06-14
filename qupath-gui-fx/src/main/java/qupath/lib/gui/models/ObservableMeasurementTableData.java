@@ -61,6 +61,7 @@ import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
+import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.objects.MetadataStore;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathDetectionObject;
@@ -658,9 +659,10 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 				if (roi instanceof PathArea) {
 					double pixelWidth = 1;
 					double pixelHeight = 1;
-					if (server != null && server.hasPixelSizeMicrons()) {
-						pixelWidth = server.getPixelWidthMicrons() / 1000;
-						pixelHeight = server.getPixelHeightMicrons() / 1000;
+					PixelCalibration cal = server == null ? null : server.getPixelCalibration();
+					if (cal != null && cal.hasPixelSizeMicrons()) {
+						pixelWidth = cal.getPixelWidthMicrons() / 1000;
+						pixelHeight = cal.getPixelHeightMicrons() / 1000;
 					}
 					return n / (((PathArea)roi).getScaledArea(pixelWidth, pixelHeight));
 				}
@@ -840,7 +842,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 			
 			@Override
 			public String getName() {
-				if (server != null && server.hasPixelSizeMicrons())
+				if (server != null && server.getPixelCalibration().hasPixelSizeMicrons())
 					return String.format("Num %s per mm^2", pathClass.toString());
 //					return String.format("Num %s per %s^2", pathClass.toString(), GeneralTools.micrometerSymbol());
 				else
@@ -1279,18 +1281,18 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 		}
 		
 		boolean hasPixelSizeMicrons() {
-			return imageData != null && imageData.getServer() != null && imageData.getServer().hasPixelSizeMicrons();
+			return imageData != null && imageData.getServer() != null && imageData.getServer().getPixelCalibration().hasPixelSizeMicrons();
 		}
 
 		double pixelWidthMicrons() {
 			if (hasPixelSizeMicrons())
-				return imageData.getServer().getPixelWidthMicrons();
+				return imageData.getServer().getPixelCalibration().getPixelWidthMicrons();
 			return Double.NaN;
 		}
 
 		double pixelHeightMicrons() {
 			if (hasPixelSizeMicrons())
-				return imageData.getServer().getPixelHeightMicrons();
+				return imageData.getServer().getPixelCalibration().getPixelHeightMicrons();
 			return Double.NaN;
 		}
 		

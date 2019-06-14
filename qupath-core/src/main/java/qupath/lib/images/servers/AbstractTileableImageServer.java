@@ -100,7 +100,7 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 			return duplicate(img);
 		
 		// Figure out which tiles we need
-		var tiles = getTiles(request);
+		var tiles = getTileRequests(request);
 		
 		// If no tiles found, we assume a sparse image with nothing relevant to display for this location
 		if (tiles.isEmpty())

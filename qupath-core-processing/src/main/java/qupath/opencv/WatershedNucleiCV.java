@@ -55,6 +55,7 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.geom.Point2;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.measurements.MeasurementListFactory;
 import qupath.lib.objects.PathObject;
@@ -101,8 +102,9 @@ public class WatershedNucleiCV extends AbstractTileableDetectionPlugin<BufferedI
 			boolean splitShape = params.getBooleanParameterValue("splitShape");
 			//			double downsample = params.getIntParameterValue("downsampleFactor");
 
-			double downsample = imageData.getServer().hasPixelSizeMicrons() ? 
-					getPreferredPixelSizeMicrons(imageData, params) / imageData.getServer().getAveragedPixelSizeMicrons() :
+			PixelCalibration cal = imageData.getServer().getPixelCalibration();
+			double downsample = cal.hasPixelSizeMicrons() ? 
+					getPreferredPixelSizeMicrons(imageData, params) / cal.getAveragedPixelSizeMicrons() :
 						1;
 					downsample = Math.max(downsample, 1);
 
@@ -111,8 +113,8 @@ public class WatershedNucleiCV extends AbstractTileableDetectionPlugin<BufferedI
 					int medianRadius, openingRadius;
 					double gaussianSigma, minArea;
 					ImageServer<BufferedImage> server = imageData.getServer();
-					if (server.hasPixelSizeMicrons()) {
-						double pixelSize = 0.5 * downsample * (server.getPixelHeightMicrons() + server.getPixelWidthMicrons());
+					if (cal.hasPixelSizeMicrons()) {
+						double pixelSize = 0.5 * downsample * (cal.getPixelHeightMicrons() + cal.getPixelWidthMicrons());
 						medianRadius = (int)(params.getDoubleParameterValue("medianRadius") / pixelSize + .5);
 						gaussianSigma = params.getDoubleParameterValue("gaussianSigma") / pixelSize;
 						openingRadius = (int)(params.getDoubleParameterValue("openingRadius") / pixelSize + .5);
@@ -373,7 +375,7 @@ public class WatershedNucleiCV extends AbstractTileableDetectionPlugin<BufferedI
 				"Preferred image resolution for detection (higher values mean lower resolution)");
 		//				addIntParameter("downsampleFactor", "Downsample factor", 2, "", 1, 4);
 
-		if (imageData.getServer().hasPixelSizeMicrons()) {
+		if (imageData.getServer().getPixelCalibration().hasPixelSizeMicrons()) {
 			String um = GeneralTools.micrometerSymbol();
 			params.addDoubleParameter("medianRadius", "Median radius", 1, um, "Median filter radius").
 			addDoubleParameter("gaussianSigma", "Gaussian sigma", 1.5, um, "Gaussian filter sigma").
@@ -461,8 +463,9 @@ public class WatershedNucleiCV extends AbstractTileableDetectionPlugin<BufferedI
 
 	@Override
 	protected double getPreferredPixelSizeMicrons(ImageData<BufferedImage> imageData, ParameterList params) {
-		if (imageData.getServer().hasPixelSizeMicrons())
-			return Math.max(params.getDoubleParameterValue("preferredMicrons"), imageData.getServer().getAveragedPixelSizeMicrons());
+		PixelCalibration cal = imageData.getServer().getPixelCalibration();
+		if (cal.hasPixelSizeMicrons())
+			return Math.max(params.getDoubleParameterValue("preferredMicrons"), cal.getAveragedPixelSizeMicrons());
 		return 0.5;
 	}
 

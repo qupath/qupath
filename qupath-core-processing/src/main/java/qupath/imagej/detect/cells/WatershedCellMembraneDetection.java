@@ -213,9 +213,10 @@ public class WatershedCellMembraneDetection extends AbstractTileableDetectionPlu
 	
 			
 		public static double getPreferredPixelSizeMicrons(ImageData<BufferedImage> imageData, ParameterList params) {
-			if (imageData.getServer().hasPixelSizeMicrons()) {
+			PixelCalibration cal = imageData.getServer().getPixelCalibration();
+			if (cal.hasPixelSizeMicrons()) {
 				double requestedPixelSize = params.getDoubleParameterValue("requestedPixelSizeMicrons");
-				double averagedPixelSize = imageData.getServer().getAveragedPixelSizeMicrons();
+				double averagedPixelSize = cal.getAveragedPixelSizeMicrons();
 				if (requestedPixelSize < 0)
 					requestedPixelSize = averagedPixelSize * (-requestedPixelSize);
 				requestedPixelSize = Math.max(requestedPixelSize, averagedPixelSize);
@@ -289,7 +290,7 @@ public class WatershedCellMembraneDetection extends AbstractTileableDetectionPlu
 			// Convert parameters where needed
 			double sigma, medianRadius, backgroundRadius, minArea, maxArea, cellExpansion;
 			if (pathImage.getPixelCalibration().hasPixelSizeMicrons()) {
-				double pixelSize = PixelCalibration.getAveragePixelSizeMicrons(pathImage.getPixelCalibration());
+				double pixelSize = pathImage.getPixelCalibration().getAveragedPixelSizeMicrons();
 				backgroundRadius = params.getDoubleParameterValue("backgroundRadiusMicrons") / pixelSize;
 				medianRadius = params.getDoubleParameterValue("medianRadiusMicrons") / pixelSize;
 				sigma = params.getDoubleParameterValue("sigmaMicrons") / pixelSize;
@@ -355,7 +356,7 @@ public class WatershedCellMembraneDetection extends AbstractTileableDetectionPlu
 		
 		// Show/hide parameters depending on whether the pixel size is known
 		Map<String, Parameter<?>> map = params.getParameters();
-		boolean pixelSizeKnown = imageData.getServer() != null && imageData.getServer().hasPixelSizeMicrons();
+		boolean pixelSizeKnown = imageData.getServer() != null && imageData.getServer().getPixelCalibration().hasPixelSizeMicrons();
 		for (String name : micronParameters)
 			map.get(name).setHidden(!pixelSizeKnown);
 		for (String name : pixelParameters)
@@ -1125,7 +1126,7 @@ public class WatershedCellMembraneDetection extends AbstractTileableDetectionPlu
 
 	@Override
 	protected int getTileOverlap(ImageData<BufferedImage> imageData, ParameterList params) {
-		double pxSize = imageData.getServer().getAveragedPixelSizeMicrons();
+		double pxSize = imageData.getServer().getPixelCalibration().getAveragedPixelSizeMicrons();
 		if (Double.isNaN(pxSize))
 			return params.getDoubleParameterValue("cellExpansion") > 0 ? 25 : 10;
 		double cellExpansion = params.getDoubleParameterValue("cellExpansionMicrons") / pxSize;

@@ -151,7 +151,7 @@ public class HessianCalculator {
 		var selectedROI = hierarchy.getSelectionModel().getSelectedROI();
 		if (sigmas.length == 0)
 			sigmas = new double[] {1.0};
-		double downsample = Math.max(1.0, sigmas[0] / server.getAveragedPixelSizeMicrons() / 2.0);
+		double downsample = Math.max(1.0, sigmas[0] / server.getPixelCalibration().getAveragedPixelSizeMicrons() / 2.0);
 		System.err.println(downsample);
 		RegionRequest request = RegionRequest.createInstance(server);
 		if (selectedROI != null)

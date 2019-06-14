@@ -65,7 +65,6 @@ import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
-import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClass;
@@ -494,7 +493,7 @@ public class ExportTrainingRegionsCommand implements PathCommand {
 			// Determine resolution
 			double downsample;
 			if (useMPP)
-				downsample = resolution / server.getAveragedPixelSizeMicrons();
+				downsample = resolution / server.getPixelCalibration().getAveragedPixelSizeMicrons();
 			else
 				downsample = resolution;
 			

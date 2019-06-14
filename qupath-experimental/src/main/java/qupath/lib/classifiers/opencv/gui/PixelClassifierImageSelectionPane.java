@@ -495,8 +495,9 @@ public class PixelClassifierImageSelectionPane {
 		var temp = new ArrayList<ImageResolution>();
 		double originalDownsample = 1;
 		String units = null;
-		if (imageData.getServer().hasPixelSizeMicrons()) {
-			originalDownsample = imageData.getServer().getAveragedPixelSizeMicrons();
+		PixelCalibration cal = imageData.getServer().getPixelCalibration();
+		if (cal.hasPixelSizeMicrons()) {
+			originalDownsample = cal.getAveragedPixelSizeMicrons();
 			units = PixelCalibration.MICROMETER;
 		}
 		int scale = 1;
@@ -543,16 +544,18 @@ public class PixelClassifierImageSelectionPane {
 			return 1;
 		double downsample = selectedResolution.get().getDownsampleFactor(1);
 		var server = viewer.getServer();
-		if (server != null && server.hasPixelSizeMicrons())
-			downsample = selectedResolution.get().getDownsampleFactor(server.getAveragedPixelSizeMicrons());
+		PixelCalibration cal = server == null ? null : server.getPixelCalibration();
+		if (cal != null && cal.hasPixelSizeMicrons())
+			downsample = selectedResolution.get().getDownsampleFactor(cal.getAveragedPixelSizeMicrons());
 		return downsample;
 	}
 	
 	double getRequestedPixelSizeMicrons() {
 		double downsample = getRequestedDownsample();
 		var server = viewer.getServer();
-		if (server != null && server.hasPixelSizeMicrons())
-			return downsample * server.getAveragedPixelSizeMicrons();
+		PixelCalibration cal = server == null ? null : server.getPixelCalibration();
+		if (cal != null && cal.hasPixelSizeMicrons())
+			return downsample * cal.getAveragedPixelSizeMicrons();
 		return downsample;
 	}
 	
@@ -926,7 +929,8 @@ public class PixelClassifierImageSelectionPane {
 				.addChoiceParameter("minSizeUnits", "Minimum object/hole size units", "Pixels", sizeUnits)
 				.addBooleanParameter("doSplit", "Split objects", false);
 		
-		params.setHiddenParameters(!server.hasPixelSizeMicrons(), "minSizeUnits");
+		PixelCalibration cal = server.getPixelCalibration();
+		params.setHiddenParameters(!cal.hasPixelSizeMicrons(), "minSizeUnits");
 		
 		if (!DisplayHelpers.showParameterDialog("Create objects", params))
 			return false;
@@ -942,8 +946,8 @@ public class PixelClassifierImageSelectionPane {
 			};
 		boolean doSplit = params.getBooleanParameterValue("doSplit");
 		double minSizePixels = params.getDoubleParameterValue("minSize");
-		if (server.hasPixelSizeMicrons() && !params.getChoiceParameterValue("minSizeUnits").equals("Pixels"))
-			minSizePixels /= (server.getPixelWidthMicrons() * server.getPixelHeightMicrons());
+		if (cal.hasPixelSizeMicrons() && !params.getChoiceParameterValue("minSizeUnits").equals("Pixels"))
+			minSizePixels /= (cal.getPixelWidthMicrons() * cal.getPixelHeightMicrons());
 		
 		var selected = viewer.getSelectedObject();
 		if (selected != null && selected.isDetection())
@@ -1052,7 +1056,8 @@ public class PixelClassifierImageSelectionPane {
 		if (imageData == null || featureCalculator == null)
 			return false;
 		ImageServer<BufferedImage> server = imageData.getServer();
-		double pixelSize = server.getAveragedPixelSizeMicrons();
+		PixelCalibration cal = server.getPixelCalibration();
+		double pixelSize = cal.getAveragedPixelSizeMicrons();
 		if (!Double.isFinite(pixelSize))
 			pixelSize = 1;
 		double downsample = selectedResolution.get().getDownsampleFactor(pixelSize);
@@ -1096,7 +1101,8 @@ public class PixelClassifierImageSelectionPane {
 		}
 		String units = null;
 		Double pixelSize = null;
-		if (server.hasPixelSizeMicrons()) {
+		PixelCalibration cal = server.getPixelCalibration();
+		if (cal.hasPixelSizeMicrons()) {
 			pixelSize = DisplayHelpers.showInputDialog("Add resolution", "Enter requested pixel size in " + GeneralTools.micrometerSymbol(), 1.0);
 			units = PixelCalibration.MICROMETER;
 		} else {
@@ -1140,7 +1146,7 @@ public class PixelClassifierImageSelectionPane {
 		if (server == null || miniViewer == null || resolution == null)
 			return;
 		Tooltip.install(miniViewer.getPane(), new Tooltip("Classification resolution: \n" + resolution));
-		miniViewer.setDownsample(resolution.getDownsampleFactor(server.getAveragedPixelSizeMicrons()));
+		miniViewer.setDownsample(resolution.getDownsampleFactor(server.getPixelCalibration().getAveragedPixelSizeMicrons()));
 	}
 	
 	
@@ -1328,7 +1334,7 @@ public class PixelClassifierImageSelectionPane {
     		return null;
     	
     	int level = 0;
-    	var tile = classifierServer.getTile(level, (int)Math.round(x), (int)Math.round(y), z, t);
+    	var tile = classifierServer.getTileRequest(level, (int)Math.round(x), (int)Math.round(y), z, t);
     	if (tile == null)
     		return null;
     	var img = classifierServer.getCachedTile(tile);

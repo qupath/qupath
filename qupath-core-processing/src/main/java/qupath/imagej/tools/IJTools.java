@@ -67,6 +67,7 @@ import qupath.lib.geom.Point2;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.PathImage;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.TMACoreObject;
@@ -215,8 +216,9 @@ public class IJTools {
 		    	nChannels = imp.getNChannels();
 			}
 		}
-	    if (cal != null && !Double.isNaN(server.getZSpacingMicrons())) {
-	        cal.pixelDepth = server.getZSpacingMicrons();
+		PixelCalibration pixelCalibration = server.getPixelCalibration();
+	    if (cal != null && !Double.isNaN(pixelCalibration.getZSpacingMicrons())) {
+	        cal.pixelDepth = pixelCalibration.getZSpacingMicrons();
 	        cal.setZUnit("um");
 	    }
 	    
@@ -268,12 +270,13 @@ public class IJTools {
 		Calibration cal = new Calibration();
 		double downsampleFactor = request.getDownsample();
 	
-		double pixelWidth = server.getPixelWidthMicrons();
-		double pixelHeight = server.getPixelHeightMicrons();
+		PixelCalibration pixelCalibration = server.getPixelCalibration();
+		double pixelWidth = pixelCalibration.getPixelWidthMicrons();
+		double pixelHeight = pixelCalibration.getPixelHeightMicrons();
 		if (!Double.isNaN(pixelWidth + pixelHeight)) {
 			cal.pixelWidth = pixelWidth * downsampleFactor;
 			cal.pixelHeight = pixelHeight * downsampleFactor;
-			cal.pixelDepth = server.getZSpacingMicrons();
+			cal.pixelDepth = pixelCalibration.getZSpacingMicrons();
 			if (server.nTimepoints() > 1) {
 				cal.frameInterval = server.getMetadata().getTimepoint(1);
 				if (server.getMetadata().getTimeUnit() != null)
@@ -322,9 +325,10 @@ public class IJTools {
 		double yMicrons = IJTools.tryToParseMicrons(cal.pixelHeight, cal.getYUnit());
 		boolean ijHasMicrons = !Double.isNaN(xMicrons) && !Double.isNaN(yMicrons);
 		
-		if (server.hasPixelSizeMicrons() && ijHasMicrons) {
-			double downsampleX = xMicrons / server.getPixelWidthMicrons();
-			double downsampleY = yMicrons / server.getPixelHeightMicrons();
+		PixelCalibration pixelCalibration = server.getPixelCalibration();
+		if (pixelCalibration.hasPixelSizeMicrons() && ijHasMicrons) {
+			double downsampleX = xMicrons / pixelCalibration.getPixelWidthMicrons();
+			double downsampleY = yMicrons / pixelCalibration.getPixelHeightMicrons();
 			if (GeneralTools.almostTheSame(downsampleX, downsampleY, 0.001))
 				logger.debug("ImageJ downsample factor is being estimated from pixel sizes");
 			else
