@@ -534,14 +534,19 @@ public class IJTools {
 
 	/**
 	 * Create a {@link PathImage} from an ImagePlus and region.
+	 * If imp is null, it is read from the server.
 	 * 
 	 * @param server
 	 * @param request
 	 * @param imp
 	 * @return
+	 * @throws IOException 
 	 */
-	public static PathImage<ImagePlus> createPathImage(final ImageServer<BufferedImage> server, final ImagePlus imp, final RegionRequest request) {
-		return new PathImagePlus(server, request, imp);
+	public static PathImage<ImagePlus> createPathImage(ImageServer<BufferedImage> server, ImagePlus imp, RegionRequest request) throws IOException {
+		if (imp == null)
+			// Store the server if we don't have an ImagePlus
+			imp = IJTools.convertToImagePlus(server, request).getImage();
+		return new PathImagePlus(request, imp);
 	}
 
 	/**

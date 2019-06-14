@@ -68,6 +68,7 @@ import qupath.lib.color.StainVector;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.PathImage;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.images.servers.ServerTools;
 import qupath.lib.measurements.MeasurementListFactory;
 import qupath.lib.measurements.MeasurementList;
@@ -343,8 +344,8 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 			
 			// Convert parameters where needed
 			double sigma, medianRadius, backgroundRadius, minArea, maxArea, cellExpansion;
-			if (pathImage.hasPixelSizeMicrons()) {
-				double pixelSize = 0.5 * (pathImage.getPixelHeightMicrons() + pathImage.getPixelWidthMicrons());
+			if (pathImage.getPixelCalibration().hasPixelSizeMicrons()) {
+				double pixelSize = PixelCalibration.getAveragePixelSizeMicrons(pathImage.getPixelCalibration());
 				backgroundRadius = params.getDoubleParameterValue("backgroundRadiusMicrons") / pixelSize;
 				medianRadius = params.getDoubleParameterValue("medianRadiusMicrons") / pixelSize;
 				sigma = params.getDoubleParameterValue("sigmaMicrons") / pixelSize;

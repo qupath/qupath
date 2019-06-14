@@ -53,6 +53,7 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.PathImage;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.plugins.AbstractTileableDetectionPlugin;
@@ -177,7 +178,7 @@ public class GaussianSuperpixelsPlugin extends AbstractTileableDetectionPlugin<B
 			float[] threshold = new float[]{0.2f, -1f};
 			
 			// Convert to pixels
-			double pixelSize = (pathImage.getPixelWidthMicrons() + pathImage.getPixelHeightMicrons())/2;
+			double pixelSize = PixelCalibration.getAveragePixelSizeMicrons(pathImage.getPixelCalibration());
 			double minArea = minAreaMicrons / (pixelSize * pixelSize);
 			split = split / pixelSize;
 //			System.err.println(minArea);
@@ -327,7 +328,7 @@ public class GaussianSuperpixelsPlugin extends AbstractTileableDetectionPlugin<B
 		
 		
 		static double getSigma(final PathImage<?> pathImage, final ParameterList params) {
-			double pixelSizeMicrons = .5 * (pathImage.getPixelWidthMicrons() + pathImage.getPixelHeightMicrons());
+			double pixelSizeMicrons = PixelCalibration.getAveragePixelSizeMicrons(pathImage.getPixelCalibration());
 			if (Double.isNaN(pixelSizeMicrons)) {
 				return params.getDoubleParameterValue("sigmaPixels") * params.getDoubleParameterValue("downsampleFactor");				
 			} else

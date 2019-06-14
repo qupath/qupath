@@ -1,5 +1,7 @@
 package qupath.lib.images.servers;
 
+import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 
@@ -18,14 +20,14 @@ public class PixelCalibration {
 	/**
 	 * String to represent 'pixel' units. This is the default when no pixel size calibration is known.
 	 */
-	public static String PIXEL = "px";
+	public final static String PIXEL = "px";
 
 	/**
 	 * String to represent 'micrometer' units.
 	 */
-	public static String MICROMETER = GeneralTools.micrometerSymbol();
+	public final static String MICROMETER = GeneralTools.micrometerSymbol();
 
-	private static String Z_SLICE = "z-slice";
+	private final static String Z_SLICE = "z-slice";
 	
 	private SimpleQuantity pixelWidth = SimpleQuantity.DEFAULT_PIXEL_SIZE;
 	private SimpleQuantity pixelHeight = SimpleQuantity.DEFAULT_PIXEL_SIZE;
@@ -50,6 +52,15 @@ public class PixelCalibration {
 		return cal;
 	}
 	
+	/**
+	 * Get the average of the pixel width and height in microns if possible, or Double.NaN if the pixel size is not available.
+	 * @param pixelCalibration
+	 * @return
+	 */
+	public static double getAveragePixelSizeMicrons(PixelCalibration pixelCalibration) {
+		return (pixelCalibration.getPixelWidthMicrons() + pixelCalibration.getPixelHeightMicrons()) / 2.0;
+	}
+	
 //	public SimpleQuantity getPixelWidth() {
 //		return pixelWidth;
 //	}
@@ -61,6 +72,42 @@ public class PixelCalibration {
 //	public SimpleQuantity getZSpacing() {
 //		return zSpacing;
 //	}
+	
+	/**
+	 * Get a scaled instance of this PixelCalibration, multiplying pixel sizes for x and y by the specified scale values.
+	 * Units are kept the same.
+	 * @param scaleX
+	 * @param scaleY
+	 * @return
+	 */
+	public PixelCalibration getScaledInstance(double scaleX, double scaleY) {
+		return getScaledInstance(scaleX, scaleY, 1);
+	}
+	
+	/**
+	 * Get a scaled instance of this PixelCalibration, multiplying pixel sizes for x, y and z by the specified scale values.
+	 * Units are kept the same.
+	 * @param scaleX
+	 * @param scaleY
+	 * @param scaleZ
+	 * @return
+	 */
+	public PixelCalibration getScaledInstance(double scaleX, double scaleY, double scaleZ) {
+		PixelCalibration cal2 = duplicate();
+		cal2.pixelWidth.value = scale(cal2.pixelWidth.value, scaleX);
+		cal2.pixelHeight.value = scale(cal2.pixelHeight.value, scaleY);
+		cal2.zSpacing.value = scale(cal2.zSpacing.value, scaleZ);
+		return cal2;
+	}
+	
+	private static Number scale(Number n1, double scale) {
+		if (n1 instanceof BigInteger)
+			n1 = new BigDecimal((BigInteger)n1);
+		if (n1 instanceof BigDecimal)
+			return ((BigDecimal)n1).multiply(new BigDecimal(scale));
+		return n1.doubleValue() * scale;
+	}
+	
 
 	/**
 	 * Returns true if the pixel width and height information in microns is known.
@@ -172,17 +219,17 @@ public class PixelCalibration {
 	}
 	
 	
-	static class Builder {
+	public static class Builder {
 		
 		PixelCalibration cal = new PixelCalibration();
 		
-		Builder() {}
+		public Builder() {}
 		
-		Builder(PixelCalibration cal) {
+		public Builder(PixelCalibration cal) {
 			this.cal = cal.duplicate();
 		}
 		
-		Builder pixelSizeMicrons(Number pixelWidthMicrons, Number pixelHeightMicrons) {
+		public Builder pixelSizeMicrons(Number pixelWidthMicrons, Number pixelHeightMicrons) {
 			// Support resetting both pixel sizes to default
 			if ((pixelWidthMicrons == null || Double.isNaN(pixelWidthMicrons.doubleValue())) && 
 					(pixelHeightMicrons == null || Double.isNaN(pixelHeightMicrons.doubleValue()))) {
@@ -203,13 +250,13 @@ public class PixelCalibration {
 			return this;
 		}
 		
-		Builder timepoints(TimeUnit timeUnit, double... timepoints) {
+		public Builder timepoints(TimeUnit timeUnit, double... timepoints) {
 			cal.timeUnit = timeUnit;
 			cal.timepoints = timepoints.clone();
 			return this;
 		}
 				
-		Builder zSpacingMicrons(Number zSpacingMicrons) {
+		public Builder zSpacingMicrons(Number zSpacingMicrons) {
 			if (zSpacingMicrons == null || Double.isNaN(zSpacingMicrons.doubleValue())) {
 				cal.zSpacing = SimpleQuantity.DEFAULT_Z_SPACING;
 				return this;
@@ -222,7 +269,7 @@ public class PixelCalibration {
 			return this;
 		}
 		
-		PixelCalibration build() {
+		public PixelCalibration build() {
 			return cal;
 		}
 		

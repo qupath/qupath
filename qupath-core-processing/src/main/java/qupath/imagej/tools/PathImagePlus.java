@@ -23,8 +23,6 @@
 
 package qupath.imagej.tools;
 
-import java.awt.image.BufferedImage;
-import java.io.IOException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,7 +30,7 @@ import ij.ImagePlus;
 import ij.measure.Calibration;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.PathImage;
-import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
 
@@ -46,10 +44,10 @@ class PathImagePlus implements PathImage<ImagePlus> {
 	
 	final private static Logger logger = LoggerFactory.getLogger(PathImagePlus.class);
 	
-	transient private ImageServer<BufferedImage> server;
 	transient private ImagePlus imp = null;
 	private RegionRequest request;
-	private double pixelWidthMicrons = Double.NaN, pixelHeightMicrons = Double.NaN;
+	
+	private PixelCalibration calibration;
 
 	
 	/**
@@ -59,19 +57,9 @@ class PathImagePlus implements PathImage<ImagePlus> {
 	 * @param request
 	 * @param imp
 	 */
-	PathImagePlus(ImageServer<BufferedImage> server, RegionRequest request, ImagePlus imp) {
-		this.request = request;
-		// Store the server if we don't have an ImagePlus
-		this.server = server;
-		this.pixelWidthMicrons = server.getPixelWidthMicrons() * request.getDownsample();
-		this.pixelHeightMicrons = server.getPixelHeightMicrons() * request.getDownsample();
+	PathImagePlus(RegionRequest request, ImagePlus imp) {
+		this.request = request;		
 		this.imp = imp;
-		if (imp != null && hasPixelSizeMicrons() && 
-				!(GeneralTools.almostTheSame(pixelWidthMicrons, imp.getCalibration().pixelWidth, 0.0001) &&
-						GeneralTools.almostTheSame(pixelHeightMicrons, imp.getCalibration().pixelHeight, 0.0001))) {
-				logger.warn("Warning!  The pixel widths & heights calculated from the server & region request do not match the ImagePlus calibration - ImagePlus will be recalibrated");
-				IJTools.calibrateImagePlus(imp, request, server);
-		}
 	}
 	
 //	protected void setImagePlusOrigin(ImagePlus imp) {
@@ -84,98 +72,40 @@ class PathImagePlus implements PathImage<ImagePlus> {
 //		cal.yOrigin = -bounds.y / downsampleFactor;
 //	}
 	
-	@Override
-	public ImagePlus getImage() {
-		try {
-			return getImage(true);			
-		} catch (IOException e) {
-			logger.warn("Could not getImage", e);
-			return null;
-		}
-	}
-	
 	
 	@Override
 	public double getDownsampleFactor() {
 		return request.getDownsample();
 	}
-
-
+	
 	@Override
-	public boolean hasCachedImage() {
-		return imp != null;
+	public ImagePlus getImage() {
+		return imp;
 	}
 	
 	@Override
-	public ImagePlus getImage(boolean cache) throws IOException {
-//		System.out.println("IMAGE IS REQUESTED NOW");
-		if (imp != null)
-			return imp;
-		else if (request != null) {
-			ImagePlus impTemp;
-//			// Create a server if necessary, or use one if possible
-//			if (server == null) {
-//				ImagePlusServer server = new ImagePlusServerBuilder().buildServer(request.getPath());
-//				impTemp = server.readImagePlusRegion(request).getImage();
-//				try {
-//					server.close();
-//				} catch (Exception e) {
-//					logger.warn("Problem closing server", e);
-//				}
-//			} else
-				impTemp = IJTools.convertToImagePlus(server, request).getImage();
-			if (cache)
-				imp = impTemp;
-			return impTemp;
+	public PixelCalibration getPixelCalibration() {
+		if (calibration == null) {
+			var builder =  new PixelCalibration.Builder();
+			Calibration cal = getImage().getCalibration();
+			if (isMicrons(cal.getXUnit()) && isMicrons(cal.getYUnit())) {
+				builder.pixelSizeMicrons(cal.pixelWidth, cal.pixelHeight);
+			}
+			if (isMicrons(cal.getZUnit())) {
+				builder.zSpacingMicrons(cal.pixelDepth);				
+			}
+			calibration = builder.build();
 		}
-		return null;
+		return calibration;
 	}
 	
-	private Calibration getCalibration() {
-		return getImage().getCalibration();
-	}
-	
-	@Override
-	public boolean validateSquarePixels() {
-		Calibration cal = getCalibration();
-		return Math.abs(cal.pixelWidth - cal.pixelHeight) / cal.pixelWidth < 0.001;
-	}
-	
-	private static boolean calibrationMicrons(Calibration cal) {
-		if (cal == null)
+	private static boolean isMicrons(String unit) {
+		if (unit == null)
 			return false;
-		String unit = cal.getUnit().toLowerCase();
+		unit = unit.toLowerCase();
 		if (unit.startsWith(GeneralTools.micrometerSymbol()) || unit.equals("um") || unit.startsWith("micron"))
 			return true;
 		return false;
-	}
-	
-	@Override
-	public double getPixelWidthMicrons() {
-		if (Double.isNaN(pixelWidthMicrons))
-			if (calibrationMicrons(getCalibration()))
-				return getCalibration().pixelWidth;
-			else
-				return Double.NaN;
-		else
-			return pixelWidthMicrons;
-	}
-
-	@Override
-	public double getPixelHeightMicrons() {
-		if (Double.isNaN(pixelHeightMicrons)) {
-			if (calibrationMicrons(getCalibration()))
-				return getCalibration().pixelHeight;
-			else
-				return Double.NaN;
-		}
-		else
-			return pixelHeightMicrons;
-	}
-
-	@Override
-	public boolean hasPixelSizeMicrons() {
-		return !Double.isNaN(getPixelWidthMicrons() + getPixelHeightMicrons());
 	}
 
 	@Override

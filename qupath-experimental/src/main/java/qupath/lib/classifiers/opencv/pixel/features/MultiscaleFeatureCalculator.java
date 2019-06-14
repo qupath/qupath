@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -45,17 +46,25 @@ public class MultiscaleFeatureCalculator implements OpenCVFeatureCalculator {
 		for (int c : channels) {
 			TransformedFeatureComputer computer = new TransformedFeatureComputer();
 			computer.transform = ColorTransforms.createChannelExtractor(c);
+			String baseName = computer.transform.getName();
 			for (double sigma : sigmaValues) {
+				GaussianScale scale;
 				if (do3D) {
 					double sigmaZ = sigma / imageData.getServer().getZSpacingMicrons() * imageData.getServer().getAveragedPixelSizeMicrons();
-					computer.features.add(new MultiscaleFeatureComputer(sigma, sigma, sigmaZ, features));				
+					scale = GaussianScale.create(sigma, sigma, sigmaZ);
 				} else {
-					computer.features.add(new MultiscaleFeatureComputer(sigma, sigma, 0, features));				
+					scale = GaussianScale.create(sigma, sigma, 0);
 				}
+				computer.features.add(new MultiscaleFeatureComputer(baseName, scale, features));				
 			}
 			multiscaleComputers.add(computer);
 		}
 	}
+	
+	public MultiscaleFeatureCalculator(Collection<TransformedFeatureComputer> featureComputers) {
+		this.multiscaleComputers.addAll(featureComputers);
+	}
+	
 
 	@Override
 	public List<Feature<Mat>> calculateFeatures(ImageData<BufferedImage> imageData, RegionRequest request) throws IOException {
@@ -113,6 +122,7 @@ public class MultiscaleFeatureCalculator implements OpenCVFeatureCalculator {
 		
 		// Loop through all the transforms
 		for (TransformedFeatureComputer computer : multiscaleComputers) {
+			
 			// Extract transformed pixels & set to a Mat
 			int i = 0;
 			for (BufferedImage img : images) {
@@ -142,7 +152,7 @@ public class MultiscaleFeatureCalculator implements OpenCVFeatureCalculator {
 			// Calculate all the features for the specified transform
 			for (var temp : computer.features) {
 				List<Mat> mats2 = mats;
-				features.addAll(temp.calculateFeatures(mats2, ind, padding, computer.transform.getName()));
+				features.addAll(temp.calculateFeatures(mats2.get(ind), padding, mats2.toArray(Mat[]::new)));
 			}
 		}
 		
@@ -162,11 +172,19 @@ public class MultiscaleFeatureCalculator implements OpenCVFeatureCalculator {
 	}
 	
 	
+	static interface OpenCVFeatureFilter {
+
+		public List<Feature<Mat>> calculateFeatures(Mat mat, int paddingXY, Mat... stack);
+		
+	}
+	
+	
 	static class TransformedFeatureComputer {
 				
 		private ColorTransform transform;
 		
 		private Collection<MultiscaleFeatureComputer> features = new ArrayList<>();
+		
 		
 		/**
 		 * Returns true if any feature calculations have a non-zero sigma value along the z-dimension.
@@ -174,7 +192,7 @@ public class MultiscaleFeatureCalculator implements OpenCVFeatureCalculator {
 		 */
 		public boolean is3D() {
 			for (MultiscaleFeatureComputer feature : features)
-				if (feature.sigmaZ > 0)
+				if (feature.scale.sigmaZ > 0)
 					return true;
 			return false;
 		}
@@ -186,8 +204,8 @@ public class MultiscaleFeatureCalculator implements OpenCVFeatureCalculator {
 		public double getMaxSigmaZ() {
 			double sigma = 0;
 			for (MultiscaleFeatureComputer feature : features) {
-				if (feature.sigmaZ > sigma)
-					sigma = feature.sigmaZ;
+				if (feature.scale.sigmaZ > sigma)
+					sigma = feature.scale.sigmaZ;
 			}
 			return sigma;
 		}
@@ -199,10 +217,10 @@ public class MultiscaleFeatureCalculator implements OpenCVFeatureCalculator {
 		public double getMaxSigmaXY() {
 			double sigma = 0;
 			for (MultiscaleFeatureComputer feature : features) {
-				if (feature.sigmaX > sigma)
-					sigma = feature.sigmaX;
-				if (feature.sigmaY > sigma)
-					sigma = feature.sigmaY;
+				if (feature.scale.sigmaX > sigma)
+					sigma = feature.scale.sigmaX;
+				if (feature.scale.sigmaY > sigma)
+					sigma = feature.scale.sigmaY;
 			}
 			return sigma;
 		}
@@ -211,39 +229,28 @@ public class MultiscaleFeatureCalculator implements OpenCVFeatureCalculator {
 	}
 	
 	
-	static class MultiscaleFeatureComputer {
+	static class MultiscaleFeatureComputer implements OpenCVFeatureFilter {
 		
 		private static Logger logger = LoggerFactory.getLogger(MultiscaleFeatureComputer.class);
 		
-		private double sigmaX, sigmaY, sigmaZ;
+		private String baseName;
+		private GaussianScale scale;
 		
 		private Collection<HessianCalculator.MultiscaleFeature> features;
 		
-		MultiscaleFeatureComputer(double sigmaX, double sigmaY, double sigmaZ, MultiscaleFeature... features) {
-			this.sigmaX = sigmaX;
-			this.sigmaY = sigmaY;
-			this.sigmaZ = sigmaZ;
+		MultiscaleFeatureComputer(String baseName, GaussianScale scale, MultiscaleFeature... features) {
+			this.baseName = baseName;
 			this.features = Arrays.asList(features);
 		}
-				
-		private String getSigmaString() {
-			String sigmaString = "(\u03C3=%s)";
-			if (sigmaX == sigmaY && (sigmaX == sigmaZ || sigmaZ <= 0))
-				sigmaString = String.format(sigmaString, GeneralTools.formatNumber(sigmaX, 2));
-			else {
-				String temp = "x="+GeneralTools.formatNumber(sigmaX, 2) + ", y=" + GeneralTools.formatNumber(sigmaY, 2);
-				if (sigmaZ > 0)
-					temp += ", z=" + GeneralTools.formatNumber(sigmaZ, 2);
-				sigmaString = String.format(sigmaString, temp);
-			}
-			return sigmaString;
-		}
 		
-		public List<Feature<Mat>> calculateFeatures(List<Mat> mats, int ind, int paddingXY, String baseName) {
+		public List<Feature<Mat>> calculateFeatures(Mat mat, int paddingXY, Mat... stack) {
+			List<Mat> mats = stack.length == 0 ? Collections.singletonList(mat) : Arrays.asList(mat);
+			int ind = mats.indexOf(mat);
+			
 			Map<MultiscaleFeature, Mat> map = new MultiscaleResultsBuilder()
-				.sigmaX(sigmaX)
-				.sigmaY(sigmaY)
-				.sigmaZ(sigmaZ)
+				.sigmaX(scale.getSigmaX())
+				.sigmaY(scale.getSigmaY())
+				.sigmaZ(scale.getSigmaZ())
 				.paddingXY(paddingXY)
 				.gaussianSmoothed(features.contains(HessianCalculator.MultiscaleFeature.GAUSSIAN))
 				.weightedStdDev(features.contains(HessianCalculator.MultiscaleFeature.WEIGHTED_STD_DEV))
@@ -256,22 +263,99 @@ public class MultiscaleFeatureCalculator implements OpenCVFeatureCalculator {
 						features.contains(HessianCalculator.MultiscaleFeature.HESSIAN_EIGENVALUE_MAX))
 				.build(mats, ind);
 			
-			String sigmaString = getSigmaString();
+			String sigmaString = scale.sigmaString();
 			
 			List<Feature<Mat>> output = new ArrayList<>();
 			for (MultiscaleFeature feature : features) {
 				String name = feature.toString() + " " + sigmaString;
 				if (baseName != null)
 					name = baseName + " " + name;
-				Mat mat = map.get(feature);
-				if (mat == null)
+				Mat matFeature = map.get(feature);
+				if (matFeature == null)
 					logger.debug("No feature for {}", feature);
 				else
-					output.add(new DefaultFeature<>(name, mat));
+					output.add(new DefaultFeature<>(name, matFeature));
 			}
 			return output;
 		}
 		
+	}
+	
+	
+	/**
+	 * Scale for multiresolution analysis. Encodes Gaussian sigma values for x, y and z.
+	 */
+	public static class GaussianScale {
+		
+		private final double sigmaX;
+		private final double sigmaY;
+		private final double sigmaZ;
+		
+		/**
+		 * Create a GaussianScale with all dimensions specified.
+		 * @param sigmaX
+		 * @param sigmaY
+		 * @param sigmaZ
+		 */
+		GaussianScale(double sigmaX, double sigmaY, double sigmaZ) {
+			this.sigmaX = sigmaX;
+			this.sigmaY = sigmaY;
+			this.sigmaZ = sigmaZ;
+		}
+
+		/**
+		 * Create a 2D GaussianScale, sigmaZ is 0.
+		 * @param sigmaX
+		 * @param sigmaY
+		 */
+		public static GaussianScale create(double sigmaX, double sigmaY) {
+			return create(sigmaX, sigmaY, 0);
+		}
+
+		/**
+		 * Create a GaussianScale with all dimensions specified.
+		 * @param sigmaX
+		 * @param sigmaY
+		 * @param sigmaZ
+		 */
+		public static GaussianScale create(double sigmaX, double sigmaY, double sigmaZ) {
+			return new GaussianScale(sigmaX, sigmaY, sigmaZ);
+		}
+		
+		public static GaussianScale createScaledInstance(GaussianScale scale, double scaleX, double scaleY, double scaleZ) {
+			return create(scale.getSigmaX() * scaleX, scale.getSigmaY() * scaleY, scale.getSigmaZ() * scaleZ);
+		}
+		
+		public double getSigmaX() {
+			return sigmaX;
+		}
+
+		public double getSigmaY() {
+			return sigmaY;
+		}
+
+		public double getSigmaZ() {
+			return sigmaZ;
+		}
+		
+		String sigmaString() {
+			return "(" + toString() + ")";
+		}
+		
+		@Override
+		public String toString() {
+			String sigmaString = "\u03C3=%s";
+			if (sigmaX == sigmaY && (sigmaX == sigmaZ || sigmaZ <= 0))
+				sigmaString = String.format(sigmaString, GeneralTools.formatNumber(sigmaX, 2));
+			else {
+				String temp = "x="+GeneralTools.formatNumber(sigmaX, 2) + ", y=" + GeneralTools.formatNumber(sigmaY, 2);
+				if (sigmaZ > 0)
+					temp += ", z=" + GeneralTools.formatNumber(sigmaZ, 2);
+				sigmaString = String.format(sigmaString, temp);
+			}
+			return sigmaString;
+		}
+
 	}
 	
 
