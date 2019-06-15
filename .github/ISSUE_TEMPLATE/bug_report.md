@@ -7,11 +7,9 @@ assignees: ''
 
 ---
 
-**IMPORTANT! This page is _only_ for reporting a bug in QuPath.**
+## IMPORTANT!
 
-** For any other questions or discussions, please use the forum at [image.sc](https://forum.image.sc/tags/qupath) instead**
-
-----
+**This is only for bug reports - for questions or discussions, please use the forum at [image.sc](https://forum.image.sc/tags/qupath) instead**
 
 ## Before we begin...
 
@@ -23,7 +21,6 @@ If not, please do these things first.
 
 Otherwise, please fill in the template below with as much information as possible to help us reproduce the bug & fix it.
 
-----
 
 ## Bug report
 

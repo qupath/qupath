@@ -7,10 +7,10 @@ assignees: ''
 
 ---
 
-## Please do NOT post general questions and comments about QuPath here!
+## Please use [image.sc](https://forum.image.sc/tags/qupath) instead!
 
-**Help us keep things organized by posting to [image.sc](https://forum.image.sc/tags/qupath) instead**
+QuPath's 'Issues' section on GitHub is intended ONLY for bug reports, and NOT as a discussion forum.
 
-QuPath's 'Issues' section on GitHub is intended ONLY for bug reports, anything else will be closed.
+**Help us keep things organized by posting questions & comments to https://forum.image.sc/tags/qupath**
 
-For documentation & tutorials, see [Getting started](https://github.com/qupath/qupath/wiki/Getting-started).
+And, of course, check out the [documentation & tutorials](https://github.com/qupath/qupath/wiki/Getting-started) to see if the information you need is already there.
