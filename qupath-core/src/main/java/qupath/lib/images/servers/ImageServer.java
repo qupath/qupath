@@ -25,7 +25,6 @@ package qupath.lib.images.servers;
 
 import java.io.IOException;
 import java.net.URI;
-import java.util.Collection;
 import java.util.List;
 
 import qupath.lib.regions.RegionRequest;
@@ -123,7 +122,7 @@ public interface ImageServer<T> extends AutoCloseable {
 	public int nChannels();
 	
 	/**
-	 * TRUE if the image has 8-bit red, green &amp; blue channels (and nothing else), false otherwise.
+	 * True if the image has 8-bit red, green &amp; blue channels (and nothing else), false otherwise.
 	 * @return
 	 */
 	public boolean isRGB();
@@ -208,19 +207,6 @@ public interface ImageServer<T> extends AutoCloseable {
 	 * @see #getSubImageList
 	 */
 	public ImageServer<T> openSubImage(String imageName) throws IOException;
-	
-//	/**
-//	 * Create a (child) image server to be used to access an image contained within the images that this server supports.
-//	 * Not all image servers (or image files) contain multiple images.
-//	 * If this is used, getImageList().contains(imageName) must evaluate to true - if it does not, then this
-//	 * method will throw an IllegalArgumentException.
-//	 * 
-//	 * @param imageName
-//	 * @return
-//	 */
-//	@Deprecated
-////	public ImageServer getSubImageServer(String imageName);
-	
 	
 	/**
 	 * Get a list of 'associated images', e.g. thumbnails or slide overview images.
@@ -342,34 +328,22 @@ public interface ImageServer<T> extends AutoCloseable {
 	 */
 	public T getDefaultThumbnail(int z, int t) throws IOException;
 	
-	
+		
 	/**
-	 * Get {@link TileRequest} objects for <i>all</i> tiles that this server supports.
-	 * 
+	 * Get a TileRequestManager that can be used to identify image tiles that may be efficiently requested
+	 * from this ImageServer.
+	 * <p>
+	 * This is useful because managing arbitrary RegionRequests can result in inefficiencies if a request 
+	 * straddles multiple tiles unnecessarily. Also, it can be used to help ensure consistency whenever 
+	 * requesting regions at different resolutions, where rounding errors might otherwise occur.
+	 * <p>
+	 * Note that the TileRequestManager is not guaranteed to remain the same for the lifecycle of the server. 
+	 * For example, if the image metadata is changed then a new manager may be constructed.
 	 * @return
 	 */
-	public Collection<TileRequest> getAllTileRequests();
+	public TileRequestManager getTileRequestManager();
 	
-	/**
-	 * Get the {@link TileRequest} containing a specified pixel, or null if no such request exists.
-	 * 
-	 * @param level
-	 * @param x
-	 * @param y
-	 * @param z
-	 * @param t
-	 * @return
-	 */
-	public TileRequest getTileRequest(int level, int x, int y, int z, int t);
-	
-	/**
-	 * Get a collection of {@link TileRequest} objects necessary to fulfil a specific {@link RegionRequest}.
-	 * 
-	 * @param request
-	 * @return
-	 */
-	public Collection<TileRequest> getTileRequests(final RegionRequest request);
-	
+
 	/**
 	 * Get the class of the image representation returned by this ImageServer.
 	 * @return

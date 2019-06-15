@@ -333,33 +333,17 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 	
 	
 	
-	private TileRequestManager tileRequestManager;
+	private DefaultTileRequestManager tileRequestManager;
 	
-	protected synchronized TileRequestManager getTileRequestManager() {
+	public synchronized TileRequestManager getTileRequestManager() {
 		if (tileRequestManager == null || tileRequestManager.currentMetadata != getMetadata()) {
-			tileRequestManager = new TileRequestManager(TileRequest.getAllTileRequests(this));
+			tileRequestManager = new DefaultTileRequestManager(TileRequest.getAllTileRequests(this));
 		}
 		return tileRequestManager;
 	}
 	
-	@Override
-	public Collection<TileRequest> getAllTileRequests() {
-		return getTileRequestManager().getAllTiles();
-	}
 	
-	@Override
-	public TileRequest getTileRequest(int level, int x, int y, int z, int t) {
-		return getTileRequestManager().getTile(level, x, y, z, t);
-	}
-	
-	@Override
-	public Collection<TileRequest> getTileRequests(final RegionRequest request) {
-		return getTileRequestManager().getTiles(request);
-	}
-	
-	
-	
-	private class TileRequestManager {
+	private class DefaultTileRequestManager implements TileRequestManager {
 		
 		private Collection<TileRequest> allTiles;
 		private Map<String, SpatialIndex> tiles = new LinkedHashMap<>();
@@ -373,7 +357,7 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 			return level + ":" + z + ":" + t;
 		}
 		
-		TileRequestManager(Collection<TileRequest> tiles) {
+		DefaultTileRequestManager(Collection<TileRequest> tiles) {
 			currentMetadata = getMetadata();
 			allTiles = Collections.unmodifiableList(new ArrayList<>(tiles));
 			for (var tile : allTiles) {
@@ -388,11 +372,13 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 			}
 		}
 		
-		public Collection<TileRequest> getAllTiles() {
+		@Override
+		public Collection<TileRequest> getAllTileRequests() {
 			return allTiles;
 		}
 		
-		public TileRequest getTile(int level, int x, int y, int z, int t) {
+		@Override
+		public TileRequest getTileRequest(int level, int x, int y, int z, int t) {
 			var key = getKey(level, z, t);
 			var set = tiles.get(key);
 			if (set != null) {
@@ -413,7 +399,8 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 					region.getY() + region.getHeight());
 		}
 		
-		public List<TileRequest> getTiles(RegionRequest request) {
+		@Override
+		public List<TileRequest> getTileRequests(RegionRequest request) {
 			int level = getPreferredResolutionLevel(request.getDownsample());
 			var key = getKey(level, request.getZ(), request.getT());
 			var set = tiles.get(key);

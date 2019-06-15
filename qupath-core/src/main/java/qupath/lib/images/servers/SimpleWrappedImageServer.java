@@ -2,7 +2,6 @@ package qupath.lib.images.servers;
 
 import java.io.IOException;
 import java.net.URI;
-import java.util.Collection;
 import java.util.List;
 
 import com.google.gson.annotations.JsonAdapter;
@@ -188,18 +187,8 @@ class SimpleWrappedImageServer<T> implements ImageServer<T> {
 	}
 
 	@Override
-	public Collection<TileRequest> getAllTileRequests() {
-		return server.getAllTileRequests();
-	}
-
-	@Override
-	public TileRequest getTileRequest(int level, int x, int y, int z, int t) {
-		return server.getTileRequest(level, x, y, z, t);
-	}
-
-	@Override
-	public Collection<TileRequest> getTileRequests(RegionRequest request) {
-		return server.getTileRequests(request);
+	public TileRequestManager getTileRequestManager() {
+		return server.getTileRequestManager();
 	}
 
 	@Override

@@ -804,7 +804,7 @@ public class PixelClassifierImageSelectionPane {
 
 				@Override
 				protected PixelClassificationImageServer call() throws Exception {
-					var tiles = server.getAllTileRequests();
+					var tiles = server.getTileRequestManager().getAllTileRequests();
 					int n = tiles.size();
 					boolean success = false;
 					try (var persistentTileCache = new FileSystemPersistentTileCache(pathOutput, server)) {
@@ -1334,7 +1334,7 @@ public class PixelClassifierImageSelectionPane {
     		return null;
     	
     	int level = 0;
-    	var tile = classifierServer.getTileRequest(level, (int)Math.round(x), (int)Math.round(y), z, t);
+    	var tile = classifierServer.getTileRequestManager().getTileRequest(level, (int)Math.round(x), (int)Math.round(y), z, t);
     	if (tile == null)
     		return null;
     	var img = classifierServer.getCachedTile(tile);

@@ -77,7 +77,7 @@ public class ImageRegionStoreHelpers {
 		if (regions == null)
 			regions = new ArrayList<>();
 		
-		for (var tile : server.getTileRequests(request))
+		for (var tile : server.getTileRequestManager().getTileRequests(request))
 			regions.add(tile.getRegionRequest());
 		
 		double x = request.getX() + request.getWidth() / 2.0;

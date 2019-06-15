@@ -168,7 +168,7 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 		if (type != ImageServerMetadata.ChannelType.CLASSIFICATION && type != ImageServerMetadata.ChannelType.PROBABILITY)
 			return -1;
 		
-		var tile = getTileRequest(0, x, y, z, t);
+		var tile = getTileRequestManager().getTileRequest(0, x, y, z, t);
 		if (tile == null)
 			return -1;
 		

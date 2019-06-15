@@ -137,7 +137,7 @@ public class PixelClassificationOverlay extends AbstractImageDataOverlay  {
      	else
      		fullRequest = RegionRequest.createInstance(server.getPath(), downsampleFactor, AwtTools.getImageRegion(shapeRegion, imageRegion.getZ(), imageRegion.getT()));
         
-        Collection<TileRequest> tiles = classifierServer.getTileRequests(fullRequest);
+        Collection<TileRequest> tiles = classifierServer.getTileRequestManager().getTileRequests(fullRequest);
 
 //        requests = requests.stream().map(r -> RegionRequest.createInstance(r.getPath(), requestedDownsample, r)).collect(Collectors.toList());
         

@@ -135,7 +135,7 @@ public class PixelClassificationMeasurementManager {
         
         // Get the regions we need
         var regionRequest = RegionRequest.createInstance(server.getPath(), requestedDownsample, roi);
-        Collection<TileRequest> requests = server.getTileRequests(regionRequest);
+        Collection<TileRequest> requests = server.getTileRequestManager().getTileRequests(regionRequest);
         
         if (requests.isEmpty()) {
         	logger.debug("Request empty for {}", roi);
