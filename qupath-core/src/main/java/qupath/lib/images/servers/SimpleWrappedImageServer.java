@@ -122,16 +122,6 @@ class SimpleWrappedImageServer<T> implements ImageServer<T> {
 	}
 
 	@Override
-	public List<String> getSubImageList() {
-		return server.getSubImageList();
-	}
-
-	@Override
-	public ImageServer<T> openSubImage(String imageName) throws IOException {
-		return server.openSubImage(imageName);
-	}
-
-	@Override
 	public List<String> getAssociatedImageList() {
 		return server.getAssociatedImageList();
 	}

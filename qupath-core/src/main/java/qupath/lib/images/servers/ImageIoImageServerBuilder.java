@@ -27,10 +27,6 @@ import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URI;
-import java.util.Collection;
-import java.util.Collections;
-
-import qupath.lib.images.servers.FileFormatInfo.ImageCheckType;
 
 /**
  * Builder for ImageServer using Java's ImageIO.
@@ -41,9 +37,12 @@ import qupath.lib.images.servers.FileFormatInfo.ImageCheckType;
 public class ImageIoImageServerBuilder implements ImageServerBuilder<BufferedImage> {
 
 	@Override
-	public float supportLevel(URI uri, ImageCheckType info, Class<?> cls, String...args) {
-		if (cls != BufferedImage.class)
-			return 0;
+	public UriImageSupport<BufferedImage> checkImageSupport(URI uri, String...args) {
+		float supportLevel = supportLevel(uri, args);
+		return UriImageSupport.createInstance(this.getClass(), supportLevel, DefaultImageServerBuilder.createInstance(this.getClass(), uri, args));
+	}
+	
+	private float supportLevel(URI uri, String...args) {
 		// We'll try anything... but not with huge confidence (not least because metadata support here is poor)
 		return 1f;
 	}
@@ -51,11 +50,6 @@ public class ImageIoImageServerBuilder implements ImageServerBuilder<BufferedIma
 	@Override
 	public ImageServer<BufferedImage> buildServer(URI uri, String...args) throws MalformedURLException, IOException {
 		return new ImageIoImageServer(uri, args);
-	}
-	
-	@Override
-	public Collection<String> getServerClassNames() {
-		return Collections.singleton(ImageIoImageServer.class.getName());
 	}
 
 	@Override
@@ -68,5 +62,9 @@ public class ImageIoImageServerBuilder implements ImageServerBuilder<BufferedIma
 		return "Provides basic access to file formats supported by Java's ImageIO";
 	}
 	
+	@Override
+	public Class<BufferedImage> getImageType() {
+		return BufferedImage.class;
+	}
 	
 }

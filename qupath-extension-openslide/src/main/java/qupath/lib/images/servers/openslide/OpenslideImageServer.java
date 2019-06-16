@@ -49,6 +49,8 @@ import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.ImageServerMetadata.ImageResolutionLevel;
 import qupath.lib.images.servers.PixelType;
 import qupath.lib.images.servers.TileRequest;
+import qupath.lib.images.servers.ImageServerBuilder.DefaultImageServerBuilder;
+import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
 
 /**
  * ImageServer implementation using OpenSlide.
@@ -292,6 +294,14 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 		if (associatedImageList == null)
 			return Collections.emptyList();
 		return associatedImageList;
+	}
+	
+	/**
+	 * Returns a builder capable of creating a server like this one.
+	 */
+	@Override
+	public ServerBuilder<BufferedImage> getBuilder() {
+		return DefaultImageServerBuilder.createInstance(OpenslideServerBuilder.class, getShortServerName(), getURI(), getMetadata().getArguments());
 	}
 
 	@Override

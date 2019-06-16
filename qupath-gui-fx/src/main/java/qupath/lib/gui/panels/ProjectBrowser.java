@@ -663,8 +663,8 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 		if (project.getEntry(imageData) != null)
 			return;
 
-		var changed = ProjectImportImagesCommand.addImageAndSubImagesToProject(project, imageData.getServer());
-		if (changed) {
+		var entry = ProjectImportImagesCommand.addSingleImageToProject(project, imageData.getServer());
+		if (entry != null) {
 			tree.setRoot(model.getRootFX());
 			setSelectedEntry(tree, tree.getRoot(), project.getEntry(imageData));
 			syncProject(project);

@@ -101,6 +101,9 @@ public class ImageServers {
 	 * @return
 	 */
 	public static <T> JsonElement toJsonElement(ImageServer<T> server, boolean includeMetadata) {
+		var builder = server.getBuilder();
+		if (builder != null)
+			return gson.toJsonTree(builder);
 		if (includeMetadata)
 			return gson.toJsonTree(server);
 		else

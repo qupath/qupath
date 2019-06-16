@@ -29,6 +29,9 @@ import java.io.RandomAccessFile;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashMap;
+import java.util.Map;
+
 import javax.imageio.ImageIO;
 import javax.imageio.ImageReader;
 import javax.imageio.ImageTypeSpecifier;
@@ -56,6 +59,19 @@ import qupath.lib.common.GeneralTools;
 public class FileFormatInfo {
 	
 	final private static Logger logger = LoggerFactory.getLogger(FileFormatInfo.class);
+	
+	private static Map<URI, ImageCheckType> cache = new HashMap<>();
+	
+	public static synchronized ImageCheckType checkType(URI uri) {
+		ImageCheckType check = cache.get(uri);
+		if (check == null) {
+			check = checkImageType(uri);
+			cache.put(uri, check);
+		}
+		return check;
+	}
+	
+	
 	
 	/**
 	 * Interface defining some basic image metadata that may be extracted from an image file 

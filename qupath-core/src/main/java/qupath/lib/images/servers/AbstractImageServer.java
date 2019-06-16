@@ -201,11 +201,6 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 	}
 	
 	@Override
-	public ImageServer<T> openSubImage(String imageName) throws IOException {
-		throw new UnsupportedOperationException("Cannot construct sub-image with name " + imageName + " for " + getClass().getSimpleName());
-	}
-	
-	@Override
 	public String getPath() {
 		return getMetadata().getPath();
 	}
@@ -245,7 +240,8 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 		if (metadata == getMetadata())
 			return;
 		
-		if (!getOriginalMetadata().isCompatibleMetadata(metadata))
+		ImageServerMetadata originalMetadata = getOriginalMetadata();
+		if (!originalMetadata.isCompatibleMetadata(metadata))
 			throw new IllegalArgumentException("Specified metadata is incompatible with original metadata for " + this);
 		
 		// Reset the tile requests if the resolution levels differ
@@ -253,11 +249,6 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 			tileRequestManager = null;
 		
 		userMetadata = metadata;
-	}
-	
-	@Override
-	public List<String> getSubImageList() {
-		return Collections.emptyList();
 	}
 
 	@Override

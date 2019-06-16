@@ -23,10 +23,12 @@
 
 package qupath.lib.images.servers;
 
+import java.io.IOException;
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.Collection;
-
-import qupath.lib.images.servers.FileFormatInfo.ImageCheckType;
+import java.util.Collections;
+import java.util.List;
 
 /**
  * Helper class for creating ImageServers from a given URI and optional argument list.
@@ -35,32 +37,17 @@ import qupath.lib.images.servers.FileFormatInfo.ImageCheckType;
  *
  */
 public interface ImageServerBuilder<T> {
-	
+
 	/**
-	 * Estimated 'support level' for a given file path, where support level is a summary of the likelihood that
-	 * pixel values and metadata will be returned correctly and in a way that achieves good performance.
+	 * Check whether a URI is supported by this builder.
 	 * <p>
-	 * The support level should be a value between 0 and 4.  The following is a guide to its interpretation:
-	 * <ul>
-	 * <li>4 - 'ideal' support, e.g. the image was written by the library behind the ImageServer</li>
-	 * <li>3 - good support</li>
-	 * <li>2 - unknown support, i.e. worth a try</li>
-	 * <li>1 - partial/poor support, i.e. there are known limitations and all higher-scoring possibilities should be tried first</li>
-	 * <li>0 - no support</li>
-	 * </ul>
-	 * The use of floating point enables subclasses to make more subtle evaluations of performance, e.g. if an ImageServer
-	 * is particularly strong for RGB images, but falls short of guaranteeing ideal performance.
-	 * <p>
-	 * In practice, this is used by the ServiceLoader to rank potential ImageServerProviders so that the 'best' ones
-	 * are tried first for new image paths.  The ServiceLoader will not attempt to create the ImageServer if the support level is 0.
-	 * 
+	 * This can be used to gain an estimate of how well the format is supported, and the number of images found.	
 	 * @param uri
-	 * @param info
-	 * @param cls
-	 * @param args
+	 * @param args optional String args (may be ignored)
 	 * @return
+	 * @throws IOException
 	 */
-	public float supportLevel(URI uri, ImageCheckType info, Class<?> cls, String...args);
+	public UriImageSupport<T> checkImageSupport(URI uri, String...args) throws IOException;
 	
 	/**
 	 * Attempt to create {@code ImageServer<T>} from the specified path.
@@ -69,15 +56,6 @@ public interface ImageServerBuilder<T> {
 	 * @return
 	 */
 	public ImageServer<T> buildServer(URI uri, String... args) throws Exception;
-	
-	/**
-	 * Get a collection of all the full Java class names that this builder may return.
-	 * <p>
-	 * The purpose of this is to help choose the appropriate builder whenever a particular class is 
-	 * requested (e.g. to give the same class as a previous server).
-	 * @return
-	 */
-	public Collection<String> getServerClassNames();
 	
 	/**
 	 * Get a human-readable name for the kind of ImageServer this builds.
@@ -90,5 +68,140 @@ public interface ImageServerBuilder<T> {
 	 * @return
 	 */
 	public String getDescription();
+	
+	/**
+	 * Returns the base class for the images supported by this server. 
+	 * Typically this is BufferedImage.class.
+	 * @return
+	 */
+	public Class<T> getImageType();
+	
+	
+	
+	/**
+	 * Interface that defines a class encapsulating all that is required to build an ImageServer.
+	 * <p>
+	 * Instances should be sufficiently lightweight that they can be easily serialized to/from JSON 
+	 * for storage within projects.
+	 * 
+	 * @param <T>
+	 */
+	public static interface ServerBuilder<T> {
+		
+		/**
+		 * Build a new ImageServer instance.
+		 * @return
+		 * @throws Exception
+		 */
+		public ImageServer<T> build() throws Exception;
+		
+	}
+	
+	public static class UriImageSupport<T> {
+		
+		private Class<? extends ImageServerBuilder<T>> providerClass;
+		private float supportLevel;
+		
+		private List<ServerBuilder<T>> builders = new ArrayList<>();
+		
+		UriImageSupport(Class<? extends ImageServerBuilder<T>> providerClass, float supportLevel, Collection<ServerBuilder<T>> builders) {
+			this.providerClass = providerClass;
+			this.supportLevel = supportLevel;
+			this.builders = Collections.unmodifiableList(new ArrayList<>(builders));
+		}
+		
+		public static <T> UriImageSupport<T> createInstance(Class<? extends ImageServerBuilder<T>> providerClass, float supportLevel, Collection<ServerBuilder<T>> builders) {
+			return new UriImageSupport<>(providerClass, supportLevel, builders);
+		}
+		
+		public static <T> UriImageSupport<T> createInstance(Class<? extends ImageServerBuilder<T>> providerClass, float supportLevel,ServerBuilder<T> builder) {
+			return new UriImageSupport<>(providerClass, supportLevel, Collections.singletonList(builder));
+		}
+		
+		public Class<? extends ImageServerBuilder<T>> getProviderClass() {
+			return providerClass;
+		}
+		
+		public List<ServerBuilder<T>> getBuilders() {
+			return builders;
+		}
+		
+		/**
+		 * Estimated 'support level' for a given file path, where support level is a summary of the likelihood that
+		 * pixel values and metadata will be returned correctly and in a way that achieves good performance.
+		 * <p>
+		 * The support level should be a value between 0 and 4.  The following is a guide to its interpretation:
+		 * <ul>
+		 * <li>4 - 'ideal' support, e.g. the image was written by the library behind the ImageServer</li>
+		 * <li>3 - good support</li>
+		 * <li>2 - unknown support, i.e. worth a try</li>
+		 * <li>1 - partial/poor support, i.e. there are known limitations and all higher-scoring possibilities should be tried first</li>
+		 * <li>0 - no support</li>
+		 * </ul>
+		 * The use of floating point enables subclasses to make more subtle evaluations of performance, e.g. if an ImageServer
+		 * is particularly strong for RGB images, but falls short of guaranteeing ideal performance.
+		 * <p>
+		 * In practice, this is used to rank potential builders so that the 'best' ones
+		 * are tried first for new image paths, and those with 0 support may be ignored.
+		 * @return
+		 */
+		public float getSupportLevel() {
+			return supportLevel;
+		}
+		
+	}
+	
+	
+	public static class DefaultImageServerBuilder<T> implements ServerBuilder<T> {
+		
+		private String providerClassName;
+		private URI uri;
+		private String name;
+		private String[] args;
+		
+		private DefaultImageServerBuilder(Class<? extends ImageServerBuilder<T>> providerClass, String name, URI uri, String...args) {
+			this.providerClassName = providerClass.getName();
+			this.name = name;
+			this.uri = uri;
+			this.args = args;
+		}
+		
+		public static <T> DefaultImageServerBuilder<T> createInstance(Class<? extends ImageServerBuilder<T>> providerClass, String name, URI uri, String... args) {
+			return new DefaultImageServerBuilder<>(providerClass, name, uri, args);
+		}
+		
+		public static <T> DefaultImageServerBuilder<T> createInstance(Class<? extends ImageServerBuilder<T>> providerClass, URI uri, String... args) {
+			return createInstance(providerClass, ServerTools.getDefaultShortServerName(uri.toString()), uri, args);
+		}
+		
+		public String getName() {
+			return name;
+		}
+		
+		public URI getURI() {
+			return uri;
+		}
+
+		public String[] getArgs() {
+			return args.clone();
+		}
+
+		@Override
+		public ImageServer<T> build() throws Exception {
+			for (ImageServerBuilder<?> provider : ImageServerProvider.getInstalledImageServerBuilders()) {
+				if (provider.getClass().getName().equals(providerClassName)) {
+					return (ImageServer<T>)provider.buildServer(uri, args);
+				}
+			}
+			return null;
+		}
+		
+		@Override
+		public String toString() {
+			return String.format("DefaultImageServerBuilder (classname=%s, uri=%s, args=%s)", providerClassName, uri.toString(), String.join(", ", args));
+		}
+		
+	}
+		
 	
 }

@@ -27,6 +27,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.List;
 
+import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
 import qupath.lib.regions.RegionRequest;
 
 /**
@@ -166,29 +167,6 @@ public interface ImageServer<T> extends AutoCloseable {
 	public String getServerType();
 	
 	/**
-	 * Get a list of images (or subimages) accessible by this server.
-	 * This is for occasions in which the same file contains multiple images, each of which could be accessed via an ImageServer.
-	 * <p>
-	 * In the event that the server only has a single image, an empty list is returned.
-	 * If the server has multiple images, a list of image names is returned - with the default image occurring first.
-	 * 
-	 * @return
-	 * 
-	 * @see #openSubImage(String)
-	 * @see #getAssociatedImage
-	 */
-	public List<String> getSubImageList();
-	
-	/**
-	 * Open a sub-image as a new ImageServer.
-	 * 
-	 * @return
-	 * 
-	 * @see #getSubImageList
-	 */
-	public ImageServer<T> openSubImage(String imageName) throws IOException;
-	
-	/**
 	 * Get a list of 'associated images', e.g. thumbnails or slide overview images.
 	 * <p>
 	 * Each associated image is simply a T that does not warrant (or require) a full ImageServer, and most likely would never be analyzed.
@@ -308,5 +286,17 @@ public interface ImageServer<T> extends AutoCloseable {
 	 * @return
 	 */
 	public Class<T> getImageClass();
+	
+	/**
+	 * Get a ServerBuilder capable of building a server the same as this one.
+	 * <p>
+	 * The purpose of this is to aid serialization of servers by switching to a simpler representation.
+	 * <p>
+	 * The default implementation returns null, inciding that rebuilding the server is not supported.
+	 * @return
+	 */
+	public default ServerBuilder<T> getBuilder() {
+		return null;
+	}
 	
 }

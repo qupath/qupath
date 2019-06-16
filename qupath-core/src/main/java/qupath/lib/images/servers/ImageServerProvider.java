@@ -31,6 +31,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -39,7 +40,7 @@ import java.util.ServiceLoader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import qupath.lib.images.servers.FileFormatInfo.ImageCheckType;
+import qupath.lib.images.servers.ImageServerBuilder.UriImageSupport;
 import qupath.lib.regions.RegionRequest;
 
 /**
@@ -98,23 +99,14 @@ public class ImageServerProvider {
 	 */
 	public static List<ImageServerBuilder<?>> getInstalledImageServerBuilders() {
 		List<ImageServerBuilder<?>> builders = new ArrayList<>();
-		for (ImageServerBuilder<?> b : serviceLoader)
+		for (ImageServerBuilder<?> b : serviceLoader) {
 			builders.add(b);
+		}
 		return builders;
 	}
 	
-	
-	/**
-	 * Attempt to create {@code ImageServer<T>} from the specified path and arguments.
-	 * 
-	 * @param path path to an image - typically a URI
-	 * @param cls desired generic type for the ImageServer, e.g. BufferedImage.class
-	 * @param args optional arguments, which may be used by some builders
-	 * @return
-	 * @throws IOException 
-	 */
-	public static <T> ImageServer<T> buildServer(final String path, final Class<T> cls, String... args) throws IOException {
-		
+
+	private static <T> List<UriImageSupport<T>> getServerBuilders(final Class<T> cls, final String path, String...args) throws IOException {
 		URI uriTemp;
 		try {
 			if (path.startsWith("file:") || path.startsWith("http")) {
@@ -138,11 +130,8 @@ public class ImageServerProvider {
 			throw new IOException(e.getLocalizedMessage());
 		}
 
-		
 		URI uri = uriTemp;
 
-		final ImageCheckType type = FileFormatInfo.checkImageType(uri);
-		List<ImageServerBuilder<?>> providers = new ArrayList<>();
 		Collection<String> requestedClassnames = new HashSet<>();
 		String key = "--classname";
 		if (args.length > 0) {
@@ -156,65 +145,81 @@ public class ImageServerProvider {
 		}
 		
 		// Check which providers we can use
+		List<UriImageSupport<T>> supports = new ArrayList<>();
 		for (ImageServerBuilder<?> provider : serviceLoader) {
-			if (requestedClassnames.isEmpty()) {
-				providers.add(provider);
-			} else {
-				boolean include = requestedClassnames.contains(provider.getClass().getName());
-				if (!include) {
-					for (String supported : provider.getServerClassNames()) {
-						if (requestedClassnames.contains(supported)) {
-							include = true;
-							break;
-						}
-					}
-				}
-				if (include)
-					providers.add(provider);
-			}
+			if (!cls.isAssignableFrom(provider.getImageType()))
+				continue;
+			UriImageSupport<T> support = (UriImageSupport<T>)provider.checkImageSupport(uri, args);
+			if (support != null && support.getSupportLevel() > 0f)
+				supports.add(support);
 		}
 		
-		// Sort by support level, then by name
-		String[] finalArgs = args;
-		Collections.sort(providers, (p1, p2) -> {
-			int support = -Float.compare(p1.supportLevel(uri, type, cls, finalArgs), p2.supportLevel(uri, type, cls, finalArgs));
-			if (support == 0)
-				return p1.getClass().getName().compareTo(p2.getClass().getName());
-			return support;
-		});
-		
-		if (logger.isDebugEnabled()) {
-			for (ImageServerBuilder<?> provider : providers)
-				logger.debug("{}: rank {} ", provider, provider.supportLevel(uri, type, cls, args));				
-		}
-		long maxImageSize = Runtime.getRuntime().maxMemory() / 2;
-		for (ImageServerBuilder<?> provider : providers) {
-			if (provider.supportLevel(uri, type, cls) == 0) {
-				logger.error("No image server provider found for {}", path);
-				return null;
-			}
-			try {
-				@SuppressWarnings("unchecked")
-				ImageServerBuilder<T> possibleProvider = (ImageServerBuilder<T>)provider;
-				ImageServer<T> server = possibleProvider.buildServer(uri, args);
-				if (server != null) {
-					// Check size is reasonable - should be small, or large & tiled
-					if (server.nResolutions() > 1 || (long)server.getWidth() * server.getHeight() * server.getPixelType().bitsPerPixel() * server.nChannels() / 8 < maxImageSize) {
-						logger.info("Returning server: {} for {}", server.getServerType(), path);
-						return server;
-					} else
-						logger.warn("Cannot open {} with {} - image size too large ({} MB)", path, provider, server.getWidth() / (1024.0 * 1024.0 * 8.0) * server.getHeight() * server.getPixelType().bitsPerPixel() * server.nChannels());
-				}
+		Comparator<UriImageSupport<T>> comparator = Collections.reverseOrder(new UriImageSupportComparator<>());
+		supports.sort(comparator);
+		return supports;
+	}
+	
+	public static <T> UriImageSupport<T> getPreferredServerBuilder(final Class<T> cls, final String path, String...args) throws IOException {
+		List<UriImageSupport<T>> supports = getServerBuilders(cls, path, args);
+		for (UriImageSupport<T> support : supports) {
+			try (var server = support.getBuilders().get(0).build()) {
+				return support;
 			} catch (Exception e) {
-				logger.warn("ImageServer creation failed", e);
+				logger.warn("Unable to open {}", support);
 			}
-			logger.debug("Provider " + provider + " support level " + provider.supportLevel(uri, type, cls));
 		}
+		return supports.isEmpty() ? null : supports.get(0);
+	}
+	
+	
+	/**
+	 * Attempt to create {@code ImageServer<T>} from the specified path and arguments.
+	 * 
+	 * @param path path to an image - typically a URI
+	 * @param cls desired generic type for the ImageServer, e.g. BufferedImage.class
+	 * @param args optional arguments, which may be used by some builders
+	 * @return
+	 * @throws IOException 
+	 */
+	public static <T> ImageServer<T> buildServer(final String path, final Class<T> cls, String... args) throws IOException {
 		
+		List<UriImageSupport<T>> supports = getServerBuilders(cls, path, args);
+
+		if (!supports.isEmpty()) {
+			for (UriImageSupport<T> support :supports) {
+				try {
+					if (!support.getBuilders().isEmpty())
+						return support.getBuilders().get(0).build();
+				} catch (Exception e) {
+					logger.error("Unable to build server", e);
+				}
+			}
+		}
+
 		logger.error("Unable to build whole slide server - check your classpath for a suitable library (e.g. OpenSlide, BioFormats)\n\t");
 		logger.error(System.getProperty("java.class.path"));
 		throw new IOException("Unable to build a whole slide server for " + path);
 	}
 	
+	
+	/**
+	 * Create a comparator that aims to get the builder with the best (claimed) support, following by the one that can identify most images from the file.
+	 *
+	 * @param <T>
+	 */
+	private static class UriImageSupportComparator<T> implements Comparator<UriImageSupport<T>> {
+
+		@Override
+		public int compare(UriImageSupport<T> o1, UriImageSupport<T> o2) {
+			int cmp = Float.compare(o1.getSupportLevel(), o2.getSupportLevel());
+			if (cmp != 0)
+				return cmp;
+			cmp = Integer.compare(o1.getBuilders().size(), o2.getBuilders().size());
+			if (cmp != 0)
+				return cmp;
+			return o1.getProviderClass().getName().compareTo(o2.getProviderClass().getName());
+		}
+		
+	}
 	
 }

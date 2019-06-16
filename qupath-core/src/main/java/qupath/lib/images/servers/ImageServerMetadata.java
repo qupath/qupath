@@ -757,7 +757,9 @@ public class ImageServerMetadata {
 		if (sizeT != metadata.sizeT ||
 				getSizeC() != metadata.getSizeC() ||
 				sizeZ != metadata.sizeZ) {
-			logger.warn("Metadata image dimensions are not the same!");
+			logger.warn(String.format(
+					"Metadata image dimensions (czt) are not the same! %dx%dx%d for original vs %dx%dx%d",
+					getSizeC(), getSizeZ(), getSizeT(), metadata.getSizeC(), metadata.getSizeZ(), metadata.getSizeT()));
 			return false;			
 		}
 		return true;

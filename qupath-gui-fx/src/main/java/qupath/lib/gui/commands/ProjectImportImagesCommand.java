@@ -34,6 +34,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Scanner;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Collectors;
 
 import org.controlsfx.dialog.ProgressDialog;
 import org.slf4j.Logger;
@@ -60,6 +61,7 @@ import qupath.lib.gui.helpers.PanelToolsFX;
 import qupath.lib.gui.panels.ProjectBrowser;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
 import qupath.lib.images.servers.ImageServerProvider;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectImageEntry;
@@ -143,14 +145,33 @@ public class ProjectImportImagesCommand implements PathCommand {
 		Task<Void> worker = new Task<Void>() {
 			@Override
 			protected Void call() throws Exception {
-				long max = listView.getItems().size();
 				AtomicLong counter = new AtomicLong(0L);
 				// TODO: The parallel stream is bringing nothing here... refactor to return entries then add, or else add then sort later
-				listView.getItems().parallelStream().forEachOrdered(p -> {
-					try (var server = ImageServerProvider.buildServer(p, BufferedImage.class)) {
-						addImageAndSubImagesToProject(project, server);
+
+				updateMessage("Identifying images...");
+				List<ServerBuilder<BufferedImage>> builders = listView.getItems().parallelStream().map(p -> {
+					try {
+						var support = ImageServerProvider.getPreferredServerBuilder(BufferedImage.class, p);
+						if (support != null)
+							return support.getBuilders();
+					} catch (IOException e) {
+						logger.error("Unable to add {}", p);
+					}
+					return new ArrayList<ServerBuilder<BufferedImage>>();
+				}).flatMap(List::stream).collect(Collectors.toList());
+
+				long max = builders.size();
+
+				updateMessage("Adding " + max + " images to project");
+
+				// TODO: Consider maintaining insertion order
+				builders.parallelStream().forEach(builder -> {
+//				builders.parallelStream().forEach(builder -> {
+					try (var server =  builder.build()) {
+						var entry = addSingleImageToProject(project, server);
+						updateMessage("Added " + entry.getImageName());
 					} catch (Exception e) {
-						logger.warn("Exception adding " + p, e);
+						logger.warn("Exception adding " + builder, e);
 					} finally {
 						updateProgress(counter.incrementAndGet(), max);
 					}
@@ -332,28 +353,6 @@ public class ProjectImportImagesCommand implements PathCommand {
 		}
 	}
 	
-	
-	public static boolean addImageAndSubImagesToProject(Project<BufferedImage> project, ImageServer<BufferedImage> server) {
-		var subImages = server.getSubImageList();
-		if (subImages.isEmpty())
-			return addSingleImageToProject(project, server);
-		boolean changes = false;
-		int count = 0;
-		int n = subImages.size();
-		for (var name : subImages) {
-			count++;
-			logger.info("Adding sub-image {} ({}/{})", name, count, n);
-			try (ImageServer<BufferedImage> server2 = server.openSubImage(name)) {
-				changes = changes | addSingleImageToProject(project, server2);
-			} catch (IOException e) {
-				logger.warn("Could not build server for " + name, e);
-			} catch (Exception e1) {
-				logger.warn("Error attempting to add server for " + name, e1);
-			}
-		}
-		return changes;
-	}
-	
 	/**
 	 * Add a single ImageServer to a project, without considering sub-images.
 	 * <p>
@@ -363,7 +362,7 @@ public class ProjectImportImagesCommand implements PathCommand {
 	 * @param server
 	 * @return
 	 */
-	public static boolean addSingleImageToProject(Project<BufferedImage> project, ImageServer<BufferedImage> server) {
+	public static ProjectImageEntry<BufferedImage> addSingleImageToProject(Project<BufferedImage> project, ImageServer<BufferedImage> server) {
 		ProjectImageEntry<BufferedImage> entry = null;
 		try {
 			var img = getThumbnailRGB(server, null);
@@ -373,7 +372,7 @@ public class ProjectImportImagesCommand implements PathCommand {
 		} catch (IOException e) {
 			logger.warn("Error attempting to add " + server, e);
 		}
-		return entry != null;
+		return entry;
 	}
 	
 	

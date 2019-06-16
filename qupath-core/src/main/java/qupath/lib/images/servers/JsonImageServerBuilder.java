@@ -8,13 +8,9 @@ import java.io.Reader;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.Arrays;
-import java.util.Collection;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import qupath.lib.images.servers.FileFormatInfo.ImageCheckType;
 
 /**
  * ImageServerBuilder that constructs an ImageServer from a JSON representation.
@@ -27,7 +23,12 @@ public class JsonImageServerBuilder implements ImageServerBuilder<BufferedImage>
 	private static final Logger logger = LoggerFactory.getLogger(JsonImageServerBuilder.class);
 
 	@Override
-	public float supportLevel(URI uri, ImageCheckType info, Class<?> cls, String...args) {
+	public UriImageSupport<BufferedImage> checkImageSupport(URI uri, String...args) {
+		float supportLevel = supportLevel(uri, args);
+		return UriImageSupport.createInstance(JsonImageServerBuilder.class, supportLevel, DefaultImageServerBuilder.createInstance(this.getClass(), uri, args));
+	}
+	
+	private float supportLevel(URI uri, String...args) {
 		if (uri.toString().toLowerCase().endsWith(".json"))
 			return 4;
 		String scheme = uri.getScheme();
@@ -68,15 +69,10 @@ public class JsonImageServerBuilder implements ImageServerBuilder<BufferedImage>
 	public String getDescription() {
 		return "A builder that constructs ImageServers from a JSON representation";
 	}
-
+	
 	@Override
-	public Collection<String> getServerClassNames() {
-		return Arrays.asList(
-				CroppedImageServer.class.getName(),
-				AffineTransformImageServer.class.getName(),
-				SparseImageServer.class.getName(),
-				ConcatChannelsImageServer.class.getName()
-				);
+	public Class<BufferedImage> getImageType() {
+		return BufferedImage.class;
 	}
 
 }

@@ -84,7 +84,8 @@ import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.servers.AbstractTileableImageServer;
 import qupath.lib.images.servers.ImageChannel;
-import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.ImageServerBuilder.DefaultImageServerBuilder;
+import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.ImageServerMetadata.ImageResolutionLevel;
 import qupath.lib.images.servers.PixelType;
@@ -150,7 +151,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 	/**
 	 * A map linking an identifier (image name) to series number for 'full' images.
 	 */
-	private Map<String, Integer> imageMap = null;
+	private Map<String, ServerBuilder<BufferedImage>> imageMap = null;
 	
 	/**
 	 * A map linking an identifier (image name) to series number for additional images, e.g. thumbnails or macro images.
@@ -337,7 +338,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 									firstSeries = s;
 									firstPixels = sizeX * sizeY * sizeZ * sizeT;
 								}
-								imageMap.put(name, s);
+								imageMap.put(name, DefaultImageServerBuilder.createInstance(BioFormatsServerBuilder.class, name, uri, "--series", Integer.toString(s)));
 							}
 						}
 
@@ -665,6 +666,15 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 		long endTime = System.currentTimeMillis();
 		logger.debug(String.format("Initialization time: %d ms", endTime-startTime));
 	}
+	
+	
+	/**
+	 * Returns a builder capable of creating a server like this one.
+	 */
+	@Override
+	public ServerBuilder<BufferedImage> getBuilder() {
+		return DefaultImageServerBuilder.createInstance(BioFormatsServerBuilder.class, getShortServerName(), uri, getMetadata().getArguments());
+	}
 
 		
 	/**
@@ -854,13 +864,6 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 	}
 
 	@Override
-	public List<String> getSubImageList() {
-		if (imageMap == null || imageMap.isEmpty())
-			return Collections.emptyList();
-		return new ArrayList<>(imageMap.keySet());
-	}
-
-	@Override
 	public String getDisplayedImageName() {
 		String name = getMetadata().getName();
 		if (name == null)
@@ -936,30 +939,15 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 	}
 
 
-	@Override
-	public ImageServer<BufferedImage> openSubImage(String imageName) throws IOException {
-		// If we don't have an image name, return original file path
-		Integer series = imageMap.getOrDefault(imageName, null);
-		if (imageName.isEmpty())
-			series = Integer.valueOf(0);
-		if (series != null) {
-			try {
-				BioFormatsImageServer server = new BioFormatsImageServer(uri, "--series", series.toString());
-				return server;
-			} catch (Exception e) {
-				if (e instanceof IOException)
-					throw (IOException)e;
-				throw new IOException(e);
-			}
-		}
-		throw new IOException(toString() + " does not contain sub-image with name " + imageName);
+	Map<String, ServerBuilder<BufferedImage>> getImageBuilders() {
+		return Collections.unmodifiableMap(imageMap);
 	}
 
 
 	@Override
 	public ImageServerMetadata getOriginalMetadata() {
 		return originalMetadata;
-	}	
+	}
 	
 	/**
 	 * Get the class name of the first reader that potentially supports the file type, or null if no reader can be found.
@@ -1097,7 +1085,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 		 * @throws FormatException
 		 * @throws IOException
 		 */
-		private static IFormatReader createReader(final BioFormatsServerOptions options, final String id, final MetadataStore store) throws FormatException, IOException {
+		static IFormatReader createReader(final BioFormatsServerOptions options, final String id, final MetadataStore store) throws FormatException, IOException {
 			return createReader(options, null, id, store);
 		}
 		
