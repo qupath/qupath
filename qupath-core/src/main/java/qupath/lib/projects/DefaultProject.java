@@ -71,6 +71,7 @@ import qupath.lib.images.ImageData.ImageType;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerProvider;
 import qupath.lib.images.servers.ImageServers;
+import qupath.lib.images.servers.ServerTools;
 import qupath.lib.io.PathIO;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.classes.PathClass;
@@ -623,7 +624,7 @@ class DefaultProject implements Project<BufferedImage> {
 			this.server = ImageServers.toJsonElement(server, true);
 			syncServer();
 			this.serverPath = server.getPath();
-			this.imageName = server.getDisplayedImageName();
+			this.imageName = ServerTools.getDisplayableImageName(server);
 			
 			if (description != null)
 				setDescription(description);

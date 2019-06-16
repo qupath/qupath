@@ -31,6 +31,7 @@ import qupath.lib.images.servers.AbstractImageServer;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.ImageServerProvider;
+import qupath.lib.images.servers.PixelType;
 import qupath.lib.regions.RegionRequest;
 
 /**
@@ -224,8 +225,8 @@ public class MergedServer extends AbstractImageServer<BufferedImage> {
 	}
 
 	@Override
-	public int getBitsPerPixel() {
-		return server.getBitsPerPixel();
+	public PixelType getPixelType() {
+		return server.getPixelType();
 	}
 
 	@Override

@@ -334,7 +334,7 @@ class MilestoneProject {
 	}
 	
 	public DefaultProjectImageEntry addImage(final ImageServer<BufferedImage> server) {
-		var entry = new DefaultProjectImageEntry(server.getPath(), server.getDisplayedImageName(), null, null, null);
+		var entry = new DefaultProjectImageEntry(server.getPath(), ServerTools.getDisplayableImageName(server), null, null, null);
 		if (addImage(entry)) {
 			return entry;
 		}

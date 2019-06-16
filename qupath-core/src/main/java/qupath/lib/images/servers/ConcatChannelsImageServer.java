@@ -45,7 +45,7 @@ public class ConcatChannelsImageServer extends TransformingImageServer<BufferedI
 		
 		var channels = new ArrayList<ImageChannel>();
 		for (var s : allServers)
-			channels.addAll(s.getChannels());
+			channels.addAll(s.getMetadata().getChannels());
 		
 		originalMetadata = new ImageServerMetadata.Builder(getClass(), server.getMetadata())
 				.path("Merged channels ["+String.join(", ", allServers.stream().map(s -> s.getPath()).collect(Collectors.toList())) + "]")
@@ -108,7 +108,7 @@ public class ConcatChannelsImageServer extends TransformingImageServer<BufferedI
 		}
 		
 		return new BufferedImage(
-				ColorModelFactory.getDummyColorModel(getBitsPerPixel()),
+				ColorModelFactory.getDummyColorModel(getPixelType().bitsPerPixel()),
 				raster, premultiplied, null);
 	}
 	

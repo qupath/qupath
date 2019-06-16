@@ -30,6 +30,7 @@ import java.io.IOException;
 import javax.imageio.ImageIO;
 
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.PixelType;
 import qupath.lib.regions.RegionRequest;
 
 /**
@@ -62,7 +63,7 @@ abstract class AbstractImageIOWriter implements ImageWriter<BufferedImage> {
 	
 	@Override
 	public boolean suportsImageType(ImageServer<BufferedImage> server) {
-		return server.isRGB() || (server.nChannels() == 1 && server.getBitsPerPixel() == 8);
+		return server.isRGB() || (server.nChannels() == 1 && server.getPixelType() == PixelType.UINT8);
 	}
 
 	@Override

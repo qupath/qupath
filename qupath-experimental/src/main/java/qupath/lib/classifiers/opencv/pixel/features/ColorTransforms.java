@@ -82,7 +82,7 @@ public class ColorTransforms {
 		public float[] extractChannel(ImageData<BufferedImage> imageData, BufferedImage img, float[] pixels) {
 			pixels = ensureArrayLength(img, pixels);
 			int i = 0;
-			for (ImageChannel channel : imageData.getServer().getChannels()) {
+			for (ImageChannel channel : imageData.getServer().getMetadata().getChannels()) {
 				if (channelName.equals(channel.getName())) {
 					return img.getRaster().getSamples(0, 0, img.getWidth(), img.getHeight(), i, pixels);
 				}

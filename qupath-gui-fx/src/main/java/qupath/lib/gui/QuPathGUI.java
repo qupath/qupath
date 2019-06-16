@@ -309,6 +309,7 @@ import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerBuilder;
 import qupath.lib.images.servers.ImageServerProvider;
 import qupath.lib.images.servers.RotatedImageServer;
+import qupath.lib.images.servers.ServerTools;
 import qupath.lib.images.servers.RotatedImageServer.Rotation;
 import qupath.lib.io.PathIO;
 import qupath.lib.objects.PathAnnotationObject;
@@ -2326,7 +2327,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		if (!imageData.isChanged())
 			return true;
 		ProjectImageEntry<BufferedImage> entry = getProjectImageEntry(imageData);
-		String name = entry == null ? imageData.getServer().getDisplayedImageName() : entry.getImageName();
+		String name = entry == null ? ServerTools.getDisplayableImageName(imageData.getServer()) : entry.getImageName();
 		var response = DisplayHelpers.showYesNoCancelDialog("Save changes", "Save changes to " + name + "?");
 		if (response == DialogButton.CANCEL)
 			return false;

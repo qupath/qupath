@@ -43,6 +43,7 @@ import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.ImageServerMetadata.ImageResolutionLevel;
+import qupath.lib.images.servers.PixelType;
 import qupath.lib.images.servers.TileRequest;
 import qupath.lib.objects.DefaultPathObjectConnectionGroup;
 import qupath.lib.objects.PathDetectionObject;
@@ -105,7 +106,7 @@ public class PathHierarchyImageServer extends AbstractTileableImageServer implem
 		this.originalMetadata = new ImageServerMetadata.Builder(getClass(), server.getOriginalMetadata())
 				.preferredTileSize(256, 256)
 				.levels(levelBuilder.build())
-				.bitDepth(8)
+				.pixelType(PixelType.UINT8)
 				.channels(ImageChannel.getDefaultRGBChannels())
 				.rgb(true)
 				.build();
@@ -140,11 +141,6 @@ public class PathHierarchyImageServer extends AbstractTileableImageServer implem
 	@Override
 	public String getServerType() {
 		return "Overlay";
-	}
-
-	@Override
-	public String getDisplayedImageName() {
-		return prefix + server.getDisplayedImageName();
 	}
 
 	@Override

@@ -113,7 +113,7 @@ public class ImageServerMetadata {
 	private String[] args;
 	
 	private boolean isRGB = false;
-	private int bitDepth = 8;
+	private PixelType pixelType = PixelType.UINT8;
 	
 	private ImageResolutionLevel[] levels;
 	
@@ -250,8 +250,8 @@ public class ImageServerMetadata {
 		 * @param bitDepth
 		 * @return
 		 */
-		public Builder bitDepth(int bitDepth) {
-			metadata.bitDepth = bitDepth;
+		public Builder pixelType(PixelType pixelType) {
+			metadata.pixelType = pixelType;
 			return this;
 		}
 		
@@ -444,7 +444,7 @@ public class ImageServerMetadata {
 		this.sizeT = metadata.sizeT;
 				
 		this.isRGB = metadata.isRGB;
-		this.bitDepth = metadata.bitDepth;
+		this.pixelType = metadata.pixelType;
 		
 		this.pixelCalibration = metadata.pixelCalibration;
 		
@@ -565,8 +565,8 @@ public class ImageServerMetadata {
 	 * Returns the bit-depth for individual pixels in the image.
 	 * @return
 	 */
-	public int getBitDepth() {
-		return bitDepth;
+	public PixelType getPixelType() {
+		return pixelType;
 	}
 	
 	/**
@@ -750,12 +750,8 @@ public class ImageServerMetadata {
 			logger.warn("Metadata paths are not compatible: \n{}\n{}", path, metadata.path);
 			return false;
 		}
-		if (bitDepth != metadata.bitDepth) {
-			logger.warn("Metadata bit-depths are not compatible: {} vs {}", bitDepth, metadata.bitDepth);
-			return false;
-		}
-		if (bitDepth != metadata.bitDepth) {
-			logger.warn("Metadata bit-depths are not compatible: {} vs {}", bitDepth, metadata.bitDepth);
+		if (pixelType != metadata.pixelType) {
+			logger.warn("Pixel types are not compatible: {} vs {}", pixelType, metadata.pixelType);
 			return false;
 		}
 		if (sizeT != metadata.sizeT ||
@@ -799,7 +795,7 @@ public class ImageServerMetadata {
 		final int prime = 31;
 		int result = 1;
 		result = prime * result + Arrays.hashCode(args);
-		result = prime * result + bitDepth;
+		result = prime * result + ((channelType == null) ? 0 : channelType.hashCode());
 		result = prime * result + ((channels == null) ? 0 : channels.hashCode());
 		result = prime * result + height;
 		result = prime * result + (isRGB ? 1231 : 1237);
@@ -808,9 +804,9 @@ public class ImageServerMetadata {
 		temp = Double.doubleToLongBits(magnification);
 		result = prime * result + (int) (temp ^ (temp >>> 32));
 		result = prime * result + ((name == null) ? 0 : name.hashCode());
-		result = prime * result + ((channelType == null) ? 0 : channelType.hashCode());
 		result = prime * result + ((path == null) ? 0 : path.hashCode());
 		result = prime * result + ((pixelCalibration == null) ? 0 : pixelCalibration.hashCode());
+		result = prime * result + ((pixelType == null) ? 0 : pixelType.hashCode());
 		result = prime * result + preferredTileHeight;
 		result = prime * result + preferredTileWidth;
 		result = prime * result + ((serverClassName == null) ? 0 : serverClassName.hashCode());
@@ -832,7 +828,7 @@ public class ImageServerMetadata {
 		ImageServerMetadata other = (ImageServerMetadata) obj;
 		if (!Arrays.equals(args, other.args))
 			return false;
-		if (bitDepth != other.bitDepth)
+		if (channelType != other.channelType)
 			return false;
 		if (channels == null) {
 			if (other.channels != null)
@@ -852,8 +848,6 @@ public class ImageServerMetadata {
 				return false;
 		} else if (!name.equals(other.name))
 			return false;
-		if (channelType != other.channelType)
-			return false;
 		if (path == null) {
 			if (other.path != null)
 				return false;
@@ -863,6 +857,8 @@ public class ImageServerMetadata {
 			if (other.pixelCalibration != null)
 				return false;
 		} else if (!pixelCalibration.equals(other.pixelCalibration))
+			return false;
+		if (pixelType != other.pixelType)
 			return false;
 		if (preferredTileHeight != other.preferredTileHeight)
 			return false;

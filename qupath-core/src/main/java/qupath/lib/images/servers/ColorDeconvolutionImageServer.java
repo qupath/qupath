@@ -83,7 +83,7 @@ class ColorDeconvolutionImageServer extends TransformingImageServer<BufferedImag
 		
 		metadata = new ImageServerMetadata.Builder(getClass(), server.getMetadata())
 				.path(String.format("%s, %s (%s)", server.getPath(), stains.toString(), sb.toString()))
-				.bitDepth(32)
+				.pixelType(PixelType.FLOAT32)
 				.rgb(false)
 				.channels(channels)
 				.name(String.format("%s (%s)", server.getMetadata().getName(), stains.toString()))

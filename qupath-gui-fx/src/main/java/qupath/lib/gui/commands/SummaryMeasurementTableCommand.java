@@ -93,6 +93,7 @@ import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.QuPathViewerListener;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.ServerTools;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
@@ -172,7 +173,7 @@ public class SummaryMeasurementTableCommand implements PathCommand {
 				synchronizeSelectionModelToTable(hierarchy, c, table);
 			}
 		});
-		String displayedName = imageData.getServer().getDisplayedImageName();
+		String displayedName = ServerTools.getDisplayableImageName(imageData.getServer());
 		String name;
 		if (type == null)
 			name = "Results " + displayedName;

@@ -86,6 +86,7 @@ import qupath.lib.images.ImageData.ImageType;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.PixelCalibration;
+import qupath.lib.images.servers.ServerTools;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.RectangleROI;
@@ -442,7 +443,7 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 			return;
 		
 		ImageServer<BufferedImage> serverPrevious = imageData.getServer();
-		if (serverPrevious != null && name.equals(serverPrevious.getDisplayedImageName()))
+		if (serverPrevious != null && name.equals(ServerTools.getDisplayableImageName(serverPrevious)))
 			return;
 		
 		try {
@@ -651,8 +652,9 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 		if (panelImages != null) {
 			int nImages = listImages.getItems().size();
 			if (nImages > 0) {
-				listImages.getSelectionModel().select(server.getDisplayedImageName());
-				updateThumbnail(server.getDisplayedImageName());
+				String name = ServerTools.getDisplayableImageName(server);
+				listImages.getSelectionModel().select(name);
+				updateThumbnail(name);
 //				panelImages.setExpanded(true);
 			}
 			panelImages.setText("Image list (" + nImages + ")");
@@ -841,13 +843,13 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 			PixelCalibration cal = server.getPixelCalibration();
 			switch (rowType) {
 			case NAME:
-				return server.getDisplayedImageName();
+				return ServerTools.getDisplayableImageName(server);
 			case PATH:
 				return server.getPath();
 			case IMAGE_TYPE:
 				return imageData.getImageType();
 			case BIT_DEPTH:
-				return server.isRGB() ? "8-bit (RGB)" : server.getBitsPerPixel();
+				return server.isRGB() ? "8-bit (RGB)" : server.getPixelType().bitsPerPixel();
 			case MAGNIFICATION:
 				return server.getMetadata().getMagnification();
 			case WIDTH:

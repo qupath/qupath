@@ -25,6 +25,7 @@ package qupath.lib.images.servers;
 
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
+import java.awt.image.DataBuffer;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URI;
@@ -62,7 +63,29 @@ public class ImageIoImageServer extends AbstractImageServer<BufferedImage> {
 		this.imageName = imageName;
 
 		// Create metadata objects
-		int bitDepth = img.getSampleModel().getSampleSize(0);
+		PixelType pixelType;
+		switch (img.getRaster().getDataBuffer().getDataType()) {
+		case DataBuffer.TYPE_BYTE:
+			pixelType = PixelType.UINT8;
+			break;
+		case DataBuffer.TYPE_USHORT:
+			pixelType = PixelType.UINT16;
+			break;
+		case DataBuffer.TYPE_FLOAT:
+			pixelType = PixelType.FLOAT32;
+			break;
+		case DataBuffer.TYPE_DOUBLE:
+			pixelType = PixelType.FLOAT64;
+			break;
+		case DataBuffer.TYPE_SHORT:
+			pixelType = PixelType.INT16;
+			break;
+		case DataBuffer.TYPE_INT:
+			pixelType = PixelType.INT32;
+			break;
+		default:
+			throw new IllegalArgumentException("Unsupported image data type " + img.getRaster().getDataBuffer().getDataType());
+		}
 		int nChannels = img.getSampleModel().getNumBands();
 		boolean isRGB = false;
 		for (int type : rgbTypes) {
@@ -73,7 +96,7 @@ public class ImageIoImageServer extends AbstractImageServer<BufferedImage> {
 				.height(img.getHeight())
 				.args(args)
 				.rgb(isRGB)
-				.bitDepth(bitDepth)
+				.pixelType(pixelType)
 				.channels(ImageChannel.getDefaultChannelList(nChannels)).
 				build();
 	}

@@ -26,6 +26,7 @@ import qupath.lib.geom.Point2;
 import qupath.lib.images.servers.AbstractTileableImageServer;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServerMetadata;
+import qupath.lib.images.servers.PixelType;
 import qupath.lib.images.servers.TileRequest;
 import qupath.lib.images.servers.omero.OmeroWebImageServerBuilder.OmeroWebClient;
 import qupath.lib.objects.PathObject;
@@ -102,7 +103,7 @@ public class OmeroWebImageServer extends AbstractTileableImageServer {
 		double pixelWidthMicrons = Double.NaN;
 		double pixelHeightMicrons = Double.NaN;
 		double zSpacingMicrons = Double.NaN;
-		int bitDepth = 8;
+		PixelType pixelType = PixelType.UINT8;
 		boolean isRGB = true;
 		double magnification = Double.NaN;
 
@@ -187,7 +188,7 @@ public class OmeroWebImageServer extends AbstractTileableImageServer {
 				.sizeZ(sizeZ)
 				.args(args)
 				.name(imageName)
-				.bitDepth(bitDepth)
+				.pixelType(pixelType)
 				.rgb(isRGB)
 				.magnification(magnification)
 				.levels(levelBuilder.build());

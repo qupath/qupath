@@ -84,17 +84,6 @@ public interface ImageServer<T> extends AutoCloseable {
 	public int nResolutions();
 	
 	/**
-	 * Get the downsample factor supported by the server that is the best match for the requested downsample.
-	 * <p>
-	 * Generally, this will be &lt;= the requested downsample (but it may be slightly more if the error introduced
-	 * would be very small, i.e. if 4 is requested and 4.0001 is available, 4.0001 would be returned).
-	 * 
-	 * @param requestedDownsample
-	 * @return
-	 */
-	public double getPreferredDownsampleFactor(double requestedDownsample);
-	
-	/**
 	 * Get the downsample factor for a specified resolution level, where level 0 is the full resolution image 
 	 * and nResolutions() - 1 is the lowest resolution available.
 	 * 
@@ -146,15 +135,6 @@ public interface ImageServer<T> extends AutoCloseable {
 	public default PixelCalibration getPixelCalibration() {
 		return getMetadata().getPixelCalibration();
 	}
-	
-	/**
-	 * Get the output type, used to interpret what channels mean.
-	 * 
-	 * @return
-	 */
-	public default ImageServerMetadata.ChannelType getOutputType() {
-		return ImageServerMetadata.ChannelType.DEFAULT;
-	}
 
 	/**
 	 * Get a cached tile, or null if the tile has not been cached.
@@ -178,7 +158,7 @@ public interface ImageServer<T> extends AutoCloseable {
 	 * @return
 	 */
 	public T readBufferedImage(RegionRequest request) throws IOException;
-        
+ 
 	
 	/**
 	 * A string describing the type of server, for example the name of the library used (Openslide, Bioformats...)
@@ -230,18 +210,6 @@ public interface ImageServer<T> extends AutoCloseable {
 	public T getAssociatedImage(String name);
 	
 	
-	/**
-	 * Get the name of the image supplied by this server.
-	 * <p>
-	 * If the server only has one image, then it will be the same as getShortServerName().
-	 * However if the server contains multiple images, this will identify the image whose
-	 * metadata &amp; pixels are provided by the server.
-	 * 
-	 * @return
-	 */
-	public String getDisplayedImageName();
-	
-	
 //	/**
 //	 * Returns an absolute URI representing the server (image) data, or null if the server does not receive its data from a stored file (e.g. it is computed dynamically).
 //	 * @return
@@ -266,16 +234,13 @@ public interface ImageServer<T> extends AutoCloseable {
 	 */
 	public boolean isEmptyRegion(RegionRequest request);
 	
-	
 	/**
-	 * The bit-depth of the image.
-	 * <p>
-	 * For an RGB image, this is considered to be 8, i.e. color channels are considered separately.
+	 * The bit-depth and type of the image. This refers to a single channel, e.g. an 
+	 * 8-bit RGB image will have a type of {@link PixelType#UINT8}.
 	 * 
 	 * @return
 	 */
-	public int getBitsPerPixel();
-	
+	public PixelType getPixelType();
 	
 	/**
 	 * Request information for one channel.
@@ -283,15 +248,9 @@ public interface ImageServer<T> extends AutoCloseable {
 	 * @param channel
 	 * @return
 	 * 
+	 * @see ImageServerMetadata#getChannels()
 	 */
 	public ImageChannel getChannel(int channel);
-	
-	
-	/**
-	 * Get a list providing the name and default color for each image channel.
-	 * @return
-	 */
-	public List<ImageChannel> getChannels();
 	
 	/**
 	 * Get essential metadata associated with the ImageServer as a distinct object.  This may be edited by the user.

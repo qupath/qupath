@@ -87,6 +87,7 @@ import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.ImageServerMetadata.ImageResolutionLevel;
+import qupath.lib.images.servers.PixelType;
 import qupath.lib.images.servers.TileRequest;
 
 /**
@@ -451,6 +452,38 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 //				nZSlices = 1;
 //			}
 			nTimepoints = reader.getSizeT();
+
+			PixelType pixelType;
+			switch (reader.getPixelType()) {
+				case FormatTools.INT8:
+					pixelType = PixelType.INT8;
+					break;
+				case FormatTools.UINT8:
+					pixelType = PixelType.UINT8;
+					break;
+				case FormatTools.INT16:
+					pixelType = PixelType.INT16;
+					break;
+				case FormatTools.UINT16:
+					pixelType = PixelType.UINT16;
+					break;
+				case FormatTools.INT32:
+					pixelType = PixelType.INT32;
+					break;
+				case FormatTools.UINT32:
+					logger.warn("Pixel type is UINT32!");
+					pixelType = PixelType.UINT32;
+					break;
+				case FormatTools.FLOAT:
+					pixelType = PixelType.FLOAT32;
+					break;
+				case FormatTools.DOUBLE:
+					pixelType = PixelType.FLOAT64;
+					break;
+				default:
+					throw new IllegalArgumentException("Unsupported pixel type " + reader.getPixelType());
+			}
+			
 			int bpp = reader.getBitsPerPixel();
 			boolean isRGB = reader.isRGB() && bpp == 8;
 			// Remove alpha channel
@@ -604,7 +637,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 					sizeZ(nZSlices).
 					sizeT(nTimepoints).
 					levels(resolutionBuilder.build()).
-					bitDepth(bpp).
+					pixelType(pixelType).
 					rgb(isRGB);
 
 			if (Double.isFinite(magnification))

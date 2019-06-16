@@ -9,6 +9,7 @@ import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.overlays.AbstractImageDataOverlay;
 import qupath.lib.images.ImageData;
+import qupath.lib.images.servers.ServerTools;
 import qupath.lib.images.servers.TileRequest;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.TMACoreObject;
@@ -111,7 +112,7 @@ public class PixelClassificationOverlay extends AbstractImageDataOverlay  {
 //        	return;
         
 //        double requestedDownsample = classifier.getMetadata().getInputPixelSizeMicrons() / server.getAveragedPixelSizeMicrons();
-        double requestedDownsample = server.getPreferredDownsampleFactor(downsampleFactor);
+		double requestedDownsample = ServerTools.getPreferredDownsampleFactor(server, downsampleFactor);
 
         if (requestedDownsample > server.getDownsampleForResolution(0))
         	g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);

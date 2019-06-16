@@ -37,7 +37,6 @@ import org.locationtech.jts.index.quadtree.Quadtree;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import qupath.lib.common.GeneralTools;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
 
@@ -92,11 +91,6 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 		return cache;
 	}
 	
-	@Override
-	public ImageServerMetadata.ChannelType getOutputType() {
-		return getMetadata().getChannelType();
-	}
-	
 	protected double getThumbnailDownsampleFactor(int maxWidth, int maxHeight) {
 		if (maxWidth <= 0) {
 			if (maxHeight <= 0) {
@@ -119,28 +113,7 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 		return downsample;
 	}
 	
-	protected int getPreferredResolutionLevel(double requestedDownsample) {
-		var metadata = getMetadata();
-		double downsampleFactor = Math.max(requestedDownsample, metadata.getDownsampleForLevel(0));
-		int n = metadata.nLevels();
-		int bestDownsampleSeries = -1;
-		double bestDownsampleDiff = Double.POSITIVE_INFINITY;
-		for (int i = 0; i < n; i++) {
-			double d = metadata.getDownsampleForLevel(i);
-			double downsampleDiff = downsampleFactor - d;
-			if (!Double.isNaN(downsampleDiff) && (downsampleDiff >= 0 || GeneralTools.almostTheSame(downsampleFactor, d, 0.01)) && downsampleDiff < bestDownsampleDiff) {
-				bestDownsampleSeries = i;
-				bestDownsampleDiff = Math.abs(downsampleDiff);
-			}
-		}
-		return bestDownsampleSeries;
-	}
 	
-	@Override
-	public double getPreferredDownsampleFactor(double requestedDownsample) {
-		int level = getPreferredResolutionLevel(requestedDownsample);
-		return getDownsampleForResolution(level);
-	}
 	
 	@Override
 	public double getDownsampleForResolution(int level) {
@@ -176,8 +149,8 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 	}
 	
 	@Override
-	public int getBitsPerPixel() {
-		return getMetadata().getBitDepth();
+	public PixelType getPixelType() {
+		return getMetadata().getPixelType();
 	}
 	
 	
@@ -297,8 +270,11 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 		throw new IllegalArgumentException("No associated image with name '" + name + "' for " + getPath());
 	}
 	
-	@Override
-	public String getDisplayedImageName() {
+	/**
+	 * Get an image name that may be displayed, either from the metadata or the short server name
+	 * @return
+	 */
+	protected String getDisplayedImageName() {
 		String name = getMetadata().getName();
 		if (name == null)
 			return getShortServerName();
@@ -309,11 +285,6 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 	@Override
 	public ImageChannel getChannel(int channel) {
 		return getMetadata().getChannel(channel);
-	}
-	
-	@Override
-	public List<ImageChannel> getChannels() {
-		return getMetadata().getChannels();
 	}
 
 	
@@ -401,7 +372,7 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 		
 		@Override
 		public List<TileRequest> getTileRequests(RegionRequest request) {
-			int level = getPreferredResolutionLevel(request.getDownsample());
+			int level = ServerTools.getPreferredResolutionLevel(AbstractImageServer.this, request.getDownsample());
 			var key = getKey(level, request.getZ(), request.getT());
 			var set = tiles.get(key);
 			var list = new ArrayList<TileRequest>();

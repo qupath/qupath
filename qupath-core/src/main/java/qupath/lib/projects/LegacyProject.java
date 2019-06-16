@@ -185,7 +185,7 @@ class LegacyProject<T> {
 	}
 
 	public LegacyProjectImageEntry addImage(final ImageServer<T> server) {
-		var entry = new LegacyProjectImageEntry(server.getPath(), server.getDisplayedImageName(), null);
+		var entry = new LegacyProjectImageEntry(server.getPath(), ServerTools.getDisplayableImageName(server), null);
 		if (addImage(entry))
 			return entry;
 		return null;

@@ -1021,7 +1021,7 @@ public class PixelClassifierImageSelectionPane {
 			request = RegionRequest.createInstance(server.getPath(), downsample, selected.getROI());
 		}
 		long estimatedPixels = (long)Math.ceil(request.getWidth()/request.getDownsample()) * (long)Math.ceil(request.getHeight()/request.getDownsample());
-		double estimatedMB = (estimatedPixels * server.nChannels() * (server.getBitsPerPixel()/8)) / (1024.0 * 1024.0);
+		double estimatedMB = (estimatedPixels * server.nChannels() * (server.getPixelType().getBytesPerPixel())) / (1024.0 * 1024.0);
 		if (estimatedPixels >= Integer.MAX_VALUE - 16) {
 			DisplayHelpers.showErrorMessage("Extract output", "Requested region is too big! Try selecting a smaller region.");
 			return false;
@@ -1348,8 +1348,8 @@ public class PixelClassifierImageSelectionPane {
     	
 //    	String coords = GeneralTools.formatNumber(x, 1) + "," + GeneralTools.formatNumber(y, 1);
     	
-    	var channels = classifierServer.getChannels();
-    	if (classifierServer.getOutputType() == ImageServerMetadata.ChannelType.CLASSIFICATION) {
+    	var channels = classifierServer.getMetadata().getChannels();
+    	if (classifierServer.getMetadata().getChannelType() == ImageServerMetadata.ChannelType.CLASSIFICATION) {
         	int sample = img.getRaster().getSample(xx, yy, 0); 		
         	return String.format("Classification: %s", channels.get(sample).getName());
 //        	return String.format("Classification (%s):\n%s", coords, channels.get(sample).getName());
@@ -1467,10 +1467,11 @@ public class PixelClassifierImageSelectionPane {
 			try (var stream = Files.newInputStream(path)) {
 				var imp = new Opener().openTiff(stream, "Anything");
 				ColorModel colorModel;
+				var channels = server.getMetadata().getChannels();
 				if (imp.getNChannels() == 1)
-					colorModel = ColorModelFactory.getIndexedColorModel(server.getChannels());
+					colorModel = ColorModelFactory.getIndexedColorModel(channels);
 				else
-					colorModel = ColorModelFactory.geProbabilityColorModel8Bit(server.getChannels());
+					colorModel = ColorModelFactory.geProbabilityColorModel8Bit(channels);
 				return ImageJServer.convertToBufferedImage(imp, 1, 1, colorModel);
 			}
 		}

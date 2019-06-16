@@ -15,6 +15,7 @@ import qupath.lib.images.servers.AbstractTileableImageServer;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.ImageServerMetadata.ImageResolutionLevel;
+import qupath.lib.images.servers.PixelType;
 import qupath.lib.images.servers.TileRequest;
 import qupath.lib.regions.RegionRequest;
 
@@ -63,7 +64,7 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 			path = server.getPath() + "::" + UUID.randomUUID().toString();			
 //		}
 		
-		var bitDepth = 8;
+		var pixelType = PixelType.UINT8;
 		
 		var tileWidth = classifierMetadata.getInputWidth();
 		var tileHeight = classifierMetadata.getInputHeight();
@@ -94,7 +95,7 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 				.preferredTileSize(tileWidth-pad*2, tileHeight-pad*2)
 				.levels(levels)
 				.channels(classifierMetadata.getChannels())
-				.bitDepth(bitDepth)
+				.pixelType(pixelType)
 				.rgb(false);
 				
 		originalMetadata = builder.build();

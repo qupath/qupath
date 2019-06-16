@@ -47,6 +47,7 @@ import qupath.lib.images.servers.AbstractTileableImageServer;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.ImageServerMetadata.ImageResolutionLevel;
+import qupath.lib.images.servers.PixelType;
 import qupath.lib.images.servers.TileRequest;
 
 /**
@@ -194,7 +195,7 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 				name(file.getName()).
 				rgb(true).
 				args(args).
-				bitDepth(8).
+				pixelType(PixelType.UINT8).
 				preferredTileSize(tileWidth, tileHeight).
 				pixelSizeMicrons(pixelWidth, pixelHeight).
 				magnification(magnification).

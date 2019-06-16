@@ -70,6 +70,7 @@ import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.PixelCalibration;
+import qupath.lib.images.servers.ServerTools;
 import qupath.lib.objects.PathObject;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectImageEntry;
@@ -613,7 +614,7 @@ public class ImageAlignmentPane {
 			
 			// Get the name from the project, if possible
 			Project<BufferedImage> project = qupath.getProject();
-			String name = item.getServer().getDisplayedImageName();
+			String name = ServerTools.getDisplayableImageName(item.getServer());
 			if (project != null) {
 				ProjectImageEntry<BufferedImage> entry = project.getEntry(item);
 				if (entry != null)

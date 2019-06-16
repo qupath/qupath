@@ -102,7 +102,7 @@ public class PathAwtIO {
 		final ImageServer<BufferedImage> server = imageData.getServer();
 		if (file == null) {
 			//			dir = PathPrefs.getDialogHelper().promptForDirectory(null);
-			file = QuPathGUI.getSharedDialogHelper().promptToSaveFile(null, null, server.getDisplayedImageName(), "TMA data", "qptma");
+			file = QuPathGUI.getSharedDialogHelper().promptToSaveFile(null, null, ServerTools.getDisplayableImageName(server), "TMA data", "qptma");
 			if (file == null)
 				return;
 		} else if (file.isDirectory() || (!file.exists() && file.getAbsolutePath().endsWith(File.pathSeparator))) {

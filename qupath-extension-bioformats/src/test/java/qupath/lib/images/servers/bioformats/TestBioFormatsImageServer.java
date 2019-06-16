@@ -225,7 +225,7 @@ public class TestBioFormatsImageServer {
 						"%s: %d x %d (c=%d, z=%d, t=%d), bpp=%d, mag=%.2f, downsamples=[%s], res=[%.4f,%.4f,%.4f]",
 						server.getPath(), server.getWidth(), server.getHeight(),
 						server.nChannels(), server.nZSlices(), server.nTimepoints(),
-						server.getBitsPerPixel(), server.getMetadata().getMagnification(), GeneralTools.arrayToString(Locale.getDefault(), server.getPreferredDownsamples(), 4),
+						server.getPixelType(), server.getMetadata().getMagnification(), GeneralTools.arrayToString(Locale.getDefault(), server.getPreferredDownsamples(), 4),
 						cal.getPixelWidthMicrons(), cal.getPixelHeightMicrons(), cal.getZSpacingMicrons())
 				);
 	}

@@ -829,7 +829,7 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 
 		@Override
 		public void addParameters(ImageData<?> imageData, ParameterList params) {
-			this.originalBitsPerPixel = imageData.getServer().getBitsPerPixel();
+			this.originalBitsPerPixel = imageData.getServer().getPixelType().bitsPerPixel();
 			if (originalBitsPerPixel > 16)
 				return;
 			params.addBooleanParameter("doMedian", "Median", false, "Calculate approximate median of pixel values (based on a generated histogram)");
@@ -1101,7 +1101,7 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 
 		@Override
 		public void addParameters(ImageData<?> imageData, ParameterList params) {
-			this.originalBitsPerPixel = imageData.getServer().getBitsPerPixel();
+			this.originalBitsPerPixel = imageData.getServer().getPixelType().bitsPerPixel();
 			if (originalBitsPerPixel > 16)
 				return;
 			params.addTitleParameter("Cumulative histogram");

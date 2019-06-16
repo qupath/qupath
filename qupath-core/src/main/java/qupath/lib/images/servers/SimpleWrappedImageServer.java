@@ -77,11 +77,6 @@ class SimpleWrappedImageServer<T> implements ImageServer<T> {
 	}
 
 	@Override
-	public double getPreferredDownsampleFactor(double requestedDownsample) {
-		return server.getPreferredDownsampleFactor(requestedDownsample);
-	}
-
-	@Override
 	public double getDownsampleForResolution(int level) {
 		return server.getDownsampleForResolution(level);
 	}
@@ -147,28 +142,18 @@ class SimpleWrappedImageServer<T> implements ImageServer<T> {
 	}
 
 	@Override
-	public String getDisplayedImageName() {
-		return server.getDisplayedImageName();
-	}
-
-	@Override
 	public boolean isEmptyRegion(RegionRequest request) {
 		return server.isEmptyRegion(request);
 	}
 
 	@Override
-	public int getBitsPerPixel() {
-		return server.getBitsPerPixel();
+	public PixelType getPixelType() {
+		return server.getPixelType();
 	}
 
 	@Override
 	public ImageChannel getChannel(int channel) {
 		return server.getChannel(channel);
-	}
-
-	@Override
-	public List<ImageChannel> getChannels() {
-		return server.getChannels();
 	}
 
 	@Override

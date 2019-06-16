@@ -78,7 +78,8 @@ public class PixelClassificationMeasurementManager {
 			rootROI = ROIs.createRectangleROI(0, 0, classifierServer.getWidth(), classifierServer.getHeight(), ImagePlane.getDefaultPlane());
 		
         // Just to get measurement names
-		updateMeasurements(classifierServer.getChannels(), new long[classifierServer.getChannels().size()], 0, pixelArea, pixelAreaUnits);
+		var channels = classifierServer.getMetadata().getChannels();
+		updateMeasurements(channels, new long[channels.size()], 0, pixelArea, pixelAreaUnits);
 	}
 	
 	
@@ -118,7 +119,7 @@ public class PixelClassificationMeasurementManager {
 //        if (!classifierServer.hasPixelSizeMicrons())
 //        	return null;
     	
-        List<ImageChannel> channels = classifierServer.getChannels();
+        List<ImageChannel> channels = classifierServer.getMetadata().getChannels();
         long[] counts = null;
         long total = 0L;
         
@@ -126,7 +127,7 @@ public class PixelClassificationMeasurementManager {
         ImageServer<BufferedImage> server = classifierServer;//imageData.getServer();
         
         // Check we have a suitable output type
-        ImageServerMetadata.ChannelType type = classifierServer.getOutputType();
+        ImageServerMetadata.ChannelType type = classifierServer.getMetadata().getChannelType();
         if (type == ImageServerMetadata.ChannelType.FEATURE)
   			return null;
         

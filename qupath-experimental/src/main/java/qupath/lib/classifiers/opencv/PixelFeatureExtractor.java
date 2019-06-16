@@ -11,6 +11,7 @@ import java.util.stream.Collectors;
 
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.PixelCalibration;
+import qupath.lib.images.servers.PixelType;
 import qupath.lib.objects.PathObject;
 import qupath.lib.regions.RegionRequest;
 
@@ -40,10 +41,10 @@ class PixelFeatureExtractor extends FeatureExtractor {
 		}
 		
 		// Automatically rescale pixel values
-			if (server.getBitsPerPixel() == 8)
-				scale = 1/255f;
-			else if (server.getBitsPerPixel() == 16)
-				scale = 1/65535f;
+		if (server.getPixelType() == PixelType.UINT8)
+			scale = 1/255f;
+		else if (server.getPixelType() == PixelType.UINT16)
+			scale = 1/65535f;
 	}
 	
 	@Override

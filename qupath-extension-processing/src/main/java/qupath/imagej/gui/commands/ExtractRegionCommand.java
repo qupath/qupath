@@ -125,7 +125,7 @@ public class ExtractRegionCommand implements PathCommand {
 			width = bounds.width;
 			height = bounds.height;
 		}
-		int bytesPerPixel = server.isRGB() ? 4 : server.getBitsPerPixel() * server.nChannels() / 8;
+		int bytesPerPixel = server.isRGB() ? 4 : server.getPixelType().getBytesPerPixel() * server.nChannels();
 		double memory = ((long)width * height * bytesPerPixel) / (downsample * downsample);
 		// TODO: Perform calculation based on actual amount of available memory
 		if (memory >= Runtime.getRuntime().totalMemory()) {

@@ -128,7 +128,7 @@ public class ImageDisplay extends AbstractImageRenderer {
 			ImageServer<?> lastServer = this.imageData.getServer();
 			ImageServer<?> nextServer = imageData.getServer();
 			retainDisplaySettings = lastServer.nChannels() == nextServer.nChannels() &&
-					lastServer.getBitsPerPixel() == nextServer.getBitsPerPixel();
+					lastServer.getPixelType() == nextServer.getPixelType();
 			if (retainDisplaySettings) {
 				for (int c = 0; c < lastServer.nChannels(); c++) {
 					if (!lastServer.getChannel(c).getName().equals(nextServer.getChannel(c).getName())) {

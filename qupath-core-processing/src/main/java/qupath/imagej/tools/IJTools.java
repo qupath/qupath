@@ -68,6 +68,7 @@ import qupath.lib.images.ImageData;
 import qupath.lib.images.PathImage;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.PixelCalibration;
+import qupath.lib.images.servers.ServerTools;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.TMACoreObject;
@@ -126,7 +127,7 @@ public class IJTools {
 		
 		// Gather data on the image
 		ImageServer<BufferedImage> server = imageData.getServer();
-		int bytesPerPixel = (server.isRGB()) ? 4 : server.getBitsPerPixel() * server.nChannels() / 8;
+		int bytesPerPixel = (server.isRGB()) ? 4 : server.getPixelType().getBytesPerPixel() * server.nChannels();
 		
 		// Gather data on the region being requested
 		double regionWidth = region.getWidth() / region.getDownsample();
@@ -222,7 +223,8 @@ public class IJTools {
 	        cal.setZUnit("um");
 	    }
 	    
-	    ImagePlus imp = new ImagePlus(server.getDisplayedImageName(), stack);
+	    String name = ServerTools.getDisplayableImageName(server);
+	    ImagePlus imp = new ImagePlus(name, stack);
 	    CompositeImage impComp = null;
 	    if (imp.getType() != ImagePlus.COLOR_RGB && nChannels > 1) {
 		    impComp = new CompositeImage(imp, CompositeImage.COMPOSITE);
@@ -533,7 +535,8 @@ public class IJTools {
 	 */
 	public static PathImage<ImagePlus> convertToImagePlus(ImageServer<BufferedImage> server, RegionRequest request) throws IOException {
 		// Create an ImagePlus from a BufferedImage
-		return convertToImagePlus(server.getDisplayedImageName(), server, null, request);
+		 String name = ServerTools.getDisplayableImageName(server);
+		return convertToImagePlus(name, server, null, request);
 	}
 
 	/**
