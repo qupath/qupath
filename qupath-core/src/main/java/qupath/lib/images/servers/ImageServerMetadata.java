@@ -97,7 +97,7 @@ public class ImageServerMetadata {
 	
 	private static int DEFAULT_TILE_SIZE = 256;
 
-	private String path;
+//	private String path;
 	private String name;
 	
 	private String serverClassName;
@@ -158,13 +158,24 @@ public class ImageServerMetadata {
 		 * Minimal builder for a new ImageServerMetadata; further properties must be set.
 		 * 
 		 * @param serverClass
-		 * @param path
 		 */
-		public Builder(final Class<? extends ImageServer<?>> serverClass, final String path) {
+		public Builder(final Class<? extends ImageServer<?>> serverClass) {
 			metadata = new ImageServerMetadata();
 			metadata.serverClassName = serverClass.getName();
-			metadata.path = path;
+//			metadata.path = path;
 		}
+		
+//		/**
+//		 * Minimal builder for a new ImageServerMetadata; further properties must be set.
+//		 * 
+//		 * @param serverClass
+//		 * @param path
+//		 */
+//		public Builder(final Class<? extends ImageServer<?>> serverClass, final String path) {
+//			metadata = new ImageServerMetadata();
+//			metadata.serverClassName = serverClass.getName();
+////			metadata.path = path;
+//		}
 		
 		/**
 		 * Specify any (optional) String arguments required to create the ImageServer.
@@ -188,7 +199,7 @@ public class ImageServerMetadata {
 		 */
 		public Builder(final Class<? extends ImageServer<?>> serverClass, final String path, final int width, final int height) {
 			metadata = new ImageServerMetadata();
-			metadata.path = path;
+//			metadata.path = path;
 			metadata.width = width;
 			metadata.height = height;
 		}
@@ -213,17 +224,17 @@ public class ImageServerMetadata {
 			return this;
 		}
 		
-		/**
-		 * Specify the image path.
-		 * @param path
-		 * @return
-		 * 
-		 * @see ImageServerBuilder
-		 */
-		public Builder path(final String path) {
-			this.metadata.path = path;
-			return this;
-		}
+//		/**
+//		 * Specify the image path.
+//		 * @param path
+//		 * @return
+//		 * 
+//		 * @see ImageServerBuilder
+//		 */
+//		public Builder path(final String path) {
+//			this.metadata.path = path;
+//			return this;
+//		}
 		
 		/**
 		 * Specify the interpretation of channels.
@@ -247,7 +258,7 @@ public class ImageServerMetadata {
 		
 		/**
 		 * Specify the bit-depth of the image.
-		 * @param bitDepth
+		 * @param pixelType
 		 * @return
 		 */
 		public Builder pixelType(PixelType pixelType) {
@@ -391,9 +402,9 @@ public class ImageServerMetadata {
 		public ImageServerMetadata build() {
 			metadata.pixelCalibration = pixelCalibrationBuilder.build();
 			
-			// We need a unique path, somehow
-			if (metadata.path == null)
-				metadata.path = UUID.randomUUID().toString();
+//			// We need a unique path, somehow
+//			if (metadata.path == null)
+//				metadata.path = UUID.randomUUID().toString();
 			
 			if (metadata.levels == null)
 				metadata.levels = new ImageResolutionLevel[] {new ImageResolutionLevel(1, metadata.width, metadata.height)};
@@ -401,8 +412,8 @@ public class ImageServerMetadata {
 			if (metadata.width <= 0 && metadata.height <= 0)
 				throw new IllegalArgumentException("Invalid metadata - width & height must be > 0");
 
-			if (metadata.path == null || metadata.path.isBlank())
-				throw new IllegalArgumentException("Invalid metadata - path must be set (and not be blank)");
+//			if (metadata.path == null || metadata.path.isBlank())
+//				throw new IllegalArgumentException("Invalid metadata - path must be set (and not be blank)");
 						
 			// Set sensible tile sizes, if required
 			if (metadata.preferredTileWidth <= 0) {
@@ -426,12 +437,12 @@ public class ImageServerMetadata {
 	
 	
 	ImageServerMetadata(final String path) {
-		this.path = path;
+//		this.path = path;
 	};
 
 	ImageServerMetadata(final ImageServerMetadata metadata) {
 		this.serverClassName = metadata.serverClassName;
-		this.path = metadata.path;
+//		this.path = metadata.path;
 		this.name = metadata.name;
 		this.levels = metadata.levels.clone();
 		
@@ -495,13 +506,13 @@ public class ImageServerMetadata {
 		return unmodifiableLevels;
 	}
 	
-	/**
-	 * Get the image path, which should be unique and may be used as an identifier.
-	 * @return
-	 */
-	public String getPath() {
-		return path;
-	}
+//	/**
+//	 * Get the image path, which should be unique and may be used as an identifier.
+//	 * @return
+//	 */
+//	public String getPath() {
+//		return path;
+//	}
 	
 	/**
 	 * Get the full-resolution image width.
@@ -746,10 +757,10 @@ public class ImageServerMetadata {
 	 * @return
 	 */
 	public boolean isCompatibleMetadata(final ImageServerMetadata metadata) {
-		if (!path.equals(metadata.path)) {
-			logger.warn("Metadata paths are not compatible: \n{}\n{}", path, metadata.path);
-			return false;
-		}
+//		if (!path.equals(metadata.path)) {
+//			logger.warn("Metadata paths are not compatible: \n{}\n{}", path, metadata.path);
+//			return false;
+//		}
 		if (pixelType != metadata.pixelType) {
 			logger.warn("Pixel types are not compatible: {} vs {}", pixelType, metadata.pixelType);
 			return false;
@@ -769,7 +780,7 @@ public class ImageServerMetadata {
 	@Override
 	public String toString() {
 		StringBuilder sb = new StringBuilder("{ ");
-		sb.append("\"path\": \"").append(path).append("\", ");
+//		sb.append("\"path\": \"").append(path).append("\", ");
 		sb.append("\"name\": \"").append(name).append("\", ");
 		sb.append("\"width\": ").append(getWidth()).append(", ");
 		sb.append("\"height\": ").append(getHeight()).append(", ");
@@ -806,7 +817,7 @@ public class ImageServerMetadata {
 		temp = Double.doubleToLongBits(magnification);
 		result = prime * result + (int) (temp ^ (temp >>> 32));
 		result = prime * result + ((name == null) ? 0 : name.hashCode());
-		result = prime * result + ((path == null) ? 0 : path.hashCode());
+//		result = prime * result + ((path == null) ? 0 : path.hashCode());
 		result = prime * result + ((pixelCalibration == null) ? 0 : pixelCalibration.hashCode());
 		result = prime * result + ((pixelType == null) ? 0 : pixelType.hashCode());
 		result = prime * result + preferredTileHeight;
@@ -850,11 +861,11 @@ public class ImageServerMetadata {
 				return false;
 		} else if (!name.equals(other.name))
 			return false;
-		if (path == null) {
-			if (other.path != null)
-				return false;
-		} else if (!path.equals(other.path))
-			return false;
+//		if (path == null) {
+//			if (other.path != null)
+//				return false;
+//		} else if (!path.equals(other.path))
+//			return false;
 		if (pixelCalibration == null) {
 			if (other.pixelCalibration != null)
 				return false;

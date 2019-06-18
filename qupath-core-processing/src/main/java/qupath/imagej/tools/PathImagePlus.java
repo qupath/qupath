@@ -53,7 +53,6 @@ class PathImagePlus implements PathImage<ImagePlus> {
 	/**
 	 * Create a PathImage for which the image will be read lazily.
 	 * 
-	 * @param server
 	 * @param request
 	 * @param imp
 	 */

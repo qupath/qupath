@@ -168,7 +168,6 @@ public class PixelCalibration {
 	
 	/**
 	 * Get the average of the pixel width and height in microns if possible, or Double.NaN if the pixel size is not available.
-	 * @param pixelCalibration
 	 * @return
 	 */
 	public double getAveragedPixelSizeMicrons() {

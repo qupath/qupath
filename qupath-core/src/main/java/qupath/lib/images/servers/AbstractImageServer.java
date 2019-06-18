@@ -31,6 +31,8 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
+
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.index.SpatialIndex;
 import org.locationtech.jts.index.quadtree.Quadtree;
@@ -61,19 +63,16 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 	 */
 	private transient Map<RegionRequest, T> cache;
 	
+	/**
+	 * Default unique ID
+	 */
+	private String id = UUID.randomUUID().toString();
+	
 	private Class<T> imageClass;
 	
-	private URI uri;
-	
-	protected AbstractImageServer(URI uri, Class<T> imageClass) {
-		this.uri = uri;
+	protected AbstractImageServer(Class<T> imageClass) {
 		this.imageClass = imageClass;
 		this.cache = ImageServerProvider.getCache(imageClass);
-	}
-
-	@Override
-	public URI getURI() {
-		return uri;
 	}
 	
 	@Override
@@ -200,9 +199,13 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 		return cache == null ? null : cache.getOrDefault(tile.getRegionRequest(), null);
 	}
 	
+	/**
+	 * Default unique ID. This is really a UUID; subclasses should consider overriding this 
+	 * with a more readable ID.
+	 */
 	@Override
 	public String getPath() {
-		return getMetadata().getPath();
+		return id;
 	}
 
 	@Override
@@ -297,6 +300,7 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 	
 	private DefaultTileRequestManager tileRequestManager;
 	
+	@Override
 	public synchronized TileRequestManager getTileRequestManager() {
 		if (tileRequestManager == null || tileRequestManager.currentMetadata != getMetadata()) {
 			tileRequestManager = new DefaultTileRequestManager(TileRequest.getAllTileRequests(this));

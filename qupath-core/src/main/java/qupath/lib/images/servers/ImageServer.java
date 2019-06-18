@@ -57,13 +57,6 @@ public interface ImageServer<T> extends AutoCloseable {
 	public String getPath();
 	
 	/**
-	 * Get the URI for this ImageServer, or null if no URI is associated with the server.
-	 * 
-	 * @return
-	 */
-	public URI getURI();
-	
-	/**
 	 * Get a short name for the server, derived from {@code getPath()}.
 	 * @return
 	 */

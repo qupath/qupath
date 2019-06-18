@@ -13,6 +13,7 @@ import com.google.gson.reflect.TypeToken;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
 
+import qupath.lib.images.servers.ImageServers;
 import qupath.lib.io.PathObjectTypeAdapters.FeatureCollection;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.objects.PathObject;
@@ -42,6 +43,8 @@ public class GsonTools {
 	private static Gson gson = new GsonBuilder()
 			.registerTypeAdapterFactory(new QuPathTypeAdapterFactory())
 			.registerTypeAdapterFactory(OpenCVTypeAdapters.getOpenCVTypeAdaptorFactory())
+			.registerTypeAdapterFactory(ImageServers.getImageServerTypeAdapterFactory(true))
+			.registerTypeAdapterFactory(ImageServers.serverBuilderFactory)
 //			.registerTypeHierarchyAdapter(PathObject.class, PathObjectTypeAdapters.PathObjectTypeAdapter.INSTANCE)
 //			.registerTypeHierarchyAdapter(MeasurementList.class, PathObjectTypeAdapters.MeasurementListTypeAdapter.INSTANCE)
 //			.registerTypeHierarchyAdapter(FeatureCollection.class, PathObjectTypeAdapters.PathObjectCollectionTypeAdapter.INSTANCE)

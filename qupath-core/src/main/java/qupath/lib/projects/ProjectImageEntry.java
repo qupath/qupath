@@ -24,6 +24,7 @@
 package qupath.lib.projects;
 
 import java.io.IOException;
+import java.net.URI;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Map;
@@ -235,16 +236,16 @@ public interface ProjectImageEntry<T> {
 	 * @return
 	 * @throws IOException
 	 */
-	public Collection<String> getServerURIs() throws IOException;
+	public Collection<URI> getServerURIs() throws IOException;
 	
 	/**
 	 * Update the URIs for the server (optional operation).
 	 * 
 	 * @param replacements a map with current URIs as keys, and desired URIs as values.
-	 * @return the number of URIs that were replaced.
+	 * @return true if changes were made
 	 * @throws IOException
 	 */
-	public int updateServerURIs(Map<String, String> replacements) throws IOException;
+	public boolean updateServerURIs(Map<URI, URI> replacements) throws IOException;
 	
 	/**
 	 * Get a formatted string representation of the metadata map's contents.

@@ -49,7 +49,7 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 	 * @param classifier
 	 */
 	public PixelClassificationImageServer(ImageData<BufferedImage> imageData, PixelClassifier classifier) {
-		super(null);
+		super();
 		this.classifier = classifier;
 		this.imageData = imageData;
 		this.server = imageData.getServer();
@@ -88,7 +88,7 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 		int pad = classifierMetadata.strictInputSize() ? classifierMetadata.getInputPadding() : 0;
 		
 		var builder = new ImageServerMetadata.Builder(getClass(), server.getMetadata())
-				.path(path)
+//				.path(path)
 				.width(width)
 				.height(height)
 				.channelType(classifierMetadata.getOutputType())

@@ -21,7 +21,7 @@ public abstract class TransformingImageServer<T> extends AbstractImageServer<T> 
 	private ImageServer<T> server;
 	
 	protected TransformingImageServer(ImageServer<T> server) {
-		super(null, server.getImageClass());
+		super(server.getImageClass());
 		this.server = server;
 	}
 	

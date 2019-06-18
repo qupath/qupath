@@ -86,7 +86,7 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 	 * @throws IOException
 	 */
 	public ImageJServer(final URI uri, final String...args) throws IOException {
-		super(uri, BufferedImage.class);
+		super(BufferedImage.class);
 		File file = GeneralTools.toPath(uri).toFile();
 		String path = file.getAbsolutePath();
 		if (path.toLowerCase().endsWith(".tif") || path.toLowerCase().endsWith(".tiff")) {
@@ -154,7 +154,7 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 			channels = ImageChannel.getDefaultChannelList(imp.getNChannels());
 		
 		
-		var builder = new ImageServerMetadata.Builder(getClass(), uri.normalize().toString())
+		var builder = new ImageServerMetadata.Builder(getClass()) //, uri.normalize().toString())
 				.width(imp.getWidth())
 				.height(imp.getHeight())
 				.args(args)

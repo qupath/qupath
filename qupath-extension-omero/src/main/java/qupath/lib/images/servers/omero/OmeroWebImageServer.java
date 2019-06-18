@@ -70,7 +70,7 @@ public class OmeroWebImageServer extends AbstractTileableImageServer {
 //	private static int OMERO_MAX_SIZE = 1024;
 
 	OmeroWebImageServer(URI uri, OmeroWebClient client, String...args) throws IOException {
-		super(uri);
+		super();
 
 		this.scheme = uri.getScheme();
 		this.host = uri.getHost();

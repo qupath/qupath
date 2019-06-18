@@ -82,7 +82,7 @@ class ColorDeconvolutionImageServer extends TransformingImageServer<BufferedImag
 		this.colorModel = ColorModelFactory.geProbabilityColorModel32Bit(channels);
 		
 		metadata = new ImageServerMetadata.Builder(getClass(), server.getMetadata())
-				.path(String.format("%s, %s (%s)", server.getPath(), stains.toString(), sb.toString()))
+//				.path(String.format("%s, %s (%s)", server.getPath(), stains.toString(), sb.toString()))
 				.pixelType(PixelType.FLOAT32)
 				.rgb(false)
 				.channels(channels)

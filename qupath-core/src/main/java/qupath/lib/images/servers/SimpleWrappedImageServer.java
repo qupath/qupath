@@ -57,11 +57,6 @@ class SimpleWrappedImageServer<T> implements ImageServer<T> {
 	}
 
 	@Override
-	public URI getURI() {
-		return server.getURI();
-	}
-
-	@Override
 	public String getShortServerName() {
 		return server.getShortServerName();
 	}

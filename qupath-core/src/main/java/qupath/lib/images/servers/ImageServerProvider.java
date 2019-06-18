@@ -147,11 +147,15 @@ public class ImageServerProvider {
 		// Check which providers we can use
 		List<UriImageSupport<T>> supports = new ArrayList<>();
 		for (ImageServerBuilder<?> provider : serviceLoader) {
-			if (!cls.isAssignableFrom(provider.getImageType()))
-				continue;
-			UriImageSupport<T> support = (UriImageSupport<T>)provider.checkImageSupport(uri, args);
-			if (support != null && support.getSupportLevel() > 0f)
-				supports.add(support);
+			try {
+				if (!cls.isAssignableFrom(provider.getImageType()))
+					continue;
+				UriImageSupport<T> support = (UriImageSupport<T>)provider.checkImageSupport(uri, args);
+				if (support != null && support.getSupportLevel() > 0f)
+					supports.add(support);
+			} catch (Exception e) {
+				logger.error("Error testing provider " + provider, e);
+			}
 		}
 		
 		Comparator<UriImageSupport<T>> comparator = Collections.reverseOrder(new UriImageSupportComparator<>());

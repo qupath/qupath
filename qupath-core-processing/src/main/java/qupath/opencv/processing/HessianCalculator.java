@@ -104,6 +104,7 @@ public class HessianCalculator {
 		
 		REPLICATE, REFLECT, WRAP;
 		
+		@Override
 		public String toString() {
 			switch (this) {
 			case REFLECT:
@@ -518,7 +519,7 @@ public class HessianCalculator {
 		
 		/**
 		 * Calculate results for a single Mat.
-		 * @param mats
+		 * @param mat
 		 * @return
 		 */
 		public Map<MultiscaleFeature, Mat> build(Mat mat) {

@@ -26,9 +26,11 @@ package qupath.lib.images.servers;
 import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Helper class for creating ImageServers from a given URI and optional argument list.
@@ -83,6 +85,8 @@ public interface ImageServerBuilder<T> {
 	 * <p>
 	 * Instances should be sufficiently lightweight that they can be easily serialized to/from JSON 
 	 * for storage within projects.
+	 * <p>
+	 * Instances should also be immutable.
 	 * 
 	 * @param <T>
 	 */
@@ -94,6 +98,26 @@ public interface ImageServerBuilder<T> {
 		 * @throws Exception
 		 */
 		public ImageServer<T> build() throws Exception;
+		
+		/**
+		 * Get a list of URIs required by this builder.
+		 * The purpose is to identify resources that are required.
+		 * @return
+		 * 
+		 * @see #updateURIs(Map)
+		 */
+		public Collection<URI> getURIs();
+		
+		/**
+		 * Update the URIs required by this builder.
+		 * The purpose is to handle resources that may have moved (e.g. files).
+		 * Because ServerBuilder should be immutable, this returns a new builder.
+		 * @param updateMap
+		 * @return
+		 * 
+		 * @see #getURIs()
+		 */
+		public ServerBuilder<T> updateURIs(Map<URI, URI> updateMap);
 		
 	}
 	
@@ -159,6 +183,13 @@ public interface ImageServerBuilder<T> {
 		private String name;
 		private String[] args;
 		
+		private DefaultImageServerBuilder(String providerClassName, String name, URI uri, String...args) {
+			this.providerClassName = providerClassName;
+			this.name = name;
+			this.uri = uri;
+			this.args = args;			
+		}
+
 		private DefaultImageServerBuilder(Class<? extends ImageServerBuilder<T>> providerClass, String name, URI uri, String...args) {
 			this.providerClassName = providerClass.getName();
 			this.name = name;
@@ -197,8 +228,65 @@ public interface ImageServerBuilder<T> {
 		}
 		
 		@Override
+		public Collection<URI> getURIs() {
+			if (uri == null)
+				return Collections.emptyList();
+			return Collections.singletonList(uri);
+		}
+
+		@Override
+		public ServerBuilder<T> updateURIs(Map<URI, URI> updateMap) {
+			if (uri == null)
+				return this;
+			URI uriNew = updateMap.getOrDefault(uri, null);
+			if (uriNew == null)
+				return this;
+			return new DefaultImageServerBuilder<>(providerClassName, name, uriNew, args);
+		}
+		
+		@Override
 		public String toString() {
 			return String.format("DefaultImageServerBuilder (classname=%s, uri=%s, args=%s)", providerClassName, uri.toString(), String.join(", ", args));
+		}
+
+		@Override
+		public int hashCode() {
+			final int prime = 31;
+			int result = 1;
+			result = prime * result + Arrays.hashCode(args);
+			result = prime * result + ((name == null) ? 0 : name.hashCode());
+			result = prime * result + ((providerClassName == null) ? 0 : providerClassName.hashCode());
+			result = prime * result + ((uri == null) ? 0 : uri.hashCode());
+			return result;
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			if (this == obj)
+				return true;
+			if (obj == null)
+				return false;
+			if (getClass() != obj.getClass())
+				return false;
+			DefaultImageServerBuilder other = (DefaultImageServerBuilder) obj;
+			if (!Arrays.equals(args, other.args))
+				return false;
+			if (name == null) {
+				if (other.name != null)
+					return false;
+			} else if (!name.equals(other.name))
+				return false;
+			if (providerClassName == null) {
+				if (other.providerClassName != null)
+					return false;
+			} else if (!providerClassName.equals(other.providerClassName))
+				return false;
+			if (uri == null) {
+				if (other.uri != null)
+					return false;
+			} else if (!uri.equals(other.uri))
+				return false;
+			return true;
 		}
 		
 	}

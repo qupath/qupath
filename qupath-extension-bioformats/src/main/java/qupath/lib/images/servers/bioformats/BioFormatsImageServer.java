@@ -193,6 +193,16 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 	 */
 	private OMEPyramidStore meta;
 	
+	/**
+	 * Cached path
+	 */
+	private String path;
+	
+	/**
+	 * Short name
+	 */
+	private String shortName;
+	
 //	/**
 //	 * Try to parallelize multichannel requests (experimental!)
 //	 */
@@ -226,7 +236,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 	}
 	
 	BioFormatsImageServer(URI uri, final BioFormatsServerOptions options, String...args) throws FormatException, IOException, DependencyException, ServiceException, URISyntaxException {
-		super(uri);
+		super();
 
 		long startTime = System.currentTimeMillis();
 
@@ -626,7 +636,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 			} else
 				imageName = imageName + " - " + shortName;
 
-
+			this.shortName = imageName;
 			String path = String.format("%s [series=%d]", uri.toString(), series);
 			
 			// Set metadata
@@ -673,7 +683,16 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 	 */
 	@Override
 	public ServerBuilder<BufferedImage> getBuilder() {
-		return DefaultImageServerBuilder.createInstance(BioFormatsServerBuilder.class, getShortServerName(), uri, getMetadata().getArguments());
+		return DefaultImageServerBuilder.createInstance(BioFormatsServerBuilder.class, shortName, uri, getMetadata().getArguments());
+	}
+	
+	
+	@Override
+	public String getPath() {
+		if (path == null) {
+			path = getBuilder().toString();
+		}
+		return path;
 	}
 
 		

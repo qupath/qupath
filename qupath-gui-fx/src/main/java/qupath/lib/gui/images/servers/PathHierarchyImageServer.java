@@ -83,7 +83,7 @@ public class PathHierarchyImageServer extends AbstractTileableImageServer implem
 //	}
 	
 	private PathHierarchyImageServer(final String prefix, final ImageData<BufferedImage> imageData, final OverlayOptions options) {
-		super(null);
+		super();
 		this.imageData = imageData;
 		this.prefix = prefix;
 		this.server = imageData.getServer();

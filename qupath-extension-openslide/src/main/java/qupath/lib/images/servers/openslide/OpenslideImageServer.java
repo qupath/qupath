@@ -74,6 +74,10 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 	
 	private int boundsX, boundsY, boundsWidth, boundsHeight;
 	
+	private URI uri;
+	
+	private String path;
+	
 	
 	private static double readNumericPropertyOrDefault(Map<String, String> properties, String name, double defaultValue) {
 		// Try to read a tile size
@@ -101,7 +105,8 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 	 * @throws IOException
 	 */
 	public OpenslideImageServer(URI uri, String...args) throws IOException {
-		super(uri);
+		super();
+		this.uri = uri;
 
 		// Ensure the garbage collector has run - otherwise any previous attempts to load the required native library
 		// from different classloader are likely to cause an error (although upon first further investigation it seems this doesn't really solve the problem...)
@@ -288,6 +293,13 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 		g2d.dispose();
 		return img2;
 	}
+	
+	@Override
+	public String getPath() {
+		if (path == null)
+			path = uri.toString() + " (OpenSlide)";
+		return path;
+	}
 
 	@Override
 	public List<String> getAssociatedImageList() {
@@ -301,7 +313,7 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 	 */
 	@Override
 	public ServerBuilder<BufferedImage> getBuilder() {
-		return DefaultImageServerBuilder.createInstance(OpenslideServerBuilder.class, getShortServerName(), getURI(), getMetadata().getArguments());
+		return DefaultImageServerBuilder.createInstance(OpenslideServerBuilder.class, getShortServerName(), uri, getMetadata().getArguments());
 	}
 
 	@Override

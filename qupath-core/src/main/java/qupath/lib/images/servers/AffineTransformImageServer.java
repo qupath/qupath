@@ -5,8 +5,9 @@ import java.awt.geom.NoninvertibleTransformException;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
-
 import qupath.lib.awt.common.AwtTools;
+import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
+import qupath.lib.images.servers.ImageServers.AffineTransformImageServerBuilder;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
 
@@ -64,7 +65,7 @@ public class AffineTransformImageServer extends TransformingImageServer<Buffered
 		
 		// TODO: Apply AffineTransform to pixel sizes! Perhaps create a Shape or point and transform that?
 		metadata = new ImageServerMetadata.Builder(getClass(), server.getMetadata())
-				.path(server.getPath() + ": Affine " + transform.toString())
+//				.path(server.getPath() + ": Affine " + transform.toString())
 				.width(region.getWidth())
 				.height(region.getHeight())
 				.name(String.format("%s (%s)", server.getMetadata().getName(), transform.toString()))
@@ -162,6 +163,14 @@ public class AffineTransformImageServer extends TransformingImageServer<Buffered
 	@Override
 	public String getServerType() {
 		return "Affine transform server";
+	}
+	
+	@Override
+	public ServerBuilder<BufferedImage> getBuilder() {
+		return new AffineTransformImageServerBuilder(
+				getWrappedServer().getBuilder(),
+				getTransform()
+				);
 	}
 
 }

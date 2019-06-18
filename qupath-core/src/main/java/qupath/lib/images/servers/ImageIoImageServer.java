@@ -55,10 +55,14 @@ public class ImageIoImageServer extends AbstractImageServer<BufferedImage> {
 	/**
 	 * Create an {@code ImageServer<BufferedImage>} using an image that has been provided directly.
 	 * 
+	 * @param uri
 	 * @param path
+	 * @param imageName
+	 * @param img
+	 * @param args
 	 */
-	public ImageIoImageServer(final URI uri, final String path, final String imageName, final BufferedImage img, String...args) {
-		super(uri, BufferedImage.class);
+	public ImageIoImageServer(final URI uri, String path, final String imageName, final BufferedImage img, String...args) {
+		super(BufferedImage.class);
 		this.img = img;
 		this.imageName = imageName;
 
@@ -91,7 +95,7 @@ public class ImageIoImageServer extends AbstractImageServer<BufferedImage> {
 		for (int type : rgbTypes) {
 			isRGB = isRGB | type == img.getType();
 		}
-		originalMetadata = new ImageServerMetadata.Builder(getClass(), path)
+		originalMetadata = new ImageServerMetadata.Builder(getClass())
 				.width(img.getWidth())
 				.height(img.getHeight())
 				.args(args)

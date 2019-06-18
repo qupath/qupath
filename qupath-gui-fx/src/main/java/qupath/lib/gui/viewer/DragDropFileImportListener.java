@@ -147,8 +147,17 @@ public class DragDropFileImportListener implements EventHandler<DragEvent> {
 		this.fileDropHandlers.remove(handler);
 	}
     
-    
     public void handleFileDrop(final QuPathViewer viewer, final List<File> list) throws IOException {
+    	try {
+    		handleFileDropImpl(viewer, list);
+    	} catch (IOException e) {
+    		throw e;
+    	} catch (Throwable e) {
+    		throw new IOException(e);
+    	}
+    }
+    
+    private void handleFileDropImpl(final QuPathViewer viewer, final List<File> list) throws IOException {
 		
 		// Shouldn't occur... but keeps FindBugs happy to check
 		if (list == null) {
@@ -190,7 +199,7 @@ public class DragDropFileImportListener implements EventHandler<DragEvent> {
 				}
 				try {
 					gui.openSavedData(viewer, file, false, true);
-				} catch (IOException e) {
+				} catch (Exception e) {
 					DisplayHelpers.showErrorMessage("Open image", e);
 				}
 				break;

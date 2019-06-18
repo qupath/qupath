@@ -247,6 +247,7 @@ public class MultiscaleFeatureCalculator implements OpenCVFeatureCalculator {
 			this.features = Arrays.asList(features);
 		}
 		
+		@Override
 		public List<Feature<Mat>> calculateFeatures(Mat mat, int paddingXY, Mat... stack) {
 			List<Mat> mats = stack.length == 0 ? Collections.singletonList(mat) : Arrays.asList(mat);
 			int ind = mats.indexOf(mat);

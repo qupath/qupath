@@ -30,8 +30,8 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 	
 	private static final Logger logger = LoggerFactory.getLogger(AbstractTileableImageServer.class);
 		
-	protected AbstractTileableImageServer(URI uri) {
-		super(uri, BufferedImage.class);
+	protected AbstractTileableImageServer() {
+		super(BufferedImage.class);
 	}
 	
 	

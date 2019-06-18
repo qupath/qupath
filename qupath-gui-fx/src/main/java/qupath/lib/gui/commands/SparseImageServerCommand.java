@@ -8,9 +8,11 @@ import java.util.function.Predicate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import qupath.lib.display.ImageDisplay;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.helpers.DisplayHelpers;
+import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.CroppedImageServer;
 import qupath.lib.images.servers.SparseImageServer;
 import qupath.lib.objects.PathObject;
@@ -44,6 +46,12 @@ public class SparseImageServerCommand implements PathCommand {
 			}
 			
 			var entry = project.addImage(server);
+			var imageDisplay = new ImageDisplay(new ImageData<BufferedImage>(server));
+			var img = ProjectImportImagesCommand.getThumbnailRGB(server, imageDisplay);
+			entry.setThumbnail(img);
+			project.syncChanges();
+			server.close();
+			
 			qupath.refreshProject();
 			qupath.openImageEntry(entry);
 			

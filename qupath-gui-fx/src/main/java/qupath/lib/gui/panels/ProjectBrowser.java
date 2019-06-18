@@ -584,7 +584,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 		
 		if (project != null) {
 			try {
-				Set<String> uris = new TreeSet<>();
+				Set<URI> uris = new TreeSet<>();
 				for (var entry: project.getImageList()) {
 					uris.addAll(entry.getServerURIs());
 				}
@@ -595,10 +595,9 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 				Path pathPrevious = previousURI == null || !"file".equals(previousURI.getScheme()) ? null : Paths.get(previousURI);
 				boolean tryRelative = pathProject != null && pathPrevious != null && !pathProject.equals(pathPrevious);
 				
-				Map<String, String> replacements = new LinkedHashMap<>();
-				for (String s : uris) {
+				Map<URI, URI> replacements = new LinkedHashMap<>();
+				for (URI uri : uris) {
 					try {
-						URI uri = new URI(s);
 						if (!"file".equals(uri.getScheme()))
 							continue;
 						// Check if the path exists, without changes
@@ -609,14 +608,14 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 						if (tryRelative) {
 							Path pathRelative = pathProject.resolve(pathPrevious.relativize(path));
 							if (Files.exists(pathRelative)) {
-								String s2 = pathRelative.normalize().toUri().normalize().toString();
-								logger.info("Updating path: {} -> {}", s, s2);
-								replacements.put(s, s2);
+								URI uri2 = pathRelative.normalize().toUri().normalize();
+								logger.info("Updating path: {} -> {}", uri, uri2);
+								replacements.put(uri, uri2);
 								continue;
 							}
 						}
 					} catch (Exception e) {
-						logger.warn("Exception converting path {} ({})", s, e.getLocalizedMessage());
+						logger.warn("Exception converting URI {} ({})", uri, e.getLocalizedMessage());
 					}
 				}
 				
