@@ -59,6 +59,8 @@ import qupath.lib.color.ColorModelFactory;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.servers.AbstractImageServer;
 import qupath.lib.images.servers.ImageChannel;
+import qupath.lib.images.servers.ImageServerBuilder;
+import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.PixelType;
 import qupath.lib.regions.RegionRequest;
@@ -75,6 +77,9 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 	
 	private ImageServerMetadata originalMetadata;
 	
+	private URI uri;
+	private String[] args;
+	
 	private ImagePlus imp;
 		
 	private ColorModel colorModel;
@@ -87,6 +92,7 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 	 */
 	public ImageJServer(final URI uri, final String...args) throws IOException {
 		super(BufferedImage.class);
+		this.uri = uri;
 		File file = GeneralTools.toPath(uri).toFile();
 		String path = file.getAbsolutePath();
 		if (path.toLowerCase().endsWith(".tif") || path.toLowerCase().endsWith(".tiff")) {
@@ -153,11 +159,13 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 		} else
 			channels = ImageChannel.getDefaultChannelList(imp.getNChannels());
 		
-		
+		this.args = args;
 		var builder = new ImageServerMetadata.Builder(getClass()) //, uri.normalize().toString())
 				.width(imp.getWidth())
 				.height(imp.getHeight())
-				.args(args)
+				.name(imp.getTitle())
+				.id(uri.toString() + " (ImageJ)")
+//				.args(args)
 				.channels(channels)
 				.sizeZ(imp.getNSlices())
 				.sizeT(imp.getNFrames())
@@ -338,6 +346,15 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 	@Override
 	public ImageServerMetadata getOriginalMetadata() {
 		return originalMetadata;
+	}
+	
+	@Override
+	public ServerBuilder<BufferedImage> getBuilder() {
+		return ImageServerBuilder.DefaultImageServerBuilder.createInstance(
+				ImageJServerBuilder.class,
+				getMetadata(),
+				uri,
+				args);
 	}
 	
 }

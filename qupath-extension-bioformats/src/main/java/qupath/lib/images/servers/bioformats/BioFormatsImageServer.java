@@ -139,6 +139,11 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 	private ImageServerMetadata originalMetadata;
 	
 	/**
+	 * Arguments passed to constructor.
+	 */
+	private String[] args;
+	
+	/**
 	 * Path to the base image file - will be the same as path, unless the path encodes the name of a specific series, in which case this refers to the file without the series included
 	 */
 	private String filePath;
@@ -198,11 +203,6 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 	 */
 	private String path;
 	
-	/**
-	 * Short name
-	 */
-	private String shortName;
-	
 //	/**
 //	 * Try to parallelize multichannel requests (experimental!)
 //	 */
@@ -237,7 +237,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 	
 	BioFormatsImageServer(URI uri, final BioFormatsServerOptions options, String...args) throws FormatException, IOException, DependencyException, ServiceException, URISyntaxException {
 		super();
-
+		
 		long startTime = System.currentTimeMillis();
 
 		this.options = options;
@@ -348,7 +348,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 									firstSeries = s;
 									firstPixels = sizeX * sizeY * sizeZ * sizeT;
 								}
-								imageMap.put(name, DefaultImageServerBuilder.createInstance(BioFormatsServerBuilder.class, name, uri, "--series", Integer.toString(s)));
+								imageMap.put(name, DefaultImageServerBuilder.createInstance(BioFormatsServerBuilder.class, null, uri, "--series", Integer.toString(s)));
 							}
 						}
 
@@ -636,13 +636,19 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 			} else
 				imageName = imageName + " - " + shortName;
 
-			this.shortName = imageName;
-			String path = String.format("%s [series=%d]", uri.toString(), series);
+			this.args = args;
+
+//			String path = String.format("%s [series=%d]", uri.toString(), series);
+			String id = uri.toString() + " (Bio-Formats)";
+			if (args.length > 0) {
+				id += "[" + String.join(", ", args) + "]";
+			}
 			
 			// Set metadata
 			ImageServerMetadata.Builder builder = new ImageServerMetadata.Builder(
 					getClass(), path, width, height).
-					args(args).
+//					args(args).
+					id(id).
 					name(imageName).
 					channels(channels).
 					sizeZ(nZSlices).
@@ -683,19 +689,9 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 	 */
 	@Override
 	public ServerBuilder<BufferedImage> getBuilder() {
-		return DefaultImageServerBuilder.createInstance(BioFormatsServerBuilder.class, shortName, uri, getMetadata().getArguments());
+		return DefaultImageServerBuilder.createInstance(BioFormatsServerBuilder.class, getMetadata(), uri, args);
 	}
 	
-	
-	@Override
-	public String getPath() {
-		if (path == null) {
-			path = getBuilder().toString();
-		}
-		return path;
-	}
-
-		
 	/**
 	 * Returns true if the reader accepts parallel tile requests, without synchronization.
 	 * <p>

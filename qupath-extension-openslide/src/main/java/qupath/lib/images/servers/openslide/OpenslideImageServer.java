@@ -75,6 +75,7 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 	private int boundsX, boundsY, boundsWidth, boundsHeight;
 	
 	private URI uri;
+	private String[] args;
 	
 	private String path;
 	
@@ -196,12 +197,15 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 		}
 		
 		// Create metadata objects
+		this.args = args;
+		String id = uri.toString() + " (OpenSlide)";
 		originalMetadata = new ImageServerMetadata.Builder(getClass(),
 				path, boundsWidth, boundsHeight).
 				channels(ImageChannel.getDefaultRGBChannels()). // Assume 3 channels (RGB)
 				name(file.getName()).
 				rgb(true).
-				args(args).
+				id(id).
+//				args(args).
 				pixelType(PixelType.UINT8).
 				preferredTileSize(tileWidth, tileHeight).
 				pixelSizeMicrons(pixelWidth, pixelHeight).
@@ -293,13 +297,6 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 		g2d.dispose();
 		return img2;
 	}
-	
-	@Override
-	public String getPath() {
-		if (path == null)
-			path = uri.toString() + " (OpenSlide)";
-		return path;
-	}
 
 	@Override
 	public List<String> getAssociatedImageList() {
@@ -313,7 +310,7 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 	 */
 	@Override
 	public ServerBuilder<BufferedImage> getBuilder() {
-		return DefaultImageServerBuilder.createInstance(OpenslideServerBuilder.class, getShortServerName(), uri, getMetadata().getArguments());
+		return DefaultImageServerBuilder.createInstance(OpenslideServerBuilder.class, getMetadata(), uri, args);
 	}
 
 	@Override

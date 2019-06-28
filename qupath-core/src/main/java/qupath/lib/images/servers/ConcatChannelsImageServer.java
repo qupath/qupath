@@ -118,6 +118,7 @@ public class ConcatChannelsImageServer extends TransformingImageServer<BufferedI
 	@Override
 	public ServerBuilder<BufferedImage> getBuilder() {
 		return new ConcatChannelsImageServerBuilder(
+				getMetadata(),
 				getWrappedServer().getBuilder(),
 				allServers.stream().map(s -> s.getBuilder()).collect(Collectors.toList())
 				);

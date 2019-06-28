@@ -41,6 +41,8 @@ import qupath.lib.roi.interfaces.ROI;
 public class GsonTools {
 	
 	private static Gson gson = new GsonBuilder()
+			.serializeSpecialFloatingPointValues()
+			.setLenient()
 			.registerTypeAdapterFactory(new QuPathTypeAdapterFactory())
 			.registerTypeAdapterFactory(OpenCVTypeAdapters.getOpenCVTypeAdaptorFactory())
 			.registerTypeAdapterFactory(ImageServers.getImageServerTypeAdapterFactory(true))
@@ -53,8 +55,6 @@ public class GsonTools {
 //			.registerTypeAdapter(PathClass.class, PathClassTypeAdapter.INSTANCE)
 //			.registerTypeAdapter(ImagePlane.class, ImagePlaneTypeAdapter.INSTANCE)
 //			.registerTypeAdapterFactory(OpenCVTypeAdapters.getOpenCVTypeAdaptorFactory())
-			.serializeSpecialFloatingPointValues()
-			.setLenient()
 			.create();
 	
 	

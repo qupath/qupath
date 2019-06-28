@@ -24,7 +24,6 @@
 package qupath.lib.images.servers;
 
 import java.io.IOException;
-import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -39,6 +38,8 @@ import org.locationtech.jts.index.quadtree.Quadtree;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
+import qupath.lib.io.GsonTools;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
 
@@ -62,11 +63,6 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 	 * Cache to use for storing & retrieving tiles.
 	 */
 	private transient Map<RegionRequest, T> cache;
-	
-	/**
-	 * Default unique ID
-	 */
-	private String id = UUID.randomUUID().toString();
 	
 	private Class<T> imageClass;
 	
@@ -199,13 +195,9 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 		return cache == null ? null : cache.getOrDefault(tile.getRegionRequest(), null);
 	}
 	
-	/**
-	 * Default unique ID. This is really a UUID; subclasses should consider overriding this 
-	 * with a more readable ID.
-	 */
 	@Override
 	public String getPath() {
-		return id;
+		return getMetadata().getID();
 	}
 
 	@Override

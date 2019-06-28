@@ -7,7 +7,6 @@ import java.awt.image.ColorModel;
 import java.awt.image.Raster;
 import java.awt.image.WritableRaster;
 import java.io.IOException;
-import java.net.URI;
 import java.util.Collection;
 
 import org.slf4j.Logger;

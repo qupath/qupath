@@ -3,6 +3,7 @@ package qupath.lib.images.servers;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 
+import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
 
@@ -44,6 +45,7 @@ public class CroppedImageServer extends TransformingImageServer<BufferedImage> {
 		
 		metadata = new ImageServerMetadata.Builder(getClass(), server.getMetadata())
 //				.path(server.getPath() + ": Cropped " + region.toString())
+				.id(server.getPath() + ": Cropped " + region.toString())
 				.width(region.getWidth())
 				.height(region.getHeight())
 				.name(String.format("%s (%d, %d, %d, %d)", server.getMetadata().getName(), region.getX(), region.getY(), region.getWidth(), region.getHeight()))
@@ -81,6 +83,11 @@ public class CroppedImageServer extends TransformingImageServer<BufferedImage> {
 	@Override
 	public String getServerType() {
 		return "Cropped image server";
+	}
+	
+	@Override
+	public ServerBuilder<BufferedImage> getBuilder() {
+		return new ImageServers.CroppedImageServerBuilder(getMetadata(), getWrappedServer().getBuilder(), region);
 	}
 
 }

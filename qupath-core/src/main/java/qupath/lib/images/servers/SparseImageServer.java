@@ -43,8 +43,6 @@ public class SparseImageServer extends AbstractTileableImageServer {
 	
 	private transient ColorModel colorModel;
 	
-	private String path;
-	
 	private int originX = 0, originY = 0;
 	
 	SparseImageServer(List<SparseImageServerManagerRegion> regions, String path) throws IOException {
@@ -57,7 +55,7 @@ public class SparseImageServer extends AbstractTileableImageServer {
 	 * @param path path to use as an identifier for the server
 	 * @throws IOException
 	 */
-	public SparseImageServer(SparseImageServerManager manager, String path) throws IOException {
+	private SparseImageServer(SparseImageServerManager manager, String path) throws IOException {
 		super();
 		
 		this.manager = manager;
@@ -103,7 +101,8 @@ public class SparseImageServer extends AbstractTileableImageServer {
 		int height = y2 - y1;
 		
 		this.metadata = new ImageServerMetadata.Builder(getClass(), metadata)
-//				.path(path)
+				.id(path)
+//				.id(UUID.randomUUID().toString())
 				.name("Sparse image (" + manager.getRegions().size() + " regions)")
 				.width(width)
 				.height(height)
@@ -111,11 +110,6 @@ public class SparseImageServer extends AbstractTileableImageServer {
 				.levelsFromDownsamples(manager.getAvailableDownsamples())
 				.build();
 		
-	}
-	
-	@Override
-	public String getPath() {
-		return path;
 	}
 	
 	/**
@@ -138,7 +132,10 @@ public class SparseImageServer extends AbstractTileableImageServer {
 	
 	@Override
 	public ServerBuilder<BufferedImage> getBuilder() {
-		return new ImageServers.SparseImageServerBuilder(manager, getPath());
+		List<SparseImageServerManagerRegion> resolutions = new ArrayList<>();
+		for (var entry : manager.regionMap.entrySet())
+			resolutions.add(new SparseImageServerManagerRegion(entry.getKey(), entry.getValue()));
+		return new ImageServers.SparseImageServerBuilder(getMetadata(), resolutions, getPath());
 	}
 	
 	@Override
@@ -166,20 +163,21 @@ public class SparseImageServer extends AbstractTileableImageServer {
 				int y2 = Math.min(tileRequest.getImageY() + originY + tileRequest.getImageHeight(), subRegion.getY() + subRegion.getHeight());
 				
 				// Determine request coordinates
-				// TODO: Test whether sparse images with pyramidal regions work
+				// TODO: Test whether sparse images with pyramidal regions work, or images stored as single planes at pre-specified downsamples
 				int xr = x1 - subRegion.getX();
 				int yr = y1 - subRegion.getY();
 				int xr2 = x2 - subRegion.getX();
 				int yr2 = y2 - subRegion.getY();
 				double requestDownsample = downsample;
-				if (requestDownsample > 1 && serverTemp.nResolutions() == 1) {
-					requestDownsample = serverTemp.getDownsampleForResolution(0);
-					double scale = requestDownsample / downsample;
-					xr = (int)Math.round(xr * scale);					
-					yr = (int)Math.round(yr * scale);					
-					xr2 = (int)Math.round(xr2 * scale);					
-					yr2 = (int)Math.round(yr2 * scale);	
-				}
+//				if (requestDownsample > 1 && serverTemp.nResolutions() == 1) {
+//					requestDownsample = serverTemp.getDownsampleForResolution(0);
+//					double scale = requestDownsample / downsample;
+//					xr = (int)Math.round(xr * scale);					
+//					yr = (int)Math.round(yr * scale);					
+//					xr2 = (int)Math.round(xr2 * scale);					
+//					yr2 = (int)Math.round(yr2 * scale);	
+//					System.err.println(downsample + ", " + scale + ": " + serverTemp.getPath());
+//				}
 				
 				RegionRequest requestTemp = RegionRequest.createInstance(
 						serverTemp.getPath(), requestDownsample,

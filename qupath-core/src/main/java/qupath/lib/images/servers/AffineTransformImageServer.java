@@ -168,6 +168,7 @@ public class AffineTransformImageServer extends TransformingImageServer<Buffered
 	@Override
 	public ServerBuilder<BufferedImage> getBuilder() {
 		return new AffineTransformImageServerBuilder(
+				getMetadata(),
 				getWrappedServer().getBuilder(),
 				getTransform()
 				);

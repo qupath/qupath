@@ -27,10 +27,11 @@ import com.google.gson.reflect.TypeToken;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
 
+import qupath.lib.images.servers.ImageServerBuilder.AbstractServerBuilder;
 import qupath.lib.images.servers.ImageServerBuilder.DefaultImageServerBuilder;
 import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
 import qupath.lib.images.servers.RotatedImageServer.Rotation;
-import qupath.lib.images.servers.SparseImageServer.SparseImageServerManager;
+import qupath.lib.images.servers.SparseImageServer.SparseImageServerManagerRegion;
 import qupath.lib.io.GsonTools;
 import qupath.lib.projects.Project;
 import qupath.lib.regions.ImageRegion;
@@ -56,18 +57,19 @@ public class ImageServers {
 			;
 
 	
-	static class SparseImageServerBuilder implements ServerBuilder<BufferedImage> {
+	static class SparseImageServerBuilder extends AbstractServerBuilder<BufferedImage> {
 		
-		private SparseImageServerManager regions;
+		private List<SparseImageServerManagerRegion> regions;
 		private String path;
 		
-		SparseImageServerBuilder(SparseImageServerManager regions, String path) {
-			this.regions = regions;
+		SparseImageServerBuilder(ImageServerMetadata metadata, Collection<SparseImageServerManagerRegion> regions, String path) {
+			super(metadata);
+			this.regions = new ArrayList<>(regions);
 			this.path = path;
 		}
 
 		@Override
-		public ImageServer<BufferedImage> build() throws Exception {
+		protected ImageServer<BufferedImage> buildOriginal() throws Exception {
 			return new SparseImageServer(regions, path);
 		}
 
@@ -85,18 +87,19 @@ public class ImageServers {
 		
 	}
 	
-	static class CroppedImageServerBuilder implements ServerBuilder<BufferedImage> {
+	static class CroppedImageServerBuilder extends AbstractServerBuilder<BufferedImage> {
 		
 		private ServerBuilder<BufferedImage> builder;
 		private ImageRegion region;
 		
-		CroppedImageServerBuilder(ServerBuilder<BufferedImage> builder, ImageRegion region) {
+		CroppedImageServerBuilder(ImageServerMetadata metadata, ServerBuilder<BufferedImage> builder, ImageRegion region) {
+			super(metadata);
 			this.builder = builder;
 			this.region = region;
 		}
 		
 		@Override
-		public ImageServer<BufferedImage> build() throws Exception {
+		protected ImageServer<BufferedImage> buildOriginal() throws Exception {
 			return new CroppedImageServer(builder.build(), region);
 		}
 
@@ -110,23 +113,24 @@ public class ImageServers {
 			ServerBuilder<BufferedImage> newBuilder = builder.updateURIs(updateMap);
 			if (newBuilder == builder)
 				return this;
-			return new CroppedImageServerBuilder(newBuilder, region);
+			return new CroppedImageServerBuilder(getMetadata(), newBuilder, region);
 		}
 		
 	}
 	
-	static class AffineTransformImageServerBuilder implements ServerBuilder<BufferedImage> {
+	static class AffineTransformImageServerBuilder extends AbstractServerBuilder<BufferedImage> {
 		
 		private ServerBuilder<BufferedImage> builder;
 		private AffineTransform transform;
 		
-		AffineTransformImageServerBuilder(ServerBuilder<BufferedImage> builder, AffineTransform transform) {
+		AffineTransformImageServerBuilder(ImageServerMetadata metadata, ServerBuilder<BufferedImage> builder, AffineTransform transform) {
+			super(metadata);
 			this.builder = builder;
 			this.transform = transform;
 		}
 		
 		@Override
-		public ImageServer<BufferedImage> build() throws Exception {
+		protected ImageServer<BufferedImage> buildOriginal() throws Exception {
 			return new AffineTransformImageServer(builder.build(), transform);
 		}
 
@@ -140,23 +144,24 @@ public class ImageServers {
 			ServerBuilder<BufferedImage> newBuilder = builder.updateURIs(updateMap);
 			if (newBuilder == builder)
 				return this;
-			return new AffineTransformImageServerBuilder(newBuilder, transform);
+			return new AffineTransformImageServerBuilder(getMetadata(), newBuilder, transform);
 		}
 		
 	}
 	
-	static class ConcatChannelsImageServerBuilder implements ServerBuilder<BufferedImage> {
+	static class ConcatChannelsImageServerBuilder extends AbstractServerBuilder<BufferedImage> {
 		
 		private ServerBuilder<BufferedImage> builder;
 		private List<ServerBuilder<BufferedImage>> channels;
 		
-		ConcatChannelsImageServerBuilder(ServerBuilder<BufferedImage> builder, List<ServerBuilder<BufferedImage>> channels) {
+		ConcatChannelsImageServerBuilder(ImageServerMetadata metadata, ServerBuilder<BufferedImage> builder, List<ServerBuilder<BufferedImage>> channels) {
+			super(metadata);
 			this.builder = builder;
 			this.channels = channels;
 		}
 		
 		@Override
-		public ImageServer<BufferedImage> build() throws Exception {
+		protected ImageServer<BufferedImage> buildOriginal() throws Exception {
 			Map<ServerBuilder<BufferedImage>, ImageServer<BufferedImage>> map = new LinkedHashMap<>();
 			for (ServerBuilder<BufferedImage> channel :channels)
 				map.put(channel, channel.build());
@@ -187,23 +192,24 @@ public class ImageServers {
 			}
 			if (!changes)
 				return this;
-			return new ConcatChannelsImageServerBuilder(newBuilder, newChannels);
+			return new ConcatChannelsImageServerBuilder(getMetadata(), newBuilder, newChannels);
 		}
 		
 	}
 
-	static class RotatedImageServerBuilder implements ServerBuilder<BufferedImage> {
+	static class RotatedImageServerBuilder extends AbstractServerBuilder<BufferedImage> {
 	
 		private ServerBuilder<BufferedImage> builder;
 		private Rotation rotation;
 	
-		RotatedImageServerBuilder(ServerBuilder<BufferedImage> builder, Rotation rotation) {
+		RotatedImageServerBuilder(ImageServerMetadata metadata, ServerBuilder<BufferedImage> builder, Rotation rotation) {
+			super(metadata);
 			this.builder = builder;
 			this.rotation = rotation;
 		}
 	
 		@Override
-		public ImageServer<BufferedImage> build() throws Exception {
+		protected ImageServer<BufferedImage> buildOriginal() throws Exception {
 			return new RotatedImageServer(builder.build(), rotation);
 		}
 		
@@ -217,7 +223,7 @@ public class ImageServers {
 			ServerBuilder<BufferedImage> newBuilder = builder.updateURIs(updateMap);
 			if (newBuilder == builder)
 				return this;
-			return new RotatedImageServerBuilder(newBuilder, rotation);
+			return new RotatedImageServerBuilder(getMetadata(), newBuilder, rotation);
 		}
 	
 	}
@@ -272,7 +278,9 @@ public class ImageServers {
 		
 		@Override
 		public void write(JsonWriter out, ImageServer<BufferedImage> server) throws IOException {
+			boolean lenient = out.isLenient();
 			try {
+				out.setLenient(true);
 				var builder = server.getBuilder();
 				out.beginObject();
 				out.name("builder");
@@ -286,6 +294,8 @@ public class ImageServers {
 				return;
 			} catch (Exception e) {
 				throw new IOException(e);
+			} finally {
+				out.setLenient(lenient);
 			}
 		}
 
@@ -293,6 +303,7 @@ public class ImageServers {
 		public ImageServer<BufferedImage> read(JsonReader in) throws IOException {
 			boolean lenient = in.isLenient();
 			try {
+				in.setLenient(true);
 				JsonElement element = new JsonParser().parse(in);
 				JsonObject obj = element.getAsJsonObject();
 				

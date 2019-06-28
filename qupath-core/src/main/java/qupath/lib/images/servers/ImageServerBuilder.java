@@ -31,6 +31,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * Helper class for creating ImageServers from a given URI and optional argument list.
@@ -121,6 +122,39 @@ public interface ImageServerBuilder<T> {
 		
 	}
 	
+	
+	/**
+	 * Abstract ServerBuilder implementation that handles metadata.
+	 *
+	 * @param <T>
+	 */
+	static abstract class AbstractServerBuilder<T> implements ServerBuilder<T> {
+		
+		private ImageServerMetadata metadata;
+		
+		AbstractServerBuilder(ImageServerMetadata metadata) {
+			this.metadata = metadata;
+		}
+		
+		protected abstract ImageServer<T> buildOriginal() throws Exception;
+		
+		protected ImageServerMetadata getMetadata() {
+			return metadata;
+		}
+		
+		@Override
+		public ImageServer<T> build() throws Exception {
+			var server = buildOriginal();
+			if (server == null)
+				return null;
+			if (metadata != null)
+				server.setMetadata(metadata);
+			return server;
+		}
+		
+	}
+	
+	
 	public static class UriImageSupport<T> {
 		
 		private Class<? extends ImageServerBuilder<T>> providerClass;
@@ -176,49 +210,41 @@ public interface ImageServerBuilder<T> {
 	}
 	
 	
-	public static class DefaultImageServerBuilder<T> implements ServerBuilder<T> {
+	public static class DefaultImageServerBuilder<T> extends AbstractServerBuilder<T> {
 		
 		private String providerClassName;
 		private URI uri;
-		private String name;
 		private String[] args;
 		
-		private DefaultImageServerBuilder(String providerClassName, String name, URI uri, String...args) {
+		private DefaultImageServerBuilder(String providerClassName, URI uri, String[] args, ImageServerMetadata metadata) {
+			super(metadata);
 			this.providerClassName = providerClassName;
-			this.name = name;
-			this.uri = uri;
-			this.args = args;			
-		}
-
-		private DefaultImageServerBuilder(Class<? extends ImageServerBuilder<T>> providerClass, String name, URI uri, String...args) {
-			this.providerClassName = providerClass.getName();
-			this.name = name;
 			this.uri = uri;
 			this.args = args;
 		}
-		
-		public static <T> DefaultImageServerBuilder<T> createInstance(Class<? extends ImageServerBuilder<T>> providerClass, String name, URI uri, String... args) {
-			return new DefaultImageServerBuilder<>(providerClass, name, uri, args);
+
+		private DefaultImageServerBuilder(Class<? extends ImageServerBuilder<T>> providerClass, URI uri, String[] args, ImageServerMetadata metadata) {
+			this(providerClass.getName(), uri, args, metadata);
 		}
 		
-		public static <T> DefaultImageServerBuilder<T> createInstance(Class<? extends ImageServerBuilder<T>> providerClass, URI uri, String... args) {
-			return createInstance(providerClass, ServerTools.getDefaultShortServerName(uri.toString()), uri, args);
+		public static <T> DefaultImageServerBuilder<T> createInstance(Class<? extends ImageServerBuilder<T>> providerClass, ImageServerMetadata metadata, URI uri, String...args) {
+			return new DefaultImageServerBuilder<>(providerClass, uri, args, metadata);
 		}
-		
-		public String getName() {
-			return name;
+
+		public static <T> DefaultImageServerBuilder<T> createInstance(Class<? extends ImageServerBuilder<T>> providerClass, URI uri, String...args) {
+			return createInstance(providerClass, null, uri, args);
 		}
-		
+
 		public URI getURI() {
 			return uri;
 		}
 
 		public String[] getArgs() {
-			return args.clone();
+			return args;
 		}
 
 		@Override
-		public ImageServer<T> build() throws Exception {
+		protected ImageServer<T> buildOriginal() throws Exception {
 			for (ImageServerBuilder<?> provider : ImageServerProvider.getInstalledImageServerBuilders()) {
 				if (provider.getClass().getName().equals(providerClassName)) {
 					return (ImageServer<T>)provider.buildServer(uri, args);
@@ -241,7 +267,7 @@ public interface ImageServerBuilder<T> {
 			URI uriNew = updateMap.getOrDefault(uri, null);
 			if (uriNew == null)
 				return this;
-			return new DefaultImageServerBuilder<>(providerClassName, name, uriNew, args);
+			return new DefaultImageServerBuilder<>(providerClassName, uriNew, args, getMetadata());
 		}
 		
 		@Override
@@ -254,7 +280,6 @@ public interface ImageServerBuilder<T> {
 			final int prime = 31;
 			int result = 1;
 			result = prime * result + Arrays.hashCode(args);
-			result = prime * result + ((name == null) ? 0 : name.hashCode());
 			result = prime * result + ((providerClassName == null) ? 0 : providerClassName.hashCode());
 			result = prime * result + ((uri == null) ? 0 : uri.hashCode());
 			return result;
@@ -271,11 +296,6 @@ public interface ImageServerBuilder<T> {
 			DefaultImageServerBuilder other = (DefaultImageServerBuilder) obj;
 			if (!Arrays.equals(args, other.args))
 				return false;
-			if (name == null) {
-				if (other.name != null)
-					return false;
-			} else if (!name.equals(other.name))
-				return false;
 			if (providerClassName == null) {
 				if (other.providerClassName != null)
 					return false;
@@ -285,6 +305,8 @@ public interface ImageServerBuilder<T> {
 				if (other.uri != null)
 					return false;
 			} else if (!uri.equals(other.uri))
+				return false;
+			if (!Objects.equals(getMetadata(), other.getMetadata()))
 				return false;
 			return true;
 		}

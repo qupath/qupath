@@ -39,7 +39,7 @@ public class ImageIoImageServerBuilder implements ImageServerBuilder<BufferedIma
 	@Override
 	public UriImageSupport<BufferedImage> checkImageSupport(URI uri, String...args) {
 		float supportLevel = supportLevel(uri, args);
-		return UriImageSupport.createInstance(this.getClass(), supportLevel, DefaultImageServerBuilder.createInstance(this.getClass(), uri, args));
+		return UriImageSupport.createInstance(this.getClass(), supportLevel, DefaultImageServerBuilder.createInstance(this.getClass(), null, uri, args));
 	}
 	
 	private float supportLevel(URI uri, String...args) {

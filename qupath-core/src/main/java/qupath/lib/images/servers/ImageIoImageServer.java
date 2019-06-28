@@ -31,6 +31,7 @@ import java.net.MalformedURLException;
 import java.net.URI;
 import javax.imageio.ImageIO;
 
+import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
 import qupath.lib.regions.RegionRequest;
 
 /**
@@ -46,7 +47,9 @@ public class ImageIoImageServer extends AbstractImageServer<BufferedImage> {
 	private ImageServerMetadata originalMetadata;
 
 	private BufferedImage img;
+	private URI uri;
 	private String imageName;
+	private String[] args;
 	
 	private final int[] rgbTypes = new int[] {
 			BufferedImage.TYPE_INT_ARGB, BufferedImage.TYPE_INT_ARGB_PRE, BufferedImage.TYPE_INT_RGB
@@ -63,6 +66,7 @@ public class ImageIoImageServer extends AbstractImageServer<BufferedImage> {
 	 */
 	public ImageIoImageServer(final URI uri, String path, final String imageName, final BufferedImage img, String...args) {
 		super(BufferedImage.class);
+		this.uri = uri;
 		this.img = img;
 		this.imageName = imageName;
 
@@ -95,10 +99,12 @@ public class ImageIoImageServer extends AbstractImageServer<BufferedImage> {
 		for (int type : rgbTypes) {
 			isRGB = isRGB | type == img.getType();
 		}
+		
+		this.args = args;
 		originalMetadata = new ImageServerMetadata.Builder(getClass())
 				.width(img.getWidth())
 				.height(img.getHeight())
-				.args(args)
+//				.args(args)
 				.rgb(isRGB)
 				.pixelType(pixelType)
 				.channels(ImageChannel.getDefaultChannelList(nChannels)).
@@ -147,6 +153,15 @@ public class ImageIoImageServer extends AbstractImageServer<BufferedImage> {
 	@Override
 	public ImageServerMetadata getOriginalMetadata() {
 		return originalMetadata;
+	}
+	
+	@Override
+	public ServerBuilder<BufferedImage> getBuilder() {
+		return ImageServerBuilder.DefaultImageServerBuilder.createInstance(
+				ImageIoImageServerBuilder.class,
+				getMetadata(),
+				uri,
+				args);
 	}
 
 }

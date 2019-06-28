@@ -97,7 +97,7 @@ public class ImageServerMetadata {
 	
 	private static int DEFAULT_TILE_SIZE = 256;
 
-//	private String path;
+	private String id;
 	private String name;
 	
 	private String serverClassName;
@@ -110,8 +110,6 @@ public class ImageServerMetadata {
 	
 	private ImageServerMetadata.ChannelType channelType = ImageServerMetadata.ChannelType.DEFAULT;
 	
-	private String[] args;
-	
 	private boolean isRGB = false;
 	private PixelType pixelType = PixelType.UINT8;
 	
@@ -121,7 +119,7 @@ public class ImageServerMetadata {
 	
 	private PixelCalibration pixelCalibration;
 	
-	private double magnification = Double.NaN;
+	private Double magnification = null;
 	
 	private int preferredTileWidth;
 	private int preferredTileHeight;
@@ -178,18 +176,6 @@ public class ImageServerMetadata {
 //		}
 		
 		/**
-		 * Specify any (optional) String arguments required to create the ImageServer.
-		 * @param args
-		 * @return
-		 * 
-		 * @see ImageServerBuilder
-		 */
-		public Builder args(String...args) {
-			metadata.args = args.clone();
-			return this;
-		}
-		
-		/**
 		 * Builder for a new ImageServerMetadata; further properties must be set.
 		 * 
 		 * @param serverClass
@@ -224,17 +210,17 @@ public class ImageServerMetadata {
 			return this;
 		}
 		
-//		/**
-//		 * Specify the image path.
-//		 * @param path
-//		 * @return
-//		 * 
-//		 * @see ImageServerBuilder
-//		 */
-//		public Builder path(final String path) {
-//			this.metadata.path = path;
-//			return this;
-//		}
+		/**
+		 * Specify the image identifier. This must be unique, as it is used for caching.
+		 * @param id
+		 * @return
+		 * 
+		 * @see ImageServerBuilder
+		 */
+		public Builder id(final String id) {
+			this.metadata.id = id;
+			return this;
+		}
 		
 		/**
 		 * Specify the interpretation of channels.
@@ -402,9 +388,9 @@ public class ImageServerMetadata {
 		public ImageServerMetadata build() {
 			metadata.pixelCalibration = pixelCalibrationBuilder.build();
 			
-//			// We need a unique path, somehow
-//			if (metadata.path == null)
-//				metadata.path = UUID.randomUUID().toString();
+//			// We need a unique id, somehow
+			if (metadata.id == null)
+				metadata.id = UUID.randomUUID().toString();
 			
 			if (metadata.levels == null)
 				metadata.levels = new ImageResolutionLevel[] {new ImageResolutionLevel(1, metadata.width, metadata.height)};
@@ -442,14 +428,12 @@ public class ImageServerMetadata {
 
 	ImageServerMetadata(final ImageServerMetadata metadata) {
 		this.serverClassName = metadata.serverClassName;
-//		this.path = metadata.path;
+		this.id = metadata.id;
 		this.name = metadata.name;
 		this.levels = metadata.levels.clone();
 		
 		this.width = metadata.width;
 		this.height = metadata.height;
-		
-		this.args = args == null ? null : args.clone();
 		
 		this.sizeZ = metadata.sizeZ;
 		this.sizeT = metadata.sizeT;
@@ -506,13 +490,13 @@ public class ImageServerMetadata {
 		return unmodifiableLevels;
 	}
 	
-//	/**
-//	 * Get the image path, which should be unique and may be used as an identifier.
-//	 * @return
-//	 */
-//	public String getPath() {
-//		return path;
-//	}
+	/**
+	 * Get the image ID, which should be unique and may be used as an identifier.
+	 * @return
+	 */
+	public String getID() {
+		return id;
+	}
 	
 	/**
 	 * Get the full-resolution image width.
@@ -680,7 +664,7 @@ public class ImageServerMetadata {
 	 * @return
 	 */
 	public double getMagnification() {
-		return magnification;
+		return magnification == null ? Double.NaN : magnification;
 	}
 	
 	/**
@@ -741,15 +725,6 @@ public class ImageServerMetadata {
 	}
 	
 	/**
-	 * Get any string arguments recorded as being used in the construction of the ImageServer. 
-	 * If no arguments were used, an empty array is returned.
-	 * @return
-	 */
-	public String[] getArguments() {
-		return args == null ? new String[0] : args.clone();
-	}
-	
-	/**
 	 * Returns true if a specified ImageServerMetadata is compatible with this one, that is it has the same path and dimensions
 	 * (but possibly different pixel sizes, magnifications etc.).
 	 * 
@@ -807,7 +782,6 @@ public class ImageServerMetadata {
 	public int hashCode() {
 		final int prime = 31;
 		int result = 1;
-		result = prime * result + Arrays.hashCode(args);
 		result = prime * result + ((channelType == null) ? 0 : channelType.hashCode());
 		result = prime * result + ((channels == null) ? 0 : channels.hashCode());
 		result = prime * result + height;
@@ -839,8 +813,6 @@ public class ImageServerMetadata {
 		if (getClass() != obj.getClass())
 			return false;
 		ImageServerMetadata other = (ImageServerMetadata) obj;
-		if (!Arrays.equals(args, other.args))
-			return false;
 		if (channelType != other.channelType)
 			return false;
 		if (channels == null) {

@@ -301,7 +301,7 @@ public class RotatedImageServer extends TransformingImageServer<BufferedImage> {
 	
 	@Override
 	public ServerBuilder<BufferedImage> getBuilder() {
-		return new RotatedImageServerBuilder(getWrappedServer().getBuilder(), getRotation());
+		return new RotatedImageServerBuilder(getMetadata(), getWrappedServer().getBuilder(), getRotation());
 	}
 
 }

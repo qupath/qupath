@@ -24,7 +24,6 @@
 package qupath.lib.images.servers;
 
 import java.io.IOException;
-import java.net.URI;
 import java.util.List;
 
 import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
@@ -285,7 +284,7 @@ public interface ImageServer<T> extends AutoCloseable {
 	 * <p>
 	 * The purpose of this is to aid serialization of servers by switching to a simpler representation.
 	 * <p>
-	 * The default implementation returns null, inciding that rebuilding the server is not supported.
+	 * The default implementation returns null, indicating that rebuilding the server is not supported.
 	 * @return
 	 */
 	public default ServerBuilder<T> getBuilder() {
