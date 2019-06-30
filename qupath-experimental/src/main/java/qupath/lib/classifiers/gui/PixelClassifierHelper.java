@@ -363,6 +363,10 @@ public class PixelClassifierHelper implements PathObjectHierarchyListener {
 							// TODO: FIX THE DOWNSAMPLE - IT IS LIKELY TO BE WRONG!
 							List<Feature<Mat>> features = calculator.calculateFeatures(imageData, request);
 							matFeaturesFull = new Mat();
+							if (features.isEmpty()) {
+								logger.warn("Tried to update classifier, but no features are available!");
+								return false;
+							}
 							opencv_core.merge(new MatVector(features.stream().map(f -> f.getFeature()).toArray(Mat[]::new)), matFeaturesFull);
 						} catch (IOException e) {
 							logger.warn("Unable to calculate features for " + request + " - will be skipped", e);

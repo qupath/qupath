@@ -510,6 +510,7 @@ public class IJTools {
 					impComp.setChannelLut(
 							LUT.createLutFromColor(
 									new Color(server.getChannel(b).getColor())), b+1);
+					impComp.getStack().setSliceLabel(server.getChannel(b).getName(), b+1);
 				}
 				impComp.updateAllChannelsAndDraw();
 				impComp.resetDisplayRanges();

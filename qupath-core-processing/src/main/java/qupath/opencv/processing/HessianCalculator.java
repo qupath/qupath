@@ -603,12 +603,13 @@ public class HessianCalculator {
 				if (doSmoothed) {
 					matSmooth = new Mat();
 					opencv_imgproc.sepFilter2D(mat, matSmooth, opencv_core.CV_32F, kx0, kx0, null, 0.0, border);
+					stripPadding(matSmooth);
 					if (gaussianSmoothed)
-						features.put(MultiscaleFeature.GAUSSIAN, stripPadding(matSmooth));
+						features.put(MultiscaleFeature.GAUSSIAN, matSmooth);
 					
 					if (weightedStdDev) {
 						Mat matSquaredSmoothed = mat.mul(mat).asMat();
-						opencv_imgproc.sepFilter2D(matSquaredSmoothed, matSquaredSmoothed, opencv_core.CV_32F, kx0, kx0, null, 0.0, border);
+						opencv_imgproc.sepFilter2D(matSquaredSmoothed, matSquaredSmoothed, opencv_core.CV_32F, kx0, ky0, null, 0.0, border);
 						stripPadding(matSquaredSmoothed);
 						matSquaredSmoothed.put(opencv_core.subtract(matSquaredSmoothed, matSmooth.mul(matSmooth)));
 						opencv_core.sqrt(matSquaredSmoothed, matSquaredSmoothed);
@@ -753,13 +754,14 @@ public class HessianCalculator {
 					Mat z0 = matsZ0.get(i);
 					Mat matSmooth = new Mat();
 					opencv_imgproc.sepFilter2D(z0, matSmooth, opencv_core.CV_32F, kx0, ky0, null, 0.0, border);
+					stripPadding(matSmooth);
 					if (gaussianSmoothed)
-						features.put(MultiscaleFeature.GAUSSIAN, stripPadding(matSmooth));
+						features.put(MultiscaleFeature.GAUSSIAN, matSmooth);
 					
 					if (weightedStdDev) {
 						// Note that here we modify the original images in-place, since from now on we just need 2D planes
 						Mat matSquaredSmoothed = matsSquaredZ0.get(i);
-						opencv_imgproc.sepFilter2D(matSquaredSmoothed, matSquaredSmoothed, opencv_core.CV_32F, kx0, kx0, null, 0.0, border);
+						opencv_imgproc.sepFilter2D(matSquaredSmoothed, matSquaredSmoothed, opencv_core.CV_32F, kx0, ky0, null, 0.0, border);
 						stripPadding(matSquaredSmoothed);
 						matSquaredSmoothed.put(opencv_core.subtract(matSquaredSmoothed, matSmooth.mul(matSmooth)));
 						opencv_core.sqrt(matSquaredSmoothed, matSquaredSmoothed);

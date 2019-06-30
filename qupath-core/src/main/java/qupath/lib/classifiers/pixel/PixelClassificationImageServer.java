@@ -17,6 +17,7 @@ import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.ImageServerMetadata.ImageResolutionLevel;
 import qupath.lib.images.servers.PixelType;
 import qupath.lib.images.servers.TileRequest;
+import qupath.lib.io.GsonTools;
 import qupath.lib.regions.RegionRequest;
 
 /**
@@ -57,12 +58,13 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 		var classifierMetadata = classifier.getMetadata();
 		
 		String path;
-//		try {
-//			// If we can construct a path (however long) that includes the full serialization info, then cached tiles can be reused even if the server is recreated
-//			path = server.getPath() + "::" + new Gson().toJson(classifier);
-//		} catch (Exception e) {
+		try {
+			// If we can construct a path (however long) that includes the full serialization info, then cached tiles can be reused even if the server is recreated
+			path = server.getPath() + "::" + GsonTools.getGsonDefault().toJson(classifier);
+		} catch (Exception e) {
+			logger.debug("Unable to serialize pixel classifier to JSON: {}", e.getLocalizedMessage());
 			path = server.getPath() + "::" + UUID.randomUUID().toString();			
-//		}
+		}
 		
 		var pixelType = PixelType.UINT8;
 		
@@ -88,7 +90,7 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 		int pad = classifierMetadata.strictInputSize() ? classifierMetadata.getInputPadding() : 0;
 		
 		var builder = new ImageServerMetadata.Builder(getClass(), server.getMetadata())
-//				.path(path)
+				.id(path)
 				.width(width)
 				.height(height)
 				.channelType(classifierMetadata.getOutputType())

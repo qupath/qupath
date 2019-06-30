@@ -103,6 +103,7 @@ import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.PixelCalibration;
+import qupath.lib.images.servers.ImageServerMetadata.ChannelType;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
@@ -707,7 +708,11 @@ public class PixelClassifierImageSelectionPane {
 		logger.debug("Saving & applying classifier");
 		updateClassifier(true);
 		
-		var server = overlay.getPixelClassificationServer();
+		PixelClassificationImageServer server = overlay == null ? null : overlay.getPixelClassificationServer();
+		if (server == null) {
+			DisplayHelpers.showErrorMessage("Pixel classifier", "Nothing to save - please train a classifier first!");
+			return false;
+		}
 		
 		var project = QuPathGUI.getInstance().getProject();
 		if (project == null) {
@@ -1034,9 +1039,11 @@ public class PixelClassifierImageSelectionPane {
 		try {
 //			var imp = IJExtension.extractROI(server, selected, request, true, null).getImage();
 			var pathImage = IJTools.convertToImagePlus(
-					overlay.getPixelClassificationServer(),
+					server,
 					request);
 			var imp = pathImage.getImage();
+			if (imp instanceof CompositeImage && server.getMetadata().getChannelType() != ChannelType.CLASSIFICATION)
+				((CompositeImage)imp).setDisplayMode(CompositeImage.GRAYSCALE);
 			if (roi != null && !(roi instanceof RectangleROI)) {
 				imp.setRoi(IJTools.convertToIJRoi(roi, pathImage));
 			}
@@ -1069,6 +1076,10 @@ public class PixelClassifierImageSelectionPane {
 		
 		try {
 			List<Feature<Mat>> features = featureCalculator.calculateFeatures(imageData, request);
+			if (features.isEmpty()) {
+				DisplayHelpers.showErrorMessage("Show features", "No features selected!");
+				return false;
+			}
 			ImagePlus imp = OpenCVTools.matToImagePlus("Features", features.stream().map(f -> f.getFeature()).toArray(Mat[]::new));
 			int s = 1;
 			IJTools.calibrateImagePlus(imp, request, server);
