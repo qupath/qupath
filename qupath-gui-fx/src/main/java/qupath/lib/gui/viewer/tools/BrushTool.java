@@ -43,6 +43,7 @@ import qupath.lib.awt.common.AwtTools;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.ModeWrapper;
 import qupath.lib.gui.viewer.QuPathViewer;
+import qupath.lib.gui.viewer.tools.QuPathPenManager.PenInputManager;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
@@ -278,8 +279,10 @@ public class BrushTool extends AbstractPathROITool {
 	}
 	
 	
-	
 	protected boolean isSubtractMode(MouseEvent e) {
+		PenInputManager manager = QuPathPenManager.getPenManager();
+		if (manager.isEraser())
+			return true;
 		return e == null ? false : e.isAltDown();
 	}
 	
@@ -381,10 +384,12 @@ public class BrushTool extends AbstractPathROITool {
 	
 	
 	protected double getBrushDiameter() {
+		PenInputManager manager = QuPathPenManager.getPenManager();
+		double scale = manager.getPressure();
 		if (PathPrefs.getBrushScaleByMag())
-			return PathPrefs.getBrushDiameter() * viewer.getDownsampleFactor();
+			return PathPrefs.getBrushDiameter() * viewer.getDownsampleFactor() * scale;
 		else
-			return PathPrefs.getBrushDiameter();
+			return PathPrefs.getBrushDiameter() * scale;
 	}
 	
 	
