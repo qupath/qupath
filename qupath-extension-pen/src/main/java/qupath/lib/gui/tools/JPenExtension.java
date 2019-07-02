@@ -31,12 +31,17 @@ import java.util.Collection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javafx.event.EventHandler;
-import javafx.scene.input.MouseEvent;
+import jpen.PButtonEvent;
+import jpen.PKindEvent;
+import jpen.PLevelEvent;
+import jpen.PScrollEvent;
+import jpen.PenDevice;
 import jpen.PenEvent;
 import jpen.PenManager;
 import jpen.PenProvider;
 import jpen.PenProvider.Constructor;
+import jpen.event.PenListener;
+import jpen.event.PenManagerListener;
 import jpen.owner.PenClip;
 import jpen.owner.PenOwner;
 import jpen.provider.osx.CocoaProvider;
@@ -89,37 +94,39 @@ public class JPenExtension implements QuPathExtension {
 	
 	
 	
-	private static class JPenInputManager implements PenInputManager {
+	private static class JPenInputManager implements PenInputManager, PenListener, PenManagerListener {
 		
 		private PenManager pm;
+		private long lastEventTime = 0L;
 		
 		JPenInputManager(PenManager pm) {
 			this.pm = pm;
+			this.pm.addListener(this);
+			this.pm.pen.addListener(this);
+		}
+		
+		boolean isRecent() {
+			if (lastEventTime == 0L)
+				return false;
+			long timeDifference = System.currentTimeMillis() - lastEventTime;
+			return timeDifference <= pm.pen.getFrequency();
 		}
 
 		@Override
 		public boolean isEraser() {
-			if (pm != null && pm.pen.getKind().getType() == jpen.PKind.Type.ERASER)
+			if (pm != null && !pm.getPaused() && isRecent() && pm.pen.getKind().getType() == jpen.PKind.Type.ERASER)
 				return true;
 			return false;
 		}
 
 		@Override
 		public double getPressure() {
-			if (pm != null && !pm.getPaused()) {
+			if (pm != null && !pm.getPaused() && isRecent()) {
 				switch (pm.pen.getKind().getType()) {
 				case ERASER:
 				case STYLUS:
-					// TODO: Try to find a more robust way of deciding if we have a pen or not
-					// For now, only return the pressure if it is non-zero and we have some kind of tilt - 
-					// otherwise, probably not using a pen after all
 					double pressure = pm.pen.getLevelValue(jpen.PLevel.Type.PRESSURE);
-					if (pressure > 0)
-						return pressure;
-					for (var t : jpen.PLevel.Type.TILT_TYPES) {
-						if (pm.pen.getLevelValue(t) != 0)
-							return pressure;
-					}
+					return pressure;
 				case CURSOR:
 				case CUSTOM:
 				case IGNORE:
@@ -128,6 +135,36 @@ public class JPenExtension implements QuPathExtension {
 				}
 			}
 			return 1.0;
+		}
+
+		@Override
+		public void penKindEvent(PKindEvent ev) {}
+
+		@Override
+		public void penLevelEvent(PLevelEvent ev) {
+			lastEventTime = ev.getTime();
+		}
+
+		@Override
+		public void penButtonEvent(PButtonEvent ev) {}
+
+		@Override
+		public void penScrollEvent(PScrollEvent ev) {}
+
+		@Override
+		public void penTock(long availableMillis) {
+			// Log that a pen event has been noted (can be fired when pen is hovering above the device)
+			lastEventTime = System.currentTimeMillis();
+		}
+
+		@Override
+		public void penDeviceAdded(Constructor providerConstructor, PenDevice penDevice) {
+			logger.info("PenDevice added: {} ({})", penDevice, providerConstructor);
+		}
+
+		@Override
+		public void penDeviceRemoved(Constructor providerConstructor, PenDevice penDevice) {
+			logger.info("PenDevice removed: {} ({})", penDevice, providerConstructor);
 		}
 		
 	}
@@ -188,21 +225,12 @@ public class JPenExtension implements QuPathExtension {
 		
 	}
 	
-	
-	static class QuPathViewerPenClip implements PenClip, EventHandler<MouseEvent> {
+	/**
+	 * Best to accept any location on screen - attempts to filter by viewer 
+	 * where not entirely successful when working with multiple viewer.
+	 */
+	static class QuPathViewerPenClip implements PenClip {
 		
-		private boolean contains = false;
-		
-		QuPathViewerPenClip() {
-			QuPathGUI.getInstance().viewerProperty().addListener((v, o, n) -> {
-				if (o != null)
-					o.getView().removeEventFilter(MouseEvent.ANY, this);
-				if (n == null)
-					return;
-				n.getView().addEventFilter(MouseEvent.ANY, this);
-			});
-		}
-
 		@Override
 		public void evalLocationOnScreen(Point locationOnScreen) {
 			locationOnScreen.x = 0;
@@ -211,15 +239,7 @@ public class JPenExtension implements QuPathExtension {
 
 		@Override
 		public boolean contains(Float point) {
-			return contains;
-		}
-		
-		@Override
-		public void handle(MouseEvent event) {
-			if (event.getEventType() == MouseEvent.MOUSE_EXITED_TARGET)
-				contains = false;
-			else if (event.getEventType() == MouseEvent.MOUSE_ENTERED_TARGET)
-				contains = true;
+			return true;
 		}
 		
 	}
