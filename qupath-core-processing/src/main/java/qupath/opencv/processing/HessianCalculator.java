@@ -16,7 +16,8 @@ import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.global.opencv_imgproc;
 import org.bytedeco.opencv.opencv_core.Mat;
 import org.bytedeco.opencv.opencv_core.MatExpr;
-import qupath.lib.common.GeneralTools;
+import org.bytedeco.opencv.opencv_core.Rect;
+
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.regions.RegionRequest;
@@ -29,10 +30,114 @@ import qupath.lib.regions.RegionRequest;
  */
 public class HessianCalculator {
 	
+	
+	public static enum MultiscaleFeature {
+		/**
+		 * Gaussian filter
+		 */
+		GAUSSIAN,
+		/**
+		 * Laplacian of Gaussian filter
+		 */
+		LAPLACIAN,
+		/**
+		 * Weighted standard deviation
+		 * <p>TODO: Document calculation
+		 */
+		WEIGHTED_STD_DEV,
+		/**
+		 * Gradient magnitude
+		 */
+		GRADIENT_MAGNITUDE,
+		/**
+		 * Determinant of the Hessian matrix, calculated per pixel
+		 */
+		HESSIAN_DETERMINANT,
+		/**
+		 * Maximum eigenvalue of the 2x2 or 3x3 Hessian matrix, calculated per pixel (by value, not absolute value)
+		 */
+		HESSIAN_EIGENVALUE_MAX,
+		/**
+		 * Middle eigenvalue of the 3x3 Hessian matrix, calculated per pixel (by value, not absolute value)
+		 */
+		HESSIAN_EIGENVALUE_MIDDLE,
+		/**
+		 * Minimum eigenvalue of the 2x2 or 3x3 Hessian matrix, calculated per pixel (by value, not absolute value)
+		 */
+		HESSIAN_EIGENVALUE_MIN;
+		
+		public boolean is2D() {
+			return this != HESSIAN_EIGENVALUE_MIDDLE;
+		}
+
+		public boolean is3D() {
+			return true;
+		}
+
+		@Override
+		public String toString() {
+			switch (this) {
+			case GAUSSIAN:
+				return "Gaussian";
+			case GRADIENT_MAGNITUDE:
+				return "Gradient magnitude";
+			case HESSIAN_DETERMINANT:
+				return "Hessian determinant";
+			case HESSIAN_EIGENVALUE_MAX:
+				return "Hessian max eigenvalue";
+			case HESSIAN_EIGENVALUE_MIDDLE:
+				return "Hessian middle eigenvalue";
+			case HESSIAN_EIGENVALUE_MIN:
+				return "Hessian min eigenvalue";
+			case LAPLACIAN:
+				return "Laplacian of Gaussian";
+			case WEIGHTED_STD_DEV:
+				return "Weighted deviation";
+			default:
+				return super.toString();
+			}
+		}
+	}
+	
+	
+	static enum FilterBorderType {
+		
+		REPLICATE, REFLECT, WRAP;
+		
+		@Override
+		public String toString() {
+			switch (this) {
+			case REFLECT:
+				return "Reflect border";
+			case REPLICATE:
+				return "Replicate border";
+			case WRAP:
+				return "Wrap border";
+			default:
+				return super.toString();
+			}
+		}
+		
+		int getOpenCVCode() {
+			switch (this) {
+			case REFLECT:
+				return opencv_core.BORDER_REFLECT;
+			case REPLICATE:
+				return opencv_core.BORDER_REPLICATE;
+			case WRAP:
+				return opencv_core.BORDER_WRAP;
+			default:
+				throw new IllegalArgumentException("Unknown border type " + this); 
+			}
+		}
+		
+	}
+	
+	
 	/**
 	 * Default border strategy when filtering.
 	 */
-	private static final int BORDER_DEFAULT = opencv_core.BORDER_REPLICATE;
+	private static final FilterBorderType BORDER_DEFAULT = FilterBorderType.REPLICATE;
 	
 	/**
 	 * Temporary(!) method to facilitate interactively testing the code from a script 
@@ -47,7 +152,7 @@ public class HessianCalculator {
 		var selectedROI = hierarchy.getSelectionModel().getSelectedROI();
 		if (sigmas.length == 0)
 			sigmas = new double[] {1.0};
-		double downsample = Math.max(1.0, sigmas[0] / server.getAveragedPixelSizeMicrons() / 2.0);
+		double downsample = Math.max(1.0, sigmas[0] / server.getPixelCalibration().getAveragedPixelSizeMicrons() / 2.0);
 		System.err.println(downsample);
 		RegionRequest request = RegionRequest.createInstance(server);
 		if (selectedROI != null)
@@ -59,13 +164,13 @@ public class HessianCalculator {
 		
 //		int sizeZ = stack.size();
 		
-		List<Map<String, Mat>> results = Collections.synchronizedList(new ArrayList<>());
+		List<Map<MultiscaleFeature, Mat>> results = Collections.synchronizedList(new ArrayList<>());
 		
 		int[] channels = new int[] {2};
 		
 		var pool = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
 		
-		List<Future<List<Map<String, Mat>>>> futures = new ArrayList<>();
+		List<Future<List<Map<MultiscaleFeature, Mat>>>> futures = new ArrayList<>();
 		for (int channel : channels) {
 		
 			Mat[] mats = new Mat[stack.size()];
@@ -94,19 +199,19 @@ public class HessianCalculator {
 				
 					long startTime = System.currentTimeMillis();
 			
-					List<Map<String, Mat>> resultsTemp = new MultiscaleResultsBuilder()
+					List<Map<MultiscaleFeature, Mat>> resultsTemp = new MultiscaleResultsBuilder()
 						.sigmaX(sigmaMicrons)
 						.sigmaY(sigmaMicrons)
 						.sigmaZ(sigmaMicrons)
 						.pixelCalibration(server.getMetadata().getPixelCalibration(), downsample)
-						.ind3D(3)
+//						.ind3D(3)
 						.gaussianSmoothed(true)
 						.weightedStdDev(true)
 //						.gradientMagnitude(true)
 						.laplacianOfGaussian(true)
 //						.hessianEigenvalues(true)
 						.hessianDeterminant(true)
-						.build(mats);
+						.build(Arrays.asList(mats));
 					
 					long endTime = System.currentTimeMillis();
 					System.err.println("Hessian calculation time: " + (endTime - startTime) + " ms");
@@ -135,10 +240,11 @@ public class HessianCalculator {
 //			for (var m : r.getEigenvalues())
 //				output.add(m);
 			
-			for (var m : r.values())
-				output.add(m);
+			for (var m : r.entrySet()) {
+				names.add(m.getKey().toString());
+				output.add(m.getValue());
+			}
 
-			names.addAll(r.keySet());
 			
 			n = output.size() - before;
 		}
@@ -164,8 +270,6 @@ public class HessianCalculator {
 	 */
 	public static class MultiscaleResultsBuilder {
 		
-		private String name = "";
-		
 		private PixelCalibration pixelCalibration = PixelCalibration.getDefaultInstance();
 		private double downsampleXY = 1.0;
 		
@@ -186,9 +290,9 @@ public class HessianCalculator {
 //		private boolean hessianEigenvectors = false;
 		private boolean hessianDeterminant = false;
 		
-		private int ind3D = -1;
+		private int paddingXY = 0;
 		
-		private int border = BORDER_DEFAULT;
+		private int border = BORDER_DEFAULT.getOpenCVCode();
 		
 		/**
 		 * Default constructor.
@@ -201,6 +305,7 @@ public class HessianCalculator {
 			this.sigmaX = builder.sigmaX;
 			this.sigmaY = builder.sigmaY;
 			this.sigmaZ = builder.sigmaZ;
+			this.paddingXY = builder.paddingXY;
 //			this.scaleNormalize = builder.scaleNormalize;
 			this.gaussianSmoothed = builder.gaussianSmoothed;
 			this.gradientMagnitude = builder.gradientMagnitude;
@@ -211,7 +316,6 @@ public class HessianCalculator {
 //			this.hessianEigenvectors = builder.hessianEigenvectors;
 			this.hessianDeterminant = builder.hessianDeterminant;
 			this.border = builder.border;
-			this.ind3D = builder.ind3D;
 		}
 		
 		/**
@@ -221,6 +325,17 @@ public class HessianCalculator {
 		 */
 		public MultiscaleResultsBuilder gaussianSmoothed(boolean calculate) {
 			this.gaussianSmoothed = calculate;
+			return this;
+		}
+		
+		/**
+		 * Specify the number of pixels that the input image is padded (left, right, above, below). 
+		 * This padding will be stripped prior to outputting the results. Default is 0.
+		 * @param padding
+		 * @return
+		 */
+		public MultiscaleResultsBuilder paddingXY(int padding) {
+			this.paddingXY = padding;
 			return this;
 		}
 		
@@ -288,17 +403,7 @@ public class HessianCalculator {
 			this.hessianDeterminant = calculate;
 			return this;
 		}
-		
-		/**
-		 * Name that may be used to identify these features.
-		 * @param name
-		 * @return
-		 */
-		public MultiscaleResultsBuilder name(String name) {
-			this.name = name;
-			return this;
-		}
-		
+				
 //		/**
 //		 * Apply scale normalization for the features
 //		 * @param doNormalize
@@ -333,19 +438,6 @@ public class HessianCalculator {
 		public MultiscaleResultsBuilder pixelCalibration(PixelCalibration cal, double downsampleXY) {
 			this.pixelCalibration = cal;
 			this.downsampleXY = downsampleXY;
-			return this;
-		}
-		
-		/**
-		 * For 3D calculations, restrict to calculating results for only a single plane.
-		 * <p>
-		 * Default is to calculate results for all planes.
-		 * 
-		 * @param ind
-		 * @return
-		 */
-		public MultiscaleResultsBuilder ind3D(int ind) {
-			this.ind3D = ind;
 			return this;
 		}
 		
@@ -426,12 +518,15 @@ public class HessianCalculator {
 		}
 		
 		/**
-		 * Calculate results for one or more Mats.
-		 * @param mats
+		 * Calculate results for a single Mat.
+		 * @param mat
 		 * @return
 		 */
-		public List<Map<String, Mat>> build(Mat... mats) {
-			return build(Arrays.asList(mats));
+		public Map<MultiscaleFeature, Mat> build(Mat mat) {
+			if (sigmaZ > 0) {
+				return build3D(Collections.singletonList(mat), 0).get(0);
+			}
+			return build2D(Arrays.asList(mat)).get(0);
 		}
 		
 		/**
@@ -439,26 +534,35 @@ public class HessianCalculator {
 		 * @param mats
 		 * @return
 		 */
-		public List<Map<String, Mat>> build(List<Mat> mats) {
-			if (sigmaZ > 0 && mats.size() > 1)
-				return build3D(mats);
+		public Map<MultiscaleFeature, Mat> build(List<Mat> mats, int ind) {
+			if (sigmaZ > 0) {
+				return build3D(mats, ind).get(0);
+			}
+			return build2D(Collections.singletonList(mats.get(ind))).get(0);
+		}
+		
+		public List<Map<MultiscaleFeature, Mat>> build(List<Mat> mats) {
+			if (sigmaZ > 0) {
+				return build3D(mats, -1);
+			}
 			return build2D(mats);
 		}
 		
-		private String getSigmaString() {
-			String sigmaString = "(\u03C3=%s)";
-			if (sigmaX == sigmaY && (sigmaX == sigmaZ || sigmaZ <= 0))
-				sigmaString = String.format(sigmaString, GeneralTools.formatNumber(sigmaX, 2));
-			else {
-				String temp = "x="+GeneralTools.formatNumber(sigmaX, 2) + ", y=" + GeneralTools.formatNumber(sigmaY, 2);
-				if (sigmaZ > 0)
-					temp += ", z=" + GeneralTools.formatNumber(sigmaZ, 2);
-				sigmaString = String.format(sigmaString, temp);
-			}
-			return sigmaString;
+		
+		/**
+		 * Strip output padding if there is any.
+		 * @param mat
+		 * @return input matrix mat, with padding removed (in-place)
+		 */
+		private Mat stripPadding(Mat mat) {
+			if (paddingXY == 0)
+				return mat;
+			mat.put(mat.apply(new Rect(paddingXY, paddingXY, mat.cols()-paddingXY*2, mat.rows()-paddingXY*2)).clone());
+			return mat;
 		}
 		
-		private List<Map<String, Mat>> build2D(List<Mat> mats) {
+		
+		private List<Map<MultiscaleFeature, Mat>> build2D(List<Mat> mats) {
 			
 			double sigmaX = this.sigmaX;
 			double sigmaY = this.sigmaY;
@@ -480,14 +584,12 @@ public class HessianCalculator {
 			Mat dxy = new Mat();
 			Mat dyy = new Mat();
 			
-			String sigmaString = getSigmaString();
-			
 			// Check if we do Hessian or Structure Tensor-based features
 			boolean doSmoothed = weightedStdDev || gaussianSmoothed;
 //			boolean doStructureTensor = structureTensorEigenvalues;
 			boolean doHessian = hessianDeterminant || hessianEigenvalues || laplacianOfGaussian; // || hessianEigenvectors;
 
-			List<Map<String, Mat>> results = new ArrayList<>();
+			List<Map<MultiscaleFeature, Mat>> results = new ArrayList<>();
 			
 			Hessian2D hessian = null;
 			
@@ -495,21 +597,23 @@ public class HessianCalculator {
 			
 			for (Mat mat : mats) {
 				
-				Map<String, Mat> features = new LinkedHashMap<>();
+				Map<MultiscaleFeature, Mat> features = new LinkedHashMap<>();
 				
 				Mat matSmooth = null;
 				if (doSmoothed) {
 					matSmooth = new Mat();
 					opencv_imgproc.sepFilter2D(mat, matSmooth, opencv_core.CV_32F, kx0, kx0, null, 0.0, border);
+					stripPadding(matSmooth);
 					if (gaussianSmoothed)
-						features.put(name + "Smoothed " + sigmaString, matSmooth);
+						features.put(MultiscaleFeature.GAUSSIAN, matSmooth);
 					
 					if (weightedStdDev) {
 						Mat matSquaredSmoothed = mat.mul(mat).asMat();
-						opencv_imgproc.sepFilter2D(matSquaredSmoothed, matSquaredSmoothed, opencv_core.CV_32F, kx0, kx0, null, 0.0, border);
+						opencv_imgproc.sepFilter2D(matSquaredSmoothed, matSquaredSmoothed, opencv_core.CV_32F, kx0, ky0, null, 0.0, border);
+						stripPadding(matSquaredSmoothed);
 						matSquaredSmoothed.put(opencv_core.subtract(matSquaredSmoothed, matSmooth.mul(matSmooth)));
 						opencv_core.sqrt(matSquaredSmoothed, matSquaredSmoothed);
-						features.put(name + "Weighted std dev " + sigmaString, matSquaredSmoothed);					
+						features.put(MultiscaleFeature.WEIGHTED_STD_DEV, matSquaredSmoothed);					
 					}
 				}
 				
@@ -518,7 +622,7 @@ public class HessianCalculator {
 					opencv_imgproc.sepFilter2D(mat, dyy, opencv_core.CV_32F, kx0, ky1, null, 0.0, border);					
 					Mat magnitude = new Mat();
 					opencv_core.magnitude(dxx, dyy, magnitude);
-					features.put(name + "Gradient Magnitude " + sigmaString, magnitude);
+					features.put(MultiscaleFeature.GRADIENT_MAGNITUDE, stripPadding(magnitude));
 				}
 				
 				if (doHessian) {
@@ -526,27 +630,31 @@ public class HessianCalculator {
 					opencv_imgproc.sepFilter2D(mat, dyy, opencv_core.CV_32F, kx0, ky2, null, 0.0, border);
 					opencv_imgproc.sepFilter2D(mat, dxy, opencv_core.CV_32F, kx1, ky1, null, 0.0, border);
 					
+					// Strip padding now to reduce necessary calculations
+					stripPadding(dxx);
+					stripPadding(dxy);
+					stripPadding(dyy);
+					
 					hessian = new Hessian2D(dxx, dxy, dyy, false);
 					if (laplacianOfGaussian) {
 						Mat temp = hessian.getLaplacian();
 //						if (scaleNormalize)
 //							opencv_core.multiplyPut(temp, scaleT);
-						features.put(name + "LoG " + sigmaString, temp);
+						features.put(MultiscaleFeature.LAPLACIAN, temp);
 					}
 					
 					if (hessianDeterminant) {
 						Mat temp = hessian.getDeterminant();
 //						if (scaleNormalize)
 //							opencv_core.multiplyPut(temp, scaleT * scaleT);
-						features.put(name + "Hessian determinant " + sigmaString, temp);
+						features.put(MultiscaleFeature.HESSIAN_DETERMINANT, temp);
 					}
 					
 					if (hessianEigenvalues) {
-						int eig = 0;
-						for (Mat temp : hessian.getEigenvalues()) {
-							features.put(name + "Hessian eigenvalues " + eig + sigmaString, temp);
-							eig++;
-						}
+						List<Mat> eigenvalues = hessian.getEigenvalues();
+						assert eigenvalues.size() == 2;
+						features.put(MultiscaleFeature.HESSIAN_EIGENVALUE_MAX, eigenvalues.get(0));
+						features.put(MultiscaleFeature.HESSIAN_EIGENVALUE_MIN, eigenvalues.get(1));
 					}
 					
 				}
@@ -567,7 +675,7 @@ public class HessianCalculator {
 			return results;
 		}
 		
-		private List<Map<String, Mat>> build3D(List<Mat> mats) {
+		private List<Map<MultiscaleFeature, Mat>> build3D(List<Mat> mats, int ind3D) {
 			if (mats.size() == 0)
 				return Collections.emptyList();
 			
@@ -632,32 +740,32 @@ public class HessianCalculator {
 			Mat dyz = new Mat();
 			
 			Mat dzz = new Mat();
-						
-			String sigmaString = getSigmaString();
 			
 			Hessian3D hessian = null;
 			
 			// Loop through and handle the remaining 2D filtering
 			// We do this 1 plane at a time so that we don't need to retain all filtered images in memory
-			List<Map<String, Mat>> output = new ArrayList<>();
+			List<Map<MultiscaleFeature, Mat>> output = new ArrayList<>();
 			for (int i = 0; i < nSlices; i++) {
 				
-				Map<String, Mat> features = new LinkedHashMap<>();
+				Map<MultiscaleFeature, Mat> features = new LinkedHashMap<>();
 				
 				if (doSmoothed) {
 					Mat z0 = matsZ0.get(i);
 					Mat matSmooth = new Mat();
 					opencv_imgproc.sepFilter2D(z0, matSmooth, opencv_core.CV_32F, kx0, ky0, null, 0.0, border);
+					stripPadding(matSmooth);
 					if (gaussianSmoothed)
-						features.put(name + "Smoothed " + sigmaString, matSmooth);
+						features.put(MultiscaleFeature.GAUSSIAN, matSmooth);
 					
 					if (weightedStdDev) {
 						// Note that here we modify the original images in-place, since from now on we just need 2D planes
 						Mat matSquaredSmoothed = matsSquaredZ0.get(i);
-						opencv_imgproc.sepFilter2D(matSquaredSmoothed, matSquaredSmoothed, opencv_core.CV_32F, kx0, kx0, null, 0.0, border);
+						opencv_imgproc.sepFilter2D(matSquaredSmoothed, matSquaredSmoothed, opencv_core.CV_32F, kx0, ky0, null, 0.0, border);
+						stripPadding(matSquaredSmoothed);
 						matSquaredSmoothed.put(opencv_core.subtract(matSquaredSmoothed, matSmooth.mul(matSmooth)));
 						opencv_core.sqrt(matSquaredSmoothed, matSquaredSmoothed);
-						features.put(name + "Weighted std dev " + sigmaString, matSquaredSmoothed);					
+						features.put(MultiscaleFeature.WEIGHTED_STD_DEV, matSquaredSmoothed);					
 					}
 				}
 
@@ -668,7 +776,7 @@ public class HessianCalculator {
 					opencv_imgproc.sepFilter2D(z0, dyy, opencv_core.CV_32F, kx0, ky1, null, 0.0, border);					
 					opencv_imgproc.sepFilter2D(z1, dzz, opencv_core.CV_32F, kx0, ky0, null, 0.0, border);
 					Mat magnitude = opencv_core.add(opencv_core.add(dxx.mul(dxx), dyy.mul(dyy)), dzz.mul(dzz)).asMat();
-					features.put(name + "Gradient Magnitude " + sigmaString, magnitude);
+					features.put(MultiscaleFeature.GRADIENT_MAGNITUDE, stripPadding(magnitude));
 				}
 				
 				if (doHessian) {
@@ -685,21 +793,30 @@ public class HessianCalculator {
 					opencv_imgproc.sepFilter2D(z1, dyz, opencv_core.CV_32F, kx0, ky1, null, 0.0, border);
 					
 					opencv_imgproc.sepFilter2D(z2, dzz, opencv_core.CV_32F, kx0, ky0, null, 0.0, border);
+					
+					// Strip padding now to reduce necessary calculations
+					stripPadding(dxx);
+					stripPadding(dxy);
+					stripPadding(dxz);
+					stripPadding(dyy);
+					stripPadding(dyz);
+					stripPadding(dzz);
 				
 					hessian = new Hessian3D(dxx, dxy, dxz, dyy, dyz, dzz, true);
 					if (laplacianOfGaussian)
-						features.put(name + "LoG " + sigmaString, hessian.getLaplacian());
+						features.put(MultiscaleFeature.LAPLACIAN, hessian.getLaplacian());
 					
 					if (hessianDeterminant)
-						features.put(name + "Hessian determinant " + sigmaString, hessian.getDeterminant());
+						features.put(MultiscaleFeature.HESSIAN_DETERMINANT, hessian.getDeterminant());
 					
 					if (hessianEigenvalues) {
-						int eig = 0;
-						for (Mat temp : hessian.getEigenvalues()) {
-							features.put(name + "Hessian eigenvalues " + eig + sigmaString, temp);
-							eig++;
-						}
+						List<Mat> eigenvalues = hessian.getEigenvalues();
+						assert eigenvalues.size() == 3;
+						features.put(MultiscaleFeature.HESSIAN_EIGENVALUE_MAX, eigenvalues.get(0));
+						features.put(MultiscaleFeature.HESSIAN_EIGENVALUE_MIDDLE, eigenvalues.get(1));
+						features.put(MultiscaleFeature.HESSIAN_EIGENVALUE_MIN, eigenvalues.get(2));
 					}
+
 				}
 				output.add(features);
 			}
@@ -718,6 +835,52 @@ public class HessianCalculator {
 		}
 		
 	}
+	
+	
+//	static class MultiscaleResults {
+//		
+//		private Mat matGaussian;
+//		private Mat matGradMag;
+//		private Hessian hessian;
+//		
+//		MultiscaleResults(Mat matGaussian, Mat matGradMag, Hessian hessian) {
+//			this.matGaussian = matGaussian;
+//			this.matGradMag = matGradMag;
+//			this.hessian = hessian;
+//		}
+//		
+//		public Mat getResults(MultiscaleFeature feature) {
+//			switch (feature) {
+//			case GAUSSIAN:
+//				if (matGaussian != null)
+//					return matGaussian;
+//				break;
+//			case GRADIENT_MAGNITUDE:
+//				if (matGradMag != null)
+//					return matGradMag;
+//				break;
+//			case HESSIAN_DETERMINANT:
+//				return hessian.getDeterminant();
+//			case HESSIAN_EIGENVALUE_MAX:
+//				return hessian.getEigenvalues().get(0);
+//			case HESSIAN_EIGENVALUE_MIDDLE:
+//				List<Mat> eigenvalues = hessian.getEigenvalues();
+//				if (eigenvalues.size() == 3)
+//					return eigenvalues.get(1);
+//				break;
+//			case HESSIAN_EIGENVALUE_MIN:
+//				eigenvalues = hessian.getEigenvalues();
+//				return eigenvalues.get(eigenvalues.size()-1);
+//			case LAPLACIAN:
+//				return hessian.getLaplacian();
+//			default:
+//				break;
+//			}
+//			throw new IllegalArgumentException("Unknown feature " + feature);
+//		}
+//		
+//		
+//	}
 	
 	
 	static interface StructureTensor extends AutoCloseable {
@@ -762,7 +925,7 @@ public class HessianCalculator {
 	/**
 	 * Helper class for storing and computing pixel features from Hessian matrices.
 	 */
-	public static interface Hessian extends AutoCloseable {
+	static interface Hessian extends AutoCloseable {
 		
 		/**
 		 * Get Laplacian of Gaussian image (calculated by summation without requiring eigenvalues).
@@ -1123,5 +1286,4 @@ public class HessianCalculator {
 		
 	}
 	
-
 }

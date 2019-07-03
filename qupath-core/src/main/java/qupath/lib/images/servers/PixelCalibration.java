@@ -1,5 +1,7 @@
 package qupath.lib.images.servers;
 
+import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 
@@ -18,14 +20,17 @@ public class PixelCalibration {
 	/**
 	 * String to represent 'pixel' units. This is the default when no pixel size calibration is known.
 	 */
-	public static String PIXEL = "px";
+	public final static String PIXEL = "px";
 
 	/**
 	 * String to represent 'micrometer' units.
 	 */
-	public static String MICROMETER = GeneralTools.micrometerSymbol();
+	public final static String MICROMETER = GeneralTools.micrometerSymbol();
 
-	private static String Z_SLICE = "z-slice";
+	/**
+	 * String to represent 'z-slice' units.
+	 */
+	public final static String Z_SLICE = "z-slice";
 	
 	private SimpleQuantity pixelWidth = SimpleQuantity.DEFAULT_PIXEL_SIZE;
 	private SimpleQuantity pixelHeight = SimpleQuantity.DEFAULT_PIXEL_SIZE;
@@ -39,7 +44,7 @@ public class PixelCalibration {
 			.build();
 	
 	private PixelCalibration() {}
-	
+		
 	private PixelCalibration duplicate() {
 		var cal = new PixelCalibration();
 		cal.pixelWidth = new SimpleQuantity(pixelWidth.value, pixelWidth.unit);
@@ -49,7 +54,7 @@ public class PixelCalibration {
 		cal.timepoints = timepoints == null ? null : timepoints.clone();
 		return cal;
 	}
-	
+
 //	public SimpleQuantity getPixelWidth() {
 //		return pixelWidth;
 //	}
@@ -61,21 +66,63 @@ public class PixelCalibration {
 //	public SimpleQuantity getZSpacing() {
 //		return zSpacing;
 //	}
-
+	
 	/**
-	 * Returns true if the pixel width and height information in microns is known.
+	 * Get a scaled instance of this PixelCalibration, multiplying pixel sizes for x and y by the specified scale values.
+	 * Units are kept the same.
+	 * @param scaleX
+	 * @param scaleY
 	 * @return
 	 */
-	public boolean hasPixelSizeMicrons() {
-		return MICROMETER.equals(pixelWidth.unit) && MICROMETER.equals(pixelHeight.unit);
+	public PixelCalibration createScaledInstance(double scaleX, double scaleY) {
+		return createScaledInstance(scaleX, scaleY, 1);
 	}
 	
 	/**
-	 * Returns true if the z-spacing is known in microns.
+	 * Get a scaled instance of this PixelCalibration, multiplying pixel sizes for x, y and z by the specified scale values.
+	 * Units are kept the same.
+	 * @param scaleX
+	 * @param scaleY
+	 * @param scaleZ
 	 * @return
 	 */
-	public boolean hasZSpacingMicrons() {
-		return MICROMETER.equals(zSpacing.unit);
+	public PixelCalibration createScaledInstance(double scaleX, double scaleY, double scaleZ) {
+		PixelCalibration cal2 = duplicate();
+		cal2.pixelWidth = pixelWidth.scale(scaleX);
+		cal2.pixelHeight = pixelHeight.scale(scaleX);
+		cal2.zSpacing = zSpacing.scale(scaleX);
+		return cal2;
+	}
+	
+	/**
+	 * Multiply one number by another, handling BigDecimals if necessary.
+	 * @param n1
+	 * @param scale
+	 * @return
+	 */
+	private static Number multiply(Number n1, double scale) {
+		if (n1 instanceof BigInteger)
+			n1 = new BigDecimal((BigInteger)n1);
+		if (n1 instanceof BigDecimal)
+			return ((BigDecimal)n1).multiply(BigDecimal.valueOf(scale));
+		return n1.doubleValue() * scale;
+	}
+	
+	private static Number average(Number n1, Number n2) {
+		Number half1 = multiply(n1, 0.5);
+		Number half2 = multiply(n2, 0.5);
+		return add(half1, half2);
+	}
+	
+	private static Number add(Number n1, Number n2) {
+		if (n1 instanceof BigInteger)
+			n1 = new BigDecimal((BigInteger)n2);
+		if (n2 instanceof BigInteger)
+			n2 = new BigDecimal((BigInteger)n2);
+		
+		if (n1 instanceof BigDecimal && n2 instanceof BigDecimal)
+			return ((BigDecimal)n1).add((BigDecimal)n2);
+		return n1.doubleValue() + n2.doubleValue();
 	}
 	
 	/**
@@ -101,6 +148,30 @@ public class PixelCalibration {
 	 */
 	public double getTimepoint(int ind) {
 		return ind >= timepoints.length ? Double.NaN : timepoints[ind];
+	}
+	
+	/**
+	 * Returns true if the pixel width and height information in microns is known.
+	 * @return
+	 */
+	public boolean hasPixelSizeMicrons() {
+		return MICROMETER.equals(pixelWidth.unit) && MICROMETER.equals(pixelHeight.unit);
+	}
+	
+	/**
+	 * Returns true if the z-spacing is known in microns.
+	 * @return
+	 */
+	public boolean hasZSpacingMicrons() {
+		return MICROMETER.equals(zSpacing.unit);
+	}
+	
+	/**
+	 * Get the average of the pixel width and height in microns if possible, or Double.NaN if the pixel size is not available.
+	 * @return
+	 */
+	public double getAveragedPixelSizeMicrons() {
+		return (getPixelWidthMicrons() + getPixelHeightMicrons()) / 2.0;
 	}
 	
 	/**
@@ -131,6 +202,63 @@ public class PixelCalibration {
 		if (hasPixelSizeMicrons())
 			return pixelHeight.value.doubleValue();
 		return Double.NaN;
+	}
+	
+	/**
+	 * Get a String representation of the preferred pixel width unit.
+	 * @return
+	 * 
+	 * @see #getPixelWidthMicrons()
+	 * @see #PIXEL
+	 * @see #MICROMETER
+	 */
+	public String getPixelWidthUnit() {
+		return pixelWidth.unit;
+	}
+
+	/**
+	 * Get a String representation of the preferred pixel height unit.
+	 * @return
+	 * 
+	 * @see #getPixelHeightMicrons()
+	 * @see #PIXEL
+	 * @see #MICROMETER
+	 */
+	public String getPixelHeightUnit() {
+		return pixelHeight.unit;
+	}
+	
+	/**
+	 * Get a String representation of the preferred z-spacing unit.
+	 * @return
+	 * 
+	 * @see #getZSpacing()
+	 * @see #PIXEL
+	 * @see #MICROMETER
+	 */
+	public String getZSpacingUnit() {
+		return zSpacing.unit;
+	}
+
+	/**
+	 * Get an average of {@link #getPixelWidth()} and {@link #getPixelHeight()}.
+	 * No check is made to ensure that these are returned in the same units; rather, the numbers are simply averaged.
+	 * @return
+	 */
+	public Number getAveragedPixelSize() {
+		return average(getPixelWidth(), getPixelHeight());
+	}
+	
+	public Number getPixelWidth() {
+		return pixelWidth.value;
+	}
+	
+	public Number getPixelHeight() {
+		return pixelHeight.value;
+	}
+	
+	public Number getZSpacing() {
+		return zSpacing.value;
 	}
 
 	@Override
@@ -169,20 +297,24 @@ public class PixelCalibration {
 			return value + " " + unit;
 		}
 		
+		private SimpleQuantity scale(double scale) {
+			return new SimpleQuantity(multiply(value, scale), unit);
+		}
+		
 	}
 	
 	
-	static class Builder {
+	public static class Builder {
 		
 		PixelCalibration cal = new PixelCalibration();
 		
-		Builder() {}
+		public Builder() {}
 		
-		Builder(PixelCalibration cal) {
+		public Builder(PixelCalibration cal) {
 			this.cal = cal.duplicate();
 		}
 		
-		Builder pixelSizeMicrons(Number pixelWidthMicrons, Number pixelHeightMicrons) {
+		public Builder pixelSizeMicrons(Number pixelWidthMicrons, Number pixelHeightMicrons) {
 			// Support resetting both pixel sizes to default
 			if ((pixelWidthMicrons == null || Double.isNaN(pixelWidthMicrons.doubleValue())) && 
 					(pixelHeightMicrons == null || Double.isNaN(pixelHeightMicrons.doubleValue()))) {
@@ -203,13 +335,13 @@ public class PixelCalibration {
 			return this;
 		}
 		
-		Builder timepoints(TimeUnit timeUnit, double... timepoints) {
+		public Builder timepoints(TimeUnit timeUnit, double... timepoints) {
 			cal.timeUnit = timeUnit;
 			cal.timepoints = timepoints.clone();
 			return this;
 		}
 				
-		Builder zSpacingMicrons(Number zSpacingMicrons) {
+		public Builder zSpacingMicrons(Number zSpacingMicrons) {
 			if (zSpacingMicrons == null || Double.isNaN(zSpacingMicrons.doubleValue())) {
 				cal.zSpacing = SimpleQuantity.DEFAULT_Z_SPACING;
 				return this;
@@ -222,7 +354,7 @@ public class PixelCalibration {
 			return this;
 		}
 		
-		PixelCalibration build() {
+		public PixelCalibration build() {
 			return cal;
 		}
 		

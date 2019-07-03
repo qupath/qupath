@@ -21,6 +21,7 @@ import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
+import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClass;
@@ -118,7 +119,7 @@ public class CreateRegionAnnotationsCommand implements PathCommand {
 			addLabelled("Size units", comboUnits, 0, row++, "Choose the units used to define the region width & height");
 			addLabelled("Classification", comboClassification, 0, row++, "Choose the default classification to be applied to the region");
 
-			if (qupath.getImageData() == null || !qupath.getImageData().getServer().hasPixelSizeMicrons())
+			if (qupath.getImageData() == null || !qupath.getImageData().getServer().getPixelCalibration().hasPixelSizeMicrons())
 				comboUnits.getSelectionModel().select(RegionUnits.PIXELS);
 			else
 				comboUnits.getSelectionModel().select(RegionUnits.MICRONS);
@@ -179,8 +180,9 @@ public class CreateRegionAnnotationsCommand implements PathCommand {
 			
 			// Calibrate the width & height according to pixel size... if necessary
 			if (requestedUnits == RegionUnits.MICRONS) {
-				double pixelWidthMicrons = imageData.getServer().getPixelWidthMicrons();
-				double pixelHeightMicrons = imageData.getServer().getPixelHeightMicrons();
+				PixelCalibration cal = imageData.getServer().getPixelCalibration();
+				double pixelWidthMicrons = cal.getPixelWidthMicrons();
+				double pixelHeightMicrons = cal.getPixelHeightMicrons();
 				if (!Double.isFinite(pixelWidthMicrons + pixelHeightMicrons)) {
 					DisplayHelpers.showErrorMessage("Create region", "Pixel size not available! Please switch to creating the region in pixels instead.");
 					return;

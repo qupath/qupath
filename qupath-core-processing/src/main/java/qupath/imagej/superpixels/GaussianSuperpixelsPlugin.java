@@ -87,8 +87,8 @@ public class GaussianSuperpixelsPlugin extends AbstractTileableDetectionPlugin<B
 	@Override
 	protected double getPreferredPixelSizeMicrons(final ImageData<BufferedImage> imageData, final ParameterList params) {
 		double pixelSize = params.getDoubleParameterValue("downsampleFactor");
-		if (imageData != null && imageData.getServer().hasPixelSizeMicrons())
-			pixelSize *= imageData.getServer().getAveragedPixelSizeMicrons();
+		if (imageData != null && imageData.getServer().getPixelCalibration().hasPixelSizeMicrons())
+			pixelSize *= imageData.getServer().getPixelCalibration().getAveragedPixelSizeMicrons();
 		return pixelSize;
 	}
 
@@ -113,7 +113,7 @@ public class GaussianSuperpixelsPlugin extends AbstractTileableDetectionPlugin<B
 				addDoubleParameter("noiseThreshold", "Noise threshold", 1, null, "Local threshold used to determine the number of regions created")
 				;
 		
-		boolean hasMicrons = imageData != null && imageData.getServer().hasPixelSizeMicrons();
+		boolean hasMicrons = imageData != null && imageData.getServer().getPixelCalibration().hasPixelSizeMicrons();
 		params.getParameters().get("sigmaPixels").setHidden(hasMicrons);
 		params.getParameters().get("sigmaMicrons").setHidden(!hasMicrons);
 		
@@ -177,7 +177,7 @@ public class GaussianSuperpixelsPlugin extends AbstractTileableDetectionPlugin<B
 			float[] threshold = new float[]{0.2f, -1f};
 			
 			// Convert to pixels
-			double pixelSize = (pathImage.getPixelWidthMicrons() + pathImage.getPixelHeightMicrons())/2;
+			double pixelSize = pathImage.getPixelCalibration().getAveragedPixelSizeMicrons();
 			double minArea = minAreaMicrons / (pixelSize * pixelSize);
 			split = split / pixelSize;
 //			System.err.println(minArea);
@@ -327,7 +327,7 @@ public class GaussianSuperpixelsPlugin extends AbstractTileableDetectionPlugin<B
 		
 		
 		static double getSigma(final PathImage<?> pathImage, final ParameterList params) {
-			double pixelSizeMicrons = .5 * (pathImage.getPixelWidthMicrons() + pathImage.getPixelHeightMicrons());
+			double pixelSizeMicrons = pathImage.getPixelCalibration().getAveragedPixelSizeMicrons();
 			if (Double.isNaN(pixelSizeMicrons)) {
 				return params.getDoubleParameterValue("sigmaPixels") * params.getDoubleParameterValue("downsampleFactor");				
 			} else

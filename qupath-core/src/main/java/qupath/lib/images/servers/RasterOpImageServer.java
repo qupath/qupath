@@ -55,7 +55,7 @@ class RasterOpImageServer extends TransformingImageServer<BufferedImage> {
 	
 	@Override
 	public String getPath() {
-		return super.getPath() + " (" + opName + ")";
+		return getWrappedServer().getPath() + " (" + opName + ")";
 	}
 	
 	@Override

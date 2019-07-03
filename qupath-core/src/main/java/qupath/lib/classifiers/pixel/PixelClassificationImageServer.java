@@ -15,7 +15,9 @@ import qupath.lib.images.servers.AbstractTileableImageServer;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.ImageServerMetadata.ImageResolutionLevel;
+import qupath.lib.images.servers.PixelType;
 import qupath.lib.images.servers.TileRequest;
+import qupath.lib.io.GsonTools;
 import qupath.lib.regions.RegionRequest;
 
 /**
@@ -48,7 +50,7 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 	 * @param classifier
 	 */
 	public PixelClassificationImageServer(ImageData<BufferedImage> imageData, PixelClassifier classifier) {
-		super(null);
+		super();
 		this.classifier = classifier;
 		this.imageData = imageData;
 		this.server = imageData.getServer();
@@ -56,14 +58,15 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 		var classifierMetadata = classifier.getMetadata();
 		
 		String path;
-//		try {
-//			// If we can construct a path (however long) that includes the full serialization info, then cached tiles can be reused even if the server is recreated
-//			path = server.getPath() + "::" + new Gson().toJson(classifier);
-//		} catch (Exception e) {
+		try {
+			// If we can construct a path (however long) that includes the full serialization info, then cached tiles can be reused even if the server is recreated
+			path = server.getPath() + "::" + GsonTools.getGsonDefault().toJson(classifier);
+		} catch (Exception e) {
+			logger.debug("Unable to serialize pixel classifier to JSON: {}", e.getLocalizedMessage());
 			path = server.getPath() + "::" + UUID.randomUUID().toString();			
-//		}
+		}
 		
-		var bitDepth = 8;
+		var pixelType = PixelType.UINT8;
 		
 		var tileWidth = classifierMetadata.getInputWidth();
 		var tileHeight = classifierMetadata.getInputHeight();
@@ -73,7 +76,7 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 			tileHeight = DEFAULT_TILE_SIZE;
 		
 		double inputPixelSize = classifierMetadata.getInputPixelSize();
-		double downsample = inputPixelSize / server.getAveragedPixelSizeMicrons();
+		double downsample = inputPixelSize / server.getPixelCalibration().getAveragedPixelSizeMicrons();
 		if (!Double.isFinite(downsample))
 			downsample = inputPixelSize;
 		
@@ -87,14 +90,14 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 		int pad = classifierMetadata.strictInputSize() ? classifierMetadata.getInputPadding() : 0;
 		
 		var builder = new ImageServerMetadata.Builder(getClass(), server.getMetadata())
-				.path(path)
+				.id(path)
 				.width(width)
 				.height(height)
 				.channelType(classifierMetadata.getOutputType())
 				.preferredTileSize(tileWidth-pad*2, tileHeight-pad*2)
 				.levels(levels)
 				.channels(classifierMetadata.getChannels())
-				.bitDepth(bitDepth)
+				.pixelType(pixelType)
 				.rgb(false);
 				
 		originalMetadata = builder.build();
@@ -168,7 +171,7 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 		if (type != ImageServerMetadata.ChannelType.CLASSIFICATION && type != ImageServerMetadata.ChannelType.PROBABILITY)
 			return -1;
 		
-		var tile = getTile(0, x, y, z, t);
+		var tile = getTileRequestManager().getTileRequest(0, x, y, z, t);
 		if (tile == null)
 			return -1;
 		

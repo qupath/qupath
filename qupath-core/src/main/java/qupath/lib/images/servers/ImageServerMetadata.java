@@ -97,7 +97,7 @@ public class ImageServerMetadata {
 	
 	private static int DEFAULT_TILE_SIZE = 256;
 
-	private String path;
+	private String id;
 	private String name;
 	
 	private String serverClassName;
@@ -110,10 +110,8 @@ public class ImageServerMetadata {
 	
 	private ImageServerMetadata.ChannelType channelType = ImageServerMetadata.ChannelType.DEFAULT;
 	
-	private String[] args;
-	
 	private boolean isRGB = false;
-	private int bitDepth = 8;
+	private PixelType pixelType = PixelType.UINT8;
 	
 	private ImageResolutionLevel[] levels;
 	
@@ -121,7 +119,7 @@ public class ImageServerMetadata {
 	
 	private PixelCalibration pixelCalibration;
 	
-	private double magnification = Double.NaN;
+	private Double magnification = null;
 	
 	private int preferredTileWidth;
 	private int preferredTileHeight;
@@ -158,25 +156,24 @@ public class ImageServerMetadata {
 		 * Minimal builder for a new ImageServerMetadata; further properties must be set.
 		 * 
 		 * @param serverClass
-		 * @param path
 		 */
-		public Builder(final Class<? extends ImageServer<?>> serverClass, final String path) {
+		public Builder(final Class<? extends ImageServer<?>> serverClass) {
 			metadata = new ImageServerMetadata();
 			metadata.serverClassName = serverClass.getName();
-			metadata.path = path;
+//			metadata.path = path;
 		}
 		
-		/**
-		 * Specify any (optional) String arguments required to create the ImageServer.
-		 * @param args
-		 * @return
-		 * 
-		 * @see ImageServerBuilder
-		 */
-		public Builder args(String...args) {
-			metadata.args = args.clone();
-			return this;
-		}
+//		/**
+//		 * Minimal builder for a new ImageServerMetadata; further properties must be set.
+//		 * 
+//		 * @param serverClass
+//		 * @param path
+//		 */
+//		public Builder(final Class<? extends ImageServer<?>> serverClass, final String path) {
+//			metadata = new ImageServerMetadata();
+//			metadata.serverClassName = serverClass.getName();
+////			metadata.path = path;
+//		}
 		
 		/**
 		 * Builder for a new ImageServerMetadata; further properties must be set.
@@ -188,7 +185,7 @@ public class ImageServerMetadata {
 		 */
 		public Builder(final Class<? extends ImageServer<?>> serverClass, final String path, final int width, final int height) {
 			metadata = new ImageServerMetadata();
-			metadata.path = path;
+//			metadata.path = path;
 			metadata.width = width;
 			metadata.height = height;
 		}
@@ -214,14 +211,14 @@ public class ImageServerMetadata {
 		}
 		
 		/**
-		 * Specify the image path.
-		 * @param path
+		 * Specify the image identifier. This must be unique, as it is used for caching.
+		 * @param id
 		 * @return
 		 * 
 		 * @see ImageServerBuilder
 		 */
-		public Builder path(final String path) {
-			this.metadata.path = path;
+		public Builder id(final String id) {
+			this.metadata.id = id;
 			return this;
 		}
 		
@@ -247,11 +244,11 @@ public class ImageServerMetadata {
 		
 		/**
 		 * Specify the bit-depth of the image.
-		 * @param bitDepth
+		 * @param pixelType
 		 * @return
 		 */
-		public Builder bitDepth(int bitDepth) {
-			metadata.bitDepth = bitDepth;
+		public Builder pixelType(PixelType pixelType) {
+			metadata.pixelType = pixelType;
 			return this;
 		}
 		
@@ -391,9 +388,9 @@ public class ImageServerMetadata {
 		public ImageServerMetadata build() {
 			metadata.pixelCalibration = pixelCalibrationBuilder.build();
 			
-			// We need a unique path, somehow
-			if (metadata.path == null)
-				metadata.path = UUID.randomUUID().toString();
+//			// We need a unique id, somehow
+			if (metadata.id == null)
+				metadata.id = UUID.randomUUID().toString();
 			
 			if (metadata.levels == null)
 				metadata.levels = new ImageResolutionLevel[] {new ImageResolutionLevel(1, metadata.width, metadata.height)};
@@ -401,8 +398,8 @@ public class ImageServerMetadata {
 			if (metadata.width <= 0 && metadata.height <= 0)
 				throw new IllegalArgumentException("Invalid metadata - width & height must be > 0");
 
-			if (metadata.path == null || metadata.path.isBlank())
-				throw new IllegalArgumentException("Invalid metadata - path must be set (and not be blank)");
+//			if (metadata.path == null || metadata.path.isBlank())
+//				throw new IllegalArgumentException("Invalid metadata - path must be set (and not be blank)");
 						
 			// Set sensible tile sizes, if required
 			if (metadata.preferredTileWidth <= 0) {
@@ -426,25 +423,23 @@ public class ImageServerMetadata {
 	
 	
 	ImageServerMetadata(final String path) {
-		this.path = path;
+//		this.path = path;
 	};
 
 	ImageServerMetadata(final ImageServerMetadata metadata) {
 		this.serverClassName = metadata.serverClassName;
-		this.path = metadata.path;
+		this.id = metadata.id;
 		this.name = metadata.name;
 		this.levels = metadata.levels.clone();
 		
 		this.width = metadata.width;
 		this.height = metadata.height;
 		
-		this.args = args == null ? null : args.clone();
-		
 		this.sizeZ = metadata.sizeZ;
 		this.sizeT = metadata.sizeT;
 				
 		this.isRGB = metadata.isRGB;
-		this.bitDepth = metadata.bitDepth;
+		this.pixelType = metadata.pixelType;
 		
 		this.pixelCalibration = metadata.pixelCalibration;
 		
@@ -496,11 +491,11 @@ public class ImageServerMetadata {
 	}
 	
 	/**
-	 * Get the image path, which should be unique and may be used as an identifier.
+	 * Get the image ID, which should be unique and may be used as an identifier.
 	 * @return
 	 */
-	public String getPath() {
-		return path;
+	public String getID() {
+		return id;
 	}
 	
 	/**
@@ -565,8 +560,8 @@ public class ImageServerMetadata {
 	 * Returns the bit-depth for individual pixels in the image.
 	 * @return
 	 */
-	public int getBitDepth() {
-		return bitDepth;
+	public PixelType getPixelType() {
+		return pixelType;
 	}
 	
 	/**
@@ -669,7 +664,7 @@ public class ImageServerMetadata {
 	 * @return
 	 */
 	public double getMagnification() {
-		return magnification;
+		return magnification == null ? Double.NaN : magnification;
 	}
 	
 	/**
@@ -730,15 +725,6 @@ public class ImageServerMetadata {
 	}
 	
 	/**
-	 * Get any string arguments recorded as being used in the construction of the ImageServer. 
-	 * If no arguments were used, an empty array is returned.
-	 * @return
-	 */
-	public String[] getArguments() {
-		return args == null ? new String[0] : args.clone();
-	}
-	
-	/**
 	 * Returns true if a specified ImageServerMetadata is compatible with this one, that is it has the same path and dimensions
 	 * (but possibly different pixel sizes, magnifications etc.).
 	 * 
@@ -746,22 +732,20 @@ public class ImageServerMetadata {
 	 * @return
 	 */
 	public boolean isCompatibleMetadata(final ImageServerMetadata metadata) {
-		if (!path.equals(metadata.path)) {
-			logger.warn("Metadata paths are not compatible: \n{}\n{}", path, metadata.path);
-			return false;
-		}
-		if (bitDepth != metadata.bitDepth) {
-			logger.warn("Metadata bit-depths are not compatible: {} vs {}", bitDepth, metadata.bitDepth);
-			return false;
-		}
-		if (bitDepth != metadata.bitDepth) {
-			logger.warn("Metadata bit-depths are not compatible: {} vs {}", bitDepth, metadata.bitDepth);
+//		if (!path.equals(metadata.path)) {
+//			logger.warn("Metadata paths are not compatible: \n{}\n{}", path, metadata.path);
+//			return false;
+//		}
+		if (pixelType != metadata.pixelType) {
+			logger.warn("Pixel types are not compatible: {} vs {}", pixelType, metadata.pixelType);
 			return false;
 		}
 		if (sizeT != metadata.sizeT ||
 				getSizeC() != metadata.getSizeC() ||
 				sizeZ != metadata.sizeZ) {
-			logger.warn("Metadata image dimensions are not the same!");
+			logger.warn(String.format(
+					"Metadata image dimensions (czt) are not the same! %dx%dx%d for original vs %dx%dx%d",
+					getSizeC(), getSizeZ(), getSizeT(), metadata.getSizeC(), metadata.getSizeZ(), metadata.getSizeT()));
 			return false;			
 		}
 		return true;
@@ -771,7 +755,7 @@ public class ImageServerMetadata {
 	@Override
 	public String toString() {
 		StringBuilder sb = new StringBuilder("{ ");
-		sb.append("\"path\": \"").append(path).append("\", ");
+//		sb.append("\"path\": \"").append(path).append("\", ");
 		sb.append("\"name\": \"").append(name).append("\", ");
 		sb.append("\"width\": ").append(getWidth()).append(", ");
 		sb.append("\"height\": ").append(getHeight()).append(", ");
@@ -798,8 +782,7 @@ public class ImageServerMetadata {
 	public int hashCode() {
 		final int prime = 31;
 		int result = 1;
-		result = prime * result + Arrays.hashCode(args);
-		result = prime * result + bitDepth;
+		result = prime * result + ((channelType == null) ? 0 : channelType.hashCode());
 		result = prime * result + ((channels == null) ? 0 : channels.hashCode());
 		result = prime * result + height;
 		result = prime * result + (isRGB ? 1231 : 1237);
@@ -808,9 +791,9 @@ public class ImageServerMetadata {
 		temp = Double.doubleToLongBits(magnification);
 		result = prime * result + (int) (temp ^ (temp >>> 32));
 		result = prime * result + ((name == null) ? 0 : name.hashCode());
-		result = prime * result + ((channelType == null) ? 0 : channelType.hashCode());
-		result = prime * result + ((path == null) ? 0 : path.hashCode());
+//		result = prime * result + ((path == null) ? 0 : path.hashCode());
 		result = prime * result + ((pixelCalibration == null) ? 0 : pixelCalibration.hashCode());
+		result = prime * result + ((pixelType == null) ? 0 : pixelType.hashCode());
 		result = prime * result + preferredTileHeight;
 		result = prime * result + preferredTileWidth;
 		result = prime * result + ((serverClassName == null) ? 0 : serverClassName.hashCode());
@@ -830,9 +813,7 @@ public class ImageServerMetadata {
 		if (getClass() != obj.getClass())
 			return false;
 		ImageServerMetadata other = (ImageServerMetadata) obj;
-		if (!Arrays.equals(args, other.args))
-			return false;
-		if (bitDepth != other.bitDepth)
+		if (channelType != other.channelType)
 			return false;
 		if (channels == null) {
 			if (other.channels != null)
@@ -852,17 +833,17 @@ public class ImageServerMetadata {
 				return false;
 		} else if (!name.equals(other.name))
 			return false;
-		if (channelType != other.channelType)
-			return false;
-		if (path == null) {
-			if (other.path != null)
-				return false;
-		} else if (!path.equals(other.path))
-			return false;
+//		if (path == null) {
+//			if (other.path != null)
+//				return false;
+//		} else if (!path.equals(other.path))
+//			return false;
 		if (pixelCalibration == null) {
 			if (other.pixelCalibration != null)
 				return false;
 		} else if (!pixelCalibration.equals(other.pixelCalibration))
+			return false;
+		if (pixelType != other.pixelType)
 			return false;
 		if (preferredTileHeight != other.preferredTileHeight)
 			return false;

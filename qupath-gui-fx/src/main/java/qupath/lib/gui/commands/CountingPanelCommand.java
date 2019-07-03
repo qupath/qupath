@@ -57,6 +57,7 @@ import qupath.lib.gui.panels.CountingPanel;
 import qupath.lib.gui.panels.PathAnnotationPanel;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.images.ImageData;
+import qupath.lib.images.servers.ServerTools;
 import qupath.lib.io.PointIO;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.helpers.PathObjectTools;
@@ -159,7 +160,7 @@ public class CountingPanelCommand implements PathCommand, ImageDataChangeListene
 				}
 				String defaultName = null;
 				try {
-					defaultName = qupath.getViewer().getServer().getDisplayedImageName() + "-points.zip"; // Sorry, this is lazy...
+					defaultName = ServerTools.getDisplayableImageName(qupath.getViewer().getServer()) + "-points.zip"; // Sorry, this is lazy...
 				} catch (Exception e) {
 					// Ignore...
 				};

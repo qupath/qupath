@@ -128,7 +128,7 @@ public class ImageDisplay extends AbstractImageRenderer {
 			ImageServer<?> lastServer = this.imageData.getServer();
 			ImageServer<?> nextServer = imageData.getServer();
 			retainDisplaySettings = lastServer.nChannels() == nextServer.nChannels() &&
-					lastServer.getBitsPerPixel() == nextServer.getBitsPerPixel();
+					lastServer.getPixelType() == nextServer.getPixelType();
 			if (retainDisplaySettings) {
 				for (int c = 0; c < lastServer.nChannels(); c++) {
 					if (!lastServer.getChannel(c).getName().equals(nextServer.getChannel(c).getName())) {
@@ -552,10 +552,10 @@ public class ImageDisplay extends AbstractImageRenderer {
 			histogramManager = new HistogramManager(0L);
 //			histogramManager = new HistogramManager(server.getLastChangeTimestamp());
 			histogramManager.ensureChannels(server, channelOptions);
-			channelOptions.stream().forEach(channel -> autoSetDisplayRange(channel, false));
+			channelOptions.parallelStream().forEach(channel -> autoSetDisplayRange(channel, false));
 			cachedHistograms.put(server.getPath(), histogramManager);
 		} else {
-			channelOptions.stream().forEach(channel -> autoSetDisplayRange(channel, false));
+			channelOptions.parallelStream().forEach(channel -> autoSetDisplayRange(channel, false));
 		}
 	}
 

@@ -59,7 +59,10 @@ import qupath.lib.color.ColorModelFactory;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.servers.AbstractImageServer;
 import qupath.lib.images.servers.ImageChannel;
+import qupath.lib.images.servers.ImageServerBuilder;
+import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
 import qupath.lib.images.servers.ImageServerMetadata;
+import qupath.lib.images.servers.PixelType;
 import qupath.lib.regions.RegionRequest;
 
 /**
@@ -74,6 +77,9 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 	
 	private ImageServerMetadata originalMetadata;
 	
+	private URI uri;
+	private String[] args;
+	
 	private ImagePlus imp;
 		
 	private ColorModel colorModel;
@@ -85,7 +91,8 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 	 * @throws IOException
 	 */
 	public ImageJServer(final URI uri, final String...args) throws IOException {
-		super(uri, BufferedImage.class);
+		super(BufferedImage.class);
+		this.uri = uri;
 		File file = GeneralTools.toPath(uri).toFile();
 		String path = file.getAbsolutePath();
 		if (path.toLowerCase().endsWith(".tif") || path.toLowerCase().endsWith(".tiff")) {
@@ -113,7 +120,24 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 			}
 		}
 		
-		boolean isRGB = imp.getType() == ImagePlus.COLOR_RGB;
+		PixelType pixelType;
+		boolean isRGB = false;
+		switch (imp.getType()) {
+		case (ImagePlus.COLOR_RGB):
+			isRGB = true;
+		case (ImagePlus.COLOR_256):
+		case (ImagePlus.GRAY8):
+			pixelType = PixelType.UINT8;
+			break;
+		case (ImagePlus.GRAY16):
+			pixelType = PixelType.UINT16;
+			break;
+		case (ImagePlus.GRAY32):
+			pixelType = PixelType.FLOAT32;
+			break;
+		default:
+			throw new IllegalArgumentException("Unknown ImagePlus type " + imp.getType());
+		}
 
 		List<ImageChannel> channels;
 		if (isRGB)
@@ -135,16 +159,18 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 		} else
 			channels = ImageChannel.getDefaultChannelList(imp.getNChannels());
 		
-		
-		var builder = new ImageServerMetadata.Builder(getClass(), uri.normalize().toString())
+		this.args = args;
+		var builder = new ImageServerMetadata.Builder(getClass()) //, uri.normalize().toString())
 				.width(imp.getWidth())
 				.height(imp.getHeight())
-				.args(args)
+				.name(imp.getTitle())
+				.id(uri.toString() + " (ImageJ)")
+//				.args(args)
 				.channels(channels)
 				.sizeZ(imp.getNSlices())
 				.sizeT(imp.getNFrames())
 				.rgb(isRGB)
-				.bitDepth(isRGB ? 8 : imp.getBitDepth())
+				.pixelType(pixelType)
 				.zSpacingMicrons(zMicrons)
 				.preferredTileSize(imp.getWidth(), imp.getHeight());
 //				setMagnification(pxlInfo.mag). // Don't know magnification...?
@@ -320,6 +346,15 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 	@Override
 	public ImageServerMetadata getOriginalMetadata() {
 		return originalMetadata;
+	}
+	
+	@Override
+	public ServerBuilder<BufferedImage> getBuilder() {
+		return ImageServerBuilder.DefaultImageServerBuilder.createInstance(
+				ImageJServerBuilder.class,
+				getMetadata(),
+				uri,
+				args);
 	}
 	
 }

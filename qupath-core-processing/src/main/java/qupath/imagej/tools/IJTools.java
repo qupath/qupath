@@ -67,6 +67,8 @@ import qupath.lib.geom.Point2;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.PathImage;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.PixelCalibration;
+import qupath.lib.images.servers.ServerTools;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.TMACoreObject;
@@ -125,7 +127,7 @@ public class IJTools {
 		
 		// Gather data on the image
 		ImageServer<BufferedImage> server = imageData.getServer();
-		int bytesPerPixel = (server.isRGB()) ? 4 : server.getBitsPerPixel() * server.nChannels() / 8;
+		int bytesPerPixel = (server.isRGB()) ? 4 : server.getPixelType().getBytesPerPixel() * server.nChannels();
 		
 		// Gather data on the region being requested
 		double regionWidth = region.getWidth() / region.getDownsample();
@@ -215,12 +217,14 @@ public class IJTools {
 		    	nChannels = imp.getNChannels();
 			}
 		}
-	    if (cal != null && !Double.isNaN(server.getZSpacingMicrons())) {
-	        cal.pixelDepth = server.getZSpacingMicrons();
+		PixelCalibration pixelCalibration = server.getPixelCalibration();
+	    if (cal != null && !Double.isNaN(pixelCalibration.getZSpacingMicrons())) {
+	        cal.pixelDepth = pixelCalibration.getZSpacingMicrons();
 	        cal.setZUnit("um");
 	    }
 	    
-	    ImagePlus imp = new ImagePlus(server.getDisplayedImageName(), stack);
+	    String name = ServerTools.getDisplayableImageName(server);
+	    ImagePlus imp = new ImagePlus(name, stack);
 	    CompositeImage impComp = null;
 	    if (imp.getType() != ImagePlus.COLOR_RGB && nChannels > 1) {
 		    impComp = new CompositeImage(imp, CompositeImage.COMPOSITE);
@@ -268,12 +272,13 @@ public class IJTools {
 		Calibration cal = new Calibration();
 		double downsampleFactor = request.getDownsample();
 	
-		double pixelWidth = server.getPixelWidthMicrons();
-		double pixelHeight = server.getPixelHeightMicrons();
+		PixelCalibration pixelCalibration = server.getPixelCalibration();
+		double pixelWidth = pixelCalibration.getPixelWidthMicrons();
+		double pixelHeight = pixelCalibration.getPixelHeightMicrons();
 		if (!Double.isNaN(pixelWidth + pixelHeight)) {
 			cal.pixelWidth = pixelWidth * downsampleFactor;
 			cal.pixelHeight = pixelHeight * downsampleFactor;
-			cal.pixelDepth = server.getZSpacingMicrons();
+			cal.pixelDepth = pixelCalibration.getZSpacingMicrons();
 			if (server.nTimepoints() > 1) {
 				cal.frameInterval = server.getMetadata().getTimepoint(1);
 				if (server.getMetadata().getTimeUnit() != null)
@@ -322,9 +327,10 @@ public class IJTools {
 		double yMicrons = IJTools.tryToParseMicrons(cal.pixelHeight, cal.getYUnit());
 		boolean ijHasMicrons = !Double.isNaN(xMicrons) && !Double.isNaN(yMicrons);
 		
-		if (server.hasPixelSizeMicrons() && ijHasMicrons) {
-			double downsampleX = xMicrons / server.getPixelWidthMicrons();
-			double downsampleY = yMicrons / server.getPixelHeightMicrons();
+		PixelCalibration pixelCalibration = server.getPixelCalibration();
+		if (pixelCalibration.hasPixelSizeMicrons() && ijHasMicrons) {
+			double downsampleX = xMicrons / pixelCalibration.getPixelWidthMicrons();
+			double downsampleY = yMicrons / pixelCalibration.getPixelHeightMicrons();
 			if (GeneralTools.almostTheSame(downsampleX, downsampleY, 0.001))
 				logger.debug("ImageJ downsample factor is being estimated from pixel sizes");
 			else
@@ -504,6 +510,7 @@ public class IJTools {
 					impComp.setChannelLut(
 							LUT.createLutFromColor(
 									new Color(server.getChannel(b).getColor())), b+1);
+					impComp.getStack().setSliceLabel(server.getChannel(b).getName(), b+1);
 				}
 				impComp.updateAllChannelsAndDraw();
 				impComp.resetDisplayRanges();
@@ -529,19 +536,25 @@ public class IJTools {
 	 */
 	public static PathImage<ImagePlus> convertToImagePlus(ImageServer<BufferedImage> server, RegionRequest request) throws IOException {
 		// Create an ImagePlus from a BufferedImage
-		return convertToImagePlus(server.getDisplayedImageName(), server, null, request);
+		 String name = ServerTools.getDisplayableImageName(server);
+		return convertToImagePlus(name, server, null, request);
 	}
 
 	/**
 	 * Create a {@link PathImage} from an ImagePlus and region.
+	 * If imp is null, it is read from the server.
 	 * 
 	 * @param server
 	 * @param request
 	 * @param imp
 	 * @return
+	 * @throws IOException 
 	 */
-	public static PathImage<ImagePlus> createPathImage(final ImageServer<BufferedImage> server, final ImagePlus imp, final RegionRequest request) {
-		return new PathImagePlus(server, request, imp);
+	public static PathImage<ImagePlus> createPathImage(ImageServer<BufferedImage> server, ImagePlus imp, RegionRequest request) throws IOException {
+		if (imp == null)
+			// Store the server if we don't have an ImagePlus
+			imp = IJTools.convertToImagePlus(server, request).getImage();
+		return new PathImagePlus(request, imp);
 	}
 
 	/**

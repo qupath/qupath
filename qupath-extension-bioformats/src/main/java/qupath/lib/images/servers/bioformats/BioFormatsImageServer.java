@@ -84,9 +84,11 @@ import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.servers.AbstractTileableImageServer;
 import qupath.lib.images.servers.ImageChannel;
-import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.ImageServerBuilder.DefaultImageServerBuilder;
+import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.ImageServerMetadata.ImageResolutionLevel;
+import qupath.lib.images.servers.PixelType;
 import qupath.lib.images.servers.TileRequest;
 
 /**
@@ -137,6 +139,11 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 	private ImageServerMetadata originalMetadata;
 	
 	/**
+	 * Arguments passed to constructor.
+	 */
+	private String[] args;
+	
+	/**
 	 * Path to the base image file - will be the same as path, unless the path encodes the name of a specific series, in which case this refers to the file without the series included
 	 */
 	private String filePath;
@@ -149,7 +156,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 	/**
 	 * A map linking an identifier (image name) to series number for 'full' images.
 	 */
-	private Map<String, Integer> imageMap = null;
+	private Map<String, ServerBuilder<BufferedImage>> imageMap = null;
 	
 	/**
 	 * A map linking an identifier (image name) to series number for additional images, e.g. thumbnails or macro images.
@@ -191,6 +198,11 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 	 */
 	private OMEPyramidStore meta;
 	
+	/**
+	 * Cached path
+	 */
+	private String path;
+	
 //	/**
 //	 * Try to parallelize multichannel requests (experimental!)
 //	 */
@@ -224,8 +236,8 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 	}
 	
 	BioFormatsImageServer(URI uri, final BioFormatsServerOptions options, String...args) throws FormatException, IOException, DependencyException, ServiceException, URISyntaxException {
-		super(uri);
-
+		super();
+		
 		long startTime = System.currentTimeMillis();
 
 		this.options = options;
@@ -336,7 +348,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 									firstSeries = s;
 									firstPixels = sizeX * sizeY * sizeZ * sizeT;
 								}
-								imageMap.put(name, s);
+								imageMap.put(name, DefaultImageServerBuilder.createInstance(BioFormatsServerBuilder.class, null, uri, "--series", Integer.toString(s)));
 							}
 						}
 
@@ -451,6 +463,38 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 //				nZSlices = 1;
 //			}
 			nTimepoints = reader.getSizeT();
+
+			PixelType pixelType;
+			switch (reader.getPixelType()) {
+				case FormatTools.INT8:
+					pixelType = PixelType.INT8;
+					break;
+				case FormatTools.UINT8:
+					pixelType = PixelType.UINT8;
+					break;
+				case FormatTools.INT16:
+					pixelType = PixelType.INT16;
+					break;
+				case FormatTools.UINT16:
+					pixelType = PixelType.UINT16;
+					break;
+				case FormatTools.INT32:
+					pixelType = PixelType.INT32;
+					break;
+				case FormatTools.UINT32:
+					logger.warn("Pixel type is UINT32!");
+					pixelType = PixelType.UINT32;
+					break;
+				case FormatTools.FLOAT:
+					pixelType = PixelType.FLOAT32;
+					break;
+				case FormatTools.DOUBLE:
+					pixelType = PixelType.FLOAT64;
+					break;
+				default:
+					throw new IllegalArgumentException("Unsupported pixel type " + reader.getPixelType());
+			}
+			
 			int bpp = reader.getBitsPerPixel();
 			boolean isRGB = reader.isRGB() && bpp == 8;
 			// Remove alpha channel
@@ -592,19 +636,25 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 			} else
 				imageName = imageName + " - " + shortName;
 
+			this.args = args;
 
-			String path = String.format("%s [series=%d]", uri.toString(), series);
+//			String path = String.format("%s [series=%d]", uri.toString(), series);
+			String id = uri.toString() + " (Bio-Formats)";
+			if (args.length > 0) {
+				id += "[" + String.join(", ", args) + "]";
+			}
 			
 			// Set metadata
 			ImageServerMetadata.Builder builder = new ImageServerMetadata.Builder(
 					getClass(), path, width, height).
-					args(args).
+//					args(args).
+					id(id).
 					name(imageName).
 					channels(channels).
 					sizeZ(nZSlices).
 					sizeT(nTimepoints).
 					levels(resolutionBuilder.build()).
-					bitDepth(bpp).
+					pixelType(pixelType).
 					rgb(isRGB);
 
 			if (Double.isFinite(magnification))
@@ -632,8 +682,16 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 		long endTime = System.currentTimeMillis();
 		logger.debug(String.format("Initialization time: %d ms", endTime-startTime));
 	}
-
-		
+	
+	
+	/**
+	 * Returns a builder capable of creating a server like this one.
+	 */
+	@Override
+	public ServerBuilder<BufferedImage> getBuilder() {
+		return DefaultImageServerBuilder.createInstance(BioFormatsServerBuilder.class, getMetadata(), uri, args);
+	}
+	
 	/**
 	 * Returns true if the reader accepts parallel tile requests, without synchronization.
 	 * <p>
@@ -821,13 +879,6 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 	}
 
 	@Override
-	public List<String> getSubImageList() {
-		if (imageMap == null || imageMap.isEmpty())
-			return Collections.emptyList();
-		return new ArrayList<>(imageMap.keySet());
-	}
-
-	@Override
 	public String getDisplayedImageName() {
 		String name = getMetadata().getName();
 		if (name == null)
@@ -903,30 +954,15 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 	}
 
 
-	@Override
-	public ImageServer<BufferedImage> openSubImage(String imageName) throws IOException {
-		// If we don't have an image name, return original file path
-		Integer series = imageMap.getOrDefault(imageName, null);
-		if (imageName.isEmpty())
-			series = Integer.valueOf(0);
-		if (series != null) {
-			try {
-				BioFormatsImageServer server = new BioFormatsImageServer(uri, "--series", series.toString());
-				return server;
-			} catch (Exception e) {
-				if (e instanceof IOException)
-					throw (IOException)e;
-				throw new IOException(e);
-			}
-		}
-		throw new IOException(toString() + " does not contain sub-image with name " + imageName);
+	Map<String, ServerBuilder<BufferedImage>> getImageBuilders() {
+		return Collections.unmodifiableMap(imageMap);
 	}
 
 
 	@Override
 	public ImageServerMetadata getOriginalMetadata() {
 		return originalMetadata;
-	}	
+	}
 	
 	/**
 	 * Get the class name of the first reader that potentially supports the file type, or null if no reader can be found.
@@ -1064,7 +1100,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 		 * @throws FormatException
 		 * @throws IOException
 		 */
-		private static IFormatReader createReader(final BioFormatsServerOptions options, final String id, final MetadataStore store) throws FormatException, IOException {
+		static IFormatReader createReader(final BioFormatsServerOptions options, final String id, final MetadataStore store) throws FormatException, IOException {
 			return createReader(options, null, id, store);
 		}
 		

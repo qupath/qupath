@@ -24,10 +24,9 @@
 package qupath.lib.images.servers;
 
 import java.io.IOException;
-import java.net.URI;
-import java.util.Collection;
 import java.util.List;
 
+import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
 import qupath.lib.regions.RegionRequest;
 
 /**
@@ -57,13 +56,6 @@ public interface ImageServer<T> extends AutoCloseable {
 	public String getPath();
 	
 	/**
-	 * Get the URI for this ImageServer, or null if no URI is associated with the server.
-	 * 
-	 * @return
-	 */
-	public URI getURI();
-	
-	/**
 	 * Get a short name for the server, derived from {@code getPath()}.
 	 * @return
 	 */
@@ -83,17 +75,6 @@ public interface ImageServer<T> extends AutoCloseable {
 	 * @return
 	 */
 	public int nResolutions();
-	
-	/**
-	 * Get the downsample factor supported by the server that is the best match for the requested downsample.
-	 * <p>
-	 * Generally, this will be &lt;= the requested downsample (but it may be slightly more if the error introduced
-	 * would be very small, i.e. if 4 is requested and 4.0001 is available, 4.0001 would be returned).
-	 * 
-	 * @param requestedDownsample
-	 * @return
-	 */
-	public double getPreferredDownsampleFactor(double requestedDownsample);
 	
 	/**
 	 * Get the downsample factor for a specified resolution level, where level 0 is the full resolution image 
@@ -123,7 +104,7 @@ public interface ImageServer<T> extends AutoCloseable {
 	public int nChannels();
 	
 	/**
-	 * TRUE if the image has 8-bit red, green &amp; blue channels (and nothing else), false otherwise.
+	 * True if the image has 8-bit red, green &amp; blue channels (and nothing else), false otherwise.
 	 * @return
 	 */
 	public boolean isRGB();
@@ -141,42 +122,11 @@ public interface ImageServer<T> extends AutoCloseable {
 	public int nTimepoints();
 	
 	/**
-	 * Spacing between slices of a z-stack, or Double.NaN if this is unknown of the image is not a z-stack.
+	 * Get the PixelCalibration object from the current metadata.
 	 * @return
 	 */
-	public double getZSpacingMicrons();
-
-	/**
-	 * The pixel width of the full-resolution image in microns, or Double.NaN if this is unknown.
-	 * @return
-	 */
-	public double getPixelWidthMicrons();
-
-	/**
-	 * The pixel height of the full-resolution image in microns, or Double.NaN if this is unknown.
-	 * @return
-	 */
-	public double getPixelHeightMicrons();
-	
-	/**
-	 * The mean of the pixel width &amp; height, if available; for square pixels this is the same as either width * height
-	 * @return
-	 */
-	public double getAveragedPixelSizeMicrons();
-
-	/**
-	 * True if the pixel size is known, False otherwise.
-	 * @return
-	 */
-	public boolean hasPixelSizeMicrons();
-	
-	/**
-	 * Get the output type, used to interpret what channels mean.
-	 * 
-	 * @return
-	 */
-	public default ImageServerMetadata.ChannelType getOutputType() {
-		return ImageServerMetadata.ChannelType.DEFAULT;
+	public default PixelCalibration getPixelCalibration() {
+		return getMetadata().getPixelCalibration();
 	}
 
 	/**
@@ -201,48 +151,12 @@ public interface ImageServer<T> extends AutoCloseable {
 	 * @return
 	 */
 	public T readBufferedImage(RegionRequest request) throws IOException;
-        
+ 
 	
 	/**
 	 * A string describing the type of server, for example the name of the library used (Openslide, Bioformats...)
 	 */
 	public String getServerType();
-	
-	/**
-	 * Get a list of images (or subimages) accessible by this server.
-	 * This is for occasions in which the same file contains multiple images, each of which could be accessed via an ImageServer.
-	 * <p>
-	 * In the event that the server only has a single image, an empty list is returned.
-	 * If the server has multiple images, a list of image names is returned - with the default image occurring first.
-	 * 
-	 * @return
-	 * 
-	 * @see #openSubImage(String)
-	 * @see #getAssociatedImage
-	 */
-	public List<String> getSubImageList();
-	
-	/**
-	 * Open a sub-image as a new ImageServer.
-	 * 
-	 * @return
-	 * 
-	 * @see #getSubImageList
-	 */
-	public ImageServer<T> openSubImage(String imageName) throws IOException;
-	
-//	/**
-//	 * Create a (child) image server to be used to access an image contained within the images that this server supports.
-//	 * Not all image servers (or image files) contain multiple images.
-//	 * If this is used, getImageList().contains(imageName) must evaluate to true - if it does not, then this
-//	 * method will throw an IllegalArgumentException.
-//	 * 
-//	 * @param imageName
-//	 * @return
-//	 */
-//	@Deprecated
-////	public ImageServer getSubImageServer(String imageName);
-	
 	
 	/**
 	 * Get a list of 'associated images', e.g. thumbnails or slide overview images.
@@ -266,18 +180,6 @@ public interface ImageServer<T> extends AutoCloseable {
 	public T getAssociatedImage(String name);
 	
 	
-	/**
-	 * Get the name of the image supplied by this server.
-	 * <p>
-	 * If the server only has one image, then it will be the same as getShortServerName().
-	 * However if the server contains multiple images, this will identify the image whose
-	 * metadata &amp; pixels are provided by the server.
-	 * 
-	 * @return
-	 */
-	public String getDisplayedImageName();
-	
-	
 //	/**
 //	 * Returns an absolute URI representing the server (image) data, or null if the server does not receive its data from a stored file (e.g. it is computed dynamically).
 //	 * @return
@@ -289,7 +191,7 @@ public interface ImageServer<T> extends AutoCloseable {
 	 * Test whether a region is empty, i.e. it contains nothing to be painted (e.g. the server paints objects
 	 * but there are no objects present in the region) and readBufferedImage(RegionRequest region) would return null.
 	 * <p>
-	 * This makes it possible to avoid a (potentially more expensive) request to readBufferedImage,
+	 * This makes it possible to avoid a (potentially more expensive) request to {@link #readBufferedImage(RegionRequest)},
 	 * or to add it to a request queue, if we know there will be nothing to show for it.
 	 * <p>
 	 * Note: if this method returns true, it is safe to assume readBufferedImage would return null.
@@ -302,16 +204,13 @@ public interface ImageServer<T> extends AutoCloseable {
 	 */
 	public boolean isEmptyRegion(RegionRequest request);
 	
-	
 	/**
-	 * The bit-depth of the image.
-	 * <p>
-	 * For an RGB image, this is considered to be 8, i.e. color channels are considered separately.
+	 * The bit-depth and type of the image. This refers to a single channel, e.g. an 
+	 * 8-bit RGB image will have a type of {@link PixelType#UINT8}.
 	 * 
 	 * @return
 	 */
-	public int getBitsPerPixel();
-	
+	public PixelType getPixelType();
 	
 	/**
 	 * Request information for one channel.
@@ -319,15 +218,9 @@ public interface ImageServer<T> extends AutoCloseable {
 	 * @param channel
 	 * @return
 	 * 
+	 * @see ImageServerMetadata#getChannels()
 	 */
 	public ImageChannel getChannel(int channel);
-	
-	
-	/**
-	 * Get a list providing the name and default color for each image channel.
-	 * @return
-	 */
-	public List<ImageChannel> getChannels();
 	
 	/**
 	 * Get essential metadata associated with the ImageServer as a distinct object.  This may be edited by the user.
@@ -364,38 +257,38 @@ public interface ImageServer<T> extends AutoCloseable {
 	 */
 	public T getDefaultThumbnail(int z, int t) throws IOException;
 	
-	
+		
 	/**
-	 * Get {@link TileRequest} objects for <i>all</i> tiles that this server supports.
-	 * 
+	 * Get a TileRequestManager that can be used to identify image tiles that may be efficiently requested
+	 * from this ImageServer.
+	 * <p>
+	 * This is useful because managing arbitrary RegionRequests can result in inefficiencies if a request 
+	 * straddles multiple tiles unnecessarily. Also, it can be used to help ensure consistency whenever 
+	 * requesting regions at different resolutions, where rounding errors might otherwise occur.
+	 * <p>
+	 * Note that the TileRequestManager is not guaranteed to remain the same for the lifecycle of the server. 
+	 * For example, if the image metadata is changed then a new manager may be constructed.
 	 * @return
 	 */
-	public Collection<TileRequest> getAllTileRequests();
+	public TileRequestManager getTileRequestManager();
 	
-	/**
-	 * Get the {@link TileRequest} containing a specified pixel, or null if no such request exists.
-	 * 
-	 * @param level
-	 * @param x
-	 * @param y
-	 * @param z
-	 * @param t
-	 * @return
-	 */
-	public TileRequest getTile(int level, int x, int y, int z, int t);
-	
-	/**
-	 * Get a collection of {@link TileRequest} objects necessary to fulfil a specific {@link RegionRequest}.
-	 * 
-	 * @param request
-	 * @return
-	 */
-	public Collection<TileRequest> getTiles(final RegionRequest request);
-	
+
 	/**
 	 * Get the class of the image representation returned by this ImageServer.
 	 * @return
 	 */
 	public Class<T> getImageClass();
+	
+	/**
+	 * Get a ServerBuilder capable of building a server the same as this one.
+	 * <p>
+	 * The purpose of this is to aid serialization of servers by switching to a simpler representation.
+	 * <p>
+	 * The default implementation returns null, indicating that rebuilding the server is not supported.
+	 * @return
+	 */
+	public default ServerBuilder<T> getBuilder() {
+		return null;
+	}
 	
 }

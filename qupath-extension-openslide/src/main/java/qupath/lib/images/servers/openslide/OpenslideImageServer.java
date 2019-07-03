@@ -47,7 +47,10 @@ import qupath.lib.images.servers.AbstractTileableImageServer;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.ImageServerMetadata.ImageResolutionLevel;
+import qupath.lib.images.servers.PixelType;
 import qupath.lib.images.servers.TileRequest;
+import qupath.lib.images.servers.ImageServerBuilder.DefaultImageServerBuilder;
+import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
 
 /**
  * ImageServer implementation using OpenSlide.
@@ -70,6 +73,11 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 	private Color backgroundColor;
 	
 	private int boundsX, boundsY, boundsWidth, boundsHeight;
+	
+	private URI uri;
+	private String[] args;
+	
+	private String path;
 	
 	
 	private static double readNumericPropertyOrDefault(Map<String, String> properties, String name, double defaultValue) {
@@ -98,7 +106,8 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 	 * @throws IOException
 	 */
 	public OpenslideImageServer(URI uri, String...args) throws IOException {
-		super(uri);
+		super();
+		this.uri = uri;
 
 		// Ensure the garbage collector has run - otherwise any previous attempts to load the required native library
 		// from different classloader are likely to cause an error (although upon first further investigation it seems this doesn't really solve the problem...)
@@ -188,13 +197,16 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 		}
 		
 		// Create metadata objects
+		this.args = args;
+		String id = uri.toString() + " (OpenSlide)";
 		originalMetadata = new ImageServerMetadata.Builder(getClass(),
 				path, boundsWidth, boundsHeight).
 				channels(ImageChannel.getDefaultRGBChannels()). // Assume 3 channels (RGB)
 				name(file.getName()).
 				rgb(true).
-				args(args).
-				bitDepth(8).
+				id(id).
+//				args(args).
+				pixelType(PixelType.UINT8).
 				preferredTileSize(tileWidth, tileHeight).
 				pixelSizeMicrons(pixelWidth, pixelHeight).
 				magnification(magnification).
@@ -227,7 +239,7 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 		// we want it to fail quickly so that it may yet be possible to try another server
 		// This can occur with corrupt .svs (.tif) files that Bioformats is able to handle better
 		try {
-			logger.info("Test reading thumbnail with openslide: passed (" + getDefaultThumbnail(0, 0).toString() + ")");
+			logger.debug("Test reading thumbnail with openslide: passed (" + getDefaultThumbnail(0, 0).toString() + ")");
 		} catch (IOException e) {
 			logger.error("Unable to read thumbnail using OpenSlide: {}", e.getLocalizedMessage());
 			throw(e);
@@ -291,6 +303,14 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 		if (associatedImageList == null)
 			return Collections.emptyList();
 		return associatedImageList;
+	}
+	
+	/**
+	 * Returns a builder capable of creating a server like this one.
+	 */
+	@Override
+	public ServerBuilder<BufferedImage> getBuilder() {
+		return DefaultImageServerBuilder.createInstance(OpenslideServerBuilder.class, getMetadata(), uri, args);
 	}
 
 	@Override

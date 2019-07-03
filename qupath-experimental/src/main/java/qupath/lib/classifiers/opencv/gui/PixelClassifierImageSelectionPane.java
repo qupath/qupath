@@ -22,7 +22,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.function.Function;
+
 import org.bytedeco.opencv.global.opencv_core;
+import org.bytedeco.opencv.opencv_core.Mat;
 import org.bytedeco.opencv.opencv_ml.ANN_MLP;
 import org.bytedeco.opencv.opencv_ml.KNearest;
 import org.bytedeco.opencv.opencv_ml.RTrees;
@@ -35,6 +37,7 @@ import org.slf4j.LoggerFactory;
 import com.google.gson.GsonBuilder;
 
 import ij.CompositeImage;
+import ij.ImagePlus;
 import ij.io.FileSaver;
 import ij.io.Opener;
 import javafx.application.Platform;
@@ -58,6 +61,7 @@ import javafx.scene.Scene;
 import javafx.scene.chart.PieChart;
 import javafx.scene.chart.PieChart.Data;
 import javafx.scene.control.Button;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.SplitPane;
@@ -79,9 +83,8 @@ import qupath.lib.classifiers.gui.PixelClassifierHelper;
 import qupath.lib.classifiers.opencv.OpenCVClassifiers;
 import qupath.lib.classifiers.opencv.OpenCVClassifiers.OpenCVStatModel;
 import qupath.lib.classifiers.opencv.pixel.OpenCVPixelClassifier;
-import qupath.lib.classifiers.opencv.pixel.features.BasicFeatureCalculator;
-import qupath.lib.classifiers.opencv.pixel.features.FeatureFilter;
-import qupath.lib.classifiers.opencv.pixel.features.FeatureFilters;
+import qupath.lib.classifiers.opencv.pixel.features.Feature;
+import qupath.lib.classifiers.opencv.pixel.features.MultiscaleFeatureCalculator;
 import qupath.lib.classifiers.opencv.pixel.features.OpenCVFeatureCalculator;
 import qupath.lib.classifiers.pixel.PixelClassificationImageServer;
 import qupath.lib.classifiers.pixel.PixelClassifier;
@@ -100,6 +103,7 @@ import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.PixelCalibration;
+import qupath.lib.images.servers.ImageServerMetadata.ChannelType;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
@@ -114,6 +118,7 @@ import qupath.lib.projects.Project;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.RectangleROI;
 import qupath.lib.roi.interfaces.ROI;
+import qupath.opencv.processing.HessianCalculator.MultiscaleFeature;
 import qupath.opencv.processing.OpenCVTools;
 
 
@@ -491,8 +496,9 @@ public class PixelClassifierImageSelectionPane {
 		var temp = new ArrayList<ImageResolution>();
 		double originalDownsample = 1;
 		String units = null;
-		if (imageData.getServer().hasPixelSizeMicrons()) {
-			originalDownsample = imageData.getServer().getAveragedPixelSizeMicrons();
+		PixelCalibration cal = imageData.getServer().getPixelCalibration();
+		if (cal.hasPixelSizeMicrons()) {
+			originalDownsample = cal.getAveragedPixelSizeMicrons();
 			units = PixelCalibration.MICROMETER;
 		}
 		int scale = 1;
@@ -506,7 +512,7 @@ public class PixelClassifierImageSelectionPane {
 	
 	
 	void updateFeatureCalculator() {
-		featureCalculator = selectedFeatureCalculatorBuilder.get().build(getRequestedPixelSizeMicrons());
+		featureCalculator = selectedFeatureCalculatorBuilder.get().build(viewer.getImageData(), getRequestedPixelSizeMicrons());
 		updateClassifier();
 	}
 	
@@ -539,16 +545,18 @@ public class PixelClassifierImageSelectionPane {
 			return 1;
 		double downsample = selectedResolution.get().getDownsampleFactor(1);
 		var server = viewer.getServer();
-		if (server != null && server.hasPixelSizeMicrons())
-			downsample = selectedResolution.get().getDownsampleFactor(server.getAveragedPixelSizeMicrons());
+		PixelCalibration cal = server == null ? null : server.getPixelCalibration();
+		if (cal != null && cal.hasPixelSizeMicrons())
+			downsample = selectedResolution.get().getDownsampleFactor(cal.getAveragedPixelSizeMicrons());
 		return downsample;
 	}
 	
 	double getRequestedPixelSizeMicrons() {
 		double downsample = getRequestedDownsample();
 		var server = viewer.getServer();
-		if (server != null && server.hasPixelSizeMicrons())
-			return downsample * server.getAveragedPixelSizeMicrons();
+		PixelCalibration cal = server == null ? null : server.getPixelCalibration();
+		if (cal != null && cal.hasPixelSizeMicrons())
+			return downsample * cal.getAveragedPixelSizeMicrons();
 		return downsample;
 	}
 	
@@ -700,7 +708,11 @@ public class PixelClassifierImageSelectionPane {
 		logger.debug("Saving & applying classifier");
 		updateClassifier(true);
 		
-		var server = overlay.getPixelClassificationServer();
+		PixelClassificationImageServer server = overlay == null ? null : overlay.getPixelClassificationServer();
+		if (server == null) {
+			DisplayHelpers.showErrorMessage("Pixel classifier", "Nothing to save - please train a classifier first!");
+			return false;
+		}
 		
 		var project = QuPathGUI.getInstance().getProject();
 		if (project == null) {
@@ -797,7 +809,7 @@ public class PixelClassifierImageSelectionPane {
 
 				@Override
 				protected PixelClassificationImageServer call() throws Exception {
-					var tiles = server.getAllTileRequests();
+					var tiles = server.getTileRequestManager().getAllTileRequests();
 					int n = tiles.size();
 					boolean success = false;
 					try (var persistentTileCache = new FileSystemPersistentTileCache(pathOutput, server)) {
@@ -922,7 +934,8 @@ public class PixelClassifierImageSelectionPane {
 				.addChoiceParameter("minSizeUnits", "Minimum object/hole size units", "Pixels", sizeUnits)
 				.addBooleanParameter("doSplit", "Split objects", false);
 		
-		params.setHiddenParameters(!server.hasPixelSizeMicrons(), "minSizeUnits");
+		PixelCalibration cal = server.getPixelCalibration();
+		params.setHiddenParameters(!cal.hasPixelSizeMicrons(), "minSizeUnits");
 		
 		if (!DisplayHelpers.showParameterDialog("Create objects", params))
 			return false;
@@ -938,8 +951,8 @@ public class PixelClassifierImageSelectionPane {
 			};
 		boolean doSplit = params.getBooleanParameterValue("doSplit");
 		double minSizePixels = params.getDoubleParameterValue("minSize");
-		if (server.hasPixelSizeMicrons() && !params.getChoiceParameterValue("minSizeUnits").equals("Pixels"))
-			minSizePixels /= (server.getPixelWidthMicrons() * server.getPixelHeightMicrons());
+		if (cal.hasPixelSizeMicrons() && !params.getChoiceParameterValue("minSizeUnits").equals("Pixels"))
+			minSizePixels /= (cal.getPixelWidthMicrons() * cal.getPixelHeightMicrons());
 		
 		var selected = viewer.getSelectedObject();
 		if (selected != null && selected.isDetection())
@@ -1013,7 +1026,7 @@ public class PixelClassifierImageSelectionPane {
 			request = RegionRequest.createInstance(server.getPath(), downsample, selected.getROI());
 		}
 		long estimatedPixels = (long)Math.ceil(request.getWidth()/request.getDownsample()) * (long)Math.ceil(request.getHeight()/request.getDownsample());
-		double estimatedMB = (estimatedPixels * server.nChannels() * (server.getBitsPerPixel()/8)) / (1024.0 * 1024.0);
+		double estimatedMB = (estimatedPixels * server.nChannels() * (server.getPixelType().getBytesPerPixel())) / (1024.0 * 1024.0);
 		if (estimatedPixels >= Integer.MAX_VALUE - 16) {
 			DisplayHelpers.showErrorMessage("Extract output", "Requested region is too big! Try selecting a smaller region.");
 			return false;
@@ -1026,9 +1039,11 @@ public class PixelClassifierImageSelectionPane {
 		try {
 //			var imp = IJExtension.extractROI(server, selected, request, true, null).getImage();
 			var pathImage = IJTools.convertToImagePlus(
-					overlay.getPixelClassificationServer(),
+					server,
 					request);
 			var imp = pathImage.getImage();
+			if (imp instanceof CompositeImage && server.getMetadata().getChannelType() != ChannelType.CLASSIFICATION)
+				((CompositeImage)imp).setDisplayMode(CompositeImage.GRAYSCALE);
 			if (roi != null && !(roi instanceof RectangleROI)) {
 				imp.setRoi(IJTools.convertToIJRoi(roi, pathImage));
 			}
@@ -1042,12 +1057,14 @@ public class PixelClassifierImageSelectionPane {
 	
 	
 	boolean showFeatures() {
+		ImageData<BufferedImage> imageData = viewer.getImageData();
 		double cx = viewer.getCenterPixelX();
 		double cy = viewer.getCenterPixelY();
-		var server = viewer.getServer();
-		if (server == null || featureCalculator == null)
+		if (imageData == null || featureCalculator == null)
 			return false;
-		double pixelSize = server.getAveragedPixelSizeMicrons();
+		ImageServer<BufferedImage> server = imageData.getServer();
+		PixelCalibration cal = server.getPixelCalibration();
+		double pixelSize = cal.getAveragedPixelSizeMicrons();
 		if (!Double.isFinite(pixelSize))
 			pixelSize = 1;
 		double downsample = selectedResolution.get().getDownsampleFactor(pixelSize);
@@ -1058,16 +1075,20 @@ public class PixelClassifierImageSelectionPane {
 				(int)(cx - width/2), (int)(cy - height/2), (int)width, (int)height, viewer.getZPosition(), viewer.getTPosition());
 		
 		try {
-			var features = featureCalculator.calculateFeatures(viewer.getServer(), request);
-			var imp = OpenCVTools.matToImagePlus(features, "Features");
+			List<Feature<Mat>> features = featureCalculator.calculateFeatures(imageData, request);
+			if (features.isEmpty()) {
+				DisplayHelpers.showErrorMessage("Show features", "No features selected!");
+				return false;
+			}
+			ImagePlus imp = OpenCVTools.matToImagePlus("Features", features.stream().map(f -> f.getFeature()).toArray(Mat[]::new));
 			int s = 1;
 			IJTools.calibrateImagePlus(imp, request, server);
-			var impComp = new CompositeImage(imp, CompositeImage.GRAYSCALE);
+			CompositeImage impComp = new CompositeImage(imp, CompositeImage.GRAYSCALE);
 			impComp.setDimensions(imp.getStackSize(), 1, 1);
-			for (String name : featureCalculator.getFeatureNames()) {
+			for (Feature<?> feature : features) {
 				impComp.setPosition(s);
 				impComp.resetDisplayRange();
-				impComp.getStack().setSliceLabel(name, s++);
+				impComp.getStack().setSliceLabel(feature.getName(), s++);
 			}
 			impComp.setPosition(1);
 			impComp.show();
@@ -1084,14 +1105,15 @@ public class PixelClassifierImageSelectionPane {
 	}
 	
 	boolean addResolution() {
-		var server = viewer.getServer();
+		ImageServer<BufferedImage> server = viewer.getServer();
 		if (server == null) {
 			DisplayHelpers.showErrorMessage("Add resolution", "No image available!");
 			return false;
 		}
 		String units = null;
 		Double pixelSize = null;
-		if (server.hasPixelSizeMicrons()) {
+		PixelCalibration cal = server.getPixelCalibration();
+		if (cal.hasPixelSizeMicrons()) {
 			pixelSize = DisplayHelpers.showInputDialog("Add resolution", "Enter requested pixel size in " + GeneralTools.micrometerSymbol(), 1.0);
 			units = PixelCalibration.MICROMETER;
 		} else {
@@ -1101,8 +1123,8 @@ public class PixelClassifierImageSelectionPane {
 		if (pixelSize == null)
 			return false;
 		
-		var res = SimpleImageResolution.getInstance("Custom", pixelSize, units);
-		var temp = new ArrayList<>(resolutions);
+		ImageResolution res = SimpleImageResolution.getInstance("Custom", pixelSize, units);
+		List<ImageResolution> temp = new ArrayList<>(resolutions);
 		temp.add(res);
 		Collections.sort(temp, (r1, r2) -> Double.compare(r1.getDownsampleFactor(1), r2.getDownsampleFactor(1)));
 		resolutions.setAll(temp);
@@ -1135,7 +1157,7 @@ public class PixelClassifierImageSelectionPane {
 		if (server == null || miniViewer == null || resolution == null)
 			return;
 		Tooltip.install(miniViewer.getPane(), new Tooltip("Classification resolution: \n" + resolution));
-		miniViewer.setDownsample(resolution.getDownsampleFactor(server.getAveragedPixelSizeMicrons()));
+		miniViewer.setDownsample(resolution.getDownsampleFactor(server.getPixelCalibration().getAveragedPixelSizeMicrons()));
 	}
 	
 	
@@ -1323,7 +1345,7 @@ public class PixelClassifierImageSelectionPane {
     		return null;
     	
     	int level = 0;
-    	var tile = classifierServer.getTile(level, (int)Math.round(x), (int)Math.round(y), z, t);
+    	var tile = classifierServer.getTileRequestManager().getTileRequest(level, (int)Math.round(x), (int)Math.round(y), z, t);
     	if (tile == null)
     		return null;
     	var img = classifierServer.getCachedTile(tile);
@@ -1337,13 +1359,13 @@ public class PixelClassifierImageSelectionPane {
     	
 //    	String coords = GeneralTools.formatNumber(x, 1) + "," + GeneralTools.formatNumber(y, 1);
     	
-    	var channels = classifierServer.getChannels();
-    	if (classifierServer.getOutputType() == ImageServerMetadata.ChannelType.CLASSIFICATION) {
+    	var channels = classifierServer.getMetadata().getChannels();
+    	if (classifierServer.getMetadata().getChannelType() == ImageServerMetadata.ChannelType.CLASSIFICATION) {
         	int sample = img.getRaster().getSample(xx, yy, 0); 		
         	return String.format("Classification: %s", channels.get(sample).getName());
 //        	return String.format("Classification (%s):\n%s", coords, channels.get(sample).getName());
     	} else {
-    		var array = new String[channels.size()];
+    		String[] array = new String[channels.size()];
     		for (int c = 0; c < channels.size(); c++) {
     			float sample = img.getRaster().getSampleFloat(xx, yy, c);
     			if (img.getRaster().getDataBuffer().getDataType() == DataBuffer.TYPE_BYTE)
@@ -1456,10 +1478,11 @@ public class PixelClassifierImageSelectionPane {
 			try (var stream = Files.newInputStream(path)) {
 				var imp = new Opener().openTiff(stream, "Anything");
 				ColorModel colorModel;
+				var channels = server.getMetadata().getChannels();
 				if (imp.getNChannels() == 1)
-					colorModel = ColorModelFactory.getIndexedColorModel(server.getChannels());
+					colorModel = ColorModelFactory.getIndexedColorModel(channels);
 				else
-					colorModel = ColorModelFactory.geProbabilityColorModel8Bit(server.getChannels());
+					colorModel = ColorModelFactory.geProbabilityColorModel8Bit(channels);
 				return ImageJServer.convertToBufferedImage(imp, 1, 1, colorModel);
 			}
 		}
@@ -1580,7 +1603,7 @@ public class PixelClassifierImageSelectionPane {
 	 */
 	public static abstract class FeatureCalculatorBuilder {
 		
-		public abstract OpenCVFeatureCalculator build(double requestedPixelSize);
+		public abstract OpenCVFeatureCalculator build(ImageData<BufferedImage> imageData, double requestedPixelSize);
 		
 		public boolean canCustomize() {
 			return false;
@@ -1590,17 +1613,12 @@ public class PixelClassifierImageSelectionPane {
 			throw new UnsupportedOperationException("Cannot customize this feature calculator!");
 		}
 		
-		public String getName() {
-			OpenCVFeatureCalculator calculator = build(1);
-			if (calculator == null)
-				return "No feature calculator";
-			return calculator.toString();
-		}
-		
-		@Override
-		public String toString() {
-			return getName();
-		}
+//		public String getName() {
+//			OpenCVFeatureCalculator calculator = build(1);
+//			if (calculator == null)
+//				return "No feature calculator";
+//			return calculator.toString();
+//		}
 		
 	}
 	
@@ -1610,10 +1628,13 @@ public class PixelClassifierImageSelectionPane {
 		
 		private GridPane pane;
 		
-		private ObservableList<FeatureFilter> selectedFeatures;
-		
 		private ObservableList<Integer> availableChannels;
 		private ObservableList<Integer> selectedChannels;
+		private ObservableList<Double> selectedSigmas;
+		private ObservableList<MultiscaleFeature> selectedFeatures;
+		
+		private ObservableBooleanValue doNormalize;
+		private ObservableBooleanValue do3D;
 		
 		DefaultFeatureCalculatorBuilder() {
 			
@@ -1649,92 +1670,71 @@ public class PixelClassifierImageSelectionPane {
 					return null;
 				}
 			});
+			
+			
+			var comboScales = new CheckComboBox<Double>();
+			var labelScales = new Label("Scales");
+			comboScales.getItems().addAll(0.5, 1.0, 2.0, 4.0, 8.0);
+			selectedSigmas = comboScales.getCheckModel().getCheckedItems();
+//			comboScales.getCheckModel().check(1.0);
+			
 			availableChannels = comboChannels.getItems();
 			selectedChannels = comboChannels.getCheckModel().getCheckedItems();
+			
+			
+			var comboFeatures = new CheckComboBox<MultiscaleFeature>();
+			var labelFeatures = new Label("Features");
+			comboFeatures.getItems().addAll(MultiscaleFeature.values());
+			selectedFeatures = comboFeatures.getCheckModel().getCheckedItems();
+//			comboFeatures.getCheckModel().check(MultiscaleFeature.GAUSSIAN);
 //			selectedChannels.addListener((Change<? extends Integer> c) -> updateFeatureCalculator());
+			comboFeatures.titleProperty().bind(Bindings.createStringBinding(() -> {
+				int n = selectedFeatures.size();
+				if (n == 0)
+					return "No features selected!";
+				if (n == 1)
+					return "1 feature selected";
+				return n + " features selected";
+			},
+					selectedFeatures));
+			
+			
+			var cbNormalize = new CheckBox("Do local normalization");
+			doNormalize = cbNormalize.selectedProperty();
+			
+			var cb3D = new CheckBox("Use 3D filters");
+			do3D = cb3D.selectedProperty();
+			
+			
+			GridPaneTools.setMaxWidth(Double.MAX_VALUE, comboChannels, comboFeatures, comboScales,
+					cbNormalize, cb3D);
 			
 			GridPaneTools.addGridRow(pane, row++, 0,
 					"Choose the image channels used to calculate features",
 					labelChannels, comboChannels);		
+			
+			GridPaneTools.addGridRow(pane, row++, 0,
+					"Choose the feature scales",
+					labelScales, comboScales);		
+
+			GridPaneTools.addGridRow(pane, row++, 0,
+					"Choose the features",
+					labelFeatures, comboFeatures);		
+			
+			GridPaneTools.addGridRow(pane, row++, 0,
+					"Apply local intensity normalization before calculating features",
+					cbNormalize, cbNormalize);		
+			
+			GridPaneTools.addGridRow(pane, row++, 0,
+					"Use 3D filters (rather than 2D)",
+					cb3D, cb3D);	
+
 //			GridPaneTools.addGridRow(pane, row++, 0,
 //					"Choose the image channels used to calculate features",
 //					labelChannels, comboChannels, btnChannels);
 			
 			
 			
-			var labelFeatures = new Label("Features");
-			var comboFeatures = new CheckComboBox<FeatureFilter>();
-			selectedFeatures = comboFeatures.getCheckModel().getCheckedItems();
-//			selectedFeatures.addListener((Change<? extends FeatureFilter> c) -> updateFeatureCalculator());
-
-			comboFeatures.getItems().add(FeatureFilters.getFeatureFilter(FeatureFilters.ORIGINAL_PIXELS, -1));
-			
-			var sigmas = new double[] {1, 2, 4, 8};
-			for (var s : sigmas)
-				comboFeatures.getItems().add(FeatureFilters.getFeatureFilter(FeatureFilters.GAUSSIAN_FILTER, s));
-			
-			for (var s : sigmas)
-				comboFeatures.getItems().add(FeatureFilters.getFeatureFilter(FeatureFilters.LAPLACIAN_OF_GAUSSIAN_FILTER, s));
-			
-			for (var s : sigmas)
-				comboFeatures.getItems().add(FeatureFilters.getFeatureFilter(FeatureFilters.SOBEL_FILTER, s));
-
-//			for (var s : sigmas)
-//				comboFeatures.getItems().add(FeatureFilters.getFeatureFilter(FeatureFilters.NORMALIZED_INTENSITY_FILTER, s));
-	//
-//			for (var s : sigmas)
-//				comboFeatures.getItems().add(FeatureFilters.getFeatureFilter(FeatureFilters.COHERENCE_FILTER, s));
-//			
-//			int nAngles = 4;
-//			for (double lamda : new double[] {5, 10}) {
-//				for (double gamma : new double[] {0.5, 1.0}) {
-//					for (var s : sigmas)
-//						comboFeatures.getItems().add(new FeatureFilters.GaborFeatureFilter(s, gamma, lamda, nAngles));
-//				}
-//			}
-			
-			comboFeatures.getItems().add(FeatureFilters.getFeatureFilter(FeatureFilters.MEDIAN_FILTER, 3));
-			comboFeatures.getItems().add(FeatureFilters.getFeatureFilter(FeatureFilters.MEDIAN_FILTER, 5));
-			
-			var radii = new int[] {1, 2, 4, 8};
-			
-			for (var r : radii)
-				comboFeatures.getItems().add(FeatureFilters.getFeatureFilter(FeatureFilters.STANDARD_DEVIATION_FILTER, r));
-			
-////			for (var r : radii)
-////				comboFeatures.getItems().add(FeatureFilters.getFeatureFilter(FeatureFilters.PEAK_DENSITY_FILTER, r));
-	//
-////			for (var r : radii)
-////				comboFeatures.getItems().add(FeatureFilters.getFeatureFilter(FeatureFilters.VALLEY_DENSITY_FILTER, r));
-	//
-//			for (var r : radii)
-//				comboFeatures.getItems().add(FeatureFilters.getFeatureFilter(FeatureFilters.MORPHOLOGICAL_OPEN_FILTER, r));
-//			
-//			for (var r : radii)
-//				comboFeatures.getItems().add(FeatureFilters.getFeatureFilter(FeatureFilters.MORPHOLOGICAL_CLOSE_FILTER, r));
-//			
-//			for (var r : radii)
-//				comboFeatures.getItems().add(FeatureFilters.getFeatureFilter(FeatureFilters.MORPHOLOGICAL_ERODE_FILTER, r));
-	//
-//			for (var r : radii)
-//				comboFeatures.getItems().add(FeatureFilters.getFeatureFilter(FeatureFilters.MORPHOLOGICAL_DILATE_FILTER, r));
-
-
-			// Select the simple Gaussian features by default
-			comboFeatures.getCheckModel().checkIndices(1);
-			
-			// I'd like more informative text to be displayed by default
-			comboFeatures.setTitle("Selected");
-			comboFeatures.setShowCheckedCount(true);
-						
-			GridPaneTools.addGridRow(pane, row++, 0, 
-					"Choose the features that are available to the classifier (e.g. smoothed pixels, edges, other textures)",
-					labelFeatures, comboFeatures);
-			
-			comboChannels.setMaxWidth(Double.MAX_VALUE);
-			comboFeatures.setMaxWidth(Double.MAX_VALUE);
-			GridPaneTools.setHGrowPriority(Priority.ALWAYS, comboChannels, comboFeatures);
-			GridPaneTools.setFillWidth(Boolean.TRUE, comboChannels, comboFeatures);
 			
 			pane.setHgap(5);
 			pane.setVgap(6);
@@ -1742,10 +1742,25 @@ public class PixelClassifierImageSelectionPane {
 		}
 
 		@Override
-		public OpenCVFeatureCalculator build(double requestedPixelSize) {
-			return new BasicFeatureCalculator(
-					"Custom features", selectedChannels, selectedFeatures, 
-					requestedPixelSize);
+		public OpenCVFeatureCalculator build(ImageData<BufferedImage> imageData, double requestedPixelSize) {
+			// Extract features, removing any that are incompatible
+			MultiscaleFeature[] features;
+			if (do3D.get())
+				features = selectedFeatures.stream().filter(f -> f.is3D()).toArray(MultiscaleFeature[]::new);
+			else
+				features = selectedFeatures.stream().filter(f -> f.is2D()).toArray(MultiscaleFeature[]::new);
+			
+			return new MultiscaleFeatureCalculator(
+					imageData,
+					selectedChannels.stream().mapToInt(i -> i).toArray(),
+					selectedSigmas.stream().mapToDouble(d -> d).toArray(),
+					doNormalize.get() ? 8.0 : 0,
+					do3D.get() ? true : false,
+					features
+					);
+//			return new MultiscaleFeatureCalculator(
+//					selectedChannels, 
+//					requestedPixelSize);
 		}
 		
 		@Override
@@ -1769,8 +1784,12 @@ public class PixelClassifierImageSelectionPane {
 				}
 			}
 			return success;
-//			
-//			throw new UnsupportedOperationException("Cannot customize this feature calculator!");
+			
+		}
+		
+		@Override
+		public String toString() {
+			return "Default multiscale features";
 		}
 		
 	}

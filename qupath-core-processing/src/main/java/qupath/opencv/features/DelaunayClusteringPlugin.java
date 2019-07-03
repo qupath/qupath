@@ -36,6 +36,7 @@ import org.slf4j.LoggerFactory;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.objects.DefaultPathObjectConnectionGroup;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
@@ -114,7 +115,7 @@ public class DelaunayClusteringPlugin<T> extends AbstractInteractivePlugin<T> {
 				;
 		
 		ImageServer<?> server = imageData.getServer();
-		boolean hasMicrons = server != null && server.hasPixelSizeMicrons();
+		boolean hasMicrons = server != null && server.getPixelCalibration().hasPixelSizeMicrons();
 		params.setHiddenParameters(hasMicrons, "distanceThreshold");
 		params.setHiddenParameters(!hasMicrons, "distanceThresholdMicrons");
 		return params;
@@ -146,14 +147,15 @@ public class DelaunayClusteringPlugin<T> extends AbstractInteractivePlugin<T> {
 		// Get pixel sizes, if possible
 		ImageServer<?> server = imageData.getServer();
 		double pixelWidth = 1, pixelHeight = 1;
-		boolean hasMicrons = server != null && server.hasPixelSizeMicrons();
+		PixelCalibration cal = server.getPixelCalibration();
+		boolean hasMicrons = server != null && cal.hasPixelSizeMicrons();
 		if (hasMicrons) {
-			pixelWidth = server.getPixelWidthMicrons();
-			pixelHeight = server.getPixelHeightMicrons();
+			pixelWidth = cal.getPixelWidthMicrons();
+			pixelHeight = cal.getPixelHeightMicrons();
 		}
 		double distanceThresholdPixels;
-		if (server.hasPixelSizeMicrons())
-			distanceThresholdPixels = params.getDoubleParameterValue("distanceThresholdMicrons") / server.getAveragedPixelSizeMicrons();
+		if (cal.hasPixelSizeMicrons())
+			distanceThresholdPixels = params.getDoubleParameterValue("distanceThresholdMicrons") / cal.getAveragedPixelSizeMicrons();
 		else
 			distanceThresholdPixels = params.getDoubleParameterValue("distanceThreshold");
 

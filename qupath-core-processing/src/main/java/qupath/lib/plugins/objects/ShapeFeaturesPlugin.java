@@ -33,6 +33,7 @@ import org.slf4j.LoggerFactory;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.objects.PathCellObject;
 import qupath.lib.objects.PathDetectionObject;
@@ -98,10 +99,11 @@ public class ShapeFeaturesPlugin<T> extends AbstractInteractivePlugin<T> {
 	@Override
 	protected void addRunnableTasks(final ImageData<T> imageData, final PathObject parentObject, List<Runnable> tasks) {
 
-		boolean useMicrons = params.getBooleanParameterValue("useMicrons") && imageData != null && imageData.getServer().hasPixelSizeMicrons();
+		PixelCalibration cal = imageData == null ? null : imageData.getServer().getPixelCalibration();
+		boolean useMicrons = params.getBooleanParameterValue("useMicrons") && cal != null && cal.hasPixelSizeMicrons();
 		
-		double pixelWidth = useMicrons ? imageData.getServer().getPixelWidthMicrons() : 1;
-		double pixelHeight = useMicrons ? imageData.getServer().getPixelHeightMicrons() : 1;
+		double pixelWidth = useMicrons ? cal.getPixelWidthMicrons() : 1;
+		double pixelHeight = useMicrons ? cal.getPixelHeightMicrons() : 1;
 		String unit = useMicrons ? GeneralTools.micrometerSymbol() : "px";
 		
 		boolean doArea = params.getBooleanParameterValue("area");
@@ -161,7 +163,7 @@ public class ShapeFeaturesPlugin<T> extends AbstractInteractivePlugin<T> {
 	@Override
 	public ParameterList getDefaultParameterList(final ImageData<T> imageData) {
 		ImageServer<? extends T> server = imageData.getServer();
-		boolean pixelSizeMicrons = server != null && server.hasPixelSizeMicrons();
+		boolean pixelSizeMicrons = server != null && server.getPixelCalibration().hasPixelSizeMicrons();
 		params.getParameters().get("useMicrons").setHidden(!pixelSizeMicrons);
 		return params;
 	}

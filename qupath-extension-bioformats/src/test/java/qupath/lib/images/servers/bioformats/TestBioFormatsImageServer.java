@@ -43,6 +43,7 @@ import loci.plugins.in.ImporterOptions;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerProvider;
+import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.images.servers.bioformats.BioFormatsImageServer;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectIO;
@@ -170,21 +171,22 @@ public class TestBioFormatsImageServer {
 			
 			// Check pixel sizes
 			if (imp != null) {
+				PixelCalibration cal = server.getPixelCalibration();
 				if ("micron".equals(imp.getCalibration().getXUnit()))
-					assertEquals(imp.getCalibration().pixelWidth, server.getPixelWidthMicrons(), 0.00001);
+					assertEquals(imp.getCalibration().pixelWidth, cal.getPixelWidthMicrons(), 0.00001);
 				else
-					assertTrue(Double.isNaN(server.getPixelWidthMicrons()));
+					assertTrue(Double.isNaN(cal.getPixelWidthMicrons()));
 				if ("micron".equals(imp.getCalibration().getXUnit()))
-					assertEquals(imp.getCalibration().pixelHeight, server.getPixelHeightMicrons(), 0.00001);
+					assertEquals(imp.getCalibration().pixelHeight, cal.getPixelHeightMicrons(), 0.00001);
 				else
-					assertTrue(Double.isNaN(server.getPixelHeightMicrons()));
+					assertTrue(Double.isNaN(cal.getPixelHeightMicrons()));
 				
 				// Check z-slices, if appropriate
 				if (server.nZSlices() > 1) {
 					if ("micron".equals(imp.getCalibration().getZUnit()))
-						assertEquals(imp.getCalibration().pixelDepth, server.getZSpacingMicrons(), 0.00001);
+						assertEquals(imp.getCalibration().pixelDepth, cal.getZSpacingMicrons(), 0.00001);
 					else
-						assertTrue(Double.isNaN(server.getZSpacingMicrons()));
+						assertTrue(Double.isNaN(cal.getZSpacingMicrons()));
 				}
 				
 				// Check dimensions by comparison with ImageJ
@@ -217,13 +219,14 @@ public class TestBioFormatsImageServer {
 	 * @param server
 	 */
 	void printSummary(final ImageServer<?> server) {
+		PixelCalibration cal = server.getPixelCalibration();
 		System.out.println(
 				String.format(
 						"%s: %d x %d (c=%d, z=%d, t=%d), bpp=%d, mag=%.2f, downsamples=[%s], res=[%.4f,%.4f,%.4f]",
 						server.getPath(), server.getWidth(), server.getHeight(),
 						server.nChannels(), server.nZSlices(), server.nTimepoints(),
-						server.getBitsPerPixel(), server.getMetadata().getMagnification(), GeneralTools.arrayToString(Locale.getDefault(), server.getPreferredDownsamples(), 4),
-						server.getPixelWidthMicrons(), server.getPixelHeightMicrons(), server.getZSpacingMicrons())
+						server.getPixelType(), server.getMetadata().getMagnification(), GeneralTools.arrayToString(Locale.getDefault(), server.getPreferredDownsamples(), 4),
+						cal.getPixelWidthMicrons(), cal.getPixelHeightMicrons(), cal.getZSpacingMicrons())
 				);
 	}
 	

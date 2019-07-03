@@ -26,6 +26,8 @@ package qupath.lib.images.servers;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 
+import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
+import qupath.lib.images.servers.ImageServers.RotatedImageServerBuilder;
 import qupath.lib.regions.RegionRequest;
 
 /**
@@ -99,7 +101,8 @@ public class RotatedImageServer extends TransformingImageServer<BufferedImage> {
 			break;
 		case ROTATE_180:
 			metadata = new ImageServerMetadata.Builder(getClass(), server.getOriginalMetadata())
-						.path(getPath()).build();
+//						.path(getPath())
+						.build();
 			break;
 		case ROTATE_NONE:
 		default:
@@ -131,7 +134,7 @@ public class RotatedImageServer extends TransformingImageServer<BufferedImage> {
 		}
 		
 		var builder = new ImageServerMetadata.Builder(getClass(), metadata)
-				.path(getPath())
+//				.path(getPath())
 				.width(metadata.getHeight())
 				.height(metadata.getWidth())
 				.preferredTileSize(metadata.getPreferredTileHeight(), metadata.getPreferredTileWidth())
@@ -294,6 +297,11 @@ public class RotatedImageServer extends TransformingImageServer<BufferedImage> {
 	@Override
 	public String getServerType() {
 		return getWrappedServer().getServerType() + " (" + rotation + ")";
+	}
+	
+	@Override
+	public ServerBuilder<BufferedImage> getBuilder() {
+		return new RotatedImageServerBuilder(getMetadata(), getWrappedServer().getBuilder(), getRotation());
 	}
 
 }

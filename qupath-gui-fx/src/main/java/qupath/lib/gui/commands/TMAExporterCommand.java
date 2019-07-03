@@ -36,6 +36,7 @@ import qupath.lib.gui.io.PathAwtIO;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
+import qupath.lib.images.servers.ServerTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.plugins.workflow.DefaultScriptableWorkflowStep;
 import qupath.lib.plugins.workflow.WorkflowStep;
@@ -68,7 +69,7 @@ public class TMAExporterCommand implements PathCommand {
 			return;
 		}
 
-		String defaultName = viewer.getServer().getDisplayedImageName();
+		String defaultName = ServerTools.getDisplayableImageName(viewer.getServer());
 		File dirBase = dirPrevious;
 		if (dirBase == null && imageData.getLastSavedPath() != null)
 			dirBase = new File(imageData.getLastSavedPath()).getParentFile();

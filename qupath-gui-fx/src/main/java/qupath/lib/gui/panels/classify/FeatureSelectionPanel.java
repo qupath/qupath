@@ -58,7 +58,6 @@ import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.gui.helpers.PanelToolsFX;
 import qupath.lib.images.ImageData;
 import qupath.lib.measurements.MeasurementList;
-import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
 
 /**

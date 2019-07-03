@@ -25,16 +25,16 @@ package qupath.lib.images.servers.bioformats;
 
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.io.IOException;
 import java.util.Map;
 import java.net.URI;
-import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerBuilder;
+import qupath.lib.images.servers.FileFormatInfo;
 import qupath.lib.images.servers.FileFormatInfo.ImageCheckType;
 import qupath.lib.images.servers.bioformats.BioFormatsServerOptions.UseBioformats;
 
@@ -63,15 +63,26 @@ public class BioFormatsServerBuilder implements ImageServerBuilder<BufferedImage
 	}
 
 	@Override
-	public float supportLevel(URI uri, ImageCheckType type, Class<?> cls, String... args) {
-		// We only support BufferedImages
-		if (cls != BufferedImage.class)
-			return 0;
+	public UriImageSupport<BufferedImage> checkImageSupport(URI uri, String...args) throws IOException {
+		float supportLevel = supportLevel(uri, args);
+		if (supportLevel > 0) {
+			try (BioFormatsImageServer server = new BioFormatsImageServer(uri, BioFormatsServerOptions.getInstance(), args)) {
+				Map<String, ServerBuilder<BufferedImage>> builders = server.getImageBuilders();
+				return UriImageSupport.createInstance(this.getClass(), supportLevel, builders.values());
+			} catch (Exception e) {
+				logger.debug("Unable to create server using Bio-Formats", e);
+			}
+		}
+		return null;
+	}
+	
+	private float supportLevel(URI uri, String... args) {
 		
 		// We also can't do anything if Bio-Formats isn't installed
 		if (getBioFormatsVersion() == null)
 			return 0;
 		
+		ImageCheckType type = FileFormatInfo.checkType(uri);
 		if (type.isURL())
 			return 0;
 				
@@ -132,11 +143,6 @@ public class BioFormatsServerBuilder implements ImageServerBuilder<BufferedImage
 		lastSupportLevel.put(uri, Float.valueOf(support));
 		return support;
 	}
-	
-	@Override
-	public Collection<String> getServerClassNames() {
-		return Collections.singleton(BioFormatsImageServer.class.getName());
-	}
 
 	@Override
 	public String getName() {
@@ -150,6 +156,11 @@ public class BioFormatsServerBuilder implements ImageServerBuilder<BufferedImage
 			return "Image server using the Bio-Formats library - but it won't work because 'bioformats_package.jar' is missing.";
 		else
 			return "Image server using the Bio-Formats library (" + bfVersion + ")";
+	}
+	
+	@Override
+	public Class<BufferedImage> getImageType() {
+		return BufferedImage.class;
 	}
 	
 	/**

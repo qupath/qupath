@@ -2,7 +2,6 @@ package qupath.lib.images.servers;
 
 import java.io.IOException;
 import java.net.URI;
-import java.util.Collection;
 import java.util.List;
 
 import com.google.gson.annotations.JsonAdapter;
@@ -58,11 +57,6 @@ class SimpleWrappedImageServer<T> implements ImageServer<T> {
 	}
 
 	@Override
-	public URI getURI() {
-		return server.getURI();
-	}
-
-	@Override
 	public String getShortServerName() {
 		return server.getShortServerName();
 	}
@@ -75,11 +69,6 @@ class SimpleWrappedImageServer<T> implements ImageServer<T> {
 	@Override
 	public int nResolutions() {
 		return server.nResolutions();
-	}
-
-	@Override
-	public double getPreferredDownsampleFactor(double requestedDownsample) {
-		return server.getPreferredDownsampleFactor(requestedDownsample);
 	}
 
 	@Override
@@ -118,31 +107,6 @@ class SimpleWrappedImageServer<T> implements ImageServer<T> {
 	}
 
 	@Override
-	public double getZSpacingMicrons() {
-		return server.getZSpacingMicrons();
-	}
-
-	@Override
-	public double getPixelWidthMicrons() {
-		return server.getPixelWidthMicrons();
-	}
-
-	@Override
-	public double getPixelHeightMicrons() {
-		return server.getPixelHeightMicrons();
-	}
-
-	@Override
-	public double getAveragedPixelSizeMicrons() {
-		return server.getAveragedPixelSizeMicrons();
-	}
-
-	@Override
-	public boolean hasPixelSizeMicrons() {
-		return server.hasPixelSizeMicrons();
-	}
-
-	@Override
 	public T getCachedTile(TileRequest tile) {
 		return server.getCachedTile(tile);
 	}
@@ -150,16 +114,6 @@ class SimpleWrappedImageServer<T> implements ImageServer<T> {
 	@Override
 	public String getServerType() {
 		return server.getServerType();
-	}
-
-	@Override
-	public List<String> getSubImageList() {
-		return server.getSubImageList();
-	}
-
-	@Override
-	public ImageServer<T> openSubImage(String imageName) throws IOException {
-		return server.openSubImage(imageName);
 	}
 
 	@Override
@@ -173,28 +127,18 @@ class SimpleWrappedImageServer<T> implements ImageServer<T> {
 	}
 
 	@Override
-	public String getDisplayedImageName() {
-		return server.getDisplayedImageName();
-	}
-
-	@Override
 	public boolean isEmptyRegion(RegionRequest request) {
 		return server.isEmptyRegion(request);
 	}
 
 	@Override
-	public int getBitsPerPixel() {
-		return server.getBitsPerPixel();
+	public PixelType getPixelType() {
+		return server.getPixelType();
 	}
 
 	@Override
 	public ImageChannel getChannel(int channel) {
 		return server.getChannel(channel);
-	}
-
-	@Override
-	public List<ImageChannel> getChannels() {
-		return server.getChannels();
 	}
 
 	@Override
@@ -213,18 +157,8 @@ class SimpleWrappedImageServer<T> implements ImageServer<T> {
 	}
 
 	@Override
-	public Collection<TileRequest> getAllTileRequests() {
-		return server.getAllTileRequests();
-	}
-
-	@Override
-	public TileRequest getTile(int level, int x, int y, int z, int t) {
-		return server.getTile(level, x, y, z, t);
-	}
-
-	@Override
-	public Collection<TileRequest> getTiles(RegionRequest request) {
-		return server.getTiles(request);
+	public TileRequestManager getTileRequestManager() {
+		return server.getTileRequestManager();
 	}
 
 	@Override

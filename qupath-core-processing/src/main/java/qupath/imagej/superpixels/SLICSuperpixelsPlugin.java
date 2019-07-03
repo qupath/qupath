@@ -49,6 +49,7 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.PathImage;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.plugins.AbstractTileableDetectionPlugin;
@@ -99,8 +100,10 @@ public class SLICSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffe
 	
 	
 	private static double getPreferredDownsample(final ImageData<BufferedImage> imageData, final ParameterList params) {
-		boolean hasPixelSizeMicrons = imageData.getServer().hasPixelSizeMicrons();
-		double spacingPixels = hasPixelSizeMicrons ? params.getDoubleParameterValue("spacingMicrons") / imageData.getServer().getAveragedPixelSizeMicrons() : params.getDoubleParameterValue("spacingPixels");
+		
+		PixelCalibration cal = imageData.getServer().getPixelCalibration();
+		boolean hasPixelSizeMicrons = cal.hasPixelSizeMicrons();
+		double spacingPixels = hasPixelSizeMicrons ? params.getDoubleParameterValue("spacingMicrons") / cal.getAveragedPixelSizeMicrons() : params.getDoubleParameterValue("spacingPixels");
 		
 		// We aim to have about PREFERRED_PIXEL_SPACING spacing, so need to downsample the image accordingly
 		double downsample = Math.max(1, Math.round(spacingPixels / PREFERRED_PIXEL_SPACING));
@@ -110,8 +113,9 @@ public class SLICSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffe
 
 	@Override
 	protected double getPreferredPixelSizeMicrons(final ImageData<BufferedImage> imageData, final ParameterList params) {
-		if (imageData.getServer().hasPixelSizeMicrons())
-			return imageData.getServer().getAveragedPixelSizeMicrons() * getPreferredDownsample(imageData, params);
+		PixelCalibration cal = imageData.getServer().getPixelCalibration();
+		if (cal.hasPixelSizeMicrons())
+			return cal.getAveragedPixelSizeMicrons() * getPreferredDownsample(imageData, params);
 		return getPreferredDownsample(imageData, params);
 	}
 
@@ -141,7 +145,7 @@ public class SLICSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffe
 //				.addBooleanParameter("doMerge", "Merge similar", false, "Merge neighboring superpixels if they are similar to one another")
 				;
 		
-		boolean hasMicrons = imageData != null && imageData.getServer().hasPixelSizeMicrons();
+		boolean hasMicrons = imageData != null && imageData.getServer().getPixelCalibration().hasPixelSizeMicrons();
 		params.getParameters().get("sigmaPixels").setHidden(hasMicrons);
 		params.getParameters().get("sigmaMicrons").setHidden(!hasMicrons);
 		params.getParameters().get("spacingPixels").setHidden(hasMicrons);
@@ -477,7 +481,7 @@ public class SLICSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffe
 		
 		
 		static double getSigma(final PathImage<?> pathImage, final ParameterList params) {
-			double pixelSizeMicrons = .5 * (pathImage.getPixelWidthMicrons() + pathImage.getPixelHeightMicrons());
+			double pixelSizeMicrons = pathImage.getPixelCalibration().getAveragedPixelSizeMicrons();
 			if (Double.isNaN(pixelSizeMicrons)) {
 				return params.getDoubleParameterValue("sigmaPixels") * pathImage.getDownsampleFactor();				
 			} else

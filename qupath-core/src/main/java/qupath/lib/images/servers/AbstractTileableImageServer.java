@@ -7,7 +7,7 @@ import java.awt.image.ColorModel;
 import java.awt.image.Raster;
 import java.awt.image.WritableRaster;
 import java.io.IOException;
-import java.net.URI;
+import java.util.Collection;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,8 +29,8 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 	
 	private static final Logger logger = LoggerFactory.getLogger(AbstractTileableImageServer.class);
 		
-	protected AbstractTileableImageServer(URI uri) {
-		super(uri, BufferedImage.class);
+	protected AbstractTileableImageServer() {
+		super(BufferedImage.class);
 	}
 	
 	
@@ -100,7 +100,7 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 			return duplicate(img);
 		
 		// Figure out which tiles we need
-		var tiles = getTiles(request);
+		Collection<TileRequest> tiles = getTileRequestManager().getTileRequests(request);
 		
 		// If no tiles found, we assume a sparse image with nothing relevant to display for this location
 		if (tiles.isEmpty())

@@ -27,13 +27,12 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.net.URI;
 import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 import org.openslide.OpenSlide;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import qupath.lib.images.servers.FileFormatInfo;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerBuilder;
 import qupath.lib.images.servers.FileFormatInfo.ImageCheckType;
@@ -109,13 +108,19 @@ public class OpenslideServerBuilder implements ImageServerBuilder<BufferedImage>
 		}
 		return null;
 	}
-
+	
 	@Override
-	public float supportLevel(URI uri, ImageCheckType type, Class<?> cls, String...args) {
-		if (cls != BufferedImage.class || openslideUnavailable)
+	public UriImageSupport<BufferedImage> checkImageSupport(URI uri, String...args) {
+		float supportLevel = supportLevel(uri, args);
+		return UriImageSupport.createInstance(this.getClass(), supportLevel, DefaultImageServerBuilder.createInstance(this.getClass(), uri, args));
+	}
+
+	private float supportLevel(URI uri, String...args) {
+		if (openslideUnavailable)
 			return 0;
 		
 		// Don't handle queries or fragments with OpenSlide
+		ImageCheckType type = FileFormatInfo.checkType(uri);
 		if (type.isURL() || type.getFile() == null)
 			return 0;
 		
@@ -150,10 +155,10 @@ public class OpenslideServerBuilder implements ImageServerBuilder<BufferedImage>
 	public String getDescription() {
 		return "Provides basic access to whole slide image formats supported by OpenSlide - see http://openslide.org";
 	}
-
+	
 	@Override
-	public Collection<String> getServerClassNames() {
-		return Collections.singleton(OpenslideImageServer.class.getName());
+	public Class<BufferedImage> getImageType() {
+		return BufferedImage.class;
 	}
 	
 }

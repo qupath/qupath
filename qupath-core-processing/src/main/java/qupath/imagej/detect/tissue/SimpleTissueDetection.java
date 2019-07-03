@@ -53,6 +53,7 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.PathImage;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
@@ -154,7 +155,7 @@ class SimpleTissueDetection extends AbstractDetectionPlugin<BufferedImage> {
 			
 			double threshold = params.getIntParameterValue("threshold");
 			double minAreaMicrons = 1, maxHoleAreaMicrons = 1, minAreaPixels = 1, maxHoleAreaPixels = 1;
-			if (server.hasPixelSizeMicrons()) {
+			if (server.getPixelCalibration().hasPixelSizeMicrons()) {
 				minAreaMicrons = params.getDoubleParameterValue("minAreaMicrons");
 				maxHoleAreaMicrons = params.getDoubleParameterValue("maxHoleAreaMicrons");
 			} else {
@@ -203,8 +204,9 @@ class SimpleTissueDetection extends AbstractDetectionPlugin<BufferedImage> {
 			
 			// Convert to objects
 			double minArea, maxHoleArea;
-			if (server.hasPixelSizeMicrons()) {
-				double areaScale = 1.0 / (server.getAveragedPixelSizeMicrons() * server.getAveragedPixelSizeMicrons() * downsample * downsample);
+			PixelCalibration cal = server.getPixelCalibration();
+			if (cal.hasPixelSizeMicrons()) {
+				double areaScale = 1.0 / (cal.getAveragedPixelSizeMicrons() * cal.getAveragedPixelSizeMicrons() * downsample * downsample);
 				minArea = minAreaMicrons * areaScale;
 				maxHoleArea = maxHoleAreaMicrons * areaScale;
 			} else {
@@ -368,7 +370,7 @@ class SimpleTissueDetection extends AbstractDetectionPlugin<BufferedImage> {
 	@Override
 	public ParameterList getDefaultParameterList(final ImageData<BufferedImage> imageData) {
 		Map<String, Parameter<?>> map = params.getParameters();
-		boolean micronsKnown = imageData.getServer().hasPixelSizeMicrons();
+		boolean micronsKnown = imageData.getServer().getPixelCalibration().hasPixelSizeMicrons();
 		map.get("minAreaMicrons").setHidden(!micronsKnown);
 		map.get("maxHoleAreaMicrons").setHidden(!micronsKnown);
 		map.get("minAreaPixels").setHidden(micronsKnown);

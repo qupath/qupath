@@ -13,6 +13,7 @@ import com.google.gson.reflect.TypeToken;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
 
+import qupath.lib.images.servers.ImageServers;
 import qupath.lib.io.PathObjectTypeAdapters.FeatureCollection;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.objects.PathObject;
@@ -40,8 +41,12 @@ import qupath.lib.roi.interfaces.ROI;
 public class GsonTools {
 	
 	private static Gson gson = new GsonBuilder()
+			.serializeSpecialFloatingPointValues()
+			.setLenient()
 			.registerTypeAdapterFactory(new QuPathTypeAdapterFactory())
 			.registerTypeAdapterFactory(OpenCVTypeAdapters.getOpenCVTypeAdaptorFactory())
+			.registerTypeAdapterFactory(ImageServers.getImageServerTypeAdapterFactory(true))
+			.registerTypeAdapterFactory(ImageServers.serverBuilderFactory)
 //			.registerTypeHierarchyAdapter(PathObject.class, PathObjectTypeAdapters.PathObjectTypeAdapter.INSTANCE)
 //			.registerTypeHierarchyAdapter(MeasurementList.class, PathObjectTypeAdapters.MeasurementListTypeAdapter.INSTANCE)
 //			.registerTypeHierarchyAdapter(FeatureCollection.class, PathObjectTypeAdapters.PathObjectCollectionTypeAdapter.INSTANCE)
@@ -50,8 +55,6 @@ public class GsonTools {
 //			.registerTypeAdapter(PathClass.class, PathClassTypeAdapter.INSTANCE)
 //			.registerTypeAdapter(ImagePlane.class, ImagePlaneTypeAdapter.INSTANCE)
 //			.registerTypeAdapterFactory(OpenCVTypeAdapters.getOpenCVTypeAdaptorFactory())
-			.serializeSpecialFloatingPointValues()
-			.setLenient()
 			.create();
 	
 	

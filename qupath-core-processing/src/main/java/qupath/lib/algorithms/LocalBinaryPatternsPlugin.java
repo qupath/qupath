@@ -45,6 +45,7 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.geom.ImmutableDimension;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
@@ -85,10 +86,11 @@ public class LocalBinaryPatternsPlugin extends AbstractInteractivePlugin<Buffere
 	static ImmutableDimension getPreferredTileSizePixels(final ImageServer<BufferedImage> server, final ParameterList params) {
 		// Determine tile size
 		int tileWidth, tileHeight;
-		if (server.hasPixelSizeMicrons()) {
+		PixelCalibration cal = server.getPixelCalibration();
+		if (cal.hasPixelSizeMicrons()) {
 			double tileSize = params.getDoubleParameterValue("tileSizeMicrons");
-			tileWidth = (int)(tileSize / server.getPixelWidthMicrons() + .5);
-			tileHeight = (int)(tileSize / server.getPixelHeightMicrons() + .5);
+			tileWidth = (int)(tileSize / cal.getPixelWidthMicrons() + .5);
+			tileHeight = (int)(tileSize / cal.getPixelHeightMicrons() + .5);
 		} else {
 			tileWidth = (int)(params.getDoubleParameterValue("tileSizePx") + .5);
 			tileHeight = tileWidth;
@@ -97,7 +99,7 @@ public class LocalBinaryPatternsPlugin extends AbstractInteractivePlugin<Buffere
 	}
 	
 	static String getDiameterString(final ImageServer<BufferedImage> server, final ParameterList params) {
-		if (server.hasPixelSizeMicrons())
+		if (server.getPixelCalibration().hasPixelSizeMicrons())
 			return String.format("%.1f %s", params.getDoubleParameterValue("tileSizeMicrons"), GeneralTools.micrometerSymbol());
 		else
 			return String.format("%d px", (int)(params.getDoubleParameterValue("tileSizePx") + .5));
@@ -286,7 +288,7 @@ public class LocalBinaryPatternsPlugin extends AbstractInteractivePlugin<Buffere
 
 	@Override
 	public ParameterList getDefaultParameterList(final ImageData<BufferedImage> imageData) {
-		boolean hasMicrons = imageData.getServer().hasPixelSizeMicrons();
+		boolean hasMicrons = imageData.getServer().getPixelCalibration().hasPixelSizeMicrons();
 		params.getParameters().get("tileSizeMicrons").setHidden(!hasMicrons);
 		params.getParameters().get("tileSizePx").setHidden(hasMicrons);
 		return params;

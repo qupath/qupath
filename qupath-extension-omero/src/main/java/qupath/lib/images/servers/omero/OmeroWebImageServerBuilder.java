@@ -17,7 +17,6 @@ import java.net.PasswordAuthentication;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -44,7 +43,6 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerBuilder;
-import qupath.lib.images.servers.FileFormatInfo.ImageCheckType;
 
 /**
  * Builder for ImageServers that make requests from the OMERO web API.
@@ -80,7 +78,7 @@ public class OmeroWebImageServerBuilder implements ImageServerBuilder<BufferedIm
 		try {
 			String host = uri.getHost();
 
-			if (supportLevel(uri, null, BufferedImage.class) <= 0) {
+			if (supportLevel(uri) <= 0) {
 				logger.debug("OMERO web server does not support {}", uri);
 				return null;
 			}
@@ -138,10 +136,12 @@ public class OmeroWebImageServerBuilder implements ImageServerBuilder<BufferedIm
 	}
 
 	@Override
-	public float supportLevel(URI uri, ImageCheckType type, Class<?> cls, String...args) {
-		// We only support BufferedImages
-		if (cls != BufferedImage.class)
-			return 0;
+	public UriImageSupport<BufferedImage> checkImageSupport(URI uri, String...args) {
+		float supportLevel = supportLevel(uri, args);
+		return UriImageSupport.createInstance(this.getClass(), supportLevel, DefaultImageServerBuilder.createInstance(this.getClass(), uri, args));
+	}
+	
+	private float supportLevel(URI uri, String...args) {
 
 		String host = uri.getHost();
 
@@ -177,7 +177,12 @@ public class OmeroWebImageServerBuilder implements ImageServerBuilder<BufferedIm
 	public String getDescription() {
 		return "Image server using the OMERO web API";
 	}
-
+	
+	@Override
+	public Class<BufferedImage> getImageType() {
+		return BufferedImage.class;
+	}
+	
 	static class OmeroWebClient {
 
 		private Timer timer;
@@ -457,11 +462,6 @@ public class OmeroWebImageServerBuilder implements ImageServerBuilder<BufferedIm
 			return new PasswordAuthentication(userName, tfPassword.getText().toCharArray());
 		}
 
-	}
-
-	@Override
-	public Collection<String> getServerClassNames() {
-		return Collections.singleton(OmeroServer.class.getName());
 	}
 
 }

@@ -17,9 +17,10 @@ import java.util.stream.Collectors;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.reflect.TypeToken;
 
 import qupath.lib.images.servers.ImageServer;
-import qupath.lib.images.servers.ImageServers;
+import qupath.lib.io.GsonTools;
 
 /**
  * Simple manager to handle saving and retrieving resources of different kinds from projects.
@@ -139,14 +140,14 @@ class ImageResourceManager<T> extends FileResourceManager<ImageServer<T>> {
 	public ImageServer<T> getResource(String name) throws IOException {
 		var path = Paths.get(dir.toString(), name + ext);
 		try (var reader = Files.newBufferedReader(path)) {
-			return ImageServers.fromJson(reader, cls);
+			return GsonTools.getGsonDefault().fromJson(reader, new TypeToken<ImageServer<T>>() {}.getType());
 		}
 	}
 
 	@Override
 	public void putResource(String name, ImageServer<T> server) throws IOException {
 		var path = Paths.get(ensureDirectoryExists(dir).toString(), name + ext);
-		var json = ImageServers.toJson(server, true);
+		var json = GsonTools.getGsonDefault().toJson(server);
 		Files.writeString(path, json, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
 	}
 	

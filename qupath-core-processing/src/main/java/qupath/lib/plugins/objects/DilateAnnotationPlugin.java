@@ -37,6 +37,7 @@ import org.slf4j.LoggerFactory;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
@@ -91,7 +92,7 @@ public class DilateAnnotationPlugin<T> extends AbstractInteractivePlugin<T> {
 
 	@Override
 	public ParameterList getDefaultParameterList(ImageData<T> imageData) {
-		boolean hasMicrons = imageData.getServer().hasPixelSizeMicrons();
+		boolean hasMicrons = imageData.getServer().getPixelCalibration().hasPixelSizeMicrons();
 		params.setHiddenParameters(hasMicrons, "radiusPixels");
 		params.setHiddenParameters(!hasMicrons, "radiusMicrons");
 		return params;
@@ -118,8 +119,9 @@ public class DilateAnnotationPlugin<T> extends AbstractInteractivePlugin<T> {
 		PathObjectHierarchy hierarchy = getHierarchy(runner);
 		
 		double radiusPixels;
-		if (server.hasPixelSizeMicrons())
-			radiusPixels = params.getDoubleParameterValue("radiusMicrons") / server.getAveragedPixelSizeMicrons();
+		PixelCalibration cal = server.getPixelCalibration();
+		if (cal.hasPixelSizeMicrons())
+			radiusPixels = params.getDoubleParameterValue("radiusMicrons") / cal.getAveragedPixelSizeMicrons();
 		else
 			radiusPixels = params.getDoubleParameterValue("radiusPixels");
 		

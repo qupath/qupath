@@ -309,6 +309,7 @@ import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerBuilder;
 import qupath.lib.images.servers.ImageServerProvider;
 import qupath.lib.images.servers.RotatedImageServer;
+import qupath.lib.images.servers.ServerTools;
 import qupath.lib.images.servers.RotatedImageServer.Rotation;
 import qupath.lib.io.PathIO;
 import qupath.lib.objects.PathAnnotationObject;
@@ -720,7 +721,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		
 		// Open an image, if required
 		if (path != null)
-			openImage(path, false, false, false);
+			openImage(path, false, false);
 		
 		// Set the icons
 		stage.getIcons().addAll(loadIconList());
@@ -2261,15 +2262,15 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	 * 
 	 * @param entry
 	 */
-	public void openImageEntry(ProjectImageEntry<BufferedImage> entry) {
+	public boolean openImageEntry(ProjectImageEntry<BufferedImage> entry) {
 		if (entry == null)
-			return;
+			return false;
 		
 		// Check if we're changing ImageData at all
 		var viewer = getViewer();
 		ImageData<BufferedImage> imageData = viewer.getImageData();
 		if (imageData != null && imageData.getServerPath().equals(entry.getServerPath()))
-			return;
+			return false;
 		
 		// Check to see if the ImageData is already open in another viewer - if so, just activate it
 		String path = entry.getServerPath();
@@ -2277,7 +2278,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			ImageData<?> data = v.getImageData();
 			if (data != null && data.getServer().getPath().equals(path)) {
 				viewerManager.setActiveViewer(v);
-				return ;
+				return true;
 			}
 		}
 		
@@ -2285,7 +2286,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		Project<BufferedImage> project = getProject();
 		if (imageData != null && project != null) {
 			if (!checkSaveChanges(imageData))
-				return;
+				return false;
 		}
 
 		// Check if we need to rotate the image
@@ -2302,8 +2303,10 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 					PathImageDetailsPanel.promptToSetImageType(imageData);
 				}
 			}
+			return true;
 		} catch (Exception e) {
 			DisplayHelpers.showErrorMessage("Load ImageData", e);
+			return false;
 		}
 	}
 	
@@ -2326,7 +2329,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		if (!imageData.isChanged())
 			return true;
 		ProjectImageEntry<BufferedImage> entry = getProjectImageEntry(imageData);
-		String name = entry == null ? imageData.getServer().getDisplayedImageName() : entry.getImageName();
+		String name = entry == null ? ServerTools.getDisplayableImageName(imageData.getServer()) : entry.getImageName();
 		var response = DisplayHelpers.showYesNoCancelDialog("Save changes", "Save changes to " + name + "?");
 		if (response == DialogButton.CANCEL)
 			return false;
@@ -2364,9 +2367,9 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	 * @param prompt - if true, give the user the opportunity to cancel opening if a whole slide server is already set
 	 * @return true if the server was set for this GUI, false otherwise
 	 */
-	public boolean openImage(String pathNew, boolean prompt, boolean includeURLs, boolean rotate180) {
+	public boolean openImage(String pathNew, boolean prompt, boolean includeURLs) {
 		try {
-			return openImage(getViewer(), pathNew, prompt, includeURLs, rotate180);
+			return openImage(getViewer(), pathNew, prompt, includeURLs);
 		} catch (IOException e) {
 			DisplayHelpers.showErrorMessage("Open image", e);
 			return false;
@@ -2377,11 +2380,13 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	 * Open a new whole slide image server, or ImageData.
 	 * If the path is the same as a currently-open server, do nothing.
 	 * 
-	 * @param prompt - if true, give the user the opportunity to cancel opening if a whole slide server is already set
+	 * @param viewer the viewer into which the image should be opened
+	 * @param prompt if true, give the user the opportunity to cancel opening if a whole slide server is already set
+	 * @param includeURLs if true, any prompt should support URL input and not only a file chooser
 	 * @return true if the server was set for this GUI, false otherwise
 	 * @throws IOException 
 	 */
-	public boolean openImage(QuPathViewer viewer, String pathNew, boolean prompt, boolean includeURLs, boolean rotate180) throws IOException {
+	public boolean openImage(QuPathViewer viewer, String pathNew, boolean prompt, boolean includeURLs) throws IOException {
 		
 		if (viewer == null) {
 			if (getViewers().size() == 1)
@@ -2448,14 +2453,19 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		
 		// Try opening an image, unless it's the same as the image currently open
 		if (!pathNew.equals(pathOld)) {
+			// If we have a project, show the import dialog
+			if (getProject() != null) {
+				List<ProjectImageEntry<BufferedImage>> entries = ProjectImportImagesCommand.promptToImportImages(this, pathNew);
+				if (entries.isEmpty())
+					return false;
+				return openImageEntry(entries.get(0));
+			}
 			ImageServer<BufferedImage> serverNew = ImageServerProvider.buildServer(pathNew, BufferedImage.class);
 			if (serverNew != null) {
 				if (pathOld != null && prompt && !viewer.getHierarchy().isEmpty()) {
 					if (!DisplayHelpers.showYesNoDialog("Replace open image", "Close " + server.getShortServerName() + "?"))
 						return false;
 				}
-				if (rotate180)
-					serverNew = new RotatedImageServer(serverNew, Rotation.ROTATE_180);
 				ImageData<BufferedImage> imageData = serverNew == null ? null : createNewImageData(serverNew); // TODO: DEAL WITH PATHOBJECT HIERARCHIES!
 				
 				viewer.setImageData(imageData);
@@ -4524,7 +4534,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 					return;
 				getViewer().setImageData(null);
 			} else
-				ProjectImportImagesCommand.addSingleImageToProject(project, imageData.getServer());
+				ProjectImportImagesCommand.addSingleImageToProject(project, imageData.getServer(), null);
 		}
 		
 		// Store in recent list, if needed
@@ -4767,13 +4777,13 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		}
 		DialogButton response = DialogButton.YES;
 		if (imageData.isChanged()) {
-			response = DisplayHelpers.showYesNoCancelDialog(dialogTitle, "Save changes to " + imageData.getServer().getShortServerName() + "?");
+			response = DisplayHelpers.showYesNoCancelDialog(dialogTitle, "Save changes to " + ServerTools.getDisplayableImageName(imageData.getServer()) + "?");
 		}
 		if (response == DialogButton.CANCEL)
 			return false;
 		if (response == DialogButton.YES) {
 			if (filePrevious == null && entry == null) {
-				filePrevious = getDialogHelper().promptToSaveFile("Save image data", filePrevious, imageData.getServer().getShortServerName(), "QuPath Serialized Data", PathPrefs.getSerializationExtension());
+				filePrevious = getDialogHelper().promptToSaveFile("Save image data", filePrevious, ServerTools.getDisplayableImageName(imageData.getServer()), "QuPath Serialized Data", PathPrefs.getSerializationExtension());
 				if (filePrevious == null)
 					return false;
 			}

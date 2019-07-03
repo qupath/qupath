@@ -17,6 +17,7 @@ import java.util.TreeSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
 
@@ -54,8 +55,8 @@ public class SparseImageServer extends AbstractTileableImageServer {
 	 * @param path path to use as an identifier for the server
 	 * @throws IOException
 	 */
-	public SparseImageServer(SparseImageServerManager manager, String path) throws IOException {
-		super(null);
+	private SparseImageServer(SparseImageServerManager manager, String path) throws IOException {
+		super();
 		
 		this.manager = manager;
 		
@@ -100,7 +101,8 @@ public class SparseImageServer extends AbstractTileableImageServer {
 		int height = y2 - y1;
 		
 		this.metadata = new ImageServerMetadata.Builder(getClass(), metadata)
-				.path(path)
+				.id(path)
+//				.id(UUID.randomUUID().toString())
 				.name("Sparse image (" + manager.getRegions().size() + " regions)")
 				.width(width)
 				.height(height)
@@ -129,6 +131,14 @@ public class SparseImageServer extends AbstractTileableImageServer {
 	}
 	
 	@Override
+	public ServerBuilder<BufferedImage> getBuilder() {
+		List<SparseImageServerManagerRegion> resolutions = new ArrayList<>();
+		for (var entry : manager.regionMap.entrySet())
+			resolutions.add(new SparseImageServerManagerRegion(entry.getKey(), entry.getValue()));
+		return new ImageServers.SparseImageServerBuilder(getMetadata(), resolutions, getPath());
+	}
+	
+	@Override
 	public void close() throws Exception {
 		manager.close();
 		super.close();
@@ -153,20 +163,21 @@ public class SparseImageServer extends AbstractTileableImageServer {
 				int y2 = Math.min(tileRequest.getImageY() + originY + tileRequest.getImageHeight(), subRegion.getY() + subRegion.getHeight());
 				
 				// Determine request coordinates
-				// TODO: Test whether sparse images with pyramidal regions work
+				// TODO: Test whether sparse images with pyramidal regions work, or images stored as single planes at pre-specified downsamples
 				int xr = x1 - subRegion.getX();
 				int yr = y1 - subRegion.getY();
 				int xr2 = x2 - subRegion.getX();
 				int yr2 = y2 - subRegion.getY();
 				double requestDownsample = downsample;
-				if (requestDownsample > 1 && serverTemp.nResolutions() == 1) {
-					requestDownsample = serverTemp.getDownsampleForResolution(0);
-					double scale = requestDownsample / downsample;
-					xr = (int)Math.round(xr * scale);					
-					yr = (int)Math.round(yr * scale);					
-					xr2 = (int)Math.round(xr2 * scale);					
-					yr2 = (int)Math.round(yr2 * scale);	
-				}
+//				if (requestDownsample > 1 && serverTemp.nResolutions() == 1) {
+//					requestDownsample = serverTemp.getDownsampleForResolution(0);
+//					double scale = requestDownsample / downsample;
+//					xr = (int)Math.round(xr * scale);					
+//					yr = (int)Math.round(yr * scale);					
+//					xr2 = (int)Math.round(xr2 * scale);					
+//					yr2 = (int)Math.round(yr2 * scale);	
+//					System.err.println(downsample + ", " + scale + ": " + serverTemp.getPath());
+//				}
 				
 				RegionRequest requestTemp = RegionRequest.createInstance(
 						serverTemp.getPath(), requestDownsample,
@@ -224,13 +235,13 @@ public class SparseImageServer extends AbstractTileableImageServer {
 		 * Add a region based on a JSON representation of an ImageServer.
 		 * @param region the region within this image where the pixels requested from the server should be positioned
 		 * @param downsample the downsample value for the represented region
-		 * @param json the JSON representation of the server to include
+		 * @param builder the ServerBuilder representation of the server to include
 		 * @return
 		 * 
 		 * @see ImageServers
 		 */
-		public synchronized Builder jsonRegion(ImageRegion region, double downsample, String json) {
-			manager.addRegionServer(region, downsample, json);
+		public synchronized Builder jsonRegion(ImageRegion region, double downsample, ServerBuilder<BufferedImage> builder) {
+			manager.addRegionServer(region, downsample, builder);
 			return this;
 		}
 		
@@ -270,7 +281,7 @@ public class SparseImageServer extends AbstractTileableImageServer {
 		SparseImageServerManager manager = new SparseImageServerManager();
 		for (SparseImageServerManagerRegion region : regions) {
 			for (SparseImageServerManagerResolution resolution : region.resolutions)
-				manager.addRegionServer(region.region, resolution.getDownsample(), resolution.getServerJson());
+				manager.addRegionServer(region.region, resolution.getDownsample(), resolution.getServerBuilder());
 		} 
 		return manager;
 	}
@@ -288,7 +299,7 @@ public class SparseImageServer extends AbstractTileableImageServer {
 		private Set<Double> downsamples = new TreeSet<>();
 		
 		private transient List<ImageRegion> regionList;
-		private transient Map<String, ImageServer<BufferedImage>> serverMap = new HashMap<>();
+		private transient Map<ServerBuilder<BufferedImage>, ImageServer<BufferedImage>> serverMap = new HashMap<>();
 		
 		/**
 		 * Add the path to a new ImageServer for a specified region & downsample.
@@ -297,7 +308,7 @@ public class SparseImageServer extends AbstractTileableImageServer {
 		 * @param downsample
 		 * @param json a JSON String representing the server
 		 */
-		private synchronized void addRegionServer(ImageRegion region, double downsample, String json) {
+		private synchronized void addRegionServer(ImageRegion region, double downsample, ServerBuilder<BufferedImage> serverBuilder) {
 			resetCaches();
 			
 			List<SparseImageServerManagerResolution> resolutions = regionMap.get(region);
@@ -310,7 +321,7 @@ public class SparseImageServer extends AbstractTileableImageServer {
 			while (ind < resolutions.size() && downsample > resolutions.get(ind).getDownsample()) {
 				ind++;
 			}
-			resolutions.add(ind, new SparseImageServerManagerResolution(json, downsample));
+			resolutions.add(ind, new SparseImageServerManagerResolution(serverBuilder, downsample));
 		}
 		
 		/**
@@ -323,10 +334,10 @@ public class SparseImageServer extends AbstractTileableImageServer {
 		 * @param server
 		 */
 		private synchronized void addRegionServer(ImageRegion region, double downsample, ImageServer<BufferedImage> server) {
-			String json = ImageServers.toJson(server, false);
-			 if (!serverMap.containsKey(json))
-				serverMap.put(server.getPath(), server);
-			 addRegionServer(region, downsample, json);
+			ServerBuilder<BufferedImage> builder = server.getBuilder();
+			 if (!serverMap.containsKey(builder))
+				serverMap.put(builder, server);
+			 addRegionServer(region, downsample, builder);
 		 }
 		
 		private void resetCaches() {
@@ -371,11 +382,17 @@ public class SparseImageServer extends AbstractTileableImageServer {
 			
 			// Create a new ImageServer if we need to, or reuse an existing one
 			// Note: the same server might be reused for multiple regions/resolutions if they have the same path
-			String json = resolutions.get(level).getServerJson();
-			ImageServer<BufferedImage> server = serverMap.get(json);
+			ServerBuilder<BufferedImage> builder = resolutions.get(level).getServerBuilder();
+			ImageServer<BufferedImage> server = serverMap.get(builder);
 			if (server == null) {
-				server = ImageServers.fromJson(json, BufferedImage.class);
-				serverMap.put(json, server);
+				try {
+					server = builder.build();
+				} catch (IOException e) {
+					throw e;
+				} catch (Exception e) {
+					throw new IOException(e);
+				}
+				serverMap.put(builder, server);
 			}
 			return server;
 		}
@@ -408,15 +425,15 @@ public class SparseImageServer extends AbstractTileableImageServer {
 	private static class SparseImageServerManagerResolution {
 		
 		private final double downsample;
-		private final String serverJson;
+		private final ServerBuilder<BufferedImage> serverBuilder;
 
-		SparseImageServerManagerResolution(String serverJson, double downsample) {
-			this.serverJson = serverJson;
+		SparseImageServerManagerResolution(ServerBuilder<BufferedImage> serverBuilder, double downsample) {
+			this.serverBuilder = serverBuilder;
 			this.downsample = downsample;
 		}
 		
-		String getServerJson() {
-			return serverJson;
+		ServerBuilder<BufferedImage> getServerBuilder() {
+			return serverBuilder;
 		}
 		
 		double getDownsample() {

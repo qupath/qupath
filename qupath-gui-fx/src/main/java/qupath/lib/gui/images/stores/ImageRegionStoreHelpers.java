@@ -31,6 +31,7 @@ import java.util.List;
 import qupath.lib.awt.common.AwtTools;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.ServerTools;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
 
@@ -77,7 +78,7 @@ public class ImageRegionStoreHelpers {
 		if (regions == null)
 			regions = new ArrayList<>();
 		
-		for (var tile : server.getTiles(request))
+		for (var tile : server.getTileRequestManager().getTileRequests(request))
 			regions.add(tile.getRegionRequest());
 		
 		double x = request.getX() + request.getWidth() / 2.0;
@@ -242,7 +243,7 @@ public class ImageRegionStoreHelpers {
 		if (x < 0 || y < 0 || x >= serverWidth || y >= serverHeight)
 			return null;
 
-		double downsamplePreferred = server.getPreferredDownsampleFactor(downsampleFactor);
+		double downsamplePreferred = ServerTools.getPreferredDownsampleFactor(server, downsampleFactor);
 
 		// Determine what the tile size will be in the original image space for the requested downsample
 		// Aim for a round number - preferred downsamples can be a bit off due to rounding

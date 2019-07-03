@@ -44,6 +44,11 @@ public class SparseImageServerCommand implements PathCommand {
 			}
 			
 			var entry = project.addImage(server);
+			var img = ProjectImportImagesCommand.getThumbnailRGB(server, null);
+			entry.setThumbnail(img);
+			project.syncChanges();
+			server.close();
+			
 			qupath.refreshProject();
 			qupath.openImageEntry(entry);
 			

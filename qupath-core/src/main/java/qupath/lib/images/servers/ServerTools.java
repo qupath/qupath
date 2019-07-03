@@ -26,6 +26,8 @@ package qupath.lib.images.servers;
 import java.io.File;
 import java.net.URI;
 
+import qupath.lib.common.GeneralTools;
+
 /**
  * Static methods helpful when dealing with ImageServers.
  * 
@@ -57,6 +59,66 @@ public class ServerTools {
 			return path;
 		}
 	}
+	
+	
+	/**
+	 * Get the preferred resolution level to request regions from an ImageServer at a specified downsample level.
+	 * @param server
+	 * @param requestedDownsample
+	 * @return
+	 * 
+	 * @see #getPreferredDownsampleFactor(ImageServer, double)
+	 */
+	public static int getPreferredResolutionLevel(ImageServer<?> server, double requestedDownsample) {
+		var metadata = server.getMetadata();
+		double downsampleFactor = Math.max(requestedDownsample, metadata.getDownsampleForLevel(0));
+		int n = metadata.nLevels();
+		int bestDownsampleSeries = -1;
+		double bestDownsampleDiff = Double.POSITIVE_INFINITY;
+		for (int i = 0; i < n; i++) {
+			double d = metadata.getDownsampleForLevel(i);
+			double downsampleDiff = downsampleFactor - d;
+			if (!Double.isNaN(downsampleDiff) && (downsampleDiff >= 0 || GeneralTools.almostTheSame(downsampleFactor, d, 0.01)) && downsampleDiff < bestDownsampleDiff) {
+				bestDownsampleSeries = i;
+				bestDownsampleDiff = Math.abs(downsampleDiff);
+			}
+		}
+		return bestDownsampleSeries;
+	}
+	
+	/**
+	 * Get the downsample factor supported by the server that is the best match for the requested downsample.
+	 * <p>
+	 * Generally, this will be &lt;= the requested downsample (but it may be slightly more if the error introduced
+	 * would be very small, i.e. if 4 is requested and 4.0001 is available, 4.0001 would be returned).
+	 * 
+	 * @param requestedDownsample
+	 * @return
+	 * 
+	 * @see #getPreferredResolutionLevel(ImageServer, double)
+	 */
+	public static double getPreferredDownsampleFactor(ImageServer<?> server, double requestedDownsample) {
+		int level = getPreferredResolutionLevel(server, requestedDownsample);
+		return server.getDownsampleForResolution(level);
+	}
+	
+	/**
+	 * Get an ImageServer name suitable for displaying.
+	 * If the server is null, "No image" is returned. Otherwise, the name 
+	 * stored in the metadata is returned if not null, otherwise {@code server.getShortServerName()} is used.
+	 * @param server
+	 * @return
+	 */
+	public static String getDisplayableImageName(ImageServer<?> server) {
+		if (server == null)
+			return "No image";
+		String name = server.getMetadata().getName();
+		if (name == null)
+			return server.getShortServerName();
+		else
+			return name;
+	}
+	
 	
 	/**
 	 * Calculate a downsample factor for a server given a preferred pixel size and the pixel size of the server itself.
@@ -90,7 +152,7 @@ public class ServerTools {
 	public static double getDownsampleFactor(final ImageServer<?> server, final double preferredPixelSizeMicrons) {
 		if (server == null)
 			return Double.NaN;
-		double downsampleFactor = getPreferredDownsampleForPixelSizeMicrons(server.getAveragedPixelSizeMicrons(), preferredPixelSizeMicrons, false);
+		double downsampleFactor = getPreferredDownsampleForPixelSizeMicrons(server.getPixelCalibration().getAveragedPixelSizeMicrons(), preferredPixelSizeMicrons, false);
 		if (Double.isNaN(downsampleFactor) || downsampleFactor < 1)
 			downsampleFactor = 1;
 		return downsampleFactor;

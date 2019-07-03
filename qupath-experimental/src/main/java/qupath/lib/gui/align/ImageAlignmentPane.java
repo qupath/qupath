@@ -69,6 +69,8 @@ import qupath.lib.gui.helpers.PaintingToolsFX;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.PixelCalibration;
+import qupath.lib.images.servers.ServerTools;
 import qupath.lib.objects.PathObject;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectImageEntry;
@@ -443,14 +445,15 @@ public class ImageAlignmentPane {
 	}
 
 	static void autoAlign(ImageServer<BufferedImage> serverBase, ImageServer<BufferedImage> serverOverlay, Affine affine, double requestedPixelSizeMicrons) throws IOException {
-		double pixelSize = serverBase.getAveragedPixelSizeMicrons();
+		PixelCalibration calBase = serverBase.getPixelCalibration();
+		double pixelSize = calBase.getAveragedPixelSizeMicrons();
 		double downsample = 1;
 		if (!Double.isFinite(pixelSize)) {
 			while (serverBase.getWidth() / downsample > 2000)
 				downsample++;
 			logger.warn("Pixel size is unavailable! Default downsample value of {} will be used", downsample);
 		} else {
-			downsample = requestedPixelSizeMicrons / serverBase.getAveragedPixelSizeMicrons();			
+			downsample = requestedPixelSizeMicrons / calBase.getAveragedPixelSizeMicrons();			
 		}
 
 		BufferedImage imgBase = serverBase.readBufferedImage(RegionRequest.createInstance(serverBase.getPath(), downsample, 0, 0, serverBase.getWidth(), serverBase.getHeight()));
@@ -611,7 +614,7 @@ public class ImageAlignmentPane {
 			
 			// Get the name from the project, if possible
 			Project<BufferedImage> project = qupath.getProject();
-			String name = item.getServer().getDisplayedImageName();
+			String name = ServerTools.getDisplayableImageName(item.getServer());
 			if (project != null) {
 				ProjectImageEntry<BufferedImage> entry = project.getEntry(item);
 				if (entry != null)

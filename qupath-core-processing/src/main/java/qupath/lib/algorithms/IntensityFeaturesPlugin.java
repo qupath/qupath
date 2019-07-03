@@ -56,6 +56,7 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.geom.ImmutableDimension;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathCellObject;
@@ -342,10 +343,11 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 	private static ImmutableDimension getPreferredTileSizePixels(final ImageServer<BufferedImage> server, final ParameterList params) {
 		// Determine tile size
 		int tileWidth, tileHeight;
-		if (server.hasPixelSizeMicrons()) {
+		PixelCalibration cal = server.getPixelCalibration();
+		if (cal.hasPixelSizeMicrons()) {
 			double tileSize = params.getDoubleParameterValue("tileSizeMicrons");
-			tileWidth = (int)Math.round(tileSize / server.getPixelWidthMicrons());
-			tileHeight = (int)Math.round(tileSize / server.getPixelHeightMicrons());
+			tileWidth = (int)Math.round(tileSize / cal.getPixelWidthMicrons());
+			tileHeight = (int)Math.round(tileSize / cal.getPixelHeightMicrons());
 		} else {
 			tileWidth = (int)Math.round(params.getDoubleParameterValue("tileSizePixels"));
 			tileHeight = tileWidth;
@@ -355,10 +357,11 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 	
 	static String getDiameterString(final ImageServer<BufferedImage> server, final ParameterList params) {
 		RegionType regionType = (RegionType)params.getChoiceParameterValue("region");
+		PixelCalibration cal = server.getPixelCalibration();
 		String shape = regionType == RegionType.SQUARE ? "Square" : (regionType == RegionType.CIRCLE ? "Circle" : "ROI");
-		String unit = server.hasPixelSizeMicrons() ? GeneralTools.micrometerSymbol() : "px";
-		double pixelSize = server.hasPixelSizeMicrons() ? params.getDoubleParameterValue("pixelSizeMicrons") : params.getDoubleParameterValue("downsample");
-		double regionSize = server.hasPixelSizeMicrons() ? params.getDoubleParameterValue("tileSizeMicrons") : params.getDoubleParameterValue("tileSizePixels");
+		String unit = cal.hasPixelSizeMicrons() ? GeneralTools.micrometerSymbol() : "px";
+		double pixelSize = cal.hasPixelSizeMicrons() ? params.getDoubleParameterValue("pixelSizeMicrons") : params.getDoubleParameterValue("downsample");
+		double regionSize = cal.hasPixelSizeMicrons() ? params.getDoubleParameterValue("tileSizeMicrons") : params.getDoubleParameterValue("tileSizePixels");
 		
 		if (regionType == RegionType.ROI) {
 			return String.format("ROI: %.2f %s per pixel", pixelSize, unit);
@@ -448,8 +451,9 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 
 		// Determine amount to downsample
 		double downsample;
-		if (server.hasPixelSizeMicrons()) {
-			downsample = params.getDoubleParameterValue("pixelSizeMicrons") / server.getAveragedPixelSizeMicrons();
+		PixelCalibration cal = server.getPixelCalibration();
+		if (cal.hasPixelSizeMicrons()) {
+			downsample = params.getDoubleParameterValue("pixelSizeMicrons") / cal.getAveragedPixelSizeMicrons();
 		} else
 			downsample = params.getDoubleParameterValue("downsample");
 
@@ -620,7 +624,7 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 			params.addDoubleParameter("tileSizeMicrons", "Tile diameter", 25, GeneralTools.micrometerSymbol(), "Diameter of tile around the object centroid used to calculate textures.\nOnly matters if tiles are being used (i.e. the region parameter isn't ROI).");
 			params.addDoubleParameter("tileSizePixels", "Tile diameter", 200, "px (full resolution image)", "Diameter of tile around the object centroid used to calculate textures.\nOnly matters if tiles are being used (i.e. the region parameter isn't ROI).");
 			
-			boolean hasMicrons = imageData.getServer().hasPixelSizeMicrons();
+			boolean hasMicrons = imageData.getServer().getPixelCalibration().hasPixelSizeMicrons();
 			
 			params.getParameters().get("pixelSizeMicrons").setHidden(!hasMicrons);
 			params.getParameters().get("downsample").setHidden(hasMicrons);
@@ -825,7 +829,7 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 
 		@Override
 		public void addParameters(ImageData<?> imageData, ParameterList params) {
-			this.originalBitsPerPixel = imageData.getServer().getBitsPerPixel();
+			this.originalBitsPerPixel = imageData.getServer().getPixelType().bitsPerPixel();
 			if (originalBitsPerPixel > 16)
 				return;
 			params.addBooleanParameter("doMedian", "Median", false, "Calculate approximate median of pixel values (based on a generated histogram)");
@@ -1097,7 +1101,7 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 
 		@Override
 		public void addParameters(ImageData<?> imageData, ParameterList params) {
-			this.originalBitsPerPixel = imageData.getServer().getBitsPerPixel();
+			this.originalBitsPerPixel = imageData.getServer().getPixelType().bitsPerPixel();
 			if (originalBitsPerPixel > 16)
 				return;
 			params.addTitleParameter("Cumulative histogram");

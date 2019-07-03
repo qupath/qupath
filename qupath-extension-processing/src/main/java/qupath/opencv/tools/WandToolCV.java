@@ -60,6 +60,7 @@ import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.overlays.HierarchyOverlay;
 import qupath.lib.gui.viewer.overlays.PathOverlay;
 import qupath.lib.gui.viewer.tools.BrushTool;
+import qupath.lib.gui.viewer.tools.QuPathPenManager;
 import qupath.lib.regions.ImageRegion;
 
 /**
@@ -251,7 +252,7 @@ public class WandToolCV extends BrushTool {
 		if (opacity > 0 && getWandUseOverlays()) {
 			ImageRegion region = ImageRegion.createInstance(
 					(int)bounds.getX()-1, (int)bounds.getY()-1, (int)bounds.getWidth()+2, (int)bounds.getHeight()+2, viewer.getZPosition(), viewer.getTPosition());
-			if (opacity < 0)
+			if (opacity < 1)
 				g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, opacity));
 			for (PathOverlay overlay : viewer.getOverlayLayers().toArray(new PathOverlay[0])) {
 				if (!(overlay instanceof HierarchyOverlay))
@@ -326,8 +327,12 @@ public class WandToolCV extends BrushTool {
 		mean.release();
 		stddev.release();
 		
+		// Limit maximum radius by pen
+		int radius = (int)Math.round(w / 2 * QuPathPenManager.getPenManager().getPressure());
+		if (radius == 0)
+			return new Path2D.Float();
 		matMask.put(Scalar.ZERO);
-		opencv_imgproc.circle(matMask, seed, w/2, Scalar.ONE);
+		opencv_imgproc.circle(matMask, seed, radius, Scalar.ONE);
 		opencv_imgproc.floodFill(mat, matMask, seed, Scalar.ONE, null, threshold, threshold, 4 | (2 << 8) | opencv_imgproc.FLOODFILL_MASK_ONLY | opencv_imgproc.FLOODFILL_FIXED_RANGE);
 		subtractPut(matMask, Scalar.ONE);
 		

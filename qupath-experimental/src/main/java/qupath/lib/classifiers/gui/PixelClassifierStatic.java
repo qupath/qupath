@@ -378,12 +378,12 @@ public class PixelClassifierStatic {
 		var clipArea = selectedObject == null ? null : RoiTools.getArea(selectedObject.getROI());
 		Collection<TileRequest> tiles;
 		if (selectedObject == null) {
-			tiles = server.getAllTileRequests();
+			tiles = server.getTileRequestManager().getAllTileRequests();
 		} else {
 			var request = RegionRequest.createInstance(
 					server.getPath(), server.getDownsampleForResolution(0), 
 					selectedObject.getROI());			
-			tiles = server.getTiles(request);
+			tiles = server.getTileRequestManager().getTileRequests(request);
 		}
 	
 		Map<PathClass, List<PathObject>> pathObjectMap = tiles.parallelStream().map(t -> {

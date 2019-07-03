@@ -3,29 +3,36 @@ package qupath.lib.images.servers;
 import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
-import java.io.Reader;
 import java.net.URI;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.RuntimeTypeAdapterFactory;
 import com.google.gson.TypeAdapter;
 import com.google.gson.TypeAdapterFactory;
-import com.google.gson.internal.Streams;
 import com.google.gson.reflect.TypeToken;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
 
+import qupath.lib.images.servers.ImageServerBuilder.AbstractServerBuilder;
+import qupath.lib.images.servers.ImageServerBuilder.DefaultImageServerBuilder;
+import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
 import qupath.lib.images.servers.RotatedImageServer.Rotation;
 import qupath.lib.images.servers.SparseImageServer.SparseImageServerManagerRegion;
+import qupath.lib.io.GsonTools;
 import qupath.lib.projects.Project;
 import qupath.lib.regions.ImageRegion;
 
@@ -39,125 +46,213 @@ import qupath.lib.regions.ImageRegion;
  */
 public class ImageServers {
 	
-	static class ImageServerTypeAdapterFactory implements TypeAdapterFactory {
+	public static RuntimeTypeAdapterFactory<ServerBuilder> serverBuilderFactory = 
+			RuntimeTypeAdapterFactory.of(ServerBuilder.class, "builderType")
+			.registerSubtype(DefaultImageServerBuilder.class, "uri")
+			.registerSubtype(RotatedImageServerBuilder.class, "rotated")
+			.registerSubtype(ConcatChannelsImageServerBuilder.class, "channels")
+			.registerSubtype(AffineTransformImageServerBuilder.class, "affine")
+			.registerSubtype(SparseImageServerBuilder.class, "sparse")
+			.registerSubtype(CroppedImageServerBuilder.class, "cropped")
+			;
 
-		public ImageServerTypeAdapterFactory() {}
+	
+	static class SparseImageServerBuilder extends AbstractServerBuilder<BufferedImage> {
 		
-		private static String typeName = "serverClass";
+		private List<SparseImageServerManagerRegion> regions;
+		private String path;
 		
-		private final static RuntimeTypeAdapterFactory<ImageServer> imageServerTypeAdapter = 
-				RuntimeTypeAdapterFactory.of(ImageServer.class, typeName);
+		SparseImageServerBuilder(ImageServerMetadata metadata, Collection<SparseImageServerManagerRegion> regions, String path) {
+			super(metadata);
+			this.regions = new ArrayList<>(regions);
+			this.path = path;
+		}
+
+		@Override
+		protected ImageServer<BufferedImage> buildOriginal() throws Exception {
+			return new SparseImageServer(regions, path);
+		}
+
+		@Override
+		public Collection<URI> getURIs() {
+			// TODO: IMPLEMENT URI QUERY!
+			return Collections.emptyList();
+		}
+
+		@Override
+		public ServerBuilder<BufferedImage> updateURIs(Map<URI, URI> updateMap) {
+			// TODO: IMPLEMENT URI UPDATE!
+			return this;
+		}
 		
-		public static void registerSubtype(Class<? extends ImageServer> cls) {
-			imageServerTypeAdapter.registerSubtype(cls);
+	}
+	
+	static class CroppedImageServerBuilder extends AbstractServerBuilder<BufferedImage> {
+		
+		private ServerBuilder<BufferedImage> builder;
+		private ImageRegion region;
+		
+		CroppedImageServerBuilder(ImageServerMetadata metadata, ServerBuilder<BufferedImage> builder, ImageRegion region) {
+			super(metadata);
+			this.builder = builder;
+			this.region = region;
 		}
 		
 		@Override
-		public <T> TypeAdapter<T> create(Gson gson, TypeToken<T> type) {
-			return imageServerTypeAdapter.create(gson, type);
+		protected ImageServer<BufferedImage> buildOriginal() throws Exception {
+			return new CroppedImageServer(builder.build(), region);
+		}
+
+		@Override
+		public Collection<URI> getURIs() {
+			return builder.getURIs();
+		}
+
+		@Override
+		public ServerBuilder<BufferedImage> updateURIs(Map<URI, URI> updateMap) {
+			ServerBuilder<BufferedImage> newBuilder = builder.updateURIs(updateMap);
+			if (newBuilder == builder)
+				return this;
+			return new CroppedImageServerBuilder(getMetadata(), newBuilder, region);
 		}
 		
 	}
 	
-	
-	
-	private static Gson gson = new GsonBuilder()
-		    .serializeSpecialFloatingPointValues()
-		    .setLenient()
-		    .setPrettyPrinting()
-		    .registerTypeHierarchyAdapter(ImageServer.class, new ImageServers.ImageServerTypeAdapter())
-		    .create();
-	
-	private static Gson gsonNoMetadata = new GsonBuilder()
-		    .serializeSpecialFloatingPointValues()
-		    .setLenient()
-		    .setPrettyPrinting()
-		    .registerTypeHierarchyAdapter(ImageServer.class, new ImageServers.ImageServerTypeAdapter(false))
-		    .create();
-	
-	private static final java.lang.reflect.Type type = new TypeToken<ImageServer<BufferedImage>>() {}.getType();
-	
-	/**
-	 * Serialize an ImageServer to a JSON String. Note that not all servers support this.
-	 * @param <T>
-	 * @param server the server to serialize
-	 * @param includeMetadata optionally include the metadata in the representation;
-	 * 						  this will require more space, but means the representation is more self-contained.
-	 * @return
-	 */
-	public static <T> String toJson(ImageServer<T> server, boolean includeMetadata) {
-		if (includeMetadata)
-			return gson.toJson(server);
-		else
-			return gsonNoMetadata.toJson(server);
+	static class AffineTransformImageServerBuilder extends AbstractServerBuilder<BufferedImage> {
+		
+		private ServerBuilder<BufferedImage> builder;
+		private AffineTransform transform;
+		
+		AffineTransformImageServerBuilder(ImageServerMetadata metadata, ServerBuilder<BufferedImage> builder, AffineTransform transform) {
+			super(metadata);
+			this.builder = builder;
+			this.transform = transform;
+		}
+		
+		@Override
+		protected ImageServer<BufferedImage> buildOriginal() throws Exception {
+			return new AffineTransformImageServer(builder.build(), transform);
+		}
+
+		@Override
+		public Collection<URI> getURIs() {
+			return builder.getURIs();
+		}
+
+		@Override
+		public ServerBuilder<BufferedImage> updateURIs(Map<URI, URI> updateMap) {
+			ServerBuilder<BufferedImage> newBuilder = builder.updateURIs(updateMap);
+			if (newBuilder == builder)
+				return this;
+			return new AffineTransformImageServerBuilder(getMetadata(), newBuilder, transform);
+		}
+		
 	}
 	
-	/**
-	 * Serialize an ImageServer to a JSON element. Note that not all servers support this.
-	 * @param <T>
-	 * @param server the server to serialize
-	 * @param includeMetadata optionally include the metadata in the representation;
-	 * 						  this will require more space, but means the representation is more self-contained.
-	 * @return
-	 */
-	public static <T> JsonElement toJsonElement(ImageServer<T> server, boolean includeMetadata) {
-		if (includeMetadata)
-			return gson.toJsonTree(server);
-		else
-			return gsonNoMetadata.toJsonTree(server);
+	static class ConcatChannelsImageServerBuilder extends AbstractServerBuilder<BufferedImage> {
+		
+		private ServerBuilder<BufferedImage> builder;
+		private List<ServerBuilder<BufferedImage>> channels;
+		
+		ConcatChannelsImageServerBuilder(ImageServerMetadata metadata, ServerBuilder<BufferedImage> builder, List<ServerBuilder<BufferedImage>> channels) {
+			super(metadata);
+			this.builder = builder;
+			this.channels = channels;
+		}
+		
+		@Override
+		protected ImageServer<BufferedImage> buildOriginal() throws Exception {
+			Map<ServerBuilder<BufferedImage>, ImageServer<BufferedImage>> map = new LinkedHashMap<>();
+			for (ServerBuilder<BufferedImage> channel :channels)
+				map.put(channel, channel.build());
+			ImageServer<BufferedImage> server = map.get(builder);
+			if (server == null)
+				server = builder.build();
+			return new ConcatChannelsImageServer(server, map.values());
+		}
+		
+		@Override
+		public Collection<URI> getURIs() {
+			Set<URI> uris = new LinkedHashSet<>();
+			uris.addAll(builder.getURIs());
+			for (var temp : channels)
+				uris.addAll(temp.getURIs());
+			return uris;
+		}
+
+		@Override
+		public ServerBuilder<BufferedImage> updateURIs(Map<URI, URI> updateMap) {
+			ServerBuilder<BufferedImage> newBuilder = builder.updateURIs(updateMap);
+			boolean changes = newBuilder != builder;
+			List<ServerBuilder<BufferedImage>> newChannels = new ArrayList<>();
+			for (var temp : channels) {
+				var newChannel = temp.updateURIs(updateMap);
+				newChannels.add(newChannel);
+				changes = changes || newChannel != temp;
+			}
+			if (!changes)
+				return this;
+			return new ConcatChannelsImageServerBuilder(getMetadata(), newBuilder, newChannels);
+		}
+		
+	}
+
+	static class RotatedImageServerBuilder extends AbstractServerBuilder<BufferedImage> {
+	
+		private ServerBuilder<BufferedImage> builder;
+		private Rotation rotation;
+	
+		RotatedImageServerBuilder(ImageServerMetadata metadata, ServerBuilder<BufferedImage> builder, Rotation rotation) {
+			super(metadata);
+			this.builder = builder;
+			this.rotation = rotation;
+		}
+	
+		@Override
+		protected ImageServer<BufferedImage> buildOriginal() throws Exception {
+			return new RotatedImageServer(builder.build(), rotation);
+		}
+		
+		@Override
+		public Collection<URI> getURIs() {
+			return builder.getURIs();
+		}
+
+		@Override
+		public ServerBuilder<BufferedImage> updateURIs(Map<URI, URI> updateMap) {
+			ServerBuilder<BufferedImage> newBuilder = builder.updateURIs(updateMap);
+			if (newBuilder == builder)
+				return this;
+			return new RotatedImageServerBuilder(getMetadata(), newBuilder, rotation);
+		}
+	
 	}
 	
-	/**
-	 * Read an {@code ImageServer<BufferedImage>} from its JSON element representation.
-	 * @param element JSON representation of the server
-	 * @return
-	 */
-	public static ImageServer<BufferedImage> fromJson(JsonElement element) {
-		return gson.fromJson(element, type);
+	static class ImageServerTypeAdapterFactory implements TypeAdapterFactory {
+		
+		private boolean includeMetadata;
+		
+		ImageServerTypeAdapterFactory(boolean includeMetadata) {
+			this.includeMetadata = includeMetadata;
+		}
+
+		@Override
+		public <T> TypeAdapter<T> create(Gson gson, TypeToken<T> type) {
+			if (ImageServer.class.isAssignableFrom(type.getRawType()))
+				return (TypeAdapter<T>)getTypeAdapter(includeMetadata);
+			return null;
+		}
+		
 	}
 	
-//	public static String toJson(URI uri, String... args) throws IOException {
-//		StringWriter writer = new StringWriter();
-//		try (JsonWriter out = gson.newJsonWriter(writer)) {
-//			out.name("uri");
-//			out.value(uri.toString());
-//			out.name("args");
-//			out.beginArray();
-//			for (String arg: args)
-//				out.value(arg);
-//			out.endArray();
-//		}
-//		return writer.toString();
-//	}
-	
-	/**
-	 * Read an ImageServer from its JSON String representation.
-	 * @param <T>
-	 * @param json JSON representation of the server
-	 * @param cls generic type of the ImageServer, usually BufferedImage.class
-	 * @return
-	 */
-	public static <T> ImageServer<T> fromJson(String json, Class<T> cls) {
-		return gson.fromJson(json, type);
+	public static TypeAdapterFactory getImageServerTypeAdapterFactory(boolean includeMetadata) {
+		return new ImageServerTypeAdapterFactory(includeMetadata);
 	}
 	
-	
-	/**
-	 * Read an ImageServer from its JSON representation.
-	 * @param <T>
-	 * @param reader reader that provides the JSON representation of the server
-	 * @param cls generic type of the ImageServer, usually BufferedImage.class
-	 * @return
-	 */
-	public static <T> ImageServer<T> fromJson(Reader reader, Class<T> cls) {
-		return gson.fromJson(reader, type);
+	public static TypeAdapter<ImageServer<BufferedImage>> getTypeAdapter(boolean includeMetadata) {
+		return new ImageServerTypeAdapter(includeMetadata);
 	}
-		    
 	
-	/**
-	 * @author Pete Bankhead
-	 *
-	 */
 	public static class ImageServerTypeAdapter extends TypeAdapter<ImageServer<BufferedImage>> {
 		
 		private static Logger logger = LoggerFactory.getLogger(ImageServerTypeAdapter.class);
@@ -172,220 +267,54 @@ public class ImageServers {
 			this.includeMetadata = includeMetadata;
 		}
 		
-		private Gson gson = new GsonBuilder()
-				.setLenient()
-				.serializeSpecialFloatingPointValues()
-				.setPrettyPrinting()
-//				.registerTypeAdapterFactory(new ImageServerTypeAdapterFactory())
-				.create();
+		
+//		private Gson gson = new GsonBuilder()
+//				.setLenient()
+//				.serializeSpecialFloatingPointValues()
+//				.setPrettyPrinting()
+//				.registerTypeAdapterFactory(serverBuilderFactory)
+////				.registerTypeAdapterFactory(new ImageServerTypeAdapterFactory())
+//				.create();
 		
 		@Override
 		public void write(JsonWriter out, ImageServer<BufferedImage> server) throws IOException {
-			if (server instanceof TransformingImageServer<?>) {
-				
-				ImageServer<BufferedImage> wrappedServer = ((TransformingImageServer)server).getWrappedServer();
-				Gson gson = new GsonBuilder()
-						.setLenient()
-						.serializeSpecialFloatingPointValues()
-						.registerTypeHierarchyAdapter(ImageServer.class, this)
-						.create();
-				
+			boolean lenient = out.isLenient();
+			try {
+				out.setLenient(true);
+				var builder = server.getBuilder();
 				out.beginObject();
-
-				out.name(ImageServerTypeAdapterFactory.typeName);
-				out.value(server.getClass().getName());
-				
-				if (server instanceof CroppedImageServer) {
-					out.name("region");
-					Streams.write(gson.toJsonTree(((CroppedImageServer)server).getCropRegion()), out);
-				} else if (server instanceof RotatedImageServer) {
-					out.name("rotation");
-					Streams.write(gson.toJsonTree(((RotatedImageServer)server).getRotation()), out);				
-				} else if (server instanceof ConcatChannelsImageServer) {
-					out.name("channelServers");
-					out.beginArray();
-					for (ImageServer<BufferedImage> channelServers : ((ConcatChannelsImageServer)server).getAllServers())
-						Streams.write(gson.toJsonTree(channelServers), out);
-					out.endArray();
-				} else if (server instanceof AffineTransformImageServer) {
-					out.name("transform");
-					double[] matrix = new double[6];
-					AffineTransform transform = ((AffineTransformImageServer)server).getTransform();
-					transform.getMatrix(matrix);
-					Streams.write(gson.toJsonTree(matrix), out);					
+				out.name("builder");
+				GsonTools.getGsonDefault().toJson(builder, ServerBuilder.class, out);
+				if (includeMetadata) {
+					out.name("metadata");
+					var metadata = server.getMetadata();
+					GsonTools.getGsonDefault().toJson(metadata, ImageServerMetadata.class, out);					
 				}
-				
-				out.name("server");
-				Streams.write(gson.toJsonTree(wrappedServer), out);
-				
-//				String json = gson.toJson(wrappedServer);
-//				out.jsonValue(json);
-//				out.endObject();
-				
-				out.endObject();
-				
-				return;
-			} else if (server instanceof SparseImageServer) {
-				out.beginObject();
-				out.name(ImageServerTypeAdapterFactory.typeName);
-				out.value(server.getClass().getName());
-				out.name("sparseRegions");
-				Streams.write(gson.toJsonTree(((SparseImageServer)server).getRegions()), out);
 				out.endObject();
 				return;
+			} catch (Exception e) {
+				throw new IOException(e);
+			} finally {
+				out.setLenient(lenient);
 			}
-			
-			out.beginObject();
-
-			out.name(ImageServerTypeAdapterFactory.typeName);
-			out.value(server.getClass().getName());
-
-			URI uri = server.getURI();
-			if (uri != null) {
-				out.name("uri");
-				out.value(uri.normalize().toString());
-			}
-			
-			String path = server.getPath();
-			if (path != null) {
-				out.name("path");
-				out.value(path);
-			}
-
-			out.name("args");
-			out.beginArray();
-			for (String arg: server.getMetadata().getArguments())
-				out.value(arg);
-			out.endArray();
-			
-			if (includeMetadata) {
-				out.name("metadata");
-				Streams.write(gson.toJsonTree(server.getMetadata()), out);
-			}
-
-			out.endObject();
-			
 		}
 
 		@Override
 		public ImageServer<BufferedImage> read(JsonReader in) throws IOException {
 			boolean lenient = in.isLenient();
 			try {
-				ImageServer<BufferedImage> server = null;
-				
+				in.setLenient(true);
 				JsonElement element = new JsonParser().parse(in);
 				JsonObject obj = element.getAsJsonObject();
-				URI uri = null;
-				List<String> args = new ArrayList<>();
-				String serverType = null;
 				
-				// Request server type
-				if (obj.has(ImageServerTypeAdapterFactory.typeName)) {
-					serverType = obj.get(ImageServerTypeAdapterFactory.typeName).getAsString();
-				}
+				// Create from builder
+				ImageServer<BufferedImage> server = GsonTools.getGsonDefault().fromJson(obj.get("builder"), ServerBuilder.class).build();
 				
-				
-				// Try to get a URI, if possible
-				if (obj.has("uri")) {
-					uri = new URI(obj.get("uri").getAsString()).normalize();
-				}
-//				if (obj.has("path")) {
-//					String path = obj.get("path").getAsString();
-////					if (uri == null) {
-////						if (path.startsWith("file") || path.startsWith("http"))
-////							uri = new URI(path);
-////						else
-////							uri = new File(path).toURI();
-////					}
-//				}
-				
-				// Request any args
-				if (obj.has("args")) {
-					var array = obj.get("args").getAsJsonArray();
-					args = new ArrayList<>();
-					for (int i = 0; i < array.size(); i++)
-						args.add(array.get(i).getAsString());
-				}
-				
-				// If we have a URI, try to construct in the 'normal' way using the URI & args
-				if (serverType != null) {
-					args.add(0, "--classname");
-					args.add(1, serverType);
-				}
-				if (uri != null) {
-					try {
-						server = ImageServerProvider.buildServer(uri.toString(), BufferedImage.class, args.toArray(String[]::new));
-					} catch (IOException e1) {
-						logger.warn("Unable to construct server (uri={}, args={}) - {}", uri, args, e1.getLocalizedMessage());
-					}
-				}
-				
-				
-				if (server == null && serverType != null) {
-					
-					Gson gson = new GsonBuilder()
-							.setLenient()
-							.serializeSpecialFloatingPointValues()
-							.registerTypeHierarchyAdapter(ImageServer.class, this)
-							.create();
-					
-					// Sparse
-					if (serverType.equals(SparseImageServer.class.getName())) {
-						List<SparseImageServerManagerRegion> regions = gson.fromJson(obj.get("sparseRegions"),
-								new TypeToken<List<SparseImageServerManagerRegion>>() {}.getType());
-						server = new SparseImageServer(regions, null);
-					}
-					
-					// Cropped
-					if (serverType.equals(CroppedImageServer.class.getName())) {
-						ImageRegion region = gson.fromJson(obj.get("region"), ImageRegion.class);
-						ImageServer<BufferedImage> wrappedServer = gson.fromJson(obj.get("server"), ImageServer.class);
-						server = new CroppedImageServer(wrappedServer, region);
-					}
-
-					// Rotated
-					if (serverType.equals(RotatedImageServer.class.getName())) {
-						Rotation rotation = gson.fromJson(obj.get("rotation"), Rotation.class);
-						ImageServer<BufferedImage> wrappedServer = gson.fromJson(obj.get("server"), ImageServer.class);
-						server = new RotatedImageServer(wrappedServer, rotation);
-					}
-
-					// Affine transform
-					if (serverType.equals(AffineTransformImageServer.class.getName())) {
-						double[] matrix = gson.fromJson(obj.get("transform"), double[].class);
-						AffineTransform transform = new AffineTransform(matrix);
-						ImageServer<BufferedImage> wrappedServer = gson.fromJson(obj.get("server"), ImageServer.class);
-						server = new AffineTransformImageServer(wrappedServer, transform);
-					}
-					
-					// TODO: Color deconvolution
-	
-					// Concat channels
-					if (serverType.equals(ConcatChannelsImageServer.class.getName())) {
-						ImageServer<BufferedImage> wrappedServer = gson.fromJson(obj.get("server"), ImageServer.class);
-						List<ImageServer<BufferedImage>> channelServers = gson.fromJson(obj.get("channelServers"),
-								new TypeToken<List<ImageServer<BufferedImage>>>() {}.getType());
-						server = new ConcatChannelsImageServer(wrappedServer, channelServers);
-					}
-				}
-				
-				
-				// As a last resort, try to read directly from the JSON
-				if (server == null)
-					gson.fromJson(element, type);					
-				
-				// Set the metadata, if we have any
+				// Set metadata, if we have any
 				if (obj.has("metadata")) {
-					var metadata = gson.fromJson(obj.get("metadata"), ImageServerMetadata.class);
-					if (!server.getPath().equals(metadata.getPath())) {
-						logger.warn("Server and metadata paths are different! Metadata path will be updated to match.");
-						logger.warn("Server:  \t {}", server.getPath());
-						logger.warn("Metadata:\t {}", metadata.getPath());
-						metadata = new ImageServerMetadata.Builder(server.getClass(), metadata)
-								.path(server.getPath())
-								.build();
-					}
-					server.setMetadata(metadata);
+					ImageServerMetadata metadata = GsonTools.getGsonDefault().fromJson(obj.get("metadata"), ImageServerMetadata.class);
+					if (metadata != null)
+						server.setMetadata(metadata);
 				}
 								
 				return server;

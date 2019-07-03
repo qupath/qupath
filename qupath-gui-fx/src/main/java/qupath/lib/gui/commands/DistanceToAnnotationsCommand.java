@@ -20,6 +20,7 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.images.ImageData;
+import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
@@ -73,9 +74,10 @@ public class DistanceToAnnotationsCommand implements PathCommand {
 		var hierarchy = imageData.getHierarchy();
 		var testPathClass = pathClass != null && !pathClass.isValid() ? null : pathClass;
 		
-		double pixelWidth = server.hasPixelSizeMicrons() ? server.getPixelWidthMicrons() : 1.0;
-		double pixelHeight = server.hasPixelSizeMicrons() ? server.getPixelHeightMicrons() : 1.0;
-		String unit = server.hasPixelSizeMicrons() ? GeneralTools.micrometerSymbol() : "px";
+		PixelCalibration cal = server.getPixelCalibration();
+		double pixelWidth = cal.hasPixelSizeMicrons() ? cal.getPixelWidthMicrons() : 1.0;
+		double pixelHeight = cal.hasPixelSizeMicrons() ? cal.getPixelHeightMicrons() : 1.0;
+		String unit = cal.hasPixelSizeMicrons() ? GeneralTools.micrometerSymbol() : "px";
 		String name = "Distance to " + pathClass + " " + unit;
 		var builder = new ConverterJTS.Builder()
 				.pixelSize(pixelWidth, pixelHeight);

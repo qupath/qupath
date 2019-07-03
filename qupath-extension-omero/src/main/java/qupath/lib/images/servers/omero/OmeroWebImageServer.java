@@ -25,8 +25,11 @@ import qupath.lib.awt.common.BufferedImageTools;
 import qupath.lib.geom.Point2;
 import qupath.lib.images.servers.AbstractTileableImageServer;
 import qupath.lib.images.servers.ImageChannel;
+import qupath.lib.images.servers.ImageServerBuilder;
 import qupath.lib.images.servers.ImageServerMetadata;
+import qupath.lib.images.servers.PixelType;
 import qupath.lib.images.servers.TileRequest;
+import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
 import qupath.lib.images.servers.omero.OmeroWebImageServerBuilder.OmeroWebClient;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
@@ -48,12 +51,14 @@ public class OmeroWebImageServer extends AbstractTileableImageServer {
 	private static final Logger logger = LoggerFactory.getLogger(OmeroWebImageServer.class);
 
 	private ImageServerMetadata originalMetadata;
+	private URI uri;
+	private String[] args;
 
 	/**
 	 * Image ID
 	 */
 	private String id;
-
+	
 	private final String host;
 	private final String scheme;
 
@@ -69,7 +74,10 @@ public class OmeroWebImageServer extends AbstractTileableImageServer {
 //	private static int OMERO_MAX_SIZE = 1024;
 
 	OmeroWebImageServer(URI uri, OmeroWebClient client, String...args) throws IOException {
-		super(uri);
+		super();
+		
+		this.uri = uri;
+		
 
 		this.scheme = uri.getScheme();
 		this.host = uri.getHost();
@@ -102,7 +110,7 @@ public class OmeroWebImageServer extends AbstractTileableImageServer {
 		double pixelWidthMicrons = Double.NaN;
 		double pixelHeightMicrons = Double.NaN;
 		double zSpacingMicrons = Double.NaN;
-		int bitDepth = 8;
+		PixelType pixelType = PixelType.UINT8;
 		boolean isRGB = true;
 		double magnification = Double.NaN;
 
@@ -181,13 +189,15 @@ public class OmeroWebImageServer extends AbstractTileableImageServer {
 		if (map.has("nominalMagnification"))
 			magnification = map.getAsJsonPrimitive("nominalMagnification").getAsDouble();
 		
+		this.args = args;
 		ImageServerMetadata.Builder builder = new ImageServerMetadata.Builder(getClass(), uri.toString(), sizeX, sizeY)
 				.sizeT(sizeT)
 				.channels(ImageChannel.getDefaultRGBChannels())
 				.sizeZ(sizeZ)
-				.args(args)
+				.id(uri.toString() + " (OMERO web)")
+//				.args(args)
 				.name(imageName)
-				.bitDepth(bitDepth)
+				.pixelType(pixelType)
 				.rgb(isRGB)
 				.magnification(magnification)
 				.levels(levelBuilder.build());
@@ -411,6 +421,16 @@ public class OmeroWebImageServer extends AbstractTileableImageServer {
 		BufferedImage img = ImageIO.read(url);
 
 		return BufferedImageTools.resize(img, targetWidth, targetHeight);
+	}
+	
+	
+	@Override
+	public ServerBuilder<BufferedImage> getBuilder() {
+		return ImageServerBuilder.DefaultImageServerBuilder.createInstance(
+				OmeroWebImageServerBuilder.class,
+				getMetadata(),
+				uri,
+				args);
 	}
 
 }

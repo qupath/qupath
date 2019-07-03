@@ -9,8 +9,8 @@ import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.overlays.AbstractImageDataOverlay;
 import qupath.lib.images.ImageData;
+import qupath.lib.images.servers.ServerTools;
 import qupath.lib.images.servers.TileRequest;
-import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.regions.ImageRegion;
@@ -33,6 +33,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javafx.application.Platform;
 
 /**
  * PathOverlay that gives the results of pixel classification.
@@ -110,7 +112,7 @@ public class PixelClassificationOverlay extends AbstractImageDataOverlay  {
 //        	return;
         
 //        double requestedDownsample = classifier.getMetadata().getInputPixelSizeMicrons() / server.getAveragedPixelSizeMicrons();
-        double requestedDownsample = server.getPreferredDownsampleFactor(downsampleFactor);
+		double requestedDownsample = ServerTools.getPreferredDownsampleFactor(server, downsampleFactor);
 
         if (requestedDownsample > server.getDownsampleForResolution(0))
         	g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
@@ -136,7 +138,7 @@ public class PixelClassificationOverlay extends AbstractImageDataOverlay  {
      	else
      		fullRequest = RegionRequest.createInstance(server.getPath(), downsampleFactor, AwtTools.getImageRegion(shapeRegion, imageRegion.getZ(), imageRegion.getT()));
         
-        Collection<TileRequest> tiles = classifierServer.getTiles(fullRequest);
+        Collection<TileRequest> tiles = classifierServer.getTileRequestManager().getTileRequests(fullRequest);
 
 //        requests = requests.stream().map(r -> RegionRequest.createInstance(r.getPath(), requestedDownsample, r)).collect(Collectors.toList());
         
@@ -295,8 +297,11 @@ public class PixelClassificationOverlay extends AbstractImageDataOverlay  {
                     var hierarchy = imageData == null ? null : imageData.getHierarchy();
                     if (hierarchy != null) {
 	                    var annotations = hierarchy.getAnnotationObjects();
-	                    if (!annotations.isEmpty())
-	                    	hierarchy.fireObjectMeasurementsChangedEvent(this, annotations);
+	                    if (!annotations.isEmpty()) {
+	                    	Platform.runLater(() -> {
+	                    		hierarchy.fireObjectMeasurementsChangedEvent(this, annotations);
+	                    	});
+	                    }
                     }
                     
                 } catch (Exception e) {

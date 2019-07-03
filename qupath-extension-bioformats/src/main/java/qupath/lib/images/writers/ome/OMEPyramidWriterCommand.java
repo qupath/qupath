@@ -158,7 +158,7 @@ public class OMEPyramidWriterCommand implements PathCommand {
 				.region(region);
 		
 		// Set tile size; if we just have one tile, use the image width & height
-		if (server.getAllTileRequests().size() == 1)
+		if (server.getTileRequestManager().getAllTileRequests().size() == 1)
 			builder = builder.tileSize(server.getWidth(), server.getHeight());
 		else if (getDefaultTileSize() > 0)
 			builder = builder.tileSize(getDefaultTileSize());

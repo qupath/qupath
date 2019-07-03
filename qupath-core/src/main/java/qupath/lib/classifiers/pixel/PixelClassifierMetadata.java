@@ -6,6 +6,7 @@ import java.util.List;
 
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServerMetadata;
+import qupath.lib.images.servers.PixelType;
 
 /**
  * Metadata to control the behavior of a pixel classifier.
@@ -14,28 +15,6 @@ import qupath.lib.images.servers.ImageServerMetadata;
  *
  */
 public class PixelClassifierMetadata {
-
-	/**
-	 * Supported pixel value types.
-	 */
-	public static enum PixelType { 
-		/**
-		 * 8-bit unsigned integer
-		 */
-		UInt8,
-		/**
-		 * 16-bit unsigned integer
-		 */
-		UInt16,
-		/**
-		 * 32-bit floating point
-		 */
-		Float32,
-		/**
-		 * 64-bit floating point
-		 */
-		Float64
-	}
 	
 	private int inputPadding = 0;
 	
@@ -47,7 +26,7 @@ public class PixelClassifierMetadata {
 	private int inputWidth = -1;
 	private int inputHeight = -1;
 	private int inputNumChannels = 3;
-	private PixelType inputDataType = PixelType.UInt8;
+	private PixelType inputDataType = PixelType.UINT8;
 	private int outputWidth = -1;
 	private int outputHeight = -1;
 	private ImageServerMetadata.ChannelType outputType = ImageServerMetadata.ChannelType.CLASSIFICATION;
@@ -219,7 +198,7 @@ public class PixelClassifierMetadata {
     	private int inputWidth = -1;
     	private int inputHeight = -1;
     	private int inputNumChannels = 3;
-    	private PixelType inputDataType = PixelType.UInt8;
+    	private PixelType inputDataType = PixelType.UINT8;
     	private int outputWidth = -1;
     	private int outputHeight = -1;
     	private ImageServerMetadata.ChannelType outputType = ImageServerMetadata.ChannelType.PROBABILITY;

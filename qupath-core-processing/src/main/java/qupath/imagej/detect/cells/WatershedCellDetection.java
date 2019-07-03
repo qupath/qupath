@@ -68,6 +68,7 @@ import qupath.lib.color.StainVector;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.PathImage;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.images.servers.ServerTools;
 import qupath.lib.measurements.MeasurementListFactory;
 import qupath.lib.measurements.MeasurementList;
@@ -234,9 +235,10 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 	
 			
 		public static double getPreferredPixelSizeMicrons(ImageData<BufferedImage> imageData, ParameterList params) {
-			if (imageData.getServer().hasPixelSizeMicrons()) {
+			PixelCalibration cal = imageData.getServer().getPixelCalibration();
+			if (cal.hasPixelSizeMicrons()) {
 				double requestedPixelSize = params.getDoubleParameterValue("requestedPixelSizeMicrons");
-				double averagedPixelSize = imageData.getServer().getAveragedPixelSizeMicrons();
+				double averagedPixelSize = cal.getAveragedPixelSizeMicrons();
 				if (requestedPixelSize < 0)
 					requestedPixelSize = averagedPixelSize * (-requestedPixelSize);
 				requestedPixelSize = Math.max(requestedPixelSize, averagedPixelSize);
@@ -343,8 +345,8 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 			
 			// Convert parameters where needed
 			double sigma, medianRadius, backgroundRadius, minArea, maxArea, cellExpansion;
-			if (pathImage.hasPixelSizeMicrons()) {
-				double pixelSize = 0.5 * (pathImage.getPixelHeightMicrons() + pathImage.getPixelWidthMicrons());
+			if (pathImage.getPixelCalibration().hasPixelSizeMicrons()) {
+				double pixelSize = pathImage.getPixelCalibration().getAveragedPixelSizeMicrons();
 				backgroundRadius = params.getDoubleParameterValue("backgroundRadiusMicrons") / pixelSize;
 				medianRadius = params.getDoubleParameterValue("medianRadiusMicrons") / pixelSize;
 				sigma = params.getDoubleParameterValue("sigmaMicrons") / pixelSize;
@@ -412,7 +414,7 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 		
 		// Show/hide parameters depending on whether the pixel size is known
 		Map<String, Parameter<?>> map = params.getParameters();
-		boolean pixelSizeKnown = imageData.getServer() != null && imageData.getServer().hasPixelSizeMicrons();
+		boolean pixelSizeKnown = imageData.getServer() != null && imageData.getServer().getPixelCalibration().hasPixelSizeMicrons();
 		for (String name : micronParameters)
 			map.get(name).setHidden(!pixelSizeKnown);
 		for (String name : pixelParameters)
@@ -426,7 +428,7 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 		params.setHiddenParameters(isBrightfield, fluorescenceParameters);
 		
 		if (!isBrightfield) {
-			if (imageData.getServer().getBitsPerPixel() > 8)
+			if (imageData.getServer().getPixelType().bitsPerPixel() > 8)
 				((DoubleParameter)params.getParameters().get("threshold")).setValue(100.0);
 			else
 				((DoubleParameter)params.getParameters().get("threshold")).setValue(25.0);
@@ -1024,7 +1026,7 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 
 	@Override
 	protected int getTileOverlap(ImageData<BufferedImage> imageData, ParameterList params) {
-		double pxSize = imageData.getServer().getAveragedPixelSizeMicrons();
+		double pxSize = imageData.getServer().getPixelCalibration().getAveragedPixelSizeMicrons();
 		if (Double.isNaN(pxSize))
 			return params.getDoubleParameterValue("cellExpansion") > 0 ? 25 : 10;
 		double cellExpansion = params.getDoubleParameterValue("cellExpansionMicrons") / pxSize;

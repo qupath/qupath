@@ -50,6 +50,7 @@ import qupath.lib.color.ColorTransformer;
 import qupath.lib.color.ColorTransformer.ColorTransformMethod;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.ImageData;
+import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClassFactory;
@@ -112,7 +113,8 @@ public class DetectCytokeratinCV extends AbstractDetectionPlugin<BufferedImage> 
 			double separationDistanceMicrons = params.getDoubleParameterValue("separationDistanceMicrons");
 
 			// Derive more useful values
-			double pixelSize = imageData.getServer().getAveragedPixelSizeMicrons() * downsample;
+			PixelCalibration cal = imageData.getServer().getPixelCalibration();
+			double pixelSize = cal.getAveragedPixelSizeMicrons() * downsample;
 			double gaussianSigma = gaussianSigmaMicrons / pixelSize;
 			int separationDiameter = 0;
 			if (separationDistanceMicrons > 0) {

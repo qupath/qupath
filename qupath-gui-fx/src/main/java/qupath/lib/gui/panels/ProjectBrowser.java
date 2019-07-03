@@ -92,8 +92,6 @@ import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
 import javafx.util.Callback;
 import qupath.lib.common.GeneralTools;
-import qupath.lib.display.ChannelDisplayInfo;
-import qupath.lib.display.ImageDisplay;
 import qupath.lib.gui.ImageDataChangeListener;
 import qupath.lib.gui.ImageDataWrapper;
 import qupath.lib.gui.QuPathGUI;
@@ -221,12 +219,12 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 			List<TreeItem<Object>> selected = tree.getSelectionModel().getSelectedItems();
 			if (selected == null)
 				return;
-			List<ProjectImageEntry<BufferedImage>> entries = selected.stream().map(p -> {
+			Collection<ProjectImageEntry<BufferedImage>> entries = selected.stream().map(p -> {
 				if (p.getValue() instanceof ProjectImageEntry)
 					return Collections.singletonList((ProjectImageEntry<BufferedImage>)p.getValue());
 				else
 					return getImageEntries(p, null);
-			}).flatMap(Collection::stream).collect(Collectors.toList());
+			}).flatMap(Collection::stream).collect(Collectors.toSet());
 			
 			if (entries.isEmpty())
 				return;
@@ -245,7 +243,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 			}
 			
 			if (entries.size() == 1) {
-				if (!DisplayHelpers.showConfirmDialog("Remove project entry", "Remove " + entries.get(0).getImageName() + " from project?"))
+				if (!DisplayHelpers.showConfirmDialog("Remove project entry", "Remove " + entries.iterator().next().getImageName() + " from project?"))
 					return;
 			} else if (!DisplayHelpers.showYesNoDialog("Remove project entries", String.format("Remove %d entries?", entries.size())))
 				return;
@@ -584,7 +582,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 		
 		if (project != null) {
 			try {
-				Set<String> uris = new TreeSet<>();
+				Set<URI> uris = new TreeSet<>();
 				for (var entry: project.getImageList()) {
 					uris.addAll(entry.getServerURIs());
 				}
@@ -595,10 +593,9 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 				Path pathPrevious = previousURI == null || !"file".equals(previousURI.getScheme()) ? null : Paths.get(previousURI);
 				boolean tryRelative = pathProject != null && pathPrevious != null && !pathProject.equals(pathPrevious);
 				
-				Map<String, String> replacements = new LinkedHashMap<>();
-				for (String s : uris) {
+				Map<URI, URI> replacements = new LinkedHashMap<>();
+				for (URI uri : uris) {
 					try {
-						URI uri = new URI(s);
 						if (!"file".equals(uri.getScheme()))
 							continue;
 						// Check if the path exists, without changes
@@ -609,14 +606,14 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 						if (tryRelative) {
 							Path pathRelative = pathProject.resolve(pathPrevious.relativize(path));
 							if (Files.exists(pathRelative)) {
-								String s2 = pathRelative.normalize().toUri().normalize().toString();
-								logger.info("Updating path: {} -> {}", s, s2);
-								replacements.put(s, s2);
+								URI uri2 = pathRelative.normalize().toUri().normalize();
+								logger.info("Updating path: {} -> {}", uri, uri2);
+								replacements.put(uri, uri2);
 								continue;
 							}
 						}
 					} catch (Exception e) {
-						logger.warn("Exception converting path {} ({})", s, e.getLocalizedMessage());
+						logger.warn("Exception converting URI {} ({})", uri, e.getLocalizedMessage());
 					}
 				}
 				
@@ -663,8 +660,8 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 		if (project.getEntry(imageData) != null)
 			return;
 
-		var changed = ProjectImportImagesCommand.addImageAndSubImagesToProject(project, imageData.getServer());
-		if (changed) {
+		var entry = ProjectImportImagesCommand.addSingleImageToProject(project, imageData.getServer(), null);
+		if (entry != null) {
 			tree.setRoot(model.getRootFX());
 			setSelectedEntry(tree, tree.getRoot(), project.getEntry(imageData));
 			syncProject(project);
@@ -731,7 +728,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 			server = ImageServerProvider.buildServer(serverPath, BufferedImage.class);
 			newServer = true;
 		}
-		BufferedImage img2 = qupath.getViewer().getImageRegionStore().getThumbnail(server, server.nZSlices()/2, 0, true);
+		BufferedImage img2 = ProjectImportImagesCommand.getThumbnailRGB(server, null);
 		if (newServer) {
 			try {
 				server.close();
@@ -739,24 +736,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 				logger.warn("Problem closing server", e);
 			}
 		}
-		if (img2 != null) {
-			// Try to write RGB images directly
-			boolean success = false;
-			if (server.isRGB() || img2.getType() == BufferedImage.TYPE_BYTE_GRAY) {
-				img2 = resizeForThumbnail(img2);
-				success = ImageIO.write(img2, THUMBNAIL_EXT, fileThumbnail);
-			}
-			if (!success) {
-				// Try with display transforms
-				ImageDisplay imageDisplay = new ImageDisplay(new ImageData<>(server));
-				for (ChannelDisplayInfo info : imageDisplay.selectedChannels()) {
-					imageDisplay.autoSetDisplayRange(info);
-				}
-				img2 = imageDisplay.applyTransforms(img2, null);
-				img2 = resizeForThumbnail(img2);
-				ImageIO.write(img2, THUMBNAIL_EXT, fileThumbnail);
-			}
-		}
+		ImageIO.write(img2, THUMBNAIL_EXT, fileThumbnail);
 		return SwingFXUtils.toFXImage(img2, null);
 	}
 

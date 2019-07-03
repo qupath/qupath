@@ -26,6 +26,7 @@ package qupath.lib.gui.panels;
 import java.awt.image.BufferedImage;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.Map;
 import java.util.Set;
 
 import org.slf4j.Logger;
@@ -40,13 +41,18 @@ import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
+import javafx.scene.control.CheckMenuItem;
+import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
+import javafx.scene.control.RadioMenuItem;
 import javafx.scene.control.Slider;
 import javafx.scene.control.TextField;
 import javafx.scene.control.ToggleButton;
+import javafx.scene.control.ToggleGroup;
 import javafx.scene.control.Tooltip;
 import javafx.scene.image.Image;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.VBox;
@@ -57,7 +63,6 @@ import qupath.lib.gui.helpers.MeasurementMapper;
 import qupath.lib.gui.helpers.MeasurementMapper.ColorMapper;
 import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.gui.viewer.QuPathViewer;
-import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 
@@ -76,7 +81,7 @@ public class MeasurementMapPanel {
 	
 	private QuPathGUI qupath;
 	
-	private HashMap<String, MeasurementMapper> mapperMap = new HashMap<>();
+	private Map<String, MeasurementMapper> mapperMap = new HashMap<>();
 
 	private BorderPane pane = new BorderPane();
 	
@@ -243,6 +248,32 @@ public class MeasurementMapPanel {
 
 		pane.setPadding(new Insets(10, 10, 10, 10));
 		
+		
+		colorMapperKey.setOnMouseClicked(e -> promptForMap(e));
+	}
+	
+	void promptForMap(MouseEvent e) {
+		Map<String, ColorMapper> mappers = MeasurementMapper.getAvailableColorMappers();
+		if (mappers.isEmpty() && mappers.size() == 1)
+			return;
+		
+		ColorMapper currentMapper = mapper.getColorMapper();
+		ContextMenu menu = new ContextMenu();
+		ToggleGroup group = new ToggleGroup();
+		for (var entry : mappers.entrySet()) {
+			RadioMenuItem item = new RadioMenuItem(entry.getKey());
+			group.getToggles().add(item);
+			item.setSelected(currentMapper == entry.getValue());
+			item.selectedProperty().addListener((v, o, n) -> {
+				if (n) {
+					mapper.setColorMapper(entry.getValue());
+					showMap();
+				}
+			});
+			menu.getItems().add(item);
+		}
+
+		menu.show(colorMapperKey, e.getScreenX(), e.getScreenY());
 	}
 	
 	public Pane getPane() {

@@ -26,12 +26,11 @@ package qupath.imagej.images.servers;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.net.URI;
-import java.util.Collection;
-import java.util.Collections;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import qupath.lib.images.servers.FileFormatInfo;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerBuilder;
 import qupath.lib.images.servers.FileFormatInfo.ImageCheckType;
@@ -57,10 +56,14 @@ public class ImageJServerBuilder implements ImageServerBuilder<BufferedImage> {
 	}
 
 	@Override
-	public float supportLevel(URI uri, ImageCheckType type, Class<?> cls, String...args) {
-		if (cls != BufferedImage.class)
-			return 0;
+	public UriImageSupport<BufferedImage> checkImageSupport(URI uri, String...args) {
+		float supportLevel = supportLevel(uri, args);
+		return UriImageSupport.createInstance(this.getClass(), supportLevel, DefaultImageServerBuilder.createInstance(this.getClass(), null, uri, args));
+	}
+	
+	private float supportLevel(URI uri, String...args) {
 		
+		ImageCheckType type = FileFormatInfo.checkType(uri);
 		String description = type.getDescription();
 		if (description != null && description.contains("imagej"))
 			return 4;
@@ -72,11 +75,6 @@ public class ImageJServerBuilder implements ImageServerBuilder<BufferedImage> {
 	}
 	
 	@Override
-	public Collection<String> getServerClassNames() {
-		return Collections.singleton(ImageJServer.class.getName());
-	}
-	
-	@Override
 	public String getName() {
 		return "ImageJ Builder";
 	}
@@ -84,6 +82,11 @@ public class ImageJServerBuilder implements ImageServerBuilder<BufferedImage> {
 	@Override
 	public String getDescription() {
 		return "Read images using ImageJ's default methods - best for TIFF files originally written by ImageJ, with calibration data available";
+	}
+	
+	@Override
+	public Class<BufferedImage> getImageType() {
+		return BufferedImage.class;
 	}
 
 }

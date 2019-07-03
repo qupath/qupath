@@ -36,6 +36,8 @@ import qupath.lib.common.ColorTools;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
+import qupath.lib.images.servers.PixelCalibration;
+import qupath.lib.images.servers.ServerTools;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
 
@@ -124,21 +126,21 @@ public class OMEPyramidWriter {
 		meta.setPixelsBigEndian(ByteOrder.BIG_ENDIAN.equals(endian), series);
 		
 		meta.setPixelsDimensionOrder(DimensionOrder.XYCZT, series);
-		switch (server.getBitsPerPixel()) {
-		case 8:
+		switch (server.getPixelType()) {
+		case UINT8:
 			meta.setPixelsType(PixelType.UINT8, series);
 			break;
-		case 16:
+		case UINT16:
 			meta.setPixelsType(PixelType.UINT16, series);
 			break;
-		case 32:
+		case FLOAT32:
 			meta.setPixelsType(PixelType.FLOAT, series);
 			break;
-		case 64:
+		case FLOAT64:
 			meta.setPixelsType(PixelType.DOUBLE, series);
 			break;
 		default:
-			throw new IOException("Cannot convert bits-per-pixel value of " + server.getBitsPerPixel() + " into a valid PixelType");
+			throw new IOException("Cannot convert pixel type value of " + server.getPixelType() + " into a valid OME PixelType");
 		}
 		meta.setPixelsSizeX(new PositiveInteger((int)(width / downsamples[0])), series);
 		meta.setPixelsSizeY(new PositiveInteger((int)(height / downsamples[0])), series);
@@ -210,12 +212,13 @@ public class OMEPyramidWriter {
 		}
 
 		// Set physical units, if we have them
-		if (server.hasPixelSizeMicrons()) {
-			meta.setPixelsPhysicalSizeX(new Length(server.getPixelWidthMicrons() * downsamples[0], UNITS.MICROMETER), series);
-			meta.setPixelsPhysicalSizeY(new Length(server.getPixelHeightMicrons() * downsamples[0], UNITS.MICROMETER), series);
+		PixelCalibration cal = server.getPixelCalibration();
+		if (cal.hasPixelSizeMicrons()) {
+			meta.setPixelsPhysicalSizeX(new Length(cal.getPixelWidthMicrons() * downsamples[0], UNITS.MICROMETER), series);
+			meta.setPixelsPhysicalSizeY(new Length(cal.getPixelHeightMicrons() * downsamples[0], UNITS.MICROMETER), series);
 		}
-		if (!Double.isNaN(server.getZSpacingMicrons()))
-			meta.setPixelsPhysicalSizeZ(new Length(server.getZSpacingMicrons(), UNITS.MICROMETER), series);
+		if (!Double.isNaN(cal.getZSpacingMicrons()))
+			meta.setPixelsPhysicalSizeZ(new Length(cal.getZSpacingMicrons(), UNITS.MICROMETER), series);
 
 		// TODO: Consider setting the magnification
 
@@ -230,7 +233,7 @@ public class OMEPyramidWriter {
 
 		try (PyramidOMETiffWriter writer = new PyramidOMETiffWriter()) {
 			
-			logger.info("Writing {} to {} with compression {}", server.getDisplayedImageName(), path, compression);
+			logger.info("Writing {} to {} with compression {}", ServerTools.getDisplayableImageName(server), path, compression);
 			
 			int nPlanes = (nChannels / nSamples) * sizeZ * sizeT;
 			long nPixels = (long)width * (long)height * nSamples * nPlanes;
@@ -242,7 +245,7 @@ public class OMEPyramidWriter {
 			// Switch automatically to bigtiff is we have a large image & it isn't otherwise specified what to do
 			if (bigTiff == null) {
 				logger.debug("Setting 'Big TIFF' to true...");
-				bigTiff = nPixels * (server.getBitsPerPixel()/8) > Integer.MAX_VALUE/2;
+				bigTiff = nPixels * (server.getPixelType().getBytesPerPixel()) > Integer.MAX_VALUE/2;
 			}
 			if (Boolean.TRUE.equals(bigTiff)) {
 				writer.setBigTiff(true);				
@@ -372,7 +375,7 @@ public class OMEPyramidWriter {
 		RegionRequest request = downsampledRegionToRequest(region, downsample);
 		BufferedImage img = server.readBufferedImage(request);
 		
-		int bytesPerPixel = server.getBitsPerPixel() / 8;
+		int bytesPerPixel = server.getPixelType().getBytesPerPixel();
 		int nChannels = channels.length;
 		if (img == null) {
 			byte[] zeros = new byte[region.getWidth() * region.getHeight() * bytesPerPixel * nChannels];
@@ -421,14 +424,14 @@ public class OMEPyramidWriter {
 		int hh = raster.getHeight();
 		int n = ww*hh;
 		Object pixelBuffer = getPixelBuffer(n);
-		switch (server.getBitsPerPixel()) {
-		case 8:
-		case 16:
+		switch (server.getPixelType()) {
+		case UINT8:
+		case UINT16:
 			int[] pixelsInt = pixelBuffer instanceof int[] ? (int[])pixelBuffer : null;
 			if (pixelsInt == null || pixelsInt.length < n)
 				pixelsInt = new int[n];
 			pixelsInt = raster.getSamples(0, 0, ww, hh, c, pixelsInt);
-			if (server.getBitsPerPixel() == 8) {
+			if (server.getPixelType().bitsPerPixel() == 8) {
 				for (int i = 0; i < n; i++) {
 					buf.put(ind, (byte)pixelsInt[i]);
 					ind += inc;
@@ -440,7 +443,7 @@ public class OMEPyramidWriter {
 				}
 			}
 			return true;
-		case 32:
+		case FLOAT32:
 			float[] pixelsFloat = pixelBuffer instanceof float[] ? (float[])pixelBuffer : null;
 			if (pixelsFloat == null || pixelsFloat.length < n)
 				pixelsFloat = new float[n];
@@ -450,7 +453,7 @@ public class OMEPyramidWriter {
 				ind += inc;
 			}
 			return true;
-		case 64:
+		case FLOAT64:
 			double[] pixelsDouble = pixelBuffer instanceof double[] ? (double[])pixelBuffer : null;
 			if (pixelsDouble == null || pixelsDouble.length < n)
 				pixelsDouble = new double[n];
@@ -475,7 +478,7 @@ public class OMEPyramidWriter {
 	Object getPixelBuffer(int length) {
 		Object originalBuffer = this.pixelBuffer.get();
 		Object updatedBuffer = null;
-		int bpp = server.getBitsPerPixel();
+		int bpp = server.getPixelType().bitsPerPixel();
 		if (server.isRGB() || bpp == 8 || bpp == 16) {
 			updatedBuffer = ensureIntArray(originalBuffer, length);
 		} else if (bpp == 32) {
@@ -541,7 +544,7 @@ public class OMEPyramidWriter {
 			writer.zEnd = server.nZSlices();
 			writer.tStart = 0;
 			writer.tEnd = server.nTimepoints();
-			if (server.getOutputType() == ImageServerMetadata.ChannelType.CLASSIFICATION)
+			if (server.getMetadata().getChannelType() == ImageServerMetadata.ChannelType.CLASSIFICATION)
 				writer.channels = new int[] {0};
 			else
 				writer.channels = IntStream.range(0, server.nChannels()).toArray();
@@ -868,11 +871,11 @@ public class OMEPyramidWriter {
 
 		Set<String> set = new LinkedHashSet<>(getAvailableCompressionTypes());
 		// Remove some types of compression that aren't expected to work
-		if (server.getBitsPerPixel() > 16) {
+		if (server.getPixelType().getBytesPerPixel() > 2) {
 			set.remove(PyramidOMETiffWriter.COMPRESSION_JPEG);
 			set.remove(PyramidOMETiffWriter.COMPRESSION_J2K);
 			set.remove(PyramidOMETiffWriter.COMPRESSION_J2K_LOSSY);
-		} else if (server.getBitsPerPixel() != 8 || (server.nChannels() > 1 && !server.isRGB())) {
+		} else if (server.getPixelType().bitsPerPixel() != 8 || (server.nChannels() > 1 && !server.isRGB())) {
 			set.remove(PyramidOMETiffWriter.COMPRESSION_JPEG);
 		}
 
@@ -925,7 +928,7 @@ public class OMEPyramidWriter {
 	static String getDefaultLossyCompressionType(final ImageServer<BufferedImage> server) {
 		if (server.isRGB())
 			return PyramidOMETiffWriter.COMPRESSION_JPEG;
-		if (server.getBitsPerPixel() <= 16)
+		if (server.getPixelType().bitsPerPixel() <= 16)
 			return PyramidOMETiffWriter.COMPRESSION_J2K_LOSSY;
 		// Don't try another lossy compression method...
 		return getDefaultLosslessCompressionType(server);
