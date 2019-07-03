@@ -49,7 +49,7 @@ import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.overlays.HierarchyOverlay;
 import qupath.lib.gui.viewer.overlays.PathOverlay;
 import qupath.lib.images.ImageData;
-import qupath.lib.images.servers.ImageIoImageServer;
+import qupath.lib.images.servers.WrappedBufferedImageServer;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.writers.ImageWriter;
 import qupath.lib.images.writers.JpegWriter;
@@ -278,7 +278,7 @@ public class ImageWriterTools {
 		
 //		ImageServer server2 = new ImageServer<BufferedImage>(server.getServerPath() + ": (" + request.getX() + ", " + request.getY() + ", " + request.getWidth() + ", " + request.getHeight() + ")", null, img);
 		try {
-			ImageServer<BufferedImage> server2 = new ImageIoImageServer(null, request.toString(), null, img);
+			ImageServer<BufferedImage> server2 = new WrappedBufferedImageServer(null, img);
 			BufferedImage success = writeImageRegion(server2, RegionRequest.createInstance(server2.getPath(), 1, 0, 0, server2.getWidth(), server2.getHeight()), path);
 			server2.close();
 			return success;

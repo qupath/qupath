@@ -159,12 +159,12 @@ public class JPenExtension implements QuPathExtension {
 
 		@Override
 		public void penDeviceAdded(Constructor providerConstructor, PenDevice penDevice) {
-			logger.info("PenDevice added: {} ({})", penDevice, providerConstructor);
+			logger.debug("PenDevice added: {} ({})", penDevice, providerConstructor);
 		}
 
 		@Override
 		public void penDeviceRemoved(Constructor providerConstructor, PenDevice penDevice) {
-			logger.info("PenDevice removed: {} ({})", penDevice, providerConstructor);
+			logger.debug("PenDevice removed: {} ({})", penDevice, providerConstructor);
 		}
 		
 	}

@@ -552,10 +552,10 @@ public class ImageDisplay extends AbstractImageRenderer {
 			histogramManager = new HistogramManager(0L);
 //			histogramManager = new HistogramManager(server.getLastChangeTimestamp());
 			histogramManager.ensureChannels(server, channelOptions);
-			channelOptions.stream().forEach(channel -> autoSetDisplayRange(channel, false));
+			channelOptions.parallelStream().forEach(channel -> autoSetDisplayRange(channel, false));
 			cachedHistograms.put(server.getPath(), histogramManager);
 		} else {
-			channelOptions.stream().forEach(channel -> autoSetDisplayRange(channel, false));
+			channelOptions.parallelStream().forEach(channel -> autoSetDisplayRange(channel, false));
 		}
 	}
 

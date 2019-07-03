@@ -45,9 +45,11 @@ import javafx.scene.control.ButtonType;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.GridPane;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.FileChooser;
 import javafx.stage.FileChooser.ExtensionFilter;
+import qupath.lib.gui.helpers.GridPaneTools;
 import qupath.lib.gui.helpers.dialogs.DialogHelper;
 import javafx.stage.Window;
 
@@ -291,9 +293,9 @@ public class DialogHelperFX implements DialogHelper {
 		}
 		
 		// Create dialog
-        BorderPane pane = new BorderPane();
+        GridPane pane = new GridPane();
         
-        Label label = new Label("Enter image path (file or URL)");
+        Label label = new Label("Enter URL");
         TextField tf = new TextField();
         tf.setPrefWidth(400);
         
@@ -306,10 +308,12 @@ public class DialogHelperFX implements DialogHelper {
             }
         });
         
-        label.setPadding(new Insets(0, 0, 5, 0));
-        pane.setTop(label);
-        pane.setCenter(tf);
-        pane.setRight(button);
+//        label.setPadding(new Insets(0, 0, 5, 0));
+        GridPaneTools.addGridRow(pane, 0, 0, "Input URL or choose file", label, tf, button);
+        pane.setHgap(5);
+//        pane.setTop(label);
+//        pane.setCenter(tf);
+//        pane.setRight(button);
         
 		
         // Show dialog

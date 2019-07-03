@@ -23,33 +23,24 @@
 
 package qupath.lib.images.servers;
 
-import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBuffer;
 import java.io.IOException;
-import java.net.MalformedURLException;
-import java.net.URI;
-import javax.imageio.ImageIO;
-
 import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
-import qupath.lib.regions.RegionRequest;
 
 /**
- * Implementation of an ImageServer using Java's ImageIO.
+ * Implementation of an ImageServer that simply wraps an existing BufferedImage.
  * <p>
- * In truth, this isn't actually used for much... and is quite untested.
+ * This may help whenever requiring
  * 
  * @author Pete Bankhead
  *
  */
-public class ImageIoImageServer extends AbstractImageServer<BufferedImage> {
+public class WrappedBufferedImageServer extends AbstractTileableImageServer {
 	
 	private ImageServerMetadata originalMetadata;
 
 	private BufferedImage img;
-	private URI uri;
-	private String imageName;
-	private String[] args;
 	
 	private final int[] rgbTypes = new int[] {
 			BufferedImage.TYPE_INT_ARGB, BufferedImage.TYPE_INT_ARGB_PRE, BufferedImage.TYPE_INT_RGB
@@ -58,17 +49,12 @@ public class ImageIoImageServer extends AbstractImageServer<BufferedImage> {
 	/**
 	 * Create an {@code ImageServer<BufferedImage>} using an image that has been provided directly.
 	 * 
-	 * @param uri
-	 * @param path
-	 * @param imageName
-	 * @param img
-	 * @param args
+	 * @param imageName a name to display (may be null)
+	 * @param img the BufferedImage to wrap
 	 */
-	public ImageIoImageServer(final URI uri, String path, final String imageName, final BufferedImage img, String...args) {
-		super(BufferedImage.class);
-		this.uri = uri;
-		this.img = img;
-		this.imageName = imageName;
+	public WrappedBufferedImageServer(final String imageName, final BufferedImage img) {
+		super();
+		this.img = duplicate(img);
 
 		// Create metadata objects
 		PixelType pixelType;
@@ -100,54 +86,21 @@ public class ImageIoImageServer extends AbstractImageServer<BufferedImage> {
 			isRGB = isRGB | type == img.getType();
 		}
 		
-		this.args = args;
 		originalMetadata = new ImageServerMetadata.Builder(getClass())
 				.width(img.getWidth())
 				.height(img.getHeight())
-//				.args(args)
+				.name(imageName)
+				.preferredTileSize(img.getWidth(), img.getHeight())
+				.levelsFromDownsamples(1.0)
 				.rgb(isRGB)
 				.pixelType(pixelType)
-				.channels(ImageChannel.getDefaultChannelList(nChannels)).
-				build();
-	}
-	
-	/**
-	 * Create an {@code ImageServer<BufferedImage>} after first reading the image using ImageIO.
-	 * 
-	 * @param uri
-	 * @throws MalformedURLException
-	 * @throws IOException
-	 */
-	public ImageIoImageServer(URI uri, String...args) throws MalformedURLException, IOException {
-		this(uri, uri.toString(), null, ImageIO.read(uri.toURL()), args);
-	}
-
-	@Override
-	public BufferedImage readBufferedImage(RegionRequest request) {
-		// TODO: Check this - there is a very real possibility it's completely wrong!
-		double downsampleFactor = request.getDownsample();
-		int w = (int)(request.getWidth() / downsampleFactor + .5);
-		int h = (int)(request.getHeight() / downsampleFactor + .5);
-		BufferedImage img2 = new BufferedImage(w, h, img.getType());
-		Graphics2D g2d = img2.createGraphics();
-		g2d.translate(-request.getX(), -request.getY());
-		if (downsampleFactor != 1)
-			g2d.scale(1.0/downsampleFactor, 1.0/downsampleFactor);
-		g2d.drawImage(img, 0, 0, null);
-		g2d.dispose();
-		return img2;
+				.channels(ImageChannel.getDefaultChannelList(nChannels))
+				.build();
 	}
 
 	@Override
 	public String getServerType() {
-		return "BufferedImage";
-	}
-
-	@Override
-	public String getDisplayedImageName() {
-		if (imageName == null)
-			return super.getDisplayedImageName();
-		return imageName;
+		return "BufferedImage wrapper";
 	}
 	
 	@Override
@@ -155,13 +108,17 @@ public class ImageIoImageServer extends AbstractImageServer<BufferedImage> {
 		return originalMetadata;
 	}
 	
+	/**
+	 * Returns null (does not support ServerBuilders).
+	 */
 	@Override
 	public ServerBuilder<BufferedImage> getBuilder() {
-		return ImageServerBuilder.DefaultImageServerBuilder.createInstance(
-				ImageIoImageServerBuilder.class,
-				getMetadata(),
-				uri,
-				args);
+		return null;
+	}
+
+	@Override
+	protected BufferedImage readTile(TileRequest tileRequest) throws IOException {
+		return img;
 	}
 
 }

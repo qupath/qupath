@@ -12,8 +12,6 @@ import java.nio.file.Paths;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.gson.reflect.TypeToken;
-
 import qupath.lib.io.GsonTools;
 
 /**
@@ -60,7 +58,9 @@ public class JsonImageServerBuilder implements ImageServerBuilder<BufferedImage>
 	@Override
 	public ImageServer<BufferedImage> buildServer(URI uri, String...args) throws Exception {
 		try (Reader reader = new BufferedReader(new InputStreamReader(uri.toURL().openStream()))) {
-			return GsonTools.getGsonDefault().fromJson(reader, new TypeToken<ImageServer<BufferedImage>>() {}.getType());
+			ServerBuilder<BufferedImage> builder = GsonTools.getGsonDefault().fromJson(reader, ServerBuilder.class);
+			return builder.build();
+//			return GsonTools.getGsonDefault().fromJson(reader, new TypeToken<ImageServer<BufferedImage>>() {}.getType());
 		}
 	}
 
