@@ -59,9 +59,11 @@ import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.gui.helpers.PanelToolsFX;
 import qupath.lib.gui.helpers.dialogs.ParameterPanelFX;
+import qupath.lib.gui.images.servers.ChannelDisplayTransformServer;
 import qupath.lib.gui.plugins.ParameterDialogWrapper;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.PathImage;
+import qupath.lib.images.servers.ImageServer;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.TMACoreObject;
@@ -228,8 +230,10 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 		boolean sendOverlay = params.getBooleanParameterValue("sendOverlay");
 		ROI pathROI = pathObject.getROI();		
 		ImageDisplay imageDisplay2 = Boolean.TRUE.equals(params.getBooleanParameterValue("useTransform")) ? imageDisplay : null;
-		RegionRequest region = RegionRequest.createInstance(imageData.getServer().getPath(), downsampleFactor, pathROI);
 		
+		ImageServer<BufferedImage> server = imageDisplay2 == null || imageDisplay2.availableChannels().isEmpty() ? imageData.getServer() : ChannelDisplayTransformServer.createColorTransformServer(imageData.getServer(), imageDisplay.availableChannels());
+		
+		RegionRequest region = RegionRequest.createInstance(imageData.getServer().getPath(), downsampleFactor, pathROI);
 		// Check the size of the region to extract - abort if it is too large of if ther isn't enough RAM
 		try {
 			IJTools.isMemorySufficient(region, imageData);
@@ -240,9 +244,9 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 		
 		try {
 			if (sendOverlay)
-				pathImage = IJExtension.extractROIWithOverlay(imageData.getServer(), pathObject, imageData.getHierarchy(), region, sendROI, null, imageDisplay2);
+				pathImage = IJExtension.extractROIWithOverlay(server, pathObject, imageData.getHierarchy(), region, sendROI, null);
 			else
-				pathImage = IJExtension.extractROI(imageData.getServer(), pathObject, region, sendROI, imageDisplay2);
+				pathImage = IJExtension.extractROI(server, pathObject, region, sendROI);
 		} catch (IOException e) {
 			logger.error("Unable to extract image region " + region, e);
 			return;

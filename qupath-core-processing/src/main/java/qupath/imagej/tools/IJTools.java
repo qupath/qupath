@@ -254,7 +254,10 @@ public class IJTools {
 	 * @param pathObject
 	 */
 	public static void setTitleFromObject(PathImage<ImagePlus> pathImage, PathObject pathObject) {
-		if (pathImage != null && pathObject instanceof TMACoreObject)
+		if (pathImage == null || pathObject == null)
+			return;
+		if ((pathObject.isTMACore() || pathObject.isAnnotation()) &&
+				(pathObject.getName() != null || pathObject.getPathClass() != null))
 			pathImage.getImage().setTitle(pathObject.getDisplayedName());
 	}
 

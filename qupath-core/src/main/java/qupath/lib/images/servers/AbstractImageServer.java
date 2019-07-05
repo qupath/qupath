@@ -30,16 +30,12 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
-
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.index.SpatialIndex;
 import org.locationtech.jts.index.quadtree.Quadtree;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
-import qupath.lib.io.GsonTools;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
 
