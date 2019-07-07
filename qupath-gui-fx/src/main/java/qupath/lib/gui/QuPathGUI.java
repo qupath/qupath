@@ -2263,27 +2263,31 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	 * @param entry
 	 */
 	public boolean openImageEntry(ProjectImageEntry<BufferedImage> entry) {
-		if (entry == null)
+		Project<BufferedImage> project = getProject();
+		if (entry == null || project == null)
 			return false;
 		
 		// Check if we're changing ImageData at all
 		var viewer = getViewer();
 		ImageData<BufferedImage> imageData = viewer.getImageData();
-		if (imageData != null && imageData.getServerPath().equals(entry.getServerPath()))
+		if (imageData != null && project.getEntry(imageData) == entry) {
 			return false;
+		}
+//		if (imageData != null && imageData.getServerPath().equals(entry.getServerPath()))
+//			return false;
 		
 		// Check to see if the ImageData is already open in another viewer - if so, just activate it
-		String path = entry.getServerPath();
+//		String path = entry.getServerPath();
 		for (QuPathViewerPlus v : viewerManager.getViewers()) {
-			ImageData<?> data = v.getImageData();
-			if (data != null && data.getServer().getPath().equals(path)) {
+			ImageData<BufferedImage> data = v.getImageData();
+			if (data != null && project.getEntry(data) == entry) {
+//			if (data != null && data.getServer().getPath().equals(path)) {
 				viewerManager.setActiveViewer(v);
 				return true;
 			}
 		}
 		
 		// If the current ImageData belongs to the current project, check if there are changes to save
-		Project<BufferedImage> project = getProject();
 		if (imageData != null && project != null) {
 			if (!checkSaveChanges(imageData))
 				return false;
@@ -2299,6 +2303,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 					var type = DisplayHelpers.estimateImageType(imageData.getServer(), imageRegionStore.getThumbnail(imageData.getServer(), 0, 0, true));
 					logger.info("Image type estimated to be {}", type);
 					imageData.setImageType(type);
+					imageData.resetChanges(); // Don't want to retain this as a change resulting in a prompt to save the data
 				} else if (PathPrefs.getPromptForImageType()) {
 					PathImageDetailsPanel.promptToSetImageType(imageData);
 				}
@@ -4526,7 +4531,6 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		// Check if we want to save the current image; we could still veto the project change at this point
 		var viewer = getViewer();
 		var imageData = viewer.getImageData();
-		boolean addImageToProject = false;
 		if (imageData != null) {
 			ProjectImageEntry<BufferedImage> entry = getProjectImageEntry(imageData);
 			if (entry != null) {

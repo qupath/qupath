@@ -387,7 +387,7 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
     }
 
     /**
-     * Set a property. Not that if properties are Serializable, they will be included in 
+     * Set a property. Note that if properties are Serializable, they will be included in 
      * associated data files - otherwise they are stored only transiently.
      * @param key
      * @param value
@@ -442,6 +442,13 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
      */
     public boolean isChanged() {
     		return changes;
+    }
+    
+    /**
+     * Set {@link #isChanged()} to false.
+     */
+    public void resetChanges() {
+    	this.changes = false;
     }
     
     /**

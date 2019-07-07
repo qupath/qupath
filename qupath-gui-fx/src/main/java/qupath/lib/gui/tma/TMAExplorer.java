@@ -144,7 +144,7 @@ public class TMAExplorer implements PathCommand {
 					}
 
 					DefaultTMAEntry entry = new DefaultTMAEntry(
-							imageEntry.getServerPath(),
+							imageEntry.getImageName(),
 							fileOutput.getAbsolutePath(),
 							null,
 							core.getName(),

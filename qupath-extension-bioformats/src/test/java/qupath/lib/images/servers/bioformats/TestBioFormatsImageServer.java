@@ -34,6 +34,8 @@ import java.util.List;
 import java.util.Locale;
 
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import ij.ImagePlus;
 import loci.common.DebugTools;
@@ -42,7 +44,6 @@ import loci.plugins.BF;
 import loci.plugins.in.ImporterOptions;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.servers.ImageServer;
-import qupath.lib.images.servers.ImageServerProvider;
 import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.images.servers.bioformats.BioFormatsImageServer;
 import qupath.lib.projects.Project;
@@ -66,6 +67,8 @@ import qupath.lib.regions.RegionRequest;
  */
 public class TestBioFormatsImageServer {
 	
+	private static Logger logger = LoggerFactory.getLogger(TestBioFormatsImageServer.class);
+	
 	/**
 	 * Test the creation of BioFormatsImageServers by trying to open all images in whatever projects are found within the current directory.
 	 */
@@ -81,8 +84,7 @@ public class TestBioFormatsImageServer {
 				Project<BufferedImage> project = ProjectIO.loadProject(file, BufferedImage.class);
 				testProject(project);
 			} catch (Exception e) {
-				System.err.println("Unable to load project " + file.getAbsolutePath());
-				e.printStackTrace();
+				logger.error("Unable to load project " + file.getAbsolutePath(), e);
 			}
 		}
 		
@@ -98,7 +100,7 @@ public class TestBioFormatsImageServer {
 		List<ProjectImageEntry<BufferedImage>> entries = project.getImageList();
 		System.out.println("Testing project with " + entries.size() + " entries: " + Project.getNameFromURI(project.getURI()));
 		for (ProjectImageEntry<BufferedImage> entry : entries) {
-			String serverPath = entry.getServerPath();
+//			String serverPath = entry.getServerPath();
 //			System.out.println("Opening: " + serverPath);
 //			String pathFile = BioFormatsImageServer.splitFilePathAndSeriesName(serverPath)[0];
 //			if (!new File(pathFile).exists()) {
@@ -113,7 +115,8 @@ public class TestBioFormatsImageServer {
 			int t = 0;
 			try {
 				// Create the server
-				server = (BioFormatsImageServer)ImageServerProvider.buildServer(serverPath, BufferedImage.class, "--classname", BioFormatsServerBuilder.class.getName());
+				server = (BioFormatsImageServer)entry.buildImageServer();
+//				server = (BioFormatsImageServer)ImageServerProvider.buildServer(serverPath, BufferedImage.class, "--classname", BioFormatsServerBuilder.class.getName());
 				// Read a thumbnail
 				imgThumbnail = server.getDefaultThumbnail(server.nZSlices()/2, 0);
 				// Read from the center of the image
@@ -122,7 +125,7 @@ public class TestBioFormatsImageServer {
 				z = (int)(server.nZSlices() / 2);
 				t = (int)(server.nTimepoints() / 2);
 				RegionRequest request = RegionRequest.createInstance(
-						serverPath, 1,
+						server.getPath(), 1,
 						(server.getWidth() - w)/2,
 						(server.getHeight() - h)/2,
 						w, h,
@@ -146,11 +149,10 @@ public class TestBioFormatsImageServer {
 						assert imps.length == 1;
 						imp = imps[0];
 					} catch (Exception e) {
-						System.err.println("Unable to open with ImageJ: " + serverPath);
-						System.err.println(e.getLocalizedMessage());
+						logger.warn("Unable to open with ImageJ: " + server, e);
 					}
 				} else {
-					System.err.println("Multiple multi-resolution series in file - skipping ImageJ check");
+					logger.warn("Multiple multi-resolution series in file - skipping ImageJ check");
 				}
 				
 			} catch (Exception e) {
@@ -220,7 +222,7 @@ public class TestBioFormatsImageServer {
 	 */
 	void printSummary(final ImageServer<?> server) {
 		PixelCalibration cal = server.getPixelCalibration();
-		System.out.println(
+		logger.info(
 				String.format(
 						"%s: %d x %d (c=%d, z=%d, t=%d), bpp=%d, mag=%.2f, downsamples=[%s], res=[%.4f,%.4f,%.4f]",
 						server.getPath(), server.getWidth(), server.getHeight(),

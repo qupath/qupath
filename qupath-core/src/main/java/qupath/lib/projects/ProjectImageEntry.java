@@ -45,12 +45,18 @@ import qupath.lib.objects.hierarchy.PathObjectHierarchy;
  */
 public interface ProjectImageEntry<T> {
 	
+//	/**
+//	 * Get the path used to represent this image, which can be used to construct an <code>ImageServer</code>.
+//	 * 
+//	 * @return
+//	 */
+//	public String getServerPath();
+	
 	/**
-	 * Get the path used to represent this image, which can be used to construct an <code>ImageServer</code>.
-	 * 
+	 * Get a unique ID to represent this entry.
 	 * @return
 	 */
-	public String getServerPath();
+	public String getID();
 	
 	/**
 	 * Set the image name for this project entry.

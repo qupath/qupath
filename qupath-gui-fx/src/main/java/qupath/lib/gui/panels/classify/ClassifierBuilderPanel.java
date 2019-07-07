@@ -794,8 +794,8 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 
 			retainedObjectsMap.clear();
 			int counter = 0;
-			for (ProjectImageEntry<?> entry : entries) {
-
+			for (ProjectImageEntry<BufferedImage> entry : entries) {
+				
 				updateProgress(counter, entries.size());
 				counter++;
 
@@ -817,7 +817,7 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 					}
 
 					if (!map.isEmpty() && !retainedObjectsMap.containsValue(map)) {
-						retainedObjectsMap.put(entry.getServerPath(), map);
+						retainedObjectsMap.put(getMapKey(project, entry), map);
 						updateLog("Training objects read from " + entry.getImageName());
 					} else {
 						updateLog("No training objects found in " + entry.getImageName());					
@@ -863,7 +863,16 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 		}
 	}
 
+	
+	String getMapKey(Project<BufferedImage> project, ProjectImageEntry<BufferedImage> entry) {
+		String key = project.getName() + "::" + entry.getID();
+		return key;
+	}
 
+	String getMapKey(ImageData<BufferedImage> imageData) {
+		var project = qupath.getProject();
+		return project == null ? null : getMapKey(project, project.getEntry(imageData));
+	}
 
 	private void initializeBuildPanel() {
 
@@ -1182,7 +1191,7 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 			// Add in any retained objects, if we have some
 			PathClassificationLabellingHelper.countObjectsInMap(mapCurrent);
 			//		int retainedImageCount = retainedObjectsMap.addToTrainingMap(map, getImageData().getServerPath());
-			retainedObjectsMap.put(getImageData().getServerPath(), mapCurrent);
+			retainedObjectsMap.put(getMapKey(getImageData()), mapCurrent);
 			updateRetainedObjectsLabel();
 		}
 	}
@@ -1196,7 +1205,7 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 	public synchronized Map<PathClass, List<PathObject>> getTrainingMap() {
 		updateRetainedObjectsMap();
 		Map<PathClass, List<PathObject>> trainingMap = new TreeMap<>();
-		retainedObjectsMap.addToTrainingMap(trainingMap, null);
+		retainedObjectsMap.addToTrainingMap(trainingMap);
 		int nObjectsAfter = PathClassificationLabellingHelper.countObjectsInMap(trainingMap);
 		logger.info("{} objects available for classifier training from {} images", nObjectsAfter, retainedObjectsMap.size());
 		return trainingMap;
@@ -1604,11 +1613,12 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 		if (panelClassifier.isVisible() && imageDataOld != null) {
 			Map<PathClass, List<PathObject>> map = PathClassificationLabellingHelper.getClassificationMap(imageDataOld.getHierarchy(), paramsUpdate.getBooleanParameterValue("trainFromPoints"));
 			if (!map.isEmpty() && !retainedObjectsMap.containsValue(map)) {
+				String key = getMapKey(imageDataOld);
 				if (DisplayHelpers.showYesNoDialog("Retain training objects", "Retain current training objects in classifier?")) {
-					retainedObjectsMap.put(imageDataOld.getServerPath(), map);
+					retainedObjectsMap.put(key, map);
 					updateRetainedObjectsLabel();
 				} else {
-					retainedObjectsMap.remove(imageDataOld.getServerPath());
+					retainedObjectsMap.remove(key);
 					updateRetainedObjectsLabel();					
 				}
 			}

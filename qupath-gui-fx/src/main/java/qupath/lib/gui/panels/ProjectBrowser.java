@@ -30,7 +30,6 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -479,10 +478,11 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 			return null;
 		var item = selected.getValue();
 		if (item instanceof ProjectImageEntry<?>) {
-			var serverPath = ((ProjectImageEntry<?>)item).getServerPath();
 			try {
-				return GeneralTools.toPath(GeneralTools.toURI(serverPath));
-			} catch (URISyntaxException e) {
+				var uris = ((ProjectImageEntry<?>)item).getServerURIs();
+				if (!uris.isEmpty())
+				return GeneralTools.toPath(uris.iterator().next());
+			} catch (IOException e) {
 				logger.debug("Error converting server path to file path", e);
 			}
 		}
@@ -633,6 +633,26 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 		tree.setRoot(model.getRootFX());
 		tree.getRoot().setExpanded(true);
 	}
+	
+	
+//	static class ProjectUriPane {
+//		
+//		private TreeView<T>
+//		
+//	}
+//	
+//	static class ProjectImageUriManager {
+//		
+//		private ProjectImageEntry<?> entry;
+//		private Map<URI>
+//		
+//		public Collection<URI> getURIs() {
+//			entry.updateServerURIs(replacements)
+//			return entry.getServerURIs();
+//		}
+//		
+//	}
+	
 	
 	
 //	public List<String> findMissingPaths(final Project<?> project) {
