@@ -295,7 +295,6 @@ public class IJExtension implements QuPathExtension {
 	 * @param pathROI
 	 * @param request
 	 * @param setROI		{@code true} if a (non-rectangular) ROI should be converted to the closest matching ImageJ {@code Roi} &amp; set on the image
-	 * @param imageDisplay
 	 * @return
 	 * @throws IOException 
 	 */
@@ -326,7 +325,7 @@ public class IJExtension implements QuPathExtension {
 	}
 
 	/**
-	 * Similar to {@link #extractROI(ImageServer, ROI, RegionRequest, boolean, ImageDisplay)}, except that the title of the ImagePlus is set according to the parent object type (which is used to get the ROI).
+	 * Similar to {@link #extractROI(ImageServer, ROI, RegionRequest, boolean)}, except that the title of the ImagePlus is set according to the parent object type (which is used to get the ROI).
 	 * Specifically, if a TMA core is passed as a parent, then the core name will be included in the title.
 	 * 
 	 * @param server
@@ -336,7 +335,7 @@ public class IJExtension implements QuPathExtension {
 	 * @return
 	 * @throws IOException 
 	 * 
-	 * @see #extractROI(ImageServer, ROI, RegionRequest, boolean, ImageDisplay)
+	 * @see #extractROI(ImageServer, ROI, RegionRequest, boolean)
 	 */
 	public static PathImage<ImagePlus> extractROI(ImageServer<BufferedImage> server, PathObject pathObject, RegionRequest request, boolean setROI) throws IOException {
 		PathImage<ImagePlus> pathImage = extractROI(server, pathObject.getROI(), request, setROI);

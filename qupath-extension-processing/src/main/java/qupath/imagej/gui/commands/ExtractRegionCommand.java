@@ -90,7 +90,6 @@ public class ExtractRegionCommand implements PathCommand {
 	/**
 	 * Constructor.
 	 * @param qupath QuPath instance where the command should be installed.
-	 * @param downsample default downsample value to apply to the extracted region
 	 */
 	public ExtractRegionCommand(QuPathGUI qupath) {
 //		super("Extract region (custom)", PathIconFactory.createIcon(QuPathGUI.iconSize, QuPathGUI.iconSize, PathIconFactory.PathIcons.EXTRACT_REGION));

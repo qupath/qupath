@@ -67,7 +67,7 @@ public abstract class AbstractPluginRunner<T> implements PluginRunner<T> {
 	
 	/**
 	 * Set the number of threads requested to be used for the next threadpool created.
-	 * 
+	 * <p>
 	 * The request is stored as-is, but may be adjusted if it is outside a valid range, i.e. &gt; 0 and &lt;= available processors.
 	 * 
 	 * @see #getNumThreadsRequested
@@ -99,10 +99,10 @@ public abstract class AbstractPluginRunner<T> implements PluginRunner<T> {
 	
 	/**
 	 * Get the number of threads that will actually be used the next time a threadpool is constructed.
-	 * 
+	 * <p>
 	 * If getNumProcessorsRequested() returns a value between 1 and Runtime.getRuntime().availableProcessors() then this 
 	 * is used.  Otherwise, Runtime.getRuntime().availableProcessors() is used.
-	 * 
+	 * <p>
 	 * This implementation may change (most likely to increase the upper limit, if it turns out to be too strict.)
 	 * 
 	 * @see #setNumThreadsRequested

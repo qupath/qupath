@@ -376,7 +376,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 				// If we have just one image in the image list, then reset to none - we can't switch
 				if (imageMap.size() == 1 && seriesIndex < 0) {
 					seriesIndex = firstSeries;
-					imageMap.clear();
+//					imageMap.clear();
 				} else if (imageMap.size() > 1) {
 					// Set default series index, if we need to
 					if (seriesIndex < 0) {

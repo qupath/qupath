@@ -453,13 +453,11 @@ public class DisplayHelpers {
 		if (message == null)
 			message = "QuPath has encountered a problem, sorry.\nIf you can replicate it, please notify a developer.\n\n" + e;
 		if (Platform.isFxApplicationThread()) {
-			requestStageFocus();
-			Notifications.create().title(title).text(message).showError();
+			createNotifications().title(title).text(message).showError();
 		} else {
 			String finalMessage = message;
 			Platform.runLater(() -> {
-				requestStageFocus();
-				Notifications.create().title(title).text(finalMessage).showError();
+				createNotifications().title(title).text(finalMessage).showError();
 			});
 		}
 	}
@@ -470,8 +468,7 @@ public class DisplayHelpers {
 			return;
 		}
 		logger.error(title + ": " + message);
-		requestStageFocus();
-		Notifications.create().title(title).text(message).showError();
+		createNotifications().title(title).text(message).showError();
 	}
 
 	public static void showWarningNotification(final String title, final String message) {
@@ -480,8 +477,7 @@ public class DisplayHelpers {
 			return;
 		}
 		logger.warn(title + ": " + message);
-		requestStageFocus();
-		Notifications.create().title(title).text(message).showWarning();
+		createNotifications().title(title).text(message).showWarning();
 	}
 
 	public static void showInfoNotification(final String title, final String message) {
@@ -490,8 +486,7 @@ public class DisplayHelpers {
 			return;
 		}
 		logger.info(title + ": " + message);
-		requestStageFocus();
-		Notifications.create().title(title).text(message).showInformation();
+		createNotifications().title(title).text(message).showInformation();
 	}
 
 	public static void showPlainNotification(final String title, final String message) {
@@ -500,17 +495,17 @@ public class DisplayHelpers {
 			return;
 		}
 		logger.info(title + ": " + message);
-		requestStageFocus();
-		Notifications.create().title(title).text(message).show();
+		createNotifications().title(title).text(message).show();
 	}
 	
 	/**
-	 * Necessary to have focussed stage when calling notifications (bug in controlsfx?).
+	 * Necessary to have owner when calling notifications (bug in controlsfx?).
 	 */
-	private static void requestStageFocus() {
-		var stage = QuPathGUI.getInstance().getStage();
+	private static Notifications createNotifications() {
+		var stage = QuPathGUI.getInstance() == null ? null : QuPathGUI.getInstance().getStage();
 		if (stage != null)
-			stage.requestFocus();
+			return Notifications.create();
+		return Notifications.create().owner(stage);
 	}
 	
 	/**
