@@ -33,6 +33,7 @@ import qupath.lib.classifiers.PathObjectClassifier;
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
 import qupath.lib.objects.classes.PathClass;
 
 /**
@@ -161,7 +162,7 @@ public interface Project<T> {
 	 * @param server
 	 * @return
 	 */
-	public ProjectImageEntry<T> addImage(final ImageServer<T> server) throws IOException;
+	public ProjectImageEntry<T> addImage(final ServerBuilder<T> server) throws IOException;
 	
 	/**
 	 * Request a {@link ProjectImageEntry} associated with an {@link ImageData}

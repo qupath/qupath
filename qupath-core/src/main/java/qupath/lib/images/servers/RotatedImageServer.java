@@ -303,5 +303,15 @@ public class RotatedImageServer extends TransformingImageServer<BufferedImage> {
 	public ServerBuilder<BufferedImage> getBuilder() {
 		return new RotatedImageServerBuilder(getMetadata(), getWrappedServer().getBuilder(), getRotation());
 	}
+	
+	/**
+	 * Get a ServerBuilder that applies a rotation to another server.
+	 * @param builder
+	 * @param rotation
+	 * @return
+	 */
+	public static ServerBuilder<BufferedImage> getRotatedBuilder(ServerBuilder<BufferedImage> builder, Rotation rotation) {
+		return new RotatedImageServerBuilder(null, builder, rotation);		
+	}
 
 }

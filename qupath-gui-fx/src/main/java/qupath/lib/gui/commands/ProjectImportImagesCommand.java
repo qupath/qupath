@@ -74,6 +74,7 @@ import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
 import qupath.lib.images.servers.ImageServerProvider;
 import qupath.lib.images.servers.RotatedImageServer;
 import qupath.lib.images.servers.RotatedImageServer.Rotation;
+import qupath.lib.images.servers.ServerTools;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectImageEntry;
 
@@ -197,6 +198,8 @@ public class ProjectImportImagesCommand implements PathCommand {
 				
 				// TODO: The parallel stream is bringing nothing here... refactor to return entries then add, or else add then sort later
 				updateMessage("Identifying images...");
+				
+				// Get all the relevant builders
 				List<ServerBuilder<BufferedImage>> builders = listView.getItems().parallelStream().map(p -> {
 					try {
 						var support = ImageServerProvider.getPreferredServerBuilder(BufferedImage.class, p);
@@ -211,31 +214,43 @@ public class ProjectImportImagesCommand implements PathCommand {
 				long max = builders.size();
 
 				updateMessage("Adding " + max + " images to project");
-
-				// Add entries... we could (should?) parallelize, but that can mess up the ordering & requires more memory
-				int n = builders.size();
+				
+				// Add everything in order first
+				List<ProjectImageEntry<BufferedImage>> entries = new ArrayList<>();
 				for (var builder : builders) {
-					String name = null;
-					try (var server =  builder.build()) {
-						ImageServer<BufferedImage> server2 = server;
-						if (rotation != null && rotation != Rotation.ROTATE_NONE) {
-							server2 = new RotatedImageServer(server, rotation);
-						}
-						var entry = addSingleImageToProject(project, server2, type);
-						if (entry != null) {
-							entries.add(entry);
-							name = entry.getImageName();
-						}
+					if (rotation == Rotation.ROTATE_NONE)
+						entries.add(project.addImage(RotatedImageServer.getRotatedBuilder(builder, rotation)));
+					else
+						entries.add(project.addImage(builder));
+				}
+				
+				// Initialize (the slow bit)
+				int n = builders.size();
+				List<ProjectImageEntry<BufferedImage>> failures = Collections.synchronizedList(new ArrayList<>());
+				entries.parallelStream().forEach(entry -> {
+					try {
+					initializeEntry(entry, type);
 					} catch (Exception e) {
-						logger.warn("Exception adding " + builder, e);
+						failures.add(entry);
+						logger.warn("Exception adding " + entry, e);
 					} finally {
 						long i = counter.incrementAndGet();
 						updateProgress(i, max);
+						String name = entry.getImageName();
 						if (name != null) {
 							updateMessage("Added " + i + "/" + n + " - "+ name);
 						}
 					}
+				});
+
+				if (!failures.isEmpty()) {
+					logger.error("Failed to load {} entries", failures.size());
+					project.removeAllImages(failures, true);
 				}
+				
+				// Now save changes
+				project.syncChanges();
+				
 				
 //				builders.parallelStream().forEach(builder -> {
 ////				builders.parallelStream().forEach(builder -> {
@@ -411,35 +426,74 @@ public class ProjectImportImagesCommand implements PathCommand {
 		}
 	}
 	
+
+	public static ProjectImageEntry<BufferedImage> addSingleImageToProject(Project<BufferedImage> project, ImageServer<BufferedImage> server, ImageType type) {
+		try {
+			var entry = project.addImage(server.getBuilder());
+			initializeEntry(entry, type);
+			return entry;
+		} catch (Exception e) {
+			return null;
+		}
+	}
+
 	/**
 	 * Add a single ImageServer to a project, without considering sub-images.
 	 * <p>
 	 * This includes an optional attempt to request a thumbnail; if this fails, the image will not be added.
 	 * 
-	 * @param project the project to which the entry should be added
-	 * @param server the server to add
+	 * @param entry the entry that should be initialized
 	 * @param type the ImageType that should be set for each entry being added
 	 * @return
+	 * @throws Exception 
 	 */
-	public static ProjectImageEntry<BufferedImage> addSingleImageToProject(Project<BufferedImage> project, ImageServer<BufferedImage> server, ImageType type) {
-		ProjectImageEntry<BufferedImage> entry = null;
-		try {
+	static ProjectImageEntry<BufferedImage> initializeEntry(ProjectImageEntry<BufferedImage> entry, ImageType type) throws Exception {
+		try (ImageServer<BufferedImage> server = entry.getServerBuilder().build()) {
 			var img = getThumbnailRGB(server, null);
-			entry = project.addImage(server);
-			if (entry != null) {
-				// Write a thumbnail if we can
-				entry.setThumbnail(img);
-				// Initialize an ImageData object with a type, if required
-				if (type != null) {
-					var imageData = new ImageData<>(server, type);
-					entry.saveImageData(imageData);
-				}
+			// Set the image name
+			String name = ServerTools.getDisplayableImageName(server);
+			entry.setImageName(name);
+			// Write a thumbnail if we can
+			entry.setThumbnail(img);
+			// Initialize an ImageData object with a type, if required
+			if (type != null) {
+				var imageData = new ImageData<>(server, type);
+				entry.saveImageData(imageData);
 			}
-		} catch (IOException e) {
-			logger.warn("Error attempting to add " + server, e);
 		}
 		return entry;
 	}
+	
+	
+//	/**
+//	 * Add a single ImageServer to a project, without considering sub-images.
+//	 * <p>
+//	 * This includes an optional attempt to request a thumbnail; if this fails, the image will not be added.
+//	 * 
+//	 * @param project the project to which the entry should be added
+//	 * @param server the server to add
+//	 * @param type the ImageType that should be set for each entry being added
+//	 * @return
+//	 */
+//	public static ProjectImageEntry<BufferedImage> addSingleImageToProject(Project<BufferedImage> project, ImageServer<BufferedImage> server, ImageType type) {
+//		ProjectImageEntry<BufferedImage> entry = null;
+//		try {
+//			var img = getThumbnailRGB(server, null);
+//			entry = project.addImage(server);
+//			if (entry != null) {
+//				// Write a thumbnail if we can
+//				entry.setThumbnail(img);
+//				// Initialize an ImageData object with a type, if required
+//				if (type != null) {
+//					var imageData = new ImageData<>(server, type);
+//					entry.saveImageData(imageData);
+//				}
+//			}
+//		} catch (IOException e) {
+//			logger.warn("Error attempting to add " + server, e);
+//		}
+//		return entry;
+//	}
 	
 	
 	public static BufferedImage getThumbnailRGB(ImageServer<BufferedImage> server, ImageDisplay imageDisplay) throws IOException {

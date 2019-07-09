@@ -267,7 +267,7 @@ public class DragDropFileImportListener implements EventHandler<DragEvent> {
 			ScriptEditor scriptEditor = gui.getScriptEditor();
 			if (scriptEditor instanceof DefaultScriptEditor && ((DefaultScriptEditor)scriptEditor).supportsFile(file)) {
 				scriptEditor.showScript(file);
-				continue;
+				return;
 			}
 
 			
@@ -284,8 +284,8 @@ public class DragDropFileImportListener implements EventHandler<DragEvent> {
 					DisplayHelpers.showErrorMessage("Open image", "Please drag the file only a specific viewer to open!");
 					return;
 				}
-				if (gui.openImage(viewer, file.getAbsolutePath(), true, true))
-					return;
+				gui.openImage(viewer, file.getAbsolutePath(), true, true);
+				return;
 			} else if (gui.getProject() != null) {
 				// Try importing multiple images to a project
 				ProjectImportImagesCommand.promptToImportImages(gui, list.stream().map(f -> f.getAbsolutePath()).toArray(String[]::new));

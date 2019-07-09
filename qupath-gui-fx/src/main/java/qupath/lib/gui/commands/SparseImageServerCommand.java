@@ -43,7 +43,7 @@ public class SparseImageServerCommand implements PathCommand {
 				return;			
 			}
 			
-			var entry = project.addImage(server);
+			var entry = project.addImage(server.getBuilder());
 			var img = ProjectImportImagesCommand.getThumbnailRGB(server, null);
 			entry.setThumbnail(img);
 			project.syncChanges();

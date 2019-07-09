@@ -65,7 +65,6 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.ImageData.ImageType;
 import qupath.lib.images.servers.ImageServer;
-import qupath.lib.images.servers.ServerTools;
 import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
 import qupath.lib.io.GsonTools;
 import qupath.lib.io.PathIO;
@@ -212,7 +211,8 @@ class DefaultProject implements Project<BufferedImage> {
 		if (entry instanceof DefaultProjectImageEntry)
 			return addImage((DefaultProjectImageEntry)entry);
 		try {
-			return addImage(new DefaultProjectImageEntry(entry.buildImageServer(), null, entry.getDescription(), entry.getMetadataMap()));
+			// This is horribly inefficient, so hopefully isn't required...
+			return addImage(new DefaultProjectImageEntry(entry.getServerBuilder(), null, entry.getImageName(), entry.getDescription(), entry.getMetadataMap()));
 		} catch (IOException e) {
 			logger.error("Unable to add entry " + entry, e);
 			return false;
@@ -288,8 +288,8 @@ class DefaultProject implements Project<BufferedImage> {
 	}
 	
 	@Override
-	public ProjectImageEntry<BufferedImage> addImage(final ImageServer<BufferedImage> server) throws IOException {
-		var entry = new DefaultProjectImageEntry(server, null, null, null);
+	public ProjectImageEntry<BufferedImage> addImage(final ServerBuilder<BufferedImage> builder) throws IOException {
+		var entry = new DefaultProjectImageEntry(builder, null, null, null, null);
 		if (addImage(entry)) {
 			return entry;
 		}
@@ -457,16 +457,21 @@ class DefaultProject implements Project<BufferedImage> {
 		 */
 		private Map<String, String> metadata = new LinkedHashMap<>();
 		
+		DefaultProjectImageEntry(final ServerBuilder<BufferedImage> builder) throws IOException {
+			this(builder, null, null, null, null);
+		}
 		
-		DefaultProjectImageEntry(final ImageServer<BufferedImage> server, final Long entryID, final String description, final Map<String, String> metadataMap) throws IOException {
-			this.serverBuilder = server.getBuilder();
+		DefaultProjectImageEntry(final ServerBuilder<BufferedImage> builder, final Long entryID, final String imageName, final String description, final Map<String, String> metadataMap) throws IOException {
+			this.serverBuilder = builder;
 			if (entryID == null)
 				this.entryID = counter.incrementAndGet();
 			else
 				this.entryID = entryID;
 			
-			syncServer();
-			this.imageName = ServerTools.getDisplayableImageName(server);
+			if (imageName == null)
+				this.imageName = "Image " + entryID;
+			else
+				this.imageName = imageName;
 			
 			if (description != null)
 				setDescription(description);
@@ -504,7 +509,6 @@ class DefaultProject implements Project<BufferedImage> {
 		
 		@Override
 		public Collection<URI> getServerURIs() throws IOException {
-			ensureJsonServerCached();
 			if (serverBuilder == null)
 				return Collections.emptyList();
 			return serverBuilder.getURIs();
@@ -512,12 +516,9 @@ class DefaultProject implements Project<BufferedImage> {
 		
 		@Override
 		public boolean updateServerURIs(Map<URI, URI> replacements) throws IOException {
-			ensureJsonServerCached();
 			var builderBefore = serverBuilder;
 			serverBuilder = serverBuilder.updateURIs(replacements);
 			boolean changes = builderBefore != serverBuilder;
-			if (changes)
-				syncServer();
 			return changes;
 		}
 		
@@ -601,28 +602,9 @@ class DefaultProject implements Project<BufferedImage> {
 			return Collections.unmodifiableSet(metadata.keySet());
 		}
 		
-		boolean ensureJsonServerCached() throws IOException {
-			if (serverBuilder == null) {
-				var pathServerMetadata = getServerMetadataPath();
-				if (Files.exists(pathServerMetadata)) {
-					try (var reader = Files.newBufferedReader(pathServerMetadata)) {
-						serverBuilder = GsonTools.getGsonDefault().fromJson(reader, ServerBuilder.class);
-					}
-				}				
-			}
-			return serverBuilder != null;
-		}
-		
 		@Override
-		public ImageServer<BufferedImage> buildImageServer() throws IOException {
-			ensureJsonServerCached();
-			try {
-				return serverBuilder.build();
-			} catch (IOException e) {
-				throw e;
-			} catch (Exception e) {
-				throw new IOException(e);
-			}
+		public ServerBuilder<BufferedImage> getServerBuilder() {
+			return serverBuilder;
 		}
 		
 		private Path getEntryPath(boolean create) throws IOException {
@@ -641,10 +623,6 @@ class DefaultProject implements Project<BufferedImage> {
 			return Paths.get(getEntryPath().toString(), "data.qpdata");
 		}
 		
-		private Path getServerMetadataPath() {
-			return Paths.get(getEntryPath().toString(), "server.json");
-		}
-		
 		private Path getDataSummaryPath() {
 			return Paths.get(getEntryPath().toString(), "summary.json");
 		}
@@ -656,7 +634,14 @@ class DefaultProject implements Project<BufferedImage> {
 		@Override
 		public synchronized ImageData<BufferedImage> readImageData() throws IOException {
 			Path path = getImageDataPath();
-			var server = buildImageServer();
+			ImageServer<BufferedImage> server;
+			try {
+				server = getServerBuilder().build();
+			} catch (IOException e) {
+				throw e;
+			} catch (Exception e) {
+				throw new IOException(e);
+			}
 			if (server == null)
 				return null;
 			ImageData<BufferedImage> imageData = null;
@@ -703,7 +688,6 @@ class DefaultProject implements Project<BufferedImage> {
 			
 			// If successful, write the server (including metadata)
 			this.serverBuilder = imageData.getServer().getBuilder();
-			syncServer();
 			
 			var pathSummary = getDataSummaryPath();
 			try (var out = Files.newBufferedWriter(pathSummary, StandardOpenOption.CREATE)) {
@@ -711,19 +695,6 @@ class DefaultProject implements Project<BufferedImage> {
 			}			
 
 		}
-		
-		void syncServer() throws IOException {
-			syncChanges(); // Servers are now stored directly in the project, not in separate files
-//			if (serverBuilder != null) {
-//				var pathServerMetadata = getServerMetadataPath();
-//				ensureDirectoryExists(pathServerMetadata.getParent());
-//				try (var out = Files.newBufferedWriter(pathServerMetadata, StandardOpenOption.CREATE)) {
-//					GsonTools.getGsonPretty().toJson(serverBuilder, ServerBuilder.class, out);
-//				}
-//			} else
-//				logger.warn("Server is null - cannot synchronize!");
-		}
-		
 
 		@Override
 		public boolean hasImageData() {

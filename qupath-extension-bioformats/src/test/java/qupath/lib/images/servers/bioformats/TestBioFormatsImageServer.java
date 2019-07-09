@@ -115,7 +115,7 @@ public class TestBioFormatsImageServer {
 			int t = 0;
 			try {
 				// Create the server
-				server = (BioFormatsImageServer)entry.buildImageServer();
+				server = (BioFormatsImageServer)entry.getServerBuilder().build();
 //				server = (BioFormatsImageServer)ImageServerProvider.buildServer(serverPath, BufferedImage.class, "--classname", BioFormatsServerBuilder.class.getName());
 				// Read a thumbnail
 				imgThumbnail = server.getDefaultThumbnail(server.nZSlices()/2, 0);
