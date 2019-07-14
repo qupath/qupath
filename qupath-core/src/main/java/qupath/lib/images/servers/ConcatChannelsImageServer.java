@@ -56,6 +56,17 @@ public class ConcatChannelsImageServer extends TransformingImageServer<BufferedI
 	}
 
 	@Override
+	protected String createID() {
+		StringBuilder sb = new StringBuilder();
+		for (var server : allServers) {
+			if (sb.length() == 0)
+				sb.append(", ");
+			sb.append(server.getPath());
+		}
+		return getClass().getName() + ": [" + sb + "]";
+	}
+	
+	@Override
 	public String getServerType() {
 		return "Channel concat image server";
 	}

@@ -3224,7 +3224,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		Menu menuClassifiers = createMenu(
 				"Classify",
 				createCommandAction(new LoadClassifierCommand(this), "Load classifier"),
-				createCommandAction(new SparseImageServerCommand(this), "Create training region image"),
+				createCommandAction(new SparseImageServerCommand(this), "Create sparse image from project"),
 				null);
 
 		addMenuItems(

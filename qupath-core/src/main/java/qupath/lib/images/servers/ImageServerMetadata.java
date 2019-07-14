@@ -28,7 +28,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
@@ -97,7 +96,6 @@ public class ImageServerMetadata {
 	
 	private static int DEFAULT_TILE_SIZE = 256;
 
-	private String id;
 	private String name;
 	
 	private String serverClassName;
@@ -207,18 +205,6 @@ public class ImageServerMetadata {
 		 */
 		public Builder height(final int height) {
 			metadata.height = height;
-			return this;
-		}
-		
-		/**
-		 * Specify the image identifier. This must be unique, as it is used for caching.
-		 * @param id
-		 * @return
-		 * 
-		 * @see ImageServerBuilder
-		 */
-		public Builder id(final String id) {
-			this.metadata.id = id;
 			return this;
 		}
 		
@@ -388,10 +374,6 @@ public class ImageServerMetadata {
 		public ImageServerMetadata build() {
 			metadata.pixelCalibration = pixelCalibrationBuilder.build();
 			
-//			// We need a unique id, somehow
-			if (metadata.id == null)
-				metadata.id = UUID.randomUUID().toString();
-			
 			if (metadata.levels == null)
 				metadata.levels = new ImageResolutionLevel[] {new ImageResolutionLevel(1, metadata.width, metadata.height)};
 			
@@ -428,7 +410,6 @@ public class ImageServerMetadata {
 
 	ImageServerMetadata(final ImageServerMetadata metadata) {
 		this.serverClassName = metadata.serverClassName;
-		this.id = metadata.id;
 		this.name = metadata.name;
 		this.levels = metadata.levels.clone();
 		
@@ -488,14 +469,6 @@ public class ImageServerMetadata {
 		if (unmodifiableLevels == null)
 			unmodifiableLevels = Collections.unmodifiableList(Arrays.asList(levels));
 		return unmodifiableLevels;
-	}
-	
-	/**
-	 * Get the image ID, which should be unique and may be used as an identifier.
-	 * @return
-	 */
-	public String getID() {
-		return id;
 	}
 	
 	/**

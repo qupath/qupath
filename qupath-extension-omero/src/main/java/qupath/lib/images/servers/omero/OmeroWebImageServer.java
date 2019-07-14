@@ -194,7 +194,6 @@ public class OmeroWebImageServer extends AbstractTileableImageServer {
 				.sizeT(sizeT)
 				.channels(ImageChannel.getDefaultRGBChannels())
 				.sizeZ(sizeZ)
-				.id(uri.toString() + " (OMERO web)")
 //				.args(args)
 				.name(imageName)
 				.pixelType(pixelType)
@@ -213,6 +212,11 @@ public class OmeroWebImageServer extends AbstractTileableImageServer {
 		}
 
 		originalMetadata = builder.build();
+	}
+	
+	@Override
+	protected String createID() {
+		return getClass().getName() + ": " + uri.toString();
 	}
 
 	/**

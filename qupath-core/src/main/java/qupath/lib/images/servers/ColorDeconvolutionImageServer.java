@@ -12,6 +12,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.UUID;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -88,6 +89,14 @@ class ColorDeconvolutionImageServer extends TransformingImageServer<BufferedImag
 				.channels(channels)
 				.name(String.format("%s (%s)", server.getMetadata().getName(), stains.toString()))
 				.build();
+	}
+	
+	/**
+	 * Returns a UUID.
+	 */
+	@Override
+	protected String createID() {
+		return UUID.randomUUID().toString();
 	}
 	
 	/**

@@ -30,6 +30,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.UUID;
 
 import qupath.lib.awt.common.AwtTools;
 import qupath.lib.color.ColorToolsAwt;
@@ -110,6 +111,14 @@ public class PathHierarchyImageServer extends AbstractTileableImageServer implem
 				.channels(ImageChannel.getDefaultRGBChannels())
 				.rgb(true)
 				.build();
+	}
+	
+	/**
+	 * Returns a UUID.
+	 */
+	@Override
+	protected String createID() {
+		return UUID.randomUUID().toString();
 	}
 	
 	@Override

@@ -28,11 +28,15 @@ import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 import java.io.File;
 import java.io.IOException;
+import java.net.URI;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.Locale.Category;
+import java.util.stream.Collectors;
 
 import javax.imageio.ImageIO;
 
@@ -631,7 +635,7 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 		
 		private ImageData<BufferedImage> imageData;
 		
-		protected enum ROW_TYPE {NAME, PATH, IMAGE_TYPE, BIT_DEPTH, MAGNIFICATION, WIDTH, HEIGHT, DIMENSIONS, PIXEL_WIDTH, PIXEL_HEIGHT, SERVER_TYPE, PYRAMID};
+		protected enum ROW_TYPE {NAME, URI, IMAGE_TYPE, BIT_DEPTH, MAGNIFICATION, WIDTH, HEIGHT, DIMENSIONS, PIXEL_WIDTH, PIXEL_HEIGHT, SERVER_TYPE, PYRAMID};
 
 //		protected enum ROW_TYPE {PATH, IMAGE_TYPE, MAGNIFICATION, WIDTH, HEIGHT, PIXEL_WIDTH, PIXEL_HEIGHT,
 //				CHANNEL_1, CHANNEL_1_STAIN, CHANNEL_2, CHANNEL_2_STAIN, CHANNEL_3, CHANNEL_3_STAIN
@@ -682,8 +686,8 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 			switch (rowType) {
 			case NAME:
 				return "Name";
-			case PATH:
-				return "Path";
+			case URI:
+				return "URIs";
 			case IMAGE_TYPE:
 				return "Image type";
 			case BIT_DEPTH:
@@ -709,6 +713,14 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 			}
 		}
 		
+		static String decodeURI(URI uri) {
+			try {
+				return URLDecoder.decode(uri.toString(), StandardCharsets.UTF_8);
+			} catch (Exception e) {
+				return uri.toString();
+			}
+		}
+		
 		private Object getValue(int row) {
 			ROW_TYPE rowType = getRowType(row);
 			if (rowType == null) {
@@ -727,8 +739,13 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 			switch (rowType) {
 			case NAME:
 				return ServerTools.getDisplayableImageName(server);
-			case PATH:
-				return server.getPath();
+			case URI:
+				var uris = server.getBuilder().getURIs();
+				if (uris.isEmpty())
+					return "Not available";
+				if (uris.size() == 1)
+					return decodeURI(uris.iterator().next());
+				return "[" + String.join(", ", uris.stream().map(PathImageDetailsTableModel::decodeURI).collect(Collectors.toList())) + "]";
 			case IMAGE_TYPE:
 				return imageData.getImageType();
 			case BIT_DEPTH:

@@ -21,6 +21,7 @@ import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.TransformingImageServer;
+import qupath.lib.io.GsonTools;
 import qupath.lib.regions.RegionRequest;
 
 /**
@@ -50,9 +51,13 @@ public class ChannelDisplayTransformServer extends TransformingImageServer<Buffe
 		this.channels = channels;
 				
 		this.metadata = new ImageServerMetadata.Builder(getClass(), server.getMetadata())
-				.id(UUID.randomUUID().toString())
 				.channels(channels.stream().map(c -> ImageChannel.getInstance(c.getName(), c.getColor())).collect(Collectors.toList()))
 				.build();
+	}
+	
+	@Override
+	protected String createID() {
+		return getClass().getName() + ": + " + getWrappedServer().getPath() + " " + GsonTools.getGsonDefault().toJson(channels);
 	}
 	
 	@Override

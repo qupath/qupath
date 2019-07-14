@@ -26,6 +26,8 @@ package qupath.lib.images.servers;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBuffer;
 import java.io.IOException;
+import java.util.UUID;
+
 import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
 
 /**
@@ -96,6 +98,14 @@ public class WrappedBufferedImageServer extends AbstractTileableImageServer {
 				.pixelType(pixelType)
 				.channels(ImageChannel.getDefaultChannelList(nChannels))
 				.build();
+	}
+	
+	/**
+	 * Returns a UUID.
+	 */
+	@Override
+	protected String createID() {
+		return UUID.randomUUID().toString();
 	}
 
 	@Override

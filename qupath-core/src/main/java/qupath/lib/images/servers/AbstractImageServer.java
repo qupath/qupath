@@ -60,6 +60,11 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 	 */
 	private transient Map<RegionRequest, T> cache;
 	
+	/**
+	 * Unique ID for this server
+	 */
+	private String id;
+	
 	private Class<T> imageClass;
 	
 	protected AbstractImageServer(Class<T> imageClass) {
@@ -191,9 +196,36 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 		return cache == null ? null : cache.getOrDefault(tile.getRegionRequest(), null);
 	}
 	
+	/**
+	 * Create a unique ID for the server, which can be returned as the default value of {@link #getPath()}.
+	 * A suggested implementation is
+	 * <p>
+	 * <code> 
+	 * <pre>
+	 *  getClass().getName() + ": " + URI + parameters
+	 * </pre>
+	 * </code>
+	 * This will be called on demand whenever {@link #getPath()} is first required. 
+	 * 
+	 * @return
+	 */
+	protected abstract String createID();
+	
+	/**
+	 * Default implementation lazily calls {@link #createID()} on demand.
+	 * 
+	 * @see #createID()
+	 */
 	@Override
 	public String getPath() {
-		return getMetadata().getID();
+		if (id == null) {
+			synchronized(this) {
+				String myID = createID();
+				if (id == null)
+					id = myID;
+			}
+		}
+		return id;
 	}
 
 	@Override

@@ -77,8 +77,6 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 	private URI uri;
 	private String[] args;
 	
-	private String path;
-	
 	
 	private static double readNumericPropertyOrDefault(Map<String, String> properties, String name, double defaultValue) {
 		// Try to read a tile size
@@ -198,13 +196,11 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 		
 		// Create metadata objects
 		this.args = args;
-		String id = uri.toString() + " (OpenSlide)";
 		originalMetadata = new ImageServerMetadata.Builder(getClass(),
 				path, boundsWidth, boundsHeight).
 				channels(ImageChannel.getDefaultRGBChannels()). // Assume 3 channels (RGB)
 				name(file.getName()).
 				rgb(true).
-				id(id).
 //				args(args).
 				pixelType(PixelType.UINT8).
 				preferredTileSize(tileWidth, tileHeight).
@@ -244,6 +240,11 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 			logger.error("Unable to read thumbnail using OpenSlide: {}", e.getLocalizedMessage());
 			throw(e);
 		}
+	}
+	
+	@Override
+	protected String createID() {
+		return getClass().getName() + ": " + uri.toString();
 	}
 	
 	@Override

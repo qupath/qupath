@@ -164,7 +164,6 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 				.width(imp.getWidth())
 				.height(imp.getHeight())
 				.name(imp.getTitle())
-				.id(uri.toString() + " (ImageJ)")
 //				.args(args)
 				.channels(channels)
 				.sizeZ(imp.getNSlices())
@@ -187,6 +186,11 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 //			throw new IOException("Sorry, currently only RGB & single-channel 8 & 16-bit images supported using ImageJ server");
 	}
 
+	@Override
+	protected String createID() {
+		return getClass().getName() + ": " + uri.toString();
+	}
+	
 	@Override
 	public synchronized BufferedImage readBufferedImage(RegionRequest request) {
 		// Deal with any cropping

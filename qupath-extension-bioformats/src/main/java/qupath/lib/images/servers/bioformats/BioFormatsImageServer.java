@@ -637,18 +637,11 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 				imageName = imageName + " - " + shortName;
 
 			this.args = args;
-
-//			String path = String.format("%s [series=%d]", uri.toString(), series);
-			String id = uri.toString() + " (Bio-Formats)";
-			if (args.length > 0) {
-				id += "[" + String.join(", ", args) + "]";
-			}
 			
 			// Set metadata
 			ImageServerMetadata.Builder builder = new ImageServerMetadata.Builder(
 					getClass(), path, width, height).
 //					args(args).
-					id(id).
 					name(imageName).
 					channels(channels).
 					sizeZ(nZSlices).
@@ -683,6 +676,14 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 		logger.debug(String.format("Initialization time: %d ms", endTime-startTime));
 	}
 	
+	@Override
+	public String createID() {
+		String id = getClass().getSimpleName() + ": " + uri.toString();
+		if (args.length > 0) {
+			id += "[" + String.join(", ", args) + "]";
+		}
+		return id;
+	}
 	
 	/**
 	 * Returns a builder capable of creating a server like this one.

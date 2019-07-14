@@ -5,9 +5,14 @@ import java.awt.geom.NoninvertibleTransformException;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import qupath.lib.awt.common.AwtTools;
 import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
 import qupath.lib.images.servers.ImageServers.AffineTransformImageServerBuilder;
+import qupath.lib.io.GsonTools;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
 
@@ -20,6 +25,8 @@ import qupath.lib.regions.RegionRequest;
  *
  */
 public class AffineTransformImageServer extends TransformingImageServer<BufferedImage> {
+	
+	private static Logger logger = LoggerFactory.getLogger(AffineTransformImageServer.class);
 	
 	private ImageServerMetadata metadata;
 	
@@ -73,6 +80,10 @@ public class AffineTransformImageServer extends TransformingImageServer<Buffered
 				.build();
 	}
 	
+	@Override
+	protected String createID() {
+		return getClass().getName() + ": + " + getWrappedServer().getPath() + " " + GsonTools.getGsonDefault().toJson(transform);
+	}
 	
 	@Override
 	public BufferedImage readBufferedImage(final RegionRequest request) throws IOException {

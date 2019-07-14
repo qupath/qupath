@@ -272,9 +272,8 @@ public class RotatedImageServer extends TransformingImageServer<BufferedImage> {
 		return metadata;
 	}
 	
-	
 	@Override
-	public String getPath() {
+	protected String createID() {
 		int rot = 0;
 		switch (rotation) {
 		case ROTATE_180:
@@ -291,7 +290,7 @@ public class RotatedImageServer extends TransformingImageServer<BufferedImage> {
 			rot = 0;
 			break;
 		}
-		return getWrappedServer().getPath() + "?rotate=" + rot;
+		return getClass().getName() + ": " + getWrappedServer().getPath() + " (Rotate=" + rot + ")";
 	}
 
 	@Override
