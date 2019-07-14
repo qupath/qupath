@@ -127,7 +127,7 @@ public class ConcatChannelsImageServer extends TransformingImageServer<BufferedI
 	
 	
 	@Override
-	public ServerBuilder<BufferedImage> getBuilder() {
+	protected ServerBuilder<BufferedImage> createServerBuilder() {
 		return new ConcatChannelsImageServerBuilder(
 				getMetadata(),
 				getWrappedServer().getBuilder(),

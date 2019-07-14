@@ -122,7 +122,7 @@ public class WrappedBufferedImageServer extends AbstractTileableImageServer {
 	 * Returns null (does not support ServerBuilders).
 	 */
 	@Override
-	public ServerBuilder<BufferedImage> getBuilder() {
+	protected ServerBuilder<BufferedImage> createServerBuilder() {
 		return null;
 	}
 

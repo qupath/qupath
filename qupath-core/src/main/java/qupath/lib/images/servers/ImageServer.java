@@ -56,7 +56,7 @@ public interface ImageServer<T> extends AutoCloseable {
 	public String getPath();
 	
 	/**
-	 * Get a short name for the server, derived from {@code getPath()}.
+	 * Get a short name for the server.
 	 * @return
 	 */
 	public String getShortServerName();

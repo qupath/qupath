@@ -33,6 +33,8 @@ import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Locale.Category;
@@ -40,12 +42,15 @@ import java.util.stream.Collectors;
 
 import javax.imageio.ImageIO;
 
+import org.controlsfx.control.MasterDetailPane;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javafx.beans.binding.Bindings;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.embed.swing.SwingFXUtils;
+import javafx.geometry.Side;
 import javafx.scene.Scene;
 import javafx.scene.control.Accordion;
 import javafx.scene.control.ListView;
@@ -85,6 +90,7 @@ import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.gui.helpers.dialogs.ParameterPanelFX;
 import qupath.lib.gui.panels.PathImageDetailsPanel.PathImageDetailsTableModel.ROW_TYPE;
+import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.ImageData.ImageType;
 import qupath.lib.images.servers.ImageServer;
@@ -121,8 +127,8 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 	private TableView<TableEntry> table = new TableView<>();
 	private ListView<String> listAssociatedImages = new ListView<>();
 
-	private TitledPane panelTable = new TitledPane("Properties", new StackPane(table));
-	private TitledPane panelAssociatedImages = new TitledPane("Associated images", new StackPane(listAssociatedImages));
+//	private TitledPane panelTable = new TitledPane("Properties", new StackPane(table));
+//	private TitledPane panelAssociatedImages = new TitledPane("Associated images", new StackPane(listAssociatedImages));
 	
 	private ImageData<BufferedImage> imageData;
 
@@ -130,7 +136,7 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 	public PathImageDetailsPanel(final QuPathGUI qupath) {
 		this.qupath = qupath;
 		qupath.addImageDataChangeListener(this);
-
+		
 		// Create the table
 		table.setMinHeight(200);
 		table.setPrefHeight(250);
@@ -280,9 +286,18 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 			}
 		);
 		
-		Accordion accordion = new Accordion(panelTable, panelAssociatedImages);
-		accordion.setExpandedPane(panelTable);
-		pane.getChildren().add(accordion);
+		PathPrefs.maskImageNamesProperty().addListener((v, o, n) -> table.refresh());
+
+		MasterDetailPane mdPane = new MasterDetailPane(Side.BOTTOM);
+		mdPane.setMasterNode(new StackPane(table));
+		mdPane.setDetailNode(new StackPane(listAssociatedImages));
+		mdPane.showDetailNodeProperty().bind(
+				Bindings.createBooleanBinding(() -> !listAssociatedImages.getItems().isEmpty(),
+						listAssociatedImages.getItems()));
+		pane.getChildren().add(mdPane);
+//		Accordion accordion = new Accordion(panelTable, panelAssociatedImages);
+//		accordion.setExpandedPane(panelTable);
+//		pane.getChildren().add(accordion);
 	}
 	
 	
@@ -596,7 +611,7 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 			list.add(new TableEntry(i));
 		table.setItems(list);
 		
-		if (panelAssociatedImages != null) {
+		if (listAssociatedImages != null) {
 			if (server == null)
 				listAssociatedImages.getItems().clear();
 			else
@@ -607,7 +622,7 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 //				panelAssociatedImages.setText("Associated images (empty)");
 //			else
 //				panelAssociatedImages.setText("Associated images (" + nAssociated + ")");
-			panelAssociatedImages.setText("Associated images (" + nAssociated + ")");
+//			panelAssociatedImages.setText("Associated images (" + nAssociated + ")");
 		}
 
 //		panelRelated.revalidate();
@@ -738,9 +753,15 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 			PixelCalibration cal = server.getPixelCalibration();
 			switch (rowType) {
 			case NAME:
-				return ServerTools.getDisplayableImageName(server);
+				var project = QuPathGUI.getInstance().getProject();
+				var entry = project == null ? null : project.getEntry(imageData);
+				if (entry == null)
+					return ServerTools.getDisplayableImageName(server);
+				else
+					return entry.getImageName();
 			case URI:
-				var uris = server.getBuilder().getURIs();
+				var builder = server.getBuilder();
+				Collection<URI> uris = builder == null ? Collections.emptyList() : builder.getURIs();
 				if (uris.isEmpty())
 					return "Not available";
 				if (uris.size() == 1)
@@ -751,7 +772,10 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 			case BIT_DEPTH:
 				return server.isRGB() ? "8-bit (RGB)" : server.getPixelType().bitsPerPixel();
 			case MAGNIFICATION:
-				return server.getMetadata().getMagnification();
+				double mag = server.getMetadata().getMagnification();
+				if (Double.isNaN(mag))
+					return "Unknown";
+				return mag;
 			case WIDTH:
 				if (cal.hasPixelSizeMicrons())
 					return String.format("%s px (%.2f %s)", server.getWidth(), server.getWidth() * cal.getPixelWidthMicrons(), GeneralTools.micrometerSymbol());

@@ -21,6 +21,7 @@ import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.TransformingImageServer;
+import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
 import qupath.lib.io.GsonTools;
 import qupath.lib.regions.RegionRequest;
 
@@ -45,6 +46,13 @@ public class ChannelDisplayTransformServer extends TransformingImageServer<Buffe
 		return new ChannelDisplayTransformServer(server, channels);
 	}
 	
+	/**
+	 * Returns null (does not support ServerBuilders).
+	 */
+	@Override
+	protected ServerBuilder<BufferedImage> createServerBuilder() {
+		return null;
+	}
 
 	private ChannelDisplayTransformServer(ImageServer<BufferedImage> server, List<ChannelDisplayInfo> channels) {
 		super(server);

@@ -144,7 +144,7 @@ public class SparseImageServer extends AbstractTileableImageServer {
 	}
 	
 	@Override
-	public ServerBuilder<BufferedImage> getBuilder() {
+	protected ServerBuilder<BufferedImage> createServerBuilder() {
 		List<SparseImageServerManagerRegion> resolutions = new ArrayList<>();
 		for (var entry : manager.regionMap.entrySet())
 			resolutions.add(new SparseImageServerManagerRegion(entry.getKey(), entry.getValue()));

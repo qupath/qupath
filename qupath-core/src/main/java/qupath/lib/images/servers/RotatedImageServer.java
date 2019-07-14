@@ -299,7 +299,7 @@ public class RotatedImageServer extends TransformingImageServer<BufferedImage> {
 	}
 	
 	@Override
-	public ServerBuilder<BufferedImage> getBuilder() {
+	protected ServerBuilder<BufferedImage> createServerBuilder() {
 		return new RotatedImageServerBuilder(getMetadata(), getWrappedServer().getBuilder(), getRotation());
 	}
 	

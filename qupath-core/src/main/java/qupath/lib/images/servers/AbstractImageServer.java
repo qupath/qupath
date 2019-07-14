@@ -36,6 +36,7 @@ import org.locationtech.jts.index.quadtree.Quadtree;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
 
@@ -59,6 +60,11 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 	 * Cache to use for storing & retrieving tiles.
 	 */
 	private transient Map<RegionRequest, T> cache;
+	
+	/**
+	 * Cached ServerBuilder, so this doesn't need to be constructed on every request
+	 */
+	private transient ServerBuilder<T> builder;
 	
 	/**
 	 * Unique ID for this server
@@ -109,7 +115,22 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 		return downsample;
 	}
 	
+	/**
+	 * Create a ServerBuilder, which can be used to construct an identical ImageServer.
+	 * This should also include the current metadata.
+	 * It is permissible to return null for an ImageServer that cannot be recreated 
+	 * via a {@link ServerBuilder}.
+	 * 
+	 * @return
+	 */
+	protected abstract ServerBuilder<T> createServerBuilder();
 	
+	@Override
+	public ServerBuilder<T> getBuilder() {
+		if (builder == null)
+			builder = createServerBuilder();
+		return builder;
+	}
 	
 	@Override
 	public double getDownsampleForResolution(int level) {
@@ -272,6 +293,7 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 			tileRequestManager = null;
 		
 		userMetadata = metadata;
+		builder = null; // Reset the builder so it will be regenerated as required
 	}
 
 	@Override

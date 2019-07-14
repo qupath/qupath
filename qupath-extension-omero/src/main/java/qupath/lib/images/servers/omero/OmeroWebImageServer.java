@@ -429,7 +429,7 @@ public class OmeroWebImageServer extends AbstractTileableImageServer {
 	
 	
 	@Override
-	public ServerBuilder<BufferedImage> getBuilder() {
+	protected ServerBuilder<BufferedImage> createServerBuilder() {
 		return ImageServerBuilder.DefaultImageServerBuilder.createInstance(
 				OmeroWebImageServerBuilder.class,
 				getMetadata(),

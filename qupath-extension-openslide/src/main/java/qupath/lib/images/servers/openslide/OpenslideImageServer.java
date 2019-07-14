@@ -306,11 +306,8 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 		return associatedImageList;
 	}
 	
-	/**
-	 * Returns a builder capable of creating a server like this one.
-	 */
 	@Override
-	public ServerBuilder<BufferedImage> getBuilder() {
+	protected ServerBuilder<BufferedImage> createServerBuilder() {
 		return DefaultImageServerBuilder.createInstance(OpenslideServerBuilder.class, getMetadata(), uri, args);
 	}
 

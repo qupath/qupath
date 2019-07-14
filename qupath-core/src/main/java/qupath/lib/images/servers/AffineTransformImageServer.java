@@ -177,7 +177,7 @@ public class AffineTransformImageServer extends TransformingImageServer<Buffered
 	}
 	
 	@Override
-	public ServerBuilder<BufferedImage> getBuilder() {
+	protected ServerBuilder<BufferedImage> createServerBuilder() {
 		return new AffineTransformImageServerBuilder(
 				getMetadata(),
 				getWrappedServer().getBuilder(),

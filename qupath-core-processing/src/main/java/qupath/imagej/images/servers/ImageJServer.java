@@ -353,7 +353,7 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 	}
 	
 	@Override
-	public ServerBuilder<BufferedImage> getBuilder() {
+	protected ServerBuilder<BufferedImage> createServerBuilder() {
 		return ImageServerBuilder.DefaultImageServerBuilder.createInstance(
 				ImageJServerBuilder.class,
 				getMetadata(),

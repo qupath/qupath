@@ -89,7 +89,7 @@ public class CroppedImageServer extends TransformingImageServer<BufferedImage> {
 	}
 	
 	@Override
-	public ServerBuilder<BufferedImage> getBuilder() {
+	protected ServerBuilder<BufferedImage> createServerBuilder() {
 		return new ImageServers.CroppedImageServerBuilder(getMetadata(), getWrappedServer().getBuilder(), region);
 	}
 

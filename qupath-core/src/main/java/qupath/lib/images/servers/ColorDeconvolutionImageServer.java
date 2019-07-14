@@ -22,6 +22,7 @@ import qupath.lib.color.ColorModelFactory;
 import qupath.lib.color.ColorTransformer;
 import qupath.lib.color.StainVector;
 import qupath.lib.color.ColorTransformer.ColorTransformMethod;
+import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
 import qupath.lib.regions.RegionRequest;
 
 /**
@@ -89,6 +90,14 @@ class ColorDeconvolutionImageServer extends TransformingImageServer<BufferedImag
 				.channels(channels)
 				.name(String.format("%s (%s)", server.getMetadata().getName(), stains.toString()))
 				.build();
+	}
+	
+	/**
+	 * Returns null (does not support ServerBuilders).
+	 */
+	@Override
+	protected ServerBuilder<BufferedImage> createServerBuilder() {
+		return null;
 	}
 	
 	/**

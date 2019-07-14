@@ -689,7 +689,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 	 * Returns a builder capable of creating a server like this one.
 	 */
 	@Override
-	public ServerBuilder<BufferedImage> getBuilder() {
+	protected ServerBuilder<BufferedImage> createServerBuilder() {
 		return DefaultImageServerBuilder.createInstance(BioFormatsServerBuilder.class, getMetadata(), uri, args);
 	}
 	
