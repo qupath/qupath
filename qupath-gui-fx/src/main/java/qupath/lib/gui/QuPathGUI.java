@@ -1315,8 +1315,9 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			Project<?> project = getProject();
 			if (project != null) {
 				// Write the project, if necessary
-				if (project.setPathClasses(c.getList()))
-					ProjectBrowser.syncProject(project);
+				project.setPathClasses(c.getList());
+//				if (project.setPathClasses(c.getList())
+//					ProjectBrowser.syncProject(project);
 			}
 		});
 	}
