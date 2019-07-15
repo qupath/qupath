@@ -30,9 +30,9 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -40,14 +40,15 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
+import java.util.Scanner;
 import java.util.Set;
 import java.util.TreeMap;
-import java.util.TreeSet;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -61,25 +62,34 @@ import org.slf4j.LoggerFactory;
 
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.DoubleBinding;
+import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
-import javafx.beans.value.ObservableDoubleValue;
-import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
+import javafx.collections.ObservableMap;
+import javafx.collections.transformation.FilteredList;
 import javafx.embed.swing.SwingFXUtils;
+import javafx.event.EventHandler;
 import javafx.geometry.Insets;
 import javafx.geometry.Side;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuItem;
+import javafx.scene.control.OverrunStyle;
 import javafx.scene.control.SelectionMode;
 import javafx.scene.control.SeparatorMenuItem;
+import javafx.scene.control.TableCell;
+import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableView;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TitledPane;
@@ -89,10 +99,17 @@ import javafx.scene.control.TreeItem;
 import javafx.scene.control.TreeView;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
+import javafx.scene.input.Clipboard;
+import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyCodeCombination;
+import javafx.scene.input.KeyCombination;
+import javafx.scene.input.KeyEvent;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
+import javafx.scene.layout.Priority;
 import javafx.scene.layout.StackPane;
 import javafx.util.Callback;
 import qupath.lib.common.GeneralTools;
@@ -100,11 +117,13 @@ import qupath.lib.gui.ImageDataChangeListener;
 import qupath.lib.gui.ImageDataWrapper;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.QuPathGUI.GUIActions;
+import qupath.lib.gui.commands.ProjectCheckUrisCommand;
 import qupath.lib.gui.commands.ProjectImportImagesCommand;
 import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.gui.helpers.PaintingToolsFX;
 import qupath.lib.gui.helpers.PanelToolsFX;
 import qupath.lib.gui.helpers.DisplayHelpers.DialogButton;
+import qupath.lib.gui.helpers.GridPaneTools;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
@@ -592,81 +611,22 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 
 	public void setProject(final Project<BufferedImage> project) {
 		if (this.project == project)
-			return;
-		this.project = project;
-		
+			return;		
 		if (project != null) {
 			try {
-				Set<URI> uris = new TreeSet<>();
-				for (var entry: project.getImageList()) {
-					uris.addAll(entry.getServerURIs());
-				}
-				URI projectURI = project.getURI();
-				URI previousURI = project.getPreviousURI();
-	
-				Path pathProject = projectURI == null || !"file".equals(projectURI.getScheme()) ? null : Paths.get(projectURI);
-				Path pathPrevious = previousURI == null || !"file".equals(previousURI.getScheme()) ? null : Paths.get(previousURI);
-				boolean tryRelative = pathProject != null && pathPrevious != null && !pathProject.equals(pathPrevious);
-				
-				Map<URI, URI> replacements = new LinkedHashMap<>();
-				for (URI uri : uris) {
-					try {
-						if (!"file".equals(uri.getScheme()))
-							continue;
-						// Check if the path exists, without changes
-						Path path = Paths.get(uri);
-						if (Files.exists(path))
-							continue;
-						// Check if a relative path would work
-						if (tryRelative) {
-							Path pathRelative = pathProject.resolve(pathPrevious.relativize(path));
-							if (Files.exists(pathRelative)) {
-								URI uri2 = pathRelative.normalize().toUri().normalize();
-								logger.info("Updating path: {} -> {}", uri, uri2);
-								replacements.put(uri, uri2);
-								continue;
-							}
-						}
-					} catch (Exception e) {
-						logger.warn("Exception converting URI {} ({})", uri, e.getLocalizedMessage());
-					}
-				}
-				
-				if (!replacements.isEmpty()) {
-					logger.info("Updating {} paths", replacements.size());
-					for (var entry: project.getImageList()) {
-						entry.updateServerURIs(replacements);
-					}
-				}
-				
+				// Show URI manager dialog if we have any missing URIs
+				if (!ProjectCheckUrisCommand.checkURIs(project, true))
+					return;
 			} catch (IOException e) {
-				logger.error("Error checking URIs", e);
+				DisplayHelpers.showErrorMessage("Update URIs", e);
 			}
 		}
-		
+		this.project = project;
+
 		model = new ProjectImageTreeModel(project);
 		tree.setRoot(model.getRootFX());
 		tree.getRoot().setExpanded(true);
 	}
-	
-	
-//	static class ProjectUriPane {
-//		
-//		private TreeView<T>
-//		
-//	}
-//	
-//	static class ProjectImageUriManager {
-//		
-//		private ProjectImageEntry<?> entry;
-//		private Map<URI>
-//		
-//		public Collection<URI> getURIs() {
-//			entry.updateServerURIs(replacements)
-//			return entry.getServerURIs();
-//		}
-//		
-//	}
 	
 	
 	
@@ -674,7 +634,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 //		return project.getImageList().stream().f
 //	}
 	
-	private boolean pathMissing(String path) {
+	private static boolean pathMissing(String path) {
 		int ind = path.lastIndexOf("::");
 		return !path.startsWith("http") && !new File(path).exists() && 
 				(ind < 0 || !new File(path.substring(0, ind)).exists());

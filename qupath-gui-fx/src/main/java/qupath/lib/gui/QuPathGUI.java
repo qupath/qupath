@@ -199,6 +199,7 @@ import qupath.lib.gui.commands.MeasurementMapCommand;
 import qupath.lib.gui.commands.MiniViewerCommand;
 import qupath.lib.gui.commands.OpenCommand;
 import qupath.lib.gui.commands.PreferencesCommand;
+import qupath.lib.gui.commands.ProjectCheckUrisCommand;
 import qupath.lib.gui.commands.ProjectCloseCommand;
 import qupath.lib.gui.commands.ProjectCreateCommand;
 import qupath.lib.gui.commands.ProjectExportImageListCommand;
@@ -2912,7 +2913,8 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 						getActionMenuItem(GUIActions.PROJECT_IMPORT_IMAGES),
 						getActionMenuItem(GUIActions.PROJECT_EXPORT_IMAGE_LIST),
 						null,
-						getActionMenuItem(GUIActions.PROJECT_METADATA)
+						getActionMenuItem(GUIActions.PROJECT_METADATA),
+						createCommandAction(new ProjectCheckUrisCommand(this), "Check project URIs")
 						),
 				menuRecent,
 				null,

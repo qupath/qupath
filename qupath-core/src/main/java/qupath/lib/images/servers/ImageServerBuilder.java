@@ -247,10 +247,12 @@ public interface ImageServerBuilder<T> {
 		protected ImageServer<T> buildOriginal() throws Exception {
 			for (ImageServerBuilder<?> provider : ImageServerProvider.getInstalledImageServerBuilders()) {
 				if (provider.getClass().getName().equals(providerClassName)) {
-					return (ImageServer<T>)provider.buildServer(uri, args);
+					ImageServer<T> server = (ImageServer<T>)provider.buildServer(uri, args);
+					if (server != null)
+						return server;
 				}
 			}
-			return null;
+			throw new IOException("Unable to build ImageServer for " + uri + " (args=" + Arrays.asList(args) + ")");
 		}
 		
 		@Override

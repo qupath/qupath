@@ -403,6 +403,7 @@ public class DisplayHelpers {
 			dialog.setTitle(title);
 			dialog.setHeaderText(null);
 			dialog.setContentText(message);
+			dialog.setResizable(true);
 			// Traditional way to get the response value.
 			Optional<String> result = dialog.showAndWait();
 			if (result.isPresent())
