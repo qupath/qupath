@@ -60,8 +60,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javafx.beans.binding.Bindings;
+import javafx.beans.binding.DoubleBinding;
+import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
+import javafx.beans.value.ObservableDoubleValue;
+import javafx.beans.value.ObservableValue;
+import javafx.collections.FXCollections;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.geometry.Insets;
 import javafx.geometry.Side;
@@ -138,7 +143,10 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 	
 	private StringProperty descriptionText = new SimpleStringProperty();
 
-
+	private static ObjectProperty<ProjectThumbnailSize> thumbnailSize = PathPrefs.createPersistentPreference("projectThumbnailSize",
+			ProjectThumbnailSize.SMALL, ProjectThumbnailSize.class);
+	
+	
 	public ProjectBrowser(final QuPathGUI qupath) {
 		this.project = qupath.getProject();
 		this.qupath = qupath;
@@ -156,6 +164,8 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 				return new ImageEntryCell();
 			}
 		});
+		
+		thumbnailSize.addListener((v, o, n) -> tree.refresh());
 
 		tree.setRoot(null);
 
@@ -206,6 +216,11 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 		paneButtons.prefWidthProperty().bind(panel.widthProperty());
 		paneButtons.setPadding(new Insets(5, 5, 5, 5));
 		panel.setTop(paneButtons);
+		
+		qupath.getPreferencePanel().addChoicePropertyPreference(
+				thumbnailSize, FXCollections.observableArrayList(ProjectThumbnailSize.values()), ProjectThumbnailSize.class,
+				"Project thumbnails size", "Appearance", "Choose thumbnail size for the project pane");
+
 	}
 
 
@@ -1107,7 +1122,51 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 
 
 
-
+	static enum ProjectThumbnailSize {
+		SMALL, MEDIUM, LARGE;
+		
+		private double defaultHeight = 40;
+		private double defaultWidth = 50;
+		
+		@Override
+		public String toString() {
+			switch(this) {
+			case LARGE:
+				return "Large";
+			case MEDIUM:
+				return "Medium";
+			case SMALL:
+				return "Small";
+			default:
+				return super.toString();
+			}
+		}
+		
+		public double getWidth() {
+			switch(this) {
+			case LARGE:
+				return defaultWidth * 3.0;
+			case MEDIUM:
+				return defaultWidth * 2.0;
+			case SMALL:
+			default:
+				return defaultWidth;
+			}
+		}
+		
+		public double getHeight() {
+			switch(this) {
+			case LARGE:
+				return defaultHeight * 3.0;
+			case MEDIUM:
+				return defaultHeight * 2.0;
+			case SMALL:
+			default:
+				return defaultHeight;
+			}
+		}
+	}
+	
 
 	public class ImageEntryCell extends TreeCell<Object> {
 
@@ -1117,18 +1176,25 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 		private StackPane label = new StackPane();
 		private ImageView viewTooltip = new ImageView();
 		private Canvas viewCanvas = new Canvas();
+		
+		private DoubleBinding viewWidth = Bindings.createDoubleBinding(
+				() -> thumbnailSize.get().getWidth(),
+				thumbnailSize);
+
+		private DoubleBinding viewHeight = Bindings.createDoubleBinding(
+				() -> thumbnailSize.get().getHeight(),
+				thumbnailSize);
 
 		public ImageEntryCell() {
-			double viewWidth = 50;
-			double viewHeight = 40;
 			viewTooltip.setFitHeight(250);
 			viewTooltip.setFitWidth(250);
 			viewTooltip.setPreserveRatio(true);
-			viewCanvas.setWidth(viewWidth);
-			viewCanvas.setHeight(viewHeight);
+			viewCanvas.widthProperty().bind(viewWidth);
+			viewCanvas.heightProperty().bind(viewHeight);
 			viewCanvas.setStyle("-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.5), 4, 0, 1, 1);");
 			label.getChildren().add(viewCanvas);
-			label.setPrefSize(viewWidth, viewHeight);
+			label.prefWidthProperty().bind(viewCanvas.widthProperty());
+			label.prefHeightProperty().bind(viewCanvas.heightProperty());
 			
 //			setOnDragDetected( event ->  {
 //				if (isEmpty())
