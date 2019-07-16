@@ -317,9 +317,14 @@ public class MeasurementMapper {
 			//			System.out.println("Measurement mapper: " + minValue + ", " + maxValue);
 			int ind = 0;
 			if (maxValue > minValue) {
-				ind = (int)((value - minValue) / (maxValue - minValue) * nColors + .5);
+				ind = (int)Math.round((value - minValue) / (maxValue - minValue) * nColors);
 				ind = ind >= nColors ? nColors - 1 : ind;
 				ind = ind < 0 ? 0 : ind;
+			} else if (minValue > maxValue) {
+				ind = (int)Math.round((value - maxValue) / (minValue - maxValue) * nColors);
+				ind = ind >= nColors ? nColors - 1 : ind;
+				ind = ind < 0 ? 0 : ind;
+				ind = nColors - 1 - ind;
 			}
 			return getColor(ind);
 		}
