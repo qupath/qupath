@@ -247,17 +247,8 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 	ContextMenu getPopup() {
 		
 		Action actionOpenImage = new Action("Open image", e -> qupath.openImageEntry(getSelectedEntry()));
-		Action actionRemoveImage = new Action("Remove image", e -> {
-			// TODO: Handle removing multiple images; prevent image being removed if it is currently open in the project
-			List<TreeItem<Object>> selected = tree.getSelectionModel().getSelectedItems();
-			if (selected == null)
-				return;
-			Collection<ProjectImageEntry<BufferedImage>> entries = selected.stream().map(p -> {
-				if (p.getValue() instanceof ProjectImageEntry)
-					return Collections.singletonList((ProjectImageEntry<BufferedImage>)p.getValue());
-				else
-					return getImageEntries(p, null);
-			}).flatMap(Collection::stream).collect(Collectors.toSet());
+		Action actionRemoveImage = new Action("Remove image(s)", e -> {
+			Collection<ProjectImageEntry<BufferedImage>> entries = getAllSelectedEntries();
 			
 			if (entries.isEmpty())
 				return;
@@ -344,9 +335,9 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 		
 		// Add a metadata value
 		Action actionAddMetadataValue = new Action("Add metadata", e -> {
-			Project<?> project = getProject();
-			ProjectImageEntry<?> entry = getSelectedEntry();
-			if (project != null && entry != null) {
+			Project<BufferedImage> project = getProject();
+			Collection<ProjectImageEntry<BufferedImage>> entries = getAllSelectedEntries();
+			if (project != null && !entries.isEmpty()) {
 				
 				TextField tfMetadataKey = new TextField();
 				TextField tfMetadataValue = new TextField();
@@ -357,7 +348,8 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 				tfMetadataKey.setTooltip(new Tooltip("Enter the name for the metadata entry"));
 				tfMetadataValue.setTooltip(new Tooltip("Enter the value for the metadata entry"));
 				
-				int nMetadataValues = entry.getMetadataKeys().size();
+				ProjectImageEntry<BufferedImage> entry = entries.size() == 1 ? entries.iterator().next() : null;
+				int nMetadataValues = entry == null ? 0 : entry.getMetadataKeys().size();
 				
 				GridPane pane = new GridPane();
 				pane.setVgap(5);
@@ -366,38 +358,45 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 				pane.add(tfMetadataKey, 1, 0);
 				pane.add(labValue, 0, 1);
 				pane.add(tfMetadataValue, 1, 1);
-				if (nMetadataValues > 0) {
-					
-					Label labelCurrent = new Label("Current metadata");
-					TextArea textAreaCurrent = new TextArea();
-					textAreaCurrent.setEditable(false);
-
-					String keyString = entry.getMetadataSummaryString();
-					if (keyString.isEmpty())
-						textAreaCurrent.setText("No metadata entries yet");
-					else
-						textAreaCurrent.setText(keyString);
-					textAreaCurrent.setPrefRowCount(3);
-					labelCurrent.setLabelFor(textAreaCurrent);
-
-					pane.add(labelCurrent, 0, 2);
-					pane.add(textAreaCurrent, 1, 2);					
+				String name = entries.size() + " images";
+				if (entry != null) {
+					name = entry.getImageName();
+					if (nMetadataValues > 0) {
+						
+						Label labelCurrent = new Label("Current metadata");
+						TextArea textAreaCurrent = new TextArea();
+						textAreaCurrent.setEditable(false);
+	
+						String keyString = entry.getMetadataSummaryString();
+						if (keyString.isEmpty())
+							textAreaCurrent.setText("No metadata entries yet");
+						else
+							textAreaCurrent.setText(keyString);
+						textAreaCurrent.setPrefRowCount(3);
+						labelCurrent.setLabelFor(textAreaCurrent);
+	
+						pane.add(labelCurrent, 0, 2);
+						pane.add(textAreaCurrent, 1, 2);	
+					}
 				}
 				
 				Dialog<ButtonType> dialog = new Dialog<>();
 				dialog.setTitle("Metadata");
 				dialog.getDialogPane().getButtonTypes().setAll(ButtonType.OK, ButtonType.CANCEL);
-				dialog.getDialogPane().setHeaderText(entry.getImageName());
+				dialog.getDialogPane().setHeaderText("Set metadata for " + name);
 				dialog.getDialogPane().setContent(pane);
 				Optional<ButtonType> result = dialog.showAndWait();
 				if (result.isPresent() && result.get() == ButtonType.OK) {
 					String key = tfMetadataKey.getText().trim();
 					String value = tfMetadataValue.getText();
 					if (key.isEmpty()) {
-						logger.warn("Attempted to set metadata value for {}, but key was empty!", entry.getImageName());
+						logger.warn("Attempted to set metadata value for {}, but key was empty!", name);
 					} else {
-						entry.putMetadataValue(key, value);
+						// Set metadata for all entries
+						for (var temp : entries)
+							temp.putMetadataValue(key, value);
 						syncProject(project);
+						tree.refresh();
 					}
 				}
 							
@@ -435,11 +434,12 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 		// Set visibility as menu being displayed
 		menu.setOnShowing(e -> {
 			TreeItem<Object> selected = tree.getSelectionModel().getSelectedItem();
+			var entries = getAllSelectedEntries();
 			boolean hasImageEntry = selected != null && selected.getValue() instanceof ProjectImageEntry;
 //			miOpenProjectDirectory.setVisible(project != null && project.getBaseDirectory().exists());
 			miOpenImage.setVisible(hasImageEntry);
 			miSetImageName.setVisible(hasImageEntry);
-			miAddMetadata.setVisible(hasImageEntry);
+			miAddMetadata.setVisible(!entries.isEmpty());
 			miEditDescription.setVisible(hasImageEntry);
 			miRefreshThumbnail.setVisible(hasImageEntry && isCurrentImage((ProjectImageEntry<BufferedImage>)selected.getValue()));
 			miRemoveImage.setVisible(project != null && !project.getImageList().isEmpty());
@@ -798,6 +798,18 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 	}
 
 
+	Collection<ProjectImageEntry<BufferedImage>> getAllSelectedEntries() {
+		List<TreeItem<Object>> selected = tree.getSelectionModel().getSelectedItems();
+		if (selected == null)
+			return Collections.emptyList();
+		return selected.stream().map(p -> {
+			if (p.getValue() instanceof ProjectImageEntry)
+				return Collections.singletonList((ProjectImageEntry<BufferedImage>)p.getValue());
+			else
+				return getImageEntries(p, null);
+		}).flatMap(Collection::stream).collect(Collectors.toSet());
+	}
+	
 
 	ProjectImageEntry<BufferedImage> getSelectedEntry() {
 		TreeItem<Object> selected = tree.getSelectionModel().getSelectedItem();
