@@ -1675,6 +1675,7 @@ public class PixelClassifierImageSelectionPane {
 			var comboScales = new CheckComboBox<Double>();
 			var labelScales = new Label("Scales");
 			comboScales.getItems().addAll(0.5, 1.0, 2.0, 4.0, 8.0);
+			comboScales.getCheckModel().check(1);
 			selectedSigmas = comboScales.getCheckModel().getCheckedItems();
 //			comboScales.getCheckModel().check(1.0);
 			
@@ -1685,6 +1686,7 @@ public class PixelClassifierImageSelectionPane {
 			var comboFeatures = new CheckComboBox<MultiscaleFeature>();
 			var labelFeatures = new Label("Features");
 			comboFeatures.getItems().addAll(MultiscaleFeature.values());
+			comboFeatures.getCheckModel().check(MultiscaleFeature.GAUSSIAN);
 			selectedFeatures = comboFeatures.getCheckModel().getCheckedItems();
 //			comboFeatures.getCheckModel().check(MultiscaleFeature.GAUSSIAN);
 //			selectedChannels.addListener((Change<? extends Integer> c) -> updateFeatureCalculator());
