@@ -760,11 +760,8 @@ public class ImageServerMetadata {
 		result = prime * result + height;
 		result = prime * result + (isRGB ? 1231 : 1237);
 		result = prime * result + Arrays.hashCode(levels);
-		long temp;
-		temp = Double.doubleToLongBits(magnification);
-		result = prime * result + (int) (temp ^ (temp >>> 32));
+		result = prime * result + ((magnification == null) ? 0 : magnification.hashCode());
 		result = prime * result + ((name == null) ? 0 : name.hashCode());
-//		result = prime * result + ((path == null) ? 0 : path.hashCode());
 		result = prime * result + ((pixelCalibration == null) ? 0 : pixelCalibration.hashCode());
 		result = prime * result + ((pixelType == null) ? 0 : pixelType.hashCode());
 		result = prime * result + preferredTileHeight;
@@ -799,18 +796,16 @@ public class ImageServerMetadata {
 			return false;
 		if (!Arrays.equals(levels, other.levels))
 			return false;
-		if (Double.doubleToLongBits(magnification) != Double.doubleToLongBits(other.magnification))
+		if (magnification == null) {
+			if (other.magnification != null)
+				return false;
+		} else if (!magnification.equals(other.magnification))
 			return false;
 		if (name == null) {
 			if (other.name != null)
 				return false;
 		} else if (!name.equals(other.name))
 			return false;
-//		if (path == null) {
-//			if (other.path != null)
-//				return false;
-//		} else if (!path.equals(other.path))
-//			return false;
 		if (pixelCalibration == null) {
 			if (other.pixelCalibration != null)
 				return false;
