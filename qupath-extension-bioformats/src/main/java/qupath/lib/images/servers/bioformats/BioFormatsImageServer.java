@@ -292,107 +292,101 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 		// If we have more than one series, we need to construct maps of 'analyzable' & associated images
 		synchronized(reader) {
 			int nImages = meta.getImageCount();
-			if (nImages > 1) {
-				imageMap = new LinkedHashMap<>(nImages);
-				associatedImageMap = new LinkedHashMap<>(nImages);
+			imageMap = new LinkedHashMap<>(nImages);
+			associatedImageMap = new LinkedHashMap<>(nImages);
 
-				// Loop through series to find out whether we have multiresolution images, or associated images (e.g. thumbnails)
-				for (int s = 0; s < nImages; s++) {
-					String name = "Series " + s;
-					String originalImageName = meta.getImageName(s);
-					if (originalImageName == null)
-						originalImageName = "";
-					String imageName = originalImageName;
-					try {
-						if (!imageName.isEmpty())
-							name += " (" + imageName + ")";
+			// Loop through series to find out whether we have multiresolution images, or associated images (e.g. thumbnails)
+			for (int s = 0; s < nImages; s++) {
+				String name = "Series " + s;
+				String originalImageName = meta.getImageName(s);
+				if (originalImageName == null)
+					originalImageName = "";
+				String imageName = originalImageName;
+				try {
+					if (!imageName.isEmpty())
+						name += " (" + imageName + ")";
 
-						// Set this to be the series, if necessary
-						long sizeX = meta.getPixelsSizeX(s).getNumberValue().longValue();
-						long sizeY = meta.getPixelsSizeY(s).getNumberValue().longValue();
-						long sizeC = meta.getPixelsSizeC(s).getNumberValue().longValue();
-						long sizeZ = meta.getPixelsSizeZ(s).getNumberValue().longValue();
-						long sizeT = meta.getPixelsSizeT(s).getNumberValue().longValue();
+					// Set this to be the series, if necessary
+					long sizeX = meta.getPixelsSizeX(s).getNumberValue().longValue();
+					long sizeY = meta.getPixelsSizeY(s).getNumberValue().longValue();
+					long sizeC = meta.getPixelsSizeC(s).getNumberValue().longValue();
+					long sizeZ = meta.getPixelsSizeZ(s).getNumberValue().longValue();
+					long sizeT = meta.getPixelsSizeT(s).getNumberValue().longValue();
 
-						// Check the resolutions
-						//						int nResolutions = meta.getResolutionCount(s);
-						//						for (int r = 1; r < nResolutions; r++) {
-						//							int sizeXR = meta.getResolutionSizeX(s, r).getValue();
-						//							int sizeYR = meta.getResolutionSizeY(s, r).getValue();
-						//							if (sizeXR <= 0 || sizeYR <= 0 || sizeXR > sizeX || sizeYR > sizeY)
-						//								throw new IllegalArgumentException("Resolution " + r + " size " + sizeXR + " x " + sizeYR + " invalid!");
-						//						}
-						// It seems we can't get the resolutions from the metadata object... instead we need to set the series of the reader
-						reader.setSeries(s);
-						assert reader.getSizeX() == sizeX;
-						assert reader.getSizeY() == sizeY;
-						int nResolutions = reader.getResolutionCount();
-						for (int r = 1; r < nResolutions; r++) {
-							reader.setResolution(r);
-							int sizeXR = reader.getSizeX();
-							int sizeYR = reader.getSizeY();
-							if (sizeXR <= 0 || sizeYR <= 0 || sizeXR > sizeX || sizeYR > sizeY)
-								throw new IllegalArgumentException("Resolution " + r + " size " + sizeXR + " x " + sizeYR + " invalid!");
-						}
-
-						// If we got this far, we have an image we can add
-						if (reader.getResolutionCount() == 1 && (
-								extraImageNames.contains(originalImageName.toLowerCase()) || extraImageNames.contains(name.toLowerCase().trim()))) {
-							logger.debug("Adding associated image {} (thumbnail={})", name, reader.isThumbnailSeries());
-							associatedImageMap.put(name, s);
-						} else {
-							if (imageMap.containsKey(name))
-								logger.warn("Duplicate image called {} - only the first will be used", name);
-							else {
-								if (firstSeries < 0) {
-									firstSeries = s;
-									firstPixels = sizeX * sizeY * sizeZ * sizeT;
-								}
-								imageMap.put(name, DefaultImageServerBuilder.createInstance(BioFormatsServerBuilder.class, null, uri, "--series", Integer.toString(s)));
-							}
-						}
-
-						if (seriesIndex < 0) {
-							if (requestedSeriesName == null) {
-								long nPixels = sizeX * sizeY * sizeZ * sizeT;
-								if (nPixels > mostPixels) {
-									largestSeries = s;
-									mostPixels = nPixels;
-								}
-							} else if (requestedSeriesName.equals(name) || requestedSeriesName.equals(meta.getImageName(s))) {
-								seriesIndex = s;
-							}
-						}
-						logger.debug("Found image '{}', size: {} x {} x {} x {} x {} (xyczt)", imageName, sizeX, sizeY, sizeC, sizeZ, sizeT);
-					} catch (Exception e) {
-						// We don't want to log this prominently if we're requesting a different series anyway
-						if ((seriesIndex < 0 || seriesIndex == s) && (requestedSeriesName == null || requestedSeriesName.equals(imageName)))
-							logger.warn("Error attempting to read series " + s + " (" + imageName + ") - will be skipped", e);
-						else
-							logger.trace("Error attempting to read series " + s + " (" + imageName + ") - will be skipped", e);
+					// Check the resolutions
+					//						int nResolutions = meta.getResolutionCount(s);
+					//						for (int r = 1; r < nResolutions; r++) {
+					//							int sizeXR = meta.getResolutionSizeX(s, r).getValue();
+					//							int sizeYR = meta.getResolutionSizeY(s, r).getValue();
+					//							if (sizeXR <= 0 || sizeYR <= 0 || sizeXR > sizeX || sizeYR > sizeY)
+					//								throw new IllegalArgumentException("Resolution " + r + " size " + sizeXR + " x " + sizeYR + " invalid!");
+					//						}
+					// It seems we can't get the resolutions from the metadata object... instead we need to set the series of the reader
+					reader.setSeries(s);
+					assert reader.getSizeX() == sizeX;
+					assert reader.getSizeY() == sizeY;
+					int nResolutions = reader.getResolutionCount();
+					for (int r = 1; r < nResolutions; r++) {
+						reader.setResolution(r);
+						int sizeXR = reader.getSizeX();
+						int sizeYR = reader.getSizeY();
+						if (sizeXR <= 0 || sizeYR <= 0 || sizeXR > sizeX || sizeYR > sizeY)
+							throw new IllegalArgumentException("Resolution " + r + " size " + sizeXR + " x " + sizeYR + " invalid!");
 					}
-				}
 
-				// If we have just one image in the image list, then reset to none - we can't switch
-				if (imageMap.size() == 1 && seriesIndex < 0) {
-					seriesIndex = firstSeries;
-//					imageMap.clear();
-				} else if (imageMap.size() > 1) {
-					// Set default series index, if we need to
+					// If we got this far, we have an image we can add
+					if (reader.getResolutionCount() == 1 && (
+							extraImageNames.contains(originalImageName.toLowerCase()) || extraImageNames.contains(name.toLowerCase().trim()))) {
+						logger.debug("Adding associated image {} (thumbnail={})", name, reader.isThumbnailSeries());
+						associatedImageMap.put(name, s);
+					} else {
+						if (imageMap.containsKey(name))
+							logger.warn("Duplicate image called {} - only the first will be used", name);
+						else {
+							if (firstSeries < 0) {
+								firstSeries = s;
+								firstPixels = sizeX * sizeY * sizeZ * sizeT;
+							}
+							imageMap.put(name, DefaultImageServerBuilder.createInstance(BioFormatsServerBuilder.class, null, uri, "--series", Integer.toString(s)));
+						}
+					}
+
 					if (seriesIndex < 0) {
-						// Choose the first series unless it is substantially smaller than the largest series (e.g. it's a label or macro image)
-						if (mostPixels > firstPixels * 4L)
-							seriesIndex = largestSeries; // imageMap.values().iterator().next();
-						else
-							seriesIndex = firstSeries;
+						if (requestedSeriesName == null) {
+							long nPixels = sizeX * sizeY * sizeZ * sizeT;
+							if (nPixels > mostPixels) {
+								largestSeries = s;
+								mostPixels = nPixels;
+							}
+						} else if (requestedSeriesName.equals(name) || requestedSeriesName.equals(meta.getImageName(s))) {
+							seriesIndex = s;
+						}
 					}
-					// If we have more than one image, ensure that we have the image name correctly encoded in the path
-					uri = new URI(uri.getScheme(), uri.getHost(), uri.getPath(), Integer.toString(seriesIndex));
+					logger.debug("Found image '{}', size: {} x {} x {} x {} x {} (xyczt)", imageName, sizeX, sizeY, sizeC, sizeZ, sizeT);
+				} catch (Exception e) {
+					// We don't want to log this prominently if we're requesting a different series anyway
+					if ((seriesIndex < 0 || seriesIndex == s) && (requestedSeriesName == null || requestedSeriesName.equals(imageName)))
+						logger.warn("Error attempting to read series " + s + " (" + imageName + ") - will be skipped", e);
+					else
+						logger.trace("Error attempting to read series " + s + " (" + imageName + ") - will be skipped", e);
 				}
-			} else {
-				if (seriesIndex < 0)
-					seriesIndex = 0;
-				imageMap = Collections.emptyMap();
+			}
+
+			// If we have just one image in the image list, then reset to none - we can't switch
+			if (imageMap.size() == 1 && seriesIndex < 0) {
+				seriesIndex = firstSeries;
+//					imageMap.clear();
+			} else if (imageMap.size() > 1) {
+				// Set default series index, if we need to
+				if (seriesIndex < 0) {
+					// Choose the first series unless it is substantially smaller than the largest series (e.g. it's a label or macro image)
+					if (mostPixels > firstPixels * 4L)
+						seriesIndex = largestSeries; // imageMap.values().iterator().next();
+					else
+						seriesIndex = firstSeries;
+				}
+				// If we have more than one image, ensure that we have the image name correctly encoded in the path
+				uri = new URI(uri.getScheme(), uri.getHost(), uri.getPath(), Integer.toString(seriesIndex));
 			}
 
 			if (seriesIndex < 0)

@@ -311,6 +311,7 @@ import qupath.lib.images.servers.ImageServerBuilder;
 import qupath.lib.images.servers.ImageServerProvider;
 import qupath.lib.images.servers.RotatedImageServer;
 import qupath.lib.images.servers.ServerTools;
+import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
 import qupath.lib.images.servers.RotatedImageServer.Rotation;
 import qupath.lib.io.PathIO;
 import qupath.lib.objects.PathAnnotationObject;
@@ -2405,13 +2406,24 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		}
 		
 		ImageServer<BufferedImage> server = viewer.getServer();
+		ServerBuilder<BufferedImage> builder = server == null ? null : server.getBuilder();
 		String pathOld = null;
 		File fileBase = null;
-		if (server != null) {
-			pathOld = server.getPath();
-			try {
-				fileBase = new File(pathOld).getParentFile();
-			} catch (Exception e) {};
+		if (builder != null) {
+			var uris = builder.getURIs();
+			if (uris.size() == 1) {
+				var uri = uris.iterator().next();
+				pathOld = uri.toString();
+				try {
+					var path = GeneralTools.toPath(uri);
+					if (path != null)
+						fileBase = path.toFile().getParentFile();
+				} catch (Exception e) {};
+			}
+//			pathOld = server.getPath();
+//			try {
+//				fileBase = new File(pathOld).getParentFile();
+//			} catch (Exception e) {};
 		}
 		// Prompt for a path, if required
 		File fileNew = null;
