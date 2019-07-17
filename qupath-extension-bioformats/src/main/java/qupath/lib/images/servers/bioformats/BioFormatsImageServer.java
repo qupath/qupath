@@ -48,8 +48,6 @@ import java.nio.FloatBuffer;
 import java.nio.ShortBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.attribute.FileAttribute;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -60,9 +58,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.WeakHashMap;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
-
 import javax.imageio.ImageIO;
 
 import org.slf4j.Logger;
@@ -97,6 +94,7 @@ import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.ImageServerMetadata.ImageResolutionLevel;
 import qupath.lib.images.servers.PixelType;
 import qupath.lib.images.servers.TileRequest;
+import qupath.lib.images.servers.bioformats.BioFormatsImageServer.BioFormatsReaderManager.LocalReaderWrapper;
 
 /**
  * QuPath ImageServer that uses the Bio-Formats library to read image data.
@@ -198,7 +196,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 	/**
 	 * Primary reader for the current server.
 	 */
-	private IFormatReader reader;
+	private LocalReaderWrapper readerWrapper;
 	
 	/**
 	 * Primary metadata store.
@@ -287,8 +285,9 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 		filePath = new File(uri.getPath()).getAbsolutePath();
 
 		// Create a reader & extract the metadata
-		meta = new OMEPyramidStore();
-		reader = manager.createPrimaryReader(options, filePath, meta);
+		readerWrapper = manager.getPrimaryReaderWrapper(options, filePath);
+		IFormatReader reader = readerWrapper.getReader();
+		meta = (OMEPyramidStore)reader.getMetadataStore();
 
 		// Populate the image server list if we have more than one image
 		int largestSeries = -1;
@@ -725,7 +724,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 	 */
 	private IFormatReader getReader() {
 		try {
-			return willParallelize() ? manager.getReaderForThread(options, filePath) : reader;
+			return willParallelize() ? manager.getReaderForThread(options, filePath) : readerWrapper.getReader();
 		} catch (Exception e) {
 			logger.error("Error requesting image reader", e);
 			return null;
@@ -877,7 +876,6 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 	@Override
 	public synchronized void close() throws Exception {
 		super.close();
-		reader.close(false);
 	}
 
 	@Override
@@ -1037,6 +1035,11 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 		private static File dirMemoTemp = null;
 		
 		/**
+		 * A set of primary readers, to avoid needing to regenerate these for all servers.
+		 */
+		private static Set<LocalReaderWrapper> primaryReaders = Collections.newSetFromMap(new WeakHashMap<>());
+		
+		/**
 		 * Set of created temp memo files
 		 */
 		private static Set<File> tempMemoFiles = new HashSet<>();
@@ -1071,15 +1074,22 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 			reader = createReader(options, path, null);
 			
 			// Store wrapped reference with associated cleaner
-			wrapper = new LocalReaderWrapper(reader);
-			logger.debug("Constructing reader for {}", Thread.currentThread());
-			cleaner.register(
-					wrapper,
-					new ReaderCleaner(Thread.currentThread().toString(), reader));
+			wrapper = wrapReader(reader);
 			localReader.set(wrapper);
 			
 			return reader;
 		}
+		
+		
+		private static LocalReaderWrapper wrapReader(IFormatReader reader) {
+			LocalReaderWrapper wrapper = new LocalReaderWrapper(reader);
+			logger.debug("Constructing reader for {}", Thread.currentThread());
+			cleaner.register(
+					wrapper,
+					new ReaderCleaner(Thread.currentThread().toString(), reader));
+			return wrapper;
+		}
+		
 		
 		/**
 		 * Request a IFormatReader for the specified path.
@@ -1099,6 +1109,28 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 		 */
 		synchronized IFormatReader createPrimaryReader(final BioFormatsServerOptions options, final String path, IMetadata metadata) throws DependencyException, ServiceException, FormatException, IOException {
 			return createReader(options, path, metadata == null ? MetadataTools.createOMEXMLMetadata() : metadata);
+		}
+		
+		
+		/**
+		 * Get a wrapper for the primary reader for a particular path. This can be reused across ImageServers, but 
+		 * one must be careful to synchronize the actual use of the reader.
+		 * @param options
+		 * @param path
+		 * @return
+		 * @throws DependencyException
+		 * @throws ServiceException
+		 * @throws FormatException
+		 * @throws IOException
+		 */
+		synchronized LocalReaderWrapper getPrimaryReaderWrapper(final BioFormatsServerOptions options, final String path) throws DependencyException, ServiceException, FormatException, IOException {
+			for (LocalReaderWrapper wrapper : primaryReaders) {
+				if (path.equals(wrapper.getReader().getCurrentFile()))
+					return wrapper;
+			}
+			LocalReaderWrapper wrapper = wrapReader(createPrimaryReader(options, path, null));
+			primaryReaders.add(wrapper);
+			return wrapper;
 		}
 		
 		

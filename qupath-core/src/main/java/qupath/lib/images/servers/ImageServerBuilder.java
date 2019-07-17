@@ -162,6 +162,11 @@ public interface ImageServerBuilder<T> {
 		
 		private List<ServerBuilder<T>> builders = new ArrayList<>();
 		
+		@Override
+		public String toString() {
+			return getClass().getSimpleName() + " (" + providerClass + ") support=" + supportLevel + "builders=" + builders.size();
+		}
+		
 		UriImageSupport(Class<? extends ImageServerBuilder<T>> providerClass, float supportLevel, Collection<ServerBuilder<T>> builders) {
 			this.providerClass = providerClass;
 			this.supportLevel = supportLevel;
