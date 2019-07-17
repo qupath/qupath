@@ -46,6 +46,10 @@ import java.nio.ByteOrder;
 import java.nio.DoubleBuffer;
 import java.nio.FloatBuffer;
 import java.nio.ShortBuffer;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.attribute.FileAttribute;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -55,7 +59,10 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+
 import javax.imageio.ImageIO;
 
 import org.slf4j.Logger;
@@ -1025,6 +1032,16 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 		private static Map<String, Long> memoizationSizeMap = new HashMap<>();
 		
 		/**
+		 * Temporary directory for storing memoization files
+		 */
+		private static File dirMemoTemp = null;
+		
+		/**
+		 * Set of created temp memo files
+		 */
+		private static Set<File> tempMemoFiles = new HashSet<>();
+		
+		/**
 		 * Request a IFormatReader for a specified path that is unique for the calling thread.
 		 * <p>
 		 * Note that the state of the reader is not specified; setSeries should be called before use.
@@ -1133,19 +1150,37 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 			
 			Memoizer memoizer = null;
 			int memoizationTimeMillis = options.getMemoizationTimeMillis();
+			File dir = null;
 			if (memoizationTimeMillis >= 0) {
+				// Try to use a specified directory
 				String pathMemoization = options.getPathMemoization();
 				if (pathMemoization != null && !pathMemoization.trim().isEmpty()) {
-					File dir = new File(pathMemoization);
-					if (dir.isDirectory())
-						memoizer = new Memoizer(imageReader, memoizationTimeMillis, dir);
-					else {
-						logger.warn("Memoization directory '{}' not found - will default to image directory", pathMemoization);
-						memoizer = new Memoizer(imageReader, memoizationTimeMillis);
+					dir = new File(pathMemoization);
+					if (!dir.isDirectory()) {
+						logger.warn("Memoization path does not refer to a valid directory, will be ignored: {}", dir.getAbsolutePath());
+						dir = null;
 					}
-				} else
-					memoizer = new Memoizer(imageReader, memoizationTimeMillis);
-				imageReader = memoizer;
+				}
+				if (dir == null) {
+					if (dirMemoTemp == null) {
+						Path path = Files.createTempDirectory("qupath-memo-");
+						dirMemoTemp = path.toFile();
+						Runtime.getRuntime().addShutdownHook(new Thread() {
+							@Override
+							public void run() {
+								deleteTempMemoFiles();
+							}
+						});
+//						path.toFile().deleteOnExit(); // Won't work recursively!
+						logger.warn("Temp memoization directory created at {}", dirMemoTemp);
+						logger.warn("If you want to avoid this warning, either disable Bio-Formats memoization in the preferences or specify a directory to use");
+					}
+					dir = dirMemoTemp;
+				}
+				if (dir != null) {
+					memoizer = new Memoizer(imageReader, memoizationTimeMillis, dir);
+					imageReader = memoizer;
+				}
 			}
 			
 			if (store != null) {
@@ -1157,6 +1192,10 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 			if (id != null) {
 				if (memoizer != null) {
 					File fileMemo = ((Memoizer)imageReader).getMemoFile(id);
+					// If we're using a temporary directory, delete the memo file
+					if (dir == dirMemoTemp)
+						tempMemoFiles.add(fileMemo);
+					
 					long memoizationFileSize = fileMemo == null ? 0L : fileMemo.length();
 					boolean memoFileExists = fileMemo != null && fileMemo.exists();
 					try {
@@ -1188,6 +1227,63 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 			}
 			return imageReader;
 		}
+		
+		/**
+		 * Delete any memoization files registered as being temporary, and also the 
+		 * temporary memoization directory (if it exists).
+		 * Note that this acts both recursively and rather conservatively, stopping if a file is 
+		 * encountered that is not expected.
+		 */
+		private static void deleteTempMemoFiles() {
+			for (File f : tempMemoFiles) {
+				// Be extra-careful not to delete too much...
+				if (!f.exists())
+					continue;
+				if (!f.isFile() || !f.getName().endsWith(".bfmemo")) {
+					logger.warn("Unexpected memoization file, will not delete {}", f.getAbsolutePath());
+					return;
+				}
+				if (f.delete())
+					logger.debug("Deleted temp memoization file {}", f.getAbsolutePath());
+				else
+					logger.warn("Could not delete temp memoization file {}", f.getAbsolutePath());
+			}
+			if (dirMemoTemp == null)
+				return;
+			deleteEmptyDirectories(dirMemoTemp);
+		}
+		
+		/**
+		 * Delete a directory and all sub-directories, assuming each contains only empty directories.
+		 * This is applied recursively, stopping at the first failure (i.e. any directory containing files).
+		 * @param dir
+		 * @return
+		 */
+		private static boolean deleteEmptyDirectories(File dir) {
+			if (!dir.isDirectory())
+				return false;
+			int nFiles = 0;
+			for (File f : dir.listFiles()) {
+				if (f.isDirectory()) {
+					if (!deleteEmptyDirectories(f))
+						return false;
+				} else if (f.isFile())
+					nFiles++;
+			}
+			if (nFiles == 0) {
+				if (dir.delete()) {
+					logger.debug("Deleting empty memoization directory {}", dir.getAbsolutePath());
+					return true;
+				} else {
+					logger.warn("Could not delete temp memoization directory {}", dir.getAbsolutePath());
+					return false;
+				}
+			} else {
+				logger.warn("Temp memoization directory contains files, will not delete {}", dir.getAbsolutePath());
+				return false;
+			}
+		}
+		
 		
 		/**
 		 * Simple wrapper for a reader to help with cleanup.
