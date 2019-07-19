@@ -43,7 +43,6 @@ import qupath.lib.awt.common.AwtTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathROIObject;
-import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.ImageRegion;

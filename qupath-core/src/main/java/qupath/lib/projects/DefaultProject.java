@@ -27,10 +27,8 @@ import java.awt.Desktop;
 import java.awt.image.BufferedImage;
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileReader;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.io.Reader;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
@@ -696,7 +694,7 @@ class DefaultProject implements Project<BufferedImage> {
 			
 			var pathSummary = getDataSummaryPath();
 			try (var out = Files.newBufferedWriter(pathSummary, StandardCharsets.UTF_8, StandardOpenOption.CREATE)) {
-				GsonTools.getGsonDefault().toJson(new ImageDataSummary(imageData, timestamp), out);
+				GsonTools.getInstance().toJson(new ImageDataSummary(imageData, timestamp), out);
 			}			
 
 		}
@@ -791,7 +789,7 @@ class DefaultProject implements Project<BufferedImage> {
 		
 		@Override
 		public String toString() {
-			return GsonTools.getGsonDefault().toJson(this);
+			return GsonTools.getInstance().toJson(this);
 		}
 		
 	}
@@ -852,7 +850,7 @@ class DefaultProject implements Project<BufferedImage> {
 			throw new IOException("No file found, cannot write project: " + this);
 		}
 
-		Gson gson = GsonTools.getGsonPretty();
+		Gson gson = GsonTools.getInstance(true);
 		
 //		List<PathClass> pathClasses = project.getPathClasses();
 //		JsonArray pathClassArray = null;
@@ -901,7 +899,7 @@ class DefaultProject implements Project<BufferedImage> {
 	void loadProject() throws IOException {
 		File fileProject = getFile();
 		try (BufferedReader fileReader = Files.newBufferedReader(fileProject.toPath(), StandardCharsets.UTF_8)) {
-			Gson gson = GsonTools.getGsonDefault();
+			Gson gson = GsonTools.getInstance();
 			JsonObject element = gson.fromJson(fileReader, JsonObject.class);
 			
 			creationTimestamp = element.get("createTimestamp").getAsLong();
@@ -959,7 +957,7 @@ class DefaultProject implements Project<BufferedImage> {
 		var element = new JsonObject();
 		element.add("pathClasses", pathClassArray);
 		try (var writer = Files.newBufferedWriter(path, StandardCharsets.UTF_8)) {
-			GsonTools.getGsonPretty().toJson(element, writer);
+			GsonTools.getInstance(true).toJson(element, writer);
 		}
 	}
 	
@@ -968,7 +966,7 @@ class DefaultProject implements Project<BufferedImage> {
 		var path = Paths.get(ensureDirectoryExists(getClassifiersPath()).toString(), "classes.json");
 		if (!Files.isRegularFile(path))
 			return null;
-		Gson gson = GsonTools.getGsonDefault();
+		Gson gson = GsonTools.getInstance();
 		try (var reader = Files.newBufferedReader(path, StandardCharsets.UTF_8)) {
 			var element = gson.fromJson(reader, JsonObject.class);
 			JsonElement pathClassesElement = element.get("pathClasses");

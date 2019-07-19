@@ -58,7 +58,7 @@ public class JsonImageServerBuilder implements ImageServerBuilder<BufferedImage>
 	@Override
 	public ImageServer<BufferedImage> buildServer(URI uri, String...args) throws Exception {
 		try (Reader reader = new BufferedReader(new InputStreamReader(uri.toURL().openStream()))) {
-			ServerBuilder<BufferedImage> builder = GsonTools.getGsonDefault().fromJson(reader, ServerBuilder.class);
+			ServerBuilder<BufferedImage> builder = GsonTools.getInstance().fromJson(reader, ServerBuilder.class);
 			return builder.build();
 //			return GsonTools.getGsonDefault().fromJson(reader, new TypeToken<ImageServer<BufferedImage>>() {}.getType());
 		}

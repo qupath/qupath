@@ -65,7 +65,7 @@ public class ChannelDisplayTransformServer extends TransformingImageServer<Buffe
 	
 	@Override
 	protected String createID() {
-		return getClass().getName() + ": + " + getWrappedServer().getPath() + " " + GsonTools.getGsonDefault().toJson(channels);
+		return getClass().getName() + ": + " + getWrappedServer().getPath() + " " + GsonTools.getInstance().toJson(channels);
 	}
 	
 	@Override

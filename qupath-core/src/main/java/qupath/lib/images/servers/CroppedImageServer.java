@@ -54,7 +54,7 @@ public class CroppedImageServer extends TransformingImageServer<BufferedImage> {
 	
 	@Override
 	protected String createID() {
-		return getClass().getName() + ": + " + getWrappedServer().getPath() + " " + GsonTools.getGsonDefault().toJson(region);
+		return getClass().getName() + ": + " + getWrappedServer().getPath() + " " + GsonTools.getInstance().toJson(region);
 	}
 	
 	@Override

@@ -1,7 +1,6 @@
 package qupath.lib.images.servers;
 
 import java.io.IOException;
-import java.net.URI;
 import java.util.List;
 
 import com.google.gson.annotations.JsonAdapter;

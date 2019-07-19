@@ -49,22 +49,46 @@ public enum PixelType {
 		this.type = type;
 	}
 	
+	/**
+	 * Number of bits per pixel.
+	 * @return
+	 * 
+	 * @see #getBytesPerPixel()
+	 */
 	public int bitsPerPixel() {
 		return bitsPerPixel;
 	}
 	
+	/**
+	 * Number of bytes per pixel.
+	 * @return
+	 * 
+	 * @see #bitsPerPixel()
+	 */
 	public int getBytesPerPixel() {
 		return (int)Math.ceil(bitsPerPixel / 8.0);
 	}
 	
+	/**
+	 * Returns true if the type is a signed integer representation.
+	 * @return
+	 */
 	public boolean isSignedInteger() {
 		return type == PixelValueType.SIGNED_INTEGER;
 	}
 	
+	/**
+	 * Returns true if the type is an unsigned integer representation.
+	 * @return
+	 */
 	public boolean isUnsignedInteger() {
 		return type == PixelValueType.UNSIGNED_INTEGER;
 	}
 	
+	/**
+	 * Returns true if the type is a floating point representation.
+	 * @return
+	 */
 	public boolean isFloatingPoint() {
 		return type == PixelValueType.FLOATING_POINT;
 	}

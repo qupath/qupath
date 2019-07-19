@@ -62,6 +62,13 @@ public class FileFormatInfo {
 	
 	private static Map<URI, ImageCheckType> cache = new HashMap<>();
 	
+	/**
+	 * Check the type of an image for a specified URI.
+	 * <p>
+	 * This will return a cached value if possible, to avoid applying (potentially costly) checks too often.
+	 * @param uri
+	 * @return
+	 */
 	public static synchronized ImageCheckType checkType(URI uri) {
 		ImageCheckType check = cache.get(uri);
 		if (check == null) {

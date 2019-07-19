@@ -2463,8 +2463,8 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 						return true;
 					}
 				} catch (Exception e) {
-					DisplayHelpers.showErrorMessage("Open project", "Could not open " + fileNew.getName() + " as a QuPath project");
-					logger.error("Error opening project", e);
+					DisplayHelpers.showErrorMessage("Open project", e);
+					logger.error("Error opening project " + fileNew.getAbsolutePath(), e);
 					return false;
 				}
 		}

@@ -82,7 +82,7 @@ public class AffineTransformImageServer extends TransformingImageServer<Buffered
 	
 	@Override
 	protected String createID() {
-		return getClass().getName() + ": + " + getWrappedServer().getPath() + " " + GsonTools.getGsonDefault().toJson(transform);
+		return getClass().getName() + ": + " + getWrappedServer().getPath() + " " + GsonTools.getInstance().toJson(transform);
 	}
 	
 	@Override

@@ -284,11 +284,11 @@ public class ImageServers {
 				var builder = server.getBuilder();
 				out.beginObject();
 				out.name("builder");
-				GsonTools.getGsonDefault().toJson(builder, ServerBuilder.class, out);
+				GsonTools.getInstance().toJson(builder, ServerBuilder.class, out);
 				if (includeMetadata) {
 					out.name("metadata");
 					var metadata = server.getMetadata();
-					GsonTools.getGsonDefault().toJson(metadata, ImageServerMetadata.class, out);					
+					GsonTools.getInstance().toJson(metadata, ImageServerMetadata.class, out);					
 				}
 				out.endObject();
 				return;
@@ -308,11 +308,11 @@ public class ImageServers {
 				JsonObject obj = element.getAsJsonObject();
 				
 				// Create from builder
-				ImageServer<BufferedImage> server = GsonTools.getGsonDefault().fromJson(obj.get("builder"), ServerBuilder.class).build();
+				ImageServer<BufferedImage> server = GsonTools.getInstance().fromJson(obj.get("builder"), ServerBuilder.class).build();
 				
 				// Set metadata, if we have any
 				if (obj.has("metadata")) {
-					ImageServerMetadata metadata = GsonTools.getGsonDefault().fromJson(obj.get("metadata"), ImageServerMetadata.class);
+					ImageServerMetadata metadata = GsonTools.getInstance().fromJson(obj.get("metadata"), ImageServerMetadata.class);
 					if (metadata != null)
 						server.setMetadata(metadata);
 				}

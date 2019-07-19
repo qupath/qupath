@@ -249,14 +249,32 @@ public class PixelCalibration {
 		return average(getPixelWidth(), getPixelHeight());
 	}
 	
+	/**
+	 * Get the numeric value representing the pixel width, in the stored units.
+	 * @return
+	 * 
+	 * @see #getPixelWidthUnit()
+	 */
 	public Number getPixelWidth() {
 		return pixelWidth.value;
 	}
 	
+	/**
+	 * Get the numeric value representing the pixel height, in the stored units.
+	 * @return
+	 * 
+	 * @see #getPixelHeightUnit()
+	 */
 	public Number getPixelHeight() {
 		return pixelHeight.value;
 	}
 	
+	/**
+	 * Get the numeric value representing the z-spacing, in the stored units.
+	 * @return
+	 * 
+	 * @see #getZSpacingUnit()
+	 */
 	public Number getZSpacing() {
 		return zSpacing.value;
 	}
@@ -303,17 +321,32 @@ public class PixelCalibration {
 		
 	}
 	
-	
+	/**
+	 * Builder class for {@link PixelCalibration} objects.
+	 */
 	public static class Builder {
 		
 		PixelCalibration cal = new PixelCalibration();
 		
+		/**
+		 * Create a new builder with default (uncalibrated) values.
+		 */
 		public Builder() {}
 		
+		/**
+		 * Create a new builder, initialized values of an existing {@link PixelCalibration}.
+		 * @param cal
+		 */
 		public Builder(PixelCalibration cal) {
 			this.cal = cal.duplicate();
 		}
 		
+		/**
+		 * Specify the pixel width and height in microns (the most common calibration value).
+		 * @param pixelWidthMicrons
+		 * @param pixelHeightMicrons
+		 * @return
+		 */
 		public Builder pixelSizeMicrons(Number pixelWidthMicrons, Number pixelHeightMicrons) {
 			// Support resetting both pixel sizes to default
 			if ((pixelWidthMicrons == null || Double.isNaN(pixelWidthMicrons.doubleValue())) && 
@@ -335,12 +368,23 @@ public class PixelCalibration {
 			return this;
 		}
 		
+		/**
+		 * Specify timepoints and units.
+		 * @param timeUnit
+		 * @param timepoints
+		 * @return
+		 */
 		public Builder timepoints(TimeUnit timeUnit, double... timepoints) {
 			cal.timeUnit = timeUnit;
 			cal.timepoints = timepoints.clone();
 			return this;
 		}
 				
+		/**
+		 * Specify spacing between z-slices, in microns.
+		 * @param zSpacingMicrons
+		 * @return
+		 */
 		public Builder zSpacingMicrons(Number zSpacingMicrons) {
 			if (zSpacingMicrons == null || Double.isNaN(zSpacingMicrons.doubleValue())) {
 				cal.zSpacing = SimpleQuantity.DEFAULT_Z_SPACING;
@@ -354,6 +398,10 @@ public class PixelCalibration {
 			return this;
 		}
 		
+		/**
+		 * Build {@link PixelCalibration} object.
+		 * @return
+		 */
 		public PixelCalibration build() {
 			return cal;
 		}
