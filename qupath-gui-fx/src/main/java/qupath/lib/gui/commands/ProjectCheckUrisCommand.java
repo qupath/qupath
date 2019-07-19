@@ -10,6 +10,7 @@ import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Scanner;
 import java.util.Set;
 import java.util.function.Predicate;
@@ -129,12 +130,15 @@ public class ProjectCheckUrisCommand implements PathCommand {
 				var item = new UriItem(temp);
 				switch (item.getStatus()) {
 				case MISSING:
-					// Try to relativize the path to predict a likely replacement
-					if (tryRelative) {
-						Path pathRelative = pathProject.resolve(pathPrevious.relativize(item.getPath()));
-						if (Files.exists(pathRelative)) {
-							URI uri2 = pathRelative.normalize().toUri().normalize();
-							replacements.put(item, new UriItem(uri2));
+					// Try to relativize the path to predict a likely replacement - if we have the same root
+					Path pathItem = item.getPath();
+					if (pathItem != null && Objects.equals(pathItem.getRoot(), pathProject.getRoot())) {
+						if (tryRelative) {
+							Path pathRelative = pathProject.resolve(pathPrevious.relativize(item.getPath()));
+							if (Files.exists(pathRelative)) {
+								URI uri2 = pathRelative.normalize().toUri().normalize();
+								replacements.put(item, new UriItem(uri2));
+							}
 						}
 					}
 					nMissing++;
