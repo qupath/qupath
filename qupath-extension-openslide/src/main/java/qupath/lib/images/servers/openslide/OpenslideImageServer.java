@@ -32,6 +32,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -240,6 +241,11 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 			logger.error("Unable to read thumbnail using OpenSlide: {}", e.getLocalizedMessage());
 			throw(e);
 		}
+	}
+	
+	@Override
+	public Collection<URI> getURIs() {
+		return Collections.singletonList(uri);
 	}
 	
 	@Override

@@ -58,7 +58,7 @@ public class ChannelDisplayTransformServer extends TransformingImageServer<Buffe
 		super(server);
 		this.channels = channels;
 				
-		this.metadata = new ImageServerMetadata.Builder(getClass(), server.getMetadata())
+		this.metadata = new ImageServerMetadata.Builder(server.getMetadata())
 				.channels(channels.stream().map(c -> ImageChannel.getInstance(c.getName(), c.getColor())).collect(Collectors.toList()))
 				.build();
 	}

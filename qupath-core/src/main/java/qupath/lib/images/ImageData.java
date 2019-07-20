@@ -443,12 +443,14 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
     public boolean isChanged() {
     		return changes;
     }
-    
+        
     /**
-     * Set {@link #isChanged()} to false.
+     * Set {@link #isChanged()} status.
+     * 
+     * @param isChanged
      */
-    public void resetChanges() {
-    	this.changes = false;
+    public void setChanged(boolean isChanged) {
+    	this.changes = isChanged;
     }
     
     /**

@@ -36,6 +36,8 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -160,7 +162,7 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 			channels = ImageChannel.getDefaultChannelList(imp.getNChannels());
 		
 		this.args = args;
-		var builder = new ImageServerMetadata.Builder(getClass()) //, uri.normalize().toString())
+		var builder = new ImageServerMetadata.Builder() //, uri.normalize().toString())
 				.width(imp.getWidth())
 				.height(imp.getHeight())
 				.name(imp.getTitle())
@@ -184,6 +186,11 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 		
 //		if ((!isRGB() && nChannels() > 1) || getBitsPerPixel() == 32)
 //			throw new IOException("Sorry, currently only RGB & single-channel 8 & 16-bit images supported using ImageJ server");
+	}
+	
+	@Override
+	public Collection<URI> getURIs() {
+		return Collections.singletonList(uri);
 	}
 
 	@Override

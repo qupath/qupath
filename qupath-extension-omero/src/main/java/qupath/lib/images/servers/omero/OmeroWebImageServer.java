@@ -7,6 +7,7 @@ import java.net.URI;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -219,6 +220,12 @@ public class OmeroWebImageServer extends AbstractTileableImageServer {
 		return getClass().getName() + ": " + uri.toString();
 	}
 
+	@Override
+	public Collection<URI> getURIs() {
+		return Collections.singletonList(uri);
+	}
+
+	
 	/**
 	 * Retrieve any ROIs stored with this image as annotation objects.
 	 * <p>

@@ -98,8 +98,6 @@ public class ImageServerMetadata {
 
 	private String name;
 	
-	private String serverClassName;
-	
 	private int width;
 	private int height;
 	
@@ -141,23 +139,18 @@ public class ImageServerMetadata {
 		 * The existing metadata will be duplicated, therefore later changes in one metadata object will not be 
 		 * reflected in the other.
 		 * 
-		 * @param serverClass
 		 * @param metadata
 		 */
-		public Builder(@SuppressWarnings("rawtypes") final Class<? extends ImageServer> serverClass, final ImageServerMetadata metadata) {
+		public Builder(final ImageServerMetadata metadata) {
 			this.metadata = metadata.duplicate();
-			this.metadata.serverClassName = serverClass.getName();
 			this.pixelCalibrationBuilder = new PixelCalibration.Builder(metadata.pixelCalibration);
 		}
 		
 		/**
 		 * Minimal builder for a new ImageServerMetadata; further properties must be set.
-		 * 
-		 * @param serverClass
 		 */
-		public Builder(final Class<? extends ImageServer<?>> serverClass) {
+		public Builder() {
 			metadata = new ImageServerMetadata();
-			metadata.serverClassName = serverClass.getName();
 //			metadata.path = path;
 		}
 		
@@ -324,12 +317,12 @@ public class ImageServerMetadata {
 		}
 		
 		/**
-		 * Specify a magnfication value for the highest-resolution image.
+		 * Specify a magnification value for the highest-resolution image.
 		 * @param magnification
 		 * @return
 		 */
 		public Builder magnification(final double magnification) {
-			metadata.magnification = magnification;
+			metadata.magnification = Double.isFinite(magnification) ? magnification : null;
 			return this;
 		}
 		
@@ -409,7 +402,6 @@ public class ImageServerMetadata {
 	};
 
 	ImageServerMetadata(final ImageServerMetadata metadata) {
-		this.serverClassName = metadata.serverClassName;
 		this.name = metadata.name;
 		this.levels = metadata.levels.clone();
 		
@@ -431,16 +423,6 @@ public class ImageServerMetadata {
 		this.preferredTileWidth = metadata.preferredTileWidth;
 		this.preferredTileHeight = metadata.preferredTileHeight;
 	};
-	
-	/**
-	 * Full name for the Java Class of the ImageServer.  This is useful when attempting to recreate an 
-	 * ImageServer later and set the ImageServerMetadata, and aiming to use the same class.
-	 * 
-	 * @return
-	 */
-	public String getServerClassName() {
-		return this.serverClassName;
-	}
 	
 	/**
 	 * Request the preferred downsamples from the image metadata.
@@ -766,7 +748,6 @@ public class ImageServerMetadata {
 		result = prime * result + ((pixelType == null) ? 0 : pixelType.hashCode());
 		result = prime * result + preferredTileHeight;
 		result = prime * result + preferredTileWidth;
-		result = prime * result + ((serverClassName == null) ? 0 : serverClassName.hashCode());
 		result = prime * result + sizeT;
 		result = prime * result + sizeZ;
 		result = prime * result + width;
@@ -816,11 +797,6 @@ public class ImageServerMetadata {
 		if (preferredTileHeight != other.preferredTileHeight)
 			return false;
 		if (preferredTileWidth != other.preferredTileWidth)
-			return false;
-		if (serverClassName == null) {
-			if (other.serverClassName != null)
-				return false;
-		} else if (!serverClassName.equals(other.serverClassName))
 			return false;
 		if (sizeT != other.sizeT)
 			return false;

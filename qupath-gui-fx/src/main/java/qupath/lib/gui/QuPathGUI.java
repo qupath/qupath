@@ -309,10 +309,7 @@ import qupath.lib.images.ImageData.ImageType;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerBuilder;
 import qupath.lib.images.servers.ImageServerProvider;
-import qupath.lib.images.servers.RotatedImageServer;
 import qupath.lib.images.servers.ServerTools;
-import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
-import qupath.lib.images.servers.RotatedImageServer.Rotation;
 import qupath.lib.io.PathIO;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathCellObject;
@@ -2306,7 +2303,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 					var type = DisplayHelpers.estimateImageType(imageData.getServer(), imageRegionStore.getThumbnail(imageData.getServer(), 0, 0, true));
 					logger.info("Image type estimated to be {}", type);
 					imageData.setImageType(type);
-					imageData.resetChanges(); // Don't want to retain this as a change resulting in a prompt to save the data
+					imageData.setChanged(false); // Don't want to retain this as a change resulting in a prompt to save the data
 				} else if (PathPrefs.getPromptForImageType()) {
 					PathImageDetailsPanel.promptToSetImageType(imageData);
 				}
@@ -2406,11 +2403,10 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		}
 		
 		ImageServer<BufferedImage> server = viewer.getServer();
-		ServerBuilder<BufferedImage> builder = server == null ? null : server.getBuilder();
 		String pathOld = null;
 		File fileBase = null;
-		if (builder != null) {
-			var uris = builder.getURIs();
+		if (server != null) {
+			var uris = server.getURIs();
 			if (uris.size() == 1) {
 				var uri = uris.iterator().next();
 				pathOld = uri.toString();
@@ -3608,7 +3604,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		case OPEN_IMAGE:
 			return createCommandAction(new OpenCommand(this), "Open...", null, new KeyCodeCombination(KeyCode.O, KeyCombination.SHORTCUT_DOWN));
 		case OPEN_IMAGE_OR_URL:
-			return createCommandAction(new OpenCommand(this, true), "Open URL...", null, new KeyCodeCombination(KeyCode.O, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
+			return createCommandAction(new OpenCommand(this, true), "Open URI...", null, new KeyCodeCombination(KeyCode.O, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
 		case SAVE_DATA_AS:
 			return createCommandAction(new SerializeImageDataCommand(this, false), "Save As", null, new KeyCodeCombination(KeyCode.S, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));			
 		case SAVE_DATA:
@@ -4213,7 +4209,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		return stage;
 	}
 	
-	static class ToolBarComponent {
+	class ToolBarComponent {
 		
 		private double lastMagnification = Double.NaN;
 		
@@ -4228,6 +4224,8 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			labelMag.setMinWidth(60);
 			labelMag.setMaxWidth(60);
 			labelMag.setTextAlignment(TextAlignment.CENTER);
+			
+			labelMag.setOnMouseEntered(e -> refreshMagnificationTooltip());
 			
 			labelMag.setOnMouseClicked(e -> {
 
@@ -4398,6 +4396,19 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			toolbar.getItems().add(qupath.getActionButton(GUIActions.PREFERENCES, true));
 		}
 		
+		void refreshMagnificationTooltip() {
+			// Ensure we have the right tooltip for magnification
+			if (tooltipMag == null)
+				return;
+			var imageData = getImageData();
+			var mag = imageData == null ? null : imageData.getServer().getMetadata().getMagnification();
+			if (imageData == null)
+				tooltipMag.setText("Magnification");
+			else if (mag != null && !Double.isNaN(mag))
+				tooltipMag.setText("Display magnification - double-click to edit");
+			else
+				tooltipMag.setText("Display downsample value - double-click to edit");
+		}
 		
 		public void updateMagnificationDisplay(final QuPathViewer viewer) {
 			if (viewer == null || labelMag == null)
@@ -4501,16 +4512,6 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		
 		imageDataProperty.set(imageDataNew);
 		
-		// Ensure we have the right tooltip for magnification
-		if (toolbar != null && toolbar.tooltipMag != null) {
-			if (imageDataNew == null)
-				toolbar.tooltipMag.setText("Magnification");
-			else if (!Double.isNaN(imageDataNew.getServer().getMetadata().getMagnification()))
-				toolbar.tooltipMag.setText("Current magnification - double-click to edit");
-			else
-				toolbar.tooltipMag.setText("Current downsample value - double-click to edit");
-		}
-
 		// A bit awkward, this... but make sure the extended scripting helper static class knows what's happened
 		QPEx.setBatchImageData(imageDataNew);
 		
@@ -4519,6 +4520,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			listener.imageDataChanged(this, imageDataOld, imageDataNew);
 		}
 		
+//		refreshMagnificationTooltip();
 	}
 	
 	

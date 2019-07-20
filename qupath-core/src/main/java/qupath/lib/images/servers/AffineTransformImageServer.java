@@ -71,7 +71,7 @@ public class AffineTransformImageServer extends TransformingImageServer<Buffered
 				region.getHeight() >= server.getMetadata().getPreferredTileHeight());
 		
 		// TODO: Apply AffineTransform to pixel sizes! Perhaps create a Shape or point and transform that?
-		metadata = new ImageServerMetadata.Builder(getClass(), server.getMetadata())
+		metadata = new ImageServerMetadata.Builder(server.getMetadata())
 //				.path(server.getPath() + ": Affine " + transform.toString())
 				.width(region.getWidth())
 				.height(region.getHeight())

@@ -2,6 +2,9 @@ package qupath.lib.classifiers.pixel;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.net.URI;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.UUID;
 
 import org.slf4j.Logger;
@@ -81,7 +84,7 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 		
 		int pad = classifierMetadata.strictInputSize() ? classifierMetadata.getInputPadding() : 0;
 		
-		var builder = new ImageServerMetadata.Builder(getClass(), server.getMetadata())
+		var builder = new ImageServerMetadata.Builder(server.getMetadata())
 				.width(width)
 				.height(height)
 				.channelType(classifierMetadata.getOutputType())
@@ -107,6 +110,11 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 			logger.debug("Unable to serialize pixel classifier to JSON: {}", e.getLocalizedMessage());
 			return getClass().getName() + ": " + server.getPath() + "::" + UUID.randomUUID().toString();
 		}
+	}
+	
+	@Override
+	public Collection<URI> getURIs() {
+		return Collections.emptyList();
 	}
 	
 	/**

@@ -100,7 +100,7 @@ public class RotatedImageServer extends TransformingImageServer<BufferedImage> {
 			metadata = getQuarterRotatedMetadata(server.getOriginalMetadata());
 			break;
 		case ROTATE_180:
-			metadata = new ImageServerMetadata.Builder(getClass(), server.getOriginalMetadata())
+			metadata = new ImageServerMetadata.Builder(server.getOriginalMetadata())
 //						.path(getPath())
 						.build();
 			break;
@@ -133,7 +133,7 @@ public class RotatedImageServer extends TransformingImageServer<BufferedImage> {
 			levelBuilder.addLevel(level.getDownsample(), level.getHeight(), level.getWidth());
 		}
 		
-		var builder = new ImageServerMetadata.Builder(getClass(), metadata)
+		var builder = new ImageServerMetadata.Builder(metadata)
 //				.path(getPath())
 				.width(metadata.getHeight())
 				.height(metadata.getWidth())

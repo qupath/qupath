@@ -44,7 +44,7 @@ public class CroppedImageServer extends TransformingImageServer<BufferedImage> {
 				region.getWidth() >= server.getMetadata().getPreferredTileWidth() && 
 				region.getHeight() >= server.getMetadata().getPreferredTileHeight());
 		
-		metadata = new ImageServerMetadata.Builder(getClass(), server.getMetadata())
+		metadata = new ImageServerMetadata.Builder(server.getMetadata())
 				.width(region.getWidth())
 				.height(region.getHeight())
 				.name(String.format("%s (%d, %d, %d, %d)", server.getMetadata().getName(), region.getX(), region.getY(), region.getWidth(), region.getHeight()))

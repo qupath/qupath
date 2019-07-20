@@ -24,6 +24,8 @@
 package qupath.lib.images.servers;
 
 import java.io.IOException;
+import java.net.URI;
+import java.util.Collection;
 import java.util.List;
 
 import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
@@ -54,6 +56,17 @@ public interface ImageServer<T> extends AutoCloseable {
 	 * @return
 	 */
 	public String getPath();
+	
+	/**
+	 * Get the URIs for images required for this server. 
+	 * In the simplest case, this is a singleton list returning a URI representing a local 
+	 * file. However, some ImageServers may not have an associated URI at all, whereas others 
+	 * may depend upon multiple URIs (e.g. if concatenating images).
+	 * <p>
+	 * Note: A URI alone may not be sufficient to recreate even a simple ImageServer; see {@link #getBuilder()}.
+	 * @return
+	 */
+	public Collection<URI> getURIs();
 	
 	/**
 	 * Get a short name for the server.

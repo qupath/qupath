@@ -655,7 +655,7 @@ class DefaultProject implements Project<BufferedImage> {
 			if (imageData == null)
 				imageData = new ImageData<>(server);
 			imageData.setProperty(IMAGE_ID, getFullProjectEntryID()); // Required to be able to test for the ID later
-			imageData.resetChanges();
+			imageData.setChanged(false);
 			return imageData;
 		}
 

@@ -677,6 +677,11 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 	}
 	
 	@Override
+	public Collection<URI> getURIs() {
+		return Collections.singletonList(uri);
+	}
+	
+	@Override
 	public String createID() {
 		String id = getClass().getSimpleName() + ": " + uri.toString();
 		if (args.length > 0) {

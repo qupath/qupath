@@ -1,6 +1,9 @@
 package qupath.lib.images.servers;
 
 import java.io.IOException;
+import java.net.URI;
+import java.util.Collection;
+import java.util.Collections;
 
 import qupath.lib.regions.RegionRequest;
 
@@ -32,6 +35,11 @@ public abstract class TransformingImageServer<T> extends AbstractImageServer<T> 
 	 */
 	protected ImageServer<T> getWrappedServer() {
 		return server;
+	}
+	
+	@Override
+	public Collection<URI> getURIs() {
+		return getWrappedServer().getURIs();
 	}
 
 	@Override

@@ -16,7 +16,9 @@ import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.SparseImageServer;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
+import qupath.lib.objects.classes.PathClassFactory.StandardPathClasses;
 import qupath.lib.projects.ProjectImageEntry;
 import qupath.lib.regions.ImageRegion;
 
@@ -39,7 +41,7 @@ public class SparseImageServerCommand implements PathCommand {
 		}
 
 		try {
-			var server = createSparseServer(project.getImageList(), p -> p.getPathClass() == PathClassFactory.getPathClass("Region"));
+			var server = createSparseServer(project.getImageList(), p -> p.getPathClass() == PathClassFactory.getPathClass(StandardPathClasses.REGION));
 			if (server.getManager().getRegions().isEmpty()) {
 				DisplayHelpers.showErrorMessage("Sparse image server", "No 'Region' annotations found!");
 				return;			

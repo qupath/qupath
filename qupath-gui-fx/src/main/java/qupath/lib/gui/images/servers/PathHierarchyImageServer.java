@@ -26,6 +26,7 @@ package qupath.lib.gui.images.servers;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -105,7 +106,7 @@ public class PathHierarchyImageServer extends AbstractTileableImageServer implem
 //		cache.entrySet().removeIf(r -> path.equals(r.getKey().getPath()));
 		
 		// Set metadata, using the underlying server as a basis
-		this.originalMetadata = new ImageServerMetadata.Builder(getClass(), server.getOriginalMetadata())
+		this.originalMetadata = new ImageServerMetadata.Builder(server.getOriginalMetadata())
 				.preferredTileSize(256, 256)
 				.levels(levelBuilder.build())
 				.pixelType(PixelType.UINT8)
@@ -120,6 +121,11 @@ public class PathHierarchyImageServer extends AbstractTileableImageServer implem
 	@Override
 	protected ServerBuilder<BufferedImage> createServerBuilder() {
 		return null;
+	}
+	
+	@Override
+	public Collection<URI> getURIs() {
+		return Collections.emptyList();
 	}
 	
 	/**
