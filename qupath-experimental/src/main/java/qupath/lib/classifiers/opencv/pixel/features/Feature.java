@@ -29,4 +29,9 @@ class DefaultFeature<T> implements Feature<T> {
 		return name;
 	}
 	
+	@Override
+	public String toString() {
+		return "Default feature: " + getName();
+	}
+	
 }

@@ -1670,6 +1670,14 @@ public class PixelClassifierImageSelectionPane {
 					return null;
 				}
 			});
+			comboChannels.titleProperty().bind(Bindings.createStringBinding(() -> {
+				int n = comboChannels.getCheckModel().getCheckedItems().size();
+				if (n == 0)
+					return "No channels selected!";
+				if (n == 1)
+					return "1 channel selected";
+				return n + " channels selected";
+			}, comboChannels.getCheckModel().getCheckedItems()));
 			
 			
 			var comboScales = new CheckComboBox<Double>();

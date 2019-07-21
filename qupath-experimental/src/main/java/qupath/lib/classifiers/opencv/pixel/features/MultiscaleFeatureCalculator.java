@@ -249,7 +249,7 @@ public class MultiscaleFeatureCalculator implements OpenCVFeatureCalculator {
 		
 		@Override
 		public List<Feature<Mat>> calculateFeatures(Mat mat, int paddingXY, Mat... stack) {
-			List<Mat> mats = stack.length == 0 ? Collections.singletonList(mat) : Arrays.asList(mat);
+			List<Mat> mats = stack.length == 0 ? Collections.singletonList(mat) : Arrays.asList(stack);
 			int ind = mats.indexOf(mat);
 			
 			Map<MultiscaleFeature, Mat> map = new MultiscaleResultsBuilder()
@@ -349,7 +349,7 @@ public class MultiscaleFeatureCalculator implements OpenCVFeatureCalculator {
 		
 		@Override
 		public String toString() {
-			String sigmaString = "\u03C3=%s";
+			String sigmaString = "\u03C3: %s";
 			if (sigmaX == sigmaY && (sigmaX == sigmaZ || sigmaZ <= 0))
 				sigmaString = String.format(sigmaString, GeneralTools.formatNumber(sigmaX, 2));
 			else {

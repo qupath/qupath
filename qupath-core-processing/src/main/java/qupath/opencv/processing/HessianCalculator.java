@@ -162,7 +162,7 @@ public class HessianCalculator {
 		var selectedROI = hierarchy.getSelectionModel().getSelectedROI();
 		if (sigmas.length == 0)
 			sigmas = new double[] {1.0};
-		double downsample = Math.max(1.0, sigmas[0] / server.getPixelCalibration().getAveragedPixelSizeMicrons() / 2.0);
+		double downsample = Math.max(1.0, sigmas[0] / server.getPixelCalibration().getAveragedPixelSizeMicrons());
 		System.err.println(downsample);
 		RegionRequest request = RegionRequest.createInstance(server);
 		if (selectedROI != null)
@@ -617,7 +617,7 @@ public class HessianCalculator {
 				Mat matSmooth = null;
 				if (doSmoothed) {
 					matSmooth = new Mat();
-					opencv_imgproc.sepFilter2D(mat, matSmooth, opencv_core.CV_32F, kx0, kx0, null, 0.0, border);
+					opencv_imgproc.sepFilter2D(mat, matSmooth, opencv_core.CV_32F, kx0, ky0, null, 0.0, border);
 					stripPadding(matSmooth);
 					if (gaussianSmoothed)
 						features.put(MultiscaleFeature.GAUSSIAN, matSmooth);
@@ -799,7 +799,7 @@ public class HessianCalculator {
 					Mat z0 = matsZ0.get(i);
 					Mat z1 = matsZ1.get(i);
 					Mat z2 = matsZ2.get(i);
-
+					
 					opencv_imgproc.sepFilter2D(z0, dxx, opencv_core.CV_32F, kx2, ky0, null, 0.0, border);
 					opencv_imgproc.sepFilter2D(z0, dxy, opencv_core.CV_32F, kx1, ky1, null, 0.0, border);
 					opencv_imgproc.sepFilter2D(z1, dxz, opencv_core.CV_32F, kx1, ky0, null, 0.0, border);
