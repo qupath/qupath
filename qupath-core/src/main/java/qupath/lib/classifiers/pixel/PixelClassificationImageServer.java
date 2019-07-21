@@ -2,6 +2,9 @@ package qupath.lib.classifiers.pixel;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.net.URI;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.UUID;
 
 import org.slf4j.Logger;
@@ -17,6 +20,7 @@ import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.ImageServerMetadata.ImageResolutionLevel;
 import qupath.lib.images.servers.PixelType;
 import qupath.lib.images.servers.TileRequest;
+import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
 import qupath.lib.io.GsonTools;
 import qupath.lib.regions.RegionRequest;
 
@@ -56,16 +60,7 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 		this.server = imageData.getServer();
 		
 		var classifierMetadata = classifier.getMetadata();
-		
-		String path;
-		try {
-			// If we can construct a path (however long) that includes the full serialization info, then cached tiles can be reused even if the server is recreated
-			path = server.getPath() + "::" + GsonTools.getGsonDefault().toJson(classifier);
-		} catch (Exception e) {
-			logger.debug("Unable to serialize pixel classifier to JSON: {}", e.getLocalizedMessage());
-			path = server.getPath() + "::" + UUID.randomUUID().toString();			
-		}
-		
+				
 		var pixelType = PixelType.UINT8;
 		
 		var tileWidth = classifierMetadata.getInputWidth();
@@ -89,8 +84,7 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 		
 		int pad = classifierMetadata.strictInputSize() ? classifierMetadata.getInputPadding() : 0;
 		
-		var builder = new ImageServerMetadata.Builder(getClass(), server.getMetadata())
-				.id(path)
+		var builder = new ImageServerMetadata.Builder(server.getMetadata())
 				.width(width)
 				.height(height)
 				.channelType(classifierMetadata.getOutputType())
@@ -102,6 +96,25 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 				
 		originalMetadata = builder.build();
 		
+	}
+	
+	/**
+	 * Returns a random UUID.
+	 */
+	@Override
+	protected String createID() {
+		try {
+			// If we can construct a path (however long) that includes the full serialization info, then cached tiles can be reused even if the server is recreated
+			return getClass().getName() + ": " + server.getPath() + "::" + GsonTools.getInstance().toJson(classifier);
+		} catch (Exception e) {
+			logger.debug("Unable to serialize pixel classifier to JSON: {}", e.getLocalizedMessage());
+			return getClass().getName() + ": " + server.getPath() + "::" + UUID.randomUUID().toString();
+		}
+	}
+	
+	@Override
+	public Collection<URI> getURIs() {
+		return Collections.emptyList();
 	}
 	
 	/**
@@ -153,6 +166,14 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 			img = classifier.applyClassification(imageData, tileRequest.getRegionRequest());
 		}
 		return img;
+	}
+	
+	/**
+	 * Returns null (does not support ServerBuilders).
+	 */
+	@Override
+	protected ServerBuilder<BufferedImage> createServerBuilder() {
+		return null;
 	}
 	
 	/**

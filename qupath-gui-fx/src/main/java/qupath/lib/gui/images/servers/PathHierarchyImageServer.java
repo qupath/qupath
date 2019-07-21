@@ -26,10 +26,12 @@ package qupath.lib.gui.images.servers;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.UUID;
 
 import qupath.lib.awt.common.AwtTools;
 import qupath.lib.color.ColorToolsAwt;
@@ -45,6 +47,7 @@ import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.ImageServerMetadata.ImageResolutionLevel;
 import qupath.lib.images.servers.PixelType;
 import qupath.lib.images.servers.TileRequest;
+import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
 import qupath.lib.objects.DefaultPathObjectConnectionGroup;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
@@ -103,13 +106,34 @@ public class PathHierarchyImageServer extends AbstractTileableImageServer implem
 //		cache.entrySet().removeIf(r -> path.equals(r.getKey().getPath()));
 		
 		// Set metadata, using the underlying server as a basis
-		this.originalMetadata = new ImageServerMetadata.Builder(getClass(), server.getOriginalMetadata())
+		this.originalMetadata = new ImageServerMetadata.Builder(server.getOriginalMetadata())
 				.preferredTileSize(256, 256)
 				.levels(levelBuilder.build())
 				.pixelType(PixelType.UINT8)
 				.channels(ImageChannel.getDefaultRGBChannels())
 				.rgb(true)
 				.build();
+	}
+	
+	/**
+	 * Returns null (does not support ServerBuilders).
+	 */
+	@Override
+	protected ServerBuilder<BufferedImage> createServerBuilder() {
+		return null;
+	}
+	
+	@Override
+	public Collection<URI> getURIs() {
+		return Collections.emptyList();
+	}
+	
+	/**
+	 * Returns a UUID.
+	 */
+	@Override
+	protected String createID() {
+		return UUID.randomUUID().toString();
 	}
 	
 	@Override

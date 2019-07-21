@@ -49,12 +49,23 @@ public class ConcatChannelsImageServer extends TransformingImageServer<BufferedI
 		for (var s : allServers)
 			channels.addAll(s.getMetadata().getChannels());
 		
-		originalMetadata = new ImageServerMetadata.Builder(getClass(), server.getMetadata())
+		originalMetadata = new ImageServerMetadata.Builder(server.getMetadata())
 //				.path("Merged channels ["+String.join(", ", allServers.stream().map(s -> s.getPath()).collect(Collectors.toList())) + "]")
 				.channels(channels)
 				.build();
 	}
 
+	@Override
+	protected String createID() {
+		StringBuilder sb = new StringBuilder();
+		for (var server : allServers) {
+			if (sb.length() == 0)
+				sb.append(", ");
+			sb.append(server.getPath());
+		}
+		return getClass().getName() + ": [" + sb + "]";
+	}
+	
 	@Override
 	public String getServerType() {
 		return "Channel concat image server";
@@ -116,7 +127,7 @@ public class ConcatChannelsImageServer extends TransformingImageServer<BufferedI
 	
 	
 	@Override
-	public ServerBuilder<BufferedImage> getBuilder() {
+	protected ServerBuilder<BufferedImage> createServerBuilder() {
 		return new ConcatChannelsImageServerBuilder(
 				getMetadata(),
 				getWrappedServer().getBuilder(),

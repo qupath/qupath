@@ -71,7 +71,6 @@ import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.images.servers.ServerTools;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
-import qupath.lib.objects.TMACoreObject;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;

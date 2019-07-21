@@ -32,6 +32,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -76,8 +77,6 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 	
 	private URI uri;
 	private String[] args;
-	
-	private String path;
 	
 	
 	private static double readNumericPropertyOrDefault(Map<String, String> properties, String name, double defaultValue) {
@@ -198,13 +197,11 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 		
 		// Create metadata objects
 		this.args = args;
-		String id = uri.toString() + " (OpenSlide)";
 		originalMetadata = new ImageServerMetadata.Builder(getClass(),
 				path, boundsWidth, boundsHeight).
 				channels(ImageChannel.getDefaultRGBChannels()). // Assume 3 channels (RGB)
 				name(file.getName()).
 				rgb(true).
-				id(id).
 //				args(args).
 				pixelType(PixelType.UINT8).
 				preferredTileSize(tileWidth, tileHeight).
@@ -244,6 +241,16 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 			logger.error("Unable to read thumbnail using OpenSlide: {}", e.getLocalizedMessage());
 			throw(e);
 		}
+	}
+	
+	@Override
+	public Collection<URI> getURIs() {
+		return Collections.singletonList(uri);
+	}
+	
+	@Override
+	protected String createID() {
+		return getClass().getName() + ": " + uri.toString();
 	}
 	
 	@Override
@@ -305,11 +312,8 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 		return associatedImageList;
 	}
 	
-	/**
-	 * Returns a builder capable of creating a server like this one.
-	 */
 	@Override
-	public ServerBuilder<BufferedImage> getBuilder() {
+	protected ServerBuilder<BufferedImage> createServerBuilder() {
 		return DefaultImageServerBuilder.createInstance(OpenslideServerBuilder.class, getMetadata(), uri, args);
 	}
 

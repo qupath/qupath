@@ -12,6 +12,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.UUID;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,6 +22,7 @@ import qupath.lib.color.ColorModelFactory;
 import qupath.lib.color.ColorTransformer;
 import qupath.lib.color.StainVector;
 import qupath.lib.color.ColorTransformer.ColorTransformMethod;
+import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
 import qupath.lib.regions.RegionRequest;
 
 /**
@@ -81,13 +83,29 @@ class ColorDeconvolutionImageServer extends TransformingImageServer<BufferedImag
 		
 		this.colorModel = ColorModelFactory.geProbabilityColorModel32Bit(channels);
 		
-		metadata = new ImageServerMetadata.Builder(getClass(), server.getMetadata())
+		metadata = new ImageServerMetadata.Builder(server.getMetadata())
 //				.path(String.format("%s, %s (%s)", server.getPath(), stains.toString(), sb.toString()))
 				.pixelType(PixelType.FLOAT32)
 				.rgb(false)
 				.channels(channels)
 				.name(String.format("%s (%s)", server.getMetadata().getName(), stains.toString()))
 				.build();
+	}
+	
+	/**
+	 * Returns null (does not support ServerBuilders).
+	 */
+	@Override
+	protected ServerBuilder<BufferedImage> createServerBuilder() {
+		return null;
+	}
+	
+	/**
+	 * Returns a UUID.
+	 */
+	@Override
+	protected String createID() {
+		return UUID.randomUUID().toString();
 	}
 	
 	/**

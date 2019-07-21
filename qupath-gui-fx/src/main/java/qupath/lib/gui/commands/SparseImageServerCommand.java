@@ -12,9 +12,13 @@ import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.images.servers.CroppedImageServer;
+import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.SparseImageServer;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
+import qupath.lib.objects.classes.PathClassFactory.StandardPathClasses;
 import qupath.lib.projects.ProjectImageEntry;
 import qupath.lib.regions.ImageRegion;
 
@@ -37,20 +41,23 @@ public class SparseImageServerCommand implements PathCommand {
 		}
 
 		try {
-			var server = createSparseServer(project.getImageList(), p -> p.getPathClass() == PathClassFactory.getPathClass("Region"));
+			var server = createSparseServer(project.getImageList(), p -> p.getPathClass() == PathClassFactory.getPathClass(StandardPathClasses.REGION));
 			if (server.getManager().getRegions().isEmpty()) {
 				DisplayHelpers.showErrorMessage("Sparse image server", "No 'Region' annotations found!");
 				return;			
 			}
 			
-			var entry = project.addImage(server);
-			var img = ProjectImportImagesCommand.getThumbnailRGB(server, null);
-			entry.setThumbnail(img);
-			project.syncChanges();
+			var entry = ProjectImportImagesCommand.addSingleImageToProject(project, server, null);
+//			var entry = project.addImage(server.getBuilder());
+//			var img = ProjectImportImagesCommand.getThumbnailRGB(server, null);
+//			entry.setThumbnail(img);
 			server.close();
 			
 			qupath.refreshProject();
-			qupath.openImageEntry(entry);
+			if (entry != null) {
+				project.syncChanges();
+				qupath.openImageEntry(entry);
+			}
 			
 //			var file = qupath.getDialogHelper().promptToSaveFile("Save sparse server", null, null, "Sparse server", "server.json");
 //			if (file == null)
@@ -78,20 +85,44 @@ public class SparseImageServerCommand implements PathCommand {
 		int rowHeight = 0;
 		int maxX = 50000;
 
+		ImageServerMetadata firstMetadata = null;
 
 		for (var entry : entries) {
 			if (!entry.hasImageData())
 				continue;
+			var hierarchy = entry.readHierarchy();
+			if (hierarchy == null)
+				continue;
+			var annotations = hierarchy.getAnnotationObjects();
+			if (annotations.isEmpty())
+				continue;
 			try {
-				var imageData = entry.readImageData();
-				var hierarchy = imageData.getHierarchy();
-				for (var annotation : hierarchy.getAnnotationObjects()) {
+				ImageServer<BufferedImage> server = null;
+				for (var annotation : annotations) {
 					if (!predicate.test(annotation))
 						continue;
-	
+					
 					var roi = annotation.getROI();
 					var region = ImageRegion.createInstance(roi);
-					var croppedServer = new CroppedImageServer(imageData.getServer(), region);
+					
+					if (server == null) {
+						server = entry.getServerBuilder().build();
+						if (firstMetadata == null)
+							firstMetadata = server.getMetadata();
+						else {
+							if (firstMetadata.getPixelType() != server.getPixelType()) {
+								logger.warn("Incompatible pixel types {} and {} - will skip regions from {}",
+										server.getPixelType(), firstMetadata.getPixelType(), entry.getImageName());
+								break;
+							}
+							if (firstMetadata.getSizeC() != server.nChannels()) {
+								logger.warn("Incompatible channel counts {} and {} - will skip regions from {}",
+										server.nChannels(), firstMetadata.getSizeC() , entry.getImageName());
+								break;
+							}
+						}
+					}
+					var croppedServer = new CroppedImageServer(server, region);
 	
 					rowHeight = Math.max(region.getHeight(), rowHeight);
 					var regionOutput = ImageRegion.createInstance(x, y, region.getWidth(), region.getHeight(), 0, 0);
@@ -108,7 +139,7 @@ public class SparseImageServerCommand implements PathCommand {
 						x = 0;
 					}
 				}
-			} catch (IOException e) {
+			} catch (Exception e) {
 				logger.warn("Exception trying to read {}: {}", entry.getImageName(), e.getLocalizedMessage());
 			}
 		}

@@ -273,7 +273,7 @@ public class DetectionPluginTools {
 			//				imageData.getHierarchy().addPathObjects(previousChildren, false);
 
 			// TODO: Note that this can block for an annoying amount of time due to hierarchy lock & repaints etc.
-			//				if (!(parentObject instanceof ParallelTileObject))
+							if (!(parentObject instanceof ParallelTileObject))
 			imageData.getHierarchy().fireHierarchyChangedEvent(parentObject);
 
 			//			}

@@ -140,14 +140,14 @@ class ImageResourceManager<T> extends FileResourceManager<ImageServer<T>> {
 	public ImageServer<T> getResource(String name) throws IOException {
 		var path = Paths.get(dir.toString(), name + ext);
 		try (var reader = Files.newBufferedReader(path)) {
-			return GsonTools.getGsonDefault().fromJson(reader, new TypeToken<ImageServer<T>>() {}.getType());
+			return GsonTools.getInstance().fromJson(reader, new TypeToken<ImageServer<T>>() {}.getType());
 		}
 	}
 
 	@Override
 	public void putResource(String name, ImageServer<T> server) throws IOException {
 		var path = Paths.get(ensureDirectoryExists(dir).toString(), name + ext);
-		var json = GsonTools.getGsonDefault().toJson(server);
+		var json = GsonTools.getInstance().toJson(server);
 		Files.writeString(path, json, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
 	}
 	

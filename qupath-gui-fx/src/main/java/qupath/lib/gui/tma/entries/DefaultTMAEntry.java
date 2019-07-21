@@ -33,7 +33,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javafx.scene.image.Image;
-import qupath.lib.images.servers.ServerTools;
 
 /**
  * Default implementation of TMAEntry.
@@ -45,8 +44,7 @@ public class DefaultTMAEntry implements TMAEntry {
 
 	private static Logger logger = LoggerFactory.getLogger(DefaultTMAEntry.class);
 
-	private String serverPath;
-	private String shortServerName;
+	private String imageName;
 	private String name;
 	private String imagePath;
 	private String overlayPath;
@@ -55,9 +53,8 @@ public class DefaultTMAEntry implements TMAEntry {
 	private Map<String, String> metadata = new LinkedHashMap<>();
 	private Map<String, Number> measurements = new LinkedHashMap<>();
 
-	public DefaultTMAEntry(String serverPath, String imagePath, String overlayPath, String coreName, boolean isMissing) {
-		this.serverPath = serverPath;
-		this.shortServerName = serverPath == null ? null : ServerTools.getDefaultShortServerName(serverPath).replace("%20", " ");
+	public DefaultTMAEntry(String imageName, String imagePath, String overlayPath, String coreName, boolean isMissing) {
+		this.imageName = imageName;
 		this.name = coreName;
 		this.isMissing = isMissing;
 		// Only store paths if they actually work...
@@ -132,9 +129,7 @@ public class DefaultTMAEntry implements TMAEntry {
 
 	@Override
 	public String getImageName() {
-		if (shortServerName == null)
-			this.shortServerName = serverPath == null ? null : ServerTools.getDefaultShortServerName(serverPath).replace("%20", " ");
-		return shortServerName;
+		return imageName;
 	}
 
 	@Override

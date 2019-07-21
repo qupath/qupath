@@ -2819,7 +2819,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 
 			// Use arrow keys to navigate, either or directly or using a TMA grid
 			TMAGrid tmaGrid = hierarchy.getTMAGrid();
-			List<TMACoreObject> cores = new ArrayList<>(tmaGrid.getTMACoreList());
+			List<TMACoreObject> cores = tmaGrid == null ? Collections.emptyList() : new ArrayList<>(tmaGrid.getTMACoreList());
 			if (!event.isShiftDown() && tmaGrid != null && tmaGrid.nCores() > 0) {
 				if (event.getEventType() != KeyEvent.KEY_PRESSED)
 					return;

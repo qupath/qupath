@@ -100,7 +100,7 @@ public class RotatedImageServer extends TransformingImageServer<BufferedImage> {
 			metadata = getQuarterRotatedMetadata(server.getOriginalMetadata());
 			break;
 		case ROTATE_180:
-			metadata = new ImageServerMetadata.Builder(getClass(), server.getOriginalMetadata())
+			metadata = new ImageServerMetadata.Builder(server.getOriginalMetadata())
 //						.path(getPath())
 						.build();
 			break;
@@ -133,7 +133,7 @@ public class RotatedImageServer extends TransformingImageServer<BufferedImage> {
 			levelBuilder.addLevel(level.getDownsample(), level.getHeight(), level.getWidth());
 		}
 		
-		var builder = new ImageServerMetadata.Builder(getClass(), metadata)
+		var builder = new ImageServerMetadata.Builder(metadata)
 //				.path(getPath())
 				.width(metadata.getHeight())
 				.height(metadata.getWidth())
@@ -272,9 +272,8 @@ public class RotatedImageServer extends TransformingImageServer<BufferedImage> {
 		return metadata;
 	}
 	
-	
 	@Override
-	public String getPath() {
+	protected String createID() {
 		int rot = 0;
 		switch (rotation) {
 		case ROTATE_180:
@@ -291,7 +290,7 @@ public class RotatedImageServer extends TransformingImageServer<BufferedImage> {
 			rot = 0;
 			break;
 		}
-		return getWrappedServer().getPath() + "?rotate=" + rot;
+		return getClass().getName() + ": " + getWrappedServer().getPath() + " (Rotate=" + rot + ")";
 	}
 
 	@Override
@@ -300,8 +299,18 @@ public class RotatedImageServer extends TransformingImageServer<BufferedImage> {
 	}
 	
 	@Override
-	public ServerBuilder<BufferedImage> getBuilder() {
+	protected ServerBuilder<BufferedImage> createServerBuilder() {
 		return new RotatedImageServerBuilder(getMetadata(), getWrappedServer().getBuilder(), getRotation());
+	}
+	
+	/**
+	 * Get a ServerBuilder that applies a rotation to another server.
+	 * @param builder
+	 * @param rotation
+	 * @return
+	 */
+	public static ServerBuilder<BufferedImage> getRotatedBuilder(ServerBuilder<BufferedImage> builder, Rotation rotation) {
+		return new RotatedImageServerBuilder(null, builder, rotation);		
 	}
 
 }

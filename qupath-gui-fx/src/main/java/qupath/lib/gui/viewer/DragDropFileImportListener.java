@@ -231,7 +231,9 @@ public class DragDropFileImportListener implements EventHandler<DragEvent> {
 						if (!project.isEmpty())
 							project.syncChanges();
 						return;
-					}
+					} else
+						// Can't do anything else with an empty folder
+						return;
 				}
 			}
 
@@ -267,7 +269,7 @@ public class DragDropFileImportListener implements EventHandler<DragEvent> {
 			ScriptEditor scriptEditor = gui.getScriptEditor();
 			if (scriptEditor instanceof DefaultScriptEditor && ((DefaultScriptEditor)scriptEditor).supportsFile(file)) {
 				scriptEditor.showScript(file);
-				continue;
+				return;
 			}
 
 			
@@ -284,12 +286,15 @@ public class DragDropFileImportListener implements EventHandler<DragEvent> {
 					DisplayHelpers.showErrorMessage("Open image", "Please drag the file only a specific viewer to open!");
 					return;
 				}
-				if (gui.openImage(viewer, file.getAbsolutePath(), true, true))
-					return;
+				gui.openImage(viewer, file.getAbsolutePath(), true, true);
+				return;
 			} else if (gui.getProject() != null) {
 				// Try importing multiple images to a project
-				ProjectImportImagesCommand.promptToImportImages(gui, list.stream().map(f -> f.getAbsolutePath()).toArray(String[]::new));
-				return;
+				String[] potentialFiles = list.stream().filter(f -> f.isFile()).map(f -> f.getAbsolutePath()).toArray(String[]::new);
+				if (potentialFiles.length > 0) {
+					ProjectImportImagesCommand.promptToImportImages(gui, potentialFiles);
+					return;
+				}
 			}
 
 
@@ -303,7 +308,7 @@ public class DragDropFileImportListener implements EventHandler<DragEvent> {
 		if (list.size() > 1)
 			DisplayHelpers.showErrorMessage("Drag & drop", "Sorry, I couldn't figure out what to do with these files - try opening one at a time");
 		else
-			DisplayHelpers.showErrorMessage("Drag & drop", "Sorry, I couldn't figure out how to handle this file");
+			DisplayHelpers.showErrorMessage("Drag & drop", "Sorry, I couldn't figure out what to do with " + list.get(0).getName());
 	}
     
     

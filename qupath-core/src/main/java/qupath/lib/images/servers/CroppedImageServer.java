@@ -4,6 +4,7 @@ import java.awt.image.BufferedImage;
 import java.io.IOException;
 
 import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
+import qupath.lib.io.GsonTools;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
 
@@ -43,9 +44,7 @@ public class CroppedImageServer extends TransformingImageServer<BufferedImage> {
 				region.getWidth() >= server.getMetadata().getPreferredTileWidth() && 
 				region.getHeight() >= server.getMetadata().getPreferredTileHeight());
 		
-		metadata = new ImageServerMetadata.Builder(getClass(), server.getMetadata())
-//				.path(server.getPath() + ": Cropped " + region.toString())
-				.id(server.getPath() + ": Cropped " + region.toString())
+		metadata = new ImageServerMetadata.Builder(server.getMetadata())
 				.width(region.getWidth())
 				.height(region.getHeight())
 				.name(String.format("%s (%d, %d, %d, %d)", server.getMetadata().getName(), region.getX(), region.getY(), region.getWidth(), region.getHeight()))
@@ -53,6 +52,10 @@ public class CroppedImageServer extends TransformingImageServer<BufferedImage> {
 				.build();
 	}
 	
+	@Override
+	protected String createID() {
+		return getClass().getName() + ": + " + getWrappedServer().getPath() + " " + GsonTools.getInstance().toJson(region);
+	}
 	
 	@Override
 	public BufferedImage readBufferedImage(final RegionRequest request) throws IOException {
@@ -86,7 +89,7 @@ public class CroppedImageServer extends TransformingImageServer<BufferedImage> {
 	}
 	
 	@Override
-	public ServerBuilder<BufferedImage> getBuilder() {
+	protected ServerBuilder<BufferedImage> createServerBuilder() {
 		return new ImageServers.CroppedImageServerBuilder(getMetadata(), getWrappedServer().getBuilder(), region);
 	}
 

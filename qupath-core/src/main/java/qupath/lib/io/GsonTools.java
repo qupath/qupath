@@ -108,20 +108,22 @@ public class GsonTools {
 	 * Get default Gson, capable of serializing/deserializing some key QuPath classes.
 	 * @return
 	 * 
-	 * @see #getGsonPretty()
+	 * @see #getInstance(boolean)
 	 */
-	public static Gson getGsonDefault() {
+	public static Gson getInstance() {
 		return gson;
 	}
 	
 	/**
-	 * Get default Gson with pretty printing enabled.
+	 * Get default Gson, optionally with pretty printing enabled.
 	 * @return
 	 * 
-	 * @see #getGsonDefault()
+	 * @see #getInstance()
 	 */
-	public static Gson getGsonPretty() {
-		return getGsonDefault().newBuilder().setPrettyPrinting().create();
+	public static Gson getInstance(boolean pretty) {
+		if (pretty)
+			return getInstance().newBuilder().setPrettyPrinting().create();
+		return getInstance();
 	}
 	
 	/**

@@ -30,7 +30,9 @@ import qupath.lib.regions.RegionRequest;
  */
 public class HessianCalculator {
 	
-	
+	/**
+	 * Image features, dependent on Gaussian scale.
+	 */
 	public static enum MultiscaleFeature {
 		/**
 		 * Gaussian filter
@@ -66,10 +68,18 @@ public class HessianCalculator {
 		 */
 		HESSIAN_EIGENVALUE_MIN;
 		
+		/**
+		 * Returns true if the feature can be computed for 2D images.
+		 * @return
+		 */
 		public boolean is2D() {
 			return this != HESSIAN_EIGENVALUE_MIDDLE;
 		}
 
+		/**
+		 * Returns true if the feature can be computed for 3D images (z-stacks).
+		 * @return
+		 */
 		public boolean is3D() {
 			return true;
 		}
@@ -530,8 +540,9 @@ public class HessianCalculator {
 		}
 		
 		/**
-		 * Calculate results for a list of Mats.
-		 * @param mats
+		 * Calculate results for a map of features and Mats for one slice of a z-stack.
+		 * @param mats a list of mats, one for each slice of the z-stack
+		 * @param ind the index of the slice to use
 		 * @return
 		 */
 		public Map<MultiscaleFeature, Mat> build(List<Mat> mats, int ind) {
@@ -541,7 +552,11 @@ public class HessianCalculator {
 			return build2D(Collections.singletonList(mats.get(ind))).get(0);
 		}
 		
-		public List<Map<MultiscaleFeature, Mat>> build(List<Mat> mats) {
+		/**
+		 * Calculate results as a list of maps connecting features and Mats for all slices of a z-stack.
+		 * @param mats
+		 * @return
+		 */		public List<Map<MultiscaleFeature, Mat>> build(List<Mat> mats) {
 			if (sigmaZ > 0) {
 				return build3D(mats, -1);
 			}

@@ -32,6 +32,7 @@ import java.util.Map.Entry;
 
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 
 /**
@@ -45,12 +46,18 @@ import qupath.lib.objects.hierarchy.PathObjectHierarchy;
  */
 public interface ProjectImageEntry<T> {
 	
+//	/**
+//	 * Get the path used to represent this image, which can be used to construct an <code>ImageServer</code>.
+//	 * 
+//	 * @return
+//	 */
+//	public String getServerPath();
+	
 	/**
-	 * Get the path used to represent this image, which can be used to construct an <code>ImageServer</code>.
-	 * 
+	 * Get a unique ID to represent this entry.
 	 * @return
 	 */
-	public String getServerPath();
+	public String getID();
 	
 	/**
 	 * Set the image name for this project entry.
@@ -166,12 +173,11 @@ public interface ProjectImageEntry<T> {
 	public Collection<String> getMetadataKeys();
 
 	/**
-	 * Build an {@link ImageServer} for this image.
+	 * Get a {@link ServerBuilder} that can be used to open this image.
 	 * 
 	 * @return
-	 * @throws IOException
 	 */
-	public ImageServer<T> buildImageServer() throws IOException;
+	public ServerBuilder<T> getServerBuilder();
 	
 	/**
 	 * Read the {@link ImageData} associated with this entry, or create a new ImageData if none is currently present.

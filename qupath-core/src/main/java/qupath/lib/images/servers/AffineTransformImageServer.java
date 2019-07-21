@@ -5,9 +5,14 @@ import java.awt.geom.NoninvertibleTransformException;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import qupath.lib.awt.common.AwtTools;
 import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
 import qupath.lib.images.servers.ImageServers.AffineTransformImageServerBuilder;
+import qupath.lib.io.GsonTools;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
 
@@ -20,6 +25,8 @@ import qupath.lib.regions.RegionRequest;
  *
  */
 public class AffineTransformImageServer extends TransformingImageServer<BufferedImage> {
+	
+	private static Logger logger = LoggerFactory.getLogger(AffineTransformImageServer.class);
 	
 	private ImageServerMetadata metadata;
 	
@@ -64,7 +71,7 @@ public class AffineTransformImageServer extends TransformingImageServer<Buffered
 				region.getHeight() >= server.getMetadata().getPreferredTileHeight());
 		
 		// TODO: Apply AffineTransform to pixel sizes! Perhaps create a Shape or point and transform that?
-		metadata = new ImageServerMetadata.Builder(getClass(), server.getMetadata())
+		metadata = new ImageServerMetadata.Builder(server.getMetadata())
 //				.path(server.getPath() + ": Affine " + transform.toString())
 				.width(region.getWidth())
 				.height(region.getHeight())
@@ -73,6 +80,10 @@ public class AffineTransformImageServer extends TransformingImageServer<Buffered
 				.build();
 	}
 	
+	@Override
+	protected String createID() {
+		return getClass().getName() + ": + " + getWrappedServer().getPath() + " " + GsonTools.getInstance().toJson(transform);
+	}
 	
 	@Override
 	public BufferedImage readBufferedImage(final RegionRequest request) throws IOException {
@@ -166,7 +177,7 @@ public class AffineTransformImageServer extends TransformingImageServer<Buffered
 	}
 	
 	@Override
-	public ServerBuilder<BufferedImage> getBuilder() {
+	protected ServerBuilder<BufferedImage> createServerBuilder() {
 		return new AffineTransformImageServerBuilder(
 				getMetadata(),
 				getWrappedServer().getBuilder(),

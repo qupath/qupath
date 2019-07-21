@@ -36,6 +36,7 @@ import org.locationtech.jts.index.quadtree.Quadtree;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
 
@@ -59,6 +60,16 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 	 * Cache to use for storing & retrieving tiles.
 	 */
 	private transient Map<RegionRequest, T> cache;
+	
+	/**
+	 * Cached ServerBuilder, so this doesn't need to be constructed on every request
+	 */
+	private transient ServerBuilder<T> builder;
+	
+	/**
+	 * Unique ID for this server
+	 */
+	private String id;
 	
 	private Class<T> imageClass;
 	
@@ -104,7 +115,22 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 		return downsample;
 	}
 	
+	/**
+	 * Create a ServerBuilder, which can be used to construct an identical ImageServer.
+	 * This should also include the current metadata.
+	 * It is permissible to return null for an ImageServer that cannot be recreated 
+	 * via a {@link ServerBuilder}.
+	 * 
+	 * @return
+	 */
+	protected abstract ServerBuilder<T> createServerBuilder();
 	
+	@Override
+	public ServerBuilder<T> getBuilder() {
+		if (builder == null)
+			builder = createServerBuilder();
+		return builder;
+	}
 	
 	@Override
 	public double getDownsampleForResolution(int level) {
@@ -191,9 +217,36 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 		return cache == null ? null : cache.getOrDefault(tile.getRegionRequest(), null);
 	}
 	
+	/**
+	 * Create a unique ID for the server, which can be returned as the default value of {@link #getPath()}.
+	 * A suggested implementation is
+	 * <p>
+	 * <code> 
+	 * <pre>
+	 *  getClass().getName() + ": " + URI + parameters
+	 * </pre>
+	 * </code>
+	 * This will be called on demand whenever {@link #getPath()} is first required. 
+	 * 
+	 * @return
+	 */
+	protected abstract String createID();
+	
+	/**
+	 * Default implementation lazily calls {@link #createID()} on demand.
+	 * 
+	 * @see #createID()
+	 */
 	@Override
 	public String getPath() {
-		return getMetadata().getID();
+		if (id == null) {
+			synchronized(this) {
+				String myID = createID();
+				if (id == null)
+					id = myID;
+			}
+		}
+		return id;
 	}
 
 	@Override
@@ -240,6 +293,7 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 			tileRequestManager = null;
 		
 		userMetadata = metadata;
+		builder = null; // Reset the builder so it will be regenerated as required
 	}
 
 	@Override

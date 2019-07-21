@@ -26,6 +26,11 @@ package qupath.lib.images.servers;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBuffer;
 import java.io.IOException;
+import java.net.URI;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.UUID;
+
 import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
 
 /**
@@ -86,7 +91,7 @@ public class WrappedBufferedImageServer extends AbstractTileableImageServer {
 			isRGB = isRGB | type == img.getType();
 		}
 		
-		originalMetadata = new ImageServerMetadata.Builder(getClass())
+		originalMetadata = new ImageServerMetadata.Builder()
 				.width(img.getWidth())
 				.height(img.getHeight())
 				.name(imageName)
@@ -96,6 +101,19 @@ public class WrappedBufferedImageServer extends AbstractTileableImageServer {
 				.pixelType(pixelType)
 				.channels(ImageChannel.getDefaultChannelList(nChannels))
 				.build();
+	}
+	
+	@Override
+	public Collection<URI> getURIs() {
+		return Collections.emptyList();
+	}
+	
+	/**
+	 * Returns a UUID.
+	 */
+	@Override
+	protected String createID() {
+		return UUID.randomUUID().toString();
 	}
 
 	@Override
@@ -112,7 +130,7 @@ public class WrappedBufferedImageServer extends AbstractTileableImageServer {
 	 * Returns null (does not support ServerBuilders).
 	 */
 	@Override
-	public ServerBuilder<BufferedImage> getBuilder() {
+	protected ServerBuilder<BufferedImage> createServerBuilder() {
 		return null;
 	}
 

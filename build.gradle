@@ -24,14 +24,20 @@ def qupathOutputDir = 'qupath'
 def additionalResourcesDir = "build/${qupathOutputDir}"
 
 /*
- * Include OpenCV binaries with GPU support (quite big, may not be used?)
- */
-def useGPU = false
-
-/*
  * JavaFX version
  */
 def jfxVersion = '12.0.1'
+
+/*
+ * OpenCV version
+ */
+def opencvVersion = '4.0.1-1.5'
+// def opencvVersion = '4.1.0-1.5.1' // Got UnsatisfiedLinkError troubles with this on Windows 10
+
+/*
+ * Include OpenCV binaries with GPU support (quite big, may not be used?)
+ */
+def useGPU = false
 
 /*
  * Modules not yet supported (because of some dependency troubles).
@@ -146,24 +152,24 @@ subprojects {
     controlsfx 'org.controlsfx:controlsfx:11.0.0'
 
 //	bioformats 'ome:bioformats_package:6.0.1'
-	bioformats 'ome:formats-gpl:6.1.1'
-	bioformatsTest 'ome:bio-formats_plugins:6.1.1' // Only required for testing
+	bioformats 'ome:formats-gpl:6.2.0'
+	bioformatsTest 'ome:bio-formats_plugins:6.2.0' // Only required for testing
 
     jfxtras 'org.jfxtras:jfxtras-menu:10.0-r1'
 
-    opencv 'org.bytedeco:opencv:4.0.1-1.5'
+    opencv 'org.bytedeco:opencv:${opencvVersion}'
     if (nativesCPP != null) {
       if (useGPU)
-        opencv "org.bytedeco:opencv:4.0.1-1.5:${nativesCPP}-gpu"
+        opencv "org.bytedeco:opencv:${opencvVersion}:${nativesCPP}-gpu"
       else
-	    opencv "org.bytedeco:opencv:4.0.1-1.5:${nativesCPP}"
+	    opencv "org.bytedeco:opencv:${opencvVersion}:${nativesCPP}"
     }
 
     jpen 'net.sourceforge.jpen:jpen:2-150301'
     if (nativesClassifier != null)
       jpen 'net.sourceforge.jpen:jpen:2-150301:' + nativesClassifier
 
-    imagej 'net.imagej:ij:1.52o'
+    imagej 'net.imagej:ij:1.52p'
 //    imagej jarjar.repackage {
 //    	from 'net.imagej:ij:1.52o'
 //    	classDelete 'MacAdapter'
@@ -385,7 +391,7 @@ task copyLicenseReport(type: Copy) {
 buildscript {
 
   dependencies {
-      classpath 'gradle.plugin.com.github.jk1:gradle-license-report:1.3'
+      classpath 'com.github.jk1:gradle-license-report:1.9'
 //      classpath 'org.anarres.jarjar:jarjar-gradle:1.0.1'
   }
 
@@ -524,38 +530,59 @@ task createPackage(dependsOn:createRuntime, type:Exec) {
 	  else
 	      println 'gradlew createPackage -Ppackager=/full/path/to/jpackage'
       println 'Current value of -Ppackager is ' + packager
+      println 'Note: You can also specify this in a gradle.properties file'
       println '-------'
       throw new GradleException('Please specify where I can find a suitable jpackage!')
     }
     println 'Using packager: ' + packager
 
+	// Versioning rules can be strict on some platforms - may need to further change this
+  	def appVersion = qupathVersion.replace('-SNAPSHOT', '')
+
     def packageType = findProperty('type')
 
     def params = [packager]
-
-    if (packageType == 'installer') {
-    	params << 'create-installer'
-    } else {
-		params << 'create-app-image'
-	}
 
     params << '--input' << new File(rootProject.buildDir, rootProject.libsDirName).getAbsolutePath()
     params << '--output' << new File(rootProject.buildDir, 'dist').getAbsolutePath()
 
     params << '--main-jar' << jar.archiveName
-
+    
     params << '--name' << 'QuPath-' + qupathVersion
 //    params << '--class' << 'qupath.QuPath'
+
+    // Default to using 50% available memory
+	params << '--java-options' << '-XX:MaxRAMPercentage=50'
 
 	if (OperatingSystem.current().isMacOsX()) {
 		params << '--mac-bundle-name' << 'QuPath'
 		if (packageType == 'installer') {
 			params << '--installer-type' << 'dmg'
 		}
+	} else if (OperatingSystem.current().isWindows()) {
+		if (packageType == 'installer') {
+			params << '--package-type' << 'msi'
+			params << '--win-menu-group' << 'QuPath'
+			params << '--win-dir-chooser'
+//			params << '--win-shortcut'
+			params << '--win-per-user-install'
+			int lastDash = appVersion.lastIndexOf('-')
+			if (lastDash > 0) {
+				appVersion = appVersion.substring(0, lastDash)
+				println "Simplifying QuPath version ${qupathVersion} to ${appVersion} for compatibility" 
+			}
+		}
+		// Create a separate launcher with a console - this can help with debugging
+		def fileTemp = File.createTempFile('qupath-building', '.properties')
+		def consoleLauncherName = "QuPath-${qupathVersion} (debug)"
+		fileTemp.deleteOnExit()
+		fileTemp.text = 'win-console=true'
+//		fileTemp << System.lineSeparator() << 'java-options=' << '"-Dqupath.config="' << consoleLauncherName + '.cfg""'
+		params << '--add-launcher' << "\"${consoleLauncherName}\"=\"${fileTemp.getAbsolutePath()}\""
 	}
 
-    // Strip off any SNAPSHOT part, which can cause trouble
-    params << '--app-version' << qupathVersion.replace('-SNAPSHOT', '')
+    // Store the app version (typically a simplified version of the full format)
+    params << '--app-version' << appVersion
         
     // Try to find the icon
     def pathIcon = Paths.get(

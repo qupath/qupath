@@ -4,16 +4,19 @@ import java.awt.image.BufferedImage;
 import java.awt.image.ColorModel;
 import java.awt.image.WritableRaster;
 import java.io.IOException;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.TreeSet;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,6 +39,8 @@ public class SparseImageServer extends AbstractTileableImageServer {
 	private final static Logger logger = LoggerFactory.getLogger(SparseImageServer.class);
 	
 	private final ImageServerMetadata metadata;
+	
+	private String path;
 	
 	private SparseImageServerManager manager;
 	
@@ -90,18 +95,20 @@ public class SparseImageServer extends AbstractTileableImageServer {
 			}
 		}
 		if (path == null)
-			path = String.join(", ", paths);
+			path = getClass().getName() + ": " + String.join(", ", paths);
 		// Here, we assume origin at zero
 //		int width = x2;
 //		int height = y2;
+		
+		this.path = path;
 		
 		originX = x1;
 		originY = y1;
 		int width = x2 - x1;
 		int height = y2 - y1;
 		
-		this.metadata = new ImageServerMetadata.Builder(getClass(), metadata)
-				.id(path)
+		this.metadata = new ImageServerMetadata.Builder(metadata)
+//				.id(path)
 //				.id(UUID.randomUUID().toString())
 				.name("Sparse image (" + manager.getRegions().size() + " regions)")
 				.width(width)
@@ -110,6 +117,22 @@ public class SparseImageServer extends AbstractTileableImageServer {
 				.levelsFromDownsamples(manager.getAvailableDownsamples())
 				.build();
 		
+	}
+	
+	@Override
+	public Collection<URI> getURIs() {
+		Set<URI> uris = new LinkedHashSet<>();
+		for (var builder : manager.serverMap.keySet())
+			uris.addAll(builder.getURIs());
+		return uris;
+	}
+	
+	/**
+	 * Returns a UUID.
+	 */
+	@Override
+	protected String createID() {
+		return path;
 	}
 	
 	/**
@@ -131,7 +154,7 @@ public class SparseImageServer extends AbstractTileableImageServer {
 	}
 	
 	@Override
-	public ServerBuilder<BufferedImage> getBuilder() {
+	protected ServerBuilder<BufferedImage> createServerBuilder() {
 		List<SparseImageServerManagerRegion> resolutions = new ArrayList<>();
 		for (var entry : manager.regionMap.entrySet())
 			resolutions.add(new SparseImageServerManagerRegion(entry.getKey(), entry.getValue()));
@@ -419,10 +442,18 @@ public class SparseImageServer extends AbstractTileableImageServer {
 			this.resolutions = resolutions;
 		}
 		
+		public ImageRegion getRegion() {
+			return region;
+		}
+		
+		public List<SparseImageServerManagerResolution> getResolutions() {
+			return Collections.unmodifiableList(resolutions);
+		}
+		
 	}
 	
 	
-	private static class SparseImageServerManagerResolution {
+	static class SparseImageServerManagerResolution {
 		
 		private final double downsample;
 		private final ServerBuilder<BufferedImage> serverBuilder;

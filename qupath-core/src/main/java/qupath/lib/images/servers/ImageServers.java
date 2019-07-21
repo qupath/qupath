@@ -6,7 +6,6 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -32,6 +31,7 @@ import qupath.lib.images.servers.ImageServerBuilder.DefaultImageServerBuilder;
 import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
 import qupath.lib.images.servers.RotatedImageServer.Rotation;
 import qupath.lib.images.servers.SparseImageServer.SparseImageServerManagerRegion;
+import qupath.lib.images.servers.SparseImageServer.SparseImageServerManagerResolution;
 import qupath.lib.io.GsonTools;
 import qupath.lib.projects.Project;
 import qupath.lib.regions.ImageRegion;
@@ -75,14 +75,27 @@ public class ImageServers {
 
 		@Override
 		public Collection<URI> getURIs() {
-			// TODO: IMPLEMENT URI QUERY!
-			return Collections.emptyList();
+			Set<URI> uris = new LinkedHashSet<>();
+			for (var region : regions) {
+				for (var res : region.getResolutions()) {
+					uris.addAll(res.getServerBuilder().getURIs());
+				}
+			}
+			return uris;
 		}
 
 		@Override
 		public ServerBuilder<BufferedImage> updateURIs(Map<URI, URI> updateMap) {
-			// TODO: IMPLEMENT URI UPDATE!
-			return this;
+			List<SparseImageServerManagerRegion> newRegions = new ArrayList<>();
+			for (var region : regions) {
+				List<SparseImageServerManagerResolution> newResolutions = new ArrayList<>();
+				for (var res : region.getResolutions()) {
+					newResolutions.add(new SparseImageServerManagerResolution(
+							res.getServerBuilder().updateURIs(updateMap), res.getDownsample()));
+				}
+				newRegions.add(new SparseImageServerManagerRegion(region.getRegion(), newResolutions));
+			}
+			return new SparseImageServerBuilder(getMetadata(), newRegions, path);
 		}
 		
 	}
@@ -284,11 +297,11 @@ public class ImageServers {
 				var builder = server.getBuilder();
 				out.beginObject();
 				out.name("builder");
-				GsonTools.getGsonDefault().toJson(builder, ServerBuilder.class, out);
+				GsonTools.getInstance().toJson(builder, ServerBuilder.class, out);
 				if (includeMetadata) {
 					out.name("metadata");
 					var metadata = server.getMetadata();
-					GsonTools.getGsonDefault().toJson(metadata, ImageServerMetadata.class, out);					
+					GsonTools.getInstance().toJson(metadata, ImageServerMetadata.class, out);					
 				}
 				out.endObject();
 				return;
@@ -308,11 +321,11 @@ public class ImageServers {
 				JsonObject obj = element.getAsJsonObject();
 				
 				// Create from builder
-				ImageServer<BufferedImage> server = GsonTools.getGsonDefault().fromJson(obj.get("builder"), ServerBuilder.class).build();
+				ImageServer<BufferedImage> server = GsonTools.getInstance().fromJson(obj.get("builder"), ServerBuilder.class).build();
 				
 				// Set metadata, if we have any
 				if (obj.has("metadata")) {
-					ImageServerMetadata metadata = GsonTools.getGsonDefault().fromJson(obj.get("metadata"), ImageServerMetadata.class);
+					ImageServerMetadata metadata = GsonTools.getInstance().fromJson(obj.get("metadata"), ImageServerMetadata.class);
 					if (metadata != null)
 						server.setMetadata(metadata);
 				}

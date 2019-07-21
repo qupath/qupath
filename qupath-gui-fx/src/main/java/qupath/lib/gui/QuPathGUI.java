@@ -199,6 +199,7 @@ import qupath.lib.gui.commands.MeasurementMapCommand;
 import qupath.lib.gui.commands.MiniViewerCommand;
 import qupath.lib.gui.commands.OpenCommand;
 import qupath.lib.gui.commands.PreferencesCommand;
+import qupath.lib.gui.commands.ProjectCheckUrisCommand;
 import qupath.lib.gui.commands.ProjectCloseCommand;
 import qupath.lib.gui.commands.ProjectCreateCommand;
 import qupath.lib.gui.commands.ProjectExportImageListCommand;
@@ -308,9 +309,7 @@ import qupath.lib.images.ImageData.ImageType;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerBuilder;
 import qupath.lib.images.servers.ImageServerProvider;
-import qupath.lib.images.servers.RotatedImageServer;
 import qupath.lib.images.servers.ServerTools;
-import qupath.lib.images.servers.RotatedImageServer.Rotation;
 import qupath.lib.io.PathIO;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathCellObject;
@@ -1185,10 +1184,17 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		Collections.sort(extensions, Comparator.comparing(QuPathExtension::getName));
 		for (QuPathExtension extension : extensions) {
 			if (!loadedExtensions.containsKey(extension.getClass())) {
-				extension.installExtension(this);
-				loadedExtensions.put(extension.getClass(), extension);
-				if (showNotification)
-					DisplayHelpers.showInfoNotification("Extension loaded",  extension.getName());
+				try {
+					long startTime = System.currentTimeMillis();
+					extension.installExtension(this);
+					long endTime = System.currentTimeMillis();
+					logger.info("Loaded extension {} ({} ms)", extension.getName(), endTime - startTime);
+					loadedExtensions.put(extension.getClass(), extension);
+					if (showNotification)
+						DisplayHelpers.showInfoNotification("Extension loaded",  extension.getName());
+				} catch (Exception e) {
+					logger.error("Error loading extension " + extension, e);
+				}
 			}
 		}
 		// Set the ImageServer to also look on the same search path
@@ -1314,8 +1320,9 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			Project<?> project = getProject();
 			if (project != null) {
 				// Write the project, if necessary
-				if (project.setPathClasses(c.getList()))
-					ProjectBrowser.syncProject(project);
+				project.setPathClasses(c.getList());
+//				if (project.setPathClasses(c.getList())
+//					ProjectBrowser.syncProject(project);
 			}
 		});
 	}
@@ -2263,27 +2270,31 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	 * @param entry
 	 */
 	public boolean openImageEntry(ProjectImageEntry<BufferedImage> entry) {
-		if (entry == null)
+		Project<BufferedImage> project = getProject();
+		if (entry == null || project == null)
 			return false;
 		
 		// Check if we're changing ImageData at all
 		var viewer = getViewer();
 		ImageData<BufferedImage> imageData = viewer.getImageData();
-		if (imageData != null && imageData.getServerPath().equals(entry.getServerPath()))
+		if (imageData != null && project.getEntry(imageData) == entry) {
 			return false;
+		}
+//		if (imageData != null && imageData.getServerPath().equals(entry.getServerPath()))
+//			return false;
 		
 		// Check to see if the ImageData is already open in another viewer - if so, just activate it
-		String path = entry.getServerPath();
+//		String path = entry.getServerPath();
 		for (QuPathViewerPlus v : viewerManager.getViewers()) {
-			ImageData<?> data = v.getImageData();
-			if (data != null && data.getServer().getPath().equals(path)) {
+			ImageData<BufferedImage> data = v.getImageData();
+			if (data != null && project.getEntry(data) == entry) {
+//			if (data != null && data.getServer().getPath().equals(path)) {
 				viewerManager.setActiveViewer(v);
 				return true;
 			}
 		}
 		
 		// If the current ImageData belongs to the current project, check if there are changes to save
-		Project<BufferedImage> project = getProject();
 		if (imageData != null && project != null) {
 			if (!checkSaveChanges(imageData))
 				return false;
@@ -2299,6 +2310,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 					var type = DisplayHelpers.estimateImageType(imageData.getServer(), imageRegionStore.getThumbnail(imageData.getServer(), 0, 0, true));
 					logger.info("Image type estimated to be {}", type);
 					imageData.setImageType(type);
+					imageData.setChanged(false); // Don't want to retain this as a change resulting in a prompt to save the data
 				} else if (PathPrefs.getPromptForImageType()) {
 					PathImageDetailsPanel.promptToSetImageType(imageData);
 				}
@@ -2401,10 +2413,20 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		String pathOld = null;
 		File fileBase = null;
 		if (server != null) {
-			pathOld = server.getPath();
-			try {
-				fileBase = new File(pathOld).getParentFile();
-			} catch (Exception e) {};
+			var uris = server.getURIs();
+			if (uris.size() == 1) {
+				var uri = uris.iterator().next();
+				pathOld = uri.toString();
+				try {
+					var path = GeneralTools.toPath(uri);
+					if (path != null)
+						fileBase = path.toFile().getParentFile();
+				} catch (Exception e) {};
+			}
+//			pathOld = server.getPath();
+//			try {
+//				fileBase = new File(pathOld).getParentFile();
+//			} catch (Exception e) {};
 		}
 		// Prompt for a path, if required
 		File fileNew = null;
@@ -2444,8 +2466,8 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 						return true;
 					}
 				} catch (Exception e) {
-					DisplayHelpers.showErrorMessage("Open project", "Could not open " + fileNew.getName() + " as a QuPath project");
-					logger.error("Error opening project", e);
+					DisplayHelpers.showErrorMessage("Open project", e);
+					logger.error("Error opening project " + fileNew.getAbsolutePath(), e);
 					return false;
 				}
 		}
@@ -2907,7 +2929,8 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 						getActionMenuItem(GUIActions.PROJECT_IMPORT_IMAGES),
 						getActionMenuItem(GUIActions.PROJECT_EXPORT_IMAGE_LIST),
 						null,
-						getActionMenuItem(GUIActions.PROJECT_METADATA)
+						getActionMenuItem(GUIActions.PROJECT_METADATA),
+						createCommandAction(new ProjectCheckUrisCommand(this), "Check project URIs")
 						),
 				menuRecent,
 				null,
@@ -3219,7 +3242,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		Menu menuClassifiers = createMenu(
 				"Classify",
 				createCommandAction(new LoadClassifierCommand(this), "Load classifier"),
-				createCommandAction(new SparseImageServerCommand(this), "Create training region image"),
+				createCommandAction(new SparseImageServerCommand(this), "Create sparse image from project"),
 				null);
 
 		addMenuItems(
@@ -3588,7 +3611,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		case OPEN_IMAGE:
 			return createCommandAction(new OpenCommand(this), "Open...", null, new KeyCodeCombination(KeyCode.O, KeyCombination.SHORTCUT_DOWN));
 		case OPEN_IMAGE_OR_URL:
-			return createCommandAction(new OpenCommand(this, true), "Open URL...", null, new KeyCodeCombination(KeyCode.O, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
+			return createCommandAction(new OpenCommand(this, true), "Open URI...", null, new KeyCodeCombination(KeyCode.O, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
 		case SAVE_DATA_AS:
 			return createCommandAction(new SerializeImageDataCommand(this, false), "Save As", null, new KeyCodeCombination(KeyCode.S, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));			
 		case SAVE_DATA:
@@ -4193,7 +4216,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		return stage;
 	}
 	
-	static class ToolBarComponent {
+	class ToolBarComponent {
 		
 		private double lastMagnification = Double.NaN;
 		
@@ -4208,6 +4231,8 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			labelMag.setMinWidth(60);
 			labelMag.setMaxWidth(60);
 			labelMag.setTextAlignment(TextAlignment.CENTER);
+			
+			labelMag.setOnMouseEntered(e -> refreshMagnificationTooltip());
 			
 			labelMag.setOnMouseClicked(e -> {
 
@@ -4378,6 +4403,19 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			toolbar.getItems().add(qupath.getActionButton(GUIActions.PREFERENCES, true));
 		}
 		
+		void refreshMagnificationTooltip() {
+			// Ensure we have the right tooltip for magnification
+			if (tooltipMag == null)
+				return;
+			var imageData = getImageData();
+			var mag = imageData == null ? null : imageData.getServer().getMetadata().getMagnification();
+			if (imageData == null)
+				tooltipMag.setText("Magnification");
+			else if (mag != null && !Double.isNaN(mag))
+				tooltipMag.setText("Display magnification - double-click to edit");
+			else
+				tooltipMag.setText("Display downsample value - double-click to edit");
+		}
 		
 		public void updateMagnificationDisplay(final QuPathViewer viewer) {
 			if (viewer == null || labelMag == null)
@@ -4481,16 +4519,6 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		
 		imageDataProperty.set(imageDataNew);
 		
-		// Ensure we have the right tooltip for magnification
-		if (toolbar != null && toolbar.tooltipMag != null) {
-			if (imageDataNew == null)
-				toolbar.tooltipMag.setText("Magnification");
-			else if (!Double.isNaN(imageDataNew.getServer().getMetadata().getMagnification()))
-				toolbar.tooltipMag.setText("Current magnification - double-click to edit");
-			else
-				toolbar.tooltipMag.setText("Current downsample value - double-click to edit");
-		}
-
 		// A bit awkward, this... but make sure the extended scripting helper static class knows what's happened
 		QPEx.setBatchImageData(imageDataNew);
 		
@@ -4499,6 +4527,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			listener.imageDataChanged(this, imageDataOld, imageDataNew);
 		}
 		
+//		refreshMagnificationTooltip();
 	}
 	
 	
@@ -4526,7 +4555,6 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		// Check if we want to save the current image; we could still veto the project change at this point
 		var viewer = getViewer();
 		var imageData = viewer.getImageData();
-		boolean addImageToProject = false;
 		if (imageData != null) {
 			ProjectImageEntry<BufferedImage> entry = getProjectImageEntry(imageData);
 			if (entry != null) {

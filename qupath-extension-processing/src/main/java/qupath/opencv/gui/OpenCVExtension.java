@@ -23,15 +23,10 @@
 
 package qupath.opencv.gui;
 
-import org.bytedeco.javacpp.PointerScope;
-import org.bytedeco.opencv.opencv_core.*;
-import org.bytedeco.opencv.opencv_ml.ANN_MLP;
-import org.bytedeco.opencv.opencv_ml.DTrees;
-import org.bytedeco.opencv.opencv_ml.KNearest;
-import org.bytedeco.opencv.opencv_ml.RTrees;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javafx.application.Platform;
 import javafx.scene.control.Menu;
 import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.input.KeyCode;
@@ -94,21 +89,23 @@ public class OpenCVExtension implements QuPathExtension {
 				QuPathGUI.createCommandAction(new OpenCvClassifierCommand(qupath), "Create detection classifier", null, new KeyCodeCombination(KeyCode.D, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN)));
 		
 		
-		// Add the Wand tool
-		logger.debug("Installing wand tool");
-		WandToolCV wandTool = new WandToolCV(qupath);
-		qupath.putToolForMode(Modes.WAND, wandTool);
+//		// Add the Wand tool
+//		logger.debug("Installing wand tool");
+//		Platform.runLater(() -> {
+//			WandToolCV wandTool = new WandToolCV(qupath);
+//			qupath.putToolForMode(Modes.WAND, wandTool);
+//		});
 	}
 	
 	private static void ensureClassesLoaded() {
 		logger.debug("Ensuring OpenCV classes are loaded");
-		try (var scope = new PointerScope(true)) {
-			var mat = new Mat();
-			Scalar.all(1.0);
-			RTrees.create();
-			ANN_MLP.create();
-			KNearest.create();
-			DTrees.create();
+		try (var scope = new org.bytedeco.javacpp.PointerScope(true)) {
+			var mat = new org.bytedeco.opencv.opencv_core.Mat();
+			org.bytedeco.opencv.opencv_core.Scalar.all(1.0);
+			org.bytedeco.opencv.opencv_ml.RTrees.create();
+			org.bytedeco.opencv.opencv_ml.ANN_MLP.create();
+			org.bytedeco.opencv.opencv_ml.KNearest.create();
+			org.bytedeco.opencv.opencv_ml.DTrees.create();
 			mat.close();
 		}
 	}
@@ -117,7 +114,16 @@ public class OpenCVExtension implements QuPathExtension {
 	@Override
 	public void installExtension(QuPathGUI qupath) {
 		// Can be annoying waiting a few seconds while classes are loaded later on
-		var t = new Thread(() -> ensureClassesLoaded());
+		var t = new Thread(() -> {
+			// Add the Wand tool in a background thread (as it is rather slow to load)
+			WandToolCV wandTool = new WandToolCV(qupath);
+			logger.debug("Installing wand tool");
+			Platform.runLater(() -> {
+				qupath.putToolForMode(Modes.WAND, wandTool);
+			});
+			logger.debug("Loading OpenCV classes");
+			ensureClassesLoaded();
+		});
 		t.setDaemon(true);
 		t.start();
 

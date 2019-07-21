@@ -28,22 +28,30 @@ import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 import java.io.File;
 import java.io.IOException;
+import java.net.URI;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
 import java.util.Locale.Category;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
 import javax.imageio.ImageIO;
 
+import org.controlsfx.control.MasterDetailPane;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javafx.beans.binding.Bindings;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.embed.swing.SwingFXUtils;
+import javafx.geometry.Side;
 import javafx.scene.Scene;
-import javafx.scene.control.Accordion;
 import javafx.scene.control.ListView;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuBar;
@@ -51,7 +59,6 @@ import javafx.scene.control.MenuItem;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
-import javafx.scene.control.TitledPane;
 import javafx.scene.control.Tooltip;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.image.Image;
@@ -81,6 +88,7 @@ import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.gui.helpers.dialogs.ParameterPanelFX;
 import qupath.lib.gui.panels.PathImageDetailsPanel.PathImageDetailsTableModel.ROW_TYPE;
+import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.ImageData.ImageType;
 import qupath.lib.images.servers.ImageServer;
@@ -117,8 +125,8 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 	private TableView<TableEntry> table = new TableView<>();
 	private ListView<String> listAssociatedImages = new ListView<>();
 
-	private TitledPane panelTable = new TitledPane("Properties", new StackPane(table));
-	private TitledPane panelAssociatedImages = new TitledPane("Associated images", new StackPane(listAssociatedImages));
+//	private TitledPane panelTable = new TitledPane("Properties", new StackPane(table));
+//	private TitledPane panelAssociatedImages = new TitledPane("Associated images", new StackPane(listAssociatedImages));
 	
 	private ImageData<BufferedImage> imageData;
 
@@ -126,7 +134,7 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 	public PathImageDetailsPanel(final QuPathGUI qupath) {
 		this.qupath = qupath;
 		qupath.addImageDataChangeListener(this);
-
+		
 		// Create the table
 		table.setMinHeight(200);
 		table.setPrefHeight(250);
@@ -186,9 +194,18 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 					} else {
 						// TODO: Support z-spacing
 						var type = model.getRowType(c.getIndex());
+						boolean metadataChanged = false;
 						if (type == ROW_TYPE.PIXEL_WIDTH ||
 								type == ROW_TYPE.PIXEL_HEIGHT) {
-							promptToSetPixelSize(imageData, false);
+							metadataChanged = promptToSetPixelSize(imageData, false);
+						} else if (type == ROW_TYPE.MAGNIFICATION) {
+							metadataChanged = promptToSetMagnification(imageData.getServer());
+						} else if (type == ROW_TYPE.METADATA_CHANGED) {
+							if (!hasOriginalMetadata(imageData.getServer())) {
+								metadataChanged = promptToResetServerMetadata(imageData.getServer());
+							}
+						}
+						if (metadataChanged) {
 							c.getTableView().refresh();
 							imageData.getHierarchy().fireHierarchyChangedEvent(this);
 						}
@@ -276,11 +293,58 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 			}
 		);
 		
-		Accordion accordion = new Accordion(panelTable, panelAssociatedImages);
-		accordion.setExpandedPane(panelTable);
-		pane.getChildren().add(accordion);
+		PathPrefs.maskImageNamesProperty().addListener((v, o, n) -> table.refresh());
+
+		MasterDetailPane mdPane = new MasterDetailPane(Side.BOTTOM);
+		mdPane.setMasterNode(new StackPane(table));
+		mdPane.setDetailNode(new StackPane(listAssociatedImages));
+		mdPane.showDetailNodeProperty().bind(
+				Bindings.createBooleanBinding(() -> !listAssociatedImages.getItems().isEmpty(),
+						listAssociatedImages.getItems()));
+		pane.getChildren().add(mdPane);
+//		Accordion accordion = new Accordion(panelTable, panelAssociatedImages);
+//		accordion.setExpandedPane(panelTable);
+//		pane.getChildren().add(accordion);
 	}
 	
+	
+	static boolean hasOriginalMetadata(ImageServer<BufferedImage> server) {
+		var metadata = server.getMetadata();
+		var originalMetadata = server.getOriginalMetadata();
+		return Objects.equals(metadata, originalMetadata);
+	}
+	
+	
+	static boolean promptToResetServerMetadata(ImageServer<BufferedImage> server) {
+		if (hasOriginalMetadata(server)) {
+			logger.info("ImageServer metadata is unchanged!");
+			return false;
+		}
+		var originalMetadata = server.getOriginalMetadata();
+		
+		if (DisplayHelpers.showConfirmDialog("Reset metadata", "Reset to original metadata?")) {
+			server.setMetadata(originalMetadata);
+			return true;
+		}
+		return false;
+	}
+	
+	
+	static boolean promptToSetMagnification(ImageServer<BufferedImage> server) {
+		Double mag = server.getMetadata().getMagnification();
+		if (mag != null && !Double.isFinite(mag))
+			mag = null;
+		Double mag2 = DisplayHelpers.showInputDialog("Set magnification", "Set magnification for full resolution image", mag);
+		if (mag2 == null || Objects.equals(mag, mag2))
+			return false;
+		if (!Double.isFinite(mag2) && mag == null)
+			return false;
+		var metadata2 = new ImageServerMetadata.Builder(server.getMetadata())
+			.magnification(mag2)
+			.build();
+		server.setMetadata(metadata2);
+		return true;
+	}
 	
 	static boolean promptToSetPixelSize(ImageData<BufferedImage> imageData, boolean requestZSpacing) {
 		var server = imageData.getServer();
@@ -375,7 +439,7 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 		else if (isFinite(pixelHeightMicrons) && !isFinite(pixelWidthMicrons))
 			pixelWidthMicrons = pixelHeightMicrons;
 		
-		var metadataNew = new ImageServerMetadata.Builder(server.getClass(), server.getMetadata())
+		var metadataNew = new ImageServerMetadata.Builder(server.getMetadata())
 			.pixelSizeMicrons(pixelWidthMicrons, pixelHeightMicrons)
 			.zSpacingMicrons(zSpacingMicrons)
 			.build();
@@ -592,7 +656,7 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 			list.add(new TableEntry(i));
 		table.setItems(list);
 		
-		if (panelAssociatedImages != null) {
+		if (listAssociatedImages != null) {
 			if (server == null)
 				listAssociatedImages.getItems().clear();
 			else
@@ -603,7 +667,7 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 //				panelAssociatedImages.setText("Associated images (empty)");
 //			else
 //				panelAssociatedImages.setText("Associated images (" + nAssociated + ")");
-			panelAssociatedImages.setText("Associated images (" + nAssociated + ")");
+//			panelAssociatedImages.setText("Associated images (" + nAssociated + ")");
 		}
 
 //		panelRelated.revalidate();
@@ -631,7 +695,7 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 		
 		private ImageData<BufferedImage> imageData;
 		
-		protected enum ROW_TYPE {NAME, PATH, IMAGE_TYPE, BIT_DEPTH, MAGNIFICATION, WIDTH, HEIGHT, DIMENSIONS, PIXEL_WIDTH, PIXEL_HEIGHT, SERVER_TYPE, PYRAMID};
+		protected enum ROW_TYPE {NAME, URI, BIT_DEPTH, MAGNIFICATION, WIDTH, HEIGHT, DIMENSIONS, PIXEL_WIDTH, PIXEL_HEIGHT, SERVER_TYPE, PYRAMID, METADATA_CHANGED, IMAGE_TYPE};
 
 //		protected enum ROW_TYPE {PATH, IMAGE_TYPE, MAGNIFICATION, WIDTH, HEIGHT, PIXEL_WIDTH, PIXEL_HEIGHT,
 //				CHANNEL_1, CHANNEL_1_STAIN, CHANNEL_2, CHANNEL_2_STAIN, CHANNEL_3, CHANNEL_3_STAIN
@@ -682,10 +746,14 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 			switch (rowType) {
 			case NAME:
 				return "Name";
-			case PATH:
-				return "Path";
+			case URI:
+				if (imageData != null && imageData.getServer().getURIs().size() == 1)
+					return "URI";
+				return "URIs";
 			case IMAGE_TYPE:
 				return "Image type";
+			case METADATA_CHANGED:
+				return "Metadata changed";
 			case BIT_DEPTH:
 				return "Bit depth";
 			case MAGNIFICATION:
@@ -709,6 +777,14 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 			}
 		}
 		
+		static String decodeURI(URI uri) {
+			try {
+				return URLDecoder.decode(uri.toString(), StandardCharsets.UTF_8);
+			} catch (Exception e) {
+				return uri.toString();
+			}
+		}
+		
 		private Object getValue(int row) {
 			ROW_TYPE rowType = getRowType(row);
 			if (rowType == null) {
@@ -726,15 +802,30 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 			PixelCalibration cal = server.getPixelCalibration();
 			switch (rowType) {
 			case NAME:
-				return ServerTools.getDisplayableImageName(server);
-			case PATH:
-				return server.getPath();
+				var project = QuPathGUI.getInstance().getProject();
+				var entry = project == null ? null : project.getEntry(imageData);
+				if (entry == null)
+					return ServerTools.getDisplayableImageName(server);
+				else
+					return entry.getImageName();
+			case URI:
+				Collection<URI> uris = server.getURIs();
+				if (uris.isEmpty())
+					return "Not available";
+				if (uris.size() == 1)
+					return decodeURI(uris.iterator().next());
+				return "[" + String.join(", ", uris.stream().map(PathImageDetailsTableModel::decodeURI).collect(Collectors.toList())) + "]";
 			case IMAGE_TYPE:
 				return imageData.getImageType();
+			case METADATA_CHANGED:
+				return hasOriginalMetadata(imageData.getServer()) ? "No" : "Yes";
 			case BIT_DEPTH:
 				return server.isRGB() ? "8-bit (RGB)" : server.getPixelType().bitsPerPixel();
 			case MAGNIFICATION:
-				return server.getMetadata().getMagnification();
+				double mag = server.getMetadata().getMagnification();
+				if (Double.isNaN(mag))
+					return "Unknown";
+				return mag;
 			case WIDTH:
 				if (cal.hasPixelSizeMicrons())
 					return String.format("%s px (%.2f %s)", server.getWidth(), server.getWidth() * cal.getPixelWidthMicrons(), GeneralTools.micrometerSymbol());

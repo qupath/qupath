@@ -4,10 +4,12 @@ import java.awt.image.BufferedImage;
 import java.awt.image.RasterOp;
 import java.awt.image.WritableRaster;
 import java.io.IOException;
+import java.util.UUID;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
 import qupath.lib.regions.RegionRequest;
 
 /**
@@ -36,6 +38,21 @@ class RasterOpImageServer extends TransformingImageServer<BufferedImage> {
 		this.op = op;
 	}
 	
+	/**
+	 * Returns null (does not support ServerBuilders).
+	 */
+	@Override
+	protected ServerBuilder<BufferedImage> createServerBuilder() {
+		return null;
+	}
+	
+	/**
+	 * Returns a UUID.
+	 */
+	@Override
+	protected String createID() {
+		return UUID.randomUUID().toString();
+	}
 	
 	@Override
 	public BufferedImage readBufferedImage(final RegionRequest request) throws IOException {

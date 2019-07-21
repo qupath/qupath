@@ -249,14 +249,32 @@ public class PixelCalibration {
 		return average(getPixelWidth(), getPixelHeight());
 	}
 	
+	/**
+	 * Get the numeric value representing the pixel width, in the stored units.
+	 * @return
+	 * 
+	 * @see #getPixelWidthUnit()
+	 */
 	public Number getPixelWidth() {
 		return pixelWidth.value;
 	}
 	
+	/**
+	 * Get the numeric value representing the pixel height, in the stored units.
+	 * @return
+	 * 
+	 * @see #getPixelHeightUnit()
+	 */
 	public Number getPixelHeight() {
 		return pixelHeight.value;
 	}
 	
+	/**
+	 * Get the numeric value representing the z-spacing, in the stored units.
+	 * @return
+	 * 
+	 * @see #getZSpacingUnit()
+	 */
 	public Number getZSpacing() {
 		return zSpacing.value;
 	}
@@ -269,7 +287,7 @@ public class PixelCalibration {
 	
 	static class SimpleQuantity {
 		
-		private Number value;
+		private Double value; // Note that we could use Number, but then this causes serialization complications with Gson
 		private String unit;
 		
 		private static SimpleQuantity DEFAULT_PIXEL_SIZE = new SimpleQuantity(1, PIXEL);
@@ -280,7 +298,7 @@ public class PixelCalibration {
 		}
 				
 		private SimpleQuantity(Number value, String unit) {
-			this.value = value;
+			this.value = value.doubleValue();
 			this.unit = unit;
 		}
 		
@@ -300,20 +318,68 @@ public class PixelCalibration {
 		private SimpleQuantity scale(double scale) {
 			return new SimpleQuantity(multiply(value, scale), unit);
 		}
+
+		@Override
+		public int hashCode() {
+			final int prime = 31;
+			int result = 1;
+			result = prime * result + ((unit == null) ? 0 : unit.hashCode());
+			result = prime * result + ((value == null) ? 0 : value.hashCode());
+			return result;
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			if (this == obj)
+				return true;
+			if (obj == null)
+				return false;
+			if (getClass() != obj.getClass())
+				return false;
+			SimpleQuantity other = (SimpleQuantity) obj;
+			if (unit == null) {
+				if (other.unit != null)
+					return false;
+			} else if (!unit.equals(other.unit))
+				return false;
+			if (value == null) {
+				if (other.value != null)
+					return false;
+			} else if (!value.equals(other.value))
+				return false;
+			return true;
+		}
+		
+		
 		
 	}
 	
-	
+	/**
+	 * Builder class for {@link PixelCalibration} objects.
+	 */
 	public static class Builder {
 		
 		PixelCalibration cal = new PixelCalibration();
 		
+		/**
+		 * Create a new builder with default (uncalibrated) values.
+		 */
 		public Builder() {}
 		
+		/**
+		 * Create a new builder, initialized values of an existing {@link PixelCalibration}.
+		 * @param cal
+		 */
 		public Builder(PixelCalibration cal) {
 			this.cal = cal.duplicate();
 		}
 		
+		/**
+		 * Specify the pixel width and height in microns (the most common calibration value).
+		 * @param pixelWidthMicrons
+		 * @param pixelHeightMicrons
+		 * @return
+		 */
 		public Builder pixelSizeMicrons(Number pixelWidthMicrons, Number pixelHeightMicrons) {
 			// Support resetting both pixel sizes to default
 			if ((pixelWidthMicrons == null || Double.isNaN(pixelWidthMicrons.doubleValue())) && 
@@ -335,12 +401,23 @@ public class PixelCalibration {
 			return this;
 		}
 		
+		/**
+		 * Specify timepoints and units.
+		 * @param timeUnit
+		 * @param timepoints
+		 * @return
+		 */
 		public Builder timepoints(TimeUnit timeUnit, double... timepoints) {
 			cal.timeUnit = timeUnit;
 			cal.timepoints = timepoints.clone();
 			return this;
 		}
 				
+		/**
+		 * Specify spacing between z-slices, in microns.
+		 * @param zSpacingMicrons
+		 * @return
+		 */
 		public Builder zSpacingMicrons(Number zSpacingMicrons) {
 			if (zSpacingMicrons == null || Double.isNaN(zSpacingMicrons.doubleValue())) {
 				cal.zSpacing = SimpleQuantity.DEFAULT_Z_SPACING;
@@ -354,6 +431,10 @@ public class PixelCalibration {
 			return this;
 		}
 		
+		/**
+		 * Build {@link PixelCalibration} object.
+		 * @return
+		 */
 		public PixelCalibration build() {
 			return cal;
 		}

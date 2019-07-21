@@ -1,4 +1,46 @@
+## Version 0.2.0-m3
+This is a *milestone* (i.e. still in development) version made available to try out new features early!
+Changes include:
+* Completely revised projects
+  * New image importer, supports drag & drop for multiple images
+  * Specify image rotation on import
+  * Automatically check URIs when opening projects, attempt to resolve relative paths
+  * Fix broken paths through the user interface (rather than editing the .qpproj file manually)
+  * Use the same image reader each time (e.g. OpenSlide, Bio-Formats)
+  * Right-click in the project pane to add metadata for one or more selected images
+  * Store custom server metadata (double-click pixel sizes under the 'Image' tab to fix them)
+  * Add support for more complex images via ServerBuilders (useful in the future...)
+  * Adjust project pane thumbnail size in preferences
+  * Allow duplicate images in projects
+* Viewer updates
+  * Improved touch gesture support
+  * New, perceptually uniform color tables for measurement maps
+  * Fixed bug with right-click being unresponsive on some Mac laptops
+  * Smoother Brush tool behavior
+  * Wand tool now pressure-sensitive (for supported graphics tablets only)
+* Revised pixel classifier features
+  * New Hessian features
+  * New 3D support
+* Improved JSON serialization, via GsonTools class
+  * ROIs and PathObjects as GeoJSON
+  * Most ImageServers (via ServerBuilders)
+  * Common OpenCV classes (Mat, StatModel)
+* Bio-Formats updates
+  * Update library to v6.2.0
+  * Improved multithreading and OME-TIFF export
+  * Avoid creating .bfmemo files in image directories (specify in preferences if/where you want them)
+* Miscellaneous changes
+  * Updated to JDK 12.0.2
+  * Default max memory to 50% available (previously 25%)
+  * New .msi installer for Windows, optional 'debug' startup with console
+  * Improved 'Send to ImageJ' command, supports z-stacks & extra customization
+  * Major refactoring (warning, older scripts may not work!)
+  * Added many javadocs for core modules
+  
+
+
 ## Version 0.2.0-m2
+This is a *milestone* (i.e. still in development) version made available to try out new features early
 * Re-written 'Expand annotations' to use Java Topology Suite
 * New experimental 'Distance to annotations' command (a work in progress!)
 * 'Rotate annotation' now clips to image bounds
@@ -11,7 +53,7 @@
 
 
 ## Version 0.2.0-m1
-* This is a *milestone* (i.e. still in development) version made available to try out new features early
+This is a *milestone* (i.e. still in development) version made available to try out new features early
 * Highlights include:
   * All-new pixel classifier!
   * Multichannel viewer

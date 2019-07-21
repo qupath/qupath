@@ -21,6 +21,8 @@ import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.TransformingImageServer;
+import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
+import qupath.lib.io.GsonTools;
 import qupath.lib.regions.RegionRequest;
 
 /**
@@ -44,15 +46,26 @@ public class ChannelDisplayTransformServer extends TransformingImageServer<Buffe
 		return new ChannelDisplayTransformServer(server, channels);
 	}
 	
+	/**
+	 * Returns null (does not support ServerBuilders).
+	 */
+	@Override
+	protected ServerBuilder<BufferedImage> createServerBuilder() {
+		return null;
+	}
 
 	private ChannelDisplayTransformServer(ImageServer<BufferedImage> server, List<ChannelDisplayInfo> channels) {
 		super(server);
 		this.channels = channels;
 				
-		this.metadata = new ImageServerMetadata.Builder(getClass(), server.getMetadata())
-				.id(UUID.randomUUID().toString())
+		this.metadata = new ImageServerMetadata.Builder(server.getMetadata())
 				.channels(channels.stream().map(c -> ImageChannel.getInstance(c.getName(), c.getColor())).collect(Collectors.toList()))
 				.build();
+	}
+	
+	@Override
+	protected String createID() {
+		return getClass().getName() + ": + " + getWrappedServer().getPath() + " " + GsonTools.getInstance().toJson(channels);
 	}
 	
 	@Override

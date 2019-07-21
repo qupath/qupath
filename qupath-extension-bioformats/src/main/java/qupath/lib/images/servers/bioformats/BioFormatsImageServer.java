@@ -46,6 +46,8 @@ import java.nio.ByteOrder;
 import java.nio.DoubleBuffer;
 import java.nio.FloatBuffer;
 import java.nio.ShortBuffer;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -55,6 +57,8 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.WeakHashMap;
 import java.util.concurrent.TimeUnit;
 import javax.imageio.ImageIO;
 
@@ -90,6 +94,7 @@ import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.ImageServerMetadata.ImageResolutionLevel;
 import qupath.lib.images.servers.PixelType;
 import qupath.lib.images.servers.TileRequest;
+import qupath.lib.images.servers.bioformats.BioFormatsImageServer.BioFormatsReaderManager.LocalReaderWrapper;
 
 /**
  * QuPath ImageServer that uses the Bio-Formats library to read image data.
@@ -191,7 +196,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 	/**
 	 * Primary reader for the current server.
 	 */
-	private IFormatReader reader;
+	private LocalReaderWrapper readerWrapper;
 	
 	/**
 	 * Primary metadata store.
@@ -280,8 +285,9 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 		filePath = new File(uri.getPath()).getAbsolutePath();
 
 		// Create a reader & extract the metadata
-		meta = new OMEPyramidStore();
-		reader = manager.createPrimaryReader(options, filePath, meta);
+		readerWrapper = manager.getPrimaryReaderWrapper(options, filePath);
+		IFormatReader reader = readerWrapper.getReader();
+		meta = (OMEPyramidStore)reader.getMetadataStore();
 
 		// Populate the image server list if we have more than one image
 		int largestSeries = -1;
@@ -292,107 +298,101 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 		// If we have more than one series, we need to construct maps of 'analyzable' & associated images
 		synchronized(reader) {
 			int nImages = meta.getImageCount();
-			if (nImages > 1) {
-				imageMap = new LinkedHashMap<>(nImages);
-				associatedImageMap = new LinkedHashMap<>(nImages);
+			imageMap = new LinkedHashMap<>(nImages);
+			associatedImageMap = new LinkedHashMap<>(nImages);
 
-				// Loop through series to find out whether we have multiresolution images, or associated images (e.g. thumbnails)
-				for (int s = 0; s < nImages; s++) {
-					String name = "Series " + s;
-					String originalImageName = meta.getImageName(s);
-					if (originalImageName == null)
-						originalImageName = "";
-					String imageName = originalImageName;
-					try {
-						if (!imageName.isEmpty())
-							name += " (" + imageName + ")";
+			// Loop through series to find out whether we have multiresolution images, or associated images (e.g. thumbnails)
+			for (int s = 0; s < nImages; s++) {
+				String name = "Series " + s;
+				String originalImageName = meta.getImageName(s);
+				if (originalImageName == null)
+					originalImageName = "";
+				String imageName = originalImageName;
+				try {
+					if (!imageName.isEmpty())
+						name += " (" + imageName + ")";
 
-						// Set this to be the series, if necessary
-						long sizeX = meta.getPixelsSizeX(s).getNumberValue().longValue();
-						long sizeY = meta.getPixelsSizeY(s).getNumberValue().longValue();
-						long sizeC = meta.getPixelsSizeC(s).getNumberValue().longValue();
-						long sizeZ = meta.getPixelsSizeZ(s).getNumberValue().longValue();
-						long sizeT = meta.getPixelsSizeT(s).getNumberValue().longValue();
+					// Set this to be the series, if necessary
+					long sizeX = meta.getPixelsSizeX(s).getNumberValue().longValue();
+					long sizeY = meta.getPixelsSizeY(s).getNumberValue().longValue();
+					long sizeC = meta.getPixelsSizeC(s).getNumberValue().longValue();
+					long sizeZ = meta.getPixelsSizeZ(s).getNumberValue().longValue();
+					long sizeT = meta.getPixelsSizeT(s).getNumberValue().longValue();
 
-						// Check the resolutions
-						//						int nResolutions = meta.getResolutionCount(s);
-						//						for (int r = 1; r < nResolutions; r++) {
-						//							int sizeXR = meta.getResolutionSizeX(s, r).getValue();
-						//							int sizeYR = meta.getResolutionSizeY(s, r).getValue();
-						//							if (sizeXR <= 0 || sizeYR <= 0 || sizeXR > sizeX || sizeYR > sizeY)
-						//								throw new IllegalArgumentException("Resolution " + r + " size " + sizeXR + " x " + sizeYR + " invalid!");
-						//						}
-						// It seems we can't get the resolutions from the metadata object... instead we need to set the series of the reader
-						reader.setSeries(s);
-						assert reader.getSizeX() == sizeX;
-						assert reader.getSizeY() == sizeY;
-						int nResolutions = reader.getResolutionCount();
-						for (int r = 1; r < nResolutions; r++) {
-							reader.setResolution(r);
-							int sizeXR = reader.getSizeX();
-							int sizeYR = reader.getSizeY();
-							if (sizeXR <= 0 || sizeYR <= 0 || sizeXR > sizeX || sizeYR > sizeY)
-								throw new IllegalArgumentException("Resolution " + r + " size " + sizeXR + " x " + sizeYR + " invalid!");
-						}
-
-						// If we got this far, we have an image we can add
-						if (reader.getResolutionCount() == 1 && (
-								extraImageNames.contains(originalImageName.toLowerCase()) || extraImageNames.contains(name.toLowerCase().trim()))) {
-							logger.debug("Adding associated image {} (thumbnail={})", name, reader.isThumbnailSeries());
-							associatedImageMap.put(name, s);
-						} else {
-							if (imageMap.containsKey(name))
-								logger.warn("Duplicate image called {} - only the first will be used", name);
-							else {
-								if (firstSeries < 0) {
-									firstSeries = s;
-									firstPixels = sizeX * sizeY * sizeZ * sizeT;
-								}
-								imageMap.put(name, DefaultImageServerBuilder.createInstance(BioFormatsServerBuilder.class, null, uri, "--series", Integer.toString(s)));
-							}
-						}
-
-						if (seriesIndex < 0) {
-							if (requestedSeriesName == null) {
-								long nPixels = sizeX * sizeY * sizeZ * sizeT;
-								if (nPixels > mostPixels) {
-									largestSeries = s;
-									mostPixels = nPixels;
-								}
-							} else if (requestedSeriesName.equals(name) || requestedSeriesName.equals(meta.getImageName(s))) {
-								seriesIndex = s;
-							}
-						}
-						logger.debug("Found image '{}', size: {} x {} x {} x {} x {} (xyczt)", imageName, sizeX, sizeY, sizeC, sizeZ, sizeT);
-					} catch (Exception e) {
-						// We don't want to log this prominently if we're requesting a different series anyway
-						if ((seriesIndex < 0 || seriesIndex == s) && (requestedSeriesName == null || requestedSeriesName.equals(imageName)))
-							logger.warn("Error attempting to read series " + s + " (" + imageName + ") - will be skipped", e);
-						else
-							logger.trace("Error attempting to read series " + s + " (" + imageName + ") - will be skipped", e);
+					// Check the resolutions
+					//						int nResolutions = meta.getResolutionCount(s);
+					//						for (int r = 1; r < nResolutions; r++) {
+					//							int sizeXR = meta.getResolutionSizeX(s, r).getValue();
+					//							int sizeYR = meta.getResolutionSizeY(s, r).getValue();
+					//							if (sizeXR <= 0 || sizeYR <= 0 || sizeXR > sizeX || sizeYR > sizeY)
+					//								throw new IllegalArgumentException("Resolution " + r + " size " + sizeXR + " x " + sizeYR + " invalid!");
+					//						}
+					// It seems we can't get the resolutions from the metadata object... instead we need to set the series of the reader
+					reader.setSeries(s);
+					assert reader.getSizeX() == sizeX;
+					assert reader.getSizeY() == sizeY;
+					int nResolutions = reader.getResolutionCount();
+					for (int r = 1; r < nResolutions; r++) {
+						reader.setResolution(r);
+						int sizeXR = reader.getSizeX();
+						int sizeYR = reader.getSizeY();
+						if (sizeXR <= 0 || sizeYR <= 0 || sizeXR > sizeX || sizeYR > sizeY)
+							throw new IllegalArgumentException("Resolution " + r + " size " + sizeXR + " x " + sizeYR + " invalid!");
 					}
-				}
 
-				// If we have just one image in the image list, then reset to none - we can't switch
-				if (imageMap.size() == 1 && seriesIndex < 0) {
-					seriesIndex = firstSeries;
-					imageMap.clear();
-				} else if (imageMap.size() > 1) {
-					// Set default series index, if we need to
+					// If we got this far, we have an image we can add
+					if (reader.getResolutionCount() == 1 && (
+							extraImageNames.contains(originalImageName.toLowerCase()) || extraImageNames.contains(name.toLowerCase().trim()))) {
+						logger.debug("Adding associated image {} (thumbnail={})", name, reader.isThumbnailSeries());
+						associatedImageMap.put(name, s);
+					} else {
+						if (imageMap.containsKey(name))
+							logger.warn("Duplicate image called {} - only the first will be used", name);
+						else {
+							if (firstSeries < 0) {
+								firstSeries = s;
+								firstPixels = sizeX * sizeY * sizeZ * sizeT;
+							}
+							imageMap.put(name, DefaultImageServerBuilder.createInstance(BioFormatsServerBuilder.class, null, uri, "--series", Integer.toString(s)));
+						}
+					}
+
 					if (seriesIndex < 0) {
-						// Choose the first series unless it is substantially smaller than the largest series (e.g. it's a label or macro image)
-						if (mostPixels > firstPixels * 4L)
-							seriesIndex = largestSeries; // imageMap.values().iterator().next();
-						else
-							seriesIndex = firstSeries;
+						if (requestedSeriesName == null) {
+							long nPixels = sizeX * sizeY * sizeZ * sizeT;
+							if (nPixels > mostPixels) {
+								largestSeries = s;
+								mostPixels = nPixels;
+							}
+						} else if (requestedSeriesName.equals(name) || requestedSeriesName.equals(meta.getImageName(s))) {
+							seriesIndex = s;
+						}
 					}
-					// If we have more than one image, ensure that we have the image name correctly encoded in the path
-					uri = new URI(uri.getScheme(), uri.getHost(), uri.getPath(), Integer.toString(seriesIndex));
+					logger.debug("Found image '{}', size: {} x {} x {} x {} x {} (xyczt)", imageName, sizeX, sizeY, sizeC, sizeZ, sizeT);
+				} catch (Exception e) {
+					// We don't want to log this prominently if we're requesting a different series anyway
+					if ((seriesIndex < 0 || seriesIndex == s) && (requestedSeriesName == null || requestedSeriesName.equals(imageName)))
+						logger.warn("Error attempting to read series " + s + " (" + imageName + ") - will be skipped", e);
+					else
+						logger.trace("Error attempting to read series " + s + " (" + imageName + ") - will be skipped", e);
 				}
-			} else {
-				if (seriesIndex < 0)
-					seriesIndex = 0;
-				imageMap = Collections.emptyMap();
+			}
+
+			// If we have just one image in the image list, then reset to none - we can't switch
+			if (imageMap.size() == 1 && seriesIndex < 0) {
+				seriesIndex = firstSeries;
+//					imageMap.clear();
+			} else if (imageMap.size() > 1) {
+				// Set default series index, if we need to
+				if (seriesIndex < 0) {
+					// Choose the first series unless it is substantially smaller than the largest series (e.g. it's a label or macro image)
+					if (mostPixels > firstPixels * 4L)
+						seriesIndex = largestSeries; // imageMap.values().iterator().next();
+					else
+						seriesIndex = firstSeries;
+				}
+				// If we have more than one image, ensure that we have the image name correctly encoded in the path
+				uri = new URI(uri.getScheme(), uri.getHost(), uri.getPath(), Integer.toString(seriesIndex));
 			}
 
 			if (seriesIndex < 0)
@@ -637,18 +637,11 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 				imageName = imageName + " - " + shortName;
 
 			this.args = args;
-
-//			String path = String.format("%s [series=%d]", uri.toString(), series);
-			String id = uri.toString() + " (Bio-Formats)";
-			if (args.length > 0) {
-				id += "[" + String.join(", ", args) + "]";
-			}
 			
 			// Set metadata
 			ImageServerMetadata.Builder builder = new ImageServerMetadata.Builder(
 					getClass(), path, width, height).
 //					args(args).
-					id(id).
 					name(imageName).
 					channels(channels).
 					sizeZ(nZSlices).
@@ -683,12 +676,25 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 		logger.debug(String.format("Initialization time: %d ms", endTime-startTime));
 	}
 	
+	@Override
+	public Collection<URI> getURIs() {
+		return Collections.singletonList(uri);
+	}
+	
+	@Override
+	public String createID() {
+		String id = getClass().getSimpleName() + ": " + uri.toString();
+		if (args.length > 0) {
+			id += "[" + String.join(", ", args) + "]";
+		}
+		return id;
+	}
 	
 	/**
 	 * Returns a builder capable of creating a server like this one.
 	 */
 	@Override
-	public ServerBuilder<BufferedImage> getBuilder() {
+	protected ServerBuilder<BufferedImage> createServerBuilder() {
 		return DefaultImageServerBuilder.createInstance(BioFormatsServerBuilder.class, getMetadata(), uri, args);
 	}
 	
@@ -723,7 +729,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 	 */
 	private IFormatReader getReader() {
 		try {
-			return willParallelize() ? manager.getReaderForThread(options, filePath) : reader;
+			return willParallelize() ? manager.getReaderForThread(options, filePath) : readerWrapper.getReader();
 		} catch (Exception e) {
 			logger.error("Error requesting image reader", e);
 			return null;
@@ -875,7 +881,6 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 	@Override
 	public synchronized void close() throws Exception {
 		super.close();
-		reader.close(false);
 	}
 
 	@Override
@@ -1030,6 +1035,21 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 		private static Map<String, Long> memoizationSizeMap = new HashMap<>();
 		
 		/**
+		 * Temporary directory for storing memoization files
+		 */
+		private static File dirMemoTemp = null;
+		
+		/**
+		 * A set of primary readers, to avoid needing to regenerate these for all servers.
+		 */
+		private static Set<LocalReaderWrapper> primaryReaders = Collections.newSetFromMap(new WeakHashMap<>());
+		
+		/**
+		 * Set of created temp memo files
+		 */
+		private static Set<File> tempMemoFiles = new HashSet<>();
+		
+		/**
 		 * Request a IFormatReader for a specified path that is unique for the calling thread.
 		 * <p>
 		 * Note that the state of the reader is not specified; setSeries should be called before use.
@@ -1059,15 +1079,22 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 			reader = createReader(options, path, null);
 			
 			// Store wrapped reference with associated cleaner
-			wrapper = new LocalReaderWrapper(reader);
-			logger.debug("Constructing reader for {}", Thread.currentThread());
-			cleaner.register(
-					wrapper,
-					new ReaderCleaner(Thread.currentThread().toString(), reader));
+			wrapper = wrapReader(reader);
 			localReader.set(wrapper);
 			
 			return reader;
 		}
+		
+		
+		private static LocalReaderWrapper wrapReader(IFormatReader reader) {
+			LocalReaderWrapper wrapper = new LocalReaderWrapper(reader);
+			logger.debug("Constructing reader for {}", Thread.currentThread());
+			cleaner.register(
+					wrapper,
+					new ReaderCleaner(Thread.currentThread().toString(), reader));
+			return wrapper;
+		}
+		
 		
 		/**
 		 * Request a IFormatReader for the specified path.
@@ -1087,6 +1114,28 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 		 */
 		synchronized IFormatReader createPrimaryReader(final BioFormatsServerOptions options, final String path, IMetadata metadata) throws DependencyException, ServiceException, FormatException, IOException {
 			return createReader(options, path, metadata == null ? MetadataTools.createOMEXMLMetadata() : metadata);
+		}
+		
+		
+		/**
+		 * Get a wrapper for the primary reader for a particular path. This can be reused across ImageServers, but 
+		 * one must be careful to synchronize the actual use of the reader.
+		 * @param options
+		 * @param path
+		 * @return
+		 * @throws DependencyException
+		 * @throws ServiceException
+		 * @throws FormatException
+		 * @throws IOException
+		 */
+		synchronized LocalReaderWrapper getPrimaryReaderWrapper(final BioFormatsServerOptions options, final String path) throws DependencyException, ServiceException, FormatException, IOException {
+			for (LocalReaderWrapper wrapper : primaryReaders) {
+				if (path.equals(wrapper.getReader().getCurrentFile()))
+					return wrapper;
+			}
+			LocalReaderWrapper wrapper = wrapReader(createPrimaryReader(options, path, null));
+			primaryReaders.add(wrapper);
+			return wrapper;
 		}
 		
 		
@@ -1138,19 +1187,37 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 			
 			Memoizer memoizer = null;
 			int memoizationTimeMillis = options.getMemoizationTimeMillis();
+			File dir = null;
 			if (memoizationTimeMillis >= 0) {
+				// Try to use a specified directory
 				String pathMemoization = options.getPathMemoization();
 				if (pathMemoization != null && !pathMemoization.trim().isEmpty()) {
-					File dir = new File(pathMemoization);
-					if (dir.isDirectory())
-						memoizer = new Memoizer(imageReader, memoizationTimeMillis, dir);
-					else {
-						logger.warn("Memoization directory '{}' not found - will default to image directory", pathMemoization);
-						memoizer = new Memoizer(imageReader, memoizationTimeMillis);
+					dir = new File(pathMemoization);
+					if (!dir.isDirectory()) {
+						logger.warn("Memoization path does not refer to a valid directory, will be ignored: {}", dir.getAbsolutePath());
+						dir = null;
 					}
-				} else
-					memoizer = new Memoizer(imageReader, memoizationTimeMillis);
-				imageReader = memoizer;
+				}
+				if (dir == null) {
+					if (dirMemoTemp == null) {
+						Path path = Files.createTempDirectory("qupath-memo-");
+						dirMemoTemp = path.toFile();
+						Runtime.getRuntime().addShutdownHook(new Thread() {
+							@Override
+							public void run() {
+								deleteTempMemoFiles();
+							}
+						});
+//						path.toFile().deleteOnExit(); // Won't work recursively!
+						logger.warn("Temp memoization directory created at {}", dirMemoTemp);
+						logger.warn("If you want to avoid this warning, either disable Bio-Formats memoization in the preferences or specify a directory to use");
+					}
+					dir = dirMemoTemp;
+				}
+				if (dir != null) {
+					memoizer = new Memoizer(imageReader, memoizationTimeMillis, dir);
+					imageReader = memoizer;
+				}
 			}
 			
 			if (store != null) {
@@ -1162,6 +1229,10 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 			if (id != null) {
 				if (memoizer != null) {
 					File fileMemo = ((Memoizer)imageReader).getMemoFile(id);
+					// If we're using a temporary directory, delete the memo file
+					if (dir == dirMemoTemp)
+						tempMemoFiles.add(fileMemo);
+					
 					long memoizationFileSize = fileMemo == null ? 0L : fileMemo.length();
 					boolean memoFileExists = fileMemo != null && fileMemo.exists();
 					try {
@@ -1193,6 +1264,63 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 			}
 			return imageReader;
 		}
+		
+		/**
+		 * Delete any memoization files registered as being temporary, and also the 
+		 * temporary memoization directory (if it exists).
+		 * Note that this acts both recursively and rather conservatively, stopping if a file is 
+		 * encountered that is not expected.
+		 */
+		private static void deleteTempMemoFiles() {
+			for (File f : tempMemoFiles) {
+				// Be extra-careful not to delete too much...
+				if (!f.exists())
+					continue;
+				if (!f.isFile() || !f.getName().endsWith(".bfmemo")) {
+					logger.warn("Unexpected memoization file, will not delete {}", f.getAbsolutePath());
+					return;
+				}
+				if (f.delete())
+					logger.debug("Deleted temp memoization file {}", f.getAbsolutePath());
+				else
+					logger.warn("Could not delete temp memoization file {}", f.getAbsolutePath());
+			}
+			if (dirMemoTemp == null)
+				return;
+			deleteEmptyDirectories(dirMemoTemp);
+		}
+		
+		/**
+		 * Delete a directory and all sub-directories, assuming each contains only empty directories.
+		 * This is applied recursively, stopping at the first failure (i.e. any directory containing files).
+		 * @param dir
+		 * @return
+		 */
+		private static boolean deleteEmptyDirectories(File dir) {
+			if (!dir.isDirectory())
+				return false;
+			int nFiles = 0;
+			for (File f : dir.listFiles()) {
+				if (f.isDirectory()) {
+					if (!deleteEmptyDirectories(f))
+						return false;
+				} else if (f.isFile())
+					nFiles++;
+			}
+			if (nFiles == 0) {
+				if (dir.delete()) {
+					logger.debug("Deleting empty memoization directory {}", dir.getAbsolutePath());
+					return true;
+				} else {
+					logger.warn("Could not delete temp memoization directory {}", dir.getAbsolutePath());
+					return false;
+				}
+			} else {
+				logger.warn("Temp memoization directory contains files, will not delete {}", dir.getAbsolutePath());
+				return false;
+			}
+		}
+		
 		
 		/**
 		 * Simple wrapper for a reader to help with cleanup.

@@ -2,6 +2,7 @@ package qupath.lib.images.servers;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.Collection;
 import java.util.List;
 
 import com.google.gson.annotations.JsonAdapter;
@@ -34,6 +35,11 @@ class SimpleWrappedImageServer<T> implements ImageServer<T> {
 	 */
 	protected ImageServer<T> getWrappedServer() {
 		return server;
+	}
+	
+	@Override
+	public Collection<URI> getURIs() {
+		return server.getURIs();
 	}
 
 	@Override
