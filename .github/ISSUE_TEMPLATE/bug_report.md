@@ -1,21 +1,28 @@
 ---
 name: Bug report
-about: Create a report to help us improve
+about: Report a bug in QuPath
 title: ''
 labels: bug
 assignees: ''
 
 ---
 
+## IMPORTANT!
+
+**This is only for bug reports - for questions or discussions, please use the forum at [image.sc](https://forum.image.sc/tags/qupath) instead**
+
+## Before we begin...
+
 **You've checked https://qupath.github.io for a new release that might already have fixed the issue, right?**
 
 **And you've searched for related issues here to see if the issues has already been reported?**
 
-Good, then please fill in the template about the bug...
+If not, please do these things first.
 
-> For general questions about the software (not bugs) use [image.sc](https://forum.image.sc/tags/qupath)
+Otherwise, please fill in the template below with as much information as possible to help us reproduce the bug & fix it.
 
-----
+
+## Bug report
 
 **Describe the bug**
 A clear and concise description of what the bug is.
