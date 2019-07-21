@@ -350,11 +350,6 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 	}
 
 	@Override
-	public String getDisplayedImageName() {
-		return imp.getTitle();
-	}
-
-	@Override
 	public ImageServerMetadata getOriginalMetadata() {
 		return originalMetadata;
 	}

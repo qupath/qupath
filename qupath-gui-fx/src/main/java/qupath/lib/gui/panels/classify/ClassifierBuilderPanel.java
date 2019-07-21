@@ -96,7 +96,6 @@ import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.gui.helpers.dialogs.ParameterPanelFX;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.images.ImageData;
-import qupath.lib.images.servers.ServerTools;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.classes.PathClass;
@@ -1725,7 +1724,8 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 		
 		// Create columns
 		TableColumn<String, String> colName = new TableColumn<>("Image");
-		colName.setCellValueFactory(column -> new ReadOnlyObjectWrapper<>(ServerTools.getDefaultShortServerName(column.getValue())));
+		colName.setCellValueFactory(column -> new ReadOnlyObjectWrapper<>(column.getValue()));
+//		colName.setCellValueFactory(column -> new ReadOnlyObjectWrapper<>(ServerTools.getDefaultShortServerName(column.getValue())));
 		colName.setPrefWidth(240);
 		
 		table.getColumns().add(colName);

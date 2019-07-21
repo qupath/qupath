@@ -65,7 +65,7 @@ public class ImageJServerBuilder implements ImageServerBuilder<BufferedImage> {
 		
 		ImageCheckType type = FileFormatInfo.checkType(uri);
 		String description = type.getDescription();
-		if (description != null && description.contains("imagej"))
+		if (description != null && description.toLowerCase().contains("imagej="))
 			return 4;
 		
 		if (type.isURL())

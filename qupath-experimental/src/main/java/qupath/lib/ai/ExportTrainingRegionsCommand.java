@@ -65,6 +65,7 @@ import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.ServerTools;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClass;
@@ -563,7 +564,7 @@ public class ExportTrainingRegionsCommand implements PathCommand {
 
 			    // Write images
 			    String name = String.format("%s-(%.2f,%d,%d,%d,%d)",
-			            server.getShortServerName(),
+			    		ServerTools.getDisplayableImageName(server),
 			            request.getDownsample(), request.getX(), request.getY(), request.getWidth(), request.getHeight());
 
 			    // Set color model

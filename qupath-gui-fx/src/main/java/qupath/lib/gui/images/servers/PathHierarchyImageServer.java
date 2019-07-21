@@ -141,11 +141,6 @@ public class PathHierarchyImageServer extends AbstractTileableImageServer implem
 		return prefix + server.getPath();
 	}
 
-	@Override
-	public String getShortServerName() {
-		return prefix + server.getShortServerName();
-	}
-	
 	private Collection<PathObject> getObjectsToPaint(RegionRequest request) {
 //		Rectangle region = request.getBounds();
 		return hierarchy.getObjectsForRegion(PathDetectionObject.class, request, null);

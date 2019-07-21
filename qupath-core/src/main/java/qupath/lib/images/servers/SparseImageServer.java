@@ -48,6 +48,7 @@ public class SparseImageServer extends AbstractTileableImageServer {
 	
 	private transient ColorModel colorModel;
 	
+	private int originZ = 0, originT = 0;
 	private int originX = 0, originY = 0;
 	
 	SparseImageServer(List<SparseImageServerManagerRegion> regions, String path) throws IOException {
@@ -71,6 +72,11 @@ public class SparseImageServer extends AbstractTileableImageServer {
 		
 		List<String> paths = new ArrayList<>();
 		
+		int minZ = Integer.MAX_VALUE;
+		int maxZ = -Integer.MAX_VALUE;
+		int minT = Integer.MAX_VALUE;
+		int maxT = -Integer.MAX_VALUE;
+		
 		for (ImageRegion region: manager.getRegions()) {
 			if (region.getX() < x1)
 				x1 = region.getX();
@@ -80,6 +86,17 @@ public class SparseImageServer extends AbstractTileableImageServer {
 				x2 = region.getX() + region.getWidth();
 			if (region.getY() + region.getHeight() > y2)
 				y2 = region.getY() + region.getHeight();
+			
+			System.err.println(region);
+			if (region.getZ() < minZ)
+				minZ = region.getZ();
+			if (region.getZ() > maxZ)
+				maxZ = region.getZ();
+			
+			if (region.getT() < minT)
+				minT = region.getT();
+			if (region.getT() > maxT)
+				maxT = region.getT();
 
 			ImageServer<BufferedImage> server = null;
 			
@@ -106,11 +123,15 @@ public class SparseImageServer extends AbstractTileableImageServer {
 		originY = y1;
 		int width = x2 - x1;
 		int height = y2 - y1;
+		originZ = minZ;
+		originT = minT;
 		
 		this.metadata = new ImageServerMetadata.Builder(metadata)
 //				.id(path)
 //				.id(UUID.randomUUID().toString())
 				.name("Sparse image (" + manager.getRegions().size() + " regions)")
+				.sizeZ(maxZ - minZ + 1) // TODO: Handle non-zero bases for z-stacks
+				.sizeT(maxT - minT + 1) // TODO: Handle non-zero bases for time points
 				.width(width)
 				.height(height)
 				.preferredTileSize(1024, 1024)
@@ -174,6 +195,11 @@ public class SparseImageServer extends AbstractTileableImageServer {
 		WritableRaster raster = null;
 		
 		for (ImageRegion subRegion : manager.getRegions()) {
+			
+			if (subRegion.getZ() != tileRequest.getZ() + originZ ||
+					subRegion.getT() != tileRequest.getT() + originT)
+				continue;
+			
 			double downsample = tileRequest.getRegionRequest().getDownsample();
 			if (subRegion.intersects(tileRequest.getImageX() + originX, tileRequest.getImageY() + originY, tileRequest.getImageWidth(), tileRequest.getImageHeight())) {
 				// If we overlap, request the overlapping portion
@@ -204,7 +230,7 @@ public class SparseImageServer extends AbstractTileableImageServer {
 				
 				RegionRequest requestTemp = RegionRequest.createInstance(
 						serverTemp.getPath(), requestDownsample,
-						xr, yr, xr2-xr, yr2-yr, tileRequest.getZ(), tileRequest.getT());
+						xr, yr, xr2-xr, yr2-yr, tileRequest.getZ() + originZ, tileRequest.getT() + originT);
 				
 				BufferedImage imgTemp = null;
 				synchronized (serverTemp) {
@@ -329,7 +355,7 @@ public class SparseImageServer extends AbstractTileableImageServer {
 		 * 
 		 * @param region
 		 * @param downsample
-		 * @param json a JSON String representing the server
+		 * @param serverBuilder
 		 */
 		private synchronized void addRegionServer(ImageRegion region, double downsample, ServerBuilder<BufferedImage> serverBuilder) {
 			resetCaches();

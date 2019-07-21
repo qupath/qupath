@@ -557,7 +557,7 @@ task createPackage(dependsOn:createRuntime, type:Exec) {
 	if (OperatingSystem.current().isMacOsX()) {
 		params << '--mac-bundle-name' << 'QuPath'
 		if (packageType == 'installer') {
-			params << '--installer-type' << 'dmg'
+			params << '--package-type' << 'dmg'
 		}
 	} else if (OperatingSystem.current().isWindows()) {
 		if (packageType == 'installer') {

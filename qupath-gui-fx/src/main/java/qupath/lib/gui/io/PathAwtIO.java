@@ -107,7 +107,7 @@ public class PathAwtIO {
 				return;
 		} else if (file.isDirectory() || (!file.exists() && file.getAbsolutePath().endsWith(File.pathSeparator))) {
 			// Put inside the specified directory
-			file = new File(file, imageData.getServer().getShortServerName() + TMA_DEARRAYING_DATA_EXTENSION);
+			file = new File(file, ServerTools.getDisplayableImageName(server) + TMA_DEARRAYING_DATA_EXTENSION);
 			if (!file.getParentFile().exists())
 				file.getParentFile().mkdirs();
 		}
@@ -121,7 +121,7 @@ public class PathAwtIO {
 		try {
 			PrintWriter writer = new PrintWriter(file);
 			writer.println(server.getPath());
-			writer.println(server.getShortServerName());
+			writer.println(ServerTools.getDisplayableImageName(server));
 			writer.println();
 
 			writer.println("TMA grid width: " + tmaGrid.getGridWidth());
@@ -153,7 +153,7 @@ public class PathAwtIO {
 		// Save the summary results
 		ObservableMeasurementTableData tableData = new ObservableMeasurementTableData();
 		tableData.setImageData(imageData, tmaGrid.getTMACoreList());
-		SummaryMeasurementTableCommand.saveTableModel(tableData, new File(dirData, "TMA results - " + server.getShortServerName() + ".txt"), Collections.emptyList());
+		SummaryMeasurementTableCommand.saveTableModel(tableData, new File(dirData, "TMA results - " + ServerTools.getDisplayableImageName(server) + ".txt"), Collections.emptyList());
 
 		boolean outputCoreImages = Double.isNaN(downsampleFactor) || downsampleFactor > 0;
 		if (outputCoreImages) {
@@ -166,7 +166,7 @@ public class PathAwtIO {
 			
 			
 			// Write an overall TMA map (for quickly checking if the dearraying is ok)
-			File fileTMAMap = new File(dirData, "TMA map - " + server.getShortServerName() + ".jpg");
+			File fileTMAMap = new File(dirData, "TMA map - " + ServerTools.getDisplayableImageName(server) + ".jpg");
 			double downsampleThumbnail = Math.max(1, (double)server.getWidth() / 1024);
 			RegionRequest request = RegionRequest.createInstance(server.getPath(), downsampleThumbnail, 0, 0, server.getWidth(), server.getHeight());
 			OverlayOptions optionsThumbnail = new OverlayOptions();

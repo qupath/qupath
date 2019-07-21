@@ -51,6 +51,7 @@ import qupath.lib.gui.viewer.overlays.PathOverlay;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.WrappedBufferedImageServer;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.ServerTools;
 import qupath.lib.images.writers.ImageWriter;
 import qupath.lib.images.writers.JpegWriter;
 import qupath.lib.images.writers.PNGWriter;
@@ -210,7 +211,7 @@ public class ImageWriterTools {
 
 
 		
-		File fileOutput = QuPathGUI.getSharedDialogHelper().promptToSaveFile(null, null, server.getShortServerName(), writer.getName(), writer.getExtension());
+		File fileOutput = QuPathGUI.getSharedDialogHelper().promptToSaveFile(null, null, ServerTools.getDisplayableImageName(server), writer.getName(), writer.getExtension());
 		if (fileOutput == null)
 			return null;
 		try {

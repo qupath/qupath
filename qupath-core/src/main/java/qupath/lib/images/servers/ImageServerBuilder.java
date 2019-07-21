@@ -155,6 +155,13 @@ public interface ImageServerBuilder<T> {
 	}
 	
 	
+	/**
+	 * Helper class to summarize which {@linkplain ImageServer ImageServers} can be build by a particular {@link ImageServerBuilder} 
+	 * for a given URI, and a level of confidence.
+	 * This may be used to select which {@link ImageServerBuilder} is used to open the image(s).
+	 * 
+	 * @param <T>
+	 */
 	public static class UriImageSupport<T> {
 		
 		private Class<? extends ImageServerBuilder<T>> providerClass;
@@ -173,18 +180,43 @@ public interface ImageServerBuilder<T> {
 			this.builders = Collections.unmodifiableList(new ArrayList<>(builders));
 		}
 		
+		/**
+		 * Create a {@link UriImageSupport} for (possibly multiple) images that can be read from a single URI.
+		 * @param <T>
+		 * @param providerClass
+		 * @param supportLevel
+		 * @param builders
+		 * @return
+		 */
 		public static <T> UriImageSupport<T> createInstance(Class<? extends ImageServerBuilder<T>> providerClass, float supportLevel, Collection<ServerBuilder<T>> builders) {
 			return new UriImageSupport<>(providerClass, supportLevel, builders);
 		}
 		
-		public static <T> UriImageSupport<T> createInstance(Class<? extends ImageServerBuilder<T>> providerClass, float supportLevel,ServerBuilder<T> builder) {
+		/**
+		 * Create a {@link UriImageSupport} for a single image that can be read from a single URI.
+		 * @param <T>
+		 * @param providerClass
+		 * @param supportLevel
+		 * @param builder
+		 * @return
+		 */
+		public static <T> UriImageSupport<T> createInstance(Class<? extends ImageServerBuilder<T>> providerClass, float supportLevel, ServerBuilder<T> builder) {
 			return new UriImageSupport<>(providerClass, supportLevel, Collections.singletonList(builder));
 		}
 		
+		/**
+		 * Get the class of the associated {@link ImageServerBuilder}.
+		 * @return
+		 */
 		public Class<? extends ImageServerBuilder<T>> getProviderClass() {
 			return providerClass;
 		}
 		
+		/**
+		 * Get a list of {@linkplain ServerBuilder ServerBuilders}, one for each image that can be read based on the specified URI. 
+		 * For a 'simple' file that contains a single image, a singleton list should be returned.
+		 * @return
+		 */
 		public List<ServerBuilder<T>> getBuilders() {
 			return builders;
 		}
@@ -215,6 +247,12 @@ public interface ImageServerBuilder<T> {
 	}
 	
 	
+	/**
+	 * Default {@link ServerBuilder} that requires a URI and (optional) array of String arguments to create an {@link ImageServer} 
+	 * with the help of a {@link ImageServerBuilder}.
+	 *
+	 * @param <T>
+	 */
 	public static class DefaultImageServerBuilder<T> extends AbstractServerBuilder<T> {
 		
 		private String providerClassName;
@@ -232,20 +270,45 @@ public interface ImageServerBuilder<T> {
 			this(providerClass.getName(), uri, args, metadata);
 		}
 		
-		public static <T> DefaultImageServerBuilder<T> createInstance(Class<? extends ImageServerBuilder<T>> providerClass, ImageServerMetadata metadata, URI uri, String...args) {
+		/**
+		 * Create a {@link ServerBuilder} that reads an image from a URI and args, and uses the specified metadata (possibly replacing the default metadata).
+		 * @param <T>
+		 * @param providerClass
+		 * @param metadata
+		 * @param uri
+		 * @param args
+		 * @return
+		 */
+		public static <T> ServerBuilder<T> createInstance(Class<? extends ImageServerBuilder<T>> providerClass, ImageServerMetadata metadata, URI uri, String...args) {
 			return new DefaultImageServerBuilder<>(providerClass, uri, args, metadata);
 		}
 
-		public static <T> DefaultImageServerBuilder<T> createInstance(Class<? extends ImageServerBuilder<T>> providerClass, URI uri, String...args) {
+		/**
+		 * Create a {@link ServerBuilder} that reads an image from a URI and args, using the default server metadata.
+		 * @param <T>
+		 * @param providerClass
+		 * @param uri
+		 * @param args
+		 * @return
+		 */
+		public static <T> ServerBuilder<T> createInstance(Class<? extends ImageServerBuilder<T>> providerClass, URI uri, String...args) {
 			return createInstance(providerClass, null, uri, args);
 		}
 
+		/**
+		 * Get the URI used by this builder.
+		 * @return
+		 */
 		public URI getURI() {
 			return uri;
 		}
 
+		/**
+		 * Get the args array. This returns a clone of any original array.
+		 * @return
+		 */
 		public String[] getArgs() {
-			return args;
+			return args == null ? null : args.clone();
 		}
 
 		@Override

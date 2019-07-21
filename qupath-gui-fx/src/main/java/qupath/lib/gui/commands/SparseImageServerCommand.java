@@ -125,7 +125,7 @@ public class SparseImageServerCommand implements PathCommand {
 					var croppedServer = new CroppedImageServer(server, region);
 	
 					rowHeight = Math.max(region.getHeight(), rowHeight);
-					var regionOutput = ImageRegion.createInstance(x, y, region.getWidth(), region.getHeight(), 0, 0);
+					var regionOutput = ImageRegion.createInstance(x, y, region.getWidth(), region.getHeight(), region.getZ(), region.getT());
 					for (double downsample : croppedServer.getPreferredDownsamples())
 						builder.serverRegion(regionOutput, downsample, croppedServer);
 	

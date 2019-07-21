@@ -198,18 +198,9 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 	
 	@Override
 	public String toString() {
-		return getServerType() + ": " + getPath() + " (" + getDisplayedImageName() + ")";
+		return getServerType() + ": " + getPath() + " (" + ServerTools.getDisplayableImageName(this) + ")";
 	}	
 	
-	
-	@Override
-	public String getShortServerName() {
-		return ServerTools.getDefaultShortServerName(getPath());
-	}
-	
-//	public String getShortServerName(final String path) {
-//		return getDefaultShortServerName(path);
-//	}
 	
 	@Override
 	public T getCachedTile(TileRequest tile) {
@@ -304,18 +295,6 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 	@Override
 	public T getAssociatedImage(String name) {
 		throw new IllegalArgumentException("No associated image with name '" + name + "' for " + getPath());
-	}
-	
-	/**
-	 * Get an image name that may be displayed, either from the metadata or the short server name
-	 * @return
-	 */
-	protected String getDisplayedImageName() {
-		String name = getMetadata().getName();
-		if (name == null)
-			return getShortServerName();
-		else
-			return name;
 	}
 	
 	@Override

@@ -163,7 +163,17 @@ public class ImageServerProvider {
 		return supports;
 	}
 	
-	public static <T> UriImageSupport<T> getPreferredServerBuilder(final Class<T> cls, final String path, String...args) throws IOException {
+	/**
+	 * Get the preferred {@link UriImageSupport} for a specified image path.
+	 * 
+	 * @param <T>
+	 * @param cls
+	 * @param path
+	 * @param args
+	 * @return
+	 * @throws IOException
+	 */
+	public static <T> UriImageSupport<T> getPreferredUriImageSupport(final Class<T> cls, final String path, String...args) throws IOException {
 		List<UriImageSupport<T>> supports = getServerBuilders(cls, path, args);
 		for (UriImageSupport<T> support : supports) {
 			try (var server = support.getBuilders().get(0).build()) {

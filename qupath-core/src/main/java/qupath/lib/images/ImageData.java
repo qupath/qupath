@@ -36,6 +36,7 @@ import qupath.lib.color.ColorDeconvolutionStains;
 import qupath.lib.color.ColorDeconvolutionStains.DefaultColorDeconvolutionStains;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.ServerTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
@@ -483,7 +484,7 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
 		if (getServer() == null)
 			return "ImageData: " + getImageType() + ", no server";
 		else
-			return "ImageData: " + getImageType() + ", " + getServer().getShortServerName();
+			return "ImageData: " + getImageType() + ", " + ServerTools.getDisplayableImageName(getServer());
 	}
 
     

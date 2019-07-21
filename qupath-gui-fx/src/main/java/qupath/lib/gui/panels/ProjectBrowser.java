@@ -881,7 +881,6 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 	 * 
 	 * This works hard to do its job... including renaming any data files accordingly.
 	 * 
-	 * @param project
 	 * @param entry
 	 * @param name
 	 * @return

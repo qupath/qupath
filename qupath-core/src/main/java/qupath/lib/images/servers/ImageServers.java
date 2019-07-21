@@ -46,7 +46,7 @@ import qupath.lib.regions.ImageRegion;
  */
 public class ImageServers {
 	
-	public static RuntimeTypeAdapterFactory<ServerBuilder> serverBuilderFactory = 
+	private static RuntimeTypeAdapterFactory<ServerBuilder> serverBuilderFactory = 
 			RuntimeTypeAdapterFactory.of(ServerBuilder.class, "builderType")
 			.registerSubtype(DefaultImageServerBuilder.class, "uri")
 			.registerSubtype(RotatedImageServerBuilder.class, "rotated")
@@ -55,6 +55,14 @@ public class ImageServers {
 			.registerSubtype(SparseImageServerBuilder.class, "sparse")
 			.registerSubtype(CroppedImageServerBuilder.class, "cropped")
 			;
+	
+	/**
+	 * Get a TypeAdapterFactory to handle {@linkplain ServerBuilder ServerBuilders}.
+	 * @return
+	 */
+	public static TypeAdapterFactory getServerBuilderFactory() {
+		return serverBuilderFactory;
+	}
 
 	
 	static class SparseImageServerBuilder extends AbstractServerBuilder<BufferedImage> {
@@ -258,15 +266,21 @@ public class ImageServers {
 		
 	}
 	
+	/**
+	 * Get a TypeAdapterFactory for ImageServers, optionally including metadata in the serialized 
+	 * form of the server.
+	 * @param includeMetadata
+	 * @return
+	 */
 	public static TypeAdapterFactory getImageServerTypeAdapterFactory(boolean includeMetadata) {
 		return new ImageServerTypeAdapterFactory(includeMetadata);
 	}
 	
-	public static TypeAdapter<ImageServer<BufferedImage>> getTypeAdapter(boolean includeMetadata) {
+	private static TypeAdapter<ImageServer<BufferedImage>> getTypeAdapter(boolean includeMetadata) {
 		return new ImageServerTypeAdapter(includeMetadata);
 	}
 	
-	public static class ImageServerTypeAdapter extends TypeAdapter<ImageServer<BufferedImage>> {
+	static class ImageServerTypeAdapter extends TypeAdapter<ImageServer<BufferedImage>> {
 		
 		private static Logger logger = LoggerFactory.getLogger(ImageServerTypeAdapter.class);
 		

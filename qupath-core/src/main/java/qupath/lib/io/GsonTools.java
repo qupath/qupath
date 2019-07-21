@@ -46,7 +46,7 @@ public class GsonTools {
 			.registerTypeAdapterFactory(new QuPathTypeAdapterFactory())
 			.registerTypeAdapterFactory(OpenCVTypeAdapters.getOpenCVTypeAdaptorFactory())
 			.registerTypeAdapterFactory(ImageServers.getImageServerTypeAdapterFactory(true))
-			.registerTypeAdapterFactory(ImageServers.serverBuilderFactory)
+			.registerTypeAdapterFactory(ImageServers.getServerBuilderFactory())
 //			.registerTypeHierarchyAdapter(PathObject.class, PathObjectTypeAdapters.PathObjectTypeAdapter.INSTANCE)
 //			.registerTypeHierarchyAdapter(MeasurementList.class, PathObjectTypeAdapters.MeasurementListTypeAdapter.INSTANCE)
 //			.registerTypeHierarchyAdapter(FeatureCollection.class, PathObjectTypeAdapters.PathObjectCollectionTypeAdapter.INSTANCE)

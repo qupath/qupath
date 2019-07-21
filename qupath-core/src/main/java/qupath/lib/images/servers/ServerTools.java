@@ -25,6 +25,10 @@ package qupath.lib.images.servers;
 
 import java.io.File;
 import java.net.URI;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
+import java.util.stream.Collectors;
 
 import qupath.lib.common.GeneralTools;
 
@@ -39,25 +43,16 @@ public class ServerTools {
 	/**
 	 * Get the default shortened server name given the server's path.
 	 * 
-	 * @param path
+	 * @param uri
 	 * @return
 	 */
-	public static String getDefaultShortServerName(final String path) {
-		try {
-			if (path.startsWith("file") || path.startsWith("http")) {
-				var uri = new URI(path);
-				String path2 = uri.getPath();
-				int ind = path2.lastIndexOf("/") + 1;
-				return path2.substring(ind);
-			}
-			String name = new File(path).getName().replaceFirst("[.][^.]+$", "");
-			return name;
-		} catch (Exception e) {
-			int ind = Math.max(path.lastIndexOf("/"), path.lastIndexOf("\\"));
-			if (ind > 0 || ind < path.length()-1)
-				return path.substring(ind+1);
-			return path;
-		}
+	public static String getDefaultShortServerName(final URI uri) {
+		Path path = GeneralTools.toPath(uri);
+		if (path != null)
+			return path.getFileName().toString();
+		String path2 = URLDecoder.decode(uri.toString(), StandardCharsets.UTF_8);
+		int ind = path2.lastIndexOf("/") + 1;
+		return path2.substring(ind);
 	}
 	
 	
@@ -113,9 +108,12 @@ public class ServerTools {
 		if (server == null)
 			return "No image";
 		String name = server.getMetadata().getName();
-		if (name == null)
-			return server.getShortServerName();
-		else
+		if (name == null) {
+			name = server.getURIs().stream().map(uri -> getDefaultShortServerName(uri)).collect(Collectors.joining(", "));
+			if (name != null && !name.isBlank())
+				return name;
+			return server.getPath();
+		} else
 			return name;
 	}
 	

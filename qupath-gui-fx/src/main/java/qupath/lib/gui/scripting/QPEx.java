@@ -49,6 +49,7 @@ import qupath.lib.gui.plugins.PluginRunnerFX;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
+import qupath.lib.images.servers.ServerTools;
 import qupath.lib.io.PathIO;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
@@ -430,7 +431,7 @@ public class QPEx extends QP {
 		File fileOutput = new File(resolvePath(path));
 		if (fileOutput.isDirectory()) {
 			String ext = ",".equals(PathPrefs.getTableDelimiter()) ? ".csv" : ".txt";
-			fileOutput = new File(fileOutput, imageData.getServer().getShortServerName() + " " + PathObjectTools.getSuitableName(type, true) + ext);
+			fileOutput = new File(fileOutput, ServerTools.getDisplayableImageName(imageData.getServer()) + " " + PathObjectTools.getSuitableName(type, true) + ext);
 		}
 		ObservableMeasurementTableData model = new ObservableMeasurementTableData();
 		model.setImageData(imageData, imageData == null ? Collections.emptyList() : imageData.getHierarchy().getObjects(null, type));

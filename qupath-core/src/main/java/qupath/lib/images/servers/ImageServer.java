@@ -69,12 +69,6 @@ public interface ImageServer<T> extends AutoCloseable {
 	public Collection<URI> getURIs();
 	
 	/**
-	 * Get a short name for the server.
-	 * @return
-	 */
-	public String getShortServerName();
-
-	/**
 	 * Get an array of downsample factors supported by the server
 	 * @return
 	 */

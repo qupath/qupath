@@ -631,9 +631,9 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 			String imageName = getFile().getName();
 			String shortName = meta.getImageName(seriesIndex);
 			if (shortName == null || shortName.isBlank()) {
-				if (containsSubImages())
+				if (imageMap.size() > 1)
 					imageName = imageName + " - Series " + seriesIndex;
-			} else
+			} else if (!imageName.equals(shortName))
 				imageName = imageName + " - " + shortName;
 
 			this.args = args;
@@ -881,14 +881,6 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 	@Override
 	public synchronized void close() throws Exception {
 		super.close();
-	}
-
-	@Override
-	public String getDisplayedImageName() {
-		String name = getMetadata().getName();
-		if (name == null)
-			return getShortServerName();
-		return name;
 	}
 
 	boolean containsSubImages() {

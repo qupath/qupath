@@ -157,6 +157,7 @@ import qupath.lib.gui.tma.entries.TMAObjectEntry;
 import qupath.lib.gui.tma.entries.TMASummaryEntry;
 import qupath.lib.gui.tma.entries.TMASummaryEntry.MeasurementCombinationMethod;
 import qupath.lib.images.ImageData;
+import qupath.lib.images.servers.ServerTools;
 import qupath.lib.io.PathIO;
 import qupath.lib.io.TMAScoreImporter;
 import qupath.lib.measurements.MeasurementList;
@@ -1163,7 +1164,7 @@ public class TMASummaryViewer {
 	 */
 	public void setTMAEntriesFromImageData(final ImageData<BufferedImage> imageData) {
 		setTMAEntries(getEntriesForTMAData(imageData));
-		stage.setTitle("TMA Viewer: " + imageData.getServer().getShortServerName());
+		stage.setTitle("TMA Viewer: " + ServerTools.getDisplayableImageName(imageData.getServer()));
 	}
 	
 

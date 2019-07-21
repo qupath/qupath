@@ -63,7 +63,9 @@ public class CroppedImageServer extends TransformingImageServer<BufferedImage> {
 				request.getPath(), request.getDownsample(),
 				request.getX() + region.getX(),
 				request.getY() + region.getY(),
-				request.getWidth(), request.getHeight());
+				request.getWidth(),
+				request.getHeight(),
+				request.getZ(), request.getT());
 		BufferedImage img = getWrappedServer().readBufferedImage(request2);
 		// TODO: Mask as ellipse, if necessary?
 		return img;

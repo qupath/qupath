@@ -202,7 +202,7 @@ public class ProjectImportImagesCommand implements PathCommand {
 				// Get all the relevant builders
 				List<ServerBuilder<BufferedImage>> builders = listView.getItems().parallelStream().map(p -> {
 					try {
-						var support = ImageServerProvider.getPreferredServerBuilder(BufferedImage.class, p);
+						var support = ImageServerProvider.getPreferredUriImageSupport(BufferedImage.class, p);
 						if (support != null)
 							return support.getBuilders();
 					} catch (IOException e) {

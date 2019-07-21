@@ -63,11 +63,6 @@ class SimpleWrappedImageServer<T> implements ImageServer<T> {
 	}
 
 	@Override
-	public String getShortServerName() {
-		return server.getShortServerName();
-	}
-
-	@Override
 	public double[] getPreferredDownsamples() {
 		return server.getPreferredDownsamples();
 	}
