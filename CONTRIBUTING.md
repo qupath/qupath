@@ -1,6 +1,6 @@
-# Contributing to QuPath
+# Contributing
 
-😄 **First, thanks for your interest in contributing to QuPath!** 😄
+**First, thanks for your interest in contributing to QuPath!** 😄
 
 There are lots of ways to do so - and most of them don't even involve writing any code.
 
@@ -17,7 +17,7 @@ There are lots of ways to do so - and most of them don't even involve writing an
 
 ## Code of conduct
 
-This project is governed by its [Code of Conduct](CODE-OF-CONDUCT.md). By participating, you're expected to uphold this code.
+This project is governed by its [Code of Conduct](CODE_OF_CONDUCT.md). By participating, you're expected to uphold this code.
 
 
 ## I just want to ask a question!
