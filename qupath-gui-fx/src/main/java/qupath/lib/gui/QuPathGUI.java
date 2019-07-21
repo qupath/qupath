@@ -1184,10 +1184,17 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		Collections.sort(extensions, Comparator.comparing(QuPathExtension::getName));
 		for (QuPathExtension extension : extensions) {
 			if (!loadedExtensions.containsKey(extension.getClass())) {
-				extension.installExtension(this);
-				loadedExtensions.put(extension.getClass(), extension);
-				if (showNotification)
-					DisplayHelpers.showInfoNotification("Extension loaded",  extension.getName());
+				try {
+					long startTime = System.currentTimeMillis();
+					extension.installExtension(this);
+					long endTime = System.currentTimeMillis();
+					logger.info("Loaded extension {} ({} ms)", extension.getName(), endTime - startTime);
+					loadedExtensions.put(extension.getClass(), extension);
+					if (showNotification)
+						DisplayHelpers.showInfoNotification("Extension loaded",  extension.getName());
+				} catch (Exception e) {
+					logger.error("Error loading extension " + extension, e);
+				}
 			}
 		}
 		// Set the ImageServer to also look on the same search path
