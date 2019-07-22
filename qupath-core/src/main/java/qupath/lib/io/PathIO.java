@@ -36,6 +36,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
+import java.nio.file.Files;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
@@ -45,6 +46,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.lib.color.ColorDeconvolutionStains;
+import qupath.lib.common.GeneralTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerProvider;
@@ -346,8 +348,20 @@ public class PathIO {
 			// Version 2 switched to integers, and includes Locale information
 			outStream.writeUTF("Data file version 2");
 			
-			// Write the image path
-			outStream.writeObject("Image path: " + imageData.getServerPath());
+			// Try to write a backwards-compatible image path
+			var server = imageData.getServer();
+			var uris = server.getURIs();
+			String path;
+			if (uris.size() == 1) {
+				var uri = uris.iterator().next();
+				var serverPath = GeneralTools.toPath(uri);
+				if (serverPath != null && Files.exists(serverPath))
+					path = serverPath.toFile().getAbsolutePath();
+				else
+					path = uri.toString();
+			} else
+				path = server.getPath();
+			outStream.writeObject("Image path: " + path);
 			
 			// Write the current locale
 			outStream.writeObject(Locale.getDefault(Category.FORMAT));

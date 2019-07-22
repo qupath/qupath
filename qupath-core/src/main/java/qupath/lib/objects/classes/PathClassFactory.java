@@ -159,15 +159,15 @@ public class PathClassFactory {
 			if (rgb == null) {
 				// Use default colors for intensity classes
 				if (name.equals(ONE_PLUS)) {
-					rgb = ColorTools.makeScaledRGB(COLOR_ONE_PLUS, 1.5);
+					rgb = ColorTools.makeScaledRGB(COLOR_ONE_PLUS, 1.25);
 				} else if (name.equals(TWO_PLUS)) {
-					rgb = ColorTools.makeScaledRGB(COLOR_TWO_PLUS, 1.5);
+					rgb = ColorTools.makeScaledRGB(COLOR_TWO_PLUS, 1.25);
 				} else if (name.equals(THREE_PLUS))
-					rgb = ColorTools.makeScaledRGB(COLOR_THREE_PLUS, 1.5);
+					rgb = ColorTools.makeScaledRGB(COLOR_THREE_PLUS, 1.25);
 				else if (name.equals(POSITIVE)) {
-					rgb = ColorTools.makeScaledRGB(COLOR_POSITIVE, 1.5);
+					rgb = ColorTools.makeScaledRGB(COLOR_POSITIVE, 1.25);
 				} else if (name.equals(NEGATIVE)) {
-					rgb = ColorTools.makeScaledRGB(COLOR_NEGATIVE, 1.5);
+					rgb = ColorTools.makeScaledRGB(COLOR_NEGATIVE, 1.25);
 				} else {
 					// Create a random color
 					// Use the hashcode of the String as a seed - so that the same 
@@ -259,7 +259,7 @@ public class PathClassFactory {
 	 * @return
 	 */
 	public static PathClass getOnePlus(PathClass parentClass) {
-		return getDerivedPathClass(parentClass, ONE_PLUS, COLOR_ONE_PLUS);
+		return getDerivedPathClass(parentClass, ONE_PLUS, null);
 	}
 
 	/**
@@ -268,7 +268,7 @@ public class PathClassFactory {
 	 * @return
 	 */
 	public static PathClass getTwoPlus(PathClass parentClass) {
-		return getDerivedPathClass(parentClass, TWO_PLUS, COLOR_TWO_PLUS);
+		return getDerivedPathClass(parentClass, TWO_PLUS, null);
 	}
 
 	/**
@@ -277,7 +277,7 @@ public class PathClassFactory {
 	 * @return
 	 */
 	public static PathClass getThreePlus(PathClass parentClass) {
-		return getDerivedPathClass(parentClass, THREE_PLUS, COLOR_THREE_PLUS);
+		return getDerivedPathClass(parentClass, THREE_PLUS, null);
 	}
 	
 	/**
@@ -286,7 +286,7 @@ public class PathClassFactory {
 	 * @return
 	 */
 	public static PathClass getNegative(PathClass parentClass) {
-		return getDerivedPathClass(parentClass, NEGATIVE, COLOR_NEGATIVE);
+		return getDerivedPathClass(parentClass, NEGATIVE, null);
 	}
 	
 	/**
@@ -295,7 +295,7 @@ public class PathClassFactory {
 	 * @return
 	 */
 	public static PathClass getPositive(PathClass parentClass) {
-		return getDerivedPathClass(parentClass, POSITIVE, COLOR_POSITIVE);
+		return getDerivedPathClass(parentClass, POSITIVE, null);
 	}
 	
 	/**

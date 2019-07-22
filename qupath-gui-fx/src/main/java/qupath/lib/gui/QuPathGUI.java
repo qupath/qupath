@@ -2664,7 +2664,11 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		if (sameServer || (imageData != null && keepExistingServer))
 			server = imageData.getServer();
 		else {
-			server = ImageServerProvider.buildServer(serverPath, BufferedImage.class);
+			try {
+				server = ImageServerProvider.buildServer(serverPath, BufferedImage.class);
+			} catch (IOException e) {
+				logger.error("Unable to open server path " + serverPath, e);
+			}
 			if (server == null) {
 //				boolean pathValid = new File(serverPath).isFile() || URLHelpers.checkURL(serverPath);
 //				if (!pathValid) {

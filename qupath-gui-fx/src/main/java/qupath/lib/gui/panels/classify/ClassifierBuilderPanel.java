@@ -869,8 +869,9 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 	}
 
 	String getMapKey(ImageData<BufferedImage> imageData) {
-		var project = qupath.getProject();
-		return project == null ? null : getMapKey(project, project.getEntry(imageData));
+		return imageData.getServerPath();
+//		var project = qupath.getProject();
+//		return project == null ? null : getMapKey(project, project.getEntry(imageData));
 	}
 
 	private void initializeBuildPanel() {
