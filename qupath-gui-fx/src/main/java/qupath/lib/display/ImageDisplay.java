@@ -786,9 +786,14 @@ public class ImageDisplay extends AbstractImageRenderer {
 			// Check what we might need to process
 			List<SingleChannelDisplayInfo> channelsToProcess = new ArrayList<>();
 			for (ChannelDisplayInfo channel : channels) {
-				if (map.containsKey(getKey(channel)))
+				Histogram histogram = map.get(getKey(channel));
+				if (histogram != null) {
+					if (channel instanceof ModifiableChannelDisplayInfo) {
+						((ModifiableChannelDisplayInfo)channel).setMinMaxAllowed(
+								(float)Math.min(0, histogram.getMinValue()), (float)histogram.getMaxValue());
+					}
 					continue;
-				else if (channel instanceof SingleChannelDisplayInfo)
+				} else if (channel instanceof SingleChannelDisplayInfo)
 					channelsToProcess.add((SingleChannelDisplayInfo)channel);
 				else
 					map.put(getKey(channel), null);
