@@ -67,8 +67,8 @@ public class MeasurementMapper {
 			Path pathColorMaps;
 			URI uri = MeasurementMapper.class.getResource("/colormaps").toURI();
 	        if (uri.getScheme().equals("jar")) {
-	            FileSystem fileSystem = FileSystems.newFileSystem(uri, Collections.emptyMap());
-	            pathColorMaps = fileSystem.getPath("/resources");
+	            FileSystem fileSystem = FileSystems.newFileSystem(uri, Map.of());
+	            pathColorMaps = fileSystem.getPath("/colormaps");
 	        } else {
 	        	pathColorMaps = Paths.get(uri);
 	        }

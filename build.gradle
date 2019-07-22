@@ -497,7 +497,7 @@ task createRuntime(dependsOn:build, type:Exec) {
    def params = ["${System.properties['java.home']}/bin/jlink"]
 	
     params << '--output' << outputDir.getAbsolutePath()
-    params << '--add-modules' << 'java.desktop,java.xml,java.scripting,java.sql,java.naming,jdk.unsupported'
+    params << '--add-modules' << 'java.desktop,java.xml,java.scripting,java.sql,java.naming,jdk.unsupported,jdk.zipfs'
 
     params << '--strip-debug'
     params << '--no-header-files'
