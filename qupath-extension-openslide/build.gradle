@@ -1,3 +1,4 @@
+ext.moduleName = 'qupath.extension.openslide'
 
 description = 'qupath-extension-openslide'
 

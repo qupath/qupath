@@ -34,7 +34,7 @@ import java.io.ObjectOutput;
  * @author Pete Bankhead
  *
  */
-public class Point3 extends AbstractPoint implements Externalizable {
+class Point3 extends AbstractPoint implements Externalizable {
 	
 	private double x, y, z;
 	

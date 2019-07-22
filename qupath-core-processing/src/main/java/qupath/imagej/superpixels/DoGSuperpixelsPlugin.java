@@ -32,33 +32,33 @@ import ij.process.Blitter;
 import ij.process.ByteProcessor;
 import ij.process.FloatProcessor;
 import ij.process.ImageProcessor;
-import ij.process.ShortProcessor;
-
 import java.awt.image.BufferedImage;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
-import qupath.imagej.objects.PathImagePlus;
-import qupath.imagej.objects.ROIConverterIJ;
-import qupath.imagej.processing.ROILabeling;
+import qupath.imagej.processing.RoiLabeling;
+import qupath.imagej.tools.IJTools;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.PathImage;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.plugins.AbstractTileableDetectionPlugin;
 import qupath.lib.plugins.ObjectDetector;
 import qupath.lib.plugins.PluginRunner;
 import qupath.lib.plugins.parameters.ParameterList;
+import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.interfaces.PathArea;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
  * A simple superpixel-generating command based upon applying ImageJ's watershed transform to the
  * absolute values of a Difference-of-Gaussians filtered image.
- * 
+ * <p>
  * This provides tile objects that generally correspond to regions containing reasonably similar 
  * intensities or textures, which might then be classified.
  * 
@@ -81,8 +81,9 @@ public class DoGSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffer
 	@Override
 	protected double getPreferredPixelSizeMicrons(final ImageData<BufferedImage> imageData, final ParameterList params) {
 		double pixelSize = params.getDoubleParameterValue("downsampleFactor");
-		if (imageData != null && imageData.getServer().hasPixelSizeMicrons())
-			pixelSize *= imageData.getServer().getAveragedPixelSizeMicrons();
+		PixelCalibration cal = imageData.getServer().getPixelCalibration();
+		if (imageData != null && cal.hasPixelSizeMicrons())
+			pixelSize *= cal.getAveragedPixelSizeMicrons();
 		return pixelSize;
 	}
 
@@ -107,7 +108,7 @@ public class DoGSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffer
 				addDoubleParameter("noiseThreshold", "Noise threshold", 1, null, "Local threshold used to determine the number of regions created")
 				;
 		
-		boolean hasMicrons = imageData != null && imageData.getServer().hasPixelSizeMicrons();
+		boolean hasMicrons = imageData != null && imageData.getServer().getPixelCalibration().hasPixelSizeMicrons();
 		params.getParameters().get("sigmaPixels").setHidden(hasMicrons);
 		params.getParameters().get("sigmaMicrons").setHidden(!hasMicrons);
 		
@@ -124,7 +125,7 @@ public class DoGSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffer
 		private String lastResultSummary = null;
 
 		@Override
-		public Collection<PathObject> runDetection(final ImageData<BufferedImage> imageData, final ParameterList params, final ROI pathROI) {
+		public Collection<PathObject> runDetection(final ImageData<BufferedImage> imageData, final ParameterList params, final ROI pathROI) throws IOException {
 			
 			// TODO: Give a sensible error
 			if (pathROI == null) {
@@ -134,7 +135,8 @@ public class DoGSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffer
 			// Get a PathImage if we have a new ROI
 			if (!pathROI.equals(this.pathROI)) {
 				ImageServer<BufferedImage> server = imageData.getServer();
-				this.pathImage = PathImagePlus.createPathImage(server, pathROI, params.getDoubleParameterValue("downsampleFactor"));
+				this.pathImage = IJTools.convertToImagePlus(server, RegionRequest.createInstance(server.getPath(), params.getDoubleParameterValue("downsampleFactor"), pathROI));
+//				this.pathImage = IJTools.createPathImage(server, pathROI, params.getDoubleParameterValue("downsampleFactor"));
 				this.pathROI = pathROI;
 			}
 			
@@ -177,13 +179,13 @@ public class DoGSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffer
 			
 			// Dilate to remove outlines
 			bp.setThreshold(128, Double.POSITIVE_INFINITY, ImageProcessor.NO_LUT_UPDATE);
-			ShortProcessor ipLabels = ROILabeling.labelImage(bp, false);
+			ImageProcessor ipLabels = RoiLabeling.labelImage(bp, 0.5f, false);
 			new RankFilters().rank(ipLabels, 1, RankFilters.MAX);
 			
 			// Remove everything outside the ROI, if required
 			if (pathROI != null) {
-				Roi roi = ROIConverterIJ.convertToIJRoi(pathROI, pathImage);
-				ROILabeling.clearOutside(ipLabels, roi);
+				Roi roi = IJTools.convertToIJRoi(pathROI, pathImage);
+				RoiLabeling.clearOutside(ipLabels, roi);
 				// It's important to move away from the containing ROI, to help with brush selections ending up
 				// having the correct parent (i.e. don't want to risk moving slightly outside the parent object's ROI)
 				ipLabels.setValue(0);
@@ -192,7 +194,7 @@ public class DoGSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffer
 			}
 			
 			// Convert to tiles & create a labelled image for later
-			PolygonRoi[] polygons = ROILabeling.labelsToFilledROIs(ipLabels, (int)ipLabels.getMax());
+			PolygonRoi[] polygons = RoiLabeling.labelsToFilledROIs(ipLabels, (int)ipLabels.getMax());
 			List<PathObject> pathObjects = new ArrayList<>(polygons.length);
 			int label = 0;
 			// Set thresholds - regions means must be within specified range
@@ -213,7 +215,7 @@ public class DoGSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffer
 						if (meanValue < minThreshold || meanValue > maxThreshold)
 							continue;
 					}
-					PathArea superpixelROI = (PathArea)ROIConverterIJ.convertToPathROI(roi, pathImage);
+					PathArea superpixelROI = (PathArea)IJTools.convertToROI(roi, pathImage);
 					if (pathROI == null)
 						continue;
 					PathObject tile = PathObjects.createTileObject(superpixelROI);
@@ -266,7 +268,7 @@ public class DoGSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffer
 		
 		
 		static double getSigma(final PathImage<?> pathImage, final ParameterList params) {
-			double pixelSizeMicrons = .5 * (pathImage.getPixelWidthMicrons() + pathImage.getPixelHeightMicrons());
+			double pixelSizeMicrons = pathImage.getPixelCalibration().getAveragedPixelSizeMicrons();
 			if (Double.isNaN(pixelSizeMicrons)) {
 				return params.getDoubleParameterValue("sigmaPixels") * params.getDoubleParameterValue("downsampleFactor");				
 			} else

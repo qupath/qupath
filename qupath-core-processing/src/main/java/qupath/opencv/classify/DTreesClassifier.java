@@ -23,7 +23,7 @@
 
 package qupath.opencv.classify;
 
-import org.bytedeco.javacpp.opencv_ml.DTrees;
+import org.bytedeco.opencv.opencv_ml.DTrees;
 
 /**
  * Wrapper for OpenCV's Decision Trees classifier.

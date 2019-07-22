@@ -27,13 +27,14 @@ import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.List;
 
-import qupath.imagej.helpers.IJTools;
+import qupath.imagej.tools.IJTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
+import qupath.lib.regions.ImagePlane;
 import ij.IJ;
 import ij.ImagePlus;
 import ij.gui.GenericDialog;
@@ -92,9 +93,9 @@ public class QUPath_Send_Overlay_to_QuPath implements PlugIn {
 		double downsample = IJTools.estimateDownsampleFactor(imp, server);
 		PathObjectHierarchy hierarchy = gui.getViewer().getHierarchy();
 		
-		List<PathObject> pathObjects = createPathObjectsFromROIs(imp, overlay.toArray(), server, downsample, asDetection, includeMeasurements, -1, viewer.getZPosition(), viewer.getTPosition());
+		List<PathObject> pathObjects = createPathObjectsFromROIs(imp, overlay.toArray(), server, downsample, asDetection, includeMeasurements, viewer.getImagePlane());
 		if (!pathObjects.isEmpty()) {
-			Platform.runLater(() -> hierarchy.addPathObjects(pathObjects, true));
+			Platform.runLater(() -> hierarchy.addPathObjects(pathObjects));
 		}
 	}
 
@@ -111,13 +112,13 @@ public class QUPath_Send_Overlay_to_QuPath implements PlugIn {
 	 * @param includeMeasurements
 	 * @return
 	 */
-	public static List<PathObject> createPathObjectsFromROIs(final ImagePlus imp, final Roi[] rois, final ImageServer<?> server, final double downsample, final boolean asDetection, final boolean includeMeasurements, final int c, final int z, final int t) {
+	public static List<PathObject> createPathObjectsFromROIs(final ImagePlus imp, final Roi[] rois, final ImageServer<?> server, final double downsample, final boolean asDetection, final boolean includeMeasurements, final ImagePlane plane) {
 		List<PathObject> pathObjects = new ArrayList<>();
 		ResultsTable rt = new ResultsTable();
 		Analyzer analyzer = new Analyzer(imp, Analyzer.getMeasurements(), rt);
 		String[] headings = null;
 		for (Roi roi : rois) {
-			PathObject pathObject = IJTools.convertToPathObject(imp, server, roi, downsample, asDetection, c, z, t);
+			PathObject pathObject = IJTools.convertToPathObject(imp, server, roi, downsample, asDetection, plane);
 			if (pathObject == null)
 				IJ.log("Sorry, I could not convert " + roi + " to a value QuPath object");
 			else {

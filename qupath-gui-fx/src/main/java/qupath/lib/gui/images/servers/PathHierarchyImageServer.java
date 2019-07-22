@@ -26,12 +26,15 @@ package qupath.lib.gui.images.servers;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import qupath.lib.awt.color.ColorToolsAwt;
+import java.util.UUID;
+
 import qupath.lib.awt.common.AwtTools;
+import qupath.lib.color.ColorToolsAwt;
 import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.gui.viewer.PathHierarchyPaintingHelper;
 import qupath.lib.gui.viewer.overlays.HierarchyOverlay;
@@ -42,7 +45,9 @@ import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.ImageServerMetadata.ImageResolutionLevel;
+import qupath.lib.images.servers.PixelType;
 import qupath.lib.images.servers.TileRequest;
+import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
 import qupath.lib.objects.DefaultPathObjectConnectionGroup;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
@@ -101,13 +106,34 @@ public class PathHierarchyImageServer extends AbstractTileableImageServer implem
 //		cache.entrySet().removeIf(r -> path.equals(r.getKey().getPath()));
 		
 		// Set metadata, using the underlying server as a basis
-		this.originalMetadata = new ImageServerMetadata.Builder(getClass(), server.getOriginalMetadata())
+		this.originalMetadata = new ImageServerMetadata.Builder(server.getOriginalMetadata())
 				.preferredTileSize(256, 256)
 				.levels(levelBuilder.build())
-				.bitDepth(8)
+				.pixelType(PixelType.UINT8)
 				.channels(ImageChannel.getDefaultRGBChannels())
 				.rgb(true)
 				.build();
+	}
+	
+	/**
+	 * Returns null (does not support ServerBuilders).
+	 */
+	@Override
+	protected ServerBuilder<BufferedImage> createServerBuilder() {
+		return null;
+	}
+	
+	@Override
+	public Collection<URI> getURIs() {
+		return Collections.emptyList();
+	}
+	
+	/**
+	 * Returns a UUID.
+	 */
+	@Override
+	protected String createID() {
+		return UUID.randomUUID().toString();
 	}
 	
 	@Override
@@ -115,16 +141,6 @@ public class PathHierarchyImageServer extends AbstractTileableImageServer implem
 		return prefix + server.getPath();
 	}
 
-	@Override
-	public String getShortServerName() {
-		return prefix + server.getShortServerName();
-	}
-
-	@Override
-	public BufferedImage getBufferedThumbnail(int maxWidth, int maxHeight, int zPosition) {
-		return PathHierarchyPaintingHelper.createThumbnail(hierarchy, options, getWidth(), getHeight(), null, null);
-	}
-	
 	private Collection<PathObject> getObjectsToPaint(RegionRequest request) {
 //		Rectangle region = request.getBounds();
 		return hierarchy.getObjectsForRegion(PathDetectionObject.class, request, null);
@@ -147,21 +163,6 @@ public class PathHierarchyImageServer extends AbstractTileableImageServer implem
 	}
 
 	@Override
-	public String getDisplayedImageName() {
-		return prefix + server.getDisplayedImageName();
-	}
-
-	@Override
-	public boolean usesBaseServer(ImageServer<?> server) {
-		return this.server == server;
-	}
-
-	@Override
-	public String getSubImagePath(String imageName) {
-		throw new RuntimeException("Cannot construct sub-image with name " + imageName + " for " + getClass().getSimpleName());
-	}
-
-	@Override
 	public ImageServerMetadata getOriginalMetadata() {
 		return originalMetadata;
 	}
@@ -173,11 +174,6 @@ public class PathHierarchyImageServer extends AbstractTileableImageServer implem
 	@Override
 	public void setMetadata(ImageServerMetadata metadata) {
 		throw new RuntimeException("Metadata cannot be set for a hierarchy image server!");
-	}
-
-	@Override
-	public String getChannelName(int channel) {
-		return "Channel " + (channel + 1);
 	}
 
 	@Override

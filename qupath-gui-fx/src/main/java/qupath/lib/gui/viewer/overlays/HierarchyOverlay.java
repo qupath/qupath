@@ -35,7 +35,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
@@ -43,8 +42,8 @@ import java.util.TreeSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import qupath.lib.awt.color.ColorToolsAwt;
 import qupath.lib.awt.common.AwtTools;
+import qupath.lib.color.ColorToolsAwt;
 import qupath.lib.gui.images.servers.PathHierarchyImageServer;
 import qupath.lib.gui.images.stores.DefaultImageRegionStore;
 import qupath.lib.gui.prefs.PathPrefs;
@@ -207,16 +206,17 @@ public class HierarchyOverlay extends AbstractImageDataOverlay {
 		// The setting below stops some weird 'jiggling' effects during zooming in/out, or poor rendering of shape ROIs
 		g2d.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
 		// Ensure that selected objects are painted last, to make sure they aren't obscured
-		if (!selectedObjects.isEmpty()) {
+		List<PathObject> selected = new ArrayList<>(hierarchy.getSelectionModel().getSelectedObjects());
+		if (!selected.isEmpty()) {
 			PathHierarchyPaintingHelper.paintSpecifiedObjects(g2d, boundsDisplayed, pathObjectList, overlayOptions, null, downsampleFactor);
 			Composite previousComposite = g2d.getComposite();
 			float opacity = overlayOptions.getOpacity();
 			if (opacity < 1) {
 				g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER));
-				PathHierarchyPaintingHelper.paintSpecifiedObjects(g2d, boundsDisplayed, hierarchy.getSelectionModel().getSelectedObjects(), overlayOptions, hierarchy.getSelectionModel(), downsampleFactor);
+				PathHierarchyPaintingHelper.paintSpecifiedObjects(g2d, boundsDisplayed, selected, overlayOptions, hierarchy.getSelectionModel(), downsampleFactor);
 				g2d.setComposite(previousComposite);
 			} else {
-				PathHierarchyPaintingHelper.paintSpecifiedObjects(g2d, boundsDisplayed, hierarchy.getSelectionModel().getSelectedObjects(), overlayOptions, hierarchy.getSelectionModel(), downsampleFactor);				
+				PathHierarchyPaintingHelper.paintSpecifiedObjects(g2d, boundsDisplayed, selected, overlayOptions, hierarchy.getSelectionModel(), downsampleFactor);				
 			}			
 		} else
 			PathHierarchyPaintingHelper.paintSpecifiedObjects(g2d, boundsDisplayed, pathObjectList, overlayOptions, null, downsampleFactor);

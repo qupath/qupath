@@ -34,17 +34,19 @@ import java.util.List;
 
 import qupath.lib.common.GeneralTools;
 import qupath.lib.geom.Point2;
+import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.interfaces.ROI;
 import qupath.lib.roi.interfaces.TranslatableROI;
 
 /**
- * An implementation of AreaROI that makes use of Java AWT Shapes.  If available, this is a better choice than using
- * AreaROI directly, due to the extra checking involved with AWT.
+ * An implementation of AreaROI that makes use of Java AWT Shapes.
+ * <p>
+ * If available, this is a better choice than using AreaROI directly, due to the extra checking involved with AWT.
  * 
  * @author Pete Bankhead
  *
  */
-public class AWTAreaROI extends AreaROI implements TranslatableROI, Serializable {
+class AWTAreaROI extends AreaROI implements TranslatableROI, Serializable {
 	
 	private static final long serialVersionUID = 1L;
 	
@@ -55,16 +57,16 @@ public class AWTAreaROI extends AreaROI implements TranslatableROI, Serializable
 	transient private ClosedShapeStatistics stats = null;
 	
 	AWTAreaROI(Shape shape) {
-		this(shape, -1, 0, 0);
+		this(shape, null);
 	}
 	
-	AWTAreaROI(Shape shape, int c, int z, int t) {
-		super(getVertices(shape), c, z, t);
+	AWTAreaROI(Shape shape, ImagePlane plane) {
+		super(getVertices(shape), plane);
 		this.shape = new Path2D.Float(shape);
 	}
 	
 	AWTAreaROI(AreaROI roi) {
-		super(roi.vertices, roi.getC(), roi.getZ(), roi.getT());
+		super(roi.vertices, roi.getImagePlane());
 		shape = new Path2D.Float();
 		for (Vertices vertices : vertices) {
 			if (vertices.isEmpty())
@@ -78,7 +80,8 @@ public class AWTAreaROI extends AreaROI implements TranslatableROI, Serializable
 	}
 	
 	/**
-	 * Get the number of vertices used to represent this area.  There is some 'fuzziness' to the meaning of this, since
+	 * Get the number of vertices used to represent this area.
+	 * There is some 'fuzziness' to the meaning of this, since
 	 * curved regions will be flattened and the same complex areas may be represented in different ways - nevertheless
 	 * it provides some measure of the 'complexity' of the area.
 	 * @return
@@ -160,7 +163,7 @@ public class AWTAreaROI extends AreaROI implements TranslatableROI, Serializable
 
 	@Override
 	public ROI duplicate() {
-		return new AWTAreaROI(shape, getC(), getZ(), getT());
+		return new AWTAreaROI(shape, getImagePlane());
 	}
 
 	@Override
@@ -176,7 +179,7 @@ public class AWTAreaROI extends AreaROI implements TranslatableROI, Serializable
 			return this;
 		// Shift the region
 		AffineTransform at = AffineTransform.getTranslateInstance(dx, dy);
-		return new AWTAreaROI(new Path2D.Float(shape, at), getC(), getZ(), getT());
+		return new AWTAreaROI(new Path2D.Float(shape, at), getImagePlane());
 	}
 
 	@Override
@@ -235,7 +238,7 @@ public class AWTAreaROI extends AreaROI implements TranslatableROI, Serializable
 	
 	
 	private Object writeReplace() {
-		AreaROI roi = new AreaROI(getVertices(shape), c, z, t);
+		AreaROI roi = new AreaROI(getVertices(shape), ImagePlane.getPlaneWithChannel(c, z, t));
 		return roi;
 	}
 	

@@ -35,17 +35,14 @@ import java.util.concurrent.Future;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import qupath.lib.common.SimpleThreadFactory;
+import qupath.lib.common.ThreadTools;
 import qupath.lib.images.ImageData;
-import qupath.lib.images.servers.ImageServer;
-import qupath.lib.objects.PathObject;
-import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 
 
 /**
  * Abstract PluginRunner to help with the creation of plugin runners for specific circumstances,
  * e.g. running through a GUI, or from a command line only.
- * 
+ * <p>
  * Note!  This makes use of a static threadpool, which will be reused by all inheriting classes.
  * 
  * @author Pete Bankhead
@@ -64,26 +61,13 @@ public abstract class AbstractPluginRunner<T> implements PluginRunner<T> {
 
 	private Map<Future<Runnable>, Runnable> pendingTasks = new HashMap<>();
 	
-	private boolean batchMode = false;
 	private SimpleProgressMonitor monitor;
 	
 	private boolean tasksCancelled = false;
 	
-	protected AbstractPluginRunner(final boolean batchMode) {
-		this.batchMode = batchMode;
-	}
-
-	/* (non-Javadoc)
-	 * @see qupath.lib.plugins.PluginRunner#isBatchMode()
-	 */
-	@Override
-	public boolean isBatchMode() {
-		return batchMode;
-	}
-	
 	/**
 	 * Set the number of threads requested to be used for the next threadpool created.
-	 * 
+	 * <p>
 	 * The request is stored as-is, but may be adjusted if it is outside a valid range, i.e. &gt; 0 and &lt;= available processors.
 	 * 
 	 * @see #getNumThreadsRequested
@@ -115,10 +99,10 @@ public abstract class AbstractPluginRunner<T> implements PluginRunner<T> {
 	
 	/**
 	 * Get the number of threads that will actually be used the next time a threadpool is constructed.
-	 * 
+	 * <p>
 	 * If getNumProcessorsRequested() returns a value between 1 and Runtime.getRuntime().availableProcessors() then this 
 	 * is used.  Otherwise, Runtime.getRuntime().availableProcessors() is used.
-	 * 
+	 * <p>
 	 * This implementation may change (most likely to increase the upper limit, if it turns out to be too strict.)
 	 * 
 	 * @see #setNumThreadsRequested
@@ -138,34 +122,6 @@ public abstract class AbstractPluginRunner<T> implements PluginRunner<T> {
 	 */
 	@Override
 	public abstract ImageData<T> getImageData();
-
-	/* (non-Javadoc)
-	 * @see qupath.lib.plugins.PluginRunner#getImageServer()
-	 */
-	@Override
-	public ImageServer<T> getImageServer() {
-		ImageData<T> imageData = getImageData();
-		return imageData == null ? null : imageData.getServer();
-	}
-	
-	/* (non-Javadoc)
-	 * @see qupath.lib.plugins.PluginRunner#getHierarchy()
-	 */
-	@Override
-	public PathObjectHierarchy getHierarchy() {
-		ImageData<T> imageData = getImageData();
-		return imageData == null ? null : imageData.getHierarchy();
-	}
-	
-	/* (non-Javadoc)
-	 * @see qupath.lib.plugins.PluginRunner#getSelectedObject()
-	 */
-	@Override
-	public PathObject getSelectedObject() {
-		PathObjectHierarchy hierarchy = getHierarchy();
-		return hierarchy == null ? null : hierarchy.getSelectionModel().getSelectedObject();
-	}
-
 	
 	/* (non-Javadoc)
 	 * @see qupath.lib.plugins.PluginRunner#runTasks(java.util.Collection)
@@ -182,7 +138,7 @@ public abstract class AbstractPluginRunner<T> implements PluginRunner<T> {
 		// Ensure we have a pool
 		if (pool == null || pool.isShutdown()) {
 			int n = getNumThreads();
-			pool = Executors.newFixedThreadPool(n, new SimpleThreadFactory("plugin-runner-"+(+counter)+"-", false));
+			pool = Executors.newFixedThreadPool(n, ThreadTools.createThreadFactory("plugin-runner-"+(+counter)+"-", false));
 			logger.debug("New threadpool created with {} threads", n);
 			service = new ExecutorCompletionService<>(pool);
 		} else if (service == null)

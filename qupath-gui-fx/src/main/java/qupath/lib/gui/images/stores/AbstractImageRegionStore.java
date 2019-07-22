@@ -45,7 +45,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.lib.awt.common.AwtTools;
-import qupath.lib.common.SimpleThreadFactory;
+import qupath.lib.common.ThreadTools;
 import qupath.lib.gui.images.stores.DefaultRegionCache;
 import qupath.lib.gui.images.stores.SizeEstimator;
 import qupath.lib.gui.images.stores.TileWorker;
@@ -87,7 +87,15 @@ abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {
 	// Cache image thumbnails
 	protected DefaultRegionCache<T> thumbnailCache;
 	
-	private int thumbnailWidth;
+	/**
+	 * Maximum size of thumbnail, in any dimension.
+	 */
+	private int maxThumbnailSize;
+	
+	/**
+	 * Minimum size of thumbnail, in any dimension.
+	 */
+	private int minThumbnailSize = 16;
 
 	
 	private TileRequestManager manager = new TileRequestManager(10);
@@ -95,13 +103,13 @@ abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {
 	// Create two threadpools: a larger one for images that need to be fetched (e.g. from disk, cloud storage), and a smaller one
 	// for painting image tiles... the reason being that the high latency of distantly-stored images otherwise risks lowering
 	// repainting performance
-	private ExecutorService pool = Executors.newFixedThreadPool(Math.max(8, Math.min(Runtime.getRuntime().availableProcessors() * 4, 32)), new SimpleThreadFactory("region-store-", false));
-	private ExecutorService poolLocal = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors(), new SimpleThreadFactory("region-store-local-", false));
+	private ExecutorService pool = Executors.newFixedThreadPool(Math.max(8, Math.min(Runtime.getRuntime().availableProcessors() * 4, 32)), ThreadTools.createThreadFactory("region-store-", false));
+	private ExecutorService poolLocal = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors(), ThreadTools.createThreadFactory("region-store-local-", false));
 	
 	
 
-	protected AbstractImageRegionStore(final SizeEstimator<T> sizeEstimator, final int thumbnailWidth, final long tileCacheSizeBytes) {
-		this.thumbnailWidth = thumbnailWidth;
+	protected AbstractImageRegionStore(final SizeEstimator<T> sizeEstimator, final int thumbnailSize, final long tileCacheSizeBytes) {
+		this.maxThumbnailSize = thumbnailSize;
 		cache = new DefaultRegionCache<>(sizeEstimator, tileCacheSizeBytes);
 		thumbnailCache = new DefaultRegionCache<>(sizeEstimator, tileCacheSizeBytes/4);
 	}
@@ -111,14 +119,30 @@ abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {
 		this(sizeEstimator, DEFAULT_THUMBNAIL_WIDTH, tileCacheSizeBytes);
 	}
 	
+	
+	/**
+	 * 
+	 * @param width
+	 * @param height
+	 * @return
+	 */
+	double calculateThumbnailDownsample(int width, int height) {
+		// We'll have trouble if we try to downsample until we have very few pixels in any dimension
+		double maxDim = Math.max(width, height);
+		double minDim = Math.min(width, height);
+		if (minDim > minThumbnailSize) {
+			double maxDownsample = minDim / minThumbnailSize;
+			return Math.max(1, Math.min((double)maxDim / maxThumbnailSize, maxDownsample));				
+		}
+		return 1.0;
+	}
+	
 
 	RegionRequest getThumbnailRequest(final ImageServer<T> server, final int zPosition, final int tPosition) {
 		// Determine thumbnail size
-		double downsample;
+		double downsample = 1;
 		if (isTiledImageServer(server)) {
-			downsample = (double)server.getWidth() / thumbnailWidth;
-		} else {
-			downsample = 1;
+			downsample = calculateThumbnailDownsample(server.getWidth(), server.getHeight());
 		}
 		// Ensure we aren't accidentally upsampling (shouldn't actually happen)
 		downsample = Math.max(downsample, 1);
@@ -129,6 +153,7 @@ abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {
 	/* (non-Javadoc)
 	 * @see qupath.lib.images.stores.ImageRegionStore#getCachedThumbnail(qupath.lib.images.servers.ImageServer, int, int)
 	 */
+	@Override
 	public T getCachedThumbnail(ImageServer<T> server, int zPosition, int tPosition) {
 		RegionRequest request = getThumbnailRequest(server, zPosition, tPosition);
 		return thumbnailCache.get(request);

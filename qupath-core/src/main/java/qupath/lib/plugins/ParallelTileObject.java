@@ -43,7 +43,7 @@ import qupath.lib.objects.PathTileObject;
 import qupath.lib.objects.TemporaryObject;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.regions.ImagePlane;
-import qupath.lib.roi.PathROIToolsAwt;
+import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.PathArea;
 import qupath.lib.roi.interfaces.ROI;
@@ -51,7 +51,7 @@ import qupath.lib.roi.interfaces.ROI;
 /**
  * A temporary object, used during parallel processing to represent a tile currently being used for object
  * detection.
- * 
+ * <p>
  * ParallelTileObjects maintain knowledge of adjacent tiles, and are thereby able to resolve overlaps
  * after detection is complete (here, based on keeping the object with the larger area).
  * 
@@ -170,7 +170,7 @@ public class ParallelTileObject extends PathTileObject implements TemporaryObjec
 				while (iterThis.hasNext()) {
 					PathObject pathObjectNew = iterThis.next();
 					PathArea pathAreaNew = (PathArea)pathObjectNew.getROI();
-					Area areaNew = PathROIToolsAwt.getArea(pathAreaNew);
+					Area areaNew = RoiTools.getArea(pathAreaNew);
 
 					Iterator<PathObject> iterThat = listThat.iterator();
 					while (iterThat.hasNext()) {
@@ -180,7 +180,7 @@ public class ParallelTileObject extends PathTileObject implements TemporaryObjec
 						if (!areaNew.intersects(getBounds2D(pathAreaOld)))
 							continue;
 						// If the bounds are intersected, check for an actual intersection between the areas
-						Area temp = PathROIToolsAwt.getArea(pathAreaOld);
+						Area temp = RoiTools.getArea(pathAreaOld);
 						temp.intersect(areaNew);
 						if (temp.isEmpty())
 							continue;

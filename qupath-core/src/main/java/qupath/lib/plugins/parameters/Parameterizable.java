@@ -31,6 +31,10 @@ package qupath.lib.plugins.parameters;
  */
 public interface Parameterizable {
 	
+	/**
+	 * Get the parameter list associated with the class.
+	 * @return
+	 */
 	public ParameterList getParameterList();
 	
 }

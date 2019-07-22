@@ -35,7 +35,6 @@ import qupath.lib.gui.ImageDataWrapper;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.images.ImageData;
-import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClass;
@@ -67,7 +66,7 @@ public class DetectionsToPointsCommand implements PathCommand {
 		if (imageData == null)
 			return;
 		PathObjectHierarchy hierarchy = imageData.getHierarchy();
-		Collection<PathObject> pathObjects = hierarchy.getObjects(null, PathDetectionObject.class);
+		Collection<PathObject> pathObjects = hierarchy.getDetectionObjects();
 		if (pathObjects.isEmpty()) {
 			DisplayHelpers.showErrorMessage("Detections to points", "No detections found!");
 			return;
@@ -123,7 +122,7 @@ public class DetectionsToPointsCommand implements PathCommand {
 		for (Entry<PathClass, List<Point2>> entry : pointsMap.entrySet()) {
 			PathObject pointObject = PathObjects.createAnnotationObject(ROIs.createPointsROI(entry.getValue(), ImagePlane.getDefaultPlane()));
 			pointObject.setPathClass(entry.getKey());
-			hierarchy.addPathObject(pointObject, false);			
+			hierarchy.addPathObject(pointObject);			
 		}
 		
 //		hierarchy.fireChangeEvent(hierarchy.getRootObject());

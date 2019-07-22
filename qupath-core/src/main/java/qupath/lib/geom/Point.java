@@ -33,12 +33,37 @@ package qupath.lib.geom;
  */
 public interface Point {
 
+	/**
+	 * Number of values used to represent this point.
+	 * <p>
+	 * For an x,y coordinate pair this should return 2.
+	 * @return
+	 */
 	public int dim();
 
+	/**
+	 * Get the value of the ordinate for the specified dimension.
+	 * @param dim
+	 * @return
+	 */
 	public double get(final int dim);
 	
+	/**
+	 * Calculate the squared distance to another point, with the same {@link #dim()}.
+	 * @param p
+	 * @return
+	 * 
+	 * @see #distance(Point)
+	 */
 	public double distanceSq(final Point p);
 	
+	/**
+	 * Calculate the distance to another point, with the same {@link #dim()}.
+	 * @param p
+	 * @return
+	 * 
+	 * @see #distanceSq(Point)
+	 */
 	public double distance(final Point p);
 
 }

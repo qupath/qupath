@@ -28,19 +28,21 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.util.ArrayList;
-import java.util.List;
-
+import java.util.Arrays;
+import java.util.Collection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.TMACoreObject;
+import qupath.lib.objects.classes.PathClass;
+import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.TMAGrid;
 
 /**
- * Static methods to load &amp; run a classifier.
+ * Static methods to load &amp; run a detection object classifier.
  * 
  * @author Pete Bankhead
  *
@@ -49,17 +51,22 @@ public class PathClassifierTools {
 	
 	final private static Logger logger = LoggerFactory.getLogger(PathClassifierTools.class);
 
+	/**
+	 * Apply a classifier to the detection objects in a hierarchy.
+	 * @param hierarchy
+	 * @param classifier
+	 */
 	public static void runClassifier(final PathObjectHierarchy hierarchy, final PathObjectClassifier classifier) {
 		// Apply classifier to everything
 		// If we have a TMA grid, do one core at a time
 		long startTime = System.currentTimeMillis();
 		TMAGrid tmaGrid = hierarchy.getTMAGrid();
-		List<PathObject> pathObjects = new ArrayList<>();
+		Collection<PathObject> pathObjects = new ArrayList<>();
 		int nClassified = 0;
 		//			tmaGrid = null;
 		if (tmaGrid != null) {
 			for (TMACoreObject core : tmaGrid.getTMACoreList()) {
-				pathObjects = hierarchy.getDescendantObjects(core, pathObjects, PathDetectionObject.class);
+				pathObjects = PathObjectTools.getDescendantObjects(core, pathObjects, PathDetectionObject.class);
 				nClassified += classifier.classifyPathObjects(pathObjects);
 				pathObjects.clear();
 			}
@@ -77,6 +84,11 @@ public class PathClassifierTools {
 			logger.warn("No objects classified!");
 	}
 
+	/**
+	 * Load a classifier that has previously been serialized to a file.
+	 * @param file
+	 * @return
+	 */
 	public static PathObjectClassifier loadClassifier(File file) {
 		// TODO: Put this into another method
 		PathObjectClassifier classifier = null;
@@ -99,6 +111,57 @@ public class PathClassifierTools {
 			}
 		}
 		return classifier;
+	}
+
+	/**
+	 * Create a {@link PathObjectClassifier} that applies an array of classifiers, sequentially in order.
+	 * @param classifiers
+	 */
+	public static PathObjectClassifier createCompositeClassifier(final PathObjectClassifier... classifiers) {
+		return new CompositeClassifier(Arrays.asList(classifiers));
+	}
+
+	/**
+	 * Create a {@link PathObjectClassifier} that applies a collection of classifiers, sequentially in order.
+	 * @param classifiers
+	 */
+	public static PathObjectClassifier createCompositeClassifier(final Collection<PathObjectClassifier> classifiers) {
+		return new CompositeClassifier(classifiers);
+	}
+	
+	/**
+	 * Create an {@link PathObjectClassifier} that (sub)classifies objects by a single intensity measurement.
+	 * <p>
+	 * Three thresholds may be provided, resulting in objects being classified as Negative, 1+, 2+ or 3+.
+	 * Alternatively, if either t2 or t3 is Double.NaN, only the first threshold will be applied and objects will be classified as Negative/Positive only.
+	 * <p>
+	 * If the objects already have a (non-intensity-based) base classification, this will be retained and a sub-classification applied.
+	 * 
+	 * @param classSelected if not null, apply sub-classification only to objects with the specified initial base classification
+	 * @param intensityMeasurement the object measurement used for thresholding
+	 * @param t1 low threshold
+	 * @param t2 moderate threshold
+	 * @param t3 high threshold
+	 * @return
+	 */
+	public static PathObjectClassifier createIntensityClassifier(final PathClass classSelected, final String intensityMeasurement, final double t1, final double t2, final double t3) {
+		return new PathIntensityClassifier(classSelected, intensityMeasurement, t1, t2, t3);
+	}
+
+	/**
+	 * Create an {@link PathObjectClassifier} that (sub)classifies objects by a single intensity measurement.
+	 * <p>
+	 * Objects are finally classified as either Positive or Negative. If the objects already have a (non-intensity-based) base classification, 
+	 * this will be retained.
+	 * 
+	 * @param classSelected if not null, apply sub-classification only to objects with the specified initial base classification
+	 * @param intensityMeasurement the object measurement used for thresholding
+	 * @param threshold objects will be classified as Positive if their corresponding measurement has a value above threshold,
+	 * 					otherwise they will be classified as Negative.
+	 * @return
+	 */
+	public static PathObjectClassifier createIntensityClassifier(final PathClass classSelected, final String intensityMeasurement, final double threshold) {
+		return new PathIntensityClassifier(classSelected, intensityMeasurement, threshold, Double.NaN, Double.NaN);
 	}
 	
 }

@@ -32,6 +32,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -47,7 +48,10 @@ import qupath.lib.images.servers.AbstractTileableImageServer;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.ImageServerMetadata.ImageResolutionLevel;
+import qupath.lib.images.servers.PixelType;
 import qupath.lib.images.servers.TileRequest;
+import qupath.lib.images.servers.ImageServerBuilder.DefaultImageServerBuilder;
+import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
 
 /**
  * ImageServer implementation using OpenSlide.
@@ -71,8 +75,11 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 	
 	private int boundsX, boundsY, boundsWidth, boundsHeight;
 	
+	private URI uri;
+	private String[] args;
 	
-	private double readNumericPropertyOrDefault(Map<String, String> properties, String name, double defaultValue) {
+	
+	private static double readNumericPropertyOrDefault(Map<String, String> properties, String name, double defaultValue) {
 		// Try to read a tile size
 		String value = properties.get(name);
 		if (value == null) {
@@ -87,14 +94,25 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 		}
 	}
 	
-
-	public OpenslideImageServer(URI uri) throws IOException {
+	/**
+	 * Create an ImageServer using OpenSlide for the specified file.
+	 * <p>
+	 * The only supported arg is {@code --no-crop}, to specify that any bounding box should not be 
+	 * applied (which was the default in QuPath &lt;= v0.1.2).
+	 * 
+	 * @param uri
+	 * @param args
+	 * @throws IOException
+	 */
+	public OpenslideImageServer(URI uri, String...args) throws IOException {
 		super();
+		this.uri = uri;
 
 		// Ensure the garbage collector has run - otherwise any previous attempts to load the required native library
 		// from different classloader are likely to cause an error (although upon first further investigation it seems this doesn't really solve the problem...)
 		System.gc();
-		osr = new OpenSlide(new File(uri));
+		File file = new File(uri);
+		osr = new OpenSlide(file);
 
 		// Parse the parameters
 		int width = (int)osr.getLevel0Width();
@@ -102,9 +120,15 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 
 		Map<String, String> properties = osr.getProperties();
 		
+		boolean applyBounds = useBoundingBoxes;
+		for (String arg : args) {
+			if ("--no-crop".equals(arg))
+				applyBounds = false;
+		}
+		
 		// Read bounds
 		boolean isCropped = false;
-		if (useBoundingBoxes && properties.keySet().containsAll(
+		if (applyBounds && properties.keySet().containsAll(
 				Arrays.asList(
 						OpenSlide.PROPERTY_NAME_BOUNDS_X,
 						OpenSlide.PROPERTY_NAME_BOUNDS_Y,
@@ -159,6 +183,8 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 		}
 		var levels = resolutionBuilder.build();
 		
+		String path = uri.toString();
+		
 		// If the image is cropped, create a new list of resolution levels based on the cropped values
 		// (We do it this elaborate way as we'd like to keep the default downsample calculations based on the full image)
 		if (isCropped) {
@@ -166,13 +192,18 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 			for (var level : levels)
 				resolutionBuilderCropped.addLevelByDownsample(level.getDownsample());
 			levels = resolutionBuilderCropped.build();
+			path = String.format("%s [x=%d,y=%d,w=%d,h=%d]", path, boundsX, boundsY, boundsWidth, boundsHeight);
 		}
 		
 		// Create metadata objects
-		originalMetadata = new ImageServerMetadata.Builder(getClass(), uri.toString(), boundsWidth, boundsHeight).
+		this.args = args;
+		originalMetadata = new ImageServerMetadata.Builder(getClass(),
+				path, boundsWidth, boundsHeight).
 				channels(ImageChannel.getDefaultRGBChannels()). // Assume 3 channels (RGB)
+				name(file.getName()).
 				rgb(true).
-				bitDepth(8).
+//				args(args).
+				pixelType(PixelType.UINT8).
 				preferredTileSize(tileWidth, tileHeight).
 				pixelSizeMicrons(pixelWidth, pixelHeight).
 				magnification(magnification).
@@ -205,11 +236,21 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 		// we want it to fail quickly so that it may yet be possible to try another server
 		// This can occur with corrupt .svs (.tif) files that Bioformats is able to handle better
 		try {
-			logger.info("Test reading thumbnail with openslide: passed (" + getBufferedThumbnail(200, 200, 0).toString() + ")");
+			logger.debug("Test reading thumbnail with openslide: passed (" + getDefaultThumbnail(0, 0).toString() + ")");
 		} catch (IOException e) {
 			logger.error("Unable to read thumbnail using OpenSlide: {}", e.getLocalizedMessage());
 			throw(e);
 		}
+	}
+	
+	@Override
+	public Collection<URI> getURIs() {
+		return Collections.singletonList(uri);
+	}
+	
+	@Override
+	protected String createID() {
+		return getClass().getName() + ": " + uri.toString();
 	}
 	
 	@Override
@@ -269,6 +310,11 @@ public class OpenslideImageServer extends AbstractTileableImageServer {
 		if (associatedImageList == null)
 			return Collections.emptyList();
 		return associatedImageList;
+	}
+	
+	@Override
+	protected ServerBuilder<BufferedImage> createServerBuilder() {
+		return DefaultImageServerBuilder.createInstance(OpenslideServerBuilder.class, getMetadata(), uri, args);
 	}
 
 	@Override

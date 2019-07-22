@@ -25,11 +25,9 @@ package qupath.lib.analysis.stats;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
-import qupath.lib.analysis.algorithms.SimpleImage;
+import qupath.lib.analysis.images.SimpleImage;
 
 /**
  * Static methods for computing statistics from images, with or without a corresponding labeled image.
@@ -39,6 +37,11 @@ import qupath.lib.analysis.algorithms.SimpleImage;
  */
 public class StatisticsHelper {
 	
+	/**
+	 * Compute running statistics using all pixels from a SimpleImage.
+	 * @param img
+	 * @return
+	 */
 	public static RunningStatistics computeRunningStatistics(SimpleImage img) {
 		RunningStatistics stats = new RunningStatistics();
 		updateRunningStatistics(stats, img);
@@ -46,6 +49,11 @@ public class StatisticsHelper {
 	}
 	
 	
+	/**
+	 * Add all pixels from a SimpleImage to an existing RunningStatistics object.
+	 * 
+	 * @param img
+	 */
 	public static void updateRunningStatistics(RunningStatistics stats, SimpleImage img) {
 		for (int y = 0; y < img.getHeight(); y++) {
 			for (int x = 0; x < img.getWidth(); x++) {
@@ -54,24 +62,9 @@ public class StatisticsHelper {
 		}
 	}
 	
-	
-//	public static RunningStatistics computeRunningStatistics(float[] pxIntensities, byte[] pxMask, int width, Rectangle bounds) {
-//		RunningStatistics stats = new RunningStatistics();
-//		for (int i = 0; i < pxMask.length; i++) {
-//			if (pxMask[i] == 0)
-//				continue;
-//			// Compute the image index
-//			int x = i % bounds.width + bounds.x;
-//			int y = i % bounds.width + bounds.y;
-//			// Add the value
-//			stats.addValue(pxIntensities[y * width + x]);
-//		}
-//		return stats;
-//	}
-	
-	
 	/**
-	 * Create a list of n (empty) RunningStatistics objects
+	 * Create a list of n (empty) RunningStatistics objects.
+	 * 
 	 * @param n
 	 * @return
 	 */
@@ -83,6 +76,12 @@ public class StatisticsHelper {
 	}
 	
 	
+	/**
+	 * Create a RunningStatistics object using all the values from a specified array.
+	 * 
+	 * @param values
+	 * @return
+	 */
 	public static RunningStatistics computeRunningStatistics(double[] values) {
 		RunningStatistics stats = new RunningStatistics();
 		for (double v : values) {
@@ -91,20 +90,12 @@ public class StatisticsHelper {
 		return stats;
 	}
 	
-	public static RunningStatistics computeRunningStatistics(float[] values) {
-		RunningStatistics stats = new RunningStatistics();
-		for (double v : values) {
-			stats.addValue(v);
-		}
-		return stats;
-	}
-	
-	
 	
 	/**
-	 * This should (but isn't well tested!) 
-	 * 
-	 * TODO: Test running statistics!
+	 * Calculate RunningStatistics for each label &gt; 0 in an image, up to a maximum of {@code statsList.size()}.
+	 * <p>
+	 * The statistics for pixels in {@code img} corresponding to integer value {@code label} in {@code imgLabels} 
+	 * are stored within {@code statsList.get(label-1)}.
 	 * 
 	 * @param img
 	 * @param imgLabels
@@ -132,47 +123,11 @@ public class StatisticsHelper {
 	
 	
 	/**
-	 * Create a map between labels and RunningStatistics.
-	 * 
-	 * @param img
-	 * @param imgLabels
-	 */
-	public static Map<Float, RunningStatistics> computeRunningStatisticsMap(SimpleImage img, SimpleImage imgLabels) {
-		float lastLabel = Float.NaN;
-		Map<Float, RunningStatistics> map = new HashMap<>();
-		RunningStatistics stats = null;
-		for (int y = 0; y < img.getHeight(); y++) {
-			for (int x = 0; x < img.getWidth(); x++) {
-				float label = imgLabels.getValue(x, y);
-				if (label == 0)
-					continue;
-				// Get a new statistics object if necessary
-				if (label != lastLabel) {
-					Float fLabel = Float.valueOf(label);
-					stats = map.get(fLabel);
-					if (stats == null) {
-						stats = new RunningStatistics();
-						map.put(fLabel, stats);
-					}
-					lastLabel = label;
-				}
-				// Add the value
-				stats.addValue(img.getValue(x, y));
-			}			
-		}
-		return map;
-	}
-	
-	
-	
-	
-	
-	/**
 	 * Determine thresholds for dividing an array of double values into quartiles.
-	 * 
+	 * <p>
 	 * NaNs are effectively removed first, however the input array is left unchanged so
 	 * there is no need to duplicate it first (i.e. it is duplicated within this method anyway).
-	 * 
+	 * <p>
 	 * Depending upon the number of non-NaN values in the input array, linear interpolation may be used 
 	 * to obtain the split points.
 	 * 
@@ -217,10 +172,10 @@ public class StatisticsHelper {
 	
 	/**
 	 * Determine thresholds for dividing an array of double values into tertiles.
-	 * 
+	 * <p>
 	 * NaNs are effectively removed first, however the input array is left unchanged so
-	 * there is no need to duplicate it first (i.e. it is duplicated within this method anyway).
-	 * 
+	 * there is no need to duplicate it in advance (i.e. it is duplicated within this method anyway).
+	 * <p>
 	 * Depending upon the number of non-NaN values in the input array, linear interpolation may be used 
 	 * to obtain the split points.
 	 * 

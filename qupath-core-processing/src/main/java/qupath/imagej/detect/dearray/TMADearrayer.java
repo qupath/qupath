@@ -54,13 +54,11 @@ import ij.process.ByteProcessor;
 import ij.process.ColorProcessor;
 import ij.process.FloatProcessor;
 import ij.process.ImageProcessor;
-import qupath.imagej.processing.ROILabeling;
+import qupath.imagej.processing.RoiLabeling;
 
 
 /**
- * Static methods used by the dearrayer plugin.
- * 
- * (I may have been a bit too enthusiastic in my use of static methods...)
+ * Static methods used by the TMA dearrayer plugin.
  * 
  * @author Pete Bankhead
  *
@@ -68,7 +66,7 @@ import qupath.imagej.processing.ROILabeling;
 public class TMADearrayer {
 
 	
-	public static double[] computeDensities(ByteProcessor bp, Polygon polyGrid, double coreDiameterPx) {
+	static double[] computeDensities(ByteProcessor bp, Polygon polyGrid, double coreDiameterPx) {
 		RankFilters rf = new RankFilters();
 		FloatProcessor fp = bp.convertToFloatProcessor();
 		fp.max(1.0);
@@ -178,7 +176,7 @@ public class TMADearrayer {
 	
 	
 	
-	public static class TMAGridShape {
+	static class TMAGridShape {
 		
 		final public int nVertical;
 		final public int nHorizontal;
@@ -320,7 +318,7 @@ public class TMADearrayer {
 		rf.rank(bp, filterRadius, RankFilters.MAX);
 		
 		// Fill holes
-		ROILabeling.fillHoles(bp);
+		RoiLabeling.fillHoles(bp);
 		
 		// Remove everything outside the ROI
 		if (roi != null && roi.isArea()) {

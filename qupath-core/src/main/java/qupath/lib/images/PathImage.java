@@ -23,28 +23,24 @@
 
 package qupath.lib.images;
 
-import java.io.IOException;
-
+import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.regions.ImageRegion;
 
 /**
- * Interface used when wanting to store pixel data, in some format dependent on {@code <T>} (e.g. BufferedImage, ImagePlus, Mat...), along
- * with information of the image from which the pixel data was obtained, including the downsample factor used to extract it.
+ * Interface used when needing to associate pixel data with information regarding the image from which it was obtained.
+ * <p>
+ * The generic parameter defines the type of the image (e.g. BufferedImage, ImagePlus, Mat...).
  * 
  * @author Pete Bankhead
  *
  * @param <T>
  */
 public interface PathImage<T> {
-
-	public String getImageTitle();
 	
 	/**
 	 * Get the pixel data (image).
 	 * 
-	 * @return the stored image, or {@code null} if it is not possible to retrieve the image.
-	 * 
-	 * @see #getImage(boolean)
+	 * @return
 	 */
 	public T getImage();
 	
@@ -53,51 +49,12 @@ public interface PathImage<T> {
 	 * @return
 	 */
 	public double getDownsampleFactor();
-
+	
 	/**
-	 * Check if the image is available; if this returns false, then getImage() should read the image lazily on demand
+	 * Get the PixelCalibration representing actual pixel sizes in this image, with downsampling applied if necessary.
 	 * @return
 	 */
-	public boolean hasCachedImage();
-	
-	/**
-	 * Version of getImage() that makes it possible to specified whether the image should be cached or not;
-	 * if the pixel data will not be required again, {@code getImage(false)} may improve efficiency.
-	 * <p>
-	 * This only really makes a difference is the image is not already cached, i.e. {@code hasCachedImage()} returns false.
-	 * <p>
-	 * Unlike {@code getImage}, this method may throw an exception if the image is unavailable, rather than returning {@code null}.
-	 * 
-	 * @return
-	 * @throws IOException 
-	 * 
-	 * @see #getImage()
-	 */
-	public T getImage(boolean cache) throws IOException;
-	
-	/**
-	 * Test whether getPixelWidthMicrons() is equal to getPixelHeightMicrons() (with a small floating-point tolerance).
-	 * @return true if the pixels are approximately square, false otherwise
-	 */
-	public boolean validateSquarePixels();
-	
-	/**
-	 * Get the horizontal pixel size, in microns, or Double.NaN if this is unavailable.
-	 * @return
-	 */
-	public double getPixelWidthMicrons();
-	
-	/**
-	 * Get the vertical pixel size, in microns, or Double.NaN if this is unavailable.
-	 * @return
-	 */
-	public double getPixelHeightMicrons();
-	
-	/**
-	 * Query whether the horizontal &amp; vertical pixel sizes are available in microns.
-	 * @return true if both getPixelWidthMicrons() and getPixelHeightMicrons() return non-NaN values; false otherwise.
-	 */
-	public boolean hasPixelSizeMicrons();
+	public PixelCalibration getPixelCalibration();
 	
 	/**
 	 * The region within the (original, possibly larger) image that this particular image corresponds to.

@@ -26,16 +26,13 @@ package qupath.lib.plugins;
 import java.util.Collection;
 
 import qupath.lib.images.ImageData;
-import qupath.lib.images.servers.ImageServer;
-import qupath.lib.objects.PathObject;
-import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 
 /**
  * Implementing classes encapsulate the data and functionality needed to run a plugin on a single image.
- * 
+ * <p>
  * This means access to an ImageData object (along with helper methods to access its server, hierarchy &amp;
  * selected objects), as well as the ability to run a collection of tasks - possibly in parallel.
- * 
+ * <p>
  * This implementation may also (optionally) provide useful feedback on progress when running tasks.
  * 
  * @author Pete Bankhead
@@ -44,18 +41,23 @@ import qupath.lib.objects.hierarchy.PathObjectHierarchy;
  */
 public interface PluginRunner<T> {
 
-	boolean isBatchMode();
-
+	/**
+	 * Get the current {@link ImageData} upon which the plugin should operate.
+	 * @return
+	 */
 	ImageData<T> getImageData();
 
-	ImageServer<T> getImageServer();
-	
+	/**
+	 * Query if the plugin should be cancelled while running.
+	 * Plugins are expected to check this flag before time-consuming operations.
+	 * @return
+	 */
 	boolean isCancelled();
 
-	PathObjectHierarchy getHierarchy();
-
-	PathObject getSelectedObject();
-
+	/**
+	 * Pass a collection of parallelizable tasks to run.
+	 * @param tasks
+	 */
 	void runTasks(Collection<Runnable> tasks);
 
 }

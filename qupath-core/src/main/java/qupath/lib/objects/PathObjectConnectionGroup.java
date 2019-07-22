@@ -31,9 +31,9 @@ import qupath.lib.objects.PathObject;
 /**
  * Interface defining a basic structure to represent relationships between PathObjects that do not fit with  
  * the parent-child idea of the PathObjectHierarchy.
- * 
+ * <p>
  * Example applications would be Delaunay triangulation.
- * 
+ * <p>
  * Such connections can be represented on an overlay by drawing lines between object centroids.
  * 
  * @author Pete Bankhead
@@ -58,7 +58,7 @@ public interface PathObjectConnectionGroup {
 	
 	/**
 	 * Get all the connections to a specified PathObject stored in this group.
-	 * 
+	 * <p>
 	 * If containsObject(pathObject) returns null, this will return an empty list (and not null).
 	 * 
 	 * @param pathObject

@@ -21,10 +21,12 @@ import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
+import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
+import qupath.lib.objects.classes.PathClassFactory.StandardPathClasses;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.ROIs;
 
@@ -62,6 +64,7 @@ public class CreateRegionAnnotationsCommand implements PathCommand {
 		
 		public static enum RegionLocation {VIEW_CENTER, IMAGE_CENTER, RANDOM;
 			
+			@Override
 			public String toString() {
 				switch (this) {
 				case IMAGE_CENTER:
@@ -79,6 +82,7 @@ public class CreateRegionAnnotationsCommand implements PathCommand {
 		
 		public static enum RegionUnits {PIXELS, MICRONS;
 			
+			@Override
 			public String toString() {
 				switch (this) {
 				case PIXELS:
@@ -115,14 +119,14 @@ public class CreateRegionAnnotationsCommand implements PathCommand {
 			addLabelled("Size units", comboUnits, 0, row++, "Choose the units used to define the region width & height");
 			addLabelled("Classification", comboClassification, 0, row++, "Choose the default classification to be applied to the region");
 
-			if (qupath.getImageData() == null || !qupath.getImageData().getServer().hasPixelSizeMicrons())
+			if (qupath.getImageData() == null || !qupath.getImageData().getServer().getPixelCalibration().hasPixelSizeMicrons())
 				comboUnits.getSelectionModel().select(RegionUnits.PIXELS);
 			else
 				comboUnits.getSelectionModel().select(RegionUnits.MICRONS);
 			
 			comboClassification.setItems(qupath.getAvailablePathClasses());
-			if (comboClassification.getItems().contains(PathClassFactory.getRegionClass()))
-				comboClassification.getSelectionModel().select(PathClassFactory.getRegionClass());
+			if (comboClassification.getItems().contains(PathClassFactory.getPathClass(StandardPathClasses.REGION)))
+				comboClassification.getSelectionModel().select(PathClassFactory.getPathClass(StandardPathClasses.REGION));
 			else
 				comboClassification.getSelectionModel().select(PathClassFactory.getPathClassUnclassified());
 			
@@ -176,8 +180,9 @@ public class CreateRegionAnnotationsCommand implements PathCommand {
 			
 			// Calibrate the width & height according to pixel size... if necessary
 			if (requestedUnits == RegionUnits.MICRONS) {
-				double pixelWidthMicrons = imageData.getServer().getPixelWidthMicrons();
-				double pixelHeightMicrons = imageData.getServer().getPixelHeightMicrons();
+				PixelCalibration cal = imageData.getServer().getPixelCalibration();
+				double pixelWidthMicrons = cal.getPixelWidthMicrons();
+				double pixelHeightMicrons = cal.getPixelHeightMicrons();
 				if (!Double.isFinite(pixelWidthMicrons + pixelHeightMicrons)) {
 					DisplayHelpers.showErrorMessage("Create region", "Pixel size not available! Please switch to creating the region in pixels instead.");
 					return;
@@ -218,7 +223,7 @@ public class CreateRegionAnnotationsCommand implements PathCommand {
 			PathObject annotation = PathObjects.createAnnotationObject(
 					ROIs.createRectangleROI(x, y, width, height, ImagePlane.getPlane(viewer.getZPosition(), viewer.getTPosition())),
 					pathClass);
-			imageData.getHierarchy().addPathObject(annotation, false);
+			imageData.getHierarchy().addPathObject(annotation);
 		}
 		
 		

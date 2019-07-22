@@ -14,7 +14,7 @@ import org.slf4j.LoggerFactory;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.StringProperty;
 import javafx.collections.FXCollections;
-import qupath.lib.common.SimpleThreadFactory;
+import qupath.lib.common.ThreadTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.helpers.DisplayHelpers;
@@ -46,14 +46,27 @@ public class OMEPyramidWriterCommand implements PathCommand {
 	private static IntegerProperty minSizeForTiling = PathPrefs.createPersistentPreference(
 			"ome-pyramid-default-min-size-for-tiling", 4096);
 
+	/**
+	 * Query the default compression type when writing OME-TIFF images.
+	 * @return
+	 */
 	public static String getDefaultPyramidCompression() {
 		return defaultPyramidCompression.get();
 	}
 	
+	/**
+	 * Query the default tile size when writing OME-TIFF images.
+	 * @return
+	 */
 	public static int getDefaultTileSize() {
 		return defaultTileSize.get();
 	}
 
+	/**
+	 * Query the default minimum image size when writing OME-TIFF images.
+	 * This is used as a hint to disable tiling for images with widths and heights smaller than this value.
+	 * @return
+	 */
 	public static int getMinSizeForTiling() {
 		return minSizeForTiling.get();
 	}
@@ -67,6 +80,10 @@ public class OMEPyramidWriterCommand implements PathCommand {
 	private ExecutorService pool;
 	private Future<?> currentTask;
 	
+	/**
+	 * Constructor.
+	 * @param qupath current QuPath instance.
+	 */
 	public OMEPyramidWriterCommand(final QuPathGUI qupath) {
 		this.qupath = qupath;
 		
@@ -112,7 +129,7 @@ public class OMEPyramidWriterCommand implements PathCommand {
 		}
 		
 		if (pool == null) {
-			pool = Executors.newSingleThreadExecutor(new SimpleThreadFactory("ome-pyramid-export", false));
+			pool = Executors.newSingleThreadExecutor(ThreadTools.createThreadFactory("ome-pyramid-export", false));
 		}
 		QuPathViewer viewer = qupath.getViewer();
 		ImageData<BufferedImage> imageData = viewer.getImageData();
@@ -141,12 +158,12 @@ public class OMEPyramidWriterCommand implements PathCommand {
 				.region(region);
 		
 		// Set tile size; if we just have one tile, use the image width & height
-		if (server.getAllTileRequests().size() == 1)
+		if (server.getTileRequestManager().getAllTileRequests().size() == 1)
 			builder = builder.tileSize(server.getWidth(), server.getHeight());
 		else if (getDefaultTileSize() > 0)
 			builder = builder.tileSize(getDefaultTileSize());
 		else
-			builder = builder.tileSize(server.getPreferredTileWidth(), server.getPreferredTileHeight());
+			builder = builder.tileSize(server.getMetadata().getPreferredTileWidth(), server.getMetadata().getPreferredTileHeight());
 
 		// Decide whether to write pyramid or not based on image size
 		if (Math.max(region.getWidth(), region.getHeight()) > getMinSizeForTiling())

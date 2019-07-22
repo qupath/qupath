@@ -133,14 +133,14 @@ public class TestColors {
 
 	@Test
 	public void test_ColorDeconvStains() throws Exception {
-		StainVector mySV1 = StainVector.makeDefaultStainVector(StainVector.DEFAULT_STAINS.HEMATOXYLIN);
-		StainVector mySV2 = StainVector.makeDefaultStainVector(StainVector.DEFAULT_STAINS.EOSIN);
-		StainVector mySV2b = new StainVector("eosin", new double[]{0.07, 0.99, 0.11}, false); // alternative eosin, taken from Ruifrok
-		StainVector mySV3 = StainVector.makeDefaultStainVector(StainVector.DEFAULT_STAINS.DAB);
+		StainVector mySV1 = StainVector.makeDefaultStainVector(StainVector.DefaultStains.HEMATOXYLIN);
+		StainVector mySV2 = StainVector.makeDefaultStainVector(StainVector.DefaultStains.EOSIN);
+		StainVector mySV2b = StainVector.createStainVector("eosin", 0.07, 0.99, 0.11); // alternative eosin, taken from Ruifrok
+		StainVector mySV3 = StainVector.makeDefaultStainVector(StainVector.DefaultStains.DAB);
 		StainVector mySVr1 = StainVector.makeResidualStainVector(mySV1, mySV2);
 		StainVector mySVr2 = StainVector.makeResidualStainVector(mySV1, mySV3);
 		
-		ColorDeconvolutionStains myCDS1 = new ColorDeconvolutionStains("myCDS1", mySV1, mySV2); // residual created automatically
+		ColorDeconvolutionStains myCDS1 = new ColorDeconvolutionStains("myCDS1", mySV1, mySV2, 255, 255, 255); // residual created automatically
 		ColorDeconvolutionStains myCDS2 = new ColorDeconvolutionStains("myCDS1", mySV1, mySV2, mySV3, 255, 255, 255); 
 		
 		assertTrue(myCDS1.isH_E());
@@ -186,10 +186,10 @@ public class TestColors {
 	
 	@Test
 	public void test_ColorDeconvolution() throws Exception {
-		StainVector mySV1 = StainVector.makeDefaultStainVector(StainVector.DEFAULT_STAINS.HEMATOXYLIN);
-		StainVector mySV2 = StainVector.makeDefaultStainVector(StainVector.DEFAULT_STAINS.EOSIN);
-		StainVector mySV2b = new StainVector("eosin", new double[]{0.07, 0.99, 0.11}, false); // alternative eosin, taken from Ruifrok
-		StainVector mySV3 = StainVector.makeDefaultStainVector(StainVector.DEFAULT_STAINS.DAB);
+		StainVector mySV1 = StainVector.makeDefaultStainVector(StainVector.DefaultStains.HEMATOXYLIN);
+		StainVector mySV2 = StainVector.makeDefaultStainVector(StainVector.DefaultStains.EOSIN);
+		StainVector mySV2b = StainVector.createStainVector("eosin", 0.07, 0.99, 0.11); // alternative eosin, taken from Ruifrok
+		StainVector mySV3 = StainVector.makeDefaultStainVector(StainVector.DefaultStains.DAB);
 		
 		ColorDeconvolutionStains myCDS2 = new ColorDeconvolutionStains("myCDS1", mySV1, mySV2, mySV3, MAX_RGB, MAX_RGB, MAX_RGB); 
 		

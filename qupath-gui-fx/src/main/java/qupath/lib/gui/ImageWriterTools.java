@@ -49,16 +49,17 @@ import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.overlays.HierarchyOverlay;
 import qupath.lib.gui.viewer.overlays.PathOverlay;
 import qupath.lib.images.ImageData;
-import qupath.lib.images.servers.ImageIoImageServer;
+import qupath.lib.images.servers.WrappedBufferedImageServer;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.ServerTools;
+import qupath.lib.images.writers.ImageWriter;
 import qupath.lib.images.writers.JpegWriter;
 import qupath.lib.images.writers.PNGWriter;
-import qupath.lib.io.ImageWriter;
 import qupath.lib.regions.RegionRequest;
 
 /**
  * Class for writing image regions.
- * 
+ * <p>
  * Unfortunately, it has a rather unpleasant design, and isn't to be recommended...
  * 
  * @author Pete Bankhead
@@ -210,7 +211,7 @@ public class ImageWriterTools {
 
 
 		
-		File fileOutput = QuPathGUI.getSharedDialogHelper().promptToSaveFile(null, null, server.getShortServerName(), writer.getName(), writer.getExtension());
+		File fileOutput = QuPathGUI.getSharedDialogHelper().promptToSaveFile(null, null, ServerTools.getDisplayableImageName(server), writer.getName(), writer.getExtension());
 		if (fileOutput == null)
 			return null;
 		try {
@@ -278,7 +279,7 @@ public class ImageWriterTools {
 		
 //		ImageServer server2 = new ImageServer<BufferedImage>(server.getServerPath() + ": (" + request.getX() + ", " + request.getY() + ", " + request.getWidth() + ", " + request.getHeight() + ")", null, img);
 		try {
-			ImageServer<BufferedImage> server2 = new ImageIoImageServer(request.toString(), null, img);
+			ImageServer<BufferedImage> server2 = new WrappedBufferedImageServer(null, img);
 			BufferedImage success = writeImageRegion(server2, RegionRequest.createInstance(server2.getPath(), 1, 0, 0, server2.getWidth(), server2.getHeight()), path);
 			server2.close();
 			return success;

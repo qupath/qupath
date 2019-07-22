@@ -36,10 +36,15 @@ import java.awt.image.DataBufferByte;
 import java.nio.ByteBuffer;
 import java.nio.DoubleBuffer;
 
-import static org.bytedeco.javacpp.opencv_core.*;
+import static org.bytedeco.opencv.global.opencv_core.*;
 
-import org.bytedeco.javacpp.opencv_core;
-import org.bytedeco.javacpp.opencv_imgproc;
+import org.bytedeco.opencv.global.opencv_core;
+import org.bytedeco.opencv.global.opencv_imgproc;
+import org.bytedeco.opencv.opencv_core.Mat;
+import org.bytedeco.opencv.opencv_core.MatVector;
+import org.bytedeco.opencv.opencv_core.Point;
+import org.bytedeco.opencv.opencv_core.Scalar;
+import org.bytedeco.opencv.opencv_core.Size;
 import org.bytedeco.javacpp.indexer.IntIndexer;
 
 import org.slf4j.Logger;
@@ -55,6 +60,7 @@ import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.overlays.HierarchyOverlay;
 import qupath.lib.gui.viewer.overlays.PathOverlay;
 import qupath.lib.gui.viewer.tools.BrushTool;
+import qupath.lib.gui.viewer.tools.QuPathPenManager;
 import qupath.lib.regions.ImageRegion;
 
 /**
@@ -91,14 +97,29 @@ public class WandToolCV extends BrushTool {
 	 */
 	private static BooleanProperty wandUseOverlays = PathPrefs.createPersistentPreference("wandUseOverlays", true);
 
+	/**
+	 * Property specifying whether the wand tool should be influenced by pixel values painted on image overlays.
+	 * @return
+	 */
 	public static BooleanProperty wandUseOverlaysProperty() {
 		return wandUseOverlays;
 	}
 	
+	/**
+	 * Query whether the wand tool should be influenced by pixel values painted on image overlays.
+	 * <p>
+	 * If false, only RGB values of the underlying image will be used.
+	 * @return
+	 */
 	public static boolean getWandUseOverlays() {
 		return wandUseOverlays.get();
 	}
 	
+	/**
+	 * Set whether the wand tool should be influenced by pixel values painted on image overlays.
+	 * <p>
+	 * If false, only RGB values of the underlying image will be used.
+	 */
 	public static void setWandUseOverlays(final boolean useOverlays) {
 		wandUseOverlays.set(useOverlays);
 	}
@@ -110,14 +131,26 @@ public class WandToolCV extends BrushTool {
 	 */
 	private static DoubleProperty wandSigmaPixels = PathPrefs.createPersistentPreference("wandSigmaPixels", 4.0);
 
+	/**
+	 * Property representing the Gaussian sigma value used to smooth the image when applying the wand.
+	 * @return
+	 */
 	public static DoubleProperty wandSigmaPixelsProperty() {
 		return wandSigmaPixels;
 	}
 	
+	/**
+	 * Query the Gaussian sigma value used to smooth the image when applying the wand.
+	 * @return
+	 */
 	public static double getWandSigmaPixels() {
 		return wandSigmaPixels.get();
 	}
 	
+	/**
+	 * Set the Gaussian sigma value used to smooth the image when applying the wand.
+	 * @param sigma
+	 */
 	public static void setWandSigmaPixels(final double sigma) {
 		wandSigmaPixels.set(sigma);
 	}
@@ -128,20 +161,34 @@ public class WandToolCV extends BrushTool {
 	 */
 	private static DoubleProperty wandSensitivityProperty = PathPrefs.createPersistentPreference("wandSensitivityPixels", 2.0);
 
+	
+	/**
+	 * Property representing the wand sensitivity value, which influences how similar local intensity values must be for the wand region growing.
+	 * @return
+	 */
 	public static DoubleProperty wandSensitivityProperty() {
 		return wandSensitivityProperty;
 	}
 	
+	/**
+	 * Query the wand sensitivity value, which influences how similar local intensity values must be for the wand region growing.
+	 * @return
+	 */
 	public static double getWandSensitivity() {
 		return wandSensitivityProperty.get();
 	}
 	
+	/**
+	 * Set the wand sensitivity value, which influences how similar local intensity values must be for the wand region growing.
+	 */
 	public static void setWandSensitivity(final double sensitivity) {
 		wandSensitivityProperty.set(sensitivity);
 	}
 	
-	
-
+	/**
+	 * Constructor.
+	 * @param qupath
+	 */
 	public WandToolCV(QuPathGUI qupath) {
 		super(qupath);
 		
@@ -205,7 +252,7 @@ public class WandToolCV extends BrushTool {
 		if (opacity > 0 && getWandUseOverlays()) {
 			ImageRegion region = ImageRegion.createInstance(
 					(int)bounds.getX()-1, (int)bounds.getY()-1, (int)bounds.getWidth()+2, (int)bounds.getHeight()+2, viewer.getZPosition(), viewer.getTPosition());
-			if (opacity < 0)
+			if (opacity < 1)
 				g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, opacity));
 			for (PathOverlay overlay : viewer.getOverlayLayers().toArray(new PathOverlay[0])) {
 				if (!(overlay instanceof HierarchyOverlay))
@@ -280,8 +327,12 @@ public class WandToolCV extends BrushTool {
 		mean.release();
 		stddev.release();
 		
+		// Limit maximum radius by pen
+		int radius = (int)Math.round(w / 2 * QuPathPenManager.getPenManager().getPressure());
+		if (radius == 0)
+			return new Path2D.Float();
 		matMask.put(Scalar.ZERO);
-		opencv_imgproc.circle(matMask, seed, w/2, Scalar.ONE);
+		opencv_imgproc.circle(matMask, seed, radius, Scalar.ONE);
 		opencv_imgproc.floodFill(mat, matMask, seed, Scalar.ONE, null, threshold, threshold, 4 | (2 << 8) | opencv_imgproc.FLOODFILL_MASK_ONLY | opencv_imgproc.FLOODFILL_FIXED_RANGE);
 		subtractPut(matMask, Scalar.ONE);
 		
@@ -352,6 +403,7 @@ public class WandToolCV extends BrushTool {
 	/**
 	 * Don't actually need the diameter for calculations here, but it's helpful for setting the cursor
 	 */
+	@Override
 	protected double getBrushDiameter() {
 		QuPathViewer viewer = getViewer();
 		if (viewer == null)

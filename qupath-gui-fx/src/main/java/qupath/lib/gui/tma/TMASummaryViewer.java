@@ -157,6 +157,7 @@ import qupath.lib.gui.tma.entries.TMAObjectEntry;
 import qupath.lib.gui.tma.entries.TMASummaryEntry;
 import qupath.lib.gui.tma.entries.TMASummaryEntry.MeasurementCombinationMethod;
 import qupath.lib.images.ImageData;
+import qupath.lib.images.servers.ServerTools;
 import qupath.lib.io.PathIO;
 import qupath.lib.io.TMAScoreImporter;
 import qupath.lib.measurements.MeasurementList;
@@ -756,7 +757,7 @@ public class TMASummaryViewer {
 //			logger.info(entry.getKey() + "\t" + score);
 		}
 
-		TMAGrid grid = new DefaultTMAGrid(cores, 1);
+		TMAGrid grid = DefaultTMAGrid.create(cores, 1);
 		PathObjectHierarchy hierarchy = new PathObjectHierarchy();
 		hierarchy.setTMAGrid(grid);
 		kmDisplay.setHierarchy(hierarchy, colSurvival, colCensoredRequested);
@@ -1163,7 +1164,7 @@ public class TMASummaryViewer {
 	 */
 	public void setTMAEntriesFromImageData(final ImageData<BufferedImage> imageData) {
 		setTMAEntries(getEntriesForTMAData(imageData));
-		stage.setTitle("TMA Viewer: " + imageData.getServer().getShortServerName());
+		stage.setTitle("TMA Viewer: " + ServerTools.getDisplayableImageName(imageData.getServer()));
 	}
 	
 
@@ -1616,7 +1617,7 @@ public class TMASummaryViewer {
 				List<String> list = entry.getValue();
 				n = list.size();
 				double[] values = TMAScoreImporter.parseNumeric(list, true);
-				if (values == null || TMAScoreImporter.numNaNs(values) == list.size())
+				if (values == null || GeneralTools.numNaNs(values) == list.size())
 					metadataColumns.put(entry.getKey(), list);
 				else
 					measurementColumns.put(entry.getKey(), values);
@@ -1921,8 +1922,8 @@ public class TMASummaryViewer {
 				return;
 			}
 			int len = x.length;
-			int nNanX = TMAScoreImporter.numNaNs(x);
-			int nNanY = TMAScoreImporter.numNaNs(y);
+			int nNanX = GeneralTools.numNaNs(x);
+			int nNanY = GeneralTools.numNaNs(y);
 			if (count < x.length) {
 				x = Arrays.copyOf(x, count);
 				y = Arrays.copyOf(y, count);
@@ -1983,7 +1984,7 @@ public class TMASummaryViewer {
 		Map<String, double[]> dataNumeric = new HashMap<>();
 		for (String key : data.keySet().toArray(new String[0])) {
 			double[] vals = TMAScoreImporter.parseNumeric(data.get(key), true);
-			if (vals != null && TMAScoreImporter.numNaNs(vals) != vals.length) {
+			if (vals != null && GeneralTools.numNaNs(vals) != vals.length) {
 				dataNumeric.put(key, vals);
 				data.remove(key);
 			}

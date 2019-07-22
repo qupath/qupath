@@ -29,7 +29,7 @@ import qupath.lib.geom.Point2;
 
 /**
  * Class to help ascertain when a point falls inside a particular shape.
- * 
+ * <p>
  * Implementation is based on the C++ code by Dan Sunday at http://geomalgorithms.com/a03-_inclusion.html
  * 
  * @author Pete Bankhead

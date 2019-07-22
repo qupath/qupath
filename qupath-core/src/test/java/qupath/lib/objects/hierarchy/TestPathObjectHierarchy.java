@@ -37,6 +37,7 @@ import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.PathRootObject;
+import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
 import qupath.lib.roi.ROIs;
@@ -75,7 +76,7 @@ public class TestPathObjectHierarchy {
 		
 		// Firing indirect events (adding/removing from hierarchy)
 		// Adding one PO with a child (so 2)
-		myPH.addPathObject(myChild1PAO, true);
+		myPH.addPathObject(myChild1PAO);
 		Collection<PathObject> POAL1 = new ArrayList<>();
 		POAL1 = myPH.getObjects(POAL1, PathAnnotationObject.class);
 		assertEquals(POAL1.size(), 2); // 1 + child
@@ -87,7 +88,7 @@ public class TestPathObjectHierarchy {
 		myPOHL.setFiredState(0);
 
 		// Adding one PO without a child (so 1) - this PO, however, is fully contained within Child1 
-		myPH.addPathObject(myChild2PAO, true);
+		myPH.addPathObject(myChild2PAO);
 		Collection<PathObject> POAL2 = new ArrayList<>();
 		POAL2 = myPH.getObjects(POAL2, PathAnnotationObject.class);
 		assertEquals(POAL2.size(), 3); //  2 + 1 
@@ -96,10 +97,10 @@ public class TestPathObjectHierarchy {
 		//assertEquals(myChild2PAO.getParent(), myPH.getRootObject()); // child2's parent is not the root of the PH
 		assertEquals(myChild2PAO.getParent(), myChild1PAO); // child2's parent is child1 (as child2 is contained within child1)
 		
-		List<PathObject> POAL3 = new ArrayList<>();
-		POAL3 = myPH.getDescendantObjects(myChild1PAO, POAL3, PathAnnotationObject.class);
+		Collection<PathObject> POAL3 = new ArrayList<>();
+		POAL3 = PathObjectTools.getDescendantObjects(myChild1PAO, POAL3, PathAnnotationObject.class);
 		assertEquals(POAL3.size(), 2); // child1 has now 2 descendants - one on the PH lineage (child2) and one on the PO lineage (child3)
-		assertEquals(myPH.getDescendantObjects(myChild1PAO, null, PathAnnotationObject.class), POAL3);
+		assertEquals(PathObjectTools.getDescendantObjects(myChild1PAO, null, PathAnnotationObject.class), POAL3);
 		
 		List<PathObject> POAL4 = new ArrayList<>();
 		POAL4 = myPH.getFlattenedObjectList(POAL4);

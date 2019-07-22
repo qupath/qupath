@@ -46,14 +46,14 @@ import ij.plugin.filter.RankFilters;
 import ij.process.Blitter;
 import ij.process.ByteProcessor;
 import ij.process.ImageProcessor;
-import qupath.imagej.helpers.IJTools;
-import qupath.imagej.objects.ROIConverterIJ;
-import qupath.imagej.processing.ROILabeling;
+import qupath.imagej.processing.RoiLabeling;
 import qupath.imagej.processing.SimpleThresholding;
+import qupath.imagej.tools.IJTools;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.PathImage;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
@@ -69,16 +69,16 @@ import qupath.lib.plugins.parameters.Parameter;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.RegionRequest;
-import qupath.lib.roi.ROIHelpers;
 import qupath.lib.roi.ROIs;
-import qupath.lib.roi.PathROIToolsAwt;
+import qupath.lib.roi.ShapeSimplifier;
+import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.PolygonROI;
 import qupath.lib.roi.interfaces.PathShape;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
  * Very basic global thresholding command to identify tissue regions.
- * 
+ * <p>
  * Uses fixed approach to downsampling images &amp; global threshold applied to RGB images only.
  * 
  * TODO: Provide choice of channels to threshold
@@ -88,7 +88,7 @@ import qupath.lib.roi.interfaces.ROI;
  * @author Pete Bankhead
  *
  */
-public class SimpleTissueDetection extends AbstractDetectionPlugin<BufferedImage> {
+class SimpleTissueDetection extends AbstractDetectionPlugin<BufferedImage> {
 	
 	final private static Logger logger = LoggerFactory.getLogger(SimpleTissueDetection.class);
 	
@@ -99,13 +99,13 @@ public class SimpleTissueDetection extends AbstractDetectionPlugin<BufferedImage
 	
 	public SimpleTissueDetection() {
 		params = new ParameterList().
-				addIntParameter("threshold", "Threshold", 127, null, 0, 255);
+				addIntParameter("threshold", "Threshold", 127, null, 0, 255, "Intensity thereshold (8-bit)");
 		
-		params.addDoubleParameter("minAreaMicrons", "Minimum area", 10000, GeneralTools.micrometerSymbol()+"^2");
-		params.addDoubleParameter("maxHoleAreaMicrons", "Max fill area", 1000000, GeneralTools.micrometerSymbol()+"^2");
+		params.addDoubleParameter("minAreaMicrons", "Minimum area", 10000, GeneralTools.micrometerSymbol()+"^2", "Minimum area of a region (smaller regions will be discarded)");
+		params.addDoubleParameter("maxHoleAreaMicrons", "Max fill area", 1000000, GeneralTools.micrometerSymbol()+"^2", "Maximum hole area to be filled (smaller holes will be removed)");
 		
-		params.addDoubleParameter("minAreaPixels", "Minimum area", 100000, "px^2");
-		params.addDoubleParameter("maxHoleAreaPixels", "Max fill area", 500, "px^2");
+		params.addDoubleParameter("minAreaPixels", "Minimum area", 100000, "px^2", "Minimum area of a region (smaller regions will be discarded)");
+		params.addDoubleParameter("maxHoleAreaPixels", "Max fill area", 500, "px^2", "Maximum hole area to be filled (smaller holes will be removed)");
 		
 		params.addBooleanParameter("darkBackground", "Dark background", false);
 		params.addBooleanParameter("medianCleanup", "Cleanup with median filter", true);
@@ -155,7 +155,7 @@ public class SimpleTissueDetection extends AbstractDetectionPlugin<BufferedImage
 			
 			double threshold = params.getIntParameterValue("threshold");
 			double minAreaMicrons = 1, maxHoleAreaMicrons = 1, minAreaPixels = 1, maxHoleAreaPixels = 1;
-			if (server.hasPixelSizeMicrons()) {
+			if (server.getPixelCalibration().hasPixelSizeMicrons()) {
 				minAreaMicrons = params.getDoubleParameterValue("minAreaMicrons");
 				maxHoleAreaMicrons = params.getDoubleParameterValue("maxHoleAreaMicrons");
 			} else {
@@ -194,8 +194,8 @@ public class SimpleTissueDetection extends AbstractDetectionPlugin<BufferedImage
 			
 			// If there is a ROI, clear everything outside
 			if (pathROI != null) {
-				Roi roi = ROIConverterIJ.convertToIJRoi(pathROI, imp.getCalibration(), downsample);
-				ROILabeling.clearOutside(bp, roi);
+				Roi roi = IJTools.convertToIJRoi(pathROI, imp.getCalibration(), downsample);
+				RoiLabeling.clearOutside(bp, roi);
 			}
 			
 			if (Thread.currentThread().isInterrupted())
@@ -204,8 +204,9 @@ public class SimpleTissueDetection extends AbstractDetectionPlugin<BufferedImage
 			
 			// Convert to objects
 			double minArea, maxHoleArea;
-			if (server.hasPixelSizeMicrons()) {
-				double areaScale = 1.0 / (server.getAveragedPixelSizeMicrons() * server.getAveragedPixelSizeMicrons() * downsample * downsample);
+			PixelCalibration cal = server.getPixelCalibration();
+			if (cal.hasPixelSizeMicrons()) {
+				double areaScale = 1.0 / (cal.getAveragedPixelSizeMicrons() * cal.getAveragedPixelSizeMicrons() * downsample * downsample);
 				minArea = minAreaMicrons * areaScale;
 				maxHoleArea = maxHoleAreaMicrons * areaScale;
 			} else {
@@ -219,7 +220,7 @@ public class SimpleTissueDetection extends AbstractDetectionPlugin<BufferedImage
 				return null;
 
 			bp.setThreshold(127, Double.POSITIVE_INFINITY, ImageProcessor.NO_LUT_UPDATE);
-			List<PathObject> pathObjects = convertToPathObjects(bp, minArea, smoothCoordinates, imp.getCalibration(), downsample, maxHoleArea, excludeOnBoundary, null);
+			List<PathObject> pathObjects = convertToPathObjects(bp, minArea, smoothCoordinates, imp.getCalibration(), downsample, maxHoleArea, excludeOnBoundary, pathImage.getImageRegion().getPlane(), null);
 
 			if (Thread.currentThread().isInterrupted())
 				return null;
@@ -246,8 +247,8 @@ public class SimpleTissueDetection extends AbstractDetectionPlugin<BufferedImage
 	
 	
 	
-	public static List<PathObject> convertToPathObjects(ByteProcessor bp, double minArea, boolean smoothCoordinates, Calibration cal, double downsample, double maxHoleArea, boolean excludeOnBoundary, List<PathObject> pathObjects) {
-		List<PolygonRoi> rois = ROILabeling.getFilledPolygonROIs(bp, Wand.FOUR_CONNECTED);
+	private static List<PathObject> convertToPathObjects(ByteProcessor bp, double minArea, boolean smoothCoordinates, Calibration cal, double downsample, double maxHoleArea, boolean excludeOnBoundary, ImagePlane plane, List<PathObject> pathObjects) {
+		List<PolygonRoi> rois = RoiLabeling.getFilledPolygonROIs(bp, Wand.FOUR_CONNECTED);
 		if (pathObjects == null)
 			pathObjects = new ArrayList<>(rois.size());
 		
@@ -273,12 +274,12 @@ public class SimpleTissueDetection extends AbstractDetectionPlugin<BufferedImage
 			if (smoothCoordinates)
 				r = new PolygonRoi(r.getInterpolatedPolygon(2.5, false), Roi.POLYGON);
 
-			PolygonROI pathPolygon = ROIConverterIJ.convertToPolygonROI(r, cal, downsample);
+			PolygonROI pathPolygon = IJTools.convertToPolygonROI(r, cal, downsample, plane);
 //			if (pathPolygon.getArea() < minArea)
 //				continue;
 			// Smooth the coordinates, if we downsampled quite a lot
 			if (smoothCoordinates) {
-				pathPolygon = ROIs.createPolygonROI(ROIHelpers.smoothPoints(pathPolygon.getPolygonPoints()), ImagePlane.getPlane(pathPolygon));
+				pathPolygon = ROIs.createPolygonROI(ShapeSimplifier.smoothPoints(pathPolygon.getPolygonPoints()), ImagePlane.getPlane(pathPolygon));
 			}
 			pathObjects.add(PathObjects.createAnnotationObject(pathPolygon));
 		}
@@ -294,7 +295,7 @@ public class SimpleTissueDetection extends AbstractDetectionPlugin<BufferedImage
 //			new ImagePlus("Binary", bp).show();
 			bp.setThreshold(127, Double.POSITIVE_INFINITY, ImageProcessor.NO_LUT_UPDATE);
 			
-			List<PathObject> holes = convertToPathObjects(bp, maxHoleArea, smoothCoordinates, cal, downsample, 0, false, null);
+			List<PathObject> holes = convertToPathObjects(bp, maxHoleArea, smoothCoordinates, cal, downsample, 0, false, plane, null);
 			
 			// For each object, fill in any associated holes
 			List<Area> areaList = new ArrayList<>();
@@ -308,7 +309,7 @@ public class SimpleTissueDetection extends AbstractDetectionPlugin<BufferedImage
 				while (iter.hasNext()) {
 					PathObject hole = iter.next();
 					if (PathObjectTools.containsObject(pathObject, hole)) {
-						areaList.add(PathROIToolsAwt.getArea(hole.getROI()));
+						areaList.add(RoiTools.getArea(hole.getROI()));
 						iter.remove();
 					}
 				}
@@ -329,9 +330,9 @@ public class SimpleTissueDetection extends AbstractDetectionPlugin<BufferedImage
 				// Now subtract & create a new object
 				ROI pathROI = pathObject.getROI();
 				if (pathROI instanceof PathShape) {
-					Area areaMain = PathROIToolsAwt.getArea(pathROI);
+					Area areaMain = RoiTools.getArea(pathROI);
 					areaMain.subtract(hole);
-					pathROI = PathROIToolsAwt.getShapeROI(areaMain, pathROI.getC(), pathROI.getZ(), pathROI.getT());
+					pathROI = RoiTools.getShapeROI(areaMain, pathROI.getImagePlane());
 					pathObjects.set(ind, PathObjects.createAnnotationObject(pathROI));
 				}
 			}
@@ -369,7 +370,7 @@ public class SimpleTissueDetection extends AbstractDetectionPlugin<BufferedImage
 	@Override
 	public ParameterList getDefaultParameterList(final ImageData<BufferedImage> imageData) {
 		Map<String, Parameter<?>> map = params.getParameters();
-		boolean micronsKnown = imageData.getServer().hasPixelSizeMicrons();
+		boolean micronsKnown = imageData.getServer().getPixelCalibration().hasPixelSizeMicrons();
 		map.get("minAreaMicrons").setHidden(!micronsKnown);
 		map.get("maxHoleAreaMicrons").setHidden(!micronsKnown);
 		map.get("minAreaPixels").setHidden(micronsKnown);
@@ -407,7 +408,7 @@ public class SimpleTissueDetection extends AbstractDetectionPlugin<BufferedImage
 	@Override
 	protected Collection<? extends PathObject> getParentObjects(final PluginRunner<BufferedImage> runner) {
 		PathObjectHierarchy hierarchy = runner.getImageData().getHierarchy();
-		PathObject pathObjectSelected = runner.getSelectedObject();
+		PathObject pathObjectSelected = hierarchy.getSelectionModel().getSelectedObject();
 		if (pathObjectSelected instanceof PathAnnotationObject || pathObjectSelected instanceof TMACoreObject)
 			return Collections.singleton(pathObjectSelected);
 		return Collections.singleton(hierarchy.getRootObject());

@@ -25,7 +25,7 @@ package qupath.lib.plugins.parameters;
 
 /**
  * Parameter to represent a floating point numeric value.
- * 
+ * <p>
  * May be bounded.
  * 
  * @author Pete Bankhead
@@ -39,11 +39,11 @@ public class DoubleParameter extends NumericParameter<Double> {
 		super(prompt, defaultValue, unit, minValue, maxValue, lastValue, helpText, isHidden);
 	}
 
-	public DoubleParameter(String prompt, Double defaultValue, String unit, Double minValue, Double maxValue, String helpText) {
+	DoubleParameter(String prompt, Double defaultValue, String unit, Double minValue, Double maxValue, String helpText) {
 		super(prompt, defaultValue, unit, minValue, maxValue, helpText);
 	}
 
-	public DoubleParameter(String prompt, Double defaultValue, String unit, String helpText) {
+	DoubleParameter(String prompt, Double defaultValue, String unit, String helpText) {
 		super(prompt, defaultValue, unit, helpText);
 	}
 	

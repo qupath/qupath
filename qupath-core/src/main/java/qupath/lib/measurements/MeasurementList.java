@@ -24,7 +24,6 @@
 package qupath.lib.measurements;
 
 import java.io.Serializable;
-import java.util.Collection;
 import java.util.List;
 
 /**
@@ -38,14 +37,42 @@ import java.util.List;
  */
 public interface MeasurementList extends Serializable, AutoCloseable {
 	
-	public enum TYPE {GENERAL, DOUBLE, FLOAT}
+	/**
+	 * Enum representing different types of measurement list, with different priorities regarding 
+	 * flexibility and efficiency.
+	 */
+	public enum MeasurementListType {
+		/**
+		 * A general list, which can contain any kind of measurement - at the expense of 
+		 * being rather memory-hungry.
+		 */
+		GENERAL,
+		/**
+		 * A list backed by an array of doubles.
+		 */
+		DOUBLE,
+		/**
+		 * A list backed by an array of floats.
+		 */
+		FLOAT
+	}
 	
+	/**
+	 * Add a new measurement. No check is made to ensure the name is unique, and 
+	 * in general {@link #putMeasurement(String, double)} is to be preferred.
+	 * @param name
+	 * @param value
+	 * @return
+	 * 
+	 * @see #putMeasurement(String, double)
+	 */
 	public boolean addMeasurement(String name, double value);
 	
 	/**
 	 * Put a measurement into the list, replacing any previous measurement with the same name.
+	 * <p>
 	 * This is similar to add, but with a check to remove any existing measurement with the same name
-	 * (if multiple measurements have the same name, the first will be replaced)
+	 * (if multiple measurements have the same name, the first will be replaced).
 	 * <p>
 	 * While it's probably a good idea for measurements to always have unique names, for some implementations
 	 * putMeasurement can be must slower than add or addMeasurement - so adding should be preferred if it is
@@ -56,81 +83,95 @@ public interface MeasurementList extends Serializable, AutoCloseable {
 	 */
 	public Measurement putMeasurement(Measurement measurement);
 	
+	/**
+	 * Put a measurement value into the list, replacing any previous measurement with the same name.
+	 * <p>
+	 * This is similar to add, but with a check to remove any existing measurement with the same name
+	 * (if multiple measurements have the same name, the first will be replaced).
+	 * <p>
+	 * While it's probably a good idea for measurements to always have unique names, for some implementations
+	 * putMeasurement can be must slower than add or addMeasurement - so adding should be preferred if it is
+	 * known that a measurement with the same name is not present.
+	 * 
+	 * @param name
+	 * @param value
+	 */
 	public void putMeasurement(String name, double value);
 
+	/**
+	 * Get the names of all measurements currently in the list.
+	 * @return
+	 */
 	public List<String> getMeasurementNames();
 
+	/**
+	 * Get name for the measurement at the specified index in the list.
+	 * @param ind
+	 * @return
+	 */
 	public String getMeasurementName(int ind);
 
+	/**
+	 * Get value for the measurement at the specified index in the list.
+	 * @param ind
+	 * @return
+	 */
 	public double getMeasurementValue(int ind);
 
+	/**
+	 * Get value for the measurement with the specified name.
+	 * Note that the behavior is undefined if multiple measurements have the same name.
+	 * @param name
+	 * @return
+	 * 
+	 * @see #addMeasurement(String, double)
+	 * @see #putMeasurement(String, double)
+	 */
 	public double getMeasurementValue(String name);
-	
 
-//	/**
-//	 * Request that the list tries to reduce the memory requirements internally - 
-//	 * this may be useful if no more measurements will be added,
-//	 * and potentially large numbers of similar lists will be created.
-//	 */
-//	public void compactStorage();
-
-	public boolean containsAllNamedMeasurements(Collection<String> keys);
-	
+	/**
+	 * Returns true if this list contains a measurement with the specified name.
+	 * @param name
+	 * @return
+	 */
 	public boolean containsNamedMeasurement(String name);
-	
-//	/**
-//	 * Create a new MeasurementList with the same type as the current MeasurementList.
-//	 * 
-//	 * @param retainValues
-//	 * @return
-//	 */
-//	public MeasurementList newInstance();
 
+	/**
+	 * Returns true if the list does not contain any measurements.
+	 * @return
+	 */
 	public boolean isEmpty();
 	
+	/**
+	 * Returns the number of measurements in the list.
+	 * @return
+	 */
 	public int size();
 	
+	/**
+	 * Returns true if the list supports dynamic measurements. 
+	 * Dynamic measurements can change their values, and in the interests of efficiency 
+	 * are not supported by all MeasurementList implementations.
+	 * @return
+	 */
 	public boolean supportsDynamicMeasurements();
-
-//	/**
-//	 * TRUE if the list is closed (i.e. cannot be modified), FALSE if it can accept new measurements.
-//	 * @return
-//	 */
-//	public boolean isClosed();
 	
 	/**
 	 * Close the list. Depending on the implementation, the list may then adjust its internal storage to be
 	 * more efficient.
-	 * 
 	 */
 	@Override
 	public void close();
-
-//	public void closeList();
-
+	
 	/**
-	 * @deprecated in favor of using {@link #close()}
+	 * Remove all the measurements with the specified names.
+	 * @param measurementNames
 	 */
-	@Deprecated
-	default void closeList() {
-		close();
-	}
-	
-//	public void ensureListOpen();
-	
-	
 	public void removeMeasurements(String...measurementNames);
 	
-	
+	/**
+	 * Remove all the measurements from the list.
+	 */
 	public void clear();
-
-//	/**
-//	 * Remove a specific Measurement object (note, *not* the String name).
-//	 * (Optional operation)
-//	 * 
-//	 * @param o
-//	 * @return
-//	 */
-//	public boolean remove(Object o);
 
 }

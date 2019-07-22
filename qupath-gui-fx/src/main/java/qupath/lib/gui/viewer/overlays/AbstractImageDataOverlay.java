@@ -39,6 +39,7 @@ import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 public abstract class AbstractImageDataOverlay extends AbstractOverlay implements ImageDataOverlay {
 
 	private ImageData<BufferedImage> imageData;
+	
 	public AbstractImageDataOverlay(final OverlayOptions overlayOptions, final ImageData<BufferedImage> imageData) {
 		this.overlayOptions = overlayOptions;
 		this.imageData = imageData;

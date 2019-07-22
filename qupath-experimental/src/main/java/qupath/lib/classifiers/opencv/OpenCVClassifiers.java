@@ -9,8 +9,10 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
-import org.bytedeco.javacpp.opencv_core;
-import org.bytedeco.javacpp.opencv_ml;
+import org.bytedeco.opencv.global.opencv_core;
+import org.bytedeco.opencv.global.opencv_ml;
+import org.bytedeco.opencv.opencv_core.*;
+import org.bytedeco.opencv.opencv_ml.*;
 import org.bytedeco.javacpp.indexer.DoubleIndexer;
 import org.bytedeco.javacpp.indexer.FloatIndexer;
 import org.bytedeco.javacpp.indexer.IntIndexer;
@@ -22,27 +24,10 @@ import com.google.gson.annotations.JsonAdapter;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
 
-import org.bytedeco.javacpp.opencv_core.Mat;
-import org.bytedeco.javacpp.opencv_core.Scalar;
-import org.bytedeco.javacpp.opencv_core.TermCriteria;
-import org.bytedeco.javacpp.opencv_core.UMat;
-import org.bytedeco.javacpp.opencv_ml.ANN_MLP;
-import org.bytedeco.javacpp.opencv_ml.Boost;
-import org.bytedeco.javacpp.opencv_ml.DTrees;
-import org.bytedeco.javacpp.opencv_ml.EM;
-import org.bytedeco.javacpp.opencv_ml.KNearest;
-import org.bytedeco.javacpp.opencv_ml.LogisticRegression;
-import org.bytedeco.javacpp.opencv_ml.NormalBayesClassifier;
-import org.bytedeco.javacpp.opencv_ml.RTrees;
-import org.bytedeco.javacpp.opencv_ml.SVM;
-import org.bytedeco.javacpp.opencv_ml.SVMSGD;
-import org.bytedeco.javacpp.opencv_ml.StatModel;
-import org.bytedeco.javacpp.opencv_ml.TrainData;
-
 import qupath.lib.classifiers.Normalization;
 import qupath.lib.common.GeneralTools;
+import qupath.lib.io.OpenCVTypeAdapters;
 import qupath.lib.plugins.parameters.ParameterList;
-import qupath.opencv.processing.TypeAdaptersCV;
 
 public class OpenCVClassifiers {
 	
@@ -235,12 +220,12 @@ public class OpenCVClassifiers {
 
 		@Override
 		public void write(JsonWriter out, OpenCVStatModel value) throws IOException {
-			TypeAdaptersCV.getTypeAdaptor(StatModel.class).write(out, value.getStatModel());
+			OpenCVTypeAdapters.getTypeAdaptor(StatModel.class).write(out, value.getStatModel());
 		}
 
 		@Override
 		public OpenCVStatModel read(JsonReader in) throws IOException {
-			var statModel = TypeAdaptersCV.getTypeAdaptor(StatModel.class).read(in);
+			var statModel = OpenCVTypeAdapters.getTypeAdaptor(StatModel.class).read(in);
 			return new DefaultOpenCVStatModel<StatModel>(statModel);
 		}
 		
@@ -250,7 +235,7 @@ public class OpenCVClassifiers {
 	
 	static abstract class AbstractOpenCVClassifierML<T extends StatModel> extends OpenCVStatModel {
 
-		@JsonAdapter(TypeAdaptersCV.OpenCVTypeAdaptorFactory.class)
+		@JsonAdapter(OpenCVTypeAdapters.OpenCVTypeAdaptorFactory.class)
 		private T model;
 		private transient ParameterList params; // Should take defaults from the serialized model
 		
@@ -282,6 +267,7 @@ public class OpenCVClassifiers {
 					model instanceof NormalBayesClassifier;
 		}
 		
+		@Override
 		T getStatModel() {
 			if (model == null)
 				model = createStatModel();
@@ -305,6 +291,7 @@ public class OpenCVClassifiers {
 			return getName();
 		}
 		
+		@Override
 		public TrainData createTrainData(Mat samples, Mat targets) {
 			if (useUMat()) {
 				UMat uSamples = samples.getUMat(opencv_core.ACCESS_READ);
@@ -318,6 +305,7 @@ public class OpenCVClassifiers {
 			return false;
 		}
 
+		@Override
 		public void train(TrainData trainData) {
 			lock.writeLock().lock();
 			try {
@@ -451,6 +439,7 @@ public class OpenCVClassifiers {
 		/**
 		 * Tree classifiers in OpenCV support missing values, others do not.
 		 */
+		@Override
 		public boolean supportsMissingValues() {
 			return getStatModel() instanceof DTrees;
 		}
@@ -814,11 +803,12 @@ public class OpenCVClassifiers {
 			params.addDoubleParameter("learningRate", "Learning rate", learningRate);
 			params.addIntParameter("nIterations", "Number of iterations", nIterations);
 //			params.addIntParameter("miniBatchSize", "Mini batch size", miniBatchSize);
-			params.addChoiceParameter("regularization", "Regularization", regularization.get(reg), regularization.values().toArray(new String[0]));
+			params.addChoiceParameter("regularization", "Regularization", regularization.get(reg), Arrays.asList(regularization.values()));
 			
 			return params;
 		}
 		
+		@Override
 		public TrainData createTrainData(Mat samples, Mat targets) {
 			targets.convertTo(targets, opencv_core.CV_32F);
 			return super.createTrainData(samples, targets);
@@ -886,6 +876,7 @@ public class OpenCVClassifiers {
 		@Override
 		void updateModel(NormalBayesClassifier model, ParameterList params, TrainData trainData) {}
 		
+		@Override
 		public void predictWithLock(Mat samples, Mat results, Mat probabilities) {
 			var model = getStatModel();
 			if (probabilities == null)
@@ -1086,6 +1077,7 @@ public class OpenCVClassifiers {
 			return params;
 		}
 		
+		@Override
 		protected int getTrainFlags() {
 			return ANN_MLP.NO_OUTPUT_SCALE;
 		}
@@ -1101,6 +1093,7 @@ public class OpenCVClassifiers {
 		}
 
 		
+		@Override
 		public TrainData createTrainData(Mat samples, Mat targets) {
 			
 			IntBuffer buffer = targets.createBuffer();
@@ -1121,6 +1114,7 @@ public class OpenCVClassifiers {
 		}
 		
 		
+		@Override
 		public void predictWithLock(Mat samples, Mat results, Mat probabilities) {
 			double beta = activationBeta;
 			if (probabilities == null)

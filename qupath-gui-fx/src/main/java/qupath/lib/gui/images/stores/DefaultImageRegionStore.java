@@ -25,6 +25,7 @@ package qupath.lib.gui.images.stores;
 
 import java.awt.Color;
 import java.awt.Graphics;
+import java.awt.Graphics2D;
 import java.awt.Rectangle;
 import java.awt.Shape;
 import java.awt.image.BufferedImage;
@@ -43,6 +44,7 @@ import org.slf4j.LoggerFactory;
 
 import qupath.lib.awt.common.AwtTools;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.ImageServerMetadata.ChannelType;
 import qupath.lib.regions.RegionRequest;
 
 
@@ -91,6 +93,7 @@ public class DefaultImageRegionStore extends AbstractImageRegionStore<BufferedIm
 	 * @param imageDisplay
 	 * @param timeoutMilliseconds Timeout after which a request is made from the PathImageServer directly, rather than waiting for tile requests.
 	 */
+	@Override
 	@SuppressWarnings("unchecked")
 	public void paintRegionCompletely(ImageServer<BufferedImage> server, Graphics g, Shape clipShapeVisible, int zPosition, int tPosition, double downsampleFactor, ImageObserver observer, ImageRenderer imageDisplay, long timeoutMilliseconds) {
 
@@ -178,6 +181,7 @@ public class DefaultImageRegionStore extends AbstractImageRegionStore<BufferedIm
 
 
 
+	@Override
 	public void paintRegion(ImageServer<BufferedImage> server, Graphics g, Shape clipShapeVisible, int zPosition, int tPosition, double downsampleFactor, BufferedImage imgThumbnail, ImageObserver observer, ImageRenderer imageDisplay) {
 		registerRequest(null, server, clipShapeVisible, downsampleFactor, zPosition, tPosition);
 		paintRegionInternal(server, g, clipShapeVisible, zPosition, tPosition, downsampleFactor, imgThumbnail, observer, imageDisplay);
@@ -236,9 +240,16 @@ public class DefaultImageRegionStore extends AbstractImageRegionStore<BufferedIm
 		}
 
 		// If we're compositing channels, it's worthwhile to cache RGB tiles for so long as the ImageDisplay remains constant
-		boolean useDisplayCache = imageDisplay != null && !server.isRGB() && server.nChannels() > 1;
+//		boolean useDisplayCache = imageDisplay != null && !server.isRGB() && server.nChannels() > 1;
+		boolean useDisplayCache = !server.isRGB() && server.nChannels() > 1 && server.getMetadata().getChannelType() != ChannelType.CLASSIFICATION;
 		long displayTimestamp = imageDisplay == null ? 0L : imageDisplay.getLastChangeTimestamp();
-		String displayCachePath = useDisplayCache ? server.getPath() + imageDisplay.getUniqueID() : null;
+		String displayCachePath = null;
+		if (useDisplayCache) {
+			if (imageDisplay == null)
+				displayCachePath = "RGB::" + server.getPath();
+			else
+				displayCachePath = server.getPath() + imageDisplay.getUniqueID();
+		}
 
 		// Loop through and draw whatever tiles we've got
 		BufferedImage imgTemp = null;
@@ -253,19 +264,26 @@ public class DefaultImageRegionStore extends AbstractImageRegionStore<BufferedIm
 
 			// If we have an image, paint it & record coordinates
 			// Apply any required color transformations
-			if (imageDisplay != null) {
+			if (imageDisplay != null || useDisplayCache) {
 				// We can abort now - we know the display has changed, additional painting is futile...
-				if (displayTimestamp != imageDisplay.getLastChangeTimestamp())
+				if (imageDisplay != null && displayTimestamp != imageDisplay.getLastChangeTimestamp())
 					return;
 				if (useDisplayCache) {
 					// Apply transforms, creating & caching new temp images
 					RegionRequest requestCache = RegionRequest.createInstance(displayCachePath, request.getDownsample(), request);
 					imgTemp = cache.get(requestCache);
 					if (imgTemp == null) {
-						imgTemp = imageDisplay.applyTransforms(img, null);
+						if (imageDisplay != null)
+							imgTemp = imageDisplay.applyTransforms(img, null);
+						else {
+							imgTemp = new BufferedImage(img.getWidth(), img.getHeight(), BufferedImage.TYPE_INT_ARGB);
+							Graphics2D g2d = imgTemp.createGraphics();
+							g2d.drawImage(img, 0, 0, null);
+							g2d.dispose();
+						}
 						// Store this if we know we've still got the same display settings
 						// This avoids making the cache inconsistent
-						if (displayTimestamp == imageDisplay.getLastChangeTimestamp())
+						if (imageDisplay == null || displayTimestamp == imageDisplay.getLastChangeTimestamp())
 							cache.put(requestCache, imgTemp);
 						else
 							return;
@@ -274,7 +292,10 @@ public class DefaultImageRegionStore extends AbstractImageRegionStore<BufferedIm
 					// Apply transforms, trying to reuse temp image
 					if (imgTemp != null && (imgTemp.getWidth() != img.getWidth() || imgTemp.getHeight() != img.getHeight()))
 						imgTemp = null;
-					imgTemp = imageDisplay.applyTransforms(img, imgTemp);
+					if (imageDisplay != null)
+						imgTemp = imageDisplay.applyTransforms(img, imgTemp);
+					else
+						imgTemp = img;
 				}
 				img = imgTemp;
 			}

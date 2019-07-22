@@ -30,15 +30,18 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.Vector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.lib.objects.PathAnnotationObject;
+import qupath.lib.objects.PathCellObject;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathRootObject;
@@ -54,7 +57,7 @@ import qupath.lib.roi.interfaces.ROI;
 /**
  * A basic hierarchy in which to store PathObjects.
  * <p>
- * This basically contains a single PathRootObject from which all other objects can be reached using the child object lists.
+ * This essentially contains a single PathRootObject from which all other objects can be reached using the child object lists.
  * However, by adding/removing objects via this hierarchy (rather than through the child lists directly), it is possible
  * to maintain a more consistent structure (e.g. by automatically inserting objects as children of the objects whose ROI completely
  * contains the object to be added), along with a spatial cache so that objects can be extracted if their ROIs overlap with a specified region.
@@ -101,7 +104,9 @@ public final class PathObjectHierarchy implements Serializable {
 	// Cache enabling faster access of objects according to location
 	transient private PathObjectTileCache tileCache = new PathObjectTileCache(this);
 
-	
+	/**
+	 * Default constructor, creates an empty hierarchy.
+	 */
 	public PathObjectHierarchy() {
 		super();
 	}
@@ -116,22 +121,42 @@ public final class PathObjectHierarchy implements Serializable {
 		return (tmaGrid == null || tmaGrid.nCores() == 0) && !rootObject.hasChildren();// && featureMaps.isEmpty();
 	}
 	
+	/**
+	 * Add a hierarchy change listener.
+	 * @param listener
+	 */
 	public void addPathObjectListener(PathObjectHierarchyListener listener) {
 		listeners.add(listener);
 	}
 	
+	/**
+	 * Remove a hierarchy change listener.
+	 * @param listener
+	 */
 	public void removePathObjectListener(PathObjectHierarchyListener listener) {
 		listeners.remove(listener);
 	}
 	
+	/**
+	 * Get the root object. All other objects in the hierarchy are descendants of the root.
+	 * @return
+	 */
 	public PathObject getRootObject() {
 		return rootObject;
 	}
 		
+	/**
+	 * Get the TMAGrid, or null if there is no TMA grid associated with this hierarchy.
+	 * @return
+	 */
 	public synchronized TMAGrid getTMAGrid() {
 		return tmaGrid;
 	}
 	
+	/**
+	 * Get the selection model, which handles the selection status of objects.
+	 * @return
+	 */
 	public PathObjectSelectionModel getSelectionModel() {
 		return selectionModel;
 	}
@@ -150,6 +175,10 @@ public final class PathObjectHierarchy implements Serializable {
 //		this.changing = changing;
 //	}
 	
+	/**
+	 * Set the tma grid for this hierarchy.
+	 * @param tmaGrid
+	 */
 	public synchronized void setTMAGrid(TMAGrid tmaGrid) {
 		clearTMAGrid();
 		if (tmaGrid == null)
@@ -158,6 +187,9 @@ public final class PathObjectHierarchy implements Serializable {
 		updateTMAHierarchy();
 	}
 	
+	/**
+	 * Remove the TMA grid for this hierarchy.
+	 */
 	// TODO: Improve TMA grid modification whenever many detection objects already exist
 	synchronized void clearTMAGrid() {
 		if (tmaGrid == null)
@@ -170,11 +202,34 @@ public final class PathObjectHierarchy implements Serializable {
 		fireHierarchyChangedEvent(getRootObject());
 	}
 	
+	/**
+	 * Remove a single object from the hierarchy, firing a remove event.
+	 * @param pathObject the object to remove
+	 * @param keepChildren if true, retain all children and descendants of the object being removed; if false, remove these also
+	 * @return
+	 */
 	public synchronized boolean removeObject(PathObject pathObject, boolean keepChildren) {
 		return removeObject(pathObject, keepChildren, true);
 	}
 	
-	public synchronized boolean removeObject(PathObject pathObject, boolean keepChildren, boolean fireEvent) {
+	/**
+	 * Remove a single object from the hierarchy, without firing a remove event.
+	 * @param pathObject the object to remove
+	 * @param keepChildren if true, retain all children and descendants of the object being removed; if false, remove these also
+	 * @return
+	 */
+	public synchronized boolean removeObjectWithoutUpdate(PathObject pathObject, boolean keepChildren) {
+		return removeObject(pathObject, keepChildren, false);
+	}
+	
+	/**
+	 * Remove a single object from the hierarchy, optionally firing a remove event.
+	 * @param pathObject the object to remove
+	 * @param keepChildren if true, retain all children and descendants of the object being removed; if false, remove these also
+	 * @param fireEvent if true, fire a hierarchy event. May be false if one wishes to complete several changes before updating listeners later.
+	 * @return
+	 */
+	private synchronized boolean removeObject(PathObject pathObject, boolean keepChildren, boolean fireEvent) {
 		// Check the object is within the hierarchy & has a valid parent (from which it can be removed)
 		PathObject pathObjectParent = pathObject.getParent();
 		if (!inHierarchy(pathObject) || pathObjectParent == null) {
@@ -207,8 +262,8 @@ public final class PathObjectHierarchy implements Serializable {
 	 * Remove a collection of objects, firing a single 'hierarchy changed' event afterwards to notify listeners if anything happened
 	 * (i.e. if any of the objects really were found within the hierarchy) &amp; removed.
 	 * 
-	 * @param pathObjects
-	 * @param keepChildren
+	 * @param pathObjects the objects to remove
+	 * @param keepChildren if true, retain children and descendants of the objects being removed
 	 */
 	public synchronized void removeObjects(Collection<? extends PathObject> pathObjects, boolean keepChildren) {
 		
@@ -235,22 +290,43 @@ public final class PathObjectHierarchy implements Serializable {
 		if (map.isEmpty())
 			return;
 		
-		// Loop through and remove objects
+		// Loop through and remove objects, keeping children if necessary
+		Set<PathObject> childrenToKeep = new LinkedHashSet<>();
 		for (Entry<PathObject, List<PathObject>> entry : map.entrySet()) {
 			PathObject parent = entry.getKey();
 			List<PathObject> children = entry.getValue();
 			parent.removePathObjects(children);
 			if (keepChildren) {
-				for (PathObject child : children) {
-					if (child.hasChildren()) {
-						List<PathObject> newChildList = new ArrayList<>(child.getChildObjects());
-						newChildList.removeAll(pathObjects);
-						parent.addPathObjects(newChildList);
-					}
-				}
+				for (PathObject child : children)
+					childrenToKeep.addAll(child.getChildObjects());
 			}
 		}
+		childrenToKeep.removeAll(pathObjects);
+		// Add children back if required (note: this can be quite slow!)
+		tileCache.resetCache();
+		for (PathObject pathObject : childrenToKeep) {
+			addPathObject(pathObject, false);
+		}
 		fireHierarchyChangedEvent(this);
+		
+		// This previously could result in child objects being deleted even if keepChildren was 
+		// true, depending upon the order in which objects were removed.
+//		// Loop through and remove objects
+//		for (Entry<PathObject, List<PathObject>> entry : map.entrySet()) {
+//			PathObject parent = entry.getKey();
+//			List<PathObject> children = entry.getValue();
+//			parent.removePathObjects(children);
+//			if (keepChildren) {
+//				for (PathObject child : children) {
+//					if (child.hasChildren()) {
+//						List<PathObject> newChildList = new ArrayList<>(child.getChildObjects());
+//						newChildList.removeAll(pathObjects);
+//						parent.addPathObjects(newChildList);
+//					}
+//				}
+//			}
+//		}
+//		fireHierarchyChangedEvent(this);
 	}
 	
 	
@@ -281,7 +357,7 @@ public final class PathObjectHierarchy implements Serializable {
 		rootObject.addPathObjects(tmaGrid.getTMACoreList());
 		// Add back any other objects
 		for (PathObject pathObject : pathObjectChildren)
-			addPathObject(pathObject, false, false);
+			addPathObject(pathObject, false);
 
 		// Notify listeners of changes
 		fireHierarchyChangedEvent(getRootObject());
@@ -310,7 +386,7 @@ public final class PathObjectHierarchy implements Serializable {
 //J	}
 	
 	// TODO: Be very cautious about this!!!!  Use of tileCache inside a synchronized method might lead to deadlocks?
-	private synchronized boolean addPathObjectToList(PathObject pathObjectParent, PathObject pathObject, boolean avoidDuplicates, boolean fireChangeEvents) {
+	private synchronized boolean addPathObjectToList(PathObject pathObjectParent, PathObject pathObject, boolean fireChangeEvents) {
 		
 		if (pathObject != null && !pathObject.isDetection())
 			logger.trace("Adding {} to hierarchy", pathObject);
@@ -385,15 +461,21 @@ public final class PathObjectHierarchy implements Serializable {
 	
 	
 	/**
-	 * Only objects with ROIs can be added.
-	 * TODO: Consider relaxing this requirement.
-	 * 
+	 * Add an object to the hierarchy, firing an event.
 	 * @param pathObject
-	 * @param avoidDuplicates
 	 * @return
 	 */
-	public synchronized boolean addPathObject(PathObject pathObject, boolean avoidDuplicates) {
-		return addPathObject(pathObject, avoidDuplicates, true);
+	public boolean addPathObject(PathObject pathObject) {
+		return addPathObject(pathObject, true);
+	}
+	
+	/**
+	 * Add an object to the hierarchy, without firing an event.
+	 * @param pathObject
+	 * @return
+	 */
+	public boolean addPathObjectWithoutUpdate(PathObject pathObject) {
+		return addPathObject(pathObject, false);
 	}
 	
 	/**
@@ -401,24 +483,35 @@ public final class PathObjectHierarchy implements Serializable {
 	 * 
 	 * @param pathObjectParent
 	 * @param pathObject
-	 * @param avoidDuplicates
 	 * @param fireUpdate
 	 * @return
 	 */
-	public synchronized boolean addPathObjectBelowParent(PathObject pathObjectParent, PathObject pathObject, boolean avoidDuplicates, boolean fireUpdate) {
+	public synchronized boolean addPathObjectBelowParent(PathObject pathObjectParent, PathObject pathObject, boolean fireUpdate) {
 		if (pathObjectParent == null)
-			return addPathObject(pathObject, avoidDuplicates, fireUpdate);
+			return addPathObject(pathObject, fireUpdate);
 		else
-			return addPathObjectToList(pathObjectParent, pathObject, avoidDuplicates, fireUpdate);
+			return addPathObjectToList(pathObjectParent, pathObject, fireUpdate);
 	}
 	
-	public synchronized boolean addPathObject(PathObject pathObject, boolean avoidDuplicates, boolean fireUpdate) {
+	
+	/**
+	 * Add an object to the hierarchy.
+	 * @param pathObject the object to add
+	 * @param fireUpdate if true, fire an update event after the object is added
+	 * @return
+	 */
+	private synchronized boolean addPathObject(PathObject pathObject, boolean fireUpdate) {
 		if (pathObject == getRootObject() || !pathObject.hasROI())
 			return false;
-		return addPathObjectToList(getRootObject(), pathObject, avoidDuplicates, fireUpdate);
+		return addPathObjectToList(getRootObject(), pathObject, fireUpdate);
 	}
 	
-	public synchronized boolean addPathObjects(Collection<? extends PathObject> pathObjects, boolean avoidDuplicates) {
+	/**
+	 * Add multiple objects to the hierarchy.
+	 * @param pathObjects
+	 * @return
+	 */
+	public synchronized boolean addPathObjects(Collection<? extends PathObject> pathObjects) {
 		boolean changes = false;
 		int n = pathObjects.size();
 		int counter = 0;
@@ -428,7 +521,7 @@ public final class PathObjectHierarchy implements Serializable {
 					logger.debug("Adding {} of {}", counter, n);
 			} else if (n > 1000 && counter % 100 == 0)
 				logger.debug("Adding {} of {}", counter, n);
-			changes = addPathObjectToList(getRootObject(), pathObject, avoidDuplicates, false) || changes;
+			changes = addPathObjectToList(getRootObject(), pathObject, false) || changes;
 			counter++;
 		}
 		if (changes)
@@ -437,35 +530,27 @@ public final class PathObjectHierarchy implements Serializable {
 		return changes;
 	}
 	
+	/**
+	 * Remove all objects from the hierarchy.
+	 */
 	public synchronized void clearAll() {
 		getRootObject().clearPathObjects();
 		tmaGrid = null;
 		fireHierarchyChangedEvent(getRootObject());
 	}
 	
-	
-	private synchronized void addPathObjectsRecursively(PathObject pathObject, Collection<PathObject> pathObjects, Class<? extends PathObject> cls) {
-		// Prefer to iterate through long lists and process as we go, rather than handle one object per method call
-		addPathObjectsRecursively(Collections.singleton(pathObject), pathObjects, cls);
-	}
-	
-	
-	private static void addPathObjectsRecursively(Collection<PathObject> pathObjectsInput, Collection<PathObject> pathObjects, Class<? extends PathObject> cls) {
-		for (PathObject childObject : pathObjectsInput) {
-			if (cls == null || cls.isInstance(childObject)) {
-				pathObjects.add(childObject);
-			}
-			if (childObject.hasChildren())
-				addPathObjectsRecursively(childObject.getChildObjects(), pathObjects, cls);
-		}
-	}
 
+	/**
+	 * Get objects that contain Point ROIs.
+	 * @param cls
+	 * @return
+	 */
 	public synchronized Collection<PathObject> getPointObjects(Class<? extends PathObject> cls) {
 		Collection<PathObject> pathObjects = getObjects(null, cls);
 		if (!pathObjects.isEmpty()) {
 			Iterator<PathObject> iter = pathObjects.iterator();
 			while (iter.hasNext()) {
-				if (!iter.next().isPoint()) {
+				if (!PathObjectTools.hasPointROI(iter.next())) {
 					iter.remove();
 				}
 			}
@@ -473,27 +558,37 @@ public final class PathObjectHierarchy implements Serializable {
 		return pathObjects;
 	}
 	
-	//J Possible function to include??? in Java 8
-	//public synchronized List<PathObject> getObjectsByClass(Class<? extends PathObject> cls) {
-	//	switch (cls.toString()) {
-	//		case "Point": 		return getObjects(null,cls).stream().filter(x->x.isPoint()).collect(Collectors.toList()); 
-	//		case "Annotation": 	return getObjects(null,cls).stream().filter(x->x.isAnnotation()).collect(Collectors.toList());
-	//		default: 			return new ArrayList<>();
-	//	}
-	//}
-	
+	/**
+	 * Get all cell objects in the hierarchy.
+	 * @return
+	 */
 	public Collection<PathObject> getCellObjects() {
-		return getObjects(null, PathDetectionObject.class);
+		return getObjects(null, PathCellObject.class);
 	}
 	
+	/**
+	 * Get all detection objects in the hierarchy (including sub-classes of detections).
+	 * @return
+	 */
 	public Collection<PathObject> getDetectionObjects() {
 		return getObjects(null, PathDetectionObject.class);
 	}
 	
+	/**
+	 * Get all annotation objects in the hierarchy.
+	 * @return
+	 */
 	public Collection<PathObject> getAnnotationObjects() {
 		return getObjects(null, PathAnnotationObject.class);
 	}
 
+	/**
+	 * Get all objects in the hierarchy, optionally filtering to return only objects that are instances of a specific class.
+	 * Note that this method returns the root object, unless it has been filtered out.
+	 * @param pathObjects
+	 * @param cls
+	 * @return
+	 */
 	public Collection<PathObject> getObjects(Collection<PathObject> pathObjects, Class<? extends PathObject> cls) {
 		if (pathObjects == null)
 			pathObjects = new ArrayList<>();
@@ -503,26 +598,10 @@ public final class PathObjectHierarchy implements Serializable {
 			pathObjects.addAll(tileCache.getObjectsForRegion(cls, null, null, true));
 			return pathObjects;
 		}
+		if (cls == null || cls.isAssignableFrom(PathRootObject.class))
+			pathObjects.add(getRootObject());
 		
-		addPathObjectsRecursively(getRootObject(), pathObjects, cls);
-		return pathObjects;
-	}
-	
-	/**
-	 * Get all descendant objects with a specified type
-	 * 
-	 * @param pathObject
-	 * @param pathObjects
-	 * @param cls
-	 * @return
-	 */
-	public synchronized List<PathObject> getDescendantObjects(PathObject pathObject, List<PathObject> pathObjects, Class<? extends PathObject> cls) {
-		if (pathObjects == null)
-			pathObjects = new ArrayList<>();
-		if (pathObject == null || !pathObject.hasChildren())
-			return pathObjects;
-		addPathObjectsRecursively(pathObject.getChildObjects(), pathObjects, cls);
-		return pathObjects;
+		return PathObjectTools.getDescendantObjects(getRootObject(), pathObjects, cls);
 	}
 	
 	/**
@@ -533,7 +612,7 @@ public final class PathObjectHierarchy implements Serializable {
 	public void updateObject(PathObject pathObject) {
 		if (inHierarchy(pathObject))
 			removeObject(pathObject, true, false);
-		addPathObject(pathObject, true, false);
+		addPathObject(pathObject, false);
 		fireObjectsChangedEvent(this, Collections.singletonList(pathObject), false);
 	}
 	
@@ -541,7 +620,7 @@ public final class PathObjectHierarchy implements Serializable {
 	/**
 	 * Get a flattened list containing all PathObjects in the hierarchy (apart from the root object).
 	 * 
-	 * @param list - optional list into which the objects should be added (may be null)
+	 * @param list optional list into which the objects should be added (may be null)
 	 * @return
 	 */
 	public synchronized List<PathObject> getFlattenedObjectList(List<PathObject> list) {
@@ -551,12 +630,20 @@ public final class PathObjectHierarchy implements Serializable {
 		return list;
 	}
 	
-	
+	/**
+	 * Number of objects in the hierarchy, excluding the root.
+	 * @return
+	 */
 	public synchronized int nObjects() {
 		int count = PathObjectTools.countDescendants(getRootObject());
 		return count;
 	}
 	
+	/**
+	 * Set the contents of this hierarchy to be the same as that of another hierarchy.
+	 * In practice, this means copying the root and TMA grid of the second hierarchy.
+	 * @param hierarchy
+	 */
 	public synchronized void setHierarchy(PathObjectHierarchy hierarchy) {
 		if (this == hierarchy)
 			return;
@@ -566,10 +653,10 @@ public final class PathObjectHierarchy implements Serializable {
 	}
 	
 	/**
-	 * Get the objects within a specified ROI, as defined by the general rules for resolving the hierarchy 
-	 * (i.e. centroids for detections, 'covers' rule for others).
+	 * Get the objects within a specified ROI, as defined by the general rules for resolving the hierarchy. 
+	 * This relies on centroids for detections, and a 'covers' rule for others.
 	 * 
-	 * @param cls Class of PathObjects (e.g. PathDetectionObject), or null to accept all
+	 * @param cls class of PathObjects (e.g. PathDetectionObject), or null to accept all
 	 * @param roi
 	 * @return
 	 */
@@ -614,6 +701,13 @@ public final class PathObjectHierarchy implements Serializable {
 		return tileCache.getObjectsForRegion(cls, region, pathObjects, true);
 	}
 	
+	/**
+	 * Returns true if the hierarchy contains objects overlapping a specific region, optionally filtering to identify only 
+	 * objects of a specific class.
+	 * @param cls
+	 * @param region
+	 * @return
+	 */
 	public boolean hasObjectsForRegion(Class<? extends PathObject> cls, ImageRegion region) {
 		return tileCache.hasObjectsForRegion(cls, region, true);
 	}
@@ -629,32 +723,62 @@ public final class PathObjectHierarchy implements Serializable {
 		fireEvent(event);
 	}
 	
-	
+	/**
+	 * Fire a hierarchy update indicating object measurements have changed.
+	 * @param source
+	 * @param pathObjects
+	 */
 	public synchronized void fireObjectMeasurementsChangedEvent(Object source, Collection<PathObject> pathObjects) {
 		PathObjectHierarchyEvent event = PathObjectHierarchyEvent.createObjectsChangedEvent(source, this, HierarchyEventType.CHANGE_MEASUREMENTS, pathObjects, false);
 		fireEvent(event);
 	}
 	
+	/**
+	 * Fire a hierarchy update indicating object classifications have changed.
+	 * @param source
+	 * @param pathObjects
+	 */
 	public synchronized void fireObjectClassificationsChangedEvent(Object source, Collection<PathObject> pathObjects) {
 		PathObjectHierarchyEvent event = PathObjectHierarchyEvent.createObjectsChangedEvent(source, this, HierarchyEventType.CHANGE_CLASSIFICATION, pathObjects, false);
 		fireEvent(event);
 	}
 	
-
+	/**
+	 * Fire a hierarchy update indicating objects have changed.
+	 * @param source
+	 * @param pathObjects
+	 */
 	public synchronized void fireObjectsChangedEvent(Object source, Collection<? extends PathObject> pathObjects) {
 		fireObjectsChangedEvent(source, pathObjects, false);
 	}
 
+	/**
+	 * Fire a hierarchy update indicating objects have changed, and may still be changing.
+	 * @param source
+	 * @param pathObjects
+	 * @param isChanging is true, listeners may choose not to respond until an event is fired with isChanging false
+	 */
 	public synchronized void fireObjectsChangedEvent(Object source, Collection<? extends PathObject> pathObjects, boolean isChanging) {
 		PathObjectHierarchyEvent event = PathObjectHierarchyEvent.createObjectsChangedEvent(source, this, HierarchyEventType.CHANGE_OTHER, pathObjects, isChanging);
 		fireEvent(event);
 	}
 	
+	/**
+	 * Fire a hierarchy update indicating the hierarchy structure has changed, impacting descendants of a specified object.
+	 * @param source
+	 * @param pathObject
+	 */
 	public synchronized void fireHierarchyChangedEvent(Object source, PathObject pathObject) {
 		PathObjectHierarchyEvent event = PathObjectHierarchyEvent.createStructureChangeEvent(source, this, pathObject);
 		fireEvent(event);
 	}
 
+	/**
+	 * Fire a hierarchy update indicating the hierarchy structure has changed.
+	 * This is often a good choice of event if multiple changes may have occurred, of if one is unsure what exactly 
+	 * has changed.
+	 * @param source
+	 */
 	public synchronized void fireHierarchyChangedEvent(Object source) {
 		fireHierarchyChangedEvent(source, getRootObject());
 	}

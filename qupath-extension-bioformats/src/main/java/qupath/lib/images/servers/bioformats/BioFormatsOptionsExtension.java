@@ -81,7 +81,7 @@ public class BioFormatsOptionsExtension implements QuPathExtension {
 		IntegerProperty memoizationTimeMillis = PathPrefs.createPersistentPreference("bfMemoizationTimeMS", options.getMemoizationTimeMillis());
 //		BooleanProperty parallelizeMultichannel = PathPrefs.createPersistentPreference("bfParallelizeMultichannel", options.requestParallelizeMultichannel());
 
-		BooleanProperty requestChannelZCorrectionVSI = PathPrefs.createPersistentPreference("bfChannelZCorrectionVSI", options.requestChannelZCorrectionVSI());
+//		BooleanProperty requestChannelZCorrectionVSI = PathPrefs.createPersistentPreference("bfChannelZCorrectionVSI", options.requestChannelZCorrectionVSI());
 
 		StringProperty pathMemoization = PathPrefs.createPersistentPreference("bfPathMemoization", options.getPathMemoization());
 		StringProperty useExtensions = PathPrefs.createPersistentPreference("bfUseAlwaysExtensions", String.join(" ", options.getUseAlwaysExtensions()));
@@ -93,7 +93,7 @@ public class BioFormatsOptionsExtension implements QuPathExtension {
 		options.setRequestParallelization(useParallelization.get());
 		options.setMemoizationTimeMillis(memoizationTimeMillis.get());
 //		options.setRequestParallelizeMultichannel(parallelizeMultichannel.get());
-		options.setRequestChannelZCorrectionVSI(requestChannelZCorrectionVSI.get());
+//		options.setRequestChannelZCorrectionVSI(requestChannelZCorrectionVSI.get());
 		fillCollectionWithTokens(useExtensions.get(), options.getUseAlwaysExtensions());
 		fillCollectionWithTokens(skipExtensions.get(), options.getSkipAlwaysExtensions());
 
@@ -103,7 +103,7 @@ public class BioFormatsOptionsExtension implements QuPathExtension {
 		memoizationTimeMillis.addListener((v, o, n) -> options.setMemoizationTimeMillis(n.intValue()));
 //		parallelizeMultichannel.addListener((v, o, n) -> options.setRequestParallelizeMultichannel(n));
 
-		requestChannelZCorrectionVSI.addListener((v, o, n) -> options.setRequestChannelZCorrectionVSI(n));
+//		requestChannelZCorrectionVSI.addListener((v, o, n) -> options.setRequestChannelZCorrectionVSI(n));
 
 		pathMemoization.addListener((v, o, n) -> options.setPathMemoization(n));
 		useExtensions.addListener((v, o, n) -> fillCollectionWithTokens(n, options.getUseAlwaysExtensions()));
@@ -124,7 +124,7 @@ public class BioFormatsOptionsExtension implements QuPathExtension {
 		prefs.addPropertyPreference(skipExtensions, String.class, "Never use Bio-Formats for specified image extensions", "Bio-Formats", 
 				"Request that Bio-Formats is never the file reader used for images with specific extensions; enter as a list with spaces between each entry");
 
-		prefs.addPropertyPreference(requestChannelZCorrectionVSI, Boolean.class, "Correct VSI channel/z-stack confusion", "Bio-Formats", "Attempt to fix a bug that means some VSI files have different channels wrongly displayed as different z-slices");
+//		prefs.addPropertyPreference(requestChannelZCorrectionVSI, Boolean.class, "Correct VSI channel/z-stack confusion", "Bio-Formats", "Attempt to fix a bug that means some VSI files have different channels wrongly displayed as different z-slices");
 	}
 
 	private static void fillCollectionWithTokens(String text, Collection<String> collection) {

@@ -35,6 +35,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.PrintWriter;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
@@ -83,11 +84,10 @@ import javafx.scene.paint.Color;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.util.Callback;
-import qupath.lib.classifiers.CompositeClassifier;
 import qupath.lib.classifiers.Normalization;
 import qupath.lib.classifiers.PathClassificationLabellingHelper;
 import qupath.lib.classifiers.PathClassificationLabellingHelper.SplitType;
-import qupath.lib.classifiers.PathIntensityClassifier;
+import qupath.lib.classifiers.PathClassifierTools;
 import qupath.lib.classifiers.PathObjectClassifier;
 import qupath.lib.gui.ImageDataChangeListener;
 import qupath.lib.gui.ImageDataWrapper;
@@ -96,13 +96,11 @@ import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.gui.helpers.dialogs.ParameterPanelFX;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.images.ImageData;
-import qupath.lib.images.servers.ServerTools;
 import qupath.lib.objects.PathAnnotationObject;
-import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
-import qupath.lib.objects.classes.PathClassFactory.PathClasses;
+import qupath.lib.objects.classes.PathClassFactory.StandardPathClasses;
 import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
@@ -181,9 +179,9 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 
 
 	private ParameterList paramsUpdate = new ParameterList()
-			.addChoiceParameter("normalizationMethod", "Normalization method", Normalization.NONE, Normalization.values(), "Method to normalize features - some classifiers (e.g. SVM) require this, while others (e.g. decision trees, random forests) don't")
+			.addChoiceParameter("normalizationMethod", "Normalization method", Normalization.NONE, Arrays.asList(Normalization.values()), "Method to normalize features - some classifiers (e.g. SVM) require this, while others (e.g. decision trees, random forests) don't")
 			.addIntParameter("maxTrainingPercent", "Training set split", 100, "%", 1, 100, "Percentage of the data to use for training - the rest will be used for testing")
-			.addChoiceParameter("splitType", "Training set split type", SplitType.EQUIDISTANT, SplitType.values(), "Method of splitting the data for training")
+			.addChoiceParameter("splitType", "Training set split type", SplitType.EQUIDISTANT, Arrays.asList(SplitType.values()), "Method of splitting the data for training")
 			.addIntParameter("randomSeed", "Random seed", 1, null, "Seed used to generate random splits in a reproducible way (ignore if no random splitting is used)")
 			.addBooleanParameter("balanceClasses", "Balance classes", false, "Ensure classes contain equal numbers of samples by randomly duplicating samples from classes with less representation")
 			//		.addBooleanParameter("showTrainingSamples", "Show training samples", false, "Show the objects that will be used for training instead of actually creating the classifier - useful only for checking what is happening")
@@ -310,7 +308,7 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 		if (intensityClassifier == null)
 			return classifier;
 		else
-			return new CompositeClassifier(classifier, intensityClassifier);
+			return PathClassifierTools.createCompositeClassifier(classifier, intensityClassifier);
 	}
 
 
@@ -680,7 +678,7 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 					if (imageDataTemp == null || imageDataTemp.getHierarchy().isEmpty())
 						continue;
 
-					Collection<PathObject> pathObjects = imageDataTemp.getHierarchy().getObjects(null, PathDetectionObject.class);
+					Collection<PathObject> pathObjects = imageDataTemp.getHierarchy().getDetectionObjects();
 					if (pathObjects.isEmpty()) {
 						updateLog("No detection objects for " + entry.getImageName() + " - skipping");
 						continue;
@@ -795,8 +793,8 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 
 			retainedObjectsMap.clear();
 			int counter = 0;
-			for (ProjectImageEntry<?> entry : entries) {
-
+			for (ProjectImageEntry<BufferedImage> entry : entries) {
+				
 				updateProgress(counter, entries.size());
 				counter++;
 
@@ -818,7 +816,7 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 					}
 
 					if (!map.isEmpty() && !retainedObjectsMap.containsValue(map)) {
-						retainedObjectsMap.put(entry.getServerPath(), map);
+						retainedObjectsMap.put(getMapKey(project, entry), map);
 						updateLog("Training objects read from " + entry.getImageName());
 					} else {
 						updateLog("No training objects found in " + entry.getImageName());					
@@ -864,7 +862,17 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 		}
 	}
 
+	
+	String getMapKey(Project<BufferedImage> project, ProjectImageEntry<BufferedImage> entry) {
+		String key = project.getName() + "::" + entry.getID();
+		return key;
+	}
 
+	String getMapKey(ImageData<BufferedImage> imageData) {
+		return imageData.getServerPath();
+//		var project = qupath.getProject();
+//		return project == null ? null : getMapKey(project, project.getEntry(imageData));
+	}
 
 	private void initializeBuildPanel() {
 
@@ -1134,14 +1142,14 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 
 	private void updateIntensityPanelCallback() {
 		PathObjectHierarchy hierarchy = getHierarchy();
-		PathIntensityClassifier intensityClassifier = panelIntensities.getIntensityClassifier();
+		PathObjectClassifier intensityClassifier = panelIntensities.getIntensityClassifier();
 		if (intensityClassifier == null || hierarchy == null || classifier == null || !classifier.isValid() || !tbAutoUpdate.isSelected() || updatingClassification)
 			return;
 		// We may need to do a bigger reclassification
 		if (hierarchyChanged)
 			maybeUpdate();
 		else {
-			Collection<PathObject> pathObjects = hierarchy.getObjects(null, PathDetectionObject.class);
+			Collection<PathObject> pathObjects = hierarchy.getDetectionObjects();
 			if (intensityClassifier.classifyPathObjects(pathObjects) > 0) {
 				// Update displayed list - names may have changed - and classifier summary
 				updateClassifierSummary(null);
@@ -1183,7 +1191,7 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 			// Add in any retained objects, if we have some
 			PathClassificationLabellingHelper.countObjectsInMap(mapCurrent);
 			//		int retainedImageCount = retainedObjectsMap.addToTrainingMap(map, getImageData().getServerPath());
-			retainedObjectsMap.put(getImageData().getServerPath(), mapCurrent);
+			retainedObjectsMap.put(getMapKey(getImageData()), mapCurrent);
 			updateRetainedObjectsLabel();
 		}
 	}
@@ -1197,7 +1205,7 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 	public synchronized Map<PathClass, List<PathObject>> getTrainingMap() {
 		updateRetainedObjectsMap();
 		Map<PathClass, List<PathObject>> trainingMap = new TreeMap<>();
-		retainedObjectsMap.addToTrainingMap(trainingMap, null);
+		retainedObjectsMap.addToTrainingMap(trainingMap);
 		int nObjectsAfter = PathClassificationLabellingHelper.countObjectsInMap(trainingMap);
 		logger.info("{} objects available for classifier training from {} images", nObjectsAfter, retainedObjectsMap.size());
 		return trainingMap;
@@ -1343,10 +1351,10 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 		logger.info(String.format("Classifier training time: %.2f seconds", (middleTime-startTime)/1000.));
 
 		// Create an intensity classifier, if required
-		PathIntensityClassifier intensityClassifier = panelIntensities.getIntensityClassifier();
+		PathObjectClassifier intensityClassifier = panelIntensities.getIntensityClassifier();
 
 		// Apply classifier to everything
-		Collection<PathObject> pathObjectsOrig = hierarchy.getObjects(null, PathDetectionObject.class);
+		Collection<PathObject> pathObjectsOrig = hierarchy.getDetectionObjects();
 		int nClassified = 0;
 		
 		// Possible get proxy objects, depending on the thread we're on
@@ -1415,7 +1423,7 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 				//			int nWrong = 0;
 				int nUnclassified = 0;
 				int n = 0;
-				PathClass tumorClass = PathClassFactory.getDefaultPathClass(PathClasses.TUMOR);
+				PathClass tumorClass = PathClassFactory.getPathClass(StandardPathClasses.TUMOR);
 				// If we have multiple classes, it can be beneficial to see how tumor vs. everything else performs
 				boolean multiclassContainsTumor = mapTest.containsKey(tumorClass) && mapTest.size() > 2; // Create a tumor vs. everything else classifier
 				for (Entry<PathClass, List<PathObject>> entry : mapTest.entrySet()) {
@@ -1536,6 +1544,13 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 		}
 	}
 
+	private static boolean containsObjectsOfClass(final Collection<PathObject> pathObjects, final Class<? extends PathObject> cls) {
+		for (PathObject temp : pathObjects) {
+			if (cls == null || cls.isInstance(temp))
+				return true;
+		}
+		return false;
+	}
 
 	@Override
 	public void hierarchyChanged(PathObjectHierarchyEvent event) {
@@ -1561,7 +1576,7 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 			}
 		} else if (event.isObjectClassificationEvent()) {
 			// If classifications have changed, we only care if these contain annotations
-			boolean containsAnnotations = PathObjectTools.containsObjectsOfClass(event.getChangedObjects(), PathAnnotationObject.class);
+			boolean containsAnnotations = containsObjectsOfClass(event.getChangedObjects(), PathAnnotationObject.class);
 			if (!containsAnnotations)
 				return;
 		} else if (event.getEventType() == HierarchyEventType.CHANGE_OTHER) {
@@ -1598,11 +1613,12 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 		if (panelClassifier.isVisible() && imageDataOld != null) {
 			Map<PathClass, List<PathObject>> map = PathClassificationLabellingHelper.getClassificationMap(imageDataOld.getHierarchy(), paramsUpdate.getBooleanParameterValue("trainFromPoints"));
 			if (!map.isEmpty() && !retainedObjectsMap.containsValue(map)) {
+				String key = getMapKey(imageDataOld);
 				if (DisplayHelpers.showYesNoDialog("Retain training objects", "Retain current training objects in classifier?")) {
-					retainedObjectsMap.put(imageDataOld.getServerPath(), map);
+					retainedObjectsMap.put(key, map);
 					updateRetainedObjectsLabel();
 				} else {
-					retainedObjectsMap.remove(imageDataOld.getServerPath());
+					retainedObjectsMap.remove(key);
 					updateRetainedObjectsLabel();					
 				}
 			}
@@ -1709,7 +1725,8 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 		
 		// Create columns
 		TableColumn<String, String> colName = new TableColumn<>("Image");
-		colName.setCellValueFactory(column -> new ReadOnlyObjectWrapper<>(ServerTools.getDefaultShortServerName(column.getValue())));
+		colName.setCellValueFactory(column -> new ReadOnlyObjectWrapper<>(column.getValue()));
+//		colName.setCellValueFactory(column -> new ReadOnlyObjectWrapper<>(ServerTools.getDefaultShortServerName(column.getValue())));
 		colName.setPrefWidth(240);
 		
 		table.getColumns().add(colName);

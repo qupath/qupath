@@ -27,12 +27,12 @@ import qupath.lib.regions.ImageRegion;
 
 /**
  * Class for monitoring the process of a plugin and displaying feedback to the user.
- * 
+ * <p>
  * Implementing classes receive notifications from the plugin as it executes, and should display these in an appropriate way -
  * such as with a dialog box and progress bar, or logging the progress to the system output.
  * Classes may also choose to send cancel requests to the plugin, e.g. if the user presses a 'cancel' button.
- * 
- * PluginProgressMonitors are not intended for reuse, i.e. the startMonitoring method should only be called once.
+ * <p>
+ * SimpleProgressMonitor are not intended for reuse, i.e. the startMonitoring method should only be called once.
  * 
  * @author Pete Bankhead
  *
@@ -40,7 +40,7 @@ import qupath.lib.regions.ImageRegion;
 public interface SimpleProgressMonitor {
 	
 	/**
-	 * Set the plugin to monitor, and begin monitoring.  Note that since PluginProgressMonitors are not intended for reuse,
+	 * Set the plugin to monitor, and begin monitoring.  Note that since SimpleProgressMonitor are not intended for reuse,
 	 * this method should only be called once.
 	 * 
 	 * @param message The message to display
@@ -66,6 +66,10 @@ public interface SimpleProgressMonitor {
 	 */
 	public void pluginCompleted(String message);
 	
+	/**
+	 * Returns true if cancel has been requested, for example by the user pressing a 'cancel' button.
+	 * @return
+	 */
 	public boolean cancelled();
 
 }

@@ -24,6 +24,7 @@
 package qupath.lib.gui.helpers.dialogs;
 
 import java.io.File;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.Callable;
@@ -44,9 +45,11 @@ import javafx.scene.control.ButtonType;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.GridPane;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.FileChooser;
 import javafx.stage.FileChooser.ExtensionFilter;
+import qupath.lib.gui.helpers.GridPaneTools;
 import qupath.lib.gui.helpers.dialogs.DialogHelper;
 import javafx.stage.Window;
 
@@ -64,6 +67,8 @@ public class DialogHelperFX implements DialogHelper {
 	private FileChooser fileChooser = new FileChooser();
 	private DirectoryChooser directoryChooser = new DirectoryChooser();
 	
+	private ExtensionFilter allFiles = new ExtensionFilter("All Files", "*.*");
+	
 	protected File lastDir;
 	
 	
@@ -78,11 +83,13 @@ public class DialogHelperFX implements DialogHelper {
 
 	@Override
 	public void setLastDirectory(File dir) {
-		if (dir == null || !dir.exists())
+		if (dir == null)
 			lastDir = null;
-		else if (dir.isDirectory())
-			lastDir = dir;
-		else
+		else if (dir.isDirectory()) {
+			if (dir.exists())
+				lastDir = dir;
+			return;
+		} else if (dir.isFile())
 			setLastDirectory(dir.getParentFile());
 	}
 
@@ -123,6 +130,7 @@ public class DialogHelperFX implements DialogHelper {
 	}
 	
 	
+	@Override
 	public List<File> promptForMultipleFiles(String title, File dirBase, String filterDescription, String... exts) {
 		
 		if (!Platform.isFxApplicationThread()) {
@@ -135,10 +143,14 @@ public class DialogHelperFX implements DialogHelper {
 			fileChooser.setTitle(title);
 		else
 			fileChooser.setTitle("Choose file");
-		if (filterDescription != null && exts != null && exts.length > 0)
-			fileChooser.setSelectedExtensionFilter(new ExtensionFilter(filterDescription, exts));
-		else
+		if (filterDescription != null && exts != null && exts.length > 0) {
+			ExtensionFilter filter = getExtensionFilter(filterDescription, exts);
+			fileChooser.getExtensionFilters().setAll(filter, allFiles);
+			fileChooser.setSelectedExtensionFilter(filter);
+		} else {
+			fileChooser.getExtensionFilters().clear();
 			fileChooser.setSelectedExtensionFilter(null);
+		}
 		
 		
 		// Ensure we make our request on the correct thread
@@ -158,6 +170,26 @@ public class DialogHelperFX implements DialogHelper {
 
 	}
 	
+	
+	/**
+	 * Create extension filter, ensuring that the format is *.extension.
+	 * 
+	 * @param description
+	 * @param extensions
+	 * @return
+	 */
+	static ExtensionFilter getExtensionFilter(String description, String... extensions) {
+		List<String> ext = new ArrayList<>();
+		for (String e : extensions) {
+			if (e.startsWith(".")) {
+				e = "*" + e;
+			} else if (!e.startsWith("*"))
+				e = "*." + e;
+			ext.add(e);
+		}
+		return new ExtensionFilter(description, ext);
+	}
+	
 
 	@Override
 	public File promptForFile(String title, File dirBase, String filterDescription, String... exts) {
@@ -172,10 +204,14 @@ public class DialogHelperFX implements DialogHelper {
 			fileChooser.setTitle(title);
 		else
 			fileChooser.setTitle("Choose file");
-		if (filterDescription != null && exts != null && exts.length > 0)
-			fileChooser.setSelectedExtensionFilter(new ExtensionFilter(filterDescription, exts));
-		else
+		if (filterDescription != null && exts != null && exts.length > 0) {
+			ExtensionFilter filter = getExtensionFilter(filterDescription, exts);
+			fileChooser.getExtensionFilters().setAll(filter, allFiles);
+			fileChooser.setSelectedExtensionFilter(filter);
+		} else {
+			fileChooser.getExtensionFilters().clear();
 			fileChooser.setSelectedExtensionFilter(null);
+		}
 		
 		
 		// Ensure we make our request on the correct thread
@@ -214,10 +250,14 @@ public class DialogHelperFX implements DialogHelper {
 			fileChooser.setTitle(title);
 		else
 			fileChooser.setTitle("Save");
-		if (filterName != null && ext != null)
-			fileChooser.setSelectedExtensionFilter(new ExtensionFilter(filterName, ext));
-		else
+		if (filterName != null && ext != null) {
+			ExtensionFilter filter = getExtensionFilter(filterName, ext);
+			fileChooser.getExtensionFilters().setAll(filter);
+			fileChooser.setSelectedExtensionFilter(filter);
+		} else {
+			fileChooser.getExtensionFilters().clear();
 			fileChooser.setSelectedExtensionFilter(null);
+		}
 		if (defaultName != null)
 			fileChooser.setInitialFileName(defaultName);
 		File fileSelected = fileChooser.showSaveDialog(ownerWindow);
@@ -253,9 +293,9 @@ public class DialogHelperFX implements DialogHelper {
 		}
 		
 		// Create dialog
-        BorderPane pane = new BorderPane();
+        GridPane pane = new GridPane();
         
-        Label label = new Label("Enter image path (file or URL)");
+        Label label = new Label("Enter URL");
         TextField tf = new TextField();
         tf.setPrefWidth(400);
         
@@ -268,10 +308,12 @@ public class DialogHelperFX implements DialogHelper {
             }
         });
         
-        label.setPadding(new Insets(0, 0, 5, 0));
-        pane.setTop(label);
-        pane.setCenter(tf);
-        pane.setRight(button);
+//        label.setPadding(new Insets(0, 0, 5, 0));
+        GridPaneTools.addGridRow(pane, 0, 0, "Input URL or choose file", label, tf, button);
+        pane.setHgap(5);
+//        pane.setTop(label);
+//        pane.setCenter(tf);
+//        pane.setRight(button);
         
 		
         // Show dialog

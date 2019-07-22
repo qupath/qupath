@@ -23,6 +23,7 @@
 
 package qupath.lib.gui.models;
 
+import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -59,6 +60,8 @@ import qupath.lib.gui.models.ObservableMeasurementTableData.ROICentroidMeasureme
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.ImageServerMetadata;
+import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.objects.MetadataStore;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathDetectionObject;
@@ -66,6 +69,7 @@ import qupath.lib.objects.PathObject;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
+import qupath.lib.objects.classes.PathClassTools;
 import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.roi.AreaROI;
@@ -222,7 +226,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 			for (PathObject pathObject : pathObjectListCopy) {
 				if (!pathObject.isAnnotation())
 					continue;
-				if (pathObject.isPoint())
+				if (PathObjectTools.hasPointROI(pathObject))
 					anyPoints = true;
 				if (pathObject.getROI() instanceof PathArea)
 					anyAreas = true;
@@ -257,6 +261,21 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 				features.add(builder.getName());
 			}
 		}
+		
+		if (containsAnnotations) {
+			var pixelClassifier = imageData.getProperty("PIXEL_LAYER");
+			if (pixelClassifier instanceof ImageServer<?>) {
+				ImageServer<BufferedImage> server = (ImageServer<BufferedImage>)pixelClassifier;
+				if (server.getMetadata().getChannelType() == ImageServerMetadata.ChannelType.CLASSIFICATION || server.getMetadata().getChannelType() == ImageServerMetadata.ChannelType.PROBABILITY) {
+					var pixelManager = new PixelClassificationMeasurementManager(server);
+					for (String name : pixelManager.getMeasurementNames()) {
+						builderMap.put(name, new PixelClassifierMeasurementBuilder(pixelManager, name));
+						features.add(name);
+					}
+				}
+			}
+		}
+		
 		
 		// Update all the lists, if necessary
 		boolean changes = false;
@@ -501,11 +520,11 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 			Set<PathClass> parentIntensityClasses = new LinkedHashSet<>();
 			Set<PathClass> parentPositiveNegativeClasses = new LinkedHashSet<>();
 			for (PathClass pathClass : pathClasses) {
-				if (PathClassFactory.isDefaultIntensityClass(pathClass)) {
+				if (PathClassTools.isGradedIntensityClass(pathClass)) {
 					parentIntensityClasses.add(pathClass.getParentClass());
 					parentPositiveNegativeClasses.add(pathClass.getParentClass());
 				}
-				else if (PathClassFactory.isPositiveClass(pathClass) || PathClassFactory.isNegativeClass(pathClass))
+				else if (PathClassTools.isPositiveClass(pathClass) || PathClassTools.isNegativeClass(pathClass))
 					parentPositiveNegativeClasses.add(pathClass.getParentClass());
 			}
 			
@@ -546,7 +565,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 				builders.add(new AllredMeasurementBuilder(pathClass));
 			}
 			if (parentIntensityClasses.size() > 1) {
-				PathClass[] parentIntensityClassesArray = parentIntensityClasses.toArray(new PathClass[0]);
+				PathClass[] parentIntensityClassesArray = parentIntensityClasses.toArray(PathClass[]::new);
 				builders.add(new HScoreMeasurementBuilder(parentIntensityClassesArray));
 				builders.add(new AllredProportionMeasurementBuilder(parentIntensityClassesArray));
 				builders.add(new AllredIntensityMeasurementBuilder(parentIntensityClassesArray));
@@ -558,7 +577,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 			// Additionally, these are only non-NaN if we have an annotation, or a TMA core containing a single annotation
 //			if (containsAnnotations) {
 				for (PathClass pathClass : pathClassList) {
-					if (PathClassFactory.isPositiveClass(pathClass) && pathClass.getBaseClass() == pathClass)
+					if (PathClassTools.isPositiveClass(pathClass) && pathClass.getBaseClass() == pathClass)
 	//				if (!(PathClassFactory.isDefaultIntensityClass(pathClass) || PathClassFactory.isNegativeClass(pathClass)))
 						builders.add(new ClassDensityMeasurementBuilder(imageData.getServer(), pathClass));
 				}
@@ -640,9 +659,10 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 				if (roi instanceof PathArea) {
 					double pixelWidth = 1;
 					double pixelHeight = 1;
-					if (server != null && server.hasPixelSizeMicrons()) {
-						pixelWidth = server.getPixelWidthMicrons() / 1000;
-						pixelHeight = server.getPixelHeightMicrons() / 1000;
+					PixelCalibration cal = server == null ? null : server.getPixelCalibration();
+					if (cal != null && cal.hasPixelSizeMicrons()) {
+						pixelWidth = cal.getPixelWidthMicrons() / 1000;
+						pixelHeight = cal.getPixelHeightMicrons() / 1000;
 					}
 					return n / (((PathArea)roi).getScaledArea(pixelWidth, pixelHeight));
 				}
@@ -822,7 +842,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 			
 			@Override
 			public String getName() {
-				if (server != null && server.hasPixelSizeMicrons())
+				if (server != null && server.getPixelCalibration().hasPixelSizeMicrons())
 					return String.format("Num %s per mm^2", pathClass.toString());
 //					return String.format("Num %s per %s^2", pathClass.toString(), GeneralTools.micrometerSymbol());
 				else
@@ -1215,7 +1235,15 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 		
 		public double computeValue(final PathObject pathObject) {
 			// TODO: Flip this around!  Create binding from value, not value from binding...
-			return createMeasurement(pathObject).getValue().doubleValue();
+			try {
+				var val = createMeasurement(pathObject).getValue();
+				if (val == null)
+					return Double.NaN;
+				else
+					return val.doubleValue();
+			} catch (NullPointerException e) {
+				return Double.NaN;
+			}
 		}
 		
 		public String getStringValue(final PathObject pathObject, final int decimalPlaces) {
@@ -1253,18 +1281,18 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 		}
 		
 		boolean hasPixelSizeMicrons() {
-			return imageData != null && imageData.getServer() != null && imageData.getServer().hasPixelSizeMicrons();
+			return imageData != null && imageData.getServer() != null && imageData.getServer().getPixelCalibration().hasPixelSizeMicrons();
 		}
 
 		double pixelWidthMicrons() {
 			if (hasPixelSizeMicrons())
-				return imageData.getServer().getPixelWidthMicrons();
+				return imageData.getServer().getPixelCalibration().getPixelWidthMicrons();
 			return Double.NaN;
 		}
 
 		double pixelHeightMicrons() {
 			if (hasPixelSizeMicrons())
-				return imageData.getServer().getPixelHeightMicrons();
+				return imageData.getServer().getPixelCalibration().getPixelHeightMicrons();
 			return Double.NaN;
 		}
 		
@@ -1493,23 +1521,23 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 		}
 		
 		public int getOnePlus(final PathClass... ancestors) {
-			return getCountForAncestor(pathClass -> PathClassFactory.isOnePlus(pathClass), ancestors);
+			return getCountForAncestor(pathClass -> PathClassTools.isOnePlus(pathClass), ancestors);
 		}
 		
 		public int getTwoPlus(final PathClass... ancestors) {
-			return getCountForAncestor(pathClass -> PathClassFactory.isTwoPlus(pathClass), ancestors);
+			return getCountForAncestor(pathClass -> PathClassTools.isTwoPlus(pathClass), ancestors);
 		}
 
 		public int getThreePlus(final PathClass... ancestors) {
-			return getCountForAncestor(pathClass -> PathClassFactory.isThreePlus(pathClass), ancestors);
+			return getCountForAncestor(pathClass -> PathClassTools.isThreePlus(pathClass), ancestors);
 		}
 
 		public int getNegative(final PathClass... ancestors) {
-			return getCountForAncestor(pathClass -> PathClassFactory.isNegativeClass(pathClass), ancestors);
+			return getCountForAncestor(pathClass -> PathClassTools.isNegativeClass(pathClass), ancestors);
 		}
 
 		public int getPositive(final PathClass... ancestors) {
-			return getCountForAncestor(pathClass -> PathClassFactory.isPositiveOrPositiveIntensityClass(pathClass), ancestors);
+			return getCountForAncestor(pathClass -> PathClassTools.isPositiveOrGradedIntensityClass(pathClass), ancestors);
 		}
 		
 		public double getHScore(final PathClass... ancestors) {
@@ -1586,6 +1614,29 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 
 	}
 
+	
+	
+	static class PixelClassifierMeasurementBuilder extends NumericMeasurementBuilder {
+		
+		private PixelClassificationMeasurementManager manager;
+		private String name;
+		
+		PixelClassifierMeasurementBuilder(PixelClassificationMeasurementManager manager, String name) {
+			this.manager = manager;
+			this.name = name;
+		}
+
+		@Override
+		public String getName() {
+			return name;
+		}
+
+		@Override
+		public Binding<Number> createMeasurement(PathObject pathObject) {
+			return Bindings.createObjectBinding(() -> manager.getMeasurementValue(pathObject, name));
+		}
+		
+	}
 
 
 

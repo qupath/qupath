@@ -25,7 +25,6 @@ package qupath.lib.measurements;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -42,17 +41,17 @@ import org.slf4j.LoggerFactory;
  * 
  * A MeasurementList that stores its measurements in either a float or a double array, 
  * to avoid the overhead of storing large numbers of Measurement objects.
- * 
+ * <p>
  * This makes the storage quite efficient for lists that don't require supporting dynamic measurements.
- * 	
+ * <p>
  * In this implementation, lookups by measurement name initially use indexOf with a list - and
  * can be rather slow.  Therefore while 'adding' is fast, 'putting' is not.
- * 
+ * <p>
  * However, upon calling closeList(), name lists are shared between similarly closed NumericMeasurementLists,
  * and a map used to improve random access of measurements.  Therefore if many lists of the same measurements
  * are made, remembering to close each list when it is fully populated can improve performance and greatly
  * reduce memory requirements.
- * 
+ * <p>
  * These lists can be instantiated through the MeasurementListFactory class.
  * 
  * @author Pete Bankhead
@@ -184,13 +183,6 @@ class NumericMeasurementList {
 			return getMeasurementValue(getMeasurementIndex(name));
 		}
 
-		@Override
-		public boolean containsAllNamedMeasurements(Collection<String> measurementNames) {
-			if (!isClosed)
-				logger.debug("containsAllNamedMeasurements called on open NumericMeasurementList - consider closing list earlier for efficiency");
-			return names == measurementNames || names.equals(measurementNames) || names.containsAll(measurementNames);
-		}		
-		
 		@Override
 		public boolean containsNamedMeasurement(String measurementName) {
 			if (!isClosed)

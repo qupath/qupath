@@ -36,6 +36,8 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -54,12 +56,15 @@ import ij.process.FloatProcessor;
 import ij.process.ImageProcessor;
 import ij.process.LUT;
 import ij.process.ShortProcessor;
-import qupath.imagej.helpers.IJTools;
-import qupath.lib.awt.color.model.ColorModelFactory;
+import qupath.imagej.tools.IJTools;
+import qupath.lib.color.ColorModelFactory;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.servers.AbstractImageServer;
 import qupath.lib.images.servers.ImageChannel;
+import qupath.lib.images.servers.ImageServerBuilder;
+import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
 import qupath.lib.images.servers.ImageServerMetadata;
+import qupath.lib.images.servers.PixelType;
 import qupath.lib.regions.RegionRequest;
 
 /**
@@ -74,11 +79,22 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 	
 	private ImageServerMetadata originalMetadata;
 	
+	private URI uri;
+	private String[] args;
+	
 	private ImagePlus imp;
 		
 	private ColorModel colorModel;
 	
-	public ImageJServer(final URI uri) throws IOException {
+	/**
+	 * Constructor.
+	 * @param uri URI representing the local file or an ImageJ-compatible URL
+	 * @param args optional arguments (not currently used)
+	 * @throws IOException
+	 */
+	public ImageJServer(final URI uri, final String...args) throws IOException {
+		super(BufferedImage.class);
+		this.uri = uri;
 		File file = GeneralTools.toPath(uri).toFile();
 		String path = file.getAbsolutePath();
 		if (path.toLowerCase().endsWith(".tif") || path.toLowerCase().endsWith(".tiff")) {
@@ -106,8 +122,24 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 			}
 		}
 		
-		
-		boolean isRGB = imp.getType() == ImagePlus.COLOR_RGB;
+		PixelType pixelType;
+		boolean isRGB = false;
+		switch (imp.getType()) {
+		case (ImagePlus.COLOR_RGB):
+			isRGB = true;
+		case (ImagePlus.COLOR_256):
+		case (ImagePlus.GRAY8):
+			pixelType = PixelType.UINT8;
+			break;
+		case (ImagePlus.GRAY16):
+			pixelType = PixelType.UINT16;
+			break;
+		case (ImagePlus.GRAY32):
+			pixelType = PixelType.FLOAT32;
+			break;
+		default:
+			throw new IllegalArgumentException("Unknown ImagePlus type " + imp.getType());
+		}
 
 		List<ImageChannel> channels;
 		if (isRGB)
@@ -129,15 +161,17 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 		} else
 			channels = ImageChannel.getDefaultChannelList(imp.getNChannels());
 		
-		
-		var builder = new ImageServerMetadata.Builder(getClass(), uri.toString())
+		this.args = args;
+		var builder = new ImageServerMetadata.Builder() //, uri.normalize().toString())
 				.width(imp.getWidth())
 				.height(imp.getHeight())
+				.name(imp.getTitle())
+//				.args(args)
 				.channels(channels)
 				.sizeZ(imp.getNSlices())
 				.sizeT(imp.getNFrames())
 				.rgb(isRGB)
-				.bitDepth(isRGB ? 8 : imp.getBitDepth())
+				.pixelType(pixelType)
 				.zSpacingMicrons(zMicrons)
 				.preferredTileSize(imp.getWidth(), imp.getHeight());
 //				setMagnification(pxlInfo.mag). // Don't know magnification...?
@@ -154,12 +188,16 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 //			throw new IOException("Sorry, currently only RGB & single-channel 8 & 16-bit images supported using ImageJ server");
 	}
 	
-	
 	@Override
-	public double getTimePoint(int ind) {
-		return imp.getCalibration().frameInterval * ind;
+	public Collection<URI> getURIs() {
+		return Collections.singletonList(uri);
 	}
 
+	@Override
+	protected String createID() {
+		return getClass().getName() + ": " + uri.toString();
+	}
+	
 	@Override
 	public synchronized BufferedImage readBufferedImage(RegionRequest request) {
 		// Deal with any cropping
@@ -229,7 +267,7 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 	/**
 	 * Convert an ImagePlus to a BufferedImage, for a specific z-slice and timepoint.
 	 * <p>
-	 * Note that ImageJ uses 1-based indices for z and t! Therefore these should be &geq; 1.
+	 * Note that ImageJ uses 1-based indices for z and t! Therefore these should be &gt;= 1.
 	 * <p>
 	 * A {@link ColorModel} can optionally be provided; otherwise, a default ColorModel will be 
 	 * created for the image (with may not be particularly suitable).
@@ -312,13 +350,17 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 	}
 
 	@Override
-	public String getDisplayedImageName() {
-		return imp.getTitle();
-	}
-
-	@Override
 	public ImageServerMetadata getOriginalMetadata() {
 		return originalMetadata;
+	}
+	
+	@Override
+	protected ServerBuilder<BufferedImage> createServerBuilder() {
+		return ImageServerBuilder.DefaultImageServerBuilder.createInstance(
+				ImageJServerBuilder.class,
+				getMetadata(),
+				uri,
+				args);
 	}
 	
 }

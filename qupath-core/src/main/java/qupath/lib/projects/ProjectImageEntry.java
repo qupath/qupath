@@ -24,6 +24,7 @@
 package qupath.lib.projects;
 
 import java.io.IOException;
+import java.net.URI;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Map;
@@ -31,6 +32,7 @@ import java.util.Map.Entry;
 
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 
 /**
@@ -44,12 +46,18 @@ import qupath.lib.objects.hierarchy.PathObjectHierarchy;
  */
 public interface ProjectImageEntry<T> {
 	
+//	/**
+//	 * Get the path used to represent this image, which can be used to construct an <code>ImageServer</code>.
+//	 * 
+//	 * @return
+//	 */
+//	public String getServerPath();
+	
 	/**
-	 * Get the path used to represent this image, which can be used to construct an <code>ImageServer</code>.
-	 * 
+	 * Get a unique ID to represent this entry.
 	 * @return
 	 */
-	public String getServerPath();
+	public String getID();
 	
 	/**
 	 * Set the image name for this project entry.
@@ -73,27 +81,12 @@ public interface ProjectImageEntry<T> {
 	public String getImageName();
 	
 	/**
-	 * Get a unique name for this entry, which may be used for associated filenames.
-	 * @return
-	 */
-	public String getUniqueName();
-	
-	/**
 	 * Get the original image name, without any randomization.  Most UI elements should prefer {@link #getImageName} to 
 	 * ensure that the randomization does its job.
 	 * 
 	 * @return
 	 */
 	public String getOriginalImageName();
-	
-	
-	/**
-	 * Check if this image entry refers to a specified image according to its path.
-	 * 
-	 * @param serverPath
-	 * @return <code>true</code> if the path is a match, <code>false</code> otherwise.
-	 */
-	public boolean sameServerPath(final String serverPath);
 		
 	
 	/**
@@ -118,6 +111,7 @@ public interface ProjectImageEntry<T> {
 	
 	/**
 	 * Request a metadata value.
+	 * <p>
 	 * Note that this may return <code>null</code>.
 	 * 
 	 * @param key
@@ -127,6 +121,7 @@ public interface ProjectImageEntry<T> {
 
 	/**
 	 * Store a metadata value.
+	 * <p>
 	 * This is intended as storage of short key-value pairs.
 	 * Extended text should be stored under <code>setDescription</code>.
 	 * 
@@ -178,12 +173,11 @@ public interface ProjectImageEntry<T> {
 	public Collection<String> getMetadataKeys();
 
 	/**
-	 * Build an {@link ImageServer} for this image.
+	 * Get a {@link ServerBuilder} that can be used to open this image.
 	 * 
 	 * @return
-	 * @throws IOException
 	 */
-	public ImageServer<T> buildImageServer() throws IOException;
+	public ServerBuilder<T> getServerBuilder();
 	
 	/**
 	 * Read the {@link ImageData} associated with this entry, or create a new ImageData if none is currently present.
@@ -240,6 +234,26 @@ public interface ProjectImageEntry<T> {
 	public void setThumbnail(T img) throws IOException;	
 	
 	/**
+	 * Get a collection of the URIs required by this project's ImageServer.
+	 * <p>
+	 * The purpose of this is to help query if they can be found. They might not be 
+	 * e.g. if the images have been moved.
+	 * 
+	 * @return
+	 * @throws IOException
+	 */
+	public Collection<URI> getServerURIs() throws IOException;
+	
+	/**
+	 * Update the URIs for the server (optional operation).
+	 * 
+	 * @param replacements a map with current URIs as keys, and desired URIs as values.
+	 * @return true if changes were made
+	 * @throws IOException
+	 */
+	public boolean updateServerURIs(Map<URI, URI> replacements) throws IOException;
+	
+	/**
 	 * Get a formatted string representation of the metadata map's contents.
 	 * 
 	 * @return
@@ -259,15 +273,13 @@ public interface ProjectImageEntry<T> {
 	}
 	
 	
-	
-	
-	
-	
-//	public Map<String, String> getScripts();
-//	
-//	public Map<String, PixelClassifier> getPixelClassifiers();
-//	
-//	public Map<String, ObjectClassifier> getPixelClassifiers();
+	/**
+	 * Access additional images associated with the project entry, e.g. pixel classifications or
+	 * aligned slides.
+	 * 
+	 * @return
+	 */
+	public ProjectResourceManager<ImageServer<T>> getImages();
 	
 	
 

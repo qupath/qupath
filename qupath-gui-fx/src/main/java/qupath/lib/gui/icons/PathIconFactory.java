@@ -45,7 +45,7 @@ import qupath.lib.gui.helpers.ColorToolsFX;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.roi.EllipseROI;
 import qupath.lib.roi.LineROI;
-import qupath.lib.roi.PathROIToolsAwt;
+import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.PointsROI;
 import qupath.lib.roi.RectangleROI;
 import qupath.lib.roi.interfaces.PathArea;
@@ -237,7 +237,7 @@ public class PathIconFactory {
 //			polygon.setFill(null);
 //			return polygon;
 		} else {
-			Shape area = pathROI instanceof PathArea ? PathROIToolsAwt.getArea(pathROI) : PathROIToolsAwt.getShape(pathROI);
+			Shape area = pathROI instanceof PathArea ? RoiTools.getArea(pathROI) : RoiTools.getShape(pathROI);
 			if (area != null) {
 				double xMin = pathROI.getBoundsX();
 				double yMin = pathROI.getBoundsY();

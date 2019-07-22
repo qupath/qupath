@@ -57,7 +57,7 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
 import javafx.stage.Stage;
-import qupath.imagej.helpers.IJTools;
+import qupath.imagej.tools.IJTools;
 import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
@@ -65,19 +65,20 @@ import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
-import qupath.lib.objects.PathAnnotationObject;
+import qupath.lib.images.servers.ServerTools;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
-import qupath.lib.objects.classes.PathClassFactory.PathClasses;
+import qupath.lib.objects.classes.PathClassFactory.StandardPathClasses;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectImageEntry;
+import qupath.lib.projects.Projects;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
-import qupath.lib.roi.PathROIToolsAwt;
+import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.PathArea;
 import qupath.lib.roi.interfaces.ROI;
@@ -291,7 +292,7 @@ public class ExportTrainingRegionsCommand implements PathCommand {
 				try {
 					PathObjectHierarchy hierarchy = entry.readHierarchy();
 					int nullCount = 0;
-					for (PathObject annotation : hierarchy.getObjects(null, PathAnnotationObject.class)) {
+					for (PathObject annotation : hierarchy.getAnnotationObjects()) {
 						if (annotation.getPathClass() == null)
 							nullCount++;
 						else
@@ -315,7 +316,7 @@ public class ExportTrainingRegionsCommand implements PathCommand {
 			String s = "";
 			int i = 1;
 			// Handle 'regions' separately
-			PathClass regionClass = PathClassFactory.getDefaultPathClass(PathClasses.REGION);
+			PathClass regionClass = PathClassFactory.getPathClass(StandardPathClasses.REGION);
 			for (PathClass pathClass : pathClasses) {
 				if (pathClass == regionClass)
 					continue;
@@ -493,14 +494,14 @@ public class ExportTrainingRegionsCommand implements PathCommand {
 			// Determine resolution
 			double downsample;
 			if (useMPP)
-				downsample = resolution / server.getAveragedPixelSizeMicrons();
+				downsample = resolution / server.getPixelCalibration().getAveragedPixelSizeMicrons();
 			else
 				downsample = resolution;
 			
 			// Split by region & non-region classified annotations
-			PathClass regionClass = PathClassFactory.getDefaultPathClass(PathClasses.REGION);
-			List<PathObject> regionAnnotations = hierarchy.getObjects(null, PathAnnotationObject.class).stream().filter(p -> p.getPathClass() == regionClass).collect(Collectors.toList());
-			List<PathObject> otherAnnotations = hierarchy.getObjects(null, PathAnnotationObject.class).stream().filter(p -> p.getPathClass() != regionClass && p.getROI().isArea()).collect(Collectors.toList());
+			PathClass regionClass = PathClassFactory.getPathClass(StandardPathClasses.REGION);
+			List<PathObject> regionAnnotations = hierarchy.getAnnotationObjects().stream().filter(p -> p.getPathClass() == regionClass).collect(Collectors.toList());
+			List<PathObject> otherAnnotations = hierarchy.getAnnotationObjects().stream().filter(p -> p.getPathClass() != regionClass && p.getROI().isArea()).collect(Collectors.toList());
 
 			// Sort by area - we want to annotate largest regions first
 			otherAnnotations.sort((a, b) -> -Double.compare(((PathArea)a.getROI()).getArea(), ((PathArea)b.getROI()).getArea()));
@@ -555,7 +556,7 @@ public class ExportTrainingRegionsCommand implements PathCommand {
 			            continue;
 			        }
 			        g2d.setColor(color);
-			        Shape shape = PathROIToolsAwt.getShape(roi);
+			        Shape shape = RoiTools.getShape(roi);
 			        g2d.fill(shape);
 			        c++;
 			    }
@@ -563,7 +564,7 @@ public class ExportTrainingRegionsCommand implements PathCommand {
 
 			    // Write images
 			    String name = String.format("%s-(%.2f,%d,%d,%d,%d)",
-			            server.getShortServerName(),
+			    		ServerTools.getDisplayableImageName(server),
 			            request.getDownsample(), request.getX(), request.getY(), request.getWidth(), request.getHeight());
 
 			    // Set color model
@@ -602,7 +603,7 @@ public class ExportTrainingRegionsCommand implements PathCommand {
 		File promptForDirectory() {
 			Project<?> project = qupath.getProject();
 			if (dirExport == null && project != null) {
-				dirExport = project.getBaseDirectory();
+				dirExport = Projects.getBaseDirectory(project);
 			}
 			File dirSelected = QuPathGUI.getDialogHelper(pane.getScene().getWindow()).promptForDirectory(dirExport);
 			if (dirSelected == null)

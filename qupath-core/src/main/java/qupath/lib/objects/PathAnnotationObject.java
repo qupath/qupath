@@ -29,9 +29,9 @@ import qupath.lib.roi.interfaces.ROI;
 
 /**
  * An annotation PathObject.
- * 
+ * <p>
  * These tend to be larger and less common than PathDetectionObjects.
- * 
+ * <p>
  * As such, they can be represented and displayed with more emphasis on flexibility, rather than efficiency.
  * 
  * @author Pete Bankhead
@@ -45,6 +45,9 @@ public class PathAnnotationObject extends PathROIObject {
 	
 	private final static String KEY_ANNOTATION_TEXT = "ANNOTATION_DESCRIPTION";
 	
+	/**
+	 * Default constructor. Should not be used directly, instead use {@link PathObjects#createAnnotationObject(ROI)}.
+	 */
 	public PathAnnotationObject() {
 		super();
 	}

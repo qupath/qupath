@@ -24,6 +24,8 @@
 package qupath.lib.images.servers.bioformats;
 
 import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.IOException;
 import java.util.Map;
 import java.net.URI;
 import java.util.HashMap;
@@ -32,6 +34,7 @@ import org.slf4j.LoggerFactory;
 
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerBuilder;
+import qupath.lib.images.servers.FileFormatInfo;
 import qupath.lib.images.servers.FileFormatInfo.ImageCheckType;
 import qupath.lib.images.servers.bioformats.BioFormatsServerOptions.UseBioformats;
 
@@ -48,9 +51,9 @@ public class BioFormatsServerBuilder implements ImageServerBuilder<BufferedImage
 	final private Map<URI, Float> lastSupportLevel = new HashMap<>();
 	
 	@Override
-	public ImageServer<BufferedImage> buildServer(URI uri) {
+	public ImageServer<BufferedImage> buildServer(URI uri, String...args) {
 		try {
-			BioFormatsImageServer server = new BioFormatsImageServer(uri);
+			BioFormatsImageServer server = new BioFormatsImageServer(uri, args);
 			return server;
 		} catch (Exception e) {
 			lastSupportLevel.put(uri, Float.valueOf(0f));
@@ -60,16 +63,27 @@ public class BioFormatsServerBuilder implements ImageServerBuilder<BufferedImage
 	}
 
 	@Override
-	public float supportLevel(URI uri, ImageCheckType type, Class<?> cls) {
-		// We only support BufferedImages
-		if (cls != BufferedImage.class)
-			return 0;
+	public UriImageSupport<BufferedImage> checkImageSupport(URI uri, String...args) throws IOException {
+		float supportLevel = supportLevel(uri, args);
+		if (supportLevel > 0) {
+			try (BioFormatsImageServer server = new BioFormatsImageServer(uri, BioFormatsServerOptions.getInstance(), args)) {
+				Map<String, ServerBuilder<BufferedImage>> builders = server.getImageBuilders();
+				return UriImageSupport.createInstance(this.getClass(), supportLevel, builders.values());
+			} catch (Exception e) {
+				logger.debug("Unable to create server using Bio-Formats", e);
+			}
+		}
+		return null;
+	}
+	
+	private float supportLevel(URI uri, String... args) {
 		
 		// We also can't do anything if Bio-Formats isn't installed
 		if (getBioFormatsVersion() == null)
 			return 0;
 		
-		if (!"file".equals(uri.getScheme()))
+		ImageCheckType type = FileFormatInfo.checkType(uri);
+		if (type.isURL())
 			return 0;
 				
 		String path = uri.getPath();
@@ -91,30 +105,41 @@ public class BioFormatsServerBuilder implements ImageServerBuilder<BufferedImage
 			return lastSupport.floatValue();
 		
 		// We don't want to handle zip files (which are very slow)
-		float support;
+		float support = 3f;
+				
+		String description = type.getDescription();
 		if (path.toLowerCase().endsWith(".zip"))
 			support = 1f;
-		else {
-			// Default to our normal checks
-			switch (type) {
-			case TIFF_2D_RGB:
-				// Good support for .qptiff
-				if (path.toLowerCase().endsWith(".qptiff"))
-					support = 4f;
-				support = 3f;
-			case TIFF_IMAGEJ:
-				support = 3f;
-			case TIFF_OTHER:
-				support = 2f;
-			case UNKNOWN:
-				support = 2f;
-			case URL:
-				support = 0f;
-			default:
+		else if (type.isTiff()) {
+			// Some nasty files seem to be larger than they think they are - which can be troublesome
+			if (!type.isBigTiff() && type.getFile().length() >= 1024L * 1024L * 1024L * 4L) {
 				support = 2f;
 			}
+			if (description != null) {
+				if (description.contains("<OME "))
+					support = 5f;
+				if (description.contains("imagej"))
+					support = 3.5f;
+				if (path.endsWith(".qptiff"))
+					support = 3.5f;
+			}
+		} else {
+			// Check if we know the file type
+			File file = type.getFile();
+			if (file != null) {
+				String supportedReader = null;
+				try {
+					supportedReader = BioFormatsImageServer.getSupportedReaderClass(file.getAbsolutePath());
+				} catch (Exception e) {
+					logger.warn("Error checking file " + file.getAbsolutePath(), e);
+				}
+				if (supportedReader == null) {
+					logger.debug("No supported reader found for {}", file.getAbsolutePath());
+					return 1f;
+				} 
+				logger.debug("Potential Bio-Formats reader: {}", supportedReader);
+			}
 		}
-		
 		lastSupportLevel.put(uri, Float.valueOf(support));
 		return support;
 	}
@@ -133,9 +158,14 @@ public class BioFormatsServerBuilder implements ImageServerBuilder<BufferedImage
 			return "Image server using the Bio-Formats library (" + bfVersion + ")";
 	}
 	
+	@Override
+	public Class<BufferedImage> getImageType() {
+		return BufferedImage.class;
+	}
+	
 	/**
 	 * Request the Bio-Formats version number from {@code loci.formats.FormatTools.VERSION}.
-	 * 
+	 * <p>
 	 * This uses reflection, returning {@code null} if Bio-Formats cannot be found.
 	 * 
 	 * @return

@@ -42,6 +42,7 @@ import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -52,25 +53,28 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.imagej.gui.IJExtension;
-import qupath.imagej.helpers.IJTools;
+import qupath.imagej.tools.IJTools;
 import qupath.lib.display.ImageDisplay;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.gui.helpers.PanelToolsFX;
 import qupath.lib.gui.helpers.dialogs.ParameterPanelFX;
+import qupath.lib.gui.images.servers.ChannelDisplayTransformServer;
 import qupath.lib.gui.plugins.ParameterDialogWrapper;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.PathImage;
+import qupath.lib.images.servers.ImageServer;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.TMACoreObject;
+import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.plugins.AbstractPlugin;
 import qupath.lib.plugins.PluginRunner;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.LineROI;
-import qupath.lib.roi.PathROIToolsAwt;
-import qupath.lib.roi.PathROIToolsAwt.CombineOp;
+import qupath.lib.roi.RoiTools;
+import qupath.lib.roi.RoiTools.CombineOp;
 import qupath.lib.roi.RectangleROI;
 import qupath.lib.roi.interfaces.PathShape;
 import qupath.lib.roi.interfaces.ROI;
@@ -95,6 +99,10 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 
 	transient private Stage dialog;
 		
+	/**
+	 * Constructor.
+	 * @param qupath QuPath instance where the command should be installed.
+	 */
 	public ImageJMacroRunner(final QuPathGUI qupath) {
 		this.qupath = qupath;
 	}
@@ -150,7 +158,8 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 					if (macroText.length() == 0)
 						return;
 
-					PathObject pathObject = runner.getHierarchy().getSelectionModel().singleSelection() ? runner.getSelectedObject() : null;
+					PathObjectHierarchy hierarchy = getHierarchy(runner);
+					PathObject pathObject = hierarchy.getSelectionModel().singleSelection() ? hierarchy.getSelectionModel().getSelectedObject() : null;
 					if (pathObject instanceof PathAnnotationObject || pathObject instanceof TMACoreObject) {
 						SwingUtilities.invokeLater(() -> {
 							runMacro(params, 
@@ -221,8 +230,10 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 		boolean sendOverlay = params.getBooleanParameterValue("sendOverlay");
 		ROI pathROI = pathObject.getROI();		
 		ImageDisplay imageDisplay2 = Boolean.TRUE.equals(params.getBooleanParameterValue("useTransform")) ? imageDisplay : null;
-		RegionRequest region = RegionRequest.createInstance(imageData.getServer().getPath(), downsampleFactor, pathROI);
 		
+		ImageServer<BufferedImage> server = imageDisplay2 == null || imageDisplay2.availableChannels().isEmpty() ? imageData.getServer() : ChannelDisplayTransformServer.createColorTransformServer(imageData.getServer(), imageDisplay.availableChannels());
+		
+		RegionRequest region = RegionRequest.createInstance(imageData.getServer().getPath(), downsampleFactor, pathROI);
 		// Check the size of the region to extract - abort if it is too large of if ther isn't enough RAM
 		try {
 			IJTools.isMemorySufficient(region, imageData);
@@ -233,9 +244,9 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 		
 		try {
 			if (sendOverlay)
-				pathImage = IJExtension.extractROIWithOverlay(imageData.getServer(), pathObject, imageData.getHierarchy(), region, sendROI, null, imageDisplay2);
+				pathImage = IJExtension.extractROIWithOverlay(server, pathObject, imageData.getHierarchy(), region, sendROI, null);
 			else
-				pathImage = IJExtension.extractROI(imageData.getServer(), pathObject, region, sendROI, imageDisplay2);
+				pathImage = IJExtension.extractROI(server, pathObject, region, sendROI);
 		} catch (IOException e) {
 			logger.error("Unable to extract image region " + region, e);
 			return;
@@ -308,11 +319,11 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 				}
 				if (params.getBooleanParameterValue("getROI") && impResult.getRoi() != null) {
 					Roi roi = impResult.getRoi();
-					PathObject pathObjectNew = roi == null ? null : IJTools.convertToPathObject(impResult, imageData.getServer(), roi, downsampleFactor, false, -1, region.getZ(), region.getT());
+					PathObject pathObjectNew = roi == null ? null : IJTools.convertToPathObject(impResult, imageData.getServer(), roi, downsampleFactor, false, region.getPlane());
 					if (pathObjectNew != null) {
 						// If necessary, trim any returned annotation
 						if (pathROI != null && !(pathROI instanceof RectangleROI) && pathObjectNew.isAnnotation() && pathROI instanceof PathShape && pathObjectNew.getROI() instanceof PathShape) {
-							ROI roiNew = PathROIToolsAwt.combineROIs((PathShape)pathROI, (PathShape)pathObjectNew.getROI(), CombineOp.INTERSECT);
+							ROI roiNew = RoiTools.combineROIs((PathShape)pathROI, (PathShape)pathObjectNew.getROI(), CombineOp.INTERSECT);
 							((PathAnnotationObject)pathObjectNew).setROI(roiNew);
 						}
 						// Only add if we have something
@@ -326,7 +337,7 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 				
 				boolean exportAsDetection = ((String) params.getChoiceParameterValue("getOverlayAs")).equals("Detections") ? true : false;
 				if (params.getBooleanParameterValue("getOverlay") && impResult.getOverlay() != null) {
-					List<PathObject> childObjects = QUPath_Send_Overlay_to_QuPath.createPathObjectsFromROIs(imp, impResult.getOverlay().toArray(), imageData.getServer(), downsampleFactor, exportAsDetection, true, -1, region.getZ(), region.getT());
+					List<PathObject> childObjects = QUPath_Send_Overlay_to_QuPath.createPathObjectsFromROIs(imp, impResult.getOverlay().toArray(), imageData.getServer(), downsampleFactor, exportAsDetection, true, region.getPlane());
 					if (!childObjects.isEmpty()) {
 						pathObject.addPathObjects(childObjects);
 						changes = true;
@@ -367,7 +378,7 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 	}
 
 
-	public ParameterList getParameterList(final ImageData<BufferedImage> imageData) {
+	ParameterList getParameterList(final ImageData<BufferedImage> imageData) {
 		if (params == null)
 			params = new ParameterList()
 				.addTitleParameter("Setup")
@@ -380,7 +391,7 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 				.addBooleanParameter("clearObjects", "Clear current child objects", false)
 				.addBooleanParameter("getROI", "Create annotation from ImageJ ROI", false)
 				.addBooleanParameter("getOverlay", "Get objects from ImageJ overlay", false)
-				.addChoiceParameter("getOverlayAs", "Get objects as", "Detections", new String[]{"Detections", "Annotations"} )
+				.addChoiceParameter("getOverlayAs", "Get objects as", "Detections", Arrays.asList("Detections", "Annotations"), "Return ROIs from the ImageJ overlay as QuPath detections or annotations")
 				;
 		return params;
 	}
@@ -426,11 +437,12 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 	@Override
 	protected Collection<? extends PathObject> getParentObjects(final PluginRunner<BufferedImage> runner) {
 		// Try to get currently-selected objects
-		List<PathObject> pathObjects = runner.getHierarchy().getSelectionModel().getSelectedObjects().stream()
+		PathObjectHierarchy hierarchy = getHierarchy(runner);
+		List<PathObject> pathObjects = hierarchy.getSelectionModel().getSelectedObjects().stream()
 				.filter(p -> p.isAnnotation() || p.isTMACore()).collect(Collectors.toList());
 		if (pathObjects.isEmpty()) {
 			if (ParameterDialogWrapper.promptForParentObjects(runner, this, false, getSupportedParentObjectClasses()))
-				pathObjects = new ArrayList<>(runner.getHierarchy().getSelectionModel().getSelectedObjects());
+				pathObjects = new ArrayList<>(hierarchy.getSelectionModel().getSelectedObjects());
 		}
 		return pathObjects;
 		

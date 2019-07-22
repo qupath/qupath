@@ -33,20 +33,21 @@ import java.util.List;
 
 import qupath.lib.common.GeneralTools;
 import qupath.lib.geom.Point2;
+import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.interfaces.ROI;
 import qupath.lib.roi.interfaces.TranslatableROI;
 
 /**
  * Implementation of an arbitrary area ROI - which could contain disjointed or hollow regions.
- * 
+ * <p>
  * It may be decomposed into one or more polygons (vertices), in which case the sign of the area is important 
  * in indicating whether the region should be considered 'positive' or a hole.
- * 
+ * <p>
  * The underlying idea is based on java.awt.Area, but implemented so as to avoid a dependency on AWT.
- * 
+ * <p>
  * However, because this implementation is relatively simple, it doesn't do the complicated checking and 
  * computations of AWT Areas - and so ought not be used directly.  Rather, AWTAreaROI is strongly to be preferred.
- * 
+ * <p>
  * The real usefulness of this class is in enabling Serialization of all ROIs to avoid a dependency on AWT,
  * since potentially a deserialized version of this could then be used to create different kinds of Area 
  * (e.g. java.awt.Area or some JavaFX alternative.)
@@ -67,15 +68,15 @@ public class AreaROI extends AbstractPathAreaROI implements TranslatableROI, Ser
 	transient private ClosedShapeStatistics stats = null;
 	
 	// TODO: Consider making this protected - better not to use directly, to ensure validity of vertices
-	AreaROI(List<? extends Vertices> vertices, int c, int z, int t) {
-		super(c, z, t);
+	AreaROI(List<? extends Vertices> vertices, ImagePlane plane) {
+		super(plane);
 		this.vertices = new ArrayList<>();
 		for (Vertices v : vertices)
 			this.vertices.add(new DefaultMutableVertices(v));
 	}
 	
-	private AreaROI(float[][] x, float[][] y, int c, int z, int t) {
-		super(c, z, t);
+	private AreaROI(float[][] x, float[][] y, ImagePlane plane) {
+		super(plane);
 		this.vertices = new ArrayList<>();
 		if (x.length != y.length)
 			throw new IllegalArgumentException("Lengths of x and y are different!");
@@ -180,7 +181,7 @@ public class AreaROI extends AbstractPathAreaROI implements TranslatableROI, Ser
 
 	@Override
 	public ROI duplicate() {
-		return new AreaROI(vertices, getC(), getZ(), getT());
+		return new AreaROI(vertices, getImagePlane());
 	}
 
 	void calculateShapeMeasurements() {
@@ -209,7 +210,7 @@ public class AreaROI extends AbstractPathAreaROI implements TranslatableROI, Ser
 			yy[idx] = y;
 			idx++;
 		}
-		return new AreaROI(xx, yy, getC(), getZ(), getT());
+		return new AreaROI(xx, yy, getImagePlane());
 	}
 
 	@Override
@@ -314,7 +315,7 @@ public class AreaROI extends AbstractPathAreaROI implements TranslatableROI, Ser
 		}
 		
 		private Object readResolve() {
-			AreaROI roi = new AreaROI(x, y, c, z, t);
+			AreaROI roi = new AreaROI(x, y, ImagePlane.getPlaneWithChannel(c, z, t));
 			roi.stats = this.stats;
 			return roi;
 		}
@@ -323,7 +324,7 @@ public class AreaROI extends AbstractPathAreaROI implements TranslatableROI, Ser
 
 	@Override
 	public Shape getShape() {
-		return PathROIToolsAwt.getShape(this);
+		return RoiTools.getShape(this);
 	}
 	
 }

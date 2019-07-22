@@ -51,7 +51,7 @@ import javafx.scene.control.TitledPane;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
-import qupath.lib.algorithms.color.EstimateStainVectors;
+import qupath.lib.analysis.algorithms.EstimateStainVectors;
 import qupath.lib.color.ColorDeconvolutionHelper;
 import qupath.lib.color.ColorDeconvolutionStains;
 import qupath.lib.color.StainVector;
@@ -83,7 +83,8 @@ public class EstimateStainVectorsCommand implements PathCommand {
 	final private static Logger logger = LoggerFactory.getLogger(EstimateStainVectorsCommand.class);
 	
 	final private QuPathGUI qupath;
-	public static int MAX_PIXELS = 4000*4000;
+	
+	static int MAX_PIXELS = 4000*4000;
 	
 	
 	private enum AxisColor {RED, GREEN, BLUE;
@@ -232,9 +233,11 @@ public class EstimateStainVectorsCommand implements PathCommand {
 		TableColumn<Integer, String> colName = new TableColumn<>("Name");
 		colName.setCellValueFactory(v -> new SimpleStringProperty(stainsWrapper.getStains().getStain(v.getValue()).getName()));
 		TableColumn<Integer, String> colOrig = new TableColumn<>("Original");
-		colOrig.setCellValueFactory(v -> new SimpleStringProperty(stainsWrapper.getOriginalStains().getStain(v.getValue()).arrayAsString(Locale.getDefault(Category.FORMAT), " | ", 3)));
+		colOrig.setCellValueFactory(v -> new SimpleStringProperty(
+				stainArrayAsString(Locale.getDefault(Category.FORMAT), stainsWrapper.getOriginalStains().getStain(v.getValue()), " | ", 3)));
 		TableColumn<Integer, String> colCurrent = new TableColumn<>("Current");
-		colCurrent.setCellValueFactory(v -> new SimpleStringProperty(stainsWrapper.getStains().getStain(v.getValue()).arrayAsString(Locale.getDefault(Category.FORMAT), " | ", 3)));
+		colCurrent.setCellValueFactory(v -> new SimpleStringProperty(
+				stainArrayAsString(Locale.getDefault(Category.FORMAT), stainsWrapper.getStains().getStain(v.getValue()), " | ", 3)));
 		TableColumn<Integer, String> colAngle = new TableColumn<>("Angle");
 		colAngle.setCellValueFactory(v -> {
 			return new SimpleStringProperty(
@@ -333,6 +336,13 @@ public class EstimateStainVectorsCommand implements PathCommand {
 			return stainsWrapper.getStains();
 		}
 	}
+	
+	
+	
+	private static String stainArrayAsString(final Locale locale, final StainVector stain, final String delimiter, final int nDecimalPlaces) {
+		return GeneralTools.arrayToString(locale, stain.getArray(), delimiter, nDecimalPlaces);
+	}
+
 	
 	
 	static Node createScatterPanel(final ScatterPlot scatterPlot, final StainsWrapper stainsWrapper, AxisColor axisX, AxisColor axisY) {
@@ -670,7 +680,7 @@ public class EstimateStainVectorsCommand implements PathCommand {
 					break;
 				}
 			}
-			StainVector stainNew = new StainVector(
+			StainVector stainNew = StainVector.createStainVector(
 					stainEditing.getName(), r, g, b);
 			stainsWrapper.changeStain(stainEditing, stainNew);
 			stainEditing = stainNew;

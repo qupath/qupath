@@ -25,7 +25,9 @@ package qupath.imagej.detect.dearray;
 
 import java.awt.Polygon;
 import java.awt.image.BufferedImage;
+import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -38,11 +40,13 @@ import ij.plugin.ZProjector;
 import ij.process.ByteProcessor;
 import ij.process.ImageProcessor;
 import qupath.imagej.detect.dearray.TMADearrayer.TMAGridShape;
-import qupath.imagej.objects.PathImagePlus;
+import qupath.imagej.tools.IJTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.PathImage;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.PathRootObject;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.helpers.PathObjectTools;
@@ -55,6 +59,7 @@ import qupath.lib.plugins.PluginRunner;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.plugins.workflow.SimplePluginWorkflowStep;
 import qupath.lib.plugins.workflow.WorkflowStep;
+import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.interfaces.ROI;
 
 
@@ -73,7 +78,9 @@ public class TMADearrayerPluginIJ extends AbstractInteractivePlugin<BufferedImag
 	
 	transient private Dearrayer dearrayer;
 	
-	
+	/**
+	 * Default constructor.
+	 */
 	public TMADearrayerPluginIJ() {
 		
 		// Create default parameter list
@@ -81,14 +88,14 @@ public class TMADearrayerPluginIJ extends AbstractInteractivePlugin<BufferedImag
 		params.addDoubleParameter("coreDiameterMM", "TMA core diameter", 1.2, "mm", "Enter the approximate diameter or each TMA core in mm");
 		params.addDoubleParameter("coreDiameterPixels", "TMA core diameter", 5000, "px", "Enter the approximate diameter or each TMA core in pixels");
 		
-		params.addEmptyParameter("labels", "Enter the horizontal and vertical labels for each core, with a space between each label."); 
-		params.addEmptyParameter("labels2", "The number of labels will define the array dimensions.");
-		params.addEmptyParameter("labels3", "Labels may also be entered as a range (e.g. 1-10 or A-G).");
+		params.addEmptyParameter("Enter the horizontal and vertical labels for each core, with a space between each label."); 
+		params.addEmptyParameter("The number of labels will define the array dimensions.");
+		params.addEmptyParameter("Labels may also be entered as a range (e.g. 1-10 or A-G).");
 		
 		params.addStringParameter("labelsHorizontal", "Column labels", "1-16", "Enter column labels.\nThis can be a continuous range of letters or numbers (e.g. 1-10 or A-J),\nor a discontinuous list separated by spaces (e.g. A B C E F G).");
 		params.addStringParameter("labelsVertical", "Row labels", "A-J", "Enter row labels.\nThis can be a continuous range of letters or numbers (e.g. 1-10 or A-J),\nor a discontinuous list separated by spaces (e.g. A B C E F G).");
 		
-		params.addChoiceParameter("labelOrder", "Label order", "Row first", new String[]{"Column first", "Row first"}, "Create TMA labels either in the form Row-Column or Column-Row");
+		params.addChoiceParameter("labelOrder", "Label order", "Row first", Arrays.asList("Column first", "Row first"), "Create TMA labels either in the form Row-Column or Column-Row");
 
 		//-------------
 //		gd.addMessage("Core size & density", boldFont);
@@ -99,12 +106,6 @@ public class TMADearrayerPluginIJ extends AbstractInteractivePlugin<BufferedImag
 //		gd.addMessage("1 means the ROI will have the same diameter as the core specified above; higher values add padding.");
 		params.addIntParameter("boundsScale", "Bounds scale factor", 105, "%", 50, 150, "Scaling factor to adjust the core size.\nA scale factor of 100% will give cores with the diameter specified above.\nA higher scale factor will increase the size, a lower factor will decrease the size.");
 
-	}
-	
-	
-	
-	public boolean requestLiveUpdate() {
-		return false;
 	}
 	
 	
@@ -122,14 +123,14 @@ public class TMADearrayerPluginIJ extends AbstractInteractivePlugin<BufferedImag
 		if (dearrayer == null)
 			dearrayer = new Dearrayer();
 
-		tasks.add(new Runnable() {
-
-			@Override
-			public void run() {
+		tasks.add(() -> {
+			try {
 				dearrayer.runDetection(imageData, getParameterList(imageData), null);
 				TMAGrid tmaGrid = dearrayer.getTMAGrid();
 				if (tmaGrid != null)
 					imageData.getHierarchy().setTMAGrid(tmaGrid);
+			} catch (Exception e) {
+				logger.error("Error running TMA dearrayer", e);
 			}
 		});
 	}
@@ -138,7 +139,7 @@ public class TMADearrayerPluginIJ extends AbstractInteractivePlugin<BufferedImag
 	
 	@Override
 	public ParameterList getDefaultParameterList(final ImageData<BufferedImage> imageData) {
-		if (imageData.getServer().hasPixelSizeMicrons()) {
+		if (imageData.getServer().getPixelCalibration().hasPixelSizeMicrons()) {
 			params.getParameters().get("coreDiameterPixels").setHidden(true);
 			params.getParameters().get("coreDiameterMM").setHidden(false);
 		}
@@ -159,11 +160,6 @@ public class TMADearrayerPluginIJ extends AbstractInteractivePlugin<BufferedImag
 		return dearrayer == null ? "" : dearrayer.getLastResultsDescription();
 	}
 
-	public TMAGrid getTMAGrid() {
-		return dearrayer == null ? null : dearrayer.getTMAGrid();
-	}
-	
-	
 	
 	static class Dearrayer implements ObjectDetector<BufferedImage> {
 		
@@ -184,12 +180,13 @@ public class TMADearrayerPluginIJ extends AbstractInteractivePlugin<BufferedImag
 		
 		
 		@Override
-		public Collection<PathObject> runDetection(final ImageData<BufferedImage> imageData, ParameterList params, ROI pathROI) {
+		public Collection<PathObject> runDetection(final ImageData<BufferedImage> imageData, ParameterList params, ROI pathROI) throws IOException {
 					
 			double fullCoreDiameterPx;
 			ImageServer<BufferedImage> server = imageData.getServer();
-			if (server.hasPixelSizeMicrons())
-				fullCoreDiameterPx = params.getDoubleParameterValue("coreDiameterMM") / server.getAveragedPixelSizeMicrons() * 1000;
+			PixelCalibration cal = server.getPixelCalibration();
+			if (cal.hasPixelSizeMicrons())
+				fullCoreDiameterPx = params.getDoubleParameterValue("coreDiameterMM") / cal.getAveragedPixelSizeMicrons() * 1000;
 			else
 				fullCoreDiameterPx = params.getDoubleParameterValue("coreDiameterPixels");
 
@@ -221,15 +218,18 @@ public class TMADearrayerPluginIJ extends AbstractInteractivePlugin<BufferedImag
 
 			// Compute alternative downsample factor based on requested pixel size
 			// This is likely to be a bit more reproducible - so use it instead
-			if (server.hasPixelSizeMicrons()) {
+			PixelCalibration pixelCalibration = server.getPixelCalibration();
+			if (pixelCalibration.hasPixelSizeMicrons()) {
 				double preferredPixelSizeMicrons = 25;
-				double downsample2 = Math.round(preferredPixelSizeMicrons / server.getAveragedPixelSizeMicrons());
+				double downsample2 = Math.round(preferredPixelSizeMicrons / pixelCalibration.getAveragedPixelSizeMicrons());
 				if (downsample2 > 1 && (maxDimLength / downsample2 < dimRequested*2))
 					downsample = downsample2;
 			}
 
 			// Read the image
-			PathImage<ImagePlus> pathImage = PathImagePlus.createPathImage(server, downsample);
+			PathImage<ImagePlus> pathImage = IJTools.convertToImagePlus(server,
+					RegionRequest.createInstance(server.getPath(), downsample, 0, 0, server.getWidth(), server.getHeight()));
+//			PathImage<ImagePlus> pathImage = IJTools.createPathImage(server, downsample);
 			ImagePlus imp = pathImage.getImage();
 
 			if (imp.getType() == ImagePlus.COLOR_RGB || imp.getNChannels() == 1)
@@ -336,7 +336,7 @@ public class TMADearrayerPluginIJ extends AbstractInteractivePlugin<BufferedImag
 						name += vLabel + "-" + hLabel;
 					
 					boolean missing = coreDensities[ind] < densityThreshold;
-					TMACoreObject core = new TMACoreObject(xx, yy, coreSize, missing);
+					TMACoreObject core = PathObjects.createTMACoreObject(xx, yy, coreSize, missing);
 					core.setName(name);
 					coords.add(core);
 					ind++;
@@ -344,7 +344,7 @@ public class TMADearrayerPluginIJ extends AbstractInteractivePlugin<BufferedImag
 						nMissing++;
 				}
 			}
-			TMAGrid tmaGrid = new DefaultTMAGrid(coords, nHorizontal);
+			TMAGrid tmaGrid = DefaultTMAGrid.create(coords, nHorizontal);
 			
 			lastMessage = String.format("%d x %d TMA grid created (%d missing)", nHorizontal, nVertical, nMissing);
 			

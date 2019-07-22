@@ -45,14 +45,18 @@ public class RunSavedClassifierWorkflowStep implements ScriptableWorkflowStep {
 	/**
 	 * Create a workflow step to run a classifier.
 	 * 
-	 * @param name
-	 * @param classifierPath
+	 * @param name step name for display, to identify the purpose of the step (not the classifier)
+	 * @param classifierPath path to the serialized classifier
 	 */
 	public RunSavedClassifierWorkflowStep(final String name, final String classifierPath) {
 		this.name = name;
 		this.classifierPath = GeneralTools.escapeFilePath(classifierPath);
 	}
 	
+	/**
+	 * Constructor, taking the path to the serialized classifier.
+	 * @param classifierPath
+	 */
 	public RunSavedClassifierWorkflowStep(final String classifierPath) {
 		this("Run object classifier", classifierPath);
 	}
@@ -71,12 +75,12 @@ public class RunSavedClassifierWorkflowStep implements ScriptableWorkflowStep {
 
 	@Override
 	public String toString() {
-		return getName() + "\t" + getJavascript();
+		return getName() + "\t" + getScript();
 	}
 	
 	
 	@Override
-	public String getJavascript() {
+	public String getScript() {
 		return "runClassifier('" + classifierPath + "');";
 	}
 	

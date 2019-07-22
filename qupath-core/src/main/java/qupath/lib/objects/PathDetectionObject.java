@@ -24,7 +24,7 @@
 package qupath.lib.objects;
 
 import qupath.lib.measurements.MeasurementList;
-import qupath.lib.measurements.MeasurementList.TYPE;
+import qupath.lib.measurements.MeasurementList.MeasurementListType;
 import qupath.lib.measurements.MeasurementListFactory;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.roi.interfaces.ROI;
@@ -32,7 +32,7 @@ import qupath.lib.roi.interfaces.ROI;
 /**
  * A detection PathObject.
  * <p>
- * Detections tend to be very numerous (e.g. millions of nucleus, each one a detection), and so need to be 
+ * Detections tend to be very numerous (e.g. millions of nuclei, each one a detection), and so need to be 
  * represented and displayed very efficiently.
  * 
  * @author Pete Bankhead
@@ -43,6 +43,9 @@ public class PathDetectionObject extends PathROIObject {
 
 	private static final long serialVersionUID = 1L;
 	
+	/**
+	 * Default constructor. Should not be used directly, instead use {@link PathObjects#createDetectionObject(ROI)}.
+	 */
 	public PathDetectionObject() {
 		super();
 	}
@@ -85,7 +88,7 @@ public class PathDetectionObject extends PathROIObject {
 	 */
 	@Override
 	protected MeasurementList createEmptyMeasurementList() {
-		return MeasurementListFactory.createMeasurementList(0, TYPE.FLOAT);
+		return MeasurementListFactory.createMeasurementList(0, MeasurementListType.FLOAT);
 	}
 	
 }

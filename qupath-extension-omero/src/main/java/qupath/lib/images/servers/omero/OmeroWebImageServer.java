@@ -7,6 +7,7 @@ import java.net.URI;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -21,11 +22,15 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
+import qupath.lib.awt.common.BufferedImageTools;
 import qupath.lib.geom.Point2;
 import qupath.lib.images.servers.AbstractTileableImageServer;
 import qupath.lib.images.servers.ImageChannel;
+import qupath.lib.images.servers.ImageServerBuilder;
 import qupath.lib.images.servers.ImageServerMetadata;
+import qupath.lib.images.servers.PixelType;
 import qupath.lib.images.servers.TileRequest;
+import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
 import qupath.lib.images.servers.omero.OmeroWebImageServerBuilder.OmeroWebClient;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
@@ -33,17 +38,28 @@ import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.ROI;
 
+/**
+ * ImageServer that reads pixels using the OMERO web API.
+ * <p>
+ * Note that this does not provide access to the raw data, but rather RGB tiles only in the manner of a web viewer. 
+ * Consequently, only RGB images are supported and some small changes in pixel values can be expected due to compression.
+ * 
+ * @author Pete Bankhead
+ *
+ */
 public class OmeroWebImageServer extends AbstractTileableImageServer {
 
 	private static final Logger logger = LoggerFactory.getLogger(OmeroWebImageServer.class);
 
 	private ImageServerMetadata originalMetadata;
+	private URI uri;
+	private String[] args;
 
 	/**
 	 * Image ID
 	 */
 	private String id;
-
+	
 	private final String host;
 	private final String scheme;
 
@@ -56,10 +72,13 @@ public class OmeroWebImageServer extends AbstractTileableImageServer {
 	 * There appears to be a max size (hard-coded?) in OMERO, so we need to make sure we don't exceed that.
 	 * Requesting anything larger just returns a truncated image.
 	 */
-	private static int OMERO_MAX_SIZE = 1024;
+//	private static int OMERO_MAX_SIZE = 1024;
 
-	protected OmeroWebImageServer(URI uri, OmeroWebClient client) throws IOException {
+	OmeroWebImageServer(URI uri, OmeroWebClient client, String...args) throws IOException {
 		super();
+		
+		this.uri = uri;
+		
 
 		this.scheme = uri.getScheme();
 		this.host = uri.getHost();
@@ -92,7 +111,7 @@ public class OmeroWebImageServer extends AbstractTileableImageServer {
 		double pixelWidthMicrons = Double.NaN;
 		double pixelHeightMicrons = Double.NaN;
 		double zSpacingMicrons = Double.NaN;
-		int bitDepth = 8;
+		PixelType pixelType = PixelType.UINT8;
 		boolean isRGB = true;
 		double magnification = Double.NaN;
 
@@ -171,12 +190,14 @@ public class OmeroWebImageServer extends AbstractTileableImageServer {
 		if (map.has("nominalMagnification"))
 			magnification = map.getAsJsonPrimitive("nominalMagnification").getAsDouble();
 		
+		this.args = args;
 		ImageServerMetadata.Builder builder = new ImageServerMetadata.Builder(getClass(), uri.toString(), sizeX, sizeY)
 				.sizeT(sizeT)
 				.channels(ImageChannel.getDefaultRGBChannels())
 				.sizeZ(sizeZ)
+//				.args(args)
 				.name(imageName)
-				.bitDepth(bitDepth)
+				.pixelType(pixelType)
 				.rgb(isRGB)
 				.magnification(magnification)
 				.levels(levelBuilder.build());
@@ -193,8 +214,26 @@ public class OmeroWebImageServer extends AbstractTileableImageServer {
 
 		originalMetadata = builder.build();
 	}
+	
+	@Override
+	protected String createID() {
+		return getClass().getName() + ": " + uri.toString();
+	}
 
+	@Override
+	public Collection<URI> getURIs() {
+		return Collections.singletonList(uri);
+	}
 
+	
+	/**
+	 * Retrieve any ROIs stored with this image as annotation objects.
+	 * <p>
+	 * Warning: This method is subject to change in the future.
+	 * 
+	 * @return
+	 * @throws IOException
+	 */
 	public Collection<PathObject> getROIs() throws IOException {
 
 		//		URL urlROIs = new URL(
@@ -306,6 +345,14 @@ public class OmeroWebImageServer extends AbstractTileableImageServer {
 	public ImageServerMetadata getOriginalMetadata() {
 		return originalMetadata;
 	}
+	
+	int getPreferredTileWidth() {
+		return getMetadata().getPreferredTileWidth();
+	}
+
+	int getPreferredTileHeight() {
+		return getMetadata().getPreferredTileHeight();
+	}
 
 	@Override
 	protected BufferedImage readTile(TileRequest request) throws IOException {
@@ -384,7 +431,17 @@ public class OmeroWebImageServer extends AbstractTileableImageServer {
 
 		BufferedImage img = ImageIO.read(url);
 
-		return resize(img, targetWidth, targetHeight);
+		return BufferedImageTools.resize(img, targetWidth, targetHeight);
+	}
+	
+	
+	@Override
+	protected ServerBuilder<BufferedImage> createServerBuilder() {
+		return ImageServerBuilder.DefaultImageServerBuilder.createInstance(
+				OmeroWebImageServerBuilder.class,
+				getMetadata(),
+				uri,
+				args);
 	}
 
 }

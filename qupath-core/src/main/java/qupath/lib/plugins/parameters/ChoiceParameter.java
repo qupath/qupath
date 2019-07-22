@@ -29,7 +29,7 @@ import java.util.Locale;
 
 /**
  * Parameter that supports a list of choices.
- * 
+ * <p>
  * May be displayed as a drop-down list.
  * 
  * @author Pete Bankhead
@@ -47,18 +47,22 @@ public class ChoiceParameter<S> extends AbstractParameter<S> {
 		this.choices = choices;
 	}
 
-	public ChoiceParameter(String prompt, S defaultValue, List<S> choices, S lastValue, String helpText) {
+	ChoiceParameter(String prompt, S defaultValue, List<S> choices, S lastValue, String helpText) {
 		this(prompt, defaultValue, choices, lastValue, helpText, false);
 	}
 
-	public ChoiceParameter(String prompt, S defaultValue, List<S> choices, String helpText) {
+	ChoiceParameter(String prompt, S defaultValue, List<S> choices, String helpText) {
 		this(prompt, defaultValue, choices, null, helpText);
 	}
 
-	public ChoiceParameter(String prompt, S defaultValue, S[] choices, String helpText) {
+	ChoiceParameter(String prompt, S defaultValue, S[] choices, String helpText) {
 		this(prompt, defaultValue, Arrays.asList(choices), helpText);
 	}
 
+	/**
+	 * Get a list of available choices.
+	 * @return
+	 */
 	public List<S> getChoices() {
 		return choices;
 	}

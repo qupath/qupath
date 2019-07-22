@@ -25,6 +25,7 @@ package qupath.lib.gui.commands;
 
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.io.IOException;
 import java.util.List;
 
 import org.slf4j.Logger;
@@ -56,8 +57,10 @@ import qupath.lib.gui.panels.CountingPanel;
 import qupath.lib.gui.panels.PathAnnotationPanel;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.images.ImageData;
+import qupath.lib.images.servers.ServerTools;
 import qupath.lib.io.PointIO;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 
 /**
@@ -135,10 +138,14 @@ public class CountingPanelCommand implements PathCommand, ImageDataChangeListene
 				File file = qupath.getDialogHelper().promptForFile(null, null, "zip files", new String[]{"zip"});
 				if (file == null)
 					return;
-				List<PathObject> pointsList = PointIO.readPointsObjectList(file);
-				if (pointsList != null) {
-					for (PathObject points : pointsList)
-						hierarchy.addPathObject(points, true);
+				try {
+					List<PathObject> pointsList = PointIO.readPointsObjectList(file);
+					if (pointsList != null) {
+						for (PathObject points : pointsList)
+							hierarchy.addPathObject(points);
+					}
+				} catch (IOException e) {
+					DisplayHelpers.showErrorMessage("Load points error", e);
 				}
 			}
 		);
@@ -153,14 +160,18 @@ public class CountingPanelCommand implements PathCommand, ImageDataChangeListene
 				}
 				String defaultName = null;
 				try {
-					defaultName = qupath.getViewer().getServer().getDisplayedImageName() + "-points.zip"; // Sorry, this is lazy...
+					defaultName = ServerTools.getDisplayableImageName(qupath.getViewer().getServer()) + "-points.zip"; // Sorry, this is lazy...
 				} catch (Exception e) {
 					// Ignore...
 				};
 				File file = QuPathGUI.getSharedDialogHelper().promptToSaveFile(null, null, defaultName, "zip files", "zip");
 				if (file == null)
 					return;
-				PointIO.writePointsObjectsList(file, pointsList, PathPrefs.getColorDefaultAnnotations());
+				try {
+					PointIO.writePointsObjectsList(file, pointsList, PathPrefs.getColorDefaultAnnotations());
+				} catch (IOException e) {
+					DisplayHelpers.showErrorMessage("Save points error", e);
+				}
 			}
 		);
 		
@@ -205,7 +216,7 @@ public class CountingPanelCommand implements PathCommand, ImageDataChangeListene
 		logger.trace("Attempting to select");
 		PathObject pathObjectSelected = hierarchy.getSelectionModel().getSelectedObject();
 		// Try to set selected object to be a Point object
-		if (pathObjectSelected == null || !pathObjectSelected.isPoint()) {
+		if (pathObjectSelected == null || !PathObjectTools.hasPointROI(pathObjectSelected)) {
 			List<PathObject> pointObjects = countingPanel.getPathObjects();
 			if (pointObjects.isEmpty())
 				hierarchy.getSelectionModel().setSelectedObject(null);

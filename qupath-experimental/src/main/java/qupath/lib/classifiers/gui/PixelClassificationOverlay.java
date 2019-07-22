@@ -1,22 +1,18 @@
 package qupath.lib.classifiers.gui;
 
 import qupath.lib.awt.common.AwtTools;
-import qupath.lib.classifiers.pixel.OpenCVPixelClassifierDNN;
-import qupath.lib.classifiers.pixel.PixelClassifierMetadata.OutputType;
-import qupath.lib.common.GeneralTools;
-import qupath.lib.common.SimpleThreadFactory;
+import qupath.lib.classifiers.opencv.gui.PixelClassifierImageSelectionPane.PersistentTileCache;
+import qupath.lib.classifiers.opencv.pixel.OpenCVPixelClassifierDNN;
+import qupath.lib.classifiers.pixel.PixelClassificationImageServer;
+import qupath.lib.common.ThreadTools;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.QuPathViewer;
-import qupath.lib.gui.viewer.QuPathViewerListener;
-import qupath.lib.gui.viewer.overlays.AbstractOverlay;
+import qupath.lib.gui.viewer.overlays.AbstractImageDataOverlay;
 import qupath.lib.images.ImageData;
+import qupath.lib.images.servers.ServerTools;
 import qupath.lib.images.servers.TileRequest;
-import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.TMACoreObject;
-import qupath.lib.objects.hierarchy.PathObjectHierarchy;
-import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
-import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.interfaces.ROI;
@@ -25,9 +21,7 @@ import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.Shape;
 import java.awt.image.BufferedImage;
-import java.awt.image.DataBuffer;
 import java.awt.image.ImageObserver;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -48,7 +42,7 @@ import javafx.application.Platform;
  * @author Pete Bankhead
  *
  */
-public class PixelClassificationOverlay extends AbstractOverlay implements PathObjectHierarchyListener, QuPathViewerListener {
+public class PixelClassificationOverlay extends AbstractImageDataOverlay  {
 	
 	private static Logger logger = LoggerFactory.getLogger(PixelClassificationOverlay.class);
 
@@ -61,16 +55,17 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
     
     private ExecutorService pool;
     
-    private ImageData<BufferedImage> imageData;
-    
-    private PixelClassificationMeasurementManager manager;
-    
     private boolean useAnnotationMask = false;
     private boolean livePrediction = false;
     
+    private PersistentTileCache tileCache;
+    
     public PixelClassificationOverlay(final QuPathViewer viewer, final PixelClassificationImageServer classifierServer) {
-        super();
-        this.manager = new PixelClassificationMeasurementManager(classifierServer);
+    	this(viewer, classifierServer, null);
+    }
+    
+    public PixelClassificationOverlay(final QuPathViewer viewer, final PixelClassificationImageServer classifierServer, final PersistentTileCache tileCache) {
+        super(viewer.getOverlayOptions(), classifierServer.getImageData());
         
         // Choose number of threads based on how intensive the processing will be
         // TODO: Permit classifier to control request
@@ -78,16 +73,11 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
         if (classifierServer.getClassifier() instanceof OpenCVPixelClassifierDNN)
         	nThreads = 1;
         pool = Executors.newFixedThreadPool(
-        		nThreads, new SimpleThreadFactory(
+        		nThreads, ThreadTools.createThreadFactory(
         				"classifier-overlay", true, Thread.NORM_PRIORITY-2));
         
         this.classifierServer = classifierServer;
         this.viewer = viewer;
-        this.viewer.addViewerListener(this);
-        
-        this.imageData = viewer.getImageData();
-        imageData.getHierarchy().addPathObjectListener(this);
-//        imageDataChanged(viewer, null, viewer.getImageData());
     }
     
     
@@ -100,81 +90,7 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
     	this.livePrediction = livePrediction;
     	if (livePrediction)
     		viewer.repaint();
-    }
-    
-    
-    private synchronized void updateAnnotationMeasurements() {
-    	if (imageData == null) {
-    		return;
-    	}
-    	
-    	PathObjectHierarchy hierarchy = imageData.getHierarchy();
-    	List<PathObject> changed = new ArrayList<>();
-    	
-//    	hierarchy.getObjects(null, PathAnnotationObject.class).parallelStream().forEach(annotation -> {
-//    		if (addPercentageMeasurements(annotation))
-//    			changed.add(annotation);
-//    	});
-    	
-    	if (!pool.isShutdown()) {
-	    	pool.submit(() -> {
-	        	for (PathObject annotation : hierarchy.getObjects(null, PathAnnotationObject.class)) {
-	        		if (manager.addPercentageMeasurements(annotation, true)) {
-	        			changed.add(annotation);
-	        			if (Thread.interrupted())
-	        				return;
-	        		}
-	        	}
-	        	if (!changed.isEmpty())
-	        		Platform.runLater(() -> hierarchy.fireObjectMeasurementsChangedEvent(this, changed));    		
-	    	});
-    	}
-    }
-    
-    public String getResultsString(double x, double y) {
-    	if (viewer == null || classifierServer == null)
-    		return null;
-    	return getResultsString(classifierServer, x, y, viewer.getZPosition(), viewer.getTPosition());
-    }
-
-    
-    
-    public static String getResultsString(PixelClassificationImageServer classifierServer, double x, double y, int z, int t) {
-    	if (classifierServer == null)
-    		return null;
-    	
-    	int level = 0;
-    	var tile = classifierServer.getTile(level, (int)Math.round(x), (int)Math.round(y), z, t);
-    	if (tile == null)
-    		return null;
-    	var img = classifierServer.getCachedTile(tile);
-    	if (img == null)
-    		return null;
-
-    	int xx = (int)Math.floor((x - tile.getImageX()) / tile.getDownsample());
-    	int yy = (int)Math.floor((y - tile.getImageY()) / tile.getDownsample());
-    	if (xx < 0 || yy < 0 || xx >= img.getWidth() || yy >= img.getHeight())
-    		return null;
-    	
-//    	String coords = GeneralTools.formatNumber(x, 1) + "," + GeneralTools.formatNumber(y, 1);
-    	
-    	var channels = classifierServer.getChannels();
-    	if (classifierServer.getOutputType() == OutputType.Classification) {
-        	int sample = img.getRaster().getSample(xx, yy, 0); 		
-        	return String.format("Classification: %s", channels.get(sample).getName());
-//        	return String.format("Classification (%s):\n%s", coords, channels.get(sample).getName());
-    	} else {
-    		var array = new String[channels.size()];
-    		for (int c = 0; c < channels.size(); c++) {
-    			float sample = img.getRaster().getSampleFloat(xx, yy, c);
-    			if (img.getRaster().getDataBuffer().getDataType() == DataBuffer.TYPE_BYTE)
-    				sample /= 255f;
-    			array[c] = channels.get(c).getName() + ": " + GeneralTools.formatNumber(sample, 2);
-    		}
-        	return String.format("Prediction: %s", String.join(", ", array));
-    	}
-    }
-    
+    }    
     
     
     @Override
@@ -183,8 +99,10 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
         if (!viewer.getOverlayOptions().getShowPixelClassification())
             return;
 
+        var imageData = getImageData();
         if (imageData == null)
             return;
+        var hierarchy = imageData.getHierarchy();
         
 //        ImageServer<BufferedImage> server = imageData.getServer();
         var server = classifierServer;
@@ -194,7 +112,7 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
 //        	return;
         
 //        double requestedDownsample = classifier.getMetadata().getInputPixelSizeMicrons() / server.getAveragedPixelSizeMicrons();
-        double requestedDownsample = server.getPreferredDownsampleFactor(downsampleFactor);
+		double requestedDownsample = ServerTools.getPreferredDownsampleFactor(server, downsampleFactor);
 
         if (requestedDownsample > server.getDownsampleForResolution(0))
         	g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
@@ -206,8 +124,8 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
         boolean requestingTiles = true;
 
         Collection<PathObject> objectsForOverlap = null;
-        if (requestingTiles && imageData.getHierarchy().getTMAGrid() != null) {
-            objectsForOverlap = imageData.getHierarchy().getObjectsForRegion(TMACoreObject.class, imageRegion, null);
+        if (requestingTiles && hierarchy.getTMAGrid() != null) {
+            objectsForOverlap = hierarchy.getObjectsForRegion(TMACoreObject.class, imageRegion, null);
         }
 
         // Request tiles, of the size that the classifier wants to receive
@@ -220,11 +138,11 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
      	else
      		fullRequest = RegionRequest.createInstance(server.getPath(), downsampleFactor, AwtTools.getImageRegion(shapeRegion, imageRegion.getZ(), imageRegion.getT()));
         
-        Collection<TileRequest> tiles = classifierServer.getTiles(fullRequest);
+        Collection<TileRequest> tiles = classifierServer.getTileRequestManager().getTileRequests(fullRequest);
 
 //        requests = requests.stream().map(r -> RegionRequest.createInstance(r.getPath(), requestedDownsample, r)).collect(Collectors.toList());
         
-        var annotations = imageData.getHierarchy().getObjects(null, PathAnnotationObject.class);
+        var annotations = hierarchy.getAnnotationObjects();
         
         // Clear pending requests, since we'll insert new ones (perhaps in a different order)
     	this.pendingRequests.clear();
@@ -287,8 +205,6 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
             if (livePrediction)
             	requestTile(tile);
         }
-        if (livePrediction)
-        	updateAnnotationMeasurements();
     }
     
     /**
@@ -322,15 +238,15 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
     
     
     public void stop(boolean resetMeasurements) {
-    	if (imageData != null && resetMeasurements) {
-    		manager.resetMeasurements(imageData.getHierarchy(), imageData.getHierarchy().getObjects(null, PathAnnotationObject.class));
-    	}
+//    	if (imageData != null && resetMeasurements) {
+//    		manager.resetMeasurements(imageData.getHierarchy(), imageData.getHierarchy().getObjects(null, PathAnnotationObject.class));
+//    	}
 //    	viewer.getImageRegionStore().clearCacheForServer(classifierServer);
-    	imageDataChanged(viewer, imageData, null);
     	List<Runnable> pending = this.pool.shutdownNow();
-    	viewer.removeViewerListener(this);
     	cacheRGB.clear();
     	logger.debug("Stopped classification overlay, dropped {} requests", pending.size());
+    	if (getImageData() != null)
+    		setImageData(null);
     }
     
     
@@ -366,10 +282,28 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
             		return;
             	}
                 try {
-                	BufferedImage imgResult = classifierServer.readBufferedImage(tile.getRegionRequest());
+                	BufferedImage imgResult = null;
+                	if (tileCache != null)
+                		imgResult = tileCache.readFromCache(tile.getRegionRequest());
+                	if (imgResult == null)
+                		imgResult = classifierServer.readBufferedImage(tile.getRegionRequest());
+                	else {
+                		logger.info("Read cached tile: {}", tile);
+                	}
                     getCachedRGBImage(tile.getRegionRequest(), imgResult);
                     viewer.repaint();
-                    Platform.runLater(() -> updateAnnotationMeasurements());
+                    
+                    var imageData = getImageData();
+                    var hierarchy = imageData == null ? null : imageData.getHierarchy();
+                    if (hierarchy != null) {
+	                    var annotations = hierarchy.getAnnotationObjects();
+	                    if (!annotations.isEmpty()) {
+	                    	Platform.runLater(() -> {
+	                    		hierarchy.fireObjectMeasurementsChangedEvent(this, annotations);
+	                    	});
+	                    }
+                    }
+                    
                 } catch (Exception e) {
                    logger.error("Error requesting tile classification", e);
                 } finally {
@@ -379,41 +313,23 @@ public class PixelClassificationOverlay extends AbstractOverlay implements PathO
         }
     }
 
-
-	@Override
-	public void hierarchyChanged(PathObjectHierarchyEvent event) {
-		if (event.isAddedOrRemovedEvent() || event.isStructureChangeEvent())
-			updateAnnotationMeasurements();
-	}
-
-
-	@Override
-	public void imageDataChanged(QuPathViewer viewer, ImageData<BufferedImage> imageDataOld,
-			ImageData<BufferedImage> imageDataNew) {
-		if (this.imageData != null) {
-			this.imageData.getHierarchy().removePathObjectListener(this);
-			if (classifierServer != null) {
-				try {
-					classifierServer.close();
-				} catch (Exception e) {
-					logger.warn("Exception when closing classification server", e);
-				}
+    @Override
+	public void setImageData(final ImageData<BufferedImage> imageData) {
+		super.setImageData(imageData);
+		if (getImageData() == null && classifierServer != null) {
+			try {
+				classifierServer.close();
+				classifierServer = null;
+			} catch (Exception e) {
+				logger.warn("Exception when closing classification server", e);
 			}
 		}
-		viewer.getCustomOverlayLayers().remove(this);
 	}
 
-
 	@Override
-	public void visibleRegionChanged(QuPathViewer viewer, Shape shape) {}
-
-
-	@Override
-	public void selectedObjectChanged(QuPathViewer viewer, PathObject pathObjectSelected) {}
-
-
-	@Override
-	public void viewerClosed(QuPathViewer viewer) {}
+	public boolean supportsImageDataChange() {
+		return false;
+	}
 	
 
 }

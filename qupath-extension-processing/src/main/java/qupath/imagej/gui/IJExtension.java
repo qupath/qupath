@@ -23,18 +23,14 @@
 
 package qupath.imagej.gui;
 
-import ij.CompositeImage;
 import ij.IJ;
 import ij.ImageJ;
 import ij.ImagePlus;
-import ij.ImageStack;
 import ij.Menus;
 import ij.Prefs;
 import ij.gui.ImageWindow;
 import ij.gui.Overlay;
 import ij.gui.Roi;
-import ij.process.ColorProcessor;
-import ij.process.FloatProcessor;
 import javafx.beans.property.StringProperty;
 import javafx.scene.control.Button;
 import javafx.scene.control.ContextMenu;
@@ -54,7 +50,7 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
-import java.util.List;
+import java.util.function.Predicate;
 
 import javax.swing.SwingUtilities;
 
@@ -68,23 +64,17 @@ import qupath.imagej.detect.cells.WatershedCellDetection;
 import qupath.imagej.detect.cells.WatershedCellMembraneDetection;
 import qupath.imagej.detect.dearray.TMADearrayerPluginIJ;
 import qupath.imagej.detect.tissue.PositivePixelCounterIJ;
-import qupath.imagej.detect.tissue.SimpleTissueDetection;
 import qupath.imagej.detect.tissue.SimpleTissueDetection2;
 import qupath.imagej.gui.commands.ExtractRegionCommand;
 import qupath.imagej.gui.commands.ScreenshotCommand;
-import qupath.imagej.helpers.IJTools;
 import qupath.imagej.images.writers.TIFFWriterIJ;
 import qupath.imagej.images.writers.ZipWriterIJ;
-import qupath.imagej.objects.PathImagePlus;
-import qupath.imagej.objects.ROIConverterIJ;
 import qupath.imagej.plugins.ImageJMacroRunner;
 import qupath.imagej.superpixels.DoGSuperpixelsPlugin;
 import qupath.imagej.superpixels.SLICSuperpixelsPlugin;
-import qupath.lib.analysis.objects.TileClassificationsToAnnotationsPlugin;
+import qupath.imagej.tools.IJTools;
 import qupath.lib.awt.common.AwtTools;
 import qupath.lib.common.GeneralTools;
-import qupath.lib.display.ChannelDisplayInfo;
-import qupath.lib.display.ImageDisplay;
 import qupath.lib.gui.ImageWriterTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
@@ -102,10 +92,10 @@ import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
+import qupath.lib.plugins.objects.TileClassificationsToAnnotationsPlugin;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.ROIs;
-import qupath.lib.roi.RectangleROI;
 import qupath.lib.roi.interfaces.ROI;
 import qupathj.QUPath_Send_Overlay_to_QuPath;
 import qupathj.QUPath_Send_ROI_to_QuPath;
@@ -131,14 +121,25 @@ public class IJExtension implements QuPathExtension {
 			imageJPath = PathPrefs.createPersistentPreference("ijPath", null);
 	}
 	
+	/**
+	 * Set the path for a local ImageJ installation, if required. This can be used to help load external ImageJ plugins.
+	 * @param path
+	 */
 	public static void setImageJPath(final String path) {
 		imageJPath.set(path);
 	}
 	
+	/**
+	 * Get the path for a local ImageJ installation, if set.
+	 */
 	public static String getImageJPath() {
 		return imageJPath.get();
 	}
 	
+	/**
+	 * Property representing the path to a local ImageJ installation, or null if no path has been set.
+	 * @return
+	 */
 	public static StringProperty imageJPathProperty() {
 		return imageJPath;
 	}
@@ -292,11 +293,10 @@ public class IJExtension implements QuPathExtension {
 	 * @param pathROI
 	 * @param request
 	 * @param setROI		{@code true} if a (non-rectangular) ROI should be converted to the closest matching ImageJ {@code Roi} &amp; set on the image
-	 * @param imageDisplay
 	 * @return
 	 * @throws IOException 
 	 */
-	public static PathImage<ImagePlus> extractROI(ImageServer<BufferedImage> server, ROI pathROI, RegionRequest request, boolean setROI, ImageDisplay imageDisplay) throws IOException {
+	public static PathImage<ImagePlus> extractROI(ImageServer<BufferedImage> server, ROI pathROI, RegionRequest request, boolean setROI) throws IOException {
 		setROI = setROI && (pathROI != null);
 		// Ensure the ROI bounds & ensure it fits within the image
 		Rectangle bounds = AwtTools.getBounds(request);
@@ -306,104 +306,55 @@ public class IJExtension implements QuPathExtension {
 			return null;
 		}
 	
-	
-		PathImage<ImagePlus> pathImage = null;
-	
-		// Transform the pixels, if required
-		if (imageDisplay != null) {
-			List<ChannelDisplayInfo> channels = imageDisplay.selectedChannels();
-			if (channels != null && !channels.isEmpty() && (channels.size() > 1 || channels.get(0).doesSomething())) {
-				BufferedImage img = server.readBufferedImage(request);
-				int width = img.getWidth();
-				int height = img.getHeight();
-				ImageStack stack = new ImageStack(width, height);
-				//				imageDisplay.applyTransforms(imgInput, imgOutput)
-				int type = 0;
-				for (ChannelDisplayInfo channel : channels) {
-					if (channel instanceof ChannelDisplayInfo.SingleChannelDisplayInfo) {
-						if (type == 0 || type == ImagePlus.GRAY32) {
-							float[] px = ((ChannelDisplayInfo.SingleChannelDisplayInfo)channel).getValues(img, 0, 0, width, height, null);
-							FloatProcessor fp = new FloatProcessor(width, height, px);
-							stack.addSlice(channel.getName(), fp);
-							type = ImagePlus.GRAY32;
-						} else {
-							logger.error("Unable to apply color transform " + channel.getName() + " - incompatible with previously-applied transforms");
-						}
-					} else if (type == 0 || type == ImagePlus.COLOR_RGB) {
-						int[] px = channel.getRGB(img, null, imageDisplay.useColorLUTs());
-						ColorProcessor cp = new ColorProcessor(width, height, px);
-						stack.addSlice(channel.getName(), cp);
-						type = ImagePlus.COLOR_RGB;
-					} else {
-						logger.error("Unable to apply color transform " + channel.getName() + " - incompatible with previously-applied transforms");
-					}
-				}
-				if (stack.getSize() > 0) {
-					ImagePlus imp = new ImagePlus(server.getShortServerName(), stack);
-					if (type != ImagePlus.COLOR_RGB) {
-						//						CompositeImage impComp = new CompositeImage(imp, imageDisplay.useColorLUTs() ? CompositeImage.COMPOSITE : CompositeImage.GRAYSCALE);
-						// TODO: Support color LUTs?
-						CompositeImage impComp = new CompositeImage(imp, CompositeImage.GRAYSCALE);
-						int c = 1;
-						for (ChannelDisplayInfo channel : channels) {
-							impComp.setC(c);
-							impComp.setDisplayRange(channel.getMinDisplay(), channel.getMaxDisplay());
-							c++;
-						}
-						impComp.setC(1);
-						imp = impComp;
-					}
-					if (imp != null) {
-						IJTools.calibrateImagePlus(imp, request, server);
-						pathImage = PathImagePlus.createPathImage(server, request, imp);;
-					}
-				}
-			}
-		}
-	
-	
-		// If we don't have an image yet, try reading more simply
-		if (pathImage == null) {
-			 pathImage = IJTools.convertToImagePlus(server, request);
-			if (pathImage == null || pathImage.getImage() == null)
-				return null;
-		}
+		PathImage<ImagePlus> pathImage = IJTools.convertToImagePlus(server, request);
+		if (pathImage == null || pathImage.getImage() == null)
+			return null;
 	
 	
 	
 		if (setROI) {
 			ImagePlus imp = pathImage.getImage();
-			if (!(pathROI instanceof RectangleROI)) {
-				Roi roi = ROIConverterIJ.convertToIJRoi(pathROI, pathImage);
+//			if (!(pathROI instanceof RectangleROI)) {
+				Roi roi = IJTools.convertToIJRoi(pathROI, pathImage);
 				imp.setRoi(roi);
-			}
+//			}
 		}
 		return pathImage;
 	}
 
 	/**
-	 * Similar to {@link #extractROI(ImageServer, ROI, RegionRequest, boolean, ImageDisplay)}, except that the title of the ImagePlus is set according to the parent object type (which is used to get the ROI).
+	 * Similar to {@link #extractROI(ImageServer, ROI, RegionRequest, boolean)}, except that the title of the ImagePlus is set according to the parent object type (which is used to get the ROI).
 	 * Specifically, if a TMA core is passed as a parent, then the core name will be included in the title.
 	 * 
 	 * @param server
 	 * @param pathObject
 	 * @param request
 	 * @param setROI
-	 * @param imageDisplay
 	 * @return
 	 * @throws IOException 
 	 * 
-	 * @see #extractROI(ImageServer, ROI, RegionRequest, boolean, ImageDisplay)
+	 * @see #extractROI(ImageServer, ROI, RegionRequest, boolean)
 	 */
-	public static PathImage<ImagePlus> extractROI(ImageServer<BufferedImage> server, PathObject pathObject, RegionRequest request, boolean setROI, ImageDisplay imageDisplay) throws IOException {
-		PathImage<ImagePlus> pathImage = extractROI(server, pathObject.getROI(), request, setROI, imageDisplay);
+	public static PathImage<ImagePlus> extractROI(ImageServer<BufferedImage> server, PathObject pathObject, RegionRequest request, boolean setROI) throws IOException {
+		PathImage<ImagePlus> pathImage = extractROI(server, pathObject.getROI(), request, setROI);
 		IJTools.setTitleFromObject(pathImage, pathObject);
 		return pathImage;
 	}
 	
 
-
-	public static PathImage<ImagePlus> extractROIWithOverlay(ImageServer<BufferedImage> server, PathObject pathObject, PathObjectHierarchy hierarchy, RegionRequest request, boolean setROI, OverlayOptions options, ImageDisplay imageDisplay) throws IOException {
+	/**
+	 * Extract an image region as an ImagePlus, optionally setting ImageJ Rois corresponding to QuPath objects.
+	 * 
+	 * @param server server from which pixels should be requested
+	 * @param pathObject the primary object, which may have its ROI set on the image
+	 * @param hierarchy object hierarchy containing objects whose ROIs should be added to the ImagePlus overlay
+	 * @param request the region being requested
+	 * @param setROI if true, the ROI of the pathObject will be set on the image as the 'main' ROI (i.e. not an overlay)
+	 * @param options options determining which kinds of objects will have ROIs added, to match with the display in the QuPath viewer
+	 * @return
+	 * @throws IOException
+	 */
+	public static PathImage<ImagePlus> extractROIWithOverlay(ImageServer<BufferedImage> server, PathObject pathObject, PathObjectHierarchy hierarchy, RegionRequest request, boolean setROI, OverlayOptions options) throws IOException {
 		ROI pathROI;
 		if (pathObject == null || !pathObject.hasROI()) {
 			pathROI = ROIs.createRectangleROI(0, 0, server.getWidth(), server.getHeight(), ImagePlane.getDefaultPlane());
@@ -413,58 +364,15 @@ public class IJExtension implements QuPathExtension {
 			pathROI = pathObject.getROI();
 
 		// Extract the image
-		PathImage<ImagePlus> pathImage = extractROI(server, pathROI, request, setROI, imageDisplay);
+		PathImage<ImagePlus> pathImage = extractROI(server, pathROI, request, setROI);
 		if (pathImage == null)
 			return pathImage;
 
 		// Add the overlay
 		if (hierarchy != null) {
 			ImagePlus imp = pathImage.getImage();
-			Overlay overlay = new Overlay();
-			
-			// TODO: Permit filling/unfilling ROIs
-			for (PathObject child : hierarchy.getObjectsForRegion(PathObject.class, request, null)) {
-				if (child.equals(pathObject))
-					continue;
-				
-				if (child.hasROI()) {
-					
-					// Check if this is displayed - skip it not
-					if (options != null && 
-							((child instanceof PathDetectionObject && !options.getShowDetections()) ||
-							(child instanceof PathAnnotationObject && !options.getShowAnnotations()) ||
-							(child instanceof TMACoreObject && !options.getShowTMAGrid())))
-						continue;
-					
-					boolean isCell = child instanceof PathCellObject;
-					
-					Color color = PathObjectColorToolsAwt.getDisplayedColorAWT(child);
-					if (!(isCell && (options == null || !options.getShowCellBoundaries()))) {
-						Roi roi = ROIConverterIJ.convertToIJRoi(child.getROI(), pathImage);
-						roi.setStrokeColor(color);
-						roi.setName(child.getDisplayedName());
-						//						roi.setStrokeWidth(2);
-						overlay.add(roi);
-					}
-					
-					// TODO: Permit cell boundaries/nuclei to be shown/hidden
-					if (isCell && (options == null || options.getShowCellNuclei())) {
-						ROI nucleus = ((PathCellObject)child).getNucleusROI();
-						if (nucleus == null)
-							continue;
-						Roi roi = ROIConverterIJ.convertToIJRoi(((PathCellObject)child).getNucleusROI(), pathImage);
-						roi.setStrokeColor(color);
-						roi.setName(child.getDisplayedName() + " - nucleus");
-						overlay.add(roi);
-						//							roi.setStrokeWidth(2);
-					}
-				}
-			}
+			Overlay overlay = extractOverlay(hierarchy, request, options, p -> p != pathObject);
 			if (overlay.size() > 0) {
-				//			if (imp.getRoi() != null) {
-				//				overlay.add(imp.getRoi());
-				//				imp.killRoi();
-				//			}
 				imp.setOverlay(overlay);
 			}
 		}
@@ -473,6 +381,59 @@ public class IJExtension implements QuPathExtension {
 		return pathImage;
 	}
 
+	
+	/**
+	 * Extract an ImageJ overlay for the specified region.
+	 * @param hierarchy
+	 * @param request
+	 * @param options options to control which objects are being displayed
+	 * @param filter optional additional filter used to determine which objects will be included (may be used in combination with options)
+	 * @return
+	 */
+	public static Overlay extractOverlay(PathObjectHierarchy hierarchy, RegionRequest request, OverlayOptions options, Predicate<PathObject> filter) {
+		Overlay overlay = new Overlay();
+		
+		double downsample = request.getDownsample();
+		double xOrigin = -request.getX() / downsample;
+		double yOrigin = -request.getY() / downsample;
+		
+		// TODO: Permit filling/unfilling ROIs
+		for (PathObject child : hierarchy.getObjectsForRegion(PathObject.class, request, null)) {
+			if (filter != null && !filter.test(child))
+				continue;
+			
+			if (child.hasROI()) {
+				
+				// Check if this is displayed - skip it not
+				if (options != null && 
+						((child instanceof PathDetectionObject && !options.getShowDetections()) ||
+						(child instanceof PathAnnotationObject && !options.getShowAnnotations()) ||
+						(child instanceof TMACoreObject && !options.getShowTMAGrid())))
+					continue;
+				
+				boolean isCell = child instanceof PathCellObject;
+				
+				Color color = PathObjectColorToolsAwt.getDisplayedColorAWT(child);
+				if (!(isCell && (options == null || !options.getShowCellBoundaries()))) {
+					Roi roi = IJTools.convertToIJRoi(child.getROI(), xOrigin, yOrigin, downsample);
+					roi.setStrokeColor(color);
+					roi.setName(child.getDisplayedName());
+					//						roi.setStrokeWidth(2);
+					overlay.add(roi);
+				}
+				if (isCell && (options == null || options.getShowCellNuclei())) {
+					ROI nucleus = ((PathCellObject)child).getNucleusROI();
+					if (nucleus == null)
+						continue;
+					Roi roi = IJTools.convertToIJRoi(((PathCellObject)child).getNucleusROI(), xOrigin, yOrigin, downsample);
+					roi.setStrokeColor(color);
+					roi.setName(child.getDisplayedName() + " - nucleus");
+					overlay.add(roi);
+				}
+			}
+		}
+		return overlay;
+	}
 	
 	
 	
@@ -500,10 +461,7 @@ public class IJExtension implements QuPathExtension {
 		// Experimental brush tool turned off for now
 		//			qupath.getViewer().registerTool(Modes.BRUSH, new FancyBrushTool(qupath));
 
-//		ExtractRegionCommand commandExtractRegion1 = new ExtractRegionCommand(qupath, 1, false);
-//		ExtractRegionCommand commandExtractRegion2 = new ExtractRegionCommand(qupath, 2, false);
-//		ExtractRegionCommand commandExtractRegion4 = new ExtractRegionCommand(qupath, 4, false);
-		ExtractRegionCommand commandExtractRegionCustom = new ExtractRegionCommand(qupath, 2, true);
+		ExtractRegionCommand commandExtractRegionCustom = new ExtractRegionCommand(qupath);
 
 		PathCommand screenshotCommand = new ScreenshotCommand(qupath);
 		
@@ -628,8 +586,7 @@ public class IJExtension implements QuPathExtension {
 		QuPathGUI.addMenuItems(
 				menuPreprocessing,
 				null,
-				qupath.createPluginAction("Simple tissue detection", SimpleTissueDetection2.class, null),
-				qupath.createPluginAction("Simple tissue detection (legacy)", SimpleTissueDetection.class, null)
+				qupath.createPluginAction("Simple tissue detection", SimpleTissueDetection2.class, null)
 				);
 		
 		

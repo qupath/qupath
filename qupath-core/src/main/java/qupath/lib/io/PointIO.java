@@ -25,21 +25,16 @@ package qupath.lib.io;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
-import java.io.FileReader;
-import java.io.FileWriter;
 import java.io.IOException;
-import java.io.PrintWriter;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.List;
 import java.util.Scanner;
 import java.util.zip.ZipEntry;
+import java.util.zip.ZipException;
 import java.util.zip.ZipFile;
 import java.util.zip.ZipOutputStream;
 
@@ -50,6 +45,7 @@ import qupath.lib.geom.Point2;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClass;
+import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.PointsROI;
 import qupath.lib.roi.ROIs;
@@ -65,12 +61,17 @@ public class PointIO {
 	
 	final private static Logger logger = LoggerFactory.getLogger(PointIO.class);
 	
-	public static List<PathObject> readPointsObjectList(File file) {
+	/**
+	 * Read a list of point annotations from a file.
+	 * @param file
+	 * @return
+	 * @throws ZipException
+	 * @throws IOException
+	 */
+	public static List<PathObject> readPointsObjectList(File file) throws ZipException, IOException {
 		List<PathObject> pathObjects = new ArrayList<>();
-		ZipFile zipFile;
 		Scanner s = null;
-		try {
-			zipFile = new ZipFile(file);
+		try (ZipFile zipFile = new ZipFile(file)) {
 			Enumeration<? extends ZipEntry> entries = zipFile.entries();
 			while (entries.hasMoreElements()) {
 				ZipEntry entry = entries.nextElement();
@@ -82,12 +83,6 @@ public class PointIO {
 				s.close();
 			}
 			zipFile.close();
-		} catch (FileNotFoundException e1) {
-			// TODO Auto-generated catch block
-			e1.printStackTrace();
-		} catch (IOException e1) {
-			// TODO Auto-generated catch block
-			e1.printStackTrace();
 		} finally {
 			if (s != null)
 				s.close();
@@ -96,7 +91,7 @@ public class PointIO {
 	}
 	
 	
-	static Integer getDisplayedColor(final PathObject pathObject, final Integer defaultColor) {
+	private static Integer getDisplayedColor(final PathObject pathObject, final Integer defaultColor) {
 		// Check if any color has been set - if so, return it
 		Integer color = pathObject.getColorRGB();
 		if (color != null)
@@ -110,16 +105,20 @@ public class PointIO {
 		return defaultColor;
 	}
 	
-
-	public static void writePointsObjectsList(File file, List<? extends PathObject> pathObjects, final Integer defaultColor) {
-		ZipOutputStream out;
-		try {
-			out = new ZipOutputStream(new BufferedOutputStream(new FileOutputStream(file)));
+	/**
+	 * Write a list of point annotations to a file.
+	 * @param file
+	 * @param pathObjects
+	 * @param defaultColor
+	 * @throws IOException
+	 */
+	public static void writePointsObjectsList(File file, List<? extends PathObject> pathObjects, final Integer defaultColor) throws IOException {
+		try (ZipOutputStream out = new ZipOutputStream(new BufferedOutputStream(new FileOutputStream(file)))) {
 			Charset charset = Charset.forName("UTF-8");
 			
 			int ind = 0;
 			for (PathObject pathObject : pathObjects) {
-				if (!pathObject.isPoint())
+				if (!PathObjectTools.hasPointROI(pathObject))
 					continue;
 				PointsROI points = (PointsROI)pathObject.getROI();
 				ZipEntry e = new ZipEntry(String.format("Points %d.txt", ++ind));
@@ -135,79 +134,12 @@ public class PointIO {
 				out.write(getPointsAsString(points).getBytes(charset));
 				out.closeEntry();
 			}
-			out.close();
-		} catch (FileNotFoundException e1) {
-			// TODO Auto-generated catch block
-			e1.printStackTrace();
-		} catch (IOException e1) {
-			// TODO Auto-generated catch block
-			e1.printStackTrace();
 		}
 	}
 	
 	
 	
-	
-	
-	
-	
-	
-	public static List<? extends PathPoints> readPointsList(File file) {
-		List<PathPoints> pointsList = new ArrayList<>();
-		ZipFile zipFile;
-		Scanner s = null;
-		try {
-			zipFile = new ZipFile(file);
-			Enumeration<? extends ZipEntry> entries = zipFile.entries();
-			while (entries.hasMoreElements()) {
-				ZipEntry entry = entries.nextElement();
-				s = new Scanner(new BufferedInputStream(zipFile.getInputStream(entry)));
-				s.useDelimiter("\\A");
-				PathPoints points = readPointsFromString(s.next());
-				if (points != null)
-					pointsList.add(points);
-				s.close();
-			}
-			zipFile.close();
-		} catch (FileNotFoundException e1) {
-			// TODO Auto-generated catch block
-			e1.printStackTrace();
-		} catch (IOException e1) {
-			// TODO Auto-generated catch block
-			e1.printStackTrace();
-		} finally {
-			if (s != null)
-				s.close();
-		}
-		return pointsList;
-	}
-
-	public static void writePointsList(File file, List<? extends PointsROI> pointsList) {
-		ZipOutputStream out;
-		try {
-			out = new ZipOutputStream(new BufferedOutputStream(new FileOutputStream(file)));
-			Charset charset = Charset.forName("UTF-8");
-			
-			int ind = 0;
-			for (PointsROI points : pointsList) {
-				ZipEntry e = new ZipEntry(String.format("Points %d.txt", ++ind));
-				out.putNextEntry(e);
-				out.write(getPointsAsString(points).getBytes(charset));
-				out.closeEntry();
-			}
-			out.close();
-		} catch (FileNotFoundException e1) {
-			// TODO Auto-generated catch block
-			e1.printStackTrace();
-		} catch (IOException e1) {
-			// TODO Auto-generated catch block
-			e1.printStackTrace();
-		}
-	}
-	
-	
-	
-	public static PathObject readPointsObjectFromString(String s) {
+	private static PathObject readPointsObjectFromString(String s) {
 		List<Point2> pointsList = new ArrayList<>();
 		Scanner scanner = new Scanner(s);
 		String name = scanner.nextLine().split("\t")[1].trim();
@@ -237,28 +169,8 @@ public class PointIO {
 		return pathObject;
 	}
 	
-
 	
-	public static PathPoints readPointsFromString(String s) {
-		List<Point2> pointsList = new ArrayList<>();
-		Scanner scanner = new Scanner(s);
-//		String name = scanner.nextLine();
-		while (scanner.hasNextLine()) {
-			String line = scanner.nextLine().trim();
-			if (line.length() == 0)
-				break;
-			String[] splits = line.split("\t");
-			double x = Double.parseDouble(splits[0]);
-			double y = Double.parseDouble(splits[1]);
-			pointsList.add(new Point2(x, y));
-		}
-		scanner.close();
-//		if (name != null && name.length() > 0)
-//			points.setName(name);
-		return ROIs.createPointsROI(pointsList, ImagePlane.getDefaultPlane());
-	}
-	
-	public static String getPointsAsString(PointsROI points) {
+	private static String getPointsAsString(PointsROI points) {
 		StringBuilder sb = new StringBuilder();
 //		String name = points.getName();
 //		if (name != null)
@@ -270,58 +182,5 @@ public class PointIO {
 	}
 	
 
-	
-	public static void writePoints(File file, PointsROI points) {
-		try {
-			PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(file)));
-//			String name = points.getName();
-//			if (name != null)
-//				out.println(name);
-//			else
-//				out.println();
-			for (Point2 p : points.getPointList())
-				out.println(String.format(".%3f\t.%3f", p.getX(), p.getY()));
-			out.close();
-		} catch (IOException e) {
-			logger.error("Error writing {} to {}", points.toString(), file.getAbsolutePath());
-			e.printStackTrace();
-		}
-	}
-
-
-	public static PathPoints readPoints(File file) {
-		BufferedReader reader = null;
-		PathPoints points = null;
-		List<Point2> pointsList = new ArrayList<>();
-		try {
-			reader = new BufferedReader(new FileReader(file));
-			String name = reader.readLine();
-
-			String line;
-			while ((line = reader.readLine()) != null) {
-				line = line.trim();
-				if (line.length() == 0)
-					break;
-				String[] splits = line.split("\t");
-				double x = Double.parseDouble(splits[0]);
-				double y = Double.parseDouble(splits[1]);
-				pointsList.add(new Point2(x, y));
-			}
-			points = ROIs.createPointsROI(pointsList, ImagePlane.getDefaultPlane());
-//			if (name != null && name.length() > 0)
-//				points.setName(name);
-		} catch (IOException e) {
-			logger.error("Error reading points from {}", file.getAbsolutePath());
-			e.printStackTrace();
-		} finally {
-			try {
-				if (reader != null)
-					reader.close();
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
-		}
-		return points;
-	}
 
 }

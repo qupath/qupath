@@ -43,6 +43,7 @@ import javafx.scene.layout.Priority;
 import javafx.scene.shape.Rectangle;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClass;
@@ -109,6 +110,7 @@ public class AnnotationCreatorPanel {
 	
 	
 	private static enum ROI_TYPE { RECTANGLE, ELLIPSE; 
+		@Override
 		public String toString() {
 			switch(this) {
 			case ELLIPSE:
@@ -238,13 +240,14 @@ public class AnnotationCreatorPanel {
 			
 			double xScale = 1;
 			double yScale = 1;
+			PixelCalibration cal = server.getPixelCalibration();
 			if (cbMicrons.isSelected()) {
-				if (!server.hasPixelSizeMicrons()) {
+				if (!cal.hasPixelSizeMicrons()) {
 					DisplayHelpers.showErrorMessage("Create annotation", "No pixel size information available! Try again using pixel units.");		
 					return;
 				}
-				xScale = 1.0/server.getPixelWidthMicrons();
-				yScale = 1.0/server.getPixelHeightMicrons();
+				xScale = 1.0/cal.getPixelWidthMicrons();
+				yScale = 1.0/cal.getPixelHeightMicrons();
 			}
 			
 			var xOrig = tryToParse(tfX.getText());
@@ -308,7 +311,7 @@ public class AnnotationCreatorPanel {
 			if (cbLock.isSelected())
 				((PathAnnotationObject)annotation).setLocked(true);
 			
-			hierarchy.addPathObject(annotation, false);
+			hierarchy.addPathObject(annotation);
 		});
 		
 		btnAdd.setMaxWidth(Double.MAX_VALUE);

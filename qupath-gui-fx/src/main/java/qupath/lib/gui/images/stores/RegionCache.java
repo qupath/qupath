@@ -13,6 +13,7 @@ import qupath.lib.regions.RegionRequest;
  */
 interface RegionCache<T> extends Map<RegionRequest, T> {
 
+	@Override
 	T put(RegionRequest request, T img);
 
 	boolean containsKey(RegionRequest request);

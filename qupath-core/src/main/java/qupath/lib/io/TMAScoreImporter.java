@@ -41,6 +41,7 @@ import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import qupath.lib.common.GeneralTools;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
@@ -48,7 +49,7 @@ import qupath.lib.objects.hierarchy.TMAGrid;
 
 /**
  * Helper class for importing data in connection with TMA slides.
- * 
+ * <p>
  * Some methods may be changed / moved in the future, e.g. because they are more generally useful,
  * such as those related to parsing CSV data.  However, the attempts by these methods to auto-detect 
  * numeric data are not entirely robust - so more improvement is needed.
@@ -60,15 +61,30 @@ public class TMAScoreImporter {
 	
 	final private static Logger logger = LoggerFactory.getLogger(TMAScoreImporter.class);
 	
+	/**
+	 * Import TMA scores from a file into the TMAGrid of an object hierarchy.
+	 * 
+	 * @param file
+	 * @param hierarchy
+	 * @return
+	 * @throws IOException
+	 */
 	public static int importFromCSV(final File file, final PathObjectHierarchy hierarchy) throws IOException {
 		return importFromCSV(readCSV(file), hierarchy);
 	}
 	
+	/**
+	 * Import TMA scores from a String into the TMAGrid of an object hierarchy.
+	 * 
+	 * @param text
+	 * @param hierarchy
+	 * @return
+	 */
 	public static int importFromCSV(final String text, final PathObjectHierarchy hierarchy) {
 		return importFromCSV(readCSV(text), hierarchy);
 	}
 
-	static int importFromCSV(final Map<String, List<String>> map, final PathObjectHierarchy hierarchy) {
+	private static int importFromCSV(final Map<String, List<String>> map, final PathObjectHierarchy hierarchy) {
 		
 		TMAGrid tmaGrid = hierarchy.getTMAGrid();
 		if (tmaGrid == null || tmaGrid.nCores() == 0) {
@@ -163,7 +179,7 @@ public class TMAScoreImporter {
 			boolean isSurvivalRelated = isOverallSurvival || isRecurrenceFreeSurvival || isOSCensored || isRFSCensored;
 			double[] vals = parseNumeric(entry.getValue(), !isSurvivalRelated);
 
-			if (isSurvivalRelated || vals == null || vals.length == numNaNs(vals)) {
+			if (isSurvivalRelated || vals == null || vals.length == GeneralTools.numNaNs(vals)) {
 				for (int i : cores.keySet()) {
 					for (TMACoreObject core : cores.get(i)) {
 						if (core == null)
@@ -206,24 +222,14 @@ public class TMAScoreImporter {
 		return changed.size();
 	}
 	
-
-	public static int numNaNs(double[] vals) {
-		int count = 0;
-		for (double v : vals) {
-			if (Double.isNaN(v))
-				count++;
-		}
-		return count;
-	}
-
 	/**
-	 * Parse numeric values.
+	 * Parse numeric values from a list of strings.
+	 * <p>
 	 * 
-	 * If allOrNothing is true, the assumption is made that all values will be numeric or none of them will.
-	 * Consequently, if any non-missing, non-numeric value is found then null is returned.
-	 * Otherwise, NaNs are returned for any value that couldn't be parsed.
-	 * 
-	 * @param list
+	 * @param list			list of strings containing the input text. Empty or null strings are treated as missing and returned as NaN.
+	 * @param allOrNothing 	is true, the assumption is made that all values will be numeric or none of them will.
+	 * 						Consequently, if any non-missing, non-numeric value is found then null is returned.
+	 * 						Otherwise, NaNs are returned for any value that couldn't be parsed.
 	 * @return
 	 */
 	public static double[] parseNumeric(List<String> list, boolean allOrNothing) {
@@ -231,17 +237,6 @@ public class TMAScoreImporter {
 		int i = 0;
 		NumberFormat format = NumberFormat.getInstance();
 		for (String s : list) {
-			
-//			if (s.equals("Yes")) {
-//				vals[i] = 1;
-//				i++;
-//				continue;
-//			} else if (s.equals("No")){
-//				vals[i] = 0;
-//				i++;
-//				continue;
-//			}
-			
 			if (s == null || s.trim().length() == 0)
 				vals[i] = Double.NaN;
 			else {
@@ -263,33 +258,32 @@ public class TMAScoreImporter {
 		return vals;
 	}
 	
-	
-	public static boolean[] parseBoolean(List<String> list) {
-		boolean[] vals = new boolean[list.size()];
-		int i = 0;
-		for (String s : list) {
-			if (s == null || s.trim().length() == 0)
-				vals[i] = false;
-			else {
-				vals[i] = Boolean.parseBoolean(s);
-			}
-			i++;
-		}
-		return vals;
-	}
-	
 
+	/**
+	 * Read CSV data from a String into a map connecting column headers (keys) to lists of Strings (entries).
+	 * @param text
+	 * @return
+	 */
 	public static Map<String, List<String>> readCSV(final String text) {
 		return readCSV(new Scanner(text));
 	}
 
+	/**
+	 * Read CSV data from a file into a map connecting column headers (keys) to lists of Strings (entries).
+	 * @param file
+	 * @return
+	 */
 	public static Map<String, List<String>> readCSV(final File file) throws IOException {
 		try (Scanner scanner = new Scanner(file)) {
 			return readCSV(scanner);
 		}
 	}
 
-	
+	/**
+	 * Read CSV data into a map connecting column headers (keys) to lists of Strings (entries).
+	 * @param scanner
+	 * @return
+	 */
 	public static Map<String, List<String>> readCSV(final Scanner scanner) {
 
 		String delimiter = null;
@@ -330,26 +324,4 @@ public class TMAScoreImporter {
 
 		return map;
 	}
-	
-	
-//	static class TMAScore {
-//		
-//		final private String name;
-//		final private MeasurementList measurements;
-//		
-//		public TMAScore(String name, MeasurementList measurements) {
-//			this.name = name;
-//			this.measurements = measurements;
-//		}
-//		
-//		public String getName() {
-//			return name;
-//		}
-//		
-//		public MeasurementList getMeasurements() {
-//			return measurements;
-//		}
-//		
-//	}
-	
 }

@@ -78,6 +78,7 @@ import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClass;
+import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.TMAGrid;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
@@ -408,7 +409,7 @@ public class RandomTrainingRegionSelector implements PathCommand {
 		public PathAnnotationObject getPointObject(final PathClass pathClass) {
 			ensureCacheBuilt();
 			for (PathObject pathObject : annotations) {
-				if (pathObject.isPoint() && pathObject.getPathClass() != null && pathObject.getPathClass().equals(pathClass))
+				if (PathObjectTools.hasPointROI(pathObject) && pathObject.getPathClass() != null && pathObject.getPathClass().equals(pathClass))
 					return (PathAnnotationObject)pathObject;
 			}
 			return null;
@@ -479,7 +480,7 @@ public class RandomTrainingRegionSelector implements PathCommand {
 				PathObjectHierarchy hierarchy = viewer.getHierarchy();
 				if (newPoint) {
 					((PathAnnotationObject)pathObject).setROI(ROIs.createPointsROI(x, y, ImagePlane.getDefaultPlane()));
-					hierarchy.addPathObject(pathObject, true);
+					hierarchy.addPathObject(pathObject);
 				} else {
 					PointsROI pointsROI = ((PointsROI)pathObject.getROI());
 					List<Point2> points = new ArrayList<Point2>(pointsROI.getPointList());
@@ -518,7 +519,7 @@ public class RandomTrainingRegionSelector implements PathCommand {
 				// If we have a TMA image, try to force the points to fall within a core
 				TMAGrid tmaGrid = viewer.getHierarchy().getTMAGrid();
 				int counter = 0;
-				while (tmaGrid != null && tmaGrid.nCores() > 0 && counter < 1000 && tmaGrid.getTMACoreForPixel(x, y) == null) {
+				while (tmaGrid != null && tmaGrid.nCores() > 0 && counter < 1000 && PathObjectTools.getTMACoreForPixel(tmaGrid, x, y) == null) {
 					x = (int)(Math.random() * viewer.getServerWidth());
 					y = (int)(Math.random() * viewer.getServerHeight());
 					counter++;

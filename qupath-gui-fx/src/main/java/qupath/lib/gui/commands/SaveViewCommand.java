@@ -36,7 +36,7 @@ import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.gui.helpers.DisplayHelpers.SnapshotType;
 import qupath.lib.gui.prefs.PathPrefs;
-import qupath.lib.io.ImageWriter;
+import qupath.lib.images.writers.ImageWriter;
 
 /**
  * 

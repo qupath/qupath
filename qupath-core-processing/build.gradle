@@ -1,3 +1,4 @@
+ext.moduleName = 'qupath.core.processing'
 
 description = 'qupath-core-processing'
 
@@ -6,6 +7,7 @@ configurations {
   implementation.extendsFrom gson
   implementation.extendsFrom imagej
   implementation.extendsFrom opencv
+  implementation.extendsFrom jts
 }
 
 dependencies {

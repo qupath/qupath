@@ -32,9 +32,9 @@ import qupath.lib.images.ImageData;
 import qupath.lib.regions.ImageRegion;
 
 /**
- * A PluginRunner that simple logs progress and output.
- * 
- * This doesn't need to be run on any particular thread (e.g. Platform of EDT).
+ * A PluginRunner that simply logs progress and output.
+ * <p>
+ * This doesn't need to be run on any particular thread (e.g. Platform or EDT).
  * 
  * @author Pete Bankhead
  *
@@ -44,8 +44,12 @@ public class CommandLinePluginRunner<T> extends AbstractPluginRunner<T> {
 	
 	private ImageData<T> imageData;
 
-	public CommandLinePluginRunner(final ImageData<T> imageData, boolean batchMode) {
-		super(batchMode);
+	/**
+	 * Constructor for a PluginRunner that send progrress to a log.
+	 * @param imageData the ImageData for the current plugin
+	 */
+	public CommandLinePluginRunner(final ImageData<T> imageData) {
+		super();
 		this.imageData = imageData;
 	}
 
@@ -61,7 +65,11 @@ public class CommandLinePluginRunner<T> extends AbstractPluginRunner<T> {
 	
 	
 	
-	
+	/**
+	 * A {@link SimpleProgressMonitor} that sends progress to a log.
+	 * @author Pete Bankhead
+	 *
+	 */
 	public static class CommandLineProgressMonitor implements SimpleProgressMonitor {
 		
 		final private static Logger logger = LoggerFactory.getLogger(CommandLineProgressMonitor.class);

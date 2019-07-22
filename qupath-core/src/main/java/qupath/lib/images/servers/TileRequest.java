@@ -3,6 +3,7 @@ package qupath.lib.images.servers;
 import java.util.Collection;
 import java.util.LinkedHashSet;
 
+import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
 
@@ -12,7 +13,7 @@ import qupath.lib.regions.RegionRequest;
  * Why?
  * <p>
  * Because downsamples can be defined with floating point precision, and are not always unambiguous when 
- * calculated as the ratios of pyramid level dimensions (i.e. different apparent horizontal & vertical scaling), 
+ * calculated as the ratios of pyramid level dimensions (i.e. different apparent horizontal and vertical scaling), 
  * a RegionRequest is too fuzzy a way to refer to a specific rectangle of pixels from a specific pyramid level. 
  * Rounding errors can easily occur, and different image readers might respond differently to the same request.
  * <p>
@@ -35,13 +36,14 @@ public class TileRequest {
 	static Collection<TileRequest> getAllTileRequests(ImageServer<?> server) {
 		var set = new LinkedHashSet<TileRequest>();
 		
-		var tileWidth = server.getPreferredTileWidth();
-		var tileHeight = server.getPreferredTileHeight();
+		var tileWidth = server.getMetadata().getPreferredTileWidth();
+		var tileHeight = server.getMetadata().getPreferredTileHeight();
 		var downsamples = server.getPreferredDownsamples();
 		
 		for (int level = 0; level < downsamples.length; level++) {
-			int height = server.getLevelHeight(level);
-			int width = server.getLevelWidth(level);
+			var resolutionLevel = server.getMetadata().getLevel(level);
+			int height = resolutionLevel.getHeight();
+			int width = resolutionLevel.getWidth();
 			for (int t = 0; t < server.nTimepoints(); t++) {
 				for (int z = 0; z < server.nZSlices(); z++) {
 					for (int y = 0; y < height; y += tileHeight) {
@@ -67,7 +69,13 @@ public class TileRequest {
 		return set;
 	}
 	
-	
+	/**
+	 * Create a new tile request for a specified region and resolution level.
+	 * @param server
+	 * @param level
+	 * @param tileRegion
+	 * @return
+	 */
 	public static TileRequest createInstance(ImageServer<?> server, int level, ImageRegion tileRegion) {
 		double downsample = server.getDownsampleForResolution(level);
 		return new TileRequest(
@@ -91,6 +99,10 @@ public class TileRequest {
 				tileRegion.getT());
 	}
 	
+	/**
+	 * Get the RegionRequest that this tile represents.
+	 * @return
+	 */
 	public RegionRequest getRegionRequest() {
 		return request;
 	}
@@ -100,53 +112,115 @@ public class TileRequest {
 		this.level = level;
 		this.tileRegion = tileRegion;
 	}
-	
+
+	/**
+	 * Get the downsample value for this tile.
+	 * @return
+	 */
 	public double getDownsample() {
 		return request.getDownsample();
 	}
 	
+	/**
+	 * Get the resolution level.
+	 * @return
+	 */
 	public int getLevel() {
 		return level;
 	}
 	
+	/**
+	 * Get the x-coordinate of the bounding box for this tile in the full resolution image.
+	 * @return
+	 */
 	public int getImageX() {
 		return request.getX();
 	}
 	
+	/**
+	 * Get the y-coordinate of the bounding box for this tile in the full resolution image.
+	 * @return
+	 */
 	public int getImageY() {
 		return request.getY();
 	}
 	
+	/**
+	 * Get the width of the bounding box for this tile in the full resolution image.
+	 * @return
+	 */
 	public int getImageWidth() {
 		return request.getWidth();
 	}
 	
+	/**
+	 * Get the height of the bounding box for this tile in the full resolution image.
+	 * @return
+	 */
 	public int getImageHeight() {
 		return request.getHeight();
 	}
 	
+	/**
+	 * Get the x-coordinate of the bounding box for this tile at the tile resolution.
+	 * @return
+	 */
 	public int getTileX() {
 		return tileRegion.getX();
 	}
 	
+	/**
+	 * Get the y-coordinate of the bounding box for this tile at the tile resolution.
+	 * @return
+	 */
 	public int getTileY() {
 		return tileRegion.getY();
 	}
 	
+	/**
+	 * Get the width of the bounding box for this tile at the tile resolution.
+	 * @return
+	 */
 	public int getTileWidth() {
 		return tileRegion.getWidth();
 	}
 	
+	/**
+	 * Get the height of the bounding box for this tile at the tile resolution.
+	 * @return
+	 */
 	public int getTileHeight() {
 		return tileRegion.getHeight();
 	}
 	
+	/**
+	 * Get the z-slice index for this request.
+	 * @return
+	 */
 	public int getZ() {
 		return tileRegion.getZ();
 	}
 	
+	/**
+	 * Get the time point index for this request.
+	 * @return
+	 */
 	public int getT() {
 		return tileRegion.getT();
+	}
+	
+	/**
+	 * Get the ImagePlane for this request.
+	 * @return
+	 */
+	public ImagePlane getPlane() {
+		return tileRegion.getPlane();
+	}
+	
+	@Override
+	public String toString() {
+		return String.format("Tile: level=%d, bounds=(%d, %d, %d, %d), %s", level,
+				tileRegion.getX(), tileRegion.getY(), tileRegion.getWidth(), tileRegion.getHeight(), request.toString());
 	}
 	
 }

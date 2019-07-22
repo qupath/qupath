@@ -26,8 +26,8 @@ package qupath.lib.images.servers;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 
-import qupath.lib.images.DefaultPathImage;
-import qupath.lib.images.PathImage;
+import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
+import qupath.lib.images.servers.ImageServers.RotatedImageServerBuilder;
 import qupath.lib.regions.RegionRequest;
 
 /**
@@ -37,11 +37,32 @@ import qupath.lib.regions.RegionRequest;
  * @author Pete Bankhead
  *
  */
-public class RotatedImageServer extends WrappedImageServer<BufferedImage> {
+public class RotatedImageServer extends TransformingImageServer<BufferedImage> {
 	
+	/**
+	 * Enum for rotations in increments of 90 degrees.
+	 */
 	public static enum Rotation{
 		
-		ROTATE_NONE, ROTATE_90, ROTATE_180, ROTATE_270;
+		/**
+		 * No rotation.
+		 */
+		ROTATE_NONE,
+		
+		/**
+		 * Rotate 90 degrees clockwise.
+		 */
+		ROTATE_90,
+		
+		/**
+		 * Rotate 180 degrees.
+		 */
+		ROTATE_180,
+		
+		/**
+		 * Rotate 270 degrees clockwise.
+		 */
+		ROTATE_270;
 		
 		@Override
 		public String toString() {
@@ -64,10 +85,11 @@ public class RotatedImageServer extends WrappedImageServer<BufferedImage> {
 	private ImageServerMetadata metadata;
 	private Rotation rotation;
 	
-	public RotatedImageServer(final ImageServer<BufferedImage> server) {
-		this(server, Rotation.ROTATE_180);
-	}
-	
+	/**
+	 * Create an image server that rotates pixel requests for a second server by a specified increment of 90 degrees.
+	 * @param server
+	 * @param rotation
+	 */
 	public RotatedImageServer(final ImageServer<BufferedImage> server, final Rotation rotation) {
 		super(server);
 		this.rotation = rotation;
@@ -78,13 +100,22 @@ public class RotatedImageServer extends WrappedImageServer<BufferedImage> {
 			metadata = getQuarterRotatedMetadata(server.getOriginalMetadata());
 			break;
 		case ROTATE_180:
-			metadata = new ImageServerMetadata.Builder(getClass(), server.getOriginalMetadata())
-						.path(getPath()).build();
+			metadata = new ImageServerMetadata.Builder(server.getOriginalMetadata())
+//						.path(getPath())
+						.build();
 			break;
 		case ROTATE_NONE:
 		default:
 			metadata = server.getOriginalMetadata().duplicate();
 		}
+	}
+	
+	/**
+	 * Get the rotation applied by this server.
+	 * @return
+	 */
+	public Rotation getRotation() {
+		return rotation;
 	}
 	
 	
@@ -102,8 +133,8 @@ public class RotatedImageServer extends WrappedImageServer<BufferedImage> {
 			levelBuilder.addLevel(level.getDownsample(), level.getHeight(), level.getWidth());
 		}
 		
-		var builder = new ImageServerMetadata.Builder(getClass(), metadata)
-				.path(getPath())
+		var builder = new ImageServerMetadata.Builder(metadata)
+//				.path(getPath())
 				.width(metadata.getHeight())
 				.height(metadata.getWidth())
 				.preferredTileSize(metadata.getPreferredTileHeight(), metadata.getPreferredTileWidth())
@@ -114,12 +145,6 @@ public class RotatedImageServer extends WrappedImageServer<BufferedImage> {
 			builder.pixelSizeMicrons(metadata.getPixelHeightMicrons(), metadata.getPixelWidthMicrons());
 		
 		return builder.build();
-	}
-	
-
-	@Override
-	public PathImage<BufferedImage> readRegion(RegionRequest request) throws IOException {
-		return new DefaultPathImage<>(this, rotateRequest(request), readBufferedImage(request));
 	}
 
 	@Override
@@ -138,7 +163,7 @@ public class RotatedImageServer extends WrappedImageServer<BufferedImage> {
 		}
 	}
 	
-	BufferedImage rotate90(RegionRequest request) throws IOException {
+	private BufferedImage rotate90(RegionRequest request) throws IOException {
 		var request2 = rotateRequest(request);
 		
 		var img = getWrappedServer().readBufferedImage(request2);
@@ -166,7 +191,7 @@ public class RotatedImageServer extends WrappedImageServer<BufferedImage> {
 		return new BufferedImage(img.getColorModel(), raster2, img.isAlphaPremultiplied(), null);
 	}
 
-	BufferedImage rotate180(RegionRequest request) throws IOException {
+	private BufferedImage rotate180(RegionRequest request) throws IOException {
 		var request2 = rotateRequest(request);
 		
 		var img = getWrappedServer().readBufferedImage(request2);
@@ -190,7 +215,7 @@ public class RotatedImageServer extends WrappedImageServer<BufferedImage> {
 		return img;
 	}
 
-	BufferedImage rotate270(RegionRequest request) throws IOException {
+	private BufferedImage rotate270(RegionRequest request) throws IOException {
 		var request2 = rotateRequest(request);
 		
 		var img = getWrappedServer().readBufferedImage(request2);
@@ -216,7 +241,7 @@ public class RotatedImageServer extends WrappedImageServer<BufferedImage> {
 		return new BufferedImage(img.getColorModel(), raster2, img.isAlphaPremultiplied(), null);
 	}
 
-	RegionRequest rotateRequest(RegionRequest request) {
+	private RegionRequest rotateRequest(RegionRequest request) {
 		String path = getWrappedServer().getPath();
 		switch (rotation) {
 		case ROTATE_180:
@@ -247,15 +272,45 @@ public class RotatedImageServer extends WrappedImageServer<BufferedImage> {
 		return metadata;
 	}
 	
-	
 	@Override
-	public String getPath() {
-		return getWrappedServer().getPath() + " (" + rotation + ")";
+	protected String createID() {
+		int rot = 0;
+		switch (rotation) {
+		case ROTATE_180:
+			rot = 180;
+			break;
+		case ROTATE_270:
+			rot = 270;
+			break;
+		case ROTATE_90:
+			rot = 90;
+			break;
+		case ROTATE_NONE:
+		default:
+			rot = 0;
+			break;
+		}
+		return getClass().getName() + ": " + getWrappedServer().getPath() + " (Rotate=" + rot + ")";
 	}
 
 	@Override
 	public String getServerType() {
 		return getWrappedServer().getServerType() + " (" + rotation + ")";
+	}
+	
+	@Override
+	protected ServerBuilder<BufferedImage> createServerBuilder() {
+		return new RotatedImageServerBuilder(getMetadata(), getWrappedServer().getBuilder(), getRotation());
+	}
+	
+	/**
+	 * Get a ServerBuilder that applies a rotation to another server.
+	 * @param builder
+	 * @param rotation
+	 * @return
+	 */
+	public static ServerBuilder<BufferedImage> getRotatedBuilder(ServerBuilder<BufferedImage> builder, Rotation rotation) {
+		return new RotatedImageServerBuilder(null, builder, rotation);		
 	}
 
 }

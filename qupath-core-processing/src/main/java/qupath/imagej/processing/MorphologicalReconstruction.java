@@ -261,7 +261,12 @@ public class MorphologicalReconstruction {
 		return true;
 	}
 	
-
+	/**
+	 * Apply morphological operation using marker and mask images. The marker image is changed.
+	 * @param ipMarker
+	 * @param ipMask
+	 * @return
+	 */
 	public static boolean morphologicalReconstruction(final ImageProcessor ipMarker, final ImageProcessor ipMask) {
 		// Really we just need one round of forward propagation, followed by one round of backward
 		// propagation filling in the queue... but working with the queue is slow, so it is better to
@@ -308,8 +313,13 @@ public class MorphologicalReconstruction {
 //	}
 	
 	
-	// Ensure dimensions are the same
-	// If they are, use copyBits to make sure that ipMarker pixel values all <= ipMask
+	/**
+	 * Check that marker and mask images have the same size, and ensure that marker pixels are &lt;= mask pixels, 
+	 * making this if necessary.
+	 * @param ipMarker
+	 * @param ipMask
+	 * @return
+	 */
 	public static boolean validateMarkerMask(ImageProcessor ipMarker, ImageProcessor ipMask) {
 		if (ipMarker.getWidth() != ipMask.getWidth() || ipMarker.getHeight() != ipMask.getHeight())
 			return false;
@@ -317,8 +327,12 @@ public class MorphologicalReconstruction {
 		return true;
 	}
 	
-	
-	
+	/**
+	 * Apply opening by reconstruction, with the specified minimum filter radius.
+	 * @param ip
+	 * @param radius
+	 * @return
+	 */
 	public static ImageProcessor openingByReconstruction(final ImageProcessor ip, final double radius) {
 		// Apply (initial) morphological opening
 		final RankFilters rf = new RankFilters();
@@ -381,8 +395,12 @@ public class MorphologicalReconstruction {
 		return ipReconstructed;
 	}
 	
-	
-	
+	/**
+	 * Ensure that a FloatProcessor only has region minima within a specified Roi, using morphological reconstruction.
+	 * 
+	 * @param fp
+	 * @param roi
+	 */
 	public static void imposeMinima(final FloatProcessor fp, final Roi roi) {
 		final ImageProcessor fpOrig = fp.duplicate();
 
@@ -390,7 +408,7 @@ public class MorphologicalReconstruction {
 		
 		fp.setValue(Float.NEGATIVE_INFINITY);
 		fp.fill(roi);
-		ROILabeling.fillOutside(fp, roi, Float.POSITIVE_INFINITY);
+		RoiLabeling.fillOutside(fp, roi, Float.POSITIVE_INFINITY);
 
 		fpOrig.copyBits(fp, 0, 0, Blitter.MIN);
 
@@ -400,13 +418,19 @@ public class MorphologicalReconstruction {
 		fp.multiply(-1);
 	}
 	
+	/**
+	 * Ensure that a FloatProcessor only has region maxima within a specified Roi, using morphological reconstruction.
+	 * 
+	 * @param fp
+	 * @param roi
+	 */
 	public static void imposeMaxima(FloatProcessor fp, Roi roi) {
 		final ImageProcessor fpOrig = fp.duplicate();
 		final ImageStatistics stats = fp.getStatistics();
 		
 		fp.setValue(Float.POSITIVE_INFINITY);
 		fp.fill(roi);
-		ROILabeling.fillOutside(fp, roi, Float.NEGATIVE_INFINITY);
+		RoiLabeling.fillOutside(fp, roi, Float.NEGATIVE_INFINITY);
 
 		fpOrig.copyBits(fp, 0, 0, Blitter.MAX);
 
@@ -416,6 +440,12 @@ public class MorphologicalReconstruction {
 		fp.fill(roi);
 	}
 	
+	/**
+	 * Ensure that a FloatProcessor only has region maxima within a specified mask, using morphological reconstruction.
+	 * 
+	 * @param fp
+	 * @param ipMask
+	 */
 	public static void imposeMaxima(final FloatProcessor fp, final ImageProcessor ipMask) {
 		final ImageProcessor fpOrig = fp.duplicate();
 		final ImageStatistics stats = fp.getStatistics();
@@ -537,5 +567,95 @@ public class MorphologicalReconstruction {
 		}
 		
 	}
+
+
+	/**
+	 * Replace all potential local maxima - as determined by effectively comparing the image with itself after
+	 * applying a 3x3 maximum filter - with the lowest possible value via {@code setf(x, y, Float.NEGATIVE_INFINITY)}.
+	 * <p>
+	 * These can then be filled in by morphological reconstruction on the way to finding 'true' maxima.
+	 * 
+	 * @param ip
+	 * @param threshold
+	 * @param x1
+	 * @param x2
+	 * @param y1
+	 * @param y2
+	 * @return
+	 */
+	static ImageProcessor getMaximaLabels(ImageProcessor ip, float threshold, int x1, int x2, int y1, int y2) {
+		float minVal = (ip instanceof FloatProcessor) ? Float.NEGATIVE_INFINITY : 0;
+		ImageProcessor ip2 = ip.duplicate();
+		for (int y = y1+1; y < y2-1; y++) {
+			float val = ip.getf(x1, y);
+			float nextVal = ip.getf(x1+1, y);
+			for (int x = x1+1; x < x2-1; x++) {
+				float lastVal = val;
+				val = nextVal;
+				nextVal = ip.getf(x+1, y);
+				if (val < threshold || val < lastVal || val < nextVal)
+					continue;
+				// We have a value >= its horizontal neighbours... now test the verticals
+				if (val >= ip.getf(x-1, y-1) && val >= ip.getf(x, y-1) && val >= ip.getf(x+1, y-1) && 
+						val >= ip.getf(x-1, y+1) && val >= ip.getf(x, y+1) && val >= ip.getf(x+1, y+1))
+					ip2.setf(x, y, minVal);
+			}
+		}
+		ip2.setRoi(ip.getRoi());
+		return ip2;
+	}
+
+
+
+	/**
+		 * Find regional maxima using morphological reconstruction.
+		 * @param ip input image
+		 * @param threshold the extent to which a maximum must be greater than its surroundings
+		 * @param outputBinary if true, the output is a binary image
+		 * @return
+		 */
+		public static ImageProcessor findRegionalMaxima(ImageProcessor ip, float threshold, boolean outputBinary) {
+	//		float minVal = (ip instanceof FloatProcessor) ? Float.NEGATIVE_INFINITY : 0;
+	
+			Rectangle bounds = ip.getRoi();
+			int x1, x2, y1, y2;
+			if (bounds == null) {
+				x1 = 0;
+				x2 = ip.getWidth();
+				y1 = 0;
+				y2 = ip.getHeight();
+			} else {
+				x1 = bounds.x;
+				x2 = bounds.x + bounds.width;
+				y1 = bounds.y;
+				y2 = bounds.y + bounds.height;
+			}
+			
+			
+	//		long startTime = System.currentTimeMillis();
+			ImageProcessor ip2 = getMaximaLabels(ip, threshold, x1, x2, y1, y2);
+			
+	
+			morphologicalReconstruction(ip2, ip);
+			
+			
+			// Determine the height of the maxima
+			ImageProcessor ipOutput;
+			if (outputBinary)
+				ipOutput = SimpleThresholding.greaterThan(ip, ip2);
+			else {
+				ip2.copyBits(ip, 0, 0, Blitter.DIFFERENCE);
+				ipOutput = ip2;
+			}
+			
+	//		// Apply a mask, if there is one
+	//		byte[] mask = ip.getMaskArray();
+	//		if (mask != null) {
+	//			for (int i = 0; i < mask.length; i++)
+	//				if (mask[i] == 0)
+	//					ipOutput.set(i, 0);
+	//		}
+			return ipOutput;
+		}
 
 }

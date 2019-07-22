@@ -140,10 +140,12 @@ public class TMASummaryEntry implements TMAEntry {
 		return n;
 	}
 
+	@Override
 	public boolean hasImage() {
 		return entries.stream().anyMatch(e -> e.hasImage());
 	}
 
+	@Override
 	public boolean hasOverlay() {
 		return entries.stream().anyMatch(e -> e.hasOverlay());
 	}

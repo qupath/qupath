@@ -34,7 +34,7 @@ import qupath.lib.roi.interfaces.ROI;
 /**
  * Minimal interface that may be used to plugins that perform detection within a specified ROI 
  * and using a specified ImageData with set parameters.
- * 
+ * <p>
  * This enables new detection plugins to be written with somewhat less boilerplate code.
  * 
  * @author Pete Bankhead
@@ -43,8 +43,21 @@ import qupath.lib.roi.interfaces.ROI;
  */
 public interface ObjectDetector<T> {
 	
-	public Collection<PathObject> runDetection(ImageData<T> imageData, ParameterList params, ROI pathROI) throws IOException;
+	/**
+	 * Detect objects.
+	 * 
+	 * @param imageData the {@link ImageData} for which objects should be detected
+	 * @param params optional list of parameters required for the detection
+	 * @param roi specific region within which the detection should be applied
+	 * @return
+	 * @throws IOException
+	 */
+	public Collection<PathObject> runDetection(ImageData<T> imageData, ParameterList params, ROI roi) throws IOException;
 
+	/**
+	 * Get a String summarizing the result, which may be displayed to a user or logged.
+	 * @return
+	 */
 	public String getLastResultsDescription();
 
 }

@@ -15,6 +15,7 @@ import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.PasswordAuthentication;
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -42,7 +43,6 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerBuilder;
-import qupath.lib.images.servers.FileFormatInfo.ImageCheckType;
 
 /**
  * Builder for ImageServers that make requests from the OMERO web API.
@@ -73,12 +73,12 @@ public class OmeroWebImageServerBuilder implements ImageServerBuilder<BufferedIm
 	private String lastUsername = "";
 
 	@Override
-	public ImageServer<BufferedImage> buildServer(URI uri) {
+	public ImageServer<BufferedImage> buildServer(URI uri, String...args) {
 
 		try {
 			String host = uri.getHost();
 
-			if (supportLevel(uri, null, BufferedImage.class) <= 0) {
+			if (supportLevel(uri) <= 0) {
 				logger.debug("OMERO web server does not support {}", uri);
 				return null;
 			}
@@ -92,19 +92,43 @@ public class OmeroWebImageServerBuilder implements ImageServerBuilder<BufferedIm
 				if (client.getServers().size() > 1) {
 					logger.warn("Found multiple servers for {} - will take the first one", host);
 				}
-
-				PasswordAuthentication authentication = OmeroAuthenticatorFX.getPasswordAuthentication(
-						"Please enter your login details for OMERO server", uri.getHost(), lastUsername);
+				
+				// TODO: Parse args to look for password (or password file - and don't store them!)
+				String username = lastUsername;
+				char[] password = null;
+				List<String> cleanedArgs = new ArrayList<>();
+				String authenticationFile = null;
+				int i = 0;
+				while (i < args.length-1) {
+					String name = args[i++];
+					if ("--username".equals(name) || "-u".equals(name))
+						username = args[i++];
+					else if ("--password".equals(name) || "-p".equals(name)) {
+						password = args[i++].toCharArray();
+					} else
+						cleanedArgs.add(name);
+				}
+				if (cleanedArgs.size() < args.length)
+					args = cleanedArgs.toArray(String[]::new);
+				
+				PasswordAuthentication authentication;
+				if (username != null && password != null) {
+					logger.info("Username & password parsed from args");
+					authentication = new PasswordAuthentication(username, password);
+				} else 
+					authentication = OmeroAuthenticatorFX.getPasswordAuthentication(
+						"Please enter your login details for OMERO server", uri.getHost(), username);
 				if (authentication == null) {
 					logger.warn("Could not log in to {}!", host);
 					return null;
 				}
 				lastUsername = authentication.getUserName();
 				String result = client.login(authentication, client.getServers().get(0).id);
+				Arrays.fill(authentication.getPassword(), (char)0);
 				logger.info(result);
 			}
 
-			return new OmeroWebImageServer(uri, client);
+			return new OmeroWebImageServer(uri, client, args);
 		} catch (Exception e1) {
 			logger.error("Problem connecting to OMERO web server", e1);
 		}
@@ -112,10 +136,12 @@ public class OmeroWebImageServerBuilder implements ImageServerBuilder<BufferedIm
 	}
 
 	@Override
-	public float supportLevel(URI uri, ImageCheckType type, Class<?> cls) {
-		// We only support BufferedImages
-		if (cls != BufferedImage.class)
-			return 0;
+	public UriImageSupport<BufferedImage> checkImageSupport(URI uri, String...args) {
+		float supportLevel = supportLevel(uri, args);
+		return UriImageSupport.createInstance(this.getClass(), supportLevel, DefaultImageServerBuilder.createInstance(this.getClass(), uri, args));
+	}
+	
+	private float supportLevel(URI uri, String...args) {
 
 		String host = uri.getHost();
 
@@ -151,7 +177,12 @@ public class OmeroWebImageServerBuilder implements ImageServerBuilder<BufferedIm
 	public String getDescription() {
 		return "Image server using the OMERO web API";
 	}
-
+	
+	@Override
+	public Class<BufferedImage> getImageType() {
+		return BufferedImage.class;
+	}
+	
 	static class OmeroWebClient {
 
 		private Timer timer;
@@ -313,7 +344,7 @@ public class OmeroWebImageServerBuilder implements ImageServerBuilder<BufferedIm
 			return parseJSON(Map.class, base, query);
 		}
 
-		private String getJSONString(String base, String... query) throws MalformedURLException, IOException {
+		private static String getJSONString(String base, String... query) throws MalformedURLException, IOException {
 
 			StringBuilder sb = new StringBuilder(base);
 			for (String q : query)
@@ -323,8 +354,10 @@ public class OmeroWebImageServerBuilder implements ImageServerBuilder<BufferedIm
 			connection.setRequestProperty("Content-Type", "application/json");
 			connection.setRequestMethod("GET");
 			connection.setDoInput(true);
-			Scanner s = new Scanner(connection.getInputStream()).useDelimiter("\\A");
-			return s.hasNext() ? s.next() : "";
+			try (InputStream stream = connection.getInputStream()) {
+				Scanner s = new Scanner(stream).useDelimiter("\\A");
+				return s.hasNext() ? s.next() : "";
+			}
 		}
 
 		private <T> T parseJSON(Class<T> cls, String base, String... query)
@@ -332,6 +365,7 @@ public class OmeroWebImageServerBuilder implements ImageServerBuilder<BufferedIm
 			return gson.fromJson(getJSONString(base, query), cls);
 		}
 
+		@SuppressWarnings("unchecked")
 		private <T> T parseJSON(Type type, String base, String... query)
 				throws JsonSyntaxException, MalformedURLException, IOException {
 			return (T) gson.fromJson(getJSONString(base, query), type);
@@ -373,6 +407,7 @@ public class OmeroWebImageServerBuilder implements ImageServerBuilder<BufferedIm
 		private int id;
 		private int port;
 
+		@Override
 		public String toString() {
 			return String.format("Host: %s, Server: %s, ID: %d, Port: %d", host, server, id, port);
 		}

@@ -238,6 +238,7 @@ public class SampleScriptLoader implements PathCommand {
 			return description;
 		}
 
+		@Override
 		public String toString() {
 			return getName();
 		}

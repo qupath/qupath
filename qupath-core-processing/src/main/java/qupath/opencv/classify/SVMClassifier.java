@@ -23,7 +23,9 @@
 
 package qupath.opencv.classify;
 
-import org.bytedeco.javacpp.opencv_ml.SVM;
+import java.util.Arrays;
+
+import org.bytedeco.opencv.opencv_ml.SVM;
 
 import qupath.lib.plugins.parameters.ParameterList;
 
@@ -79,7 +81,7 @@ public class SVMClassifier extends ParameterizableOpenCvClassifier<SVM> {
 	@Override
 	protected ParameterList createParameterList() {
 		return new ParameterList()
-				.addChoiceParameter("kernel", "Kernel type", "RBF", new String[]{"Linear", "Polynomial", "RBF", "Histogram intersection"})
+				.addChoiceParameter("kernel", "Kernel type", "RBF", Arrays.asList("Linear", "Polynomial", "RBF", "Histogram intersection"), "SVM kernel type")
 				.addDoubleParameter("c", "C", 1, null, "C parameter for SVM optimization; must be > 0")
 				.addDoubleParameter("gamma", "Gamma", 1, null, "Gamma parameter for SVM optimization")
 				.addIntParameter("degree", "Polynomial degree", 0, null, "Set polynomial degree - only relevant to 'polynomial' kernal type. Lower values preferred for stability.");

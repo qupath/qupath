@@ -46,18 +46,17 @@ import qupath.lib.objects.PathROIObject;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.ImageRegion;
-import qupath.lib.roi.PathROIToolsAwt;
+import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.PointsROI;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.PathArea;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
- * 
  * Helper methods to convert ObjectDetectors into runnable tasks, which take care of resolving 
  * overlaps when using ParallelTileObjects after the detection is complete and firing notification 
  * events in a PathObjectHierarchy.
- * 
+ * <p>
  * Internally, a PathTask is used with the important resolution/event-firing occurring within the
  * taskComplete method.
  * 
@@ -68,11 +67,21 @@ import qupath.lib.roi.interfaces.ROI;
 public class DetectionPluginTools {
 	
 	
-	public static <T> Runnable createRunnableTask(final ObjectDetector<T> task, final ParameterList params, final ImageData<T> imageData, final PathObject parentObject, final ROI pathROI, final int overlapAmount) {
+	private static <T> Runnable createRunnableTask(final ObjectDetector<T> task, final ParameterList params, final ImageData<T> imageData, final PathObject parentObject, final ROI pathROI, final int overlapAmount) {
 		return new DetectionRunnable<>(task, params, imageData, parentObject, pathROI, overlapAmount);
 	}
 
-
+	/**
+	 * Create a task that applies an object detector to a parent object.
+	 * <p>
+	 * Detected objects will be added as children of the parent. If the parent has a ROI, this may define the detection ROI.
+	 * @param <T>
+	 * @param task
+	 * @param params
+	 * @param imageData
+	 * @param parentObject
+	 * @return
+	 */
 	public static <T> Runnable createRunnableTask(final ObjectDetector<T> task, final ParameterList params, final ImageData<T> imageData, final PathObject parentObject) {
 		return createRunnableTask(task, params, imageData, parentObject, parentObject.getROI(), 0);
 	}
@@ -138,7 +147,7 @@ public class DetectionPluginTools {
 
 
 
-		private void tryToSetObjectLock(final PathObject pathObject, final boolean locked) {
+		private static void tryToSetObjectLock(final PathObject pathObject, final boolean locked) {
 			if (pathObject instanceof PathROIObject)
 				((PathROIObject)pathObject).setLocked(locked);
 		}
@@ -178,7 +187,7 @@ public class DetectionPluginTools {
 					Map<Area, PathObject> mapOld = new HashMap<>();
 					for (PathObject tempObject : overlapObjects) {
 						if (tempObject.getROI() instanceof PathArea) {
-							Shape shapeTemp = PathROIToolsAwt.getShape(tempObject.getROI());
+							Shape shapeTemp = RoiTools.getShape(tempObject.getROI());
 							Area areaTemp = new Area(shapeTemp);
 							mapOld.put(areaTemp, tempObject);
 							((Path2D)pathOldComposite).append(shapeTemp, false);
@@ -223,7 +232,7 @@ public class DetectionPluginTools {
 							// If the bounds are intersected, check for an actual intersection between the areas
 							Area temp = new Area(areaOld);
 							if (areaNew == null)
-								areaNew = PathROIToolsAwt.getArea(pathAreaNew);
+								areaNew = RoiTools.getArea(pathAreaNew);
 							temp.intersect(areaNew);
 							if (temp.isEmpty())
 								continue;
@@ -264,7 +273,7 @@ public class DetectionPluginTools {
 			//				imageData.getHierarchy().addPathObjects(previousChildren, false);
 
 			// TODO: Note that this can block for an annoying amount of time due to hierarchy lock & repaints etc.
-			//				if (!(parentObject instanceof ParallelTileObject))
+							if (!(parentObject instanceof ParallelTileObject))
 			imageData.getHierarchy().fireHierarchyChangedEvent(parentObject);
 
 			//			}

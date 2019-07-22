@@ -32,6 +32,7 @@ import org.openslide.OpenSlide;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import qupath.lib.images.servers.FileFormatInfo;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerBuilder;
 import qupath.lib.images.servers.FileFormatInfo.ImageCheckType;
@@ -95,26 +96,32 @@ public class OpenslideServerBuilder implements ImageServerBuilder<BufferedImage>
 	}
 	
 	@Override
-	public ImageServer<BufferedImage> buildServer(URI uri) {
+	public ImageServer<BufferedImage> buildServer(URI uri, String...args) {
 		if (openslideUnavailable) {
 			logger.debug("OpenSlide is unavailable - will be skipped");
 			return null;
 		}
 		try {
-			return new OpenslideImageServer(uri);
+			return new OpenslideImageServer(uri, args);
 		} catch (Exception e) {
 			logger.warn("Unable to open {} with OpenSlide: {}", uri, e.getLocalizedMessage());
 		}
 		return null;
 	}
-
+	
 	@Override
-	public float supportLevel(URI uri, ImageCheckType type, Class<?> cls) {
-		if (cls != BufferedImage.class || openslideUnavailable)
+	public UriImageSupport<BufferedImage> checkImageSupport(URI uri, String...args) {
+		float supportLevel = supportLevel(uri, args);
+		return UriImageSupport.createInstance(this.getClass(), supportLevel, DefaultImageServerBuilder.createInstance(this.getClass(), uri, args));
+	}
+
+	private float supportLevel(URI uri, String...args) {
+		if (openslideUnavailable)
 			return 0;
 		
 		// Don't handle queries or fragments with OpenSlide
-		if (!"file".equals(uri.getScheme()) || uri.getQuery() != null || uri.getFragment() != null)
+		ImageCheckType type = FileFormatInfo.checkType(uri);
+		if (type.isURL() || type.getFile() == null)
 			return 0;
 		
 		try {
@@ -126,20 +133,17 @@ public class OpenslideServerBuilder implements ImageServerBuilder<BufferedImage>
 			logger.debug("Unable to read with OpenSlide: {}", e.getLocalizedMessage());
 		}
 		
-		switch (type) {
-		case TIFF_2D_RGB:
+		// We can only handle RGB images with OpenSlide... so if we don't think it's RGB, use only as a last resort
+		if (type.isNotRGB())
+			return 1f;
+		
+		// We're pretty good on 2D RGB, not great if we have more images
+		if (type.nImagesLargest() == 1)
 			return 3.5f;
-		case TIFF_IMAGEJ:
-			return 1;
-		case TIFF_OTHER:
-			return 1;
-		case UNKNOWN:
-			return 3;
-		case URL:
-			return 0;
-		default:
-			return 2;
-		}
+		else if (type.nImagesLargest() == -1)
+			return 2.5f;
+		else
+			return 1f;
 	}
 	
 	@Override
@@ -150,6 +154,11 @@ public class OpenslideServerBuilder implements ImageServerBuilder<BufferedImage>
 	@Override
 	public String getDescription() {
 		return "Provides basic access to whole slide image formats supported by OpenSlide - see http://openslide.org";
+	}
+	
+	@Override
+	public Class<BufferedImage> getImageType() {
+		return BufferedImage.class;
 	}
 	
 }

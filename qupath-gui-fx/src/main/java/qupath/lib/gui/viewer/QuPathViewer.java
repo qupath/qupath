@@ -96,8 +96,8 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
 import javafx.scene.text.TextAlignment;
-import qupath.lib.awt.color.ColorToolsAwt;
 import qupath.lib.awt.common.AwtTools;
+import qupath.lib.color.ColorToolsAwt;
 import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.display.ImageDisplay;
@@ -115,11 +115,13 @@ import qupath.lib.gui.viewer.overlays.GridOverlay;
 import qupath.lib.gui.viewer.overlays.HierarchyOverlay;
 import qupath.lib.gui.viewer.overlays.ImageDataOverlay;
 import qupath.lib.gui.viewer.overlays.PathOverlay;
+import qupath.lib.gui.viewer.overlays.PixelLayerOverlay;
 import qupath.lib.gui.viewer.overlays.TMAGridOverlay;
 import qupath.lib.gui.viewer.tools.MoveTool;
 import qupath.lib.gui.viewer.tools.PathTool;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.TMACoreObject;
@@ -157,12 +159,16 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	// Overlay (ROI/object) display variables
 	private OverlayOptions overlayOptions;
 
-	// A PathImageServer used to wrap a PathObjectHierarchy, for faster painting when there are a lot of objects
+	// An overlay used to display an ImageServer wrapping a PathObjectHierarchy, for faster painting when there are a lot of objects
 	private HierarchyOverlay hierarchyOverlay = null;
 	// An overlay to show a TMA grid
 	private TMAGridOverlay tmaGridOverlay;
 	// An overlay to show a regular grid (e.g. for counting)
 	private GridOverlay gridOverlay;
+	// A default overlay to show a pixel layer on top of an image
+	private PixelLayerOverlay pixelLayerOverlay = null;
+	// A custom pixel overlay to use instead of the default
+	private PathOverlay customPixelLayerOverlay = null;
 	
 	// Overlay layers that can be edited
 	private ObservableList<PathOverlay> customOverlayLayers = FXCollections.synchronizedObservableList(FXCollections.observableArrayList());
@@ -354,7 +360,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	 * Prevent frequent repaints (temporarily) by setting a minimum time that must have elapsed
 	 * after the previous repaint for a new one to be triggered.
 	 * (Repaint requests that come in between are simply disregarded for performance.)
-	 * 
+	 * <p>
 	 * When finished, it's necessary to call resetMinimumRepaintSpacingMillis() to make sure that 
 	 * normal service is resumed.
 	 * 
@@ -368,7 +374,8 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 
 	/**
 	 * Return to processing all repainting requests.
-	 * (Note: calling this command triggers a repaint itself.)
+	 * <p>
+	 * Note: calling this command triggers a repaint itself.
 	 */
 	public void resetMinimumRepaintSpacingMillis() {
 		this.minimumRepaintSpacingMillis = -1;
@@ -530,21 +537,33 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	}
 
 	/**
-	 * The amount by which the downsample factor is scaled for one increment of zoomIn() or zoomOut().  Controls zoom speed.
+	 * The amount by which the downsample factor is scaled for one increment of {@link #zoomIn()} or 
+	 * {@link #zoomOut()}.  Controls zoom speed.
 	 * @return
 	 */
 	public double getDefaultZoomFactor() {
 		return 1.01;
 	}
 
+	/**
+	 * Zoom out by one step.
+	 * 
+	 * @see #zoomOut(int)
+	 * @see #getDefaultZoomFactor()
+	 */
 	public void zoomOut() {
 		zoomOut(1);
 	}
 
+	/**
+	 * Zoom in by one step.
+	 * 
+	 * @see #zoomIn(int)
+	 * @see #getDefaultZoomFactor()
+	 */
 	public void zoomIn() {
 		zoomIn(1);		
 	}
-
 
 
 	public void registerTools(Map<Modes, PathTool> tools) {
@@ -635,10 +654,12 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 			this.listener = listener;
 		}
 		
+		@Override
 		public void attach() {
 			this.observable.addListener(listener);
 		}
 		
+		@Override
 		public void detach() {
 			this.observable.removeListener(listener);
 		}
@@ -746,8 +767,10 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		hierarchyOverlay = new HierarchyOverlay(this.regionStore, overlayOptions, imageData);
 		tmaGridOverlay = new TMAGridOverlay(overlayOptions, imageData);
 		gridOverlay = new GridOverlay(overlayOptions, imageData);
+		pixelLayerOverlay = new PixelLayerOverlay(this);
 		// Set up the overlay layers
 		coreOverlayLayers.setAll(
+				pixelLayerOverlay,
 				tmaGridOverlay,
 				hierarchyOverlay,
 				gridOverlay
@@ -939,7 +962,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	
 	/**
 	 * Notify this viewer that the isSpaceDown status should be changed.
-	 * 
+	 * <p>
 	 * This is useful whenever another component might have received the event,
 	 * but the viewer needs to 'know' when it receives the focus.
 	 * 
@@ -948,19 +971,22 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	public void setSpaceDown(boolean spaceDown) {
 		if (this.spaceDown == spaceDown)
 			return;
-		this.spaceDown = spaceDown;
+ 		this.spaceDown = spaceDown;
 		if (spaceDown) {
 			// Temporarily switch to 'move' tool
 			if (activeTool != null)
 				activeTool.deregisterTool(this);
 			activeTool = tools.get(Modes.MOVE);
-			activeTool.registerTool(this);
+			if (activeTool != null)
+				activeTool.registerTool(this);
 		} else {
 			// Reset tool, as required
 			if (activeTool != tools.get(mode)) {
-				activeTool.deregisterTool(this);
+				if (activeTool != null)
+					activeTool.deregisterTool(this);
 				activeTool = tools.get(mode);
-				activeTool.registerTool(this);
+				if (activeTool != null)
+					activeTool.registerTool(this);
 			}
 		}
 		logger.trace("Setting space down to {} - active tool {}", spaceDown, activeTool);
@@ -1091,13 +1117,11 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	
 	protected void updateCursor() {
 //		logger.debug("Requested cursor {} for {}", requestedCursor, getMode());
-		switch(getMode()) {
-		case MOVE:
+		Modes mode = getMode();
+		if (mode == Modes.MOVE)
 			getView().setCursor(Cursor.HAND);
-			break;
-		default:
+		else
 			getView().setCursor(requestedCursor);
-		}
 	}
 	
 	
@@ -1154,6 +1178,48 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 			return Collections.emptyList();
 		else
 			return hierarchy.getSelectionModel().getSelectedObjects();
+	}
+		
+	/**
+	 * Optionally set a custom overlay to use for the pixel layer.
+	 * <p>
+	 * This is useful to support live prediction based on a specific field of view, for example.
+	 * 
+	 * @param pathOverlay
+	 */
+	public void setCustomPixelLayerOverlay(PathOverlay pathOverlay) {
+		if (this.customPixelLayerOverlay == pathOverlay)
+			return;
+		// Get existing custom overlay
+		var previousOverlay = getCurrentPixelLayerOverlay();
+		int ind = coreOverlayLayers.indexOf(previousOverlay);
+		this.customPixelLayerOverlay = pathOverlay;
+		if (ind < 0) {
+			logger.warn("Pixel layer overlay not found! Will try to recover...");
+			coreOverlayLayers.removeAll(pixelLayerOverlay, customPixelLayerOverlay);
+			coreOverlayLayers.add(0, getCurrentPixelLayerOverlay());
+		} else {
+			coreOverlayLayers.set(ind, getCurrentPixelLayerOverlay());
+		}
+	}
+	
+	public void resetCustomPixelLayerOverlay() {
+		setCustomPixelLayerOverlay(null);
+	}
+
+	
+	private PathOverlay getCurrentPixelLayerOverlay() {
+		return customPixelLayerOverlay == null ? pixelLayerOverlay : customPixelLayerOverlay;
+	}
+	
+
+	/**
+	 * Get the custom pixel layer overlay, or null if it has not be set.
+	 * 
+	 * @return
+	 */
+	public PathOverlay getCustomPixelLayerOverlay() {
+		return customPixelLayerOverlay;
 	}
 
 	/**
@@ -1318,6 +1384,10 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		return temp == null ? null : temp.getServer();
 	}
 
+	/**
+	 * Returns true if there is currently an ImageServer being displayed in this viewer.
+	 * @return
+	 */
 	public boolean hasServer() {
 		return getServer() != null;
 	}
@@ -1326,24 +1396,40 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	private IntegerProperty tPosition = new SimpleIntegerProperty(0);
 	private IntegerProperty zPosition = new SimpleIntegerProperty(0);
 
+	/**
+	 * Set the requested z-slice to be visible.
+	 * @param zPos
+	 */
 	public void setZPosition(int zPos) {
 		zPosition.set(zPos);
 	}
 
+	/**
+	 * Get the currently-visible time point.
+	 * @return
+	 */
 	public int getTPosition() {
 		return tPosition.get();
 	}
 
+	/**
+	 * Set the requested time point to be visible.
+	 * @param tPosition
+	 */
 	public void setTPosition(int tPosition) {
 		this.tPosition.set(tPosition);
 	}
 
+	/**
+	 * Get the currently-visible z-slice.
+	 * @return
+	 */
 	public int getZPosition() {
 		return zPosition.get();
 	}
 	
 	/**
-	 * Get the {@link ImagePlane} currently being displayed, including z and t positions.
+	 * Get the {@link ImagePlane} currently being displayed, including z and t positions. Channels are ignored.
 	 * 
 	 * @return
 	 */
@@ -1479,7 +1565,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	public double getFullMagnification() {
 		if (!hasServer())
 			return 1.0;
-		double magnification = getServer().getMagnification();
+		double magnification = getServer().getMetadata().getMagnification();
 		if (Double.isNaN(magnification))
 			return 1.0;
 		else
@@ -1665,6 +1751,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 			Color color = getSuggestedOverlayColor();
 			// Paint the overlay layers
 			for (PathOverlay overlay : allOverlayLayers.toArray(PathOverlay[]::new)) {
+				logger.trace("Painting overlay: {}", overlay);
 				overlay.setPreferredOverlayColor(color);
 //				overlay.paintOverlay(g2d, regionBounds, downsample, null, paintCompletely);
 				overlay.paintOverlay(g2d, getServerBounds(), downsample, null, paintCompletely);
@@ -1754,7 +1841,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	 * @param h
 	 * @return
 	 */
-	protected BufferedImage createBufferedImage(final int w, final int h) {
+	static BufferedImage createBufferedImage(final int w, final int h) {
 		return new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB_PRE);
 	}
 
@@ -2004,11 +2091,12 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	public String getTooltipText(final double x, final double y) {
 		// Try to show which TMA core is selected - if we have a TMA image
 		PathObjectHierarchy hierarchy = getHierarchy();
-		if (PathPrefs.showTMAToolTips() && hierarchy != null && hierarchy.getTMAGrid() != null) {
+		TMAGrid tmaGrid = hierarchy == null ? null : hierarchy.getTMAGrid();
+		if (PathPrefs.showTMAToolTips() && tmaGrid != null) {
 			Point2D p = componentPointToImagePoint(x, y, null, false);
 //						double xx = componentXtoImageX(x);
 //						double yy = componentYtoImageY(y);
-			TMACoreObject core = PathObjectTools.getTMACoreForLocation(hierarchy, p.getX(), p.getY());
+			TMACoreObject core = PathObjectTools.getTMACoreForPixel(tmaGrid, p.getX(), p.getY());
 			if (core != null) {
 				if (core.isMissing())
 					return String.format("TMA Core %s\n(missing)", core.getName());
@@ -2251,14 +2339,14 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		ImageServer<BufferedImage> server = getServer();
 		if (server == null)
 			return Double.NaN;
-		return server.getPixelWidthMicrons() * getDownsampleFactor();
+		return server.getPixelCalibration().getPixelWidthMicrons() * getDownsampleFactor();
 	}
 
 	public double getDisplayedPixelHeightMicrons() {
 		ImageServer<BufferedImage> server = getServer();
 		if (server == null)
 			return Double.NaN;
-		return server.getPixelHeightMicrons() * getDownsampleFactor();
+		return server.getPixelCalibration().getPixelHeightMicrons() * getDownsampleFactor();
 	}
 
 
@@ -2292,18 +2380,20 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 
 		double xDisplay = xx;
 		double yDisplay = yy;
-		if (useCalibratedUnits && server.hasPixelSizeMicrons()) {
-			units = '\u00B5' + "m";
-			xDisplay *= server.getPixelWidthMicrons();
-			yDisplay *= server.getPixelHeightMicrons();
+		PixelCalibration cal = server.getPixelCalibration();
+		if (useCalibratedUnits && cal.hasPixelSizeMicrons()) {
+			units = GeneralTools.micrometerSymbol();
+			xDisplay *= cal.getPixelWidthMicrons();
+			yDisplay *= cal.getPixelHeightMicrons();
 		} else {
 			units = "px";
 		}
 		
 		// See if we're on top of a TMA core
 		String prefix = "";
-		if (getHierarchy().getTMAGrid() != null) {
-			TMACoreObject core = getHierarchy().getTMAGrid().getTMACoreForPixel(xx, yy);
+		TMAGrid tmaGrid = getHierarchy().getTMAGrid();
+		if (tmaGrid != null) {
+			TMACoreObject core = PathObjectTools.getTMACoreForPixel(tmaGrid, xx, yy);
 			if (core != null && core.getName() != null)
 				prefix = "Core: " + core.getName() + "\n";
 		}
@@ -2339,7 +2429,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		// Append z, t position if required
 		String zString = null;
 		if (server.nZSlices() > 1) {
-			double zSpacing = server.getZSpacingMicrons();
+			double zSpacing = server.getPixelCalibration().getZSpacingMicrons();
 			if (!useCalibratedUnits || Double.isNaN(zSpacing))
 				zString = "z = " + getZPosition();
 			else
@@ -2729,6 +2819,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 
 			// Use arrow keys to navigate, either or directly or using a TMA grid
 			TMAGrid tmaGrid = hierarchy.getTMAGrid();
+			List<TMACoreObject> cores = tmaGrid == null ? Collections.emptyList() : new ArrayList<>(tmaGrid.getTMACoreList());
 			if (!event.isShiftDown() && tmaGrid != null && tmaGrid.nCores() > 0) {
 				if (event.getEventType() != KeyEvent.KEY_PRESSED)
 					return;
@@ -2743,8 +2834,9 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 				if (ind < 0) {
 					// Find the closest TMA core to the current position
 					double minDisplacementSq = Double.POSITIVE_INFINITY;
-					for (int i = 0; i < tmaGrid.nCores(); i++) {
-						ROI coreROI = tmaGrid.getTMACore(i).getROI();
+					int i = 0;
+					for (TMACoreObject core : cores) {
+						ROI coreROI = core.getROI();
 						double dx = coreROI.getCentroidX() - getCenterPixelX();
 						double dy = coreROI.getCentroidY() - getCenterPixelY();
 						double displacementSq = dx*dx + dy*dy;
@@ -2752,6 +2844,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 							ind = i;
 							minDisplacementSq = displacementSq;
 						}
+						i++;
 					}
 				}
 
@@ -2785,7 +2878,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 				}
 				// Set the selected object & center the viewer
 				if (ind >= 0 && ind < w*h) {
-					PathObject selectedObject = tmaGrid.getTMACore(ind);
+					PathObject selectedObject = cores.get(ind);
 					hierarchy.getSelectionModel().setSelectedObject(selectedObject);
 					if (selectedObject != null && selectedObject.hasROI())
 						setCenterPixelLocation(selectedObject.getROI().getCentroidX(), selectedObject.getROI().getCentroidY());

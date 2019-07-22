@@ -27,7 +27,7 @@ import java.awt.AlphaComposite;
 import java.awt.Color;
 import java.awt.Graphics2D;
 
-import qupath.lib.awt.color.ColorToolsAwt;
+import qupath.lib.color.ColorToolsAwt;
 import qupath.lib.gui.viewer.OverlayOptions;
 
 /**

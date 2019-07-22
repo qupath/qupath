@@ -24,18 +24,21 @@
 package qupath.lib.common;
 
 import java.awt.Desktop;
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.lang.reflect.Type;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.net.URL;
+import java.net.URLConnection;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.text.NumberFormat;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -103,15 +106,6 @@ public class GeneralTools {
 	public static boolean blankString(final String s, final boolean trim) {
 		return s == null || s.trim().length() == 0;
 	}
-
-	/**
-	 * Check if a string is blank, i.e. it is null or its length is 0.
-	 * @param s
-	 * @return True if the string is null or empty.
-	 */
-	public static boolean blankString(final String s) {
-		return s == null || s.length() == 0;
-	}
 	
 	/**
 	 * Escape backslashes in an absolute file path - useful when scripting.
@@ -148,8 +142,10 @@ public class GeneralTools {
 	}
 
 	/**
-	 * Test if two doubles are approximately equal, within a specified tolerance;
-	 * the absolute difference is divided by the first of the numbers before the tolerance is checked.
+	 * Test if two doubles are approximately equal, within a specified tolerance.
+	 * <p>
+	 * The absolute difference is divided by the first of the numbers before the tolerance is checked.
+	 * 
 	 * @param n1
 	 * @param n2
 	 * @param tolerance
@@ -202,8 +198,8 @@ public class GeneralTools {
 	
 
 	/**
-	 * Convert a double array to string, with a specified number of decimal places; trailing zeros are
-	 * not included.
+	 * Convert a double array to string, with a specified number of decimal places.
+	 * Trailing zeros are not included.
 	 * 
 	 * @param locale
 	 * @param array
@@ -285,24 +281,6 @@ public class GeneralTools {
 		NumberFormat nf = NumberFormat.getInstance();
 		nf.setMaximumFractionDigits(nDecimalPlaces);
 		return nf;
-//		switch (nDecimalPlaces) {
-//		case 0: return new DecimalFormat("#."); // TODO: Check if this is correct!
-//		case 1: return new DecimalFormat("#.#");
-//		case 2: return new DecimalFormat("#.##");
-//		case 3: return new DecimalFormat("#.###");
-//		case 4: return new DecimalFormat("#.####");
-//		case 5: return new DecimalFormat("#.#####");
-//		case 6: return new DecimalFormat("#.######");
-//		case 7: return new DecimalFormat("#.#######");
-//		case 8: return new DecimalFormat("#.########");
-//		case 9: return new DecimalFormat("#.#########");
-//		default:
-//			StringBuilder sb = new StringBuilder();
-//			sb.append("#.");
-//			for (int i = 0; i < nDecimalPlaces; i++)
-//				sb.append("#");
-//			return new DecimalFormat(sb.toString());
-//		}
 	}
 	
 	/**
@@ -344,7 +322,7 @@ public class GeneralTools {
 
 	/**
 	 * Parse the contents of a JSON String.
-	 * 
+	 * <p>
 	 * Note that this is pretty unsophisticated... also, no localization is performed (using Java's Locales, for example) -
 	 * so that decimal values should be provided in the form 1.234 (and not e.g. 1,234).
 	 * 
@@ -367,23 +345,6 @@ public class GeneralTools {
 	 */
 	public final static String micrometerSymbol() {
 		return '\u00B5' + "m";
-	}
-
-	/**
-	 * Check if a collection returns at least one object of a specified class.
-	 * 
-	 * @param collection
-	 * @param cls
-	 * @return true if an object is contained within the collection that is an instance of the specified class (including subclasses), false otherwise
-	 */
-	public static boolean containsClass(Collection<?> collection, Class<?> cls) {
-		if (collection == null)
-			return false;
-		for (Object o : collection) {
-			if (cls.isInstance(o))
-				return true;
-		}
-		return false;
 	}
 	
 	
@@ -479,6 +440,46 @@ public class GeneralTools {
 				return;
 		}
 		fileToDelete.delete();
+	}
+
+
+	/**
+	 * Read URL as String, with specified timeout in milliseconds.
+	 * <p>
+	 * The content type is checked, and an IOException is thrown if this doesn't start with text/plain.
+	 * 
+	 * @param url
+	 * @param timeoutMillis
+	 * @return
+	 */
+	public static String readURLAsString(final URL url, final int timeoutMillis) throws IOException {
+		StringBuilder response = new StringBuilder();
+		String line = null;
+		URLConnection connection = url.openConnection();
+		connection.setConnectTimeout(timeoutMillis);
+		String contentType = connection.getContentType();
+		if (contentType.startsWith("text/plain")) {
+			try (BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream()))) {
+				while ((line = in.readLine()) != null) 
+					response.append(line + "\n");
+			}
+			return response.toString();
+		} else throw new IOException("Expected content type text/plain, but got " + contentType);
+	}
+
+
+	/**
+	 * Count the number of NaN values in an array.
+	 * @param vals
+	 * @return
+	 */
+	public static int numNaNs(double[] vals) {
+		int count = 0;
+		for (double v : vals) {
+			if (Double.isNaN(v))
+				count++;
+		}
+		return count;
 	}
 
 }

@@ -36,24 +36,26 @@ import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
- * Modified version of cell detection command, which automatically applies 1 or 3 intensity thresholds to classify cells.
+ * Alternative implementation of {@link WatershedCellDetection} that automatically applies 1 or 3 intensity thresholds to classify cells.
  * 
  * @author Pete Bankhead
  *
  */
 public class PositiveCellDetection extends WatershedCellDetection {
 	
+	/**
+	 * Default constructor.
+	 */
 	public PositiveCellDetection() {
 		super();
-		params.addEmptyParameter("thresholdTitle", "Intensity threshold parameters", true
-				);
+		params.addTitleParameter("Intensity threshold parameters");
 		params.addChoiceParameter("thresholdCompartment", "Score compartment", "Nucleus: DAB OD mean",
 				Arrays.asList("Nucleus: DAB OD mean", "Nucleus: DAB OD max",
 						"Cytoplasm: DAB OD mean", "Cytoplasm: DAB OD max",
 						"Cell: DAB OD mean", "Cell: DAB OD max"));
-		params.addDoubleParameter("thresholdPositive1", "Threshold 1+", 0.2, null, 0, 1.5);
-		params.addDoubleParameter("thresholdPositive2", "Threshold 2+", 0.4, null, 0, 1.5);
-		params.addDoubleParameter("thresholdPositive3", "Threshold 3+", 0.6, null, 0, 1.5);
+		params.addDoubleParameter("thresholdPositive1", "Threshold 1+", 0.2, null, 0, 1.5, "Low positive intensity threshold");
+		params.addDoubleParameter("thresholdPositive2", "Threshold 2+", 0.4, null, 0, 1.5, "Moderate positive intensity threshold");
+		params.addDoubleParameter("thresholdPositive3", "Threshold 3+", 0.6, null, 0, 1.5, "High positive intensity threshold");
 		params.addBooleanParameter("singleThreshold", "Single threshold", true);
 	}
 	
@@ -96,19 +98,19 @@ public class PositiveCellDetection extends WatershedCellDetection {
 				double val = pathObject.getMeasurementList().getMeasurementValue(measurement);
 				if (singleThreshold) {
 					if (val >= threshold1) {
-						pathObject.setPathClass(PathClassFactory.getPositive(pathObject.getPathClass(), PathClassFactory.COLOR_POSITIVE));
+						pathObject.setPathClass(PathClassFactory.getPositive(pathObject.getPathClass()));
 					} else {
-						pathObject.setPathClass(PathClassFactory.getNegative(pathObject.getPathClass(), PathClassFactory.COLOR_NEGATIVE));
+						pathObject.setPathClass(PathClassFactory.getNegative(pathObject.getPathClass()));
 					}
 				} else {
 					if (val >= threshold3) {
-						pathObject.setPathClass(PathClassFactory.getThreePlus(pathObject.getPathClass(), PathClassFactory.COLOR_THREE_PLUS));
+						pathObject.setPathClass(PathClassFactory.getThreePlus(pathObject.getPathClass()));
 					} else if (val >= threshold2){
-						pathObject.setPathClass(PathClassFactory.getTwoPlus(pathObject.getPathClass(), PathClassFactory.COLOR_TWO_PLUS));
+						pathObject.setPathClass(PathClassFactory.getTwoPlus(pathObject.getPathClass()));
 					} else if (val >= threshold1){
-						pathObject.setPathClass(PathClassFactory.getOnePlus(pathObject.getPathClass(), PathClassFactory.COLOR_ONE_PLUS));
+						pathObject.setPathClass(PathClassFactory.getOnePlus(pathObject.getPathClass()));
 					} else
-						pathObject.setPathClass(PathClassFactory.getNegative(pathObject.getPathClass(), PathClassFactory.COLOR_NEGATIVE));
+						pathObject.setPathClass(PathClassFactory.getNegative(pathObject.getPathClass()));
 				}
 			}
 			return detections;

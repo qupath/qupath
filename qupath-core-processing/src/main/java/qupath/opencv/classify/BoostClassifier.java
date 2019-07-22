@@ -23,10 +23,11 @@
 
 package qupath.opencv.classify;
 
+import java.util.Arrays;
 import java.util.List;
 
-import org.bytedeco.javacpp.opencv_ml.Boost;
-import org.bytedeco.javacpp.opencv_core.Mat;
+import org.bytedeco.opencv.opencv_ml.Boost;
+import org.bytedeco.opencv.opencv_core.Mat;
 
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.classes.PathClass;
@@ -85,7 +86,7 @@ public class BoostClassifier extends ParameterizableOpenCvClassifier<Boost> {
 	@Override
 	protected ParameterList createParameterList() {
 		return new ParameterList()
-				.addChoiceParameter("boostType", "Boost type", "Real", new String[]{"Discrete", "Real", "Logit", "Gentle"})
+				.addChoiceParameter("boostType", "Boost type", "Real", Arrays.asList("Discrete", "Real", "Logit", "Gentle"))
 				.addIntParameter("weakCount", "Number of weak classifiers", 100, null, 1, 1000, "Number of weak classifiers")
 				.addIntParameter("maxDepth", "Max tree depth", 1, null, 1, 5, "Maximum tree depth (default = 1)");
 	}

@@ -23,31 +23,47 @@
 
 package qupath.imagej.gui.commands;
 
+import ij.IJ;
 import ij.ImageJ;
 import ij.ImagePlus;
+import ij.gui.Overlay;
+import ij.gui.Roi;
 import ij.macro.Interpreter;
-
 import java.awt.Rectangle;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
 
 import javax.swing.SwingUtilities;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import qupath.imagej.gui.IJExtension;
+import qupath.imagej.tools.IJTools;
 import qupath.lib.awt.common.AwtTools;
-import qupath.lib.display.ImageDisplay;
+import qupath.lib.common.GeneralTools;
+import qupath.lib.display.ChannelDisplayInfo;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.helpers.DisplayHelpers;
+import qupath.lib.gui.images.servers.ChannelDisplayTransformServer;
+import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.gui.viewer.QuPathViewer;
-import qupath.lib.images.PathImage;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.helpers.PathObjectTools;
+import qupath.lib.objects.hierarchy.PathObjectHierarchy;
+import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.regions.RegionRequest;
+import qupath.lib.roi.interfaces.ROI;
 
 /**
  * Extract a region from QuPath, and display it within ImageJ.
- * 
+ * <p>
  * This command also attempts to set properties appropriately so that it's possible to determine from 
  * within ImageJ exactly where in the image was selected.  This is needed to be able to transfer back 
  * Rois from ImageJ as QuPath objects.
@@ -57,116 +73,206 @@ import qupath.lib.regions.RegionRequest;
  */
 public class ExtractRegionCommand implements PathCommand {
 	
-	private QuPathGUI qupath;
-	private double downsample;
-	private boolean prompt;
+	private static Logger logger = LoggerFactory.getLogger(ExtractRegionCommand.class);
 	
-	public ExtractRegionCommand(QuPathGUI qupath, double downsample, boolean doPrompt) {
+	private QuPathGUI qupath;
+	
+	private final static String PIXELS_UNIT = "Pixels (downsample)";
+	
+	private double resolution = 1;
+	private String resolutionUnit = PIXELS_UNIT;
+	private boolean includeROI = true;
+	private boolean includeOverlay = true;
+	private boolean doTransforms = false;
+	private boolean doZ = false;
+	private boolean doT = false;
+	
+	/**
+	 * Constructor.
+	 * @param qupath QuPath instance where the command should be installed.
+	 */
+	public ExtractRegionCommand(QuPathGUI qupath) {
 //		super("Extract region (custom)", PathIconFactory.createIcon(QuPathGUI.iconSize, QuPathGUI.iconSize, PathIconFactory.PathIcons.EXTRACT_REGION));
 		this.qupath = qupath;
-//		if (!doPrompt)
-//			this.putValue(NAME, String.format("Extract region (%.1fx)", downsample));
-		this.downsample = downsample;
-		this.prompt = doPrompt;
 	}
 	
+	/**
+	 * Get the name of the command.
+	 * @return
+	 */
 	public String getName() {
-		if (prompt)
-			return "Extract region (custom)";
-		else
-			return String.format("Extract region (%.1fx)", downsample);
+		return "Extract region (custom)";
 	}
 	
 
 	@Override
 	public void run() {
 		QuPathViewer viewer = qupath.getViewer();
-		if (viewer == null || viewer.getServer() == null)
+		ImageServer<BufferedImage> server = null;
+		if (viewer != null)
+			server = viewer.getServer();
+		if (server == null)
 			return;
 		
-		if (prompt) {
-			double downsample2 = downsample;
-			String input = DisplayHelpers.showInputDialog("Extract image region", "Downsample factor for region extraction (a number >= 1)", "4");
-			if (input == null)
+		List<String> unitOptions = new ArrayList<>();
+		unitOptions.add(PIXELS_UNIT);
+		String unit = server.getPixelCalibration().getPixelWidthUnit();
+		if (unit.equals(server.getPixelCalibration().getPixelHeightUnit()) && !unit.equals(PixelCalibration.PIXEL))
+			unitOptions.add(unit);
+		
+		if (!unitOptions.contains(resolutionUnit))
+			resolutionUnit = PIXELS_UNIT;
+		
+		ParameterList params = new ParameterList()
+				.addDoubleParameter("resolution", "Resolution", resolution, null, "Resolution at which the image will be exported, defined as the 'pixel size' in Resolution units")
+				.addChoiceParameter("resolutionUnit", "Resolution unit", resolutionUnit, unitOptions, "Units defining the export resolution; if 'pixels' then the resolution is the same as a downsample value")
+				.addBooleanParameter("includeROI", "Include ROI", includeROI, "Include the primary object defining the exported region as an active ROI in ImageJ")
+				.addBooleanParameter("includeOverlay", "Include overlay", includeOverlay, "Include any objects overlapping the exported region as ROIs on an ImageJ overlay")
+				.addBooleanParameter("doTransforms", "Apply color transforms", doTransforms, "Optionally apply any color transforms when sending the pixels to ImageJ")
+				.addBooleanParameter("doZ", "All z-slices", doZ, "Optionally include all slices of a z-stack")
+				.addBooleanParameter("doT", "All timepoints", doT, "Optionally include all timepoints of a time series")
+				;
+		
+//		params.setHiddenParameters(unitOptions.size() <= 1, "resolutionUnit");
+		params.setHiddenParameters(server.nZSlices() == 1, "doZ");
+		params.setHiddenParameters(server.nTimepoints() == 1, "doT");
+		
+		if (!DisplayHelpers.showParameterDialog("Send region to ImageJ", params))
+			return;
+		
+		// Parse values
+		resolution = params.getDoubleParameterValue("resolution");
+		resolutionUnit = (String)params.getChoiceParameterValue("resolutionUnit");
+		includeROI = params.getBooleanParameterValue("includeROI");
+		includeOverlay = params.getBooleanParameterValue("includeOverlay");
+		doTransforms = params.getBooleanParameterValue("doTransforms");
+		doZ = params.getBooleanParameterValue("doZ");
+		doT = params.getBooleanParameterValue("doT");
+		
+		// Calculate downsample
+		double downsample = resolution;
+		if (!resolutionUnit.equals(PIXELS_UNIT))
+			downsample = resolution / (server.getPixelCalibration().getPixelHeight().doubleValue()/2.0 + server.getPixelCalibration().getPixelWidth().doubleValue()/2.0);
+		
+		// Color transforms are (currently) only applied for brightfield images - for fluorescence we always provide everything as unchanged as possible
+		List<ChannelDisplayInfo> channels = doTransforms && !viewer.getImageDisplay().selectedChannels().isEmpty() ? viewer.getImageDisplay().selectedChannels() : null;
+		if (channels != null)
+			server = ChannelDisplayTransformServer.createColorTransformServer(server, channels);
+
+		// Loop through all selected objects
+		Collection<PathObject> pathObjects = viewer.getHierarchy().getSelectionModel().getSelectedObjects();
+		List<ImagePlus> imps = new ArrayList<>();
+		for (PathObject pathObject : pathObjects) {
+			
+			if (Thread.currentThread().isInterrupted() || IJ.escapePressed())
 				return;
-			try {
-				downsample2 = Double.parseDouble(input);
-				if (downsample2 < 1) {
-					DisplayHelpers.showPlainMessage("Extract image region", "Sorry, the downsample factor must be >= 1 - you can rescale later with ImageJ if needed");
-//					JOptionPane.showMessageDialog(null, "Sorry, the downsample factor must be >= 1 - you can rescale later with ImageJ if needed", "Extract image region", JOptionPane.PLAIN_MESSAGE, null);
+			
+			int width, height;
+			if (pathObject == null || !pathObject.hasROI()) {
+				width = server.getWidth();
+				height = server.getHeight();
+			} else {
+				Rectangle bounds = AwtTools.getBounds(pathObject.getROI());
+				width = bounds.width;
+				height = bounds.height;
+			}
+			
+			RegionRequest region;
+			ROI roi = pathObject == null ? null : pathObject.getROI();
+			if (roi == null || PathObjectTools.hasPointROI(pathObject)) {
+				region = RegionRequest.createInstance(server.getPath(), downsample, 0, 0, server.getWidth(), server.getHeight(), viewer.getZPosition(), viewer.getTPosition());
+			} else
+				region = RegionRequest.createInstance(server.getPath(), downsample, roi);
+			//					region = RegionRequest.createInstance(server.getPath(), downsample, pathObject.getROI(), viewer.getZPosition(), viewer.getTPosition());
+	
+			if (region.getWidth() / downsample < 8 || region.getHeight() / downsample < 8) {
+				DisplayHelpers.showErrorMessage("Send region to ImageJ", "The width & height of the extracted image must both be >= 8 pixels");
+				continue;
+			}
+
+			// Calculate required z-slices and time-points
+			int zStart = doZ ? 0 : region.getZ();
+			int zEnd = doZ ? server.nZSlices() : region.getZ() + 1;
+			int tStart = doT ? 0 : region.getT();
+			int tEnd = doT ? server.nTimepoints() : region.getT() + 1;
+			long nZ = zEnd - zStart;
+			long nT = tEnd - tStart;
+			
+			int bytesPerPixel = server.isRGB() ? 4 : server.getPixelType().getBytesPerPixel() * server.nChannels();
+			double memory = ((long)width * height * nZ * nT * bytesPerPixel) / (downsample * downsample);
+			
+			// TODO: Perform calculation based on actual amount of available memory
+			if (memory >= Runtime.getRuntime().totalMemory()) {
+				logger.error("Cannot extract region {} - estimated size is too large (approx. {} MB)", pathObject, GeneralTools.formatNumber(memory / (1024.0 * 1024.0), 2));
+				DisplayHelpers.showErrorMessage("Send region to ImageJ error", "Selected region is too large to extract - please selected a smaller region or use a higher downsample factor");
+				continue;
+			}
+			if (memory / 1024 / 1024 > 100) {
+				if (pathObjects.size() == 1 && !DisplayHelpers.showYesNoDialog("Send region to ImageJ", String.format("Attempting to extract this region is likely to require > %.2f MB - are you sure you want to continue?", memory/1024/1024)))
 					return;
-				}
-				downsample = downsample2;
-			} catch (NumberFormatException e) {
+			}
+			
+			// We should switch to the event dispatch thread when interacting with ImageJ
+			try {
+				ImagePlus imp;
+				PathObjectHierarchy hierarchy = viewer.getHierarchy();
+				OverlayOptions options = viewer.getOverlayOptions();
+				if (zEnd - zStart > 1 || tEnd - tStart > 1) {
+					// TODO: Handle overlays
+					imp = IJTools.extractHyperstack(server, region, zStart, zEnd, tStart, tEnd);
+					if (includeROI && roi != null) {
+						Roi roiIJ = IJTools.convertToIJRoi(roi, imp.getCalibration(), region.getDownsample());
+						imp.setRoi(roiIJ);
+					}
+					if (includeOverlay) {
+						Overlay overlay = new Overlay();
+						for (int t = tStart; t < tEnd; t++) {
+							for (int z = zStart; z < zEnd; z++) {
+								RegionRequest request2 = RegionRequest.createInstance(region.getPath(), region.getDownsample(), region.getX(), region.getY(), region.getWidth(), region.getHeight(), z, t);
+								Overlay temp = IJExtension.extractOverlay(hierarchy, request2, options, p -> p != pathObject);
+								if (overlay == null)
+									overlay = temp;
+								for (int i = 0; i < temp.size(); i++) {
+									Roi roiIJ = temp.get(i);
+									roiIJ.setPosition(-1, z+1, t+1);
+									overlay.add(roiIJ);
+								}
+							}							
+						}
+						if (overlay != null && overlay.size() > 0)
+							imp.setOverlay(overlay);
+					}
+				} else if (includeOverlay)
+					imp = IJExtension.extractROIWithOverlay(server, pathObject, hierarchy, region, includeROI, options).getImage();			
+				else
+					imp = IJExtension.extractROIWithOverlay(server, pathObject, null, region, includeROI, options).getImage();			
+				imps.add(imp);
+			} catch (IOException e) {
+				DisplayHelpers.showErrorMessage("Send region to ImageJ", e);
 				return;
 			}
 		}
 		
-		// Get the selected object & determine if its size seems to be ok
-		PathObject pathObject = viewer.getSelectedObject();
-		ImageServer<BufferedImage> server = viewer.getServer();
-		int width, height;
-		if (pathObject == null || !pathObject.hasROI()) {
-			width = server.getWidth();
-			height = server.getHeight();
-		} else {
-			Rectangle bounds = AwtTools.getBounds(pathObject.getROI());
-			width = bounds.width;
-			height = bounds.height;
-		}
-		int bytesPerPixel = server.isRGB() ? 4 : server.getBitsPerPixel() * server.nChannels() / 8;
-		double memory = ((long)width * height * bytesPerPixel) / (downsample * downsample);
-		// TODO: Perform calculation based on actual amount of available memory
-		if (memory >= Runtime.getRuntime().totalMemory()) {
-			DisplayHelpers.showErrorMessage("Extract region error", "Selected region is too large to extract - please selected a smaller region or use a higher downsample factor");
-//			JOptionPane.showMessageDialog(viewer, 
-//					"Selected region is too large to extract - please selected a smaller region or use a higher downsample factor",
-//					"Extract region error", JOptionPane.ERROR_MESSAGE, null);
-			return;
-		}
-		if (memory / 1024 / 1024 > 100) {
-			if (!DisplayHelpers.showYesNoDialog("Extract ROI", String.format("Attempting to extract this region is likely to require > %.2f MB - are you sure you want to continue?", memory/1024/1024)))
-				return;
-		}
-		
-		
-		//		PathImage<ImagePlus> pathImage = ImageJWholeSlideViewerGUI.extractROI(viewer.getImageServer(), viewer.getCurrentROI(), downsample, viewer.getZPosition(), true);
-		RegionRequest region;
-		if (pathObject == null || !pathObject.hasROI() || pathObject.isPoint()) {
-			region = RegionRequest.createInstance(server.getPath(), downsample, 0, 0, server.getWidth(), server.getHeight(), viewer.getZPosition(), viewer.getTPosition());
-		} else
-			region = RegionRequest.createInstance(server.getPath(), downsample, pathObject.getROI());
-		//					region = RegionRequest.createInstance(server.getPath(), downsample, pathObject.getROI(), viewer.getZPosition(), viewer.getTPosition());
-
-		if (region.getWidth() / downsample < 10 || region.getHeight() / downsample < 10) {
-			DisplayHelpers.showErrorMessage("Image region to small", "The width & height of the extracted image must both be >= 10 pixels");
-			return;
-		}
-		
-		// Color transforms are (currently) only applied for brightfield images - for fluorescence we always provide everything as unchanged as possible
-		ImageDisplay imageDisplay = viewer.getImageData().isBrightfield() ? viewer.getImageDisplay() : null;
-
-		
-		// We should switch to the event dispatch thread when interacting with ImageJ
-		PathImage<ImagePlus> pathImage;
-		try {
-			pathImage = IJExtension.extractROIWithOverlay(server, pathObject, viewer.getHierarchy(), region, true, viewer.getOverlayOptions(), imageDisplay);			
-		} catch (IOException e) {
-			DisplayHelpers.showErrorMessage("Extract region to ImageJ", e);
-			return;
-		}
-		if (pathImage != null) {
+		// Show all the images we've got
+		if (!imps.isEmpty()) {
 			SwingUtilities.invokeLater(() -> {
+				boolean batchMode = Interpreter.batchMode;
 
 				// Try to start an ImageJ instance, and return if this fails
-				ImageJ ij = IJExtension.getImageJInstance();
-				if (ij == null)
-					return;
-				ij.setVisible(true);
-
-
-				Interpreter.batchMode = false; // Make sure we aren't in batch mode, so that image will display
-				pathImage.getImage().show();
+				try {
+					ImageJ ij = IJExtension.getImageJInstance();
+					if (ij == null)
+						return;
+					ij.setVisible(true);
+	
+	
+					Interpreter.batchMode = false; // Make sure we aren't in batch mode, so that image will display
+					for (ImagePlus imp : imps) {
+						imp.show();
+					}
+				} finally {
+					Interpreter.batchMode = batchMode;
+				}
 			});
 		}
 	}

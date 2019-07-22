@@ -51,6 +51,7 @@ import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ServerTools;
 import qupath.lib.io.TMAScoreImporter;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.objects.hierarchy.DefaultTMAGrid;
@@ -101,12 +102,12 @@ public class PathAwtIO {
 		final ImageServer<BufferedImage> server = imageData.getServer();
 		if (file == null) {
 			//			dir = PathPrefs.getDialogHelper().promptForDirectory(null);
-			file = QuPathGUI.getSharedDialogHelper().promptToSaveFile(null, null, server.getDisplayedImageName(), "TMA data", "qptma");
+			file = QuPathGUI.getSharedDialogHelper().promptToSaveFile(null, null, ServerTools.getDisplayableImageName(server), "TMA data", "qptma");
 			if (file == null)
 				return;
 		} else if (file.isDirectory() || (!file.exists() && file.getAbsolutePath().endsWith(File.pathSeparator))) {
 			// Put inside the specified directory
-			file = new File(file, imageData.getServer().getShortServerName() + TMA_DEARRAYING_DATA_EXTENSION);
+			file = new File(file, ServerTools.getDisplayableImageName(server) + TMA_DEARRAYING_DATA_EXTENSION);
 			if (!file.getParentFile().exists())
 				file.getParentFile().mkdirs();
 		}
@@ -120,7 +121,7 @@ public class PathAwtIO {
 		try {
 			PrintWriter writer = new PrintWriter(file);
 			writer.println(server.getPath());
-			writer.println(server.getShortServerName());
+			writer.println(ServerTools.getDisplayableImageName(server));
 			writer.println();
 
 			writer.println("TMA grid width: " + tmaGrid.getGridWidth());
@@ -152,7 +153,7 @@ public class PathAwtIO {
 		// Save the summary results
 		ObservableMeasurementTableData tableData = new ObservableMeasurementTableData();
 		tableData.setImageData(imageData, tmaGrid.getTMACoreList());
-		SummaryMeasurementTableCommand.saveTableModel(tableData, new File(dirData, "TMA results - " + server.getShortServerName() + ".txt"), Collections.emptyList());
+		SummaryMeasurementTableCommand.saveTableModel(tableData, new File(dirData, "TMA results - " + ServerTools.getDisplayableImageName(server) + ".txt"), Collections.emptyList());
 
 		boolean outputCoreImages = Double.isNaN(downsampleFactor) || downsampleFactor > 0;
 		if (outputCoreImages) {
@@ -165,7 +166,7 @@ public class PathAwtIO {
 			
 			
 			// Write an overall TMA map (for quickly checking if the dearraying is ok)
-			File fileTMAMap = new File(dirData, "TMA map - " + server.getShortServerName() + ".jpg");
+			File fileTMAMap = new File(dirData, "TMA map - " + ServerTools.getDisplayableImageName(server) + ".jpg");
 			double downsampleThumbnail = Math.max(1, (double)server.getWidth() / 1024);
 			RegionRequest request = RegionRequest.createInstance(server.getPath(), downsampleThumbnail, 0, 0, server.getWidth(), server.getHeight());
 			OverlayOptions optionsThumbnail = new OverlayOptions();
@@ -181,16 +182,16 @@ public class PathAwtIO {
 
 			
 			
-			final double downsample = Double.isNaN(downsampleFactor) ? (server.hasPixelSizeMicrons() ? ServerTools.getDownsampleFactor(server, PathPrefs.getPreferredTMAExportPixelSizeMicrons(), false) : 1) : downsampleFactor;
+			final double downsample = Double.isNaN(downsampleFactor) ? (server.getPixelCalibration().hasPixelSizeMicrons() ? ServerTools.getDownsampleFactor(server, PathPrefs.getPreferredTMAExportPixelSizeMicrons()) : 1) : downsampleFactor;
 			
 			// Creating a plugin makes it possible to parallelize & show progress easily
 			ExportCoresPlugin plugin = new ExportCoresPlugin(dirData, options, downsample);
 			PluginRunner<BufferedImage> runner;
 			if (QuPathGUI.getInstance() == null || QuPathGUI.getInstance().getImageData() != imageData) {
-				runner = new CommandLinePluginRunner<>(imageData, true);
+				runner = new CommandLinePluginRunner<>(imageData);
 				plugin.runPlugin(runner, null);
 			} else {
-				runner = new PluginRunnerFX(QuPathGUI.getInstance(), false);				
+				runner = new PluginRunnerFX(QuPathGUI.getInstance());				
 				new Thread(() -> plugin.runPlugin(runner, null)).start();
 			}
 		}
@@ -246,14 +247,14 @@ public class PathAwtIO {
 				boolean present = colPresent == null ? true : Boolean.parseBoolean(colPresent.get(i));
 				String name = colNames == null ? null : colNames.get(i);
 				String id = colID == null ? null : colID.get(i);
-				TMACoreObject core = new TMACoreObject(x, y, w, h, !present);
+				TMACoreObject core = PathObjects.createTMACoreObject(x, y, w, h, !present);
 				if (name != null)
 					core.setName(name);
 				if (id != null && !id.isEmpty())
 					core.setUniqueID(id);
 				cores.add(core);
 			}
-			return new DefaultTMAGrid(cores, gridWidth);
+			return DefaultTMAGrid.create(cores, gridWidth);
 		} catch (FileNotFoundException e) {
 			logger.error("Cannot find file: {}", file);
 			return null;
@@ -318,7 +319,7 @@ public class PathAwtIO {
 
 		@Override
 		protected Collection<? extends PathObject> getParentObjects(PluginRunner<BufferedImage> runner) {
-			return PathObjectTools.getTMACoreObjects(runner.getHierarchy(), true);
+			return PathObjectTools.getTMACoreObjects(getHierarchy(runner), true);
 		}
 
 		@Override

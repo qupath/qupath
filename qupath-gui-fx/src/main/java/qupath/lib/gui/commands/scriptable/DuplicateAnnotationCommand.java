@@ -64,7 +64,7 @@ public class DuplicateAnnotationCommand implements PathCommand {
 			return;
 		}
 		PathObject pathObjectNew = PathObjects.createAnnotationObject(pathObject.getROI().duplicate(), pathObject.getPathClass());
-		hierarchy.addPathObject(pathObjectNew, false);
+		hierarchy.addPathObject(pathObjectNew);
 		hierarchy.getSelectionModel().setSelectedObject(pathObjectNew);
 	}
 	

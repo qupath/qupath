@@ -27,7 +27,7 @@ import java.io.Serializable;
 
 /**
  * Basic interface to define a measurement.
- * 
+ * <p>
  * This was originally intended to support both static and dynamic measurements, 
  * but the functionality is rarely used now.  It may be removed in the future.
  * 
@@ -36,10 +36,23 @@ import java.io.Serializable;
  */
 public interface Measurement extends Serializable {
 		 
+	/**
+	 * Get the name of the measurement.
+	 * @return
+	 */
      public String getName();
 
+     /**
+      * Get the numeric value of the measurement.
+      * @return
+      */
      public double getValue();
 	 
+     /**
+      * Returns true if a measurement can change its value, for example because of changes in 
+      * a object or hierarchy.
+      * @return
+      */
      @Deprecated
 	 public boolean isDynamic();
 	

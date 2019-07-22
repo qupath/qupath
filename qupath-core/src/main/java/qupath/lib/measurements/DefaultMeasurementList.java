@@ -24,20 +24,21 @@
 package qupath.lib.measurements;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
 /**
  * A MeasurementList implementation that simply stores a list of Measurement objects.
+ * <p>
  * These can be of any kind, including dynamic measurements (computed on request).
+ * <p>
  * Generally, if only simple, non-dynamic numeric measurements are required, then
  * another MeasurementList would be preferable to reduce memory requirements.
  * 
  * @author Pete Bankhead
  *
  */
-public class DefaultMeasurementList implements MeasurementList {
+class DefaultMeasurementList implements MeasurementList {
 	
 	private static final long serialVersionUID = 1L;
 	
@@ -84,13 +85,7 @@ public class DefaultMeasurementList implements MeasurementList {
 		}
 		return Double.NaN;
 	}
-	
-	
-	@Override
-	public synchronized boolean containsAllNamedMeasurements(Collection<String> measurements) {
-		return getMeasurementNames().containsAll(measurements);
-	}
-	
+		
 	@Override
 	public synchronized boolean containsNamedMeasurement(String measurement) {
 		for (Measurement m : list)
@@ -130,7 +125,7 @@ public class DefaultMeasurementList implements MeasurementList {
 //		list.clear();
 //	}
 
-	void compactStorage() {
+	private void compactStorage() {
 		list.trimToSize();
 	}
 

@@ -256,11 +256,16 @@ public class ImageOverview implements QuPathViewerListener {
 
 	
 	void repaint() {
+		if (Platform.isFxApplicationThread()) {
+			repaintRequested = true;
+			paintCanvas();
+			return;
+		}
 		if (repaintRequested)
 			return;
 		logger.trace("Overview repaint requested!");
 		repaintRequested = true;
-		Platform.runLater(() -> paintCanvas());
+		Platform.runLater(() -> repaint());
 	}
 	
 

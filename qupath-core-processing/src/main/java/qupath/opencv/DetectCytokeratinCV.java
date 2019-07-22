@@ -34,12 +34,14 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
-import static org.bytedeco.javacpp.opencv_core.*;
-import org.bytedeco.javacpp.opencv_imgproc;
+import static org.bytedeco.opencv.global.opencv_core.*;
+import org.bytedeco.opencv.global.opencv_imgproc;
 import org.bytedeco.javacpp.indexer.Indexer;
 import org.bytedeco.javacpp.indexer.IntIndexer;
-import org.bytedeco.javacpp.opencv_core.Mat;
-import org.bytedeco.javacpp.opencv_core.Scalar;
+import org.bytedeco.opencv.opencv_core.Mat;
+import org.bytedeco.opencv.opencv_core.MatVector;
+import org.bytedeco.opencv.opencv_core.Scalar;
+import org.bytedeco.opencv.opencv_core.Size;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -48,18 +50,19 @@ import qupath.lib.color.ColorTransformer;
 import qupath.lib.color.ColorTransformer.ColorTransformMethod;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.ImageData;
+import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClassFactory;
-import qupath.lib.objects.classes.PathClassFactory.PathClasses;
+import qupath.lib.objects.classes.PathClassFactory.StandardPathClasses;
 import qupath.lib.plugins.AbstractDetectionPlugin;
 import qupath.lib.plugins.DetectionPluginTools;
 import qupath.lib.plugins.ObjectDetector;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.regions.RegionRequest;
-import qupath.lib.roi.PathROIToolsAwt;
+import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.RectangleROI;
-import qupath.lib.roi.ShapeSimplifierAwt;
+import qupath.lib.roi.ShapeSimplifier;
 import qupath.lib.roi.interfaces.PathShape;
 import qupath.lib.roi.interfaces.ROI;
 import qupath.opencv.processing.OpenCVTools;
@@ -110,7 +113,8 @@ public class DetectCytokeratinCV extends AbstractDetectionPlugin<BufferedImage> 
 			double separationDistanceMicrons = params.getDoubleParameterValue("separationDistanceMicrons");
 
 			// Derive more useful values
-			double pixelSize = imageData.getServer().getAveragedPixelSizeMicrons() * downsample;
+			PixelCalibration cal = imageData.getServer().getPixelCalibration();
+			double pixelSize = cal.getAveragedPixelSizeMicrons() * downsample;
 			double gaussianSigma = gaussianSigmaMicrons / pixelSize;
 			int separationDiameter = 0;
 			if (separationDistanceMicrons > 0) {
@@ -203,7 +207,7 @@ public class DetectCytokeratinCV extends AbstractDetectionPlugin<BufferedImage> 
 
 			Area areaROI = null;
 			if (pathROI != null && !(pathROI instanceof RectangleROI)) {
-				areaROI = PathROIToolsAwt.getArea(pathROI);
+				areaROI = RoiTools.getArea(pathROI);
 			}
 
 
@@ -214,9 +218,9 @@ public class DetectCytokeratinCV extends AbstractDetectionPlugin<BufferedImage> 
 					areaTissue.intersect(areaROI);
 
 				if (!areaTissue.isEmpty()) {
-					PathShape roiTissue = PathROIToolsAwt.getShapeROI(areaTissue, -1, request.getZ(), request.getT());
-					roiTissue = ShapeSimplifierAwt.simplifyShape(roiTissue, simplifyAmount);
-					pathObjects.add(PathObjects.createAnnotationObject(roiTissue, PathClassFactory.getDefaultPathClass(PathClasses.STROMA)));
+					PathShape roiTissue = RoiTools.getShapeROI(areaTissue, request.getPlane());
+					roiTissue = ShapeSimplifier.simplifyShape(roiTissue, simplifyAmount);
+					pathObjects.add(PathObjects.createAnnotationObject(roiTissue, PathClassFactory.getPathClass(StandardPathClasses.STROMA)));
 				}
 			}
 			if (areaDAB != null) {
@@ -225,9 +229,9 @@ public class DetectCytokeratinCV extends AbstractDetectionPlugin<BufferedImage> 
 					areaDAB.intersect(areaROI);
 
 				if (!areaDAB.isEmpty()) {
-					PathShape roiDAB = PathROIToolsAwt.getShapeROI(areaDAB, -1, request.getZ(), request.getT());
-					roiDAB = ShapeSimplifierAwt.simplifyShape(roiDAB, simplifyAmount);
-					pathObjects.add(PathObjects.createAnnotationObject(roiDAB, PathClassFactory.getDefaultPathClass(PathClasses.TUMOR)));
+					PathShape roiDAB = RoiTools.getShapeROI(areaDAB, request.getPlane());
+					roiDAB = ShapeSimplifier.simplifyShape(roiDAB, simplifyAmount);
+					pathObjects.add(PathObjects.createAnnotationObject(roiDAB, PathClassFactory.getPathClass(StandardPathClasses.TUMOR)));
 				}
 			}
 
@@ -254,8 +258,12 @@ public class DetectCytokeratinCV extends AbstractDetectionPlugin<BufferedImage> 
 
 
 
-
-	public static Area getArea(final Mat mat) {
+	/**
+	 * Get an Area object corresponding to contours in a binary image from OpenCV.
+	 * @param mat
+	 * @return
+	 */
+	private static Area getArea(final Mat mat) {
 		if (mat.empty())
 			return null;
 
@@ -278,7 +286,7 @@ public class DetectCytokeratinCV extends AbstractDetectionPlugin<BufferedImage> 
 
 
 
-	public static void updateArea(final MatVector contours, final Mat hierarchy, final Area area, int row, int depth) {
+	private static void updateArea(final MatVector contours, final Mat hierarchy, final Area area, int row, int depth) {
 		IntIndexer indexer = hierarchy.createIndexer();
 		while (row >= 0) {
 			int[] data = new int[4];
@@ -308,7 +316,7 @@ public class DetectCytokeratinCV extends AbstractDetectionPlugin<BufferedImage> 
 
 
 
-	public static Path2D getContour(Mat contour) {
+	private static Path2D getContour(Mat contour) {
 		// Create a path for the contour
 		Path2D path = new Path2D.Float();
 		boolean firstPoint = true;

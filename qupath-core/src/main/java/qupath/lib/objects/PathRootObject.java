@@ -32,7 +32,7 @@ import qupath.lib.roi.interfaces.ROI;
 
 /**
  * The root object used at the base of a PathObjectHierarchy.
- * 
+ * <p>
  * This doesn't have a ROI, and can't have its PathClass set.
  * 
  * @author Pete Bankhead
@@ -51,7 +51,7 @@ public class PathRootObject extends PathObject {
 
 	@Override
 	public PathClass getPathClass() {
-		return PathClassFactory.getDefaultPathClass(PathClassFactory.PathClasses.IMAGE_ROOT);
+		return PathClassFactory.getPathClass(PathClassFactory.StandardPathClasses.IMAGE_ROOT);
 	}
 
 	@Override

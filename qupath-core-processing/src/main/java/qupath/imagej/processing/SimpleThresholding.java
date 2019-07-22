@@ -29,7 +29,7 @@ import ij.process.ImageProcessor;
 /**
  * Collection of static methods to threshold images, either with single global thresholds or 
  * using the pixel values of a second image.
- * 
+ * <p>
  * Output is a ByteProcessor where 255 represents 'positive' pixels, and zero represents the background.
  * 
  * @author Pete Bankhead
@@ -37,6 +37,12 @@ import ij.process.ImageProcessor;
  */
 public class SimpleThresholding {
 	
+	/**
+	 * Created a binary image by thresholding pixels to find where ip1 &gt;= ip2
+	 * @param ip1
+	 * @param ip2
+	 * @return
+	 */
 	public static ByteProcessor greaterThanOrEqual(ImageProcessor ip1, ImageProcessor ip2) {
 		ByteProcessor bp =  new ByteProcessor(ip1.getWidth(), ip1.getHeight());
 		byte[] bpPixels = (byte[])bp.getPixels();
@@ -47,6 +53,12 @@ public class SimpleThresholding {
 		return bp;
 	}
 	
+	/**
+	 * Created a binary image by thresholding pixels to find where ip1 &gt; ip2
+	 * @param ip1
+	 * @param ip2
+	 * @return
+	 */
 	public static ByteProcessor greaterThan(ImageProcessor ip1, ImageProcessor ip2) {
 		ByteProcessor bp =  new ByteProcessor(ip1.getWidth(), ip1.getHeight());
 		byte[] bpPixels = (byte[])bp.getPixels();
@@ -57,6 +69,12 @@ public class SimpleThresholding {
 		return bp;
 	}
 
+	/**
+	 * Created a binary image by thresholding pixels to find where ip1 &lt; threshold
+	 * @param ip
+	 * @param threshold
+	 * @return
+	 */
 	public static ByteProcessor thresholdBelow(ImageProcessor ip, float threshold) {
 		ByteProcessor bp =  new ByteProcessor(ip.getWidth(), ip.getHeight());
 		byte[] bpPixels = (byte[])bp.getPixels();
@@ -67,7 +85,12 @@ public class SimpleThresholding {
 		return bp;
 	}
 	
-	
+	/**
+	 * Created a binary image by thresholding pixels to find where ip1 &lt;= threshold
+	 * @param ip
+	 * @param threshold
+	 * @return
+	 */
 	public static ByteProcessor thresholdBelowEquals(ImageProcessor ip, float threshold) {
 		ByteProcessor bp =  new ByteProcessor(ip.getWidth(), ip.getHeight());
 		byte[] bpPixels = (byte[])bp.getPixels();
@@ -78,6 +101,12 @@ public class SimpleThresholding {
 		return bp;
 	}
 
+	/**
+	 * Created a binary image by identifying pixels where ip1 == ip2
+	 * @param ip1
+	 * @param ip2
+	 * @return
+	 */
 	public static ByteProcessor imagesEqual(ImageProcessor ip1, ImageProcessor ip2) {
 		ByteProcessor bp =  new ByteProcessor(ip1.getWidth(), ip1.getHeight());
 		byte[] bpPixels = (byte[])bp.getPixels();
@@ -88,6 +117,12 @@ public class SimpleThresholding {
 		return bp;
 	}
 	
+	/**
+	 * Created a binary image by thresholding pixels to find where ip1 &gt; threshold
+	 * @param ip
+	 * @param threshold
+	 * @return
+	 */
 	public static ByteProcessor thresholdAbove(ImageProcessor ip, float threshold) {
 		ByteProcessor bp =  new ByteProcessor(ip.getWidth(), ip.getHeight());
 		byte[] bpPixels = (byte[])bp.getPixels();
@@ -98,7 +133,12 @@ public class SimpleThresholding {
 		return bp;
 	}
 	
-	public static ByteProcessor thresholdAboveEquals(ImageProcessor ip, float threshold) {
+		/**
+		 * Created a binary image by thresholding pixels to find where ip1 &gt;= threshold
+		 * @param ip
+		 * @param threshold
+		 * @return
+		 */	public static ByteProcessor thresholdAboveEquals(ImageProcessor ip, float threshold) {
 		ByteProcessor bp =  new ByteProcessor(ip.getWidth(), ip.getHeight());
 		byte[] bpPixels = (byte[])bp.getPixels();
 		for (int i = 0; i < bpPixels.length; i++) {
@@ -108,6 +148,13 @@ public class SimpleThresholding {
 		return bp;
 	}
 
+	/**
+	 * Created a binary image by thresholding pixels to find where ip &gt;= lowThreshold and ip &lt;= highThreshold
+	 * @param ip
+	 * @param lowThreshold
+	 * @param highThreshold
+	 * @return
+	 */
 	public static ByteProcessor thresholdBetween(ImageProcessor ip, float lowThreshold, float highThreshold) {
 		ByteProcessor bp =  new ByteProcessor(ip.getWidth(), ip.getHeight());
 		byte[] bpPixels = (byte[])bp.getPixels();

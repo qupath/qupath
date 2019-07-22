@@ -39,14 +39,14 @@ import qupath.lib.objects.PathObject;
 
 /**
  * A (sub)classifier that specializes in assigning intensity classifications.
- * 
+ * <p>
  * This is generally applied to distinguish positive from negative cells, often
  * after applying another classifier to distinguish cell types.
  * 
  * @author Pete Bankhead
  *
  */
-public class PathIntensityClassifier implements Serializable, PathObjectClassifier {
+class PathIntensityClassifier implements Serializable, PathObjectClassifier {
 	
 	private static final long serialVersionUID = 1L;
 	
@@ -61,7 +61,7 @@ public class PathIntensityClassifier implements Serializable, PathObjectClassifi
 	
 	static DecimalFormat df = new DecimalFormat("#.###");
 	
-	public PathIntensityClassifier(final PathClass classSelected, final String intensityMeasurement, final double t1, final double t2, final double t3) {
+	PathIntensityClassifier(final PathClass classSelected, final String intensityMeasurement, final double t1, final double t2, final double t3) {
 		this.classSelected = classSelected;
 		this.intensityMeasurement = intensityMeasurement;
 		this.t1 = t1;
@@ -71,7 +71,7 @@ public class PathIntensityClassifier implements Serializable, PathObjectClassifi
 		lastModifiedTimestamp = System.currentTimeMillis();
 	}
 	
-	public PathIntensityClassifier(final PathClass classSelected, final String intensityMeasurement, final double threshold) {
+	PathIntensityClassifier(final PathClass classSelected, final String intensityMeasurement, final double threshold) {
 		this(classSelected, intensityMeasurement, threshold, Double.NaN, Double.NaN);
 	}
 	
@@ -103,11 +103,11 @@ public class PathIntensityClassifier implements Serializable, PathObjectClassifi
 		// Ensure we have the correct singleton class so we can do an equality check
 		classSelected = PathClassFactory.getSingletonPathClass(classSelected);
 		
-		PathClass classPositive = PathClassFactory.getPositive(classSelected, PathClassFactory.COLOR_POSITIVE);
-		PathClass classNegative = PathClassFactory.getNegative(classSelected, PathClassFactory.COLOR_NEGATIVE);
-		PathClass classOnePlus = PathClassFactory.getOnePlus(classSelected, PathClassFactory.COLOR_ONE_PLUS);
-		PathClass classTwoPlus = PathClassFactory.getTwoPlus(classSelected, PathClassFactory.COLOR_TWO_PLUS);
-		PathClass classThreePlus = PathClassFactory.getThreePlus(classSelected, PathClassFactory.COLOR_THREE_PLUS);
+		PathClass classPositive = PathClassFactory.getPositive(classSelected);
+		PathClass classNegative = PathClassFactory.getNegative(classSelected);
+		PathClass classOnePlus = PathClassFactory.getOnePlus(classSelected);
+		PathClass classTwoPlus = PathClassFactory.getTwoPlus(classSelected);
+		PathClass classThreePlus = PathClassFactory.getThreePlus(classSelected);
 
 		// Because the classifications are really sub-classifications, retain the same probability
 		for (PathObject pathObjectTemp : pathObjects) {
@@ -157,15 +157,15 @@ public class PathIntensityClassifier implements Serializable, PathObjectClassifi
 	public Collection<PathClass> getPathClasses() {
 		if (singleThreshold) {
 			return Arrays.asList(
-					PathClassFactory.getPositive(classSelected, PathClassFactory.COLOR_POSITIVE),
-					PathClassFactory.getNegative(classSelected, PathClassFactory.COLOR_NEGATIVE)
+					PathClassFactory.getPositive(classSelected),
+					PathClassFactory.getNegative(classSelected)
 					);
 		}
 		return Arrays.asList(
-				PathClassFactory.getNegative(classSelected, PathClassFactory.COLOR_NEGATIVE),
-				PathClassFactory.getOnePlus(classSelected, PathClassFactory.COLOR_ONE_PLUS),
-				PathClassFactory.getTwoPlus(classSelected, PathClassFactory.COLOR_TWO_PLUS),
-				PathClassFactory.getThreePlus(classSelected, PathClassFactory.COLOR_THREE_PLUS)
+				PathClassFactory.getNegative(classSelected),
+				PathClassFactory.getOnePlus(classSelected),
+				PathClassFactory.getTwoPlus(classSelected),
+				PathClassFactory.getThreePlus(classSelected)
 				);
 	}
 
@@ -218,7 +218,7 @@ public class PathIntensityClassifier implements Serializable, PathObjectClassifi
 
 	/**
 	 * Does nothing - intensity classifiers require no training.
-	 * 
+	 * <p>
 	 * Returns true if this is the first time updateClassifier was called, false otherwise.
 	 * 
 	 */

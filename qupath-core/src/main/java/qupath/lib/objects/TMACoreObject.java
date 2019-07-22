@@ -29,9 +29,7 @@ import java.io.ObjectOutput;
 import java.util.Map;
 import java.util.Set;
 
-import qupath.lib.objects.helpers.PathObjectTools;
-import qupath.lib.regions.ImagePlane;
-import qupath.lib.roi.ROIs;
+import qupath.lib.roi.interfaces.ROI;
 
 /**
  * A special PathObject used exclusively to represent TMA cores.
@@ -45,39 +43,78 @@ public class TMACoreObject extends PathROIObject implements MetadataStore {
 	
 	private static final long serialVersionUID = 1L;
 	
+	/**
+	 * Metadata key for the TMA core unique patient ID;
+	 */
 	final public static String KEY_UNIQUE_ID = "Unique ID";
+	
+	/**
+	 * Metadata key for an overall survival (temporal) value.
+	 */
 	final public static String KEY_OVERALL_SURVIVAL = "Overall survival";
+	
+	/**
+	 * Metadata key for an recurrence-free survival (temporal) value.
+	 */
 	final public static String KEY_RECURRENCE_FREE_SURVIVAL = "Recurrence-free survival";
+	
+	/**
+	 * Metadata key for an overall survival censored flag.
+	 */
 	final public static String KEY_OS_CENSORED = "OS censored";
+	
+	/**
+	 * Metadata key for an recurrence-free survival censored flag.
+	 */
 	final public static String KEY_RFS_CENSORED = "RFS censored";
 	
 	private boolean isMissing = false;
 	
+	/**
+	 * Default constructor. Should not be used directly, instead use {@link PathObjects#createTMACoreObject(double, double, double, boolean)}.
+	 */
 	public TMACoreObject() {
 		super();
 	}
 	
-	public TMACoreObject(double xCenter, double yCenter, double diameter, boolean isMissing) {
-		this(xCenter-diameter/2, yCenter-diameter/2, diameter, diameter, isMissing);
-	}
-	
-	public TMACoreObject(double x, double y, double width, double height, boolean isMissing) {
-		super(ROIs.createEllipseROI(x, y, width, height, ImagePlane.getDefaultPlane()), null);
+	TMACoreObject(ROI roi, boolean isMissing) {
+		super(roi, null);
 		this.isMissing = isMissing;
 	}
 
+	/**
+	 * Query the 'missing' flag for this core.
+	 * @return
+	 */
 	public boolean isMissing() {
 		return isMissing;
 	}
 	
+	/**
+	 * Set the missing flag for this core, for example because insufficient tissue is present.
+	 * 'Missing' cores are typically ignored during analysis.
+	 * @param missing
+	 */
 	public void setMissing(boolean missing) {
 		this.isMissing = missing;
 	}
 	
+	/**
+	 * Get the uniqueID metadata value.
+	 * @return
+	 * 
+	 * @see #setUniqueID(String)
+	 */
 	public String getUniqueID() {
 		return getMetadataString(KEY_UNIQUE_ID);
 	}
 
+	/**
+	 * Set the uniqueID metadata value. This is typically used to store a patient identifier, 
+	 * and must be unique for the patient (but multiple cores may have the same ID if they correspond 
+	 * to the same patient).
+	 * @param uniqueID
+	 */
 	public void setUniqueID(final String uniqueID) {
 		putMetadataValue(KEY_UNIQUE_ID, uniqueID);
 	}
@@ -87,11 +124,6 @@ public class TMACoreObject extends PathROIObject implements MetadataStore {
 		return storeMetadataValue(key, value);
 	}
 	
-	@Override
-	public boolean containsMetadataString(final String key) {
-		return getMetadataValue(key) instanceof String;
-	}
-
 	@Override
 	public String getMetadataString(final String key) {
 		Object value = getMetadataValue(key);
@@ -115,6 +147,9 @@ public class TMACoreObject extends PathROIObject implements MetadataStore {
 		return super.getUnmodifiableMetadataMap();
 	}
 	
+	/**
+	 * Clear all associated metadata.
+	 */
 	public void clearMetadata() {
 		super.clearMetadataMap();
 	}
@@ -134,7 +169,17 @@ public class TMACoreObject extends PathROIObject implements MetadataStore {
 	 */
 	@Override
 	public boolean isEditable() {
-		return super.isEditable() && !PathObjectTools.containsChildOfClass(this, PathDetectionObject.class, true);
+		return super.isEditable() && !containsChildOfClass(this, PathDetectionObject.class, true);
+	}
+	
+	private static boolean containsChildOfClass(final PathObject pathObject, final Class<? extends PathObject> cls, final boolean allDescendents) {
+		for (PathObject childObject : pathObject.getChildObjects()) {
+			if (cls.isAssignableFrom(childObject.getClass()))
+				return true;
+			if (childObject.hasChildren() && allDescendents && containsChildOfClass(childObject, cls, allDescendents))
+				return true;
+		}
+		return false;
 	}
 	
 	@Override

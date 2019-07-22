@@ -39,7 +39,7 @@ public class StringParameter extends AbstractParameter<String> {
 		super(prompt, defaultValue, lastValue, helpText, isHidden);
 	}
 
-	public StringParameter(String prompt, String defaultValue, String helpText) {
+	StringParameter(String prompt, String defaultValue, String helpText) {
 		this(prompt, defaultValue, null, helpText, false);
 	}
 

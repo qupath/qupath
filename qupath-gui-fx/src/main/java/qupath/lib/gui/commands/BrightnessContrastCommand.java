@@ -424,7 +424,7 @@ public class BrightnessContrastCommand implements PathCommand, ImageDataChangeLi
 								var channels = new ArrayList<>(metadata.getChannels());
 								var channel = channels.get(c);
 								channels.set(c, ImageChannel.getInstance(channel.getName(), colorUpdated));
-								var metadata2 = new ImageServerMetadata.Builder(server.getClass(), metadata)
+								var metadata2 = new ImageServerMetadata.Builder(metadata)
 										.channels(channels).build();
 								server.setMetadata(metadata2);
 							}
@@ -1007,7 +1007,7 @@ public class BrightnessContrastCommand implements PathCommand, ImageDataChangeLi
 				dialog.setHeaderText("Confirm new channel names?");
 				dialog.getDialogPane().setContent(new TextArea(String.join("\n", changes)));
 				if (dialog.showAndWait().orElseGet(() -> ButtonType.CANCEL) == ButtonType.APPLY) {
-					var newMetadata = new ImageServerMetadata.Builder(server.getClass(), metadata)
+					var newMetadata = new ImageServerMetadata.Builder(metadata)
 							.channels(channels).build();
 					server.setMetadata(newMetadata);
 					table.refresh();

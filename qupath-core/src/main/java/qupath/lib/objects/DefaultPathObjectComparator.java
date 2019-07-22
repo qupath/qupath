@@ -31,7 +31,7 @@ import qupath.lib.roi.DefaultROIComparator;
 
 /**
  * Default comparator to enable objects to be sorted in a more predictable manner.
- * 
+ * <p>
  * The aim is to help sorted lists to keep non-detection objects near the top, 
  * and thereafter to sort by ROI location (y coordinate first, then x) according to
  * the DefaultROIComparator.
@@ -93,14 +93,17 @@ public class DefaultPathObjectComparator implements Comparator<PathObject> {
 		PathClass pc2 = o2.getPathClass();
 		if (pc1 != null)
 			return pc1.compareTo(pc2);
-		else if (pc2 != null)
+		if (pc2 != null)
 			return pc2.compareTo(pc1);
 		
 		// Shouldn't end up here much...
 		return 0;
 	}
 	
-	
+	/**
+	 * Get shared comparator instance to sort PathObjects repeatably.
+	 * @return
+	 */
 	public static Comparator<PathObject> getInstance() {
 		return instance;
 	}

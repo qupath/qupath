@@ -1,3 +1,5 @@
+ext.moduleName = 'qupath.extension.processing'
+
 description = 'qupath-extension-processing'
 
 configurations {

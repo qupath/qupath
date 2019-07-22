@@ -32,6 +32,7 @@ import ij.process.ColorSpaceConverter;
 import ij.process.ImageProcessor;
 import ij.process.ShortProcessor;
 import java.awt.image.BufferedImage;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -41,21 +42,21 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import qupath.imagej.color.ColorDeconvolutionIJ;
-import qupath.imagej.objects.PathImagePlus;
-import qupath.imagej.objects.ROIConverterIJ;
-import qupath.imagej.processing.ROILabeling;
+import qupath.imagej.processing.RoiLabeling;
+import qupath.imagej.tools.IJTools;
 import qupath.lib.analysis.stats.RunningStatistics;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.PathImage;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.plugins.AbstractTileableDetectionPlugin;
 import qupath.lib.plugins.ObjectDetector;
 import qupath.lib.plugins.PluginRunner;
 import qupath.lib.plugins.parameters.ParameterList;
+import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.interfaces.PathArea;
 import qupath.lib.roi.interfaces.ROI;
 
@@ -99,8 +100,10 @@ public class SLICSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffe
 	
 	
 	private static double getPreferredDownsample(final ImageData<BufferedImage> imageData, final ParameterList params) {
-		boolean hasPixelSizeMicrons = imageData.getServer().hasPixelSizeMicrons();
-		double spacingPixels = hasPixelSizeMicrons ? params.getDoubleParameterValue("spacingMicrons") / imageData.getServer().getAveragedPixelSizeMicrons() : params.getDoubleParameterValue("spacingPixels");
+		
+		PixelCalibration cal = imageData.getServer().getPixelCalibration();
+		boolean hasPixelSizeMicrons = cal.hasPixelSizeMicrons();
+		double spacingPixels = hasPixelSizeMicrons ? params.getDoubleParameterValue("spacingMicrons") / cal.getAveragedPixelSizeMicrons() : params.getDoubleParameterValue("spacingPixels");
 		
 		// We aim to have about PREFERRED_PIXEL_SPACING spacing, so need to downsample the image accordingly
 		double downsample = Math.max(1, Math.round(spacingPixels / PREFERRED_PIXEL_SPACING));
@@ -110,8 +113,9 @@ public class SLICSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffe
 
 	@Override
 	protected double getPreferredPixelSizeMicrons(final ImageData<BufferedImage> imageData, final ParameterList params) {
-		if (imageData.getServer().hasPixelSizeMicrons())
-			return imageData.getServer().getAveragedPixelSizeMicrons() * getPreferredDownsample(imageData, params);
+		PixelCalibration cal = imageData.getServer().getPixelCalibration();
+		if (cal.hasPixelSizeMicrons())
+			return cal.getAveragedPixelSizeMicrons() * getPreferredDownsample(imageData, params);
 		return getPreferredDownsample(imageData, params);
 	}
 
@@ -141,7 +145,7 @@ public class SLICSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffe
 //				.addBooleanParameter("doMerge", "Merge similar", false, "Merge neighboring superpixels if they are similar to one another")
 				;
 		
-		boolean hasMicrons = imageData != null && imageData.getServer().hasPixelSizeMicrons();
+		boolean hasMicrons = imageData != null && imageData.getServer().getPixelCalibration().hasPixelSizeMicrons();
 		params.getParameters().get("sigmaPixels").setHidden(hasMicrons);
 		params.getParameters().get("sigmaMicrons").setHidden(!hasMicrons);
 		params.getParameters().get("spacingPixels").setHidden(hasMicrons);
@@ -161,7 +165,7 @@ public class SLICSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffe
 		private String lastResultSummary = null;
 
 		@Override
-		public Collection<PathObject> runDetection(final ImageData<BufferedImage> imageData, final ParameterList params, final ROI pathROI) {
+		public Collection<PathObject> runDetection(final ImageData<BufferedImage> imageData, final ParameterList params, final ROI pathROI) throws IOException {
 			
 			// TODO: Give a sensible error
 			if (pathROI == null) {
@@ -171,7 +175,7 @@ public class SLICSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffe
 			// Get a PathImage if we have a new ROI
 			if (!pathROI.equals(this.pathROI)) {
 				ImageServer<BufferedImage> server = imageData.getServer();
-				this.pathImage = PathImagePlus.createPathImage(server, pathROI, getPreferredDownsample(imageData, params));
+				this.pathImage = IJTools.convertToImagePlus(server, RegionRequest.createInstance(server.getPath(), getPreferredDownsample(imageData, params), pathROI));
 				this.pathROI = pathROI;
 			}
 			
@@ -189,7 +193,7 @@ public class SLICSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffe
 			if (imp.getType() == ImagePlus.COLOR_RGB) {
 				ColorProcessor cp = (ColorProcessor)imp.getProcessor();
 				if (doDeconvolve && imageData.isBrightfield() && imageData.getColorDeconvolutionStains() != null) {
-					ipColor = ColorDeconvolutionIJ.colorDeconvolve(cp, imageData.getColorDeconvolutionStains());
+					ipColor = IJTools.colorDeconvolve(cp, imageData.getColorDeconvolutionStains());
 //					fpDeconvolved = Arrays.copyOf(fpDeconvolved, 1);
 //					for (ImageProcessor fp : fpDeconvolved)
 //						System.err.println(fp.getStatistics().stdDev);
@@ -388,8 +392,8 @@ public class SLICSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffe
 			
 			// Remove everything outside the ROI, if required
 			if (pathROI != null) {
-				Roi roi = ROIConverterIJ.convertToIJRoi(pathROI, pathImage);
-				ROILabeling.clearOutside(ipLabels, roi);
+				Roi roi = IJTools.convertToIJRoi(pathROI, pathImage);
+				RoiLabeling.clearOutside(ipLabels, roi);
 				// It's important to move away from the containing ROI, to help with brush selections ending up
 				// having the correct parent (i.e. don't want to risk moving slightly outside the parent object's ROI)
 				// (Or at least it previously seemed important... it has an unwanted effect when tiling though)
@@ -400,14 +404,14 @@ public class SLICSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffe
 			
 			
 			// Convert to tiles & create a labelled image for later
-			List<PolygonRoi> polygons = ROILabeling.labelsToFilledRoiList(ipLabels, true);
+			List<PolygonRoi> polygons = RoiLabeling.labelsToFilledRoiList(ipLabels, true);
 			List<PathObject> pathObjects = new ArrayList<>(polygons.size());
 			label = 0;
 			try {
 				for (Roi roi : polygons) {
 					if (roi == null)
 						continue;
-					PathArea superpixelROI = (PathArea)ROIConverterIJ.convertToPathROI(roi, pathImage);
+					PathArea superpixelROI = (PathArea)IJTools.convertToROI(roi, pathImage);
 					if (pathROI == null)
 						continue;
 					PathObject tile = PathObjects.createTileObject(superpixelROI);
@@ -477,7 +481,7 @@ public class SLICSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffe
 		
 		
 		static double getSigma(final PathImage<?> pathImage, final ParameterList params) {
-			double pixelSizeMicrons = .5 * (pathImage.getPixelWidthMicrons() + pathImage.getPixelHeightMicrons());
+			double pixelSizeMicrons = pathImage.getPixelCalibration().getAveragedPixelSizeMicrons();
 			if (Double.isNaN(pixelSizeMicrons)) {
 				return params.getDoubleParameterValue("sigmaPixels") * pathImage.getDownsampleFactor();				
 			} else

@@ -7,12 +7,12 @@ import java.util.Collections;
 import java.util.List;
 
 import org.bytedeco.javacpp.PointerScope;
-import org.bytedeco.javacpp.opencv_core;
-import org.bytedeco.javacpp.opencv_core.Mat;
-import org.bytedeco.javacpp.opencv_core.MatVector;
-import org.bytedeco.javacpp.opencv_core.Scalar;
-import org.bytedeco.javacpp.opencv_dnn;
-import org.bytedeco.javacpp.opencv_dnn.Net;
+import org.bytedeco.opencv.global.opencv_core;
+import org.bytedeco.opencv.opencv_core.Mat;
+import org.bytedeco.opencv.opencv_core.MatVector;
+import org.bytedeco.opencv.opencv_core.Scalar;
+import org.bytedeco.opencv.global.opencv_dnn;
+import org.bytedeco.opencv.opencv_dnn.Net;
 
 import qupath.lib.images.servers.ImageServer;
 import qupath.opencv.processing.OpenCVTools;
@@ -48,14 +48,17 @@ class PixelFeatureExtractorDNN extends PixelFeatureExtractor {
 			this.measurements.add("Feature " + i);
 	}
 	
+	@Override
 	public List<String> getFeatureNames() {
 		return Collections.unmodifiableList(measurements);
 	}
 	
+	@Override
 	public int nFeatures() {
 		return nFeatures;
 	}
 	
+	@Override
 	protected void extractFeatures(final List<BufferedImage> images, final FloatBuffer buffer) {
 		try (PointerScope scope = new PointerScope()) {
 			

@@ -64,6 +64,7 @@ public class ArrayWrappers {
 
 	/**
 	 * Create a wrapper for a byte array, returning values as doubles.
+	 * <p>
 	 * Bytes are treated as unsigned 8-bit values (0-255);
 	 * 
 	 * @param array
@@ -75,6 +76,7 @@ public class ArrayWrappers {
 
 	/**
 	 * Create a wrapper for a short array, returning values as doubles.
+	 * <p>
 	 * Shorts are treated as unsigned 16-bit values (0-65535);
 	 * 
 	 * @param array
@@ -84,15 +86,26 @@ public class ArrayWrappers {
 		return new UnsignedShortArrayWrapper(array);
 	}
 
-	
+	/**
+	 * Simple wrapper for an array or list, enabling values to be returned as doubles.
+	 */
 	public static interface ArrayWrapper {
 		
+		/**
+		 * Number of entries in the array.
+		 * @return
+		 */
 		public int size();
 		
+		/**
+		 * Extract one entry from the array, converting to double as necessary.
+		 * @param ind
+		 * @return
+		 */
 		public double getDouble(int ind);
 
 		/**
-		 * Returns true if the array wrapper only supports integer values
+		 * Returns true if the array wrapper only supports integer values.
 		 * @return
 		 */
 		public boolean isIntegerWrapper();

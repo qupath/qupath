@@ -49,6 +49,7 @@ import qupath.lib.gui.plugins.PluginRunnerFX;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
+import qupath.lib.images.servers.ServerTools;
 import qupath.lib.io.PathIO;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
@@ -63,8 +64,9 @@ import qupath.lib.plugins.PathPlugin;
 import qupath.lib.plugins.PluginRunner;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectImageEntry;
+import qupath.lib.projects.Projects;
 import qupath.lib.regions.ImagePlane;
-import qupath.lib.roi.PathROIToolsAwt;
+import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.PathArea;
 import qupath.lib.roi.interfaces.PathShape;
@@ -186,8 +188,8 @@ public class QPEx extends QP {
 	 * @return
 	 */
 	private static String getProjectBaseDirectory() {
-		Project<?> project = getProject();
-		return project == null ? null : project.getBaseDirectory().getAbsolutePath();
+		File dir = Projects.getBaseDirectory(getProject());
+		return dir == null ? null : dir.getAbsolutePath();
 	}
 	
 	/**
@@ -211,11 +213,11 @@ public class QPEx extends QP {
 	 * @return
 	 */
 	public static ProjectImageEntry<BufferedImage> getProjectEntry() {
-		Project<BufferedImage> project = getProject();
-		String path = getCurrentServerPath();
-		if (project == null || path == null)
+		Project project = getProject();
+		ImageData imageData = getCurrentImageData();
+		if (project == null || imageData == null)
 			return null;
-		return project.getImageEntry(path);
+		return project.getEntry(imageData);
 	}
 	
 	
@@ -250,10 +252,10 @@ public class QPEx extends QP {
 			PluginRunner runner;
 			// TODO: Give potential of passing a plugin runner
 			if (isBatchMode() || imageData != getQuPath().getImageData()) {
-				runner = new CommandLinePluginRunner(imageData, true);
+				runner = new CommandLinePluginRunner(imageData);
 			}
 			else {
-				runner = new PluginRunnerFX(getQuPath(), true);
+				runner = new PluginRunnerFX(getQuPath());
 			}
 			completed = plugin.runPlugin(runner, args);
 			cancelled = runner.isCancelled();
@@ -314,7 +316,7 @@ public class QPEx extends QP {
 				if (shapeNew == null)
 					shapeNew = (PathShape)child.getROI();//.duplicate();
 				else
-					shapeNew = PathROIToolsAwt.combineROIs(shapeNew, (PathArea)child.getROI(), PathROIToolsAwt.CombineOp.ADD);
+					shapeNew = RoiTools.combineROIs(shapeNew, (PathArea)child.getROI(), RoiTools.CombineOp.ADD);
 				if (child.getPathClass() != null)
 					pathClasses.add(child.getPathClass());
 				children.add(child);
@@ -333,7 +335,7 @@ public class QPEx extends QP {
 		else
 			logger.warn("Cannot assign class unambiguously - " + pathClasses.size() + " classes represented in selection");
 		hierarchy.removeObjects(children, true);
-		hierarchy.addPathObject(pathObjectNew, false);
+		hierarchy.addPathObject(pathObjectNew);
 		//				pathObject.removePathObjects(children);
 		//				pathObject.addPathObject(pathObjectNew);
 		//				hierarchy.fireHierarchyChangedEvent(pathObject);
@@ -371,7 +373,7 @@ public class QPEx extends QP {
 			shape = ROIs.createRectangleROI(0, 0, imageData.getServer().getWidth(), imageData.getServer().getHeight(), ImagePlane.getPlaneWithChannel(shapeSelected));
 
 		// Create the new ROI
-		PathShape shapeNew = PathROIToolsAwt.combineROIs(shape, shapeSelected, PathROIToolsAwt.CombineOp.SUBTRACT);
+		PathShape shapeNew = RoiTools.combineROIs(shape, shapeSelected, RoiTools.CombineOp.SUBTRACT);
 		PathObject pathObjectNew = PathObjects.createAnnotationObject(shapeNew);
 
 		// Reassign all other children to the new parent
@@ -429,7 +431,7 @@ public class QPEx extends QP {
 		File fileOutput = new File(resolvePath(path));
 		if (fileOutput.isDirectory()) {
 			String ext = ",".equals(PathPrefs.getTableDelimiter()) ? ".csv" : ".txt";
-			fileOutput = new File(fileOutput, imageData.getServer().getShortServerName() + " " + PathObjectTools.getSuitableName(type, true) + ext);
+			fileOutput = new File(fileOutput, ServerTools.getDisplayableImageName(imageData.getServer()) + " " + PathObjectTools.getSuitableName(type, true) + ext);
 		}
 		ObservableMeasurementTableData model = new ObservableMeasurementTableData();
 		model.setImageData(imageData, imageData == null ? Collections.emptyList() : imageData.getHierarchy().getObjects(null, type));

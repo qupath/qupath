@@ -48,7 +48,7 @@ public class OpenCommand implements PathCommand {
 
 		@Override
 		public void run() {
-			gui.openImage(null, false, openURLs, false);
+			gui.openImage(null, false, openURLs);
 		}
 		
 		

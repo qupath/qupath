@@ -35,8 +35,9 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import static org.bytedeco.javacpp.opencv_core.*;
-import static org.bytedeco.javacpp.opencv_imgproc.Subdiv2D;
+import org.bytedeco.opencv.opencv_core.Point2f;
+import org.bytedeco.opencv.opencv_core.Rect;
+import org.bytedeco.opencv.opencv_imgproc.Subdiv2D;
 
 import qupath.lib.analysis.stats.RunningStatistics;
 import qupath.lib.classifiers.PathClassificationLabellingHelper;
@@ -54,7 +55,6 @@ import qupath.lib.roi.interfaces.ROI;
  * @author Pete Bankhead
  *
  */
-// I'm not trying to make a secret of it (although possibly should) - the 'finalize' method of Subdiv2D isn't called on OSX
 public class DelaunayTriangulation implements PathObjectConnectionGroup {
 	
 	private double distanceThreshold = Double.NaN;
@@ -441,7 +441,9 @@ public class DelaunayTriangulation implements PathObjectConnectionGroup {
 	}
 	
 	
-	
+	/**
+	 * Add Delaunay measurements to each pathObject.
+	 */
 	public void addNodeMeasurements() {
 		if (nodeMap == null)
 			return;

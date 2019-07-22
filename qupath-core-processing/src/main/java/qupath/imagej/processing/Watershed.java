@@ -40,19 +40,39 @@ import ij.process.ImageProcessor;
  */
 public class Watershed {
 	
+	/**
+	 * Expand non-zero regions in a binary image up to a maximum distance, using a watershed transform to prevent region merging.
+	 * @param bp
+	 * @param maxDistance
+	 * @param conn8
+	 * @return
+	 */
 	public static ImageProcessor watershedExpand(final ByteProcessor bp, final double maxDistance, final boolean conn8) {
 		FloatProcessor fpEDM = new EDM().makeFloatEDM(bp, (byte)255, false);
 		fpEDM.multiply(-1);
-		ImageProcessor ipLabels = ROILabeling.labelImage(bp, conn8);
+		ImageProcessor ipLabels = RoiLabeling.labelImage(bp, 0.5f, conn8);
 		doWatershed(fpEDM, ipLabels, -maxDistance, conn8);
 		return ipLabels;
 	}
 	
 	
+	/**
+	 * Apply a watershed transform.
+	 * @param ip intensity image
+	 * @param ipLabels starting locations
+	 * @param conn8 if true, use 8-connectivity rather than 4-connectivity
+	 */
 	public static void doWatershed(final ImageProcessor ip, final ImageProcessor ipLabels, final boolean conn8) {
 		doWatershed(ip, ipLabels, Double.NEGATIVE_INFINITY, conn8);
 	}
 	
+	/**
+	 * Apply an intensity-constrained watershed transform, preventing regions from expanding to pixels below a specified minimum threshold
+	 * @param ip intensity image
+	 * @param ipLabels starting locations
+	 * @param minThreshold minimum threshold
+	 * @param conn8 if true, use 8-connectivity rather than 4-connectivity
+	 */
 	public static void doWatershed(final ImageProcessor ip, final ImageProcessor ipLabels, final double minThreshold, final boolean conn8) {
 		
 		final long startTime = System.currentTimeMillis();

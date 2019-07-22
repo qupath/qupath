@@ -32,7 +32,7 @@ import org.slf4j.LoggerFactory;
  * This is useful e.g. when iterating through pixels, computing statistics from masked/labelled values.
  * <p>
  * Warning! This maintains a sum as a double - for many pixels and/or 16-bit data this may lead to imprecision 
- * (although for small regions, and especially optical densities, it should be fine).
+ * (although for small regions, and especially optical densities having low values, it should be fine).
  * <p>
  * A warning is logged for particularly large values.
  * 
@@ -47,8 +47,6 @@ public class RunningStatistics {
 	
 	private static double LARGE_DOUBLE_THRESHOLD = Math.pow(2, 53) - 1; // Largest integer that can be stored, maintaining accuracy of all smaller integers?
 	
-	public static int MAX_EXPAND = 100;
-	
 	private int numNaNs = 0;
 	
 	protected long size = 0;
@@ -56,17 +54,27 @@ public class RunningStatistics {
 
 	private double m1 = 0, s1 = 0;
 	
-	
+	/**
+	 * Default constructor.
+	 */
 	public RunningStatistics() {}
 	
+	/**
+	 * Get count of the number of non-NaN values added.
+	 * @return
+	 * 
+	 * @see #getNumNaNs()
+	 */
 	public long size() {
 		return size;
 	}
 	
 	/**
-	 * NaNs are ignored
+	 * Add another value; NaN values are counted but do not contribute to the statistics.
 	 * 
 	 * @param val
+	 * 
+	 * @see #getNumNaNs()
 	 */
 	public void addValue(double val) {
 		if (Double.isNaN(val)) {
@@ -91,42 +99,72 @@ public class RunningStatistics {
 		}
 	}
 	
+	/**
+	 * Get count of the number of NaN values added.
+	 * @return
+	 * 
+	 * @see #size()
+	 */
 	public long getNumNaNs() {
 		return numNaNs;
 	}
 	
-	public long nPixels() {
-		return size;
-	}
-	
+	/**
+	 * Get the sum of all non-NaN values that were added.
+	 * @return
+	 */
 	public double getSum() {
 		if (Math.abs(sum) > LARGE_DOUBLE_THRESHOLD)
 			logger.warn("Sum in {} is particularly large ({}), beware imprecision!", getClass().getSimpleName(), sum);
 		return sum;
 	}
 	
+	/**
+	 * Get the mean of all non-NaN values that were added.
+	 * @return
+	 */
 	public double getMean() {
 		return (size == 0) ? Double.NaN : getSum() / size;
 	}
 	
+	/**
+	 * Get the variance of all non-NaN values that were added.
+	 * @return
+	 */
 	public double getVariance() {
 		if (Math.abs(s1) > LARGE_DOUBLE_THRESHOLD)
 			logger.warn("Variance parameter s1 in {} is particularly large ({}), beware imprecision!", getClass().getSimpleName(), sum);
 		return (size <= 1) ? Double.NaN : s1 / (size - 1);
 	}
 	
+	/**
+	 * Get the standard deviation of all non-NaN values that were added.
+	 * @return
+	 */
 	public double getStdDev() {
 		return Math.sqrt(getVariance());
 	}
 	
+	/**
+	 * Get the minimum non-NaN value added.
+	 * @return the minimum value, or NaN if no values are available.
+	 */
 	public double getMin() {
 		return (size == 0) ? Double.NaN : min;
 	}
 	
+	/**
+	 * Get the maximum non-NaN value added.
+	 * @return the maximum value, or NaN if no values are available.
+	 */
 	public double getMax() {
 		return (size == 0) ? Double.NaN : max;
 	}
 	
+	/**
+	 * Get the range, i.e. maximum - minimum values.
+	 * @return
+	 */
 	public double getRange() {
 		return (size == 0) ? Double.NaN : max - min;
 	}

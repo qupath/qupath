@@ -1,11 +1,12 @@
 package qupath.lib.classifiers.pixel;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
 import qupath.lib.images.servers.ImageChannel;
+import qupath.lib.images.servers.ImageServerMetadata;
+import qupath.lib.images.servers.PixelType;
 
 /**
  * Metadata to control the behavior of a pixel classifier.
@@ -14,9 +15,6 @@ import qupath.lib.images.servers.ImageChannel;
  *
  */
 public class PixelClassifierMetadata {
-
-	public static enum PixelType { UInt8, UInt16, Float32, Float64 }
-	public static enum OutputType { Features, Classification, Probability }
 	
 	private int inputPadding = 0;
 	
@@ -28,10 +26,10 @@ public class PixelClassifierMetadata {
 	private int inputWidth = -1;
 	private int inputHeight = -1;
 	private int inputNumChannels = 3;
-	private PixelType inputDataType = PixelType.UInt8;
+	private PixelType inputDataType = PixelType.UINT8;
 	private int outputWidth = -1;
 	private int outputHeight = -1;
-	private OutputType outputType = OutputType.Classification;
+	private ImageServerMetadata.ChannelType outputType = ImageServerMetadata.ChannelType.CLASSIFICATION;
 	private List<ImageChannel> channels;
 	
     /**
@@ -42,7 +40,7 @@ public class PixelClassifierMetadata {
     };
     
     /**
-     * Requested input padding (above, below, left & right).
+     * Requested input padding (above, below, left and right).
      * @return
      */
     public int getInputPadding() {
@@ -70,8 +68,10 @@ public class PixelClassifierMetadata {
     }
 
     /**
-     * Mean value to subtract from a specified input channel
-     * Returns 0 if no scaling is specified.
+     * Mean value to subtract from a specified input channel, or 0 if no scaling is specified.
+     * 
+     * @param channel
+     * @return
      */
     private double getInputChannelMean(int channel) {
     	return inputChannelMeans == null ? 0 : inputChannelMeans[channel];
@@ -80,6 +80,9 @@ public class PixelClassifierMetadata {
     /**
      * Scale value used to divide a specified input channel (after possible mean subtraction), if required.
      * Returns 1 if no scaling is specified;
+     * 
+     * @param channel
+     * @return
      */
     public double getInputChannelScale(int channel) {
     	return inputChannelScales == null ? 0 : inputChannelScales[channel];
@@ -88,13 +91,16 @@ public class PixelClassifierMetadata {
     /**
      * Mean values to subtract from each input channel, if required.
      * May return null if no mean subtraction is required.
+     * 
+     * @return
      */
     public double[] getInputChannelMeans() {
     	return inputChannelMeans == null ? null : inputChannelMeans.clone();
     }
 
     /**
-     * Scale values used to divide each input channel (after possible mean subtraction), if required
+     * Scale values used to divide each input channel (after possible mean subtraction), if required.
+     * <p>
      * May return null if no scaling is required.
      */
     public double[] getInputChannelScales() {
@@ -146,7 +152,7 @@ public class PixelClassifierMetadata {
     /**
      * Type of output; default is OutputType.Probability
      */
-    public OutputType getOutputType() {
+    public ImageServerMetadata.ChannelType getOutputType() {
     	return outputType;
     }
 
@@ -156,11 +162,6 @@ public class PixelClassifierMetadata {
      */
     public List<ImageChannel> getChannels() {
     	return Collections.unmodifiableList(channels);
-    }
-
-
-    private int nOutputChannels() {
-        return channels == null ? 0 : channels.size();
     }
     
     
@@ -183,6 +184,9 @@ public class PixelClassifierMetadata {
     }
     
     
+    /**
+     * Builder to create {@link PixelClassifierMetadata} objects.
+     */
     public static class Builder {
     	
     	private String inputPixelSizeUnits;
@@ -194,43 +198,80 @@ public class PixelClassifierMetadata {
     	private int inputWidth = -1;
     	private int inputHeight = -1;
     	private int inputNumChannels = 3;
-    	private PixelType inputDataType = PixelType.UInt8;
+    	private PixelType inputDataType = PixelType.UINT8;
     	private int outputWidth = -1;
     	private int outputHeight = -1;
-    	private OutputType outputType = OutputType.Probability;
+    	private ImageServerMetadata.ChannelType outputType = ImageServerMetadata.ChannelType.PROBABILITY;
     	private List<ImageChannel> channels = new ArrayList<>();
     	
+    	/**
+    	 * Build a new PixelClassifierMetadata object.
+    	 * @return
+    	 */
     	public PixelClassifierMetadata build() {
     		return new PixelClassifierMetadata(this);
     	}
     	
-    	public Builder inputPadding(int inputPadding) {
-    		this.inputPadding = inputPadding;
-    		return this;
-    	}
+//    	public Builder inputPadding(int inputPadding) {
+//    		this.inputPadding = inputPadding;
+//    		return this;
+//    	}
     	
-    	public Builder setOutputType(OutputType type) {
+    	/**
+    	 * Specify the output channel type.
+    	 * @param type
+    	 * @return
+    	 */
+    	public Builder setChannelType(ImageServerMetadata.ChannelType type) {
     		this.outputType = type;
     		return this;
     	}
     	
-    	public Builder inputPixelSize(double pixelSizeMicrons) {
-    		this.inputPixelSize = pixelSizeMicrons;
+    	/**
+    	 * Pixel size defining the resolution at which the classifier should operate.
+    	 * @param pixelSize
+    	 * @return
+    	 * 
+    	 * @see PixelClassifierMetadata#getInputPixelSize()
+    	 * @see #inputPixelSizeUnits(String)
+    	 */
+    	public Builder inputPixelSize(double pixelSize) {
+    		this.inputPixelSize = pixelSize;
     		return this;
     	}
     	
+    	/**
+    	 * Units for the input pixel size.
+    	 * @param inputPixelSizeUnits
+    	 * @return
+    	 * 
+    	 * @see PixelClassifierMetadata#getInputPixelSizeUnits()
+    	 * @see #inputPixelSize(double)
+    	 */
     	public Builder inputPixelSizeUnits(String inputPixelSizeUnits) {
     		this.inputPixelSizeUnits = inputPixelSizeUnits;
     		return this;
     	}
     	
+    	/**
+    	 * Preferred input image width and height. This may either be a hint or strictly enforced.
+    	 * @param width
+    	 * @param height
+    	 * @return
+    	 * 
+    	 * @see #strictInputSize()
+    	 */
     	public Builder inputShape(int width, int height) {
     		this.inputWidth = width;
     		this.inputHeight = height;
     		return this;
     	}
     	
-    	private Builder strictInputSize() {
+    	/**
+    	 * Strictly enforce the input shape. Otherwise it is simply a request, but the pixel classifier may use a different size.
+    	 * @return
+    	 */
+    	public Builder strictInputSize() {
     		this.strictInputSize = true;
     		return this;
     	}
@@ -240,25 +281,35 @@ public class PixelClassifierMetadata {
     		return this;
     	}
     	
-    	private Builder inputChannelMeans(double... means) {
+    	/**
+    	 * Values to subtract from each input channel.
+    	 * @param means
+    	 * @return
+    	 */
+    	public Builder inputChannelMeans(double... means) {
     		this.inputChannelMeans = means.clone();
     		return this;
     	}
     	
-    	private Builder inputChannelScales(double... scales) {
+    	/**
+    	 * Scale values to apply to each input channel.
+    	 * @param scales
+    	 * @return
+    	 */
+    	public Builder inputChannelScales(double... scales) {
     		this.inputChannelScales = scales.clone();
     		return this;
     	}
     	
-    	public Builder channels(ImageChannel...channels) {
-    		return channels(Arrays.asList(channels));
-    	}
-    	
+    	/**
+    	 * Specify channels for output.
+    	 * @param channels
+    	 * @return
+    	 */
     	public Builder channels(List<ImageChannel> channels) {
     		this.channels.addAll(channels);
     		return this;
     	}
-    	
     	    	
     }
     

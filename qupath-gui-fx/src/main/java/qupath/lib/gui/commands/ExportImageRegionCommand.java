@@ -51,6 +51,7 @@ import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.ServerTools;
 import qupath.lib.objects.PathObject;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.interfaces.ROI;
@@ -181,8 +182,8 @@ public class ExportImageRegionCommand implements PathCommand {
 
 		// Create a sensible default file name, and prompt for the actual name
 		String ext = "JPEG".equals(selectedImageType.get()) ? "jpg" : selectedImageType.get().toLowerCase();
-		String defaultName = roi == null ? server.getShortServerName() : 
-			String.format("%s (%s, %d, %d, %d, %d)", server.getShortServerName(), GeneralTools.formatNumber(request.getDownsample(), 2), request.getX(), request.getY(), request.getWidth(), request.getHeight());
+		String defaultName = roi == null ? ServerTools.getDisplayableImageName(server) : 
+			String.format("%s (%s, %d, %d, %d, %d)", ServerTools.getDisplayableImageName(server), GeneralTools.formatNumber(request.getDownsample(), 2), request.getX(), request.getY(), request.getWidth(), request.getHeight());
 		File fileOutput = qupath.getDialogHelper().promptToSaveFile("Export image region", null, defaultName, selectedImageType.get(), ext);
 		if (fileOutput == null)
 			return;

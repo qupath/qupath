@@ -33,6 +33,7 @@ import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.ServerTools;
 import qupath.lib.io.PathIO;
 
 /**
@@ -60,7 +61,7 @@ public class SerializeImageDataCommand implements PathCommand {
 			}
 			try {
 				var project = qupath.getProject();
-				var entry = project == null ? null : project.getImageEntry(imageData.getServerPath());
+				var entry = project == null ? null : project.getEntry(imageData);
 				if (entry != null) {
 					if (overwriteExisting || DisplayHelpers.showConfirmDialog("Save changes", "Save changes to " + entry.getImageName() + "?")) {
 							entry.saveImageData(imageData);
@@ -80,7 +81,7 @@ public class SerializeImageDataCommand implements PathCommand {
 					}
 					else {
 						ImageServer<?> server = imageData.getServer();
-						file = qupath.getDialogHelper().promptToSaveFile(null, null, server.getShortServerName(), "QuPath Serialized Data", PathPrefs.getSerializationExtension());
+						file = qupath.getDialogHelper().promptToSaveFile(null, null, ServerTools.getDisplayableImageName(server), "QuPath Serialized Data", PathPrefs.getSerializationExtension());
 					}
 					if (file == null)
 						return;

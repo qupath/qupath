@@ -36,6 +36,7 @@ import javafx.embed.swing.SwingFXUtils;
 import javafx.scene.image.Image;
 import qupath.lib.gui.models.ObservableMeasurementTableData;
 import qupath.lib.images.ImageData;
+import qupath.lib.images.servers.ServerTools;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.interfaces.ROI;
@@ -199,7 +200,7 @@ public class TMAObjectEntry implements TMAEntry {
 
 	@Override
 	public String getImageName() {
-		return imageData == null ? null : imageData.getServer().getShortServerName();
+		return imageData == null ? null : ServerTools.getDisplayableImageName(imageData.getServer());
 	}
 
 

@@ -128,10 +128,10 @@ public class ImageDisplay extends AbstractImageRenderer {
 			ImageServer<?> lastServer = this.imageData.getServer();
 			ImageServer<?> nextServer = imageData.getServer();
 			retainDisplaySettings = lastServer.nChannels() == nextServer.nChannels() &&
-					lastServer.getBitsPerPixel() == nextServer.getBitsPerPixel();
+					lastServer.getPixelType() == nextServer.getPixelType();
 			if (retainDisplaySettings) {
 				for (int c = 0; c < lastServer.nChannels(); c++) {
-					if (!lastServer.getChannelName(c).equals(nextServer.getChannelName(c))) {
+					if (!lastServer.getChannel(c).getName().equals(nextServer.getChannel(c).getName())) {
 						retainDisplaySettings = false;
 					}
 				}
@@ -552,10 +552,10 @@ public class ImageDisplay extends AbstractImageRenderer {
 			histogramManager = new HistogramManager(0L);
 //			histogramManager = new HistogramManager(server.getLastChangeTimestamp());
 			histogramManager.ensureChannels(server, channelOptions);
-			channelOptions.stream().forEach(channel -> autoSetDisplayRange(channel, false));
+			channelOptions.parallelStream().forEach(channel -> autoSetDisplayRange(channel, false));
 			cachedHistograms.put(server.getPath(), histogramManager);
 		} else {
-			channelOptions.stream().forEach(channel -> autoSetDisplayRange(channel, false));
+			channelOptions.parallelStream().forEach(channel -> autoSetDisplayRange(channel, false));
 		}
 	}
 
@@ -786,9 +786,14 @@ public class ImageDisplay extends AbstractImageRenderer {
 			// Check what we might need to process
 			List<SingleChannelDisplayInfo> channelsToProcess = new ArrayList<>();
 			for (ChannelDisplayInfo channel : channels) {
-				if (map.containsKey(getKey(channel)))
+				Histogram histogram = map.get(getKey(channel));
+				if (histogram != null) {
+					if (channel instanceof ModifiableChannelDisplayInfo) {
+						((ModifiableChannelDisplayInfo)channel).setMinMaxAllowed(
+								(float)Math.min(0, histogram.getMinValue()), (float)histogram.getMaxValue());
+					}
 					continue;
-				else if (channel instanceof SingleChannelDisplayInfo)
+				} else if (channel instanceof SingleChannelDisplayInfo)
 					channelsToProcess.add((SingleChannelDisplayInfo)channel);
 				else
 					map.put(getKey(channel), null);
@@ -824,7 +829,7 @@ public class ImageDisplay extends AbstractImageRenderer {
 					if (counter >= Integer.MAX_VALUE)
 						break;
 				}
-				Histogram histogram = new Histogram(values, NUM_BINS);
+				Histogram histogram = new Histogram(pixels == null ? values : pixels, NUM_BINS);
 				
 				// If we have more than an 8-bit image, set the display range according to actual values
 				if (channel instanceof ModifiableChannelDisplayInfo) {

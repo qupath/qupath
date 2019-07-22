@@ -7,10 +7,13 @@ import java.awt.image.WritableRaster;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import qupath.lib.awt.color.model.ColorModelFactory;
+import qupath.lib.color.ColorModelFactory;
+import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
+import qupath.lib.images.servers.ImageServers.ConcatChannelsImageServerBuilder;
 import qupath.lib.regions.RegionRequest;
 
 /**
@@ -19,7 +22,7 @@ import qupath.lib.regions.RegionRequest;
  * @author Pete Bankhead
  *
  */
-public class ConcatChannelsImageServer extends WrappedImageServer<BufferedImage> {
+public class ConcatChannelsImageServer extends TransformingImageServer<BufferedImage> {
 	
 	private ImageServerMetadata originalMetadata;
 	private List<ImageServer<BufferedImage>> allServers = new ArrayList<>();
@@ -39,19 +42,30 @@ public class ConcatChannelsImageServer extends WrappedImageServer<BufferedImage>
 	public ConcatChannelsImageServer(ImageServer<BufferedImage> server, Collection<ImageServer<BufferedImage>> imageServers) {
 		super(server);
 		if (!imageServers.contains(server))
-			allServers.add(server);
+			allServers.add(0, server);
 		allServers.addAll(imageServers);
 		
 		var channels = new ArrayList<ImageChannel>();
 		for (var s : allServers)
-			channels.addAll(s.getChannels());
+			channels.addAll(s.getMetadata().getChannels());
 		
-		originalMetadata = new ImageServerMetadata.Builder(getClass(), server.getMetadata())
-				.path("Merged channels ["+String.join(", ", allServers.stream().map(s -> s.getPath()).collect(Collectors.toList())) + "]")
+		originalMetadata = new ImageServerMetadata.Builder(server.getMetadata())
+//				.path("Merged channels ["+String.join(", ", allServers.stream().map(s -> s.getPath()).collect(Collectors.toList())) + "]")
 				.channels(channels)
 				.build();
 	}
 
+	@Override
+	protected String createID() {
+		StringBuilder sb = new StringBuilder();
+		for (var server : allServers) {
+			if (sb.length() == 0)
+				sb.append(", ");
+			sb.append(server.getPath());
+		}
+		return getClass().getName() + ": [" + sb + "]";
+	}
+	
 	@Override
 	public String getServerType() {
 		return "Channel concat image server";
@@ -60,6 +74,14 @@ public class ConcatChannelsImageServer extends WrappedImageServer<BufferedImage>
 	@Override
 	public ImageServerMetadata getOriginalMetadata() {
 		return originalMetadata;
+	}
+	
+	/**
+	 * Get an unmodifiable list of all ImageServers being concatenated.
+	 * @return
+	 */
+	public List<ImageServer<BufferedImage>> getAllServers() {
+		return Collections.unmodifiableList(allServers);
 	}
 	
 	@Override
@@ -99,9 +121,18 @@ public class ConcatChannelsImageServer extends WrappedImageServer<BufferedImage>
 		}
 		
 		return new BufferedImage(
-				ColorModelFactory.getDummyColorModel(getBitsPerPixel()),
+				ColorModelFactory.getDummyColorModel(getPixelType().bitsPerPixel()),
 				raster, premultiplied, null);
 	}
 	
+	
+	@Override
+	protected ServerBuilder<BufferedImage> createServerBuilder() {
+		return new ConcatChannelsImageServerBuilder(
+				getMetadata(),
+				getWrappedServer().getBuilder(),
+				allServers.stream().map(s -> s.getBuilder()).collect(Collectors.toList())
+				);
+	}
 	
 }

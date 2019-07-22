@@ -1,0 +1,28 @@
+module qupath.extension.processing {
+	
+	requires java.base;
+	requires java.desktop;
+	
+	requires javafx.controls;
+	requires javafx.swing;
+	
+	requires qupath.core;
+    requires qupath.core.processing;
+    requires qupath.gui.fx;
+
+    requires slf4j.api;
+    requires jfxtras.common;
+    requires ij;
+    requires org.bytedeco.opencv;
+	requires org.controlsfx.controls;
+	
+	exports qupath.experimental;
+	exports qupath.lib.ai;
+	exports qupath.lib.classifiers.gui;
+	exports qupath.lib.classifiers.opencv;
+	exports qupath.lib.classifiers.opencv.gui;
+	exports qupath.lib.classifiers.opencv.pixel;
+	exports qupath.lib.classifiers.opencv.pixel.features;
+	exports qupath.lib.gui.align;
+	
+}

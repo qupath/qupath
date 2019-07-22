@@ -32,13 +32,16 @@ import java.awt.geom.NoninvertibleTransformException;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferByte;
 import java.io.IOException;
+import java.util.Collection;
 import java.util.Iterator;
-import java.util.List;
 
-import static org.bytedeco.javacpp.opencv_core.*;
-import static org.bytedeco.javacpp.opencv_video.*;
+import static org.bytedeco.opencv.global.opencv_core.*;
+import static org.bytedeco.opencv.global.opencv_video.*;
 
 import org.bytedeco.javacpp.indexer.Indexer;
+import org.bytedeco.opencv.opencv_core.Mat;
+import org.bytedeco.opencv.opencv_core.Scalar;
+import org.bytedeco.opencv.opencv_core.TermCriteria;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,12 +50,14 @@ import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathROIObject;
 import qupath.lib.objects.TMACoreObject;
+import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.regions.RegionRequest;
-import qupath.lib.roi.PathROIToolsAwt;
+import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.interfaces.ROI;
 import qupath.opencv.processing.OpenCVTools;
 
@@ -75,6 +80,10 @@ public class AlignCoreAnnotationsCV implements PathCommand {
 	
 	private final QuPathGUI qupath;
 	
+	/**
+	 * Constructor.
+	 * @param qupath QuPath instance where the command should be installed.
+	 */
 	public AlignCoreAnnotationsCV(final QuPathGUI qupath) {
 		this.qupath = qupath;
 	}
@@ -111,7 +120,7 @@ public class AlignCoreAnnotationsCV implements PathCommand {
 		@Override
 		public void run() {
 			
-			List<PathObject> pathObjects = imageData.getHierarchy().getDescendantObjects(parentObject, null, PathAnnotationObject.class);
+			Collection<PathObject> pathObjects = PathObjectTools.getDescendantObjects(parentObject, null, PathAnnotationObject.class);
 			Iterator<PathObject> iter = pathObjects.iterator();
 			while (iter.hasNext()) {
 				if (iter.next().hasChildren())
@@ -127,8 +136,9 @@ public class AlignCoreAnnotationsCV implements PathCommand {
 			ImageServer<BufferedImage> server = imageData.getServer();
 			double downsample = 1;
 			double preferredPixelSizeMicrons = 4;
-			if (server.hasPixelSizeMicrons() && server.getAveragedPixelSizeMicrons() < preferredPixelSizeMicrons) {
-				downsample = preferredPixelSizeMicrons / server.getAveragedPixelSizeMicrons();
+			PixelCalibration cal = server.getPixelCalibration();
+			if (cal.hasPixelSizeMicrons() && cal.getAveragedPixelSizeMicrons() < preferredPixelSizeMicrons) {
+				downsample = preferredPixelSizeMicrons / cal.getAveragedPixelSizeMicrons();
 			}
 			RegionRequest request = RegionRequest.createInstance(server.getPath(), downsample, parentObject.getROI());
 			BufferedImage img = null;
@@ -156,7 +166,7 @@ public class AlignCoreAnnotationsCV implements PathCommand {
 			g2d.setTransform(transformForward);
 			g2d.setColor(Color.WHITE);
 			for (PathObject temp : pathObjects) {
-				Shape shape = PathROIToolsAwt.getShape(temp.getROI());
+				Shape shape = RoiTools.getShape(temp.getROI());
 				g2d.fill(shape);
 			}
 			g2d.dispose();
@@ -189,7 +199,7 @@ public class AlignCoreAnnotationsCV implements PathCommand {
 					indexerWarp.getDouble(1, 2));
 			for (PathObject temp : pathObjects) {
 				ROI roi = temp.getROI();
-				Shape shape = PathROIToolsAwt.getShape(roi);
+				Shape shape = RoiTools.getShape(roi);
 				shape = transformForward.createTransformedShape(shape);
 				shape = transformRefine.createTransformedShape(shape);
 				try {
@@ -198,7 +208,7 @@ public class AlignCoreAnnotationsCV implements PathCommand {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
-				((PathROIObject)temp).setROI(PathROIToolsAwt.getShapeROI(shape, roi.getC(), roi.getZ(), roi.getT(), -1));
+				((PathROIObject)temp).setROI(RoiTools.getShapeROI(shape, roi.getImagePlane(), -1));
 			}
 			imageData.getHierarchy().fireHierarchyChangedEvent(this, parentObject);
 			

@@ -432,7 +432,7 @@ class PathObjectTileCache implements PathObjectHierarchyListener {
 	public boolean hasObjectsForRegion(Class<? extends PathObject> cls, ImageRegion region, boolean includeSubclasses) {
 		ensureCacheConstructed();
 		
-		var envelope = getEnvelope(region);
+		var envelope = region == null ? MAX_ENVELOPE : getEnvelope(region);
 		
 		int z = region == null ? -1 : region.getZ();
 		int t = region == null ? -1 : region.getT();

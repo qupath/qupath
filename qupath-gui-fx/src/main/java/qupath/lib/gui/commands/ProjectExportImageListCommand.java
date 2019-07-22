@@ -25,9 +25,13 @@ package qupath.lib.gui.commands;
 
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.io.PrintWriter;
+import java.net.URI;
+import java.util.Collection;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -83,18 +87,24 @@ public class ProjectExportImageListCommand implements PathCommand {
 			writer.println();
 			
 			for (ProjectImageEntry<?> entry : qupath.getProject().getImageList()) {
-				String path = entry.getServerPath();
-				writer.print(path);
-				writer.print(PathPrefs.getTableDelimiter());				
-				writer.print(entry.getImageName());
-				for (String key : keys) {
-					writer.print(PathPrefs.getTableDelimiter());
-					String value = entry.getMetadataValue(key);
-					if (value != null)
-						writer.print(value);
+				try {
+					Collection<URI> uris = entry.getServerURIs();
+					String path = String.join(" ", uris.stream().map(u -> u.toString()).collect(Collectors.toList()));
+	//				String path = entry.getServerPath();
+					writer.print(path);
+					writer.print(PathPrefs.getTableDelimiter());				
+					writer.print(entry.getImageName());
+					for (String key : keys) {
+						writer.print(PathPrefs.getTableDelimiter());
+						String value = entry.getMetadataValue(key);
+						if (value != null)
+							writer.print(value);
+					}
+					writer.println();
+					logger.info(path);
+				} catch (IOException e) {
+					logger.error("Error reading URIs from " + entry, e);
 				}
-				writer.println();
-				logger.info(path);
 			}		
 		} catch (FileNotFoundException e) {
 			DisplayHelpers.showErrorMessage(commandName, fileOutput.getAbsolutePath() + " not found!");

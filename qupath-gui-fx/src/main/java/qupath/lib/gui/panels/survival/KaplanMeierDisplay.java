@@ -1058,6 +1058,9 @@ public class KaplanMeierDisplay implements ParameterChangeListener, PathObjectHi
 
 
 
+	static String getLogRankComparisonName(final String conditionA, final String conditionB) {
+		return String.format("%s vs %s log-rank (HR)", conditionA, conditionB);
+	}
 
 
 
@@ -1127,7 +1130,7 @@ public class KaplanMeierDisplay implements ParameterChangeListener, PathObjectHi
 					LogRankResult logRankResult = LogRankTest.computeLogRankTest(km1, km2);
 
 					//						if (!Double.isNaN(pValue)) {
-					names.add(logRankResult.getName(km1.getName(), km2.getName()));
+					names.add(getLogRankComparisonName(km1.getName(), km2.getName()));
 					values.add(logRankResult.getResultString());
 
 					//							names.add("Log-rank (" + km1.getName() + " vs. " + km2.getName() + ")");
@@ -1190,7 +1193,7 @@ public class KaplanMeierDisplay implements ParameterChangeListener, PathObjectHi
 				kmExtreme.addEvents(kms[0].getEvents());
 				kmExtreme.addEvents(kms[2].getEvents());
 				LogRankResult logRankResult = LogRankTest.computeLogRankTest(kmExtreme, kms[1]);
-				names.add(logRankResult.getName(kmExtreme.getName(), kms[1].getName()));
+				names.add(getLogRankComparisonName(kmExtreme.getName(), kms[1].getName()));
 				values.add(logRankResult.getResultString());
 			}
 

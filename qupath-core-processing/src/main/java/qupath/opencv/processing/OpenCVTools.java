@@ -27,11 +27,15 @@ import java.awt.image.BufferedImage;
 import java.awt.image.ColorModel;
 import java.awt.image.DataBuffer;
 import java.awt.image.IndexColorModel;
-import java.awt.image.Raster;
 import java.awt.image.WritableRaster;
-import java.nio.FloatBuffer;
-import static org.bytedeco.javacpp.opencv_core.*;
-import org.bytedeco.javacpp.opencv_imgproc;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import static org.bytedeco.opencv.global.opencv_core.*;
+
+import org.bytedeco.opencv.global.opencv_core;
+import org.bytedeco.opencv.global.opencv_imgproc;
 import org.bytedeco.javacpp.indexer.ByteIndexer;
 import org.bytedeco.javacpp.indexer.DoubleIndexer;
 import org.bytedeco.javacpp.indexer.FloatIndexer;
@@ -41,10 +45,24 @@ import org.bytedeco.javacpp.indexer.UByteIndexer;
 import org.bytedeco.javacpp.indexer.UShortIndexer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.bytedeco.javacpp.opencv_core.Mat;
-import org.bytedeco.javacpp.opencv_core.Scalar;
 
+import ij.CompositeImage;
+import ij.ImagePlus;
+import ij.ImageStack;
+import ij.process.ByteProcessor;
+import ij.process.FloatProcessor;
+import ij.process.ImageProcessor;
+import ij.process.ShortProcessor;
+
+import org.bytedeco.opencv.opencv_core.Mat;
+import org.bytedeco.opencv.opencv_core.MatVector;
+import org.bytedeco.opencv.opencv_core.Point;
+import org.bytedeco.opencv.opencv_core.Scalar;
+
+import qupath.lib.color.ColorModelFactory;
 import qupath.lib.common.ColorTools;
+import qupath.lib.images.servers.ImageServer;
+import qupath.lib.regions.RegionRequest;
 
 /**
  * Collection of static methods to help with using OpenCV from Java.
@@ -58,13 +76,13 @@ public class OpenCVTools {
 	
 	/**
 	 * Convert a BufferedImage to an OpenCV Mat.
-	 * 
+	 * <p>
 	 * An effort will be made to do a sensible conversion based on the BufferedImage type, 
 	 * returning a Mat with a suitable type.
-	 * 
+	 * <p>
 	 * BGR and RGB images will remain with the same channel order, and an alpha channel 
 	 * (if present) will be included at the end (i.e. to give BGRA or RGBA).
-	 * 
+	 * <p>
 	 * Note: the behavior of this method has changed; in QuPath &lt;= 0.1.2 only
 	 * RGB images were really supported, and an RGB conversion was *always* made.
 	 * 
@@ -225,7 +243,7 @@ public class OpenCVTools {
 	
 	/**
 	 * Convert a Mat to a BufferedImage.
-	 * 
+	 * <p>
 	 * This is equivalent to matToBufferedImage(mat, null);
 	 * As such, the ColorModel may or may not end up being something useful.
 	 * 
@@ -241,10 +259,10 @@ public class OpenCVTools {
 	
 	/**
 	 * Convert a Mat to a BufferedImage.
-	 * 
+	 * <p>
 	 * If no ColorModel is specified, a grayscale model will be used for single-channel 8-bit 
 	 * images and RGB/ARGB for 3/4 channel 8-bit images.
-	 * 
+	 * <p>
 	 * For all other cases a ColorModel should be specified for meaningful display.
 	 * 
 	 * @param mat
@@ -322,7 +340,7 @@ public class OpenCVTools {
 			// Create some kind of raster we can use
 			raster = WritableRaster.createBandedRaster(type, width, height, channels, null);
 			// We do need a ColorModel or some description
-			colorModel = new DummyColorModel(bpp * channels);
+			colorModel = ColorModelFactory.getDummyColorModel(bpp * channels);
 			img = new BufferedImage(colorModel, raster, false, null);
 		}
 		MatVector matvector = new MatVector();
@@ -376,12 +394,10 @@ public class OpenCVTools {
 	
 
 	/**
-	 * Extract 8-bit unsigned pixels from a BufferedImage as a multichannel RGB Mat.
+	 * Extract 8-bit unsigned pixels from a BufferedImage as a multichannel RGB(A) Mat.
 	 * 
-	 * If Alpha is requested, it will be returned as a 4th channel.
-	 * 
-	 * @param img
-	 * @param includeAlpha
+	 * @param img input image
+	 * @param includeAlpha if true, return any available alpha data as a 4th channel.
 	 * @return
 	 */
 	public static Mat imageToMatRGB(final BufferedImage img, final boolean includeAlpha) {
@@ -389,12 +405,10 @@ public class OpenCVTools {
 	}
 	
 	/**
-	 * Extract 8-bit unsigned pixels from a BufferedImage as a multichannel BGR Mat.
+	 * Extract 8-bit unsigned pixels from a BufferedImage as a multichannel BGR(A) Mat.
 	 * 
-	 * If Alpha is requested, it will be returned as a 4th channel.
-	 * 
-	 * @param img
-	 * @param includeAlpha
+	 * @param img input image
+	 * @param includeAlpha if true, return any available alpha data as a 4th channel.
 	 * @return
 	 */
 	public static Mat imageToMatBGR(final BufferedImage img, final boolean includeAlpha) {
@@ -402,14 +416,12 @@ public class OpenCVTools {
 	}
 	
 	/**
-	 * Extract 8-bit unsigned pixels from a BufferedImage, either as RGB (default) 
-	 * or BGR (OpenCV's preferred format).
+	 * Extract 8-bit unsigned pixels from a BufferedImage, either as RGB(A) (default) 
+	 * or BGR(A) (OpenCV's preferred format).
 	 * 
-	 * If Alpha is requested, it will be returned as the final channel.
-	 * 
-	 * @param img
-	 * @param doBGR
-	 * @param includeAlpha
+	 * @param img input image
+	 * @param doBGR if true, request BGR rather than RGB
+	 * @param includeAlpha if true, return any available alpha data as a 4th channel.
 	 * @return
 	 */
 	private static Mat imageToMatRGBorBGR(final BufferedImage img, final boolean doBGR, final boolean includeAlpha) {
@@ -451,25 +463,28 @@ public class OpenCVTools {
 		return mat;
 	}
 	
-
-	public static void labelImage(Mat matBinary, Mat matLabels, int contourType) {
+	/**
+	 * Create a labelled image from a binary image using findContours and drawContours.
+	 * @param matBinary
+	 * @param matLabels
+	 * @param contourRetrievalMode defined within OpenCV findContours
+	 */
+	public static void labelImage(Mat matBinary, Mat matLabels, int contourRetrievalMode) {
 		MatVector contours = new MatVector();
 		Mat hierarchy = new Mat();
-		opencv_imgproc.findContours(matBinary, contours, hierarchy, contourType, opencv_imgproc.CHAIN_APPROX_SIMPLE);
-		int i = 2;
-		int ind = 0;
+		opencv_imgproc.findContours(matBinary, contours, hierarchy, contourRetrievalMode, opencv_imgproc.CHAIN_APPROX_SIMPLE);
 		Point offset = new Point(0, 0);
 		for (int c = 0; c < contours.size(); c++) {
-			opencv_imgproc.drawContours(matLabels, contours, c, Scalar.all(i++), -1, 8, hierarchy.col(ind), 2, offset);
-//			opencv_imgproc.drawContours(matLabels, temp, 0, new Scalar(i++), -1);
-			ind++;
+			opencv_imgproc.drawContours(matLabels, contours, c, Scalar.all(c+1), -1, 8, hierarchy, 2, offset);
 		}
+		hierarchy.close();
+		contours.close();
 	}
 	
 	
 	/**
 	 * Set pixels from a byte array.
-	 * 
+	 * <p>
 	 * There is no real error checking; it is assumed that the pixel array is in the appropriate format.
 	 * 
 	 * @param mat
@@ -490,7 +505,7 @@ public class OpenCVTools {
 	
 	/**
 	 * Set pixels from a float array.
-	 * 
+	 * <p>
 	 * There is no real error checking; it is assumed that the pixel array is in the appropriate format.
 	 * 
 	 * @param mat
@@ -503,41 +518,15 @@ public class OpenCVTools {
 		} else
 			throw new IllegalArgumentException("Expected a FloatIndexer, but instead got " + indexer.getClass());
 	}
-	
 
-	public static void watershedDistanceTransformSplit(Mat matBinary, int maxFilterRadius) {
-			Mat matWatershedSeedsBinary;
-			
-			// Create a background mask
-			Mat matBackground = new Mat();
-			compare(matBinary, new Mat(1, 1, CV_32FC1, Scalar.WHITE), matBackground, CMP_NE);
-	
-			// Separate by shape using the watershed transform
-			Mat matDistanceTransform = new Mat();
-			opencv_imgproc.distanceTransform(matBinary, matDistanceTransform, opencv_imgproc.CV_DIST_L2, opencv_imgproc.CV_DIST_MASK_PRECISE);
-			// Find local maxima
-			matWatershedSeedsBinary = new Mat();
-			opencv_imgproc.dilate(matDistanceTransform, matWatershedSeedsBinary, OpenCVTools.getCircularStructuringElement(maxFilterRadius));
-			compare(matDistanceTransform, matWatershedSeedsBinary, matWatershedSeedsBinary, CMP_EQ);
-			matWatershedSeedsBinary.setTo(new Mat(1, 1, matWatershedSeedsBinary.type(), Scalar.ZERO), matBackground);
-			// Dilate slightly to merge nearby maxima
-			opencv_imgproc.dilate(matWatershedSeedsBinary, matWatershedSeedsBinary, OpenCVTools.getCircularStructuringElement(2));
-	
-			// Create labels for watershed
-			Mat matLabels = new Mat(matDistanceTransform.size(), CV_32F, Scalar.ZERO);
-			labelImage(matWatershedSeedsBinary, matLabels, opencv_imgproc.RETR_CCOMP);
-	
-			// Remove everything outside the thresholded region
-			matLabels.setTo(new Mat(1, 1, matLabels.type(), Scalar.ZERO), matBackground);
-	
-			// Do watershed
-			// 8-connectivity is essential for the watershed lines to be preserved - otherwise OpenCV's findContours could not be used
-			ProcessingCV.doWatershed(matDistanceTransform, matLabels, 0.1, true);
-	
-			// Update the binary image to remove the watershed lines
-			multiply(matBinary, matLabels, matBinary, 1, matBinary.type());
-		}
-
+	/**
+	 * Create a Mat depicting a circle of the specified radius.
+	 * <p>
+	 * Pixels within the circle have the value 1, pixels outside are 0.
+	 * 
+	 * @param radius
+	 * @return
+	 */
 	public static Mat getCircularStructuringElement(int radius) {
 		// TODO: Find out why this doesn't just call a standard request for a strel...
 		Mat strel = new Mat(radius*2+1, radius*2+1, CV_8UC1, Scalar.ZERO);
@@ -545,9 +534,13 @@ public class OpenCVTools {
 		return strel;
 	}
 
-	/*
+	/**
 	 * Invert a binary image.
-	 * Technically, set all zero pixels to 255 and all non-zero pixels to 0.
+	 * <p>
+	 * Specifically, sets all zero pixels to 255 and all non-zero pixels to 0.
+	 * 
+	 * @param matBinary
+	 * @param matDest
 	 */
 	public static void invertBinary(Mat matBinary, Mat matDest) {
 		compare(matBinary, new Mat(1, 1, CV_32FC1, Scalar.ZERO), matDest, CMP_EQ);
@@ -556,6 +549,9 @@ public class OpenCVTools {
 	
 	/**
 	 * Extract pixels as a float[] array.
+	 * <p>
+	 * Implementation note: In its current form, this is not terribly efficient. 
+	 * Also be wary if the Mat is not continuous.
 	 * 
 	 * @param mat
 	 * @param pixels
@@ -570,8 +566,12 @@ public class OpenCVTools {
 			mat.convertTo(mat2, CV_32F);
 			mat = mat2;
 		}
-		FloatBuffer buffer = mat.createBuffer();
-		buffer.get(pixels);
+		FloatIndexer idx = mat.createIndexer();
+		idx.get(0L, pixels);
+		idx.release();
+		
+//		FloatBuffer buffer = mat.createBuffer();
+//		buffer.get(pixels);
 		if (mat2 != null)
 			mat2.release();
 		return pixels;
@@ -643,54 +643,369 @@ public class OpenCVTools {
 	}
 	
 	
+	/**
+	 * Convert a single-channel OpenCV {@code Mat} into an ImageJ {@code ImageProcessor}.
+	 * 
+	 * @param mat
+	 * @return
+	 */
+	public static ImageProcessor matToImageProcessor(Mat mat) {
+		if (mat.channels() != 1)
+			throw new IllegalArgumentException("Only a single-channel Mat can be converted to an ImageProcessor! Specified Mat has " + mat.channels() + " channels");
+	    int w = mat.cols();
+	    int h = mat.rows();
+	    if (mat.depth() == opencv_core.CV_32F) {
+	        FloatIndexer indexer = mat.createIndexer();
+	        float[] pixels = new float[w*h];
+	        indexer.get(0L, pixels);
+	        return new FloatProcessor(w, h, pixels);
+	    } else if (mat.depth() == opencv_core.CV_8U) {
+	        UByteIndexer indexer = mat.createIndexer();
+	        int[] pixels = new int[w*h];
+	        indexer.get(0L, pixels);
+	        ByteProcessor bp = new ByteProcessor(w, h);
+	        for (int i = 0; i < pixels.length; i++)
+	        	bp.set(i, pixels[i]);
+	        return bp;
+	    } else if (mat.depth() == opencv_core.CV_16U) {
+	        UShortIndexer indexer = mat.createIndexer();
+	        int[] pixels = new int[w*h];
+	        indexer.get(0L, pixels);
+	        short[] shortPixels = new short[pixels.length];
+	        for (int i = 0; i < pixels.length; i++)
+	        	shortPixels[i] = (short)pixels[i];
+	        return new ShortProcessor(w, h, shortPixels, null); // TODO: Test!
+	    } else {
+	    	Mat mat2 = new Mat();
+	        mat.convertTo(mat2, opencv_core.CV_32F);
+	        ImageProcessor ip = matToImageProcessor(mat2);
+	        mat2.release();
+	        return ip;
+	    }
+	}
+
+
+	/**
+	 * Convert an OpenCV {@code Mat} into an ImageJ {@code ImagePlus}.
+	 * 
+	 * @param mat
+	 * @param title
+	 * @return
+	 */
+	public static ImagePlus matToImagePlus(Mat mat, String title) {
+	    if (mat.channels() == 1) {
+	        return new ImagePlus(title, matToImageProcessor(mat));
+	    }
+	    return matToImagePlus(title, mat);
+//	    MatVector matvec = new MatVector();
+//	    opencv_core.split(mat, matvec);
+//	    return matToImagePlus(matvec, title);
+	};
+	
+	/**
+	 * Convert an OpenCV {@code MatVector} into an ImageJ {@code ImagePlus}.
+	 * 
+	 * @param title
+	 * @param mats
+	 */
+	public static ImagePlus matToImagePlus(String title, Mat... mats) {
+		ImageStack stack = null;
+		int nChannels = 1;
+	    for (Mat mat : mats) {
+	    	if (stack == null) {
+	    		stack = new ImageStack(mat.cols(), mat.rows());
+	    	} else if (mat.channels() != nChannels) {
+	    		throw new IllegalArgumentException("Number of channels must be the same for all Mats!");
+	    	}
+	    	
+	    	if (mat.channels() == 1) {
+		    	ImageProcessor ip = matToImageProcessor(mat);
+		        stack.addSlice(ip);	    		
+	    	} else {
+	    		nChannels = mat.channels();
+	    		MatVector split = new MatVector();
+	    		opencv_core.split(mat, split);
+	    		for (int c = 0; c < split.size(); c++)
+	    			stack.addSlice(matToImageProcessor(split.get(c)));	
+	    	}
+	    }
+	    ImagePlus imp = new ImagePlus(title, stack);
+	    imp.setDimensions(nChannels, mats.length, 1);
+	    return nChannels == 1 ? imp : new CompositeImage(imp);
+	}
+
+
+	/**
+	 * Get filter coefficients for a 1D Gaussian (derivative) kernel.
+	 * 
+	 * @param sigma Gaussian sigma
+	 * @param order order of the derivative: 0, ('standard' Gaussian filter), 1 (first derivative) or 2 (second derivative)
+	 * @param length number of coefficients in the kernel; in general, this should be an odd number
+	 * @return
+	 */
+	public static double[] getGaussianDeriv(double sigma, int order, int length) {
+		int n = length / 2;
+	    double[] kernel = new double[length];
+	    double denom2 = 2 * sigma * sigma;
+	    double denom = sigma * Math.sqrt(2 * Math.PI);
+	    switch (order) {
+	        case 0:
+	            for (int x = -n; x < length-n; x++) {
+	                double val = Math.exp(-(double)(x * x)/denom2);
+	                kernel[x + n] = (float)(val / denom);
+	            }
+	            return kernel;
+	        case 1:
+	            denom *= sigma * sigma;
+	            for (int x = -n; x < length-n; x++) {
+	                double val = - x * Math.exp(-(double)(x * x)/denom2);
+	                kernel[x + n] = (float)(val / denom);
+	            }
+	            return kernel;
+	        case 2:
+	            denom *= sigma * sigma * sigma * sigma;
+	            for (int x = -n; x < length-n; x++) {
+	                double val = - (sigma*sigma - x*x) * Math.exp(-(double)(x * x)/denom2);
+	                kernel[x + n] = (float)(val / denom);
+	            }
+	            return kernel;
+	        default:
+	            throw new IllegalArgumentException("Order must be <= 2");
+	    }
+	}
+
+
+	/**
+	 * Get filter coefficients for a 1D Gaussian (derivative) kernel.
+	 * 
+	 * @param sigma Gaussian sigma
+	 * @param order order of the derivative: 0, ('standard' Gaussian filter), 1 (first derivative) or 2 (second derivative)
+	 * @param doColumn if true, return coefficients as a column vector rather than a row vector (default)
+	 * @return
+	 */
+	public static Mat getGaussianDerivKernel(double sigma, int order, boolean doColumn) {
+	    int n = (int)(sigma * 4);
+		int len = n * 2 + 1;
+		double[] kernel = getGaussianDeriv(sigma, order, len);
+		Mat mat;
+		if (doColumn)
+			mat = new Mat(1, kernel.length, opencv_core.CV_64F);
+		else
+			mat = new Mat(kernel.length, 1, opencv_core.CV_64F);
+		
+		DoubleIndexer indexer = mat.createIndexer();
+		indexer.put(0L, kernel);
+		indexer.release();
+		
+		return mat;
+	}
+
+
+	static int ensureInRange(int ind, int max, int border) {
+		if (ind < 0) {
+			switch(border) {
+			case opencv_core.BORDER_REFLECT:
+				return ensureInRange(-(ind + 1), max, border);
+			case opencv_core.BORDER_REFLECT_101:
+				return ensureInRange(-ind, max, border);
+			case opencv_core.BORDER_REPLICATE:
+			default:
+				return 0;
+			}
+		}
+		
+		if (ind >= max) {
+			switch(border) {
+			case opencv_core.BORDER_REFLECT:
+				return ensureInRange(2*max - ind - 1, max, border);
+			case opencv_core.BORDER_REFLECT_101:
+				return ensureInRange(2*max - ind - 2, max, border);
+			case opencv_core.BORDER_REPLICATE:
+			default:
+				return max-1;
+			}
+		}
+		return ind;
+	}
 	
 	
+	static void weightedSum(List<Mat> mats, double[] weights, Mat dest) {
+		boolean isFirst = true;
+		for (int i = 0; i < weights.length; i++) {
+			double w = weights[i];
+			if (w == 0)
+				continue;
+			if (isFirst) {
+				dest.put(opencv_core.multiply(mats.get(i), w));
+				isFirst = false;
+			} else
+				opencv_core.scaleAdd(mats.get(i), w, dest, dest);
+		}
+		// TODO: Check this does something sensible!
+		if (isFirst) {
+			dest.create(mats.get(0).size(), mats.get(0).type());
+			dest.put(Scalar.ZERO);
+		}
+		
+//		MatExpr expr = null;
+//		for (int i = 0; i < weights.length; i++) {
+//			double w = weights[i];
+//			if (w == 0)
+//				continue;
+//			if (expr == null)
+//				expr = opencv_core.multiply(mats.get(i), w);
+//			else {
+//				MatExpr expr2 = opencv_core.add(expr, opencv_core.multiply(mats.get(i), w));
+//				expr.close();
+//				expr = expr2;
+//			}
+//		}
+//		dest.put(expr);
+	}
+	
+	/**
+	 * Apply a filter along the 'list' dimension for a list of Mats, computing the value 
+	 * for a single entry. This is effectively computing a weighted sum of images in the list.
+	 * @param mats
+	 * @param kernel
+	 * @param ind3D
+	 * @param border
+	 * @return
+	 */
+	public static Mat filterSingleZ(List<Mat> mats, double[] kernel, int ind3D, int border) {
+		// Calculate weights for each image
+		int n = mats.size();
+		int halfSize = kernel.length / 2;
+		int startInd = ind3D - halfSize;
+		int endInd = startInd + kernel.length;
+		double[] weights = new double[mats.size()];
+		int k = 0;
+		for (int i = startInd; i < endInd; i++) {
+			int ind = ensureInRange(i, n, border);
+			weights[ind] += kernel[k];
+			k++;
+		}
+		Mat result = new Mat();
+		weightedSum(mats, weights, result);
+		return result;
+	}
 	
 	
 	/**
-	 * An extremely tolerant ColorModel that assumes everything should be shown in black.
-	 * Assumes QuPath takes care of display elsewhere, so this is just needed to avoid any trouble with null pointer exceptions.
+	 * Filter filter along entries in the input list.
+	 * <p>
+	 * If each Mat in the list can be considered a consecutive 2D image plane from a z-stack, 
+	 * this can be considered filtering along the z-dimension.
+	 * 
+	 * @param mats
+	 * @param kernelZ
+	 * @param ind3D if -1, return filtered results for all mats, otherwise only return results for the mat at the specified ind3D
+	 * @return
 	 */
-	static class DummyColorModel extends ColorModel {
+	public static List<Mat> filterZ(List<Mat> mats, Mat kernelZ, int ind3D, int border) {
 		
-		DummyColorModel(final int nBits) {
-			super(nBits);
-		}
+		/*
+		 * We can avoid the rigmarole of applying the full filtering 
+		 * by instead simply calculating the weighted sum corresponding to the convolution 
+		 * around the z-slice of interest only.
+		 */
+		
+		boolean doWeightedSums = true;//ind3D >= 0;
 
-		@Override
-		public int getRed(int pixel) {
-			return 0;
+		if (doWeightedSums) {
+			// Extract kernel values
+			int ks = (int)kernelZ.total();
+			double[] kernelArray = new double[ks];
+			DoubleIndexer idx = kernelZ.createIndexer();
+			idx.get(0L, kernelArray);
+			idx.release();
+	
+			if (ind3D >= 0) {
+				// Calculate weights for each image
+				Mat result = filterSingleZ(mats, kernelArray, ind3D, border);
+				return Arrays.asList(result);
+			} else {
+				List<Mat> output = new ArrayList<>();
+				for (int i = 0; i < mats.size(); i++) {
+					Mat result = filterSingleZ(mats, kernelArray, i, border);
+					output.add(result);
+				}
+				return output;
+			}
+		}		
+		
+		// Create a an array of images reshaped as column vectors
+		Mat[] columns = new Mat[mats.size()];
+		int nRows = 0;
+		for (int i = 0; i < mats.size(); i++) {
+			Mat mat = mats.get(i);
+			nRows = mat.rows();
+			columns[i] = mat.reshape(mat.channels(), mat.rows()*mat.cols());
 		}
+		
+		// Concatenate columns, effectively meaning z dimension now along rows
+		Mat matConcatZ = new Mat();
+		opencv_core.hconcat(new MatVector(columns), matConcatZ);
+		
+		// Apply z filtering along rows
+		if (kernelZ.rows() > 1)
+			kernelZ = kernelZ.t().asMat();
+		
+//		Mat empty = new Mat(1, 1, opencv_core.CV_64FC1, Scalar.ONE);
+//		opencv_imgproc.sepFilter2D(matConcatZ, matConcatZ, opencv_core.CV_32F, kernelZ, empty, null, 0.0, border);
+		opencv_imgproc.filter2D(matConcatZ, matConcatZ, opencv_core.CV_32F, kernelZ, null, 0.0, border);
+		
+		int start = 0;
+		int end = mats.size();
+		if (ind3D >= 0) {
+			start = ind3D;
+			end = ind3D+1;
+		}
+		
+		// Reshape to create output list
+		List<Mat> output = new ArrayList<>();
+		for (int i = start; i < end; i++) {
+			output.add(matConcatZ.col(i).clone().reshape(matConcatZ.channels(), nRows));
+		}
+		
+		return output;
+	}
 
-		@Override
-		public int getGreen(int pixel) {
-			return 0;
-		}
 
-		@Override
-		public int getBlue(int pixel) {
-			return 0;
+	/**
+	 * Extract a list of Mats, where each Mat corresponds to a z-slice.
+	 * 
+	 * @param server
+	 * @param request
+	 * @param zMin first z slice, inclusive
+	 * @param zMax last z slice, exclusive
+	 * @return
+	 * @throws IOException
+	 */
+	public static List<Mat> extractZStack(ImageServer<BufferedImage> server, RegionRequest request, int zMin, int zMax) throws IOException {
+		List<Mat> list = new ArrayList<>();
+		for (int z = zMin; z < zMax; z++) {
+			RegionRequest request2 = RegionRequest.createInstance(server.getPath(), request.getDownsample(),
+					request.getX(), request.getY(), request.getWidth(), request.getHeight(), z, request.getT());
+			BufferedImage img = server.readBufferedImage(request2);
+			list.add(imageToMat(img));
 		}
+		return list;
+	}
 
-		@Override
-		public int getAlpha(int pixel) {
-			return 0;
-		}
-		
-		@Override
-		public boolean isCompatibleRaster(Raster raster) {
-			// We accept everything...
-			return true;
-		}
-		
-		@Override
-		public ColorModel coerceData(WritableRaster raster, boolean isAlphaPremultiplied) {
-			// Don't do anything
-			return null;
-		}
-		
-		
-	};
+
+	/**
+	 * Extract a list of Mats, where each Mat corresponds to a z-slice, for all available z-slices of a region.
+	 * 
+	 * @param server
+	 * @param request
+	 * @return
+	 * @throws IOException
+	 * @see #extractZStack(ImageServer, RegionRequest, int, int)
+	 */
+	public static List<Mat> extractZStack(ImageServer<BufferedImage> server, RegionRequest request) throws IOException {
+		return extractZStack(server, request, 0, server.nZSlices());
+	}
 	
 
 }

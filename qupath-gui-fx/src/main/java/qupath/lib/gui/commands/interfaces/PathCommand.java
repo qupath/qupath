@@ -25,7 +25,7 @@ package qupath.lib.gui.commands.interfaces;
 
 /**
  * Minimal interface for a command that can be run.
- * 
+ * <p>
  * Depending upon what GUI framework is used, this may be wrapped in (for example) an Action or called from an event handler.
  * 
  * @author Pete Bankhead

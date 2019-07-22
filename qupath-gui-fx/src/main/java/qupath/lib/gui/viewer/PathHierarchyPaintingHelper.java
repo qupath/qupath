@@ -54,8 +54,8 @@ import java.util.WeakHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import qupath.lib.awt.color.ColorToolsAwt;
 import qupath.lib.awt.common.AwtTools;
+import qupath.lib.color.ColorToolsAwt;
 import qupath.lib.geom.Point2;
 import qupath.lib.gui.helpers.MeasurementMapper;
 import qupath.lib.gui.objects.helpers.PathObjectColorToolsAwt;
@@ -69,6 +69,7 @@ import qupath.lib.objects.PathTileObject;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
+import qupath.lib.objects.classes.PathClassFactory.StandardPathClasses;
 import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.TMAGrid;
@@ -78,12 +79,12 @@ import qupath.lib.regions.ImageRegion;
 import qupath.lib.roi.AreaROI;
 import qupath.lib.roi.EllipseROI;
 import qupath.lib.roi.LineROI;
-import qupath.lib.roi.PathROIToolsAwt;
+import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.PointsROI;
 import qupath.lib.roi.PolygonROI;
 import qupath.lib.roi.RectangleROI;
 import qupath.lib.roi.RoiEditor;
-import qupath.lib.roi.ShapeSimplifierAwt;
+import qupath.lib.roi.ShapeSimplifier;
 import qupath.lib.roi.interfaces.PathArea;
 import qupath.lib.roi.interfaces.PathPoints;
 import qupath.lib.roi.interfaces.PathShape;
@@ -273,7 +274,7 @@ public class PathHierarchyPaintingHelper {
 		// Always paint the selected object
 		// Note: this makes the assumption that child ROIs are completely contained within their parents;
 		//			this probably should be the case, but isn't guaranteed
-		boolean isSelected = (selectionModel != null && selectionModel.isSelected(pathObject)) && (PathPrefs.getUseSelectedColor() || !pathObject.isPoint());
+		boolean isSelected = (selectionModel != null && selectionModel.isSelected(pathObject)) && (PathPrefs.getUseSelectedColor() || !PathObjectTools.hasPointROI(pathObject));
 		boolean isDetectedObject = pathObject.isDetection() || (pathObject.isTile() && pathObject.hasMeasurements());
 		
 		// Check if the PathClass isn't being shown
@@ -290,7 +291,7 @@ public class PathHierarchyPaintingHelper {
 			double roiBoundsY = pathROI.getBoundsY();
 			double roiBoundsWidth = pathROI.getBoundsWidth();
 			double roiBoundsHeight = pathROI.getBoundsHeight();
-			if (pathObject.isPoint() || boundsDisplayed == null || 
+			if (PathObjectTools.hasPointROI(pathObject) || boundsDisplayed == null || 
 					pathROI instanceof LineROI || 
 					boundsDisplayed.intersects(roiBoundsX, roiBoundsY, Math.max(roiBoundsWidth, 1), Math.max(roiBoundsHeight, 1))) {
 			
@@ -348,7 +349,7 @@ public class PathHierarchyPaintingHelper {
 					} else {
 						Stroke stroke = null;
 						// Decide whether to fill or not
-						Color colorFill = doFill && (isDetectedObject || pathObject.isPoint()) ? color : null;
+						Color colorFill = doFill && (isDetectedObject || PathObjectTools.hasPointROI(pathObject)) ? color : null;
 						if (colorFill != null && fillOpacity != 1) {
 							if (pathObject instanceof ParallelTileObject)
 								colorFill = ColorToolsAwt.getMoreTranslucentColor(colorFill);
@@ -394,7 +395,7 @@ public class PathHierarchyPaintingHelper {
 								paintROI(cell.getNucleusROI(), g, colorStroke, stroke, colorFill, downsample);
 							painted = true;
 						} else {
-							if ((overlayOptions.getFillAnnotations() && pathObject.isAnnotation() && pathObject.getPathClass() != PathClassFactory.getRegionClass()) || (pathObject.isTMACore() && overlayOptions.getShowTMACoreLabels()))
+							if ((overlayOptions.getFillAnnotations() && pathObject.isAnnotation() && pathObject.getPathClass() != PathClassFactory.getPathClass(StandardPathClasses.REGION)) || (pathObject.isTMACore() && overlayOptions.getShowTMACoreLabels()))
 								paintROI(pathROI, g, colorStroke, stroke, ColorToolsAwt.getMoreTranslucentColor(colorStroke), downsample);
 							else
 								paintROI(pathROI, g, colorStroke, stroke, colorFill, downsample);
@@ -536,13 +537,13 @@ public class PathHierarchyPaintingHelper {
 			return map;
 		}
 		
-		private Shape simplifyByDownsample(final Shape shape, final double downsample) {
+		private static Shape simplifyByDownsample(final Shape shape, final double downsample) {
 			if (downsample > 50)
-				return ShapeSimplifierAwt.simplifyPath(shape instanceof Path2D ? (Path2D)shape : new Path2D.Float(shape), 50);
+				return ShapeSimplifier.simplifyPath(shape instanceof Path2D ? (Path2D)shape : new Path2D.Float(shape), 50);
 			if (downsample > 20)
-				return ShapeSimplifierAwt.simplifyPath(shape instanceof Path2D ? (Path2D)shape : new Path2D.Float(shape), 20);
+				return ShapeSimplifier.simplifyPath(shape instanceof Path2D ? (Path2D)shape : new Path2D.Float(shape), 20);
 			if (downsample > 10)
-				return ShapeSimplifierAwt.simplifyPath(shape instanceof Path2D ? (Path2D)shape : new Path2D.Float(shape), 10);
+				return ShapeSimplifier.simplifyPath(shape instanceof Path2D ? (Path2D)shape : new Path2D.Float(shape), 10);
 			return shape;
 		}
 		
@@ -571,7 +572,7 @@ public class PathHierarchyPaintingHelper {
 //			map.clear();
 			Shape shape = map.get(roi);
 			if (shape == null) {
-				shape = PathROIToolsAwt.getShape(roi);
+				shape = RoiTools.getShape(roi);
 				// Downsample if we have to
 				if (map != this.map)
 					shape = simplifyByDownsample(shape, downsample);
@@ -651,7 +652,7 @@ public class PathHierarchyPaintingHelper {
 				Color colorHull = colorFill != null ? colorFill : colorStroke;
 				colorHull = ColorToolsAwt.getColorWithOpacity(colorHull, 0.1);
 				if (colorHull != null)
-					paintShape(PathROIToolsAwt.getShape(convexHull), g2d, null, null, colorHull, downsample);
+					paintShape(RoiTools.getShape(convexHull), g2d, null, null, colorHull, downsample);
 //					getConvexHull().draw(g, null, colorHull);
 			}
 		}

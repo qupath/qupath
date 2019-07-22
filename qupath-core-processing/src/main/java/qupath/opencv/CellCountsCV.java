@@ -32,8 +32,11 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 
-import static org.bytedeco.javacpp.opencv_core.*;
-import org.bytedeco.javacpp.opencv_imgproc;
+import static org.bytedeco.opencv.global.opencv_core.*;
+import org.bytedeco.opencv.global.opencv_imgproc;
+import org.bytedeco.opencv.opencv_core.Mat;
+import org.bytedeco.opencv.opencv_core.MatVector;
+import org.bytedeco.opencv.opencv_core.Size;
 import org.bytedeco.javacpp.indexer.FloatIndexer;
 import org.bytedeco.javacpp.indexer.IntIndexer;
 import org.slf4j.Logger;
@@ -46,6 +49,7 @@ import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClassFactory;
@@ -54,16 +58,16 @@ import qupath.lib.plugins.ObjectDetector;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.RegionRequest;
-import qupath.lib.roi.PathROIToolsAwt;
+import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.PathArea;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
  * Simple plugin to attempt a very fast cell counting based upon (smoothed) peak detection.
- * 
+ * <p>
  * Currently, only H&amp;E or hematoxylin and DAB are supported.
- * 
+ * <p>
  * An improved plugin would be desirable to perform the task in a more general way, and without 
  * requesting the 'magnification' by default (which is less meaningful than resolution/pixel size).
  * 
@@ -98,7 +102,8 @@ public class CellCountsCV extends AbstractTileableDetectionPlugin<BufferedImage>
 				stainChannel = "Hematoxylin";
 			}
 			double magnification = params.getDoubleParameterValue("magnification");
-			boolean hasMicrons = imageData != null && imageData.getServer() != null && imageData.getServer().hasPixelSizeMicrons();
+			PixelCalibration cal = imageData.getServer().getPixelCalibration();
+			boolean hasMicrons = imageData != null && imageData.getServer() != null && cal.hasPixelSizeMicrons();
 			double threshold = params.getDoubleParameterValue("threshold");
 			boolean doDoG = params.getBooleanParameterValue("doDoG");
 			boolean ensureMainStain = params.getBooleanParameterValue("ensureMainStain");
@@ -111,13 +116,13 @@ public class CellCountsCV extends AbstractTileableDetectionPlugin<BufferedImage>
 			// Get the filter size & calculate a suitable downsample value
 			double gaussianSigma;
 			double backgroundRadius;
-			double downsample = imageData.getServer().getMagnification() / magnification;
+			double downsample = imageData.getServer().getMetadata().getMagnification() / magnification;
 			if (downsample < 1)
 				downsample = 1;
 			if (hasMicrons) {
 				// Determine the filter sizes in terms of pixels for the full-resolution image
-				gaussianSigma = params.getDoubleParameterValue("gaussianSigmaMicrons") / imageData.getServer().getAveragedPixelSizeMicrons();
-				backgroundRadius = params.getDoubleParameterValue("backgroundRadiusMicrons") / imageData.getServer().getAveragedPixelSizeMicrons();
+				gaussianSigma = params.getDoubleParameterValue("gaussianSigmaMicrons") / cal.getAveragedPixelSizeMicrons();
+				backgroundRadius = params.getDoubleParameterValue("backgroundRadiusMicrons") / cal.getAveragedPixelSizeMicrons();
 				// If we don't have a downsample factor based on magnification, determine one from the Gaussian filter size - 
 				// aiming for a sigma value of at approximately 1.25 pixels
 				if (!Double.isFinite(downsample)) {
@@ -266,7 +271,7 @@ public class CellCountsCV extends AbstractTileableDetectionPlugin<BufferedImage>
 			temp.release();
 			ArrayList<qupath.lib.geom.Point2> points = new ArrayList<>();
 
-			Shape shape = pathROI instanceof PathArea ? PathROIToolsAwt.getShape(pathROI) : null;
+			Shape shape = pathROI instanceof PathArea ? RoiTools.getShape(pathROI) : null;
 			Integer color = ColorTools.makeRGB(0, 255, 0);
 			String stain2Name = stains.getStain(2).getName();
 			PathArea area = pathROI instanceof PathArea ? (PathArea)pathROI : null;
@@ -321,9 +326,9 @@ public class CellCountsCV extends AbstractTileableDetectionPlugin<BufferedImage>
 					int cy = (int)((tempROI.getCentroidY() - y)/scaleY);
 					float stain2Value = indexerStain2.get(cy, cx);
 					if (detectInPositiveChannel || stain2Value >= stain2Threshold)
-						pathObject.setPathClass(PathClassFactory.getPositive(null, null));
+						pathObject.setPathClass(PathClassFactory.getPositive(null));
 					else
-						pathObject.setPathClass(PathClassFactory.getNegative(null, null));
+						pathObject.setPathClass(PathClassFactory.getNegative(null));
 					pathObject.getMeasurementList().putMeasurement(stain2Name + " OD", stain2Value);
 					pathObject.getMeasurementList().close();
 				} else
@@ -403,7 +408,7 @@ public class CellCountsCV extends AbstractTileableDetectionPlugin<BufferedImage>
 		params.setHiddenParameters(isHDAB, "ensureMainStain");
 		params.setHiddenParameters(!isHDAB, "thresholdDAB");
 		
-		boolean hasMicrons = imageData != null && imageData.getServer() != null && imageData.getServer().hasPixelSizeMicrons();
+		boolean hasMicrons = imageData != null && imageData.getServer() != null && imageData.getServer().getPixelCalibration().hasPixelSizeMicrons();
 		params.getParameters().get("gaussianSigmaPixels").setHidden(hasMicrons);
 		params.getParameters().get("gaussianSigmaMicrons").setHidden(!hasMicrons);
 		params.getParameters().get("backgroundRadiusPixels").setHidden(hasMicrons);

@@ -12,7 +12,7 @@ public interface ImageRenderer {
 	 * same bit-depth.
 	 * 
 	 * @param imgInput input image
-	 * @param imgOutput output image, with the same width & height as the input; 
+	 * @param imgOutput output image, with the same width and height as the input; 
 	 *        if null or the image size is inconsistent, a new RGB image should be created
 	 * @return imgOutput, or a new RGB image created for the output
 	 */

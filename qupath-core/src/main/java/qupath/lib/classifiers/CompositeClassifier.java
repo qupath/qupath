@@ -25,7 +25,6 @@ package qupath.lib.classifiers;
 
 import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashSet;
@@ -39,28 +38,22 @@ import qupath.lib.objects.PathObject;
 import qupath.lib.objects.classes.PathClass;
 
 /**
- * A classifier that is created by applying multiple sub-classifiers in sequence.
+ * A {@link PathObjectClassifier} that is created by applying multiple sub-classifiers in sequence.
  * 
  * @author Pete Bankhead
  *
  */
-public class CompositeClassifier implements PathObjectClassifier, Serializable {
+class CompositeClassifier implements PathObjectClassifier, Serializable {
 	
 	private static final long serialVersionUID = 1L;
 	
 	private long timestamp = System.currentTimeMillis();
 	private List<PathObjectClassifier> classifiers = new ArrayList<>();
-	
-	
-	public CompositeClassifier(PathObjectClassifier ... classifiers) {
-		this(Arrays.asList(classifiers));
-	}
 
-	public CompositeClassifier(final Collection<PathObjectClassifier> classifiers) {
+	CompositeClassifier(final Collection<PathObjectClassifier> classifiers) {
 		this.classifiers.addAll(classifiers);
 		this.timestamp = System.currentTimeMillis();
 	}
-
 	
 	@Override
 	public List<String> getRequiredMeasurements() {

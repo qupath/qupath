@@ -30,17 +30,13 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
-
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.index.SpatialIndex;
 import org.locationtech.jts.index.quadtree.Quadtree;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import qupath.lib.images.PathImage;
-import qupath.lib.common.GeneralTools;
-import qupath.lib.images.DefaultPathImage;
+import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
 
@@ -60,7 +56,42 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 	 */
 	private ImageServerMetadata userMetadata;
 	
-	private transient Long timestamp = null;
+	/**
+	 * Cache to use for storing & retrieving tiles.
+	 */
+	private transient Map<RegionRequest, T> cache;
+	
+	/**
+	 * Cached ServerBuilder, so this doesn't need to be constructed on every request
+	 */
+	private transient ServerBuilder<T> builder;
+	
+	/**
+	 * Unique ID for this server
+	 */
+	private String id;
+	
+	private Class<T> imageClass;
+	
+	protected AbstractImageServer(Class<T> imageClass) {
+		this.imageClass = imageClass;
+		this.cache = ImageServerProvider.getCache(imageClass);
+	}
+	
+	@Override
+	public Class<T> getImageClass() {
+		return imageClass;
+	}
+	
+	/**
+	 * Get the internal cache. This may be useful to check for the existence of a cached tile any time 
+	 * when speed is of the essence, and if no cached tile is available a request will not be made.
+	 * 
+	 * @return
+	 */
+	protected Map<RegionRequest, T> getCache() {
+		return cache;
+	}
 	
 	protected double getThumbnailDownsampleFactor(int maxWidth, int maxHeight) {
 		if (maxWidth <= 0) {
@@ -84,44 +115,21 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 		return downsample;
 	}
 	
-	@Override
-	public T getBufferedThumbnail(int maxWidth, int maxHeight, int zPosition) throws IOException {
-		double downsample = getThumbnailDownsampleFactor(maxWidth, maxHeight);
-		return readBufferedImage(
-				RegionRequest.createInstance(getPath(), downsample, 0, 0, getWidth(), getHeight(), zPosition, 0));
-	}
-
-	@Override
-	public boolean hasPixelSizeMicrons() {
-		return !Double.isNaN(getPixelWidthMicrons() + getPixelHeightMicrons());
-	}
+	/**
+	 * Create a ServerBuilder, which can be used to construct an identical ImageServer.
+	 * This should also include the current metadata.
+	 * It is permissible to return null for an ImageServer that cannot be recreated 
+	 * via a {@link ServerBuilder}.
+	 * 
+	 * @return
+	 */
+	protected abstract ServerBuilder<T> createServerBuilder();
 	
 	@Override
-	public double getAveragedPixelSizeMicrons() {
-		return 0.5 * (getPixelWidthMicrons() + getPixelHeightMicrons());
-	}
-	
-	protected int getPreferredResolutionLevel(double requestedDownsample) {
-		var metadata = getMetadata();
-		double downsampleFactor = Math.max(requestedDownsample, metadata.getDownsampleForLevel(0));
-		int n = metadata.nLevels();
-		int bestDownsampleSeries = -1;
-		double bestDownsampleDiff = Double.POSITIVE_INFINITY;
-		for (int i = 0; i < n; i++) {
-			double d = metadata.getDownsampleForLevel(i);
-			double downsampleDiff = downsampleFactor - d;
-			if (!Double.isNaN(downsampleDiff) && (downsampleDiff >= 0 || GeneralTools.almostTheSame(downsampleFactor, d, 0.01)) && downsampleDiff < bestDownsampleDiff) {
-				bestDownsampleSeries = i;
-				bestDownsampleDiff = Math.abs(downsampleDiff);
-			}
-		}
-		return bestDownsampleSeries;
-	}
-	
-	@Override
-	public double getPreferredDownsampleFactor(double requestedDownsample) {
-		int level = getPreferredResolutionLevel(requestedDownsample);
-		return getDownsampleForResolution(level);
+	public ServerBuilder<T> getBuilder() {
+		if (builder == null)
+			builder = createServerBuilder();
+		return builder;
 	}
 	
 	@Override
@@ -158,29 +166,10 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 	}
 	
 	@Override
-	public int getBitsPerPixel() {
-		return getMetadata().getBitDepth();
+	public PixelType getPixelType() {
+		return getMetadata().getPixelType();
 	}
 	
-	/**
-	 * Get the image width for a specified resolution level.
-	 * 
-	 * @param level
-	 * @return
-	 */
-	public int getLevelWidth(int level) {
-		return getMetadata().getLevel(level).getWidth();
-	}
-	
-	/**
-	 * Get the image height for a specified resolution level.
-	 * 
-	 * @param level
-	 * @return
-	 */
-	public int getLevelHeight(int level) {
-		return getMetadata().getLevel(level).getHeight();
-	}
 	
 	/**
 	 * Attempt to close the server.  While not at all a good idea to rely on this, it may help clean up after some forgotten servers.
@@ -209,34 +198,46 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 	
 	@Override
 	public String toString() {
-		return getServerType() + ": " + getPath() + " (" + getDisplayedImageName() + ")";
+		return getServerType() + ": " + getPath() + " (" + ServerTools.getDisplayableImageName(this) + ")";
 	}	
 	
 	
 	@Override
-	public String getShortServerName() {
-		return ServerTools.getDefaultShortServerName(getPath());
+	public T getCachedTile(TileRequest tile) {
+		var cache = getCache();
+		return cache == null ? null : cache.getOrDefault(tile.getRegionRequest(), null);
 	}
 	
+	/**
+	 * Create a unique ID for the server, which can be returned as the default value of {@link #getPath()}.
+	 * A suggested implementation is
+	 * <p>
+	 * <code> 
+	 * <pre>
+	 *  getClass().getName() + ": " + URI + parameters
+	 * </pre>
+	 * </code>
+	 * This will be called on demand whenever {@link #getPath()} is first required. 
+	 * 
+	 * @return
+	 */
+	protected abstract String createID();
 	
-//	public String getShortServerName(final String path) {
-//		return getDefaultShortServerName(path);
-//	}
-	
-	
-	@Override
-	public String getSubImagePath(String imageName) {
-		throw new RuntimeException("Cannot construct sub-image with name " + imageName + " for " + getClass().getSimpleName());
-	}
-	
+	/**
+	 * Default implementation lazily calls {@link #createID()} on demand.
+	 * 
+	 * @see #createID()
+	 */
 	@Override
 	public String getPath() {
-		return getMetadata().getPath();
-	}
-
-	@Override
-	public double getMagnification() {
-		return getMetadata().getMagnification();
+		if (id == null) {
+			synchronized(this) {
+				String myID = createID();
+				if (id == null)
+					id = myID;
+			}
+		}
+		return id;
 	}
 
 	@Override
@@ -253,37 +254,10 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 	public int nChannels() {
 		return getMetadata().getSizeC(); // Only RGB
 	}
-
-	@Override
-	public double getPixelWidthMicrons() {
-		return getMetadata().getPixelWidthMicrons();
-	}
-
-	@Override
-	public double getPixelHeightMicrons() {
-		return getMetadata().getPixelHeightMicrons();
-	}
 	
-	@Override
-	public int getPreferredTileWidth() {
-//		return 1024; // Some servers default to 256, however in a few cases (e.g. NDPI z-stacks) this is too small; here, we aim for a compromise choosing larger tiles
-		return getMetadata().getPreferredTileWidth();
-	}
-
-	@Override
-	public int getPreferredTileHeight() {
-//		return 1024;
-		return getMetadata().getPreferredTileHeight();
-	}
-
 	@Override
 	public int nZSlices() {
 		return getMetadata().getSizeZ();
-	}
-
-	@Override
-	public double getZSpacingMicrons() {
-		return getMetadata().getZSpacingMicrons();
 	}
 	
 	@Override
@@ -292,17 +266,7 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 	}
 	
 	@Override
-	public TimeUnit getTimeUnit() {
-		return getMetadata().getTimeUnit();
-	}
-	
-	@Override
-	public boolean usesOriginalMetadata() {
-		return getOriginalMetadata().equals(getMetadata());
-	}
-	
-	@Override
-	public ImageServerMetadata getMetadata() {
+	public synchronized ImageServerMetadata getMetadata() {
 		return userMetadata == null ? getOriginalMetadata() : userMetadata;
 	}
 
@@ -311,7 +275,8 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 		if (metadata == getMetadata())
 			return;
 		
-		if (!getOriginalMetadata().isCompatibleMetadata(metadata))
+		ImageServerMetadata originalMetadata = getOriginalMetadata();
+		if (!originalMetadata.isCompatibleMetadata(metadata))
 			throw new IllegalArgumentException("Specified metadata is incompatible with original metadata for " + this);
 		
 		// Reset the tile requests if the resolution levels differ
@@ -319,25 +284,7 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 			tileRequestManager = null;
 		
 		userMetadata = metadata;
-	}
-	
-	@Override
-	public double getTimePoint(int ind) {
-		return ind * getMetadata().getSizeT();
-	}
-	
-	@Override
-	public PathImage<T> readRegion(RegionRequest request) throws IOException {
-		T img = readBufferedImage(request);
-		if (img == null)
-			return null;
-		return new DefaultPathImage<>(this, request, img);
-	}
-	
-	
-	@Override
-	public List<String> getSubImageList() {
-		return Collections.emptyList();
+		builder = null; // Reset the builder so it will be regenerated as required
 	}
 
 	@Override
@@ -351,50 +298,10 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 	}
 	
 	@Override
-	public String getDisplayedImageName() {
-		String name = getMetadata().getName();
-		if (name == null)
-			return getShortServerName();
-		else
-			return name;
+	public ImageChannel getChannel(int channel) {
+		return getMetadata().getChannel(channel);
 	}
 
-	@Override
-	public boolean containsSubImages() {
-		return false;
-	}
-
-	@Override
-	public boolean usesBaseServer(ImageServer<?> server) {
-		return this == server;
-	}
-	
-	
-	@Override
-	public Integer getDefaultChannelColor(int channel) {
-		return getMetadata().getChannel(channel).getColor();
-	}
-	
-	
-	@Override
-	public String getChannelName(int channel) {
-		return getMetadata().getChannel(channel).getName();
-	}
-	
-	@Override
-	public List<ImageChannel> getChannels() {
-		return getMetadata().getChannels();
-	}
-	
-	
-	/**
-	 * Default implementation that requests a thumbnail from the first timepoint and 
-	 * the center of the z-stack.
-	 */
-	@Override
-	public T getDefaultThumbnail() throws IOException {
-		return getDefaultThumbnail(nZSlices()/2, 0);
-	}
 	
 	@Override
 	public T getDefaultThumbnail(int z, int t) throws IOException {
@@ -412,30 +319,18 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 	
 	
 	
-	private TileRequestManager tileRequestManager;
+	private DefaultTileRequestManager tileRequestManager;
 	
-	protected synchronized TileRequestManager getTileRequestManager() {
+	@Override
+	public synchronized TileRequestManager getTileRequestManager() {
 		if (tileRequestManager == null || tileRequestManager.currentMetadata != getMetadata()) {
-			tileRequestManager = new TileRequestManager(TileRequest.getAllTileRequests(this));
+			tileRequestManager = new DefaultTileRequestManager(TileRequest.getAllTileRequests(this));
 		}
 		return tileRequestManager;
 	}
 	
-	public Collection<TileRequest> getAllTileRequests() {
-		return getTileRequestManager().getAllTiles();
-	}
 	
-	public TileRequest getTile(int level, int x, int y, int z, int t) {
-		return getTileRequestManager().getTile(level, x, y, z, t);
-	}
-	
-	public Collection<TileRequest> getTiles(final RegionRequest request) {
-		return getTileRequestManager().getTiles(request);
-	}
-	
-	
-	
-	private class TileRequestManager {
+	private class DefaultTileRequestManager implements TileRequestManager {
 		
 		private Collection<TileRequest> allTiles;
 		private Map<String, SpatialIndex> tiles = new LinkedHashMap<>();
@@ -449,7 +344,7 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 			return level + ":" + z + ":" + t;
 		}
 		
-		TileRequestManager(Collection<TileRequest> tiles) {
+		DefaultTileRequestManager(Collection<TileRequest> tiles) {
 			currentMetadata = getMetadata();
 			allTiles = Collections.unmodifiableList(new ArrayList<>(tiles));
 			for (var tile : allTiles) {
@@ -464,11 +359,13 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 			}
 		}
 		
-		public Collection<TileRequest> getAllTiles() {
+		@Override
+		public Collection<TileRequest> getAllTileRequests() {
 			return allTiles;
 		}
 		
-		public TileRequest getTile(int level, int x, int y, int z, int t) {
+		@Override
+		public TileRequest getTileRequest(int level, int x, int y, int z, int t) {
 			var key = getKey(level, z, t);
 			var set = tiles.get(key);
 			if (set != null) {
@@ -489,8 +386,9 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 					region.getY() + region.getHeight());
 		}
 		
-		public List<TileRequest> getTiles(RegionRequest request) {
-			int level = getPreferredResolutionLevel(request.getDownsample());
+		@Override
+		public List<TileRequest> getTileRequests(RegionRequest request) {
+			int level = ServerTools.getPreferredResolutionLevel(AbstractImageServer.this, request.getDownsample());
 			var key = getKey(level, request.getZ(), request.getT());
 			var set = tiles.get(key);
 			var list = new ArrayList<TileRequest>();

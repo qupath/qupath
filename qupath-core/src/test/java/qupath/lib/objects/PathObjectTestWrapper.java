@@ -32,6 +32,7 @@ import java.util.Collection;
 import java.util.HashSet;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.objects.classes.PathClass;
+import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.roi.interfaces.ROI;
 
 public class PathObjectTestWrapper {
@@ -51,7 +52,7 @@ public class PathObjectTestWrapper {
 	}
 	//@Test
 	public void test_isPoint(PathObject myPO, Boolean ispoint) {
-		assertEquals(myPO.isPoint(), ispoint);
+		assertEquals(PathObjectTools.hasPointROI(myPO), ispoint);
 	}
 	//@Test
 	public void test_getMeasurementList(PathObject myPO) {
@@ -65,7 +66,7 @@ public class PathObjectTestWrapper {
 	}
 	//@Test
 	public void test_nMeasurements(PathObject myPO, Integer nmeasurements) {
-		assertEquals((Integer)myPO.nMeasurements(), nmeasurements);
+		assertEquals((Integer)myPO.getMeasurementList().size(), nmeasurements);
 	}
 	//@Test
 	public void test_objectCountPostfix(PathObject myPO, String objectcount) {
@@ -122,7 +123,7 @@ public class PathObjectTestWrapper {
 	}
 	//@Test
 	public void test_hasMeasurements(PathObject myPO, Boolean hasmeasurements) {
-		assertEquals(myPO.nMeasurements()!=0?Boolean.TRUE:Boolean.FALSE, hasmeasurements);
+		assertEquals(myPO.getMeasurementList().size()!=0?Boolean.TRUE:Boolean.FALSE, hasmeasurements);
 	}
 	//@Test
 	public void test_isTMACore(PathObject myPO, Boolean istmacore) {

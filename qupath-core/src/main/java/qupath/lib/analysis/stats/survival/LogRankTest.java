@@ -30,7 +30,7 @@ import org.slf4j.LoggerFactory;
 import qupath.lib.common.GeneralTools;
 
 /**
- * Helper class for applying log-rank test.
+ * Helper class to apply a log-rank test.
  * 
  * @author Pete Bankhead
  *
@@ -111,24 +111,23 @@ public class LogRankTest {
 		final double hazardRatioLowerConfidence;
 		final double hazardRatioUpperConfidence;
 
-		public LogRankResult() {
+		LogRankResult() {
 			this.pValue = Double.NaN;
 			this.hazardRatio = Double.NaN;
 			this.hazardRatioLowerConfidence = Double.NaN;
 			this.hazardRatioUpperConfidence = Double.NaN;
 		}
 
-		public LogRankResult(final double pValue, final double hazardRatio, final double hazardRatioLowerConfidence, final double hazardRatioUpperConfidence) {
+		LogRankResult(final double pValue, final double hazardRatio, final double hazardRatioLowerConfidence, final double hazardRatioUpperConfidence) {
 			this.pValue = pValue;
 			this.hazardRatio = hazardRatio;
 			this.hazardRatioLowerConfidence = hazardRatioLowerConfidence;
 			this.hazardRatioUpperConfidence = hazardRatioUpperConfidence;
 		}
 
-		public String getName(final String conditionA, final String conditionB) {
-			return String.format("%s vs %s log-rank (HR)", conditionA, conditionB);
-		}
-
+		/**
+		 * Returns a presentable representation of the log-rank test result, including hazard ratio and confidence interval.
+		 */
 		public String getResultString() {
 			if (Double.isNaN(pValue))
 				return "-";
@@ -151,22 +150,42 @@ public class LogRankTest {
 			return String.format("%s (%.2f; %.2f-%.2f)", pValueString, hazardRatio, hazardRatioLowerConfidence, hazardRatioUpperConfidence);
 		}
 
+		/**
+		 * Returns true if the p-value is not NaN.
+		 * @return
+		 */
 		public boolean isValid() {
 			return !Double.isNaN(pValue);
 		}
 
+		/**
+		 * Get the calcualted p-value.
+		 * @return
+		 */
 		public double getPValue() {
 			return pValue;
 		}
 
+		/**
+		 * Get the calculated hazard ratio.
+		 * @return
+		 */
 		public double getHazardRatio() {
 			return hazardRatio;
 		}
 
+		/**
+		 * Get the lower bound of the hazard ratio confidence interval.
+		 * @return
+		 */
 		public double getHazardRatioLowerConfidence() {
 			return hazardRatioLowerConfidence;
 		}
 
+		/**
+		 * Get the upper bound of the hazard ratio confidence interval.
+		 * @return
+		 */
 		public double getHazardRatioUpperConfidence() {
 			return hazardRatioUpperConfidence;
 		}

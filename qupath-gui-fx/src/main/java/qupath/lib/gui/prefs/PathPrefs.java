@@ -129,8 +129,6 @@ public class PathPrefs {
 	 * Currently, this preference triggers the directory cache to be set within <code>URLHelpers</code>.
 	 * 
 	 * @return
-	 * 
-	 * @see qupath.lib.www.URLHelpers
 	 */
 	public static BooleanProperty useProjectImageCacheProperty() {
 		return useProjectImageCache;
@@ -270,7 +268,14 @@ public class PathPrefs {
 	
 	static Path getConfigPath() throws IOException {
 		Path path = Paths.get(".");
-		List<Path> list = Files.list(path).filter(p -> p.getFileName().toString().endsWith(".cfg")).collect(Collectors.toList());
+		List<Path> list = Files.list(path)
+				.filter(
+				p -> {
+					// Look for the .cfg file that isn't concerned with debugging
+					String name = p.getFileName().toString();
+					return name.endsWith(".cfg") && !name.endsWith("(debug).cfg");
+				})
+				.collect(Collectors.toList());
 		if (list.size() != 1) {
 			return null;
 		}
@@ -310,7 +315,7 @@ public class PathPrefs {
 					int lineXmx = -1;
 					int i = 0;
 					for (String line : lines) {
-					    if (line.startsWith("[JVMOptions]"))
+					    if (line.startsWith("[JVMOptions]") || line.startsWith("[JavaOptions]"))
 					        jvmOptions = i;
 					    if (line.startsWith("[ArgOptions]"))
 					        argOptions = i;
@@ -759,6 +764,7 @@ public class PathPrefs {
 	
 	public static enum ImageTypeSetting {AUTO_ESTIMATE, PROMPT, NONE;
 		
+		@Override
 		public String toString() {
 			switch(this) {
 			case AUTO_ESTIMATE:
@@ -1579,6 +1585,7 @@ public class PathPrefs {
 			super(null, name, val);
 		}
 		
+		@Override
 		public void set(float thickness) {
 			if (thickness > 0f)
 	    		super.set(thickness);

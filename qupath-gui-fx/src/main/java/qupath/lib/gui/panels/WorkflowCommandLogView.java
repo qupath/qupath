@@ -339,7 +339,7 @@ public class WorkflowCommandLogView implements ImageDataChangeListener<BufferedI
 						// Update parameter list, if necessary
 						if (arg != null)
 							ParameterList.updateParameterList(params, GeneralTools.parseArgStringValues(arg), Locale.US); // Assume decimal points always
-						ParameterDialogWrapper<BufferedImage> dialog = new ParameterDialogWrapper<>(pluginInteractive, params, new PluginRunnerFX(qupath, false));
+						ParameterDialogWrapper<BufferedImage> dialog = new ParameterDialogWrapper<>(pluginInteractive, params, new PluginRunnerFX(qupath));
 						dialog.showDialog();
 						
 						// TODO: Update workflow steps for customization?
@@ -353,7 +353,7 @@ public class WorkflowCommandLogView implements ImageDataChangeListener<BufferedI
 //						});
 					}
 					else
-						plugin.runPlugin(new PluginRunnerFX(qupath, false), arg);
+						plugin.runPlugin(new PluginRunnerFX(qupath), arg);
 				} catch (ClassNotFoundException e1) {
 					DisplayHelpers.showErrorNotification("Plugin class not found", "No plugin class found with name " + pluginClassName);
 				}

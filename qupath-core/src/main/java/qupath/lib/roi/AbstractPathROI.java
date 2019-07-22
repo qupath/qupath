@@ -25,6 +25,7 @@ package qupath.lib.roi;
 
 import org.locationtech.jts.geom.Geometry;
 
+import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.interfaces.ROI;
 import qupath.lib.roi.jts.ConverterJTS;
 
@@ -41,17 +42,27 @@ abstract class AbstractPathROI implements ROI {
 	int t = 0; // Defaults to 0, indicating first time point
 	int z = 0; // Defaults to 0, indiciating first z-slice
 	
+	transient ImagePlane plane;
+	
 	public AbstractPathROI() {
-		this(-1, 0, 0);
+		this(null);
 	}
 	
-	public AbstractPathROI(int c, int z, int t) {
+	public AbstractPathROI(ImagePlane plane) {
 		super();
-		this.c = c;
-		this.z = z;
-		this.t = t;
+		if (plane == null)
+			plane = ImagePlane.getDefaultPlane();
+		this.c = plane.getC();
+		this.z = plane.getZ();
+		this.t = plane.getT();
 	}
 	
+	@Override
+	public ImagePlane getImagePlane() {
+		if (plane == null)
+			plane = ImagePlane.getPlaneWithChannel(c, z, t);
+		return plane;
+	}
 	
 //	Object asType(Class<?> cls) {
 //		if (cls.isInstance(this))

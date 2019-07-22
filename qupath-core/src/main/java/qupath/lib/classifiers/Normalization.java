@@ -31,7 +31,20 @@ package qupath.lib.classifiers;
  */
 public enum Normalization {
 
-	NONE, MEAN_VARIANCE, MIN_MAX;
+	/**
+	 * Do not normalize features.
+	 */
+	NONE,
+	
+	/**
+	 * Normalize by subtracting the mean and dividing by the standard deviation
+	 */
+	MEAN_VARIANCE,
+	
+	/**
+	 * Normalize into the range 0-1 using min and max values
+	 */
+	MIN_MAX;
 
 	@Override
 	public String toString() {

@@ -46,21 +46,22 @@ import ij.plugin.filter.RankFilters;
 import ij.process.Blitter;
 import ij.process.ByteProcessor;
 import ij.process.ImageProcessor;
-import qupath.imagej.helpers.IJTools;
-import qupath.imagej.objects.ROIConverterIJ;
 import qupath.imagej.processing.MorphologicalReconstruction;
-import qupath.imagej.processing.ROILabeling;
+import qupath.imagej.processing.RoiLabeling;
 import qupath.imagej.processing.SimpleThresholding;
+import qupath.imagej.tools.IJTools;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.PathImage;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.PathRootObject;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.helpers.PathObjectTools;
+import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.plugins.AbstractDetectionPlugin;
 import qupath.lib.plugins.DetectionPluginTools;
 import qupath.lib.plugins.ObjectDetector;
@@ -68,11 +69,10 @@ import qupath.lib.plugins.PluginRunner;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.RegionRequest;
-import qupath.lib.roi.ROIHelpers;
 import qupath.lib.roi.ROIs;
-import qupath.lib.roi.experimental.ShapeSimplifier;
-import qupath.lib.roi.PathROIToolsAwt;
-import qupath.lib.roi.PathROIToolsAwt.CombineOp;
+import qupath.lib.roi.ShapeSimplifier;
+import qupath.lib.roi.RoiTools;
+import qupath.lib.roi.RoiTools.CombineOp;
 import qupath.lib.roi.PolygonROI;
 import qupath.lib.roi.interfaces.PathShape;
 import qupath.lib.roi.interfaces.ROI;
@@ -96,6 +96,9 @@ public class SimpleTissueDetection2 extends AbstractDetectionPlugin<BufferedImag
 
 	private String lastResults = null;
 	
+	/**
+	 * Constructor.
+	 */
 	public SimpleTissueDetection2() {
 		
 		params = new ParameterList().
@@ -131,8 +134,9 @@ public class SimpleTissueDetection2 extends AbstractDetectionPlugin<BufferedImag
 			ImageServer<BufferedImage> server = imageData.getServer();
 			
 			double downsample;
-			if (server.hasPixelSizeMicrons()) {
-				downsample = params.getDoubleParameterValue("requestedPixelSizeMicrons") / server.getAveragedPixelSizeMicrons();
+			PixelCalibration cal = server.getPixelCalibration();
+			if (cal.hasPixelSizeMicrons()) {
+				downsample = params.getDoubleParameterValue("requestedPixelSizeMicrons") / cal.getAveragedPixelSizeMicrons();
 			} else
 				downsample = params.getDoubleParameterValue("requestedDownsample");
 			
@@ -157,7 +161,7 @@ public class SimpleTissueDetection2 extends AbstractDetectionPlugin<BufferedImag
 			
 			double threshold = params.getIntParameterValue("threshold");
 			double minAreaMicrons = 1, maxHoleAreaMicrons = 1, minAreaPixels = 1, maxHoleAreaPixels = 1;
-			if (server.hasPixelSizeMicrons()) {
+			if (cal.hasPixelSizeMicrons()) {
 				minAreaMicrons = params.getDoubleParameterValue("minAreaMicrons");
 				maxHoleAreaMicrons = params.getDoubleParameterValue("maxHoleAreaMicrons");
 			} else {
@@ -206,8 +210,8 @@ public class SimpleTissueDetection2 extends AbstractDetectionPlugin<BufferedImag
 			// If there is a ROI, clear everything outside
 			Roi roiIJ = null;
 			if (pathROI != null) {
-				roiIJ = ROIConverterIJ.convertToIJRoi(pathROI, imp.getCalibration(), downsample);
-				ROILabeling.clearOutside(bp, roiIJ);
+				roiIJ = IJTools.convertToIJRoi(pathROI, imp.getCalibration(), downsample);
+				RoiLabeling.clearOutside(bp, roiIJ);
 			}
 			
 			// Exclude on image boundary now, if required
@@ -228,8 +232,8 @@ public class SimpleTissueDetection2 extends AbstractDetectionPlugin<BufferedImag
 			
 			// Convert to objects
 			double minArea, maxHoleArea;
-			if (server.hasPixelSizeMicrons()) {
-				double areaScale = 1.0 / (server.getAveragedPixelSizeMicrons() * server.getAveragedPixelSizeMicrons() * downsample * downsample);
+			if (cal.hasPixelSizeMicrons()) {
+				double areaScale = 1.0 / (cal.getAveragedPixelSizeMicrons() * cal.getAveragedPixelSizeMicrons() * downsample * downsample);
 				minArea = minAreaMicrons * areaScale;
 				maxHoleArea = maxHoleAreaMicrons * areaScale;
 			} else {
@@ -243,7 +247,7 @@ public class SimpleTissueDetection2 extends AbstractDetectionPlugin<BufferedImag
 				return null;
 			
 			bp.setThreshold(127, Double.POSITIVE_INFINITY, ImageProcessor.NO_LUT_UPDATE);
-			List<PathObject> pathObjects = convertToPathObjects(bp, minArea, smoothCoordinates, imp.getCalibration(), downsample, maxHoleArea, excludeOnBoundary, singleAnnotation, null);
+			List<PathObject> pathObjects = convertToPathObjects(bp, minArea, smoothCoordinates, imp.getCalibration(), downsample, maxHoleArea, excludeOnBoundary, singleAnnotation, pathImage.getImageRegion().getPlane(), null);
 
 			if (Thread.currentThread().isInterrupted())
 				return null;
@@ -270,8 +274,8 @@ public class SimpleTissueDetection2 extends AbstractDetectionPlugin<BufferedImag
 	
 	
 	
-	public static List<PathObject> convertToPathObjects(ByteProcessor bp, double minArea, boolean smoothCoordinates, Calibration cal, double downsample, double maxHoleArea, boolean excludeOnBoundary, boolean singleAnnotation, List<PathObject> pathObjects) {
-		List<PolygonRoi> rois = ROILabeling.getFilledPolygonROIs(bp, Wand.FOUR_CONNECTED);
+	private static List<PathObject> convertToPathObjects(ByteProcessor bp, double minArea, boolean smoothCoordinates, Calibration cal, double downsample, double maxHoleArea, boolean excludeOnBoundary, boolean singleAnnotation, ImagePlane plane, List<PathObject> pathObjects) {
+		List<PolygonRoi> rois = RoiLabeling.getFilledPolygonROIs(bp, Wand.FOUR_CONNECTED);
 		if (pathObjects == null)
 			pathObjects = new ArrayList<>(rois.size());
 		
@@ -299,12 +303,12 @@ public class SimpleTissueDetection2 extends AbstractDetectionPlugin<BufferedImag
 //				r = new PolygonRoi(r.getInterpolatedPolygon(Math.min(2.5, r.getNCoordinates()*0.1), false), Roi.POLYGON); // TODO: Check this smoothing - it can be troublesome, causing nuclei to be outside cells
 //			}
 			
-			PolygonROI pathPolygon = ROIConverterIJ.convertToPolygonROI(r, cal, downsample);
+			PolygonROI pathPolygon = IJTools.convertToPolygonROI(r, cal, downsample, plane);
 //			if (pathPolygon.getArea() < minArea)
 //				continue;
 			// Smooth the coordinates, if we downsampled quite a lot
 			if (smoothCoordinates) {
-				pathPolygon = ROIs.createPolygonROI(ROIHelpers.smoothPoints(pathPolygon.getPolygonPoints()), ImagePlane.getPlaneWithChannel(pathPolygon));
+				pathPolygon = ROIs.createPolygonROI(ShapeSimplifier.smoothPoints(pathPolygon.getPolygonPoints()), ImagePlane.getPlaneWithChannel(pathPolygon));
 				pathPolygon = ShapeSimplifier.simplifyPolygon(pathPolygon, downsample/2);
 			}
 			pathObjects.add(PathObjects.createAnnotationObject(pathPolygon));
@@ -321,7 +325,7 @@ public class SimpleTissueDetection2 extends AbstractDetectionPlugin<BufferedImag
 //			new ImagePlus("Binary", bp).show();
 			bp.setThreshold(127, Double.POSITIVE_INFINITY, ImageProcessor.NO_LUT_UPDATE);
 			
-			List<PathObject> holes = convertToPathObjects(bp, maxHoleArea, smoothCoordinates, cal, downsample, 0, false, false, null);
+			List<PathObject> holes = convertToPathObjects(bp, maxHoleArea, smoothCoordinates, cal, downsample, 0, false, false, plane, null);
 			
 			// For each object, fill in any associated holes
 			List<Area> areaList = new ArrayList<>();
@@ -335,7 +339,7 @@ public class SimpleTissueDetection2 extends AbstractDetectionPlugin<BufferedImag
 				while (iter.hasNext()) {
 					PathObject hole = iter.next();
 					if (PathObjectTools.containsObject(pathObject, hole)) {
-						areaList.add(PathROIToolsAwt.getArea(hole.getROI()));
+						areaList.add(RoiTools.getArea(hole.getROI()));
 						iter.remove();
 					}
 				}
@@ -357,9 +361,9 @@ public class SimpleTissueDetection2 extends AbstractDetectionPlugin<BufferedImag
 				// Now subtract & create a new object
 				ROI pathROI = pathObject.getROI();
 				if (pathROI instanceof PathShape) {
-					Area areaMain = PathROIToolsAwt.getArea(pathROI);
+					Area areaMain = RoiTools.getArea(pathROI);
 					areaMain.subtract(hole);
-					pathROI = PathROIToolsAwt.getShapeROI(areaMain, pathROI.getC(), pathROI.getZ(), pathROI.getT());
+					pathROI = RoiTools.getShapeROI(areaMain, pathROI.getImagePlane());
 					pathObjects.set(ind, PathObjects.createAnnotationObject(pathROI));
 				}
 			}
@@ -374,7 +378,7 @@ public class SimpleTissueDetection2 extends AbstractDetectionPlugin<BufferedImag
 				if (roi == null)
 					roi = currentShape;
 				else
-					roi = PathROIToolsAwt.combineROIs(roi, currentShape, CombineOp.ADD);
+					roi = RoiTools.combineROIs(roi, currentShape, CombineOp.ADD);
 			}
 			pathObjects.clear();
 			if (roi != null)
@@ -393,7 +397,7 @@ public class SimpleTissueDetection2 extends AbstractDetectionPlugin<BufferedImag
 
 	@Override
 	public ParameterList getDefaultParameterList(final ImageData<BufferedImage> imageData) {
-		boolean micronsKnown = imageData.getServer().hasPixelSizeMicrons();
+		boolean micronsKnown = imageData.getServer().getPixelCalibration().hasPixelSizeMicrons();
 		params.setHiddenParameters(!micronsKnown, "requestedPixelSizeMicrons", "minAreaMicrons", "maxHoleAreaMicrons");
 		params.setHiddenParameters(micronsKnown, "requestedDownsample", "minAreaPixels", "maxHoleAreaPixels");
 		return params;
@@ -425,10 +429,11 @@ public class SimpleTissueDetection2 extends AbstractDetectionPlugin<BufferedImag
 	@Override
 	protected Collection<? extends PathObject> getParentObjects(final PluginRunner<BufferedImage> runner) {
 		
-		if (runner.getHierarchy().getTMAGrid() == null)
-			return Collections.singleton(runner.getHierarchy().getRootObject());
+		PathObjectHierarchy hierarchy = getHierarchy(runner);
+		if (hierarchy.getTMAGrid() == null)
+			return Collections.singleton(hierarchy.getRootObject());
 		
-		return runner.getHierarchy().getSelectionModel().getSelectedObjects().stream().filter(p -> p.isTMACore()).collect(Collectors.toList());
+		return hierarchy.getSelectionModel().getSelectedObjects().stream().filter(p -> p.isTMACore()).collect(Collectors.toList());
 //		PathObjectHierarchy hierarchy = runner.getImageData().getHierarchy();
 //		PathObject pathObjectSelected = runner.getSelectedObject();
 //		if (pathObjectSelected instanceof PathAnnotationObject || pathObjectSelected instanceof TMACoreObject)

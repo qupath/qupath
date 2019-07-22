@@ -32,7 +32,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.lib.images.ImageData;
+import qupath.lib.images.servers.ImageServer;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.plugins.workflow.SimplePluginWorkflowStep;
 import qupath.lib.plugins.workflow.WorkflowStep;
 
@@ -71,10 +73,30 @@ public abstract class AbstractPlugin<T> implements PathPlugin<T> {
 		return tasks;
 	}
 	
+	/**
+	 * Get the ImageServer from a PluginRunner, or null if no server is available.
+	 * @param runner
+	 * @return
+	 */
+	protected ImageServer<T> getServer(final PluginRunner<T> runner) {
+		ImageData<T> imageData = runner.getImageData();
+		return imageData == null ? null : imageData.getServer();
+	}
+	
+	/**
+	 * Get the hierarchy from a PluginRunner, or null if no hierarchy is available.
+	 * @param runner
+	 * @return
+	 */
+	protected PathObjectHierarchy getHierarchy(final PluginRunner<T> runner) {
+		ImageData<T> imageData = runner.getImageData();
+		return imageData == null ? null : imageData.getHierarchy();
+	}
+	
 	
 	/**
 	 * Parse the input argument, returning 'true' if the argument is valid and it's possible to run the plugin.
-	 * 
+	 * <p>
 	 * This is called from within runPlugin.
 	 * If it returns 'true', getTasks will be called and then runTasks will submit these to the plugin runner to run.
 	 * If it returns 'false', runPlugin will immediately abort and return false as well.

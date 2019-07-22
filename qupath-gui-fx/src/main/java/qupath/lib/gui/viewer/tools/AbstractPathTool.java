@@ -46,7 +46,7 @@ import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
-import qupath.lib.roi.PathROIToolsAwt;
+import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.ROI;
 
@@ -69,7 +69,10 @@ abstract class AbstractPathTool implements PathTool, QuPathViewerListener {
 	
 	transient LevelComparator comparator;
 	
-	
+	/**
+	 * Constructor.
+	 * @param modes property storing the current selected Mode within QuPath.
+	 */
 	AbstractPathTool(ModeWrapper modes) {
 		this.modes = modes;
 	}
@@ -114,7 +117,7 @@ abstract class AbstractPathTool implements PathTool, QuPathViewerListener {
 		if (currentROI.isLine())
 			return currentROI;
 		// Handle areas
-		Area currentArea = PathROIToolsAwt.getArea(currentROI);
+		Area currentArea = RoiTools.getArea(currentROI);
 		if (parentArea != null)
 			currentArea.intersect(parentArea);
 		if (parentAnnotationsArea != null)
@@ -122,7 +125,7 @@ abstract class AbstractPathTool implements PathTool, QuPathViewerListener {
 		if (currentArea.isEmpty())
 			return ROIs.createEmptyROI();
 		else
-			return PathROIToolsAwt.getShapeROI(currentArea, currentROI.getC(), currentROI.getZ(), currentROI.getT());
+			return RoiTools.getShapeROI(currentArea, currentROI.getImagePlane());
 	}
 	
 	
@@ -148,7 +151,7 @@ abstract class AbstractPathTool implements PathTool, QuPathViewerListener {
 		
 		// Get a combined area for the parent and any annotation children
 		if (currentParent.hasROI() && currentParent.getROI().isArea())
-			parentArea = PathROIToolsAwt.getArea(currentParent.getROI());
+			parentArea = RoiTools.getArea(currentParent.getROI());
 		
 	}
 	
@@ -176,7 +179,7 @@ abstract class AbstractPathTool implements PathTool, QuPathViewerListener {
 				if (child.isDetection() || child == currentObject)
 					continue;
 				if (child.hasROI() && child.getROI().isArea()) {
-					Area childArea = PathROIToolsAwt.getArea(child.getROI());
+					Area childArea = RoiTools.getArea(child.getROI());
 					if (parentAnnotationsArea == null)
 						parentAnnotationsArea = childArea;
 					else

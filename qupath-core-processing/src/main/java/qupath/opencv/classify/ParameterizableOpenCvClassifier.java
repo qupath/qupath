@@ -27,8 +27,8 @@ import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
 
-import org.bytedeco.javacpp.opencv_ml.StatModel;
-import org.bytedeco.javacpp.opencv_core.TermCriteria;
+import org.bytedeco.opencv.opencv_ml.StatModel;
+import org.bytedeco.opencv.opencv_core.TermCriteria;
 
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.plugins.parameters.Parameterizable;
@@ -36,7 +36,7 @@ import qupath.lib.plugins.parameters.Parameterizable;
 /**
  * Abstract base class useful for creating OpenCV classifiers that can be modified depending 
  * on the values of several parameters.
- * 
+ * <p>
  * This takes care of some of the effort involved in representing and storing the parameters.
  * 
  * @author Pete Bankhead

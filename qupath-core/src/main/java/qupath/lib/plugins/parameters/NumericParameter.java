@@ -51,33 +51,49 @@ public abstract class NumericParameter<S extends Number> extends AbstractParamet
 		this.maxValue = maxValue;
 	}
 	
-	public NumericParameter(String prompt, S defaultValue, String unit, double minValue, double maxValue, String helpText) {
+	NumericParameter(String prompt, S defaultValue, String unit, double minValue, double maxValue, String helpText) {
 		this(prompt, defaultValue, unit, minValue, maxValue, null, helpText, false);
 	}
 
-	public NumericParameter(String prompt, S defaultValue, String unit, String helpText) {
+	NumericParameter(String prompt, S defaultValue, String unit, String helpText) {
 		this(prompt, defaultValue, unit, Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY, helpText);
 	}
 	
+	/**
+	 * Returns true if this parameter has <i>both</i> lower and upper bounds constraining valid values.
+	 * @return
+	 */
 	public boolean hasLowerAndUpperBounds() {
 		return hasLowerBound() && hasUpperBound();
 	}
 	
+	/**
+	 * Returns true if this <i>neither</i> a lower nor an upper bound constraining valid values.
+	 * @return
+	 */
 	public boolean isUnbounded() {
 		return !hasLowerBound() && !hasUpperBound();
 	}
 	
+	/**
+	 * Retrieve the lower bound. May be Double.NEGATIVE_INFINITY if the parameter has no lower bound.
+	 * @return
+	 */
 	public double getLowerBound() {
 		return minValue;
 	}
 
+	/**
+	 * Retrieve the upper bound. May be Double.POSITIVE_INFINITY if the parameter has no upper bound.
+	 * @return
+	 */
 	public double getUpperBound() {
 		return maxValue;
 	}
 	
 	/**
 	 * Set the upper and lower bounds.
-	 * 
+	 * <p>
 	 * Note: depending on how the parameter is displayed (or if it is displayed) this might not appear
 	 * to make a difference.  If shown through a ParameterPanel (in QuPath's JavaFX GUI) it is better to
 	 * set limits via the panel rather than directly using this method.
@@ -97,22 +113,35 @@ public abstract class NumericParameter<S extends Number> extends AbstractParamet
 			throw new IllegalArgumentException("Invalid range set " + minValue + "-" + maxValue + ": minValue must be <= maxValue");
 	}
 
+	/**
+	 * Returns true if the parameter has a valid lower bound.
+	 * @return
+	 */
 	public boolean hasLowerBound() {
 		return Math.abs(minValue) <= Double.MAX_VALUE;
 	}
 	
+	/**
+	 * Returns true if the parameter has a valid upper bound.
+	 * @return
+	 */
 	public boolean hasUpperBound() {
 		return Math.abs(maxValue) <= Double.MAX_VALUE;
 	}
 
-	public boolean hasUnit() {
-		return unit != null;
-	}
-	
+	/**
+	 * Get the unit to display for this parameter (may be null if no unit is available).
+	 * @return
+	 */
 	public String getUnit() {
 		return unit;
 	}
 	
+	/**
+	 * Set the value of this parameter, constraining it to be within any lower and upper bounds if necessary.
+	 * @param lastValue
+	 * @return
+	 */
 	public abstract boolean setValueWithBoundsCheck(S lastValue);
 	
 	/**

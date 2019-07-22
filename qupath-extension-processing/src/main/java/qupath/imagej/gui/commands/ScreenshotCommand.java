@@ -39,6 +39,7 @@ import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.gui.helpers.DisplayHelpers.SnapshotType;
 import qupath.lib.gui.viewer.QuPathViewer;
+import qupath.lib.images.servers.ServerTools;
 
 /**
  * Create a snapshot of the QuPath viewer, and send the image directly to ImageJ.
@@ -50,6 +51,10 @@ public class ScreenshotCommand implements PathCommand {
 
 	private QuPathGUI qupath;
 
+	/**
+	 * Constructor.
+	 * @param qupath QuPath instance where the command should be installed.
+	 */
 	public ScreenshotCommand(QuPathGUI qupath) {
 //		super("Make screenshot", PathIconFactory.createIcon(QuPathGUI.iconSize, QuPathGUI.iconSize, PathIconFactory.PathIcons.SCREENSHOT));
 		this.qupath = qupath;
@@ -82,7 +87,7 @@ public class ScreenshotCommand implements PathCommand {
 			ij.setVisible(true);
 		String name = "QuPath screenshot";
 		if (viewer.getServer() != null)
-			name = WindowManager.getUniqueName("Screenshot - " + viewer.getServer().getShortServerName());
+			name = WindowManager.getUniqueName("Screenshot - " + ServerTools.getDisplayableImageName(viewer.getServer()));
 		ImagePlus imp = new ImagePlus(name, img);
 		double pixelWidth = viewer.getDisplayedPixelWidthMicrons();
 		double pixelHeight = viewer.getDisplayedPixelHeightMicrons();

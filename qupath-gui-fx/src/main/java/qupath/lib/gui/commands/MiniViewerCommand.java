@@ -77,10 +77,10 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
 import javafx.stage.Stage;
-import qupath.lib.awt.color.ColorToolsAwt;
 import qupath.lib.awt.common.AwtTools;
+import qupath.lib.color.ColorToolsAwt;
 import qupath.lib.common.ColorTools;
-import qupath.lib.common.SimpleThreadFactory;
+import qupath.lib.common.ThreadTools;
 import qupath.lib.display.ChannelDisplayInfo;
 import qupath.lib.display.ImageDisplay;
 import qupath.lib.gui.QuPathGUI;
@@ -95,7 +95,7 @@ import qupath.lib.regions.ImageRegion;
  * Command to open a small viewer window, which displays a detail from 
  * the current image depending on where the cursor is over the image.
  * <p>
- * In QuPath &leq; v0.1.2, this gave a single {@link QuPathViewer} that updated its display 
+ * In QuPath &lt;= v0.1.2, this gave a single {@link QuPathViewer} that updated its display 
  * based on a main viewer.  Now, it has been rewritten to provide a more efficient paintable 
  * canvas (not a full QuPathViewer) and is capable of showing separated color channels.
  * 
@@ -260,7 +260,7 @@ public class MiniViewerCommand implements PathCommand {
 		private Point2D centerPosition = new Point2D.Double();
 		private Point2D mousePosition;
 		
-		private ExecutorService pool = Executors.newSingleThreadExecutor(new SimpleThreadFactory("mini-viewer", true));
+		private ExecutorService pool = Executors.newSingleThreadExecutor(ThreadTools.createThreadFactory("mini-viewer", true));
 		
 		private ChangeListener<Number> changeListener = new ChangeListener<Number>() {
 

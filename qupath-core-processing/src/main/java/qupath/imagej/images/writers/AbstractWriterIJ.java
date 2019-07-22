@@ -35,10 +35,10 @@ import java.awt.image.BufferedImage;
 import java.awt.image.DataBuffer;
 import java.io.IOException;
 
-import qupath.imagej.helpers.IJTools;
+import qupath.imagej.tools.IJTools;
 import qupath.lib.images.PathImage;
 import qupath.lib.images.servers.ImageServer;
-import qupath.lib.images.writers.AbstractImageWriter;
+import qupath.lib.images.writers.ImageWriter;
 import qupath.lib.regions.RegionRequest;
 
 /**
@@ -47,7 +47,7 @@ import qupath.lib.regions.RegionRequest;
  * @author Pete Bankhead
  *
  */
-abstract class AbstractWriterIJ extends AbstractImageWriter<BufferedImage> {
+abstract class AbstractWriterIJ implements ImageWriter<BufferedImage> {
 
 	@Override
 	public boolean supportsT() {

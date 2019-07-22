@@ -31,6 +31,10 @@ package qupath.lib.plugins.workflow;
  */
 public interface ScriptableWorkflowStep extends WorkflowStep {
 	
-	public String getJavascript();
+	/**
+	 * Get one or more script lines that may be used to apply the step.
+	 * @return
+	 */
+	public String getScript();
 	
 }

@@ -16,10 +16,10 @@ import java.util.Set;
 import java.util.WeakHashMap;
 import java.util.stream.Collectors;
 
-import org.bytedeco.javacpp.opencv_core;
-import org.bytedeco.javacpp.opencv_core.Mat;
-import org.bytedeco.javacpp.opencv_core.TermCriteria;
-import org.bytedeco.javacpp.opencv_video;
+import org.bytedeco.opencv.global.opencv_core;
+import org.bytedeco.opencv.opencv_core.Mat;
+import org.bytedeco.opencv.opencv_core.TermCriteria;
+import org.bytedeco.opencv.global.opencv_video;
 import org.bytedeco.javacpp.indexer.FloatIndexer;
 import org.bytedeco.javacpp.indexer.Indexer;
 import org.controlsfx.control.CheckListView;
@@ -69,6 +69,8 @@ import qupath.lib.gui.helpers.PaintingToolsFX;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.PixelCalibration;
+import qupath.lib.images.servers.ServerTools;
 import qupath.lib.objects.PathObject;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectImageEntry;
@@ -286,14 +288,16 @@ public class ImageAlignmentPane {
 		// Get all the other project entries - except for the base image (which is fixed)
 		Project<BufferedImage> project = qupath.getProject();
 		List<ProjectImageEntry<BufferedImage>> entries = new ArrayList<>(project.getImageList());
-		ImageServer<?> currentServer = viewer.getServer();
-		String baseServerPath = currentServer == null ? null : currentServer.getPath();
-		entries.removeIf(e -> e.sameServerPath(baseServerPath));
+		ImageData<BufferedImage> imageDataCurrent = viewer.getImageData();
+		ProjectImageEntry<BufferedImage> currentEntry = project.getEntry(imageDataCurrent);
+		if (currentEntry != null)
+			entries.remove(currentEntry);
 		
 		// Find the entries currently selected
 		Set<ProjectImageEntry<BufferedImage>> alreadySelected = 
-				images.stream().map(i -> project.getImageEntry(i.getServerPath())).collect(Collectors.toSet());
-		alreadySelected.removeIf(e -> e.sameServerPath(baseServerPath));
+				images.stream().map(i -> project.getEntry(i)).collect(Collectors.toSet());
+		if (currentEntry != null)
+			alreadySelected.remove(currentEntry);
 		
 		// Create a list to display, with the appropriate selections
 		ListView<ProjectImageEntry<BufferedImage>>  list = new ListView<>();
@@ -324,7 +328,7 @@ public class ImageAlignmentPane {
 			List<ImageData<BufferedImage>> imagesToRemove = new ArrayList<>();
 			for (ImageData<BufferedImage> temp : images) {
 				for (ProjectImageEntry<BufferedImage> entry : toRemove) {
-					if (entry.sameServerPath(temp.getServerPath()))
+					if (entry == currentEntry)
 						imagesToRemove.add(temp);
 				}
 			}
@@ -389,7 +393,7 @@ public class ImageAlignmentPane {
 		Affine affine = overlay.getAffine();
 		affineStringProperty.set(
 				String.format("Transform: [\n" +
-				"  %.3f, %.3f, %.3f\n" + 
+				"  %.3f, %.3f, %.3f,\n" + 
 				"  %.3f, %.3f, %.3f\n" + 
 				"]",
 				affine.getMxx(), affine.getMxy(), affine.getTx(),
@@ -441,14 +445,15 @@ public class ImageAlignmentPane {
 	}
 
 	static void autoAlign(ImageServer<BufferedImage> serverBase, ImageServer<BufferedImage> serverOverlay, Affine affine, double requestedPixelSizeMicrons) throws IOException {
-		double pixelSize = serverBase.getAveragedPixelSizeMicrons();
+		PixelCalibration calBase = serverBase.getPixelCalibration();
+		double pixelSize = calBase.getAveragedPixelSizeMicrons();
 		double downsample = 1;
 		if (!Double.isFinite(pixelSize)) {
 			while (serverBase.getWidth() / downsample > 2000)
 				downsample++;
 			logger.warn("Pixel size is unavailable! Default downsample value of {} will be used", downsample);
 		} else {
-			downsample = requestedPixelSizeMicrons / serverBase.getAveragedPixelSizeMicrons();			
+			downsample = requestedPixelSizeMicrons / calBase.getAveragedPixelSizeMicrons();			
 		}
 
 		BufferedImage imgBase = serverBase.readBufferedImage(RegionRequest.createInstance(serverBase.getPath(), downsample, 0, 0, serverBase.getWidth(), serverBase.getHeight()));
@@ -545,6 +550,7 @@ public class ImageAlignmentPane {
 		
 		private Point2D pDragging;
 		
+		@Override
 		public void handle(MouseEvent event) {
 			if (!event.isPrimaryButtonDown() || event.isConsumed())
 				return;
@@ -607,10 +613,10 @@ public class ImageAlignmentPane {
 				setStyle("-fx-font-weight: normal; -fx-font-family: arial");
 			
 			// Get the name from the project, if possible
-			Project<?> project = qupath.getProject();
-			String name = item.getServer().getDisplayedImageName();
+			Project<BufferedImage> project = qupath.getProject();
+			String name = ServerTools.getDisplayableImageName(item.getServer());
 			if (project != null) {
-				ProjectImageEntry<?> entry = project.getImageEntry(item.getServerPath());
+				ProjectImageEntry<BufferedImage> entry = project.getEntry(item);
 				if (entry != null)
 					name = entry.getImageName();
 			}

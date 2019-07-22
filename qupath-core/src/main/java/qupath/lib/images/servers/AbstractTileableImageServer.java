@@ -7,23 +7,32 @@ import java.awt.image.ColorModel;
 import java.awt.image.Raster;
 import java.awt.image.WritableRaster;
 import java.io.IOException;
-import java.util.Map;
+import java.util.Collection;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import ij.process.FloatProcessor;
-import ij.process.ImageProcessor;
-import qupath.lib.common.GeneralTools;
+import qupath.lib.awt.common.BufferedImageTools;
 import qupath.lib.regions.RegionRequest;
 
+/**
+ * Abstract {@link ImageServer} for BufferedImages that internally breaks up requests into constituent tiles.
+ * <p>
+ * The actual request is then handled by assembling the tiles, resizing as required.
+ * This makes it possible to cache tiles and reuse them more efficiently, and often requires less effort 
+ * to implement a new {@link ImageServer}.
+ * 
+ * @author Pete Bankhead
+ *
+ */
 public abstract class AbstractTileableImageServer extends AbstractImageServer<BufferedImage> {
 	
-	private static Logger logger = LoggerFactory.getLogger(AbstractTileableImageServer.class);
+	private static final Logger logger = LoggerFactory.getLogger(AbstractTileableImageServer.class);
+		
+	protected AbstractTileableImageServer() {
+		super(BufferedImage.class);
+	}
 	
-	/**
-	 * Cache to use for storing & retrieving tiles.
-	 */
-	private Map<RegionRequest, BufferedImage> cache = ImageServerProvider.getCache(BufferedImage.class);
 	
 	/**
 	 * Read a single image tile.
@@ -32,25 +41,17 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 	 * @return
 	 */
 	protected abstract BufferedImage readTile(final TileRequest tileRequest) throws IOException;
-
-	/**
-	 * Get the internal cache. This may be useful to check for the existence of a cached tile any time 
-	 * when speed is of the essence, and if no cached tile is available a request will not be made.
-	 * 
-	 * @return
-	 */
-	protected Map<RegionRequest, BufferedImage> getCache() {
-		return cache;
-	}
+	
 	
 	/**
-	 * Get a tile for the request - ideally from the cache, but otherwise read it & 
+	 * Get a tile for the request - ideally from the cache, but otherwise read it and 
 	 * then add it to the cache.
 	 * 
 	 * @param tileRequest
 	 * @return
 	 */
 	protected BufferedImage getTile(final TileRequest tileRequest) throws IOException {
+		var cache = getCache();
 		BufferedImage imgCached = cache == null ? null : cache.get(tileRequest.getRegionRequest());
 		if (imgCached != null) { 
 			logger.trace("Returning cached tile: {}", tileRequest.getRegionRequest());
@@ -93,19 +94,21 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 	public BufferedImage readBufferedImage(final RegionRequest request) throws IOException {
 		// Check if we already have a tile for precisely this occasion - with the right server path
 		// Make a defensive copy, since the cache is critical
+		var cache = getCache();
 		BufferedImage img = request.getPath().equals(getPath()) && cache != null ? cache.get(request) : null;
 		if (img != null)
 			return duplicate(img);
 		
 		// Figure out which tiles we need
-		var tiles = getTiles(request);
+		Collection<TileRequest> tiles = getTileRequestManager().getTileRequests(request);
 		
 		// If no tiles found, we assume a sparse image with nothing relevant to display for this location
 		if (tiles.isEmpty())
 			return null;
 		
 		// Check for the special case where we are requesting a single tile, which exactly matches the request
-		if (tiles.size() == 1) {
+		boolean singleTile = tiles.size() == 1;
+		if (singleTile) {
 			var firstTile = tiles.iterator().next();
 			if (firstTile.getRegionRequest().equals(request)) {
 				var imgTile = getTile(firstTile);
@@ -160,30 +163,41 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 				tileMaxY = Math.max(tileRequest.getTileY() + tileRequest.getTileHeight(), tileMaxY);
 			}
 			
-			
-			for (var tileRequest : tiles) {
-				
-				BufferedImage imgTile = getTile(tileRequest);
+			if (singleTile) {
+				// Use the raster directly, if appropriate (because copying can be expensive)
+				BufferedImage imgTile = getTile(tiles.iterator().next());
 				if (imgTile != null) {
-					// Preallocate a raster if we need to, and everything else the tile might give us
-					if (raster == null) {
-						raster = imgTile.getRaster().createCompatibleWritableRaster(tileMaxX - tileMinX, tileMaxY - tileMinY);
-						colorModel = imgTile.getColorModel();
-						alphaPremultiplied = imgTile.isAlphaPremultiplied();							
+					raster = imgTile.getRaster();
+					colorModel = imgTile.getColorModel();
+					alphaPremultiplied = imgTile.isAlphaPremultiplied();
+				}
+			} else {
+				for (var tileRequest : tiles) {
+					BufferedImage imgTile = getTile(tileRequest);
+					if (imgTile != null) {
+						// Figure out coordinates
+						int dx = tileRequest.getTileX() - tileMinX;
+						int dy = tileRequest.getTileY() - tileMinY;
+						int tileWidth = tileMaxX - tileMinX;
+						int tileHeight = tileMaxY - tileMinY;
+						// Preallocate a raster if we need to, and everything else the tile might give us
+						if (raster == null) {
+							raster = imgTile.getRaster().createCompatibleWritableRaster(tileWidth, tileHeight);
+							colorModel = imgTile.getColorModel();
+							alphaPremultiplied = imgTile.isAlphaPremultiplied();							
+						}
+						// Insert the tile into the raster
+						if (dx >= raster.getWidth() ||
+								dy >= raster.getHeight()
+								)
+							continue;
+						raster.setRect(
+								dx,
+								dy,
+	//							Math.min(raster.getWidth() - tileMinX, imgTile.getWidth()),
+	//							Math.min(raster.getHeight() - tileMinY, imgTile.getHeight()),							
+								imgTile.getRaster());
 					}
-					// Insert the tile into the raster
-					int dx = tileRequest.getTileX() - tileMinX;
-					int dy = tileRequest.getTileY() - tileMinY;
-					if (dx >= raster.getWidth() ||
-							dy >= raster.getHeight()
-							)
-						continue;
-					raster.setRect(
-							dx,
-							dy,
-//							Math.min(raster.getWidth() - tileMinX, imgTile.getWidth()),
-//							Math.min(raster.getHeight() - tileMinY, imgTile.getHeight()),							
-							imgTile.getRaster());
 				}
 			}
 			// Maybe we don't have anything at all (which is not an error if the image is sparse!)
@@ -219,123 +233,12 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 			int currentWidth = imgResult.getWidth();
 			int currentHeight = imgResult.getHeight();
 			if (currentWidth != width || currentHeight != height)
-				imgResult = resize(imgResult, width, height);
+				imgResult = BufferedImageTools.resize(imgResult, width, height);
 			
 			long endTime = System.currentTimeMillis();
 			logger.trace("Requested " + tiles.size() + " tiles in " + (endTime - startTime) + " ms (non-RGB)");
 			return imgResult;
 		}
-	}
-
-	
-	/**
-	 * Resize the image to have the requested width/height, using area averaging & bilinear interpolation.
-	 * 
-	 * @param img input image to be resized
-	 * @param finalWidth target output width
-	 * @param finalHeight target output height
-	 * @return resized image
-	 */
-	public static BufferedImage resize(final BufferedImage img, final int finalWidth, final int finalHeight) {
-		
-//		boolean useLegacyResizing = false;
-//		if (useLegacyResizing) {
-//			return resize(img, finalWidth, finalHeight, false);
-//		}
-		
-		if (img.getWidth() == finalWidth && img.getHeight() == finalHeight)
-			return img;
-		
-		logger.trace(String.format("Resizing %d x %d -> %d x %d", img.getWidth(), img.getHeight(), finalWidth, finalHeight));
-		
-		double aspectRatio = (double)img.getWidth()/img.getHeight();
-		double finalAspectRatio = (double)finalWidth/finalHeight;
-		if (!GeneralTools.almostTheSame(aspectRatio, finalAspectRatio, 0.01)) {
-			if (!GeneralTools.almostTheSame(aspectRatio, finalAspectRatio, 0.05))
-				logger.warn("Substantial difference in aspect ratio for resized image: {}x{} -> {}x{} ({}, {})", img.getWidth(), img.getHeight(), finalWidth, finalHeight, aspectRatio, finalAspectRatio);
-			else
-				logger.warn("Slight difference in aspect ratio for resized image: {}x{} -> {}x{} ({}, {})", img.getWidth(), img.getHeight(), finalWidth, finalHeight, aspectRatio, finalAspectRatio);
-		}
-		
-		boolean areaAveraging = true;
-		
-		var raster = img.getRaster();
-		var raster2 = raster.createCompatibleWritableRaster(finalWidth, finalHeight);
-
-		int w = img.getWidth();
-		int h = img.getHeight();
-		
-		var fp = new FloatProcessor(w, h);
-		fp.setInterpolationMethod(ImageProcessor.BILINEAR);
-		for (int b = 0; b < raster.getNumBands(); b++) {
-			float[] pixels = (float[])fp.getPixels();
-			raster.getSamples(0, 0, w, h, b, pixels);
-			var fp2 = fp.resize(finalWidth, finalHeight, areaAveraging);
-			raster2.setSamples(0, 0, finalWidth, finalHeight, b, (float[])fp2.getPixels());
-		}
-		
-		return new BufferedImage(img.getColorModel(), raster2, img.isAlphaPremultiplied(), null);
-	}
-	
-	
-	/**
-	 * Resize the image to have the requested width/height, using nearest neighbor interpolation.
-	 * 
-	 * @param img input image to be resized
-	 * @param finalWidth target output width
-	 * @param finalHeight target output height
-	 * @param isRGB request that the image be handled as RGB; this is typically faster, but might fail depending on
-	 *  the image type and need to fall back on slower (default) resizing
-	 * @return
-	 */
-	public static BufferedImage resize(final BufferedImage img, final int finalWidth, final int finalHeight, final boolean isRGB) {
-		// Check if we need to do anything
-		if (img.getWidth() == finalWidth && img.getHeight() == finalHeight)
-			return img;
-		
-		// RGB can generally be converted more easily
-		if (isRGB) {
-			try {
-				BufferedImage img2 = new BufferedImage(finalWidth, finalHeight, img.getType());
-				Graphics2D g2d = img2.createGraphics();
-				g2d.drawImage(img, 0, 0, finalWidth, finalHeight, null);
-				g2d.dispose();
-				return img2;
-			} catch (Exception e) {
-				logger.debug("Error rescaling (supposedly) RGB image {}, will default to slower rescaling: {}", img, e.getLocalizedMessage());
-			}
-		}
-		
-		// Create an image with the same ColorModel / data type as the original
-		WritableRaster raster = img.getColorModel().createCompatibleWritableRaster(finalWidth, finalHeight);
-
-		// Get the pixels & resize for each band
-		float[] pixels = null;
-		for (int b = 0; b < raster.getNumBands(); b++) {
-			pixels = img.getRaster().getSamples(0, 0, img.getWidth(), img.getHeight(), b, pixels);
-			double xScale = (double)img.getWidth() / finalWidth;
-			double yScale = (double)img.getHeight() / finalHeight;
-			
-			// Perform rescaling with nearest neighbor interpolation
-			// TODO: Consider 'better' forms of interpolation
-			float[] pixelsNew = new float[finalWidth*finalHeight];
-			int w = img.getWidth();
-			int h = img.getHeight();
-			for (int y = 0; y < finalHeight; y++) {
-				int row = (int)(y * yScale + 0.5);
-				if (row >= h)
-					row = h-1;
-				for (int x = 0; x < finalWidth; x++) {
-					int col = (int)(x * xScale + 0.5);
-					if (col >= w)
-						col = w-1;
-					int ind = row*img.getWidth() + col;
-					pixelsNew[y*finalWidth + x] = pixels[ind];
-				}			
-			}
-			raster.setSamples(0, 0, finalWidth, finalHeight, b, pixelsNew);
-		}
-		return new BufferedImage(img.getColorModel(), raster, img.getColorModel().isAlphaPremultiplied(), null);
 	}
 	
 	

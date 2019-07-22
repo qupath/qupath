@@ -36,24 +36,45 @@ import qupath.lib.objects.TMACoreObject;
  */
 public interface TMAGrid extends Serializable {
 	
-	public int getCoreIndex(String coreName);
-
+	/**
+	 * Total number of cores in the TMA grid.
+	 * @return
+	 */
 	public int nCores();
 	
+	/**
+	 * Number of cores along the horizontal axis of the grid.
+	 * @return
+	 */
 	public int getGridWidth();
 	
+	/**
+	 * Number of cores along the vertical axis of the grid.
+	 * @return
+	 */
 	public int getGridHeight();
 	
+	/**
+	 * Retrieve a TMA core based upon its name.
+	 * <p>
+	 * The behavior is undefined if multiple cores have the same name.
+	 * @param coreName
+	 * @return
+	 */
 	public TMACoreObject getTMACore(String coreName);
 	
-	public TMACoreObject getTMACoreByUniqueID(String uniqueID);
-	
-	public TMACoreObject getTMACore(int ind);
-
+	/**
+	 * Get the TMACoreObject for a specified grid location.
+	 * @param row
+	 * @param col
+	 * @return
+	 */
 	public TMACoreObject getTMACore(int row, int col);
 
+	/**
+	 * Get an unmodifiable list of all TMA core objects.
+	 * @return
+	 */
 	public List<TMACoreObject> getTMACoreList();
 	
-	public TMACoreObject getTMACoreForPixel(double x, double y);
-
 }

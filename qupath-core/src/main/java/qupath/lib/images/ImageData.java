@@ -33,9 +33,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.lib.color.ColorDeconvolutionStains;
-import qupath.lib.color.ColorDeconvolutionStains.DEFAULT_CD_STAINS;
+import qupath.lib.color.ColorDeconvolutionStains.DefaultColorDeconvolutionStains;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.ServerTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
@@ -46,9 +47,10 @@ import qupath.lib.plugins.workflow.WorkflowStep;
 
 /**
  * Class that brings together the main data in connection with the analysis of a single image.
- * 
+ * <p>
  * Currently, this is really the server (to access the image &amp; its pixels) and the object hierarchy that represents detections.
  * In addition, there is an ImageType - as some options may change depending on this.
+ * <p>
  * One particularly significant example is that of Brightfield images in pathology, for which stain vectors are often required for
  * effective stain separation.
  * 
@@ -57,12 +59,35 @@ import qupath.lib.plugins.workflow.WorkflowStep;
  */
 public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListener {
 	
+	/**
+	 * Enum representing possible image types.
+	 * <p>
+	 * TODO: Warning! This is liable to change in the future to remove specific stain information.
+	 */
 	public enum ImageType {
+			/**
+			 * Brightfield image with hematoxylin and DAB stains.
+			 */
 			BRIGHTFIELD_H_DAB("Brightfield (H-DAB)"),
+			/**
+			 * Brightfield image with hematoxylin and eosin stains.
+			 */
 			BRIGHTFIELD_H_E("Brightfield (H&E)"),
+			/**
+			 * Brightfield image with any stains.
+			 */
 			BRIGHTFIELD_OTHER("Brightfield (other)"),
+			/**
+			 * Fluorescence image.
+			 */
 			FLUORESCENCE("Fluorescence"),
+			/**
+			 * Other image type, not covered by any of the alternatives above.
+			 */
 			OTHER("Other"),
+			/**
+			 * Image type has not been set.
+			 */
 			UNSET("Not set");
 		
 		private final String text;
@@ -104,6 +129,11 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
 	private boolean changes = false; // Indicating changes since this ImageData was last saved
 	
 	
+	/**
+	 * Create a new ImageData with a specified object hierarchy and type.
+	 * @param server
+	 * @param type
+	 */
 	public ImageData(ImageServer<T> server, PathObjectHierarchy hierarchy, ImageType type) {
 		pcs = new PropertyChangeSupport(this);
 		this.server = server;
@@ -122,6 +152,11 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
 		changes = false;
 	}
 	
+	/**
+	 * Create a new ImageData with a specified type and creating a new object hierarchy.
+	 * @param server
+	 * @param type
+	 */
 	public ImageData(ImageServer<T> server, ImageType type) {
 		this(server, new PathObjectHierarchy(), type);
 	}
@@ -158,14 +193,15 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
 	
 	
 	private void initializeStainMap() {
-		stainMap.put(ImageType.BRIGHTFIELD_H_DAB, ColorDeconvolutionStains.makeDefaultColorDeconvolutionStains(DEFAULT_CD_STAINS.H_DAB));
-		stainMap.put(ImageType.BRIGHTFIELD_H_E, ColorDeconvolutionStains.makeDefaultColorDeconvolutionStains(DEFAULT_CD_STAINS.H_E));
-		stainMap.put(ImageType.BRIGHTFIELD_OTHER, ColorDeconvolutionStains.makeDefaultColorDeconvolutionStains(DEFAULT_CD_STAINS.H_DAB));
+		stainMap.put(ImageType.BRIGHTFIELD_H_DAB, ColorDeconvolutionStains.makeDefaultColorDeconvolutionStains(DefaultColorDeconvolutionStains.H_DAB));
+		stainMap.put(ImageType.BRIGHTFIELD_H_E, ColorDeconvolutionStains.makeDefaultColorDeconvolutionStains(DefaultColorDeconvolutionStains.H_E));
+		stainMap.put(ImageType.BRIGHTFIELD_OTHER, ColorDeconvolutionStains.makeDefaultColorDeconvolutionStains(DefaultColorDeconvolutionStains.H_DAB));
 	}
 	
 	
 	/**
 	 * Set the color deconvolution stain vectors for the current image type.
+	 * <p>
 	 * If the type is not brightfield, an IllegalArgumentException is thrown.
 	 * 
 	 * @param stains
@@ -183,24 +219,34 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
 	}
 	
 	
-	public void setColorDeconvolutionStains(final String stainsString) {
-		setColorDeconvolutionStains(ColorDeconvolutionStains.parseColorDeconvolutionStainsArg(stainsString));
-	}
+//	public void setColorDeconvolutionStains(final String stainsString) {
+//		setColorDeconvolutionStains(ColorDeconvolutionStains.parseColorDeconvolutionStainsArg(stainsString));
+//	}
+//	
+//	public void setImageType(final String type) {
+//		setImageType(ImageType.valueOf(type));
+//	}
 	
-	
+	/**
+	 * Returns true if the image type is set to brightfield.
+	 * @return
+	 */
 	public boolean isBrightfield() {
 		return getImageType().toString().toLowerCase().startsWith("brightfield");
 	}
 	
+	/**
+	 * Returns true if the image type is set to fluorescence.
+	 * @return
+	 */
 	public boolean isFluorescence() {
 		return getImageType() == ImageType.FLUORESCENCE;
 	}
 	
-	
-	public void setImageType(final String type) {
-		setImageType(ImageType.valueOf(type));
-	}
-	
+	/**
+	 * Set the image type.
+	 * @param type
+	 */
 	public void setImageType(final ImageType type) {
 		if (this.type == type)
 			return;
@@ -233,7 +279,7 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
 	
 	
 	// TODO: REINTRODUCE LOGGING!
-	static void addColorDeconvolutionStainsToWorkflow(ImageData<?> imageData) {
+	private static void addColorDeconvolutionStainsToWorkflow(ImageData<?> imageData) {
 //		logger.warn("Color deconvolution stain logging not currently enabled!");
 
 		ColorDeconvolutionStains stains = imageData.getColorDeconvolutionStains();
@@ -273,44 +319,81 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
 //			imageData.getWorkflow().addStep(newStep);
 	}
 	
-	
+	/**
+	 * Get the ImageServer.
+	 * @return
+	 */
 	public ImageServer<T> getServer() {
 		return server;
 	}
 	
+	/**
+	 * Get the path of the ImageServer.
+	 * @return
+	 */
 	public String getServerPath() {
 		return serverPath;
 	}
 	
+	/**
+	 * Get the object hierarchy.
+	 * @return
+	 */
 	public PathObjectHierarchy getHierarchy() {
 		return hierarchy;
 	}
 	
+	/**
+	 * Get the image type
+	 * @return
+	 */
 	public ImageType getImageType() {
 		return type;
 	}
 	
+	/**
+	 * Get the stains defined for this image, or null if this is not a brightfield image suitable for color deconvolution.
+	 * @return
+	 */
 	public ColorDeconvolutionStains getColorDeconvolutionStains() {
 		return stainMap.get(getImageType());
 	}
 	
-	
+	/**
+	 * Add a new property change listener.
+	 * @param listener
+	 */
 	public void addPropertyChangeListener(PropertyChangeListener listener) {
 		if (pcs == null)
 			pcs = new PropertyChangeSupport(this);
         this.pcs.addPropertyChangeListener(listener);
     }
 
+	/**
+	 * Remove a property change listener.
+	 * @param listener
+	 */
     public void removePropertyChangeListener(PropertyChangeListener listener) {
         this.pcs.removePropertyChangeListener(listener);
     }
 
 
-    
+    /**
+     * Get a specified property.
+     * @param key
+     * @return
+     */
     public Object getProperty(String key) {
     		return propertiesMap.get(key);
     }
 
+    /**
+     * Set a property. Note that if properties are Serializable, they will be included in 
+     * associated data files - otherwise they are stored only transiently.
+     * @param key
+     * @param value
+     * @return
+     */
     public Object setProperty(String key, Object value) {
 	    	Object oldValue = propertiesMap.put(key, value);
 	    	if (oldValue == null)
@@ -321,6 +404,11 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
 	    	return oldValue;
     }
 
+    /**
+     * Remove a specified property.
+     * @param key
+     * @return
+     */
     public Object removeProperty(String key) {
 	    	if (propertiesMap.containsKey(key)) {
 	    		changes = true;
@@ -329,6 +417,10 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
 	    	return null;
     }
 
+    /**
+     * Get an unmodifiable map representing all known properties for this ImageData.
+     * @return
+     */
     public Map<String, Object> getProperties() {
     		return Collections.unmodifiableMap(propertiesMap);
     }
@@ -351,6 +443,15 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
      */
     public boolean isChanged() {
     		return changes;
+    }
+        
+    /**
+     * Set {@link #isChanged()} status.
+     * 
+     * @param isChanged
+     */
+    public void setChanged(boolean isChanged) {
+    	this.changes = isChanged;
     }
     
     /**
@@ -383,7 +484,7 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
 		if (getServer() == null)
 			return "ImageData: " + getImageType() + ", no server";
 		else
-			return "ImageData: " + getImageType() + ", " + getServer().getShortServerName();
+			return "ImageData: " + getImageType() + ", " + ServerTools.getDisplayableImageName(getServer());
 	}
 
     

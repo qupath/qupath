@@ -35,7 +35,7 @@ import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
-import qupath.lib.objects.classes.PathClassFactory.PathClasses;
+import qupath.lib.objects.classes.PathClassFactory.StandardPathClasses;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.ROIs;
@@ -57,10 +57,10 @@ public class ObservableMeasurementTableDataTest {
 		
 		ImageData<BufferedImage> imageData = new ImageData<>(null);
 		
-		PathClass tumorClass = PathClassFactory.getDefaultPathClass(PathClasses.TUMOR);
-		PathClass stromaClass = PathClassFactory.getDefaultPathClass(PathClasses.STROMA);
+		PathClass tumorClass = PathClassFactory.getPathClass(StandardPathClasses.TUMOR);
+		PathClass stromaClass = PathClassFactory.getPathClass(StandardPathClasses.STROMA);
 //		PathClass otherClass = PathClassFactory.getDefaultPathClass(PathClasses.OTHER);
-		PathClass artefactClass = PathClassFactory.getDefaultPathClass(PathClasses.ARTIFACT);
+		PathClass artefactClass = PathClassFactory.getPathClass("Artefact");
 		PathObjectHierarchy hierarchy = imageData.getHierarchy();
 		
 		// Add a parent annotation
@@ -74,31 +74,31 @@ public class ObservableMeasurementTableDataTest {
 		ROI smallROI = ROIs.createRectangleROI(500, 500, 1, 1, ImagePlane.getDefaultPlane());
 		for (int i = 0; i < 100; i++) {
 			if (i < 25)
-				parent.addPathObject(PathObjects.createDetectionObject(smallROI, PathClassFactory.getNegative(tumorClass, null)));
+				parent.addPathObject(PathObjects.createDetectionObject(smallROI, PathClassFactory.getNegative(tumorClass)));
 			else if (i < 50)
-				parent.addPathObject(PathObjects.createDetectionObject(smallROI, PathClassFactory.getOnePlus(tumorClass, null)));
+				parent.addPathObject(PathObjects.createDetectionObject(smallROI, PathClassFactory.getOnePlus(tumorClass)));
 			else if (i < 75)
-				parent.addPathObject(PathObjects.createDetectionObject(smallROI, PathClassFactory.getTwoPlus(tumorClass, null)));
+				parent.addPathObject(PathObjects.createDetectionObject(smallROI, PathClassFactory.getTwoPlus(tumorClass)));
 			else if (i < 100)
-				parent.addPathObject(PathObjects.createDetectionObject(smallROI, PathClassFactory.getThreePlus(tumorClass, null)));
+				parent.addPathObject(PathObjects.createDetectionObject(smallROI, PathClassFactory.getThreePlus(tumorClass)));
 		}
 		// Create 100 stroma detections
 		for (int i = 0; i < 100; i++) {
 			if (i < 50)
-				parent.addPathObject(PathObjects.createDetectionObject(smallROI, PathClassFactory.getNegative(stromaClass, null)));
+				parent.addPathObject(PathObjects.createDetectionObject(smallROI, PathClassFactory.getNegative(stromaClass)));
 			else if (i < 60)
-				parent.addPathObject(PathObjects.createDetectionObject(smallROI, PathClassFactory.getOnePlus(stromaClass, null)));
+				parent.addPathObject(PathObjects.createDetectionObject(smallROI, PathClassFactory.getOnePlus(stromaClass)));
 			else if (i < 70)
-				parent.addPathObject(PathObjects.createDetectionObject(smallROI, PathClassFactory.getTwoPlus(stromaClass, null)));
+				parent.addPathObject(PathObjects.createDetectionObject(smallROI, PathClassFactory.getTwoPlus(stromaClass)));
 			else if (i < 100)
-				parent.addPathObject(PathObjects.createDetectionObject(smallROI, PathClassFactory.getThreePlus(stromaClass, null)));
+				parent.addPathObject(PathObjects.createDetectionObject(smallROI, PathClassFactory.getThreePlus(stromaClass)));
 		}
 		// Create 50 artefact detections
 		for (int i = 0; i < 50; i++) {
 			parent.addPathObject(PathObjects.createDetectionObject(smallROI, artefactClass));
 		}
 		
-		hierarchy.addPathObject(parent, false);
+		hierarchy.addPathObject(parent);
 		
 		ObservableMeasurementTableData model = new ObservableMeasurementTableData();
 		model.setImageData(imageData, Collections.singletonList(parent));
@@ -139,7 +139,7 @@ public class ObservableMeasurementTableDataTest {
 		
 		// Add a new parent that completely contains the current object, and confirm complete scores agree
 		PathObject parentNew = PathObjects.createAnnotationObject(ROIs.createRectangleROI(0, 0, 2000, 2000, ImagePlane.getDefaultPlane()));
-		hierarchy.addPathObject(parentNew, false);
+		hierarchy.addPathObject(parentNew);
 		model.refreshEntries();
 		assertEquals(135, model.getNumericValue(parent, "Stroma + Tumor: H-score"), EPSILON);
 		assertEquals(135, model.getNumericValue(parentNew, "Stroma + Tumor: H-score"), EPSILON);
@@ -148,11 +148,11 @@ public class ObservableMeasurementTableDataTest {
 		PathObject parentAllred = PathObjects.createAnnotationObject(ROIs.createRectangleROI(4000, 4000, 1000, 1000, ImagePlane.getDefaultPlane()));
 		ROI newROI = ROIs.createEllipseROI(4500, 4500, 10, 10, ImagePlane.getDefaultPlane());
 		for (int i = 0; i < 100; i++)
-			parentAllred.addPathObject(PathObjects.createDetectionObject(newROI, PathClassFactory.getNegative(tumorClass, null)));
-		hierarchy.addPathObject(parentAllred, false);
+			parentAllred.addPathObject(PathObjects.createDetectionObject(newROI, PathClassFactory.getNegative(tumorClass)));
+		hierarchy.addPathObject(parentAllred);
 		model.refreshEntries();
 		assertEquals(0, model.getNumericValue(parentAllred, "Tumor: Allred score"), EPSILON);
-		parentAllred.addPathObject(PathObjects.createDetectionObject(newROI, PathClassFactory.getThreePlus(tumorClass, null)));
+		parentAllred.addPathObject(PathObjects.createDetectionObject(newROI, PathClassFactory.getThreePlus(tumorClass)));
 		hierarchy.fireHierarchyChangedEvent(parentAllred);
 		model.refreshEntries();
 		assertEquals(4, model.getNumericValue(parentAllred, "Tumor: Allred score"), EPSILON);

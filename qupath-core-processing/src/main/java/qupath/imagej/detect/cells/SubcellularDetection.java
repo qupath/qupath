@@ -40,6 +40,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import ij.gui.PolygonRoi;
+import ij.gui.Wand;
 import ij.measure.Calibration;
 import ij.plugin.filter.EDM;
 import ij.plugin.filter.MaximumFinder;
@@ -47,11 +48,11 @@ import ij.process.ByteProcessor;
 import ij.process.FloatProcessor;
 import ij.process.ImageProcessor;
 import ij.process.ImageStatistics;
-import qupath.imagej.objects.ROIConverterIJ;
-import qupath.imagej.processing.ROILabeling;
+import qupath.imagej.processing.RoiLabeling;
 import qupath.imagej.processing.SimpleThresholding;
-import qupath.lib.analysis.algorithms.FloatArraySimpleImage;
-import qupath.lib.analysis.algorithms.SimpleImage;
+import qupath.imagej.tools.IJTools;
+import qupath.lib.analysis.images.SimpleImages;
+import qupath.lib.analysis.images.SimpleImage;
 import qupath.lib.color.ColorDeconvolutionStains;
 import qupath.lib.color.ColorTransformer;
 import qupath.lib.color.StainVector;
@@ -60,9 +61,10 @@ import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.measurements.MeasurementListFactory;
-import qupath.lib.measurements.MeasurementList.TYPE;
+import qupath.lib.measurements.MeasurementList.MeasurementListType;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathCellObject;
 import qupath.lib.objects.PathDetectionObject;
@@ -71,12 +73,14 @@ import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
+import qupath.lib.objects.classes.PathClassTools;
 import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.plugins.AbstractInteractivePlugin;
 import qupath.lib.plugins.PluginRunner;
 import qupath.lib.plugins.parameters.ParameterList;
+import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.RegionRequest;
-import qupath.lib.roi.PathROIToolsAwt;
+import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
@@ -93,7 +97,7 @@ public class SubcellularDetection extends AbstractInteractivePlugin<BufferedImag
 	@Override
 	public boolean runPlugin(final PluginRunner<BufferedImage> pluginRunner, final String arg) {
 		boolean success = super.runPlugin(pluginRunner, arg);
-		pluginRunner.getHierarchy().fireHierarchyChangedEvent(this);
+		getHierarchy(pluginRunner).fireHierarchyChangedEvent(this);
 		return success;
 	}
 	
@@ -184,7 +188,7 @@ public class SubcellularDetection extends AbstractInteractivePlugin<BufferedImag
 	static boolean processObject(final PathObject pathObject, final ParameterList params, final ImageWrapper imageWrapper) throws InterruptedException, IOException {
 
 		// Get the base classification for the object as it currently stands
-		PathClass baseClass = PathClassFactory.getNonIntensityAncestorClass(pathObject.getPathClass());
+		PathClass baseClass = PathClassTools.getNonIntensityAncestorClass(pathObject.getPathClass());
 		
 		// Variable to hold estimated spot count
 		double estimatedSpots;
@@ -213,11 +217,12 @@ public class SubcellularDetection extends AbstractInteractivePlugin<BufferedImag
 
 		// Determine spot size
 		ImageServer<BufferedImage> server = imageWrapper.getServer();
-		double spotSizeMicrons = server.hasPixelSizeMicrons() ? params.getDoubleParameterValue("spotSizeMicrons") : Double.NaN;
-		double minSpotSizeMicrons = server.hasPixelSizeMicrons() ? params.getDoubleParameterValue("minSpotSizeMicrons") : Double.NaN;
-		double maxSpotSizeMicrons = server.hasPixelSizeMicrons() ? params.getDoubleParameterValue("maxSpotSizeMicrons") : Double.NaN;
-		double pixelWidth = server.getPixelWidthMicrons() * downsample;
-		double pixelHeight = server.getPixelHeightMicrons() * downsample;
+		PixelCalibration cal = server.getPixelCalibration();
+		double spotSizeMicrons = cal.hasPixelSizeMicrons() ? params.getDoubleParameterValue("spotSizeMicrons") : Double.NaN;
+		double minSpotSizeMicrons = cal.hasPixelSizeMicrons() ? params.getDoubleParameterValue("minSpotSizeMicrons") : Double.NaN;
+		double maxSpotSizeMicrons = cal.hasPixelSizeMicrons() ? params.getDoubleParameterValue("maxSpotSizeMicrons") : Double.NaN;
+		double pixelWidth = cal.getPixelWidthMicrons() * downsample;
+		double pixelHeight = cal.getPixelHeightMicrons() * downsample;
 		double singleSpotArea = spotSizeMicrons / (pixelWidth * pixelHeight);
 		double minSpotArea = minSpotSizeMicrons / (pixelWidth * pixelHeight);
 		double maxSpotArea = maxSpotSizeMicrons / (pixelWidth * pixelHeight);
@@ -252,9 +257,9 @@ public class SubcellularDetection extends AbstractInteractivePlugin<BufferedImag
 			SimpleImage img = imageWrapper.getRegion(region, channelName);
 
 			// Get an ImageJ-friendly calibration for ROI conversion
-			Calibration cal = new Calibration();
-			cal.xOrigin = -xStart/downsample;
-			cal.yOrigin = -yStart/downsample;
+			Calibration calIJ = new Calibration();
+			calIJ.xOrigin = -xStart/downsample;
+			calIJ.yOrigin = -yStart/downsample;
 
 			// Create a cell mask
 			if (cellMask == null) {
@@ -264,7 +269,7 @@ public class SubcellularDetection extends AbstractInteractivePlugin<BufferedImag
 					g2d.scale(1.0/downsample, 1.0/downsample);
 				g2d.translate(-xStart, -yStart);
 
-				Shape shape = PathROIToolsAwt.getShape(pathROI);
+				Shape shape = RoiTools.getShape(pathROI);
 				g2d.setColor(Color.WHITE);
 				g2d.fill(shape);
 				g2d.dispose();
@@ -306,23 +311,25 @@ public class SubcellularDetection extends AbstractInteractivePlugin<BufferedImag
 
 			// Loop through spot ROIs & make a decision
 			bpSpots.setThreshold(1, ImageProcessor.NO_THRESHOLD, ImageProcessor.NO_LUT_UPDATE);
-			List<PolygonRoi> possibleSpotRois = ROILabeling.getFilledROIs4(bpSpots);
+			List<PolygonRoi> possibleSpotRois = RoiLabeling.getFilledPolygonROIs(bpSpots, Wand.FOUR_CONNECTED);
 			List<PathObject> spotObjects = new ArrayList<>();
 			List<PathObject> clusterObjects = new ArrayList<>();
 			estimatedSpots = 0;
 			for (PolygonRoi spotRoi : possibleSpotRois) {
 				fpDetection.setRoi(spotRoi);
 				ImageStatistics stats = fpDetection.getStatistics();
+				
+				ImagePlane plane = ImagePlane.getPlaneWithChannel(spotRoi.getCPosition(), spotRoi.getZPosition(), spotRoi.getTPosition());
 
 				PathObject cluster = null;
 				if (stats.pixelCount > minSpotArea && stats.pixelCount <= maxSpotArea) {
-					ROI roi = ROIConverterIJ.convertToPathROI(spotRoi, cal, downsample, spotRoi.getCPosition(), spotRoi.getZPosition(), spotRoi.getTPosition());
+					ROI roi = IJTools.convertToROI(spotRoi, calIJ, downsample, plane);
 //					cluster = new SubcellularObject(roi, 1);
 					cluster = createSubcellularObject(roi, 1);
 					estimatedSpots += 1;
 				} else if (includeClusters && stats.pixelCount > minSpotArea) {
 					// Add a cluster
-					ROI roi = ROIConverterIJ.convertToPathROI(spotRoi, cal, downsample, spotRoi.getCPosition(), spotRoi.getZPosition(), spotRoi.getTPosition());
+					ROI roi = IJTools.convertToROI(spotRoi, calIJ, downsample, plane);
 					double nSpots = stats.pixelCount / singleSpotArea;
 					estimatedSpots += nSpots;
 //					cluster = new SubcellularObject(roi, nSpots);
@@ -380,7 +387,7 @@ public class SubcellularDetection extends AbstractInteractivePlugin<BufferedImag
 		
 		params.addBooleanParameter("includeClusters", "Include clusters", true, "Store anything larger than 'Max spot size' as a cluster, instead of ignoring it");
 		
-		boolean hasMicrons = imageData.getServer().hasPixelSizeMicrons();
+		boolean hasMicrons = imageData.getServer().getPixelCalibration().hasPixelSizeMicrons();
 		params.setHiddenParameters(!hasMicrons, "spotSizeMicrons", "minSpotSizeMicrons", "maxSpotSizeMicrons", "includeClusters");
 		return params;
 	}
@@ -404,7 +411,7 @@ public class SubcellularDetection extends AbstractInteractivePlugin<BufferedImag
 	protected Collection<PathObject> getParentObjects(final PluginRunner<BufferedImage> runner) {
 		Collection<Class<? extends PathObject>> parentClasses = getSupportedParentObjectClasses();
 		List<PathObject> parents = new ArrayList<>();
-		for (PathObject parent : runner.getHierarchy().getSelectionModel().getSelectedObjects()) {
+		for (PathObject parent : getHierarchy(runner).getSelectionModel().getSelectedObjects()) {
 			for (Class<? extends PathObject> cls : parentClasses) {
 				if (cls.isAssignableFrom(parent.getClass())) {
 					parents.add(parent);
@@ -480,7 +487,7 @@ public class SubcellularDetection extends AbstractInteractivePlugin<BufferedImag
 		 */
 		@Override
 		protected MeasurementList createEmptyMeasurementList() {
-			return MeasurementListFactory.createMeasurementList(0, TYPE.FLOAT);
+			return MeasurementListFactory.createMeasurementList(0, MeasurementListType.FLOAT);
 		}
 		
 		@Override
@@ -578,7 +585,7 @@ public class SubcellularDetection extends AbstractInteractivePlugin<BufferedImag
 			} else {
 				pixels = img.getData().getSamples(0, 0, w, h, channel, pixels);
 			}
-			return new FloatArraySimpleImage(pixels, w, h);
+			return SimpleImages.createFloatImage(pixels, w, h);
 		}
 		
 		/**
@@ -597,7 +604,7 @@ public class SubcellularDetection extends AbstractInteractivePlugin<BufferedImag
 			}
 			for (int i = 0; i < nChannels(); i++) {
 				if (channelName.equals(getChannelName(i)))
-					return imageData.getServer().getDefaultChannelColor(i);
+					return imageData.getServer().getChannel(i).getColor();
 			}
 			return 0;
 		}

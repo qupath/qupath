@@ -24,16 +24,16 @@
 package qupath.lib.images.servers;
 
 import java.io.IOException;
+import java.net.URI;
 import java.util.Collection;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
-import qupath.lib.images.PathImage;
+import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
 import qupath.lib.regions.RegionRequest;
 
 /**
  * 
- * Generic ImageServer, able to return image tiles.
+ * Generic ImageServer, able to return pixels and metadata.
  * <p>
  * The idea behind making this generic is that so that it can be used on various platforms and with different UIs, e.g. Swing, JavaFX.
  * For Swing/AWT, the expected generic parameter is BufferedImage.
@@ -58,11 +58,16 @@ public interface ImageServer<T> extends AutoCloseable {
 	public String getPath();
 	
 	/**
-	 * Get a short name for the server, derived from {@code getPath()}.
+	 * Get the URIs for images required for this server. 
+	 * In the simplest case, this is a singleton list returning a URI representing a local 
+	 * file. However, some ImageServers may not have an associated URI at all, whereas others 
+	 * may depend upon multiple URIs (e.g. if concatenating images).
+	 * <p>
+	 * Note: A URI alone may not be sufficient to recreate even a simple ImageServer; see {@link #getBuilder()}.
 	 * @return
 	 */
-	public String getShortServerName();
-
+	public Collection<URI> getURIs();
+	
 	/**
 	 * Get an array of downsample factors supported by the server
 	 * @return
@@ -79,43 +84,13 @@ public interface ImageServer<T> extends AutoCloseable {
 	public int nResolutions();
 	
 	/**
-	 * Get the downsample factor supported by the server that is the best match for the requested downsample.
-	 * Generally, this will be &lt;= the requested downsample (but it may be slightly more if the error introduced
-	 * would be very small, i.e. if 4 is requested and 4.0001 is available, 4.0001 would be returned).
-	 * 
-	 * @param requestedDownsample
-	 * @return
-	 */
-	public double getPreferredDownsampleFactor(double requestedDownsample);
-	
-	/**
 	 * Get the downsample factor for a specified resolution level, where level 0 is the full resolution image 
 	 * and nResolutions() - 1 is the lowest resolution available.
 	 * 
-	 * @param level Resolution level, should be 0 &leq; level &lt; nResolutions().
+	 * @param level Resolution level, should be 0 &lt;= level &lt; nResolutions().
 	 * @return
 	 */
 	public double getDownsampleForResolution(int level);
-	
-	/**
-	 * A suggested tile width (in pixels), derived from the full-resolution image.
-	 * If no tile size suggestion can be provided from the file, this returns -1.
-	 * @return
-	 */
-	public int getPreferredTileWidth();
-
-	/**
-	 * A suggested tile height (in pixels), derived from the full-resolution image.
-	 * If no tile size suggestion can be provided from the file, this returns -1.
-	 * @return
-	 */
-	public int getPreferredTileHeight();
-
-	/**
-	 * The magnification at which the full-resolution image was acquired, or Double.NaN if this is unknown.
-	 * @return
-	 */
-	public double getMagnification();
 	
 	/**
 	 * Width of the full-resolution image in pixels.
@@ -128,18 +103,6 @@ public interface ImageServer<T> extends AutoCloseable {
 	 * @return
 	 */
 	public int getHeight();
-	
-	/**
-	 * Width of image for a specific resolution level in pixels.
-	 * @return
-	 */
-	public int getLevelWidth(int level);
-
-	/**
-	 * Height of image for a specific resolution level in pixels.
-	 * @return
-	 */
-	public int getLevelHeight(int level);
 
 	/**
 	 * Number of channels (3 for RGB).
@@ -148,7 +111,7 @@ public interface ImageServer<T> extends AutoCloseable {
 	public int nChannels();
 	
 	/**
-	 * TRUE if the image has 8-bit red, green &amp; blue channels (and nothing else), false otherwise.
+	 * True if the image has 8-bit red, green &amp; blue channels (and nothing else), false otherwise.
 	 * @return
 	 */
 	public boolean isRGB();
@@ -166,87 +129,27 @@ public interface ImageServer<T> extends AutoCloseable {
 	public int nTimepoints();
 	
 	/**
-	 * Time point (in getTimeUnits() for a time series; returns 0 if the image is not a time series
+	 * Get the PixelCalibration object from the current metadata.
 	 * @return
 	 */
-	public double getTimePoint(int ind);
-	
-	/**
-	 * Time interval units for a time series
-	 * @return
-	 */
-	public TimeUnit getTimeUnit();
-	
-	/**
-	 * Spacing between slices of a z-stack, or Double.NaN if this is unknown of the image is not a z-stack.
-	 * @return
-	 */
-	public double getZSpacingMicrons();
+	public default PixelCalibration getPixelCalibration() {
+		return getMetadata().getPixelCalibration();
+	}
 
 	/**
-	 * The pixel width of the full-resolution image in microns, or Double.NaN if this is unknown.
-	 * @return
-	 */
-	public double getPixelWidthMicrons();
-
-	/**
-	 * The pixel height of the full-resolution image in microns, or Double.NaN if this is unknown.
-	 * @return
-	 */
-	public double getPixelHeightMicrons();
-	
-	/**
-	 * The mean of the pixel width &amp; height, if available; for square pixels this is the same as either width * height
-	 * @return
-	 */
-	public double getAveragedPixelSizeMicrons();
-
-	/**
-	 * TRUE if the pixel size is known, FALSE otherwise.
-	 * @return
-	 */
-	public boolean hasPixelSizeMicrons();
-	
-	/**
-	 * Obtain a T thumbnail, no larger than the maxWidth &amp; maxHeigth specified.
-	 * Aspect ratio will be maintained, so only one dimension needs to be specified - the other can be -1.
+	 * Get a cached tile, or null if the tile has not been cached.
 	 * <p>
-	 * Note: The aim of this method is to supply a T that would look sensible when drawn,
-	 *       *not* one that preserves (resampled) pixel values.  Therefore some brightness/contrast scaling
-	 *       may have been applied, particularly for non-8-bit images.
+	 * This is useful whenever it is important to return quickly rather than wait for a tile to be fetched or generated.
 	 * 
-	 * @param maxWidth
-	 * @param maxHeight
-	 * @param zPosition
-	 * @return
+	 * @param tile
+	 * @return the tile if it has been cached, or null if no cached tile is available for the request.
 	 */
-	public T getBufferedThumbnail(int maxWidth, int maxHeight, int zPosition) throws IOException;
-
-	/**
-	 * Read a requested region, returning PathImage containing additional metadata.
-	 * <p>
-	 * 'region' must contain integer pixel coordinates from the full-resolution image, while downsampleFactor can be any double 
-	 * (generally &gt;= 1; 'upsampling' may not be supported, depending on the concrete implementations).
-	 * <p>
-	 * For pyramid images, no guarantee is provided as to which level will actually be used, but it is most likely
-	 * to be the level closest to - but not lower-resolution than - the requested downsampleFactor.
-	 * <p>
-	 * While the downsampleFactor can be a double, it should be kept in mind that this can lead to rounding issues.
-	 * Therefore if it is essential that extracted regions will later need to be related back to the full-resolution data
-	 * (e.g. after segmenting objects at a lower magnification), then the region and downsampleFactor should be chosen cautiously.
-	 * <p>
-	 * In general, in such cases it is a good idea to make downsampleFactor a power of 2, and ensure at least that the requested
-	 * width and height are multiples of the downsampleFactor.  This can be ensured by first refining the region with
-	 * 		WholeSlideImageHelper.refineRegion(Rectangle region, double downsampleFactor)
-	 * 
-	 * 
-	 * @param request - the image region being requested, including the downsample factor
-	 * @return
-	 */
-	public PathImage<T> readRegion(RegionRequest request) throws IOException;
+	public T getCachedTile(TileRequest tile);
 	
 	/**
-	 * Read a buffered image for a specified RegionRequest, cropping and downsampling as required.  No specific checking is guaranteed
+	 * Read a buffered image for a specified RegionRequest, cropping and downsampling as required.
+	 * <p>
+	 * No specific checking is guaranteed
 	 * to ensure that the request is valid, e.g. if it extends beyond the image boundary then it is likely (but not certain) that
 	 * the returned image will be cropped accordingly - but some implementations may contain empty padding instead.  Therefore
 	 * it is up to the caller to ensure that the requests are within range.
@@ -255,96 +158,33 @@ public interface ImageServer<T> extends AutoCloseable {
 	 * @return
 	 */
 	public T readBufferedImage(RegionRequest request) throws IOException;
-        
+ 
 	
 	/**
-	 * A string describing the type of server, e.g. the name of the library used (Openslide, Bioformats...)
+	 * A string describing the type of server, for example the name of the library used (Openslide, Bioformats...)
 	 */
 	public String getServerType();
-	
-	/**
-	 * Get a list of images (or subimages) accessible by this server.
-	 * This is for occasions in which the same file contains multiple images, each of which could be accessed via an ImageServer.
-	 * <p>
-	 * In the event that the server only has a single image, an empty list is returned.
-	 * If the server has multiple images, a list of image names is returned - with the default image occurring first.
-	 * 
-	 * @return
-	 * 
-	 * @see #getSubImagePath
-	 * @see #getAssociatedImage
-	 */
-	public List<String> getSubImageList();
-	
-	/**
-	 * Get a full path for a sub-image of this server.
-	 * 
-	 * @return
-	 * 
-	 * @see #getSubImageList
-	 */
-	public String getSubImagePath(String imageName);
-	
-//	/**
-//	 * Create a (child) image server to be used to access an image contained within the images that this server supports.
-//	 * Not all image servers (or image files) contain multiple images.
-//	 * If this is used, getImageList().contains(imageName) must evaluate to true - if it does not, then this
-//	 * method will throw an IllegalArgumentException.
-//	 * 
-//	 * @param imageName
-//	 * @return
-//	 */
-//	@Deprecated
-////	public ImageServer getSubImageServer(String imageName);
-	
 	
 	/**
 	 * Get a list of 'associated images', e.g. thumbnails or slide overview images.
 	 * <p>
 	 * Each associated image is simply a T that does not warrant (or require) a full ImageServer, and most likely would never be analyzed.
 	 * 
-	 * @see #getAssociatedImage
+	 * @see #getAssociatedImage(String)
 	 * 
 	 * @return
 	 */
 	public List<String> getAssociatedImageList();
 	
 	/**
-	 * Get the T for a given AssociatedImage name.
+	 * Get the image for a given associated image name.
 	 * 
-	 * @see #getAssociatedImageList
+	 * @see #getAssociatedImageList()
 	 * 
 	 * @param name
 	 * @return
 	 */
 	public T getAssociatedImage(String name);
-	
-	
-	/**
-	 * Get the name of the image supplied by this server.
-	 * <p>
-	 * If the server only has one image, then it will be the same as getShortServerName().
-	 * However if the server contains multiple images, this will identify the image whose
-	 * metadata &amp; pixels are provided by the server.
-	 * 
-	 * @return
-	 */
-	public String getDisplayedImageName();
-	
-	/**
-	 * Returns true if this is a sub-image stored within the same file as other images.
-	 * 
-	 * @return
-	 */
-	public boolean containsSubImages();
-	
-	
-	/**
-	 * Returns true either if this server *is* the specified PathImageServer, or if it is a wrapper for it.
-	 * @param server
-	 * @return
-	 */
-	public boolean usesBaseServer(ImageServer<?> server);
 	
 	
 //	/**
@@ -358,7 +198,7 @@ public interface ImageServer<T> extends AutoCloseable {
 	 * Test whether a region is empty, i.e. it contains nothing to be painted (e.g. the server paints objects
 	 * but there are no objects present in the region) and readBufferedImage(RegionRequest region) would return null.
 	 * <p>
-	 * This makes it possible to avoid a (potentially more expensive) request to readBufferedImage,
+	 * This makes it possible to avoid a (potentially more expensive) request to {@link #readBufferedImage(RegionRequest)},
 	 * or to add it to a request queue, if we know there will be nothing to show for it.
 	 * <p>
 	 * Note: if this method returns true, it is safe to assume readBufferedImage would return null.
@@ -371,41 +211,28 @@ public interface ImageServer<T> extends AutoCloseable {
 	 */
 	public boolean isEmptyRegion(RegionRequest request);
 	
-	
 	/**
-	 * The bit-depth of the image.
-	 * For an RGB image, this is considered to be 8, i.e. color channels are considered separately.
+	 * The bit-depth and type of the image. This refers to a single channel, e.g. an 
+	 * 8-bit RGB image will have a type of {@link PixelType#UINT8}.
 	 * 
 	 * @return
 	 */
-	public int getBitsPerPixel();
-	
+	public PixelType getPixelType();
 	
 	/**
-	 * In cases where multiple channels are available, return the default color for the specified channel (first channel is 0).
+	 * Request information for one channel.
+	 * 
 	 * @param channel
 	 * @return
+	 * 
+	 * @see ImageServerMetadata#getChannels()
 	 */
-	public Integer getDefaultChannelColor(int channel);
-	
-	
-	/**
-	 * Get a name for the channel.
-	 * @param channel
-	 * @return
-	 */
-	public String getChannelName(int channel);
-	
-	/**
-	 * Get a list providing the name & default color for each image channel.
-	 * @return
-	 */
-	public List<ImageChannel> getChannels();
+	public ImageChannel getChannel(int channel);
 	
 	/**
 	 * Get essential metadata associated with the ImageServer as a distinct object.  This may be edited by the user.
 	 * @return
-	 * @see #getOriginalMetadata
+	 * @see #getOriginalMetadata()
 	 */
 	public ImageServerMetadata getMetadata();
 	
@@ -420,29 +247,9 @@ public interface ImageServer<T> extends AutoCloseable {
 	/**
 	 * Get the original metadata read during creation of the server.  This may or may not be correct.
 	 * @return
-	 * @see #getMetadata
+	 * @see #getMetadata()
 	 */
 	public ImageServerMetadata getOriginalMetadata();
-	
-	/**
-	 * Tests whether the original metadata (e.g. pixel sizes in microns, magnification) is being used.
-	 * @return
-	 * @see #getMetadata
-	 * @see #getOriginalMetadata
-	 */
-	public boolean usesOriginalMetadata();
-
-	/**
-	 * Get the default thumbnail, without specifying the z-slice or timepoint.
-	 * <p>
-	 * This is useful for a general representation of the image appearance.  A specific 
-	 * z-slice or timepoint should not be assumed, e.g. it may be the first or it may be selected 
-	 * based on other criteria.
-	 * 
-	 * @return
-	 * @see #getDefaultThumbnail(int, int)
-	 */
-	public T getDefaultThumbnail() throws IOException;
 	
 	/**
 	 * Get the default thumbnail for a specified z-slice and timepoint.
@@ -457,33 +264,38 @@ public interface ImageServer<T> extends AutoCloseable {
 	 */
 	public T getDefaultThumbnail(int z, int t) throws IOException;
 	
-	
+		
 	/**
-	 * Get {@link TileRequest} objects for <i>all</i> tiles that this server supports.
-	 * 
+	 * Get a TileRequestManager that can be used to identify image tiles that may be efficiently requested
+	 * from this ImageServer.
+	 * <p>
+	 * This is useful because managing arbitrary RegionRequests can result in inefficiencies if a request 
+	 * straddles multiple tiles unnecessarily. Also, it can be used to help ensure consistency whenever 
+	 * requesting regions at different resolutions, where rounding errors might otherwise occur.
+	 * <p>
+	 * Note that the TileRequestManager is not guaranteed to remain the same for the lifecycle of the server. 
+	 * For example, if the image metadata is changed then a new manager may be constructed.
 	 * @return
 	 */
-	public Collection<TileRequest> getAllTileRequests();
+	public TileRequestManager getTileRequestManager();
 	
+
 	/**
-	 * Get the {@link TileRequest} containing a specified pixel, or null if no such request exists.
-	 * 
-	 * @param level
-	 * @param x
-	 * @param y
-	 * @param z
-	 * @param t
+	 * Get the class of the image representation returned by this ImageServer.
 	 * @return
 	 */
-	public TileRequest getTile(int level, int x, int y, int z, int t);
+	public Class<T> getImageClass();
 	
 	/**
-	 * Get a collection of {@link TileRequest} objects necessary to fulfil a specific {@link RegionRequest}.
-	 * 
-	 * @param request
+	 * Get a ServerBuilder capable of building a server the same as this one.
+	 * <p>
+	 * The purpose of this is to aid serialization of servers by switching to a simpler representation.
+	 * <p>
+	 * The default implementation returns null, indicating that rebuilding the server is not supported.
 	 * @return
 	 */
-	public Collection<TileRequest> getTiles(final RegionRequest request);
-	
+	public default ServerBuilder<T> getBuilder() {
+		return null;
+	}
 	
 }

@@ -24,6 +24,7 @@
 package qupath.imagej.detect.tissue;
 
 import java.awt.image.BufferedImage;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -39,8 +40,7 @@ import ij.process.ByteProcessor;
 import ij.process.ColorProcessor;
 import ij.process.FloatProcessor;
 import ij.process.ImageProcessor;
-import qupath.imagej.objects.PathImagePlus;
-import qupath.imagej.objects.ROIConverterIJ;
+import qupath.imagej.tools.IJTools;
 import qupath.lib.color.ColorDeconvolutionStains;
 import qupath.lib.color.ColorTransformer;
 import qupath.lib.color.ColorTransformer.ColorTransformMethod;
@@ -49,6 +49,7 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.PathImage;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClass;
@@ -88,7 +89,7 @@ public class PositivePixelCounterIJ extends AbstractDetectionPlugin<BufferedImag
 		}
 	
 		@Override
-		public Collection<PathObject> runDetection(final ImageData<BufferedImage> imageData, ParameterList params, ROI pathROI) {
+		public Collection<PathObject> runDetection(final ImageData<BufferedImage> imageData, ParameterList params, ROI pathROI) throws IOException {
 			// Reset any detected objects
 			List< PathObject> pathObjects = new ArrayList<>();
 			
@@ -111,13 +112,14 @@ public class PositivePixelCounterIJ extends AbstractDetectionPlugin<BufferedImag
 			}
 			
 			// Derive more useful values
-			double pixelSize = imageData.getServer().getAveragedPixelSizeMicrons() * downsample;
+			PixelCalibration cal = imageData.getServer().getPixelCalibration();
+			double pixelSize = cal.getAveragedPixelSizeMicrons() * downsample;
 			double gaussianSigma = gaussianSigmaMicrons / pixelSize;
 			
 			// Read the image, if necessary
 			ImageServer<BufferedImage> server = imageData.getServer();
 			RegionRequest request = RegionRequest.createInstance(imageData.getServerPath(), downsample, pathROI);
-			PathImage<ImagePlus> pathImage = PathImagePlus.createPathImage(imageData.getServer(), request);
+			PathImage<ImagePlus> pathImage = IJTools.convertToImagePlus(imageData.getServer(), request);
 			ImagePlus imp = pathImage.getImage();
 			
 			int w = imp.getWidth();
@@ -154,7 +156,7 @@ public class PositivePixelCounterIJ extends AbstractDetectionPlugin<BufferedImag
 			// Apply mask, if necessary
 			if (pathROI != null && !(pathROI instanceof RectangleROI)) {
 				bpH.set(1);
-				Roi roi = ROIConverterIJ.convertToIJRoi(pathROI, pathImage);
+				Roi roi = IJTools.convertToIJRoi(pathROI, pathImage);
 				bpH.setValue(0);
 				bpH.fill(roi);
 			}
@@ -192,10 +194,10 @@ public class PositivePixelCounterIJ extends AbstractDetectionPlugin<BufferedImag
 			double meanPositive = nPositive == 0 ? Double.NaN : sumPositive / nPositive;
 			double meanNegative = nNegative == 0 ? Double.NaN : sumNegative / nNegative;
 			
-			boolean hasPixelSizeMicrons = server.hasPixelSizeMicrons();
+			boolean hasPixelSizeMicrons = cal.hasPixelSizeMicrons();
 			String areaUnits = hasPixelSizeMicrons ? GeneralTools.micrometerSymbol() + "^2" : "px^2";
-			double pixelWidth = hasPixelSizeMicrons ? server.getPixelWidthMicrons() : 1;
-			double pixelHeight = hasPixelSizeMicrons ? server.getPixelHeightMicrons() : 1;
+			double pixelWidth = hasPixelSizeMicrons ? cal.getPixelWidthMicrons() : 1;
+			double pixelHeight = hasPixelSizeMicrons ? cal.getPixelHeightMicrons() : 1;
 			double areaNegative = 0;
 			double areaPositive = 0;
 			
@@ -211,37 +213,37 @@ public class PositivePixelCounterIJ extends AbstractDetectionPlugin<BufferedImag
 						
 			
 			if (roiStained != null) {
-				ROI roiTissue = ROIConverterIJ.convertToPathROI(roiStained, pathImage);
+				ROI roiTissue = IJTools.convertToROI(roiStained, pathImage);
 				PathObject pathObject = PathObjects.createDetectionObject(roiTissue);
 				PathClass pathClass = null;
 				if (useLegacyMeasurements) {
 					pathObject.getMeasurementList().addMeasurement("Num pixels", nNegative);
 					pathObject.getMeasurementList().addMeasurement("Mean hematoxylin OD", meanNegative);
-					pathClass = PathClassFactory.getNegative(null, PathClassFactory.COLOR_NEGATIVE);
+					pathClass = PathClassFactory.getNegative(null);
 				} else {
 					areaNegative = ((PathArea)roiTissue).getScaledArea(pixelWidth, pixelHeight);
 					pathObject.getMeasurementList().addMeasurement("Stained area " + areaUnits + paramsString, areaNegative);
 					pathObject.getMeasurementList().addMeasurement("Mean " + stains.getStain(1).getName() + " OD" + paramsString, meanNegative);
-					pathClass = PathClassFactory.getPathClass("Pixel count negative", ColorTools.makeScaledRGB(PathClassFactory.COLOR_NEGATIVE, 1.25));
+					pathClass = PathClassFactory.getPathClass("Pixel count negative", ColorTools.makeScaledRGB(PathClassFactory.getNegative(null).getColor(), 1.25));
 				}
 				pathObject.setPathClass(pathClass);
 				pathObject.getMeasurementList().close();
 				pathObjects.add(pathObject);
 			}
 			if (roiDAB != null) {
-				ROI roiPositive = ROIConverterIJ.convertToPathROI(roiDAB, pathImage);
+				ROI roiPositive = IJTools.convertToROI(roiDAB, pathImage);
 //				roiDAB = ShapeSimplifierAwt.simplifyShape(roiDAB, simplifyAmount);
 				PathClass pathClass = null;
 				PathObject pathObject = PathObjects.createDetectionObject(roiPositive);
 				if (useLegacyMeasurements) {
 					pathObject.getMeasurementList().addMeasurement("Num pixels", nPositive);
 					pathObject.getMeasurementList().addMeasurement("Mean DAB OD", meanPositive);
-					pathClass = PathClassFactory.getPositive(null, PathClassFactory.COLOR_POSITIVE);
+					pathClass = PathClassFactory.getPositive(null);
 				} else {
 					areaPositive = ((PathArea)roiPositive).getScaledArea(pixelWidth, pixelHeight);
 					pathObject.getMeasurementList().addMeasurement("Stained area " + areaUnits + paramsString, areaPositive);
 					pathObject.getMeasurementList().addMeasurement("Mean " + stains.getStain(2).getName() + " OD" + paramsString, meanPositive);
-					pathClass = PathClassFactory.getPathClass("Pixel count positive", ColorTools.makeScaledRGB(PathClassFactory.COLOR_POSITIVE, 1.25));
+					pathClass = PathClassFactory.getPathClass("Pixel count positive", ColorTools.makeScaledRGB(PathClassFactory.getPositive(null).getColor(), 1.25));
 				}
 				pathObject.setPathClass(pathClass);
 				pathObject.getMeasurementList().close();

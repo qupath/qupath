@@ -147,6 +147,7 @@ class DefaultRegionCache<T> implements RegionCache<T> {
 		return map.get(request);
 	}
 
+	@Override
 	public synchronized void clear() {
 		memoryBytes = 0;
 		nonNullSize = 0;

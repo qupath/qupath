@@ -33,14 +33,16 @@ import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ServerTools;
 import qupath.lib.objects.PathObject;
 import qupath.lib.plugins.parameters.ParameterList;
-import qupath.lib.roi.PathROIToolsAwt;
+import qupath.lib.regions.ImagePlane;
+import qupath.lib.roi.ROIs;
+import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.interfaces.ROI;
 
 
 /**
  * Abstract plugin used for detection tasks that support breaking large regions into smaller ones,
  * and analyzing these in parallel - optionally with overlaps.
- * 
+ * <p>
  * Particularly useful for tasks such as cell detection.
  * 
  * @author Pete Bankhead
@@ -48,9 +50,13 @@ import qupath.lib.roi.interfaces.ROI;
  * @param <T>
  */
 public abstract class AbstractTileableDetectionPlugin<T> extends AbstractDetectionPlugin<T> {
+	
+	private static int PREFERRED_TILE_SIZE = 2048;
+	private static int MAX_TILE_SIZE = 3072;
 
 	/**
-	 * Get the preferred pixel size that would be used for the specified ImageData and ParameterList.  
+	 * Get the preferred pixel size that would be used for the specified ImageData and ParameterList.
+	 * <p>  
 	 * This is useful in deciding whether to break large regions into smaller, parallelizable tiles.
 	 * 
 	 * @param imageData
@@ -70,13 +76,13 @@ public abstract class AbstractTileableDetectionPlugin<T> extends AbstractDetecti
 
 	/**
 	 * Get an appropriate overlap, in pixels, if analysis of the specified ImageData will be tiled.
-	 * 
+	 * <p>
 	 * If the overlap is 0, then tile boundaries are likely to be visible in the results.
-	 * 
+	 * <p>
 	 * If the overlap is &gt; 0, then the overlap should also be &gt; the expected largest size of a detected object -
 	 * otherwise objects may be lost of trimmed when overlaps are resolved.  This is because (currently) 
 	 * the resolution of overlapping detections involves taking the largest one, rather than (for example) merging them.
-	 * 
+	 * <p>
 	 * (Merging may be permitted in later versions, but only where measurements are not made by the plugin -
 	 * since merged objects may require different measurements, e.g. for area or mean than can be easily computed
 	 * in a general way from the individual objects being merged).
@@ -91,7 +97,7 @@ public abstract class AbstractTileableDetectionPlugin<T> extends AbstractDetecti
 	/**
 	 * Intercepts the 'standard' addRunnableTasks to (if necessary) insert ParallelTileObjects along the way,
 	 * thereby breaking an excessively-large parentObject into more manageable pieces.
-	 * 
+	 * <p>
 	 * TODO: Avoid hard-coding what is considered a 'manageable size' or a preferred size for parallel tiles.
 	 * 
 	 */
@@ -105,20 +111,25 @@ public abstract class AbstractTileableDetectionPlugin<T> extends AbstractDetecti
 		
 		ParameterList params = getParameterList(imageData);
 
-		// Determine appropriate sizes - get a downsample factor that is a power of 2
-		double downsampleFactor = ServerTools.getDownsampleFactor(imageData.getServer(), getPreferredPixelSizeMicrons(imageData, params), true);
-		int preferred = (int)(2048 * downsampleFactor);
-//		int preferred = (int)(1536 * downsampleFactor);
-//		int max = (int)(4096 * downsampleFactor);
-		int max = (int)(3072 * downsampleFactor);
-//		int max = (int)(2048 * downsampleFactor);
+		// Determine appropriate sizes
+		// Note, for v0.1.2 and earlier the downsample was restricted to be a power of 2
+		double downsampleFactor = ServerTools.getDownsampleFactor(imageData.getServer(), getPreferredPixelSizeMicrons(imageData, params));
+		int preferred = (int)(PREFERRED_TILE_SIZE * downsampleFactor);
+		int max = (int)(MAX_TILE_SIZE * downsampleFactor);
 		ImmutableDimension sizePreferred = new ImmutableDimension(preferred, preferred);
 		ImmutableDimension sizeMax = new ImmutableDimension(max, max);
 		
 		parentObject.clearPathObjects();
 		
+		// Extract (or create) suitable ROI
+		ROI parentROI = parentObject.getROI();
+		if (parentROI == null)
+			parentROI = ROIs.createRectangleROI(0, 0, imageData.getServer().getWidth(), imageData.getServer().getHeight(), ImagePlane.getDefaultPlane());
+
+		// Make tiles
+		Collection<? extends ROI> pathROIs = RoiTools.computeTiledROIs(parentROI, sizePreferred, sizeMax, false, getTileOverlap(imageData, params));
+		
 		// No tasks to complete
-		Collection<? extends ROI> pathROIs = PathROIToolsAwt.computeTiledROIs(imageData, parentObject, sizePreferred, sizeMax, false, getTileOverlap(imageData, params));
 		if (pathROIs.isEmpty())
 			return;
 		

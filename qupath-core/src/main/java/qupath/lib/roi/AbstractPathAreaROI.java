@@ -23,6 +23,7 @@
 
 package qupath.lib.roi;
 
+import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.interfaces.PathArea;
 
 /**
@@ -37,8 +38,8 @@ abstract class AbstractPathAreaROI extends AbstractPathROI implements PathArea {
 		super();
 	}
 	
-	AbstractPathAreaROI(int c, int z, int t) {
-		super(c, z, t);
+	AbstractPathAreaROI(ImagePlane plane) {
+		super(plane);
 	}
 
 	// Measurements

@@ -31,8 +31,16 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
-import static org.bytedeco.javacpp.opencv_core.*;
-import org.bytedeco.javacpp.opencv_imgproc;
+import static org.bytedeco.opencv.global.opencv_core.*;
+import org.bytedeco.opencv.global.opencv_imgproc;
+import org.bytedeco.opencv.opencv_core.Mat;
+import org.bytedeco.opencv.opencv_core.MatVector;
+import org.bytedeco.opencv.opencv_core.Point;
+import org.bytedeco.opencv.opencv_core.Rect;
+import org.bytedeco.opencv.opencv_core.RotatedRect;
+import org.bytedeco.opencv.opencv_core.Scalar;
+import org.bytedeco.opencv.opencv_core.Size;
+import org.bytedeco.opencv.opencv_core.Size2f;
 import org.bytedeco.javacpp.indexer.Indexer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -47,6 +55,7 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.geom.Point2;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.measurements.MeasurementListFactory;
 import qupath.lib.objects.PathObject;
@@ -66,7 +75,7 @@ import qupath.opencv.processing.ProcessingCV;
 
 /**
  * Alternative (incomplete) attempt at nucleus segmentation.
- * 
+ * <p>
  * It's reasonably fast... but not particularly good.
  * 
  * @author Pete Bankhead
@@ -93,8 +102,9 @@ public class WatershedNucleiCV extends AbstractTileableDetectionPlugin<BufferedI
 			boolean splitShape = params.getBooleanParameterValue("splitShape");
 			//			double downsample = params.getIntParameterValue("downsampleFactor");
 
-			double downsample = imageData.getServer().hasPixelSizeMicrons() ? 
-					getPreferredPixelSizeMicrons(imageData, params) / imageData.getServer().getAveragedPixelSizeMicrons() :
+			PixelCalibration cal = imageData.getServer().getPixelCalibration();
+			double downsample = cal.hasPixelSizeMicrons() ? 
+					getPreferredPixelSizeMicrons(imageData, params) / cal.getAveragedPixelSizeMicrons() :
 						1;
 					downsample = Math.max(downsample, 1);
 
@@ -103,8 +113,8 @@ public class WatershedNucleiCV extends AbstractTileableDetectionPlugin<BufferedI
 					int medianRadius, openingRadius;
 					double gaussianSigma, minArea;
 					ImageServer<BufferedImage> server = imageData.getServer();
-					if (server.hasPixelSizeMicrons()) {
-						double pixelSize = 0.5 * downsample * (server.getPixelHeightMicrons() + server.getPixelWidthMicrons());
+					if (cal.hasPixelSizeMicrons()) {
+						double pixelSize = 0.5 * downsample * (cal.getPixelHeightMicrons() + cal.getPixelWidthMicrons());
 						medianRadius = (int)(params.getDoubleParameterValue("medianRadius") / pixelSize + .5);
 						gaussianSigma = params.getDoubleParameterValue("gaussianSigma") / pixelSize;
 						openingRadius = (int)(params.getDoubleParameterValue("openingRadius") / pixelSize + .5);
@@ -181,9 +191,8 @@ public class WatershedNucleiCV extends AbstractTileableDetectionPlugin<BufferedI
 					int label = 0;
 					Point offset = new Point(0, 0);
 					for (int c = 0; c < contours.size(); c++) {
-						Mat contour = contours.get(c);
 						label++;
-						opencv_imgproc.drawContours(matLabels, contours, 0, Scalar.all(label), -1, opencv_imgproc.LINE_8, null, Integer.MAX_VALUE, offset);
+						opencv_imgproc.drawContours(matLabels, contours, c, Scalar.all(label), -1, opencv_imgproc.LINE_8, null, Integer.MAX_VALUE, offset);
 						statsList.add(new RunningStatistics());
 					}
 					// Compute mean for each contour, keep those that are sufficiently intense
@@ -208,7 +217,7 @@ public class WatershedNucleiCV extends AbstractTileableDetectionPlugin<BufferedI
 
 					// Split using distance transform, if necessary
 					if (splitShape)
-						OpenCVTools.watershedDistanceTransformSplit(matBinary, openingRadius/4);
+						watershedDistanceTransformSplit(matBinary, openingRadius/4);
 
 					// Create path objects from contours		
 					contours = new MatVector();
@@ -255,7 +264,7 @@ public class WatershedNucleiCV extends AbstractTileableDetectionPlugin<BufferedI
 						//	        logger.info("Area comparison: " + opencv_imgproc.contourArea(contour) + ",\t" + (pathPolygon.getArea() / downsample / downsample));
 						//	        Mat matSmall = new Mat();
 						if (pathROI instanceof RectangleROI || PathObjectTools.containsROI(pathROI, pathPolygon)) {
-							MeasurementList measurementList = MeasurementListFactory.createMeasurementList(20, MeasurementList.TYPE.FLOAT);
+							MeasurementList measurementList = MeasurementListFactory.createMeasurementList(20, MeasurementList.MeasurementListType.FLOAT);
 							PathObject pathObject = PathObjects.createDetectionObject(pathPolygon, null, measurementList);
 
 							measurementList.addMeasurement("Area", pathPolygon.getArea());
@@ -326,27 +335,60 @@ public class WatershedNucleiCV extends AbstractTileableDetectionPlugin<BufferedI
 	}
 
 
+	private static void watershedDistanceTransformSplit(Mat matBinary, int maxFilterRadius) {
+		Mat matWatershedSeedsBinary;
+		
+		// Create a background mask
+		Mat matBackground = new Mat();
+		compare(matBinary, new Mat(1, 1, CV_32FC1, Scalar.WHITE), matBackground, CMP_NE);
+
+		// Separate by shape using the watershed transform
+		Mat matDistanceTransform = new Mat();
+		opencv_imgproc.distanceTransform(matBinary, matDistanceTransform, opencv_imgproc.CV_DIST_L2, opencv_imgproc.CV_DIST_MASK_PRECISE);
+		// Find local maxima
+		matWatershedSeedsBinary = new Mat();
+		opencv_imgproc.dilate(matDistanceTransform, matWatershedSeedsBinary, OpenCVTools.getCircularStructuringElement(maxFilterRadius));
+		compare(matDistanceTransform, matWatershedSeedsBinary, matWatershedSeedsBinary, CMP_EQ);
+		matWatershedSeedsBinary.setTo(new Mat(1, 1, matWatershedSeedsBinary.type(), Scalar.ZERO), matBackground);
+		// Dilate slightly to merge nearby maxima
+		opencv_imgproc.dilate(matWatershedSeedsBinary, matWatershedSeedsBinary, OpenCVTools.getCircularStructuringElement(2));
+
+		// Create labels for watershed
+		Mat matLabels = new Mat(matDistanceTransform.size(), CV_32F, Scalar.ZERO);
+		OpenCVTools.labelImage(matWatershedSeedsBinary, matLabels, opencv_imgproc.RETR_CCOMP);
+
+		// Remove everything outside the thresholded region
+		matLabels.setTo(new Mat(1, 1, matLabels.type(), Scalar.ZERO), matBackground);
+
+		// Do watershed
+		// 8-connectivity is essential for the watershed lines to be preserved - otherwise OpenCV's findContours could not be used
+		ProcessingCV.doWatershed(matDistanceTransform, matLabels, 0.1, true);
+
+		// Update the binary image to remove the watershed lines
+		multiply(matBinary, matLabels, matBinary, 1, matBinary.type());
+	}
 
 	@Override
 	public ParameterList getDefaultParameterList(final ImageData<BufferedImage> imageData) {
 		ParameterList params = new ParameterList();
-		params.addDoubleParameter("preferredMicrons", "Preferred pixel size", 0.5, GeneralTools.micrometerSymbol());
+		params.addDoubleParameter("preferredMicrons", "Preferred pixel size", 0.5, GeneralTools.micrometerSymbol(),
+				"Preferred image resolution for detection (higher values mean lower resolution)");
 		//				addIntParameter("downsampleFactor", "Downsample factor", 2, "", 1, 4);
 
-		if (imageData.getServer().hasPixelSizeMicrons()) {
+		if (imageData.getServer().getPixelCalibration().hasPixelSizeMicrons()) {
 			String um = GeneralTools.micrometerSymbol();
-			params.addDoubleParameter("medianRadius", "Median radius", 1, um).
-			addDoubleParameter("gaussianSigma", "Gaussian sigma", 1.5, um).
-			addDoubleParameter("openingRadius", "Opening radius", 8, um).
-			addDoubleParameter("threshold", "Threshold", 0.1, null, 0, 1.0).
-			addDoubleParameter("minArea", "Minimum area", 25, um+"^2");
+			params.addDoubleParameter("medianRadius", "Median radius", 1, um, "Median filter radius").
+			addDoubleParameter("gaussianSigma", "Gaussian sigma", 1.5, um, "Gaussian filter sigma").
+			addDoubleParameter("openingRadius", "Opening radius", 8, um, "Morphological opening filter radius").
+			addDoubleParameter("threshold", "Threshold", 0.1, null, 0, 1.0, "Intensity threshold").
+			addDoubleParameter("minArea", "Minimum area", 25, um+"^2", "Minimum area threshold");
 		} else {
 			params.setHiddenParameters(true, "preferredMicrons");
-			params.addDoubleParameter("medianRadius", "Median radius", 1, "px").
-			addDoubleParameter("gaussianSigma", "Gaussian sigma", 2, "px").
-			addDoubleParameter("openingRadius", "Opening radius", 20, "px").
-			addDoubleParameter("threshold", "Threshold", 0.1, null, 0, 1.0).
-			addDoubleParameter("minArea", "Minimum area", 100, "px^2");
+			params.addDoubleParameter("medianRadius", "Median radius", 1, "px", "Median filter radius").
+			addDoubleParameter("gaussianSigma", "Gaussian sigma", 2, "px", "Gaussian filter sigma").
+			addDoubleParameter("openingRadius", "Opening radius", 20, "px", "Morphological opening filter radius").
+			addDoubleParameter("threshold", "Threshold", 0.1, null, 0, 1.0, "Intensity threshold").
+			addDoubleParameter("minArea", "Minimum area", 100, "px^2", "Minimum area threshold");
 		}
 		params.addBooleanParameter("splitShape", "Split by shape", true);			
 		return params;
@@ -357,7 +399,7 @@ public class WatershedNucleiCV extends AbstractTileableDetectionPlugin<BufferedI
 		return "OpenCV nucleus experiment";
 	}
 
-	public RunningStatistics computeRunningStatistics(float[] pxIntensities, byte[] pxMask, int width, Rect bounds) {
+	private RunningStatistics computeRunningStatistics(float[] pxIntensities, byte[] pxMask, int width, Rect bounds) {
 		RunningStatistics stats = new RunningStatistics();
 		for (int i = 0; i < pxMask.length; i++) {
 			if (pxMask[i] == 0)
@@ -385,9 +427,9 @@ public class WatershedNucleiCV extends AbstractTileableDetectionPlugin<BufferedI
 
 
 
-	// TODO: If this ever becomes important, switch to using the QuPathCore implementation instead of this one
+	// TODO: If this ever becomes important, switch to using the QuPath core implementation instead of this one
 	@Deprecated
-	public static float[][] colorDeconvolve(BufferedImage img, double[] stain1, double[] stain2, double[] stain3, int nStains) {
+	private static float[][] colorDeconvolve(BufferedImage img, double[] stain1, double[] stain2, double[] stain3, int nStains) {
 		// TODO: Precompute the default matrix inversion
 		if (stain3 == null)
 			stain3 = StainVector.cross3(stain1, stain2);
@@ -421,8 +463,9 @@ public class WatershedNucleiCV extends AbstractTileableDetectionPlugin<BufferedI
 
 	@Override
 	protected double getPreferredPixelSizeMicrons(ImageData<BufferedImage> imageData, ParameterList params) {
-		if (imageData.getServer().hasPixelSizeMicrons())
-			return Math.max(params.getDoubleParameterValue("preferredMicrons"), imageData.getServer().getAveragedPixelSizeMicrons());
+		PixelCalibration cal = imageData.getServer().getPixelCalibration();
+		if (cal.hasPixelSizeMicrons())
+			return Math.max(params.getDoubleParameterValue("preferredMicrons"), cal.getAveragedPixelSizeMicrons());
 		return 0.5;
 	}
 

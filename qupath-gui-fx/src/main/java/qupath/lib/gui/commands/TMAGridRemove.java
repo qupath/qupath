@@ -130,7 +130,7 @@ public class TMAGridRemove implements PathCommand {
 			}
 		}
 		int newWidth = removeRow ? grid.getGridWidth() : grid.getGridWidth() - 1;
-		TMAGrid gridNew = new DefaultTMAGrid(coresNew, newWidth);
+		TMAGrid gridNew = DefaultTMAGrid.create(coresNew, newWidth);
 		hierarchy.setTMAGrid(gridNew);
 		hierarchy.getSelectionModel().clearSelection();
 		
