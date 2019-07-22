@@ -23,13 +23,17 @@
 
 package qupath.lib.roi.interfaces;
 
+import java.awt.Shape;
 import java.util.List;
 
+import org.locationtech.jts.geom.Geometry;
+
 import qupath.lib.geom.Point2;
+import qupath.lib.regions.ImagePlane;
 
 /**
  * Base interface for defining regions of interest (ROIs) within QuPath.
- * 
+ * <p>
  * In general, anything that returns a coordinate should be defined in terms of pixels 
  * from the top left of the full-resolution image.
  * 
@@ -38,10 +42,17 @@ import qupath.lib.geom.Point2;
  */
 public interface ROI {
 
-	public abstract String getROIType();
+	/**
+	 * Get a String representation of the kind of ROI we have, 
+	 * e.g. "Rectangle", "Ellipse", "Polygon"
+	 * 
+	 * @return
+	 */
+	public abstract String getRoiName();
 
 	/**
 	 * Get channel index, or -1 if the ROI relates to all available channels.
+	 * <p>
 	 * (This is not currently used, but may be in the future)
 	 * @return
 	 */
@@ -49,6 +60,7 @@ public interface ROI {
 
 	/**
 	 * Get time point index.
+	 * <p>
 	 * Default is 0 if the image it relates to is not a time series.
 	 * @return
 	 */
@@ -56,41 +68,147 @@ public interface ROI {
 
 	/**
 	 * Get z-stack slice index.
+	 * <p>
 	 * Default is 0 if the image it relates to is not a z-stack.
 	 * @return
 	 */
 	public abstract int getZ();
 
-	// Centroid functions
+	/**
+	 * Get the ImagePlane, which contains the values for c, z and t in a single object.
+	 */
+	public ImagePlane getImagePlane();
+	
+	/**
+	 * Returns the x coordinate for the ROI centroid.
+	 * 
+	 * @return
+	 */
 	public abstract double getCentroidX();
 
+	/**
+	 * Returns the y coordinate for the ROI centroid.
+	 * 
+	 * @return
+	 */
 	public abstract double getCentroidY();
 
-	// Bounding box
+	/**
+	 * Returns the x coordinate for the top left of the ROI bounding box.
+	 * 
+	 * @return
+	 */
 	public abstract double getBoundsX();
 
+	/**
+	 * Returns the y coordinate for the top left of the ROI bounding box.
+	 * 
+	 * @return
+	 */
 	public abstract double getBoundsY();
 
+	/**
+	 * Returns the width of the ROI bounding box.
+	 * 
+	 * @return
+	 */
 	public abstract double getBoundsWidth();
 
+	/**
+	 * Returns the height of the ROI bounding box.
+	 * 
+	 * @return
+	 */
 	public abstract double getBoundsHeight();
 	
+	/**
+	 * Get a list of points representing the vertices of the ROI.
+	 * <p>
+	 * This is only really well-defined for ROIs where a single set of vertices represents the shape completely; 
+	 * the expected output for a ROI that contains holes or disconnected regions is (currently) undefined.
+	 * @return
+	 */
 	public List<Point2> getPolygonPoints();
 
 	/**
-	 * A ROI is 'empty' if its bounds have no width or height.
+	 * Returns true if the ROI bounds have zero width and height.
+	 * 
 	 * @return
 	 */
 	public abstract boolean isEmpty();
 
 	/**
 	 * Create a duplicate of the ROI.
-	 * 
+	 * <p>
 	 * This method is deprecated, since ROIs are (or are moving towards being) immutable... making it pointless to duplicate them.
 	 * 
 	 * @return
 	 */
 	@Deprecated
 	public abstract ROI duplicate();
+	
+	/**
+	 * Returns a java.awt.Shape representing this ROI, if possible.
+	 * <p>
+	 * Note that PointROI throws an UnsupportedOperationException as it cannot 
+	 * adequately be represented by a Shape object.
+	 * 
+	 * @return
+	 */
+	public Shape getShape();
+
+	
+	/**
+	 * Returns a org.locationtech.jts.geom.Geometry object.
+	 * 
+	 * @return
+	 */
+	public Geometry getGeometry();
+	
+	/**
+	 * Enum representing the major different types of ROI.
+	 */
+	public enum RoiType {
+		/**
+		 * ROI represents a closed area (possibly with holes).
+		 */
+		AREA,
+		/**
+		 * ROI represents a line or polyline.
+		 */	
+		LINE,
+		/**
+		 * ROI represents points.
+		 */
+		POINT
+	}
+	
+	/**
+	 * Get the RoiType, used to distinguish between points, lines and areas.
+	 * @return
+	 */
+	public RoiType getRoiType();
+	
+	/**
+	 * Returns true if this ROI consists of line segments and does not enclose an area.
+	 * 
+	 * @return
+	 */
+	public boolean isLine();
+	
+	/**
+	 * Returns true if this ROI encloses an area.
+	 * 
+	 * @return
+	 */
+	public boolean isArea();
+	
+	/**
+	 * Returns true if this ROI represents distinct (unconnected) points.
+	 * 
+	 * @return
+	 */
+	public boolean isPoint();
+	
 
 }

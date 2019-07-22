@@ -48,6 +48,7 @@ import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.helpers.ColorToolsFX;
 import qupath.lib.gui.helpers.CommandFinderTools.CommandBarDisplay;
 import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.gui.prefs.PathPrefs.ImageTypeSetting;
 import qupath.lib.gui.prefs.QuPathStyleManager;
 
 /**
@@ -109,6 +110,22 @@ public class PreferencePanel {
 				"Automatically check for updated when QuPath is started, and show a message if a new version is available.");
 		
 		
+		addPropertyPreference(PathPrefs.showImageNameInTitleProperty(), Boolean.class,
+				"Show image name in window title",
+				category,
+				"Show the name of the current image in the main QuPath title bar (turn this off if the name shouldn't be seen).");
+		
+		addPropertyPreference(PathPrefs.maskImageNamesProperty(), Boolean.class,
+				"Mask image names in projects",
+				category,
+				"Mask the image names when using projects, to help reduce the potential for user bias during analysis.");
+		
+		
+		addPropertyPreference(PathPrefs.doCreateLogFilesProperty(), Boolean.class,
+				"Create log files",
+				category,
+				"Create log files when using QuPath inside the QuPath user directory (useful for debugging & reporting errors)");
+		
 		addPropertyPreference(PathPrefs.numCommandThreadsProperty(), Integer.class,
 				"Number of processors for parallel commands",
 				category,
@@ -117,11 +134,11 @@ public class PreferencePanel {
 						+ "\nIf outside this range, it will default to the available processors (here, " + Runtime.getRuntime().availableProcessors() + ")"
 						+ "\nIt's usually fine to use the default, but it may help to decrease it if you encounter out-of-memory errors.");
 
-		addPropertyPreference(PathPrefs.autoEstimateImageTypeProperty(), Boolean.class,
-				"Auto-estimate image type on opening",
+		addPropertyPreference(PathPrefs.imageTypeSettingProperty(), ImageTypeSetting.class,
+				"Set image type",
 				category,
-				"Automatically estimate & set the image type on first opening (e.g. H&E, H-DAB, fluorescence)." + 
-						"\nThis can be handy, but be aware it might not always be correct - and you should always check!" + 
+				"Automically estimate & set the image type on first opening (e.g. H&E, H-DAB, fluorescence), prompt or leave unset." + 
+						"\nEstimating can be handy, but be aware it might not always be correct - and you should always check!" + 
 						"\nThe image type influences some available commands, e.g. how stains are separated for display or cell detections.");
 
 		addPropertyPreference(PathPrefs.commandBarDisplayProperty(), CommandBarDisplay.class,
@@ -166,9 +183,26 @@ public class PreferencePanel {
 		 */
 		category = "Viewer";
 		
+		addColorPropertyPreference(PathPrefs.viewerBackgroundColorProperty(),
+				"Viewer background color",
+				category,
+				"Set the color to show behind any image in the viewer (i.e. beyond the image bounds)");
+		
+		addPropertyPreference(PathPrefs.alwaysPaintSelectedObjectsProperty(), Boolean.class,
+				"Always paint selected objects", category, 
+				"Always paint selected objects, even if the overlay opacity is set to 0");
+		
+		addPropertyPreference(PathPrefs.keepDisplaySettingsProperty(), Boolean.class,
+				"Keep display settings where possible", category, 
+				"Keep display settings (channel colors, brightness/contrast) when opening similar images");
+		
 		addPropertyPreference(PathPrefs.viewerInterpolateBilinearProperty(), Boolean.class,
 				"Use bilinear interpolation", category, 
 				"Use bilinear interpolation for displaying image in the viewer (default is nearest-neighbor)");
+		
+		addPropertyPreference(PathPrefs.autoBrightnessContrastSaturationPercentProperty(), Double.class,
+				"Auto Brightness/Contrast saturation %", category, 
+				"Set % bright and % dark pixels that should be saturated when applying 'Auto' brightness/contrast settings");
 		
 		addPropertyPreference(PathPrefs.viewerGammaProperty(), Double.class,
 				"Gamma value (display only)", category, 
@@ -198,6 +232,11 @@ public class PreferencePanel {
 				category,
 				"Use rotation gestures with touchscreens or touchpads to navigate the slide");
 		
+		addPropertyPreference(PathPrefs.enableFreehandToolsProperty(), Boolean.class,
+				"Enable freehand mode for polygon & polyline tools",
+				category,
+				"When starting to draw a polygon/polyline by clicking & dragging, optionally end ROI by releasing mouse button (rather than double-clicking)");
+		
 		addPropertyPreference(PathPrefs.doubleClickToZoomProperty(), Boolean.class,
 				"Use double-click to zoom",
 				category,
@@ -208,6 +247,22 @@ public class PreferencePanel {
 				"Use calibrated location text",
 				category,
 				"Show pixel locations on the viewer in " + GeneralTools.micrometerSymbol() + " where possible");
+		
+		
+		addPropertyPreference(PathPrefs.gridSpacingXProperty(), Double.class,
+				"Grid spacing X",
+				category,
+				"Horizonal grid spacing when displaying a grid on the viewer");
+
+		addPropertyPreference(PathPrefs.gridSpacingYProperty(), Double.class,
+				"Grid spacing Y",
+				category,
+				"Vertical grid spacing when displaying a grid on the viewer");
+
+		addPropertyPreference(PathPrefs.gridScaleMicrons(), Boolean.class,
+				"Grid spacing in " + GeneralTools.micrometerSymbol(),
+				category,
+				"Use " + GeneralTools.micrometerSymbol() + " units where possible when defining grid spacing");
 
 		
 //		// Add support for 3D mice only if required class if available
@@ -230,10 +285,10 @@ public class PreferencePanel {
 		 * Extensions
 		 */
 		category = "Extensions";
-		addDirectoryPropertyPreference(PathPrefs.extensionsPathProperty(),
-				"Extensions directory",
+		addDirectoryPropertyPreference(PathPrefs.userPathProperty(),
+				"QuPath user directory",
 				category,
-				"Set the extensions directory - this will only take effect after restarting QuPath");
+				"Set the QuPath user directory - after setting you should restart QuPath");
 
 
 		/*
@@ -253,6 +308,12 @@ public class PreferencePanel {
 				"Return to Move Tool automatically",
 				category,
 				"Return selected tool to 'Move' automatically after drawing a ROI (applies to all drawing tools except brush & wand)");
+		
+		addPropertyPreference(PathPrefs.clipROIsForHierarchyProperty(), Boolean.class,
+				"Clip ROIs to hierarchy",
+				category,
+				"Automatically clip ROIs so that they don't extend beyond a parent annotation, or encroach on a child annotation - this helps keep the hierarchy easier to interpret, without overlaps. " + 
+				"The setting can be overridden by pressing the 'shift' key");
 
 		addPropertyPreference(PathPrefs.brushDiameterProperty(), Integer.class,
 				"Brush diameter",
@@ -268,6 +329,11 @@ public class PreferencePanel {
 				"Scale brush by magnification",
 				category,
 				"Adapt brush size by magnification, so higher magnification gives a finer brush");
+		
+		addPropertyPreference(PathPrefs.multipointToolProperty(), Boolean.class,
+				"Use multipoint tool",
+				category,
+				"With the Counting tool, add points to an existing object if possible");
 
 		addPropertyPreference(PathPrefs.defaultPointRadiusProperty(), Integer.class,
 				"Point radius",

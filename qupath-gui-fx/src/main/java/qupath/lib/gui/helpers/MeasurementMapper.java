@@ -23,19 +23,31 @@
 
 package qupath.lib.gui.helpers;
 
+import java.net.URI;
+import java.nio.file.FileSystem;
+import java.nio.file.FileSystems;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.lib.common.ColorTools;
+import qupath.lib.gui.objects.helpers.PathObjectColorToolsAwt;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathTileObject;
-import qupath.lib.objects.helpers.PathObjectColorToolsAwt;
 
 /**
  * Helpers class that can be used to map an object's measurement to a color (packed RGB int).
+ * <p>
  * By passing a collection of objects, the minimum and maximum of all the measurements are found
  * and these used to determine the lookup table scaling; alternative minimum and maximum values can also
  * be set to override these extrema.
@@ -44,10 +56,49 @@ import qupath.lib.objects.helpers.PathObjectColorToolsAwt;
  *
  */
 public class MeasurementMapper {
-
+	
 	final private static Logger logger = LoggerFactory.getLogger(MeasurementMapper.class);
+	
+	private static Map<String, ColorMapper> defaultMappers = new TreeMap<>();
+	
+	static {
+		
+		try {
+			Path pathColorMaps;
+			URI uri = MeasurementMapper.class.getResource("/colormaps").toURI();
+	        if (uri.getScheme().equals("jar")) {
+	            FileSystem fileSystem = FileSystems.newFileSystem(uri, Collections.emptyMap());
+	            pathColorMaps = fileSystem.getPath("/resources");
+	        } else {
+	        	pathColorMaps = Paths.get(uri);
+	        }
+	        List<Path> maps = Files.list(pathColorMaps).filter(p -> p.getFileName().toString().endsWith(".tsv")).collect(Collectors.toList());
+	        for (Path map : maps) {
+	        	String name = map.getFileName().toString();
+	        	if (name.endsWith(".tsv"))
+	        		name = name.substring(0, name.length()-4);
+	        	List<String> lines = Files.readAllLines(map).stream().filter(s -> !s.isBlank()).collect(Collectors.toList());
+	        	int n = lines.size();
+	        	double[] r = new double[n];
+	        	double[] g = new double[n];
+	        	double[] b = new double[n];
+	        	int i = 0;
+	        	for (String line : lines) {
+	        		String[] split = line.split("\t");
+	        		r[i] = Double.parseDouble(split[0]);
+	        		g[i] = Double.parseDouble(split[1]);
+	        		b[i] = Double.parseDouble(split[2]);
+	        		i++;
+	        	}
+	        	defaultMappers.put(name, createColorMapper(r, g, b));
+	        }
+		} catch (Exception e) {
+			logger.error("Unable to load color maps", e);
+		}
+		
+	}
 
-	private ColorMapper colorMapper = new PseudoColorMapper();
+	private ColorMapper colorMapper = defaultMappers.getOrDefault("viridis", new PseudoColorMapper());
 
 	// Data min & max values
 	private double minValueData = 0;
@@ -84,6 +135,22 @@ public class MeasurementMapper {
 		maxValue = maxValueData;
 		logger.info("Measurement mapper limits for " + measurement + ": " + minValueData + ", " + maxValueData);
 	}
+	
+	/**
+	 * Get the available color mappers (lookup tables).
+	 * @return
+	 */
+	public static Map<String, ColorMapper> getAvailableColorMappers() {
+		return Collections.unmodifiableMap(defaultMappers);
+	}
+	
+	/**
+	 * Set a new color mapper.
+	 * @param mapper
+	 */
+	public void setColorMapper(ColorMapper mapper) {
+		this.colorMapper = mapper;
+	}
 
 	/**
 	 * Returns true if objects with values outside the specified min/max range have the min/max colors returned, false if null should be returned instead.
@@ -95,7 +162,6 @@ public class MeasurementMapper {
 
 	/**
 	 * Returns true if objects with values outside the specified min/max range have the min/max colors returned, false if null should be returned instead.
-	 * @return
 	 */
 	public void setExcludeOutsideRange(boolean excludeOutsideRange) {
 		this.excludeOutsideRange = excludeOutsideRange;
@@ -192,16 +258,49 @@ public class MeasurementMapper {
 		public Integer getColor(double value, double minValue, double maxValue);
 
 	}
+	
+	static ColorMapper createColorMapper(double[] r, double[] g, double[] b) {
+		int[] ri = convertToInt(r);
+		int[] gi = convertToInt(g);
+		int[] bi = convertToInt(b);
+		return createColorMapper(ri, gi, bi);
+	}
+	
+	static int[] convertToInt(double[] arr) {
+		int[] arr2 = new int[arr.length];
+		for (int i = 0; i < arr.length; i++) {
+			arr2[i] = (int)Math.round(arr[i] * 255.0);
+		}
+		return arr2;
+	}
 
+	static ColorMapper createColorMapper(int[] r, int[] g, int[] b) {
+		return new DefaultColorMapper(r, g, b);
+	}
 
+	static class DefaultColorMapper implements ColorMapper {
 
-	public static class FireColorMapper implements ColorMapper{
-
-		private static final int[] r = {0,0,1,25,49,73,98,122,146,162,173,184,195,207,217,229,240,252,255,255,255,255,255,255,255,255,255,255,255,255,255,255};
-		private static final int[] g = {0,0,0,0,0,0,0,0,0,0,0,0,0,14,35,57,79,101,117,133,147,161,175,190,205,219,234,248,255,255,255,255};
-		private static final int[] b = {0,61,96,130,165,192,220,227,210,181,151,122,93,64,35,5,0,0,0,0,0,0,0,0,0,0,0,35,98,160,223,255};
-		private static int nColors = b.length;
-		private static Integer[] colors = new Integer[r.length];
+		private final int[] r;
+		private final int[] g;
+		private final int[] b;
+		private int nColors = 256;
+		private Integer[] colors = new Integer[nColors];
+		
+		DefaultColorMapper(int[] r, int[] g, int[] b) {
+			this.r = r.clone();
+			this.g = g.clone();
+			this.b = b.clone();
+			double scale = (double)(r.length - 1) / nColors;
+			for (int i = 0; i < nColors; i++) {
+				int ind = (int)(i * scale);
+				double residual = (i * scale) - ind;
+				colors[i] = ColorTools.makeRGB(
+						r[ind] + (int)((r[ind+1] - r[ind]) * residual),
+						g[ind] + (int)((g[ind+1] - g[ind]) * residual),
+						b[ind] + (int)((b[ind+1] - b[ind]) * residual));
+			}
+			colors[nColors-1] = ColorTools.makeRGB(r[r.length-1], g[g.length-1], b[b.length-1]);
+		}
 
 		@Override
 		public Integer getColor(int ind) {
@@ -218,12 +317,18 @@ public class MeasurementMapper {
 			//			System.out.println("Measurement mapper: " + minValue + ", " + maxValue);
 			int ind = 0;
 			if (maxValue > minValue) {
-				ind = (int)((value - minValue) / (maxValue - minValue) * nColors + .5);
+				ind = (int)Math.round((value - minValue) / (maxValue - minValue) * nColors);
 				ind = ind >= nColors ? nColors - 1 : ind;
 				ind = ind < 0 ? 0 : ind;
+			} else if (minValue > maxValue) {
+				ind = (int)Math.round((value - maxValue) / (minValue - maxValue) * nColors);
+				ind = ind >= nColors ? nColors - 1 : ind;
+				ind = ind < 0 ? 0 : ind;
+				ind = nColors - 1 - ind;
 			}
 			return getColor(ind);
 		}
+
 
 		@Override
 		public boolean hasAlpha() {
@@ -232,9 +337,10 @@ public class MeasurementMapper {
 
 	}
 
-
-
-	public static class PseudoColorMapper implements ColorMapper {
+	/**
+	 * The previous default color mapper (v0.1.2 and earlier).
+	 */
+	static class PseudoColorMapper implements ColorMapper {
 
 		private static final int[] r = {0, 0,   0,   0,   255, 255};
 		private static final int[] g = {0, 0,   255, 255, 255, 0};
@@ -282,120 +388,6 @@ public class MeasurementMapper {
 		@Override
 		public boolean hasAlpha() {
 			return false;
-		}
-
-
-	}
-
-
-
-	public static class AlphaColorMapper implements ColorMapper {
-
-		private static final int[] r = {0, 0,   0,   0,   255, 255};
-		private static final int[] g = {0, 0,   255, 255, 255, 0};
-		private static final int[] b = {0, 255, 255, 0,   0,   0};
-		private static final int[] a = {0, 51, 102, 153, 204, 255};
-		//		private static final int[] a = {255, 204, 153, 102,   51,   0};
-		private static int nColors = 256;
-		private static Integer[] colors = new Integer[nColors];
-
-		static {
-			double scale = (double)(r.length - 1) / nColors;
-			for (int i = 0; i < nColors; i++) {
-				int ind = (int)(i * scale);
-				double residual = (i * scale) - ind;
-				colors[i] = ColorTools.makeRGBA(
-						r[ind] + (int)((r[ind+1] - r[ind]) * residual),
-						g[ind] + (int)((g[ind+1] - g[ind]) * residual),
-						b[ind] + (int)((b[ind+1] - b[ind]) * residual),
-						a[ind] + (int)((a[ind+1] - a[ind]) * residual));
-			}
-			colors[nColors-1] = ColorTools.makeRGBA(r[r.length-1], g[g.length-1], b[b.length-1], a[a.length-1]);
-		}
-
-
-		@Override
-		public Integer getColor(int ind) {
-			Integer color = colors[ind];
-			if (color == null) {
-				color = ColorTools.makeRGBA(r[ind], g[ind], b[ind], a[ind]);
-				colors[ind] = color;
-			}
-			return color;
-		}
-
-		@Override
-		public Integer getColor(double value, double minValue, double maxValue) {
-			//			System.out.println("Measurement mapper: " + minValue + ", " + maxValue);
-			int ind = 0;
-			if (maxValue > minValue) {
-				ind = (int)((value - minValue) / (maxValue - minValue) * nColors + .5);
-				ind = ind >= nColors ? nColors - 1 : ind;
-				ind = ind < 0 ? 0 : ind;
-			}
-			return getColor(ind);
-		}
-
-		@Override
-		public boolean hasAlpha() {
-			return true;
-		}
-
-	}
-
-
-
-	public static class RedAlphaColorMapper implements ColorMapper {
-
-		private static final int[] r = {255, 255, 255};
-		private static final int[] g = {200, 128, 0};
-		private static final int[] b = {0, 0, 0};
-		private static final int[] a = {0, 100, 128};
-		//		private static final int[] a = {255, 204, 153, 102,   51,   0};
-		private static int nColors = 256;
-		private static Integer[] colors = new Integer[nColors];
-
-		static {
-			double scale = (double)(r.length - 1) / nColors;
-			for (int i = 0; i < nColors; i++) {
-				int ind = (int)(i * scale);
-				double residual = (i * scale) - ind;
-				System.err.println(a[ind] + (int)((a[ind+1] - a[ind]) * residual));
-				colors[i] = ColorTools.makeRGBA(
-						r[ind] + (int)((r[ind+1] - r[ind]) * residual),
-						g[ind] + (int)((g[ind+1] - g[ind]) * residual),
-						b[ind] + (int)((b[ind+1] - b[ind]) * residual),
-						a[ind] + (int)((a[ind+1] - a[ind]) * residual));
-			}
-			colors[nColors-1] = ColorTools.makeRGBA(r[r.length-1], g[g.length-1], b[b.length-1], a[a.length-1]);
-		}
-
-
-		@Override
-		public Integer getColor(int ind) {
-			Integer color = colors[ind];
-			if (color == null) {
-				color = ColorTools.makeRGBA(r[ind], g[ind], b[ind], a[ind]);
-				colors[ind] = color;
-			}
-			return color;
-		}
-
-		@Override
-		public Integer getColor(double value, double minValue, double maxValue) {
-			//			System.out.println("Measurement mapper: " + minValue + ", " + maxValue);
-			int ind = 0;
-			if (maxValue > minValue) {
-				ind = (int)((value - minValue) / (maxValue - minValue) * nColors + .5);
-				ind = ind >= nColors ? nColors - 1 : ind;
-				ind = ind < 0 ? 0 : ind;
-			}
-			return getColor(ind);
-		}
-
-		@Override
-		public boolean hasAlpha() {
-			return true;
 		}
 
 	}

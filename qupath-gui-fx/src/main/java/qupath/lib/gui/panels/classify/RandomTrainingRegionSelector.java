@@ -76,13 +76,18 @@ import qupath.lib.measurements.MeasurementList;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClass;
+import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.TMAGrid;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
 import qupath.lib.plugins.parameters.ParameterList;
+import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.PointsROI;
+import qupath.lib.roi.ROIs;
+import qupath.lib.roi.interfaces.PathPoints;
 import qupath.lib.roi.interfaces.ROI;
 
 
@@ -404,7 +409,7 @@ public class RandomTrainingRegionSelector implements PathCommand {
 		public PathAnnotationObject getPointObject(final PathClass pathClass) {
 			ensureCacheBuilt();
 			for (PathObject pathObject : annotations) {
-				if (pathObject.isPoint() && pathObject.getPathClass() != null && pathObject.getPathClass().equals(pathClass))
+				if (PathObjectTools.hasPointROI(pathObject) && pathObject.getPathClass() != null && pathObject.getPathClass().equals(pathClass))
 					return (PathAnnotationObject)pathObject;
 			}
 			return null;
@@ -434,7 +439,7 @@ public class RandomTrainingRegionSelector implements PathCommand {
 		private QuPathViewer viewer;
 		
 		private ObjectCache objectCache = new ObjectCache();
-		private PointsROI currentPoint;
+		private PathPoints currentPoint;
 		
 		private int nextCluster = 0;
 		
@@ -466,21 +471,21 @@ public class RandomTrainingRegionSelector implements PathCommand {
 					logger.error("Cannot classify - no point available!");
 					return;
 				}
-				PathAnnotationObject pathObject = objectCache.getPointObject(pathClass);
+				PathObject pathObject = objectCache.getPointObject(pathClass);
 				boolean newPoint = pathObject == null;
 				if (newPoint)
-					pathObject = new PathAnnotationObject(new PointsROI(), pathClass);
+					pathObject = PathObjects.createAnnotationObject(ROIs.createPointsROI(ImagePlane.getDefaultPlane()), pathClass);
 				double x = currentPoint.getCentroidX();
 				double y = currentPoint.getCentroidY();
 				PathObjectHierarchy hierarchy = viewer.getHierarchy();
 				if (newPoint) {
-					pathObject.setROI(new PointsROI(x, y));
-					hierarchy.addPathObject(pathObject, true);
+					((PathAnnotationObject)pathObject).setROI(ROIs.createPointsROI(x, y, ImagePlane.getDefaultPlane()));
+					hierarchy.addPathObject(pathObject);
 				} else {
 					PointsROI pointsROI = ((PointsROI)pathObject.getROI());
 					List<Point2> points = new ArrayList<Point2>(pointsROI.getPointList());
 					points.add(new Point2(x, y));
-					pathObject.setROI(new PointsROI(points));
+					((PathAnnotationObject)pathObject).setROI(ROIs.createPointsROI(points, ImagePlane.getDefaultPlane()));
 					hierarchy.fireObjectsChangedEvent(this, Collections.singleton(pathObject));
 				}
 				// Unfortunately, this horrible hack that prevents this being a static class...
@@ -514,7 +519,7 @@ public class RandomTrainingRegionSelector implements PathCommand {
 				// If we have a TMA image, try to force the points to fall within a core
 				TMAGrid tmaGrid = viewer.getHierarchy().getTMAGrid();
 				int counter = 0;
-				while (tmaGrid != null && tmaGrid.nCores() > 0 && counter < 1000 && tmaGrid.getTMACoreForPixel(x, y) == null) {
+				while (tmaGrid != null && tmaGrid.nCores() > 0 && counter < 1000 && PathObjectTools.getTMACoreForPixel(tmaGrid, x, y) == null) {
 					x = (int)(Math.random() * viewer.getServerWidth());
 					y = (int)(Math.random() * viewer.getServerHeight());
 					counter++;
@@ -527,9 +532,9 @@ public class RandomTrainingRegionSelector implements PathCommand {
 				x = temp.getROI().getCentroidX();
 				y = temp.getROI().getCentroidY();
 			}
-			currentPoint = new PointsROI(x, y);
+			currentPoint = ROIs.createPointsROI(x, y, ImagePlane.getDefaultPlane());
 			viewer.setCenterPixelLocation(x, y);
-			viewer.setSelectedObject(new PathAnnotationObject(currentPoint));
+			viewer.setSelectedObject(PathObjects.createAnnotationObject(currentPoint));
 		}
 		
 		

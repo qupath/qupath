@@ -23,49 +23,49 @@
 
 package qupath.lib.gui.viewer;
 
+import qupath.lib.gui.prefs.PathPrefs;
+
 /**
  * 
  * Simple class used for storing information related to GridLines that may be painted over an image.
+ * <p>
+ * This implementation simply wraps around the properties in {@link PathPrefs}.
  * 
  * @author Pete Bankhead
  *
  */
 public class GridLines {
 	
-	private double startX = 0, startY = 0;
-	private double spaceX = 250, spaceY = 250;
-	private boolean useMicrons = true;
-	
 	public double getStartX() {
-		return startX;
+		return PathPrefs.gridStartXProperty().get();
 	}
 
 	public double getStartY() {
-		return startY;
+		return PathPrefs.gridStartYProperty().get();
 	}
 
 	public double getSpaceX() {
-		return spaceX;
+		return PathPrefs.gridSpacingXProperty().get();
 	}
 
 	public double getSpaceY() {
-		return spaceY;
+		return PathPrefs.gridSpacingYProperty().get();
 	}
 	
 	public void setSpaceX(double spaceX) {
-		this.spaceX = spaceX;
+		PathPrefs.gridSpacingXProperty().set(spaceX);
 	}
 
 	public void setSpaceY(double spaceY) {
-		this.spaceY = spaceY;
+		PathPrefs.gridSpacingYProperty().set(spaceY);
 	}
 	
 	public boolean useMicrons() {
-		return useMicrons;
+		return PathPrefs.gridScaleMicrons().get();
 	}
 	
 	public void setUseMicrons(boolean useMicrons) {
-		this.useMicrons = useMicrons;
+		PathPrefs.gridScaleMicrons().set(useMicrons);
 	}
 
 }

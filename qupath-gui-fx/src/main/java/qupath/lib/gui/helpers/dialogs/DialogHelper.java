@@ -30,10 +30,10 @@ import java.util.List;
 /**
  * Interface to help with prompting users to select files or directories.
  * The intension is that sub-classes might use different kinds of (possibly platform-specific) file choosers.
- * 
+ * <p>
  * In truth, having this as an interface made most sense back in the Swing days - whenever it was often the 
  * case that the Swing and AWT dialogs were quite different in appearance (and pleasantness).
- * 
+ * <p>
  * With JavaFX that's not so important - however it is maintained as an interface in case alternative dialogs 
  * might be introduced in the future.
  * 
@@ -44,6 +44,7 @@ public interface DialogHelper {
 
 	/**
 	 * Set the last directory, which will be used as the base directory in future file choosers.
+	 * <p>
 	 * If a file (not directory) is given, the parent directory will be used.
 	 * If the file does not exist, the last directory will be set to null.
 	 * 
@@ -51,6 +52,12 @@ public interface DialogHelper {
 	 */
 	public void setLastDirectory(File dir);
 
+	/**
+	 * Get the last directory, which may be used as the starting directory the next time the chooser is shown 
+	 * if no other directory is specified.
+	 * 
+	 * @return
+	 */
 	public File getLastDirectory();
 	
 	/**
@@ -67,62 +74,51 @@ public interface DialogHelper {
 	/**
 	 * Prompt user to select a directory.
 	 * 
-	 * @param dirBase - Base directory to display; if null or not an existing directory, the value under getLastDirectory() should be used
-	 * @return
+	 * @param dirBase base directory to display; if null or not an existing directory, the value under getLastDirectory() should be used
+	 * @return selected directory, or null if no directory was selected
 	 */
 	public abstract File promptForDirectory(File dirBase);
 
 	/**
 	 * Prompt the user for a file with some kind of file dialog.
-	 * @param title - The title to display for the dialog (may be null to use default)
-	 * @param dirBase - Base directory to display; if null or not an existing directory, the value under getLastDirectory() should be used
-	 * @param filterDescription - description to (possibly) show for the file name filter (may be null)
-	 * @param exts - array of file extensions, not including . - (may be null if no filter should be used)
+	 * @param title the title to display for the dialog (may be null to use default)
+	 * @param dirBase base directory to display; if null or not an existing directory, the value under getLastDirectory() should be used
+	 * @param filterDescription description to (possibly) show for the file name filter (may be null if no filter should be used)
+	 * @param exts optional array of file extensions if filterDescription is not null
 	 * 
-	 * @return the File selected by the user, or 'null' if the dialog was cancelled
+	 * @return the File selected by the user, or null if the dialog was cancelled
 	 */
 	public abstract File promptForFile(String title, File dirBase, String filterDescription, String... exts);
 
 	/**
 	 * Prompt user to select a file.
 	 * 
-	 * @param dirBase - Base directory to display; if null or not an existing directory, the value under getLastDirectory() should be used
-	 * @return
+	 * @param dirBase base directory to display; if null or not an existing directory, the value under getLastDirectory() should be used
+	 * @return the File selected by the user, or null if the dialog was cancelled
 	 */
 	public File promptForFile(File dirBase);
 	
 	/**
 	 * Prompt user to select a file path to save.
-	 * @param title - The title to display for the dialog (may be null)
-	 * @param dirBase - The base directory to display; if null or not an existing directory, the value under getLastDirectory() should be used
 	 * 
-	 * @return
+	 * @param title the title to display for the dialog (may be null)
+	 * @param dirBase the base directory to display; if null or not an existing directory, the value under getLastDirectory() should be used
+	 * @param defaultName default file name
+	 * @param filterName description to show for the file name filter (may be null if no filter should be used)
+	 * @param ext extension that should be used for the saved file (may be null if not specified)
+	 * @return the File selected by the user, or null if the dialog was cancelled
 	 */
 	public File promptToSaveFile(String title, File dirBase, String defaultName, String filterName, String ext);
 	
 	/**
 	 * Prompt user to select a file or input a URL.
 	 * 
-	 * @param defaultPath - Default path to display - may be null
-	 * @param dirBase - Base directory to display; if null or not an existing directory, the value under getLastDirectory() should be used
-	 * @param filterDescription - description to (possibly) show for the file name filter (may be null)
-	 * @param exts - array of file extensions, not including . - (may be null if no filter should be used)
-	 * @return The path to the file or URL, or null if no path was provided.
+	 * @param defaultPath default path to display - may be null
+	 * @param dirBase base directory to display; if null or not an existing directory, the value under getLastDirectory() should be used
+	 * @param filterDescription description to (possibly) show for the file name filter (may be null if no filter should be used)
+	 * @param exts optional array of file extensions if filterDescription is not null
+	 * @return the path to the file or URL, or null if no path was provided.
 	 */
 	public String promptForFilePathOrURL(String title, String defaultPath, File dirBase, String filterDescription, String... exts);
-
-	/**
-	 * Alternative syntax that doesn't allow a title to be specified.
-	 * 
-	 * Here (temporarily) for backwards-compatibility reasons, but will be removed in a future release.
-	 * 
-	 * @param defaultPath
-	 * @param dirBase
-	 * @param filterDescription
-	 * @param exts
-	 * @return
-	 */
-	@Deprecated
-	public String promptForFilePathOrURL(String defaultPath, File dirBase, String filterDescription, String... exts);
 	
 }

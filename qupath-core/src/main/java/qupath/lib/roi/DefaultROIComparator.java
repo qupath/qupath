@@ -30,7 +30,7 @@ import qupath.lib.roi.interfaces.ROI;
 
 /**
  * Default comparator to enable ROIs to be sorted in a more predictable manner.
- * 
+ * <p>
  * The aim is to help sorted lists to sort first on ROI location (time, z, channel, y coordinate, then x)
  * and afterwards on ROI type.
  * 
@@ -171,25 +171,51 @@ public class DefaultROIComparator implements Comparator<ROI>{
 		if (o1 instanceof PointsROI && o2 instanceof PointsROI) {
 			PointsROI r1 = (PointsROI)o1;
 			PointsROI r2 = (PointsROI)o2;
-			return Integer.compare(r1.getNPoints(), r2.getNPoints());
+			int size = Integer.compare(r1.getNPoints(), r2.getNPoints());
+			if (size != 0)
+				return size;
 		}
-
+//
 		if (o1 instanceof PolygonROI && o2 instanceof PolygonROI) {
 			PolygonROI r1 = (PolygonROI)o1;
 			PolygonROI r2 = (PolygonROI)o2;
-			return Integer.compare(r1.nVertices(), r2.nVertices());
+			int size = Integer.compare(r1.nVertices(), r2.nVertices());
+			if (size != 0)
+				return size;
 		}
 		
 		if (o1 instanceof AreaROI && o2 instanceof AreaROI) {
 			AreaROI r1 = (AreaROI)o1;
 			AreaROI r2 = (AreaROI)o2;
-			return Integer.compare(r1.nVertices(), r2.nVertices());
+			int size = Integer.compare(r1.nVertices(), r2.nVertices());
+			if (size != 0)
+				return size;
 		}
-
+		
+		var points1 = o1.getPolygonPoints();
+		var points2 = o2.getPolygonPoints();
+		int size = Integer.compare(points1.size(), points2.size());
+		if (size != 0)
+			return size;
+		for (int i = 0; i < points1.size(); i++) {
+			var p1 = points1.get(i);
+			var p2 = points2.get(i);
+			temp = Double.compare(p1.getY(), p2.getY());
+			if (temp != 0)
+				return temp;
+			temp = Double.compare(p1.getX(), p2.getX());
+			if (temp != 0)
+				return temp;
+		}
+		
 		// Shouldn't happen much... if ever		
 		return 0;
 	}
 
+	/**
+	 * Get a static instance of this comparator, to avoid needing to construct it.
+	 * @return
+	 */
 	public static Comparator<ROI> getInstance() {
 		return instance;
 	}

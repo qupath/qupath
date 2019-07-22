@@ -47,7 +47,7 @@ import qupath.lib.objects.PathObject;
 
 /**
  * A small preview panel to be associated with a viewer, which shows the currently-visible
- * region & can be clicked on to navigate to other regions.
+ * region &amp; can be clicked on to navigate to other regions.
  * 
  * @author Pete Bankhead
  *
@@ -86,6 +86,8 @@ public class ImageOverview implements QuPathViewerListener {
 
 	protected void mouseViewerToLocation(double x, double y) {
 		ImageServer<BufferedImage> server = viewer.getServer();
+		if (server == null)
+			return;
 		double cx = x / getWidth() * server.getWidth();
 		double cy = y / getHeight() * server.getHeight();
 		viewer.setCenterPixelLocation(cx, cy);
@@ -254,11 +256,16 @@ public class ImageOverview implements QuPathViewerListener {
 
 	
 	void repaint() {
+		if (Platform.isFxApplicationThread()) {
+			repaintRequested = true;
+			paintCanvas();
+			return;
+		}
 		if (repaintRequested)
 			return;
 		logger.trace("Overview repaint requested!");
 		repaintRequested = true;
-		Platform.runLater(() -> paintCanvas());
+		Platform.runLater(() -> repaint());
 	}
 	
 

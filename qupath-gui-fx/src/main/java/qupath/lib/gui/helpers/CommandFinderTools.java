@@ -101,7 +101,7 @@ public class CommandFinderTools {
 	 * 
 	 * @param qupath
 	 * @param node
-	 * @param pinned
+	 * @param displayMode
 	 * @return
 	 */
 	public static HiddenSidesPane createCommandFinderPane(final QuPathGUI qupath, final Node node, final ObjectProperty<CommandBarDisplay> displayMode) {

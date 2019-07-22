@@ -32,16 +32,12 @@ public interface PathArea extends PathShape {
 	
 	/**
 	 * Get ROI area in pixels^2, or Double.NaN if no area can be computed.
-	 * @param pixelWidth
-	 * @param pixelHeight
 	 * @return
 	 */
 	public double getArea();
 	
 	/**
 	 * Get ROI perimeter in pixels, or Double.NaN if no perimeter can be computed.
-	 * @param pixelWidth
-	 * @param pixelHeight
 	 * @return
 	 */
 	public double getPerimeter();
@@ -63,7 +59,7 @@ public interface PathArea extends PathShape {
 	public double getCircularity(double pixelWidth, double pixelHeight);
 
 	/**
-	 * Get ROI area in scaled units^2 given a specified pixel width & pixel height, or Double.NaN if no area can be computed.
+	 * Get ROI area in scaled units^2 given a specified pixel width &amp; pixel height, or Double.NaN if no area can be computed.
 	 * @param pixelWidth
 	 * @param pixelHeight
 	 * @return
@@ -71,7 +67,7 @@ public interface PathArea extends PathShape {
 	public double getScaledArea(double pixelWidth, double pixelHeight);
 
 	/**
-	 * Get ROI perimeter in scaled units given a specified pixel width & pixel height, or Double.NaN if no area can be computed.
+	 * Get ROI perimeter in scaled units given a specified pixel width &amp; pixel height, or Double.NaN if no area can be computed.
 	 * @param pixelWidth
 	 * @param pixelHeight
 	 * @return

@@ -23,22 +23,19 @@
 
 package qupath.lib.roi;
 
-import qupath.lib.rois.vertices.MutableVertices;
-import qupath.lib.rois.vertices.Vertices;
-
 /**
  * Factory used to help create vertices objects.
  * 
  * @author Pete Bankhead
  *
  */
-public class VerticesFactory {
+class VerticesFactory {
 
-	public static DefaultVertices createVertices(final int capacity) {
+	public static Vertices createVertices(final int capacity) {
 		return new DefaultVertices(capacity);
 	}
 
-	public static DefaultMutableVertices createMutableVertices() {
+	public static Vertices createMutableVertices() {
 		return new DefaultMutableVertices(createVertices(DefaultVertices.DEFAULT_CAPACITY));
 	}
 
@@ -50,11 +47,11 @@ public class VerticesFactory {
 		return createVertices(DefaultVertices.DEFAULT_CAPACITY);
 	}
 
-	public static DefaultMutableVertices createMutableVertices(final int capacity) {
+	public static Vertices createMutableVertices(final int capacity) {
 		return new DefaultMutableVertices(new DefaultVertices(capacity));
 	}
 
-	public static MutableVertices createMutableVertices(final float[] x, final float[] y, final boolean copyArrays) {
+	public static Vertices createMutableVertices(final float[] x, final float[] y, final boolean copyArrays) {
 		return new DefaultMutableVertices(new DefaultVertices(x, y, copyArrays));
 	}
 

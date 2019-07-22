@@ -37,6 +37,7 @@ import qupath.lib.classifiers.PathClassificationLabellingHelper;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathDetectionObject;
@@ -54,7 +55,7 @@ import qupath.lib.roi.interfaces.ROI;
 /**
  * Plugin to supplement the measurements for detection objects with the weighted sum of measurements 
  * from nearby objects, using weights derived from a 2D Gaussian function.
- * 
+ * <p>
  * This effectively adds in some contextual information.
  * 
  * @author Pete Bankhead
@@ -67,6 +68,9 @@ public class SmoothFeaturesPlugin<T> extends AbstractInteractivePlugin<T> {
 	
 	final private static Logger logger = LoggerFactory.getLogger(SmoothFeaturesPlugin.class);
 	
+	/**
+	 * Default constructor.
+	 */
 	public SmoothFeaturesPlugin() {
 		params = new ParameterList()
 				.addDoubleParameter("fwhmMicrons", "Radius (FWHM)", 25, GeneralTools.micrometerSymbol(), "Smoothing filter size - higher values indicate more smoothing")
@@ -109,10 +113,11 @@ public class SmoothFeaturesPlugin<T> extends AbstractInteractivePlugin<T> {
 		double fwhm;
 		ImageServer<T> server = imageData.getServer();
 		String fwhmStringTemp;
-		if (server != null && server.hasPixelSizeMicrons()) {
+		PixelCalibration cal = server == null ? null : server.getPixelCalibration();
+		if (cal != null && cal.hasPixelSizeMicrons()) {
 			fwhm = getParameterList(imageData).getDoubleParameterValue("fwhmMicrons");
 			fwhmStringTemp = GeneralTools.createFormatter(2).format(fwhm) + " " + GeneralTools.micrometerSymbol();
-			fwhm /= server.getAveragedPixelSizeMicrons();
+			fwhm /= cal.getAveragedPixelSizeMicrons();
 //			params.addDoubleParameter("fwhmPixels", "Radius (FWHM)", fwhm, "pixels"); // Set the FWHM in pixels too
 		}
 		else {
@@ -189,10 +194,11 @@ public class SmoothFeaturesPlugin<T> extends AbstractInteractivePlugin<T> {
 	 * nearby objects, weighted by centroid distance.
 	 * 
 	 * @param pathObjects
-	 * @param pathClasses
-	 * @param sigmaPixels
-	 * 
-//	 * @return A set containing names for all the measurements that were added
+	 * @param measurements
+	 * @param fwhmPixels
+	 * @param fwhmString
+	 * @param withinClass
+	 * @param useLegacyNames
 	 */
 //	public static Set<String> smoothMeasurements(List<PathObject> pathObjects, List<String> measurements, double fwhmPixels) {
 	public static void smoothMeasurements(List<PathObject> pathObjects, List<String> measurements, double fwhmPixels, String fwhmString, boolean withinClass, boolean useLegacyNames) {
@@ -375,7 +381,7 @@ public class SmoothFeaturesPlugin<T> extends AbstractInteractivePlugin<T> {
 				measurementList.putMeasurement(countsName, nearbyDetectionCounts[i]);
 //				measurementsAdded.add(countsName);
 			}
-			measurementList.closeList();
+			measurementList.close();
 		}
 		
 		System.currentTimeMillis();
@@ -386,7 +392,7 @@ public class SmoothFeaturesPlugin<T> extends AbstractInteractivePlugin<T> {
 	@Override
 	public ParameterList getDefaultParameterList(final ImageData<T> imageData) {
 		ImageServer<? extends T> server = imageData.getServer();
-		boolean pixelSizeMicrons = server != null && server.hasPixelSizeMicrons();
+		boolean pixelSizeMicrons = server != null && server.getPixelCalibration().hasPixelSizeMicrons();
 		params.getParameters().get("fwhmMicrons").setHidden(!pixelSizeMicrons);
 		params.getParameters().get("fwhmPixels").setHidden(pixelSizeMicrons);
 		return params;

@@ -32,15 +32,13 @@ import java.io.Serializable;
 import java.util.Collections;
 import java.util.List;
 
-import qupath.lib.rois.vertices.Vertices;
-
 /**
  * Calculate several shape measurements based on supplied lists of vertices.
  * 
  * @author Pete Bankhead
  *
  */
-public class ClosedShapeStatistics implements Serializable {
+class ClosedShapeStatistics implements Serializable {
 	
 	private static final long serialVersionUID = 1L;
 	
@@ -67,7 +65,7 @@ public class ClosedShapeStatistics implements Serializable {
 //	}
 	
 	/**
-	 * Calculate shape statistics for default pixel width & height of 1.
+	 * Calculate shape statistics for default pixel width &amp; height of 1.
 	 * 
 	 * @param vertices
 	 */
@@ -76,7 +74,7 @@ public class ClosedShapeStatistics implements Serializable {
 	}
 
 	/**
-	 * Calculate shape statistics for default pixel width & height of 1.
+	 * Calculate shape statistics for default pixel width &amp; height of 1.
 	 * 
 	 * Note: This method access a list of multiple vertices relating to a single area, as stored by AreaROI.
 	 * It isn't advised to work with this directly, since the manner in which these vertices are stored is important.
@@ -88,7 +86,7 @@ public class ClosedShapeStatistics implements Serializable {
 	}
 
 	/**
-	 * Calculate shape statistics with scaling according to a specified pixel width & height 
+	 * Calculate shape statistics with scaling according to a specified pixel width &amp; height
 	 * (affecting the x and y coordinates respectively).
 	 * 
 	 * @param vertices
@@ -100,13 +98,13 @@ public class ClosedShapeStatistics implements Serializable {
 	}
 	
 	/**
-	 * Calculate shape statistics with scaling according to a specified pixel width & height 
+	 * Calculate shape statistics with scaling according to a specified pixel width &amp; height
 	 * (affecting the x and y coordinates respectively).
 	 * 
 	 * Note: This method access a list of multiple vertices relating to a single area, as stored by AreaROI.
 	 * It isn't advised to work with this directly, since the manner in which these vertices are stored is important.
 	 * 
-	 * @param vertices
+	 * @param verticesList
 	 * @param pixelWidth
 	 * @param pixelHeight
 	 */

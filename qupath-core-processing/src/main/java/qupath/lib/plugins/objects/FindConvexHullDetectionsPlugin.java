@@ -36,18 +36,19 @@ import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.TMACoreObject;
+import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.plugins.AbstractInteractivePlugin;
 import qupath.lib.plugins.PathTask;
 import qupath.lib.plugins.PluginRunner;
 import qupath.lib.plugins.parameters.ParameterList;
-import qupath.lib.rois.measure.ConvexHull;
+import qupath.lib.roi.ConvexHull;
 
 /**
  * Plugin to identify/remove detections from the convex hull of all detections.
- * 
+ * <p>
  * Currently works only for TMA cores.
- * 
+ * <p>
  * Purpose is to remove edge detections, where the tissue quality tends to be lower.
  * 
  * @author Pete Bankhead
@@ -59,12 +60,12 @@ public class FindConvexHullDetectionsPlugin<T> extends AbstractInteractivePlugin
 	
 	private transient AtomicInteger nObjectsRemoved = new AtomicInteger();
 	
-	public static List<PathObject> getConvexHullDetections(final PathObjectHierarchy hierarchy, final PathObject parent, final int nIterations) {
+	static List<PathObject> getConvexHullDetections(final PathObjectHierarchy hierarchy, final PathObject parent, final int nIterations) {
 		
 		Map<Point2, PathObject> pointsMap = new HashMap<>();
 		List<PathObject> convexDetections = new ArrayList<>();
 
-		List<PathObject> pathObjects = hierarchy.getDescendantObjects(parent, null, PathDetectionObject.class);
+		Collection<PathObject> pathObjects = PathObjectTools.getDescendantObjects(parent, null, PathDetectionObject.class);
 		if (pathObjects.isEmpty())
 			return Collections.emptyList();
 
@@ -112,11 +113,12 @@ public class FindConvexHullDetectionsPlugin<T> extends AbstractInteractivePlugin
 
 	@Override
 	protected Collection<? extends PathObject> getParentObjects(PluginRunner<T> runner) {
-		PathObject selected = runner.getSelectedObject();
+		PathObjectHierarchy hierarchy = getHierarchy(runner);
+		PathObject selected = hierarchy.getSelectionModel().getSelectedObject();
 		if (selected instanceof TMACoreObject)
 			return Collections.singleton(selected);
-		if (runner.getHierarchy().getTMAGrid() != null)
-			return runner.getHierarchy().getTMAGrid().getTMACoreList();
+		if (hierarchy.getTMAGrid() != null)
+			return hierarchy.getTMAGrid().getTMACoreList();
 		else
 			return Collections.emptyList();
 	}

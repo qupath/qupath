@@ -23,6 +23,8 @@
 
 package qupath.lib.roi;
 
+import java.awt.Shape;
+import java.awt.geom.Rectangle2D;
 import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
 import java.io.Serializable;
@@ -30,6 +32,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import qupath.lib.geom.Point2;
+import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.interfaces.PathArea;
 import qupath.lib.roi.interfaces.ROI;
 import qupath.lib.roi.interfaces.TranslatableROI;
@@ -44,24 +47,16 @@ public class RectangleROI extends AbstractPathBoundedROI implements PathArea, Se
 
 	private static final long serialVersionUID = 1L;
 	
-	protected RectangleROI() {
+	RectangleROI() {
 		super();
 	}
-	
-	public RectangleROI(double x, double y) {
-		super(x, y);
-	}
-	
-	public RectangleROI(double x, double y, int c, int z, int t) {
-		super(x, y, c, z, t);
+
+	RectangleROI(double x, double y, double width, double height) {
+		this(x, y, width, height, null);
 	}
 
-	public RectangleROI(double x, double y, double width, double height) {
-		this(x, y, width, height, -1, 0, 0);
-	}
-
-	public RectangleROI(double x, double y, double width, double height, int c, int z, int t) {
-		super(x, y, width, height, c, z, t);
+	RectangleROI(double x, double y, double width, double height, ImagePlane plane) {
+		super(x, y, width, height, plane);
 	}
 	
 	@Override
@@ -70,11 +65,9 @@ public class RectangleROI extends AbstractPathBoundedROI implements PathArea, Se
 	}
 	
 	@Override
-	public String getROIType() {
+	public String getRoiName() {
 		return "Rectangle";
 	}
-	
-	
 	
 
 	@Override
@@ -114,13 +107,18 @@ public class RectangleROI extends AbstractPathBoundedROI implements PathArea, Se
 //	}
 	
 	
+	@Override
+	public Shape getShape() {
+		return new Rectangle2D.Double(x, y, x2-x, y2-y);
+	}
+	
 	
 	@Override
 	public TranslatableROI translate(double dx, double dy) {
 		if (dx == 0 && dy == 0)
 			return this;
 		// Shift the bounds
-		return new RectangleROI(getBoundsX()+dx, getBoundsY()+dy, getBoundsWidth(), getBoundsHeight(), getC(), getZ(), getT());
+		return new RectangleROI(getBoundsX()+dx, getBoundsY()+dy, getBoundsWidth(), getBoundsHeight(), getImagePlane());
 	}
 	
 	
@@ -154,7 +152,7 @@ public class RectangleROI extends AbstractPathBoundedROI implements PathArea, Se
 		}
 		
 		private Object readResolve() {
-			RectangleROI roi = new RectangleROI(x, y, x2-x, y2-y, c, z, t);
+			RectangleROI roi = new RectangleROI(x, y, x2-x, y2-y, ImagePlane.getPlaneWithChannel(c, z, t));
 			return roi;
 		}
 		

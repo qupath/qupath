@@ -23,10 +23,7 @@
 
 package qupath.lib.analysis.features;
 
-import java.util.ArrayList;
-import java.util.List;
-
-import qupath.lib.analysis.algorithms.SimpleImage;
+import qupath.lib.analysis.images.SimpleImage;
 import qupath.lib.analysis.stats.RunningStatistics;
 
 /**
@@ -37,7 +34,17 @@ import qupath.lib.analysis.stats.RunningStatistics;
  */
 public class HaralickFeatureComputer {
 	
-	
+	/**
+	 * Compute mean Haralick features from a SimpleImage, with optional masking.
+	 * 
+	 * @param ip input image
+	 * @param bpMask binary mask (may be null)
+	 * @param nBins number of bins in co-occurrence matrix
+	 * @param minValue minimum value for binning in the co-occurrence matrix
+	 * @param maxValue maximum value for binning in the co-occurrence matrix
+	 * @param d separation between pixels considered adjacent, usually 1
+	 * @return
+	 */
 	public static HaralickFeatures measureHaralick(final SimpleImage ip, final SimpleImage bpMask, final int nBins, final double minValue, final double maxValue, final int d) {
 		return measureHaralick(ip, bpMask, 0, 0, ip.getWidth(), ip.getHeight(), nBins, minValue, maxValue, d);
 	}
@@ -59,7 +66,7 @@ public class HaralickFeatureComputer {
 	 * @param d
 	 * @return
 	 */
-	public static HaralickFeatures measureHaralick(final SimpleImage ip, final SimpleImage bpMask, final int xx, final int yy, final int ww, final int hh, final int nBins, double minValue, double maxValue, final int d) {
+	private static HaralickFeatures measureHaralick(final SimpleImage ip, final SimpleImage bpMask, final int xx, final int yy, final int ww, final int hh, final int nBins, double minValue, double maxValue, final int d) {
 		
 		// If we have NaNs, compute data min & max
 		if (Double.isNaN(minValue) || Double.isNaN(maxValue)) {
@@ -77,12 +84,22 @@ public class HaralickFeatureComputer {
 		return features;
 	}
 	
-	
+	/**
+	 * Update existing CoocurranceMatrices with the values in a SimpleImage.
+	 * @param matrices
+	 * @param ip input image
+	 * @param bpMask binary mask (may be null)
+	 * @param nBins number of bins in co-occurrence matrix
+	 * @param minValue minimum value for binning in the co-occurrence matrix
+	 * @param maxValue maximum value for binning in the co-occurrence matrix
+	 * @param d separation between pixels considered adjacent, usually 1
+	 * @return
+	 */
 	public static CoocurranceMatrices updateCooccurrenceMatrices(final CoocurranceMatrices matrices, final SimpleImage ip, final SimpleImage bpMask, final int nBins, double minValue, double maxValue, final int d) {
 		return updateCooccurrenceMatrices(matrices, ip, bpMask, 0, 0, ip.getWidth(), ip.getHeight(), nBins, minValue, maxValue, d);
 	}
 	
-	public static CoocurranceMatrices updateCooccurrenceMatrices(CoocurranceMatrices matrices, final SimpleImage ip, final SimpleImage bpMask, final int xx, final int yy, final int ww, final int hh, final int nBins, double minValue, double maxValue, final int d) {
+	private static CoocurranceMatrices updateCooccurrenceMatrices(CoocurranceMatrices matrices, final SimpleImage ip, final SimpleImage bpMask, final int xx, final int yy, final int ww, final int hh, final int nBins, double minValue, double maxValue, final int d) {
 		// Create matrices if necessary
 		if (matrices == null)
 			matrices = new CoocurranceMatrices(nBins);
@@ -142,7 +159,7 @@ public class HaralickFeatureComputer {
 	}
 	
 	
-	public static RunningStatistics getStatistics(SimpleImage img) {
+	private static RunningStatistics getStatistics(SimpleImage img) {
 		RunningStatistics stats = new RunningStatistics();
 		for (int y = 0; y < img.getHeight(); y++) {
 			for (int x = 0; x < img.getWidth(); x++) {
@@ -150,63 +167,6 @@ public class HaralickFeatureComputer {
 			}
 		}
 		return stats;
-	}
-	
-	
-	public static List<HaralickFeatures> measureHaralick(SimpleImage ip, SimpleImage ipLabels, int nLabels, int nBins, double minValue, double maxValue, int d) {
-		
-		// If we have NaNs, compute data min & max
-		if (Double.isNaN(minValue) || Double.isNaN(maxValue)) {
-			RunningStatistics stats = getStatistics(ip);
-			minValue = stats.getMin();
-			maxValue = stats.getMax();
-		}
-		double binDepth = (maxValue - minValue) / nBins;
-		
-		// Create cooccurrance matricies
-		List<CoocurranceMatrices> matricies = new ArrayList<>(nLabels);
-		for (int i = 0; i < nLabels; i++)
-			matricies.add(new CoocurranceMatrices(nBins));
-		
-		int width = ip.getWidth();
-		int height = ip.getHeight();
-		
-		// Loop through pixels
-		float lastLabel = Float.NEGATIVE_INFINITY;
-		CoocurranceMatrices lastMatrix = null;
-		for (int y = 0; y < height; y++) {
-			for (int x = 0; x < width; x++) {
-				// Extract label
-				float label = ipLabels.getValue(x, y);
-				if (label <= 0 || label > nLabels)
-					continue;
-				// Extract binned pixel value
-				int binValue = getBinValue(ip, x, y, minValue, binDepth, nBins);
-				// Get the matrix, if needed
-				if (lastLabel != label) {
-					lastMatrix = matricies.get((int)label - 1);
-					lastLabel = label;
-				}
-				// Test neighbors
-				if (x < width-d && label == ipLabels.getValue(x+d, y))
-					lastMatrix.put0(binValue, getBinValue(ip, x+d, y, minValue, binDepth, nBins));
-				
-				if (y < height-d && label == ipLabels.getValue(x, y+d))
-					lastMatrix.put90(binValue, getBinValue(ip, x, y+d, minValue, binDepth, nBins));
-				
-				if (x < width-d && y < height-d && label == ipLabels.getValue(x+d, y+d))
-					lastMatrix.put45(binValue, getBinValue(ip, x+d, y+d, minValue, binDepth, nBins));
-				
-				if (x >= d && y < height-d && label == ipLabels.getValue(x-d, y+d))
-					lastMatrix.put135(binValue, getBinValue(ip, x-d, y+d, minValue, binDepth, nBins));
-			}			
-		}
-		
-		List<HaralickFeatures> featureList = new ArrayList<>(nLabels);
-		for (int i = 0; i < nLabels; i++) {
-			featureList.add(matricies.get(i).getMeanFeatures());
-		}
-		return featureList;
 	}
 	
 }

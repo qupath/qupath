@@ -24,6 +24,7 @@
 package qupath.lib.gui.commands.scriptable;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -34,12 +35,12 @@ import qupath.lib.gui.ImageDataWrapper;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.images.ImageData;
-import qupath.lib.objects.PathAnnotationObject;
-import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
-import qupath.lib.roi.PointsROI;
+import qupath.lib.regions.ImagePlane;
+import qupath.lib.roi.ROIs;
 
 /**
  * Command to convert detection objects into Point objects, where each point 
@@ -65,7 +66,7 @@ public class DetectionsToPointsCommand implements PathCommand {
 		if (imageData == null)
 			return;
 		PathObjectHierarchy hierarchy = imageData.getHierarchy();
-		List<PathObject> pathObjects = hierarchy.getObjects(null, PathDetectionObject.class);
+		Collection<PathObject> pathObjects = hierarchy.getDetectionObjects();
 		if (pathObjects.isEmpty()) {
 			DisplayHelpers.showErrorMessage("Detections to points", "No detections found!");
 			return;
@@ -119,9 +120,9 @@ public class DetectionsToPointsCommand implements PathCommand {
 		
 		// Create & add annotation objects to hierarchy
 		for (Entry<PathClass, List<Point2>> entry : pointsMap.entrySet()) {
-			PathObject pointObject = new PathAnnotationObject(new PointsROI(entry.getValue()));
+			PathObject pointObject = PathObjects.createAnnotationObject(ROIs.createPointsROI(entry.getValue(), ImagePlane.getDefaultPlane()));
 			pointObject.setPathClass(entry.getKey());
-			hierarchy.addPathObject(pointObject, false);			
+			hierarchy.addPathObject(pointObject);			
 		}
 		
 //		hierarchy.fireChangeEvent(hierarchy.getRootObject());

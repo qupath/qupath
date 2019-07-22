@@ -1,6 +1,0 @@
-
-description = 'qupath-extension-opencv'
-dependencies {
-  compile project(':qupath-processing-opencv')
-  compile project(':qupath-gui-fx')
-}

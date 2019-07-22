@@ -24,10 +24,8 @@
 package qupath.lib.gui.viewer.recording;
 
 import java.awt.Dimension;
-import java.awt.Rectangle;
 import java.awt.Shape;
 import java.awt.geom.Point2D;
-import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
@@ -41,7 +39,6 @@ import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.event.EventHandler;
 import javafx.scene.input.MouseEvent;
-import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.QuPathViewerListener;
@@ -52,19 +49,20 @@ import qupath.lib.objects.PathObject;
 
 /**
  * Default ViewTracker implementation.
- * 
- * This tracks only viewer location and cursor position (no eye tracking... because it can't see you).
- * 
- * TODO: Deal with rotations in the tracker
+ * <p>
+ * This tracks only viewer location and cursor position (no eye tracking... because it can't see you). 
+ * It does <i>not</i> handle viewer rotations.
+ * <p>
+ * TODO: Deal with rotations in the tracker.
  * 
  * @author Pete Bankhead
  *
  */
-public class DefaultViewTracker implements ViewTracker, QuPathViewerListener {
+class DefaultViewTracker implements ViewTracker, QuPathViewerListener {
 	
 	private final static Logger logger = LoggerFactory.getLogger(DefaultViewTracker.class);
 
-	private static DecimalFormat df = new DecimalFormat("#.##");
+	static DecimalFormat df = new DecimalFormat("#.##");
 	protected static final String LOG_DELIMITER = "\t";
 
 	transient private QuPathViewer viewer;
@@ -85,7 +83,7 @@ public class DefaultViewTracker implements ViewTracker, QuPathViewerListener {
 	private MouseMovementHandler mouseHandler = new MouseMovementHandler();
 
 
-	public DefaultViewTracker(final QuPathViewer viewer) {
+	DefaultViewTracker(final QuPathViewer viewer) {
 		this.viewer = viewer;
 		this.recording.addListener((v, o, n) -> {
 			if (n)
@@ -94,7 +92,7 @@ public class DefaultViewTracker implements ViewTracker, QuPathViewerListener {
 				doStopRecording();
 		});
 	}
-
+	
 	@Override
 	public int nFrames() {
 		return frames.size();
@@ -114,7 +112,7 @@ public class DefaultViewTracker implements ViewTracker, QuPathViewerListener {
 	}
 	
 	
-	public void doStartRecording() {
+	private void doStartRecording() {
 		// Check we aren't recording already
 		if (viewer == null || viewer.getServer() == null || initialized)
 			return;
@@ -132,8 +130,8 @@ public class DefaultViewTracker implements ViewTracker, QuPathViewerListener {
 		visibleRegionChanged(viewer, viewer.getDisplayedRegionShape());
 
 		logger.info("--------------------------------------\n" + 
-					"View tracking for image: " + viewer.getServerPath() + "\n" +
-					getLogHeadings(LOG_DELIMITER, doCursorTracking, supportsEyeTracking()));
+					"View tracking for image: " + server.getPath() + "\n" +
+					ViewTrackers.getLogHeadings(LOG_DELIMITER, doCursorTracking, supportsEyeTracking()));
 		
 		initialized = true;
 	}
@@ -150,7 +148,7 @@ public class DefaultViewTracker implements ViewTracker, QuPathViewerListener {
 	}
 
 
-	public void doStopRecording() {
+	private void doStopRecording() {
 		initialized = false;
 		System.out.println("--------------------------------------");
 		viewer.removeViewerListener(this);
@@ -181,7 +179,7 @@ public class DefaultViewTracker implements ViewTracker, QuPathViewerListener {
 
 	// TODO: Confirm if initialization is necessary at all
 	@Deprecated
-	public void initializeRecording(String path, int width, int height) {
+	private void initializeRecording(String path, int width, int height) {
 		frames.clear();
 		lastFrame = null;
 		//		initialized = true;
@@ -220,10 +218,10 @@ public class DefaultViewTracker implements ViewTracker, QuPathViewerListener {
 			logger.warn("View tracking frame disregarded with timestamp " + df.format((timestamp - startTime)/1000) + " seconds");
 			return null;
 		}
-		ViewRecordingFrame frame = new ViewRecordingFrame(timestamp-startTime, imageBounds, canvasSize, cursorPoint, eyePoint, isFixated);
+		DefaultViewRecordingFrame frame = new DefaultViewRecordingFrame(timestamp-startTime, imageBounds, canvasSize, cursorPoint, eyePoint, isFixated);
 		appendFrame(frame);
 		// Log the frame
-		logger.info(toLogString(lastFrame, LOG_DELIMITER, doCursorTracking, supportsEyeTracking()));
+		logger.info(ViewTrackers.toLogString(lastFrame, LOG_DELIMITER, doCursorTracking, supportsEyeTracking()));
 		return frame;
 	}
 
@@ -235,179 +233,6 @@ public class DefaultViewTracker implements ViewTracker, QuPathViewerListener {
 		frames.add(frame);
 		lastFrame = frame;
 		hasEyeTrackingData = hasEyeTrackingData || frame.hasEyePosition();
-	}
-
-
-
-	public static String getLogHeadings(final String delimiter, final boolean includeCursor, final boolean includeEyeTracking) {
-		StringBuffer sb = new StringBuffer();
-
-		sb.append("Timestamp");
-		sb.append(delimiter);
-
-		sb.append("X");
-		sb.append(delimiter);
-		sb.append("Y");
-		sb.append(delimiter);
-		sb.append("Width");
-		sb.append(delimiter);
-		sb.append("Height");
-		sb.append(delimiter);
-
-		sb.append("Canvas width");
-		sb.append(delimiter);
-		sb.append("Canvas height");
-
-		if (includeCursor) {
-			sb.append(delimiter);
-			sb.append("Cursor X");
-			sb.append(delimiter);
-			sb.append("Cursor Y");
-		}
-		if (includeEyeTracking) {
-			sb.append(delimiter);				
-			sb.append("Eye X");
-			sb.append(delimiter);				
-			sb.append("Eye Y");
-			sb.append(delimiter);		
-			sb.append("Eye fixated");
-		}
-		return sb.toString();
-	}
-
-
-	public static int countOccurrences(final String s, final CharSequence sequence) {
-		// Nice approach to count occurrences from http://stackoverflow.com/questions/275944/how-do-i-count-the-number-of-occurrences-of-a-char-in-a-string
-		return s.length() - s.replace(sequence, "").length();
-	}
-
-	private static String estimateDelimiter(final String s) {
-		int nLines = countOccurrences(s, "\n");
-		String[] possibleDelimiters = new String[]{LOG_DELIMITER, "\t", ",", ":"};
-		for (String delim : possibleDelimiters) {
-			int nOccurrences = countOccurrences(s, delim);
-			double occurrencesPerLine = (double)nOccurrences / nLines;
-			if (occurrencesPerLine > 0 && occurrencesPerLine == Math.floor(occurrencesPerLine))
-				return delim;
-		}
-		return LOG_DELIMITER; // Default
-	}
-
-	public static ViewRecordingFrame parseLogString(String logString, String delimiter, boolean includesCursorTracking, boolean includesEyeTracking) {
-		if (logString != null)
-			logString = logString.trim().toLowerCase();
-		// Check if we have anything, or if it is just a superfluous new line
-		if (logString == null || logString.length() == 0)
-			return null;
-		// Should probably be using a Scanner here (?)
-		String[] columns = logString.split(delimiter);
-		int col = 0;
-		long timestamp = Long.parseLong(columns[col++]);
-		double x = Double.parseDouble(columns[col++]);
-		double y = Double.parseDouble(columns[col++]);
-		double width = Double.parseDouble(columns[col++]);
-		double height = Double.parseDouble(columns[col++]);
-		int canvasWidth = Integer.parseInt(columns[col++]);
-		int canvasHeight = Integer.parseInt(columns[col++]);
-		Point2D pCursor = null;
-		
-		// TODO: Check if this (and following 2) out-of-bounds checks need to be extended...
-		// (currently implementing Alan's MSc required changes)
-		if (includesCursorTracking && columns.length > col && columns[col].length() > 0 && columns[col+1].length() > 0) {
-			double cursorX = Double.parseDouble(columns[col++]);
-			double cursorY = Double.parseDouble(columns[col++]);
-			pCursor = new Point2D.Double(cursorX, cursorY);
-		}
-		Point2D pEye = null;
-		Boolean isFixated = null;
-		if (includesEyeTracking) {
-			if (columns.length > col && columns[col].length() > 0 && columns[col+1].length() > 0) {
-				double eyeX = Double.parseDouble(columns[col++]);
-				double eyeY = Double.parseDouble(columns[col++]);
-				pEye = new Point2D.Double(eyeX, eyeY);
-			}
-			if (columns.length > col && columns[col].length() > 0)
-				isFixated = Boolean.parseBoolean(columns[col++]);
-		}
-		return new ViewRecordingFrame(timestamp, new Rectangle2D.Double(x, y, width, height), new Dimension(canvasWidth, canvasHeight), pCursor, pEye, isFixated);
-	}
-
-
-	public static ViewTracker parseSummaryString(final String str, String delimiter, ViewTracker tracker) throws Exception { // TODO: Find out what exceptions!
-		if (tracker == null)
-			tracker = new DefaultViewTracker(null); // No viewer (so cannot record)
-		if (delimiter == null)
-			delimiter = estimateDelimiter(str);
-		boolean includesCursorTracking = false;
-		boolean includesEyeTracking = false;
-		boolean firstLine = true;
-		for (String s : GeneralTools.splitLines(str)) {
-			if (firstLine) {
-				includesCursorTracking = s.toLowerCase().contains("cursor");
-				includesEyeTracking = s.toLowerCase().contains("eye");
-				firstLine = false;
-			} else {
-				ViewRecordingFrame frame = parseLogString(s, delimiter, includesCursorTracking, includesEyeTracking);
-				if (frame != null)
-					tracker.appendFrame(frame);
-			}
-		}
-		return tracker;
-	}
-
-
-	public static String toLogString(final ViewRecordingFrame frame, final String delimiter, final boolean includeCursor, final boolean includeEyeTracking) {
-		StringBuffer sb = new StringBuffer();
-
-		sb.append(frame.getTimestamp());
-		sb.append(delimiter);
-
-		Rectangle bounds = frame.getImageBounds();
-		sb.append(bounds.x);
-		sb.append(delimiter);
-		sb.append(bounds.y);
-		sb.append(delimiter);
-		sb.append(bounds.width);
-		sb.append(delimiter);
-		sb.append(bounds.height);
-		sb.append(delimiter);
-
-		Dimension canvasSize = frame.getSize();
-		sb.append(canvasSize.width);
-		sb.append(delimiter);
-		sb.append(canvasSize.height);
-
-		if (includeCursor) {
-			if (frame.hasCursorPosition()) {
-				Point2D cursorPosition = frame.getCursorPosition();
-				sb.append(delimiter);
-				sb.append(df.format(cursorPosition.getX()));
-				sb.append(delimiter);
-				sb.append(df.format(cursorPosition.getY()));
-			} else {
-				sb.append(delimiter);				
-				sb.append(delimiter);				
-			}
-		}
-		if (includeEyeTracking) {
-			if (frame.hasEyePosition()) {
-				Point2D eyePosition = frame.getEyePosition();
-				sb.append(delimiter);				
-				sb.append(df.format(eyePosition.getX()));
-				sb.append(delimiter);				
-				sb.append(df.format(eyePosition.getY()));
-				sb.append(delimiter);				
-				if (frame.isEyeFixated() == null)
-					sb.append(delimiter);				
-				else
-					sb.append(frame.isEyeFixated().toString());
-			} else {
-				sb.append(delimiter);				
-				sb.append(delimiter);				
-				sb.append(delimiter);				
-			}				
-		}
-		return sb.toString();
 	}
 
 
@@ -432,10 +257,10 @@ public class DefaultViewTracker implements ViewTracker, QuPathViewerListener {
 	public String getSummaryString() {
 		StringBuffer sb = new StringBuffer();
 		String delimiter = PathPrefs.getTableDelimiter();
-		sb.append(getLogHeadings(delimiter, doCursorTracking, hasEyeTrackingData));
+		sb.append(ViewTrackers.getLogHeadings(delimiter, doCursorTracking, hasEyeTrackingData));
 		sb.append("\n");
 		for (ViewRecordingFrame frame : frames) {
-			sb.append(toLogString(frame, delimiter, doCursorTracking, hasEyeTrackingData));
+			sb.append(ViewTrackers.toLogString(frame, delimiter, doCursorTracking, hasEyeTrackingData));
 			sb.append("\n");
 		}
 		return sb.toString();
@@ -526,9 +351,6 @@ public class DefaultViewTracker implements ViewTracker, QuPathViewerListener {
 	}
 
 	@Override
-	public void imageDataChanged(QuPathViewer viewer, ImageData<BufferedImage> imageDataOld, ImageData<BufferedImage> imageDataNew) {}
-
-	@Override
 	public void visibleRegionChanged(final QuPathViewer viewer, final Shape shape) {
 		// If the image has been updated, then it could be because a change of view that we want to track
 		if (lastFrame != null && lastFrame.getImageShape().equals(shape) && lastFrame.getSize().equals(viewer.getSize()))
@@ -578,6 +400,12 @@ public class DefaultViewTracker implements ViewTracker, QuPathViewerListener {
 		}		
 		
 	}
+
+
+
+	@Override
+	public void imageDataChanged(QuPathViewer viewer, ImageData<BufferedImage> imageDataOld,
+			ImageData<BufferedImage> imageDataNew) {}
 	
 
 }

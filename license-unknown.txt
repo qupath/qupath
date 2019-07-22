@@ -1,0 +1,6 @@
+woolz:JWlz:1.4.0|https://github.com/ma-tech/Woolz|GNU General Public License v2+|https://github.com/ma-tech/Woolz/blob/master/LICENSE
+edu.ucar:cdm:4.6.13|https://www.unidata.ucar.edu/software/thredds/current/netcdf-java/documentation.htm|NetCDF C library license (MIT-style)|https://www.unidata.ucar.edu/software/netcdf/copyright.html
+edu.ucar:httpservices:4.6.13|https://www.unidata.ucar.edu/software/thredds/current/netcdf-java/documentation.htm|NetCDF C library license (MIT-style)|https://www.unidata.ucar.edu/software/netcdf/copyright.html
+cisd:jhdf5:14.12.6|https://wiki-bsse.ethz.ch/display/JHDF5|Apache License 2.0|http://www.apache.org/licenses/LICENSE-2.0.html
+cisd:jhdf5:14.12.6|https://wiki-bsse.ethz.ch/display/JHDF5|Apache License 2.0|http://www.apache.org/licenses/LICENSE-2.0.html
+org.json:json:20090211|http://www.json.org|The JSON License|http://www.json.org/license.html

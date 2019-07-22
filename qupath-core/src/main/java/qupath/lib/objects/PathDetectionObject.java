@@ -24,15 +24,15 @@
 package qupath.lib.objects;
 
 import qupath.lib.measurements.MeasurementList;
-import qupath.lib.measurements.MeasurementList.TYPE;
+import qupath.lib.measurements.MeasurementList.MeasurementListType;
 import qupath.lib.measurements.MeasurementListFactory;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
  * A detection PathObject.
- * 
- * Detections tend to be very numerous (e.g. millions of nucleus, each one a detection), and so need to be 
+ * <p>
+ * Detections tend to be very numerous (e.g. millions of nuclei, each one a detection), and so need to be 
  * represented and displayed very efficiently.
  * 
  * @author Pete Bankhead
@@ -43,6 +43,9 @@ public class PathDetectionObject extends PathROIObject {
 
 	private static final long serialVersionUID = 1L;
 	
+	/**
+	 * Default constructor. Should not be used directly, instead use {@link PathObjects#createDetectionObject(ROI)}.
+	 */
 	public PathDetectionObject() {
 		super();
 	}
@@ -52,9 +55,9 @@ public class PathDetectionObject extends PathROIObject {
 	 * 
 	 * @param pathROI
 	 * @param pathClass
-	 * @param measurementCapacity - request for measurement list capacity; may be used to improve efficiency & avoid wasted space
+	 * @param measurements
 	 */
-	public PathDetectionObject(ROI pathROI, PathClass pathClass, MeasurementList measurements) {
+	PathDetectionObject(ROI pathROI, PathClass pathClass, MeasurementList measurements) {
 		super(pathROI, pathClass, measurements);
 	}
 
@@ -64,11 +67,11 @@ public class PathDetectionObject extends PathROIObject {
 	 * @param pathROI
 	 * @param pathClass
 	 */
-	public PathDetectionObject(ROI pathROI, PathClass pathClass) {
+	protected PathDetectionObject(ROI pathROI, PathClass pathClass) {
 		super(pathROI, pathClass);
 	}
 	
-	public PathDetectionObject(ROI pathROI) {
+	PathDetectionObject(ROI pathROI) {
 		this(pathROI, null);
 	}
 	
@@ -85,7 +88,7 @@ public class PathDetectionObject extends PathROIObject {
 	 */
 	@Override
 	protected MeasurementList createEmptyMeasurementList() {
-		return MeasurementListFactory.createMeasurementList(0, TYPE.FLOAT);
+		return MeasurementListFactory.createMeasurementList(0, MeasurementListType.FLOAT);
 	}
 	
 }

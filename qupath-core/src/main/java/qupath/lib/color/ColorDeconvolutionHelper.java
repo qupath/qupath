@@ -37,34 +37,67 @@ import qupath.lib.common.ColorTools;
  * @author Pete Bankhead
  *
  */
-
 public class ColorDeconvolutionHelper {
 	
 	final private static Logger logger = LoggerFactory.getLogger(ColorDeconvolutionHelper.class);
 
+	/**
+	 * Convert a single pixel value to an optical density as {@code max(0, -log10(val/max)}. where {@code val} is clipped to be &gt;= 1.
+	 * @param val
+	 * @param max
+	 * @return
+	 */
 	public static final double makeOD(double val, double max) {
 		return Math.max(0, -Math.log10(Math.max(val, 1)/max));
 	}
-
-	public static final double makeODByLUT(double val, double[] OD_LUT) {
-		return ColorDeconvolutionHelper.makeODByLUT((int)(val + .5), OD_LUT);
-	}
-
+	
+	/**
+	 * Convert an int pixel to an optical density value using a pre-computed lookup table. 
+	 * This is likely to be much faster than calling {@link #makeOD(double, double)}.
+	 * @param val
+	 * @param OD_LUT
+	 * @return
+	 * 
+	 * @see #makeOD(double, double)
+	 */
 	public static final double makeODByLUT(int val, double[] OD_LUT) {
-		if (val >= 0 && val < OD_LUT.length) //J val needs to be < length to avoid OutOfBounds error 
+		if (val >= 0 && val < OD_LUT.length)
 			return OD_LUT[val];
 		return Double.NaN;
 	}
-
+	
+	/**
+	 * Convert a float pixel to an optical density value using a pre-computed lookup table. 
+	 * This is likely to be much faster than calling {@link #makeOD(double, double)}, but involves 
+	 * rounding the float first.
+	 * @param val
+	 * @param OD_LUT
+	 * @return
+	 * 
+	 * @see #makeOD(double, double)
+	 */
 	public static final double makeODByLUT(float val, double[] OD_LUT) {
-        return ColorDeconvolutionHelper.makeODByLUT((int)(val + .5f), OD_LUT);
+        return ColorDeconvolutionHelper.makeODByLUT((int)Math.round(val), OD_LUT);
     }	
 	
-	protected static double[] makeODLUT(double maxValue) {
+	/**
+	 * Create an optical density lookup table with 256 entries, normalizing to the specified background value.
+	 * @param maxValue
+	 * @return
+	 * 
+	 * @see #makeOD(double, double)
+	 * @see #makeODByLUT(int, double[])
+	 */
+	public static double[] makeODLUT(double maxValue) {
 		return ColorDeconvolutionHelper.makeODLUT(maxValue, 256);
 	}
 
-	// Create Optical Density LUT (to avoid needing to compute lots of logarithms)
+	/**
+	 * Create an optical density lookup table, normalizing to the specified background value.
+	 * @param maxValue background (white value)
+	 * @param nValues number of values to include in the lookup table
+	 * @return
+	 */
 	public static double[] makeODLUT(double maxValue, int nValues) {
 		double[] OD_LUT = new double[nValues];
 		for (int i = 0; i < nValues; i++) //J
@@ -72,19 +105,10 @@ public class ColorDeconvolutionHelper {
 		return OD_LUT;
 	}
 
-	/**
-	 * Convert to optical densities in which a second image is used to provide the 'maximum' (i.e. white) pixel values.
-	 * @param px
-	 * @param pxMax
-	 */
-	public static void convertPixelsToOpticalDensities(float[] px, float[] pxMax) {
-		for (int i = 0; i < px.length; i++)
-			px[i] = (float)makeOD(px[i], pxMax[i]);
-	}
 
 	/**
 	 * For originally-8-bit images, optical densities can usually be computed faster by preallocating a LUT with the 0-255 required values.
-	 * Otherwise, logs need to be calculated for every pixel (which can be relatively slow).
+	 * Otherwise, log values need to be calculated for every pixel (which can be relatively slow).
 	 * 
 	 * @param px
 	 * @param maxValue
@@ -202,25 +226,15 @@ public class ColorDeconvolutionHelper {
 		double g = green[medianInd];
 		double b = blue[medianInd];
 
-		return new StainVector(name, r, g, b); 
+		return StainVector.createStainVector(name, r, g, b); 
 	}
 
-	public static StainVector generateStainVectorFromRGB(String name, int rgb, double redMax, double greenMax, double blueMax) {
-		double rOD = makeOD(ColorTools.red(rgb), redMax);
-		double gOD = makeOD(ColorTools.green(rgb), greenMax); //J
-		double bOD = makeOD(ColorTools.blue(rgb), blueMax); //J
-		return new StainVector(name, rOD, gOD, bOD);
-	}
 
 	/**
 	 * Determine median of RGB values.
 	 * The median of each channel is computed separately.
 	 * 
-	 * @param name
-	 * @param rgb
-	 * @param redMax
-	 * @param greenMax
-	 * @param blueMax
+	 * @param rgb array of packed RGB values
 	 * @return
 	 */
 	public static int getMedianRGB(int[] rgb) {
@@ -249,65 +263,6 @@ public class ColorDeconvolutionHelper {
 		return array[array.length/2];
 	}
 
-	//	public static ColorDeconvolutionStains refineColorDeconvolutionStains(int[] buf, ColorDeconvolutionStains stains) {
-	//		
-	//		StainVector stain1 = stains.getStain(1);
-	//		StainVector stain2 = stains.getStain(2);
-	//		
-	//		// Compute color deconvolution & optical density sum
-	//		float[] fpStain1 = ColorDeconvolution.colorDeconvolveRGBArray(buf, stains, 0, null);
-	//		float[] fpStain2 = ColorDeconvolution.colorDeconvolveRGBArray(buf, stains, 1, null);
-	//		
-	//		// Normalize vectors while thresholding
-	//		int[] bufStain1 = new int[buf.length];
-	//		int[] bufStain2 = new int[buf.length];
-	//		int nStain1 = 0;
-	//		int nStain2 = 0;
-	//		int nStained = 0;
-	//		for (int i = 0; i < buf.length; i++) {
-	//			double v1 = fpStain1[i];
-	//			double v2 = fpStain2[i];
-	//	
-	//			double len = Math.sqrt(v1*v1 + v2*v2);
-	//			v1 /= len;
-	//			v2 /= len;
-	//			
-	//			if (len > 0.25) {
-	//				// Count this as a stained pixel
-	//				nStained++;
-	//				// Check if it is negatively stained for one stain or the other
-	//				if (v1 > 0 && v2 < 0) {
-	//					bufStain1[nStain1] = buf[i];
-	//					nStain1++;
-	//				} else if (v1 < 0 && v2 > 0) {
-	//					bufStain2[nStain2] = buf[i];
-	//					nStain2++;
-	//				}
-	//			}
-	//		}
-	//		
-	//		// Refine stains using medians
-	//		StainVector stain1New = null;
-	//		StainVector stain2New = null;
-	//		if (nStain1 > nStained * 0.005) {
-	//			bufStain1 = Arrays.copyOf(bufStain1, nStain1);
-	//			int rgbStain1 = ColorDeconvolutionHelper.getMedianRGB(bufStain1);
-	//			stain1New = ColorDeconvolutionHelper.generateStainVectorFromRGB(stain1.getName(), rgbStain1, stains.getMaxRed(), stains.getMaxGreen(), stains.getMaxBlue());
-	//		} else
-	//			stain1New = stain1;
-	//		
-	//		if (nStain2 > nStained * 0.005) {
-	//			bufStain2 = Arrays.copyOf(bufStain2, nStain2);
-	//			int rgbStain2 = ColorDeconvolutionHelper.getMedianRGB(bufStain2);
-	//			stain2New = ColorDeconvolutionHelper.generateStainVectorFromRGB(stain2.getName(), rgbStain2, stains.getMaxRed(), stains.getMaxGreen(), stains.getMaxBlue());
-	//		} else
-	//			stain2New = stain2;
-	//		
-	//		if (stain1 == stain1New && stain2 == stain2New)
-	//			return stains;
-	//		else
-	//			return new ColorDeconvolutionStains("Stains", stain1New, stain2New, stains.getMaxRed(), stains.getMaxGreen(), stains.getMaxBlue());
-	//	}
 
 	/**
 	 * Attempt to automatically refine color deconvolution stains based upon pixel values.
@@ -404,11 +359,11 @@ public class ColorDeconvolutionHelper {
 		}
 
 		// Create refined stains using means - these determine the main plane upon which pixels containing these stains are expected to fall
-		StainVector stainBase1 = new StainVector("Basis 1", r1Sum/n1, g1Sum/n1, b1Sum/n1);
-		StainVector stainBase2 = new StainVector("Basis 2", r2Sum/n2, g2Sum/n2, b2Sum/n2);
+		StainVector stainBase1 = StainVector.createStainVector("Basis 1", r1Sum/n1, g1Sum/n1, b1Sum/n1);
+		StainVector stainBase2 = StainVector.createStainVector("Basis 2", r2Sum/n2, g2Sum/n2, b2Sum/n2);
 
 		// Create orthonormal vectors
-		stainBase1 = new StainVector("Basis 1", (stainBase1.getRed() + stainBase2.getRed())/2, (stainBase1.getGreen() + stainBase2.getGreen())/2, (stainBase1.getBlue() + stainBase2.getBlue())/2);
+		stainBase1 = StainVector.createStainVector("Basis 1", (stainBase1.getRed() + stainBase2.getRed())/2, (stainBase1.getGreen() + stainBase2.getGreen())/2, (stainBase1.getBlue() + stainBase2.getBlue())/2);
 		StainVector stainNorm = StainVector.makeResidualStainVector(stainBase1, stainBase2);
 		stainBase2 = StainVector.makeOrthogonalStainVector("Basis 2", stainBase1, stainNorm, false);
 
@@ -447,11 +402,11 @@ public class ColorDeconvolutionHelper {
 		// Compute new stain vectors
 		double cos = Math.cos(minAngle);
 		double sin = Math.sin(minAngle);
-		StainVector stain2Refined = new StainVector(stains.getStain(2).getName(), 
+		StainVector stain2Refined = StainVector.createStainVector(stains.getStain(2).getName(), 
 				base1[0]*cos + base2[0]*sin, base1[1]*cos + base2[1]*sin, base1[2]*cos + base2[2]*sin);
 		cos = Math.cos(maxAngle);
 		sin = Math.sin(maxAngle);
-		StainVector stain1Refined = new StainVector(stains.getStain(1).getName(), 
+		StainVector stain1Refined = StainVector.createStainVector(stains.getStain(1).getName(), 
 				base1[0]*cos + base2[0]*sin, base1[1]*cos + base2[1]*sin, base1[2]*cos + base2[2]*sin);
 
 
@@ -463,7 +418,7 @@ public class ColorDeconvolutionHelper {
 
 
 
-	public static boolean[] createStainMask(float[] redOD, float[] greenOD, float[] blueOD, double stainThreshold, boolean excludeGray, boolean excludeUncommonColors, boolean[] mask) {
+	private static boolean[] createStainMask(float[] redOD, float[] greenOD, float[] blueOD, double stainThreshold, boolean excludeGray, boolean excludeUncommonColors, boolean[] mask) {
 		if (mask == null) {
 			mask = new boolean[redOD.length];
 			Arrays.fill(mask, true);
@@ -494,16 +449,6 @@ public class ColorDeconvolutionHelper {
 				mask[i] = false;
 			}
 
-			//			if (r + g + b < stainThreshold)
-			//				mask[i] = false;
-			//			else if (r*gray + g*gray + b*gray > grayThreshold)
-			//				mask[i] = false;
-			//			else if (excludeUncommonColors &&
-			//					!((g > r && r >= b) || (g >= b && b > r))) {
-			//				// Remove colors that can easily be determined as far from the expected pink/purple/brown of common stains in pathology
-			//				mask[i] = false;
-			//			}
-
 		}
 
 		return mask;
@@ -515,10 +460,10 @@ public class ColorDeconvolutionHelper {
 	 * Estimate white (background) values for a brightfield image.
 	 * <p>
 	 * The algorithm computes histograms for each RGB channel, and takes the mode
-	 * of the histogram in the region of the histogram > the mean value for that channel.
+	 * of the histogram in the region of the histogram &gt; the mean value for that channel.
 	 * 
-	 * @param rgb
-	 * @return
+	 * @param rgb an array of packed RGB values
+	 * @return an array containing estimated [red, green and blue] background values
 	 */
 	public static double[] estimateWhiteValues(int[] rgb) {
 		// Create RGB histograms

@@ -148,7 +148,7 @@ public class HistogramPanel extends Canvas {
 	}
 	
 	/**
-	 * Set histogram bar & fill colors based on a base color, which will automatically have its
+	 * Set histogram bar &amp; fill colors based on a base color, which will automatically have its
 	 * opacity adjusted to improve appearance.
 	 * 
 	 * For more control over appearance, setHistogramBarEdgeColor and setHistogramBarFillColor can be used instead.
@@ -174,12 +174,13 @@ public class HistogramPanel extends Canvas {
 			return;
 		}
 		String text;
-		if (histogram.getNormalizeCounts())
+		
+//		if (histogram.getNormalizeCounts())
 			text = "Bin center: " + df.format(0.5 * (histogram.getBinLeftEdge(ind) + histogram.getBinRightEdge(ind))) +
-					", Counts :" + df.format(histogram.getCountsForBin(ind)*100) + "%";
-		else
-			text = "Bin center: " + df.format(0.5 * (histogram.getBinLeftEdge(ind) + histogram.getBinRightEdge(ind))) +
-					", Counts :" + df.format(histogram.getCountsForBin(ind));
+					", Counts: " + df.format(histogram.getCountsForBin(ind)) + " (" + df.format(histogram.getNormalizedCountsForBin(ind)*100) + "%)";
+//		else
+//			text = "Bin center: " + df.format(0.5 * (histogram.getBinLeftEdge(ind) + histogram.getBinRightEdge(ind))) +
+//					", Counts: " + df.format(histogram.getCountsForBin(ind));
 		setTooltipText(text);
 //		if (histogram.getNormalizeCounts())
 //			return String.format("Bin center: %.2f, Counts :%.2f%%",

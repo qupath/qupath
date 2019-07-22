@@ -28,10 +28,10 @@ import org.slf4j.LoggerFactory;
 
 import qupath.lib.gui.ImageDataWrapper;
 import qupath.lib.gui.commands.interfaces.PathCommand;
+import qupath.lib.gui.scripting.QPEx;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
-import qupath.lib.scripting.QPEx;
 
 
 /**

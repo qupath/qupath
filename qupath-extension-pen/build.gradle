@@ -1,10 +1,12 @@
+ext.moduleName = 'qupath.extension.jpen'
 
 description = 'qupath-extension-pen'
 
 configurations {
-  compile.extendsFrom jpen
+  implementation.extendsFrom jpen
+  implementation.extendsFrom javafx
 }
 
 dependencies {
-  compile project(':qupath-gui-fx')
+  implementation project(':qupath-gui-fx')
 }

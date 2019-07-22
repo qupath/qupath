@@ -23,7 +23,7 @@
 
 package qupath.lib.gui.icons;
 
-import java.awt.geom.Area;
+import java.awt.Shape;
 import java.awt.geom.PathIterator;
 import org.controlsfx.glyphfont.Glyph;
 import org.controlsfx.glyphfont.GlyphFont;
@@ -45,9 +45,10 @@ import qupath.lib.gui.helpers.ColorToolsFX;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.roi.EllipseROI;
 import qupath.lib.roi.LineROI;
-import qupath.lib.roi.PathROIToolsAwt;
+import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.PointsROI;
 import qupath.lib.roi.RectangleROI;
+import qupath.lib.roi.interfaces.PathArea;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
@@ -84,6 +85,8 @@ public class PathIconFactory {
 									ELLIPSE_TOOL("\ue909", PathPrefs.colorDefaultAnnotationsProperty()),
 									EXTRACT_REGION("\ue90a"),
 
+									SELECTION_MODE("S"),
+									
 									GRID("\ue90b"),
 									
 									LINE_TOOL("\ue90c", PathPrefs.colorDefaultAnnotationsProperty()),
@@ -96,9 +99,14 @@ public class PathIconFactory {
 									
 									OVERVIEW("\ue911"),
 									
+									PIXEL_CLASSIFICATION("C"),
+									
 									PLAYBACK_PLAY("\ue912"),
 									POINTS_TOOL("\ue913", PathPrefs.colorDefaultAnnotationsProperty()),
 									POLYGON_TOOL("\ue914", PathPrefs.colorDefaultAnnotationsProperty()),
+									
+									// TODO: Update to have a unique icon!
+									POLYLINE_TOOL("V", PathPrefs.colorDefaultAnnotationsProperty()),
 									
 									PLAYBACK_RECORD("\ue915"),
 									RECTANGLE_TOOL("\ue916", PathPrefs.colorDefaultAnnotationsProperty()),
@@ -229,7 +237,7 @@ public class PathIconFactory {
 //			polygon.setFill(null);
 //			return polygon;
 		} else {
-			Area area = PathROIToolsAwt.getArea(pathROI);
+			Shape area = pathROI instanceof PathArea ? RoiTools.getArea(pathROI) : RoiTools.getShape(pathROI);
 			if (area != null) {
 				double xMin = pathROI.getBoundsX();
 				double yMin = pathROI.getBoundsY();
@@ -309,6 +317,8 @@ public class PathIconFactory {
 			return createNode(width, height, PathIcons.POINTS_TOOL);
 		case POLYGON:
 			return createNode(width, height, PathIcons.POLYGON_TOOL);
+		case POLYLINE:
+			return createNode(width, height, PathIcons.POLYLINE_TOOL);
 		case BRUSH:
 			return createNode(width, height, PathIcons.BRUSH_TOOL);
 		case WAND:

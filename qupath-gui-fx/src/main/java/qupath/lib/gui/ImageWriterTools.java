@@ -49,16 +49,17 @@ import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.overlays.HierarchyOverlay;
 import qupath.lib.gui.viewer.overlays.PathOverlay;
 import qupath.lib.images.ImageData;
-import qupath.lib.images.servers.ImageIoImageServer;
+import qupath.lib.images.servers.WrappedBufferedImageServer;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.ServerTools;
+import qupath.lib.images.writers.ImageWriter;
 import qupath.lib.images.writers.JpegWriter;
 import qupath.lib.images.writers.PNGWriter;
-import qupath.lib.io.ImageWriter;
 import qupath.lib.regions.RegionRequest;
 
 /**
  * Class for writing image regions.
- * 
+ * <p>
  * Unfortunately, it has a rather unpleasant design, and isn't to be recommended...
  * 
  * @author Pete Bankhead
@@ -86,7 +87,7 @@ public class ImageWriterTools {
 		imageWriters.put(writer.getClass(), writer);
 	}
 	
-	public static BufferedImage writeImageRegion(final ImageServer<BufferedImage> server, final RegionRequest request) {
+	public static BufferedImage writeImageRegion(final ImageServer<BufferedImage> server, final RegionRequest request) throws IOException {
 		return writeImageRegion(server, request, null);
 	}
 	
@@ -151,7 +152,7 @@ public class ImageWriterTools {
 	
 	
 	
-	public static BufferedImage writeImageRegion(final ImageServer<BufferedImage> server, final RegionRequest request, final String path) {
+	public static BufferedImage writeImageRegion(final ImageServer<BufferedImage> server, final RegionRequest request, final String path) throws IOException {
 		// Create a sorted map of potential image writers, putting first those that can handle pixel sizes
 		String ext = null;
 		if (path != null) {
@@ -167,12 +168,7 @@ public class ImageWriterTools {
 		// If we have a path, use the 'best' writer we have, i.e. the first one that supports pixel sizes
 		if (path != null) {
 			for (ImageWriter<BufferedImage> writer : compatibleWriters.keySet()) {
-				try {
-					return compatibleWriters.firstKey().writeImage(server, request, path);
-				} catch (Exception e) {
-					logger.error("Error writing " + path + " with " + writer.getName());
-					e.printStackTrace();
-				}
+				return compatibleWriters.firstKey().writeImage(server, request, path);
 			}
 			logger.error("Unable to write " + path + "!  No compatible writer found.");
 			return null;
@@ -215,7 +211,7 @@ public class ImageWriterTools {
 
 
 		
-		File fileOutput = QuPathGUI.getSharedDialogHelper().promptToSaveFile(null, null, server.getShortServerName(), writer.getName(), writer.getExtension());
+		File fileOutput = QuPathGUI.getSharedDialogHelper().promptToSaveFile(null, null, ServerTools.getDisplayableImageName(server), writer.getName(), writer.getExtension());
 		if (fileOutput == null)
 			return null;
 		try {
@@ -232,12 +228,12 @@ public class ImageWriterTools {
 	
 	
 	
-	public static BufferedImage writeImageRegionWithOverlay(final QuPathViewer viewer, final RegionRequest request, final String path) {
+	public static BufferedImage writeImageRegionWithOverlay(final QuPathViewer viewer, final RegionRequest request, final String path) throws IOException {
 		return writeImageRegionWithOverlay(viewer.getServer(), viewer.getOverlayLayers(), request, path);
 	}
 	
 	
-	public static BufferedImage writeImageRegionWithOverlay(final ImageData<BufferedImage> imageData, final OverlayOptions overlayOptions, final RegionRequest request, final String path) {
+	public static BufferedImage writeImageRegionWithOverlay(final ImageData<BufferedImage> imageData, final OverlayOptions overlayOptions, final RegionRequest request, final String path) throws IOException {
 		HierarchyOverlay overlay = new HierarchyOverlay(null, overlayOptions, imageData);
 		return writeImageRegionWithOverlay(imageData.getServer(), Collections.singletonList(overlay), request, path);
 	}
@@ -248,7 +244,7 @@ public class ImageWriterTools {
 	}
 	
 	
-	public static BufferedImage writeImageRegionWithOverlay(final ImageServer<BufferedImage> server, final List<? extends PathOverlay> overlayLayers, final RegionRequest request, final String path) {
+	public static BufferedImage writeImageRegionWithOverlay(final ImageServer<BufferedImage> server, final List<? extends PathOverlay> overlayLayers, final RegionRequest request, final String path) throws IOException {
 		if (server == null)
 			return null;
 //		SortedMap<ImageWriter, String> compatibleWriters = getRGBWriters(ext);
@@ -283,7 +279,7 @@ public class ImageWriterTools {
 		
 //		ImageServer server2 = new ImageServer<BufferedImage>(server.getServerPath() + ": (" + request.getX() + ", " + request.getY() + ", " + request.getWidth() + ", " + request.getHeight() + ")", null, img);
 		try {
-			ImageServer<BufferedImage> server2 = new ImageIoImageServer(request.toString(), null, img);
+			ImageServer<BufferedImage> server2 = new WrappedBufferedImageServer(null, img);
 			BufferedImage success = writeImageRegion(server2, RegionRequest.createInstance(server2.getPath(), 1, 0, 0, server2.getWidth(), server2.getHeight()), path);
 			server2.close();
 			return success;

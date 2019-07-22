@@ -61,7 +61,7 @@ public class PanelToolsFX {
 	/**
 	 * Create a GridPane containing columns that resize similarly to Swing's GridLayout().
 	 * 
-	 * @param nodes
+	 * @param nCols
 	 * @return
 	 */
 	public static GridPane createColumnGrid(final int nCols) {

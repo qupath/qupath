@@ -23,10 +23,12 @@
 
 package qupath.lib.analysis.algorithms;
 
+import qupath.lib.analysis.images.SimpleImage;
+import qupath.lib.analysis.images.SimpleModifiableImage;
 
 /**
- * Implementation of 2D morphological reconstruction.
- * 
+ * Implementation of 2D morphological reconstruction, using 8-connectivity &amp; a hybrid method.
+ * <p>
  * TODO: Implement any further optimizations added to the ImageJ version
  * 
  * @author Pete Bankhead
@@ -211,7 +213,13 @@ public class MorphologicalReconstruction {
 		return true;
 	}
 	
-	
+	/**
+	 * Apply morphological reconstruction with the specified marker and mask images.
+	 * 
+	 * @param imMarker
+	 * @param imMask
+	 * @return true if the reconstruction terminated successfully, false if it stopped early (e.g. due to an interruption).
+	 */
 	public static boolean morphologicalReconstruction(SimpleModifiableImage imMarker, SimpleImage imMask) {
 		// Apply forward propagation
 		dilateAndCompare(imMarker, imMask, false, null);
@@ -223,62 +231,60 @@ public class MorphologicalReconstruction {
 	}
 
 	
-}
-
-
-
-class IntDequeue {
-	
-	private int[] array;
-	private int head = 0; // Points to location of first element in queue
-	private int tail = 0; // Points to location of *next* insert
-	private static int MAX_EXPANSION = 1024*10;
-	
-	public IntDequeue(int capacity) {
-//		IJ.log("Using INT DEQUE!");
-		array = new int[capacity];
-		head = 0;
-		tail = 0;
-	}
-	
-	public boolean isEmpty() {
-		return tail == head;
-	}
-	
-	/**
-	 * Performs no check that the output will be valid (caller should use isEmpty first to check this)
-	 * @return
-	 */
-	public int remove() {
-		head++;
-		return array[head-1];
-	}
-	
-	public void add(int val) {
-		// Do a normal add if we can
-		if (tail < array.length) {
-			array[tail] = val;
-			tail++;
-			return;
-		}
-		// Shift everything back if that's an option
-		if (head != 0) {
-//			IJ.log("Shifting with head at " + head);
-			if (tail > head)
-				System.arraycopy(array, head, array, 0, tail-head);
-			tail -= head;
+	static class IntDequeue {
+		
+		private int[] array;
+		private int head = 0; // Points to location of first element in queue
+		private int tail = 0; // Points to location of *next* insert
+		private static int MAX_EXPANSION = 1024*10;
+		
+		public IntDequeue(int capacity) {
+//			IJ.log("Using INT DEQUE!");
+			array = new int[capacity];
 			head = 0;
+			tail = 0;
+		}
+		
+		public boolean isEmpty() {
+			return tail == head;
+		}
+		
+		/**
+		 * Performs no check that the output will be valid (caller should use isEmpty first to check this)
+		 * @return
+		 */
+		public int remove() {
+			head++;
+			return array[head-1];
+		}
+		
+		public void add(int val) {
+			// Do a normal add if we can
+			if (tail < array.length) {
+				array[tail] = val;
+				tail++;
+				return;
+			}
+			// Shift everything back if that's an option
+			if (head != 0) {
+//				IJ.log("Shifting with head at " + head);
+				if (tail > head)
+					System.arraycopy(array, head, array, 0, tail-head);
+				tail -= head;
+				head = 0;
+				array[tail] = val;
+				tail++;
+				return;
+			}
+			// We need to expand the array
+			int[] array2 = new int[Math.max(array.length*2, MAX_EXPANSION)];
+			System.arraycopy(array, 0, array2, 0, array.length);
+			array = array2;
 			array[tail] = val;
 			tail++;
-			return;
+//			IJ.log("Expanding IntDeque to length " + array.length);
 		}
-		// We need to expand the array
-		int[] array2 = new int[Math.max(array.length*2, MAX_EXPANSION)];
-		System.arraycopy(array, 0, array2, 0, array.length);
-		array = array2;
-		array[tail] = val;
-		tail++;
-//		IJ.log("Expanding IntDeque to length " + array.length);
+		
 	}
 	
 }

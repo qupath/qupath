@@ -23,6 +23,7 @@
 
 package qupath.lib.gui.logging;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -32,9 +33,11 @@ import org.slf4j.LoggerFactory;
 
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.LoggerContext;
+import ch.qos.logback.classic.encoder.PatternLayoutEncoder;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.classic.spi.StackTraceElementProxy;
 import ch.qos.logback.core.AppenderBase;
+import ch.qos.logback.core.FileAppender;
 import javafx.application.Platform;
 
 
@@ -67,6 +70,31 @@ public class LoggingAppender extends AppenderBase<ILoggingEvent> {
 			logger.warn("Cannot append logging info without logback!");
 	}
 
+	
+	/**
+	 * Send logging messages to the specified file.
+	 * 
+	 * @param file
+	 */
+	public void addFileAppender(File file) {
+		if (LoggerFactory.getILoggerFactory() instanceof LoggerContext) {
+			LoggerContext context = (LoggerContext)LoggerFactory.getILoggerFactory();
+			FileAppender appender = new FileAppender<>();
+			
+			PatternLayoutEncoder encoder = new PatternLayoutEncoder();
+			encoder.setContext(context);
+			encoder.setPattern("%d{HH:mm:ss.SSS} [%thread] [%-5level] %logger{36} - %msg%n");
+			encoder.start();
+				    
+			appender.setFile(file.getAbsolutePath());
+			appender.setContext(context);
+			appender.setEncoder(encoder);
+			appender.setName(file.getName());
+			appender.start();
+			context.getLogger(Logger.ROOT_LOGGER_NAME).addAppender(appender);
+		} else
+			logger.warn("Cannot append logging info without logback!");
+	}
 
 
 	public synchronized static LoggingAppender getInstance() {

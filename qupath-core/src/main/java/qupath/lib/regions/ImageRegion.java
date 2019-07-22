@@ -27,7 +27,8 @@ import qupath.lib.roi.interfaces.ROI;
 
 /**
  * Class for defining an image region.
- * A boundary box is given in pixel coordinates, while z & t values are given as indices.
+ * <p>
+ * A boundary box is given in pixel coordinates, while z &amp; t values are given as indices.
  * 
  * @author Pete Bankhead
  *
@@ -57,10 +58,29 @@ public class ImageRegion {
 		this.t = t;
 	}
 	
+	/**
+	 * Create a region based on its bounding box coordinates, z-slice index and time point index.
+	 * @param x
+	 * @param y
+	 * @param width
+	 * @param height
+	 * @param z
+	 * @param t
+	 * @return
+	 */
 	public static ImageRegion createInstance(final int x, final int y, final int width, final int height, final int z, final int t) {
+		if (width < 0)
+			throw new IllegalArgumentException("Width must be >= 0! Requested width = " + width);
+		if (height < 0)
+			throw new IllegalArgumentException("Height must be >= 0! Requested height = " + height);
 		return new ImageRegion(x, y, width, height, z, t);
 	}
 	
+	/**
+	 * Create the smallest region that completely contains a specified ROI.
+	 * @param pathROI
+	 * @return
+	 */
 	public static ImageRegion createInstance(final ROI pathROI) {
 		int x1 = (int)pathROI.getBoundsX();
 		int y1 = (int)pathROI.getBoundsY();
@@ -70,8 +90,9 @@ public class ImageRegion {
 	}
 	
 	/**
-	 * Returns true if the region specified by this request overlaps with that of another request.
-	 * The test includes insuring that they refer to the same image.
+	 * Returns true if the region specified by this region overlaps with another.
+	 * <p>
+	 * If either z or t is &lt; 0 then that value will be ignored.
 	 * 
 	 * @param request
 	 * @return
@@ -81,6 +102,14 @@ public class ImageRegion {
 				intersects(request.x, request.y, request.width, request.height);
 	}
 	
+	/**
+	 * Query if this region intersects with a specified bounding box, ignoring z-slice and time point information.
+	 * @param x2
+	 * @param y2
+	 * @param w2
+	 * @param h2
+	 * @return
+	 */
 	public boolean intersects(final double x2, final double y2, final double w2, final double h2) {
 		if (w2 <= 0 || h2 <= 0)
             return false;		
@@ -88,31 +117,113 @@ public class ImageRegion {
                 y2 + h2 > y &&
                 x2 < x + width &&
                 y2 < y + height);
-//		return new Rectangle(x, y, width, height).intersects(x2, y2, w2, h2);
 	}
 
+	/**
+	 * Check if this region contains a specified coordinate.
+	 * 
+	 * @param x
+	 * @param y
+	 * @param z
+	 * @param t
+	 * @return
+	 */
+	public boolean contains(int x, int y, int z, int t) {
+		return getZ() == z &&
+			   getT() == t &&
+			   x >= getX() &&
+			   x < getX() + getWidth() &&
+			   y >= getY() &&
+			   y < getY() + getHeight();
+	}
+	
+	/**
+	 * Get the x coordinate of the region bounding box (top left).
+	 * @return
+	 */
 	public int getX() {
 		return x;
 	}
 	
+	/**
+	 * Get the y coordinate of the region bounding box (top left).
+	 * @return
+	 */
 	public int getY() {
 		return y;
 	}
 	
+	/**
+	 * Get the width of the region bounding box.
+	 * @return
+	 */
 	public int getWidth() {
 		return width;
 	}
 	
+	/**
+	 * Get the height of the region bounding box.
+	 * @return
+	 */
 	public int getHeight() {
 		return height;
 	}
 	
+	/**
+	 * Get the z-slice index for the region.
+	 * @return
+	 */
 	public int getZ() {
 		return z;
 	}
 
+	/**
+	 * Get the time point index for the region.
+	 * @return
+	 */
 	public int getT() {
 		return t;
+	}
+	
+	
+	/**
+	 * Get the x coordinate of the top left of the region bounding box.
+	 * @return
+	 */
+	public int getMinX() {
+		return Math.min(getX(), getX() + getWidth());
+	}
+
+	/**
+	 * Get the x coordinate of the bottom right of the region bounding box.
+	 * @return
+	 */
+	public int getMaxX() {
+		return Math.max(getX(), getX() + getWidth());
+	}
+	
+	/**
+	 * Get the y coordinate of the top left of the region bounding box.
+	 * @return
+	 */
+	public int getMinY() {
+		return Math.min(getY(), getY() + getHeight());
+	}
+
+	/**
+	 * Get the y coordinate of the bottom right of the region bounding box.
+	 * @return
+	 */
+	public int getMaxY() {
+		return Math.max(getY(), getY() + getHeight());
+	}
+
+	/**
+	 * Get the z-slice and time point for this region as an {@link ImagePlane}.
+	 * @return
+	 */
+	public ImagePlane getPlane() {
+		return ImagePlane.getPlane(getZ(), getT());
 	}
 	
 	/* (non-Javadoc)

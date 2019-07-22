@@ -38,9 +38,9 @@ import org.slf4j.LoggerFactory;
 
 /**
  * A collection of steps that relate to how an image has been - or should be - processed.
- * 
+ * <p>
  * This can also be used to implement a 'command history'.
- * 
+ * <p>
  * Where the WorkflowSteps contained in the Workflow are scriptable, then a 
  * script can be created automatically.
  * 
@@ -55,7 +55,7 @@ public class Workflow implements Externalizable {
 	
 	static int version = 1;
 	
-	transient private Vector<WorkflowListener> listeners = new Vector<>();
+	transient private List<WorkflowListener> listeners = Collections.synchronizedList(new ArrayList<>());
 	
 	private List<WorkflowStep> steps = new ArrayList<>();
 	
@@ -86,33 +86,53 @@ public class Workflow implements Externalizable {
 //		fireWorkflowUpdatedEvent();
 //	}
 	
+	/**
+	 * Append a new step to the end of the workflow, firing an update event.
+	 * @param step
+	 */
 	public synchronized void addStep(final WorkflowStep step) {
 		steps.add(step);
 		fireWorkflowUpdatedEvent();
 	}
 	
+	/**
+	 * Append multiple steps to the end of the workflow, firing a single update event.
+	 * @param steps
+	 */
 	public synchronized void addSteps(final Collection<WorkflowStep> steps) {
 		this.steps.addAll(steps);
 		fireWorkflowUpdatedEvent();
 	}
 	
+	/**
+	 * Remove a single step, identified by its list index.
+	 * @param ind
+	 */
 	public synchronized void removeStep(final int ind) {
 		if (steps.remove(ind) != null)
 			fireWorkflowUpdatedEvent();
 	}
 
+	/**
+	 * Remove a single step, firing an update event if the step was successfully removed.
+	 * @param step
+	 */
 	public synchronized void removeStep(final WorkflowStep step) {
 		if (steps.remove(step))
 			fireWorkflowUpdatedEvent();
 	}
 	
+	/**
+	 * Remove a collection of steps, firing an update event if the workflow was changed.
+	 * @param steps
+	 */
 	public synchronized void removeSteps(final Collection<WorkflowStep> steps) {
 		if (this.steps.removeAll(steps))
 			fireWorkflowUpdatedEvent();
 	}
 	
 	/**
-	 * Replace the most recently added step with this one
+	 * Replace the most recently added step with this one.
 	 * @param step
 	 */
 	public synchronized void replaceLastStep(final WorkflowStep step) {
@@ -121,14 +141,25 @@ public class Workflow implements Externalizable {
 		addStep(step);
 	}
 	
+	/**
+	 * Total number of steps in the workflow.
+	 * @return
+	 */
 	public int size() {
 		return steps.size();
 	}
 	
+	/**
+	 * Returns true if the workflow does not contain any steps.
+	 * @return
+	 */
 	public boolean isEmpty() {
 		return steps.isEmpty();
 	}
 	
+	/**
+	 * Remove all steps, firing an update event if the workflow was not previously empty.
+	 */
 	public void clear() {
 		if (isEmpty())
 			return;
@@ -141,17 +172,28 @@ public class Workflow implements Externalizable {
 			listener.workflowUpdated(this);
 	}
 	
+	/**
+	 * Add a listener for changes to the workflow.
+	 * @param listener
+	 */
 	public void addWorkflowListener(WorkflowListener listener) {
 		if (listeners == null)
 			listeners = new Vector<>();
 		this.listeners.add(listener);
 	}
 	
+	/**
+	 * Remove a listener for changes to the workflow.
+	 * @param listener
+	 */
 	public void removeWorkflowListener(WorkflowListener listener) {
 		this.listeners.remove(listener);
 	}
 	
-	
+	/**
+	 * Generate a script from the current workflow steps.
+	 * @return
+	 */
 	public String createScript() {
 		StringBuilder sb = new StringBuilder();
 		
@@ -168,7 +210,7 @@ public class Workflow implements Externalizable {
 		// Add all scriptable steps, and put comments in where a step isn't scriptable
 		for (WorkflowStep step : steps) {
 			if (step instanceof ScriptableWorkflowStep)
-				sb.append(((ScriptableWorkflowStep)step).getJavascript());
+				sb.append(((ScriptableWorkflowStep)step).getScript());
 			else
 				sb.append("// ").append(step.getName()).append(" is not scriptable");
 			sb.append("\n");

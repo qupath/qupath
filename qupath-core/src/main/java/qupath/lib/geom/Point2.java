@@ -32,7 +32,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A 2D point (x & y coordinates).
+ * A 2D point (x &amp; y coordinates).
  * 
  * @author Pete Bankhead
  *
@@ -71,36 +71,64 @@ public class Point2 extends AbstractPoint implements Externalizable {
 	
 	private double x, y;
 	
-	// For reasons of supporting Externalizable...
+	/**
+	 * Default constructor for a point at location (0,0).
+	 */
 	public Point2() {}
 	
+	/**
+	 * Point constructor.
+	 * @param x
+	 * @param y
+	 */
 	public Point2(final double x, final double y) {
 		this.x = x;
 		this.y = y;
 	}
 	
-	public Point2(final Point2 p) {
-		this(p.getX(), p.getY());
-	}
-	
+	/**
+	 * Get the x coordinate of this point.
+	 * @return
+	 */
 	public double getX() {
 		return x;
 	}
 
+	/**
+	 * Get the y coordinate of this point.
+	 * @return
+	 */
 	public double getY() {
 		return y;
 	}
 
+	/**
+	 * Calculate the squared distance between this point and a specified x and y location.
+	 * @param x
+	 * @param y
+	 * @return
+	 */
 	public double distanceSq(final double x, final double y) {
 		double dx = this.x - x;
 		double dy = this.y - y;
 		return dx * dx + dy * dy;
 	}
 	
+	/**
+	 * Calculate the distance between this point and a specified x and y location.
+	 * @param x
+	 * @param y
+	 * @return
+	 */
 	public double distance(final double x, final double y) {
 		return Math.sqrt(distanceSq(x, y));
 	}
 	
+	/**
+	 * Calculate the distance between this point and another point.
+	 * @param p
+	 * @return
+	 */
 	public double distance(final Point2 p) {
 		return distance(p.getX(), p.getY());
 	}
@@ -111,7 +139,7 @@ public class Point2 extends AbstractPoint implements Externalizable {
 			return x;
 		else if (dim == 1)
 			return y;
-		throw new RuntimeException("Requested dimension " + dim + " for Point2 - allowable values are 0 and 1");
+		throw new IllegalArgumentException("Requested dimension " + dim + " for Point2 - allowable values are 0 and 1");
 	}
 
 	@Override

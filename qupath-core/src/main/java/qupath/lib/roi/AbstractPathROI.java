@@ -23,7 +23,11 @@
 
 package qupath.lib.roi;
 
+import org.locationtech.jts.geom.Geometry;
+
+import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.interfaces.ROI;
+import qupath.lib.roi.jts.ConverterJTS;
 
 /**
  * Abstract implementation of a ROI.
@@ -31,32 +35,46 @@ import qupath.lib.roi.interfaces.ROI;
  * @author Pete Bankhead
  *
  */
-public abstract class AbstractPathROI implements ROI {
+abstract class AbstractPathROI implements ROI {
 	
 	// Dimension variables
 	int c = -1; // Defaults to -1, indicating all channels
 	int t = 0; // Defaults to 0, indicating first time point
 	int z = 0; // Defaults to 0, indiciating first z-slice
 	
+	transient ImagePlane plane;
+	
 	public AbstractPathROI() {
-		this(-1, 0, 0);
+		this(null);
 	}
 	
-	public AbstractPathROI(int c, int z, int t) {
+	public AbstractPathROI(ImagePlane plane) {
 		super();
-		this.c = c;
-		this.z = z;
-		this.t = t;
+		if (plane == null)
+			plane = ImagePlane.getDefaultPlane();
+		this.c = plane.getC();
+		this.z = plane.getZ();
+		this.t = plane.getT();
 	}
 	
+	@Override
+	public ImagePlane getImagePlane() {
+		if (plane == null)
+			plane = ImagePlane.getPlaneWithChannel(c, z, t);
+		return plane;
+	}
 	
-//	public boolean isAdjusting() {
-//		return isAdjusting;
-//	}
-	
-//	public void finishAdjusting(double x, double y, boolean shiftDown) {
-//		updateAdjustment(x, y, shiftDown);
-//		isAdjusting = false;
+//	Object asType(Class<?> cls) {
+//		if (cls.isInstance(this))
+//			return this;
+//		
+//		if (cls == Geometry.class)
+//			return ConverterJTS.getGeometry(this);
+//
+//		if (cls == Shape.class)
+//			return PathROIToolsAwt.getShape(this);
+//		
+//		throw new ClassCastException("Cannot convert " + t + " to " + cls);
 //	}
 	
 	@Override
@@ -90,9 +108,33 @@ public abstract class AbstractPathROI implements ROI {
 //		if (name != null)
 ////			return name;			
 //			return name + " - " + getROIType();			
-		return getROIType();
+		return getRoiName();
 //		return String.format("%s (%.1f, %.1f)", getROIType(), getCentroidX(), getCentroidY());
 //		return "Me";
 	}
-		
+	
+
+	@Override
+	public boolean isLine() {
+		return getRoiType() == RoiType.LINE;
+	}
+	
+	@Override
+	public boolean isArea() {
+		return getRoiType() == RoiType.AREA;
+	}
+	
+	@Override
+	public boolean isPoint() {
+		return getRoiType() == RoiType.POINT;
+	}
+	
+	private static ConverterJTS converter = new ConverterJTS.Builder().build();
+	
+	@Override
+	public Geometry getGeometry() {
+		return converter.roiToGeometry(this);
+	}
+	
+	
 }

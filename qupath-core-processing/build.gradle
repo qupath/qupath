@@ -1,9 +1,13 @@
+ext.moduleName = 'qupath.core.processing'
 
 description = 'qupath-core-processing'
 
 configurations {
-  compile.extendsFrom commonsmath
-  compile.extendsFrom gson
+  implementation.extendsFrom commonsmath
+  implementation.extendsFrom gson
+  implementation.extendsFrom imagej
+  implementation.extendsFrom opencv
+  implementation.extendsFrom jts
 }
 
 dependencies {

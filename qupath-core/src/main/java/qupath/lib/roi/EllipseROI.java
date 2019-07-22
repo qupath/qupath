@@ -23,6 +23,8 @@
 
 package qupath.lib.roi;
 
+import java.awt.Shape;
+import java.awt.geom.Ellipse2D;
 import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
 import java.io.Serializable;
@@ -31,6 +33,7 @@ import java.util.List;
 
 import qupath.lib.common.GeneralTools;
 import qupath.lib.geom.Point2;
+import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.interfaces.PathArea;
 import qupath.lib.roi.interfaces.ROI;
 import qupath.lib.roi.interfaces.TranslatableROI;
@@ -45,24 +48,12 @@ public class EllipseROI extends AbstractPathBoundedROI implements PathArea, Seri
 	
 	private static final long serialVersionUID = 1L;
 	
-	protected EllipseROI() {
+	EllipseROI() {
 		super();
 	}
-	
-	public EllipseROI(double x, double y) {
-		super(x, y);
-	}
-	
-	public EllipseROI(double x, double y, int c, int z, int t) {
-		super(x, y, c, z, t);
-	}
 
-	public EllipseROI(double x, double y, double width, double height) {
-		super(x, y, width, height, -1, 0, 0);
-	}
-
-	public EllipseROI(double x, double y, double width, double height, int c, int z, int t) {
-		super(x, y, width, height, c, z, t);
+	EllipseROI(double x, double y, double width, double height, ImagePlane plane) {
+		super(x, y, width, height, plane);
 	}
 	
 	@Override
@@ -76,15 +67,22 @@ public class EllipseROI extends AbstractPathBoundedROI implements PathArea, Seri
 	}
 	
 	@Override
-	public String getROIType() {
+	public String getRoiName() {
 		return "Ellipse";
 	}
 	
-	
+	/**
+	 * Query if the width and height of the ellipse bounding box are the same, assuming 'square' pixels.
+	 * @return
+	 */
 	public boolean isCircle() {
 		return isCircle(1, 1);
 	}
 	
+	/**
+	 * Query if the width and height of the ellipse bounding box are the same, optionally using 'non-square' pixels.
+	 * @return
+	 */
 	public boolean isCircle(double pixelWidth, double pixelHeight) {
 		return GeneralTools.almostTheSame(getBoundsWidth() * pixelWidth, getBoundsHeight() * pixelHeight, 0.00001);
 	}
@@ -122,6 +120,11 @@ public class EllipseROI extends AbstractPathBoundedROI implements PathArea, Seri
 	}
 
 	// TODO: Fix the ellipse polygon points to make it less diamond-y
+	/**
+	 * Since ellipses aren't represented internally with simple polygon points, 
+	 * this currently returns only 4 points (rather more diamond-like that would be ideal).
+	 * This behavior may change.
+	 */
 	@Override
 	public List<Point2> getPolygonPoints() {
 		return Arrays.asList(new Point2(x/2+x2/2, y),
@@ -131,6 +134,10 @@ public class EllipseROI extends AbstractPathBoundedROI implements PathArea, Seri
 	}
 
 	
+	@Override
+	public Shape getShape() {
+		return new Ellipse2D.Double(x, y, x2-x, y2-y);
+	}
 	
 	
 	private Object writeReplace() {
@@ -163,7 +170,7 @@ public class EllipseROI extends AbstractPathBoundedROI implements PathArea, Seri
 		}
 		
 		private Object readResolve() {
-			EllipseROI roi = new EllipseROI(x, y, x2-x, y2-y, c, z, t);
+			EllipseROI roi = new EllipseROI(x, y, x2-x, y2-y, ImagePlane.getPlaneWithChannel(c, z, t));
 			return roi;
 		}
 		
@@ -175,7 +182,7 @@ public class EllipseROI extends AbstractPathBoundedROI implements PathArea, Seri
 		if (dx == 0 && dy == 0)
 			return this;
 		// Shift the bounds
-		return new EllipseROI(getBoundsX()+dx, getBoundsY()+dy, getBoundsWidth(), getBoundsHeight(), getC(), getZ(), getT());
+		return new EllipseROI(getBoundsX()+dx, getBoundsY()+dy, getBoundsWidth(), getBoundsHeight(), getImagePlane());
 	}
 
 

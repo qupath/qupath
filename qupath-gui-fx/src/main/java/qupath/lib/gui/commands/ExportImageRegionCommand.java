@@ -25,6 +25,7 @@ package qupath.lib.gui.commands;
 
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.io.IOException;
 
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.BooleanProperty;
@@ -50,6 +51,7 @@ import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.ServerTools;
 import qupath.lib.objects.PathObject;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.interfaces.ROI;
@@ -180,16 +182,20 @@ public class ExportImageRegionCommand implements PathCommand {
 
 		// Create a sensible default file name, and prompt for the actual name
 		String ext = "JPEG".equals(selectedImageType.get()) ? "jpg" : selectedImageType.get().toLowerCase();
-		String defaultName = roi == null ? server.getShortServerName() : 
-			String.format("%s (%s, %d, %d, %d, %d)", server.getShortServerName(), GeneralTools.formatNumber(request.getDownsample(), 2), request.getX(), request.getY(), request.getWidth(), request.getHeight());
+		String defaultName = roi == null ? ServerTools.getDisplayableImageName(server) : 
+			String.format("%s (%s, %d, %d, %d, %d)", ServerTools.getDisplayableImageName(server), GeneralTools.formatNumber(request.getDownsample(), 2), request.getX(), request.getY(), request.getWidth(), request.getHeight());
 		File fileOutput = qupath.getDialogHelper().promptToSaveFile("Export image region", null, defaultName, selectedImageType.get(), ext);
 		if (fileOutput == null)
 			return;
 		
-		if (includeOverlay.get())
-			ImageWriterTools.writeImageRegionWithOverlay(viewer, request, fileOutput.getAbsolutePath());
-		else
-			ImageWriterTools.writeImageRegion(server, request, fileOutput.getAbsolutePath());
+		try {
+			if (includeOverlay.get())
+				ImageWriterTools.writeImageRegionWithOverlay(viewer, request, fileOutput.getAbsolutePath());
+			else
+				ImageWriterTools.writeImageRegion(server, request, fileOutput.getAbsolutePath());
+		} catch (IOException e) {
+			DisplayHelpers.showErrorMessage("Export region", e);
+		}
 	}
 	
 }

@@ -1,6 +1,0 @@
-
-description = 'qupath-extension-ij'
-dependencies {
-  compile project(':qupath-processing-ij')
-  compile project(':qupath-gui-fx')
-}

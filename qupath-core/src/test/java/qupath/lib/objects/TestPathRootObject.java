@@ -104,17 +104,17 @@ public class TestPathRootObject extends PathObjectTestWrapper {
 		for (int i = 0; i < nPO; ++i) 
 			colPO.add(new PathRootObject());
 		test_nChildObjects(myPO, 0);
-		test_getPathObjectList(myPO, Collections.emptyList()); // no children yet
+		test_comparePathObjectListContents(myPO, Collections.emptyList()); // no children yet
 		test_addPathObjects(myPO, colPO, nPO);
-		test_getPathObjectList(myPO, colPO);
+		test_comparePathObjectListContents(myPO, colPO);
 		test_removePathObjects(myPO, colPO, 0);
-		test_getPathObjectList(myPO, Collections.emptyList());
+		test_comparePathObjectListContents(myPO, Collections.emptyList());
 		test_addPathObjects(myPO, colPO, nPO);
 		test_clearPathObjects(myPO, 0); 
 	}
 	@Test
 	public void test_SetGetPathClass() {
-		test_getPathClass(myPO, PathClassFactory.getDefaultPathClass(PathClassFactory.PathClasses.IMAGE_ROOT)); 
+		test_getPathClass(myPO, PathClassFactory.getPathClass(PathClassFactory.StandardPathClasses.IMAGE_ROOT)); 
 		//test_setPathClass(myPO, unclassErrMsg, errContent); // cannot be set
 		test_getClassProbability(myPO, Double.NaN);
 	}

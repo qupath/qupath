@@ -27,8 +27,7 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 
-import qupath.lib.analysis.algorithms.FloatArraySimpleImage;
-import qupath.lib.analysis.algorithms.SimpleImage;
+import qupath.lib.analysis.images.SimpleImage;
 
 /**
  * Initial test implementation of Local Binary Patterns.
@@ -39,24 +38,24 @@ import qupath.lib.analysis.algorithms.SimpleImage;
 public class LocalBinaryPatterns {
 	
 	// LUT for LBP using 8-neighbours, compressing to 36 histogram bins
-	static int[] lbf8map = new int[256];
-	static int nLBF8; // Should be 36
+	private static int[] lbf8map = new int[256];
+	private static int nLBF8; // Should be 36
 
 	// LUT for LBP using 8-neighbours, compressing to 10 histogram bins by using uniformity
-	static int[] lbf8UniformMap = new int[256];
-	static int nLBF8Uniform; // Should be 10
+	private static int[] lbf8UniformMap = new int[256];
+	private static int nLBF8Uniform; // Should be 10
 	
 	// LUT for LBP using 8-neighbours, compressing to 10 histogram bins by using uniformity
-	static int[] lbf16UniformMap = new int[65536];
-	static int nLBF16Uniform; // Should be 18
+	private static int[] lbf16UniformMap = new int[65536];
+	private static int nLBF16Uniform; // Should be 18
 	
 	// Interpolated x & y offsets for 8 neighbours
-	static double[] xo8 = new double[8];
-	static double[] yo8 = new double[8];
+	private static double[] xo8 = new double[8];
+	private static double[] yo8 = new double[8];
 	
 	// Interpolated x & y offsets for 16 neighbours
-	static double[] xo16 = new double[16];
-	static double[] yo16 = new double[16];
+	private static double[] xo16 = new double[16];
+	private static double[] yo16 = new double[16];
 
 	static {
 		// Compute 8-neighbour LUTs
@@ -161,38 +160,37 @@ public class LocalBinaryPatterns {
 	
 	
 	
-	public static void main(String[] args) {
-		System.out.println("Size: " + nLBF8);
-		System.out.println(Arrays.toString(lbf8map));
-
-		System.out.println("Size uniform: " + nLBF8Uniform);
-		System.out.println(Arrays.toString(lbf8UniformMap));
-		
-		System.out.println("Size uniform 16: " + nLBF16Uniform);
-//		// Just to check there really are the correct number of entries...
-//		Arrays.sort(lbf16UniformMap);
-//		System.out.println(Arrays.toString(lbf16UniformMap));
-		
-		System.out.println("X offsets (8): " + Arrays.toString(xo8));
-		System.out.println("Y offsets (8): " + Arrays.toString(yo8));
-		
-		System.out.println("X offsets (16): " + Arrays.toString(xo16));
-		System.out.println("Y offsets (16): " + Arrays.toString(yo16));
-		
-		
-		// TODO: Move to test code location
-		SimpleImage img = new FloatArraySimpleImage(new float[]{1f, 2f, 3f, 4f}, 2, 2);
-		double[] xx = {0, 0.25, 0.5, 0.75, 1};
-		for (double y = 0; y <= 1; y += 0.25) {
-			for (double x : xx)
-//			for (double x : new double[]{0.5})
-				System.out.println(String.format("(%.2f, %.2f): %.4f", x, y, getInterpolatedPixel(img, x, y)));
-		}
-		
-}
+//	public static void main(String[] args) {
+//		System.out.println("Size: " + nLBF8);
+//		System.out.println(Arrays.toString(lbf8map));
+//
+//		System.out.println("Size uniform: " + nLBF8Uniform);
+//		System.out.println(Arrays.toString(lbf8UniformMap));
+//		
+//		System.out.println("Size uniform 16: " + nLBF16Uniform);
+////		// Just to check there really are the correct number of entries...
+////		Arrays.sort(lbf16UniformMap);
+////		System.out.println(Arrays.toString(lbf16UniformMap));
+//		
+//		System.out.println("X offsets (8): " + Arrays.toString(xo8));
+//		System.out.println("Y offsets (8): " + Arrays.toString(yo8));
+//		
+//		System.out.println("X offsets (16): " + Arrays.toString(xo16));
+//		System.out.println("Y offsets (16): " + Arrays.toString(yo16));
+//		
+//		
+//		// TODO: Move to test code location
+//		SimpleImage img = SimpleImages.createFloatImage(new float[]{1f, 2f, 3f, 4f}, 2, 2);
+//		double[] xx = {0, 0.25, 0.5, 0.75, 1};
+//		for (double y = 0; y <= 1; y += 0.25) {
+//			for (double x : xx)
+////			for (double x : new double[]{0.5})
+//				System.out.println(String.format("(%.2f, %.2f): %.4f", x, y, getInterpolatedPixel(img, x, y)));
+//		}
+//	}
 	
 	
-	public static int computeLocalBinaryPattern(final SimpleImage img, final int x, final int y) {
+	private static int computeLocalBinaryPattern(final SimpleImage img, final int x, final int y) {
 		
 		float val = img.getValue(x, y);
 		if (Float.isNaN(val))
@@ -230,7 +228,7 @@ public class LocalBinaryPatterns {
 	
 	
 	
-	public static int computeLocalBinaryPattern16(final SimpleImage img, final int x, final int y, double radius) {
+	private static int computeLocalBinaryPattern16(final SimpleImage img, final int x, final int y, double radius) {
 		
 		float val = img.getValue(x, y);
 		if (Float.isNaN(val))
@@ -250,7 +248,7 @@ public class LocalBinaryPatterns {
 	
 	
 	
-	public static float getInterpolatedPixel(final SimpleImage img, final double x, final double y) {
+	private static float getInterpolatedPixel(final SimpleImage img, final double x, final double y) {
 		// Code based (very very loosely) on http://www.bytefish.de/blog/local_binary_patterns/
 		// Relative indices
         int fx = (int)x;
@@ -283,7 +281,7 @@ public class LocalBinaryPatterns {
 	
 	
 	/**
-	 * Compute normalized LBP histogram for x >= x1 and x < x2 and y >= y1 and y < y2.
+	 * Compute normalized LBP histogram for x &gt;= x1 and x &lt; x2 and y &gt;= y1 and y &lt; y2.
 	 * 
 	 * @param img
 	 * @param x1
@@ -292,7 +290,7 @@ public class LocalBinaryPatterns {
 	 * @param y2
 	 * @return
 	 */
-	public static double[] computeLocalBinaryPatterns(final SimpleImage img, final int x1, final int y1, final int x2, final int y2) {
+	private static double[] computeLocalBinaryPatterns(final SimpleImage img, final int x1, final int y1, final int x2, final int y2) {
 //		double[] hist = new double[nLBF8]; // TODO: Change to uniform representation
 		double[] hist = new double[nLBF8Uniform];
 		int n = 0;
@@ -313,7 +311,7 @@ public class LocalBinaryPatterns {
 
 	
 	
-	public static double[] computeLocalBinaryPatterns16(final SimpleImage img, final int x1, final int y1, final int x2, final int y2, final double radius) {
+	private static double[] computeLocalBinaryPatterns16(final SimpleImage img, final int x1, final int y1, final int x2, final int y2, final double radius) {
 		double[] hist = new double[nLBF16Uniform];
 		int n = 0;
 		for (int y = y1; y < y2; y++) {
@@ -331,14 +329,22 @@ public class LocalBinaryPatterns {
 		return hist;
 	}
 	
-	
+	/**
+	 * Compute local binary pattern descriptor for a SimpleImage.
+	 * <p>
+	 * Note: This method is experimental and requires further testing (or possible removal).
+	 * 
+	 * @param img
+	 * @param radius
+	 * @return
+	 */
 	public static double[] computeLocalBinaryPatterns16(final SimpleImage img, final double radius) {
 		int r2 = (int)Math.ceil(radius);
 		return computeLocalBinaryPatterns16(img, r2, r2, img.getWidth()-r2, img.getHeight()-r2, radius);
 	}
 	
 	
-	public static double[] computeLocalBinaryPatterns(final SimpleImage img) {
+	private static double[] computeLocalBinaryPatterns(final SimpleImage img) {
 		return computeLocalBinaryPatterns(img, 1, 1, img.getWidth()-1, img.getHeight()-1);
 	}
 	

@@ -30,13 +30,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.lib.objects.TMACoreObject;
-import qupath.lib.roi.ROIHelpers;
 
 /**
  * Default implementation of a TMAGrid.
  * 
  * @author Pete Bankhead
- *
  */
 public class DefaultTMAGrid implements TMAGrid {
 	
@@ -48,14 +46,25 @@ public class DefaultTMAGrid implements TMAGrid {
 	private int gridWidth = -1;
 	private int gridHeight = -1;
 	
-	public DefaultTMAGrid(List<TMACoreObject> cores, int gridWidth) {
+	private DefaultTMAGrid(List<TMACoreObject> cores, int gridWidth) {
 		this.cores.addAll(cores);
 		this.gridWidth = gridWidth;
 		this.gridHeight = cores.size() / gridWidth;
 	}
 
-	@Override
-	public int getCoreIndex(String coreName) {
+	/**
+	 * Create a new TMAGrid based on a list of cores and grid width.
+	 * <p>
+	 * It is assumed that the grid height may be calculated as {@code cores.size() / gridWidth}.
+	 * @param cores
+	 * @param gridWidth
+	 * @return
+	 */
+	public static TMAGrid create(List<TMACoreObject> cores, int gridWidth) {
+		return new DefaultTMAGrid(cores, gridWidth);
+	}
+	
+	int getCoreIndex(String coreName) {
 		int ind = 0;
 		for (TMACoreObject core : cores) {
 			String name = core.getName();
@@ -74,7 +83,7 @@ public class DefaultTMAGrid implements TMAGrid {
 		return cores.size();
 	}
 	
-	public int getNMissingCores() {
+	int getNMissingCores() {
 		int missing = 0;
 		for (TMACoreObject core : cores)
 			if (core.isMissing())
@@ -93,11 +102,6 @@ public class DefaultTMAGrid implements TMAGrid {
 	}
 
 	@Override
-	public TMACoreObject getTMACore(int ind) {
-		return cores.get(ind);
-	}
-
-	@Override
 	public TMACoreObject getTMACore(int row, int col) {
 		return cores.get(row * gridWidth + col);
 	}
@@ -107,16 +111,6 @@ public class DefaultTMAGrid implements TMAGrid {
 		ArrayList<TMACoreObject> list = new ArrayList<>();
 		list.addAll(cores);
 		return list;
-	}
-
-	@Override
-	public TMACoreObject getTMACoreForPixel(double x, double y) {
-		// TODO: Consider overlapping cores - would be slightly nicer to return core with closest centroid
-		for (TMACoreObject core : cores) {
-			if (ROIHelpers.areaContains(core.getROI(), x, y))
-				return core;
-		}
-		return null;
 	}
 
 	@Override
@@ -136,15 +130,6 @@ public class DefaultTMAGrid implements TMAGrid {
 	@Override
 	public String toString() {
 		return "TMA Grid: " + nCores() + " cores ("+ getGridWidth() + " x " + getGridHeight() + "), " + getNMissingCores() + " missing";
-	}
-
-	@Override
-	public TMACoreObject getTMACoreByUniqueID(String uniqueID) {
-		for (TMACoreObject core : cores) {
-			if (uniqueID.equals(core.getUniqueID()))
-				return core;
-		}
-		return null;
 	}
 
 }

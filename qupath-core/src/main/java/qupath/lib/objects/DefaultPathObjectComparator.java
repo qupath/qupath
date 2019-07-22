@@ -24,13 +24,14 @@
 package qupath.lib.objects;
 
 import java.util.Comparator;
+import java.util.Objects;
 
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.roi.DefaultROIComparator;
 
 /**
  * Default comparator to enable objects to be sorted in a more predictable manner.
- * 
+ * <p>
  * The aim is to help sorted lists to keep non-detection objects near the top, 
  * and thereafter to sort by ROI location (y coordinate first, then x) according to
  * the DefaultROIComparator.
@@ -44,17 +45,21 @@ public class DefaultPathObjectComparator implements Comparator<PathObject> {
 
 	@Override
 	public int compare(PathObject o1, PathObject o2) {
+		
+		Objects.nonNull(o1);
+		Objects.nonNull(o2);
+		
 		// Quick check...
 		if (o1 == o2)
 			return 0;
 		
-		// Handle nulls
-		if (o1 == null) {
-			if (o2 == null)
-				return 0;
-			return 1;
-		} else if (o2 == null)
-			return -1;
+//		// Handle nulls
+//		if (o1 == null) {
+//			if (o2 == null)
+//				return 0;
+//			return 1;
+//		} else if (o2 == null)
+//			return -1;
 		
 		// Handle class order
 		int temp = -Boolean.compare(o1.isRootObject(), o2.isRootObject());
@@ -88,14 +93,17 @@ public class DefaultPathObjectComparator implements Comparator<PathObject> {
 		PathClass pc2 = o2.getPathClass();
 		if (pc1 != null)
 			return pc1.compareTo(pc2);
-		else if (pc2 != null)
+		if (pc2 != null)
 			return pc2.compareTo(pc1);
 		
 		// Shouldn't end up here much...
 		return 0;
 	}
 	
-	
+	/**
+	 * Get shared comparator instance to sort PathObjects repeatably.
+	 * @return
+	 */
 	public static Comparator<PathObject> getInstance() {
 		return instance;
 	}

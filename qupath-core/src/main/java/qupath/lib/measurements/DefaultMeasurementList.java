@@ -24,21 +24,21 @@
 package qupath.lib.measurements;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
-import java.util.Iterator;
 import java.util.List;
 
 /**
  * A MeasurementList implementation that simply stores a list of Measurement objects.
+ * <p>
  * These can be of any kind, including dynamic measurements (computed on request).
+ * <p>
  * Generally, if only simple, non-dynamic numeric measurements are required, then
  * another MeasurementList would be preferable to reduce memory requirements.
  * 
  * @author Pete Bankhead
  *
  */
-public class DefaultMeasurementList implements MeasurementList {
+class DefaultMeasurementList implements MeasurementList {
 	
 	private static final long serialVersionUID = 1L;
 	
@@ -53,24 +53,17 @@ public class DefaultMeasurementList implements MeasurementList {
 	}
 	
 	@Override
-	public boolean addMeasurement(String name, double value) {
+	public synchronized boolean addMeasurement(String name, double value) {
 		return add(MeasurementFactory.createMeasurement(name, value));
-	}
-
-	public void addAllMeasurements(MeasurementList measurements) {
-		if (measurements == null)
-			return;
-		for (Measurement m : measurements)
-			add(m);
 	}
 	
 	@Override
-	public void clear() {
+	public synchronized void clear() {
 		this.list.clear();
 	}
 	
 	@Override
-	public List<String> getMeasurementNames() {
+	public synchronized List<String> getMeasurementNames() {
 		List<String> names = new ArrayList<>();
 		for (Measurement m : list)
 			names.add(m.getName());
@@ -78,29 +71,23 @@ public class DefaultMeasurementList implements MeasurementList {
 	}
 	
 	@Override
-	public double getMeasurementValue(int ind) {
+	public synchronized double getMeasurementValue(int ind) {
 		if (ind >= 0 && ind < size())
 			return list.get(ind).getValue();
 		return Double.NaN;
 	}
 
 	@Override
-	public double getMeasurementValue(String name) {
+	public synchronized double getMeasurementValue(String name) {
 		for (Measurement m : list) {
 			if (m.getName().equals(name))
 				return m.getValue();
 		}
 		return Double.NaN;
 	}
-	
-	
+		
 	@Override
-	public boolean containsAllNamedMeasurements(Collection<String> measurements) {
-		return getMeasurementNames().containsAll(measurements);
-	}
-	
-	@Override
-	public boolean containsNamedMeasurement(String measurement) {
+	public synchronized boolean containsNamedMeasurement(String measurement) {
 		for (Measurement m : list)
 			if (m.getName().equals(measurement))
 				return true;
@@ -108,7 +95,7 @@ public class DefaultMeasurementList implements MeasurementList {
 	}
 	
 	@Override
-	public String getMeasurementName(int ind) {
+	public synchronized String getMeasurementName(int ind) {
 		return list.get(ind).getName();
 	}
 
@@ -133,22 +120,17 @@ public class DefaultMeasurementList implements MeasurementList {
 		return list.isEmpty();
 	}
 
-	@Override
-	public Iterator<Measurement> iterator() {
-		return list.iterator();
-	}
-
 //	@Override
 //	public void clear() {
 //		list.clear();
 //	}
 
-	void compactStorage() {
+	private void compactStorage() {
 		list.trimToSize();
 	}
 
 	@Override
-	public Measurement putMeasurement(Measurement measurement) {
+	public synchronized Measurement putMeasurement(Measurement measurement) {
 		// Ensure we aren't adding duplicate measurements
 		String name = measurement.getName();
 		int ind = 0;
@@ -164,8 +146,7 @@ public class DefaultMeasurementList implements MeasurementList {
 		return null;
 	}
 	
-	@Override
-	public boolean add(Measurement measurement) {
+	private synchronized boolean add(Measurement measurement) {
 		return list.add(measurement);
 	}
 
@@ -173,27 +154,19 @@ public class DefaultMeasurementList implements MeasurementList {
 //	public boolean remove(Object o) {
 //		return list.remove(o);
 //	}
-	
-	@Override
-	public boolean hasDynamicMeasurements() {
-		for (Measurement m : this)
-			if (m.isDynamic())
-				return true;
-		return false;
-	}
 
 	@Override
-	public void closeList() {
+	public synchronized void close() {
 		compactStorage();
 	}
 
 	@Override
-	public void putMeasurement(String name, double value) {
+	public synchronized void putMeasurement(String name, double value) {
 		putMeasurement(MeasurementFactory.createMeasurement(name, value));
 	}
 
 	@Override
-	public void removeMeasurements(String... measurementNames) {
+	public synchronized void removeMeasurements(String... measurementNames) {
 		for (String name : measurementNames) {
 			int ind = 0;
 			for (Measurement m : list) {
@@ -209,7 +182,7 @@ public class DefaultMeasurementList implements MeasurementList {
 
 	
 	@Override
-	public String toString() {
+	public synchronized String toString() {
 		StringBuilder sb = new StringBuilder();
 		int n = size();
 		sb.append("[");

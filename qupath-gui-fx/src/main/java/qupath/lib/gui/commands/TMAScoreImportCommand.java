@@ -25,11 +25,13 @@ package qupath.lib.gui.commands;
 
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
-import java.util.stream.Collectors;
 import java.util.Scanner;
 
 import org.slf4j.Logger;
@@ -58,12 +60,11 @@ import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.images.ImageData;
 import qupath.lib.io.TMAScoreImporter;
 import qupath.lib.objects.TMACoreObject;
-import qupath.lib.objects.hierarchy.DefaultTMAGrid;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.TMAGrid;
 
 /**
- * Command for importing TMA maps & additional info (e.g. manual scores).
+ * Command for importing TMA maps &amp; additional info (e.g. manual scores).
  * 
  * @author Pete Bankhead
  *
@@ -212,7 +213,7 @@ public class TMAScoreImportCommand implements PathCommand {
 				DisplayHelpers.showMessageDialog(name, "Updated " + nScores + " cores");
 //			logger.info(String.format("Scores read for %d core(s)", nScores));
 			return nScores > 0;
-		} catch (FileNotFoundException e) {
+		} catch (IOException e) {
 			DisplayHelpers.showErrorMessage(name, e.getLocalizedMessage());
 			return false;
 		}
@@ -221,9 +222,9 @@ public class TMAScoreImportCommand implements PathCommand {
 	
 	/**
 	 * Creating a pseudo hierarchy makes it possible to make changes without modifying the 'true' underlying hierarchy,
-	 * i.e. enabling them to be reversible.
+	 * which enables them to be reversible.
 	 * 
-	 * @param infoGrid
+	 * @param grid
 	 * @return
 	 */
 	private static PathObjectHierarchy createPseudoHierarchy(final TMAGrid grid) {
@@ -395,18 +396,24 @@ public class TMAScoreImportCommand implements PathCommand {
 	 * the reason being to intercept modifications, thereby allowing them to 
 	 * be either applied to the underlying 'true' TMAGrid or reverted.
 	 */
-	private static class CoreInfoGrid extends DefaultTMAGrid {
+	private static class CoreInfoGrid implements TMAGrid {
 		
 		private static final long serialVersionUID = 1L;
 		
+		private TMAGrid grid;
+		private Map<TMACoreObject, CoreInfo> coreMap = new LinkedHashMap<>();
 		private List<CoreInfoRow> rows = new ArrayList<>();
 				
 		CoreInfoGrid(final TMAGrid grid) {
-			super(grid.getTMACoreList().stream().map(c -> new CoreInfo(c)).collect(Collectors.toList()), grid.getGridWidth());
+			this.grid = grid;
 			for (int y = 0; y < getGridHeight(); y++) {
 				CoreInfoRow row = new CoreInfoRow(getGridWidth());
-				for (int x = 0; x < getGridWidth(); x++)
-					row.set((CoreInfo)getTMACore(y, x), x);
+				for (int x = 0; x < getGridWidth(); x++) {
+					TMACoreObject core = grid.getTMACore(y, x);
+					CoreInfo coreInfo = new CoreInfo(core);
+					row.set(coreInfo, x);
+					coreMap.put(core, coreInfo);
+				}
 				rows.add(row);
 			}
 		}
@@ -416,14 +423,76 @@ public class TMAScoreImportCommand implements PathCommand {
 		}
 		
 		public void synchronizeTMAGridToInfo() {
-			for (int row = 0; row < getGridHeight(); row++) {
-				for (int col = 0; col < getGridWidth(); col++) {
-					((CoreInfo)getTMACore(row, col)).synchronizeCoreToFields();
-				}
-			}
+			coreMap.values().forEach(c -> c.synchronizeCoreToFields());
+		}
+
+		@Override
+		public int nCores() {
+			return grid.nCores();
+		}
+
+		@Override
+		public int getGridWidth() {
+			return grid.getGridWidth();
+		}
+
+		@Override
+		public int getGridHeight() {
+			return grid.getGridHeight();
+		}
+
+		@Override
+		public TMACoreObject getTMACore(String coreName) {
+			return coreMap.get(grid.getTMACore(coreName));
+		}
+
+		@Override
+		public TMACoreObject getTMACore(int row, int col) {
+			return coreMap.get(grid.getTMACore(row, col));
+		}
+
+		@Override
+		public List<TMACoreObject> getTMACoreList() {
+			return new ArrayList<>(coreMap.values());
 		}
 		
 	}
+	
+	
+//	/**
+//	 * Specialized TMAGrid to replace TMACoreObjects with CoreInfo objects -
+//	 * the reason being to intercept modifications, thereby allowing them to 
+//	 * be either applied to the underlying 'true' TMAGrid or reverted.
+//	 */
+//	private static class CoreInfoGrid extends DefaultTMAGrid {
+//		
+//		private static final long serialVersionUID = 1L;
+//		
+//		private List<CoreInfoRow> rows = new ArrayList<>();
+//				
+//		CoreInfoGrid(final TMAGrid grid) {
+//			super(grid.getTMACoreList().stream().map(c -> new CoreInfo(c)).collect(Collectors.toList()), grid.getGridWidth());
+//			for (int y = 0; y < getGridHeight(); y++) {
+//				CoreInfoRow row = new CoreInfoRow(getGridWidth());
+//				for (int x = 0; x < getGridWidth(); x++)
+//					row.set((CoreInfo)getTMACore(y, x), x);
+//				rows.add(row);
+//			}
+//		}
+//		
+//		public List<CoreInfoRow> getRows() {
+//			return Collections.unmodifiableList(rows);
+//		}
+//		
+//		public void synchronizeTMAGridToInfo() {
+//			for (int row = 0; row < getGridHeight(); row++) {
+//				for (int col = 0; col < getGridWidth(); col++) {
+//					((CoreInfo)getTMACore(row, col)).synchronizeCoreToFields();
+//				}
+//			}
+//		}
+//		
+//	}
 	
 	
 	/**
@@ -450,7 +519,7 @@ public class TMAScoreImportCommand implements PathCommand {
 			for (String name : getMeasurementList().getMeasurementNames()) {
 				core.getMeasurementList().putMeasurement(name, getMeasurementList().getMeasurementValue(name));
 			}
-			core.getMeasurementList().closeList();
+			core.getMeasurementList().close();
 			for (Entry<String, String> entry : getMetadataMap().entrySet()) {
 				core.putMetadataValue(entry.getKey(), (String)entry.getValue());
 			}

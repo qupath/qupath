@@ -1,0 +1,11 @@
+module qupath.openslide {
+	
+	requires java.desktop;
+	
+    requires qupath.core;
+    requires qupath.gui.fx;
+
+    requires gson;
+    requires javafx.controls;
+
+}

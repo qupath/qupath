@@ -56,7 +56,7 @@ import qupath.lib.images.servers.ImageServerBuilder;
 import qupath.lib.images.servers.ImageServerProvider;
 
 /**
- * Command to list the names & details of all installed extensions
+ * Command to list the names &amp; details of all installed extensions
  * 
  * @author Pete Bankhead
  *
@@ -300,16 +300,6 @@ public class ShowInstalledExtensionsCommand implements PathCommand {
 				}					
 			}
 			return extension.getClass().getPackage() == null ? null : extension.getClass().getPackage().getImplementationVersion();
-		}
-
-		boolean isDefault() {
-			try {
-				File file = new File(getPathToJar());
-				return !file.getAbsolutePath().startsWith(QuPathGUI.getExtensionDirectory().getAbsolutePath());
-			} catch (Exception e) {
-				logger.trace("Problem getting default status for {}", extension);
-				return true;
-			}
 		}
 		
 	}

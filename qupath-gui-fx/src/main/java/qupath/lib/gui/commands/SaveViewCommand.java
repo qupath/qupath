@@ -34,8 +34,9 @@ import qupath.lib.gui.ImageWriterTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.helpers.DisplayHelpers;
+import qupath.lib.gui.helpers.DisplayHelpers.SnapshotType;
 import qupath.lib.gui.prefs.PathPrefs;
-import qupath.lib.io.ImageWriter;
+import qupath.lib.images.writers.ImageWriter;
 
 /**
  * 
@@ -51,16 +52,16 @@ public class SaveViewCommand implements PathCommand {
 	private final static Logger logger = LoggerFactory.getLogger(SaveViewCommand.class);
 
 	private QuPathGUI qupath;
-	private boolean wholeWindow;
+	private SnapshotType type;
 	
-	public SaveViewCommand(final QuPathGUI qupath, final boolean wholeWindow) {
+	public SaveViewCommand(final QuPathGUI qupath, final SnapshotType type) {
 		this.qupath = qupath;
-		this.wholeWindow = wholeWindow;
+		this.type = type;
 	}
 
 	@Override
 	public void run() {
-		BufferedImage img = DisplayHelpers.makeSnapshot(qupath, wholeWindow);			
+		BufferedImage img = DisplayHelpers.makeSnapshot(qupath, type);			
 		
 		String ext = PathPrefs.getDefaultScreenshotExtension();
 		SortedMap<ImageWriter<BufferedImage>, String> compatibleWriters = ImageWriterTools.getCompatibleWriters(null, ext);

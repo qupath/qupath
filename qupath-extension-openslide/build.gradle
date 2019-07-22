@@ -1,11 +1,12 @@
+ext.moduleName = 'qupath.extension.openslide'
 
 description = 'qupath-extension-openslide'
 
 configurations {
-  compile.extendsFrom openslide
+  implementation.extendsFrom openslide
+  implementation.extendsFrom gson
 }
 
 dependencies {
-  compile project(':qupath-core')
-  compile project(':qupath-core-awt')
+  implementation project(':qupath-core')
 }

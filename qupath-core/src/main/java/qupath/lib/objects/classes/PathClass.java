@@ -42,48 +42,63 @@ public class PathClass implements Comparable<PathClass>, Serializable {
 	private static final long serialVersionUID = 1L;
 
 	private static String defaultName = "Unclassified";
+	private static Integer DEFAULT_COLOR = ColorTools.makeRGB(64, 64, 64);
 	
-	private PathClass parentClass = null;
-	private String name = null;
-	private Integer colorRGB = ColorTools.makeRGB(64, 64, 64);
+	private final PathClass parentClass;
+	private final String name;
+	private Integer colorRGB;
 
-	PathClass() {}
+	PathClass() {
+		parentClass = null;
+		name = null;
+		colorRGB = null;
+	}
 
+	/**
+	 * This constructor should <i>not<i> be called explicitly; rather, use {@link PathClassFactory}. 
+	 * <p>
+	 * Only one instance of a PathClass should exist for any given name and list of ancestors.
+	 * 
+	 * @param parent
+	 * @param name
+	 * @param colorRGB
+	 */
 	PathClass(PathClass parent, String name, Integer colorRGB) {
+		if (parent != null && name == null)
+			throw new IllegalArgumentException("Cannot create a derived PathClass with name == null");
 		this.parentClass = parent;
 		this.name = name;
-		if (colorRGB != null)
+		if (colorRGB == null)
+			this.colorRGB = DEFAULT_COLOR;
+		else
 			this.colorRGB = colorRGB;
+		
+		if (PathClassFactory.classExists(toString()))
+			throw new UnsupportedOperationException("PathClass '" + toString() + "' already exists! Use PathClassFactory.getPathClass() instead of calling the the PathClass constructor directly.");
 	}
 	
 	PathClass(String name, Integer colorRGB) {
 		this(null, name, colorRGB);
 	}
 	
+	/**
+	 * Get the parent classification, or null if this classification has no parent.
+	 * @return
+	 */
 	public PathClass getParentClass() {
 		return parentClass;
 	}
 	
-//	/**
-//	 * Derive a new PathClass from this one.
-//	 * The purpose is to create multiple classes for sub-categorization e.g. of intensity.
-//	 * 
-//	 * @return
-//	 */
-//	public PathClass deriveClass(String name, Color color) {
-//		if (color == null)
-//			color = this.getColor();
-//		PathClass childClass = new PathClass(name, color);
-//		childClass.parentClass = this;
-//		return childClass;
-//	}
-	
+	/**
+	 * Returns {@code true} if {@code #getParentClass() != null}.
+	 * @return
+	 */
 	public boolean isDerivedClass() {
 		return parentClass != null;
 	}
 	
 	/**
-	 * Returns TRUE if this class, or any ancestor class, is equal to the specified parent class.
+	 * Returns {@code true} if this class, or any ancestor class, is equal to the specified parent class.
 	 * 
 	 * @param parentClass
 	 * @return
@@ -100,9 +115,10 @@ public class PathClass implements Comparable<PathClass>, Serializable {
 	
 	
 	/**
-	 * Returns TRUE if this class is equal to the specified child class.
+	 * Returns {@code true} if this class is equal to the specified child class, 
+	 * or an ancestor of that class.
 	 * 
-	 * @param parentClass
+	 * @param childClass
 	 * @return
 	 */
 	public boolean isAncestorOf(PathClass childClass) {
@@ -117,8 +133,8 @@ public class PathClass implements Comparable<PathClass>, Serializable {
 	
 	
 	/**
-	 * Get the 'base' class, i.e. trace back through getParentClass() until no parent is available.
-	 * 
+	 * Get the 'base' class, i.e. trace back through {@link #getParentClass()} until no parent is available.
+	 * <p>
 	 * For a PathClass with no parent, this just returns itself.
 	 * 
 	 * @return
@@ -130,15 +146,29 @@ public class PathClass implements Comparable<PathClass>, Serializable {
 		return temp;
 	}
 	
+	/**
+	 * Set the color that should be used to display objects with this classification.
+	 * @param colorRGB color, as a packed (A)RGB value
+	 */
 	public void setColor(Integer colorRGB) {
 		if (colorRGB == null || !colorRGB.equals(this.colorRGB))
 			this.colorRGB = colorRGB;
 	}
 	
+	/**
+	 * Get the color that should be used to display objects with this classification.
+	 * @return packed (A)RGB value representing the classification color.
+	 */
 	public Integer getColor() {
 		return colorRGB;
 	}
 	
+	/**
+	 * Get the name of this classification. 
+	 * Note that this does not incorporate information from any parent classifications; to access this, 
+	 * use {@link #toString()} instead.
+	 * @return
+	 */
 	public String getName() {
 		return name;
 	}
@@ -157,8 +187,18 @@ public class PathClass implements Comparable<PathClass>, Serializable {
 			return name;
 	}
 	
-	public boolean isDefault() {
-		return name == null;
+	/**
+	 * A PathClass is valid if its name is not null.
+	 * <p>
+	 * This should generally the case, but a single (invalid) PathClass with a null name 
+	 * can be used to indicate the absence of a classification; however, it should <i>not</i> be assigned 
+	 * to any object.  Rather, objects should be assigned either a valid PathClass or null to indicate 
+	 * that they have no classification.
+	 * 
+	 * @return
+	 */
+	public boolean isValid() {
+		return name != null;
 	}
 
 	/**

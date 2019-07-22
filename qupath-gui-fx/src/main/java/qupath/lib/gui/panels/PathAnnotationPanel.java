@@ -27,10 +27,12 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.TreeSet;
 
 import org.controlsfx.control.action.Action;
 import org.controlsfx.control.action.ActionUtils;
@@ -38,6 +40,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javafx.application.Platform;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
@@ -62,7 +66,6 @@ import javafx.scene.layout.RowConstraints;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
 import javafx.util.Callback;
-import qupath.lib.classifiers.PathClassificationLabellingHelper;
 import qupath.lib.geom.Point2;
 import qupath.lib.gui.ImageDataChangeListener;
 import qupath.lib.gui.ImageDataWrapper;
@@ -76,8 +79,10 @@ import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
-import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjects;
+import qupath.lib.objects.DefaultPathObjectComparator;
+import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.helpers.PathObjectTools;
@@ -87,13 +92,15 @@ import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
 import qupath.lib.objects.hierarchy.events.PathObjectSelectionListener;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectIO;
+import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.PointsROI;
+import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.ROI;
 
 
 /**
  * Component for displaying annotations within the active image.
- * 
+ * <p>
  * Also shows the PathClass list.
  * 
  * @author Pete Bankhead
@@ -103,6 +110,12 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 
 	static Logger logger = LoggerFactory.getLogger(PathAnnotationPanel.class);
 
+	/**
+	 * Request that we only synchronize to the primary selection; otherwise synchronizing to 
+	 * multiple selections from long lists can be a performance bottleneck
+	 */
+	private static boolean synchronizePrimarySelectionOnly = true;
+	
 	private QuPathGUI qupath;
 	
 	private BorderPane pane = new BorderPane();
@@ -111,6 +124,8 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 
 	private ListView<PathObject> listAnnotations;
 	private PathObjectHierarchy hierarchy;
+	
+	private BooleanProperty doAutoSetPathClass = new SimpleBooleanProperty(false);
 
 	// Available PathClasses
 	private ListView<PathClass> listClasses;
@@ -125,6 +140,8 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 		listClasses.setItems(qupath.getAvailablePathClasses());
 		listClasses.setTooltip(new Tooltip("Annotation classes available"));
 		//		listClasses.setCellRenderer(new PathClassListCellRenderer2()); // TODO: Use a good renderer!!!
+		
+		listClasses.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> updateAutoSetPathClassProperty());
 		
 		listClasses.setCellFactory(new Callback<ListView<PathClass>, ListCell<PathClass>>(){
 
@@ -148,7 +165,7 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 							try {
 								// Try to count objects for class
 								// May be possibility of concurrent modification exception?
-								n = PathClassificationLabellingHelper.nLabelledObjectsForClass(hierarchy, value);
+								n = nLabelledObjectsForClass(hierarchy, value);
 							} catch (Exception e) {
 								logger.error("Exception while counting objects for class", e);
 							}
@@ -183,6 +200,11 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 			if (promptToEditClass(pathClassSelected)) {
 				//					listModelPathClasses.fireListDataChangedEvent();
 				refreshList(listClasses);
+				var project = qupath.getProject();
+				// Make sure we have updated the classes in the project
+				if (project != null) {
+					project.setPathClasses(listClasses.getItems());
+				}
 				if (hierarchy != null)
 					hierarchy.fireHierarchyChangedEvent(listClasses);
 			}
@@ -230,13 +252,13 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 			PathClass pathClass = getSelectedPathClass();
 			if (pathClass == null)
 				return;
-			List<PathObject> pathObjectsToReset = PathClassificationLabellingHelper.getAnnotationsForClass(hierarchy, pathClass);
+			List<PathObject> pathObjectsToReset = getAnnotationsForClass(hierarchy, pathClass);
 			if (pathObjectsToReset.isEmpty())
 				return;
 			if (pathObjectsToReset.size() > 1)
 				if (!DisplayHelpers.showYesNoDialog("Confirm reset labels", String.format("Reset %d annotated objects from class %s?", pathObjectsToReset.size(), pathClass.getName())))
 					return;
-			PathClassificationLabellingHelper.resetClassifications(hierarchy, pathClass);
+			resetAnnotationClassifications(hierarchy, pathClass);
 		});		
 
 		MenuItem miToggleClassVisible = new MenuItem("Toggle display class");
@@ -369,21 +391,11 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 		listAnnotations.getSelectionModel().getSelectedItems().addListener(new ListChangeListener<PathObject>() {
 			@Override
 			public void onChanged(Change<? extends PathObject> c) {
-				if (hierarchy == null || changingSelection)
-					return;
-//				hierarchy.getSelectionModel().setSelectedObject(listAnnotations.getSelectionModel().getSelectedItem());
-//				System.err.println(listAnnotations.getSelectionModel().getSelectedItems());
-				
-//				if (listAnnotations.getSelectionModel().getSelectedItems().contains(null)) {
-//					System.out.println("I HAVE A NULL: " + listAnnotations.getItems());
-//				}
-				Set<PathObject> selectedSet = new HashSet<>(listAnnotations.getSelectionModel().getSelectedItems());
-				PathObject selectedObject = listAnnotations.getSelectionModel().getSelectedItem();
-				if (!selectedSet.contains(selectedObject))
-					selectedObject = null;
-				hierarchy.getSelectionModel().setSelectedObjects(selectedSet, selectedObject);
+				synchronizeListSelectionToHierarchy();
 			}
 		});
+		
+		listAnnotations.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> synchronizeListSelectionToHierarchy());
 
 		listAnnotations.setOnMouseClicked(e -> {
 			if (e.getClickCount() > 1) {
@@ -410,7 +422,7 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 		MenuItem miSplitPoints = new MenuItem("Split points");
 		miSplitPoints.setOnAction(e -> {
 			PathObject pathObject = listAnnotations.getSelectionModel().getSelectedItem();
-			if (pathObject == null || !pathObject.isPoint() || hierarchy == null)
+			if (pathObject == null || !PathObjectTools.hasPointROI(pathObject) || hierarchy == null)
 				return;
 			PointsROI points = (PointsROI)pathObject.getROI();
 			if (points.getNPoints() <= 1)
@@ -421,11 +433,11 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 			int t = points.getT();
 			PathClass pathClass = pathObject.getPathClass();
 			for (Point2 p : points.getPointList()) {
-				PathObject temp = new PathAnnotationObject(new PointsROI(p.getX(), p.getY(), c, z, t), pathClass);
+				PathObject temp = PathObjects.createAnnotationObject(ROIs.createPointsROI(p.getX(), p.getY(), ImagePlane.getPlaneWithChannel(c, z, t)), pathClass);
 				newObjects.add(temp);
 			}
-			hierarchy.addPathObjects(newObjects, false);
-			hierarchy.removeObject(pathObject, true, true);
+			hierarchy.addPathObjects(newObjects);
+			hierarchy.removeObject(pathObject, true);
 			// Reset the selection if necessary
 			if (hierarchy.getSelectionModel().getSelectedObject() == pathObject)
 				hierarchy.getSelectionModel().setSelectedObject(null);
@@ -434,7 +446,7 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 		MenuItem miMergePoints = new MenuItem("Merge points for class");
 		miMergePoints.setOnAction(e -> {
 			PathObject pathObject = listAnnotations.getSelectionModel().getSelectedItem();
-			if (pathObject == null || !pathObject.isPoint() || hierarchy == null)
+			if (pathObject == null || !PathObjectTools.hasPointROI(pathObject) || hierarchy == null)
 				return;
 			PathClass pathClass = pathObject.getPathClass();
 			if (pathClass == null) {
@@ -459,9 +471,9 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 			for (PathObject temp : objectsToMerge) {
 				pointsList.addAll(((PointsROI)temp.getROI()).getPointList());
 			}
-			PathObject pathObjectNew = new PathAnnotationObject(new PointsROI(pointsList, c, z, t), pathClass);
+			PathObject pathObjectNew = PathObjects.createAnnotationObject(ROIs.createPointsROI(pointsList, ImagePlane.getPlaneWithChannel(c, z, t)), pathClass);
 			hierarchy.removeObjects(objectsToMerge, true);
-			hierarchy.addPathObject(pathObjectNew, false);
+			hierarchy.addPathObject(pathObjectNew);
 		});
 
 		menuPoints.getItems().addAll(
@@ -503,18 +515,22 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 			hierarchy = QuPathGUI.getInstance().getImageData().getHierarchy();
 			if (hierarchy == null)
 				return;
-			PathObject pathObject = hierarchy.getSelectionModel().getSelectedObject();
-			if (!(pathObject instanceof PathAnnotationObject)) {
-				// TODO: Support classifying non-annotation objects?
-				logger.error("Sorry, only annotations can be classified manually.");
-				return;
-			}
-
+			
 			PathClass pathClass = getSelectedPathClass();
-			if (pathObject.getPathClass() == pathClass)
-				return;
-			pathObject.setPathClass(pathClass);
-			hierarchy.fireObjectClassificationsChangedEvent(this, Collections.singleton(pathObject));
+			var pathObjects = new ArrayList<>(hierarchy.getSelectionModel().getSelectedObjects());
+			for (PathObject pathObject : pathObjects) {
+//				if (!(pathObject instanceof PathAnnotationObject)) {
+//					// TODO: Support classifying non-annotation objects?
+//					logger.error("Sorry, only annotations can be classified manually.");
+//					return;
+//				}
+				if (pathObject.isTMACore())
+					continue;
+				if (pathObject.getPathClass() == pathClass)
+					continue;				
+				pathObject.setPathClass(pathClass);
+			}
+			hierarchy.fireObjectClassificationsChangedEvent(this, pathObjects);
 			refreshList(listClasses);
 		});
 		setSelectedObjectClassAction.setLongText("Set the class of the currently-selected annotation");
@@ -522,9 +538,9 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 
 		Action autoClassifyAnnotationsAction = new Action("Auto set");
 		autoClassifyAnnotationsAction.setLongText("Automatically set all new annotations to the selected class");
-		autoClassifyAnnotationsAction.selectedProperty().addListener((e, f, g) ->
-		PathPrefs.setAutoSetAnnotationClass(g)
-				);
+		autoClassifyAnnotationsAction.selectedProperty().bindBidirectional(doAutoSetPathClass);
+		
+		doAutoSetPathClass.addListener((e, f, g) -> updateAutoSetPathClassProperty());
 
 		button = ActionUtils.createButton(setSelectedObjectClassAction);
 		panelButtons.add(button, 0, 0);
@@ -539,8 +555,31 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 		qupath.addImageDataChangeListener(this);
 	}
 
+	
+	void synchronizeListSelectionToHierarchy() {
+		if (hierarchy == null || changingSelection)
+			return;
+		changingSelection = true;
+		Set<PathObject> selectedSet = new HashSet<>(listAnnotations.getSelectionModel().getSelectedItems());
+		PathObject selectedObject = listAnnotations.getSelectionModel().getSelectedItem();
+		if (!selectedSet.contains(selectedObject))
+			selectedObject = null;
+		hierarchy.getSelectionModel().setSelectedObjects(selectedSet, selectedObject);
+		changingSelection = false;
+	}
+	
 
-
+	void updateAutoSetPathClassProperty() {
+		PathClass pathClass = null;
+		if (doAutoSetPathClass.get()) {
+			pathClass = getSelectedPathClass();
+		}
+		if (pathClass == null || !pathClass.isValid())
+			PathPrefs.setAutoSetAnnotationClass(null);
+		else
+			PathPrefs.setAutoSetAnnotationClass(pathClass);
+	}
+	
 	
 	
 	/**
@@ -680,7 +719,7 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 			hierarchy.getSelectionModel().addPathObjectSelectionListener(this);
 			hierarchy.addPathObjectListener(this);
 			PathObject selected = hierarchy.getSelectionModel().getSelectedObject();
-			listAnnotations.getItems().setAll(hierarchy.getObjects(null, PathAnnotationObject.class));
+			listAnnotations.getItems().setAll(hierarchy.getAnnotationObjects());
 			hierarchy.getSelectionModel().setSelectedObject(selected);
 		} else {
 			listAnnotations.getItems().clear();
@@ -785,69 +824,95 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 	
 
 	@Override
-	public void selectedPathObjectChanged(final PathObject pathObjectSelected, final PathObject previousObject) {
+	public void selectedPathObjectChanged(final PathObject pathObjectSelected, final PathObject previousObject, Collection<PathObject> allSelected) {
 		if (!Platform.isFxApplicationThread()) {
-			Platform.runLater(() -> selectedPathObjectChanged(pathObjectSelected, previousObject));
+			// Do not synchronize to changes on other threads (since these may interfere with scripts)
+//			Platform.runLater(() -> selectedPathObjectChanged(pathObjectSelected, previousObject, allSelected));
 			return;
 		}
+
+		if (changingSelection)
+			return;
 		
 		changingSelection = true;
-//		tableModel.setPathObject(pathObjectSelected);
-		
-		// TODO: Find a more robust way to do this - the check for the creation of a new object is rather hack-ish
-		if (pathObjectSelected != null && pathObjectSelected.getParent() == null && !pathObjectSelected.isRootObject() && pathObjectSelected.getPathClass() == null && PathPrefs.getAutoSetAnnotationClass()) {
-			PathClass pathClass = getSelectedPathClass();
-			if (pathClass != null)
-				pathObjectSelected.setPathClass(pathClass);
-		}
-		
-		// Determine the objects to select
-		MultipleSelectionModel<PathObject> model = listAnnotations.getSelectionModel();
-		List<PathObject> selected = new ArrayList<>();
-		for (PathObject pathObject : hierarchy.getSelectionModel().getSelectedObjects()) {
-			if (pathObject == null)
-				logger.warn("Selected object is null!");
-			else if (pathObject.isAnnotation())
-				selected.add(pathObject);
-		}
-		if (selected.isEmpty()) {
-			model.clearSelection();
-			changingSelection = false;
-			return;
-		}
-		// Check if we're making changes
-		List<PathObject> currentlySelected = model.getSelectedItems();
-		if (selected.size() == currentlySelected.size() && (hierarchy.getSelectionModel().getSelectedObjects().containsAll(currentlySelected))) {
-			changingSelection = false;
-			listAnnotations.refresh();
-			return;
-		}
-		
-//		System.err.println("Setting " + currentlySelected + " to " + selected);
-		int[] inds = new int[selected.size()];
-		int i = 0;
-		model.clearSelection();
-		boolean firstInd = true;
-		for (PathObject temp : selected) {
-			int idx = listAnnotations.getItems().indexOf(temp);
-			if (idx >= 0 && firstInd) {
-				Arrays.fill(inds, idx);
-				firstInd = false;
+		if (synchronizePrimarySelectionOnly) {
+			try {
+				var listSelectionModel = listAnnotations.getSelectionModel();
+				listSelectionModel.clearSelection();
+				if (pathObjectSelected != null && pathObjectSelected.isAnnotation()) {
+					listSelectionModel.select(pathObjectSelected);
+					listAnnotations.scrollTo(pathObjectSelected);
+				}
+				return;
+			} finally {
+				changingSelection = false;
 			}
-			inds[i] = idx;
-			i++;
 		}
 		
-		if (inds.length == 1 && hierarchy.getSelectionModel().getSelectedObject() instanceof PathAnnotationObject)
-			listAnnotations.scrollTo(hierarchy.getSelectionModel().getSelectedObject());
-		
-		if (firstInd) {
-			changingSelection = false;
-			return;
+		try {
+			
+			var hierarchySelected = new TreeSet<>(DefaultPathObjectComparator.getInstance());
+			hierarchySelected.addAll(allSelected);
+			
+			// Determine the objects to select
+			MultipleSelectionModel<PathObject> model = listAnnotations.getSelectionModel();
+			List<PathObject> selected = new ArrayList<>();
+			for (PathObject pathObject : hierarchySelected) {
+				if (pathObject == null)
+					logger.warn("Selected object is null!");
+				else if (pathObject.isAnnotation())
+					selected.add(pathObject);
+			}
+			if (selected.isEmpty()) {
+				if (!model.isEmpty())
+					model.clearSelection();
+				return;
+			}
+			// Check if we're making changes
+			List<PathObject> currentlySelected = model.getSelectedItems();
+			if (selected.size() == currentlySelected.size() && (hierarchySelected.containsAll(currentlySelected))) {
+				listAnnotations.refresh();
+				return;
+			}
+			
+//			System.err.println("Starting...");
+//			System.err.println(hierarchy.getAnnotationObjects().size());
+//			System.err.println(hierarchySelected.size());
+//			System.err.println(listAnnotations.getItems().size());
+			if (hierarchySelected.containsAll(listAnnotations.getItems())) {
+				model.selectAll();
+				return;
+			}
+			
+	//		System.err.println("Setting " + currentlySelected + " to " + selected);
+			int[] inds = new int[selected.size()];
+			int i = 0;
+			model.clearSelection();
+			boolean firstInd = true;
+			for (PathObject temp : selected) {
+				int idx = listAnnotations.getItems().indexOf(temp);
+				if (idx >= 0 && firstInd) {
+					Arrays.fill(inds, idx);
+					firstInd = false;
+				}
+				inds[i] = idx;
+				i++;
+			}
+			
+			if (inds.length == 1 && pathObjectSelected instanceof PathAnnotationObject)
+				listAnnotations.scrollTo(pathObjectSelected);
+			
+			if (firstInd) {
+				changingSelection = false;
+				return;
+			}
+			if (inds.length == 1)
+				model.select(inds[0]);
+			else if (inds.length > 1)
+				model.selectIndices(inds[0], inds);
+		} finally {
+			changingSelection = false;			
 		}
-		model.selectIndices(inds[0], inds);
-		
-		changingSelection = false;
 	}
 
 
@@ -940,7 +1005,7 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 			return;
 		}
 
-		List<PathObject> newList = hierarchy.getObjects(null, PathAnnotationObject.class);
+		Collection<PathObject> newList = hierarchy.getObjects(new HashSet<>(), PathAnnotationObject.class);
 		listClasses.refresh();
 		// If the lists are the same, we just need to refresh the appearance (because e.g. classifications or measurements now differ)
 		// For some reason, 'equals' alone wasn't behaving nicely (perhaps due to ordering?)... so try a more manual test instead
@@ -961,4 +1026,41 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 		listAnnotations.getItems().setAll(newList);
 	}
 	
+	
+	/**
+	 * Remove all the classifications for a particular class.
+	 * 
+	 * @param pathClass
+	 */
+	static void resetAnnotationClassifications(final PathObjectHierarchy hierarchy, final PathClass pathClass) {
+		List<PathObject> changedList = new ArrayList<>();
+		for (PathObject pathObject : hierarchy.getAnnotationObjects()) {
+			if (pathClass.equals(pathObject.getPathClass())) {
+				pathObject.setPathClass(null);
+				changedList.add(pathObject);
+			}
+		}
+		if (!changedList.isEmpty())
+			hierarchy.fireObjectClassificationsChangedEvent(null, changedList);
+	}
+	
+	static int nLabelledObjectsForClass(final PathObjectHierarchy hierarchy, final PathClass pathClass) {
+		int n = 0;
+		for (PathObject pathObject : getAnnotationsForClass(hierarchy, pathClass)) {
+			n += pathObject.nChildObjects();
+		}
+		return n;
+//		return getLabelledObjectsForClass(hierarchy, pathClass).size(); // TODO: Consider a more efficient implementation
+	}
+
+	static List<PathObject> getAnnotationsForClass(PathObjectHierarchy hierarchy, PathClass pathClass) {
+		if (hierarchy == null)
+			return Collections.emptyList();
+		List<PathObject> annotations = new ArrayList<>();
+		for (PathObject pathObject : hierarchy.getAnnotationObjects()) {
+			if (pathClass.equals(pathObject.getPathClass()))
+				annotations.add(pathObject);
+		}
+		return annotations;
+	}
 }

@@ -1,6 +1,12 @@
+ext.moduleName = 'qupath.core'
 
 description = 'qupath-core'
 
 configurations {
-  compile.extendsFrom gson
+  implementation.extendsFrom commonsmath
+  implementation.extendsFrom gson
+  implementation.extendsFrom jts
+  implementation.extendsFrom guava
+  implementation.extendsFrom opencv
+//  implementation.extendsFrom imagej
 }

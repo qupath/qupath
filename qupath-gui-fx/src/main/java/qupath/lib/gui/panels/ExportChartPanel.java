@@ -439,7 +439,6 @@ public class ExportChartPanel {
 	 * The supplied chart will be duplicated first, if possible.
 	 * 
 	 * @param chart
-	 * @return
 	 */
 	public static void showExportChartPanel(final XYChart<Number, Number> chart) {
 		try {

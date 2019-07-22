@@ -1,0 +1,10 @@
+module qupath.extension.scripteditor {
+	
+    requires javafx.controls;
+
+    requires qupath.gui.fx;
+
+    requires richtextfx;
+    requires slf4j.api;
+
+}

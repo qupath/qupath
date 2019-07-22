@@ -35,7 +35,6 @@ import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.collections.ListChangeListener.Change;
 import javafx.geometry.Orientation;
-import javafx.geometry.Pos;
 import javafx.geometry.Side;
 import javafx.print.PrinterJob;
 import javafx.scene.Node;
@@ -99,6 +98,7 @@ public class KaplanMeierChartWrapper {
 			super(xAxis, yAxis);
 		}
 		
+		@Override
 		protected void updateLegend() {
 			super.updateLegend();
 			

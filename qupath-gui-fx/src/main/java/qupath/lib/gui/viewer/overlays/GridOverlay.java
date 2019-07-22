@@ -35,6 +35,7 @@ import qupath.lib.gui.viewer.GridLines;
 import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.regions.ImageRegion;
 
 
@@ -71,7 +72,7 @@ public class GridOverlay extends AbstractImageDataOverlay {
 		
 		// Draw grid lines
 		g2d.setStroke(new BasicStroke((float)(downsampleFactor*1.5)));
-		drawGrid(getOverlayOptions().getGridLines(), g2d, getServer(), imageRegion, getPreferredOverlayColor());
+		drawGrid(getOverlayOptions().getGridLines(), g2d, getServer(), downsampleFactor, imageRegion, getPreferredOverlayColor());
 		
 		g2d.dispose();
 	}
@@ -82,9 +83,9 @@ public class GridOverlay extends AbstractImageDataOverlay {
 		return true;
 	}
 
-	public static void drawGrid(final GridLines gridLines, final Graphics g, final ImageServer<?> server, final ImageRegion imageRegion, final Color color) {
+	private static void drawGrid(final GridLines gridLines, final Graphics g, final ImageServer<?> server, final double downsample, final ImageRegion imageRegion, final Color color) {
 			// Get the image server, and check if we know the pixel size in microns
-			if (server == null || (gridLines.useMicrons() && !server.hasPixelSizeMicrons()))
+			if (server == null || (gridLines.useMicrons() && !server.getPixelCalibration().hasPixelSizeMicrons()))
 				return;
 			
 			Graphics2D g2d = (Graphics2D)g.create();
@@ -95,10 +96,11 @@ public class GridOverlay extends AbstractImageDataOverlay {
 			double spaceXpx = gridLines.getSpaceX();
 			double spaceYpx = gridLines.getSpaceY();
 			if (gridLines.useMicrons()) {
-				startXpx /= server.getPixelWidthMicrons();
-				startYpx /= server.getPixelHeightMicrons();
-				spaceXpx /= server.getPixelWidthMicrons();
-				spaceYpx /= server.getPixelHeightMicrons();
+				PixelCalibration cal = server.getPixelCalibration();
+				startXpx /= cal.getPixelWidthMicrons();
+				startYpx /= cal.getPixelHeightMicrons();
+				spaceXpx /= cal.getPixelWidthMicrons();
+				spaceYpx /= cal.getPixelHeightMicrons();
 			}
 			
 			// Do the painting
@@ -111,18 +113,31 @@ public class GridOverlay extends AbstractImageDataOverlay {
 			int minImageY = imageRegion.getY();
 			int maxImageY = imageRegion.getY() + imageRegion.getHeight();
 			
-	//		// Draw vertical lines
-			for (double x = startXpx; x < server.getWidth(); x += spaceXpx) {
-				// Check if we are within range
-				if (x < minImageX || x > maxImageX)
-					continue;
-				g2d.drawLine((int)(x + .5), minImageY, (int)(x + .5), maxImageY);
+			// Draw horizontal & vertical lines within the visible range
+			// If the lines will be too dense, fill a rectangle instead
+			if (spaceXpx > 0) {
+				if (spaceXpx > downsample) {
+					for (double x = startXpx; x < server.getWidth(); x += spaceXpx) {
+						// Check if we are within range
+						if (x < minImageX || x > maxImageX)
+							continue;
+						g2d.drawLine((int)(x + .5), minImageY, (int)(x + .5), maxImageY);
+					}
+				} else {
+					g2d.fillRect(imageRegion.getX(), imageRegion.getY(), imageRegion.getWidth(), imageRegion.getHeight());
+				}
 			}
-			for (double y = startYpx; y < server.getHeight(); y += spaceYpx) {
-				// Check if we are within range
-				if (y < minImageY || y > maxImageY)
-					continue;
-				g2d.drawLine(minImageX, (int)(y + .5), maxImageX, (int)(y + .5));
+			if (spaceYpx > 0 && spaceYpx >= downsample) {
+				if (spaceYpx > downsample) {
+					for (double y = startYpx; y < server.getHeight(); y += spaceYpx) {
+						// Check if we are within range
+						if (y < minImageY || y > maxImageY)
+							continue;
+						g2d.drawLine(minImageX, (int)(y + .5), maxImageX, (int)(y + .5));
+					}				
+				} else {
+					g2d.fillRect(imageRegion.getX(), imageRegion.getY(), imageRegion.getWidth(), imageRegion.getHeight());
+				}
 			}
 			
 					

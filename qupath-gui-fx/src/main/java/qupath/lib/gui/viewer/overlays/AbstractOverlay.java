@@ -27,7 +27,7 @@ import java.awt.AlphaComposite;
 import java.awt.Color;
 import java.awt.Graphics2D;
 
-import qupath.lib.awt.color.ColorToolsAwt;
+import qupath.lib.color.ColorToolsAwt;
 import qupath.lib.gui.viewer.OverlayOptions;
 
 /**
@@ -72,7 +72,7 @@ public abstract class AbstractOverlay implements PathOverlay {
 	}
 
 	/**
-	 * Tests both isVisible() and whether opacity <= 0, i.e. will return true if this overlay could not cause
+	 * Tests both isVisible() and whether opacity &lt;= 0, i.e. will return true if this overlay could not cause
 	 * any change in appearance.
 	 * @return
 	 */

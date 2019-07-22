@@ -60,7 +60,6 @@ public class UndoRedoManager implements ChangeListener<QuPathViewerPlus>, QuPath
 	private IntegerProperty maxUndoLevels = PathPrefs.createPersistentPreference("undoMaxLevels", 10);
 	private IntegerProperty maxUndoHierarchySize = PathPrefs.createPersistentPreference("undoMaxHierarchySize", 10000);
 	
-	private QuPathGUI qupath;
 	private ReadOnlyObjectProperty<QuPathViewerPlus> viewerProperty;
 	
 	private SimpleBooleanProperty canUndo = new SimpleBooleanProperty(false);
@@ -71,7 +70,6 @@ public class UndoRedoManager implements ChangeListener<QuPathViewerPlus>, QuPath
 	private Map<QuPathViewer, SerializableUndoRedoStack<PathObjectHierarchy>> map = new WeakHashMap<>();
 	
 	UndoRedoManager(final QuPathGUI qupath) {
-		this.qupath = qupath;
 		this.viewerProperty = qupath.viewerProperty();
 		this.viewerProperty.addListener(this);
 		
@@ -105,8 +103,7 @@ public class UndoRedoManager implements ChangeListener<QuPathViewerPlus>, QuPath
 	/**
 	 * Request to 'undo' the last observed hierarchy change for the current active viewer.
 	 * 
-	 * @param viewer
-	 * @return True if any changes were made, false otherwise.
+	 * @return {@code true} if any changes were made, false otherwise.
 	 */
 	public boolean undoOnce() {
 		return undoOnce(viewerProperty.get());
@@ -115,7 +112,6 @@ public class UndoRedoManager implements ChangeListener<QuPathViewerPlus>, QuPath
 	/**
 	 * Request to 'redo' the last 'undone' hierarchy change for the current active viewer.
 	 * 
-	 * @param viewer
 	 * @return True if any changes were made, false otherwise.
 	 */
 	public boolean redoOnce() {
@@ -126,7 +122,7 @@ public class UndoRedoManager implements ChangeListener<QuPathViewerPlus>, QuPath
 	 * Request to 'undo' the last observed hierarchy change for the specified viewer.
 	 * 
 	 * @param viewer
-	 * @return True if any changes were made, false otherwise.
+	 * @return {@code true} if any changes were made, {@code false} otherwise.
 	 */
 	boolean undoOnce(final QuPathViewer viewer) {
 		if (viewer == null) {
@@ -342,7 +338,7 @@ public class UndoRedoManager implements ChangeListener<QuPathViewerPlus>, QuPath
 		 * Deserialize an object from an array of bytes.
 		 * It's assumed at the object is of the generic type used elsewhere in this class.
 		 * 
-		 * @param initialSize
+		 * @param bytes
 		 * @return
 		 */
 		private T deserialize(byte[] bytes) {

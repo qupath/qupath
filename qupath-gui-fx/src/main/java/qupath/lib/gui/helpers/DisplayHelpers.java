@@ -30,6 +30,7 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -59,12 +60,14 @@ import javafx.scene.control.TextArea;
 import javafx.scene.control.TextInputDialog;
 import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
+import javafx.scene.robot.Robot;
 import javafx.stage.Modality;
+import javafx.stage.Screen;
 import javafx.stage.Stage;
 import javafx.stage.Window;
 import qupath.lib.color.ColorDeconvolutionHelper;
 import qupath.lib.color.ColorDeconvolutionStains;
-import qupath.lib.color.ColorDeconvolutionStains.DEFAULT_CD_STAINS;
+import qupath.lib.color.ColorDeconvolutionStains.DefaultColorDeconvolutionStains;
 import qupath.lib.color.StainVector;
 import qupath.lib.common.ColorTools;
 import qupath.lib.gui.QuPathGUI;
@@ -101,8 +104,8 @@ public class DisplayHelpers {
 	 * Make a semi-educated guess at the image type of a PathImageServer.
 	 * 
 	 * @param server
-	 * @param imgThumbnail Optional thumbnail for the image. If not present, the server will be asked for a thumbnail.
-	 * 						Including one here can improve performance by reducing need to query server.
+	 * @param imgThumbnail Thumbnail for the image. This is now a required parameter (previously &lt;= 0.1.2 it was optional).
+	 * 
 	 * @return
 	 */
 	public static ImageData.ImageType estimateImageType(final ImageServer<BufferedImage> server, final BufferedImage imgThumbnail) {
@@ -112,16 +115,17 @@ public class DisplayHelpers {
 		if (!server.isRGB())
 			return ImageData.ImageType.FLUORESCENCE;
 		
-		BufferedImage img;
-		if (imgThumbnail == null)
-			img = server.getBufferedThumbnail(220, 220, 0);
-		else {
-			img = imgThumbnail;
+		BufferedImage img = imgThumbnail;
+//		BufferedImage img;
+//		if (imgThumbnail == null)
+//			img = server.getBufferedThumbnail(220, 220, 0);
+//		else {
+//			img = imgThumbnail;
 //			// Rescale if necessary
 //			if (img.getWidth() * img.getHeight() > 400*400) {
 //				imgThumbnail.getS
 //			}
-		}
+//		}
 		int w = img.getWidth();
 		int h = img.getHeight();
 		int[] rgb = img.getRGB(0, 0, w, h, null, 0, w);
@@ -161,14 +165,14 @@ public class DisplayHelpers {
 //		logger.debug("Color: " + color.toString());
 
 		// Compare optical density vector angles with the defaults for hematoxylin, eosin & DAB
-		ColorDeconvolutionStains stainsH_E = ColorDeconvolutionStains.makeDefaultColorDeconvolutionStains(DEFAULT_CD_STAINS.H_E);
+		ColorDeconvolutionStains stainsH_E = ColorDeconvolutionStains.makeDefaultColorDeconvolutionStains(DefaultColorDeconvolutionStains.H_E);
 		double rOD = ColorDeconvolutionHelper.makeOD(rSum/n, stainsH_E.getMaxRed());
 		double gOD = ColorDeconvolutionHelper.makeOD(gSum/n, stainsH_E.getMaxGreen());
 		double bOD = ColorDeconvolutionHelper.makeOD(bSum/n, stainsH_E.getMaxBlue());
-		StainVector stainMean = new StainVector("Mean Stain", rOD, gOD, bOD);
+		StainVector stainMean = StainVector.createStainVector("Mean Stain", rOD, gOD, bOD);
 		double angleH = StainVector.computeAngle(stainMean, stainsH_E.getStain(1));
 		double angleE = StainVector.computeAngle(stainMean, stainsH_E.getStain(2));
-		ColorDeconvolutionStains stainsH_DAB = ColorDeconvolutionStains.makeDefaultColorDeconvolutionStains(DEFAULT_CD_STAINS.H_DAB);
+		ColorDeconvolutionStains stainsH_DAB = ColorDeconvolutionStains.makeDefaultColorDeconvolutionStains(DefaultColorDeconvolutionStains.H_DAB);
 		double angleDAB = StainVector.computeAngle(stainMean, stainsH_DAB.getStain(2));
 	
 		// For H&E staining, eosin is expected to predominate... if it doesn't, assume H-DAB
@@ -399,6 +403,7 @@ public class DisplayHelpers {
 			dialog.setTitle(title);
 			dialog.setHeaderText(null);
 			dialog.setContentText(message);
+			dialog.setResizable(true);
 			// Traditional way to get the response value.
 			Optional<String> result = dialog.showAndWait();
 			if (result.isPresent())
@@ -411,8 +416,11 @@ public class DisplayHelpers {
 		return null;
 	}
 	
-	
 	public static <T> T showChoiceDialog(final String title, final String message, final T[] choices, final T defaultChoice) {
+		return showChoiceDialog(title, message, Arrays.asList(choices), defaultChoice);
+	}
+	
+	public static <T> T showChoiceDialog(final String title, final String message, final Collection<T> choices, final T defaultChoice) {
 		if (Platform.isFxApplicationThread()) {
 			ChoiceDialog<T> dialog = new ChoiceDialog<>(defaultChoice, choices);
 			dialog.setTitle(title);
@@ -424,7 +432,7 @@ public class DisplayHelpers {
 				return result.get();
 			return null;
 		} else
-			return (T)JOptionPane.showInputDialog(getPossibleParent(), message, title, JOptionPane.PLAIN_MESSAGE, null, choices, defaultChoice);
+			return (T)JOptionPane.showInputDialog(getPossibleParent(), message, title, JOptionPane.PLAIN_MESSAGE, null, choices.toArray(), defaultChoice);
 	}
 	
 	
@@ -437,36 +445,68 @@ public class DisplayHelpers {
 	}
 	
 	public static void showErrorNotification(final String title, final Throwable e) {
+		if (!Platform.isFxApplicationThread()) {
+			Platform.runLater(() -> showErrorNotification(title, e));
+			return;
+		}
 		logger.error("{}", title, e);
 		String message = e.getLocalizedMessage();
 		if (message == null)
 			message = "QuPath has encountered a problem, sorry.\nIf you can replicate it, please notify a developer.\n\n" + e;
-		if (Platform.isFxApplicationThread())
-			Notifications.create().title(title).text(message).showError();
-		else {
+		if (Platform.isFxApplicationThread()) {
+			createNotifications().title(title).text(message).showError();
+		} else {
 			String finalMessage = message;
-			Platform.runLater(() -> Notifications.create().title(title).text(finalMessage).showError());
+			Platform.runLater(() -> {
+				createNotifications().title(title).text(finalMessage).showError();
+			});
 		}
 	}
 
 	public static void showErrorNotification(final String title, final String message) {
+		if (!Platform.isFxApplicationThread()) {
+			Platform.runLater(() -> showErrorNotification(title, message));
+			return;
+		}
 		logger.error(title + ": " + message);
-		Notifications.create().title(title).text(message).showError();
+		createNotifications().title(title).text(message).showError();
 	}
 
 	public static void showWarningNotification(final String title, final String message) {
+		if (!Platform.isFxApplicationThread()) {
+			Platform.runLater(() -> showWarningNotification(title, message));
+			return;
+		}
 		logger.warn(title + ": " + message);
-		Notifications.create().title(title).text(message).showWarning();
+		createNotifications().title(title).text(message).showWarning();
 	}
 
 	public static void showInfoNotification(final String title, final String message) {
+		if (!Platform.isFxApplicationThread()) {
+			Platform.runLater(() -> showInfoNotification(title, message));
+			return;
+		}
 		logger.info(title + ": " + message);
-		Notifications.create().title(title).text(message).showInformation();
+		createNotifications().title(title).text(message).showInformation();
 	}
 
 	public static void showPlainNotification(final String title, final String message) {
+		if (!Platform.isFxApplicationThread()) {
+			Platform.runLater(() -> showPlainNotification(title, message));
+			return;
+		}
 		logger.info(title + ": " + message);
-		Notifications.create().title(title).text(message).show();
+		createNotifications().title(title).text(message).show();
+	}
+	
+	/**
+	 * Necessary to have owner when calling notifications (bug in controlsfx?).
+	 */
+	private static Notifications createNotifications() {
+		var stage = QuPathGUI.getInstance() == null ? null : QuPathGUI.getInstance().getStage();
+		if (stage != null)
+			return Notifications.create();
+		return Notifications.create().owner(stage);
 	}
 	
 	/**
@@ -501,15 +541,7 @@ public class DisplayHelpers {
 	 * @return True if the request succeeded, false otherwise.
 	 */
 	public static boolean browseURI(final URI uri) {
-		try {
-			// TODO: Look for a more elegant JavaFX solution...
-			Desktop.getDesktop().browse(uri);
-			return true;
-		} catch (Exception e) {
-			DisplayHelpers.showErrorMessage("Web error", "Unable to open URI:\n" + uri);
-			logger.info("Unable to show webpage", e);
-			return false;
-		}
+		return QuPathGUI.launchBrowserWindow(uri.toString());
 	}
 	
 
@@ -629,7 +661,7 @@ public class DisplayHelpers {
 					hierarchy.removeObject(pathObjectSelected, true);
 				else
 					hierarchy.removeObject(pathObjectSelected, false);
-			} else if (pathObjectSelected.isPoint()) {
+			} else if (PathObjectTools.hasPointROI(pathObjectSelected)) {
 				int nPoints = ((PointsROI)pathObjectSelected.getROI()).getNPoints();
 				if (nPoints > 1) {
 					if (!DisplayHelpers.showYesNoDialog("Delete object", String.format("Delete %d points?", nPoints)))
@@ -693,32 +725,59 @@ public class DisplayHelpers {
 //		return null;
 //	}
 	
-	
+	public static enum SnapshotType {
+		CURRENT_VIEWER,
+		MAIN_SCENE,
+		MAIN_WINDOW_SCREENSHOT,
+		FULL_SCREENSHOT
+	};
 	
 	/**
-	 * Make a snapshot (image) showing what is currently displayed in a QuPath window,
-	 * or the active viewer within QuPath.
+	 * Make a snapshot (image) showing what is currently displayed in a QuPath window
+	 * or the active viewer within QuPath, as determined by the SnapshotType.
 	 * 
 	 * @param qupath
-	 * @param wholeWindow
+	 * @param type
 	 * @return
 	 */
-	public static BufferedImage makeSnapshot(final QuPathGUI qupath, final boolean wholeWindow) {
-		return SwingFXUtils.fromFXImage(makeSnapshotFX(qupath, wholeWindow), null);
+	public static BufferedImage makeSnapshot(final QuPathGUI qupath, final SnapshotType type) {
+		return SwingFXUtils.fromFXImage(makeSnapshotFX(qupath, type), null);
 	}
 	
 	
-	public static WritableImage makeSnapshotFX(final QuPathGUI qupath, final boolean wholeWindow) {
-		if (wholeWindow) {
-			Scene scene = qupath.getStage().getScene();
-			return scene.snapshot(null);
-		} else {
+	public static WritableImage makeSnapshotFX(final QuPathGUI qupath, final SnapshotType type) {
+		switch (type) {
+		case CURRENT_VIEWER:
 			// Temporarily remove the selected border color while copying
 			Color borderColor = qupath.getViewer().getBorderColor();
-			qupath.getViewer().setBorderColor(null);
-			WritableImage img = qupath.getViewer().getView().snapshot(null, null);
-			qupath.getViewer().setBorderColor(borderColor);
-			return img;
+			try {
+				qupath.getViewer().setBorderColor(null);
+				return qupath.getViewer().getView().snapshot(null, null);
+			} finally {
+				qupath.getViewer().setBorderColor(borderColor);
+			}
+		case MAIN_SCENE:
+			Scene scene = qupath.getStage().getScene();
+			return scene.snapshot(null);
+		case MAIN_WINDOW_SCREENSHOT:
+			var stage = qupath.getStage();
+			try {
+				// For reasons I do not understand, this occasionally throws an ArrayIndexOutOfBoundsException
+				return new Robot().getScreenCapture(null,
+						stage.getX(), stage.getY(), stage.getWidth(), stage.getHeight());
+			} catch (Exception e) {
+				logger.error("Unable to make main window screenshot, will resort to trying to crop a full screenshot instead", e);
+				var img2 = makeSnapshotFX(qupath, SnapshotType.FULL_SCREENSHOT);
+				return new WritableImage(img2.getPixelReader(), 
+						(int)stage.getX(), (int)stage.getY(), (int)stage.getWidth(), (int)stage.getHeight());
+			}
+		case FULL_SCREENSHOT:
+			var screen = Screen.getPrimary();
+			var bounds = screen.getBounds();
+			return new Robot().getScreenCapture(null,
+					bounds.getMinX(), bounds.getMinY(), bounds.getWidth(), bounds.getHeight());
+		default:
+			throw new IllegalArgumentException("Unknown snaptop type " + type);
 		}
 	}
 

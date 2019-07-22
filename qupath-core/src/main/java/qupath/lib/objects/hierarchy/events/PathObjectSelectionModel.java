@@ -23,12 +23,14 @@
 
 package qupath.lib.objects.hierarchy.events;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Set;
-import java.util.Vector;
 
 import qupath.lib.objects.PathObject;
 import qupath.lib.roi.interfaces.ROI;
@@ -38,24 +40,32 @@ import qupath.lib.roi.interfaces.ROI;
  * 
  * @author Pete Bankhead
  * 
- * @see PathObjectHierarchy
+ * @see qupath.lib.objects.hierarchy.PathObjectHierarchy
  * 
  */
 public class PathObjectSelectionModel {
 	
-	private Vector<PathObjectSelectionListener> listeners = new Vector<>();
+	private List<PathObjectSelectionListener> listeners = Collections.synchronizedList(new ArrayList<>());
 	
 	private Set<PathObject> selectedSet = Collections.synchronizedSet(new LinkedHashSet<>(256));
 	private Set<PathObject> selectedSetUnmodifiable = Collections.unmodifiableSet(selectedSet);
 	private PathObject pathObjectSelected = null;
 	
-	public void setSelectedObjects(Collection<? extends PathObject> pathObjects, final PathObject selectedObject) {
+	/**
+	 * Specify a collection of objects to be selected, and which among them should be the primary.
+	 * <p>
+	 * Any previous selection is reset.
+	 * 
+	 * @param pathObjects
+	 * @param primarySelectedObject
+	 */
+	public synchronized void setSelectedObjects(Collection<? extends PathObject> pathObjects, final PathObject primarySelectedObject) {
 		if (pathObjects == null || pathObjects.isEmpty()) {
 			clearSelection();
 			return;
 		}
 		// Check if we have any changes to make
-		if (selectedSet.size() == pathObjects.size() && selectedSet.containsAll(pathObjects))
+		if (selectedSet.size() == pathObjects.size() && selectedSet.containsAll(pathObjects) && pathObjectSelected == primarySelectedObject)
 			return;
 		
 		// Update selected objects
@@ -66,11 +76,15 @@ public class PathObjectSelectionModel {
 //		if (selectedObject == null) {
 //			updateToLastSelectedObject();
 //		} else
-			pathObjectSelected = selectedObject;
+			pathObjectSelected = primarySelectedObject;
 		firePathObjectSelectionChangedEvent(pathObjectSelected, previousSelected);
 	}
 	
-	public Set<PathObject> getSelectedObjects() {
+	/**
+	 * Get an unmodifiable set containing all the currently-selected objects.
+	 * @return
+	 */
+	public synchronized Set<PathObject> getSelectedObjects() {
 		return selectedSetUnmodifiable;
 	}
 	
@@ -80,7 +94,7 @@ public class PathObjectSelectionModel {
 	 * 
 	 * @return
 	 */
-	public boolean noSelection() {
+	public synchronized boolean noSelection() {
 		return pathObjectSelected == null && selectedSet.isEmpty();
 	}
 
@@ -89,11 +103,19 @@ public class PathObjectSelectionModel {
 	 * 
 	 * @return
 	 */
-	public boolean singleSelection() {
+	public synchronized boolean singleSelection() {
 		return selectedSet.size() == 1 || (selectedSet.isEmpty() && pathObjectSelected != null);
 	}
 	
-	
+	/**
+	 * Select the specified object to be the primary selected object, optionally retaining the 
+	 * existing selected objects.
+	 * 
+	 * @param pathObject
+	 * @param addToSelection add to the existing selection, rather than allowing only the specified object to be selected
+	 * 
+	 * @see #setSelectedObject(PathObject)
+	 */
 	public void setSelectedObject(PathObject pathObject, boolean addToSelection) {
 		if (!addToSelection) {
 			setSelectedObject(pathObject);
@@ -108,13 +130,16 @@ public class PathObjectSelectionModel {
 	}
 	
 	
-	private void updateToLastSelectedObject() {
+	private synchronized void updateToLastSelectedObject() {
 		Iterator<? extends PathObject> iter = selectedSet.iterator();
 		while (iter.hasNext())
 			pathObjectSelected = iter.next();
 	}
 	
-
+	/**
+	 * Ensure that the specified object is removed from the selection.
+	 * @param pathObject
+	 */
 	public void deselectObject(PathObject pathObject) {
 		PathObject previousSelected = pathObjectSelected;
 		boolean changes = selectedSet.remove(pathObject);
@@ -130,7 +155,7 @@ public class PathObjectSelectionModel {
 	
 	/**
 	 * Ensure the specified objects are deselected.
-	 * 
+	 * <p>
 	 * The selection state of other objects will not be modified.
 	 * 
 	 * @param pathObjects
@@ -147,7 +172,7 @@ public class PathObjectSelectionModel {
 	
 	/**
 	 * Ensure the specified objects are selected.
-	 * 
+	 * <p>
 	 * The selection state of other objects will not be modified.
 	 * 
 	 * @param pathObjects
@@ -162,7 +187,10 @@ public class PathObjectSelectionModel {
 	}
 	
 	
-	
+	/**
+	 * Set the specified object to be selected, deselecting all others.
+	 * @param pathObject
+	 */
 	public void setSelectedObject(PathObject pathObject) {
 		// Here we fire even when the object is the same... this is because sometimes the object is selected but not
 		// in the hierarchy - and some listeners respond differently depending upon which is the case
@@ -177,10 +205,20 @@ public class PathObjectSelectionModel {
 		firePathObjectSelectionChangedEvent(pathObjectSelected, previousObject);
 	}
 	
+	/**
+	 * Get the current primary selected object.
+	 * @return
+	 */
 	public PathObject getSelectedObject() {
 		return pathObjectSelected;
 	}
 	
+	/**
+	 * Query whether a specific object is selected.
+	 * 
+	 * @param pathObject
+	 * @return
+	 */
 	public boolean isSelected(PathObject pathObject) {
 		return pathObjectSelected == pathObject || selectedSet.contains(pathObject);
 	}
@@ -195,7 +233,10 @@ public class PathObjectSelectionModel {
 		return null;
 	}
 	
-	public void clearSelection() {
+	/**
+	 * Clear selection so that no objects are selected.
+	 */
+	public synchronized void clearSelection() {
 		if (noSelection())
 			return;
 		selectedSet.clear();
@@ -204,20 +245,26 @@ public class PathObjectSelectionModel {
 		firePathObjectSelectionChangedEvent(null, previous);
 	}
 
-	protected void firePathObjectSelectionChangedEvent(PathObject pathObjectSelected, PathObject previousObject) {
-////		System.err.println("Setting to " + selectedSet);
-//		if (pathObjectSelected == null)
-//			System.err.println("Setting to null...");
+	synchronized void firePathObjectSelectionChangedEvent(PathObject pathObjectSelected, PathObject previousObject) {
+		var allSelected = Collections.unmodifiableSet(new HashSet<>(selectedSet));
 		for (PathObjectSelectionListener listener : listeners) {
-			listener.selectedPathObjectChanged(pathObjectSelected, previousObject);
+			listener.selectedPathObjectChanged(pathObjectSelected, previousObject, allSelected);
 		}
 	}
 	
-	public void addPathObjectSelectionListener(PathObjectSelectionListener listener) {
+	/**
+	 * Add listener for selection changes.
+	 * @param listener
+	 */
+	public synchronized void addPathObjectSelectionListener(PathObjectSelectionListener listener) {
 		listeners.add(listener);
 	}
 	
-	public void removePathObjectSelectionListener(PathObjectSelectionListener listener) {
+	/**
+	 * Remove listener for selection changes.
+	 * @param listener
+	 */
+	public synchronized void removePathObjectSelectionListener(PathObjectSelectionListener listener) {
 		listeners.remove(listener);
 	}
 	

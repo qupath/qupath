@@ -23,12 +23,8 @@
 
 package qupath.lib.gui.viewer.recording;
 
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Scanner;
 
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ObservableValue;
@@ -46,7 +42,6 @@ import javafx.stage.Stage;
 import javafx.util.Callback;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
-import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.gui.helpers.PanelToolsFX;
 import qupath.lib.gui.viewer.QuPathViewer;
 
@@ -64,67 +59,16 @@ public class ViewTrackerExportCommand implements PathCommand {
 	private Stage dialog;
 	private TableView<ViewRecordingFrame> table = new TableView<>();
 	
+	/**
+	 * Constructor.
+	 * @param viewer the viewer being tracked
+	 * @param tracker the tracker doing the tracking
+	 */
 	public ViewTrackerExportCommand(final QuPathViewer viewer, final ViewTracker tracker) {
 		this.viewer = viewer;
 		this.tracker = tracker;
 	}
 
-	public static void handleExport(final ViewTracker tracker) {
-		if (tracker.isEmpty()) {
-			DisplayHelpers.showErrorMessage("Tracking export", "Tracker is empty - nothing to export!");
-			return;
-		}
-		File fileExport = QuPathGUI.getSharedDialogHelper().promptToSaveFile(null, null, null, "QuPath tracking data (csv)", "csv");
-		if (fileExport == null)
-			return;
-		
-		PrintWriter out = null;
-		try {
-			out = new PrintWriter(fileExport);
-			out.print(tracker.getSummaryString());
-		} catch (FileNotFoundException e) {
-			e.printStackTrace();
-		} finally {
-			if (out != null)
-				out.close();
-		}
-	}
-	
-	
-	public static boolean handleImport(final ViewTracker tracker) {
-		File fileImport = QuPathGUI.getSharedDialogHelper().promptForFile(null, null, "QuPath tracking data (csv)", new String[]{"csv"});
-		if (fileImport == null)
-			return false;
-		
-		Scanner scanner = null;
-		String content = null;
-		try {
-			scanner = new Scanner(fileImport);
-			content = scanner.useDelimiter("\\Z").next();
-		} catch (FileNotFoundException e) {
-			e.printStackTrace();
-		} finally {
-			if (scanner != null)
-				scanner.close();
-		}
-		
-		if (content == null) {
-			DisplayHelpers.showErrorMessage("View tracking import", "Unable to read " + fileImport);
-			return false;
-		}
-		tracker.resetRecording();
-		try {
-			DefaultViewTracker.parseSummaryString(content, null, tracker);
-			return true;
-		} catch (Exception e) {
-			DisplayHelpers.showErrorMessage("View tracking import", "Unable to read tracking data from " + fileImport);
-			e.printStackTrace();
-		}
-		return false;
-	}
-	
-	
-	
 	@Override
 	public void run() {
 		if (dialog == null) {
@@ -154,14 +98,14 @@ public class ViewTrackerExportCommand implements PathCommand {
 			
 			Button btnImport = new Button("Import");
 			btnImport.setOnAction(e -> {
-					if (handleImport(tracker)) {
+					if (ViewTrackers.handleImport(tracker)) {
 						refreshTracker();
 					}
 			});
 			
 			Button btnExport = new Button("Export");
 			btnExport.setOnAction(e -> {
-					handleExport(tracker);
+					ViewTrackers.handleExport(tracker);
 			});
 			
 			Button btnCopy = new Button("Copy to clipboard");

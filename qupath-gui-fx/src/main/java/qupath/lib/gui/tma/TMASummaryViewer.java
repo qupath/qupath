@@ -25,6 +25,7 @@ package qupath.lib.gui.tma;
 
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -156,6 +157,7 @@ import qupath.lib.gui.tma.entries.TMAObjectEntry;
 import qupath.lib.gui.tma.entries.TMASummaryEntry;
 import qupath.lib.gui.tma.entries.TMASummaryEntry.MeasurementCombinationMethod;
 import qupath.lib.images.ImageData;
+import qupath.lib.images.servers.ServerTools;
 import qupath.lib.io.PathIO;
 import qupath.lib.io.TMAScoreImporter;
 import qupath.lib.measurements.MeasurementList;
@@ -755,7 +757,7 @@ public class TMASummaryViewer {
 //			logger.info(entry.getKey() + "\t" + score);
 		}
 
-		TMAGrid grid = new DefaultTMAGrid(cores, 1);
+		TMAGrid grid = DefaultTMAGrid.create(cores, 1);
 		PathObjectHierarchy hierarchy = new PathObjectHierarchy();
 		hierarchy.setTMAGrid(grid);
 		kmDisplay.setHierarchy(hierarchy, colSurvival, colCensoredRequested);
@@ -1127,14 +1129,13 @@ public class TMASummaryViewer {
 		
 		List<TMAEntry> entries = new ArrayList<>();
 		for (ProjectImageEntry<BufferedImage> imageEntry : project.getImageList()) {
-			File file = QuPathGUI.getImageDataFile(project, imageEntry);
-			if (file.isFile()) {
-				logger.info("Reading from {}", file);
-				ImageData<BufferedImage> imageData = PathIO.readImageData(file, null, null, BufferedImage.class);
-				if (imageData != null)
+			if (imageEntry.hasImageData()) {
+				try {
+					ImageData<BufferedImage> imageData = imageEntry.readImageData();
 					entries.addAll(getEntriesForTMAData(imageData));
-				else
-					logger.error("No ImageData read for {]", file);
+				} catch (IOException e) {
+					logger.error("Unable to read ImageData for {} ({})", imageEntry.getImageName(), e.getLocalizedMessage());
+				}
 			}
 		}
 		setTMAEntries(entries);
@@ -1163,7 +1164,7 @@ public class TMASummaryViewer {
 	 */
 	public void setTMAEntriesFromImageData(final ImageData<BufferedImage> imageData) {
 		setTMAEntries(getEntriesForTMAData(imageData));
-		stage.setTitle("TMA Viewer: " + imageData.getServer().getShortServerName());
+		stage.setTitle("TMA Viewer: " + ServerTools.getDisplayableImageName(imageData.getServer()));
 	}
 	
 
@@ -1172,8 +1173,12 @@ public class TMASummaryViewer {
 			return;
 		
 		if (file.getName().toLowerCase().endsWith(PathPrefs.getSerializationExtension())) {
-			ImageData<BufferedImage> imageData = PathIO.readImageData(file, null, null, BufferedImage.class);
-			setTMAEntriesFromImageData(imageData);
+			try {
+				ImageData<BufferedImage> imageData = PathIO.readImageData(file, null, null, BufferedImage.class);
+				setTMAEntriesFromImageData(imageData);
+			} catch (IOException e) {
+				logger.error("Error reading image data", e);
+			}
 			return;
 		}
 
@@ -1568,8 +1573,7 @@ public class TMASummaryViewer {
 			serverPath = scanner.nextLine().trim();
 			scanner.close();
 		} catch (Exception e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			logger.error("Error parsing input file", e);
 		}
 		if (serverPath == null) { // || !(new File(serverPath).exists())) {
 			logger.error("Unable to find a server with path " + serverPath + " - cannot parse " + file.getAbsolutePath());
@@ -1579,9 +1583,16 @@ public class TMASummaryViewer {
 		File dirData = new File(file.getAbsolutePath() + ".data");
 		
 		try {
-			Map<String, List<String>> csvData = TMAScoreImporter.readCSV(getTMAResultsFile(dirData));
-			if (csvData.isEmpty())
+			File fileResults = getTMAResultsFile(dirData);
+			if (fileResults == null) {
+				logger.error("No results file found for {}", dirData.getAbsolutePath());
 				return;
+			}
+			Map<String, List<String>> csvData = TMAScoreImporter.readCSV(fileResults);
+			if (csvData.isEmpty()) {
+				logger.warn("Results file empty: {}", fileResults.getAbsolutePath());
+				return;
+			}
 			
 			// Identify metadata and numeric columns
 			Map<String, List<String>> metadataColumns = new LinkedHashMap<>();
@@ -1593,7 +1604,7 @@ public class TMASummaryViewer {
 				// Make sure IDs are trimmed
 				if (trimUniqueIDs) {
 					for (int i = 0; i < idColumn.size(); i++)
-						idColumn.set(i, idColumn.get(i).trim());
+						idColumn.set(i, idColumn.get(i) == null ? null : idColumn.get(i).trim());
 				}
 			}
 			List<String> nameColumn = csvData.remove("Name");
@@ -1606,7 +1617,7 @@ public class TMASummaryViewer {
 				List<String> list = entry.getValue();
 				n = list.size();
 				double[] values = TMAScoreImporter.parseNumeric(list, true);
-				if (values == null || TMAScoreImporter.numNaNs(values) == list.size())
+				if (values == null || GeneralTools.numNaNs(values) == list.size())
 					metadataColumns.put(entry.getKey(), list);
 				else
 					measurementColumns.put(entry.getKey(), values);
@@ -1632,7 +1643,7 @@ public class TMASummaryViewer {
 				entries.add(entry);
 			}
 		} catch (Exception e) {
-			e.printStackTrace();
+			logger.error("Error parsing input file " + file, e);
 		}
 
 		logger.info("Parsed " + (entries.size() - nEntries) + " from " + file.getName() + " (" + entries.size() + " total)");
@@ -1911,8 +1922,8 @@ public class TMASummaryViewer {
 				return;
 			}
 			int len = x.length;
-			int nNanX = TMAScoreImporter.numNaNs(x);
-			int nNanY = TMAScoreImporter.numNaNs(y);
+			int nNanX = GeneralTools.numNaNs(x);
+			int nNanY = GeneralTools.numNaNs(y);
 			if (count < x.length) {
 				x = Arrays.copyOf(x, count);
 				y = Arrays.copyOf(y, count);
@@ -1973,7 +1984,7 @@ public class TMASummaryViewer {
 		Map<String, double[]> dataNumeric = new HashMap<>();
 		for (String key : data.keySet().toArray(new String[0])) {
 			double[] vals = TMAScoreImporter.parseNumeric(data.get(key), true);
-			if (vals != null && TMAScoreImporter.numNaNs(vals) != vals.length) {
+			if (vals != null && GeneralTools.numNaNs(vals) != vals.length) {
 				dataNumeric.put(key, vals);
 				data.remove(key);
 			}

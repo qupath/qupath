@@ -23,6 +23,7 @@
 
 package qupath.lib.objects.helpers;
 
+import java.awt.geom.Line2D;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -36,7 +37,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.lib.geom.Point2;
-import qupath.lib.measurements.MeasurementList;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathCellObject;
 import qupath.lib.objects.PathDetectionObject;
@@ -45,16 +45,15 @@ import qupath.lib.objects.PathRootObject;
 import qupath.lib.objects.PathTileObject;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.classes.PathClass;
-import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.TMAGrid;
 import qupath.lib.regions.ImageRegion;
-import qupath.lib.roi.AreaROI;
-import qupath.lib.roi.ROIHelpers;
+import qupath.lib.roi.LineROI;
+import qupath.lib.roi.RoiTools;
+import qupath.lib.roi.PolylineROI;
 import qupath.lib.roi.interfaces.PathArea;
 import qupath.lib.roi.interfaces.PathPoints;
 import qupath.lib.roi.interfaces.ROI;
-import qupath.lib.rois.measure.ConvexHull;
 
 /**
  * A collection of static methods to help work with PathObjects.
@@ -67,26 +66,24 @@ public class PathObjectTools {
 	final private static Logger logger = LoggerFactory.getLogger(PathObjectTools.class);
 
 	/**
-	 * Filter a collection by removing objects if their ROIs are not instances of a specified class.
-	 * 
+	 * Remove objects with PointsROI from a collection.
 	 * @param pathObjects
-	 * @param cls
 	 */
-	public static void filterROIs(final Collection<PathObject> pathObjects, final Class<? extends ROI> cls) {
+	private static void removePoints(Collection<PathObject> pathObjects) {
 		Iterator<PathObject> iter = pathObjects.iterator();
 		while (iter.hasNext()) {
-			ROI pathROI = iter.next().getROI();
-			if (!cls.isInstance(pathROI))
+			if (hasPointROI(iter.next()))
 				iter.remove();
 		}
 	}
-
-	public static void removePoints(Collection<PathObject> pathObjects) {
-		Iterator<PathObject> iter = pathObjects.iterator();
-		while (iter.hasNext()) {
-			if (iter.next().isPoint())
-				iter.remove();
-		}
+	
+	/**
+	 * Returns true if a PathObject has a Point ROI.
+	 * @param pathObject
+	 * @return
+	 */
+	public static boolean hasPointROI(PathObject pathObject) {
+		return pathObject.hasROI() && pathObject.getROI().isPoint();
 	}
 	
 	/**
@@ -109,7 +106,14 @@ public class PathObjectTools {
 		return count;
 	}
 	
-
+	
+	/**
+	 * Get the PathObjects in a collection that are instances of a specified class.
+	 * 
+	 * @param pathObjects
+	 * @param cls
+	 * @return
+	 */
 	public static List<PathObject> getObjectsOfClass(final Collection<PathObject> pathObjects, final Class<? extends PathObject> cls) {
 		List<PathObject> pathObjectsFiltered = new ArrayList<>(pathObjects.size());
 		for (PathObject temp : pathObjects) {
@@ -120,14 +124,15 @@ public class PathObjectTools {
 		return pathObjectsFiltered;
 	}
 
-	public static boolean containsObjectsOfClass(final Collection<PathObject> pathObjects, final Class<? extends PathObject> cls) {
-		for (PathObject temp : pathObjects) {
-			if (cls == null || cls.isInstance(temp))
-				return true;
-		}
-		return false;
-	}
 
+	/**
+	 * Get all descendant objects as a flattened list.
+	 * 
+	 * @param parentObject the parent objects whose children and descendants should be added to the list
+	 * @param list output list, optional
+	 * @param includeParent if true, parentObject will be included in the output list
+	 * @return either list, or a new list created if necessary
+	 */
 	public static List<PathObject> getFlattenedObjectList(PathObject parentObject, List<PathObject> list, boolean includeParent) {
 		if (list == null)
 			list = new ArrayList<>();
@@ -168,15 +173,7 @@ public class PathObjectTools {
 		return count;
 	}
 
-	public static boolean containsChildOfClass(final PathObject pathObject, final Class<? extends PathObject> cls, final boolean allDescendents) {
-		for (PathObject childObject : pathObject.getChildObjects()) {
-			if (cls.isAssignableFrom(childObject.getClass()))
-				return true;
-			if (childObject.hasChildren() && allDescendents && containsChildOfClass(childObject, cls, allDescendents))
-				return true;
-		}
-		return false;
-	}
+	
 
 	/**
 	 * Count the descendants of a PathObject recursively, limited to a specific PathClass.
@@ -299,61 +296,6 @@ public class PathObjectTools {
 
 	
 	/**
-	 * Look for a point contained within a PathArea.
-	 * 
-	 * Note: This may return null, if no point could be found.  This doesn't necessarily mean 
-	 * the area is zero (roi.getArea() == 0 can be used to check for this), but rather that the 
-	 * calculations to find a contained point were prohibitively expensive.
-	 * 
-	 * This works as follows:
-	 * - Return the centroid, if this is contained
-	 * - Return the center of the ROI bounding box, if this is contained
-	 * - Check mid-points for pairs of points along the convex hull, and return the first of these that is contained
-	 * 
-	 * If none of these tests find a contained point, null is returned.
-	 * 
-	 * @param roi
-	 * @return
-	 */
-	public static Point2 getContainedPoint(final PathArea roi) {
-		// Return the centroid, if this is sufficient
-		double x = roi.getCentroidX();
-		double y = roi.getCentroidY();
-		if (roi.contains(x, y))
-			return new Point2(x, y);
-
-		// Check if we have an area at all
-		if (roi.getArea() == 0)
-			return null;
-
-		// Return the centre of the bounding box, if this is sufficient
-		x = roi.getBoundsX() + roi.getBoundsWidth()/2;
-		y = roi.getBoundsY() + roi.getBoundsHeight()/2;
-		if (roi.contains(x, y))
-			return new Point2(x, y);
-		
-		// TODO: There must be better ways to do this...
-		// Trace through convex hull of the points and see if we can find a pair were the result is inside
-		List<Point2> points = ConvexHull.getConvexHull(roi.getPolygonPoints());
-		for (int i = 0; i < points.size(); i++) {
-			Point2 pi = points.get(i);
-			for (int j = i+2; j < points.size()-1; j++) {
-				Point2 pj = points.get(j);
-				x = (pi.getX() + pj.getX())/2;
-				y = (pi.getY() + pj.getY())/2;
-				if (roi.contains(x, y))
-					return new Point2(x, y);
-			}			
-		}
-		
-		// Failed to find anything...
-		logger.warn("Could not find a contained point for {}", roi);
-		return null;
-	}
-	
-	
-	
-	/**
 	 * Get a user-friendly name for a specific type of PathObject, based on its Java class.
 	 * 
 	 * @param cls
@@ -362,6 +304,8 @@ public class PathObjectTools {
 	 */
 	public static String getSuitableName(Class<? extends PathObject> cls, boolean makePlural) {
 		if (makePlural) {
+			if (cls.equals(PathRootObject.class))
+				return "Root objects";
 			if (cls.equals(PathAnnotationObject.class))
 				return "Annotations";
 			if (cls.equals(TMACoreObject.class))
@@ -374,6 +318,8 @@ public class PathObjectTools {
 				return "Tiles";
 			return cls.getSimpleName() + " objects";
 		}
+		if (cls.equals(PathRootObject.class))
+			return "Root object";
 		if (cls.equals(PathAnnotationObject.class))
 			return "Annotation";
 		if (cls.equals(TMACoreObject.class))
@@ -386,13 +332,14 @@ public class PathObjectTools {
 			return "Tile";
 		return cls.getSimpleName();
 	}
-
+	
+	
 	/**
 	 * Test whether the ROI associated with one object can completely the ROI of a second object.
 	 * Returns false if either ROI is null.
 	 * 
-	 * @param parentROI
-	 * @param childROI
+	 * @param parentObject
+	 * @param childObject
 	 * @return
 	 */
 	public static boolean containsObject(PathObject parentObject, PathObject childObject) {
@@ -400,32 +347,13 @@ public class PathObjectTools {
 			return false;
 		return containsROI(parentObject.getROI(), childObject.getROI());
 	}
-	
-	public static boolean containsPointObject(Collection<PathObject> pathObjects) {
-		for (PathObject pathObject : pathObjects) {
-			if (pathObject.isPoint())
-				return true;
-		}
-		return false;
-	}
 
-	public static boolean includesIntensityClasses(final Collection<PathObject> pathObjects) {
-		for (PathObject pathObject : pathObjects) {
-			PathClass pathClass = pathObject.getPathClass();
-			if (pathClass != null && PathClassFactory.isDefaultIntensityClass(pathClass))
-				return true;
-		}
-		return false;
-	}
-
-	public static void removeMeasurements(final Collection<PathObject> pathObjects, String... measurementName) {
-		for (PathObject pathObject : pathObjects) {
-			MeasurementList list = pathObject.getMeasurementList();
-			list.removeMeasurements(measurementName);
-			list.closeList();
-		}
-	}
-
+	/**
+	 * Query if one object is the ancestor of another.
+	 * @param pathObject
+	 * @param possibleAncestor
+	 * @return
+	 */
 	public static boolean isAncestor(final PathObject pathObject, final PathObject possibleAncestor) {
 		PathObject parent = pathObject.getParent();
 		while (parent != null) {
@@ -460,7 +388,7 @@ public class PathObjectTools {
 	
 	/**
 	 * Get the TMA core object that contains a specified PathObject, or null if the object is not contained within a TMA core.
-	 * 
+	 * <p>
 	 * If the passed object already is a TMACore, it is returned directly.  Otherwise, all ancestors are checked.
 	 * 
 	 * @param pathObject
@@ -474,20 +402,24 @@ public class PathObjectTools {
 	}
 
 	/**
-	 * Get the TMA core that contains the specified x & y coordinate, or null if no core is available for the coordinates give.
+	 * Get the TMA core that contains the specified x &amp; y coordinate, or null if no core is available for the coordinates give.
 	 * 
-	 * @param hierarchy
+	 * @param tmaGrid
 	 * @param x
 	 * @param y
 	 * @return
 	 */
-	public static TMACoreObject getTMACoreForLocation(final PathObjectHierarchy hierarchy, final double x, final double y) {
-		TMAGrid tmaGrid = hierarchy.getTMAGrid();
-		if (tmaGrid == null)
-			return null;
-		return tmaGrid.getTMACoreForPixel(x, y);
+	public static TMACoreObject getTMACoreForPixel(final TMAGrid tmaGrid, final double x, final double y) {
+		return getPathObjectContainingPixel(tmaGrid.getTMACoreList(), x, y);
 	}
 
+	private static <T extends PathObject> T getPathObjectContainingPixel(Collection<T> pathObjects, double x, double y) {
+		for (T pathObject: pathObjects) {
+			if (RoiTools.areaContains(pathObject.getROI(), x, y))
+				return pathObject;
+		}
+		return null;
+	}
 	
 	/**
 	 * Check if a hierarchy contains a specified PathObject.
@@ -505,21 +437,75 @@ public class PathObjectTools {
 			testObject = testObject.getParent();
 		return testObject == hierarchy.getRootObject();
 	}
-
-	public static Collection<PathObject> getObjectsForLocation(final PathObjectHierarchy hierarchy, final double x, final double y, final int zPos, final int tPos) {
+	
+	/**
+	 * Get a collection of objects that overlap a specified pixel location.
+	 * <p>
+	 * For area ROIs, this means the ROI should contain the pixel.  For non-area ROIs an 
+	 * optional vertex distance can be used to define a distance tolerance to the nearest vertex 
+	 * or line segment.
+	 * 
+	 * @param hierarchy object hierarchy within which to find the object
+	 * @param x x-coordinate of the pixel
+	 * @param y y-coordinate of the pixel
+	 * @param zPos z-slice number
+	 * @param tPos time-point number
+	 * @param vertexDistance for non-area ROIs, the distance from the closest vertex or line segment (or &lt; 0 to ignore non-area ROIs).
+	 * @return
+	 */
+	public static Collection<PathObject> getObjectsForLocation(final PathObjectHierarchy hierarchy, 
+			final double x, final double y, final int zPos, final int tPos, double vertexDistance) {
 			if (hierarchy == null)
 				return Collections.emptyList();
 			Set<PathObject> pathObjects = new HashSet<>(8);
 			hierarchy.getObjectsForRegion(PathObject.class, ImageRegion.createInstance((int)x, (int)y, 1, 1, zPos, tPos), pathObjects);
-			removePoints(pathObjects); // Ensure we don't have any PointROIs
+			if (vertexDistance < 0)
+				removePoints(pathObjects); // Ensure we don't have any PointROIs
 			
 			// Ensure the ROI contains the click
 			Iterator<PathObject> iter = pathObjects.iterator();
+			double distSq = vertexDistance * vertexDistance;
 			while (iter.hasNext()) {
 				PathObject temp = iter.next();
-	//			if ((temp.isHidden() && temp.hasChildren()) || !PathROIHelpers.areaContains(temp.getROI(), x, y))
-				if (!ROIHelpers.areaContains(temp.getROI(), x, y))
-					iter.remove();
+				var roi = temp.getROI();
+				if (!RoiTools.areaContains(temp.getROI(), x, y)) {
+					if (!roi.isArea() && vertexDistance >= 0) {
+						boolean isClose = false;
+						if (roi instanceof LineROI) {
+							var line = (LineROI)roi;
+							if (Line2D.ptSegDistSq(
+									line.getX1(), line.getY1(),
+									line.getX2(), line.getY2(),
+									x, y) <= distSq)
+								isClose = true;
+						} else if (roi instanceof PolylineROI) {
+							Point2 lastPoint = null;
+							for (var p : temp.getROI().getPolygonPoints()) {
+								if (p.distanceSq(x, y) <= distSq ||
+										(lastPoint != null && Line2D.ptSegDistSq(
+												p.getX(), p.getY(),
+												lastPoint.getX(), lastPoint.getY(),
+												x, y
+												) <= distSq)) {
+									isClose = true;
+									break;
+								} else
+									lastPoint = p;
+							}
+						} else {
+							for (var p : temp.getROI().getPolygonPoints()) {
+								if (p.distanceSq(x, y) <= distSq) {
+									isClose = true;
+									break;
+								}
+							}
+						}
+						if (isClose)
+							continue;
+					}
+					iter.remove();					
+				}
+
 			}
 			
 			if (pathObjects.isEmpty()) {
@@ -613,7 +599,7 @@ public class PathObjectTools {
 	/**
 	 * From a collection of available objects, extract those that are instances of specified supported classes.
 	 * 
-	 * @param hierarchy
+	 * @param availableObjects
 	 * @param supportedClasses
 	 * @return
 	 */
@@ -641,6 +627,32 @@ public class PathObjectTools {
 		}
 		return pathObject.getROI();
 	}
+
+	/**
+	 * Get all descendant objects with a specified type.
+	 * 
+	 * @param pathObject
+	 * @param pathObjects
+	 * @param cls
+	 * @return
+	 */
+	public static Collection<PathObject> getDescendantObjects(PathObject pathObject, Collection<PathObject> pathObjects, Class<? extends PathObject> cls) {
+		if (pathObjects == null)
+			pathObjects = new ArrayList<>();
+		if (pathObject == null || !pathObject.hasChildren())
+			return pathObjects;
+		addPathObjectsRecursively(pathObject.getChildObjects(), pathObjects, cls);
+		return pathObjects;
+	}
 	
+	private static void addPathObjectsRecursively(Collection<PathObject> pathObjectsInput, Collection<PathObject> pathObjects, Class<? extends PathObject> cls) {
+		for (PathObject childObject : pathObjectsInput) {
+			if (cls == null || cls.isInstance(childObject)) {
+				pathObjects.add(childObject);
+			}
+			if (childObject.hasChildren())
+				addPathObjectsRecursively(childObject.getChildObjects(), pathObjects, cls);
+		}
+	}
 	
 }

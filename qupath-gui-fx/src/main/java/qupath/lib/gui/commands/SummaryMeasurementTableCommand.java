@@ -27,6 +27,7 @@ import java.awt.Shape;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -92,7 +93,7 @@ import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.QuPathViewerListener;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
-import qupath.lib.images.stores.ImageRegionStore;
+import qupath.lib.images.servers.ServerTools;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
@@ -172,7 +173,7 @@ public class SummaryMeasurementTableCommand implements PathCommand {
 				synchronizeSelectionModelToTable(hierarchy, c, table);
 			}
 		});
-		String displayedName = imageData.getServer().getDisplayedImageName();
+		String displayedName = ServerTools.getDisplayableImageName(imageData.getServer());
 		String name;
 		if (type == null)
 			name = "Results " + displayedName;
@@ -204,7 +205,7 @@ public class SummaryMeasurementTableCommand implements PathCommand {
 			col.setCellValueFactory(val -> new SimpleObjectProperty<>(val.getValue().getROI()));
 			double maxWidth = maxDimForTMACore;
 			double padding = 10;
-			col.setCellFactory(column -> new TMACoreTableCell(table, qupath.getImageRegionStore(), imageData.getServer(), maxWidth, padding));
+			col.setCellFactory(column -> new TMACoreTableCell(table, imageData.getServer(), maxWidth, padding));
 			col.widthProperty().addListener((v, o, n) -> table.refresh());
 			col.setMaxWidth(maxWidth + padding*2);
 			table.getColumns().add(col);
@@ -396,6 +397,9 @@ public class SummaryMeasurementTableCommand implements PathCommand {
 
 			@Override
 			public void hierarchyChanged(PathObjectHierarchyEvent event) {
+				if (event.isChanging())
+					return;
+				
 				if (!Platform.isFxApplicationThread()) {
 					Platform.runLater(() -> hierarchyChanged(event));
 					return;
@@ -429,8 +433,8 @@ public class SummaryMeasurementTableCommand implements PathCommand {
 		// I accept this is a terrible hack... I would greatly appreciate someone telling me the proper way to get the accelerator keys to work
 		final Action actionShowTMAction = qupath.getAction(GUIActions.SHOW_TMA_GRID);
 		final Action actionShowAnnotations = qupath.getAction(GUIActions.SHOW_ANNOTATIONS);
-		final Action actionShowObjects = qupath.getAction(GUIActions.SHOW_OBJECTS);
-		final Action actionFillObjects = qupath.getAction(GUIActions.FILL_OBJECTS);
+		final Action actionShowObjects = qupath.getAction(GUIActions.SHOW_DETECTIONS);
+		final Action actionFillObjects = qupath.getAction(GUIActions.FILL_DETECTIONS);
 		final KeyCombination showTMAKeyStroke = actionShowTMAction.getAccelerator();
 		final KeyCombination showAnnotationsKeystroke = actionShowAnnotations.getAccelerator();
 		final KeyCombination showObjectsKeystroke = actionShowObjects.getAccelerator();
@@ -508,19 +512,17 @@ public class SummaryMeasurementTableCommand implements PathCommand {
 	class TMACoreTableCell extends TableCell<PathObject, ROI> {
 
 		private TableView<?> table;
-		private ImageRegionStore<BufferedImage> regionStore;
 		private ImageServer<BufferedImage> server;
 		private Canvas canvas = new Canvas();
 		private double preferredSize = 100;
 		private double maxDim;
 		private double padding;
 
-		TMACoreTableCell(final TableView<?> table, final ImageRegionStore<BufferedImage> regionStore, final ImageServer<BufferedImage> server, final double maxDim, final double padding) {
+		TMACoreTableCell(final TableView<?> table, final ImageServer<BufferedImage> server, final double maxDim, final double padding) {
 			this.table = table;
 			this.server = server;
 			this.maxDim = maxDim;
 			this.padding = padding;
-			this.regionStore = regionStore;
 			canvas.setWidth(preferredSize);
 			canvas.setHeight(preferredSize);
 			canvas.setStyle("-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.5), 4, 0, 1, 1);");
@@ -556,13 +558,15 @@ public class SummaryMeasurementTableCommand implements PathCommand {
 					double downsample = Math.max(roi.getBoundsWidth(), roi.getBoundsHeight()) / maxDim;
 					// TODO: Put requests into a background thread!
 					RegionRequest request = RegionRequest.createInstance(server.getPath(), downsample, roi);
-					BufferedImage img = regionStore.getImage(server, request, 100, true);
-					if (img == null)
-						return;
-					Image imageNew = SwingFXUtils.toFXImage(img, null);
-					if (imageNew != null) {
-						cache.put(roi, imageNew);
-						Platform.runLater(() -> table.refresh());
+					try {
+						BufferedImage img = server.readBufferedImage(request);
+						Image imageNew = SwingFXUtils.toFXImage(img, null);
+						if (imageNew != null) {
+							cache.put(roi, imageNew);
+							Platform.runLater(() -> table.refresh());
+						}
+					} catch (IOException e) {
+						logger.debug("Unable to return image for " + request, e);
 					}
 				});
 			} catch (Exception e) {

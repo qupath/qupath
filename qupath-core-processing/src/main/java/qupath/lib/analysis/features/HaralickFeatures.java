@@ -33,8 +33,10 @@ import qupath.lib.analysis.stats.RunningStatistics;
  */
 public class HaralickFeatures {
 	
-	// Use log2 for entropy
-	public final static double LOG2 = Math.log(2);
+	/**
+	 * Value of {@code Math.log(2)} (natural logarithm).
+	 */
+	private final static double LOG2 = Math.log(2);
 	// Add a small constant to avoid log of zero
 //	public final static double eps = 0.0000001;
 	
@@ -42,7 +44,7 @@ public class HaralickFeatures {
 	
 	private double[] f = new double[13];
 	
-	public final static String[] FEATURE_NAMES = new String[]{
+	private final static String[] FEATURE_NAMES = new String[]{
 		"Angular second moment",
 		"Contrast",
 		"Correlation",
@@ -58,8 +60,11 @@ public class HaralickFeatures {
 		"Information measure of correlation 2"
 	};
 	
-	
-	public HaralickFeatures(final CoocMatrix matrix) {
+	/**
+	 * Constructor.
+	 * @param matrix precomputed co-occurrence matrix.
+	 */
+	HaralickFeatures(final CoocMatrix matrix) {
 		this.matrix = matrix;
 		computeFeatures();
 	}
@@ -73,14 +78,14 @@ public class HaralickFeatures {
 		return sb.toString();
 	}
 	
-	public RunningStatistics getStatistics(double[] array) {
+	private static RunningStatistics getStatistics(double[] array) {
 		RunningStatistics stats = new RunningStatistics();
 		for (double d : array)
 			stats.addValue(d);
 		return stats;
 	}
 		
-	public void computeFeatures() {
+	private void computeFeatures() {
 		if (matrix == null)
 			return;
 		
@@ -246,7 +251,7 @@ public class HaralickFeatures {
 	}
 
 	//J alternative function with different mean and SD calculations - to compare with above for performance
-	public void computeFeaturesJ() {
+	private void computeFeaturesJ() {
 		if (matrix == null)
 			return;
 		
@@ -425,19 +430,33 @@ public class HaralickFeatures {
 		f[12] = f13; // Agrees (apart from eps)
 	}
 	
+	/**
+	 * Get the name of the specified feature.
+	 * @param n
+	 * @return
+	 */
 	public String getFeatureName(int n) {
 		return FEATURE_NAMES[n];
 	}
 	
+	/**
+	 * Total number of Haralick features.
+	 * @return
+	 */
 	public int nFeatures() {
 		return 13;
 	}
 
+	/**
+	 * Get the value of the specified feature.
+	 * @param n
+	 * @return
+	 */
 	public double getFeature(int n) {
 		return f[n];
 	}
 	
-	public double[] features() {
+	double[] features() {
 		return f;
 	}
 	

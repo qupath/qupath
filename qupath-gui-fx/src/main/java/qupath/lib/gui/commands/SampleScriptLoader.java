@@ -52,7 +52,7 @@ import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 
 /**
- * QuPath command to display & open sample scripts.
+ * QuPath command to display &amp; open sample scripts.
  * 
  * @author Pete Bankhead
  */
@@ -238,6 +238,7 @@ public class SampleScriptLoader implements PathCommand {
 			return description;
 		}
 
+		@Override
 		public String toString() {
 			return getName();
 		}

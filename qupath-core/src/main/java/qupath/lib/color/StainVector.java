@@ -44,14 +44,31 @@ import qupath.lib.common.GeneralTools;
  */
 public class StainVector implements Externalizable {
 	
-	
 	private static final long serialVersionUID = 1L;
 	
 	final private static Logger logger = LoggerFactory.getLogger(StainVector.class);
 	
-	public enum DEFAULT_STAINS {HEMATOXYLIN("Hematoxylin"), EOSIN("Eosin"), DAB("DAB");
+	/**
+	 * Enum representing default stains.
+	 * <p>
+	 * TODO: Replace with interface, add stain vectors directly
+	 */
+	public enum DefaultStains {
+		/**
+		 * Hematoxylin
+		 */
+		HEMATOXYLIN("Hematoxylin"),
+		/**
+		 * Eosin
+		 */
+		EOSIN("Eosin"),
+		/**
+		 * DAB
+		 */
+		DAB("DAB");
+		
 		private String name;
-		DEFAULT_STAINS(String name) {
+		DefaultStains(String name) {
 			this.name = name;
 		};
 		@Override
@@ -75,44 +92,67 @@ public class StainVector implements Externalizable {
 //	public static Pattern pattern = Pattern.compile( "[-+]?\\d*\\.?\\d+([eE][-+]?\\d+)?" );
 	
 	
-	public static StainVector makeDefaultStainVector(DEFAULT_STAINS stain) {
+	/**
+	 * Get a default stain vector.
+	 * @param stain
+	 * @return
+	 */
+	public static StainVector makeDefaultStainVector(DefaultStains stain) {
 		switch(stain) {
 		case HEMATOXYLIN:
-			return new StainVector(stain.toString(), STAIN_HEMATOXYLIN_DEFAULT);
+			return createStainVector(stain.toString(), STAIN_HEMATOXYLIN_DEFAULT, false);
 		case EOSIN:
-			return new StainVector(stain.toString(), STAIN_EOSIN_DEFAULT);
+			return createStainVector(stain.toString(), STAIN_EOSIN_DEFAULT, false);
 		case DAB:
-			return new StainVector(stain.toString(), STAIN_DAB_DEFAULT);
+			return createStainVector(stain.toString(), STAIN_DAB_DEFAULT, false);
 		}
 		return null;
 	}
 	
-	
+	/**
+	 * Default constructor, required for {@link Externalizable} interface.
+	 */
 	public StainVector() {}
 	
 	
-	public StainVector(String name, double[] vector, boolean isResidual) {
-		this(name, vector[0], vector[1], vector[2], isResidual);
+	static StainVector createStainVector(String name, double[] vector, boolean isResidual) {
+		return new StainVector(name, vector[0], vector[1], vector[2], isResidual);
 	}
 
-	public StainVector(String name, double[] vector) {
-		this(name, vector[0], vector[1], vector[2]);
+	/**
+	 * Create a stain vector.
+	 * @param name the name of the stain
+	 * @param r the stain vector red component
+	 * @param g the stain vector green component
+	 * @param b the stain vector blue component
+	 * @return
+	 */
+	public static StainVector createStainVector(String name, double r, double g, double b) {
+		return new StainVector(name, r, g, b, false);
 	}
 
-	public StainVector(String name, double r, double g, double b) {
-		this(name, r, g, b, false);
-	}
-
-	public StainVector(String name, double r, double g, double b, boolean isResidual) {
+	StainVector(String name, double r, double g, double b, boolean isResidual) {
 		setName(name);
 		setStain(r, g, b);
 		this.isResidual = isResidual;
 	}
+	
+//	public static StainVector createResidualStainVector(String name, double r, double g, double b) {
+//		return new StainVector(name, r, g, b, true);
+//	}
 
+	/**
+	 * Returns true if this vector represents the residual (orthogonal) stain, used whenever color deconvolution is required with two stains only.
+	 * @return
+	 */
 	public boolean isResidual() {
 		return isResidual;
 	}
 	
+	/**
+	 * Returns the name of the stain vector.
+	 * @return
+	 */
 	public String getName() {
 		return name;
 	}
@@ -121,14 +161,26 @@ public class StainVector implements Externalizable {
 		return Math.sqrt(r*r + g*g + b*b);
 	}
 	
+	/**
+	 * Get the red component of the (normalized) stain vector.
+	 * @return
+	 */
 	public double getRed() {
 		return this.r;
 	}
 
+	/**
+	 * Get the green component of the (normalized) stain vector.
+	 * @return
+	 */
 	public double getGreen() {
 		return this.g;
 	}
 
+	/**
+	 * Get the blue component of the (normalized) stain vector.
+	 * @return
+	 */
 	public double getBlue() {
 		return this.b;
 	}
@@ -151,12 +203,12 @@ public class StainVector implements Externalizable {
 		this.b = b / length;
 	}
 	
+	/**
+	 * Get the stain vector as a 3 element array (red, green, blue).
+	 * @return
+	 */
 	public double[] getArray() {
 		return new double[]{r, g, b};
-	}
-	
-	public static int clip255(double val) {
-		return (int)Math.min(255, Math.max(val, 0));
 	}
 	
 	/**
@@ -166,58 +218,14 @@ public class StainVector implements Externalizable {
 	 * @return
 	 */
 	public int getColor() {
-		int r2 = clip255(255.0 - r * 255);
-		int g2 = clip255(255.0 - g * 255);
-		int b2 = clip255(255.0 - b * 255);
+		int r2 = ColorTools.clip255(255.0 - r * 255);
+		int g2 = ColorTools.clip255(255.0 - g * 255);
+		int b2 = ColorTools.clip255(255.0 - b * 255);
 		return ColorTools.makeRGB(r2, g2, b2);
 	}
+		
 	
-	// This seems to produce visually more similar colors for single stains...
-	// but it's hard to get a suitable scaling factor (here 2) for normalized stain view across whole image using a similar method for mixed stains
-	// (the contrast is very low)
-//	public Color getColor() {
-//		if (!isValid())
-//			return null;
-////		int r2 = clip255(255.0 - r * 255);
-////		int g2 = clip255(255.0 - g * 255);
-////		int b2 = clip255(255.0 - b * 255);
-//		int r2 = clip255(Math.exp(-r * 2) * 255);
-//		int g2 = clip255(Math.exp(-g * 2) * 255);
-//		int b2 = clip255(Math.exp(-b * 2) * 255);
-//		return new Color(r2, g2, b2);
-//	}
-
-//	/*
-//	 * Create an 8-bit LUT for the stain color.
-//	 * This maps the color from getColor() to the value 127 and and white to 0; linear RGB interpolation is used for the other colors.
-//	 */
-//	public LUT getLUT(boolean whiteBackground) {
-//		if (!isValid())
-//			return LUT.createLutFromColor(Color.WHITE);
-//		else if (!whiteBackground)
-//			return LUT.createLutFromColor(getColor());
-//		byte[] r2 = new byte[256];
-//		byte[] g2 = new byte[256];
-//		byte[] b2 = new byte[256];
-//		for (int i = 0; i < 256; i++) {
-//			r2[i] = (byte)clip255(255 - (255 - Math.exp(-r) * 255)/128 * i);
-//			g2[i] = (byte)clip255(255 - (255 - Math.exp(-g) * 255)/128 * i);
-//			b2[i] = (byte)clip255(255 - (255 - Math.exp(-b) * 255)/128 * i);
-//		}
-//		return new LUT(r2, g2, b2);		
-//	}
-	
-	
-	public String arrayAsString(final Locale locale, final String delimiter, final int nDecimalPlaces) {
-		return GeneralTools.arrayToString(locale, new double[]{r, g, b}, delimiter, nDecimalPlaces);
-//		return String.format( "%.Nf%s%.Nf%s%.Nf".replace("N", Integer.toString(nDecimalPlaces)), r, delimiter, g, delimiter, b);
-//		return String.format( "%.Nf, %.Nf, %.Nf".replace("N", Integer.toString(nDecimalPlaces)), r, g, b );
-//		return String.format( "[%.Nf, %.Nf, %.Nf]".replace("N", Integer.toString(nDecimalPlaces)), r, g, b );
-//		return "[" + IJ.d2s(r, nDecimalPlaces) + ", " + IJ.d2s(g, nDecimalPlaces) + ", " + IJ.d2s(b, nDecimalPlaces) + "]";
-	}
-	
-	
-	public String arrayAsString(final Locale locale, final int nDecimalPlaces) {
+	String arrayAsString(final Locale locale, final int nDecimalPlaces) {
 		return GeneralTools.arrayToString(locale, new double[]{r, g, b}, nDecimalPlaces);
 //		return String.format( "%.Nf %.Nf %.Nf".replace("N", Integer.toString(nDecimalPlaces)), r, g, b );
 //		return String.format( "%.Nf, %.Nf, %.Nf".replace("N", Integer.toString(nDecimalPlaces)), r, g, b );
@@ -225,6 +233,11 @@ public class StainVector implements Externalizable {
 //		return "[" + IJ.d2s(r, nDecimalPlaces) + ", " + IJ.d2s(g, nDecimalPlaces) + ", " + IJ.d2s(b, nDecimalPlaces) + "]";
 	}
 	
+	/**
+	 * Get a String representation of the stain vector array, formatting according to the specified Locale.
+	 * @param locale
+	 * @return
+	 */
 	public String arrayAsString(final Locale locale) {
 		return arrayAsString(locale, 3);
 	}
@@ -233,34 +246,17 @@ public class StainVector implements Externalizable {
 	public String toString() {
 		return name + ": " + arrayAsString(Locale.getDefault(Category.FORMAT));
 	}
-	
-	
-	/**
-	 * Convert to a unit vector
-	 * @param vec
-	 */
-	public static void normalizeVector(double[] vec) {
-		double len = vectorLength(vec);
-		for (int i = 0; i < vec.length; i++)
-			vec[i] /= len;
-	}
-
-	/**
-	 * Euclidean length of a vector
-	 * @param vec
-	 * @return
-	 */
-	public static double vectorLength(double[] vec) {
-		double len = 0;
-		for (double v : vec)
-			len += (v * v);
-		return Math.sqrt(len);
-	}
 
 //	private static StainVector parseStainVector(String s) {
 //		return parseStainVector(null, s);
 //	}
 
+	/**
+	 * Calculate the angle between two stain vectors, in degrees.
+	 * @param s1
+	 * @param s2
+	 * @return
+	 */
 	public static double computeAngle(StainVector s1, StainVector s2) {
 		double[] v1 = s1.getArray();
 		double[] v2 = s2.getArray();
@@ -292,7 +288,7 @@ public class StainVector implements Externalizable {
 	
 	
 	/**
-	 * Compute cross product of two vectors
+	 * Compute the cross product of two vectors.
 	 * @param u
 	 * @param v
 	 * @return
@@ -312,13 +308,13 @@ public class StainVector implements Externalizable {
 	 * @param s2
 	 * @return
 	 */
-	public static StainVector makeResidualStainVector(StainVector s1, StainVector s2) {
+	static StainVector makeResidualStainVector(StainVector s1, StainVector s2) {
 		return makeOrthogonalStainVector("Residual", s1, s2, true);
 	}
 
 	
-	public static StainVector makeOrthogonalStainVector(String name, StainVector s1, StainVector s2, boolean isResidual) {
-		return new StainVector(name, cross3(s1.getArray(), s2.getArray()), isResidual);
+	static StainVector makeOrthogonalStainVector(String name, StainVector s1, StainVector s2, boolean isResidual) {
+		return createStainVector(name, cross3(s1.getArray(), s2.getArray()), isResidual);
 	}
 	
 

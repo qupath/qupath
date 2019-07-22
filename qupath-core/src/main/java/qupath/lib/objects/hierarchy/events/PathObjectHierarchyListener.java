@@ -33,6 +33,10 @@ import java.util.EventListener;
  */
 public interface PathObjectHierarchyListener extends EventListener {
 	
+	/**
+	 * Notify listeners of a change in the hierarchy or its objects.
+	 * @param event
+	 */
 	public void hierarchyChanged(PathObjectHierarchyEvent event);
 	
 }

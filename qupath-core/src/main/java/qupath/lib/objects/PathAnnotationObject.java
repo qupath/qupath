@@ -29,9 +29,9 @@ import qupath.lib.roi.interfaces.ROI;
 
 /**
  * An annotation PathObject.
- * 
+ * <p>
  * These tend to be larger and less common than PathDetectionObjects.
- * 
+ * <p>
  * As such, they can be represented and displayed with more emphasis on flexibility, rather than efficiency.
  * 
  * @author Pete Bankhead
@@ -45,19 +45,22 @@ public class PathAnnotationObject extends PathROIObject {
 	
 	private final static String KEY_ANNOTATION_TEXT = "ANNOTATION_DESCRIPTION";
 	
+	/**
+	 * Default constructor. Should not be used directly, instead use {@link PathObjects#createAnnotationObject(ROI)}.
+	 */
 	public PathAnnotationObject() {
 		super();
 	}
 
-	public PathAnnotationObject(ROI pathROI) {
+	PathAnnotationObject(ROI pathROI) {
 		super(pathROI, null);
 	}
 	
-	public PathAnnotationObject(ROI pathROI, PathClass pathClass) {
+	PathAnnotationObject(ROI pathROI, PathClass pathClass) {
 		super(pathROI, pathClass);
 	}
 	
-	public PathAnnotationObject(ROI pathROI, PathClass pathClass, MeasurementList measurements) {
+	PathAnnotationObject(ROI pathROI, PathClass pathClass, MeasurementList measurements) {
 		super(pathROI, pathClass, measurements);
 	}
 	
@@ -68,15 +71,14 @@ public class PathAnnotationObject extends PathROIObject {
 	 */
 	public void setDescription(final String text) {
 		// Don't store unless we need to (which can also help avoid creating unnecessary metadata stores)
-		if (text == retrieveMetadataValue(KEY_ANNOTATION_TEXT))
+		Object existing = retrieveMetadataValue(KEY_ANNOTATION_TEXT);
+		if (text == null && existing == null || text.equals(existing))
 			return;
 		this.storeMetadataValue(KEY_ANNOTATION_TEXT, text);
 	}
 
 	/**
 	 * Get a free text description previously set for this annotation.
-	 * 
-	 * @param text
 	 */
 	public String getDescription() {
 		return (String)retrieveMetadataValue(KEY_ANNOTATION_TEXT);

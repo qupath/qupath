@@ -29,7 +29,7 @@ package qupath.lib.analysis.features;
  * @author Pete Bankhead
  *
  */
-public class CoocMatrix {
+class CoocMatrix {
 	
 	private int[] mat;
 	private int n;

@@ -229,7 +229,7 @@ public class ChartToolsFX {
 	 * This helps to avoid clipping off markers at the chart boundaries.
 	 * 
 	 * @param chart
-	 * @param pad The amount by which to expand the clip rectangle in each direction; if < 0, the clip will be completely removed
+	 * @param pad The amount by which to expand the clip rectangle in each direction; if &lt; 0, the clip will be completely removed
 	 */
 	public static void expandChartClip(final Chart chart, final double pad) {
 		Rectangle newClip;

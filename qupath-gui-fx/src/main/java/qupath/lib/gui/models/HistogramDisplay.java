@@ -229,9 +229,11 @@ public class HistogramDisplay implements ParameterChangeListener {
 				return;
 
 			Histogram histogram = new Histogram(values, nBins);
-			histogram.setNormalizeCounts(params.getBooleanParameterValue("normalizeCounts"));
+//			histogram.setNormalizeCounts(params.getBooleanParameterValue("normalizeCounts"));
 
-			panelHistogram.getHistogramData().setAll(HistogramPanelFX.createHistogramData(histogram, false, (Integer)null));
+			HistogramData histogramData = HistogramPanelFX.createHistogramData(histogram, false, (Integer)null);
+			histogramData.setDoNormalizeCounts(params.getBooleanParameterValue("normalizeCounts"));
+			panelHistogram.getHistogramData().setAll(histogramData);
 
 
 			AreaChart<Number, Number> chart = panelHistogram.getChart();
@@ -285,7 +287,7 @@ public class HistogramDisplay implements ParameterChangeListener {
 			// but the reason is that the animations are poor when the data is updated in-place
 			List<HistogramData> list = new ArrayList<>();
 			for (HistogramData histogramData : panelHistogram.getHistogramData()) {
-				histogramData.getHistogram().setNormalizeCounts(doNormalize);
+				histogramData.setDoNormalizeCounts(doNormalize);
 				list.add(new HistogramData(histogramData.getHistogram(), false, histogramData.getStroke()));
 				//					histogramData.update();
 			}

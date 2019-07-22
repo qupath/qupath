@@ -25,6 +25,7 @@ package qupath.lib.gui.commands;
 
 import java.awt.geom.Point2D;
 import java.awt.image.BufferedImage;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -50,8 +51,7 @@ import javafx.scene.control.TitledPane;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
-import javafx.scene.layout.TilePane;
-import qupath.lib.algorithms.color.EstimateStainVectors;
+import qupath.lib.analysis.algorithms.EstimateStainVectors;
 import qupath.lib.color.ColorDeconvolutionHelper;
 import qupath.lib.color.ColorDeconvolutionStains;
 import qupath.lib.color.StainVector;
@@ -66,13 +66,14 @@ import qupath.lib.gui.plots.ScatterPlot;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
 import qupath.lib.plugins.parameters.ParameterList;
+import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.RegionRequest;
-import qupath.lib.roi.RectangleROI;
+import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
  * Command to help set stain vectors for brightfield chromogenic stains,
- * e.g. H-DAB or H&E.
+ * e.g. H-DAB or H&amp;E.
  * 
  * @author Pete Bankhead
  *
@@ -82,7 +83,8 @@ public class EstimateStainVectorsCommand implements PathCommand {
 	final private static Logger logger = LoggerFactory.getLogger(EstimateStainVectorsCommand.class);
 	
 	final private QuPathGUI qupath;
-	public static int MAX_PIXELS = 4000*4000;
+	
+	static int MAX_PIXELS = 4000*4000;
 	
 	
 	private enum AxisColor {RED, GREEN, BLUE;
@@ -123,11 +125,18 @@ public class EstimateStainVectorsCommand implements PathCommand {
 		PathObject pathObject = imageData.getHierarchy().getSelectionModel().getSelectedObject();
 		ROI roi = pathObject == null ? null : pathObject.getROI();
 		if (roi == null)
-			roi = new RectangleROI(0, 0, imageData.getServer().getWidth(), imageData.getServer().getHeight());
+			roi = ROIs.createRectangleROI(0, 0, imageData.getServer().getWidth(), imageData.getServer().getHeight(), ImagePlane.getDefaultPlane());
 		
 		double downsample = Math.max(1, Math.sqrt((roi.getBoundsWidth() * roi.getBoundsHeight()) / MAX_PIXELS));
 		RegionRequest request = RegionRequest.createInstance(imageData.getServerPath(), downsample, roi);
-		BufferedImage img = imageData.getServer().readBufferedImage(request);
+		BufferedImage img = null;
+		
+		try {
+			img = imageData.getServer().readBufferedImage(request);
+		} catch (IOException e) {
+			DisplayHelpers.showErrorMessage("Estimate stain vectors", e);
+			logger.error("Unable to obtain pixels for " + request.toString(), e);
+		}
 		
 		// Apply small amount of smoothing to reduce compression artefacts
 		img = EstimateStainVectors.smoothImage(img);
@@ -200,10 +209,12 @@ public class EstimateStainVectorsCommand implements PathCommand {
 		Node panelGreenBlue = createScatterPanel(new ScatterPlot(green, blue, null, rgb), stainsWrapper, AxisColor.GREEN, AxisColor.BLUE);
 		
 //		GridPane panelPlots = PanelToolsFX.createColumnGrid(panelRedGreen, panelRedBlue, panelGreenBlue);
-		TilePane panelPlots = new TilePane();
-		panelPlots.setPrefColumns(3);
+		GridPane panelPlots = new GridPane();
 		panelPlots.setHgap(10);
-		panelPlots.getChildren().addAll(panelRedGreen, panelRedBlue, panelGreenBlue);
+		panelPlots.add(panelRedGreen, 0, 0);
+		panelPlots.add(panelRedBlue, 1, 0);
+		panelPlots.add(panelGreenBlue, 2, 0);
+//		panelPlots.getChildren().addAll(panelRedGreen, panelRedBlue, panelGreenBlue);
 		panelPlots.setPadding(new Insets(0, 0, 10, 0));
 		
 		BorderPane panelSouth = new BorderPane();
@@ -222,9 +233,11 @@ public class EstimateStainVectorsCommand implements PathCommand {
 		TableColumn<Integer, String> colName = new TableColumn<>("Name");
 		colName.setCellValueFactory(v -> new SimpleStringProperty(stainsWrapper.getStains().getStain(v.getValue()).getName()));
 		TableColumn<Integer, String> colOrig = new TableColumn<>("Original");
-		colOrig.setCellValueFactory(v -> new SimpleStringProperty(stainsWrapper.getOriginalStains().getStain(v.getValue()).arrayAsString(Locale.getDefault(Category.FORMAT), " | ", 3)));
+		colOrig.setCellValueFactory(v -> new SimpleStringProperty(
+				stainArrayAsString(Locale.getDefault(Category.FORMAT), stainsWrapper.getOriginalStains().getStain(v.getValue()), " | ", 3)));
 		TableColumn<Integer, String> colCurrent = new TableColumn<>("Current");
-		colCurrent.setCellValueFactory(v -> new SimpleStringProperty(stainsWrapper.getStains().getStain(v.getValue()).arrayAsString(Locale.getDefault(Category.FORMAT), " | ", 3)));
+		colCurrent.setCellValueFactory(v -> new SimpleStringProperty(
+				stainArrayAsString(Locale.getDefault(Category.FORMAT), stainsWrapper.getStains().getStain(v.getValue()), " | ", 3)));
 		TableColumn<Integer, String> colAngle = new TableColumn<>("Angle");
 		colAngle.setCellValueFactory(v -> {
 			return new SimpleStringProperty(
@@ -236,7 +249,7 @@ public class EstimateStainVectorsCommand implements PathCommand {
 					);
 		});//new SimpleStringProperty(stainsWrapper.getStains().getStain(v.getValue()).arrayAsString(", ", 3)));
 		table.getColumns().addAll(colName, colOrig, colCurrent, colAngle);
-		table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+		table.setColumnResizePolicy(TableView.UNCONSTRAINED_RESIZE_POLICY);
 		table.setPrefHeight(120);
 		
 		
@@ -277,8 +290,12 @@ public class EstimateStainVectorsCommand implements PathCommand {
 				boolean checkColors = params.getBooleanParameterValue("checkColors") && stainsWrapper.getOriginalStains().isH_E(); // Only accept if H&E
 				ignore = Math.max(0, Math.min(ignore, 100));
 //				ColorDeconvolutionStains stains = estimateStains(imgFinal, stainsWrapper.getStains(), minOD, maxOD, ignore);
-				ColorDeconvolutionStains stainsNew = EstimateStainVectors.estimateStains(img, stainsWrapper.getStains(), minOD, maxOD, ignore, checkColors);
-				stainsWrapper.setStains(stainsNew);
+				try {
+					ColorDeconvolutionStains stainsNew = EstimateStainVectors.estimateStains(img, stainsWrapper.getStains(), minOD, maxOD, ignore, checkColors);
+					stainsWrapper.setStains(stainsNew);
+				} catch (Exception e2) {
+					DisplayHelpers.showErrorMessage("Estimate stain vectors", e2);
+				}
 		});
 		
 		ParameterPanelFX panelParams = new ParameterPanelFX(params);
@@ -319,6 +336,13 @@ public class EstimateStainVectorsCommand implements PathCommand {
 			return stainsWrapper.getStains();
 		}
 	}
+	
+	
+	
+	private static String stainArrayAsString(final Locale locale, final StainVector stain, final String delimiter, final int nDecimalPlaces) {
+		return GeneralTools.arrayToString(locale, stain.getArray(), delimiter, nDecimalPlaces);
+	}
+
 	
 	
 	static Node createScatterPanel(final ScatterPlot scatterPlot, final StainsWrapper stainsWrapper, AxisColor axisX, AxisColor axisY) {
@@ -656,7 +680,7 @@ public class EstimateStainVectorsCommand implements PathCommand {
 					break;
 				}
 			}
-			StainVector stainNew = new StainVector(
+			StainVector stainNew = StainVector.createStainVector(
 					stainEditing.getName(), r, g, b);
 			stainsWrapper.changeStain(stainEditing, stainNew);
 			stainEditing = stainNew;

@@ -31,10 +31,10 @@ import qupath.lib.analysis.stats.RunningStatistics;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.QuPathGUI.GUIActions;
 import qupath.lib.gui.commands.interfaces.PathCommand;
-import qupath.lib.gui.commands.scriptable.TMAGridRelabel;
 import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.objects.hierarchy.DefaultTMAGrid;
@@ -98,8 +98,7 @@ public class TMAGridAdd implements PathCommand {
 	/**
 	 * Add a new row or column to a TMA grid.
 	 * 
-	 * @param hierarchy
-	 * @param selectedCore
+	 * @param imageData
 	 * @param type
 	 */
 	public static boolean addToTMA(final ImageData<?> imageData, final TMAAddType type) {
@@ -260,7 +259,7 @@ public class TMAGridAdd implements PathCommand {
 							x2 = grid.getTMACore(r, c).getROI().getCentroidX();
 							y = (grid.getTMACore(r, c-1).getROI().getCentroidY() + grid.getTMACore(r, c).getROI().getCentroidY())/2;
 						}
-						TMACoreObject coreNew = new TMACoreObject((x1+x2)/2, y, diameter, true);
+						TMACoreObject coreNew = PathObjects.createTMACoreObject((x1+x2)/2, y, diameter, true);
 						coresNew.add(coreNew);
 					}
 				} else {
@@ -284,7 +283,7 @@ public class TMAGridAdd implements PathCommand {
 							y2 = grid.getTMACore(r, c).getROI().getCentroidY();
 							x = (grid.getTMACore(r-1, c).getROI().getCentroidX() + grid.getTMACore(r, c).getROI().getCentroidX())/2;
 						}
-						TMACoreObject coreNew = new TMACoreObject(x, (y1+y2)/2, diameter, true);
+						TMACoreObject coreNew = PathObjects.createTMACoreObject(x, (y1+y2)/2, diameter, true);
 						coresNew.add(coreNew);
 					}
 				}
@@ -292,7 +291,7 @@ public class TMAGridAdd implements PathCommand {
 		}
 		
 		// Update with a new TMAGrid
-		return new DefaultTMAGrid(coresNew, newWidth);
+		return DefaultTMAGrid.create(coresNew, newWidth);
 	}
 	
 	

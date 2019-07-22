@@ -33,7 +33,7 @@ import qupath.lib.plugins.workflow.DefaultScriptableWorkflowStep;
 import qupath.lib.scripting.QP;
 
 /**
- * Reset all metadata & measurements for a TMA grid.
+ * Reset all metadata &amp; measurements for a TMA grid.
  * 
  * @author Pete Bankhead
  *

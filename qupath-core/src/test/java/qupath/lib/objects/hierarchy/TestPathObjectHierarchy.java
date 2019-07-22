@@ -31,13 +31,16 @@ import java.util.List;
 
 import org.junit.Test;
 
+import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.PathRootObject;
+import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
-import qupath.lib.roi.RectangleROI;
+import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.ROI;
 
 public class TestPathObjectHierarchy {
@@ -45,12 +48,12 @@ public class TestPathObjectHierarchy {
 	PO_hlistener myPOHL = new PO_hlistener();
 	PathObjectHierarchyEvent event = PathObjectHierarchyEvent.createObjectAddedEvent(new Object(), myPH, new PathAnnotationObject(), new PathAnnotationObject());
 	PathRootObject myPRO = new PathRootObject();
-	ROI my_PR1 = new RectangleROI(10, 10, 2, 2);
-	ROI my_PR2 = new RectangleROI(10, 10, 1, 1);
-	ROI my_PR3 = new RectangleROI(30, 30, 1, 1);
-	PathAnnotationObject myChild1PAO = new PathAnnotationObject(my_PR1);
-	PathAnnotationObject myChild2PAO = new PathAnnotationObject(my_PR2); 
-	PathAnnotationObject myChild3PAO = new PathAnnotationObject(my_PR3);
+	ROI my_PR1 = ROIs.createRectangleROI(10, 10, 2, 2, ImagePlane.getDefaultPlane());
+	ROI my_PR2 = ROIs.createRectangleROI(10, 10, 1, 1, ImagePlane.getDefaultPlane());
+	ROI my_PR3 = ROIs.createRectangleROI(30, 30, 1, 1, ImagePlane.getDefaultPlane());
+	PathObject myChild1PAO = PathObjects.createAnnotationObject(my_PR1);
+	PathObject myChild2PAO = PathObjects.createAnnotationObject(my_PR2); 
+	PathObject myChild3PAO = PathObjects.createAnnotationObject(my_PR3);
 	ImageRegion myIR = ImageRegion.createInstance(25, 25, 10, 10, 0, 0); // set to contain child3 - other values can be used to test negative 
 	
 	@Test
@@ -73,8 +76,8 @@ public class TestPathObjectHierarchy {
 		
 		// Firing indirect events (adding/removing from hierarchy)
 		// Adding one PO with a child (so 2)
-		myPH.addPathObject(myChild1PAO, true);
-		List<PathObject> POAL1 = new ArrayList<>();
+		myPH.addPathObject(myChild1PAO);
+		Collection<PathObject> POAL1 = new ArrayList<>();
 		POAL1 = myPH.getObjects(POAL1, PathAnnotationObject.class);
 		assertEquals(POAL1.size(), 2); // 1 + child
 		assertEquals(myPH.getObjects(null, PathAnnotationObject.class), POAL1);
@@ -85,8 +88,8 @@ public class TestPathObjectHierarchy {
 		myPOHL.setFiredState(0);
 
 		// Adding one PO without a child (so 1) - this PO, however, is fully contained within Child1 
-		myPH.addPathObject(myChild2PAO, true);
-		List<PathObject> POAL2 = new ArrayList<>();
+		myPH.addPathObject(myChild2PAO);
+		Collection<PathObject> POAL2 = new ArrayList<>();
 		POAL2 = myPH.getObjects(POAL2, PathAnnotationObject.class);
 		assertEquals(POAL2.size(), 3); //  2 + 1 
 		assertEquals(myPH.getObjects(null, PathAnnotationObject.class), POAL2);
@@ -94,10 +97,10 @@ public class TestPathObjectHierarchy {
 		//assertEquals(myChild2PAO.getParent(), myPH.getRootObject()); // child2's parent is not the root of the PH
 		assertEquals(myChild2PAO.getParent(), myChild1PAO); // child2's parent is child1 (as child2 is contained within child1)
 		
-		List<PathObject> POAL3 = new ArrayList<>();
-		POAL3 = myPH.getDescendantObjects(myChild1PAO, POAL3, PathAnnotationObject.class);
+		Collection<PathObject> POAL3 = new ArrayList<>();
+		POAL3 = PathObjectTools.getDescendantObjects(myChild1PAO, POAL3, PathAnnotationObject.class);
 		assertEquals(POAL3.size(), 2); // child1 has now 2 descendants - one on the PH lineage (child2) and one on the PO lineage (child3)
-		assertEquals(myPH.getDescendantObjects(myChild1PAO, null, PathAnnotationObject.class), POAL3);
+		assertEquals(PathObjectTools.getDescendantObjects(myChild1PAO, null, PathAnnotationObject.class), POAL3);
 		
 		List<PathObject> POAL4 = new ArrayList<>();
 		POAL4 = myPH.getFlattenedObjectList(POAL4);
@@ -106,19 +109,29 @@ public class TestPathObjectHierarchy {
 				
 		assertEquals(myPH.nObjects(), 3); // descendants - TODO: name may be a bit misleading???
 		
+//		// Remove one PO without a child (so 2 left)		
+//		myPH.removeObject(myChild2PAO, true); // no children, so a changed structure event will fire 
+//		List<PathObject> POAL5 = new ArrayList<>();
+//		POAL5 = myPH.getObjects(POAL5, PathAnnotationObject.class);
+//		assertEquals(POAL5.size(), 2); // 3 - 1  
+//		assertEquals(myPH.getObjects(null, PathAnnotationObject.class), POAL5);		
+//
+//		assertEquals(myPOHL.getFiredState(), 3); // event(CHANGED STRUCTURE) fired
+//		myPOHL.setFiredState(0);
+		
 		// Remove one PO without a child (so 2 left)		
-		myPH.removeObject(myChild2PAO, true); // no children, so a changed structure event will fire 
-		List<PathObject> POAL5 = new ArrayList<>();
+		myPH.removeObject(myChild2PAO, true); // no children, so a removed event will fire 
+		Collection<PathObject> POAL5 = new ArrayList<>();
 		POAL5 = myPH.getObjects(POAL5, PathAnnotationObject.class);
 		assertEquals(POAL5.size(), 2); // 3 - 1  
 		assertEquals(myPH.getObjects(null, PathAnnotationObject.class), POAL5);		
 
-		assertEquals(myPOHL.getFiredState(), 3); // event(CHANGED STRUCTURE) fired
+		assertEquals(myPOHL.getFiredState(), 2); // event(CHANGED REMOVED) fired
 		myPOHL.setFiredState(0);
 		
 		// Remove one PO with a child but keep child (so 1 left)		
 		myPH.removeObject(myChild1PAO, true);
-		List<PathObject> POAL6 = new ArrayList<>();
+		Collection<PathObject> POAL6 = new ArrayList<>();
 		POAL6 = myPH.getObjects(POAL6, PathAnnotationObject.class);
 		assertEquals(POAL6.size(), 1); // 2 - 1  
 		assertEquals(myPH.getObjects(null, PathAnnotationObject.class), POAL6);		

@@ -39,8 +39,8 @@ import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
 
@@ -74,8 +74,8 @@ class RetainedTrainingObjects implements Externalizable {
 	
 	public List<PathObject> getAllObjects() {
 		List<PathObject> list = new ArrayList<>();
-    	for (Entry<String, Map<PathClass, List<PathObject>>> entry : retainedObjectsMap.entrySet()) {
-        	for (Entry<PathClass, List<PathObject>> entry2 : entry.getValue().entrySet()) {
+    	for (Map<PathClass, List<PathObject>> value : retainedObjectsMap.values()) {
+        	for (Entry<PathClass, List<PathObject>> entry2 : value.entrySet()) {
         		list.addAll(entry2.getValue());
         	}            		
     	}
@@ -124,7 +124,7 @@ class RetainedTrainingObjects implements Externalizable {
 	}
 	
 	
-	public Map<PathClass, List<PathObject>> put(final String key, final Map<PathClass, List<PathObject>> value) {
+	Map<PathClass, List<PathObject>> put(final String key, final Map<PathClass, List<PathObject>> value) {
 		// For detections, all we really care about is storing the measurement lists.
 		// The ROIs take up unnecessary space, and the parent/child lists can end up surreptitiously brining 
 		// in the whole hierarchy... causing a horrendous memory leak.
@@ -134,6 +134,9 @@ class RetainedTrainingObjects implements Externalizable {
 		// (We don't assume detections here just in case... although currently all objects that end up here will be detections.
 		//  The slightly more conservative code here will still have a memory leak if there are non-detections...)
 		
+		if (key == null)
+			throw new IllegalArgumentException("Cannot retain objects without a key! Do you have a project open?");
+		
 		// Also, we create a new map to ensure it's sorted
 		Map<PathClass, List<PathObject>> newMap = new TreeMap<>();
 		for (PathClass pathClass : value.keySet()) {
@@ -141,7 +144,7 @@ class RetainedTrainingObjects implements Externalizable {
 			List<PathObject> newList = 
 					originalList.stream().map(p -> {
 						if (p.isDetection())
-							return new PathDetectionObject(p.getROI(), p.getPathClass(), p.getMeasurementList());
+							return PathObjects.createDetectionObject(p.getROI(), p.getPathClass(), p.getMeasurementList());
 						else {
 							logger.debug("Adding non-detection object to retained map: {}", p);
 							return p;
@@ -160,26 +163,20 @@ class RetainedTrainingObjects implements Externalizable {
 	 * @param key
 	 * @return
 	 */
-	public Map<PathClass, List<PathObject>> remove(final String key) {
+	Map<PathClass, List<PathObject>> remove(final String key) {
 		return retainedObjectsMap.remove(key);
 	}
 	
 	
 	/**
-	 * Append retained objects, grouped by classification, to an existing training map - 
-	 * optionally skipping images with a specified key (e.g. the currently-open image server path,
-	 * since the objects for this will be taken directly from the open hierarchy).
+	 * Append retained objects, grouped by classification, to an existing training map.
 	 * 
 	 * @param map
-	 * @param skipKey
 	 * @return
 	 */
-	public int addToTrainingMap(final Map<PathClass, List<PathObject>> map, final String skipKey) {
+	public int addToTrainingMap(final Map<PathClass, List<PathObject>> map) {
 		int retainedImageCount = 0;
 		for (Entry<String, Map<PathClass, List<PathObject>>> entry : retainedObjectsMap.entrySet()) {
-			// Don't use any retained objects that were saved from this server
-			if (entry.getKey().equals(skipKey))
-				continue;
 			// Put any retained objects into the map
 			Map<PathClass, List<PathObject>> map2 = entry.getValue();
 			for (Entry<PathClass, List<PathObject>> entry2 : map2.entrySet()) {

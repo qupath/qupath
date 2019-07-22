@@ -31,25 +31,26 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.lib.geom.Point2;
+import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.roi.interfaces.ROI;
 import qupath.lib.roi.interfaces.TranslatableROI;
 
 
 /**
- * Class used for modifying existing ROIs.
- * 
+ * Helper class for interactively modifying existing ROIs.
+ * <p>
  * Modification of ROIs has been made intentionally quite awkward to help ensure they are fairly consistent
  * (i.e. limited mutability), but this can be a bit infuriating when the user wishes to make annotations interactively.
- * 
+ * <p>
  * Also, currently PathObjects have their ROIs set at creation time - adding further annoyance to the lack of easy ROI editability.
- * 
+ * <p>
  * RoiEditors provide GUIs with a mechanism for controlled ROI manipulation, when the natural alternative 
  * (creating new ROIs) might be too computationally expensive.
  * By consciously having to make changes via a RoiEditor, it is hoped that programmers will remember inform the PathObjectHierarchy
  * whenever an object has been changed (note that this does not happen automatically - the RoiEditor knows nothing of PathObjects
  * and hierarchies... only ROIs of various flavors).
- * 
+ * <p>
  * Where any other ROI processing is required, the 'correct' approach is to create a new PathObject as required.
  * 
  * @author Pete Bankhead
@@ -71,27 +72,40 @@ public class RoiEditor {
 	// Don't instantiate directly - implementation may change
 	private RoiEditor() {};
 	
+	/**
+	 * Create a new RoiEditor.
+	 * @return
+	 */
 	public static RoiEditor createInstance() {
 		return new RoiEditor();
 	}
 	
-	
-	public void setROI(ROI pathROI) {
-		setROI(pathROI, true);
+	/**
+	 * Set the active ROI, stopping any ROI translation currently in progress.
+	 * @param roi
+	 */
+	public void setROI(ROI roi) {
+		setROI(roi, true);
 	}
 	
-	
-	public void setROI(ROI pathROI, boolean stopTranslating) {
+	/**
+	 * Set the active ROI, optionally stopping any ROI translation currently in progress.
+	 * 
+	 * @param roi
+	 * @param stopTranslating if true, then any ROI currently being translated will have its translation completed.
+	 * 						  Normally this should be true, but it may be false if the new ROI being set is part of the same translation event.
+	 */
+	public void setROI(ROI roi, boolean stopTranslating) {
 //		if (stopTranslating)
 //			System.out.println("Stopping translating: " + stopTranslating + " - " + pathROI);
 
-		if (this.pathROI == pathROI)
+		if (this.pathROI == roi)
 			return;
 		if (isTranslating() && stopTranslating) {
 			finishTranslation();
 			activeHandle = null;
 		}
-		this.pathROI = pathROI;
+		this.pathROI = roi;
 		
 		if (pathROI instanceof RectangleROI)
 			adjuster = new RectangleHandleAdjuster((RectangleROI)pathROI);
@@ -99,6 +113,8 @@ public class RoiEditor {
 			adjuster = new EllipseHandleAdjuster((EllipseROI)pathROI);
 		else if (pathROI instanceof PolygonROI)
 			adjuster = new PolygonHandleAdjuster((PolygonROI)pathROI);
+		else if (pathROI instanceof PolylineROI)
+			adjuster = new PolylineHandleAdjuster((PolylineROI)pathROI);
 		else if (pathROI instanceof LineROI)
 			adjuster = new LineHandleAdjuster((LineROI)pathROI);
 		else if (pathROI instanceof PointsROI)
@@ -113,7 +129,6 @@ public class RoiEditor {
 	/**
 	 * Returns true if the current ROI is translatable, and at the end of this call the translation has started.
 	 * 
-	 * @param pathROI
 	 * @param x
 	 * @param y
 	 * @return
@@ -131,15 +146,14 @@ public class RoiEditor {
 	
 	/**
 	 * Update a ROI by translation, optionally constraining its movement within a specified boundary.
-	 * 
+	 * <p>
 	 * Returns the same ROI if translation was not possible, or the translation resulted in no movement,
 	 * of if isTranslating() returns false.
 	 * Otherwise returns a translated version of the ROI;
 	 * 
-	 * @param pathROI
 	 * @param x
 	 * @param y
-	 * @param constrainBounds
+	 * @param constrainRegion
 	 * @return
 	 */
 	public ROI updateTranslation(double x, double y, ImageRegion constrainRegion) {
@@ -178,7 +192,6 @@ public class RoiEditor {
 	/**
 	 * Notify the editor that translation should end.
 	 * 
-	 * @param pathROI
 	 * @return true if there is any displacement between the current and starting translation points, false otherwise.
 	 */
 	public boolean finishTranslation() {
@@ -190,17 +203,18 @@ public class RoiEditor {
 	}
 	
 	
-	
+	/**
+	 * Query if a ROI is currently being translated through thsi editor.
+	 * @return
+	 */
 	public boolean isTranslating() {
-//		if (isTranslating)
-//			System.out.println("Translating: " + pathROI);
 		return isTranslating;
 	}
 	
 	
 	
 	/**
-	 * In the event that the current ROI has been modified elsewhere (which generally it shouldn't be...)
+	 * In the event that the current ROI has been modified elsewhere (which generally it shouldn't be)
 	 * request the handles to be recomputed to avoid inconsistency.
 	 */
 	public void ensureHandlesUpdated() {
@@ -209,37 +223,65 @@ public class RoiEditor {
 		adjuster.ensureHandlesUpdated();
 	}
 	
-	
+	/**
+	 * Get all the handles for the current ROI being edited, or an empty list if no handles are available.
+	 * @return
+	 */
 	public List<Point2> getHandles() {
 		if (adjuster == null)
 			return Collections.emptyList();
 		return createPoint2List(adjuster.getHandles());
 	}
 	
-	
+	/**
+	 * Returns true if this editor currently has a ROI.
+	 * @return
+	 */
 	public boolean hasROI() {
 		return pathROI != null;
 	}
 	
+	/**
+	 * Returns true if this editor currently has a ROI that can be translated.
+	 * @return
+	 */
 	public boolean hasTranslatableROI() {
 		return pathROI instanceof TranslatableROI;
 	}
 	
+	/**
+	 * Retrieve the ROI currently being edited (may be null).
+	 * @return
+	 */
 	public ROI getROI() {
 		return pathROI;
 	}
 	
+	/**
+	 * Returns true if a handle is currently active, for example being reposition.
+	 * @return
+	 * 
+	 * @see #getHandles()
+	 */
 	public boolean hasActiveHandle() {
 		return activeHandle != null;
 	}
 	
-
+	/**
+	 * Ensure that no handle is active.
+	 */
 	public void resetActiveHandle() {
 		activeHandle = null;
 	}
 	
 	
-	// Request an updated ROI with a new handle inserted - useful e.g. when drawing a polygon
+	/**
+	 * Request an updated ROI with a new handle inserted - useful e.g. when drawing a polygon.
+	 * 
+	 * @param x
+	 * @param y
+	 * @return
+	 */
 	public ROI requestNewHandle(double x, double y) {
 //		System.err.println("Requesting new handle: " + activeHandle);
 		if (adjuster == null)
@@ -254,12 +296,13 @@ public class RoiEditor {
 	
 	/**
 	 * Try to grab a ROI handle.
-	 * This will fail (return false, with an error logged) if isTranslating() return true.
+	 * This will fail (return false, with an error logged) if isTranslating() returns true.
 	 * 
 	 * @param x
 	 * @param y
-	 * @param maxDist
-	 * @param modifiers - from a MouseEvent - may optionally be used to control how the handle is modified
+	 * @param maxDist define the distance to search for the nearest handle
+	 * @param shiftDown determined from a MouseEvent, this may optionally be used to control how the handle is modified 
+	 * 					(e.g. to enforce a square bounding box for a rectangle or ellipse).
 	 * @return
 	 */
 	public boolean grabHandle(double x, double y, double maxDist, boolean shiftDown) {
@@ -276,12 +319,12 @@ public class RoiEditor {
 	
 	/**
 	 * If a handle has been grabbed, update its displacement.
-	 * If minDisplacement is > 0, smaller movements will be discarded to avoid unnecessary work.
 	 * 
 	 * @param x
 	 * @param y
-	 * @param minDisplacement
- 	 * @param modifiers - from a MouseEvent - may optionally be used to control how the handle is modified
+	 * @param minDisplacement if &gt; 0, smaller movements will be discarded to avoid unnecessary work.
+	 * @param shiftDown determined from a MouseEvent, this may optionally be used to control how the handle is modified 
+	 * 					(e.g. to enforce a square bounding box for a rectangle or ellipse).
 	 * @return
 	 */
 	public ROI setActiveHandlePosition(double x, double y, double minDisplacement, boolean shiftDown) {
@@ -522,11 +565,11 @@ public class RoiEditor {
 				y2 = y - h;
 			}
 			
-			roi = createROI(Math.min(x, x2), Math.min(y, y2), Math.abs(x - x2), Math.abs(y - y2), roi.getC(), roi.getZ(), roi.getT());
+			roi = createROI(Math.min(x, x2), Math.min(y, y2), Math.abs(x - x2), Math.abs(y - y2), roi.getImagePlane());
 			return roi;
 		}
 		
-		abstract T createROI(double x, double y, double x2, double y2, int c, int z, int t);
+		abstract T createROI(double x, double y, double x2, double y2, ImagePlane plane);
 		
 		@Override
 		List<MutablePoint> getHandles() {
@@ -550,8 +593,8 @@ public class RoiEditor {
 		}
 
 		@Override
-		RectangleROI createROI(double x, double y, double width, double height, int c, int z, int t) {
-			return new RectangleROI(x, y, width, height, c, z, t);
+		RectangleROI createROI(double x, double y, double width, double height, ImagePlane plane) {
+			return new RectangleROI(x, y, width, height, plane);
 		}
 		
 	}
@@ -564,8 +607,8 @@ public class RoiEditor {
 		}
 
 		@Override
-		EllipseROI createROI(double x, double y, double width, double height, int c, int z, int t) {
-			return new EllipseROI(x, y, width, height, c, z, t);
+		EllipseROI createROI(double x, double y, double width, double height, ImagePlane plane) {
+			return new EllipseROI(x, y, width, height, plane);
 		}
 		
 	}
@@ -611,7 +654,7 @@ public class RoiEditor {
 			if (activeHandle == null)
 				return roi;
 			activeHandle.setLocation(xNew, yNew);
-			roi = new PolygonROI(createPoint2List(handles), roi.getC(), roi.getZ(), roi.getT());
+			roi = new PolygonROI(createPoint2List(handles), roi.getImagePlane());
 //			System.out.println("UPDATED HANDLES: " + handles.size() + ", " + roi.nVertices());
 			return roi;
 		}
@@ -623,6 +666,89 @@ public class RoiEditor {
 		
 		@Override
 		public PolygonROI requestNewHandle(double x, double y) {
+			if (activeHandle == null)
+				return roi; // Can only add if there is an active handle - distance to this will be used
+			
+			// Move the active handle if it is very close to the requested region
+			// (removed)
+
+			// Don't add a handle at almost the sample place as an existing handle
+			boolean lastHandleSame = false;
+			if (handles.size() >= 2 && activeHandle == handles.get(handles.size() - 1)) {
+				MutablePoint lastHandle = handles.get(handles.size() - 2);
+				if (lastHandle.distanceSq(x, y) < 0.5) {
+					return roi;
+				}
+				lastHandleSame = lastHandle.distanceSq(activeHandle) == 0;
+			}
+
+			if (lastHandleSame) {
+				activeHandle.setLocation(x, y);
+			} else {
+				activeHandle = new MutablePoint(x, y);
+				roi = new PolygonROI(createPoint2List(handles), roi.getImagePlane());
+				handles.add(activeHandle);
+			}
+			
+			return roi;
+		}
+
+
+	}
+	
+	
+	
+	class PolylineHandleAdjuster extends RoiHandleAdjuster<PolylineROI> {
+		
+		private PolylineROI roi;
+		private List<MutablePoint> handles;
+//		private MutablePoint activeHandle = null;
+		
+		PolylineHandleAdjuster(PolylineROI roi) {
+			this.roi = roi;
+			ensureHandlesUpdated();
+		}
+		
+		@Override
+		void ensureHandlesUpdated() {
+			if (handles == null)
+				handles = new ArrayList<>();
+			else
+				handles.clear();
+			addPointsToMutablePointList(handles, roi.getPolygonPoints());
+			
+			// If we have a single point, create a second handle (which may be adjusted)
+			if (handles.size() == 1)
+				handles.add(new MutablePoint(handles.get(0).getX(), handles.get(0).getY()));
+		}
+		
+		@Override
+		MutablePoint grabHandle(double x, double y, double maxDist, boolean shiftDown) {
+			int activeHandleIndex = getClosestHandleIndex(handles, x, y, maxDist);
+			if (activeHandleIndex >= 0)
+				activeHandle = handles.get(activeHandleIndex);
+			else
+				activeHandle = null;
+			return activeHandle;
+		}
+		
+		@Override
+		PolylineROI updateActiveHandleLocation(double xNew, double yNew, boolean shiftDown) {
+			if (activeHandle == null)
+				return roi;
+			activeHandle.setLocation(xNew, yNew);
+			roi = new PolylineROI(createPoint2List(handles), roi.getImagePlane());
+//			System.out.println("UPDATED HANDLES: " + handles.size() + ", " + roi.nVertices());
+			return roi;
+		}
+		
+		@Override
+		List<MutablePoint> getHandles() {
+			return handles;
+		}
+		
+		@Override
+		public PolylineROI requestNewHandle(double x, double y) {
 			if (activeHandle == null)
 				return roi; // Can only add if there is an active handle - distance to this will be used
 			
@@ -641,8 +767,8 @@ public class RoiEditor {
 //			}
 			
 			activeHandle = new MutablePoint(x, y);
+			roi = new PolylineROI(createPoint2List(handles), roi.getImagePlane());
 			handles.add(activeHandle);
-			roi = new PolygonROI(createPoint2List(handles), roi.getC(), roi.getZ(), roi.getT());
 //			System.out.println("UPDATED HANDLES BY REQUEST: " + handles.size());
 			return roi;
 		}
@@ -650,7 +776,7 @@ public class RoiEditor {
 
 	}
 	
-	
+
 	
 	
 	class PointsHandleAdjuster extends RoiHandleAdjuster<PointsROI> {
@@ -689,7 +815,7 @@ public class RoiEditor {
 				return roi;
 
 			activeHandle.setLocation(xNew, yNew);
-			roi = new PointsROI(createPoint2List(handles), roi.getC(), roi.getZ(), roi.getT());
+			roi = new PointsROI(createPoint2List(handles), roi.getImagePlane());
 			ensureHandlesUpdated();
 			activeHandle = grabHandle(xNew, yNew, Double.POSITIVE_INFINITY, shiftDown);
 //			System.err.println("Calling: " + activeHandle + " - " + (handles == null ? 0 : handles.size()));
@@ -706,7 +832,7 @@ public class RoiEditor {
 		public PointsROI requestNewHandle(double x, double y) {
 			activeHandle = new MutablePoint(x, y);
 			handles.add(activeHandle);
-			roi = new PointsROI(createPoint2List(handles), roi.getC(), roi.getZ(), roi.getT());
+			roi = new PointsROI(createPoint2List(handles), roi.getImagePlane());
 			ensureHandlesUpdated();
 			activeHandle = grabHandle(x, y, Double.POSITIVE_INFINITY, false);
 //			ensureHandlesUpdated();
@@ -780,7 +906,8 @@ public class RoiEditor {
 			
 			activeHandle.setLocation(xNew, yNew);
 			
-			roi = new LineROI(inactiveHandle.getX(), inactiveHandle.getY(), activeHandle.getX(), activeHandle.getY(), roi.getC(), roi.getZ(), roi.getT());
+			roi = new LineROI(handles.get(0).getX(), handles.get(0).getY(), handles.get(1).getX(), handles.get(1).getY(), roi.getImagePlane());
+//			roi = new LineROI(inactiveHandle.getX(), inactiveHandle.getY(), activeHandle.getX(), activeHandle.getY(), roi.getC(), roi.getZ(), roi.getT());
 			return roi;
 		}
 		
@@ -890,6 +1017,11 @@ public class RoiEditor {
 		
 		public double distanceSq(final double x2, final double y2) {
 			return (x-x2)*(x-x2) + (y-y2)*(y-y2);
+		}
+		
+		@Override
+		public String toString() {
+			return String.format("Mutable point: %.2f, %.2f", x, y);
 		}
 
 	}

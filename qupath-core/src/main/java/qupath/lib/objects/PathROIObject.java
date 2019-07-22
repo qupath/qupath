@@ -27,6 +27,9 @@ import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
@@ -34,13 +37,15 @@ import qupath.lib.roi.interfaces.ROI;
 
 /**
  * Abstract class used for PathObjects that have ROIs associated with them.
- * 
+ * <p>
  * In practice, this is almost all PathObjects (with the notable exception of PathRootObjects).
  * 
  * @author Pete Bankhead
  *
  */
 public abstract class PathROIObject extends PathObject {
+	
+	private static Logger logger = LoggerFactory.getLogger(PathROIObject.class);
 	
 	private static final long serialVersionUID = 1L;
 	
@@ -49,48 +54,60 @@ public abstract class PathROIObject extends PathObject {
 	private double classProbability = Double.NaN;
 	private boolean lockedROI = false; //J Lock to determine whether ROI is locked (set by user)
 
-	protected PathROIObject() {
+	PathROIObject() {
 		super();
 	}
 	
-	public PathROIObject(ROI pathROI, PathClass pc) {
+	PathROIObject(ROI pathROI, PathClass pc) {
 		super();
 		this.pathROI = pathROI;
 		setPathClass(pc);
 	}
 	
-	protected PathROIObject(MeasurementList measurements) {
+	PathROIObject(MeasurementList measurements) {
 		super(measurements);
 	}
 	
-	public PathROIObject(ROI pathROI, PathClass pc, MeasurementList measurements) {
+	PathROIObject(ROI pathROI, PathClass pc, MeasurementList measurements) {
 		super(measurements);
 		this.pathROI = pathROI;
 		setPathClass(pc);
 	}
 	
-	public void setROI(final ROI pathROI) {
-		if (pathROI == null)
+	/**
+	 * Set the ROI for this object. If this is called, one should remember to update any associated 
+	 * hierarchy to notify it of the change.
+	 * @param roi
+	 */
+	public void setROI(final ROI roi) {
+		if (roi == null)
 			throw new IllegalArgumentException("PathROIObject.setROI cannot be called with null!");
-		this.pathROI = pathROI;
+		this.pathROI = roi;
 	}
 	
 	/**
 	 * Set locked flag, indicating that the object ROI should not be modified.
-	 * It directly impacts on isEditable.
+	 * It directly impacts on {@link #isEditable()}
 	 * <p>
 	 * Note that this is only a hint that other code should pay attention to - it is not
 	 * enforced locally.
-	 * 
+	 * <p>
 	 * TODO: Consider shifting this method into PathObject rather than PathROIObject (even
 	 * if it doesn't really do anything there).
 	 * 
 	 * @param locked
 	 */
+	@Override
 	public void setLocked(final boolean locked) {
 		this.lockedROI = locked;
 	}
 
+	/**
+	 * Query the locked status for the object, indicating whether it should be editable or not.
+	 * 
+	 * @return
+	 */
+	@Override
 	public boolean isLocked() {
 		return this.lockedROI;
 	}
@@ -111,6 +128,10 @@ public abstract class PathROIObject extends PathObject {
 	
 	@Override
 	public void setPathClass(PathClass pathClass, double classProbability) {
+		if (pathClass != null && !pathClass.isValid()) {
+			logger.warn("Classification {} is invalid! Will be set to null instead", pathClass);
+			pathClass = null;
+		}
 		if (pathClass == null) {
 //			if (pathROI != null && this.pathClass != null && this.pathClass.getName().equals(pathROI.getName()))
 //				pathROI.setName(null);

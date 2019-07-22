@@ -37,8 +37,9 @@ import qupath.lib.gui.icons.PathIconFactory;
 import qupath.lib.gui.viewer.QuPathViewer;
 
 /**
- * Panel for viewing ViewTracker controls, i.e. to start/stop recording and playback,
- * or view/export recorded data.
+ * Panel for viewing ViewTracker controls.
+ * <p>
+ * This add buttons to start/stop recording and playback and view/export recorded data.
  * 
  * @author Pete Bankhead
  */
@@ -55,64 +56,21 @@ public class ViewTrackerControlPanel {
 	
 	private ToolBar toolbar = new ToolBar();
 
+	/**
+	 * Constructor.
+	 * @param viewer the viewer to track
+	 */
 	public ViewTrackerControlPanel(final QuPathViewer viewer) {
-		tracker = null;
+		this(viewer, ViewTrackers.createViewTracker(viewer));
+	}
 
-		// TODO: Consider reinstating eye tracker support
-//		Stage dialog = null;
-//		try {
-//			// The following is surely not a great way to do it... but attempting to show user feedback while trying the (potentially lengthy) eye tracker search
-//			Class<?> cEyeTracker = getClass().getClassLoader().loadClass("qupath.lib.gui.viewer.recording.ViewEyeTracker");
-//			final Constructor<?> cons = cEyeTracker.getConstructor(QuPathViewer.class);
-//
-//			// Show a message that we're trying to start the eye tracker
-//			dialog = new Stage(StageStyle.UNDECORATED);
-//			dialog.initOwner(viewer.getView().getScene().getWindow());
-//			dialog.setTitle("Eye tracker initialization");
-//			Label label = new Label("Searching for eye tracker...");
-//			label.setPadding(new Insets(10, 10, 10, 10));
-//			dialog.setScene(new Scene(label));
-//			dialog.setAlwaysOnTop(true);
-//			dialog.show();
-//			final JDialog dialog2 = dialog;
-//			SwingWorker<ViewTracker, Object> worker = new SwingWorker<ViewTracker, Object>() {
-//
-//				@Override
-//				public ViewTracker doInBackground() {
-//					try {
-//						return (ViewTracker)cons.newInstance(viewer);
-//					} catch (Exception e) {
-//						return null;
-//					}
-//				}
-//
-//				@Override
-//				protected void done() {
-//					if (dialog2 != null && dialog2.isDisplayable()) {
-//						dialog2.setVisible(false);
-//						dialog2.dispose();
-//					}
-//				}
-//			};
-//			dialog.setModal(true);
-//			worker.execute();
-//			dialog.setVisible(true);
-//			tracker = worker.get(1000, TimeUnit.MILLISECONDS);
-//
-//			//			tracker = (ViewTracker)cons.newInstance(viewer);
-//		} catch (Throwable e) { // This may not be a very good way to do it...
-//			logger.error("Unable to load eye tracker - will default to normal tracker: {}", e);
-//		} finally {
-//			if (dialog != null) {
-//				dialog.setVisible(false);
-//				dialog.dispose();
-//			}
-//		}
-//
-//		logger.debug("TRACKER: " + tracker);
-
-		if (tracker == null)
-			tracker = new DefaultViewTracker(viewer);
+	/**
+	 * Constructor.
+	 * @param viewer the viewer to track
+	 * @param viewTracker the tracker to use
+	 */
+	ViewTrackerControlPanel(final QuPathViewer viewer, final ViewTracker viewTracker) {
+		this.tracker = viewTracker;
 
 //		ToolBar toolbar = new ToolBar();
 		ViewTrackerPlayback playback = new ViewTrackerPlayback(tracker, viewer);
@@ -161,12 +119,18 @@ public class ViewTrackerControlPanel {
 //		pane.getChildren().addAll(toolbar);
 	}
 
-	
+	/**
+	 * Get the Node containing the controls.
+	 * @return
+	 */
 	public Node getNode() {
 		return toolbar;
 	}
 	
-	
+	/**
+	 * Get the current ViewTracker associated with these controls.
+	 * @return
+	 */
 	public ViewTracker getViewTracker() {
 		return tracker;
 	}

@@ -1,0 +1,15 @@
+module qupath.extension.bioformats {
+	
+	requires java.base;
+	
+	requires javafx.controls;
+	requires javafx.swing;
+	
+	requires qupath.core;
+    requires qupath.gui.fx;
+    
+//    requires formats.gpl;
+
+    requires slf4j.api;
+	
+}

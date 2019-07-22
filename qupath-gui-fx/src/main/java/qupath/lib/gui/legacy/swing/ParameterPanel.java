@@ -34,6 +34,7 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
@@ -587,19 +588,19 @@ public class ParameterPanel extends JPanel implements Scrollable {
 	
 	
 	
-	public static void main(String[] args) {
+	static void demoParameterPanel() {
 		JFrame frame = new JFrame("Testing parameter panel");
 		int k = 0;
 		final ParameterList params = new ParameterList().
-				addEmptyParameter(Integer.toString(k++), "Parameter list", true).
-				addEmptyParameter(Integer.toString(k++), "Here is a list of parameters that I am testing out", false).
-				addIntParameter(Integer.toString(k++), "Enter an int", 5, "px").
-				addDoubleParameter(Integer.toString(k++), "Enter a double", 5.2, "microns").
-				addDoubleParameter(Integer.toString(k++), "Enter a double in range", 5.2, null, 1, 10).
-				addIntParameter(Integer.toString(k++), "Enter an int in range", 5, null, 1, 10).
+				addTitleParameter("Parameter list").
+				addEmptyParameter("Here is a list of parameters that I am testing out").
+				addIntParameter(Integer.toString(k++), "Enter an int", 5, "px", "Unbounded int").
+				addDoubleParameter(Integer.toString(k++), "Enter a double", 5.2, "microns", "Unbounded double").
+				addDoubleParameter(Integer.toString(k++), "Enter a double in range", 5.2, null, 1, 10, "Bounded double").
+				addIntParameter(Integer.toString(k++), "Enter an int in range", 5, null, 1, 10, "Bounded int").
 				addStringParameter(Integer.toString(k++), "Enter a string", "Default here").
-				addChoiceParameter(Integer.toString(k++), "Choose a choice", "Two", new String[]{"One", "Two", "Three"}).
-				addChoiceParameter(Integer.toString(k++), "Choose a number choice", new Integer(2), new Integer[]{1, 2, 3}).
+				addChoiceParameter(Integer.toString(k++), "Choose a choice", "Two", Arrays.asList("One", "Two", "Three"), "Simple choice").
+				addChoiceParameter(Integer.toString(k++), "Choose a number choice", Integer.valueOf(2), Arrays.asList(1, 2, 3), "Numeric choice").
 				addBooleanParameter(Integer.toString(k++), "Check me out", true);
 		
 		

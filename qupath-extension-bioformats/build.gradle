@@ -1,0 +1,33 @@
+ext.moduleName = 'qupath.extension.bioformats'
+
+description = 'qupath-extension-bioformats'
+
+configurations {
+  // Consider using compileOnly for Bio-Formats, and installing bioformats_package.jar separately
+  implementation.extendsFrom bioformats
+  implementation.extendsFrom javafx
+  implementation.extendsFrom controlsfx
+  testImplementation.extendsFrom bioformats
+  testImplementation.extendsFrom bioformatsTest
+  testImplementation.extendsFrom imagej
+}
+
+dependencies {
+  implementation project(':qupath-gui-fx')
+  /*
+  implementation('ome:formats-gpl:6.0.1') {
+  	transitive = false
+  }
+  implementation('org.openmicroscopy:ome-common:6.0.1') {
+  	transitive = false
+  }
+  implementation('org.openmicroscopy:ome-xml:6.0.1') {
+  	transitive = false
+  }
+  */
+  
+//  implementation('ome:bioformats_package:6.0.0') {
+//  	transitive = false
+//  }
+//  testImplementation('ome:bioformats_package:6.0.0')
+}

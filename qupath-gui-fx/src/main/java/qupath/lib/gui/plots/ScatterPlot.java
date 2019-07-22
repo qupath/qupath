@@ -31,7 +31,7 @@ import org.apache.commons.math3.stat.correlation.SpearmansCorrelation;
 import javafx.geometry.Rectangle2D;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.paint.Color;
-import qupath.lib.awt.color.ColorToolsAwt;
+import qupath.lib.color.ColorToolsAwt;
 import qupath.lib.common.ColorTools;
 import qupath.lib.gui.helpers.ColorToolsFX;
 

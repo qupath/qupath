@@ -89,7 +89,7 @@ public class SelectObjectsByMeasurementCommand implements PathCommand {
 //			return;
 		
 		// Update the feature list to represent everything we've got
-		features.setAll(PathClassificationLabellingHelper.getAvailableFeatures(imageData.getHierarchy(), null));
+		features.setAll(PathClassificationLabellingHelper.getAvailableFeatures(imageData.getHierarchy().getFlattenedObjectList(null)));
 		
 		if (dialog == null) {
 			createDialog();

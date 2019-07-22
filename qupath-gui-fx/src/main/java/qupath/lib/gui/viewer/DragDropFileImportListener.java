@@ -25,6 +25,7 @@ package qupath.lib.gui.viewer;
 
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -40,16 +41,18 @@ import javafx.scene.input.DragEvent;
 import javafx.scene.input.Dragboard;
 import javafx.scene.input.TransferMode;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.commands.ProjectImportImagesCommand;
 import qupath.lib.gui.helpers.DisplayHelpers;
+import qupath.lib.gui.io.PathAwtIO;
 import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.gui.scripting.ScriptEditor;
 import qupath.lib.images.ImageData;
-import qupath.lib.io.PathAwtIO;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.TMAGrid;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectIO;
-import qupath.lib.scripting.DefaultScriptEditor;
-import qupath.lib.scripting.ScriptEditor;
+import qupath.lib.projects.Projects;
+import qupath.lib.gui.scripting.DefaultScriptEditor;
 
 
 /**
@@ -114,7 +117,11 @@ public class DragDropFileImportListener implements EventHandler<DragEvent> {
         
 		if (dragboard.hasFiles()) {
 	        logger.debug("Files dragged onto {}", source);
-			handleFileDrop(viewer, dragboard.getFiles());
+			try {
+				handleFileDrop(viewer, dragboard.getFiles());
+			} catch (IOException e) {
+				DisplayHelpers.showErrorMessage("Drag & Drop", e);
+			}
 		}
 		event.setDropCompleted(true);
 		event.consume();
@@ -122,7 +129,7 @@ public class DragDropFileImportListener implements EventHandler<DragEvent> {
     
     /**
      * Add a new FileDropHandler.
-     * 
+     * <p>
      * This may be called on a drag-and-drop application on the main window, if no other 
      * handler deals with the event.
      * 
@@ -141,8 +148,17 @@ public class DragDropFileImportListener implements EventHandler<DragEvent> {
 		this.fileDropHandlers.remove(handler);
 	}
     
+    public void handleFileDrop(final QuPathViewer viewer, final List<File> list) throws IOException {
+    	try {
+    		handleFileDropImpl(viewer, list);
+    	} catch (IOException e) {
+    		throw e;
+    	} catch (Throwable e) {
+    		throw new IOException(e);
+    	}
+    }
     
-    public void handleFileDrop(final QuPathViewer viewer, final List<File> list) {
+    private void handleFileDropImpl(final QuPathViewer viewer, final List<File> list) throws IOException {
 		
 		// Shouldn't occur... but keeps FindBugs happy to check
 		if (list == null) {
@@ -179,11 +195,15 @@ public class DragDropFileImportListener implements EventHandler<DragEvent> {
 
 				// If we have a different path, open as a new image
 				if (viewer == null) {
-					DisplayHelpers.showErrorMessage("Open data", "Please drag the file only a specific viewer to open!");
+					DisplayHelpers.showErrorMessage("Open data", "Please drag the file onto a specific viewer to open!");
 					break;
 				}
-				gui.openSavedData(viewer, file, false);
-				break;
+				try {
+					gui.openSavedData(viewer, file, false, true);
+				} catch (Exception e) {
+					DisplayHelpers.showErrorMessage("Open image", e);
+				}
+				return;
 			}
 			
 			// Check if this is a directory - if so, look for a single project file
@@ -206,10 +226,14 @@ public class DragDropFileImportListener implements EventHandler<DragEvent> {
 				} else if (filesInDirectory.length == 0) {
 					// If we have an empty directory, offer to set it as a project
 					if (DisplayHelpers.showYesNoDialog("Create project", "Create project for empty directory?")) {
-						Project<BufferedImage> project = new Project<>(file, BufferedImage.class);
+						Project<BufferedImage> project = Projects.createProject(file, BufferedImage.class);
 						gui.setProject(project);
+						if (!project.isEmpty())
+							project.syncChanges();
 						return;
-					}
+					} else
+						// Can't do anything else with an empty folder
+						return;
 				}
 			}
 
@@ -219,9 +243,10 @@ public class DragDropFileImportListener implements EventHandler<DragEvent> {
 					Project<BufferedImage> project = ProjectIO.loadProject(file, BufferedImage.class);
 					gui.setProject(project);
 				} catch (Exception e) {
-					logger.error("Could not open as project file: {}", e);
+					DisplayHelpers.showErrorMessage("Project error", e);
+//					logger.error("Could not open as project file: {}", e);
 				}
-				break;
+				return;
 			}
 			
 			// Check if this is TMA dearraying data file
@@ -236,7 +261,7 @@ public class DragDropFileImportListener implements EventHandler<DragEvent> {
 					} else
 						DisplayHelpers.showErrorMessage("TMA grid import", "Could not parse TMA grid from " + file.getName());
 				}
-				break;
+				return;
 			}
 
 
@@ -244,7 +269,7 @@ public class DragDropFileImportListener implements EventHandler<DragEvent> {
 			ScriptEditor scriptEditor = gui.getScriptEditor();
 			if (scriptEditor instanceof DefaultScriptEditor && ((DefaultScriptEditor)scriptEditor).supportsFile(file)) {
 				scriptEditor.showScript(file);
-				continue;
+				return;
 			}
 
 			
@@ -254,21 +279,36 @@ public class DragDropFileImportListener implements EventHandler<DragEvent> {
 					return;
 			}
 
-
-
+			// Assume we have images
 			if (singleFile && file.isFile()) {
 				// Try to open as an image, if the extension is known
 				if (viewer == null) {
 					DisplayHelpers.showErrorMessage("Open image", "Please drag the file only a specific viewer to open!");
-					break;
+					return;
 				}
-				if (gui.openImage(viewer, file.getAbsolutePath(), true, true, false))
-					break;
+				gui.openImage(viewer, file.getAbsolutePath(), true, true);
+				return;
+			} else if (gui.getProject() != null) {
+				// Try importing multiple images to a project
+				String[] potentialFiles = list.stream().filter(f -> f.isFile()).map(f -> f.getAbsolutePath()).toArray(String[]::new);
+				if (potentialFiles.length > 0) {
+					ProjectImportImagesCommand.promptToImportImages(gui, potentialFiles);
+					return;
+				}
 			}
 
 
 		}
-		
+		if (gui.getProject() == null) {
+			if (list.size() > 1) {
+				DisplayHelpers.showErrorMessage("Drag & drop", "Could not handle multiple file drop - if you want to handle multiple images, you need to create a project first");
+				return;
+			}
+    	}
+		if (list.size() > 1)
+			DisplayHelpers.showErrorMessage("Drag & drop", "Sorry, I couldn't figure out what to do with these files - try opening one at a time");
+		else
+			DisplayHelpers.showErrorMessage("Drag & drop", "Sorry, I couldn't figure out what to do with " + list.get(0).getName());
 	}
     
     

@@ -55,7 +55,7 @@ import qupath.lib.gui.logging.TextAppendable;
 
 /**
  * Basic log display functionality.
- * 
+ * <p>
  * TODO: Nicer, color-coded implementation - possible using a ListView.
  * Ideally, this would also be filterable.
  * 
@@ -166,7 +166,7 @@ public class LogViewerCommand implements PathCommand {
 		
 		// Keep scrolling to the last message
 		textPane.textProperty().addListener((v, o, n) ->  {
-			if (miLockScroll.isSelected())
+			if (dialog.isShowing() && miLockScroll.isSelected())
 				Platform.runLater(() -> textPane.setScrollTop(Double.MAX_VALUE));
 		});
 

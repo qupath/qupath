@@ -29,12 +29,12 @@ import java.io.ObjectInput;
 import java.io.ObjectOutput;
 
 /**
- * A 2D point (x, y & z coordinates).
+ * A 3D point (x, y &amp; z coordinates).
  * 
  * @author Pete Bankhead
  *
  */
-public class Point3 extends AbstractPoint implements Externalizable {
+class Point3 extends AbstractPoint implements Externalizable {
 	
 	private double x, y, z;
 	

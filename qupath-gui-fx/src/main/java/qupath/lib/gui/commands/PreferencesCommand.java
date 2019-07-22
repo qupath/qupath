@@ -23,13 +23,23 @@
 
 package qupath.lib.gui.commands;
 
+import java.io.File;
+import java.nio.file.Files;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.GridPane;
+import javafx.scene.layout.Priority;
 import javafx.stage.Stage;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
+import qupath.lib.gui.helpers.DisplayHelpers;
+import qupath.lib.gui.helpers.GridPaneTools;
 import qupath.lib.gui.panels.PreferencePanel;
+import qupath.lib.gui.prefs.PathPrefs;
 
 /**
  * Command to show a basic property-editing window.
@@ -38,6 +48,8 @@ import qupath.lib.gui.panels.PreferencePanel;
  *
  */
 public class PreferencesCommand implements PathCommand {
+	
+	private static Logger logger = LoggerFactory.getLogger(PreferencesCommand.class);
 	
 	private QuPathGUI qupath;
 	
@@ -52,7 +64,7 @@ public class PreferencesCommand implements PathCommand {
 
 	@Override
 	public void run() {
-		if (dialog == null) {
+		if (dialog == null || true) {
 			if (panel == null)
 				panel = new PreferencePanel(qupath);
 			
@@ -61,18 +73,36 @@ public class PreferencesCommand implements PathCommand {
 //			dialog.initModality(Modality.APPLICATION_MODAL);
 			dialog.setTitle("Preferences");
 			
-			Button btnClose = new Button("Close");
-			btnClose.setOnAction(e -> {
-				dialog.hide();
-			});
+			Button btnExport = new Button("Export");
+			btnExport.setOnAction(e -> exportPreferences());
+			btnExport.setMaxWidth(Double.MAX_VALUE);
+
+			Button btnImport = new Button("Import");
+			btnImport.setOnAction(e -> importPreferences());
+			btnImport.setMaxWidth(Double.MAX_VALUE);
+			
+			Button btnReset = new Button("Reset");
+			btnReset.setOnAction(e -> PathPrefs.resetPreferences());
+			btnReset.setMaxWidth(Double.MAX_VALUE);
+			
+			GridPane paneImportExport = new GridPane();
+			paneImportExport.addRow(0, btnImport, btnExport, btnReset);
+			GridPaneTools.setHGrowPriority(Priority.ALWAYS, btnImport, btnExport, btnReset);
+			paneImportExport.setMaxWidth(Double.MAX_VALUE);
+
+//			Button btnClose = new Button("Close");
+//			btnClose.setOnAction(e -> {
+//				dialog.hide();
+//			});
 			
 			BorderPane pane = new BorderPane();
 			pane.setCenter(panel.getNode());
-			pane.setBottom(btnClose);
+			pane.setBottom(paneImportExport);
 			if (qupath != null && qupath.getStage() != null) {
 				pane.setPrefHeight(Math.round(Math.max(300, qupath.getStage().getHeight()*0.75)));
 			}
-			btnClose.prefWidthProperty().bind(pane.widthProperty());
+			paneImportExport.prefWidthProperty().bind(pane.widthProperty());
+//			btnClose.prefWidthProperty().bind(pane.widthProperty());
 			dialog.setScene(new Scene(pane));
 			dialog.setMinWidth(300);
 			dialog.setMinHeight(300);
@@ -81,4 +111,40 @@ public class PreferencesCommand implements PathCommand {
 		dialog.show();
 	}
 
+	private File dir = null;
+	
+	private boolean exportPreferences() {
+		var file = QuPathGUI.getDialogHelper(dialog).promptToSaveFile(
+				"Export preferences", dir, null, "Preferences file", "xml");
+		if (file != null) {
+			dir = file.getParentFile();
+			try (var stream = Files.newOutputStream(file.toPath())) {
+				logger.info("Exporting preferences to {}", file.getAbsolutePath());
+				PathPrefs.exportPreferences(stream);
+				return true;
+			} catch (Exception e) {
+				DisplayHelpers.showErrorMessage("Import preferences", e);
+			}
+		}
+		return false;
+	}
+	
+	private boolean importPreferences() {
+		var file = QuPathGUI.getDialogHelper(dialog).promptForFile(
+				"Import preferences", dir, "Preferences file", "xml");
+		if (file != null) {
+			dir = file.getParentFile();
+			try (var stream = Files.newInputStream(file.toPath())) {
+				logger.info("Importing preferences from {}", file.getAbsolutePath());
+				PathPrefs.importPreferences(stream);
+				DisplayHelpers.showMessageDialog("Import preferences", 
+						"Preferences have been imported - please restart QuPath to see the changes.");
+				return true;
+			} catch (Exception e) {
+				DisplayHelpers.showErrorMessage("Import preferences", e);
+			}
+		}
+		return false;
+	}
+	
 }

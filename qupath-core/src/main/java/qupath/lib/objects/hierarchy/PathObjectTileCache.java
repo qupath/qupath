@@ -27,17 +27,32 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Set;
+import java.util.WeakHashMap;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
+import org.locationtech.jts.algorithm.locate.IndexedPointInAreaLocator;
+import org.locationtech.jts.algorithm.locate.PointOnGeometryLocator;
+import org.locationtech.jts.algorithm.locate.SimplePointInAreaLocator;
+import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.Envelope;
+import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.LinearRing;
+import org.locationtech.jts.geom.Location;
+import org.locationtech.jts.geom.Polygonal;
+import org.locationtech.jts.geom.prep.PreparedGeometry;
+import org.locationtech.jts.geom.prep.PreparedGeometryFactory;
+import org.locationtech.jts.index.SpatialIndex;
+import org.locationtech.jts.index.quadtree.Quadtree;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.TemporaryObject;
+import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent.HierarchyEventType;
@@ -61,29 +76,48 @@ class PathObjectTileCache implements PathObjectHierarchyListener {
 	public static int DEFAULT_TILE_SIZE = 1024;
 	
 	final private static Logger logger = LoggerFactory.getLogger(PathObjectTileCache.class);
-
-	private Map<Class<? extends PathObject>, PathObjectTileMap> map = new HashMap<Class<? extends PathObject>, PathObjectTileMap>();
 	
+	/**
+	 * Largest positive envelope, used when all objects are requested.
+	 */
+	private final static Envelope MAX_ENVELOPE = new Envelope(-Double.MAX_VALUE, Double.MAX_VALUE, -Double.MAX_VALUE, Double.MAX_VALUE);
+	
+	/**
+	 * Keep a map of envelopes per ROI; ROIs should be immutable.
+	 */
+	private Map<ROI, Envelope> envelopeMap = new WeakHashMap<>();
+	
+	/**
+	 * Keep a map of envelopes per object, because potentially an object might have its ROI replaced behind our back...
+	 */
+	private Map<PathObject, Envelope> lastEnvelopeMap = new WeakHashMap<>();
+	
+	/**
+	 * Store a spatial index according to the class of PathObject.
+	 */
+	private Map<Class<? extends PathObject>, SpatialIndex> map = new HashMap<>();
+	
+	/**
+	 * Map to cache Geometries, specifically for annotations.
+	 */
+	final private static Map<ROI, Geometry> geometryMap = Collections.synchronizedMap(new WeakHashMap<>());
+	final private static Map<ROI, PointOnGeometryLocator> locatorMap = Collections.synchronizedMap(new WeakHashMap<>());
+//	final private static Map<ROI, Coordinate> centroidMap = Collections.synchronizedMap(new WeakHashMap<>());
+
 	private PathObjectHierarchy hierarchy;
 	private boolean isActive = false;
-	private int tileSize = DEFAULT_TILE_SIZE;
 	
 	private final ReentrantReadWriteLock rwl = new ReentrantReadWriteLock();
     private final Lock r = rwl.readLock();
     private final Lock w = rwl.writeLock();
 	
 	
-	public PathObjectTileCache(PathObjectHierarchy hierarchy, int tileSize) {
+	public PathObjectTileCache(PathObjectHierarchy hierarchy) {
 		this.hierarchy = hierarchy;
-		this.tileSize = tileSize;
 		if (hierarchy != null)
 			hierarchy.addPathObjectListener(this);
 	}
 	
-	public PathObjectTileCache(PathObjectHierarchy hierarchy) {
-		this(null, DEFAULT_TILE_SIZE);
-	}
-
 	public void resetCache() {
 		isActive = false;
 		logger.trace("Cache reset!");
@@ -91,16 +125,19 @@ class PathObjectTileCache implements PathObjectHierarchyListener {
 	
 //	int cacheCounter = 0;
 
-	private void constructCache() {
+	private void constructCache(Class<? extends PathObject> limitToClass) {
 		w.lock();
 		try {
 	//		logger.info("Skipping cache reconstruction...");
 			long startTime = System.currentTimeMillis();
 			isActive = true;
-			map.clear();
-			addToCache(hierarchy.getRootObject(), true);
+			if (limitToClass == null)
+				map.clear();
+			else
+				map.remove(limitToClass);
+			addToCache(hierarchy.getRootObject(), true, limitToClass);
 			long endTime = System.currentTimeMillis();
-			logger.trace("Cache reconstructed in " + (endTime - startTime)/1000.);
+			logger.debug("Cache reconstructed in " + (endTime - startTime)/1000.);
 		} finally {
 			w.unlock();
 		}
@@ -110,7 +147,7 @@ class PathObjectTileCache implements PathObjectHierarchyListener {
 	
 	private void ensureCacheConstructed() {
 		if (!isActive())
-			constructCache();
+			constructCache(null);
 	}
 	
 	// TRUE if the cache has been constructed
@@ -121,36 +158,172 @@ class PathObjectTileCache implements PathObjectHierarchyListener {
 	/**
 	 * Add a PathObject to the cache, optionally including children.
 	 * 
-	 * The lock is not acquired here!
-	 * 
 	 * @param pathObject
 	 * @param includeChildren
 	 */
-	private void addToCache(PathObject pathObject, boolean includeChildren) {
+	private void addToCache(PathObject pathObject, boolean includeChildren, Class<? extends PathObject> limitToClass) {
 		// If the cache isn't active, we can ignore this... it will be constructed when it is needed
 		if (!isActive())
 			return;
-		
+
 		if (pathObject.hasROI()) {
 			Class<? extends PathObject> cls = pathObject.getClass();
-			PathObjectTileMap mapObjects = map.get(cls);
-			if (mapObjects == null) {
-				mapObjects = new PathObjectTileMap(tileSize);
-				map.put(cls, mapObjects);
+			if (limitToClass == null || cls == limitToClass) {
+				SpatialIndex mapObjects = map.get(cls);
+				if (mapObjects == null) {
+					mapObjects = createSpatialIndex();
+					map.put(cls, mapObjects);
+				}
+				Envelope envelope = getEnvelope(pathObject);
+				mapObjects.insert(envelope, pathObject);
 			}
-			mapObjects.put(pathObject);
-		}
-		// Add the children
-		if (includeChildren && !(pathObject instanceof TemporaryObject) && pathObject.hasChildren()) {
-			for (PathObject child : pathObject.getChildObjects().toArray(new PathObject[0]))
-				addToCache(child, includeChildren);
 		}
 		
+		// Add the children
+		if (includeChildren && !(pathObject instanceof TemporaryObject) && pathObject.hasChildren()) {
+			for (PathObject child : pathObject.getChildObjects().toArray(PathObject[]::new))
+				addToCache(child, includeChildren, limitToClass);
+		}
+	}
+
+	Geometry getGeometry(ROI roi) {
+		var geometry = geometryMap.get(roi);
+		if (geometry == null)
+			return roi.getGeometry();
+		else
+			return geometry;
+	}
+	
+	Geometry getGeometry(PathObject pathObject) {
+		ROI roi = pathObject.getROI();
+		Geometry geometry = geometryMap.get(roi);
+		if (geometry == null) {
+			geometry = roi.getGeometry();
+			if (pathObject.isAnnotation() || pathObject.isTMACore()) {
+				geometryMap.put(roi, geometry);
+			}
+//			long startTime = System.currentTimeMillis();
+			if (!geometry.isValid())
+				logger.warn("{} is not a valid geometry! Actual geometry {}", pathObject, geometry);
+//			long endTime = System.currentTimeMillis();
+//			System.err.println("Testing " + (endTime - startTime) + " ms for " + geometry);
+		}
+		return geometry;
+	}
+	
+	private Coordinate getCentroidCoordinate(PathObject pathObject) {
+		ROI roi = PathObjectTools.getROI(pathObject, true);
+		// It's faster not to rely on a synchronized map
+		return new Coordinate(roi.getCentroidX(), roi.getCentroidY());
+//		Coordinate coordinate = centroidMap.get(roi);
+//		if (coordinate == null) {
+//			coordinate = new Coordinate(roi.getCentroidX(), roi.getCentroidY());
+////			coordinate = getGeometry(pathObject).getCentroid().getCoordinate();
+//			centroidMap.put(roi, coordinate);
+//		}
+//		return coordinate;
+	}
+	
+	PointOnGeometryLocator getLocator(ROI roi, boolean addToCache) {
+		var locator = locatorMap.get(roi);
+		if (locator == null) {
+			var geometry = getGeometry(roi);
+			if (geometry instanceof Polygonal || geometry instanceof LinearRing)
+				locator = new IndexedPointInAreaLocator(geometry);
+			else
+				locator = new SimplePointInAreaLocator(geometry);
+			locatorMap.put(roi, locator);
+		}
+		return locator;
+	}
+	
+//	public boolean covers(PathObject possibleParent, PathObject possibleChild) {
+//		return getGeometry(possibleParent).covers(getGeometry(possibleChild));
+//	}
+	
+	private Map<Geometry, PreparedGeometry> preparedGeometryMap = new WeakHashMap<>();
+	
+	PreparedGeometry getPreparedGeometry(Geometry geometry) {
+		var prepared = preparedGeometryMap.get(geometry);
+		if (prepared != null)
+			return prepared;
+		
+		synchronized (preparedGeometryMap) {
+			prepared = preparedGeometryMap.get(geometry);
+			if (prepared != null)
+				return prepared;
+			prepared = PreparedGeometryFactory.prepare(geometry);
+			preparedGeometryMap.put(geometry, prepared);
+			return prepared;
+		}
+	}
+	
+	boolean covers(PathObject possibleParent, PathObject possibleChild) {
+		var parent = getPreparedGeometry(getGeometry(possibleParent));
+		var child = getGeometry(possibleChild);
+		return parent.covers(child);
+	}
+	
+	boolean covers(PreparedGeometry parent, PathObject possibleChild) {
+		var child = getGeometry(possibleChild);
+		return parent.covers(child);
+	}
+	
+	boolean containsCentroid(PathObject possibleParent, PathObject possibleChild) {
+		Coordinate centroid = getCentroidCoordinate(possibleChild);
+		if (centroid == null)
+			return false;
+		if (possibleParent.isDetection())
+			return SimplePointInAreaLocator.locate(
+					centroid, getGeometry(possibleParent)) != Location.EXTERIOR;
+		return getLocator(possibleParent.getROI(), true).locate(centroid) != Location.EXTERIOR;
+	}
+	
+	boolean containsCentroid(PointOnGeometryLocator locator, PathObject possibleChild) {
+		Coordinate centroid = getCentroidCoordinate(possibleChild);
+		if (centroid == null)
+			return false;
+		return locator.locate(centroid) != Location.EXTERIOR;
+	}
+	
+	boolean containsCentroid(Geometry possibleParent, PathObject possibleChild) {
+		Coordinate centroid = getCentroidCoordinate(possibleChild);
+		if (centroid == null)
+			return false;
+		return SimplePointInAreaLocator.locate(centroid, possibleParent) != Location.EXTERIOR;
 	}
 	
 	
+	private SpatialIndex createSpatialIndex() {
+		return new Quadtree();
+//		return new STRtree();
+	}
+	
+	private Envelope getEnvelope(PathObject pathObject) {
+		var envelope = getEnvelope(pathObject.getROI());
+		lastEnvelopeMap.put(pathObject, envelope);
+		return envelope;
+	}
+	
+	private Envelope getEnvelope(ROI roi) {
+		var envelope = envelopeMap.get(roi);
+		if (envelope == null) {
+			envelope = new Envelope(roi.getBoundsX(), roi.getBoundsX() + roi.getBoundsWidth(),
+					roi.getBoundsY(), roi.getBoundsY() + roi.getBoundsHeight());
+			envelopeMap.put(roi, envelope);
+		}
+		return envelope;
+	}
+	
+	private Envelope getEnvelope(ImageRegion region) {
+		return new Envelope(region.getMinX(), region.getMaxX(),
+				region.getMinY(), region.getMaxY());
+	}
+	
+	
+	
 	/**
-	 * This doesn't acquire the lock!
+	 * This doesn't acquire the lock! The locking is done first.
 	 * 
 	 * @param pathObject
 	 * @param removeChildren
@@ -160,16 +333,33 @@ class PathObjectTileCache implements PathObjectHierarchyListener {
 		if (!isActive())
 			return;
 		
-		//JClass<? extends PathObject> cls = pathObject.getClass();
-		PathObjectTileMap mapObjects = map.get(pathObject.getClass()); //J
-		//JPathObjectTileMap mapObjects = map.get(cls);
-		if (mapObjects != null) {
-			mapObjects.remove(pathObject);
-		}
-		// Remove the children
-		if (removeChildren) {
-			for (PathObject child : pathObject.getChildObjects())
-				removeFromCache(child, removeChildren);
+		SpatialIndex mapObjects = map.get(pathObject.getClass());
+		
+		// We can remove objects from a Quadtree
+		if (mapObjects instanceof Quadtree) {
+			Envelope envelope = lastEnvelopeMap.get(pathObject);
+			envelope = MAX_ENVELOPE;
+//				System.err.println("Before: " + mapObjects.query(MAX_ENVELOPE).size());
+			if (envelope != null) {
+				if (mapObjects.remove(envelope, pathObject)) {
+					logger.debug("Removed {} from cache", pathObject);
+				} else
+					logger.debug("Unable to remove {} from cache", pathObject);
+			} else {
+				logger.debug("No envelope found for {}", pathObject);					
+			}
+//				System.err.println("After: " + mapObjects.query(MAX_ENVELOPE).size());
+			// Remove the children
+			if (removeChildren) {
+				for (PathObject child : pathObject.getChildObjects())
+					removeFromCache(child, removeChildren);
+			}
+		} else if (mapObjects instanceof SpatialIndex && !removeChildren) {
+			// We can't remove objects from a STRtree, but since we're just removing one object we can rebuild only the cache for this class
+			constructCache(pathObject.getClass());
+		} else {
+			// If we need to remove multiple objects, better to just rebuild the entire cache
+			constructCache(null);
 		}
 	}
 	
@@ -187,16 +377,15 @@ class PathObjectTileCache implements PathObjectHierarchyListener {
 	 * Get all the PathObjects stored in this cache of a specified type and having ROIs with bounds overlapping a specified region.
 	 * This does not guarantee that the ROI (which may not be rectangular) overlaps the region...
 	 * but a quick test is preferred over a more expensive one.
-	 * 
+	 * <p>
 	 * Note that pathObjects will be added to the collection provided, if there is one.
 	 * The same object will be added to this collection multiple times if it overlaps different tiles -
 	 * again in the interests of speed, no check is made.
 	 * However this can be addressed by using a Set as the collection.
+	 * <p>
+	 * If a collection is not provided, another Collection is created & used instead.
 	 * 
-	 * If a collection is not provided, a HashSet is created & used instead.
-	 * Either way, the collection actually used is returned.
-	 * 
-	 * @param type a PathObject type (PathObject.getType()), or null if all object types should be returned
+	 * @param cls a PathObject class, or null if all object types should be returned
 	 * @param region an image region, or null if all objects with ROIs should be return
 	 * @param pathObjects an (optional) existing collection to which PathObjects should be added
 	 * @param includeSubclasses true if subclasses of the specified class should be included
@@ -205,13 +394,30 @@ class PathObjectTileCache implements PathObjectHierarchyListener {
 	public Collection<PathObject> getObjectsForRegion(Class<? extends PathObject> cls, ImageRegion region, Collection<PathObject> pathObjects, boolean includeSubclasses) {
 		ensureCacheConstructed();
 		
+		var envelope = region == null ? MAX_ENVELOPE : getEnvelope(region);
+		
+		int z = region == null ? -1 : region.getZ();
+		int t = region == null ? -1 : region.getT();
 		r.lock();
 		try {
 			// Iterate through all the classes, getting objects of the specified class or subclasses thereof
-			for (Entry<Class<? extends PathObject>, PathObjectTileMap> entry : map.entrySet()) {
+			for (Entry<Class<? extends PathObject>, SpatialIndex> entry : map.entrySet()) {
 				if (cls == null || (includeSubclasses && cls.isAssignableFrom(entry.getKey())) || cls.isInstance(entry.getKey())) {
-					if (entry.getValue() != null)
-						pathObjects = entry.getValue().getObjectsForRegion(region, pathObjects);
+					if (entry.getValue() != null) {
+						var list = entry.getValue().query(envelope);
+						if (pathObjects == null)
+							pathObjects = new HashSet<PathObject>();
+						
+						// Add all objects that have a parent, i.e. might be in the hierarchy
+						for (PathObject pathObject : (List<PathObject>)list) {
+							var roi = pathObject.getROI();
+							if (roi == null || region == null || (roi.getZ() == z && roi.getT() == t)) {
+								if (pathObject.getParent() != null || pathObject.isRootObject())
+									pathObjects.add(pathObject);
+							}
+						}
+					}
+//						pathObjects = entry.getValue().getObjectsForRegion(region, pathObjects);
 				}
 			}
 	//		logger.info("Objects for " + region + ": " + (pathObjects == null ? 0 : pathObjects.size()));
@@ -226,14 +432,22 @@ class PathObjectTileCache implements PathObjectHierarchyListener {
 	public boolean hasObjectsForRegion(Class<? extends PathObject> cls, ImageRegion region, boolean includeSubclasses) {
 		ensureCacheConstructed();
 		
+		var envelope = region == null ? MAX_ENVELOPE : getEnvelope(region);
+		
+		int z = region == null ? -1 : region.getZ();
+		int t = region == null ? -1 : region.getT();
 		r.lock();
 		try {
 			// Iterate through all the classes, getting objects of the specified class or subclasses thereof
-			for (Entry<Class<? extends PathObject>, PathObjectTileMap> entry : map.entrySet()) {
+			for (Entry<Class<? extends PathObject>, SpatialIndex> entry : map.entrySet()) {
 				if (cls == null || cls.isInstance(entry.getKey()) || (includeSubclasses && cls.isAssignableFrom(entry.getKey()))) {
 					if (entry.getValue() != null) {
-						if (entry.getValue().hasObjectsForRegion(region))
+						var list = (List<PathObject>)entry.getValue().query(envelope);
+						if (list.stream().anyMatch(p -> p.hasROI() && 
+								(region == null || (p.getROI().getZ() == z && p.getROI().getT() == t))))
 							return true;
+//						if (entry.getValue().hasObjectsForRegion(region))
+//							return true;
 					}
 				}
 			}
@@ -277,18 +491,22 @@ class PathObjectTileCache implements PathObjectHierarchyListener {
 
 	@Override
 	public void hierarchyChanged(final PathObjectHierarchyEvent event) {
-//		logger.info("Type: " + event.getEventType());
 		w.lock();
 		try {
-			if (event.getEventType() == HierarchyEventType.ADDED)
-				addToCache(event.getChangedObjects().get(0), false);
-			else if (event.getEventType() == HierarchyEventType.REMOVED)
-				removeFromCache(event.getChangedObjects().get(0), false);
-			else if (event.getEventType() == HierarchyEventType.OTHER_STRUCTURE_CHANGE || event.getEventType() == HierarchyEventType.CHANGE_OTHER) {
-				if (event.getChangedObjects().size() == 1 && !event.getChangedObjects().get(0).isRootObject()) {
-					removeFromCache(event.getChangedObjects().get(0), false);
-					addToCache(event.getChangedObjects().get(0), false);					
-				} else
+			boolean singleChange = event.getChangedObjects().size() == 1;
+			PathObject singleObject = singleChange ? event.getChangedObjects().get(0) : null;
+			if (singleChange && event.getEventType() == HierarchyEventType.ADDED) {
+				removeFromCache(singleObject, false);
+				addToCache(singleObject, false, singleObject.getClass());
+			} else if (singleChange && event.getEventType() == HierarchyEventType.REMOVED) {
+				removeFromCache(singleObject, false);
+			} else if (event.getEventType() == HierarchyEventType.OTHER_STRUCTURE_CHANGE) {// || event.getEventType() == HierarchyEventType.CHANGE_OTHER) {
+//				if (singleChange && !singleObject.isRootObject()) {
+//					removeFromCache(singleObject, false);
+//					addToCache(singleObject, false, singleObject.getClass());					
+//				} else
+//				System.err.println(event);
+				if (!event.isChanging())
 					resetCache();
 			}
 		} finally {
@@ -296,212 +514,6 @@ class PathObjectTileCache implements PathObjectHierarchyListener {
 		}
 //		else if (event.getEventType() == HierarchyEventType.OBJECT_CHANGE)
 //			resetCache(); // TODO: Check if full change is necessary for object change events			
-	}
-	
-}
-
-
-class PathObjectTileMap {
-
-	final private int tileSize;
-	final private Map<String, Set<PathObject>> map = new HashMap<>();
-	
-	
-//	public String toString() {
-//		int sum = 0;
-//		for (String key : map.keySet()) {
-////			logger.info(key + ": " + map.get(key).size());
-//			sum += map.get(key).size();
-//		}
-//		return String.format("Map size: " + sum);
-//	}
-	
-	public PathObjectTileMap(int tileSize) {
-		this.tileSize = tileSize;
-	}
-	
-	private String getKey(int tx, int ty, int z, int t) {
-		return tx + "-" + ty + "-" + z + "-" + t;
-	}
-	
-	/**
-	 * Add a pathObject to the map.
-	 * If it does not have a ROI, it will be ignored.
-	 * Otherwise it is added to the map for as many tiles as its ROI's bounding box intersects.
-	 * 
-	 * @param pathObject
-	 */
-	public void put(PathObject pathObject) {
-		if (!pathObject.hasROI())
-			return;
-		
-//		if (pathObject.isPoint()) {
-//			PathPointsROI points = (PathPointsROI)pathObject.getROI();
-//		}
-		
-		// Compute the tiles & add as required
-		ROI pathROI = pathObject.getROI();
-		int tx1 = (int)(pathROI.getBoundsX() / tileSize);
-		int ty1 = (int)(pathROI.getBoundsY() / tileSize);
-		int tx2 = (int)((pathROI.getBoundsX() + pathROI.getBoundsWidth()) / tileSize);
-		int ty2 = (int)((pathROI.getBoundsY() + pathROI.getBoundsHeight()) / tileSize);
-		int z = pathROI.getZ();
-		int t = pathROI.getT();
-		for (int y = ty1; y <= ty2; y++) {
-			for (int x = tx1; x <= tx2; x++) {
-				putInMap(getKey(x, y, z, t), pathObject);
-			}				
-		}
-	}
-	
-	public void remove(PathObject pathObject) {
-		// In theory, we ought to be able just to query the map according to the object's ROI...
-		// however, if the ROI has been edited this won't work - so, for now, we query every collection
-		// TODO: Consider optimizing this if ROI editing is disabled
-		for (Collection<PathObject> list : map.values())
-			list.remove(pathObject);
-		
-//		// Compute the tiles & add as required
-//		PathROI pathROI = pathObject.getROI();
-//		if (pathROI == null)
-//			return;
-//		Rectangle bounds = pathROI.getBounds();
-//		int tx1 = bounds.x / tileSize;
-//		int ty1 = bounds.y / tileSize;
-//		int tx2 = (bounds.x + bounds.width) / tileSize;
-//		int ty2 = (bounds.y + bounds.height) / tileSize;
-//		int z = pathROI.getZ();
-//		int t = pathROI.getT();
-//
-//		for (int y = ty1; y <= ty2; y++) {
-//			for (int x = tx1; x <= tx2; x++) {
-//				Collection<PathObject> list = map.get(getKey(x, y, z, t));
-//				if (list != null) {
-//					list.remove(pathObject);
-//				}
-//			}				
-//		}
-	}
-	
-	private void putInMap(String key, PathObject pathObject) {
-		Set<PathObject> set = map.get(key);
-		if (set == null) {
-			// TODO: It would be preferable to use a list if avoidance of duplicates is taken care of elsewhere
-//			list = new ArrayList<>();
-			set = new HashSet<>();
-			map.put(key, set);
-		}
-		set.add(pathObject);
-//		} else if (!list.contains(pathObject))
-//			list.add(pathObject);
-	}
-	
-	
-//J	public Collection<PathObject> getListForTile(int tx, int ty, int z, int t) {
-//J		String key = getKey(tx, ty, z, t);
-//J		return map.get(key);
-//J	}
-	
-	/**
-	 * Get all the PathObjects stored in this map with ROIs with bounds overlapping a specified region.
-	 * This does not guarantee that the ROI (which may not be rectangular) overlaps the region...
-	 * but a quick test is preferred over a more expensive one.
-	 * 
-	 * Note that pathObjects will be added to the collection provided, if there is one.
-	 * The same object will be added to this collection multiple times if it overlaps different tiles -
-	 * again in the interests of speed, no check is made.
-	 * However this can be fixed by using a Set as the collection.
-	 * 
-	 * If a collection is not provided, a HashSet is created & used instead.
-	 * Either way, the collection actually used is returned.
-	 * 
-	 * @param region
-	 * @param pathObjects
-	 * @return
-	 */
-	public Collection<PathObject> getObjectsForRegion(ImageRegion region, Collection<PathObject> pathObjects) {
-		// By default, use a set to avoid duplicates
-		if (pathObjects == null)
-			pathObjects = new HashSet<>();
-		
-		// If no region is provided, get everything
-		if (region == null) {
-			for (Collection<PathObject> list : map.values()) {
-				if (list == null)
-					continue;
-				pathObjects.addAll(list);
-			}
-			return pathObjects;
-		}
-
-		// Loop through the required tiles
-		int tx1 = region.getX() / tileSize;
-		int ty1 = region.getY() / tileSize;
-		int tx2 = (region.getX() + region.getWidth()) / tileSize;
-		int ty2 = (region.getY() + region.getHeight()) / tileSize;
-		int z = region.getZ();
-		int t = region.getT();
-		for (int y = ty1; y <= ty2; y++) {
-			for (int x = tx1; x <= tx2; x++) {
-				Set<PathObject> set = map.get(getKey(x, y, z, t));
-				if (set == null)
-					continue;
-				// Add all the objects that really do intersect, testing as necessary
-				if (x > tx1 && x < tx2 && y > ty1 && y < ty2)
-					pathObjects.addAll(set);
-				else {
-					for (PathObject pathObject : set) {
-						ROI pathROI = pathObject.getROI();
-						if (pathObject.isPoint() || region.intersects(pathROI.getBoundsX(), pathROI.getBoundsY(), Math.max(pathROI.getBoundsWidth(), 1), Math.max(pathROI.getBoundsHeight(), 1)))
-							pathObjects.add(pathObject);
-					}
-				}
-			}				
-		}
-		return pathObjects;
-	}
-	
-	
-	
-	public boolean hasObjectsForRegion(ImageRegion region) {
-		if (map.isEmpty())
-			return false;
-		
-		// If no region is provided, get everything
-		if (region == null) {
-			for (Collection<PathObject> list : map.values()) {
-				if (list == null || list.isEmpty())
-					continue;
-				return true;
-			}
-			return false; //J
-		}
-
-		// Loop through the required tiles
-		int tx1 = region.getX() / tileSize;
-		int ty1 = region.getY() / tileSize;
-		int tx2 = (region.getX() + region.getWidth()) / tileSize;
-		int ty2 = (region.getY() + region.getHeight()) / tileSize;
-		int z = region.getZ();
-		int t = region.getT();
-		for (int y = ty1; y <= ty2; y++) {
-			for (int x = tx1; x <= tx2; x++) {
-				Collection<PathObject> list = map.get(getKey(x, y, z, t));
-				if (list == null || list.isEmpty())
-					continue;
-				// Add all the objects that really do intersect, testing as necessary
-				if (x > tx1 && x < tx2 && y > ty1 && y < ty2)
-					return true;
-				else {
-					for (PathObject pathObject : list) {
-						ROI pathROI = pathObject.getROI();
-						if (pathObject.isPoint() || region.intersects(pathROI.getBoundsX(), pathROI.getBoundsY(), pathROI.getBoundsWidth(), pathROI.getBoundsHeight()))
-							return true;
-					}
-				}
-			}				
-		}
-		return false;
 	}
 	
 }
