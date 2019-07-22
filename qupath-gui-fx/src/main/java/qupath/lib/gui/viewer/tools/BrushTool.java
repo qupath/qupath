@@ -50,6 +50,7 @@ import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.PathTileObject;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
+import qupath.lib.objects.classes.PathClassFactory.StandardPathClasses;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.ROIs;
@@ -71,7 +72,9 @@ public class BrushTool extends AbstractPathROITool {
 	/**
 	 * A collection of classes that should be ignored when
 	 */
-	static Set<PathClass> reservedPathClasses = Collections.singleton(PathClassFactory.getPathClass("Region"));
+	static Set<PathClass> reservedPathClasses = Collections.singleton(
+			PathClassFactory.getPathClass(StandardPathClasses.REGION)
+			);
 	
 	double lastRequestedCursorDiameter = Double.NaN;
 	Cursor requestedCursor;

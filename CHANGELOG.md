@@ -36,6 +36,7 @@ Changes include:
   * Improved 'Send to ImageJ' command, supports z-stacks & extra customization
   * Major refactoring (warning, older scripts may not work!)
   * Added many javadocs for core modules
+  * Lots of bugs fixed!
   
 
 
