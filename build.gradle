@@ -347,11 +347,12 @@ task extractNativeLibraries() {
   if (nativesClassifier == null)
     return
   configurations.compile.files.findAll({ it.getName().contains(nativesClassifier) }).each { file ->
-    println 'Extracting native libraries from ' + file
+    println 'Extracting native libraries from ' + file + " into " + additionalResourcesDir
     doLast {
       copy {
         from zipTree(file)
         into additionalResourcesDir
+        exclude "/META-INF/"
       }
     }
   }
@@ -370,13 +371,17 @@ task copyRuntimeLibs(type: Copy) {
  */
 apply plugin: 'com.github.jk1.dependency-license-report'
 import com.github.jk1.license.render.*
+import com.github.jk1.license.filter.*
 
 import java.nio.file.Paths
 
 licenseReport {
+  print("LICENSE PATH: " + new File(projectDir, 'license-unknown.txt').getAbsolutePath())
+  filters = [new LicenseBundleNormalizer()]
   renderers = [new TextReportRenderer('THIRD-PARTY.txt'),
                new CsvReportRenderer(),
-               new InventoryHtmlReportRenderer()]
+               new InventoryHtmlReportRenderer('index.html', 'Third party licenses',
+               		new File(projectDir, 'license-unknown.txt'))]
 }
 task copyLicenseReport(type: Copy) {
   from 'build/reports/dependency-license/THIRD-PARTY.txt'
@@ -433,6 +438,7 @@ buildscript {
  * Specify the order of some operations
  */
 copyLicenses.dependsOn generateLicenseReport
+copyLicenseReport.dependsOn generateLicenseReport
 jar.dependsOn copyLicenses
 jar.dependsOn copyChangelog
 jar.dependsOn extractNativeLibraries
