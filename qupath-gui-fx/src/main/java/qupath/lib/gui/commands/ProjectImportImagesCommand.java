@@ -218,10 +218,10 @@ public class ProjectImportImagesCommand implements PathCommand {
 				// Add everything in order first
 				List<ProjectImageEntry<BufferedImage>> entries = new ArrayList<>();
 				for (var builder : builders) {
-					if (rotation == Rotation.ROTATE_NONE)
-						entries.add(project.addImage(RotatedImageServer.getRotatedBuilder(builder, rotation)));
-					else
+					if (rotation == null || rotation == Rotation.ROTATE_NONE)
 						entries.add(project.addImage(builder));
+					else
+						entries.add(project.addImage(RotatedImageServer.getRotatedBuilder(builder, rotation)));
 				}
 				
 				// Initialize (the slow bit)
