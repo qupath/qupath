@@ -28,6 +28,8 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Map;
 import java.net.URI;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -67,7 +69,13 @@ public class BioFormatsServerBuilder implements ImageServerBuilder<BufferedImage
 		float supportLevel = supportLevel(uri, args);
 		if (supportLevel > 0) {
 			try (BioFormatsImageServer server = new BioFormatsImageServer(uri, BioFormatsServerOptions.getInstance(), args)) {
-				Map<String, ServerBuilder<BufferedImage>> builders = server.getImageBuilders();
+				// If we requested a specified series, just allow one builder
+				Map<String, ServerBuilder<BufferedImage>> builders;
+				if (args.length > 0 && Arrays.asList(args).contains("--series"))
+					builders = Collections.singletonMap(server.getMetadata().getName(), server.getBuilder());
+				else
+					// If we didn't specify a series, return all of them
+					builders = server.getImageBuilders();
 				return UriImageSupport.createInstance(this.getClass(), supportLevel, builders.values());
 			} catch (Exception e) {
 				logger.debug("Unable to create server using Bio-Formats", e);
