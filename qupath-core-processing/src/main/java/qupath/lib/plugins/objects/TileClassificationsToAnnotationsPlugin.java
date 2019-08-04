@@ -47,6 +47,7 @@ import qupath.lib.objects.PathTileObject;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
+import qupath.lib.objects.classes.PathClassTools;
 import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.plugins.AbstractDetectionPlugin;
@@ -194,7 +195,7 @@ public class TileClassificationsToAnnotationsPlugin<T> extends AbstractDetection
 			for (PathClass pathClass : pathClasses) {
 				PathObject pathSingleAnnotation = null;
 				List<PathObject> tiles = new ArrayList<>();
-				if (pathClass != null) {
+				if (pathClass != null && PathClassTools.isIgnoredClass(pathClass)) {
 					Path2D path = null;
 					for (PathObject pathObject : parentObject.getChildObjects()) {
 						if ((pathObject instanceof PathTileObject) && (pathObject.getROI() instanceof PathShape) && pathClass.equals(pathObject.getPathClass())) {
