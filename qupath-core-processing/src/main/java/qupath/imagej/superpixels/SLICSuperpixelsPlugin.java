@@ -278,7 +278,7 @@ public class SLICSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffe
 			}
 			
 			// Merge clusters if required
-			if (Boolean.TRUE.equals(params.getBooleanParameterValue("doMerge"))) {
+			if (params.containsKey("doMerge") && Boolean.TRUE.equals(params.getBooleanParameterValue("doMerge"))) {
 				for (int i = 0; i < centers.size(); i++) {
 					ClusterCenter center = centers.get(i);
 					center.updateFeatures();
