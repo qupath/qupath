@@ -746,6 +746,8 @@ public class DisplayHelpers {
 	
 	
 	public static WritableImage makeSnapshotFX(final QuPathGUI qupath, final SnapshotType type) {
+		Stage stage = qupath.getStage();
+		Scene scene = stage.getScene();
 		switch (type) {
 		case CURRENT_VIEWER:
 			// Temporarily remove the selected border color while copying
@@ -757,19 +759,21 @@ public class DisplayHelpers {
 				qupath.getViewer().setBorderColor(borderColor);
 			}
 		case MAIN_SCENE:
-			Scene scene = qupath.getStage().getScene();
 			return scene.snapshot(null);
 		case MAIN_WINDOW_SCREENSHOT:
-			var stage = qupath.getStage();
+			double x = scene.getX() + stage.getX();
+			double y = scene.getY() + stage.getY();
+			double width = scene.getWidth();
+			double height = scene.getHeight();
 			try {
 				// For reasons I do not understand, this occasionally throws an ArrayIndexOutOfBoundsException
 				return new Robot().getScreenCapture(null,
-						stage.getX(), stage.getY(), stage.getWidth(), stage.getHeight());
+						x, y, width, height, false);
 			} catch (Exception e) {
 				logger.error("Unable to make main window screenshot, will resort to trying to crop a full screenshot instead", e);
 				var img2 = makeSnapshotFX(qupath, SnapshotType.FULL_SCREENSHOT);
 				return new WritableImage(img2.getPixelReader(), 
-						(int)stage.getX(), (int)stage.getY(), (int)stage.getWidth(), (int)stage.getHeight());
+						(int)x, (int)y, (int)width, (int)height);
 			}
 		case FULL_SCREENSHOT:
 			var screen = Screen.getPrimary();

@@ -54,6 +54,8 @@ public class SaveViewCommand implements PathCommand {
 	private QuPathGUI qupath;
 	private SnapshotType type;
 	
+	private static File dirPrevious = null;
+	
 	public SaveViewCommand(final QuPathGUI qupath, final SnapshotType type) {
 		this.qupath = qupath;
 		this.type = type;
@@ -70,13 +72,14 @@ public class SaveViewCommand implements PathCommand {
 			return;
 		}
 		
-		File fileOutput = qupath.getDialogHelper().promptToSaveFile(null, null, null, ext, ext);
+		File fileOutput = qupath.getDialogHelper().promptToSaveFile(null, dirPrevious, null, ext, ext);
 		if (fileOutput == null)
 			return;
 		try {
 			compatibleWriters.firstKey().writeImage(img, fileOutput.getAbsolutePath());
+			dirPrevious = fileOutput.getParentFile();
 		} catch (Exception e) {
-			e.printStackTrace();
+			logger.error("Error saving snapshot " + type + " to " + fileOutput.getAbsolutePath(), e);
 		}
 	}
 	
