@@ -119,6 +119,13 @@ public class ProjectCheckUrisCommand implements PathCommand {
 			// Get paths, if we can
 			Path pathProject = uriProject == null ? null : GeneralTools.toPath(uriProject);
 			Path pathPrevious = uriProjectPrevious == null ? null : GeneralTools.toPath(uriProjectPrevious);
+			// We care about the directory rather than the actual file
+			if (pathProject != null && !Files.isDirectory(pathProject)) {
+				pathProject = pathProject.getParent();
+			}
+			if (pathPrevious != null && !Files.isDirectory(pathPrevious)) {
+				pathPrevious = pathPrevious.getParent();
+			}
 			boolean tryRelative = pathProject != null && pathPrevious != null && !pathProject.equals(pathPrevious);
 			
 			// Map the URIs to a list of potential replacements
