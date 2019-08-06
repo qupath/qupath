@@ -25,12 +25,15 @@ package qupath.lib.plugins.objects;
 
 import java.awt.Rectangle;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
 import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.operation.buffer.BufferOp;
+import org.locationtech.jts.operation.buffer.BufferParameters;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -61,9 +64,26 @@ public class DilateAnnotationPlugin<T> extends AbstractInteractivePlugin<T> {
 	
 	private static Logger logger = LoggerFactory.getLogger(DilateAnnotationPlugin.class);
 	
+	public static enum LineCap {ROUND, FLAT, SQUARE;
+		@Override
+		public String toString() {
+			switch(this) {
+			case FLAT:
+				return "Flat";
+			case ROUND:
+				return "Round";
+			case SQUARE:
+				return "Square";
+			default:
+				throw new IllegalArgumentException();
+			}
+		}
+	};
+	
 	private ParameterList params = new ParameterList()
 			.addDoubleParameter("radiusMicrons", "Expansion radius", 100, GeneralTools.micrometerSymbol(), "Distance to expand ROI")
 			.addDoubleParameter("radiusPixels", "Expansion radius", 100, "px", "Distance to expand ROI")
+			.addChoiceParameter("lineCap", "Line cap", LineCap.ROUND, Arrays.asList(LineCap.values()), "Method to handle end points when expanding lines (not important when expanding areas)")
 			.addBooleanParameter("removeInterior", "Remove interior", false, "Create annotation containing only the expanded region, with the original ROI removed")
 			.addBooleanParameter("constrainToParent", "Constrain to parent", true, "Constrain ROI to fit inside the ROI of the parent object")
 			;
@@ -127,6 +147,7 @@ public class DilateAnnotationPlugin<T> extends AbstractInteractivePlugin<T> {
 		
 		boolean constrainToParent = params.getBooleanParameterValue("constrainToParent");
 		boolean removeInterior = params.getBooleanParameterValue("removeInterior");
+		LineCap cap = params.containsKey("lineCap") ? (LineCap)params.getChoiceParameterValue("lineCap") : LineCap.ROUND;
 		
 		// Want to reset selection
 		PathObject selected = hierarchy.getSelectionModel().getSelectedObject();
@@ -134,7 +155,7 @@ public class DilateAnnotationPlugin<T> extends AbstractInteractivePlugin<T> {
 		
 		tasks.add(() -> {
 			for (PathObject pathObject : parentObjects) {
-				addExpandedAnnotation(bounds, hierarchy, pathObject, radiusPixels, constrainToParent, removeInterior);
+				addExpandedAnnotation(bounds, hierarchy, pathObject, radiusPixels, constrainToParent, removeInterior, cap);
 			}
 			hierarchy.getSelectionModel().selectObjects(previousSelection);
 			hierarchy.getSelectionModel().setSelectedObject(selected, true);
@@ -154,15 +175,21 @@ public class DilateAnnotationPlugin<T> extends AbstractInteractivePlugin<T> {
 	 * @param constrainToParent
 	 * @param removeInterior
 	 */
-	private static void addExpandedAnnotation(final Rectangle bounds, final PathObjectHierarchy hierarchy, final PathObject pathObject, final double radiusPixels, final boolean constrainToParent, final boolean removeInterior) {
+	private static void addExpandedAnnotation(final Rectangle bounds, final PathObjectHierarchy hierarchy, final PathObject pathObject, final double radiusPixels, final boolean constrainToParent, final boolean removeInterior, final LineCap cap) {
 		
 		ROI roi = pathObject.getROI();
 		
 		Geometry geometry = roi.getGeometry();
 		
-		Geometry geometry2 = geometry.buffer(radiusPixels);
+		int capVal = BufferParameters.CAP_ROUND;
+		if (cap == LineCap.FLAT)
+			capVal = BufferParameters.CAP_FLAT;
+		else if (cap == LineCap.SQUARE)
+			capVal = BufferParameters.CAP_SQUARE;
 		
-		// If the radius is negative (i.e. a dilation), then the parent will be the original object itself
+		Geometry geometry2  = BufferOp.bufferOp(geometry, radiusPixels, BufferParameters.DEFAULT_QUADRANT_SEGMENTS, capVal);
+		
+		// If the radius is negative (i.e. an erosion), then the parent will be the original object itself
 		boolean isErosion = radiusPixels < 0;
 	    PathObject parent = isErosion ? pathObject : pathObject.getParent();
 		if (constrainToParent && !isErosion) {
@@ -177,8 +204,11 @@ public class DilateAnnotationPlugin<T> extends AbstractInteractivePlugin<T> {
 		if (removeInterior) {
 			if (isErosion)
 				geometry2 = geometry.difference(geometry2);
-			else
+			else {
+				if (geometry.getArea() == 0.0)
+					geometry = geometry.buffer(0.5);
 				geometry2 = geometry2.difference(geometry);
+			}
 		}
 
 		ROI roi2 = ConverterJTS.convertGeometryToROI(geometry2, ImagePlane.getPlane(roi));
