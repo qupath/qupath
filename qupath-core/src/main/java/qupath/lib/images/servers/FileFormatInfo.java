@@ -246,7 +246,7 @@ public class FileFormatInfo {
 				}
 				
 			} catch (Exception e) {
-				logger.warn("Unable to obtain full image format info for {} ({})", uri, e.getLocalizedMessage());
+				logger.warn("Unable to obtain full image format info for {} ({})", uri, e.getLocalizedMessage() == null ? e.getClass() : e.getLocalizedMessage());
 				logger.debug("Format info error", e);
 			}
 		}

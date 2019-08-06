@@ -171,7 +171,7 @@ public interface ImageServerBuilder<T> {
 		
 		@Override
 		public String toString() {
-			return getClass().getSimpleName() + " (" + providerClass + ") support=" + supportLevel + "builders=" + builders.size();
+			return getClass().getSimpleName() + " (" + providerClass + ") support=" + supportLevel + ", builders=" + builders.size();
 		}
 		
 		UriImageSupport(Class<? extends ImageServerBuilder<T>> providerClass, float supportLevel, Collection<ServerBuilder<T>> builders) {

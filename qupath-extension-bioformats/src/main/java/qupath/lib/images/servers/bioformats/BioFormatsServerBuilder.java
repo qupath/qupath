@@ -50,15 +50,12 @@ public class BioFormatsServerBuilder implements ImageServerBuilder<BufferedImage
 	
 	final private static Logger logger = LoggerFactory.getLogger(BioFormatsServerBuilder.class);
 	
-	final private Map<URI, Float> lastSupportLevel = new HashMap<>();
-	
 	@Override
 	public ImageServer<BufferedImage> buildServer(URI uri, String...args) {
 		try {
 			BioFormatsImageServer server = new BioFormatsImageServer(uri, args);
 			return server;
 		} catch (Exception e) {
-			lastSupportLevel.put(uri, Float.valueOf(0f));
 			logger.error("Unable to open {}: {}", uri, e);
 		}
 		return null;
@@ -107,11 +104,6 @@ public class BioFormatsServerBuilder implements ImageServerBuilder<BufferedImage
 				break;
 		}
 		
-		// Avoid calculated support again if we don't have to
-		Float lastSupport = lastSupportLevel.getOrDefault(uri, null);
-		if (lastSupport != null)
-			return lastSupport.floatValue();
-		
 		// We don't want to handle zip files (which are very slow)
 		float support = 3f;
 				
@@ -148,7 +140,6 @@ public class BioFormatsServerBuilder implements ImageServerBuilder<BufferedImage
 				logger.debug("Potential Bio-Formats reader: {}", supportedReader);
 			}
 		}
-		lastSupportLevel.put(uri, Float.valueOf(support));
 		return support;
 	}
 
