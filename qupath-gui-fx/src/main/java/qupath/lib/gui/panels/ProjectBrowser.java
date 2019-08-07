@@ -94,7 +94,6 @@ import qupath.lib.gui.ImageDataChangeListener;
 import qupath.lib.gui.ImageDataWrapper;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.QuPathGUI.GUIActions;
-import qupath.lib.gui.commands.ProjectCheckUrisCommand;
 import qupath.lib.gui.commands.ProjectImportImagesCommand;
 import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.gui.helpers.PaintingToolsFX;
@@ -586,23 +585,21 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 	}
 
 
-	public void setProject(final Project<BufferedImage> project) {
+	/**
+	 * Set the project.
+	 * @param project
+	 * @return true if the project is now set (even if unchanged), false if the project change was thwarted or canceled.
+	 */
+	public boolean setProject(final Project<BufferedImage> project) {
 		if (this.project == project)
-			return;		
-		if (project != null) {
-			try {
-				// Show URI manager dialog if we have any missing URIs
-				if (!ProjectCheckUrisCommand.checkURIs(project, true))
-					return;
-			} catch (IOException e) {
-				DisplayHelpers.showErrorMessage("Update URIs", e);
-			}
-		}
+			return true;		
+		
 		this.project = project;
 
 		model = new ProjectImageTreeModel(project);
 		tree.setRoot(model.getRootFX());
 		tree.getRoot().setExpanded(true);
+		return true;
 	}
 	
 	

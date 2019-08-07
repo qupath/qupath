@@ -11,6 +11,7 @@ import java.util.concurrent.Future;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.StringProperty;
 import javafx.collections.FXCollections;
@@ -45,6 +46,9 @@ public class OMEPyramidWriterCommand implements PathCommand {
 
 	private static IntegerProperty minSizeForTiling = PathPrefs.createPersistentPreference(
 			"ome-pyramid-default-min-size-for-tiling", 4096);
+	
+	private static BooleanProperty parallelizeTiling = PathPrefs.createPersistentPreference(
+			"ome-pyramid-default-parallelize", true);
 
 	/**
 	 * Query the default compression type when writing OME-TIFF images.
@@ -109,6 +113,13 @@ public class OMEPyramidWriterCommand implements PathCommand {
 							"OME TIFF min size for tiling",
 							"Input/Output",
 							"Specify minimum image width or height used to determine whether to create a pyramid or export a standard OME TIFF");
+					
+					qupath.getPreferencePanel().addPropertyPreference(
+							parallelizeTiling, Boolean.class,
+							"OME TIFF use parallel tile export",
+							"Input/Output",
+							"Use multithreading when exporting image tiles - you probably want this on, but may to it off to help debug export problems");
+
 				}
 			}			
 		}
@@ -152,6 +163,10 @@ public class OMEPyramidWriterCommand implements PathCommand {
 		File fileOutput = qupath.getDialogHelper().promptToSaveFile("Write pyramid", lastDirectory, null, "OME TIFF pyramid", ".ome.tif");
 		if (fileOutput == null)
 			return;
+		String name = fileOutput.getName();
+		// We can have trouble with only the '.tif' part of the name being included
+		if (name.endsWith(".tif") && !name.endsWith(".ome.tif"))
+			fileOutput = new File(fileOutput.getParentFile(), name.substring(0, name.length()-4) + ".ome.tif");
 		lastDirectory = fileOutput.getParentFile();
 		
 		OMEPyramidWriter.Builder builder = new OMEPyramidWriter.Builder(server)
@@ -159,15 +174,16 @@ public class OMEPyramidWriterCommand implements PathCommand {
 		
 		// Set tile size; if we just have one tile, use the image width & height
 		if (server.getTileRequestManager().getAllTileRequests().size() == 1)
-			builder = builder.tileSize(server.getWidth(), server.getHeight());
+			builder = builder.tileSize(region.getWidth(), region.getHeight());
 		else if (getDefaultTileSize() > 0)
 			builder = builder.tileSize(getDefaultTileSize());
-		else
+		else {
 			builder = builder.tileSize(server.getMetadata().getPreferredTileWidth(), server.getMetadata().getPreferredTileHeight());
+		}
 
 		// Decide whether to write pyramid or not based on image size
 		if (Math.max(region.getWidth(), region.getHeight()) > getMinSizeForTiling())
-			builder = builder.dyadicDownsampling();
+			builder = builder.scaledDownsampling(4.0);
 		else
 			builder = builder.downsamples(1.0);
 		
@@ -182,6 +198,9 @@ public class OMEPyramidWriterCommand implements PathCommand {
 			logger.warn("Requested compression type {} is not compatible with the current image - will use {} instead", oldCompression, compression);
 		}
 		builder = builder.compression(compression);
+		
+		if (parallelizeTiling.get())
+			builder = builder.parallelize();
 		
 		OMEPyramidWriter writer = builder.build();
 		

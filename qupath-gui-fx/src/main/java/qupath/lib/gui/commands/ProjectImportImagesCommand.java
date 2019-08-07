@@ -47,6 +47,7 @@ import javafx.geometry.Insets;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonBar.ButtonData;
 import javafx.scene.control.ButtonType;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
@@ -72,6 +73,7 @@ import qupath.lib.images.servers.WrappedBufferedImageServer;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
 import qupath.lib.images.servers.ImageServerProvider;
+import qupath.lib.images.servers.ImageServers;
 import qupath.lib.images.servers.RotatedImageServer;
 import qupath.lib.images.servers.RotatedImageServer.Rotation;
 import qupath.lib.images.servers.ServerTools;
@@ -138,10 +140,13 @@ public class ProjectImportImagesCommand implements PathCommand {
 		comboRotate.getItems().setAll(Rotation.values());
 		Label labelRotate = new Label("Rotate image");
 		labelRotate.setLabelFor(comboRotate);
+		
+		CheckBox cbPyramidize = new CheckBox("Auto-generate pyramids");
+		cbPyramidize.setSelected(true);
 
-		GridPaneTools.setMaxWidth(Double.MAX_VALUE, comboType, comboRotate);
-		GridPaneTools.setFillWidth(Boolean.TRUE, comboType, comboRotate);
-		GridPaneTools.setHGrowPriority(Priority.ALWAYS, comboType, comboRotate);
+		GridPaneTools.setMaxWidth(Double.MAX_VALUE, comboType, comboRotate, cbPyramidize);
+		GridPaneTools.setFillWidth(Boolean.TRUE, comboType, comboRotate, cbPyramidize);
+		GridPaneTools.setHGrowPriority(Priority.ALWAYS, comboType, comboRotate, cbPyramidize);
 		
 		GridPane paneType = new GridPane();
 		paneType.setPadding(new Insets(5));
@@ -149,6 +154,7 @@ public class ProjectImportImagesCommand implements PathCommand {
 		paneType.setVgap(5);
 		GridPaneTools.addGridRow(paneType, 0, 0, "Specify the default image type for all images being imported (required for analysis, can be changed later under the 'Image' tab)", labelType, comboType);
 		GridPaneTools.addGridRow(paneType, 1, 0, "Optionally rotate images on import", labelRotate, comboRotate);
+		GridPaneTools.addGridRow(paneType, 2, 0, "Dynamically create image pyramids for large, single-resolution images", cbPyramidize, cbPyramidize);
 		
 		paneImages.setCenter(paneList);
 		paneImages.setBottom(paneType);
@@ -186,6 +192,7 @@ public class ProjectImportImagesCommand implements PathCommand {
 		
 		ImageType type = comboType.getValue();
 		Rotation rotation = comboRotate.getValue();
+		boolean pyramidize = cbPyramidize.isSelected();
 		
 		List<String> pathSucceeded = new ArrayList<>();
 		List<String> pathFailed = new ArrayList<>();
@@ -229,7 +236,7 @@ public class ProjectImportImagesCommand implements PathCommand {
 				List<ProjectImageEntry<BufferedImage>> failures = Collections.synchronizedList(new ArrayList<>());
 				entries.parallelStream().forEach(entry -> {
 					try {
-					initializeEntry(entry, type);
+						initializeEntry(entry, type, pyramidize);
 					} catch (Exception e) {
 						failures.add(entry);
 						logger.warn("Exception adding " + entry, e);
@@ -430,7 +437,7 @@ public class ProjectImportImagesCommand implements PathCommand {
 	public static ProjectImageEntry<BufferedImage> addSingleImageToProject(Project<BufferedImage> project, ImageServer<BufferedImage> server, ImageType type) {
 		try {
 			var entry = project.addImage(server.getBuilder());
-			initializeEntry(entry, type);
+			initializeEntry(entry, type, false);
 			return entry;
 		} catch (Exception e) {
 			return null;
@@ -444,10 +451,11 @@ public class ProjectImportImagesCommand implements PathCommand {
 	 * 
 	 * @param entry the entry that should be initialized
 	 * @param type the ImageType that should be set for each entry being added
+	 * @param pyramidizeSingleResolution if true, attempt to pyramidalize single-resolution image servers
 	 * @return
 	 * @throws Exception 
 	 */
-	static ProjectImageEntry<BufferedImage> initializeEntry(ProjectImageEntry<BufferedImage> entry, ImageType type) throws Exception {
+	static ProjectImageEntry<BufferedImage> initializeEntry(ProjectImageEntry<BufferedImage> entry, ImageType type, boolean pyramidizeSingleResolution) throws Exception {
 		try (ImageServer<BufferedImage> server = entry.getServerBuilder().build()) {
 			var img = getThumbnailRGB(server, null);
 			// Set the image name
@@ -455,11 +463,25 @@ public class ProjectImportImagesCommand implements PathCommand {
 			entry.setImageName(name);
 			// Write a thumbnail if we can
 			entry.setThumbnail(img);
+			
+			// Pyramidalize this if we need to
+			ImageServer<BufferedImage> server2 = server;
+			if (pyramidizeSingleResolution && server.nResolutions() == 1) {
+				var serverTemp = ImageServers.pyramidalize(server);
+				if (serverTemp.nResolutions() > 1) {
+					logger.debug("Auto-generating image pyramid for " + name);
+					server2 = serverTemp;
+				} else
+					serverTemp.close();
+			}
+			
 			// Initialize an ImageData object with a type, if required
-			if (type != null) {
-				var imageData = new ImageData<>(server, type);
+			if (type != null || server != server2) {
+				var imageData = new ImageData<>(server2, type);
 				entry.saveImageData(imageData);
 			}
+			if (server != server2)
+				server2.close();
 		}
 		return entry;
 	}

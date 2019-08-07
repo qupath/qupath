@@ -99,6 +99,23 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 		String path = file.getAbsolutePath();
 		if (path.toLowerCase().endsWith(".tif") || path.toLowerCase().endsWith(".tiff")) {
 			imp = IJ.openVirtual(path);
+			// We only want a virtual stack if we have a large z-stack or time series
+			long bpp = imp.getBitDepth() / 8;
+			if (bpp == 3)
+				bpp = 4; // ImageJ uses 4 bytes for an RGB image, but reports 24-bit
+			long nBytes = (long)imp.getWidth() * imp.getHeight() * imp.getStackSize() * bpp;
+			long maxMemory = Runtime.getRuntime().maxMemory();
+			long allowedMemory;
+			if (maxMemory == Long.MAX_VALUE)
+				allowedMemory = 1024L * 1024L * 1024L;
+			else
+				allowedMemory = maxMemory / 8;
+			if ((imp.getNFrames() == 1 && imp.getNSlices() == 1) || nBytes < allowedMemory) {
+				logger.info("Opening {} fully, estimated {} MB (max memory {} MB)", uri, nBytes / (1024L * 1024L), maxMemory / (1024L * 1024L));
+				imp = IJ.openImage(path);
+			} else {
+				logger.info("Opening {} as virtual stack, estimated {} MB (max memory {} MB)", uri, nBytes / (1024L * 1024L), maxMemory / (1024L * 1024L));
+			}
 		}
 		if (imp == null)
 			imp = IJ.openImage(path);

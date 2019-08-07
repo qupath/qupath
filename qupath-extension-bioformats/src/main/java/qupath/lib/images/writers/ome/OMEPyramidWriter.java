@@ -615,6 +615,25 @@ public class OMEPyramidWriter {
 		}
 		
 		/**
+		 * Request the default lossy compression method. Not all servers support lossy compression 
+		 * (e.g. non-RGB servers).
+		 * @return
+		 */
+		public Builder lossyCompression() {
+			writer.compression = getDefaultLossyCompressionType(writer.server);
+			return this;
+		}
+		
+		/**
+		 * Request the default lossless compression method.
+		 * @return
+		 */
+		public Builder losslessCompression() {
+			writer.compression = getDefaultLosslessCompressionType(writer.server);
+			return this;
+		}
+		
+		/**
 		 * Parallelize tile export, if possible.
 		 * 
 		 * @return

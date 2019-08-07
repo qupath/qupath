@@ -54,6 +54,7 @@ public class ImageServers {
 			.registerSubtype(AffineTransformImageServerBuilder.class, "affine")
 			.registerSubtype(SparseImageServerBuilder.class, "sparse")
 			.registerSubtype(CroppedImageServerBuilder.class, "cropped")
+			.registerSubtype(PyramidGeneratingServerBuilder.class, "pyramidize")
 			;
 	
 	/**
@@ -107,6 +108,80 @@ public class ImageServers {
 		}
 		
 	}
+	
+	
+	static class PyramidGeneratingServerBuilder extends AbstractServerBuilder<BufferedImage> {
+		
+		private ServerBuilder<BufferedImage> builder;
+		
+		PyramidGeneratingServerBuilder(ImageServerMetadata metadata, ServerBuilder<BufferedImage> builder) {
+			super(metadata);
+			this.builder = builder;
+		}
+		
+		@Override
+		protected ImageServer<BufferedImage> buildOriginal() throws Exception {
+			var metadata = getMetadata();
+			return new PyramidGeneratingImageServer(builder.build(),
+					metadata.getPreferredTileWidth(),
+					metadata.getPreferredTileHeight(),
+					metadata.getPreferredDownsamplesArray());
+		}
+
+		@Override
+		public Collection<URI> getURIs() {
+			return builder.getURIs();
+		}
+
+		@Override
+		public ServerBuilder<BufferedImage> updateURIs(Map<URI, URI> updateMap) {
+			ServerBuilder<BufferedImage> newBuilder = builder.updateURIs(updateMap);
+			if (newBuilder == builder)
+				return this;
+			return new PyramidGeneratingServerBuilder(getMetadata(), newBuilder);
+		}
+		
+	}
+	
+	/**
+	 * Wrap an ImageServer to dynamically generate a pyramid. This does not involve writing any new image, 
+	 * and may be rather processor and memory-intensive as high-resolution tiles must be accessed to fulfill 
+	 * low-resolution requests. However, tile caching means that after tiles have been accessed once perceived 
+	 * performance can be considerably improved.
+	 * 
+	 * @param server the server to wrap (typically having only one resolution level)
+	 * @param downsamples optional array giving the downsamples of the new pyramid. If not provided, 
+	 * @return
+	 */
+	public static ImageServer<BufferedImage> pyramidalize(ImageServer<BufferedImage> server, double...downsamples) {
+		var oldMetadata = server.getMetadata();
+		
+		// Determine tile sizes
+		int tileWidth = 256;
+		int tileHeight = 256;
+		if (oldMetadata.getPreferredTileWidth() < oldMetadata.getWidth())
+			tileWidth = oldMetadata.getPreferredTileWidth();
+		
+		if (oldMetadata.getPreferredTileHeight() < oldMetadata.getHeight())
+			tileHeight = oldMetadata.getPreferredTileHeight();
+		
+		if (downsamples.length == 0) {
+			
+			List<Double> downsampleList = new ArrayList<>();
+			double downsample = oldMetadata.getDownsampleForLevel(0);
+			double nextWidth = server.getWidth() / downsample;
+			double nextHeight = server.getHeight() / downsample;
+			do {
+				downsampleList.add(downsample);
+				downsample *= 4;
+				nextWidth = server.getWidth() / downsample;
+				nextHeight = server.getHeight() / downsample;
+			} while ((nextWidth > tileWidth || nextHeight > tileHeight) && nextWidth >= 8 && nextHeight >= 8);
+			downsamples = downsampleList.stream().mapToDouble(d -> d).toArray();
+		}
+		return new PyramidGeneratingImageServer(server, tileWidth, tileHeight, downsamples);
+	}
+	
 	
 	static class CroppedImageServerBuilder extends AbstractServerBuilder<BufferedImage> {
 		

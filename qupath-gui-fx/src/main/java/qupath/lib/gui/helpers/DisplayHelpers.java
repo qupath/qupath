@@ -504,7 +504,7 @@ public class DisplayHelpers {
 	 */
 	private static Notifications createNotifications() {
 		var stage = QuPathGUI.getInstance() == null ? null : QuPathGUI.getInstance().getStage();
-		if (stage != null)
+		if (stage == null)
 			return Notifications.create();
 		return Notifications.create().owner(stage);
 	}

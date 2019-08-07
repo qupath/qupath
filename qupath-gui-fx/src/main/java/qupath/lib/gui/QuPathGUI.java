@@ -309,6 +309,7 @@ import qupath.lib.images.ImageData.ImageType;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerBuilder;
 import qupath.lib.images.servers.ImageServerProvider;
+import qupath.lib.images.servers.ImageServers;
 import qupath.lib.images.servers.ServerTools;
 import qupath.lib.io.PathIO;
 import qupath.lib.objects.PathAnnotationObject;
@@ -2488,7 +2489,20 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 					if (!DisplayHelpers.showYesNoDialog("Replace open image", "Close " + ServerTools.getDisplayableImageName(server) + "?"))
 						return false;
 				}
-				ImageData<BufferedImage> imageData = serverNew == null ? null : createNewImageData(serverNew); // TODO: DEAL WITH PATHOBJECT HIERARCHIES!
+				ImageData<BufferedImage> imageData = null;
+				if (serverNew != null) {
+					int minSize = 4000;
+					if (serverNew.nResolutions() == 1 && serverNew.getWidth() > minSize && serverNew.getHeight() > minSize) {
+						var serverWrapped = ImageServers.pyramidalize(serverNew);
+						if (serverWrapped.nResolutions() > 1) {
+							if (prompt && DisplayHelpers.showYesNoDialog("Auto pyramidalize",
+									"QuPath works best with large images saved in a pyramidal format.\n\n" +
+									"Do you want to generate a pyramid dynamically from " + ServerTools.getDisplayableImageName(serverNew) + "?"))
+								serverNew = serverWrapped;
+						}
+					}
+					imageData = createNewImageData(serverNew);
+				}
 				
 				viewer.setImageData(imageData);
 				setInitialLocationAndMagnification(viewer);
@@ -2501,8 +2515,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 //				hierarchy.getSelectionModel().resetSelection();
 				
 				return true;
-			}
-			else {
+			} else {
 				// Show an error message if we can't open the file
 				DisplayHelpers.showErrorNotification("Open image", "Sorry, I can't open " + pathNew);
 //				logger.error("Unable to build whole slide server for path '{}'", pathNew);
@@ -4569,6 +4582,18 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				ProjectImportImagesCommand.addSingleImageToProject(project, imageData.getServer(), null);
 		}
 		
+		// Confirm the URIs for the new project
+		if (project != null) {
+			try {
+				// Show URI manager dialog if we have any missing URIs
+				if (!ProjectCheckUrisCommand.checkURIs(project, true))
+					return;
+			} catch (IOException e) {
+				DisplayHelpers.showErrorMessage("Update URIs", e);
+				return;
+			}
+		}
+		
 		// Store in recent list, if needed
 		URI uri = project == null ? null : project.getURI();
 		if (uri != null) {
@@ -4583,7 +4608,10 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		}
 		
 		this.project.set(project);
-		this.projectBrowser.setProject(project);
+		if (!this.projectBrowser.setProject(project)) {
+			this.project.set(null);
+			this.projectBrowser.setProject(null);
+		}
 		
 		// Enable disable actions
 		updateProjectActionStates();
