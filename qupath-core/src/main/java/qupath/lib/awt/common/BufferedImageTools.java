@@ -143,9 +143,9 @@ public class BufferedImageTools {
 		double finalAspectRatio = (double)finalWidth/finalHeight;
 		if (!GeneralTools.almostTheSame(aspectRatio, finalAspectRatio, 0.01)) {
 			if (!GeneralTools.almostTheSame(aspectRatio, finalAspectRatio, 0.05))
-				logger.warn("Substantial difference in aspect ratio for resized image: {}x{} -> {}x{} ({}, {})", img.getWidth(), img.getHeight(), finalWidth, finalHeight, aspectRatio, finalAspectRatio);
+				logger.debug("Substantial difference in aspect ratio for resized image: {}x{} -> {}x{} ({}, {})", img.getWidth(), img.getHeight(), finalWidth, finalHeight, aspectRatio, finalAspectRatio);
 			else
-				logger.warn("Slight difference in aspect ratio for resized image: {}x{} -> {}x{} ({}, {})", img.getWidth(), img.getHeight(), finalWidth, finalHeight, aspectRatio, finalAspectRatio);
+				logger.trace("Slight difference in aspect ratio for resized image: {}x{} -> {}x{} ({}, {})", img.getWidth(), img.getHeight(), finalWidth, finalHeight, aspectRatio, finalAspectRatio);
 		}
 
 		WritableRaster raster = img.getRaster();

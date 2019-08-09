@@ -1,6 +1,7 @@
 package qupath.lib.gui.helpers;
 
 import javafx.scene.Node;
+import javafx.scene.control.Control;
 import javafx.scene.control.Tooltip;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
@@ -37,11 +38,24 @@ public class GridPaneTools {
 					GridPane.setColumnSpan(n, span + 1);
 			} else {
 				pane.add(n, col, row);
-				if (tooltip != null)
-					Tooltip.install(n, tooltip);
+				if (tooltip != null) {
+					installTooltipRecursive(tooltip, n);
+				}
 			}
 			lastNode = n;
 			col++;
+		}
+	}
+	
+	static void installTooltipRecursive(Tooltip tooltip, Node node) {
+		if (node instanceof Control)
+			((Control)node).setTooltip(tooltip);
+		else {
+			Tooltip.install(node, tooltip);
+			if (node instanceof Region) {
+				for (var child : ((Region)node).getChildrenUnmodifiable())
+					installTooltipRecursive(tooltip, child);
+			}
 		}
 	}
 	
