@@ -23,6 +23,7 @@
 
 package qupath.imagej.images.servers;
 
+import java.awt.Rectangle;
 import java.awt.image.BandedSampleModel;
 import java.awt.image.BufferedImage;
 import java.awt.image.ColorModel;
@@ -258,10 +259,18 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 		// Deal with any downsampling
 		if (request.getDownsample() != 1) {
 			ImageStack stackNew = null;
+			Rectangle roi = imp2.getProcessor().getRoi();
+			int w = (int)Math.max(1, Math.round(imp.getWidth() / request.getDownsample()));
+			int h = (int)Math.max(1, Math.round(imp.getHeight() / request.getDownsample()));
+			if (roi != null) {
+				w = (int)Math.max(1, Math.round(roi.getWidth() / request.getDownsample()));
+				h = (int)Math.max(1, Math.round(roi.getHeight() / request.getDownsample()));
+			}
 			for (int i = 1; i <= nChannels; i++) {
 				int ind = imp2.getStackIndex(i, z, t);
 				ImageProcessor ip = imp2.getStack().getProcessor(ind);
-				ip = ip.resize((int)(ip.getWidth() / request.getDownsample() + 0.5));
+				ip.setInterpolationMethod(ImageProcessor.BILINEAR);
+				ip = ip.resize(w, h, true);
 				if (stackNew == null)
 					stackNew = new ImageStack(ip.getWidth(), ip.getHeight());
 				stackNew.addSlice("Channel " + i, ip);

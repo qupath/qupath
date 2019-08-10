@@ -559,11 +559,11 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 				region = RegionRequest.createInstance(server.getPath(), downsample, xStart, yStart, width, height, pathROI.getT(), pathROI.getZ());			
 			}
 			
-			// Check image large enough to do *anything* of value
-			if (region.getWidth() / downsample < 1 || region.getHeight() / downsample < 1) {
-				logger.trace("Requested region is too small! {}", region);
-				return false;
-			}
+//			// Check image large enough to do *anything* of value
+//			if (region.getWidth() / downsample < 1 || region.getHeight() / downsample < 1) {
+//				logger.trace("Requested region is too small! {}", region);
+//				return false;
+//			}
 	
 	//		System.out.println(bounds);
 	//		System.out.println("Size: " + size);
@@ -575,8 +575,9 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 			}
 	
 			// Create mask ROI if necessary
+			// If we just have 1 pixel, we want to use it so that the mean/min/max measurements are valid (even if nothing else is)
 			byte[] maskBytes = null;
-			if (useROI) {
+			if (useROI && img.getWidth() * img.getHeight() > 1) {
 				BufferedImage imgMask = BufferedImageTools.createROIMask(img.getWidth(), img.getHeight(), pathROI, region);
 				maskBytes = ((DataBufferByte)imgMask.getRaster().getDataBuffer()).getData();
 			}

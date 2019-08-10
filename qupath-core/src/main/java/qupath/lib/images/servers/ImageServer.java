@@ -149,10 +149,14 @@ public interface ImageServer<T> extends AutoCloseable {
 	/**
 	 * Read a buffered image for a specified RegionRequest, cropping and downsampling as required.
 	 * <p>
-	 * No specific checking is guaranteed
-	 * to ensure that the request is valid, e.g. if it extends beyond the image boundary then it is likely (but not certain) that
-	 * the returned image will be cropped accordingly - but some implementations may contain empty padding instead.  Therefore
-	 * it is up to the caller to ensure that the requests are within range.
+	 * No specific checking is guaranteed to ensure that the request is valid, e.g. if it extends beyond the image
+	 * boundary then it is likely (but not certain) that the returned image will be cropped accordingly - 
+	 * but some implementations may contain empty padding instead.
+	 * Therefore it is up to the caller to ensure that the requests are within range.
+	 * <p>
+	 * However, it is expected that any returnable region will be at least 1x1 pixel in size, even if via high downsampling 
+	 * one might otherwise expect a 0x0 image. This is consistent with the idea of pixels representing point samples 
+	 * rather than little squares.
 	 * 
 	 * @param request
 	 * @return

@@ -185,10 +185,11 @@ public class ExtractRegionCommand implements PathCommand {
 				region = RegionRequest.createInstance(server.getPath(), downsample, roi);
 			//					region = RegionRequest.createInstance(server.getPath(), downsample, pathObject.getROI(), viewer.getZPosition(), viewer.getTPosition());
 	
-			if (region.getWidth() / downsample < 8 || region.getHeight() / downsample < 8) {
-				DisplayHelpers.showErrorMessage("Send region to ImageJ", "The width & height of the extracted image must both be >= 8 pixels");
-				continue;
-			}
+			// Minimum size has been removed (v0.2.0-m4); returned regions should be at least 1x1 pixels
+//			if (region.getWidth() / downsample < 8 || region.getHeight() / downsample < 8) {
+//				DisplayHelpers.showErrorMessage("Send region to ImageJ", "The width & height of the extracted image must both be >= 8 pixels");
+//				continue;
+//			}
 
 			// Calculate required z-slices and time-points
 			int zStart = doZ ? 0 : region.getZ();

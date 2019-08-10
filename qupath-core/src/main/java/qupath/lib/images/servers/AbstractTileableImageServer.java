@@ -120,8 +120,8 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 		
 		long startTime = System.currentTimeMillis();
 		// Handle the general case for RGB
-		int width = (int)Math.round(request.getWidth() / request.getDownsample());
-		int height = (int)Math.round(request.getHeight() / request.getDownsample());
+		int width = (int)Math.max(1, Math.round(request.getWidth() / request.getDownsample()));
+		int height = (int)Math.max(1, Math.round(request.getHeight() / request.getDownsample()));
 		if (isRGB()) {
 			BufferedImage imgResult = createDefaultRGBImage(width, height);
 			Graphics2D g2d = imgResult.createGraphics();
