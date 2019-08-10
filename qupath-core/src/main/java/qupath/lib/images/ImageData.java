@@ -28,6 +28,7 @@ import java.beans.PropertyChangeSupport;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,6 +37,7 @@ import qupath.lib.color.ColorDeconvolutionStains;
 import qupath.lib.color.ColorDeconvolutionStains.DefaultColorDeconvolutionStains;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.ServerTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
@@ -218,6 +220,19 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
 		changes = true;
 	}
 	
+	
+	/**
+	 * Update the ImageServer metadata. The benefit of using this method rather than manipulating 
+	 * the ImageServer directly is that it will fire a property change.
+	 * @param newMetadata
+	 */
+	public void updateServerMetadata(ImageServerMetadata newMetadata) {
+		Objects.requireNonNull(newMetadata);
+		var oldMetadata = server.getMetadata();
+		server.setMetadata(newMetadata);
+		pcs.firePropertyChange("serverMetadata", oldMetadata, newMetadata);
+		changes = changes || !oldMetadata.equals(newMetadata);
+	}
 	
 //	public void setColorDeconvolutionStains(final String stainsString) {
 //		setColorDeconvolutionStains(ColorDeconvolutionStains.parseColorDeconvolutionStainsArg(stainsString));

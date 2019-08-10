@@ -275,8 +275,23 @@ public class ImageDisplay extends AbstractImageRenderer {
 					tempChannelOptions.add(new ChannelDisplayInfo.DirectServerChannelInfo(imageData, c));
 				}
 			}
-		} else
+		} else {
+			// Ensure channel colors are set
+			boolean colorsUpdated = false;
+			for (int c = 0; c < channelOptions.size(); c++) {
+				var option = channelOptions.get(c);
+				if (option instanceof DirectServerChannelInfo && c < server.nChannels()) {
+					var channel = server.getChannel(c);
+					if (option.getColor() != channel.getColor()) {
+						((DirectServerChannelInfo)option).setLUTColor(channel.getColor());
+						colorsUpdated = true;
+					}
+				}
+			}
 			tempChannelOptions.addAll(channelOptions);
+			if (colorsUpdated)
+				saveChannelColorProperties();
+		}
 		
 		// Select all the channels
 		if (serverChanged) {

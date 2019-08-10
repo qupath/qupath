@@ -200,7 +200,7 @@ public class RichScriptEditor extends DefaultScriptEditor {
 			
 			var cleanup = codeArea
 					.multiPlainChanges()
-					.successionEnds(Duration.ofMillis(500))
+					.successionEnds(Duration.ofMillis(250))
 					.supplyTask(() -> computeHighlightingAsync(codeArea.getText()))
 					.awaitLatest(codeArea.multiPlainChanges())
 					.filterMap(t -> {
