@@ -224,7 +224,7 @@ public interface ImageServer<T> extends AutoCloseable {
 	public PixelType getPixelType();
 	
 	/**
-	 * Request information for one channel.
+	 * Request information for one channel (0-based index).
 	 * 
 	 * @param channel
 	 * @return

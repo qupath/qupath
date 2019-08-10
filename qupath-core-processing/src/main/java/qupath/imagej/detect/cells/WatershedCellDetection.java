@@ -67,6 +67,7 @@ import qupath.lib.color.ColorDeconvolutionStains;
 import qupath.lib.color.StainVector;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.PathImage;
+import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.images.servers.ServerTools;
@@ -311,28 +312,32 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 				
 			} //else {
 			if (fpDetection == null) {
+				List<ImageChannel> imageChannels = imageData.getServer().getMetadata().getChannels();
 				if (ip instanceof ColorProcessor) {
-					channels.put("Channel 1", ((ColorProcessor)ip).toFloat(0, null));
-					channels.put("Channel 2", ((ColorProcessor)ip).toFloat(1, null));
-					channels.put("Channel 3", ((ColorProcessor)ip).toFloat(2, null));
+					for (int c = 0; c < 3; c++) {
+						String name = imageChannels.get(c).getName();
+						channels.put(name, ((ColorProcessor)ip).toFloat(c, null));
+					}
 				} else {
 					ImagePlus imp = pathImage.getImage();
 					for (int c = 1; c <= imp.getNChannels(); c++) {
-						channels.put("Channel " + c, imp.getStack().getProcessor(imp.getStackIndex(c, 0, 0)).convertToFloatProcessor());
+						String name = imageChannels.get(c-1).getName();
+						channels.put(name, imp.getStack().getProcessor(imp.getStackIndex(c, 0, 0)).convertToFloatProcessor());
+//						channels.put("Channel " + c, imp.getStack().getProcessor(imp.getStackIndex(c, 0, 0)).convertToFloatProcessor());
 					}
 				}
 				// For fluorescence, measure everything
 				channelsCell.putAll(channels);
 				
-				// TODO: Deal with fluorescence... for now, defaults to first channel (may be totally wrong)
+				// Try to get detection channel for fluorescence
 				int detectionChannel = 1;
 				if (!isBrightfield)
 					detectionChannel = params.getIntParameterValue("detectionImageFluorescence");
-				fpDetection = channels.get("Channel " + detectionChannel);
-				if (fpDetection == null) {
+				if (detectionChannel <= 0 || detectionChannel > imageChannels.size()) {
 					logger.warn("Unable to find specified Channel {} - will default to Channel 1", detectionChannel);
-					fpDetection = channels.get("Channel 1");
+					detectionChannel = 1;
 				}
+				fpDetection = channels.get(imageChannels.get(detectionChannel-1).getName());
 			}
 			WatershedCellDetector detector2 = new WatershedCellDetector(fpDetection, channels, channelsCell, roi, pathImage);
 			
