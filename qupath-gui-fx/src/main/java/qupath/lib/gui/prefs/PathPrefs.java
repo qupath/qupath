@@ -1027,7 +1027,7 @@ public class PathPrefs {
 			long maxAvailable = rt.maxMemory(); // Max available memory
 			long minRequired = 500L * 1024L * 1024L; // We need at least 500 MB for tolerable performance
 			long memForCores = 250L * 1024L * 1024L * rt.availableProcessors(); // Want to leave ideally at least 250 MB per processor core
-			long maxSensible = Math.min(maxAvailable/4, 1024L * 1024L * 1024L * 4L); // Shouldn't need more than 4 GB or 25% available memory... better free up memory for processing / objects
+			long maxSensible = maxAvailable / 2; // Shouldn't need more than 50% available memory... better free up memory for processing / objects
 			long memoryEstimate = maxAvailable - memForCores;
 			
 //			long val = Math.min(Math.max(Math.min(minRequired, maxAvailable/2), memoryEstimate), maxSensible);

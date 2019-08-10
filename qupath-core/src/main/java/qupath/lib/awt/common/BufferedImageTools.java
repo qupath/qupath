@@ -28,6 +28,7 @@ import java.awt.Graphics2D;
 import java.awt.Shape;
 import java.awt.image.BufferedImage;
 import java.awt.image.WritableRaster;
+import java.util.Hashtable;
 
 import org.bytedeco.javacpp.indexer.FloatIndexer;
 import org.bytedeco.opencv.global.opencv_core;
@@ -121,6 +122,26 @@ public class BufferedImageTools {
 			return img2;
 		}
 		return img;
+	}
+	
+	/**
+	 * Duplicate a BufferedImage. This retains the same color model, but copies the raster.
+	 * @param img
+	 * @return
+	 */
+	public static BufferedImage duplicate(BufferedImage img) {
+		String[] names = img.getPropertyNames();
+		Hashtable<Object, Object> properties = null;
+		if (names != null && names.length > 0) {
+			properties = new Hashtable<>();
+			for (String name : names)
+				properties.put(name, img.getProperty(name));
+		}
+		return new BufferedImage(
+				img.getColorModel(),
+				img.copyData(img.getRaster().createCompatibleWritableRaster()),
+				img.isAlphaPremultiplied(),
+				properties);
 	}
 	
 

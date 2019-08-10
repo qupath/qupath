@@ -8,11 +8,15 @@ import java.awt.image.Raster;
 import java.awt.image.WritableRaster;
 import java.io.IOException;
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.Hashtable;
+import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.lib.awt.common.BufferedImageTools;
+import qupath.lib.color.ColorModelFactory;
 import qupath.lib.regions.RegionRequest;
 
 /**
@@ -28,9 +32,92 @@ import qupath.lib.regions.RegionRequest;
 public abstract class AbstractTileableImageServer extends AbstractImageServer<BufferedImage> {
 	
 	private static final Logger logger = LoggerFactory.getLogger(AbstractTileableImageServer.class);
+	
+	private ColorModel colorModel;
+	private Map<String, BufferedImage> emptyTileMap = new HashMap<>();
+	
+	private transient Map<RegionRequest, BufferedImage> emptyTiles = new HashMap<>();
+	
+	private final static Long ZERO = Long.valueOf(0L);
 		
 	protected AbstractTileableImageServer() {
 		super(BufferedImage.class);
+	}
+	
+	protected BufferedImage getEmptyTile(int width, int height) throws IOException {
+		return getEmptyTile(width, height,
+				width == getMetadata().getPreferredTileWidth() &&
+				height == getMetadata().getPreferredTileHeight());
+	}
+	
+	/**
+	 * Create an empty tile for this server, using the default color model.
+	 * @param width
+	 * @param height
+	 * @param doCache
+	 * @return
+	 * @throws IOException
+	 */
+	protected BufferedImage getEmptyTile(int width, int height, boolean doCache) throws IOException {
+		String key = width + "x" + height;
+		BufferedImage imgTile = emptyTileMap.get(key);
+		if (imgTile == null) {
+			imgTile = createEmptyTile(getDefaultColorModel(), width, height);
+			if (doCache)
+				emptyTileMap.put(key, imgTile);
+		}
+		return imgTile;
+	}
+	
+	/**
+	 * Get an appropriate colormodel that may be used. The default implementation uses 
+	 * the default RGB color model for RGB images, or else requests a low-resolution thumbnail 
+	 * to extract the color model from it. If neither implementation is sufficient, subclasses 
+	 * should override this method.
+	 * @return
+	 * @throws IOException
+	 */
+	protected ColorModel getDefaultColorModel() throws IOException {
+		if (colorModel == null) {
+			if (isRGB())
+				colorModel = ColorModel.getRGBdefault();
+			else
+				colorModel = ColorModelFactory.createProbabilityColorModel(
+						getPixelType().bitsPerPixel(),
+						nChannels(),
+						false,
+						getMetadata().getChannels().stream().mapToInt(c -> c.getColor()).toArray());
+		}
+		return colorModel;
+	}
+	
+	/**
+	 * Create an 'empty' image tile for a specific color model.
+	 * @param colorModel
+	 * @param width
+	 * @param height
+	 * @return
+	 */
+	static BufferedImage createEmptyTile(ColorModel colorModel, int width, int height) {
+		var raster = colorModel.createCompatibleWritableRaster(width, height);
+		Hashtable<Object, Object> emptyProperties = new Hashtable<>();
+		emptyProperties.put("QUPATH_CACHE_SIZE", ZERO);
+		return new BufferedImage(colorModel, raster, false, emptyProperties);
+	}
+	
+	/**
+	 * Returns true if the tile is flagged as being empty.
+	 * @param img
+	 * @return
+	 */
+	static boolean isEmptyTile(BufferedImage img) {
+		return ZERO.equals(img.getProperty("QUPATH_CACHE_SIZE"));
+	}
+	
+	
+	synchronized void resetEmptyTileCache() {
+		logger.debug("Resetting empty tile cache");
+		emptyTileMap.clear();
 	}
 	
 	
@@ -51,18 +138,30 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 	 * @return
 	 */
 	protected BufferedImage getTile(final TileRequest tileRequest) throws IOException {
-		var cache = getCache();
-		BufferedImage imgCached = cache == null ? null : cache.get(tileRequest.getRegionRequest());
-		if (imgCached != null) { 
-			logger.trace("Returning cached tile: {}", tileRequest.getRegionRequest());
+		// Try to get tile from one of the caches
+		var request = tileRequest.getRegionRequest();
+		BufferedImage imgCached = emptyTiles.get(request);
+		if (imgCached != null)
 			return imgCached;
+		
+		var cache = getCache();
+		if (cache != null) {
+			imgCached = cache.get(request);
+			if (imgCached != null) { 
+				logger.trace("Returning cached tile: {}", request);
+				return imgCached;
+			}
 		}
-		logger.trace("Reading tile: {}", tileRequest.getRegionRequest());
+		logger.trace("Reading tile: {}", request);
 		
 		imgCached = readTile(tileRequest);
 		
-		if (cache != null)
-			cache.put(tileRequest.getRegionRequest(), imgCached);
+		// Put the tile in the appropriate cache
+		if (imgCached != null && isEmptyTile(imgCached))
+			emptyTiles.put(request, imgCached);
+		else if (cache != null) {
+			cache.put(request, imgCached);
+		}
 		return imgCached;
 	}
 	
@@ -81,15 +180,7 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 	}
 	
 	
-	static BufferedImage duplicate(BufferedImage img) {
-		return new BufferedImage(
-				img.getColorModel(),
-				img.copyData(img.getRaster().createCompatibleWritableRaster()),
-				img.isAlphaPremultiplied(),
-				null);
-	}
 	
-
 	@Override
 	public BufferedImage readBufferedImage(final RegionRequest request) throws IOException {
 		// Check if we already have a tile for precisely this occasion - with the right server path
@@ -97,7 +188,7 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 		var cache = getCache();
 		BufferedImage img = request.getPath().equals(getPath()) && cache != null ? cache.get(request) : null;
 		if (img != null)
-			return duplicate(img);
+			return BufferedImageTools.duplicate(img);
 		
 		// Figure out which tiles we need
 		Collection<TileRequest> tiles = getTileRequestManager().getTileRequests(request);
@@ -114,7 +205,7 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 				var imgTile = getTile(firstTile);
 				if (imgTile == null)
 					return null;
-				return duplicate(imgTile);
+				return BufferedImageTools.duplicate(imgTile);
 			}
 		}
 		
@@ -163,6 +254,7 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 				tileMaxY = Math.max(tileRequest.getTileY() + tileRequest.getTileHeight(), tileMaxY);
 			}
 			
+			boolean isEmptyRegion = true;
 			if (singleTile) {
 				// Use the raster directly, if appropriate (because copying can be expensive)
 				BufferedImage imgTile = getTile(tiles.iterator().next());
@@ -170,11 +262,13 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 					raster = imgTile.getRaster();
 					colorModel = imgTile.getColorModel();
 					alphaPremultiplied = imgTile.isAlphaPremultiplied();
+					isEmptyRegion = isEmptyTile(imgTile);
 				}
 			} else {
 				for (var tileRequest : tiles) {
 					BufferedImage imgTile = getTile(tileRequest);
-					if (imgTile != null) {
+					if (imgTile != null && !isEmptyTile(imgTile)) {
+						isEmptyRegion = false;
 						// Figure out coordinates
 						int dx = tileRequest.getTileX() - tileMinX;
 						int dy = tileRequest.getTileY() - tileMinY;
@@ -212,7 +306,7 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 			
 			if (xEnd > getWidth() || yEnd > getHeight())
 				logger.warn("Region request is too large for {}x{} image: {}", getWidth(), getHeight(), request);
-			
+						
 			// Do cropping, if we need to
 			if (xStart > 0 || yStart > 0 || xEnd != raster.getWidth() || yEnd != raster.getHeight()) {
 				// Best avoid creating a child raster, for memory & convenience reasons
@@ -221,6 +315,12 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 				int y = Math.max(yStart, 0);
 				int w = xEnd - xStart;
 				int h = yEnd - yStart;
+				
+				// If we have an empty region, try to use an empty tile
+				if (isEmptyRegion) {
+					return getEmptyTile(w, h);
+				}
+
 //				int w = Math.min(raster.getWidth() - xStart, xEnd - xStart);
 //				int h = Math.min(raster.getHeight() - yStart, yEnd - yStart);
 				var raster2 = raster.createCompatibleWritableRaster(w, h);

@@ -15,6 +15,9 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
+import java.util.stream.DoubleStream;
 import java.util.stream.IntStream;
 
 import org.slf4j.Logger;
@@ -33,6 +36,7 @@ import ome.xml.model.enums.PixelType;
 import ome.xml.model.primitives.Color;
 import ome.xml.model.primitives.PositiveInteger;
 import qupath.lib.common.ColorTools;
+import qupath.lib.common.GeneralTools;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
@@ -284,15 +288,15 @@ public class OMEPyramidWriter {
 				}
 
 				double d = downsamples[level];
-				
-				logger.info("Writing resolution {} of {} (downsample={})", level, downsamples.length, d);
-				
+								
 				int w = (int)(this.width / d);
 				int h = (int)(this.height / d);
 
 				int tInc = tEnd >= tStart ? 1 : -1;
 				int zInc = zEnd >= zStart ? 1 : -1;
 				int effectiveSizeC = nChannels / nSamples;
+				
+				AtomicInteger count = new AtomicInteger(0);
 								
 				int ti = 0;
 				for (int t = tStart; t < tEnd; t += tInc) {
@@ -315,6 +319,14 @@ public class OMEPyramidWriter {
 						}
 						ImageRegion firstRegion = regions.remove(0);
 						
+						int total = regions.size() * (tEnd - tStart) * (zEnd - zStart);
+						if (z == zStart && t == tStart)
+							logger.info("Writing resolution {} of {} (downsample={}, {} tiles)", level+1, downsamples.length, d, total);
+						
+						// Show progress at key moments
+						int inc = total > 1000 ? 20 : 10;
+						Set<Integer> keyCounts = IntStream.range(1, inc).mapToObj(i -> (int)Math.round((double)total / inc * i)).collect(Collectors.toSet());
+						
 						// Loop through effective channels (which is 1 if we are writing interleaved)
 						for (int ci = 0; ci < effectiveSizeC; ci++) {
 							
@@ -332,10 +344,16 @@ public class OMEPyramidWriter {
 									try {
 										writeRegion(writer, plane, ifd, region, d, isRGB, localChannels);
 									} catch (Exception e) {
-										logger.warn(String.format(
+										logger.error(String.format(
 												"Error writing %s (downsample=%.2f)",
 												region.toString(), d),
 												e);
+									} finally {
+										int localCount = count.incrementAndGet();
+										if (keyCounts.size() > 1 && keyCounts.contains(localCount)) {
+											double percentage = localCount*100.0/total;
+											logger.info("Written {}% tiles", Math.round(percentage));
+										}
 									}
 								});
 							}

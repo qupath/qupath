@@ -747,7 +747,6 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 
 	@Override
 	public BufferedImage readTile(TileRequest tileRequest) throws IOException {
-
 		int level = tileRequest.getLevel();
 
 		int tileX = tileRequest.getTileX();
@@ -815,6 +814,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 			dataBuffer = new DataBufferByte(bytes, length);
 		break;
 		case (FormatTools.UINT16):
+			length /= 2;
 			short[][] array = new short[bytes.length][length];
 			for (int i = 0; i < bytes.length; i++) {
 				ShortBuffer buffer = ByteBuffer.wrap(bytes[i]).order(order).asShortBuffer();
@@ -824,26 +824,28 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 			dataBuffer = new DataBufferUShort(array, length);
 			break;
 		case (FormatTools.FLOAT):
+			length /= 4;
 			float[][] floatArray = new float[bytes.length][length];
-		for (int i = 0; i < bytes.length; i++) {
-			FloatBuffer buffer = ByteBuffer.wrap(bytes[i]).order(order).asFloatBuffer();
-			floatArray[i] = new float[buffer.limit()];
-			buffer.get(floatArray[i]);
-			if (normalizeFloats)
-				floatArray[i] = DataTools.normalizeFloats(floatArray[i]);
-		}
-		dataBuffer = new DataBufferFloat(floatArray, length);
+			for (int i = 0; i < bytes.length; i++) {
+				FloatBuffer buffer = ByteBuffer.wrap(bytes[i]).order(order).asFloatBuffer();
+				floatArray[i] = new float[buffer.limit()];
+				buffer.get(floatArray[i]);
+				if (normalizeFloats)
+					floatArray[i] = DataTools.normalizeFloats(floatArray[i]);
+			}
+			dataBuffer = new DataBufferFloat(floatArray, length);
 		break;
 		case (FormatTools.DOUBLE):
+			length /= 8;
 			double[][] doubleArray = new double[bytes.length][length];
-		for (int i = 0; i < bytes.length; i++) {
-			DoubleBuffer buffer = ByteBuffer.wrap(bytes[i]).order(order).asDoubleBuffer();
-			doubleArray[i] = new double[buffer.limit()];
-			buffer.get(doubleArray[i]);
-			if (normalizeFloats)
-				doubleArray[i] = DataTools.normalizeDoubles(doubleArray[i]);
-		}
-		dataBuffer = new DataBufferDouble(doubleArray, length);
+			for (int i = 0; i < bytes.length; i++) {
+				DoubleBuffer buffer = ByteBuffer.wrap(bytes[i]).order(order).asDoubleBuffer();
+				doubleArray[i] = new double[buffer.limit()];
+				buffer.get(doubleArray[i]);
+				if (normalizeFloats)
+					doubleArray[i] = DataTools.normalizeDoubles(doubleArray[i]);
+			}
+			dataBuffer = new DataBufferDouble(doubleArray, length);
 		break;
 		default:
 			throw new UnsupportedOperationException("Unsupported pixel type " + pixelType);
