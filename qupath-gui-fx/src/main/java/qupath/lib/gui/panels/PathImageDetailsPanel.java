@@ -698,7 +698,7 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 		
 		private ImageData<BufferedImage> imageData;
 		
-		protected enum ROW_TYPE {NAME, URI, BIT_DEPTH, MAGNIFICATION, WIDTH, HEIGHT, DIMENSIONS, PIXEL_WIDTH, PIXEL_HEIGHT, SERVER_TYPE, PYRAMID, METADATA_CHANGED, IMAGE_TYPE};
+		protected enum ROW_TYPE {NAME, URI, BIT_DEPTH, MAGNIFICATION, WIDTH, HEIGHT, DIMENSIONS, PIXEL_WIDTH, PIXEL_HEIGHT, UNCOMPRESSED_SIZE, SERVER_TYPE, PYRAMID, METADATA_CHANGED, IMAGE_TYPE};
 
 //		protected enum ROW_TYPE {PATH, IMAGE_TYPE, MAGNIFICATION, WIDTH, HEIGHT, PIXEL_WIDTH, PIXEL_HEIGHT,
 //				CHANNEL_1, CHANNEL_1_STAIN, CHANNEL_2, CHANNEL_2_STAIN, CHANNEL_3, CHANNEL_3_STAIN
@@ -771,6 +771,8 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 				return "Pixel width";
 			case PIXEL_HEIGHT:
 				return "Pixel height";
+			case UNCOMPRESSED_SIZE:
+				return "Uncompressed size";
 			case SERVER_TYPE:
 				return "Server type";
 			case PYRAMID:
@@ -851,6 +853,17 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 					return String.format("%.4f %s", cal.getPixelHeightMicrons(), GeneralTools.micrometerSymbol());
 				else
 					return "Unknown";
+			case UNCOMPRESSED_SIZE:
+				double size =
+						server.getWidth()/1024.0 * server.getHeight()/1024.0 * 
+						server.getPixelType().getBytesPerPixel() * server.nChannels() *
+						server.nZSlices() * server.nTimepoints();
+				String units = " MB";
+				if (size > 1000) {
+					size /= 1024.0;
+					units = " GB";
+				}
+				return GeneralTools.formatNumber(size, 1) + units;
 			case SERVER_TYPE:
 				return server.getServerType();
 			case PYRAMID:
