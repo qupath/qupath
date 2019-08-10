@@ -24,10 +24,10 @@
 package qupath.lib.gui.commands;
 
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.Set;
 import java.util.TreeSet;
@@ -41,6 +41,7 @@ import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.projects.ProjectImageEntry;
+import qupath.lib.projects.Projects;
 
 /**
  * Command to export image paths &amp; metadata from a current project.
@@ -61,12 +62,16 @@ public class ProjectExportImageListCommand implements PathCommand {
 	
 	@Override
 	public void run() {
-		if (qupath.getProject() == null) {
+		var project = qupath.getProject();
+		if (project == null) {
 			DisplayHelpers.showErrorMessage(commandName, "No project open!");
 			return;
 		}
+		// Try to get a project directory
+		File dirBase = Projects.getBaseDirectory(project);
 		
-		File fileOutput = qupath.getDialogHelper().promptToSaveFile(commandName, null, null, "Text files", ".txt");
+		// Prompt for where to save
+		File fileOutput = qupath.getDialogHelper().promptToSaveFile(commandName, dirBase, null, "Text files", ".txt");
 		if (fileOutput == null)
 			return;
 		
@@ -76,40 +81,49 @@ public class ProjectExportImageListCommand implements PathCommand {
 			keys.addAll(entry.getMetadataKeys());
 		}
 		
-		try (PrintWriter writer = new PrintWriter(fileOutput)) {
-			writer.print("Path");
-			writer.print(PathPrefs.getTableDelimiter());
+		String delim = PathPrefs.getTableDelimiter();
+		long startTime = System.currentTimeMillis();
+		int n = 0;
+		try (PrintWriter writer = new PrintWriter(fileOutput, StandardCharsets.UTF_8)) {
 			writer.print("Name");
+			writer.print(delim);
+			writer.print("ID");
+			writer.print(delim);
+			writer.print("URIs");
 			for (String key : keys) {
-				writer.print(PathPrefs.getTableDelimiter());
+				writer.print(delim);
 				writer.print(key);
 			}
 			writer.println();
 			
-			for (ProjectImageEntry<?> entry : qupath.getProject().getImageList()) {
+			for (ProjectImageEntry<?> entry : project.getImageList()) {
 				try {
 					Collection<URI> uris = entry.getServerURIs();
 					String path = String.join(" ", uris.stream().map(u -> u.toString()).collect(Collectors.toList()));
 	//				String path = entry.getServerPath();
-					writer.print(path);
-					writer.print(PathPrefs.getTableDelimiter());				
 					writer.print(entry.getImageName());
+					writer.print(delim);				
+					writer.print(entry.getID());
+					writer.print(delim);				
+					writer.print(path);
 					for (String key : keys) {
-						writer.print(PathPrefs.getTableDelimiter());
+						writer.print(delim);
 						String value = entry.getMetadataValue(key);
 						if (value != null)
 							writer.print(value);
 					}
 					writer.println();
-					logger.info(path);
+					n++;
+					logger.debug(path);
 				} catch (IOException e) {
 					logger.error("Error reading URIs from " + entry, e);
 				}
 			}		
-		} catch (FileNotFoundException e) {
+		} catch (IOException e) {
 			DisplayHelpers.showErrorMessage(commandName, fileOutput.getAbsolutePath() + " not found!");
 		}
-		
+		long endTime = System.currentTimeMillis();
+		logger.debug("Exported {} images in {} ms", n, endTime - startTime);
 		
 	}
 	

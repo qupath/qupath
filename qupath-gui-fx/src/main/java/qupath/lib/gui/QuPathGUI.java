@@ -4574,12 +4574,12 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		var imageData = viewer.getImageData();
 		if (imageData != null) {
 			ProjectImageEntry<BufferedImage> entry = getProjectImageEntry(imageData);
-			if (entry != null) {
+//			if (entry != null) {
 				if (!checkSaveChanges(imageData))
 					return;
 				getViewer().setImageData(null);
-			} else
-				ProjectImportImagesCommand.addSingleImageToProject(project, imageData.getServer(), null);
+//			} else
+//				ProjectImportImagesCommand.addSingleImageToProject(project, imageData.getServer(), null);
 		}
 		
 		// Confirm the URIs for the new project
