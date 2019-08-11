@@ -326,7 +326,8 @@ class DefaultProject implements Project<BufferedImage> {
 	}
 	
 	@Override
-	public void syncChanges() throws IOException {
+	public synchronized void syncChanges() throws IOException {
+		System.err.println("Syncing changes");
 		writeProject(getFile());
 		writePathClasses(pathClasses);
 //		if (file.isDirectory())
@@ -691,7 +692,7 @@ class DefaultProject implements Project<BufferedImage> {
 			var currentServerBuilder = imageData.getServer().getBuilder();
 			if (currentServerBuilder != null && !currentServerBuilder.equals(this.serverBuilder)) {
 				this.serverBuilder = currentServerBuilder;
-				syncChanges();
+//				syncChanges();
 			}
 			
 			var pathSummary = getDataSummaryPath();
