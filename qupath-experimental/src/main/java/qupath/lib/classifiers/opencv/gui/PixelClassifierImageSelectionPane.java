@@ -75,6 +75,7 @@ import javafx.scene.layout.Region;
 import javafx.stage.Stage;
 import javafx.util.StringConverter;
 import jfxtras.scene.layout.HBox;
+import qupath.imagej.gui.IJExtension;
 import qupath.imagej.images.servers.ImageJServer;
 import qupath.imagej.tools.IJTools;
 import qupath.lib.classifiers.gui.PixelClassificationOverlay;
@@ -1047,6 +1048,7 @@ public class PixelClassifierImageSelectionPane {
 			if (roi != null && !(roi instanceof RectangleROI)) {
 				imp.setRoi(IJTools.convertToIJRoi(roi, pathImage));
 			}
+			IJExtension.getImageJInstance();
 			imp.show();
 			return true;
 		} catch (IOException e) {
@@ -1091,6 +1093,7 @@ public class PixelClassifierImageSelectionPane {
 				impComp.getStack().setSliceLabel(feature.getName(), s++);
 			}
 			impComp.setPosition(1);
+			IJExtension.getImageJInstance();
 			impComp.show();
 			return true;
 		} catch (IOException e) {
