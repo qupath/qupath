@@ -72,6 +72,8 @@ import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
+import qupath.lib.projects.ProjectResources.ImageResourceManager;
+import qupath.lib.projects.ProjectResources.ProjectResourceManager;
 
 /**
  * Data structure to store multiple images, relating these to a file system.
@@ -1001,19 +1003,19 @@ class DefaultProject implements Project<BufferedImage> {
 	
 	@Override
 	public ProjectResourceManager<String> getScripts() {
-		return new StringFileResourceManager(getScriptsPath(), ".groovy");
+		return new ProjectResources.StringFileResourceManager(getScriptsPath(), ".groovy");
 	}
 
 
 	@Override
 	public ProjectResourceManager<PathObjectClassifier> getObjectClassifiers() {
-		return new SerializableFileResourceManager(getObjectClassifiersPath(), PathObjectClassifier.class);
+		return new ProjectResources.SerializableFileResourceManager(getObjectClassifiersPath(), PathObjectClassifier.class);
 	}
 
 
 	@Override
 	public ProjectResourceManager<PixelClassifier> getPixelClassifiers() {
-		return new JsonFileResourceManager(getPixelClassifiersPath(), PixelClassifier.class);
+		return new ProjectResources.JsonFileResourceManager(getPixelClassifiersPath(), PixelClassifier.class);
 	}
 
 

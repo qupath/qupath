@@ -212,11 +212,9 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 	 * Create a unique ID for the server, which can be returned as the default value of {@link #getPath()}.
 	 * A suggested implementation is
 	 * <p>
-	 * <code> 
 	 * <pre>
 	 *  getClass().getName() + ": " + URI + parameters
 	 * </pre>
-	 * </code>
 	 * This will be called on demand whenever {@link #getPath()} is first required. 
 	 * 
 	 * @return

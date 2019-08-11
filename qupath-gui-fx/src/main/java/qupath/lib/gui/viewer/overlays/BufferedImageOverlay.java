@@ -139,12 +139,12 @@ public class BufferedImageOverlay extends AbstractImageDataOverlay {
     /**
      * Get the {@code ObservableMap} containing image regions to paint on this overlay.
      * 
-     * Making modifications here will trigger an repaint for the associated viewer.
+     * Making modifications here will trigger a repaint for the associated viewer.
      * 
      * @return
      */
     public ObservableMap<ImageRegion, BufferedImage> getRegionMap() {
-    		return regions;
+    	return regions;
     }
 
     /**
