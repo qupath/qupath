@@ -234,7 +234,7 @@ public class ExtractRegionCommand implements PathCommand {
 						for (int t = tStart; t < tEnd; t++) {
 							for (int z = zStart; z < zEnd; z++) {
 								RegionRequest request2 = RegionRequest.createInstance(region.getPath(), region.getDownsample(), region.getX(), region.getY(), region.getWidth(), region.getHeight(), z, t);
-								var regionPredicate = IJExtension.createImageRegionPredicate(request2);
+								var regionPredicate = PathObjectTools.createImageRegionPredicate(request2);
 								Overlay temp = IJExtension.extractOverlay(hierarchy, request2, options, p -> p != pathObject && regionPredicate.test(p));
 								if (overlay == null)
 									overlay = temp;

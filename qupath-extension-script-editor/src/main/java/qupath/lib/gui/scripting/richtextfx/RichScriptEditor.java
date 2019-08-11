@@ -110,6 +110,9 @@ public class RichScriptEditor extends DefaultScriptEditor {
             "def", "in", "with", "trait", "true", "false" // Groovy
     };
 	
+	// Delay for async formatting, in milliseconds
+	private static int delayMillis = 100;
+	
 	private static Pattern PATTERN;
 	private static Pattern PATTERN_CONSOLE;
 	private static final Set<String> METHOD_NAMES = new HashSet<>();
@@ -200,7 +203,7 @@ public class RichScriptEditor extends DefaultScriptEditor {
 			
 			var cleanup = codeArea
 					.multiPlainChanges()
-					.successionEnds(Duration.ofMillis(250))
+					.successionEnds(Duration.ofMillis(delayMillis))
 					.supplyTask(() -> computeHighlightingAsync(codeArea.getText()))
 					.awaitLatest(codeArea.multiPlainChanges())
 					.filterMap(t -> {
@@ -338,7 +341,7 @@ public class RichScriptEditor extends DefaultScriptEditor {
 //					.subscribe(change -> codeArea.setStyleSpans(0, change));
 			
 			codeArea.richChanges()
-				.successionEnds(Duration.ofMillis(500))
+				.successionEnds(Duration.ofMillis(delayMillis))
 				.subscribe(change -> {
 					// If anything was removed, do full reformatting
 					if (change.getRemoved().length() != 0 || change.getPosition() == 0) {

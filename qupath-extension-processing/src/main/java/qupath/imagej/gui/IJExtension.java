@@ -55,8 +55,6 @@ import java.util.function.Predicate;
 import javax.swing.SwingUtilities;
 
 import org.controlsfx.control.action.Action;
-import org.locationtech.jts.geom.prep.PreparedGeometry;
-import org.locationtech.jts.geom.prep.PreparedGeometryFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -93,13 +91,12 @@ import qupath.lib.objects.PathCellObject;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.TMACoreObject;
+import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.plugins.objects.TileClassificationsToAnnotationsPlugin;
 import qupath.lib.regions.ImagePlane;
-import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.ROIs;
-import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.interfaces.ROI;
 import qupathj.QUPath_Send_Overlay_to_QuPath;
 import qupathj.QUPath_Send_ROI_to_QuPath;
@@ -375,7 +372,7 @@ public class IJExtension implements QuPathExtension {
 		// Add the overlay
 		if (hierarchy != null) {
 			ImagePlus imp = pathImage.getImage();
-			var regionPredicate = createImageRegionPredicate(request);
+			var regionPredicate = PathObjectTools.createImageRegionPredicate(request);
 			Overlay overlay = extractOverlay(hierarchy, request, options, p -> p != pathObject && regionPredicate.test(p));
 			if (overlay.size() > 0) {
 				imp.setOverlay(overlay);
@@ -438,35 +435,6 @@ public class IJExtension implements QuPathExtension {
 			}
 		}
 		return overlay;
-	}
-	
-	/**
-	 * Create a predicate that only accepts PathObjects if they have ROIs that fall within a specified ImageRegion.
-	 * @param region
-	 * @return
-	 */
-	public static Predicate<PathObject> createImageRegionPredicate(ImageRegion region) {
-		return new ImageRegionPredicate(region);
-	}
-	
-	private static class ImageRegionPredicate implements Predicate<PathObject> {
-		
-		private ImageRegion region;
-		private PreparedGeometry geometry;
-		
-		ImageRegionPredicate(ImageRegion region) {
-			this.region = region;
-			this.geometry = PreparedGeometryFactory.prepare(ROIs.createRectangleROI(region).getGeometry());
-//			this.envelope = new Envelope(region.getMinX(), region.getMaxX(), region.getMinY(), region.getMaxY());
-		}
-		
-		@Override
-		public boolean test(PathObject p) {
-			return p.hasROI() &&
-					region.intersects(ImageRegion.createInstance(p.getROI())) &&
-					geometry.intersects(p.getROI().getGeometry());
-		}
-		
 	}
 	
 	
