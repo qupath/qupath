@@ -54,6 +54,8 @@ import javafx.scene.Scene;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Alert.AlertType;
 import javafx.scene.image.WritableImage;
+import javafx.scene.input.Clipboard;
+import javafx.scene.input.ClipboardContent;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.ChoiceDialog;
 import javafx.scene.control.TextArea;
@@ -513,6 +515,8 @@ public class DisplayHelpers {
 	 * Try to open a file in the native application.
 	 * 
 	 * This can be used to open a directory in Finder (Mac OSX) or Windows Explorer etc.
+	 * This can however fail on Linux, so an effort is made to query Desktop support and 
+	 * offer to copy the path instead of opening the file, if necessary.
 	 * 
 	 * @param file
 	 * @return
@@ -522,16 +526,60 @@ public class DisplayHelpers {
 			DisplayHelpers.showErrorMessage("Open", "File " + file + " does not exist!");
 			return false;
 		}
+		if (file.isDirectory())
+			return browseDirectory(file);
 		if (Desktop.isDesktopSupported()) {
 			try {
-				Desktop.getDesktop().open(file);
+				var desktop = Desktop.getDesktop();
+				if (desktop.isSupported(Desktop.Action.OPEN))
+					desktop.open(file);
+				else {
+					if (DisplayHelpers.showConfirmDialog("Open file",
+							"Opening files not supported on this platform!\nCopy directory path to clipboard instead?")) {
+						var content = new ClipboardContent();
+						content.putString(file.getAbsolutePath());
+						Clipboard.getSystemClipboard().setContent(content);
+					}
+				}
 				return true;
-			} catch (IOException e1) {
-				DisplayHelpers.showErrorNotification("Open directory", e1);
+			} catch (Exception e1) {
+				DisplayHelpers.showErrorNotification("Open file", e1);
 			}
 		}
 		return false;
 	}
+	
+	/**
+	 * Open the directory containing a file for browsing.
+	 * @param file
+	 * @return
+	 */
+	public static boolean browseDirectory(final File file) {
+		if (file == null || !file.exists()) {
+			DisplayHelpers.showErrorMessage("Open", "File " + file + " does not exist!");
+			return false;
+		}
+		if (Desktop.isDesktopSupported()) {
+			var desktop = Desktop.getDesktop();
+			try {
+				if (desktop.isSupported(Desktop.Action.BROWSE_FILE_DIR))
+					desktop.browseFileDirectory(file);
+				else {
+					if (DisplayHelpers.showConfirmDialog("Browse directory",
+							"Directory browsing not supported on this platform!\nCopy directory path to clipboard instead?")) {
+						var content = new ClipboardContent();
+						content.putString(file.getAbsolutePath());
+						Clipboard.getSystemClipboard().setContent(content);
+					}
+				}
+				return true;
+			} catch (Exception e1) {
+				DisplayHelpers.showErrorNotification("Browse directory", e1);
+			}
+		}
+		return false;
+	}
+
 	
 	
 	/**

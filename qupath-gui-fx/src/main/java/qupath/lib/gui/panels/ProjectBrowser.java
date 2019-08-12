@@ -83,6 +83,8 @@ import javafx.scene.control.TreeItem;
 import javafx.scene.control.TreeView;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
+import javafx.scene.input.Clipboard;
+import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
@@ -506,25 +508,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 			if (path == null)
 				return;
 			// Get directory if we will need one
-			var desktop = Desktop.getDesktop();
-			if (!desktop.isSupported(Desktop.Action.BROWSE_FILE_DIR) && !Files.isDirectory(path))
-				path = path.getParent();
-			
-			if (Files.exists(path)) {
-				if (Files.isDirectory(path) && desktop.isSupported(Desktop.Action.OPEN)) {
-					try {
-						Desktop.getDesktop().open(path.toFile());
-						return;
-					} catch (IOException e1) {
-						logger.error("Error opening directory " + path, e1);
-					}
-				}
-				if (desktop.isSupported(Desktop.Action.BROWSE_FILE_DIR)) {
-					desktop.browseFileDirectory(path.toFile());
-					return;
-				}
-			}
-			logger.debug("Cannot browse path {}", path);
+			DisplayHelpers.browseDirectory(path.toFile());
 		});
 		action.disabledProperty().bind(Bindings.createBooleanBinding(() -> func.get() == null, tree.getSelectionModel().selectedItemProperty()));
 		return action;

@@ -847,7 +847,7 @@ class DefaultProject implements Project<BufferedImage> {
 	 * 
 	 * @param fileProject
 	 */
-	<T> void writeProject(final File fileProject) throws IOException {
+	synchronized <T> void writeProject(final File fileProject) throws IOException {
 		if (fileProject == null) {
 			throw new IOException("No file found, cannot write project: " + this);
 		}
