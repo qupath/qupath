@@ -103,7 +103,7 @@ import qupath.lib.roi.interfaces.ROI;
  */
 public class WatershedCellDetection extends AbstractTileableDetectionPlugin<BufferedImage> {
 	
-	private boolean parametersInitialized = false;
+	protected boolean parametersInitialized = false;
 
 	private static String[] micronParameters = {
 		"requestedPixelSizeMicrons",

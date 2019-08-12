@@ -327,7 +327,6 @@ class DefaultProject implements Project<BufferedImage> {
 	
 	@Override
 	public synchronized void syncChanges() throws IOException {
-		System.err.println("Syncing changes");
 		writeProject(getFile());
 		writePathClasses(pathClasses);
 //		if (file.isDirectory())
