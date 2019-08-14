@@ -576,6 +576,20 @@ public class BrightnessContrastCommand implements PathCommand, ImageDataChangeLi
 		if (infoSelected != null)
 			xAxis.setTickUnit(infoSelected.getMaxAllowed() - infoSelected.getMinAllowed());
 		
+		// Don't use the first of last count if it's an outlier
+		NumberAxis yAxis = (NumberAxis)histogramPanel.getChart().getYAxis();
+		if (infoSelected != null && histogram != null) {
+			long maxCount = 0L;
+			for (int i = 1; i < histogram.nBins()-1; i++)
+				maxCount = Math.max(maxCount, histogram.getCountsForBin(i));
+			if (maxCount == 0)
+				maxCount = histogram.getMaxCount();
+			yAxis.setAutoRanging(false);
+			yAxis.setLowerBound(0);
+			yAxis.setUpperBound((double)maxCount / histogram.getCountSum());
+		}
+		
+		
 		histogramPanel.getChart().getXAxis().setTickLabelsVisible(true);
 		histogramPanel.getChart().getXAxis().setLabel("Pixel value");
 		histogramPanel.getChart().getYAxis().setTickLabelsVisible(true);
