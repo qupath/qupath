@@ -23,6 +23,7 @@
 
 package qupath.lib.gui.images.stores;
 
+import java.util.Map;
 import java.util.concurrent.RunnableFuture;
 
 import qupath.lib.regions.RegionRequest;
@@ -48,6 +49,6 @@ public interface TileWorker<T> extends RunnableFuture<T> {
 	 * 
 	 * @return
 	 */
-	public RegionCache<T> getRequestedCache();
+	public Map<RegionRequest, T> getRequestedCache();
 	
 }

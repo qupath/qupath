@@ -34,6 +34,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -71,14 +72,14 @@ public class DefaultImageRegionStore extends AbstractImageRegionStore<BufferedIm
 	}
 
 
-	public RegionCache<BufferedImage> getThumbnailCache() {
+	public Map<RegionRequest, BufferedImage> getThumbnailCache() {
 		return thumbnailCache;
 	}
 
 	public int getPreferredThumbnailSize() {
 		return DEFAULT_THUMBNAIL_WIDTH;
 	}
-
+	
 
 	/**
 	 * Similar to paintRegion, but wait until all the tiles have arrived (or abort if it is taking too long)

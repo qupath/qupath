@@ -443,7 +443,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	private ViewerPlusDisplayOptions viewerDisplayOptions = new ViewerPlusDisplayOptions();
 	private OverlayOptions overlayOptions = new OverlayOptions();
 	
-	private DefaultImageRegionStore imageRegionStore = ImageRegionStoreFactory.createImageRegionStore(PathPrefs.getTileCacheSizeBytes());
+	private DefaultImageRegionStore imageRegionStore;
 
 	private ToolBarComponent toolbar; // Top component
 	private SplitPane splitPane = new SplitPane(); // Main component
@@ -506,6 +506,13 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		logger.info("QuPath build: {}", buildString);
 		
 		long startTime = System.currentTimeMillis();
+		
+		// Set up cache
+		imageRegionStore = ImageRegionStoreFactory.createImageRegionStore(PathPrefs.getTileCacheSizeBytes());
+		
+		PathPrefs.tileCacheProportionProperty().addListener((v, o, n) -> {
+			imageRegionStore.getCache().clear();
+		});
 		
 		ImageServerProvider.setCache(imageRegionStore.getCache(), BufferedImage.class);
 		

@@ -67,9 +67,9 @@ class PyramidGeneratingImageServer extends AbstractTileableImageServer {
 		
 		// If we have an empty tile, we should also return an empty tile
 		BufferedImage img = readBufferedImage(request2);
-		if (img == null)
-			return null;
-		if (isEmptyTile(img))
+//		if (img == null)
+//			return null;
+		if (img == null || isEmptyTile(img))
 			return getEmptyTile(tileRequest.getTileWidth(), tileRequest.getTileHeight());
 		
 //		if (img == null || isEmptyTile(img))

@@ -157,6 +157,9 @@ public interface ImageServer<T> extends AutoCloseable {
 	 * However, it is expected that any returnable region will be at least 1x1 pixel in size, even if via high downsampling 
 	 * one might otherwise expect a 0x0 image. This is consistent with the idea of pixels representing point samples 
 	 * rather than little squares.
+	 * <p>
+	 * Note: One should avoid returning null, as this cannot be stored as a value in some map implementations 
+	 * that may be used for caching.
 	 * 
 	 * @param request
 	 * @return

@@ -240,7 +240,7 @@ public class FileFormatInfo {
 							}
 						} catch (IndexOutOfBoundsException e) {
 							nImages = i - 1;
-							logger.warn("Checked first {} images only of {}", i-1, uri);
+							logger.debug("Checked first {} images only of {}", i-1, uri);
 						}
 					}
 				}

@@ -109,6 +109,13 @@ public class PreferencePanel {
 				category,
 				"Automatically check for updated when QuPath is started, and show a message if a new version is available.");
 		
+		addPropertyPreference(PathPrefs.tileCacheProportionProperty(),
+				Double.class,
+				"Percentage memory for tile caching",
+				category,
+				"Percentage of maximum memory to use for caching image tiles (must be >10% and <90%; suggested value is 25%)." +
+				"\nA high value can improve performance (especially for multichannel images), but increses risk of out-of-memory errors." +
+				"\nChanges take effect when QuPath is retarted.");
 		
 		addPropertyPreference(PathPrefs.showImageNameInTitleProperty(), Boolean.class,
 				"Show image name in window title",

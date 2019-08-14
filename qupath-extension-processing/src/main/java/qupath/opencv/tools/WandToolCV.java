@@ -50,6 +50,7 @@ import org.bytedeco.javacpp.indexer.IntIndexer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
 import qupath.lib.awt.common.AwtTools;
@@ -191,7 +192,15 @@ public class WandToolCV extends BrushTool {
 	 */
 	public WandToolCV(QuPathGUI qupath) {
 		super(qupath);
-		
+		addProperties(qupath);
+	}
+	
+	
+	void addProperties(QuPathGUI qupath) {
+		if (!Platform.isFxApplicationThread()) {
+			Platform.runLater(() -> addProperties(qupath));
+			return;
+		}
 		// Add preference to adjust Wand tool behavior
 		qupath.getPreferencePanel().addPropertyPreference(wandSigmaPixelsProperty(), Double.class,
 				"Wand smoothing",
@@ -207,7 +216,6 @@ public class WandToolCV extends BrushTool {
 				"Wand use overlays",
 				"Drawing tools",
 				"Use image overlay information to influence the regions created with the wand tool");
-		
 	}
 	
 	

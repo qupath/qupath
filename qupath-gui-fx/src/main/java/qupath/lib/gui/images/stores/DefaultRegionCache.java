@@ -43,7 +43,7 @@ import qupath.lib.regions.RegionRequest;
  * @author Pete Bankhead
  *
  */
-class DefaultRegionCache<T> implements RegionCache<T> {
+class DefaultRegionCache<T> implements Map<RegionRequest, T> {
 
 	private Map<RegionRequest, T> map;
 	private final SizeEstimator<T> sizeEstimator;
@@ -84,32 +84,32 @@ class DefaultRegionCache<T> implements RegionCache<T> {
 		this(sizeEstimator, Math.max(200, (int)(maxSizeBytes / (256 * 256 * 4) + 10)), maxSizeBytes);
 	}
 
-	synchronized void clearCacheForServer(ImageServer<?> server) {
-		Iterator<Entry<RegionRequest, T>> iter = map.entrySet().iterator();
-		while (iter.hasNext()) {
-			Entry<RegionRequest, T> entry = iter.next();
-			if (entry.getKey().getPath().equals(server.getPath())) {
-				memoryBytes -= sizeEstimator.getApproxImageSize(entry.getValue());
-				if (entry.getValue() != null)
-					nonNullSize--;
-				iter.remove();
-			}
-		}
-	}
-	
-	
-	synchronized void clearCacheForRequestOverlap(RegionRequest request) {
-		Iterator<Entry<RegionRequest, T>> iter = map.entrySet().iterator();
-		while (iter.hasNext()) {
-			Entry<RegionRequest, T> entry = iter.next();
-			if (request.overlapsRequest(entry.getKey())) {
-				memoryBytes -= sizeEstimator.getApproxImageSize(entry.getValue());
-				if (entry.getValue() != null)
-					nonNullSize--;
-				iter.remove();
-			}
-		}
-	}
+//	synchronized void clearCacheForServer(ImageServer<?> server) {
+//		Iterator<Entry<RegionRequest, T>> iter = map.entrySet().iterator();
+//		while (iter.hasNext()) {
+//			Entry<RegionRequest, T> entry = iter.next();
+//			if (entry.getKey().getPath().equals(server.getPath())) {
+//				memoryBytes -= sizeEstimator.getApproxImageSize(entry.getValue());
+//				if (entry.getValue() != null)
+//					nonNullSize--;
+//				iter.remove();
+//			}
+//		}
+//	}
+//	
+//	
+//	synchronized void clearCacheForRequestOverlap(RegionRequest request) {
+//		Iterator<Entry<RegionRequest, T>> iter = map.entrySet().iterator();
+//		while (iter.hasNext()) {
+//			Entry<RegionRequest, T> entry = iter.next();
+//			if (request.overlapsRequest(entry.getKey())) {
+//				memoryBytes -= sizeEstimator.getApproxImageSize(entry.getValue());
+//				if (entry.getValue() != null)
+//					nonNullSize--;
+//				iter.remove();
+//			}
+//		}
+//	}
 
 	/* (non-Javadoc)
 	 * @see qupath.lib.images.stores.RegionCache#put(qupath.lib.regions.RegionRequest, T)
@@ -134,22 +134,6 @@ class DefaultRegionCache<T> implements RegionCache<T> {
 //		else
 //			System.out.println("PUTTING NEW: " + nonNullSize + ", " + request + ", " + Thread.currentThread());
 		return imgPrevious;
-	}
-	
-	/* (non-Javadoc)
-	 * @see qupath.lib.images.stores.RegionCache#containsKey(qupath.lib.regions.RegionRequest)
-	 */
-	@Override
-	public synchronized boolean containsKey(RegionRequest request) {
-		return map.containsKey(request);
-	}
-
-	/* (non-Javadoc)
-	 * @see qupath.lib.images.stores.RegionCache#get(qupath.lib.regions.RegionRequest)
-	 */
-	@Override
-	public synchronized T get(RegionRequest request) {
-		return map.get(request);
 	}
 
 	@Override

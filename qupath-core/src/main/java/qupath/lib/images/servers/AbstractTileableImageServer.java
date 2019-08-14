@@ -157,10 +157,12 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 		imgCached = readTile(tileRequest);
 		
 		// Put the tile in the appropriate cache
-		if (imgCached != null && isEmptyTile(imgCached))
-			emptyTiles.put(request, imgCached);
-		else if (cache != null) {
-			cache.put(request, imgCached);
+		if (imgCached != null) {
+			if (isEmptyTile(imgCached)) {
+				emptyTiles.put(request, imgCached);
+			} else if (cache != null) {
+				cache.put(request, imgCached);
+			}
 		}
 		return imgCached;
 	}
@@ -194,6 +196,7 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 		Collection<TileRequest> tiles = getTileRequestManager().getTileRequests(request);
 		
 		// If no tiles found, we assume a sparse image with nothing relevant to display for this location
+		// Note: This can be problematic for tile caching
 		if (tiles.isEmpty())
 			return null;
 		
@@ -316,16 +319,16 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 				int w = xEnd - xStart;
 				int h = yEnd - yStart;
 				
-				// If we have an empty region, try to use an empty tile
-				if (isEmptyRegion) {
-					return getEmptyTile(w, h);
-				}
-
 //				int w = Math.min(raster.getWidth() - xStart, xEnd - xStart);
 //				int h = Math.min(raster.getHeight() - yStart, yEnd - yStart);
 				var raster2 = raster.createCompatibleWritableRaster(w, h);
 				raster2.setRect(-x, -y, (Raster)raster);
 				raster = raster2;
+			}
+
+			// If we have an empty region, try to use an empty tile
+			if (isEmptyRegion) {
+				return getEmptyTile(raster.getWidth(), raster.getHeight());
 			}
 
 			// Return the image, resizing if necessary
