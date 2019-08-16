@@ -72,6 +72,7 @@ import qupath.lib.color.ColorDeconvolutionStains;
 import qupath.lib.color.ColorDeconvolutionStains.DefaultColorDeconvolutionStains;
 import qupath.lib.color.StainVector;
 import qupath.lib.common.ColorTools;
+import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.helpers.dialogs.ParameterPanelFX;
 import qupath.lib.gui.legacy.swing.ParameterPanel;
@@ -562,9 +563,19 @@ public class DisplayHelpers {
 		if (Desktop.isDesktopSupported()) {
 			var desktop = Desktop.getDesktop();
 			try {
+				// Seems to work on Mac
 				if (desktop.isSupported(Desktop.Action.BROWSE_FILE_DIR))
 					desktop.browseFileDirectory(file);
 				else {
+					// Can open directory in Windows
+					if (GeneralTools.isWindows()) {
+						if (file.isDirectory())
+							desktop.open(file);
+						else
+							desktop.open(file.getParentFile());
+						return true;
+					}
+					// Trouble on Linux - just copy
 					if (DisplayHelpers.showConfirmDialog("Browse directory",
 							"Directory browsing not supported on this platform!\nCopy directory path to clipboard instead?")) {
 						var content = new ClipboardContent();
