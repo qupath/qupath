@@ -2366,8 +2366,12 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				if (file == null)
 					return false;
 				PathIO.writeImageData(file, imageData);
-			} else
+			} else {
 				entry.saveImageData(imageData);
+				var project = getProject();
+				if (project != null)
+					project.syncChanges();
+			}
 			return true;
 		} catch (IOException e) {
 			DisplayHelpers.showErrorMessage("Save ImageData", e);
@@ -2498,8 +2502,8 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				}
 				ImageData<BufferedImage> imageData = null;
 				if (serverNew != null) {
-					int minSize = 4000;
-					if (serverNew.nResolutions() == 1 && serverNew.getWidth() > minSize && serverNew.getHeight() > minSize) {
+					int minSize = PathPrefs.getMinPyramidDimension();
+					if (serverNew.nResolutions() == 1 && Math.max(serverNew.getWidth(), serverNew.getHeight()) > minSize) {
 						var serverWrapped = ImageServers.pyramidalize(serverNew);
 						if (serverWrapped.nResolutions() > 1) {
 							if (prompt && DisplayHelpers.showYesNoDialog("Auto pyramidalize",
@@ -4855,9 +4859,10 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 					return false;
 			}
 			try {
-				if (entry != null)
+				if (entry != null) {
 					entry.saveImageData(imageData);
-				else
+					project.syncChanges(); // Should make sure we save the project in case metadata has changed as well
+				} else
 					PathIO.writeImageData(filePrevious, imageData);
 			} catch (IOException e) {
 				DisplayHelpers.showErrorMessage("Save ImageData", e);

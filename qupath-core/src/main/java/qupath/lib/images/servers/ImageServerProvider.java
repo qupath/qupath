@@ -105,6 +105,20 @@ public class ImageServerProvider {
 		return builders;
 	}
 	
+	/**
+	 * Request all available {@link ImageServerBuilder ImageServerBuilders} supporting a given image class.
+	 * @return
+	 */
+	@SuppressWarnings("unchecked")
+	public static <T> List<ImageServerBuilder<T>> getInstalledImageServerBuilders(Class<T> imageClass) {
+		List<ImageServerBuilder<T>> builders = new ArrayList<>();
+		for (ImageServerBuilder<?> b : serviceLoader) {
+			if (imageClass.equals(b.getImageType()))
+				builders.add((ImageServerBuilder<T>)b);
+		}
+		return builders;
+	}
+	
 
 	private static <T> List<UriImageSupport<T>> getServerBuilders(final Class<T> cls, final String path, String...args) throws IOException {
 		URI uriTemp;

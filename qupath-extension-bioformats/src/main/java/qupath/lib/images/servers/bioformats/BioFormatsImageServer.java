@@ -48,6 +48,7 @@ import java.nio.FloatBuffer;
 import java.nio.ShortBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -282,7 +283,8 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 			}
 		}
 		
-		filePath = new File(uri.getPath()).getAbsolutePath();
+		// This appears to work more reliably than converting to a File
+		filePath = Paths.get(uri).toString();
 
 		// Create a reader & extract the metadata
 		readerWrapper = manager.getPrimaryReaderWrapper(options, filePath);

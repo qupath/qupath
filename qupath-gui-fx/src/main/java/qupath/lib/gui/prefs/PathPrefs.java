@@ -1364,6 +1364,23 @@ public class PathPrefs {
 	}
 
 
+	private static IntegerProperty minPyramidDimension = createPersistentPreference("minPyramidDimension", 4096);
+	
+	/**
+	 * Minimum image width or height before pyramidalizing (if required).
+	 * @return
+	 */
+	public static IntegerProperty minPyramidDimensionProperty() {
+		return minPyramidDimension;
+	}
+	
+	public static int getMinPyramidDimension() {
+		return minPyramidDimension.get();
+	}
+
+	public static void setMinPyramidDimension(int minLength) {
+		minPyramidDimension.set(minLength);
+	}
 
 	private static IntegerProperty defaultPointRadius = createPersistentPreference("defaultPointRadius", 5);
 

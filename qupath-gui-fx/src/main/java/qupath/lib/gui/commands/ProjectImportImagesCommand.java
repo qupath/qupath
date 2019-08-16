@@ -51,6 +51,7 @@ import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
+import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TitledPane;
@@ -67,11 +68,14 @@ import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.gui.helpers.GridPaneTools;
 import qupath.lib.gui.helpers.PanelToolsFX;
 import qupath.lib.gui.panels.ProjectBrowser;
+import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.ImageData.ImageType;
 import qupath.lib.images.servers.WrappedBufferedImageServer;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.ImageServerBuilder;
 import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
+import qupath.lib.images.servers.ImageServerBuilder.UriImageSupport;
 import qupath.lib.images.servers.ImageServerProvider;
 import qupath.lib.images.servers.ImageServers;
 import qupath.lib.images.servers.RotatedImageServer;
@@ -129,8 +133,36 @@ public class ProjectImportImagesCommand implements PathCommand {
 		
 		TitledPane paneList = new TitledPane("Image paths", listView);
 		paneList.setCollapsible(false);
+		
 
 		BorderPane paneImages = new BorderPane();
+		
+		class BuilderListCell extends ListCell<ImageServerBuilder<BufferedImage>> {
+			@Override
+			protected void updateItem(ImageServerBuilder<BufferedImage> item, boolean empty) {
+	             super.updateItem(item, empty);
+	             if (empty) {
+	            	 setText(null);
+	             } else {
+	            	 if (item == null)
+	            		 setText("Default (let QuPath decide)");
+	            	 else
+	            		 setText(item.getName());
+	             }
+	         }
+		}
+		
+		ComboBox<ImageServerBuilder<BufferedImage>> comboBuilder = new ComboBox<>();
+		comboBuilder.setCellFactory(p -> new BuilderListCell());
+		comboBuilder.setButtonCell(new BuilderListCell());
+		List<ImageServerBuilder<BufferedImage>> availableBuilders = new ArrayList<>(ImageServerProvider.getInstalledImageServerBuilders(BufferedImage.class));
+		if (!availableBuilders.contains(null))
+			availableBuilders.add(0, null);
+		comboBuilder.getItems().setAll(availableBuilders);
+		comboBuilder.getSelectionModel().selectFirst();
+		Label labelBuilder = new Label("Image provider");
+		labelBuilder.setLabelFor(comboBuilder);
+		
 		ComboBox<ImageType> comboType = new ComboBox<>();
 		comboType.getItems().setAll(ImageType.values());
 		Label labelType = new Label("Set image type");
@@ -144,17 +176,19 @@ public class ProjectImportImagesCommand implements PathCommand {
 		CheckBox cbPyramidize = new CheckBox("Auto-generate pyramids");
 		cbPyramidize.setSelected(true);
 
-		GridPaneTools.setMaxWidth(Double.MAX_VALUE, comboType, comboRotate, cbPyramidize);
-		GridPaneTools.setFillWidth(Boolean.TRUE, comboType, comboRotate, cbPyramidize);
-		GridPaneTools.setHGrowPriority(Priority.ALWAYS, comboType, comboRotate, cbPyramidize);
+		GridPaneTools.setMaxWidth(Double.MAX_VALUE, comboBuilder, comboType, comboRotate, cbPyramidize);
+		GridPaneTools.setFillWidth(Boolean.TRUE, comboBuilder, comboType, comboRotate, cbPyramidize);
+		GridPaneTools.setHGrowPriority(Priority.ALWAYS, comboBuilder, comboType, comboRotate, cbPyramidize);
 		
 		GridPane paneType = new GridPane();
 		paneType.setPadding(new Insets(5));
 		paneType.setHgap(5);
 		paneType.setVgap(5);
-		GridPaneTools.addGridRow(paneType, 0, 0, "Specify the default image type for all images being imported (required for analysis, can be changed later under the 'Image' tab)", labelType, comboType);
-		GridPaneTools.addGridRow(paneType, 1, 0, "Optionally rotate images on import", labelRotate, comboRotate);
-		GridPaneTools.addGridRow(paneType, 2, 0, "Dynamically create image pyramids for large, single-resolution images", cbPyramidize, cbPyramidize);
+		int row = 0;
+		GridPaneTools.addGridRow(paneType, row++, 0, "Specify the library used to open images", labelBuilder, comboBuilder);
+		GridPaneTools.addGridRow(paneType, row++, 0, "Specify the default image type for all images being imported (required for analysis, can be changed later under the 'Image' tab)", labelType, comboType);
+		GridPaneTools.addGridRow(paneType, row++, 0, "Optionally rotate images on import", labelRotate, comboRotate);
+		GridPaneTools.addGridRow(paneType, row++, 0, "Dynamically create image pyramids for large, single-resolution images", cbPyramidize, cbPyramidize);
 		
 		paneImages.setCenter(paneList);
 		paneImages.setBottom(paneType);
@@ -194,6 +228,8 @@ public class ProjectImportImagesCommand implements PathCommand {
 		Rotation rotation = comboRotate.getValue();
 		boolean pyramidize = cbPyramidize.isSelected();
 		
+		ImageServerBuilder<BufferedImage> requestedBuilder = comboBuilder.getSelectionModel().getSelectedItem();
+		
 		List<String> pathSucceeded = new ArrayList<>();
 		List<String> pathFailed = new ArrayList<>();
 		var project = qupath.getProject();
@@ -209,11 +245,15 @@ public class ProjectImportImagesCommand implements PathCommand {
 				// Get all the relevant builders
 				List<ServerBuilder<BufferedImage>> builders = listView.getItems().parallelStream().map(p -> {
 					try {
-						var support = ImageServerProvider.getPreferredUriImageSupport(BufferedImage.class, p);
+						UriImageSupport<BufferedImage> support;
+						if (requestedBuilder == null)
+							support = ImageServerProvider.getPreferredUriImageSupport(BufferedImage.class, p);
+						else
+							support = requestedBuilder.checkImageSupport(GeneralTools.toURI(p));
 						if (support != null)
 							return support.getBuilders();
-					} catch (IOException e) {
-						logger.error("Unable to add {}", p);
+					} catch (Exception e) {
+						logger.error("Unable to add {} ({})", p, e.getLocalizedMessage());
 					}
 					return new ArrayList<ServerBuilder<BufferedImage>>();
 				}).flatMap(List::stream).collect(Collectors.toList());
@@ -251,7 +291,14 @@ public class ProjectImportImagesCommand implements PathCommand {
 				});
 
 				if (!failures.isEmpty()) {
-					logger.error("Failed to load {} entries", failures.size());
+					String message;
+					if (failures.size() == 1)
+						message = "Failed to load one image.";
+					else
+						message = "Failed to load " + failures.size() + " images.";
+					if (requestedBuilder != null)
+						message += "\nThe image type might not be supported by '" + requestedBuilder.getName() + "'";
+					DisplayHelpers.showErrorMessage("Import images", message);
 					project.removeAllImages(failures, true);
 				}
 				
@@ -443,7 +490,7 @@ public class ProjectImportImagesCommand implements PathCommand {
 			return null;
 		}
 	}
-
+	
 	/**
 	 * Add a single ImageServer to a project, without considering sub-images.
 	 * <p>
@@ -466,7 +513,8 @@ public class ProjectImportImagesCommand implements PathCommand {
 			
 			// Pyramidalize this if we need to
 			ImageServer<BufferedImage> server2 = server;
-			if (pyramidizeSingleResolution && server.nResolutions() == 1) {
+			int minPyramidDimension = PathPrefs.getMinPyramidDimension();
+			if (pyramidizeSingleResolution && server.nResolutions() == 1 && Math.max(server.getWidth(), server.getHeight()) > minPyramidDimension) {
 				var serverTemp = ImageServers.pyramidalize(server);
 				if (serverTemp.nResolutions() > 1) {
 					logger.debug("Auto-generating image pyramid for " + name);
