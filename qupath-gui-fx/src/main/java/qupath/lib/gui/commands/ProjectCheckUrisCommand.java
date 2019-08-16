@@ -1,5 +1,6 @@
 package qupath.lib.gui.commands;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -27,6 +28,7 @@ import javafx.collections.ObservableList;
 import javafx.collections.ObservableMap;
 import javafx.collections.transformation.FilteredList;
 import javafx.event.EventHandler;
+import javafx.geometry.HPos;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
@@ -55,6 +57,8 @@ import qupath.lib.gui.helpers.GridPaneTools;
 import qupath.lib.projects.Project;
 
 public class ProjectCheckUrisCommand implements PathCommand {
+	
+	private static int maxRecursiveSearchDepth = 8;
 	
 	private QuPathGUI qupath;
 	
@@ -202,9 +206,19 @@ public class ProjectCheckUrisCommand implements PathCommand {
 				"Number of replacements: " + replacements.size()
 				, replacements));
 			
+			Button btnSearch = new Button("Search...");
+			btnSearch.setTooltip(new Tooltip("Choose a directory & search recursively for images inside"));
+			btnSearch.setOnAction(e -> {
+				var dir = QuPathGUI.getSharedDialogHelper().promptForDirectory(null);
+				Map<String, List<UriItem>> missing = allItems.stream().filter(p -> p.getStatus() == UriStatus.MISSING && p.getPath() != null && replacements.get(p) == null)
+						.collect(Collectors.groupingBy(p -> p.getPath().getFileName().toString()));
+				
+				searchDirectoriesRecursive(dir, missing, maxRecursiveSearchDepth);
+			});
+			
 			int row = 0;
 			GridPaneTools.addGridRow(pane, row++, 0, null, table, table, table);
-			GridPaneTools.addGridRow(pane, row++, 0, null, labelReplacements, labelReplacements, labelReplacements);
+			GridPaneTools.addGridRow(pane, row++, 0, null, labelReplacements, labelReplacements, btnSearch);
 			GridPaneTools.addGridRow(pane, row, 0, null, cbValid);
 			GridPaneTools.addGridRow(pane, row, 1, null, cbMissing);
 			GridPaneTools.addGridRow(pane, row++, 2, null, cbUnknown);
@@ -212,6 +226,7 @@ public class ProjectCheckUrisCommand implements PathCommand {
 			GridPaneTools.setFillWidth(Boolean.TRUE, cbValid, cbMissing, cbUnknown, labelReplacements, table);
 			GridPaneTools.setHGrowPriority(Priority.ALWAYS, cbValid, cbMissing, cbUnknown, labelReplacements, table);
 			GridPaneTools.setMaxWidth(Double.MAX_VALUE, cbValid, cbMissing, cbUnknown, labelReplacements, table);
+			GridPane.setHalignment(btnSearch, HPos.RIGHT);
 			
 			pane.setHgap(5);
 			pane.setVgap(5);
@@ -219,6 +234,43 @@ public class ProjectCheckUrisCommand implements PathCommand {
 			table.addEventHandler(KeyEvent.KEY_PRESSED, new TableCopyPasteHandler());
 			table.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
 		}
+		
+		
+		void searchDirectoriesRecursive(File dir, Map<String, List<UriItem>> missing, int maxDepth) {
+			if (dir == null || !dir.canRead() || !dir.isDirectory() || missing.isEmpty() || maxDepth <= 0)
+				return;
+			
+			List<File> subdirs = new ArrayList<>();
+			
+			logger.debug("Searching {}", dir);
+			var list = dir.listFiles();
+			if (list == null)
+				return;
+			for (File f : list) {
+				if (f == null)
+					continue;
+				if (f.isHidden())
+					continue;
+				else if (f.isFile()) {
+					// If we find something with the correct name, update the URIs
+					String name = f.getName();
+					List<UriItem> myList = missing.remove(name);
+					if (myList != null) {
+						for (var item : myList)
+							replacements.put(item, new UriItem(f.toURI()));
+					}
+					// Check if we are done
+					if (missing.isEmpty())
+						return;
+				} else if (f.isDirectory()) {
+					subdirs.add(f);
+				}
+			}
+			for (File subdir : subdirs) {
+				searchDirectoriesRecursive(subdir, missing, maxDepth-1);
+			}
+		}
+		
 		
 		int countOriginalItems(UriStatus status) {
 			int n = 0;
@@ -344,7 +396,7 @@ public class ProjectCheckUrisCommand implements PathCommand {
 		boolean showDialog() {
 			
 			Dialog<ButtonType> dialog = new Dialog<>();
-			dialog.setHeaderText("Update missing URIs");
+			dialog.setHeaderText("Images may have been deleted or moved!\nFix broken paths here by double-clicking on red entries and/or accepting QuPath's suggestions.");
 			dialog.getDialogPane().getButtonTypes().setAll(ButtonType.YES, ButtonType.NO, ButtonType.CANCEL);
 			((Button)dialog.getDialogPane().lookupButton(ButtonType.YES)).setText("Apply changes");
 			((Button)dialog.getDialogPane().lookupButton(ButtonType.NO)).setText("Ignore");
