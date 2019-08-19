@@ -40,6 +40,7 @@ import org.slf4j.LoggerFactory;
 
 import qupath.lib.common.ColorTools;
 import qupath.lib.gui.objects.helpers.PathObjectColorToolsAwt;
+import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathTileObject;
@@ -112,26 +113,42 @@ public class MeasurementMapper {
 	        } else {
 	        	pathColorMaps = Paths.get(uri);
 	        }
-	        List<Path> maps = Files.list(pathColorMaps).filter(p -> p.getFileName().toString().endsWith(".tsv")).collect(Collectors.toList());
+	        List<Path> maps = Files.list(pathColorMaps).filter(p -> p.getFileName().toString().endsWith(".tsv")).collect(Collectors.toCollection(() -> new ArrayList<>()));
+	        
+	        // See if we have some custom colormaps installed by the user
+	        String userPath = PathPrefs.getUserPath();
+	        if (userPath != null) {
+	        	Path dirUser = Paths.get(userPath, "colormaps");
+		        if (Files.isDirectory(dirUser)) {
+		        	Files.list(dirUser).filter(p -> p.getFileName().toString().endsWith(".tsv")).forEach(p -> {
+		        		maps.add(p);
+		        	});
+		        }
+	        }
+	        
 	        for (Path map : maps) {
-	        	String name = map.getFileName().toString();
-	        	if (name.endsWith(".tsv"))
-	        		name = name.substring(0, name.length()-4);
-	        	List<String> lines = Files.readAllLines(map).stream().filter(s -> !s.isBlank()).collect(Collectors.toList());
-	        	int n = lines.size();
-	        	double[] r = new double[n];
-	        	double[] g = new double[n];
-	        	double[] b = new double[n];
-	        	int i = 0;
-	        	for (String line : lines) {
-	        		String[] split = line.split("\t");
-	        		r[i] = Double.parseDouble(split[0]);
-	        		g[i] = Double.parseDouble(split[1]);
-	        		b[i] = Double.parseDouble(split[2]);
-	        		i++;
+	        	try {
+		        	String name = map.getFileName().toString();
+		        	if (name.endsWith(".tsv"))
+		        		name = name.substring(0, name.length()-4);
+		        	List<String> lines = Files.readAllLines(map).stream().filter(s -> !s.isBlank()).collect(Collectors.toList());
+		        	int n = lines.size();
+		        	double[] r = new double[n];
+		        	double[] g = new double[n];
+		        	double[] b = new double[n];
+		        	int i = 0;
+		        	for (String line : lines) {
+		        		String[] split = line.split("\t");
+		        		r[i] = Double.parseDouble(split[0]);
+		        		g[i] = Double.parseDouble(split[1]);
+		        		b[i] = Double.parseDouble(split[2]);
+		        		i++;
+		        	}
+		        	var mapper = MeasurementMapper.createColorMapper(name, r, g, b);
+		        	colorMappers.add(mapper);
+	        	} catch (Exception e) {
+	        		logger.warn("Unable to load color map from " + map);
 	        	}
-	        	var mapper = MeasurementMapper.createColorMapper(name, r, g, b);
-	        	colorMappers.add(mapper);
 	        }
 	        colorMappers.add(new PseudoColorMapper());
 		} catch (Exception e) {
