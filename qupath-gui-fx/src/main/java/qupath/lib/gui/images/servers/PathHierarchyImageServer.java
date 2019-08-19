@@ -173,7 +173,7 @@ public class PathHierarchyImageServer extends AbstractTileableImageServer implem
 	 */
 	@Override
 	public void setMetadata(ImageServerMetadata metadata) {
-		throw new RuntimeException("Metadata cannot be set for a hierarchy image server!");
+		throw new IllegalArgumentException("Metadata cannot be set for a hierarchy image server!");
 	}
 
 	@Override

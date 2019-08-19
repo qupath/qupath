@@ -29,11 +29,10 @@ import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.TreeMap;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
@@ -59,10 +58,51 @@ public class MeasurementMapper {
 	
 	final private static Logger logger = LoggerFactory.getLogger(MeasurementMapper.class);
 	
-	private static Map<String, ColorMapper> defaultMappers = new TreeMap<>();
-	
-	static {
+	private ColorMapper colorMapper;
+
+	// Data min & max values
+	private double minValueData = 0;
+	private double maxValueData = 1;
+
+	// Display min & max values
+	private double minValue = 0;
+	private double maxValue = 1;
+
+	private String measurement;
+	private boolean isClassProbability = false;
+	private boolean valid = false;
+	private boolean excludeOutsideRange;
+
+	public MeasurementMapper(ColorMapper mapper, String measurement, Collection<PathObject> pathObjects) {
+		this.colorMapper = mapper;
+		this.measurement = measurement;
+		isClassProbability = measurement.toLowerCase().trim().equals("class probability");
 		
+		// Initialize max & min values
+		minValueData = Double.POSITIVE_INFINITY;
+		maxValueData = Double.NEGATIVE_INFINITY;
+		for (PathObject pathObject : pathObjects) {
+			double value = getUsefulValue(pathObject, Double.NaN);
+			if (Double.isNaN(value) || Double.isInfinite(value))
+				continue;
+			if (value > maxValueData)
+				maxValueData = value;
+			if (value < minValueData)
+				minValueData = value;
+			valid = true;
+		}
+		// Set display range to match the data
+		minValue = minValueData;
+		maxValue = maxValueData;
+		logger.info("Measurement mapper limits for " + measurement + ": " + minValueData + ", " + maxValueData);
+	}
+	
+	/**
+	 * Load the available ColorMappers.
+	 * @return
+	 */
+	public static List<ColorMapper> loadColorMappers() {
+		List<ColorMapper> colorMappers = new ArrayList<>();
 		try {
 			Path pathColorMaps;
 			URI uri = MeasurementMapper.class.getResource("/colormaps").toURI();
@@ -90,58 +130,14 @@ public class MeasurementMapper {
 	        		b[i] = Double.parseDouble(split[2]);
 	        		i++;
 	        	}
-	        	defaultMappers.put(name, createColorMapper(r, g, b));
+	        	var mapper = MeasurementMapper.createColorMapper(name, r, g, b);
+	        	colorMappers.add(mapper);
 	        }
+	        colorMappers.add(new PseudoColorMapper());
 		} catch (Exception e) {
 			logger.error("Unable to load color maps", e);
 		}
-		
-	}
-
-	private ColorMapper colorMapper = defaultMappers.getOrDefault("viridis", new PseudoColorMapper());
-
-	// Data min & max values
-	private double minValueData = 0;
-	private double maxValueData = 1;
-
-	// Display min & max values
-	private double minValue = 0;
-	private double maxValue = 1;
-
-	private String measurement;
-	private boolean isClassProbability = false;
-	private boolean valid = false;
-	private boolean excludeOutsideRange;
-
-	public MeasurementMapper(String measurement, Collection<PathObject> pathObjects) {
-		this.measurement = measurement;
-		isClassProbability = measurement.toLowerCase().trim().equals("class probability");
-
-		// Initialize max & min values
-		minValueData = Double.POSITIVE_INFINITY;
-		maxValueData = Double.NEGATIVE_INFINITY;
-		for (PathObject pathObject : pathObjects) {
-			double value = getUsefulValue(pathObject, Double.NaN);
-			if (Double.isNaN(value) || Double.isInfinite(value))
-				continue;
-			if (value > maxValueData)
-				maxValueData = value;
-			if (value < minValueData)
-				minValueData = value;
-			valid = true;
-		}
-		// Set display range to match the data
-		minValue = minValueData;
-		maxValue = maxValueData;
-		logger.info("Measurement mapper limits for " + measurement + ": " + minValueData + ", " + maxValueData);
-	}
-	
-	/**
-	 * Get the available color mappers (lookup tables).
-	 * @return
-	 */
-	public static Map<String, ColorMapper> getAvailableColorMappers() {
-		return Collections.unmodifiableMap(defaultMappers);
+		return colorMappers;
 	}
 	
 	/**
@@ -250,6 +246,8 @@ public class MeasurementMapper {
 
 
 	public static interface ColorMapper {
+		
+		public String getName();
 
 		public boolean hasAlpha();
 
@@ -259,11 +257,11 @@ public class MeasurementMapper {
 
 	}
 	
-	static ColorMapper createColorMapper(double[] r, double[] g, double[] b) {
+	static ColorMapper createColorMapper(String name, double[] r, double[] g, double[] b) {
 		int[] ri = convertToInt(r);
 		int[] gi = convertToInt(g);
 		int[] bi = convertToInt(b);
-		return createColorMapper(ri, gi, bi);
+		return createColorMapper(name, ri, gi, bi);
 	}
 	
 	static int[] convertToInt(double[] arr) {
@@ -274,19 +272,22 @@ public class MeasurementMapper {
 		return arr2;
 	}
 
-	static ColorMapper createColorMapper(int[] r, int[] g, int[] b) {
-		return new DefaultColorMapper(r, g, b);
+	static ColorMapper createColorMapper(String name, int[] r, int[] g, int[] b) {
+		return new DefaultColorMapper(name, r, g, b);
 	}
 
 	static class DefaultColorMapper implements ColorMapper {
-
+		
+		private String name;
+		
 		private final int[] r;
 		private final int[] g;
 		private final int[] b;
 		private int nColors = 256;
 		private Integer[] colors = new Integer[nColors];
 		
-		DefaultColorMapper(int[] r, int[] g, int[] b) {
+		DefaultColorMapper(String name, int[] r, int[] g, int[] b) {
+			this.name = name;
 			this.r = r.clone();
 			this.g = g.clone();
 			this.b = b.clone();
@@ -300,6 +301,16 @@ public class MeasurementMapper {
 						b[ind] + (int)((b[ind+1] - b[ind]) * residual));
 			}
 			colors[nColors-1] = ColorTools.makeRGB(r[r.length-1], g[g.length-1], b[b.length-1]);
+		}
+		
+		@Override
+		public String getName() {
+			return name;
+		}
+		
+		@Override
+		public String toString() {
+			return getName();
 		}
 
 		@Override
@@ -360,7 +371,16 @@ public class MeasurementMapper {
 			}
 			colors[nColors-1] = ColorTools.makeRGB(r[r.length-1], g[g.length-1], b[b.length-1]);
 		}
+		
+		@Override
+		public String toString() {
+			return getName() + " (legacy)";
+		}
 
+		@Override
+		public String getName() {
+			return "Fire";
+		}
 
 		@Override
 		public Integer getColor(int ind) {
