@@ -83,14 +83,29 @@ public class PositiveCellDetection extends WatershedCellDetection {
 				choices.add("Cell: " + channel + " mean");
 				choices.add("Cell: " + channel + " max");
 			}
+			var server = imageData.getServer();
+			var type = server.getMetadata().getPixelType();
+			// Determine appropriate starting thresholds & maxima
+			double t1 = 0.2;
+			double tMax = 1.5;
+			if (stains == null) {
+				if (!type.isFloatingPoint()) {
+					if (type.getBytesPerPixel() <= 1)
+						t1 = 10;
+					else
+						t1 = 100;
+					System.err.println(Math.pow(2, type.bitsPerPixel()) - 1);
+					tMax = Math.min(10000, Math.pow(2, type.bitsPerPixel()) - 1);
+				}
+			}
 			params.addChoiceParameter("thresholdCompartment", "Score compartment", choices.get(0), choices, "Select the intensity measurement to threshold");
 //			params.addChoiceParameter("thresholdCompartment", "Score compartment", "Nucleus: DAB OD mean",
 //					Arrays.asList("Nucleus: DAB OD mean", "Nucleus: DAB OD max",
 //							"Cytoplasm: DAB OD mean", "Cytoplasm: DAB OD max",
 //							"Cell: DAB OD mean", "Cell: DAB OD max"));
-			params.addDoubleParameter("thresholdPositive1", "Threshold 1+", 0.2, null, 0, 1.5, "Low positive intensity threshold");
-			params.addDoubleParameter("thresholdPositive2", "Threshold 2+", 0.4, null, 0, 1.5, "Moderate positive intensity threshold");
-			params.addDoubleParameter("thresholdPositive3", "Threshold 3+", 0.6, null, 0, 1.5, "High positive intensity threshold");
+			params.addDoubleParameter("thresholdPositive1", "Threshold 1+", t1, null, 0, tMax, "Low positive intensity threshold");
+			params.addDoubleParameter("thresholdPositive2", "Threshold 2+", t1*2, null, 0, tMax, "Moderate positive intensity threshold");
+			params.addDoubleParameter("thresholdPositive3", "Threshold 3+", t1*3, null, 0, tMax, "High positive intensity threshold");
 			params.addBooleanParameter("singleThreshold", "Single threshold", true);
 		}
 		return params;
