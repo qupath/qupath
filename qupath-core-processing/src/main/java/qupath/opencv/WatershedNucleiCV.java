@@ -70,8 +70,8 @@ import qupath.lib.roi.PolygonROI;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.RectangleROI;
 import qupath.lib.roi.interfaces.ROI;
-import qupath.opencv.processing.OpenCVTools;
-import qupath.opencv.processing.ProcessingCV;
+import qupath.opencv.tools.OpenCVTools;
+import qupath.opencv.tools.ProcessingCV;
 
 /**
  * Alternative (incomplete) attempt at nucleus segmentation.

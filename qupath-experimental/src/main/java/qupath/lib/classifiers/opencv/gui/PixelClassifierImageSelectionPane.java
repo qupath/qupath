@@ -119,8 +119,8 @@ import qupath.lib.projects.Project;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.RectangleROI;
 import qupath.lib.roi.interfaces.ROI;
-import qupath.opencv.processing.HessianCalculator.MultiscaleFeature;
-import qupath.opencv.processing.OpenCVTools;
+import qupath.opencv.tools.OpenCVTools;
+import qupath.opencv.tools.HessianCalculator.MultiscaleFeature;
 
 
 public class PixelClassifierImageSelectionPane {

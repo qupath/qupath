@@ -80,7 +80,7 @@ public class BioFormatsServerBuilder implements ImageServerBuilder<BufferedImage
 		return null;
 	}
 	
-	private float supportLevel(URI uri, String... args) {
+	private static float supportLevel(URI uri, String... args) {
 		
 		// We also can't do anything if Bio-Formats isn't installed
 		if (getBioFormatsVersion() == null)

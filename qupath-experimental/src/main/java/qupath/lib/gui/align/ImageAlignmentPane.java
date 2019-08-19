@@ -75,7 +75,7 @@ import qupath.lib.objects.PathObject;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectImageEntry;
 import qupath.lib.regions.RegionRequest;
-import qupath.opencv.processing.OpenCVTools;
+import qupath.opencv.tools.OpenCVTools;
 
 
 /**

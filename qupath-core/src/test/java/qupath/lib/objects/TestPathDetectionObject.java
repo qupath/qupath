@@ -25,6 +25,7 @@ package qupath.lib.objects;
 
 import org.junit.Test;
 
+@SuppressWarnings("javadoc")
 public class TestPathDetectionObject extends PathObjectTestWrapper {
 	PathDetectionObject myPO = new PathDetectionObject();
 	

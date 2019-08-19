@@ -16,6 +16,7 @@ import com.google.gson.GsonBuilder;
 
 import qupath.lib.io.OpenCVTypeAdapters;
 
+@SuppressWarnings("javadoc")
 public class TypeAdaptersCVTest {
 
 	@Test

@@ -1,4 +1,4 @@
 /**
  * Additional processing methods for use with OpenCV Mats.
  */
-package qupath.opencv.processing;
+package qupath.opencv.tools;

@@ -141,7 +141,7 @@ public class OmeroWebImageServerBuilder implements ImageServerBuilder<BufferedIm
 		return UriImageSupport.createInstance(this.getClass(), supportLevel, DefaultImageServerBuilder.createInstance(this.getClass(), uri, args));
 	}
 	
-	private float supportLevel(URI uri, String...args) {
+	private static float supportLevel(URI uri, String...args) {
 
 		String host = uri.getHost();
 

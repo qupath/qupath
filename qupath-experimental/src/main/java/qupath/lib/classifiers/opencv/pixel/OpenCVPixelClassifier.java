@@ -18,7 +18,7 @@ import qupath.lib.classifiers.pixel.PixelClassifiers;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.regions.RegionRequest;
-import qupath.opencv.processing.OpenCVTools;
+import qupath.opencv.tools.OpenCVTools;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

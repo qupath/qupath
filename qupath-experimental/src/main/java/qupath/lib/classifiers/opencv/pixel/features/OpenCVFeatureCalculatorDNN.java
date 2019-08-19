@@ -22,7 +22,7 @@ import qupath.lib.geom.ImmutableDimension;
 import qupath.lib.images.ImageData;
 import qupath.lib.io.OpenCVTypeAdapters;
 import qupath.lib.regions.RegionRequest;
-import qupath.opencv.processing.OpenCVTools;
+import qupath.opencv.tools.OpenCVTools;
 
 @JsonAdapter(OpenCVTypeAdapters.OpenCVTypeAdaptorFactory.class)
 public class OpenCVFeatureCalculatorDNN implements OpenCVFeatureCalculator {

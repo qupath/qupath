@@ -21,7 +21,7 @@
  * #L%
  */
 
-package qupath.opencv.processing;
+package qupath.opencv.tools;
 
 import static org.bytedeco.opencv.global.opencv_core.CV_32F;
 

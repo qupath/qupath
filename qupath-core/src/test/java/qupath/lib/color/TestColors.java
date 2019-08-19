@@ -34,10 +34,11 @@ import org.junit.Test;
 import qupath.lib.color.ColorTransformer.ColorTransformMethod;
 import qupath.lib.common.ColorTools;
 
+@SuppressWarnings("javadoc")
 public class TestColors {
 	private static final double EPSILON = 1e-15; // smaller error
 	private static final double EPSILON2 = 0.01; // bigger error allowed
-	private static final int MIN_RGB = 0;
+//	private static final int MIN_RGB = 0;
 	private static final int MAX_RGB = 255;
 	
 	@Test

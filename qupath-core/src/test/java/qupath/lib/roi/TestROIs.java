@@ -31,6 +31,7 @@ import qupath.lib.roi.interfaces.ROI;
 /**
  * Test ROI behavior.
  */
+@SuppressWarnings("javadoc")
 public class TestROIs {
 	
 	/**

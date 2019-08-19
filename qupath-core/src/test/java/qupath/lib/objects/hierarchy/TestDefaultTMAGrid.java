@@ -35,6 +35,7 @@ import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.helpers.PathObjectTools;
 
+@SuppressWarnings("javadoc")
 public class TestDefaultTMAGrid {
 	private final Integer w = 9;
 	private final Integer ncores = 10;

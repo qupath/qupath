@@ -64,7 +64,25 @@ public class DilateAnnotationPlugin<T> extends AbstractInteractivePlugin<T> {
 	
 	private static Logger logger = LoggerFactory.getLogger(DilateAnnotationPlugin.class);
 	
-	public static enum LineCap {ROUND, FLAT, SQUARE;
+	/**
+	 * Line cap to use for annotation expansion.
+	 * This can be important when expanding line or polyline annotations to 
+	 * determine how the ends are handled.
+	 */
+	public static enum LineCap {
+		/**
+		 * Round cap
+		 */
+		ROUND,
+		/**
+		 * Flat cap
+		 */
+		FLAT,
+		/**
+		 * Square cap
+		 */
+		SQUARE;
+		
 		@Override
 		public String toString() {
 			switch(this) {

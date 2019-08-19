@@ -15,7 +15,7 @@ import org.bytedeco.opencv.global.opencv_dnn;
 import org.bytedeco.opencv.opencv_dnn.Net;
 
 import qupath.lib.images.servers.ImageServer;
-import qupath.opencv.processing.OpenCVTools;
+import qupath.opencv.tools.OpenCVTools;
 
 class PixelFeatureExtractorDNN extends PixelFeatureExtractor {
 	

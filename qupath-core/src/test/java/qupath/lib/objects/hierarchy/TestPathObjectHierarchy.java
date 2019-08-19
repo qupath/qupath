@@ -43,6 +43,7 @@ import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.ROI;
 
+@SuppressWarnings("javadoc")
 public class TestPathObjectHierarchy {
 	PathObjectHierarchy myPH = new PathObjectHierarchy();
 	PO_hlistener myPOHL = new PO_hlistener();

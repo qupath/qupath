@@ -59,7 +59,7 @@ import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.interfaces.ROI;
-import qupath.opencv.processing.OpenCVTools;
+import qupath.opencv.tools.OpenCVTools;
 
 /**
  * Experimental method to try to align annotations to a TMA core.

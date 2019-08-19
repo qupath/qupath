@@ -6,6 +6,7 @@ import java.math.BigDecimal;
 
 import org.junit.Test;
 
+@SuppressWarnings("javadoc")
 public class PixelCalibrationTest {
 
 	@Test

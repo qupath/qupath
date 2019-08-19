@@ -211,6 +211,7 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
 	public void setColorDeconvolutionStains(ColorDeconvolutionStains stains) {
 		if (!isBrightfield())
 			throw new IllegalArgumentException("Cannot set color deconvolution stains for image type " + type);
+		logger.trace("Setting stains to {}", stains);
 		ColorDeconvolutionStains stainsOld = stainMap.put(type, stains);
 		pcs.firePropertyChange("stains", stainsOld, stains);
 		
@@ -228,6 +229,7 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
 	 */
 	public void updateServerMetadata(ImageServerMetadata newMetadata) {
 		Objects.requireNonNull(newMetadata);
+		logger.trace("Updating server metadata");
 		var oldMetadata = server.getMetadata();
 		server.setMetadata(newMetadata);
 		pcs.firePropertyChange("serverMetadata", oldMetadata, newMetadata);
@@ -265,6 +267,7 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
 	public void setImageType(final ImageType type) {
 		if (this.type == type)
 			return;
+		logger.trace("Setting image type to {}", type);
 		ImageType oldType = this.type;
 		this.type = type;
 		

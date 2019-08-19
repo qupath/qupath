@@ -35,6 +35,7 @@ import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.roi.interfaces.ROI;
 
+@SuppressWarnings("javadoc")
 public class PathObjectTestWrapper {
 	private final Double epsilon = 1e-15; // error for double comparison
 	

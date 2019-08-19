@@ -34,6 +34,7 @@ import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.ROI;
 
+@SuppressWarnings("javadoc")
 public class TestPathCellObject {
 	private final Double x = 0.0, y = 0.0, w = 10.0, h = 10.0;
 	private final Double xn = 0.0, yn = 0.0, wn = 5.0, hn = 5.0;

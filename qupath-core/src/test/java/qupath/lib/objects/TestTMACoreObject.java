@@ -30,6 +30,7 @@ import org.junit.Test;
 
 import qupath.lib.roi.EllipseROI;
 
+@SuppressWarnings("javadoc")
 public class TestTMACoreObject {
 	private final Double xcenter = 0.0;
 	private final Double ycenter = 0.0;

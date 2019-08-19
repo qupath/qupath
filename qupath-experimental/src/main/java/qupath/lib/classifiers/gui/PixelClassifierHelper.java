@@ -35,7 +35,7 @@ import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.interfaces.PathArea;
 import qupath.lib.roi.interfaces.PathLine;
 import qupath.lib.roi.interfaces.ROI;
-import qupath.opencv.processing.OpenCVTools;
+import qupath.opencv.tools.OpenCVTools;
 
 import java.awt.BasicStroke;
 import java.awt.Color;

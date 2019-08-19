@@ -775,6 +775,7 @@ class DefaultProject implements Project<BufferedImage> {
 	}
 	
 	
+	@SuppressWarnings("unused")
 	static class ImageDataSummary {
 		
 		private long timestamp;
@@ -797,6 +798,7 @@ class DefaultProject implements Project<BufferedImage> {
 	}
 	
 	
+	@SuppressWarnings("unused")
 	static class ServerSummary {
 		
 		private int width;
@@ -816,6 +818,7 @@ class DefaultProject implements Project<BufferedImage> {
 	}
 	
 	
+	@SuppressWarnings("unused")
 	static class HierarchySummary {
 		
 		private int nObjects;

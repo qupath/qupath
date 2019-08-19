@@ -443,6 +443,9 @@ public class OMEPyramidWriter {
 		switch (server.getPixelType()) {
 		case UINT8:
 		case UINT16:
+		case INT16:
+		case INT32:
+		case UINT32:
 			int[] pixelsInt = pixelBuffer instanceof int[] ? (int[])pixelBuffer : null;
 			if (pixelsInt == null || pixelsInt.length < n)
 				pixelsInt = new int[n];
@@ -452,9 +455,14 @@ public class OMEPyramidWriter {
 					buf.put(ind, (byte)pixelsInt[i]);
 					ind += inc;
 				}
-			} else {
+			} else if (server.getPixelType().bitsPerPixel() == 16) {
 				for (int i = 0; i < n; i++) {
 					buf.putShort(ind, (short)pixelsInt[i]);
+					ind += inc;
+				}
+			} else if (server.getPixelType().bitsPerPixel() == 32) {
+				for (int i = 0; i < n; i++) {
+					buf.putInt(ind, (int)pixelsInt[i]);
 					ind += inc;
 				}
 			}
@@ -479,8 +487,10 @@ public class OMEPyramidWriter {
 				ind += inc;
 			}
 			return true;
+		default:
+			logger.warn("Cannot convert to buffer - unknown pixel type {}", server.getPixelType());
+			return false;
 		}
-		return false;
 	}
 	
 	private ThreadLocal<Object> pixelBuffer = new ThreadLocal<>();
