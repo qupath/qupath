@@ -23,14 +23,19 @@
 
 package qupath.lib.gui.helpers;
 
+import java.io.IOException;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -98,64 +103,107 @@ public class MeasurementMapper {
 		logger.info("Measurement mapper limits for " + measurement + ": " + minValueData + ", " + maxValueData);
 	}
 	
+	private static List<ColorMapper> DEFAULT_COLOR_MAPS;
+	private static ColorMapper LEGACY_COLOR_MAP = new PseudoColorMapper();
+	
+	private synchronized static List<ColorMapper> loadDefaultColorMaps() throws URISyntaxException, IOException {
+		if (DEFAULT_COLOR_MAPS == null) {
+			Path pathColorMaps;
+			URI uri = MeasurementMapper.class.getResource("/colormaps").toURI();
+		    if (uri.getScheme().equals("jar")) {
+		        FileSystem fileSystem = FileSystems.newFileSystem(uri, Map.of());
+		        pathColorMaps = fileSystem.getPath("/colormaps");
+		    } else {
+		    	pathColorMaps = Paths.get(uri);
+		    }
+		    DEFAULT_COLOR_MAPS = loadColorMapsFromDirectory(pathColorMaps);
+		}
+		return DEFAULT_COLOR_MAPS == null ? Collections.emptyList() : DEFAULT_COLOR_MAPS;
+	}
+	
 	/**
 	 * Load the available ColorMappers.
 	 * @return
 	 */
 	public static List<ColorMapper> loadColorMappers() {
 		List<ColorMapper> colorMappers = new ArrayList<>();
+		// Load the default color maps
 		try {
-			Path pathColorMaps;
-			URI uri = MeasurementMapper.class.getResource("/colormaps").toURI();
-	        if (uri.getScheme().equals("jar")) {
-	            FileSystem fileSystem = FileSystems.newFileSystem(uri, Map.of());
-	            pathColorMaps = fileSystem.getPath("/colormaps");
-	        } else {
-	        	pathColorMaps = Paths.get(uri);
-	        }
-	        List<Path> maps = Files.list(pathColorMaps).filter(p -> p.getFileName().toString().endsWith(".tsv")).collect(Collectors.toCollection(() -> new ArrayList<>()));
-	        
+			colorMappers.addAll(loadDefaultColorMaps());
+		} catch (Exception e) {
+			logger.error("Error loading default color maps", e);
+		}
+		
+		// Try adding user color maps, if we have any
+		try {
 	        // See if we have some custom colormaps installed by the user
 	        String userPath = PathPrefs.getUserPath();
 	        if (userPath != null) {
 	        	Path dirUser = Paths.get(userPath, "colormaps");
 		        if (Files.isDirectory(dirUser)) {
-		        	Files.list(dirUser).filter(p -> p.getFileName().toString().endsWith(".tsv")).forEach(p -> {
-		        		maps.add(p);
-		        	});
+		        	colorMappers.addAll(loadColorMapsFromDirectory(dirUser));
 		        }
 	        }
-	        
-	        for (Path map : maps) {
-	        	try {
-		        	String name = map.getFileName().toString();
-		        	if (name.endsWith(".tsv"))
-		        		name = name.substring(0, name.length()-4);
-		        	List<String> lines = Files.readAllLines(map).stream().filter(s -> !s.isBlank()).collect(Collectors.toList());
-		        	int n = lines.size();
-		        	double[] r = new double[n];
-		        	double[] g = new double[n];
-		        	double[] b = new double[n];
-		        	int i = 0;
-		        	for (String line : lines) {
-		        		String[] split = line.split("\t");
-		        		r[i] = Double.parseDouble(split[0]);
-		        		g[i] = Double.parseDouble(split[1]);
-		        		b[i] = Double.parseDouble(split[2]);
-		        		i++;
-		        	}
-		        	var mapper = MeasurementMapper.createColorMapper(name, r, g, b);
-		        	colorMappers.add(mapper);
-	        	} catch (Exception e) {
-	        		logger.warn("Unable to load color map from " + map);
-	        	}
-	        }
-	        colorMappers.add(new PseudoColorMapper());
 		} catch (Exception e) {
-			logger.error("Unable to load color maps", e);
+			logger.error("Error loading custom color maps", e);
 		}
+		
+		// Make sure we have at least the legacy map
+		if (!colorMappers.contains(LEGACY_COLOR_MAP))
+			colorMappers.add(LEGACY_COLOR_MAP);
 		return colorMappers;
 	}
+	
+	private static List<ColorMapper> loadColorMapsFromDirectory(Path path) throws IOException {
+		List<ColorMapper> list = new ArrayList<>();
+		Iterator<Path> iter = Files.list(path).filter(p -> p.getFileName().toString().endsWith(".tsv")).iterator();
+	    while (iter.hasNext()) {
+    		var temp = iter.next();
+	    	try {
+	    		list.add(loadColorMap(temp));
+	    	} catch (Exception e) {
+	    		logger.error("Error loading color map from {}", temp);
+	    	}
+	    }
+	    return list;
+	}
+	
+	private static ColorMapper loadColorMap(Path path) throws IOException {
+		// Parse a name
+		String name = path.getFileName().toString();
+    	if (name.endsWith(".tsv"))
+    		name = name.substring(0, name.length()-4);
+    	
+		// Read non-blank lines
+		List<String> lines = Files.readAllLines(path).stream().filter(s -> !s.isBlank()).collect(Collectors.toList());
+		
+        // Parse values
+		int n = lines.size();
+    	double[] r = new double[n];
+    	double[] g = new double[n];
+    	double[] b = new double[n];
+    	int i = 0;
+    	for (String line : lines) {
+    		String[] split = line.split("\\s+");
+    		if (split.length == 0)
+    			continue;
+    		if (split.length < 3) {
+    			logger.warn("Invalid line (must contain 3 doubles): {}", line);
+    			continue;
+    		}
+    		r[i] = Double.parseDouble(split[0]);
+    		g[i] = Double.parseDouble(split[1]);
+    		b[i] = Double.parseDouble(split[2]);
+    		i++;
+    	}
+    	if (i < n) {
+    		r = Arrays.copyOf(r, i);
+    		g = Arrays.copyOf(g, i);
+    		b = Arrays.copyOf(b, i);
+    	}
+    	return MeasurementMapper.createColorMapper(name, r, g, b);
+	}
+	
 	
 	/**
 	 * Set a new color mapper.
