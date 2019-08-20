@@ -1331,6 +1331,54 @@ public class PathPrefs {
 	}
 	
 	
+	/**
+	 * Enum to control font size.
+	 */
+	public static enum FontSize { TINY, SMALL, MEDIUM, LARGE, HUGE;
+		
+		public String getFontSize() {
+			switch(this) {
+			case HUGE:
+				return "1.4em";
+			case LARGE:
+				return "1.2em";
+			case MEDIUM:
+				return "1.0em";
+			case SMALL:
+				return "0.8em";
+			case TINY:
+				return "0.6em";
+			default:
+				return "1em";
+			}
+		}
+		
+		@Override
+		public String toString() {
+			switch(this) {
+			case HUGE:
+				return "Huge";
+			case LARGE:
+				return "Large";
+			case MEDIUM:
+				return "Medium";
+			case SMALL:
+				return "Small";
+			case TINY:
+				return "Tiny";
+			default:
+				return "Unknown";
+			}
+		}
+	}
+	
+	private static ObjectProperty<FontSize> fontSize = PathPrefs.createPersistentPreference(
+			"locationFontSize", FontSize.SMALL, FontSize.class);
+	
+	public static ObjectProperty<FontSize> viewerFontSizeProperty() {
+		return fontSize;
+	}
+	
 	
 	private static DoubleProperty allredMinPercentagePositive = createPersistentPreference("allredMinPercentagePositive", 0.0);
 	

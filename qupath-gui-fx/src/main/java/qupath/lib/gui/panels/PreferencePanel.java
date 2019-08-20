@@ -48,6 +48,7 @@ import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.helpers.ColorToolsFX;
 import qupath.lib.gui.helpers.CommandFinderTools.CommandBarDisplay;
 import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.gui.prefs.PathPrefs.FontSize;
 import qupath.lib.gui.prefs.PathPrefs.ImageTypeSetting;
 import qupath.lib.gui.prefs.QuPathStyleManager;
 
@@ -255,6 +256,11 @@ public class PreferencePanel {
 				category,
 				"Zoom in when double-clicking on image (if not inside an object) with move tool; zoom out if Alt or Ctrl/Cmd is held down");
 
+		addPropertyPreference(PathPrefs.viewerFontSizeProperty(),
+				FontSize.class,
+				"Viewer font size",
+				category,
+				"Adjust font size for scalebar and location text");
 
 		addPropertyPreference(PathPrefs.useCalibratedLocationStringProperty(), Boolean.class,
 				"Use calibrated location text",
