@@ -15,6 +15,8 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import org.slf4j.Logger;
@@ -284,15 +286,15 @@ public class OMEPyramidWriter {
 				}
 
 				double d = downsamples[level];
-				
-				logger.info("Writing resolution {} of {} (downsample={})", level, downsamples.length, d);
-				
+								
 				int w = (int)(this.width / d);
 				int h = (int)(this.height / d);
 
 				int tInc = tEnd >= tStart ? 1 : -1;
 				int zInc = zEnd >= zStart ? 1 : -1;
 				int effectiveSizeC = nChannels / nSamples;
+				
+				AtomicInteger count = new AtomicInteger(0);
 								
 				int ti = 0;
 				for (int t = tStart; t < tEnd; t += tInc) {
@@ -315,6 +317,14 @@ public class OMEPyramidWriter {
 						}
 						ImageRegion firstRegion = regions.remove(0);
 						
+						int total = regions.size() * (tEnd - tStart) * (zEnd - zStart);
+						if (z == zStart && t == tStart)
+							logger.info("Writing resolution {} of {} (downsample={}, {} tiles)", level+1, downsamples.length, d, total);
+						
+						// Show progress at key moments
+						int inc = total > 1000 ? 20 : 10;
+						Set<Integer> keyCounts = IntStream.range(1, inc).mapToObj(i -> (int)Math.round((double)total / inc * i)).collect(Collectors.toSet());
+						
 						// Loop through effective channels (which is 1 if we are writing interleaved)
 						for (int ci = 0; ci < effectiveSizeC; ci++) {
 							
@@ -332,10 +342,16 @@ public class OMEPyramidWriter {
 									try {
 										writeRegion(writer, plane, ifd, region, d, isRGB, localChannels);
 									} catch (Exception e) {
-										logger.warn(String.format(
+										logger.error(String.format(
 												"Error writing %s (downsample=%.2f)",
 												region.toString(), d),
 												e);
+									} finally {
+										int localCount = count.incrementAndGet();
+										if (keyCounts.size() > 1 && keyCounts.contains(localCount)) {
+											double percentage = localCount*100.0/total;
+											logger.info("Written {}% tiles", Math.round(percentage));
+										}
 									}
 								});
 							}
@@ -427,6 +443,9 @@ public class OMEPyramidWriter {
 		switch (server.getPixelType()) {
 		case UINT8:
 		case UINT16:
+		case INT16:
+		case INT32:
+		case UINT32:
 			int[] pixelsInt = pixelBuffer instanceof int[] ? (int[])pixelBuffer : null;
 			if (pixelsInt == null || pixelsInt.length < n)
 				pixelsInt = new int[n];
@@ -436,9 +455,14 @@ public class OMEPyramidWriter {
 					buf.put(ind, (byte)pixelsInt[i]);
 					ind += inc;
 				}
-			} else {
+			} else if (server.getPixelType().bitsPerPixel() == 16) {
 				for (int i = 0; i < n; i++) {
 					buf.putShort(ind, (short)pixelsInt[i]);
+					ind += inc;
+				}
+			} else if (server.getPixelType().bitsPerPixel() == 32) {
+				for (int i = 0; i < n; i++) {
+					buf.putInt(ind, (int)pixelsInt[i]);
 					ind += inc;
 				}
 			}
@@ -463,8 +487,10 @@ public class OMEPyramidWriter {
 				ind += inc;
 			}
 			return true;
+		default:
+			logger.warn("Cannot convert to buffer - unknown pixel type {}", server.getPixelType());
+			return false;
 		}
-		return false;
 	}
 	
 	private ThreadLocal<Object> pixelBuffer = new ThreadLocal<>();
@@ -611,6 +637,25 @@ public class OMEPyramidWriter {
 		 */
 		public Builder compression(final String compression) {
 			writer.compression = compression;
+			return this;
+		}
+		
+		/**
+		 * Request the default lossy compression method. Not all servers support lossy compression 
+		 * (e.g. non-RGB servers).
+		 * @return
+		 */
+		public Builder lossyCompression() {
+			writer.compression = getDefaultLossyCompressionType(writer.server);
+			return this;
+		}
+		
+		/**
+		 * Request the default lossless compression method.
+		 * @return
+		 */
+		public Builder losslessCompression() {
+			writer.compression = getDefaultLosslessCompressionType(writer.server);
 			return this;
 		}
 		

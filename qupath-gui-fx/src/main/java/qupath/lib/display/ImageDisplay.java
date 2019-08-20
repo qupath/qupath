@@ -275,8 +275,23 @@ public class ImageDisplay extends AbstractImageRenderer {
 					tempChannelOptions.add(new ChannelDisplayInfo.DirectServerChannelInfo(imageData, c));
 				}
 			}
-		} else
+		} else {
+			// Ensure channel colors are set
+			boolean colorsUpdated = false;
+			for (int c = 0; c < channelOptions.size(); c++) {
+				var option = channelOptions.get(c);
+				if (option instanceof DirectServerChannelInfo && c < server.nChannels()) {
+					var channel = server.getChannel(c);
+					if (option.getColor() != channel.getColor()) {
+						((DirectServerChannelInfo)option).setLUTColor(channel.getColor());
+						colorsUpdated = true;
+					}
+				}
+			}
 			tempChannelOptions.addAll(channelOptions);
+			if (colorsUpdated)
+				saveChannelColorProperties();
+		}
 		
 		// Select all the channels
 		if (serverChanged) {
@@ -575,9 +590,25 @@ public class ImageDisplay extends AbstractImageRenderer {
 			return;
 		}
 
-		double countMax = histogram.getCountSum() * saturation;
-		double count = countMax;
+		long countSum = histogram.getCountSum();
+		int nBins = histogram.nBins();
 		int ind = 0;
+		// Possibly skip the first and/or last bins; these can often represent unscanned/clipped regions
+		if (nBins > 2) {
+			long firstCount = histogram.getCountsForBin(0);
+			if (firstCount > histogram.getCountsForBin(1)) {
+				countSum -= histogram.getCountsForBin(0);
+				ind = 1;
+			}
+			long lastCount = histogram.getCountsForBin(nBins-1);
+			if (lastCount > histogram.getCountsForBin(nBins-2)) {
+				countSum -= lastCount;
+				nBins -= 1;
+			}
+		}
+		
+		double countMax = countSum * saturation;
+		double count = countMax;
 		double minDisplay = histogram.getEdgeMin();
 		while (ind < histogram.nBins()) {
 			double nextCount = histogram.getCountsForBin(ind);
@@ -603,6 +634,35 @@ public class ImageDisplay extends AbstractImageRenderer {
 		}
 		logger.debug(String.format("Display range for {}: %.3f - %.3f (saturation %.3f)",  minDisplay, maxDisplay, saturation), info.getName());
 		setMinMaxDisplay(info, (float)minDisplay, (float)maxDisplay, fireUpdate);
+		
+//		double countMax = histogram.getCountSum() * saturation;
+//		double count = countMax;
+//		int ind = 0;
+//		double minDisplay = histogram.getEdgeMin();
+//		while (ind < histogram.nBins()) {
+//			double nextCount = histogram.getCountsForBin(ind);
+//			if (count < nextCount) {
+//				minDisplay = histogram.getBinLeftEdge(ind) + (count / nextCount) * histogram.getBinWidth(ind);
+//				break;
+//			}
+//			count -= nextCount;
+//			ind++;
+//		}
+//
+//		count = countMax;
+//		double maxDisplay = histogram.getEdgeMax();
+//		ind = histogram.nBins()-1;
+//		while (ind >= 0) {
+//			double nextCount = histogram.getCountsForBin(ind);
+//			if (count < nextCount) {
+//				maxDisplay = histogram.getBinRightEdge(ind) - (count / nextCount) * histogram.getBinWidth(ind);
+//				break;
+//			}
+//			count -= nextCount;
+//			ind--;
+//		}
+//		logger.debug(String.format("Display range for {}: %.3f - %.3f (saturation %.3f)",  minDisplay, maxDisplay, saturation), info.getName());
+//		setMinMaxDisplay(info, (float)minDisplay, (float)maxDisplay, fireUpdate);
 	}
 
 	void autoSetDisplayRange(ChannelDisplayInfo info, boolean fireUpdate) {

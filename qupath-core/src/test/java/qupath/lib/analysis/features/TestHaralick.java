@@ -27,6 +27,7 @@ import java.io.IOException;
 import org.junit.Test;
 
 // TODO: Implement Haralick tests... this file is kept only to provide a starting point!
+@SuppressWarnings("javadoc")
 public class TestHaralick {
 //	private final int PIXELS_SHORT_DIM = 4;
 //	//private final double EPSILON = 1e-15;

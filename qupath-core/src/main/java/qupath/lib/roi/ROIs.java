@@ -30,6 +30,7 @@ import java.util.List;
 
 import qupath.lib.geom.Point2;
 import qupath.lib.regions.ImagePlane;
+import qupath.lib.regions.ImageRegion;
 import qupath.lib.roi.interfaces.PathArea;
 import qupath.lib.roi.interfaces.PathLine;
 import qupath.lib.roi.interfaces.PathPoints;
@@ -67,6 +68,15 @@ public class ROIs {
 	 */
 	public static PathArea createRectangleROI(double x, double y, double width, double height, ImagePlane plane) {
 		return new RectangleROI(x, y, width, height, plane);
+	}
+	
+	/**
+	 * Create a rectangle ROI that matches an ImageRegion.
+	 * @param region
+	 * @return
+	 */
+	public static PathArea createRectangleROI(ImageRegion region) {
+		return new RectangleROI(region.getX(), region.getY(), region.getWidth(), region.getHeight(), region.getPlane());
 	}
 
 	/**

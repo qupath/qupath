@@ -25,11 +25,15 @@ package qupath.lib.gui.scripting.richtextfx;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -46,6 +50,7 @@ import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import javafx.beans.value.ObservableValue;
+import javafx.concurrent.Task;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.IndexRange;
 import javafx.scene.input.KeyCode;
@@ -53,6 +58,7 @@ import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.Region;
+import qupath.lib.common.ThreadTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.scripting.DefaultScriptEditor;
 import qupath.lib.gui.scripting.QPEx;
@@ -61,10 +67,10 @@ import qupath.lib.gui.scripting.QPEx;
 
 /*
  * 
- * The rich text script editor makes use of RichTextFX, including aspects of the demo code JavaKeywords.java, both from https://github.com/TomasMikula/RichTextFX
+ * The rich text script editor makes use of RichTextFX, including aspects of the demo code JavaKeywordsAsyncDemo.java, both from https://github.com/TomasMikula/RichTextFX
  * License for these components:
  * 
- * Copyright (c) 2013-2014, Tomas Mikula
+ * Copyright (c) 2013-2017, Tomas Mikula and contributors
  * All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
@@ -81,7 +87,7 @@ import qupath.lib.gui.scripting.QPEx;
  * 
  * Rich text script editor for QuPath.
  * <p>
- * Makes use of RichTextFX, Copyright (c) 2013-2014, Tomas Mikula (BSD 2-clause license).
+ * Makes use of RichTextFX, Copyright (c) 2013-2017, Tomas Mikula and contributors (BSD 2-clause license).
  * 
  * @author Pete Bankhead
  * 
@@ -103,6 +109,9 @@ public class RichScriptEditor extends DefaultScriptEditor {
             "transient", "try", "void", "volatile", "while",
             "def", "in", "with", "trait", "true", "false" // Groovy
     };
+	
+	// Delay for async formatting, in milliseconds
+	private static int delayMillis = 100;
 	
 	private static Pattern PATTERN;
 	private static Pattern PATTERN_CONSOLE;
@@ -176,6 +185,8 @@ public class RichScriptEditor extends DefaultScriptEditor {
 	    );
 	}
 	
+	private ExecutorService executor = Executors.newSingleThreadExecutor(ThreadTools.createThreadFactory("rich-text-highlighting", true));
+	
 	/**
 	 * Constructor.
 	 * @param qupath the current QuPath instance.
@@ -189,11 +200,26 @@ public class RichScriptEditor extends DefaultScriptEditor {
 		try {
 			CodeArea codeArea = new CodeArea();
 			codeArea.setParagraphGraphicFactory(LineNumberFactory.get(codeArea));
-			codeArea.richChanges()
-				.filter(change -> !change.getInserted().equals(change.getRemoved()))
-				.subscribe(change -> {
-					codeArea.setStyleSpans(0, computeHighlighting(codeArea.getText()));
-	        });
+			
+			var cleanup = codeArea
+					.multiPlainChanges()
+					.successionEnds(Duration.ofMillis(delayMillis))
+					.supplyTask(() -> computeHighlightingAsync(codeArea.getText()))
+					.awaitLatest(codeArea.multiPlainChanges())
+					.filterMap(t -> {
+						if (t.isSuccess()) {
+							return Optional.of(t.get());
+						} else {
+							var exception = t.getFailure();
+							String message = exception.getLocalizedMessage() == null ? exception.getClass().getSimpleName() : exception.getLocalizedMessage();
+							logger.error("Error applying syntax highlighting: {}", message);
+							logger.debug("{}", t);
+							return Optional.empty();
+						}
+					})
+					.subscribe(change -> codeArea.setStyleSpans(0, change));
+			
+			
 			codeArea.getStylesheets().add(getClass().getClassLoader().getResource("scripting_styles.css").toExternalForm());
 			
 			CodeAreaControl control = new CodeAreaControl(codeArea);
@@ -222,6 +248,7 @@ public class RichScriptEditor extends DefaultScriptEditor {
 			return super.getNewEditor();
 		}
 	}
+	
 	
 	/**
 	 * Try to match and auto-complete a method name.
@@ -294,19 +321,37 @@ public class RichScriptEditor extends DefaultScriptEditor {
 	protected ScriptEditorControl getNewConsole() {
 		try {
 			CodeArea codeArea = new CodeArea();
-			codeArea.richChanges().subscribe(change -> {
-				// If anything was removed, do full reformatting
-				if (change.getRemoved().length() != 0 || change.getPosition() == 0) {
-					if (!change.getRemoved().getText().equals(change.getInserted().getText()))
-//						System.err.println("Slow version!");
-						codeArea.setStyleSpans(0, computeConsoleHighlighting(codeArea.getText()));					
-				} else {
-//					System.err.println("FAST version!");
-					// Otherwise format only from changed position onwards
-					codeArea.setStyleSpans(change.getPosition(), computeConsoleHighlighting(change.getInserted().getText()));
-				}
-//	            codeArea.setStyleSpans(0, computeConsoleHighlighting(codeArea.getText()));					
-	        });
+			
+//			var cleanup = codeArea
+//					.multiPlainChanges()
+//					.successionEnds(Duration.ofMillis(500))
+//					.supplyTask(() -> computeConsoleHighlightingAsync(codeArea.getText()))
+//					.awaitLatest(codeArea.multiPlainChanges())
+//					.filterMap(t -> {
+//						if (t.isSuccess()) {
+//							return Optional.of(t.get());
+//						} else {
+//							var exception = t.getFailure();
+//							String message = exception.getLocalizedMessage() == null ? exception.getClass().getSimpleName() : exception.getLocalizedMessage();
+//							logger.error("Error applying syntax highlighting: {}", message);
+//							logger.debug("{}", t);
+//							return Optional.empty();
+//						}
+//					})
+//					.subscribe(change -> codeArea.setStyleSpans(0, change));
+			
+			codeArea.richChanges()
+				.successionEnds(Duration.ofMillis(delayMillis))
+				.subscribe(change -> {
+					// If anything was removed, do full reformatting
+					if (change.getRemoved().length() != 0 || change.getPosition() == 0) {
+						if (!change.getRemoved().getText().equals(change.getInserted().getText()))
+							codeArea.setStyleSpans(0, computeConsoleHighlighting(codeArea.getText()));					
+					} else {
+						// Otherwise format only from changed position onwards
+						codeArea.setStyleSpans(change.getPosition(), computeConsoleHighlighting(change.getInserted().getText()));
+					}
+		        });
 			codeArea.getStylesheets().add(getClass().getClassLoader().getResource("scripting_styles.css").toExternalForm());
 			return new CodeAreaControl(codeArea);
 		} catch (Exception e) {
@@ -316,6 +361,27 @@ public class RichScriptEditor extends DefaultScriptEditor {
 		}
 	}
 	
+	private Task<StyleSpans<Collection<String>>> computeHighlightingAsync(final String text) {
+		var task = new Task<StyleSpans<Collection<String>>>() {
+			@Override
+			protected StyleSpans<Collection<String>> call() {
+				return computeHighlighting(text);
+			}
+		};
+		executor.execute(task);
+		return task;
+	}
+	
+	private Task<StyleSpans<Collection<String>>> computeConsoleHighlightingAsync(final String text) {
+		var task = new Task<StyleSpans<Collection<String>>>() {
+			@Override
+			protected StyleSpans<Collection<String>> call() {
+				return computeConsoleHighlighting(text);
+			}
+		};
+		executor.execute(task);
+		return task;
+	}
 	
 	private static StyleSpans<Collection<String>> computeHighlighting(final String text) {
         Matcher matcher = PATTERN.matcher(text);

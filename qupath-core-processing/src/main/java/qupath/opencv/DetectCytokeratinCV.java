@@ -65,7 +65,7 @@ import qupath.lib.roi.RectangleROI;
 import qupath.lib.roi.ShapeSimplifier;
 import qupath.lib.roi.interfaces.PathShape;
 import qupath.lib.roi.interfaces.ROI;
-import qupath.opencv.processing.OpenCVTools;
+import qupath.opencv.tools.OpenCVTools;
 
 /**
  * Simple command to detect tumor regions stained with cytokeratin.

@@ -3,7 +3,6 @@ package qupath.lib.images.servers;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
-import java.util.Collections;
 
 import qupath.lib.regions.RegionRequest;
 

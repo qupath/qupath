@@ -54,6 +54,8 @@ import javafx.scene.Scene;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Alert.AlertType;
 import javafx.scene.image.WritableImage;
+import javafx.scene.input.Clipboard;
+import javafx.scene.input.ClipboardContent;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.ChoiceDialog;
 import javafx.scene.control.TextArea;
@@ -70,6 +72,7 @@ import qupath.lib.color.ColorDeconvolutionStains;
 import qupath.lib.color.ColorDeconvolutionStains.DefaultColorDeconvolutionStains;
 import qupath.lib.color.StainVector;
 import qupath.lib.common.ColorTools;
+import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.helpers.dialogs.ParameterPanelFX;
 import qupath.lib.gui.legacy.swing.ParameterPanel;
@@ -449,7 +452,7 @@ public class DisplayHelpers {
 			Platform.runLater(() -> showErrorNotification(title, e));
 			return;
 		}
-		logger.error("{}", title, e);
+		logger.error(title, e);
 		String message = e.getLocalizedMessage();
 		if (message == null)
 			message = "QuPath has encountered a problem, sorry.\nIf you can replicate it, please notify a developer.\n\n" + e;
@@ -504,7 +507,7 @@ public class DisplayHelpers {
 	 */
 	private static Notifications createNotifications() {
 		var stage = QuPathGUI.getInstance() == null ? null : QuPathGUI.getInstance().getStage();
-		if (stage != null)
+		if (stage == null)
 			return Notifications.create();
 		return Notifications.create().owner(stage);
 	}
@@ -513,6 +516,8 @@ public class DisplayHelpers {
 	 * Try to open a file in the native application.
 	 * 
 	 * This can be used to open a directory in Finder (Mac OSX) or Windows Explorer etc.
+	 * This can however fail on Linux, so an effort is made to query Desktop support and 
+	 * offer to copy the path instead of opening the file, if necessary.
 	 * 
 	 * @param file
 	 * @return
@@ -522,16 +527,70 @@ public class DisplayHelpers {
 			DisplayHelpers.showErrorMessage("Open", "File " + file + " does not exist!");
 			return false;
 		}
+		if (file.isDirectory())
+			return browseDirectory(file);
 		if (Desktop.isDesktopSupported()) {
 			try {
-				Desktop.getDesktop().open(file);
+				var desktop = Desktop.getDesktop();
+				if (desktop.isSupported(Desktop.Action.OPEN))
+					desktop.open(file);
+				else {
+					if (DisplayHelpers.showConfirmDialog("Open file",
+							"Opening files not supported on this platform!\nCopy directory path to clipboard instead?")) {
+						var content = new ClipboardContent();
+						content.putString(file.getAbsolutePath());
+						Clipboard.getSystemClipboard().setContent(content);
+					}
+				}
 				return true;
-			} catch (IOException e1) {
-				DisplayHelpers.showErrorNotification("Open directory", e1);
+			} catch (Exception e1) {
+				DisplayHelpers.showErrorNotification("Open file", e1);
 			}
 		}
 		return false;
 	}
+	
+	/**
+	 * Open the directory containing a file for browsing.
+	 * @param file
+	 * @return
+	 */
+	public static boolean browseDirectory(final File file) {
+		if (file == null || !file.exists()) {
+			DisplayHelpers.showErrorMessage("Open", "File " + file + " does not exist!");
+			return false;
+		}
+		if (Desktop.isDesktopSupported()) {
+			var desktop = Desktop.getDesktop();
+			try {
+				// Seems to work on Mac
+				if (desktop.isSupported(Desktop.Action.BROWSE_FILE_DIR))
+					desktop.browseFileDirectory(file);
+				else {
+					// Can open directory in Windows
+					if (GeneralTools.isWindows()) {
+						if (file.isDirectory())
+							desktop.open(file);
+						else
+							desktop.open(file.getParentFile());
+						return true;
+					}
+					// Trouble on Linux - just copy
+					if (DisplayHelpers.showConfirmDialog("Browse directory",
+							"Directory browsing not supported on this platform!\nCopy directory path to clipboard instead?")) {
+						var content = new ClipboardContent();
+						content.putString(file.getAbsolutePath());
+						Clipboard.getSystemClipboard().setContent(content);
+					}
+				}
+				return true;
+			} catch (Exception e1) {
+				DisplayHelpers.showErrorNotification("Browse directory", e1);
+			}
+		}
+		return false;
+	}
+
 	
 	
 	/**
@@ -746,6 +805,8 @@ public class DisplayHelpers {
 	
 	
 	public static WritableImage makeSnapshotFX(final QuPathGUI qupath, final SnapshotType type) {
+		Stage stage = qupath.getStage();
+		Scene scene = stage.getScene();
 		switch (type) {
 		case CURRENT_VIEWER:
 			// Temporarily remove the selected border color while copying
@@ -757,19 +818,21 @@ public class DisplayHelpers {
 				qupath.getViewer().setBorderColor(borderColor);
 			}
 		case MAIN_SCENE:
-			Scene scene = qupath.getStage().getScene();
 			return scene.snapshot(null);
 		case MAIN_WINDOW_SCREENSHOT:
-			var stage = qupath.getStage();
+			double x = scene.getX() + stage.getX();
+			double y = scene.getY() + stage.getY();
+			double width = scene.getWidth();
+			double height = scene.getHeight();
 			try {
 				// For reasons I do not understand, this occasionally throws an ArrayIndexOutOfBoundsException
 				return new Robot().getScreenCapture(null,
-						stage.getX(), stage.getY(), stage.getWidth(), stage.getHeight());
+						x, y, width, height, false);
 			} catch (Exception e) {
 				logger.error("Unable to make main window screenshot, will resort to trying to crop a full screenshot instead", e);
 				var img2 = makeSnapshotFX(qupath, SnapshotType.FULL_SCREENSHOT);
 				return new WritableImage(img2.getPixelReader(), 
-						(int)stage.getX(), (int)stage.getY(), (int)stage.getWidth(), (int)stage.getHeight());
+						(int)x, (int)y, (int)width, (int)height);
 			}
 		case FULL_SCREENSHOT:
 			var screen = Screen.getPrimary();

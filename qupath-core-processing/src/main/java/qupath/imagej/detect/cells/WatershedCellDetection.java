@@ -28,6 +28,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -65,8 +66,10 @@ import qupath.lib.analysis.stats.RunningStatistics;
 import qupath.lib.analysis.stats.StatisticsHelper;
 import qupath.lib.color.ColorDeconvolutionStains;
 import qupath.lib.color.StainVector;
+import qupath.lib.common.GeneralTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.PathImage;
+import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.images.servers.ServerTools;
@@ -99,6 +102,8 @@ import qupath.lib.roi.interfaces.ROI;
  *
  */
 public class WatershedCellDetection extends AbstractTileableDetectionPlugin<BufferedImage> {
+	
+	protected boolean parametersInitialized = false;
 
 	private static String[] micronParameters = {
 		"requestedPixelSizeMicrons",
@@ -120,8 +125,12 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 		"cellExpansion",
 		};
 	
+//	private static String[] fluorescenceParameters = {
+//			"detectionImageFluorescence"
+//	};
+	
 	private static String[] fluorescenceParameters = {
-			"detectionImageFluorescence"
+			"detectionImage"
 	};
 
 	private static String[] brightfieldParameters = {
@@ -137,87 +146,6 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 	static String IMAGE_HEMATOXYLIN = "Hematoxylin OD";
 	
 	ParameterList params;
-	
-	/**
-	 * Default constructor.
-	 */
-	public WatershedCellDetection() {
-		params = new ParameterList();
-		// TODO: Use a better way to determining if pixel size is available in microns
-//		params.addEmptyParameter("detectionParameters", "Detection parameters", true);
-
-		String microns = IJ.micronSymbol + "m";
-		
-		params.addTitleParameter("Setup parameters");
-
-		params.addIntParameter("detectionImageFluorescence", "Choose detection channel", 1, null, "Choose the channel number containing a nucleus counterstain (e.g. DAPI)");
-
-		params.addChoiceParameter("detectionImageBrightfield", "Choose detection image", IMAGE_HEMATOXYLIN, Arrays.asList(IMAGE_HEMATOXYLIN, IMAGE_OPTICAL_DENSITY),
-				"Transformed image to which to apply the detection");
-
-		params.addDoubleParameter("requestedPixelSizeMicrons", "Requested pixel size", .5, microns, 
-				"Choose pixel size at which detection will be performed - higher values are likely to be faster, but may be less accurate; set <= 0 to use the full image resolution");
-//		params.addDoubleParameter("requestedPixelSize", "Requested downsample factor", 1, "");
-
-		
-		params.addTitleParameter("Nucleus parameters");
-		
-		params.addDoubleParameter("backgroundRadiusMicrons", "Background radius", 8, microns, 
-				"Radius for background estimation, should be > the largest nucleus radius, or <= 0 to turn off background subtraction");
-		params.addDoubleParameter("medianRadiusMicrons", "Median filter radius", 0, microns,
-				"Radius of median filter used to reduce image texture (optional)");
-		params.addDoubleParameter("sigmaMicrons", "Sigma", 1.5, microns,
-				"Sigma value for Gaussian filter used to reduce noise; increasing the value stops nuclei being fragmented, but may reduce the accuracy of boundaries");
-		params.addDoubleParameter("minAreaMicrons", "Minimum area", 10, microns+"^2",
-				"Detected nuclei with an area < minimum area will be discarded");
-		params.addDoubleParameter("maxAreaMicrons", "Maximum area", 400, microns+"^2",
-				"Detected nuclei with an area > maximum area will be discarded");
-
-		params.addDoubleParameter("backgroundRadius", "Background radius", 15, "px", 
-				"Radius for background estimation, should be > the largest nucleus radius, or <= 0 to turn off background subtraction");
-		params.addDoubleParameter("medianRadius", "Median filter radius", 0, "px",
-				"Radius of median filter used to reduce image texture (optional)");
-		params.addDoubleParameter("sigma", "Sigma", 3, "px",
-				"Sigma value for Gaussian filter used to reduce noise; increasing the value stops nuclei being fragmented, but may reduce the accuracy of boundaries");
-		params.addDoubleParameter("minArea", "Minimum area", 10, "px^2",
-				"Detected nuclei with an area < minimum area will be discarded");
-		params.addDoubleParameter("maxArea", "Maximum area", 1000, "px^2",
-				"Detected nuclei with an area > maximum area will be discarded");
-
-		params.addTitleParameter("Intensity parameters");
-		params.addDoubleParameter("threshold", "Threshold", 0.1, null,
-				"Intensity threshold - detected nuclei must have a mean intensity >= threshold");
-//		params.addDoubleParameter("threshold", "Threshold", 0.1, null, 0, 2.5,
-//				"Intensity threshold - detected nuclei must have a mean intensity >= threshold");
-		params.addDoubleParameter("maxBackground", "Max background intensity", 2, null,
-				"If background radius > 0, detected nuclei occurring on a background > max background intensity will be discarded");
-		
-//		params.addBooleanParameter("mergeAll", "Merge all", true);
-		params.addBooleanParameter("watershedPostProcess", "Split by shape", true,
-				"Split merged detected nuclei based on shape ('roundness')");
-		params.addBooleanParameter("excludeDAB", "Exclude DAB (membrane staining)", false,
-				"Set to 'true' if regions of high DAB staining should not be considered nuclei; useful if DAB stains cell membranes");
-		
-		
-		params.addTitleParameter("Cell parameters");
-
-		params.addDoubleParameter("cellExpansionMicrons", "Cell expansion", 5, microns, 0, 25,
-				"Amount by which to expand detected nuclei to approximate the full cell area");
-		params.addDoubleParameter("cellExpansion", "Cell expansion", 5, "px",
-				"Amount by which to expand detected nuclei to approximate the full cell area");
-		
-//		params.addBooleanParameter("limitExpansionByNucleusSize", "Limit cell expansion by nucleus size", false, "If checked, nuclei will not be expanded by more than their (estimated) smallest diameter in any direction - may give more realistic results for smaller, or 'thinner' nuclei");
-			
-		params.addBooleanParameter("includeNuclei", "Include cell nucleus", true,
-				"If cell expansion is used, optionally include/exclude the nuclei within the detected cells");
-		
-		
-		params.addTitleParameter("General parameters");
-		params.addBooleanParameter("smoothBoundaries", "Smooth boundaries", true,
-				"Smooth the detected nucleus/cell boundaries");
-		params.addBooleanParameter("makeMeasurements", "Make measurements", true,
-				"Add default shape & intensity measurements during detection");
-	}
 	
 	
 	static class CellDetector implements ObjectDetector<BufferedImage> {
@@ -311,28 +239,39 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 				
 			} //else {
 			if (fpDetection == null) {
+				List<ImageChannel> imageChannels = imageData.getServer().getMetadata().getChannels();
 				if (ip instanceof ColorProcessor) {
-					channels.put("Channel 1", ((ColorProcessor)ip).toFloat(0, null));
-					channels.put("Channel 2", ((ColorProcessor)ip).toFloat(1, null));
-					channels.put("Channel 3", ((ColorProcessor)ip).toFloat(2, null));
+					for (int c = 0; c < 3; c++) {
+						String name = imageChannels.get(c).getName();
+						channels.put(name, ((ColorProcessor)ip).toFloat(c, null));
+					}
 				} else {
 					ImagePlus imp = pathImage.getImage();
 					for (int c = 1; c <= imp.getNChannels(); c++) {
-						channels.put("Channel " + c, imp.getStack().getProcessor(imp.getStackIndex(c, 0, 0)).convertToFloatProcessor());
+						String name = imageChannels.get(c-1).getName();
+						if (channels.containsKey(name))
+							logger.warn("Channel with duplicate name '{}' - will be skipped", name);
+						else
+							channels.put(name, imp.getStack().getProcessor(imp.getStackIndex(c, 0, 0)).convertToFloatProcessor());
+//						channels.put("Channel " + c, imp.getStack().getProcessor(imp.getStackIndex(c, 0, 0)).convertToFloatProcessor());
 					}
 				}
 				// For fluorescence, measure everything
 				channelsCell.putAll(channels);
 				
-				// TODO: Deal with fluorescence... for now, defaults to first channel (may be totally wrong)
-				int detectionChannel = 1;
-				if (!isBrightfield)
-					detectionChannel = params.getIntParameterValue("detectionImageFluorescence");
-				fpDetection = channels.get("Channel " + detectionChannel);
-				if (fpDetection == null) {
-					logger.warn("Unable to find specified Channel {} - will default to Channel 1", detectionChannel);
-					fpDetection = channels.get("Channel 1");
+				// Try to get detection channel for fluorescence
+				String detectionChannelName;
+				if (!isBrightfield) {
+					detectionChannelName = (String)params.getChoiceParameterValue("detectionImage");
+					fpDetection = channels.get(detectionChannelName);
+//					detectionChannel = params.getIntParameterValue("detectionImageFluorescence");
 				}
+				else throw new IllegalArgumentException("No valid detection channel is selected!");
+//				if (detectionChannelName == null) {
+//					detectionChannelName = imageChannels.get(detectionChannel-1).getName();
+//					logger.warn("Unable to find specified Channel {} - will default to Channel 1", detectionChannel);
+//				}
+//				fpDetection = channels.get(detectionChannelName);
 			}
 			WatershedCellDetector detector2 = new WatershedCellDetector(fpDetection, channels, channelsCell, roi, pathImage);
 			
@@ -408,9 +347,122 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 	}
 	
 	
+	private ParameterList buildParameterList(final ImageData<BufferedImage> imageData) { 
+			
+		ParameterList params = new ParameterList();
+		// TODO: Use a better way to determining if pixel size is available in microns
+//		params.addEmptyParameter("detectionParameters", "Detection parameters", true);
+
+		String microns = IJ.micronSymbol + "m";
+		
+		params.addTitleParameter("Setup parameters");
+
+		String defaultChannel = null;
+		List<String> channelNames = new ArrayList<>();
+		String[] nucleusGuesses = new String[] {"dapi", "hoechst", "nucleus", "nuclei", "nuclear", "hematoxylin", "haematoxylin"};
+		for (ImageChannel channel : imageData.getServer().getMetadata().getChannels()) {
+			String name = channel.getName();
+			channelNames.add(name);
+			if (defaultChannel == null) {
+				String lower = name.toLowerCase();
+				for (String guess : nucleusGuesses) {
+					if (lower.contains(guess))
+						defaultChannel = name;
+				}
+			}
+		}
+		if (defaultChannel == null)
+			defaultChannel = channelNames.get(0);
+		if (channelNames.size() != new HashSet<>(channelNames).size())
+			logger.warn("Image contains duplicate channel names! This may be confusing for detection and analysis.");
+		params.addChoiceParameter("detectionImage", "Detection channel", defaultChannel, channelNames, "Choose the channel that should be used for nucleus detection (e.g. DAPI)");
+
+		params.addChoiceParameter("detectionImageBrightfield", "Detection image", IMAGE_HEMATOXYLIN, Arrays.asList(IMAGE_HEMATOXYLIN, IMAGE_OPTICAL_DENSITY),
+				"Transformed image to which to apply the detection");
+
+		params.addDoubleParameter("requestedPixelSizeMicrons", "Requested pixel size", .5, microns, 
+				"Choose pixel size at which detection will be performed - higher values are likely to be faster, but may be less accurate; set <= 0 to use the full image resolution");
+//		params.addDoubleParameter("requestedPixelSize", "Requested downsample factor", 1, "");
+
+		
+		params.addTitleParameter("Nucleus parameters");
+		
+		params.addDoubleParameter("backgroundRadiusMicrons", "Background radius", 8, microns, 
+				"Radius for background estimation, should be > the largest nucleus radius, or <= 0 to turn off background subtraction");
+		params.addDoubleParameter("medianRadiusMicrons", "Median filter radius", 0, microns,
+				"Radius of median filter used to reduce image texture (optional)");
+		params.addDoubleParameter("sigmaMicrons", "Sigma", 1.5, microns,
+				"Sigma value for Gaussian filter used to reduce noise; increasing the value stops nuclei being fragmented, but may reduce the accuracy of boundaries");
+		params.addDoubleParameter("minAreaMicrons", "Minimum area", 10, microns+"^2",
+				"Detected nuclei with an area < minimum area will be discarded");
+		params.addDoubleParameter("maxAreaMicrons", "Maximum area", 400, microns+"^2",
+				"Detected nuclei with an area > maximum area will be discarded");
+
+		params.addDoubleParameter("backgroundRadius", "Background radius", 15, "px", 
+				"Radius for background estimation, should be > the largest nucleus radius, or <= 0 to turn off background subtraction");
+		params.addDoubleParameter("medianRadius", "Median filter radius", 0, "px",
+				"Radius of median filter used to reduce image texture (optional)");
+		params.addDoubleParameter("sigma", "Sigma", 3, "px",
+				"Sigma value for Gaussian filter used to reduce noise; increasing the value stops nuclei being fragmented, but may reduce the accuracy of boundaries");
+		params.addDoubleParameter("minArea", "Minimum area", 10, "px^2",
+				"Detected nuclei with an area < minimum area will be discarded");
+		params.addDoubleParameter("maxArea", "Maximum area", 1000, "px^2",
+				"Detected nuclei with an area > maximum area will be discarded");
+
+		params.addTitleParameter("Intensity parameters");
+		params.addDoubleParameter("threshold", "Threshold", 0.1, null,
+				"Intensity threshold - detected nuclei must have a mean intensity >= threshold");
+//		params.addDoubleParameter("threshold", "Threshold", 0.1, null, 0, 2.5,
+//				"Intensity threshold - detected nuclei must have a mean intensity >= threshold");
+		params.addDoubleParameter("maxBackground", "Max background intensity", 2, null,
+				"If background radius > 0, detected nuclei occurring on a background > max background intensity will be discarded");
+		
+//		params.addBooleanParameter("mergeAll", "Merge all", true);
+		params.addBooleanParameter("watershedPostProcess", "Split by shape", true,
+				"Split merged detected nuclei based on shape ('roundness')");
+		params.addBooleanParameter("excludeDAB", "Exclude DAB (membrane staining)", false,
+				"Set to 'true' if regions of high DAB staining should not be considered nuclei; useful if DAB stains cell membranes");
+		
+		
+		params.addTitleParameter("Cell parameters");
+
+		params.addDoubleParameter("cellExpansionMicrons", "Cell expansion", 5, microns, 0, 25,
+				"Amount by which to expand detected nuclei to approximate the full cell area");
+		params.addDoubleParameter("cellExpansion", "Cell expansion", 5, "px",
+				"Amount by which to expand detected nuclei to approximate the full cell area");
+		
+//		params.addBooleanParameter("limitExpansionByNucleusSize", "Limit cell expansion by nucleus size", false, "If checked, nuclei will not be expanded by more than their (estimated) smallest diameter in any direction - may give more realistic results for smaller, or 'thinner' nuclei");
+			
+		params.addBooleanParameter("includeNuclei", "Include cell nucleus", true,
+				"If cell expansion is used, optionally include/exclude the nuclei within the detected cells");
+		
+		
+		params.addTitleParameter("General parameters");
+		params.addBooleanParameter("smoothBoundaries", "Smooth boundaries", true,
+				"Smooth the detected nucleus/cell boundaries");
+		params.addBooleanParameter("makeMeasurements", "Make measurements", true,
+				"Add default shape & intensity measurements during detection");
+		
+		return params;
+	}
+	
+	@Override
+	protected boolean parseArgument(ImageData<BufferedImage> imageData, String arg) {
+		if (arg != null) {
+			// We don't want running with old scripts to silently produce the wrong result, so instead we check
+			Map<String, String> map = GeneralTools.parseArgStringValues(arg);
+			if (map.containsKey("detectionImageFluorescence"))
+				throw new IllegalArgumentException("'detectionImageFluorescence' is not supported in this version of QuPath - use 'detectionImage' instead");
+		}
+		return super.parseArgument(imageData, arg);
+	}
 
 	@Override
 	public ParameterList getDefaultParameterList(final ImageData<BufferedImage> imageData) {
+		
+		if (!parametersInitialized) {
+			params = buildParameterList(imageData);
+		}
 		
 		// Show/hide parameters depending on whether the pixel size is known
 		Map<String, Parameter<?>> map = params.getParameters();

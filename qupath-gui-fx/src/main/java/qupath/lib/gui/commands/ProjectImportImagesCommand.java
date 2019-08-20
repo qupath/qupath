@@ -47,9 +47,11 @@ import javafx.geometry.Insets;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonBar.ButtonData;
 import javafx.scene.control.ButtonType;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
+import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TitledPane;
@@ -66,12 +68,16 @@ import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.gui.helpers.GridPaneTools;
 import qupath.lib.gui.helpers.PanelToolsFX;
 import qupath.lib.gui.panels.ProjectBrowser;
+import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.ImageData.ImageType;
 import qupath.lib.images.servers.WrappedBufferedImageServer;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.ImageServerBuilder;
 import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
+import qupath.lib.images.servers.ImageServerBuilder.UriImageSupport;
 import qupath.lib.images.servers.ImageServerProvider;
+import qupath.lib.images.servers.ImageServers;
 import qupath.lib.images.servers.RotatedImageServer;
 import qupath.lib.images.servers.RotatedImageServer.Rotation;
 import qupath.lib.images.servers.ServerTools;
@@ -127,8 +133,36 @@ public class ProjectImportImagesCommand implements PathCommand {
 		
 		TitledPane paneList = new TitledPane("Image paths", listView);
 		paneList.setCollapsible(false);
+		
 
 		BorderPane paneImages = new BorderPane();
+		
+		class BuilderListCell extends ListCell<ImageServerBuilder<BufferedImage>> {
+			@Override
+			protected void updateItem(ImageServerBuilder<BufferedImage> item, boolean empty) {
+	             super.updateItem(item, empty);
+	             if (empty) {
+	            	 setText(null);
+	             } else {
+	            	 if (item == null)
+	            		 setText("Default (let QuPath decide)");
+	            	 else
+	            		 setText(item.getName());
+	             }
+	         }
+		}
+		
+		ComboBox<ImageServerBuilder<BufferedImage>> comboBuilder = new ComboBox<>();
+		comboBuilder.setCellFactory(p -> new BuilderListCell());
+		comboBuilder.setButtonCell(new BuilderListCell());
+		List<ImageServerBuilder<BufferedImage>> availableBuilders = new ArrayList<>(ImageServerProvider.getInstalledImageServerBuilders(BufferedImage.class));
+		if (!availableBuilders.contains(null))
+			availableBuilders.add(0, null);
+		comboBuilder.getItems().setAll(availableBuilders);
+		comboBuilder.getSelectionModel().selectFirst();
+		Label labelBuilder = new Label("Image provider");
+		labelBuilder.setLabelFor(comboBuilder);
+		
 		ComboBox<ImageType> comboType = new ComboBox<>();
 		comboType.getItems().setAll(ImageType.values());
 		Label labelType = new Label("Set image type");
@@ -138,17 +172,23 @@ public class ProjectImportImagesCommand implements PathCommand {
 		comboRotate.getItems().setAll(Rotation.values());
 		Label labelRotate = new Label("Rotate image");
 		labelRotate.setLabelFor(comboRotate);
+		
+		CheckBox cbPyramidize = new CheckBox("Auto-generate pyramids");
+		cbPyramidize.setSelected(true);
 
-		GridPaneTools.setMaxWidth(Double.MAX_VALUE, comboType, comboRotate);
-		GridPaneTools.setFillWidth(Boolean.TRUE, comboType, comboRotate);
-		GridPaneTools.setHGrowPriority(Priority.ALWAYS, comboType, comboRotate);
+		GridPaneTools.setMaxWidth(Double.MAX_VALUE, comboBuilder, comboType, comboRotate, cbPyramidize);
+		GridPaneTools.setFillWidth(Boolean.TRUE, comboBuilder, comboType, comboRotate, cbPyramidize);
+		GridPaneTools.setHGrowPriority(Priority.ALWAYS, comboBuilder, comboType, comboRotate, cbPyramidize);
 		
 		GridPane paneType = new GridPane();
 		paneType.setPadding(new Insets(5));
 		paneType.setHgap(5);
 		paneType.setVgap(5);
-		GridPaneTools.addGridRow(paneType, 0, 0, "Specify the default image type for all images being imported (required for analysis, can be changed later under the 'Image' tab)", labelType, comboType);
-		GridPaneTools.addGridRow(paneType, 1, 0, "Optionally rotate images on import", labelRotate, comboRotate);
+		int row = 0;
+		GridPaneTools.addGridRow(paneType, row++, 0, "Specify the library used to open images", labelBuilder, comboBuilder);
+		GridPaneTools.addGridRow(paneType, row++, 0, "Specify the default image type for all images being imported (required for analysis, can be changed later under the 'Image' tab)", labelType, comboType);
+		GridPaneTools.addGridRow(paneType, row++, 0, "Optionally rotate images on import", labelRotate, comboRotate);
+		GridPaneTools.addGridRow(paneType, row++, 0, "Dynamically create image pyramids for large, single-resolution images", cbPyramidize, cbPyramidize);
 		
 		paneImages.setCenter(paneList);
 		paneImages.setBottom(paneType);
@@ -186,6 +226,9 @@ public class ProjectImportImagesCommand implements PathCommand {
 		
 		ImageType type = comboType.getValue();
 		Rotation rotation = comboRotate.getValue();
+		boolean pyramidize = cbPyramidize.isSelected();
+		
+		ImageServerBuilder<BufferedImage> requestedBuilder = comboBuilder.getSelectionModel().getSelectedItem();
 		
 		List<String> pathSucceeded = new ArrayList<>();
 		List<String> pathFailed = new ArrayList<>();
@@ -202,11 +245,15 @@ public class ProjectImportImagesCommand implements PathCommand {
 				// Get all the relevant builders
 				List<ServerBuilder<BufferedImage>> builders = listView.getItems().parallelStream().map(p -> {
 					try {
-						var support = ImageServerProvider.getPreferredUriImageSupport(BufferedImage.class, p);
+						UriImageSupport<BufferedImage> support;
+						if (requestedBuilder == null)
+							support = ImageServerProvider.getPreferredUriImageSupport(BufferedImage.class, p);
+						else
+							support = requestedBuilder.checkImageSupport(GeneralTools.toURI(p));
 						if (support != null)
 							return support.getBuilders();
-					} catch (IOException e) {
-						logger.error("Unable to add {}", p);
+					} catch (Exception e) {
+						logger.error("Unable to add {} ({})", p, e.getLocalizedMessage());
 					}
 					return new ArrayList<ServerBuilder<BufferedImage>>();
 				}).flatMap(List::stream).collect(Collectors.toList());
@@ -218,10 +265,10 @@ public class ProjectImportImagesCommand implements PathCommand {
 				// Add everything in order first
 				List<ProjectImageEntry<BufferedImage>> entries = new ArrayList<>();
 				for (var builder : builders) {
-					if (rotation == Rotation.ROTATE_NONE)
-						entries.add(project.addImage(RotatedImageServer.getRotatedBuilder(builder, rotation)));
-					else
+					if (rotation == null || rotation == Rotation.ROTATE_NONE)
 						entries.add(project.addImage(builder));
+					else
+						entries.add(project.addImage(RotatedImageServer.getRotatedBuilder(builder, rotation)));
 				}
 				
 				// Initialize (the slow bit)
@@ -229,7 +276,7 @@ public class ProjectImportImagesCommand implements PathCommand {
 				List<ProjectImageEntry<BufferedImage>> failures = Collections.synchronizedList(new ArrayList<>());
 				entries.parallelStream().forEach(entry -> {
 					try {
-					initializeEntry(entry, type);
+						initializeEntry(entry, type, pyramidize);
 					} catch (Exception e) {
 						failures.add(entry);
 						logger.warn("Exception adding " + entry, e);
@@ -244,7 +291,14 @@ public class ProjectImportImagesCommand implements PathCommand {
 				});
 
 				if (!failures.isEmpty()) {
-					logger.error("Failed to load {} entries", failures.size());
+					String message;
+					if (failures.size() == 1)
+						message = "Failed to load one image.";
+					else
+						message = "Failed to load " + failures.size() + " images.";
+					if (requestedBuilder != null)
+						message += "\nThe image type might not be supported by '" + requestedBuilder.getName() + "'";
+					DisplayHelpers.showErrorMessage("Import images", message);
 					project.removeAllImages(failures, true);
 				}
 				
@@ -430,13 +484,13 @@ public class ProjectImportImagesCommand implements PathCommand {
 	public static ProjectImageEntry<BufferedImage> addSingleImageToProject(Project<BufferedImage> project, ImageServer<BufferedImage> server, ImageType type) {
 		try {
 			var entry = project.addImage(server.getBuilder());
-			initializeEntry(entry, type);
+			initializeEntry(entry, type, false);
 			return entry;
 		} catch (Exception e) {
 			return null;
 		}
 	}
-
+	
 	/**
 	 * Add a single ImageServer to a project, without considering sub-images.
 	 * <p>
@@ -444,10 +498,11 @@ public class ProjectImportImagesCommand implements PathCommand {
 	 * 
 	 * @param entry the entry that should be initialized
 	 * @param type the ImageType that should be set for each entry being added
+	 * @param pyramidizeSingleResolution if true, attempt to pyramidalize single-resolution image servers
 	 * @return
 	 * @throws Exception 
 	 */
-	static ProjectImageEntry<BufferedImage> initializeEntry(ProjectImageEntry<BufferedImage> entry, ImageType type) throws Exception {
+	static ProjectImageEntry<BufferedImage> initializeEntry(ProjectImageEntry<BufferedImage> entry, ImageType type, boolean pyramidizeSingleResolution) throws Exception {
 		try (ImageServer<BufferedImage> server = entry.getServerBuilder().build()) {
 			var img = getThumbnailRGB(server, null);
 			// Set the image name
@@ -455,11 +510,26 @@ public class ProjectImportImagesCommand implements PathCommand {
 			entry.setImageName(name);
 			// Write a thumbnail if we can
 			entry.setThumbnail(img);
+			
+			// Pyramidalize this if we need to
+			ImageServer<BufferedImage> server2 = server;
+			int minPyramidDimension = PathPrefs.getMinPyramidDimension();
+			if (pyramidizeSingleResolution && server.nResolutions() == 1 && Math.max(server.getWidth(), server.getHeight()) > minPyramidDimension) {
+				var serverTemp = ImageServers.pyramidalize(server);
+				if (serverTemp.nResolutions() > 1) {
+					logger.debug("Auto-generating image pyramid for " + name);
+					server2 = serverTemp;
+				} else
+					serverTemp.close();
+			}
+			
 			// Initialize an ImageData object with a type, if required
-			if (type != null) {
-				var imageData = new ImageData<>(server, type);
+			if (type != null || server != server2) {
+				var imageData = new ImageData<>(server2, type);
 				entry.saveImageData(imageData);
 			}
+			if (server != server2)
+				server2.close();
 		}
 		return entry;
 	}

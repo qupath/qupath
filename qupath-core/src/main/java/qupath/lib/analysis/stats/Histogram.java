@@ -107,7 +107,7 @@ public class Histogram { // implements Serializable {
 	 * @param ind index of the bin
 	 * @return
 	 */
-	public double getCountsForBin(int ind) {
+	public long getCountsForBin(int ind) {
 		return counts[ind];
 	}
 	

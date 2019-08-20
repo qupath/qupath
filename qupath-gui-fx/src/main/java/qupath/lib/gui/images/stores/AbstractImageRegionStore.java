@@ -34,19 +34,22 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Vector;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.FutureTask;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.RemovalCause;
+
 import qupath.lib.awt.common.AwtTools;
 import qupath.lib.common.ThreadTools;
-import qupath.lib.gui.images.stores.DefaultRegionCache;
 import qupath.lib.gui.images.stores.SizeEstimator;
 import qupath.lib.gui.images.stores.TileWorker;
 import qupath.lib.images.servers.GeneratingImageServer;
@@ -57,8 +60,6 @@ import qupath.lib.regions.RegionRequest;
 /**
  * A generic ImageRegionStore.
  * 
- * TODO: Move into QuPathCore after removing reliance on 'shape'.
- * 
  * 
  * @author Pete Bankhead
  * @param <T> 
@@ -66,12 +67,12 @@ import qupath.lib.regions.RegionRequest;
  */
 abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {
 	
-	static final int DEFAULT_THUMBNAIL_WIDTH = 1000;
+	private static final int DEFAULT_THUMBNAIL_WIDTH = 1000;
 	
-	static Logger logger = LoggerFactory.getLogger(AbstractImageRegionStore.class);
-		
+	private final static Logger logger = LoggerFactory.getLogger(AbstractImageRegionStore.class);
+	
 	// Collection of SwingWorkers used to request image tiles
-	private Vector<TileWorker<T>> workers = new Vector<>();
+	private List<TileWorker<T>> workers = Collections.synchronizedList(new ArrayList<>());
 	
 	// Set of regions for which a tile has been requested, but not yet fully loaded
 	private Map<RegionRequest, TileWorker<T>> waitingMap = Collections.synchronizedMap(new HashMap<>());
@@ -80,12 +81,12 @@ abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {
 	
 	protected static boolean paintTileBorders = false; // For debugging only, not necessarily used
 
-	protected Vector<TileListener<T>> tileListeners = new Vector<>();
+	protected List<TileListener<T>> tileListeners = Collections.synchronizedList(new ArrayList<>());
 
 	// Cache of image tiles for specified regions
-	protected DefaultRegionCache<T> cache;
+	protected Map<RegionRequest, T> cache;
 	// Cache image thumbnails
-	protected DefaultRegionCache<T> thumbnailCache;
+	protected Map<RegionRequest, T> thumbnailCache;
 	
 	/**
 	 * Maximum size of thumbnail, in any dimension.
@@ -110,15 +111,37 @@ abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {
 
 	protected AbstractImageRegionStore(final SizeEstimator<T> sizeEstimator, final int thumbnailSize, final long tileCacheSizeBytes) {
 		this.maxThumbnailSize = thumbnailSize;
-		cache = new DefaultRegionCache<>(sizeEstimator, tileCacheSizeBytes);
-		thumbnailCache = new DefaultRegionCache<>(sizeEstimator, tileCacheSizeBytes/4);
+		
+		Cache<RegionRequest, T> originalCache = CacheBuilder.newBuilder()
+				.weigher((RegionRequest k, T v) -> (int)sizeEstimator.getApproxImageSize(v))
+				.maximumWeight(tileCacheSizeBytes)
+				.softValues()
+//				.recordStats()
+				.removalListener(n -> {
+//					System.err.println(n.getKey() + " (" + cache.size() + ")");
+					if (n.getCause() == RemovalCause.COLLECTED)
+						logger.debug("Cached tile collected" + n.getKey() + " (cache size=" + cache.size()+")");
+					})
+				.build();
+		cache = originalCache.asMap();
+
+		Cache<RegionRequest, T> originalThumbnailCache = CacheBuilder.newBuilder()
+				.weigher((RegionRequest k, T v) -> (int)sizeEstimator.getApproxImageSize(v))
+				.maximumWeight(tileCacheSizeBytes)
+				.softValues()
+				.build();
+		
+		thumbnailCache = originalThumbnailCache.asMap();
+		
+//		cache = new DefaultRegionCache<>(sizeEstimator, tileCacheSizeBytes);
+//		thumbnailCache = new DefaultRegionCache<>(sizeEstimator, tileCacheSizeBytes/4);
 	}
 
 	
 	protected AbstractImageRegionStore(final SizeEstimator<T> sizeEstimator, final long tileCacheSizeBytes) {
 		this(sizeEstimator, DEFAULT_THUMBNAIL_WIDTH, tileCacheSizeBytes);
 	}
-	
+
 	
 	/**
 	 * 
@@ -188,7 +211,7 @@ abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {
 
 	
 	
-	public RegionCache<T> getCache() {
+	public Map<RegionRequest, T> getCache() {
 		return cache;
 	}
 	
@@ -284,7 +307,7 @@ abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {
 	 * @param request
 	 * @return
 	 */
-	protected synchronized Object requestImageTile(final ImageServer<T> server, final RegionRequest request, final RegionCache<T> cache, final boolean ensureTileReturned) {
+	protected synchronized Object requestImageTile(final ImageServer<T> server, final RegionRequest request, final Map<RegionRequest, T> cache, final boolean ensureTileReturned) {
 		T img = cache.get(request);
 		if (img != null)
 			return img;
@@ -295,7 +318,7 @@ abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {
 		// If the region request can be known to return null quickly, avoid making a full request
 		// (at the time of writing, this only makes a difference with PathHierarchyImageServers)
 		if (server.isEmptyRegion(request)) {
-			cache.put(request, null);
+//			cache.put(request, null); // Guava cache does not support null
 			return null;
 		}
 		// Start a worker & add to the list
@@ -326,7 +349,7 @@ abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {
 	
 //	protected abstract TileWorker<T> createTileWorker(final BaseImageServer<T> server, final RegionRequest request, final RegionCache<T> cache, final boolean ensureTileReturned);
 
-	protected TileWorker<T> createTileWorker(final ImageServer<T> server, final RegionRequest request, final RegionCache<T> cache, final boolean ensureTileReturned) {
+	protected TileWorker<T> createTileWorker(final ImageServer<T> server, final RegionRequest request, final Map<RegionRequest, T> cache, final boolean ensureTileReturned) {
 		return new DefaultTileWorker(server, request, cache, ensureTileReturned);
 	}
 
@@ -414,8 +437,8 @@ abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {
 				}
 			}
 		}
-		thumbnailCache.clearCacheForServer(server);
-		cache.clearCacheForServer(server);
+		clearCacheForServer(thumbnailCache, server);
+		clearCacheForServer(cache, server);
 		clearingCache = false;
 	}
 	
@@ -436,9 +459,23 @@ abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {
 				}
 			}
 		}
-		cache.clearCacheForRequestOverlap(request);
+		clearCacheForRequestOverlap(cache, request);
 	}
 	
+	
+	
+	private synchronized void clearCacheForServer(Map<RegionRequest, T> map, ImageServer<?> server) {
+		String serverPath = server.getPath();
+		List<RegionRequest> keys = map.keySet().stream().filter(k -> k.getPath().equals(serverPath)).collect(Collectors.toList());
+		for (var key : keys)
+			map.remove(key);
+	}
+	
+	private synchronized void clearCacheForRequestOverlap(Map<RegionRequest, T> map, RegionRequest request) {
+		List<RegionRequest> keys = map.keySet().stream().filter(k -> request.overlapsRequest(k)).collect(Collectors.toList());
+		for (var key : keys)
+			map.remove(key);
+	}
 	
 	
 	/* (non-Javadoc)
@@ -673,10 +710,10 @@ abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {
 	 */
 	class DefaultTileWorker extends FutureTask<T> implements TileWorker<T> {
 		
-		private final RegionCache<T> cache;
+		private final Map<RegionRequest, T> cache;
 		private final RegionRequest request;
 		
-		DefaultTileWorker(final ImageServer<T> server, final RegionRequest request, final RegionCache<T> cache, final boolean ensureTileReturned) {
+		DefaultTileWorker(final ImageServer<T> server, final RegionRequest request, final Map<RegionRequest, T> cache, final boolean ensureTileReturned) {
 			super(new Callable<T>() {
 
 				@Override
@@ -711,7 +748,7 @@ abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {
 	    }
 	    
 	    @Override
-		public RegionCache<T> getRequestedCache() {
+		public Map<RegionRequest, T> getRequestedCache() {
 	    	return cache;
 	    }
 

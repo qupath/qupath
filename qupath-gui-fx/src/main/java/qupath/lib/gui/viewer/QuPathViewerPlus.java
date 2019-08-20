@@ -27,8 +27,10 @@ package qupath.lib.gui.viewer;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 
+import javafx.beans.binding.Bindings;
 import javafx.beans.property.BooleanProperty;
 import javafx.geometry.Bounds;
+import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
 import javafx.scene.Node;
 import javafx.scene.control.Label;
@@ -100,10 +102,16 @@ public class QuPathViewerPlus extends QuPathViewer {
 		// Add the location label
 		labelLocation.setTextFill(Color.WHITE);
 		labelLocation.setTextAlignment(TextAlignment.CENTER);
-		labelLocation.setStyle("-fx-font-size: 0.8em;");
+		var fontBinding = Bindings.createStringBinding(() -> {
+				var temp = PathPrefs.viewerFontSizeProperty().get();
+				return temp == null ? null : "-fx-font-size: " + temp.getFontSize();
+		}, PathPrefs.viewerFontSizeProperty());
+		labelLocation.styleProperty().bind(fontBinding);
+//		labelLocation.setStyle("-fx-font-size: 0.8em;");
 		panelLocation.setStyle("-fx-background-color: rgba(0, 0, 0, 0.4);");
 		panelLocation.setMinSize(140, 40);
 		panelLocation.setCenter(labelLocation);
+		panelLocation.setPadding(new Insets(5));
 		basePane.getChildren().add(panelLocation);
 		AnchorPane.setBottomAnchor(panelLocation, (double)padding);
 		AnchorPane.setRightAnchor(panelLocation, (double)padding);

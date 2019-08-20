@@ -31,8 +31,11 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
+import org.locationtech.jts.geom.prep.PreparedGeometry;
+import org.locationtech.jts.geom.prep.PreparedGeometryFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,6 +54,7 @@ import qupath.lib.regions.ImageRegion;
 import qupath.lib.roi.LineROI;
 import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.PolylineROI;
+import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.PathArea;
 import qupath.lib.roi.interfaces.PathPoints;
 import qupath.lib.roi.interfaces.ROI;
@@ -124,6 +128,36 @@ public class PathObjectTools {
 		return pathObjectsFiltered;
 	}
 
+	
+	/**
+	 * Create a predicate that only accepts PathObjects if they have ROIs that fall within a specified ImageRegion.
+	 * @param region
+	 * @return
+	 */
+	public static Predicate<PathObject> createImageRegionPredicate(ImageRegion region) {
+		return new ImageRegionPredicate(region);
+	}
+	
+	private static class ImageRegionPredicate implements Predicate<PathObject> {
+		
+		private ImageRegion region;
+		private PreparedGeometry geometry;
+		
+		ImageRegionPredicate(ImageRegion region) {
+			this.region = region;
+			this.geometry = PreparedGeometryFactory.prepare(ROIs.createRectangleROI(region).getGeometry());
+//			this.envelope = new Envelope(region.getMinX(), region.getMaxX(), region.getMinY(), region.getMaxY());
+		}
+		
+		@Override
+		public boolean test(PathObject p) {
+			return p.hasROI() &&
+					region.intersects(ImageRegion.createInstance(p.getROI())) &&
+					geometry.intersects(p.getROI().getGeometry());
+		}
+		
+	}
+	
 
 	/**
 	 * Get all descendant objects as a flattened list.

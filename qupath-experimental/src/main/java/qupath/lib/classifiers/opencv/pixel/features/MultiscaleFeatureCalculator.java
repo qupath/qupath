@@ -26,10 +26,10 @@ import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.io.OpenCVTypeAdapters;
 import qupath.lib.regions.RegionRequest;
-import qupath.opencv.processing.HessianCalculator;
-import qupath.opencv.processing.HessianCalculator.MultiscaleFeature;
-import qupath.opencv.processing.HessianCalculator.MultiscaleResultsBuilder;
-import qupath.opencv.processing.LocalNormalization;
+import qupath.opencv.tools.HessianCalculator;
+import qupath.opencv.tools.LocalNormalization;
+import qupath.opencv.tools.HessianCalculator.MultiscaleFeature;
+import qupath.opencv.tools.HessianCalculator.MultiscaleResultsBuilder;
 
 @JsonAdapter(OpenCVTypeAdapters.OpenCVTypeAdaptorFactory.class)
 public class MultiscaleFeatureCalculator implements OpenCVFeatureCalculator {

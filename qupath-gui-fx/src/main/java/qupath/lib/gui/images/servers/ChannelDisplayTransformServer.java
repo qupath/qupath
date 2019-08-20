@@ -16,6 +16,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.lib.color.ColorModelFactory;
+import qupath.lib.common.ColorTools;
 import qupath.lib.display.ChannelDisplayInfo;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServer;
@@ -102,7 +103,12 @@ public class ChannelDisplayTransformServer extends TransformingImageServer<Buffe
 			}
 		}
 		if (colorModel == null)
-			colorModel = ColorModelFactory.createProbabilityColorModel(32, channels.size(), false, channels.stream().mapToInt(c -> c.getColor()).toArray());
+			colorModel = ColorModelFactory.createProbabilityColorModel(32, channels.size(), false, channels.stream().mapToInt(c -> {
+				Integer color = c.getColor();
+				if (color == null)
+					color = ColorTools.makeRGB(255, 255, 255);
+				return color;
+			}).toArray());
 		
 		return new BufferedImage(colorModel, raster, false, null);
 	}

@@ -48,7 +48,9 @@ import qupath.lib.color.ColorDeconvolutionStains;
 import qupath.lib.common.ColorTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.ImageData.ImageType;
+import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.PathAnnotationObject;
@@ -509,6 +511,121 @@ public class QP {
 		if (selected instanceof TMACoreObject)
 			hierarchy.getSelectionModel().setSelectedObject(null);
 	}
+	
+	/**
+	 * Set the channel names for the current ImageData.
+	 * 
+	 * @param names
+	 * @see #setChannelNames(ImageData, String...)
+	 */
+	public static void setChannelNames(String... names) {
+		setChannelNames(getCurrentImageData(), names);
+	}
+	
+	/**
+	 * Set the channel names for the specified ImageData.
+	 * It is not essential to pass names for all channels: 
+	 * by passing n values, the first n channel names will be set.
+	 * Any name that is null will be left unchanged.
+	 * 
+	 * @param imageData
+	 * @param names
+	 */
+	public static void setChannelNames(ImageData<?> imageData, String... names) {
+		List<ImageChannel> oldChannels = imageData.getServer().getMetadata().getChannels();
+		List<ImageChannel> newChannels = new ArrayList<>(oldChannels);
+		for (int i = 0; i < names.length; i++) {
+			String name = names[i];
+			if (name == null)
+				continue;
+			newChannels.set(i, ImageChannel.getInstance(name, newChannels.get(i).getColor()));
+			if (i >= newChannels.size()) {
+				logger.warn("Too many channel names specified, only {} of {} will be used", newChannels.size(), names.length);
+				break;
+			}
+		}
+		setChannels(imageData, newChannels.toArray(ImageChannel[]::new));
+	}
+	
+	/**
+	 * Set the channel colors for the current ImageData.
+	 * 
+	 * @param colors
+	 * @see #setChannelColors(ImageData, Integer...)
+	 * @see #setChannelNames(ImageData, String...)
+	 */
+	public static void setChannelColors(Integer... colors) {
+		setChannelColors(getCurrentImageData(), colors);
+	}
+	
+	/**
+	 * Set the channel colors for the specified ImageData.
+	 * It is not essential to pass names for all channels: 
+	 * by passing n values, the first n channel names will be set.
+	 * Any name that is null will be left unchanged.
+	 * 
+	 * @param colors
+	 * @see #setChannelNames(ImageData, String...)
+	 */
+	public static void setChannelColors(ImageData<?> imageData, Integer... colors) {
+		List<ImageChannel> oldChannels = imageData.getServer().getMetadata().getChannels();
+		List<ImageChannel> newChannels = new ArrayList<>(oldChannels);
+		for (int i = 0; i < colors.length; i++) {
+			Integer color = colors[i];
+			if (color == null)
+				continue;
+			newChannels.set(i, ImageChannel.getInstance(newChannels.get(i).getName(), color));
+			if (i >= newChannels.size()) {
+				logger.warn("Too many channel colors specified, only {} of {} will be used", newChannels.size(), colors.length);
+				break;
+			}
+		}
+		setChannels(imageData, newChannels.toArray(ImageChannel[]::new));
+	}
+	
+	/**
+	 * Set the channels for the current ImageData.
+	 * 
+	 * @param channels
+	 * @see #setChannels(ImageData, ImageChannel...)
+	 */
+	public static void setChannels(ImageChannel... channels) {
+		setChannels(getCurrentImageData(), channels);
+	}
+	
+	/**
+	 * Set the channels for the specified ImageData.
+	 * Note that number of channels provided must match the number of channels of the current image.
+	 * <p>
+	 * Also, currently it is not possible to set channels for RGB images - attempting to do so 
+	 * will throw an IllegalArgumentException.
+	 * 
+	 * @param channels
+	 * @see #setChannelNames(ImageData, String...)
+	 * @see #setChannelColors(ImageData, Integer...)
+	 */
+	public static void setChannels(ImageData<?> imageData, ImageChannel... channels) {
+		ImageServer<?> server = imageData.getServer();
+		if (server.isRGB()) {
+			throw new IllegalArgumentException("Cannot set channels for RGB images");
+		}
+		List<ImageChannel> oldChannels = server.getMetadata().getChannels();
+		List<ImageChannel> newChannels = Arrays.asList(channels);
+		if (oldChannels.equals(newChannels)) {
+			logger.trace("Setting channels to the same values (no changes)");
+			return;
+		}
+		if (oldChannels.size() != newChannels.size())
+			throw new IllegalArgumentException("Cannot set channels - require " + oldChannels.size() + " channels but you provided " + channels.length);
+		
+		// Set the metadata
+		var metadata = server.getMetadata();
+		var metadata2 = new ImageServerMetadata.Builder(metadata)
+				.channels(newChannels)
+				.build();
+		imageData.updateServerMetadata(metadata2);
+	}
+	
 	
 	/**
 	 * Run the specified plugin on the current {@code ImageData}.

@@ -27,6 +27,7 @@ import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.classes.Reclassifier;
 import qupath.lib.objects.classes.PathClassFactory.StandardPathClasses;
+import qupath.lib.objects.classes.PathClassTools;
 import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.RegionRequest;
@@ -419,7 +420,7 @@ public class PixelClassifierStatic {
 					if (channel == null || channel.getName() == null)
 						continue;
 					var pathClass = PathClassFactory.getPathClass(channel.getName());
-					if (pathClass == PathClassFactory.getPathClass(StandardPathClasses.IGNORE))
+					if (pathClass == null || PathClassTools.isGradedIntensityClass(pathClass))
 						continue;
 					ROI roi = thresholdToROI(raster, c-0.5, c+0.5, 0, t);
 										

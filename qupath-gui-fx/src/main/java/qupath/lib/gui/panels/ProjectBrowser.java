@@ -83,6 +83,8 @@ import javafx.scene.control.TreeItem;
 import javafx.scene.control.TreeView;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
+import javafx.scene.input.Clipboard;
+import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
@@ -94,7 +96,6 @@ import qupath.lib.gui.ImageDataChangeListener;
 import qupath.lib.gui.ImageDataWrapper;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.QuPathGUI.GUIActions;
-import qupath.lib.gui.commands.ProjectCheckUrisCommand;
 import qupath.lib.gui.commands.ProjectImportImagesCommand;
 import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.gui.helpers.PaintingToolsFX;
@@ -507,25 +508,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 			if (path == null)
 				return;
 			// Get directory if we will need one
-			var desktop = Desktop.getDesktop();
-			if (!desktop.isSupported(Desktop.Action.BROWSE_FILE_DIR) && !Files.isDirectory(path))
-				path = path.getParent();
-			
-			if (Files.exists(path)) {
-				if (Files.isDirectory(path) && desktop.isSupported(Desktop.Action.OPEN)) {
-					try {
-						Desktop.getDesktop().open(path.toFile());
-						return;
-					} catch (IOException e1) {
-						logger.error("Error opening directory " + path, e1);
-					}
-				}
-				if (desktop.isSupported(Desktop.Action.BROWSE_FILE_DIR)) {
-					desktop.browseFileDirectory(path.toFile());
-					return;
-				}
-			}
-			logger.debug("Cannot browse path {}", path);
+			DisplayHelpers.browseDirectory(path.toFile());
 		});
 		action.disabledProperty().bind(Bindings.createBooleanBinding(() -> func.get() == null, tree.getSelectionModel().selectedItemProperty()));
 		return action;
@@ -586,23 +569,21 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 	}
 
 
-	public void setProject(final Project<BufferedImage> project) {
+	/**
+	 * Set the project.
+	 * @param project
+	 * @return true if the project is now set (even if unchanged), false if the project change was thwarted or canceled.
+	 */
+	public boolean setProject(final Project<BufferedImage> project) {
 		if (this.project == project)
-			return;		
-		if (project != null) {
-			try {
-				// Show URI manager dialog if we have any missing URIs
-				if (!ProjectCheckUrisCommand.checkURIs(project, true))
-					return;
-			} catch (IOException e) {
-				DisplayHelpers.showErrorMessage("Update URIs", e);
-			}
-		}
+			return true;		
+		
 		this.project = project;
 
 		model = new ProjectImageTreeModel(project);
 		tree.setRoot(model.getRootFX());
 		tree.getRoot().setExpanded(true);
+		return true;
 	}
 	
 	

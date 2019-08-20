@@ -91,6 +91,7 @@ import qupath.lib.objects.PathCellObject;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.TMACoreObject;
+import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.plugins.objects.TileClassificationsToAnnotationsPlugin;
 import qupath.lib.regions.ImagePlane;
@@ -371,7 +372,8 @@ public class IJExtension implements QuPathExtension {
 		// Add the overlay
 		if (hierarchy != null) {
 			ImagePlus imp = pathImage.getImage();
-			Overlay overlay = extractOverlay(hierarchy, request, options, p -> p != pathObject);
+			var regionPredicate = PathObjectTools.createImageRegionPredicate(request);
+			Overlay overlay = extractOverlay(hierarchy, request, options, p -> p != pathObject && regionPredicate.test(p));
 			if (overlay.size() > 0) {
 				imp.setOverlay(overlay);
 			}
@@ -434,8 +436,6 @@ public class IJExtension implements QuPathExtension {
 		}
 		return overlay;
 	}
-	
-	
 	
 	
 	/**

@@ -90,7 +90,7 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 	private static Map<Integer, BasicChannel> channelMap = new HashMap<>();
 	
 	static enum RegionType {
-		ROI, SQUARE, CIRCLE;
+		ROI, SQUARE, CIRCLE, NUCLEUS;
 		
 		@Override
 		public String toString() {
@@ -101,6 +101,8 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 				return "ROI";
 			case SQUARE:
 				return "Square tiles";
+			case NUCLEUS:
+				return "Cell nucleus";
 			default:
 				return "Unknown";
 			}
@@ -120,7 +122,7 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 		
 		public double[] getHaralickMinMax();
 		
-		public String getName(final ColorDeconvolutionStains stains);
+		public String getName(ImageData<?> imageData, boolean useSimpleNames);
 		
 	}
 	
@@ -131,10 +133,10 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 		BasicChannel(int channel) {
 			this.channel = channel;
 		}
-
+		
 		@Override
 		public String getPrompt(ImageData<?> imageData) {
-			return imageData.getServer().getChannel(channel).getName();
+			return getImageChannelName(imageData);
 		}
 
 		@Override
@@ -157,10 +159,26 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 		public double[] getHaralickMinMax() {
 			return null;
 		}
+		
+		private String getImageChannelName(ImageData<?> imageData) {
+			if (imageData == null)
+				return getSimpleChannelName();
+			return imageData.getServer().getChannel(channel).getName();
+		}
+		
+		private String getSimpleChannelName() {
+			return "Channel " + (channel + 1); // Note in v0.2.0-m3 and before this didn't + 1
+		}
 
 		@Override
-		public String getName(ColorDeconvolutionStains stains) {
-			return "Channel " + channel;
+		public String getName(final ImageData<?> imageData, final boolean useSimpleNames) {
+			String simpleName = getSimpleChannelName();
+			if (useSimpleNames)
+				return simpleName;
+			String name = getImageChannelName(imageData);
+			if (name == null || name.isBlank())
+				return simpleName;
+			return name;
 		}
 		
 	}
@@ -251,7 +269,8 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 		
 		
 		@Override
-		public String getName(final ColorDeconvolutionStains stains) {
+		public String getName(final ImageData<?> imageData, boolean useSimpleNames) {
+			var stains = imageData == null ? null : imageData.getColorDeconvolutionStains();
 			switch (this) {
 			case STAIN_1:
 				return stains == null ? "Stain 1" : stains.getStain(1).getName();
@@ -365,6 +384,8 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 		
 		if (regionType == RegionType.ROI) {
 			return String.format("ROI: %.2f %s per pixel", pixelSize, unit);
+		} else if (regionType == RegionType.NUCLEUS) {
+			return String.format("Nucleus: %.2f %s per pixel", pixelSize, unit);
 		} else {
 			return String.format("%s: Diameter %.1f %s: %.2f %s per pixel", shape, regionSize, unit, pixelSize, unit);
 		}
@@ -375,7 +396,13 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 	protected void addRunnableTasks(final ImageData<BufferedImage> imageData, final PathObject parentObject, List<Runnable> tasks) {
 		final ParameterList params = getParameterList(imageData);
 		final ImageServer<BufferedImage> server = imageData.getServer();
-		tasks.add(new IntensityFeatureRunnable(server, parentObject, params, imageData.getColorDeconvolutionStains()));
+		// Don't add any tasks if the downsample isn't value
+		PixelCalibration cal = server.getPixelCalibration();
+		double downsample = calculateDownsample(cal, params);
+		if (downsample <= 0) {
+			throw new IllegalArgumentException("Effective downsample must be > 0 (requested value " + GeneralTools.formatNumber(downsample, 1) + ")");
+		}
+		tasks.add(new IntensityFeatureRunnable(imageData, parentObject, params));
 	}
 	
 	
@@ -411,27 +438,25 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 	
 	static class IntensityFeatureRunnable implements Runnable {
 		
-		private ImageServer<BufferedImage> server;
+		private ImageData<BufferedImage> imageData;
 		private ParameterList params;
 		private PathObject parentObject;
-		private ColorDeconvolutionStains stains;
 		
-		public IntensityFeatureRunnable(final ImageServer<BufferedImage> server, final PathObject parentObject, final ParameterList params, final ColorDeconvolutionStains stains) {
-			this.server = server;
+		public IntensityFeatureRunnable(final ImageData<BufferedImage> imageData, final PathObject parentObject, final ParameterList params) {
+			this.imageData = imageData;
 			this.parentObject = parentObject;
 			this.params = params;
-			this.stains = stains;
 		}
 
 		@Override
 		public void run() {
 			try {
-				processObject(parentObject, params, server, stains);
+				processObject(parentObject, params, imageData);
 			} catch (IOException e) {
 				logger.error("Unable to process " + parentObject, e);
 			} finally {
 				parentObject.getMeasurementList().close();
-				server = null;
+				imageData = null;
 				params = null;
 			}
 		}
@@ -445,23 +470,39 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 	}
 	
 	
+	static double calculateDownsample(PixelCalibration cal, ParameterList params) {
+		if (cal.hasPixelSizeMicrons()) {
+			return params.getDoubleParameterValue("pixelSizeMicrons") / cal.getAveragedPixelSizeMicrons();
+		} else
+			return params.getDoubleParameterValue("downsample");
+
+	}
 	
 
-	static boolean processObject(final PathObject pathObject, final ParameterList params, final ImageServer<BufferedImage> server, final ColorDeconvolutionStains stains) throws IOException {
+	static boolean processObject(final PathObject pathObject, final ParameterList params, final ImageData<BufferedImage> imageData) throws IOException {
 
 		// Determine amount to downsample
-		double downsample;
+		var server = imageData.getServer();
+		var stains = imageData.getColorDeconvolutionStains();
+		
 		PixelCalibration cal = server.getPixelCalibration();
-		if (cal.hasPixelSizeMicrons()) {
-			downsample = params.getDoubleParameterValue("pixelSizeMicrons") / cal.getAveragedPixelSizeMicrons();
-		} else
-			downsample = params.getDoubleParameterValue("downsample");
+		double downsample = calculateDownsample(cal, params);
+		
+		if (downsample <= 0) {
+			logger.warn("Effective downsample must be > 0 (requested value {})", downsample);
+		}
 
 		// Determine region shape
 		RegionType regionType = (RegionType)params.getChoiceParameterValue("region");
 			
 		// Try to get ROI
-		ROI roi = pathObject.getROI();
+		boolean useROI = regionType == RegionType.ROI || regionType == RegionType.NUCLEUS;
+		ROI roi = null;
+		if (regionType == RegionType.NUCLEUS) {
+			if (pathObject instanceof PathCellObject)
+				roi = ((PathCellObject)pathObject).getNucleusROI();
+		} else
+			roi = pathObject.getROI();
 //		if (pathObject instanceof PathCellObject && ((PathCellObject)pathObject).getNucleusROI() != null)
 //			pathROI = ((PathCellObject)pathObject).getNucleusROI();
 		if (roi == null)
@@ -505,22 +546,24 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 			
 			// Get bounds
 			RegionRequest region;
-			if (regionType == RegionType.ROI) {
+			if (useROI) {
 				region = RegionRequest.createInstance(server.getPath(), downsample, pathROI);
 			} else {
 				ImmutableDimension size = getPreferredTileSizePixels(server, params);
 				//		RegionRequest region = RegionRequest.createInstance(server.getPath(), downsample, (int)(pathROI.getCentroidX() + .5) - size.width/2, (int)(pathROI.getCentroidY() + .5) - size.height/2, size.width, size.height, pathROI.getT(), pathROI.getZ());
 				// Try to align with pixel boundaries according to the downsample being used - otherwise, interpolation can cause some strange, pattern artefacts
-				int xStart = (int)((int)(pathROI.getCentroidX() / downsample + .5) * downsample) - size.width/2;
-				int yStart = (int)((int)(pathROI.getCentroidY() / downsample + .5) * downsample) - size.height/2;
+				int xStart = (int)(Math.round(pathROI.getCentroidX() / downsample) * downsample) - size.width/2;
+				int yStart = (int)(Math.round(pathROI.getCentroidY() / downsample) * downsample) - size.height/2;
 				int width = Math.min(server.getWidth(), xStart + size.width) - xStart;
 				int height = Math.min(server.getHeight(), yStart + size.height) - yStart;
 				region = RegionRequest.createInstance(server.getPath(), downsample, xStart, yStart, width, height, pathROI.getT(), pathROI.getZ());			
 			}
 			
-			// Check image large enough to do *anything* of value
-			if (region.getWidth() / downsample < 3 || region.getHeight() / downsample < 3)
-				return false;
+//			// Check image large enough to do *anything* of value
+//			if (region.getWidth() / downsample < 1 || region.getHeight() / downsample < 1) {
+//				logger.trace("Requested region is too small! {}", region);
+//				return false;
+//			}
 	
 	//		System.out.println(bounds);
 	//		System.out.println("Size: " + size);
@@ -532,8 +575,9 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 			}
 	
 			// Create mask ROI if necessary
+			// If we just have 1 pixel, we want to use it so that the mean/min/max measurements are valid (even if nothing else is)
 			byte[] maskBytes = null;
-			if (regionType == RegionType.ROI) {
+			if (useROI && img.getWidth() * img.getHeight() > 1) {
 				BufferedImage imgMask = BufferedImageTools.createROIMask(img.getWidth(), img.getHeight(), pathROI, region);
 				maskBytes = ((DataBufferByte)imgMask.getRaster().getDataBuffer()).getData();
 			}
@@ -589,7 +633,7 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 		
 		// Add measurements to the parent object
 		for (Entry<FeatureColorTransform, List<FeatureComputer>> entry : map.entrySet()) {
-			String name = prefix + ": " + entry.getKey().getName(stains) + ": ";
+			String name = prefix + ": " + entry.getKey().getName(imageData, false) + ":";
 			for (FeatureComputer computer : entry.getValue())
 				computer.addMeasurements(pathObject, name, params);
 		}
@@ -633,7 +677,7 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 			params.getParameters().get("tileSizePixels").setHidden(hasMicrons);
 			
 			// Color transforms
-			params.addTitleParameter("Color transforms");
+			params.addTitleParameter("Channels/Color transforms");
 			if (imageData.getServer().isRGB()) {
 				for (FeatureColorTransform transform : FeatureColorTransformEnum.values()) {
 					if (transform.supportsImage(imageData))
@@ -942,7 +986,8 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 		public void addMeasurements(PathObject pathObject, String name, ParameterList params) {
 			// Check if we have a median we can use
 			
-			if (!Boolean.TRUE.equals(params.getBooleanParameterValue("doMedian")) || histogram == null || histogram.length == 0)
+			boolean doMedian = params.containsKey("doMedian") && Boolean.TRUE.equals(params.getBooleanParameterValue("doMedian"));
+			if (!doMedian || histogram == null || histogram.length == 0)
 				return;
 			
 			// Find the bin containing the median value
@@ -1008,9 +1053,16 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 			if (transform == FeatureColorTransformEnum.HUE)
 				return;
 			
+			double haralickMin = params.getDoubleParameterValue("haralickMin");
+			double haralickMax = params.getDoubleParameterValue("haralickMax");
 			double[] minMax = transform.getHaralickMinMax();
-			if (minMax == null) {
-				minMax = new double[]{params.getDoubleParameterValue("haralickMin"), params.getDoubleParameterValue("haralickMax")};
+			if (Double.isFinite(haralickMin) && Double.isFinite(haralickMax) && haralickMax > haralickMin) {
+				logger.trace("Using Haralick min/max {}, {}", haralickMin, haralickMax);
+				minMax = new double[]{haralickMin, haralickMax};
+			} else {
+				if (minMax == null)
+					return;
+				logger.trace("Using default Haralick min/max {}, {}", haralickMin, haralickMax);
 			}
 			
 			int d = params.getIntParameterValue("haralickDistance");
@@ -1041,7 +1093,7 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 		@Override
 		public void addParameters(ImageData<?> imageData, ParameterList params) {
 			params.addTitleParameter("Haralick features");
-			params.addBooleanParameter("doHaralick", "Compute Haralick features", false);
+			params.addBooleanParameter("doHaralick", "Compute Haralick features", false, "Calculate Haralick texture features (13 features in total, non-RGB images require min/max values to be set based on the range of the data)");
 			
 			if (!imageData.getServer().isRGB()) {
 				params.addDoubleParameter("haralickMin", "Haralick min", Double.NaN, null, "Minimum value used when calculating grayscale cooccurrence matrix for Haralick features -\nThis should be approximately the lowest pixel value in the image for which textures are meaningful.")

@@ -15,7 +15,7 @@ import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.classifiers.pixel.PixelClassifierMetadata;
 import qupath.lib.images.ImageData;
 import qupath.lib.regions.RegionRequest;
-import qupath.opencv.processing.OpenCVTools;
+import qupath.opencv.tools.OpenCVTools;
 
 import java.awt.image.BufferedImage;
 import java.awt.image.ColorModel;

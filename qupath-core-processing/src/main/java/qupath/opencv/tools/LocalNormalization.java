@@ -1,4 +1,4 @@
-package qupath.opencv.processing;
+package qupath.opencv.tools;
 
 import java.util.ArrayList;
 import java.util.Collections;

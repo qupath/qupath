@@ -23,6 +23,7 @@
 
 package qupath.imagej.images.servers;
 
+import java.awt.Rectangle;
 import java.awt.image.BandedSampleModel;
 import java.awt.image.BufferedImage;
 import java.awt.image.ColorModel;
@@ -99,6 +100,23 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 		String path = file.getAbsolutePath();
 		if (path.toLowerCase().endsWith(".tif") || path.toLowerCase().endsWith(".tiff")) {
 			imp = IJ.openVirtual(path);
+			// We only want a virtual stack if we have a large z-stack or time series
+			long bpp = imp.getBitDepth() / 8;
+			if (bpp == 3)
+				bpp = 4; // ImageJ uses 4 bytes for an RGB image, but reports 24-bit
+			long nBytes = (long)imp.getWidth() * imp.getHeight() * imp.getStackSize() * bpp;
+			long maxMemory = Runtime.getRuntime().maxMemory();
+			long allowedMemory;
+			if (maxMemory == Long.MAX_VALUE)
+				allowedMemory = 1024L * 1024L * 1024L;
+			else
+				allowedMemory = maxMemory / 8;
+			if ((imp.getNFrames() == 1 && imp.getNSlices() == 1) || nBytes < allowedMemory) {
+				logger.info("Opening {} fully, estimated {} MB (max memory {} MB)", uri, nBytes / (1024L * 1024L), maxMemory / (1024L * 1024L));
+				imp = IJ.openImage(path);
+			} else {
+				logger.info("Opening {} as virtual stack, estimated {} MB (max memory {} MB)", uri, nBytes / (1024L * 1024L), maxMemory / (1024L * 1024L));
+			}
 		}
 		if (imp == null)
 			imp = IJ.openImage(path);
@@ -241,10 +259,18 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 		// Deal with any downsampling
 		if (request.getDownsample() != 1) {
 			ImageStack stackNew = null;
+			Rectangle roi = imp2.getProcessor().getRoi();
+			int w = (int)Math.max(1, Math.round(imp.getWidth() / request.getDownsample()));
+			int h = (int)Math.max(1, Math.round(imp.getHeight() / request.getDownsample()));
+			if (roi != null) {
+				w = (int)Math.max(1, Math.round(roi.getWidth() / request.getDownsample()));
+				h = (int)Math.max(1, Math.round(roi.getHeight() / request.getDownsample()));
+			}
 			for (int i = 1; i <= nChannels; i++) {
 				int ind = imp2.getStackIndex(i, z, t);
 				ImageProcessor ip = imp2.getStack().getProcessor(ind);
-				ip = ip.resize((int)(ip.getWidth() / request.getDownsample() + 0.5));
+				ip.setInterpolationMethod(ImageProcessor.BILINEAR);
+				ip = ip.resize(w, h, true);
 				if (stackNew == null)
 					stackNew = new ImageStack(ip.getWidth(), ip.getHeight());
 				stackNew.addSlice("Channel " + i, ip);

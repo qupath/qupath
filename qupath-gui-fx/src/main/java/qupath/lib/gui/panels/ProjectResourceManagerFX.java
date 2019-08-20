@@ -13,7 +13,7 @@ import org.controlsfx.validation.Validator;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.TextInputDialog;
 import qupath.lib.gui.helpers.DisplayHelpers;
-import qupath.lib.projects.ProjectResourceManager;
+import qupath.lib.projects.ProjectResources.ProjectResourceManager;
 
 public class ProjectResourceManagerFX {
 	

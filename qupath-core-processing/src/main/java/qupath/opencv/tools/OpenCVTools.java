@@ -21,7 +21,7 @@
  * #L%
  */
 
-package qupath.opencv.processing;
+package qupath.opencv.tools;
 
 import java.awt.image.BufferedImage;
 import java.awt.image.ColorModel;

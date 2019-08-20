@@ -40,6 +40,7 @@ import org.slf4j.LoggerFactory;
 import qupath.lib.color.ColorDeconvolutionStains;
 import qupath.lib.color.ColorDeconvolutionStains.DefaultColorDeconvolutionStains;
 
+@SuppressWarnings("javadoc")
 public class TestGeneralTools {
 	
 	private static Logger logger = LoggerFactory.getLogger(TestGeneralTools.class);

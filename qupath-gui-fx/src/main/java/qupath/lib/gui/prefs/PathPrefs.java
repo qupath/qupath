@@ -1020,21 +1020,34 @@ public class PathPrefs {
 //	}
 	
 	
+	private static DoubleProperty tileCacheProportion = createPersistentPreference("tileCachePercentage", 25.0);
+	
+	public static DoubleProperty tileCacheProportionProperty() {
+		return tileCacheProportion;
+	}
+	
+	
 	// Number of tiles to keep in cache when displaying image
-		public static long getTileCacheSizeBytes() {
-			// Try to compute a sensible value...
-			Runtime rt = Runtime.getRuntime();
-			long maxAvailable = rt.maxMemory(); // Max available memory
-			long minRequired = 500L * 1024L * 1024L; // We need at least 500 MB for tolerable performance
-			long memForCores = 250L * 1024L * 1024L * rt.availableProcessors(); // Want to leave ideally at least 250 MB per processor core
-			long maxSensible = Math.min(maxAvailable/4, 1024L * 1024L * 1024L * 4L); // Shouldn't need more than 4 GB or 25% available memory... better free up memory for processing / objects
-			long memoryEstimate = maxAvailable - memForCores;
-			
-//			long val = Math.min(Math.max(Math.min(minRequired, maxAvailable/2), memoryEstimate), maxSensible);
-			long val = Math.min(Math.max(minRequired, memoryEstimate), maxSensible);
-			logger.info(String.format("Tile cache size: %.2f MB", val/(1024.*1024.)));
-			return val;
+	public static long getTileCacheSizeBytes() {
+		// Try to compute a sensible value...
+		Runtime rt = Runtime.getRuntime();
+		long maxAvailable = rt.maxMemory(); // Max available memory
+		if (maxAvailable == Long.MAX_VALUE) {
+			logger.warn("No inherent maximum memory set - for caching purposes, will assume 64 GB");
+			maxAvailable = 64L * 1024L * 1024L * 1024L;
 		}
+		double percentage = tileCacheProportion.get();
+		if (percentage < 10) {
+			logger.warn("At least 10% of available memory needs to be used for tile caching (you requested {}%)", percentage);
+			percentage = 10;
+		} else if (percentage > 90) {
+			logger.warn("No more than 90% of available memory can be used for tile caching (you requested {}%)", percentage);
+			percentage = 00;			
+		}
+		long tileCacheSize = Math.round(maxAvailable * (percentage / 100.0));
+		logger.info(String.format("Setting tile cache size to %.2f MB (%.1f%% max memory)", tileCacheSize/(1024.*1024.), percentage));
+		return tileCacheSize;
+	}
 	
 	
 	public static boolean showTMAToolTips() {
@@ -1318,6 +1331,54 @@ public class PathPrefs {
 	}
 	
 	
+	/**
+	 * Enum to control font size.
+	 */
+	public static enum FontSize { TINY, SMALL, MEDIUM, LARGE, HUGE;
+		
+		public String getFontSize() {
+			switch(this) {
+			case HUGE:
+				return "1.4em";
+			case LARGE:
+				return "1.2em";
+			case MEDIUM:
+				return "1.0em";
+			case SMALL:
+				return "0.8em";
+			case TINY:
+				return "0.6em";
+			default:
+				return "1em";
+			}
+		}
+		
+		@Override
+		public String toString() {
+			switch(this) {
+			case HUGE:
+				return "Huge";
+			case LARGE:
+				return "Large";
+			case MEDIUM:
+				return "Medium";
+			case SMALL:
+				return "Small";
+			case TINY:
+				return "Tiny";
+			default:
+				return "Unknown";
+			}
+		}
+	}
+	
+	private static ObjectProperty<FontSize> fontSize = PathPrefs.createPersistentPreference(
+			"locationFontSize", FontSize.SMALL, FontSize.class);
+	
+	public static ObjectProperty<FontSize> viewerFontSizeProperty() {
+		return fontSize;
+	}
+	
 	
 	private static DoubleProperty allredMinPercentagePositive = createPersistentPreference("allredMinPercentagePositive", 0.0);
 	
@@ -1351,6 +1412,23 @@ public class PathPrefs {
 	}
 
 
+	private static IntegerProperty minPyramidDimension = createPersistentPreference("minPyramidDimension", 4096);
+	
+	/**
+	 * Minimum image width or height before pyramidalizing (if required).
+	 * @return
+	 */
+	public static IntegerProperty minPyramidDimensionProperty() {
+		return minPyramidDimension;
+	}
+	
+	public static int getMinPyramidDimension() {
+		return minPyramidDimension.get();
+	}
+
+	public static void setMinPyramidDimension(int minLength) {
+		minPyramidDimension.set(minLength);
+	}
 
 	private static IntegerProperty defaultPointRadius = createPersistentPreference("defaultPointRadius", 5);
 

@@ -12,6 +12,7 @@ import org.slf4j.LoggerFactory;
 import javafx.scene.transform.Affine;
 import javafx.scene.transform.TransformChangedEvent;
 import qupath.lib.gui.images.stores.DefaultImageRegionStore;
+import qupath.lib.gui.images.stores.ImageRenderer;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.overlays.AbstractImageDataOverlay;
 import qupath.lib.images.servers.ImageServer;
@@ -29,6 +30,8 @@ public class ImageServerOverlay extends AbstractImageDataOverlay {
 	
 	private QuPathViewer viewer;
 	private ImageServer<BufferedImage> server;
+	
+	private ImageRenderer renderer;
 	
 	private Affine affine = new Affine();
 	
@@ -53,7 +56,6 @@ public class ImageServerOverlay extends AbstractImageDataOverlay {
 		});
 		updateTransform();
 	}
-	
 	
 	public Affine getAffine() {
 		return affine;
@@ -95,7 +97,7 @@ public class ImageServerOverlay extends AbstractImageDataOverlay {
 		} else {
 			logger.debug("Inverse affine transform is null!");
 		}
-		store.paintRegion(server, gCopy, gCopy.getClip(), imageRegion.getZ(), imageRegion.getT(), downsampleFactor, imgThumbnail, observer, null);
+		store.paintRegion(server, gCopy, gCopy.getClip(), imageRegion.getZ(), imageRegion.getT(), downsampleFactor, imgThumbnail, observer, renderer);
 		gCopy.dispose();
 				
 	}

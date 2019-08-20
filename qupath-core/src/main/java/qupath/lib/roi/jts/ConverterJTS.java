@@ -1,4 +1,5 @@
 package qupath.lib.roi.jts;
+
 import java.awt.Shape;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.Area;

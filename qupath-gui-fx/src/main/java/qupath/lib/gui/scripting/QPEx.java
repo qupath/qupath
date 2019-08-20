@@ -260,7 +260,7 @@ public class QPEx extends QP {
 			completed = plugin.runPlugin(runner, args);
 			cancelled = runner.isCancelled();
 		} catch (Exception e) {
-			logger.error("Error running plugin {}", className);
+			logger.error("Error running plugin {}: {}", className, e.getLocalizedMessage());
 			logger.error("", e);
 		}
 		// Notify caller that this failed

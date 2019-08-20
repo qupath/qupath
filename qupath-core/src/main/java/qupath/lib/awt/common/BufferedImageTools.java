@@ -27,7 +27,9 @@ import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.Shape;
 import java.awt.image.BufferedImage;
+import java.awt.image.DataBuffer;
 import java.awt.image.WritableRaster;
+import java.util.Hashtable;
 
 import org.bytedeco.javacpp.indexer.FloatIndexer;
 import org.bytedeco.opencv.global.opencv_core;
@@ -95,26 +97,23 @@ public class BufferedImageTools {
 	}
 
 	/**
-	 * Ensure that an RGB image is the same kind of RGB, so that the int arrays can be treated as 
-	 * storing the pixels as packed RGB values.
+	 * Convert a BufferedImage to have a specified type.
 	 * <p>
-	 * Running this command results in byte array variations, or BGR images are converted to have BufferedImage.TYPE_INT_RGB.
+	 * This makes use of {@code Graphics2D.drawImage}, which imposes limits on supported types 
+	 * (i.e. RGB or 8-bit grayscale), and is therefore <b>not</b> suitable for arbitrary type conversion.
 	 * <p>
-	 * Images that are already RGB, or RGBA are returned unchanged.
+	 * A possible use is to ensure that a BGR/RGB/ARGB image is converted to the same representation, 
+	 * for example to allow packed int arrays to be treated in the same way.
+	 * <p>
+	 * Images that already have the same type are returned unchanged.
 	 * 
 	 * @param img
 	 * @return
+	 * @see #is8bitColorType(int)
 	 */
-	public static BufferedImage ensureIntRGB(final BufferedImage img) {
-		if (img == null)
-			return null;
-		switch (img.getType()) {
-		case BufferedImage.TYPE_3BYTE_BGR:
-		case BufferedImage.TYPE_4BYTE_ABGR:
-		case BufferedImage.TYPE_4BYTE_ABGR_PRE:
-		case BufferedImage.TYPE_INT_BGR:
-			BufferedImage img2 = new BufferedImage(img.getWidth(), img.getHeight(), BufferedImage.TYPE_INT_RGB);
-//			BufferedImage img2 = new BufferedImage(img.getWidth(), img.getHeight(), BufferedImage.TYPE_INT_ARGB_PRE);
+	public static BufferedImage ensureBufferedImageType(final BufferedImage img, int requestedType) {
+		if (img.getType() != requestedType) {
+			BufferedImage img2 = new BufferedImage(img.getWidth(), img.getHeight(), requestedType);
 			Graphics2D g2d = img2.createGraphics();
 			g2d.drawImage(img, 0, 0, null);
 			g2d.dispose();
@@ -123,6 +122,95 @@ public class BufferedImageTools {
 		return img;
 	}
 	
+	/**
+	 * Duplicate a BufferedImage. This retains the same color model, but copies the raster.
+	 * Properties are copied if non-null.
+	 * @param img
+	 * @return
+	 */
+	public static BufferedImage duplicate(BufferedImage img) {
+		return new BufferedImage(
+				img.getColorModel(),
+				img.copyData(img.getRaster().createCompatibleWritableRaster()),
+				img.isAlphaPremultiplied(),
+				extractProperties(img));
+	}
+	
+	/**
+	 * Extract a Hashtable of image properties, which can be passed to a constructor for BufferedImage.
+	 * @param img
+	 * @return
+	 */
+	static Hashtable<Object, Object> extractProperties(BufferedImage img) {
+		String[] names = img.getPropertyNames();
+		if (names == null)
+			return null;
+		Hashtable<Object, Object> properties = null;
+		if (names != null && names.length > 0) {
+			properties = new Hashtable<>();
+			for (String name : names)
+				properties.put(name, img.getProperty(name));
+		}
+		return properties;
+	}
+	
+	/**
+	 * Set all values in a DataBuffer.
+	 * @param buffer the buffer containing the banks whose values should be set.
+	 * @param val the requested value. This will be cast to an int or float if necessary.
+	 */
+	public static void setValues(DataBuffer buffer, double val) {
+		int n = buffer.getSize();
+		int nBanks = buffer.getNumBanks();
+		
+		switch (buffer.getDataType()) {
+		case DataBuffer.TYPE_BYTE:
+		case DataBuffer.TYPE_INT:
+		case DataBuffer.TYPE_USHORT:
+		case DataBuffer.TYPE_SHORT:
+			int ival = (int)val;
+			for (int b = 0; b < nBanks; b++) {
+				for (int i = 0; i < n; i++)
+					buffer.setElem(b, i, ival);
+			}
+		case DataBuffer.TYPE_FLOAT:
+			float fval = (float)val;
+			for (int b = 0; b < nBanks; b++) {
+				for (int i = 0; i < n; i++)
+					buffer.setElemFloat(b, i, fval);
+			}
+		case DataBuffer.TYPE_DOUBLE:
+			for (int b = 0; b < nBanks; b++) {
+				for (int i = 0; i < n; i++)
+					buffer.setElemDouble(b, i, val);
+			}
+		default:
+			throw new IllegalArgumentException("Unable to set values for unknown data buffer type " + buffer.getDataType());
+		}
+	}
+	
+	
+	/**
+	 * Returns true if a BufferedImage type represents an 8-bit color image.
+	 * The precise representation (BGR, RGB, byte, int, with/without alpha) is not important.
+	 * @param type
+	 * @return 
+	 * @see #ensureBufferedImageType(BufferedImage, int)
+	 */
+	public boolean is8bitColorType(int type) {
+		switch(type) {
+		case BufferedImage.TYPE_3BYTE_BGR:
+		case BufferedImage.TYPE_4BYTE_ABGR:
+		case BufferedImage.TYPE_4BYTE_ABGR_PRE:
+		case BufferedImage.TYPE_INT_ARGB:
+		case BufferedImage.TYPE_INT_ARGB_PRE:
+		case BufferedImage.TYPE_INT_BGR:
+		case BufferedImage.TYPE_INT_RGB:
+			return true;
+		default:
+			return false;
+		}
+	}
 
 	/**
 	 * Resize the image to have the requested width/height, using area averaging and bilinear interpolation.
@@ -143,9 +231,9 @@ public class BufferedImageTools {
 		double finalAspectRatio = (double)finalWidth/finalHeight;
 		if (!GeneralTools.almostTheSame(aspectRatio, finalAspectRatio, 0.01)) {
 			if (!GeneralTools.almostTheSame(aspectRatio, finalAspectRatio, 0.05))
-				logger.warn("Substantial difference in aspect ratio for resized image: {}x{} -> {}x{} ({}, {})", img.getWidth(), img.getHeight(), finalWidth, finalHeight, aspectRatio, finalAspectRatio);
+				logger.debug("Substantial difference in aspect ratio for resized image: {}x{} -> {}x{} ({}, {})", img.getWidth(), img.getHeight(), finalWidth, finalHeight, aspectRatio, finalAspectRatio);
 			else
-				logger.warn("Slight difference in aspect ratio for resized image: {}x{} -> {}x{} ({}, {})", img.getWidth(), img.getHeight(), finalWidth, finalHeight, aspectRatio, finalAspectRatio);
+				logger.trace("Slight difference in aspect ratio for resized image: {}x{} -> {}x{} ({}, {})", img.getWidth(), img.getHeight(), finalWidth, finalHeight, aspectRatio, finalAspectRatio);
 		}
 
 		WritableRaster raster = img.getRaster();

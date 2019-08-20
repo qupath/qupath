@@ -23,7 +23,6 @@
 
 package qupath.lib.images.servers;
 
-import java.io.File;
 import java.net.URI;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;

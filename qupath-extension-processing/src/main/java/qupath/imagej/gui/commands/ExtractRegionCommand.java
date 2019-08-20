@@ -23,6 +23,7 @@
 
 package qupath.imagej.gui.commands;
 
+import ij.CompositeImage;
 import ij.IJ;
 import ij.ImageJ;
 import ij.ImagePlus;
@@ -35,6 +36,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import javax.swing.SwingUtilities;
 
@@ -46,6 +48,7 @@ import qupath.imagej.tools.IJTools;
 import qupath.lib.awt.common.AwtTools;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.display.ChannelDisplayInfo;
+import qupath.lib.display.ChannelDisplayInfo.SingleChannelDisplayInfo;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.helpers.DisplayHelpers;
@@ -155,7 +158,8 @@ public class ExtractRegionCommand implements PathCommand {
 			downsample = resolution / (server.getPixelCalibration().getPixelHeight().doubleValue()/2.0 + server.getPixelCalibration().getPixelWidth().doubleValue()/2.0);
 		
 		// Color transforms are (currently) only applied for brightfield images - for fluorescence we always provide everything as unchanged as possible
-		List<ChannelDisplayInfo> channels = doTransforms && !viewer.getImageDisplay().selectedChannels().isEmpty() ? viewer.getImageDisplay().selectedChannels() : null;
+		List<ChannelDisplayInfo> selectedChannels = new ArrayList<>(viewer.getImageDisplay().selectedChannels());
+		List<ChannelDisplayInfo> channels = doTransforms && !selectedChannels.isEmpty() ? selectedChannels : null;
 		if (channels != null)
 			server = ChannelDisplayTransformServer.createColorTransformServer(server, channels);
 
@@ -185,10 +189,11 @@ public class ExtractRegionCommand implements PathCommand {
 				region = RegionRequest.createInstance(server.getPath(), downsample, roi);
 			//					region = RegionRequest.createInstance(server.getPath(), downsample, pathObject.getROI(), viewer.getZPosition(), viewer.getTPosition());
 	
-			if (region.getWidth() / downsample < 8 || region.getHeight() / downsample < 8) {
-				DisplayHelpers.showErrorMessage("Send region to ImageJ", "The width & height of the extracted image must both be >= 8 pixels");
-				continue;
-			}
+			// Minimum size has been removed (v0.2.0-m4); returned regions should be at least 1x1 pixels
+//			if (region.getWidth() / downsample < 8 || region.getHeight() / downsample < 8) {
+//				DisplayHelpers.showErrorMessage("Send region to ImageJ", "The width & height of the extracted image must both be >= 8 pixels");
+//				continue;
+//			}
 
 			// Calculate required z-slices and time-points
 			int zStart = doZ ? 0 : region.getZ();
@@ -229,7 +234,8 @@ public class ExtractRegionCommand implements PathCommand {
 						for (int t = tStart; t < tEnd; t++) {
 							for (int z = zStart; z < zEnd; z++) {
 								RegionRequest request2 = RegionRequest.createInstance(region.getPath(), region.getDownsample(), region.getX(), region.getY(), region.getWidth(), region.getHeight(), z, t);
-								Overlay temp = IJExtension.extractOverlay(hierarchy, request2, options, p -> p != pathObject);
+								var regionPredicate = PathObjectTools.createImageRegionPredicate(request2);
+								Overlay temp = IJExtension.extractOverlay(hierarchy, request2, options, p -> p != pathObject && regionPredicate.test(p));
 								if (overlay == null)
 									overlay = temp;
 								for (int i = 0; i < temp.size(); i++) {
@@ -246,6 +252,27 @@ public class ExtractRegionCommand implements PathCommand {
 					imp = IJExtension.extractROIWithOverlay(server, pathObject, hierarchy, region, includeROI, options).getImage();			
 				else
 					imp = IJExtension.extractROIWithOverlay(server, pathObject, null, region, includeROI, options).getImage();			
+				
+				// Set display ranges if we can
+				if (viewer != null && imp instanceof CompositeImage) {
+					var availableChannels = viewer.getImageDisplay().availableChannels().stream()
+							.filter(c -> c instanceof SingleChannelDisplayInfo)
+							.map(c -> (SingleChannelDisplayInfo)c)
+							.collect(Collectors.toList());
+					CompositeImage impComp = (CompositeImage)imp;
+					if (availableChannels.size() == imp.getNChannels()) {
+						for (int c = 0; c < availableChannels.size(); c++) {
+							var channel = availableChannels.get(c);
+							imp.setPosition(c+1, 1, 1);
+							impComp.setDisplayRange(channel.getMinDisplay(), channel.getMaxDisplay());
+						}
+						imp.setPosition(1);
+					}
+				} else if (selectedChannels.size() == 1 && imp.getType() != ImagePlus.COLOR_RGB) {
+					// Setting the display range for non-RGB images can give unexpected results (changing pixel values)
+					var channel = selectedChannels.get(0);
+					imp.setDisplayRange(channel.getMinDisplay(), channel.getMaxDisplay());
+				}
 				imps.add(imp);
 			} catch (IOException e) {
 				DisplayHelpers.showErrorMessage("Send region to ImageJ", e);

@@ -28,7 +28,8 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Map;
 import java.net.URI;
-import java.util.HashMap;
+import java.util.Arrays;
+import java.util.Collections;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -48,15 +49,12 @@ public class BioFormatsServerBuilder implements ImageServerBuilder<BufferedImage
 	
 	final private static Logger logger = LoggerFactory.getLogger(BioFormatsServerBuilder.class);
 	
-	final private Map<URI, Float> lastSupportLevel = new HashMap<>();
-	
 	@Override
 	public ImageServer<BufferedImage> buildServer(URI uri, String...args) {
 		try {
 			BioFormatsImageServer server = new BioFormatsImageServer(uri, args);
 			return server;
 		} catch (Exception e) {
-			lastSupportLevel.put(uri, Float.valueOf(0f));
 			logger.error("Unable to open {}: {}", uri, e);
 		}
 		return null;
@@ -67,7 +65,13 @@ public class BioFormatsServerBuilder implements ImageServerBuilder<BufferedImage
 		float supportLevel = supportLevel(uri, args);
 		if (supportLevel > 0) {
 			try (BioFormatsImageServer server = new BioFormatsImageServer(uri, BioFormatsServerOptions.getInstance(), args)) {
-				Map<String, ServerBuilder<BufferedImage>> builders = server.getImageBuilders();
+				// If we requested a specified series, just allow one builder
+				Map<String, ServerBuilder<BufferedImage>> builders;
+				if (args.length > 0 && Arrays.asList(args).contains("--series"))
+					builders = Collections.singletonMap(server.getMetadata().getName(), server.getBuilder());
+				else
+					// If we didn't specify a series, return all of them
+					builders = server.getImageBuilders();
 				return UriImageSupport.createInstance(this.getClass(), supportLevel, builders.values());
 			} catch (Exception e) {
 				logger.debug("Unable to create server using Bio-Formats", e);
@@ -76,7 +80,7 @@ public class BioFormatsServerBuilder implements ImageServerBuilder<BufferedImage
 		return null;
 	}
 	
-	private float supportLevel(URI uri, String... args) {
+	private static float supportLevel(URI uri, String... args) {
 		
 		// We also can't do anything if Bio-Formats isn't installed
 		if (getBioFormatsVersion() == null)
@@ -98,11 +102,6 @@ public class BioFormatsServerBuilder implements ImageServerBuilder<BufferedImage
 			default:
 				break;
 		}
-		
-		// Avoid calculated support again if we don't have to
-		Float lastSupport = lastSupportLevel.getOrDefault(uri, null);
-		if (lastSupport != null)
-			return lastSupport.floatValue();
 		
 		// We don't want to handle zip files (which are very slow)
 		float support = 3f;
@@ -140,7 +139,6 @@ public class BioFormatsServerBuilder implements ImageServerBuilder<BufferedImage
 				logger.debug("Potential Bio-Formats reader: {}", supportedReader);
 			}
 		}
-		lastSupportLevel.put(uri, Float.valueOf(support));
 		return support;
 	}
 

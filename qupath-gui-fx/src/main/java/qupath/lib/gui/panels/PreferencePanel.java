@@ -48,6 +48,7 @@ import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.helpers.ColorToolsFX;
 import qupath.lib.gui.helpers.CommandFinderTools.CommandBarDisplay;
 import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.gui.prefs.PathPrefs.FontSize;
 import qupath.lib.gui.prefs.PathPrefs.ImageTypeSetting;
 import qupath.lib.gui.prefs.QuPathStyleManager;
 
@@ -109,6 +110,13 @@ public class PreferencePanel {
 				category,
 				"Automatically check for updated when QuPath is started, and show a message if a new version is available.");
 		
+		addPropertyPreference(PathPrefs.tileCacheProportionProperty(),
+				Double.class,
+				"Percentage memory for tile caching",
+				category,
+				"Percentage of maximum memory to use for caching image tiles (must be >10% and <90%; suggested value is 25%)." +
+				"\nA high value can improve performance (especially for multichannel images), but increses risk of out-of-memory errors." +
+				"\nChanges take effect when QuPath is retarted.");
 		
 		addPropertyPreference(PathPrefs.showImageNameInTitleProperty(), Boolean.class,
 				"Show image name in window title",
@@ -171,6 +179,12 @@ public class PreferencePanel {
 			"Use project image cache",
 			category,
 			"Store image tiles for hosted images of each project in a local cache.\nThis avoids requiring lengthy HTTP requests every time an image is (re)analysed or viewed, at the cost of needing more local storage space.");
+		
+		addPropertyPreference(PathPrefs.minPyramidDimensionProperty(), Integer.class,
+				"Minimize image dimension for pyramidizing",
+				category,
+				"Allow an image pyramid to be calculated for a single-resolution image if either the width or height is greater than this size");
+
 		
 		addPropertyPreference(PathPrefs.tmaExportDownsampleProperty(), Double.class,
 			"TMA export downsample factor",
@@ -242,6 +256,11 @@ public class PreferencePanel {
 				category,
 				"Zoom in when double-clicking on image (if not inside an object) with move tool; zoom out if Alt or Ctrl/Cmd is held down");
 
+		addPropertyPreference(PathPrefs.viewerFontSizeProperty(),
+				FontSize.class,
+				"Viewer font size",
+				category,
+				"Adjust font size for scalebar and location text");
 
 		addPropertyPreference(PathPrefs.useCalibratedLocationStringProperty(), Boolean.class,
 				"Use calibrated location text",

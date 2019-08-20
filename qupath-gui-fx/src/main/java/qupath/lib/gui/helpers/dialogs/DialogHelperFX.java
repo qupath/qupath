@@ -38,13 +38,11 @@ import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
-import javafx.geometry.Insets;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
-import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.FileChooser;
@@ -243,7 +241,6 @@ public class DialogHelperFX implements DialogHelper {
 			return callOnPlatformThread(() -> promptToSaveFile(title, dirBase, defaultName, filterName, ext));
 		}
 
-		
 		File lastDir = getLastDirectory();
 		fileChooser.setInitialDirectory(getUsefulBaseDirectory(dirBase));
 		if (title != null)
@@ -267,17 +264,17 @@ public class DialogHelperFX implements DialogHelper {
 				setLastDirectory(fileSelected);
 			else
 				fileChooser.setInitialDirectory(lastDir);
-			// Ensure the extension is present
-			String name = fileSelected.getName();
-			if (!name.toLowerCase().endsWith(ext.toLowerCase())) {
-				if (name.endsWith("."))
-					name = name.substring(0, name.length()-1);
-				if (ext.startsWith("."))
-					name = name + ext;
-				else
-					name = name + "." + ext;
-				fileSelected = new File(fileSelected.getParentFile(), name);
-			}
+//			// Ensure the extension is present
+//			String name = fileSelected.getName();
+//			if (ext != null && !name.toLowerCase().endsWith(ext.toLowerCase())) {
+//				if (name.endsWith("."))
+//					name = name.substring(0, name.length()-1);
+//				if (ext.startsWith("."))
+//					name = name + ext;
+//				else
+//					name = name + "." + ext;
+//				fileSelected = new File(fileSelected.getParentFile(), name);
+//			}
 		}
 		
 		logger.trace("Returning file to save: {}", fileSelected);

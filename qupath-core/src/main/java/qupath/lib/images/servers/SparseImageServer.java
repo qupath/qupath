@@ -44,8 +44,6 @@ public class SparseImageServer extends AbstractTileableImageServer {
 	
 	private SparseImageServerManager manager;
 	
-	private transient Map<String, BufferedImage> emptyTileMap = new HashMap<>();
-	
 	private transient ColorModel colorModel;
 	
 	private int originZ = 0, originT = 0;
@@ -87,7 +85,6 @@ public class SparseImageServer extends AbstractTileableImageServer {
 			if (region.getY() + region.getHeight() > y2)
 				y2 = region.getY() + region.getHeight();
 			
-			System.err.println(region);
 			if (region.getZ() < minZ)
 				minZ = region.getZ();
 			if (region.getZ() > maxZ)
@@ -138,6 +135,11 @@ public class SparseImageServer extends AbstractTileableImageServer {
 				.levelsFromDownsamples(manager.getAvailableDownsamples())
 				.build();
 		
+	}
+	
+	@Override
+	protected ColorModel getDefaultColorModel() {
+		return colorModel;
 	}
 	
 	@Override
@@ -256,17 +258,7 @@ public class SparseImageServer extends AbstractTileableImageServer {
 		// To avoid problems with returning nulls, create an empty compatible raster where needed - 
 		// reusing an existing raster where possible to reduce memory requirements.
 		if (raster == null) {
-			String key = tileRequest.getTileWidth() + "x" + tileRequest.getTileHeight();
-			BufferedImage imgEmpty = emptyTileMap.get(key);
-			if (imgEmpty == null) {
-				logger.trace("Creating new reusable empty tile for {}", tileRequest.getRegionRequest());
-				raster = colorModel.createCompatibleWritableRaster(tileRequest.getTileWidth(), tileRequest.getTileHeight());
-				imgEmpty = new BufferedImage(colorModel, raster, false, null);
-				emptyTileMap.put(key, imgEmpty);
-			} else {
-				logger.trace("Returning reusable empty tile for {}", tileRequest.getRegionRequest());
-			}
-			return imgEmpty;
+			return getEmptyTile(tileRequest.getTileWidth(), tileRequest.getTileHeight(), true);
 		}
 //		System.err.println(String.format("%.2f - %.2f", (double)tileRequest.getImageHeight()/raster.getHeight(), tileRequest.getDownsample()));
 		return new BufferedImage(colorModel, raster, false, null);

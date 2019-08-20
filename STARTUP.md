@@ -1,7 +1,7 @@
-QuPath v0.2.0-m3
+QuPath v0.2.0-m4
 ==============
 
-Welcome to QuPath v0.2.0-m3!
+Welcome to QuPath v0.2.0-m4!
 
 You can read more about what is different at https://qupath.github.io/
 
@@ -19,6 +19,7 @@ The final tip is a reward for people who read this message.
 * To get started with QuPath: https://github.com/qupath/qupath/wiki/Getting-started
 * For help & most user questions: https://forum.image.sc/tags/qupath
 * To report bugs: https://github.com/qupath/qupath/issues
+* To follow on Twitter: https://twitter.com/qupath
 
 ** Don't forget to cite QuPath in any publications where you use it! **
 See https://github.com/qupath/qupath/wiki/Citing-QuPath to learn how.

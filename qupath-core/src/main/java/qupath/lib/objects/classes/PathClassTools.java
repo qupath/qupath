@@ -19,6 +19,18 @@ public class PathClassTools {
 	}
 	
 	/**
+	 * Returns true if the PathClass should be ignored from some operations.
+	 * In practice, this checks if the name ends with an asterisk.
+	 * It is useful to avoid generating objects for certain classes (e.g. Ignore*, Artefact*, Background*) 
+	 * where these would not be meaningful.
+	 * @param pathClass
+	 * @return
+	 */
+	public static boolean isIgnoredClass(final PathClass pathClass) {
+		return pathClass.getName().endsWith("*");
+	}
+	
+	/**
 	 * Returns true if the name of the class is "1+", indicating a weakly-positive staining.
 	 * @param pathClass
 	 * @return

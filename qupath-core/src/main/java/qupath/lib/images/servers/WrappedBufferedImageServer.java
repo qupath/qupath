@@ -31,6 +31,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.UUID;
 
+import qupath.lib.awt.common.BufferedImageTools;
 import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
 
 /**
@@ -59,7 +60,7 @@ public class WrappedBufferedImageServer extends AbstractTileableImageServer {
 	 */
 	public WrappedBufferedImageServer(final String imageName, final BufferedImage img) {
 		super();
-		this.img = duplicate(img);
+		this.img = BufferedImageTools.duplicate(img);
 
 		// Create metadata objects
 		PixelType pixelType;

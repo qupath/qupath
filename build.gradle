@@ -26,13 +26,12 @@ def additionalResourcesDir = "build/${qupathOutputDir}"
 /*
  * JavaFX version
  */
-def jfxVersion = '12.0.1'
+def jfxVersion = '12.0.2'
 
 /*
  * OpenCV version
  */
-def opencvVersion = '4.0.1-1.5'
-// def opencvVersion = '4.1.0-1.5.1' // Got UnsatisfiedLinkError troubles with this on Windows 10
+def opencvVersion = '4.1.0-1.5.1'
 
 /*
  * Include OpenCV binaries with GPU support (quite big, may not be used?)
@@ -159,6 +158,7 @@ subprojects {
 
     opencv 'org.bytedeco:opencv:${opencvVersion}'
     if (nativesCPP != null) {
+	  opencv "org.bytedeco:openblas::${nativesCPP}" // Required for OpenCV with JavaCPP >= 1.5.1
       if (useGPU)
         opencv "org.bytedeco:opencv:${opencvVersion}:${nativesCPP}-gpu"
       else
@@ -274,6 +274,9 @@ allprojects {
     }
     maven {
       url 'https://artifacts.openmicroscopy.org/artifactory/maven/'
+    }
+    maven {
+      url 'https://oss.sonatype.org/content/repositories/snapshots'
     }
     maven { url "../maven/repo" }
   }

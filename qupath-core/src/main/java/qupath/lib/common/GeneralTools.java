@@ -144,7 +144,10 @@ public class GeneralTools {
 	/**
 	 * Test if two doubles are approximately equal, within a specified tolerance.
 	 * <p>
-	 * The absolute difference is divided by the first of the numbers before the tolerance is checked.
+	 * Returns true if the numbers are equal, or the absolute difference divided by the average is less than the specified tolerance.
+	 * <p>
+	 * Note that this calculation changed in v0.2.0-m4. The previous behavior divided the absolute difference by the first value only, 
+	 * which is not robust to differences in the input order or if the first value is negative.
 	 * 
 	 * @param n1
 	 * @param n2
@@ -152,7 +155,11 @@ public class GeneralTools {
 	 * @return
 	 */
 	public static boolean almostTheSame(double n1, double n2, double tolerance) {
-		return Math.abs(n1 - n2)/n1 < tolerance;
+		if (n1 == n2)
+			return true;
+		double difference = n1 - n2;
+		double average = (n1/2 + n2/2);
+		return Math.abs(difference / average) < tolerance;
 	}
 	
 	

@@ -199,10 +199,10 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 								type == ROW_TYPE.PIXEL_HEIGHT) {
 							metadataChanged = promptToSetPixelSize(imageData, false);
 						} else if (type == ROW_TYPE.MAGNIFICATION) {
-							metadataChanged = promptToSetMagnification(imageData.getServer());
+							metadataChanged = promptToSetMagnification(imageData);
 						} else if (type == ROW_TYPE.METADATA_CHANGED) {
 							if (!hasOriginalMetadata(imageData.getServer())) {
-								metadataChanged = promptToResetServerMetadata(imageData.getServer());
+								metadataChanged = promptToResetServerMetadata(imageData);
 							}
 						}
 						if (metadataChanged) {
@@ -315,7 +315,8 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 	}
 	
 	
-	static boolean promptToResetServerMetadata(ImageServer<BufferedImage> server) {
+	static boolean promptToResetServerMetadata(ImageData<BufferedImage> imageData) {
+		var server = imageData.getServer();
 		if (hasOriginalMetadata(server)) {
 			logger.info("ImageServer metadata is unchanged!");
 			return false;
@@ -323,14 +324,15 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 		var originalMetadata = server.getOriginalMetadata();
 		
 		if (DisplayHelpers.showConfirmDialog("Reset metadata", "Reset to original metadata?")) {
-			server.setMetadata(originalMetadata);
+			imageData.updateServerMetadata(originalMetadata);
 			return true;
 		}
 		return false;
 	}
 	
 	
-	static boolean promptToSetMagnification(ImageServer<BufferedImage> server) {
+	static boolean promptToSetMagnification(ImageData<BufferedImage> imageData) {
+		var server = imageData.getServer();
 		Double mag = server.getMetadata().getMagnification();
 		if (mag != null && !Double.isFinite(mag))
 			mag = null;
@@ -342,7 +344,7 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 		var metadata2 = new ImageServerMetadata.Builder(server.getMetadata())
 			.magnification(mag2)
 			.build();
-		server.setMetadata(metadata2);
+		imageData.updateServerMetadata(metadata2);
 		return true;
 	}
 	
@@ -418,7 +420,7 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 			pixelWidthMicrons = params.getDoubleParameterValue("pixelWidth");
 			pixelHeightMicrons = params.getDoubleParameterValue("pixelHeight");
 		}
-		return setPixelSizeMicrons(server, pixelWidthMicrons, pixelHeightMicrons, zSpacingMicrons);
+		return setPixelSizeMicrons(imageData, pixelWidthMicrons, pixelHeightMicrons, zSpacingMicrons);
 	}
 	
 	
@@ -427,13 +429,14 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 	 * <p>
 	 * Returns true if changes were made, false otherwise.
 	 * 
-	 * @param server
+	 * @param imageData
 	 * @param pixelWidthMicrons
 	 * @param pixelHeightMicrons
 	 * @param zSpacingMicrons
 	 * @return
 	 */
-	static boolean setPixelSizeMicrons(ImageServer<BufferedImage> server, Number pixelWidthMicrons, Number pixelHeightMicrons, Number zSpacingMicrons) {
+	static boolean setPixelSizeMicrons(ImageData<BufferedImage> imageData, Number pixelWidthMicrons, Number pixelHeightMicrons, Number zSpacingMicrons) {
+		var server = imageData.getServer();
 		if (isFinite(pixelWidthMicrons) && !isFinite(pixelHeightMicrons))
 			pixelHeightMicrons = pixelWidthMicrons;
 		else if (isFinite(pixelHeightMicrons) && !isFinite(pixelWidthMicrons))
@@ -445,7 +448,7 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 			.build();
 		if (server.getMetadata().equals(metadataNew))
 			return false;
-		server.setMetadata(metadataNew);
+		imageData.updateServerMetadata(metadataNew);
 		return true;
 	}
 	
@@ -680,7 +683,7 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 	@Override
 	public void propertyChange(PropertyChangeEvent evt) {
 		setImageData(imageData);
-		
+//		table.refresh();
 //		table.repaint();
 	}
 
@@ -695,7 +698,7 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 		
 		private ImageData<BufferedImage> imageData;
 		
-		protected enum ROW_TYPE {NAME, URI, BIT_DEPTH, MAGNIFICATION, WIDTH, HEIGHT, DIMENSIONS, PIXEL_WIDTH, PIXEL_HEIGHT, SERVER_TYPE, PYRAMID, METADATA_CHANGED, IMAGE_TYPE};
+		protected enum ROW_TYPE {NAME, URI, BIT_DEPTH, MAGNIFICATION, WIDTH, HEIGHT, DIMENSIONS, PIXEL_WIDTH, PIXEL_HEIGHT, UNCOMPRESSED_SIZE, SERVER_TYPE, PYRAMID, METADATA_CHANGED, IMAGE_TYPE};
 
 //		protected enum ROW_TYPE {PATH, IMAGE_TYPE, MAGNIFICATION, WIDTH, HEIGHT, PIXEL_WIDTH, PIXEL_HEIGHT,
 //				CHANNEL_1, CHANNEL_1_STAIN, CHANNEL_2, CHANNEL_2_STAIN, CHANNEL_3, CHANNEL_3_STAIN
@@ -768,6 +771,8 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 				return "Pixel width";
 			case PIXEL_HEIGHT:
 				return "Pixel height";
+			case UNCOMPRESSED_SIZE:
+				return "Uncompressed size";
 			case SERVER_TYPE:
 				return "Server type";
 			case PYRAMID:
@@ -848,6 +853,17 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 					return String.format("%.4f %s", cal.getPixelHeightMicrons(), GeneralTools.micrometerSymbol());
 				else
 					return "Unknown";
+			case UNCOMPRESSED_SIZE:
+				double size =
+						server.getWidth()/1024.0 * server.getHeight()/1024.0 * 
+						server.getPixelType().getBytesPerPixel() * server.nChannels() *
+						server.nZSlices() * server.nTimepoints();
+				String units = " MB";
+				if (size > 1000) {
+					size /= 1024.0;
+					units = " GB";
+				}
+				return GeneralTools.formatNumber(size, 1) + units;
 			case SERVER_TYPE:
 				return server.getServerType();
 			case PYRAMID:

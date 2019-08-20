@@ -38,6 +38,9 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import qupath.imagej.processing.RoiLabeling;
 import qupath.imagej.tools.IJTools;
 import qupath.lib.common.GeneralTools;
@@ -67,6 +70,8 @@ import qupath.lib.roi.interfaces.ROI;
  */
 public class DoGSuperpixelsPlugin extends AbstractTileableDetectionPlugin<BufferedImage> {
 
+	private static Logger logger = LoggerFactory.getLogger(DoGSuperpixelsPlugin.class);
+	
 	@Override
 	public String getName() {
 		return "DoG superpixel creator";
@@ -186,6 +191,7 @@ public class DoGSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffer
 			if (pathROI != null) {
 				Roi roi = IJTools.convertToIJRoi(pathROI, pathImage);
 				RoiLabeling.clearOutside(ipLabels, roi);
+				// TODO: Avoid clipping so much (especially bad with parallel tiling)
 				// It's important to move away from the containing ROI, to help with brush selections ending up
 				// having the correct parent (i.e. don't want to risk moving slightly outside the parent object's ROI)
 				ipLabels.setValue(0);
@@ -218,6 +224,7 @@ public class DoGSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffer
 					PathArea superpixelROI = (PathArea)IJTools.convertToROI(roi, pathImage);
 					if (pathROI == null)
 						continue;
+					// TODO: Consider clipping to the parent ROI if required (with sub-pixel accuracy)
 					PathObject tile = PathObjects.createTileObject(superpixelROI);
 					pathObjects.add(tile);
 					label++;
@@ -225,7 +232,7 @@ public class DoGSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffer
 					ipLabels.fill(roi);
 				}
 			} catch (Exception e) {
-				e.printStackTrace();
+				logger.error("Error creating superpixels", e);
 			}
 			fpOrig.resetRoi();
 

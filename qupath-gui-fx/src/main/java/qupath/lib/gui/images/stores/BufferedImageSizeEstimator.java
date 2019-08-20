@@ -42,7 +42,8 @@ class BufferedImageSizeEstimator implements SizeEstimator<BufferedImage> {
 		if (img == null)
 			return 0;
 		DataBuffer data = img.getRaster().getDataBuffer();
-		return Math.round(data.getSize() * DataBuffer.getDataTypeSize(data.getDataType()) / 8.0 * data.getNumBanks());
+		long size = Math.round(data.getSize() * DataBuffer.getDataTypeSize(data.getDataType()) / 8.0 * data.getNumBanks());
+		return size;
 	}
 	
 }

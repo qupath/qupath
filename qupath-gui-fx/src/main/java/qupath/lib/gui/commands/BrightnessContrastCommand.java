@@ -417,16 +417,17 @@ public class BrightnessContrastCommand implements PathCommand, ImageDataChangeLi
 								return;
 							
 							// Update the server metadata
-							var server = viewer.getServer();
+							var imageData = viewer.getImageData();
 							int colorUpdated = ColorToolsFX.getRGB(color2);
-							if (server != null) {
+							if (imageData != null) {
+								var server = imageData.getServer();
 								var metadata = server.getMetadata();
 								var channels = new ArrayList<>(metadata.getChannels());
 								var channel = channels.get(c);
 								channels.set(c, ImageChannel.getInstance(channel.getName(), colorUpdated));
 								var metadata2 = new ImageServerMetadata.Builder(metadata)
 										.channels(channels).build();
-								server.setMetadata(metadata2);
+								imageData.updateServerMetadata(metadata2);
 							}
 							
 							// Update the display
@@ -574,6 +575,20 @@ public class BrightnessContrastCommand implements PathCommand, ImageDataChangeLi
 		}
 		if (infoSelected != null)
 			xAxis.setTickUnit(infoSelected.getMaxAllowed() - infoSelected.getMinAllowed());
+		
+		// Don't use the first of last count if it's an outlier
+		NumberAxis yAxis = (NumberAxis)histogramPanel.getChart().getYAxis();
+		if (infoSelected != null && histogram != null) {
+			long maxCount = 0L;
+			for (int i = 1; i < histogram.nBins()-1; i++)
+				maxCount = Math.max(maxCount, histogram.getCountsForBin(i));
+			if (maxCount == 0)
+				maxCount = histogram.getMaxCount();
+			yAxis.setAutoRanging(false);
+			yAxis.setLowerBound(0);
+			yAxis.setUpperBound((double)maxCount / histogram.getCountSum());
+		}
+		
 		
 		histogramPanel.getChart().getXAxis().setTickLabelsVisible(true);
 		histogramPanel.getChart().getXAxis().setLabel("Pixel value");
@@ -889,7 +904,9 @@ public class BrightnessContrastCommand implements PathCommand, ImageDataChangeLi
 			Platform.runLater(() -> propertyChange(evt));
 			return;
 		}
-		if (!((evt.getSource() instanceof ImageData<?>) && evt.getPropertyName().equals("stains")))
+		// Update display - we might have changed stain vectors or server metadata in some major way
+		if (evt.getPropertyName().equals("serverMetadata") || 
+				!((evt.getSource() instanceof ImageData<?>) && evt.getPropertyName().equals("stains")))
 			imageDisplay.updateChannelOptions(false);
 		
 		updateTable();
@@ -949,9 +966,10 @@ public class BrightnessContrastCommand implements PathCommand, ImageDataChangeLi
 		}
 		
 		void doPaste(KeyEvent event) {
-			ImageServer<BufferedImage> server = viewer.getServer();
-			if (server == null)
+			ImageData<BufferedImage> imageData = viewer.getImageData();
+			if (imageData == null)
 				return;
+			ImageServer<BufferedImage> server = imageData.getServer();
 			
 			var clipboard = Clipboard.getSystemClipboard();
 			var string = clipboard.getString();
@@ -1009,8 +1027,8 @@ public class BrightnessContrastCommand implements PathCommand, ImageDataChangeLi
 				if (dialog.showAndWait().orElseGet(() -> ButtonType.CANCEL) == ButtonType.APPLY) {
 					var newMetadata = new ImageServerMetadata.Builder(metadata)
 							.channels(channels).build();
-					server.setMetadata(newMetadata);
-					table.refresh();
+					imageData.updateServerMetadata(newMetadata);
+//					table.refresh();
 				}
 			}
 		}

@@ -27,6 +27,7 @@ import java.awt.Shape;
 import java.awt.image.BufferedImage;
 import java.text.DecimalFormat;
 
+import javafx.beans.binding.Bindings;
 import javafx.scene.Node;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
@@ -37,6 +38,7 @@ import javafx.scene.shape.Line;
 import javafx.scene.text.TextAlignment;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.helpers.ColorToolsFX;
+import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.PixelCalibration;
@@ -78,6 +80,13 @@ public class Scalebar implements QuPathViewerListener {
 		this.viewer = viewer;
 		this.preferredLength = preferredLength;
 		viewer.addViewerListener(this);
+		
+		label.setTextAlignment(TextAlignment.CENTER);
+		var fontBinding = Bindings.createStringBinding(() -> {
+				var temp = PathPrefs.viewerFontSizeProperty().get();
+				return temp == null ? null : "-fx-font-size: " + temp.getFontSize();
+		}, PathPrefs.viewerFontSizeProperty());
+		label.styleProperty().bind(fontBinding);
 	}
 	
 	

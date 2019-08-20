@@ -34,6 +34,7 @@ import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
 import qupath.lib.objects.classes.PathClass;
+import qupath.lib.projects.ProjectResources.ProjectResourceManager;
 
 /**
  * Data structure to manage images and associated data in QuPath.
