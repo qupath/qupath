@@ -775,9 +775,9 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 					menuAutomate,
 					null,
 					createCommandAction(new SampleScriptLoader(this), "Open sample scripts"),
-					projectScriptMenuLoader.getMenu(),
 					sharedScriptMenuLoader.getMenu(),
-					userScriptMenuLoader.getMenu()
+					userScriptMenuLoader.getMenu(),
+					projectScriptMenuLoader.getMenu()
 					);
 		}
 		

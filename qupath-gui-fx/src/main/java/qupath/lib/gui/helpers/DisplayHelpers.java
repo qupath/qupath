@@ -452,7 +452,7 @@ public class DisplayHelpers {
 			Platform.runLater(() -> showErrorNotification(title, e));
 			return;
 		}
-		logger.error("{}", title, e);
+		logger.error(title, e);
 		String message = e.getLocalizedMessage();
 		if (message == null)
 			message = "QuPath has encountered a problem, sorry.\nIf you can replicate it, please notify a developer.\n\n" + e;
