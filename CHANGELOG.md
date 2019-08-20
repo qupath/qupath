@@ -1,5 +1,36 @@
+## Version 0.2.0-m4
+This is a *milestone* (i.e. still in development) version made available to try out new features early.
+Changes include:
+* Positive cell detection supports different stainings (including multiplexed images)
+* Cell detection & the intensity measurement command use channel names rather than numbers
+  * (Note that channel order is still important when scripting the intensity measurement command)
+* Big changes to memory management
+  * Improved tile caching (using Guava) & more control
+  * Specify the proportion of available memory for tile caching in the preferences
+* New options when importing images to a project
+  * 'Pyramidalize' large, single-resolution images
+  * Rotate images on import (90 degree increments)
+  * Specify the image reading library (e.g. Bio-Formats, OpenSlide)
+* Improved resolution of paths to missing or moved images within projects
+  * New 'Search' button allows recursive search for missing images
+* Improved 'Measurement map' behavior and colormap support
+* Specify line cap when expanding line annotations
+  * For why this matters, see https://github.com/qupath/qupath/issues/228#issuecomment-518552859
+* 'Send region to ImageJ' improvements
+  * Only send objects within the field of view as an overlay
+  * Set lookup tables where possible
+  * Support arbitrary small regions (can now send a 1x1 pixel image)
+* New preferences to specify viewer font size (scalebar, location text)
+* Code formatting is asynchronous (causes small delay, but reduces errors)
+* Project scripts are back... accessible from the 'Automate' menu
+* More bugs fixed and others improvements, including
+  * Exceptions when generating some viewer/window snapshots
+  * Resolving relative URIs on Mac/Linux - https://github.com/qupath/qupath/issues/346
+  * SLIC bug - https://github.com/qupath/qupath/issues/344
+
+
 ## Version 0.2.0-m3
-This is a *milestone* (i.e. still in development) version made available to try out new features early!
+This is a *milestone* (i.e. still in development) version made available to try out new features early.
 Changes include:
 * Completely revised projects
   * New image importer, supports drag & drop for multiple images
