@@ -738,16 +738,22 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		Menu menuAutomate = getMenu("Automate", false);
 		ScriptEditor editor = getScriptEditor();
 		sharedScriptMenuLoader = new ScriptMenuLoader("Shared scripts...", PathPrefs.scriptsPathProperty(), (DefaultScriptEditor)editor);
+		
 		// TODO: Reintroduce project scripts
-//		StringBinding projectScriptsPath = Bindings.createStringBinding(() -> {
-//			if (project.get() == null)
-//				return null;
+		StringBinding projectScriptsPath = Bindings.createStringBinding(() -> {
+			var project = getProject();
+			if (project == null)
+				return null;
+			File dir = Projects.getBaseDirectory(project);
+			if (dir == null)
+				return null;
+			return new File(dir, "scripts").getAbsolutePath();
 //			return getProjectScriptsDirectory(false).getAbsolutePath();
-//		}, project);
-//		projectScriptMenuLoader = new ScriptMenuLoader("Project scripts...", projectScriptsPath, (DefaultScriptEditor)editor);
-//		projectScriptMenuLoader.getMenu().visibleProperty().bind(
-//				Bindings.isNotNull(project).or(initializingMenus)
-//				);
+		}, project);
+		var projectScriptMenuLoader = new ScriptMenuLoader("Project scripts...", projectScriptsPath, (DefaultScriptEditor)editor);
+		projectScriptMenuLoader.getMenu().visibleProperty().bind(
+				project.isNotNull().and(initializingMenus.not())
+				);
 		
 		StringBinding userScriptsPath = Bindings.createStringBinding(() -> {
 			String userPath = PathPrefs.getUserPath();
@@ -756,11 +762,11 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				return null;
 			return dirScripts.getAbsolutePath();
 		}, PathPrefs.userPathProperty());
-		ScriptMenuLoader userScriptMenuLoader = new ScriptMenuLoader("User scripts...", userScriptsPath, null);
+		ScriptMenuLoader userScriptMenuLoader = new ScriptMenuLoader("User scripts...", userScriptsPath, (DefaultScriptEditor)editor);
 
 		menuAutomate.setOnMenuValidation(e -> {
 			sharedScriptMenuLoader.updateMenu();
-//			projectScriptMenuLoader.updateMenu();
+			projectScriptMenuLoader.updateMenu();
 			userScriptMenuLoader.updateMenu();
 		});
 
@@ -769,7 +775,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 					menuAutomate,
 					null,
 					createCommandAction(new SampleScriptLoader(this), "Open sample scripts"),
-//					projectScriptMenuLoader.getMenu(),
+					projectScriptMenuLoader.getMenu(),
 					sharedScriptMenuLoader.getMenu(),
 					userScriptMenuLoader.getMenu()
 					);

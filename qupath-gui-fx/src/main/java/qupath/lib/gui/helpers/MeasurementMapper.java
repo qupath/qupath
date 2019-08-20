@@ -396,7 +396,7 @@ public class MeasurementMapper {
 
 		@Override
 		public String getName() {
-			return "Fire";
+			return "Jet";
 		}
 
 		@Override

@@ -86,7 +86,10 @@ public class ScriptMenuLoader {
 					QuPathGUI.logger.error("Create script error", e1);
 				}
 			}
-			scriptEditor.showScript(scriptFile);
+			if (scriptEditor != null)
+				scriptEditor.showScript(scriptFile);
+			else
+				QuPathGUI.getInstance().getScriptEditor().showScript(scriptFile);
 		});
 		
 		// Command to open directory
@@ -117,7 +120,7 @@ public class ScriptMenuLoader {
 		String scriptDir = scriptDirectory.get();
 		if (scriptDir != null) {
 			Path path = Paths.get(scriptDir);
-			// Can only set script directory if we have a property, not just any obserable string
+			// Can only set script directory if we have a property, not just any observable string
 			if (scriptDirectory instanceof StringProperty)
 				menu.getItems().setAll(miSetPath, miOpenDirectory, miCreateScript, new SeparatorMenuItem());
 			else

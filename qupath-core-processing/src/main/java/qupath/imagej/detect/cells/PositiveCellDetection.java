@@ -94,7 +94,6 @@ public class PositiveCellDetection extends WatershedCellDetection {
 						t1 = 10;
 					else
 						t1 = 100;
-					System.err.println(Math.pow(2, type.bitsPerPixel()) - 1);
 					tMax = Math.min(10000, Math.pow(2, type.bitsPerPixel()) - 1);
 				}
 			}
