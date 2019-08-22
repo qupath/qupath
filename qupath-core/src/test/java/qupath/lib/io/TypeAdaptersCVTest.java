@@ -1,4 +1,4 @@
-package qupath.opencv.processing;
+package qupath.lib.io;
 
 import static org.junit.Assert.*;
 

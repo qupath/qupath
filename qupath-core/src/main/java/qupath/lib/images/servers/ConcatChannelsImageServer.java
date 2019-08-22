@@ -121,7 +121,7 @@ public class ConcatChannelsImageServer extends TransformingImageServer<BufferedI
 		}
 		
 		return new BufferedImage(
-				ColorModelFactory.getDummyColorModel(getPixelType().bitsPerPixel()),
+				ColorModelFactory.getDummyColorModel(getPixelType().getBitsPerPixel()),
 				raster, premultiplied, null);
 	}
 	

@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Map;
 
 import qupath.lib.images.servers.ImageChannel;
+import qupath.lib.images.servers.PixelType;
 
 /**
  * Factory methods to help create ColorModels for use with BufferedImages.
@@ -61,7 +62,7 @@ public final class ColorModelFactory {
     	var map = probabilityModels8.get(channels);
     	if (map == null) {
             int[] colors = channels.stream().mapToInt(c -> c.getColor()).toArray();
-    		map = ColorModelFactory.createProbabilityColorModel(8, channels.size(), channels.size() == 1, colors);
+    		map = ColorModelFactory.createColorModel(PixelType.UINT8, channels.size(), channels.size() == 1, colors);
     		probabilityModels8.put(new ArrayList<>(channels), map);
     	}
     	return map;
@@ -80,7 +81,7 @@ public final class ColorModelFactory {
     	var map = probabilityModels32.get(channels);
     	if (map == null) {
             int[] colors = channels.stream().mapToInt(c -> c.getColor()).toArray();
-    		map = ColorModelFactory.createProbabilityColorModel(32, channels.size(), channels.size() == 1, colors);
+    		map = ColorModelFactory.createColorModel(PixelType.FLOAT32, channels.size(), channels.size() == 1, colors);
     		probabilityModels32.put(new ArrayList<>(channels), map);
     	}
     	return map;
@@ -106,7 +107,7 @@ public final class ColorModelFactory {
 	 * It is assumed that the probabilities sum to 1; if they sum to less than 1, <code>alphaResidual</code> 
 	 * can be used to make 'unknown' pixels transparent/translucent rather than black.
 	 * 
-	 * @param bpp Bits per pixel.
+	 * @param type type for individual pixels
 	 * @param nChannels Number of color channels.
 	 * @param alphaResidual If true, the alpha value is scaled according to the sum of the other probabilities.
 	 *                      This makes pixels with low probabilities for all other channels appear transparent.
@@ -114,8 +115,8 @@ public final class ColorModelFactory {
 	 * 						which indicates that it is used directly to control the alpha values, overriding <code>alphaResidual</code>.
 	 * @return
 	 */
-	public static ColorModel createProbabilityColorModel(final int bpp, final int nChannels, final boolean alphaResidual, final int...colors) {
-		return new ProbabilityColorModel(bpp, nChannels, alphaResidual, colors);
+	public static ColorModel createColorModel(final PixelType type, final int nChannels, final boolean alphaResidual, final int...colors) {
+		return new DefaultColorModel(type, nChannels, alphaResidual, colors);
 	}
     
 

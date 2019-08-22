@@ -135,7 +135,7 @@ public class OpenCVTools {
 				typeCV = CV_16SC(nChannels); 
 				break;
 			case DataBuffer.TYPE_USHORT:
-				typeCV = CV_16SC(nChannels); 
+				typeCV = CV_16UC(nChannels); 
 				break;
 			default:
 				typeCV = CV_64FC(nChannels); // Assume 64-bit is as flexible as we can manage

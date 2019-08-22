@@ -450,17 +450,17 @@ public class OMEPyramidWriter {
 			if (pixelsInt == null || pixelsInt.length < n)
 				pixelsInt = new int[n];
 			pixelsInt = raster.getSamples(0, 0, ww, hh, c, pixelsInt);
-			if (server.getPixelType().bitsPerPixel() == 8) {
+			if (server.getPixelType().getBitsPerPixel() == 8) {
 				for (int i = 0; i < n; i++) {
 					buf.put(ind, (byte)pixelsInt[i]);
 					ind += inc;
 				}
-			} else if (server.getPixelType().bitsPerPixel() == 16) {
+			} else if (server.getPixelType().getBitsPerPixel() == 16) {
 				for (int i = 0; i < n; i++) {
 					buf.putShort(ind, (short)pixelsInt[i]);
 					ind += inc;
 				}
-			} else if (server.getPixelType().bitsPerPixel() == 32) {
+			} else if (server.getPixelType().getBitsPerPixel() == 32) {
 				for (int i = 0; i < n; i++) {
 					buf.putInt(ind, (int)pixelsInt[i]);
 					ind += inc;
@@ -504,7 +504,7 @@ public class OMEPyramidWriter {
 	Object getPixelBuffer(int length) {
 		Object originalBuffer = this.pixelBuffer.get();
 		Object updatedBuffer = null;
-		int bpp = server.getPixelType().bitsPerPixel();
+		int bpp = server.getPixelType().getBitsPerPixel();
 		if (server.isRGB() || bpp == 8 || bpp == 16) {
 			updatedBuffer = ensureIntArray(originalBuffer, length);
 		} else if (bpp == 32) {
@@ -920,7 +920,7 @@ public class OMEPyramidWriter {
 			set.remove(PyramidOMETiffWriter.COMPRESSION_JPEG);
 			set.remove(PyramidOMETiffWriter.COMPRESSION_J2K);
 			set.remove(PyramidOMETiffWriter.COMPRESSION_J2K_LOSSY);
-		} else if (server.getPixelType().bitsPerPixel() != 8 || (server.nChannels() > 1 && !server.isRGB())) {
+		} else if (server.getPixelType().getBitsPerPixel() != 8 || (server.nChannels() > 1 && !server.isRGB())) {
 			set.remove(PyramidOMETiffWriter.COMPRESSION_JPEG);
 		}
 
@@ -973,7 +973,7 @@ public class OMEPyramidWriter {
 	static String getDefaultLossyCompressionType(final ImageServer<BufferedImage> server) {
 		if (server.isRGB())
 			return PyramidOMETiffWriter.COMPRESSION_JPEG;
-		if (server.getPixelType().bitsPerPixel() <= 16)
+		if (server.getPixelType().getBitsPerPixel() <= 16)
 			return PyramidOMETiffWriter.COMPRESSION_J2K_LOSSY;
 		// Don't try another lossy compression method...
 		return getDefaultLosslessCompressionType(server);

@@ -23,13 +23,13 @@ public interface FeatureCalculator<S,T> {
      * Practically, this means that there may be fewer pixels in the output because the classification 
      * inherently involves downsampling.
      *
-     * @param server
+     * @param imageData
      * @param request
      * @return a (possibly singleton) list of Features
      * 
      * @throws IOException if unable to read pixels from {@code server}
      */
-    public List<Feature<T>> calculateFeatures(ImageData<S> server, RegionRequest request) throws IOException;
+    public List<Feature<T>> calculateFeatures(ImageData<S> imageData, RegionRequest request) throws IOException;
     
     /**
      * Get the input image size requested by this calculator.

@@ -264,7 +264,7 @@ public interface ChannelDisplayInfo {
 		public AbstractChannelInfo(final ImageData<BufferedImage> imageData) {
 			this.imageData = imageData;
 			this.minAllowed = 0;
-			this.maxAllowed = (float)Math.pow(2, imageData.getServer().getPixelType().bitsPerPixel()) - 1;
+			this.maxAllowed = (float)Math.pow(2, imageData.getServer().getPixelType().getBitsPerPixel()) - 1;
 			this.minDisplay = 0;
 			this.maxDisplay = maxAllowed;
 		}

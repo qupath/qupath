@@ -197,7 +197,7 @@ public class BufferedImageTools {
 	 * @return 
 	 * @see #ensureBufferedImageType(BufferedImage, int)
 	 */
-	public boolean is8bitColorType(int type) {
+	public static boolean is8bitColorType(int type) {
 		switch(type) {
 		case BufferedImage.TYPE_3BYTE_BGR:
 		case BufferedImage.TYPE_4BYTE_ABGR:

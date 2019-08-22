@@ -55,7 +55,7 @@ public enum PixelType {
 	 * 
 	 * @see #getBytesPerPixel()
 	 */
-	public int bitsPerPixel() {
+	public int getBitsPerPixel() {
 		return bitsPerPixel;
 	}
 	
@@ -63,7 +63,7 @@ public enum PixelType {
 	 * Number of bytes per pixel.
 	 * @return
 	 * 
-	 * @see #bitsPerPixel()
+	 * @see #getBitsPerPixel()
 	 */
 	public int getBytesPerPixel() {
 		return (int)Math.ceil(bitsPerPixel / 8.0);

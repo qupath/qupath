@@ -825,7 +825,7 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 			case METADATA_CHANGED:
 				return hasOriginalMetadata(imageData.getServer()) ? "No" : "Yes";
 			case BIT_DEPTH:
-				return server.isRGB() ? "8-bit (RGB)" : server.getPixelType().bitsPerPixel();
+				return server.isRGB() ? "8-bit (RGB)" : server.getPixelType().getBitsPerPixel();
 			case MAGNIFICATION:
 				double mag = server.getMetadata().getMagnification();
 				if (Double.isNaN(mag))

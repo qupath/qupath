@@ -82,8 +82,8 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 			if (isRGB())
 				colorModel = ColorModel.getRGBdefault();
 			else
-				colorModel = ColorModelFactory.createProbabilityColorModel(
-						getPixelType().bitsPerPixel(),
+				colorModel = ColorModelFactory.createColorModel(
+						getPixelType(),
 						nChannels(),
 						false,
 						getMetadata().getChannels().stream().mapToInt(c -> c.getColor()).toArray());
