@@ -505,6 +505,19 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 					throw new IllegalArgumentException("Unsupported pixel type " + reader.getPixelType());
 			}
 			
+			// Determine min/max values if we can
+			int bpp = reader.getBitsPerPixel();
+			Number minValue = null;
+			Number maxValue = null;
+			if (bpp < pixelType.getBitsPerPixel()) {
+				if (pixelType.isSignedInteger()) {
+					minValue = -(int)Math.pow(2, bpp-1);
+					maxValue = (int)(Math.pow(2, bpp-1) - 1);
+				} else if (pixelType.isUnsignedInteger()) {
+					maxValue = (int)(Math.pow(2, bpp) - 1);
+				}
+			}
+			
 			boolean isRGB = reader.isRGB() && pixelType == PixelType.UINT8;
 			// Remove alpha channel
 			if (isRGB && nChannels == 4) {
@@ -651,6 +664,8 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 			ImageServerMetadata.Builder builder = new ImageServerMetadata.Builder(
 					getClass(), path, width, height).
 //					args(args).
+					minValue(minValue).
+					maxValue(maxValue).
 					name(imageName).
 					channels(channels).
 					sizeZ(nZSlices).

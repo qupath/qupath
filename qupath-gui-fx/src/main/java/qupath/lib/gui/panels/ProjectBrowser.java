@@ -29,7 +29,6 @@ import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -83,8 +82,6 @@ import javafx.scene.control.TreeItem;
 import javafx.scene.control.TreeView;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
-import javafx.scene.input.Clipboard;
-import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
@@ -1149,6 +1146,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 			if (item == null || empty) {
 				setText(null);
 				setGraphic(null);
+				setTooltip(null);
 				return;
 			}
 
@@ -1165,8 +1163,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 				tooltip.setText(item.toString());
 				setTooltip(tooltip);
 				setGraphic(null);
-			}
-			else {
+			} else {
 				// Set whatever tooltip we have
 				tooltip.setGraphic(null);
 				setTooltip(tooltip);
@@ -1199,7 +1196,6 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 				} else {
 					setGraphic(null);
 				}
-				
 			}
 			
 		}

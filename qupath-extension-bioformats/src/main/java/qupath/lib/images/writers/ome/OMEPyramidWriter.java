@@ -129,11 +129,23 @@ public class OMEPyramidWriter {
 		
 		meta.setPixelsDimensionOrder(DimensionOrder.XYCZT, series);
 		switch (server.getPixelType()) {
+		case INT8:
+			meta.setPixelsType(PixelType.INT8, series);
+			break;
 		case UINT8:
 			meta.setPixelsType(PixelType.UINT8, series);
 			break;
+		case INT16:
+			meta.setPixelsType(PixelType.INT16, series);
+			break;
 		case UINT16:
 			meta.setPixelsType(PixelType.UINT16, series);
+			break;
+		case INT32:
+			meta.setPixelsType(PixelType.INT32, series);
+			break;
+		case UINT32:
+			meta.setPixelsType(PixelType.UINT32, series);
 			break;
 		case FLOAT32:
 			meta.setPixelsType(PixelType.FLOAT, series);
@@ -441,9 +453,10 @@ public class OMEPyramidWriter {
 		int n = ww*hh;
 		Object pixelBuffer = getPixelBuffer(n);
 		switch (server.getPixelType()) {
+		case INT8:
 		case UINT8:
-		case UINT16:
 		case INT16:
+		case UINT16:
 		case INT32:
 		case UINT32:
 			int[] pixelsInt = pixelBuffer instanceof int[] ? (int[])pixelBuffer : null;
@@ -504,13 +517,16 @@ public class OMEPyramidWriter {
 	Object getPixelBuffer(int length) {
 		Object originalBuffer = this.pixelBuffer.get();
 		Object updatedBuffer = null;
-		int bpp = server.getPixelType().getBitsPerPixel();
-		if (server.isRGB() || bpp == 8 || bpp == 16) {
-			updatedBuffer = ensureIntArray(originalBuffer, length);
-		} else if (bpp == 32) {
+		switch (server.getPixelType()) {
+		case FLOAT32:
 			updatedBuffer = ensureFloatArray(originalBuffer, length);
-		} else if (bpp == 64) {
+			break;
+		case FLOAT64:
 			updatedBuffer = ensureDoubleArray(originalBuffer, length);
+			break;
+		default:
+			// Everything else uses ints (including 8-bit RGB)
+			updatedBuffer = ensureIntArray(originalBuffer, length);
 		}
 		if (updatedBuffer != originalBuffer)
 			pixelBuffer.set(updatedBuffer);
