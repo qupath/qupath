@@ -30,8 +30,10 @@ def jfxVersion = '12.0.2'
 
 /*
  * OpenCV version
+ * Note, if this is a SNAPSHOT version then it must already be installed locally (with Maven)
  */
-def opencvVersion = '4.1.0-1.5.1'
+def opencvVersion = '4.1.0-1.5.1-SNAPSHOT'
+// def opencvVersion = '4.1.1-1.5.2-SNAPSHOT'
 
 /*
  * Include OpenCV binaries with GPU support (quite big, may not be used?)
@@ -132,8 +134,8 @@ subprojects {
     // However, the use of simple-json is troublesome since it brings in an old version of junit
 //   jts "org.locationtech.jts.io:jts-io-common:1.16.1"
 
-    groovy "org.codehaus.groovy:groovy:2.5.7"
-    groovy "org.codehaus.groovy:groovy-jsr223:2.5.7"
+    groovy "org.codehaus.groovy:groovy:2.5.8"
+    groovy "org.codehaus.groovy:groovy-jsr223:2.5.8"
 
     for (fx in ['javafx-base', 'javafx-controls', 'javafx-graphics', 'javafx-media', 'javafx-web', 'javafx-swing']) {
       javafx "org.openjfx:${fx}:${jfxVersion}"
@@ -142,7 +144,7 @@ subprojects {
 
 //	picocli 'info.picocli:picocli:3.9.6'
 
-    richtextfx 'org.fxmisc.richtext:richtextfx:0.10.1'
+    richtextfx 'org.fxmisc.richtext:richtextfx:0.10.2'
 
     commonsmath 'org.apache.commons:commons-math3:3.6.1'
 
@@ -151,8 +153,8 @@ subprojects {
     controlsfx 'org.controlsfx:controlsfx:11.0.0'
 
 //	bioformats 'ome:bioformats_package:6.0.1'
-	bioformats 'ome:formats-gpl:6.2.0'
-	bioformatsTest 'ome:bio-formats_plugins:6.2.0' // Only required for testing
+	bioformats 'ome:formats-gpl:6.2.1'
+	bioformatsTest 'ome:bio-formats_plugins:6.2.1' // Only required for testing
 
     jfxtras 'org.jfxtras:jfxtras-menu:10.0-r1'
 
@@ -181,7 +183,7 @@ subprojects {
 
 //    nativeloader 'org.scijava:native-lib-loader:2.3.4'
 
-    guava 'com.google.guava:guava:28.0-jre'
+    guava 'com.google.guava:guava:28.1-jre'
   }
 }
 
