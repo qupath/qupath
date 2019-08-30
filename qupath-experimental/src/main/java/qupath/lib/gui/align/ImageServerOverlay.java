@@ -38,10 +38,21 @@ public class ImageServerOverlay extends AbstractImageDataOverlay {
 	private AffineTransform transform;
 	private AffineTransform transformInverse;
 	
+	/**
+	 * Constructor.
+	 * @param viewer viewer to which the overlay should be added
+	 * @param server ImageServer that should be displayed on the overlay
+	 */
 	public ImageServerOverlay(final QuPathViewer viewer, final ImageServer<BufferedImage> server) {
 		this(viewer, server, new Affine());
 	}
 	
+	/**
+	 * Constructor.
+	 * @param viewer viewer to which the overlay should be added
+	 * @param server ImageServer that should be displayed on the overlay
+	 * @param affine Affine transform to apply to the overlaid server
+	 */
 	public ImageServerOverlay(final QuPathViewer viewer, final ImageServer<BufferedImage> server, final Affine affine) {
 		super(viewer.getOverlayOptions(), viewer.getImageData());
 		this.viewer = viewer;
@@ -57,6 +68,11 @@ public class ImageServerOverlay extends AbstractImageDataOverlay {
 		updateTransform();
 	}
 	
+	/**
+	 * Get the affine transform applied to the overlay image.
+	 * Making changes here will trigger repaints in the viewer.
+	 * @return
+	 */
 	public Affine getAffine() {
 		return affine;
 	}

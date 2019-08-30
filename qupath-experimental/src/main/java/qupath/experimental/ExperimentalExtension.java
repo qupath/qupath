@@ -1,18 +1,18 @@
 package qupath.experimental;
 
-import qupath.lib.ai.CreateRegionAnnotationsCommand;
-import qupath.lib.ai.ExportTrainingRegionsCommand;
-import qupath.lib.ai.SplitProjectTrainingCommand;
-import qupath.lib.classifiers.gui.PixelClassifierApplyCommand;
-import qupath.lib.classifiers.opencv.gui.PixelClassifierCommand;
-import qupath.lib.classifiers.opencv.gui.SimpleThresholdCommand;
-import qupath.lib.classifiers.opencv.pixel.OpenCVPixelClassifier;
-import qupath.lib.classifiers.opencv.pixel.OpenCVPixelClassifierDNN;
-import qupath.lib.classifiers.opencv.pixel.features.FeatureCalculators;
 import qupath.lib.classifiers.pixel.PixelClassifiers;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.align.InteractiveImageAlignmentCommand;
 import qupath.lib.gui.extensions.QuPathExtension;
+import qupath.lib.gui.ml.commands.CreateRegionAnnotationsCommand;
+import qupath.lib.gui.ml.commands.ExportTrainingRegionsCommand;
+import qupath.lib.gui.ml.commands.PixelClassifierApplyCommand;
+import qupath.lib.gui.ml.commands.PixelClassifierCommand;
+import qupath.lib.gui.ml.commands.SimpleThresholdCommand;
+import qupath.lib.gui.ml.commands.SplitProjectTrainingCommand;
+import qupath.opencv.ml.pixel.OpenCVPixelClassifier;
+import qupath.opencv.ml.pixel.OpenCVPixelClassifierDNN;
+import qupath.opencv.ml.pixel.features.FeatureCalculators;
 
 /**
  * Extension to make more experimental commands present in the GUI.
