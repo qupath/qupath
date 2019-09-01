@@ -32,7 +32,7 @@ def jfxVersion = '12.0.2'
  * OpenCV version
  * Note, if this is a SNAPSHOT version then it must already be installed locally (with Maven)
  */
-def opencvVersion = '4.1.0-1.5.1-SNAPSHOT'
+def opencvVersion = '4.1.0-1.5.1'
 // def opencvVersion = '4.1.1-1.5.2-SNAPSHOT'
 
 /*
@@ -84,6 +84,15 @@ if (OperatingSystem.current().isMacOsX()) {
 } else {
   println 'Unknown operating system!'
 }
+
+
+/* 
+ * Note on OpenCV, OpenBLAS & Mac.
+ * This appears to segfault sometimes, in which case the following command line parameters may help:
+ *   -Dorg.bytedeco.openblas.load=blas -Djava.library.path=.:/usr/lib/ 
+ * See https://github.com/bytedeco/javacpp-presets/tree/master/openblas for further information.
+ */
+
 
 /*
  * jarjar makes it possible to remove the troublesome MacAdapter in ij.jar, 
@@ -166,6 +175,7 @@ subprojects {
       else
 	    opencv "org.bytedeco:opencv:${opencvVersion}:${nativesCPP}"
     }
+    // opencv 'org.bytedeco:mkl-dnn:0.20-1.5.1' // Explore if can help avoid segfaults on Mac at least
 
     jpen 'net.sourceforge.jpen:jpen:2-150301'
     if (nativesClassifier != null)

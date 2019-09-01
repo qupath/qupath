@@ -460,6 +460,49 @@ public class OpenCVClassifiers {
 	}
 	
 	
+	/**
+	 * Add TermCriteria parameters to an existing list.
+	 * This will be an int parameter 'termIterators' and a double parameter 'termEpsilon'.
+	 * 
+	 * @param params the parameter list to which the parameters should be added
+	 * @param defaultCriteria the current (default) TermCriteria, used to initialize the values
+	 * 
+	 * @see #updateTermCriteria(ParameterList, TermCriteria)
+	 */
+	static void addTerminationCriteriaParameters(ParameterList params, TermCriteria defaultCriteria) {
+		// Set termination criteria
+		params.addTitleParameter("Termination criteria");
+		params.addIntParameter("termIterations", "Max iterations", defaultCriteria.maxCount(), null, "Maximum number of iterations for training");
+		params.addDoubleParameter("termEpsilon", "Epsilon", defaultCriteria.epsilon(), null, "Desired accuracy for training");
+	}
+	
+	/**
+	 * Parse the TermCriteria parameters, returning a new object if needed.
+	 * 
+	 * @param params
+	 * @param termCriteria
+	 * @return termCriteria if the parameters are unchanged, or a new TermCriteria reflecting the parameters if required
+	 * 
+	 * @see #addTerminationCriteriaParameters(ParameterList, TermCriteria)
+	 */
+	static TermCriteria updateTermCriteria(ParameterList params, TermCriteria termCriteria) {
+		int count = params.getIntParameterValue("termIterators");
+		double epsilon = params.getDoubleParameterValue("termEpsilon");
+		
+		if (termCriteria != null && termCriteria.maxCount() == count && termCriteria.epsilon() == epsilon)
+			return termCriteria;
+		
+		int type = 0;
+		int termIterations = params.getIntParameterValue("termIterations");
+		double termEpsilon = params.getDoubleParameterValue("termEpsilon");
+		if (termIterations >= 1)
+			type += TermCriteria.MAX_ITER;
+		if (termIterations > 0)
+			type += TermCriteria.EPS;
+		return new TermCriteria(type, termIterations, termEpsilon);
+	}
+	
+	
 	static class DefaultOpenCVStatModel<T extends StatModel> extends AbstractOpenCVClassifierML<T> {
 
 		DefaultOpenCVStatModel(T model) {
@@ -470,7 +513,7 @@ public class OpenCVClassifiers {
 		ParameterList createParameterList(T model) {
 			return new ParameterList();
 		}
-
+		
 		@Override
 		T createStatModel() {
 			return getStatModel();
@@ -1058,15 +1101,44 @@ public class OpenCVClassifiers {
 		
 		private static int MAX_HIDDEN_LAYERS = 5;
 		
-		/**
-		 * Alpha value for activation function (influences 'steepness')
-		 */
-		private double activationAlpha = 1.0;
+		static enum ActivationFunction {
+			IDENTITY, SIGMOID_SYM, GAUSSIAN, RELU, LEAKY_RELU;
+			
+			public int getActivationFunction() {
+				switch(this) {
+				case GAUSSIAN:
+					return ANN_MLP.GAUSSIAN;
+				case IDENTITY:
+					return ANN_MLP.IDENTITY;
+				case SIGMOID_SYM:
+					return ANN_MLP.SIGMOID_SYM;
+				case RELU:
+					return ANN_MLP.RELU;
+				case LEAKY_RELU:
+					return ANN_MLP.LEAKYRELU;
+				default:
+					return ANN_MLP.SIGMOID_SYM;
+				}
+			}
+		}
 		
-		/**
-		 * Beta value for activation function (influences range)
-		 */
-		private double activationBeta = 1.0;
+		static enum TrainingMethod {
+			BACKPROP, RPROP, ANNEAL;
+			
+			public int getTrainingMethod() {
+				switch(this) {
+				case BACKPROP:
+					return ANN_MLP.BACKPROP;
+				case RPROP:
+					return ANN_MLP.RPROP;
+				case ANNEAL:
+					return ANN_MLP.ANNEAL;
+				default:
+					return ANN_MLP.BACKPROP;
+				}
+			}
+		}
+		
 		
 		ANNClassifierCV() {
 			super();
@@ -1082,10 +1154,28 @@ public class OpenCVClassifiers {
 			
 			var params = new ParameterList();
 			
+			// Set activation function
+			params.addTitleParameter("Activation");
+			params.addChoiceParameter("activation", "Activation function", ActivationFunction.SIGMOID_SYM,
+					Arrays.asList(ActivationFunction.values()), "Choose activation function (only SIGMOID_SYM is fully supported)");
+			params.addDoubleParameter("activationAlpha", "Alpha", 1, null, "Alpha value (influences 'steepness')");
+			params.addDoubleParameter("activationBeta", "Beta", 1, null, "Alpha value (influences 'range')");
+			
+			// Set train method
+			params.addTitleParameter("Training method");
+			params.addChoiceParameter("trainMethod", "Training method", TrainingMethod.RPROP,
+					Arrays.asList(TrainingMethod.values()), "Choose training method");
+			params.addDoubleParameter("trainParam1", "Training parameter 1", model.getRpropDW0(), null, "Passed to either setRpropDW0 or setBackpropWeightScale");
+			params.addDoubleParameter("trainParam2", "Training parameter 2", model.getRpropDWMin(), null, "Passed to either setRpropDWMin or setBackpropMomentumScale");
+			
+			// Hidden layer sizes
+			params.addTitleParameter("Hidden layers");
 			for (int i = 1; i <= MAX_HIDDEN_LAYERS; i++) {
-				params.addIntParameter("hidden" + i, "Hidden layer " + i, 0, "Nodes", "Size of first hidden layer (0 to omit layer)");				
+				params.addIntParameter("hidden" + i, "Layer " + i, 0, "Nodes", "Size of first hidden layer (0 to omit layer)");				
 			}
 			
+			addTerminationCriteriaParameters(params, model.getTermCriteria());
+
 			return params;
 		}
 		
@@ -1128,28 +1218,40 @@ public class OpenCVClassifiers {
 		
 		@Override
 		public void predictWithLock(Mat samples, Mat results, Mat probabilities) {
-			double beta = activationBeta;
+			// Extract parameters
+			var params = getParameterList();
+			var activation = (ActivationFunction)params.getChoiceParameterValue("activation");
+			double beta = params.getDoubleParameterValue("activationBeta");
+			
+			// Compute raw values
 			if (probabilities == null)
 				probabilities = new Mat();
 			super.predictWithLock(samples, results, probabilities);
-			// Convert to the range 0-1
-			var indexer = probabilities.createIndexer();
-			long[] inds = new long[2];
-			long rows = indexer.rows();
-			long cols = indexer.cols();
-			for (long r = 0; r < rows; r++) {
-				inds[0] = r;
-//				double max = 0;
-				for (long c = 0; c < cols; c++) {
-					inds[1] = c;
-					double val = indexer.getDouble(inds) / (beta * 2.0) + 0.5;
-//					val = val > 1 ? 1 : val;
-//					val = val < 0 ? 0 : val;
-					indexer.putDouble(inds, val);
-//					max = Math.max(max, val);
+			
+			// Convert to the range 0-1 if we can
+			if (activation == ActivationFunction.SIGMOID_SYM) {
+				var indexer = probabilities.createIndexer();
+				long[] inds = new long[2];
+				long rows = indexer.rows();
+				long cols = indexer.cols();
+				double scale = 0.5 / beta;
+				double offset = 0.5;
+						
+				for (long r = 0; r < rows; r++) {
+					inds[0] = r;
+	//				double max = 0;
+					for (long c = 0; c < cols; c++) {
+						inds[1] = c;
+						double val = indexer.getDouble(inds) * scale + offset;
+	//					val = val > 1 ? 1 : val;
+	//					val = val < 0 ? 0 : val;
+						indexer.putDouble(inds, val);
+	//					max = Math.max(max, val);
+					}
 				}
+				indexer.release();
 			}
-			indexer.release();
+			// TODO: Consider softmax for identity or relu activations
 		}
 
 		@Override
@@ -1180,7 +1282,21 @@ public class OpenCVClassifiers {
 			idx.release();
 			
 			model.setLayerSizes(mat);
-			model.setActivationFunction(ANN_MLP.SIGMOID_SYM, activationAlpha, activationBeta);
+			
+			// Set other parameters
+//			model.setActivationFunction(ANN_MLP.SIGMOID_SYM, activationAlpha, activationBeta);
+			var activation = (ActivationFunction)params.getChoiceParameterValue("activation");
+			double activationAlpha = params.getDoubleParameterValue("activationAlpha");
+			double activationBeta = params.getDoubleParameterValue("activationBeta");
+			model.setActivationFunction(activation.getActivationFunction(), activationAlpha, activationBeta);
+
+			var trainMethod = (TrainingMethod)params.getChoiceParameterValue("trainMethod");
+			double param1 = params.getDoubleParameterValue("trainParam1");
+			double param2 = params.getDoubleParameterValue("trainParam2");
+			model.setTrainMethod(trainMethod.getTrainingMethod(), param1, param2);
+
+			// Set termination criterion
+			model.setTermCriteria(updateTermCriteria(params, model.getTermCriteria()));
 			
 			logger.info("Initializing with layer sizes: " + GeneralTools.arrayToString(Locale.getDefault(), layers, 0));
 		}
