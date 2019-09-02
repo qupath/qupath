@@ -145,7 +145,7 @@ public class MultiscaleFeatureCalculator implements OpenCVFeatureCalculator {
 					zSpacing = 1.0;
 				double sigmaX = localNormalizeSigma;
 				double sigmaY = localNormalizeSigma;
-				double sigmaZ = localNormalizeSigma / zSpacing * pixelSize;
+				double sigmaZ = computer.getMaxSigmaZ() > 0 ? localNormalizeSigma / zSpacing * pixelSize : 0;
 				if (sigmaZ > 0)
 					LocalNormalization.gaussianNormalize3D(mats, sigmaX, sigmaY, sigmaZ, opencv_core.BORDER_REPLICATE);
 				else

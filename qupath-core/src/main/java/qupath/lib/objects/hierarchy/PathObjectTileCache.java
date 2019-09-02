@@ -412,8 +412,10 @@ class PathObjectTileCache implements PathObjectHierarchyListener {
 						for (PathObject pathObject : (List<PathObject>)list) {
 							var roi = pathObject.getROI();
 							if (roi == null || region == null || (roi.getZ() == z && roi.getT() == t)) {
-								if (pathObject.getParent() != null || pathObject.isRootObject())
-									pathObjects.add(pathObject);
+								if (pathObject.getParent() != null || pathObject.isRootObject()) {
+									if (envelope.intersects(getEnvelope(pathObject)))
+										pathObjects.add(pathObject);
+								}
 							}
 						}
 					}

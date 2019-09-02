@@ -3,13 +3,16 @@ package qupath.lib.gui.ml;
 import ij.plugin.filter.ThresholdToSelection;
 import ij.process.FloatProcessor;
 import ij.process.ImageProcessor;
+import javafx.concurrent.Task;
 
+import org.controlsfx.dialog.ProgressDialog;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.imagej.tools.IJTools;
 import qupath.lib.classifiers.pixel.PixelClassificationImageServer;
 import qupath.lib.classifiers.pixel.PixelClassifier;
+import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServer;
@@ -23,6 +26,7 @@ import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.classes.Reclassifier;
 import qupath.lib.objects.classes.PathClassTools;
 import qupath.lib.objects.helpers.PathObjectTools;
+import qupath.lib.projects.Project;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.AreaROI;
@@ -38,6 +42,8 @@ import java.awt.image.DataBufferByte;
 import java.awt.image.Raster;
 import java.awt.image.WritableRaster;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -476,6 +482,111 @@ public class PixelClassifierStatic {
 	public static void classifyObjects(ImageData<BufferedImage> imageData, PixelClassifier classifier, Collection<PathObject> pathObjects) {
 		classifyObjects(new PixelClassificationImageServer(imageData, classifier), pathObjects);
 	}
+
+	/**
+	 * Create a PixelClassificationImageServer using a specified PixelClassifier for a project image.
+	 * <p>
+	 * Note: This method is incomplete and may be removed or changed in future versions.
+	 * 
+	 * @param project
+	 * @param imageData
+	 * @param classifier
+	 * @param classifierName
+	 * @return
+	 * @throws IOException
+	 */
+	public static PixelClassificationImageServer applyClassifier(Project<BufferedImage> project, ImageData<BufferedImage> imageData, PixelClassifier classifier, String classifierName) throws IOException {
+			
+			var server = new PixelClassificationImageServer(imageData, classifier);
+			
+			var entry = project.getEntry(imageData);
+			if (entry == null) {
+				DisplayHelpers.showErrorMessage("Pixel classifier", "Unable to find current image in the current project!");
+				return null;
+			}
+			
+			var pathEntry = entry.getEntryPath();
+			if (pathEntry == null) {
+				DisplayHelpers.showErrorMessage("Pixel classifier", "Sorry, a new-style project is needed to save pixel classifier results");
+				return null;
+			}
+			
+	//		var dataFileName = QuPathGUI.getImageDataFile(project, entry).getName();
+	//		var dataFileName = entry.getUniqueName();
+	//		int ind = dataFileName.indexOf(PathPrefs.getSerializationExtension());
+	//		if (ind >= 0)
+	//			dataFileName = dataFileName.substring(0, ind);
+			
+			var pathOutput = Paths.get(pathEntry.toString(), "layers", classifierName, classifierName + ".zip");
+			try {
+				if (!Files.exists(pathOutput.getParent()) || !Files.isDirectory(pathOutput.getParent()))
+					Files.createDirectories(pathOutput.getParent());
+				else if (Files.exists(pathOutput)) {
+					PixelClassifierImageSelectionPane.logger.warn("Classification already exists at {}", pathOutput);
+					return new PixelClassificationImageServer(
+							imageData,
+							new PixelClassifierImageSelectionPane.ReadFromStorePixelClassifier(
+									new PixelClassifierImageSelectionPane.FileSystemPersistentTileCache(pathOutput, server), server.getClassifier()));
+				}
+				
+				// TODO: Write through the project entry instead
+				var task = new Task<PixelClassificationImageServer>() {
+	
+					@Override
+					protected PixelClassificationImageServer call() throws Exception {
+						var tiles = server.getTileRequestManager().getAllTileRequests();
+						int n = tiles.size();
+						boolean success = false;
+						try (var persistentTileCache = new PixelClassifierImageSelectionPane.FileSystemPersistentTileCache(pathOutput, server)) {
+							persistentTileCache.writeJSON("metadata.json", server.getMetadata());
+							persistentTileCache.writeJSON("classifier.json", server.getClassifier());
+							int i = 0;
+							for (var tile : tiles) {
+								updateProgress(i++, n);
+								var request = tile.getRegionRequest();
+								persistentTileCache.saveToCache(request, server.readBufferedImage(request));			
+							}
+							success = true;
+						} catch (IOException e) {
+							DisplayHelpers.showErrorMessage("Pixel classification", e);
+						} finally {
+							updateProgress(n, n);
+	//						replaceOverlay(
+	//								new PixelClassificationOverlay(viewer, newServer));
+						}
+						if (success)
+							return new PixelClassificationImageServer(
+								imageData,
+								new PixelClassifierImageSelectionPane.ReadFromStorePixelClassifier(
+										new PixelClassifierImageSelectionPane.FileSystemPersistentTileCache(pathOutput, server), server.getClassifier()));
+						else
+							return null;
+					}
+				};
+				
+				var progress = new ProgressDialog(task);
+				progress.setTitle("Pixel classification");
+				progress.setContentText("Applying classifier: " + classifierName);
+				
+				var t = new Thread(task);
+				t.setDaemon(true);
+				t.start();
+				
+				return task.get();
+				
+			} catch (IOException e) {
+				throw e;
+			} catch (Exception e) {
+				throw new IOException(e);
+			}
+	
+			/*
+			 * - Prompt for classifier name.
+			 * - Get output directory for the image.
+			 * - Write the classifier
+			 * - Write the tiles (while showing progress dialog - remember to trim to annotations if needed)
+			 */
+		}
     
     
     

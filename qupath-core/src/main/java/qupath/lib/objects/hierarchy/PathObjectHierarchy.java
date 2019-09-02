@@ -614,6 +614,7 @@ public final class PathObjectHierarchy implements Serializable {
 			removeObject(pathObject, true, false);
 		addPathObject(pathObject, false);
 		fireObjectsChangedEvent(this, Collections.singletonList(pathObject), false);
+//		fireHierarchyChangedEvent(this, pathObject);
 	}
 	
 	

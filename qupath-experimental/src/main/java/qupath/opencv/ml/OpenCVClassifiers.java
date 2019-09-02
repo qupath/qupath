@@ -3,10 +3,7 @@ package qupath.opencv.ml;
 import java.io.IOException;
 import java.nio.IntBuffer;
 import java.util.Arrays;
-import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.Locale;
-import java.util.Map;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import org.bytedeco.opencv.global.opencv_core;
@@ -486,7 +483,7 @@ public class OpenCVClassifiers {
 	 * @see #addTerminationCriteriaParameters(ParameterList, TermCriteria)
 	 */
 	static TermCriteria updateTermCriteria(ParameterList params, TermCriteria termCriteria) {
-		int count = params.getIntParameterValue("termIterators");
+		int count = params.getIntParameterValue("termIterations");
 		double epsilon = params.getDoubleParameterValue("termEpsilon");
 		
 		if (termCriteria != null && termCriteria.maxCount() == count && termCriteria.epsilon() == epsilon)
@@ -811,6 +808,7 @@ public class OpenCVClassifiers {
 			
 			params.addIntParameter("weakCount", "Number of weak classifiers", weakCount, null, "Number of weak classifiers to train");
 			params.addDoubleParameter("weightTrimRate", "Weight trim rate", weightTrimRate, null, 0, 1, "Threshold used to save computational time");
+			
 			return params;
 		}
 
@@ -830,13 +828,33 @@ public class OpenCVClassifiers {
 	
 	public static class LogisticRegressionClassifier extends AbstractOpenCVClassifierML<LogisticRegression> {
 		
-		private static Map<Integer, String> regularization;
-		static {
-			regularization = new LinkedHashMap<Integer, String>();
-			regularization.put(LogisticRegression.REG_DISABLE, "None");
-			regularization.put(LogisticRegression.REG_L1, "L1");
-			regularization.put(LogisticRegression.REG_L2, "L2");
-			regularization = Collections.unmodifiableMap(regularization);
+		static enum Regularization {
+			DISABLE, L1, L2;
+			
+			public int getRegularization() {
+				switch(this) {
+				case L1:
+					return LogisticRegression.REG_L1;
+				case L2:
+					return LogisticRegression.REG_L2;
+				case DISABLE:
+				default:
+					return LogisticRegression.REG_DISABLE;
+				}
+			}
+			
+			@Override
+			public String toString() {
+				switch(this) {
+				case L1:
+					return "L1";
+				case L2:
+					return "L2";
+				case DISABLE:
+				default:
+					return "None";
+				}
+			}
 		}
 		
 		LogisticRegressionClassifier() {
@@ -853,13 +871,22 @@ public class OpenCVClassifiers {
 			double learningRate = model.getLearningRate();
 			int nIterations = model.getIterations();
 			int reg = model.getRegularization();
+			Regularization defaultReg = Regularization.DISABLE;
+			for (Regularization temp : Regularization.values()) {
+				if (reg == temp.getRegularization()) {
+					defaultReg = temp;
+					break;
+				}
+			}
 //			int miniBatchSize = model.getMiniBatchSize();
 			
+			params.addTitleParameter("Logistic regression options");
 			params.addDoubleParameter("learningRate", "Learning rate", learningRate);
 			params.addIntParameter("nIterations", "Number of iterations", nIterations);
 //			params.addIntParameter("miniBatchSize", "Mini batch size", miniBatchSize);
-			params.addChoiceParameter("regularization", "Regularization", regularization.get(reg), Arrays.asList(regularization.values()));
+			params.addChoiceParameter("regularization", "Regularization", defaultReg, Arrays.asList(Regularization.values()));
 			
+			addTerminationCriteriaParameters(params, model.getTermCriteria());
 			return params;
 		}
 		
@@ -883,19 +910,13 @@ public class OpenCVClassifiers {
 		void updateModel(LogisticRegression model, ParameterList params, TrainData trainData) {
 			double learningRate = params.getDoubleParameterValue("learningRate");
 			int nIterations = params.getIntParameterValue("nIterations");
-			String regString = (String)params.getChoiceParameterValue("regularization");
-			
-			int reg = model.getRegularization();
-			for (var entry : regularization.entrySet()) {
-				if (entry.getValue().equals(regString)) {
-					reg = entry.getKey();
-					break;
-				}
-			}
+			Regularization regularization = (Regularization)params.getChoiceParameterValue("regularization");
+			model.setRegularization(regularization.getRegularization());
 			
 			model.setLearningRate(learningRate);
 			model.setIterations(nIterations);
-			model.setRegularization(reg);
+			
+			model.setTermCriteria(updateTermCriteria(params, model.getTermCriteria()));
 		}
 		
 	}
@@ -915,6 +936,7 @@ public class OpenCVClassifiers {
 		@Override
 		ParameterList createParameterList(NormalBayesClassifier model) {
 			var params = new ParameterList();
+			params.addTitleParameter("No parameters to adjust!");
 			return params;
 		}
 

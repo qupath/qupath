@@ -131,6 +131,8 @@ public class PixelClassificationMeasurementManager {
         if (type == ImageServerMetadata.ChannelType.FEATURE)
   			return null;
         
+        if (roi.isPoint())
+        	return null;
         
         Shape shape = RoiTools.getShape(roi);
         

@@ -9,6 +9,7 @@ import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.overlays.AbstractImageDataOverlay;
 import qupath.lib.gui.viewer.overlays.PathOverlay;
 import qupath.lib.images.ImageData;
+import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ServerTools;
 import qupath.lib.images.servers.TileRequest;
 import qupath.lib.objects.PathObject;
@@ -49,7 +50,7 @@ public class PixelClassificationOverlay extends AbstractImageDataOverlay  {
 
     private QuPathViewer viewer;
 
-    private PixelClassificationImageServer classifierServer;
+    private ImageServer<BufferedImage> classifierServer;
     
     private Map<RegionRequest, BufferedImage> cacheRGB = Collections.synchronizedMap(new HashMap<>());
     private Set<TileRequest> pendingRequests = Collections.synchronizedSet(new HashSet<>());
@@ -251,7 +252,7 @@ public class PixelClassificationOverlay extends AbstractImageDataOverlay  {
     }
     
     
-    public PixelClassificationImageServer getPixelClassificationServer() {
+    public ImageServer<BufferedImage> getPixelClassificationServer() {
     	return classifierServer;
     }
     

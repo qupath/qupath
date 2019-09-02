@@ -23,7 +23,7 @@ import qupath.lib.regions.RegionRequest;
 /**
  * Feature calculator that simply takes a square of neighboring pixels as the features.
  * <p>
- * Warning! This is far from complete and may well be removed.
+ * Warning! This is incomplete and may be removed. It also makes an unnecessary trip through OpenCV if the output will be converted to a BufferedImage.
  * 
  * @author Pete Bankhead
  *
@@ -41,8 +41,6 @@ public class ExtractNeighborsFeatureCalculator implements OpenCVFeatureCalculato
 	public ExtractNeighborsFeatureCalculator(String name, double pixelSizeMicrons, int radius, int...inputChannels) {
 		this.radius = radius;
 		
-		inputChannels = new int[] {0, 1, 2};
-		
 		n = (radius * 2 + 1) * (radius * 2 + 1) * inputChannels.length;
 		this.inputChannels = inputChannels;
 				
@@ -57,34 +55,33 @@ public class ExtractNeighborsFeatureCalculator implements OpenCVFeatureCalculato
 		WritableRaster raster = img.getRaster();
 
 		n = (radius * 2 + 1) * (radius * 2 + 1) * inputChannels.length;
-		
+
 		List<Feature<Mat>> features = new ArrayList<>();
-		
+
 		int k = 1;
 		for (int b : inputChannels) {
+			for (int y = 0; y < radius * 2 + 1; y++) {
+				for (int x = 0; x < radius * 2 + 1; x++) {
 
-			Mat mat = new Mat(img.getHeight()-radius*2, img.getWidth()-radius*2, opencv_core.CV_32FC1);
-			FloatIndexer idx = mat.createIndexer();
-			int rows = mat.rows();
-			int cols = mat.cols();
+					Mat mat = new Mat(img.getHeight()-radius*2, img.getWidth()-radius*2, opencv_core.CV_32FC1);
+					FloatIndexer idx = mat.createIndexer();
+					int rows = mat.rows();
+					int cols = mat.cols();
 
-			for (long r = 0; r < rows; r++) {
-				for (long c = 0; c < cols; c++) {
-					for (int y = (int)r; y < r + radius * 2 + 1; y++) {
-						for (int x = (int)c; x < c + radius * 2 + 1; x++) {
-							float val = raster.getSampleFloat(x, y, b);
+					for (int r = 0; r < rows; r++) {
+						for (int c = 0; c < cols; c++) {
+							float val = raster.getSampleFloat(c + x, r + y, b);
 							//								System.err.println(r + ", " + c + ", " + k);
 							idx.put(r, c, val);
 						}							
 					}
 					idx.release();
-					features.add(new DefaultFeature<>(String.format("Pixel (%d, %d)", c, r), mat));
+					features.add(new DefaultFeature<>(String.format("Pixel (%d, %d)", x, y), mat));
 				}				
 			}
 		}
-		
-		return features;
-	}
+	return features;
+}
 
 	@Override
 	public ImmutableDimension getInputSize() {
