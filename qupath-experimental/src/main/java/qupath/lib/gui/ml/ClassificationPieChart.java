@@ -42,7 +42,7 @@ class ClassificationPieChart {
 		var tooltips = new HashMap<Data, Tooltip>();
 		for (Entry<PathClass, Integer> entry : counts.entrySet()) {
 			var pathClass = entry.getKey();
-			var name = pathClass.getName();
+			var name = pathClass.toString();
 			double value = entry.getValue();
 			if (convertToPercentages)
 				value = value / sum * 100.0;

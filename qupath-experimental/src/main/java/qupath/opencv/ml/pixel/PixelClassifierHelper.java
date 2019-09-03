@@ -8,9 +8,11 @@ import org.bytedeco.javacpp.indexer.IntIndexer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import ij.ImagePlus;
 import qupath.lib.classifiers.Normalization;
 import qupath.lib.color.ColorToolsAwt;
 import qupath.lib.common.ColorTools;
+import qupath.lib.gui.ml.BoundaryStrategy;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.AbstractTileableImageServer;
 import qupath.lib.images.servers.ImageChannel;
@@ -40,7 +42,6 @@ import qupath.opencv.ml.pixel.features.OpenCVFeatureCalculator;
 import qupath.opencv.tools.OpenCVTools;
 
 import java.awt.BasicStroke;
-import java.awt.Color;
 import java.awt.image.BandedSampleModel;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferFloat;
@@ -58,7 +59,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
-import java.util.UUID;
 import java.util.WeakHashMap;
 import java.util.stream.Collectors;
 
@@ -72,22 +72,7 @@ public class PixelClassifierHelper implements PathObjectHierarchyListener {
 	
 	private static final Logger logger = LoggerFactory.getLogger(PixelClassifierHelper.class);
 	
-	/**
-	 * Strategy for handling the boundary pixels for area annotations.
-	 * <p>
-	 * This can be to do nothing, assign them to the 'ignore' class, or assign them 
-	 * to a specific 'boundary' class.
-	 * <p>
-	 * The purpose is to facilitate learning separations between densely-packed objects.
-	 */
-	public static enum BoundaryStrategy {
-		NONE,
-		CLASSIFY_IGNORE,
-		CLASSIFY_BOUNDARY
-		};
-	
-	private BoundaryStrategy boundaryStrategy = BoundaryStrategy.NONE;
-	private double boundaryThickness = 1.0;
+	private BoundaryStrategy boundaryStrategy = BoundaryStrategy.getSkipBoundaryStrategy();
 
     private ImageData<BufferedImage> imageData;
     private OpenCVFeatureCalculator calculator;
@@ -187,7 +172,11 @@ public class PixelClassifierHelper implements PathObjectHierarchyListener {
         Set<PathClass> pathClasses = new TreeSet<>((p1, p2) -> p1.toString().compareTo(p2.toString()));
         for (var annotation : annotations) {
         	if (isTrainableAnnotation(annotation)) {
-        		pathClasses.add(annotation.getPathClass());
+        		var pathClass = annotation.getPathClass();
+        		pathClasses.add(pathClass);
+        		var boundaryClass = boundaryStrategy.getBoundaryClass(pathClass);
+        		if (boundaryClass != null)
+        			pathClasses.add(boundaryClass);
         	}
         }
         pathClassesLabels.clear();
@@ -219,7 +208,7 @@ public class PixelClassifierHelper implements PathObjectHierarchyListener {
         List<Mat> allFeatures = new ArrayList<>();
         List<Mat> allTargets = new ArrayList<>();
         for (var tile : tiles) {
-            var tileFeatures = TileFeatures.getFeatures(tile.getRegionRequest(), featureServer, labels);
+            var tileFeatures = TileFeatures.getFeatures(tile.getRegionRequest(), featureServer, boundaryStrategy, labels);
         	if (tileFeatures != null) {
         		allFeatures.add(tileFeatures.getFeatures());
         		allTargets.add(tileFeatures.getTargets());
@@ -269,9 +258,9 @@ public class PixelClassifierHelper implements PathObjectHierarchyListener {
 
         
         this.preprocessor = new OpenCVClassifiers.FeaturePreprocessor.Builder()
-        	.normalize(Normalization.MEAN_VARIANCE)
-//        	.pca(0.99, true)
-        	.missingValue(0)
+        	.normalize(normalization)
+        	.pca(pcaRetained, pcaNormalize)
+        	.missingValue(missingValue)
         	.buildAndApply(matTraining);
         
 
@@ -281,6 +270,90 @@ public class PixelClassifierHelper implements PathObjectHierarchyListener {
         return true;
     }
     
+    /**
+     * Feature normalization method
+     */
+    private Normalization normalization = Normalization.MEAN_VARIANCE;
+    
+    /**
+     * Feature normalization method. Applied before any dimensionality reduction.
+     * @param normalization
+     * @see #setPCARetainedVariance(double)
+     * @see #setPCANormalize(boolean)
+     */
+    public void setNormalization(Normalization normalization) {
+    	if (this.normalization == normalization)
+    		return;
+    	this.normalization = normalization;
+    	resetTrainingData();
+    }
+    
+    /**
+     * Get the current feature normalization method for preprocessing.
+     * @return
+     */
+    public Normalization getNormalization() {
+    	return normalization;
+    }
+    
+    /**
+     * Missing value for training data
+     */
+    private double missingValue = 0;
+    
+    /**
+     * Retained variance for PCA
+     */
+    private double pcaRetained = 0;
+    
+    /**
+     * Normalize features after dimensionality reduction using PCA
+     */
+    private boolean pcaNormalize = true;
+       
+    /**
+     * Apply Principal Component Analysis for feature dimensionality reduction.
+     * @param retained retained variance after dimensionality reduction; set &leq; 0 if PCA should not be applied
+     * @see #setNormalization(Normalization)
+     */
+    public void setPCARetainedVariance(double retained) {
+    	if (pcaRetained == retained)
+    		return;
+    	pcaRetained = retained;
+    	resetTrainingData();
+    }
+    
+    /**
+     * Get the retained variance after applying PCA for dimensionality reduction
+     * @return
+     * @see #setPCARetainedVariance(double)
+     */
+    public double getPCARetainedVariance() {
+    	return pcaRetained;
+    }
+    
+    /**
+     * Request features to be normalized <i>after</i> dimensionality reduction using PCA.
+     * @param normalize
+     * @see #setPCARetainedVariance(double)
+     */
+    public void setPCANormalize(boolean normalize) {
+    	if (pcaNormalize == normalize)
+    		return;
+    	pcaNormalize = normalize;
+    	resetTrainingData();
+    }
+
+    /**
+     * Query whether reduced features are normalized <i>after</i> PCA.
+     * @return
+     * @see #setPCANormalize(boolean)
+     * @see #setPCARetainedVariance(double)
+     */
+    public boolean doPCANormalize() {
+    	return pcaNormalize;
+    }
+
     
 	private static PathClass REGION_CLASS = PathClassFactory.getPathClass(StandardPathClasses.REGION);
 
@@ -308,7 +381,7 @@ public class PixelClassifierHelper implements PathObjectHierarchyListener {
     public void setBoundaryStrategy(BoundaryStrategy strategy) {
     	if (this.boundaryStrategy == strategy)
     		return;
-    	this.boundaryStrategy = strategy;
+    	this.boundaryStrategy = strategy == null ? BoundaryStrategy.getSkipBoundaryStrategy() : strategy;
     	resetTrainingData();
     }
     
@@ -321,30 +394,7 @@ public class PixelClassifierHelper implements PathObjectHierarchyListener {
     	return boundaryStrategy;
     }
     
-    /**
-     * Get the thickness of annotation boundaries, whenever {@code getBoundaryStrategy() != BoundaryStrategy.NONE}.
-     * 
-     * @return
-     */
-    public double getBoundaryThickness() {
-    	return boundaryThickness;
-    }
     
-    /**
-     * Set the thickness of annotation boundaries, whenever {@code getBoundaryStrategy() != BoundaryStrategy.NONE}.
-     * <p>
-     * This is defined in pixel units at the classification resolution level (i.e. after any downsampling has been applied).
-     * 
-     * @param boundaryThickness
-     */
-    public void setBoundaryThickness(double boundaryThickness) {
-    	if (this.boundaryThickness == boundaryThickness)
-    		return;
-    	this.boundaryThickness = boundaryThickness;
-    	resetTrainingData();
-    }
-
-
     public FeaturePreprocessor getLastFeaturePreprocessor() {
         return preprocessor;
     }
@@ -410,10 +460,11 @@ public class PixelClassifierHelper implements PathObjectHierarchyListener {
     	private FeatureImageServer featureServer;
     	private RegionRequest request;
     	private Map<ROI, PathClass> rois;
+    	private BoundaryStrategy strategy;
     	private Mat matFeatures;
     	private Mat matTargets;
     	
-    	static TileFeatures getFeatures(RegionRequest request, FeatureImageServer featureServer, Map<PathClass, Integer> labels) {
+    	static TileFeatures getFeatures(RegionRequest request, FeatureImageServer featureServer, BoundaryStrategy strategy, Map<PathClass, Integer> labels) {
     		TileFeatures features = cache.get(request);
     		Map<ROI, PathClass> rois = null;
     		
@@ -457,6 +508,7 @@ public class PixelClassifierHelper implements PathObjectHierarchyListener {
     		if (features != null) {
     			if (features.featureServer.equals(featureServer) &&
     					features.labels.equals(labels) &&
+    					features.strategy.equals(strategy) &&
     					features.rois.equals(rois) &&
     					features.request.equals(request))
     				return features;
@@ -464,7 +516,7 @@ public class PixelClassifierHelper implements PathObjectHierarchyListener {
     		
     		// Calculate new features
     		try {
-	    		features = new TileFeatures(request, featureServer, rois, labels);
+	    		features = new TileFeatures(request, featureServer, strategy, rois, labels);
 	    		cache.put(request, features);
     		} catch (IOException e) {
     			cache.remove(request);
@@ -474,8 +526,9 @@ public class PixelClassifierHelper implements PathObjectHierarchyListener {
     		return features;
     	}
     	
-    	private TileFeatures(RegionRequest request, FeatureImageServer featureServer, Map<ROI, PathClass> rois, Map<PathClass, Integer> labels) throws IOException {
+    	private TileFeatures(RegionRequest request, FeatureImageServer featureServer, BoundaryStrategy strategy, Map<ROI, PathClass> rois, Map<PathClass, Integer> labels) throws IOException {
     		this.request = request;
+    		this.strategy = strategy;
     		this.featureServer = featureServer;
     		this.rois = rois;
     		this.labels = labels;
@@ -494,7 +547,9 @@ public class PixelClassifierHelper implements PathObjectHierarchyListener {
     		
     		// TODO: Handle differing boundary thicknesses
     		double downsample = request.getDownsample();
-    		double boundaryThickness = 1.0;
+    		double boundaryThickness = strategy.getBoundaryThickness();
+    		BasicStroke stroke = boundaryThickness > 0 ? new BasicStroke((float)(downsample * boundaryThickness)) : null;
+    		BasicStroke singleStroke = new BasicStroke((float)downsample);
     		
     		int width = features.getWidth();
     		int height = features.getHeight();
@@ -513,7 +568,6 @@ public class PixelClassifierHelper implements PathObjectHierarchyListener {
     			
     			boolean isArea = roi.isArea();
     			boolean isLine = roi.isLine();
-    			boolean trainBoundaries = false;
     			
     			if (roi.isPoint()) {
     				for (var p : roi.getPolygonPoints()) {
@@ -532,13 +586,16 @@ public class PixelClassifierHelper implements PathObjectHierarchyListener {
 	                if (isArea) {
 	                	g2d.fill(shape);
 	                	// Do not train on boundaries if these should be classified some other way
-	                	if (trainBoundaries) {
-	                        g2d.setColor(Color.BLACK);
-	                    	g2d.setStroke(new BasicStroke((float)(downsample * boundaryThickness)));
+	                	var boundaryClass = strategy.getBoundaryClass(pathClass);
+	                	Integer boundaryLabel = boundaryClass == null ? null : labels.get(boundaryClass);
+	                	if (stroke != null && boundaryLabel != null) {
+	                		int boundaryLab = boundaryLabel.intValue() + 1;
+	                		g2d.setColor(ColorToolsAwt.getCachedColor(boundaryLab, boundaryLab, boundaryLab));
+	                    	g2d.setStroke(stroke);
 	                    	g2d.draw(shape);                        		
 	                	}
 	                } else if (isLine) {
-	                	g2d.setStroke(new BasicStroke((float)(downsample * boundaryThickness)));
+	                	g2d.setStroke(singleStroke);
 	                	g2d.draw(shape);
 	                }
 	        		g2d.dispose();
@@ -569,8 +626,7 @@ public class PixelClassifierHelper implements PathObjectHierarchyListener {
     		matTargets = new Mat(n, 1, opencv_core.CV_32SC1);
 
     		if (n == 0) {
-    			System.err.println("Nothing after all! " + rois.size() + " - " + request);
-    			System.err.println(rois);
+    			logger.warn("I thought I'd have features but I don't! " + rois.size() + " - " + request);
     			return;
     		}
 
@@ -773,7 +829,7 @@ public class PixelClassifierHelper implements PathObjectHierarchyListener {
 
 		@Override
 		protected String createID() {
-			return UUID.randomUUID().toString();
+			return String.format("%s %s", imageData.getServerPath(), calculator.toString());
 		}
     	
     }

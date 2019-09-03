@@ -146,7 +146,13 @@ public class Preprocessing {
 		private boolean normalize = true;
 
 
-
+		/**
+		 * Apply PCA for dimensionality reduction.
+		 * 
+		 * @param data the data from which eigenvectors should be computed
+		 * @param retainedVariance value between 0 and 1
+		 * @param normalize applied during {@link #project(Mat, Mat)}
+		 */
 		PCAProjector(Mat data, double retainedVariance, boolean normalize) {
 			this.retainedVariance = retainedVariance;
 			this.normalize = normalize;

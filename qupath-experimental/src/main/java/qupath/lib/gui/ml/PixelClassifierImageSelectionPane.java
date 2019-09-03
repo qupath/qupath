@@ -40,10 +40,8 @@ import ij.io.Opener;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.BooleanProperty;
-import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
-import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import javafx.beans.value.ChangeListener;
@@ -73,6 +71,7 @@ import jfxtras.scene.layout.HBox;
 import qupath.imagej.gui.IJExtension;
 import qupath.imagej.images.servers.ImageJServer;
 import qupath.imagej.tools.IJTools;
+import qupath.lib.classifiers.Normalization;
 import qupath.lib.classifiers.pixel.PixelClassificationImageServer;
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.classifiers.pixel.PixelClassifierMetadata;
@@ -108,7 +107,6 @@ import qupath.opencv.ml.OpenCVClassifiers;
 import qupath.opencv.ml.OpenCVClassifiers.OpenCVStatModel;
 import qupath.opencv.ml.pixel.OpenCVPixelClassifier;
 import qupath.opencv.ml.pixel.PixelClassifierHelper;
-import qupath.opencv.ml.pixel.PixelClassifierHelper.BoundaryStrategy;
 import qupath.opencv.ml.pixel.features.ExtractNeighborsFeatureCalculator;
 import qupath.opencv.ml.pixel.features.Feature;
 import qupath.opencv.ml.pixel.features.MultiscaleFeatureCalculator;
@@ -165,9 +163,7 @@ public class PixelClassifierImageSelectionPane {
 	private StringProperty cursorLocation = new SimpleStringProperty();
 	
 	private ClassificationPieChart pieChart;
-	
-	private ObjectProperty<BoundaryStrategy> boundaryStrategy = new SimpleObjectProperty<>(BoundaryStrategy.NONE);
-	
+		
 	private boolean wasApplied = false;
 
 	private HierarchyListener hierarchyListener = new HierarchyListener();
@@ -211,10 +207,10 @@ public class PixelClassifierImageSelectionPane {
 				"Choose classifier type (RTrees is generally a good default)",
 				labelClassifier, comboClassifier, comboClassifier, btnEditClassifier);
 		
-		// Boundary strategy
-		boundaryStrategy.addListener((v, o, n) -> {
-			updateClassifier();
-		});
+//		// Boundary strategy
+//		boundaryStrategy.addListener((v, o, n) -> {
+//			updateClassifier();
+//		});
 		
 		// Image resolution
 		var labelResolution = new Label("Resolution");
@@ -297,7 +293,10 @@ public class PixelClassifierImageSelectionPane {
 		
 		// Live predict
 		var btnAdvancedOptions = new Button("Advanced options");
-		btnAdvancedOptions.setOnAction(e -> showAdvancedOptions());
+		btnAdvancedOptions.setOnAction(e -> {
+			if (showAdvancedOptions())
+				updateClassifier();
+		});
 		
 		var btnLive = new ToggleButton("Live prediction");
 		btnLive.selectedProperty().bindBidirectional(livePrediction);
@@ -523,6 +522,8 @@ public class PixelClassifierImageSelectionPane {
 		updateClassifier(livePrediction.get());
 	}
 	
+	
+	
 	private void updateClassifier(boolean doClassification) {
 		
 		double downsample = getRequestedDownsample();
@@ -535,8 +536,6 @@ public class PixelClassifierImageSelectionPane {
 			helper.setFeatureCalculator(featureCalculator);
 			helper.setDownsample(downsample);
 		}
-		helper.setBoundaryStrategy(boundaryStrategy.get());
-		helper.setBoundaryThickness(1.0);
 		
 		if (doClassification)
 			doClassification();
@@ -569,18 +568,45 @@ public class PixelClassifierImageSelectionPane {
 	
 	private boolean showAdvancedOptions() {
 		
+		if (helper == null) {
+			helper = new PixelClassifierHelper(
+	        		viewer.getImageData(), featureCalculator, getRequestedDownsample());
+		}
+		
+		var existingStrategy = helper.getBoundaryStrategy();
+		
+		List<BoundaryStrategy> boundaryStrategies = new ArrayList<>();
+		boundaryStrategies.add(BoundaryStrategy.getSkipBoundaryStrategy());
+		boundaryStrategies.add(BoundaryStrategy.getDerivedBoundaryStrategy(1));
+		for (var pathClass : QuPathGUI.getInstance().getAvailablePathClasses())
+			boundaryStrategies.add(BoundaryStrategy.getClassifyBoundaryStrategy(pathClass, 1));
+		
+		
 		var params = new ParameterList()
-				.addChoiceParameter("boundaryStrategy", "Boundary strategy", boundaryStrategy.get(),
-						Arrays.asList(BoundaryStrategy.values()),
-						"Choose how annotation boundaries should influence classifier training");
-//				.addDoubleParameter("boundaryThickness", "Boundary thickness", );
+				.addTitleParameter("Preprocessing")
+				.addChoiceParameter("normalization", "Feature normalization", helper.getNormalization(),
+						Arrays.asList(Normalization.values()), "Method to normalize features")
+				.addDoubleParameter("pcaRetainedVariance", "PCA retained variance", helper.getPCARetainedVariance(), "",
+						"Retained variance if applying Principal Component Analysis for dimensionality reduction. Should be between 0 and 1; if <= 0 PCA will not be applied.")
+				.addBooleanParameter("pcaNormalize", "PCA normalize", helper.doPCANormalize(), 
+						"If selected and PCA retained variance > 0, standardize the reduced features")
+				.addTitleParameter("Annotation boundaries")
+				.addChoiceParameter("boundaryStrategy", "Boundary strategy", helper.getBoundaryStrategy(),
+						boundaryStrategies,
+						"Choose how annotation boundaries should influence classifier training")
+				.addDoubleParameter("boundaryThickness", "Boundary thickness", existingStrategy.getBoundaryThickness(), "pixels",
+						"Set the boundary thickness whenever annotation boundaries are trained separately");
+		
 		if (!DisplayHelpers.showParameterDialog("Advanced options", params))
 			return false;
 		
-		var strategy = params.getChoiceParameterValue("boundaryStrategy");
-		if (strategy instanceof BoundaryStrategy) {
-			boundaryStrategy.set((BoundaryStrategy)strategy);
-		}
+		helper.setNormalization((Normalization)params.getChoiceParameterValue("normalization"));
+		helper.setPCARetainedVariance(params.getDoubleParameterValue("pcaRetainedVariance"));
+		helper.setPCANormalize(params.getBooleanParameterValue("pcaNormalize"));
+		
+		var strategy = (BoundaryStrategy)params.getChoiceParameterValue("boundaryStrategy");
+		strategy = BoundaryStrategy.setThickness(strategy, params.getDoubleParameterValue("boundaryThickness"));
+		helper.setBoundaryStrategy(strategy);
 		
 		return true;
 	}
