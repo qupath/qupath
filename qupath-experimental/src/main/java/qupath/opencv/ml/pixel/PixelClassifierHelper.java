@@ -313,7 +313,7 @@ public class PixelClassifierHelper implements PathObjectHierarchyListener {
        
     /**
      * Apply Principal Component Analysis for feature dimensionality reduction.
-     * @param retained retained variance after dimensionality reduction; set &leq; 0 if PCA should not be applied
+     * @param retained retained variance after dimensionality reduction; set &le; 0 if PCA should not be applied
      * @see #setNormalization(Normalization)
      */
     public void setPCARetainedVariance(double retained) {
@@ -818,6 +818,7 @@ public class PixelClassifierHelper implements PathObjectHierarchyListener {
 		}
 		
 		// TODO: Consider clearing the cache for this server if we can
+		@Override
 		public void close() throws Exception {
 			super.close();
 		}

@@ -114,7 +114,7 @@ public class BoundaryStrategy {
 
 	/**
 	 * Create a boundary strategy that trains a classifier for a specific PathClass for annotation boundaries.
-	 * Note that if the pathClass is null or thickness &leq; 0 this is the same as {@link #getSkipBoundaryStrategy()}
+	 * Note that if the pathClass is null or thickness &le; 0 this is the same as {@link #getSkipBoundaryStrategy()}
 	 * @param pathClass
 	 * @param thickness
 	 * @return
@@ -127,8 +127,7 @@ public class BoundaryStrategy {
 	
 	/**
 	 * Create a boundary strategy that trains a classifier for a PathClass derived from the original classification for annotation boundaries.
-	 * Note that if the thickness &leq; 0 this is the same as {@link #getSkipBoundaryStrategy()}
-	 * @param pathClass
+	 * Note that if the thickness &le; 0 this is the same as {@link #getSkipBoundaryStrategy()}
 	 * @param thickness
 	 * @return
 	 */
