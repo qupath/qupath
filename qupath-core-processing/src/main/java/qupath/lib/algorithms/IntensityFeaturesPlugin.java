@@ -1053,8 +1053,12 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 			if (transform == FeatureColorTransformEnum.HUE)
 				return;
 			
-			double haralickMin = params.getDoubleParameterValue("haralickMin");
-			double haralickMax = params.getDoubleParameterValue("haralickMax");
+			double haralickMin = Double.NaN;
+			double haralickMax = Double.NaN;
+			if (params.containsKey("haralickMin"))
+				haralickMin = params.getDoubleParameterValue("haralickMin");
+			if (params.containsKey("haralickMax"))
+				haralickMax = params.getDoubleParameterValue("haralickMax");
 			double[] minMax = transform.getHaralickMinMax();
 			if (Double.isFinite(haralickMin) && Double.isFinite(haralickMax) && haralickMax > haralickMin) {
 				logger.trace("Using Haralick min/max {}, {}", haralickMin, haralickMax);
