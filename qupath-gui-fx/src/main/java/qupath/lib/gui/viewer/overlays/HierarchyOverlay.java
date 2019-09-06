@@ -193,7 +193,7 @@ public class HierarchyOverlay extends AbstractImageDataOverlay {
 		Collection<PathObject> pathObjects = hierarchy.getObjectsForRegion(PathAnnotationObject.class, region, null);
 
 		Collection<PathObject> selectedObjects = new ArrayList<>(hierarchy.getSelectionModel().getSelectedObjects());
-		selectedObjects.removeIf(p -> p.getROI().getZ() != z || p.getROI().getT() != t);
+		selectedObjects.removeIf(p -> !p.hasROI() || (p.getROI().getZ() != z || p.getROI().getT() != t));
 		
 		pathObjects.removeAll(selectedObjects);
 
