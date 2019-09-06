@@ -26,7 +26,7 @@ import org.slf4j.LoggerFactory;
 import com.google.gson.annotations.JsonAdapter;
 
 @JsonAdapter(PixelClassifiers.PixelClassifierTypeAdapterFactory.class)
-public class OpenCVPixelClassifier extends AbstractOpenCVPixelClassifier {
+class OpenCVPixelClassifier extends AbstractOpenCVPixelClassifier {
 	
 	private static final Logger logger = LoggerFactory.getLogger(OpenCVPixelClassifier.class);
 
@@ -40,15 +40,15 @@ public class OpenCVPixelClassifier extends AbstractOpenCVPixelClassifier {
     	super(null, false);
     }
     
-    public OpenCVStatModel getModel() {
-    	return model;
-    }
+//    public OpenCVStatModel getModel() {
+//    	return model;
+//    }
     
-    public OpenCVPixelClassifier(OpenCVStatModel statModel, OpenCVFeatureCalculator calculator, FeaturePreprocessor preprocessor, PixelClassifierMetadata metadata) {
-    	this(statModel, calculator, preprocessor, metadata, false);
-    }
+//    public OpenCVPixelClassifier(OpenCVStatModel statModel, OpenCVFeatureCalculator calculator, FeaturePreprocessor preprocessor, PixelClassifierMetadata metadata) {
+//    	this(statModel, calculator, preprocessor, metadata, false);
+//    }
 
-    public OpenCVPixelClassifier(OpenCVStatModel statModel, OpenCVFeatureCalculator calculator, FeaturePreprocessor preprocessor, PixelClassifierMetadata metadata, boolean do8Bit) {
+    OpenCVPixelClassifier(OpenCVStatModel statModel, OpenCVFeatureCalculator calculator, FeaturePreprocessor preprocessor, PixelClassifierMetadata metadata, boolean do8Bit) {
         super(metadata, do8Bit);
         this.model = statModel;
         this.calculator = calculator;

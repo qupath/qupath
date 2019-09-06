@@ -22,7 +22,7 @@ public class SimplePixelClassifier implements PixelClassifier {
 	private SingleChannelDisplayInfo channel;
 	private double threshold;
 	
-	public SimplePixelClassifier(
+	SimplePixelClassifier(
 			SingleChannelDisplayInfo channel,
 			double requestedPixelSizeMicrons,
 			double threshold,
@@ -37,6 +37,25 @@ public class SimplePixelClassifier implements PixelClassifier {
 				.inputShape(512, 512)
 				.setChannelType(ImageServerMetadata.ChannelType.CLASSIFICATION)
 				.build();
+	}
+	
+	/**
+	 * Create a PixelClassifier that applies a threshold to a single image channel at a specified resolution.
+	 * 
+	 * @param channel
+	 * @param requestedPixelSizeMicrons
+	 * @param threshold
+	 * @param belowThreshold
+	 * @param aboveThreshold
+	 * @return
+	 */
+	public static PixelClassifier createThresholdingClassifier(
+			SingleChannelDisplayInfo channel,
+			double requestedPixelSizeMicrons,
+			double threshold,
+			PathClass belowThreshold,
+			PathClass aboveThreshold) {
+		return new SimplePixelClassifier(channel, requestedPixelSizeMicrons, threshold, belowThreshold, aboveThreshold);
 	}
 	
 	static ImageChannel getChannel(PathClass pathClass) {

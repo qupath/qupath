@@ -8,7 +8,6 @@ import org.bytedeco.javacpp.indexer.IntIndexer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import ij.ImagePlus;
 import qupath.lib.classifiers.Normalization;
 import qupath.lib.color.ColorToolsAwt;
 import qupath.lib.common.ColorTools;
@@ -595,7 +594,7 @@ public class PixelClassifierHelper implements PathObjectHierarchyListener {
 	                    	g2d.draw(shape);                        		
 	                	}
 	                } else if (isLine) {
-	                	g2d.setStroke(singleStroke);
+	                	g2d.setStroke(stroke == null ? singleStroke : stroke);
 	                	g2d.draw(shape);
 	                }
 	        		g2d.dispose();

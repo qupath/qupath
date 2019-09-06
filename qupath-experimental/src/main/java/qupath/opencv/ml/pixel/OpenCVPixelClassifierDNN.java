@@ -10,9 +10,8 @@ import org.bytedeco.opencv.opencv_dnn.Net;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.classifiers.pixel.PixelClassifierMetadata;
-import qupath.lib.gui.ml.PixelClassifierStatic;
+import qupath.lib.gui.ml.PixelClassifierTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.regions.RegionRequest;
 import qupath.opencv.tools.OpenCVTools;
@@ -23,32 +22,27 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-public class OpenCVPixelClassifierDNN extends AbstractOpenCVPixelClassifier {
+/**
+ * Pixel classifier that uses a pre-trained model that can be read using OpenCV's DNN module.
+ * <p>
+ * TODO: Test for parallelization. Either reduce OpenCV threads globally or always call prediction from a single thread.
+ * 
+ * @author Pete Bankhead
+ */
+class OpenCVPixelClassifierDNN extends AbstractOpenCVPixelClassifier {
 	
-    private static final Logger logger = LoggerFactory.getLogger(OpenCVPixelClassifier.class);
+    private static final Logger logger = LoggerFactory.getLogger(OpenCVPixelClassifierDNN.class);
 
     private Net model;
     private boolean doSoftMax;
     
-    private int stripOutputPadding;
-
     private Scalar means;
     private Scalar scales;
     private boolean scalesMatch;
     
-    public static PixelClassifier createDNN(Net net, PixelClassifierMetadata metadata, boolean do8Bit, int stripOutputPadding) {
-    	return new OpenCVPixelClassifierDNN(net, metadata, do8Bit, stripOutputPadding);
-    }
-    
     OpenCVPixelClassifierDNN(Net net, PixelClassifierMetadata metadata, boolean do8Bit) {
-    	this(net, metadata, do8Bit, 0);
-    }
-
-    OpenCVPixelClassifierDNN(Net net, PixelClassifierMetadata metadata, boolean do8Bit, int stripOutputPadding) {
         super(metadata, do8Bit);
         
-        this.stripOutputPadding = stripOutputPadding;
-
         // TODO: Fix creation of unnecessary objects
         if (metadata.getInputChannelMeans() != null)
             means = toScalar(metadata.getInputChannelMeans());
@@ -69,73 +63,6 @@ public class OpenCVPixelClassifierDNN extends AbstractOpenCVPixelClassifier {
         }
 
         this.model = net;
-    }
-    
-    /**
-     * Attempt to read a Net from a single file.
-     * Depending on the file extension, this will use the importer for
-     * <ul>
-     * 	<li>Tensorflow (.pb)</li>
-     * 	<li>Caffe (.prototxt)</li>
-     * 	<li>Darknet (.cfg)</li>
-     * </ul>
-     * 
-     * @param path Main file from which to load the Net.
-     * @return
-     */
-    public static Net readNet(final String path) {
-    	return readNet(path, null);
-    }
-    
-    /**
-     * Attempt to read a Net from a single file and optional config file.
-     * Depending on the file extension for the first parameter, this will use the importer for
-     * <ul>
-     * 	<li>Tensorflow (.pb)</li>
-     * 	<li>Caffe (.prototxt)</li>
-     * 	<li>Darknet (.cfg)</li>
-     * </ul>
-     * 
-     * @param path Main file from which to load the Net.
-     * @param config Optional separate file containing weights.
-     * @return
-     */
-    public static Net readNet(final String path, final String config) {
-    	if (config == null)
-        	logger.info("Reading model from {} (no config file specified)", path);
-    	else
-    		logger.info("Reading model from {}, with config in {}", path, config);
-    	
-    	String pathLower = path.toLowerCase();
-    	// Try TensorFlow for .pb file
-    	if (pathLower.endsWith(".pb")) {
-    		if (config == null)
-    			return opencv_dnn.readNetFromTensorflow(path);
-    		return opencv_dnn.readNetFromTensorflow(path, config);
-    	}
-    	// Try Caffe for .prototxt file
-    	if (pathLower.endsWith(".prototxt")) {
-    		if (config == null)
-    			return opencv_dnn.readNetFromCaffe(path);
-    		return opencv_dnn.readNetFromCaffe(path, config);
-    	}
-    	// Try Darknet for .cfg file
-    	if (pathLower.endsWith(".cfg")) {
-    		if (config == null)
-    			return opencv_dnn.readNetFromDarknet(path);
-    		return opencv_dnn.readNetFromDarknet(path, config);
-    	}
-    	throw new IllegalArgumentException("Unable to read model from " + path);
-    }
-
-
-    /**
-     * Default padding request
-     *
-     * @return
-     */
-    public int requestedPadding() {
-        return stripOutputPadding;
     }
 
 
@@ -278,37 +205,6 @@ public class OpenCVPixelClassifierDNN extends AbstractOpenCVPixelClassifier {
         	matResult.release();
         	matResult = matResult2;
         }
-        
-////        matResult = matResult.reshape(4, 128);
-//        MatVector channels = new MatVector();
-//        opencv_core.split(matResult, channels);
-//        Mat matSum = channels.get(0).clone();
-////        System.err.println("Channels: " + channels.size());
-////        System.err.println(matSum);
-//        for (int c = 1; c < channels.size(); c++)
-//        	opencv_core.addPut(matSum, channels.get(0));
-////        System.err.println("Mean afterwards: " + opencv_core.mean(matSum));
-//        matSum.release();
-        
-//        int nOutputChannels = metadata.nOutputChannels();
-//        List<Mat> matOutput = new ArrayList<>();
-//        for (int i = 0; i < nOutputChannels; i++) {
-//            Mat plane = opencv_dnn.getPlane(prob, 0, i);
-//            matOutput.add(plane);
-//        }
-//        MatVector matvec = new MatVector(matOutput.toArray(new Mat[0]));
-//        Mat matResult = new Mat();
-//        opencv_core.merge(matvec, matResult);
-
-        // Remove padding, if necessary
-//        pad /= 2;
-        if (stripOutputPadding > 0) {
-            matResult.put(
-            		matResult.apply(
-            				new Rect(
-            						stripOutputPadding, stripOutputPadding,
-            						matResult.cols()-stripOutputPadding*2, matResult.rows()-stripOutputPadding*2)).clone());
-        }
 
         return matResult;
     }
@@ -328,13 +224,20 @@ public class OpenCVPixelClassifierDNN extends AbstractOpenCVPixelClassifier {
 		int inputPadding = getMetadata().getInputPadding();
 		
 //		BufferedImage img = PixelClassifierGUI.getPaddedRequest(server, request, inputPadding);
-		BufferedImage img = PixelClassifierStatic.getPaddedRequest(server, request, inputPadding);
+		BufferedImage img = PixelClassifierTools.getPaddedRequest(server, request, inputPadding);
 		Mat mat = OpenCVTools.imageToMat(img);
 		
-		Mat matResult = doClassification(mat, 0);
-		
-		if (inputPadding > 0)
-			matResult.put(matResult.apply(new Rect(inputPadding, inputPadding, matResult.cols()-inputPadding*2, matResult.rows()-inputPadding*2)).clone());
+		// Synchronize on the model; does not support multiple threads simultaneously
+		Mat matResult;
+		synchronized (model) {
+			matResult = doClassification(mat, 0);
+			try {
+				if (inputPadding > 0)
+					matResult.put(matResult.apply(new Rect(inputPadding, inputPadding, matResult.cols()-inputPadding*2, matResult.rows()-inputPadding*2)).clone());
+			} catch (Exception e) {
+				logger.error("Error cropping padding", e);
+			}
+		}
 		
     	        
         // If we have a floating point or multi-channel result, we have probabilities

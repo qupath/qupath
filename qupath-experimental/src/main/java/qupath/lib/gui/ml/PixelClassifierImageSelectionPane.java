@@ -105,7 +105,7 @@ import qupath.lib.roi.RectangleROI;
 import qupath.lib.roi.interfaces.ROI;
 import qupath.opencv.ml.OpenCVClassifiers;
 import qupath.opencv.ml.OpenCVClassifiers.OpenCVStatModel;
-import qupath.opencv.ml.pixel.OpenCVPixelClassifier;
+import qupath.opencv.ml.pixel.OpenCVPixelClassifiers;
 import qupath.opencv.ml.pixel.PixelClassifierHelper;
 import qupath.opencv.ml.pixel.features.ExtractNeighborsFeatureCalculator;
 import qupath.opencv.ml.pixel.features.Feature;
@@ -690,7 +690,7 @@ public class PixelClassifierImageSelectionPane {
 				 .channels(channels)
 				 .build();
 
-		 var classifier = new OpenCVPixelClassifier(model, helper.getFeatureCalculator(), helper.getLastFeaturePreprocessor(), metadata, true);
+		 var classifier = OpenCVPixelClassifiers.createPixelClassifier(model, helper.getFeatureCalculator(), helper.getLastFeaturePreprocessor(), metadata, true);
 
 		 var classifierServer = new PixelClassificationImageServer(helper.getImageData(), classifier);
 		 replaceOverlay(new PixelClassificationOverlay(viewer, classifierServer));
@@ -818,7 +818,7 @@ public class PixelClassifierImageSelectionPane {
 		String name = promptToSaveClassifier(project, classifier);
 		if (name == null)
 			return null;
-		return PixelClassifierStatic.applyClassifier(project, imageData, classifier, name);
+		return PixelClassifierTools.applyClassifier(project, imageData, classifier, name);
 	}
 	
 	private PixelClassificationImageServer getClassificationServerOrShowError() {
@@ -842,7 +842,7 @@ public class PixelClassifierImageSelectionPane {
 		if (server == null) {
 			return false;
 		}
-		PixelClassifierStatic.classifyObjects(server, hierarchy.getDetectionObjects());
+		PixelClassifierTools.classifyObjects(server, hierarchy.getDetectionObjects());
 		return true;
 	}
 	
@@ -924,7 +924,7 @@ public class PixelClassifierImageSelectionPane {
 		// Need to turn off live prediction so we don't start training on the results...
 		livePrediction.set(false);
 		
-		return PixelClassifierStatic.createObjectsFromPixelClassifier(server, selected, creator, minSizePixels, doSplit);
+		return PixelClassifierTools.createObjectsFromPixelClassifier(server, selected, creator, minSizePixels, doSplit);
 	}
 	
 	

@@ -4,7 +4,6 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-
 import org.bytedeco.javacpp.IntPointer;
 import org.bytedeco.javacpp.PointerScope;
 import org.bytedeco.javacpp.SizeTPointer;
@@ -42,9 +41,13 @@ public class OpenCVDNN {
 	private boolean crop = false;
 	
 	private transient Net net;
-	
+		
 	private OpenCVDNN() {}
 
+	/**
+	 * Get the actual OpenCV Net directly.
+	 * @return
+	 */
 	public Net getNet() {
 		if (net == null) {
 			net = opencv_dnn.readNet(pathModel, pathConfig, framework);
@@ -52,6 +55,13 @@ public class OpenCVDNN {
 		return net;
 	}
 	
+	/**
+	 * Create a (multiline) summary String for the Net, given the specified image input dimensions.
+	 * @param width
+	 * @param height
+	 * @param nChannels
+	 * @return
+	 */
 	public String summarize(int width, int height, int nChannels) {
 		StringBuilder sb = new StringBuilder();
 		sb.append(name).append("\n");

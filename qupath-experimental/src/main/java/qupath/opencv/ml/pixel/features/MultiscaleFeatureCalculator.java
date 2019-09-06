@@ -19,7 +19,7 @@ import com.google.gson.annotations.JsonAdapter;
 
 import qupath.lib.common.GeneralTools;
 import qupath.lib.geom.ImmutableDimension;
-import qupath.lib.gui.ml.PixelClassifierStatic;
+import qupath.lib.gui.ml.PixelClassifierTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.PixelCalibration;
@@ -102,12 +102,12 @@ public class MultiscaleFeatureCalculator implements OpenCVFeatureCalculator {
 						request.getHeight(),
 						z,
 						request.getT());
-				BufferedImage img = PixelClassifierStatic.getPaddedRequest(server, request2, padding);
+				BufferedImage img = PixelClassifierTools.getPaddedRequest(server, request2, padding);
 				images.add(img);
 			}
 			ind = request.getZ();
 		} else {
-			BufferedImage img = PixelClassifierStatic.getPaddedRequest(server, request, padding);
+			BufferedImage img = PixelClassifierTools.getPaddedRequest(server, request, padding);
 			images.add(img);
 		}
 		

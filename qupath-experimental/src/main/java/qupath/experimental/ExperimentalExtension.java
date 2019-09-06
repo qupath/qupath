@@ -1,6 +1,5 @@
 package qupath.experimental;
 
-import qupath.lib.classifiers.pixel.PixelClassifiers;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.align.InteractiveImageAlignmentCommand;
 import qupath.lib.gui.extensions.QuPathExtension;
@@ -10,8 +9,6 @@ import qupath.lib.gui.ml.commands.PixelClassifierApplyCommand;
 import qupath.lib.gui.ml.commands.PixelClassifierCommand;
 import qupath.lib.gui.ml.commands.SimpleThresholdCommand;
 import qupath.lib.gui.ml.commands.SplitProjectTrainingCommand;
-import qupath.opencv.ml.pixel.OpenCVPixelClassifier;
-import qupath.opencv.ml.pixel.OpenCVPixelClassifierDNN;
 import qupath.opencv.ml.pixel.features.FeatureCalculators;
 
 /**
@@ -22,8 +19,8 @@ public class ExperimentalExtension implements QuPathExtension {
     @Override
     public void installExtension(QuPathGUI qupath) {
     	
-		PixelClassifiers.PixelClassifierTypeAdapterFactory.registerSubtype(OpenCVPixelClassifier.class);
-		PixelClassifiers.PixelClassifierTypeAdapterFactory.registerSubtype(OpenCVPixelClassifierDNN.class);
+//		PixelClassifiers.PixelClassifierTypeAdapterFactory.registerSubtype(OpenCVPixelClassifier.class);
+//		PixelClassifiers.PixelClassifierTypeAdapterFactory.registerSubtype(OpenCVPixelClassifierDNN.class);
     	FeatureCalculators.initialize();
     	
         QuPathGUI.addMenuItems(

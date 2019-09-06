@@ -15,7 +15,7 @@ import org.bytedeco.opencv.opencv_core.Mat;
 import com.google.gson.annotations.JsonAdapter;
 
 import qupath.lib.geom.ImmutableDimension;
-import qupath.lib.gui.ml.PixelClassifierStatic;
+import qupath.lib.gui.ml.PixelClassifierTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.io.OpenCVTypeAdapters;
 import qupath.lib.regions.RegionRequest;
@@ -51,7 +51,7 @@ public class ExtractNeighborsFeatureCalculator implements OpenCVFeatureCalculato
 
 	@Override
 	public List<Feature<Mat>> calculateFeatures(ImageData<BufferedImage> imageData, RegionRequest request) throws IOException {
-		BufferedImage img = PixelClassifierStatic.getPaddedRequest(imageData.getServer(), request, radius);
+		BufferedImage img = PixelClassifierTools.getPaddedRequest(imageData.getServer(), request, radius);
 		WritableRaster raster = img.getRaster();
 
 		n = (radius * 2 + 1) * (radius * 2 + 1) * inputChannels.length;

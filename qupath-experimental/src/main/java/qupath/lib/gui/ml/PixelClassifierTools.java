@@ -57,9 +57,9 @@ import java.util.stream.Collectors;
  * @author Pete Bankhead
  *
  */
-public class PixelClassifierStatic {
+public class PixelClassifierTools {
 
-    private static final Logger logger = LoggerFactory.getLogger(PixelClassifierStatic.class);
+    private static final Logger logger = LoggerFactory.getLogger(PixelClassifierTools.class);
 
     
     /**
@@ -437,12 +437,12 @@ public class PixelClassifierStatic {
 		if (selectedObject == null) {
 			hierarchy.clearAll();
 			hierarchy.getRootObject().addPathObjects(pathObjects);
-			hierarchy.fireHierarchyChangedEvent(PixelClassifierStatic.class);
+			hierarchy.fireHierarchyChangedEvent(PixelClassifierTools.class);
 		} else {
 			((PathAnnotationObject)selectedObject).setLocked(true);
 			selectedObject.clearPathObjects();
 			selectedObject.addPathObjects(pathObjects);
-			hierarchy.fireHierarchyChangedEvent(PixelClassifierStatic.class, selectedObject);
+			hierarchy.fireHierarchyChangedEvent(PixelClassifierTools.class, selectedObject);
 		}
 		return true;
 	}

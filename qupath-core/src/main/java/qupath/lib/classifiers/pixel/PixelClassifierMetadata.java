@@ -212,10 +212,16 @@ public class PixelClassifierMetadata {
     		return new PixelClassifierMetadata(this);
     	}
     	
-//    	public Builder inputPadding(int inputPadding) {
-//    		this.inputPadding = inputPadding;
-//    		return this;
-//    	}
+    	/**
+    	 * Amount of padding requested for the left, right, top and bottom of the image tile being classified.
+    	 * This can be used to reduce boundary artifacts.
+    	 * @param inputPadding
+    	 * @return
+    	 */
+    	public Builder inputPadding(int inputPadding) {
+    		this.inputPadding = inputPadding;
+    		return this;
+    	}
     	
     	/**
     	 * Specify the output channel type.

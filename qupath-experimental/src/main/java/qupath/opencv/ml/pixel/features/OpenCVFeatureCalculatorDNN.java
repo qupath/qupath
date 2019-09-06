@@ -17,7 +17,7 @@ import com.google.gson.annotations.JsonAdapter;
 
 import qupath.lib.classifiers.pixel.PixelClassifierMetadata;
 import qupath.lib.geom.ImmutableDimension;
-import qupath.lib.gui.ml.PixelClassifierStatic;
+import qupath.lib.gui.ml.PixelClassifierTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.io.OpenCVTypeAdapters;
 import qupath.lib.regions.RegionRequest;
@@ -91,7 +91,7 @@ public class OpenCVFeatureCalculatorDNN implements OpenCVFeatureCalculator {
 	@Override
 	public List<Feature<Mat>> calculateFeatures(ImageData<BufferedImage> imageData, RegionRequest request) throws IOException {
 		int padding = 0;//getMetadata().getInputPadding(); // TODO: Check necessity of padding
-		BufferedImage img = PixelClassifierStatic.getPaddedRequest(imageData.getServer(), request, padding);
+		BufferedImage img = PixelClassifierTools.getPaddedRequest(imageData.getServer(), request, padding);
 		
 		Mat mat = OpenCVTools.imageToMat(img);
 		

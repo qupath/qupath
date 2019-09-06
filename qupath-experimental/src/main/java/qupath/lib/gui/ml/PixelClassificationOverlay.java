@@ -17,7 +17,6 @@ import qupath.lib.objects.TMACoreObject;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.interfaces.ROI;
-import qupath.opencv.ml.pixel.OpenCVPixelClassifierDNN;
 
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
@@ -72,8 +71,8 @@ public class PixelClassificationOverlay extends AbstractImageDataOverlay  {
         // Choose number of threads based on how intensive the processing will be
         // TODO: Permit classifier to control request
         int nThreads = Math.max(1, PathPrefs.getNumCommandThreads());
-        if (classifierServer.getClassifier() instanceof OpenCVPixelClassifierDNN)
-        	nThreads = 1;
+//        if (classifierServer.getClassifier() instanceof OpenCVPixelClassifierDNN)
+//        	nThreads = 1;
         pool = Executors.newFixedThreadPool(
         		nThreads, ThreadTools.createThreadFactory(
         				"classifier-overlay", true, Thread.NORM_PRIORITY-2));

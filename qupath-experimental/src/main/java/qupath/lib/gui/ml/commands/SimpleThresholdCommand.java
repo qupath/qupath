@@ -170,7 +170,7 @@ public class SimpleThresholdCommand implements PathCommand {
 		if (imageData == null)
 			return;
 		
-		var classifier = new SimplePixelClassifier(
+		var classifier = SimplePixelClassifier.createThresholdingClassifier(
 				selectedChannel.get(),
 				32,
 				threshold.get(),

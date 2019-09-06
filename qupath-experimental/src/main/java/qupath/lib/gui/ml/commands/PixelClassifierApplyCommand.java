@@ -6,7 +6,7 @@ import java.util.Collection;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.helpers.DisplayHelpers;
-import qupath.lib.gui.ml.PixelClassifierStatic;
+import qupath.lib.gui.ml.PixelClassifierTools;
 
 /**
  * Command to apply a pre-trained pixel classifier to an image.
@@ -56,7 +56,7 @@ public class PixelClassifierApplyCommand implements PathCommand {
 			
 			// Apply the classification
 			var classifier = project.getPixelClassifiers().getResource(name);
-			var classifierServer = PixelClassifierStatic.applyClassifier(project, imageData, classifier, name);
+			var classifierServer = PixelClassifierTools.applyClassifier(project, imageData, classifier, name);
 			
 			// Display on the image
 //			var classifierServer = new PixelClassificationImageServer(viewer.getImageData(), classifier);
