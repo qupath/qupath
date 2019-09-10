@@ -1,6 +1,7 @@
 package qupath.lib.classifiers.pixel;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
@@ -20,15 +21,20 @@ public class PixelClassifierMetadata {
 	
 	private double inputPixelSize;
 	private String inputPixelSizeUnits;
+	
 	private double[] inputChannelMeans;
 	private double[] inputChannelScales;
+	
 	private boolean strictInputSize = false;
 	private int inputWidth = -1;
 	private int inputHeight = -1;
 	private int inputNumChannels = 3;
+	
 	private PixelType inputDataType = PixelType.UINT8;
+	
 	private int outputWidth = -1;
 	private int outputHeight = -1;
+	
 	private ImageServerMetadata.ChannelType outputType = ImageServerMetadata.ChannelType.CLASSIFICATION;
 	private List<ImageChannel> channels;
 	
@@ -314,6 +320,16 @@ public class PixelClassifierMetadata {
     	 */
     	public Builder channels(List<ImageChannel> channels) {
     		this.channels.addAll(channels);
+    		return this;
+    	}
+    	
+    	/**
+    	 * Specify channels for output.
+    	 * @param channels
+    	 * @return
+    	 */
+    	public Builder channels(ImageChannel... channels) {
+    		this.channels.addAll(Arrays.asList(channels));
     		return this;
     	}
     	    	

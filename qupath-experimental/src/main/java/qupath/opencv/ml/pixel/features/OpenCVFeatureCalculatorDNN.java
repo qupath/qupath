@@ -61,6 +61,12 @@ public class OpenCVFeatureCalculatorDNN implements OpenCVFeatureCalculator {
             		prob = net.forward();
             	else
             		prob = net.forward(outputLayerName);
+            	
+                MatVector matvec = new MatVector();
+                opencv_dnn.imagesFromBlob(prob, matvec);
+                if (matvec.size() != 1)
+                	throw new IllegalArgumentException("DNN result must be a single image - here, the result is " + matvec.size() + " images");
+                matResult = matvec.get(0L).clone();
             } catch (Exception e) {
             	throw new IOException(e);
             }
@@ -68,13 +74,7 @@ public class OpenCVFeatureCalculatorDNN implements OpenCVFeatureCalculator {
             // TODO: Note that there is a maximum number of supported channels; otherwise we need to extract values some other way
 //            FloatIndexer indexer = prob.createIndexer();
 //            indexer.release();
-            
-            MatVector matvec = new MatVector();
-            opencv_dnn.imagesFromBlob(prob, matvec);
-            if (matvec.size() != 1)
-            	throw new IllegalArgumentException("DNN result must be a single image - here, the result is " + matvec.size() + " images");
-            matResult = matvec.get(0L);
-            
+                        
             if (matResult.rows() != input.rows() || matResult.cols() != input.cols())
             	opencv_imgproc.resize(matResult, matResult, input.size());
 

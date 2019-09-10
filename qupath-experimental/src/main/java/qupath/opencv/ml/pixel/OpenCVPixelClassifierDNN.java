@@ -92,7 +92,7 @@ class OpenCVPixelClassifierDNN extends AbstractOpenCVPixelClassifier {
         		}
         		Mat matResult = new Mat();
 //        		try {
-        			opencv_core.vconcat(new MatVector(vertical.toArray(new Mat[0])), matResult);
+        			opencv_core.vconcat(new MatVector(vertical.toArray(Mat[]::new)), matResult);
 //        		} catch (Exception e) {
 //        			System.err.println(vertical);
 //        			e.printStackTrace();
@@ -110,31 +110,7 @@ class OpenCVPixelClassifierDNN extends AbstractOpenCVPixelClassifier {
         	}
     	}
     	
-//    	opencv_core.extractChannel(mat, mat, 0);
-//    	mat.convertTo(mat, opencv_core.CV_32F);
-    	
-//    	opencv_imgproc.cvtColor(mat, mat, opencv_imgproc.COLOR_RGB2BGR);
-    	
-//        opencv_imgproc.cvtColor(mat, mat, opencv_imgproc.COLOR_RGB2BGR);
     	mat.convertTo(mat, opencv_core.CV_32F);
-//    	System.err.println("Mean: " + opencv_core.mean(mat));
-//        mat.convertTo(mat, opencv_core.CV_32F, 1.0/255.0, 0.0);
-////        mat.put(opencv_core.subtract(Scalar.ONE, mat))
-//		mat.put(opencv_core.subtract(mat, Scalar.ONEHALF));
-
-//        System.err.println("Mean before: " + opencv_core.mean(mat))
-
-    	
-    	// TODO: Fix creation of unnecessary objects
-        if (metadata.getInputChannelMeans() != null)
-            means = toScalar(metadata.getInputChannelMeans());
-        else
-            means = Scalar.ZERO;
-        if (metadata.getInputChannelScales() != null)
-            scales = toScalar(metadata.getInputChannelScales());
-        else
-            scales = Scalar.ONE;
-    	
     	
         // Handle scales & offsets
         if (means != null);
@@ -157,7 +133,10 @@ class OpenCVPixelClassifierDNN extends AbstractOpenCVPixelClassifier {
         
 //    	System.err.println("Mean AFTER: " + opencv_core.mean(mat));
 
-        Mat prob = null;
+        // Net appears not to support multithreading, so we need to synchronize.
+        // We also need to extract everything we need at this point, since it appears 
+        // that the result of calling model.forward() can become invalid later.
+        Mat matResult = null;
         synchronized(model) {
         	long startTime = System.currentTimeMillis();
             Mat blob = null;
@@ -167,20 +146,21 @@ class OpenCVPixelClassifierDNN extends AbstractOpenCVPixelClassifier {
             	blob = mat;
             model.setInput(blob);
             try {
-            	prob = model.forward();
+            	Mat prob = model.forward();
+                MatVector matvec = new MatVector();
+                opencv_dnn.imagesFromBlob(prob, matvec);
+//                System.err.println(matvec.get(0).channels());
+                if (matvec.size() != 1)
+                	throw new IllegalArgumentException("DNN result must be a single image - here, the result is " + matvec.size() + " images");
+                // Get the first result & clone it - otherwise can have threading woes
+                matResult = matvec.get(0L).clone();
+                matvec.close();
             } catch (Exception e2) {
             	logger.error("Error applying classifier", e2);
             }
         	long endTime = System.currentTimeMillis();
         	logger.trace("Classification time: {} ms", endTime - startTime);
         }
-        
-        MatVector matvec = new MatVector();
-        opencv_dnn.imagesFromBlob(prob, matvec);
-//        System.err.println(matvec.get(0).channels());
-        if (matvec.size() != 1)
-        	throw new IllegalArgumentException("DNN result must be a single image - here, the result is " + matvec.size() + " images");
-        Mat matResult = matvec.get(0L);
         
 //    	System.err.println("Mean AFTER: " + opencv_core.mean(matResult));
 
@@ -200,13 +180,19 @@ class OpenCVPixelClassifierDNN extends AbstractOpenCVPixelClassifier {
                 
         // Handle padding
         if (doPad) {
-        	Rect rect = new Rect(left, top, metadata.getInputWidth()-right-left, metadata.getInputHeight()-top-bottom);
-        	Mat matResult2 = matResult.apply(rect).clone();
-        	matResult.release();
-        	matResult = matResult2;
+        	matResult.put(crop(matResult, left, top, metadata.getInputWidth()-right-left, metadata.getInputHeight()-top-bottom));
         }
 
-        return matResult;
+        // Not sure why exactly we need to clone, but if we don't then catastrophic JVM-destroying errors can occur
+        return matResult;//.clone();
+    }
+    
+    
+    static Mat crop(Mat mat, int x, int y, int width, int height) {
+    	try (Rect rect = new Rect(x, y, width, height)) {
+        	var temp = mat.apply(rect);
+        	return temp.clone();
+    	}
     }
 
 
@@ -218,7 +204,6 @@ class OpenCVPixelClassifierDNN extends AbstractOpenCVPixelClassifier {
     public BufferedImage applyClassification(final ImageData<BufferedImage> imageData, final RegionRequest request) throws IOException {
         // Get the pixels into a friendly format
 //        Mat matInput = OpenCVTools.imageToMatRGB(img, false);
-		 
 		var server = imageData.getServer();
 		
 		int inputPadding = getMetadata().getInputPadding();
@@ -228,15 +213,13 @@ class OpenCVPixelClassifierDNN extends AbstractOpenCVPixelClassifier {
 		Mat mat = OpenCVTools.imageToMat(img);
 		
 		// Synchronize on the model; does not support multiple threads simultaneously
-		Mat matResult;
-		synchronized (model) {
-			matResult = doClassification(mat, 0);
-			try {
-				if (inputPadding > 0)
-					matResult.put(matResult.apply(new Rect(inputPadding, inputPadding, matResult.cols()-inputPadding*2, matResult.rows()-inputPadding*2)).clone());
-			} catch (Exception e) {
-				logger.error("Error cropping padding", e);
+		Mat matResult = doClassification(mat, 0);
+		try {
+			if (inputPadding > 0) {
+	        	matResult.put(crop(matResult, inputPadding, inputPadding, matResult.cols()-inputPadding*2, matResult.rows()-inputPadding*2));
 			}
+		} catch (Exception e) {
+			logger.error("Error cropping padding (" + Thread.currentThread() + ")", e);
 		}
 		
     	        
