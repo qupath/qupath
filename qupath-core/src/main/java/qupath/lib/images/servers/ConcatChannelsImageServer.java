@@ -51,6 +51,7 @@ public class ConcatChannelsImageServer extends TransformingImageServer<BufferedI
 		
 		originalMetadata = new ImageServerMetadata.Builder(server.getMetadata())
 //				.path("Merged channels ["+String.join(", ", allServers.stream().map(s -> s.getPath()).collect(Collectors.toList())) + "]")
+				.rgb(server.getMetadata().isRGB() && allServers.size() == 1)
 				.channels(channels)
 				.build();
 	}
