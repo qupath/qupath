@@ -116,6 +116,10 @@ public class ImagePlane implements Comparable<ImagePlane> {
 		return Integer.compare(z, o.z);
 	}
 	
+	@Override
+	public String toString() {
+		return "ImagePlane (z=" + z + ", t=" + t + ", c=" + c + ")";
+	}
 	
 	@Override
 	public int hashCode() {

@@ -29,6 +29,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.lang.reflect.Constructor;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -53,6 +54,7 @@ import qupath.lib.images.servers.ServerTools;
 import qupath.lib.io.PathIO;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
+import qupath.lib.objects.PathRootObject;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.TMACoreObject;
@@ -410,6 +412,13 @@ public class QPEx extends QP {
 		saveMeasurements(getCurrentImageData(), PathDetectionObject.class, path, includeColumns);
 	}
 	
+	public static void saveImageMeasurements(final String path, final String... includeColumns) {
+		saveMeasurements(getCurrentImageData(), PathRootObject.class, path, includeColumns);
+	}
+	
+	public static void saveImageMeasurements(final ImageData<?> imageData, final String path, final String... includeColumns) {
+		saveMeasurements(imageData, PathRootObject.class, path, includeColumns);
+	}
 	
 	public static void saveAnnotationMeasurements(final ImageData<?> imageData, final String path, final String... includeColumns) {
 		saveMeasurements(imageData, PathAnnotationObject.class, path, includeColumns);
@@ -435,8 +444,7 @@ public class QPEx extends QP {
 		}
 		ObservableMeasurementTableData model = new ObservableMeasurementTableData();
 		model.setImageData(imageData, imageData == null ? Collections.emptyList() : imageData.getHierarchy().getObjects(null, type));
-		try {
-			PrintWriter writer = new PrintWriter(fileOutput);
+		try (PrintWriter writer = new PrintWriter(fileOutput, StandardCharsets.UTF_8)) {
 			Collection<String> excludeColumns;
 			if (includeColumns.length == 0) {
 				excludeColumns = Collections.emptyList();
@@ -444,13 +452,12 @@ public class QPEx extends QP {
 				excludeColumns = new LinkedHashSet<>(model.getAllNames());
 				excludeColumns.removeAll(Arrays.asList(includeColumns));
 			}
-			writer.println(SummaryMeasurementTableCommand.getTableModelString(model, PathPrefs.getTableDelimiter(), excludeColumns));
+			for (String row : SummaryMeasurementTableCommand.getTableModelStrings(model, PathPrefs.getTableDelimiter(), excludeColumns))
+				writer.println(row);
 			writer.close();
-		} catch (FileNotFoundException e) {
-			logger.error("File {} not found!", fileOutput);
+		} catch (IOException e) {
+			logger.error("Error writing file to " + fileOutput, e);
 		}
 	}
-	
-	
 	
 }

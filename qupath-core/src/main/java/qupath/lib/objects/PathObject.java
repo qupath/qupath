@@ -203,8 +203,9 @@ public abstract class PathObject implements Externalizable {
 			postfix = " (" + getPathClass().toString() + ")";
 		if (getName() != null)
 			return getName() + postfix;
-		if (getROI() != null)
-			return getROI().toString() + postfix;
+		var roi = getROI();
+		if (!isCell() && roi != null)
+			return roi + postfix;
 		String prefix = PathObjectTools.getSuitableName(getClass(), false);
 		return prefix + postfix; // Entire image
 	}
@@ -463,12 +464,26 @@ public abstract class PathObject implements Externalizable {
 	 * e.g. a tile or cell.
 	 * 
 	 * @return
+	 * @see #isCell()
 	 * @see PathDetectionObject
 	 * @see PathCellObject
 	 * @see PathTileObject
 	 */
 	public boolean isDetection() {
 		return this instanceof PathDetectionObject;
+	}
+	
+	/**
+	 * Returns true if the object is a cell object (a special type of detection, which can contain second ROI for the nucleus).
+	 * 
+	 * @return
+	 * @see #isDetection()
+	 * @see PathDetectionObject
+	 * @see PathCellObject
+	 * @see PathTileObject
+	 */
+	public boolean isCell() {
+		return this instanceof PathCellObject;
 	}
 	
 	/**

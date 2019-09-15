@@ -130,9 +130,9 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 		
 		builderMap.clear();
 		
-		// Include the object displayed name
-		builderMap.put("Name", new ObjectNameMeasurementBuilder());
-		
+		// Add the image name
+		builderMap.put("Image", new ImageNameMeasurementBuilder(imageData));
+				
 		// Check if we have any annotations / TMA cores
 		boolean containsDetections = false;
 		boolean containsAnnotations = false;
@@ -152,6 +152,10 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 			} else if (temp.isRootObject())
 				containsRoot = true;
 		}
+		
+		// Include the object displayed name
+//		if (containsDetections || containsAnnotations || containsTMACores)
+		builderMap.put("Name", new ObjectNameMeasurementBuilder());
 		
 		// Include the class
 		if (containsAnnotations || containsDetections) {
@@ -206,9 +210,10 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 		// Add derived measurements if we don't have only detections
 		if (containsAnnotations || containsTMACores || containsRoot) {
 //		if (containsParentAnnotations || containsTMACores) {
-//			MeasurementBuilder<?> builder = new ObjectTypeCountMeasurementBuilder(PathAnnotationObject.class);
-//			builderMap.put(builder.getName(), builder);
-//			features.add(builder.getName());
+			var builderAnnotations = new ObjectTypeCountMeasurementBuilder(PathAnnotationObject.class);
+			builderMap.put(builderAnnotations.getName(), builderAnnotations);
+			features.add(builderAnnotations.getName());
+			
 			var builder = new ObjectTypeCountMeasurementBuilder(PathDetectionObject.class);
 			builderMap.put(builder.getName(), builder);
 			features.add(builder.getName());
@@ -1220,6 +1225,34 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 		
 	}
 	
+	
+	/**
+	 * Get the displayed name of the parent of this object.
+	 */
+	static class ImageNameMeasurementBuilder extends StringMeasurementBuilder {
+		
+		private ImageData<?> imageData;
+		
+		ImageNameMeasurementBuilder(final ImageData<?> imageData) {
+			this.imageData = imageData;
+		}
+		
+		@Override
+		public String getName() {
+			return "Image";
+		}
+		
+		@Override
+		public String getMeasurementValue(PathObject pathObject) {
+			if (imageData == null)
+				return null;
+			var hierarchy = imageData.getHierarchy();
+			if (PathObjectTools.hierarchyContainsObject(hierarchy, pathObject))
+				return imageData.getServer().getMetadata().getName();
+			return null;
+		}
+		
+	}
 	
 	
 	/**
