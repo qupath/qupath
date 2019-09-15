@@ -72,8 +72,10 @@ import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.classes.PathClassTools;
 import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
+import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.AreaROI;
 import qupath.lib.roi.PolygonROI;
+import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.PathArea;
 import qupath.lib.roi.interfaces.PathLine;
 import qupath.lib.roi.interfaces.PathPoints;
@@ -136,6 +138,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 		boolean containsAnnotations = false;
 //		boolean containsParentAnnotations = false;
 		boolean containsTMACores = false;
+		boolean containsRoot = false;
 		List<PathObject> pathObjectListCopy = new ArrayList<>(list);
 		for (PathObject temp : pathObjectListCopy) {
 			if (temp instanceof PathAnnotationObject) {
@@ -146,7 +149,8 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 				containsTMACores = true;
 			} else if (temp instanceof PathDetectionObject) {
 				containsDetections = true;
-			}
+			} else if (temp.isRootObject())
+				containsRoot = true;
 		}
 		
 		// Include the class
@@ -200,7 +204,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 		Collection<String> features = PathClassificationLabellingHelper.getAvailableFeatures(pathObjectListCopy);
 		
 		// Add derived measurements if we don't have only detections
-		if (containsAnnotations || containsTMACores) {
+		if (containsAnnotations || containsTMACores || containsRoot) {
 //		if (containsParentAnnotations || containsTMACores) {
 //			MeasurementBuilder<?> builder = new ObjectTypeCountMeasurementBuilder(PathAnnotationObject.class);
 //			builderMap.put(builder.getName(), builder);
@@ -209,7 +213,8 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 			builderMap.put(builder.getName(), builder);
 			features.add(builder.getName());
 			
-			manager = new DerivedMeasurementManager(getImageData(), containsAnnotations);
+			// Here, we allow TMA cores to act like annotations
+			manager = new DerivedMeasurementManager(getImageData(), containsAnnotations || containsTMACores);
 			for (MeasurementBuilder<?> builder2 : manager.getMeasurementBuilders()) {
 				builderMap.put(builder2.getName(), builder2);
 				features.add(builder2.getName());
@@ -262,7 +267,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 			}
 		}
 		
-		if (containsAnnotations) {
+		if (containsAnnotations || containsRoot) {
 			var pixelClassifier = imageData.getProperty("PIXEL_LAYER");
 			if (pixelClassifier instanceof ImageServer<?>) {
 				ImageServer<BufferedImage> server = (ImageServer<BufferedImage>)pixelClassifier;
@@ -440,7 +445,11 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 		
 		@Override
 		protected int computeValue() {
-			var pathObjects = imageData.getHierarchy().getObjectsForROI(cls, pathObject.getROI());
+			Collection<PathObject> pathObjects;
+			if (pathObject.isRootObject())
+				pathObjects = imageData.getHierarchy().getObjects(null, cls);
+			else
+				pathObjects = imageData.getHierarchy().getObjectsForROI(cls, pathObject.getROI());
 			pathObjects.remove(pathObject);
 			return pathObjects.size();
 //			return PathObjectTools.countChildren(pathObject, cls, true);
@@ -575,13 +584,13 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 			// Add density measurements
 			// These are only added if we have a (non-derived) positive class
 			// Additionally, these are only non-NaN if we have an annotation, or a TMA core containing a single annotation
-//			if (containsAnnotations) {
+			if (containsAnnotations) {
 				for (PathClass pathClass : pathClassList) {
 					if (PathClassTools.isPositiveClass(pathClass) && pathClass.getBaseClass() == pathClass)
 	//				if (!(PathClassFactory.isDefaultIntensityClass(pathClass) || PathClassFactory.isNegativeClass(pathClass)))
 						builders.add(new ClassDensityMeasurementBuilder(imageData.getServer(), pathClass));
 				}
-//			}
+			}
 
 			valid = true;
 		}
@@ -646,7 +655,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 					pathObjectTemp = pathObject.getChildObjects().stream().findFirst().get();
 				}
 				// We need an annotation to get a meaningful area
-				if (!(pathObjectTemp instanceof PathAnnotationObject))
+				if (pathObjectTemp == null || !(pathObjectTemp.isAnnotation() || pathObjectTemp.isRootObject()))
 					return Double.NaN;
 				
 				DetectionPathClassCounts counts = map.get(pathObjectTemp);
@@ -656,6 +665,10 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 				}
 				int n = counts.getCountForAncestor(pathClass);
 				ROI roi = pathObjectTemp.getROI();
+				// For the root, we can measure density only for 2D images of a single time-point
+				if (pathObjectTemp.isRootObject() && server.nZSlices() == 1 || server.nTimepoints() == 1)
+					roi = ROIs.createRectangleROI(0, 0, server.getWidth(), server.getHeight(), ImagePlane.getDefaultPlane());
+				
 				if (roi instanceof PathArea) {
 					double pixelWidth = 1;
 					double pixelHeight = 1;
@@ -1463,7 +1476,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 	
 	/**
 	 * Cache to store the number of descendant detection objects with a particular PathClass.
-	 * 
+	 * <p>
 	 * (The parent is included in any count if it's a detection object... but it's expected not to be.
 	 * Rather, this is intended for counting the descendants of annotations or TMA cores.)
 	 *
@@ -1479,7 +1492,13 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 		 */
 		DetectionPathClassCounts(final PathObjectHierarchy hierarchy, final PathObject parentObject) {
 //			for (PathObject child : PathObjectTools.getFlattenedObjectList(parentObject, null, true)) {
-			for (PathObject child : hierarchy.getObjectsForROI(PathDetectionObject.class, parentObject.getROI())) {
+			Collection<PathObject> pathObjects;
+			if (parentObject.isRootObject())
+				pathObjects = hierarchy.getDetectionObjects();
+			else
+				pathObjects = hierarchy.getObjectsForROI(PathDetectionObject.class, parentObject.getROI());
+			
+			for (PathObject child : pathObjects) {
 				if (child == parentObject || !child.isDetection())
 					continue;
 				PathClass pathClass = child.getPathClass();

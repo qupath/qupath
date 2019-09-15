@@ -23,12 +23,12 @@ import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.regions.RegionRequest;
 
 /**
- * Calculate eigenvalues, eigenvectors and determinants of Hessian matrices calculated from images in 2D and 3D.
+ * Calculate pixel-based features in both 2D and 3D.
  * 
  * @author Pete Bankhead
  *
  */
-public class HessianCalculator {
+public class MultiscaleFeatures {
 	
 	/**
 	 * Image features, dependent on Gaussian scale.
@@ -52,6 +52,23 @@ public class HessianCalculator {
 		 */
 		GRADIENT_MAGNITUDE,
 		/**
+		 * Maximum eigenvalue of the 2x2 or 3x3 structure tensor, calculated per pixel (by value, not absolute value)
+		 */
+		STRUCTURE_TENSOR_EIGENVALUE_MAX,
+		/**
+		 * Middle eigenvalue of the 3x3 structure tensor, calculated per pixel (by value, not absolute value)
+		 */
+		STRUCTURE_TENSOR_EIGENVALUE_MIDDLE,
+		/**
+		 * Minimum eigenvalue of the 2x2 or 3x3 structure tensor, calculated per pixel (by value, not absolute value)
+		 */
+		STRUCTURE_TENSOR_EIGENVALUE_MIN,
+		/**
+		 * Coherence, defined as {@code ((l1 - l2)/(l1 + l2))^2} where {@code l1} and {@code l2} are the largest and second largest 
+		 * eigenvalues of the structure tensor respectively. Where {@code l1 == l2} the value 0 is used.
+		 */
+		STRUCTURE_TENSOR_COHERENCE,
+		/**
 		 * Determinant of the Hessian matrix, calculated per pixel
 		 */
 		HESSIAN_DETERMINANT,
@@ -72,15 +89,15 @@ public class HessianCalculator {
 		 * Returns true if the feature can be computed for 2D images.
 		 * @return
 		 */
-		public boolean is2D() {
-			return this != HESSIAN_EIGENVALUE_MIDDLE;
+		public boolean supports2D() {
+			return this != HESSIAN_EIGENVALUE_MIDDLE && this != STRUCTURE_TENSOR_EIGENVALUE_MIDDLE;
 		}
 
 		/**
 		 * Returns true if the feature can be computed for 3D images (z-stacks).
 		 * @return
 		 */
-		public boolean is3D() {
+		public boolean supports3D() {
 			return true;
 		}
 
@@ -103,6 +120,14 @@ public class HessianCalculator {
 				return "Laplacian of Gaussian";
 			case WEIGHTED_STD_DEV:
 				return "Weighted deviation";
+			case STRUCTURE_TENSOR_COHERENCE:
+				return "Structure tensor coherence";
+			case STRUCTURE_TENSOR_EIGENVALUE_MAX:
+				return "Structure tensor max eigenvalue";
+			case STRUCTURE_TENSOR_EIGENVALUE_MIDDLE:
+				return "Structure tensor middle eigenvalue";
+			case STRUCTURE_TENSOR_EIGENVALUE_MIN:
+				return "Structure tensor min eigenvalue";
 			default:
 				return super.toString();
 			}
@@ -110,6 +135,9 @@ public class HessianCalculator {
 	}
 	
 	
+	/**
+	 * Define how to handle image boundaries when applying filters.
+	 */
 	static enum FilterBorderType {
 		
 		REPLICATE, REFLECT, WRAP;
@@ -632,6 +660,27 @@ public class HessianCalculator {
 					}
 				}
 				
+				if (structureTensorEigenvalues) {
+					// Allow use of the same Mats as we might need for derivatives later
+					opencv_imgproc.Sobel(mat, dxx, opencv_core.CV_32F, 1, 0);
+					opencv_imgproc.Sobel(mat, dyy, opencv_core.CV_32F, 0, 1);
+					dxy.put(dxx.mul(dyy));
+					dxx.put(dxx.mul(dxx));
+					dyy.put(dyy.mul(dyy));
+					opencv_imgproc.sepFilter2D(dxx, dxx, opencv_core.CV_32F, kx0, ky0, null, 0.0, border);
+					opencv_imgproc.sepFilter2D(dyy, dyy, opencv_core.CV_32F, kx0, ky0, null, 0.0, border);					
+					opencv_imgproc.sepFilter2D(dxy, dxy, opencv_core.CV_32F, kx0, ky0, null, 0.0, border);
+					
+					var temp = new EigenSymm2(dxx, dxy, dyy, false);
+					var stMax = stripPadding(temp.eigvalMax);
+					var stMin = stripPadding(temp.eigvalMin);
+					var coherence = calculateCoherence(stMax, stMin);
+					
+					features.put(MultiscaleFeature.STRUCTURE_TENSOR_EIGENVALUE_MAX, stMax);
+					features.put(MultiscaleFeature.STRUCTURE_TENSOR_EIGENVALUE_MIN, stMin);
+					features.put(MultiscaleFeature.STRUCTURE_TENSOR_COHERENCE, coherence);
+				}
+				
 				if (gradientMagnitude) {
 					opencv_imgproc.sepFilter2D(mat, dxx, opencv_core.CV_32F, kx1, ky0, null, 0.0, border);
 					opencv_imgproc.sepFilter2D(mat, dyy, opencv_core.CV_32F, kx0, ky1, null, 0.0, border);					
@@ -734,6 +783,60 @@ public class HessianCalculator {
 			if (doHessian)
 				matsZ2 = OpenCVTools.filterZ(mats, kz2, ind3D, border);
 			
+			// Handle structure tensor (which is *much* more memory-hungry and computationally expensive)
+			List<Mat> matSTxx = null;
+			List<Mat> matSTxy = null;
+			List<Mat> matSTxz = null;
+			List<Mat> matSTyy = null;
+			List<Mat> matSTyz = null;
+			List<Mat> matSTzz = null;
+			if (structureTensorEigenvalues) {
+				// Calculate gradient filters
+				matSTxx = new ArrayList<>();
+				matSTxy = new ArrayList<>();
+				matSTxz = new ArrayList<>();
+				matSTyy = new ArrayList<>();
+				matSTyz = new ArrayList<>();
+				matSTzz = new ArrayList<>();
+				for (int i = 0; i < mats.size(); i++) {
+					var tempX = new Mat();
+					var tempY = new Mat();
+					var tempZ = new Mat();
+					
+					var mat = mats.get(i);
+					opencv_imgproc.Sobel(mat, tempX, opencv_core.CV_32F, 1, 0);
+					opencv_imgproc.Sobel(mat, tempY, opencv_core.CV_32F, 0, 1);
+					
+					// Use centred difference for z-dimension
+					int iNext = Math.min(i+1, mats.size()-1);
+					int iPrev = Math.max(i-1, 0);
+					opencv_core.subtract(mats.get(iNext), mats.get(iPrev), tempZ);
+					
+					matSTxy.add(tempX.mul(tempY).asMat());
+					matSTxz.add(tempX.mul(tempZ).asMat());
+					matSTyz.add(tempY.mul(tempZ).asMat());
+					
+					tempX.put(tempX.mul(tempX));
+					matSTxx.add(tempX);
+					tempY.put(tempY.mul(tempY));
+					matSTyy.add(tempY);
+					tempZ.put(tempZ.mul(tempZ));
+					matSTzz.add(tempZ);
+				}
+				// Apply Gaussian z-filter, extracting slice of interest if required
+				matSTxx = OpenCVTools.filterZ(matSTxx, kz0, ind3D, border);
+				matSTxy = OpenCVTools.filterZ(matSTxy, kz0, ind3D, border);
+				matSTxz = OpenCVTools.filterZ(matSTxz, kz0, ind3D, border);
+				matSTyy = OpenCVTools.filterZ(matSTyy, kz0, ind3D, border);
+				matSTyz = OpenCVTools.filterZ(matSTyz, kz0, ind3D, border);
+				matSTzz = OpenCVTools.filterZ(matSTzz, kz0, ind3D, border);
+				// Apply 2D Gaussian filters
+				for (List<Mat> list : Arrays.asList(matSTxx, matSTxy, matSTxz, matSTyy, matSTyz, matSTzz)) {
+					for (Mat temp : list)
+						opencv_imgproc.sepFilter2D(temp, temp, opencv_core.CV_32F, kx0, ky0, null, 0.0, border);
+				}
+			}
+			
 			int nSlices = ind3D >= 0 ? 1 : mats.size();
 			
 			// Need to square original pixels for weighted std dev calculation
@@ -744,7 +847,6 @@ public class HessianCalculator {
 					matsSquaredZ0.add(mat.mul(mat).asMat());
 				matsSquaredZ0 = OpenCVTools.filterZ(matsSquaredZ0, kz0, ind3D, border);
 			}
-			
 			
 			// We need some Mats for each plane, but we can reuse them
 			Mat dxx = new Mat();
@@ -783,6 +885,30 @@ public class HessianCalculator {
 						features.put(MultiscaleFeature.WEIGHTED_STD_DEV, matSquaredSmoothed);					
 					}
 				}
+				
+				if (structureTensorEigenvalues) {
+					var temp = new EigenSymm3(
+							matSTxx.get(i),
+							matSTxy.get(i),
+							matSTxz.get(i),
+							matSTyy.get(i),
+							matSTyz.get(i),
+							matSTzz.get(i),
+							false);
+					
+					// TODO: Check if coherence should be calculated another way for 3D
+					var stMax = stripPadding(temp.eigvalMax);
+					var stMiddle = stripPadding(temp.eigvalMiddle);
+					var stMin = stripPadding(temp.eigvalMin);
+					var coherence = calculateCoherence(stMax, stMiddle);
+//					var coherence = calculateCoherence(stMax, stMin);
+					
+					features.put(MultiscaleFeature.STRUCTURE_TENSOR_EIGENVALUE_MAX, stMax);
+					features.put(MultiscaleFeature.STRUCTURE_TENSOR_EIGENVALUE_MIDDLE, stMiddle);
+					features.put(MultiscaleFeature.STRUCTURE_TENSOR_EIGENVALUE_MIN, stMin);
+					features.put(MultiscaleFeature.STRUCTURE_TENSOR_COHERENCE, coherence);
+				}
+				
 
 				if (gradientMagnitude) {
 					Mat z0 = matsZ0.get(i);
@@ -849,6 +975,36 @@ public class HessianCalculator {
 			return output;
 		}
 		
+	}
+	
+	/**
+	 * Calculate coherence from the max/min eigenvalues of the structure tensor.
+	 * @param stMax
+	 * @param stMin
+	 * @return
+	 */
+	static Mat calculateCoherence(Mat stMax, Mat stMin) {
+		int w = stMax.cols();
+		int h = stMax.rows();
+
+		var coherence = new Mat(h, w, opencv_core.CV_32FC1);
+		FloatIndexer idxCoherence = coherence.createIndexer();
+		FloatIndexer idxMax = stMax.createIndexer();
+		FloatIndexer idxMin = stMin.createIndexer();
+		for (int r = 0; r < h; r++) {
+			for (int c = 0; c < w; c++) {
+				double max = idxMax.get(r, c);
+				double min = idxMin.get(r, c);
+				double difference = max - min;
+				double sum = max + min;
+				double co = sum == 0 ? 0 : (difference / sum) * (difference / sum);
+				idxCoherence.put(r, c, (float)co);
+			}
+		}
+		idxCoherence.release();
+		idxMax.release();
+		idxMin.release();
+		return coherence;
 	}
 	
 	

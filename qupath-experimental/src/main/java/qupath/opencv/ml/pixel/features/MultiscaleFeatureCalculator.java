@@ -26,10 +26,10 @@ import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.io.OpenCVTypeAdapters;
 import qupath.lib.regions.RegionRequest;
 import qupath.opencv.ml.pixel.features.ColorTransforms.ColorTransform;
-import qupath.opencv.tools.HessianCalculator;
+import qupath.opencv.tools.MultiscaleFeatures;
 import qupath.opencv.tools.LocalNormalization;
-import qupath.opencv.tools.HessianCalculator.MultiscaleFeature;
-import qupath.opencv.tools.HessianCalculator.MultiscaleResultsBuilder;
+import qupath.opencv.tools.MultiscaleFeatures.MultiscaleFeature;
+import qupath.opencv.tools.MultiscaleFeatures.MultiscaleResultsBuilder;
 
 @JsonAdapter(OpenCVTypeAdapters.OpenCVTypeAdaptorFactory.class)
 public class MultiscaleFeatureCalculator implements OpenCVFeatureCalculator {
@@ -239,7 +239,7 @@ public class MultiscaleFeatureCalculator implements OpenCVFeatureCalculator {
 		private String baseName;
 		private GaussianScale scale;
 		
-		private Collection<HessianCalculator.MultiscaleFeature> features;
+		private Collection<MultiscaleFeatures.MultiscaleFeature> features;
 		
 		MultiscaleFeatureComputer(String baseName, GaussianScale scale, MultiscaleFeature... features) {
 			this.scale = scale;
@@ -257,15 +257,21 @@ public class MultiscaleFeatureCalculator implements OpenCVFeatureCalculator {
 				.sigmaY(scale.getSigmaY())
 				.sigmaZ(scale.getSigmaZ())
 				.paddingXY(paddingXY)
-				.gaussianSmoothed(features.contains(HessianCalculator.MultiscaleFeature.GAUSSIAN))
-				.weightedStdDev(features.contains(HessianCalculator.MultiscaleFeature.WEIGHTED_STD_DEV))
-				.gradientMagnitude(features.contains(HessianCalculator.MultiscaleFeature.GRADIENT_MAGNITUDE))
-				.laplacianOfGaussian(features.contains(HessianCalculator.MultiscaleFeature.LAPLACIAN))
-				.hessianDeterminant(features.contains(HessianCalculator.MultiscaleFeature.HESSIAN_DETERMINANT))
+				.gaussianSmoothed(features.contains(MultiscaleFeatures.MultiscaleFeature.GAUSSIAN))
+				.weightedStdDev(features.contains(MultiscaleFeatures.MultiscaleFeature.WEIGHTED_STD_DEV))
+				.gradientMagnitude(features.contains(MultiscaleFeatures.MultiscaleFeature.GRADIENT_MAGNITUDE))
+				.laplacianOfGaussian(features.contains(MultiscaleFeatures.MultiscaleFeature.LAPLACIAN))
+				.hessianDeterminant(features.contains(MultiscaleFeatures.MultiscaleFeature.HESSIAN_DETERMINANT))
+				.structureTensorEigenvalues(
+						features.contains(MultiscaleFeatures.MultiscaleFeature.STRUCTURE_TENSOR_COHERENCE) ||
+						features.contains(MultiscaleFeatures.MultiscaleFeature.STRUCTURE_TENSOR_EIGENVALUE_MAX) ||
+						features.contains(MultiscaleFeatures.MultiscaleFeature.STRUCTURE_TENSOR_EIGENVALUE_MIDDLE) ||
+						features.contains(MultiscaleFeatures.MultiscaleFeature.STRUCTURE_TENSOR_EIGENVALUE_MIN)
+				)
 				.hessianEigenvalues(
-						features.contains(HessianCalculator.MultiscaleFeature.HESSIAN_EIGENVALUE_MIN) ||
-						features.contains(HessianCalculator.MultiscaleFeature.HESSIAN_EIGENVALUE_MIDDLE) ||
-						features.contains(HessianCalculator.MultiscaleFeature.HESSIAN_EIGENVALUE_MAX))
+						features.contains(MultiscaleFeatures.MultiscaleFeature.HESSIAN_EIGENVALUE_MIN) ||
+						features.contains(MultiscaleFeatures.MultiscaleFeature.HESSIAN_EIGENVALUE_MIDDLE) ||
+						features.contains(MultiscaleFeatures.MultiscaleFeature.HESSIAN_EIGENVALUE_MAX))
 				.build(mats, ind);
 			
 			String sigmaString = scale.sigmaString();
@@ -327,18 +333,38 @@ public class MultiscaleFeatureCalculator implements OpenCVFeatureCalculator {
 			return new GaussianScale(sigmaX, sigmaY, sigmaZ);
 		}
 		
+		/**
+		 * Create a new {@link GaussianScale} by multiplying the x, y and z values by a spacified scale factors.
+		 * @param scale
+		 * @param scaleX
+		 * @param scaleY
+		 * @param scaleZ
+		 * @return
+		 */
 		public static GaussianScale createScaledInstance(GaussianScale scale, double scaleX, double scaleY, double scaleZ) {
 			return create(scale.getSigmaX() * scaleX, scale.getSigmaY() * scaleY, scale.getSigmaZ() * scaleZ);
 		}
 		
+		/**
+		 * Get the x (horizontal) sigma value.
+		 * @return
+		 */
 		public double getSigmaX() {
 			return sigmaX;
 		}
 
+		/**
+		 * Get the y (vertical) sigma value.
+		 * @return
+		 */
 		public double getSigmaY() {
 			return sigmaY;
 		}
 
+		/**
+		 * Get the sigma value along the z-dimension (may be zero for 2D).
+		 * @return
+		 */
 		public double getSigmaZ() {
 			return sigmaZ;
 		}

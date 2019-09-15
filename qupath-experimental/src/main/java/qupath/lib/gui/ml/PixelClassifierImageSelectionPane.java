@@ -57,7 +57,9 @@ import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
+import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
+import javafx.scene.control.MenuItem;
 import javafx.scene.control.SplitPane;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.control.Tooltip;
@@ -112,7 +114,7 @@ import qupath.opencv.ml.pixel.features.Feature;
 import qupath.opencv.ml.pixel.features.MultiscaleFeatureCalculator;
 import qupath.opencv.ml.pixel.features.OpenCVFeatureCalculator;
 import qupath.opencv.tools.OpenCVTools;
-import qupath.opencv.tools.HessianCalculator.MultiscaleFeature;
+import qupath.opencv.tools.MultiscaleFeatures.MultiscaleFeature;
 
 
 public class PixelClassifierImageSelectionPane {
@@ -679,6 +681,27 @@ public class PixelClassifierImageSelectionPane {
 		 trainData = model.createTrainData(trainData.getTrainSamples(), trainData.getTrainResponses());
 		 model.train(trainData);
 		 
+		 // Calculate accuracy using whatever we can, as a rough guide to progress
+		 var test = trainData.getTestSamples();
+		 String testSet = "HELD-OUT TRAINING SET";
+		 if (test.empty()) {
+			 test = trainData.getTrainSamples();
+			 testSet = "TRAINING SET";
+		 } else {
+			 buffer = trainData.getTestNormCatResponses().createBuffer();
+		 }
+		 var testResults = new Mat();
+		 model.predict(test, testResults, null);
+		 IntBuffer bufferResults = testResults.createBuffer();
+		 int nTest = (int)testResults.rows();
+		 int nCorrect = 0;
+		 for (int i = 0; i < nTest; i++) {
+			 if (bufferResults.get(i) == buffer.get(i))
+				 nCorrect++;
+		 }
+		 logger.info("Current accuracy on the {}: {} %", testSet, GeneralTools.formatNumber(nCorrect*100.0/n, 1));
+
+		 
 		 trainData.close();
 
 		 int inputWidth = helper.getFeatureCalculator().getInputSize().getWidth();
@@ -1071,7 +1094,7 @@ public class PixelClassifierImageSelectionPane {
 	}
 	
 	
-	public ImageResolution getSelectedResolution() {
+	private ImageResolution getSelectedResolution() {
 		return selectedResolution.get();
 	}
 	
@@ -1457,6 +1480,20 @@ public class PixelClassifierImageSelectionPane {
 	}
 	
 	
+	/**
+	 * Add a context menu to a CheckComboBox to quickly select all items, or clear selection.
+	 * @param combo
+	 */
+	static void installSelectAllOrNoneMenu(CheckComboBox<?> combo) {
+		var miAll = new MenuItem("Select all");
+		var miNone = new MenuItem("Select none");
+		miAll.setOnAction(e -> combo.getCheckModel().checkAll());
+		miNone.setOnAction(e -> combo.getCheckModel().clearChecks());
+		var menu = new ContextMenu(miAll, miNone);
+		combo.setContextMenu(menu);
+	}
+	
+	
 	static class ExtractNeighborsFeatureCalculatorBuilder extends FeatureCalculatorBuilder {
 		
 		private GridPane pane;
@@ -1475,6 +1512,7 @@ public class PixelClassifierImageSelectionPane {
 			
 			var labelChannels = new Label("Channels");
 			var comboChannels = new CheckComboBox<Integer>();
+			installSelectAllOrNoneMenu(comboChannels);
 			var server = QuPathGUI.getInstance().getViewer().getServer();
 			if (server != null) {
 				for (int c = 0; c < server.nChannels(); c++)
@@ -1586,6 +1624,7 @@ public class PixelClassifierImageSelectionPane {
 			
 			var labelChannels = new Label("Channels");
 			var comboChannels = new CheckComboBox<Integer>();
+			installSelectAllOrNoneMenu(comboChannels);
 //			var btnChannels = new Button("Select");
 //			btnChannels.setOnAction(e -> selectChannels());
 			var server = QuPathGUI.getInstance().getViewer().getServer();
@@ -1621,6 +1660,7 @@ public class PixelClassifierImageSelectionPane {
 			
 			
 			var comboScales = new CheckComboBox<Double>();
+			installSelectAllOrNoneMenu(comboScales);
 			var labelScales = new Label("Scales");
 			comboScales.getItems().addAll(0.5, 1.0, 2.0, 4.0, 8.0);
 			comboScales.getCheckModel().check(1);
@@ -1632,6 +1672,7 @@ public class PixelClassifierImageSelectionPane {
 			
 			
 			var comboFeatures = new CheckComboBox<MultiscaleFeature>();
+			installSelectAllOrNoneMenu(comboFeatures);
 			var labelFeatures = new Label("Features");
 			comboFeatures.getItems().addAll(MultiscaleFeature.values());
 			comboFeatures.getCheckModel().check(MultiscaleFeature.GAUSSIAN);
@@ -1696,9 +1737,9 @@ public class PixelClassifierImageSelectionPane {
 			// Extract features, removing any that are incompatible
 			MultiscaleFeature[] features;
 			if (do3D.get())
-				features = selectedFeatures.stream().filter(f -> f.is3D()).toArray(MultiscaleFeature[]::new);
+				features = selectedFeatures.stream().filter(f -> f.supports3D()).toArray(MultiscaleFeature[]::new);
 			else
-				features = selectedFeatures.stream().filter(f -> f.is2D()).toArray(MultiscaleFeature[]::new);
+				features = selectedFeatures.stream().filter(f -> f.supports2D()).toArray(MultiscaleFeature[]::new);
 			
 			double[] sigmas = selectedSigmas.stream().mapToDouble(d -> d).toArray();
 			return new MultiscaleFeatureCalculator(

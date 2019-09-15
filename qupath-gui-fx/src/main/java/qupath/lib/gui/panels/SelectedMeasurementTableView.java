@@ -97,15 +97,20 @@ public class SelectedMeasurementTableView implements PathObjectSelectionListener
 	
 	private List<PathObject> getSelectedObjectList() {
 		PathObject selected = getSelectedObject();
-		if (selected == null)
+		if (selected == null) {
 			return Collections.emptyList();
+		}
 		return Collections.singletonList(selected);
 	}
 	
 	private PathObject getSelectedObject() {
 		if (imageData == null)
 			return null;
-		return imageData.getHierarchy().getSelectionModel().getSelectedObject();
+		var selected = imageData.getHierarchy().getSelectionModel().getSelectedObject();
+		if (selected == null)
+			return imageData.getHierarchy().getRootObject();
+		else
+			return selected;
 	}
 
 	private String getSelectedObjectMeasurementValue(final String name) {
