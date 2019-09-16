@@ -50,5 +50,6 @@ public interface SimpleImage {
 	 * @return
 	 */
 	int getHeight();
+	
 
 }

@@ -60,6 +60,8 @@ import org.bytedeco.opencv.opencv_core.MatVector;
 import org.bytedeco.opencv.opencv_core.Point;
 import org.bytedeco.opencv.opencv_core.Scalar;
 
+import qupath.lib.analysis.images.SimpleImage;
+import qupath.lib.analysis.images.SimpleImages;
 import qupath.lib.color.ColorModelFactory;
 import qupath.lib.common.ColorTools;
 import qupath.lib.images.servers.ImageServer;
@@ -577,6 +579,22 @@ public class OpenCVTools {
 		if (mat2 != null)
 			mat2.release();
 		return pixels;
+	}
+	
+	/**
+	 * Convert a Mat to a {@link SimpleImage}.
+	 * @param mat
+	 * @param channel
+	 * @return
+	 */
+	public static SimpleImage matToSimpleImage(Mat mat, int channel) {
+		Mat temp = mat;
+		if (mat.channels() > 1) {
+			temp = new Mat();
+			opencv_core.extractChannel(mat, temp, channel);
+		}
+		float[] pixels = extractPixels(temp, null);
+		return SimpleImages.createFloatImage(pixels, mat.cols(), mat.rows());
 	}
 	
 

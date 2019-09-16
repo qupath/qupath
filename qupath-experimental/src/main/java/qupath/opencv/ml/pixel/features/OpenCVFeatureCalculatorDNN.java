@@ -15,6 +15,7 @@ import org.slf4j.LoggerFactory;
 
 import com.google.gson.annotations.JsonAdapter;
 
+import qupath.lib.analysis.images.SimpleImages;
 import qupath.lib.classifiers.pixel.PixelClassifierMetadata;
 import qupath.lib.geom.ImmutableDimension;
 import qupath.lib.gui.ml.PixelClassifierTools;
@@ -31,7 +32,7 @@ import qupath.opencv.tools.OpenCVTools;
  *
  */
 @JsonAdapter(OpenCVTypeAdapters.OpenCVTypeAdaptorFactory.class)
-public class OpenCVFeatureCalculatorDNN implements FeatureCalculator<BufferedImage, Mat> {
+public class OpenCVFeatureCalculatorDNN implements FeatureCalculator<BufferedImage> {
 	
 //	static {
 //		FeatureCalculators.FeatureCalculatorTypeAdapterFactory.registerSubtype(OpenCVFeatureCalculatorDNN.class);
@@ -95,7 +96,7 @@ public class OpenCVFeatureCalculatorDNN implements FeatureCalculator<BufferedIma
     }
 
 	@Override
-	public List<Feature<Mat>> calculateFeatures(ImageData<BufferedImage> imageData, RegionRequest request) throws IOException {
+	public List<PixelFeature> calculateFeatures(ImageData<BufferedImage> imageData, RegionRequest request) throws IOException {
 		int padding = 0;//getMetadata().getInputPadding(); // TODO: Check necessity of padding
 		BufferedImage img = PixelClassifierTools.getPaddedRequest(imageData.getServer(), request, padding);
 		
@@ -137,10 +138,14 @@ public class OpenCVFeatureCalculatorDNN implements FeatureCalculator<BufferedIma
         
         MatVector output = new MatVector();
         opencv_core.split(matResult, output);
-        List<Feature<Mat>> features = new ArrayList<>();
+        List<PixelFeature> features = new ArrayList<>();
         for (int i = 0; i < output.size(); i++) {
-        	features.add(new DefaultFeature<>(metadata.getChannels().get(i).getName(), output.get(i)));
+        	var temp = output.get(i);
+        	features.add(new DefaultPixelFeature<>(
+        			metadata.getChannels().get(i).getName(),
+        			OpenCVTools.matToSimpleImage(temp, 0)));
         }
+        output.close();
 
         return features;
 	}

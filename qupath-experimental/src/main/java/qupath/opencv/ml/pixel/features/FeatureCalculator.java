@@ -7,7 +7,7 @@ import qupath.lib.geom.ImmutableDimension;
 import qupath.lib.images.ImageData;
 import qupath.lib.regions.RegionRequest;
 
-public interface FeatureCalculator<S,T> {
+public interface FeatureCalculator<T> {
 
     /**
      * Calculate one or more pixel-based features from an image region.
@@ -18,7 +18,7 @@ public interface FeatureCalculator<S,T> {
      * 
      * @throws IOException if unable to read pixels from {@code server}
      */
-    public List<Feature<T>> calculateFeatures(ImageData<S> imageData, RegionRequest request) throws IOException;
+    public List<PixelFeature> calculateFeatures(ImageData<T> imageData, RegionRequest request) throws IOException;
     
     /**
      * Get the input image size requested by this calculator.

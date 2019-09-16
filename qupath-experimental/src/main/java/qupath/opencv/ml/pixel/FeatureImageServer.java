@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
+import qupath.lib.analysis.images.SimpleImages;
 import qupath.lib.common.ColorTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.AbstractTileableImageServer;
@@ -31,9 +32,9 @@ public class FeatureImageServer extends AbstractTileableImageServer {
 	
 	private ImageServerMetadata metadata;
 	private ImageData<BufferedImage> imageData;
-	private FeatureCalculator<BufferedImage, BufferedImage> calculator;
+	private FeatureCalculator<BufferedImage> calculator;
 	
-	public FeatureImageServer(ImageData<BufferedImage> imageData, FeatureCalculator<BufferedImage, BufferedImage> calculator, double downsample) throws IOException {
+	public FeatureImageServer(ImageData<BufferedImage> imageData, FeatureCalculator<BufferedImage> calculator, double downsample) throws IOException {
 		super();
 		this.imageData = imageData;
 		this.calculator = calculator;
@@ -58,10 +59,6 @@ public class FeatureImageServer extends AbstractTileableImageServer {
 				.rgb(false)
 				.build();
 		
-	}
-	
-	public FeatureCalculator<BufferedImage, BufferedImage> getFeatureCalculator() {
-		return calculator;
 	}
 	
 	public ImageData<BufferedImage> getImageData() {
@@ -103,7 +100,7 @@ public class FeatureImageServer extends AbstractTileableImageServer {
 				width = img.getWidth();
 				height = img.getHeight();
 			}
-			dataArray[i] = img.getRaster().getSamples(0, 0, width, height, 0, (float[])null);
+			dataArray[i] = SimpleImages.getPixels(img, true);
 		}
 		
 		var dataBuffer = new DataBufferFloat(dataArray, width * height);

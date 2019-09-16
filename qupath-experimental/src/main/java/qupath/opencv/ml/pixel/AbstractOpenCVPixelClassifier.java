@@ -75,6 +75,7 @@ abstract class AbstractOpenCVPixelClassifier implements PixelClassifier {
     void applySoftmax(Mat mat) {
     	// This code doesn't use OpenCV methods because Infinity can sometimes 
     	// occur & needs handled as a special case.
+    	logger.debug("Applying softmax");
     	var indexer = mat.createIndexer();
     	int rows = (int)indexer.rows();
     	int cols = (int)indexer.cols();

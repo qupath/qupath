@@ -485,7 +485,6 @@ public class PixelClassifierImageSelectionPane {
 	
 	private FeatureImageServer featureCalculator;
 	
-	private FeatureImageServer featureServer;
 	private PixelClassifierHelper helper;
 
 	
@@ -712,8 +711,8 @@ public class PixelClassifierImageSelectionPane {
 		 
 		 trainData.close();
 
-		 int inputWidth = helper.getFeatureCalculator().getInputSize().getWidth();
-		 int inputHeight = helper.getFeatureCalculator().getInputSize().getHeight();
+		 int inputWidth = featureCalculator.getMetadata().getPreferredTileWidth();
+		 int inputHeight = featureCalculator.getMetadata().getPreferredTileHeight();
 		 PixelClassifierMetadata metadata = new PixelClassifierMetadata.Builder()
 				 .inputPixelSize(getRequestedPixelSizeMicrons())
 				 .inputShape(inputWidth, inputHeight)
@@ -1464,7 +1463,7 @@ public class PixelClassifierImageSelectionPane {
 	 */
 	public static abstract class FeatureCalculatorBuilder {
 		
-		public abstract FeatureCalculator<BufferedImage, BufferedImage> build(ImageData<BufferedImage> imageData, double requestedPixelSize);
+		public abstract FeatureCalculator<BufferedImage> build(ImageData<BufferedImage> imageData, double requestedPixelSize);
 		
 		public boolean canCustomize() {
 			return false;
@@ -1574,7 +1573,7 @@ public class PixelClassifierImageSelectionPane {
 		}
 
 		@Override
-		public FeatureCalculator<BufferedImage, BufferedImage> build(ImageData<BufferedImage> imageData, double requestedPixelSize) {
+		public FeatureCalculator<BufferedImage> build(ImageData<BufferedImage> imageData, double requestedPixelSize) {
 			return new ExtractNeighborsFeatureCalculator("Extract neighbors", requestedPixelSize, 
 					selectedRadius.getValue(), selectedChannels.stream().mapToInt(i -> i).toArray());
 		}
@@ -1737,7 +1736,7 @@ public class PixelClassifierImageSelectionPane {
 		}
 
 		@Override
-		public FeatureCalculator<BufferedImage, BufferedImage> build(ImageData<BufferedImage> imageData, double requestedPixelSize) {
+		public FeatureCalculator<BufferedImage> build(ImageData<BufferedImage> imageData, double requestedPixelSize) {
 			// Extract features, removing any that are incompatible
 			MultiscaleFeature[] features;
 			if (do3D.get())

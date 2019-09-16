@@ -135,7 +135,7 @@ class OpenCVPixelClassifier extends AbstractOpenCVPixelClassifier {
         
         // It's faster to put in row-wise and then transpose
         int nBands = imgFeatures.getSampleModel().getNumBands();
-        Mat matFeatures = new Mat(nBands, widthFeatures*heightFeatures, opencv_core.CV_32FC1);
+        Mat matFeatures = new Mat(nBands, n, opencv_core.CV_32FC1);
         FloatIndexer idx = matFeatures.createIndexer();
         float[] temp = null;
         int col = 0;

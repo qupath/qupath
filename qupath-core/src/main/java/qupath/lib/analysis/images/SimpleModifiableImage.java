@@ -39,4 +39,11 @@ public interface SimpleModifiableImage extends SimpleImage {
 	 */
 	public void setValue(int x, int y, float val);
 	
+	/**
+	 * Request the pixel array representing all the pixels in this image, returned row-wise.
+	 * @param direct if true, the internal array will be returned if possible 
+	 * @return
+	 */
+	float[] getArray(boolean direct);
+	
 }

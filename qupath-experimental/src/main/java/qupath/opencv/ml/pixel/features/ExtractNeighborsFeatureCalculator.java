@@ -1,9 +1,6 @@
 package qupath.opencv.ml.pixel.features;
 
-import java.awt.image.BandedSampleModel;
 import java.awt.image.BufferedImage;
-import java.awt.image.DataBuffer;
-import java.awt.image.DataBufferFloat;
 import java.awt.image.WritableRaster;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -13,12 +10,9 @@ import org.slf4j.LoggerFactory;
 
 import com.google.gson.annotations.JsonAdapter;
 
-import qupath.lib.color.ColorModelFactory;
-import qupath.lib.common.ColorTools;
 import qupath.lib.geom.ImmutableDimension;
 import qupath.lib.gui.ml.PixelClassifierTools;
 import qupath.lib.images.ImageData;
-import qupath.lib.images.servers.PixelType;
 import qupath.lib.io.OpenCVTypeAdapters;
 import qupath.lib.regions.RegionRequest;
 
@@ -31,7 +25,7 @@ import qupath.lib.regions.RegionRequest;
  *
  */
 @JsonAdapter(OpenCVTypeAdapters.OpenCVTypeAdaptorFactory.class)
-public class ExtractNeighborsFeatureCalculator implements FeatureCalculator<BufferedImage, BufferedImage> {
+public class ExtractNeighborsFeatureCalculator implements FeatureCalculator<BufferedImage> {
 	
 	private static Logger logger = LoggerFactory.getLogger(ExtractNeighborsFeatureCalculator.class);
 	
@@ -62,15 +56,13 @@ public class ExtractNeighborsFeatureCalculator implements FeatureCalculator<Buff
 	}
 
 	@Override
-	public List<Feature<BufferedImage>> calculateFeatures(ImageData<BufferedImage> imageData, RegionRequest request) throws IOException {
+	public List<PixelFeature> calculateFeatures(ImageData<BufferedImage> imageData, RegionRequest request) throws IOException {
 		int pad = size / 2;
 		BufferedImage img = PixelClassifierTools.getPaddedRequest(imageData.getServer(), request, pad);
 		WritableRaster raster = img.getRaster();
 
-		List<Feature<BufferedImage>> features = new ArrayList<>();
+		List<PixelFeature> features = new ArrayList<>();
 
-		var colorModel = ColorModelFactory.createColorModel(PixelType.FLOAT32, 1, false, ColorTools.makeRGB(255, 255, 255));
-		
 		int k = 0;
 		int width = img.getWidth();
 		int height = img.getHeight();
@@ -91,9 +83,7 @@ public class ExtractNeighborsFeatureCalculator implements FeatureCalculator<Buff
 							f[yy*ww + xx] = val;
 						}							
 					}
-					var buffer = new DataBufferFloat(f, f.length);
-					var fRaster = WritableRaster.createWritableRaster(new BandedSampleModel(DataBuffer.TYPE_FLOAT, ww, hh, 1), buffer, null);
-					features.add(new DefaultFeature<>(featureNames.get(k), new BufferedImage(colorModel, fRaster, false, null)));
+					features.add(new DefaultPixelFeature<>(featureNames.get(k), f, ww, hh));
 					k++;
 				}				
 			}

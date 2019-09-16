@@ -114,10 +114,6 @@ public class PixelClassifierHelper implements PathObjectHierarchyListener {
         resetTrainingData();
     }
 
-    public FeatureCalculator<BufferedImage, BufferedImage> getFeatureCalculator() {
-        return featureServer.getFeatureCalculator();
-    }
-
     public void setImageData(ImageData<BufferedImage> imageData) {
         if (this.imageData == imageData)
             return;

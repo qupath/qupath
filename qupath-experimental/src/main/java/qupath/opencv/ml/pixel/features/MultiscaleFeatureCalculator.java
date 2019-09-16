@@ -29,7 +29,7 @@ import qupath.opencv.tools.MultiscaleFeatures.MultiscaleFeature;
 import qupath.opencv.tools.MultiscaleFeatures.MultiscaleResultsBuilder;
 import qupath.opencv.tools.OpenCVTools;
 
-public class MultiscaleFeatureCalculator implements FeatureCalculator<BufferedImage, BufferedImage> {
+public class MultiscaleFeatureCalculator implements FeatureCalculator<BufferedImage> {
 	
 	private double localNormalizeSigma;
 	
@@ -60,15 +60,11 @@ public class MultiscaleFeatureCalculator implements FeatureCalculator<BufferedIm
 		}
 	}
 	
-	public MultiscaleFeatureCalculator(Collection<TransformedFeatureComputer> featureComputers) {
-		this.multiscaleComputers.addAll(featureComputers);
-	}
-	
 
 	@Override
-	public List<Feature<BufferedImage>> calculateFeatures(ImageData<BufferedImage> imageData, RegionRequest request) throws IOException {
+	public List<PixelFeature> calculateFeatures(ImageData<BufferedImage> imageData, RegionRequest request) throws IOException {
 		
-		List<Feature<BufferedImage>> features = new ArrayList<>();
+		List<PixelFeature> features = new ArrayList<>();
 
 		ImageServer<BufferedImage> server = imageData.getServer();
 		
@@ -174,7 +170,7 @@ public class MultiscaleFeatureCalculator implements FeatureCalculator<BufferedIm
 	
 	static interface OpenCVFeatureFilter {
 
-		public List<Feature<BufferedImage>> calculateFeatures(Mat mat, int paddingXY, Mat... stack);
+		public List<PixelFeature> calculateFeatures(Mat mat, int paddingXY, Mat... stack);
 		
 	}
 	
@@ -245,7 +241,7 @@ public class MultiscaleFeatureCalculator implements FeatureCalculator<BufferedIm
 		}
 		
 		@Override
-		public List<Feature<BufferedImage>> calculateFeatures(Mat mat, int paddingXY, Mat... stack) {
+		public List<PixelFeature> calculateFeatures(Mat mat, int paddingXY, Mat... stack) {
 			List<Mat> mats = stack.length == 0 ? Collections.singletonList(mat) : Arrays.asList(stack);
 			int ind = mats.indexOf(mat);
 			
@@ -273,7 +269,7 @@ public class MultiscaleFeatureCalculator implements FeatureCalculator<BufferedIm
 			
 			String sigmaString = scale.sigmaString();
 			
-			List<Feature<BufferedImage>> output = new ArrayList<>();
+			List<PixelFeature> output = new ArrayList<>();
 			for (MultiscaleFeature feature : features) {
 				String name = feature.toString() + " " + sigmaString;
 				if (baseName != null)
@@ -282,7 +278,7 @@ public class MultiscaleFeatureCalculator implements FeatureCalculator<BufferedIm
 				if (matFeature == null)
 					logger.debug("No feature for {}", feature);
 				else {
-					output.add(new DefaultFeature<>(name, OpenCVTools.matToBufferedImage(matFeature)));
+					output.add(new DefaultPixelFeature<>(name, OpenCVTools.matToSimpleImage(matFeature, 0)));
 					matFeature.release();
 				}
 			}
