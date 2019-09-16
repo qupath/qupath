@@ -10,16 +10,9 @@ import org.slf4j.LoggerFactory;
 
 import qupath.lib.classifiers.Normalization;
 import qupath.lib.color.ColorToolsAwt;
-import qupath.lib.common.ColorTools;
 import qupath.lib.gui.ml.BoundaryStrategy;
 import qupath.lib.images.ImageData;
-import qupath.lib.images.servers.AbstractTileableImageServer;
 import qupath.lib.images.servers.ImageChannel;
-import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
-import qupath.lib.images.servers.ImageServerMetadata;
-import qupath.lib.images.servers.ImageServerMetadata.ChannelType;
-import qupath.lib.images.servers.PixelType;
-import qupath.lib.images.servers.TileRequest;
 
 import org.bytedeco.opencv.opencv_core.Mat;
 import org.bytedeco.opencv.opencv_core.MatVector;
@@ -37,16 +30,10 @@ import qupath.lib.roi.interfaces.ROI;
 import qupath.opencv.ml.OpenCVClassifiers;
 import qupath.opencv.ml.OpenCVClassifiers.FeaturePreprocessor;
 import qupath.opencv.ml.pixel.features.FeatureCalculator;
-import qupath.opencv.ml.pixel.features.OpenCVFeatureCalculator;
-import qupath.opencv.tools.OpenCVTools;
 
 import java.awt.BasicStroke;
-import java.awt.image.BandedSampleModel;
 import java.awt.image.BufferedImage;
-import java.awt.image.DataBufferFloat;
-import java.awt.image.WritableRaster;
 import java.io.IOException;
-import java.net.URI;
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
 import java.util.ArrayList;
@@ -74,7 +61,6 @@ public class PixelClassifierHelper implements PathObjectHierarchyListener {
 	private BoundaryStrategy boundaryStrategy = BoundaryStrategy.getSkipBoundaryStrategy();
 
     private ImageData<BufferedImage> imageData;
-    private OpenCVFeatureCalculator calculator;
     private FeatureImageServer featureServer;
     private boolean changes = true;
 
@@ -89,19 +75,19 @@ public class PixelClassifierHelper implements PathObjectHierarchyListener {
      * Create a new pixel classifier helper, to support generating training data.
      * 
      * @param imageData
-     * @param calculator
+     * @param featureServer
      * @param downsample
      */
-    public PixelClassifierHelper(ImageData<BufferedImage> imageData, OpenCVFeatureCalculator calculator, double downsample) {
+    public PixelClassifierHelper(ImageData<BufferedImage> imageData, FeatureImageServer featureServer, double downsample) {
         setImageData(imageData);
-        this.calculator = calculator;
+        this.featureServer = featureServer;
         this.downsample = downsample;
     }
 
-    public void setFeatureCalculator(OpenCVFeatureCalculator calculator) {
-        if (this.calculator == calculator)
+    public void setFeatureCalculator(FeatureImageServer featureServer) {
+        if (this.featureServer == featureServer)
             return;
-        this.calculator = calculator;
+        this.featureServer = featureServer;
 //        if (imageData != null) {
 //        	try {
 //                var temp = new FeatureImageServer(imageData, calculator, downsample);
@@ -128,8 +114,8 @@ public class PixelClassifierHelper implements PathObjectHierarchyListener {
         resetTrainingData();
     }
 
-    public OpenCVFeatureCalculator getFeatureCalculator() {
-        return calculator;
+    public FeatureCalculator<BufferedImage, BufferedImage> getFeatureCalculator() {
+        return featureServer.getFeatureCalculator();
     }
 
     public void setImageData(ImageData<BufferedImage> imageData) {
@@ -189,8 +175,7 @@ public class PixelClassifierHelper implements PathObjectHierarchyListener {
         }
         
         // Get a Feature server, which takes care of tiling and caching feature requests
-        if (featureServer == null || featureServer.getImageData() != imageData || 
-        		featureServer.calculator != calculator || 
+        if (featureServer == null || featureServer.getImageData() != imageData ||
         		featureServer.getDownsampleForResolution(0) != downsample) {
         	if (featureServer != null) {
         		try {
@@ -199,7 +184,6 @@ public class PixelClassifierHelper implements PathObjectHierarchyListener {
         			logger.warn("Error closing feature server", e);
         		}
         	}
-        	featureServer = new FeatureImageServer(imageData, calculator, downsample);
         }
                 
         // Get features & targets for all the tiles that we need
@@ -272,7 +256,7 @@ public class PixelClassifierHelper implements PathObjectHierarchyListener {
     /**
      * Feature normalization method
      */
-    private Normalization normalization = Normalization.MEAN_VARIANCE;
+    private Normalization normalization = Normalization.NONE;
     
     /**
      * Feature normalization method. Applied before any dimensionality reduction.
@@ -724,114 +708,6 @@ public class PixelClassifierHelper implements PathObjectHierarchyListener {
     		return matTargets;
     	}
 
-    }
-    
-    
-    /**
-     * An ImageServer that extract features from a wrapped server at a single specified resolution.
-     * 
-     * @author Pete Bankhead
-     */
-    static class FeatureImageServer extends AbstractTileableImageServer {
-    	
-    	private ImageServerMetadata metadata;
-    	private ImageData<BufferedImage> imageData;
-    	private FeatureCalculator<BufferedImage, Mat> calculator;
-    	
-    	public FeatureImageServer(ImageData<BufferedImage> imageData, FeatureCalculator<BufferedImage, Mat> calculator, double downsample) throws IOException {
-    		super();
-    		this.imageData = imageData;
-    		this.calculator = calculator;
-    		
-    		int tileWidth = calculator.getInputSize().getWidth();
-    		int tileHeight = calculator.getInputSize().getHeight();
-    		
-    		// We need to request a tile so that we can determine channel names
-    		var server = imageData.getServer();
-    		var tempRequest = RegionRequest.createInstance(server.getPath(), downsample, 0, 0, (int)Math.min(server.getWidth(), tileWidth), (int)Math.min(server.getHeight(), tileHeight*downsample));
-    		var features = calculator.calculateFeatures(imageData, tempRequest);
-    		List<ImageChannel> channels = new ArrayList<>();
-    		for (var feature : features)
-    			channels.add(ImageChannel.getInstance(feature.getName(), ColorTools.makeRGB(255, 255, 255)));
-    		
-    		metadata = new ImageServerMetadata.Builder(imageData.getServer().getMetadata())
-    				.levelsFromDownsamples(downsample)
-    				.preferredTileSize(tileWidth, tileHeight)
-    				.channels(channels)
-    				.channelType(ChannelType.FEATURE)
-    				.pixelType(PixelType.FLOAT32)
-    				.rgb(false)
-    				.build();
-    		
-		}
-    	
-    	public ImageData<BufferedImage> getImageData() {
-    		return imageData;
-    	}
-
-		@Override
-		public Collection<URI> getURIs() {
-			return imageData.getServer().getURIs();
-		}
-
-		@Override
-		public String getServerType() {
-			return "Feature calculator";
-		}
-
-		@Override
-		public ImageServerMetadata getOriginalMetadata() {
-			return metadata;
-		}
-
-		@Override
-		protected BufferedImage readTile(TileRequest tileRequest) throws IOException {
-			var tempRequest = RegionRequest.createInstance(imageData.getServer().getPath(), tileRequest.getDownsample(), tileRequest.getRegionRequest());
-			var features = calculator.calculateFeatures(imageData, tempRequest);
-			
-			float[][] dataArray = new float[nChannels()][];
-			int width = 0;
-			int height = 0;
-			int sizeC = nChannels();
-			
-			if (sizeC != features.size())
-				throw new IOException("Unsupported number of features: expected " + sizeC + " but calculated " + features.size());
-			
-			for (int i = 0; i < sizeC; i++) {
-				var mat = features.get(i).getFeature();
-				var pixels = OpenCVTools.extractPixels(mat, (float[])null);
-				dataArray[i] = pixels;
-				if (i == 0) {
-					width = mat.cols();
-					height = mat.rows();
-				}
-				// Clean up as we go
-				mat.release();
-			}
-			
-			var dataBuffer = new DataBufferFloat(dataArray, width * height);
-			var sampleModel = new BandedSampleModel(dataBuffer.getDataType(), width, height, sizeC);
-			WritableRaster raster = WritableRaster.createWritableRaster(sampleModel, dataBuffer, null);
-		
-			return new BufferedImage(getDefaultColorModel(), raster, false, null);
-		}
-		
-		// TODO: Consider clearing the cache for this server if we can
-		@Override
-		public void close() throws Exception {
-			super.close();
-		}
-
-		@Override
-		protected ServerBuilder<BufferedImage> createServerBuilder() {
-			return null;
-		}
-
-		@Override
-		protected String createID() {
-			return String.format("%s %s", imageData.getServerPath(), calculator.toString());
-		}
-    	
     }
     
 

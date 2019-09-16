@@ -15,24 +15,21 @@ import org.bytedeco.opencv.opencv_core.Mat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.gson.annotations.JsonAdapter;
-
 import qupath.lib.common.GeneralTools;
 import qupath.lib.geom.ImmutableDimension;
 import qupath.lib.gui.ml.PixelClassifierTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.PixelCalibration;
-import qupath.lib.io.OpenCVTypeAdapters;
 import qupath.lib.regions.RegionRequest;
 import qupath.opencv.ml.pixel.features.ColorTransforms.ColorTransform;
 import qupath.opencv.tools.MultiscaleFeatures;
 import qupath.opencv.tools.LocalNormalization;
 import qupath.opencv.tools.MultiscaleFeatures.MultiscaleFeature;
 import qupath.opencv.tools.MultiscaleFeatures.MultiscaleResultsBuilder;
+import qupath.opencv.tools.OpenCVTools;
 
-@JsonAdapter(OpenCVTypeAdapters.OpenCVTypeAdaptorFactory.class)
-public class MultiscaleFeatureCalculator implements OpenCVFeatureCalculator {
+public class MultiscaleFeatureCalculator implements FeatureCalculator<BufferedImage, BufferedImage> {
 	
 	private double localNormalizeSigma;
 	
@@ -69,9 +66,9 @@ public class MultiscaleFeatureCalculator implements OpenCVFeatureCalculator {
 	
 
 	@Override
-	public List<Feature<Mat>> calculateFeatures(ImageData<BufferedImage> imageData, RegionRequest request) throws IOException {
+	public List<Feature<BufferedImage>> calculateFeatures(ImageData<BufferedImage> imageData, RegionRequest request) throws IOException {
 		
-		List<Feature<Mat>> features = new ArrayList<>();
+		List<Feature<BufferedImage>> features = new ArrayList<>();
 
 		ImageServer<BufferedImage> server = imageData.getServer();
 		
@@ -177,7 +174,7 @@ public class MultiscaleFeatureCalculator implements OpenCVFeatureCalculator {
 	
 	static interface OpenCVFeatureFilter {
 
-		public List<Feature<Mat>> calculateFeatures(Mat mat, int paddingXY, Mat... stack);
+		public List<Feature<BufferedImage>> calculateFeatures(Mat mat, int paddingXY, Mat... stack);
 		
 	}
 	
@@ -248,7 +245,7 @@ public class MultiscaleFeatureCalculator implements OpenCVFeatureCalculator {
 		}
 		
 		@Override
-		public List<Feature<Mat>> calculateFeatures(Mat mat, int paddingXY, Mat... stack) {
+		public List<Feature<BufferedImage>> calculateFeatures(Mat mat, int paddingXY, Mat... stack) {
 			List<Mat> mats = stack.length == 0 ? Collections.singletonList(mat) : Arrays.asList(stack);
 			int ind = mats.indexOf(mat);
 			
@@ -276,7 +273,7 @@ public class MultiscaleFeatureCalculator implements OpenCVFeatureCalculator {
 			
 			String sigmaString = scale.sigmaString();
 			
-			List<Feature<Mat>> output = new ArrayList<>();
+			List<Feature<BufferedImage>> output = new ArrayList<>();
 			for (MultiscaleFeature feature : features) {
 				String name = feature.toString() + " " + sigmaString;
 				if (baseName != null)
@@ -284,8 +281,10 @@ public class MultiscaleFeatureCalculator implements OpenCVFeatureCalculator {
 				Mat matFeature = map.get(feature);
 				if (matFeature == null)
 					logger.debug("No feature for {}", feature);
-				else
-					output.add(new DefaultFeature<>(name, matFeature));
+				else {
+					output.add(new DefaultFeature<>(name, OpenCVTools.matToBufferedImage(matFeature)));
+					matFeature.release();
+				}
 			}
 			return output;
 		}

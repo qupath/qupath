@@ -1,22 +1,24 @@
 package qupath.opencv.ml.pixel.features;
 
+import java.awt.image.BandedSampleModel;
 import java.awt.image.BufferedImage;
+import java.awt.image.DataBuffer;
+import java.awt.image.DataBufferFloat;
 import java.awt.image.WritableRaster;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
-
-import org.bytedeco.opencv.global.opencv_core;
-import org.bytedeco.javacpp.indexer.FloatIndexer;
-import org.bytedeco.opencv.opencv_core.Mat;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.gson.annotations.JsonAdapter;
 
+import qupath.lib.color.ColorModelFactory;
+import qupath.lib.common.ColorTools;
 import qupath.lib.geom.ImmutableDimension;
 import qupath.lib.gui.ml.PixelClassifierTools;
 import qupath.lib.images.ImageData;
+import qupath.lib.images.servers.PixelType;
 import qupath.lib.io.OpenCVTypeAdapters;
 import qupath.lib.regions.RegionRequest;
 
@@ -29,54 +31,70 @@ import qupath.lib.regions.RegionRequest;
  *
  */
 @JsonAdapter(OpenCVTypeAdapters.OpenCVTypeAdaptorFactory.class)
-public class ExtractNeighborsFeatureCalculator implements OpenCVFeatureCalculator {
+public class ExtractNeighborsFeatureCalculator implements FeatureCalculator<BufferedImage, BufferedImage> {
 	
-	private int radius;
+	private static Logger logger = LoggerFactory.getLogger(ExtractNeighborsFeatureCalculator.class);
+	
+	private int size;
 	private List<String> featureNames;
 	private int[] inputChannels;
-	private int n;
 	
 	private ImmutableDimension inputShape = new ImmutableDimension(256, 256);
 	
-	public ExtractNeighborsFeatureCalculator(String name, double pixelSizeMicrons, int radius, int...inputChannels) {
-		this.radius = radius;
+	public ExtractNeighborsFeatureCalculator(String name, double pixelSizeMicrons, int size, int...inputChannels) {
+		if (size % 2 != 1) {
+			logger.warn("Extract neighbors size {}, but really this should be an odd number! I will do my best.", size);
+		}
+		this.size = size;
 		
-		n = (radius * 2 + 1) * (radius * 2 + 1) * inputChannels.length;
 		this.inputChannels = inputChannels;
 				
-		featureNames = IntStream.range(0, n)
-				.mapToObj(c -> "Feature " + c)
-				.collect(Collectors.toList());
+		featureNames = new ArrayList<>();
+		int xStart = -size/2;
+		int yStart = -size/2;
+		for (int c = 0; c < inputChannels.length; c++) {
+			for (int y = yStart; y < yStart + size; y++) {
+				for (int x = xStart; x < xStart + size; x++) {
+					featureNames.add("Pixel (x=" + x + ", y=" + y +", c=" + c +")");
+				}			
+			}
+		}
 	}
 
 	@Override
-	public List<Feature<Mat>> calculateFeatures(ImageData<BufferedImage> imageData, RegionRequest request) throws IOException {
-		BufferedImage img = PixelClassifierTools.getPaddedRequest(imageData.getServer(), request, radius);
+	public List<Feature<BufferedImage>> calculateFeatures(ImageData<BufferedImage> imageData, RegionRequest request) throws IOException {
+		int pad = size / 2;
+		BufferedImage img = PixelClassifierTools.getPaddedRequest(imageData.getServer(), request, pad);
 		WritableRaster raster = img.getRaster();
 
-		n = (radius * 2 + 1) * (radius * 2 + 1) * inputChannels.length;
+		List<Feature<BufferedImage>> features = new ArrayList<>();
 
-		List<Feature<Mat>> features = new ArrayList<>();
-
-		int k = 1;
+		var colorModel = ColorModelFactory.createColorModel(PixelType.FLOAT32, 1, false, ColorTools.makeRGB(255, 255, 255));
+		
+		int k = 0;
+		int width = img.getWidth();
+		int height = img.getHeight();
+		float[] pixels = null;
 		for (int b : inputChannels) {
-			for (int y = 0; y < radius * 2 + 1; y++) {
-				for (int x = 0; x < radius * 2 + 1; x++) {
-
-					Mat mat = new Mat(img.getHeight()-radius*2, img.getWidth()-radius*2, opencv_core.CV_32FC1);
-					FloatIndexer idx = mat.createIndexer();
-					int rows = mat.rows();
-					int cols = mat.cols();
-
-					for (int r = 0; r < rows; r++) {
-						for (int c = 0; c < cols; c++) {
-							float val = raster.getSampleFloat(c + x, r + y, b);
-							//								System.err.println(r + ", " + c + ", " + k);
-							idx.put(r, c, val);
+			// Extract pixels for the current band
+			pixels = raster.getSamples(0, 0, width, height, b, pixels);
+			// Outer loops extract features in turn
+			for (int y = 0; y < size; y++) {
+				for (int x = 0; x < size; x++) {
+					// Inner loop extracts for each pixel
+					int ww = width - pad*2;
+					int hh = height - pad*2;
+					float[] f = new float[ww * hh];
+					for (int yy = 0; yy < hh; yy++) {
+						for (int xx = 0; xx < ww; xx++) {
+							float val = pixels[(y + yy)*width + xx + x];
+							f[yy*ww + xx] = val;
 						}							
 					}
-					idx.release();
-					features.add(new DefaultFeature<>(String.format("Pixel (%d, %d)", x, y), mat));
+					var buffer = new DataBufferFloat(f, f.length);
+					var fRaster = WritableRaster.createWritableRaster(new BandedSampleModel(DataBuffer.TYPE_FLOAT, ww, hh, 1), buffer, null);
+					features.add(new DefaultFeature<>(featureNames.get(k), new BufferedImage(colorModel, fRaster, false, null)));
+					k++;
 				}				
 			}
 		}

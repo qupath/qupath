@@ -3,12 +3,9 @@ package qupath.opencv.ml.pixel;
 import java.awt.image.BufferedImage;
 import java.awt.image.ColorModel;
 import java.io.IOException;
-import java.util.List;
-
+import org.bytedeco.javacpp.indexer.FloatIndexer;
 import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.opencv_core.Mat;
-import org.bytedeco.opencv.opencv_core.MatVector;
-
 import qupath.lib.classifiers.pixel.PixelClassifierMetadata;
 import qupath.lib.classifiers.pixel.PixelClassifiers;
 import qupath.lib.images.ImageData;
@@ -16,8 +13,6 @@ import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.regions.RegionRequest;
 import qupath.opencv.ml.OpenCVClassifiers.FeaturePreprocessor;
 import qupath.opencv.ml.OpenCVClassifiers.OpenCVStatModel;
-import qupath.opencv.ml.pixel.features.Feature;
-import qupath.opencv.ml.pixel.features.OpenCVFeatureCalculator;
 import qupath.opencv.tools.OpenCVTools;
 
 import org.slf4j.Logger;
@@ -32,7 +27,7 @@ class OpenCVPixelClassifier extends AbstractOpenCVPixelClassifier {
 
     private OpenCVStatModel model;
 	
-    private OpenCVFeatureCalculator calculator;
+    private FeatureImageServer calculator;
 	
     private FeaturePreprocessor preprocessor;
     
@@ -48,7 +43,7 @@ class OpenCVPixelClassifier extends AbstractOpenCVPixelClassifier {
 //    	this(statModel, calculator, preprocessor, metadata, false);
 //    }
 
-    OpenCVPixelClassifier(OpenCVStatModel statModel, OpenCVFeatureCalculator calculator, FeaturePreprocessor preprocessor, PixelClassifierMetadata metadata, boolean do8Bit) {
+    OpenCVPixelClassifier(OpenCVStatModel statModel, FeatureImageServer calculator, FeaturePreprocessor preprocessor, PixelClassifierMetadata metadata, boolean do8Bit) {
         super(metadata, do8Bit);
         this.model = statModel;
         this.calculator = calculator;
@@ -126,32 +121,56 @@ class OpenCVPixelClassifier extends AbstractOpenCVPixelClassifier {
     public BufferedImage applyClassification(final ImageData<BufferedImage> imageData, final RegionRequest request) throws IOException {
         // Get the pixels into a friendly format
 //        Mat matInput = OpenCVTools.imageToMatRGB(img, false);
-    	
-    	List<Feature<Mat>> features = calculator.calculateFeatures(imageData, request);
+    	BufferedImage imgFeatures = calculator.readBufferedImage(request);
     	
 //    	PixelClassifierMetadata metadata = getMetadata();
 //        normalizeFeatures(matFeatures, metadata.getInputChannelMeans(), metadata.getInputChannelScales());
 
-    	Mat firstFeature = features.get(0).getFeature();
-        int heightFeatures = firstFeature.rows();
+        int widthFeatures = imgFeatures.getWidth();
+        int heightFeatures = imgFeatures.getHeight();
+        int n = widthFeatures * heightFeatures;
 
-        // Get probabilities
-        Mat matOutput = new Mat();
-        Mat[] columns = new Mat[features.size()];
-        int i = 0;
-        for (Feature<Mat> feature : features) {
-        	Mat temp = feature.getFeature();
-        	columns[i++] = temp.reshape(1, (int)temp.total());
-        }
-        Mat matFeatures = new Mat();
-    	opencv_core.hconcat(new MatVector(columns), matFeatures);
-    	if (matFeatures.channels() > 1)
-    		matFeatures.put(matFeatures.reshape(1, matFeatures.rows()*matFeatures.channels()));
+        // Extract features into a suitable format
+//        long startTime = System.currentTimeMillis();
         
+        // It's faster to put in row-wise and then transpose
+        int nBands = imgFeatures.getSampleModel().getNumBands();
+        Mat matFeatures = new Mat(nBands, widthFeatures*heightFeatures, opencv_core.CV_32FC1);
+        FloatIndexer idx = matFeatures.createIndexer();
+        float[] temp = null;
+        int col = 0;
+        for (int b = 0; b < nBands; b++) {
+        	temp = imgFeatures.getRaster().getSamples(0, 0, widthFeatures, heightFeatures, b, temp);
+        	idx.put(col, 0, temp);
+        	col++;
+        }
+        idx.release();
+        matFeatures.put(matFeatures.t());
+        
+//        int nBands = imgFeatures.getSampleModel().getNumBands();
+//        Mat matFeatures = new Mat(widthFeatures*heightFeatures, nBands, opencv_core.CV_32FC1);
+//        FloatIndexer idx = matFeatures.createIndexer();
+//        float[] temp = null;
+//        int col = 0;
+//        for (int b = 0; b < nBands; b++) {
+//        	temp = imgFeatures.getRaster().getSamples(0, 0, widthFeatures, heightFeatures, b, temp);
+//        	for (int row = 0; row < n; row++)
+//        		idx.put(row, col, temp[row]);
+//        	col++;
+//        }
+//        idx.release();
+
+//        long endTime = System.currentTimeMillis();
+//        System.err.println("Transfer: " + (endTime - startTime));
+        
+        
+        // Do preprocessing (e.g. PCA, normalization)
     	if (preprocessor != null)
     		preprocessor.apply(matFeatures);
+    	
 
-        
+    	// Calculate predictions/probabilities
+    	var matOutput = new Mat();
     	var type = getMetadata().getOutputType();
     	if (type == ImageServerMetadata.ChannelType.CLASSIFICATION) {
         	model.predict(matFeatures, matOutput, null);    		

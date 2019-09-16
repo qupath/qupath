@@ -24,8 +24,14 @@ import qupath.lib.regions.RegionRequest;
 import qupath.opencv.ml.OpenCVDNN;
 import qupath.opencv.tools.OpenCVTools;
 
+/**
+ * TODO: Change this to return something other than Mat
+ * 
+ * @author Pete Bankhead
+ *
+ */
 @JsonAdapter(OpenCVTypeAdapters.OpenCVTypeAdaptorFactory.class)
-public class OpenCVFeatureCalculatorDNN implements OpenCVFeatureCalculator {
+public class OpenCVFeatureCalculatorDNN implements FeatureCalculator<BufferedImage, Mat> {
 	
 //	static {
 //		FeatureCalculators.FeatureCalculatorTypeAdapterFactory.registerSubtype(OpenCVFeatureCalculatorDNN.class);

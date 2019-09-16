@@ -10,7 +10,6 @@ import qupath.lib.classifiers.pixel.PixelClassifierMetadata;
 import qupath.lib.classifiers.pixel.PixelClassifiers;
 import qupath.opencv.ml.OpenCVClassifiers.FeaturePreprocessor;
 import qupath.opencv.ml.OpenCVClassifiers.OpenCVStatModel;
-import qupath.opencv.ml.pixel.features.OpenCVFeatureCalculator;
 
 /**
  * Static methods to help with pixel classification using OpenCV.
@@ -106,7 +105,7 @@ public class OpenCVPixelClassifiers {
      * @param do8Bit
      * @return
      */
-	public static PixelClassifier createPixelClassifier(OpenCVStatModel statModel, OpenCVFeatureCalculator calculator, FeaturePreprocessor preprocessor, PixelClassifierMetadata metadata, boolean do8Bit) {
+	public static PixelClassifier createPixelClassifier(OpenCVStatModel statModel, FeatureImageServer calculator, FeaturePreprocessor preprocessor, PixelClassifierMetadata metadata, boolean do8Bit) {
 		return new OpenCVPixelClassifier(statModel, calculator, preprocessor, metadata, do8Bit);
 	}
     

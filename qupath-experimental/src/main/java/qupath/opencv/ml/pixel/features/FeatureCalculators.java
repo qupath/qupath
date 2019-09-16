@@ -18,10 +18,10 @@ public class FeatureCalculators {
 		
 		private static String typeName = "feature_calculator_type";
 		
-		private final static RuntimeTypeAdapterFactory<OpenCVFeatureCalculator> featureCalculatorTypeAdapter = 
-				RuntimeTypeAdapterFactory.of(OpenCVFeatureCalculator.class, typeName);
+		private final static RuntimeTypeAdapterFactory<FeatureCalculator> featureCalculatorTypeAdapter = 
+				RuntimeTypeAdapterFactory.of(FeatureCalculator.class, typeName);
 		
-		private static void registerSubtype(Class<? extends OpenCVFeatureCalculator> cls) {
+		private static void registerSubtype(Class<? extends FeatureCalculator> cls) {
 			featureCalculatorTypeAdapter.registerSubtype(cls);
 		}
 		

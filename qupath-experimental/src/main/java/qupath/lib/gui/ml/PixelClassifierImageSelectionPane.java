@@ -34,7 +34,6 @@ import org.slf4j.LoggerFactory;
 import com.google.gson.GsonBuilder;
 
 import ij.CompositeImage;
-import ij.ImagePlus;
 import ij.io.FileSaver;
 import ij.io.Opener;
 import javafx.application.Platform;
@@ -107,13 +106,12 @@ import qupath.lib.roi.RectangleROI;
 import qupath.lib.roi.interfaces.ROI;
 import qupath.opencv.ml.OpenCVClassifiers;
 import qupath.opencv.ml.OpenCVClassifiers.OpenCVStatModel;
+import qupath.opencv.ml.pixel.FeatureImageServer;
 import qupath.opencv.ml.pixel.OpenCVPixelClassifiers;
 import qupath.opencv.ml.pixel.PixelClassifierHelper;
 import qupath.opencv.ml.pixel.features.ExtractNeighborsFeatureCalculator;
-import qupath.opencv.ml.pixel.features.Feature;
+import qupath.opencv.ml.pixel.features.FeatureCalculator;
 import qupath.opencv.ml.pixel.features.MultiscaleFeatureCalculator;
-import qupath.opencv.ml.pixel.features.OpenCVFeatureCalculator;
-import qupath.opencv.tools.OpenCVTools;
 import qupath.opencv.tools.MultiscaleFeatures.MultiscaleFeature;
 
 
@@ -485,7 +483,9 @@ public class PixelClassifierImageSelectionPane {
 	
 	private MouseListener mouseListener = new MouseListener();
 	
-	private OpenCVFeatureCalculator featureCalculator;
+	private FeatureImageServer featureCalculator;
+	
+	private FeatureImageServer featureServer;
 	private PixelClassifierHelper helper;
 
 	
@@ -516,7 +516,15 @@ public class PixelClassifierImageSelectionPane {
 	
 	
 	private void updateFeatureCalculator() {
-		featureCalculator = selectedFeatureCalculatorBuilder.get().build(viewer.getImageData(), getRequestedPixelSizeMicrons());
+		try {
+			featureCalculator = 
+					new FeatureImageServer(
+					viewer.getImageData(),
+					selectedFeatureCalculatorBuilder.get().build(viewer.getImageData(), getRequestedPixelSizeMicrons()),
+					getRequestedDownsample());
+		} catch (IOException e) {
+			logger.error("Error creating feature calculator", e);
+		}
 		updateClassifier();
 	}
 	
@@ -713,7 +721,7 @@ public class PixelClassifierImageSelectionPane {
 				 .channels(channels)
 				 .build();
 
-		 var classifier = OpenCVPixelClassifiers.createPixelClassifier(model, helper.getFeatureCalculator(), helper.getLastFeaturePreprocessor(), metadata, true);
+		 var classifier = OpenCVPixelClassifiers.createPixelClassifier(model, featureCalculator, helper.getLastFeaturePreprocessor(), metadata, true);
 
 		 var classifierServer = new PixelClassificationImageServer(helper.getImageData(), classifier);
 		 replaceOverlay(new PixelClassificationOverlay(viewer, classifierServer));
@@ -1025,28 +1033,24 @@ public class PixelClassifierImageSelectionPane {
 		double pixelSize = cal.getAveragedPixelSizeMicrons();
 		if (!Double.isFinite(pixelSize))
 			pixelSize = 1;
-		double downsample = selectedResolution.get().getDownsampleFactor(pixelSize);
-		double width = featureCalculator.getInputSize().getWidth() * downsample;
-		double height = featureCalculator.getInputSize().getHeight() * downsample;
-		var request = RegionRequest.createInstance(
-				server.getPath(), downsample, 
-				(int)(cx - width/2), (int)(cy - height/2), (int)width, (int)height, viewer.getZPosition(), viewer.getTPosition());
-		
+		var tile = featureCalculator.getTileRequestManager().getTileRequest(
+				0,
+				(int)cx,
+				(int)cy,
+				viewer.getZPosition(), viewer.getTPosition());
+		if (tile == null) {
+			DisplayHelpers.showErrorMessage("Show features", "To file found - center the image within the viewer, then try again");
+			return false;
+		}
 		try {
-			List<Feature<Mat>> features = featureCalculator.calculateFeatures(imageData, request);
-			if (features.isEmpty()) {
-				DisplayHelpers.showErrorMessage("Show features", "No features selected!");
-				return false;
-			}
-			ImagePlus imp = OpenCVTools.matToImagePlus("Features", features.stream().map(f -> f.getFeature()).toArray(Mat[]::new));
-			int s = 1;
-			IJTools.calibrateImagePlus(imp, request, server);
+			var imp = IJTools.convertToImagePlus(featureCalculator, tile.getRegionRequest()).getImage();
+
 			CompositeImage impComp = new CompositeImage(imp, CompositeImage.GRAYSCALE);
 			impComp.setDimensions(imp.getStackSize(), 1, 1);
-			for (Feature<?> feature : features) {
+			for (int s = 1; s <= imp.getStackSize(); s++) {
 				impComp.setPosition(s);
 				impComp.resetDisplayRange();
-				impComp.getStack().setSliceLabel(feature.getName(), s++);
+//				impComp.getStack().setSliceLabel(feature.getName(), s++);
 			}
 			impComp.setPosition(1);
 			IJExtension.getImageJInstance();
@@ -1460,7 +1464,7 @@ public class PixelClassifierImageSelectionPane {
 	 */
 	public static abstract class FeatureCalculatorBuilder {
 		
-		public abstract OpenCVFeatureCalculator build(ImageData<BufferedImage> imageData, double requestedPixelSize);
+		public abstract FeatureCalculator<BufferedImage, BufferedImage> build(ImageData<BufferedImage> imageData, double requestedPixelSize);
 		
 		public boolean canCustomize() {
 			return false;
@@ -1546,8 +1550,8 @@ public class PixelClassifierImageSelectionPane {
 			
 			
 			var comboScales = new ComboBox<Integer>();
-			var labelScales = new Label("Radius");
-			comboScales.getItems().addAll(1, 2, 3, 4, 5);
+			var labelScales = new Label("Size");
+			comboScales.getItems().addAll(3, 5, 7, 9, 11, 13, 15);
 			comboScales.getSelectionModel().selectFirst();
 			selectedRadius = comboScales.getSelectionModel().selectedItemProperty();
 			
@@ -1570,7 +1574,7 @@ public class PixelClassifierImageSelectionPane {
 		}
 
 		@Override
-		public OpenCVFeatureCalculator build(ImageData<BufferedImage> imageData, double requestedPixelSize) {
+		public FeatureCalculator<BufferedImage, BufferedImage> build(ImageData<BufferedImage> imageData, double requestedPixelSize) {
 			return new ExtractNeighborsFeatureCalculator("Extract neighbors", requestedPixelSize, 
 					selectedRadius.getValue(), selectedChannels.stream().mapToInt(i -> i).toArray());
 		}
@@ -1733,7 +1737,7 @@ public class PixelClassifierImageSelectionPane {
 		}
 
 		@Override
-		public OpenCVFeatureCalculator build(ImageData<BufferedImage> imageData, double requestedPixelSize) {
+		public FeatureCalculator<BufferedImage, BufferedImage> build(ImageData<BufferedImage> imageData, double requestedPixelSize) {
 			// Extract features, removing any that are incompatible
 			MultiscaleFeature[] features;
 			if (do3D.get())
