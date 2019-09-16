@@ -23,6 +23,7 @@
 
 package qupath.opencv.tools;
 
+import java.awt.image.BandedSampleModel;
 import java.awt.image.BufferedImage;
 import java.awt.image.ColorModel;
 import java.awt.image.DataBuffer;
@@ -338,7 +339,8 @@ public class OpenCVTools {
 			img = new BufferedImage(colorModel, raster, false, null);
 		} else {
 			// Create some kind of raster we can use
-			raster = WritableRaster.createBandedRaster(type, width, height, channels, null);
+			var sampleModel = new BandedSampleModel(type, width, height, channels);
+			raster = WritableRaster.createWritableRaster(sampleModel, null);
 			// We do need a ColorModel or some description
 			colorModel = ColorModelFactory.getDummyColorModel(bpp * channels);
 			img = new BufferedImage(colorModel, raster, false, null);

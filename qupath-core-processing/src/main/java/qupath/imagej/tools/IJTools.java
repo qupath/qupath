@@ -452,38 +452,64 @@ public class IJTools {
 	 * @return
 	 */
 	public static ImagePlus convertToUncalibratedImagePlus(String title, BufferedImage img) {
-			ImagePlus imp = null;
-			SampleModel sampleModel = img.getSampleModel();
-			int dataType = sampleModel.getDataType();
-			int w = img.getWidth();
-			int h = img.getHeight();
-			ImageStack stack = new ImageStack(w, h);
-			int nBands = sampleModel.getNumBands();
-			// Let ImageJ handle indexed & 8-bit color images
-			if ((img.getType() == BufferedImage.TYPE_BYTE_INDEXED && nBands == 1) || BufferedImageTools.is8bitColorType(img.getType()))
-				imp = new ImagePlus(title, img);
-			else {
-				for (int b = 0; b < nBands; b++) {
-					// Read data as float (no matter what it is - it's the most accuracy ImageJ can provide)
-					FloatProcessor fp = new FloatProcessor(w, h);
-					float[] pixels = (float[])fp.getPixels();
-					img.getRaster().getSamples(0, 0, w, h, b, pixels);
-					// Convert to 8 or 16-bit, if appropriate
-					if (dataType == DataBuffer.TYPE_BYTE) {
-						ByteProcessor bp = new ByteProcessor(w, h);
-						bp.setPixels(0, fp);
-						stack.addSlice(bp);
-					} else if (dataType == DataBuffer.TYPE_USHORT) {
-						ShortProcessor sp = new ShortProcessor(w, h);
-						sp.setPixels(0, fp);
-						stack.addSlice(sp);
-					} else
-						stack.addSlice(fp);
-				}
-				imp = new ImagePlus(title, stack);
+		ImagePlus imp = null;
+		ImageStack stack = new ImageStack(img.getWidth(), img.getHeight());
+		int nBands = img.getSampleModel().getNumBands();
+		// Let ImageJ handle indexed & 8-bit color images
+		if ((img.getType() == BufferedImage.TYPE_BYTE_INDEXED && nBands == 1) || BufferedImageTools.is8bitColorType(img.getType()))
+			imp = new ImagePlus(title, img);
+		else {
+			for (int b = 0; b < nBands; b++) {
+				stack.addSlice(convertToImageProcessor(img, b));
 			}
-			return imp;
+			imp = new ImagePlus(title, stack);
 		}
+		return imp;
+	}
+	
+	/**
+	 * Create an ImageStack containing the specified ImageProcessors.
+	 * @param ips the ImageProcessors. Each must be the same width, height and type. If empty, an empty stack is returned.
+	 * @return
+	 */
+	public static ImageStack createImageStack(ImageProcessor...ips) {
+		if (ips.length == 0)
+			return new ImageStack();
+		ImageStack stack = new ImageStack(ips[0].getWidth(), ips[0].getHeight());
+		for (var temp : ips) {
+			stack.addSlice(temp);
+		}
+		return stack;
+	}
+	
+	
+	/**
+	 * Extract pixels as an an ImageProcessor from a single band of a BufferedImage.
+	 * @param img
+	 * @param band
+	 * @return
+	 */
+	public static ImageProcessor convertToImageProcessor(BufferedImage img, int band) {
+		int w = img.getWidth();
+		int h = img.getHeight();
+		int dataType = img.getSampleModel().getDataType();
+		// Read data as float (no matter what it is - it's the most accuracy ImageJ can provide)
+		FloatProcessor fp = new FloatProcessor(w, h);
+		float[] pixels = (float[])fp.getPixels();
+		img.getRaster().getSamples(0, 0, w, h, band, pixels);
+		// Convert to 8 or 16-bit, if appropriate
+		if (dataType == DataBuffer.TYPE_BYTE) {
+			ByteProcessor bp = new ByteProcessor(w, h);
+			bp.setPixels(0, fp);
+			return bp;
+		} else if (dataType == DataBuffer.TYPE_USHORT) {
+			ShortProcessor sp = new ShortProcessor(w, h);
+			sp.setPixels(0, fp);
+			return sp;
+		} else
+			return fp;
+	}
+	
 
 	/**
 	 * Convert a {@code BufferedImage} into a {@code PathImage<ImagePlus>}.
