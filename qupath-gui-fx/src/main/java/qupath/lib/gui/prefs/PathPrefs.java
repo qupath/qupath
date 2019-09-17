@@ -1702,7 +1702,7 @@ public class PathPrefs {
     }
     
     public static void setThickStrokeThickness(float thickness) {
-    	strokeThinThickness.set(thickness);
+    	strokeThickThickness.set(thickness);
     }
 
     public static float getThickStrokeThickness() {
