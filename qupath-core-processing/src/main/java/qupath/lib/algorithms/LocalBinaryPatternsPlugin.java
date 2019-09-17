@@ -95,7 +95,7 @@ public class LocalBinaryPatternsPlugin extends AbstractInteractivePlugin<Buffere
 			tileWidth = (int)(params.getDoubleParameterValue("tileSizePx") + .5);
 			tileHeight = tileWidth;
 		}
-		return new ImmutableDimension(tileWidth, tileHeight);
+		return ImmutableDimension.getInstance(tileWidth, tileHeight);
 	}
 	
 	static String getDiameterString(final ImageServer<BufferedImage> server, final ParameterList params) {

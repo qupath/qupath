@@ -116,8 +116,8 @@ public abstract class AbstractTileableDetectionPlugin<T> extends AbstractDetecti
 		double downsampleFactor = ServerTools.getDownsampleFactor(imageData.getServer(), getPreferredPixelSizeMicrons(imageData, params));
 		int preferred = (int)(PREFERRED_TILE_SIZE * downsampleFactor);
 		int max = (int)(MAX_TILE_SIZE * downsampleFactor);
-		ImmutableDimension sizePreferred = new ImmutableDimension(preferred, preferred);
-		ImmutableDimension sizeMax = new ImmutableDimension(max, max);
+		ImmutableDimension sizePreferred = ImmutableDimension.getInstance(preferred, preferred);
+		ImmutableDimension sizeMax = ImmutableDimension.getInstance(max, max);
 		
 		parentObject.clearPathObjects();
 		

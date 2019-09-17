@@ -7,6 +7,13 @@ import qupath.lib.geom.ImmutableDimension;
 import qupath.lib.images.ImageData;
 import qupath.lib.regions.RegionRequest;
 
+/**
+ * Calculate {@linkplain PixelFeature}s corresponding to a requested region.
+ * 
+ * @author Pete Bankhead
+ *
+ * @param <T>
+ */
 public interface FeatureCalculator<T> {
 
     /**

@@ -109,9 +109,8 @@ import qupath.opencv.ml.OpenCVClassifiers.OpenCVStatModel;
 import qupath.opencv.ml.pixel.FeatureImageServer;
 import qupath.opencv.ml.pixel.OpenCVPixelClassifiers;
 import qupath.opencv.ml.pixel.PixelClassifierHelper;
-import qupath.opencv.ml.pixel.features.ExtractNeighborsFeatureCalculator;
 import qupath.opencv.ml.pixel.features.FeatureCalculator;
-import qupath.opencv.ml.pixel.features.MultiscaleFeatureCalculator;
+import qupath.opencv.ml.pixel.features.FeatureCalculators;
 import qupath.opencv.tools.MultiscaleFeatures.MultiscaleFeature;
 
 
@@ -1574,8 +1573,10 @@ public class PixelClassifierImageSelectionPane {
 
 		@Override
 		public FeatureCalculator<BufferedImage> build(ImageData<BufferedImage> imageData, double requestedPixelSize) {
-			return new ExtractNeighborsFeatureCalculator("Extract neighbors", requestedPixelSize, 
-					selectedRadius.getValue(), selectedChannels.stream().mapToInt(i -> i).toArray());
+			return FeatureCalculators.createPatchFeatureCalculator(
+					requestedPixelSize, 
+					selectedRadius.getValue(),
+					selectedChannels.stream().mapToInt(i -> i).toArray());
 		}
 		
 		@Override
@@ -1745,17 +1746,14 @@ public class PixelClassifierImageSelectionPane {
 				features = selectedFeatures.stream().filter(f -> f.supports2D()).toArray(MultiscaleFeature[]::new);
 			
 			double[] sigmas = selectedSigmas.stream().mapToDouble(d -> d).toArray();
-			return new MultiscaleFeatureCalculator(
-					imageData,
+			return FeatureCalculators.createMultiscaleFeatureCalculator(
+					imageData.getServer().getPixelCalibration(),
 					selectedChannels.stream().mapToInt(i -> i).toArray(),
 					sigmas,
 					doNormalize.get() && sigmas.length > 1 ? sigmas[sigmas.length-1] * 4.0 : 0,
 					do3D.get() ? true : false,
 					features
 					);
-//			return new MultiscaleFeatureCalculator(
-//					selectedChannels, 
-//					requestedPixelSize);
 		}
 		
 		@Override

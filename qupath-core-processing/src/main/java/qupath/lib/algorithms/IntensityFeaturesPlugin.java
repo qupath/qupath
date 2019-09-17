@@ -371,7 +371,7 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 			tileWidth = (int)Math.round(params.getDoubleParameterValue("tileSizePixels"));
 			tileHeight = tileWidth;
 		}
-		return new ImmutableDimension(tileWidth, tileHeight);
+		return ImmutableDimension.getInstance(tileWidth, tileHeight);
 	}
 	
 	static String getDiameterString(final ImageServer<BufferedImage> server, final ParameterList params) {
@@ -531,7 +531,7 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 		String prefix = getDiameterString(server, params);
 
 		// Create tiled ROIs, if required
-		ImmutableDimension sizePreferred = new ImmutableDimension((int)(2000*downsample), (int)(2000*downsample));
+		ImmutableDimension sizePreferred = ImmutableDimension.getInstance((int)(2000*downsample), (int)(2000*downsample));
 //		ImmutableDimension sizePreferred = new ImmutableDimension((int)(200*downsample), (int)(200*downsample));
 		Collection<? extends ROI> rois = RoiTools.computeTiledROIs(roi, sizePreferred, sizePreferred, false, 0);
 		if (rois.size() > 1)

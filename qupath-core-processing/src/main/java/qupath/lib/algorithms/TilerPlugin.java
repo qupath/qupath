@@ -112,7 +112,7 @@ public class TilerPlugin<T> extends AbstractDetectionPlugin<T> {
 				tileWidth = (int)(params.getDoubleParameterValue("tileSizePx") + .5);
 				tileHeight = tileWidth;
 			}
-			return new ImmutableDimension(tileWidth, tileHeight);
+			return ImmutableDimension.getInstance(tileWidth, tileHeight);
 		}
 		
 	

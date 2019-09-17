@@ -8,52 +8,48 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.gson.annotations.JsonAdapter;
-
 import qupath.lib.geom.ImmutableDimension;
 import qupath.lib.gui.ml.PixelClassifierTools;
 import qupath.lib.images.ImageData;
-import qupath.lib.io.OpenCVTypeAdapters;
 import qupath.lib.regions.RegionRequest;
 
 /**
  * Feature calculator that simply takes a square of neighboring pixels as the features.
- * <p>
- * Warning! This is incomplete and may be removed. It also makes an unnecessary trip through OpenCV if the output will be converted to a BufferedImage.
  * 
  * @author Pete Bankhead
  *
  */
-@JsonAdapter(OpenCVTypeAdapters.OpenCVTypeAdaptorFactory.class)
-public class ExtractNeighborsFeatureCalculator implements FeatureCalculator<BufferedImage> {
+class ExtractNeighborsFeatureCalculator implements FeatureCalculator<BufferedImage> {
 	
 	private static Logger logger = LoggerFactory.getLogger(ExtractNeighborsFeatureCalculator.class);
 	
 	private int size;
-	private List<String> featureNames;
 	private int[] inputChannels;
 	
-	private ImmutableDimension inputShape = new ImmutableDimension(256, 256);
+	private ImmutableDimension inputShape = ImmutableDimension.getInstance(256, 256);
 	
-	public ExtractNeighborsFeatureCalculator(String name, double pixelSizeMicrons, int size, int...inputChannels) {
+	ExtractNeighborsFeatureCalculator(double pixelSizeMicrons, int size, int...inputChannels) {
 		if (size % 2 != 1) {
 			logger.warn("Extract neighbors size {}, but really this should be an odd number! I will do my best.", size);
 		}
 		this.size = size;
 		
 		this.inputChannels = inputChannels;
-				
-		featureNames = new ArrayList<>();
-		int xStart = -size/2;
-		int yStart = -size/2;
-		for (int c = 0; c < inputChannels.length; c++) {
-			for (int y = yStart; y < yStart + size; y++) {
-				for (int x = xStart; x < xStart + size; x++) {
-					featureNames.add("Pixel (x=" + x + ", y=" + y +", c=" + c +")");
-				}			
-			}
-		}
 	}
+	
+//	private synchronized List<String> getFeatureNames() {
+//		List<String> featureNames = new ArrayList<>();
+//		int xStart = -size/2;
+//		int yStart = -size/2;
+//		for (int c = 0; c < inputChannels.length; c++) {
+//			for (int y = yStart; y < yStart + size; y++) {
+//				for (int x = xStart; x < xStart + size; x++) {
+//					featureNames.add("Pixel (x=" + x + ", y=" + y +", c=" + c +")");
+//				}			
+//			}
+//		}
+//		return featureNames;
+//	}
 
 	@Override
 	public List<PixelFeature> calculateFeatures(ImageData<BufferedImage> imageData, RegionRequest request) throws IOException {
@@ -63,7 +59,6 @@ public class ExtractNeighborsFeatureCalculator implements FeatureCalculator<Buff
 
 		List<PixelFeature> features = new ArrayList<>();
 
-		int k = 0;
 		int width = img.getWidth();
 		int height = img.getHeight();
 		float[] pixels = null;
@@ -83,13 +78,13 @@ public class ExtractNeighborsFeatureCalculator implements FeatureCalculator<Buff
 							f[yy*ww + xx] = val;
 						}							
 					}
-					features.add(new DefaultPixelFeature<>(featureNames.get(k), f, ww, hh));
-					k++;
+					String name = "Pixel (x=" + (x-pad) + ", y=" + (y-pad) +", c=" + b +")";
+					features.add(new DefaultPixelFeature<>(name, f, ww, hh));
 				}				
 			}
 		}
-	return features;
-}
+		return features;
+	}
 
 	@Override
 	public ImmutableDimension getInputSize() {

@@ -29,15 +29,15 @@ import qupath.opencv.tools.MultiscaleFeatures.MultiscaleFeature;
 import qupath.opencv.tools.MultiscaleFeatures.MultiscaleResultsBuilder;
 import qupath.opencv.tools.OpenCVTools;
 
-public class MultiscaleFeatureCalculator implements FeatureCalculator<BufferedImage> {
+class MultiscaleFeatureCalculator implements FeatureCalculator<BufferedImage> {
 	
 	private double localNormalizeSigma;
 	
 	private List<TransformedFeatureComputer> multiscaleComputers = new ArrayList<>();
 	
-	private ImmutableDimension size = new ImmutableDimension(512, 512);
+	private ImmutableDimension size = ImmutableDimension.getInstance(512, 512);
 	
-	public MultiscaleFeatureCalculator(ImageData<BufferedImage> imageData, int[] channels, double[] sigmaValues, double localNormalizeSigma, boolean do3D, MultiscaleFeature... features) {
+	MultiscaleFeatureCalculator(PixelCalibration cal, int[] channels, double[] sigmaValues, double localNormalizeSigma, boolean do3D, MultiscaleFeature... features) {
 		
 		this.localNormalizeSigma = localNormalizeSigma;
 		
@@ -48,7 +48,6 @@ public class MultiscaleFeatureCalculator implements FeatureCalculator<BufferedIm
 			for (double sigma : sigmaValues) {
 				GaussianScale scale;
 				if (do3D) {
-					PixelCalibration cal = imageData.getServer().getPixelCalibration();
 					double sigmaZ = sigma / cal.getZSpacingMicrons() * cal.getAveragedPixelSizeMicrons();
 					scale = GaussianScale.create(sigma, sigma, sigmaZ);
 				} else {
@@ -155,23 +154,11 @@ public class MultiscaleFeatureCalculator implements FeatureCalculator<BufferedIm
 		return features;
 		
 	}
-
-//	@Override
-//	public String toString() {
-//		return "Multi-scale feature calculator";
-//	}
 	
 	
 	@Override
 	public ImmutableDimension getInputSize() {
 		return size;
-	}
-	
-	
-	static interface OpenCVFeatureFilter {
-
-		public List<PixelFeature> calculateFeatures(Mat mat, int paddingXY, Mat... stack);
-		
 	}
 	
 	
@@ -225,7 +212,7 @@ public class MultiscaleFeatureCalculator implements FeatureCalculator<BufferedIm
 	}
 	
 	
-	static class MultiscaleFeatureComputer implements OpenCVFeatureFilter {
+	static class MultiscaleFeatureComputer {
 		
 		private static Logger logger = LoggerFactory.getLogger(MultiscaleFeatureComputer.class);
 		
@@ -240,7 +227,6 @@ public class MultiscaleFeatureCalculator implements FeatureCalculator<BufferedIm
 			this.features = Arrays.asList(features);
 		}
 		
-		@Override
 		public List<PixelFeature> calculateFeatures(Mat mat, int paddingXY, Mat... stack) {
 			List<Mat> mats = stack.length == 0 ? Collections.singletonList(mat) : Arrays.asList(stack);
 			int ind = mats.indexOf(mat);

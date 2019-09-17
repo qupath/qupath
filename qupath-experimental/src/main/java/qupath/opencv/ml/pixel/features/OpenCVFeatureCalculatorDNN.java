@@ -15,8 +15,6 @@ import org.slf4j.LoggerFactory;
 
 import com.google.gson.annotations.JsonAdapter;
 
-import qupath.lib.analysis.images.SimpleImages;
-import qupath.lib.classifiers.pixel.PixelClassifierMetadata;
 import qupath.lib.geom.ImmutableDimension;
 import qupath.lib.gui.ml.PixelClassifierTools;
 import qupath.lib.images.ImageData;
@@ -26,13 +24,13 @@ import qupath.opencv.ml.OpenCVDNN;
 import qupath.opencv.tools.OpenCVTools;
 
 /**
- * TODO: Change this to return something other than Mat
+ * Use a DNN Net to calculate features.
  * 
  * @author Pete Bankhead
  *
  */
 @JsonAdapter(OpenCVTypeAdapters.OpenCVTypeAdaptorFactory.class)
-public class OpenCVFeatureCalculatorDNN implements FeatureCalculator<BufferedImage> {
+class OpenCVFeatureCalculatorDNN implements FeatureCalculator<BufferedImage> {
 	
 //	static {
 //		FeatureCalculators.FeatureCalculatorTypeAdapterFactory.registerSubtype(OpenCVFeatureCalculatorDNN.class);
@@ -41,15 +39,15 @@ public class OpenCVFeatureCalculatorDNN implements FeatureCalculator<BufferedIma
 	private static Logger logger = LoggerFactory.getLogger(OpenCVFeatureCalculatorDNN.class);
 
     private OpenCVDNN model;
+    private ImmutableDimension inputShape;
     
-    private PixelClassifierMetadata metadata;
-        
-    public OpenCVFeatureCalculatorDNN(
+    // TODO: Consider reading input dimensions from model?
+    OpenCVFeatureCalculatorDNN(
     		final OpenCVDNN model, 
-    		final PixelClassifierMetadata metadata) {
+    		final int inputWidth, int inputHeight) {
     	
     	this.model = model;
-    	this.metadata = metadata;
+    	this.inputShape = ImmutableDimension.getInstance(inputWidth, inputHeight);
     }
 
     private Mat calculateFeatures(Mat input) throws IOException {
@@ -105,10 +103,10 @@ public class OpenCVFeatureCalculatorDNN implements FeatureCalculator<BufferedIma
 		// Add padding if necessary
 		int xPad = 0;
 		int yPad = 0;
-		if (metadata.strictInputSize()) {
-			xPad = metadata.getInputWidth() + padding * 2 - mat.cols();
-			yPad = metadata.getInputHeight() + padding * 2 - mat.rows();
-		}
+//		if (metadata.strictInputSize()) {
+			xPad = inputShape.width + padding * 2 - mat.cols();
+			yPad = inputShape.height + padding * 2 - mat.rows();
+//		}
 		if (xPad > 0 || yPad > 0) {
 			opencv_core.copyMakeBorder(mat, mat, 0, yPad, 0, xPad, opencv_core.BORDER_REFLECT);
 		}
@@ -142,7 +140,7 @@ public class OpenCVFeatureCalculatorDNN implements FeatureCalculator<BufferedIma
         for (int i = 0; i < output.size(); i++) {
         	var temp = output.get(i);
         	features.add(new DefaultPixelFeature<>(
-        			metadata.getChannels().get(i).getName(),
+        			"Feature " + i,
         			OpenCVTools.matToSimpleImage(temp, 0)));
         }
         output.close();
@@ -152,7 +150,7 @@ public class OpenCVFeatureCalculatorDNN implements FeatureCalculator<BufferedIma
 	
 	@Override
 	public ImmutableDimension getInputSize() {
-		return new ImmutableDimension(metadata.getInputWidth(), metadata.getInputHeight());
+		return inputShape;
 	}
 
 //	@Override

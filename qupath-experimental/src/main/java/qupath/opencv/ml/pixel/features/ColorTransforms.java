@@ -15,15 +15,26 @@ public class ColorTransforms {
 	 */
 	interface ColorTransform {
 		
+		/**
+		 * Extract a (row-wise) array containing the pixels extracted from a BufferedImage.
+		 * @param imageData the ImageData from which the image was read; can be necessary for some transforms (e.g. to request color deconvolution stains)
+		 * @param img the image
+		 * @param pixels optional preallocated array; will be used if it is long enough to hold the transformed pixels
+		 * @return
+		 */
 		float[] extractChannel(ImageData<BufferedImage> imageData, BufferedImage img, float[] pixels);
 		
+		/**
+		 * Get a displayable name for the transform.
+		 * @return
+		 */
 		String getName();
 		
 	}
 	
 	
 	/**
-	 * Create ColorTransform to extract a channel based on its number (0-based index).
+	 * Create ColorTransform to extract a channel based on its number (0-based index, although result of {@link ColorTransform#getName()} is 1-based).
 	 * @param channel
 	 * @return
 	 */
