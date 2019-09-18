@@ -18,8 +18,12 @@ import com.google.gson.reflect.TypeToken;
 import qupath.lib.geom.ImmutableDimension;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.PixelCalibration;
+import qupath.lib.io.GsonTools;
 import qupath.lib.regions.RegionRequest;
 import qupath.opencv.ml.OpenCVDNN;
+import qupath.opencv.ml.pixel.features.MultiscaleFeatureCalculator.ScaleType;
+import qupath.opencv.ml.pixel.features.MultiscaleFeatureCalculator.SmoothingScale;
+import qupath.opencv.ml.pixel.features.MultiscaleFeatureCalculator.TransformedFeatureComputer;
 import qupath.opencv.tools.MultiscaleFeatures.MultiscaleFeature;
 
 public class FeatureCalculators {
@@ -51,13 +55,36 @@ public class FeatureCalculators {
 	}
 	
 	
-	public static FeatureCalculator<BufferedImage> createPatchFeatureCalculator(double pixelSizeMicrons, int size, int...inputChannels) {
-		return new ExtractNeighborsFeatureCalculator(pixelSizeMicrons, size, inputChannels);
+	public static FeatureCalculator<BufferedImage> createPatchFeatureCalculator(int size, int...inputChannels) {
+		return new ExtractNeighborsFeatureCalculator(size, inputChannels);
 	}
 	
 	
-	public static FeatureCalculator<BufferedImage> createMultiscaleFeatureCalculator(PixelCalibration cal, int[] channels, double[] sigmaValues, double localNormalizeSigma, boolean do3D, MultiscaleFeature... features) {
-		return new MultiscaleFeatureCalculator(cal, channels, sigmaValues, localNormalizeSigma, do3D, features);
+	public static FeatureCalculator<BufferedImage> createMultiscaleFeatureCalculator(int[] channels, double[] sigmaValues, double localNormalizeSigma, boolean do3D, MultiscaleFeature... features) {
+		List<SmoothingScale> scales = new ArrayList<>();
+		ScaleType scaleType = do3D ? ScaleType.SCALE_3D_ISOTROPIC : ScaleType.SCALE_2D;
+		for (double sigma : sigmaValues) {
+			scales.add(SmoothingScale.getInstance(scaleType, sigma));				
+		}
+		
+		List<TransformedFeatureComputer> computers = new ArrayList<>();
+		for (int c : channels) {
+			var transform = ColorTransforms.createChannelExtractor(c);
+			var builder = new TransformedFeatureComputer.Builder(transform);
+			for (var scale : scales) {
+				builder.addFeatures(scale, features);
+			}
+			computers.add(builder.build());
+		}
+		
+		var calculator = new MultiscaleFeatureCalculator.Builder()
+				.addFeatures(computers)
+				.localNormalization(SmoothingScale.getInstance(scaleType, localNormalizeSigma), false)
+				.build();
+		
+//		System.err.println(GsonTools.getInstance(true).toJson(calculator));
+		
+		return calculator;
 	}
 	
 	

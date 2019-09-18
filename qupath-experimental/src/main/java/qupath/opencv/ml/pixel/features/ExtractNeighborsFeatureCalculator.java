@@ -28,7 +28,7 @@ class ExtractNeighborsFeatureCalculator implements FeatureCalculator<BufferedIma
 	
 	private ImmutableDimension inputShape = ImmutableDimension.getInstance(256, 256);
 	
-	ExtractNeighborsFeatureCalculator(double pixelSizeMicrons, int size, int...inputChannels) {
+	ExtractNeighborsFeatureCalculator(int size, int...inputChannels) {
 		if (size % 2 != 1) {
 			logger.warn("Extract neighbors size {}, but really this should be an odd number! I will do my best.", size);
 		}

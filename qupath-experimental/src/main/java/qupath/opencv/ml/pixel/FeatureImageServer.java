@@ -20,6 +20,7 @@ import qupath.lib.images.servers.PixelType;
 import qupath.lib.images.servers.TileRequest;
 import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
 import qupath.lib.images.servers.ImageServerMetadata.ChannelType;
+import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.regions.RegionRequest;
 import qupath.opencv.ml.pixel.features.FeatureCalculator;
 
@@ -34,13 +35,15 @@ public class FeatureImageServer extends AbstractTileableImageServer {
 	private ImageData<BufferedImage> imageData;
 	private FeatureCalculator<BufferedImage> calculator;
 	
-	public FeatureImageServer(ImageData<BufferedImage> imageData, FeatureCalculator<BufferedImage> calculator, double downsample) throws IOException {
+	public FeatureImageServer(ImageData<BufferedImage> imageData, FeatureCalculator<BufferedImage> calculator, PixelCalibration resolution) throws IOException {
 		super();
 		this.imageData = imageData;
 		this.calculator = calculator;
 		
 		int tileWidth = calculator.getInputSize().getWidth();
 		int tileHeight = calculator.getInputSize().getHeight();
+		
+		double downsample = resolution.getAveragedPixelSize().doubleValue() / imageData.getServer().getPixelCalibration().getAveragedPixelSize().doubleValue();
 		
 		// We need to request a tile so that we can determine channel names
 		var server = imageData.getServer();

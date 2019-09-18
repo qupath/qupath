@@ -14,10 +14,10 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.TreeMap;
 import java.util.function.Function;
 
 import org.bytedeco.opencv.global.opencv_core;
@@ -142,9 +142,9 @@ public class PixelClassifierImageSelectionPane {
 	private QuPathViewer viewer;
 	private GridPane pane;
 	
-	private ObservableList<ImageResolution> resolutions = FXCollections.observableArrayList();
-	private ComboBox<ImageResolution> comboResolutions = new ComboBox<>(resolutions);
-	private ReadOnlyObjectProperty<ImageResolution> selectedResolution;
+	private ObservableList<CalibrationWrapper> resolutions = FXCollections.observableArrayList();
+	private ComboBox<CalibrationWrapper> comboResolutions = new ComboBox<>(resolutions);
+	private ReadOnlyObjectProperty<CalibrationWrapper> selectedResolution;
 	
 	private MiniViewerCommand.MiniViewerManager miniViewer;
 	
@@ -495,18 +495,12 @@ public class PixelClassifierImageSelectionPane {
 			resolutions.clear();
 			return;
 		}
-		var temp = new ArrayList<ImageResolution>();
-		double originalDownsample = 1;
-		String units = null;
+		var temp = new ArrayList<CalibrationWrapper>();
 		PixelCalibration cal = imageData.getServer().getPixelCalibration();
-		if (cal.hasPixelSizeMicrons()) {
-			originalDownsample = cal.getAveragedPixelSizeMicrons();
-			units = PixelCalibration.MICROMETER;
-		}
+
 		int scale = 1;
-		
 		for (String name : resolutionNames) {
-			temp.add(SimpleImageResolution.getInstance(name, originalDownsample * scale, units));
+			temp.add(new CalibrationWrapper(name, cal.createScaledInstance(scale, scale, 1)));
 			scale *= 2;
 		}
 		resolutions.setAll(temp);
@@ -515,11 +509,12 @@ public class PixelClassifierImageSelectionPane {
 	
 	private void updateFeatureCalculator() {
 		try {
+			var cal = selectedResolution.get().cal;
 			featureCalculator = 
 					new FeatureImageServer(
-					viewer.getImageData(),
-					selectedFeatureCalculatorBuilder.get().build(viewer.getImageData(), getRequestedPixelSizeMicrons()),
-					getRequestedDownsample());
+						viewer.getImageData(),
+						selectedFeatureCalculatorBuilder.get().build(viewer.getImageData(), cal),
+						cal);
 		} catch (IOException e) {
 			logger.error("Error creating feature calculator", e);
 		}
@@ -533,16 +528,13 @@ public class PixelClassifierImageSelectionPane {
 	
 	
 	private void updateClassifier(boolean doClassification) {
-		
-		double downsample = getRequestedDownsample();
 				
 		if (helper == null) {
 			helper = new PixelClassifierHelper(
-	        		viewer.getImageData(), featureCalculator, downsample);
+	        		viewer.getImageData(), featureCalculator);
 		} else {
 			helper.setImageData(viewer.getImageData());
 			helper.setFeatureCalculator(featureCalculator);
-			helper.setDownsample(downsample);
 		}
 		
 		if (doClassification)
@@ -552,33 +544,12 @@ public class PixelClassifierImageSelectionPane {
 	}
 	
 	
-	private double getRequestedDownsample() {
-		if (selectedResolution == null || selectedResolution.get() == null)
-			return 1;
-		double downsample = selectedResolution.get().getDownsampleFactor(1);
-		var server = viewer.getServer();
-		PixelCalibration cal = server == null ? null : server.getPixelCalibration();
-		if (cal != null && cal.hasPixelSizeMicrons())
-			downsample = selectedResolution.get().getDownsampleFactor(cal.getAveragedPixelSizeMicrons());
-		return downsample;
-	}
-	
-	private double getRequestedPixelSizeMicrons() {
-		double downsample = getRequestedDownsample();
-		var server = viewer.getServer();
-		PixelCalibration cal = server == null ? null : server.getPixelCalibration();
-		if (cal != null && cal.hasPixelSizeMicrons())
-			return downsample * cal.getAveragedPixelSizeMicrons();
-		return downsample;
-	}
-	
-	
 	
 	private boolean showAdvancedOptions() {
 		
 		if (helper == null) {
 			helper = new PixelClassifierHelper(
-	        		viewer.getImageData(), featureCalculator, getRequestedDownsample());
+	        		viewer.getImageData(), featureCalculator);
 		}
 		
 		var existingStrategy = helper.getBoundaryStrategy();
@@ -713,7 +684,7 @@ public class PixelClassifierImageSelectionPane {
 		 int inputWidth = featureCalculator.getMetadata().getPreferredTileWidth();
 		 int inputHeight = featureCalculator.getMetadata().getPreferredTileHeight();
 		 PixelClassifierMetadata metadata = new PixelClassifierMetadata.Builder()
-				 .inputPixelSize(getRequestedPixelSizeMicrons())
+				 .inputPixelSize(featureCalculator.getMetadata().getAveragedPixelSize() * featureCalculator.getDownsampleForResolution(0))
 				 .inputShape(inputWidth, inputHeight)
 				 .setChannelType(model.supportsProbabilities() ? selectedOutputType.get() : ImageServerMetadata.ChannelType.CLASSIFICATION)
 				 .channels(channels)
@@ -1079,10 +1050,16 @@ public class PixelClassifierImageSelectionPane {
 		if (pixelSize == null)
 			return false;
 		
-		ImageResolution res = SimpleImageResolution.getInstance("Custom", pixelSize, units);
-		List<ImageResolution> temp = new ArrayList<>(resolutions);
+		CalibrationWrapper res;
+		if (PixelCalibration.MICROMETER.equals(units)) {
+			double scale = pixelSize / cal.getAveragedPixelSizeMicrons();
+			res = new CalibrationWrapper("Custom", cal.createScaledInstance(scale, scale, 1));
+		} else
+			res = new CalibrationWrapper("Custom", cal.createScaledInstance(pixelSize, pixelSize, 1));
+
+		List<CalibrationWrapper> temp = new ArrayList<>(resolutions);
 		temp.add(res);
-		Collections.sort(temp, (r1, r2) -> Double.compare(r1.getDownsampleFactor(1), r2.getDownsampleFactor(1)));
+		Collections.sort(temp, Comparator.comparingDouble((CalibrationWrapper w) -> w.cal.getAveragedPixelSize().doubleValue()));
 		resolutions.setAll(temp);
 		comboResolutions.getSelectionModel().select(res);
 		
@@ -1096,75 +1073,23 @@ public class PixelClassifierImageSelectionPane {
 	}
 	
 	
-	private ImageResolution getSelectedResolution() {
-		return selectedResolution.get();
+	private PixelCalibration getSelectedResolution() {
+		return selectedResolution.get().cal;
 	}
 	
 	
-	private void updateResolution(ImageResolution resolution) {
+	private void updateResolution(CalibrationWrapper resolution) {
 		ImageServer<BufferedImage> server = null;
 		if (viewer != null)
 			server = viewer.getServer();
 		if (server == null || miniViewer == null || resolution == null)
 			return;
 		Tooltip.install(miniViewer.getPane(), new Tooltip("Classification resolution: \n" + resolution));
-		miniViewer.setDownsample(resolution.getDownsampleFactor(server.getPixelCalibration().getAveragedPixelSizeMicrons()));
+		miniViewer.setDownsample(resolution.cal.getAveragedPixelSize().doubleValue()  / server.getPixelCalibration().getAveragedPixelSize().doubleValue());
+		updateFeatureCalculator();
 	}
 	
 	
-	
-	static interface ImageResolution {
-		
-		double getDownsampleFactor(double pixelSizeMicrons);
-		
-	}
-	
-	static class SimpleImageResolution implements ImageResolution {
-		
-		private static Map<String, SimpleImageResolution> map = new TreeMap<>();
-		
-		private final String name;
-		private final String units;
-		private final double requestedPixelSize;
-		
-		public synchronized static SimpleImageResolution getInstance(final String name, final double requestedPixelSize, final String units) {
-			var key = name + "::" + requestedPixelSize + "::" + units;
-			var resolution = map.get(key);
-			if (resolution == null) {
-				resolution = new SimpleImageResolution(name, requestedPixelSize, units);
-				map.put(key, resolution);
-			}
-			return resolution;
-		}
-		
-		private SimpleImageResolution(String name, double requestedPixelSize, String units) {
-			this.name = name;
-			this.requestedPixelSize = requestedPixelSize;
-			this.units = units;
-		}
-		
-		@Override
-		public double getDownsampleFactor(double pixelSize) {
-			if (Double.isFinite(pixelSize))
-				return requestedPixelSize / pixelSize;
-			else
-				return requestedPixelSize;
-		}
-		
-		@Override
-		public String toString() {
-			if (units != null) {
-				String text = GeneralTools.formatNumber(requestedPixelSize, 2) + " " + GeneralTools.micrometerSymbol() + " per pixel";
-				if (name == null)
-					return text;
-				else
-					return String.format("%s (%s)", name, text);
-			} else {
-				return "Downsample " + GeneralTools.formatNumber(requestedPixelSize, 5);
-			}
-		}
-		
-	}
 	
 	
 	
@@ -1462,7 +1387,7 @@ public class PixelClassifierImageSelectionPane {
 	 */
 	public static abstract class FeatureCalculatorBuilder {
 		
-		public abstract FeatureCalculator<BufferedImage> build(ImageData<BufferedImage> imageData, double requestedPixelSize);
+		public abstract FeatureCalculator<BufferedImage> build(ImageData<BufferedImage> imageData, PixelCalibration resolution);
 		
 		public boolean canCustomize() {
 			return false;
@@ -1572,9 +1497,8 @@ public class PixelClassifierImageSelectionPane {
 		}
 
 		@Override
-		public FeatureCalculator<BufferedImage> build(ImageData<BufferedImage> imageData, double requestedPixelSize) {
+		public FeatureCalculator<BufferedImage> build(ImageData<BufferedImage> imageData, PixelCalibration resolution) {
 			return FeatureCalculators.createPatchFeatureCalculator(
-					requestedPixelSize, 
 					selectedRadius.getValue(),
 					selectedChannels.stream().mapToInt(i -> i).toArray());
 		}
@@ -1737,7 +1661,7 @@ public class PixelClassifierImageSelectionPane {
 		}
 
 		@Override
-		public FeatureCalculator<BufferedImage> build(ImageData<BufferedImage> imageData, double requestedPixelSize) {
+		public FeatureCalculator<BufferedImage> build(ImageData<BufferedImage> imageData, PixelCalibration resolution) {
 			// Extract features, removing any that are incompatible
 			MultiscaleFeature[] features;
 			if (do3D.get())
@@ -1747,7 +1671,6 @@ public class PixelClassifierImageSelectionPane {
 			
 			double[] sigmas = selectedSigmas.stream().mapToDouble(d -> d).toArray();
 			return FeatureCalculators.createMultiscaleFeatureCalculator(
-					imageData.getServer().getPixelCalibration(),
 					selectedChannels.stream().mapToInt(i -> i).toArray(),
 					sigmas,
 					doNormalize.get() && sigmas.length > 1 ? sigmas[sigmas.length-1] * 4.0 : 0,
@@ -1787,5 +1710,61 @@ public class PixelClassifierImageSelectionPane {
 		
 	}
 	
-	
+	/**
+	 * Wrapper for a PixelCalibration to be used to define classifier resolution.
+	 * This makes it possible to override {@link #toString()} and return a more readable representation of 
+	 * the resolution.
+	 */
+	static class CalibrationWrapper {
+		
+		final private String name;
+		final private PixelCalibration cal;
+		
+		CalibrationWrapper(String name, PixelCalibration cal) {
+			this.name = name;
+			this.cal = cal;
+		}
+		
+		@Override
+		public String toString() {
+			if (cal.hasPixelSizeMicrons())
+				return String.format("%s (%.1f %s/px)", name, cal.getAveragedPixelSizeMicrons(), GeneralTools.micrometerSymbol());
+			else
+				return String.format("%s (downsample = %.1f)", name, cal.getAveragedPixelSize().doubleValue());
+		}
+		
+		@Override
+		public int hashCode() {
+			final int prime = 31;
+			int result = 1;
+			result = prime * result + ((cal == null) ? 0 : cal.hashCode());
+			result = prime * result + ((name == null) ? 0 : name.hashCode());
+			return result;
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			if (this == obj)
+				return true;
+			if (obj == null)
+				return false;
+			if (getClass() != obj.getClass())
+				return false;
+			CalibrationWrapper other = (CalibrationWrapper) obj;
+			if (cal == null) {
+				if (other.cal != null)
+					return false;
+			} else if (!cal.equals(other.cal))
+				return false;
+			if (name == null) {
+				if (other.name != null)
+					return false;
+			} else if (!name.equals(other.name))
+				return false;
+			return true;
+		}
+		
+	}
+
+
 }

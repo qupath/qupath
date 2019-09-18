@@ -16,7 +16,6 @@ import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.SparseImageServer;
 import qupath.lib.objects.PathObject;
-import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.classes.PathClassFactory.StandardPathClasses;
 import qupath.lib.projects.ProjectImageEntry;

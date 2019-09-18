@@ -6,8 +6,9 @@ import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageChannel;
 
 
+// TODO: Add support in GsonTools
 public class ColorTransforms {
-
+	
 	/**
 	 * Interface defining a color transform that can extract a float values from a BufferedImage.
 	 * <p>

@@ -29,8 +29,6 @@ import qupath.lib.roi.interfaces.PathPoints;
 import qupath.lib.roi.interfaces.ROI;
 import qupath.opencv.ml.OpenCVClassifiers;
 import qupath.opencv.ml.OpenCVClassifiers.FeaturePreprocessor;
-import qupath.opencv.ml.pixel.features.FeatureCalculator;
-
 import java.awt.BasicStroke;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
@@ -64,8 +62,6 @@ public class PixelClassifierHelper implements PathObjectHierarchyListener {
     private FeatureImageServer featureServer;
     private boolean changes = true;
 
-    private double downsample;
-    
     private Mat matTraining;
     private Mat matTargets;
     
@@ -76,12 +72,10 @@ public class PixelClassifierHelper implements PathObjectHierarchyListener {
      * 
      * @param imageData
      * @param featureServer
-     * @param downsample
      */
-    public PixelClassifierHelper(ImageData<BufferedImage> imageData, FeatureImageServer featureServer, double downsample) {
+    public PixelClassifierHelper(ImageData<BufferedImage> imageData, FeatureImageServer featureServer) {
         setImageData(imageData);
         this.featureServer = featureServer;
-        this.downsample = downsample;
     }
 
     public void setFeatureCalculator(FeatureImageServer featureServer) {
@@ -104,13 +98,6 @@ public class PixelClassifierHelper implements PathObjectHierarchyListener {
 //        		e.printStackTrace();
 //        	}
 //        }
-        resetTrainingData();
-    }
-
-    public void setDownsample(double downsample) {
-        if (this.downsample == downsample)
-            return;
-        this.downsample = downsample;
         resetTrainingData();
     }
 
@@ -168,18 +155,6 @@ public class PixelClassifierHelper implements PathObjectHierarchyListener {
         	pathClassesLabels.put(temp, pathClass);
         	labels.put(pathClass, temp);
         	lab++;
-        }
-        
-        // Get a Feature server, which takes care of tiling and caching feature requests
-        if (featureServer == null || featureServer.getImageData() != imageData ||
-        		featureServer.getDownsampleForResolution(0) != downsample) {
-        	if (featureServer != null) {
-        		try {
-        			featureServer.close();
-        		} catch (Exception e) {
-        			logger.warn("Error closing feature server", e);
-        		}
-        	}
         }
                 
         // Get features & targets for all the tiles that we need
