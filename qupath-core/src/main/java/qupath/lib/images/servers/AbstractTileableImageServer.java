@@ -17,6 +17,7 @@ import org.slf4j.LoggerFactory;
 
 import qupath.lib.awt.common.BufferedImageTools;
 import qupath.lib.color.ColorModelFactory;
+import qupath.lib.images.servers.ImageServerMetadata.ChannelType;
 import qupath.lib.regions.RegionRequest;
 
 /**
@@ -337,8 +338,9 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 			BufferedImage imgResult = new BufferedImage(colorModel, raster, alphaPremultiplied, null);
 			int currentWidth = imgResult.getWidth();
 			int currentHeight = imgResult.getHeight();
-			if (currentWidth != width || currentHeight != height)
-				imgResult = BufferedImageTools.resize(imgResult, width, height);
+			if (currentWidth != width || currentHeight != height) {
+				imgResult = BufferedImageTools.resize(imgResult, width, height, allowSmoothInterpolation());
+			}
 			
 			long endTime = System.currentTimeMillis();
 			logger.trace("Requested " + tiles.size() + " tiles in " + (endTime - startTime) + " ms (non-RGB)");
@@ -346,6 +348,15 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 		}
 	}
 	
+	
+	/**
+	 * Returns true if this server is permitted to use smooth interpolation when resizing.
+	 * The default implementation returns true if the channel type is not {@link ChannelType#CLASSIFICATION}.
+	 * @return
+	 */
+	protected boolean allowSmoothInterpolation() {
+		return getMetadata().getChannelType() != ChannelType.CLASSIFICATION;
+	}
 	
 	
 }

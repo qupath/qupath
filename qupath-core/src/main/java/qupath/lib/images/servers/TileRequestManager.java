@@ -32,6 +32,15 @@ public interface TileRequestManager {
 	Collection<TileRequest> getAllTileRequests();
 	
 	/**
+	 * Get {@link TileRequest} objects for all tiles that this server supports 
+	 * at the specified resolution level.
+	 * 
+	 * @param level
+	 * @return
+	 */
+	Collection<TileRequest> getTileRequestsForLevel(int level);
+	
+	/**
 	 * Get a collection of {@link TileRequest} objects necessary to fulfil a specific {@link RegionRequest}. 
 	 * 
 	 * @param request

@@ -431,7 +431,7 @@ public class OmeroWebImageServer extends AbstractTileableImageServer {
 
 		BufferedImage img = ImageIO.read(url);
 
-		return BufferedImageTools.resize(img, targetWidth, targetHeight);
+		return BufferedImageTools.resize(img, targetWidth, targetHeight, allowSmoothInterpolation());
 	}
 	
 	

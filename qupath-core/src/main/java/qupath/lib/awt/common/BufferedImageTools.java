@@ -218,9 +218,10 @@ public class BufferedImageTools {
 	 * @param img input image to be resized
 	 * @param finalWidth target output width
 	 * @param finalHeight target output height
+	 * @param smoothInterpolate if true, the resize method is permitted to use a smooth interpolation method. If false, nearest-neighbor interpolation is used.
 	 * @return resized image
 	 */
-	public static BufferedImage resize(final BufferedImage img, final int finalWidth, final int finalHeight) {
+	public static BufferedImage resize(final BufferedImage img, final int finalWidth, final int finalHeight, boolean smoothInterpolate) {
 
 		if (img.getWidth() == finalWidth && img.getHeight() == finalHeight)
 			return img;
@@ -250,10 +251,11 @@ public class BufferedImageTools {
 		float[] pixels = new float[w*h];
 		float[] pixelsOut = new float[finalWidth*finalHeight];
 		
+		int interp = smoothInterpolate ? opencv_imgproc.INTER_AREA : opencv_imgproc.INTER_NEAREST;
 		for (int b = 0; b < raster.getNumBands(); b++) {
 			raster.getSamples(0, 0, w, h, b, pixels);
 			idxInput.put(0L, pixels);
-			opencv_imgproc.resize(matInput, matOutput, sizeOutput, 0, 0, opencv_imgproc.INTER_AREA);
+			opencv_imgproc.resize(matInput, matOutput, sizeOutput, 0, 0, interp);
 			idxOutput.get(0, pixelsOut);
 			raster2.setSamples(0, 0, finalWidth, finalHeight, b, pixelsOut);
 		}
