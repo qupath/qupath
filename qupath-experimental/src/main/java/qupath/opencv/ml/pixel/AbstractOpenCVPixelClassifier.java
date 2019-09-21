@@ -45,7 +45,7 @@ abstract class AbstractOpenCVPixelClassifier implements PixelClassifier {
     
     protected synchronized ColorModel getClassificationsColorModel() {
     	if (colorModelClassifications == null) {
-            colorModelClassifications = ColorModelFactory.getIndexedColorModel(metadata.getChannels());
+            colorModelClassifications = ColorModelFactory.getIndexedColorModel(metadata.getOutputChannels());
     	}
     	return colorModelClassifications;
     }
@@ -54,9 +54,9 @@ abstract class AbstractOpenCVPixelClassifier implements PixelClassifier {
     protected synchronized ColorModel getProbabilityColorModel() {
     	if (colorModelProbabilities == null) {
     		if (do8Bit())
-    			colorModelProbabilities = ColorModelFactory.geProbabilityColorModel8Bit(metadata.getChannels());
+    			colorModelProbabilities = ColorModelFactory.geProbabilityColorModel8Bit(metadata.getOutputChannels());
     		else
-    			colorModelProbabilities = ColorModelFactory.geProbabilityColorModel32Bit(metadata.getChannels());
+    			colorModelProbabilities = ColorModelFactory.geProbabilityColorModel32Bit(metadata.getOutputChannels());
     	}
     	return colorModelProbabilities;
     }
@@ -132,11 +132,7 @@ abstract class AbstractOpenCVPixelClassifier implements PixelClassifier {
 
 
     public List<String> getChannelNames() {
-        return metadata.getChannels().stream().map(c -> c.getName()).collect(Collectors.toList());
-    }
-
-    public double getRequestedPixelSizeMicrons() {
-        return metadata.getInputPixelSize();
+        return metadata.getOutputChannels().stream().map(c -> c.getName()).collect(Collectors.toList());
     }
 
 }

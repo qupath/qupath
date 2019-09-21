@@ -235,7 +235,8 @@ public class OpenCVClassifiers {
 		@Override
 		public OpenCVStatModel read(JsonReader in) throws IOException {
 			var statModel = OpenCVTypeAdapters.getTypeAdaptor(StatModel.class).read(in);
-			return new DefaultOpenCVStatModel<StatModel>(statModel);
+			return wrapStatModel(statModel);
+//			return new DefaultOpenCVStatModel<StatModel>(statModel);
 		}
 		
 	}
@@ -1121,7 +1122,7 @@ public class OpenCVClassifiers {
 		
 		private static Logger logger = LoggerFactory.getLogger(ANNClassifierCV.class);
 		
-		private static int MAX_HIDDEN_LAYERS = 5;
+		private int MAX_HIDDEN_LAYERS = 5;
 		
 		static enum ActivationFunction {
 			IDENTITY, SIGMOID_SYM, GAUSSIAN, RELU, LEAKY_RELU;
@@ -1172,28 +1173,42 @@ public class OpenCVClassifiers {
 
 		@Override
 		ParameterList createParameterList(ANN_MLP model) {
-			model.getLayerSizes();
+			// Parse existing layer sizes, if we have them
+			Mat sizes = model.getLayerSizes();
+			int[] layerSizes;
+			if (!sizes.empty()) {
+				var idx = sizes.createIndexer();
+				int n = (int)sizes.total();
+				layerSizes = new int[n];
+				for (int i = 0; i < n; i++)
+					layerSizes[i] = (int)idx.getDouble(i);
+				idx.release();
+				MAX_HIDDEN_LAYERS = n;
+			} else {
+				layerSizes = new int[MAX_HIDDEN_LAYERS];
+			}
+			
 			
 			var params = new ParameterList();
 			
-			// Set activation function
-			params.addTitleParameter("Activation");
-			params.addChoiceParameter("activation", "Activation function", ActivationFunction.SIGMOID_SYM,
-					Arrays.asList(ActivationFunction.values()), "Choose activation function (only SIGMOID_SYM is fully supported)");
-			params.addDoubleParameter("activationAlpha", "Alpha", 1, null, "Alpha value (influences 'steepness')");
-			params.addDoubleParameter("activationBeta", "Beta", 1, null, "Alpha value (influences 'range')");
+//			// Set activation function
+//			params.addTitleParameter("Activation");
+//			params.addChoiceParameter("activation", "Activation function", ActivationFunction.SIGMOID_SYM,
+//					Arrays.asList(ActivationFunction.values()), "Choose activation function (only SIGMOID_SYM is fully supported)");
+//			params.addDoubleParameter("activationAlpha", "Alpha", 1, null, "Alpha value (influences 'steepness')");
+//			params.addDoubleParameter("activationBeta", "Beta", 1, null, "Alpha value (influences 'range')");
 			
-			// Set train method
-			params.addTitleParameter("Training method");
-			params.addChoiceParameter("trainMethod", "Training method", TrainingMethod.RPROP,
-					Arrays.asList(TrainingMethod.values()), "Choose training method");
-			params.addDoubleParameter("trainParam1", "Training parameter 1", model.getRpropDW0(), null, "Passed to either setRpropDW0 or setBackpropWeightScale");
-			params.addDoubleParameter("trainParam2", "Training parameter 2", model.getRpropDWMin(), null, "Passed to either setRpropDWMin or setBackpropMomentumScale");
+//			// Set train method
+//			params.addTitleParameter("Training method");
+//			params.addChoiceParameter("trainMethod", "Training method", TrainingMethod.RPROP,
+//					Arrays.asList(TrainingMethod.values()), "Choose training method");
+//			params.addDoubleParameter("trainParam1", "Training parameter 1", model.getRpropDW0(), null, "Passed to either setRpropDW0 or setBackpropWeightScale");
+//			params.addDoubleParameter("trainParam2", "Training parameter 2", model.getRpropDWMin(), null, "Passed to either setRpropDWMin or setBackpropMomentumScale");
 			
 			// Hidden layer sizes
 			params.addTitleParameter("Hidden layers");
-			for (int i = 1; i <= MAX_HIDDEN_LAYERS; i++) {
-				params.addIntParameter("hidden" + i, "Layer " + i, 0, "Nodes", "Size of first hidden layer (0 to omit layer)");				
+			for (int i = 1; i <= layerSizes.length; i++) {
+				params.addIntParameter("hidden" + i, "Layer " + i, layerSizes[i-1], "Nodes", "Size of first hidden layer (0 to omit layer)");				
 			}
 			
 			addTerminationCriteriaParameters(params, model.getTermCriteria());
@@ -1293,9 +1308,14 @@ public class OpenCVClassifiers {
 		@Override
 		public void predictWithLock(Mat samples, Mat results, Mat probabilities) {
 			// Extract parameters
-			var params = getParameterList();
-			var activation = (ActivationFunction)params.getChoiceParameterValue("activation");
-			double beta = params.getDoubleParameterValue("activationBeta");
+//			var params = getParameterList();
+//			var activation = (ActivationFunction)params.getChoiceParameterValue("activation");
+//			double beta = params.getDoubleParameterValue("activationBeta");
+			
+			// For now, we only support SIGMOID_SYM as an activation function
+			// (Not least because we must save/reload models, and there is not get method for this)
+			boolean isSigmoidSym = true;
+			double beta = 1.0;
 			
 			// Compute raw values
 			if (probabilities == null)
@@ -1303,7 +1323,8 @@ public class OpenCVClassifiers {
 			super.predictWithLock(samples, results, probabilities);
 			
 			// Convert to the range 0-1 if we can
-			if (activation == ActivationFunction.SIGMOID_SYM) {
+			if (isSigmoidSym) {
+						
 				var indexer = probabilities.createIndexer();
 				long[] inds = new long[2];
 				long rows = indexer.rows();
@@ -1337,7 +1358,10 @@ public class OpenCVClassifiers {
 			layers[0] = nMeasurements;
 			int n = 1;
 			for (int i = 1; i <= MAX_HIDDEN_LAYERS; i++) {
-				int size = params.getIntParameterValue("hidden" + i);
+				String name = "hidden" + i;
+				if (!params.containsKey(name))
+					continue;
+				int size = params.getIntParameterValue(name);
 				// Every layer needs more than one neuron
 				if (size > 1) {
 					layers[n] = size;
@@ -1358,16 +1382,16 @@ public class OpenCVClassifiers {
 			model.setLayerSizes(mat);
 			
 			// Set other parameters
-//			model.setActivationFunction(ANN_MLP.SIGMOID_SYM, activationAlpha, activationBeta);
-			var activation = (ActivationFunction)params.getChoiceParameterValue("activation");
-			double activationAlpha = params.getDoubleParameterValue("activationAlpha");
-			double activationBeta = params.getDoubleParameterValue("activationBeta");
-			model.setActivationFunction(activation.getActivationFunction(), activationAlpha, activationBeta);
+//			var activation = (ActivationFunction)params.getChoiceParameterValue("activation");
+//			double activationAlpha = params.getDoubleParameterValue("activationAlpha");
+//			double activationBeta = params.getDoubleParameterValue("activationBeta");
+//			model.setActivationFunction(activation.getActivationFunction(), activationAlpha, activationBeta);
+			model.setActivationFunction(ANN_MLP.SIGMOID_SYM, 1, 1);
 
-			var trainMethod = (TrainingMethod)params.getChoiceParameterValue("trainMethod");
-			double param1 = params.getDoubleParameterValue("trainParam1");
-			double param2 = params.getDoubleParameterValue("trainParam2");
-			model.setTrainMethod(trainMethod.getTrainingMethod(), param1, param2);
+//			var trainMethod = (TrainingMethod)params.getChoiceParameterValue("trainMethod");
+//			double param1 = params.getDoubleParameterValue("trainParam1");
+//			double param2 = params.getDoubleParameterValue("trainParam2");
+//			model.setTrainMethod(trainMethod.getTrainingMethod(), param1, param2);
 
 			// Set termination criterion
 			model.setTermCriteria(updateTermCriteria(params, model.getTermCriteria()));

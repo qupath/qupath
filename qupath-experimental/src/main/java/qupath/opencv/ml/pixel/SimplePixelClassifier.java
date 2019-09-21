@@ -13,6 +13,7 @@ import qupath.lib.display.ChannelDisplayInfo.SingleChannelDisplayInfo;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServerMetadata;
+import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.regions.RegionRequest;
 
@@ -24,7 +25,7 @@ public class SimplePixelClassifier implements PixelClassifier {
 	
 	SimplePixelClassifier(
 			SingleChannelDisplayInfo channel,
-			double requestedPixelSizeMicrons,
+			PixelCalibration inputResolution,
 			double threshold,
 			PathClass belowThreshold,
 			PathClass aboveThreshold) {
@@ -32,8 +33,8 @@ public class SimplePixelClassifier implements PixelClassifier {
 		this.channel = channel;
 		this.threshold = threshold;
 		this.metadata = new PixelClassifierMetadata.Builder()
-				.channels(Arrays.asList(getChannel(belowThreshold), getChannel(aboveThreshold)))
-				.inputPixelSize(requestedPixelSizeMicrons)
+				.outputChannels(Arrays.asList(getChannel(belowThreshold), getChannel(aboveThreshold)))
+				.inputResolution(inputResolution)
 				.inputShape(512, 512)
 				.setChannelType(ImageServerMetadata.ChannelType.CLASSIFICATION)
 				.build();
@@ -43,7 +44,7 @@ public class SimplePixelClassifier implements PixelClassifier {
 	 * Create a PixelClassifier that applies a threshold to a single image channel at a specified resolution.
 	 * 
 	 * @param channel
-	 * @param requestedPixelSizeMicrons
+	 * @param inputResolution
 	 * @param threshold
 	 * @param belowThreshold
 	 * @param aboveThreshold
@@ -51,11 +52,11 @@ public class SimplePixelClassifier implements PixelClassifier {
 	 */
 	public static PixelClassifier createThresholdingClassifier(
 			SingleChannelDisplayInfo channel,
-			double requestedPixelSizeMicrons,
+			PixelCalibration inputResolution,
 			double threshold,
 			PathClass belowThreshold,
 			PathClass aboveThreshold) {
-		return new SimplePixelClassifier(channel, requestedPixelSizeMicrons, threshold, belowThreshold, aboveThreshold);
+		return new SimplePixelClassifier(channel, inputResolution, threshold, belowThreshold, aboveThreshold);
 	}
 	
 	static ImageChannel getChannel(PathClass pathClass) {
@@ -74,7 +75,7 @@ public class SimplePixelClassifier implements PixelClassifier {
 
 		var transformed = channel.getValues(img, 0, 0, img.getWidth(), img.getHeight(), null);
 		
-		var colorModel = (IndexColorModel)ColorModelFactory.getIndexedColorModel(metadata.getChannels());
+		var colorModel = (IndexColorModel)ColorModelFactory.getIndexedColorModel(metadata.getOutputChannels());
 		var imgResult = new BufferedImage(img.getWidth(), img.getHeight(), BufferedImage.TYPE_BYTE_INDEXED, colorModel);
 		var raster = imgResult.getRaster();
 		var bytes = ((DataBufferByte)raster.getDataBuffer()).getData();

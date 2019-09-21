@@ -8,11 +8,15 @@ import org.bytedeco.javacpp.indexer.IntIndexer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Objects;
+
 import qupath.lib.classifiers.Normalization;
 import qupath.lib.color.ColorToolsAwt;
 import qupath.lib.gui.ml.BoundaryStrategy;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageChannel;
+import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.PixelCalibration;
 
 import org.bytedeco.opencv.opencv_core.Mat;
 import org.bytedeco.opencv.opencv_core.MatVector;
@@ -29,6 +33,8 @@ import qupath.lib.roi.interfaces.PathPoints;
 import qupath.lib.roi.interfaces.ROI;
 import qupath.opencv.ml.OpenCVClassifiers;
 import qupath.opencv.ml.OpenCVClassifiers.FeaturePreprocessor;
+import qupath.opencv.ml.pixel.features.FeatureCalculator;
+
 import java.awt.BasicStroke;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
@@ -58,7 +64,9 @@ public class PixelClassifierHelper implements PathObjectHierarchyListener {
 	
 	private BoundaryStrategy boundaryStrategy = BoundaryStrategy.getSkipBoundaryStrategy();
 
+	private PixelCalibration resolution = PixelCalibration.getDefaultInstance();
     private ImageData<BufferedImage> imageData;
+    private FeatureCalculator<BufferedImage> featureCalculator;
     private FeatureImageServer featureServer;
     private boolean changes = true;
 
@@ -71,17 +79,47 @@ public class PixelClassifierHelper implements PathObjectHierarchyListener {
      * Create a new pixel classifier helper, to support generating training data.
      * 
      * @param imageData
-     * @param featureServer
+     * @param featureCalculator
      */
-    public PixelClassifierHelper(ImageData<BufferedImage> imageData, FeatureImageServer featureServer) {
+    public PixelClassifierHelper(ImageData<BufferedImage> imageData, FeatureCalculator<BufferedImage> featureCalculator) {
         setImageData(imageData);
-        this.featureServer = featureServer;
+        this.featureCalculator = featureCalculator;
+    }
+    
+    public synchronized ImageServer<BufferedImage> getFeatureServer() {
+    	if (featureServer == null) {
+    		if (featureCalculator != null && imageData != null) {
+    			try {
+    				this.featureServer = new FeatureImageServer(imageData, featureCalculator, resolution);
+    			} catch (IOException e) {
+    				logger.error("Error initializing FeatureImageServer", e);
+    				this.featureServer = null;
+    			}
+    		}
+    	}
+    	return featureServer;
+    }
+    
+    public synchronized FeatureCalculator<BufferedImage> getFeatureCalculator() {
+    	return featureCalculator;
+    }
+    
+    public synchronized PixelCalibration getResolution() {
+    	return resolution;
     }
 
-    public void setFeatureCalculator(FeatureImageServer featureServer) {
-        if (this.featureServer == featureServer)
+    public synchronized void setResolution(PixelCalibration cal) {
+    	if (Objects.equal(this.resolution, cal))
+    		return;
+    	this.resolution = cal;
+    	this.featureServer = null;
+    }
+
+    public synchronized void setFeatureCalculator(FeatureCalculator<BufferedImage> featureCalculator) {
+        if (Objects.equal(this.featureCalculator, featureCalculator))
             return;
-        this.featureServer = featureServer;
+        this.featureCalculator = featureCalculator;
+        this.featureServer = null;
 //        if (imageData != null) {
 //        	try {
 //                var temp = new FeatureImageServer(imageData, calculator, downsample);

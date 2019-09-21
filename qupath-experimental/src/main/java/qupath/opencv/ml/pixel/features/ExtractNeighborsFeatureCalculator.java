@@ -8,6 +8,8 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.gson.annotations.JsonAdapter;
+
 import qupath.lib.geom.ImmutableDimension;
 import qupath.lib.gui.ml.PixelClassifierTools;
 import qupath.lib.images.ImageData;
@@ -19,6 +21,7 @@ import qupath.lib.regions.RegionRequest;
  * @author Pete Bankhead
  *
  */
+@JsonAdapter(FeatureCalculators.FeatureCalculatorTypeAdapterFactory.class)
 class ExtractNeighborsFeatureCalculator implements FeatureCalculator<BufferedImage> {
 	
 	private static Logger logger = LoggerFactory.getLogger(ExtractNeighborsFeatureCalculator.class);

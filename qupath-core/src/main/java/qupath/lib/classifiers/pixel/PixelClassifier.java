@@ -16,7 +16,6 @@ import qupath.lib.regions.RegionRequest;
  * @author Pete Bankhead
  *
  */
-@JsonAdapter(PixelClassifiers.PixelClassifierTypeAdapterFactory.class)
 public interface PixelClassifier {
 
     /**

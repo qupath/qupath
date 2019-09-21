@@ -44,14 +44,14 @@ class OpenCVPixelClassifierDNN extends AbstractOpenCVPixelClassifier {
         super(metadata, do8Bit);
         
         // TODO: Fix creation of unnecessary objects
-        if (metadata.getInputChannelMeans() != null)
-            means = toScalar(metadata.getInputChannelMeans());
-        else
-            means = Scalar.ZERO;
-        if (metadata.getInputChannelScales() != null)
-            scales = toScalar(metadata.getInputChannelScales());
-        else
-            scales = Scalar.ONE;
+//        if (metadata.getInputChannelMeans() != null)
+//            means = toScalar(metadata.getInputChannelMeans());
+//        else
+//            means = Scalar.ZERO;
+//        if (metadata.getInputChannelScales() != null)
+//            scales = toScalar(metadata.getInputChannelScales());
+//        else
+//            scales = Scalar.ONE;
 
         scalesMatch = true;
         double firstScale = scales.get(0L);
@@ -74,7 +74,9 @@ class OpenCVPixelClassifierDNN extends AbstractOpenCVPixelClassifier {
         boolean doPad = false;
         
     	PixelClassifierMetadata metadata = getMetadata();
-    	if (metadata.strictInputSize()) {
+    	// TODO: Check for strict input size
+//    	if (metadata.strictInputSize()) {
+      	if (true) {
         	if (mat.cols() > metadata.getInputWidth()) {
         		List<Mat> horizontal = new ArrayList<>();
         		for (int x = 0; x < mat.cols(); x += metadata.getInputWidth()) {
@@ -166,7 +168,7 @@ class OpenCVPixelClassifierDNN extends AbstractOpenCVPixelClassifier {
 
                 
         // Sometimes, rather unfortunately, dimensions can be wrong
-        int nChannels = metadata.getChannels().size();
+        int nChannels = metadata.getOutputChannels().size();
         if (nChannels == matResult.cols() && nChannels != matResult.channels()) {
         	List<Mat> channels = new ArrayList<>();
         	for (int c = 0; c < matResult.cols(); c++) {

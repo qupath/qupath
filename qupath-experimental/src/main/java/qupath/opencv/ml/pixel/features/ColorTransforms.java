@@ -1,6 +1,14 @@
 package qupath.opencv.ml.pixel.features;
 
 import java.awt.image.BufferedImage;
+import java.io.IOException;
+
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonObject;
+import com.google.gson.TypeAdapter;
+import com.google.gson.stream.JsonReader;
+import com.google.gson.stream.JsonWriter;
 
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageChannel;
@@ -14,7 +22,7 @@ public class ColorTransforms {
 	 * <p>
 	 * The simplest example of this is to extract a single channel (band) from an image.
 	 */
-	interface ColorTransform {
+	public interface ColorTransform {
 		
 		/**
 		 * Extract a (row-wise) array containing the pixels extracted from a BufferedImage.
@@ -30,6 +38,27 @@ public class ColorTransforms {
 		 * @return
 		 */
 		String getName();
+		
+	}
+	
+	public static class ColorTransformTypeAdapter extends TypeAdapter<ColorTransform> {
+		
+		private static Gson gson = new GsonBuilder().setLenient().create();
+
+		@Override
+		public void write(JsonWriter out, ColorTransform value) throws IOException {
+			gson.toJson(gson.toJsonTree(value), out);
+		}
+
+		@Override
+		public ColorTransform read(JsonReader in) throws IOException {
+			JsonObject obj = gson.fromJson(in, JsonObject.class);
+			if (obj.has("channel"))
+				return new ExtractChannel(obj.get("channel").getAsInt());
+			if (obj.has("channelName"))
+				return new ExtractChannelByName(obj.get("channelName").getAsString());
+			throw new IOException("Unknown ColorTransform " + obj);
+		}
 		
 	}
 	

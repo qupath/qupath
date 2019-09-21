@@ -39,7 +39,6 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 	private ImageData<BufferedImage> imageData;
 	private ImageServer<BufferedImage> server;
 	
-	@JsonAdapter(PixelClassifiers.PixelClassifierTypeAdapterFactory.class)
 	private PixelClassifier classifier;
 	
 	private ImageServerMetadata originalMetadata;
@@ -70,10 +69,14 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 		if (tileHeight <= 0)
 			tileHeight = DEFAULT_TILE_SIZE;
 		
-		double inputPixelSize = classifierMetadata.getInputPixelSize();
-		double downsample = inputPixelSize / server.getPixelCalibration().getAveragedPixelSizeMicrons();
-		if (!Double.isFinite(downsample))
-			downsample = inputPixelSize;
+		var inputResolution = classifierMetadata.getInputResolution();
+		var cal = server.getPixelCalibration();
+		if (!(cal.getPixelWidthUnit().equals(inputResolution.getPixelWidthUnit()) && cal.getPixelHeightUnit().equals(inputResolution.getPixelHeightUnit()))) {
+			logger.warn("Image pixel units do not match the classifier pixel units! This may give unexpected results.");
+			logger.warn("Server calibration: {}", cal);
+			logger.warn("Classifier calibration: {}", inputResolution);
+		}
+		double downsample = inputResolution.getAveragedPixelSize().doubleValue() / cal.getAveragedPixelSize().doubleValue();
 		
 		int width = server.getWidth();
 		int height = server.getHeight();
@@ -82,7 +85,8 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 						.addLevelByDownsample(downsample)
 						.build();
 		
-		int pad = classifierMetadata.strictInputSize() ? classifierMetadata.getInputPadding() : 0;
+//		int pad = classifierMetadata.strictInputSize() ? classifierMetadata.getInputPadding() : 0;
+		int pad = classifierMetadata.getInputPadding();
 		
 		var builder = new ImageServerMetadata.Builder(server.getMetadata())
 				.width(width)
@@ -90,7 +94,7 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 				.channelType(classifierMetadata.getOutputType())
 				.preferredTileSize(tileWidth-pad*2, tileHeight-pad*2)
 				.levels(levels)
-				.channels(classifierMetadata.getChannels())
+				.channels(classifierMetadata.getOutputChannels())
 				.pixelType(pixelType)
 				.rgb(false);
 				
@@ -160,7 +164,7 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 			// If we're generating lower-resolution tiles, we need to request the higher-resolution data accordingly
 			var request2 = RegionRequest.createInstance(getPath(), fullResDownsample, tileRequest.getRegionRequest());
 			img = readBufferedImage(request2);
-			img = BufferedImageTools.resize(img, tileRequest.getImageWidth(), tileRequest.getTileHeight());
+			img = BufferedImageTools.resize(img, tileRequest.getImageWidth(), tileRequest.getTileHeight(), allowSmoothInterpolation());
 		} else {
 			// Classify at this resolution if need be
 			img = classifier.applyClassification(imageData, tileRequest.getRegionRequest());

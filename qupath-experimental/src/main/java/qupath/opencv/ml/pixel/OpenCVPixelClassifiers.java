@@ -1,5 +1,7 @@
 package qupath.opencv.ml.pixel;
 
+import java.awt.image.BufferedImage;
+
 import org.bytedeco.opencv.global.opencv_dnn;
 import org.bytedeco.opencv.opencv_dnn.Net;
 import org.slf4j.Logger;
@@ -7,9 +9,9 @@ import org.slf4j.LoggerFactory;
 
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.classifiers.pixel.PixelClassifierMetadata;
-import qupath.lib.classifiers.pixel.PixelClassifiers;
 import qupath.opencv.ml.OpenCVClassifiers.FeaturePreprocessor;
 import qupath.opencv.ml.OpenCVClassifiers.OpenCVStatModel;
+import qupath.opencv.ml.pixel.features.FeatureCalculator;
 
 /**
  * Static methods to help with pixel classification using OpenCV.
@@ -17,11 +19,6 @@ import qupath.opencv.ml.OpenCVClassifiers.OpenCVStatModel;
  * @author Pete Bankhead
  */
 public class OpenCVPixelClassifiers {
-	
-	static {
-		PixelClassifiers.PixelClassifierTypeAdapterFactory.registerSubtype(OpenCVPixelClassifier.class);
-		PixelClassifiers.PixelClassifierTypeAdapterFactory.registerSubtype(OpenCVPixelClassifierDNN.class);
-	}
 	
 	private final static Logger logger = LoggerFactory.getLogger(OpenCVPixelClassifiers.class);
 
@@ -105,7 +102,7 @@ public class OpenCVPixelClassifiers {
      * @param do8Bit
      * @return
      */
-	public static PixelClassifier createPixelClassifier(OpenCVStatModel statModel, FeatureImageServer calculator, FeaturePreprocessor preprocessor, PixelClassifierMetadata metadata, boolean do8Bit) {
+	public static PixelClassifier createPixelClassifier(OpenCVStatModel statModel, FeatureCalculator<BufferedImage> calculator, FeaturePreprocessor preprocessor, PixelClassifierMetadata metadata, boolean do8Bit) {
 		return new OpenCVPixelClassifier(statModel, calculator, preprocessor, metadata, do8Bit);
 	}
     

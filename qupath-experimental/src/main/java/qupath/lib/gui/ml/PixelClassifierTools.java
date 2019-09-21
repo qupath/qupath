@@ -345,7 +345,7 @@ public class PixelClassifierTools {
 			var list = new ArrayList<PathObject>();
 			try {
 				var img = server.readBufferedImage(t.getRegionRequest());
-				var nChannels = classifier.getMetadata().getChannels().size();
+				var nChannels = classifier.getMetadata().getOutputChannels().size();
 				// Get raster containing classifications and integer values, by taking the argmax
 				var raster = img.getRaster();
 				if (classifier.getMetadata().getOutputType() != ImageServerMetadata.ChannelType.CLASSIFICATION) {

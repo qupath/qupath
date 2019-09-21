@@ -17,8 +17,6 @@ import com.google.gson.reflect.TypeToken;
 
 import qupath.lib.geom.ImmutableDimension;
 import qupath.lib.images.ImageData;
-import qupath.lib.images.servers.PixelCalibration;
-import qupath.lib.io.GsonTools;
 import qupath.lib.regions.RegionRequest;
 import qupath.opencv.ml.OpenCVDNN;
 import qupath.opencv.ml.pixel.features.MultiscaleFeatureCalculator.ScaleType;
@@ -41,7 +39,9 @@ public class FeatureCalculators {
 		private static String typeName = "feature_calculator_type";
 		
 		private final static RuntimeTypeAdapterFactory<FeatureCalculator> featureCalculatorTypeAdapter = 
-				RuntimeTypeAdapterFactory.of(FeatureCalculator.class, typeName);
+				RuntimeTypeAdapterFactory.of(FeatureCalculator.class, typeName)
+					.registerSubtype(ExtractNeighborsFeatureCalculator.class)
+					.registerSubtype(MultiscaleFeatureCalculator.class);
 		
 		private static void registerSubtype(Class<? extends FeatureCalculator> cls) {
 			featureCalculatorTypeAdapter.registerSubtype(cls);
@@ -52,6 +52,12 @@ public class FeatureCalculators {
 			return featureCalculatorTypeAdapter.create(gson, type);
 		}
 		
+	}
+	
+	private final static TypeAdapterFactory factory = new FeatureCalculatorTypeAdapterFactory();
+	
+	public static TypeAdapterFactory getTypeAdapterFactory() {
+		return factory;
 	}
 	
 	

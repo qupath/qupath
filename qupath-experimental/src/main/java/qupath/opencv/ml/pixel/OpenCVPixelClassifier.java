@@ -3,16 +3,21 @@ package qupath.opencv.ml.pixel;
 import java.awt.image.BufferedImage;
 import java.awt.image.ColorModel;
 import java.io.IOException;
+import java.util.List;
+
 import org.bytedeco.javacpp.indexer.FloatIndexer;
 import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.opencv_core.Mat;
+
+import qupath.lib.analysis.images.SimpleImages;
 import qupath.lib.classifiers.pixel.PixelClassifierMetadata;
-import qupath.lib.classifiers.pixel.PixelClassifiers;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.regions.RegionRequest;
 import qupath.opencv.ml.OpenCVClassifiers.FeaturePreprocessor;
 import qupath.opencv.ml.OpenCVClassifiers.OpenCVStatModel;
+import qupath.opencv.ml.pixel.features.FeatureCalculator;
+import qupath.opencv.ml.pixel.features.PixelFeature;
 import qupath.opencv.tools.OpenCVTools;
 
 import org.slf4j.Logger;
@@ -20,15 +25,14 @@ import org.slf4j.LoggerFactory;
 
 import com.google.gson.annotations.JsonAdapter;
 
-@JsonAdapter(PixelClassifiers.PixelClassifierTypeAdapterFactory.class)
 class OpenCVPixelClassifier extends AbstractOpenCVPixelClassifier {
 	
 	private static final Logger logger = LoggerFactory.getLogger(OpenCVPixelClassifier.class);
 
     private OpenCVStatModel model;
 	
-    private FeatureImageServer calculator;
-	
+    private FeatureCalculator<BufferedImage> calculator;
+    
     private FeaturePreprocessor preprocessor;
     
     private OpenCVPixelClassifier() {
@@ -43,7 +47,7 @@ class OpenCVPixelClassifier extends AbstractOpenCVPixelClassifier {
 //    	this(statModel, calculator, preprocessor, metadata, false);
 //    }
 
-    OpenCVPixelClassifier(OpenCVStatModel statModel, FeatureImageServer calculator, FeaturePreprocessor preprocessor, PixelClassifierMetadata metadata, boolean do8Bit) {
+    OpenCVPixelClassifier(OpenCVStatModel statModel, FeatureCalculator<BufferedImage> calculator, FeaturePreprocessor preprocessor, PixelClassifierMetadata metadata, boolean do8Bit) {
         super(metadata, do8Bit);
         this.model = statModel;
         this.calculator = calculator;
@@ -114,33 +118,42 @@ class OpenCVPixelClassifier extends AbstractOpenCVPixelClassifier {
     }
 
     
-    
+//    synchronized ImageServer<BufferedImage> getFeatureServer() {
+//    	if (featureServer == null) {
+//    		featureServer = new FeatureImageServer(imageData, calculator, resolution)
+//    	}
+//    	return featureServer;
+//    }
     
     
     @Override
     public BufferedImage applyClassification(final ImageData<BufferedImage> imageData, final RegionRequest request) throws IOException {
         // Get the pixels into a friendly format
 //        Mat matInput = OpenCVTools.imageToMatRGB(img, false);
-    	BufferedImage imgFeatures = calculator.readBufferedImage(request);
+//    	BufferedImage imgFeatures = calculator.readBufferedImage(request);
+    	List<PixelFeature> features = calculator.calculateFeatures(imageData, request);
     	
 //    	PixelClassifierMetadata metadata = getMetadata();
 //        normalizeFeatures(matFeatures, metadata.getInputChannelMeans(), metadata.getInputChannelScales());
 
-        int widthFeatures = imgFeatures.getWidth();
-        int heightFeatures = imgFeatures.getHeight();
+    	if (features.isEmpty())
+    		return null;
+    	
+        int widthFeatures = features.get(0).getFeature().getWidth();
+        int heightFeatures = features.get(0).getFeature().getHeight();
         int n = widthFeatures * heightFeatures;
 
         // Extract features into a suitable format
 //        long startTime = System.currentTimeMillis();
         
         // It's faster to put in row-wise and then transpose
-        int nBands = imgFeatures.getSampleModel().getNumBands();
+        int nBands = features.size();
         Mat matFeatures = new Mat(nBands, n, opencv_core.CV_32FC1);
         FloatIndexer idx = matFeatures.createIndexer();
-        float[] temp = null;
         int col = 0;
         for (int b = 0; b < nBands; b++) {
-        	temp = imgFeatures.getRaster().getSamples(0, 0, widthFeatures, heightFeatures, b, temp);
+        	var feature = features.get(b);
+        	float[] temp = SimpleImages.getPixels(feature.getFeature(), true);
         	idx.put(col, 0, temp);
         	col++;
         }
