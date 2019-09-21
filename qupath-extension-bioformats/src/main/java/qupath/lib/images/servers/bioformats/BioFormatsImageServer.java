@@ -700,6 +700,14 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 		logger.debug(String.format("Initialization time: %d ms", endTime-startTime));
 	}
 	
+	/**
+	 * Get the format String, as returned by Bio-Formats {@code IFormatReader.getFormat()}.
+	 * @return
+	 */
+	public String getFormat() {
+		return format;
+	}
+	
 	@Override
 	public Collection<URI> getURIs() {
 		return Collections.singletonList(uri);
@@ -764,7 +772,11 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 //		return manager.getPrimaryReader(this, this.filePath);
 //	}
 	
-	int getSeries() {
+	/**
+	 * Get the series index, as used by Bio-Formats.
+	 * @return
+	 */
+	public int getSeries() {
 		return series;
 	}
 	
@@ -937,7 +949,11 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 		return imageMap != null && !imageMap.isEmpty();
 	}
 
-	MetadataStore getMetadataStore() throws DependencyException, ServiceException, FormatException, IOException {
+	/**
+	 * Get the MetadataStore, as used by Bio-Formats. This can be used to query metadata values not otherwise accessible.
+	 * @return
+	 */
+	public OMEPyramidStore getMetadataStore() {
 		return meta;
 	}
 	

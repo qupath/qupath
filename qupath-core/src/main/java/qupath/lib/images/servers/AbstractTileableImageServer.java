@@ -309,6 +309,8 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 			
 			if (xEnd > getWidth() || yEnd > getHeight())
 				logger.warn("Region request is too large for {}x{} image: {}", getWidth(), getHeight(), request);
+			else if (xEnd - xStart <= 0 || yEnd - yStart <= 0)
+				return null;
 						
 			// Do cropping, if we need to
 			if (xStart > 0 || yStart > 0 || xEnd != raster.getWidth() || yEnd != raster.getHeight()) {

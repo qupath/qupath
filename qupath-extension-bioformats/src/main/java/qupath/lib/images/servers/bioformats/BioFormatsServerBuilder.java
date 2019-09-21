@@ -72,6 +72,8 @@ public class BioFormatsServerBuilder implements ImageServerBuilder<BufferedImage
 				else
 					// If we didn't specify a series, return all of them
 					builders = server.getImageBuilders();
+				if ("OME-TIFF".equals(server.getFormat()))
+					supportLevel = 5f;
 				return UriImageSupport.createInstance(this.getClass(), supportLevel, builders.values());
 			} catch (Exception e) {
 				logger.debug("Unable to create server using Bio-Formats", e);
@@ -103,11 +105,13 @@ public class BioFormatsServerBuilder implements ImageServerBuilder<BufferedImage
 				break;
 		}
 		
+		path = path.toLowerCase();
+		
 		// We don't want to handle zip files (which are very slow)
 		float support = 3f;
 				
 		String description = type.getDescription();
-		if (path.toLowerCase().endsWith(".zip"))
+		if (path.endsWith(".zip"))
 			support = 1f;
 		else if (type.isTiff()) {
 			// Some nasty files seem to be larger than they think they are - which can be troublesome
@@ -122,6 +126,10 @@ public class BioFormatsServerBuilder implements ImageServerBuilder<BufferedImage
 				if (path.endsWith(".qptiff"))
 					support = 3.5f;
 			}
+			// Handle ome.tif extensions... necessary because micromanager can include an ImageJ ImageDescription
+			// despite also containing OME metadata
+			if (path.endsWith(".ome.tif") || path.endsWith(".ome.tiff"))
+				support = 5f;
 		} else {
 			// Check if we know the file type
 			File file = type.getFile();
