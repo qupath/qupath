@@ -4,7 +4,6 @@ import qupath.lib.awt.common.AwtTools;
 import qupath.lib.classifiers.pixel.PixelClassificationImageServer;
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.common.ThreadTools;
-import qupath.lib.gui.ml.PixelClassifierImageSelectionPane.PersistentTileCache;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.overlays.AbstractImageDataOverlay;
@@ -62,14 +61,9 @@ public class PixelClassificationOverlay extends AbstractImageDataOverlay  {
     
     private boolean useAnnotationMask = false;
     private boolean livePrediction = false;
-    
-    private PersistentTileCache tileCache;
+
     
     public PixelClassificationOverlay(final QuPathViewer viewer, final PixelClassifier classifier) {
-    	this(viewer, classifier, null);
-    }
-    
-    PixelClassificationOverlay(final QuPathViewer viewer, final PixelClassifier classifier, final PersistentTileCache tileCache) {
         super(viewer.getOverlayOptions(), viewer.getImageData());
         
         // Choose number of threads based on how intensive the processing will be
@@ -293,8 +287,8 @@ public class PixelClassificationOverlay extends AbstractImageDataOverlay  {
             	}
                 try {
                 	BufferedImage imgResult = null;
-                	if (tileCache != null)
-                		imgResult = tileCache.readFromCache(tile.getRegionRequest());
+//                	if (tileCache != null)
+//                		imgResult = tileCache.readFromCache(tile.getRegionRequest());
                 	if (imgResult == null)
                 		imgResult = classifierServer.readBufferedImage(tile.getRegionRequest());
                 	else {

@@ -57,7 +57,8 @@ public class PixelClassifierApplyCommand implements PathCommand {
 			
 			// Apply the classification
 			var classifier = project.getPixelClassifiers().getResource(name);
-			var classifierServer = PixelClassifierTools.applyClassifier(project, imageData, classifier, name);
+			var classifierServer = new PixelClassificationImageServer(imageData, classifier);
+//			var classifierServer = PixelClassifierTools.applyClassifier(project, imageData, classifier, name);
 			
 			// Display on the image
 //			var classifierServer = new PixelClassificationImageServer(viewer.getImageData(), classifier);

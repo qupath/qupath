@@ -9,54 +9,38 @@ import java.util.Arrays;
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.classifiers.pixel.PixelClassifierMetadata;
 import qupath.lib.color.ColorModelFactory;
-import qupath.lib.display.ChannelDisplayInfo.SingleChannelDisplayInfo;
+import qupath.lib.common.GeneralTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.regions.RegionRequest;
+import qupath.opencv.ml.pixel.features.ColorTransforms.ColorTransform;
 
-public class SimplePixelClassifier implements PixelClassifier {
+class SimplePixelClassifier implements PixelClassifier {
 	
-	private PixelClassifierMetadata metadata;
-	private SingleChannelDisplayInfo channel;
+	private transient PixelClassifierMetadata metadata;
+	private transient IndexColorModel colorModel;
+	
+	private PixelCalibration inputResolution;
+	private ColorTransform transform;
 	private double threshold;
+	private PathClass leqThreshold;
+	private PathClass gtThreshold;
 	
 	SimplePixelClassifier(
-			SingleChannelDisplayInfo channel,
+			ColorTransform transform,
 			PixelCalibration inputResolution,
 			double threshold,
-			PathClass belowThreshold,
-			PathClass aboveThreshold) {
+			PathClass leqThreshold,
+			PathClass gtThreshold) {
 		
-		this.channel = channel;
+		this.inputResolution = inputResolution;
+		this.transform = transform;
 		this.threshold = threshold;
-		this.metadata = new PixelClassifierMetadata.Builder()
-				.outputChannels(Arrays.asList(getChannel(belowThreshold), getChannel(aboveThreshold)))
-				.inputResolution(inputResolution)
-				.inputShape(512, 512)
-				.setChannelType(ImageServerMetadata.ChannelType.CLASSIFICATION)
-				.build();
-	}
-	
-	/**
-	 * Create a PixelClassifier that applies a threshold to a single image channel at a specified resolution.
-	 * 
-	 * @param channel
-	 * @param inputResolution
-	 * @param threshold
-	 * @param belowThreshold
-	 * @param aboveThreshold
-	 * @return
-	 */
-	public static PixelClassifier createThresholdingClassifier(
-			SingleChannelDisplayInfo channel,
-			PixelCalibration inputResolution,
-			double threshold,
-			PathClass belowThreshold,
-			PathClass aboveThreshold) {
-		return new SimplePixelClassifier(channel, inputResolution, threshold, belowThreshold, aboveThreshold);
+		this.leqThreshold = leqThreshold;
+		this.gtThreshold = gtThreshold;
 	}
 	
 	static ImageChannel getChannel(PathClass pathClass) {
@@ -73,9 +57,9 @@ public class SimplePixelClassifier implements PixelClassifier {
 		var server = imageData.getServer();
 		var img = server.readBufferedImage(request);
 
-		var transformed = channel.getValues(img, 0, 0, img.getWidth(), img.getHeight(), null);
+		var transformed = transform.extractChannel(imageData, img, null);
 		
-		var colorModel = (IndexColorModel)ColorModelFactory.getIndexedColorModel(metadata.getOutputChannels());
+		var colorModel = getColorModel();
 		var imgResult = new BufferedImage(img.getWidth(), img.getHeight(), BufferedImage.TYPE_BYTE_INDEXED, colorModel);
 		var raster = imgResult.getRaster();
 		var bytes = ((DataBufferByte)raster.getDataBuffer()).getData();
@@ -88,10 +72,36 @@ public class SimplePixelClassifier implements PixelClassifier {
 		
 		return imgResult;
 	}
+	
+	
+	private synchronized IndexColorModel getColorModel() {
+		if (colorModel == null) {
+			var metadata = getMetadata();
+			this.colorModel = (IndexColorModel)ColorModelFactory.getIndexedColorModel(metadata.getOutputChannels());
+		}
+		return colorModel;
+	}
 
 	@Override
-	public PixelClassifierMetadata getMetadata() {
+	public synchronized PixelClassifierMetadata getMetadata() {
+		if (metadata == null) {
+			this.metadata = new PixelClassifierMetadata.Builder()
+					.outputChannels(Arrays.asList(getChannel(leqThreshold), getChannel(gtThreshold)))
+					.inputResolution(inputResolution)
+					.inputShape(512, 512)
+					.setChannelType(ImageServerMetadata.ChannelType.CLASSIFICATION)
+					.build();
+		}
 		return metadata;
+	}
+	
+	@Override
+	public String toString() {
+		return String.format("Threshold classifier (%s <= %s < %s): %s",
+				leqThreshold.toString(),
+				GeneralTools.formatNumber(threshold, 2),
+				gtThreshold.toString(),
+				inputResolution.toString());
 	}
 
 }

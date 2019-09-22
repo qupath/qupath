@@ -1,25 +1,32 @@
 package qupath.lib.gui.ml.commands;
 
+import java.awt.image.BufferedImage;
 import java.util.ArrayList;
+import java.util.List;
+
 import javafx.beans.binding.Bindings;
-import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
-import javafx.scene.control.Slider;
+import javafx.scene.control.Spinner;
+import javafx.scene.control.SpinnerValueFactory;
 import javafx.scene.layout.GridPane;
 import javafx.stage.Stage;
 import qupath.lib.classifiers.pixel.PixelClassificationImageServer;
 import qupath.lib.common.GeneralTools;
-import qupath.lib.display.ChannelDisplayInfo.SingleChannelDisplayInfo;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.helpers.GridPaneTools;
 import qupath.lib.gui.ml.PixelClassificationOverlay;
+import qupath.lib.gui.ml.PixelClassifierImageSelectionPane;
+import qupath.lib.gui.ml.PixelClassifierImageSelectionPane.ClassificationResolution;
+import qupath.lib.images.ImageData;
 import qupath.lib.objects.classes.PathClass;
-import qupath.opencv.ml.pixel.SimplePixelClassifier;
+import qupath.opencv.ml.pixel.PixelClassifiers;
+import qupath.opencv.ml.pixel.features.ColorTransforms;
+import qupath.opencv.ml.pixel.features.ColorTransforms.ColorTransform;
 
 /**
  * Apply simple thresholding to an image via the pixel classification framework to support 
@@ -52,14 +59,20 @@ public class SimpleThresholdCommand implements PathCommand {
 			stage.toFront();
 	}
 	
+	private ComboBox<ClassificationResolution> comboResolutions = new ComboBox<>();
+	private ReadOnlyObjectProperty<ClassificationResolution> selectedResolution = comboResolutions.getSelectionModel().selectedItemProperty();
+	
 	private ComboBox<PathClass> classificationsBelow = new ComboBox<>();
 	private ComboBox<PathClass> classificationsAbove = new ComboBox<>();
 	
-	private ComboBox<SingleChannelDisplayInfo> channels = new ComboBox<>();
-	private Slider slider = new Slider();
-	private ReadOnlyObjectProperty<SingleChannelDisplayInfo> selectedChannel = channels.getSelectionModel().selectedItemProperty();
-	private DoubleProperty threshold = slider.valueProperty();
-	
+	private ComboBox<ColorTransform> transforms = new ComboBox<>();
+	private ReadOnlyObjectProperty<ColorTransform> selectedChannel = transforms.getSelectionModel().selectedItemProperty();
+//	private Slider slider = new Slider();
+//	private DoubleProperty threshold = slider.valueProperty();
+
+	private Spinner<Double> spinner = new Spinner<>(new SpinnerValueFactory.DoubleSpinnerValueFactory(-Double.MAX_VALUE, Double.MAX_VALUE, 0.0));
+	private ReadOnlyObjectProperty<Double> threshold = spinner.valueProperty();
+
 	
 	private void showGUI() {
 		
@@ -69,17 +82,22 @@ public class SimpleThresholdCommand implements PathCommand {
 		classificationsBelow.setItems(qupath.getAvailablePathClasses());
 		
 		int row = 0;
+		
+		Label labelResolution = new Label("Resolution");
+		labelResolution.setLabelFor(comboResolutions);
+		GridPaneTools.addGridRow(pane, row++, 0, "Select image resolution to threshold", labelResolution, comboResolutions, comboResolutions);
+		
 		Label label = new Label("Channel");
-		label.setLabelFor(channels);
-		GridPaneTools.addGridRow(pane, row++, 0, "Select channel to threshold", label, channels, channels);
+		label.setLabelFor(transforms);
+		GridPaneTools.addGridRow(pane, row++, 0, "Select channel to threshold", label, transforms, transforms);
 
 		label = new Label("Threshold");
-		label.setLabelFor(slider);
+		label.setLabelFor(spinner);
 		Label labelThreshold = new Label();
 		labelThreshold.textProperty().bind(
 				Bindings.createStringBinding(() -> GeneralTools.formatNumber(threshold.get(), 2), threshold)
 				);
-		GridPaneTools.addGridRow(pane, row++, 0, "Select threshold value", label, slider, labelThreshold);
+		GridPaneTools.addGridRow(pane, row++, 0, "Select threshold value", label, spinner, labelThreshold);
 
 		label = new Label("Above threshold");
 		label.setLabelFor(classificationsAbove);
@@ -90,29 +108,35 @@ public class SimpleThresholdCommand implements PathCommand {
 		GridPaneTools.addGridRow(pane, row++, 0, "Select classification for pixels below the thresholds", label, classificationsBelow, classificationsBelow);
 
 		
-		channels.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> {
+		transforms.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> {
 			updateClassification();
-			if (n != null) {
-				slider.setMin(n.getMinAllowed());
-				slider.setMax(n.getMaxAllowed());
-				slider.setValue((n.getMinAllowed() + n.getMaxAllowed()) / 2.0);
-				slider.setBlockIncrement((slider.getMax()-slider.getMin()) / 100.0);
-			}
+//			if (n != null) {
+//				slider.setMin(n.getMinAllowed());
+//				slider.setMax(n.getMaxAllowed());
+//				slider.setValue((n.getMinAllowed() + n.getMaxAllowed()) / 2.0);
+//				slider.setBlockIncrement((slider.getMax()-slider.getMin()) / 100.0);
+//			}
 		});
-		threshold.addListener((v, o, n) -> {
-			if (!slider.isValueChanging())
-				updateClassification();
-			});
-		slider.valueChangingProperty().addListener((v, o, n) -> {
-			if (!n)
-				updateClassification();
-		});
+		threshold.addListener((v, o, n) -> updateClassification());
+		selectedResolution.addListener((v, o, n) -> updateClassification());
+		
+//		threshold.addListener((v, o, n) -> {
+//			if (!slider.isValueChanging())
+//				updateClassification();
+//			});
+//		slider.valueChangingProperty().addListener((v, o, n) -> {
+//			if (!n)
+//				updateClassification();
+//		});
 		classificationsAbove.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> updateClassification());
 		classificationsBelow.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> updateClassification());
 		
 		pane.setVgap(5.0);
 		pane.setHgap(5.0);
 		pane.setPadding(new Insets(10.0));
+		
+		GridPaneTools.setMaxWidth(Double.MAX_VALUE, comboResolutions, transforms, spinner, classificationsAbove, classificationsBelow);
+		GridPaneTools.setFillWidth(Boolean.TRUE, comboResolutions, transforms, spinner, classificationsAbove, classificationsBelow);
 		
 		updateGUI();
 		
@@ -132,29 +156,39 @@ public class SimpleThresholdCommand implements PathCommand {
 		var viewer = qupath.getViewer();
 		var imageData = viewer.getImageData();
 		if (imageData == null) {
-			channels.getItems().clear();
-			channels.setDisable(true);
-			slider.setDisable(true);
+			transforms.getItems().clear();
+			transforms.setDisable(true);
+			spinner.setDisable(true);
 			return;
 		}
-		channels.setDisable(false);
-		slider.setDisable(false);
+		transforms.setDisable(false);
+		spinner.setDisable(false);
 		
-		var display = viewer.getImageDisplay();
-		var validChannels = new ArrayList<SingleChannelDisplayInfo>();
-		for (var channel : display.availableChannels()) {
-			if (channel instanceof SingleChannelDisplayInfo)
-				validChannels.add((SingleChannelDisplayInfo)channel);
-		}
-		channels.getItems().setAll(validChannels);
+		spinner.setEditable(true);
+		
+		comboResolutions.getItems().setAll(PixelClassifierImageSelectionPane.getDefaultResolutions(imageData, selectedResolution.get()));
+		if (selectedResolution.get() == null)
+			comboResolutions.getSelectionModel().selectFirst();
+		
+		transforms.getItems().setAll(getAvailableTransforms(imageData));
+		if (transforms.getSelectionModel().getSelectedItem() == null)
+			transforms.getSelectionModel().selectFirst();
+		
+//		var display = viewer.getImageDisplay();
+//		var validChannels = new ArrayList<SingleChannelDisplayInfo>();
+//		for (var channel : display.availableChannels()) {
+//			if (channel instanceof SingleChannelDisplayInfo)
+//				validChannels.add((SingleChannelDisplayInfo)channel);
+//		}
+//		transforms.getItems().setAll(validChannels);
 
-		var channel = selectedChannel.get();
-		if (channel != null) {
-			slider.setMin(channel.getMinAllowed());
-			slider.setMax(channel.getMaxAllowed());
-			slider.setValue((channel.getMinAllowed() + channel.getMaxAllowed()) / 2.0);
-			slider.setBlockIncrement((slider.getMax()-slider.getMin()) / 100.0);
-		}
+//		var channel = selectedChannel.get();
+//		if (channel != null) {
+//			slider.setMin(channel.getMinAllowed());
+//			slider.setMax(channel.getMaxAllowed());
+//			slider.setValue((channel.getMinAllowed() + channel.getMaxAllowed()) / 2.0);
+//			slider.setBlockIncrement((slider.getMax()-slider.getMin()) / 100.0);
+//		}
 		
 	}
 	
@@ -170,64 +204,44 @@ public class SimpleThresholdCommand implements PathCommand {
 		if (imageData == null)
 			return;
 		
-		double scale = 16.0;
+		var transform = selectedChannel.get();
+		var thresholdValue = threshold.get();
+		var resolution = selectedResolution.get();
+		if (transform == null || thresholdValue == null || resolution == null)
+			return;
 		
-		var classifier = SimplePixelClassifier.createThresholdingClassifier(
-				selectedChannel.get(),
-				imageData.getServer().getPixelCalibration().createScaledInstance(scale, scale),
-				threshold.get(),
+		var classifier = PixelClassifiers.createThresholdingClassifier(
+				transform,
+				resolution.getPixelCalibration(),
+				thresholdValue,
 				classificationsBelow.getSelectionModel().getSelectedItem(),
 				classificationsAbove.getSelectionModel().getSelectedItem());
 		
 		PixelClassificationImageServer server = new PixelClassificationImageServer(imageData, classifier);
 		
-//		// TODO: Write through the project entry instead
-//		var task = new Task<Boolean>() {
-//
-//			@Override
-//			protected Boolean call() throws Exception {
-//				var tiles = server.getAllTileRequests();
-//				int n = tiles.size();
-//				int i = 0;
-//				try {
-//					for (var tile : tiles) {
-//						updateProgress(i++, n);
-//						var request = tile.getRegionRequest();
-//						server.readBufferedImage(request);
-//					}
-//				} catch (IOException e) {
-//					DisplayHelpers.showErrorMessage("Pixel classification", e);
-//					return false;
-//				} finally {
-//					updateProgress(n, n);
-//				}
-//				return true;
-//			}
-//		};
-//		
-//		var progress = new ProgressDialog(task);
-//		progress.setTitle("Pixel classification");
-//		progress.setContentText("Applying threshold");
-//		
-//		var t = new Thread(task);
-//		t.setDaemon(true);
-//		t.start();
-		
-//		try {
-//			if (task.get()) {
-				var overlay = new PixelClassificationOverlay(viewer, classifier);
-//				var overlay = new PixelClassificationOverlay(viewer, server);
-				overlay.setLivePrediction(true);
-				viewer.getCustomOverlayLayers().add(overlay);
-				PixelClassificationImageServer.setPixelLayer(imageData, server);
-				imageData.getHierarchy().fireObjectMeasurementsChangedEvent(this, imageData.getHierarchy().getAnnotationObjects());
-//			}
-//		} catch (InterruptedException e) {
-//			e.printStackTrace();
-//		} catch (ExecutionException e) {
-//			e.printStackTrace();
-//		}
+
+		var overlay = new PixelClassificationOverlay(viewer, classifier);
+		overlay.setLivePrediction(true);
+		viewer.getCustomOverlayLayers().add(overlay);
+		PixelClassificationImageServer.setPixelLayer(imageData, server);
+		imageData.getHierarchy().fireObjectMeasurementsChangedEvent(this, imageData.getHierarchy().getAnnotationObjects());
+
 	}
 	
 
+	/**
+	 * Get a list of relevant color transforms for a specific image.
+	 * @param imageData
+	 * @return
+	 */
+	public static List<ColorTransform> getAvailableTransforms(ImageData<BufferedImage> imageData) {
+		var validChannels = new ArrayList<ColorTransform>();
+		var server = imageData.getServer();
+		for (var channel : server.getMetadata().getChannels()) {
+			validChannels.add(ColorTransforms.createChannelExtractor(channel.getName()));
+		}
+		return validChannels;
+	}
+	
+	
 }

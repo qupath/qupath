@@ -7,6 +7,10 @@ import com.google.gson.RuntimeTypeAdapterFactory;
 import com.google.gson.reflect.TypeToken;
 
 import qupath.lib.classifiers.pixel.PixelClassifier;
+import qupath.lib.display.ChannelDisplayInfo.SingleChannelDisplayInfo;
+import qupath.lib.images.servers.PixelCalibration;
+import qupath.lib.objects.classes.PathClass;
+import qupath.opencv.ml.pixel.features.ColorTransforms.ColorTransform;
 
 /**
  * Static methods and classes for working with pixel classifiers.
@@ -28,7 +32,8 @@ public class PixelClassifiers {
 		private final static RuntimeTypeAdapterFactory<PixelClassifier> pixelClassifierTypeAdapter = 
 				RuntimeTypeAdapterFactory.of(PixelClassifier.class, typeName)
 				.registerSubtype(OpenCVPixelClassifier.class)
-				.registerSubtype(OpenCVPixelClassifierDNN.class);
+				.registerSubtype(OpenCVPixelClassifierDNN.class)
+				.registerSubtype(SimplePixelClassifier.class);
 		
 		/**
 		 * Register that a specific PixelClassifier implementation can be serialized to Json.
@@ -49,6 +54,25 @@ public class PixelClassifiers {
 	
 	public static TypeAdapterFactory getTypeAdapterFactory() {
 		return factory;
+	}
+
+	/**
+	 * Create a PixelClassifier that applies a threshold to a single image channel at a specified resolution.
+	 * 
+	 * @param transform transform to apply to input pixels
+	 * @param inputResolution resolution at which to apply the threshold
+	 * @param threshold threshold value to apply
+	 * @param leqThreshold classification for pixels less than or equal to the threshold
+	 * @param gtThreshold classification for pixels greater than the threshold
+	 * @return
+	 */
+	public static PixelClassifier createThresholdingClassifier(
+			ColorTransform transform,
+			PixelCalibration inputResolution,
+			double threshold,
+			PathClass leqThreshold,
+			PathClass gtThreshold) {
+		return new SimplePixelClassifier(transform, inputResolution, threshold, leqThreshold, gtThreshold);
 	}
 
 }

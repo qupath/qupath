@@ -3273,19 +3273,26 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				);
 
 		// Try to load classifiers
-		Menu menuClassifiers = createMenu(
-				"Classify",
-				createCommandAction(new LoadClassifierCommand(this), "Load classifier"),
-				createCommandAction(new SparseImageServerCommand(this), "Create sparse image from project"),
-				null);
+		Menu menuClassifiers = createMenu("Classify");
 
+		Menu menuObjectClassifiers = createMenu("Object classification");
+		Menu menuPixelClassifiers = createMenu("Pixel classification");
+		addMenuItems(menuClassifiers, menuObjectClassifiers, menuPixelClassifiers);
+		
 		addMenuItems(
-				menuClassifiers,
+				menuObjectClassifiers,
+				createCommandAction(new LoadClassifierCommand(this), "Load detection classifier"),
 				null,
 				createCommandAction(new ResetClassificationsCommand(this, PathDetectionObject.class), "Reset detection classifications"),
 				null,
 				createCommandAction(new RandomTrainingRegionSelector(this, getAvailablePathClasses()), "Choose random training samples"),
 				createCommandAction(new SingleFeatureClassifierCommand(this, PathDetectionObject.class), "Classify by specific feature")
+				);
+				
+		addMenuItems(
+				menuClassifiers,
+				null,
+				createCommandAction(new SparseImageServerCommand(this), "Create sparse image from project")
 			);
 		
 		Action actionUpdateCheck = new Action("Check for updates (web)", e -> {

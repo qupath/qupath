@@ -13,8 +13,6 @@ import com.google.gson.stream.JsonWriter;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageChannel;
 
-
-// TODO: Add support in GsonTools
 public class ColorTransforms {
 	
 	/**
@@ -109,6 +107,11 @@ public class ColorTransforms {
 			return "Channel " + (channel + 1);
 		}
 		
+		@Override
+		public String toString() {
+			return getName();
+		}
+		
 	}
 	
 	static class ExtractChannelByName implements ColorTransform {
@@ -137,6 +140,10 @@ public class ColorTransforms {
 			return channelName;
 		}
 	
+		@Override
+		public String toString() {
+			return getName();
+		}
 		
 	}
 	

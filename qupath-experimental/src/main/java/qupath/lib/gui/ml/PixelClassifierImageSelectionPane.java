@@ -1,16 +1,9 @@
 package qupath.lib.gui.ml;
 
 import java.awt.image.BufferedImage;
-import java.awt.image.ColorModel;
 import java.awt.image.DataBuffer;
 import java.io.IOException;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.nio.IntBuffer;
-import java.nio.file.FileSystem;
-import java.nio.file.FileSystems;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -28,15 +21,10 @@ import org.bytedeco.opencv.opencv_ml.KNearest;
 import org.bytedeco.opencv.opencv_ml.LogisticRegression;
 import org.bytedeco.opencv.opencv_ml.RTrees;
 import org.bytedeco.opencv.opencv_ml.TrainData;
-import org.controlsfx.control.CheckComboBox;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.gson.GsonBuilder;
-
 import ij.CompositeImage;
-import ij.io.FileSaver;
-import ij.io.Opener;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.BooleanProperty;
@@ -55,14 +43,9 @@ import javafx.geometry.Pos;
 import javafx.geometry.Side;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
-import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
-import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
-import javafx.scene.control.MenuItem;
 import javafx.scene.control.SplitPane;
-import javafx.scene.control.TableColumn;
-import javafx.scene.control.TableView;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.control.Tooltip;
 import javafx.scene.input.MouseEvent;
@@ -70,16 +53,13 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.stage.Stage;
-import javafx.util.StringConverter;
 import jfxtras.scene.layout.HBox;
 import qupath.imagej.gui.IJExtension;
-import qupath.imagej.images.servers.ImageJServer;
 import qupath.imagej.tools.IJTools;
 import qupath.lib.classifiers.Normalization;
 import qupath.lib.classifiers.pixel.PixelClassificationImageServer;
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.classifiers.pixel.PixelClassifierMetadata;
-import qupath.lib.color.ColorModelFactory;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.MiniViewerCommand;
@@ -112,9 +92,6 @@ import qupath.opencv.ml.OpenCVClassifiers.OpenCVStatModel;
 import qupath.opencv.ml.pixel.FeatureImageServer;
 import qupath.opencv.ml.pixel.OpenCVPixelClassifiers;
 import qupath.opencv.ml.pixel.PixelClassifierHelper;
-import qupath.opencv.ml.pixel.features.FeatureCalculator;
-import qupath.opencv.ml.pixel.features.FeatureCalculators;
-import qupath.opencv.tools.MultiscaleFeatures.MultiscaleFeature;
 
 
 public class PixelClassifierImageSelectionPane {
@@ -145,9 +122,9 @@ public class PixelClassifierImageSelectionPane {
 	private QuPathViewer viewer;
 	private GridPane pane;
 	
-	private ObservableList<CalibrationWrapper> resolutions = FXCollections.observableArrayList();
-	private ComboBox<CalibrationWrapper> comboResolutions = new ComboBox<>(resolutions);
-	private ReadOnlyObjectProperty<CalibrationWrapper> selectedResolution;
+	private ObservableList<ClassificationResolution> resolutions = FXCollections.observableArrayList();
+	private ComboBox<ClassificationResolution> comboResolutions = new ComboBox<>(resolutions);
+	private ReadOnlyObjectProperty<ClassificationResolution> selectedResolution;
 	
 	private MiniViewerCommand.MiniViewerManager miniViewer;
 	
@@ -186,6 +163,13 @@ public class PixelClassifierImageSelectionPane {
 	};
 	
 	private Stage stage;
+	
+	
+	public PixelClassifierImageSelectionPane(final QuPathViewer viewer) {
+		this.viewer = viewer;
+		helper = new PixelClassifierHelper(viewer.getImageData(), null);
+		initialize(viewer);
+	}
 
 	
 	private void initialize(final QuPathViewer viewer) {
@@ -229,8 +213,8 @@ public class PixelClassifierImageSelectionPane {
 		// Features
 		var labelFeatures = new Label("Features");
 		var comboFeatures = new ComboBox<FeatureCalculatorBuilder>();
-		comboFeatures.getItems().add(new DefaultFeatureCalculatorBuilder());
-		comboFeatures.getItems().add(new ExtractNeighborsFeatureCalculatorBuilder());
+		comboFeatures.getItems().add(new FeatureCalculatorBuilder.DefaultFeatureCalculatorBuilder());
+		comboFeatures.getItems().add(new FeatureCalculatorBuilder.ExtractNeighborsFeatureCalculatorBuilder());
 		labelFeatures.setLabelFor(comboFeatures);
 		selectedFeatureCalculatorBuilder = comboFeatures.getSelectionModel().selectedItemProperty();
 		
@@ -488,21 +472,21 @@ public class PixelClassifierImageSelectionPane {
 	private PixelClassifierHelper helper;
 
 	
-	private List<String> resolutionNames = Arrays.asList("Full", "Very high", "High", "Moderate", "Low", "Very low", "Extremely low");
+	private static List<String> resolutionNames = Arrays.asList("Full", "Very high", "High", "Moderate", "Low", "Very low", "Extremely low");
 	
-	private void updateAvailableResolutions() {
-		var imageData = viewer.getImageData();
-		if (imageData == null) {
-			resolutions.clear();
-			return;
-		}
-		var temp = new ArrayList<CalibrationWrapper>();
+	/**
+	 * Get a list of default resolutions to show, derived from PixelCalibration objects.
+	 * @param imageData
+	 * @param selected
+	 * @return
+	 */
+	public static List<ClassificationResolution> getDefaultResolutions(ImageData<?> imageData, ClassificationResolution selected) {
+		var temp = new ArrayList<ClassificationResolution>();
 		PixelCalibration cal = imageData.getServer().getPixelCalibration();
 
 		int scale = 1;
-		var selected = selectedResolution.get();
 		for (String name : resolutionNames) {
-			var newResolution = new CalibrationWrapper(name, cal.createScaledInstance(scale, scale, 1));
+			var newResolution = new ClassificationResolution(name, cal.createScaledInstance(scale, scale, 1));
 			if (Objects.equals(selected, newResolution))
 				temp.add(selected);
 			else
@@ -513,7 +497,18 @@ public class PixelClassifierImageSelectionPane {
 			selected = temp.get(0);
 		else if (!temp.contains(selected))
 			temp.add(selected);
-		resolutions.setAll(temp);
+		
+		return temp;
+	}
+	
+	private void updateAvailableResolutions() {
+		var imageData = viewer.getImageData();
+		if (imageData == null) {
+			resolutions.clear();
+			return;
+		}
+		var selected = selectedResolution.get();
+		resolutions.setAll(getDefaultResolutions(imageData, selected));
 		comboResolutions.getSelectionModel().select(selected);
 	}
 	
@@ -690,25 +685,6 @@ public class PixelClassifierImageSelectionPane {
 
 		 var classifier = OpenCVPixelClassifiers.createPixelClassifier(model, featureCalculator, helper.getLastFeaturePreprocessor(), metadata, true);
 
-//		 // The following code currently appears to work to serialize/deserialize classifiers
-//		 var gson = GsonTools.getInstance(true).newBuilder()
-//				 .registerTypeAdapterFactory(PixelClassifiers.getTypeAdapterFactory())
-//				 .registerTypeAdapterFactory(FeatureCalculators.getTypeAdapterFactory())
-//				 .registerTypeAdapter(ColorTransforms.ColorTransform.class, new ColorTransforms.ColorTransformTypeAdapter())
-//				 .create();
-//		 String json = gson.toJson(classifier, PixelClassifier.class);
-//		 
-////		 System.err.println(json);
-//		 System.err.println("Before: " + classifier);
-//		 var classifier2 = gson.fromJson(json, PixelClassifier.class);
-//		 System.err.println("After: " + classifier2);
-//		 
-//		String json2 = gson.toJson(classifier2, PixelClassifier.class);
-//		System.err.println("Same classifier: " + json.equals(json2));
-//		classifier = classifier2;
-		 
-//		 var classifierServer = new PixelClassificationImageServer(helper.getImageData(), classifier);
-//		 replaceOverlay(new PixelClassificationOverlay(viewer, classifierServer));
 		 var overlay = new PixelClassificationOverlay(viewer, classifier);
 		 replaceOverlay(overlay);
 	}
@@ -725,20 +701,13 @@ public class PixelClassifierImageSelectionPane {
 			Platform.runLater(() -> replaceOverlay(newOverlay));
 			return;
 		}
-//		var imageData = viewer.getImageData();
 		if (overlay != null) {
 			overlay.stop(!wasApplied);
-//			if (imageData != null && PixelClassificationImageServer.getPixelLayer(imageData) == overlay.getPixelClassificationServer())
-//				PixelClassificationImageServer.setPixelLayer(imageData, null);
-////			viewer.getCustomOverlayLayers().remove(overlay);
 		}
 		overlay = newOverlay;
 		if (overlay != null) {
 			overlay.setUseAnnotationMask(selectedRegion.get() == ClassificationRegion.ANNOTATIONS_ONLY);
-//			viewer.getCustomOverlayLayers().add(overlay);
 			overlay.setLivePrediction(livePrediction.get());
-//			if (imageData != null)
-//				PixelClassificationImageServer.setPixelLayer(imageData, overlay.getPixelClassificationServer());
 			wasApplied = false;
 		}
 		viewer.setCustomPixelLayerOverlay(overlay);
@@ -791,13 +760,14 @@ public class PixelClassifierImageSelectionPane {
 			
 		try {
 			var imageData = viewer.getImageData();
-			var resultServer = saveAndApply(project, imageData, server.getClassifier());
-			if (resultServer != null) {
-				PixelClassificationImageServer.setPixelLayer(imageData, resultServer);
-				wasApplied = true;
-				replaceOverlay(null);
-				return true;
-			}
+			return saveAndApply(project, imageData, server.getClassifier());
+//			var resultServer = saveAndApply(project, imageData, server.getClassifier());
+//			if (resultServer != null) {
+//				PixelClassificationImageServer.setPixelLayer(imageData, resultServer);
+//				wasApplied = true;
+//				replaceOverlay(null);
+//				return true;
+//			}
 		} catch (Exception e) {
 			DisplayHelpers.showErrorMessage("Pixel classifier", e);
 		}
@@ -832,11 +802,12 @@ public class PixelClassifierImageSelectionPane {
 		project.getPixelClassifiers().putResource(classifierName, classifier);
 	}
 	
-	private static PixelClassificationImageServer saveAndApply(Project<BufferedImage> project, ImageData<BufferedImage> imageData, PixelClassifier classifier) throws IOException {
+	private static boolean saveAndApply(Project<BufferedImage> project, ImageData<BufferedImage> imageData, PixelClassifier classifier) throws IOException {
 		String name = promptToSaveClassifier(project, classifier);
 		if (name == null)
-			return null;
-		return PixelClassifierTools.applyClassifier(project, imageData, classifier, name);
+			return false;
+		return true;
+//		return PixelClassifierTools.applyClassifier(project, imageData, classifier, name);
 	}
 	
 	private PixelClassificationImageServer getClassificationServerOrShowError() {
@@ -845,7 +816,7 @@ public class PixelClassifierImageSelectionPane {
 			return null;
 		var server = overlay == null ? null : overlay.getPixelClassificationServer();
 		if (server == null || !(server instanceof PixelClassificationImageServer)) {
-			DisplayHelpers.showErrorMessage("Pixel classifier", "No classifier available yet!");
+			DisplayHelpers.showErrorMessage("Pixel classifier", "No classifier available!");
 			return null;
 		}
 		return (PixelClassificationImageServer)server;
@@ -863,6 +834,9 @@ public class PixelClassifierImageSelectionPane {
 		PixelClassifierTools.classifyObjects(server, hierarchy.getDetectionObjects());
 		return true;
 	}
+	
+	
+	
 	
 	
 	private boolean createObjects() {
@@ -1086,16 +1060,16 @@ public class PixelClassifierImageSelectionPane {
 		if (pixelSize == null)
 			return false;
 		
-		CalibrationWrapper res;
+		ClassificationResolution res;
 		if (PixelCalibration.MICROMETER.equals(units)) {
 			double scale = pixelSize / cal.getAveragedPixelSizeMicrons();
-			res = new CalibrationWrapper("Custom", cal.createScaledInstance(scale, scale, 1));
+			res = new ClassificationResolution("Custom", cal.createScaledInstance(scale, scale, 1));
 		} else
-			res = new CalibrationWrapper("Custom", cal.createScaledInstance(pixelSize, pixelSize, 1));
+			res = new ClassificationResolution("Custom", cal.createScaledInstance(pixelSize, pixelSize, 1));
 
-		List<CalibrationWrapper> temp = new ArrayList<>(resolutions);
+		List<ClassificationResolution> temp = new ArrayList<>(resolutions);
 		temp.add(res);
-		Collections.sort(temp, Comparator.comparingDouble((CalibrationWrapper w) -> w.cal.getAveragedPixelSize().doubleValue()));
+		Collections.sort(temp, Comparator.comparingDouble((ClassificationResolution w) -> w.cal.getAveragedPixelSize().doubleValue()));
 		resolutions.setAll(temp);
 		comboResolutions.getSelectionModel().select(res);
 		
@@ -1103,19 +1077,12 @@ public class PixelClassifierImageSelectionPane {
 	}	
 	
 	
-	public PixelClassifierImageSelectionPane(final QuPathViewer viewer) {
-		this.viewer = viewer;
-		helper = new PixelClassifierHelper(viewer.getImageData(), null);
-		initialize(viewer);
-	}
-	
-	
 	private PixelCalibration getSelectedResolution() {
 		return selectedResolution.get().cal;
 	}
 	
 	
-	private void updateResolution(CalibrationWrapper resolution) {
+	private void updateResolution(ClassificationResolution resolution) {
 		ImageServer<BufferedImage> server = null;
 		if (viewer != null)
 			server = viewer.getServer();
@@ -1214,668 +1181,27 @@ public class PixelClassifierImageSelectionPane {
 	
 	
 	
-	
-	
-	
-	
-	public interface PersistentTileCache extends AutoCloseable {
-		
-		default public String getCachedName(RegionRequest request) {
-			return String.format(
-					"tile(x=%d,y=%d,w=%d,h=%d,z=%d,t=%d).tif",
-					request.getX(),
-					request.getY(),
-					request.getWidth(),
-					request.getHeight(),
-					request.getZ(),
-					request.getT());
-		}
-		
-		public void writeJSON(String name, Object o) throws IOException;
-		
-		public BufferedImage readFromCache(RegionRequest request) throws IOException;
-		
-		public void saveToCache(RegionRequest request, BufferedImage img) throws IOException;
-		
-	}
-
-	
-	static class FileSystemPersistentTileCache implements PersistentTileCache {
-		
-		private Path path;
-		private transient ImageServer<BufferedImage> server;
-		private transient FileSystem fileSystem;
-		private transient String root;
-		
-		FileSystemPersistentTileCache(Path path, ImageServer<BufferedImage> server) throws IOException, URISyntaxException {
-			this.path = path;
-			this.server = server;
-		}
-		
-		private synchronized void ensureFileSystemOpen() throws IOException {
-			if (fileSystem != null && fileSystem.isOpen())
-				return;
-			fileSystem = null;
-			if (path.toString().toLowerCase().endsWith(".zip")) {
-				var fileURI = path.toUri();
-				try {
-					var uri = new URI("jar:" + fileURI.getScheme(), fileURI.getPath(), null);
-					this.fileSystem = FileSystems.newFileSystem(uri, Collections.singletonMap("create", String.valueOf(Files.notExists(path))));
-					this.root = "/";
-				} catch (URISyntaxException e) {
-					logger.error("Problem constructing file system", e);
-				}
-			}
-			if (this.fileSystem == null) {
-				this.fileSystem = FileSystems.getDefault();
-				this.root = path.toString();
-			}
-		}
-		
-		@Override
-		public synchronized void close() throws Exception {
-			if (this.fileSystem != FileSystems.getDefault())
-				this.fileSystem.close();
-		}
-		
-		
-		@Override
-		public synchronized void writeJSON(String name, Object o) throws IOException {
-			var gson = new GsonBuilder()
-					.setLenient()
-					.serializeSpecialFloatingPointValues()
-					.setPrettyPrinting()
-					.create();
-			var json = gson.toJson(o);
-			ensureFileSystemOpen();
-			var path = fileSystem.getPath(root, name);
-			Files.writeString(path, json);
-		}
-		
-		@Override
-		public synchronized BufferedImage readFromCache(RegionRequest request) throws IOException {
-			ensureFileSystemOpen();
-			var path = fileSystem.getPath(root, getCachedName(request));
-			try (var stream = Files.newInputStream(path)) {
-				var imp = new Opener().openTiff(stream, "Anything");
-				ColorModel colorModel;
-				var channels = server.getMetadata().getChannels();
-				if (imp.getNChannels() == 1)
-					colorModel = ColorModelFactory.getIndexedColorModel(channels);
-				else
-					colorModel = ColorModelFactory.geProbabilityColorModel8Bit(channels);
-				return ImageJServer.convertToBufferedImage(imp, 1, 1, colorModel);
-			}
-		}
-		
-		@Override
-		public void saveToCache(RegionRequest request, BufferedImage img) throws IOException {
-			var imp = IJTools.convertToImagePlus("Tile", server, img, request).getImage();
-			var bytes = new FileSaver(imp).serialize();
-			saveToCache(request, bytes);
-		}
-		
-		public synchronized void saveToCache(RegionRequest request, byte[] bytes) throws IOException {
-			ensureFileSystemOpen();
-			var path = fileSystem.getPath(root, getCachedName(request));
-			Files.write(path, bytes);
-		}
-		
-	}
-
-	/**
-	 * A (@link PixelClassifier} that doesn't actually compute classifications itself, 
-	 * but rather reads them from storage.
-	 */
-	static class ReadFromStorePixelClassifier implements PixelClassifier {
-
-		private PixelClassifier classifier;
-		private PersistentTileCache store;
-
-		ReadFromStorePixelClassifier(PersistentTileCache store, PixelClassifier classifier) {
-			this.store = store;
-			this.classifier = classifier;
-		}
-
-		@Override
-		public BufferedImage applyClassification(ImageData<BufferedImage> server, RegionRequest request)
-				throws IOException {
-			BufferedImage img = store.readFromCache(request);
-			if (img == null)
-				return classifier.applyClassification(server, request);
-			else
-				return img;
-		}
-
-		@Override
-		public PixelClassifierMetadata getMetadata() {
-			return classifier.getMetadata();
-		}
-
-	}
-	
-	
-	/**
-	 * Helper class capable of building (or returning) a FeatureCalculator.
-	 * 
-	 * @author Pete Bankhead
-	 */
-	public static abstract class FeatureCalculatorBuilder {
-		
-		public abstract FeatureCalculator<BufferedImage> build(ImageData<BufferedImage> imageData, PixelCalibration resolution);
-		
-		public boolean canCustomize() {
-			return false;
-		}
-		
-		public boolean doCustomize() {
-			throw new UnsupportedOperationException("Cannot customize this feature calculator!");
-		}
-		
-//		public String getName() {
-//			OpenCVFeatureCalculator calculator = build(1);
-//			if (calculator == null)
-//				return "No feature calculator";
-//			return calculator.toString();
-//		}
-		
-	}
-	
-	
-	/**
-	 * Add a context menu to a CheckComboBox to quickly select all items, or clear selection.
-	 * @param combo
-	 */
-	static void installSelectAllOrNoneMenu(CheckComboBox<?> combo) {
-		var miAll = new MenuItem("Select all");
-		var miNone = new MenuItem("Select none");
-		miAll.setOnAction(e -> combo.getCheckModel().checkAll());
-		miNone.setOnAction(e -> combo.getCheckModel().clearChecks());
-		var menu = new ContextMenu(miAll, miNone);
-		combo.setContextMenu(menu);
-	}
-	
-	
-	static class ExtractNeighborsFeatureCalculatorBuilder extends FeatureCalculatorBuilder {
-		
-		private GridPane pane;
-		
-		private ObservableList<Integer> availableChannels;
-		private ObservableList<Integer> selectedChannels;
-		private ObservableValue<Integer> selectedRadius;
-		
-		ExtractNeighborsFeatureCalculatorBuilder() {
-			
-			int row = 0;
-			
-			pane = new GridPane();
-			
-			// Selected channels
-			
-			var labelChannels = new Label("Channels");
-			var comboChannels = new CheckComboBox<Integer>();
-			installSelectAllOrNoneMenu(comboChannels);
-			var server = QuPathGUI.getInstance().getViewer().getServer();
-			if (server != null) {
-				for (int c = 0; c < server.nChannels(); c++)
-					comboChannels.getItems().add(c);			
-				comboChannels.getCheckModel().checkAll();
-			}
-			comboChannels.setConverter(new StringConverter<Integer>() {
-				
-				@Override
-				public String toString(Integer object) {
-					return server.getChannel(object).getName();
-				}
-				
-				@Override
-				public Integer fromString(String string) {
-					for (int i = 0; i < server.nChannels(); i++) {
-						if (string.equals(server.getChannel(i).getName()))
-							return i;
-					}
-					return null;
-				}
-			});
-			comboChannels.titleProperty().bind(Bindings.createStringBinding(() -> {
-				int n = comboChannels.getCheckModel().getCheckedItems().size();
-				if (n == 0)
-					return "No channels selected!";
-				if (n == 1)
-					return "1 channel selected";
-				return n + " channels selected";
-			}, comboChannels.getCheckModel().getCheckedItems()));
-			
-			
-			var comboScales = new ComboBox<Integer>();
-			var labelScales = new Label("Size");
-			comboScales.getItems().addAll(3, 5, 7, 9, 11, 13, 15);
-			comboScales.getSelectionModel().selectFirst();
-			selectedRadius = comboScales.getSelectionModel().selectedItemProperty();
-			
-			availableChannels = comboChannels.getItems();
-			selectedChannels = comboChannels.getCheckModel().getCheckedItems();
-			
-			GridPaneTools.setMaxWidth(Double.MAX_VALUE, comboChannels, comboScales);
-			
-			GridPaneTools.addGridRow(pane, row++, 0,
-					"Choose the image channels used to calculate features",
-					labelChannels, comboChannels);		
-			
-			GridPaneTools.addGridRow(pane, row++, 0,
-					"Choose the feature scales",
-					labelScales, comboScales);					
-			
-			pane.setHgap(5);
-			pane.setVgap(6);
-			
-		}
-
-		@Override
-		public FeatureCalculator<BufferedImage> build(ImageData<BufferedImage> imageData, PixelCalibration resolution) {
-			return FeatureCalculators.createPatchFeatureCalculator(
-					selectedRadius.getValue(),
-					selectedChannels.stream().mapToInt(i -> i).toArray());
-		}
-		
-		@Override
-		public boolean canCustomize() {
-			return true;
-		}
-		
-		@Override
-		public boolean doCustomize() {
-			
-			boolean success = DisplayHelpers.showMessageDialog("Select features", pane);
-			if (success) {
-				if (selectedChannels == null || selectedChannels.isEmpty()) {
-					DisplayHelpers.showErrorNotification("Pixel classifier", "No channels selected!");
-					return false;
-				}
-			}
-			return success;
-			
-		}
-		
-		@Override
-		public String toString() {
-			return "Extract neighbors";
-		}
-		
-	}
-	
-	
-	
-	static class MultiscaleFeatureCalculatorBuilder extends FeatureCalculatorBuilder {
-		
-		private GridPane pane;
-		
-		private ObservableList<Integer> availableChannels;
-		private ObservableList<Integer> selectedChannels;
-		private ObservableList<Double> selectedSigmas;
-		private ObservableList<MultiscaleFeature> selectedFeatures;
-		
-		private ObservableBooleanValue doNormalize;
-		private ObservableBooleanValue do3D;
-		
-		MultiscaleFeatureCalculatorBuilder() {
-			
-			var table = new TableView<MultiscaleFeature>();
-			double[] scale = new double[] {0.5, 1, 2, 4, 8};
-			for (double s : scale) {
-				var col = new TableColumn<MultiscaleFeature, Object>("Scale " + s);
-				col.setUserData(s);
-				table.getColumns().add(col);
-			}
-			table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
-			
-			
-			int row = 0;
-			
-			pane = new GridPane();
-			
-			// Selected channels
-			
-			var labelChannels = new Label("Channels");
-			var comboChannels = new CheckComboBox<Integer>();
-			installSelectAllOrNoneMenu(comboChannels);
-//			var btnChannels = new Button("Select");
-//			btnChannels.setOnAction(e -> selectChannels());
-			var server = QuPathGUI.getInstance().getViewer().getServer();
-			if (server != null) {
-				for (int c = 0; c < server.nChannels(); c++)
-					comboChannels.getItems().add(c);			
-				comboChannels.getCheckModel().checkAll();
-			}
-			comboChannels.setConverter(new StringConverter<Integer>() {
-				
-				@Override
-				public String toString(Integer object) {
-					return server.getChannel(object).getName();
-				}
-				
-				@Override
-				public Integer fromString(String string) {
-					for (int i = 0; i < server.nChannels(); i++) {
-						if (string.equals(server.getChannel(i).getName()))
-							return i;
-					}
-					return null;
-				}
-			});
-			comboChannels.titleProperty().bind(Bindings.createStringBinding(() -> {
-				int n = comboChannels.getCheckModel().getCheckedItems().size();
-				if (n == 0)
-					return "No channels selected!";
-				if (n == 1)
-					return "1 channel selected";
-				return n + " channels selected";
-			}, comboChannels.getCheckModel().getCheckedItems()));
-			
-			
-			var comboScales = new CheckComboBox<Double>();
-			installSelectAllOrNoneMenu(comboScales);
-			var labelScales = new Label("Scales");
-			comboScales.getItems().addAll(0.5, 1.0, 2.0, 4.0, 8.0);
-			comboScales.getCheckModel().check(1);
-			selectedSigmas = comboScales.getCheckModel().getCheckedItems();
-//			comboScales.getCheckModel().check(1.0);
-			
-			availableChannels = comboChannels.getItems();
-			selectedChannels = comboChannels.getCheckModel().getCheckedItems();
-			
-			
-			var comboFeatures = new CheckComboBox<MultiscaleFeature>();
-			installSelectAllOrNoneMenu(comboFeatures);
-			var labelFeatures = new Label("Features");
-			comboFeatures.getItems().addAll(MultiscaleFeature.values());
-			comboFeatures.getCheckModel().check(MultiscaleFeature.GAUSSIAN);
-			selectedFeatures = comboFeatures.getCheckModel().getCheckedItems();
-//			comboFeatures.getCheckModel().check(MultiscaleFeature.GAUSSIAN);
-//			selectedChannels.addListener((Change<? extends Integer> c) -> updateFeatureCalculator());
-			comboFeatures.titleProperty().bind(Bindings.createStringBinding(() -> {
-				int n = selectedFeatures.size();
-				if (n == 0)
-					return "No features selected!";
-				if (n == 1)
-					return "1 feature selected";
-				return n + " features selected";
-			},
-					selectedFeatures));
-			
-			
-			var cbNormalize = new CheckBox("Do local normalization");
-			doNormalize = cbNormalize.selectedProperty();
-			
-			var cb3D = new CheckBox("Use 3D filters");
-			do3D = cb3D.selectedProperty();
-			
-			
-			GridPaneTools.setMaxWidth(Double.MAX_VALUE, comboChannels, comboFeatures, comboScales,
-					cbNormalize, cb3D);
-			
-			GridPaneTools.addGridRow(pane, row++, 0,
-					"Choose the image channels used to calculate features",
-					labelChannels, comboChannels);		
-			
-			GridPaneTools.addGridRow(pane, row++, 0,
-					"Choose the feature scales",
-					labelScales, comboScales);		
-
-			GridPaneTools.addGridRow(pane, row++, 0,
-					"Choose the features",
-					labelFeatures, comboFeatures);		
-			
-			GridPaneTools.addGridRow(pane, row++, 0,
-					"Apply local intensity normalization before calculating features",
-					cbNormalize, cbNormalize);		
-			
-			GridPaneTools.addGridRow(pane, row++, 0,
-					"Use 3D filters (rather than 2D)",
-					cb3D, cb3D);	
-
-//			GridPaneTools.addGridRow(pane, row++, 0,
-//					"Choose the image channels used to calculate features",
-//					labelChannels, comboChannels, btnChannels);
-
-			
-			pane.setHgap(5);
-			pane.setVgap(6);
-			
-		}
-
-		@Override
-		public FeatureCalculator<BufferedImage> build(ImageData<BufferedImage> imageData, PixelCalibration resolution) {
-			// TODO Auto-generated method stub
-			return null;
-		}
-		
-		@Override
-		public boolean canCustomize() {
-			return true;
-		}
-		
-		@Override
-		public boolean doCustomize() {
-			
-			boolean success = DisplayHelpers.showMessageDialog("Select features", pane);
-			if (success) {
-				if (selectedChannels == null || selectedChannels.isEmpty()) {
-					DisplayHelpers.showErrorNotification("Pixel classifier", "No channels selected!");
-					return false;
-				}
-	
-				if (selectedFeatures == null || selectedFeatures.isEmpty()) {
-					DisplayHelpers.showErrorNotification("Pixel classifier", "No features selected!");
-					return false;
-				}
-			}
-			return success;
-			
-		}
-		
-		@Override
-		public String toString() {
-			return "Visual multiscale features";
-		}
-		
-	}
-	
-	
-	
-	static class DefaultFeatureCalculatorBuilder extends FeatureCalculatorBuilder {
-		
-		private GridPane pane;
-		
-		private ObservableList<Integer> availableChannels;
-		private ObservableList<Integer> selectedChannels;
-		private ObservableList<Double> selectedSigmas;
-		private ObservableList<MultiscaleFeature> selectedFeatures;
-		
-		private ObservableBooleanValue doNormalize;
-		private ObservableBooleanValue do3D;
-		
-		DefaultFeatureCalculatorBuilder() {
-			
-			int row = 0;
-			
-			pane = new GridPane();
-			
-			// Selected channels
-			
-			var labelChannels = new Label("Channels");
-			var comboChannels = new CheckComboBox<Integer>();
-			installSelectAllOrNoneMenu(comboChannels);
-//			var btnChannels = new Button("Select");
-//			btnChannels.setOnAction(e -> selectChannels());
-			var server = QuPathGUI.getInstance().getViewer().getServer();
-			if (server != null) {
-				for (int c = 0; c < server.nChannels(); c++)
-					comboChannels.getItems().add(c);			
-				comboChannels.getCheckModel().checkAll();
-			}
-			comboChannels.setConverter(new StringConverter<Integer>() {
-				
-				@Override
-				public String toString(Integer object) {
-					return server.getChannel(object).getName();
-				}
-				
-				@Override
-				public Integer fromString(String string) {
-					for (int i = 0; i < server.nChannels(); i++) {
-						if (string.equals(server.getChannel(i).getName()))
-							return i;
-					}
-					return null;
-				}
-			});
-			comboChannels.titleProperty().bind(Bindings.createStringBinding(() -> {
-				int n = comboChannels.getCheckModel().getCheckedItems().size();
-				if (n == 0)
-					return "No channels selected!";
-				if (n == 1)
-					return "1 channel selected";
-				return n + " channels selected";
-			}, comboChannels.getCheckModel().getCheckedItems()));
-			
-			
-			var comboScales = new CheckComboBox<Double>();
-			installSelectAllOrNoneMenu(comboScales);
-			var labelScales = new Label("Scales");
-			comboScales.getItems().addAll(0.5, 1.0, 2.0, 4.0, 8.0);
-			comboScales.getCheckModel().check(1);
-			selectedSigmas = comboScales.getCheckModel().getCheckedItems();
-//			comboScales.getCheckModel().check(1.0);
-			
-			availableChannels = comboChannels.getItems();
-			selectedChannels = comboChannels.getCheckModel().getCheckedItems();
-			
-			
-			var comboFeatures = new CheckComboBox<MultiscaleFeature>();
-			installSelectAllOrNoneMenu(comboFeatures);
-			var labelFeatures = new Label("Features");
-			comboFeatures.getItems().addAll(MultiscaleFeature.values());
-			comboFeatures.getCheckModel().check(MultiscaleFeature.GAUSSIAN);
-			selectedFeatures = comboFeatures.getCheckModel().getCheckedItems();
-//			comboFeatures.getCheckModel().check(MultiscaleFeature.GAUSSIAN);
-//			selectedChannels.addListener((Change<? extends Integer> c) -> updateFeatureCalculator());
-			comboFeatures.titleProperty().bind(Bindings.createStringBinding(() -> {
-				int n = selectedFeatures.size();
-				if (n == 0)
-					return "No features selected!";
-				if (n == 1)
-					return "1 feature selected";
-				return n + " features selected";
-			},
-					selectedFeatures));
-			
-			
-			var cbNormalize = new CheckBox("Do local normalization");
-			doNormalize = cbNormalize.selectedProperty();
-			
-			var cb3D = new CheckBox("Use 3D filters");
-			do3D = cb3D.selectedProperty();
-			
-			
-			GridPaneTools.setMaxWidth(Double.MAX_VALUE, comboChannels, comboFeatures, comboScales,
-					cbNormalize, cb3D);
-			
-			GridPaneTools.addGridRow(pane, row++, 0,
-					"Choose the image channels used to calculate features",
-					labelChannels, comboChannels);		
-			
-			GridPaneTools.addGridRow(pane, row++, 0,
-					"Choose the feature scales",
-					labelScales, comboScales);		
-
-			GridPaneTools.addGridRow(pane, row++, 0,
-					"Choose the features",
-					labelFeatures, comboFeatures);		
-			
-			GridPaneTools.addGridRow(pane, row++, 0,
-					"Apply local intensity normalization before calculating features",
-					cbNormalize, cbNormalize);		
-			
-			GridPaneTools.addGridRow(pane, row++, 0,
-					"Use 3D filters (rather than 2D)",
-					cb3D, cb3D);	
-
-//			GridPaneTools.addGridRow(pane, row++, 0,
-//					"Choose the image channels used to calculate features",
-//					labelChannels, comboChannels, btnChannels);
-			
-			
-			
-			
-			pane.setHgap(5);
-			pane.setVgap(6);
-			
-		}
-
-		@Override
-		public FeatureCalculator<BufferedImage> build(ImageData<BufferedImage> imageData, PixelCalibration resolution) {
-			// Extract features, removing any that are incompatible
-			MultiscaleFeature[] features;
-			if (do3D.get())
-				features = selectedFeatures.stream().filter(f -> f.supports3D()).toArray(MultiscaleFeature[]::new);
-			else
-				features = selectedFeatures.stream().filter(f -> f.supports2D()).toArray(MultiscaleFeature[]::new);
-			
-			double[] sigmas = selectedSigmas.stream().mapToDouble(d -> d).toArray();
-			return FeatureCalculators.createMultiscaleFeatureCalculator(
-					selectedChannels.stream().mapToInt(i -> i).toArray(),
-					sigmas,
-					doNormalize.get() && sigmas.length > 1 ? sigmas[sigmas.length-1] * 4.0 : 0,
-					do3D.get() ? true : false,
-					features
-					);
-		}
-		
-		@Override
-		public boolean canCustomize() {
-			return true;
-		}
-		
-		@Override
-		public boolean doCustomize() {
-			
-			boolean success = DisplayHelpers.showMessageDialog("Select features", pane);
-			if (success) {
-				if (selectedChannels == null || selectedChannels.isEmpty()) {
-					DisplayHelpers.showErrorNotification("Pixel classifier", "No channels selected!");
-					return false;
-				}
-	
-				if (selectedFeatures == null || selectedFeatures.isEmpty()) {
-					DisplayHelpers.showErrorNotification("Pixel classifier", "No features selected!");
-					return false;
-				}
-			}
-			return success;
-			
-		}
-		
-		@Override
-		public String toString() {
-			return "Default multiscale features";
-		}
-		
-	}
-	
 	/**
 	 * Wrapper for a PixelCalibration to be used to define classifier resolution.
 	 * This makes it possible to override {@link #toString()} and return a more readable representation of 
 	 * the resolution.
 	 */
-	static class CalibrationWrapper {
+	public static class ClassificationResolution {
 		
 		final private String name;
 		final private PixelCalibration cal;
 		
-		CalibrationWrapper(String name, PixelCalibration cal) {
+		ClassificationResolution(String name, PixelCalibration cal) {
 			this.name = name;
 			this.cal = cal;
+		}
+		
+		public String getName() {
+			return name;
+		}
+		
+		public PixelCalibration getPixelCalibration() {
+			return cal;
 		}
 		
 		@Override
@@ -1903,7 +1229,7 @@ public class PixelClassifierImageSelectionPane {
 				return false;
 			if (getClass() != obj.getClass())
 				return false;
-			CalibrationWrapper other = (CalibrationWrapper) obj;
+			ClassificationResolution other = (ClassificationResolution) obj;
 			if (cal == null) {
 				if (other.cal != null)
 					return false;
