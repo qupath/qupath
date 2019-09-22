@@ -502,7 +502,7 @@ class PathObjectTileCache implements PathObjectHierarchyListener {
 				addToCache(singleObject, false, singleObject.getClass());
 			} else if (singleChange && event.getEventType() == HierarchyEventType.REMOVED) {
 				removeFromCache(singleObject, false);
-			} else if (event.getEventType() == HierarchyEventType.OTHER_STRUCTURE_CHANGE) {// || event.getEventType() == HierarchyEventType.CHANGE_OTHER) {
+			} else if (event.getEventType() == HierarchyEventType.OTHER_STRUCTURE_CHANGE || event.getEventType() == HierarchyEventType.CHANGE_OTHER) {
 //				if (singleChange && !singleObject.isRootObject()) {
 //					removeFromCache(singleObject, false);
 //					addToCache(singleObject, false, singleObject.getClass());					
