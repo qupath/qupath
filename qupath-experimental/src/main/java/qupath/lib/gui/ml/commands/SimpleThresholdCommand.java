@@ -215,10 +215,11 @@ public class SimpleThresholdCommand implements PathCommand {
 		
 //		try {
 //			if (task.get()) {
-				var overlay = new PixelClassificationOverlay(viewer, server);
+				var overlay = new PixelClassificationOverlay(viewer, classifier);
+//				var overlay = new PixelClassificationOverlay(viewer, server);
 				overlay.setLivePrediction(true);
 				viewer.getCustomOverlayLayers().add(overlay);
-				imageData.setProperty("PIXEL_LAYER", server);
+				PixelClassificationImageServer.setPixelLayer(imageData, server);
 				imageData.getHierarchy().fireObjectMeasurementsChangedEvent(this, imageData.getHierarchy().getAnnotationObjects());
 //			}
 //		} catch (InterruptedException e) {

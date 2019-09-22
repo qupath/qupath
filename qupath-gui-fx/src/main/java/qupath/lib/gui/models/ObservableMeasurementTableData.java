@@ -54,6 +54,7 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
 import qupath.lib.classifiers.PathClassificationLabellingHelper;
+import qupath.lib.classifiers.pixel.PixelClassificationImageServer;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.geom.Point2;
 import qupath.lib.gui.models.ObservableMeasurementTableData.ROICentroidMeasurementBuilder.CentroidType;
@@ -273,7 +274,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 		}
 		
 		if (containsAnnotations || containsRoot) {
-			var pixelClassifier = imageData.getProperty("PIXEL_LAYER");
+			var pixelClassifier = PixelClassificationImageServer.getPixelLayer(imageData);
 			if (pixelClassifier instanceof ImageServer<?>) {
 				ImageServer<BufferedImage> server = (ImageServer<BufferedImage>)pixelClassifier;
 				if (server.getMetadata().getChannelType() == ImageServerMetadata.ChannelType.CLASSIFICATION || server.getMetadata().getChannelType() == ImageServerMetadata.ChannelType.PROBABILITY) {

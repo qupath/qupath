@@ -3,6 +3,7 @@ package qupath.lib.gui.ml.commands;
 import java.io.IOException;
 import java.util.Collection;
 
+import qupath.lib.classifiers.pixel.PixelClassificationImageServer;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.helpers.DisplayHelpers;
@@ -60,7 +61,7 @@ public class PixelClassifierApplyCommand implements PathCommand {
 			
 			// Display on the image
 //			var classifierServer = new PixelClassificationImageServer(viewer.getImageData(), classifier);
-			imageData.setProperty("PIXEL_LAYER", classifierServer);
+			PixelClassificationImageServer.setPixelLayer(imageData, classifierServer);
 			viewer.repaint();
 			
 //			viewer.getCustomOverlayLayers().removeIf(v -> v instanceof PixelClassificationOverlay);

@@ -34,7 +34,7 @@ import qupath.opencv.ml.Preprocessing.PCAProjector;
  * <ol>
  *   <li>Improved API consistency when exchanging between classifiers. For example, some require 
  *   training data to be in a specified form (labels or one-hot encoding).</li>
- *   <li>Easier serialization to JSON along with ther QuPath objects via {@link GsonTools}.</li>
+ *   <li>Easier serialization to JSON along with other QuPath objects via {@link GsonTools}.</li>
  * </ol>
  * 
  * @author Pete Bankhead

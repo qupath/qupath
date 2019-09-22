@@ -10,8 +10,6 @@ import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.gson.annotations.JsonAdapter;
-
 import qupath.lib.awt.common.BufferedImageTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.AbstractTileableImageServer;
@@ -34,6 +32,8 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 	
 	private static Logger logger = LoggerFactory.getLogger(PixelClassificationImageServer.class);
 	
+	private static final String KEY_PIXEL_LAYER = "PIXEL_LAYER";
+	
 	private static int DEFAULT_TILE_SIZE = 512;
 	
 	private ImageData<BufferedImage> imageData;
@@ -42,6 +42,37 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 	private PixelClassifier classifier;
 	
 	private ImageServerMetadata originalMetadata;
+	
+	/**
+	 * Set an ImageServer as a property in the ImageData.
+	 * <p>
+	 * Note that this method is subject to change (in location and behavior).
+	 * 
+	 * @param imageData
+	 * @param layerServer server to return the pixel layer data; if null, the property will be removed
+	 */
+	public static void setPixelLayer(ImageData<BufferedImage> imageData, ImageServer<BufferedImage> layerServer) {
+		if (layerServer == null)
+			imageData.removeProperty(KEY_PIXEL_LAYER);
+		else
+			imageData.setProperty(KEY_PIXEL_LAYER, layerServer);			
+	}
+	
+	/**
+	 * Request the pixel layer from an ImageData.
+	 * <p>
+	 * Note that this method is subject to change (in location and behavior).
+	 * 
+	 * @param imageData
+	 * @return
+	 */
+	public static ImageServer<BufferedImage> getPixelLayer(ImageData<?> imageData) {
+		var layer = imageData.getProperty(KEY_PIXEL_LAYER);
+		if (layer instanceof ImageServer)
+			return (ImageServer<BufferedImage>)layer;
+		return null;
+	}
+	
 
 	/**
 	 * Constructor.
