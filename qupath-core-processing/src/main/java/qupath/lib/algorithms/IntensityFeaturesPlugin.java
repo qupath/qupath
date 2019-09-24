@@ -595,7 +595,7 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 			float[] pixels = null;
 			for (FeatureColorTransform transform : transforms) {
 				// Check if the color transform is requested
-				if (Boolean.TRUE.equals(params.getBooleanParameterValue(transform.getKey()))) {
+				if (params.containsKey(transform.getKey()) && Boolean.TRUE.equals(params.getBooleanParameterValue(transform.getKey()))) {
 					
 					// Transform the pixels
 					pixels = transform.getTransformedPixels(img, rgbBuffer, stains, pixels);
