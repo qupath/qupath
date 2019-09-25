@@ -7,7 +7,7 @@ import qupath.lib.classifiers.pixel.PixelClassificationImageServer;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.helpers.DisplayHelpers;
-import qupath.lib.gui.ml.PixelClassifierTools;
+import qupath.lib.gui.ml.PixelClassificationOverlay;
 
 /**
  * Command to apply a pre-trained pixel classifier to an image.
@@ -63,7 +63,10 @@ public class PixelClassifierApplyCommand implements PathCommand {
 			// Display on the image
 //			var classifierServer = new PixelClassificationImageServer(viewer.getImageData(), classifier);
 			PixelClassificationImageServer.setPixelLayer(imageData, classifierServer);
-			viewer.repaint();
+			var overlay = new PixelClassificationOverlay(viewer, classifier);
+			overlay.setLivePrediction(true);
+			viewer.setCustomPixelLayerOverlay(overlay);
+//			viewer.repaint();
 			
 //			viewer.getCustomOverlayLayers().removeIf(v -> v instanceof PixelClassificationOverlay);
 //			var classifierServer = new PixelClassificationImageServer(viewer.getImageData(), classifier);

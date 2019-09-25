@@ -4,10 +4,12 @@ import java.awt.image.BufferedImage;
 import java.awt.image.DataBuffer;
 import java.io.IOException;
 import java.nio.IntBuffer;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -306,12 +308,6 @@ public class PixelClassifierImageSelectionPane {
 		
 		
 		pane.add(panePredict, 0, row++, pane.getColumnCount(), 1);
-
-		var btnSave = new Button("Save & Apply");
-		btnSave.setMaxWidth(Double.MAX_VALUE);
-		btnSave.setOnAction(e -> saveAndApply());
-		pane.add(btnSave, 0, row++, pane.getColumnCount(), 1);
-
 		
 //		addGridRow(pane, row++, 0, btnPredict, btnPredict, btnPredict);
 
@@ -388,6 +384,16 @@ public class PixelClassifierImageSelectionPane {
 		
 		pane.setHgap(5);
 		pane.setVgap(6);
+		
+		var btnSave = new Button("Save & apply");
+		btnSave.setMaxWidth(Double.MAX_VALUE);
+		btnSave.setOnAction(e -> saveAndApply());
+		pane.add(btnSave, 0, row++, pane.getColumnCount(), 1);
+
+//		var btnSavePrediction = new Button("Save prediction image");
+//		btnSavePrediction.setMaxWidth(Double.MAX_VALUE);
+//		btnSavePrediction.setOnAction(e -> saveAndApply());
+//		pane.add(btnSavePrediction, 0, row++, pane.getColumnCount(), 1);
 
 		var btnCreateObjects = new Button("Create objects");
 		btnCreateObjects.disableProperty().bind(classificationComplete);
@@ -775,9 +781,64 @@ public class PixelClassifierImageSelectionPane {
 	}
 	
 	
+	public static String getDefaultClassifierName(PixelClassifier classifier) {
+		String date = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
+		return String.format("%s %s", date, classifier.toString());
+	}
+	
+	
 	private static String promptToSaveClassifier(Project<BufferedImage> project, PixelClassifier classifier) throws IOException {
-		var classifierName = DisplayHelpers.showInputDialog("Pixel classifier", "Pixel classifier name", "");
+		
+		String name = getDefaultClassifierName(classifier);
+		
+		String classifierName = DisplayHelpers.showInputDialog("Save model", "Model name", name);
 		if (classifierName == null)
+			return null;
+		
+//		var pane = new GridPane();
+//		pane.setHgap(5);
+//		pane.setVgap(5);
+//		pane.setPadding(new Insets(10));
+//		pane.setMaxWidth(Double.MAX_VALUE);
+//		
+//		var labelGeneral = new Label("Prediction model & predictions are saved in the current project by default.");
+//		labelGeneral.setContentDisplay(ContentDisplay.CENTER);
+//		
+//		var label = new Label("Name");
+//		var tfName = new TextField(name);
+//		label.setLabelFor(tfName);
+//		
+//		var cbModel = new CheckBox("Save model");
+//		var cbImage = new CheckBox("Save prediction image");
+//		var btnModel = new Button("File");
+//		btnModel.setTooltip(new Tooltip("Save prediction model to a file"));
+//		var btnImage = new Button("File");
+//		btnImage.setTooltip(new Tooltip("Save prediction image to a file"));
+//		
+//		int row = 0;
+//		int col = 0;
+//		GridPaneTools.addGridRow(pane, row++, col, "Input a unique classifier name", label, tfName);
+//		GridPaneTools.addGridRow(pane, row++, col, "Save the classification model (can be applied to similar images)", cbModel, cbModel, btnModel);
+//		GridPaneTools.addGridRow(pane, row++, col, "Save the prediction image", cbImage, cbImage, btnImage);
+//		GridPaneTools.addGridRow(pane, row++, col, labelGeneral.getText(), labelGeneral, labelGeneral);
+//		
+//		GridPaneTools.setHGrowPriority(Priority.ALWAYS, labelGeneral, cbModel, cbImage, tfName);
+//		GridPaneTools.setFillWidth(Boolean.TRUE, labelGeneral, cbModel, cbImage, tfName);
+//		GridPaneTools.setMaxWidth(Double.MAX_VALUE, labelGeneral, cbModel, cbImage, tfName);
+//		
+//		var dialog = new Dialog<ButtonType>();
+//		dialog.setTitle("Save & Apply");
+//		dialog.getDialogPane().setContent(pane);
+//		dialog.getDialogPane().getButtonTypes().setAll(ButtonType.OK, ButtonType.CANCEL);
+//		if (dialog.showAndWait().orElseGet(() -> ButtonType.CANCEL) == ButtonType.CANCEL)
+//			return null;
+////		if (!DisplayHelpers.showMessageDialog("Save & Apply", pane)) {
+////			return null;
+////		}
+//		var classifierName = tfName.getText();	
+		
+//		var classifierName = DisplayHelpers.showInputDialog("Pixel classifier", "Pixel classifier name", name);
+		if (classifierName == null || classifierName.isBlank())
 			return null;
 		classifierName = classifierName.strip();
 		if (classifierName.isBlank() || classifierName.contains("\n")) {
@@ -786,13 +847,21 @@ public class PixelClassifierImageSelectionPane {
 		}
 		
 		// Save the classifier in the project
-		try {
-			saveClassifier(project, classifier, classifierName);
-		} catch (IOException e) {
-			DisplayHelpers.showWarningNotification("Pixel classifier", "Unable to write classifier to JSON - classifier can't be reloaded later");
-			logger.error("Error saving classifier", e);
-			throw e;
-		}
+//		if (cbModel.isSelected()) {
+			try {
+				saveClassifier(project, classifier, classifierName);
+			} catch (IOException e) {
+				DisplayHelpers.showWarningNotification("Pixel classifier", "Unable to write classifier to JSON - classifier can't be reloaded later");
+				logger.error("Error saving classifier", e);
+				throw e;
+			}
+//		}
+//		// Save the image
+//		if (cbImage.isSelected()) {
+////			var server = new PixelClassificationImageServer(imageData, classifier);
+////			ImageWriterTools.getCompatibleWriters(server, "ome.tif");
+////			logger.warn("Saving image now yet supported!");
+//		}
 		
 		return classifierName;
 	}

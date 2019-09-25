@@ -15,6 +15,7 @@ import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.objects.classes.PathClass;
+import qupath.lib.objects.classes.PathClassTools;
 import qupath.lib.regions.RegionRequest;
 import qupath.opencv.ml.pixel.features.ColorTransforms.ColorTransform;
 
@@ -46,7 +47,7 @@ class SimplePixelClassifier implements PixelClassifier {
 	static ImageChannel getChannel(PathClass pathClass) {
 		if (pathClass == null || !pathClass.isValid())
 			return ImageChannel.getInstance("None", null);
-		return ImageChannel.getInstance(pathClass.getName(), pathClass.getColor());
+		return ImageChannel.getInstance(pathClass.getName(), PathClassTools.isIgnoredClass(pathClass) ? null : pathClass.getColor());
 	}
 	
 

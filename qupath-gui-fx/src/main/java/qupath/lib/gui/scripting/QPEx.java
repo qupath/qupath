@@ -43,10 +43,10 @@ import org.slf4j.LoggerFactory;
 
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.SummaryMeasurementTableCommand;
-import qupath.lib.gui.io.PathAwtIO;
 import qupath.lib.gui.models.ObservableMeasurementTableData;
 import qupath.lib.gui.plugins.PluginRunnerFX;
 import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.gui.tma.TMADataIO;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ServerTools;
@@ -142,7 +142,7 @@ public class QPEx extends QP {
 	public static void exportTMAData(final ImageData<BufferedImage> imageData, final String path, final double downsampleFactor) {
 		if (imageData == null)
 			return;
-		PathAwtIO.writeTMAData(new File(resolvePath(path)), imageData, null, downsampleFactor);
+		TMADataIO.writeTMAData(new File(resolvePath(path)), imageData, null, downsampleFactor);
 	}
 	
 	

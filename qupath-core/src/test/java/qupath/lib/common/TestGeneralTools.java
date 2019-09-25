@@ -26,7 +26,10 @@ package qupath.lib.common;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 
+import java.io.File;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -44,6 +47,30 @@ import qupath.lib.color.ColorDeconvolutionStains.DefaultColorDeconvolutionStains
 public class TestGeneralTools {
 	
 	private static Logger logger = LoggerFactory.getLogger(TestGeneralTools.class);
+	
+	@Test
+	public void test_fileExtensions() {
+		File currentDir = new File(".");
+		File parentDir = new File(".");
+		File noExt = new File("My file");
+		
+		assertNull(GeneralTools.getExtension(currentDir).orElse(null));
+		assertNull(GeneralTools.getExtension(parentDir).orElse(null));
+		assertNull(GeneralTools.getExtension(noExt).orElse(null));
+		
+		String baseName = "anything a all. here or there";
+		for (String ext : Arrays.asList(".ext", ".tif", ".ome.tiff", ".tar.gz", ".ome.tif")) {
+			File file = new File(baseName + ext);
+			String parsed = GeneralTools.getExtension(file).orElse(null);
+			assertEquals(ext, parsed);
+			assertEquals(baseName, GeneralTools.getNameWithoutExtension(file));
+			
+			File fileUpper = new File(baseName + ext.toUpperCase());
+			String parsedUpper = GeneralTools.getExtension(fileUpper).orElse(null);
+			assertEquals(ext, parsedUpper);
+			assertEquals(baseName, GeneralTools.getNameWithoutExtension(fileUpper));
+		}
+	}
 	
 	@Test
 	public void test_parseArgStringValues() {

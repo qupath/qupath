@@ -3,6 +3,8 @@ package qupath.lib.gui.ml.commands;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.WeakHashMap;
 
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.ReadOnlyObjectProperty;
@@ -14,7 +16,6 @@ import javafx.scene.control.Spinner;
 import javafx.scene.control.SpinnerValueFactory;
 import javafx.scene.layout.GridPane;
 import javafx.stage.Stage;
-import qupath.lib.classifiers.pixel.PixelClassificationImageServer;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
@@ -22,6 +23,8 @@ import qupath.lib.gui.helpers.GridPaneTools;
 import qupath.lib.gui.ml.PixelClassificationOverlay;
 import qupath.lib.gui.ml.PixelClassifierImageSelectionPane;
 import qupath.lib.gui.ml.PixelClassifierImageSelectionPane.ClassificationResolution;
+import qupath.lib.gui.viewer.QuPathViewer;
+import qupath.lib.gui.viewer.overlays.PathOverlay;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.classes.PathClass;
 import qupath.opencv.ml.pixel.PixelClassifiers;
@@ -73,6 +76,7 @@ public class SimpleThresholdCommand implements PathCommand {
 	private Spinner<Double> spinner = new Spinner<>(new SpinnerValueFactory.DoubleSpinnerValueFactory(-Double.MAX_VALUE, Double.MAX_VALUE, 0.0));
 	private ReadOnlyObjectProperty<Double> threshold = spinner.valueProperty();
 
+	private Map<QuPathViewer, PathOverlay> map = new WeakHashMap<>();
 	
 	private void showGUI() {
 		
@@ -148,6 +152,13 @@ public class SimpleThresholdCommand implements PathCommand {
 		stage.show();
 		
 		stage.sizeToScene();
+		
+		stage.setOnHiding(e -> {
+			for (var entry : map.entrySet()) {
+				if (entry.getKey().getCustomPixelLayerOverlay() == entry.getValue())
+					entry.getKey().resetCustomPixelLayerOverlay();
+			}
+		});
 	}
 	
 	
@@ -168,7 +179,7 @@ public class SimpleThresholdCommand implements PathCommand {
 		
 		comboResolutions.getItems().setAll(PixelClassifierImageSelectionPane.getDefaultResolutions(imageData, selectedResolution.get()));
 		if (selectedResolution.get() == null)
-			comboResolutions.getSelectionModel().selectFirst();
+			comboResolutions.getSelectionModel().selectLast();
 		
 		transforms.getItems().setAll(getAvailableTransforms(imageData));
 		if (transforms.getSelectionModel().getSelectedItem() == null)
@@ -198,11 +209,11 @@ public class SimpleThresholdCommand implements PathCommand {
 		if (viewer == null)
 			return;
 		
-		viewer.getCustomOverlayLayers().removeIf(o -> o instanceof PixelClassificationOverlay);
-		
 		var imageData = viewer.getImageData();
-		if (imageData == null)
+		if (imageData == null) {
+			viewer.resetCustomPixelLayerOverlay();
 			return;
+		}
 		
 		var transform = selectedChannel.get();
 		var thresholdValue = threshold.get();
@@ -217,13 +228,12 @@ public class SimpleThresholdCommand implements PathCommand {
 				classificationsBelow.getSelectionModel().getSelectedItem(),
 				classificationsAbove.getSelectionModel().getSelectedItem());
 		
-		PixelClassificationImageServer server = new PixelClassificationImageServer(imageData, classifier);
-		
+//		PixelClassificationImageServer server = new PixelClassificationImageServer(imageData, classifier);
 
 		var overlay = new PixelClassificationOverlay(viewer, classifier);
 		overlay.setLivePrediction(true);
-		viewer.getCustomOverlayLayers().add(overlay);
-		PixelClassificationImageServer.setPixelLayer(imageData, server);
+		viewer.setCustomPixelLayerOverlay(overlay);
+		map.put(viewer, overlay);
 		imageData.getHierarchy().fireObjectMeasurementsChangedEvent(this, imageData.getHierarchy().getAnnotationObjects());
 
 	}

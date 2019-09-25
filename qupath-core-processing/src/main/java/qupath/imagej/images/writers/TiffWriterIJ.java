@@ -21,29 +21,37 @@
  * #L%
  */
 
-package qupath.lib.images.writers;
+package qupath.imagej.images.writers;
+
+import java.util.Arrays;
+import java.util.Collection;
 
 /**
- * ImageWriter implementation to write PNG images using ImageIO.
+ * ImageWriter implementation to write TIFF images using ImageJ.
  * 
  * @author Pete Bankhead
  *
  */
-public class PNGWriter extends AbstractImageIOWriter {
+public class TiffWriterIJ extends AbstractWriterIJ {
 
 	@Override
 	public String getName() {
-		return "PNG";
-	}
-
-	@Override
-	public String getExtension() {
-		return "png";
+		return "TIFF (ImageJ)";
 	}
 
 	@Override
 	public String getDetails() {
-		return "Write image as PNG using ImageIO";
+		return "Write image as an ImageJ TIFF (uncompressed). Preserves basic image metadata (e.g. pixel calibration).";
+	}
+	
+	@Override
+	public boolean supportsRGB() {
+		return true;
+	}
+
+	@Override
+	public Collection<String> getExtensions() {
+		return Arrays.asList("tif", "tiff");
 	}
 
 }

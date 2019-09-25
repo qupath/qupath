@@ -23,6 +23,9 @@
 
 package qupath.imagej.images.writers;
 
+import java.util.Collection;
+import java.util.Collections;
+
 /**
  * ImageWriter implementation to write zipped TIFF images using ImageJ.
  * 
@@ -37,19 +40,18 @@ public class ZipWriterIJ extends AbstractWriterIJ {
 	}
 
 	@Override
-	public String getExtension() {
-		return "zip";
-	}
-
-	@Override
 	public String getDetails() {
-		return "Write zipped TIFF file (ImageJ)";
-//		return "Write ImageJ zipped TIFF file (optionally including current ROI / overlay)";
+		return "Write image as an ImageJ TIFF, zipped up inside a zip file. Preserves basic image metadata (e.g. pixel calibration).";
 	}
 	
 	@Override
 	public boolean supportsRGB() {
 		return true;
+	}
+
+	@Override
+	public Collection<String> getExtensions() {
+		return Collections.singleton("zip");
 	}
 
 }

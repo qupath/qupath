@@ -2976,8 +2976,9 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				getActionMenuItem(GUIActions.SAVE_DATA),
 				null,
 				createMenu(
-						"Export region...",
-						createCommandAction(new ExportImageRegionCommand(this), "Simple RGB image")
+						"Export images...",
+						createCommandAction(new ExportImageRegionCommand(this, false), "Original pixels"),
+						createCommandAction(new ExportImageRegionCommand(this, true), "Rendered RGB (with overlays)")
 						),
 				createMenu(
 						"Export snapshot...",

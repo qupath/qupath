@@ -1014,11 +1014,20 @@ public class OMEPyramidWriter {
 	 * @param server
 	 * @param path
 	 * @param compression
+	 * @param region the region to export. If this is a RegionRequest that defines a downsample other than the default for the server, this downsample will be used 
+	 * (and the resulting image will not be pyramidal).
+	 * 
 	 * @throws FormatException
 	 * @throws IOException
 	 */
 	public static void writePyramid(ImageServer<BufferedImage> server, String path, String compression, ImageRegion region) throws FormatException, IOException {
-		new Builder(server).compression(compression).region(region).build().writePyramid(path);
+		var builder = new Builder(server).compression(compression).region(region);
+		if (region instanceof RegionRequest) {
+			double downsample = ((RegionRequest)region).getDownsample();
+			if (downsample != server.getDownsampleForResolution(0))
+				builder.downsamples(downsample);
+		}
+		builder.build().writePyramid(path);
 	}
 
 }

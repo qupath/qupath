@@ -21,7 +21,7 @@
  * #L%
  */
 
-package qupath.lib.gui.io;
+package qupath.lib.gui.tma;
 
 import java.awt.image.BufferedImage;
 import java.io.File;
@@ -38,24 +38,25 @@ import java.util.Scanner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import qupath.lib.gui.ImageWriterTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.SummaryMeasurementTableCommand;
+import qupath.lib.gui.images.servers.RenderedImageServer;
 import qupath.lib.gui.models.ObservableMeasurementTableData;
 import qupath.lib.gui.plugins.PluginRunnerFX;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.OverlayOptions;
+import qupath.lib.gui.viewer.overlays.HierarchyOverlay;
 import qupath.lib.gui.viewer.overlays.TMAGridOverlay;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ServerTools;
+import qupath.lib.images.writers.ImageWriterTools;
 import qupath.lib.io.TMAScoreImporter;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.objects.hierarchy.DefaultTMAGrid;
-import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.TMAGrid;
 import qupath.lib.plugins.AbstractPlugin;
 import qupath.lib.plugins.CommandLinePluginRunner;
@@ -71,9 +72,9 @@ import qupath.lib.roi.interfaces.ROI;
  * @author Pete Bankhead
  *
  */
-public class PathAwtIO {
+public class TMADataIO {
 
-	final private static Logger logger = LoggerFactory.getLogger(PathAwtIO.class);
+	final private static Logger logger = LoggerFactory.getLogger(TMADataIO.class);
 
 	final public static String TMA_DEARRAYING_DATA_EXTENSION = ".qptma";
 	
@@ -100,9 +101,10 @@ public class PathAwtIO {
 			return;
 		}
 		final ImageServer<BufferedImage> server = imageData.getServer();
+		String coreExt = imageData.getServer().isRGB() ? ".jpg" : ".tif";
 		if (file == null) {
 			//			dir = PathPrefs.getDialogHelper().promptForDirectory(null);
-			file = QuPathGUI.getSharedDialogHelper().promptToSaveFile(null, null, ServerTools.getDisplayableImageName(server), "TMA data", "qptma");
+			file = QuPathGUI.getSharedDialogHelper().promptToSaveFile("Save TMA data", null, ServerTools.getDisplayableImageName(server), "TMA data", "qptma");
 			if (file == null)
 				return;
 		} else if (file.isDirectory() || (!file.exists() && file.getAbsolutePath().endsWith(File.pathSeparator))) {
@@ -167,7 +169,7 @@ public class PathAwtIO {
 			
 			// Write an overall TMA map (for quickly checking if the dearraying is ok)
 			File fileTMAMap = new File(dirData, "TMA map - " + ServerTools.getDisplayableImageName(server) + ".jpg");
-			double downsampleThumbnail = Math.max(1, (double)server.getWidth() / 1024);
+			double downsampleThumbnail = Math.max(1, (double)Math.max(server.getWidth(), server.getHeight()) / 1024);
 			RegionRequest request = RegionRequest.createInstance(server.getPath(), downsampleThumbnail, 0, 0, server.getWidth(), server.getHeight());
 			OverlayOptions optionsThumbnail = new OverlayOptions();
 			optionsThumbnail.setShowTMAGrid(true);
@@ -175,17 +177,24 @@ public class PathAwtIO {
 			optionsThumbnail.setShowAnnotations(false);
 			optionsThumbnail.setShowDetections(false);
 			try {
-				ImageWriterTools.writeImageRegionWithOverlay(imageData.getServer(), Collections.singletonList(new TMAGridOverlay(overlayOptions, imageData)), request, fileTMAMap.getAbsolutePath());				
+				var renderedServer = new RenderedImageServer.Builder(imageData)
+						.layers(new TMAGridOverlay(overlayOptions, imageData))
+						.downsamples(downsampleThumbnail)
+						.build();
+				ImageWriterTools.writeImageRegion(renderedServer, request, fileTMAMap.getAbsolutePath());
+//				ImageWriters.writeImageRegionWithOverlay(imageData.getServer(), Collections.singletonList(new TMAGridOverlay(overlayOptions, imageData)), request, fileTMAMap.getAbsolutePath());
 			} catch (IOException e) {
 				logger.warn("Unable to write image overview", e);
 			}
 
-			
-			
 			final double downsample = Double.isNaN(downsampleFactor) ? (server.getPixelCalibration().hasPixelSizeMicrons() ? ServerTools.getDownsampleFactor(server, PathPrefs.getPreferredTMAExportPixelSizeMicrons()) : 1) : downsampleFactor;
 			
 			// Creating a plugin makes it possible to parallelize & show progress easily
-			ExportCoresPlugin plugin = new ExportCoresPlugin(dirData, options, downsample);
+			var renderedImageServer = new RenderedImageServer.Builder(imageData)
+					.layers(new HierarchyOverlay(null, options, imageData))
+					.downsamples(downsample)
+					.build();
+			ExportCoresPlugin plugin = new ExportCoresPlugin(dirData, renderedImageServer, downsample, coreExt);
 			PluginRunner<BufferedImage> runner;
 			if (QuPathGUI.getInstance() == null || QuPathGUI.getInstance().getImageData() != imageData) {
 				runner = new CommandLinePluginRunner<>(imageData);
@@ -196,6 +205,7 @@ public class PathAwtIO {
 			}
 		}
 	}
+	
 	
 
 	/**
@@ -261,10 +271,6 @@ public class PathAwtIO {
 		}
 	}
 	
-	public static void importTMADearrayingData(final PathObjectHierarchy hierarchy, final String contents) {
-		
-	}
-	
 	
 	/**
 	 * Plugin for exporting TMA core images.
@@ -279,11 +285,14 @@ public class PathAwtIO {
 		private double downsample;
 		private File dir;
 		private OverlayOptions options;
+		private String ext;
+		private ImageServer<BufferedImage> renderedServer;
 		
-		private ExportCoresPlugin(final File dirOutput, final OverlayOptions options, final double downsample) {
+		private ExportCoresPlugin(final File dirOutput, final ImageServer<BufferedImage> renderedServer, final double downsample, final String ext) {
 			this.dir = dirOutput;
-			this.options = options;
+			this.renderedServer = renderedServer;
 			this.downsample = downsample;
+			this.ext = ext;
 		}
 
 		/**
@@ -329,14 +338,15 @@ public class PathAwtIO {
 				@Override
 				public void run() {
 					// Write the core
-					String ext = imageData.getServer().isRGB() ? ".jpg" : ".tif";
 					File fileOutput = new File(dir, parentObject.getName() + ext);
 					RegionRequest request = RegionRequest.createInstance(imageData.getServerPath(), downsample, parentObject.getROI());
 					try {
-						BufferedImage img = ImageWriterTools.writeImageRegion(imageData.getServer(), request, fileOutput.getAbsolutePath());
+						var img = imageData.getServer().readBufferedImage(request);
+						ImageWriterTools.writeImageRegion(imageData.getServer(), request, fileOutput.getAbsolutePath());
 						fileOutput = new File(dir, parentObject.getName() + "-overlay.jpg");
 						// Pass in the image we have so that it will be drawn on top of
-						ImageWriterTools.writeImageRegionWithOverlay(img, imageData, options, request, fileOutput.getAbsolutePath());						
+						ImageWriterTools.writeImageRegion(renderedServer, request, fileOutput.getAbsolutePath());
+//						ImageWriters.writeImageRegionWithOverlay(img, imageData, options, request, fileOutput.getAbsolutePath());						
 					} catch (IOException e) {
 						logger.error("Unable to write " + request, e);
 					}

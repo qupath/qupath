@@ -374,7 +374,7 @@ public class PixelClassifierTools {
 					if (channel == null || channel.getName() == null)
 						continue;
 					var pathClass = PathClassFactory.getPathClass(channel.getName());
-					if (pathClass == null || PathClassTools.isGradedIntensityClass(pathClass))
+					if (pathClass == null || PathClassTools.isGradedIntensityClass(pathClass) || PathClassTools.isIgnoredClass(pathClass))
 						continue;
 					ROI roi = thresholdToROI(raster, c-0.5, c+0.5, 0, t);
 										
