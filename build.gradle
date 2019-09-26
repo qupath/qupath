@@ -181,7 +181,7 @@ subprojects {
     if (nativesClassifier != null)
       jpen 'net.sourceforge.jpen:jpen:2-150301:' + nativesClassifier
 
-    imagej 'net.imagej:ij:1.52p'
+    imagej 'net.imagej:ij:1.52q'
 //    imagej jarjar.repackage {
 //    	from 'net.imagej:ij:1.52o'
 //    	classDelete 'MacAdapter'

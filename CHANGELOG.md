@@ -1,3 +1,31 @@
+## Version 0.2.0-m5
+This is a *milestone* (i.e. still in development) version made available to try out new features early.
+Changes include:
+* Many improvements to the pixel classifier
+  * New 'structure tensor' features
+  * In-training classifier can still operate when images are changed
+  * Added 'Advanced' features, including optional PCA and selecting a 'Boundary' classification
+  * Ability to save & reload classifiers (format may change!)
+  * New 'Create threshold classifier' command (replaces old simple threshold command)
+* Summary measurements are displayed for the full image when no objects are selected
+  * Added 'saveImageMeasurement' scripting command
+* New 'Memory monitor' and 'Show input display' commands in 'View' menu
+* Revised how images are written
+  * Moved 'ImageWriterTools' to core module, updated 'ImageWriter' interface
+  * Changed 'File -> Export regions...' commands to separate between raw pixels & rendered RGB images
+* Improved image type support
+  * Show under the 'Image' type
+  * Include support for uint8, uint16, int16, int32, float32 and float64 types
+* Pixel & object classifiers now better separated in the 'Classify' menu
+* Dependency updates
+  * AdoptOpenJDK 13, JavaFX, Groovy, Guava, Bio-Formats, RichTextFX, ImageJ
+* Bug fixes:
+  * Fixed size estimate for large images (previously caused some images not to open)
+  * Converting tile classifications to annotations (https://github.com/qupath/qupath/issues/359)
+  * Calculating intensity features for RGB fluorescence (https://github.com/qupath/qupath/issues/365)
+  * Setting stroke thickness, thanks to @jballanc (https://github.com/qupath/qupath/pull/362)
+
+
 ## Version 0.2.0-m4
 This is a *milestone* (i.e. still in development) version made available to try out new features early.
 Changes include:
