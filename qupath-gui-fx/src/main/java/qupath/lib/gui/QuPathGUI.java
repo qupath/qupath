@@ -221,6 +221,7 @@ import qupath.lib.gui.commands.SerializeImageDataCommand;
 import qupath.lib.gui.commands.SetGridSpacingCommand;
 import qupath.lib.gui.commands.OpenWebpageCommand;
 import qupath.lib.gui.commands.ShowInstalledExtensionsCommand;
+import qupath.lib.gui.commands.ShowInputDisplayCommand;
 import qupath.lib.gui.commands.ShowLicensesCommand;
 import qupath.lib.gui.commands.ShowScriptEditorCommand;
 import qupath.lib.gui.commands.ShowSystemInfoCommand;
@@ -3149,6 +3150,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				getActionMenuItem(GUIActions.VIEW_TRACKER),
 				createCheckMenuItem(createSelectableCommandAction(slideLabelView.showingProperty(), "Show slide label")),				
 				null,
+				createCommandAction(new ShowInputDisplayCommand(this), "Show input on screen"),
 				createCommandAction(new MemoryMonitorCommand(this), "Show memory monitor"),
 				getActionMenuItem(GUIActions.SHOW_LOG)
 			);
