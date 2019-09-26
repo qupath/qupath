@@ -196,6 +196,7 @@ import qupath.lib.gui.commands.LoadClassifierCommand;
 import qupath.lib.gui.commands.LogViewerCommand;
 import qupath.lib.gui.commands.MeasurementManager;
 import qupath.lib.gui.commands.MeasurementMapCommand;
+import qupath.lib.gui.commands.MemoryMonitorCommand;
 import qupath.lib.gui.commands.MiniViewerCommand;
 import qupath.lib.gui.commands.OpenCommand;
 import qupath.lib.gui.commands.PreferencesCommand;
@@ -3148,6 +3149,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				getActionMenuItem(GUIActions.VIEW_TRACKER),
 				createCheckMenuItem(createSelectableCommandAction(slideLabelView.showingProperty(), "Show slide label")),				
 				null,
+				createCommandAction(new MemoryMonitorCommand(this), "Show memory monitor"),
 				getActionMenuItem(GUIActions.SHOW_LOG)
 			);
 		
