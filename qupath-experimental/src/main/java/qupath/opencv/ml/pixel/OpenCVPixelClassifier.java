@@ -23,8 +23,6 @@ import qupath.opencv.tools.OpenCVTools;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.gson.annotations.JsonAdapter;
-
 class OpenCVPixelClassifier extends AbstractOpenCVPixelClassifier {
 	
 	private static final Logger logger = LoggerFactory.getLogger(OpenCVPixelClassifier.class);
@@ -38,6 +36,11 @@ class OpenCVPixelClassifier extends AbstractOpenCVPixelClassifier {
     private OpenCVPixelClassifier() {
     	super(null, false);
     }
+    
+//    @Override
+//	public String toString() {
+//		return String.format("Pixel classifier ", model.toString());
+//	}
     
 //    public OpenCVStatModel getModel() {
 //    	return model;

@@ -197,7 +197,7 @@ public class OpenCVClassifiers {
 		
 		public abstract ParameterList getParameterList();
 				
-		public abstract TrainData createTrainData(Mat samples, Mat targets);
+		public abstract TrainData createTrainData(Mat samples, Mat targets, Mat weights);
 		
 		public abstract void train(TrainData trainData);
 
@@ -220,8 +220,13 @@ public class OpenCVClassifiers {
 		 */
 		public abstract void predict(Mat samples, Mat results, Mat probabilities);
 		
-		
 		abstract StatModel getStatModel();
+		
+		@Override
+		public String toString() {
+			return String.format("OpenCV ", getStatModel().getClass().getSimpleName());
+		}
+		
 	}
 	
 	
@@ -302,13 +307,19 @@ public class OpenCVClassifiers {
 		}
 		
 		@Override
-		public TrainData createTrainData(Mat samples, Mat targets) {
+		public TrainData createTrainData(Mat samples, Mat targets, Mat weights) {
 			if (useUMat()) {
 				UMat uSamples = samples.getUMat(opencv_core.ACCESS_READ);
-				UMat uTargets = samples.getUMat(opencv_core.ACCESS_READ);
-				return TrainData.create(uSamples, opencv_ml.ROW_SAMPLE, uTargets);
+				UMat uTargets = targets.getUMat(opencv_core.ACCESS_READ);
+				if (weights == null || weights.empty())
+					return TrainData.create(uSamples, opencv_ml.ROW_SAMPLE, uTargets);
+				UMat uWeights = weights.getUMat(opencv_core.ACCESS_READ);
+				return TrainData.create(uSamples, opencv_ml.ROW_SAMPLE, uTargets, null, null, uWeights, null);				
 			}
-			return TrainData.create(samples, opencv_ml.ROW_SAMPLE, targets);
+			if (weights == null || weights.empty())
+				return TrainData.create(samples, opencv_ml.ROW_SAMPLE, targets);
+			else
+				return TrainData.create(samples, opencv_ml.ROW_SAMPLE, targets, null, null, weights, null);
 		}
 		
 		boolean useUMat() {
@@ -338,6 +349,7 @@ public class OpenCVClassifiers {
 			updateModel(statModel, getParameterList(), trainData);
 //			statModel.train(trainData);
 			statModel.train(trainData, getTrainFlags());
+//			System.err.println("Error: " + statModel.calcError(trainData, false, new Mat()));
 		}
 		
 		protected int getTrainFlags() {
@@ -892,9 +904,9 @@ public class OpenCVClassifiers {
 		}
 		
 		@Override
-		public TrainData createTrainData(Mat samples, Mat targets) {
+		public TrainData createTrainData(Mat samples, Mat targets, Mat weights) {
 			targets.convertTo(targets, opencv_core.CV_32F);
-			return super.createTrainData(samples, targets);
+			return super.createTrainData(samples, targets, weights);
 		}
 
 		@Override
@@ -1285,7 +1297,7 @@ public class OpenCVClassifiers {
 
 		
 		@Override
-		public TrainData createTrainData(Mat samples, Mat targets) {
+		public TrainData createTrainData(Mat samples, Mat targets, Mat weights) {
 			
 			IntBuffer buffer = targets.createBuffer();
 			int[] vals = new int[targets.rows()];
@@ -1301,7 +1313,7 @@ public class OpenCVClassifiers {
 			targets.put(targets2);
 			targets2.close();
 			
-			return super.createTrainData(samples, targets);
+			return super.createTrainData(samples, targets, weights);
 		}
 		
 		

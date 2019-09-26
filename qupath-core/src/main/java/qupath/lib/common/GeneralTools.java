@@ -404,8 +404,23 @@ public class GeneralTools {
 	 * @return
 	 */
 	public final static String micrometerSymbol() {
-		return '\u00B5' + "m";
+		return SYMBOL_MICROMETER;
 	}
+	
+	/**
+	 * Small Green mu (useful for micrometers)
+	 */
+	public final static char SYMBOL_MU = '\u00B5';
+
+	/**
+	 * Small Greek sigma (useful for Gaussian filter sizes, standard deviations)
+	 */
+	public final static char SYMBOL_SIGMA = '\u03C3';
+
+	/**
+	 * String to represent um (but with the proper 'mu' symbol)
+	 */
+	public final static String SYMBOL_MICROMETER = '\u00B5' + "m";
 	
 	
 	/**

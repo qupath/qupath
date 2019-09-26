@@ -7,6 +7,7 @@ import java.nio.IntBuffer;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
@@ -16,6 +17,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.function.Function;
 
+import org.bytedeco.javacpp.indexer.FloatIndexer;
 import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.opencv_core.Mat;
 import org.bytedeco.opencv.opencv_ml.ANN_MLP;
@@ -29,6 +31,7 @@ import org.slf4j.LoggerFactory;
 import ij.CompositeImage;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
+import javafx.beans.binding.BooleanBinding;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
@@ -52,10 +55,11 @@ import javafx.scene.control.ToggleButton;
 import javafx.scene.control.Tooltip;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.stage.Stage;
-import jfxtras.scene.layout.HBox;
 import qupath.imagej.gui.IJExtension;
 import qupath.imagej.tools.IJTools;
 import qupath.lib.classifiers.Normalization;
@@ -311,6 +315,10 @@ public class PixelClassifierImageSelectionPane {
 		
 //		addGridRow(pane, row++, 0, btnPredict, btnPredict, btnPredict);
 
+		var btnSave = new Button("Save");
+		btnSave.setMaxWidth(Double.MAX_VALUE);
+		btnSave.setOnAction(e -> saveAndApply());
+		pane.add(btnSave, 0, row++, pane.getColumnCount(), 1);
 		
 		
 		pieChart = new ClassificationPieChart();
@@ -385,11 +393,6 @@ public class PixelClassifierImageSelectionPane {
 		pane.setHgap(5);
 		pane.setVgap(6);
 		
-		var btnSave = new Button("Save & apply");
-		btnSave.setMaxWidth(Double.MAX_VALUE);
-		btnSave.setOnAction(e -> saveAndApply());
-		pane.add(btnSave, 0, row++, pane.getColumnCount(), 1);
-
 //		var btnSavePrediction = new Button("Save prediction image");
 //		btnSavePrediction.setMaxWidth(Double.MAX_VALUE);
 //		btnSavePrediction.setOnAction(e -> saveAndApply());
@@ -397,7 +400,12 @@ public class PixelClassifierImageSelectionPane {
 
 		var btnCreateObjects = new Button("Create objects");
 		btnCreateObjects.disableProperty().bind(classificationComplete);
-		btnCreateObjects.setOnAction(e -> createObjects());
+		btnCreateObjects.setOnAction(e -> {
+			var server = getClassificationServerOrShowError();
+			var imageData = viewer.getImageData();
+			if (imageData != null && server != null)
+				promptToCreateObjects(imageData, server);
+		});
 		
 		var btnClassifyObjects = new Button("Classify detections");
 		btnClassifyObjects.disableProperty().bind(classificationComplete);
@@ -443,6 +451,8 @@ public class PixelClassifierImageSelectionPane {
 			viewer.getImageData().getHierarchy().addPathObjectListener(hierarchyListener);
 		
 	}
+	
+	
 	
 	/**
 	 * Add to the list of default feature calculator builders that will be available when 
@@ -541,7 +551,9 @@ public class PixelClassifierImageSelectionPane {
 			replaceOverlay(null);
 	}
 	
-	
+	private boolean reweightSamples = false;
+	private int maxSamples = 100_000;
+	private int rngSeed = 100;
 	
 	private boolean showAdvancedOptions() {
 		
@@ -553,15 +565,31 @@ public class PixelClassifierImageSelectionPane {
 		for (var pathClass : QuPathGUI.getInstance().getAvailablePathClasses())
 			boundaryStrategies.add(BoundaryStrategy.getClassifyBoundaryStrategy(pathClass, 1));
 		
+		String PCA_NONE = "No feature reduction";
+		String PCA_BASIC = "Do PCA projection";
+		String PCA_NORM = "Do PCA projection + normalize output";
+		
+		String pcaChoice = PCA_NONE;
+		if (helper.getPCARetainedVariance() > 0) {
+			if (helper.doPCANormalize())
+				pcaChoice = PCA_NORM;
+			else
+				pcaChoice = PCA_BASIC;
+		}
+		
 		
 		var params = new ParameterList()
+				.addTitleParameter("Training data")
+				.addIntParameter("maxSamples", "Maximum samples", maxSamples, null, "Maximum number of training samples")
+				.addIntParameter("rngSeed", "RNG seed", rngSeed, null, "Seed for the random number generator used when training (not relevant to all classifiers)")
+				.addBooleanParameter("reweightSamples", "Reweight samples", reweightSamples, "Weight training samples according to frequency")
 				.addTitleParameter("Preprocessing")
 				.addChoiceParameter("normalization", "Feature normalization", helper.getNormalization(),
 						Arrays.asList(Normalization.values()), "Method to normalize features")
+				.addChoiceParameter("featureReduction", "Feature reduction", pcaChoice, List.of(PCA_NONE, PCA_BASIC, PCA_NORM), 
+						"Use Principal Component Analysis for feature reduction (must also specify retained variance)")
 				.addDoubleParameter("pcaRetainedVariance", "PCA retained variance", helper.getPCARetainedVariance(), "",
 						"Retained variance if applying Principal Component Analysis for dimensionality reduction. Should be between 0 and 1; if <= 0 PCA will not be applied.")
-				.addBooleanParameter("pcaNormalize", "PCA normalize", helper.doPCANormalize(), 
-						"If selected and PCA retained variance > 0, standardize the reduced features")
 				.addTitleParameter("Annotation boundaries")
 				.addChoiceParameter("boundaryStrategy", "Boundary strategy", helper.getBoundaryStrategy(),
 						boundaryStrategies,
@@ -572,9 +600,17 @@ public class PixelClassifierImageSelectionPane {
 		if (!DisplayHelpers.showParameterDialog("Advanced options", params))
 			return false;
 		
+		reweightSamples = params.getBooleanParameterValue("reweightSamples");
+		maxSamples = params.getIntParameterValue("maxSamples");
+		rngSeed = params.getIntParameterValue("rngSeed");
+		
+		pcaChoice = (String)params.getChoiceParameterValue("featureReduction");
+		boolean pcaNormalize = PCA_NORM.equals(pcaChoice);
+		double pcaRetainedVariance = PCA_NONE.equals(pcaChoice) ? 0 : params.getDoubleParameterValue("pcaRetainedVariance");
+		
 		helper.setNormalization((Normalization)params.getChoiceParameterValue("normalization"));
-		helper.setPCARetainedVariance(params.getDoubleParameterValue("pcaRetainedVariance"));
-		helper.setPCANormalize(params.getBooleanParameterValue("pcaNormalize"));
+		helper.setPCARetainedVariance(pcaRetainedVariance);
+		helper.setPCANormalize(pcaNormalize);
 		
 		var strategy = (BoundaryStrategy)params.getChoiceParameterValue("boundaryStrategy");
 		strategy = BoundaryStrategy.setThickness(strategy, params.getDoubleParameterValue("boundaryThickness"));
@@ -623,10 +659,8 @@ public class PixelClassifierImageSelectionPane {
 		 // TODO: Optionally limit the number of training samples we use
 		 //	     		var trainData = classifier.createTrainData(matFeatures, matTargets);
 
-		 int maxSamples = 100_000;
-		 
 		 // Ensure we seed the RNG for reproducibility
-		 opencv_core.setRNGSeed(100);
+		 opencv_core.setRNGSeed(rngSeed);
 		 
 		 if (maxSamples > 0 && trainData.getNTrainSamples() > maxSamples)
 			 trainData.setTrainTestSplit(maxSamples, true);
@@ -652,7 +686,24 @@ public class PixelClassifierImageSelectionPane {
 		 }
 		 pieChart.setData(counts, true);
 		 
-		 trainData = model.createTrainData(trainData.getTrainSamples(), trainData.getTrainResponses());
+		 Mat weights = null;
+		 if (reweightSamples) {
+			 weights = new Mat(n, 1, opencv_core.CV_32FC1);
+			 FloatIndexer bufferWeights = weights.createIndexer();
+			 float[] weightArray = new float[rawCounts.length];
+			 for (int i = 0; i < weightArray.length; i++) {
+				 int c = rawCounts[i];
+//				 weightArray[i] = c == 0 ? 1 : (float)1.f/c;
+				 weightArray[i] = c == 0 ? 1 : (float)n/c;
+			 }
+			 for (int i = 0; i < n; i++) {
+				 int label = buffer.get(i);
+				 bufferWeights.put(i, weightArray[label]);
+			 }
+			 bufferWeights.release();
+		 }
+		 
+		 trainData = model.createTrainData(trainData.getTrainSamples(), trainData.getTrainResponses(), weights);
 		 model.train(trainData);
 		 
 		 // Calculate accuracy using whatever we can, as a rough guide to progress
@@ -781,15 +832,36 @@ public class PixelClassifierImageSelectionPane {
 	}
 	
 	
-	public static String getDefaultClassifierName(PixelClassifier classifier) {
-		String date = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
-		return String.format("%s %s", date, classifier.toString());
+	/**
+	 * Get a suitable (unique) name for a pixel classifier.
+	 * 
+	 * @param project
+	 * @param classifier
+	 * @return
+	 */
+	static String getDefaultClassifierName(Project<BufferedImage> project, PixelClassifier classifier) {
+		String date = new SimpleDateFormat("yyyy-MM-dd").format(new Date());
+//		String simpleName = classifier.toString();
+		String simpleName = "Pixel Model";
+		String name = String.format("%s %s", date, simpleName);
+		Collection<String> names = null;
+		try {
+			names = project.getPixelClassifiers().getNames();
+		} catch (Exception e) {}
+		if (names == null || names.isEmpty() || !names.contains(name))
+			return name;
+		int i = 1;
+		while (names.contains(name)) {
+			name = String.format("%s %s (%d)", date, simpleName, i);
+			i++;
+		}
+		return name;
 	}
 	
 	
 	private static String promptToSaveClassifier(Project<BufferedImage> project, PixelClassifier classifier) throws IOException {
 		
-		String name = getDefaultClassifierName(classifier);
+		String name = getDefaultClassifierName(project, classifier);
 		
 		String classifierName = DisplayHelpers.showInputDialog("Save model", "Model name", name);
 		if (classifierName == null)
@@ -801,19 +873,41 @@ public class PixelClassifierImageSelectionPane {
 //		pane.setPadding(new Insets(10));
 //		pane.setMaxWidth(Double.MAX_VALUE);
 //		
-//		var labelGeneral = new Label("Prediction model & predictions are saved in the current project by default.");
+//		var labelGeneral = new Label("Click 'Apply' to save the prediction model & predictions in the current project.\n" +
+//				"Click 'File' if you want to save either of these elsewhere.");
 //		labelGeneral.setContentDisplay(ContentDisplay.CENTER);
 //		
 //		var label = new Label("Name");
 //		var tfName = new TextField(name);
 //		label.setLabelFor(tfName);
 //		
-//		var cbModel = new CheckBox("Save model");
+//		var cbModel = new CheckBox("Save prediction model");
 //		var cbImage = new CheckBox("Save prediction image");
 //		var btnModel = new Button("File");
 //		btnModel.setTooltip(new Tooltip("Save prediction model to a file"));
+//		btnModel.setOnAction(e -> {
+//			var file = QuPathGUI.getSharedDialogHelper().promptToSaveFile("Save model", null, tfName.getText(), "Prediction model", ".json");
+//			if (file != null) {
+//				try (var writer = Files.newWriter(file, StandardCharsets.UTF_8)) {
+//					GsonTools.getInstance(true).toJson(classifier, writer);
+//				} catch (IOException e1) {
+//					DisplayHelpers.showErrorMessage("Save model", e1);
+//				}
+//			}
+//		});
+//		
 //		var btnImage = new Button("File");
 //		btnImage.setTooltip(new Tooltip("Save prediction image to a file"));
+//		btnImage.setOnAction(e -> {
+//			var file = QuPathGUI.getSharedDialogHelper().promptToSaveFile("Save image", null, tfName.getText(), "Prediction image", ".ome.tif");
+//			if (file != null) {
+//				try {
+//					ImageWriterTools.writeImageRegion(new PixelClassificationImageServer(QuPathGUI.getInstance().getImageData(), classifier), null, file.getAbsolutePath());
+//				} catch (IOException e1) {
+//					DisplayHelpers.showErrorMessage("Save image", e1);
+//				}
+//			}
+//		});
 //		
 //		int row = 0;
 //		int col = 0;
@@ -827,26 +921,26 @@ public class PixelClassifierImageSelectionPane {
 //		GridPaneTools.setMaxWidth(Double.MAX_VALUE, labelGeneral, cbModel, cbImage, tfName);
 //		
 //		var dialog = new Dialog<ButtonType>();
-//		dialog.setTitle("Save & Apply");
+//		dialog.setTitle("Save");
 //		dialog.getDialogPane().setContent(pane);
-//		dialog.getDialogPane().getButtonTypes().setAll(ButtonType.OK, ButtonType.CANCEL);
+//		dialog.getDialogPane().getButtonTypes().setAll(ButtonType.APPLY, ButtonType.CANCEL);
 //		if (dialog.showAndWait().orElseGet(() -> ButtonType.CANCEL) == ButtonType.CANCEL)
 //			return null;
 ////		if (!DisplayHelpers.showMessageDialog("Save & Apply", pane)) {
 ////			return null;
 ////		}
-//		var classifierName = tfName.getText();	
-		
-//		var classifierName = DisplayHelpers.showInputDialog("Pixel classifier", "Pixel classifier name", name);
-		if (classifierName == null || classifierName.isBlank())
-			return null;
-		classifierName = classifierName.strip();
-		if (classifierName.isBlank() || classifierName.contains("\n")) {
-			DisplayHelpers.showErrorMessage("Pixel classifier", "Classifier name must be unique, non-empty, and not contain invalid characters");
-			return null;
-		}
-		
-		// Save the classifier in the project
+//		String classifierName = tfName.getText();	
+//		
+////		var classifierName = DisplayHelpers.showInputDialog("Pixel classifier", "Pixel classifier name", name);
+//		if (classifierName == null || classifierName.isBlank())
+//			return null;
+//		classifierName = classifierName.strip();
+//		if (classifierName.isBlank() || classifierName.contains("\n")) {
+//			DisplayHelpers.showErrorMessage("Pixel classifier", "Classifier name must be unique, non-empty, and not contain invalid characters");
+//			return null;
+//		}
+//		
+//		// Save the classifier in the project
 //		if (cbModel.isSelected()) {
 			try {
 				saveClassifier(project, classifier, classifierName);
@@ -858,9 +952,12 @@ public class PixelClassifierImageSelectionPane {
 //		}
 //		// Save the image
 //		if (cbImage.isSelected()) {
-////			var server = new PixelClassificationImageServer(imageData, classifier);
-////			ImageWriterTools.getCompatibleWriters(server, "ome.tif");
-////			logger.warn("Saving image now yet supported!");
+//			var server = new PixelClassificationImageServer(QuPathGUI.getInstance().getImageData(), classifier);
+//			var imageData = QuPathGUI.getInstance().getImageData();
+//			var entry = project.getEntry(imageData);
+//			var path = entry.getEntryPath();
+//			ImageWriterTools.writeImageRegion(new PixelClassificationImageServer(imageData, classifier), null, file.getAbsolutePath());
+//			logger.warn("Saving image now yet supported!");
 //		}
 		
 		return classifierName;
@@ -900,7 +997,7 @@ public class PixelClassifierImageSelectionPane {
 		if (server == null) {
 			return false;
 		}
-		PixelClassifierTools.classifyObjects(server, hierarchy.getDetectionObjects());
+		PixelClassifierTools.classifyObjectsByCentroid(server, hierarchy.getDetectionObjects(), true);
 		return true;
 	}
 	
@@ -908,15 +1005,11 @@ public class PixelClassifierImageSelectionPane {
 	
 	
 	
-	private boolean createObjects() {
-		var hierarchy = viewer.getHierarchy();
-		if (hierarchy == null)
-			return false;
+	public static boolean promptToCreateObjects(ImageData<BufferedImage> imageData, PixelClassificationImageServer server) {
+		Objects.requireNonNull(imageData);
+		Objects.requireNonNull(server);
 		
-		var server = getClassificationServerOrShowError();
-		if (server == null) {
-			return false;
-		}
+		var hierarchy = imageData.getHierarchy();
 		
 		var objectTypes = Arrays.asList(
 				"Annotation", "Detection"
@@ -955,7 +1048,7 @@ public class PixelClassifierImageSelectionPane {
 		if (cal.hasPixelSizeMicrons() && !params.getChoiceParameterValue("minSizeUnits").equals("Pixels"))
 			minSizePixels /= (cal.getPixelWidthMicrons() * cal.getPixelHeightMicrons());
 		
-		var selected = viewer.getSelectedObject();
+		var selected = imageData.getHierarchy().getSelectionModel().getSelectedObject();
 		if (selected != null && selected.isDetection())
 			selected = null;
 		if (selected != null && !selected.getROI().isArea()) {
@@ -982,8 +1075,8 @@ public class PixelClassifierImageSelectionPane {
 			if (!DisplayHelpers.showConfirmDialog("Create objects", message))
 				return false;
 		}
-		// Need to turn off live prediction so we don't start training on the results...
-		livePrediction.set(false);
+//		// Need to turn off live prediction so we don't start training on the results...
+//		livePrediction.set(false);
 		
 		return PixelClassifierTools.createObjectsFromPixelClassifier(server, selected, creator, minSizePixels, doSplit);
 	}

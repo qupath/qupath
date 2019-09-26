@@ -3,16 +3,12 @@ package qupath.lib.gui.ml;
 import ij.plugin.filter.ThresholdToSelection;
 import ij.process.FloatProcessor;
 import ij.process.ImageProcessor;
-import javafx.concurrent.Task;
-
-import org.controlsfx.dialog.ProgressDialog;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.imagej.tools.IJTools;
 import qupath.lib.classifiers.pixel.PixelClassificationImageServer;
 import qupath.lib.classifiers.pixel.PixelClassifier;
-import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServer;
@@ -26,7 +22,6 @@ import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.classes.Reclassifier;
 import qupath.lib.objects.classes.PathClassTools;
 import qupath.lib.objects.helpers.PathObjectTools;
-import qupath.lib.projects.Project;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.AreaROI;
@@ -42,8 +37,6 @@ import java.awt.image.DataBufferByte;
 import java.awt.image.Raster;
 import java.awt.image.WritableRaster;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -451,15 +444,16 @@ public class PixelClassifierTools {
 	/**
 	 * Apply classification from a server to a collection of objects.
 	 * 
-	 * @param server
-	 * @param pathObjects
+	 * @param server the classification server to use
+	 * @param pathObjects the objects to classify
+	 * @param preferNucleusROI if true, use the nucleus ROI (if available) for cell objects
 	 */
-	public static void classifyObjects(PixelClassificationImageServer server, Collection<PathObject> pathObjects) {
+	public static void classifyObjectsByCentroid(PixelClassificationImageServer server, Collection<PathObject> pathObjects, boolean preferNucleusROI) {
 		var reclassifiers = pathObjects.parallelStream().map(p -> {
 				try {
-					var roi = PathObjectTools.getROI(p, true);
-					int x = (int)Math.round(roi.getCentroidX());
-					int y = (int)Math.round(roi.getCentroidY());
+					var roi = PathObjectTools.getROI(p, preferNucleusROI);
+					int x = (int)roi.getCentroidX();
+					int y = (int)roi.getCentroidY();
 					int ind = server.getClassification(x, y, roi.getZ(), roi.getT());
 					return new Reclassifier(p, PathClassFactory.getPathClass(server.getChannel(ind).getName()), false);
 				} catch (Exception e) {
@@ -471,16 +465,36 @@ public class PixelClassifierTools {
 	}
 	
 	
-	public static void classifyCells(ImageData<BufferedImage> imageData, PixelClassifier classifier) {
-		classifyObjects(imageData, classifier, imageData.getHierarchy().getCellObjects());
+	public static void classifyCellsByCentroid(ImageData<BufferedImage> imageData, PixelClassifier classifier, boolean preferNucleusROI) {
+		classifyObjectsByCentroid(imageData, classifier, imageData.getHierarchy().getCellObjects(), preferNucleusROI);
 	}
 
-	public static void classifyDetections(ImageData<BufferedImage> imageData, PixelClassifier classifier) {
-		classifyObjects(imageData, classifier, imageData.getHierarchy().getDetectionObjects());
+	public static void classifyDetectionsByCentroid(ImageData<BufferedImage> imageData, PixelClassifier classifier, boolean preferNucleusROI) {
+		classifyObjectsByCentroid(imageData, classifier, imageData.getHierarchy().getDetectionObjects(), preferNucleusROI);
 	}
 	
-	public static void classifyObjects(ImageData<BufferedImage> imageData, PixelClassifier classifier, Collection<PathObject> pathObjects) {
-		classifyObjects(new PixelClassificationImageServer(imageData, classifier), pathObjects);
+	public static void classifyObjectsByCentroid(ImageData<BufferedImage> imageData, PixelClassifier classifier, Collection<PathObject> pathObjects, boolean preferNucleusROI) {
+		classifyObjectsByCentroid(new PixelClassificationImageServer(imageData, classifier), pathObjects, preferNucleusROI);
 	}
+	
+	
+	
+//	public static void classifyObjectsByAreaOverlap(PixelClassificationImageServer server, Collection<PathObject> pathObjects, double overlapProportion, boolean preferNucleusROI) {
+//		var reclassifiers = pathObjects.parallelStream().map(p -> {
+//				try {
+//					var roi = PathObjectTools.getROI(p, preferNucleusROI);
+//					PixelClassificationMeasurementManager.
+//					int x = (int)roi.getCentroidX();
+//					int y = (int)roi.getCentroidY();
+//					int ind = server.getClassification(x, y, roi.getZ(), roi.getT());
+//					return new Reclassifier(p, PathClassFactory.getPathClass(server.getChannel(ind).getName()), false);
+//				} catch (Exception e) {
+//					return new Reclassifier(p, null, false);
+//				}
+//			}).collect(Collectors.toList());
+//		reclassifiers.parallelStream().forEach(r -> r.apply());
+//		server.getImageData().getHierarchy().fireObjectClassificationsChangedEvent(server, pathObjects);
+//	}
+	
 
 }

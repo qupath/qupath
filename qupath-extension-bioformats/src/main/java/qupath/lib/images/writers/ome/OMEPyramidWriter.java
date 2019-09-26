@@ -1021,7 +1021,10 @@ public class OMEPyramidWriter {
 	 * @throws IOException
 	 */
 	public static void writePyramid(ImageServer<BufferedImage> server, String path, String compression, ImageRegion region) throws FormatException, IOException {
-		var builder = new Builder(server).compression(compression).region(region);
+		var builder = new Builder(server).compression(compression);
+		if (region != null) {
+			builder = builder.region(region);			
+		}
 		if (region instanceof RegionRequest) {
 			double downsample = ((RegionRequest)region).getDownsample();
 			if (downsample != server.getDownsampleForResolution(0))

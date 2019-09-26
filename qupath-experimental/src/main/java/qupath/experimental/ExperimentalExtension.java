@@ -9,7 +9,7 @@ import qupath.lib.gui.extensions.QuPathExtension;
 import qupath.opencv.ml.pixel.features.ColorTransforms;
 import qupath.lib.gui.ml.commands.CreateRegionAnnotationsCommand;
 import qupath.lib.gui.ml.commands.ExportTrainingRegionsCommand;
-import qupath.lib.gui.ml.commands.PixelClassifierApplyCommand;
+import qupath.lib.gui.ml.commands.PixelClassifierLoadCommand;
 import qupath.lib.gui.ml.commands.PixelClassifierCommand;
 import qupath.lib.gui.ml.commands.SimpleThresholdCommand;
 import qupath.lib.gui.ml.commands.SplitProjectTrainingCommand;
@@ -38,9 +38,9 @@ public class ExperimentalExtension implements QuPathExtension {
     	
         QuPathGUI.addMenuItems(
                 qupath.getMenu("Classify>Pixel classification", true),
-                QuPathGUI.createCommandAction(new PixelClassifierApplyCommand(qupath), "Load pixel classifier (experimental)"),
-                QuPathGUI.createCommandAction(new PixelClassifierCommand(), "Create pixel classifier (experimental)", null, new KeyCodeCombination(KeyCode.P, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN)),
-                QuPathGUI.createCommandAction(new SimpleThresholdCommand(qupath), "Create threshold classifier (experimental)")
+                QuPathGUI.createCommandAction(new PixelClassifierLoadCommand(qupath), "Load pixel model (experimental)"),
+                QuPathGUI.createCommandAction(new PixelClassifierCommand(), "Train pixel model (experimental)", null, new KeyCodeCombination(KeyCode.P, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN)),
+                QuPathGUI.createCommandAction(new SimpleThresholdCommand(qupath), "Create threshold model (experimental)")
 //                QuPathGUI.createCommandAction(new OpenCvClassifierCommand2(qupath), "Object classifier (experimental)")
         );
         QuPathGUI.addMenuItems(

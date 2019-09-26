@@ -1686,7 +1686,8 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 
 		@Override
 		public Binding<Number> createMeasurement(PathObject pathObject) {
-			return Bindings.createObjectBinding(() -> manager.getMeasurementValue(pathObject, name));
+			// Return only measurements that can be generated rapidly from cached tiles
+			return Bindings.createObjectBinding(() -> manager.getMeasurementValue(pathObject, name, true));
 		}
 		
 	}

@@ -162,7 +162,7 @@ public class OpenCVMLClassifier implements PathObjectClassifier, Parameterizable
 		
 		// Train classifier
 		// TODO: Optionally limit the number of training samples we use
-		var trainData = classifier.createTrainData(matFeatures, matTargets);
+		var trainData = classifier.createTrainData(matFeatures, matTargets, null);
 //		int maxSamples = 10000;
 //		if (maxSamples > 0 && trainData.getTrainSamples().rows() > maxSamples)
 //			trainData.setTrainTestSplit(maxSamples, true);

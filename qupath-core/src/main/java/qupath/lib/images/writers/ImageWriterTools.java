@@ -1,6 +1,7 @@
 package qupath.lib.images.writers;
 
 import java.awt.image.BufferedImage;
+import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -12,6 +13,7 @@ import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import qupath.lib.common.GeneralTools;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.regions.RegionRequest;
 
@@ -85,14 +87,7 @@ public class ImageWriterTools {
 	 * @throws IOException
 	 */
 	public static boolean writeImageRegion(final ImageServer<BufferedImage> server, final RegionRequest request, final String path) throws IOException {
-		String ext = null;
-		if (path != null) {
-			int ind = path.lastIndexOf(".");
-			if (ind >= 0)
-				ext = path.substring(ind).trim();
-			if (ext != null && ext.length() == 0)
-				ext = null;
-		}
+		String ext = GeneralTools.getExtension(new File(path)).orElse(null);
 		List<ImageWriter<BufferedImage>> compatibleWriters = ImageWriterTools.getCompatibleWriters(server, ext);
 		
 		// If we have a path, use the 'best' writer we have, i.e. the first one that supports pixel sizes

@@ -77,7 +77,6 @@ public class PixelClassificationMeasurementManager {
         	pixelArea = requestedDownsample * requestedDownsample;
             pixelAreaUnits = "px^2";
         }
-
 		
 		// Handle root object if we just have a single plane
 		if (classifierServer.nZSlices() == 1 || classifierServer.nTimepoints() == 1)
@@ -89,18 +88,37 @@ public class PixelClassificationMeasurementManager {
 	}
 	
 	
-	public Number getMeasurementValue(PathObject pathObject, String name) {
+	/**
+	 * Get the measurement value for this object.
+	 * 
+	 * @param pathObject the PathObject to measure
+	 * @param name the measurement name
+	 * @param cachedOnly if true, return null if the measurement cannot be determined from cached tiles
+	 * @return
+	 */
+	public Number getMeasurementValue(PathObject pathObject, String name, boolean cachedOnly) {
 		var roi = pathObject.getROI();
 		if (roi == null || pathObject.isRootObject())
 			roi = rootROI;
+		return getMeasurementValue(roi, name, cachedOnly);
+	}
 		
+	/**
+	 * Get the measurement value for this ROI.
+	 * 
+	 * @param roi the ROI to measure
+	 * @param name the measurement name
+	 * @param cachedOnly if true, return null if the measurement cannot be determined from cached tiles
+	 * @return
+	 */
+	public Number getMeasurementValue(ROI roi, String name, boolean cachedOnly) {
 		var map = measuredROIs.get(classifierServer);
 		if (map == null || roi == null)
 			return null;
 		
 		var ml = map.get(roi);
 		if (ml == null) {
-			ml = calculateMeasurements(roi, true);
+			ml = calculateMeasurements(roi, cachedOnly);
 			if (ml == null)
 				return null;
 			map.put(roi, ml);
@@ -108,6 +126,10 @@ public class PixelClassificationMeasurementManager {
 		return ml.getMeasurementValue(name);
 	}
 
+	/**
+	 * Get the names of all measurements that may be returned.
+	 * @return
+	 */
 	public List<String> getMeasurementNames() {
 		return measurementNames == null ? Collections.emptyList() : measurementNames;
 	}
