@@ -146,6 +146,7 @@ public class PixelClassifierHelper implements PathObjectHierarchyListener {
             this.imageData.getHierarchy().removePathObjectListener(this);
         }
         this.imageData = imageData;
+        this.featureServer = null;
         resetCaches();
         if (this.imageData != null) {
             this.imageData.getHierarchy().addPathObjectListener(this);

@@ -213,12 +213,12 @@ public class PixelClassifierTools {
 			outOfRange = true;
 		}
 		if (x2 > server.getWidth()) {
-			padRight  = (int)Math.round((x2 - server.getWidth() - 1)/downsample);
+			padRight  = (int)Math.round((x2 - server.getWidth())/downsample);
 			x2 = server.getWidth();
 			outOfRange = true;
 		}
 		if (y2 > server.getHeight()) {
-			padDown  = (int)Math.round((y2 - server.getHeight() - 1)/downsample);
+			padDown  = (int)Math.round((y2 - server.getHeight())/downsample);
 			y2 = server.getHeight();
 			outOfRange = true;
 		}

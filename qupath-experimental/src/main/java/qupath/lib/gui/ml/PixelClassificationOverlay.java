@@ -181,6 +181,9 @@ public class PixelClassificationOverlay extends AbstractImageDataOverlay  {
             if (imgRGB != null) {
             	// Get the cached RGB painted version (since painting can be a fairly expensive operation)
                 g2d.drawImage(imgRGB, request.getX(), request.getY(), request.getWidth(), request.getHeight(), null);
+//                g2d.setColor(Color.RED);
+//                g2d.drawRect(request.getX(), request.getY(), request.getWidth(), request.getHeight());
+//                System.err.println(request.getHeight() == imgRGB.getHeight());
                 continue;
             }
             
