@@ -1,6 +1,7 @@
 package qupath.lib.gui.align;
 
 import java.awt.Graphics2D;
+import java.awt.RenderingHints;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.NoninvertibleTransformException;
 import java.awt.image.BufferedImage;
@@ -13,6 +14,7 @@ import javafx.scene.transform.Affine;
 import javafx.scene.transform.TransformChangedEvent;
 import qupath.lib.gui.images.stores.DefaultImageRegionStore;
 import qupath.lib.gui.images.stores.ImageRenderer;
+import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.overlays.AbstractImageDataOverlay;
 import qupath.lib.images.servers.ImageServer;
@@ -68,6 +70,14 @@ public class ImageServerOverlay extends AbstractImageDataOverlay {
 		updateTransform();
 	}
 	
+	public ImageRenderer getRenderer() {
+		return renderer;
+	}
+	
+	public void setRenderer(ImageRenderer renderer) {
+		this.renderer = renderer;
+	}
+	
 	/**
 	 * Get the affine transform applied to the overlay image.
 	 * Making changes here will trigger repaints in the viewer.
@@ -102,7 +112,7 @@ public class ImageServerOverlay extends AbstractImageDataOverlay {
 	public void paintOverlay(Graphics2D g2d, ImageRegion imageRegion, double downsampleFactor, ImageObserver observer, boolean paintCompletely) {
 
 		DefaultImageRegionStore store = viewer.getImageRegionStore();
-		BufferedImage imgThumbnail = store.getThumbnail(server, imageRegion.getZ(), imageRegion.getT(), true);
+		BufferedImage imgThumbnail = null;//store.getThumbnail(server, imageRegion.getZ(), imageRegion.getT(), true);
 			
 		// Paint the image
 		Graphics2D gCopy = (Graphics2D)g2d.create();
@@ -113,6 +123,14 @@ public class ImageServerOverlay extends AbstractImageDataOverlay {
 		} else {
 			logger.debug("Inverse affine transform is null!");
 		}
+		var composite = getAlphaComposite();
+		if (composite != null)
+			gCopy.setComposite(composite);
+		if (PathPrefs.getViewerInterpolationBilinear())
+			gCopy.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+		else
+			gCopy.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
+
 		store.paintRegion(server, gCopy, gCopy.getClip(), imageRegion.getZ(), imageRegion.getT(), downsampleFactor, imgThumbnail, observer, renderer);
 		gCopy.dispose();
 				

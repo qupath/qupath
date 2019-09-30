@@ -284,7 +284,7 @@ public class DefaultImageRegionStore extends AbstractImageRegionStore<BufferedIm
 						}
 						// Store this if we know we've still got the same display settings
 						// This avoids making the cache inconsistent
-						if (imageDisplay == null || displayTimestamp == imageDisplay.getLastChangeTimestamp())
+						if (imgTemp != null && (imageDisplay == null || displayTimestamp == imageDisplay.getLastChangeTimestamp()))
 							cache.put(requestCache, imgTemp);
 						else
 							return;

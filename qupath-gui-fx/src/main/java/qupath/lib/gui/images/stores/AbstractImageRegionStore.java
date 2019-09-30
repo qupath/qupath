@@ -234,6 +234,21 @@ abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {
 		return cache.get(request);
 	}	
 	
+	/**
+	 * Get a map of all cached tiles pertaining to a specific ImageServer.
+	 * @param server
+	 * @return
+	 */
+	public Map<RegionRequest, T> getCachedTilesForServer(ImageServer<T> server) {
+		Map<RegionRequest, T> tiles = new HashMap<>();
+		var serverPath = server.getPath();
+		for (var entry : cache.entrySet()) {
+			if (entry.getValue() != null && entry.getKey().getPath().equals(serverPath))
+				tiles.put(entry.getKey(), entry.getValue());
+		}
+		return tiles;
+	}	
+	
 	
 	static boolean isTiledImageServer(ImageServer<?> server) {
 		return server.getPreferredDownsamples().length > 1;

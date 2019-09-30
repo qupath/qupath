@@ -495,7 +495,7 @@ abstract class FeatureCalculatorBuilder {
 			return FeatureCalculators.createMultiscaleFeatureCalculator(
 					selectedChannels.stream().mapToInt(i -> i).toArray(),
 					sigmas,
-					doNormalize.get() && sigmas.length > 1 ? sigmas[sigmas.length-1] * 4.0 : 0,
+					doNormalize.get() && sigmas.length >= 1 ? sigmas[sigmas.length-1] * 4.0 : 0,
 							do3D.get() ? true : false,
 									features
 					);
