@@ -180,7 +180,7 @@ public class ExportImageRegionCommand implements PathCommand {
 						w, h, warning
 						);
 			}
-		}, downsample));
+		}, downsample, comboImageType.getSelectionModel().selectedIndexProperty()));
 		
 		tfDownsample.setText(Double.toString(exportDownsample.get()));
 		
@@ -193,9 +193,11 @@ public class ExportImageRegionCommand implements PathCommand {
 		if (!DisplayHelpers.showConfirmDialog("Export image region", pane))
 			return;
 		
+		var writer = comboImageType.getSelectionModel().getSelectedItem();
+		boolean supportsPyramid = writer == null ? false : writer.supportsPyramidal();
 		int w = (int)(regionWidth / downsample.get() + 0.5);
 		int h = (int)(regionHeight / downsample.get() + 0.5);
-		if (w * h > maxPixels) {
+		if (!supportsPyramid && w * h > maxPixels) {
 			DisplayHelpers.showErrorNotification("Export image region", "Requested export region too large - try selecting a smaller region, or applying a higher downsample factor");
 			return;
 		}
@@ -206,7 +208,6 @@ public class ExportImageRegionCommand implements PathCommand {
 		}
 				
 		exportDownsample.set(downsample.get());
-		var writer = comboImageType.getSelectionModel().getSelectedItem();
 		
 		// Now that we know the output, we can create a new server to ensure it is downsampled as the necessary resolution
 		if (renderedImage && downsample.get() != server.getDownsampleForResolution(0))
