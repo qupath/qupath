@@ -49,6 +49,12 @@ class OpenCVFeatureCalculatorDNN implements FeatureCalculator<BufferedImage> {
     	this.model = model;
     	this.inputShape = ImmutableDimension.getInstance(inputWidth, inputHeight);
     }
+    
+    @Override
+	public boolean supportsImage(ImageData<BufferedImage> imageData) {
+    	// TODO: Check actual input dimensions
+    	return imageData.getServer().isRGB();
+    }
 
     private Mat calculateFeatures(Mat input) throws IOException {
     	

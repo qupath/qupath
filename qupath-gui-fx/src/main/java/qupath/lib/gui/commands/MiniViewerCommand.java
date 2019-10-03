@@ -558,7 +558,8 @@ public class MiniViewerCommand implements PathCommand {
 						mainViewer.getZPosition(),
 						mainViewer.getTPosition(),
 						downsample,
-						imgRGB,
+						mainViewer.getThumbnail(),
+//						imgRGB,
 						null,
 						renderer);
 				

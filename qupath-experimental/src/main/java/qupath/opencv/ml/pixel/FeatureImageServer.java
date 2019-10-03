@@ -40,6 +40,9 @@ public class FeatureImageServer extends AbstractTileableImageServer {
 		this.imageData = imageData;
 		this.calculator = calculator;
 		
+		if (!calculator.supportsImage(imageData))
+			throw new IllegalArgumentException("Feature calculator is not compatible with " + imageData + "!");
+		
 		int tileWidth = calculator.getInputSize().getWidth();
 		int tileHeight = calculator.getInputSize().getHeight();
 		

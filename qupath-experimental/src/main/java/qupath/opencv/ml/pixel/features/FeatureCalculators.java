@@ -123,6 +123,15 @@ public class FeatureCalculators {
 		public ImmutableDimension getInputSize() {
 			return inputSize;
 		}
+
+		@Override
+		public boolean supportsImage(ImageData<T> imageData) {
+			for (var calculator : calculators) {
+				if (!calculator.supportsImage(imageData))
+					return false;
+			}
+			return true;
+		}
 		
 	}
 	

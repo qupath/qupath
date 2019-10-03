@@ -35,6 +35,7 @@ import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -165,6 +166,8 @@ public class ExtractRegionCommand implements PathCommand {
 
 		// Loop through all selected objects
 		Collection<PathObject> pathObjects = viewer.getHierarchy().getSelectionModel().getSelectedObjects();
+		if (pathObjects.isEmpty())
+			pathObjects = Collections.singletonList(viewer.getHierarchy().getRootObject());
 		List<ImagePlus> imps = new ArrayList<>();
 		for (PathObject pathObject : pathObjects) {
 			

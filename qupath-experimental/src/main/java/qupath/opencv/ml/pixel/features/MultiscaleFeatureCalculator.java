@@ -45,6 +45,15 @@ public class MultiscaleFeatureCalculator implements FeatureCalculator<BufferedIm
 		this.multiscaleComputers = Collections.unmodifiableList(new ArrayList<>(featureComputers));
 	}
 	
+	@Override
+	public boolean supportsImage(ImageData<BufferedImage> imageData) {
+		for (var computer : multiscaleComputers) {
+			if (!computer.transform.supportsImage(imageData)) {
+				return false;
+			}
+		}
+		return true;
+	}
 	
 	public static class Builder {
 		

@@ -65,6 +65,11 @@ class OpenCVPixelClassifierDNN extends AbstractOpenCVPixelClassifier {
         this.model = net;
     }
 
+    @Override
+    public boolean supportsImage(ImageData<BufferedImage> imageData) {
+    	// TODO: Implement a better check for image compatibility
+    	return imageData.getServer().nChannels() == getMetadata().getInputNumChannels();
+    }
 
     protected Mat doClassification(Mat mat, int pad, boolean doSoftmax) {
 //        System.err.println("Mean start: " + opencv_core.mean(mat))

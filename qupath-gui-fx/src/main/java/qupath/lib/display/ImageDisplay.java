@@ -509,12 +509,16 @@ public class ImageDisplay extends AbstractImageRenderer {
 		// I don't know exactly why, but I can't set this to null if there are multiple channels displayed additively...
 		int[] pixels = selectedChannels.size() <= 1 ? null : new int[imgInput.getWidth() * imgInput.getHeight()];
 
-		for (ChannelDisplayInfo info : selectedChannels) {
-			if (firstChannel) {
-				pixels = info.getRGB(imgInput, pixels, !useGrayscaleLuts);
-				firstChannel = false;
-			} else
-				info.updateRGBAdditive(imgInput, pixels, !useGrayscaleLuts);
+		try {
+			for (ChannelDisplayInfo info : selectedChannels.toArray(ChannelDisplayInfo[]::new)) {
+				if (firstChannel) {
+					pixels = info.getRGB(imgInput, pixels, !useGrayscaleLuts);
+					firstChannel = false;
+				} else
+					info.updateRGBAdditive(imgInput, pixels, !useGrayscaleLuts);
+			}
+		} catch (Exception e) {
+			logger.error("Error extracting pixels for display", e);
 		}
 
 		imgOutput.getRaster().setDataElements(0, 0, imgOutput.getWidth(), imgOutput.getHeight(), pixels);

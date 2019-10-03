@@ -105,6 +105,8 @@ public class PixelClassificationOverlay extends AbstractImageDataOverlay  {
         
 //        ImageServer<BufferedImage> server = imageData.getServer();
         var server = getPixelClassificationServer();
+        if (server == null)
+        	return;
 
 //        viewer.getImageRegionStore().paintRegion(server, g2d, AwtTools.getBounds(imageRegion), viewer.getZPosition(), viewer.getTPosition(), downsampleFactor, null, observer, null);
 //        if (5 > 2)
@@ -255,8 +257,10 @@ public class PixelClassificationOverlay extends AbstractImageDataOverlay  {
     public synchronized ImageServer<BufferedImage> getPixelClassificationServer() {
     	if (server == null && getImageData() != null) {
     		var imageData = getImageData();
-    		server = new PixelClassificationImageServer(imageData, classifier);
-    		PixelClassificationImageServer.setPixelLayer(imageData, server);
+    		if (classifier.supportsImage(imageData)) {
+	    		server = new PixelClassificationImageServer(imageData, classifier);
+	    		PixelClassificationImageServer.setPixelLayer(imageData, server);
+    		}
     	}
     	return server;
     }
@@ -295,7 +299,7 @@ public class PixelClassificationOverlay extends AbstractImageDataOverlay  {
                 	if (imgResult == null)
                 		imgResult = classifierServer.readBufferedImage(tile.getRegionRequest());
                 	else {
-                		logger.info("Read cached tile: {}", tile);
+                		logger.debug("Read cached tile: {}", tile);
                 	}
                     getCachedRGBImage(tile.getRegionRequest(), imgResult);
                     viewer.repaint();

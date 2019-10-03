@@ -4,6 +4,7 @@ import java.awt.image.BufferedImage;
 import java.awt.image.WritableRaster;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,6 +40,8 @@ class ExtractNeighborsFeatureCalculator implements FeatureCalculator<BufferedIma
 		
 		this.inputChannels = inputChannels;
 	}
+	
+	
 	
 //	private synchronized List<String> getFeatureNames() {
 //		List<String> featureNames = new ArrayList<>();
@@ -92,6 +95,13 @@ class ExtractNeighborsFeatureCalculator implements FeatureCalculator<BufferedIma
 	@Override
 	public ImmutableDimension getInputSize() {
 		return inputShape;
+	}
+
+
+
+	@Override
+	public boolean supportsImage(ImageData<BufferedImage> imageData) {
+		return imageData.getServer().nChannels() > Arrays.stream(inputChannels).max().orElse(0);
 	}
 	
 }

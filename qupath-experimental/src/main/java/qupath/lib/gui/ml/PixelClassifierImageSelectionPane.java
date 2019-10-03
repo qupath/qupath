@@ -234,8 +234,8 @@ public class PixelClassifierImageSelectionPane {
 		// Features
 		var labelFeatures = new Label("Features");
 		var comboFeatures = new ComboBox<FeatureCalculatorBuilder>();
-		comboFeatures.getItems().add(new FeatureCalculatorBuilder.DefaultFeatureCalculatorBuilder());
-		comboFeatures.getItems().add(new FeatureCalculatorBuilder.ExtractNeighborsFeatureCalculatorBuilder());
+		comboFeatures.getItems().add(new FeatureCalculatorBuilder.DefaultFeatureCalculatorBuilder(viewer.getImageData()));
+		comboFeatures.getItems().add(new FeatureCalculatorBuilder.ExtractNeighborsFeatureCalculatorBuilder(viewer.getImageData()));
 		labelFeatures.setLabelFor(comboFeatures);
 		selectedFeatureCalculatorBuilder = comboFeatures.getSelectionModel().selectedItemProperty();
 		
@@ -246,11 +246,11 @@ public class PixelClassifierImageSelectionPane {
 		var btnCustomizeFeatures = new Button("Edit");
 		btnCustomizeFeatures.disableProperty().bind(Bindings.createBooleanBinding(() -> {
 			var calc = selectedFeatureCalculatorBuilder.get();
-			return calc == null || !calc.canCustomize();
+			return calc == null || !calc.canCustomize(viewer.getImageData());
 		},
 				selectedFeatureCalculatorBuilder));
 		btnCustomizeFeatures.setOnAction(e -> {
-			if (selectedFeatureCalculatorBuilder.get().doCustomize()) {
+			if (selectedFeatureCalculatorBuilder.get().doCustomize(viewer.getImageData())) {
 				updateFeatureCalculator();
 			}
 		});

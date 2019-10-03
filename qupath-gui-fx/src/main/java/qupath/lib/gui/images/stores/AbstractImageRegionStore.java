@@ -239,7 +239,7 @@ abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {
 	 * @param server
 	 * @return
 	 */
-	public Map<RegionRequest, T> getCachedTilesForServer(ImageServer<T> server) {
+	public synchronized Map<RegionRequest, T> getCachedTilesForServer(ImageServer<T> server) {
 		Map<RegionRequest, T> tiles = new HashMap<>();
 		var serverPath = server.getPath();
 		for (var entry : cache.entrySet()) {
@@ -301,12 +301,12 @@ abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {
 	}
 	
 	
-	protected boolean stopWaiting(final RegionRequest request) {
+	protected synchronized boolean stopWaiting(final RegionRequest request) {
 		if (clearingCache) {
-			synchronized(this) {
+//			synchronized(this) {
 				logger.warn("Stop waiting called while clearing cache");
 				return waitingMap.remove(request) != null;
-			}
+//			}
 		} else
 			return waitingMap.remove(request) != null;
 	}
@@ -375,7 +375,7 @@ abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {
 	 */
 	@Override
 	@SuppressWarnings("unchecked")
-	public T getThumbnail(ImageServer<T> server, int zPosition, int tPosition, boolean addToCache) {
+	public synchronized T getThumbnail(ImageServer<T> server, int zPosition, int tPosition, boolean addToCache) {
 		RegionRequest request = getThumbnailRequest(server, zPosition, tPosition);
 		Object result = requestImageTile(server, request, thumbnailCache, true);
 		if (!(result instanceof TileWorker<?>))
