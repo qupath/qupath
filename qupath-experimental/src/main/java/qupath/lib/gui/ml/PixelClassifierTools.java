@@ -195,10 +195,10 @@ public class PixelClassifierTools {
 			new IllegalArgumentException("Padding must be >= 0, but here it is " + padding);
 		// Get the expected bounds
 		double downsample = request.getDownsample();
-		int x = (int)(request.getX() - padding * downsample);
-		int y = (int)(request.getY() - padding * downsample);
-		int x2 = (int)((request.getX() + request.getWidth()) + padding * downsample);
-		int y2 = (int)((request.getY() + request.getHeight()) + padding * downsample);
+		int x = (int)Math.round(request.getX() - padding * downsample);
+		int y = (int)Math.round(request.getY() - padding * downsample);
+		int x2 = (int)Math.round((request.getX() + request.getWidth()) + padding * downsample);
+		int y2 = (int)Math.round((request.getY() + request.getHeight()) + padding * downsample);
 		// If we're out of range, we'll need to work a bit harder
 		int padLeft = 0, padRight = 0, padUp = 0, padDown = 0;
 		boolean outOfRange = false;
