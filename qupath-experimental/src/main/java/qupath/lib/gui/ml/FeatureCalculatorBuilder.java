@@ -71,10 +71,9 @@ abstract class FeatureCalculatorBuilder {
 		private final static Logger logger = LoggerFactory.getLogger(ExtractNeighborsFeatureCalculatorBuilder.class);
 
 		private GridPane pane;
-		private CheckComboBox<Integer> comboChannels;
+		private CheckComboBox<String> comboChannels;
 		
-		private ObservableList<Integer> availableChannels;
-		private ObservableList<Integer> selectedChannels;
+		private ObservableList<String> selectedChannels;
 		private ObservableValue<Integer> selectedRadius;
 			
 		
@@ -87,14 +86,14 @@ abstract class FeatureCalculatorBuilder {
 			// Selected channels
 
 			var labelChannels = new Label("Channels");
-			comboChannels = new CheckComboBox<Integer>();
+			comboChannels = new CheckComboBox<String>();
 			installSelectAllOrNoneMenu(comboChannels);
 
 			@SuppressWarnings("resource")
 			var server = imageData == null ? null : imageData.getServer();
 			if (server != null) {
-				for (int c = 0; c < server.nChannels(); c++)
-					comboChannels.getItems().add(c);
+				for (var c : server.getMetadata().getChannels())
+					comboChannels.getItems().add(c.getName());
 				comboChannels.getCheckModel().checkAll();
 			}
 			
@@ -116,7 +115,6 @@ abstract class FeatureCalculatorBuilder {
 			comboScales.getSelectionModel().selectFirst();
 			selectedRadius = comboScales.getSelectionModel().selectedItemProperty();
 
-			availableChannels = comboChannels.getItems();
 			selectedChannels = comboChannels.getCheckModel().getCheckedItems();
 
 			GridPaneTools.setMaxWidth(Double.MAX_VALUE, comboChannels, comboScales);
@@ -142,7 +140,7 @@ abstract class FeatureCalculatorBuilder {
 		public FeatureCalculator<BufferedImage> build(ImageData<BufferedImage> imageData, PixelCalibration resolution) {
 			return FeatureCalculators.createPatchFeatureCalculator(
 					selectedRadius.getValue(),
-					selectedChannels.stream().mapToInt(i -> i).toArray());
+					selectedChannels.toArray(String[]::new));
 		}
 
 		@Override
@@ -156,32 +154,15 @@ abstract class FeatureCalculatorBuilder {
 			@SuppressWarnings("resource")
 			var server = imageData == null ? null : imageData.getServer();
 			if (server != null) {
-				List<Integer> channels = new ArrayList<>();
-				for (int c = 0; c < server.nChannels(); c++)
-					channels.add(c);			
+				List<String> channels = new ArrayList<>();
+				for (var c : server.getMetadata().getChannels())
+					channels.add(c.getName());		
 				if (!comboChannels.getItems().equals(channels)) {
 					logger.warn("Image channels changed - will update & select all channels for the feature calculator");
 					comboChannels.getCheckModel().clearChecks();
 					comboChannels.getItems().setAll(channels);
 					comboChannels.getCheckModel().checkAll();
 				}
-				
-				comboChannels.setConverter(new StringConverter<Integer>() {
-	
-					@Override
-					public String toString(Integer object) {
-						return server.getChannel(object).getName();
-					}
-	
-					@Override
-					public Integer fromString(String string) {
-						for (int i = 0; i < server.nChannels(); i++) {
-							if (string.equals(server.getChannel(i).getName()))
-								return i;
-						}
-						return null;
-					}
-				});
 			}
 
 			boolean success = DisplayHelpers.showMessageDialog("Select features", pane);
@@ -210,10 +191,9 @@ abstract class FeatureCalculatorBuilder {
 		private final static Logger logger = LoggerFactory.getLogger(DefaultFeatureCalculatorBuilder.class);
 
 		private GridPane pane;
-		private CheckComboBox<Integer> comboChannels;
+		private CheckComboBox<String> comboChannels;
 		
-		private ObservableList<Integer> availableChannels;
-		private ObservableList<Integer> selectedChannels;
+		private ObservableList<String> selectedChannels;
 		private ObservableList<Double> selectedSigmas;
 		private ObservableList<MultiscaleFeature> selectedFeatures;
 
@@ -229,15 +209,15 @@ abstract class FeatureCalculatorBuilder {
 			// Selected channels
 
 			var labelChannels = new Label("Channels");
-			comboChannels = new CheckComboBox<Integer>();
+			comboChannels = new CheckComboBox<String>();
 			installSelectAllOrNoneMenu(comboChannels);
 			//			var btnChannels = new Button("Select");
 			//			btnChannels.setOnAction(e -> selectChannels());
 			@SuppressWarnings("resource")
 			var server = imageData == null ? null : imageData.getServer();
 			if (server != null) {
-				for (int c = 0; c < server.nChannels(); c++)
-					comboChannels.getItems().add(c);
+				for (var c : server.getMetadata().getChannels())
+					comboChannels.getItems().add(c.getName());
 				comboChannels.getCheckModel().checkAll();
 			}
 			
@@ -339,7 +319,7 @@ abstract class FeatureCalculatorBuilder {
 				features = selectedFeatures.stream().filter(f -> f.supports2D()).toArray(MultiscaleFeature[]::new);
 
 			double[] sigmas = selectedSigmas.stream().mapToDouble(d -> d).toArray();
-			int[] channels = selectedChannels.stream().mapToInt(i -> i).toArray();
+			String[] channels = selectedChannels.toArray(String[]::new);
 			return FeatureCalculators.createMultiscaleFeatureCalculator(
 					channels,
 					sigmas,
@@ -360,32 +340,15 @@ abstract class FeatureCalculatorBuilder {
 			@SuppressWarnings("resource")
 			var server = imageData == null ? null : imageData.getServer();
 			if (server != null) {
-				List<Integer> channels = new ArrayList<>();
-				for (int c = 0; c < server.nChannels(); c++)
-					channels.add(c);			
+				List<String> channels = new ArrayList<>();
+				for (var c : server.getMetadata().getChannels())
+					channels.add(c.getName());			
 				if (!comboChannels.getItems().equals(channels)) {
 					logger.warn("Image channels changed - will update & select all channels for the feature calculator");
 					comboChannels.getCheckModel().clearChecks();
 					comboChannels.getItems().setAll(channels);
 					comboChannels.getCheckModel().checkAll();
 				}
-				
-				comboChannels.setConverter(new StringConverter<Integer>() {
-	
-					@Override
-					public String toString(Integer object) {
-						return server.getChannel(object).getName();
-					}
-	
-					@Override
-					public Integer fromString(String string) {
-						for (int i = 0; i < server.nChannels(); i++) {
-							if (string.equals(server.getChannel(i).getName()))
-								return i;
-						}
-						return null;
-					}
-				});
 			}
 			
 			
