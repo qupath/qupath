@@ -16,13 +16,17 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.UUID;
 
+import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.operation.union.UnaryUnionOp;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
+import qupath.lib.roi.jts.ConverterJTS;
 
 /**
  * An ImageServer that combines regions from multiple separate ImageServers, 
@@ -317,6 +321,71 @@ public class SparseImageServer extends AbstractTileableImageServer {
 		}
 		return regions;
 	}
+	
+	
+	/**
+	 * Split a {@link SparseImageServer} into multiple servers, whereby each split server represents one connected region.
+	 * This can be useful whenever a sparse server contains (for example) multiple pieces of tissue with a substantial gap between them, 
+	 * because it allows each piece to be treated as a separate image.
+	 * 
+	 * @param server the sparse server to be split
+	 * @param distancePixels the maximum separation between regions for them to be considered part of the same server after splitting.
+	 *                       Must be a positive value or zero; suggested default is 1.
+	 * @param permitBoundsOverlap if true, the bounding boxes for each server may overlap. If unsure, it is strongly advised to use 'false', since 
+	 *                            otherwise part of a returned server may be 'empty' because the corresponding region was assigned to another server, 
+	 *                            creating the misleading impression there was nothing there.
+	 * @return
+	 * @throws IOException
+	 */
+	public static List<SparseImageServer> splitConnectedRegions(SparseImageServer server, double distancePixels, boolean permitBoundsOverlap) throws IOException {
+		if (distancePixels < 0)
+			throw new IllegalArgumentException("Minimum pixel distance must be >= 0");
+		
+		// Create a union of all regions
+		var regions = server.getRegions();
+		var map = new LinkedHashMap<SparseImageServerManagerRegion, Geometry>();
+		for (var region : regions) {
+			map.put(region, ConverterJTS.regionToGeometry(region.getRegion()));
+		}
+		var allGeometries = UnaryUnionOp.union(map.values());
+		
+		// Buffer if necessary
+		if (distancePixels > 0)
+			allGeometries = allGeometries.buffer(distancePixels);
+				
+		// If we are using bounding boxes, we need another round
+		if (allGeometries.getNumGeometries() > 1 && !permitBoundsOverlap) {
+			var bounds = new ArrayList<Geometry>();
+			for (int i = 0; i < allGeometries.getNumGeometries(); i++) {
+				bounds.add(allGeometries.getGeometryN(i).getEnvelope());
+			}
+			allGeometries = UnaryUnionOp.union(bounds);
+		}
+		
+		// Check how many distinct geometries we have
+		if (allGeometries.getNumGeometries() == 1)
+			return Collections.singletonList(server);
+
+		// Return a new server for each distinct geometry
+		var splitMap = new LinkedHashMap<Geometry, List<SparseImageServerManagerRegion>>();
+		for (int i = 0; i < allGeometries.getNumGeometries(); i++) {
+			splitMap.put(allGeometries.getGeometryN(i), new ArrayList<>());
+		}
+		for (var entry : map.entrySet()) {
+			var region = entry.getKey();
+			var geom = entry.getValue();
+			for (var entrySplit : splitMap.entrySet()) {
+				if (entrySplit.getKey().covers(geom))
+					entrySplit.getValue().add(region);
+			}
+		}
+		var servers = new ArrayList<SparseImageServer>();
+		for (var list : splitMap.values()) {
+			servers.add(new SparseImageServer(list, UUID.randomUUID().toString()));
+		}
+		return servers;
+	}
+	
 
 	static SparseImageServerManager createManager(List<SparseImageServerManagerRegion> regions) {
 		SparseImageServerManager manager = new SparseImageServerManager();

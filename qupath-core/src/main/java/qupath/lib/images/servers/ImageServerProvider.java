@@ -99,8 +99,10 @@ public class ImageServerProvider {
 	 */
 	public static List<ImageServerBuilder<?>> getInstalledImageServerBuilders() {
 		List<ImageServerBuilder<?>> builders = new ArrayList<>();
-		for (ImageServerBuilder<?> b : serviceLoader) {
-			builders.add(b);
+		synchronized (serviceLoader) {
+			for (ImageServerBuilder<?> b : serviceLoader) {
+				builders.add(b);
+			}
 		}
 		return builders;
 	}
@@ -112,9 +114,11 @@ public class ImageServerProvider {
 	@SuppressWarnings("unchecked")
 	public static <T> List<ImageServerBuilder<T>> getInstalledImageServerBuilders(Class<T> imageClass) {
 		List<ImageServerBuilder<T>> builders = new ArrayList<>();
-		for (ImageServerBuilder<?> b : serviceLoader) {
-			if (imageClass.equals(b.getImageType()))
-				builders.add((ImageServerBuilder<T>)b);
+		synchronized(serviceLoader) {
+			for (ImageServerBuilder<?> b : serviceLoader) {
+				if (imageClass.equals(b.getImageType()))
+					builders.add((ImageServerBuilder<T>)b);
+			}
 		}
 		return builders;
 	}
@@ -160,15 +164,17 @@ public class ImageServerProvider {
 		
 		// Check which providers we can use
 		List<UriImageSupport<T>> supports = new ArrayList<>();
-		for (ImageServerBuilder<?> provider : serviceLoader) {
-			try {
-				if (!cls.isAssignableFrom(provider.getImageType()))
-					continue;
-				UriImageSupport<T> support = (UriImageSupport<T>)provider.checkImageSupport(uri, args);
-				if (support != null && support.getSupportLevel() > 0f)
-					supports.add(support);
-			} catch (Exception e) {
-				logger.error("Error testing provider " + provider, e);
+		synchronized(serviceLoader) {
+			for (ImageServerBuilder<?> provider : serviceLoader) {
+				try {
+					if (!cls.isAssignableFrom(provider.getImageType()))
+						continue;
+					UriImageSupport<T> support = (UriImageSupport<T>)provider.checkImageSupport(uri, args);
+					if (support != null && support.getSupportLevel() > 0f)
+						supports.add(support);
+				} catch (Exception e) {
+					logger.error("Error testing provider " + provider, e);
+				}
 			}
 		}
 		

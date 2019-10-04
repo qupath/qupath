@@ -30,6 +30,7 @@ import org.slf4j.LoggerFactory;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.geom.Point2;
 import qupath.lib.regions.ImagePlane;
+import qupath.lib.regions.ImageRegion;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.interfaces.PathArea;
@@ -83,6 +84,22 @@ public class ConverterJTS {
      */
     public static Shape convertROIToShape(Geometry geometry) {
     	return DEFAULT_INSTANCE.geometryToShape(geometry);
+    }
+    
+    /**
+     * Convert an ImageRegion to a rectangular Geometry.
+     * The z-position is retained, but timepoint is lost.
+     * @param region
+     * @return
+     */
+    public static Geometry regionToGeometry(ImageRegion region) {
+    	var coords = new Coordinate[5];
+    	coords[0] = new Coordinate(region.getMinX(), region.getMinY(), region.getZ());
+    	coords[1] = new Coordinate(region.getMaxX(), region.getMinY(), region.getZ());
+    	coords[2] = new Coordinate(region.getMaxX(), region.getMaxY(), region.getZ());
+    	coords[3] = new Coordinate(region.getMinX(), region.getMaxY(), region.getZ());
+    	coords[4] = coords[0];
+    	return DEFAULT_INSTANCE.factory.createLinearRing(coords);
     }
 
     

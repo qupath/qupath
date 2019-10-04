@@ -296,12 +296,12 @@ public class PixelClassificationOverlay extends AbstractImageDataOverlay  {
                 	BufferedImage imgResult = null;
 //                	if (tileCache != null)
 //                		imgResult = tileCache.readFromCache(tile.getRegionRequest());
-                	if (imgResult == null)
+//                	if (imgResult == null)
                 		imgResult = classifierServer.readBufferedImage(tile.getRegionRequest());
-                	else {
-                		logger.debug("Read cached tile: {}", tile);
-                	}
-                    getCachedRGBImage(tile.getRegionRequest(), imgResult);
+//                	else {
+//                		logger.debug("Read cached tile: {}", tile);
+//                	}
+//                    getCachedRGBImage(tile.getRegionRequest(), imgResult);
                     viewer.repaint();
                     
                     var imageData = getImageData();

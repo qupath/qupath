@@ -18,7 +18,6 @@ import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
 import javafx.scene.control.MenuItem;
 import javafx.scene.layout.GridPane;
-import javafx.util.StringConverter;
 import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.gui.helpers.GridPaneTools;
 import qupath.lib.images.ImageData;

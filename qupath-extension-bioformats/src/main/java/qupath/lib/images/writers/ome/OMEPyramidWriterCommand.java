@@ -23,11 +23,12 @@ import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.writers.ome.OMEPyramidWriter.OMEPyramidSeries;
 import qupath.lib.objects.PathObject;
 import qupath.lib.regions.ImageRegion;
 
 /**
- * OME TIFF writer command apable of exporting image pyramids based on QuPath ImageServers.
+ * OME TIFF writer command capable of exporting image pyramids based on QuPath ImageServers.
  * <p>
  * Note this requires Bio-Formats v6.0.0 or later.
  * 
@@ -36,7 +37,7 @@ import qupath.lib.regions.ImageRegion;
  */
 public class OMEPyramidWriterCommand implements PathCommand {
 	
-	private final static Logger logger = LoggerFactory.getLogger(OMEPyramidWriter.class);
+	private final static Logger logger = LoggerFactory.getLogger(OMEPyramidWriterCommand.class);
 	
 	private static StringProperty defaultPyramidCompression = PathPrefs.createPersistentPreference(
 			"ome-pyramid-default-compression", "Uncompressed");
@@ -202,9 +203,9 @@ public class OMEPyramidWriterCommand implements PathCommand {
 		if (parallelizeTiling.get())
 			builder = builder.parallelize();
 		
-		OMEPyramidWriter writer = builder.build();
+		OMEPyramidSeries writer = builder.build();
 		
-		currentTask = pool.submit(new WriterTask(writer, fileOutput.getAbsolutePath()));
+		currentTask = pool.submit(new WriterTask(OMEPyramidWriter.createWriter(writer), fileOutput.getAbsolutePath()));
 	}
 	
 	
@@ -223,7 +224,7 @@ public class OMEPyramidWriterCommand implements PathCommand {
 			try {
 				DisplayHelpers.showInfoNotification("OME Pyramid writer", "Exporting to " + path);
 				long startTime = System.currentTimeMillis();
-				writer.writePyramid(path);
+				writer.writeImage(path);
 				long endTime = System.currentTimeMillis();
 				logger.info(String.format("OME TIFF export to {} complete in %.1f seconds", (endTime - startTime)/1000.0), path);
 				DisplayHelpers.showInfoNotification("OME Pyramid writer", "OME TIFF export complete!");
