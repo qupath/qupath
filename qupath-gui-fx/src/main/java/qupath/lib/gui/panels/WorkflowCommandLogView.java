@@ -62,7 +62,7 @@ import qupath.lib.gui.ImageDataChangeListener;
 import qupath.lib.gui.ImageDataWrapper;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.helpers.DisplayHelpers;
-import qupath.lib.gui.helpers.PanelToolsFX;
+import qupath.lib.gui.helpers.PaneToolsFX;
 import qupath.lib.gui.plugins.ParameterDialogWrapper;
 import qupath.lib.gui.plugins.PluginRunnerFX;
 import qupath.lib.gui.scripting.ScriptEditor;
@@ -292,7 +292,7 @@ public class WorkflowCommandLogView implements ImageDataChangeListener<BufferedI
 				stage.setScene(new Scene(new WorkflowCommandLogView(qupath, workflowNew).getPane(), 400, 600));
 				stage.show();
 			});
-			pane.setBottom(PanelToolsFX.createColumnGridControls(btnCreateWorkflow, btnCreateScript));
+			pane.setBottom(PaneToolsFX.createColumnGridControls(btnCreateWorkflow, btnCreateScript));
 		} else
 			pane.setBottom(btnCreateScript);
 		

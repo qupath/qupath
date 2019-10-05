@@ -72,8 +72,8 @@ import qupath.lib.gui.ImageDataWrapper;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.helpers.ColorToolsFX;
 import qupath.lib.gui.helpers.DisplayHelpers;
-import qupath.lib.gui.helpers.PanelToolsFX;
 import qupath.lib.gui.helpers.DisplayHelpers.DialogButton;
+import qupath.lib.gui.helpers.PaneToolsFX;
 import qupath.lib.gui.icons.PathIconFactory;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.OverlayOptions;
@@ -488,7 +488,7 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 		BorderPane panelObjects = new BorderPane();
 		panelObjects.setCenter(listAnnotations);
 		//		panelObjects.setBorder(BorderFactory.createTitledBorder("Annotation list"));
-		GridPane panelButtons = PanelToolsFX.createColumnGrid(2);
+		GridPane panelButtons = PaneToolsFX.createColumnGrid(2);
 
 		Action removeROIAction = createRemoveROIAction();
 		Action clearROIsAction = createClearROIsAction();
@@ -507,9 +507,9 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 		panelClasses.setCenter(listClasses);
 		//		panelClasses.setBorder(BorderFactory.createTitledBorder("Classes"));
 
-		GridPane paneColumns = PanelToolsFX.createColumnGrid(panelObjects, panelClasses);
+		GridPane paneColumns = PaneToolsFX.createColumnGrid(panelObjects, panelClasses);
 
-		panelButtons = PanelToolsFX.createColumnGrid(2);
+		panelButtons = PaneToolsFX.createColumnGrid(2);
 
 		Action setSelectedObjectClassAction = new Action("Set class", e -> {
 			hierarchy = QuPathGUI.getInstance().getImageData().getHierarchy();
@@ -809,7 +809,7 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 		else
 			annotation.setName(null);
 		if (promptForColor)
-			annotation.setColorRGB(ColorToolsFX.getRGBA(panelColor.getValue()));
+			annotation.setColorRGB(ColorToolsFX.getARGB(panelColor.getValue()));
 
 		// Set the description only if we have to
 		String description = textAreaDescription.getText();
@@ -966,7 +966,7 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 //		if ((name.length() == 0 || name.equals(newName)) && newColor.equals(color))
 //			return false;
 
-		Integer colorValue = newColor.isOpaque() ? ColorToolsFX.getRGB(newColor) : ColorToolsFX.getRGBA(newColor);
+		Integer colorValue = newColor.isOpaque() ? ColorToolsFX.getRGB(newColor) : ColorToolsFX.getARGB(newColor);
 		if (defaultColor) {
 			if (newColor.isOpaque())
 				PathPrefs.setColorDefaultAnnotations(colorValue);

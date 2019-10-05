@@ -52,11 +52,12 @@ import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.stage.Stage;
 import qupath.lib.common.GeneralTools;
-import qupath.lib.gui.helpers.GridPaneTools;
+import qupath.lib.gui.helpers.PaneToolsFX;
 import qupath.lib.plugins.parameters.BooleanParameter;
 import qupath.lib.plugins.parameters.ChoiceParameter;
 import qupath.lib.plugins.parameters.DoubleParameter;
@@ -251,7 +252,10 @@ public class ParameterPanelFX {
 			if (param.setValue(cb.isSelected()))
 				fireParameterChangedEvent(param, false);
 		});
-		addParamComponent(param, null, cb);
+		// This seems necessary to avoid ellipsis string
+		var container = new BorderPane(cb);
+		cb.prefWidthProperty().bind(container.widthProperty());
+		addParamComponent(param, null, container);
 	}
 	
 	private void addSliderParameter(IntParameter param) {
@@ -354,16 +358,17 @@ public class ParameterPanelFX {
 		map.put(parameter, component);
 		String help = parameter.getHelpText();
 
-		GridPaneTools.setFillWidth(Boolean.TRUE, component);
-		GridPaneTools.setHGrowPriority(Priority.ALWAYS, component);
+		PaneToolsFX.setFillWidth(Boolean.TRUE, component);
+		PaneToolsFX.setHGrowPriority(Priority.ALWAYS, component);
 
 		if (text == null) {
-			GridPaneTools.addGridRow(pane, currentRow++, 0, help, component, component);
+			PaneToolsFX.addGridRow(pane, currentRow++, 0, help, component, component);
 		} else {
 			Label label = new Label(text);
 			label.setMaxWidth(Double.MAX_VALUE);
+			label.setMinWidth(Label.USE_PREF_SIZE);
 			label.setLabelFor(component);
-			GridPaneTools.addGridRow(pane, currentRow++, 0, help, label, component);
+			PaneToolsFX.addGridRow(pane, currentRow++, 0, help, label, component);
 		}
 	}
 	

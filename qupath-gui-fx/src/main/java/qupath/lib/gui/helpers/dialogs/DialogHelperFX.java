@@ -47,7 +47,7 @@ import javafx.scene.layout.GridPane;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.FileChooser;
 import javafx.stage.FileChooser.ExtensionFilter;
-import qupath.lib.gui.helpers.GridPaneTools;
+import qupath.lib.gui.helpers.PaneToolsFX;
 import qupath.lib.gui.helpers.dialogs.DialogHelper;
 import javafx.stage.Window;
 
@@ -306,7 +306,7 @@ public class DialogHelperFX implements DialogHelper {
         });
         
 //        label.setPadding(new Insets(0, 0, 5, 0));
-        GridPaneTools.addGridRow(pane, 0, 0, "Input URL or choose file", label, tf, button);
+        PaneToolsFX.addGridRow(pane, 0, 0, "Input URL or choose file", label, tf, button);
         pane.setHgap(5);
 //        pane.setTop(label);
 //        pane.setCenter(tf);

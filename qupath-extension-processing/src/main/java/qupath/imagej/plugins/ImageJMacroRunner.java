@@ -57,7 +57,7 @@ import qupath.imagej.tools.IJTools;
 import qupath.lib.display.ImageDisplay;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.helpers.DisplayHelpers;
-import qupath.lib.gui.helpers.PanelToolsFX;
+import qupath.lib.gui.helpers.PaneToolsFX;
 import qupath.lib.gui.helpers.dialogs.ParameterPanelFX;
 import qupath.lib.gui.images.servers.ChannelDisplayTransformServer;
 import qupath.lib.gui.plugins.ParameterDialogWrapper;
@@ -195,7 +195,7 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 			Button btnClose = new Button("Close");
 			btnClose.setOnAction(e -> dialog.hide());
 			
-			GridPane panelButtons = PanelToolsFX.createRowGridControls(btnRun, btnClose);
+			GridPane panelButtons = PaneToolsFX.createRowGridControls(btnRun, btnClose);
 			
 			pane.setCenter(panelMacro);
 			pane.setBottom(panelButtons);

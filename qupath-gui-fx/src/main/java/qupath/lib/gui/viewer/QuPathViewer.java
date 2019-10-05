@@ -109,7 +109,6 @@ import qupath.lib.gui.images.stores.DefaultImageRegionStore;
 import qupath.lib.gui.images.stores.ImageRegionStoreHelpers;
 import qupath.lib.gui.images.stores.ImageRenderer;
 import qupath.lib.gui.images.stores.TileListener;
-import qupath.lib.gui.objects.helpers.PathObjectColorToolsAwt;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.overlays.GridOverlay;
 import qupath.lib.gui.viewer.overlays.HierarchyOverlay;
@@ -1806,7 +1805,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 					Stroke strokeThick = PathHierarchyPaintingHelper.getCachedStroke(PathPrefs.getThickStrokeThickness() * downsample);
 					Color color = PathPrefs.getUseSelectedColor() ? ColorToolsAwt.getCachedColor(PathPrefs.getSelectedObjectColor()) : null;
 					if (color == null)
-						color = PathObjectColorToolsAwt.getDisplayedColorAWT(selectedObject);
+						color = ColorToolsAwt.getCachedColor(ColorToolsFX.getDisplayedColorARGB(selectedObject));
 					g2d.setStroke(strokeThick);
 					// Draw ROI handles using adaptive size
 					double maxHandleSize = getMaxROIHandleSize();

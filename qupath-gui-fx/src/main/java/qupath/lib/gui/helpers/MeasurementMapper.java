@@ -44,7 +44,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.lib.common.ColorTools;
-import qupath.lib.gui.objects.helpers.PathObjectColorToolsAwt;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
@@ -239,7 +238,7 @@ public class MeasurementMapper {
 
 		//		if (!pathObject.isDetection())
 		if (!(pathObject instanceof PathDetectionObject || pathObject instanceof PathTileObject))
-			return PathObjectColorToolsAwt.getDisplayedColor(pathObject);
+			return ColorToolsFX.getDisplayedColorARGB(pathObject);
 
 		// Replace NaNs with the minimum value
 		double value = getUsefulValue(pathObject, Double.NaN);

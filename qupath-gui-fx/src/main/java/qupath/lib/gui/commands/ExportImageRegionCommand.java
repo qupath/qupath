@@ -47,7 +47,7 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.helpers.DisplayHelpers;
-import qupath.lib.gui.helpers.GridPaneTools;
+import qupath.lib.gui.helpers.PaneToolsFX;
 import qupath.lib.gui.images.servers.RenderedImageServer;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.QuPathViewer;
@@ -184,8 +184,8 @@ public class ExportImageRegionCommand implements PathCommand {
 		
 		tfDownsample.setText(Double.toString(exportDownsample.get()));
 		
-		GridPaneTools.setMaxWidth(Double.MAX_VALUE, labelSize, textArea, tfDownsample, comboImageType);
-		GridPaneTools.setHGrowPriority(Priority.ALWAYS, labelSize, textArea, tfDownsample, comboImageType);
+		PaneToolsFX.setMaxWidth(Double.MAX_VALUE, labelSize, textArea, tfDownsample, comboImageType);
+		PaneToolsFX.setHGrowPriority(Priority.ALWAYS, labelSize, textArea, tfDownsample, comboImageType);
 		
 		pane.setVgap(5);
 		pane.setHgap(5);

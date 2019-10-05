@@ -67,7 +67,7 @@ import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.QuPathGUI.Modes;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.helpers.ColorToolsFX;
-import qupath.lib.gui.helpers.PanelToolsFX;
+import qupath.lib.gui.helpers.PaneToolsFX;
 import qupath.lib.gui.helpers.dialogs.ParameterPanelFX;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.QuPathViewerListener;
@@ -253,7 +253,7 @@ public class RandomTrainingRegionSelector implements PathCommand {
 		});
 		
 		
-		GridPane panelButtons = PanelToolsFX.createColumnGridControls(
+		GridPane panelButtons = PaneToolsFX.createColumnGridControls(
 				ActionUtils.createButton(actionAdd),
 				ActionUtils.createButton(actionSkip)
 				);

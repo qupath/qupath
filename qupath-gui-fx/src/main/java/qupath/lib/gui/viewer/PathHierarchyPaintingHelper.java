@@ -57,8 +57,8 @@ import org.slf4j.LoggerFactory;
 import qupath.lib.awt.common.AwtTools;
 import qupath.lib.color.ColorToolsAwt;
 import qupath.lib.geom.Point2;
+import qupath.lib.gui.helpers.ColorToolsFX;
 import qupath.lib.gui.helpers.MeasurementMapper;
-import qupath.lib.gui.objects.helpers.PathObjectColorToolsAwt;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.objects.PathCellObject;
 import qupath.lib.objects.PathDetectionObject;
@@ -236,7 +236,7 @@ public class PathHierarchyPaintingHelper {
 				float xf = (float)(pDest.getX() - width/2.0);
 				float yf = (float)(pDest.getY() + fm.getDescent());
 				
-				Color colorPainted = PathObjectColorToolsAwt.getDisplayedColorAWT(core);
+				Color colorPainted = ColorToolsAwt.getCachedColor(ColorToolsFX.getDisplayedColorARGB(core));
 				double mean = (colorPainted.getRed() + colorPainted.getGreen() + colorPainted.getBlue()) / (255.0 * 3.0);
 				if (mean > 0.5)
 					g2d.setColor(ColorToolsAwt.TRANSLUCENT_BLACK);
@@ -326,7 +326,7 @@ public class PathHierarchyPaintingHelper {
 								doOutline = doOutline && !pathObject.isTile();
 						}
 						else {
-							Integer rgb = PathObjectColorToolsAwt.getDisplayedColor(pathObject);
+							Integer rgb = ColorToolsFX.getDisplayedColorARGB(pathObject);
 							color = ColorToolsAwt.getCachedColor(rgb);
 						}
 //							color = PathObjectHelpers.getDisplayedColor(pathObject);

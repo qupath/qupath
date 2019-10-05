@@ -140,7 +140,7 @@ import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.SummaryMeasurementTableCommand;
 import qupath.lib.gui.helpers.ChartToolsFX;
 import qupath.lib.gui.helpers.DisplayHelpers;
-import qupath.lib.gui.helpers.PanelToolsFX;
+import qupath.lib.gui.helpers.PaneToolsFX;
 import qupath.lib.gui.models.HistogramDisplay;
 import qupath.lib.gui.models.ObservableMeasurementTableData;
 import qupath.lib.gui.models.PathTableData;
@@ -952,7 +952,7 @@ public class TMASummaryViewer {
 		
 		BorderPane paneColumns = new BorderPane(tableColumns);
 		paneColumns.setBottom(
-				PanelToolsFX.createColumnGridControls(
+				PaneToolsFX.createColumnGridControls(
 						ActionUtils.createButton(actionShowSelected),
 						ActionUtils.createButton(actionHideSelected)
 						)

@@ -17,7 +17,7 @@ import qupath.lib.classifiers.pixel.PixelClassificationImageServer;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.helpers.DisplayHelpers;
-import qupath.lib.gui.helpers.GridPaneTools;
+import qupath.lib.gui.helpers.PaneToolsFX;
 import qupath.lib.gui.ml.PixelClassificationOverlay;
 import qupath.lib.gui.ml.PixelClassifierImageSelectionPane;
 import qupath.lib.gui.ml.PixelClassifierTools;
@@ -110,7 +110,7 @@ public class PixelClassifierLoadCommand implements PathCommand {
 		var btnClassifyObjects = new Button("Classify detections");
 		btnClassifyObjects.disableProperty().bind(enableButtons.not());
 		var tilePane = new GridPane();
-		GridPaneTools.addGridRow(tilePane, 0, 0, null, btnCreateObjects, btnClassifyObjects);
+		PaneToolsFX.addGridRow(tilePane, 0, 0, null, btnCreateObjects, btnClassifyObjects);
 //		btnCreateObjects.prefWidthProperty().bind(btnClassifyObjects.widthProperty());
 		
 		btnCreateObjects.setOnAction(e -> {
@@ -126,11 +126,11 @@ public class PixelClassifierLoadCommand implements PathCommand {
 		pane.setHgap(5);
 		pane.setVgap(5);
 		int row = 0;
-		GridPaneTools.addGridRow(pane, row++, 0, "Choose pixel classification model to apply to the current image", label, comboClassifiers);
-		GridPaneTools.addGridRow(pane, row++, 0, "Apply pixel classification", tilePane, tilePane);
+		PaneToolsFX.addGridRow(pane, row++, 0, "Choose pixel classification model to apply to the current image", label, comboClassifiers);
+		PaneToolsFX.addGridRow(pane, row++, 0, "Apply pixel classification", tilePane, tilePane);
 		
-		GridPaneTools.setMaxWidth(Double.MAX_VALUE, comboClassifiers, tilePane, btnCreateObjects, btnClassifyObjects);
-		GridPaneTools.setHGrowPriority(Priority.ALWAYS, comboClassifiers, tilePane, btnCreateObjects, btnClassifyObjects);
+		PaneToolsFX.setMaxWidth(Double.MAX_VALUE, comboClassifiers, tilePane, btnCreateObjects, btnClassifyObjects);
+		PaneToolsFX.setHGrowPriority(Priority.ALWAYS, comboClassifiers, tilePane, btnCreateObjects, btnClassifyObjects);
 				
 		var stage = new Stage();
 		stage.setTitle(title);

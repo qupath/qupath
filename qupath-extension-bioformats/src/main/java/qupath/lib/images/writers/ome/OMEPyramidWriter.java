@@ -158,7 +158,7 @@ public class OMEPyramidWriter {
 	
 		private String compression = PyramidOMETiffWriter.COMPRESSION_UNCOMPRESSED;
 		
-		void initializeMatadata(IMetadata meta, int series) throws IOException {
+		public void initializeMatadata(IMetadata meta, int series) throws IOException {
 			
 			meta.setImageID("Image:"+series, series);
 			meta.setPixelsID("Pixels:"+series, series);
@@ -303,11 +303,14 @@ public class OMEPyramidWriter {
 		/**
 		 * Append an image as a specific series.
 		 * 
-		 * @param path
+		 * @param writer the current writter; it should already be innitialized, with metadata and ID set
+		 * @param meta the metadata, which should already have been initialized and set in the writer before writing any pixels
+		 * @param series number of series to be written (starting with 0; assumes previous series already written)
 		 * @throws FormatException
 		 * @throws IOException
 		 * 
 		 * @see Builder
+		 * @see #initializeMatadata(IMetadata, int)
 		 */
 		public void writePyramid(final PyramidOMETiffWriter writer, IMetadata meta, final int series) throws FormatException, IOException {
 	

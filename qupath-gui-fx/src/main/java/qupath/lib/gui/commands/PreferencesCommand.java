@@ -37,7 +37,7 @@ import javafx.stage.Stage;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.helpers.DisplayHelpers;
-import qupath.lib.gui.helpers.GridPaneTools;
+import qupath.lib.gui.helpers.PaneToolsFX;
 import qupath.lib.gui.panels.PreferencePanel;
 import qupath.lib.gui.prefs.PathPrefs;
 
@@ -87,7 +87,7 @@ public class PreferencesCommand implements PathCommand {
 			
 			GridPane paneImportExport = new GridPane();
 			paneImportExport.addRow(0, btnImport, btnExport, btnReset);
-			GridPaneTools.setHGrowPriority(Priority.ALWAYS, btnImport, btnExport, btnReset);
+			PaneToolsFX.setHGrowPriority(Priority.ALWAYS, btnImport, btnExport, btnReset);
 			paneImportExport.setMaxWidth(Double.MAX_VALUE);
 
 //			Button btnClose = new Button("Close");

@@ -144,7 +144,7 @@ public class AnnotationCreatorPanel {
 		comboType.getSelectionModel().select(ROI_TYPE.RECTANGLE);
 		
 				
-		GridPaneTools.addGridRow(
+		PaneToolsFX.addGridRow(
 				pane, row++, 0,
 				"Type of ROI to create",
 				createLabelFor(comboType, "Type"),
@@ -159,7 +159,7 @@ public class AnnotationCreatorPanel {
 		});
 //		comboClassification.cell;
 		
-		GridPaneTools.addGridRow(
+		PaneToolsFX.addGridRow(
 				pane, row++, 0,
 				"Classification for the annotation (may be empty if annotation should be unclassified)",
 				createLabelFor(comboClassification, "Classification"),
@@ -176,28 +176,28 @@ public class AnnotationCreatorPanel {
 		tfWidth.setPrefColumnCount(10);
 		tfHeight.setPrefColumnCount(10);
 		
-		GridPaneTools.addGridRow(
+		PaneToolsFX.addGridRow(
 				pane, row++, 0,
 				"X-coordinate of top left of annotation bounding box (if missing or < 0, annotation will be centered in current viewer)",
 				createLabelFor(tfX, "X origin"),
 				tfX,
 				createBoundLabel(units));
 		
-		GridPaneTools.addGridRow(
+		PaneToolsFX.addGridRow(
 				pane, row++, 0,
 				"Y-coordinate of top left of annotation bounding box (if missing or < 0, annotation will be centered in current viewer)",
 				createLabelFor(tfY, "Y origin"),
 				tfY,
 				createBoundLabel(units));
 		
-		GridPaneTools.addGridRow(
+		PaneToolsFX.addGridRow(
 				pane, row++, 0,
 				"Width of annotation bounding box (must be > 0)",
 				createLabelFor(tfWidth, "Width"),
 				tfWidth,
 				createBoundLabel(units));
 		
-		GridPaneTools.addGridRow(
+		PaneToolsFX.addGridRow(
 				pane, row++, 0,
 				"Height of annotation bounding box (must be > 0)",
 				createLabelFor(tfHeight, "Height"),
@@ -206,20 +206,20 @@ public class AnnotationCreatorPanel {
 		
 		
 		cbMicrons.setMaxWidth(Double.MAX_VALUE);
-		GridPaneTools.addGridRow(
+		PaneToolsFX.addGridRow(
 				pane, row++, 0,
 				"Specify coordinates in " + GeneralTools.micrometerSymbol() + " - pixel calibration information must be available",
 				cbMicrons, cbMicrons, cbMicrons);
 		
 		var cbLock = new CheckBox("Set locked");
 		cbLock.setMaxWidth(Double.MAX_VALUE);
-		GridPaneTools.addGridRow(
+		PaneToolsFX.addGridRow(
 				pane, row++, 0,
 				"Set annotation as locked, so that it can't be immediately edited",
 				cbLock, cbLock, cbLock);
 		
 		var tfName = new TextField("");
-		GridPaneTools.addGridRow(
+		PaneToolsFX.addGridRow(
 				pane, row++, 0,
 				"Name of annotation (can be empty)",
 				createLabelFor(tfName, "Name"),
@@ -315,13 +315,13 @@ public class AnnotationCreatorPanel {
 		});
 		
 		btnAdd.setMaxWidth(Double.MAX_VALUE);
-		GridPaneTools.addGridRow(pane, row++, 0, "Create annotation with specified options & add to object hierarchy",
+		PaneToolsFX.addGridRow(pane, row++, 0, "Create annotation with specified options & add to object hierarchy",
 				btnAdd, btnAdd, btnAdd
 				);
 		
-		GridPaneTools.setFillWidth(Boolean.TRUE,
+		PaneToolsFX.setFillWidth(Boolean.TRUE,
 				tfX, tfY, tfWidth, tfHeight, btnAdd, comboType);
-		GridPaneTools.setHGrowPriority(Priority.ALWAYS,
+		PaneToolsFX.setHGrowPriority(Priority.ALWAYS,
 				tfX, tfY, tfWidth, tfHeight, btnAdd, comboType
 				);
 		

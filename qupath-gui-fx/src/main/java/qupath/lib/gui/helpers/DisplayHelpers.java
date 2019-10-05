@@ -27,7 +27,6 @@ import java.awt.Desktop;
 import java.awt.GraphicsEnvironment;
 import java.awt.image.BufferedImage;
 import java.io.File;
-import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -58,6 +57,8 @@ import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.ChoiceDialog;
+import javafx.scene.control.DialogPane;
+import javafx.scene.control.Label;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextInputDialog;
 import javafx.scene.layout.StackPane;
@@ -200,7 +201,8 @@ public class DisplayHelpers {
 			Alert alert = new Alert(AlertType.CONFIRMATION);
 			alert.setTitle(title);
 			alert.setHeaderText(null);
-			alert.setContentText(text);
+//			alert.setContentText(text);
+			alert.getDialogPane().setContent(createContentLabel(text));
 			Optional<ButtonType> result = alert.showAndWait();
 			return result.isPresent() && result.get() == ButtonType.OK;
 		} else
@@ -232,7 +234,8 @@ public class DisplayHelpers {
 			Alert alert = new Alert(AlertType.NONE, null, ButtonType.OK);
 			alert.setTitle(title);
 			alert.getDialogPane().setHeader(null);
-			alert.getDialogPane().setContentText(message);
+//			alert.getDialogPane().setContentText(message);
+			alert.getDialogPane().setContent(createContentLabel(message));
 			alert.showAndWait();
 		} else
 			Platform.runLater(() -> showMessageDialog(title, message));
@@ -246,6 +249,7 @@ public class DisplayHelpers {
 				alert.initOwner(QuPathGUI.getInstance().getStage());
 			alert.setTitle(title);
 			alert.getDialogPane().setContent(node);
+			alert.setResizable(true);
 			Optional<ButtonType> result = alert.showAndWait();
 			return result.isPresent() && result.get() == ButtonType.OK;
 		} else {
@@ -282,7 +286,8 @@ public class DisplayHelpers {
 				alert.initOwner(QuPathGUI.getInstance().getStage());
 			alert.getButtonTypes().addAll(ButtonType.YES, ButtonType.NO);
 			alert.setTitle(title);
-			alert.setContentText(text);
+//			alert.setContentText(text);
+			alert.getDialogPane().setContent(createContentLabel(text));
 			Optional<ButtonType> result = alert.showAndWait();
 			boolean response = result.isPresent() && result.get() == ButtonType.YES;
 			return response;
@@ -290,6 +295,22 @@ public class DisplayHelpers {
 			return JOptionPane.showConfirmDialog(null, text, title, JOptionPane.YES_NO_OPTION, JOptionPane.PLAIN_MESSAGE) == JOptionPane.YES_OPTION;
 	}
 	
+	/**
+	 * Create a content label. This is patterned on the default behavior for {@link DialogPane} but 
+	 * sets the min size to be the preferred size, which is necessary to avoid ellipsis when using long 
+	 * Strings on Windows with scaling other than 100%.
+	 * @param text
+	 * @return
+	 */
+	private static Label createContentLabel(String text) {
+		var label = new Label(text);
+		label.setMaxWidth(Double.MAX_VALUE);
+        label.setMaxHeight(Double.MAX_VALUE);
+        label.setMinSize(Label.USE_PREF_SIZE, Label.USE_PREF_SIZE);
+        label.setWrapText(true);
+        label.setPrefWidth(360);
+        return label;
+	}
 	
 	
 	public static DialogButton showYesNoCancelDialog(String title, String text) {
@@ -298,7 +319,8 @@ public class DisplayHelpers {
 			Alert alert = new Alert(AlertType.NONE);
 			alert.getButtonTypes().addAll(ButtonType.YES, ButtonType.NO, ButtonType.CANCEL);
 			alert.setTitle(title);
-			alert.setContentText(text);
+//			alert.setContentText(text);
+			alert.getDialogPane().setContent(createContentLabel(text));
 			Optional<ButtonType> result = alert.showAndWait();
 			if (result.isPresent())
 				return getJavaFXPaneYesNoCancel(result.get());
@@ -611,7 +633,8 @@ public class DisplayHelpers {
 				Alert alert = new Alert(AlertType.ERROR);
 				alert.setTitle(title);
 				alert.getDialogPane().setHeaderText(null);
-				alert.setContentText(message);
+//				alert.setContentText(message);
+				alert.getDialogPane().setContent(createContentLabel(message));
 				alert.show();
 			} else
 				Platform.runLater(() -> showErrorMessage(title, message));
@@ -642,7 +665,8 @@ public class DisplayHelpers {
 				Alert alert = new Alert(AlertType.INFORMATION);
 				alert.getDialogPane().setHeaderText(null);
 				alert.setTitle(title);
-				alert.setContentText(message);
+//				alert.setContentText(message);
+				alert.getDialogPane().setContent(createContentLabel(message));
 				alert.show();
 			} else
 				JOptionPane.showMessageDialog(getPossibleParent(), message, title, JOptionPane.PLAIN_MESSAGE, null);

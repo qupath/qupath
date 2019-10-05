@@ -94,7 +94,7 @@ import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.helpers.ColorToolsFX;
 import qupath.lib.gui.helpers.DisplayHelpers;
-import qupath.lib.gui.helpers.PanelToolsFX;
+import qupath.lib.gui.helpers.PaneToolsFX;
 import qupath.lib.gui.plots.HistogramPanelFX;
 import qupath.lib.gui.plots.HistogramPanelFX.HistogramData;
 import qupath.lib.gui.plots.HistogramPanelFX.ThresholdedChartWrapper;
@@ -497,7 +497,7 @@ public class BrightnessContrastCommand implements PathCommand, ImageDataChangeLi
 		// Create brightness/contrast panel
 		BorderPane panelSliders = new BorderPane();
 		panelSliders.setTop(box);
-		GridPane panelButtons = PanelToolsFX.createColumnGridControls(
+		GridPane panelButtons = PaneToolsFX.createColumnGridControls(
 				btnAuto,
 				btnReset
 				);

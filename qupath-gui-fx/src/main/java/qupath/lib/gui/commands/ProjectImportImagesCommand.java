@@ -65,8 +65,7 @@ import qupath.lib.display.ImageDisplay;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.helpers.DisplayHelpers;
-import qupath.lib.gui.helpers.GridPaneTools;
-import qupath.lib.gui.helpers.PanelToolsFX;
+import qupath.lib.gui.helpers.PaneToolsFX;
 import qupath.lib.gui.panels.ProjectBrowser;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.images.ImageData;
@@ -176,26 +175,26 @@ public class ProjectImportImagesCommand implements PathCommand {
 		CheckBox cbPyramidize = new CheckBox("Auto-generate pyramids");
 		cbPyramidize.setSelected(true);
 
-		GridPaneTools.setMaxWidth(Double.MAX_VALUE, comboBuilder, comboType, comboRotate, cbPyramidize);
-		GridPaneTools.setFillWidth(Boolean.TRUE, comboBuilder, comboType, comboRotate, cbPyramidize);
-		GridPaneTools.setHGrowPriority(Priority.ALWAYS, comboBuilder, comboType, comboRotate, cbPyramidize);
+		PaneToolsFX.setMaxWidth(Double.MAX_VALUE, comboBuilder, comboType, comboRotate, cbPyramidize);
+		PaneToolsFX.setFillWidth(Boolean.TRUE, comboBuilder, comboType, comboRotate, cbPyramidize);
+		PaneToolsFX.setHGrowPriority(Priority.ALWAYS, comboBuilder, comboType, comboRotate, cbPyramidize);
 		
 		GridPane paneType = new GridPane();
 		paneType.setPadding(new Insets(5));
 		paneType.setHgap(5);
 		paneType.setVgap(5);
 		int row = 0;
-		GridPaneTools.addGridRow(paneType, row++, 0, "Specify the library used to open images", labelBuilder, comboBuilder);
-		GridPaneTools.addGridRow(paneType, row++, 0, "Specify the default image type for all images being imported (required for analysis, can be changed later under the 'Image' tab)", labelType, comboType);
-		GridPaneTools.addGridRow(paneType, row++, 0, "Optionally rotate images on import", labelRotate, comboRotate);
-		GridPaneTools.addGridRow(paneType, row++, 0, "Dynamically create image pyramids for large, single-resolution images", cbPyramidize, cbPyramidize);
+		PaneToolsFX.addGridRow(paneType, row++, 0, "Specify the library used to open images", labelBuilder, comboBuilder);
+		PaneToolsFX.addGridRow(paneType, row++, 0, "Specify the default image type for all images being imported (required for analysis, can be changed later under the 'Image' tab)", labelType, comboType);
+		PaneToolsFX.addGridRow(paneType, row++, 0, "Optionally rotate images on import", labelRotate, comboRotate);
+		PaneToolsFX.addGridRow(paneType, row++, 0, "Dynamically create image pyramids for large, single-resolution images", cbPyramidize, cbPyramidize);
 		
 		paneImages.setCenter(paneList);
 		paneImages.setBottom(paneType);
 		
 //		TilePane paneButtons = new TilePane();
 //		paneButtons.getChildren().addAll(btnFile, btnURL, btnClipboard, btnFileList);
-		GridPane paneButtons = PanelToolsFX.createColumnGridControls(btnFile, btnURL, btnClipboard, btnFileList);
+		GridPane paneButtons = PaneToolsFX.createColumnGridControls(btnFile, btnURL, btnClipboard, btnFileList);
 		paneButtons.setHgap(5);
 		paneButtons.setPadding(new Insets(5));
 		
