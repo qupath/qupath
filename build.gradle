@@ -157,7 +157,7 @@ subprojects {
 
     commonsmath 'org.apache.commons:commons-math3:3.6.1'
 
-    gson 'com.google.code.gson:gson:2.8.5'
+    gson 'com.google.code.gson:gson:2.8.6'
 
     controlsfx 'org.controlsfx:controlsfx:11.0.0'
 
