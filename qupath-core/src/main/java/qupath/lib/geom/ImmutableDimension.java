@@ -46,9 +46,19 @@ public class ImmutableDimension {
 	 * @param width
 	 * @param height
 	 */
-	public ImmutableDimension(final int width, final int height) {
+	private ImmutableDimension(final int width, final int height) {
 		this.width = width;
 		this.height = height;
+	}
+	
+	/**
+	 * Get an ImmutableDimension representing the specified width and height.
+	 * @param width
+	 * @param height
+	 * @return
+	 */
+	public static ImmutableDimension getInstance(final int width, final int height) {
+		return new ImmutableDimension(width, height);
 	}
 	
 	/**

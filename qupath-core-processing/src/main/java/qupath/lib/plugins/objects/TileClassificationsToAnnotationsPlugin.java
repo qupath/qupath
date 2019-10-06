@@ -195,7 +195,7 @@ public class TileClassificationsToAnnotationsPlugin<T> extends AbstractDetection
 			for (PathClass pathClass : pathClasses) {
 				PathObject pathSingleAnnotation = null;
 				List<PathObject> tiles = new ArrayList<>();
-				if (pathClass != null && PathClassTools.isIgnoredClass(pathClass)) {
+				if (pathClass != null && !PathClassTools.isIgnoredClass(pathClass)) {
 					Path2D path = null;
 					for (PathObject pathObject : parentObject.getChildObjects()) {
 						if ((pathObject instanceof PathTileObject) && (pathObject.getROI() instanceof PathShape) && pathClass.equals(pathObject.getPathClass())) {

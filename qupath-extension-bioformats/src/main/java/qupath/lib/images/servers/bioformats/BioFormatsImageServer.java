@@ -31,6 +31,8 @@ import java.awt.image.DataBuffer;
 import java.awt.image.DataBufferByte;
 import java.awt.image.DataBufferDouble;
 import java.awt.image.DataBufferFloat;
+import java.awt.image.DataBufferInt;
+import java.awt.image.DataBufferShort;
 import java.awt.image.DataBufferUShort;
 import java.awt.image.PixelInterleavedSampleModel;
 import java.awt.image.SampleModel;
@@ -45,6 +47,7 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.DoubleBuffer;
 import java.nio.FloatBuffer;
+import java.nio.IntBuffer;
 import java.nio.ShortBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -468,7 +471,12 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 
 			PixelType pixelType;
 			switch (reader.getPixelType()) {
+				case FormatTools.BIT:
+					logger.warn("Pixel type is BIT! This is not currently supported by QuPath.");
+					pixelType = PixelType.UINT8;
+					break;
 				case FormatTools.INT8:
+					logger.warn("Pixel type is INT8! This is not currently supported by QuPath.");
 					pixelType = PixelType.INT8;
 					break;
 				case FormatTools.UINT8:
@@ -484,7 +492,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 					pixelType = PixelType.INT32;
 					break;
 				case FormatTools.UINT32:
-					logger.warn("Pixel type is UINT32!");
+					logger.warn("Pixel type is UINT32! This is not currently supported by QuPath.");
 					pixelType = PixelType.UINT32;
 					break;
 				case FormatTools.FLOAT:
@@ -497,8 +505,20 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 					throw new IllegalArgumentException("Unsupported pixel type " + reader.getPixelType());
 			}
 			
+			// Determine min/max values if we can
 			int bpp = reader.getBitsPerPixel();
-			boolean isRGB = reader.isRGB() && bpp == 8;
+			Number minValue = null;
+			Number maxValue = null;
+			if (bpp < pixelType.getBitsPerPixel()) {
+				if (pixelType.isSignedInteger()) {
+					minValue = -(int)Math.pow(2, bpp-1);
+					maxValue = (int)(Math.pow(2, bpp-1) - 1);
+				} else if (pixelType.isUnsignedInteger()) {
+					maxValue = (int)(Math.pow(2, bpp) - 1);
+				}
+			}
+			
+			boolean isRGB = reader.isRGB() && pixelType == PixelType.UINT8;
 			// Remove alpha channel
 			if (isRGB && nChannels == 4) {
 				logger.warn("Removing alpha channel");
@@ -534,13 +554,13 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 				// Update RGB status if needed - sometimes we might really have an RGB image, but the Bio-Formats flag doesn't show this - 
 				// and we want to take advantage of the optimizations where we can
 				if (nChannels == 3 && 
-						bpp == 8 &&
+						pixelType == PixelType.UINT8 &&
 						channels.equals(ImageChannel.getDefaultRGBChannels())
 						) {
 					isRGB = true;
 					colorModel = ColorModel.getRGBdefault();
 				} else {
-					colorModel = ColorModelFactory.createProbabilityColorModel(bpp, nChannels, false, channels.stream().mapToInt(c -> c.getColor()).toArray());
+					colorModel = ColorModelFactory.createColorModel(pixelType, nChannels, false, channels.stream().mapToInt(c -> c.getColor()).toArray());
 				}
 			}
 
@@ -644,6 +664,8 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 			ImageServerMetadata.Builder builder = new ImageServerMetadata.Builder(
 					getClass(), path, width, height).
 //					args(args).
+					minValue(minValue).
+					maxValue(maxValue).
 					name(imageName).
 					channels(channels).
 					sizeZ(nZSlices).
@@ -676,6 +698,14 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 
 		long endTime = System.currentTimeMillis();
 		logger.debug(String.format("Initialization time: %d ms", endTime-startTime));
+	}
+	
+	/**
+	 * Get the format String, as returned by Bio-Formats {@code IFormatReader.getFormat()}.
+	 * @return
+	 */
+	public String getFormat() {
+		return format;
 	}
 	
 	@Override
@@ -742,7 +772,11 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 //		return manager.getPrimaryReader(this, this.filePath);
 //	}
 	
-	int getSeries() {
+	/**
+	 * Get the series index, as used by Bio-Formats.
+	 * @return
+	 */
+	public int getSeries() {
 		return series;
 	}
 	
@@ -825,6 +859,26 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 			}
 			dataBuffer = new DataBufferUShort(array, length);
 			break;
+		case (FormatTools.INT16):
+			length /= 2;
+			short[][] shortArray = new short[bytes.length][length];
+			for (int i = 0; i < bytes.length; i++) {
+				ShortBuffer buffer = ByteBuffer.wrap(bytes[i]).order(order).asShortBuffer();
+				shortArray[i] = new short[buffer.limit()];
+				buffer.get(shortArray[i]);
+			}
+			dataBuffer = new DataBufferShort(shortArray, length);
+			break;
+		case (FormatTools.INT32):
+			length /= 4;
+			int[][] intArray = new int[bytes.length][length];
+				for (int i = 0; i < bytes.length; i++) {
+					IntBuffer buffer = ByteBuffer.wrap(bytes[i]).order(order).asIntBuffer();
+					intArray[i] = new int[buffer.limit()];
+					buffer.get(intArray[i]);
+				}
+			dataBuffer = new DataBufferInt(intArray, length);
+			break;
 		case (FormatTools.FLOAT):
 			length /= 4;
 			float[][] floatArray = new float[bytes.length][length];
@@ -836,7 +890,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 					floatArray[i] = DataTools.normalizeFloats(floatArray[i]);
 			}
 			dataBuffer = new DataBufferFloat(floatArray, length);
-		break;
+			break;
 		case (FormatTools.DOUBLE):
 			length /= 8;
 			double[][] doubleArray = new double[bytes.length][length];
@@ -848,7 +902,11 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 					doubleArray[i] = DataTools.normalizeDoubles(doubleArray[i]);
 			}
 			dataBuffer = new DataBufferDouble(doubleArray, length);
-		break;
+			break;
+		// TODO: Consider conversion to closest supported pixel type
+		case FormatTools.BIT:
+		case FormatTools.INT8:
+		case FormatTools.UINT32:
 		default:
 			throw new UnsupportedOperationException("Unsupported pixel type " + pixelType);
 		}
@@ -891,7 +949,11 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 		return imageMap != null && !imageMap.isEmpty();
 	}
 
-	MetadataStore getMetadataStore() throws DependencyException, ServiceException, FormatException, IOException {
+	/**
+	 * Get the MetadataStore, as used by Bio-Formats. This can be used to query metadata values not otherwise accessible.
+	 * @return
+	 */
+	public OMEPyramidStore getMetadataStore() {
 		return meta;
 	}
 	

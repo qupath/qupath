@@ -113,6 +113,9 @@ public class ImageServerMetadata {
 	
 	private List<ImageChannel> channels = new ArrayList<>();
 	
+	private Number minValue;
+	private Number maxValue;
+	
 	private PixelCalibration pixelCalibration;
 	
 	private Double magnification = null;
@@ -200,6 +203,32 @@ public class ImageServerMetadata {
 			metadata.height = height;
 			return this;
 		}
+		
+		/**
+		 * Specify the minimum value supported by this image.
+		 * If not provided, this will be taken from the {@link PixelType}.
+		 * @param val
+		 * @return
+		 * @see #pixelType(PixelType)
+		 */
+		public Builder minValue(final Number val) {
+			metadata.minValue = val;
+			return this;
+		}
+		
+		/**
+		 * Specify the maximum value supported by this image.
+		 * If not provided, this will be taken from the {@link PixelType}.
+		 * This purpose of this method is to support other effective bit-depths (e.g. 12-bit, 14-bit).
+		 * @param val
+		 * @return
+		 * @see #pixelType(PixelType)
+		 */
+		public Builder maxValue(final Number val) {
+			metadata.maxValue = val;
+			return this;
+		}
+
 		
 		/**
 		 * Specify the interpretation of channels.
@@ -389,7 +418,8 @@ public class ImageServerMetadata {
 				else
 					metadata.preferredTileHeight = Math.min(metadata.height, DEFAULT_TILE_SIZE);
 			}
-			return metadata;
+			// Return a duplicate so that we can reuse the builder if necessary
+			return new ImageServerMetadata(metadata);
 		}
 
 	}
@@ -419,6 +449,10 @@ public class ImageServerMetadata {
 		this.channels = new ArrayList<>(metadata.getChannels());
 		
 		this.magnification = metadata.magnification;
+		
+		this.minValue = metadata.minValue;
+		this.maxValue = metadata.maxValue;
+		this.channelType = metadata.channelType;
 		
 		this.preferredTileWidth = metadata.preferredTileWidth;
 		this.preferredTileHeight = metadata.preferredTileHeight;
@@ -517,6 +551,27 @@ public class ImageServerMetadata {
 	 */
 	public PixelType getPixelType() {
 		return pixelType;
+	}
+	
+	/**
+	 * Get the minimum value supported by this image.
+	 * By default, this is the lower bound of the {@link PixelType} unless otherwise specified.
+	 * @return
+	 * @see #getPixelType()
+	 */
+	public Number getMinValue() {
+		return minValue == null ? getPixelType().getLowerBound() : minValue;
+	}
+	
+	/**
+	 * Get the minimum value supported by this image.
+	 * By default, this is the lower bound of the {@link PixelType} unless otherwise specified.
+	 * This purpose of this method is to support other effective bit-depths (e.g. 12-bit, 14-bit).
+	 * @return
+	 * @see #getPixelType()
+	 */
+	public Number getMaxValue() {
+		return maxValue == null ? getPixelType().getUpperBound() : maxValue;
 	}
 	
 	/**
@@ -743,6 +798,8 @@ public class ImageServerMetadata {
 		result = prime * result + (isRGB ? 1231 : 1237);
 		result = prime * result + Arrays.hashCode(levels);
 		result = prime * result + ((magnification == null) ? 0 : magnification.hashCode());
+		result = prime * result + ((maxValue == null) ? 0 : maxValue.hashCode());
+		result = prime * result + ((minValue == null) ? 0 : minValue.hashCode());
 		result = prime * result + ((name == null) ? 0 : name.hashCode());
 		result = prime * result + ((pixelCalibration == null) ? 0 : pixelCalibration.hashCode());
 		result = prime * result + ((pixelType == null) ? 0 : pixelType.hashCode());
@@ -781,6 +838,16 @@ public class ImageServerMetadata {
 			if (other.magnification != null)
 				return false;
 		} else if (!magnification.equals(other.magnification))
+			return false;
+		if (maxValue == null) {
+			if (other.maxValue != null)
+				return false;
+		} else if (!maxValue.equals(other.maxValue))
+			return false;
+		if (minValue == null) {
+			if (other.minValue != null)
+				return false;
+		} else if (!minValue.equals(other.minValue))
 			return false;
 		if (name == null) {
 			if (other.name != null)

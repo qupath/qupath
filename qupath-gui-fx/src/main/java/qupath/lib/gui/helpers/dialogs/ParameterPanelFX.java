@@ -80,7 +80,7 @@ public class ParameterPanelFX {
 
 	private final static Logger logger = LoggerFactory.getLogger(ParameterPanelFX.class);
 	
-	private static int DEFAULT_NUMERIC_TEXT_COLS = 6;
+	private static int DEFAULT_NUMERIC_TEXT_COLS = 8;
 	
 	private GridPane pane;
 	private ParameterList params;

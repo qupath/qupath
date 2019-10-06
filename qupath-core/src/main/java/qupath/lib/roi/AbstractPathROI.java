@@ -103,12 +103,15 @@ abstract class AbstractPathROI implements ROI {
 	@Override
 	public String toString() {
 //		Rectangle bounds = getBounds();
-//		return String.format("%s (%d, %d, %d, %d)", getROIType(), bounds.x, bounds.y, bounds.width, bounds.height);
+		return String.format("%s (%.0f, %.0f, %.0f, %.0f, z=%d, t=%d, c=%d)",
+				getRoiName(),
+				getBoundsX(), getBoundsY(), getBoundsWidth(), getBoundsHeight(),
+				getZ(), getT(), getC());
 //		String name = getName();
 //		if (name != null)
 ////			return name;			
 //			return name + " - " + getROIType();			
-		return getRoiName();
+//		return getRoiName();
 //		return String.format("%s (%.1f, %.1f)", getROIType(), getCentroidX(), getCentroidY());
 //		return "Me";
 	}

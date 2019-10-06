@@ -65,7 +65,7 @@ public class PathObjectSelectionModel {
 			return;
 		}
 		// Check if we have any changes to make
-		if (selectedSet.size() == pathObjects.size() && selectedSet.containsAll(pathObjects) && pathObjectSelected == primarySelectedObject)
+		if (pathObjectSelected == primarySelectedObject && selectedSet.size() == pathObjects.size() && selectedSet.containsAll(pathObjects))
 			return;
 		
 		// Update selected objects

@@ -26,9 +26,9 @@ package qupath.lib.gui.commands;
 import java.awt.Shape;
 import java.awt.image.BufferedImage;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -62,6 +62,7 @@ import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuItem;
+import javafx.scene.control.MultipleSelectionModel;
 import javafx.scene.control.SelectionMode;
 import javafx.scene.control.SplitPane;
 import javafx.scene.control.TableCell;
@@ -144,6 +145,11 @@ public class SummaryMeasurementTableCommand implements PathCommand {
 	 */
 	private static double maxDimForTMACore = Runtime.getRuntime().maxMemory() > 1024L*1024L*1024L*4L ? 500 : 250;
 
+	/**
+	 * Command to show a summary measurement table, for PathObjects of a specified type (e.g. annotation, detection).
+	 * @param qupath
+	 * @param type
+	 */
 	public SummaryMeasurementTableCommand(final QuPathGUI qupath, final Class<? extends PathObject> type) {
 		super();
 		this.qupath = qupath;
@@ -579,7 +585,7 @@ public class SummaryMeasurementTableCommand implements PathCommand {
 
 
 
-	public static class BasicTableCell<S, T> extends TableCell<S, T> {
+	static class BasicTableCell<S, T> extends TableCell<S, T> {
 
 		public BasicTableCell() {
 			setAlignment(Pos.CENTER);
@@ -600,7 +606,7 @@ public class SummaryMeasurementTableCommand implements PathCommand {
 
 
 
-	public static class NumericTableCell<T> extends TableCell<T, Number> {
+	static class NumericTableCell<T> extends TableCell<T, Number> {
 
 		private HistogramDisplay histogramDisplay;
 
@@ -704,13 +710,21 @@ public class SummaryMeasurementTableCommand implements PathCommand {
 	//		return getTableModelString(table.getModel(), delim);
 	//	}
 
-
-	public static <T> String getTableModelString(final PathTableData<T> model, final String delim, Collection<String> excludeColumns) {
+	/**
+	 * Get a list of Strings representing table data.
+	 * <p>
+	 * Each entry in the list corresponds to a row.
+	 * 
+	 * @param <T> the data type for the table
+	 * @param model
+	 * @param delim
+	 * @param excludeColumns
+	 * @return
+	 */
+	public static <T> List<String> getTableModelStrings(final PathTableData<T> model, final String delim, Collection<String> excludeColumns) {
+		List<String> rows = new ArrayList<>();
+		
 		StringBuilder sb = new StringBuilder();
-//		// Object name column
-//		sb.append("Object").append(delim);
-		// TODO: Add object class & any annotation ROI shapes!
-		// Whatever numeric columns we have
 		
 		List<String> names = new ArrayList<>(model.getAllNames());
 		names.removeAll(excludeColumns);
@@ -721,14 +735,10 @@ public class SummaryMeasurementTableCommand implements PathCommand {
 			if (col < nColumns - 1)
 				sb.append(delim);
 		}
-		sb.append(System.lineSeparator());
+		rows.add(sb.toString());
+		sb.setLength(0);
 		
 		for (T object : model.getEntries()) {
-//			// TODO: Remove PathObject-specific addition!!!!!
-//			if (object instanceof PathObject) {
-//				PathObject pathObject = (PathObject)object;
-//				sb.append(pathObject.getDisplayedName()).append(delim);
-//			}
 			for (int col = 0; col < nColumns; col++) {
 				String val = model.getStringValue(object, names.get(col));
 				if (val != null)
@@ -741,12 +751,41 @@ public class SummaryMeasurementTableCommand implements PathCommand {
 				if (col < nColumns - 1)
 					sb.append(delim);
 			}
-			sb.append(System.lineSeparator());
+			rows.add(sb.toString());
+			sb.setLength(0);
 		}
-		return sb.toString();
+		return rows;
 	}
 
+	/**
+	 * Get a single String representing the data in a table.
+	 * <p>
+	 * Note: if the required String is too long (approximately Integer.MAX_VALUE characters), this will throw an IllegalArgumentException.
+	 * 
+	 * @param <T> the data type for the items in the table
+	 * @param model
+	 * @param delim
+	 * @param excludeColumns
+	 * @return
+	 */
+	public static <T> String getTableModelString(final PathTableData<T> model, final String delim, Collection<String> excludeColumns) throws IllegalArgumentException {
+		List<String> rows = getTableModelStrings(model, delim, excludeColumns);
+		long length = rows.stream().mapToLong(r -> r.length()).sum() + rows.size() * System.lineSeparator().length();
+		long maxLength = Integer.MAX_VALUE - 1;
+		if (length > Integer.MAX_VALUE)
+			throw new IllegalArgumentException("Requested string is too long! Requires " + maxLength + " characters, but Java arrays limited to " + maxLength);
+		logger.debug("Getting table string (approx {} characters, {} % of maximum)", length, Math.round(length / (double)maxLength  * 100));
+		return String.join(System.lineSeparator(), rows);
+	}
 
+	/**
+	 * Get a single String representing the data in a table and copy it to the clipboard.
+	 * <p>
+	 * Note: this may not be possible if the String is too long, see {@link #getTableModelString(PathTableData, String, Collection)}.
+	 * 
+	 * @param model
+	 * @param excludeColumns
+	 */
 	public static void copyTableContentsToClipboard(final PathTableData<?> model, Collection<String> excludeColumns) {
 		if (model == null) {
 			logger.warn("No table available to copy!");
@@ -758,7 +797,6 @@ public class SummaryMeasurementTableCommand implements PathCommand {
 		content.putString(string);
 		clipboard.setContent(content);
 	}
-
 	
 	
 	private static File promptForOutputFile() {
@@ -766,20 +804,26 @@ public class SummaryMeasurementTableCommand implements PathCommand {
 		return QuPathGUI.getSharedDialogHelper().promptToSaveFile(null, null, null, "Results data", ext);
 	}
 	
-
+	/**
+	 * Save the data from a table to a text file, using the default delimiter from {@link PathPrefs}.
+	 * @param tableModel the data to export
+	 * @param fileOutput the file to write the text to; if null, a file chooser will be shown
+	 * @param excludeColumns headings for columns that should be excluded
+	 * @return
+	 */
 	public static boolean saveTableModel(final PathTableData<?> tableModel, File fileOutput, Collection<String> excludeColumns) {
 		if (fileOutput == null) {
 			fileOutput = promptForOutputFile();
 			if (fileOutput == null)
 				return false;
 		}
-		try {
-			PrintWriter writer = new PrintWriter(fileOutput);
-			writer.println(getTableModelString(tableModel, PathPrefs.getTableDelimiter(), excludeColumns));
+		try (PrintWriter writer = new PrintWriter(fileOutput, StandardCharsets.UTF_8)) {
+			for (String row : getTableModelStrings(tableModel, PathPrefs.getTableDelimiter(), excludeColumns))
+				writer.println(row);
 			writer.close();
 			return true;
-		} catch (FileNotFoundException e) {
-			logger.error("File {} not found!", fileOutput);
+		} catch (IOException e) {
+			logger.error("Error writing file to " + fileOutput, e);
 		}
 		return false;
 	}
@@ -791,58 +835,45 @@ public class SummaryMeasurementTableCommand implements PathCommand {
 	private void synchronizeSelectionModelToTable(final PathObjectHierarchy hierarchy, final ListChangeListener.Change<? extends PathObject> change, final TableView<PathObject> table) {
 		if (synchronizingTableToModel || hierarchy == null)
 			return;
-		boolean ownsChanges = !synchronizingModelToTable;
+		
+		PathObjectSelectionModel model = hierarchy.getSelectionModel();
+		if (model == null) {
+			return;
+		}
+		
+		boolean wasSynchronizingToTree = synchronizingModelToTable;
 		try {
-//			System.out.println(change);
 			synchronizingModelToTable = true;
-			PathObjectSelectionModel model = hierarchy.getSelectionModel();
-			if (model == null) {
-				return;
-			}
 			
 			// Check - was anything removed?
 			boolean removed = false;
-			while (change.next())
-				removed = removed | change.wasRemoved();
+			if (change != null) {
+				while (change.next())
+					removed = removed | change.wasRemoved();
+			}
 			
-			TableViewSelectionModel<PathObject> tableModel = table.getSelectionModel();
-			List<PathObject> selectedItems = tableModel.getSelectedItems();
+			MultipleSelectionModel<PathObject> treeModel = table.getSelectionModel();
+			List<PathObject> selectedItems = treeModel.getSelectedItems();
+			
 			// If we just have no selected items, and something was removed, then clear the selection
 			if (selectedItems.isEmpty() && removed) {
 				model.clearSelection();
 				return;				
 			}
+			
 			// If we just have one selected item, and also items were removed from the selection, then only select the one item we have
-			if (selectedItems.size() == 1 && removed) {
+//			if (selectedItems.size() == 1 && removed) {
+			if (selectedItems.size() == 1) {
 				model.setSelectedObject(selectedItems.get(0), false);
 				return;
 			}
+			
 			// If we have multiple selected items, we need to ensure that everything in the tree matches with everything in the selection model
-			Set<PathObject> currentSelections = model.getSelectedObjects();
-			Set<PathObject> toDeselect = new HashSet<>();
-			Set<PathObject> toSelect = new HashSet<>();
-			int n = table.getItems().size();
-			for (int i = 0; i < n; i++) {
-				PathObject temp = table.getItems().get(i);
-				if (tableModel.isSelected(i)) {
-					if (!currentSelections.contains(temp))
-						toSelect.add(temp);
-				} else {
-					if (currentSelections.contains(temp))
-						toDeselect.add(temp);
-				}
-			}
-			model.deselectObjects(toDeselect);
-			model.selectObjects(toSelect);
-			
-			// Ensure that we have the main selected object
-			PathObject mainSelection = table.getFocusModel().getFocusedItem();
-			if (mainSelection != null && model.isSelected(mainSelection))
-				model.setSelectedObject(mainSelection, true);
-			
+			Set<PathObject> toSelect = new HashSet<>(treeModel.getSelectedItems());
+			PathObject primary = treeModel.getSelectedItem();
+			model.setSelectedObjects(toSelect, primary);
 		} finally {
-			if (ownsChanges)
-				synchronizingModelToTable = false;
+			synchronizingModelToTable = wasSynchronizingToTree;
 		}
 	}
 	
@@ -861,7 +892,7 @@ public class SummaryMeasurementTableCommand implements PathCommand {
 				return;
 			}
 			
-			if (model.singleSelection()) {
+			if (model.singleSelection() || tableModel.getSelectionMode() == SelectionMode.SINGLE) {
 				int ind = table.getItems().indexOf(model.getSelectedObject());
 				if (ind >= 0) {
 					tableModel.clearAndSelect(ind);
@@ -889,8 +920,15 @@ public class SummaryMeasurementTableCommand implements PathCommand {
 				}
 			}
 			tableModel.clearSelection();
-			if (count > 0)
+			if (count > 0) {
+				int maxCount = 1000;
+				if (count > maxCount) {
+					logger.warn("Only the first {} items will be selected in the table (out of {} total) - otherwise QuPath can grind to a halt, sorry",
+							maxCount, count);
+					count = maxCount;
+				}
 				tableModel.selectIndices(indsToSelect[0], Arrays.copyOfRange(indsToSelect, 1, count));
+			}
 			
 //			for (int i = 0; i < n; i++) {
 //				PathObject temp = table.getItems().get(i);
@@ -910,7 +948,6 @@ public class SummaryMeasurementTableCommand implements PathCommand {
 				table.scrollTo(mainObjectInd);
 			}
 			
-				
 		} finally {
 			if (ownsChanges)
 				synchronizingTableToModel = false;

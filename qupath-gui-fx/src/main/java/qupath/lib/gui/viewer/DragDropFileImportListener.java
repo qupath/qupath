@@ -43,9 +43,9 @@ import javafx.scene.input.TransferMode;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.ProjectImportImagesCommand;
 import qupath.lib.gui.helpers.DisplayHelpers;
-import qupath.lib.gui.io.PathAwtIO;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.scripting.ScriptEditor;
+import qupath.lib.gui.tma.TMADataIO;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.TMAGrid;
@@ -250,11 +250,11 @@ public class DragDropFileImportListener implements EventHandler<DragEvent> {
 			}
 			
 			// Check if this is TMA dearraying data file
-			if (singleFile && (fileName.endsWith(PathAwtIO.TMA_DEARRAYING_DATA_EXTENSION))) {
+			if (singleFile && (fileName.endsWith(TMADataIO.TMA_DEARRAYING_DATA_EXTENSION))) {
 				if (hierarchy == null)
 					DisplayHelpers.showErrorMessage("TMA grid import", "Please open an image first before importing a dearrayed TMA grid!");
 				else {
-					TMAGrid tmaGrid = PathAwtIO.importDearrayedTMAData(file);
+					TMAGrid tmaGrid = TMADataIO.importDearrayedTMAData(file);
 					if (tmaGrid != null) {
 						if (hierarchy.isEmpty() || DisplayHelpers.showYesNoDialog("TMA grid import", "Set TMA grid for existing hierarchy?"))
 							hierarchy.setTMAGrid(tmaGrid);

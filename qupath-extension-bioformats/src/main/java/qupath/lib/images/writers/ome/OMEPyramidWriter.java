@@ -129,11 +129,23 @@ public class OMEPyramidWriter {
 		
 		meta.setPixelsDimensionOrder(DimensionOrder.XYCZT, series);
 		switch (server.getPixelType()) {
+		case INT8:
+			meta.setPixelsType(PixelType.INT8, series);
+			break;
 		case UINT8:
 			meta.setPixelsType(PixelType.UINT8, series);
 			break;
+		case INT16:
+			meta.setPixelsType(PixelType.INT16, series);
+			break;
 		case UINT16:
 			meta.setPixelsType(PixelType.UINT16, series);
+			break;
+		case INT32:
+			meta.setPixelsType(PixelType.INT32, series);
+			break;
+		case UINT32:
+			meta.setPixelsType(PixelType.UINT32, series);
 			break;
 		case FLOAT32:
 			meta.setPixelsType(PixelType.FLOAT, series);
@@ -441,26 +453,27 @@ public class OMEPyramidWriter {
 		int n = ww*hh;
 		Object pixelBuffer = getPixelBuffer(n);
 		switch (server.getPixelType()) {
+		case INT8:
 		case UINT8:
-		case UINT16:
 		case INT16:
+		case UINT16:
 		case INT32:
 		case UINT32:
 			int[] pixelsInt = pixelBuffer instanceof int[] ? (int[])pixelBuffer : null;
 			if (pixelsInt == null || pixelsInt.length < n)
 				pixelsInt = new int[n];
 			pixelsInt = raster.getSamples(0, 0, ww, hh, c, pixelsInt);
-			if (server.getPixelType().bitsPerPixel() == 8) {
+			if (server.getPixelType().getBitsPerPixel() == 8) {
 				for (int i = 0; i < n; i++) {
 					buf.put(ind, (byte)pixelsInt[i]);
 					ind += inc;
 				}
-			} else if (server.getPixelType().bitsPerPixel() == 16) {
+			} else if (server.getPixelType().getBitsPerPixel() == 16) {
 				for (int i = 0; i < n; i++) {
 					buf.putShort(ind, (short)pixelsInt[i]);
 					ind += inc;
 				}
-			} else if (server.getPixelType().bitsPerPixel() == 32) {
+			} else if (server.getPixelType().getBitsPerPixel() == 32) {
 				for (int i = 0; i < n; i++) {
 					buf.putInt(ind, (int)pixelsInt[i]);
 					ind += inc;
@@ -504,13 +517,16 @@ public class OMEPyramidWriter {
 	Object getPixelBuffer(int length) {
 		Object originalBuffer = this.pixelBuffer.get();
 		Object updatedBuffer = null;
-		int bpp = server.getPixelType().bitsPerPixel();
-		if (server.isRGB() || bpp == 8 || bpp == 16) {
-			updatedBuffer = ensureIntArray(originalBuffer, length);
-		} else if (bpp == 32) {
+		switch (server.getPixelType()) {
+		case FLOAT32:
 			updatedBuffer = ensureFloatArray(originalBuffer, length);
-		} else if (bpp == 64) {
+			break;
+		case FLOAT64:
 			updatedBuffer = ensureDoubleArray(originalBuffer, length);
+			break;
+		default:
+			// Everything else uses ints (including 8-bit RGB)
+			updatedBuffer = ensureIntArray(originalBuffer, length);
 		}
 		if (updatedBuffer != originalBuffer)
 			pixelBuffer.set(updatedBuffer);
@@ -920,7 +936,7 @@ public class OMEPyramidWriter {
 			set.remove(PyramidOMETiffWriter.COMPRESSION_JPEG);
 			set.remove(PyramidOMETiffWriter.COMPRESSION_J2K);
 			set.remove(PyramidOMETiffWriter.COMPRESSION_J2K_LOSSY);
-		} else if (server.getPixelType().bitsPerPixel() != 8 || (server.nChannels() > 1 && !server.isRGB())) {
+		} else if (server.getPixelType().getBitsPerPixel() != 8 || (server.nChannels() > 1 && !server.isRGB())) {
 			set.remove(PyramidOMETiffWriter.COMPRESSION_JPEG);
 		}
 
@@ -973,7 +989,7 @@ public class OMEPyramidWriter {
 	static String getDefaultLossyCompressionType(final ImageServer<BufferedImage> server) {
 		if (server.isRGB())
 			return PyramidOMETiffWriter.COMPRESSION_JPEG;
-		if (server.getPixelType().bitsPerPixel() <= 16)
+		if (server.getPixelType().getBitsPerPixel() <= 16)
 			return PyramidOMETiffWriter.COMPRESSION_J2K_LOSSY;
 		// Don't try another lossy compression method...
 		return getDefaultLosslessCompressionType(server);
@@ -998,11 +1014,23 @@ public class OMEPyramidWriter {
 	 * @param server
 	 * @param path
 	 * @param compression
+	 * @param region the region to export. If this is a RegionRequest that defines a downsample other than the default for the server, this downsample will be used 
+	 * (and the resulting image will not be pyramidal).
+	 * 
 	 * @throws FormatException
 	 * @throws IOException
 	 */
 	public static void writePyramid(ImageServer<BufferedImage> server, String path, String compression, ImageRegion region) throws FormatException, IOException {
-		new Builder(server).compression(compression).region(region).build().writePyramid(path);
+		var builder = new Builder(server).compression(compression);
+		if (region != null) {
+			builder = builder.region(region);			
+		}
+		if (region instanceof RegionRequest) {
+			double downsample = ((RegionRequest)region).getDownsample();
+			if (downsample != server.getDownsampleForResolution(0))
+				builder.downsamples(downsample);
+		}
+		builder.build().writePyramid(path);
 	}
 
 }

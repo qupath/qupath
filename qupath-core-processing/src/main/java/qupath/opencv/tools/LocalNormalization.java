@@ -34,9 +34,10 @@ public class LocalNormalization {
 	 * @param sigmaX horizontal Gaussian filter sigma
 	 * @param sigmaY vertical Gaussian filter sigma
 	 * @param sigmaZ z-dimension Gaussian filter sigma
+	 * @param subtractOnly if true, subtract the Gaussian-filtered image only, do not divide by deviation
 	 * @param border border padding method to use (see OpenCV for definitions)
 	 */
-	public static void gaussianNormalize3D(List<Mat> stack, double sigmaX, double sigmaY, double sigmaZ, int border) {
+	public static void gaussianNormalize3D(List<Mat> stack, double sigmaX, double sigmaY, double sigmaZ, boolean subtractOnly, int border) {
 		
 		Mat kx = OpenCVTools.getGaussianDerivKernel(sigmaX, 0, false);
 		Mat ky = OpenCVTools.getGaussianDerivKernel(sigmaY, 0, true);
@@ -46,14 +47,16 @@ public class LocalNormalization {
 		List<Mat> stackSquared = new ArrayList<>();
 		for (Mat mat : stack) {
 			mat.convertTo(mat, opencv_core.CV_32F);
-			stackSquared.add(mat.mul(mat).asMat());
+			if (!subtractOnly)
+				stackSquared.add(mat.mul(mat).asMat());
 		}
 		
 		// Apply z-filtering if required, otherwise clone for upcoming smoothing
 		List<Mat> stackSmoothed;
 		if (sigmaZ > 0) {
 			stackSmoothed = OpenCVTools.filterZ(stack, kz, -1, border);
-			stackSquared = OpenCVTools.filterZ(stackSquared, kz, -1, border);
+			if (!subtractOnly)
+				stackSquared = OpenCVTools.filterZ(stackSquared, kz, -1, border);
 		} else
 			stackSmoothed = stack.stream().map(m -> m.clone()).collect(Collectors.toList());
 		
@@ -66,20 +69,22 @@ public class LocalNormalization {
 			opencv_imgproc.sepFilter2D(matSmooth, matSmooth, opencv_core.CV_32F, kx, ky, null, 0.0, border);
 			opencv_core.subtract(mat, matSmooth, mat);
 
-			// Square the smoothed image
-			matSmooth.put(matSmooth.mul(matSmooth));
-
-			// Smooth the squared image
-			Mat matSquaredSmooth = stackSquared.get(i);
-			opencv_imgproc.sepFilter2D(matSquaredSmooth, matSquaredSmooth, opencv_core.CV_32F, kx, ky, null, 0.0, border);
-			
-			opencv_core.subtract(matSquaredSmooth, matSmooth, matSmooth);
-			opencv_core.sqrt(matSmooth, matSmooth);
-			
-			opencv_core.divide(mat, matSmooth, mat);
-			
+			if (!subtractOnly) {
+				// Square the smoothed image
+				matSmooth.put(matSmooth.mul(matSmooth));
+	
+				// Smooth the squared image
+				Mat matSquaredSmooth = stackSquared.get(i);
+				opencv_imgproc.sepFilter2D(matSquaredSmooth, matSquaredSmooth, opencv_core.CV_32F, kx, ky, null, 0.0, border);
+				
+				opencv_core.subtract(matSquaredSmooth, matSmooth, matSmooth);
+				opencv_core.sqrt(matSmooth, matSmooth);
+				
+				opencv_core.divide(mat, matSmooth, mat);
+				
+				matSquaredSmooth.release();
+			}
 			matSmooth.release();
-			matSquaredSmooth.release();
 		}
 	}
 	
@@ -149,12 +154,13 @@ public class LocalNormalization {
 	 * @param mat input image
 	 * @param sigmaX horizontal Gaussian filter sigma
 	 * @param sigmaY vertical Gaussian filter sigma
+	 * @param subtractOnly if true, subtract the Gaussian-filtered image only, do not divide by deviation
 	 * @param border border padding method to use (see OpenCV for definitions)
 	 * 
-	 * @see #gaussianNormalize3D(List, double, double, double, int)
+	 * @see #gaussianNormalize3D(List, double, double, double, boolean, int)
 	 */
-	public static void gaussianNormalize2D(Mat mat, double sigmaX, double sigmaY, int border) {
-		gaussianNormalize3D(Collections.singletonList(mat), sigmaX, sigmaY, 0.0, border);
+	public static void gaussianNormalize2D(Mat mat, double sigmaX, double sigmaY, boolean subtractOnly, int border) {
+		gaussianNormalize3D(Collections.singletonList(mat), sigmaX, sigmaY, 0.0, subtractOnly, border);
 	}
 
 	/**
@@ -163,12 +169,13 @@ public class LocalNormalization {
 	 * @param stack image z-stack, in which each element is a 2D (x,y) slice
 	 * @param sigmaX horizontal Gaussian filter sigma
 	 * @param sigmaY vertical Gaussian filter sigma
+	 * @param subtractOnly if true, subtract the Gaussian-filtered image only, do not divide by deviation
 	 * @param border border padding method to use (see OpenCV for definitions)
 	 * 
-	 * @see #gaussianNormalize3D(List, double, double, double, int)
+	 * @see #gaussianNormalize3D(List, double, double, double, boolean, int)
 	 */
-	public static void gaussianNormalize2D(List<Mat> stack, double sigmaX, double sigmaY, int border) {
-		gaussianNormalize3D(stack, sigmaX, sigmaY, 0.0, border);
+	public static void gaussianNormalize2D(List<Mat> stack, double sigmaX, double sigmaY, boolean subtractOnly, int border) {
+		gaussianNormalize3D(stack, sigmaX, sigmaY, 0.0, subtractOnly, border);
 	}
 
 }

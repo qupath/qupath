@@ -24,6 +24,7 @@
 package qupath.lib.images.writers;
 
 import java.io.IOException;
+import java.util.Collection;
 
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.regions.RegionRequest;
@@ -40,7 +41,6 @@ import qupath.lib.regions.RegionRequest;
  *
  * @param <T>
  */
-@Deprecated
 public interface ImageWriter<T> {
 	
 	/**
@@ -50,11 +50,22 @@ public interface ImageWriter<T> {
 	public String getName();
 
 	/**
-	 * Get the file extension used by the image writer.
+	 * Get the file extensions used by the image writer.
+	 * These are returned without the leading 'dot'.
+	 * In the case where multiple extensions are associated with a file type 
+	 * (e.g. "jpg", "jpeg", "tif", "tiff") the preferred should be returned first;
 	 * @return
 	 */
-	public String getExtension();
-
+	public Collection<String> getExtensions();
+	
+	/**
+	 * Get the default extension. This should be the first returned by {@link #getExtensions()}.
+	 * @return
+	 */
+	public default String getDefaultExtension() {
+		return getExtensions().iterator().next();
+	}
+	
 	/**
 	 * Check if writer can handle multiple timepoints.
 	 * @return
@@ -101,14 +112,20 @@ public interface ImageWriter<T> {
 	public String getDetails();
 	
 	/**
+	 * Get the class of supported images.
+	 * @return
+	 * {@link ImageServer#getImageClass()}
+	 */
+	public Class<T> getImageClass();
+	
+	/**
 	 * Write an image region to a specified path.
 	 * @param server
 	 * @param region
 	 * @param pathOutput
-	 * @return
 	 * @throws IOException
 	 */
-	public T writeImage(ImageServer<T> server, RegionRequest region, String pathOutput) throws IOException;
+	public void writeImage(ImageServer<T> server, RegionRequest region, String pathOutput) throws IOException;
 
 	/**
 	 * Write a full image to a specified path.

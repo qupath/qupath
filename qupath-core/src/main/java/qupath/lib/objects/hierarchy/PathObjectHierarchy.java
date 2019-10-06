@@ -614,6 +614,7 @@ public final class PathObjectHierarchy implements Serializable {
 			removeObject(pathObject, true, false);
 		addPathObject(pathObject, false);
 		fireObjectsChangedEvent(this, Collections.singletonList(pathObject), false);
+//		fireHierarchyChangedEvent(this, pathObject);
 	}
 	
 	
@@ -683,12 +684,32 @@ public final class PathObjectHierarchy implements Serializable {
 		var locator = tileCache.getLocator(roi, false);
 		var preparedGeometry = tileCache.getPreparedGeometry(tileCache.getGeometry(roi));
 		return pathObjects.parallelStream().filter(child -> {
+			// Test plane first
+			if (!samePlane(roi, child.getROI(), false))
+				return false;
+			
 			if (child.isDetection())
 				return tileCache.containsCentroid(locator, child);
 			else
 				return tileCache.covers(preparedGeometry, child);
 		}).collect(Collectors.toList());
 	}
+	
+	
+	/**
+	 * Check if two ROIs fall in the same plane, optionally testing the channel as well.
+	 * @param roi1
+	 * @param roi2
+	 * @param checkChannel
+	 * @return
+	 */
+	static boolean samePlane(ROI roi1, ROI roi2, boolean checkChannel) {
+		if (checkChannel)
+			return roi1.getImagePlane().equals(roi2.getImagePlane());
+		else
+			return roi1.getZ() == roi2.getZ() && roi1.getT() == roi2.getT();
+	}
+	
 	
 	/**
 	 * Get the objects within a specified region.

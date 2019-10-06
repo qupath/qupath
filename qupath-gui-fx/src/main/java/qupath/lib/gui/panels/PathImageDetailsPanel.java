@@ -698,7 +698,7 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 		
 		private ImageData<BufferedImage> imageData;
 		
-		protected enum ROW_TYPE {NAME, URI, BIT_DEPTH, MAGNIFICATION, WIDTH, HEIGHT, DIMENSIONS, PIXEL_WIDTH, PIXEL_HEIGHT, UNCOMPRESSED_SIZE, SERVER_TYPE, PYRAMID, METADATA_CHANGED, IMAGE_TYPE};
+		protected enum ROW_TYPE {NAME, URI, PIXEL_TYPE, MAGNIFICATION, WIDTH, HEIGHT, DIMENSIONS, PIXEL_WIDTH, PIXEL_HEIGHT, UNCOMPRESSED_SIZE, SERVER_TYPE, PYRAMID, METADATA_CHANGED, IMAGE_TYPE};
 
 //		protected enum ROW_TYPE {PATH, IMAGE_TYPE, MAGNIFICATION, WIDTH, HEIGHT, PIXEL_WIDTH, PIXEL_HEIGHT,
 //				CHANNEL_1, CHANNEL_1_STAIN, CHANNEL_2, CHANNEL_2_STAIN, CHANNEL_3, CHANNEL_3_STAIN
@@ -757,8 +757,8 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 				return "Image type";
 			case METADATA_CHANGED:
 				return "Metadata changed";
-			case BIT_DEPTH:
-				return "Bit depth";
+			case PIXEL_TYPE:
+				return "Pixel type";
 			case MAGNIFICATION:
 				return "Magnification";
 			case WIDTH:
@@ -824,8 +824,11 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 				return imageData.getImageType();
 			case METADATA_CHANGED:
 				return hasOriginalMetadata(imageData.getServer()) ? "No" : "Yes";
-			case BIT_DEPTH:
-				return server.isRGB() ? "8-bit (RGB)" : server.getPixelType().bitsPerPixel();
+			case PIXEL_TYPE:
+				String type = server.getPixelType().toString().toLowerCase();
+				if (server.isRGB())
+					type += " (rgb)";
+				return type;
 			case MAGNIFICATION:
 				double mag = server.getMetadata().getMagnification();
 				if (Double.isNaN(mag))

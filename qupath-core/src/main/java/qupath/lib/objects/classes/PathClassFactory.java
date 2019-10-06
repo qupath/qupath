@@ -154,35 +154,37 @@ public class PathClassFactory {
 		
 		validateName(name);
 		
-		PathClass pathClass = mapPathClasses.get(name);
-		if (pathClass == null) {
-			if (rgb == null) {
-				// Use default colors for intensity classes
-				if (name.equals(ONE_PLUS)) {
-					rgb = ColorTools.makeScaledRGB(COLOR_ONE_PLUS, 1.25);
-				} else if (name.equals(TWO_PLUS)) {
-					rgb = ColorTools.makeScaledRGB(COLOR_TWO_PLUS, 1.25);
-				} else if (name.equals(THREE_PLUS))
-					rgb = ColorTools.makeScaledRGB(COLOR_THREE_PLUS, 1.25);
-				else if (name.equals(POSITIVE)) {
-					rgb = ColorTools.makeScaledRGB(COLOR_POSITIVE, 1.25);
-				} else if (name.equals(NEGATIVE)) {
-					rgb = ColorTools.makeScaledRGB(COLOR_NEGATIVE, 1.25);
-				} else {
-					// Create a random color
-					// Use the hashcode of the String as a seed - so that the same 
-					// color is generated reproducibly for the same name.
-					Random random = new Random(name.hashCode());
-					rgb = ColorTools.makeRGB(
-							random.nextInt(256),
-							random.nextInt(256),
-							random.nextInt(256));
+		synchronized (mapPathClasses) {
+			PathClass pathClass = mapPathClasses.get(name);
+			if (pathClass == null) {
+				if (rgb == null) {
+					// Use default colors for intensity classes
+					if (name.equals(ONE_PLUS)) {
+						rgb = ColorTools.makeScaledRGB(COLOR_ONE_PLUS, 1.25);
+					} else if (name.equals(TWO_PLUS)) {
+						rgb = ColorTools.makeScaledRGB(COLOR_TWO_PLUS, 1.25);
+					} else if (name.equals(THREE_PLUS))
+						rgb = ColorTools.makeScaledRGB(COLOR_THREE_PLUS, 1.25);
+					else if (name.equals(POSITIVE)) {
+						rgb = ColorTools.makeScaledRGB(COLOR_POSITIVE, 1.25);
+					} else if (name.equals(NEGATIVE)) {
+						rgb = ColorTools.makeScaledRGB(COLOR_NEGATIVE, 1.25);
+					} else {
+						// Create a random color
+						// Use the hashcode of the String as a seed - so that the same 
+						// color is generated reproducibly for the same name.
+						Random random = new Random(name.hashCode());
+						rgb = ColorTools.makeRGB(
+								random.nextInt(256),
+								random.nextInt(256),
+								random.nextInt(256));
+					}
 				}
+				pathClass = new PathClass(null, name, rgb);
+				mapPathClasses.put(pathClass.toString(), pathClass);
 			}
-			pathClass = new PathClass(null, name, rgb);
-			mapPathClasses.put(pathClass.toString(), pathClass);
+			return pathClass;
 		}
-		return pathClass;
 	}
 	
 	/**

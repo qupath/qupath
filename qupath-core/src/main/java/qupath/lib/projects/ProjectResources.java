@@ -189,7 +189,6 @@ public class ProjectResources {
 
 	static class JsonFileResourceManager<T> extends FileResourceManager<T> {
 		
-		private Gson gson = new GsonBuilder().setLenient().serializeSpecialFloatingPointValues().create();
 		private Class<T> cls;
 		
 		JsonFileResourceManager(Path dir, Class<T> cls) {
@@ -201,7 +200,7 @@ public class ProjectResources {
 		public T getResource(String name) throws IOException {
 			var path = Paths.get(dir.toString(), name + ext);
 			try (var reader = Files.newBufferedReader(path)) {
-				return gson.fromJson(reader, cls);
+				return GsonTools.getInstance(true).fromJson(reader, cls);
 			}
 		}
 
@@ -211,7 +210,11 @@ public class ProjectResources {
 				Files.createDirectories(dir);
 			var path = Paths.get(dir.toString(), name + ext);
 			
-			try (var writer = Files.newBufferedWriter(path, StandardOpenOption.CREATE)) {
+			try (var writer = Files.newBufferedWriter(path, StandardOpenOption.CREATE, StandardOpenOption.WRITE)) {
+				var gson = GsonTools.getInstance(true);
+//				String json = gson.toJson(resource, cls);
+//				writer.write(gson.toJson(resource, cls));
+//				writer.write(json);
 				gson.toJson(resource, cls, writer);
 			}
 		}

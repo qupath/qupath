@@ -116,7 +116,10 @@ public class ImageAlignmentPane {
 	private BooleanBinding noOverlay = selectedOverlay.isNull();
 
 
-
+	/**
+	 * Constructor.
+	 * @param qupath QuPath instance
+	 */
 	public ImageAlignmentPane(final QuPathGUI qupath) {
 		
 		this.qupath = qupath;

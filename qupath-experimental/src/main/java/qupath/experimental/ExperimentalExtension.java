@@ -1,36 +1,46 @@
 package qupath.experimental;
 
-import qupath.lib.ai.CreateRegionAnnotationsCommand;
-import qupath.lib.ai.ExportTrainingRegionsCommand;
-import qupath.lib.ai.SplitProjectTrainingCommand;
-import qupath.lib.classifiers.gui.PixelClassifierApplyCommand;
-import qupath.lib.classifiers.opencv.gui.PixelClassifierCommand;
-import qupath.lib.classifiers.opencv.gui.SimpleThresholdCommand;
-import qupath.lib.classifiers.opencv.pixel.OpenCVPixelClassifier;
-import qupath.lib.classifiers.opencv.pixel.OpenCVPixelClassifierDNN;
-import qupath.lib.classifiers.opencv.pixel.features.FeatureCalculators;
-import qupath.lib.classifiers.pixel.PixelClassifiers;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyCodeCombination;
+import javafx.scene.input.KeyCombination;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.align.InteractiveImageAlignmentCommand;
 import qupath.lib.gui.extensions.QuPathExtension;
+import qupath.opencv.ml.pixel.features.ColorTransforms;
+import qupath.lib.gui.ml.commands.CreateRegionAnnotationsCommand;
+import qupath.lib.gui.ml.commands.ExportTrainingRegionsCommand;
+import qupath.lib.gui.ml.commands.PixelClassifierLoadCommand;
+import qupath.lib.gui.ml.commands.PixelClassifierCommand;
+import qupath.lib.gui.ml.commands.SimpleThresholdCommand;
+import qupath.lib.gui.ml.commands.SplitProjectTrainingCommand;
+import qupath.lib.io.GsonTools;
+import qupath.opencv.ml.pixel.PixelClassifiers;
+import qupath.opencv.ml.pixel.features.FeatureCalculators;
 
 /**
  * Extension to make more experimental commands present in the GUI.
  */
 public class ExperimentalExtension implements QuPathExtension {
 	
+	static {
+		GsonTools.getDefaultBuilder()
+			.registerTypeAdapterFactory(PixelClassifiers.getTypeAdapterFactory())
+			.registerTypeAdapterFactory(FeatureCalculators.getTypeAdapterFactory())
+			.registerTypeAdapter(ColorTransforms.ColorTransform.class, new ColorTransforms.ColorTransformTypeAdapter());
+	}
+	
     @Override
     public void installExtension(QuPathGUI qupath) {
     	
-		PixelClassifiers.PixelClassifierTypeAdapterFactory.registerSubtype(OpenCVPixelClassifier.class);
-		PixelClassifiers.PixelClassifierTypeAdapterFactory.registerSubtype(OpenCVPixelClassifierDNN.class);
+//		PixelClassifiers.PixelClassifierTypeAdapterFactory.registerSubtype(OpenCVPixelClassifier.class);
+//		PixelClassifiers.PixelClassifierTypeAdapterFactory.registerSubtype(OpenCVPixelClassifierDNN.class);
     	FeatureCalculators.initialize();
     	
         QuPathGUI.addMenuItems(
-                qupath.getMenu("Classify", true),
-                QuPathGUI.createCommandAction(new PixelClassifierCommand(), "Pixel classifier (experimental)"),
-                QuPathGUI.createCommandAction(new PixelClassifierApplyCommand(qupath), "Apply pixel classifier (experimental)"),
-                QuPathGUI.createCommandAction(new SimpleThresholdCommand(qupath), "Simple threshold (experimental)")
+                qupath.getMenu("Classify>Pixel classification", true),
+                QuPathGUI.createCommandAction(new PixelClassifierLoadCommand(qupath), "Load pixel model (experimental)"),
+                QuPathGUI.createCommandAction(new PixelClassifierCommand(), "Train pixel model (experimental)", null, new KeyCodeCombination(KeyCode.P, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN)),
+                QuPathGUI.createCommandAction(new SimpleThresholdCommand(qupath), "Create threshold model (experimental)")
 //                QuPathGUI.createCommandAction(new OpenCvClassifierCommand2(qupath), "Object classifier (experimental)")
         );
         QuPathGUI.addMenuItems(

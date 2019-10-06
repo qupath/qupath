@@ -196,6 +196,7 @@ import qupath.lib.gui.commands.LoadClassifierCommand;
 import qupath.lib.gui.commands.LogViewerCommand;
 import qupath.lib.gui.commands.MeasurementManager;
 import qupath.lib.gui.commands.MeasurementMapCommand;
+import qupath.lib.gui.commands.MemoryMonitorCommand;
 import qupath.lib.gui.commands.MiniViewerCommand;
 import qupath.lib.gui.commands.OpenCommand;
 import qupath.lib.gui.commands.PreferencesCommand;
@@ -220,6 +221,7 @@ import qupath.lib.gui.commands.SerializeImageDataCommand;
 import qupath.lib.gui.commands.SetGridSpacingCommand;
 import qupath.lib.gui.commands.OpenWebpageCommand;
 import qupath.lib.gui.commands.ShowInstalledExtensionsCommand;
+import qupath.lib.gui.commands.ShowInputDisplayCommand;
 import qupath.lib.gui.commands.ShowLicensesCommand;
 import qupath.lib.gui.commands.ShowScriptEditorCommand;
 import qupath.lib.gui.commands.ShowSystemInfoCommand;
@@ -2976,8 +2978,9 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				getActionMenuItem(GUIActions.SAVE_DATA),
 				null,
 				createMenu(
-						"Export region...",
-						createCommandAction(new ExportImageRegionCommand(this), "Simple RGB image")
+						"Export images...",
+						createCommandAction(new ExportImageRegionCommand(this, false), "Original pixels"),
+						createCommandAction(new ExportImageRegionCommand(this, true), "Rendered RGB (with overlays)")
 						),
 				createMenu(
 						"Export snapshot...",
@@ -3147,6 +3150,8 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				getActionMenuItem(GUIActions.VIEW_TRACKER),
 				createCheckMenuItem(createSelectableCommandAction(slideLabelView.showingProperty(), "Show slide label")),				
 				null,
+				createCommandAction(new ShowInputDisplayCommand(this), "Show input on screen"),
+				createCommandAction(new MemoryMonitorCommand(this), "Show memory monitor"),
 				getActionMenuItem(GUIActions.SHOW_LOG)
 			);
 		
@@ -3273,19 +3278,26 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				);
 
 		// Try to load classifiers
-		Menu menuClassifiers = createMenu(
-				"Classify",
-				createCommandAction(new LoadClassifierCommand(this), "Load classifier"),
-				createCommandAction(new SparseImageServerCommand(this), "Create sparse image from project"),
-				null);
+		Menu menuClassifiers = createMenu("Classify");
 
+		Menu menuObjectClassifiers = createMenu("Object classification");
+		Menu menuPixelClassifiers = createMenu("Pixel classification");
+		addMenuItems(menuClassifiers, menuObjectClassifiers, menuPixelClassifiers);
+		
 		addMenuItems(
-				menuClassifiers,
+				menuObjectClassifiers,
+				createCommandAction(new LoadClassifierCommand(this), "Load detection classifier"),
 				null,
 				createCommandAction(new ResetClassificationsCommand(this, PathDetectionObject.class), "Reset detection classifications"),
 				null,
 				createCommandAction(new RandomTrainingRegionSelector(this, getAvailablePathClasses()), "Choose random training samples"),
 				createCommandAction(new SingleFeatureClassifierCommand(this, PathDetectionObject.class), "Classify by specific feature")
+				);
+				
+		addMenuItems(
+				menuClassifiers,
+				null,
+				createCommandAction(new SparseImageServerCommand(this), "Create sparse image from project")
 			);
 		
 		Action actionUpdateCheck = new Action("Check for updates (web)", e -> {

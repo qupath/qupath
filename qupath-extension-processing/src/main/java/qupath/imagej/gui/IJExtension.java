@@ -67,7 +67,7 @@ import qupath.imagej.detect.tissue.PositivePixelCounterIJ;
 import qupath.imagej.detect.tissue.SimpleTissueDetection2;
 import qupath.imagej.gui.commands.ExtractRegionCommand;
 import qupath.imagej.gui.commands.ScreenshotCommand;
-import qupath.imagej.images.writers.TIFFWriterIJ;
+import qupath.imagej.images.writers.TiffWriterIJ;
 import qupath.imagej.images.writers.ZipWriterIJ;
 import qupath.imagej.plugins.ImageJMacroRunner;
 import qupath.imagej.superpixels.DoGSuperpixelsPlugin;
@@ -75,7 +75,6 @@ import qupath.imagej.superpixels.SLICSuperpixelsPlugin;
 import qupath.imagej.tools.IJTools;
 import qupath.lib.awt.common.AwtTools;
 import qupath.lib.common.GeneralTools;
-import qupath.lib.gui.ImageWriterTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.extensions.QuPathExtension;
@@ -86,6 +85,7 @@ import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.images.PathImage;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.writers.ImageWriterTools;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathCellObject;
 import qupath.lib.objects.PathDetectionObject;
@@ -454,10 +454,6 @@ public class IJExtension implements QuPathExtension {
 				imageJPath, "ImageJ plugins directory", "ImageJ",
 				"Set the path to the 'plugins' directory of an existing ImageJ installation");
 		
-
-		ImageWriterTools.registerImageWriter(new TIFFWriterIJ());
-		ImageWriterTools.registerImageWriter(new ZipWriterIJ());
-
 		// Experimental brush tool turned off for now
 		//			qupath.getViewer().registerTool(Modes.BRUSH, new FancyBrushTool(qupath));
 

@@ -6,7 +6,6 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -258,13 +257,17 @@ public class ImageServers {
 		
 		@Override
 		protected ImageServer<BufferedImage> buildOriginal() throws Exception {
-			Map<ServerBuilder<BufferedImage>, ImageServer<BufferedImage>> map = new LinkedHashMap<>();
-			for (ServerBuilder<BufferedImage> channel :channels)
-				map.put(channel, channel.build());
-			ImageServer<BufferedImage> server = map.get(builder);
+			List<ImageServer<BufferedImage>> servers = new ArrayList<>();
+			ImageServer<BufferedImage> server = null;
+			for (ServerBuilder<BufferedImage> channel :channels) {
+				var temp = channel.build();
+				servers.add(temp);
+				if (builder.equals(channel))
+					server = temp;
+			}
 			if (server == null)
 				server = builder.build();
-			return new ConcatChannelsImageServer(server, map.values());
+			return new ConcatChannelsImageServer(server, servers);
 		}
 		
 		@Override

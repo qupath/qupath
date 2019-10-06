@@ -1,5 +1,6 @@
 package qupath.lib.gui.models;
 
+import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.Shape;
@@ -32,6 +33,11 @@ import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.ROI;
  
+/**
+ * Helper class to compute area-based measurements for regions of interest based on pixel classification.
+ * 
+ * @author Pete Bankhead
+ */
 public class PixelClassificationMeasurementManager {
 	
 	private static Logger logger = LoggerFactory.getLogger(PixelClassificationMeasurementManager.class);
@@ -71,7 +77,6 @@ public class PixelClassificationMeasurementManager {
         	pixelArea = requestedDownsample * requestedDownsample;
             pixelAreaUnits = "px^2";
         }
-
 		
 		// Handle root object if we just have a single plane
 		if (classifierServer.nZSlices() == 1 || classifierServer.nTimepoints() == 1)
@@ -83,18 +88,37 @@ public class PixelClassificationMeasurementManager {
 	}
 	
 	
-	public Number getMeasurementValue(PathObject pathObject, String name) {
+	/**
+	 * Get the measurement value for this object.
+	 * 
+	 * @param pathObject the PathObject to measure
+	 * @param name the measurement name
+	 * @param cachedOnly if true, return null if the measurement cannot be determined from cached tiles
+	 * @return
+	 */
+	public Number getMeasurementValue(PathObject pathObject, String name, boolean cachedOnly) {
 		var roi = pathObject.getROI();
 		if (roi == null || pathObject.isRootObject())
 			roi = rootROI;
+		return getMeasurementValue(roi, name, cachedOnly);
+	}
 		
+	/**
+	 * Get the measurement value for this ROI.
+	 * 
+	 * @param roi the ROI to measure
+	 * @param name the measurement name
+	 * @param cachedOnly if true, return null if the measurement cannot be determined from cached tiles
+	 * @return
+	 */
+	public Number getMeasurementValue(ROI roi, String name, boolean cachedOnly) {
 		var map = measuredROIs.get(classifierServer);
 		if (map == null || roi == null)
 			return null;
 		
 		var ml = map.get(roi);
 		if (ml == null) {
-			ml = calculateMeasurements(roi, true);
+			ml = calculateMeasurements(roi, cachedOnly);
 			if (ml == null)
 				return null;
 			map.put(roi, ml);
@@ -102,6 +126,10 @@ public class PixelClassificationMeasurementManager {
 		return ml.getMeasurementValue(name);
 	}
 
+	/**
+	 * Get the names of all measurements that may be returned.
+	 * @return
+	 */
 	public List<String> getMeasurementNames() {
 		return measurementNames == null ? Collections.emptyList() : measurementNames;
 	}
@@ -131,12 +159,20 @@ public class PixelClassificationMeasurementManager {
         if (type == ImageServerMetadata.ChannelType.FEATURE)
   			return null;
         
-        
-        Shape shape = RoiTools.getShape(roi);
+        Shape shape = null;
+        if (!roi.isPoint())
+        	shape = RoiTools.getShape(roi);
         
         // Get the regions we need
-        var regionRequest = RegionRequest.createInstance(server.getPath(), requestedDownsample, roi);
-        Collection<TileRequest> requests = server.getTileRequestManager().getTileRequests(regionRequest);
+        Collection<TileRequest> requests;
+        // For the root, we want all tile requests
+        if (roi == rootROI) {
+	        requests = server.getTileRequestManager().getAllTileRequests();
+        } else if (!roi.isEmpty()) {
+	        var regionRequest = RegionRequest.createInstance(server.getPath(), requestedDownsample, roi);
+	        requests = server.getTileRequestManager().getTileRequests(regionRequest);
+        } else
+        	requests = Collections.emptyList();
         
         if (requests.isEmpty()) {
         	logger.debug("Request empty for {}", roi);
@@ -159,6 +195,7 @@ public class PixelClassificationMeasurementManager {
         }
         
         // Calculate stained proportions
+        BasicStroke stroke = null;
         counts = new long[channels.size()];
         total = 0L;
         byte[] mask = null;
@@ -173,14 +210,30 @@ public class PixelClassificationMeasurementManager {
         	}
         	
         	// Get the tile, which is needed for sub-pixel accuracy
-        	Graphics2D g2d = imgMask.createGraphics();
-        	g2d.setColor(Color.BLACK);
-        	g2d.fillRect(0, 0, tile.getWidth(), tile.getHeight());
-        	g2d.setColor(Color.WHITE);
-        	g2d.scale(1.0/region.getDownsample(), 1.0/region.getDownsample());
-        	g2d.translate(-region.getTileX() * region.getDownsample(), -region.getTileY() * region.getDownsample());
-        	g2d.fill(shape);
-        	g2d.dispose();
+        	if (roi.isLine() || roi.isArea()) {
+	        	Graphics2D g2d = imgMask.createGraphics();
+	        	g2d.setColor(Color.BLACK);
+	        	g2d.fillRect(0, 0, tile.getWidth(), tile.getHeight());
+	        	g2d.setColor(Color.WHITE);
+	        	g2d.scale(1.0/region.getDownsample(), 1.0/region.getDownsample());
+	        	g2d.translate(-region.getTileX() * region.getDownsample(), -region.getTileY() * region.getDownsample());
+	        	if (roi.isLine()) {
+	        		float fDownsample = (float)region.getDownsample();
+	        		if (stroke == null || stroke.getLineWidth() != fDownsample)
+	        			stroke = new BasicStroke((float)fDownsample);
+	        		g2d.setStroke(stroke);
+	        		g2d.draw(shape);
+	        	} else if (roi.isArea())
+	        		g2d.fill(shape);
+	        	g2d.dispose();
+        	} else if (roi.isPoint()) {
+        		for (var p : roi.getPolygonPoints()) {
+        			int x = (int)((p.getX() - region.getImageX()) / region.getDownsample());
+        			int y = (int)((p.getY() - region.getImageY()) / region.getDownsample());
+        			if (x >= 0 && y >= 0 && x < imgMask.getWidth() && y < imgMask.getHeight())
+        				imgMask.getRaster().setSample(x, y, 0, 255);
+        		}
+        	}
         	
 			int h = tile.getHeight();
 			int w = tile.getWidth();

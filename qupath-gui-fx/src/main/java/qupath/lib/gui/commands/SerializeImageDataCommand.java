@@ -27,6 +27,7 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 
+import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.helpers.DisplayHelpers;
@@ -81,7 +82,13 @@ public class SerializeImageDataCommand implements PathCommand {
 					}
 					else {
 						ImageServer<?> server = imageData.getServer();
-						file = qupath.getDialogHelper().promptToSaveFile(null, null, ServerTools.getDisplayableImageName(server), "QuPath Serialized Data", PathPrefs.getSerializationExtension());
+						String name = ServerTools.getDisplayableImageName(server);
+						if (name.contains(".")) {
+							try {
+								name = GeneralTools.getNameWithoutExtension(new File(name));
+							} catch (Exception e) {}
+						}
+						file = qupath.getDialogHelper().promptToSaveFile(null, null, name, "QuPath Serialized Data", PathPrefs.getSerializationExtension());
 					}
 					if (file == null)
 						return;

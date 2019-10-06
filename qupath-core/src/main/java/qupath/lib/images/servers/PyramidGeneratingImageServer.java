@@ -76,7 +76,18 @@ class PyramidGeneratingImageServer extends AbstractTileableImageServer {
 //			return getEmptyTile(tileRequest.getTileWidth(), tileRequest.getTileHeight());
 		
 		// Resize to the required size
-		return BufferedImageTools.resize(img, tileRequest.getTileWidth(), tileRequest.getTileHeight());
+		return BufferedImageTools.resize(img, tileRequest.getTileWidth(), tileRequest.getTileHeight(), allowSmoothInterpolation());
+	}
+	
+	/**
+	 * Override the default method to request the value from the wrapped server, if possible
+	 */
+	@Override
+	protected boolean allowSmoothInterpolation() {
+		if (server instanceof AbstractTileableImageServer)
+			return ((AbstractTileableImageServer)server).allowSmoothInterpolation();
+		else
+			return super.allowSmoothInterpolation();
 	}
 	
 	@Override

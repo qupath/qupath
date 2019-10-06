@@ -89,8 +89,8 @@ public class PixelCalibration {
 	public PixelCalibration createScaledInstance(double scaleX, double scaleY, double scaleZ) {
 		PixelCalibration cal2 = duplicate();
 		cal2.pixelWidth = pixelWidth.scale(scaleX);
-		cal2.pixelHeight = pixelHeight.scale(scaleX);
-		cal2.zSpacing = zSpacing.scale(scaleX);
+		cal2.pixelHeight = pixelHeight.scale(scaleY);
+		cal2.zSpacing = zSpacing.scale(scaleZ);
 		return cal2;
 	}
 	

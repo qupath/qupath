@@ -27,6 +27,8 @@ import java.awt.Graphics2D;
 import java.awt.Transparency;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.Collection;
 
 /**
  * ImageWriter implementation to write JPEG images using ImageIO.
@@ -42,13 +44,8 @@ public class JpegWriter extends AbstractImageIOWriter {
 	}
 
 	@Override
-	public String getExtension() {
-		return "jpg";
-	}
-
-	@Override
 	public String getDetails() {
-		return "Write image as JPEG using ImageIO";
+		return "Write image as JPEG using ImageIO (lossy compression). Only supports 8-bit single-channel or RGB images, and loses image metadata (e.g. pixel calibration).";
 	}
 	
 	@Override
@@ -62,6 +59,11 @@ public class JpegWriter extends AbstractImageIOWriter {
 			img = img2;
 		}
 		super.writeImage(img, pathOutput);
+	}
+
+	@Override
+	public Collection<String> getExtensions() {
+		return Arrays.asList("jpg", "jpeg");
 	}
 
 }

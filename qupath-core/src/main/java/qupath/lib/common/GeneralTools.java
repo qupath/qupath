@@ -39,11 +39,14 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.text.NumberFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.Scanner;
 import java.util.Locale.Category;
 import org.slf4j.Logger;
@@ -94,6 +97,56 @@ public class GeneralTools {
 			}
 		}
 		return version;
+	}
+	
+	
+	private static List<String> DEFAULT_EXTENSIONS = Arrays.asList(
+			".ome.tif", ".ome.tiff", ".tar.gz"
+			);
+	
+	/**
+	 * Get filename extension. Some implementation notes:
+	 * <ul>
+	 * <li>Note that this is <i>generally</i> 'the final dot and beyond', however this method 
+	 * also handles several important special cases: ".ome.tif", ".ome.tiff" and ".tar.gz".</li>
+	 * <li>The dot is included as the first character.</li>
+	 * <li>No check is performed to see if the  file is actually a directory, but if a dot is the final character then no 
+	 * extension is returned.</li>
+	 * <li>The extension is returned as-is, without adjusting to be upper or lower case.</li>
+	 * </ul>
+	 * @param file
+	 * @return
+	 * {@link #getNameWithoutExtension(File)}
+	 */
+	public static Optional<String> getExtension(File file) {
+		Objects.nonNull(file);
+		var name = file.getName();
+		var lower = name.toLowerCase();
+		String ext = null;
+		for (var temp : DEFAULT_EXTENSIONS) {
+			if (lower.endsWith(temp)) {
+				ext = temp;
+				break;
+			}
+		}
+		if (ext == null) {
+			int ind = name.lastIndexOf(".");
+			if (ind >= 0)
+				ext = name.substring(ind);
+		}
+		return ext == null || ext.equals(".") ? Optional.empty() : Optional.of(lower.substring(lower.length()-ext.length()));
+	}
+	
+	/**
+	 * Get the file name with extension removed.
+	 * @param file
+	 * @return
+	 * {@link #getExtension(File)}
+	 */
+	public static String getNameWithoutExtension(File file) {
+		var ext = getExtension(file).orElse(null);
+		String name = file.getName();
+		return ext ==  null ? name : name.substring(0, name.length() - ext.length());
 	}
 	
 	
@@ -351,8 +404,23 @@ public class GeneralTools {
 	 * @return
 	 */
 	public final static String micrometerSymbol() {
-		return '\u00B5' + "m";
+		return SYMBOL_MICROMETER;
 	}
+	
+	/**
+	 * Small Green mu (useful for micrometers)
+	 */
+	public final static char SYMBOL_MU = '\u00B5';
+
+	/**
+	 * Small Greek sigma (useful for Gaussian filter sizes, standard deviations)
+	 */
+	public final static char SYMBOL_SIGMA = '\u03C3';
+
+	/**
+	 * String to represent um (but with the proper 'mu' symbol)
+	 */
+	public final static String SYMBOL_MICROMETER = '\u00B5' + "m";
 	
 	
 	/**

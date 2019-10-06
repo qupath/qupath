@@ -229,7 +229,7 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 		boolean sendROI = params.getBooleanParameterValue("sendROI");
 		boolean sendOverlay = params.getBooleanParameterValue("sendOverlay");
 		ROI pathROI = pathObject.getROI();		
-		ImageDisplay imageDisplay2 = Boolean.TRUE.equals(params.getBooleanParameterValue("useTransform")) ? imageDisplay : null;
+		ImageDisplay imageDisplay2 = params.containsKey("useTransform") && Boolean.TRUE.equals(params.getBooleanParameterValue("useTransform")) ? imageDisplay : null;
 		
 		ImageServer<BufferedImage> server = imageDisplay2 == null || imageDisplay2.availableChannels().isEmpty() ? imageData.getServer() : ChannelDisplayTransformServer.createColorTransformServer(imageData.getServer(), imageDisplay.availableChannels());
 		

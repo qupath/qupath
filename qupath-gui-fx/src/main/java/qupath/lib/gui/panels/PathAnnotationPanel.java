@@ -1023,6 +1023,7 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 			return;
 		}
 		// If the lists are different, we need to update accordingly
+		listAnnotations.getSelectionModel().clearSelection();
 		listAnnotations.getItems().setAll(newList);
 	}
 	

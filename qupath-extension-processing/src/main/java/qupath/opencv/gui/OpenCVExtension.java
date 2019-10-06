@@ -83,9 +83,10 @@ public class OpenCVExtension implements QuPathExtension {
 				qupath.createPluginAction("Fast cell counts (brightfield)", CellCountsCV.class, null)
 				);
 
-		Menu menuClassify = qupath.getMenu("Classify", true);
+		Menu menuClassify = qupath.getMenu("Classify>Object classification", true);
 		QuPathGUI.addMenuItems(
 				menuClassify,
+				null,
 				QuPathGUI.createCommandAction(new OpenCvClassifierCommand(qupath), "Create detection classifier", null, new KeyCodeCombination(KeyCode.D, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN)));
 		
 		

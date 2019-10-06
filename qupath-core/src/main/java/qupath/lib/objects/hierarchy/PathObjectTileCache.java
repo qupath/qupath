@@ -412,8 +412,10 @@ class PathObjectTileCache implements PathObjectHierarchyListener {
 						for (PathObject pathObject : (List<PathObject>)list) {
 							var roi = pathObject.getROI();
 							if (roi == null || region == null || (roi.getZ() == z && roi.getT() == t)) {
-								if (pathObject.getParent() != null || pathObject.isRootObject())
-									pathObjects.add(pathObject);
+								if (pathObject.getParent() != null || pathObject.isRootObject()) {
+									if (envelope.intersects(getEnvelope(pathObject)))
+										pathObjects.add(pathObject);
+								}
 							}
 						}
 					}
@@ -500,7 +502,7 @@ class PathObjectTileCache implements PathObjectHierarchyListener {
 				addToCache(singleObject, false, singleObject.getClass());
 			} else if (singleChange && event.getEventType() == HierarchyEventType.REMOVED) {
 				removeFromCache(singleObject, false);
-			} else if (event.getEventType() == HierarchyEventType.OTHER_STRUCTURE_CHANGE) {// || event.getEventType() == HierarchyEventType.CHANGE_OTHER) {
+			} else if (event.getEventType() == HierarchyEventType.OTHER_STRUCTURE_CHANGE || event.getEventType() == HierarchyEventType.CHANGE_OTHER) {
 //				if (singleChange && !singleObject.isRootObject()) {
 //					removeFromCache(singleObject, false);
 //					addToCache(singleObject, false, singleObject.getClass());					

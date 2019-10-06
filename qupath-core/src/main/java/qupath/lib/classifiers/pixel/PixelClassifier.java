@@ -3,8 +3,6 @@ package qupath.lib.classifiers.pixel;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 
-import com.google.gson.annotations.JsonAdapter;
-
 import qupath.lib.images.ImageData;
 import qupath.lib.regions.RegionRequest;
 
@@ -16,7 +14,6 @@ import qupath.lib.regions.RegionRequest;
  * @author Pete Bankhead
  *
  */
-@JsonAdapter(PixelClassifiers.PixelClassifierTypeAdapterFactory.class)
 public interface PixelClassifier {
 
     /**

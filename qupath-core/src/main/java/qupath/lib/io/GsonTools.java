@@ -4,6 +4,8 @@ import java.io.IOException;
 import java.util.Collection;
 
 import org.locationtech.jts.geom.Geometry;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -40,22 +42,33 @@ import qupath.lib.roi.interfaces.ROI;
  */
 public class GsonTools {
 	
-	private static Gson gson = new GsonBuilder()
+	private final static Logger logger = LoggerFactory.getLogger(GsonTools.class);
+	
+	private static GsonBuilder builder = new GsonBuilder()
 			.serializeSpecialFloatingPointValues()
 			.setLenient()
 			.registerTypeAdapterFactory(new QuPathTypeAdapterFactory())
 			.registerTypeAdapterFactory(OpenCVTypeAdapters.getOpenCVTypeAdaptorFactory())
 			.registerTypeAdapterFactory(ImageServers.getImageServerTypeAdapterFactory(true))
-			.registerTypeAdapterFactory(ImageServers.getServerBuilderFactory())
-//			.registerTypeHierarchyAdapter(PathObject.class, PathObjectTypeAdapters.PathObjectTypeAdapter.INSTANCE)
-//			.registerTypeHierarchyAdapter(MeasurementList.class, PathObjectTypeAdapters.MeasurementListTypeAdapter.INSTANCE)
-//			.registerTypeHierarchyAdapter(FeatureCollection.class, PathObjectTypeAdapters.PathObjectCollectionTypeAdapter.INSTANCE)
-//			.registerTypeHierarchyAdapter(ROI.class, ROITypeAdapters.ROI_ADAPTER_INSTANCE)
-//			.registerTypeHierarchyAdapter(Geometry.class, ROITypeAdapters.GEOMETRY_ADAPTER_INSTANCE)
-//			.registerTypeAdapter(PathClass.class, PathClassTypeAdapter.INSTANCE)
-//			.registerTypeAdapter(ImagePlane.class, ImagePlaneTypeAdapter.INSTANCE)
-//			.registerTypeAdapterFactory(OpenCVTypeAdapters.getOpenCVTypeAdaptorFactory())
-			.create();
+			.registerTypeAdapterFactory(ImageServers.getServerBuilderFactory());
+			//.create();
+	
+	/**
+	 * Access the builder used with {@link #getInstance()}.
+	 * This makes it possible to register new type adapters if required, which will be used by future Gson instances 
+	 * returned by this class.
+	 * <p>
+	 * <b>Use this with caution!</b> Changes made here impact JSON serialization/deserialization throughout 
+	 * the software. Access by be removed or restricted in the future for this reason.
+	 * <p>
+	 * To create a derived builder that inherits from the default but does not change it, use {@code GsonBuilder.getInstance().newBuilder()}.
+	 * 
+	 * @return
+	 */
+	public static GsonBuilder getDefaultBuilder() {
+		logger.debug("Requesting GsonBuilder from " + Thread.currentThread().getStackTrace()[0]);
+		return builder;
+	}
 	
 	
 	static class QuPathTypeAdapterFactory implements TypeAdapterFactory {
@@ -111,7 +124,7 @@ public class GsonTools {
 	 * @see #getInstance(boolean)
 	 */
 	public static Gson getInstance() {
-		return gson;
+		return builder.create();
 	}
 	
 	/**

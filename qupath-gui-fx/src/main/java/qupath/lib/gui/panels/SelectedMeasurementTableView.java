@@ -24,6 +24,8 @@
 package qupath.lib.gui.panels;
 
 import java.awt.image.BufferedImage;
+import java.beans.PropertyChangeEvent;
+import java.beans.PropertyChangeListener;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -53,7 +55,8 @@ import qupath.lib.objects.hierarchy.events.PathObjectSelectionListener;
  * @author Pete Bankhead
  *
  */
-public class SelectedMeasurementTableView implements PathObjectSelectionListener, ImageDataChangeListener<BufferedImage>, PathObjectHierarchyListener {
+public class SelectedMeasurementTableView implements PathObjectSelectionListener, ImageDataChangeListener<BufferedImage>,
+	PathObjectHierarchyListener, PropertyChangeListener {
 	
 	private final static Logger logger = LoggerFactory.getLogger(SelectedMeasurementTableView.class);
 	
@@ -97,15 +100,20 @@ public class SelectedMeasurementTableView implements PathObjectSelectionListener
 	
 	private List<PathObject> getSelectedObjectList() {
 		PathObject selected = getSelectedObject();
-		if (selected == null)
+		if (selected == null) {
 			return Collections.emptyList();
+		}
 		return Collections.singletonList(selected);
 	}
 	
 	private PathObject getSelectedObject() {
 		if (imageData == null)
 			return null;
-		return imageData.getHierarchy().getSelectionModel().getSelectedObject();
+		var selected = imageData.getHierarchy().getSelectionModel().getSelectedObject();
+		if (selected == null)
+			return imageData.getHierarchy().getRootObject();
+		else
+			return selected;
 	}
 
 	private String getSelectedObjectMeasurementValue(final String name) {
@@ -151,11 +159,13 @@ public class SelectedMeasurementTableView implements PathObjectSelectionListener
 	public void imageDataChanged(ImageDataWrapper<BufferedImage> source, ImageData<BufferedImage> imageDataOld,
 			ImageData<BufferedImage> imageDataNew) {
 		if (this.imageData != null) {
+			this.imageData.removePropertyChangeListener(this);
 			this.imageData.getHierarchy().removePathObjectListener(this);
 			this.imageData.getHierarchy().getSelectionModel().removePathObjectSelectionListener(this);
 		}
 		this.imageData = imageDataNew;
 		if (this.imageData != null) {
+			this.imageData.addPropertyChangeListener(this);
 			this.imageData.getHierarchy().addPathObjectListener(this);
 			this.imageData.getHierarchy().getSelectionModel().addPathObjectSelectionListener(this);
 		}
@@ -165,6 +175,12 @@ public class SelectedMeasurementTableView implements PathObjectSelectionListener
 
 	@Override
 	public void selectedPathObjectChanged(PathObject pathObjectSelected, PathObject previousObject, Collection<PathObject> allSelected) {
+		updateTableModel();
+	}
+
+
+	@Override
+	public void propertyChange(PropertyChangeEvent evt) {
 		updateTableModel();
 	}
 	

@@ -21,6 +21,7 @@ import qupath.lib.display.ChannelDisplayInfo;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
+import qupath.lib.images.servers.PixelType;
 import qupath.lib.images.servers.TransformingImageServer;
 import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
 import qupath.lib.io.GsonTools;
@@ -103,7 +104,7 @@ public class ChannelDisplayTransformServer extends TransformingImageServer<Buffe
 			}
 		}
 		if (colorModel == null)
-			colorModel = ColorModelFactory.createProbabilityColorModel(32, channels.size(), false, channels.stream().mapToInt(c -> {
+			colorModel = ColorModelFactory.createColorModel(PixelType.FLOAT32, channels.size(), false, channels.stream().mapToInt(c -> {
 				Integer color = c.getColor();
 				if (color == null)
 					color = ColorTools.makeRGB(255, 255, 255);

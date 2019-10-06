@@ -845,6 +845,9 @@ public class ImageDisplay extends AbstractImageRenderer {
 //			}
 			// Check what we might need to process
 			List<SingleChannelDisplayInfo> channelsToProcess = new ArrayList<>();
+			float serverMin = server.getMetadata().getMinValue().floatValue();
+			float serverMax = server.getMetadata().getMaxValue().floatValue();
+			
 			for (ChannelDisplayInfo channel : channels) {
 				Histogram histogram = map.get(getKey(channel));
 				if (histogram != null) {
@@ -853,9 +856,12 @@ public class ImageDisplay extends AbstractImageRenderer {
 								(float)Math.min(0, histogram.getMinValue()), (float)histogram.getMaxValue());
 					}
 					continue;
-				} else if (channel instanceof SingleChannelDisplayInfo)
+				} else if (channel instanceof SingleChannelDisplayInfo) {
 					channelsToProcess.add((SingleChannelDisplayInfo)channel);
-				else
+					if (channel instanceof ModifiableChannelDisplayInfo) {
+						((ModifiableChannelDisplayInfo)channel).setMinMaxAllowed(serverMin, serverMax);
+					}
+				} else
 					map.put(getKey(channel), null);
 			}
 			if (channelsToProcess.isEmpty())
@@ -867,8 +873,16 @@ public class ImageDisplay extends AbstractImageRenderer {
 			// Request appropriate images to use for histogram
 			List<BufferedImage> imgList = getRequiredImages(server);
 			
-			// Count number of pixels
-			long nPixels = imgList.stream().mapToLong(img -> img.getWidth() * img.getHeight()).sum();
+			// Count number of pixels & estimate downsample factor
+			int imgWidth, imgHeight;
+			long nPixels = 0;
+			double approxDownsample = 1;
+			for (var img : imgList) {
+				imgWidth = img.getWidth();
+				imgHeight = img.getHeight();
+				approxDownsample = (double)server.getWidth() / imgWidth;
+				nPixels += ((long)imgWidth * (long)imgHeight);
+			}
 			
 			if (nPixels > Integer.MAX_VALUE) {
 				logger.warn("Too many pixels required for histogram ({})!  Will truncate to the first {} values", nPixels, Integer.MAX_VALUE);
@@ -891,11 +905,12 @@ public class ImageDisplay extends AbstractImageRenderer {
 				}
 				Histogram histogram = new Histogram(pixels == null ? values : pixels, NUM_BINS);
 				
-				// If we have more than an 8-bit image, set the display range according to actual values
+				// If we have more than an 8-bit image, set the display range according to actual values - with additional scaling if we downsampled
 				if (channel instanceof ModifiableChannelDisplayInfo) {
-					if (!histogram.isInteger() || channel.getMaxAllowed() > 255) {
+					float scale = approxDownsample < 2 ? 1 : 1.5f;
+					if (!histogram.isInteger() || Math.max(Math.abs(channel.getMaxAllowed()), Math.abs(channel.getMinAllowed())) > 4096) {
 						((ModifiableChannelDisplayInfo)channel).setMinMaxAllowed(
-								(float)Math.min(0, histogram.getMinValue()), (float)histogram.getMaxValue());
+								(float)Math.min(0, histogram.getMinValue()) * scale, (float)Math.max(0, histogram.getMaxValue()) * scale);
 					}
 				}
 				

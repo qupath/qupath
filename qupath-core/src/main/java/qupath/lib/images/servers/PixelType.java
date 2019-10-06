@@ -11,42 +11,45 @@ public enum PixelType {
 	/**
 	 * 8-bit unsigned integer
 	 */
-	UINT8(8, PixelValueType.UNSIGNED_INTEGER),
+	UINT8(8, PixelValueType.UNSIGNED_INTEGER, 0, 255),
 	/**
 	 * 8-bit signed integer
 	 */
-	INT8(8, PixelValueType.SIGNED_INTEGER),
+	INT8(8, PixelValueType.SIGNED_INTEGER, Byte.MIN_VALUE, Byte.MAX_VALUE),
 	/**
 	 * 16-bit unsigned integer
 	 */
-	UINT16(16, PixelValueType.UNSIGNED_INTEGER),
+	UINT16(16, PixelValueType.UNSIGNED_INTEGER, 0, 65535),
 	/**
 	 * 16-bit signed integer
 	 */
-	INT16(16, PixelValueType.SIGNED_INTEGER),
+	INT16(16, PixelValueType.SIGNED_INTEGER, Short.MIN_VALUE, Short.MAX_VALUE),
 	/**
 	 * 32-bit unsigned integer (not supported by BufferedImage)
 	 */
-	UINT32(32, PixelValueType.UNSIGNED_INTEGER),
+	UINT32(32, PixelValueType.UNSIGNED_INTEGER, 0, 4294967295L),
 	/**
 	 * 32-bit signed integer
 	 */
-	INT32(32, PixelValueType.SIGNED_INTEGER),
+	INT32(32, PixelValueType.SIGNED_INTEGER, Integer.MIN_VALUE, Integer.MAX_VALUE),
 	/**
 	 * 32-bit floating point
 	 */
-	FLOAT32(32, PixelValueType.FLOATING_POINT),
+	FLOAT32(32, PixelValueType.FLOATING_POINT, -Float.MAX_VALUE, Float.MAX_VALUE),
 	/**
 	 * 64-bit floating point
 	 */
-	FLOAT64(64, PixelValueType.FLOATING_POINT);
+	FLOAT64(64, PixelValueType.FLOATING_POINT, -Double.MAX_VALUE, Double.MAX_VALUE);
 		
 	private int bitsPerPixel;
 	private PixelValueType type;
+	private Number minValue, maxValue;
 	
-	private PixelType(int bpp, PixelValueType type) {
+	private PixelType(int bpp, PixelValueType type, Number minValue, Number maxValue) {
 		this.bitsPerPixel = bpp;
 		this.type = type;
+		this.minValue = minValue;
+		this.maxValue = maxValue;
 	}
 	
 	/**
@@ -55,15 +58,31 @@ public enum PixelType {
 	 * 
 	 * @see #getBytesPerPixel()
 	 */
-	public int bitsPerPixel() {
+	public int getBitsPerPixel() {
 		return bitsPerPixel;
 	}
 	
 	/**
+	 * Get a number representing the minimum value permitted by this type (may be negative).
+	 * @return
+	 */
+	public Number getLowerBound() {
+		return minValue;
+	}
+
+	/**
+	 * Get a number representing the maximum value permitted by this type.
+	 * @return
+	 */
+	public Number getUpperBound() {
+		return maxValue;
+	}
+
+	/**
 	 * Number of bytes per pixel.
 	 * @return
 	 * 
-	 * @see #bitsPerPixel()
+	 * @see #getBitsPerPixel()
 	 */
 	public int getBytesPerPixel() {
 		return (int)Math.ceil(bitsPerPixel / 8.0);
