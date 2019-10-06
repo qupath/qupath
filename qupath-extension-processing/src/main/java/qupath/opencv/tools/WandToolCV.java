@@ -24,6 +24,7 @@
 package qupath.opencv.tools;
 
 import java.awt.AlphaComposite;
+import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.Shape;
@@ -45,14 +46,16 @@ import org.bytedeco.opencv.opencv_core.MatVector;
 import org.bytedeco.opencv.opencv_core.Point;
 import org.bytedeco.opencv.opencv_core.Scalar;
 import org.bytedeco.opencv.opencv_core.Size;
+import org.bytedeco.javacpp.indexer.FloatIndexer;
 import org.bytedeco.javacpp.indexer.IntIndexer;
-
+import org.bytedeco.javacpp.indexer.UByteIndexer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
+import javafx.beans.property.ObjectProperty;
 import qupath.lib.awt.common.AwtTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.images.stores.ImageRegionRenderer;
@@ -75,23 +78,62 @@ public class WandToolCV extends BrushTool {
 	
 	final private static Logger logger = LoggerFactory.getLogger(WandToolCV.class);
 	
-	
+	/**
+	 * Enum reflecting different color images that may be used by the Wand tool.
+	 */
+	public static enum WandType {
+		/**
+		 * Grayscale image
+		 */
+		GRAY,
+		/**
+		 * Color image (default behavior in v0.1.2 and before)
+		 */
+		RGB,
+		/**
+		 * Color image converted to CIELAB, euclidean distance calculated
+		 */
+		LAB_DISTANCE
+	};
+		
 	private Point2D pLast = null;
 	private static int w = 149;
-	private BufferedImage imgTemp = new BufferedImage(w, w, BufferedImage.TYPE_3BYTE_BGR);
+	private BufferedImage imgBGR = new BufferedImage(w, w, BufferedImage.TYPE_3BYTE_BGR);
+	private BufferedImage imgGray = new BufferedImage(w, w, BufferedImage.TYPE_BYTE_GRAY);
+	
 //	private BufferedImage imgSelected = new BufferedImage(w+2, w+2, BufferedImage.TYPE_BYTE_GRAY);
 	private Mat mat = null; //new Mat(w, w, CV_8U);
-	private Mat matMask = null; //new Mat(w, w, CV_8U);
-	private Mat matSelected = null; //new Mat(w, w, CV_8U);
+	private Mat matMask = new Mat(w+2, w+2, CV_8UC1);
+	private Mat matSelected = new Mat(w+2, w+2, CV_8UC1);
+	
+	private Mat matFloat = new Mat(w, w, CV_32FC1);
+	
 	private Scalar threshold = Scalar.all(1.0);
 	private Point seed = new Point(w/2, w/2);
 //	private Size morphSize = new Size(5, 5);
 	private Mat strel = null;
 	private Mat contourHierarchy = null;
 	
+	private Mat mean = new Mat();
+	private Mat stddev = new Mat();
+
+	private BasicStroke stroke = null;
+	
 	private Rectangle2D bounds = new Rectangle2D.Double();
 	
 	private Size blurSize = new Size(31, 31);
+	
+	
+	private static ObjectProperty<WandType> wandType = PathPrefs.createPersistentPreference("wandType", WandType.RGB, WandType.class);
+	
+	/**
+	 * Property specifying whether the wand tool should be influenced by pixel values painted on image overlays.
+	 * @return
+	 */
+	public static ObjectProperty<WandType> wandTypeProperty() {
+		return wandType;
+	}
+
 	
 	/**
 	 * Paint overlays and allow them to influence the want
@@ -202,6 +244,11 @@ public class WandToolCV extends BrushTool {
 			return;
 		}
 		// Add preference to adjust Wand tool behavior
+		qupath.getPreferencePanel().addPropertyPreference(wandTypeProperty(), WandType.class,
+				"Wand color type",
+				"Drawing tools",
+				"Specify colorspace when using the wand; if 'gray' then the wand uses 'darkness' without reference to the specific color");
+		
 		qupath.getPreferencePanel().addPropertyPreference(wandSigmaPixelsProperty(), Double.class,
 				"Wand smoothing",
 				"Drawing tools",
@@ -222,15 +269,7 @@ public class WandToolCV extends BrushTool {
 	@Override
 	protected Shape createShape(double x, double y, boolean useTiles, Shape addToShape) {
 		
-		if (mat == null)
-			mat = new Mat(w, w, CV_8UC3);
-		if (matMask == null)
-			matMask = new Mat(w+2, w+2, CV_8U);
-		if (matSelected == null)
-			matSelected = new Mat(w+2, w+2, CV_8U);
-
-		
-		if (pLast != null && pLast.distanceSq(x, y) < 4)
+		if (pLast != null && pLast.distanceSq(x, y) < 2)
 			return new Path2D.Float();
 		
 		long startTime = System.currentTimeMillis();
@@ -244,6 +283,11 @@ public class WandToolCV extends BrushTool {
 		ImageRegionRenderer regionStore = viewer.getImageRegionStore();
 		
 		// Paint the image as it is currently being viewed
+		var type = wandType.get();
+		boolean doGray = type == WandType.GRAY;
+		BufferedImage imgTemp = doGray ? imgGray : imgBGR;
+		int nChannels = doGray ? 1 : 3;
+		
 		Graphics2D g2d = imgTemp.createGraphics();
 		g2d.setColor(Color.BLACK);
 		g2d.setClip(0, 0, w, w);
@@ -295,6 +339,18 @@ public class WandToolCV extends BrushTool {
 //			matSelected.put(Scalar.ZERO);
 //		hasMask = false;
 		
+		// Ensure we have Mats & the correct channel number
+		if (mat != null && (mat.channels() != nChannels || mat.depth() != opencv_core.CV_8U)) {
+			mat.release();
+			mat = null;
+		}
+		if (mat == null || mat.empty())
+			mat = new Mat(w, w, CV_8UC(nChannels));
+//		if (matMask == null)
+//			matMask = new Mat(w+2, w+2, CV_8U);
+//		if (matSelected == null)
+//			matSelected = new Mat(w+2, w+2, CV_8U);
+				
 		// Put pixels into an OpenCV image
 		byte[] buffer = ((DataBufferByte)imgTemp.getRaster().getDataBuffer()).getData();
 	    ByteBuffer matBuffer = mat.createBuffer();
@@ -312,28 +368,52 @@ public class WandToolCV extends BrushTool {
 		// Smooth a little
 		opencv_imgproc.GaussianBlur(mat, mat, blurSize, blurSigma);
 		
-//		opencv_imgproc.cvtColor(mat, mat, opencv_imgproc.COLOR_RGB2Lab);
+		// Choose mat to threshold (may be adjusted)
+		Mat matThreshold = mat;
 		
-		Mat mean = new Mat();
-		Mat stddev = new Mat();
-		// Could optionally base the threshold on the masked region... but for now we don't
-//		if (hasMask)
-//			meanStdDev(mat, mean, stddev, matSelected.apply(new Rect(1, 1, w, w)));
-//		else
-			meanStdDev(mat, mean, stddev);
+		// Apply color transform if required
+		if (type == WandType.LAB_DISTANCE) {
+			opencv_imgproc.cvtColor(mat, mat, opencv_imgproc.COLOR_BGR2Lab);
+			
+			UByteIndexer idx = mat.createIndexer();
+			int i = w/2;
+			double v1 = idx.get(i, i, 0);
+			double v2 = idx.get(i, i, 1);
+			double v3 = idx.get(i, i, 2);
+			
+			FloatIndexer idxOutput = matFloat.createIndexer();
+			for (int row = 0; row < w; row++) {
+				for (int col = 0; col < w; col++) {
+					double t1 = idx.get(row, col, 0) - v1;
+					double t2 = idx.get(row, col, 1) - v2;
+					double t3 = idx.get(row, col, 2) - v3;
+					double dist = Math.sqrt(t1*t1 + t2*t2 + t3*t3);
+					idxOutput.put(row, col, (float)dist);
+				}				
+			}
+			matThreshold = matFloat;
+			meanStdDev(matFloat, stddev, mean);
+			
+//			OpenCVTools.matToImagePlus(mat2, "Second").show();
+			nChannels = 1;
+		} else {
 
+			// Could optionally base the threshold on the masked region... but for now we don't
+	//		if (hasMask)
+	//			meanStdDev(mat, mean, stddev, matSelected.apply(new Rect(1, 1, w, w)));
+	//		else
+			meanStdDev(matThreshold, mean, stddev);
+		}
+	
 		DoubleBuffer stddevBuffer = stddev.createBuffer();
-		double[] stddev2 = new double[3];
-		stddevBuffer.get(stddev2);
+		double[] stddev2 = new double[nChannels];
+		stddevBuffer.get(0, stddev2);
 		double scale = 1.0 / getWandSensitivity();
 		if (scale < 0)
 			scale = 0.01;
 		for (int i = 0; i < stddev2.length; i++)
 			stddev2[i] = stddev2[i]*scale;
 		threshold.put(stddev2);
-
-		mean.release();
-		stddev.release();
 		
 		// Limit maximum radius by pen
 		int radius = (int)Math.round(w / 2 * QuPathPenManager.getPenManager().getPressure());
@@ -341,7 +421,7 @@ public class WandToolCV extends BrushTool {
 			return new Path2D.Float();
 		matMask.put(Scalar.ZERO);
 		opencv_imgproc.circle(matMask, seed, radius, Scalar.ONE);
-		opencv_imgproc.floodFill(mat, matMask, seed, Scalar.ONE, null, threshold, threshold, 4 | (2 << 8) | opencv_imgproc.FLOODFILL_MASK_ONLY | opencv_imgproc.FLOODFILL_FIXED_RANGE);
+		opencv_imgproc.floodFill(matThreshold, matMask, seed, Scalar.ONE, null, threshold, threshold, 4 | (2 << 8) | opencv_imgproc.FLOODFILL_MASK_ONLY | opencv_imgproc.FLOODFILL_FIXED_RANGE);
 		subtractPut(matMask, Scalar.ONE);
 		
 		if (hasMask)
@@ -358,12 +438,15 @@ public class WandToolCV extends BrushTool {
 		MatVector contours = new MatVector();
 		if (contourHierarchy == null)
 			contourHierarchy = new Mat();
+		
+		
 		opencv_imgproc.findContours(matMask, contours, contourHierarchy, opencv_imgproc.RETR_EXTERNAL, opencv_imgproc.CHAIN_APPROX_SIMPLE);
 //		logger.trace("Contours: " + contours.size());
 
 		Path2D path = new Path2D.Float();
 		boolean isOpen = false;
-		for (long i = 0; i < contours.size(); i++){
+		boolean hasPath = false;
+		for (long i = 0; i < contours.size(); i++) {
 			
 			Mat contour = contours.get(i);
 			
@@ -371,27 +454,40 @@ public class WandToolCV extends BrushTool {
 			if (contour.size().height() <= 2)
 				continue;
 			
+			hasPath = true;
+			
 			// Create a polygon ROI
 			boolean firstPoint = true;
 			IntIndexer idxrContours = contour.createIndexer();
-	        for (long r = 0; r < idxrContours.rows(); r++) {
-	        		int px = idxrContours.get(r, 0L, 0L);
-	        		int py = idxrContours.get(r, 0L, 1L);
-		        	double xx = (px - w/2-1) * downsample + x;
-		        	double yy = (py - w/2-1) * downsample + y;
-		        	if (firstPoint) {
-		        		path.moveTo(xx, yy);
-		        		firstPoint = false;
-			        	isOpen = true;
-		        	} else
-		        		path.lineTo(xx, yy);
-		       }
+			for (long r = 0; r < idxrContours.rows(); r++) {
+				int px = idxrContours.get(r, 0L, 0L);
+				int py = idxrContours.get(r, 0L, 1L);
+				double xx = (px - w/2-1) * downsample + x;
+				double yy = (py - w/2-1) * downsample + y;
+				if (firstPoint) {
+					path.moveTo(xx, yy);
+					firstPoint = false;
+					isOpen = true;
+				} else
+					path.lineTo(xx, yy);
+			}
+			if (isOpen)
+				path.closePath();
 		}
-		if (isOpen)
-			path.closePath();
+		
+		if (!hasPath)
+			return path;
+		
+		// Handle the fact that OpenCV contours are defined using the 'pixel center' by dilating the boundary
+		var shape = new Area(path);
+		float df = (float)downsample;
+		if (stroke == null || stroke.getLineWidth() != df)
+			stroke = new BasicStroke(df);
+		shape.add(new Area(stroke.createStrokedShape(shape)));
+		
 		
 		long endTime = System.currentTimeMillis();
-		logger.trace(getClass().getSimpleName() + " time: " + (endTime - startTime));
+		logger.info(getClass().getSimpleName() + " time: " + (endTime - startTime));
 		
 		if (pLast == null)
 			pLast = new Point2D.Double(x, y);
@@ -399,12 +495,12 @@ public class WandToolCV extends BrushTool {
 			pLast.setLocation(x, y);
 		
 		Rectangle2D bounds = AwtTools.getBounds(viewer.getServerBounds());
-		if (!bounds.contains(path.getBounds2D())) {
-			Area area = new Area(path);
+		if (!bounds.contains(shape.getBounds2D())) {
+			Area area = new Area(shape);
 			area.intersect(new Area(bounds));
 			return area;
 		}
-		return path;
+		return shape;
 	}
 	
 	

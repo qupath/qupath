@@ -231,8 +231,8 @@ public class ConverterJTS {
 		double areaTempSigned = 0;
 		double areaCached = 0;
 		
-		double precision = 1.0e-3 * flatness;
-		double minDisplacement2 = precision * precision;
+		double precision = 1.0e-4 * flatness;
+//		double minDisplacement2 = precision * precision;
 
 		double[] seg = new double[6];
 		double startX = Double.NaN, startY = Double.NaN;
@@ -264,10 +264,13 @@ public class ConverterJTS {
 				// We only wand to add a point if the displacement is above a specified tolerance, 
 				// because JTS can be very sensitive to any hint of self-intersection - and does not always 
 				// like what the PathIterator provides
-				double dx = x1 - x0;
-				double dy = y1 - y0;
-				if (dx*dx + dy*dy > minDisplacement2)
-					points.add(new Coordinate(x1, y1));
+				var next = new Coordinate(x1, y1);
+				if (points.isEmpty() || points.get(points.size()-1).distance(next) > precision)
+					points.add(next);
+//				double dx = x1 - points;
+//				double dy = y1 - y0;
+//				if (dx*dx + dy*dy > minDisplacement2)
+//					points.add(new Coordinate(x1, y1));
 				else
 					logger.trace("Skipping nearby points");
 				closed = false;
@@ -340,8 +343,8 @@ public class ConverterJTS {
 		// Perform a sanity check using areas
 		double computedArea = Math.abs(areaCached);
 		double geometryArea = geometry.getArea();
-		if (!GeneralTools.almostTheSame(computedArea, geometryArea, 0.001)) {
-			logger.warn("Difference in area after JTS converstion! Computed area: {}, Geometry area: {}", Math.abs(areaCached), geometry.getArea());
+		if (!GeneralTools.almostTheSame(computedArea, geometryArea, 0.01)) {
+			logger.warn("Difference in area after JTS conversion! Computed area: {}, Geometry area: {}", Math.abs(areaCached), geometry.getArea());
 		}
 		return geometry;
 	}

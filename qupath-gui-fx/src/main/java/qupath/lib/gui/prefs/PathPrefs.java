@@ -1564,9 +1564,14 @@ public class PathPrefs {
 	 */
 	public static <T extends Enum<T>> ObjectProperty<T> createPersistentPreference(final String name, final T defaultValue, final Class<T> enumType) {
 		ObjectProperty<T> property = createTransientPreference(name, defaultValue);
-		property.set(
-				Enum.valueOf(enumType, getUserPreferences().get(name, defaultValue.name()))
-				);
+		try {
+			property.set(
+					Enum.valueOf(enumType, getUserPreferences().get(name, defaultValue.name()))
+					);
+		} catch (Throwable e) {
+			logger.warn("Exception setting preference value for " + name, e);
+			property.set(defaultValue);
+		}
 		property.addListener((v, o, n) -> {
 			if (n == null)
 				getUserPreferences().remove(name);
