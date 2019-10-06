@@ -102,11 +102,29 @@ abstract class AbstractPathROI implements ROI {
 	
 	@Override
 	public String toString() {
+		var sb = new StringBuilder(getRoiName())
+			.append(" (")
+			.append(Math.round(getBoundsX()))
+			.append(", ")
+			.append(Math.round(getBoundsY()))
+			.append(", ")
+			.append(Math.round(getBoundsWidth()))
+			.append(", ")
+			.append(Math.round(getBoundsHeight()));
+		if (getZ() != 0)
+			sb.append(", z=").append(getZ());
+		if (getT() != 0)
+			sb.append(", t=").append(getT());
+		if (getC() != -1)
+			sb.append(", c=").append(getC());
+		sb.append(")");
+		return sb.toString();
+		
 //		Rectangle bounds = getBounds();
-		return String.format("%s (%.0f, %.0f, %.0f, %.0f, z=%d, t=%d, c=%d)",
-				getRoiName(),
-				getBoundsX(), getBoundsY(), getBoundsWidth(), getBoundsHeight(),
-				getZ(), getT(), getC());
+//		return String.format("%s (%.0f, %.0f, %.0f, %.0f, z=%d, t=%d, c=%d)",
+//				getRoiName(),
+//				getBoundsX(), getBoundsY(), getBoundsWidth(), getBoundsHeight(),
+//				getZ(), getT(), getC());
 //		String name = getName();
 //		if (name != null)
 ////			return name;			

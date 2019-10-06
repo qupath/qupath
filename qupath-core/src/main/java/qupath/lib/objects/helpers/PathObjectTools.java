@@ -30,6 +30,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -104,7 +105,7 @@ public class PathObjectTools {
 			PathClass currentClass = pathObject.getPathClass();
 			if (useBaseClass)
 				currentClass = currentClass == null ? null : currentClass.getBaseClass();
-			if ((pathClass == null && currentClass == null) || (pathClass != null && pathClass.equals(currentClass)))
+			if (Objects.equals(pathClass, currentClass))
 				count++;
 		}
 		return count;

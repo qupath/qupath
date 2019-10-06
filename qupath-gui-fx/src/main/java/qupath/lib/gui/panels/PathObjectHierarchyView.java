@@ -45,6 +45,7 @@ import qupath.lib.gui.helpers.ColorToolsFX;
 import qupath.lib.gui.icons.PathIconFactory;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.images.ImageData;
+import qupath.lib.objects.DefaultPathObjectComparator;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathRootObject;
 import qupath.lib.objects.helpers.PathObjectTools;
@@ -407,7 +408,7 @@ public class PathObjectHierarchyView implements ImageDataChangeListener<Buffered
 					// It consumes too many resources to create enough icons to represent every detection this way...
 					// consider reintroducing in the future with a more efficient implementation, e.g. reusing images & canvases
 					Color color = ColorToolsFX.getDisplayedColor(item);
-					setGraphic(PathIconFactory.createROIIcon(item.getROI(), 16, 16, color));
+					setGraphic(PathIconFactory.createPathObjectIcon(item, 16, 16));
 				} else
 					setGraphic(null);
 			}
@@ -481,9 +482,11 @@ public class PathObjectHierarchyView implements ImageDataChangeListener<Buffered
 				childrenSet = true;
 				Collection<PathObject> currentChildren = value.getChildObjects();
 				if (!currentChildren.isEmpty()) {
+					var childArray = currentChildren.toArray(PathObject[]::new);
+					Arrays.sort(childArray, DefaultPathObjectComparator.getInstance());
 					List<TreeItem<PathObject>> newChildren = new ArrayList<>();
 					boolean includeDetections = detectionDisplay.get() != TreeDetectionDisplay.NONE;
-					for (PathObject child : currentChildren.toArray(PathObject[]::new)) {
+					for (PathObject child : childArray) {
 						if (includeDetections || child.hasChildren() || !child.isDetection())
 							newChildren.add(createNode(child));
 					}

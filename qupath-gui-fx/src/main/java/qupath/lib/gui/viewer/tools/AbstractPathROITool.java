@@ -38,6 +38,7 @@ import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
+import qupath.lib.objects.classes.PathClassTools;
 import qupath.lib.objects.classes.Reclassifier;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.regions.ImagePlane;
@@ -190,9 +191,10 @@ abstract class AbstractPathROITool extends AbstractPathTool {
 			var pathClass = PathPrefs.getAutoSetAnnotationClass();
 			var toSelect = hierarchy.getObjectsForROI(null, currentROI);
 			if (!toSelect.isEmpty() && pathClass != null) {
+				boolean retainIntensityClass = !(PathClassTools.isPositiveOrGradedIntensityClass(pathClass) || PathClassTools.isNegativeClass(pathClass));
 				var reclassified = toSelect.stream()
 						.filter(p -> p.getPathClass() != pathClass)
-						.map(p -> new Reclassifier(p, pathClass, true))
+						.map(p -> new Reclassifier(p, pathClass, retainIntensityClass))
 						.filter(r -> r.apply())
 						.map(r -> r.getPathObject())
 						.collect(Collectors.toList());

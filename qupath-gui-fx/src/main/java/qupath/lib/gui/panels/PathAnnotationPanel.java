@@ -157,7 +157,7 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 						if (value == null || empty) {
 							setText(null);
 							setGraphic(null);
-						} else if (value.getName() == null) {
+						} else if (value.getBaseClass() == value && value.getName() == null) {
 							setText("None");
 							setGraphic(new Rectangle(size, size, ColorToolsFX.getCachedColor(0, 0, 0, 0)));
 						} else {
@@ -165,14 +165,15 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 							try {
 								// Try to count objects for class
 								// May be possibility of concurrent modification exception?
-								n = nLabelledObjectsForClass(hierarchy, value);
+//								n = nLabelledObjectsForClass(hierarchy, value);
+								n = getAnnotationsForClass(hierarchy, value).size();
 							} catch (Exception e) {
 								logger.error("Exception while counting objects for class", e);
 							}
 							if (n == 0)
-								setText(value.getName());
+								setText(value.toString());
 							else
-								setText(value.getName() + " (" + n + ")");
+								setText(value.toString() + " (" + n + ")");
 							setGraphic(new Rectangle(size, size, ColorToolsFX.getPathClassColor(value)));
 						}
 						if (value != null && qupath.getViewer().getOverlayOptions().isPathClassHidden(value)) {
@@ -345,14 +346,10 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 						int w = 16;
 						int h = 16;
 						
-						Color color = ColorToolsFX.getDisplayedColor(value);
-						if (color == null)
-							color = ColorToolsFX.getCachedColor(PathPrefs.getColorDefaultAnnotations());
-//						if (value.isTMACore()) {
-//							setGraphic(PathIconFactory.createNode(PathIconFactory.createCircleIcon(w, h, 1, color, 1.5f)));				 
-//						} else
 						if (value.hasROI())
-							setGraphic(PathIconFactory.createROIIcon(value.getROI(), w, h, color));
+							setGraphic(PathIconFactory.createPathObjectIcon(value, w, h));
+						else
+							setGraphic(null);
 					}
 					
 					void updateTooltip(final PathObject pathObject) {
@@ -1045,13 +1042,19 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 			hierarchy.fireObjectClassificationsChangedEvent(null, changedList);
 	}
 	
-	static int nLabelledObjectsForClass(final PathObjectHierarchy hierarchy, final PathClass pathClass) {
-		int n = 0;
-		for (PathObject pathObject : getAnnotationsForClass(hierarchy, pathClass)) {
-			n += pathObject.nChildObjects();
-		}
-		return n;
-//		return getLabelledObjectsForClass(hierarchy, pathClass).size(); // TODO: Consider a more efficient implementation
+//	static int nLabelledObjectsForClass(final PathObjectHierarchy hierarchy, final PathClass pathClass) {
+//		int n = 0;
+//		for (PathObject pathObject : getAnnotationsForClass(hierarchy, pathClass)) {
+//			n += pathObject.nChildObjects();
+//		}
+//		return n;
+////		return getLabelledObjectsForClass(hierarchy, pathClass).size(); // TODO: Consider a more efficient implementation
+//	}
+	
+	static int countAnnotationsForClass(PathObjectHierarchy hierarchy, PathClass pathClass) {
+		if (hierarchy == null)
+			return 0;
+		return PathObjectTools.countObjectsWithClass(hierarchy.getAnnotationObjects(), pathClass, false);
 	}
 
 	static List<PathObject> getAnnotationsForClass(PathObjectHierarchy hierarchy, PathClass pathClass) {

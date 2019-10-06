@@ -152,6 +152,18 @@ public class PathClassFactory {
 		if (name == null || name.equals(NULL_CLASS.toString()) || name.equals(NULL_CLASS.getName()))
 			return NULL_CLASS;
 		
+		// Handle requests for derived classes
+		var split = name.split(":");
+		if (split.length > 1) {
+			var pathClass = getPathClass(split[0], rgb);
+			for (int i = 1; i < split.length; i++) {
+				var temp = split[i].trim();
+				if (!temp.isBlank())
+					pathClass = getDerivedPathClass(pathClass, temp, rgb);
+			}
+			return pathClass;
+		}
+		
 		validateName(name);
 		
 		synchronized (mapPathClasses) {

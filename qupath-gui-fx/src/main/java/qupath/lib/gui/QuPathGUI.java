@@ -2234,7 +2234,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		RadioMenuItem selected = null;
 		for (PathClass pathClass : availablePathClasses) {
 			PathClass pathClassToSet = pathClass.getName() == null ? null : pathClass;
-			String name = pathClass.getName() == null ? "None" : pathClass.getName();
+			String name = pathClass.getName() == null ? "None" : pathClass.toString();
 			Action actionSetClass = new Action(name, e -> {
 				List<PathObject> changed = new ArrayList<>();
 				for (PathObject pathObject : viewer.getAllSelectedObjects()) {
