@@ -133,9 +133,11 @@ abstract class AbstractPathROITool extends AbstractPathTool {
 		}
 
 		// Find out the coordinates in the image domain
-		Point2D p2 = viewer.componentPointToImagePoint(e.getX(), e.getY(), null, true);
+		Point2D p2 = viewer.componentPointToImagePoint(e.getX(), e.getY(), null, false);
 		double xx = p2.getX();
 		double yy = p2.getY();
+		if (xx < 0 || yy < 0 || xx >= viewer.getServerWidth() || yy >= viewer.getServerHeight())
+			return;
 						
 		// If we are double-clicking & we don't have a polygon, see if we can access a ROI
 		if (!PathPrefs.isSelectionMode() && e.getClickCount() > 1) {
