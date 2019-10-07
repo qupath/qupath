@@ -51,7 +51,6 @@ import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.Slider;
 import javafx.scene.control.Spinner;
-import javafx.scene.control.SplitPane;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.control.Tooltip;
 import javafx.scene.input.MouseEvent;
@@ -60,6 +59,7 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
+import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
 import qupath.imagej.gui.IJExtension;
 import qupath.imagej.tools.IJTools;
@@ -162,8 +162,6 @@ public class PixelClassifierImageSelectionPane {
 	private StringProperty cursorLocation = new SimpleStringProperty();
 	
 	private ClassificationPieChart pieChart;
-		
-	private boolean wasApplied = false;
 
 	private HierarchyListener hierarchyListener = new HierarchyListener();
 
@@ -392,10 +390,10 @@ public class PixelClassifierImageSelectionPane {
 		
 		miniViewer = new MiniViewerCommand.MiniViewerManager(viewer, 0);
 		var viewerPane = miniViewer.getPane();
-		GridPane.setFillWidth(viewerPane, Boolean.TRUE);
-		GridPane.setFillHeight(viewerPane, Boolean.TRUE);
-		GridPane.setHgrow(viewerPane, Priority.ALWAYS);
-		GridPane.setVgrow(viewerPane, Priority.ALWAYS);
+//		GridPane.setFillWidth(viewerPane, Boolean.TRUE);
+//		GridPane.setFillHeight(viewerPane, Boolean.TRUE);
+//		GridPane.setHgrow(viewerPane, Priority.ALWAYS);
+//		GridPane.setVgrow(viewerPane, Priority.ALWAYS);
 		Tooltip.install(viewerPane, new Tooltip("View image at classification resolution"));
 		
 		updateAvailableResolutions();	
@@ -478,17 +476,25 @@ public class PixelClassifierImageSelectionPane {
 		paneFeatures.setPadding(new Insets(5));
 		viewerBorderPane.setBottom(paneFeatures);
 		
-		var splitPane = new SplitPane(pane, viewerBorderPane);
+//		var splitPane = new SplitPane(new ScrollPane(pane), viewerBorderPane);
+		var splitPane = new BorderPane(viewerBorderPane);
+		splitPane.setLeft(pane);
 		pane.setPrefWidth(400);
 		pane.setMinHeight(GridPane.USE_PREF_SIZE);
-		viewerPane.setPrefSize(400, 400);
-		splitPane.setDividerPositions(0.5);
+//		viewerBorderPane.setMinWidth(0);
+//		viewerPane.setPrefSize(400, 400);
+//		splitPane.setDividerPositions(0.5);
+		
+//		SplitPane.setResizableWithParent(pane, Boolean.FALSE);
+//		SplitPane.setResizableWithParent(viewerBorderPane, Boolean.FALSE);
+		
+		var fullPane = new StackPane(splitPane);
 		
 		pane.setPadding(new Insets(5));
 		
 		stage = new Stage();
-		stage.setScene(new Scene(splitPane));
-		
+		stage.setScene(new Scene(fullPane));
+
 		stage.initOwner(QuPathGUI.getInstance().getStage());
 		
 		stage.getScene().getRoot().disableProperty().bind(
@@ -953,7 +959,6 @@ public class PixelClassifierImageSelectionPane {
 		if (overlay != null) {
 			overlay.setUseAnnotationMask(selectedRegion.get() == ClassificationRegion.ANNOTATIONS_ONLY);
 			overlay.setLivePrediction(livePrediction.get());
-			wasApplied = false;
 		}
 		viewer.setCustomPixelLayerOverlay(overlay);
 	}
