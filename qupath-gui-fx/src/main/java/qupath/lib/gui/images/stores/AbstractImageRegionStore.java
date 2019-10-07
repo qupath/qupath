@@ -419,7 +419,7 @@ abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {
 		clearingCache = true;
 		// Try to cancel anything we're waiting for
 		if (stopWaiting) {
-			for (TileWorker<T> worker : waitingMap.values().toArray(new TileWorker[0])) {
+			for (TileWorker<T> worker : waitingMap.values().toArray(TileWorker[]::new)) {
 				worker.cancel(true);
 			}
 			waitingMap.clear();

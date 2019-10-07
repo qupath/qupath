@@ -573,7 +573,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 					actionLog.handle(null);
 				// Try to reclaim any memory we can
 				if (e instanceof OutOfMemoryError)
-					getViewer().getImageRegionStore().clearCache(true, false);
+					getViewer().getImageRegionStore().clearCache(false, false);
 			}
 		});
 		

@@ -181,7 +181,6 @@ public class DefaultImageRegionStore extends AbstractImageRegionStore<BufferedIm
 	}
 
 
-
 	@Override
 	public void paintRegion(ImageServer<BufferedImage> server, Graphics g, Shape clipShapeVisible, int zPosition, int tPosition, double downsampleFactor, BufferedImage imgThumbnail, ImageObserver observer, ImageRenderer imageDisplay) {
 		registerRequest(null, server, clipShapeVisible, downsampleFactor, zPosition, tPosition);
