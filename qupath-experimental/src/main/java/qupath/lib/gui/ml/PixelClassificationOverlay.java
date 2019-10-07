@@ -23,6 +23,7 @@ import qupath.lib.roi.interfaces.ROI;
 import qupath.opencv.ml.pixel.FeatureImageServer;
 import qupath.opencv.ml.pixel.features.FeatureCalculator;
 
+import java.awt.AlphaComposite;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.Shape;
@@ -114,7 +115,7 @@ public class PixelClassificationOverlay extends AbstractImageDataOverlay  {
     		final FeatureCalculatorServerFunction fun, ImageRenderer renderer) {
     	var overlay = new PixelClassificationOverlay(viewer, 1, fun);
     	overlay.setRenderer(renderer);
-    	overlay.showOverlay = viewer.getOverlayOptions().showPixelClassificationProperty().not();
+//    	overlay.showOverlay = viewer.getOverlayOptions().showPixelClassificationProperty().not();
     	return overlay;
     }
     
@@ -231,14 +232,21 @@ public class PixelClassificationOverlay extends AbstractImageDataOverlay  {
 //        double requestedDownsample = classifier.getMetadata().getInputPixelSizeMicrons() / server.getAveragedPixelSizeMicrons();
 		double requestedDownsample = ServerTools.getPreferredDownsampleFactor(server, downsampleFactor);
 
+		var gCopy = (Graphics2D)g2d.create();
+		
         if (requestedDownsample > server.getDownsampleForResolution(0))
-        	g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+        	gCopy.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
         else
-        	g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
+        	gCopy.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
 
         var comp = getAlphaComposite();
-        if (comp != null)
-        	g2d.setComposite(comp);
+    	var previousComposite = gCopy.getComposite();
+        if (comp != null) {
+        	if (previousComposite instanceof AlphaComposite)
+        		gCopy.setComposite(comp.derive(((AlphaComposite) previousComposite).getAlpha() * comp.getAlpha()));
+        	else
+        		gCopy.setComposite(comp);
+        }
         
 //        boolean requestingTiles = downsampleFactor <= requestedDownsample * 4.0;
         boolean requestingTiles = true;
@@ -296,7 +304,7 @@ public class PixelClassificationOverlay extends AbstractImageDataOverlay  {
             BufferedImage imgRGB = getCachedRGBImage(request, server.getCachedTile(tile));
             if (imgRGB != null) {
             	// Get the cached RGB painted version (since painting can be a fairly expensive operation)
-                g2d.drawImage(imgRGB, request.getX(), request.getY(), request.getWidth(), request.getHeight(), null);
+            	gCopy.drawImage(imgRGB, request.getX(), request.getY(), request.getWidth(), request.getHeight(), null);
 //                g2d.setColor(Color.RED);
 //                g2d.drawRect(request.getX(), request.getY(), request.getWidth(), request.getHeight());
 //                System.err.println(request.getHeight() == imgRGB.getHeight());
@@ -323,6 +331,7 @@ public class PixelClassificationOverlay extends AbstractImageDataOverlay  {
             if (livePrediction)
             	requestTile(tile, server);
         }
+        gCopy.dispose();
     }
     
     /**
@@ -348,7 +357,11 @@ public class PixelClassificationOverlay extends AbstractImageDataOverlay  {
                 g.drawImage(img, 0, 0, null);
                 g.dispose();
             } else {
-                imgRGB = renderer.applyTransforms(img, null);
+            	try {
+            		imgRGB = renderer.applyTransforms(img, null);
+            	} catch (Exception e) {
+            		logger.error("Exception rendering image", e);
+            	}
             }
             cacheRGB.put(request, imgRGB);
         }
