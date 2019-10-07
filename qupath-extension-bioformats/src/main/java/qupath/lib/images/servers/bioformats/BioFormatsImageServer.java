@@ -761,7 +761,10 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 	 */
 	private IFormatReader getReader() {
 		try {
-			return willParallelize() ? manager.getReaderForThread(options, filePath) : readerWrapper.getReader();
+			if (willParallelize())
+				return manager.getReaderForThread(options, filePath);
+			else
+				return readerWrapper.getReader();
 		} catch (Exception e) {
 			logger.error("Error requesting image reader", e);
 			return null;

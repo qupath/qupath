@@ -805,6 +805,7 @@ public class BrightnessContrastCommand implements PathCommand, ImageDataChangeLi
 	private void setTableSelectedChannels(boolean showChannels) {
 		if (!isInitialized())
 			return;
+		var selected = table.getSelectionModel().getSelectedItems();
 		for (ChannelDisplayInfo info : table.getSelectionModel().getSelectedItems()) {
 			imageDisplay.setChannelSelected(info, showChannels);
 		}
@@ -900,6 +901,9 @@ public class BrightnessContrastCommand implements PathCommand, ImageDataChangeLi
 	
 	@Override
 	public void propertyChange(PropertyChangeEvent evt) {
+		if (evt.getPropertyName().equals("qupath.lib.display.ImageDisplay"))
+			return;
+		
 		if (!Platform.isFxApplicationThread()) {
 			Platform.runLater(() -> propertyChange(evt));
 			return;
