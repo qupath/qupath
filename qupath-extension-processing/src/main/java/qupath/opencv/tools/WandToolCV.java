@@ -48,7 +48,6 @@ import org.bytedeco.opencv.opencv_core.Scalar;
 import org.bytedeco.opencv.opencv_core.Size;
 import org.bytedeco.javacpp.indexer.FloatIndexer;
 import org.bytedeco.javacpp.indexer.IntIndexer;
-import org.bytedeco.javacpp.indexer.UByteIndexer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -106,7 +105,7 @@ public class WandToolCV extends BrushTool {
 	private Mat matMask = new Mat(w+2, w+2, CV_8UC1);
 	private Mat matSelected = new Mat(w+2, w+2, CV_8UC1);
 	
-	private Mat matFloat = new Mat(w, w, CV_32FC1);
+	private Mat matFloat = new Mat(w, w, CV_32FC3);
 	
 	private Scalar threshold = Scalar.all(1.0);
 	private Point seed = new Point(w/2, w/2);
@@ -373,48 +372,61 @@ public class WandToolCV extends BrushTool {
 		
 		// Apply color transform if required
 		if (type == WandType.LAB_DISTANCE) {
-			opencv_imgproc.cvtColor(mat, mat, opencv_imgproc.COLOR_BGR2Lab);
+			mat.convertTo(matFloat, opencv_core.CV_32F, 1.0/255.0, 0.0);
+			opencv_imgproc.cvtColor(matFloat, matFloat, opencv_imgproc.COLOR_BGR2Lab);
 			
-			UByteIndexer idx = mat.createIndexer();
-			int i = w/2;
-			double v1 = idx.get(i, i, 0);
-			double v2 = idx.get(i, i, 1);
-			double v3 = idx.get(i, i, 2);
-			
-			FloatIndexer idxOutput = matFloat.createIndexer();
+			FloatIndexer idx = matFloat.createIndexer();
+			int k = w/2;
+			double v1 = idx.get(k, k, 0);
+			double v2 = idx.get(k, k, 1);
+			double v3 = idx.get(k, k, 2);
+			double max = 0;
+			double mean = 0;
+			double meanScale = 1.0 / (w * w);
 			for (int row = 0; row < w; row++) {
 				for (int col = 0; col < w; col++) {
-					double t1 = idx.get(row, col, 0) - v1;
-					double t2 = idx.get(row, col, 1) - v2;
-					double t3 = idx.get(row, col, 2) - v3;
-					double dist = Math.sqrt(t1*t1 + t2*t2 + t3*t3);
-					idxOutput.put(row, col, (float)dist);
+					double L = idx.get(row, col, 0) - v1;
+					double A = idx.get(row, col, 1) - v2;
+					double B = idx.get(row, col, 2) - v3;
+					double dist = Math.sqrt(L*L + A*A + B*B);
+					if (dist > max)
+						max = dist;
+					mean += dist * meanScale;
+					idx.put(row, col, 0, (float)dist);
 				}				
 			}
-			matThreshold = matFloat;
-			meanStdDev(matFloat, stddev, mean);
+			if (matThreshold == null)
+				matThreshold = new Mat();
+			opencv_core.extractChannel(matFloat, matThreshold, 0);
 			
-//			OpenCVTools.matToImagePlus(mat2, "Second").show();
+			// There are various ways we might choose a threshold now...
+			// Here, we use a multiple of the mean. Since values are 'distances' 
+			// they are all >= 0
+			matThreshold.convertTo(matThreshold, opencv_core.CV_8U, 255.0/max, 0);
+			threshold.put(mean * getWandSensitivity());
+			
+////			OpenCVTools.matToImagePlus(matThreshold, "Before").show();
+//			// Apply local Otsu threshold
+//			opencv_imgproc.threshold(matThreshold, matThreshold,
+//					0,
+//					255, opencv_imgproc.THRESH_BINARY + opencv_imgproc.THRESH_OTSU);
+//			threshold.put(Scalar.ZERO);
+
 			nChannels = 1;
 		} else {
-
-			// Could optionally base the threshold on the masked region... but for now we don't
-	//		if (hasMask)
-	//			meanStdDev(mat, mean, stddev, matSelected.apply(new Rect(1, 1, w, w)));
-	//		else
+			// Base threshold on local standard deviation
 			meanStdDev(matThreshold, mean, stddev);
+			DoubleBuffer stddevBuffer = stddev.createBuffer();
+			double[] stddev2 = new double[nChannels];
+			stddevBuffer.get(stddev2);
+			double scale = 1.0 / getWandSensitivity();
+			if (scale < 0)
+				scale = 0.01;
+			for (int i = 0; i < stddev2.length; i++)
+				stddev2[i] = stddev2[i]*scale;
+			threshold.put(stddev2);
 		}
 	
-		DoubleBuffer stddevBuffer = stddev.createBuffer();
-		double[] stddev2 = new double[nChannels];
-		stddevBuffer.get(0, stddev2);
-		double scale = 1.0 / getWandSensitivity();
-		if (scale < 0)
-			scale = 0.01;
-		for (int i = 0; i < stddev2.length; i++)
-			stddev2[i] = stddev2[i]*scale;
-		threshold.put(stddev2);
-		
 		// Limit maximum radius by pen
 		int radius = (int)Math.round(w / 2 * QuPathPenManager.getPenManager().getPressure());
 		if (radius == 0)
@@ -487,7 +499,7 @@ public class WandToolCV extends BrushTool {
 		
 		
 		long endTime = System.currentTimeMillis();
-		logger.info(getClass().getSimpleName() + " time: " + (endTime - startTime));
+		logger.trace(getClass().getSimpleName() + " time: " + (endTime - startTime));
 		
 		if (pLast == null)
 			pLast = new Point2D.Double(x, y);
