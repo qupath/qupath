@@ -4,12 +4,15 @@ import qupath.lib.awt.common.AwtTools;
 import qupath.lib.classifiers.pixel.PixelClassificationImageServer;
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.common.ThreadTools;
+import qupath.lib.gui.images.stores.ImageRenderer;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.overlays.AbstractImageDataOverlay;
 import qupath.lib.gui.viewer.overlays.PathOverlay;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.PixelCalibration;
+import qupath.lib.images.servers.ImageServerMetadata.ChannelType;
 import qupath.lib.images.servers.ServerTools;
 import qupath.lib.images.servers.TileRequest;
 import qupath.lib.objects.PathObject;
@@ -17,12 +20,15 @@ import qupath.lib.objects.TMACoreObject;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.interfaces.ROI;
+import qupath.opencv.ml.pixel.FeatureImageServer;
+import qupath.opencv.ml.pixel.features.FeatureCalculator;
 
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.Shape;
 import java.awt.image.BufferedImage;
 import java.awt.image.ImageObserver;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -33,10 +39,13 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.function.Function;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javafx.application.Platform;
+import javafx.beans.value.ObservableBooleanValue;
 
 /**
  * {@link PathOverlay} that gives the results of pixel classification.
@@ -49,37 +58,139 @@ public class PixelClassificationOverlay extends AbstractImageDataOverlay  {
 	private static Logger logger = LoggerFactory.getLogger(PixelClassificationOverlay.class);
 
     private QuPathViewer viewer;
+    
+    private ImageRenderer renderer;
+    private long rendererLastTimestamp = 0L;
 
-    private PixelClassifier classifier;
-    
-    private transient PixelClassificationImageServer server;
-    
     private Map<RegionRequest, BufferedImage> cacheRGB = Collections.synchronizedMap(new HashMap<>());
     private Set<TileRequest> pendingRequests = Collections.synchronizedSet(new HashSet<>());
     
     private ExecutorService pool;
     
+    private Function<ImageData<BufferedImage>, ImageServer<BufferedImage>> fun;
+    
     private boolean useAnnotationMask = false;
     private boolean livePrediction = false;
+    
+    private ObservableBooleanValue showOverlay;
 
     
-    public PixelClassificationOverlay(final QuPathViewer viewer, final PixelClassifier classifier) {
+    private PixelClassificationOverlay(final QuPathViewer viewer, final int nThreads, final Function<ImageData<BufferedImage>, ImageServer<BufferedImage>> fun) {
         super(viewer.getOverlayOptions(), viewer.getImageData());
+        
+        showOverlay = viewer.getOverlayOptions().showPixelClassificationProperty();
         
         // Choose number of threads based on how intensive the processing will be
         // TODO: Permit classifier to control request
-        int nThreads = Math.max(1, PathPrefs.getNumCommandThreads());
 //        if (classifierServer.getClassifier() instanceof OpenCVPixelClassifierDNN)
 //        	nThreads = 1;
         pool = Executors.newFixedThreadPool(
         		nThreads, ThreadTools.createThreadFactory(
         				"classifier-overlay", true, Thread.NORM_PRIORITY-2));
         
-        this.classifier = classifier;
+        this.fun = fun;
         this.viewer = viewer;
     }
     
     
+    public static PixelClassificationOverlay createPixelClassificationOverlay(final QuPathViewer viewer, final PixelClassifier classifier) {
+        int nThreads = Math.max(1, PathPrefs.getNumCommandThreads());
+    	return new PixelClassificationOverlay(viewer, nThreads, new ClassifierServerFunction(classifier));
+    }
+    
+    
+    public static PixelClassificationOverlay createFeatureDisplayOverlay(final QuPathViewer viewer,
+    		final FeatureCalculator<BufferedImage> calculator,
+    		PixelCalibration resolution, ImageRenderer renderer) {
+    	return createFeatureDisplayOverlay(viewer, new FeatureCalculatorServerFunction(calculator, resolution), renderer);
+    }
+    
+    public static PixelClassificationOverlay createFeatureDisplayOverlay(final QuPathViewer viewer,
+    		final ImageServer<BufferedImage> featureServer, ImageRenderer renderer) {
+    	return createFeatureDisplayOverlay(viewer, new FeatureCalculatorServerFunction(featureServer), renderer);
+    }
+    
+    private static PixelClassificationOverlay createFeatureDisplayOverlay(final QuPathViewer viewer,
+    		final FeatureCalculatorServerFunction fun, ImageRenderer renderer) {
+    	var overlay = new PixelClassificationOverlay(viewer, 1, fun);
+    	overlay.setRenderer(renderer);
+    	overlay.showOverlay = viewer.getOverlayOptions().showPixelClassificationProperty().not();
+    	return overlay;
+    }
+    
+    
+    static class FeatureCalculatorServerFunction implements Function<ImageData<BufferedImage>, ImageServer<BufferedImage>> {
+    	
+    	private ImageServer<BufferedImage> server;
+    	private FeatureCalculator<BufferedImage> calculator;
+    	private PixelCalibration resolution;
+    	
+    	private FeatureCalculatorServerFunction(FeatureCalculator<BufferedImage> calculator, PixelCalibration resolution) {
+    		this.calculator = calculator;
+    		this.resolution = resolution;
+    	}
+    	
+    	private FeatureCalculatorServerFunction(ImageServer<BufferedImage> server) {
+    		this.server = server;
+    	}
+
+		@Override
+		public ImageServer<BufferedImage> apply(ImageData<BufferedImage> imageData) {
+			if (imageData == null) {
+				server = null;
+				return null;
+			}
+			if (server != null && (server instanceof FeatureImageServer && ((FeatureImageServer)server).getImageData() != imageData))
+				server = null;
+			if (server == null && calculator != null && calculator.supportsImage(imageData)) {
+	    		try {
+					server = new FeatureImageServer(imageData, calculator, resolution);
+				} catch (IOException e) {
+					logger.error("Error creating FeatureImageServer", e);
+				}
+	    	}
+	    	return server;
+		}
+    	
+    }
+    
+    
+    static class ClassifierServerFunction implements Function<ImageData<BufferedImage>, ImageServer<BufferedImage>> {
+    	
+    	private PixelClassificationImageServer server;
+    	private PixelClassifier classifier;
+    	
+    	private ClassifierServerFunction(PixelClassifier classifier) {
+    		this.classifier = classifier;
+    	}
+
+		@Override
+		public ImageServer<BufferedImage> apply(ImageData<BufferedImage> imageData) {
+			if (imageData == null) {
+				server = null;
+				return null;
+			}
+			if (server != null && server.getImageData() != imageData)
+				server = null;
+			if (server == null && classifier.supportsImage(imageData)) {
+	    		server = new PixelClassificationImageServer(imageData, classifier);
+	    		PixelClassificationImageServer.setPixelLayer(imageData, server);
+	    	}
+	    	return server;
+		}
+    	
+    }
+
+    private synchronized void setRenderer(ImageRenderer renderer) {
+    	if (this.renderer == renderer)
+    		return;
+    	this.renderer = renderer;
+    	cacheRGB.clear();
+    }
+
+    private ImageRenderer getRenderer() {
+    	return renderer;
+    }
     
     public boolean getLivePrediction() {
     	return livePrediction;
@@ -95,7 +206,7 @@ public class PixelClassificationOverlay extends AbstractImageDataOverlay  {
     @Override
 	public void paintOverlay(Graphics2D g2d, ImageRegion imageRegion, double downsampleFactor, ImageObserver observer, boolean paintCompletely) {
         // For now, bind the display to the display of detections
-        if (!viewer.getOverlayOptions().getShowPixelClassification())
+        if (!showOverlay.get())
             return;
 
         var imageData = getImageData();
@@ -112,6 +223,11 @@ public class PixelClassificationOverlay extends AbstractImageDataOverlay  {
 //        if (5 > 2)
 //        	return;
         
+        if (renderer != null && rendererLastTimestamp != renderer.getLastChangeTimestamp()) {
+        	cacheRGB.clear();
+        	rendererLastTimestamp = renderer.getLastChangeTimestamp();
+        }
+        
 //        double requestedDownsample = classifier.getMetadata().getInputPixelSizeMicrons() / server.getAveragedPixelSizeMicrons();
 		double requestedDownsample = ServerTools.getPreferredDownsampleFactor(server, downsampleFactor);
 
@@ -120,6 +236,9 @@ public class PixelClassificationOverlay extends AbstractImageDataOverlay  {
         else
         	g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
 
+        var comp = getAlphaComposite();
+        if (comp != null)
+        	g2d.setComposite(comp);
         
 //        boolean requestingTiles = downsampleFactor <= requestedDownsample * 4.0;
         boolean requestingTiles = true;
@@ -164,11 +283,6 @@ public class PixelClassificationOverlay extends AbstractImageDataOverlay  {
         			if (roi.getZ() == request.getZ() &&
         					roi.getT() == request.getT() &&
         					request.intersects(roi.getBoundsX(), roi.getBoundsY(), roi.getBoundsWidth(), roi.getBoundsHeight())) {
-//        				var shape = roi.getShape();
-//        				// Intersects doesn't seem to be working nicely with Ellipse?
-////        				if (shape instanceof Ellipse2D)
-//        					shape = shape.getBounds();
-//        				if (shape.intersects(request.getX(), request.getY(), request.getWidth(), request.getHeight())) {
             				doPaint = true;
 //        				}
         				break;
@@ -219,7 +333,7 @@ public class PixelClassificationOverlay extends AbstractImageDataOverlay  {
      * @param img
      * @return
      */
-    BufferedImage getCachedRGBImage(RegionRequest request, BufferedImage img) {
+    synchronized BufferedImage getCachedRGBImage(RegionRequest request, BufferedImage img) {
     	var imgRGB = cacheRGB.get(request);
         // If we don't have an RGB version, create one
         if (imgRGB == null && img != null) {
@@ -228,11 +342,13 @@ public class PixelClassificationOverlay extends AbstractImageDataOverlay  {
             		img.getType() == BufferedImage.TYPE_BYTE_INDEXED ||
             		img.getType() == BufferedImage.TYPE_BYTE_GRAY) {
                 imgRGB = img;
-            } else {
+            } else if (renderer == null) {
                 imgRGB = new BufferedImage(img.getWidth(), img.getHeight(), BufferedImage.TYPE_INT_ARGB);
                 Graphics2D g = imgRGB.createGraphics();
                 g.drawImage(img, 0, 0, null);
                 g.dispose();
+            } else {
+                imgRGB = renderer.applyTransforms(img, null);
             }
             cacheRGB.put(request, imgRGB);
         }
@@ -241,11 +357,7 @@ public class PixelClassificationOverlay extends AbstractImageDataOverlay  {
     
     
     
-    public void stop(boolean resetMeasurements) {
-//    	if (imageData != null && resetMeasurements) {
-//    		manager.resetMeasurements(imageData.getHierarchy(), imageData.getHierarchy().getObjects(null, PathAnnotationObject.class));
-//    	}
-//    	viewer.getImageRegionStore().clearCacheForServer(classifierServer);
+    public void stop() {
     	List<Runnable> pending = this.pool.shutdownNow();
     	cacheRGB.clear();
     	logger.debug("Stopped classification overlay, dropped {} requests", pending.size());
@@ -255,14 +367,7 @@ public class PixelClassificationOverlay extends AbstractImageDataOverlay  {
     
     
     public synchronized ImageServer<BufferedImage> getPixelClassificationServer() {
-    	if (server == null && getImageData() != null) {
-    		var imageData = getImageData();
-    		if (classifier.supportsImage(imageData)) {
-	    		server = new PixelClassificationImageServer(imageData, classifier);
-	    		PixelClassificationImageServer.setPixelLayer(imageData, server);
-    		}
-    	}
-    	return server;
+    	return fun.apply(getImageData());
     }
     
         
@@ -293,30 +398,21 @@ public class PixelClassificationOverlay extends AbstractImageDataOverlay  {
             		return;
             	}
                 try {
-                	BufferedImage imgResult = null;
-//                	if (tileCache != null)
-//                		imgResult = tileCache.readFromCache(tile.getRegionRequest());
-//                	if (imgResult == null)
-                		imgResult = classifierServer.readBufferedImage(tile.getRegionRequest());
-//                	else {
-//                		logger.debug("Read cached tile: {}", tile);
-//                	}
-//                    getCachedRGBImage(tile.getRegionRequest(), imgResult);
+                	classifierServer.readBufferedImage(tile.getRegionRequest());
                     viewer.repaint();
-                    
-                    var imageData = getImageData();
-                    var hierarchy = imageData == null ? null : imageData.getHierarchy();
-                    if (hierarchy != null) {
-                    	var changed = new ArrayList<PathObject>();
-                    	changed.add(hierarchy.getRootObject());
-                    	changed.addAll(hierarchy.getAnnotationObjects());
-//	                    if (!annotations.isEmpty()) {
-	                    	Platform.runLater(() -> {
-	                    		hierarchy.fireObjectMeasurementsChangedEvent(this, changed);
-	                    	});
-//	                    }
+                    var channelType = classifierServer.getMetadata().getChannelType();
+                    if (channelType == ChannelType.CLASSIFICATION || channelType == ChannelType.PROBABILITY || channelType == ChannelType.MULTICLASS_PROBABILITY) {
+		                var imageData = getImageData();
+		                var hierarchy = imageData == null ? null : imageData.getHierarchy();
+		                if (hierarchy != null) {
+		                	var changed = new ArrayList<PathObject>();
+		                	changed.add(hierarchy.getRootObject());
+		                	changed.addAll(hierarchy.getAnnotationObjects());
+		                	Platform.runLater(() -> {
+		                		hierarchy.fireObjectMeasurementsChangedEvent(this, changed);
+		                	});
+		                }
                     }
-                    
                 } catch (Exception e) {
                    logger.error("Error requesting tile classification", e);
                 } finally {
@@ -325,19 +421,6 @@ public class PixelClassificationOverlay extends AbstractImageDataOverlay  {
             });
         }
     }
-
-    @Override
-	public void setImageData(final ImageData<BufferedImage> imageData) {
-		super.setImageData(imageData);
-		if (server != null) {
-			try {
-				server.close();
-				server = null;
-			} catch (Exception e) {
-				logger.warn("Exception when closing classification server", e);
-			}
-		}
-	}
 
 	@Override
 	public boolean supportsImageDataChange() {

@@ -11,7 +11,6 @@ import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
-import javafx.scene.layout.TilePane;
 import javafx.stage.Stage;
 import qupath.lib.classifiers.pixel.PixelClassificationImageServer;
 import qupath.lib.gui.QuPathGUI;
@@ -87,12 +86,12 @@ public class PixelClassifierLoadCommand implements PathCommand {
 		}, comboClassifiers.getSelectionModel().selectedItemProperty());
 		
 		var selectedOverlay = Bindings.createObjectBinding(() -> {
-			return selectedClassifier.get() == null ? null : new PixelClassificationOverlay(viewer, selectedClassifier.get());
+			return selectedClassifier.get() == null ? null : PixelClassificationOverlay.createPixelClassificationOverlay(viewer, selectedClassifier.get());
 		}, selectedClassifier);
 		
 		selectedOverlay.addListener((v, o, n) -> {
 			if (o != null)
-				o.stop(true);
+				o.stop();
 			if (n == null) {
 				viewer.resetCustomPixelLayerOverlay();
 			} else {
@@ -141,7 +140,7 @@ public class PixelClassifierLoadCommand implements PathCommand {
 		stage.setOnHiding(e -> {
 			var current = selectedOverlay.get();
 			if (current != null && viewer.getCustomPixelLayerOverlay() == current) {
-				current.stop(true);
+				current.stop();
 				viewer.resetCustomPixelLayerOverlay();
 			}
 		});

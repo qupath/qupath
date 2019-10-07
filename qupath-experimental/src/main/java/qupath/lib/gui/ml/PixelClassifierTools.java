@@ -22,6 +22,7 @@ import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.classes.Reclassifier;
 import qupath.lib.objects.classes.PathClassTools;
 import qupath.lib.objects.helpers.PathObjectTools;
+import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.AreaROI;
@@ -277,6 +278,7 @@ public class PixelClassifierTools {
 			double minSizePixels, boolean doSplit) {
 		return createObjectsFromPixelClassifier(
 				new PixelClassificationImageServer(imageData, classifier),
+				imageData.getHierarchy(),
 				selectedObject,
 				(var roi) -> PathObjects.createDetectionObject(roi),
 				minSizePixels, doSplit);
@@ -298,6 +300,7 @@ public class PixelClassifierTools {
 		
 		return createObjectsFromPixelClassifier(
 				new PixelClassificationImageServer(imageData, classifier),
+				imageData.getHierarchy(),
 				selectedObject,
 				(var roi) -> {
 					var annotation = PathObjects.createAnnotationObject(roi);
@@ -317,12 +320,9 @@ public class PixelClassifierTools {
 	 * @return
 	 */
 	public static boolean createObjectsFromPixelClassifier(
-			PixelClassificationImageServer server, PathObject selectedObject, 
+			ImageServer<BufferedImage> server, PathObjectHierarchy hierarchy, PathObject selectedObject, 
 			Function<ROI, ? extends PathObject> creator, double minSizePixels, boolean doSplit) {
 		
-		var hierarchy = server.getImageData().getHierarchy();
-		var classifier = server.getClassifier();
-	
 		var clipArea = selectedObject == null ? null : RoiTools.getArea(selectedObject.getROI());
 		Collection<TileRequest> tiles;
 		if (selectedObject == null) {
@@ -338,10 +338,10 @@ public class PixelClassifierTools {
 			var list = new ArrayList<PathObject>();
 			try {
 				var img = server.readBufferedImage(t.getRegionRequest());
-				var nChannels = classifier.getMetadata().getOutputChannels().size();
+				var nChannels = server.nChannels();
 				// Get raster containing classifications and integer values, by taking the argmax
 				var raster = img.getRaster();
-				if (classifier.getMetadata().getOutputType() != ImageServerMetadata.ChannelType.CLASSIFICATION) {
+				if (server.getMetadata().getChannelType() != ImageServerMetadata.ChannelType.CLASSIFICATION) {
 					int h = raster.getHeight();
 					int w = raster.getWidth();
 					byte[] output = new byte[w * h];

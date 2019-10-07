@@ -326,6 +326,8 @@ public class MultiscaleFeatureCalculator implements FeatureCalculator<BufferedIm
 				features.addAll(temp.calculateFeatures(cal, request.getDownsample(), computer.transform.getName(), mats2.get(ind), padding, mats2.toArray(Mat[]::new)));
 			}
 		}
+		for (var mat : mats)
+			mat.release();
 		
 		return features;
 		

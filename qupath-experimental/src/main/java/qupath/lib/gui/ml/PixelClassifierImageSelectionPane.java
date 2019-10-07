@@ -71,7 +71,6 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.display.ChannelDisplayInfo;
 import qupath.lib.display.ImageDisplay;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.align.ImageServerOverlay;
 import qupath.lib.gui.commands.MiniViewerCommand;
 import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.gui.helpers.PaneToolsFX;
@@ -79,6 +78,7 @@ import qupath.lib.gui.helpers.DisplayHelpers.DialogButton;
 import qupath.lib.gui.images.stores.AbstractImageRenderer;
 import qupath.lib.gui.images.stores.DefaultImageRegionStore;
 import qupath.lib.gui.viewer.QuPathViewer;
+import qupath.lib.gui.viewer.overlays.PathOverlay;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServer;
@@ -612,7 +612,7 @@ public class PixelClassifierImageSelectionPane {
 		updateClassifier();
 	}
 	
-	private ImageServerOverlay featureOverlay = null;
+	private PathOverlay featureOverlay = null;
 	private FeatureRenderer featureRenderer;
 	
 	private void autoFeatureContrast() {
@@ -629,8 +629,7 @@ public class PixelClassifierImageSelectionPane {
 	private void updateFeatureOverlay() {
 		if (featureOverlay != null) {
 			featureOverlay.setVisible(false);
-			viewer.getCustomOverlayLayers().clear();
-//			viewer.getCustomOverlayLayers().remove(featureOverlay);
+			viewer.getCustomOverlayLayers().remove(featureOverlay);
 			featureOverlay = null;
 		}
 		var featureServer = helper.getFeatureServer();
@@ -645,9 +644,12 @@ public class PixelClassifierImageSelectionPane {
 			}
 			if (channel >= 0) {
 				featureRenderer.setChannel(featureServer, channel, spinFeatureMin.getValue(), spinFeatureMax.getValue());
-				featureOverlay = new ImageServerOverlay(viewer, featureServer);
-				featureOverlay.setRenderer(featureRenderer);
+				featureOverlay = PixelClassificationOverlay.createFeatureDisplayOverlay(viewer, featureServer, featureRenderer);
+				((PixelClassificationOverlay)featureOverlay).setLivePrediction(true);
+//				featureOverlay = new ImageServerOverlay(viewer, featureServer);
+//				featureOverlay.setRenderer(featureRenderer);
 				featureOverlay.setOpacity(sliderFeatureOpacity.getValue());
+				autoFeatureContrast();
 			}
 		}
 		if (featureOverlay != null)
@@ -928,7 +930,7 @@ public class PixelClassifierImageSelectionPane {
 
 		 var classifier = OpenCVPixelClassifiers.createPixelClassifier(model, featureCalculator, helper.getLastFeaturePreprocessor(), metadata, true);
 
-		 var overlay = new PixelClassificationOverlay(viewer, classifier);
+		 var overlay = PixelClassificationOverlay.createPixelClassificationOverlay(viewer, classifier);
 		 replaceOverlay(overlay);
 	}
 	
@@ -945,7 +947,7 @@ public class PixelClassifierImageSelectionPane {
 			return;
 		}
 		if (overlay != null) {
-			overlay.stop(!wasApplied);
+			overlay.stop();
 		}
 		overlay = newOverlay;
 		if (overlay != null) {
@@ -965,7 +967,7 @@ public class PixelClassifierImageSelectionPane {
 			var imageData = viewer.getImageData();
 			if (imageData != null && PixelClassificationImageServer.getPixelLayer(imageData) == overlay.getPixelClassificationServer())
 				PixelClassificationImageServer.setPixelLayer(imageData, null);
-			overlay.stop(!wasApplied);
+			overlay.stop();
 			viewer.resetCustomPixelLayerOverlay();
 			overlay = null;
 		}
@@ -1196,7 +1198,7 @@ public class PixelClassifierImageSelectionPane {
 	
 	
 	
-	public static boolean promptToCreateObjects(ImageData<BufferedImage> imageData, PixelClassificationImageServer server) {
+	public static boolean promptToCreateObjects(ImageData<BufferedImage> imageData, ImageServer<BufferedImage> server) {
 		Objects.requireNonNull(imageData);
 		Objects.requireNonNull(server);
 		
@@ -1269,7 +1271,7 @@ public class PixelClassifierImageSelectionPane {
 //		// Need to turn off live prediction so we don't start training on the results...
 //		livePrediction.set(false);
 		
-		return PixelClassifierTools.createObjectsFromPixelClassifier(server, selected, creator, minSizePixels, doSplit);
+		return PixelClassifierTools.createObjectsFromPixelClassifier(server, imageData.getHierarchy(), selected, creator, minSizePixels, doSplit);
 	}
 	
 	

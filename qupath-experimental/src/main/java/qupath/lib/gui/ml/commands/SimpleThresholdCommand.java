@@ -230,7 +230,7 @@ public class SimpleThresholdCommand implements PathCommand {
 		
 //		PixelClassificationImageServer server = new PixelClassificationImageServer(imageData, classifier);
 
-		var overlay = new PixelClassificationOverlay(viewer, classifier);
+		var overlay = PixelClassificationOverlay.createPixelClassificationOverlay(viewer, classifier);
 		overlay.setLivePrediction(true);
 		viewer.setCustomPixelLayerOverlay(overlay);
 		map.put(viewer, overlay);
