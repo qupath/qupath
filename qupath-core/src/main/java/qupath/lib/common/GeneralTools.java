@@ -88,6 +88,8 @@ public class GeneralTools {
 		String version = GeneralTools.class.getPackage().getImplementationVersion();
 		if (version == null) {
 			var path = Paths.get("VERSION");
+			if (!Files.exists(path))
+				path = Paths.get("app/VERSION");
 			if (Files.exists(path)) {
 				try {
 					version = Files.readString(path);

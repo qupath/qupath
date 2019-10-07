@@ -266,9 +266,21 @@ public class PathPrefs {
 		}
 	}
 	
+	
 	static Path getConfigPath() throws IOException {
 		Path path = Paths.get(".");
-		List<Path> list = Files.list(path)
+		List<Path> list = searchForConfigFile(path);
+		if (list.isEmpty())
+			list = searchForConfigFile(Paths.get("./app"));
+		if (list.size() != 1) {
+			return null;
+		}
+		return list.get(0);
+	}
+	
+	
+	private static List<Path> searchForConfigFile(Path dir) throws IOException {
+		return Files.list(dir)
 				.filter(
 				p -> {
 					// Look for the .cfg file that isn't concerned with debugging
@@ -276,11 +288,8 @@ public class PathPrefs {
 					return name.endsWith(".cfg") && !name.endsWith("(debug).cfg");
 				})
 				.collect(Collectors.toList());
-		if (list.size() != 1) {
-			return null;
-		}
-		return list.get(0);
 	}
+	
 	
 	/**
 	 * Get property representing the maximum memory for the Java Virtual Machine, 
