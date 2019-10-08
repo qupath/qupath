@@ -260,18 +260,21 @@ public class PathPrefs {
 			if (path == null)
 				return false;
 			return Files.exists(path);
-		} catch (IOException e) {
+		} catch (Exception e) {
 			logger.error("Error trying to find config file", e);
 			return false;
 		}
 	}
 	
 	
-	static Path getConfigPath() throws IOException {
-		Path path = Paths.get(".");
+	static Path getConfigPath() throws IOException, URISyntaxException {
+		Path path = Paths.get(
+				PathPrefs.class
+				.getProtectionDomain()
+				.getCodeSource()
+				.getLocation()
+				.toURI()).getParent();
 		List<Path> list = searchForConfigFile(path);
-		if (list.isEmpty())
-			list = searchForConfigFile(Paths.get("./app"));
 		if (list.size() != 1) {
 			return null;
 		}

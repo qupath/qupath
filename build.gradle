@@ -46,6 +46,10 @@ def useGPU = false
  */
 def doModular = false
 
+/**
+ * Helps to output build time for reference later
+ */
+def buildTime = new Date().format("yyyy-MM-dd, HH:mm")
 
 /*
  * Good to know what JDK is (sometimes accidentally) being used
@@ -228,9 +232,18 @@ subprojects {
         }
 
         jar {
+        	// Important to set version so this can be queried within QuPath
             inputs.property("moduleName", moduleName)
             manifest {
-                attributes('Automatic-Module-Name': moduleName)
+			    def manifestAttributes = [
+			       "Implementation-Vendor": qupathVendor,
+			       "Implementation-Version": qupathVersion,
+			       'Automatic-Module-Name': moduleName,
+			       "QuPath-build-time": buildTime
+			    ]
+			    if (latestGitCommit != null)
+			       manifestAttributes["QuPath-latest-commit"] = latestGitCommit
+                attributes(manifestAttributes)
             }
         }
 
@@ -472,7 +485,7 @@ jar {
        "Implementation-Version": qupathVersion,
        "Main-Class": "qupath.QuPath",
        "Class-Path": configurations.compile.collect { it.getName() }.join(' '),
-       "QuPath-build-time": new Date().format("yyyy-MM-dd, HH:mm")
+       "QuPath-build-time": buildTime
     ]
     if (latestGitCommit != null)
        manifestAttributes["QuPath-latest-commit"] = latestGitCommit
@@ -576,7 +589,8 @@ task createPackage(dependsOn:createRuntime, type:Exec) {
 	params << '--java-options' << '-XX:MaxRAMPercentage=50'
 
 	if (OperatingSystem.current().isMacOsX()) {
-		params << '--mac-bundle-name' << 'QuPath'
+		params << '--mac-package-name' << 'QuPath'
+		params << '--mac-package-identifier' << 'QuPath'
 		if (packageType == 'installer') {
 			params << '--package-type' << 'dmg'
 		} else {

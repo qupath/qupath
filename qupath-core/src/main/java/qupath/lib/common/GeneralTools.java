@@ -66,7 +66,7 @@ public class GeneralTools {
 	final private static Logger logger = LoggerFactory.getLogger(GeneralTools.class);
 	
 	
-	private final static String LATEST_VERSION = getLatestVerion();
+	private final static String LATEST_VERSION = getLatestVersion();
 	
 	/**
 	 * Request the version of QuPath.
@@ -84,7 +84,7 @@ public class GeneralTools {
 	 * 
 	 * @return
 	 */
-	private static String getLatestVerion() {
+	private static String getLatestVersion() {
 		String version = GeneralTools.class.getPackage().getImplementationVersion();
 		if (version == null) {
 			var path = Paths.get("VERSION");
