@@ -1385,7 +1385,7 @@ public class PathPrefs {
 	}
 	
 	private static ObjectProperty<FontSize> fontSize = PathPrefs.createPersistentPreference(
-			"locationFontSize", FontSize.SMALL, FontSize.class);
+			"locationFontSize", FontSize.MEDIUM, FontSize.class);
 	
 	public static ObjectProperty<FontSize> viewerFontSizeProperty() {
 		return fontSize;

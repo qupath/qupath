@@ -3812,8 +3812,8 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	
 	public void setModeSwitchingEnabled(final boolean enabled) {
 		modeSwitchEnabled = enabled;
-		for (Action action : modeActions.values())
-			action.setDisabled(!enabled);
+//		for (Action action : modeActions.values())
+//			action.setDisabled(!enabled);
 	}
 	
 	public boolean isModeSwitchingEnabled() {

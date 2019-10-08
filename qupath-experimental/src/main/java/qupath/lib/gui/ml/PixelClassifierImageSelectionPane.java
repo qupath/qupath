@@ -212,7 +212,7 @@ public class PixelClassifierImageSelectionPane {
 		btnEditClassifier.disableProperty().bind(selectedClassifier.isNull());
 		
 		PaneToolsFX.addGridRow(pane, row++, 0, 
-				"Choose classifier type (RTrees is generally a good default)",
+				"Choose classifier type (RTrees or ANN_MLP are generally good choices)",
 				labelClassifier, comboClassifier, comboClassifier, btnEditClassifier);
 		
 //		// Boundary strategy
@@ -279,7 +279,7 @@ public class PixelClassifierImageSelectionPane {
 		btnShowOutput.setOnAction(e -> showOutput());
 		
 		PaneToolsFX.addGridRow(pane, row++, 0, 
-				"Choose whether to output classifications only, or estimated probabilities per class (classifications only takes much less memory)",
+				"Choose whether to output classifications only, or estimated probabilities per class (not all classifiers support probabilities, which also require more memory)",
 				labelOutput, comboOutput, comboOutput, btnShowOutput);
 		
 		
@@ -301,6 +301,7 @@ public class PixelClassifierImageSelectionPane {
 		
 		// Live predict
 		var btnAdvancedOptions = new Button("Advanced options");
+		btnAdvancedOptions.setTooltip(new Tooltip("Advanced options to customize preprocessing and classifier behavior"));
 		btnAdvancedOptions.setOnAction(e -> {
 			if (showAdvancedOptions())
 				updateClassifier();
@@ -308,25 +309,21 @@ public class PixelClassifierImageSelectionPane {
 		
 		var btnLive = new ToggleButton("Live prediction");
 		btnLive.selectedProperty().bindBidirectional(livePrediction);
+		btnLive.setTooltip(new Tooltip("Toggle whether to calculate classification 'live' while viewing the image"));
 		livePrediction.addListener((v, o, n) -> {
 			if (overlay == null) {
 				if (n) {
 					updateClassifier(n);				
-//					viewer.setSuppressPixelLayer(true);
 					return;
 				}
 			} else {
 				overlay.setLivePrediction(n);
 			}
-//			viewer.setSuppressPixelLayer(false);
+			if (featureOverlay != null)
+				featureOverlay.setLivePrediction(n);
 		});
 				
-		var panePredict = new HBox(btnAdvancedOptions, btnLive);
-		PaneToolsFX.setMaxWidth(Double.MAX_VALUE, btnLive, btnAdvancedOptions);
-		HBox.setHgrow(btnAdvancedOptions, Priority.ALWAYS);
-		HBox.setHgrow(btnLive, Priority.ALWAYS);
-		
-		
+		var panePredict = PaneToolsFX.createColumnGridControls(btnAdvancedOptions, btnLive);
 		pane.add(panePredict, 0, row++, pane.getColumnCount(), 1);
 		
 //		addGridRow(pane, row++, 0, btnPredict, btnPredict, btnPredict);
@@ -349,6 +346,7 @@ public class PixelClassifierImageSelectionPane {
 		chart.setMaxSize(100, 100);
 		chart.setLegendSide(Side.RIGHT);
 		GridPane.setVgrow(chart, Priority.ALWAYS);
+		Tooltip.install(chart, new Tooltip("View training classes by proportion"));
 		
 		PaneToolsFX.addGridRow(pane, row++, 0, 
 				null,
@@ -417,6 +415,7 @@ public class PixelClassifierImageSelectionPane {
 //		pane.add(btnSavePrediction, 0, row++, pane.getColumnCount(), 1);
 
 		var btnCreateObjects = new Button("Create objects");
+		btnCreateObjects.setTooltip(new Tooltip("Create annotations or detections from pixel classification"));
 		btnCreateObjects.disableProperty().bind(classificationComplete);
 		btnCreateObjects.setOnAction(e -> {
 			var server = getClassificationServerOrShowError();
@@ -426,6 +425,7 @@ public class PixelClassifierImageSelectionPane {
 		});
 		
 		var btnClassifyObjects = new Button("Classify detections");
+		btnClassifyObjects.setTooltip(new Tooltip("Assign classifications to detection objects based on the corresponding pixel classification"));
 		btnClassifyObjects.disableProperty().bind(classificationComplete);
 		btnClassifyObjects.setOnAction(e -> classifyObjects());
 		
@@ -464,10 +464,10 @@ public class PixelClassifierImageSelectionPane {
 		spinFeatureMax.disableProperty().bind(featureDisableBinding);
 		spinFeatureMax.setEditable(true);
 		var paneFeatures = new GridPane();
-		comboDisplayFeatures.setTooltip(new Tooltip("Choose feature to display as overlay (Warning: This requires a lot of memory & computation!)"));
+		comboDisplayFeatures.setTooltip(new Tooltip("Choose classification result or feature overlay to display (Warning: This requires a lot of memory & computation!)"));
 		spinFeatureMin.setTooltip(new Tooltip("Min display value for feature overlay"));
 		spinFeatureMax.setTooltip(new Tooltip("Max display value for feature overlay"));
-		sliderFeatureOpacity.setTooltip(new Tooltip("Adjust feature overlay opacity"));
+		sliderFeatureOpacity.setTooltip(new Tooltip("Adjust classification/feature overlay opacity"));
 		
 		PaneToolsFX.addGridRow(paneFeatures, 0, 0, null,
 				comboDisplayFeatures, comboDisplayFeatures, comboDisplayFeatures, comboDisplayFeatures);
@@ -698,6 +698,7 @@ public class PixelClassifierImageSelectionPane {
 //				featureOverlay = new ImageServerOverlay(viewer, featureServer);
 //				featureOverlay.setRenderer(featureRenderer);
 				featureOverlay.setOpacity(sliderFeatureOpacity.getValue());
+				featureOverlay.setLivePrediction(livePrediction.get());
 				autoFeatureContrast();
 			}
 		}
