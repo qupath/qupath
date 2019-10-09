@@ -27,6 +27,7 @@ package qupath.lib.common;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 
 import java.io.File;
 import java.util.Arrays;
@@ -71,6 +72,27 @@ public class TestGeneralTools {
 			assertEquals(baseName, GeneralTools.getNameWithoutExtension(fileUpper));
 		}
 	}
+	
+	
+	@Test
+	public void test_filenameValid() {
+		assertTrue(GeneralTools.isValidFilename("anything"));
+		assertTrue(GeneralTools.isValidFilename("anything.else"));
+		assertTrue(GeneralTools.isValidFilename(".anything.else"));
+		assertTrue(GeneralTools.isValidFilename(".anytHIng.else"));
+		
+		assertFalse(GeneralTools.isValidFilename("anything.else?"));
+		assertFalse(GeneralTools.isValidFilename("any<thing"));
+		assertFalse(GeneralTools.isValidFilename("anyt>hing"));
+		assertFalse(GeneralTools.isValidFilename("any:thing"));
+		assertFalse(GeneralTools.isValidFilename("any/thing"));
+		assertFalse(GeneralTools.isValidFilename("any\\thing"));
+		assertFalse(GeneralTools.isValidFilename("any\nthing"));
+		assertFalse(GeneralTools.isValidFilename("any\rthing"));
+		assertFalse(GeneralTools.isValidFilename(""));
+		assertFalse(GeneralTools.isValidFilename("  "));
+	}
+	
 	
 	@Test
 	public void test_parseArgStringValues() {

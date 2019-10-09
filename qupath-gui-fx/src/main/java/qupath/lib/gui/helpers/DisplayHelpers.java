@@ -958,6 +958,37 @@ public class DisplayHelpers {
 		dialog.setScene(new Scene(textArea));
 		dialog.show();
 	}
+
+
+	/**
+	 * Prompt to enter a filename (but not full file path).
+	 * This performs additional validation on the filename, stripping out illegal characters if necessary 
+	 * and requesting the user to confirm if the result is acceptable or showing an error message if 
+	 * no valid name can be derived from the input.
+	 * @param title dialog title
+	 * @param prompt prompt to display to the user
+	 * @param defaultName default name when the dialog is shown
+	 * @return the validated filename, or null if the user cancelled or did not provide any valid input
+	 * @see GeneralTools#stripInvalidFilenameChars(String)
+	 * @see GeneralTools#isValidFilename(String)
+	 */
+	public static String promptForFilename(String title, String prompt, String defaultName) {
+		String name = showInputDialog(title, prompt, defaultName);
+		if (name == null)
+			return null;
+		
+		String nameValidated = GeneralTools.stripInvalidFilenameChars(name);
+		if (!GeneralTools.isValidFilename(nameValidated)) {
+			showErrorMessage(title, name + " is not a valid filename!");
+			return null;
+		}
+		if (!nameValidated.equals(name)) {
+			if (!showYesNoDialog(
+					"Invalid classifier name", name + " contains invalid characters, do you want to use " + nameValidated + " instead?"))
+				return null;
+		}
+		return nameValidated;
+	}
 	
 	
 }

@@ -1118,7 +1118,7 @@ public class PixelClassifierImageSelectionPane {
 			name = String.format("%s %s (%d)", date, simpleName, i);
 			i++;
 		}
-		return name;
+		return GeneralTools.stripInvalidFilenameChars(name);
 	}
 	
 	
@@ -1126,7 +1126,7 @@ public class PixelClassifierImageSelectionPane {
 		
 		String name = getDefaultClassifierName(project, classifier);
 		
-		String classifierName = DisplayHelpers.showInputDialog("Save model", "Model name", name);
+		String classifierName = DisplayHelpers.promptForFilename("Save model", "Model name", name);
 		if (classifierName == null)
 			return null;
 		

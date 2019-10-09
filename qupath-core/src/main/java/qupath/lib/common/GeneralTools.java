@@ -140,6 +140,33 @@ public class GeneralTools {
 	}
 	
 	/**
+	 * Strip characters that would make a String invalid as a filename.
+	 * This test is very simple, and may not catch all problems; the behavior of the method may 
+	 * improve in future versions.
+	 * <p>
+	 * Note that the test is not platform-dependent, and may be stricter than absolutely necessary - 
+	 * for example, by removing newline characters.
+	 * This can result in some filenames that <i>would</i> be valid on the current platform 
+	 * being modified. This can however be necessary to help retain cross-platform portability.
+	 * @param name
+	 * @return the (possibly-shortened) filename without invalid characters
+	 */
+	public static String stripInvalidFilenameChars(String name) {
+		return name.replaceAll("[\\\\/:\"*?<>|\\n\\r]+", "");
+	}
+	
+	/**
+	 * Returns true if the output of {@link #stripInvalidFilenameChars(String)} matches the provided name, 
+	 * and the name is not null or blank.
+	 * @param name
+	 * @return true if the name is expected to be valid, false otherwise
+	 * @see #stripInvalidFilenameChars(String)
+	 */
+	public static boolean isValidFilename(String name) {
+		return name != null && !name.isBlank() && name.equals(stripInvalidFilenameChars(name));
+	}
+	
+	/**
 	 * Get the file name with extension removed.
 	 * @param file
 	 * @return
