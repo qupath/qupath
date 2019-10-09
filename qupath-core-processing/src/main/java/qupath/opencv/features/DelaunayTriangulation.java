@@ -23,10 +23,12 @@
 
 package qupath.opencv.features;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -65,7 +67,7 @@ public class DelaunayTriangulation implements PathObjectConnectionGroup {
 //	private Subdiv2D subdiv;
 	
 	/**
-	 * Computer Delaunay triangulation - optionally omitting links above a fixed distance.
+	 * Compute Delaunay triangulation - optionally omitting links above a fixed distance.
 	 * 
 	 * @param pathObjects
 	 * @param distanceThresholdPixels - Note, this is in *pixels* (and not scaled according to pixelWidth &amp; pixelHeight)
@@ -392,8 +394,17 @@ public class DelaunayTriangulation implements PathObjectConnectionGroup {
 		List<Set<PathObject>> clusters = new ArrayList<>();
 		while (!toProcess.isEmpty()) {
 			Set<PathObject> inCluster = new HashSet<>();
+			Deque<PathObject> toCheck = new ArrayDeque<>();
 			PathObject next = toProcess.remove(toProcess.size()-1);
-			getConnectedNodesRecursive(next, inCluster);
+			toCheck.add(next);
+			while (!toCheck.isEmpty()) {
+				next = toCheck.pop();
+				if (inCluster.add(next)) {
+					toCheck.addAll(getConnectedObjects(next));
+				}
+			}
+			// Avoid recursive call in case of stack overflow
+//			getConnectedNodesRecursive(next, inCluster);
 			toProcess.removeAll(inCluster);
 			clusters.add(inCluster);
 		}
@@ -416,23 +427,28 @@ public class DelaunayTriangulation implements PathObjectConnectionGroup {
 			if (!s.startsWith(key))
 				measurementNames.add(s);
 		}
-		double[] averagedMeasurements = new double[measurementNames.size()]; 
+		RunningStatistics[] averagedMeasurements = new RunningStatistics[measurementNames.size()]; 
+		for (int i = 0; i < averagedMeasurements.length; i++)
+			averagedMeasurements[i] = new RunningStatistics();
 		for (Set<PathObject> cluster : clusters) {
-			Arrays.fill(averagedMeasurements, 0);
+//			Arrays.fill(averagedMeasurements, 0);
 			int n = cluster.size();
 			for (PathObject pathObject : cluster) {
 				MeasurementList ml = pathObject.getMeasurementList();
 				for (int i = 0; i < measurementNames.size(); i++) {
-					averagedMeasurements[i] += ml.getMeasurementValue(i) / n;
+					double val = ml.getMeasurementValue(i);
+					if (Double.isFinite(val)) {
+						averagedMeasurements[i].addValue(val);
+					}
 				}
 			}
 
 			for (PathObject pathObject : cluster) {
 				MeasurementList ml = pathObject.getMeasurementList();
 				for (int i = 0; i < measurementNames.size(); i++) {
-					ml.putMeasurement(key + " mean: " + measurementNames.get(i), averagedMeasurements[i]);
+					ml.putMeasurement(key + "mean: " + measurementNames.get(i), averagedMeasurements[i].getMean());
 				}
-				ml.putMeasurement(key + " size", n);
+				ml.putMeasurement(key + "size", n);
 				ml.close();
 			}
 
