@@ -7,7 +7,6 @@ import com.google.gson.RuntimeTypeAdapterFactory;
 import com.google.gson.reflect.TypeToken;
 
 import qupath.lib.classifiers.pixel.PixelClassifier;
-import qupath.lib.display.ChannelDisplayInfo.SingleChannelDisplayInfo;
 import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.objects.classes.PathClass;
 import qupath.opencv.ml.pixel.features.ColorTransforms.ColorTransform;

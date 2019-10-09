@@ -1,13 +1,17 @@
 package qupath.opencv.ml;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import org.bytedeco.javacpp.IntPointer;
 import org.bytedeco.javacpp.PointerScope;
 import org.bytedeco.javacpp.SizeTPointer;
+import org.bytedeco.opencv.opencv_core.Mat;
+import org.bytedeco.opencv.opencv_core.Scalar;
 import org.bytedeco.opencv.opencv_core.StringVector;
+import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.global.opencv_dnn;
 import org.bytedeco.opencv.opencv_dnn.MatShapeVector;
 import org.bytedeco.opencv.opencv_dnn.Net;
@@ -36,33 +40,41 @@ public class OpenCVDNN {
 	private String outputLayerName;
 	
 	private double[] means;
-	private double scale;
+	private double[] scales;
 	private boolean swapRB;
 	private boolean crop = false;
 	
 	private transient Net net;
+	private transient Boolean doMeanSubtraction;
+	private transient Boolean doScaling;
 		
 	private OpenCVDNN() {}
 
 	/**
 	 * Get the actual OpenCV Net directly.
 	 * @return
+	 * @throws IOException 
 	 */
-	public Net getNet() {
+	public Net getNet() throws IOException {
 		if (net == null) {
-			net = opencv_dnn.readNet(pathModel, pathConfig, framework);
+			try {
+				net = opencv_dnn.readNet(pathModel, pathConfig, framework);
+			} catch (RuntimeException e) {
+				throw new IOException("Unable to load moxel from " + pathModel, e);
+			}
 		}
 		return net;
 	}
 	
 	/**
 	 * Create a (multiline) summary String for the Net, given the specified image input dimensions.
-	 * @param width
-	 * @param height
-	 * @param nChannels
+	 * @param width input width
+	 * @param height input height
+	 * @param nChannels input channel count
 	 * @return
+	 * @throws IOException if an error occurs when loading the model
 	 */
-	public String summarize(int width, int height, int nChannels) {
+	public String summarize(int width, int height, int nChannels) throws IOException {
 		StringBuilder sb = new StringBuilder();
 		sb.append(name).append("\n");
 		
@@ -92,42 +104,169 @@ public class OpenCVDNN {
 		return sb.toString();
 	}
 	
+	/**
+	 * Get a user-readable name for this model, or null if no name is specified.
+	 * @return
+	 */
 	public String getName() {
 		return name;
 	}
 	
+	/**
+	 * Get the name of the requested output layer, or null if no output layer is required (that is, the last should be chosen).
+	 * @return
+	 */
 	public String getOutputLayerName() {
 		return outputLayerName;
 	}
 	
-	public double getScale() {
-		return scale;
+	/**
+	 * Get scale factors to be applied for preprocessing. This can either be a single value to multiply 
+	 * all channels, or a different value per input channel. The calculation is {@code (mat - means) * scale}.
+	 * @return
+	 * @sett {@link #getMeans()}
+	 */
+	public double[] getScales() {
+		return scales.clone();
 	}
 	
+	/**
+	 * Get means which should be subtracted for preprocessing. This can either be a single value to subtract 
+	 * from all channels, or a different value per input channel. The calculation is {@code (mat - means) * scale}.
+	 * @return
+	 * @see #getScales()
+	 */
 	public double[] getMeans() {
 		return means.clone();
 	}
 	
+	/**
+	 * If true, preprocessing should involve swapping red and blue channels.
+	 * @return
+	 */
 	public boolean doSwapRB() {
 		return swapRB;
 	}
 	
+	/**
+	 * If true, preprocessing should involve cropping the input to the requested size.
+	 * @return
+	 */
 	public boolean doCrop() {
 		return crop;
 	}
 	
+	/**
+	 * Get the path to the model.
+	 * @return
+	 */
 	public String getModelPath() {
 		return pathModel;
 	}
 
+	/**
+	 * Get the path to the model configuration, if required.
+	 * @return
+	 */
 	public String getConfigPath() {
 		return pathConfig;
 	}
 	
+	/**
+	 * Get the framework used to create the model.
+	 * @return
+	 */
 	public String getFramework() {
 		return framework;
 	}
 	
+	/**
+	 * Returns true if mean subtraction is required as preprocessing.
+	 * @return
+	 */
+	public boolean doMeanSubtraction() {
+		if (doMeanSubtraction == null) {
+			doMeanSubtraction = means != null && means.length > 0 && !Arrays.stream(means).allMatch(d -> d == 0.0);
+		}
+		return doMeanSubtraction;
+	}
+	
+	/**
+	 * Returns true if scaling is required as preprocessing.
+	 * @return
+	 */
+	public boolean doScaling() {
+		if (doScaling == null) {
+			doScaling = scales != null && scales.length > 0 && !Arrays.stream(scales).allMatch(d -> d == 1.0);
+		}
+		return doScaling;
+	}
+	
+	/**
+     * Apply mean subtraction & multiplication by a scaling factor to a Mat (in-place).
+     * @param mat
+     * @param model
+     */
+    public static void preprocessMat(Mat mat, OpenCVDNN model) {
+    	if (model.doMeanSubtraction()) {
+	    	var means = model.getMeans();
+	    	// If we have 1 value, subtract from all channels
+    		if (means.length == 1) {
+    			if (means[0] != 0)
+    				opencv_core.subtractPut(mat, Scalar.all(means[0]));
+    		} else if (means.length != mat.channels()) {
+    	    	// If we have more than 1 value, but it doesn't match the channel count, throw an exception
+    			throw new IllegalArgumentException("Means array of length " + means.length + " cannot be applied to image with " + mat.channels() + " channels");
+    		} else if (means.length < 4) {
+    	    	// If we can subtract a scalar that's easier
+    			var m = new Scalar();
+    			m.put(means);
+    			opencv_core.subtractPut(mat, m); 
+    			m.close();
+    		} else {
+    	    	// Subtract one channel at a time if necessary
+    			Mat temp = new Mat();
+    			Scalar s = new Scalar();
+    			for (int i = 0; i < means.length; i++) {
+    				s.put(means[i]);
+    				opencv_core.extractChannel(mat, temp, i);
+    				opencv_core.subtractPut(temp, s);
+    			}
+    			s.close();
+    			temp.close();
+    		}
+    	}
+    	
+    	if (model.doScaling()) {
+    		var scales = model.getScales();
+	    	// If we have 1 value, scale all channels
+    		if (scales.length == 1) {
+    			if (scales[0] != 0)
+    				opencv_core.multiplyPut(mat, scales[0]);
+    		} else if (scales.length != mat.channels()) {
+    	    	// If we have more than 1 value, but it doesn't match the channel count, throw an exception
+    			throw new IllegalArgumentException("Scales array of length " + scales.length + " cannot be applied to image with " + mat.channels() + " channels");
+    		} else {
+    	    	// Scale one channel at a time if necessary
+    			Mat temp = new Mat();
+    			for (int i = 0; i < scales.length; i++) {
+    				opencv_core.extractChannel(mat, temp, i);
+    				opencv_core.multiplyPut(temp, scales[i]);
+    			}
+    			temp.close();
+    		}
+        }
+    }
+	
+    /**
+     * Parse the layers for a Net, which allows inspection of names and sizes.
+     * @param net the Net to parse
+     * @param width input width
+     * @param height input height
+     * @param channels input channels
+     * @param batchSize input batch size
+     * @return
+     */
 	public static List<DNNLayer> parseLayers(Net net, int width, int height, int channels, int batchSize) {
 		MatShapeVector netInputShape = getShapeVector(width, height, channels, batchSize);
 		return parseLayers(net, netInputShape);
@@ -154,7 +293,11 @@ public class OpenCVDNN {
 		return list;
 	}
 
-	
+	/**
+	 * Extract Strings from a {@link StringVector}.
+	 * @param vector
+	 * @return
+	 */
 	public static List<String> parseStrings(StringVector vector) {
 		List<String> list = new ArrayList<>();
 		int n = (int)vector.size();
@@ -163,6 +306,11 @@ public class OpenCVDNN {
 		return list;
 	}
 	
+	/**
+	 * Extract {@link Mat} dimensions from a {@link MatShapeVector}.
+	 * @param vector
+	 * @return
+	 */
 	public static int[] parseShape(MatShapeVector vector) {
 		IntPointer pointer = vector.get(0L);
 		int[] shape = new int[(int)pointer.limit()];
@@ -172,6 +320,9 @@ public class OpenCVDNN {
 	}
 	
 	
+	/**
+	 * Helper class to summarize a DNN layer.
+	 */
 	public static class DNNLayer {
 		
 		private String name;
@@ -186,18 +337,34 @@ public class OpenCVDNN {
 			this.outputShapes = outputShapes;
 		}
 		
+		/**
+		 * Layer name.
+		 * @return
+		 */
 		public String getName() {
 			return name;
 		}
 		
+		/**
+		 * Layer ID.
+		 * @return
+		 */
 		public int getID() {
 			return id;
 		}
 		
+		/**
+		 * Layer input shape. This may depend on the input shape provided when summarizing the model
+		 * @return
+		 */
 		public int[] getInputShapes() {
 			return inputShapes.clone();
 		}
 		
+		/**
+		 * Layer output shape. This may depend on the input shape provided when summarizing the model
+		 * @return
+		 */
 		public int[] getOutputShapes() {
 			return outputShapes.clone();
 		}
@@ -211,6 +378,9 @@ public class OpenCVDNN {
 	}
 	
 	
+	/**
+	 * Helper class to build an {@link OpenCVDNN}.
+	 */
 	public static class Builder {
 		
 		private String name;
@@ -221,7 +391,7 @@ public class OpenCVDNN {
 		private String framework;
 		
 		private double[] means = new double[] {0};
-		private double scale = 1.0;
+		private double[] scales = new double[] {1.0};
 		private boolean swapRB = false;;
 		private boolean crop = false;
 		
@@ -264,8 +434,8 @@ public class OpenCVDNN {
 			return this;
 		}
 		
-		public Builder scale(double scale) {
-			this.scale = scale;
+		public Builder scales(double... scales) {
+			this.scales = scales;
 			return this;
 		}
 		
@@ -282,8 +452,8 @@ public class OpenCVDNN {
 			dnn.name = name;
 			dnn.outputLayerName = outputLayerName;
 			
-			dnn.means = means;
-			dnn.scale = scale;
+			dnn.means = means.clone();
+			dnn.scales = scales.clone();
 			dnn.swapRB = swapRB;
 			dnn.crop = crop;
 			return dnn;

@@ -108,8 +108,7 @@ public class PixelClassifierLoadCommand implements PathCommand {
 		btnCreateObjects.disableProperty().bind(enableButtons.not());
 		var btnClassifyObjects = new Button("Classify detections");
 		btnClassifyObjects.disableProperty().bind(enableButtons.not());
-		var tilePane = new GridPane();
-		PaneToolsFX.addGridRow(tilePane, 0, 0, null, btnCreateObjects, btnClassifyObjects);
+		var tilePane = PaneToolsFX.createColumnGrid(btnCreateObjects, btnClassifyObjects);
 //		btnCreateObjects.prefWidthProperty().bind(btnClassifyObjects.widthProperty());
 		
 		btnCreateObjects.setOnAction(e -> {
@@ -123,13 +122,12 @@ public class PixelClassifierLoadCommand implements PathCommand {
 		var pane = new GridPane();
 		pane.setPadding(new Insets(10.0));
 		pane.setHgap(5);
-		pane.setVgap(5);
+		pane.setVgap(10);
 		int row = 0;
 		PaneToolsFX.addGridRow(pane, row++, 0, "Choose pixel classification model to apply to the current image", label, comboClassifiers);
 		PaneToolsFX.addGridRow(pane, row++, 0, "Apply pixel classification", tilePane, tilePane);
 		
 		PaneToolsFX.setMaxWidth(Double.MAX_VALUE, comboClassifiers, tilePane, btnCreateObjects, btnClassifyObjects);
-		PaneToolsFX.setHGrowPriority(Priority.ALWAYS, comboClassifiers, tilePane, btnCreateObjects, btnClassifyObjects);
 				
 		var stage = new Stage();
 		stage.setTitle(title);

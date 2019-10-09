@@ -11,6 +11,7 @@ import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.classifiers.pixel.PixelClassifierMetadata;
 import qupath.opencv.ml.OpenCVClassifiers.FeaturePreprocessor;
 import qupath.opencv.ml.OpenCVClassifiers.OpenCVStatModel;
+import qupath.opencv.ml.OpenCVDNN;
 import qupath.opencv.ml.pixel.features.FeatureCalculator;
 
 /**
@@ -29,10 +30,9 @@ public class OpenCVPixelClassifiers {
 	 * @param do8Bit if true, convert 32-bit floating point output to 8-bit unsigned int
 	 * @return
 	 */
-	public static PixelClassifier createDNN(Net net, PixelClassifierMetadata metadata, boolean do8Bit) {
+	public static PixelClassifier createDNN(OpenCVDNN net, PixelClassifierMetadata metadata, boolean do8Bit) {
 		return new OpenCVPixelClassifierDNN(net, metadata, do8Bit);
 	}
-	
 	
 
 	/**
