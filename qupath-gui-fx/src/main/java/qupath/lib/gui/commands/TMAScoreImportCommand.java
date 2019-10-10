@@ -55,7 +55,7 @@ import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.helpers.ColorToolsFX;
 import qupath.lib.gui.helpers.DisplayHelpers;
-import qupath.lib.gui.helpers.PanelToolsFX;
+import qupath.lib.gui.helpers.PaneToolsFX;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.images.ImageData;
 import qupath.lib.io.TMAScoreImporter;
@@ -168,7 +168,7 @@ public class TMAScoreImportCommand implements PathCommand {
 				table.refresh();
 		});
 		
-		GridPane buttonPane = PanelToolsFX.createColumnGridControls(
+		GridPane buttonPane = PaneToolsFX.createColumnGridControls(
 				btnImportData,
 				btnPasteData,
 				btnLoadGrid,

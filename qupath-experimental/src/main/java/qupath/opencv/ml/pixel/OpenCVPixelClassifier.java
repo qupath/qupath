@@ -57,6 +57,10 @@ class OpenCVPixelClassifier extends AbstractOpenCVPixelClassifier {
         this.preprocessor = preprocessor;
     }
     
+    @Override
+    public boolean supportsImage(ImageData<BufferedImage> imageData) {
+    	return calculator.supportsImage(imageData);
+    }
     
     /**
      * Rescale the rows of matResult so that they sum to maxValue.

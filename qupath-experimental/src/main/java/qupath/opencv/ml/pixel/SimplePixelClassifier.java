@@ -50,6 +50,10 @@ class SimplePixelClassifier implements PixelClassifier {
 		return ImageChannel.getInstance(pathClass.getName(), PathClassTools.isIgnoredClass(pathClass) ? null : pathClass.getColor());
 	}
 	
+	@Override
+    public boolean supportsImage(ImageData<BufferedImage> imageData) {
+    	return transform.supportsImage(imageData);
+    }
 
 	@Override
 	public BufferedImage applyClassification(ImageData<BufferedImage> imageData, RegionRequest request)

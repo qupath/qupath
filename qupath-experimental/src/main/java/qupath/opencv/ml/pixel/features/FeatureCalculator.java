@@ -15,6 +15,15 @@ import qupath.lib.regions.RegionRequest;
  * @param <T>
  */
 public interface FeatureCalculator<T> {
+	
+	/**
+	 * Check if an ImageData is compatible with this feature calculator.
+	 * This test may include checking bit-depth, channel number and channel names, for example.
+	 * 
+	 * @param imageData
+	 * @return
+	 */
+	public boolean supportsImage(ImageData<T> imageData);
 
     /**
      * Calculate one or more pixel-based features from an image region.

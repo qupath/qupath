@@ -22,6 +22,7 @@ import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.classes.Reclassifier;
 import qupath.lib.objects.classes.PathClassTools;
 import qupath.lib.objects.helpers.PathObjectTools;
+import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.AreaROI;
@@ -195,10 +196,10 @@ public class PixelClassifierTools {
 			new IllegalArgumentException("Padding must be >= 0, but here it is " + padding);
 		// Get the expected bounds
 		double downsample = request.getDownsample();
-		int x = (int)(request.getX() - padding * downsample);
-		int y = (int)(request.getY() - padding * downsample);
-		int x2 = (int)((request.getX() + request.getWidth()) + padding * downsample);
-		int y2 = (int)((request.getY() + request.getHeight()) + padding * downsample);
+		int x = (int)Math.round(request.getX() - padding * downsample);
+		int y = (int)Math.round(request.getY() - padding * downsample);
+		int x2 = (int)Math.round((request.getX() + request.getWidth()) + padding * downsample);
+		int y2 = (int)Math.round((request.getY() + request.getHeight()) + padding * downsample);
 		// If we're out of range, we'll need to work a bit harder
 		int padLeft = 0, padRight = 0, padUp = 0, padDown = 0;
 		boolean outOfRange = false;
@@ -277,6 +278,7 @@ public class PixelClassifierTools {
 			double minSizePixels, boolean doSplit) {
 		return createObjectsFromPixelClassifier(
 				new PixelClassificationImageServer(imageData, classifier),
+				imageData.getHierarchy(),
 				selectedObject,
 				(var roi) -> PathObjects.createDetectionObject(roi),
 				minSizePixels, doSplit);
@@ -298,6 +300,7 @@ public class PixelClassifierTools {
 		
 		return createObjectsFromPixelClassifier(
 				new PixelClassificationImageServer(imageData, classifier),
+				imageData.getHierarchy(),
 				selectedObject,
 				(var roi) -> {
 					var annotation = PathObjects.createAnnotationObject(roi);
@@ -317,12 +320,9 @@ public class PixelClassifierTools {
 	 * @return
 	 */
 	public static boolean createObjectsFromPixelClassifier(
-			PixelClassificationImageServer server, PathObject selectedObject, 
+			ImageServer<BufferedImage> server, PathObjectHierarchy hierarchy, PathObject selectedObject, 
 			Function<ROI, ? extends PathObject> creator, double minSizePixels, boolean doSplit) {
 		
-		var hierarchy = server.getImageData().getHierarchy();
-		var classifier = server.getClassifier();
-	
 		var clipArea = selectedObject == null ? null : RoiTools.getArea(selectedObject.getROI());
 		Collection<TileRequest> tiles;
 		if (selectedObject == null) {
@@ -338,10 +338,10 @@ public class PixelClassifierTools {
 			var list = new ArrayList<PathObject>();
 			try {
 				var img = server.readBufferedImage(t.getRegionRequest());
-				var nChannels = classifier.getMetadata().getOutputChannels().size();
+				var nChannels = server.nChannels();
 				// Get raster containing classifications and integer values, by taking the argmax
 				var raster = img.getRaster();
-				if (classifier.getMetadata().getOutputType() != ImageServerMetadata.ChannelType.CLASSIFICATION) {
+				if (server.getMetadata().getChannelType() != ImageServerMetadata.ChannelType.CLASSIFICATION) {
 					int h = raster.getHeight();
 					int w = raster.getWidth();
 					byte[] output = new byte[w * h];

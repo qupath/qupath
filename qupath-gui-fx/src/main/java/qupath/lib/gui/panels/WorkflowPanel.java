@@ -49,7 +49,7 @@ import qupath.lib.algorithms.HaralickFeaturesPlugin;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.EstimateStainVectorsCommand;
 import qupath.lib.gui.commands.SummaryMeasurementTableCommand;
-import qupath.lib.gui.helpers.PanelToolsFX;
+import qupath.lib.gui.helpers.PaneToolsFX;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.plugins.objects.SmoothFeaturesPlugin;
 
@@ -165,7 +165,7 @@ public class WorkflowPanel {
 		});
 		actionPrevious.setDisabled(!wizard.hasPrevious());
 		
-		Pane progressPane = PanelToolsFX.createColumnGridControls(
+		Pane progressPane = PaneToolsFX.createColumnGridControls(
 				ActionUtils.createButton(actionPrevious),
 				ActionUtils.createButton(actionNext)
 				);
@@ -208,7 +208,7 @@ public class WorkflowPanel {
 			pane.setTop(importanceLabel);
 		else {
 			VBox paneTop = new VBox();
-			GridPane buttonPane = PanelToolsFX.createRowGridControls(buttonNodeList.toArray(new Node[0]));
+			GridPane buttonPane = PaneToolsFX.createRowGridControls(buttonNodeList.toArray(new Node[0]));
 			paneTop.getChildren().addAll(
 					importanceLabel,
 					buttonPane

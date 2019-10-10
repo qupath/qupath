@@ -1,7 +1,6 @@
 package qupath.opencv.ml.pixel.features;
 
 import java.awt.image.BufferedImage;
-import java.awt.image.WritableRaster;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -14,6 +13,7 @@ import qupath.lib.geom.ImmutableDimension;
 import qupath.lib.gui.ml.PixelClassifierTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.regions.RegionRequest;
+import qupath.opencv.ml.pixel.features.ColorTransforms.ColorTransform;
 
 /**
  * Feature calculator that simply takes a square of neighboring pixels as the features.
@@ -27,18 +27,20 @@ class ExtractNeighborsFeatureCalculator implements FeatureCalculator<BufferedIma
 	private static Logger logger = LoggerFactory.getLogger(ExtractNeighborsFeatureCalculator.class);
 	
 	private int size;
-	private int[] inputChannels;
+	private ColorTransform[] transforms;
 	
 	private ImmutableDimension inputShape = ImmutableDimension.getInstance(256, 256);
 	
-	ExtractNeighborsFeatureCalculator(int size, int...inputChannels) {
+	ExtractNeighborsFeatureCalculator(int size, ColorTransform...transforms) {
 		if (size % 2 != 1) {
 			logger.warn("Extract neighbors size {}, but really this should be an odd number! I will do my best.", size);
 		}
 		this.size = size;
 		
-		this.inputChannels = inputChannels;
+		this.transforms = transforms;
 	}
+	
+	
 	
 //	private synchronized List<String> getFeatureNames() {
 //		List<String> featureNames = new ArrayList<>();
@@ -58,16 +60,18 @@ class ExtractNeighborsFeatureCalculator implements FeatureCalculator<BufferedIma
 	public List<PixelFeature> calculateFeatures(ImageData<BufferedImage> imageData, RegionRequest request) throws IOException {
 		int pad = size / 2;
 		BufferedImage img = PixelClassifierTools.getPaddedRequest(imageData.getServer(), request, pad);
-		WritableRaster raster = img.getRaster();
+//		WritableRaster raster = img.getRaster();
 
 		List<PixelFeature> features = new ArrayList<>();
 
 		int width = img.getWidth();
 		int height = img.getHeight();
 		float[] pixels = null;
-		for (int b : inputChannels) {
+		for (var transform : transforms) {
+//			int b = ServerTools.getChannelIndex(server, channel);
 			// Extract pixels for the current band
-			pixels = raster.getSamples(0, 0, width, height, b, pixels);
+			pixels = transform.extractChannel(imageData, img, pixels);
+//			pixels = raster.getSamples(0, 0, width, height, b, pixels);
 			// Outer loops extract features in turn
 			for (int y = 0; y < size; y++) {
 				for (int x = 0; x < size; x++) {
@@ -81,7 +85,7 @@ class ExtractNeighborsFeatureCalculator implements FeatureCalculator<BufferedIma
 							f[yy*ww + xx] = val;
 						}							
 					}
-					String name = "Pixel (x=" + (x-pad) + ", y=" + (y-pad) +", c=" + b +")";
+					String name = "Pixel (x=" + (x-pad) + ", y=" + (y-pad) +", c=[" + transform.getName() +"])";
 					features.add(new DefaultPixelFeature<>(name, f, ww, hh));
 				}				
 			}
@@ -92,6 +96,17 @@ class ExtractNeighborsFeatureCalculator implements FeatureCalculator<BufferedIma
 	@Override
 	public ImmutableDimension getInputSize() {
 		return inputShape;
+	}
+
+
+
+	@Override
+	public boolean supportsImage(ImageData<BufferedImage> imageData) {
+		for (var transform : transforms) {
+			if (!transform.supportsImage(imageData))
+				return false;
+		}
+		return true;
 	}
 	
 }

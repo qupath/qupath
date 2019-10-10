@@ -409,7 +409,7 @@ public class ImageServers {
 			boolean lenient = in.isLenient();
 			try {
 				in.setLenient(true);
-				JsonElement element = new JsonParser().parse(in);
+				JsonElement element = JsonParser.parseReader(in);
 				JsonObject obj = element.getAsJsonObject();
 				
 				// Create from builder

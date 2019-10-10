@@ -41,7 +41,7 @@ import javafx.scene.text.TextAlignment;
 import javafx.stage.Stage;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
-import qupath.lib.gui.helpers.PanelToolsFX;
+import qupath.lib.gui.helpers.PaneToolsFX;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.hierarchy.TMAGrid;
@@ -137,7 +137,7 @@ public class RotateImageCommand implements PathCommand {
 
 		});
 
-		GridPane panelButtons = PanelToolsFX.createColumnGridControls(
+		GridPane panelButtons = PaneToolsFX.createColumnGridControls(
 				btnReset,
 				btnTMAAlign
 				);

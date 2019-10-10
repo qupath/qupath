@@ -181,7 +181,6 @@ public class DefaultImageRegionStore extends AbstractImageRegionStore<BufferedIm
 	}
 
 
-
 	@Override
 	public void paintRegion(ImageServer<BufferedImage> server, Graphics g, Shape clipShapeVisible, int zPosition, int tPosition, double downsampleFactor, BufferedImage imgThumbnail, ImageObserver observer, ImageRenderer imageDisplay) {
 		registerRequest(null, server, clipShapeVisible, downsampleFactor, zPosition, tPosition);
@@ -284,7 +283,7 @@ public class DefaultImageRegionStore extends AbstractImageRegionStore<BufferedIm
 						}
 						// Store this if we know we've still got the same display settings
 						// This avoids making the cache inconsistent
-						if (imageDisplay == null || displayTimestamp == imageDisplay.getLastChangeTimestamp())
+						if (imgTemp != null && (imageDisplay == null || displayTimestamp == imageDisplay.getLastChangeTimestamp()))
 							cache.put(requestCache, imgTemp);
 						else
 							return;

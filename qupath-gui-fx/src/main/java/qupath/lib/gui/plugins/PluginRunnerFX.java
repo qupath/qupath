@@ -47,7 +47,7 @@ import javafx.scene.text.TextAlignment;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.helpers.PanelToolsFX;
+import qupath.lib.gui.helpers.PaneToolsFX;
 import qupath.lib.images.ImageData;
 import qupath.lib.plugins.CommandLinePluginRunner;
 import qupath.lib.plugins.AbstractPluginRunner;
@@ -231,10 +231,10 @@ public class PluginRunnerFX extends AbstractPluginRunner<BufferedImage> {
 			GridPane panel;
 			if (maxProgress > 1) {
 				progressBar = new ProgressBar();
-				panel = PanelToolsFX.createRowGridControls(progressLabel, progressBar);
+				panel = PaneToolsFX.createRowGridControls(progressLabel, progressBar);
 			} else {
 				progressLabel.setTextAlignment(TextAlignment.CENTER);
-				panel = PanelToolsFX.createRowGridControls(progressLabel);
+				panel = PaneToolsFX.createRowGridControls(progressLabel);
 			}
 			if (mayCancel) {
 				Button btnCancel = new Button("Cancel");

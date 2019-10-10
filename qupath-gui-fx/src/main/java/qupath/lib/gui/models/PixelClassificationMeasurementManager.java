@@ -259,6 +259,9 @@ public class PixelClassificationMeasurementManager {
 					}
 				} catch (Exception e) {
 					logger.error("Error calculating classification areas", e);
+					int nChannels = rasterMask.getSampleModel().getNumBands();
+					if (nChannels > 1)
+						logger.error("There are {} channels - are you sure this is really a classification image?", nChannels);
 				}
 				break;
 			case PROBABILITY:

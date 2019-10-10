@@ -456,7 +456,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	
 	private Stage stage;
 	
-	private static DialogHelper standaloneDialogHelper = new DialogHelperFX(); // When there is no parent Window available
+	private static DialogHelper standaloneDialogHelper = new DialogHelperFX(null); // When there is no parent Window available
 	private static Map<Window, DialogHelper> dialogHelpers = new WeakHashMap<>();
 
 	private boolean isStandalone = false;
@@ -573,7 +573,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 					actionLog.handle(null);
 				// Try to reclaim any memory we can
 				if (e instanceof OutOfMemoryError)
-					getViewer().getImageRegionStore().clearCache(true, false);
+					getViewer().getImageRegionStore().clearCache(false, false);
 			}
 		});
 		
@@ -2234,7 +2234,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		RadioMenuItem selected = null;
 		for (PathClass pathClass : availablePathClasses) {
 			PathClass pathClassToSet = pathClass.getName() == null ? null : pathClass;
-			String name = pathClass.getName() == null ? "None" : pathClass.getName();
+			String name = pathClass.getName() == null ? "None" : pathClass.toString();
 			Action actionSetClass = new Action(name, e -> {
 				List<PathObject> changed = new ArrayList<>();
 				for (PathObject pathObject : viewer.getAllSelectedObjects()) {
@@ -3812,8 +3812,8 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	
 	public void setModeSwitchingEnabled(final boolean enabled) {
 		modeSwitchEnabled = enabled;
-		for (Action action : modeActions.values())
-			action.setDisabled(!enabled);
+//		for (Action action : modeActions.values())
+//			action.setDisabled(!enabled);
 	}
 	
 	public boolean isModeSwitchingEnabled() {
@@ -4460,7 +4460,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			else if (mag != null && !Double.isNaN(mag))
 				tooltipMag.setText("Display magnification - double-click to edit");
 			else
-				tooltipMag.setText("Display downsample value - double-click to edit");
+				tooltipMag.setText("Display scale value - double-click to edit");
 		}
 		
 		public void updateMagnificationDisplay(final QuPathViewer viewer) {

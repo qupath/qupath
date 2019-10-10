@@ -182,32 +182,62 @@ public abstract class PathObject implements Externalizable {
 		if (pathROI instanceof PathPoints) {
 			int nPoints = ((PathPoints)pathROI).getNPoints();
 			if (nPoints == 1)
-				return " - 1 point";
+				return " (1 point)";
 			else
-				return String.format(" - %d points", nPoints);
+				return String.format(" (%d points)", nPoints);
 		}
 		if (!hasChildren())
 			return "";
-		if (childList.size() == 1)
-			return " - 1 object";
-		else
-			return " - " + childList.size() + " objects";
+		int nChildren = getChildObjects().size();
+		int nDescendants = PathObjectTools.countDescendants(this);
+		if (nChildren == nDescendants)
+			return " (" + nChildren + " objects)";
+		return " (" + (nChildren) + "/" + nDescendants + " objects)";
+//		if (nDescendants == 1)
+//			return " - 1 descendant";
+//		else
+//			return " - " + nDescendants + " descendant";
+//		
+//		if (childList.size() == 1)
+//			return " - 1 object";
+//		else
+//			return " - " + childList.size() + " objects";
 	}
 
 	@Override
 	public String toString() {
-		String postfix;
-		if (getPathClass() == null)
-			postfix = objectCountPostfix();
-		else
-			postfix = " (" + getPathClass().toString() + ")";
+		var sb = new StringBuilder();
+		
+		// Name or class
 		if (getName() != null)
-			return getName() + postfix;
-		var roi = getROI();
-		if (!isCell() && roi != null)
-			return roi + postfix;
-		String prefix = PathObjectTools.getSuitableName(getClass(), false);
-		return prefix + postfix; // Entire image
+			sb.append(getName());
+		else
+			sb.append(PathObjectTools.getSuitableName(getClass(), false));
+			
+		// ROI
+		if (!isCell() && hasROI())
+			sb.append(" (").append(getROI().getRoiName()).append(")");
+		
+		// Classification
+		if (getPathClass() != null)
+			sb.append(" (").append(getPathClass().toString()).append(")");
+		
+		// Number of descendants
+		sb.append(objectCountPostfix());
+		return sb.toString();
+		
+//		String postfix;
+//		if (getPathClass() == null)
+//			postfix = objectCountPostfix();
+//		else
+//			postfix = " (" + getPathClass().toString() + ")";
+//		if (getName() != null)
+//			return getName() + postfix;
+//		var roi = getROI();
+//		if (!isCell() && roi != null)
+//			return roi + postfix;
+//		String prefix = PathObjectTools.getSuitableName(getClass(), false);
+//		return prefix + postfix; // Entire image
 	}
 	
 	/**

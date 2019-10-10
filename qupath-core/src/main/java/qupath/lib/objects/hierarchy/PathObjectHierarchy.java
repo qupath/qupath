@@ -589,7 +589,7 @@ public final class PathObjectHierarchy implements Serializable {
 	 * @param cls
 	 * @return
 	 */
-	public Collection<PathObject> getObjects(Collection<PathObject> pathObjects, Class<? extends PathObject> cls) {
+	public synchronized Collection<PathObject> getObjects(Collection<PathObject> pathObjects, Class<? extends PathObject> cls) {
 		if (pathObjects == null)
 			pathObjects = new ArrayList<>();
 		

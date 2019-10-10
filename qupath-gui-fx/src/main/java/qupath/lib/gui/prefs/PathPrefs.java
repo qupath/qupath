@@ -260,15 +260,30 @@ public class PathPrefs {
 			if (path == null)
 				return false;
 			return Files.exists(path);
-		} catch (IOException e) {
+		} catch (Exception e) {
 			logger.error("Error trying to find config file", e);
 			return false;
 		}
 	}
 	
-	static Path getConfigPath() throws IOException {
-		Path path = Paths.get(".");
-		List<Path> list = Files.list(path)
+	
+	static Path getConfigPath() throws IOException, URISyntaxException {
+		Path path = Paths.get(
+				PathPrefs.class
+				.getProtectionDomain()
+				.getCodeSource()
+				.getLocation()
+				.toURI()).getParent();
+		List<Path> list = searchForConfigFile(path);
+		if (list.size() != 1) {
+			return null;
+		}
+		return list.get(0);
+	}
+	
+	
+	private static List<Path> searchForConfigFile(Path dir) throws IOException {
+		return Files.list(dir)
 				.filter(
 				p -> {
 					// Look for the .cfg file that isn't concerned with debugging
@@ -276,11 +291,8 @@ public class PathPrefs {
 					return name.endsWith(".cfg") && !name.endsWith("(debug).cfg");
 				})
 				.collect(Collectors.toList());
-		if (list.size() != 1) {
-			return null;
-		}
-		return list.get(0);
 	}
+	
 	
 	/**
 	 * Get property representing the maximum memory for the Java Virtual Machine, 
@@ -1373,7 +1385,7 @@ public class PathPrefs {
 	}
 	
 	private static ObjectProperty<FontSize> fontSize = PathPrefs.createPersistentPreference(
-			"locationFontSize", FontSize.SMALL, FontSize.class);
+			"locationFontSize", FontSize.MEDIUM, FontSize.class);
 	
 	public static ObjectProperty<FontSize> viewerFontSizeProperty() {
 		return fontSize;
@@ -1564,9 +1576,14 @@ public class PathPrefs {
 	 */
 	public static <T extends Enum<T>> ObjectProperty<T> createPersistentPreference(final String name, final T defaultValue, final Class<T> enumType) {
 		ObjectProperty<T> property = createTransientPreference(name, defaultValue);
-		property.set(
-				Enum.valueOf(enumType, getUserPreferences().get(name, defaultValue.name()))
-				);
+		try {
+			property.set(
+					Enum.valueOf(enumType, getUserPreferences().get(name, defaultValue.name()))
+					);
+		} catch (Throwable e) {
+			logger.warn("Exception setting preference value for " + name, e);
+			property.set(defaultValue);
+		}
 		property.addListener((v, o, n) -> {
 			if (n == null)
 				getUserPreferences().remove(name);

@@ -64,7 +64,7 @@ public class ShowScriptEditorCommand implements PathCommand {
 		if ((scriptEditor instanceof Window) && ((Window)scriptEditor).isShowing())
 			((Window)scriptEditor).toFront();
 		else
-			scriptEditor.showNewScript();
+			scriptEditor.showEditor();
 	}
 
 

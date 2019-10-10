@@ -89,11 +89,13 @@ public class PixelClassifierHelper implements PathObjectHierarchyListener {
     public synchronized ImageServer<BufferedImage> getFeatureServer() {
     	if (featureServer == null) {
     		if (featureCalculator != null && imageData != null) {
-    			try {
-    				this.featureServer = new FeatureImageServer(imageData, featureCalculator, resolution);
-    			} catch (IOException e) {
-    				logger.error("Error initializing FeatureImageServer", e);
-    				this.featureServer = null;
+    			if (featureCalculator.supportsImage(imageData)) {
+	    			try {
+	    				this.featureServer = new FeatureImageServer(imageData, featureCalculator, resolution);
+	    			} catch (IOException e) {
+	    				logger.error("Error initializing FeatureImageServer", e);
+	    				this.featureServer = null;
+	    			}
     			}
     		}
     	}
@@ -149,6 +151,9 @@ public class PixelClassifierHelper implements PathObjectHierarchyListener {
         this.featureServer = null;
         resetCaches();
         if (this.imageData != null) {
+            if (featureCalculator != null && !featureCalculator.supportsImage(imageData)) {
+            	logger.warn("Feature calculator is not compatible with {}", imageData);
+            }
             this.imageData.getHierarchy().addPathObjectListener(this);
         }
         changes = true;

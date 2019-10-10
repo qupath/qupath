@@ -117,7 +117,7 @@ public class OpenCVTypeAdapters {
 		public T read(JsonReader in) throws IOException {
 			boolean lenient = in.isLenient();
 			try {
-				JsonElement element = new JsonParser().parse(in);
+				JsonElement element = JsonParser.parseReader(in);
 				JsonObject obj = element.getAsJsonObject();
 				String inputString = obj.toString();//obj.get("mat").toString();
 				try (FileStorage fs = new FileStorage()) {
@@ -194,7 +194,7 @@ public class OpenCVTypeAdapters {
 			boolean lenient = in.isLenient();
 			
 			try {
-				JsonElement element = new JsonParser().parse(in);
+				JsonElement element = JsonParser.parseReader(in);
 				
 				JsonObject obj = element.getAsJsonObject();
 				

@@ -12,6 +12,7 @@ import com.google.gson.stream.JsonWriter;
 
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageChannel;
+import qupath.lib.images.servers.ImageServer;
 
 public class ColorTransforms {
 	
@@ -30,6 +31,14 @@ public class ColorTransforms {
 		 * @return
 		 */
 		float[] extractChannel(ImageData<BufferedImage> imageData, BufferedImage img, float[] pixels);
+		
+		/**
+		 * Query whether this transform can be applied to the specified image.
+		 * Reasons why it may not be include the type or channel number being incompatible.
+		 * @param imageData
+		 * @return
+		 */
+		boolean supportsImage(ImageData<BufferedImage> imageData);
 		
 		/**
 		 * Get a displayable name for the transform.
@@ -111,6 +120,11 @@ public class ColorTransforms {
 		public String toString() {
 			return getName();
 		}
+
+		@Override
+		public boolean supportsImage(ImageData<BufferedImage> imageData) {
+			return channel < imageData.getServer().nChannels();
+		}
 		
 	}
 	
@@ -125,12 +139,9 @@ public class ColorTransforms {
 		@Override
 		public float[] extractChannel(ImageData<BufferedImage> imageData, BufferedImage img, float[] pixels) {
 			pixels = ensureArrayLength(img, pixels);
-			int i = 0;
-			for (ImageChannel channel : imageData.getServer().getMetadata().getChannels()) {
-				if (channelName.equals(channel.getName())) {
-					return img.getRaster().getSamples(0, 0, img.getWidth(), img.getHeight(), i, pixels);
-				}
-				i++;
+			int c = getChannelNumber(imageData.getServer());
+			if (c >= 0) {
+				return img.getRaster().getSamples(0, 0, img.getWidth(), img.getHeight(), c, pixels);
 			}
 			throw new IllegalArgumentException("No channel found with name " + channelName);
 		}
@@ -143,6 +154,22 @@ public class ColorTransforms {
 		@Override
 		public String toString() {
 			return getName();
+		}
+		
+		private int getChannelNumber(ImageServer<BufferedImage> server) {
+			int i = 0;
+			for (ImageChannel channel : server.getMetadata().getChannels()) {
+				if (channelName.equals(channel.getName())) {
+					return i;
+				}
+				i++;
+			}
+			return -1;
+		}
+
+		@Override
+		public boolean supportsImage(ImageData<BufferedImage> imageData) {
+			return getChannelNumber(imageData.getServer()) >= 0;
 		}
 		
 	}

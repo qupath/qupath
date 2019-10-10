@@ -42,7 +42,7 @@ import javafx.stage.Stage;
 import javafx.util.Callback;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
-import qupath.lib.gui.helpers.PanelToolsFX;
+import qupath.lib.gui.helpers.PaneToolsFX;
 import qupath.lib.gui.viewer.QuPathViewer;
 
 /**
@@ -116,7 +116,7 @@ public class ViewTrackerExportCommand implements PathCommand {
 			    clipboard.setContent(content);
 			});
 
-			GridPane panelButtons = PanelToolsFX.createColumnGridControls(
+			GridPane panelButtons = PaneToolsFX.createColumnGridControls(
 					btnImport,
 					btnExport,
 					btnCopy

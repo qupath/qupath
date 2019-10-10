@@ -38,9 +38,9 @@ public class ExperimentalExtension implements QuPathExtension {
     	
         QuPathGUI.addMenuItems(
                 qupath.getMenu("Classify>Pixel classification", true),
-                QuPathGUI.createCommandAction(new PixelClassifierLoadCommand(qupath), "Load pixel model (experimental)"),
-                QuPathGUI.createCommandAction(new PixelClassifierCommand(), "Train pixel model (experimental)", null, new KeyCodeCombination(KeyCode.P, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN)),
-                QuPathGUI.createCommandAction(new SimpleThresholdCommand(qupath), "Create threshold model (experimental)")
+                QuPathGUI.createCommandAction(new PixelClassifierCommand(), "Train pixel classifier (experimental)", null, new KeyCodeCombination(KeyCode.P, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN)),
+                QuPathGUI.createCommandAction(new PixelClassifierLoadCommand(qupath), "Load pixel classifier (experimental)"),
+                QuPathGUI.createCommandAction(new SimpleThresholdCommand(qupath), "Create threshold classifier (experimental)")
 //                QuPathGUI.createCommandAction(new OpenCvClassifierCommand2(qupath), "Object classifier (experimental)")
         );
         QuPathGUI.addMenuItems(

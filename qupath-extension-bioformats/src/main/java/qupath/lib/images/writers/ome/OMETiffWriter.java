@@ -9,7 +9,6 @@ import loci.formats.FormatException;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.WrappedBufferedImageServer;
 import qupath.lib.images.writers.ImageWriter;
-import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
 
 public class OMETiffWriter implements ImageWriter<BufferedImage> {

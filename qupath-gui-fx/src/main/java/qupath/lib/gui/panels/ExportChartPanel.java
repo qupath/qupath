@@ -83,7 +83,7 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.helpers.ChartToolsFX;
 import qupath.lib.gui.helpers.DisplayHelpers;
-import qupath.lib.gui.helpers.PanelToolsFX;
+import qupath.lib.gui.helpers.PaneToolsFX;
 import qupath.lib.gui.prefs.PathPrefs;
 
 /**
@@ -283,7 +283,7 @@ public class ExportChartPanel {
 			}
 		});
 
-		Pane paneButtons = PanelToolsFX.createColumnGridControls(btnCopy, btnSave);
+		Pane paneButtons = PaneToolsFX.createColumnGridControls(btnCopy, btnSave);
 		paneButtons.setPadding(new Insets(5, 5, 5, 5));
 
 		// Listen for changes to stroke setting
@@ -749,7 +749,7 @@ public class ExportChartPanel {
 		BorderPane pane = new BorderPane();
 		combo.setMaxWidth(Double.MAX_VALUE);
 		pane.setCenter(combo);
-		pane.setBottom(PanelToolsFX.createColumnGridControls(btnAdd, btnRemove));
+		pane.setBottom(PaneToolsFX.createColumnGridControls(btnAdd, btnRemove));
 		
 		TitledPane titledPane = new TitledPane("Presets", pane);
 		titledPane.setCollapsible(false);

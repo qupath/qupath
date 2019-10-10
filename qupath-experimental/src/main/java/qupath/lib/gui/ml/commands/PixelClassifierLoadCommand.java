@@ -11,13 +11,12 @@ import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
-import javafx.scene.layout.TilePane;
 import javafx.stage.Stage;
 import qupath.lib.classifiers.pixel.PixelClassificationImageServer;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.helpers.DisplayHelpers;
-import qupath.lib.gui.helpers.GridPaneTools;
+import qupath.lib.gui.helpers.PaneToolsFX;
 import qupath.lib.gui.ml.PixelClassificationOverlay;
 import qupath.lib.gui.ml.PixelClassifierImageSelectionPane;
 import qupath.lib.gui.ml.PixelClassifierTools;
@@ -87,12 +86,12 @@ public class PixelClassifierLoadCommand implements PathCommand {
 		}, comboClassifiers.getSelectionModel().selectedItemProperty());
 		
 		var selectedOverlay = Bindings.createObjectBinding(() -> {
-			return selectedClassifier.get() == null ? null : new PixelClassificationOverlay(viewer, selectedClassifier.get());
+			return selectedClassifier.get() == null ? null : PixelClassificationOverlay.createPixelClassificationOverlay(viewer, selectedClassifier.get());
 		}, selectedClassifier);
 		
 		selectedOverlay.addListener((v, o, n) -> {
 			if (o != null)
-				o.stop(true);
+				o.stop();
 			if (n == null) {
 				viewer.resetCustomPixelLayerOverlay();
 			} else {
@@ -109,8 +108,7 @@ public class PixelClassifierLoadCommand implements PathCommand {
 		btnCreateObjects.disableProperty().bind(enableButtons.not());
 		var btnClassifyObjects = new Button("Classify detections");
 		btnClassifyObjects.disableProperty().bind(enableButtons.not());
-		var tilePane = new GridPane();
-		GridPaneTools.addGridRow(tilePane, 0, 0, null, btnCreateObjects, btnClassifyObjects);
+		var tilePane = PaneToolsFX.createColumnGrid(btnCreateObjects, btnClassifyObjects);
 //		btnCreateObjects.prefWidthProperty().bind(btnClassifyObjects.widthProperty());
 		
 		btnCreateObjects.setOnAction(e -> {
@@ -124,13 +122,12 @@ public class PixelClassifierLoadCommand implements PathCommand {
 		var pane = new GridPane();
 		pane.setPadding(new Insets(10.0));
 		pane.setHgap(5);
-		pane.setVgap(5);
+		pane.setVgap(10);
 		int row = 0;
-		GridPaneTools.addGridRow(pane, row++, 0, "Choose pixel classification model to apply to the current image", label, comboClassifiers);
-		GridPaneTools.addGridRow(pane, row++, 0, "Apply pixel classification", tilePane, tilePane);
+		PaneToolsFX.addGridRow(pane, row++, 0, "Choose pixel classification model to apply to the current image", label, comboClassifiers);
+		PaneToolsFX.addGridRow(pane, row++, 0, "Apply pixel classification", tilePane, tilePane);
 		
-		GridPaneTools.setMaxWidth(Double.MAX_VALUE, comboClassifiers, tilePane, btnCreateObjects, btnClassifyObjects);
-		GridPaneTools.setHGrowPriority(Priority.ALWAYS, comboClassifiers, tilePane, btnCreateObjects, btnClassifyObjects);
+		PaneToolsFX.setMaxWidth(Double.MAX_VALUE, comboClassifiers, tilePane, btnCreateObjects, btnClassifyObjects);
 				
 		var stage = new Stage();
 		stage.setTitle(title);
@@ -141,7 +138,7 @@ public class PixelClassifierLoadCommand implements PathCommand {
 		stage.setOnHiding(e -> {
 			var current = selectedOverlay.get();
 			if (current != null && viewer.getCustomPixelLayerOverlay() == current) {
-				current.stop(true);
+				current.stop();
 				viewer.resetCustomPixelLayerOverlay();
 			}
 		});

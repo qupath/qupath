@@ -56,7 +56,7 @@ import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.stage.Stage;
 import qupath.lib.common.GeneralTools;
-import qupath.lib.gui.helpers.GridPaneTools;
+import qupath.lib.gui.helpers.PaneToolsFX;
 import qupath.lib.plugins.parameters.BooleanParameter;
 import qupath.lib.plugins.parameters.ChoiceParameter;
 import qupath.lib.plugins.parameters.DoubleParameter;
@@ -116,10 +116,18 @@ public class ParameterPanelFX {
 //		System.err.println("Resizable: " + pane.isResizable());
 	}
 	
+	/**
+	 * Get the {@link ParameterList} displaned in this panel.
+	 * @return
+	 */
 	public ParameterList getParameters() {
 		return params;
 	}
 	
+	/**
+	 * Get the {@link Pane} that can be displayed.
+	 * @return
+	 */
 	public Pane getPane() {
 		return pane;
 	}
@@ -147,11 +155,20 @@ public class ParameterPanelFX {
 		}
 	}
 	
-	
+	/**
+	 * Add a {@link ParameterChangeListener} to be notified as parameters are modified by the user.
+	 * @param listener
+	 * @see #removeParameterChangeListener(ParameterChangeListener)
+	 */
 	public void addParameterChangeListener(ParameterChangeListener listener) {
 		listeners.add(listener);
 	}
 
+	/**
+	 * Remove a {@link ParameterChangeListener}.
+	 * @param listener
+	 * @see #addParameterChangeListener(ParameterChangeListener)
+	 */
 	public void removeParameterChangeListener(ParameterChangeListener listener) {
 		listeners.remove(listener);
 	}
@@ -251,7 +268,10 @@ public class ParameterPanelFX {
 			if (param.setValue(cb.isSelected()))
 				fireParameterChangedEvent(param, false);
 		});
-		addParamComponent(param, null, cb);
+		// This seems necessary to avoid ellipsis string
+		var container = new BorderPane(cb);
+		cb.prefWidthProperty().bind(container.widthProperty());
+		addParamComponent(param, null, container);
 	}
 	
 	private void addSliderParameter(IntParameter param) {
@@ -354,41 +374,60 @@ public class ParameterPanelFX {
 		map.put(parameter, component);
 		String help = parameter.getHelpText();
 
-		GridPaneTools.setFillWidth(Boolean.TRUE, component);
-		GridPaneTools.setHGrowPriority(Priority.ALWAYS, component);
+		PaneToolsFX.setFillWidth(Boolean.TRUE, component);
+		PaneToolsFX.setHGrowPriority(Priority.ALWAYS, component);
 
 		if (text == null) {
-			GridPaneTools.addGridRow(pane, currentRow++, 0, help, component, component);
+			PaneToolsFX.addGridRow(pane, currentRow++, 0, help, component, component);
 		} else {
 			Label label = new Label(text);
 			label.setMaxWidth(Double.MAX_VALUE);
+			label.setMinWidth(Label.USE_PREF_SIZE);
 			label.setLabelFor(component);
-			GridPaneTools.addGridRow(pane, currentRow++, 0, help, label, component);
+			PaneToolsFX.addGridRow(pane, currentRow++, 0, help, label, component);
 		}
 	}
 	
-	
+	/**
+	 * Returns true if a parameter exists with the given key and is enabled (and is therefore editable).
+	 * @param key
+	 * @return
+	 */
 	public boolean getParameterEnabled(String key) {
 		return getParameterEnabled(params.getParameters().get(key));
 	}
 	
+	/**
+	 * Returns true if a parameter is enabled (and is therefore editable).
+	 * @param param
+	 * @return
+	 */
 	public boolean getParameterEnabled(Parameter<?> param) {
 		Node comp = map.get(param);
 		return comp != null && !comp.isDisabled();
 	}
 	
+	/**
+	 * Set the enabled status of a parameter by key, to determine if it can be edited.
+	 * @param key
+	 * @param enabled
+	 */
 	public void setParameterEnabled(String key, boolean enabled) {
 		setParameterEnabled(params.getParameters().get(key), enabled);
 	}
 	
-	
+	/**
+	 * Set the enabled status of a parameter, to determine if it can be edited.
+	 * @param param
+	 * @param enabled
+	 */
 	public void setParameterEnabled(Parameter<?> param, boolean enabled) {
 		Node comp = map.get(param);
 		if (comp != null)
 			setEnabledRecursively(comp, enabled);
 	}
 	
-	private void setEnabledRecursively(Node comp, boolean enabled) {
+	private static void setEnabledRecursively(Node comp, boolean enabled) {
 		comp.setDisable(!enabled);
 	}
 	

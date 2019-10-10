@@ -66,7 +66,7 @@ public class GeneralTools {
 	final private static Logger logger = LoggerFactory.getLogger(GeneralTools.class);
 	
 	
-	private final static String LATEST_VERSION = getLatestVerion();
+	private final static String LATEST_VERSION = getLatestVersion();
 	
 	/**
 	 * Request the version of QuPath.
@@ -84,10 +84,12 @@ public class GeneralTools {
 	 * 
 	 * @return
 	 */
-	private static String getLatestVerion() {
+	private static String getLatestVersion() {
 		String version = GeneralTools.class.getPackage().getImplementationVersion();
 		if (version == null) {
 			var path = Paths.get("VERSION");
+			if (!Files.exists(path))
+				path = Paths.get("app/VERSION");
 			if (Files.exists(path)) {
 				try {
 					version = Files.readString(path);
@@ -135,6 +137,33 @@ public class GeneralTools {
 				ext = name.substring(ind);
 		}
 		return ext == null || ext.equals(".") ? Optional.empty() : Optional.of(lower.substring(lower.length()-ext.length()));
+	}
+	
+	/**
+	 * Strip characters that would make a String invalid as a filename.
+	 * This test is very simple, and may not catch all problems; the behavior of the method may 
+	 * improve in future versions.
+	 * <p>
+	 * Note that the test is not platform-dependent, and may be stricter than absolutely necessary - 
+	 * for example, by removing newline characters.
+	 * This can result in some filenames that <i>would</i> be valid on the current platform 
+	 * being modified. This can however be necessary to help retain cross-platform portability.
+	 * @param name
+	 * @return the (possibly-shortened) filename without invalid characters
+	 */
+	public static String stripInvalidFilenameChars(String name) {
+		return name.replaceAll("[\\\\/:\"*?<>|\\n\\r]+", "");
+	}
+	
+	/**
+	 * Returns true if the output of {@link #stripInvalidFilenameChars(String)} matches the provided name, 
+	 * and the name is not null or blank.
+	 * @param name
+	 * @return true if the name is expected to be valid, false otherwise
+	 * @see #stripInvalidFilenameChars(String)
+	 */
+	public static boolean isValidFilename(String name) {
+		return name != null && !name.isBlank() && name.equals(stripInvalidFilenameChars(name));
 	}
 	
 	/**

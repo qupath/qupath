@@ -30,6 +30,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 import org.locationtech.jts.geom.Envelope;
@@ -272,7 +273,7 @@ public abstract class AbstractImageServer<T> implements ImageServer<T> {
 
 	@Override
 	public synchronized void setMetadata(ImageServerMetadata metadata) {
-		if (metadata == getMetadata())
+		if (Objects.equals(metadata, getMetadata()))
 			return;
 		
 		ImageServerMetadata originalMetadata = getOriginalMetadata();

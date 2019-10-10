@@ -49,10 +49,17 @@ class OpenCVFeatureCalculatorDNN implements FeatureCalculator<BufferedImage> {
     	this.model = model;
     	this.inputShape = ImmutableDimension.getInstance(inputWidth, inputHeight);
     }
+    
+    @Override
+	public boolean supportsImage(ImageData<BufferedImage> imageData) {
+    	// TODO: Check actual input dimensions
+    	return imageData.getServer().isRGB();
+    }
 
     private Mat calculateFeatures(Mat input) throws IOException {
     	
-    	Mat blob = opencv_dnn.blobFromImage(input, model.getScale(), null, null, model.doSwapRB(), model.doCrop(), opencv_core.CV_32F);
+    	OpenCVDNN.preprocessMat(input, model);
+    	Mat blob = opencv_dnn.blobFromImage(input, 1.0, null, null, model.doSwapRB(), model.doCrop(), opencv_core.CV_32F);
 
 //        Mat blob = opencv_dnn.blobFromImage(input, scale, input.size(), mean, true, false, opencv_core.CV_32F);
         Mat prob;
@@ -90,7 +97,7 @@ class OpenCVFeatureCalculatorDNN implements FeatureCalculator<BufferedImage> {
 
     @Override
     public String toString() {
-        return model.getName();
+        return "Feature calculator: " + model.toString();
     }
 
 	@Override
@@ -152,10 +159,5 @@ class OpenCVFeatureCalculatorDNN implements FeatureCalculator<BufferedImage> {
 	public ImmutableDimension getInputSize() {
 		return inputShape;
 	}
-
-//	@Override
-//	public List<String> getFeatureNames() {
-//		return metadata.getChannels().stream().map(c -> c.getName()).collect(Collectors.toList());
-//	}
 
 }

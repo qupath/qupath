@@ -84,8 +84,8 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.QuPathGUI.GUIActions;
 import qupath.lib.gui.commands.interfaces.PathCommand;
+import qupath.lib.gui.helpers.PaneToolsFX;
 import qupath.lib.gui.helpers.PaintingToolsFX;
-import qupath.lib.gui.helpers.PanelToolsFX;
 import qupath.lib.gui.models.HistogramDisplay;
 import qupath.lib.gui.models.ObservableMeasurementTableData;
 import qupath.lib.gui.models.PathTableData;
@@ -395,7 +395,7 @@ public class SummaryMeasurementTableCommand implements PathCommand {
 		//		pane.setCenter(table);
 		splitPane.getItems().add(paneTable);
 		pane.setCenter(splitPane);
-		GridPane panelButtons = PanelToolsFX.createColumnGridControls(buttons.toArray(new ButtonBase[0]));
+		GridPane panelButtons = PaneToolsFX.createColumnGridControls(buttons.toArray(new ButtonBase[0]));
 		pane.setBottom(panelButtons);
 
 		

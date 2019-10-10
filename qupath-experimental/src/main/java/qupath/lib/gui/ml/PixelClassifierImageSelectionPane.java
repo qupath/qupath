@@ -3,6 +3,7 @@ package qupath.lib.gui.ml;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBuffer;
 import java.io.IOException;
+import java.lang.ref.WeakReference;
 import java.nio.IntBuffer;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -16,7 +17,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Function;
-
 import org.bytedeco.javacpp.indexer.FloatIndexer;
 import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.opencv_core.Mat;
@@ -31,7 +31,6 @@ import org.slf4j.LoggerFactory;
 import ij.CompositeImage;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
-import javafx.beans.binding.BooleanBinding;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
@@ -50,16 +49,22 @@ import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
-import javafx.scene.control.SplitPane;
+import javafx.scene.control.ListCell;
+import javafx.scene.control.ListView;
+import javafx.scene.control.OverrunStyle;
+import javafx.scene.control.Slider;
+import javafx.scene.control.Spinner;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.control.Tooltip;
 import javafx.scene.input.MouseEvent;
+import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
-import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
+import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
+import javafx.util.Callback;
 import qupath.imagej.gui.IJExtension;
 import qupath.imagej.tools.IJTools;
 import qupath.lib.classifiers.Normalization;
@@ -67,11 +72,15 @@ import qupath.lib.classifiers.pixel.PixelClassificationImageServer;
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.classifiers.pixel.PixelClassifierMetadata;
 import qupath.lib.common.GeneralTools;
+import qupath.lib.display.ChannelDisplayInfo;
+import qupath.lib.display.ImageDisplay;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.MiniViewerCommand;
 import qupath.lib.gui.helpers.DisplayHelpers;
-import qupath.lib.gui.helpers.GridPaneTools;
+import qupath.lib.gui.helpers.PaneToolsFX;
 import qupath.lib.gui.helpers.DisplayHelpers.DialogButton;
+import qupath.lib.gui.images.stores.AbstractImageRenderer;
+import qupath.lib.gui.images.stores.DefaultImageRegionStore;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageChannel;
@@ -132,6 +141,14 @@ public class PixelClassifierImageSelectionPane {
 	private ComboBox<ClassificationResolution> comboResolutions = new ComboBox<>(resolutions);
 	private ReadOnlyObjectProperty<ClassificationResolution> selectedResolution;
 	
+	// To display features as overlays across the image
+	private ComboBox<String> comboDisplayFeatures = new ComboBox<>();
+	private Slider sliderFeatureOpacity = new Slider(0.0, 1.0, 1.0);
+	private Spinner<Double> spinFeatureMin = new Spinner<>(-Double.MAX_VALUE, Double.MAX_VALUE, 0);
+	private Spinner<Double> spinFeatureMax = new Spinner<>(-Double.MAX_VALUE, Double.MAX_VALUE, 1.0);
+	private String DEFAULT_CLASSIFICATION_OVERLAY = "Show classification";
+
+	
 	private MiniViewerCommand.MiniViewerManager miniViewer;
 	
 	private BooleanProperty livePrediction = new SimpleBooleanProperty(false);
@@ -148,8 +165,6 @@ public class PixelClassifierImageSelectionPane {
 	private StringProperty cursorLocation = new SimpleStringProperty();
 	
 	private ClassificationPieChart pieChart;
-		
-	private boolean wasApplied = false;
 
 	private HierarchyListener hierarchyListener = new HierarchyListener();
 
@@ -174,6 +189,7 @@ public class PixelClassifierImageSelectionPane {
 	public PixelClassifierImageSelectionPane(final QuPathViewer viewer) {
 		this.viewer = viewer;
 		helper = new PixelClassifierHelper(viewer.getImageData(), null);
+		featureRenderer = new FeatureRenderer(viewer.getImageRegionStore());
 		initialize(viewer);
 	}
 
@@ -195,8 +211,8 @@ public class PixelClassifierImageSelectionPane {
 		btnEditClassifier.setOnAction(e -> editClassifierParameters());
 		btnEditClassifier.disableProperty().bind(selectedClassifier.isNull());
 		
-		GridPaneTools.addGridRow(pane, row++, 0, 
-				"Choose classifier type (RTrees is generally a good default)",
+		PaneToolsFX.addGridRow(pane, row++, 0, 
+				"Choose classifier type (RTrees or ANN_MLP are generally good choices)",
 				labelClassifier, comboClassifier, comboClassifier, btnEditClassifier);
 		
 //		// Boundary strategy
@@ -211,7 +227,7 @@ public class PixelClassifierImageSelectionPane {
 		btnResolution.setOnAction(e -> addResolution());
 		selectedResolution = comboResolutions.getSelectionModel().selectedItemProperty();
 		
-		GridPaneTools.addGridRow(pane, row++, 0, 
+		PaneToolsFX.addGridRow(pane, row++, 0, 
 				"Choose the base image resolution based upon required detail in the classification (see preview on the right)",
 				labelResolution, comboResolutions, comboResolutions, btnResolution);
 		
@@ -219,8 +235,8 @@ public class PixelClassifierImageSelectionPane {
 		// Features
 		var labelFeatures = new Label("Features");
 		var comboFeatures = new ComboBox<FeatureCalculatorBuilder>();
-		comboFeatures.getItems().add(new FeatureCalculatorBuilder.DefaultFeatureCalculatorBuilder());
-		comboFeatures.getItems().add(new FeatureCalculatorBuilder.ExtractNeighborsFeatureCalculatorBuilder());
+		comboFeatures.getItems().add(new FeatureCalculatorBuilder.DefaultFeatureCalculatorBuilder(viewer.getImageData()));
+		comboFeatures.getItems().add(new FeatureCalculatorBuilder.ExtractNeighborsFeatureCalculatorBuilder(viewer.getImageData()));
 		labelFeatures.setLabelFor(comboFeatures);
 		selectedFeatureCalculatorBuilder = comboFeatures.getSelectionModel().selectedItemProperty();
 		
@@ -231,11 +247,11 @@ public class PixelClassifierImageSelectionPane {
 		var btnCustomizeFeatures = new Button("Edit");
 		btnCustomizeFeatures.disableProperty().bind(Bindings.createBooleanBinding(() -> {
 			var calc = selectedFeatureCalculatorBuilder.get();
-			return calc == null || !calc.canCustomize();
+			return calc == null || !calc.canCustomize(viewer.getImageData());
 		},
 				selectedFeatureCalculatorBuilder));
 		btnCustomizeFeatures.setOnAction(e -> {
-			if (selectedFeatureCalculatorBuilder.get().doCustomize()) {
+			if (selectedFeatureCalculatorBuilder.get().doCustomize(viewer.getImageData())) {
 				updateFeatureCalculator();
 			}
 		});
@@ -245,7 +261,7 @@ public class PixelClassifierImageSelectionPane {
 		comboFeatures.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> updateFeatureCalculator());
 //		btnCustomizeFeatures.setOnAction(e -> showFeatures());
 		
-		GridPaneTools.addGridRow(pane, row++, 0, 
+		PaneToolsFX.addGridRow(pane, row++, 0, 
 				"Select features for the classifier",
 				labelFeatures, comboFeatures, btnCustomizeFeatures, btnShowFeatures);
 
@@ -262,8 +278,8 @@ public class PixelClassifierImageSelectionPane {
 		var btnShowOutput = new Button("Show");
 		btnShowOutput.setOnAction(e -> showOutput());
 		
-		GridPaneTools.addGridRow(pane, row++, 0, 
-				"Choose whether to output classifications only, or estimated probabilities per class (classifications only takes much less memory)",
+		PaneToolsFX.addGridRow(pane, row++, 0, 
+				"Choose whether to output classifications only, or estimated probabilities per class (not all classifiers support probabilities, which also require more memory)",
 				labelOutput, comboOutput, comboOutput, btnShowOutput);
 		
 		
@@ -278,13 +294,14 @@ public class PixelClassifierImageSelectionPane {
 		});
 		comboRegion.getSelectionModel().clearAndSelect(0);
 		
-		GridPaneTools.addGridRow(pane, row++, 0, 
+		PaneToolsFX.addGridRow(pane, row++, 0, 
 				"Choose whether to apply the classifier to the whole image, or only regions containing annotations",
 				labelRegion, comboRegion, comboRegion, comboRegion);
 
 		
 		// Live predict
 		var btnAdvancedOptions = new Button("Advanced options");
+		btnAdvancedOptions.setTooltip(new Tooltip("Advanced options to customize preprocessing and classifier behavior"));
 		btnAdvancedOptions.setOnAction(e -> {
 			if (showAdvancedOptions())
 				updateClassifier();
@@ -292,25 +309,21 @@ public class PixelClassifierImageSelectionPane {
 		
 		var btnLive = new ToggleButton("Live prediction");
 		btnLive.selectedProperty().bindBidirectional(livePrediction);
+		btnLive.setTooltip(new Tooltip("Toggle whether to calculate classification 'live' while viewing the image"));
 		livePrediction.addListener((v, o, n) -> {
 			if (overlay == null) {
 				if (n) {
 					updateClassifier(n);				
-//					viewer.setSuppressPixelLayer(true);
 					return;
 				}
 			} else {
 				overlay.setLivePrediction(n);
 			}
-//			viewer.setSuppressPixelLayer(false);
+			if (featureOverlay != null)
+				featureOverlay.setLivePrediction(n);
 		});
 				
-		var panePredict = new HBox(btnAdvancedOptions, btnLive);
-		GridPaneTools.setMaxWidth(Double.MAX_VALUE, btnLive, btnAdvancedOptions);
-		HBox.setHgrow(btnAdvancedOptions, Priority.ALWAYS);
-		HBox.setHgrow(btnLive, Priority.ALWAYS);
-		
-		
+		var panePredict = PaneToolsFX.createColumnGridControls(btnAdvancedOptions, btnLive);
 		pane.add(panePredict, 0, row++, pane.getColumnCount(), 1);
 		
 //		addGridRow(pane, row++, 0, btnPredict, btnPredict, btnPredict);
@@ -333,8 +346,9 @@ public class PixelClassifierImageSelectionPane {
 		chart.setMaxSize(100, 100);
 		chart.setLegendSide(Side.RIGHT);
 		GridPane.setVgrow(chart, Priority.ALWAYS);
+		Tooltip.install(chart, new Tooltip("View training classes by proportion"));
 		
-		GridPaneTools.addGridRow(pane, row++, 0, 
+		PaneToolsFX.addGridRow(pane, row++, 0, 
 				null,
 //				"View information about the current classifier training",
 				chart, chart, chart);
@@ -346,15 +360,15 @@ public class PixelClassifierImageSelectionPane {
 		labelCursor.setMaxWidth(Double.MAX_VALUE);
 		labelCursor.setAlignment(Pos.CENTER);
 		
-		GridPaneTools.addGridRow(pane, row++, 0, 
+		PaneToolsFX.addGridRow(pane, row++, 0, 
 				"Prediction for current cursor location",
 				labelCursor, labelCursor, labelCursor);
 		
 		comboClassifier.getItems().addAll(
 				OpenCVClassifiers.createStatModel(RTrees.class),
-				OpenCVClassifiers.createStatModel(KNearest.class),
 				OpenCVClassifiers.createStatModel(ANN_MLP.class),
-				OpenCVClassifiers.createStatModel(LogisticRegression.class)
+				OpenCVClassifiers.createStatModel(LogisticRegression.class),
+				OpenCVClassifiers.createStatModel(KNearest.class)
 				);
 		
 //		comboClassifier.getItems().addAll(
@@ -370,22 +384,24 @@ public class PixelClassifierImageSelectionPane {
 //		comboResolution.setMaxWidth(Double.MAX_VALUE);
 //		labelFeaturesSummary.setMaxWidth(Double.MAX_VALUE);
 		
-		GridPaneTools.setHGrowPriority(Priority.ALWAYS, comboResolutions, comboClassifier, comboFeatures);
-		GridPaneTools.setFillWidth(Boolean.TRUE, comboResolutions, comboClassifier, comboFeatures);
+		PaneToolsFX.setHGrowPriority(Priority.ALWAYS, comboResolutions, comboClassifier, comboFeatures);
+		PaneToolsFX.setFillWidth(Boolean.TRUE, comboResolutions, comboClassifier, comboFeatures);
 		
 		
 		
 		miniViewer = new MiniViewerCommand.MiniViewerManager(viewer, 0);
 		var viewerPane = miniViewer.getPane();
-		GridPane.setFillWidth(viewerPane, Boolean.TRUE);
-		GridPane.setFillHeight(viewerPane, Boolean.TRUE);
-		GridPane.setHgrow(viewerPane, Priority.ALWAYS);
-		GridPane.setVgrow(viewerPane, Priority.ALWAYS);
+//		GridPane.setFillWidth(viewerPane, Boolean.TRUE);
+//		GridPane.setFillHeight(viewerPane, Boolean.TRUE);
+//		GridPane.setHgrow(viewerPane, Priority.ALWAYS);
+//		GridPane.setVgrow(viewerPane, Priority.ALWAYS);
+		Tooltip.install(viewerPane, new Tooltip("View image at classification resolution"));
 		
 		updateAvailableResolutions();	
 		selectedResolution.addListener((v, o, n) -> {
 			updateResolution(n);
 			updateClassifier();
+			updateFeatureOverlay();
 		});
 		if (!comboResolutions.getItems().isEmpty())
 			comboResolutions.getSelectionModel().clearAndSelect(resolutions.size()/2);
@@ -399,6 +415,7 @@ public class PixelClassifierImageSelectionPane {
 //		pane.add(btnSavePrediction, 0, row++, pane.getColumnCount(), 1);
 
 		var btnCreateObjects = new Button("Create objects");
+		btnCreateObjects.setTooltip(new Tooltip("Create annotations or detections from pixel classification"));
 		btnCreateObjects.disableProperty().bind(classificationComplete);
 		btnCreateObjects.setOnAction(e -> {
 			var server = getClassificationServerOrShowError();
@@ -408,29 +425,111 @@ public class PixelClassifierImageSelectionPane {
 		});
 		
 		var btnClassifyObjects = new Button("Classify detections");
+		btnClassifyObjects.setTooltip(new Tooltip("Assign classifications to detection objects based on the corresponding pixel classification"));
 		btnClassifyObjects.disableProperty().bind(classificationComplete);
 		btnClassifyObjects.setOnAction(e -> classifyObjects());
 		
-		GridPaneTools.setMaxWidth(Double.MAX_VALUE, btnCreateObjects, btnClassifyObjects);
-		HBox.setHgrow(btnCreateObjects, Priority.ALWAYS);
-		HBox.setHgrow(btnClassifyObjects, Priority.ALWAYS);
-		var panePostProcess = new HBox(btnCreateObjects, btnClassifyObjects);
+		var panePostProcess = PaneToolsFX.createColumnGridControls(btnCreateObjects, btnClassifyObjects);
 				
 		pane.add(panePostProcess, 0, row++, pane.getColumnCount(), 1);
 
-		GridPaneTools.setMaxWidth(Double.MAX_VALUE, pane.getChildren().stream().filter(p -> p instanceof Region).toArray(Region[]::new));
+		PaneToolsFX.setMaxWidth(Double.MAX_VALUE, pane.getChildren().stream().filter(p -> p instanceof Region).toArray(Region[]::new));
 		
-		var splitPane = new SplitPane(pane, viewerPane);
+		var viewerBorderPane = new BorderPane(viewerPane);
+		
+		comboDisplayFeatures.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> updateFeatureOverlay());
+		comboDisplayFeatures.setMaxWidth(Double.MAX_VALUE);
+		spinFeatureMin.setPrefWidth(100);
+		spinFeatureMax.setPrefWidth(100);
+		spinFeatureMin.valueProperty().addListener((v, o, n) -> updateFeatureDisplayRange());
+		spinFeatureMax.valueProperty().addListener((v, o, n) -> updateFeatureDisplayRange());
+		sliderFeatureOpacity.valueProperty().addListener((v, o, n) -> {
+			if (featureOverlay != null) {
+				featureOverlay.setOpacity(n.doubleValue());
+			}
+			if (overlay != null)
+				overlay.setOpacity(n.doubleValue());
+			viewer.repaint();
+		});
+
+		var btnFeatureAuto = new Button("Auto");
+		btnFeatureAuto.setOnAction(e -> autoFeatureContrast());
+		comboDisplayFeatures.getItems().setAll(DEFAULT_CLASSIFICATION_OVERLAY);
+		comboDisplayFeatures.getSelectionModel().select(DEFAULT_CLASSIFICATION_OVERLAY);
+		var featureDisableBinding = comboDisplayFeatures.valueProperty().isEqualTo(DEFAULT_CLASSIFICATION_OVERLAY).or(comboDisplayFeatures.valueProperty().isNull());
+		btnFeatureAuto.disableProperty().bind(featureDisableBinding);
+		btnFeatureAuto.setMaxHeight(Double.MAX_VALUE);
+		spinFeatureMin.disableProperty().bind(featureDisableBinding);
+		spinFeatureMin.setEditable(true);
+		spinFeatureMax.disableProperty().bind(featureDisableBinding);
+		spinFeatureMax.setEditable(true);
+		var paneFeatures = new GridPane();
+		comboDisplayFeatures.setTooltip(new Tooltip("Choose classification result or feature overlay to display (Warning: This requires a lot of memory & computation!)"));
+		spinFeatureMin.setTooltip(new Tooltip("Min display value for feature overlay"));
+		spinFeatureMax.setTooltip(new Tooltip("Max display value for feature overlay"));
+		sliderFeatureOpacity.setTooltip(new Tooltip("Adjust classification/feature overlay opacity"));
+		
+		PaneToolsFX.addGridRow(paneFeatures, 0, 0, null,
+				comboDisplayFeatures, comboDisplayFeatures, comboDisplayFeatures, comboDisplayFeatures);
+		PaneToolsFX.addGridRow(paneFeatures, 1, 0, null,
+				sliderFeatureOpacity, spinFeatureMin, spinFeatureMax, btnFeatureAuto);
+//		paneFeatures.add(btnFeatureAuto, 3, 0, 1, 2);
+		
+//		PaneToolsFX.addGridRow(paneFeatures, 0, 0, null,
+//				comboDisplayFeatures, spinFeatureMin);
+//		PaneToolsFX.addGridRow(paneFeatures, 1, 0, null,
+//				sliderFeatureOpacity, spinFeatureMax);
+//		paneFeatures.add(btnFeatureAuto, 2, 0, 1, 2);
+		
+		var factory = new Callback<ListView<String>, ListCell<String>>() {
+
+			@Override
+			public ListCell<String> call(ListView<String> param) {
+				var listCell = new ListCell<String>() {
+					@Override
+					public void updateItem(String value, boolean empty) {
+						super.updateItem(value, empty);
+						if (value == null || empty)
+							setText(null);
+						else
+							setText(value);
+					}
+				};
+				listCell.setTextOverrun(OverrunStyle.ELLIPSIS);
+				return listCell;
+			}
+		};
+		comboDisplayFeatures.setCellFactory(factory);
+		comboDisplayFeatures.setButtonCell(factory.call(null));
+		
+		PaneToolsFX.setMaxWidth(Double.MAX_VALUE, comboDisplayFeatures, sliderFeatureOpacity);
+		PaneToolsFX.setFillWidth(Boolean.TRUE, comboDisplayFeatures, sliderFeatureOpacity);
+		PaneToolsFX.setHGrowPriority(Priority.ALWAYS, comboDisplayFeatures, sliderFeatureOpacity);
+		paneFeatures.setHgap(5);
+		paneFeatures.setVgap(5);
+		paneFeatures.setPadding(new Insets(5));
+		paneFeatures.prefWidthProperty().bind(viewerBorderPane.prefWidthProperty());
+		viewerBorderPane.setBottom(paneFeatures);
+		
+//		var splitPane = new SplitPane(new ScrollPane(pane), viewerBorderPane);
+		var splitPane = new BorderPane(viewerBorderPane);
+		splitPane.setLeft(pane);
 		pane.setPrefWidth(400);
 		pane.setMinHeight(GridPane.USE_PREF_SIZE);
-		viewerPane.setPrefSize(400, 400);
-		splitPane.setDividerPositions(0.5);
+//		viewerBorderPane.setMinWidth(0);
+//		viewerPane.setPrefSize(400, 400);
+//		splitPane.setDividerPositions(0.5);
+		
+//		SplitPane.setResizableWithParent(pane, Boolean.FALSE);
+//		SplitPane.setResizableWithParent(viewerBorderPane, Boolean.FALSE);
+		
+		var fullPane = new StackPane(splitPane);
 		
 		pane.setPadding(new Insets(5));
 		
 		stage = new Stage();
-		stage.setScene(new Scene(splitPane));
-		
+		stage.setScene(new Scene(fullPane));
+
 		stage.initOwner(QuPathGUI.getInstance().getStage());
 		
 		stage.getScene().getRoot().disableProperty().bind(
@@ -440,6 +539,14 @@ public class PixelClassifierImageSelectionPane {
 		updateTitle();
 		
 		updateFeatureCalculator();
+		
+//		pane.getChildren().stream().forEach(c -> {
+//			if (c instanceof Control)
+//				((Control)c).setMinSize(Control.USE_PREF_SIZE, Control.USE_PREF_SIZE);
+//		});
+		PaneToolsFX.setMinWidth(
+				Region.USE_PREF_SIZE,
+				PaneToolsFX.getContentsOfType(stage.getScene().getRoot(), Region.class, true).toArray(Region[]::new));
 		
 		stage.show();
 		stage.setOnCloseRequest(e -> destroy());
@@ -532,8 +639,159 @@ public class PixelClassifierImageSelectionPane {
 	private void updateFeatureCalculator() {
 		var cal = getSelectedResolution();
 		helper.setFeatureCalculator(selectedFeatureCalculatorBuilder.get().build(viewer.getImageData(), cal));
+		var featureServer = helper.getFeatureServer();
+		if (featureServer == null) {
+			comboDisplayFeatures.getItems().setAll(DEFAULT_CLASSIFICATION_OVERLAY);
+		} else {
+			List<String> featureNames = new ArrayList<>();
+			featureNames.add(DEFAULT_CLASSIFICATION_OVERLAY);
+			for (var channel : featureServer.getMetadata().getChannels())
+				featureNames.add(channel.getName());
+			comboDisplayFeatures.getItems().setAll(featureNames);
+		}
+		comboDisplayFeatures.getSelectionModel().select(DEFAULT_CLASSIFICATION_OVERLAY);
 		updateClassifier();
 	}
+	
+	private PixelClassificationOverlay featureOverlay = null;
+	private FeatureRenderer featureRenderer;
+	
+	private void autoFeatureContrast() {
+		if (featureRenderer != null && featureRenderer.selectedChannel != null) {
+			featureRenderer.autoSetDisplayRange();
+			double min = (double)featureRenderer.selectedChannel.getMinDisplay();
+			double max = (double)featureRenderer.selectedChannel.getMaxDisplay();
+			spinFeatureMin.getValueFactory().setValue(min);
+			spinFeatureMax.getValueFactory().setValue(max);
+//			viewer.repaint();
+		}
+	}
+	
+	private void updateFeatureOverlay() {
+		if (featureOverlay != null) {
+			featureOverlay.setVisible(false);
+			featureOverlay.stop();
+			if (viewer.getCustomPixelLayerOverlay() == featureOverlay)
+				viewer.resetCustomPixelLayerOverlay();
+			featureOverlay = null;
+		}
+		var featureServer = helper.getFeatureServer();
+		String featureName = comboDisplayFeatures.getSelectionModel().getSelectedItem();
+		if (DEFAULT_CLASSIFICATION_OVERLAY.equals(featureName)) {
+			if (overlay != null)
+				overlay.setImageData(viewer.getImageData());
+			viewer.setCustomPixelLayerOverlay(overlay);
+			return;
+		}
+		int channel = -1;
+		if (featureServer != null && featureName != null) {
+			for (int c = 0; c < featureServer.nChannels(); c++) {
+				if (featureName.equals(featureServer.getChannel(c).getName())) {
+					channel = c;
+					break;
+				}
+			}
+			if (channel >= 0) {
+				featureRenderer.setChannel(featureServer, channel, spinFeatureMin.getValue(), spinFeatureMax.getValue());
+				featureOverlay = PixelClassificationOverlay.createFeatureDisplayOverlay(viewer, featureServer, featureRenderer);
+				((PixelClassificationOverlay)featureOverlay).setLivePrediction(true);
+//				featureOverlay = new ImageServerOverlay(viewer, featureServer);
+//				featureOverlay.setRenderer(featureRenderer);
+				featureOverlay.setOpacity(sliderFeatureOpacity.getValue());
+				featureOverlay.setLivePrediction(livePrediction.get());
+				autoFeatureContrast();
+			}
+		}
+		if (featureOverlay != null)
+			viewer.setCustomPixelLayerOverlay(featureOverlay);
+	}
+	
+	
+	private void ensureOverlaySet() {
+		updateFeatureOverlay();
+	}
+	
+	
+	private void updateFeatureDisplayRange() {
+		if (featureRenderer == null)
+			return;
+		featureRenderer.setRange(spinFeatureMin.getValue(), spinFeatureMax.getValue());
+		viewer.repaint();
+	}
+	
+	static class FeatureRenderer extends AbstractImageRenderer {
+		
+		private DefaultImageRegionStore store;
+		private ChannelDisplayInfo.DirectServerChannelInfo selectedChannel = null;
+		private WeakReference<ImageData<BufferedImage>> currentData;
+		
+		FeatureRenderer(DefaultImageRegionStore store) {
+			this.store = store;
+		}
+				
+		public void setChannel(ImageServer<BufferedImage> server, int channel, double min, double max) {
+			var temp = currentData == null ? null : currentData.get();
+			if (temp == null || temp.getServer() != server) {
+				temp = new ImageData<>(server);
+				currentData = new WeakReference<ImageData<BufferedImage>>(temp);
+			}
+			selectedChannel = new ChannelDisplayInfo.DirectServerChannelInfo(temp, channel);
+			selectedChannel.setLUTColor(255, 255, 255);
+//			autoSetDisplayRange();
+			setRange(min, max);
+			this.timestamp = System.currentTimeMillis();
+		}
+		
+		public void setRange(double min, double max) {
+			if (selectedChannel != null) {
+				selectedChannel.setMinDisplay((float)min);
+				selectedChannel.setMaxDisplay((float)max);			
+				this.timestamp = System.currentTimeMillis();
+			}
+		}
+		
+		void autoSetDisplayRange() {
+			if (selectedChannel == null)
+				return;
+			var imageData = currentData.get();
+			Map<RegionRequest, BufferedImage> tiles = store == null || imageData == null ? Collections.emptyMap() : store.getCachedTilesForServer(imageData.getServer());
+			
+			float maxVal = Float.NEGATIVE_INFINITY;
+			float minVal = Float.POSITIVE_INFINITY;
+			float[] pixels = null;
+			for (var tile : tiles.values()) {
+				int n = tile.getWidth() * tile.getHeight();
+				if (pixels != null && pixels.length < n)
+					pixels = null;
+				pixels = tile.getRaster().getSamples(0, 0, tile.getWidth(), tile.getHeight(), selectedChannel.getChannel(), pixels);
+				for (float v : pixels) {
+					if (!Float.isFinite(v))
+						continue;
+					if (v > maxVal)
+						maxVal = v;
+					if (v < minVal)
+						minVal = v;
+				}
+			}
+			if (Float.isFinite(maxVal))
+				selectedChannel.setMaxDisplay(maxVal);
+			else
+				selectedChannel.setMaxDisplay(1.0f);
+			
+			if (Float.isFinite(minVal))
+				selectedChannel.setMinDisplay(minVal);
+			else
+				selectedChannel.setMinDisplay(0.0f);
+			this.timestamp = System.currentTimeMillis();
+		}
+
+		@Override
+		public BufferedImage applyTransforms(BufferedImage imgInput, BufferedImage imgOutput) {
+			return ImageDisplay.applyTransforms(imgInput, imgOutput, Collections.singletonList(selectedChannel), true);
+		}
+				
+	}
+	
 	
 	private void updateClassifier() {
 		updateClassifier(livePrediction.get());
@@ -742,7 +1000,7 @@ public class PixelClassifierImageSelectionPane {
 
 		 var classifier = OpenCVPixelClassifiers.createPixelClassifier(model, featureCalculator, helper.getLastFeaturePreprocessor(), metadata, true);
 
-		 var overlay = new PixelClassificationOverlay(viewer, classifier);
+		 var overlay = PixelClassificationOverlay.createPixelClassificationOverlay(viewer, classifier);
 		 replaceOverlay(overlay);
 	}
 	
@@ -759,15 +1017,15 @@ public class PixelClassifierImageSelectionPane {
 			return;
 		}
 		if (overlay != null) {
-			overlay.stop(!wasApplied);
+			overlay.stop();
 		}
 		overlay = newOverlay;
 		if (overlay != null) {
 			overlay.setUseAnnotationMask(selectedRegion.get() == ClassificationRegion.ANNOTATIONS_ONLY);
 			overlay.setLivePrediction(livePrediction.get());
-			wasApplied = false;
+			overlay.setOpacity(sliderFeatureOpacity.getValue());
 		}
-		viewer.setCustomPixelLayerOverlay(overlay);
+		ensureOverlaySet();
 	}
 		
 	
@@ -779,10 +1037,15 @@ public class PixelClassifierImageSelectionPane {
 			var imageData = viewer.getImageData();
 			if (imageData != null && PixelClassificationImageServer.getPixelLayer(imageData) == overlay.getPixelClassificationServer())
 				PixelClassificationImageServer.setPixelLayer(imageData, null);
-			overlay.stop(!wasApplied);
+			overlay.stop();
 			viewer.resetCustomPixelLayerOverlay();
 			overlay = null;
 		}
+		if (featureOverlay != null) {
+			viewer.getCustomOverlayLayers().remove(featureOverlay);
+			featureOverlay = null;
+		}
+
 		viewer.getView().removeEventFilter(MouseEvent.MOUSE_MOVED, mouseListener);
 		viewer.getImageDataProperty().removeListener(imageDataListener);
 		var hierarchy = viewer.getHierarchy();
@@ -855,7 +1118,7 @@ public class PixelClassifierImageSelectionPane {
 			name = String.format("%s %s (%d)", date, simpleName, i);
 			i++;
 		}
-		return name;
+		return GeneralTools.stripInvalidFilenameChars(name);
 	}
 	
 	
@@ -863,7 +1126,7 @@ public class PixelClassifierImageSelectionPane {
 		
 		String name = getDefaultClassifierName(project, classifier);
 		
-		String classifierName = DisplayHelpers.showInputDialog("Save model", "Model name", name);
+		String classifierName = DisplayHelpers.promptForFilename("Save model", "Model name", name);
 		if (classifierName == null)
 			return null;
 		
@@ -1005,7 +1268,7 @@ public class PixelClassifierImageSelectionPane {
 	
 	
 	
-	public static boolean promptToCreateObjects(ImageData<BufferedImage> imageData, PixelClassificationImageServer server) {
+	public static boolean promptToCreateObjects(ImageData<BufferedImage> imageData, ImageServer<BufferedImage> server) {
 		Objects.requireNonNull(imageData);
 		Objects.requireNonNull(server);
 		
@@ -1078,7 +1341,7 @@ public class PixelClassifierImageSelectionPane {
 //		// Need to turn off live prediction so we don't start training on the results...
 //		livePrediction.set(false);
 		
-		return PixelClassifierTools.createObjectsFromPixelClassifier(server, selected, creator, minSizePixels, doSplit);
+		return PixelClassifierTools.createObjectsFromPixelClassifier(server, imageData.getHierarchy(), selected, creator, minSizePixels, doSplit);
 	}
 	
 	

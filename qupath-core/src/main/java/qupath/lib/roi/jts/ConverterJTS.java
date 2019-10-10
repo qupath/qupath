@@ -19,6 +19,7 @@ import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.MultiPoint;
 import org.locationtech.jts.geom.Point;
+import org.locationtech.jts.geom.PrecisionModel;
 import org.locationtech.jts.operation.overlay.snap.GeometrySnapper;
 import org.locationtech.jts.operation.union.UnaryUnionOp;
 import org.locationtech.jts.operation.valid.IsValidOp;
@@ -30,6 +31,7 @@ import org.slf4j.LoggerFactory;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.geom.Point2;
 import qupath.lib.regions.ImagePlane;
+import qupath.lib.regions.ImageRegion;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.interfaces.PathArea;
@@ -83,6 +85,22 @@ public class ConverterJTS {
      */
     public static Shape convertROIToShape(Geometry geometry) {
     	return DEFAULT_INSTANCE.geometryToShape(geometry);
+    }
+    
+    /**
+     * Convert an ImageRegion to a rectangular Geometry.
+     * The z-position is retained, but timepoint is lost.
+     * @param region
+     * @return
+     */
+    public static Geometry regionToGeometry(ImageRegion region) {
+    	var coords = new Coordinate[5];
+    	coords[0] = new Coordinate(region.getMinX(), region.getMinY(), region.getZ());
+    	coords[1] = new Coordinate(region.getMaxX(), region.getMinY(), region.getZ());
+    	coords[2] = new Coordinate(region.getMaxX(), region.getMaxY(), region.getZ());
+    	coords[3] = new Coordinate(region.getMinX(), region.getMaxY(), region.getZ());
+    	coords[4] = coords[0];
+    	return DEFAULT_INSTANCE.factory.createLinearRing(coords);
     }
 
     
@@ -146,7 +164,7 @@ public class ConverterJTS {
     
 
     private ConverterJTS(final GeometryFactory factory, final double pixelWidth, final double pixelHeight, final double flatness) {
-        this.factory = factory == null ? new GeometryFactory() : factory;
+        this.factory = factory == null ? new GeometryFactory(new PrecisionModel(PrecisionModel.FLOATING_SINGLE)) : factory;
         this.flatness = flatness;
         this.pixelHeight = pixelHeight;
         this.pixelWidth = pixelWidth;
@@ -212,6 +230,9 @@ public class ConverterJTS {
 		
 		double areaTempSigned = 0;
 		double areaCached = 0;
+		
+		double precision = 1.0e-4 * flatness;
+//		double minDisplacement2 = precision * precision;
 
 		double[] seg = new double[6];
 		double startX = Double.NaN, startY = Double.NaN;
@@ -240,7 +261,18 @@ public class ConverterJTS {
 			case PathIterator.SEG_LINETO:
 				x1 = seg[0];
 				y1 = seg[1];
-				points.add(new Coordinate(x1, y1));
+				// We only wand to add a point if the displacement is above a specified tolerance, 
+				// because JTS can be very sensitive to any hint of self-intersection - and does not always 
+				// like what the PathIterator provides
+				var next = new Coordinate(x1, y1);
+				if (points.isEmpty() || points.get(points.size()-1).distance(next) > precision)
+					points.add(next);
+//				double dx = x1 - points;
+//				double dy = y1 - y0;
+//				if (dx*dx + dy*dy > minDisplacement2)
+//					points.add(new Coordinate(x1, y1));
+				else
+					logger.trace("Skipping nearby points");
 				closed = false;
 				break;
 			default:
@@ -262,12 +294,14 @@ public class ConverterJTS {
 				if (error != null) {
 					logger.debug("Invalid polygon detected! Attempting to correct {}", error.toString());
 					double areaBefore = polygon.getArea();
+					double distance = GeometrySnapper.computeSizeBasedSnapTolerance(polygon);
 					Geometry geom = GeometrySnapper.snapToSelf(polygon,
-							GeometrySnapper.computeSizeBasedSnapTolerance(polygon),
+							distance,
 							true);
 					double areaAfter = geom.getArea();
 					if (!GeneralTools.almostTheSame(areaBefore, areaAfter, 0.0001)) {
-						logger.warn("Unable to fix geometry (area before: {}, area after: {}): {}", polygon);
+						logger.warn("Unable to fix geometry (area before: {}, area after: {}, tolerance: {})", areaBefore, areaAfter, distance);
+						logger.warn("Original geometry: {}", polygon);
 						logger.warn("Will attempt to proceed using {}", geom);
 					} else {
 						logger.debug("Geometry fix looks ok (area before: {}, area after: {})", areaBefore, areaAfter);
@@ -304,6 +338,13 @@ public class ConverterJTS {
 		if (!holes.isEmpty()) {
 			Geometry hole = UnaryUnionOp.union(holes);
 			geometry = geometry.difference((Geometry)hole);
+		}
+		
+		// Perform a sanity check using areas
+		double computedArea = Math.abs(areaCached);
+		double geometryArea = geometry.getArea();
+		if (!GeneralTools.almostTheSame(computedArea, geometryArea, 0.01)) {
+			logger.warn("Difference in area after JTS conversion! Computed area: {}, Geometry area: {}", Math.abs(areaCached), geometry.getArea());
 		}
 		return geometry;
 	}

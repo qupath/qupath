@@ -3,6 +3,7 @@ package qupath.opencv.ml.pixel.features;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 
@@ -19,6 +20,7 @@ import qupath.lib.geom.ImmutableDimension;
 import qupath.lib.images.ImageData;
 import qupath.lib.regions.RegionRequest;
 import qupath.opencv.ml.OpenCVDNN;
+import qupath.opencv.ml.pixel.features.ColorTransforms.ColorTransform;
 import qupath.opencv.ml.pixel.features.MultiscaleFeatureCalculator.ScaleType;
 import qupath.opencv.ml.pixel.features.MultiscaleFeatureCalculator.SmoothingScale;
 import qupath.opencv.ml.pixel.features.MultiscaleFeatureCalculator.TransformedFeatureComputer;
@@ -61,12 +63,12 @@ public class FeatureCalculators {
 	}
 	
 	
-	public static FeatureCalculator<BufferedImage> createPatchFeatureCalculator(int size, int...inputChannels) {
-		return new ExtractNeighborsFeatureCalculator(size, inputChannels);
+	public static FeatureCalculator<BufferedImage> createPatchFeatureCalculator(int size, String...inputChannels) {
+		return new ExtractNeighborsFeatureCalculator(size, Arrays.stream(inputChannels).map(c -> ColorTransforms.createChannelExtractor(c)).toArray(ColorTransform[]::new));
 	}
 	
 	
-	public static FeatureCalculator<BufferedImage> createMultiscaleFeatureCalculator(int[] channels, double[] sigmaValues, double localNormalizeSigma, boolean do3D, MultiscaleFeature... features) {
+	public static FeatureCalculator<BufferedImage> createMultiscaleFeatureCalculator(String[] channels, double[] sigmaValues, double localNormalizeSigma, boolean do3D, MultiscaleFeature... features) {
 		List<SmoothingScale> scales = new ArrayList<>();
 		ScaleType scaleType = do3D ? ScaleType.SCALE_3D_ISOTROPIC : ScaleType.SCALE_2D;
 		for (double sigma : sigmaValues) {
@@ -74,7 +76,7 @@ public class FeatureCalculators {
 		}
 		
 		List<TransformedFeatureComputer> computers = new ArrayList<>();
-		for (int c : channels) {
+		for (String c : channels) {
 			var transform = ColorTransforms.createChannelExtractor(c);
 			var builder = new TransformedFeatureComputer.Builder(transform);
 			for (var scale : scales) {
@@ -122,6 +124,15 @@ public class FeatureCalculators {
 		@Override
 		public ImmutableDimension getInputSize() {
 			return inputSize;
+		}
+
+		@Override
+		public boolean supportsImage(ImageData<T> imageData) {
+			for (var calculator : calculators) {
+				if (!calculator.supportsImage(imageData))
+					return false;
+			}
+			return true;
 		}
 		
 	}

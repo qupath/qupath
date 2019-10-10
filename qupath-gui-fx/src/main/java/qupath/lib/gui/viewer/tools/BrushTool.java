@@ -175,7 +175,12 @@ public class BrushTool extends AbstractPathROITool {
 		
 		// Determine if we are creating a new object
 //		boolean createNew = currentObject == null || e.getClickCount() > 1;// || (!currentObject.getROI().contains(p.getX(), p.getY()) && !e.isAltDown());
-		Point2D p = viewer.componentPointToImagePoint(e.getX(), e.getY(), null, true);
+		Point2D p = viewer.componentPointToImagePoint(e.getX(), e.getY(), null, false);
+		double xx = p.getX();
+		double yy = p.getY();
+		if (xx < 0 || yy < 0 || xx >= viewer.getServerWidth() || yy >= viewer.getServerHeight())
+			return;
+		
 //		boolean createNew = currentObject == null || !(currentObject instanceof PathAnnotationObject) || (currentObject.hasChildren()) || (PathPrefs.getBrushCreateNewObjects() && !ROIHelpers.areaContains(currentObject.getROI(), p.getX(), p.getY()) && !isSubtractMode(e));
 		boolean createNew = currentObject == null || 
 				PathPrefs.isSelectionMode() || 

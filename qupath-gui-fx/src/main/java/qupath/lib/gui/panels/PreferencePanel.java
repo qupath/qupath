@@ -27,6 +27,7 @@ import java.io.File;
 import java.util.Optional;
 import org.controlsfx.control.PropertySheet;
 import org.controlsfx.control.PropertySheet.Item;
+import org.controlsfx.control.PropertySheet.Mode;
 import org.controlsfx.property.editor.AbstractPropertyEditor;
 import org.controlsfx.property.editor.DefaultPropertyEditorFactory;
 import org.controlsfx.property.editor.Editors;
@@ -73,6 +74,7 @@ public class PreferencePanel {
 
 	private void setupPanel() {
 		//		propSheet.setMode(Mode.CATEGORY);
+		propSheet.setMode(Mode.CATEGORY);
 		propSheet.setPropertyEditorFactory(new PropertyEditorFactory());
 
 		String category;
@@ -635,7 +637,7 @@ public class PreferencePanel {
 		@Override
 		public void setValue(Object value) {
 			if (value instanceof Color)
-				value = ColorToolsFX.getRGBA((Color)value);
+				value = ColorToolsFX.getARGB((Color)value);
 			if (value instanceof Integer)
 				prop.setValue((Integer)value);
 		}

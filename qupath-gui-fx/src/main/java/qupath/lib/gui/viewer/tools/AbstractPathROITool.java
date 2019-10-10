@@ -38,6 +38,7 @@ import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
+import qupath.lib.objects.classes.PathClassTools;
 import qupath.lib.objects.classes.Reclassifier;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.regions.ImagePlane;
@@ -132,9 +133,11 @@ abstract class AbstractPathROITool extends AbstractPathTool {
 		}
 
 		// Find out the coordinates in the image domain
-		Point2D p2 = viewer.componentPointToImagePoint(e.getX(), e.getY(), null, true);
+		Point2D p2 = viewer.componentPointToImagePoint(e.getX(), e.getY(), null, false);
 		double xx = p2.getX();
 		double yy = p2.getY();
+		if (xx < 0 || yy < 0 || xx >= viewer.getServerWidth() || yy >= viewer.getServerHeight())
+			return;
 						
 		// If we are double-clicking & we don't have a polygon, see if we can access a ROI
 		if (!PathPrefs.isSelectionMode() && e.getClickCount() > 1) {
@@ -190,9 +193,10 @@ abstract class AbstractPathROITool extends AbstractPathTool {
 			var pathClass = PathPrefs.getAutoSetAnnotationClass();
 			var toSelect = hierarchy.getObjectsForROI(null, currentROI);
 			if (!toSelect.isEmpty() && pathClass != null) {
+				boolean retainIntensityClass = !(PathClassTools.isPositiveOrGradedIntensityClass(pathClass) || PathClassTools.isNegativeClass(pathClass));
 				var reclassified = toSelect.stream()
 						.filter(p -> p.getPathClass() != pathClass)
-						.map(p -> new Reclassifier(p, pathClass, true))
+						.map(p -> new Reclassifier(p, pathClass, retainIntensityClass))
 						.filter(r -> r.apply())
 						.map(r -> r.getPathObject())
 						.collect(Collectors.toList());

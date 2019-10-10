@@ -55,7 +55,7 @@ import javafx.scene.layout.Pane;
 import qupath.lib.classifiers.PathClassificationLabellingHelper;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.helpers.DisplayHelpers;
-import qupath.lib.gui.helpers.PanelToolsFX;
+import qupath.lib.gui.helpers.PaneToolsFX;
 import qupath.lib.images.ImageData;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.objects.PathObject;
@@ -229,7 +229,7 @@ class FeatureSelectionPanel {
 			for (SelectableFeature feature : tableFeatures.getItems())
 				feature.setSelected(false);
 		});
-		GridPane panelSelectButtons = PanelToolsFX.createColumnGridControls(btnSelectAll, btnSelectNone);
+		GridPane panelSelectButtons = PaneToolsFX.createColumnGridControls(btnSelectAll, btnSelectNone);
 
 		panelButtons.setTop(panelSelectButtons);
 //		panelButtons.setBottom(btnUpdateFeatures);

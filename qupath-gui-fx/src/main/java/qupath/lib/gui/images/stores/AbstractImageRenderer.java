@@ -9,7 +9,7 @@ public abstract class AbstractImageRenderer implements ImageRenderer {
 	
 	private long id = NEXT_COUNT.incrementAndGet();
 	
-	private long timestamp = System.currentTimeMillis();
+	protected long timestamp = System.currentTimeMillis();
 	
 	@Override
 	public long getLastChangeTimestamp() {

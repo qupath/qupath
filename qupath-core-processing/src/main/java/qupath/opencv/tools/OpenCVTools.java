@@ -58,6 +58,7 @@ import ij.process.ShortProcessor;
 import org.bytedeco.opencv.opencv_core.Mat;
 import org.bytedeco.opencv.opencv_core.MatVector;
 import org.bytedeco.opencv.opencv_core.Point;
+import org.bytedeco.opencv.opencv_core.Rect;
 import org.bytedeco.opencv.opencv_core.Scalar;
 
 import qupath.lib.analysis.images.SimpleImage;
@@ -1025,6 +1026,23 @@ public class OpenCVTools {
 	 */
 	public static List<Mat> extractZStack(ImageServer<BufferedImage> server, RegionRequest request) throws IOException {
 		return extractZStack(server, request, 0, server.nZSlices());
+	}
+
+
+	/**
+	 * Crop a region from a Mat based on its bounding box, returning a new image (not a subregion).
+	 * @param mat
+	 * @param x
+	 * @param y
+	 * @param width
+	 * @param height
+	 * @return
+	 */
+	public static Mat crop(Mat mat, int x, int y, int width, int height) {
+		try (Rect rect = new Rect(x, y, width, height)) {
+	    	var temp = mat.apply(rect);
+	    	return temp.clone();
+		}
 	}
 	
 

@@ -229,6 +229,8 @@ public class ParameterDialogWrapper<T> {
 
 		// Request focus, to make it easier to run from the keyboard
 		btnRun.requestFocus();
+		
+		dialog.sizeToScene();
 
 		return dialog;
 	}
