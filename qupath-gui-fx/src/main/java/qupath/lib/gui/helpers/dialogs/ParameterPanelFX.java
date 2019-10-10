@@ -52,7 +52,6 @@ import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
-import javafx.scene.layout.Region;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.stage.Stage;
@@ -117,10 +116,18 @@ public class ParameterPanelFX {
 //		System.err.println("Resizable: " + pane.isResizable());
 	}
 	
+	/**
+	 * Get the {@link ParameterList} displaned in this panel.
+	 * @return
+	 */
 	public ParameterList getParameters() {
 		return params;
 	}
 	
+	/**
+	 * Get the {@link Pane} that can be displayed.
+	 * @return
+	 */
 	public Pane getPane() {
 		return pane;
 	}
@@ -148,11 +155,20 @@ public class ParameterPanelFX {
 		}
 	}
 	
-	
+	/**
+	 * Add a {@link ParameterChangeListener} to be notified as parameters are modified by the user.
+	 * @param listener
+	 * @see #removeParameterChangeListener(ParameterChangeListener)
+	 */
 	public void addParameterChangeListener(ParameterChangeListener listener) {
 		listeners.add(listener);
 	}
 
+	/**
+	 * Remove a {@link ParameterChangeListener}.
+	 * @param listener
+	 * @see #addParameterChangeListener(ParameterChangeListener)
+	 */
 	public void removeParameterChangeListener(ParameterChangeListener listener) {
 		listeners.remove(listener);
 	}
@@ -372,28 +388,46 @@ public class ParameterPanelFX {
 		}
 	}
 	
-	
+	/**
+	 * Returns true if a parameter exists with the given key and is enabled (and is therefore editable).
+	 * @param key
+	 * @return
+	 */
 	public boolean getParameterEnabled(String key) {
 		return getParameterEnabled(params.getParameters().get(key));
 	}
 	
+	/**
+	 * Returns true if a parameter is enabled (and is therefore editable).
+	 * @param param
+	 * @return
+	 */
 	public boolean getParameterEnabled(Parameter<?> param) {
 		Node comp = map.get(param);
 		return comp != null && !comp.isDisabled();
 	}
 	
+	/**
+	 * Set the enabled status of a parameter by key, to determine if it can be edited.
+	 * @param key
+	 * @param enabled
+	 */
 	public void setParameterEnabled(String key, boolean enabled) {
 		setParameterEnabled(params.getParameters().get(key), enabled);
 	}
 	
-	
+	/**
+	 * Set the enabled status of a parameter, to determine if it can be edited.
+	 * @param param
+	 * @param enabled
+	 */
 	public void setParameterEnabled(Parameter<?> param, boolean enabled) {
 		Node comp = map.get(param);
 		if (comp != null)
 			setEnabledRecursively(comp, enabled);
 	}
 	
-	private void setEnabledRecursively(Node comp, boolean enabled) {
+	private static void setEnabledRecursively(Node comp, boolean enabled) {
 		comp.setDisable(!enabled);
 	}
 	

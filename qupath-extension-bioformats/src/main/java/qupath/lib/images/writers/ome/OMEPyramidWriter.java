@@ -94,6 +94,14 @@ public class OMEPyramidWriter {
 		this.series.addAll(series);
 	}
 	
+	/**
+	 * Write an image consisting of one or more series to the specified path.
+	 * @param path
+	 * @throws FormatException
+	 * @throws IOException
+	 * @see #createWriter(Collection)
+	 * @see #createWriter(OMEPyramidSeries...)
+	 */
 	public void writeImage(final String path) throws FormatException, IOException {
 		IMetadata meta = MetadataTools.createOMEXMLMetadata();
 		
@@ -616,11 +624,20 @@ public class OMEPyramidWriter {
 //		
 //	}
 	
-	
+	/**
+	 * Create a writer capable of writing an image with one or more series.
+	 * @param series
+	 * @return
+	 */
 	public static OMEPyramidWriter createWriter(OMEPyramidSeries... series) {
 		return new OMEPyramidWriter(Arrays.asList(series));
 	}
 	
+	/**
+	 * Create a writer capable of writing an image with a collection ofseries.
+	 * @param series
+	 * @return
+	 */
 	public static OMEPyramidWriter createWriter(Collection<OMEPyramidSeries> series) {
 		return new OMEPyramidWriter(series);
 	}

@@ -456,7 +456,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	
 	private Stage stage;
 	
-	private static DialogHelper standaloneDialogHelper = new DialogHelperFX(); // When there is no parent Window available
+	private static DialogHelper standaloneDialogHelper = new DialogHelperFX(null); // When there is no parent Window available
 	private static Map<Window, DialogHelper> dialogHelpers = new WeakHashMap<>();
 
 	private boolean isStandalone = false;
@@ -4460,7 +4460,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			else if (mag != null && !Double.isNaN(mag))
 				tooltipMag.setText("Display magnification - double-click to edit");
 			else
-				tooltipMag.setText("Display downsample value - double-click to edit");
+				tooltipMag.setText("Display scale value - double-click to edit");
 		}
 		
 		public void updateMagnificationDisplay(final QuPathViewer viewer) {

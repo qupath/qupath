@@ -27,15 +27,11 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.Callable;
-import java.util.concurrent.CountDownLatch;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javafx.application.Platform;
-import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.SimpleObjectProperty;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
 import javafx.scene.control.Alert;
@@ -47,6 +43,8 @@ import javafx.scene.layout.GridPane;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.FileChooser;
 import javafx.stage.FileChooser.ExtensionFilter;
+import qupath.lib.common.GeneralTools;
+import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.gui.helpers.PaneToolsFX;
 import qupath.lib.gui.helpers.dialogs.DialogHelper;
 import javafx.stage.Window;
@@ -69,13 +67,12 @@ public class DialogHelperFX implements DialogHelper {
 	
 	protected File lastDir;
 	
-	
+	/**
+	 * Create a {@link DialogHelper} using JavaFX.
+	 * @param ownerWindow
+	 */
 	public DialogHelperFX(final Window ownerWindow) {
 		this.ownerWindow = ownerWindow;
-	}
-	
-	public DialogHelperFX() {
-		this(null);
 	}
 	
 
@@ -87,7 +84,7 @@ public class DialogHelperFX implements DialogHelper {
 			if (dir.exists())
 				lastDir = dir;
 			return;
-		} else if (dir.isFile())
+		} else
 			setLastDirectory(dir.getParentFile());
 	}
 
@@ -109,7 +106,7 @@ public class DialogHelperFX implements DialogHelper {
 	public File promptForDirectory(File dirBase) {
 		
 		if (!Platform.isFxApplicationThread()) {
-			return callOnPlatformThread(() -> promptForDirectory(dirBase));
+			return DisplayHelpers.callOnApplicationThread(() -> promptForDirectory(dirBase));
 		}
 		
 		File lastDir = getLastDirectory();
@@ -132,7 +129,7 @@ public class DialogHelperFX implements DialogHelper {
 	public List<File> promptForMultipleFiles(String title, File dirBase, String filterDescription, String... exts) {
 		
 		if (!Platform.isFxApplicationThread()) {
-			return callOnPlatformThread(() -> promptForMultipleFiles(title, dirBase, filterDescription, exts));
+			return DisplayHelpers.callOnApplicationThread(() -> promptForMultipleFiles(title, dirBase, filterDescription, exts));
 		}
 		
 		File lastDir = getLastDirectory();
@@ -193,7 +190,7 @@ public class DialogHelperFX implements DialogHelper {
 	public File promptForFile(String title, File dirBase, String filterDescription, String... exts) {
 		
 		if (!Platform.isFxApplicationThread()) {
-			return callOnPlatformThread(() -> promptForFile(title, dirBase, filterDescription, exts));
+			return DisplayHelpers.callOnApplicationThread(() -> promptForFile(title, dirBase, filterDescription, exts));
 		}
 		
 		File lastDir = getLastDirectory();
@@ -238,7 +235,7 @@ public class DialogHelperFX implements DialogHelper {
 	public File promptToSaveFile(String title, File dirBase, String defaultName, String filterName, String ext) {
 		
 		if (!Platform.isFxApplicationThread()) {
-			return callOnPlatformThread(() -> promptToSaveFile(title, dirBase, defaultName, filterName, ext));
+			return DisplayHelpers.callOnApplicationThread(() -> promptToSaveFile(title, dirBase, defaultName, filterName, ext));
 		}
 
 		File lastDir = getLastDirectory();
@@ -255,8 +252,12 @@ public class DialogHelperFX implements DialogHelper {
 			fileChooser.getExtensionFilters().clear();
 			fileChooser.setSelectedExtensionFilter(null);
 		}
-		if (defaultName != null)
-			fileChooser.setInitialFileName(defaultName);
+		if (defaultName != null) {
+			if (ext != null && !defaultName.endsWith(ext))
+				fileChooser.setInitialFileName(GeneralTools.getNameWithoutExtension(new File(defaultName)));
+			else
+				fileChooser.setInitialFileName(defaultName);
+		}
 		File fileSelected = fileChooser.showSaveDialog(ownerWindow);
 		if (fileSelected != null) {
 			// Only change the last directory if we didn't specify one
@@ -286,7 +287,7 @@ public class DialogHelperFX implements DialogHelper {
 	@Override
 	public String promptForFilePathOrURL(String title, String defaultPath, File dirBase, String filterDescription, String... exts) {
 		if (!Platform.isFxApplicationThread()) {
-			return callOnPlatformThread(() -> promptForFilePathOrURL(title, defaultPath, dirBase, filterDescription, exts));
+			return DisplayHelpers.callOnApplicationThread(() -> promptForFilePathOrURL(title, defaultPath, dirBase, filterDescription, exts));
 		}
 		
 		// Create dialog
@@ -337,45 +338,6 @@ public class DialogHelperFX implements DialogHelper {
 		logger.trace("Returning path: {}", path);
 	    
 		return path;
-	}
-	
-	
-	/**
-	 * Return a result after executing a Callable on the JavaFX Platform thread.
-	 * 
-	 * @param callable
-	 * @return
-	 */
-	private static <T> T callOnPlatformThread(final Callable<T> callable) {
-		if (Platform.isFxApplicationThread()) {
-			try {
-				return callable.call();
-			} catch (Exception e) {
-				logger.error("Error calling directly on Platform thread", e);
-				return null;
-			}
-		}
-		
-		CountDownLatch latch = new CountDownLatch(1);
-		ObjectProperty<T> result = new SimpleObjectProperty<>();
-		Platform.runLater(() -> {
-			T value;
-			try {
-				value = callable.call();
-				result.setValue(value);
-			} catch (Exception e) {
-				logger.error("Error calling on Platform thread", e);
-			} finally {
-				latch.countDown();
-			}
-		});
-		
-		try {
-			latch.await();
-		} catch (InterruptedException e) {
-			logger.error("Interrupted while waiting result", e);
-		}
-		return result.getValue();
 	}
 
 }

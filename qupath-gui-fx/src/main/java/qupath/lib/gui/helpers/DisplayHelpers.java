@@ -33,6 +33,8 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CountDownLatch;
 import java.util.stream.Collectors;
 
 import javax.swing.JComponent;
@@ -45,6 +47,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javafx.application.Platform;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.embed.swing.JFXPanel;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.embed.swing.SwingNode;
@@ -52,6 +56,7 @@ import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Alert.AlertType;
+import javafx.scene.image.Image;
 import javafx.scene.image.WritableImage;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
@@ -91,6 +96,9 @@ import qupath.lib.roi.PointsROI;
 /**
  * Collection of static methods to help with showing information to a user, 
  * as well as requesting some basic input.
+ * <p>
+ * In general, 'showABCMessage' produces a dialog box that requires input from the user.
+ * By contrast, 'showABCNotification' shows a message that will disappear without user input.
  * 
  * @author Pete Bankhead
  *
@@ -193,9 +201,12 @@ public class DisplayHelpers {
 	}
 	
 	
-	
-	
-	
+	/**
+	 * Show a confirm dialog (OK/Cancel).
+	 * @param title
+	 * @param text
+	 * @return
+	 */
 	public static boolean showConfirmDialog(String title, String text) {
 		if (Platform.isFxApplicationThread()) {
 			Alert alert = new Alert(AlertType.CONFIRMATION);
@@ -209,7 +220,12 @@ public class DisplayHelpers {
 			return JOptionPane.showConfirmDialog(null, text, title, JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE) == JOptionPane.OK_OPTION;
 	}
 	
-	
+	/**
+	 * Show a message dialog (OK button only), with the content contained within a Node.
+	 * @param title
+	 * @param node
+	 * @return
+	 */
 	public static boolean showMessageDialog(final String title, final Node node) {
 		if (Platform.isFxApplicationThread()) {
 			Alert alert = new Alert(AlertType.NONE, null, ButtonType.OK);
@@ -228,6 +244,11 @@ public class DisplayHelpers {
 		}
 	}
 	
+	/**
+	 * Show a standard message dialog.
+	 * @param title
+	 * @param message
+	 */
 	public static void showMessageDialog(String title, String message) {
 		logger.info("{}: {}", title, message);
 		if (Platform.isFxApplicationThread()) {
@@ -241,7 +262,12 @@ public class DisplayHelpers {
 			Platform.runLater(() -> showMessageDialog(title, message));
 	}
 	
-	
+	/**
+	 * Show a confirm dialog (OK/Cancel).
+	 * @param title
+	 * @param node
+	 * @return
+	 */
 	public static boolean showConfirmDialog(String title, Node node) {
 		if (Platform.isFxApplicationThread()) {
 			Alert alert = new Alert(AlertType.NONE, null, ButtonType.OK, ButtonType.CANCEL);
@@ -259,6 +285,12 @@ public class DisplayHelpers {
 		}
 	}
 	
+	/**
+	 * Show a confirm dialog (OK/Cancel) with a Swing component.
+	 * @param title
+	 * @param content
+	 * @return
+	 */
 	public static boolean showConfirmDialog(String title, JComponent content) {
 		if (Platform.isFxApplicationThread()) {
 			Alert alert = new Alert(AlertType.NONE, null, ButtonType.OK, ButtonType.CANCEL);
@@ -279,6 +311,12 @@ public class DisplayHelpers {
 			return JOptionPane.showConfirmDialog(null, content, title, JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE) == JOptionPane.OK_OPTION;
 	}
 	
+	/**
+	 * Show a Yes/No dialog.
+	 * @param title
+	 * @param text
+	 * @return
+	 */
 	public static boolean showYesNoDialog(String title, String text) {
 		if (Platform.isFxApplicationThread()) {
 			Alert alert = new Alert(AlertType.NONE);
@@ -312,7 +350,12 @@ public class DisplayHelpers {
         return label;
 	}
 	
-	
+	/**
+	 * Show a Yes/No/Cancel dialog.
+	 * @param title
+	 * @param text
+	 * @return
+	 */
 	public static DialogButton showYesNoCancelDialog(String title, String text) {
 		if (Platform.isFxApplicationThread()) {
 			// TODO: Check the order of buttons in Yes, No, Cancel dialog - seems weird on OSX
@@ -441,10 +484,29 @@ public class DisplayHelpers {
 		return null;
 	}
 	
+	/**
+	 * Show a choice dialog with an array of choices (selection from ComboBox or similar).
+	 * @param <T>
+	 * @param title
+	 * @param message
+	 * @param choices
+	 * @param defaultChoice
+	 * @return
+	 */
 	public static <T> T showChoiceDialog(final String title, final String message, final T[] choices, final T defaultChoice) {
 		return showChoiceDialog(title, message, Arrays.asList(choices), defaultChoice);
 	}
 	
+	/**
+	 * Show a choice dialog with a collection of choices (selection from ComboBox or similar).
+	 * @param <T>
+	 * @param title
+	 * @param message
+	 * @param choices
+	 * @param defaultChoice
+	 * @return
+	 */
+	@SuppressWarnings("unchecked")
 	public static <T> T showChoiceDialog(final String title, final String message, final Collection<T> choices, final T defaultChoice) {
 		if (Platform.isFxApplicationThread()) {
 			ChoiceDialog<T> dialog = new ChoiceDialog<>(defaultChoice, choices);
@@ -460,7 +522,11 @@ public class DisplayHelpers {
 			return (T)JOptionPane.showInputDialog(getPossibleParent(), message, title, JOptionPane.PLAIN_MESSAGE, null, choices.toArray(), defaultChoice);
 	}
 	
-	
+	/**
+	 * Show an error message, displaying the localized message of a {@link Throwable}.
+	 * @param title
+	 * @param e
+	 */
 	public static void showErrorMessage(final String title, final Throwable e) {
 		logger.error("Error", e);
 		String message = e.getLocalizedMessage();
@@ -469,6 +535,11 @@ public class DisplayHelpers {
 		showErrorMessage(title, message);
 	}
 	
+	/**
+	 * Show an error notification, displaying the localized message of a {@link Throwable}.
+	 * @param title
+	 * @param e
+	 */
 	public static void showErrorNotification(final String title, final Throwable e) {
 		if (!Platform.isFxApplicationThread()) {
 			Platform.runLater(() -> showErrorNotification(title, e));
@@ -488,6 +559,11 @@ public class DisplayHelpers {
 		}
 	}
 
+	/**
+	 * Show an error notification.
+	 * @param title
+	 * @param message
+	 */
 	public static void showErrorNotification(final String title, final String message) {
 		if (!Platform.isFxApplicationThread()) {
 			Platform.runLater(() -> showErrorNotification(title, message));
@@ -497,6 +573,11 @@ public class DisplayHelpers {
 		createNotifications().title(title).text(message).showError();
 	}
 
+	/**
+	 * Show a warning notification.
+	 * @param title
+	 * @param message
+	 */
 	public static void showWarningNotification(final String title, final String message) {
 		if (!Platform.isFxApplicationThread()) {
 			Platform.runLater(() -> showWarningNotification(title, message));
@@ -506,6 +587,11 @@ public class DisplayHelpers {
 		createNotifications().title(title).text(message).showWarning();
 	}
 
+	/**
+	 * Show an info notification.
+	 * @param title
+	 * @param message
+	 */
 	public static void showInfoNotification(final String title, final String message) {
 		if (!Platform.isFxApplicationThread()) {
 			Platform.runLater(() -> showInfoNotification(title, message));
@@ -515,6 +601,11 @@ public class DisplayHelpers {
 		createNotifications().title(title).text(message).showInformation();
 	}
 
+	/**
+	 * Show a plain notification.
+	 * @param title
+	 * @param message
+	 */
 	public static void showPlainNotification(final String title, final String message) {
 		if (!Platform.isFxApplicationThread()) {
 			Platform.runLater(() -> showPlainNotification(title, message));
@@ -625,7 +716,11 @@ public class DisplayHelpers {
 		return QuPathGUI.launchBrowserWindow(uri.toString());
 	}
 	
-
+	/**
+	 * Show an error message.
+	 * @param title
+	 * @param message
+	 */
 	public static void showErrorMessage(final String title, final String message) {
 		logger.error(title + ": " + message);
 		if (!GraphicsEnvironment.isHeadless()) {
@@ -643,6 +738,11 @@ public class DisplayHelpers {
 //			showDialog(title, message);
 	}
 	
+	/**
+	 * Show an error message, with the content defined within a {@link Node}.
+	 * @param title
+	 * @param message
+	 */
 	public static void showErrorMessage(final String title, final Node message) {
 		logger.error(title + ": " + message);
 		if (!GraphicsEnvironment.isHeadless()) {
@@ -658,6 +758,11 @@ public class DisplayHelpers {
 //			showDialog(title, message);
 	}
 
+	/**
+	 * Show a plain message.
+	 * @param title
+	 * @param message
+	 */
 	public static void showPlainMessage(final String title, final String message) {
 		logger.info(title + ": " + message);
 		if (!GraphicsEnvironment.isHeadless()) {
@@ -674,6 +779,11 @@ public class DisplayHelpers {
 //			showDialog(title, message);
 	}
 	
+	/**
+	 * Show a plain message with the content defined within a Swing component.
+	 * @param title
+	 * @param message
+	 */
 	public static void showPlainMessage(final String title, final JComponent message) {
 		logger.info(title + ": " + message);
 		if (!GraphicsEnvironment.isHeadless()) {
@@ -808,10 +918,26 @@ public class DisplayHelpers {
 //		return null;
 //	}
 	
+	/**
+	 * Kinds of snapshot image that can be created for QuPath.
+	 */
 	public static enum SnapshotType {
+		/**
+		 * Snapshot of the current viewer content.
+		 */
 		CURRENT_VIEWER,
+		/**
+		 * Snapshot of the full Scene of the main QuPath Window.
+		 * This excludes the titlebar and any overlapping windows.
+		 */
 		MAIN_SCENE,
+		/**
+		 * Screenshot of the full QuPath window as it currently appears, including any overlapping windows.
+		 */
 		MAIN_WINDOW_SCREENSHOT,
+		/**
+		 * Full screenshot, including items outside of QuPath.
+		 */
 		FULL_SCREENSHOT
 	};
 	
@@ -827,7 +953,12 @@ public class DisplayHelpers {
 		return SwingFXUtils.fromFXImage(makeSnapshotFX(qupath, type), null);
 	}
 	
-	
+	/**
+	 * Make a snapshot as a JavaFX {@link Image}.
+	 * @param qupath
+	 * @param type
+	 * @return
+	 */
 	public static WritableImage makeSnapshotFX(final QuPathGUI qupath, final SnapshotType type) {
 		Stage stage = qupath.getStage();
 		Scene scene = stage.getScene();
@@ -868,11 +999,18 @@ public class DisplayHelpers {
 		}
 	}
 
-
+	/**
+	 * Get an appropriate String to represent the magnification of the image currently in the viewer.
+	 * @param viewer
+	 * @return
+	 */
 	public static String getMagnificationString(final QuPathViewer viewer) {
 		if (viewer == null || !viewer.hasServer())
 			return "";
-		return String.format("%.2fx", viewer.getMagnification());
+//		if (Double.isFinite(viewer.getServer().getMetadata().getMagnification()))
+			return String.format("%.2fx", viewer.getMagnification());
+//		else
+//			return String.format("Scale %.2f", viewer.getDownsampleFactor());
 	}
 
 
@@ -988,6 +1126,48 @@ public class DisplayHelpers {
 				return null;
 		}
 		return nameValidated;
+	}
+
+
+
+
+
+	/**
+	 * Return a result after executing a Callable on the JavaFX Platform thread.
+	 * 
+	 * @param callable
+	 * @return
+	 */
+	public static <T> T callOnApplicationThread(final Callable<T> callable) {
+		if (Platform.isFxApplicationThread()) {
+			try {
+				return callable.call();
+			} catch (Exception e) {
+				logger.error("Error calling directly on Platform thread", e);
+				return null;
+			}
+		}
+		
+		CountDownLatch latch = new CountDownLatch(1);
+		ObjectProperty<T> result = new SimpleObjectProperty<>();
+		Platform.runLater(() -> {
+			T value;
+			try {
+				value = callable.call();
+				result.setValue(value);
+			} catch (Exception e) {
+				logger.error("Error calling on Platform thread", e);
+			} finally {
+				latch.countDown();
+			}
+		});
+		
+		try {
+			latch.await();
+		} catch (InterruptedException e) {
+			logger.error("Interrupted while waiting result", e);
+		}
+		return result.getValue();
 	}
 	
 	
