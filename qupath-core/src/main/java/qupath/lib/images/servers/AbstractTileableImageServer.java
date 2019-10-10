@@ -9,8 +9,10 @@ import java.awt.image.WritableRaster;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Hashtable;
 import java.util.Map;
+import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,7 +39,7 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 	private ColorModel colorModel;
 	private Map<String, BufferedImage> emptyTileMap = new HashMap<>();
 	
-	private transient Map<RegionRequest, BufferedImage> emptyTiles = new HashMap<>();
+	private transient Set<TileRequest> emptyTiles = new HashSet<>();
 	
 	private final static Long ZERO = Long.valueOf(0L);
 		
@@ -46,9 +48,10 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 	}
 	
 	protected BufferedImage getEmptyTile(int width, int height) throws IOException {
-		return getEmptyTile(width, height,
-				width == getMetadata().getPreferredTileWidth() &&
-				height == getMetadata().getPreferredTileHeight());
+		return getEmptyTile(width, height, true);
+//		return getEmptyTile(width, height,
+//				width == getMetadata().getPreferredTileWidth() &&
+//				height == getMetadata().getPreferredTileHeight());
 	}
 	
 	/**
@@ -141,13 +144,12 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 	protected BufferedImage getTile(final TileRequest tileRequest) throws IOException {
 		// Try to get tile from one of the caches
 		var request = tileRequest.getRegionRequest();
-		BufferedImage imgCached = emptyTiles.get(request);
-		if (imgCached != null)
-			return imgCached;
+		if (emptyTiles.contains(tileRequest))
+			return getEmptyTile(tileRequest.getTileWidth(), tileRequest.getTileHeight());
 		
 		var cache = getCache();
 		if (cache != null) {
-			imgCached = cache.get(request);
+			var imgCached = cache.get(request);
 			if (imgCached != null) { 
 				logger.trace("Returning cached tile: {}", request);
 				return imgCached;
@@ -155,12 +157,12 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 		}
 		logger.trace("Reading tile: {}", request);
 		
-		imgCached = readTile(tileRequest);
+		var imgCached = readTile(tileRequest);
 		
 		// Put the tile in the appropriate cache
 		if (imgCached != null) {
 			if (isEmptyTile(imgCached)) {
-				emptyTiles.put(request, imgCached);
+				emptyTiles.add(tileRequest);
 			} else if (cache != null) {
 				cache.put(request, imgCached);
 			}

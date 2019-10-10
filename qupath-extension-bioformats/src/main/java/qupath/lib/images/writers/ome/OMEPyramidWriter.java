@@ -15,6 +15,8 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -323,7 +325,7 @@ public class OMEPyramidWriter {
 		public void writePyramid(final PyramidOMETiffWriter writer, IMetadata meta, final int series) throws FormatException, IOException {
 	
 			boolean isRGB = server.isRGB() && Arrays.equals(channels, new int[] {0, 1, 2});
-			int nChannels = meta.getChannelCount(series);
+			int nChannels = meta.getPixelsSizeC(series).getValue();
 			int nSamples = meta.getChannelSamplesPerPixel(series, 0).getValue();
 			int sizeZ = meta.getPixelsSizeZ(series).getValue();
 			int sizeT = meta.getPixelsSizeT(series).getValue();
@@ -410,23 +412,41 @@ public class OMEPyramidWriter {
 							// We *must* write the first region first
 							writeRegion(writer, plane, ifd, firstRegion, d, isRGB, localChannels);
 							if (!regions.isEmpty()) {
-								var stream = parallelExport ? regions.parallelStream() : regions.stream();
-								stream.forEach(region -> {
-									try {
-										writeRegion(writer, plane, ifd, region, d, isRGB, localChannels);
-									} catch (Exception e) {
-										logger.error(String.format(
-												"Error writing %s (downsample=%.2f)",
-												region.toString(), d),
-												e);
-									} finally {
-										int localCount = count.incrementAndGet();
-										if (keyCounts.size() > 1 && keyCounts.contains(localCount)) {
-											double percentage = localCount*100.0/total;
-											logger.info("Written {}% tiles", Math.round(percentage));
+								var tasks = regions.stream().map(region -> new Runnable() {
+									@Override
+									public void run() {
+										try {
+											writeRegion(writer, plane, ifd, region, d, isRGB, localChannels);
+										} catch (Exception e) {
+											logger.error(String.format(
+													"Error writing %s (downsample=%.2f)",
+													region.toString(), d),
+													e);
+										} finally {
+											int localCount = count.incrementAndGet();
+											if (keyCounts.size() > 1 && keyCounts.contains(localCount)) {
+												double percentage = localCount*100.0/total;
+												logger.info("Written {}% tiles", Math.round(percentage));
+											}
 										}
 									}
-								});
+								}).collect(Collectors.toList());
+								
+								if (parallelExport) {
+									var pool = Executors.newWorkStealingPool(4);
+									for (var task : tasks) {
+										pool.submit(task);
+									}
+									pool.shutdown();
+									try {
+										pool.awaitTermination(regions.size(), TimeUnit.MINUTES);
+									} catch (InterruptedException e) {
+										throw new IOException("Timeout writing regions", e);
+									}
+								} else {
+									for (var task : tasks)
+										task.run();
+								}
 							}
 						}
 						zi++;
