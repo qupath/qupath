@@ -40,6 +40,7 @@ import java.util.Optional;
 import java.util.Scanner;
 import java.util.concurrent.Future;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import javax.script.ScriptContext;
 import javax.script.ScriptEngine;
@@ -65,6 +66,7 @@ import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.StringProperty;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.ListChangeListener;
+import javafx.collections.ObservableList;
 import javafx.concurrent.Task;
 import javafx.event.ActionEvent;
 import javafx.geometry.Orientation;
@@ -101,6 +103,7 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
+import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.TextAlignment;
 import javafx.stage.Modality;
@@ -110,6 +113,7 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.helpers.DisplayHelpers;
+import qupath.lib.gui.helpers.PaneToolsFX;
 import qupath.lib.gui.helpers.DisplayHelpers.DialogButton;
 import qupath.lib.gui.logging.LoggingAppender;
 import qupath.lib.gui.logging.TextAppendable;
@@ -221,7 +225,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 	private BooleanProperty autoRefreshFiles = PathPrefs.createPersistentPreference("scriptingAutoRefreshFiles", true);
 	private BooleanProperty sendLogToConsole = PathPrefs.createPersistentPreference("scriptingSendLogToConsole", true);
 	private BooleanProperty outputScriptStartTime = PathPrefs.createPersistentPreference("scriptingOutputScriptStartTime", false);
-	private BooleanProperty autoClearConsole = PathPrefs.createPersistentPreference("scriptingAutoClearConsole", false);
+	private BooleanProperty autoClearConsole = PathPrefs.createPersistentPreference("scriptingAutoClearConsole", true);
 	
 	// Regex pattern used to identify whether a script should be run in the JavaFX Platform thread
 	// If so, this line should be included at the top of the script
@@ -677,7 +681,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 			if (result != null)
 				logger.info("Result: {}", result);
 		} finally {
-			LoggingAppender.getInstance().removeTextComponent(console);			
+			Platform.runLater(() -> LoggingAppender.getInstance().removeTextComponent(console));	
 		}
 	}
 
@@ -1123,27 +1127,73 @@ public class DefaultScriptEditor implements ScriptEditor {
 		cbWithData.selectedProperty().addListener((v, o, n) -> updateImageList(listSelectionView, project, tfFilter.getText(), cbWithData.selectedProperty().get()));
 		
 		GridPane paneFooter = new GridPane();
+
 		paneFooter.setMaxWidth(Double.MAX_VALUE);
 		cbWithData.setMaxWidth(Double.MAX_VALUE);
 		paneFooter.add(tfFilter, 0, 0);
 		paneFooter.add(cbWithData, 0, 1);
-		// TODO: Apparent bug in checkbox display; full text not shown?
-		// https://bugs.openjdk.java.net/browse/JDK-8199592
-		GridPane.setHgrow(tfFilter, Priority.ALWAYS);
-		GridPane.setHgrow(cbWithData, Priority.ALWAYS);
-		GridPane.setFillWidth(tfFilter, Boolean.TRUE);
-		GridPane.setFillWidth(cbWithData, Boolean.TRUE);
+				
+		PaneToolsFX.setHGrowPriority(Priority.ALWAYS, tfFilter, cbWithData);
+		PaneToolsFX.setFillWidth(Boolean.TRUE, tfFilter, cbWithData);
+		cbWithData.setMinWidth(CheckBox.USE_PREF_SIZE);
 		paneFooter.setVgap(5);
 		listSelectionView.setSourceFooter(paneFooter);
 		
-		// Create label to show number selected
+		// Create label to show number selected, with a possible warning if we have a current image open
+		List<ProjectImageEntry<BufferedImage>> currentImages = new ArrayList<>();
+		Label labelSameImageWarning = new Label(
+				"A selected image is open in the viewer!\n"
+				+ "Reload this after the script to see changes.");
+		
 		Label labelSelected = new Label();
 		labelSelected.setTextAlignment(TextAlignment.CENTER);
 		labelSelected.setAlignment(Pos.CENTER);
 		labelSelected.setMaxWidth(Double.MAX_VALUE);
-		listSelectionView.getTargetItems().addListener((ListChangeListener.Change<? extends ProjectImageEntry<?>> e) -> labelSelected.setText(listSelectionView.getTargetItems().size() + " selected"));
-		listSelectionView.setTargetFooter(labelSelected);
+		GridPane.setHgrow(labelSelected, Priority.ALWAYS);
+		GridPane.setFillWidth(labelSelected, Boolean.TRUE);
+		Platform.runLater(() -> {
+			getTargetItems(listSelectionView).addListener((ListChangeListener.Change<? extends ProjectImageEntry<?>> e) -> {
+				labelSelected.setText(e.getList().size() + " selected");
+				if (labelSameImageWarning != null && currentImages != null) {
+					boolean visible = false;
+					var targets = e.getList();
+					for (var current : currentImages) {
+						if (targets.contains(current)) {
+							visible = true;
+							break;
+						}
+					}
+					labelSameImageWarning.setVisible(visible);
+				}
+			});
+		});
 		
+		var paneSelected = new GridPane();
+		PaneToolsFX.addGridRow(paneSelected, 0, 0, "Selected images", labelSelected);
+
+		// Get the current images that are open
+		currentImages.addAll(qupath.getViewers().stream()
+				.map(v -> {
+					var imageData = v.getImageData();
+					return imageData == null ? null : qupath.getProject().getEntry(imageData);
+				})
+				.filter(d -> d != null)
+				.collect(Collectors.toList()));
+		// Create a warning label to display if we need to
+		if (doSave && !currentImages.isEmpty()) {
+			labelSameImageWarning.setTextFill(Color.RED);
+			labelSameImageWarning.setMaxWidth(Double.MAX_VALUE);
+			labelSameImageWarning.setMinHeight(Label.USE_PREF_SIZE);
+			labelSameImageWarning.setTextAlignment(TextAlignment.CENTER);
+			labelSameImageWarning.setAlignment(Pos.CENTER);
+			labelSameImageWarning.setVisible(false);
+			PaneToolsFX.setHGrowPriority(Priority.ALWAYS, labelSameImageWarning);
+			PaneToolsFX.setFillWidth(Boolean.TRUE, labelSameImageWarning);
+			PaneToolsFX.addGridRow(paneSelected, 1, 0,
+					"'Run For Project' will save the data file for any image that is open - you will need to reopen the image to see the changes",
+					labelSameImageWarning);
+		}
+		listSelectionView.setTargetFooter(paneSelected);
 		
 		Dialog<ButtonType> dialog = new Dialog<>();
 		dialog.initOwner(qupath.getStage());
@@ -1160,17 +1210,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 		previousImages.clear();
 //		previousImages.addAll(listSelectionView.getTargetItems());
 
-		// TODO: Remove this when controlsfx bug fixed
-		var skin = listSelectionView.getSkin();
-		try {
-			logger.warn("Attempting to access target list by reflection (required for controls-fx 11.0.0-RC2)");
-			var method = skin.getClass().getMethod("getTargetListView");
-			var view = (ListView<?>)method.invoke(skin);
-			previousImages.addAll((List<ProjectImageEntry<BufferedImage>>)view.getItems());
-		} catch (Exception e) {
-			logger.warn("Unable to access target list by reflection, sorry");
-			previousImages.addAll(listSelectionView.getTargetItems());
-		}
+		previousImages.addAll(getTargetItems(listSelectionView));
 
 		if (previousImages.isEmpty())
 			return;
@@ -1207,16 +1247,52 @@ public class DefaultScriptEditor implements ScriptEditor {
 	}
 	
 	
+	/**
+	 * We should just be able to call {@link ListSelectionView#getTargetItems()}, but in ControlsFX 11 there 
+	 * is a bug that prevents this being correctly bound.
+	 * @param <T>
+	 * @param listSelectionView
+	 * @return
+	 */
+	private static <T> ObservableList<T> getTargetItems(ListSelectionView<T> listSelectionView) {
+		var skin = listSelectionView.getSkin();
+		try {
+			logger.debug("Attempting to access target list by reflection (required for controls-fx 11.0.0)");
+			var method = skin.getClass().getMethod("getTargetListView");
+			var view = (ListView<?>)method.invoke(skin);
+			return (ObservableList<T>)view.getItems();
+		} catch (Exception e) {
+			logger.warn("Unable to access target list by reflection, sorry", e);
+			return listSelectionView.getTargetItems();
+		}
+	}
+	
+	private static <T> ObservableList<T> getSourceItems(ListSelectionView<T> listSelectionView) {
+		var skin = listSelectionView.getSkin();
+		try {
+			logger.debug("Attempting to access target list by reflection (required for controls-fx 11.0.0)");
+			var method = skin.getClass().getMethod("getSourceListView");
+			var view = (ListView<?>)method.invoke(skin);
+			return (ObservableList<T>)view.getItems();
+		} catch (Exception e) {
+			logger.warn("Unable to access target list by reflection, sorry", e);
+			return listSelectionView.getSourceItems();
+		}
+	}
+	
+	
 	
 	private void updateImageList(final ListSelectionView<ProjectImageEntry<BufferedImage>> listSelectionView, final Project<BufferedImage> project, final String filterText, final boolean withDataOnly) {
 		String text = filterText.trim().toLowerCase();
 		
 		// Get an update source items list
 		List<ProjectImageEntry<BufferedImage>> sourceItems = new ArrayList<>(project.getImageList());
-		sourceItems.removeAll(listSelectionView.getTargetItems());
+		var targetItems = getTargetItems(listSelectionView);
+		sourceItems.removeAll(targetItems);
 		// Remove those without a data file, if necessary
 		if (withDataOnly) {
 			sourceItems.removeIf(p -> !p.hasImageData());
+			targetItems.removeIf(p -> !p.hasImageData());
 		}
 		// Apply filter text
 		if (text.length() > 0 && !sourceItems.isEmpty()) {
@@ -1226,9 +1302,9 @@ public class DefaultScriptEditor implements ScriptEditor {
 					iter.remove();
 			}
 		}
-		if (listSelectionView.getSourceItems().equals(sourceItems))
+		if (getSourceItems(listSelectionView).equals(sourceItems))
 			return;
-		listSelectionView.getSourceItems().setAll(sourceItems);
+		getSourceItems(listSelectionView).setAll(sourceItems);
 	}
 	
 	
@@ -1832,10 +1908,12 @@ public class DefaultScriptEditor implements ScriptEditor {
 
 
 	@Override
-	public void showNewScript() {
+	public void showEditor() {
 		if (dialog == null || !dialog.isShowing())
 			createDialog();
-		showScript(null, null);
+		// Create a new script if we need one
+		if (listScripts.getItems().isEmpty())
+			showScript(null, null);
 		if (!dialog.isShowing())
 			dialog.show();
 	}

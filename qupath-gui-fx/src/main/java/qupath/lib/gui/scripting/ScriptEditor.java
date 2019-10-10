@@ -33,7 +33,7 @@ import java.io.File;
  */
 public interface ScriptEditor {
 	
-	public void showNewScript();
+	public void showEditor();
 	
 	public void showScript(String name, String script);
 	
