@@ -173,7 +173,7 @@ public class PathObjectTools {
 			list = new ArrayList<>();
 		if (includeParent)
 			list.add(parentObject);
-		for (PathObject child : parentObject.getChildObjects())
+		for (PathObject child : parentObject.getChildObjectsAsArray())
 			getFlattenedObjectList(child, list, true);
 		return list;
 	}
@@ -186,7 +186,7 @@ public class PathObjectTools {
 	 */
 	public static int countDescendants(final PathObject pathObject) {
 		int count = pathObject.nChildObjects();
-		for (PathObject childObject : pathObject.getChildObjects().toArray(new PathObject[0]))
+		for (PathObject childObject : pathObject.getChildObjectsAsArray())
 			count += countDescendants(childObject);
 		return count;
 	}
@@ -199,7 +199,7 @@ public class PathObjectTools {
 	 */
 	public static int countChildren(final PathObject pathObject, final Class<? extends PathObject> cls, final boolean allDescendents) {
 		int count = 0;
-		for (PathObject childObject : pathObject.getChildObjects()) {
+		for (PathObject childObject : pathObject.getChildObjectsAsArray()) {
 			if (cls.isAssignableFrom(childObject.getClass()))
 				count++;
 			if (childObject.hasChildren() && allDescendents)
@@ -218,7 +218,7 @@ public class PathObjectTools {
 	 */
 	public static int countChildren(final PathObject pathObject, final PathClass pathClass, final boolean allDescendents) {
 		int count = 0;
-		for (PathObject childObject : pathObject.getChildObjects()) {
+		for (PathObject childObject : pathObject.getChildObjectsAsArray()) {
 			if (pathClass.equals(childObject.getPathClass()))
 				count++;
 			if (childObject.hasChildren() && allDescendents)
@@ -676,17 +676,17 @@ public class PathObjectTools {
 			pathObjects = new ArrayList<>();
 		if (pathObject == null || !pathObject.hasChildren())
 			return pathObjects;
-		addPathObjectsRecursively(pathObject.getChildObjects(), pathObjects, cls);
+		addPathObjectsRecursively(pathObject.getChildObjectsAsArray(), pathObjects, cls);
 		return pathObjects;
 	}
 	
-	private static void addPathObjectsRecursively(Collection<PathObject> pathObjectsInput, Collection<PathObject> pathObjects, Class<? extends PathObject> cls) {
+	private static void addPathObjectsRecursively(PathObject[]pathObjectsInput, Collection<PathObject> pathObjects, Class<? extends PathObject> cls) {
 		for (PathObject childObject : pathObjectsInput) {
 			if (cls == null || cls.isInstance(childObject)) {
 				pathObjects.add(childObject);
 			}
 			if (childObject.hasChildren())
-				addPathObjectsRecursively(childObject.getChildObjects(), pathObjects, cls);
+				addPathObjectsRecursively(childObject.getChildObjectsAsArray(), pathObjects, cls);
 		}
 	}
 	

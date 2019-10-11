@@ -144,7 +144,7 @@ public class RigidObjectEditorCommand implements PathCommand, ImageDataChangeLis
 		ImageRegion bounds = viewer.getServerBounds();
 		
 		if (pathObject instanceof TMACoreObject) {
-			for (PathObject child : pathObject.getChildObjects()) {
+			for (PathObject child : pathObject.getChildObjectsAsArray()) {
 				if (isSuitableAnnotation(child)) {
 					originalObjectROIs.put(child, child.getROI());
 				}

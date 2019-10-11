@@ -407,7 +407,7 @@ public class PathHierarchyPaintingHelper {
 		}
 		// Paint the children, if necessary
 		if (paintChildren) {
-			for (PathObject childObject : pathObject.getChildObjects()) {
+			for (PathObject childObject : pathObject.getChildObjectsAsArray()) {
 				// Only call the painting method if required
 				ROI childROI = childObject.getROI();
 				if ((childROI != null && boundsDisplayed.intersects(childROI.getBoundsX(), childROI.getBoundsY(), childROI.getBoundsWidth(), childROI.getBoundsHeight())) || childObject.hasChildren())

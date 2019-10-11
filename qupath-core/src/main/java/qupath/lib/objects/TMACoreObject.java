@@ -173,7 +173,7 @@ public class TMACoreObject extends PathROIObject implements MetadataStore {
 	}
 	
 	private static boolean containsChildOfClass(final PathObject pathObject, final Class<? extends PathObject> cls, final boolean allDescendents) {
-		for (PathObject childObject : pathObject.getChildObjects()) {
+		for (PathObject childObject : pathObject.getChildObjectsAsArray()) {
 			if (cls.isAssignableFrom(childObject.getClass()))
 				return true;
 			if (childObject.hasChildren() && allDescendents && containsChildOfClass(childObject, cls, allDescendents))

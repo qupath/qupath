@@ -480,9 +480,8 @@ public class PathObjectHierarchyView implements ImageDataChangeListener<Buffered
 			var value = getValue();
 			if (!childrenSet && children.isEmpty()) {
 				childrenSet = true;
-				Collection<PathObject> currentChildren = value.getChildObjects();
-				if (!currentChildren.isEmpty()) {
-					var childArray = currentChildren.toArray(PathObject[]::new);
+				var childArray = value.getChildObjectsAsArray();
+				if (childArray.length > 0) {
 					Arrays.sort(childArray, DefaultPathObjectComparator.getInstance());
 					List<TreeItem<PathObject>> newChildren = new ArrayList<>();
 					boolean includeDetections = detectionDisplay.get() != TreeDetectionDisplay.NONE;

@@ -656,9 +656,10 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 				// area should be coming from
 				PathObject pathObjectTemp = pathObject;
 				if (pathObject instanceof TMACoreObject) {
-					if (pathObject.getChildObjects().size() != 1)
+					var children = pathObject.getChildObjectsAsArray();
+					if (children.length != 1)
 						return Double.NaN;
-					pathObjectTemp = pathObject.getChildObjects().stream().findFirst().get();
+					pathObjectTemp = children[0];
 				}
 				// We need an annotation to get a meaningful area
 				if (pathObjectTemp == null || !(pathObjectTemp.isAnnotation() || pathObjectTemp.isRootObject()))
@@ -871,7 +872,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 			@Override
 			public Binding<Number> createMeasurement(final PathObject pathObject) {
 				// Only return density measurements for annotations
-				if (pathObject.isAnnotation() || (pathObject.isTMACore() && pathObject.getChildObjects().size() == 1))
+				if (pathObject.isAnnotation() || (pathObject.isTMACore() && pathObject.nChildObjects() == 1))
 					return new ClassDensityMeasurementPerMM(server, pathObject, pathClass);
 				return Bindings.createDoubleBinding(() -> Double.NaN);
 			}

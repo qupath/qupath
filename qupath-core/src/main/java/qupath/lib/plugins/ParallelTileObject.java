@@ -234,7 +234,7 @@ public class ParallelTileObject extends PathTileObject implements TemporaryObjec
 	 */
 	List<PathObject> getObjectsForRegion(Rectangle2D region) {
 		List<PathObject> pathObjects = new ArrayList<>();
-		for (PathObject child : getChildObjects()) {
+		for (PathObject child : getChildObjectsAsArray()) {
 			ROI childROI = child.getROI();
 			if (childROI instanceof PathArea && region.intersects(getBounds2D(childROI))) {
 				pathObjects.add(child);
@@ -252,7 +252,7 @@ public class ParallelTileObject extends PathTileObject implements TemporaryObjec
 			} else if (countdown.decrementAndGet() == 0) {
 				PathObject parent = getParent();
 				List<PathObject> parallelObjects = new ArrayList<>();
-				for (PathObject temp : parent.getChildObjects()) {
+				for (PathObject temp : parent.getChildObjectsAsArray()) {
 					if (temp instanceof ParallelTileObject) {
 						parallelObjects.add(temp);
 					}

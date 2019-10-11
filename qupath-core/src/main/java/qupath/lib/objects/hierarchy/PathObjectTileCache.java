@@ -181,7 +181,7 @@ class PathObjectTileCache implements PathObjectHierarchyListener {
 		
 		// Add the children
 		if (includeChildren && !(pathObject instanceof TemporaryObject) && pathObject.hasChildren()) {
-			for (PathObject child : pathObject.getChildObjects().toArray(PathObject[]::new))
+			for (PathObject child : pathObject.getChildObjectsAsArray())
 				addToCache(child, includeChildren, limitToClass);
 		}
 	}
@@ -351,7 +351,7 @@ class PathObjectTileCache implements PathObjectHierarchyListener {
 //				System.err.println("After: " + mapObjects.query(MAX_ENVELOPE).size());
 			// Remove the children
 			if (removeChildren) {
-				for (PathObject child : pathObject.getChildObjects())
+				for (PathObject child : pathObject.getChildObjectsAsArray())
 					removeFromCache(child, removeChildren);
 			}
 		} else if (mapObjects instanceof SpatialIndex && !removeChildren) {
