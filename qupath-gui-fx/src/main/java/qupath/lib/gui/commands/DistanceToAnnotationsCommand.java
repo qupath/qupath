@@ -1,6 +1,8 @@
 package qupath.lib.gui.commands;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -12,20 +14,18 @@ import org.locationtech.jts.algorithm.locate.PointOnGeometryLocator;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.Location;
+import org.locationtech.jts.geom.Puntal;
 import org.locationtech.jts.geom.util.GeometryCombiner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.PixelCalibration;
-import qupath.lib.objects.PathObject;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.classes.PathClassFactory.StandardPathClasses;
-import qupath.lib.roi.interfaces.ROI;
 import qupath.lib.roi.jts.ConverterJTS;
 
 /**
@@ -75,39 +75,76 @@ public class DistanceToAnnotationsCommand implements PathCommand {
 		var testPathClass = pathClass != null && !pathClass.isValid() ? null : pathClass;
 		
 		PixelCalibration cal = server.getPixelCalibration();
-		double pixelWidth = cal.hasPixelSizeMicrons() ? cal.getPixelWidthMicrons() : 1.0;
-		double pixelHeight = cal.hasPixelSizeMicrons() ? cal.getPixelHeightMicrons() : 1.0;
-		String unit = cal.hasPixelSizeMicrons() ? GeneralTools.micrometerSymbol() : "px";
+		
+		String xUnit = cal.getPixelWidthUnit();
+		String yUnit = cal.getPixelHeightUnit();
+		if (!xUnit.equals(yUnit))
+			throw new IllegalArgumentException("Pixel width & height units do not match! Width " + xUnit + ", height " + yUnit);
+		
+		double pixelWidth = cal.getPixelWidth().doubleValue();
+		double pixelHeight = cal.getPixelHeight().doubleValue();
+		String unit = xUnit;
 		String name = "Distance to " + pathClass + " " + unit;
 		var builder = new ConverterJTS.Builder()
 				.pixelSize(pixelWidth, pixelHeight);
 		var converter = builder.build();
-		List<Geometry> annotations = hierarchy.getAnnotationObjects()
-				.stream()
-				.filter(p -> p.getPathClass() == testPathClass && p.hasROI())
-				.map(p -> converter.roiToGeometry(p.getROI()))
-				.collect(Collectors.toList());
+		
+		List<Geometry> shapeGeometries = new ArrayList<>();
+		List<Geometry> pointGeometries = new ArrayList<>();
+		for (var annotation : hierarchy.getAnnotationObjects()) {
+			if (annotation.hasROI() && annotation.getPathClass() == testPathClass) {
+				var geom = converter.roiToGeometry(annotation.getROI());
+				if (geom instanceof Puntal)
+					pointGeometries.add(geom);
+				else
+					shapeGeometries.add(geom);
+			}
+		}
 
-		if (annotations.isEmpty())
+		if (shapeGeometries.isEmpty() && pointGeometries.isEmpty())
 			return;
 		
-		Geometry geometry = annotations.size() == 1 ? annotations.get(0) : GeometryCombiner.combine(annotations);
+		List<Coordinate> pointCoords = new ArrayList<>();
+		
+		Geometry temp = null;
+		if (!shapeGeometries.isEmpty())
+			temp = shapeGeometries.size() == 1 ? shapeGeometries.get(0) : GeometryCombiner.combine(shapeGeometries);
+		Geometry shapeGeometry = temp;
+		
+		if (!pointGeometries.isEmpty()) {
+			for (var geom : pointGeometries) {
+				for (var coord : geom.getCoordinates())
+					pointCoords.add(coord);
+			}
+		}
 		
 		var detections = hierarchy.getDetectionObjects();
 		
-		var locator = new IndexedPointInAreaLocator(geometry);
-		String measurementName = name;
-		detections.parallelStream().forEach(p -> computeDistance(p, geometry, locator, measurementName, pixelWidth, pixelHeight));
+		var locator = new IndexedPointInAreaLocator(shapeGeometry);
+		detections.parallelStream().forEach(p -> {
+			var roi = p.getROI();
+			Coordinate coord = new Coordinate(roi.getCentroidX() * pixelWidth, roi.getCentroidY() * pixelHeight);
+			double pointDistance = pointCoords == null ? Double.POSITIVE_INFINITY : computeCoordinateDistance(coord, pointCoords);
+			double shapeDistance = shapeGeometry == null ? Double.POSITIVE_INFINITY : computeDistance(coord, shapeGeometry, locator);
+			double distance = Math.min(pointDistance, shapeDistance);
+			
+			try (var ml = p.getMeasurementList()) {
+				ml.putMeasurement(name, distance);
+			}
+		});
 		
 		hierarchy.fireObjectMeasurementsChangedEvent(DistanceToAnnotationsCommand.class, detections);
 	}
 	
 	
-	private static void computeDistance(PathObject pathObject, Geometry geometry, PointOnGeometryLocator locator, String name, double pixelWidth, double pixelHeight) {
-
-		ROI roi = pathObject.getROI();
-		Coordinate coord = new Coordinate(roi.getCentroidX() * pixelWidth, roi.getCentroidY() * pixelHeight);
-
+	private static double computeCoordinateDistance(Coordinate coord, Collection<Coordinate> targets) {
+		double d = Double.POSITIVE_INFINITY;
+		for (var target : targets)
+			d = Math.min(d, coord.distance(target));
+		return d;
+	}
+	
+	private static double computeDistance(Coordinate coord, Geometry geometry, PointOnGeometryLocator locator) {
 		int location = locator.locate(coord);
 		double distance = 0;
 		if (location == Location.EXTERIOR) {
@@ -115,9 +152,7 @@ public class DistanceToAnnotationsCommand implements PathCommand {
 			DistanceToPoint.computeDistance(geometry, coord, dist);
 			distance = dist.getDistance();
 		}
-		try (var ml = pathObject.getMeasurementList()) {
-			ml.putMeasurement(name, distance);
-		}
+		return distance;
 	}
 	
 	

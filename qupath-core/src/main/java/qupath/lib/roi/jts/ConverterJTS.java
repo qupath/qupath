@@ -351,7 +351,7 @@ public class ConverterJTS {
     
     
     private Geometry pointsToGeometry(PathPoints points) {
-    	var coords = points.getPointList().stream().map(p -> new Coordinate(p.getX(), p.getY())).toArray(Coordinate[]::new);
+    	var coords = points.getPointList().stream().map(p -> new Coordinate(p.getX()*pixelWidth, p.getY()*pixelHeight)).toArray(Coordinate[]::new);
     	if (coords.length == 1)
     		return factory.createPoint(coords[0]);
     	return factory.createMultiPointFromCoords(coords);
