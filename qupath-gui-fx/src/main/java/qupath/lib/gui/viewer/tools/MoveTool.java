@@ -91,7 +91,7 @@ public class MoveTool extends AbstractPathTool {
 		if (!e.isPrimaryButtonDown() || e.isConsumed())
             return;
 		
-		Point2D p = viewer.componentPointToImagePoint(e.getX(), e.getY(), null, false);
+		Point2D p = mouseLocationToImage(e, false, true);
 		double xx = p.getX();
 		double yy = p.getY();
 		
@@ -162,7 +162,7 @@ public class MoveTool extends AbstractPathTool {
 		}
 		
 		// Store point for drag-to-pan
-        pDragging = viewer.componentPointToImagePoint(e.getX(), e.getY(), pDragging, false);
+        pDragging = mouseLocationToImage(e, false, true);
 //        viewer.setDoFasterRepaint(true); // Turn on if dragging is too slow
 	}
 	
@@ -188,7 +188,7 @@ public class MoveTool extends AbstractPathTool {
 		if (!e.isPrimaryButtonDown() || e.isConsumed())
             return;
 		
-		Point2D p = viewer.componentPointToImagePoint(e.getX(), e.getY(), null, true);
+		Point2D p = mouseLocationToImage(e, true, true);
 		
 		// Handle ROIs if the spacebar isn't down
 		if (!viewer.isSpaceDown()) {
@@ -252,7 +252,7 @@ public class MoveTool extends AbstractPathTool {
 		double yPrevious = pDragging.getY();
 		
 		// Calculate how much the image was dragged
-		pDragging = viewer.componentPointToImagePoint(e.getX(), e.getY(), pDragging, false);
+		pDragging = mouseLocationToImage(e, false, true);
 		dx = pDragging.getX() - xPrevious;
 		dy = pDragging.getY() - yPrevious;
 
@@ -260,7 +260,7 @@ public class MoveTool extends AbstractPathTool {
 		viewer.setDoFasterRepaint(true);
 		viewer.setCenterPixelLocation(viewer.getCenterPixelX() - dx, viewer.getCenterPixelY() - dy);
 //		viewer.setDoFasterRepaint(false);
-		pDragging = viewer.componentPointToImagePoint(e.getX(), e.getY(), pDragging, false);
+		pDragging = mouseLocationToImage(e, false, true);
 		lastDragTimestamp = System.currentTimeMillis();
 	}
 	
@@ -353,7 +353,7 @@ public class MoveTool extends AbstractPathTool {
 		// Check if we should have a panning or moving cursor, changing if required
 		ROI currentROI = viewer.getCurrentROI();
 		if (currentROI != null && canTranslate(viewer.getSelectedObject())) {
-			Point2D p2 = viewer.componentPointToImagePoint(e.getX(), e.getY(), null, true);
+			Point2D p2 = mouseLocationToImage(e, true, true);
 			double xx = p2.getX();
 			double yy = p2.getY();
 			if (RoiTools.areaContains(currentROI, xx, yy)) {

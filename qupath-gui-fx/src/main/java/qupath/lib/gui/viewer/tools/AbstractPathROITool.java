@@ -133,7 +133,7 @@ abstract class AbstractPathROITool extends AbstractPathTool {
 		}
 
 		// Find out the coordinates in the image domain
-		Point2D p2 = viewer.componentPointToImagePoint(e.getX(), e.getY(), null, false);
+		Point2D p2 = mouseLocationToImage(e, false, true);
 		double xx = p2.getX();
 		double yy = p2.getY();
 		if (xx < 0 || yy < 0 || xx >= viewer.getServerWidth() || yy >= viewer.getServerHeight())

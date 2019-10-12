@@ -2292,7 +2292,8 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 			pointDest.setLocation(x, y);
 		// Transform the point (in-place)
 		transformInverse.transform(pointDest, pointDest);
-		pointDest.setLocation(Math.round(pointDest.getX()), Math.round(pointDest.getY()));
+//		pointDest.setLocation(Math.floor(pointDest.getX()), Math.floor(pointDest.getY()));
+//		pointDest.setLocation(Math.round(pointDest.getX()), Math.round(pointDest.getY()));
 		// Constrain, if necessary
 		ImageServer<BufferedImage> server = getServer();
 		if (constrainToBounds && server != null) {

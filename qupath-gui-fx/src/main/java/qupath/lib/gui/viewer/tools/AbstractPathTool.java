@@ -25,6 +25,7 @@ package qupath.lib.gui.viewer.tools;
 
 import java.awt.Shape;
 import java.awt.geom.Area;
+import java.awt.geom.Point2D;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -88,6 +89,13 @@ abstract class AbstractPathTool implements PathTool, QuPathViewerListener {
 	
 	protected QuPathViewer getViewer() {
 		return viewer;
+	}
+	
+	protected Point2D mouseLocationToImage(MouseEvent e, boolean constrainToBounds, boolean snapToPixel) {
+		var p = viewer.componentPointToImagePoint(e.getX(), e.getY(), null, constrainToBounds);
+		if (snapToPixel)
+			p.setLocation(Math.floor(p.getX()), Math.floor(p.getY()));
+		return p;
 	}
 
 	

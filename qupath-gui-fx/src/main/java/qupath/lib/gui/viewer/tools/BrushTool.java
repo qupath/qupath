@@ -180,7 +180,7 @@ public class BrushTool extends AbstractPathROITool {
 		
 		// Determine if we are creating a new object
 //		boolean createNew = currentObject == null || e.getClickCount() > 1;// || (!currentObject.getROI().contains(p.getX(), p.getY()) && !e.isAltDown());
-		Point2D p = viewer.componentPointToImagePoint(e.getX(), e.getY(), null, false);
+		Point2D p = mouseLocationToImage(e, false, true);
 		double xx = p.getX();
 		double yy = p.getY();
 		if (xx < 0 || yy < 0 || xx >= viewer.getServerWidth() || yy >= viewer.getServerHeight())
@@ -310,7 +310,7 @@ public class BrushTool extends AbstractPathROITool {
 	
 	
 	private PathObject getUpdatedObject(MouseEvent e, PathShape shapeROI, PathObject currentObject, double flatness) {
-		Point2D p = viewer.componentPointToImagePoint(e.getX(), e.getY(), null, true);
+		Point2D p = mouseLocationToImage(e, true, true);
 		
 		ImagePlane plane = shapeROI == null ? ImagePlane.getPlane(viewer.getZPosition(), viewer.getTPosition()) : shapeROI.getImagePlane();
 		Geometry shapeNew;
@@ -453,8 +453,8 @@ public class BrushTool extends AbstractPathROITool {
 		Geometry geometry;
 		if (lastPoint == null) {
 			var shapeFactory = new GeometricShapeFactory(getGeometryFactory());
-			shapeFactory.setSize(diameter);
 			shapeFactory.setCentre(new Coordinate(x, y));
+			shapeFactory.setSize(diameter);
 //			shapeFactory.setCentre(new Coordinate(x-diameter/2, y-diameter/2));
 			geometry = shapeFactory.createEllipse();
 		} else {
@@ -521,10 +521,10 @@ public class BrushTool extends AbstractPathROITool {
 		@Override
 		public void filter(CoordinateSequence seq, int i) {
 			seq.setOrdinate(i, Coordinate.X,
-					Math.min(maxX, Math.max(minX, Math.floor(seq.getOrdinate(i, Coordinate.X)))));
+					Math.min(maxX, Math.max(minX, Math.round(seq.getOrdinate(i, Coordinate.X)))));
 			
 			seq.setOrdinate(i, Coordinate.Y,
-					Math.min(maxY, Math.max(minY, Math.floor(seq.getOrdinate(i, Coordinate.Y)))));
+					Math.min(maxY, Math.max(minY, Math.round(seq.getOrdinate(i, Coordinate.Y)))));
 		}
 		
 	};

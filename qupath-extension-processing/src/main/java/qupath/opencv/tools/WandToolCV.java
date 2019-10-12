@@ -273,7 +273,7 @@ public class WandToolCV extends BrushTool {
 		
 		GeometryFactory factory = getGeometryFactory();
 		
-		if (pLast != null && pLast.distanceSq(x, y) < 2)
+		if (addToShape != null && pLast != null && pLast.distanceSq(x, y) < 2)
 			return null;
 		
 		long startTime = System.currentTimeMillis();
