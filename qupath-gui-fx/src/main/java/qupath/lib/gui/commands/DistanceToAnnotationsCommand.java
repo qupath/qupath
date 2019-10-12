@@ -13,6 +13,8 @@ import org.locationtech.jts.algorithm.locate.IndexedPointInAreaLocator;
 import org.locationtech.jts.algorithm.locate.PointOnGeometryLocator;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.LineString;
+import org.locationtech.jts.geom.Lineal;
 import org.locationtech.jts.geom.Location;
 import org.locationtech.jts.geom.Puntal;
 import org.locationtech.jts.geom.util.GeometryCombiner;
@@ -89,27 +91,35 @@ public class DistanceToAnnotationsCommand implements PathCommand {
 				.pixelSize(pixelWidth, pixelHeight);
 		var converter = builder.build();
 		
-		List<Geometry> shapeGeometries = new ArrayList<>();
+		List<Geometry> areaGeometries = new ArrayList<>();
+		List<Geometry> lineGeometries = new ArrayList<>();
 		List<Geometry> pointGeometries = new ArrayList<>();
 		for (var annotation : hierarchy.getAnnotationObjects()) {
 			if (annotation.hasROI() && annotation.getPathClass() == testPathClass) {
 				var geom = converter.roiToGeometry(annotation.getROI());
 				if (geom instanceof Puntal)
 					pointGeometries.add(geom);
+				else if (geom instanceof Lineal)
+					lineGeometries.add(geom);
 				else
-					shapeGeometries.add(geom);
+					areaGeometries.add(geom);
 			}
 		}
 
-		if (shapeGeometries.isEmpty() && pointGeometries.isEmpty())
+		if (areaGeometries.isEmpty() && pointGeometries.isEmpty() && lineGeometries.isEmpty())
 			return;
 		
 		List<Coordinate> pointCoords = new ArrayList<>();
 		
 		Geometry temp = null;
-		if (!shapeGeometries.isEmpty())
-			temp = shapeGeometries.size() == 1 ? shapeGeometries.get(0) : GeometryCombiner.combine(shapeGeometries);
+		if (!areaGeometries.isEmpty())
+			temp = areaGeometries.size() == 1 ? areaGeometries.get(0) : GeometryCombiner.combine(areaGeometries);
 		Geometry shapeGeometry = temp;
+		
+		temp = null;
+		if (!lineGeometries.isEmpty())
+			temp = lineGeometries.size() == 1 ? lineGeometries.get(0) : GeometryCombiner.combine(lineGeometries);
+		Geometry lineGeometry = temp;
 		
 		if (!pointGeometries.isEmpty()) {
 			for (var geom : pointGeometries) {
@@ -125,8 +135,9 @@ public class DistanceToAnnotationsCommand implements PathCommand {
 			var roi = p.getROI();
 			Coordinate coord = new Coordinate(roi.getCentroidX() * pixelWidth, roi.getCentroidY() * pixelHeight);
 			double pointDistance = pointCoords == null ? Double.POSITIVE_INFINITY : computeCoordinateDistance(coord, pointCoords);
+			double lineDistance = lineGeometry == null ? Double.POSITIVE_INFINITY : computeDistance(coord, lineGeometry, null);
 			double shapeDistance = shapeGeometry == null ? Double.POSITIVE_INFINITY : computeDistance(coord, shapeGeometry, locator);
-			double distance = Math.min(pointDistance, shapeDistance);
+			double distance = Math.min(lineDistance, Math.min(pointDistance, shapeDistance));
 			
 			try (var ml = p.getMeasurementList()) {
 				ml.putMeasurement(name, distance);
@@ -145,6 +156,11 @@ public class DistanceToAnnotationsCommand implements PathCommand {
 	}
 	
 	private static double computeDistance(Coordinate coord, Geometry geometry, PointOnGeometryLocator locator) {
+		if (locator == null) {
+			PointPairDistance dist = new PointPairDistance();
+			DistanceToPoint.computeDistance(geometry, coord, dist);
+			return dist.getDistance();
+		}
 		int location = locator.locate(coord);
 		double distance = 0;
 		if (location == Location.EXTERIOR) {

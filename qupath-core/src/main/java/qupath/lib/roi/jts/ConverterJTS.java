@@ -189,7 +189,7 @@ public class ConverterJTS {
     }
     
     private Geometry lineToGeometry(PathLine roi) {
-    	var coords = roi.getPolygonPoints().stream().map(p -> new Coordinate(p.getX(), p.getY())).toArray(Coordinate[]::new);
+    	var coords = roi.getPolygonPoints().stream().map(p -> new Coordinate(p.getX() * pixelWidth, p.getY() * pixelHeight)).toArray(Coordinate[]::new);
     	return factory.createLineString(coords);
     }
     
