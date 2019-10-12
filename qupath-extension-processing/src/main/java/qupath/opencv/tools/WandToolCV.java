@@ -27,15 +27,14 @@ import java.awt.AlphaComposite;
 import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Graphics2D;
-import java.awt.Shape;
-import java.awt.geom.Area;
-import java.awt.geom.Path2D;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferByte;
 import java.nio.ByteBuffer;
 import java.nio.DoubleBuffer;
+import java.util.ArrayList;
+import java.util.List;
 
 import static org.bytedeco.opencv.global.opencv_core.*;
 
@@ -46,6 +45,11 @@ import org.bytedeco.opencv.opencv_core.MatVector;
 import org.bytedeco.opencv.opencv_core.Point;
 import org.bytedeco.opencv.opencv_core.Scalar;
 import org.bytedeco.opencv.opencv_core.Size;
+import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.GeometryFactory;
+import org.locationtech.jts.geom.util.AffineTransformation;
+import org.locationtech.jts.geom.util.GeometryCombiner;
 import org.bytedeco.javacpp.indexer.FloatIndexer;
 import org.bytedeco.javacpp.indexer.IntIndexer;
 import org.slf4j.Logger;
@@ -55,7 +59,6 @@ import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.ObjectProperty;
-import qupath.lib.awt.common.AwtTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.images.stores.ImageRegionRenderer;
 import qupath.lib.gui.prefs.PathPrefs;
@@ -266,18 +269,20 @@ public class WandToolCV extends BrushTool {
 	
 	
 	@Override
-	protected Shape createShape(double x, double y, boolean useTiles, Shape addToShape) {
+	protected Geometry createShape(double x, double y, boolean useTiles, Geometry addToShape) {
+		
+		GeometryFactory factory = getGeometryFactory();
 		
 		if (pLast != null && pLast.distanceSq(x, y) < 2)
-			return new Path2D.Float();
+			return null;
 		
 		long startTime = System.currentTimeMillis();
 		
 		QuPathViewer viewer = getViewer();
 		if (viewer == null)
-			return new Path2D.Float();
+			return null;
 		
-		double downsample = viewer.getDownsampleFactor();
+		double downsample = Math.max(1, Math.round(viewer.getDownsampleFactor() * 4)) / 4.0;
 		
 		ImageRegionRenderer regionStore = viewer.getImageRegionStore();
 		
@@ -291,12 +296,12 @@ public class WandToolCV extends BrushTool {
 		g2d.setColor(Color.BLACK);
 		g2d.setClip(0, 0, w, w);
 		g2d.fillRect(0, 0, w, w);
-		double xStart = x-w*downsample*0.5;
-		double yStart = y-w*downsample*0.5;
+		double xStart = Math.round(x-w*downsample*0.5);
+		double yStart = Math.round(y-w*downsample*0.5);
 		bounds.setFrame(xStart, yStart, w*downsample, w*downsample);
 		g2d.scale(1.0/downsample, 1.0/downsample);
 		g2d.translate(-xStart, -yStart);
-		regionStore.paintRegion(viewer.getServer(), g2d, bounds, viewer.getZPosition(), viewer.getTPosition(), viewer.getDownsampleFactor(), null, null, viewer.getImageDisplay());
+		regionStore.paintRegion(viewer.getServer(), g2d, bounds, viewer.getZPosition(), viewer.getTPosition(), downsample, null, null, viewer.getImageDisplay());
 //		regionStore.paintRegionCompletely(viewer.getServer(), g2d, bounds, viewer.getZPosition(), viewer.getTPosition(), viewer.getDownsampleFactor(), null, viewer.getImageDisplay(), 250);
 		// Optionally include the overlay information when using the wand
 		float opacity = viewer.getOverlayOptions().getOpacity();
@@ -310,33 +315,6 @@ public class WandToolCV extends BrushTool {
 					overlay.paintOverlay(g2d, region, downsample, null, true);
 			}
 		}
-		
-		// Create a mask for the current shape, if required
-		// Because of the later morphological operations, this helps avoid tiny fragmented regions/gaps being generated
-		// At least, that was the idea... in reality it was buggy and did more harm than good, so has been removed
-		boolean hasMask = false;
-//		if (addToShape != null) {
-//			g2d = imgSelected.createGraphics();
-//			g2d.setColor(Color.BLACK);
-//			g2d.fillRect(0, 0, imgSelected.getWidth(), imgSelected.getHeight());
-//			g2d.setColor(Color.WHITE);
-//			// Fill in the center region, around the click
-//			g2d.fillRect((w+2)/2-1, (w+2)/2-1, 3, 3);
-//			g2d.translate(1, 1);
-//			g2d.scale(1.0/downsample, 1.0/downsample);
-//			g2d.translate(-xStart, -yStart);
-//			// Fill in the selected shape
-//			g2d.fill(addToShape);
-//			g2d.dispose();
-////			new ImagePlus("Mask", imgSelected).show();
-//			byte[] buffer = ((DataBufferByte)imgSelected.getRaster().getDataBuffer()).getData(0);
-//		    ByteBuffer matBuffer = matSelected.createBuffer();
-//		    matBuffer.clear();
-//		    matBuffer.put(buffer);
-//		    hasMask = true;
-//		} else
-//			matSelected.put(Scalar.ZERO);
-//		hasMask = false;
 		
 		// Ensure we have Mats & the correct channel number
 		if (mat != null && (mat.channels() != nChannels || mat.depth() != opencv_core.CV_8U)) {
@@ -430,23 +408,16 @@ public class WandToolCV extends BrushTool {
 		// Limit maximum radius by pen
 		int radius = (int)Math.round(w / 2 * QuPathPenManager.getPenManager().getPressure());
 		if (radius == 0)
-			return new Path2D.Float();
+			return null;
 		matMask.put(Scalar.ZERO);
 		opencv_imgproc.circle(matMask, seed, radius, Scalar.ONE);
 		opencv_imgproc.floodFill(matThreshold, matMask, seed, Scalar.ONE, null, threshold, threshold, 4 | (2 << 8) | opencv_imgproc.FLOODFILL_MASK_ONLY | opencv_imgproc.FLOODFILL_FIXED_RANGE);
 		subtractPut(matMask, Scalar.ONE);
 		
-		if (hasMask)
-			opencv_core.orPut(matMask, matSelected);
-		
 		if (strel == null)
 			strel = opencv_imgproc.getStructuringElement(opencv_imgproc.MORPH_ELLIPSE, new Size(5, 5));
 		opencv_imgproc.morphologyEx(matMask, matMask, opencv_imgproc.MORPH_CLOSE, strel);
-		if (hasMask)
-			opencv_core.orPut(matMask, matSelected);
-//		opencv_imgproc.morphologyEx(matMask, matMask, opencv_imgproc.MORPH_OPEN, strel);
-////		opencv_imgproc.morphologyEx(matMask, matMask, opencv_imgproc.MORPH_OPEN, opencv_imgproc.getStructuringElement(opencv_imgproc.MORPH_ELLIPSE, size));
-//		
+
 		MatVector contours = new MatVector();
 		if (contourHierarchy == null)
 			contourHierarchy = new Mat();
@@ -455,9 +426,8 @@ public class WandToolCV extends BrushTool {
 		opencv_imgproc.findContours(matMask, contours, contourHierarchy, opencv_imgproc.RETR_EXTERNAL, opencv_imgproc.CHAIN_APPROX_SIMPLE);
 //		logger.trace("Contours: " + contours.size());
 
-		Path2D path = new Path2D.Float();
-		boolean isOpen = false;
-		boolean hasPath = false;
+		List<Coordinate> coords = new ArrayList<>();
+		List<Geometry> geometries = new ArrayList<>();
 		for (long i = 0; i < contours.size(); i++) {
 			
 			Mat contour = contours.get(i);
@@ -466,37 +436,35 @@ public class WandToolCV extends BrushTool {
 			if (contour.size().height() <= 2)
 				continue;
 			
-			hasPath = true;
-			
-			// Create a polygon ROI
-			boolean firstPoint = true;
+			// Create a polygon geometry
 			IntIndexer idxrContours = contour.createIndexer();
 			for (long r = 0; r < idxrContours.rows(); r++) {
 				int px = idxrContours.get(r, 0L, 0L);
 				int py = idxrContours.get(r, 0L, 1L);
-				double xx = (px - w/2-1) * downsample + x;
-				double yy = (py - w/2-1) * downsample + y;
-				if (firstPoint) {
-					path.moveTo(xx, yy);
-					firstPoint = false;
-					isOpen = true;
-				} else
-					path.lineTo(xx, yy);
+				double xx = (px - w/2-1);// * downsample + x;
+				double yy = (py - w/2-1);// * downsample + y;
+				coords.add(new Coordinate(xx, yy));
 			}
-			if (isOpen)
-				path.closePath();
+			// Ensure closed
+			if (coords.size() > 1) {
+				if (!coords.get(coords.size()-1).equals(coords.get(0)))
+					coords.add(coords.get(0));
+				geometries.add(factory.createPolygon(coords.toArray(Coordinate[]::new)));
+			}
 		}
-		
-		if (!hasPath)
-			return path;
+		if (geometries.isEmpty())
+			return null;
 		
 		// Handle the fact that OpenCV contours are defined using the 'pixel center' by dilating the boundary
-		var shape = new Area(path);
-		float df = (float)downsample;
-		if (stroke == null || stroke.getLineWidth() != df)
-			stroke = new BasicStroke(df);
-		shape.add(new Area(stroke.createStrokedShape(shape)));
+		var geometry = geometries.size() == 1 ? geometries.get(0) : GeometryCombiner.combine(geometries);
+		geometry = geometry.buffer(0.5);
 		
+		// Transform to map to integer pixel locations in the full-resolution image
+		var transform = new AffineTransformation()
+				.scale(downsample, downsample)
+				.translate(x, y);
+		geometry = transform.transform(geometry);
+		geometry = roundAndConstrain(geometry, 0, 0, viewer.getServerWidth(), viewer.getServerHeight());
 		
 		long endTime = System.currentTimeMillis();
 		logger.trace(getClass().getSimpleName() + " time: " + (endTime - startTime));
@@ -506,13 +474,7 @@ public class WandToolCV extends BrushTool {
 		else
 			pLast.setLocation(x, y);
 		
-		Rectangle2D bounds = AwtTools.getBounds(viewer.getServerBounds());
-		if (!bounds.contains(shape.getBounds2D())) {
-			Area area = new Area(shape);
-			area.intersect(new Area(bounds));
-			return area;
-		}
-		return shape;
+		return geometry;
 	}
 	
 	

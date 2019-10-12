@@ -516,7 +516,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 
 
 	public double getMinDownsample() {
-		return 0.0625;
+		return 1.0/64.0;
 	}
 
 	public double getMaxDownsample() {
@@ -2292,6 +2292,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 			pointDest.setLocation(x, y);
 		// Transform the point (in-place)
 		transformInverse.transform(pointDest, pointDest);
+		pointDest.setLocation(Math.round(pointDest.getX()), Math.round(pointDest.getY()));
 		// Constrain, if necessary
 		ImageServer<BufferedImage> server = getServer();
 		if (constrainToBounds && server != null) {

@@ -164,7 +164,13 @@ public class ConverterJTS {
     
 
     private ConverterJTS(final GeometryFactory factory, final double pixelWidth, final double pixelHeight, final double flatness) {
-        this.factory = factory == null ? new GeometryFactory(new PrecisionModel(PrecisionModel.FLOATING_SINGLE)) : factory;
+    	if (factory == null) {
+        	if (pixelWidth == 1 && pixelHeight == 1)
+        		this.factory = new GeometryFactory(new PrecisionModel(100.0));
+        	else
+        		this.factory = new GeometryFactory(new PrecisionModel(PrecisionModel.FLOATING_SINGLE));
+    	} else
+    		this.factory = factory;
         this.flatness = flatness;
         this.pixelHeight = pixelHeight;
         this.pixelWidth = pixelWidth;
