@@ -3273,7 +3273,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 						null,
 						createPluginAction("Add Local Binary Pattern features (experimental)", LocalBinaryPatternsPlugin.class, this, null),
 						null,
-						createCommandAction(new DistanceToAnnotationsCommand(this), "Distance to annotations (experimental)")
+						createCommandAction(new DistanceToAnnotationsCommand(this), "Distance to annotations 2D (experimental)")
 						)
 				);
 

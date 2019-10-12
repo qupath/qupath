@@ -13,7 +13,6 @@ import org.locationtech.jts.algorithm.locate.IndexedPointInAreaLocator;
 import org.locationtech.jts.algorithm.locate.PointOnGeometryLocator;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
-import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.Lineal;
 import org.locationtech.jts.geom.Location;
 import org.locationtech.jts.geom.Puntal;
@@ -23,6 +22,7 @@ import org.slf4j.LoggerFactory;
 
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
+import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.objects.classes.PathClass;
@@ -63,6 +63,12 @@ public class DistanceToAnnotationsCommand implements PathCommand {
 				.filter(p -> !ignoreClasses.contains(p))
 				.collect(Collectors.toSet());
 		
+		if (imageData.getServer().nZSlices() > 1) {
+			if (!DisplayHelpers.showConfirmDialog("Distance to annotations 2D", 
+					"Distance to annotations command works only in 2D - distances will not be calculated for objects on different z-slices or time-points"))
+				return;
+		}
+		
 		for (PathClass pathClass : pathClasses) {
 			logger.info("Computing distances for {}", pathClass);
 			computeDistances(imageData, pathClass);
@@ -91,59 +97,70 @@ public class DistanceToAnnotationsCommand implements PathCommand {
 				.pixelSize(pixelWidth, pixelHeight);
 		var converter = builder.build();
 		
-		List<Geometry> areaGeometries = new ArrayList<>();
-		List<Geometry> lineGeometries = new ArrayList<>();
-		List<Geometry> pointGeometries = new ArrayList<>();
-		for (var annotation : hierarchy.getAnnotationObjects()) {
-			if (annotation.hasROI() && annotation.getPathClass() == testPathClass) {
-				var geom = converter.roiToGeometry(annotation.getROI());
-				if (geom instanceof Puntal)
-					pointGeometries.add(geom);
-				else if (geom instanceof Lineal)
-					lineGeometries.add(geom);
-				else
-					areaGeometries.add(geom);
-			}
-		}
-
-		if (areaGeometries.isEmpty() && pointGeometries.isEmpty() && lineGeometries.isEmpty())
-			return;
-		
-		List<Coordinate> pointCoords = new ArrayList<>();
-		
-		Geometry temp = null;
-		if (!areaGeometries.isEmpty())
-			temp = areaGeometries.size() == 1 ? areaGeometries.get(0) : GeometryCombiner.combine(areaGeometries);
-		Geometry shapeGeometry = temp;
-		
-		temp = null;
-		if (!lineGeometries.isEmpty())
-			temp = lineGeometries.size() == 1 ? lineGeometries.get(0) : GeometryCombiner.combine(lineGeometries);
-		Geometry lineGeometry = temp;
-		
-		if (!pointGeometries.isEmpty()) {
-			for (var geom : pointGeometries) {
-				for (var coord : geom.getCoordinates())
-					pointCoords.add(coord);
-			}
-		}
-		
+		var allAnnotations = hierarchy.getAnnotationObjects();
 		var detections = hierarchy.getDetectionObjects();
+
+		for (int t = 0; t < server.nTimepoints(); t++) {
+			for (int z = 0; z < server.nZSlices(); z++) {
+				
+				List<Geometry> areaGeometries = new ArrayList<>();
+				List<Geometry> lineGeometries = new ArrayList<>();
+				List<Geometry> pointGeometries = new ArrayList<>();
+				for (var annotation : allAnnotations) {
+					var roi = annotation.getROI();
+					if (roi != null && roi.getZ() == z && roi.getT() == t && annotation.getPathClass() == testPathClass) {
+						var geom = converter.roiToGeometry(annotation.getROI());
+						if (geom instanceof Puntal)
+							pointGeometries.add(geom);
+						else if (geom instanceof Lineal)
+							lineGeometries.add(geom);
+						else
+							areaGeometries.add(geom);
+					}
+				}
 		
-		var locator = new IndexedPointInAreaLocator(shapeGeometry);
-		detections.parallelStream().forEach(p -> {
-			var roi = p.getROI();
-			Coordinate coord = new Coordinate(roi.getCentroidX() * pixelWidth, roi.getCentroidY() * pixelHeight);
-			double pointDistance = pointCoords == null ? Double.POSITIVE_INFINITY : computeCoordinateDistance(coord, pointCoords);
-			double lineDistance = lineGeometry == null ? Double.POSITIVE_INFINITY : computeDistance(coord, lineGeometry, null);
-			double shapeDistance = shapeGeometry == null ? Double.POSITIVE_INFINITY : computeDistance(coord, shapeGeometry, locator);
-			double distance = Math.min(lineDistance, Math.min(pointDistance, shapeDistance));
-			
-			try (var ml = p.getMeasurementList()) {
-				ml.putMeasurement(name, distance);
+				if (areaGeometries.isEmpty() && pointGeometries.isEmpty() && lineGeometries.isEmpty())
+					continue;
+				
+				List<Coordinate> pointCoords = new ArrayList<>();
+				
+				Geometry temp = null;
+				if (!areaGeometries.isEmpty())
+					temp = areaGeometries.size() == 1 ? areaGeometries.get(0) : GeometryCombiner.combine(areaGeometries);
+				Geometry shapeGeometry = temp;
+				
+				temp = null;
+				if (!lineGeometries.isEmpty())
+					temp = lineGeometries.size() == 1 ? lineGeometries.get(0) : GeometryCombiner.combine(lineGeometries);
+				Geometry lineGeometry = temp;
+				
+				if (!pointGeometries.isEmpty()) {
+					for (var geom : pointGeometries) {
+						for (var coord : geom.getCoordinates())
+							pointCoords.add(coord);
+					}
+				}
+				
+				int zi = z;
+				int ti = t;
+				
+				var locator = new IndexedPointInAreaLocator(shapeGeometry);
+				detections.parallelStream().forEach(p -> {
+					var roi = p.getROI();
+					if (roi.getZ() != zi || roi.getT() != ti)
+						return;
+					Coordinate coord = new Coordinate(roi.getCentroidX() * pixelWidth, roi.getCentroidY() * pixelHeight);
+					double pointDistance = pointCoords == null ? Double.POSITIVE_INFINITY : computeCoordinateDistance(coord, pointCoords);
+					double lineDistance = lineGeometry == null ? Double.POSITIVE_INFINITY : computeDistance(coord, lineGeometry, null);
+					double shapeDistance = shapeGeometry == null ? Double.POSITIVE_INFINITY : computeDistance(coord, shapeGeometry, locator);
+					double distance = Math.min(lineDistance, Math.min(pointDistance, shapeDistance));
+					
+					try (var ml = p.getMeasurementList()) {
+						ml.putMeasurement(name, distance);
+					}
+				});
 			}
-		});
-		
+		}
 		hierarchy.fireObjectMeasurementsChangedEvent(DistanceToAnnotationsCommand.class, detections);
 	}
 	
