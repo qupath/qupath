@@ -53,7 +53,7 @@ import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
-import qupath.lib.classifiers.PathClassificationLabellingHelper;
+import qupath.lib.classifiers.PathClassifierTools;
 import qupath.lib.classifiers.pixel.PixelClassificationImageServer;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.geom.Point2;
@@ -206,7 +206,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 		
 		
 		// Get all the 'built-in' feature measurements, stored in the measurement list
-		Collection<String> features = PathClassificationLabellingHelper.getAvailableFeatures(pathObjectListCopy);
+		Collection<String> features = PathClassifierTools.getAvailableFeatures(pathObjectListCopy);
 		
 		// Add derived measurements if we don't have only detections
 		if (containsAnnotations || containsTMACores || containsRoot) {
@@ -520,7 +520,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 			if (imageData == null || imageData.getHierarchy() == null)
 				return;
 			
-			Set<PathClass> pathClasses = PathClassificationLabellingHelper.getRepresentedPathClasses(imageData.getHierarchy(), PathDetectionObject.class);
+			Set<PathClass> pathClasses = PathClassifierTools.getRepresentedPathClasses(imageData.getHierarchy(), PathDetectionObject.class);
 
 //			// Ensure that any base classes are present
 //			Set<PathClass> basePathClasses = new LinkedHashSet<>();

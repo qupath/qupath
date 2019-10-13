@@ -262,6 +262,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 		CONFUSED_CLASSES.put("QP", QP.class);
 		CONFUSED_CLASSES.put("QPEx", QPEx.class);
 		CONFUSED_CLASSES.put("ShapeSimplifierAwt", ShapeSimplifier.class);
+		CONFUSED_CLASSES.put("ImagePlusServerBuilder", IJTools.class);
 		CONFUSED_CLASSES = Collections.unmodifiableMap(CONFUSED_CLASSES);
 	}
 
@@ -562,7 +563,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 				null,
 				createKillRunningScriptAction("Kill running script"),
 				null,
-				QuPathGUI.createCheckMenuItem(QuPathGUI.createSelectableCommandAction(useDefaultBindings, "Include default bindings")),
+				QuPathGUI.createCheckMenuItem(QuPathGUI.createSelectableCommandAction(useDefaultBindings, "Include default imports")),
 				QuPathGUI.createCheckMenuItem(QuPathGUI.createSelectableCommandAction(sendLogToConsole, "Send output to log")),
 				QuPathGUI.createCheckMenuItem(QuPathGUI.createSelectableCommandAction(outputScriptStartTime, "Log script start time")),
 				QuPathGUI.createCheckMenuItem(QuPathGUI.createSelectableCommandAction(autoClearConsole, "Auto clear console"))
@@ -820,23 +821,46 @@ public class DefaultScriptEditor implements ScriptEditor {
 				
 				Writer errorWriter = context.getErrorWriter();
 				
+				StringBuilder sb = new StringBuilder();
 				String message = cause.getLocalizedMessage();
-				var matcher = Pattern.compile("unable to resolve class ([A-Za-z_.-]+)").matcher(message);
-				if (matcher.find()) {
-					String missingClass = matcher.group(1).strip();
-					errorWriter.append("It looks like you have tried to import a class '" + missingClass + "' that doesn't exist!\n");
-					int ind = missingClass.lastIndexOf(".");
-					if (ind >= 0)
-						missingClass = missingClass.substring(ind+1);
-					Class<?> suggestedClass = CONFUSED_CLASSES.get(missingClass);
-					if (suggestedClass != null)
-						errorWriter.append("You might want to try import " + suggestedClass.getName() + " \n");
-				}
 				if (line < 0) {
 					var lineMatcher = Pattern.compile("@ line ([\\d]+)").matcher(message);
 					if (lineMatcher.find())
 						line = Integer.parseInt(lineMatcher.group(1));
 				}
+				
+				// Check if the error was to do with an import statement
+				var matcher = Pattern.compile("unable to resolve class ([A-Za-z_.-]+)").matcher(message);
+				if (matcher.find()) {
+					String missingClass = matcher.group(1).strip();
+					sb.append("It looks like you have tried to import a class '" + missingClass + "' that doesn't exist!\n");
+					int ind = missingClass.lastIndexOf(".");
+					if (ind >= 0)
+						missingClass = missingClass.substring(ind+1);
+					Class<?> suggestedClass = CONFUSED_CLASSES.get(missingClass);
+					if (suggestedClass != null) {
+						sb.append("You should probably remove the broken import statement in your script (around line " + line + ").\n");
+						sb.append("Then you may want to check 'Run -> Include default imports' is selected, or alternatively add ");
+						sb.append("\n    import " + suggestedClass.getName() + "\nat the start of the script. Full error message below.\n");
+					}
+				}
+
+				// Check if the error was to do with a missing property... which can again be thanks to an import statement
+				var matcherProperty = Pattern.compile("No such property: ([A-Za-z_.-]+)").matcher(message);
+				if (matcherProperty.find()) {
+					String missingClass = matcherProperty.group(1).strip();
+					sb.append("I cannot find '" + missingClass + "'!\n");
+					int ind = missingClass.lastIndexOf(".");
+					if (ind >= 0)
+						missingClass = missingClass.substring(ind+1);
+					Class<?> suggestedClass = CONFUSED_CLASSES.get(missingClass);
+					if (suggestedClass != null) {
+						sb.append("You might want to check 'Run -> Include default imports' is selected, or alternatively add ");
+						sb.append("\n    import " + suggestedClass.getName() + "\nat the start of the script. Full error message below.\n");
+					}
+				}
+				if (sb.length() > 0)
+					errorWriter.append(sb.toString());
 				
 				if (line >= 0) {
 					line = line - extraLines;

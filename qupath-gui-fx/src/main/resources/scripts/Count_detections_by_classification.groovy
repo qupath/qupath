@@ -2,11 +2,11 @@
  * Example script to output the number of detections with each classification.
  */
 
-import qupath.lib.scripting.QP;
+import static qupath.lib.scripting.QP.*;
 
 // Create a map, linking PathClasses for each detections object with counts
 def countMap = [:]
-for (pathObject in QP.getDetectionObjects()) {
+for (pathObject in getDetectionObjects()) {
     def pathClass = pathObject.getPathClass()
     def count = countMap.get(pathClass)
     if (count == null)

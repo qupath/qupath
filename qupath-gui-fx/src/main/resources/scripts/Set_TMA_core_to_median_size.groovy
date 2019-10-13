@@ -10,13 +10,15 @@
 
 import qupath.lib.objects.TMACoreObject
 import qupath.lib.roi.EllipseROI
-import qupath.lib.scripting.QPEx
+import qupath.lib.roi.ROIs
+
+import static qupath.lib.scripting.QP.*
 
 // Get the currently-selected object
-def core = QPEx.getSelectedObject();
+def core = getSelectedObject();
 
 // Get the TMA core list
-def cores = QPEx.getTMACoreList()
+def cores = getTMACoreList()
 if (cores.isEmpty()) {
     println("No TMA cores found!")
     return
@@ -41,12 +43,12 @@ double medianHeight = heights[n]
 // Set the core ROI
 double cx = core.getROI().getCentroidX()
 double cy = core.getROI().getCentroidY()
-EllipseROI roi = new EllipseROI(cx-medianWidth/2, cy-medianHeight/2, medianWidth, medianHeight,
-        core.getROI().getC(), core.getROI().getZ(), core.getROI().getT());
+def roi = ROIs.createEllipseROI(cx-medianWidth/2, cy-medianHeight/2, medianWidth, medianHeight,
+        core.getROI().getImagePlane());
 core.setROI(roi);
 
 // Update the hierarchy
-QPEx.getCurrentHierarchy().fireHierarchyChangedEvent(this);
+getCurrentHierarchy().fireHierarchyChangedEvent(this);
 
 // Print something
 print(sprintf("Resized %s to %.2f x %.2f pixels", core.toString(), medianWidth , medianHeight))

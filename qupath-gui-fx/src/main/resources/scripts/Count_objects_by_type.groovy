@@ -3,22 +3,22 @@
  * identified using two different methods.
  */
 
-import qupath.lib.scripting.QP;
+import static qupath.lib.scripting.QP.*;
 
 // Method #1: Use static helper methods from QP class
 
 // Output counts for the main object types
 println("Counts for main object types:")
-if (QP.getTMACoreList() != null)
-    println("  Number of TMA cores:\t" + QP.getTMACoreList().size())
-println("  Number of annotations:\t" + QP.getAnnotationObjects().size())
-println("  Number of detections:\t" + QP.getDetectionObjects().size())
+if (getTMACoreList() != null)
+    println("  Number of TMA cores:\t" + getTMACoreList().size())
+println("  Number of annotations:\t" + getAnnotationObjects().size())
+println("  Number of detections:\t" + getDetectionObjects().size())
 
 //----------------------------------------
 // Method #2: Loop through all objects & count
 
 // Get a reference to the current object hierarchy
-def hierarchy = QP.getCurrentHierarchy();
+def hierarchy = getCurrentHierarchy();
 
 // Create a map, linking Java classes for each object with counts
 def countMap = [:]
