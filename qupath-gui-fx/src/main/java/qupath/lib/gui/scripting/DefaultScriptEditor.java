@@ -33,9 +33,11 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Scanner;
 import java.util.concurrent.Future;
@@ -109,6 +111,7 @@ import javafx.scene.text.TextAlignment;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.util.Callback;
+import qupath.imagej.tools.IJTools;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
@@ -121,8 +124,11 @@ import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.scripting.QPEx;
 import qupath.lib.gui.scripting.ScriptEditor;
 import qupath.lib.images.ImageData;
+import qupath.lib.objects.PathObjects;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectImageEntry;
+import qupath.lib.roi.RoiTools;
+import qupath.lib.roi.ShapeSimplifier;
 import qupath.lib.scripting.QP;
 
 
@@ -175,6 +181,8 @@ public class DefaultScriptEditor implements ScriptEditor {
 		}
 		
 	}
+	
+	
 
 //	private static final List<String> SUPPORTED_LANGUAGES = Collections.unmodifiableList(
 //			Arrays.asList("JavaScript", "Jython", "Groovy", "Ruby"));
@@ -234,13 +242,34 @@ public class DefaultScriptEditor implements ScriptEditor {
 	private static ScriptEngineManager manager = createManager();
 	
 	private ListView<ScriptTab> listScripts = new ListView<>();
+	
+	/**
+	 * Create a map of classes that have changed, and therefore old scripts may use out-of-date import statements.
+	 * This allows us to be a bit more helpful in handling the error message.
+	 */
+	private static Map<String, Class<?>> CONFUSED_CLASSES;
+	
+	static {	
+		CONFUSED_CLASSES = new HashMap<>();
+		for (Class<?> cls : QP.getCoreClasses()) {
+			CONFUSED_CLASSES.put(cls.getSimpleName(), cls);
+		}
+		CONFUSED_CLASSES.put("PathRoiToolsAwt", RoiTools.class);
+		CONFUSED_CLASSES.put("PathDetectionObject", PathObjects.class);
+		CONFUSED_CLASSES.put("PathAnnotationObject", PathObjects.class);
+		CONFUSED_CLASSES.put("PathCellObject", PathObjects.class);
+		CONFUSED_CLASSES.put("RoiConverterIJ", IJTools.class);
+		CONFUSED_CLASSES.put("QP", QP.class);
+		CONFUSED_CLASSES.put("QPEx", QPEx.class);
+		CONFUSED_CLASSES.put("ShapeSimplifierAwt", ShapeSimplifier.class);
+		CONFUSED_CLASSES = Collections.unmodifiableMap(CONFUSED_CLASSES);
+	}
 
 
 	public DefaultScriptEditor(final QuPathGUI qupath) {
 		this.qupath = qupath;
 //		createDialog();
 	}
-	
 	
 	
 	public boolean supportsFile(final File file) {
@@ -700,6 +729,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 		return executeScript(engine, script, imageData, importDefaultMethods, context);
 	}
 	
+	
 	/**
 	 * Execute a script using the specific ScriptEngine.
 	 * 
@@ -737,28 +767,30 @@ public class DefaultScriptEditor implements ScriptEditor {
 				script2 = String.format(
 						"import qupath\n" +
 						"from %s import *\n" +
-//						"setBatchImageData(imageData)\n" +
 						"%s\n",
-//						"setBatchImageData(None)\n",
 						scriptClass, script);
 				extraLines = 2;
 			}
 			if (engine.getFactory().getNames().contains("groovy")) {
-				script2 = String.format(
-						"import static %s.*;\n" + 
-//						"setBatchImageData(imageData)\n" +
-						"%s\n",// +
-//						"setBatchImageData(null)\n",
-						scriptClass, script);
-				extraLines = 1;
+				var sb = new StringBuilder();
+				var coreImports = QP.getCoreClasses();
+				for (var cls : coreImports) {
+					sb.append("import ").append(cls.getName()).append("; ");
+				}
+				sb.append("import static ").append(scriptClass).append(".*").append("\n");
+				sb.append(script);
+				script2 = sb.toString();
+//				script2 = String.format(
+//						"import static %s.*;\n" + 
+//						"%s\n",
+//						scriptClass, script);
+				extraLines = 1; // coreImports.size() + 1;
 			}
 			if (engine.getFactory().getNames().contains("javascript")) {
 				script2 = String.format(
 						"var QP = Java.type(\"%s\");\n"
 						+ "with (Object.bindProperties({}, QP)) {\n"
-//						+ "setBatchImageData(imageData)\n"
 						+ "%s\n"
-//						+ "setBatchImageData(null)\n"
 						+ "}\n",
 						scriptClass, script);
 				extraLines = 2;
@@ -787,17 +819,36 @@ public class DefaultScriptEditor implements ScriptEditor {
 				}
 				
 				Writer errorWriter = context.getErrorWriter();
+				
+				String message = cause.getLocalizedMessage();
+				var matcher = Pattern.compile("unable to resolve class ([A-Za-z_.-]+)").matcher(message);
+				if (matcher.find()) {
+					String missingClass = matcher.group(1).strip();
+					errorWriter.append("It looks like you have tried to import a class '" + missingClass + "' that doesn't exist!\n");
+					int ind = missingClass.lastIndexOf(".");
+					if (ind >= 0)
+						missingClass = missingClass.substring(ind+1);
+					Class<?> suggestedClass = CONFUSED_CLASSES.get(missingClass);
+					if (suggestedClass != null)
+						errorWriter.append("You might want to try import " + suggestedClass.getName() + " \n");
+				}
+				if (line < 0) {
+					var lineMatcher = Pattern.compile("@ line ([\\d]+)").matcher(message);
+					if (lineMatcher.find())
+						line = Integer.parseInt(lineMatcher.group(1));
+				}
+				
 				if (line >= 0) {
 					line = line - extraLines;
 					if (cause instanceof InterruptedException)
-						errorWriter.append("Script interrupted at line " + line + ": " + cause.getLocalizedMessage() + "\n");
+						errorWriter.append("Script interrupted at line " + line + ": " + message + "\n");
 					else
-						errorWriter.append("Error at line " + line + ": " + cause.getLocalizedMessage() + "\n");
+						errorWriter.append("Error at line " + line + ": " + message + "\n");
 				} else {
 					if (cause instanceof InterruptedException)
-						errorWriter.append("Script interrupted: " + cause.getLocalizedMessage() + "\n");
+						errorWriter.append("Script interrupted: " + message + "\n");
 					else
-						errorWriter.append("Error: " + cause.getLocalizedMessage() + "\n");
+						errorWriter.append("Error: " + message + "\n");
 				}
 				logger.error("Script error", cause);
 			} catch (IOException e1) {

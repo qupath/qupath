@@ -95,6 +95,7 @@ public class LineROI extends AbstractPathROI implements PathLine, TranslatableRO
 	 * @see qupath.lib.rois.LineROI#duplicate()
 	 */
 	@Override
+	@Deprecated
 	public ROI duplicate() {
 		return new LineROI(x, y, x2, y2, getImagePlane());
 	}

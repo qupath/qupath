@@ -128,6 +128,7 @@ public class PolylineROI extends AbstractPathROI implements PathLine, Translatab
 	}
 
 	@Override
+	@Deprecated
 	public ROI duplicate() {
 		return new PolylineROI(vertices.getX(null), vertices.getY(null), getImagePlane());
 	}

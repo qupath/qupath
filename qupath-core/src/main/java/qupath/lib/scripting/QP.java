@@ -23,8 +23,13 @@
 
 package qupath.lib.scripting;
 
+import java.awt.image.BufferedImage;
 import java.io.File;
 import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
+import java.lang.reflect.Member;
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -38,19 +43,25 @@ import java.util.WeakHashMap;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import qupath.lib.awt.common.BufferedImageTools;
 import qupath.lib.classifiers.PathClassifierTools;
 import qupath.lib.classifiers.PathObjectClassifier;
 import qupath.lib.color.ColorDeconvolutionStains;
 import qupath.lib.common.ColorTools;
+import qupath.lib.common.GeneralTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.ImageData.ImageType;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
+import qupath.lib.images.writers.ImageWriter;
+import qupath.lib.images.writers.ImageWriterTools;
+import qupath.lib.io.GsonTools;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.PathAnnotationObject;
@@ -67,9 +78,14 @@ import qupath.lib.objects.hierarchy.TMAGrid;
 import qupath.lib.plugins.CommandLinePluginRunner;
 import qupath.lib.plugins.PathPlugin;
 import qupath.lib.plugins.workflow.RunSavedClassifierWorkflowStep;
+import qupath.lib.projects.Projects;
 import qupath.lib.regions.ImagePlane;
+import qupath.lib.regions.ImageRegion;
+import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.ROIs;
+import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.interfaces.ROI;
+import qupath.lib.roi.jts.ConverterJTS;
 
 /**
  * Collection of static methods that are useful for scripting.
@@ -120,6 +136,132 @@ public class QP {
 	 * Store ImageData accessible to the script thread
 	 */
 	private static Map<Thread, ImageData<?>> batchImageData = new WeakHashMap<>();
+	
+	
+	private final static List<Class<?>> CORE_CLASSES = Collections.unmodifiableList(Arrays.asList(
+			PathObjects.class,
+			PathObjectTools.class,
+			ROIs.class,
+			RoiTools.class,
+			ImageRegion.class,
+			RegionRequest.class,
+			ImagePlane.class,
+			GsonTools.class,
+			BufferedImageTools.class,
+			PathClassifierTools.class,
+			ColorTools.class,
+			GeneralTools.class,
+			ImageData.class,
+			ImageServer.class,
+			PathObject.class,
+			ImageWriter.class,
+			ImageWriterTools.class,
+			PathClass.class,
+			PathClassTools.class,
+			PathClassFactory.class,
+			PathObjectHierarchy.class,
+			Projects.class,
+			ConverterJTS.class,
+			BufferedImage.class
+			));
+	
+	/**
+	 * List the fields and methods of a specified object.
+	 * @param o
+	 * @return
+	 */
+	public static String describe(Object o) {
+		return describe(o instanceof Class ? (Class<?>)o : o.getClass());
+	}
+	
+	/**
+	 * List the fields and methods of a specified class.
+	 * @param o
+	 * @return
+	 */
+	public static String describe(Class<?> cls) {
+		var sb = new StringBuilder(cls.getName());
+		var fields = getPublicFields(cls);
+		if (!fields.isEmpty()) {
+			sb.append("\n").append("  Fields:");
+			for (var f : fields)
+				sb.append("\n").append("    ").append(getString(f));
+		}
+		
+		var methods = getPublicMethods(cls);
+		if (!methods.isEmpty()) {
+			sb.append("\n").append("  Methods:");
+			for (var m : methods)
+				sb.append("\n").append("    ").append(getString(m));
+		}
+		return sb.toString();
+	}
+	
+	
+	private static List<Method> getPublicMethods(Object o) {
+		Class<?> cls = o instanceof Class ? (Class<?>)o : o.getClass();
+		return Arrays.stream(cls.getMethods())
+				.filter(m -> {
+					return !Object.class.equals(m.getDeclaringClass()) && isPublic(m) && m.getAnnotation(Deprecated.class) == null;
+					})
+				.sorted((m1, m2) -> m1.getName().compareTo(m2.getName()))
+				.collect(Collectors.toList());
+	}
+	
+	private static List<Field> getPublicFields(Object o) {
+		Class<?> cls = o instanceof Class ? (Class<?>)o : o.getClass();
+		return Arrays.stream(cls.getFields())
+				.filter(f -> {
+					return !Object.class.equals(f.getDeclaringClass()) && isPublic(f) && f.getAnnotation(Deprecated.class) == null;
+					})
+				.sorted((m1, m2) -> m1.getName().compareTo(m2.getName()))
+				.collect(Collectors.toList());
+	}
+	
+	private static boolean isPublic(Member m) {
+		return Modifier.isPublic(m.getModifiers());
+	}
+	
+	private static String getString(Method m) {
+		var sb = new StringBuilder();
+		sb.append(m.getReturnType().getSimpleName());
+		sb.append(" ");
+		sb.append(m.getName());
+		sb.append('(');
+		sb.append(Stream.of(m.getParameterTypes()).map(t -> t.getSimpleName()).
+				collect(Collectors.joining(", ")));
+		sb.append(')');
+		var exceptions = m.getExceptionTypes();
+		if (exceptions.length > 0) {
+			sb.append(Stream.of(exceptions).map(t -> t.getSimpleName()).
+					collect(Collectors.joining(", ", " throws ", "")));
+		}
+		return sb.toString();
+
+		//		return m.toString();
+		//			sb.append("\n").append("  ")
+		//				.append(m.getReturnType().getSimpleName())
+		//				.append(" ")
+		//				.append(m.getName())
+		//				.append("(")
+		//				.append(m.toString())
+		//				.append(")");
+	}
+	
+	private static String getString(Field f) {
+		return f.toString();
+	}
+	
+	
+	/**
+	 * Get a list of core classes that are likely to be useful for scripting.
+	 * The purpose of this is to allow users to find classes they are likely to need, 
+	 * or to import these automatically at the beginning of scripts.
+	 * @return
+	 */
+	public static List<Class<?>> getCoreClasses() {
+		return CORE_CLASSES;
+	}
 	
 	
 	/**
@@ -1448,7 +1590,62 @@ public class QP {
 	
 	
 	
+	/**
+	 * Clear the measurement lists for specified objects within a hierarchy.
+	 * @param hierarchy used to fire a hierarchy update, if specified (may be null if no update should be fired)
+	 * @param pathObjects collection of objects that should have their measurement lists cleared
+	 */
+	public static void clearMeasurements(final PathObjectHierarchy hierarchy, final PathObject... pathObjects) {
+		clearMeasurements(hierarchy, Arrays.asList(pathObjects));
+	}
 	
+	/**
+	 * Clear the measurement lists for specified objects within a hierarchy.
+	 * @param hierarchy used to fire a hierarchy update, if specified (may be null if no update should be fired)
+	 * @param pathObjects collection of objects that should have their measurement lists cleared
+	 */
+	public static void clearMeasurements(final PathObjectHierarchy hierarchy, final Collection<PathObject> pathObjects) {
+		for (PathObject pathObject : pathObjects) {
+			// Remove all measurements
+			pathObject.getMeasurementList().clear();
+			pathObject.getMeasurementList().close();
+		}
+		if (hierarchy != null)
+			hierarchy.fireObjectMeasurementsChangedEvent(null, pathObjects);
+	}
+	
+	/**
+	 * Clear the measurement lists for all annotations in a hierarchy.
+	 * @param hierarchy
+	 */
+	public static void clearAnnotationMeasurements(PathObjectHierarchy hierarchy) {
+		if (hierarchy != null)
+			clearMeasurements(hierarchy, hierarchy.getAnnotationObjects());
+	}
+	
+	/**
+	 * Clear the measurement lists for all annotations in the current hierarchy.
+	 */
+	public static void clearAnnotationMeasurements() {
+		clearAnnotationMeasurements(getCurrentHierarchy());
+	}
+	
+	/**
+	 * Clear the measurement lists for all detections in a hierarchy.
+	 * @param hierarchy
+	 */
+	public static void clearDetectionMeasurements(PathObjectHierarchy hierarchy) {
+		if (hierarchy != null)
+			clearMeasurements(hierarchy, hierarchy.getDetectionObjects());
+	}
+	
+	/**
+	 * Clear the measurement lists for all detections in the current hierarchy.
+	 * @param hierarchy
+	 */
+	public static void clearDetectionMeasurements() {
+		clearDetectionMeasurements(getCurrentHierarchy());
+	}
 	
 	
 	
@@ -1638,6 +1835,5 @@ public class QP {
 	public static void resetIntensityClassifications() {
 		resetIntensityClassifications(getCurrentHierarchy());
 	}
-
-
+	
 }

@@ -142,6 +142,7 @@ public class PolygonROI extends AbstractPathAreaROI implements ROIWithHull, Tran
 	 * @see qupath.lib.rois.PolygonROI#duplicate()
 	 */
 	@Override
+	@Deprecated
 	public ROI duplicate() {
 		return new PolygonROI(vertices.getPoints(), getImagePlane());
 	}

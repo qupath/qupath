@@ -162,6 +162,7 @@ class AWTAreaROI extends AreaROI implements TranslatableROI, Serializable {
 	}
 
 	@Override
+	@Deprecated
 	public ROI duplicate() {
 		return new AWTAreaROI(shape, getImagePlane());
 	}

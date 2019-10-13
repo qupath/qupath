@@ -180,6 +180,7 @@ public class AreaROI extends AbstractPathAreaROI implements TranslatableROI, Ser
 	}
 
 	@Override
+	@Deprecated
 	public ROI duplicate() {
 		return new AreaROI(vertices, getImagePlane());
 	}
