@@ -43,6 +43,7 @@ import org.slf4j.LoggerFactory;
 
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.SummaryMeasurementTableCommand;
+import qupath.lib.gui.images.servers.RenderedImageServer;
 import qupath.lib.gui.models.ObservableMeasurementTableData;
 import qupath.lib.gui.plugins.PluginRunnerFX;
 import qupath.lib.gui.prefs.PathPrefs;
@@ -50,6 +51,7 @@ import qupath.lib.gui.tma.TMADataIO;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ServerTools;
+import qupath.lib.images.writers.ImageWriterTools;
 import qupath.lib.io.PathIO;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
@@ -395,6 +397,30 @@ public class QPEx extends QP {
 		if (!(pathROI instanceof PathArea))
 			return null;
 		return (PathArea)pathObject.getROI();
+	}
+	
+	/**
+	 * Write a rendered image to the specified path. No overlay layers will be included.
+	 * @param imageData
+	 * @param path
+	 * @throws IOException
+	 * @see {@link #writeRenderedImage(QuPathViewer, String)}
+	 */
+	public static void writeRenderedImage(ImageData<BufferedImage> imageData, String path) throws IOException {
+		var renderedServer = new RenderedImageServer.Builder(imageData).build();
+		ImageWriterTools.writeImage(renderedServer, path);
+	}
+	
+	/**
+	 * Write a rendered image for the current viewer to the specified path.
+	 * @param viewer
+	 * @param path
+	 * @throws IOException
+	 * @see {@link #writeRenderedImage(ImageData, String)}
+	 */
+	public static void writeRenderedImage(QuPathViewer viewer, String path) throws IOException {
+		var renderedServer = RenderedImageServer.createRenderedServer(viewer);
+		ImageWriterTools.writeImage(renderedServer, path);
 	}
 	
 	

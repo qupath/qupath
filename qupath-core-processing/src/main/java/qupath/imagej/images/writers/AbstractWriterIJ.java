@@ -82,6 +82,15 @@ abstract class AbstractWriterIJ implements ImageWriter<BufferedImage> {
 		writeImage(pathImage.getImage(), pathOutput);
 //		return pathImage.getImage().getBufferedImage();
 	}
+	
+	@Override
+	public void writeImage(ImageServer<BufferedImage> server, String pathOutput) throws IOException {
+		ImagePlus imp = IJTools.extractHyperstack(server, RegionRequest.createInstance(server));
+		if (imp == null)
+			throw new IOException("Unable to extract region from from " + server.getPath());
+		writeImage(imp, pathOutput);
+//		return pathImage.getImage().getBufferedImage();
+	}
 
 	@Override
 	public void writeImage(BufferedImage img, String pathOutput) throws IOException {

@@ -778,6 +778,8 @@ public class DefaultScriptEditor implements ScriptEditor {
 				for (var cls : coreImports) {
 					sb.append("import ").append(cls.getName()).append("; ");
 				}
+				// Import script class statically and in the normal way
+				sb.append("import ").append(scriptClass).append("; ");
 				sb.append("import static ").append(scriptClass).append(".*").append("\n");
 				sb.append(script);
 				script2 = sb.toString();

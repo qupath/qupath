@@ -80,5 +80,14 @@ public class OMETiffWriter implements ImageWriter<BufferedImage> {
 				RegionRequest.createInstance(pathOutput, 1.0, 0, 0, img.getWidth(), img.getHeight(), 0, 0),
 				pathOutput);
 	}
+	
+	@Override
+	public void writeImage(ImageServer<BufferedImage> server, String pathOutput) throws IOException {
+		try {
+			OMEPyramidWriter.writePyramid(server, pathOutput, OMEPyramidWriterCommand.getDefaultPyramidCompression());
+		} catch (FormatException e) {
+			throw new IOException(e);
+		}
+	}
 
 }

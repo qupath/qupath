@@ -25,6 +25,7 @@ package qupath.lib.scripting;
 
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Member;
@@ -1835,5 +1836,27 @@ public class QP {
 	public static void resetIntensityClassifications() {
 		resetIntensityClassifications(getCurrentHierarchy());
 	}
+	
+	
+	/**
+	 * Write a full image to the specified path. The writer will be determined based on the file extension.
+	 * @param server
+	 * @param path
+	 * @throws IOException
+	 */
+	public static void writeImage(ImageServer<BufferedImage> server, String path) throws IOException {
+		ImageWriterTools.writeImage(server, path);
+	}
+	
+	/**
+	 * Write an image to the specified path. The writer will be determined based on the file extension.
+	 * @param img
+	 * @param path
+	 * @throws IOException
+	 */
+	public static void writeImage(BufferedImage img, String path) throws IOException {
+		ImageWriterTools.writeImage(img, path);
+	}
+	
 	
 }
