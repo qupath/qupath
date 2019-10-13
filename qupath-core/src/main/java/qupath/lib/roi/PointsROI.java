@@ -272,6 +272,7 @@ public class PointsROI extends AbstractPathROI implements ROIWithHull, PathPoint
 	
 
 	@Override
+	@Deprecated
 	public ROI duplicate() {
 		PointsROI roi = new PointsROI(points, getImagePlane());
 //		roi.setPointRadius(pointRadius);

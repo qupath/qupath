@@ -81,6 +81,7 @@ public class RectangleROI extends AbstractPathBoundedROI implements PathArea, Se
 	}
 
 	@Override
+	@Deprecated
 	public ROI duplicate() {
 		RectangleROI duplicate = new RectangleROI();
 		duplicate.x = x;

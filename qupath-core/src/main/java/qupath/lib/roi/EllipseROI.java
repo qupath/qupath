@@ -107,6 +107,7 @@ public class EllipseROI extends AbstractPathBoundedROI implements PathArea, Seri
 	
 	
 	@Override
+	@Deprecated
 	public ROI duplicate() {
 		EllipseROI duplicate = new EllipseROI();
 		duplicate.x = x;

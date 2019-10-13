@@ -61,7 +61,7 @@ import javafx.scene.control.Tooltip;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.stage.Modality;
-import qupath.lib.classifiers.PathClassificationLabellingHelper;
+import qupath.lib.classifiers.PathClassifierTools;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
@@ -184,7 +184,7 @@ public class SingleFeatureClassifierCommand implements PathCommand {
 			DisplayHelpers.showErrorMessage(commandName, "No image available!");
 			return;
 		}
-		Set<String> features = PathClassificationLabellingHelper.getAvailableFeatures(imageData.getHierarchy().getObjects(null, cls));
+		Set<String> features = PathClassifierTools.getAvailableFeatures(imageData.getHierarchy().getObjects(null, cls));
 		if (features.isEmpty()) {
 			DisplayHelpers.showErrorMessage(commandName, "No features available!");
 			return;

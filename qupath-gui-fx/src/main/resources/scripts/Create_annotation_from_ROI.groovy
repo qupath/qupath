@@ -4,15 +4,17 @@
  */
 
 
-import qupath.lib.objects.PathAnnotationObject
-import qupath.lib.roi.RectangleROI
-import qupath.lib.scripting.QP
+import static qupath.lib.scripting.QP.*
+
+import qupath.lib.objects.PathObjects
+import qupath.lib.regions.ImagePlane
+import qupath.lib.roi.ROIs
 
 // Set this to true to use the bounding box of the ROI, rather than the ROI itself
 boolean useBoundingBox = false
 
 // Get the current hierarchy
-def hierarchy = QP.getCurrentHierarchy()
+def hierarchy = getCurrentHierarchy()
 
 // Get the select objects
 def selected = hierarchy.getSelectionModel().getSelectedObjects()
@@ -43,20 +45,18 @@ for (def pathObject in selected) {
     // Note: because ROIs are (or should be) immutable, the same ROI is used here, rather than a duplicate
     def roi = pathObject.getROI()
     if (useBoundingBox)
-        roi = new RectangleROI(
+        roi = ROIs.createRectangleROI(
                 roi.getBoundsX(),
                 roi.getBoundsY(),
                 roi.getBoundsWidth(),
                 roi.getBoundsHeight(),
-                roi.getC(),
-                roi.getZ(),
-                roi.getT())
-    def annotation = new PathAnnotationObject(roi, pathObject.getPathClass())
+                roi.getImagePlane())
+    def annotation = PathObjects.createAnnotationObject(roi, pathObject.getPathClass())
     newAnnotations.add(annotation)
     print("Adding " + annotation)
 }
 
 // Actually add the objects
-hierarchy.addPathObjects(newAnnotations, false)
+hierarchy.addPathObjects(newAnnotations)
 if (newAnnotations.size() > 1)
     print("Added " + newAnnotations.size() + " annotation(s)")

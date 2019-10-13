@@ -84,6 +84,11 @@ abstract class AbstractImageIOWriter implements ImageWriter<BufferedImage> {
 		if (!ImageIO.write(img, ext, file))
 			throw new IOException("Unable to write using ImageIO with extension " + ext);
 	}
+	
+	@Override
+	public void writeImage(ImageServer<BufferedImage> server, String pathOutput) throws IOException {
+		writeImage(server, RegionRequest.createInstance(server), pathOutput);
+	}
 
 	@Override
 	public boolean supportsRGB() {

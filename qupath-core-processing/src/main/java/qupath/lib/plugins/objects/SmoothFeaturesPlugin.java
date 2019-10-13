@@ -33,7 +33,7 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import qupath.lib.classifiers.PathClassificationLabellingHelper;
+import qupath.lib.classifiers.PathClassifierTools;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
@@ -149,7 +149,7 @@ public class SmoothFeaturesPlugin<T> extends AbstractInteractivePlugin<T> {
 						return;
 					
 					// TODO: ACCESS & USE THE CLASSIFIER DATA!!!!
-					List<String> measurements = new ArrayList<>(PathClassificationLabellingHelper.getAvailableFeatures(pathObjects));
+					List<String> measurements = new ArrayList<>(PathClassifierTools.getAvailableFeatures(pathObjects));
 					Iterator<String> iter = measurements.iterator();
 					while (iter.hasNext()) {
 						String name = iter.next().toLowerCase();

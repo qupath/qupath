@@ -134,5 +134,13 @@ public interface ImageWriter<T> {
 	 * @throws IOException
 	 */
 	public void writeImage(T img, String pathOutput) throws IOException;
+	
+	/**
+	 * Write a full image to a specified path.
+	 * @param server
+	 * @param pathOutput
+	 * @throws IOException
+	 */
+	public void writeImage(ImageServer<T> server, String pathOutput) throws IOException;
 
 }

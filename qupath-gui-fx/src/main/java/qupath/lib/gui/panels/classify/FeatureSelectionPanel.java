@@ -52,7 +52,7 @@ import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
-import qupath.lib.classifiers.PathClassificationLabellingHelper;
+import qupath.lib.classifiers.PathClassifierTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.gui.helpers.PaneToolsFX;
@@ -299,7 +299,7 @@ class FeatureSelectionPanel {
 		if (pathObjects == null || pathObjects.isEmpty())
 			availableFeatureNames = Collections.emptyList();
 		else
-			availableFeatureNames = PathClassificationLabellingHelper.getAvailableFeatures(pathObjects);
+			availableFeatureNames = PathClassifierTools.getAvailableFeatures(pathObjects);
 		updateMeasurementsByNames(availableFeatureNames);
 	}
 

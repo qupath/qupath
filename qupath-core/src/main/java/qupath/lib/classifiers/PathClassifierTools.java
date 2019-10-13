@@ -30,6 +30,10 @@ import java.io.ObjectInputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Set;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -162,6 +166,42 @@ public class PathClassifierTools {
 	 */
 	public static PathObjectClassifier createIntensityClassifier(final PathClass classSelected, final String intensityMeasurement, final double threshold) {
 		return new PathIntensityClassifier(classSelected, intensityMeasurement, threshold, Double.NaN, Double.NaN);
+	}
+
+	/**
+	 * Get a set containing the names of all measurements found in the measurement lists of a specified object collection.
+	 * 
+	 * @param pathObjects
+	 * @return
+	 */
+	public static Set<String> getAvailableFeatures(final Collection<PathObject> pathObjects) {
+		Set<String> featureSet = new LinkedHashSet<>();
+		// This has a small optimization that takes into consideration the fact that many objects share references to exactly the same MeasurementLists -
+		// so by checking the last list that was added, there is no need to bother the set to add the same thing again.
+		List<String> lastNames = null;
+		for (PathObject pathObject : pathObjects) {
+			if (!pathObject.hasMeasurements())
+				continue;
+			List<String> list = pathObject.getMeasurementList().getMeasurementNames();
+			if (lastNames == null || !lastNames.equals(list))
+				featureSet.addAll(list);
+			lastNames = list;
+		}
+		return featureSet;
+	}
+
+	/**
+	 * Get a set of the represented path classes, i.e. those with at least 1 manually-labelled object.
+	 * 
+	 * @return
+	 */
+	public static Set<PathClass> getRepresentedPathClasses(final PathObjectHierarchy hierarchy, final Class<? extends PathObject> cls) {
+		Set<PathClass> pathClassSet = new LinkedHashSet<>();
+		for (PathObject pathObject : hierarchy.getObjects(null, cls)) {
+			if (pathObject.getPathClass() != null)
+				pathClassSet.add(pathObject.getPathClass());
+		}
+		return pathClassSet;
 	}
 	
 }

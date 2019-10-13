@@ -8,6 +8,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.ServiceLoader;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
@@ -15,6 +16,7 @@ import org.slf4j.LoggerFactory;
 
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.WrappedBufferedImageServer;
 import qupath.lib.regions.RegionRequest;
 
 /**
@@ -102,6 +104,53 @@ public class ImageWriterTools {
 		throw new IOException("Unable to write " + path + "!  No compatible writer found.");
 	}
 	
+	/**
+	 * Write a 2D image using the default writer based on the file path.
+	 * @param img
+	 * @param path
+	 * @return
+	 * @throws IOException
+	 */
+	public static boolean writeImage(final BufferedImage img, final String path) throws IOException {
+		String ext = GeneralTools.getExtension(new File(path)).orElse(null);
+		List<ImageWriter<BufferedImage>> compatibleWriters = ImageWriterTools.getCompatibleWriters(
+				new WrappedBufferedImageServer(UUID.randomUUID().toString(), img), ext);
+		
+		// If we have a path, use the 'best' writer we have, i.e. the first one that supports pixel sizes
+		for (ImageWriter<BufferedImage> writer : compatibleWriters) {
+			try {
+				writer.writeImage(img, path);
+				return true;
+			} catch (Exception e) {
+				logger.warn("Unable to write image", e);
+			}
+		}
+		throw new IOException("Unable to write " + path + "!  No compatible writer found.");
+	}
+
+	/**
+	 * Write a (possibly multidimensional) image region using the default writer based on the file path.
+	 * @param server the image to write
+	 * @param request region to write; if null, the default plane of the entire image will be written
+	 * @param path the file path; the extension will be used to identify an appropriate writer
+	 * @return
+	 * @throws IOException
+	 */
+	public static boolean writeImage(final ImageServer<BufferedImage> server, final String path) throws IOException {
+		String ext = GeneralTools.getExtension(new File(path)).orElse(null);
+		List<ImageWriter<BufferedImage>> compatibleWriters = ImageWriterTools.getCompatibleWriters(server, ext);
+		
+		// If we have a path, use the 'best' writer we have, i.e. the first one that supports pixel sizes
+		for (ImageWriter<BufferedImage> writer : compatibleWriters) {
+			try {
+				writer.writeImage(server, path);
+				return true;
+			} catch (Exception e) {
+				logger.warn("Unable to write image", e);
+			}
+		}
+		throw new IOException("Unable to write " + path + "!  No compatible writer found.");
+	}
 	
 	
 	/**

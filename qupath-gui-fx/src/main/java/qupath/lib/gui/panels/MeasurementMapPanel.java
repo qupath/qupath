@@ -56,7 +56,7 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.TextAlignment;
-import qupath.lib.classifiers.PathClassificationLabellingHelper;
+import qupath.lib.classifiers.PathClassifierTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.gui.helpers.MeasurementMapper;
@@ -392,7 +392,7 @@ public class MeasurementMapPanel {
 		}
 		
 		Collection<PathObject> pathObjects = hierarchy.getDetectionObjects();
-		Set<String> measurements = PathClassificationLabellingHelper.getAvailableFeatures(pathObjects);
+		Set<String> measurements = PathClassifierTools.getAvailableFeatures(pathObjects);
 		for (PathObject pathObject : pathObjects) {
 			if (!Double.isNaN(pathObject.getClassProbability())) {
 				measurements.add("Class probability");
