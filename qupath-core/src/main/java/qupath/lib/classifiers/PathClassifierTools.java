@@ -39,9 +39,12 @@ import org.slf4j.LoggerFactory;
 
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.classes.PathClass;
-import qupath.lib.objects.helpers.PathObjectTools;
+import qupath.lib.objects.classes.PathClassFactory;
+import qupath.lib.objects.classes.PathClassFactory.StandardPathClasses;
+import qupath.lib.objects.classes.PathClassTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.TMAGrid;
 
@@ -203,5 +206,60 @@ public class PathClassifierTools {
 		}
 		return pathClassSet;
 	}
+	
+	
+	
+	/**
+	 * Assign cell classifications as positive or negative based upon a specified measurement, using up to 3 intensity bins.
+	 * 
+	 * An IllegalArgumentException is thrown if &lt; 1 or &gt; 3 intensity thresholds are provided.
+	 * 
+	 * @param pathObject 		the object to classify.
+	 * @param measurementName 	the name of the measurement to use for thresholding.
+	 * @param thresholds 		between 1 and 3 intensity thresholds, used to indicate negative/positive, or negative/1+/2+/3+
+	 * @return 					the PathClass of the object after running this method.
+	 */
+	public static PathClass setIntensityClassification(final PathObject pathObject, final String measurementName, final double... thresholds) {
+		if (thresholds.length == 0 || thresholds.length > 3)
+			throw new IllegalArgumentException("Between 1 and 3 intensity thresholds required!");
+		
+		PathClass baseClass = PathClassTools.getNonIntensityAncestorClass(pathObject.getPathClass());
+		
+		// Don't do anything with the 'ignore' class
+		if (baseClass == PathClassFactory.getPathClass(StandardPathClasses.IGNORE))
+			return pathObject.getPathClass();
+		
+		double intensityValue = pathObject.getMeasurementList().getMeasurementValue(measurementName);
+		
+		boolean singleThreshold = thresholds.length == 1;
+		
+		if (intensityValue < thresholds[0]) {
+			pathObject.setPathClass(PathClassFactory.getNegative(baseClass));
+		} else {
+			if (singleThreshold)
+				pathObject.setPathClass(PathClassFactory.getPositive(baseClass));
+			else if (thresholds.length >= 3 && intensityValue >= thresholds[2])
+				pathObject.setPathClass(PathClassFactory.getThreePlus(baseClass));				
+			else if (thresholds.length >= 2 && intensityValue >= thresholds[1])
+				pathObject.setPathClass(PathClassFactory.getTwoPlus(baseClass));				
+			else if (intensityValue >= thresholds[0])
+				pathObject.setPathClass(PathClassFactory.getOnePlus(baseClass));				
+		}
+		return pathObject.getPathClass();
+	}
+	
+	
+	/**
+	 * Set the intensity classifications for the specified objects.
+	 * 
+	 * @param pathObjects
+	 * @param measurementName measurement to threshold
+	 * @param thresholds either 1 or 3 thresholds, depending upon whether objects should be classified as Positive/Negative or Negative/1+/2+/3+
+	 */
+	public static void setIntensityClassifications(final Collection<PathObject> pathObjects, final String measurementName, final double... thresholds) {
+		for (PathObject pathObject : pathObjects)
+			setIntensityClassification(pathObject, measurementName, thresholds);
+	}
+	
 	
 }

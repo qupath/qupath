@@ -33,7 +33,7 @@ import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.images.ImageData;
-import qupath.lib.objects.helpers.PathObjectTools;
+import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.hierarchy.TMAGrid;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.plugins.workflow.DefaultScriptableWorkflowStep;

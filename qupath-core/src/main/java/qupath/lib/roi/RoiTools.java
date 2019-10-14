@@ -52,7 +52,6 @@ import qupath.lib.roi.PolygonROI;
 import qupath.lib.roi.RectangleROI;
 import qupath.lib.roi.interfaces.PathArea;
 import qupath.lib.roi.interfaces.ROI;
-import qupath.lib.roi.jts.ConverterJTS;
 import qupath.lib.roi.interfaces.PathShape;
 
 /**
@@ -628,7 +627,7 @@ public class RoiTools {
 		var list = new ArrayList<ROI>();
 		var plane = ImagePlane.getPlane(roi);
 		for (int i = 0; i < geometry.getNumGeometries(); i++) {
-			list.add(ConverterJTS.convertGeometryToROI(geometry.getGeometryN(i), plane));
+			list.add(GeometryTools.convertGeometryToROI(geometry.getGeometryN(i), plane));
 		}
 		return list;
 	}

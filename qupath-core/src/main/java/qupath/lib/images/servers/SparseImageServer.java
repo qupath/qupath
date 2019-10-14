@@ -26,7 +26,7 @@ import org.slf4j.LoggerFactory;
 import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
-import qupath.lib.roi.jts.ConverterJTS;
+import qupath.lib.roi.GeometryTools;
 
 /**
  * An ImageServer that combines regions from multiple separate ImageServers, 
@@ -345,7 +345,7 @@ public class SparseImageServer extends AbstractTileableImageServer {
 		var regions = server.getRegions();
 		var map = new LinkedHashMap<SparseImageServerManagerRegion, Geometry>();
 		for (var region : regions) {
-			map.put(region, ConverterJTS.regionToGeometry(region.getRegion()));
+			map.put(region, GeometryTools.regionToGeometry(region.getRegion()));
 		}
 		var allGeometries = UnaryUnionOp.union(map.values());
 		

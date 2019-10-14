@@ -21,7 +21,7 @@
  * #L%
  */
 
-package qupath.lib.objects.helpers;
+package qupath.lib.objects;
 
 import java.awt.geom.Line2D;
 import java.util.ArrayList;
@@ -41,13 +41,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.lib.geom.Point2;
-import qupath.lib.objects.PathAnnotationObject;
-import qupath.lib.objects.PathCellObject;
-import qupath.lib.objects.PathDetectionObject;
-import qupath.lib.objects.PathObject;
-import qupath.lib.objects.PathRootObject;
-import qupath.lib.objects.PathTileObject;
-import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.TMAGrid;
@@ -75,6 +68,7 @@ public class PathObjectTools {
 	 * @param pathObjects
 	 */
 	private static void removePoints(Collection<PathObject> pathObjects) {
+		logger.trace("Remove points");
 		Iterator<PathObject> iter = pathObjects.iterator();
 		while (iter.hasNext()) {
 			if (hasPointROI(iter.next()))
@@ -120,6 +114,7 @@ public class PathObjectTools {
 	 * @return
 	 */
 	public static List<PathObject> getObjectsOfClass(final Collection<PathObject> pathObjects, final Class<? extends PathObject> cls) {
+		logger.trace("Get objects of class {}", cls);
 		List<PathObject> pathObjectsFiltered = new ArrayList<>(pathObjects.size());
 		for (PathObject temp : pathObjects) {
 			if (cls == null || cls.isInstance(temp)) {

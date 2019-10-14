@@ -318,11 +318,11 @@ import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathCellObject;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
-import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.TMAGrid;
 import qupath.lib.plugins.AbstractPluginRunner;
@@ -2989,9 +2989,12 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 						createCommandAction(new SaveViewCommand(this, SnapshotType.CURRENT_VIEWER), "Current viewer content")
 						),
 				null,
-				getActionMenuItem(GUIActions.TMA_SCORE_IMPORTER),
-				getActionMenuItem(GUIActions.TMA_EXPORT_DATA),
-				createCommandAction(new TMAViewerCommand(), "Launch TMA data viewer")
+				createMenu(
+						"TMA data...",
+						getActionMenuItem(GUIActions.TMA_SCORE_IMPORTER),
+						getActionMenuItem(GUIActions.TMA_EXPORT_DATA),
+						createCommandAction(new TMAViewerCommand(), "Launch TMA data viewer")
+						)
 				);
 		
 		
