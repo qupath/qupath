@@ -68,7 +68,7 @@ public class BioFormatsOptionsExtension implements QuPathExtension {
 		
 		
 		QuPathGUI.addMenuItems(
-				qupath.getMenu("File>Export region...", true),
+				qupath.getMenu("File>Export images...", true),
 				QuPathGUI.createCommandAction(new OMEPyramidWriterCommand(qupath), "OME TIFF"));
 		
 		

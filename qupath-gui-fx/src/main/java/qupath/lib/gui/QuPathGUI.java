@@ -2989,9 +2989,12 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 						createCommandAction(new SaveViewCommand(this, SnapshotType.CURRENT_VIEWER), "Current viewer content")
 						),
 				null,
-				getActionMenuItem(GUIActions.TMA_SCORE_IMPORTER),
-				getActionMenuItem(GUIActions.TMA_EXPORT_DATA),
-				createCommandAction(new TMAViewerCommand(), "Launch TMA data viewer")
+				createMenu(
+						"TMA data...",
+						getActionMenuItem(GUIActions.TMA_SCORE_IMPORTER),
+						getActionMenuItem(GUIActions.TMA_EXPORT_DATA),
+						createCommandAction(new TMAViewerCommand(), "Launch TMA data viewer")
+						)
 				);
 		
 		
