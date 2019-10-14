@@ -49,6 +49,8 @@ import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import qupath.imagej.tools.IJTools;
+import qupath.lib.analysis.DistanceTools;
 import qupath.lib.awt.common.BufferedImageTools;
 import qupath.lib.classifiers.PathClassifierTools;
 import qupath.lib.classifiers.PathObjectClassifier;
@@ -60,10 +62,10 @@ import qupath.lib.images.ImageData.ImageType;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
-import qupath.lib.images.writers.ImageWriter;
 import qupath.lib.images.writers.ImageWriterTools;
 import qupath.lib.io.GsonTools;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathCellObject;
@@ -72,8 +74,6 @@ import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.classes.PathClassTools;
-import qupath.lib.objects.classes.PathClassFactory.StandardPathClasses;
-import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.TMAGrid;
 import qupath.lib.plugins.CommandLinePluginRunner;
@@ -83,10 +83,11 @@ import qupath.lib.projects.Projects;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
+import qupath.lib.roi.GeometryTools;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.interfaces.ROI;
-import qupath.lib.roi.jts.ConverterJTS;
+import qupath.opencv.tools.OpenCVTools;
 
 /**
  * Collection of static methods that are useful for scripting.
@@ -140,29 +141,39 @@ public class QP {
 	
 	
 	private final static List<Class<?>> CORE_CLASSES = Collections.unmodifiableList(Arrays.asList(
-			PathObjects.class,
-			PathObjectTools.class,
-			ROIs.class,
-			RoiTools.class,
+			// Core datastructures
+			//ImageData.class,
+			//ImageServer.class,
+			//PathObject.class,
+			//PathObjectHierarchy.class,
+			//PathClass.class,
 			ImageRegion.class,
 			RegionRequest.class,
 			ImagePlane.class,
+			
+			// Static constructors
+			PathObjects.class,
+			ROIs.class,
+			PathClassFactory.class,
+			Projects.class,
+			
+			// Tools and static classes
+			PathObjectTools.class,
+			RoiTools.class,
 			GsonTools.class,
 			BufferedImageTools.class,
 			PathClassifierTools.class,
 			ColorTools.class,
 			GeneralTools.class,
-			ImageData.class,
-			ImageServer.class,
-			PathObject.class,
-			ImageWriter.class,
+//			ImageWriter.class,
 			ImageWriterTools.class,
-			PathClass.class,
 			PathClassTools.class,
-			PathClassFactory.class,
-			PathObjectHierarchy.class,
-			Projects.class,
-			ConverterJTS.class,
+			GeometryTools.class,
+			IJTools.class,
+			OpenCVTools.class,
+			GeometryTools.class,
+			
+			// External classes
 			BufferedImage.class
 			));
 	
@@ -1688,45 +1699,6 @@ public class QP {
 	
 	
 	/**
-	 * Assign cell classifications as positive or negative based upon a specified measurement, using up to 3 intensity bins.
-	 * 
-	 * An IllegalArgumentException is thrown if &lt; 1 or &gt; 3 intensity thresholds are provided.
-	 * 
-	 * @param pathObject 		the object to classify.
-	 * @param measurementName 	the name of the measurement to use for thresholding.
-	 * @param thresholds 		between 1 and 3 intensity thresholds, used to indicate negative/positive, or negative/1+/2+/3+
-	 * @return 					the PathClass of the object after running this method.
-	 */
-	public static PathClass setIntensityClassification(final PathObject pathObject, final String measurementName, final double... thresholds) {
-		if (thresholds.length == 0 || thresholds.length > 3)
-			throw new IllegalArgumentException("Between 1 and 3 intensity thresholds required!");
-		
-		PathClass baseClass = getNonIntensityAncestorPathClass(pathObject);
-		
-		// Don't do anything with the 'ignore' class
-		if (baseClass == PathClassFactory.getPathClass(StandardPathClasses.IGNORE))
-			return pathObject.getPathClass();
-		
-		double intensityValue = pathObject.getMeasurementList().getMeasurementValue(measurementName);
-		
-		boolean singleThreshold = thresholds.length == 1;
-		
-		if (intensityValue < thresholds[0]) {
-			pathObject.setPathClass(PathClassFactory.getNegative(baseClass));
-		} else {
-			if (singleThreshold)
-				pathObject.setPathClass(PathClassFactory.getPositive(baseClass));
-			else if (thresholds.length >= 3 && intensityValue >= thresholds[2])
-				pathObject.setPathClass(PathClassFactory.getThreePlus(baseClass));				
-			else if (thresholds.length >= 2 && intensityValue >= thresholds[1])
-				pathObject.setPathClass(PathClassFactory.getTwoPlus(baseClass));				
-			else if (intensityValue >= thresholds[0])
-				pathObject.setPathClass(PathClassFactory.getOnePlus(baseClass));				
-		}
-		return pathObject.getPathClass();
-	}
-	
-	/**
 	 * Set the intensity classifications for the specified objects.
 	 * 
 	 * @param pathObjects
@@ -1734,8 +1706,7 @@ public class QP {
 	 * @param thresholds either 1 or 3 thresholds, depending upon whether objects should be classified as Positive/Negative or Negative/1+/2+/3+
 	 */
 	public static void setIntensityClassifications(final Collection<PathObject> pathObjects, final String measurementName, final double... thresholds) {
-		for (PathObject pathObject : pathObjects)
-			setIntensityClassification(pathObject, measurementName, thresholds);
+		PathClassifierTools.setIntensityClassifications(pathObjects, measurementName, thresholds);
 	}
 	
 	/**
@@ -1856,6 +1827,25 @@ public class QP {
 	 */
 	public static void writeImage(BufferedImage img, String path) throws IOException {
 		ImageWriterTools.writeImage(img, path);
+	}
+	
+	
+	/**
+	 * Compute the distance for all detection object centroids to the closest annotation with each valid, not-ignored classification and add 
+	 * the result to the detection measurement list.
+	 * @param imageData
+	 */
+	public static void detectionToAnnotationDistances(ImageData<?> imageData) {
+		DistanceTools.detectionToAnnotationDistances(imageData);
+	}
+	
+	/**
+	 * Compute the distance for all detection object centroids to the closest annotation with each valid, not-ignored classification and add 
+	 * the result to the detection measurement list for the current ImageData.
+	 * @param imageData
+	 */
+	public static void detectionToAnnotationDistances() {
+		DistanceTools.detectionToAnnotationDistances(getCurrentImageData());
 	}
 	
 	

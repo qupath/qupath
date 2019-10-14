@@ -32,7 +32,6 @@ import java.util.Collection;
 import java.util.HashSet;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.objects.classes.PathClass;
-import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.roi.interfaces.ROI;
 
 @SuppressWarnings("javadoc")

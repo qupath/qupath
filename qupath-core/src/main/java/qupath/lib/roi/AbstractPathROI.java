@@ -26,8 +26,8 @@ package qupath.lib.roi;
 import org.locationtech.jts.geom.Geometry;
 
 import qupath.lib.regions.ImagePlane;
+import qupath.lib.roi.GeometryTools.GeometryConverter;
 import qupath.lib.roi.interfaces.ROI;
-import qupath.lib.roi.jts.ConverterJTS;
 
 /**
  * Abstract implementation of a ROI.
@@ -150,7 +150,7 @@ abstract class AbstractPathROI implements ROI {
 		return getRoiType() == RoiType.POINT;
 	}
 	
-	private static ConverterJTS converter = new ConverterJTS.Builder().build();
+	private static GeometryConverter converter = new GeometryConverter.Builder().build();
 	
 	@Override
 	public Geometry getGeometry() {
