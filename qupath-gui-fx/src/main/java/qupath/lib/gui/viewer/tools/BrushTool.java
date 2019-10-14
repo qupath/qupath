@@ -58,10 +58,10 @@ import qupath.lib.objects.classes.PathClassFactory.StandardPathClasses;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.RoiTools;
+import qupath.lib.roi.GeometryTools;
 import qupath.lib.roi.RectangleROI;
 import qupath.lib.roi.interfaces.PathArea;
 import qupath.lib.roi.interfaces.ROI;
-import qupath.lib.roi.jts.ConverterJTS;
 import qupath.lib.roi.interfaces.PathShape;
 
 /**
@@ -341,7 +341,7 @@ public class BrushTool extends AbstractPathROITool {
 	//						ROIs.createAreaROI(shapeDrawn, ImagePlane.getPlaneWithChannel(shapeROI.getC(), shapeROI.getZ(), shapeROI.getT())), RoiTools.CombineOp.SUBTRACT, flatness);
 				} else if (avoidOtherAnnotations) {
 					// Legacy code moves through java.awt.geom.Areas...
-					Area area = RoiTools.getArea(ConverterJTS.convertGeometryToROI(shapeCurrent.union(shapeDrawn), ImagePlane.getDefaultPlane()));
+					Area area = RoiTools.getArea(GeometryTools.convertGeometryToROI(shapeCurrent.union(shapeDrawn), ImagePlane.getDefaultPlane()));
 					Area currentArea = getCurrentParentArea();
 					if (currentArea != null)
 						area.intersect(getCurrentParentArea());
@@ -368,7 +368,7 @@ public class BrushTool extends AbstractPathROITool {
 			shapeNew = roundAndConstrain(shapeNew, 0, 0, viewer.getServerWidth(), viewer.getServerHeight());
 	//		GeometrySnapper.snapToSelf(shapeNew, 1.0, true);
 			
-			ROI roiNew = ConverterJTS.convertGeometryToROI(shapeNew, plane);
+			ROI roiNew = GeometryTools.convertGeometryToROI(shapeNew, plane);
 			
 			if (currentObject instanceof PathAnnotationObject) {
 				((PathAnnotationObject)currentObject).setROI(roiNew);
@@ -535,7 +535,7 @@ public class BrushTool extends AbstractPathROITool {
 		lastPoint = null;
 		Geometry geom = createShape(x, y, PathPrefs.getUseTileBrush(), null);
 		roundAndConstrain(geom, 0, 0, viewer.getServerWidth(), viewer.getServerHeight());
-		return ConverterJTS.convertGeometryToROI(geom, plane);
+		return GeometryTools.convertGeometryToROI(geom, plane);
 	}
 	
 }
