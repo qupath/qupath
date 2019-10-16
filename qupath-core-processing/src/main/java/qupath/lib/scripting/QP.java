@@ -188,7 +188,7 @@ public class QP {
 	
 	/**
 	 * List the fields and methods of a specified class.
-	 * @param o
+	 * @param cls
 	 * @return
 	 */
 	public static String describe(Class<?> cls) {
@@ -1653,7 +1653,6 @@ public class QP {
 	
 	/**
 	 * Clear the measurement lists for all detections in the current hierarchy.
-	 * @param hierarchy
 	 */
 	public static void clearDetectionMeasurements() {
 		clearDetectionMeasurements(getCurrentHierarchy());
@@ -1842,7 +1841,6 @@ public class QP {
 	/**
 	 * Compute the distance for all detection object centroids to the closest annotation with each valid, not-ignored classification and add 
 	 * the result to the detection measurement list for the current ImageData.
-	 * @param imageData
 	 */
 	public static void detectionToAnnotationDistances() {
 		DistanceTools.detectionToAnnotationDistances(getCurrentImageData());

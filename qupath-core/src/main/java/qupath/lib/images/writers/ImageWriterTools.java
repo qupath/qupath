@@ -131,7 +131,6 @@ public class ImageWriterTools {
 	/**
 	 * Write a (possibly multidimensional) image region using the default writer based on the file path.
 	 * @param server the image to write
-	 * @param request region to write; if null, the default plane of the entire image will be written
 	 * @param path the file path; the extension will be used to identify an appropriate writer
 	 * @return
 	 * @throws IOException
