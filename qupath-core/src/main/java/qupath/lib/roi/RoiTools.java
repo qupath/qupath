@@ -93,46 +93,62 @@ public class RoiTools {
 	 * @return
 	 */
 	public static PathShape combineROIs(PathShape shape1, PathShape shape2, CombineOp op) {
-		return combineROIs(shape1, shape2, op, -1);
-	}
-
-	/**
-	 * Compute two shape ROIs together, using the specified 'flatness' to handle curved segments.
-	 * 
-	 * @param shape1
-	 * @param shape2
-	 * @param op
-	 * @param flatness
-	 * @return
-	 */
-	public static PathShape combineROIs(PathShape shape1, PathShape shape2, CombineOp op, double flatness) {
 		// Check we can combine
 		if (!RoiTools.sameImagePlane(shape1, shape2))
 			throw new IllegalArgumentException("Cannot combine - shapes " + shape1 + " and " + shape2 + " do not share the same image plane");
-		Area area1 = getArea(shape1);
-		Area area2 = getArea(shape2);
+		var area1 = shape1.getGeometry();
+		var area2 = shape2.getGeometry();
 		
 		// Do a quick check to see if a combination might be avoided
-		if (op == CombineOp.INTERSECT) {
-			if (area1.contains(area2.getBounds2D()))
-				return shape2;
-			if (area2.contains(area1.getBounds2D()))
-				return shape1;
-		} else if (op == CombineOp.ADD) {
-			if (area1.contains(area2.getBounds2D()))
-				return shape1;
-			if (area2.contains(area1.getBounds2D()))
-				return shape2;			
+		switch (op) {
+		case ADD:
+			return (PathShape)GeometryTools.convertGeometryToROI(area1.union(area2), shape1.getImagePlane());
+		case INTERSECT:
+			return (PathShape)GeometryTools.convertGeometryToROI(area1.intersection(area2), shape1.getImagePlane());
+		case SUBTRACT:
+			return (PathShape)GeometryTools.convertGeometryToROI(area1.difference(area2), shape1.getImagePlane());
+		default:
+			throw new IllegalArgumentException("Unknown op " + op);
 		}
-		
-		combineAreas(area1, area2, op);
-		// I realise the following looks redundant... however direct use of the areas with the
-		// brush tool led to strange artefacts appearing & disappearing... performing an additional
-		// conversion seems to help
-		//		area1 = new Area(new Path2D.Float(area1));
-		// Return simplest ROI that works - prefer a rectangle or polygon over an area
-		return getShapeROI(area1, shape1.getImagePlane(), flatness);
 	}
+
+//	/**
+//	 * Compute two shape ROIs together, using the specified 'flatness' to handle curved segments.
+//	 * 
+//	 * @param shape1
+//	 * @param shape2
+//	 * @param op
+//	 * @param flatness
+//	 * @return
+//	 */
+//	public static PathShape combineROIs(PathShape shape1, PathShape shape2, CombineOp op, double flatness) {
+//		// Check we can combine
+//		if (!RoiTools.sameImagePlane(shape1, shape2))
+//			throw new IllegalArgumentException("Cannot combine - shapes " + shape1 + " and " + shape2 + " do not share the same image plane");
+//		Area area1 = getArea(shape1);
+//		Area area2 = getArea(shape2);
+//		
+//		// Do a quick check to see if a combination might be avoided
+//		if (op == CombineOp.INTERSECT) {
+//			if (area1.contains(area2.getBounds2D()))
+//				return shape2;
+//			if (area2.contains(area1.getBounds2D()))
+//				return shape1;
+//		} else if (op == CombineOp.ADD) {
+//			if (area1.contains(area2.getBounds2D()))
+//				return shape1;
+//			if (area2.contains(area1.getBounds2D()))
+//				return shape2;			
+//		}
+//		
+//		combineAreas(area1, area2, op);
+//		// I realise the following looks redundant... however direct use of the areas with the
+//		// brush tool led to strange artefacts appearing & disappearing... performing an additional
+//		// conversion seems to help
+//		//		area1 = new Area(new Path2D.Float(area1));
+//		// Return simplest ROI that works - prefer a rectangle or polygon over an area
+//		return getShapeROI(area1, shape1.getImagePlane(), flatness);
+//	}
 	
 	/**
 	 * Fill the holes of an {@link AreaROI}, or return the ROI unchanged if it contains no holes.
@@ -273,7 +289,7 @@ public class RoiTools {
 		//		else if (area.isPolygonal() && area.isSingular())
 		else if (area.isSingular() && (area.isPolygonal() || flatness > 0)) {
 			Path2D path = new Path2D.Float(area);
-			List<Point2> points = flatness > 0 ? AWTAreaROI.getLinearPathPoints(path, path.getPathIterator(null, flatness)) : AWTAreaROI.getLinearPathPoints(path, path.getPathIterator(null));
+			List<Point2> points = flatness > 0 ? RoiTools.getLinearPathPoints(path, path.getPathIterator(null, flatness)) : RoiTools.getLinearPathPoints(path, path.getPathIterator(null));
 			return new PolygonROI(points, plane);
 			//			if (area.isPolygonal())
 			//				return new PolygonROI(new Path2D.Float(area), c, z, t);
@@ -283,7 +299,7 @@ public class RoiTools {
 			//				return new PolygonROI(path, c, z, t);
 			//			}
 		}
-		return new AWTAreaROI(area, plane);		
+		return ROIs.createAreaROI(area, plane);		
 	}
 
 	/**
@@ -448,12 +464,12 @@ public class RoiTools {
 		//			return path;
 		//		}
 
-		if (roi instanceof AWTAreaROI) {
-			return ((AWTAreaROI)roi).getShape();
-		} if (roi instanceof AreaROI) {
+		if (roi instanceof AWTAreaROI || roi instanceof AreaGeometryROI) {
+			return roi.getShape();
+		}
+		if (roi instanceof AreaROI) {
 			return new AWTAreaROI((AreaROI)roi).getShape();
 		}
-
 
 		throw new IllegalArgumentException(roi + " cannot be converted to a shape!");
 	}
@@ -522,7 +538,7 @@ public class RoiTools {
 						tile = new RectangleROI(bounds2.getX(), bounds2.getY(), bounds2.getWidth(), bounds2.getHeight());
 					}
 					else
-						tile = new AWTAreaROI(tileArea);
+						tile = ROIs.createAreaROI(tileArea, roi.getImagePlane());
 				}
 				//				tile.setName("Tile " + (++ind));
 				tiles.add(tile);
@@ -599,7 +615,7 @@ public class RoiTools {
 					Area areaTemp = new Area(boundsTile);
 					areaTemp.intersect(area);
 					if (!areaTemp.isEmpty())
-						pathROI = new AWTAreaROI(areaTemp, parentROI.getImagePlane());					
+						pathROI = ROIs.createAreaROI(areaTemp, parentROI.getImagePlane());					
 				}
 				if (pathROI != null)
 					pathROIs.add(pathROI);
@@ -732,30 +748,25 @@ public class RoiTools {
 	}
 
 	static PolygonROI[][] splitAreaToPolygons(final AreaROI pathROI) {
-		if (pathROI instanceof AWTAreaROI)
-			return splitAreaToPolygons(new Area(pathROI.getShape()), pathROI.getC(), pathROI.getZ(), pathROI.getT());
-		else {
-			logger.debug("Converting {} to {}", pathROI, AWTAreaROI.class.getSimpleName());
-			return splitAreaToPolygons((AreaROI)ROIs.createAreaROI(pathROI.getShape(), ImagePlane.getPlane(pathROI)));
-		}
+		return splitAreaToPolygons(getArea(pathROI), pathROI.getC(), pathROI.getZ(), pathROI.getT());
 	}
 
 	/**
-		 * Test if two PathROIs share the same channel, z-slice &amp; time-point
-		 * 
-		 * @param roi1
-		 * @param roi2
-		 * @return
-		 */
-		static boolean sameImagePlane(ROI roi1, ROI roi2) {
-	//		if (roi1.getC() != roi2.getC())
-	//			logger.info("Channels differ");
-	//		if (roi1.getT() != roi2.getT())
-	//			logger.info("Timepoints differ");
-	//		if (roi1.getZ() != roi2.getZ())
-	//			logger.info("Z-slices differ");
-			return roi1.getC() == roi2.getC() && roi1.getT() == roi2.getT() && roi1.getZ() == roi2.getZ();
-		}
+	 * Test if two PathROIs share the same channel, z-slice &amp; time-point
+	 * 
+	 * @param roi1
+	 * @param roi2
+	 * @return
+	 */
+	static boolean sameImagePlane(ROI roi1, ROI roi2) {
+//		if (roi1.getC() != roi2.getC())
+//			logger.info("Channels differ");
+//		if (roi1.getT() != roi2.getT())
+//			logger.info("Timepoints differ");
+//		if (roi1.getZ() != roi2.getZ())
+//			logger.info("Z-slices differ");
+		return roi1.getC() == roi2.getC() && roi1.getT() == roi2.getT() && roi1.getZ() == roi2.getZ();
+	}
 
 	/**
 	 * Returns true if pathROI is an area that contains x &amp; y somewhere within it.
@@ -768,6 +779,56 @@ public class RoiTools {
 	public static boolean areaContains(final ROI pathROI, final double x, final double y) {
 		return (pathROI instanceof PathArea) && ((PathArea)pathROI).contains(x, y);
 	}
+
+	static List<Point2> getLinearPathPoints(final Path2D path, final PathIterator iter) {
+			List<Point2> points = new ArrayList<>();
+			double[] seg = new double[6];
+			while (!iter.isDone()) {
+				switch(iter.currentSegment(seg)) {
+				case PathIterator.SEG_MOVETO:
+					// Fall through
+				case PathIterator.SEG_LINETO:
+					points.add(new Point2(seg[0], seg[1]));
+					break;
+				case PathIterator.SEG_CLOSE:
+	//				// Add first point again
+	//				if (!points.isEmpty())
+	//					points.add(points.get(0));
+					break;
+				default:
+					throw new RuntimeException("Invalid polygon " + path + " - only line connections are allowed");
+				};
+				iter.next();
+			}
+			return points;
+		}
+
+	static List<Vertices> getVertices(final Shape shape) {
+			Path2D path = shape instanceof Path2D ? (Path2D)shape : new Path2D.Float(shape);
+			PathIterator iter = path.getPathIterator(null, 0.5);
+			List<Vertices> verticesList = new ArrayList<>();
+			MutableVertices vertices = null;
+			double[] seg = new double[6];
+			while (!iter.isDone()) {
+				switch(iter.currentSegment(seg)) {
+				case PathIterator.SEG_MOVETO:
+					vertices = new DefaultMutableVertices(new DefaultVertices());
+					// Fall through
+				case PathIterator.SEG_LINETO:
+					vertices.add(seg[0], seg[1]);
+					break;
+				case PathIterator.SEG_CLOSE:
+	//				// Add first point again
+					vertices.close();
+					verticesList.add(vertices.getVertices());
+					break;
+				default:
+					throw new RuntimeException("Invalid polygon " + path + " - only line connections are allowed");
+				};
+				iter.next();
+			}
+			return verticesList;
+		}
 
 
 //	/**

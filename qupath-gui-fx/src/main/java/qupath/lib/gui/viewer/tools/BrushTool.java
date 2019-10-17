@@ -385,7 +385,7 @@ public class BrushTool extends AbstractPathROITool {
 			return pathObjectNew;
 
 		} catch (Exception ex) {
-			logger.error("Error updating ROI", e);
+			logger.error("Error updating ROI", ex);
 			return currentObject;
 		}
 	}

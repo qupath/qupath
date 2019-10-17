@@ -255,7 +255,7 @@ public class ShapeSimplifier {
 		Path2D path = shape instanceof Path2D ? (Path2D)shape : new Path2D.Float(shape);
 		path = simplifyPath(path, altitudeThreshold);
 		// Construct a new polygon
-		return new AWTAreaROI(path, shapeROI.getImagePlane());
+		return ROIs.createAreaROI(path, shapeROI.getImagePlane());
 	}
 	
 	

@@ -26,9 +26,7 @@ package qupath.lib.roi;
 import java.awt.Shape;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.Path2D;
-import java.awt.geom.PathIterator;
 import java.io.Serializable;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
@@ -56,12 +54,8 @@ class AWTAreaROI extends AreaROI implements TranslatableROI, Serializable {
 	// By caching the bounds this can be speeded up
 	transient private ClosedShapeStatistics stats = null;
 	
-	AWTAreaROI(Shape shape) {
-		this(shape, null);
-	}
-	
 	AWTAreaROI(Shape shape, ImagePlane plane) {
-		super(getVertices(shape), plane);
+		super(RoiTools.getVertices(shape), plane);
 		this.shape = new Path2D.Float(shape);
 	}
 	
@@ -234,66 +228,13 @@ class AWTAreaROI extends AreaROI implements TranslatableROI, Serializable {
 	public List<Point2> getPolygonPoints() {
 		if (shape == null)
 			return Collections.emptyList();
-		return getLinearPathPoints(shape, shape.getPathIterator(null, 0.5));
+		return RoiTools.getLinearPathPoints(shape, shape.getPathIterator(null, 0.5));
 	}
 	
 	
 	private Object writeReplace() {
-		AreaROI roi = new AreaROI(getVertices(shape), ImagePlane.getPlaneWithChannel(c, z, t));
+		AreaROI roi = new AreaROI(RoiTools.getVertices(shape), ImagePlane.getPlaneWithChannel(c, z, t));
 		return roi;
-	}
-	
-	
-	static List<Point2> getLinearPathPoints(final Path2D path, final PathIterator iter) {
-		List<Point2> points = new ArrayList<>();
-		double[] seg = new double[6];
-		while (!iter.isDone()) {
-			switch(iter.currentSegment(seg)) {
-			case PathIterator.SEG_MOVETO:
-				// Fall through
-			case PathIterator.SEG_LINETO:
-				points.add(new Point2(seg[0], seg[1]));
-				break;
-			case PathIterator.SEG_CLOSE:
-//				// Add first point again
-//				if (!points.isEmpty())
-//					points.add(points.get(0));
-				break;
-			default:
-				throw new RuntimeException("Invalid polygon " + path + " - only line connections are allowed");
-			};
-			iter.next();
-		}
-		return points;
-	}
-	
-	
-	
-	static List<Vertices> getVertices(final Shape shape) {
-		Path2D path = shape instanceof Path2D ? (Path2D)shape : new Path2D.Float(shape);
-		PathIterator iter = path.getPathIterator(null, 0.5);
-		List<Vertices> verticesList = new ArrayList<>();
-		MutableVertices vertices = null;
-		double[] seg = new double[6];
-		while (!iter.isDone()) {
-			switch(iter.currentSegment(seg)) {
-			case PathIterator.SEG_MOVETO:
-				vertices = new DefaultMutableVertices(new DefaultVertices());
-				// Fall through
-			case PathIterator.SEG_LINETO:
-				vertices.add(seg[0], seg[1]);
-				break;
-			case PathIterator.SEG_CLOSE:
-//				// Add first point again
-				vertices.close();
-				verticesList.add(vertices.getVertices());
-				break;
-			default:
-				throw new RuntimeException("Invalid polygon " + path + " - only line connections are allowed");
-			};
-			iter.next();
-		}
-		return verticesList;
 	}
 	
 }

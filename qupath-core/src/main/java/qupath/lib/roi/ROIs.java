@@ -203,7 +203,8 @@ public class ROIs {
 	 * @return
 	 */
 	public static PathArea createAreaROI(Shape shape, ImagePlane plane) {
-		return new AWTAreaROI(shape, plane);
+		return new AreaGeometryROI(GeometryTools.convertShapeToGeometry(shape), plane);
+//		return new AWTAreaROI(shape, plane);
 	}
 
 }

@@ -49,6 +49,28 @@ public class GeometryTools {
     private static GeometryConverter DEFAULT_INSTANCE = new GeometryConverter.Builder().build();
     
     /**
+     * Convert a JTS Geometry to a java.awt.Shape.
+     * @param geometry
+     * @return
+     */
+    public static Shape convertGeometryToShape(Geometry geometry) {
+    	return DEFAULT_INSTANCE.geometryToShape(geometry);
+    }
+    
+    /**
+     * Convert a java.awt.Shape to a JTS Geometry.
+     * @param shape
+     * @return
+     */
+    public static Geometry convertShapeToGeometry(Shape shape) {
+//    	System.err.println("Shape area: " + new ClosedShapeStatistics(shape).getArea());
+    	var geometry = DEFAULT_INSTANCE.getShapeReader().read(shape.getPathIterator(null, DEFAULT_INSTANCE.flatness));
+//    	System.err.println("Geometry area: " + geometry.getArea());
+    	return geometry;
+//    	return ShapeReader.read(shape, DEFAULT_INSTANCE.flatness, DEFAULT_INSTANCE.factory);
+    }
+    
+    /**
      * Convert a JTS Geometry to a QuPath ROI.
      * @param geometry
      * @return
@@ -341,6 +363,8 @@ public class GeometryTools {
 	    		List<Point2> points = Arrays.stream(coords).map(c -> new Point2(c.x, c.y)).collect(Collectors.toList());
 	    		return ROIs.createPointsROI(points, plane);
 	    	}
+	    	if (geometry.getArea() > 0)
+	    		return new AreaGeometryROI(geometry, plane);
 	        return RoiTools.getShapeROI(geometryToShape(geometry), plane, flatness);
 	    }
 	
