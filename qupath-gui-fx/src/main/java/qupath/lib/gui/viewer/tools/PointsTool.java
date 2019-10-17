@@ -67,6 +67,14 @@ public class PointsTool extends AbstractPathTool {
 		return (currentObject.getROI() instanceof PointsROI) ? (PointsROI)currentObject.getROI() : null;
 	}
 	
+	/**
+	 * Return false.
+	 * @return
+	 */
+	@Override
+	protected boolean requestPixelSnapping() {
+		return PathPrefs.usePixelSnapping();
+	}
 	
 	@Override
 	public void mouseReleased(MouseEvent e) {
@@ -107,7 +115,7 @@ public class PointsTool extends AbstractPathTool {
 		PointsROI points = getCurrentPoints();
 		
 		// Find out the coordinates in the image domain & update the adjustment
-		Point2D pAdjusting = mouseLocationToImage(e, true, false);
+		Point2D pAdjusting = mouseLocationToImage(e, true, requestPixelSnapping());
 //		double radius = PointsROI.getDefaultPointRadius();
 		PointsROI points2 = (PointsROI)editor.setActiveHandlePosition(pAdjusting.getX(), pAdjusting.getY(), 0.25, e.isShiftDown());
 		if (points2 == points)
@@ -195,7 +203,7 @@ public class PointsTool extends AbstractPathTool {
 			return;
 
 		// Find out the coordinates in the image domain
-		Point2D p = mouseLocationToImage(e, false, false);
+		Point2D p = mouseLocationToImage(e, false, requestPixelSnapping());
 		double xx = p.getX();
 		double yy = p.getY();
 

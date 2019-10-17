@@ -1726,6 +1726,26 @@ public class PathPrefs {
     	return strokeThickThickness.get();
     }	
 	
+    
+    private static final BooleanProperty usePixelSnapping = createPersistentPreference("usePixelSnapping", true);
+    
+    /**
+	 * If true, pixels should be snapped to integer coordinates when using the drawing tools.
+	 * 
+	 * @return
+	 */
+	public static BooleanProperty usePixelSnappingProperty() {
+		return usePixelSnapping;
+	}
+
+	public static boolean usePixelSnapping() {
+		return usePixelSnapping.get();
+	}
+
+	public static void setUsePixelSnapping(final boolean useCache) {
+		usePixelSnapping.set(useCache);
+	}
+	
 	
 	/*
 	 * Default_Hematoxylin

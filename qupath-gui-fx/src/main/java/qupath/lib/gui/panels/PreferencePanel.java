@@ -330,6 +330,11 @@ public class PreferencePanel {
 				category,
 				"Return selected tool to 'Move' automatically after drawing a ROI (applies to all drawing tools except brush & wand)");
 		
+		addPropertyPreference(PathPrefs.usePixelSnappingProperty(), Boolean.class,
+				"Use pixel snapping",
+				category,
+				"Automatically snap pixels to integer coordinates when using drawing tools (some tools, e.g. line, points may override this)");
+		
 		addPropertyPreference(PathPrefs.clipROIsForHierarchyProperty(), Boolean.class,
 				"Clip ROIs to hierarchy",
 				category,

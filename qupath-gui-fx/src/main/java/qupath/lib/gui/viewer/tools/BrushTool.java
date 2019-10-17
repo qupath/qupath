@@ -180,7 +180,7 @@ public class BrushTool extends AbstractPathROITool {
 		
 		// Determine if we are creating a new object
 //		boolean createNew = currentObject == null || e.getClickCount() > 1;// || (!currentObject.getROI().contains(p.getX(), p.getY()) && !e.isAltDown());
-		Point2D p = mouseLocationToImage(e, false, true);
+		Point2D p = mouseLocationToImage(e, false, requestPixelSnapping());
 		double xx = p.getX();
 		double yy = p.getY();
 		if (xx < 0 || yy < 0 || xx >= viewer.getServerWidth() || yy >= viewer.getServerHeight())
@@ -310,7 +310,7 @@ public class BrushTool extends AbstractPathROITool {
 	
 	
 	private PathObject getUpdatedObject(MouseEvent e, PathShape shapeROI, PathObject currentObject, double flatness) {
-		Point2D p = mouseLocationToImage(e, true, true);
+		Point2D p = mouseLocationToImage(e, true, requestPixelSnapping());
 		
 		ImagePlane plane = shapeROI == null ? ImagePlane.getPlane(viewer.getZPosition(), viewer.getTPosition()) : shapeROI.getImagePlane();
 		Geometry shapeNew;

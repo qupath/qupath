@@ -43,11 +43,9 @@ import qupath.lib.roi.interfaces.ROI;
  */
 abstract class AbstractPathDraggingROITool extends AbstractPathROITool {
 
-
 	AbstractPathDraggingROITool(ModeWrapper modes) {
 		super(modes);
 	}
-
 
 	@Override
 	public void mouseDragged(MouseEvent e) {
@@ -62,7 +60,7 @@ abstract class AbstractPathDraggingROITool extends AbstractPathROITool {
 		
 		if (currentROI != null && editor.getROI() == currentROI && editor.hasActiveHandle()) {
 			PathObject pathObject = viewer.getSelectedObject();
-			Point2D p = mouseLocationToImage(e, true, true);
+			Point2D p = mouseLocationToImage(e, true, requestPixelSnapping());
 			ROI roiUpdated = editor.setActiveHandlePosition(p.getX(), p.getY(), 0.25, e.isShiftDown());
 			if (roiUpdated != currentROI) {
 				((PathROIObject)pathObject).setROI(roiUpdated);

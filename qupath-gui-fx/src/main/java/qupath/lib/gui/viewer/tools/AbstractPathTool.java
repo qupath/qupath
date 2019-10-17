@@ -86,6 +86,15 @@ abstract class AbstractPathTool implements PathTool, QuPathViewerListener {
 		viewer.setCursor(cursor);
 	}
 	
+	/**
+	 * Returns true if the tool requests that pixel coordinates be snapped to integer values.
+	 * Default returns true.
+	 * 
+	 * @return
+	 */
+	protected boolean requestPixelSnapping() {
+		return PathPrefs.usePixelSnapping();
+	}
 	
 	protected QuPathViewer getViewer() {
 		return viewer;

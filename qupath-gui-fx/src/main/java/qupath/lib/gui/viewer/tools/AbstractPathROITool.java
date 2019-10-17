@@ -62,7 +62,6 @@ abstract class AbstractPathROITool extends AbstractPathTool {
 		super(modes);
 	}
 
-
 	/**
 	 * Create a new ROI with the given starting coordinates.
 	 * 
@@ -133,7 +132,7 @@ abstract class AbstractPathROITool extends AbstractPathTool {
 		}
 
 		// Find out the coordinates in the image domain
-		Point2D p2 = mouseLocationToImage(e, false, true);
+		Point2D p2 = mouseLocationToImage(e, false, requestPixelSnapping());
 		double xx = p2.getX();
 		double yy = p2.getY();
 		if (xx < 0 || yy < 0 || xx >= viewer.getServerWidth() || yy >= viewer.getServerHeight())

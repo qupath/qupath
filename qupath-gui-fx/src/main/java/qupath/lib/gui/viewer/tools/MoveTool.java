@@ -91,7 +91,7 @@ public class MoveTool extends AbstractPathTool {
 		if (!e.isPrimaryButtonDown() || e.isConsumed())
             return;
 		
-		Point2D p = mouseLocationToImage(e, false, true);
+		Point2D p = mouseLocationToImage(e, false, requestPixelSnapping());
 		double xx = p.getX();
 		double yy = p.getY();
 		
@@ -145,7 +145,7 @@ public class MoveTool extends AbstractPathTool {
 				if (editor.getROI() == currentROI) {
 					// 1.5 increases the range; the handle radius alone is too small a distance, especially if the handles are painted as squares -
 					// because 1.5 >~ sqrt(2) it ensures that at least the entire square is 'active' (and a bit beyond it)
-					if (editor.grabHandle(xx, yy, viewer.getMaxROIHandleSize() * 1.5, e.isShiftDown()))
+					if (editor.grabHandle(xx, yy, Math.max(1, viewer.getMaxROIHandleSize() * 1.5), e.isShiftDown()))
 						e.consume();
 				}
 				if (!e.isConsumed() && canTranslate(currentObject) &&
@@ -188,7 +188,7 @@ public class MoveTool extends AbstractPathTool {
 		if (!e.isPrimaryButtonDown() || e.isConsumed())
             return;
 		
-		Point2D p = mouseLocationToImage(e, true, true);
+		Point2D p = mouseLocationToImage(e, true, requestPixelSnapping());
 		
 		// Handle ROIs if the spacebar isn't down
 		if (!viewer.isSpaceDown()) {
@@ -353,7 +353,7 @@ public class MoveTool extends AbstractPathTool {
 		// Check if we should have a panning or moving cursor, changing if required
 		ROI currentROI = viewer.getCurrentROI();
 		if (currentROI != null && canTranslate(viewer.getSelectedObject())) {
-			Point2D p2 = mouseLocationToImage(e, true, true);
+			Point2D p2 = mouseLocationToImage(e, true, requestPixelSnapping());
 			double xx = p2.getX();
 			double yy = p2.getY();
 			if (RoiTools.areaContains(currentROI, xx, yy)) {
