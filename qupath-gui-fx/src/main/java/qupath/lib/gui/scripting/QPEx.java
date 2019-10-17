@@ -404,7 +404,7 @@ public class QPEx extends QP {
 	 * @param imageData
 	 * @param path
 	 * @throws IOException
-	 * @see {@link #writeRenderedImage(QuPathViewer, String)}
+	 * @see #writeRenderedImage(QuPathViewer, String)
 	 */
 	public static void writeRenderedImage(ImageData<BufferedImage> imageData, String path) throws IOException {
 		var renderedServer = new RenderedImageServer.Builder(imageData).build();
@@ -416,7 +416,7 @@ public class QPEx extends QP {
 	 * @param viewer
 	 * @param path
 	 * @throws IOException
-	 * @see {@link #writeRenderedImage(ImageData, String)}
+	 * @see #writeRenderedImage(ImageData, String)
 	 */
 	public static void writeRenderedImage(QuPathViewer viewer, String path) throws IOException {
 		var renderedServer = RenderedImageServer.createRenderedServer(viewer);
