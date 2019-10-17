@@ -29,7 +29,7 @@ import qupath.lib.gui.prefs.PathPrefs;
 /**
  * A basic GUI to help monitor memory usage in QuPath.
  * <p>
- * This helps both to find & address out-of-memory troubles by
+ * This helps both to find and address out-of-memory troubles by
  * <ol>
  *   <li>Showing how much memory is in use over time</li>
  *   <li>Giving a button to clear the tile cache - which can be

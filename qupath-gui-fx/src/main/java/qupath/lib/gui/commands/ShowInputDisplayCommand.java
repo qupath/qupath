@@ -55,7 +55,7 @@ import qupath.lib.gui.prefs.PathPrefs;
  * QuPath command to display key-presses and mouse movement logged when interacting
  * with the main Window.
  * 
- * This is useful for demos & tutorials where shortcut keys are used.
+ * This is useful for demos and tutorials where shortcut keys are used.
  *
  * @author Pete Bankhead
  */
