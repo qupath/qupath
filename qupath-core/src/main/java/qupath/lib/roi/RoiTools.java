@@ -464,7 +464,7 @@ public class RoiTools {
 		//			return path;
 		//		}
 
-		if (roi instanceof AWTAreaROI || roi instanceof AreaGeometryROI) {
+		if (roi instanceof AWTAreaROI || roi instanceof GeometryROI) {
 			return roi.getShape();
 		}
 		if (roi instanceof AreaROI) {
@@ -635,7 +635,7 @@ public class RoiTools {
 	 * @return
 	 */
 	public static List<ROI> splitROI(final ROI roi) {
-		if (!(roi instanceof AreaROI)) {
+		if (!(roi instanceof AreaROI || roi instanceof GeometryROI)) {
 			return Collections.singletonList(roi);
 		}
 		

@@ -26,6 +26,7 @@ import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.AreaROI;
+import qupath.lib.roi.GeometryTools;
 import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.RoiTools.CombineOp;
 import qupath.lib.roi.interfaces.PathArea;
@@ -323,7 +324,7 @@ public class PixelClassifierTools {
 			ImageServer<BufferedImage> server, PathObjectHierarchy hierarchy, PathObject selectedObject, 
 			Function<ROI, ? extends PathObject> creator, double minSizePixels, boolean doSplit) {
 		
-		var clipArea = selectedObject == null ? null : RoiTools.getArea(selectedObject.getROI());
+		var clipArea = selectedObject == null ? null : selectedObject.getROI().getGeometry();
 		Collection<TileRequest> tiles;
 		if (selectedObject == null) {
 			tiles = server.getTileRequestManager().getAllTileRequests();
@@ -372,12 +373,12 @@ public class PixelClassifierTools {
 					ROI roi = thresholdToROI(raster, c-0.5, c+0.5, 0, t);
 										
 					if (roi != null && clipArea != null) {
-						var roiArea = RoiTools.getArea(roi);
-						RoiTools.combineAreas(roiArea, clipArea, CombineOp.INTERSECT);
+						var roiArea = roi.getGeometry().intersection(clipArea);
+//						RoiTools.combineAreas(roiArea, clipArea, CombineOp.INTERSECT);
 						if (roiArea.isEmpty())
 							roi = null;
 						else
-							roi = RoiTools.getShapeROI(roiArea, roi.getImagePlane());
+							roi = GeometryTools.convertGeometryToROI(roiArea, roi.getImagePlane());
 					}
 					
 					if (roi != null)

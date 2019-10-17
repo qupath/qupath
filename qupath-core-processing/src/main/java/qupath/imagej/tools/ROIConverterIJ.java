@@ -181,7 +181,7 @@ class ROIConverterIJ {
 		transform.translate(roi.getXBase(), roi.getYBase());
 		transform.translate(-xOrigin, -yOrigin);
 //		return setPathROIProperties(PathROIHelpers.getShapeROI(new Area(transform.createTransformedShape(shape)), 0, 0, 0), roi);
-		return ROIs.createAreaROI(transform.createTransformedShape(shape), ImagePlane.getPlaneWithChannel(c, z, t));
+		return ROIs.createAreaROI(new Area(transform.createTransformedShape(shape)), ImagePlane.getPlaneWithChannel(c, z, t));
 	}
 	
 	

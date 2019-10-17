@@ -203,8 +203,13 @@ class PathObjectTileCache implements PathObjectHierarchyListener {
 				geometryMap.put(roi, geometry);
 			}
 //			long startTime = System.currentTimeMillis();
-			if (!geometry.isValid())
-				logger.warn("{} is not a valid geometry! Actual geometry {}", pathObject, geometry);
+			if (!geometry.isValid()) {
+				int nVertices = geometry.getNumPoints();
+				if (geometry.getNumPoints() < 100)
+					logger.warn("{} is not a valid geometry! Actual geometry {}", pathObject, geometry);
+				else
+					logger.warn("{} is not a valid geometry! Actual geometry {} ({} vertices)", pathObject, geometry.getGeometryType(), nVertices);
+			}
 //			long endTime = System.currentTimeMillis();
 //			System.err.println("Testing " + (endTime - startTime) + " ms for " + geometry);
 		}

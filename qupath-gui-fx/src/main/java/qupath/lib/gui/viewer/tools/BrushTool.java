@@ -24,7 +24,6 @@
 package qupath.lib.gui.viewer.tools;
 
 import java.awt.Shape;
-import java.awt.geom.Area;
 import java.awt.geom.Point2D;
 import java.util.Collections;
 import java.util.List;
@@ -340,17 +339,14 @@ public class BrushTool extends AbstractPathROITool {
 	//				shapeNew = RoiTools.combineROIs(shapeROI,
 	//						ROIs.createAreaROI(shapeDrawn, ImagePlane.getPlaneWithChannel(shapeROI.getC(), shapeROI.getZ(), shapeROI.getT())), RoiTools.CombineOp.SUBTRACT, flatness);
 				} else if (avoidOtherAnnotations) {
-					// Legacy code moves through java.awt.geom.Areas...
-					Area area = RoiTools.getArea(GeometryTools.convertGeometryToROI(shapeCurrent.union(shapeDrawn), ImagePlane.getDefaultPlane()));
-					Area currentArea = getCurrentParentArea();
+					shapeNew = shapeCurrent.union(shapeDrawn);
+					var currentArea = getCurrentParentArea();
 					if (currentArea != null)
-						area.intersect(getCurrentParentArea());
+						shapeNew = shapeNew.intersection(getCurrentParentArea());
 					
-					Area currentParentAnnotationsArea = getCurrentParentAnnotationsArea(currentObject);
+					var currentParentAnnotationsArea = getCurrentParentAnnotationsArea(currentObject);
 					if (currentParentAnnotationsArea != null)
-						area.subtract(currentParentAnnotationsArea);
-	//				}
-					shapeNew = RoiTools.getShapeROI(area, shapeROI.getImagePlane()).getGeometry();
+						shapeNew = shapeNew.difference(currentParentAnnotationsArea);
 				} else {
 					// Just add, regardless of whether there are other annotations below or not
 					var temp = shapeROI.getGeometry();

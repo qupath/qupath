@@ -49,21 +49,6 @@ class ClosedShapeStatistics implements Serializable {
 	private double minX = Double.NaN, maxX = Double.NaN, minY = Double.NaN, maxY = Double.NaN;
 	private int nVertices = 0;
 	
-//	public ClosedShapeStatistics(final List<Point2> points) {
-//		this(points, 1, 1);
-//	}
-//	
-//	public ClosedShapeStatistics(final List<Point2> points, final double pixelWidth, final double pixelHeight) {
-//		if (points.isEmpty())
-//			return;
-//		Path2D path = new Path2D.Float();
-//		path.moveTo(points.get(0).getX(), points.get(0).getY());
-//		for (Point2 p : points)
-//			path.lineTo(p.getX(), p.getY());
-//		path.closePath();
-//		calculateShapeMeasurements(path, pixelWidth, pixelHeight);
-//	}
-	
 	/**
 	 * Calculate shape statistics for default pixel width &amp; height of 1.
 	 * 

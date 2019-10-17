@@ -19,6 +19,7 @@ import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.MultiPoint;
 import org.locationtech.jts.geom.Point;
+import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.PrecisionModel;
 import org.locationtech.jts.operation.overlay.snap.GeometrySnapper;
 import org.locationtech.jts.operation.union.UnaryUnionOp;
@@ -64,7 +65,7 @@ public class GeometryTools {
      */
     public static Geometry convertShapeToGeometry(Shape shape) {
 //    	System.err.println("Shape area: " + new ClosedShapeStatistics(shape).getArea());
-    	var geometry = DEFAULT_INSTANCE.getShapeReader().read(shape.getPathIterator(null, DEFAULT_INSTANCE.flatness));
+    	var geometry = DEFAULT_INSTANCE.shapeToGeometry(shape);
 //    	System.err.println("Geometry area: " + geometry.getArea());
     	return geometry;
 //    	return ShapeReader.read(shape, DEFAULT_INSTANCE.flatness, DEFAULT_INSTANCE.factory);
@@ -167,8 +168,18 @@ public class GeometryTools {
 	    private Geometry areaToGeometry(PathArea roi) {
 	    	if (roi.isEmpty())
 	    		return factory.createPolygon();
-	    	
 	    	Area shape = RoiTools.getArea(roi);
+	    	return areaToGeometry(shape);
+	    }
+	    
+	    private Geometry shapeToGeometry(Shape shape) {
+	    	if (shape instanceof Area)
+	    		return areaToGeometry((Area)shape);
+	    	PathIterator iterator = shape.getPathIterator(transform, flatness);
+        	return getShapeReader().read(iterator);
+	    }
+	    
+	    private Geometry areaToGeometry(Area shape) {
 	    	Geometry geometry = null;
 	    	if (shape.isSingular()) {
 	        	PathIterator iterator = shape.getPathIterator(transform, flatness);
@@ -315,7 +326,9 @@ public class GeometryTools {
 			double computedArea = Math.abs(areaCached);
 			double geometryArea = geometry.getArea();
 			if (!GeneralTools.almostTheSame(computedArea, geometryArea, 0.01)) {
-				logger.warn("Difference in area after JTS conversion! Computed area: {}, Geometry area: {}", Math.abs(areaCached), geometry.getArea());
+				double percent = Math.abs(computedArea - geometryArea) / (computedArea/2.0 + geometryArea/2.0) * 100.0;
+				logger.warn("Difference in area after JTS conversion! Computed area: {}, Geometry area: {} ({} %%)", Math.abs(areaCached), geometry.getArea(),
+						GeneralTools.formatNumber(percent, 3));
 			}
 			return geometry;
 		}
@@ -363,8 +376,10 @@ public class GeometryTools {
 	    		List<Point2> points = Arrays.stream(coords).map(c -> new Point2(c.x, c.y)).collect(Collectors.toList());
 	    		return ROIs.createPointsROI(points, plane);
 	    	}
-	    	if (geometry.getArea() > 0)
-	    		return new AreaGeometryROI(geometry, plane);
+	    	// For anything complicated, return a Geometry ROI
+	    	if (geometry.getNumGeometries() > 1 || (geometry instanceof Polygon && ((Polygon)geometry).getNumInteriorRing() > 0))
+	    		return new GeometryROI(geometry, plane);
+	    	// Otherwise return a (possibly easier to edit) ROI
 	        return RoiTools.getShapeROI(geometryToShape(geometry), plane, flatness);
 	    }
 	

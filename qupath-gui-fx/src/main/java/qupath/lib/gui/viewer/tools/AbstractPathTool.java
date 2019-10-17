@@ -24,7 +24,6 @@
 package qupath.lib.gui.viewer.tools;
 
 import java.awt.Shape;
-import java.awt.geom.Area;
 import java.awt.geom.Point2D;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
@@ -33,6 +32,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
+import org.locationtech.jts.geom.Geometry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,7 +47,7 @@ import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
-import qupath.lib.roi.RoiTools;
+import qupath.lib.roi.GeometryTools;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.ROI;
 
@@ -65,8 +65,8 @@ abstract class AbstractPathTool implements PathTool, QuPathViewerListener {
 	ModeWrapper modes;
 	
 	private PathObject currentParent;
-	private Area parentArea;
-	private Area parentAnnotationsArea;
+	private Geometry parentArea;
+	private Geometry parentAnnotationsArea;
 	
 	transient LevelComparator comparator;
 	
@@ -134,15 +134,15 @@ abstract class AbstractPathTool implements PathTool, QuPathViewerListener {
 		if (currentROI.isLine())
 			return currentROI;
 		// Handle areas
-		Area currentArea = RoiTools.getArea(currentROI);
+		var currentArea = currentROI.getGeometry();
 		if (parentArea != null)
-			currentArea.intersect(parentArea);
+			currentArea = currentArea.intersection(parentArea);
 		if (parentAnnotationsArea != null)
-			currentArea.subtract(parentAnnotationsArea);
+			currentArea = currentArea.difference(parentAnnotationsArea);
 		if (currentArea.isEmpty())
 			return ROIs.createEmptyROI();
 		else
-			return RoiTools.getShapeROI(currentArea, currentROI.getImagePlane());
+			return GeometryTools.convertGeometryToROI(currentArea, currentROI.getImagePlane());
 	}
 	
 	
@@ -168,7 +168,7 @@ abstract class AbstractPathTool implements PathTool, QuPathViewerListener {
 		
 		// Get a combined area for the parent and any annotation children
 		if (currentParent.hasROI() && currentParent.getROI().isArea())
-			parentArea = RoiTools.getArea(currentParent.getROI());
+			parentArea = currentParent.getROI().getGeometry();
 		
 	}
 	
@@ -184,11 +184,11 @@ abstract class AbstractPathTool implements PathTool, QuPathViewerListener {
 		return currentParent;
 	}
 	
-	synchronized Area getCurrentParentArea() {
+	synchronized Geometry getCurrentParentArea() {
 		return parentArea;
 	}
 	
-	synchronized Area getCurrentParentAnnotationsArea(final PathObject currentObject) {
+	synchronized Geometry getCurrentParentAnnotationsArea(final PathObject currentObject) {
 		if (currentParent == null)
 			return null;
 		if (parentAnnotationsArea == null) {
@@ -196,11 +196,11 @@ abstract class AbstractPathTool implements PathTool, QuPathViewerListener {
 				if (child.isDetection() || child == currentObject)
 					continue;
 				if (child.hasROI() && child.getROI().isArea()) {
-					Area childArea = RoiTools.getArea(child.getROI());
+					Geometry childArea = child.getROI().getGeometry();
 					if (parentAnnotationsArea == null)
 						parentAnnotationsArea = childArea;
 					else
-						parentAnnotationsArea.add(childArea);
+						parentAnnotationsArea = parentAnnotationsArea.union(childArea);
 				}
 			}
 		}
