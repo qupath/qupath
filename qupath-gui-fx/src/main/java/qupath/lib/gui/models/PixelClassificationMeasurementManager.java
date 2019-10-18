@@ -227,7 +227,7 @@ public class PixelClassificationMeasurementManager {
 	        		g2d.fill(shape);
 	        	g2d.dispose();
         	} else if (roi.isPoint()) {
-        		for (var p : roi.getPolygonPoints()) {
+        		for (var p : roi.getAllPoints()) {
         			int x = (int)((p.getX() - region.getImageX()) / region.getDownsample());
         			int y = (int)((p.getY() - region.getImageY()) / region.getDownsample());
         			if (x >= 0 && y >= 0 && x < imgMask.getWidth() && y < imgMask.getHeight())

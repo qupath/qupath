@@ -35,8 +35,9 @@ import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.roi.PolygonROI;
+import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.ShapeSimplifier;
-import qupath.lib.roi.interfaces.PathShape;
+import qupath.lib.roi.interfaces.ROI;
 
 
 /**
@@ -64,7 +65,7 @@ public class ShapeSimplifierCommand implements PathCommand {
 			return;
 		PathObjectHierarchy hierarchy = imageData.getHierarchy();
 		PathObject pathObject = hierarchy.getSelectionModel().getSelectedObject();
-		if (!(pathObject instanceof PathAnnotationObject) || pathObject.hasChildren() || !(pathObject.getROI() instanceof PathShape)) {
+		if (!(pathObject instanceof PathAnnotationObject) || pathObject.hasChildren() || !RoiTools.isShapeROI(pathObject.getROI())) {
 			logger.error("Only annotations without child objects can be simplified");
 			return;
 		}
@@ -82,7 +83,7 @@ public class ShapeSimplifierCommand implements PathCommand {
 		}
 		
 		long startTime = System.currentTimeMillis();
-		PathShape pathROI = (PathShape)pathObject.getROI();
+		ROI pathROI = pathObject.getROI();
 		PathObject pathObjectNew = null;
 		if (pathROI instanceof PolygonROI) {
 			PolygonROI polygonROI = (PolygonROI)pathROI;

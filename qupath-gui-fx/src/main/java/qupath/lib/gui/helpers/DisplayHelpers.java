@@ -855,7 +855,7 @@ public class DisplayHelpers {
 				else
 					hierarchy.removeObject(pathObjectSelected, false);
 			} else if (PathObjectTools.hasPointROI(pathObjectSelected)) {
-				int nPoints = ((PointsROI)pathObjectSelected.getROI()).getNPoints();
+				int nPoints = ((PointsROI)pathObjectSelected.getROI()).getNumPoints();
 				if (nPoints > 1) {
 					if (!DisplayHelpers.showYesNoDialog("Delete object", String.format("Delete %d points?", nPoints)))
 						return false;

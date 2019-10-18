@@ -74,7 +74,6 @@ import qupath.lib.roi.ShapeSimplifier;
 import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.RoiTools.CombineOp;
 import qupath.lib.roi.PolygonROI;
-import qupath.lib.roi.interfaces.PathShape;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
@@ -151,7 +150,7 @@ public class SimpleTissueDetection2 extends AbstractDetectionPlugin<BufferedImag
 //				RegionRequest request = RegionRequest.createInstance(server.getPath(), downsample, bounds);
 				
 				RegionRequest request;
-				if (!(pathROI instanceof PathShape)) {
+				if (!RoiTools.isShapeROI(pathROI)) {
 					request = RegionRequest.createInstance(server.getPath(), downsample, 0, 0, server.getWidth(), server.getHeight());
 				} else
 					request = RegionRequest.createInstance(server.getPath(), downsample, pathROI);
@@ -308,7 +307,7 @@ public class SimpleTissueDetection2 extends AbstractDetectionPlugin<BufferedImag
 //				continue;
 			// Smooth the coordinates, if we downsampled quite a lot
 			if (smoothCoordinates) {
-				pathPolygon = ROIs.createPolygonROI(ShapeSimplifier.smoothPoints(pathPolygon.getPolygonPoints()), ImagePlane.getPlaneWithChannel(pathPolygon));
+				pathPolygon = ROIs.createPolygonROI(ShapeSimplifier.smoothPoints(pathPolygon.getAllPoints()), ImagePlane.getPlaneWithChannel(pathPolygon));
 				pathPolygon = ShapeSimplifier.simplifyPolygon(pathPolygon, downsample/2);
 			}
 			pathObjects.add(PathObjects.createAnnotationObject(pathPolygon));
@@ -360,7 +359,7 @@ public class SimpleTissueDetection2 extends AbstractDetectionPlugin<BufferedImag
 				
 				// Now subtract & create a new object
 				ROI pathROI = pathObject.getROI();
-				if (pathROI instanceof PathShape) {
+				if (RoiTools.isShapeROI(pathROI)) {
 					Area areaMain = RoiTools.getArea(pathROI);
 					areaMain.subtract(hole);
 					pathROI = RoiTools.getShapeROI(areaMain, pathROI.getImagePlane());
@@ -372,9 +371,9 @@ public class SimpleTissueDetection2 extends AbstractDetectionPlugin<BufferedImag
 		
 		// This is a clumsy way to do it...
 		if (singleAnnotation) {
-			PathShape roi = null;
+			ROI roi = null;
 			for (PathObject annotation : pathObjects) {
-				PathShape currentShape = (PathShape)annotation.getROI();
+				ROI currentShape = annotation.getROI();
 				if (roi == null)
 					roi = currentShape;
 				else

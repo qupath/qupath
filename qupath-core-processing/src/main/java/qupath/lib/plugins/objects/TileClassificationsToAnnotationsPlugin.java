@@ -58,7 +58,6 @@ import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.PolygonROI;
 import qupath.lib.roi.interfaces.ROI;
-import qupath.lib.roi.interfaces.PathShape;
 
 /**
  * Plugin to merge classified tiles into annotation objects.
@@ -198,8 +197,8 @@ public class TileClassificationsToAnnotationsPlugin<T> extends AbstractDetection
 				if (pathClass != null && !PathClassTools.isIgnoredClass(pathClass)) {
 					Path2D path = null;
 					for (PathObject pathObject : parentObject.getChildObjectsAsArray()) {
-						if ((pathObject instanceof PathTileObject) && (pathObject.getROI() instanceof PathShape) && pathClass.equals(pathObject.getPathClass())) {
-							PathShape pathShape = (PathShape)pathObject.getROI();
+						if ((pathObject instanceof PathTileObject) && (RoiTools.isShapeROI(pathObject.getROI())) && pathClass.equals(pathObject.getPathClass())) {
+							ROI pathShape = pathObject.getROI();
 							if (path == null)
 								path = new Path2D.Float(RoiTools.getShape(pathShape));
 							else
@@ -226,7 +225,7 @@ public class TileClassificationsToAnnotationsPlugin<T> extends AbstractDetection
 				
 				// Split if necessary
 				if (doSplit) {
-					PathShape pathShape = (PathShape)pathSingleAnnotation.getROI();
+					ROI pathShape = pathSingleAnnotation.getROI();
 					Area area = RoiTools.getArea(pathShape);
 					if (area.isSingular()) {
 						pathAnnotations.add(pathSingleAnnotation);
@@ -235,7 +234,7 @@ public class TileClassificationsToAnnotationsPlugin<T> extends AbstractDetection
 					else {
 						PolygonROI[][] polygons = RoiTools.splitAreaToPolygons(area, pathShape.getC(), pathShape.getZ(), pathShape.getT());
 						for (PolygonROI poly : polygons[1]) {
-							PathShape shape = poly;
+							ROI shape = poly;
 							Iterator<PathObject> iter = tiles.iterator();
 							List<PathObject> children = new ArrayList<>();
 							if (!deleteTiles) {

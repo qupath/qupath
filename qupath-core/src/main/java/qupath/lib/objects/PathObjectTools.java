@@ -49,8 +49,6 @@ import qupath.lib.roi.LineROI;
 import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.PolylineROI;
 import qupath.lib.roi.ROIs;
-import qupath.lib.roi.interfaces.PathArea;
-import qupath.lib.roi.interfaces.PathPoints;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
@@ -237,23 +235,21 @@ public class PathObjectTools {
 	 */
 	public static boolean containsROI(final ROI parentROI, final ROI childROI) {
 		// Check for nulls... just to be sure
-		if (parentROI == null || childROI == null || !(parentROI instanceof PathArea) || childROI.isEmpty() || parentROI.isEmpty())
+		if (parentROI == null || childROI == null || !parentROI.isArea() || childROI.isEmpty() || parentROI.isEmpty())
 			return false;
 		
-		PathArea parentArea = (PathArea)parentROI;
-		
 		// Check points
-		if (childROI instanceof PathPoints) {
-			for (Point2 p : ((PathPoints)childROI).getPointList()) {
-				if (!parentArea.contains(p.getX(), p.getY()))
+		if (childROI != null && childROI.isPoint()) {
+			for (Point2 p : childROI.getAllPoints()) {
+				if (!parentROI.contains(p.getX(), p.getY()))
 					return false;
 			}
 			return true;
 		}
 		
 		// Check areas - child can't have a larger area
-		if (childROI instanceof PathArea) {
-			if (((PathArea)childROI).getArea() > parentArea.getArea())
+		if (childROI.isArea()) {
+			if (childROI.getArea() > parentROI.getArea())
 				return false;
 		}
 
@@ -274,8 +270,8 @@ public class PathObjectTools {
 			return false;
 		
 		// Check shapes
-		for (Point2 p : childROI.getPolygonPoints()) {
-			if (!parentArea.contains(p.getX(), p.getY()))
+		for (Point2 p : childROI.getAllPoints()) {
+			if (!childROI.contains(p.getX(), p.getY()))
 				return false;
 		}
 		
@@ -510,7 +506,7 @@ public class PathObjectTools {
 								isClose = true;
 						} else if (roi instanceof PolylineROI) {
 							Point2 lastPoint = null;
-							for (var p : temp.getROI().getPolygonPoints()) {
+							for (var p : temp.getROI().getAllPoints()) {
 								if (p.distanceSq(x, y) <= distSq ||
 										(lastPoint != null && Line2D.ptSegDistSq(
 												p.getX(), p.getY(),
@@ -523,7 +519,7 @@ public class PathObjectTools {
 									lastPoint = p;
 							}
 						} else {
-							for (var p : temp.getROI().getPolygonPoints()) {
+							for (var p : temp.getROI().getAllPoints()) {
 								if (p.distanceSq(x, y) <= distSq) {
 									isClose = true;
 									break;

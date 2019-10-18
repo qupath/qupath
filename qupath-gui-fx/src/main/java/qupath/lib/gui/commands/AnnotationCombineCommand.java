@@ -38,7 +38,7 @@ import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.roi.RoiTools;
-import qupath.lib.roi.interfaces.PathShape;
+import qupath.lib.roi.interfaces.ROI;
 
 /**
  * Command to combine multiple annotations by merging their ROIs.
@@ -80,17 +80,17 @@ public class AnnotationCombineCommand implements PathCommand {
 			return;
 		}
 		PathObject pathObject = pathObjects.remove(0);
-		if (!(pathObject instanceof PathAnnotationObject) || !(pathObject.getROI() instanceof PathShape)) {
+		if (!(pathObject instanceof PathAnnotationObject) || !RoiTools.isShapeROI(pathObject.getROI())) {
 			logger.warn("Combine annotations: No annotation with ROI selected");				
 			return;
 		}
-		pathObjects.removeIf(p -> !(p.getROI() instanceof PathShape)); // Remove any non-shape ROIs
+		pathObjects.removeIf(p -> RoiTools.isShapeROI(p.getROI())); // Remove any null or point ROIs, TODO: Consider supporting points
 		if (pathObjects.isEmpty()) {
 			logger.warn("Combine annotations: Only one annotation with shape ROIs found");				
 			return;
 		}
 	
-		PathShape shapeMask = (PathShape)pathObject.getROI();
+		ROI shapeMask = pathObject.getROI();
 		Area areaOriginal = RoiTools.getArea(shapeMask);
 		Area areaNew = new Area(areaOriginal);
 		Iterator<PathObject> iter = pathObjects.iterator();
@@ -103,13 +103,13 @@ public class AnnotationCombineCommand implements PathCommand {
 			if (op == RoiTools.CombineOp.SUBTRACT) {
 				areaTemp.subtract(areaNew);
 				if (!areaTemp.isEmpty()) {
-					PathShape shapeNew = RoiTools.getShapeROI(areaTemp, shapeMask.getImagePlane());
+					var shapeNew = RoiTools.getShapeROI(areaTemp, shapeMask.getImagePlane());
 					annotationNew = PathObjects.createAnnotationObject(shapeNew, temp.getPathClass());
 				}
 			} else if (op == RoiTools.CombineOp.INTERSECT) {
 				areaTemp.intersect(areaNew);
 				if (!areaTemp.isEmpty()) {
-					PathShape shapeNew = RoiTools.getShapeROI(areaTemp, shapeMask.getImagePlane());
+					var shapeNew = RoiTools.getShapeROI(areaTemp, shapeMask.getImagePlane());
 					annotationNew = PathObjects.createAnnotationObject(shapeNew, temp.getPathClass());
 				}
 			} else {
@@ -127,7 +127,7 @@ public class AnnotationCombineCommand implements PathCommand {
 			return;
 		}
 		if (op == RoiTools.CombineOp.ADD) {
-			PathShape shapeNew = RoiTools.getShapeROI(areaNew, shapeMask.getImagePlane());
+			var shapeNew = RoiTools.getShapeROI(areaNew, shapeMask.getImagePlane());
 			if (!shapeNew.isEmpty())
 				objectsToAdd.add(PathObjects.createAnnotationObject(shapeNew, pathObject.getPathClass()));
 		}

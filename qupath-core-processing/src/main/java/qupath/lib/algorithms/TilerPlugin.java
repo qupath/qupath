@@ -42,7 +42,6 @@ import qupath.lib.plugins.AbstractDetectionPlugin;
 import qupath.lib.plugins.PathTask;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.roi.RoiTools;
-import qupath.lib.roi.interfaces.PathArea;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
@@ -131,7 +130,7 @@ public class TilerPlugin<T> extends AbstractDetectionPlugin<T> {
 		public void run() {
 			
 			ROI roi = parentObject.getROI();
-			if (!(roi instanceof PathArea)) {
+			if (roi == null || !roi.isArea()) {
 				lastMessage = "Cannot tile ROI " + roi + " - does not represent an area region of interest";
 				return;
 			}
@@ -144,7 +143,7 @@ public class TilerPlugin<T> extends AbstractDetectionPlugin<T> {
 			int tileHeight = tileSize.height;
 			boolean trimToROI = params.getBooleanParameterValue("trimToROI");
 
-			List<ROI> pathROIs = RoiTools.makeTiles((PathArea)roi, tileWidth, tileHeight, trimToROI);
+			List<ROI> pathROIs = RoiTools.makeTiles(roi, tileWidth, tileHeight, trimToROI);
 
 			tiles = new ArrayList<>(pathROIs.size());
 

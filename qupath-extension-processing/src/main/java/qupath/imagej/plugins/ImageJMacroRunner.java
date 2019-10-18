@@ -76,7 +76,6 @@ import qupath.lib.roi.LineROI;
 import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.RoiTools.CombineOp;
 import qupath.lib.roi.RectangleROI;
-import qupath.lib.roi.interfaces.PathShape;
 import qupath.lib.roi.interfaces.ROI;
 import qupathj.QUPath_Send_Overlay_to_QuPath;
 
@@ -322,8 +321,8 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 					PathObject pathObjectNew = roi == null ? null : IJTools.convertToPathObject(impResult, imageData.getServer(), roi, downsampleFactor, false, region.getPlane());
 					if (pathObjectNew != null) {
 						// If necessary, trim any returned annotation
-						if (pathROI != null && !(pathROI instanceof RectangleROI) && pathObjectNew.isAnnotation() && pathROI instanceof PathShape && pathObjectNew.getROI() instanceof PathShape) {
-							ROI roiNew = RoiTools.combineROIs((PathShape)pathROI, (PathShape)pathObjectNew.getROI(), CombineOp.INTERSECT);
+						if (pathROI != null && !(pathROI instanceof RectangleROI) && pathObjectNew.isAnnotation() && RoiTools.isShapeROI(pathROI) && RoiTools.isShapeROI(pathObjectNew.getROI())) {
+							ROI roiNew = RoiTools.combineROIs(pathROI, pathObjectNew.getROI(), CombineOp.INTERSECT);
 							((PathAnnotationObject)pathObjectNew).setROI(roiNew);
 						}
 						// Only add if we have something

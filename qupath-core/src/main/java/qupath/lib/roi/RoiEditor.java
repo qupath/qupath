@@ -34,7 +34,6 @@ import qupath.lib.geom.Point2;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.roi.interfaces.ROI;
-import qupath.lib.roi.interfaces.TranslatableROI;
 
 
 /**
@@ -134,7 +133,7 @@ public class RoiEditor {
 	 * @return
 	 */
 	public boolean startTranslation(double x, double y) {
-		if (!(pathROI instanceof TranslatableROI))
+		if (pathROI == null)
 			return false;
 		pTranslateOrigin = new MutablePoint(x, y);
 		pTranslateCurrent = new MutablePoint(x, y);
@@ -181,7 +180,7 @@ public class RoiEditor {
 			return pathROI;
 
 //		pathROI = ((TranslatableROI)pathROI).translate(dx, dy);
-		setROI(((TranslatableROI)pathROI).translate(dx, dy), false);
+		setROI(pathROI.translate(dx, dy), false);
 		pTranslateCurrent.setLocation(x, y);
 //		// TODO: Fix the inelegance... setting the ROI this way off translating, so we need to turn it back on again...
 //		pTranslateStart = new MutablePoint(x, y);
@@ -239,14 +238,6 @@ public class RoiEditor {
 	 */
 	public boolean hasROI() {
 		return pathROI != null;
-	}
-	
-	/**
-	 * Returns true if this editor currently has a ROI that can be translated.
-	 * @return
-	 */
-	public boolean hasTranslatableROI() {
-		return pathROI instanceof TranslatableROI;
 	}
 	
 	/**
@@ -632,7 +623,7 @@ public class RoiEditor {
 				handles = new ArrayList<>();
 			else
 				handles.clear();
-			addPointsToMutablePointList(handles, roi.getPolygonPoints());
+			addPointsToMutablePointList(handles, roi.getAllPoints());
 			
 			// If we have a single point, create a second handle (which may be adjusted)
 			if (handles.size() == 1)
@@ -715,7 +706,7 @@ public class RoiEditor {
 				handles = new ArrayList<>();
 			else
 				handles.clear();
-			addPointsToMutablePointList(handles, roi.getPolygonPoints());
+			addPointsToMutablePointList(handles, roi.getAllPoints());
 			
 			// If we have a single point, create a second handle (which may be adjusted)
 			if (handles.size() == 1)
@@ -796,7 +787,7 @@ public class RoiEditor {
 				handles = new ArrayList<>();
 			else
 				handles.clear();
-			addPointsToMutablePointList(handles, roi.getPolygonPoints());
+			addPointsToMutablePointList(handles, roi.getAllPoints());
 		}
 		
 		@Override

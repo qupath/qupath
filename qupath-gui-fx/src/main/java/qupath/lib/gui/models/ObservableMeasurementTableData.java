@@ -77,9 +77,6 @@ import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.AreaROI;
 import qupath.lib.roi.PolygonROI;
 import qupath.lib.roi.ROIs;
-import qupath.lib.roi.interfaces.PathArea;
-import qupath.lib.roi.interfaces.PathLine;
-import qupath.lib.roi.interfaces.PathPoints;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
@@ -237,11 +234,14 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 			for (PathObject pathObject : pathObjectListCopy) {
 				if (!pathObject.isAnnotation())
 					continue;
-				if (PathObjectTools.hasPointROI(pathObject))
+				ROI roi = pathObject.getROI();
+				if (roi == null)
+					continue;
+				if (roi.isPoint())
 					anyPoints = true;
-				if (pathObject.getROI() instanceof PathArea)
+				if (roi.isArea())
 					anyAreas = true;
-				if (pathObject.getROI() instanceof PathLine)
+				if (roi.isLine())
 					anyLines = true;
 				if (pathObject.getROI() instanceof PolygonROI)
 					anyPolygons = true;
@@ -676,7 +676,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 				if (pathObjectTemp.isRootObject() && server.nZSlices() == 1 || server.nTimepoints() == 1)
 					roi = ROIs.createRectangleROI(0, 0, server.getWidth(), server.getHeight(), ImagePlane.getDefaultPlane());
 				
-				if (roi instanceof PathArea) {
+				if (roi != null && roi.isArea()) {
 					double pixelWidth = 1;
 					double pixelHeight = 1;
 					PixelCalibration cal = server == null ? null : server.getPixelCalibration();
@@ -684,7 +684,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 						pixelWidth = cal.getPixelWidthMicrons() / 1000;
 						pixelHeight = cal.getPixelHeightMicrons() / 1000;
 					}
-					return n / (((PathArea)roi).getScaledArea(pixelWidth, pixelHeight));
+					return n / roi.getScaledArea(pixelWidth, pixelHeight);
 				}
 				return Double.NaN;
 			}
@@ -1364,11 +1364,11 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 				@Override
 				protected double computeValue() {
 					ROI roi = pathObject.getROI();
-					if (!(roi instanceof PathArea))
+					if (roi == null || !roi.isArea())
 						return Double.NaN;
 					if (hasPixelSizeMicrons())
-						return ((PathArea)roi).getScaledArea(pixelWidthMicrons(), pixelHeightMicrons());
-					return ((PathArea)roi).getArea();
+						return roi.getScaledArea(pixelWidthMicrons(), pixelHeightMicrons());
+					return roi.getArea();
 				}
 				
 			};
@@ -1394,11 +1394,11 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 				@Override
 				protected double computeValue() {
 					ROI roi = pathObject.getROI();
-					if (!(roi instanceof PathArea))
+					if (roi == null || !roi.isArea())
 						return Double.NaN;
 					if (hasPixelSizeMicrons())
-						return ((PathArea)roi).getScaledPerimeter(pixelWidthMicrons(), pixelHeightMicrons());
-					return ((PathArea)roi).getPerimeter();
+						return roi.getScaledLength(pixelWidthMicrons(), pixelHeightMicrons());
+					return roi.getLength();
 				}
 				
 			};
@@ -1424,13 +1424,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 				@Override
 				protected double computeValue() {
 					ROI roi = pathObject.getROI();
-					List<Point2> points;
-					if (roi instanceof PolygonROI)
-						points = ((PolygonROI)roi).getPolygonPoints();
-					else if (roi instanceof AreaROI)
-						points = ((AreaROI)roi).getPolygonPoints();
-					else
-						return Double.NaN;
+					List<Point2> points = roi.getAllPoints();
 					double xScale = hasPixelSizeMicrons() ? pixelWidthMicrons() : 1;
 					double yScale = hasPixelSizeMicrons() ? pixelHeightMicrons() : 1;
 					double maxLengthSq = 0;
@@ -1469,11 +1463,11 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 				@Override
 				protected double computeValue() {
 					ROI roi = pathObject.getROI();
-					if (!(roi instanceof PathLine))
+					if (roi == null || !roi.isLine())
 						return Double.NaN;
 					if (hasPixelSizeMicrons())
-						return ((PathLine)roi).getScaledLength(pixelWidthMicrons(), pixelHeightMicrons());
-					return ((PathLine)roi).getLength();
+						return roi.getScaledLength(pixelWidthMicrons(), pixelHeightMicrons());
+					return roi.getLength();
 				}
 				
 			};
@@ -1495,9 +1489,9 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 				@Override
 				protected double computeValue() {
 					ROI roi = pathObject.getROI();
-					if (!(roi instanceof PathPoints))
+					if (roi == null || !roi.isPoint())
 						return Double.NaN;
-					return ((PathPoints)roi).getNPoints();
+					return roi.getNumPoints();
 				}
 				
 			};

@@ -98,8 +98,6 @@ import qupath.lib.images.servers.ServerTools;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.RectangleROI;
-import qupath.lib.roi.interfaces.PathArea;
-import qupath.lib.roi.interfaces.PathLine;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
@@ -377,10 +375,10 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 				setPixelHeight = roi.getBoundsHeight() != 0;
 				setPixelWidth = roi.getBoundsWidth() != 0;
 				message = "Enter selected line length in " + GeneralTools.micrometerSymbol();
-				defaultValue = ((PathLine)roi).getScaledLength(pixelWidth, pixelHeight);
+				defaultValue = roi.getScaledLength(pixelWidth, pixelHeight);
 			} else {
 				message = "Enter selected ROI area in " + GeneralTools.micrometerSymbol() + "^2";
-				defaultValue = ((PathArea)roi).getScaledArea(pixelWidth, pixelHeight);
+				defaultValue = roi.getScaledArea(pixelWidth, pixelHeight);
 			}
 //			if (setPixelHeight && setPixelWidth) {
 //				defaultValue = server.getAveragedPixelSizeMicrons();
@@ -397,9 +395,9 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 			
 			double sizeMicrons;
 			if (roi.isLine())
-				sizeMicrons = result.doubleValue() / ((PathLine)roi).getLength();
+				sizeMicrons = result.doubleValue() / roi.getLength();
 			else
-				sizeMicrons = Math.sqrt(result.doubleValue() / ((PathArea)roi).getArea());
+				sizeMicrons = Math.sqrt(result.doubleValue() / roi.getArea());
 			
 			if (setPixelHeight)
 				pixelHeightMicrons = sizeMicrons;

@@ -31,6 +31,7 @@ import ij.process.ImageStatistics;
 
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.roi.PolygonROI;
+import qupath.lib.roi.RoiTools;
 
 /**
  * Collection of static methods to help with adding ImageJ measurements to PathObjects.
@@ -50,8 +51,8 @@ class ObjectMeasurements {
 	 */
 	public static void addShapeStatistics(MeasurementList measurementList, PolygonROI roi, double pixelWidth, double pixelHeight, String prefix) {
 		measurementList.addMeasurement(prefix + "Area", roi.getScaledArea(pixelWidth, pixelHeight));
-		measurementList.addMeasurement(prefix + "Perimeter", roi.getScaledPerimeter(pixelWidth, pixelHeight));
-		measurementList.addMeasurement(prefix + "Circularity", roi.getCircularity());
+		measurementList.addMeasurement(prefix + "Perimeter", roi.getScaledLength(pixelWidth, pixelHeight));
+		measurementList.addMeasurement(prefix + "Circularity", RoiTools.getCircularity(roi, pixelWidth, pixelHeight));
 //		measurementList.addMeasurement(prefix + "Convex area", roi.getScaledConvexArea(pixelWidth, pixelHeight));
 		measurementList.addMeasurement(prefix + "Solidity", roi.getSolidity());
 	}

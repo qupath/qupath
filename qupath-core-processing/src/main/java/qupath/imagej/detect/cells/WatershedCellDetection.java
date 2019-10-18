@@ -88,7 +88,6 @@ import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.PolygonROI;
 import qupath.lib.roi.ShapeSimplifier;
-import qupath.lib.roi.interfaces.PathArea;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
@@ -932,8 +931,8 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 						}
 						
 						// Add nucleus area ratio, if available
-						if (nucleus != null && nucleus.getROI() instanceof PathArea) {
-							double nucleusArea = ((PathArea)nucleus.getROI()).getArea();
+						if (nucleus != null && nucleus.getROI().isArea()) {
+							double nucleusArea = nucleus.getROI().getArea();
 							double cellArea = pathROI.getArea();
 							measurementList.addMeasurement("Nucleus/Cell area ratio", Math.min(nucleusArea / cellArea, 1.0));
 	//						measurementList.addMeasurement("Nucleus/Cell expansion", cellArea - nucleusArea);

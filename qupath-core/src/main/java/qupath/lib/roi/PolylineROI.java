@@ -30,13 +30,12 @@ import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
 import java.io.Serializable;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import qupath.lib.common.GeneralTools;
 import qupath.lib.geom.Point2;
 import qupath.lib.regions.ImagePlane;
-import qupath.lib.roi.interfaces.PathLine;
 import qupath.lib.roi.interfaces.ROI;
-import qupath.lib.roi.interfaces.TranslatableROI;
 
 /**
  * ROI representing an arbitrary open polyline.
@@ -46,7 +45,7 @@ import qupath.lib.roi.interfaces.TranslatableROI;
  * @author Pete Bankhead
  *
  */
-public class PolylineROI extends AbstractPathROI implements PathLine, TranslatableROI, Serializable {
+public class PolylineROI extends AbstractPathROI implements Serializable {
 
 	private static final long serialVersionUID = 1L;
 	
@@ -119,7 +118,7 @@ public class PolylineROI extends AbstractPathROI implements PathLine, Translatab
 	}
 
 	@Override
-	public List<Point2> getPolygonPoints() {
+	public List<Point2> getAllPoints() {
 		return vertices.getPoints();
 	}
 	
@@ -134,7 +133,7 @@ public class PolylineROI extends AbstractPathROI implements PathLine, Translatab
 	}
 
 	@Override
-	public TranslatableROI translate(double dx, double dy) {
+	public ROI translate(double dx, double dy) {
 		// Shift the bounds
 		if (dx == 0 && dy == 0)
 			return this;
@@ -233,6 +232,22 @@ public class PolylineROI extends AbstractPathROI implements PathLine, Translatab
 		
 	}
 	
+	@Override
+	public ROI scale(double scaleX, double scaleY, double originX, double originY) {
+		return new PolylineROI(
+				getAllPoints().stream().map(p -> RoiTools.scalePoint(p, scaleX, scaleY, originX, originY)).collect(Collectors.toList()),
+				getImagePlane());
+	}
+	
+	@Override
+	public double getArea() {
+		return 0;
+	}
+	
+	@Override
+	public double getScaledArea(double pixelWidth, double pixelHeight) {
+		return 0;
+	}
 	
 	@Override
 	public RoiType getRoiType() {
@@ -243,6 +258,11 @@ public class PolylineROI extends AbstractPathROI implements PathLine, Translatab
 	@Override
 	public Shape getShape() {
 		return RoiTools.getShape(this);
+	}
+	
+	@Override
+	public boolean contains(double x, double y) {
+		return false;
 	}
 	
 	

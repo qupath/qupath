@@ -48,7 +48,6 @@ import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.RoiEditor;
 import qupath.lib.roi.interfaces.ROI;
-import qupath.lib.roi.interfaces.TranslatableROI;
 
 /**
  * The MoveTool is used for quite a lot of things, movement-related:
@@ -152,7 +151,7 @@ public class MoveTool extends AbstractPathTool {
 					if (editor.grabHandle(xx, yy, search, e.isShiftDown()))
 						e.consume();
 				}
-				if (!e.isConsumed() && canTranslate(currentObject) &&
+				if (!e.isConsumed() && canAdjust(currentObject) &&
 						(RoiTools.areaContains(currentROI, xx, yy) || getSelectableObjectList(xx, yy).contains(currentObject))) {
 					// If we have a translatable ROI, try starting translation
 					if (editor.startTranslation(xx, yy))
@@ -168,12 +167,6 @@ public class MoveTool extends AbstractPathTool {
 		// Store point for drag-to-pan
         pDragging = mouseLocationToImage(e, false, true);
 //        viewer.setDoFasterRepaint(true); // Turn on if dragging is too slow
-	}
-	
-	
-	
-	public static boolean canTranslate(PathObject pathObject) {
-		return (canAdjust(pathObject) && pathObject.getROI() instanceof TranslatableROI);
 	}
 	
 	public static boolean canAdjust(PathObject pathObject) {
@@ -356,7 +349,7 @@ public class MoveTool extends AbstractPathTool {
 		
 		// Check if we should have a panning or moving cursor, changing if required
 		ROI currentROI = viewer.getCurrentROI();
-		if (currentROI != null && canTranslate(viewer.getSelectedObject())) {
+		if (currentROI != null && canAdjust(viewer.getSelectedObject())) {
 			Point2D p2 = mouseLocationToImage(e, true, requestPixelSnapping());
 			double xx = p2.getX();
 			double yy = p2.getY();

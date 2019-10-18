@@ -185,7 +185,7 @@ public class CountingPanel implements PathObjectSelectionListener, PathObjectHie
 		StringBuilder sb = new StringBuilder();
 		String name = pathObject.getDisplayedName();
 		PointsROI points = (PointsROI)pathObject.getROI();
-		for (Point2 p : points.getPointList())
+		for (Point2 p : points.getAllPoints())
 			sb.append(name).append("\t").append(p.getX()).append("\t").append(p.getY()).append("\n");
 
 		StringSelection stringSelection = new StringSelection(sb.toString());

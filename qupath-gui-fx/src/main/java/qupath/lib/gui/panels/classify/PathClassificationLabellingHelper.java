@@ -179,7 +179,7 @@ class PathClassificationLabellingHelper {
 			list.addAll(pathObject.getChildObjects());
 //			sb.append(list.size() + ", ");
 			if (PathObjectTools.hasPointROI(pathObject)) {
-				for (Point2 p : ((PointsROI)pathObject.getROI()).getPointList()) {
+				for (Point2 p : ((PointsROI)pathObject.getROI()).getAllPoints()) {
 					// TODO: Pay attention to z & t position!
 					Collection<PathObject> pathObjectsTemp = PathObjectTools.getObjectsForLocation(hierarchy, p.getX(), p.getY(), 0, 0, -1);
 					pathObjectsTemp = PathObjectTools.getObjectsOfClass(pathObjectsTemp, PathDetectionObject.class);

@@ -80,7 +80,6 @@ import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.ROIs;
-import qupath.lib.roi.interfaces.PathArea;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
@@ -508,7 +507,7 @@ public class ExportTrainingRegionsCommand implements PathCommand {
 			List<PathObject> otherAnnotations = hierarchy.getAnnotationObjects().stream().filter(p -> p.getPathClass() != regionClass && p.getROI().isArea()).collect(Collectors.toList());
 
 			// Sort by area - we want to annotate largest regions first
-			otherAnnotations.sort((a, b) -> -Double.compare(((PathArea)a.getROI()).getArea(), ((PathArea)b.getROI()).getArea()));
+			otherAnnotations.sort((a, b) -> -Double.compare(a.getROI().getArea(), b.getROI().getArea()));
 						
 			// If we don't have any regions, try full image
 			if (regionAnnotations.isEmpty())

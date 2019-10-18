@@ -422,14 +422,14 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 			if (pathObject == null || !PathObjectTools.hasPointROI(pathObject) || hierarchy == null)
 				return;
 			PointsROI points = (PointsROI)pathObject.getROI();
-			if (points.getNPoints() <= 1)
+			if (points.getNumPoints() <= 1)
 				return;
 			List<PathObject> newObjects = new ArrayList<>();
 			int c = points.getC();
 			int z = points.getZ();
 			int t = points.getT();
 			PathClass pathClass = pathObject.getPathClass();
-			for (Point2 p : points.getPointList()) {
+			for (Point2 p : points.getAllPoints()) {
 				PathObject temp = PathObjects.createAnnotationObject(ROIs.createPointsROI(p.getX(), p.getY(), ImagePlane.getPlaneWithChannel(c, z, t)), pathClass);
 				newObjects.add(temp);
 			}
@@ -466,7 +466,7 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 			// Create new points object
 			List<Point2> pointsList = new ArrayList<>();
 			for (PathObject temp : objectsToMerge) {
-				pointsList.addAll(((PointsROI)temp.getROI()).getPointList());
+				pointsList.addAll(((PointsROI)temp.getROI()).getAllPoints());
 			}
 			PathObject pathObjectNew = PathObjects.createAnnotationObject(ROIs.createPointsROI(pointsList, ImagePlane.getPlaneWithChannel(c, z, t)), pathClass);
 			hierarchy.removeObjects(objectsToMerge, true);

@@ -87,7 +87,6 @@ import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.PointsROI;
 import qupath.lib.roi.ROIs;
-import qupath.lib.roi.interfaces.PathPoints;
 import qupath.lib.roi.interfaces.ROI;
 
 
@@ -420,7 +419,7 @@ public class RandomTrainingRegionSelector implements PathCommand {
 			if (pathObject == null)
 				return 0;
 			PointsROI points = (PointsROI)pathObject.getROI();
-			return points.getNPoints();
+			return points.getNumPoints();
 		}
 
 		@Override
@@ -439,7 +438,7 @@ public class RandomTrainingRegionSelector implements PathCommand {
 		private QuPathViewer viewer;
 		
 		private ObjectCache objectCache = new ObjectCache();
-		private PathPoints currentPoint;
+		private ROI currentPoint;
 		
 		private int nextCluster = 0;
 		
@@ -483,7 +482,7 @@ public class RandomTrainingRegionSelector implements PathCommand {
 					hierarchy.addPathObject(pathObject);
 				} else {
 					PointsROI pointsROI = ((PointsROI)pathObject.getROI());
-					List<Point2> points = new ArrayList<Point2>(pointsROI.getPointList());
+					List<Point2> points = new ArrayList<Point2>(pointsROI.getAllPoints());
 					points.add(new Point2(x, y));
 					((PathAnnotationObject)pathObject).setROI(ROIs.createPointsROI(points, ImagePlane.getDefaultPlane()));
 					hierarchy.fireObjectsChangedEvent(this, Collections.singleton(pathObject));

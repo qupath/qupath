@@ -10,7 +10,6 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.layout.GridPane;
-import javafx.scene.layout.Priority;
 import javafx.stage.Stage;
 import qupath.lib.classifiers.pixel.PixelClassificationImageServer;
 import qupath.lib.gui.QuPathGUI;

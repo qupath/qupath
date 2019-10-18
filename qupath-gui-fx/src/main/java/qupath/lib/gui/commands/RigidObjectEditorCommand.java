@@ -72,8 +72,6 @@ import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.PolylineROI;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.RoiTools.CombineOp;
-import qupath.lib.roi.interfaces.PathArea;
-import qupath.lib.roi.interfaces.PathShape;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
@@ -120,7 +118,7 @@ public class RigidObjectEditorCommand implements PathCommand, ImageDataChangeLis
 	private boolean isSuitableAnnotation(PathObject pathObject) {
 		return pathObject instanceof PathAnnotationObject
 				&& pathObject.isEditable()
-				&& (pathObject.getROI() instanceof PathArea || pathObject.getROI() instanceof PolylineROI);
+				&& (pathObject.hasROI() && pathObject.getROI().isArea() || pathObject.getROI() instanceof PolylineROI);
 	}
 	
 
@@ -234,7 +232,7 @@ public class RigidObjectEditorCommand implements PathCommand, ImageDataChangeLis
 	
 	PathObject createTransformedObject() {
 		ROI roi = originalObject.getROI();
-		PathShape shape = RoiTools.getShapeROI(new Area(transformer.getTransformedShape()), roi.getImagePlane());
+		ROI shape = RoiTools.getShapeROI(new Area(transformer.getTransformedShape()), roi.getImagePlane());
 		return PathObjects.createAnnotationObject(shape, originalObject.getPathClass());
 	}
 	
@@ -368,7 +366,7 @@ public class RigidObjectEditorCommand implements PathCommand, ImageDataChangeLis
 		
 //		private PathArea roi;
 		// Starting anchors
-		private PathShape roiBounds;
+		private ROI roiBounds;
 		private double anchorX;
 		private double anchorY;
 		
@@ -401,9 +399,9 @@ public class RigidObjectEditorCommand implements PathCommand, ImageDataChangeLis
 		
 		public ROI getTransformedROI(final ROI roi) {
 			ROI transformedROI = getUnclippedTransformedROI(roi);
-			if (roiBounds == null || !(transformedROI instanceof PathShape))
+			if (roiBounds == null) // Should this work for points? || !(transformedROI instanceof PathShape))
 				return transformedROI;
-			return RoiTools.combineROIs((PathShape)transformedROI, roiBounds, CombineOp.INTERSECT);
+			return RoiTools.combineROIs(transformedROI, roiBounds, CombineOp.INTERSECT);
 		}
 		
 		public ROI getUnclippedTransformedROI(final ROI roi) {
@@ -423,7 +421,7 @@ public class RigidObjectEditorCommand implements PathCommand, ImageDataChangeLis
 			updateTransform();
 			shape = transform.createTransformedShape(shape);
 			// TODO: Improve the choice of shape this returns
-			if (roi instanceof PathArea)
+			if (roi != null && roi.isArea())
 				return RoiTools.getShapeROI(shape, roi.getImagePlane(), flatness);
 			else {
 				// Check if we have a line

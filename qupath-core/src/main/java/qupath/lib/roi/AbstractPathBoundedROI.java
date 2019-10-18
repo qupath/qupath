@@ -24,7 +24,6 @@
 package qupath.lib.roi;
 
 import qupath.lib.regions.ImagePlane;
-import qupath.lib.roi.interfaces.TranslatableROI;
 
 /**
  * Abstract implementation of any ROI that can be defined based on a bounding box, 
@@ -33,7 +32,7 @@ import qupath.lib.roi.interfaces.TranslatableROI;
  * @author Pete Bankhead
  *
  */
-abstract class AbstractPathBoundedROI extends AbstractPathAreaROI implements TranslatableROI {
+abstract class AbstractPathBoundedROI extends AbstractPathAreaROI {
 	
 	protected double x, y, x2, y2;
 	

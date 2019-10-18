@@ -73,7 +73,6 @@ import qupath.lib.roi.ROIs;
 import qupath.lib.roi.ShapeSimplifier;
 import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.PolygonROI;
-import qupath.lib.roi.interfaces.PathShape;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
@@ -143,7 +142,7 @@ class SimpleTissueDetection extends AbstractDetectionPlugin<BufferedImage> {
 //				RegionRequest request = RegionRequest.createInstance(server.getPath(), downsample, bounds);
 				
 				RegionRequest request;
-				if (!(pathROI instanceof PathShape)) {
+				if (!RoiTools.isShapeROI(pathROI)) {
 					request = RegionRequest.createInstance(server.getPath(), downsample, 0, 0, server.getWidth(), server.getHeight());
 				} else
 					request = RegionRequest.createInstance(server.getPath(), downsample, pathROI);
@@ -279,7 +278,7 @@ class SimpleTissueDetection extends AbstractDetectionPlugin<BufferedImage> {
 //				continue;
 			// Smooth the coordinates, if we downsampled quite a lot
 			if (smoothCoordinates) {
-				pathPolygon = ROIs.createPolygonROI(ShapeSimplifier.smoothPoints(pathPolygon.getPolygonPoints()), ImagePlane.getPlane(pathPolygon));
+				pathPolygon = ROIs.createPolygonROI(ShapeSimplifier.smoothPoints(pathPolygon.getAllPoints()), ImagePlane.getPlane(pathPolygon));
 			}
 			pathObjects.add(PathObjects.createAnnotationObject(pathPolygon));
 		}
@@ -329,7 +328,7 @@ class SimpleTissueDetection extends AbstractDetectionPlugin<BufferedImage> {
 				
 				// Now subtract & create a new object
 				ROI pathROI = pathObject.getROI();
-				if (pathROI instanceof PathShape) {
+				if (RoiTools.isShapeROI(pathROI)) {
 					Area areaMain = RoiTools.getArea(pathROI);
 					areaMain.subtract(hole);
 					pathROI = RoiTools.getShapeROI(areaMain, pathROI.getImagePlane());

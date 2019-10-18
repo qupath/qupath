@@ -31,9 +31,6 @@ import java.util.List;
 import qupath.lib.geom.Point2;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.ImageRegion;
-import qupath.lib.roi.interfaces.PathArea;
-import qupath.lib.roi.interfaces.PathLine;
-import qupath.lib.roi.interfaces.PathPoints;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
@@ -66,7 +63,7 @@ public class ROIs {
 	 * @param plane
 	 * @return
 	 */
-	public static PathArea createRectangleROI(double x, double y, double width, double height, ImagePlane plane) {
+	public static ROI createRectangleROI(double x, double y, double width, double height, ImagePlane plane) {
 		return new RectangleROI(x, y, width, height, plane);
 	}
 	
@@ -75,7 +72,7 @@ public class ROIs {
 	 * @param region
 	 * @return
 	 */
-	public static PathArea createRectangleROI(ImageRegion region) {
+	public static ROI createRectangleROI(ImageRegion region) {
 		return new RectangleROI(region.getX(), region.getY(), region.getWidth(), region.getHeight(), region.getPlane());
 	}
 
@@ -89,7 +86,7 @@ public class ROIs {
 	 * @param plane
 	 * @return
 	 */
-	public static PathArea createEllipseROI(double x, double y, double width, double height, ImagePlane plane) {
+	public static ROI createEllipseROI(double x, double y, double width, double height, ImagePlane plane) {
 		return new EllipseROI(x, y, width, height, plane);
 	}
 
@@ -103,7 +100,7 @@ public class ROIs {
 	 * @param plane
 	 * @return
 	 */
-	public static PathLine createLineROI(double x, double y, double x2, double y2, ImagePlane plane) {
+	public static ROI createLineROI(double x, double y, double x2, double y2, ImagePlane plane) {
 		return new LineROI(x, y, x2, y2, plane);
 	}
 
@@ -115,7 +112,7 @@ public class ROIs {
 	 * @param plane
 	 * @return
 	 */
-	public static PathLine createLineROI(double x, double y, ImagePlane plane) {
+	public static ROI createLineROI(double x, double y, ImagePlane plane) {
 		return createLineROI(x, y, x, y, plane);
 	}
 	
@@ -125,7 +122,7 @@ public class ROIs {
 	 * @param plane
 	 * @return
 	 */
-	public static PathPoints createPointsROI(ImagePlane plane) {
+	public static ROI createPointsROI(ImagePlane plane) {
 		return createPointsROI(Double.NaN, Double.NaN, plane);
 	}
 
@@ -136,7 +133,7 @@ public class ROIs {
 	 * @param plane
 	 * @return
 	 */
-	public static PathPoints createPointsROI(double x, double y, ImagePlane plane) {
+	public static ROI createPointsROI(double x, double y, ImagePlane plane) {
 		return new PointsROI(x, y, plane);
 	}
 	
@@ -146,7 +143,7 @@ public class ROIs {
 	 * @param plane
 	 * @return
 	 */
-	public static PathPoints createPointsROI(List<? extends Point2> points, ImagePlane plane) {
+	public static ROI createPointsROI(List<? extends Point2> points, ImagePlane plane) {
 		return new PointsROI(points, plane);
 	}
 
@@ -202,7 +199,7 @@ public class ROIs {
 	 * @param plane
 	 * @return
 	 */
-	public static PathArea createAreaROI(Shape shape, ImagePlane plane) {
+	public static ROI createAreaROI(Shape shape, ImagePlane plane) {
 		return new GeometryROI(GeometryTools.convertShapeToGeometry(shape), plane);
 //		return new AWTAreaROI(shape, plane);
 	}

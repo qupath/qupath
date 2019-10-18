@@ -39,10 +39,10 @@ abstract class AbstractPathROI implements ROI {
 	
 	// Dimension variables
 	int c = -1; // Defaults to -1, indicating all channels
-	int t = 0; // Defaults to 0, indicating first time point
-	int z = 0; // Defaults to 0, indiciating first z-slice
+	int t = 0;  // Defaults to 0, indicating first time point
+	int z = 0;  // Defaults to 0, indicating first z-slice
 	
-	transient ImagePlane plane;
+	private transient ImagePlane plane;
 	
 	public AbstractPathROI() {
 		this(null);
@@ -134,6 +134,14 @@ abstract class AbstractPathROI implements ROI {
 //		return "Me";
 	}
 	
+	/**
+	 * Default implementation, calls {@link #getAllPoints()}. Subclasses may override for efficiency.
+	 * @return
+	 */
+	@Override
+	public int getNumPoints() {
+		return getAllPoints().size();
+	}
 
 	@Override
 	public boolean isLine() {
@@ -155,6 +163,19 @@ abstract class AbstractPathROI implements ROI {
 	@Override
 	public Geometry getGeometry() {
 		return converter.roiToGeometry(this);
+	}
+	
+	/**
+	 * Default implementation using JTS. Subclasses may replace this with a more efficient implementation.
+	 */
+	@Override
+	public ROI getConvexHull() {
+		return GeometryTools.convertGeometryToROI(getGeometry().convexHull(), getImagePlane());
+	}
+	
+	@Override
+	public double getSolidity() {
+		return isArea() ? getArea() / getConvexHull().getArea() : Double.NaN;
 	}
 	
 	

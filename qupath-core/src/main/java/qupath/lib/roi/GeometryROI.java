@@ -20,9 +20,19 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.geom.Point2;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.interfaces.ROI;
-import qupath.lib.roi.interfaces.TranslatableROI;
 
-public class GeometryROI extends AbstractPathAreaROI implements TranslatableROI, Serializable {
+/**
+ * ROI based on Java Topology Suite Geometry objects.
+ * This gives a very flexible representation (except for a lack of support for ellipses), 
+ * which needs only copy itself to return {@link #getGeometry()}.
+ * Consequently it can be much more performant whenever the underlying Geometry is 
+ * required frequently compared to other ROI types with a new Geometry must be 
+ * constructed and validated.
+ * 
+ * @author Pete Bankhead
+ *
+ */
+public class GeometryROI extends AbstractPathAreaROI implements Serializable {
 	
 	private static final long serialVersionUID = 1L;
 	
@@ -79,7 +89,7 @@ public class GeometryROI extends AbstractPathAreaROI implements TranslatableROI,
 	}
 
 	@Override
-	public List<Point2> getPolygonPoints() {
+	public List<Point2> getAllPoints() {
 		return Arrays.stream(geometry.getCoordinates()).map(c -> new Point2(c.x, c.y)).collect(Collectors.toList());
 	}
 	
@@ -95,7 +105,7 @@ public class GeometryROI extends AbstractPathAreaROI implements TranslatableROI,
 
 	@Override
 	public ROI duplicate() {
-		return new GeometryROI(geometry, plane);
+		return new GeometryROI(geometry, getImagePlane());
 	}
 	
 	@Override
@@ -119,7 +129,7 @@ public class GeometryROI extends AbstractPathAreaROI implements TranslatableROI,
 	}
 
 	@Override
-	public double getPerimeter() {
+	public double getLength() {
 		return getGeometryStats().getLength();
 	}
 
@@ -132,22 +142,25 @@ public class GeometryROI extends AbstractPathAreaROI implements TranslatableROI,
 	}
 
 	@Override
-	public double getScaledPerimeter(double pixelWidth, double pixelHeight) {
+	public double getScaledLength(double pixelWidth, double pixelHeight) {
 		if (GeneralTools.almostTheSame(pixelWidth, pixelHeight, 0.0001))
-			return getPerimeter() / 2.0 * (pixelWidth + pixelHeight);
+			return getLength() / 2.0 * (pixelWidth + pixelHeight);
 		// TODO: Need to confirm this is not a performance bottleneck in practice (speed vs. memory issue)
 		return computeGeometryStats(geometry, pixelWidth, pixelHeight).getLength();
 	}
 
 	@Override
 	public boolean contains(double x, double y) {
-		return SimplePointInAreaLocator.locate(
+		if (isArea())
+			return SimplePointInAreaLocator.locate(
 				new Coordinate(x, y), geometry) != Location.EXTERIOR;
+		else
+			return false;
 	}
 
 	@Override
-	public TranslatableROI translate(double dx, double dy) {
-		return new GeometryROI(AffineTransformation.translationInstance(dx, dy).transform(geometry), plane);
+	public ROI translate(double dx, double dy) {
+		return new GeometryROI(AffineTransformation.translationInstance(dx, dy).transform(geometry), getImagePlane());
 	}
 	
 	private Object writeReplace() {
@@ -235,6 +248,12 @@ public class GeometryROI extends AbstractPathAreaROI implements TranslatableROI,
 			return error;
 		}
 
+	}
+
+	@Override
+	public ROI scale(double scaleX, double scaleY, double originX, double originY) {
+		var transform = AffineTransformation.scaleInstance(scaleX, scaleY, originX, originY);
+		return new GeometryROI(transform.transform(geometry), getImagePlane());
 	}
 
 }

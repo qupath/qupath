@@ -49,7 +49,6 @@ import qupath.lib.regions.ImageRegion;
 import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.PointsROI;
 import qupath.lib.roi.ROIs;
-import qupath.lib.roi.interfaces.PathArea;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
@@ -186,7 +185,7 @@ public class DetectionPluginTools {
 
 					Map<Area, PathObject> mapOld = new HashMap<>();
 					for (PathObject tempObject : overlapObjects) {
-						if (tempObject.getROI() instanceof PathArea) {
+						if (tempObject.hasROI() && tempObject.getROI().isArea()) {
 							Shape shapeTemp = RoiTools.getShape(tempObject.getROI());
 							Area areaTemp = new Area(shapeTemp);
 							mapOld.put(areaTemp, tempObject);
@@ -203,7 +202,7 @@ public class DetectionPluginTools {
 					Iterator<PathObject> iterNew = pathObjectsDetected.iterator();
 					while (iterNew.hasNext() && !mapOld.isEmpty()) {
 						PathObject pathObjectNew = iterNew.next();
-						PathArea pathAreaNew = pathObjectNew.getROI() instanceof PathArea ? (PathArea)pathObjectNew.getROI() : null;
+						ROI pathAreaNew = pathObjectNew.hasROI() && pathObjectNew.getROI().isArea() ? pathObjectNew.getROI() : null;
 						if (pathAreaNew == null)
 							continue;
 						Rectangle2D boundsNew = AwtTools.getBounds2D(pathAreaNew);
@@ -241,7 +240,7 @@ public class DetectionPluginTools {
 							double threshold = 0.1;
 							// We do have an intersection - keep the object with the larger area if the intersection is a 'reasonable' proportion of the smaller area
 							// Here, reasonable is defined as 10%
-							PathArea pathAreaOld = (PathArea)entryOld.getValue().getROI();
+							ROI pathAreaOld = entryOld.getValue().getROI();
 							if (pathAreaNew.getArea() > pathAreaOld.getArea()) {
 								if (intersectionArea < pathAreaOld.getArea() * threshold)
 									continue;

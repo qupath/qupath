@@ -135,8 +135,8 @@ import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.RectangleROI;
 import qupath.lib.roi.RoiEditor;
+import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.interfaces.ROI;
-import qupath.lib.roi.interfaces.PathShape;
 
 
 /**
@@ -2662,7 +2662,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	public void selectedPathObjectChanged(PathObject pathObjectSelected, PathObject previousObject, Collection<PathObject> allSelected) {
 
 		// We only want to shift the object ROI to the center under certain conditions, otherwise the screen jerks annoyingly
-		if (!settingSelectedObject && !getZoomToFit() && pathObjectSelected != null && pathObjectSelected.getROI() instanceof PathShape) {
+		if (!settingSelectedObject && !getZoomToFit() && pathObjectSelected != null && RoiTools.isShapeROI(pathObjectSelected.getROI())) {
 
 			// We want to center a TMA core if more than half of it is outside the window
 			boolean centerCore = false;

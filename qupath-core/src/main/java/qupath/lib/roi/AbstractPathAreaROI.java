@@ -24,7 +24,6 @@
 package qupath.lib.roi;
 
 import qupath.lib.regions.ImagePlane;
-import qupath.lib.roi.interfaces.PathArea;
 
 /**
  * Abstract implementation of any ROI representing an area (i.e. not a line).
@@ -32,7 +31,7 @@ import qupath.lib.roi.interfaces.PathArea;
  * @author Pete Bankhead
  *
  */
-abstract class AbstractPathAreaROI extends AbstractPathROI implements PathArea {
+abstract class AbstractPathAreaROI extends AbstractPathROI {
 	
 	AbstractPathAreaROI() {
 		super();
@@ -41,20 +40,6 @@ abstract class AbstractPathAreaROI extends AbstractPathROI implements PathArea {
 	AbstractPathAreaROI(ImagePlane plane) {
 		super(plane);
 	}
-
-	// Measurements
-	@Override
-	public double getCircularity() {
-		double p = getPerimeter();
-		return 4 * Math.PI * (getArea() / (p*p));
-	}
-	
-	@Override
-	public double getCircularity(double pixelWidth, double pixelHeight) {
-		double p = getScaledPerimeter(pixelWidth, pixelHeight);
-		return 4 * Math.PI * (getScaledArea(pixelWidth, pixelHeight) / (p*p));
-	}
-	
 	
 	/**
 	 * TRUE if the ROI has zero area
@@ -70,8 +55,8 @@ abstract class AbstractPathAreaROI extends AbstractPathROI implements PathArea {
 	}
 	
 	@Override
-	public double getPerimeter() {
-		return getScaledPerimeter(1, 1);
+	public double getLength() {
+		return getScaledLength(1, 1);
 	}
 
 	@Override

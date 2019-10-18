@@ -43,7 +43,6 @@ import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.PointsROI;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.RoiEditor;
-import qupath.lib.roi.interfaces.PathPoints;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
@@ -221,7 +220,7 @@ public class PointsTool extends AbstractPathTool {
 		RoiEditor editor = viewer.getROIEditor();
 		double radius = PathPrefs.getDefaultPointRadius();
 		
-		PathPoints points = (currentROI instanceof PathPoints) ? (PathPoints)currentROI : null;
+		ROI points = (currentROI != null && currentROI.isPoint()) ? currentROI : null;
 		// If Alt is pressed, try to delete a point
 		if (e.isAltDown()) {
 			handleAltClick(xx, yy, currentObject);
@@ -241,7 +240,7 @@ public class PointsTool extends AbstractPathTool {
 			editor.grabHandle(xx, yy, radius, e.isShiftDown());
 		} else if (points != null) {
 			// Add point to current ROI, or adjust the position of a nearby point
-			PathPoints points2 = addPoint(points, xx, yy, radius);
+			ROI points2 = addPoint(points, xx, yy, radius);
 			if (points2 == points) {
 				// If we didn't add a point, try to grab a handle
 				if (!editor.grabHandle(xx, yy, radius, e.isShiftDown()))
@@ -278,12 +277,12 @@ public class PointsTool extends AbstractPathTool {
 	 * @param y
 	 * @param minimumSeparation
 	 */
-	private PathPoints addPoint(final PathPoints points, final double x, final double y, final double minimumSeparation) {
+	private ROI addPoint(final ROI points, final double x, final double y, final double minimumSeparation) {
 		// Can't add NaN points
 		if (Double.isNaN(x + y))
 			return points;
 
-		List<Point2> pointsList = points.getPointList();
+		List<Point2> pointsList = points.getAllPoints();
 		if (minimumSeparation > 0) {
 			// Test for separation
 			double threshold = minimumSeparation*minimumSeparation;
@@ -298,10 +297,10 @@ public class PointsTool extends AbstractPathTool {
 	
 	
 	
-	private ROI removePoint(final PointsROI points, final Point2 point) {
+	private ROI removePoint(final ROI points, final Point2 point) {
 		if (point == null)
 			return points;
-		List<Point2> pointsList = new ArrayList<>(points.getPointList());
+		List<Point2> pointsList = new ArrayList<>(points.getAllPoints());
 		if (pointsList.remove(point)) {
 			return ROIs.createPointsROI(pointsList, ImagePlane.getPlaneWithChannel(points.getC(), points.getZ(), points.getT()));
 		}

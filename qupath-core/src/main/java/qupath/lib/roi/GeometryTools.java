@@ -33,9 +33,6 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.geom.Point2;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.ImageRegion;
-import qupath.lib.roi.interfaces.PathArea;
-import qupath.lib.roi.interfaces.PathLine;
-import qupath.lib.roi.interfaces.PathPoints;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
@@ -151,21 +148,21 @@ public class GeometryTools {
 	     * @return
 	     */
 	    public Geometry roiToGeometry(ROI roi) {
-	    	if (roi instanceof PathPoints)
-	    		return pointsToGeometry((PathPoints)roi);
-	    	if (roi instanceof PathArea)
-	    		return areaToGeometry((PathArea)roi);
-	    	if (roi instanceof PathLine)
-	    		return lineToGeometry((PathLine)roi);
+	    	if (roi.isPoint())
+	    		return pointsToGeometry(roi);
+	    	if (roi.isArea())
+	    		return areaToGeometry(roi);
+	    	if (roi.isLine())
+	    		return lineToGeometry(roi);
 	    	throw new UnsupportedOperationException("Unknown ROI " + roi + " - cannot convert to a Geometry!");
 	    }
 	    
-	    private Geometry lineToGeometry(PathLine roi) {
-	    	var coords = roi.getPolygonPoints().stream().map(p -> new Coordinate(p.getX() * pixelWidth, p.getY() * pixelHeight)).toArray(Coordinate[]::new);
+	    private Geometry lineToGeometry(ROI roi) {
+	    	var coords = roi.getAllPoints().stream().map(p -> new Coordinate(p.getX() * pixelWidth, p.getY() * pixelHeight)).toArray(Coordinate[]::new);
 	    	return factory.createLineString(coords);
 	    }
 	    
-	    private Geometry areaToGeometry(PathArea roi) {
+	    private Geometry areaToGeometry(ROI roi) {
 	    	if (roi.isEmpty())
 	    		return factory.createPolygon();
 	    	Area shape = RoiTools.getArea(roi);
@@ -334,8 +331,8 @@ public class GeometryTools {
 		}
 	    
 	    
-	    private Geometry pointsToGeometry(PathPoints points) {
-	    	var coords = points.getPointList().stream().map(p -> new Coordinate(p.getX()*pixelWidth, p.getY()*pixelHeight)).toArray(Coordinate[]::new);
+	    private Geometry pointsToGeometry(ROI points) {
+	    	var coords = points.getAllPoints().stream().map(p -> new Coordinate(p.getX()*pixelWidth, p.getY()*pixelHeight)).toArray(Coordinate[]::new);
 	    	if (coords.length == 1)
 	    		return factory.createPoint(coords[0]);
 	    	return factory.createMultiPointFromCoords(coords);

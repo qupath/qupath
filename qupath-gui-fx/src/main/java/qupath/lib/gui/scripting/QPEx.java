@@ -71,8 +71,6 @@ import qupath.lib.projects.Projects;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.ROIs;
-import qupath.lib.roi.interfaces.PathArea;
-import qupath.lib.roi.interfaces.PathShape;
 import qupath.lib.roi.interfaces.ROI;
 import qupath.lib.scripting.QP;
 
@@ -311,15 +309,15 @@ public class QPEx extends QP {
 			return null;
 		
 		// Get all the selected annotations with area
-		PathShape shapeNew = null;
+		ROI shapeNew = null;
 		List<PathObject> children = new ArrayList<>();
 		Set<PathClass> pathClasses = new HashSet<>();
 		for (PathObject child : annotations) {
-			if (child instanceof PathAnnotationObject && child.getROI() instanceof PathArea) {
+			if (child instanceof PathAnnotationObject && child.hasROI() && child.getROI().isArea()) {
 				if (shapeNew == null)
-					shapeNew = (PathShape)child.getROI();//.duplicate();
+					shapeNew = child.getROI();//.duplicate();
 				else
-					shapeNew = RoiTools.combineROIs(shapeNew, (PathArea)child.getROI(), RoiTools.CombineOp.ADD);
+					shapeNew = RoiTools.combineROIs(shapeNew, child.getROI(), RoiTools.CombineOp.ADD);
 				if (child.getPathClass() != null)
 					pathClasses.add(child.getPathClass());
 				children.add(child);
@@ -360,7 +358,7 @@ public class QPEx extends QP {
 		
 		PathObjectHierarchy hierarchy = imageData.getHierarchy();
 		// Get the currently-selected area
-		PathArea shapeSelected = null;
+		ROI shapeSelected = null;
 		if (pathObject instanceof PathAnnotationObject) {
 			shapeSelected = getAreaROI(pathObject);
 		}
@@ -371,12 +369,12 @@ public class QPEx extends QP {
 
 		// Get the parent area to use
 		PathObject parent = pathObject.getParent();
-		PathArea shape = getAreaROI(parent);
+		ROI shape = getAreaROI(parent);
 		if (shape == null)
 			shape = ROIs.createRectangleROI(0, 0, imageData.getServer().getWidth(), imageData.getServer().getHeight(), ImagePlane.getPlaneWithChannel(shapeSelected));
 
 		// Create the new ROI
-		PathShape shapeNew = RoiTools.combineROIs(shape, shapeSelected, RoiTools.CombineOp.SUBTRACT);
+		ROI shapeNew = RoiTools.combineROIs(shape, shapeSelected, RoiTools.CombineOp.SUBTRACT);
 		PathObject pathObjectNew = PathObjects.createAnnotationObject(shapeNew);
 
 		// Reassign all other children to the new parent
@@ -390,13 +388,18 @@ public class QPEx extends QP {
 	}
 	
 	
-	private static PathArea getAreaROI(PathObject pathObject) {
+	/**
+	 * Returns a ROI if it is an area, otherwise returns null.
+	 * @param pathObject
+	 * @return
+	 */
+	private static ROI getAreaROI(PathObject pathObject) {
 		if (pathObject == null)
 			return null;
 		ROI pathROI = pathObject.getROI();
-		if (!(pathROI instanceof PathArea))
+		if (!pathROI.isArea())
 			return null;
-		return (PathArea)pathObject.getROI();
+		return pathObject.getROI();
 	}
 	
 	/**

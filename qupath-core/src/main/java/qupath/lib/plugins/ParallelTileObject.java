@@ -45,7 +45,6 @@ import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.ROIs;
-import qupath.lib.roi.interfaces.PathArea;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
@@ -169,13 +168,13 @@ public class ParallelTileObject extends PathTileObject implements TemporaryObjec
 				Iterator<PathObject> iterThis = listThis.iterator();
 				while (iterThis.hasNext()) {
 					PathObject pathObjectNew = iterThis.next();
-					PathArea pathAreaNew = (PathArea)pathObjectNew.getROI();
+					ROI pathAreaNew = pathObjectNew.getROI();
 					Area areaNew = RoiTools.getArea(pathAreaNew);
 
 					Iterator<PathObject> iterThat = listThat.iterator();
 					while (iterThat.hasNext()) {
 						PathObject pathObjectOld = iterThat.next();
-						PathArea pathAreaOld = (PathArea)pathObjectOld.getROI();
+						ROI pathAreaOld = pathObjectOld.getROI();
 						// Check if the existing area intersects the bounds
 						if (!areaNew.intersects(getBounds2D(pathAreaOld)))
 							continue;
@@ -236,7 +235,7 @@ public class ParallelTileObject extends PathTileObject implements TemporaryObjec
 		List<PathObject> pathObjects = new ArrayList<>();
 		for (PathObject child : getChildObjectsAsArray()) {
 			ROI childROI = child.getROI();
-			if (childROI instanceof PathArea && region.intersects(getBounds2D(childROI))) {
+			if (childROI != null && childROI.isArea() && region.intersects(getBounds2D(childROI))) {
 				pathObjects.add(child);
 			}
 		}

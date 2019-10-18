@@ -25,7 +25,6 @@ package qupath.lib.roi;
 
 import java.util.Comparator;
 
-import qupath.lib.roi.interfaces.PathArea;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
@@ -119,9 +118,6 @@ public class DefaultROIComparator implements Comparator<ROI>{
 			return temp;
 		
 		// Use type next
-		temp = -Boolean.compare(o1 instanceof PathArea, o2 instanceof PathArea);
-		if (temp != 0)
-			return temp;
 		temp = -Boolean.compare(o1 instanceof RectangleROI, o2 instanceof RectangleROI);
 		if (temp != 0)
 			return temp;
@@ -171,7 +167,7 @@ public class DefaultROIComparator implements Comparator<ROI>{
 		if (o1 instanceof PointsROI && o2 instanceof PointsROI) {
 			PointsROI r1 = (PointsROI)o1;
 			PointsROI r2 = (PointsROI)o2;
-			int size = Integer.compare(r1.getNPoints(), r2.getNPoints());
+			int size = Integer.compare(r1.getNumPoints(), r2.getNumPoints());
 			if (size != 0)
 				return size;
 		}
@@ -192,8 +188,8 @@ public class DefaultROIComparator implements Comparator<ROI>{
 				return size;
 		}
 		
-		var points1 = o1.getPolygonPoints();
-		var points2 = o2.getPolygonPoints();
+		var points1 = o1.getAllPoints();
+		var points2 = o2.getAllPoints();
 		int size = Integer.compare(points1.size(), points2.size());
 		if (size != 0)
 			return size;

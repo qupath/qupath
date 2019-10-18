@@ -85,9 +85,6 @@ import qupath.lib.roi.PolygonROI;
 import qupath.lib.roi.RectangleROI;
 import qupath.lib.roi.RoiEditor;
 import qupath.lib.roi.ShapeSimplifier;
-import qupath.lib.roi.interfaces.PathArea;
-import qupath.lib.roi.interfaces.PathPoints;
-import qupath.lib.roi.interfaces.PathShape;
 import qupath.lib.roi.interfaces.ROI;
 
 
@@ -430,16 +427,16 @@ public class PathHierarchyPaintingHelper {
 			return;
 		
 		Graphics2D g2d = (Graphics2D)g.create();
-		if (pathROI instanceof PathShape) {
-			Shape shape = shapeProvider.getShape((PathShape)pathROI, downsample);
+		if (RoiTools.isShapeROI(pathROI)) {
+			Shape shape = shapeProvider.getShape(pathROI, downsample);
 //			Shape shape = PathROIToolsAwt.getShape(pathROI);
 			// Only pass the colorFill if we have an area (i.e. not a line/polyline)
-			if (pathROI instanceof PathArea)
+			if (pathROI.isArea())
 				paintShape(shape, g, colorStroke, stroke, colorFill, downsample);
-			else
+			else if (pathROI.isLine())
 				paintShape(shape, g, colorStroke, stroke, null, downsample);
-		} else if (pathROI instanceof PathPoints) {
-			paintPoints((PathPoints)pathROI, g2d, PathPrefs.getDefaultPointRadius(), colorStroke, stroke, colorFill, downsample);
+		} else if (pathROI.isPoint()) {
+			paintPoints(pathROI, g2d, PathPrefs.getDefaultPointRadius(), colorStroke, stroke, colorFill, downsample);
 		}
 		g2d.dispose();
 	}
@@ -512,19 +509,19 @@ public class PathHierarchyPaintingHelper {
 		
 		// TODO: Consider if it makes sense to map to PathHierarchyImageServer preferred downsamples
 		// (Only if shape simplification is often used for detection objects)
-		private Map<PathShape, Shape> map50 = Collections.synchronizedMap(new WeakHashMap<>());
-		private Map<PathShape, Shape> map20 = Collections.synchronizedMap(new WeakHashMap<>());
-		private Map<PathShape, Shape> map10 = Collections.synchronizedMap(new WeakHashMap<>());
-		private Map<PathShape, Shape> map = Collections.synchronizedMap(new WeakHashMap<>());
+		private Map<ROI, Shape> map50 = Collections.synchronizedMap(new WeakHashMap<>());
+		private Map<ROI, Shape> map20 = Collections.synchronizedMap(new WeakHashMap<>());
+		private Map<ROI, Shape> map10 = Collections.synchronizedMap(new WeakHashMap<>());
+		private Map<ROI, Shape> map = Collections.synchronizedMap(new WeakHashMap<>());
 		
 		
-		private Map<PathShape, Shape> getMap(final PathShape shape, final double downsample) {
+		private Map<ROI, Shape> getMap(final ROI shape, final double downsample) {
 			// If we don't have many vertices, just return the main map - no need to simplify
-			int nVertices = 0;
-			if (shape instanceof PolygonROI)
-				nVertices = ((PolygonROI)shape).nVertices();
-			else if (shape instanceof AreaROI)
-				nVertices = ((AreaROI)shape).nVertices();
+			int nVertices = shape.getNumPoints();
+//			if (shape instanceof PolygonROI)
+//				nVertices = ((PolygonROI)shape).nVertices();
+//			else if (shape instanceof AreaROI)
+//				nVertices = ((AreaROI)shape).nVertices();
 			if (nVertices < MIN_SIMPLIFY_VERTICES)
 				return map;
 			
@@ -548,7 +545,7 @@ public class PathHierarchyPaintingHelper {
 		}
 		
 		
-		public Shape getShape(final PathShape roi, final double downsample) {
+		public Shape getShape(final ROI roi, final double downsample) {
 			if (roi instanceof RectangleROI) {
 				Rectangle2D rectangle = rectanglePool.getShape();
 				rectangle.setFrame(roi.getBoundsX(), roi.getBoundsY(), roi.getBoundsWidth(), roi.getBoundsHeight());
@@ -568,7 +565,7 @@ public class PathHierarchyPaintingHelper {
 				return line;
 			}
 
-			Map<PathShape, Shape> map = getMap(roi, downsample);
+			Map<ROI, Shape> map = getMap(roi, downsample);
 //			map.clear();
 			Shape shape = map.get(roi);
 			if (shape == null) {
@@ -644,10 +641,10 @@ public class PathHierarchyPaintingHelper {
 	}
 	
 	
-	public static void paintPoints(PathPoints pathPoints, Graphics2D g2d, double radius, Color colorStroke, Stroke stroke, Color colorFill, double downsample) {
+	public static void paintPoints(ROI pathPoints, Graphics2D g2d, double radius, Color colorStroke, Stroke stroke, Color colorFill, double downsample) {
 		PointsROI pathPointsROI = pathPoints instanceof PointsROI ? (PointsROI)pathPoints : null;
 		if (pathPointsROI != null && PathPrefs.getShowPointHulls()) {
-			PathArea convexHull = pathPointsROI.getConvexHull();
+			ROI convexHull = pathPointsROI.getConvexHull();
 			if (convexHull != null) {
 				Color colorHull = colorFill != null ? colorFill : colorStroke;
 				colorHull = ColorToolsAwt.getColorWithOpacity(colorHull, 0.1);
@@ -665,7 +662,7 @@ public class PathHierarchyPaintingHelper {
 		radius = (Math.max(1 / scale, radius));
 		
 		g2d.setStroke(stroke);
-		for (Point2 p : pathPoints.getPointList()) {
+		for (Point2 p : pathPoints.getAllPoints()) {
 			ellipse.setFrame(p.getX()-radius, p.getY()-radius, radius*2, radius*2);
 			if (colorFill != null) {
 				g2d.setColor(colorFill);

@@ -28,9 +28,6 @@ import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.AreaROI;
 import qupath.lib.roi.GeometryTools;
 import qupath.lib.roi.RoiTools;
-import qupath.lib.roi.RoiTools.CombineOp;
-import qupath.lib.roi.interfaces.PathArea;
-import qupath.lib.roi.interfaces.PathShape;
 import qupath.lib.roi.interfaces.ROI;
 
 import java.awt.geom.Path2D;
@@ -406,10 +403,10 @@ public class PixelClassifierTools {
 			
 			// Apply size threshold
 			if (roi != null && minSizePixels > 0) {
-				if (roi instanceof AreaROI)
-					roi = (PathShape)RoiTools.removeSmallPieces((AreaROI)roi, minSizePixels, minSizePixels);
-				else if (!(roi instanceof PathArea && ((PathArea)roi).getArea() > minSizePixels))
+				if (roi.getArea() < minSizePixels)
 					continue;
+				else
+					roi = RoiTools.removeSmallPieces(roi, minSizePixels, minSizePixels);
 			}
 	
 			

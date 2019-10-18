@@ -1,7 +1,7 @@
 /**
- * Interfaces that define regions of interest (ROIs).
+ * Interface that define regions of interest (ROIs).
  * <p>
- * Some ROIs implement multiple interfaces, depending upon whether they represent points, 
- * lines or closed shapes (areas).
+ * In the past, there were multiple interfaces to define ROIs of different types.
+ * This has now been simplified with more methods added to ROI itself instead.
  */
 package qupath.lib.roi.interfaces;

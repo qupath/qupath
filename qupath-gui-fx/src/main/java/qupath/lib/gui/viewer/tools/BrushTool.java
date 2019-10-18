@@ -59,9 +59,7 @@ import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.GeometryTools;
 import qupath.lib.roi.RectangleROI;
-import qupath.lib.roi.interfaces.PathArea;
 import qupath.lib.roi.interfaces.ROI;
-import qupath.lib.roi.interfaces.PathShape;
 
 /**
  * Tool for drawing (and subtract from) freehand regions, optionally adapting brush size to magnification.
@@ -202,7 +200,7 @@ public class BrushTool extends AbstractPathROITool {
 			// See if, rather than creating something, we can instead reactivate a current object
 			if (multipleClicks) {
 				PathObject objectSelectable = getSelectableObject(p.getX(), p.getY(), e.getClickCount() - 1);
-				if (objectSelectable != null && objectSelectable.isEditable() && objectSelectable.getROI() instanceof PathArea) {
+				if (objectSelectable != null && objectSelectable.isEditable() && objectSelectable.hasROI() && objectSelectable.getROI().isArea()) {
 					createNew = false;
 					viewer.setSelectedObject(objectSelectable);
 					currentObject = objectSelectable;
@@ -215,7 +213,7 @@ public class BrushTool extends AbstractPathROITool {
 					PathObject objectSelectable = null;
 					for (int i = listSelectable.size()-1; i >= 0; i--) {
 						PathObject temp = listSelectable.get(i);
-						if (temp.isEditable() && temp instanceof PathAnnotationObject && temp.getROI() instanceof PathArea) { //temp.getROI() instanceof AreaROI) {
+						if (temp.isEditable() && temp instanceof PathAnnotationObject && temp.hasROI() && temp.getROI().isArea()) { //temp.getROI() instanceof AreaROI) {
 							objectSelectable = temp;
 							break;
 						}
@@ -233,7 +231,7 @@ public class BrushTool extends AbstractPathROITool {
 		
 		// Can only modify annotations
 		// TODO: Check for object being locked!
-		if (!createNew && !(currentObject instanceof PathAnnotationObject && currentObject.getROI() instanceof PathShape))
+		if (!createNew && !(currentObject != null && currentObject.isAnnotation() && RoiTools.isShapeROI(currentObject.getROI())))
 			return;
 						
 		// Get the parent, in case we need to constrain the shape
@@ -256,7 +254,7 @@ public class BrushTool extends AbstractPathROITool {
 			hierarchy.removeObjectWithoutUpdate(currentObject, true);
 		}
 
-		PathShape shapeROI = createNew ? null : (PathShape)currentObject.getROI();
+		ROI shapeROI = createNew ? null : currentObject.getROI();
 		if (createNew) {
 			creatingTiledROI = false; // Reset this
 			createNewAnnotation(p.getX(), p.getY());
@@ -287,10 +285,10 @@ public class BrushTool extends AbstractPathROITool {
 			return;
 
 		ROI currentROI = pathObject.getROI();
-		if (!(currentROI instanceof PathShape))
+		if (!(currentROI instanceof ROI))
 			return;
 		
-		PathShape shapeROI = (PathShape)currentROI;
+		ROI shapeROI = currentROI;
 		
 		PathObject pathObjectUpdated = getUpdatedObject(e, shapeROI, pathObject, -1);
 		if (pathObject != pathObjectUpdated)
@@ -308,7 +306,7 @@ public class BrushTool extends AbstractPathROITool {
 	}
 	
 	
-	private PathObject getUpdatedObject(MouseEvent e, PathShape shapeROI, PathObject currentObject, double flatness) {
+	private PathObject getUpdatedObject(MouseEvent e, ROI shapeROI, PathObject currentObject, double flatness) {
 		Point2D p = mouseLocationToImage(e, true, requestPixelSnapping());
 		
 		ImagePlane plane = shapeROI == null ? ImagePlane.getPlane(viewer.getZPosition(), viewer.getTPosition()) : shapeROI.getImagePlane();
@@ -433,7 +431,7 @@ public class BrushTool extends AbstractPathROITool {
 			List<PathObject> listSelectable = getSelectableObjectList(x, y);
 			for (PathObject temp : listSelectable) {
 //				if ((temp instanceof PathDetectionObject) && temp.getROI() instanceof PathArea)
-				if (temp instanceof PathTileObject && temp.getROI() instanceof PathArea && !(temp.getROI() instanceof RectangleROI)) {
+				if (temp instanceof PathTileObject && temp.hasROI() && temp.getROI().isArea() && !(temp.getROI() instanceof RectangleROI)) {
 					creatingTiledROI = true;
 					return temp.getROI().getGeometry();
 				}

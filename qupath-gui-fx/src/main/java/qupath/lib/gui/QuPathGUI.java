@@ -343,7 +343,6 @@ import qupath.lib.projects.ProjectImageEntry;
 import qupath.lib.projects.Projects;
 import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.interfaces.ROI;
-import qupath.lib.roi.interfaces.TranslatableROI;
 import qupath.lib.gui.scripting.DefaultScriptEditor;
 
 
@@ -5373,7 +5372,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			
 			// If we are within a TMA core, try to apply any required translations
 			TMACoreObject coreNewParent = null;
-			if (roi instanceof TranslatableROI && hierarchy.getTMAGrid() != null) {
+			if (hierarchy.getTMAGrid() != null) {
 				TMACoreObject coreParent = null;
 				PathObject parent = lastAnnotationObject.getParent();
 				while (parent != null) {
@@ -5390,8 +5389,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 //						if (rotation == 0) {
 							double dx = coreNewParent.getROI().getCentroidX() - coreParent.getROI().getCentroidX();
 							double dy = coreNewParent.getROI().getCentroidY() - coreParent.getROI().getCentroidY();
-							TranslatableROI roiTranslatable = (TranslatableROI)roi;
-							roi = roiTranslatable.translate(dx, dy);
+							roi = roi.translate(dx, dy);
 							// TODO: Deal with rotations... it's a bit tricky...
 //						} else {
 						// TODO: Check how best to handle transferring ROIs with rotation involved

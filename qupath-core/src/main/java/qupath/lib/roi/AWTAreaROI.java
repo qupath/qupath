@@ -34,17 +34,19 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.geom.Point2;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.interfaces.ROI;
-import qupath.lib.roi.interfaces.TranslatableROI;
 
 /**
  * An implementation of AreaROI that makes use of Java AWT Shapes.
  * <p>
  * If available, this is a better choice than using AreaROI directly, due to the extra checking involved with AWT.
  * 
+ * @deprecated Consider using {@link GeometryROI} instead.
+ * 
  * @author Pete Bankhead
  *
  */
-class AWTAreaROI extends AreaROI implements TranslatableROI, Serializable {
+@Deprecated
+class AWTAreaROI extends AreaROI implements Serializable {
 	
 	private static final long serialVersionUID = 1L;
 	
@@ -100,7 +102,7 @@ class AWTAreaROI extends AreaROI implements TranslatableROI, Serializable {
 	}
 
 	@Override
-	public double getPerimeter() {
+	public double getLength() {
 		if (stats == null)
 			calculateShapeMeasurements();
 		return stats.getPerimeter();
@@ -168,7 +170,7 @@ class AWTAreaROI extends AreaROI implements TranslatableROI, Serializable {
 
 	
 	@Override
-	public TranslatableROI translate(double dx, double dy) {
+	public ROI translate(double dx, double dy) {
 		// Shift the bounds
 		if (dx == 0 && dy == 0)
 			return this;
@@ -186,9 +188,9 @@ class AWTAreaROI extends AreaROI implements TranslatableROI, Serializable {
 	}
 
 	@Override
-	public double getScaledPerimeter(double pixelWidth, double pixelHeight) {
+	public double getScaledLength(double pixelWidth, double pixelHeight) {
 		if (GeneralTools.almostTheSame(pixelWidth, pixelHeight, 0.0001))
-			return getPerimeter() * (pixelWidth + pixelHeight) * .5;
+			return getLength() * (pixelWidth + pixelHeight) * .5;
 		// TODO: Need to confirm this is not a performance bottleneck in practice (speed vs. memory issue)
 		return new ClosedShapeStatistics(shape, pixelWidth, pixelHeight).getPerimeter();
 	}
@@ -225,7 +227,7 @@ class AWTAreaROI extends AreaROI implements TranslatableROI, Serializable {
 	}
 
 	@Override
-	public List<Point2> getPolygonPoints() {
+	public List<Point2> getAllPoints() {
 		if (shape == null)
 			return Collections.emptyList();
 		return RoiTools.getLinearPathPoints(shape, shape.getPathIterator(null, 0.5));
