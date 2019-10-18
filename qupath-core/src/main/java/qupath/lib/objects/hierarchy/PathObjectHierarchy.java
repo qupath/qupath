@@ -690,8 +690,9 @@ public final class PathObjectHierarchy implements Serializable {
 			
 			if (child.isDetection())
 				return tileCache.containsCentroid(locator, child);
-			else
+			else {
 				return tileCache.covers(preparedGeometry, child);
+			}
 		}).collect(Collectors.toList());
 	}
 	
