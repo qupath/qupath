@@ -9,7 +9,9 @@ import java.util.stream.Collectors;
 import org.locationtech.jts.algorithm.locate.SimplePointInAreaLocator;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.Lineal;
 import org.locationtech.jts.geom.Location;
+import org.locationtech.jts.geom.Puntal;
 import org.locationtech.jts.geom.util.AffineTransformation;
 import org.locationtech.jts.operation.valid.IsValidOp;
 import org.locationtech.jts.operation.valid.TopologyValidationError;
@@ -32,7 +34,7 @@ import qupath.lib.roi.interfaces.ROI;
  * @author Pete Bankhead
  *
  */
-public class GeometryROI extends AbstractPathAreaROI implements Serializable {
+public class GeometryROI extends AbstractPathROI implements Serializable {
 	
 	private static final long serialVersionUID = 1L;
 	
@@ -47,7 +49,7 @@ public class GeometryROI extends AbstractPathAreaROI implements Serializable {
 		this.geometry = geometry.copy();
 		this.stats = computeGeometryStats(geometry, 1, 1);
 		if (!stats.isValid())
-			System.err.println(this.stats.getError());
+			logger.warn("Creating invalid geometry: {}", stats.getError());
 	}
 
 	@Override
@@ -120,6 +122,10 @@ public class GeometryROI extends AbstractPathAreaROI implements Serializable {
 
 	@Override
 	public RoiType getRoiType() {
+		if (geometry instanceof Puntal)
+			return RoiType.POINT;
+		if (geometry instanceof Lineal)
+			return RoiType.LINE;
 		return RoiType.AREA;
 	}
 	
@@ -164,8 +170,12 @@ public class GeometryROI extends AbstractPathAreaROI implements Serializable {
 	}
 	
 	private Object writeReplace() {
-		AreaROI roi = new AreaROI(RoiTools.getVertices(getShape()), ImagePlane.getPlaneWithChannel(c, z, t));
-		return roi;
+		// Try to preserve areas as they were... but we need to use JTS serialization for others
+		if (isArea()) {
+			AreaROI roi = new AreaROI(RoiTools.getVertices(getShape()), ImagePlane.getPlaneWithChannel(c, z, t));
+			return roi;
+		} else
+			return this;
 	}
 	
 	

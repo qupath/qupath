@@ -32,7 +32,7 @@ import qupath.lib.regions.ImagePlane;
  * @author Pete Bankhead
  *
  */
-abstract class AbstractPathBoundedROI extends AbstractPathAreaROI {
+abstract class AbstractPathBoundedROI extends AbstractPathROI {
 	
 	protected double x, y, x2, y2;
 	

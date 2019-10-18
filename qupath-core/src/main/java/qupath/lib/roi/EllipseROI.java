@@ -207,5 +207,10 @@ public class EllipseROI extends AbstractPathBoundedROI implements Serializable {
 		return new EllipseROI(getBoundsX()+dx, getBoundsY()+dy, getBoundsWidth(), getBoundsHeight(), getImagePlane());
 	}
 
+	@Override
+	public RoiType getRoiType() {
+		return RoiType.AREA;
+	}
+
 
 }

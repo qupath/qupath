@@ -23,17 +23,15 @@
 
 package qupath.lib.gui.commands;
 
-import java.awt.geom.Area;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.viewer.QuPathViewer;
-import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
@@ -61,7 +59,14 @@ public class AnnotationCombineCommand implements PathCommand {
 
 	@Override
 	public void run() {
-		combineAnnotations(viewer.getHierarchy(), new ArrayList<>(viewer.getHierarchy().getSelectionModel().getSelectedObjects()), op);
+		// Ensure the main selected object is first in the list, if possible
+		var selected = new ArrayList<>(viewer.getHierarchy().getSelectionModel().getSelectedObjects());
+		var mainObject = viewer.getHierarchy().getSelectionModel().getSelectedObject();
+		if (mainObject != null && !selected.isEmpty() && !selected.get(0).equals(mainObject)) {
+			selected.remove(mainObject);
+			selected.add(0, mainObject);
+		}
+		combineAnnotations(viewer.getHierarchy(), selected, op);
 	}
 	
 	
@@ -74,75 +79,60 @@ public class AnnotationCombineCommand implements PathCommand {
 	 * @param pathObjects
 	 * @param op
 	 */
-	static void combineAnnotations(final PathObjectHierarchy hierarchy, final List<PathObject> pathObjects, RoiTools.CombineOp op) {
+	static void combineAnnotations(PathObjectHierarchy hierarchy, List<PathObject> pathObjects, RoiTools.CombineOp op) {
 		if (hierarchy == null || hierarchy.isEmpty() || pathObjects.isEmpty()) {
 			logger.warn("Combine annotations: Cannot combine - no annotations found");
 			return;
 		}
-		PathObject pathObject = pathObjects.remove(0);
-		if (!(pathObject instanceof PathAnnotationObject) || !RoiTools.isShapeROI(pathObject.getROI())) {
+		
+		pathObjects = new ArrayList<>(pathObjects);
+		PathObject pathObject = pathObjects.get(0);
+		if (!pathObject.isAnnotation()) { // || !RoiTools.isShapeROI(pathObject.getROI())) {
 			logger.warn("Combine annotations: No annotation with ROI selected");				
 			return;
 		}
-		pathObjects.removeIf(p -> RoiTools.isShapeROI(p.getROI())); // Remove any null or point ROIs, TODO: Consider supporting points
+		var plane = pathObject.getROI().getImagePlane();
+//		pathObjects.removeIf(p -> !RoiTools.isShapeROI(p.getROI())); // Remove any null or point ROIs, TODO: Consider supporting points
+		pathObjects.removeIf(p -> !p.hasROI() || !p.getROI().getImagePlane().equals(plane)); // Remove any null or point ROIs, TODO: Consider supporting points
 		if (pathObjects.isEmpty()) {
-			logger.warn("Combine annotations: Only one annotation with shape ROIs found");				
+			logger.warn("Cannot combint annotations - only one suitable annotation found");
 			return;
 		}
-	
-		ROI shapeMask = pathObject.getROI();
-		Area areaOriginal = RoiTools.getArea(shapeMask);
-		Area areaNew = new Area(areaOriginal);
-		Iterator<PathObject> iter = pathObjects.iterator();
-		List<PathObject> objectsToAdd = new ArrayList<>();
-		int changes = 0;
-		while (iter.hasNext()) {
-			PathObject temp = iter.next();
-			Area areaTemp = RoiTools.getArea(temp.getROI());
-			PathObject annotationNew = null;
-			if (op == RoiTools.CombineOp.SUBTRACT) {
-				areaTemp.subtract(areaNew);
-				if (!areaTemp.isEmpty()) {
-					var shapeNew = RoiTools.getShapeROI(areaTemp, shapeMask.getImagePlane());
-					annotationNew = PathObjects.createAnnotationObject(shapeNew, temp.getPathClass());
-				}
-			} else if (op == RoiTools.CombineOp.INTERSECT) {
-				areaTemp.intersect(areaNew);
-				if (!areaTemp.isEmpty()) {
-					var shapeNew = RoiTools.getShapeROI(areaTemp, shapeMask.getImagePlane());
-					annotationNew = PathObjects.createAnnotationObject(shapeNew, temp.getPathClass());
-				}
-			} else {
-				RoiTools.combineAreas(areaNew, areaTemp, op);
-			}
-			if (annotationNew != null) {
-				annotationNew.setColorRGB(temp.getColorRGB());
-				annotationNew.setName(temp.getName());
-				objectsToAdd.add(annotationNew);
-			}
-			changes++;
+		
+		var allROIs = pathObjects.stream().map(p -> p.getROI()).collect(Collectors.toCollection(() -> new ArrayList<>()));
+		ROI newROI;
+		
+		switch (op) {
+		case ADD:
+			newROI = RoiTools.unionROIs(allROIs);
+			break;
+		case INTERSECT:
+			newROI = RoiTools.intersectROIs(allROIs);
+			break;
+		case SUBTRACT:
+			var first = allROIs.remove(0);
+			newROI = RoiTools.combineROIs(first, RoiTools.unionROIs(allROIs), op);
+			break;
+		default:
+			throw new IllegalArgumentException("Unknown combine op " + op);
 		}
-		if (changes == 0) {
+	
+		if (newROI == null) {
 			logger.debug("No changes were made");
 			return;
 		}
-		if (op == RoiTools.CombineOp.ADD) {
-			var shapeNew = RoiTools.getShapeROI(areaNew, shapeMask.getImagePlane());
-			if (!shapeNew.isEmpty())
-				objectsToAdd.add(PathObjects.createAnnotationObject(shapeNew, pathObject.getPathClass()));
+		
+		PathObject newObject = null;
+		if (!newROI.isEmpty()) {
+			newObject = PathObjects.createAnnotationObject(newROI, pathObject.getPathClass());
+			newObject.setName(pathObject.getName());
+			newObject.setColorRGB(pathObject.getColorRGB());
 		}
+
 		// Remove previous objects
-		pathObjects.add(pathObject);
 		hierarchy.removeObjects(pathObjects, true);
-		if (areaNew.isEmpty()) {
-			logger.debug("No area ROI remains");
-			return;			
-		}
-		// Add new objects
-		hierarchy.addPathObjects(objectsToAdd);
-		// TODO: Avoid unnecessary calls to the full hierarchy change
-		hierarchy.fireHierarchyChangedEvent(null);
-		//		hierarchy.getSelectionModel().setSelectedPathObject(pathObjectNew);
+		if (newObject != null)
+			hierarchy.addPathObject(newObject);
 	}
 	
 }

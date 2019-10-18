@@ -44,7 +44,7 @@ import qupath.lib.roi.interfaces.ROI;
  * @author Pete Bankhead
  *
  */
-public class PolygonROI extends AbstractPathAreaROI implements Serializable {
+public class PolygonROI extends AbstractPathROI implements Serializable {
 	
 	private static final long serialVersionUID = 1L;
 	
@@ -414,6 +414,12 @@ public class PolygonROI extends AbstractPathAreaROI implements Serializable {
 			return roi;
 		}
 		
+	}
+
+
+	@Override
+	public RoiType getRoiType() {
+		return RoiType.AREA;
 	}
 	
 	

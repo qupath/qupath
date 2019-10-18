@@ -93,11 +93,18 @@ abstract class AbstractPathROI implements ROI {
 	}
 	
 	/**
-	 * TRUE if the bounding box has zero area
+	 * True if the bounding box has zero area
 	 */
 	@Override
 	public boolean isEmpty() {
-		return getBoundsWidth() * getBoundsHeight() == 0;
+		int n = getNumPoints();
+		if (n == 0)
+			return true;
+		if (isArea())
+			return getArea() == 0;
+		if (isLine())
+			return getLength() == 0;
+		return false;
 	}
 	
 	@Override
@@ -163,6 +170,16 @@ abstract class AbstractPathROI implements ROI {
 	@Override
 	public Geometry getGeometry() {
 		return converter.roiToGeometry(this);
+	}
+	
+	@Override
+	public double getArea() {
+		return getScaledArea(1, 1);
+	}
+	
+	@Override
+	public double getLength() {
+		return getScaledLength(1, 1);
 	}
 	
 	/**

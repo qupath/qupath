@@ -504,7 +504,7 @@ public class PathObjectTools {
 									line.getX2(), line.getY2(),
 									x, y) <= distSq)
 								isClose = true;
-						} else if (roi instanceof PolylineROI) {
+						} else if (roi.isLine()) {
 							Point2 lastPoint = null;
 							for (var p : temp.getROI().getAllPoints()) {
 								if (p.distanceSq(x, y) <= distSq ||

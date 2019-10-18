@@ -37,7 +37,10 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
+import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.operation.union.UnaryUnionOp;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -109,6 +112,53 @@ public class RoiTools {
 			throw new IllegalArgumentException("Unknown op " + op);
 		}
 	}
+	
+	/**
+	 * Create union of multiple ROIs. This assumes that ROIs fall on the same plane, if not an {@link IllegalArgumentException} 
+	 * will be thrown. Similarly, ROIs must be of a similar type (e.g. area, point) or an exception will be thrown by Java Topology Suite.
+	 * @param rois
+	 * @return
+	 */
+	public static ROI unionROIs(Collection<ROI> rois) {
+		if (rois.isEmpty())
+			return ROIs.createEmptyROI();
+		ImagePlane plane = rois.iterator().next().getImagePlane();
+		List<Geometry> geometries = new ArrayList<>();
+		for (var r : rois) {
+			if (!r.getImagePlane().equals(plane)) {
+				throw new IllegalArgumentException("Cannot merge ROIs - found plane " 
+						+ r.getImagePlane() + " but expected " + plane);
+			}
+			geometries.add(r.getGeometry());
+		}
+		return GeometryTools.convertGeometryToROI(UnaryUnionOp.union(geometries), plane);
+	}
+	
+	/**
+	 * Create intersection of multiple ROIs. This assumes that ROIs fall on the same plane, if not an {@link IllegalArgumentException} 
+	 * will be thrown. Similarly, ROIs must be of a similar type (e.g. area, point) or an exception will be thrown by Java Topology Suite.
+	 * @param rois
+	 * @return
+	 */
+	public static ROI intersectROIs(Collection<ROI> rois) {
+		if (rois.isEmpty())
+			return ROIs.createEmptyROI();
+		ImagePlane plane = rois.iterator().next().getImagePlane();
+		List<Geometry> geometries = new ArrayList<>();
+		for (var r : rois) {
+			if (!r.getImagePlane().equals(plane)) {
+				throw new IllegalArgumentException("Cannot merge ROIs - found plane " 
+						+ r.getImagePlane() + " but expected " + plane);
+			}
+			geometries.add(r.getGeometry());
+		}
+		Geometry first = geometries.remove(0);
+		for (var geom : geometries)
+			first = first.intersection(geom);
+		return GeometryTools.convertGeometryToROI(first, plane);
+	}
+	
+	
 
 //	/**
 //	 * Compute two shape ROIs together, using the specified 'flatness' to handle curved segments.
@@ -189,7 +239,8 @@ public class RoiTools {
 		
 		// We can't have holes if we don't have an AreaROI
 		if (roi instanceof RectangleROI || roi instanceof EllipseROI || roi instanceof LineROI || roi instanceof PolylineROI) {
-			return removeSmallPieces(roi, minArea);
+			if (roi.getArea() < minArea)
+				return null;
 		}
 		
 		var polygons = splitAreaToPolygons(roi);

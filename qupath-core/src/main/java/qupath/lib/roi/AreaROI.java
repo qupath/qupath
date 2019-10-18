@@ -54,7 +54,7 @@ import qupath.lib.roi.interfaces.ROI;
  * @author Pete Bankhead
  *
  */
-public class AreaROI extends AbstractPathAreaROI implements Serializable {
+public class AreaROI extends AbstractPathROI implements Serializable {
 	
 //	final static private Logger logger = LoggerFactory.getLogger(AreaROI.class);
 	
@@ -346,6 +346,11 @@ public class AreaROI extends AbstractPathAreaROI implements Serializable {
 	@Override
 	public Shape getShape() {
 		return RoiTools.getShape(this);
+	}
+
+	@Override
+	public RoiType getRoiType() {
+		return RoiType.AREA;
 	}
 	
 }

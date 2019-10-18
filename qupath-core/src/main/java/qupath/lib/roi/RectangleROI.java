@@ -34,6 +34,7 @@ import java.util.List;
 import qupath.lib.geom.Point2;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.interfaces.ROI;
+import qupath.lib.roi.interfaces.ROI.RoiType;
 
 /**
  * ROI representing a square or rectangle (unrotated).
@@ -131,6 +132,11 @@ public class RectangleROI extends AbstractPathBoundedROI implements Serializable
 	@Override
 	public ROI getConvexHull() {
 		return this;
+	}
+	
+	@Override
+	public RoiType getRoiType() {
+		return RoiType.AREA;
 	}
 	
 	@Override
