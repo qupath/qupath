@@ -37,8 +37,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
-
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.operation.union.UnaryUnionOp;
 import org.slf4j.Logger;
@@ -384,15 +382,15 @@ public class RoiTools {
 	public static ROI getShapeROI(Shape shape, ImagePlane plane, double flatness) {
 		if (shape instanceof Rectangle2D) {
 			Rectangle2D bounds = shape.getBounds2D();
-			return new RectangleROI(bounds.getX(), bounds.getY(), bounds.getWidth(), bounds.getHeight(), plane);
+			return ROIs.createRectangleROI(bounds.getX(), bounds.getY(), bounds.getWidth(), bounds.getHeight(), plane);
 		}
 		if (shape instanceof Ellipse2D) {
 			Rectangle2D bounds = shape.getBounds2D();
-			return new EllipseROI(bounds.getX(), bounds.getY(), bounds.getWidth(), bounds.getHeight(), plane);
+			return ROIs.createEllipseROI(bounds.getX(), bounds.getY(), bounds.getWidth(), bounds.getHeight(), plane);
 		}
 		if (shape instanceof Line2D) {
 			Line2D line = (Line2D)shape;
-			return new LineROI(line.getX1(), line.getY1(), line.getX2(), line.getY2(), plane);
+			return ROIs.createLineROI(line.getX1(), line.getY1(), line.getX2(), line.getY2(), plane);
 		}
 		boolean isClosed = false;
 		List<Point2> points = null;
@@ -582,11 +580,11 @@ public class RoiTools {
 				ROI tile;
 				// If the tile is completely contained by the ROI, it's straightforward
 				if (area.contains(x, y, width, height))
-					tile = new RectangleROI(x, y, width, height);
+					tile = ROIs.createRectangleROI(x, y, width, height, roi.getImagePlane());
 				else if (!trimToROI) {
 					// If we aren't trimming, then check if the centroid is contained
 					if (area.contains(x+0.5*width, y+0.5*height))
-						tile = new RectangleROI(x, y, width, height);
+						tile = ROIs.createRectangleROI(x, y, width, height, roi.getImagePlane());
 					else
 						continue;
 				}
@@ -602,7 +600,7 @@ public class RoiTools {
 						continue;
 					if (tileArea.isRectangular()) {
 						Rectangle2D bounds2 = tileArea.getBounds2D();
-						tile = new RectangleROI(bounds2.getX(), bounds2.getY(), bounds2.getWidth(), bounds2.getHeight());
+						tile = ROIs.createRectangleROI(bounds2.getX(), bounds2.getY(), bounds2.getWidth(), bounds2.getHeight(), roi.getImagePlane());
 					}
 					else
 						tile = ROIs.createAreaROI(tileArea, roi.getImagePlane());
@@ -671,10 +669,10 @@ public class RoiTools {
 				ROI pathROI = null;
 				Shape shape = getShape(pathArea);
 				if (shape.contains(boundsTile))
-					pathROI = new RectangleROI(boundsTile.getX(), boundsTile.getY(), boundsTile.getWidth(), boundsTile.getHeight(), parentROI.getImagePlane());
+					pathROI = ROIs.createRectangleROI(boundsTile.getX(), boundsTile.getY(), boundsTile.getWidth(), boundsTile.getHeight(), parentROI.getImagePlane());
 				else if (pathArea instanceof RectangleROI) {
 					Rectangle2D bounds2 = boundsTile.createIntersection(bounds);
-					pathROI = new RectangleROI(bounds2.getX(), bounds2.getY(), bounds2.getWidth(), bounds2.getHeight(), parentROI.getImagePlane());
+					pathROI = ROIs.createRectangleROI(bounds2.getX(), bounds2.getY(), bounds2.getWidth(), bounds2.getHeight(), parentROI.getImagePlane());
 				}
 				else {
 					if (!area.intersects(boundsTile))

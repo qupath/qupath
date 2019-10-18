@@ -47,9 +47,9 @@ public class GeometryROI extends AbstractPathROI implements Serializable {
 	GeometryROI(Geometry geometry, ImagePlane plane) {
 		super(plane);
 		this.geometry = geometry.copy();
-		this.stats = computeGeometryStats(geometry, 1, 1);
-		if (!stats.isValid())
-			logger.warn("Creating invalid geometry: {}", stats.getError());
+//		this.stats = computeGeometryStats(geometry, 1, 1);
+//		if (!stats.isValid())
+//			logger.warn("Creating invalid geometry: {}", stats.getError());
 	}
 
 	@Override
@@ -207,8 +207,10 @@ public class GeometryROI extends AbstractPathROI implements Serializable {
 				length = geometry.getLength();
 			}
 			var centroid = geometry.getCentroid();
-			centroidX = centroid.getX();
-			centroidY = centroid.getY();
+			if (!centroid.isEmpty()) {
+				centroidX = centroid.getX();
+				centroidY = centroid.getY();
+			}
 			var envelope = geometry.getEnvelopeInternal();
 			if (envelope != null) {
 				boundsMinX = envelope.getMinX();
