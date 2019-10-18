@@ -359,7 +359,12 @@ public class BrushTool extends AbstractPathROITool {
 				shapeNew = shapeDrawn;
 			}
 			
-			shapeNew = roundAndConstrain(shapeNew, 0, 0, viewer.getServerWidth(), viewer.getServerHeight());
+			if (requestPixelSnapping())
+				shapeNew = roundAndConstrain(shapeNew, 0, 0, viewer.getServerWidth(), viewer.getServerHeight());
+			else {
+				var bounds = GeometryTools.regionToGeometry(viewer.getServerBounds());
+				shapeNew = shapeNew.intersection(bounds);
+			}
 	//		GeometrySnapper.snapToSelf(shapeNew, 1.0, true);
 			
 			ROI roiNew = GeometryTools.convertGeometryToROI(shapeNew, plane);

@@ -108,7 +108,7 @@ public class GeometryTools {
     	coords[2] = new Coordinate(region.getMaxX(), region.getMaxY(), region.getZ());
     	coords[3] = new Coordinate(region.getMinX(), region.getMaxY(), region.getZ());
     	coords[4] = coords[0];
-    	return DEFAULT_INSTANCE.factory.createLinearRing(coords);
+    	return DEFAULT_INSTANCE.factory.createPolygon(coords);
     }
 
     
