@@ -10,6 +10,7 @@ configurations {
   implementation.extendsFrom gson
   implementation.extendsFrom guava
   implementation.extendsFrom controlsfx
+  implementation.extendsFrom jts
 }
 
 dependencies {
