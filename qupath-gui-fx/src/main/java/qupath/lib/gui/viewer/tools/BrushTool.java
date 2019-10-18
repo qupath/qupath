@@ -230,8 +230,7 @@ public class BrushTool extends AbstractPathROITool {
 		}
 		
 		// Can only modify annotations
-		// TODO: Check for object being locked!
-		if (!createNew && !(currentObject != null && currentObject.isAnnotation() && RoiTools.isShapeROI(currentObject.getROI())))
+		if (!createNew && !(currentObject != null && currentObject.isAnnotation() && currentObject.isEditable() && RoiTools.isShapeROI(currentObject.getROI())))
 			return;
 						
 		// Get the parent, in case we need to constrain the shape
@@ -279,9 +278,8 @@ public class BrushTool extends AbstractPathROITool {
         }
 		
 		// Can only modify annotations
-		// TODO: Check for object being locked!
 		PathObject pathObject = viewer.getSelectedObject();
-		if (pathObject == null || !pathObject.isAnnotation())
+		if (pathObject == null || !pathObject.isAnnotation() || !pathObject.isEditable())
 			return;
 
 		ROI currentROI = pathObject.getROI();
