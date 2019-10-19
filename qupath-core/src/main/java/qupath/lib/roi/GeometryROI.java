@@ -117,7 +117,7 @@ public class GeometryROI extends AbstractPathROI implements Serializable {
 
 	@Override
 	public Shape getShape() {
-		return GeometryTools.convertROIToShape(geometry);
+		return GeometryTools.geometryToShape(geometry);
 	}
 
 	@Override

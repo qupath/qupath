@@ -229,7 +229,7 @@ public class DilateAnnotationPlugin<T> extends AbstractInteractivePlugin<T> {
 			}
 		}
 
-		ROI roi2 = GeometryTools.convertGeometryToROI(geometry2, ImagePlane.getPlane(roi));
+		ROI roi2 = GeometryTools.geometryToROI(geometry2, ImagePlane.getPlane(roi));
 		
 		if (roi2.isEmpty()) {
 			logger.debug("Updated ROI is empty after {} px expansion", radiusPixels);

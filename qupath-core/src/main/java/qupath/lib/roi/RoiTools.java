@@ -48,7 +48,6 @@ import qupath.lib.geom.Point2;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.EllipseROI;
 import qupath.lib.roi.LineROI;
-import qupath.lib.roi.AreaROI;
 import qupath.lib.roi.PolygonROI;
 import qupath.lib.roi.RectangleROI;
 import qupath.lib.roi.interfaces.ROI;
@@ -101,11 +100,11 @@ public class RoiTools {
 		// Do a quick check to see if a combination might be avoided
 		switch (op) {
 		case ADD:
-			return GeometryTools.convertGeometryToROI(area1.union(area2), shape1.getImagePlane());
+			return GeometryTools.geometryToROI(area1.union(area2), shape1.getImagePlane());
 		case INTERSECT:
-			return GeometryTools.convertGeometryToROI(area1.intersection(area2), shape1.getImagePlane());
+			return GeometryTools.geometryToROI(area1.intersection(area2), shape1.getImagePlane());
 		case SUBTRACT:
-			return GeometryTools.convertGeometryToROI(area1.difference(area2), shape1.getImagePlane());
+			return GeometryTools.geometryToROI(area1.difference(area2), shape1.getImagePlane());
 		default:
 			throw new IllegalArgumentException("Unknown op " + op);
 		}
@@ -129,7 +128,7 @@ public class RoiTools {
 			}
 			geometries.add(r.getGeometry());
 		}
-		return GeometryTools.convertGeometryToROI(UnaryUnionOp.union(geometries), plane);
+		return GeometryTools.geometryToROI(UnaryUnionOp.union(geometries), plane);
 	}
 	
 	/**
@@ -153,7 +152,7 @@ public class RoiTools {
 		Geometry first = geometries.remove(0);
 		for (var geom : geometries)
 			first = first.intersection(geom);
-		return GeometryTools.convertGeometryToROI(first, plane);
+		return GeometryTools.geometryToROI(first, plane);
 	}
 	
 	
@@ -278,33 +277,6 @@ public class RoiTools {
 			return getShapeROI(new Area(path), ImagePlane.getPlane(roi), 0.5);
 		else
 			return roi;
-	}
-
-	
-	/**
-	 * Compute two Areas together, modifying the first.
-	 * 
-	 * @param area1 the primary Area, which will be modified by this operation
-	 * @param area2 the secondary Area, which will be unchanged
-	 * @param op method of combination
-	 */
-	public static void combineAreas(Area area1, Area area2, CombineOp op) {
-		switch (op) {
-		case ADD:
-			area1.add(area2);
-			break;
-		case SUBTRACT:
-			area1.subtract(area2);
-			break;
-		case INTERSECT:
-			area1.intersect(area2);
-			break;
-			//		case XOR:
-			//			area1.exclusiveOr(area2);
-			//			break;
-		default:
-			throw new IllegalArgumentException("Invalid CombineOp " + op);
-		}
 	}
 
 
@@ -449,94 +421,16 @@ public class RoiTools {
 
 	/**
 	 * Get a java.awt.Shape object representing a ROI.
+	 * Previously this did more work; now it only calls {@link ROI#getShape()}
 	 * 
 	 * @param roi
 	 * @return
+	 * @throws IllegalArgumentException if the ROI is a Point ROI, which cannot be converted to a java.awtshape.
 	 */
-	public static Shape getShape(final ROI roi) {
-
-		if (roi instanceof RectangleROI)
-			return new Rectangle2D.Float((float)roi.getBoundsX(), (float)roi.getBoundsY(), (float)roi.getBoundsWidth(), (float)roi.getBoundsHeight());
-
-		if (roi instanceof EllipseROI)
-			return new Ellipse2D.Float((float)roi.getBoundsX(), (float)roi.getBoundsY(), (float)roi.getBoundsWidth(), (float)roi.getBoundsHeight());
-
-		if (roi instanceof LineROI) {
-			LineROI line = (LineROI)roi;
-			return new Line2D.Float((float)line.getX1(), (float)line.getY1(), (float)line.getX2(), (float)line.getY2());
-		}
-
-		if (roi instanceof PolygonROI) {
-			PolygonROI polygon = (PolygonROI)roi;
-			Path2D path = new Path2D.Float();
-			Vertices vertices = polygon.getVertices();
-			for (int i = 0; i <  vertices.size(); i++) {
-				if (i == 0)
-					path.moveTo(vertices.getX(i), vertices.getY(i));
-				else
-					path.lineTo(vertices.getX(i), vertices.getY(i));
-			}
-			path.closePath();
-			return path;
-		}
-		
-		if (roi instanceof PolylineROI) {
-			PolylineROI polygon = (PolylineROI)roi;
-			Path2D path = new Path2D.Float();
-			Vertices vertices = polygon.getVertices();
-			for (int i = 0; i <  vertices.size(); i++) {
-				if (i == 0)
-					path.moveTo(vertices.getX(i), vertices.getY(i));
-				else
-					path.lineTo(vertices.getX(i), vertices.getY(i));
-			}
-			return path;
-		}
-
-		//		if (roi instanceof PolygonROI) {
-		//			PolygonROI polygon = (PolygonROI)roi;
-		//			Path2D path = new Path2D.Float();
-		//			boolean firstPoint = true;
-		//			for (Point2 p : polygon.getPolygonPoints()) {
-		//				if (firstPoint) {
-		//					path.moveTo(p.getX(), p.getY());
-		//					firstPoint = false;
-		//				}
-		//				else {
-		//					path.lineTo(p.getX(), p.getY());
-		//				}
-		//			}
-		//			path.closePath();
-		//			return path;
-		//		}
-
-		//		if (roi instanceof PolygonROI) {
-		//			PolygonROI polygon = (PolygonROI)roi;
-		//			VerticesIterator iterator = polygon.getVerticesIterator();
-		//			Path2D path = new Path2D.Float();
-		//			boolean firstPoint = true;
-		//			while (iterator.hasNext()) {
-		//				if (firstPoint) {
-		//					path.moveTo(iterator.getX(), iterator.getY());
-		//					firstPoint = false;
-		//				}
-		//				else {
-		//					path.lineTo(iterator.getX(), iterator.getY());
-		//				}
-		//				iterator.next();
-		//			}
-		//			path.closePath();
-		//			return path;
-		//		}
-
-		if (roi instanceof AWTAreaROI || roi instanceof GeometryROI) {
-			return roi.getShape();
-		}
-		if (roi instanceof AreaROI) {
-			return new AWTAreaROI((AreaROI)roi).getShape();
-		}
-
-		throw new IllegalArgumentException(roi + " cannot be converted to a shape!");
+	public static Shape getShape(final ROI roi) throws IllegalArgumentException {
+		if (roi.isPoint())
+			throw new IllegalArgumentException(roi + " cannot be converted to a shape!");
+		return roi.getShape();
 	}
 
 
@@ -667,8 +561,7 @@ public class RoiTools {
 				//				Rectangle2D boundsTile = new Rectangle2D.Double(x, y, w, h);
 				//					logger.info(boundsTile);
 				ROI pathROI = null;
-				Shape shape = getShape(pathArea);
-				if (shape.contains(boundsTile))
+				if (area.contains(boundsTile))
 					pathROI = ROIs.createRectangleROI(boundsTile.getX(), boundsTile.getY(), boundsTile.getWidth(), boundsTile.getHeight(), parentROI.getImagePlane());
 				else if (pathArea instanceof RectangleROI) {
 					Rectangle2D bounds2 = boundsTile.createIntersection(bounds);
@@ -684,7 +577,6 @@ public class RoiTools {
 				}
 				if (pathROI != null)
 					pathROIs.add(pathROI);
-				x += w;
 			}
 		}
 		return pathROIs;
@@ -705,10 +597,13 @@ public class RoiTools {
 		}
 		
 		var geometry = roi.getGeometry();
+		if (geometry.getNumGeometries() == 1)
+			return Collections.singletonList(roi);
+
 		var list = new ArrayList<ROI>();
 		var plane = ImagePlane.getPlane(roi);
 		for (int i = 0; i < geometry.getNumGeometries(); i++) {
-			list.add(GeometryTools.convertGeometryToROI(geometry.getGeometryN(i), plane));
+			list.add(GeometryTools.geometryToROI(geometry.getGeometryN(i), plane));
 		}
 		return list;
 	}
@@ -842,7 +737,7 @@ public class RoiTools {
 	 * @return
 	 */
 	public static boolean areaContains(final ROI pathROI, final double x, final double y) {
-		return pathROI.contains(x, y);
+		return pathROI.isArea() && pathROI.contains(x, y);
 	}
 
 	static List<Point2> getLinearPathPoints(final Path2D path, final PathIterator iter) {

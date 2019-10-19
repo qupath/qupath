@@ -142,7 +142,7 @@ abstract class AbstractPathTool implements PathTool, QuPathViewerListener {
 		if (currentArea.isEmpty())
 			return ROIs.createEmptyROI();
 		else
-			return GeometryTools.convertGeometryToROI(currentArea, currentROI.getImagePlane());
+			return GeometryTools.geometryToROI(currentArea, currentROI.getImagePlane());
 	}
 	
 	

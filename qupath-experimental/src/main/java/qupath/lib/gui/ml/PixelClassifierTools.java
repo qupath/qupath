@@ -374,7 +374,7 @@ public class PixelClassifierTools {
 						if (roiArea.isEmpty())
 							roi = null;
 						else
-							roi = GeometryTools.convertGeometryToROI(roiArea, roi.getImagePlane());
+							roi = GeometryTools.geometryToROI(roiArea, roi.getImagePlane());
 					}
 					
 					if (roi != null)

@@ -69,6 +69,18 @@ public class BufferedImageTools {
 	public static BufferedImage createROIMask(final int width, final int height, final ROI roi, final RegionRequest request) {
 		return createROIMask(width, height, roi, request.getX(), request.getY(), request.getDownsample());
 	}
+	
+	/**
+	 * Create a ROI mask using the minimal bounding box for the ROI.
+	 * @param roi
+	 * @param downsample
+	 * @return
+	 */
+	public static BufferedImage createROIMask(final ROI roi, final double downsample) {
+		int width = (int)Math.ceil(roi.getBoundsWidth() / downsample);
+		int height = (int)Math.ceil(roi.getBoundsHeight() / downsample);
+		return createROIMask(width, height, roi, roi.getBoundsX(), roi.getBoundsY(), downsample);
+	}
 
 	/**
 	 * Create a grayscale BufferedImage representing a mask for a specified ROI.
@@ -84,8 +96,39 @@ public class BufferedImageTools {
 	 * @return
 	 */
 	public static BufferedImage createROIMask(final int width, final int height, final ROI roi, final double xOrigin, final double yOrigin, final double downsample) {
-		BufferedImage imgMask = new BufferedImage(width, height, BufferedImage.TYPE_BYTE_GRAY);
 		Shape shape = RoiTools.getShape(roi);
+		return createShapeMask(width, height, shape, xOrigin, yOrigin, downsample);
+	}
+	
+	
+	/**
+	 * Create a Shape mask using the minimal bounding box for the Shape.
+	 * @param shape
+	 * @param downsample
+	 * @return
+	 */
+	public static BufferedImage createROIMask(final Shape shape, final double downsample) {
+		var bounds = shape.getBounds2D();
+		int width = (int)Math.ceil(bounds.getWidth() / downsample);
+		int height = (int)Math.ceil(bounds.getHeight() / downsample);
+		return createShapeMask(width, height, shape, bounds.getX(), bounds.getY(), downsample);
+	}
+	
+	/**
+	 * Create a grayscale BufferedImage representing a mask for a specified ROI.
+	 * <p>
+	 * Pixels inside the ROI will be 255, pixels outside will be 0.
+	 * 
+	 * @param width width of the requested mask image
+	 * @param height height of the requested mask image
+	 * @param shape Shape for mask
+	 * @param xOrigin pixel x coordinate of the top left of the region to include in the mask.
+	 * @param yOrigin pixel y coordinate of the top left of the region to include in the mask.
+	 * @param downsample downsample factor to use when generating the mask, i.e. the amoutn to scale.
+	 * @return
+	 */
+	public static BufferedImage createShapeMask(final int width, final int height, final Shape shape, final double xOrigin, final double yOrigin, final double downsample) {
+		BufferedImage imgMask = new BufferedImage(width, height, BufferedImage.TYPE_BYTE_GRAY);
 		Graphics2D g2d = imgMask.createGraphics();
 		g2d.scale(1.0/downsample, 1.0/downsample);
 		g2d.translate(-xOrigin, -yOrigin);

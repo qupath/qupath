@@ -26,6 +26,7 @@
 package qupath.lib.roi;
 
 import java.awt.Shape;
+import java.awt.geom.Path2D;
 import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
 import java.io.Serializable;
@@ -257,7 +258,15 @@ public class PolylineROI extends AbstractPathROI implements Serializable {
 	
 	@Override
 	public Shape getShape() {
-		return RoiTools.getShape(this);
+		Path2D path = new Path2D.Float();
+		Vertices vertices = getVertices();
+		for (int i = 0; i <  vertices.size(); i++) {
+			if (i == 0)
+				path.moveTo(vertices.getX(i), vertices.getY(i));
+			else
+				path.lineTo(vertices.getX(i), vertices.getY(i));
+		}
+		return path;
 	}
 	
 	@Override

@@ -80,7 +80,7 @@ class ROITypeAdapters {
 			else
 				plane = ImagePlane.getDefaultPlane();
 			
-			return GeometryTools.convertGeometryToROI(geometry, plane);
+			return GeometryTools.geometryToROI(geometry, plane);
 		}
 		
 	}

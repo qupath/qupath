@@ -10,6 +10,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.locationtech.jts.awt.GeometryCollectionShape;
 import org.locationtech.jts.awt.PointTransformation;
 import org.locationtech.jts.awt.ShapeReader;
 import org.locationtech.jts.awt.ShapeWriter;
@@ -20,6 +21,7 @@ import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.MultiPoint;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
+import org.locationtech.jts.geom.Polygonal;
 import org.locationtech.jts.geom.PrecisionModel;
 import org.locationtech.jts.operation.overlay.snap.GeometrySnapper;
 import org.locationtech.jts.operation.union.UnaryUnionOp;
@@ -47,20 +49,11 @@ public class GeometryTools {
     private static GeometryConverter DEFAULT_INSTANCE = new GeometryConverter.Builder().build();
     
     /**
-     * Convert a JTS Geometry to a java.awt.Shape.
-     * @param geometry
-     * @return
-     */
-    public static Shape convertGeometryToShape(Geometry geometry) {
-    	return DEFAULT_INSTANCE.geometryToShape(geometry);
-    }
-    
-    /**
      * Convert a java.awt.Shape to a JTS Geometry.
      * @param shape
      * @return
      */
-    public static Geometry convertShapeToGeometry(Shape shape) {
+    public static Geometry shapeToGeometry(Shape shape) {
 //    	System.err.println("Shape area: " + new ClosedShapeStatistics(shape).getArea());
     	var geometry = DEFAULT_INSTANCE.shapeToGeometry(shape);
 //    	System.err.println("Geometry area: " + geometry.getArea());
@@ -73,7 +66,7 @@ public class GeometryTools {
      * @param geometry
      * @return
      */
-    public static ROI convertGeometryToROI(Geometry geometry, ImagePlane plane) {
+    public static ROI geometryToROI(Geometry geometry, ImagePlane plane) {
     	return DEFAULT_INSTANCE.geometryToROI(geometry, plane);
     }
     
@@ -82,7 +75,7 @@ public class GeometryTools {
      * @param roi
      * @return
      */
-    public static Geometry convertROIToGeometry(ROI roi) {
+    public static Geometry roiToGeometry(ROI roi) {
     	return DEFAULT_INSTANCE.roiToGeometry(roi);
     }
 
@@ -91,7 +84,7 @@ public class GeometryTools {
      * @param geometry
      * @return
      */
-    public static Shape convertROIToShape(Geometry geometry) {
+    public static Shape geometryToShape(Geometry geometry) {
     	return DEFAULT_INSTANCE.geometryToShape(geometry);
     }
     
@@ -177,15 +170,18 @@ public class GeometryTools {
 	    }
 	    
 	    private Geometry areaToGeometry(Area shape) {
-	    	Geometry geometry = null;
-	    	if (shape.isSingular()) {
-	        	PathIterator iterator = shape.getPathIterator(transform, flatness);
-	        	geometry = getShapeReader().read(iterator);
-	    	} else {
-	    		geometry = convertAreaToGeometry(shape, transform, flatness, factory);
-	    	}
+//	    	Geometry geometry = null;
+//	    	if (shape.isSingular()) {
+//	        	PathIterator iterator = shape.getPathIterator(transform, flatness);
+//	        	geometry = getShapeReader().read(iterator);
+//	    	} else {
+	    	return convertAreaToGeometry(shape, transform, flatness, factory);
+//	    	}
 	    	// Use simplifier to ensure a valid geometry
-	    	return VWSimplifier.simplify(geometry, 0);    		
+//	    	var error = new IsValidOp(geometry).getValidationError();
+//	    	System.err.println(geometry.getArea());
+////	    	geometry = GeometrySnapper.snapToSelf(geometry, GeometryS, cleanResult)
+//	    	return VWSimplifier.simplify(geometry, 0);    		
 	    }
 	    
 	    
@@ -273,12 +269,12 @@ public class GeometryTools {
 					if (error != null) {
 						logger.debug("Invalid polygon detected! Attempting to correct {}", error.toString());
 						double areaBefore = polygon.getArea();
-						double distance = GeometrySnapper.computeSizeBasedSnapTolerance(polygon);
+						double distance = GeometrySnapper.computeOverlaySnapTolerance(polygon);
 						Geometry geom = GeometrySnapper.snapToSelf(polygon,
 								distance,
 								true);
 						double areaAfter = geom.getArea();
-						if (!GeneralTools.almostTheSame(areaBefore, areaAfter, 0.0001)) {
+						if (!GeneralTools.almostTheSame(areaBefore, areaAfter, 0.001)) {
 							logger.warn("Unable to fix geometry (area before: {}, area after: {}, tolerance: {})", areaBefore, areaAfter, distance);
 							logger.warn("Original geometry: {}", polygon);
 							logger.warn("Will attempt to proceed using {}", geom);
@@ -361,7 +357,11 @@ public class GeometryTools {
 	//    }
 	
 	    private Shape geometryToShape(Geometry geometry) {
-	        return getShapeWriter().toShape(geometry);
+	        var shape = getShapeWriter().toShape(geometry);
+	        // JTS Shapes can have some odd behavior (e.g. lack of contains method), so convert to Area if that is a suitable match
+	        if (geometry instanceof Polygonal && shape instanceof GeometryCollectionShape)
+	        	return new Area(shape);
+	        return shape;
 	    }
 	
 	    private ROI geometryToROI(Geometry geometry, ImagePlane plane) {

@@ -370,6 +370,7 @@ public class PointsROI extends AbstractPathROI implements Serializable {
 	
 	
 	/**
+	 * It is not possible to convert a PointROI to a java.awt.Shape.
 	 * throws UnsupportedOperationException
 	 */
 	@Override

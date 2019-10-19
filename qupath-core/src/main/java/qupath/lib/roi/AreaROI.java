@@ -345,7 +345,7 @@ public class AreaROI extends AbstractPathROI implements Serializable {
 
 	@Override
 	public Shape getShape() {
-		return RoiTools.getShape(this);
+		return new AWTAreaROI(this).getShape();
 	}
 
 	@Override

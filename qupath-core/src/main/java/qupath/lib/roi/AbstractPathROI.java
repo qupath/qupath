@@ -187,7 +187,7 @@ abstract class AbstractPathROI implements ROI {
 	 */
 	@Override
 	public ROI getConvexHull() {
-		return GeometryTools.convertGeometryToROI(getGeometry().convexHull(), getImagePlane());
+		return GeometryTools.geometryToROI(getGeometry().convexHull(), getImagePlane());
 	}
 	
 	@Override

@@ -365,7 +365,7 @@ public class BrushTool extends AbstractPathROITool {
 			}
 	//		GeometrySnapper.snapToSelf(shapeNew, 1.0, true);
 			
-			ROI roiNew = GeometryTools.convertGeometryToROI(shapeNew, plane);
+			ROI roiNew = GeometryTools.geometryToROI(shapeNew, plane);
 			
 			if (currentObject instanceof PathAnnotationObject) {
 				((PathAnnotationObject)currentObject).setROI(roiNew);
@@ -532,7 +532,7 @@ public class BrushTool extends AbstractPathROITool {
 		lastPoint = null;
 		Geometry geom = createShape(x, y, PathPrefs.getUseTileBrush(), null);
 		roundAndConstrain(geom, 0, 0, viewer.getServerWidth(), viewer.getServerHeight());
-		return GeometryTools.convertGeometryToROI(geom, plane);
+		return GeometryTools.geometryToROI(geom, plane);
 	}
 	
 }
