@@ -4,12 +4,15 @@ import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
+import java.util.concurrent.Executors;
 import java.util.function.Predicate;
 import java.util.stream.IntStream;
 
+import org.controlsfx.dialog.ProgressDialog;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javafx.concurrent.Task;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.helpers.DisplayHelpers;
@@ -85,8 +88,25 @@ public class SparseImageServerCommand implements PathCommand {
 		doZ = params.getBooleanParameterValue("doZ");
 		rectanglesOnly = params.getBooleanParameterValue("rectanglesOnly");
 
+		var task = new Task<SparseImageServer>() {
+
+			@Override
+			protected SparseImageServer call() throws Exception {
+				return createSparseServer(project, pathClass, maxWidth, doZ, rectanglesOnly);
+			}
+		};
+		
+		var dialog = new ProgressDialog(task);
+		dialog.setTitle(NAME);
+		dialog.setHeaderText("Creating training image...");
+				
+		Executors.newSingleThreadExecutor().submit(task);
+		
+		dialog.showAndWait();
+		
 		try {
-			var server = createSparseServer(project, pathClass, maxWidth, doZ, rectanglesOnly);
+			var server = task.get();
+//			var server = createSparseServer(project, pathClass, maxWidth, doZ, rectanglesOnly);
 			if (server == null || server.getManager().getRegions().isEmpty()) {
 				DisplayHelpers.showErrorMessage("Sparse image server", "No suitable annotations found in the current project!");
 				return;			

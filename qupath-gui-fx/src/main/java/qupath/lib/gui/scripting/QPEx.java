@@ -397,7 +397,7 @@ public class QPEx extends QP {
 		if (pathObject == null)
 			return null;
 		ROI pathROI = pathObject.getROI();
-		if (!pathROI.isArea())
+		if (pathROI == null || !pathROI.isArea())
 			return null;
 		return pathObject.getROI();
 	}

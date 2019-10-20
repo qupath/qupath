@@ -94,6 +94,9 @@ abstract class AbstractPathROITool extends AbstractPathTool {
 			return null;
 		}
 		ROI roi = createNewROI(x, y, viewer.getImagePlane());
+		if (roi == null)
+			return null;
+		
 		PathObject pathObject = PathObjects.createAnnotationObject(roi, PathPrefs.getAutoSetAnnotationClass());
 		var selectionModel = hierarchy.getSelectionModel();
 		if (PathPrefs.isSelectionMode() && !selectionModel.noSelection())
@@ -157,6 +160,8 @@ abstract class AbstractPathROITool extends AbstractPathTool {
 		
 		// Create a new annotation
 		PathObject pathObject = createNewAnnotation(xx, yy);
+		if (pathObject == null)
+			return;
 		
 		// Start editing the ROI immediately
 		editor.setROI(pathObject.getROI());
