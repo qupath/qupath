@@ -72,7 +72,7 @@ public class PointsTool extends AbstractPathTool {
 	 */
 	@Override
 	protected boolean requestPixelSnapping() {
-		return PathPrefs.usePixelSnapping();
+		return false;
 	}
 	
 	@Override
