@@ -1845,6 +1845,65 @@ public class QP {
 	public static void detectionToAnnotationDistances() {
 		DistanceTools.detectionToAnnotationDistances(getCurrentImageData());
 	}
+
+	/**
+	 * Set the metadata for an ImageServer to have the required pixel sizes and z-spacing.
+	 * <p>
+	 * Returns true if changes were made, false otherwise.
+	 * 
+	 * @param imageData
+	 * @param pixelWidthMicrons
+	 * @param pixelHeightMicrons
+	 * @param zSpacingMicrons
+	 * @return true if the size was set, false otherwise
+	 */
+	public static boolean setPixelSizeMicrons(ImageData<?> imageData, Number pixelWidthMicrons, Number pixelHeightMicrons, Number zSpacingMicrons) {
+		var server = imageData.getServer();
+		if (isFinite(pixelWidthMicrons) && !isFinite(pixelHeightMicrons))
+			pixelHeightMicrons = pixelWidthMicrons;
+		else if (isFinite(pixelHeightMicrons) && !isFinite(pixelWidthMicrons))
+			pixelWidthMicrons = pixelHeightMicrons;
+		
+		var metadataNew = new ImageServerMetadata.Builder(server.getMetadata())
+			.pixelSizeMicrons(pixelWidthMicrons, pixelHeightMicrons)
+			.zSpacingMicrons(zSpacingMicrons)
+			.build();
+		if (server.getMetadata().equals(metadataNew))
+			return false;
+		imageData.updateServerMetadata(metadataNew);
+		return true;
+	}
 	
+	/**
+	 * Set the metadata for the current ImageData to have the required pixel sizes and z-spacing.
+	 * <p>
+	 * Returns true if changes were made, false otherwise.
+	 * 
+	 * @param pixelWidthMicrons
+	 * @param pixelHeightMicrons
+	 * @param zSpacingMicrons
+	 * @return true if the size was set, false otherwise
+	 */
+	public static boolean setPixelSizeMicrons(Number pixelWidthMicrons, Number pixelHeightMicrons, Number zSpacingMicrons) {
+		return setPixelSizeMicrons(getCurrentImageData(), pixelWidthMicrons, pixelHeightMicrons, zSpacingMicrons);
+	}
+
+	/**
+	 * Set the metadata for the current ImageData to have the required pixel sizes.
+	 * <p>
+	 * Returns true if changes were made, false otherwise.
+	 * 
+	 * @param pixelWidthMicrons
+	 * @param pixelHeightMicrons
+	 * @return true if the size was set, false otherwise
+	 */
+	public static boolean setPixelSizeMicrons(Number pixelWidthMicrons, Number pixelHeightMicrons) {
+		return setPixelSizeMicrons(pixelWidthMicrons, pixelHeightMicrons, null);
+	}
+			
+	
+	private static boolean isFinite(Number val) {
+		return val != null && Double.isFinite(val.doubleValue());
+	}
 	
 }

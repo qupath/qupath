@@ -99,6 +99,7 @@ import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.RectangleROI;
 import qupath.lib.roi.interfaces.ROI;
+import qupath.lib.scripting.QP;
 
 /**
  * A panel used for displaying basic info about an image, e.g. its path, width, height, pixel size etc.
@@ -162,12 +163,25 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 						//			             ComboBoxTableCell<TableEntry, Object>
 						Color textColor = Color.BLACK;
 						String text = item == null ? "" : item.toString();
+						String tooltipText = text;
 						if (item instanceof double[]) {
 							text = GeneralTools.arrayToString(Locale.getDefault(Category.FORMAT), (double[])item, 2);
 						} else if (item instanceof StainVector) {
 							StainVector stain = (StainVector)item;
 							textColor = getColorFX(stain.getColor());
+							tooltipText = "Double-click to set stain color (either type values or use a small rectangle ROI in the image)";
+						} else {
+							var type = model.getRowType(getIndex());
+							if (type.equals(ROW_TYPE.PIXEL_WIDTH) || type.equals(ROW_TYPE.PIXEL_HEIGHT)) {
+								if ("Unknown".equals(item))
+									textColor = Color.RED;
+								tooltipText = "Double-click to set pixel calibration (can use a selected line or area ROI in the image)";
+							} else if (type.equals(ROW_TYPE.METADATA_CHANGED))
+								tooltipText = "Double-click to reset original metadata";
+							else if (type.equals(ROW_TYPE.UNCOMPRESSED_SIZE))
+								tooltipText = "Approximate memory required to store all pixels in the image uncompressed";
 						}
+						
 						//			             if (item instanceof ImageType) {
 						//			            	 ComboBox<ImageType> combo = new ComboBox<>();
 						//			            	 combo.getItems().addAll(ImageType.values());
@@ -176,7 +190,7 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 						//			             } else
 						setTextFill(textColor);
 						setText(text);
-						setTooltip(new Tooltip(text));
+						setTooltip(new Tooltip(tooltipText));
 					}
 				};
 				
@@ -418,42 +432,18 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 			pixelWidthMicrons = params.getDoubleParameterValue("pixelWidth");
 			pixelHeightMicrons = params.getDoubleParameterValue("pixelHeight");
 		}
-		return setPixelSizeMicrons(imageData, pixelWidthMicrons, pixelHeightMicrons, zSpacingMicrons);
+		if ((pixelWidthMicrons <= 0 || pixelHeightMicrons <= 0) || (server.nZSlices() > 1 && zSpacingMicrons <= 0)) {
+			if (!DisplayHelpers.showConfirmDialog("Set pixel size", "You entered values <= 0, do you really want to remove this pixel calibration information?")) {
+				return false;
+			}
+			zSpacingMicrons = server.nZSlices() > 1 && zSpacingMicrons > 0 ? zSpacingMicrons : Double.NaN;
+			if (pixelWidthMicrons <= 0 || pixelHeightMicrons <= 0) {
+				pixelWidthMicrons = Double.NaN;
+				pixelHeightMicrons = Double.NaN;
+			}
+		}
+		return QP.setPixelSizeMicrons(imageData, pixelWidthMicrons, pixelHeightMicrons, zSpacingMicrons);
 	}
-	
-	
-	/**
-	 * Set the metadata for an ImageServer to have the required pixel sizes.
-	 * <p>
-	 * Returns true if changes were made, false otherwise.
-	 * 
-	 * @param imageData
-	 * @param pixelWidthMicrons
-	 * @param pixelHeightMicrons
-	 * @param zSpacingMicrons
-	 * @return
-	 */
-	static boolean setPixelSizeMicrons(ImageData<BufferedImage> imageData, Number pixelWidthMicrons, Number pixelHeightMicrons, Number zSpacingMicrons) {
-		var server = imageData.getServer();
-		if (isFinite(pixelWidthMicrons) && !isFinite(pixelHeightMicrons))
-			pixelHeightMicrons = pixelWidthMicrons;
-		else if (isFinite(pixelHeightMicrons) && !isFinite(pixelWidthMicrons))
-			pixelWidthMicrons = pixelHeightMicrons;
-		
-		var metadataNew = new ImageServerMetadata.Builder(server.getMetadata())
-			.pixelSizeMicrons(pixelWidthMicrons, pixelHeightMicrons)
-			.zSpacingMicrons(zSpacingMicrons)
-			.build();
-		if (server.getMetadata().equals(metadataNew))
-			return false;
-		imageData.updateServerMetadata(metadataNew);
-		return true;
-	}
-	
-	static boolean isFinite(Number val) {
-		return val != null && Double.isFinite(val.doubleValue());
-	}
-	
 	
 	
 	/**
