@@ -36,6 +36,7 @@ import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 
 import org.slf4j.Logger;
@@ -55,6 +56,7 @@ import qupath.lib.plugins.ObjectDetector;
 import qupath.lib.plugins.PluginRunner;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.regions.RegionRequest;
+import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
@@ -186,17 +188,8 @@ public class DoGSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffer
 			ImageProcessor ipLabels = RoiLabeling.labelImage(bp, 0.5f, false);
 			new RankFilters().rank(ipLabels, 1, RankFilters.MAX);
 			
-			// Remove everything outside the ROI, if required
-			if (pathROI != null) {
-				Roi roi = IJTools.convertToIJRoi(pathROI, pathImage);
-				RoiLabeling.clearOutside(ipLabels, roi);
-				// TODO: Avoid clipping so much (especially bad with parallel tiling)
-				// It's important to move away from the containing ROI, to help with brush selections ending up
-				// having the correct parent (i.e. don't want to risk moving slightly outside the parent object's ROI)
-				ipLabels.setValue(0);
-				ipLabels.setLineWidth(2);
-				ipLabels.draw(roi);
-			}
+			if (Thread.currentThread().isInterrupted())
+				return Collections.emptyList();
 			
 			// Convert to tiles & create a labelled image for later
 			PolygonRoi[] polygons = RoiLabeling.labelsToFilledROIs(ipLabels, (int)ipLabels.getMax());
@@ -211,6 +204,7 @@ public class DoGSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffer
 				maxThreshold = Double.POSITIVE_INFINITY;
 			boolean hasThreshold = (minThreshold != maxThreshold) && (Double.isFinite(minThreshold) || Double.isFinite(maxThreshold));
 			try {
+				Collection<ROI> superpixelROIs = new ArrayList<>();
 				for (PolygonRoi roi : polygons) {
 					if (roi == null)
 						continue;
@@ -220,52 +214,25 @@ public class DoGSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffer
 						if (meanValue < minThreshold || meanValue > maxThreshold)
 							continue;
 					}
-					ROI superpixelROI = IJTools.convertToROI(roi, pathImage);
-					if (pathROI == null)
-						continue;
-					// TODO: Consider clipping to the parent ROI if required (with sub-pixel accuracy)
-					PathObject tile = PathObjects.createTileObject(superpixelROI);
-					pathObjects.add(tile);
+					if (Thread.currentThread().isInterrupted())
+						return Collections.emptyList();
+
+					superpixelROIs.add(IJTools.convertToROI(roi, pathImage));
 					label++;
 					ipLabels.setValue(label);
 					ipLabels.fill(roi);
+				}
+				if (pathROI != null)
+					superpixelROIs = RoiTools.clipToROI(pathROI, superpixelROIs);
+				
+				for (var superpixelROI : superpixelROIs) {
+					PathObject tile = PathObjects.createTileObject(superpixelROI);
+					pathObjects.add(tile);
 				}
 			} catch (Exception e) {
 				logger.error("Error creating superpixels", e);
 			}
 			fpOrig.resetRoi();
-
-//			// Compute Haralick textures
-////			ipLabels.resetMinAndMax();
-////			new ImagePlus("Labels", ipLabels.duplicate()).show();
-////			fpOrig.resetMinAndMax();
-////			new ImagePlus("Orig", fpOrig.duplicate()).show();
-//			if ("OD sum".equals(imageName)) {
-//				HaralickFeaturesIJ.measureHaralick(fpOrig, ipLabels, pathObjects, 32, 0, 3, 1, imageName);
-//				ColorDeconvolutionStains stains = imageData.getColorDeconvolutionStains();
-//				if (stains != null) {
-//					ColorProcessor cp = (ColorProcessor)ipOrig;
-//					FloatProcessor[] fpDeconv = ColorDeconvolutionIJ.colorDeconvolve(cp, stains, false);
-//					for (int i = 0; i < fpDeconv.length; i++) {
-//						StainVector stain = stains.getStain(i+1);
-//						if (stain.isResidual())
-//							continue;
-//						HaralickFeaturesIJ.measureHaralick(fpDeconv[i], ipLabels, pathObjects, 32, 0, 2.5, 1, stain.getName());
-//					}
-//				}
-//			} else {
-//				HaralickFeaturesIJ.measureHaralick(fpOrig, ipLabels, pathObjects, 32, Double.NaN, Double.NaN, 1, imageName);
-//				if (ipOrig instanceof ColorProcessor) {
-//					ColorProcessor cp = (ColorProcessor)ipOrig;
-//					FloatProcessor fpChannel = cp.toFloat(0, null);
-//					HaralickFeaturesIJ.measureHaralick(fpChannel, ipLabels, pathObjects, 32, Double.NaN, Double.NaN, 1, "Red");					
-//					fpChannel = cp.toFloat(1, fpChannel);
-//					HaralickFeaturesIJ.measureHaralick(fpChannel, ipLabels, pathObjects, 32, Double.NaN, Double.NaN, 1, "Green");					
-//					fpChannel = cp.toFloat(2, fpChannel);
-//					HaralickFeaturesIJ.measureHaralick(fpChannel, ipLabels, pathObjects, 32, Double.NaN, Double.NaN, 1, "Blue");					
-//				}
-//			}
-			
 			
 			lastResultSummary = pathObjects.size() + " tiles created";
 			

@@ -38,6 +38,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.prep.PreparedGeometryFactory;
 import org.locationtech.jts.operation.union.UnaryUnionOp;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -155,7 +156,27 @@ public class RoiTools {
 		return GeometryTools.geometryToROI(first, plane);
 	}
 	
-	
+	/**
+	 * Intersect a collection of ROIs with a single parent ROI, returning all results that are valid.
+	 * 
+	 * @param parent the parent ROI, used to define the clip boundary
+	 * @param rois a collection of ROIs that should be intersected with parent
+	 * @return collection of intersected ROIs; this may be shorter than rois if some lie completely outside parent
+	 */
+	public static Collection<ROI> clipToROI(ROI parent, Collection<ROI> rois) {
+		var geom = parent.getGeometry();
+		List<ROI> results = new ArrayList<>();
+		for (var r : rois) {
+			if (!sameImagePlane(parent, r))
+				continue;
+			var g = r.getGeometry();
+			if (geom.intersects(g)) {
+				g = geom.intersection(g);
+				results.add(GeometryTools.geometryToROI(g, parent.getImagePlane()));
+			}
+		}
+		return results;
+	}
 
 //	/**
 //	 * Compute two shape ROIs together, using the specified 'flatness' to handle curved segments.
