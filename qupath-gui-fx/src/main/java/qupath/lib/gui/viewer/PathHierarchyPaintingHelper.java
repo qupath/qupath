@@ -76,12 +76,10 @@ import qupath.lib.objects.hierarchy.TMAGrid;
 import qupath.lib.objects.hierarchy.events.PathObjectSelectionModel;
 import qupath.lib.plugins.ParallelTileObject;
 import qupath.lib.regions.ImageRegion;
-import qupath.lib.roi.AreaROI;
 import qupath.lib.roi.EllipseROI;
 import qupath.lib.roi.LineROI;
 import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.PointsROI;
-import qupath.lib.roi.PolygonROI;
 import qupath.lib.roi.RectangleROI;
 import qupath.lib.roi.RoiEditor;
 import qupath.lib.roi.ShapeSimplifier;
@@ -428,6 +426,7 @@ public class PathHierarchyPaintingHelper {
 		
 		Graphics2D g2d = (Graphics2D)g.create();
 		if (RoiTools.isShapeROI(pathROI)) {
+//			Shape shape = pathROI.getShape();
 			Shape shape = shapeProvider.getShape(pathROI, downsample);
 //			Shape shape = PathROIToolsAwt.getShape(pathROI);
 			// Only pass the colorFill if we have an area (i.e. not a line/polyline)
@@ -564,15 +563,19 @@ public class PathHierarchyPaintingHelper {
 				line.setLine(l.getX1(), l.getY1(), l.getX2(), l.getY2());
 				return line;
 			}
-
+			
 			Map<ROI, Shape> map = getMap(roi, downsample);
 //			map.clear();
 			Shape shape = map.get(roi);
 			if (shape == null) {
 				shape = RoiTools.getShape(roi);
 				// Downsample if we have to
-				if (map != this.map)
+				if (map != this.map) {
+//					shape = GeometryTools.geometryToShape(
+//							VWSimplifier.simplify(roi.getGeometry(), downsample)
+//							);
 					shape = simplifyByDownsample(shape, downsample);
+				}
 				map.put(roi, shape);
 			}
 //			map.clear();

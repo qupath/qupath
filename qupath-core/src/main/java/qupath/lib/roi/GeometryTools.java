@@ -113,9 +113,13 @@ public class GeometryTools {
         private double flatness = 0.5;
 
         private AffineTransform transform = null;
+        private Transformer transformer;
 
         private ShapeReader shapeReader;
-        private ShapeWriter shapeWriter;
+        
+        // ShapeWriter does not appear to be threadsafe!
+        // Currently a new instance is now returned, but could instead use a ThreadLocal?
+//        private ShapeWriter shapeWriter;
         
 
 	    private GeometryConverter(final GeometryFactory factory, final double pixelWidth, final double pixelHeight, final double flatness) {
@@ -132,6 +136,7 @@ public class GeometryTools {
 	        this.pixelWidth = pixelWidth;
 	        if (pixelWidth != 1 && pixelHeight != 1)
 	            transform = AffineTransform.getScaleInstance(pixelWidth, pixelHeight);
+	        this.transformer = new Transformer();
 	    }
 	
 	    /**
@@ -343,9 +348,10 @@ public class GeometryTools {
 	
 	
 	    private ShapeWriter getShapeWriter() {
-	        if (shapeWriter == null)
-	            shapeWriter = new ShapeWriter(new Transformer());
-	        return shapeWriter;
+	    	return new ShapeWriter(transformer);
+//	        if (shapeWriter == null)
+//	            shapeWriter = new ShapeWriter(new Transformer());
+//	        return shapeWriter;
 	    }
 	
 	
