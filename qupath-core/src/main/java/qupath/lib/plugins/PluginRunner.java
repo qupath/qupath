@@ -56,8 +56,12 @@ public interface PluginRunner<T> {
 
 	/**
 	 * Pass a collection of parallelizable tasks to run.
-	 * @param tasks
+	 * @param tasks the tasks to run. If these are instances of {@link PathTask} then 
+	 *              an optional postprocessing may be applied after all tasks are complete.
+	 * @param fireHierarchyUpdate if true, a hierarchy update should be fired on completion. 
+	 *                            This means that individual tasks do not need to fire their own updates,
+	 *                            which can be a performance bottleneck.
 	 */
-	void runTasks(Collection<Runnable> tasks);
+	void runTasks(Collection<Runnable> tasks, boolean fireHierarchyUpdate);
 
 }

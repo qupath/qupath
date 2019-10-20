@@ -128,7 +128,7 @@ abstract class AbstractPathBoundedROI extends AbstractPathROI {
 	
 	@Override
 	public boolean isEmpty() {
-		return x == x2 && y == y2;
+		return x == x2 || y == y2;
 	}
 	
 	@Override

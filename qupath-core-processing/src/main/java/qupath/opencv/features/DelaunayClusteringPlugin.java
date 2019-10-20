@@ -227,17 +227,22 @@ public class DelaunayClusteringPlugin<T> extends AbstractInteractivePlugin<T> {
 		
 
 		@Override
-		public void taskComplete() {
+		public void taskComplete(boolean wasCancelled) {
+			if (wasCancelled)
+				return;
+			
 			if (result != null && imageData != null) {
-				Object o = imageData.getProperty(DefaultPathObjectConnectionGroup.KEY_OBJECT_CONNECTIONS);
-				PathObjectConnections connections = null;
-				if (o instanceof PathObjectConnections)
-					connections = (PathObjectConnections)o;
-				else {
-					connections = new PathObjectConnections();
-					imageData.setProperty(DefaultPathObjectConnectionGroup.KEY_OBJECT_CONNECTIONS, connections);
+				synchronized(imageData) {
+					Object o = imageData.getProperty(DefaultPathObjectConnectionGroup.KEY_OBJECT_CONNECTIONS);
+					PathObjectConnections connections = null;
+					if (o instanceof PathObjectConnections)
+						connections = (PathObjectConnections)o;
+					else {
+						connections = new PathObjectConnections();
+						imageData.setProperty(DefaultPathObjectConnectionGroup.KEY_OBJECT_CONNECTIONS, connections);
+					}
+					connections.addGroup(result);
 				}
-				connections.addGroup(result);
 			}
 		}
 

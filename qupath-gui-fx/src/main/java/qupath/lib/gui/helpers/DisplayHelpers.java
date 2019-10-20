@@ -531,7 +531,7 @@ public class DisplayHelpers {
 		logger.error("Error", e);
 		String message = e.getLocalizedMessage();
 		if (message == null)
-			message = "QuPath has encountered a problem, sorry.\nIf you can replicate it, please notify a developer.\n\n" + e;
+			message = "QuPath has encountered a problem, sorry.\nIf you can replicate it, please report it with 'Help -> Report bug (web)'.\n\n" + e;
 		showErrorMessage(title, message);
 	}
 	

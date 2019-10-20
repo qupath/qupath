@@ -158,7 +158,10 @@ public class FindConvexHullDetectionsPlugin<T> extends AbstractInteractivePlugin
 			}
 
 			@Override
-			public void taskComplete() {
+			public void taskComplete(boolean wasCancelled) {
+				if (wasCancelled)
+					return;
+				
 				if (toRemove != null && !toRemove.isEmpty()) {
 					if (deleteImmediately)
 						imageData.getHierarchy().removeObjects(toRemove, false);

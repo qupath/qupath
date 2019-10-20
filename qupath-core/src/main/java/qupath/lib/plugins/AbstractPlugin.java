@@ -93,6 +93,14 @@ public abstract class AbstractPlugin<T> implements PathPlugin<T> {
 		return imageData == null ? null : imageData.getHierarchy();
 	}
 	
+	/**
+	 * Optionally request a hierarchy update after the tasks have run.
+	 * Default implementation returns true.
+	 * @return
+	 */
+	protected boolean requestHierarchyUpdate() {
+		return true;
+	}
 	
 	/**
 	 * Parse the input argument, returning 'true' if the argument is valid and it's possible to run the plugin.
@@ -153,12 +161,14 @@ public abstract class AbstractPlugin<T> implements PathPlugin<T> {
 		if (tasks.isEmpty())
 			return false;
 
-		pluginRunner.runTasks(tasks);
+		pluginRunner.runTasks(tasks, requestHierarchyUpdate());
 		postprocess(pluginRunner);
-		addWorkflowStep(pluginRunner.getImageData(), arg);
-
+		
 		if (pluginRunner.isCancelled())
 			return false;
+
+		// Only add a workflow step if plugin was not cancelled
+		addWorkflowStep(pluginRunner.getImageData(), arg);
 		
 		return true;
 	}

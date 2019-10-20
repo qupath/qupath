@@ -74,7 +74,6 @@ import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.classes.PathClassTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.regions.ImagePlane;
-import qupath.lib.roi.AreaROI;
 import qupath.lib.roi.PolygonROI;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.ROI;
@@ -1692,8 +1691,8 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 
 
 	@Override
-	public ReadOnlyListWrapper<String> getAllNames() {
-		return new ReadOnlyListWrapper<>(fullList);
+	public List<String> getAllNames() {
+		return new ArrayList<>(fullList);
 	}
 
 	@Override

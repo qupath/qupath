@@ -280,8 +280,8 @@ public class TileClassificationsToAnnotationsPlugin<T> extends AbstractDetection
 		}
 		
 		@Override
-		public void taskComplete() {
-			if (!Thread.currentThread().isInterrupted()) {
+		public void taskComplete(boolean wasCancelled) {
+			if (!wasCancelled && !Thread.currentThread().isInterrupted()) {
 				if (params.getBooleanParameterValue("deleteTiles"))
 					parentObject.clearPathObjects();
 				if (pathAnnotations != null && !pathAnnotations.isEmpty())

@@ -50,6 +50,7 @@ import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.helpers.PaneToolsFX;
 import qupath.lib.images.ImageData;
 import qupath.lib.plugins.CommandLinePluginRunner;
+import qupath.lib.plugins.PathTask;
 import qupath.lib.plugins.AbstractPluginRunner;
 import qupath.lib.plugins.SimpleProgressMonitor;
 import qupath.lib.regions.ImageRegion;
@@ -86,12 +87,12 @@ public class PluginRunnerFX extends AbstractPluginRunner<BufferedImage> {
 	}
 	
 	@Override
-	public synchronized void runTasks(Collection<Runnable> tasks) {
+	public synchronized void runTasks(Collection<Runnable> tasks, boolean updateHierarchy) {
 		boolean delayRepaints = qupath != null && qupath.getViewer() != null && repaintDelayMillis > 0;
 		if (delayRepaints)
 			qupath.getViewer().setMinimumRepaintSpacingMillis(repaintDelayMillis);
 		try {
-			super.runTasks(tasks);
+			super.runTasks(tasks, updateHierarchy);
 		} catch (Exception e) {
 			throw(e);
 		} finally {
@@ -108,14 +109,14 @@ public class PluginRunnerFX extends AbstractPluginRunner<BufferedImage> {
 
 
 	@Override
-	protected void postProcess(final Runnable runnable) {
+	protected void postProcess(final Collection<PathTask> tasks) {
 		if (!Platform.isFxApplicationThread()) {
 			// When running scripts, it's important to make sure we don't return too early before post-processing is complete
 			// Failing to do this leads to issues such as intermittent concurrent modification exceptions, or commands needing
 			// to be run twice
 			// This aims to ensure that can't happen
 			FutureTask<Boolean> postProcessTask = new FutureTask<>(() -> {
-				super.postProcess(runnable);
+					super.postProcess(tasks);
 			}, Boolean.TRUE);
 			Platform.runLater(postProcessTask);
 			try {
@@ -128,7 +129,7 @@ public class PluginRunnerFX extends AbstractPluginRunner<BufferedImage> {
 //			Platform.runLater(() -> postProcess(runnable));
 			return;
 		}
-		super.postProcess(runnable);
+		super.postProcess(tasks);
 	}
 
 

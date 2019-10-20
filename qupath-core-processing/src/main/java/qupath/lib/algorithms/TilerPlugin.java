@@ -170,7 +170,10 @@ public class TilerPlugin<T> extends AbstractDetectionPlugin<T> {
 
 
 		@Override
-		public void taskComplete() {
+		public void taskComplete(boolean wasCancelled) {
+			if (wasCancelled)
+				return;
+			
 			parentObject.clearPathObjects();
 			parentObject.addPathObjects(tiles);
 			if (parentObject.isAnnotation())

@@ -23,28 +23,34 @@
 
 package qupath.lib.plugins;
 
-import java.awt.geom.Area;
 import java.awt.geom.Rectangle2D;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Objects;
+import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.locationtech.jts.geom.Geometry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.lib.common.ColorTools;
+import qupath.lib.objects.DefaultPathObjectComparator;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.PathROIObject;
 import qupath.lib.objects.PathTileObject;
 import qupath.lib.objects.TemporaryObject;
+import qupath.lib.objects.classes.PathClass;
+import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
-import qupath.lib.regions.ImagePlane;
-import qupath.lib.roi.RoiTools;
-import qupath.lib.roi.ROIs;
+import qupath.lib.plugins.AbstractTileableDetectionPlugin.ParallelDetectionTileManager;
+import qupath.lib.regions.ImageRegion;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
@@ -60,16 +66,31 @@ import qupath.lib.roi.interfaces.ROI;
 public class ParallelTileObject extends PathTileObject implements TemporaryObject {
 
 	final private static Logger logger = LoggerFactory.getLogger(ParallelTileObject.class);
+	
+	public static enum Status { PENDING, PROCESSING, DONE }
+	
+	private static PathClass pathClassPending = PathClassFactory.getPathClass(
+			"Tile-Pending", ColorTools.makeRGB(50, 50, 200));
 
+	private static PathClass pathClassProcessing = PathClassFactory.getPathClass(
+			"Tile-Processing", ColorTools.makeRGB(50, 200, 50));
+
+	private static PathClass pathClassDone = PathClassFactory.getPathClass(
+			"Tile-Done", ColorTools.makeRGB(100, 20, 20));
+
+	private ParallelDetectionTileManager manager;
+	
 	AtomicInteger countdown;
-	boolean isProcessing = false;
-	boolean isComplete = false;
 	Rectangle2D bounds;
 	PathObjectHierarchy hierarchy;
-	Map<ParallelTileObject, Rectangle2D> map = new HashMap<>();
+	Map<ParallelTileObject, Rectangle2D> map = new TreeMap<>(DefaultPathObjectComparator.getInstance());
 
-	ParallelTileObject(final ROI pathROI, final PathObjectHierarchy hierarchy, final AtomicInteger countdown) {
+	private Status status = Status.PENDING;
+	
+	ParallelTileObject(final ParallelDetectionTileManager manager, final ROI pathROI, final PathObjectHierarchy hierarchy, final AtomicInteger countdown) {
 		super(pathROI);
+		this.manager = manager;
+		setPathClass(pathClassPending);
 		this.bounds = getBounds2D(pathROI);
 		this.hierarchy = hierarchy;
 		this.countdown = countdown;
@@ -81,7 +102,7 @@ public class ParallelTileObject extends PathTileObject implements TemporaryObjec
 	 * Register a neighboring tile, if it intersects with the bounds of this one
 	 * @param pto
 	 */
-	public boolean suggestNeighbor(final ParallelTileObject pto) {
+	public synchronized boolean suggestNeighbor(final ParallelTileObject pto) {
 		if (bounds.intersects(pto.bounds)) {
 			Rectangle2D intersection = new Rectangle2D.Double();
 			Rectangle2D.intersect(bounds, pto.bounds, intersection);
@@ -94,16 +115,33 @@ public class ParallelTileObject extends PathTileObject implements TemporaryObjec
 	/**
 	 * Notify the object if it is currently being processed.
 	 * 
-	 * This is used to update its color.
+	 * This is used to update how it is displayed (here implemented using a classification).
 	 * 
-	 * @param isProcessing
+	 * @param status
 	 */
-	public void setIsProcessing(boolean isProcessing) {
-		this.isProcessing = isProcessing;
-		if (this.isProcessing)
-			setColorRGB(ColorTools.makeRGB(255, 255, 0));
-		else
-			setColorRGB(ColorTools.makeRGB(128, 128, 128));
+	public synchronized void updateStatus(Status status) {
+		Objects.nonNull(status);
+		this.status = status;
+		switch(status) {
+		case DONE:
+			setPathClass(pathClassDone);
+			break;
+		case PROCESSING:
+			setPathClass(pathClassProcessing);
+			break;
+		case PENDING:
+		default:
+			setPathClass(pathClassPending);
+			break;
+		}
+	}
+	
+	/**
+	 * Get the current status (pending, processing or done).
+	 * @return
+	 */
+	public Status getStatus() {
+		return status;
 	}
 
 	/**
@@ -111,8 +149,8 @@ public class ParallelTileObject extends PathTileObject implements TemporaryObjec
 	 * 
 	 * @return
 	 */
-	public boolean isProcessing() {
-		return isProcessing;
+	public synchronized boolean isProcessing() {
+		return status == Status.PROCESSING;
 	}
 
 	/**
@@ -120,8 +158,8 @@ public class ParallelTileObject extends PathTileObject implements TemporaryObjec
 	 * 
 	 * @return
 	 */
-	public boolean isComplete() {
-		return isComplete;
+	public synchronized boolean isComplete() {
+		return status == Status.DONE;
 	}
 
 	/**
@@ -130,99 +168,135 @@ public class ParallelTileObject extends PathTileObject implements TemporaryObjec
 	 * This both changes its display color, and triggers a check to see if overlaps with
 	 * detections made in adjacent tiles can be resolved.
 	 */
-	public void setComplete() {
+	public synchronized void setComplete(boolean wasCancelled) {
 		// Flag that the processing is complete
-		isComplete = true;
-		isProcessing = false;
-		setColorRGB(ColorTools.makeRGB(255, 0, 0));
+		updateStatus(Status.DONE);
+		manager.tileComplete(this, wasCancelled);
+	}
+	
+	
+	/**
+	 * Request that the tile object attempts to resolve overlaps with its neighboring tiles.
+	 */
+	public synchronized void resolveOverlaps() {
+//		// If we don't have any children, notify that the test is complete
+	//			if (!hasChildren()) {
+	//				for (ParallelTileObject pto : map.keySet())
+	//					pto.notifyTestComplete(this);
+	//				map.clear();
+	//				checkAllTestsComplete();
+	//				return;
+	//			}
 
-		//			// If we don't have any children, notify that the test is complete
-		//			if (!hasChildren()) {
-		//				for (ParallelTileObject pto : map.keySet())
-		//					pto.notifyTestComplete(this);
-		//				map.clear();
-		//				checkAllTestsComplete();
-		//				return;
-		//			}
+	long startTime = System.currentTimeMillis();
+	int nRemoved = 0;
+	
+	boolean preferNucleus = false;
 
-		long startTime = System.currentTimeMillis();
-		int nRemoved = 0;
+	// If we do have children, loop through & perform tests
+	Iterator<Entry<ParallelTileObject, Rectangle2D>> iterMap = map.entrySet().iterator();
+	while (iterMap.hasNext()) {
+		Entry<ParallelTileObject, Rectangle2D> entry = iterMap.next();
 
-		// If we do have children, loop through & perform tests
-		Iterator<Entry<ParallelTileObject, Rectangle2D>> iterMap = map.entrySet().iterator();
-		while (iterMap.hasNext()) {
-			Entry<ParallelTileObject, Rectangle2D> entry = iterMap.next();
+		// If the parallel tile object hasn't been processed yet, then just continue - nothing to compare
+		ParallelTileObject pto = entry.getKey();
+		if (!pto.isComplete())
+			continue;
+		
+		ParallelTileObject first, second;
+		
+		// Choose a consistent order for the comparison
+		if (this.getROI().getBoundsX() > pto.getROI().getBoundsX() || 
+				this.getROI().getBoundsY() > pto.getROI().getBoundsY()) {
+			first = this;
+			second = pto;
+		} else {
+			first = pto;
+			second = this;
+		}
+//		ROI firstBounds = first.getROI();
+//		ROI secondBounds = second.getROI();
 
-			// If the parallel tile object hasn't been processed yet, then just continue - nothing to compare
-			ParallelTileObject pto = entry.getKey();
-			if (!pto.isComplete())
-				continue;
+		// Compare this object's lists with that object's list
+		List<PathObject> listFirst = first.getObjectsForRegion(entry.getValue());
+		List<PathObject> listSecond = second.getObjectsForRegion(entry.getValue());
 
-			// Compare this object's lists with that object's list
-			List<PathObject> listThis = getObjectsForRegion(entry.getValue());
-			List<PathObject> listThat = pto.getObjectsForRegion(entry.getValue());
+		// Only need to compare potential overlaps if both lists are non-empty
+		if (!listFirst.isEmpty() && !listSecond.isEmpty()) {
 
-			// Only need to compare potential overlaps if both lists are non-empty
-			if (!listThis.isEmpty() && !listThat.isEmpty()) {
+			Map<ROI, Geometry> cache = new HashMap<>();
 
-				Iterator<PathObject> iterThis = listThis.iterator();
-				while (iterThis.hasNext()) {
-					PathObject pathObjectNew = iterThis.next();
-					ROI pathAreaNew = pathObjectNew.getROI();
-					Area areaNew = RoiTools.getArea(pathAreaNew);
+			Iterator<PathObject> iterFirst = listFirst.iterator();
+			while (iterFirst.hasNext()) {
+				PathObject firstObject = iterFirst.next();
+				ROI firstROI = PathObjectTools.getROI(firstObject, preferNucleus);
+				ImageRegion firstRegion = ImageRegion.createInstance(firstROI);
+				Geometry firstGeometry = null;
+				double firstArea = Double.NaN;
 
-					Iterator<PathObject> iterThat = listThat.iterator();
-					while (iterThat.hasNext()) {
-						PathObject pathObjectOld = iterThat.next();
-						ROI pathAreaOld = pathObjectOld.getROI();
-						// Check if the existing area intersects the bounds
-						if (!areaNew.intersects(getBounds2D(pathAreaOld)))
-							continue;
-						// If the bounds are intersected, check for an actual intersection between the areas
-						Area temp = RoiTools.getArea(pathAreaOld);
-						temp.intersect(areaNew);
-						if (temp.isEmpty())
-							continue;
-						// We have an intersection, but it may be minimal... check this
-						double intersectionArea = ROIs.createAreaROI(temp, ImagePlane.getDefaultPlane()).getArea();
-						double threshold = 0.1;
-						// We do have an intersection - keep the object with the larger area if the intersection is a 'reasonable' proportion of the smaller area
-						// Here, reasonable is defined as 10%
-						if (pathAreaNew.getArea() > pathAreaOld.getArea()) {
-							if (intersectionArea < pathAreaOld.getArea() * threshold)
-								continue;
-							pto.removePathObject(pathObjectOld);
-							//								iterThat.remove();
-							//								logger.info("Removing from old");
+				Iterator<PathObject> iterSecond = listSecond.iterator();
+				while (iterSecond.hasNext()) {
+					PathObject secondObject = iterSecond.next();
+					ROI secondROI = PathObjectTools.getROI(secondObject, preferNucleus);
+//					
+					// Do quick overlap test
+					if (!firstRegion.intersects(
+							secondROI.getBoundsX(), secondROI.getBoundsY(),
+							secondROI.getBoundsWidth(), secondROI.getBoundsHeight()))
+						continue;
+					
+					// Get geometries
+					if (firstGeometry == null) {
+						firstGeometry = firstROI.getGeometry();
+						firstArea = firstGeometry.getArea();
+					}
+					Geometry secondGeometry = cache.get(secondROI);
+					if (secondGeometry == null) {
+						secondGeometry = secondROI.getGeometry();
+						cache.put(secondROI, secondGeometry);
+					}
+
+					// Get the intersection
+					if (!firstGeometry.intersects(secondGeometry))
+						continue;
+					
+					Geometry intersection = firstGeometry.intersection(secondGeometry);
+					if (intersection.isEmpty())
+						continue;
+					
+					// Check areas
+					double intersectionArea = intersection.getArea();
+					double secondArea = secondGeometry.getArea();
+					double threshold = 0.1;
+					if (firstArea >= secondArea) {
+						if (intersectionArea / secondArea > threshold) {
+							second.removePathObject(secondObject);
 							nRemoved++;
 						}
-						else {
-							if (intersectionArea < pathAreaNew.getArea() * threshold)
-								continue;
-							removePathObject(pathObjectNew);
-							//								iterThis.remove();
-							//								logger.info("Removing from new");
+					} else {
+						if (intersectionArea / firstArea > threshold) {
+							first.removePathObject(firstObject);
 							nRemoved++;
 							break;
 						}
 					}
 				}
-
 			}
-
-			// Remove the neighbor from the map
-			iterMap.remove();
-
-			pto.notifyTestComplete(this);
 
 		}
 
-		checkAllTestsComplete();
+		// Remove the neighbor from the map
+		iterMap.remove();
 
-		long endTime = System.currentTimeMillis();
-		logger.debug(String.format("Resolved %d overlaps: %.2f seconds", nRemoved, (endTime - startTime) / 1000.));
-		//			logger.info(String.format("Resolved %d possible overlaps with %d iterations (tested %d of %d): %.2f seconds", nOverlaps, counter, detectedCounter-skipCounter, detectedCounter, (endTime2 - startTime2) / 1000.));
+		pto.notifyTestComplete(this);
 
+	}
+
+	checkAllTestsComplete();
+
+	long endTime = System.currentTimeMillis();
+	logger.debug(String.format("Resolved %d overlaps: %.2f seconds", nRemoved, (endTime - startTime) / 1000.));
+	//			logger.info(String.format("Resolved %d possible overlaps with %d iterations (tested %d of %d): %.2f seconds", nOverlaps, counter, detectedCounter-skipCounter, detectedCounter, (endTime2 - startTime2) / 1000.));
 	}
 
 
@@ -239,12 +313,14 @@ public class ParallelTileObject extends PathTileObject implements TemporaryObjec
 				pathObjects.add(child);
 			}
 		}
+		Collections.sort(pathObjects, DefaultPathObjectComparator.getInstance());
 		return pathObjects;
 	}
 
 
 
 	boolean checkAllTestsComplete() {
+//		return true;
 		if (map.isEmpty() && getParent() != null) {
 			if (countdown == null) {
 				hierarchy.removeObject(this, true);
