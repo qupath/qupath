@@ -210,7 +210,7 @@ import qupath.lib.gui.commands.ProjectOpenCommand;
 import qupath.lib.gui.commands.ProjectSaveCommand;
 import qupath.lib.gui.commands.QuPathSetupCommand;
 import qupath.lib.gui.commands.ResetPreferencesCommand;
-import qupath.lib.gui.commands.RevertCommand;
+import qupath.lib.gui.commands.ReloadDataCommand;
 import qupath.lib.gui.commands.RigidObjectEditorCommand;
 import qupath.lib.gui.commands.RotateImageCommand;
 import qupath.lib.gui.commands.SampleScriptLoader;
@@ -2971,7 +2971,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				null,
 				getActionMenuItem(GUIActions.OPEN_IMAGE),
 				getActionMenuItem(GUIActions.OPEN_IMAGE_OR_URL),
-				createCommandAction(new RevertCommand(this), "Revert", null, new KeyCodeCombination(KeyCode.R, KeyCodeCombination.SHORTCUT_DOWN)),
+				createCommandAction(new ReloadDataCommand(this), "Reload data", null, new KeyCodeCombination(KeyCode.R, KeyCodeCombination.SHORTCUT_DOWN)),
 				null,
 				getActionMenuItem(GUIActions.SAVE_DATA_AS),
 				getActionMenuItem(GUIActions.SAVE_DATA),

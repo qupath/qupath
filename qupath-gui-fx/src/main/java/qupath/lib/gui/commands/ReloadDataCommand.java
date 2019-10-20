@@ -41,13 +41,13 @@ import qupath.lib.io.PathIO;
  * @author Pete Bankhead
  *
  */
-public class RevertCommand implements PathCommand {
+public class ReloadDataCommand implements PathCommand {
 	
-	private final static Logger logger = LoggerFactory.getLogger(RevertCommand.class);
+	private final static Logger logger = LoggerFactory.getLogger(ReloadDataCommand.class);
 	
 	private QuPathGUI qupath;
 	
-	public RevertCommand(final QuPathGUI qupath) {
+	public ReloadDataCommand(final QuPathGUI qupath) {
 		this.qupath = qupath;
 	}
 

@@ -1220,7 +1220,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 		List<ProjectImageEntry<BufferedImage>> currentImages = new ArrayList<>();
 		Label labelSameImageWarning = new Label(
 				"A selected image is open in the viewer!\n"
-				+ "Reload this after the script to see changes.");
+				+ "Use 'File>Reload data' to see changes.");
 		
 		Label labelSelected = new Label();
 		labelSelected.setTextAlignment(TextAlignment.CENTER);
