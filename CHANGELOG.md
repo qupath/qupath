@@ -3,24 +3,41 @@ This is a *milestone* (i.e. still in development) version made available to try 
 Changes include:
 * Many improvements to the pixel classifier
   * New 'structure tensor' features
-  * In-training classifier can still operate when images are changed
+  * Currently-training classifier can still operate when images are changed
+  * Added live feature overlays to view classifier features in context
   * Added 'Advanced' features, including optional PCA and selecting a 'Boundary' classification
   * Ability to save & reload classifiers (format may change!)
   * New 'Create threshold classifier' command (replaces old simple threshold command)
+* Scripting Improvements
+  * Core classes can now be auto-imported (use Ctrl-Shift to cycle through code-completions)
+  * More helpful error messages for common errors
+  * New setPixelSizeMicrons(double, double) scripting method
+* Major ROI revisions
+  * Area ROIs 'snap' to pixel coordinates by default (can be changed in the preferences)
+  * New GeometryROI replaces AWTAreaROI
+  * 'Distance to annotations 2D' now supports line and point ROIs
+  * Increased use of Java Topology Suite  for Geometry calculations
+  * Removed older interfaces (PathShape, PathPoints, PathArea, PathLine and TranslatableROI), moved more methods into ROI directly
+* Revised cell detection & other detection commands that use tiling
+  * Bigger tile overlap & improved contour smoothing in cell detection (note: this will impact results!)
+  * Fixed DoG superpixel tiling bug, see https://github.com/qupath/qupath/issues/345
+  * New 'Memory monitor' and 'Show input display' commands in 'View' menu
 * Summary measurements are displayed for the full image when no objects are selected
   * Added 'saveImageMeasurement' scripting command
-* New 'Memory monitor' and 'Show input display' commands in 'View' menu
 * Revised how images are written
   * Moved 'ImageWriterTools' to core module, updated 'ImageWriter' interface
   * Changed 'File -> Export regions...' commands to separate between raw pixels & rendered RGB images
 * Improved image type support
-  * Show under the 'Image' type
+  * Show under the 'Image' tab
   * Include support for uint8, uint16, int16, int32, float32 and float64 types
 * Pixel & object classifiers now better separated in the 'Classify' menu
+* Added Svidro2 colormap to better highlight extreme values
+* More informative PathObject.toString() and ROI.toString() methods
 * Dependency updates
-  * AdoptOpenJDK 13, JavaFX, Groovy, Guava, Bio-Formats, RichTextFX, ImageJ
+  * AdoptOpenJDK 13, JavaFX, Groovy, Guava, Bio-Formats, RichTextFX, ImageJ, jpackage
 * Bug fixes:
   * Fixed size estimate for large images (previously caused some images not to open)
+  * Fixed bug that meant the file chooser forgot the last directory
   * Converting tile classifications to annotations (https://github.com/qupath/qupath/issues/359)
   * Calculating intensity features for RGB fluorescence (https://github.com/qupath/qupath/issues/365)
   * Setting stroke thickness, thanks to @jballanc (https://github.com/qupath/qupath/pull/362)
@@ -96,7 +113,7 @@ Changes include:
   * Major refactoring (warning, older scripts may not work!)
   * Added many javadocs for core modules
   * Lots of bugs fixed!
-  
+
 
 
 ## Version 0.2.0-m2
@@ -259,7 +276,7 @@ This is a *milestone* (i.e. still in development) version made available to try 
 * Improved display of licenses & third-party dependencies
 * Updated location of user preferences
 * Added menu entry to reset preferences
- 
+
 
 ## Version 0.0.2
 
