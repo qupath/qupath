@@ -48,7 +48,7 @@ public class PixelClassifierLoadCommand implements PathCommand {
 		
 		var imageData = viewer.getImageData();
 		if (imageData == null) {
-			DisplayHelpers.showErrorMessage(title, "You need an image to run this command!");
+			DisplayHelpers.showNoImageError(title);
 			return;
 		}		
 		

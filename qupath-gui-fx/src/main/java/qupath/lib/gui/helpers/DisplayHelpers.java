@@ -720,6 +720,16 @@ public class DisplayHelpers {
 	}
 	
 	/**
+	 * Show an error message that no image is available. This is included to help 
+	 * standardize the message throughout the software.
+	 * @param title
+	 */
+	public static void showNoImageError(String title) {
+		showErrorMessage(title, "No image is available!");
+	}
+	
+	
+	/**
 	 * Show an error message.
 	 * @param title
 	 * @param message

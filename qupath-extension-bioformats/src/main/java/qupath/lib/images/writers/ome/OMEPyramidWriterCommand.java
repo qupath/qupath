@@ -146,7 +146,7 @@ public class OMEPyramidWriterCommand implements PathCommand {
 		QuPathViewer viewer = qupath.getViewer();
 		ImageData<BufferedImage> imageData = viewer.getImageData();
 		if (imageData == null) {
-			DisplayHelpers.showErrorMessage("OME Pyramid writer", "There is no image open in the current viewer!");
+			DisplayHelpers.showNoImageError("OME Pyramid writer");
 			return;
 		}
 		ImageServer<BufferedImage> server = imageData.getServer();

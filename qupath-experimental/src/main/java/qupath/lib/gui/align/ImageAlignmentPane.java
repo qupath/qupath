@@ -432,7 +432,7 @@ public class ImageAlignmentPane {
 		ImageData<BufferedImage> imageDataBase = viewer.getImageData();
 		ImageData<BufferedImage> imageDataSelected = selectedImageData.get();
 		if (imageDataBase == null) {
-			DisplayHelpers.showErrorMessage("Auto-alignment", "No image is open in the required viewer!");
+			DisplayHelpers.showNoImageError("Auto-alignment");
 			return;
 		}
 		if (imageDataSelected == null) {

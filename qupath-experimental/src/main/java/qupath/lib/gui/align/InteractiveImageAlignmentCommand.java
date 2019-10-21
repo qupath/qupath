@@ -25,7 +25,7 @@ public class InteractiveImageAlignmentCommand implements PathCommand {
 	@Override
 	public void run() {
 		if (qupath.getImageData() == null) {
-			DisplayHelpers.showErrorMessage("Interactive image alignment", "Please open a 'base' image first!");
+			DisplayHelpers.showNoImageError("Interactive image alignment");
 			return;
 		}
 		new ImageAlignmentPane(qupath);

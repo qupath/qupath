@@ -65,9 +65,9 @@ import qupath.lib.gui.ImageDataChangeListener;
 import qupath.lib.gui.ImageDataWrapper;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.QuPathGUI.DefaultMode;
-import qupath.lib.gui.QuPathGUI.Mode;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.helpers.ColorToolsFX;
+import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.gui.helpers.PaneToolsFX;
 import qupath.lib.gui.helpers.dialogs.ParameterPanelFX;
 import qupath.lib.gui.viewer.QuPathViewer;
@@ -93,17 +93,17 @@ import qupath.lib.roi.interfaces.ROI;
 
 /**
  * Class for randomly selecting points, prompting the user to assign these a classification which can later be used for training.
- * 
+ * <p>
  * If detection objects are available, then the points will be selected from their centroids.
  * Furthermore, in this case objects can optionally be clustered.
  * If this is applied, random selection is made from an object belonging to each cluster in turn -
  * to help ensure that all get covered.
  * Clusters are determined based on object measurements; if any measurements have 'mean' in the name
  * then only these will be used, otherwise all measurements will be used.
- * 
+ * <p>
  * (The purpose of preferring means is that the many dimensions of the other measurements get in the way... 
  * also, no measurement scaling is performed.)
- * 
+ * <p>
  * TODO: Perform clustering using thumbnail image, not individual object measurements.
  * 
  * @author Pete Bankhead
@@ -132,6 +132,10 @@ public class RandomTrainingRegionSelector implements PathCommand {
 	
 	@Override
 	public void run() {
+		if (qupath.getImageData() == null) {
+			DisplayHelpers.showNoImageError("Training region selector");
+			return;
+		}
 		if (dialog == null)
 			createDialog();
 		dialog.show();

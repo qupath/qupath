@@ -169,7 +169,7 @@ public class CreateRegionAnnotationsCommand implements PathCommand {
 			}
 			ImageData<?> imageData = viewer.getImageData();
 			if (imageData == null) {
-				DisplayHelpers.showErrorMessage("Create region", "Cannot create region - no image open in viewer!");
+				DisplayHelpers.showNoImageError("Create region");
 				return;
 			}
 			

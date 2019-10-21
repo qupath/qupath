@@ -18,7 +18,7 @@ public class PixelClassifierCommand implements PathCommand {
 		var viewer = QuPathGUI.getInstance().getViewer();
 		var imageData = viewer == null ? null : viewer.getImageData();
 		if (imageData == null) {
-			DisplayHelpers.showErrorMessage("Pixel classifier", "No image open in current viewer!");
+			DisplayHelpers.showNoImageError("Pixel classifier");
 		} else
 			new PixelClassifierImageSelectionPane(viewer);
 	}

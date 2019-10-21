@@ -1468,7 +1468,7 @@ public class PixelClassifierImageSelectionPane {
 	private boolean addResolution() {
 		ImageServer<BufferedImage> server = viewer.getServer();
 		if (server == null) {
-			DisplayHelpers.showErrorMessage("Add resolution", "No image available!");
+			DisplayHelpers.showNoImageError("Add resolution");
 			return false;
 		}
 		String units = null;

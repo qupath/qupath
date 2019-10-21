@@ -19,6 +19,7 @@ import javafx.stage.Stage;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
+import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.gui.helpers.PaneToolsFX;
 import qupath.lib.gui.ml.PixelClassificationOverlay;
 import qupath.lib.gui.ml.PixelClassifierImageSelectionPane;
@@ -56,6 +57,9 @@ public class SimpleThresholdCommand implements PathCommand {
 
 	@Override
 	public void run() {
+		if (qupath.getImageData() == null) {
+			DisplayHelpers.showNoImageError("Simple threshold");
+		}
 		if (stage == null || !stage.isShowing())
 			showGUI();
 		else
