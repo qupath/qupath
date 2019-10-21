@@ -14,6 +14,7 @@ import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.Lineal;
 import org.locationtech.jts.geom.Location;
+import org.locationtech.jts.geom.Polygonal;
 import org.locationtech.jts.geom.Puntal;
 import org.locationtech.jts.geom.util.GeometryCombiner;
 import org.slf4j.Logger;
@@ -109,8 +110,9 @@ public class DistanceTools {
 							pointGeometries.add(geom);
 						else if (geom instanceof Lineal)
 							lineGeometries.add(geom);
-						else
+						else if (geom instanceof Polygonal)
 							areaGeometries.add(geom);
+						System.err.println(geom);
 					}
 				}
 		
@@ -139,7 +141,7 @@ public class DistanceTools {
 				int zi = z;
 				int ti = t;
 				
-				var locator = new IndexedPointInAreaLocator(shapeGeometry);
+				var locator = shapeGeometry == null ? null : new IndexedPointInAreaLocator(shapeGeometry);
 				sourceObjects.parallelStream().forEach(p -> {
 					var roi = PathObjectTools.getROI(p, true);
 					if (roi.getZ() != zi || roi.getT() != ti)
