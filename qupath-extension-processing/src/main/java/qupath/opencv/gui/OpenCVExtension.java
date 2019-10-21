@@ -33,7 +33,8 @@ import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.QuPathGUI.Modes;
+import qupath.lib.gui.QuPathGUI.DefaultMode;
+import qupath.lib.gui.QuPathGUI.Mode;
 import qupath.lib.gui.extensions.QuPathExtension;
 import qupath.opencv.CellCountsCV;
 import qupath.opencv.DetectCytokeratinCV;
@@ -124,7 +125,7 @@ public class OpenCVExtension implements QuPathExtension {
 			WandToolCV wandTool = new WandToolCV(qupath);
 			logger.debug("Installing wand tool");
 			Platform.runLater(() -> {
-				qupath.putToolForMode(Modes.WAND, wandTool);
+				qupath.putToolForMode(DefaultMode.WAND, wandTool);
 			});
 			logger.debug("Loading OpenCV classes");
 			ensureClassesLoaded();

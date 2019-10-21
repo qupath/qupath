@@ -101,7 +101,8 @@ import qupath.lib.color.ColorToolsAwt;
 import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.display.ImageDisplay;
-import qupath.lib.gui.QuPathGUI.Modes;
+import qupath.lib.gui.QuPathGUI.DefaultMode;
+import qupath.lib.gui.QuPathGUI.Mode;
 import qupath.lib.gui.helpers.ColorToolsFX;
 import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.gui.images.servers.PathHierarchyImageServer;
@@ -237,7 +238,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 
 	private RoiEditor roiEditor = RoiEditor.createInstance();
 
-	private Modes mode = Modes.MOVE;
+	private ObjectProperty<Mode> mode = new SimpleObjectProperty<>(DefaultMode.MOVE);
 	private ImageDisplay imageDisplay;
 	transient private long lastDisplayChangeTimestamp = 0; // Used to indicate imageDisplay changes
 
@@ -510,7 +511,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	/**
 	 * Default map without tools - need to call registerTools to change this
 	 */
-	private Map<Modes, PathTool> tools = Collections.emptyMap();
+	private Map<Mode, PathTool> tools = Collections.emptyMap();
 	
 	private PathTool activeTool = null;
 
@@ -565,7 +566,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	}
 
 
-	public void registerTools(Map<Modes, PathTool> tools) {
+	public void registerTools(Map<Mode, PathTool> tools) {
 		this.tools = tools;
 	}
 
@@ -975,7 +976,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 			// Temporarily switch to 'move' tool
 			if (activeTool != null)
 				activeTool.deregisterTool(this);
-			activeTool = tools.get(Modes.MOVE);
+			activeTool = tools.get(DefaultMode.MOVE);
 			if (activeTool != null)
 				activeTool.registerTool(this);
 		} else {
@@ -1094,14 +1095,14 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	//	}
 
 
-	public void setMode(Modes mode) {
+	public void setMode(Mode mode) {
 		logger.trace("Setting mode {} for {}", mode, this);
 		if (mode == null && activeTool != null) {
 			activeTool.deregisterTool(this);				
 			activeTool = null;
 			updateCursor();
 		}
-		this.mode = mode;
+		this.mode.set(mode);
 		PathTool tool = tools.get(mode);
 		if (activeTool == tool || tool == null)
 			return;
@@ -1116,8 +1117,8 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	
 	protected void updateCursor() {
 //		logger.debug("Requested cursor {} for {}", requestedCursor, getMode());
-		Modes mode = getMode();
-		if (mode == Modes.MOVE)
+		Mode mode = getMode();
+		if (mode == DefaultMode.MOVE)
 			getView().setCursor(Cursor.HAND);
 		else
 			getView().setCursor(requestedCursor);
@@ -1148,13 +1149,17 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 //		getCanvas().setFocusTraversable(focusable);
 	}
 
-	public Modes getMode() {
+	public Mode getMode() {
 		// Always navigate when the spacebar is down
 		if (spaceDown)
-			return Modes.MOVE;
-		return mode;
+			return DefaultMode.MOVE;
+		return mode.get();
 	}
-
+	
+	public void setLockMode(boolean doLock) {
+		this.setLockMode(doLock);
+	}
+	
 	/**
 	 * Get the currently-selected object from the hierarchy.
 	 * @return

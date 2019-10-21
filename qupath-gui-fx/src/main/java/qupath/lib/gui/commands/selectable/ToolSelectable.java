@@ -23,7 +23,7 @@
 
 package qupath.lib.gui.commands.selectable;
 
-import qupath.lib.gui.QuPathGUI.Modes;
+import qupath.lib.gui.QuPathGUI.Mode;
 import qupath.lib.gui.commands.interfaces.PathSelectableCommand;
 import qupath.lib.gui.viewer.ModeWrapper;
 
@@ -36,9 +36,9 @@ import qupath.lib.gui.viewer.ModeWrapper;
 public class ToolSelectable implements PathSelectableCommand {
 
 	final private ModeWrapper wrapper;
-	final private Modes mode;
+	final private Mode mode;
 	
-	public ToolSelectable(final ModeWrapper wrapper, final Modes mode) {
+	public ToolSelectable(final ModeWrapper wrapper, final Mode mode) {
 		this.wrapper = wrapper;
 		this.mode = mode;
 	}

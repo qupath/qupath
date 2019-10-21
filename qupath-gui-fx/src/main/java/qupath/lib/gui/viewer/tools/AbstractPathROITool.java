@@ -31,7 +31,7 @@ import org.slf4j.LoggerFactory;
 
 import javafx.scene.Cursor;
 import javafx.scene.input.MouseEvent;
-import qupath.lib.gui.QuPathGUI.Modes;
+import qupath.lib.gui.QuPathGUI.DefaultMode;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.ModeWrapper;
 import qupath.lib.gui.viewer.QuPathViewer;
@@ -126,7 +126,7 @@ abstract class AbstractPathROITool extends AbstractPathTool {
 
 		// If we're adjusting a polygon/polyline with an appropriate tool, return at leave it up to the tool to handle the custom things
 		if (adjustingPolygon) {
-			if (viewer.getMode() == Modes.POLYGON || viewer.getMode() == Modes.POLYLINE)
+			if (viewer.getMode() == DefaultMode.POLYGON || viewer.getMode() == DefaultMode.POLYLINE)
 				return;
 			else {
 				viewer.getHierarchy().getSelectionModel().clearSelection();
@@ -244,8 +244,8 @@ abstract class AbstractPathROITool extends AbstractPathTool {
 		var editor = viewer.getROIEditor();
 		editor.ensureHandlesUpdated();
 		editor.resetActiveHandle();
-		if (PathPrefs.getReturnToMoveMode() && modes.getMode() != Modes.BRUSH && modes.getMode() != Modes.WAND)
-			modes.setMode(Modes.MOVE);
+		if (PathPrefs.getReturnToMoveMode() && modes.getMode() != DefaultMode.BRUSH && modes.getMode() != DefaultMode.WAND)
+			modes.setMode(DefaultMode.MOVE);
 	}
 	
 	

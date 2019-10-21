@@ -64,7 +64,8 @@ import qupath.lib.geom.Point2;
 import qupath.lib.gui.ImageDataChangeListener;
 import qupath.lib.gui.ImageDataWrapper;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.QuPathGUI.Modes;
+import qupath.lib.gui.QuPathGUI.DefaultMode;
+import qupath.lib.gui.QuPathGUI.Mode;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.helpers.ColorToolsFX;
 import qupath.lib.gui.helpers.PaneToolsFX;
@@ -136,7 +137,7 @@ public class RandomTrainingRegionSelector implements PathCommand {
 		dialog.show();
 		// Don't allow changing modes
 		qupath.setModeSwitchingEnabled(true);
-		qupath.setMode(Modes.MOVE);
+		qupath.setMode(DefaultMode.MOVE);
 		qupath.setModeSwitchingEnabled(false);
 	}
 	

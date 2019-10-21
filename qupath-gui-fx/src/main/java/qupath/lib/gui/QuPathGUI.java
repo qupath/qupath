@@ -401,9 +401,16 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 								UNDO, REDO
 								};
 	
-	// Modes for input tools
-	public enum Modes { MOVE, RECTANGLE, ELLIPSE, LINE, POLYGON, POLYLINE, BRUSH, POINTS, WAND }; //, TMA };
-	private Modes mode = Modes.MOVE;
+	/**
+	 * Marker interface for a viewer input Mode, used to determine active input tool.
+	 */
+	public static interface Mode {}
+	/**
+	 * Modes that correspond to default drawing tools.
+	 */
+	public enum DefaultMode implements Mode { MOVE, RECTANGLE, ELLIPSE, LINE, POLYGON, POLYLINE, BRUSH, POINTS, WAND }; //, TMA };
+	private BooleanProperty modeLocked = new SimpleBooleanProperty(false);
+	private Mode mode = DefaultMode.MOVE;
 	
 	// ExecutorServices for single & multiple threads
 	private Map<Object, ExecutorService> mapSingleThreadPools = new HashMap<>();
@@ -412,8 +419,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	
 	private Map<KeyCombination, Action> mapActions = new HashMap<>();
 	
-	private Map<Modes, Action> modeActions = new HashMap<>();
-	private boolean modeSwitchEnabled = true; // Flag whether the mode can be changed or not (e.g. if a command is active that could cause confusion with drawing modes)
+	private Map<Mode, Action> modeActions = new HashMap<>();
 
 	final public static int iconSize = 16;
 
@@ -1838,7 +1844,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				return;
 			}
 			// Swallow the event if we're using a touch screen without the move tool selected - we want to draw instead
-			if (lastTouchEvent && viewer.getMode() != Modes.MOVE) {
+			if (lastTouchEvent && viewer.getMode() != DefaultMode.MOVE) {
 				e.consume();
 				return;
 			}
@@ -3555,7 +3561,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 //		return new PathSelectableAction(command, name, node, accelerator);
 	}
 
-	private Action createSelectableCommandAction(final PathSelectableCommand command, final String name, final Modes mode, final KeyCombination accelerator) {
+	private Action createSelectableCommandAction(final PathSelectableCommand command, final String name, final DefaultMode mode, final KeyCombination accelerator) {
 		Action action = createSelectableCommandAction(command, name, PathIconFactory.createNode(iconSize, iconSize, mode), accelerator);
 		// Register in the map
 		if (mode != null)
@@ -3591,40 +3597,40 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		case BRIGHTNESS_CONTRAST:
 			return createCommandAction(new BrightnessContrastCommand(this), "Brightness/Contrast", PathIconFactory.createNode(iconSize, iconSize, PathIconFactory.PathIcons.CONTRAST), new KeyCodeCombination(KeyCode.C, KeyCombination.SHIFT_DOWN));
 		case LINE_TOOL:
-			action = createSelectableCommandAction(new ToolSelectable(this, Modes.LINE), "Line tool", Modes.LINE, new KeyCodeCombination(KeyCode.L));
-			action.disabledProperty().bind(Bindings.createBooleanBinding(() -> !tools.containsKey(Modes.LINE), tools));
+			action = createSelectableCommandAction(new ToolSelectable(this, DefaultMode.LINE), "Line tool", DefaultMode.LINE, new KeyCodeCombination(KeyCode.L));
+			action.disabledProperty().bind(Bindings.createBooleanBinding(() -> !tools.containsKey(DefaultMode.LINE) || modeLocked.get(), modeLocked, tools));
 			return action;
 		case ELLIPSE_TOOL:
-			action = createSelectableCommandAction(new ToolSelectable(this, Modes.ELLIPSE), "Ellipse tool", Modes.ELLIPSE, new KeyCodeCombination(KeyCode.O));
-			action.disabledProperty().bind(Bindings.createBooleanBinding(() -> !tools.containsKey(Modes.ELLIPSE), tools));
+			action = createSelectableCommandAction(new ToolSelectable(this, DefaultMode.ELLIPSE), "Ellipse tool", DefaultMode.ELLIPSE, new KeyCodeCombination(KeyCode.O));
+			action.disabledProperty().bind(Bindings.createBooleanBinding(() -> !tools.containsKey(DefaultMode.ELLIPSE) || modeLocked.get(), modeLocked, tools));
 			return action;
 		case MOVE_TOOL:
-			action = createSelectableCommandAction(new ToolSelectable(this, Modes.MOVE), "Move tool", Modes.MOVE, new KeyCodeCombination(KeyCode.M));
-			action.disabledProperty().bind(Bindings.createBooleanBinding(() -> !tools.containsKey(Modes.MOVE), tools));
+			action = createSelectableCommandAction(new ToolSelectable(this, DefaultMode.MOVE), "Move tool", DefaultMode.MOVE, new KeyCodeCombination(KeyCode.M));
+			action.disabledProperty().bind(Bindings.createBooleanBinding(() -> !tools.containsKey(DefaultMode.MOVE) || modeLocked.get(), modeLocked, tools));
 			return action;
 		case POINTS_TOOL:
-			action = createSelectableCommandAction(new ToolSelectable(this, Modes.POINTS), "Points tool", Modes.POINTS, new KeyCodeCombination(KeyCode.PERIOD));
-			action.disabledProperty().bind(Bindings.createBooleanBinding(() -> !tools.containsKey(Modes.POINTS), tools));
+			action = createSelectableCommandAction(new ToolSelectable(this, DefaultMode.POINTS), "Points tool", DefaultMode.POINTS, new KeyCodeCombination(KeyCode.PERIOD));
+			action.disabledProperty().bind(Bindings.createBooleanBinding(() -> !tools.containsKey(DefaultMode.POINTS) || modeLocked.get(), modeLocked, tools));
 			return action;
 		case POLYGON_TOOL:
-			action = createSelectableCommandAction(new ToolSelectable(this, Modes.POLYGON), "Polygon tool", Modes.POLYGON, new KeyCodeCombination(KeyCode.P));
-			action.disabledProperty().bind(Bindings.createBooleanBinding(() -> !tools.containsKey(Modes.POLYGON), tools));
+			action = createSelectableCommandAction(new ToolSelectable(this, DefaultMode.POLYGON), "Polygon tool", DefaultMode.POLYGON, new KeyCodeCombination(KeyCode.P));
+			action.disabledProperty().bind(Bindings.createBooleanBinding(() -> !tools.containsKey(DefaultMode.POLYGON) || modeLocked.get(), modeLocked, tools));
 			return action;
 		case POLYLINE_TOOL:
-			action = createSelectableCommandAction(new ToolSelectable(this, Modes.POLYLINE), "Polyline tool", Modes.POLYLINE, new KeyCodeCombination(KeyCode.V));
-			action.disabledProperty().bind(Bindings.createBooleanBinding(() -> !tools.containsKey(Modes.POLYLINE), tools));
+			action = createSelectableCommandAction(new ToolSelectable(this, DefaultMode.POLYLINE), "Polyline tool", DefaultMode.POLYLINE, new KeyCodeCombination(KeyCode.V));
+			action.disabledProperty().bind(Bindings.createBooleanBinding(() -> !tools.containsKey(DefaultMode.POLYLINE) || modeLocked.get(), modeLocked, tools));
 			return action;
 		case BRUSH_TOOL:
-			action = createSelectableCommandAction(new ToolSelectable(this, Modes.BRUSH), "Brush tool", Modes.BRUSH, new KeyCodeCombination(KeyCode.B));
-			action.disabledProperty().bind(Bindings.createBooleanBinding(() -> !tools.containsKey(Modes.BRUSH), tools));
+			action = createSelectableCommandAction(new ToolSelectable(this, DefaultMode.BRUSH), "Brush tool", DefaultMode.BRUSH, new KeyCodeCombination(KeyCode.B));
+			action.disabledProperty().bind(Bindings.createBooleanBinding(() -> !tools.containsKey(DefaultMode.BRUSH) || modeLocked.get(), modeLocked, tools));
 			return action;
 		case RECTANGLE_TOOL:
-			action = createSelectableCommandAction(new ToolSelectable(this, Modes.RECTANGLE), "Rectangle tool", Modes.RECTANGLE, new KeyCodeCombination(KeyCode.R));
-			action.disabledProperty().bind(Bindings.createBooleanBinding(() -> !tools.containsKey(Modes.RECTANGLE), tools));
+			action = createSelectableCommandAction(new ToolSelectable(this, DefaultMode.RECTANGLE), "Rectangle tool", DefaultMode.RECTANGLE, new KeyCodeCombination(KeyCode.R));
+			action.disabledProperty().bind(Bindings.createBooleanBinding(() -> !tools.containsKey(DefaultMode.RECTANGLE) || modeLocked.get(), modeLocked, tools));
 			return action;
 		case WAND_TOOL:
-			action = createSelectableCommandAction(new ToolSelectable(this, Modes.WAND), "Wand tool", Modes.WAND, new KeyCodeCombination(KeyCode.W));
-			action.disabledProperty().bind(Bindings.createBooleanBinding(() -> !tools.containsKey(Modes.WAND), tools));
+			action = createSelectableCommandAction(new ToolSelectable(this, DefaultMode.WAND), "Wand tool", DefaultMode.WAND, new KeyCodeCombination(KeyCode.W));
+			action.disabledProperty().bind(Bindings.createBooleanBinding(() -> !tools.containsKey(DefaultMode.WAND) || modeLocked.get(), modeLocked, tools));
 			return action;
 		case SELECTION_MODE:
 			return createSelectableCommandAction(PathPrefs.selectionModeProperty(), "Selection mode", PathIconFactory.PathIcons.SELECTION_MODE, null);
@@ -3685,7 +3691,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		case GRID_SPACING:
 			return createCommandAction(new SetGridSpacingCommand(overlayOptions), "Set grid spacing");
 		case COUNTING_PANEL:
-			return createCommandAction(new CountingPanelCommand(this), "Counting tool", PathIconFactory.createNode(iconSize, iconSize, Modes.POINTS), null);
+			return createCommandAction(new CountingPanelCommand(this), "Counting tool", PathIconFactory.createNode(iconSize, iconSize, DefaultMode.POINTS), null);
 		case CONVEX_POINTS:
 			PathPrefs.showPointHullsProperty().addListener(e -> {
 				for (QuPathViewer v : getViewers())
@@ -3813,26 +3819,26 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	
 	
 	public void setModeSwitchingEnabled(final boolean enabled) {
-		modeSwitchEnabled = enabled;
+		modeLocked.set(!enabled);
 //		for (Action action : modeActions.values())
 //			action.setDisabled(!enabled);
 	}
 	
 	public boolean isModeSwitchingEnabled() {
-		return modeSwitchEnabled;
+		return !modeLocked.get();
 	}
 
 	
 	private void initializeTools() {
 		// Create tools
-		putToolForMode(Modes.MOVE, new MoveTool(this));
-		putToolForMode(Modes.RECTANGLE, new RectangleTool(this));
-		putToolForMode(Modes.ELLIPSE, new EllipseTool(this));
-		putToolForMode(Modes.LINE, new LineTool(this));
-		putToolForMode(Modes.POINTS, new PointsTool(this));
-		putToolForMode(Modes.POLYGON, new PolygonTool(this));
-		putToolForMode(Modes.POLYLINE, new PolylineTool(this));
-		putToolForMode(Modes.BRUSH, new BrushTool(this));
+		putToolForMode(DefaultMode.MOVE, new MoveTool(this));
+		putToolForMode(DefaultMode.RECTANGLE, new RectangleTool(this));
+		putToolForMode(DefaultMode.ELLIPSE, new EllipseTool(this));
+		putToolForMode(DefaultMode.LINE, new LineTool(this));
+		putToolForMode(DefaultMode.POINTS, new PointsTool(this));
+		putToolForMode(DefaultMode.POLYGON, new PolygonTool(this));
+		putToolForMode(DefaultMode.POLYLINE, new PolylineTool(this));
+		putToolForMode(DefaultMode.BRUSH, new BrushTool(this));
 	}
 	
 	
@@ -3846,18 +3852,18 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	 * @param mode
 	 * @param tool
 	 */
-	public void putToolForMode(final Modes mode, final PathTool tool) {
+	public void putToolForMode(final Mode mode, final PathTool tool) {
 		tools.put(mode, tool);
 	}
 	
 	
 	@Override
-	public void setMode(Modes mode) {
+	public void setMode(Mode mode) {
 		if (!Platform.isFxApplicationThread()) {
 			Platform.runLater(() -> setMode(mode));
 			return;
 		}
-		if (!modeSwitchEnabled) {
+		if (!isModeSwitchingEnabled()) {
 			logger.warn("Mode switching currently disabled - cannot change to {}", mode);
 			return;
 		}
@@ -3869,7 +3875,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		
 		activateTools(getViewer());
 		
-		if (mode == Modes.POINTS)
+		if (mode == DefaultMode.POINTS)
 			getAction(GUIActions.COUNTING_PANEL).handle(null);
 		
 //		for (QuPathViewerPlus viewer : viewerManager.getViewers())
@@ -3903,13 +3909,11 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	protected void updateCursor() {
 		if (stage == null || stage.getScene() == null)
 			return;
-		switch(getMode()) {
-		case MOVE:
+		var mode = getMode();
+		if (mode == DefaultMode.MOVE)
 			updateCursor(Cursor.HAND);
-			break;
-		default:
+		else
 			updateCursor(Cursor.DEFAULT);
-		}		
 	}
 	
 	/**
@@ -3957,7 +3961,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	
 
 	@Override
-	public Modes getMode() {
+	public Mode getMode() {
 		return mode;
 	}
 	
@@ -4100,7 +4104,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	}
 
 	
-	private ObservableMap<Modes, PathTool> tools = FXCollections.observableMap(new HashMap<>());
+	private ObservableMap<Mode, PathTool> tools = FXCollections.observableMap(new HashMap<>());
 	
 	
 	private Control createAnalysisPanel() {

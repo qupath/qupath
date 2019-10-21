@@ -310,7 +310,7 @@ public class PathIconFactory {
 		}
 	}
 	
-	public static Node createNode(int width, int height, QuPathGUI.Modes mode) {
+	public static Node createNode(int width, int height, QuPathGUI.DefaultMode mode) {
 		switch (mode) {
 		case LINE:
 			return createNode(width, height, PathIcons.LINE_TOOL);

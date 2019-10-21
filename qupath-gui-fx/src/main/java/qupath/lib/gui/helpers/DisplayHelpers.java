@@ -545,10 +545,13 @@ public class DisplayHelpers {
 			Platform.runLater(() -> showErrorNotification(title, e));
 			return;
 		}
-		logger.error(title, e);
 		String message = e.getLocalizedMessage();
+		if (message != null && !message.isBlank() && !message.equals(title))
+			logger.error(title + ": " + e.getLocalizedMessage(), e);
+		else
+			logger.error(title , e);
 		if (message == null)
-			message = "QuPath has encountered a problem, sorry.\nIf you can replicate it, please notify a developer.\n\n" + e;
+			message = "QuPath has encountered a problem, sorry.\nIf you can replicate it, please report it with 'Help > Report bug'.\n\n" + e;
 		if (Platform.isFxApplicationThread()) {
 			createNotifications().title(title).text(message).showError();
 		} else {
