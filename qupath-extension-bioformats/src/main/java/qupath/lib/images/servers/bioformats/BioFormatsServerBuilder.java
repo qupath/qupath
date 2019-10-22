@@ -74,6 +74,13 @@ public class BioFormatsServerBuilder implements ImageServerBuilder<BufferedImage
 					builders = server.getImageBuilders();
 				if ("OME-TIFF".equals(server.getFormat()))
 					supportLevel = 5f;
+				// If the image is large but not pyramidal, decrease support - maybe another server can find a pyramid
+				if (server.nResolutions() == 1) {
+					long nPixels = (long)server.getWidth() * (long)server.getHeight();
+					long nBytes = nPixels * server.nChannels() * server.getMetadata().getPixelType().getBytesPerPixel();
+					if (nPixels >= Integer.MAX_VALUE || nBytes > Runtime.getRuntime().maxMemory()/2)
+						supportLevel = 1;
+				}
 				return UriImageSupport.createInstance(this.getClass(), supportLevel, builders.values());
 			} catch (Exception e) {
 				logger.debug("Unable to create server using Bio-Formats", e);

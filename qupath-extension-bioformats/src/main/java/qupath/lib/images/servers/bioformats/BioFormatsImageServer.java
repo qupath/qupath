@@ -544,8 +544,11 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 					if (color != null)
 						channelColor = ColorTools.makeRGBA(color.getRed(), color.getGreen(), color.getBlue(), color.getAlpha());
 					else {
-						// Select next available default color
-						channelColor = ImageChannel.getDefaultChannelColor(c);
+						// Select next available default color, or white (for grayscale) if only one channel
+						if (nChannels == 1)
+							channelColor = ColorTools.makeRGB(255, 255, 255);
+						else
+							channelColor = ImageChannel.getDefaultChannelColor(c);
 					}
 					if (channelName == null)
 						channelName = "Channel " + (c + 1);
