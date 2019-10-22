@@ -52,6 +52,7 @@ import qupath.lib.gui.images.servers.RenderedImageServer;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.ImageServers;
 import qupath.lib.images.servers.ServerTools;
 import qupath.lib.images.writers.ImageWriter;
 import qupath.lib.images.writers.ImageWriterTools;
@@ -217,26 +218,30 @@ public class ExportImageRegionCommand implements PathCommand {
 		
 		// Create RegionRequest
 		RegionRequest request = null;
-		if (pathObject == null || !pathObject.hasROI())
-			request = RegionRequest.createInstance(server.getPath(), exportDownsample.get(),
-					0, 0, server.getWidth(), server.getHeight(),
-					viewer.getZPosition(), viewer.getTPosition());
-		else
+		if (pathObject != null && pathObject.hasROI())
 			request = RegionRequest.createInstance(server.getPath(), exportDownsample.get(), roi);				
 
 		// Create a sensible default file name, and prompt for the actual name
 		String ext = writer.getDefaultExtension();
 		String writerName = writer.getName();
-		String defaultName = roi == null ? ServerTools.getDisplayableImageName(server) : 
-			String.format("%s (%s, x=%d, y=%d, w=%d, h=%d)", ServerTools.getDisplayableImageName(server),
+		String defaultName = GeneralTools.getNameWithoutExtension(new File(ServerTools.getDisplayableImageName(server)));
+		if (roi != null) {
+			defaultName = String.format("%s (%s, x=%d, y=%d, w=%d, h=%d)", defaultName,
 					GeneralTools.formatNumber(request.getDownsample(), 2),
 					request.getX(), request.getY(), request.getWidth(), request.getHeight());
+		}
 		File fileOutput = qupath.getDialogHelper().promptToSaveFile("Export image region", null, defaultName, writerName, ext);
 		if (fileOutput == null)
 			return;
 		
 		try {
-			writer.writeImage(server, request, fileOutput.getAbsolutePath());
+			if (request == null) {
+				if (exportDownsample.get() == 1.0)
+					writer.writeImage(server, fileOutput.getAbsolutePath());
+				else
+					writer.writeImage(ImageServers.pyramidalize(server, exportDownsample.get()), fileOutput.getAbsolutePath());
+			} else
+				writer.writeImage(server, request, fileOutput.getAbsolutePath());
 			lastWriter = writer;
 		} catch (IOException e) {
 			DisplayHelpers.showErrorMessage("Export region", e);

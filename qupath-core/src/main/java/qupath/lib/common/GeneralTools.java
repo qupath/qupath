@@ -133,8 +133,12 @@ public class GeneralTools {
 		}
 		if (ext == null) {
 			int ind = name.lastIndexOf(".");
-			if (ind >= 0)
+			if (ind >= 0) {
 				ext = name.substring(ind);
+				// Check we only have letter
+				if (!ext.matches(".\\w*"))
+					ext = null;
+			}
 		}
 		return ext == null || ext.equals(".") ? Optional.empty() : Optional.of(lower.substring(lower.length()-ext.length()));
 	}
@@ -176,6 +180,18 @@ public class GeneralTools {
 		var ext = getExtension(file).orElse(null);
 		String name = file.getName();
 		return ext ==  null ? name : name.substring(0, name.length() - ext.length());
+	}
+	
+	/**
+	 * Returns true for file extensions containing multiple parts (or 'dots').
+	 * Examples include ome.tif and tar.gz, which can be problematic with some file choosers.
+	 * @param ext
+	 * @return
+	 */
+	public static boolean isMultipartExtension(String ext) {
+		if (ext.length() > 1 && ext.startsWith("."))
+			return isMultipartExtension(ext.substring(1));
+		return ext.length() - ext.replace(".", "").length() > 0;
 	}
 	
 	

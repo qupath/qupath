@@ -153,11 +153,15 @@ public class OMEPyramidWriterCommand implements PathCommand {
 		
 		// Region
 		PathObject selected = imageData.getHierarchy().getSelectionModel().getSelectedObject();
-		ImageRegion region;
+		ImageRegion region = null;
+		int width, height;
 		if (selected == null || !selected.hasROI() || !selected.getROI().isArea()) {
-			region = ImageRegion.createInstance(0, 0, server.getWidth(), server.getHeight(), viewer.getZPosition(), viewer.getTPosition());
+			width = server.getWidth();
+			height = server.getHeight();
 		} else {
 			region = ImageRegion.createInstance(selected.getROI());
+			width = region.getWidth();
+			height = region.getHeight();
 		}
 		
 		// Prompt for file
@@ -170,12 +174,13 @@ public class OMEPyramidWriterCommand implements PathCommand {
 			fileOutput = new File(fileOutput.getParentFile(), name.substring(0, name.length()-4) + ".ome.tif");
 		lastDirectory = fileOutput.getParentFile();
 		
-		OMEPyramidWriter.Builder builder = new OMEPyramidWriter.Builder(server)
-				.region(region);
+		OMEPyramidWriter.Builder builder = new OMEPyramidWriter.Builder(server);
+		if (region != null)
+			builder = builder.region(region);
 		
 		// Set tile size; if we just have one tile, use the image width & height
 		if (server.getTileRequestManager().getAllTileRequests().size() == 1)
-			builder = builder.tileSize(region.getWidth(), region.getHeight());
+			builder = builder.tileSize(width, height);
 		else if (getDefaultTileSize() > 0)
 			builder = builder.tileSize(getDefaultTileSize());
 		else {
@@ -183,7 +188,7 @@ public class OMEPyramidWriterCommand implements PathCommand {
 		}
 
 		// Decide whether to write pyramid or not based on image size
-		if (Math.max(region.getWidth(), region.getHeight()) > getMinSizeForTiling())
+		if (Math.max(width, height) > getMinSizeForTiling())
 			builder = builder.scaledDownsampling(4.0);
 		else
 			builder = builder.downsamples(1.0);
@@ -202,6 +207,9 @@ public class OMEPyramidWriterCommand implements PathCommand {
 		
 		if (parallelizeTiling.get())
 			builder = builder.parallelize();
+		
+		if (region == null)
+			builder = builder.allZSlices().allTimePoints();
 		
 		OMEPyramidSeries writer = builder.build();
 		

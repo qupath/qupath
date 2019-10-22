@@ -67,12 +67,13 @@ public class RegionRequest extends ImageRegion {
 	}
 	
 	/**
-	 * Create a request for the full width and height of an {@link ImageServer}, for the default plane (first z-slice, time point) and downsample of 1.
+	 * Create a request for the full width and height of an {@link ImageServer}, for the default plane (first z-slice, time point) 
+	 * and first resolution level downsample (usually 1, but not always).
 	 * @param server
 	 * @return
 	 */
 	public static RegionRequest createInstance(ImageServer<?> server) {
-		return createInstance(server, 1.0);
+		return createInstance(server, server.getDownsampleForResolution(0));
 	}
 	
 	/**

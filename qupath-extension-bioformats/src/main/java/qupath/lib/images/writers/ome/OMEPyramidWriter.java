@@ -11,6 +11,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -110,7 +111,8 @@ public class OMEPyramidWriter {
 		File file = new File(path);
 		if (file.exists() && !keepExisting) {
 			logger.warn("Deleting existing file {}", path);
-			file.delete();
+			if (!file.delete())
+				throw new IOException("Unable to delete " + file.getAbsolutePath());
 		}
 				
 		try (PyramidOMETiffWriter writer = new PyramidOMETiffWriter()) {
@@ -398,7 +400,8 @@ public class OMEPyramidWriter {
 
 						// Show progress at key moments
 						int inc = total > 1000 ? 20 : 10;
-						Set<Integer> keyCounts = IntStream.range(1, inc).mapToObj(i -> (int)Math.round((double)total / inc * i)).collect(Collectors.toSet());
+						Set<Integer> keyCounts = IntStream.range(1, inc).mapToObj(i -> (int)Math.round((double)total / inc * i)).collect(Collectors.toCollection(() -> new HashSet<>()));
+						keyCounts.add(total);
 						
 						// Loop through effective channels (which is 1 if we are writing interleaved)
 						for (int ci = 0; ci < effectiveSizeC; ci++) {
@@ -1126,7 +1129,12 @@ public class OMEPyramidWriter {
 	 * @throws IOException
 	 */
 	public static void writePyramid(ImageServer<BufferedImage> server, String path, String compression) throws FormatException, IOException {
-		new Builder(server).compression(compression).build().writePyramid(path);
+		new Builder(server)
+			.compression(compression)
+			.allZSlices()
+			.allTimePoints()
+			.build()
+			.writePyramid(path);
 	}
 	
 	/**
@@ -1142,10 +1150,13 @@ public class OMEPyramidWriter {
 	 * @throws IOException
 	 */
 	public static void writePyramid(ImageServer<BufferedImage> server, String path, String compression, ImageRegion region) throws FormatException, IOException {
-		var builder = new Builder(server).compression(compression);
-		if (region != null) {
-			builder = builder.region(region);			
+		if (region == null) {
+			writePyramid(server, path, compression);
+			return;
 		}
+		var builder = new Builder(server)
+				.compression(compression)
+				.region(region);			
 		if (region instanceof RegionRequest) {
 			double downsample = ((RegionRequest)region).getDownsample();
 			if (downsample != server.getDownsampleForResolution(0))
