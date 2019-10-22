@@ -219,6 +219,8 @@ public class RichScriptEditor extends DefaultScriptEditor {
 			CodeArea codeArea = new CodeArea();
 			codeArea.setParagraphGraphicFactory(LineNumberFactory.get(codeArea));
 			
+			codeArea.setStyle("-fx-background-color: -fx-control-inner-background;");
+			
 			var cleanup = codeArea
 					.multiPlainChanges()
 					.successionEnds(Duration.ofMillis(delayMillis))
@@ -351,6 +353,7 @@ public class RichScriptEditor extends DefaultScriptEditor {
 	protected ScriptEditorControl getNewConsole() {
 		try {
 			CodeArea codeArea = new CodeArea();
+			codeArea.setStyle("-fx-background-color: -fx-control-inner-background;");
 			
 //			var cleanup = codeArea
 //					.multiPlainChanges()

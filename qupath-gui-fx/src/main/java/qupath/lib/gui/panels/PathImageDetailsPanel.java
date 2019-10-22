@@ -173,14 +173,16 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 							tooltipText = "Double-click to set stain color (either type values or use a small rectangle ROI in the image)";
 						} else {
 							var type = model.getRowType(getIndex());
-							if (type.equals(ROW_TYPE.PIXEL_WIDTH) || type.equals(ROW_TYPE.PIXEL_HEIGHT)) {
-								if ("Unknown".equals(item))
-									style = "-fx-text-fill: red;";
-								tooltipText = "Double-click to set pixel calibration (can use a selected line or area ROI in the image)";
-							} else if (type.equals(ROW_TYPE.METADATA_CHANGED))
-								tooltipText = "Double-click to reset original metadata";
-							else if (type.equals(ROW_TYPE.UNCOMPRESSED_SIZE))
-								tooltipText = "Approximate memory required to store all pixels in the image uncompressed";
+							if (type != null) {
+								if (type.equals(ROW_TYPE.PIXEL_WIDTH) || type.equals(ROW_TYPE.PIXEL_HEIGHT)) {
+									if ("Unknown".equals(item))
+										style = "-fx-text-fill: red;";
+									tooltipText = "Double-click to set pixel calibration (can use a selected line or area ROI in the image)";
+								} else if (type.equals(ROW_TYPE.METADATA_CHANGED))
+									tooltipText = "Double-click to reset original metadata";
+								else if (type.equals(ROW_TYPE.UNCOMPRESSED_SIZE))
+									tooltipText = "Approximate memory required to store all pixels in the image uncompressed";
+							}
 						}
 						
 						//			             if (item instanceof ImageType) {
