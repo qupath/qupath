@@ -244,8 +244,8 @@ public class DialogHelperFX implements DialogHelper {
 			fileChooser.setTitle(title);
 		else
 			fileChooser.setTitle("Save");
-		// Multipart extensions can be troublesome... don't set a filter for these
-		if (filterName != null && ext != null) {
+		// Multipart extensions can be troublesome... don't set a filter for these unless on Windows (which seems to cope)
+		if (filterName != null && ext != null && (GeneralTools.isWindows() || !GeneralTools.isMultipartExtension(ext))) {
 			ExtensionFilter filter = getExtensionFilter(filterName, ext);
 			fileChooser.getExtensionFilters().setAll(filter);
 			fileChooser.setSelectedExtensionFilter(filter);

@@ -315,10 +315,10 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 		int n = featurePanel == null ? 0 : featurePanel.getSelectedFeatures().size();
 		if (n == 0) {
 			labelSelectedFeatures.setText("No features selected!");
-			labelSelectedFeatures.setTextFill(Color.RED);
+			labelSelectedFeatures.setStyle("-fx-text-fill: red;");
 		} else {
 			labelSelectedFeatures.setText("Number of selected features: " + n);			
-			labelSelectedFeatures.setTextFill(Color.BLACK);
+			labelSelectedFeatures.setStyle(null);
 		}
 	}
 

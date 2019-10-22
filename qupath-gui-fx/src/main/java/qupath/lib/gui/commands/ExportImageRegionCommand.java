@@ -160,7 +160,7 @@ public class ExportImageRegionCommand implements PathCommand {
 		pane.add(labelSize, 0, row++, 2, 1);
 		labelSize.textProperty().bind(Bindings.createStringBinding(() -> {
 			if (!Double.isFinite(downsample.get())) {
-				labelSize.setTextFill(Color.RED);
+				labelSize.setStyle("-fx-text-fill: red;");
 				return "Invalid downsample value!  Must be >= 1";
 			}
 			else {
@@ -170,13 +170,13 @@ public class ExportImageRegionCommand implements PathCommand {
 				var writer = comboImageType.getSelectionModel().getSelectedItem();
 				boolean supportsPyramid = writer == null ? false : writer.supportsPyramidal();
 				if (!supportsPyramid && w * h > maxPixels) {
-					labelSize.setTextFill(Color.RED);
+					labelSize.setStyle("-fx-text-fill: red;");
 					warning = " (too big!)";
 				} else if (w < 5 || h < 5) {
-					labelSize.setTextFill(Color.RED);
+					labelSize.setStyle("-fx-text-fill: red;");
 					warning = " (too small!)";					
 				} else
-					labelSize.setTextFill(Color.BLACK);
+					labelSize.setStyle(null);
 				return String.format("Output image size: %d x %d pixels%s",
 						w, h, warning
 						);

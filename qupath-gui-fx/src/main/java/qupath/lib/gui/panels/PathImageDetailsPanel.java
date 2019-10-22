@@ -161,20 +161,21 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 							return;
 						}
 						//			             ComboBoxTableCell<TableEntry, Object>
-						Color textColor = Color.BLACK;
+						String style = null;
 						String text = item == null ? "" : item.toString();
 						String tooltipText = text;
 						if (item instanceof double[]) {
 							text = GeneralTools.arrayToString(Locale.getDefault(Category.FORMAT), (double[])item, 2);
 						} else if (item instanceof StainVector) {
 							StainVector stain = (StainVector)item;
-							textColor = getColorFX(stain.getColor());
+							Integer color = stain.getColor();
+							style = String.format("-fx-text-fill: rgb(%d, %d, %d);", ColorTools.red(color), ColorTools.green(color), ColorTools.blue(color));
 							tooltipText = "Double-click to set stain color (either type values or use a small rectangle ROI in the image)";
 						} else {
 							var type = model.getRowType(getIndex());
 							if (type.equals(ROW_TYPE.PIXEL_WIDTH) || type.equals(ROW_TYPE.PIXEL_HEIGHT)) {
 								if ("Unknown".equals(item))
-									textColor = Color.RED;
+									style = "-fx-text-fill: red;";
 								tooltipText = "Double-click to set pixel calibration (can use a selected line or area ROI in the image)";
 							} else if (type.equals(ROW_TYPE.METADATA_CHANGED))
 								tooltipText = "Double-click to reset original metadata";
@@ -188,7 +189,7 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 						//			            	 combo.getSelectionModel().select((ImageType)item);
 						//			            	 getChildren().add(combo);
 						//			             } else
-						setTextFill(textColor);
+						setStyle(style);
 						setText(text);
 						setTooltip(new Tooltip(tooltipText));
 					}
