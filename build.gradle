@@ -26,7 +26,7 @@ def additionalResourcesDir = "build/${qupathOutputDir}"
 /*
  * JavaFX version
  */
-def jfxVersion = '13'
+def jfxVersion = '13.0.1'
 
 /*
  * OpenCV version

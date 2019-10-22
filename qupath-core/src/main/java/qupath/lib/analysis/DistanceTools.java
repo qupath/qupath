@@ -112,7 +112,6 @@ public class DistanceTools {
 							lineGeometries.add(geom);
 						else if (geom instanceof Polygonal)
 							areaGeometries.add(geom);
-						System.err.println(geom);
 					}
 				}
 		

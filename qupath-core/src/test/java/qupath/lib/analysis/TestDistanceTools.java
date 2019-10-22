@@ -68,7 +68,7 @@ public class TestDistanceTools {
 				Arrays.asList(detection), Arrays.asList(tumorAnnotationT2), 1.0, 1.0, "Distance 4");
 		
 		double expectedDistance = Math.sqrt(2 * 50.0 * 50.0) - 50.0;
-		assertEquals(expectedDistance, detection.getMeasurementList().getMeasurementValue("Distance 1"), 0.01);
+		assertEquals(expectedDistance, detection.getMeasurementList().getMeasurementValue("Distance 1"), 0.05);
 		assertEquals(detection.getMeasurementList().getMeasurementValue("Distance 1") * 2.0, detection.getMeasurementList().getMeasurementValue("Distance 2"), 0.01);
 		assertTrue(Double.isNaN(detection.getMeasurementList().getMeasurementValue("Distance 3")));
 		assertTrue(Double.isNaN(detection.getMeasurementList().getMeasurementValue("Distance 4")));

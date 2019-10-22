@@ -9,6 +9,7 @@ Changes include:
   * Ability to save & reload classifiers (format may change!)
   * New 'Create threshold classifier' command (replaces old simple threshold command)
 * Scripting Improvements
+  * Changed syntax highlighting - for better behavior with the 'Dark' theme (available in the preferences)
   * Core classes can now be auto-imported (use Ctrl-Shift to cycle through code-completions)
   * More helpful error messages for common errors
   * New setPixelSizeMicrons(double, double) scripting method
@@ -27,6 +28,7 @@ Changes include:
 * Revised how images are written
   * Moved 'ImageWriterTools' to core module, updated 'ImageWriter' interface
   * Changed 'File -> Export regions...' commands to separate between raw pixels & rendered RGB images
+  * Export multidimensional images as OME-TIFF (when no region is selected)
 * Improved image type support
   * Show under the 'Image' tab
   * Include support for uint8, uint16, int16, int32, float32 and float64 types
