@@ -16,6 +16,7 @@ import org.locationtech.jts.awt.ShapeReader;
 import org.locationtech.jts.awt.ShapeWriter;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateList;
+import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.MultiPoint;
@@ -27,7 +28,7 @@ import org.locationtech.jts.operation.overlay.snap.GeometrySnapper;
 import org.locationtech.jts.operation.union.UnaryUnionOp;
 import org.locationtech.jts.operation.valid.IsValidOp;
 import org.locationtech.jts.operation.valid.TopologyValidationError;
-import org.locationtech.jts.simplify.VWSimplifier;
+import org.locationtech.jts.util.GeometricShapeFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -110,7 +111,7 @@ public class GeometryTools {
         private GeometryFactory factory;
 
         private double pixelHeight, pixelWidth;
-        private double flatness = 0.5;
+        private double flatness = 0.1;
 
         private AffineTransform transform = null;
         private Transformer transformer;
@@ -163,6 +164,17 @@ public class GeometryTools {
 	    private Geometry areaToGeometry(ROI roi) {
 	    	if (roi.isEmpty())
 	    		return factory.createPolygon();
+	    	if (roi instanceof EllipseROI) {
+	    		var shapeFactory = new GeometricShapeFactory(factory);
+	    		shapeFactory.setEnvelope(
+	    				new Envelope(
+	    						roi.getBoundsX() * pixelWidth,
+	    						(roi.getBoundsX()+roi.getBoundsWidth()) * pixelWidth,
+	    						roi.getBoundsY() * pixelHeight,
+	    						(roi.getBoundsY()+roi.getBoundsHeight()) * pixelHeight)
+	    				);
+	    		return shapeFactory.createEllipse();
+	    	}
 	    	Area shape = RoiTools.getArea(roi);
 	    	return areaToGeometry(shape);
 	    }

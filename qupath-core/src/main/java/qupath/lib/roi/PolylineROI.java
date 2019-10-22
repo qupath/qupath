@@ -68,7 +68,7 @@ public class PolylineROI extends AbstractPathROI implements Serializable {
 		vertices = VerticesFactory.createVertices(x, y, false);
 	}
 	
-	private PolylineROI(final float[] x, final float[] y, ImagePlane plane) {
+	PolylineROI(final float[] x, final float[] y, ImagePlane plane) {
 		this(x, y, plane, true);
 	}
 	
@@ -181,8 +181,8 @@ public class PolylineROI extends AbstractPathROI implements Serializable {
 				return;
 			}
 			this.length = 0;
-			double x = vertices.getX(0) * pixelWidth;
-			double y = vertices.getY(0) * pixelHeight;
+			double x = vertices.getX(0);
+			double y = vertices.getY(0);
 
 			double xMin = x;
 			double xMax = x;
@@ -193,11 +193,11 @@ public class PolylineROI extends AbstractPathROI implements Serializable {
 			double sumCenterY = 0;
 			
 			for (int i = 1; i < vertices.size(); i++) {
-				double x2 = vertices.getX(i) * pixelWidth;
-				double y2 = vertices.getY(i) * pixelHeight;
+				double x2 = vertices.getX(i);
+				double y2 = vertices.getY(i);
 				double dx = (x2 - x) * pixelWidth;
 				double dy = (y2 - y) * pixelHeight;
-				double segLength = Math.sqrt(dx*dx + dy*dy);;
+				double segLength = Math.sqrt(dx*dx + dy*dy);
 				this.length += segLength;
 				
 				double xCenter = (x + x2) / 2.0;
