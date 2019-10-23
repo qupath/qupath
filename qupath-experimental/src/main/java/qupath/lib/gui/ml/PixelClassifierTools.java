@@ -37,6 +37,7 @@ import java.awt.image.WritableRaster;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -326,106 +327,122 @@ public class PixelClassifierTools {
 			Function<ROI, ? extends PathObject> creator, double minSizePixels, double minHoleSizePixels, boolean doSplit) {
 		
 		var clipArea = selectedObject == null ? null : selectedObject.getROI().getGeometry();
-		Collection<TileRequest> tiles;
-		if (selectedObject == null) {
-			tiles = server.getTileRequestManager().getAllTileRequests();
-		} else {
+		
+		List<RegionRequest> regionRequests;
+		if (selectedObject != null) {
 			var request = RegionRequest.createInstance(
 					server.getPath(), server.getDownsampleForResolution(0), 
 					selectedObject.getROI());			
-			tiles = server.getTileRequestManager().getTileRequests(request);
+			regionRequests = Collections.singletonList(request);
+		} else {
+			regionRequests = new ArrayList<>();
+			for (int t = 0; t < server.nTimepoints(); t++) {
+				for (int z = 0; z < server.nZSlices(); z++) {
+					var request = RegionRequest.createInstance(
+							server.getPath(), server.getDownsampleForResolution(0), 
+							0, 0, server.getWidth(), server.getHeight(), z, t);
+					regionRequests.add(request);
+				}
+			}
 		}
-	
-		Map<PathClass, List<PathObject>> pathObjectMap = tiles.parallelStream().map(t -> {
-			var list = new ArrayList<PathObject>();
-			try {
-				var img = server.readBufferedImage(t.getRegionRequest());
-				var nChannels = server.nChannels();
-				// Get raster containing classifications and integer values, by taking the argmax
-				var raster = img.getRaster();
-				if (server.getMetadata().getChannelType() != ImageServerMetadata.ChannelType.CLASSIFICATION) {
-					int h = raster.getHeight();
-					int w = raster.getWidth();
-					byte[] output = new byte[w * h];
-					for (int y = 0; y < h; y++) {
-						for (int x = 0; x < w; x++) {
-							int maxInd = 0;
-							float maxVal = raster.getSampleFloat(x, y, 0);
-							for (int c = 1; c < nChannels; c++) {
-								float val = raster.getSampleFloat(x, y, c);						
-								if (val > maxVal) {
-									maxInd = c;
-									maxVal = val;
+		
+		// Create output array
+		var pathObjects = new ArrayList<PathObject>();
+
+		// Loop through region requests (usually 1, unless we have a z-stack or time series)
+		for (RegionRequest regionRequest : regionRequests) {
+			Collection<TileRequest> tiles = server.getTileRequestManager().getTileRequests(regionRequest);
+			
+			Map<PathClass, List<PathObject>> pathObjectMap = tiles.parallelStream().map(t -> {
+				var list = new ArrayList<PathObject>();
+				try {
+					var img = server.readBufferedImage(t.getRegionRequest());
+					var nChannels = server.nChannels();
+					// Get raster containing classifications and integer values, by taking the argmax
+					var raster = img.getRaster();
+					if (server.getMetadata().getChannelType() != ImageServerMetadata.ChannelType.CLASSIFICATION) {
+						int h = raster.getHeight();
+						int w = raster.getWidth();
+						byte[] output = new byte[w * h];
+						for (int y = 0; y < h; y++) {
+							for (int x = 0; x < w; x++) {
+								int maxInd = 0;
+								float maxVal = raster.getSampleFloat(x, y, 0);
+								for (int c = 1; c < nChannels; c++) {
+									float val = raster.getSampleFloat(x, y, c);						
+									if (val > maxVal) {
+										maxInd = c;
+										maxVal = val;
+									}
+									output[y*w+x] = (byte)maxInd;
 								}
-								output[y*w+x] = (byte)maxInd;
 							}
 						}
+						raster = WritableRaster.createPackedRaster(
+								new DataBufferByte(output, w*h), w, h, 8, null);
 					}
-					raster = WritableRaster.createPackedRaster(
-							new DataBufferByte(output, w*h), w, h, 8, null);
-				}
-				for (int c = 0; c < nChannels; c++) {
-					ImageChannel channel = server.getChannel(c);
-					if (channel == null || channel.getName() == null)
-						continue;
-					var pathClass = PathClassFactory.getPathClass(channel.getName());
-					if (pathClass == null || PathClassTools.isGradedIntensityClass(pathClass) || PathClassTools.isIgnoredClass(pathClass))
-						continue;
-					ROI roi = thresholdToROI(raster, c-0.5, c+0.5, 0, t);
-										
-					if (roi != null && clipArea != null) {
-						var roiArea = roi.getGeometry().intersection(clipArea);
-//						RoiTools.combineAreas(roiArea, clipArea, CombineOp.INTERSECT);
-						if (roiArea.isEmpty())
-							roi = null;
-						else
-							roi = GeometryTools.geometryToROI(roiArea, roi.getImagePlane());
+					for (int c = 0; c < nChannels; c++) {
+						ImageChannel channel = server.getChannel(c);
+						if (channel == null || channel.getName() == null)
+							continue;
+						var pathClass = PathClassFactory.getPathClass(channel.getName());
+						if (pathClass == null || PathClassTools.isGradedIntensityClass(pathClass) || PathClassTools.isIgnoredClass(pathClass))
+							continue;
+						ROI roi = thresholdToROI(raster, c-0.5, c+0.5, 0, t);
+											
+						if (roi != null && clipArea != null) {
+							var roiArea = roi.getGeometry().intersection(clipArea);
+	//						RoiTools.combineAreas(roiArea, clipArea, CombineOp.INTERSECT);
+							if (roiArea.isEmpty())
+								roi = null;
+							else
+								roi = GeometryTools.geometryToROI(roiArea, roi.getImagePlane());
+						}
+						
+						if (roi != null)
+							list.add(PathObjects.createDetectionObject(roi, pathClass));
 					}
-					
-					if (roi != null)
-						list.add(PathObjects.createDetectionObject(roi, pathClass));
+				} catch (Exception e) {
+					logger.error("Error requesting classified tile", e);
 				}
-			} catch (Exception e) {
-				logger.error("Error requesting classified tile", e);
-			}
-			return list;
-		}).flatMap(p -> p.stream()).collect(Collectors.groupingBy(p -> p.getPathClass(), Collectors.toList()));
-	
-		// Merge objects with the same classification
-		var pathObjects = new ArrayList<PathObject>();
-		for (var entry : pathObjectMap.entrySet()) {
-			var pathClass = entry.getKey();
-			var list = entry.getValue();
-			Path2D path = new Path2D.Double();
-			for (var pathObject : list) {
-				var shape = RoiTools.getShape(pathObject.getROI());
-				path.append(shape, false);
-			}
-	
-			var plane = ImagePlane.getDefaultPlane();
-			var roi = RoiTools.getShapeROI(path, plane, 0.5);
-			
-			// Apply size threshold
-			if (roi != null && minSizePixels > 0) {
-				if (roi.getArea() < minSizePixels)
+				return list;
+			}).flatMap(p -> p.stream()).collect(Collectors.groupingBy(p -> p.getPathClass(), Collectors.toList()));
+		
+			// Merge objects with the same classification
+			for (var entry : pathObjectMap.entrySet()) {
+				var pathClass = entry.getKey();
+				var list = entry.getValue();
+				Path2D path = new Path2D.Double();
+				for (var pathObject : list) {
+					var shape = RoiTools.getShape(pathObject.getROI());
+					path.append(shape, false);
+				}
+		
+				var plane = regionRequest.getPlane();
+				var roi = RoiTools.getShapeROI(path, plane, 0.1);
+				
+				// Apply size threshold
+				if (roi != null && minSizePixels > 0) {
+					if (roi.getArea() < minSizePixels)
+						continue;
+					else
+						roi = RoiTools.removeSmallPieces(roi, minSizePixels, minHoleSizePixels);
+				}
+				if (roi == null)
 					continue;
-				else
-					roi = RoiTools.removeSmallPieces(roi, minSizePixels, minHoleSizePixels);
-			}
-			if (roi == null)
-				continue;
-			
-			if (doSplit) {
-				var rois = RoiTools.splitROI(roi);
-				for (var r : rois) {
-					var annotation = creator.apply(r);
+				
+				if (doSplit) {
+					var rois = RoiTools.splitROI(roi);
+					for (var r : rois) {
+						var annotation = creator.apply(r);
+						annotation.setPathClass(pathClass);
+						pathObjects.add(annotation);
+					}
+				} else {
+					var annotation = creator.apply(roi);
 					annotation.setPathClass(pathClass);
-					pathObjects.add(annotation);
+					pathObjects.add(annotation);				
 				}
-			} else {
-				var annotation = creator.apply(roi);
-				annotation.setPathClass(pathClass);
-				pathObjects.add(annotation);				
 			}
 		}
 	
