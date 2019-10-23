@@ -88,9 +88,7 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 			else
 				colorModel = ColorModelFactory.createColorModel(
 						getPixelType(),
-						nChannels(),
-						false,
-						getMetadata().getChannels().stream().mapToInt(c -> c.getColor()).toArray());
+						getMetadata().getChannels());
 		}
 		return colorModel;
 	}

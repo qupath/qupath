@@ -9,6 +9,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import qupath.lib.common.ColorTools;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.PixelType;
 
@@ -33,6 +34,7 @@ public final class ColorModelFactory {
 	/**
 	 * Get a ColorModel suitable for showing output pixel classifications, using an 8-bit 
 	 * labeled image.
+     * A cached model may be retrieved if possible, rather than generating a new one.
 	 * 
 	 * @param channels
 	 * @return
@@ -54,11 +56,12 @@ public final class ColorModelFactory {
      * Get a ColorModel suitable for showing 8-bit pseudo-probabilities for multiple channels.
      * <p>
      * The range of values is assumed to be 0-255, treated as probabilities rescaled from 0-1.
+     * A cached model will be retrieved where possible, rather than generating a new one.
      * 
      * @param channels
      * @return
      */
-    public static ColorModel geProbabilityColorModel8Bit(List<ImageChannel> channels) {
+    public static ColorModel getProbabilityColorModel8Bit(List<ImageChannel> channels) {
     	var map = probabilityModels8.get(channels);
     	if (map == null) {
             int[] colors = channels.stream().mapToInt(c -> c.getColor()).toArray();
@@ -73,11 +76,12 @@ public final class ColorModelFactory {
      * Get a ColorModel suitable for showing 32-bit (pseudo-)probabilities for multiple channels.
      * <p>
      * The range of values is assumed to be 0-1.
+     * A cached model will be retrieved where possible, rather than generating a new one.
      * 
      * @param channels
      * @return
      */
-    public static ColorModel geProbabilityColorModel32Bit(List<ImageChannel> channels) {
+    public static ColorModel getProbabilityColorModel32Bit(List<ImageChannel> channels) {
     	var map = probabilityModels32.get(channels);
     	if (map == null) {
             int[] colors = channels.stream().mapToInt(c -> c.getColor()).toArray();
@@ -92,6 +96,7 @@ public final class ColorModelFactory {
 	 * <p>
 	 * This isn't very highly recommended; it is here to help in cases where a {@code BufferedImage} 
 	 * is required, but really only a raster is needed.
+	 * The actual color used is undefined (but it will likely be black).
 	 * 
 	 * @param bpp
 	 * @return
@@ -101,7 +106,7 @@ public final class ColorModelFactory {
 	}
 
 	/**
-	 * Create a ColorModel that can be used to display an image where pixels per channel reflect 
+	 * Create a new ColorModel that can be used to display an image where pixels per channel reflect 
 	 * probabilities, either as float or byte.
 	 * <p>
 	 * It is assumed that the probabilities sum to 1; if they sum to less than 1, <code>alphaResidual</code> 
@@ -117,6 +122,24 @@ public final class ColorModelFactory {
 	 */
 	public static ColorModel createColorModel(final PixelType type, final int nChannels, final boolean alphaResidual, final int...colors) {
 		return new DefaultColorModel(type, nChannels, alphaResidual, colors);
+	}
+	
+	/**
+	 * Create a ColorModel for displaying an image with the specified channel colors.
+	 * Note that this currently does not provide any means to change the display range (e.g. for brightness/contrast)
+	 * and therefore may not be sufficient on its own for generating a satisfactory (A)RGB image.
+	 * 
+	 * @param type
+	 * @param channels
+	 * @return
+	 */
+	public static ColorModel createColorModel(final PixelType type, final List<ImageChannel> channels) {
+		return new DefaultColorModel(type, channels.size(), false, channels.stream().mapToInt(c -> {
+			Integer color = c.getColor();
+			if (color == null)
+				color = ColorTools.makeRGB(255, 255, 255);
+			return color;
+		}).toArray());
 	}
     
 

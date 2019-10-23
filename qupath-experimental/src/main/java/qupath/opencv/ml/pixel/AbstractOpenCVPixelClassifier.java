@@ -54,9 +54,9 @@ abstract class AbstractOpenCVPixelClassifier implements PixelClassifier {
     protected synchronized ColorModel getProbabilityColorModel() {
     	if (colorModelProbabilities == null) {
     		if (do8Bit())
-    			colorModelProbabilities = ColorModelFactory.geProbabilityColorModel8Bit(metadata.getOutputChannels());
+    			colorModelProbabilities = ColorModelFactory.getProbabilityColorModel8Bit(metadata.getOutputChannels());
     		else
-    			colorModelProbabilities = ColorModelFactory.geProbabilityColorModel32Bit(metadata.getOutputChannels());
+    			colorModelProbabilities = ColorModelFactory.getProbabilityColorModel32Bit(metadata.getOutputChannels());
     	}
     	return colorModelProbabilities;
     }

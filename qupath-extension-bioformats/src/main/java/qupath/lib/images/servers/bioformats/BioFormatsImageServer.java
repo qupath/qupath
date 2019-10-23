@@ -563,7 +563,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 					isRGB = true;
 					colorModel = ColorModel.getRGBdefault();
 				} else {
-					colorModel = ColorModelFactory.createColorModel(pixelType, nChannels, false, channels.stream().mapToInt(c -> c.getColor()).toArray());
+					colorModel = ColorModelFactory.createColorModel(pixelType, channels);
 				}
 			}
 
