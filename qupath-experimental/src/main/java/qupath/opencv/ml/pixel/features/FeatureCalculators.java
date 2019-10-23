@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,7 +44,8 @@ public class FeatureCalculators {
 		private final static RuntimeTypeAdapterFactory<FeatureCalculator> featureCalculatorTypeAdapter = 
 				RuntimeTypeAdapterFactory.of(FeatureCalculator.class, typeName)
 					.registerSubtype(ExtractNeighborsFeatureCalculator.class)
-					.registerSubtype(MultiscaleFeatureCalculator.class);
+					.registerSubtype(MultiscaleFeatureCalculator.class)
+					.registerSubtype(ColorTransformFeatureCalculator.class);
 		
 		private static void registerSubtype(Class<? extends FeatureCalculator> cls) {
 			featureCalculatorTypeAdapter.registerSubtype(cls);
@@ -63,12 +65,25 @@ public class FeatureCalculators {
 	}
 	
 	
+	public static FeatureCalculator<BufferedImage> createColorTransformFeatureCalculator(ColorTransform... transforms) {
+		return new ColorTransformFeatureCalculator(transforms);
+	}
+	
 	public static FeatureCalculator<BufferedImage> createPatchFeatureCalculator(int size, String...inputChannels) {
 		return new ExtractNeighborsFeatureCalculator(size, Arrays.stream(inputChannels).map(c -> ColorTransforms.createChannelExtractor(c)).toArray(ColorTransform[]::new));
 	}
+
 	
+	public static FeatureCalculator<BufferedImage> createMultiscaleFeatureCalculator(
+			String[] channels,
+			double[] sigmaValues, double localNormalizeSigma, boolean do3D, MultiscaleFeature... features) {
+		return createMultiscaleFeatureCalculator(
+				Arrays.stream(channels).map(c -> ColorTransforms.createChannelExtractor(c)).collect(Collectors.toList()),
+				sigmaValues, localNormalizeSigma, do3D, features);
+	}
 	
-	public static FeatureCalculator<BufferedImage> createMultiscaleFeatureCalculator(String[] channels, double[] sigmaValues, double localNormalizeSigma, boolean do3D, MultiscaleFeature... features) {
+	public static FeatureCalculator<BufferedImage> createMultiscaleFeatureCalculator(
+			Collection<ColorTransform> transforms, double[] sigmaValues, double localNormalizeSigma, boolean do3D, MultiscaleFeature... features) {
 		List<SmoothingScale> scales = new ArrayList<>();
 		ScaleType scaleType = do3D ? ScaleType.SCALE_3D_ISOTROPIC : ScaleType.SCALE_2D;
 		for (double sigma : sigmaValues) {
@@ -76,8 +91,7 @@ public class FeatureCalculators {
 		}
 		
 		List<TransformedFeatureComputer> computers = new ArrayList<>();
-		for (String c : channels) {
-			var transform = ColorTransforms.createChannelExtractor(c);
+		for (var transform : transforms) {
 			var builder = new TransformedFeatureComputer.Builder(transform);
 			for (var scale : scales) {
 				builder.addFeatures(scale, features);

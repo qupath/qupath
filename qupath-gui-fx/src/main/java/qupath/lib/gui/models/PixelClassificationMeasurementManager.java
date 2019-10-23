@@ -12,7 +12,9 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.WeakHashMap;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,6 +29,9 @@ import qupath.lib.measurements.MeasurementList;
 import qupath.lib.measurements.MeasurementList.MeasurementListType;
 import qupath.lib.measurements.MeasurementListFactory;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.classes.PathClass;
+import qupath.lib.objects.classes.PathClassFactory;
+import qupath.lib.objects.classes.PathClassTools;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.RoiTools;
@@ -314,10 +319,13 @@ public class PixelClassificationMeasurementManager {
     	
     	MeasurementList measurementList = MeasurementListFactory.createMeasurementList(nMeasurements, MeasurementListType.DOUBLE);
     	
+    	List<PathClass> pathClasses = channels.stream().map(c -> PathClassFactory.getPathClass(c.getName(), c.getColor())).collect(Collectors.toList());
+    	Set<PathClass> ignored = pathClasses.stream().filter(p -> PathClassTools.isIgnoredClass(p)).collect(Collectors.toSet());
+    	
     	long totalWithoutIgnored = 0L;
     	if (counts != null) {
     		for (int c = 0; c < channels.size(); c++) {
-    			if (channels.get(c).isTransparent())
+    			if (ignored.contains(pathClasses.get(c)))
         			continue;
     			totalWithoutIgnored += counts[c];
     		}
@@ -325,7 +333,7 @@ public class PixelClassificationMeasurementManager {
     	
     	for (int c = 0; c < channels.size(); c++) {
     		// Skip background channels
-    		if (channels.get(c).isTransparent())
+    		if (ignored.contains(pathClasses.get(c)))
     			continue;
     		
     		String namePercentage = "Classifier: " + channels.get(c).getName() + " %";

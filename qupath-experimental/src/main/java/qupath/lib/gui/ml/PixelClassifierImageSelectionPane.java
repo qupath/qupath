@@ -1121,7 +1121,7 @@ public class PixelClassifierImageSelectionPane {
 	}
 	
 	
-	private static String promptToSaveClassifier(Project<BufferedImage> project, PixelClassifier classifier) throws IOException {
+	public static String promptToSaveClassifier(Project<BufferedImage> project, PixelClassifier classifier) throws IOException {
 		
 		String name = getDefaultClassifierName(project, classifier);
 		
@@ -1286,12 +1286,13 @@ public class PixelClassifierImageSelectionPane {
 		
 		var params = new ParameterList()
 				.addChoiceParameter("objectType", "Object type", "Annotation", objectTypes)
-				.addDoubleParameter("minSize", "Minimum object/hole size", 0)
-				.addChoiceParameter("minSizeUnits", "Minimum object/hole size units", "Pixels", sizeUnits)
+				.addDoubleParameter("minSize", "Minimum object size", 0)
+				.addDoubleParameter("minHoleSize", "Minimum hole size", 0)
+				.addChoiceParameter("sizeUnits", "Minimum object/hole size units", "Pixels", sizeUnits)
 				.addBooleanParameter("doSplit", "Split objects", false);
 		
 		PixelCalibration cal = server.getPixelCalibration();
-		params.setHiddenParameters(!cal.hasPixelSizeMicrons(), "minSizeUnits");
+		params.setHiddenParameters(!cal.hasPixelSizeMicrons(), "sizeUnits");
 		
 		if (!DisplayHelpers.showParameterDialog("Create objects", params))
 			return false;
@@ -1307,8 +1308,11 @@ public class PixelClassifierImageSelectionPane {
 			};
 		boolean doSplit = params.getBooleanParameterValue("doSplit");
 		double minSizePixels = params.getDoubleParameterValue("minSize");
-		if (cal.hasPixelSizeMicrons() && !params.getChoiceParameterValue("minSizeUnits").equals("Pixels"))
+		double minHoleSizePixels = params.getDoubleParameterValue("minHoleSize");
+		if (cal.hasPixelSizeMicrons() && !params.getChoiceParameterValue("sizeUnits").equals("Pixels")) {
 			minSizePixels /= (cal.getPixelWidthMicrons() * cal.getPixelHeightMicrons());
+			minHoleSizePixels /= (cal.getPixelWidthMicrons() * cal.getPixelHeightMicrons());
+		}
 		
 		var selected = imageData.getHierarchy().getSelectionModel().getSelectedObject();
 		if (selected != null && selected.isDetection())
@@ -1340,7 +1344,9 @@ public class PixelClassifierImageSelectionPane {
 //		// Need to turn off live prediction so we don't start training on the results...
 //		livePrediction.set(false);
 		
-		return PixelClassifierTools.createObjectsFromPixelClassifier(server, imageData.getHierarchy(), selected, creator, minSizePixels, doSplit);
+		return PixelClassifierTools.createObjectsFromPixelClassifier(
+				server, imageData.getHierarchy(), selected, creator,
+				minSizePixels, minHoleSizePixels, doSplit);
 	}
 	
 	

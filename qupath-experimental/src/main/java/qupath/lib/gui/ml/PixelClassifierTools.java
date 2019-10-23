@@ -267,18 +267,19 @@ public class PixelClassifierTools {
 	     * @param classifier
 	     * @param selectedObject
 	     * @param minSizePixels
+	     * @param minHoleSizePixels
 	     * @param doSplit
 	     * @return
 	     */
     public static boolean createDetectionsFromPixelClassifier(
 			ImageData<BufferedImage> imageData, PixelClassifier classifier, PathObject selectedObject, 
-			double minSizePixels, boolean doSplit) {
+			double minSizePixels, double minHoleSizePixels, boolean doSplit) {
 		return createObjectsFromPixelClassifier(
 				new PixelClassificationImageServer(imageData, classifier),
 				imageData.getHierarchy(),
 				selectedObject,
 				(var roi) -> PathObjects.createDetectionObject(roi),
-				minSizePixels, doSplit);
+				minSizePixels, minHoleSizePixels, doSplit);
 	}
 
     /**
@@ -288,12 +289,13 @@ public class PixelClassifierTools {
      * @param classifier
      * @param selectedObject
      * @param minSizePixels
+     * @param minHoleSizePixels
      * @param doSplit
      * @return
      */
 	public static boolean createAnnotationsFromPixelClassifier(
 			ImageData<BufferedImage> imageData, PixelClassifier classifier, PathObject selectedObject, 
-			double minSizePixels, boolean doSplit) {
+			double minSizePixels, double minHoleSizePixels, boolean doSplit) {
 		
 		return createObjectsFromPixelClassifier(
 				new PixelClassificationImageServer(imageData, classifier),
@@ -304,21 +306,24 @@ public class PixelClassifierTools {
 					annotation.setLocked(true);
 					return annotation;
 				},
-				minSizePixels, doSplit);
+				minSizePixels, minHoleSizePixels, doSplit);
 	}
 
 	/**
 	 * Create objects and add them to an object hierarchy based on thresholding the output of a pixel classifier.
 	 * 
 	 * @param server
+	 * @param hierarchy
 	 * @param selectedObject
 	 * @param creator
+	 * @param minSizePixels
+	 * @param minHoleSizePixels
 	 * @param doSplit
 	 * @return
 	 */
 	public static boolean createObjectsFromPixelClassifier(
 			ImageServer<BufferedImage> server, PathObjectHierarchy hierarchy, PathObject selectedObject, 
-			Function<ROI, ? extends PathObject> creator, double minSizePixels, boolean doSplit) {
+			Function<ROI, ? extends PathObject> creator, double minSizePixels, double minHoleSizePixels, boolean doSplit) {
 		
 		var clipArea = selectedObject == null ? null : selectedObject.getROI().getGeometry();
 		Collection<TileRequest> tiles;
@@ -405,9 +410,10 @@ public class PixelClassifierTools {
 				if (roi.getArea() < minSizePixels)
 					continue;
 				else
-					roi = RoiTools.removeSmallPieces(roi, minSizePixels, minSizePixels);
+					roi = RoiTools.removeSmallPieces(roi, minSizePixels, minHoleSizePixels);
 			}
-	
+			if (roi == null)
+				continue;
 			
 			if (doSplit) {
 				var rois = RoiTools.splitROI(roi);

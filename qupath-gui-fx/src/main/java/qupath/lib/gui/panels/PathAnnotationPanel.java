@@ -138,7 +138,7 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 		
 		listClasses = new ListView<>();
 		listClasses.setItems(qupath.getAvailablePathClasses());
-		listClasses.setTooltip(new Tooltip("Annotation classes available"));
+		listClasses.setTooltip(new Tooltip("Annotation classes available (right-click to add or remove)"));
 		//		listClasses.setCellRenderer(new PathClassListCellRenderer2()); // TODO: Use a good renderer!!!
 		
 		listClasses.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> updateAutoSetPathClassProperty());

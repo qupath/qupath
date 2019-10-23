@@ -1900,7 +1900,60 @@ public class QP {
 	public static boolean setPixelSizeMicrons(Number pixelWidthMicrons, Number pixelHeightMicrons) {
 		return setPixelSizeMicrons(pixelWidthMicrons, pixelHeightMicrons, null);
 	}
-			
+	
+
+	/**
+	 * Apply a new classification to all objects in the current hierarchy with a specified classification.
+	 * @param originalClassName name of the original classification
+	 * @param newClassName name of the new classification
+	 */
+	public static void replaceClassification(String originalClassName, String newClassName) {
+		replaceClassification(getCurrentHierarchy(), getPathClass(originalClassName), getPathClass(newClassName));
+	}
+	
+	/**
+	 * Apply a new classification to all objects in the current hierarchy with a specified original classification.
+	 * @param originalClass the original classification
+	 * @param newClass the new classification
+	 */
+	public static void replaceClassification(PathClass originalClass, PathClass newClass) {
+		replaceClassification(getCurrentHierarchy(), originalClass, newClass);
+	}
+
+	/**
+	 * Apply a new classification to all objects with a specified original classification in the provided hierarchy.
+	 * @param hierarchy the hierarchy containing the objects
+	 * @param originalClass the original classification
+	 * @param newClass the new classification
+	 */
+	public static void replaceClassification(PathObjectHierarchy hierarchy, PathClass originalClass, PathClass newClass) {
+		if (hierarchy == null)
+			return;
+		var pathObjects = hierarchy.getObjects(null, null);
+		if (pathObjects.isEmpty())
+			return;
+		replaceClassification(pathObjects, originalClass, newClass);
+		hierarchy.fireObjectClassificationsChangedEvent(QP.class, pathObjects);
+	}
+	
+	/**
+	 * Apply a new classification to all objects with a specified original classification in an object collection.
+	 * @param pathObjects
+	 * @param originalClass
+	 * @param newClass
+	 */
+	public static void replaceClassification(Collection<PathObject> pathObjects, PathClass originalClass, PathClass newClass) {
+		for (var pathObject : pathObjects) {
+			if (pathObject.getPathClass() == originalClass)
+				pathObject.setPathClass(newClass);
+		}
+	}
+	
+	
+	
+	
+	
+	
 	
 	private static boolean isFinite(Number val) {
 		return val != null && Double.isFinite(val.doubleValue());

@@ -32,7 +32,7 @@ public class PixelClassifierLoadCommand implements PathCommand {
 	
 	private QuPathGUI qupath;
 	
-	private String title = "Load Pixel Model";
+	private String title = "Load Pixel Classifier";
 	
 	/**
 	 * Constructor.
@@ -132,6 +132,8 @@ public class PixelClassifierLoadCommand implements PathCommand {
 		stage.setTitle(title);
 		stage.setScene(new Scene(pane));
 		stage.initOwner(qupath.getStage());
+		stage.sizeToScene();
+		stage.setResizable(false);
 		stage.show();
 		
 		stage.setOnHiding(e -> {

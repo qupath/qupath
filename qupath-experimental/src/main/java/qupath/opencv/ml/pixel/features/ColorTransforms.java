@@ -14,6 +14,12 @@ import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServer;
 
+/**
+ * Color transforms that may be used to extract single-channel images from BufferedImages.
+ * These are JSON-serializable, and therefore can be used with pixel classifiers.
+ * 
+ * @author Pete Bankhead
+ */
 public class ColorTransforms {
 	
 	/**
@@ -64,6 +70,19 @@ public class ColorTransforms {
 				return new ExtractChannel(obj.get("channel").getAsInt());
 			if (obj.has("channelName"))
 				return new ExtractChannelByName(obj.get("channelName").getAsString());
+			if (obj.has("combineType")) {
+				String combine = obj.get("combineType").getAsString();
+				switch (CombineType.valueOf(combine)) {
+				case MAXIMUM:
+					return new MaxChannels();
+				case MEAN:
+					return new AverageChannels();
+				case MINIMUM:
+					return new MinChannels();
+				default:
+					break;
+				}
+			}
 			throw new IOException("Unknown ColorTransform " + obj);
 		}
 		
@@ -87,6 +106,32 @@ public class ColorTransforms {
 	public static ColorTransform createChannelExtractor(String channelName) {
 		return new ExtractChannelByName(channelName);
 	}
+	
+	/**
+	 * Create a ColorTransform that calculates the mean of all channels.
+	 * @return
+	 */
+	public static ColorTransform createMeanChannelTransform() {
+		return new AverageChannels();
+	}
+	
+	/**
+	 * Create a ColorTransform that calculates the maximum of all channels.
+	 * @return
+	 */
+	public static ColorTransform createMaximumChannelTransform() {
+		return new MaxChannels();
+	}
+
+	
+	/**
+	 * Create a ColorTransform that calculates the minimum of all channels.
+	 * @return
+	 */
+	public static ColorTransform createMinimumChannelTransform() {
+		return new MinChannels();
+	}
+
 
 	
 	
@@ -170,6 +215,111 @@ public class ColorTransforms {
 		@Override
 		public boolean supportsImage(ImageData<BufferedImage> imageData) {
 			return getChannelNumber(imageData.getServer()) >= 0;
+		}
+		
+	}
+	
+	
+	static abstract class CombineChannels implements ColorTransform {
+				
+		@Override
+		public float[] extractChannel(ImageData<BufferedImage> imageData, BufferedImage img, float[] pixels) {
+			pixels = ensureArrayLength(img, pixels);
+			int w = img.getWidth();
+			int h = img.getHeight();
+			var raster = img.getRaster();
+			double[] vals = null;
+			for (int y = 0; y < h; y++) {
+				for (int x = 0; x < w; x++) {
+					vals = raster.getPixel(x, y, vals);
+					pixels[y*w+x] = (float)computeValue(vals);
+				}
+			}
+			return pixels;
+		}
+		
+		abstract double computeValue(double[] values);
+
+		@Override
+		public boolean supportsImage(ImageData<BufferedImage> imageData) {
+			return true;
+		}
+		
+		@Override
+		public String toString() {
+			return getName();
+		}
+		
+	}
+	
+	
+	private static enum CombineType {MEAN, MINIMUM, MAXIMUM}
+	
+	
+	static class AverageChannels extends CombineChannels {
+		
+		private CombineType combineType = CombineType.MEAN;
+		
+		@Override
+		public double computeValue(double[] values) {
+			int n = values.length;
+			double mean = 0;
+			for (double v : values)
+				mean += v/n;
+			return mean;
+		}
+
+		@Override
+		public String getName() {
+			return "Average channels";
+		}
+		
+	}
+	
+	static class MaxChannels extends CombineChannels {
+		
+		private CombineType combineType = CombineType.MAXIMUM;
+		
+		@Override
+		public double computeValue(double[] values) {
+			int n = values.length;
+			if (n == 0)
+				return Double.NaN;
+			double max = Double.NEGATIVE_INFINITY;
+			for (double v : values) {
+				if (v > max)
+					max = v;
+			}
+			return max;
+		}
+
+		@Override
+		public String getName() {
+			return "Max channels";
+		}
+		
+	}
+	
+	static class MinChannels extends CombineChannels {
+		
+		private CombineType combineType = CombineType.MINIMUM;
+		
+		@Override
+		public double computeValue(double[] values) {
+			int n = values.length;
+			if (n == 0)
+				return Double.NaN;
+			double min = Double.POSITIVE_INFINITY;
+			for (double v : values) {
+				if (v < min)
+					min = v;
+			}
+			return min;
+		}
+
+		@Override
+		public String getName() {
+			return "Min channels";
 		}
 		
 	}
