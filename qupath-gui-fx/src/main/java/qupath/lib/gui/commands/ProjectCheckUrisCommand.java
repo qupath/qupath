@@ -455,7 +455,7 @@ public class ProjectCheckUrisCommand implements PathCommand {
 				
 				switch (item.getStatus()) {
 				case EXISTS:
-					setStyle("-fx-text-fill: black");
+					setStyle(null);
 					break;
 				case MISSING:
 					setStyle("-fx-text-fill: red");

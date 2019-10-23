@@ -82,6 +82,7 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.helpers.dialogs.ParameterPanelFX;
 import qupath.lib.gui.legacy.swing.ParameterPanel;
+import qupath.lib.gui.prefs.QuPathStyleManager;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
@@ -623,9 +624,14 @@ public class DisplayHelpers {
 	 */
 	private static Notifications createNotifications() {
 		var stage = QuPathGUI.getInstance() == null ? null : QuPathGUI.getInstance().getStage();
+		var notifications = Notifications.create();
 		if (stage == null)
-			return Notifications.create();
-		return Notifications.create().owner(stage);
+			return notifications;
+		
+		if (!QuPathStyleManager.isDefaultStyle())
+			notifications = notifications.darkStyle();
+		
+		return notifications.owner(stage);
 	}
 	
 	/**

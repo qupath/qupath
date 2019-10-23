@@ -83,6 +83,9 @@ public class QuPathStyleManager {
 		});
 	}
 	
+	public static boolean isDefaultStyle() {
+		return DEFAULT_STYLE.equals(selectedStyle.get());
+	}
 	
 	public static ObservableList<StylesheetOption> stylesProperty() {
 		return styles;
