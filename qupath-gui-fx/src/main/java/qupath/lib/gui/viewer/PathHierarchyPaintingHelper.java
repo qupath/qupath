@@ -521,7 +521,7 @@ public class PathHierarchyPaintingHelper {
 //				nVertices = ((PolygonROI)shape).nVertices();
 //			else if (shape instanceof AreaROI)
 //				nVertices = ((AreaROI)shape).nVertices();
-			if (nVertices < MIN_SIMPLIFY_VERTICES)
+			if (nVertices < MIN_SIMPLIFY_VERTICES || !shape.isArea())
 				return map;
 			
 			if (downsample > 50)
