@@ -981,10 +981,10 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 				activeTool.registerTool(this);
 		} else {
 			// Reset tool, as required
-			if (activeTool != tools.get(mode)) {
+			if (activeTool != tools.get(getMode())) {
 				if (activeTool != null)
 					activeTool.deregisterTool(this);
-				activeTool = tools.get(mode);
+				activeTool = tools.get(getMode());
 				if (activeTool != null)
 					activeTool.registerTool(this);
 			}

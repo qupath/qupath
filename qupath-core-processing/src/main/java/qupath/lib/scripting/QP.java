@@ -1235,6 +1235,25 @@ public class QP {
 		if (hierarchy != null)
 			hierarchy.getSelectionModel().setSelectedObjects(getObjects(hierarchy, predicate), null);
 	}
+	
+	/**
+	 * Set all objects in a collection to be selected, without any being chosen as the main object.
+	 * @param pathObjects
+	 */
+	public static void selectObjects(final Collection<PathObject> pathObjects) {
+		selectObjects(pathObjects, null);
+	}
+	
+	/**
+	 * Set all objects in a collection to be selected, including a specified main selected object.
+	 * @param pathObjects
+	 * @param mainSelection
+	 */
+	public static void selectObjects(final Collection<PathObject> pathObjects, PathObject mainSelection) {
+		PathObjectHierarchy hierarchy = getCurrentHierarchy();
+		if (hierarchy != null)
+			hierarchy.getSelectionModel().setSelectedObjects(pathObjects, mainSelection);
+	}
 
 	/**
 	 * Get a list of all objects in the specified hierarchy according to a specified predicate.
@@ -1809,6 +1828,17 @@ public class QP {
 	
 	
 	/**
+	 * Write an image region image to the specified path. The writer will be determined based on the file extension.
+	 * @param server
+	 * @param request
+	 * @param path
+	 * @throws IOException
+	 */
+	public static void writeImageRegion(ImageServer<BufferedImage> server, RegionRequest request, String path) throws IOException {
+		ImageWriterTools.writeImageRegion(server, request, path);
+	}
+	
+	/**
 	 * Write a full image to the specified path. The writer will be determined based on the file extension.
 	 * @param server
 	 * @param path
@@ -1943,6 +1973,10 @@ public class QP {
 	 * @param newClass
 	 */
 	public static void replaceClassification(Collection<PathObject> pathObjects, PathClass originalClass, PathClass newClass) {
+		if (PathClassFactory.getPathClassUnclassified() == originalClass)
+			originalClass = null;
+		if (PathClassFactory.getPathClassUnclassified() == newClass)
+			newClass = null;
 		for (var pathObject : pathObjects) {
 			if (pathObject.getPathClass() == originalClass)
 				pathObject.setPathClass(newClass);
