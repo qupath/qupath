@@ -9,8 +9,14 @@ import loci.formats.FormatException;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.WrappedBufferedImageServer;
 import qupath.lib.images.writers.ImageWriter;
+import qupath.lib.images.writers.ome.OMEPyramidWriter.CompressionType;
 import qupath.lib.regions.RegionRequest;
 
+/**
+ * {@link ImageWriter} for writing OME-TIFF images. For greater control, see {@link OMEPyramidWriter}.
+ * 
+ * @author Pete Bankhead
+ */
 public class OMETiffWriter implements ImageWriter<BufferedImage> {
 
 	@Override
@@ -67,7 +73,7 @@ public class OMETiffWriter implements ImageWriter<BufferedImage> {
 	public void writeImage(ImageServer<BufferedImage> server, RegionRequest region, String pathOutput)
 			throws IOException {
 		try {
-			OMEPyramidWriter.writePyramid(server, pathOutput, OMEPyramidWriterCommand.getDefaultPyramidCompression(), region);
+			OMEPyramidWriter.writePyramid(server, pathOutput, CompressionType.DEFAULT, region);
 		} catch (FormatException e) {
 			throw new IOException(e);
 		}
@@ -84,7 +90,7 @@ public class OMETiffWriter implements ImageWriter<BufferedImage> {
 	@Override
 	public void writeImage(ImageServer<BufferedImage> server, String pathOutput) throws IOException {
 		try {
-			OMEPyramidWriter.writePyramid(server, pathOutput, OMEPyramidWriterCommand.getDefaultPyramidCompression());
+			OMEPyramidWriter.writePyramid(server, pathOutput, CompressionType.DEFAULT);
 		} catch (FormatException e) {
 			throw new IOException(e);
 		}

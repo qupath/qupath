@@ -258,7 +258,8 @@ public class DialogHelperFX implements DialogHelper {
 				fileChooser.setInitialFileName(GeneralTools.getNameWithoutExtension(new File(defaultName)));
 			else
 				fileChooser.setInitialFileName(defaultName);
-		}
+		} else
+			fileChooser.setInitialFileName(null);
 		File fileSelected = fileChooser.showSaveDialog(ownerWindow);
 		if (fileSelected != null) {
 			// Only change the last directory if we didn't specify one

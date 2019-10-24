@@ -23,8 +23,14 @@
 
 package qupath.lib.images.writers;
 
+import java.awt.image.BufferedImage;
+import java.awt.image.IndexColorModel;
+import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
+
+import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.ImageServerMetadata.ChannelType;
 
 /**
  * ImageWriter implementation to write PNG images using ImageIO.
@@ -43,10 +49,38 @@ public class PngWriter extends AbstractImageIOWriter {
 	public Collection<String> getExtensions() {
 		return Collections.singleton("png");
 	}
+	
+	@Override
+	public void writeImage(BufferedImage img, String pathOutput) throws IOException {
+		// If writing an indexed image with ImageIO, we need to drop the alpha channel
+		if (img.getTransparency() == BufferedImage.BITMASK && img.getColorModel() instanceof IndexColorModel) {
+			var cm = (IndexColorModel)img.getColorModel();
+			int n = cm.getMapSize();
+			byte[] reds = new byte[n];
+			byte[] greens = new byte[n];
+			byte[] blues = new byte[n];
+			cm.getReds(reds);
+			cm.getGreens(greens);
+			cm.getBlues(blues);
+			var cmNew = new IndexColorModel(
+					cm.getPixelSize(), n, reds, greens, blues);
+			img = new BufferedImage(cmNew, img.getRaster(), cmNew.isAlphaPremultiplied(), null);
+		}
+		super.writeImage(img, pathOutput);
+	}
 
 	@Override
 	public String getDetails() {
 		return "Write image as PNG using ImageIO (lossless compression). Only supports 8-bit single-channel or RGB images, and loses image metadata (e.g. pixel calibration).";
+	}
+	
+	@Override
+	public boolean suportsImageType(ImageServer<BufferedImage> server) {
+		return super.suportsImageType(server) || isIndexedColor(server);
+	}
+	
+	private static boolean isIndexedColor(ImageServer<BufferedImage> server) {
+		return server.getMetadata().getChannelType() == ChannelType.CLASSIFICATION;
 	}
 
 }

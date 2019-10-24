@@ -150,7 +150,7 @@ public class BioFormatsOptionsExtension implements QuPathExtension {
 	@Override
 	public String getDescription() {
 		if (bfVersion == null) {
-			return "See https://github.com/qupath/qupath-bioformats-extension for details about installing 'bioformats_package.jar'";
+			return "Cannot fit the Bio-Formats library required by this extension!'";
 		} else {
 			return "Installs options for the Bio-Formats image server in the QuPath preference pane";			
 		}
