@@ -23,6 +23,7 @@
 
 package qupath.lib.gui.viewer.tools;
 
+import javafx.scene.input.MouseEvent;
 import qupath.lib.gui.viewer.ModeWrapper;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.ROIs;
@@ -41,7 +42,7 @@ public class RectangleTool extends AbstractPathDraggingROITool {
 	}
 
 	@Override
-	protected ROI createNewROI(double x, double y, ImagePlane plane) {
+	protected ROI createNewROI(MouseEvent e, double x, double y, ImagePlane plane) {
 		return ROIs.createRectangleROI(x, y, 0, 0, plane);
 	}
 

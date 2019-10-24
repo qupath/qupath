@@ -65,12 +65,13 @@ abstract class AbstractPathROITool extends AbstractPathTool {
 	/**
 	 * Create a new ROI with the given starting coordinates.
 	 * 
+	 * @param e
 	 * @param x
 	 * @param y
 	 * @param plane
 	 * @return
 	 */
-	protected abstract ROI createNewROI(double x, double y, ImagePlane plane);
+	protected abstract ROI createNewROI(MouseEvent e, double x, double y, ImagePlane plane);
 	
 	/**
 	 * Create a new annotation & set it in the current viewer.
@@ -79,7 +80,7 @@ abstract class AbstractPathROITool extends AbstractPathTool {
 	 * @param y
 	 * @return
 	 */
-	PathObject createNewAnnotation(double x, double y) {
+	PathObject createNewAnnotation(MouseEvent e, double x, double y) {
 		
 		var currentObject = viewer.getSelectedObject();
 		var editor = viewer.getROIEditor();
@@ -93,7 +94,7 @@ abstract class AbstractPathROITool extends AbstractPathTool {
 			logger.warn("Cannot create new annotation - no hierarchy available!");
 			return null;
 		}
-		ROI roi = createNewROI(x, y, viewer.getImagePlane());
+		ROI roi = createNewROI(e, x, y, viewer.getImagePlane());
 		if (roi == null)
 			return null;
 		
@@ -159,7 +160,7 @@ abstract class AbstractPathROITool extends AbstractPathTool {
 				null);
 		
 		// Create a new annotation
-		PathObject pathObject = createNewAnnotation(xx, yy);
+		PathObject pathObject = createNewAnnotation(e, xx, yy);
 		if (pathObject == null)
 			return;
 		

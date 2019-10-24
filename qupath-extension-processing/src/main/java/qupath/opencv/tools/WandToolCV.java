@@ -59,6 +59,7 @@ import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.ObjectProperty;
+import javafx.scene.input.MouseEvent;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.images.stores.ImageRegionRenderer;
 import qupath.lib.gui.prefs.PathPrefs;
@@ -269,7 +270,7 @@ public class WandToolCV extends BrushTool {
 	
 	
 	@Override
-	protected Geometry createShape(double x, double y, boolean useTiles, Geometry addToShape) {
+	protected Geometry createShape(MouseEvent e, double x, double y, boolean useTiles, Geometry addToShape) {
 		
 		GeometryFactory factory = getGeometryFactory();
 		
@@ -336,87 +337,98 @@ public class WandToolCV extends BrushTool {
 		
 //		opencv_imgproc.cvtColor(mat, mat, opencv_imgproc.COLOR_BGR2Lab);
 //		blurSigma = 4;
+	    
+	    boolean doSimpleSelection = e.isShortcutDown() && !e.isShiftDown();
+	    
+	    if (doSimpleSelection) {
+	    	matMask.put(Scalar.ZERO);
+//			opencv_imgproc.circle(matMask, seed, radius, Scalar.ONE);
+			opencv_imgproc.floodFill(mat, matMask, seed, Scalar.ONE, null, Scalar.ZERO, Scalar.ZERO, 4 | (2 << 8) | opencv_imgproc.FLOODFILL_MASK_ONLY | opencv_imgproc.FLOODFILL_FIXED_RANGE);
+			subtractPut(matMask, Scalar.ONE);
+	    	
+	    } else {
 		
-		double blurSigma = Math.max(0.5, getWandSigmaPixels());
-		int size = (int)Math.ceil(blurSigma * 2) * 2 + 1;
-		blurSize.width(size);
-		blurSize.height(size);
-		
-		// Smooth a little
-		opencv_imgproc.GaussianBlur(mat, mat, blurSize, blurSigma);
-		
-		// Choose mat to threshold (may be adjusted)
-		Mat matThreshold = mat;
-		
-		// Apply color transform if required
-		if (type == WandType.LAB_DISTANCE) {
-			mat.convertTo(matFloat, opencv_core.CV_32F, 1.0/255.0, 0.0);
-			opencv_imgproc.cvtColor(matFloat, matFloat, opencv_imgproc.COLOR_BGR2Lab);
+			double blurSigma = Math.max(0.5, getWandSigmaPixels());
+			int size = (int)Math.ceil(blurSigma * 2) * 2 + 1;
+			blurSize.width(size);
+			blurSize.height(size);
 			
-			FloatIndexer idx = matFloat.createIndexer();
-			int k = w/2;
-			double v1 = idx.get(k, k, 0);
-			double v2 = idx.get(k, k, 1);
-			double v3 = idx.get(k, k, 2);
-			double max = 0;
-			double mean = 0;
-			double meanScale = 1.0 / (w * w);
-			for (int row = 0; row < w; row++) {
-				for (int col = 0; col < w; col++) {
-					double L = idx.get(row, col, 0) - v1;
-					double A = idx.get(row, col, 1) - v2;
-					double B = idx.get(row, col, 2) - v3;
-					double dist = Math.sqrt(L*L + A*A + B*B);
-					if (dist > max)
-						max = dist;
-					mean += dist * meanScale;
-					idx.put(row, col, 0, (float)dist);
-				}				
-			}
-			if (matThreshold == null)
-				matThreshold = new Mat();
-			opencv_core.extractChannel(matFloat, matThreshold, 0);
+			// Smooth a little
+			opencv_imgproc.GaussianBlur(mat, mat, blurSize, blurSigma);
 			
-			// There are various ways we might choose a threshold now...
-			// Here, we use a multiple of the mean. Since values are 'distances' 
-			// they are all >= 0
-			matThreshold.convertTo(matThreshold, opencv_core.CV_8U, 255.0/max, 0);
-			threshold.put(mean * getWandSensitivity());
+			// Choose mat to threshold (may be adjusted)
+			Mat matThreshold = mat;
 			
-////			OpenCVTools.matToImagePlus(matThreshold, "Before").show();
-//			// Apply local Otsu threshold
-//			opencv_imgproc.threshold(matThreshold, matThreshold,
-//					0,
-//					255, opencv_imgproc.THRESH_BINARY + opencv_imgproc.THRESH_OTSU);
-//			threshold.put(Scalar.ZERO);
-
-			nChannels = 1;
-		} else {
-			// Base threshold on local standard deviation
-			meanStdDev(matThreshold, mean, stddev);
-			DoubleBuffer stddevBuffer = stddev.createBuffer();
-			double[] stddev2 = new double[nChannels];
-			stddevBuffer.get(stddev2);
-			double scale = 1.0 / getWandSensitivity();
-			if (scale < 0)
-				scale = 0.01;
-			for (int i = 0; i < stddev2.length; i++)
-				stddev2[i] = stddev2[i]*scale;
-			threshold.put(stddev2);
-		}
+			// Apply color transform if required
+			if (type == WandType.LAB_DISTANCE) {
+				mat.convertTo(matFloat, opencv_core.CV_32F, 1.0/255.0, 0.0);
+				opencv_imgproc.cvtColor(matFloat, matFloat, opencv_imgproc.COLOR_BGR2Lab);
+				
+				FloatIndexer idx = matFloat.createIndexer();
+				int k = w/2;
+				double v1 = idx.get(k, k, 0);
+				double v2 = idx.get(k, k, 1);
+				double v3 = idx.get(k, k, 2);
+				double max = 0;
+				double mean = 0;
+				double meanScale = 1.0 / (w * w);
+				for (int row = 0; row < w; row++) {
+					for (int col = 0; col < w; col++) {
+						double L = idx.get(row, col, 0) - v1;
+						double A = idx.get(row, col, 1) - v2;
+						double B = idx.get(row, col, 2) - v3;
+						double dist = Math.sqrt(L*L + A*A + B*B);
+						if (dist > max)
+							max = dist;
+						mean += dist * meanScale;
+						idx.put(row, col, 0, (float)dist);
+					}				
+				}
+				if (matThreshold == null)
+					matThreshold = new Mat();
+				opencv_core.extractChannel(matFloat, matThreshold, 0);
+				
+				// There are various ways we might choose a threshold now...
+				// Here, we use a multiple of the mean. Since values are 'distances' 
+				// they are all >= 0
+				matThreshold.convertTo(matThreshold, opencv_core.CV_8U, 255.0/max, 0);
+				threshold.put(mean * getWandSensitivity());
+				
+	////			OpenCVTools.matToImagePlus(matThreshold, "Before").show();
+	//			// Apply local Otsu threshold
+	//			opencv_imgproc.threshold(matThreshold, matThreshold,
+	//					0,
+	//					255, opencv_imgproc.THRESH_BINARY + opencv_imgproc.THRESH_OTSU);
+	//			threshold.put(Scalar.ZERO);
 	
-		// Limit maximum radius by pen
-		int radius = (int)Math.round(w / 2 * QuPathPenManager.getPenManager().getPressure());
-		if (radius == 0)
-			return null;
-		matMask.put(Scalar.ZERO);
-		opencv_imgproc.circle(matMask, seed, radius, Scalar.ONE);
-		opencv_imgproc.floodFill(matThreshold, matMask, seed, Scalar.ONE, null, threshold, threshold, 4 | (2 << 8) | opencv_imgproc.FLOODFILL_MASK_ONLY | opencv_imgproc.FLOODFILL_FIXED_RANGE);
-		subtractPut(matMask, Scalar.ONE);
+				nChannels = 1;
+			} else {
+				// Base threshold on local standard deviation
+				meanStdDev(matThreshold, mean, stddev);
+				DoubleBuffer stddevBuffer = stddev.createBuffer();
+				double[] stddev2 = new double[nChannels];
+				stddevBuffer.get(stddev2);
+				double scale = 1.0 / getWandSensitivity();
+				if (scale < 0)
+					scale = 0.01;
+				for (int i = 0; i < stddev2.length; i++)
+					stddev2[i] = stddev2[i]*scale;
+				threshold.put(stddev2);
+			}
 		
-		if (strel == null)
-			strel = opencv_imgproc.getStructuringElement(opencv_imgproc.MORPH_ELLIPSE, new Size(5, 5));
-		opencv_imgproc.morphologyEx(matMask, matMask, opencv_imgproc.MORPH_CLOSE, strel);
+			// Limit maximum radius by pen
+			int radius = (int)Math.round(w / 2 * QuPathPenManager.getPenManager().getPressure());
+			if (radius == 0)
+				return null;
+			matMask.put(Scalar.ZERO);
+			opencv_imgproc.circle(matMask, seed, radius, Scalar.ONE);
+			opencv_imgproc.floodFill(matThreshold, matMask, seed, Scalar.ONE, null, threshold, threshold, 4 | (2 << 8) | opencv_imgproc.FLOODFILL_MASK_ONLY | opencv_imgproc.FLOODFILL_FIXED_RANGE);
+			subtractPut(matMask, Scalar.ONE);
+			
+			if (strel == null)
+				strel = opencv_imgproc.getStructuringElement(opencv_imgproc.MORPH_ELLIPSE, new Size(5, 5));
+			opencv_imgproc.morphologyEx(matMask, matMask, opencv_imgproc.MORPH_CLOSE, strel);
+	    }
 
 		MatVector contours = new MatVector();
 		if (contourHierarchy == null)
@@ -445,11 +457,14 @@ public class WandToolCV extends BrushTool {
 				double yy = (py - w/2-1);// * downsample + y;
 				coords.add(new Coordinate(xx, yy));
 			}
-			// Ensure closed
 			if (coords.size() > 1) {
+				// Ensure closed
 				if (!coords.get(coords.size()-1).equals(coords.get(0)))
 					coords.add(coords.get(0));
-				geometries.add(factory.createPolygon(coords.toArray(Coordinate[]::new)));
+				// Exclude single pixels
+				var polygon = factory.createPolygon(coords.toArray(Coordinate[]::new));
+				if (coords.size() > 5 || polygon.getArea() > 1)
+					geometries.add(polygon);
 			}
 		}
 		if (geometries.isEmpty())
@@ -465,6 +480,8 @@ public class WandToolCV extends BrushTool {
 				.translate(x, y);
 		geometry = transform.transform(geometry);
 		geometry = roundAndConstrain(geometry, 0, 0, viewer.getServerWidth(), viewer.getServerHeight());
+		if (geometry.getArea() <= 1)
+			return null;
 		
 		long endTime = System.currentTimeMillis();
 		logger.trace(getClass().getSimpleName() + " time: " + (endTime - startTime));

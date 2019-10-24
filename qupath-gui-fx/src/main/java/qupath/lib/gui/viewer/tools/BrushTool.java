@@ -35,6 +35,7 @@ import org.locationtech.jts.geom.CoordinateSequenceFilter;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.PrecisionModel;
+import org.locationtech.jts.simplify.VWSimplifier;
 import org.locationtech.jts.util.GeometricShapeFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -58,6 +59,7 @@ import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.GeometryTools;
+import qupath.lib.roi.ROIs;
 import qupath.lib.roi.RectangleROI;
 import qupath.lib.roi.interfaces.ROI;
 
@@ -256,7 +258,7 @@ public class BrushTool extends AbstractPathROITool {
 		ROI shapeROI = createNew ? null : currentObject.getROI();
 		if (createNew) {
 			creatingTiledROI = false; // Reset this
-			createNewAnnotation(p.getX(), p.getY());
+			createNewAnnotation(e, p.getX(), p.getY());
 			viewer.getROIEditor().setROI(null);
 		} else {
 			viewer.setSelectedObject(getUpdatedObject(e, shapeROI, currentObject, -1));
@@ -312,7 +314,7 @@ public class BrushTool extends AbstractPathROITool {
 		boolean subtractMode = isSubtractMode(e);
 		Geometry shapeCurrent = shapeROI == null ? null : shapeROI.getGeometry();
 		
-		Geometry shapeDrawn = createShape(p.getX(), p.getY(),
+		Geometry shapeDrawn = createShape(e, p.getX(), p.getY(),
 				PathPrefs.getUseTileBrush() && !e.isShiftDown(),
 				subtractMode ? null : shapeCurrent);
 		if (shapeDrawn == null)
@@ -427,7 +429,7 @@ public class BrushTool extends AbstractPathROITool {
 	 *                   e.g. to avoid having isolated or jagged boundaries.
 	 * @return
 	 */
-	protected Geometry createShape(double x, double y, boolean useTiles, Geometry addToShape) {
+	protected Geometry createShape(MouseEvent e, double x, double y, boolean useTiles, Geometry addToShape) {
 		
 		// See if we're on top of a tile
 		if (useTiles) {
@@ -484,7 +486,7 @@ public class BrushTool extends AbstractPathROITool {
 	protected Geometry roundAndConstrain(Geometry geometry, double minX, double minY, double maxX, double maxY) {
 		roundingFilter.setBounds(minX, minY, maxX, maxY);
 		geometry.apply(roundingFilter);
-		return geometry.buffer(0);
+		return VWSimplifier.simplify(geometry, 0.5);
 	}
 	
 	private GeometryFactory factory = new GeometryFactory(new PrecisionModel(100.0)); // TODO: MAKE THIS VARIABLE OUTSIDE
@@ -527,10 +529,12 @@ public class BrushTool extends AbstractPathROITool {
 	};
 
 	@Override
-	protected ROI createNewROI(double x, double y, ImagePlane plane) {
+	protected ROI createNewROI(MouseEvent e, double x, double y, ImagePlane plane) {
 		creatingTiledROI = false;
 		lastPoint = null;
-		Geometry geom = createShape(x, y, PathPrefs.getUseTileBrush(), null);
+		Geometry geom = createShape(e, x, y, PathPrefs.getUseTileBrush(), null);
+		if (geom == null || geom.isEmpty())
+			return ROIs.createEmptyROI();
 		roundAndConstrain(geom, 0, 0, viewer.getServerWidth(), viewer.getServerHeight());
 		return GeometryTools.geometryToROI(geom, plane);
 	}
