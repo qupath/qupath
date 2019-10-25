@@ -1243,8 +1243,8 @@ public class OMEPyramidWriter {
 			.compression(compression == null ? CompressionType.DEFAULT : compression)
 			.allZSlices()
 			.allTimePoints()
-			.tileSize(512)
-			.scaledDownsampling(server.getDownsampleForResolution(0), 4)
+//			.tileSize(512)
+//			.scaledDownsampling(server.getDownsampleForResolution(0), 4)
 			.parallelize()
 			.build()
 			.writePyramid(path);

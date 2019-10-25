@@ -76,7 +76,7 @@ public class PixelClassifierLoadCommand implements PathCommand {
 			String name = comboClassifiers.getSelectionModel().getSelectedItem();
 			if (name != null) {
 				try {
-					return project.getPixelClassifiers().getResource(name);
+					return project.getPixelClassifiers().get(name);
 				} catch (Exception e) {
 					DisplayHelpers.showErrorMessage("Load pixel model", e);
 				}

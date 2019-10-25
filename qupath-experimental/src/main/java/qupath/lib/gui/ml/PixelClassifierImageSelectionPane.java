@@ -17,6 +17,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Function;
+import java.util.stream.Collectors;
+
 import org.bytedeco.javacpp.indexer.FloatIndexer;
 import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.opencv_core.Mat;
@@ -1227,7 +1229,7 @@ public class PixelClassifierImageSelectionPane {
 	
 	
 	private static void saveClassifier(Project<BufferedImage> project, PixelClassifier classifier, String classifierName) throws IOException {
-		project.getPixelClassifiers().putResource(classifierName, classifier);
+		project.getPixelClassifiers().put(classifierName, classifier);
 	}
 	
 	private static boolean saveAndApply(Project<BufferedImage> project, ImageData<BufferedImage> imageData, PixelClassifier classifier) throws IOException {
@@ -1314,33 +1316,35 @@ public class PixelClassifierImageSelectionPane {
 			minHoleSizePixels /= (cal.getPixelWidthMicrons() * cal.getPixelHeightMicrons());
 		}
 		
-		var selected = imageData.getHierarchy().getSelectionModel().getSelectedObject();
-		if (selected != null && selected.isDetection())
-			selected = null;
-		if (selected != null && !selected.getROI().isArea()) {
-			DisplayHelpers.showErrorMessage("Create objects", "You either need an area selection or no selected object");
+		Collection<PathObject> allSelected = imageData.getHierarchy().getSelectionModel().getSelectedObjects();
+		List<PathObject> selected = allSelected.stream().filter(p -> p.hasROI() && p.getROI().isArea() && 
+				(p.isAnnotation() || p.isTMACore())).collect(Collectors.toList());
+		if (allSelected.isEmpty())
+			selected = Collections.singletonList(imageData.getHierarchy().getRootObject());
+		else if (selected.size() != allSelected.size()) {
+			DisplayHelpers.showErrorMessage("Create objects", "All selected objects should be annotations with area ROIs or TMA cores!");
 			return false;
 		}
-		if (selected != null && selected.getPathClass() != null && selected.getPathClass() != PathClassFactory.getPathClass(StandardPathClasses.REGION)) {
-			var btn = DisplayHelpers.showYesNoCancelDialog("Create objects", "Create objects for selected annotation?\nChoose 'no' to use the entire image.");
+		if (selected.size() == 1 && selected.get(0).getPathClass() != null && selected.get(0).getPathClass() != PathClassFactory.getPathClass(StandardPathClasses.REGION)) {
+			var btn = DisplayHelpers.showYesNoCancelDialog("Create objects", "Create objects for selected annotation(s)?\nChoose 'no' to use the entire image.");
 			if (btn == DialogButton.CANCEL)
 				return false;
 			if (btn == DialogButton.NO)
-				selected = null;
+				selected = Collections.singletonList(imageData.getHierarchy().getRootObject());
 		}
 		
-		int nChildObjects = 0;
-		if (selected == null)
-			nChildObjects = hierarchy.nObjects();
-		else
-			nChildObjects = PathObjectTools.countDescendants(selected);
-		if (nChildObjects > 0) {
-			String message = "Existing child object will be deleted - is that ok?";
-			if (nChildObjects > 1)
-				message = nChildObjects + " existing descendant object will be deleted - is that ok?";
-			if (!DisplayHelpers.showConfirmDialog("Create objects", message))
-				return false;
-		}
+//		int nChildObjects = 0;
+//		if (selected == null)
+//			nChildObjects = hierarchy.nObjects();
+//		else
+//			nChildObjects = PathObjectTools.countDescendants(selected);
+//		if (nChildObjects > 0) {
+//			String message = "Existing child object will be deleted - is that ok?";
+//			if (nChildObjects > 1)
+//				message = nChildObjects + " existing descendant object will be deleted - is that ok?";
+//			if (!DisplayHelpers.showConfirmDialog("Create objects", message))
+//				return false;
+//		}
 //		// Need to turn off live prediction so we don't start training on the results...
 //		livePrediction.set(false);
 		

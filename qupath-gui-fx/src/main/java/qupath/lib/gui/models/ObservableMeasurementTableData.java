@@ -273,7 +273,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 			}
 		}
 		
-		if (containsAnnotations || containsRoot) {
+		if (containsAnnotations || containsTMACores || containsRoot) {
 			var pixelClassifier = PixelClassificationImageServer.getPixelLayer(imageData);
 			if (pixelClassifier instanceof ImageServer<?>) {
 				ImageServer<BufferedImage> server = (ImageServer<BufferedImage>)pixelClassifier;

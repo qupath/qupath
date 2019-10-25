@@ -72,8 +72,8 @@ import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
-import qupath.lib.projects.ProjectResources.ImageResourceManager;
-import qupath.lib.projects.ProjectResources.ProjectResourceManager;
+import qupath.lib.projects.ResourceManager.ImageResourceManager;
+import qupath.lib.projects.ResourceManager.Manager;
 
 /**
  * Data structure to store multiple images, relating these to a file system.
@@ -492,7 +492,7 @@ class DefaultProject implements Project<BufferedImage> {
 		private transient ImageResourceManager<BufferedImage> imageManager = null;
 		
 		@Override
-		public synchronized ProjectResourceManager<ImageServer<BufferedImage>> getImages() {
+		public synchronized Manager<ImageServer<BufferedImage>> getImages() {
 			if (imageManager == null) {
 				imageManager = new ImageResourceManager<>(getPath(), BufferedImage.class);
 			}
@@ -1005,20 +1005,20 @@ class DefaultProject implements Project<BufferedImage> {
 	}
 	
 	@Override
-	public ProjectResourceManager<String> getScripts() {
-		return new ProjectResources.StringFileResourceManager(getScriptsPath(), ".groovy");
+	public Manager<String> getScripts() {
+		return new ResourceManager.StringFileResourceManager(getScriptsPath(), ".groovy");
 	}
 
 
 	@Override
-	public ProjectResourceManager<PathObjectClassifier> getObjectClassifiers() {
-		return new ProjectResources.SerializableFileResourceManager(getObjectClassifiersPath(), PathObjectClassifier.class);
+	public Manager<PathObjectClassifier> getObjectClassifiers() {
+		return new ResourceManager.SerializableFileResourceManager(getObjectClassifiersPath(), PathObjectClassifier.class);
 	}
 
 
 	@Override
-	public ProjectResourceManager<PixelClassifier> getPixelClassifiers() {
-		return new ProjectResources.JsonFileResourceManager(getPixelClassifiersPath(), PixelClassifier.class);
+	public Manager<PixelClassifier> getPixelClassifiers() {
+		return new ResourceManager.JsonFileResourceManager(getPixelClassifiersPath(), PixelClassifier.class);
 	}
 
 

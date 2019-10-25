@@ -20,10 +20,19 @@ import com.google.gson.reflect.TypeToken;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.io.GsonTools;
 
-public class ProjectResources {
+/**
+ * Manage the storage and retrieval of resources with a {@link ResourceManager}.
+ * Examples may include pixel classifiers or scripts.
+ * By using this it is possible to avoid reliance on a filesystem, for example, 
+ * opening the possibility to have resources stored elsewhere.
+ * 
+ * @author Pete Bankhead
+ */
+public class ResourceManager {
 	
 	/**
-	 * Simple manager to handle saving and retrieving resources of different kinds from projects.
+	 * Simple manager to handle saving and retrieving resources of different kinds, for example from projects 
+	 * or a user directory.
 	 * <p>
 	 * Examples of resources are scripts or classifiers. Several of these may be stored per project, 
 	 * and may be identified by name.
@@ -32,7 +41,7 @@ public class ProjectResources {
 	 *
 	 * @param <T> the generic type of the resource being managed
 	 */
-	public interface ProjectResourceManager<T> {
+	public interface Manager<T> {
 		
 		/**
 		 * Get a list of the available resources.
@@ -47,7 +56,7 @@ public class ProjectResources {
 		 * @return
 		 * @throws IOException
 		 */
-		public T getResource(String name) throws IOException;
+		public T get(String name) throws IOException;
 		
 		/**
 		 * Save a resource within the project.
@@ -55,12 +64,12 @@ public class ProjectResources {
 		 * @param resource
 		 * @throws IOException
 		 */
-		public void putResource(String name, T resource) throws IOException;
+		public void put(String name, T resource) throws IOException;
 			
 	}
 
 
-	abstract static class FileResourceManager<T> implements ProjectResourceManager<T> {
+	abstract static class FileResourceManager<T> implements Manager<T> {
 		
 		protected String ext;
 		protected Path dir;
@@ -112,7 +121,7 @@ public class ProjectResources {
 		}
 
 		@Override
-		public String getResource(String name) throws IOException {
+		public String get(String name) throws IOException {
 			var path = Paths.get(dir.toString(), name + ext);
 			if (Files.exists(path))
 				return Files.readString(path);
@@ -120,7 +129,7 @@ public class ProjectResources {
 		}
 
 		@Override
-		public void putResource(String name, String resource) throws IOException {
+		public void put(String name, String resource) throws IOException {
 			var path = Paths.get(ensureDirectoryExists(dir).toString(), name + ext);
 			Files.writeString(path, resource, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
 		}
@@ -138,7 +147,7 @@ public class ProjectResources {
 		}
 
 		@Override
-		public ImageServer<T> getResource(String name) throws IOException {
+		public ImageServer<T> get(String name) throws IOException {
 			var path = Paths.get(dir.toString(), name + ext);
 			try (var reader = Files.newBufferedReader(path)) {
 				return GsonTools.getInstance().fromJson(reader, new TypeToken<ImageServer<T>>() {}.getType());
@@ -146,7 +155,7 @@ public class ProjectResources {
 		}
 
 		@Override
-		public void putResource(String name, ImageServer<T> server) throws IOException {
+		public void put(String name, ImageServer<T> server) throws IOException {
 			var path = Paths.get(ensureDirectoryExists(dir).toString(), name + ext);
 			var json = GsonTools.getInstance().toJson(server);
 			Files.writeString(path, json, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
@@ -165,7 +174,7 @@ public class ProjectResources {
 		}
 
 		@Override
-		public T getResource(String name) throws IOException {
+		public T get(String name) throws IOException {
 			var path = Paths.get(dir.toString(), name + ext);
 			try (var stream = Files.newInputStream(path)) {
 				return cls.cast(new ObjectInputStream(new BufferedInputStream(stream)).readObject());
@@ -175,7 +184,7 @@ public class ProjectResources {
 		}
 
 		@Override
-		public void putResource(String name, T resource) throws IOException {
+		public void put(String name, T resource) throws IOException {
 			var path = Paths.get(dir.toString(), name + ext);
 			try (var stream = Files.newOutputStream(path)) {
 				new ObjectOutputStream(new BufferedOutputStream(stream)).writeObject(resource);
@@ -195,7 +204,7 @@ public class ProjectResources {
 		}
 
 		@Override
-		public T getResource(String name) throws IOException {
+		public T get(String name) throws IOException {
 			var path = Paths.get(dir.toString(), name + ext);
 			try (var reader = Files.newBufferedReader(path)) {
 				return GsonTools.getInstance(true).fromJson(reader, cls);
@@ -203,7 +212,7 @@ public class ProjectResources {
 		}
 
 		@Override
-		public void putResource(String name, T resource) throws IOException {
+		public void put(String name, T resource) throws IOException {
 			if (!Files.exists(dir))
 				Files.createDirectories(dir);
 			var path = Paths.get(dir.toString(), name + ext);
