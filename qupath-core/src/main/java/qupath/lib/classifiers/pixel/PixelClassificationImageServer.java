@@ -123,12 +123,13 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 				.width(width)
 				.height(height)
 				.channelType(classifierMetadata.getOutputType())
+				.channels(classifierMetadata.getOutputChannels())
+				.classificationLabels(classifierMetadata.getClassificationLabels())
 				.preferredTileSize(tileWidth-pad*2, tileHeight-pad*2)
 				.levels(levels)
-				.channels(classifierMetadata.getOutputChannels())
 				.pixelType(pixelType)
 				.rgb(false);
-				
+		
 		originalMetadata = builder.build();
 		
 	}

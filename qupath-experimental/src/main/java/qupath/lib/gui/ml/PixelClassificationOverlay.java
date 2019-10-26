@@ -428,6 +428,7 @@ public class PixelClassificationOverlay extends AbstractImageDataOverlay  {
                     }
                 } catch (Exception e) {
                    logger.error("Error requesting tile classification: {}", e.getLocalizedMessage());
+                   logger.debug("", e);
                 } finally {
                     pendingRequests.remove(tile);
                 }

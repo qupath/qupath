@@ -1581,12 +1581,13 @@ public class PixelClassifierImageSelectionPane {
     	
 //    	String coords = GeneralTools.formatNumber(x, 1) + "," + GeneralTools.formatNumber(y, 1);
     	
-    	var channels = classifierServer.getMetadata().getChannels();
     	if (classifierServer.getMetadata().getChannelType() == ImageServerMetadata.ChannelType.CLASSIFICATION) {
+        	var classificationLabels = classifierServer.getMetadata().getClassificationLabels();
         	int sample = img.getRaster().getSample(xx, yy, 0); 		
-        	return String.format("Classification: %s", channels.get(sample).getName());
+        	return String.format("Classification: %s", classificationLabels.get(sample).getName());
 //        	return String.format("Classification (%s):\n%s", coords, channels.get(sample).getName());
     	} else {
+        	var channels = classifierServer.getMetadata().getChannels();
     		String[] array = new String[channels.size()];
     		for (int c = 0; c < channels.size(); c++) {
     			float sample = img.getRaster().getSampleFloat(xx, yy, c);

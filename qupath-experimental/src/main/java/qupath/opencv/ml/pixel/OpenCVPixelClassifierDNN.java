@@ -22,8 +22,6 @@ import java.util.List;
 
 /**
  * Pixel classifier that uses a pre-trained model that can be read using OpenCV's DNN module.
- * <p>
- * TODO: Test for parallelization. Either reduce OpenCV threads globally or always call prediction from a single thread.
  * 
  * @author Pete Bankhead
  */
@@ -119,7 +117,7 @@ class OpenCVPixelClassifierDNN extends AbstractOpenCVPixelClassifier {
         }
         
         // Sometimes, rather unfortunately, dimensions can be wrong (I think... possibly no longer, but check anyway)
-        int nChannels = metadata.getOutputChannels().size();
+        int nChannels = metadata.getClassificationLabels().size();
         if (nChannels == matResult.cols() && nChannels != matResult.channels()) {
         	List<Mat> channels = new ArrayList<>();
         	for (int c = 0; c < matResult.cols(); c++) {

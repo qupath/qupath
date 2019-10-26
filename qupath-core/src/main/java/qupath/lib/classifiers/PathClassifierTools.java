@@ -32,11 +32,13 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
@@ -259,6 +261,36 @@ public class PathClassifierTools {
 	public static void setIntensityClassifications(final Collection<PathObject> pathObjects, final String measurementName, final double... thresholds) {
 		for (PathObject pathObject : pathObjects)
 			setIntensityClassification(pathObject, measurementName, thresholds);
+	}
+
+	/**
+	 * Create a list of channels from classification labels.
+	 * Note that the labels must be &geq; 0 or else an {@link IllegalArgumentException} will be thrown.
+	 * It is also expected that the labels densely represent integer values from 0 up to some maximum, although this is 
+	 * not strictly enforced and channels will be generated from any missing labels.
+	 * 
+	 * @param classificationLabels
+	 * @param ignoredTransparent
+	 * @return
+	 */
+	public static List<ImageChannel> classificationLabelsToChannels(Map<Integer, PathClass> classificationLabels, boolean ignoredTransparent) {
+		var labels = classificationLabels.keySet().stream().mapToInt(i -> i).summaryStatistics();
+		if (labels.getMin() < 0)
+			throw new IllegalArgumentException("Classification labels must be >= 0!");
+		int nChannels = labels.getMax() + 1;
+		List<ImageChannel> channels = new ArrayList<>();
+		int unclassifiedCount = 0;
+		for (int i = 0; i < nChannels; i++) {
+			var pathClass = classificationLabels.getOrDefault(i, null);
+			if (pathClass == null) {
+				unclassifiedCount++;
+				channels.add(ImageChannel.getInstance("Unclassified " + unclassifiedCount, null));
+			} else {
+				Integer color = ignoredTransparent && PathClassTools.isIgnoredClass(pathClass) ? null : pathClass.getColor();
+				channels.add(ImageChannel.getInstance(pathClass.toString(), color));
+			}
+		}
+		return channels;
 	}
 	
 	

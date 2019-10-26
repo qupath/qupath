@@ -14,7 +14,6 @@ import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.TileRequest;
-import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.PathObjects;
@@ -266,19 +265,19 @@ public class PixelClassifierTools {
 	     * 
 	     * @param imageData
 	     * @param classifier
-	     * @param selectedObject
+	     * @param selectedObjects
 	     * @param minSizePixels
 	     * @param minHoleSizePixels
 	     * @param doSplit
 	     * @return
 	     */
     public static boolean createDetectionsFromPixelClassifier(
-			ImageData<BufferedImage> imageData, PixelClassifier classifier, PathObject selectedObject, 
+			ImageData<BufferedImage> imageData, PixelClassifier classifier, Collection<PathObject> selectedObjects, 
 			double minSizePixels, double minHoleSizePixels, boolean doSplit) {
 		return createObjectsFromPixelClassifier(
 				new PixelClassificationImageServer(imageData, classifier),
 				imageData.getHierarchy(),
-				selectedObject,
+				selectedObjects,
 				(var roi) -> PathObjects.createDetectionObject(roi),
 				minSizePixels, minHoleSizePixels, doSplit);
 	}
@@ -288,26 +287,37 @@ public class PixelClassifierTools {
      * 
      * @param imageData
      * @param classifier
-     * @param selectedObject
+     * @param selectedObjects
      * @param minSizePixels
      * @param minHoleSizePixels
      * @param doSplit
      * @return
      */
 	public static boolean createAnnotationsFromPixelClassifier(
-			ImageData<BufferedImage> imageData, PixelClassifier classifier, PathObject selectedObject, 
+			ImageData<BufferedImage> imageData, PixelClassifier classifier, Collection<PathObject> selectedObjects, 
 			double minSizePixels, double minHoleSizePixels, boolean doSplit) {
 		
 		return createObjectsFromPixelClassifier(
 				new PixelClassificationImageServer(imageData, classifier),
 				imageData.getHierarchy(),
-				selectedObject,
+				selectedObjects,
 				(var roi) -> {
 					var annotation = PathObjects.createAnnotationObject(roi);
 					annotation.setLocked(true);
 					return annotation;
 				},
 				minSizePixels, minHoleSizePixels, doSplit);
+	}
+	
+	public static boolean createObjectsFromPixelClassifier(
+			ImageServer<BufferedImage> server, PathObjectHierarchy hierarchy, Collection<PathObject> selectedObjects, 
+			Function<ROI, ? extends PathObject> creator, double minSizePixels, double minHoleSizePixels, boolean doSplit) {
+		for (var pathObject : selectedObjects) {
+			if (!createObjectsFromPixelClassifier(server, hierarchy, pathObject,
+					creator, minSizePixels, minHoleSizePixels, doSplit))
+				return false;
+		}
+		return true;
 	}
 
 	/**
@@ -326,7 +336,7 @@ public class PixelClassifierTools {
 			ImageServer<BufferedImage> server, PathObjectHierarchy hierarchy, PathObject selectedObject, 
 			Function<ROI, ? extends PathObject> creator, double minSizePixels, double minHoleSizePixels, boolean doSplit) {
 		
-		var clipArea = selectedObject == null ? null : selectedObject.getROI().getGeometry();
+		var clipArea = selectedObject == null || selectedObject.isRootObject() ? null : selectedObject.getROI().getGeometry();
 		
 		List<RegionRequest> regionRequests;
 		if (selectedObject != null) {
@@ -448,12 +458,12 @@ public class PixelClassifierTools {
 	
 		// Add objects
 		if (selectedObject == null) {
-			hierarchy.clearAll();
+//			hierarchy.clearAll();
 			hierarchy.getRootObject().addPathObjects(pathObjects);
 			hierarchy.fireHierarchyChangedEvent(PixelClassifierTools.class);
 		} else {
-			((PathAnnotationObject)selectedObject).setLocked(true);
-			selectedObject.clearPathObjects();
+			selectedObject.setLocked(true);
+//			selectedObject.clearPathObjects();
 			selectedObject.addPathObjects(pathObjects);
 			hierarchy.fireHierarchyChangedEvent(PixelClassifierTools.class, selectedObject);
 		}

@@ -464,7 +464,7 @@ public class OMEPyramidWriter {
 			
 			// If the image represents classifications, set the color model accordingly
 			if (server.getMetadata().getChannelType() == ChannelType.CLASSIFICATION)
-				writer.setColorModel(ColorModelFactory.getIndexedColorModel(server.getMetadata().getChannels()));
+				writer.setColorModel(ColorModelFactory.getIndexedColorModel(server.getMetadata().getClassificationLabels()));
 	
 			writer.setSeries(series);
 			

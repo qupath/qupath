@@ -602,4 +602,17 @@ public class GeneralTools {
 		return count;
 	}
 
+
+	/**
+	 * Compute the sum of elements in a long array (possibly representing a histogram).
+	 * @param values
+	 * @return
+	 */
+	public static long sum(long[] values) {
+		long total = 0L;
+		for (long v : values)
+			total += v;
+		return total;
+	}
+
 }

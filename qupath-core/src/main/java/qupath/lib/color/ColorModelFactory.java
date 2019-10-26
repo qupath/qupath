@@ -6,12 +6,15 @@ import java.awt.image.IndexColorModel;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
 import qupath.lib.common.ColorTools;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.PixelType;
+import qupath.lib.objects.classes.PathClass;
+import qupath.lib.objects.classes.PathClassTools;
 
 /**
  * Factory methods to help create ColorModels for use with BufferedImages.
@@ -21,7 +24,7 @@ import qupath.lib.images.servers.PixelType;
  */
 public final class ColorModelFactory {
 	
-	private static Map<List<ImageChannel>, IndexColorModel> classificationModels = Collections.synchronizedMap(new HashMap<>());
+	private static Map<Map<Integer, PathClass>, IndexColorModel> classificationModels = Collections.synchronizedMap(new HashMap<>());
 
 	private static Map<List<ImageChannel>, ColorModel> probabilityModels8 = Collections.synchronizedMap(new HashMap<>());
 	private static Map<List<ImageChannel>, ColorModel> probabilityModels32 = Collections.synchronizedMap(new HashMap<>());
@@ -39,14 +42,30 @@ public final class ColorModelFactory {
 	 * @param channels
 	 * @return
 	 */
-    public static ColorModel getIndexedColorModel(List<ImageChannel> channels) {
+    public static ColorModel getIndexedColorModel(Map<Integer, PathClass> channels) {
     	var map = classificationModels.get(channels);
+    	
+    	map = null;
+    	
+    	var stats = channels.keySet().stream().mapToInt(c -> c).summaryStatistics();
+    	if (stats.getMin() < 0)
+    		throw new IllegalArgumentException("Minimum label must be >= 0");
+    	int length = stats.getMax() + 1;
+    	
     	if (map == null) {
-            int[] cmap = channels.stream().mapToInt(c -> c.getColor()).toArray();
+            int[] cmap = new int[length];
+            
+            for (var entry: channels.entrySet()) {
+            	if (PathClassTools.isIgnoredClass(entry.getValue())) {
+            		var color = entry.getValue().getColor();
+                	cmap[entry.getKey()] = ColorTools.makeRGBA(ColorTools.red(color), ColorTools.green(color), ColorTools.blue(color), 32);
+            	} else
+            		cmap[entry.getKey()] = entry.getValue().getColor();
+            }
             if (cmap.length > 256)
             	throw new IllegalArgumentException("Only 256 possible classifications supported!");
             map = new IndexColorModel(8, channels.size(), cmap, 0, true, -1, DataBuffer.TYPE_BYTE);    		
-            classificationModels.put(new ArrayList<>(channels), map);
+            classificationModels.put(new LinkedHashMap<>(channels), map);
     	}
     	return map;
     }

@@ -314,6 +314,98 @@ public class BufferedImageTools {
 		return new BufferedImage(img.getColorModel(), raster2, img.isAlphaPremultiplied(), null);
 	}
 
+	/**
+	 * Compute the full histogram for a raster containing 8-bit or 16-bit unsigned integer values.
+	 * @param raster the raster containing the data for the histogram; if not TYPE_BYTE or TYPE_USHORT an {@link IllegalArgumentException} will be thrown
+	 * @param counts histogram counts; if null, a new array will be created. Its must be sufficient for the data type, i.e. 256 or 65536.
+	 * 				 No size checking is performed, therefore if non-null it must be sufficiently large for the data type.
+	 * @param rasterMask optional single-channel mask; if not null, corresponding pixels with 0 values in the mask will be skipped
+	 * @return
+	 */
+	public static long[] computeUnsignedIntHistogram(WritableRaster raster, long[] counts, WritableRaster rasterMask) {
+		if (counts == null) {
+			if (raster.getTransferType() == DataBuffer.TYPE_BYTE)
+				counts = new long[256];
+			else if (raster.getTransferType() == DataBuffer.TYPE_USHORT)
+				counts = new long[65536];
+			else
+				throw new IllegalArgumentException("TransferType must be DataBuffer.TYPE_BYTE or DataBuffer.TYPE_USHORT!");
+		}
+		int h = raster.getHeight();
+		int w = raster.getWidth();
+		int nBands = raster.getNumBands();
+		for (int b = 0; b < nBands; b++) {
+			for (int y = 0; y < h; y++) {
+				for (int x = 0; x < w; x++) {
+					if (rasterMask != null && rasterMask.getSample(x, y, 0) == 0)
+						continue;
+					int ind = raster.getSample(x, y, b);
+					counts[ind]++;
+				}
+			}
+		}
+		return counts;
+	}
+
+	/**
+	 * Create a histogram that identifies the channels (bands) of an image with the maximum values according to the argmax criterion.
+	 * 
+	 * @param raster the multi-band raster containing values to check
+	 * @param counts existing histogram if it should be updated, or null if a new histogram should be created. The length should 
+	 * 				 match the number of bands in the raster.
+	 * @param rasterMask optional single-channel mask; if not null, corresponding pixels with 0 values in the mask will be skipped
+	 * @return
+	 */
+	public static long[] computeArgMaxHistogram(WritableRaster raster, long[] counts, WritableRaster rasterMask) {
+		if (counts == null) {
+			counts = new long[raster.getNumBands()];
+		}
+		int h = raster.getHeight();
+		int w = raster.getWidth();
+		int nBands = raster.getNumBands();
+		for (int y = 0; y < h; y++) {
+			for (int x = 0; x < w; x++) {
+				if (rasterMask != null && rasterMask.getSample(x, y, 0) == 0)
+					continue;
+				double maxValue = raster.getSampleDouble(x, y, 0);
+				int ind = 0;
+				for (int i = 1; i < nBands; i++) {
+					double val = raster.getSampleDouble(x, y, i);
+					if (val > maxValue) {
+						maxValue = val;
+						ind = i;
+					}
+				}
+				counts[ind]++;
+			}
+		}
+		return counts;
+	}
+
+	/**
+	 * Count the number of above-threshold pixels in a specified band of a raster, with optional mask.
+	 * 
+	 * @param raster the multi-band raster containing values to check
+	 * @param threshold threshold value; pixels with values &gt; threshold this will be counted
+	 * @param rasterMask optional single-channel mask; if not null, corresponding pixels with 0 values in the mask will be skipped
+	 * @return
+	 */
+	public static long computeAboveThresholdCounts(WritableRaster raster, int band, double threshold, WritableRaster rasterMask) {
+		long count = 0L;
+		int h = raster.getHeight();
+		int w = raster.getWidth();
+		for (int y = 0; y < h; y++) {
+			for (int x = 0; x < w; x++) {
+				if (rasterMask != null && rasterMask.getSample(x, y, 0) == 0)
+					continue;
+				double val = raster.getSampleDouble(x, y, band);
+				if (val > threshold)
+					count++;
+			}
+		}
+		return count;
+	}
+
 //	/**
 //	 * Resize the image to have the requested width/height, using area averaging and bilinear interpolation.
 //	 * 

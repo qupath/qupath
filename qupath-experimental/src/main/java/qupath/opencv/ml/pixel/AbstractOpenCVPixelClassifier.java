@@ -45,7 +45,7 @@ abstract class AbstractOpenCVPixelClassifier implements PixelClassifier {
     
     protected synchronized ColorModel getClassificationsColorModel() {
     	if (colorModelClassifications == null) {
-            colorModelClassifications = ColorModelFactory.getIndexedColorModel(metadata.getOutputChannels());
+            colorModelClassifications = ColorModelFactory.getIndexedColorModel(metadata.getClassificationLabels());
     	}
     	return colorModelClassifications;
     }
