@@ -376,10 +376,23 @@ public class BrightnessContrastCommand implements PathCommand, ImageDataChangeLi
 			CheckBoxTableCell<ChannelDisplayInfo, Boolean> cell = new CheckBoxTableCell<>();
 			// Select cells when clicked - means a click anywhere within the row forces selection.
 			// Previously, clicking within the checkbox didn't select the row.
-			cell.addEventFilter(MouseEvent.MOUSE_RELEASED, e -> {
+			cell.addEventFilter(MouseEvent.MOUSE_CLICKED, e -> {
+				if (e.isPopupTrigger())
+					return;
 				int ind = cell.getIndex();
-				if (ind < column.getTableView().getItems().size())
-					column.getTableView().getSelectionModel().select(ind);
+				var tableView = cell.getTableView();
+				if (ind < tableView.getItems().size()) {
+					if (e.isShiftDown())
+						tableView.getSelectionModel().select(ind);
+					else
+						tableView.getSelectionModel().clearAndSelect(ind);
+					var channel = cell.getTableRow().getItem();
+					// Handle clicks within the cell but outside the checkbox
+					if (e.getTarget() == cell && channel != null && imageDisplay != null) {
+						updateDisplay(channel, !imageDisplay.selectedChannels().contains(channel));
+					}
+					e.consume();
+				}
 			});
 			return cell;
 		});
@@ -949,12 +962,24 @@ public class BrightnessContrastCommand implements PathCommand, ImageDataChangeLi
 		private KeyCombination copyCombo = new KeyCodeCombination(KeyCode.C, KeyCombination.SHORTCUT_DOWN);
 		private KeyCombination pasteCombo = new KeyCodeCombination(KeyCode.V, KeyCombination.SHORTCUT_DOWN);
 
+		private KeyCombination spaceCombo = new KeyCodeCombination(KeyCode.SPACE, KeyCombination.SHORTCUT_ANY);
+		private KeyCombination enterCombo = new KeyCodeCombination(KeyCode.ENTER, KeyCombination.SHORTCUT_ANY);
+
 		@Override
 		public void handle(KeyEvent event) {
-			if (copyCombo.match(event))
+			if (copyCombo.match(event)) {
 				doCopy(event);
-			else if (pasteCombo.match(event))
+				event.consume();
+			} else if (pasteCombo.match(event)) {
 				doPaste(event);
+				event.consume();
+			} else if (spaceCombo.match(event) || enterCombo.match(event)) {
+				var channel = table.getSelectionModel().getSelectedItem();
+				if (imageDisplay != null && channel != null) {
+					updateDisplay(channel, !imageDisplay.selectedChannels().contains(channel));
+				}
+				event.consume();
+			}
 		}
 		
 		/**
