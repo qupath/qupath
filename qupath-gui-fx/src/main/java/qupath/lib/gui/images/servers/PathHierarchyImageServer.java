@@ -203,8 +203,8 @@ public class PathHierarchyImageServer extends AbstractTileableImageServer implem
 		Collections.sort(pathObjects, new HierarchyOverlay.DetectionComparator());
 		
 		double downsampleFactor = request.getDownsample();
-		int width = (int)(request.getWidth() / downsampleFactor);
-		int height = (int)(request.getHeight() / downsampleFactor);
+		int width = tileRequest.getTileWidth();
+		int height = tileRequest.getTileHeight();
 		BufferedImage img = createDefaultRGBImage(width, height);
 		Graphics2D g2d = img.createGraphics();
 		g2d.setClip(0, 0, width, height);

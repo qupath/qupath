@@ -8,33 +8,45 @@ Changes include:
   * Added 'Advanced' features, including optional PCA and selecting a 'Boundary' classification
   * Ability to save & reload classifiers (format may change!)
   * New 'Create threshold classifier' command (replaces old simple threshold command)
+* Improved 'Dark' theme (available in the preferences)
 * Scripting Improvements
-  * Changed syntax highlighting - for better behavior with the 'Dark' theme (available in the preferences)
+  * Changed syntax highlighting - for better behavior with the 'Dark' theme
   * Core classes can now be auto-imported (use Ctrl-Shift to cycle through code-completions)
   * More helpful error messages for common errors
   * New setPixelSizeMicrons(double, double) scripting method
+  * New replaceClassification(String, String) scripting method
+  * Warning when applying 'Run for project' to an image currently open
 * Major ROI revisions
   * Area ROIs 'snap' to pixel coordinates by default (can be changed in the preferences)
   * New GeometryROI replaces AWTAreaROI
   * 'Distance to annotations 2D' now supports line and point ROIs
   * Increased use of Java Topology Suite  for Geometry calculations
   * Removed older interfaces (PathShape, PathPoints, PathArea, PathLine and TranslatableROI), moved more methods into ROI directly
+* Zoom in further for more accurate pixel-wise annotations
 * Revised cell detection & other detection commands that use tiling
   * Bigger tile overlap & improved contour smoothing in cell detection (note: this will impact results!)
-  * Fixed DoG superpixel tiling bug, see https://github.com/qupath/qupath/issues/345
-  * New 'Memory monitor' and 'Show input display' commands in 'View' menu
+* Wand tool improvements
+  * Change wand color modes in Edit -> Preferences
+  * Press Ctrl (Cmd) while using Wand to select identical pixel values (useful with classification overlays)
+* Renamed & improved 'Create simple thresholder', support image smoothing
+* New 'Memory monitor' and 'Show input display' commands in 'View' menu
+* Fixed DoG superpixel tiling bug, see https://github.com/qupath/qupath/issues/345
 * Summary measurements are displayed for the full image when no objects are selected
   * Added 'saveImageMeasurement' scripting command
 * Revised how images are written
   * Moved 'ImageWriterTools' to core module, updated 'ImageWriter' interface
   * Changed 'File -> Export regions...' commands to separate between raw pixels & rendered RGB images
-  * Export multidimensional images as OME-TIFF (when no region is selected)
+  * Export multidimensional images as OME-TIFF when no region is selected
+  * Support labelled/indexed color images with OME-TIFF and PNG
 * Improved image type support
   * Show under the 'Image' tab
   * Include support for uint8, uint16, int16, int32, float32 and float64 types
 * Pixel & object classifiers now better separated in the 'Classify' menu
 * Added Svidro2 colormap to better highlight extreme values
 * More informative PathObject.toString() and ROI.toString() methods
+* Improved Brightness/Contrast dialog
+  * Toggle channels on/off by pressing the 'spacebar' or 'Enter'
+  * Toggle channels on or off by clicking anywhere in 'selected' column (not only the checkbox)
 * Dependency updates
   * AdoptOpenJDK 13, JavaFX, Groovy, Guava, Bio-Formats, RichTextFX, ImageJ, jpackage
 * Bug fixes:
@@ -43,6 +55,11 @@ Changes include:
   * Converting tile classifications to annotations (https://github.com/qupath/qupath/issues/359)
   * Calculating intensity features for RGB fluorescence (https://github.com/qupath/qupath/issues/365)
   * Setting stroke thickness, thanks to @jballanc (https://github.com/qupath/qupath/pull/362)
+  
+Known issues with the pixel classifier:
+* Not yet (easily) scriptable
+* Measurements depend on current overlay & which tiles have been cached
+* Some commands (e.g. converting classified to objects) can be slow & cause QuPath to freeze while calculating results
 
 
 ## Version 0.2.0-m4

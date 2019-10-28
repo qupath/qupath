@@ -20,6 +20,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import org.bytedeco.javacpp.indexer.FloatIndexer;
+import org.bytedeco.openblas.global.openblas;
 import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.opencv_core.Mat;
 import org.bytedeco.opencv.opencv_ml.ANN_MLP;
@@ -91,7 +92,6 @@ import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.images.servers.ImageServerMetadata.ChannelType;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
-import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
@@ -201,6 +201,10 @@ public class PixelClassifierImageSelectionPane {
 		
 		// Classifier
 		pane = new GridPane();
+		
+		// TODO: Check if openblas multithreading continues to have trouble with Mac/Linux
+		if (!GeneralTools.isWindows())
+			openblas.blas_set_num_threads(1);
 
 		var labelClassifier = new Label("Classifier");
 		var comboClassifier = new ComboBox<OpenCVStatModel>();
@@ -1273,8 +1277,6 @@ public class PixelClassifierImageSelectionPane {
 		Objects.requireNonNull(imageData);
 		Objects.requireNonNull(server);
 		
-		var hierarchy = imageData.getHierarchy();
-		
 		var objectTypes = Arrays.asList(
 				"Annotation", "Detection"
 		);
@@ -1288,10 +1290,13 @@ public class PixelClassifierImageSelectionPane {
 		
 		var params = new ParameterList()
 				.addChoiceParameter("objectType", "Object type", "Annotation", objectTypes)
-				.addDoubleParameter("minSize", "Minimum object size", 0)
-				.addDoubleParameter("minHoleSize", "Minimum hole size", 0)
+				.addDoubleParameter("minSize", "Minimum object size", 0, null, "Minimum size of a region to keep (smaller regions will be dropped)")
+				.addDoubleParameter("minHoleSize", "Minimum hole size", 0, null, "Minimum size of a hole to keep (smaller holes will be filled)")
 				.addChoiceParameter("sizeUnits", "Minimum object/hole size units", "Pixels", sizeUnits)
-				.addBooleanParameter("doSplit", "Split objects", false);
+				.addBooleanParameter("doSplit", "Split objects", true,
+						"Split multi-part regions into separate objects")
+				.addBooleanParameter("clearExisting", "Delete existing objects", false,
+						"Delete any existing objects within the selected object before adding new objects (or entire image if no object is selected)");
 		
 		PixelCalibration cal = server.getPixelCalibration();
 		params.setHiddenParameters(!cal.hasPixelSizeMicrons(), "sizeUnits");
@@ -1315,6 +1320,7 @@ public class PixelClassifierImageSelectionPane {
 			minSizePixels /= (cal.getPixelWidthMicrons() * cal.getPixelHeightMicrons());
 			minHoleSizePixels /= (cal.getPixelWidthMicrons() * cal.getPixelHeightMicrons());
 		}
+		boolean clearExisting = params.getBooleanParameterValue("clearExisting");
 		
 		Collection<PathObject> allSelected = imageData.getHierarchy().getSelectionModel().getSelectedObjects();
 		List<PathObject> selected = allSelected.stream().filter(p -> p.hasROI() && p.getROI().isArea() && 
@@ -1350,7 +1356,7 @@ public class PixelClassifierImageSelectionPane {
 		
 		return PixelClassifierTools.createObjectsFromPixelClassifier(
 				server, imageData.getHierarchy(), selected, creator,
-				minSizePixels, minHoleSizePixels, doSplit);
+				minSizePixels, minHoleSizePixels, doSplit, clearExisting);
 	}
 	
 	

@@ -94,7 +94,7 @@ class SimplePixelClassifier implements PixelClassifier {
 	private synchronized IndexColorModel getColorModel() {
 		if (colorModel == null) {
 			var metadata = getMetadata();
-			this.colorModel = (IndexColorModel)ColorModelFactory.getIndexedColorModel(metadata.getClassificationLabels());
+			this.colorModel = (IndexColorModel)ColorModelFactory.getIndexedClassificationColorModel(metadata.getClassificationLabels());
 		}
 		return colorModel;
 	}

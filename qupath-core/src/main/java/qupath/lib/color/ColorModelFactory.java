@@ -42,10 +42,8 @@ public final class ColorModelFactory {
 	 * @param channels
 	 * @return
 	 */
-    public static ColorModel getIndexedColorModel(Map<Integer, PathClass> channels) {
+    public static ColorModel getIndexedClassificationColorModel(Map<Integer, PathClass> channels) {
     	var map = classificationModels.get(channels);
-    	
-    	map = null;
     	
     	var stats = channels.keySet().stream().mapToInt(c -> c).summaryStatistics();
     	if (stats.getMin() < 0)
@@ -64,10 +62,31 @@ public final class ColorModelFactory {
             }
             if (cmap.length > 256)
             	throw new IllegalArgumentException("Only 256 possible classifications supported!");
-            map = new IndexColorModel(8, channels.size(), cmap, 0, true, -1, DataBuffer.TYPE_BYTE);    		
+            map = new IndexColorModel(8, length, cmap, 0, true, -1, DataBuffer.TYPE_BYTE);    		
             classificationModels.put(new LinkedHashMap<>(channels), map);
     	}
     	return map;
+    }
+    
+    /**
+     * Create an indexed colormap for a labelled (indexed color) image.
+     * @param labelColors map with integer labels as keys and packed (A)RGB colors as values.
+     * @return
+     */
+    public static ColorModel createIndexedColorModel(Map<Integer, Integer> labelColors, boolean includeAlpha) {
+    	var stats = labelColors.keySet().stream().mapToInt(c -> c).summaryStatistics();
+    	if (stats.getMin() < 0)
+    		throw new IllegalArgumentException("Minimum label must be >= 0");
+    	int length = stats.getMax() + 1;
+    	
+        int[] cmap = new int[length];
+        
+        for (var entry: labelColors.entrySet()) {
+        	cmap[entry.getKey()] = entry.getValue();
+        }
+        if (cmap.length > 256)
+        	throw new IllegalArgumentException("Only 256 possible classifications supported!");
+        return new IndexColorModel(8, length, cmap, 0, includeAlpha, -1, DataBuffer.TYPE_BYTE);    		
     }
     
     

@@ -144,7 +144,7 @@ public class ImageServers {
 	
 	/**
 	 * Wrap an ImageServer to dynamically generate a pyramid. This does not involve writing any new image, 
-	 * and may be rather processor and memory-intensive as high-resolution tiles must be accessed to fulfill 
+	 * and may be rather processor and memory-intensive as high-resolution tiles must be accessed to fulfil 
 	 * low-resolution requests. However, tile caching means that after tiles have been accessed once perceived 
 	 * performance can be considerably improved.
 	 * 
@@ -164,8 +164,25 @@ public class ImageServers {
 		if (oldMetadata.getPreferredTileHeight() < oldMetadata.getHeight())
 			tileHeight = oldMetadata.getPreferredTileHeight();
 		
+		return pyramidalizeTiled(server, tileWidth, tileHeight, downsamples);
+	}
+	
+	/**
+	 * Wrap an ImageServer to dynamically generate a pyramid, using specified tile sizes.
+	 * This does not involve writing any new image, and may be rather processor and memory-intensive as high-resolution 
+	 * tiles must be accessed to fulfil low-resolution requests.
+	 * However, tile caching means that after tiles have been accessed once perceived 
+	 * performance can be considerably improved.
+	 * 
+	 * @param server the server to wrap (typically having only one resolution level)
+	 * @param tileWidth requested tile height
+	 * @param tileHeight requested tile height
+	 * @param downsamples optional array giving the downsamples of the new pyramid. If not provided, 
+	 * @return
+	 */
+	public static ImageServer<BufferedImage> pyramidalizeTiled(ImageServer<BufferedImage> server, int tileWidth, int tileHeight, double...downsamples) {
+		var oldMetadata = server.getMetadata();
 		if (downsamples.length == 0) {
-			
 			List<Double> downsampleList = new ArrayList<>();
 			double downsample = oldMetadata.getDownsampleForLevel(0);
 			double nextWidth = server.getWidth() / downsample;
