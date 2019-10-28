@@ -24,7 +24,9 @@
 package qupath.lib.regions;
 
 import java.text.DecimalFormat;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import qupath.lib.images.servers.ImageServer;
@@ -85,6 +87,22 @@ public class RegionRequest extends ImageRegion {
 	public static RegionRequest createInstance(ImageServer<?> server, double downsample) {
 		return createInstance(server.getPath(), downsample, 0, 0, server.getWidth(), server.getHeight());
 	}
+	
+	/**
+	 * Create a requests for the full width and height of an {@link ImageServer}, for all planes (z-slices and time points).
+	 * @param server
+	 * @param downsample
+	 * @return
+	 */
+	public static List<RegionRequest> createAllRequests(ImageServer<?> server, double downsample) {
+		List<RegionRequest> requests = new ArrayList<>();
+		for (int t = 0; t < server.nTimepoints(); t++) {
+			for (int z = 0; z < server.nZSlices(); z++) {
+				requests.add(RegionRequest.createInstance(server.getPath(), downsample, 0, 0, server.getWidth(), server.getHeight(), z, t));
+			}			
+		}
+		return requests;
+	}
 
 	/**
 	 * Create a request that contains the pixels of the specified ROI.
@@ -96,6 +114,16 @@ public class RegionRequest extends ImageRegion {
 	 */
 	public static RegionRequest createInstance(String path, double downsample, ROI roi) {
 		return createInstance(path, downsample, ImageRegion.createInstance(roi));
+	}
+	
+	/**
+	 * Create a request that matches another request but with a different path.
+	 * @param path
+	 * @param roi
+	 * @return
+	 */
+	public static RegionRequest createInstance(String path, RegionRequest request) {
+		return createInstance(path, request.getDownsample(), request);
 	}
 
 	/**

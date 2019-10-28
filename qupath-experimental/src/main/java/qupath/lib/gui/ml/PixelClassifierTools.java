@@ -340,10 +340,15 @@ public class PixelClassifierTools {
 		
 		List<RegionRequest> regionRequests;
 		if (selectedObject != null) {
-			var request = RegionRequest.createInstance(
-					server.getPath(), server.getDownsampleForResolution(0), 
-					selectedObject.getROI());			
-			regionRequests = Collections.singletonList(request);
+			if (selectedObject.hasROI()) {
+				var request = RegionRequest.createInstance(
+						server.getPath(), server.getDownsampleForResolution(0), 
+						selectedObject.getROI());			
+				regionRequests = Collections.singletonList(request);
+			} else if (selectedObject.isRootObject())
+				regionRequests = RegionRequest.createAllRequests(server, server.getDownsampleForResolution(0));
+			else
+				regionRequests = Collections.emptyList();
 		} else {
 			regionRequests = new ArrayList<>();
 			for (int t = 0; t < server.nTimepoints(); t++) {
@@ -462,10 +467,12 @@ public class PixelClassifierTools {
 			hierarchy.getRootObject().addPathObjects(pathObjects);
 			hierarchy.fireHierarchyChangedEvent(PixelClassifierTools.class);
 		} else {
-			selectedObject.setLocked(true);
+			if (selectedObject.isAnnotation() || selectedObject.isTMACore())
+				selectedObject.setLocked(true);
 //			selectedObject.clearPathObjects();
-			selectedObject.addPathObjects(pathObjects);
-			hierarchy.fireHierarchyChangedEvent(PixelClassifierTools.class, selectedObject);
+//			selectedObject.addPathObjects(pathObjects);
+			hierarchy.addPathObjects(pathObjects);
+//			hierarchy.fireHierarchyChangedEvent(PixelClassifierTools.class, selectedObject);
 		}
 		return true;
 	}
