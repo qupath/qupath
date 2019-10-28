@@ -119,7 +119,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 	 * This is necessary to avoid creating multiple readers that are too large (e.g. sometimes 
 	 * a memoization file can be over 1GB...)
 	 */
-	private static long MAX_PARALLELIZATION_MEMO_SIZE = 1024L * 1024L * 8L;
+	private static long MAX_PARALLELIZATION_MEMO_SIZE = 1024L * 1024L * 16L;
 	
 	/**
 	 * The original URI requested for this server.

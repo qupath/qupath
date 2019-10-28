@@ -424,10 +424,10 @@ public final class PathObjectHierarchy implements Serializable {
 				if (pathObject.getParent() == possibleParent)
 					return false;
 				
-				var previousChildren = new HashSet<>(possibleParent.getChildObjects());
+				Collection<PathObject> previousChildren = pathObject.isDetection() ? Collections.emptyList() : new ArrayList<>(possibleParent.getChildObjects());
 				possibleParent.addPathObject(pathObject);
 				// If we have a non-detection, consider reassigning child objects
-				if (!pathObject.isDetection()) {
+				if (!previousChildren.isEmpty()) {
 //					long startTime = System.currentTimeMillis();
 					pathObject.addPathObjects(filterObjectsForROI(pathObject.getROI(), previousChildren));
 					

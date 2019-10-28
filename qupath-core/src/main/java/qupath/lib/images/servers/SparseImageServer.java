@@ -347,7 +347,7 @@ public class SparseImageServer extends AbstractTileableImageServer {
 		for (var region : regions) {
 			map.put(region, GeometryTools.regionToGeometry(region.getRegion()));
 		}
-		var allGeometries = UnaryUnionOp.union(map.values());
+		var allGeometries = GeometryTools.union(map.values());
 		
 		// Buffer if necessary
 		if (distancePixels > 0)
@@ -359,7 +359,7 @@ public class SparseImageServer extends AbstractTileableImageServer {
 			for (int i = 0; i < allGeometries.getNumGeometries(); i++) {
 				bounds.add(allGeometries.getGeometryN(i).getEnvelope());
 			}
-			allGeometries = UnaryUnionOp.union(bounds);
+			allGeometries = GeometryTools.union(bounds);
 		}
 		
 		// Check how many distinct geometries we have

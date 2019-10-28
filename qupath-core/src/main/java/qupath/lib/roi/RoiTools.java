@@ -38,8 +38,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.locationtech.jts.geom.Geometry;
-import org.locationtech.jts.geom.prep.PreparedGeometryFactory;
-import org.locationtech.jts.operation.union.UnaryUnionOp;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -129,7 +127,7 @@ public class RoiTools {
 			}
 			geometries.add(r.getGeometry());
 		}
-		return GeometryTools.geometryToROI(UnaryUnionOp.union(geometries), plane);
+		return GeometryTools.geometryToROI(GeometryTools.union(geometries), plane);
 	}
 	
 	/**
@@ -247,57 +245,29 @@ public class RoiTools {
 	 * Remove small pieces and fill small holes of an area ROI.
 	 * 
 	 * @param roi
-	 * @param minArea
-	 * @param maxHoleArea
+	 * @param minAreaPixels
+	 * @param minHoleAreaPixels
 	 * @return
 	 */
-	public static ROI removeSmallPieces(ROI roi, double minArea, double maxHoleArea) {
+	public static ROI removeSmallPieces(ROI roi, double minAreaPixels, double minHoleAreaPixels) {
 		if (!roi.isArea())
 			throw new IllegalArgumentException("Only PathArea ROIs supported!");
 		
 		// We can't have holes if we don't have an AreaROI
 		if (roi instanceof RectangleROI || roi instanceof EllipseROI || roi instanceof LineROI || roi instanceof PolylineROI) {
-			if (roi.getArea() < minArea)
+			if (roi.getArea() < minAreaPixels)
 				return null;
+			else
+				return roi;
 		}
 		
-		var polygons = splitAreaToPolygons(roi);
-		
-		// Keep track of whether we are filtering out any pieces; if not, return the original ROI
-		boolean changes = false;
-		
-		var path = new Path2D.Double(Path2D.WIND_NON_ZERO);
-		for (var poly : polygons[1]) {
-			if (minArea <= 0 || poly.getArea() > minArea) {
-				var points = poly.getAllPoints();
-				var p = points.get(0);
-				path.moveTo(p.getX(), p.getY());
-				for (int i = 1; i < points.size(); i++) {
-					p = points.get(i);
-					path.lineTo(p.getX(), p.getY());
-				}
-				path.closePath();
-			} else
-				changes = true;
-		}
-	
-		for (var poly : polygons[0]) {
-			if (maxHoleArea <= 0 || poly.getArea() > maxHoleArea) {
-				var points = poly.getAllPoints();
-				var p = points.get(0);
-				path.moveTo(p.getX(), p.getY());
-				for (int i = 1; i < points.size(); i++) {
-					p = points.get(i);
-					path.lineTo(p.getX(), p.getY());
-				}
-				path.closePath();
-			} else
-				changes = true;
-		}
-		if (changes)
-			return getShapeROI(new Area(path), ImagePlane.getPlane(roi), 0.5);
-		else
+		var geometry = roi.getGeometry();
+		var geometry2 = GeometryTools.refineAreas(geometry, minAreaPixels, minHoleAreaPixels);
+		if (geometry == geometry2)
 			return roi;
+		if (geometry2 == null)
+			return null;
+		return GeometryTools.geometryToROI(geometry2, roi.getImagePlane());
 	}
 
 

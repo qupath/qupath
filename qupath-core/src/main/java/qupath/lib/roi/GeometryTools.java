@@ -7,6 +7,7 @@ import java.awt.geom.PathIterator;
 import java.awt.geom.Point2D;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -19,6 +20,8 @@ import org.locationtech.jts.geom.CoordinateList;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
+import org.locationtech.jts.geom.LineString;
+import org.locationtech.jts.geom.LinearRing;
 import org.locationtech.jts.geom.MultiPoint;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
@@ -104,6 +107,81 @@ public class GeometryTools {
     	coords[4] = coords[0];
     	return DEFAULT_INSTANCE.factory.createPolygon(coords);
     }
+    
+    
+    /**
+     * Calculate the union of multiple Geometry objects.
+     * @param geometries
+     * @return
+     */
+    public static Geometry union(Collection<Geometry> geometries) {
+    	return UnaryUnionOp.union(geometries);
+    }
+    
+    
+    /**
+     * Remove small fragments and fill holes within a Geometry.
+     * 
+     * @param geometry
+     * @param minSizePixels
+     * @param minHoleSizePixels
+     * @return the refined geometry (possibly the original unchanged), or null if the changes resulted in the Geometry disappearing
+     */
+    public static Geometry refineAreas(Geometry geometry, double minSizePixels, double minHoleSizePixels) {
+		if (geometry.isEmpty())
+			return null;
+		
+		if (minSizePixels <= 0 && minHoleSizePixels <= 0)
+			return geometry;
+		
+		if (geometry.getNumGeometries() == 1) {
+			// Check area
+			if (minSizePixels > 0 && geometry.getArea() < minSizePixels)
+				return null;
+			// Check interior holes if we have a polygon
+			if (minHoleSizePixels > 0 && geometry instanceof Polygon) {
+				var polygon = (Polygon)geometry;
+				int nHoles = polygon.getNumInteriorRing();
+				if (nHoles == 0)
+					return geometry;
+				
+				List<LinearRing> holes = new ArrayList<>();
+				for (int i = 0; i < polygon.getNumInteriorRing(); i++) {
+					var ring = polygon.getInteriorRingN(i);
+					if (org.locationtech.jts.algorithm.Area.ofRing(ring.getCoordinateSequence()) >= minHoleSizePixels) {
+						holes.add(toLinearRing(ring));
+					}
+				}
+				if (nHoles == holes.size())
+					return geometry;
+				else
+					return geometry.getFactory().createPolygon(
+							toLinearRing(polygon.getExteriorRing()),
+							holes.toArray(LinearRing[]::new));
+			}
+			return geometry;
+		}
+		
+		List<Geometry> collection = new ArrayList<>();
+		for (int i = 0; i < geometry.getNumGeometries(); i++) {
+			var temp = refineAreas(geometry.getGeometryN(i), minSizePixels, minHoleSizePixels);
+			if (temp != null)
+				collection.add(temp);
+		}
+		if (collection.isEmpty())
+			return null;
+		if (collection.size() == 1)
+			return collection.get(0);
+		return geometry.getFactory().buildGeometry(collection);
+	}
+	
+	
+	static LinearRing toLinearRing(LineString lineString) {
+		if (lineString instanceof LinearRing)
+			return (LinearRing)lineString;
+		return lineString.getFactory().createLinearRing(lineString.getCoordinateSequence());
+	}
+	
 
     
     public static class GeometryConverter {
@@ -325,10 +403,10 @@ public class GeometryTools {
 			} else {
 				return factory.createPolygon();
 			}
-			Geometry geometry = UnaryUnionOp.union(outer);
+			Geometry geometry = union(outer);
 	
 			if (!holes.isEmpty()) {
-				Geometry hole = UnaryUnionOp.union(holes);
+				Geometry hole = union(holes);
 				geometry = geometry.difference((Geometry)hole);
 			}
 			
