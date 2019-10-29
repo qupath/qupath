@@ -1325,13 +1325,15 @@ public class PixelClassifierImageSelectionPane {
 		Collection<PathObject> allSelected = imageData.getHierarchy().getSelectionModel().getSelectedObjects();
 		List<PathObject> selected = allSelected.stream().filter(p -> p.hasROI() && p.getROI().isArea() && 
 				(p.isAnnotation() || p.isTMACore())).collect(Collectors.toList());
-		if (allSelected.isEmpty())
+		boolean hasSelection = true;
+		if (allSelected.isEmpty()) {
+			hasSelection = false;
 			selected = Collections.singletonList(imageData.getHierarchy().getRootObject());
-		else if (selected.size() != allSelected.size()) {
+		} else if (selected.size() != allSelected.size()) {
 			DisplayHelpers.showErrorMessage("Create objects", "All selected objects should be annotations with area ROIs or TMA cores!");
 			return false;
 		}
-		if (selected.size() == 1 && selected.get(0).getPathClass() != null && selected.get(0).getPathClass() != PathClassFactory.getPathClass(StandardPathClasses.REGION)) {
+		if (hasSelection && selected.size() == 1 && selected.get(0).getPathClass() != null && selected.get(0).getPathClass() != PathClassFactory.getPathClass(StandardPathClasses.REGION)) {
 			var btn = DisplayHelpers.showYesNoCancelDialog("Create objects", "Create objects for selected annotation(s)?\nChoose 'no' to use the entire image.");
 			if (btn == DialogButton.CANCEL)
 				return false;

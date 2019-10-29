@@ -388,18 +388,18 @@ public class PixelClassifierTools {
 						raster = WritableRaster.createPackedRaster(
 								new DataBufferByte(output, w*h), w, h, 8, null);
 					}
-					for (int c = 0; c < nChannels; c++) {
-						ImageChannel channel = server.getChannel(c);
-						if (channel == null || channel.getName() == null)
-							continue;
-						var pathClass = PathClassFactory.getPathClass(channel.getName());
+					var labels = server.getMetadata().getClassificationLabels();
+					for (var entry : labels.entrySet()) {
+						int c = entry.getKey();
+						PathClass pathClass = entry.getValue();
 						if (pathClass == null || PathClassTools.isGradedIntensityClass(pathClass) || PathClassTools.isIgnoredClass(pathClass))
 							continue;
 						ROI roi = thresholdToROI(raster, c-0.5, c+0.5, 0, t);
 										
-						if (roi != null && clipArea != null) {
-							Geometry geometry = roi.getGeometry().intersection(clipArea);
-	//						RoiTools.combineAreas(roiArea, clipArea, CombineOp.INTERSECT);
+						if (roi != null)  {
+							Geometry geometry = roi.getGeometry();
+							if (clipArea != null)
+								geometry = geometry.intersection(clipArea);
 							if (!geometry.isEmpty())
 								list.add(new GeometryWrapper(geometry, pathClass, roi.getImagePlane()));
 						}

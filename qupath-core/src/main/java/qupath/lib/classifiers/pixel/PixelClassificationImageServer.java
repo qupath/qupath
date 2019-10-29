@@ -15,6 +15,7 @@ import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.AbstractTileableImageServer;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
+import qupath.lib.images.servers.ImageServerMetadata.ChannelType;
 import qupath.lib.images.servers.ImageServerMetadata.ImageResolutionLevel;
 import qupath.lib.images.servers.PixelType;
 import qupath.lib.images.servers.TileRequest;
@@ -123,12 +124,15 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 				.width(width)
 				.height(height)
 				.channelType(classifierMetadata.getOutputType())
-				.channels(classifierMetadata.getOutputChannels())
-				.classificationLabels(classifierMetadata.getClassificationLabels())
 				.preferredTileSize(tileWidth-pad*2, tileHeight-pad*2)
 				.levels(levels)
 				.pixelType(pixelType)
+				.classificationLabels(classifierMetadata.getClassificationLabels())
 				.rgb(false);
+		
+//		if (classifierMetadata.getOutputType() == ChannelType.PROBABILITY)
+//			.channels(classifierMetadata.getOutputChannels())
+
 		
 		originalMetadata = builder.build();
 		
