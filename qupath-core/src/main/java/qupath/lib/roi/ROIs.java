@@ -25,6 +25,7 @@
 package qupath.lib.roi;
 
 import java.awt.Shape;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
@@ -146,6 +147,22 @@ public class ROIs {
 	public static ROI createPointsROI(List<? extends Point2> points, ImagePlane plane) {
 		return new PointsROI(points, plane);
 	}
+	
+	/**
+	 * Create a points ROI from an array of x and y coordinates.
+	 * @param x
+	 * @param y
+	 * @param plane
+	 * @return
+	 */
+	public static ROI createPointsROI(double[] x, double y[], ImagePlane plane) {
+		if (x.length != y.length)
+			throw new IllegalArgumentException("Point arrays have different lengths!");
+		var points = new ArrayList<Point2>();
+		for (int i = 0; i < x.length; i++)
+			points.add(new Point2(x[i], y[i]));
+		return new PointsROI(points, plane);
+	}
 
 	/**
 	 * Create a closed polygon ROI from a list of points.
@@ -156,6 +173,23 @@ public class ROIs {
 	public static PolygonROI createPolygonROI(List<Point2> points, ImagePlane plane) {
 		return new PolygonROI(points, plane);
 	}
+	
+	/**
+	 * Create a polygon ROI from an array of x and y coordinates.
+	 * @param x
+	 * @param y
+	 * @param plane
+	 * @return
+	 */
+	public static ROI createPolygonROI(double[] x, double y[], ImagePlane plane) {
+		if (x.length != y.length)
+			throw new IllegalArgumentException("Arrays have different lengths!");
+		var points = new ArrayList<Point2>();
+		for (int i = 0; i < x.length; i++)
+			points.add(new Point2(x[i], y[i]));
+		return new PolygonROI(points, plane);
+	}
+
 	
 	/**
 	 * Create an empty, closed polygon ROI consisting of a single point.
@@ -188,6 +222,22 @@ public class ROIs {
 	 */
 	public static PolylineROI createPolylineROI(double x, double y, ImagePlane plane) {
 		return new PolylineROI(Collections.singletonList(new Point2(x, y)), plane);
+	}
+	
+	/**
+	 * Create a polygon ROI from an array of x and y coordinates.
+	 * @param x
+	 * @param y
+	 * @param plane
+	 * @return
+	 */
+	public static ROI createPolylineROI(double[] x, double y[], ImagePlane plane) {
+		if (x.length != y.length)
+			throw new IllegalArgumentException("Arrays have different lengths!");
+		var points = new ArrayList<Point2>();
+		for (int i = 0; i < x.length; i++)
+			points.add(new Point2(x[i], y[i]));
+		return new PolylineROI(points, plane);
 	}
 	
 	/**
