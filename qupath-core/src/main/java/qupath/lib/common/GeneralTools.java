@@ -118,11 +118,30 @@ public class GeneralTools {
 	 * </ul>
 	 * @param file
 	 * @return
-	 * {@link #getNameWithoutExtension(File)}
+	 * see #getNameWithoutExtension(File)
 	 */
 	public static Optional<String> getExtension(File file) {
 		Objects.nonNull(file);
-		var name = file.getName();
+		return getExtension(file.getName());
+	}
+	
+	/**
+	 * Get extension from a filename. Some implementation notes:
+	 * <ul>
+	 * <li>Note that this is <i>generally</i> 'the final dot and beyond', however this method 
+	 * also handles several important special cases: ".ome.tif", ".ome.tiff" and ".tar.gz".</li>
+	 * <li>The dot is included as the first character.</li>
+	 * <li>No check is performed to see if the  file is actually a directory, but if a dot is the final character then no 
+	 * extension is returned.</li>
+	 * <li>The extension is returned as-is, without adjusting to be upper or lower case.</li>
+	 * </ul>
+	 * @param name
+	 * @return
+	 * @see #getExtension(File)
+	 * @see #getNameWithoutExtension(File)
+	 */
+	public static Optional<String> getExtension(String name) {
+		Objects.nonNull(name);
 		var lower = name.toLowerCase();
 		String ext = null;
 		for (var temp : DEFAULT_EXTENSIONS) {
@@ -179,6 +198,17 @@ public class GeneralTools {
 	public static String getNameWithoutExtension(File file) {
 		var ext = getExtension(file).orElse(null);
 		String name = file.getName();
+		return ext ==  null ? name : name.substring(0, name.length() - ext.length());
+	}
+	
+	/**
+	 * Get the file name with extension removed.
+	 * @param name
+	 * @return
+	 * {@link #getExtension(File)}
+	 */
+	public static String getNameWithoutExtension(String name) {
+		var ext = getExtension(name).orElse(null);
 		return ext ==  null ? name : name.substring(0, name.length() - ext.length());
 	}
 	

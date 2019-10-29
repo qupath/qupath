@@ -64,7 +64,7 @@ public class WrappedBufferedImageServer extends AbstractTileableImageServer {
 
 		// Create metadata objects
 		PixelType pixelType;
-		switch (img.getRaster().getDataBuffer().getDataType()) {
+		switch (img.getRaster().getSampleModel().getTransferType()) {
 		case DataBuffer.TYPE_BYTE:
 			pixelType = PixelType.UINT8;
 			break;
@@ -90,8 +90,8 @@ public class WrappedBufferedImageServer extends AbstractTileableImageServer {
 		boolean isRGB = false;
 		for (int type : rgbTypes) {
 			isRGB = isRGB | type == img.getType();
+			pixelType = PixelType.UINT8;
 		}
-		
 		originalMetadata = new ImageServerMetadata.Builder()
 				.width(img.getWidth())
 				.height(img.getHeight())

@@ -38,6 +38,7 @@ import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
+import qupath.lib.objects.classes.PathClassTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.regions.RegionRequest;
 
@@ -155,11 +156,12 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 		private Map<Integer, Integer> labelColors = new LinkedHashMap<>();
 		
 		LabeledServerParameters() {
-			labels.put(PathClassFactory.getPathClassUnclassified(), 0);
-			labelColors.put(0, ColorTools.makeRGB(255, 255, 255));
+			labels.put(unannotatedClass, 0);
+			labelColors.put(0, ColorTools.WHITE);
 		}
 		
 		LabeledServerParameters(LabeledServerParameters params) {
+			this.unannotatedClass = params.unannotatedClass;
 			this.lineThickness = params.lineThickness;
 			this.labels = new LinkedHashMap<>(params.labels);
 			this.boundaryLabels = new LinkedHashMap<>(params.boundaryLabels);
@@ -168,6 +170,9 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 		
 	}
 	
+	/**
+	 * Helper class for building a {@link LabeledImageServer}.
+	 */
 	public static class Builder {
 		
 		private ImageData<BufferedImage> imageData;
@@ -178,58 +183,201 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 
 		private LabeledServerParameters params = new LabeledServerParameters();
 		
+		/**
+		 * Create a Builder for a {@link LabeledImageServer} for the specified {@link ImageData}.
+		 * @param imageData
+		 */
 		public Builder(ImageData<BufferedImage> imageData) {
 			this.imageData = imageData;
 		}
 		
+		/**
+		 * Specify downsample factor. This is <i>very</i> important because it defines 
+		 * the resolution at which shapes will be drawn and the line thickness is determined.
+		 * @param downsample
+		 * @return
+		 */
 		public Builder downsample(double downsample) {
 			this.downsample = downsample;
 			return this;
 		}
 		
+		/**
+		 * Set tile width and height (square tiles).
+		 * @param tileSize
+		 * @return
+		 */
 		public Builder tileSize(int tileSize) {
 			return tileSize(tileSize, tileSize);
 		}
 		
+		/**
+		 * Set tile width and height.
+		 * @param tileWidth
+		 * @param tileHeight
+		 * @return
+		 */
 		public Builder tileSize(int tileWidth, int tileHeight) {
 			this.tileWidth = tileWidth;
 			this.tileHeight = tileHeight;
 			return this;
 		}
 		
+		/**
+		 * Thickness of boundary lines and line annotations, defined in terms of pixels at the 
+		 * resolution specified by the downsample value of the server.
+		 * @param thickness
+		 * @return
+		 */
 		public Builder lineThickness(float thickness) {
 			params.lineThickness = thickness;
 			return this;
 		}
 		
+		/**
+		 * If true, the output image consists of multiple binary images concatenated as different channels, 
+		 * so that the channel number relates to a classification.
+		 * If false, the output image is a single-channel indexed image so that each pixel value relates to 
+		 * a classification.
+		 * Indexed images are much more efficient, but are unable to support more than one classification per pixel.
+		 * @param doMultichannel
+		 * @return
+		 */
 		public Builder multichannelOutput(boolean doMultichannel) {
 			this.multichannelOutput = doMultichannel;
 			return this;
 		}
 		
+		/**
+		 * Specify the background label (0 by default).
+		 * @param label
+		 * @return
+		 */
 		public Builder backgroundLabel(int label) {
 			return backgroundLabel(label, ColorTools.makeRGB(255, 255, 255));
 		}
 		
+		/**
+		 * Specify the background label (0 by default) and color.
+		 * @param label
+		 * @return
+		 */
 		public Builder backgroundLabel(int label, Integer color) {
-			addLabel(params.unannotatedClass, color);
+			addLabel(params.unannotatedClass, label, color);
 			return this;
 		}
 		
+		/**
+		 * Add multiple labels by classname, where the key represents a classname and the value 
+		 * represents the integer label that should be used for annotations of the given class.
+		 * @param labelMap
+		 * @return
+		 */
+		public Builder addLabelsByName(Map<String, Integer> labelMap) {
+			for (var entry : labelMap.entrySet())
+				addLabel(entry.getKey(), entry.getValue());
+			return this;
+		}
+
+		/**
+		 * Add multiple labels by PathClass, where the key represents a PathClass and the value 
+		 * represents the integer label that should be used for annotations of the given class.
+		 * @param labelMap
+		 * @return
+		 */
+		public Builder addLabels(Map<PathClass, Integer> labelMap) {
+			for (var entry : labelMap.entrySet())
+				addLabel(entry.getKey(), entry.getValue());
+			return this;
+		}
+		
+		/**
+		 * Add a single label by classname, where the label represents the integer label used for 
+		 * annotations with the given classname.
+		 * @param pathClassName
+		 * @param label
+		 * @return
+		 */
+		public Builder addLabel(String pathClassName, int label) {
+			return addLabel(pathClassName, label, null);
+		}
+
+		/**
+		 * Add a single label by classname, where the label represents the integer label used for 
+		 * annotations with the given classname.
+		 * @param pathClassName
+		 * @param label the indexed image pixel value or channel number for the given classification
+		 * @param color the color of the lookup table used with any indexed image
+		 * @return
+		 */
+		public Builder addLabel(String pathClassName, int label, Integer color) {
+			return addLabel(PathClassFactory.getPathClass(pathClassName), label, color);
+		}
+
+		/**
+		 * Add a single label by {@link PathClass}, where the label represents the integer label used for 
+		 * annotations with the given classification.
+		 * @param pathClass
+		 * @param label the indexed image pixel value or channel number for the given classification
+		 * @return
+		 */
 		public Builder addLabel(PathClass pathClass, int label) {
 			return addLabel(pathClass, label, null);
 		}
 		
+		/**
+		 * Add a single label by {@link PathClass}, where the label represents the integer label used for 
+		 * annotations with the given classification.
+		 * @param pathClass
+		 * @param label the indexed image pixel value or channel number for the given classification
+		 * @param color the color of the lookup table used with any indexed image
+		 * @return
+		 */
 		public Builder addLabel(PathClass pathClass, int label, Integer color) {
 			return addLabel(params.labels, pathClass, label, color);
 		}
 		
-		public Builder addBoundaryLabel(PathClass pathClass, int label) {
-			return addBoundaryLabel(pathClass, label, null);
+		/**
+		 * Set the classification and label to use for boundaries for classified areas.
+		 * @param pathClass
+		 * @param label the indexed image pixel value or channel number for the given classification
+		 * @return
+		 */
+		public Builder setBoundaryLabel(PathClass pathClass, int label) {
+			return setBoundaryLabel(pathClass, label, null);
 		}
 		
-		public Builder addBoundaryLabel(PathClass pathClass, int label, Integer color) {
+		/**
+		 * Set the classification and label to use for boundaries for classified areas.
+		 * @param pathClass
+		 * @param label the indexed image pixel value or channel number for the given classification
+		 * @param color the color of the lookup table used with any indexed image
+		 * @return
+		 */
+		public Builder setBoundaryLabel(PathClass pathClass, int label, Integer color) {
+			params.boundaryLabels.clear();
 			return addLabel(params.boundaryLabels, pathClass, label, color);
+		}
+		
+		/**
+		 * Set the classification and label to use for boundaries for classified areas.
+		 * @param pathClassName
+		 * @param label the indexed image pixel value or channel number for the given classification
+		 * @return
+		 */
+		public Builder setBoundaryLabel(String pathClassName, int label) {
+			return setBoundaryLabel(pathClassName, label, null);
+		}
+		
+		/**
+		 * Set the classification and label to use for boundaries for classified areas.
+		 * @param pathClassName
+		 * @param label the indexed image pixel value or channel number for the given classification
+		 * @param color the color of the lookup table used with any indexed image
+		 * @return
+		 */
+		public Builder setBoundaryLabel(String pathClassName, int label, Integer color) {
+			return setBoundaryLabel(PathClassFactory.getPathClass(pathClassName), label, color);
 		}
 		
 		private Builder addLabel(Map<PathClass, Integer> map, PathClass pathClass, int label, Integer color) {
@@ -241,6 +389,10 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 			return this;
 		}
 		
+		/**
+		 * Build the {@link ImageServer} with the requested parameters.
+		 * @return
+		 */
 		public LabeledImageServer build() {
 			return new LabeledImageServer(
 					imageData, downsample, tileWidth, tileHeight,
@@ -249,26 +401,6 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 		}
 
 	}
-	
-//	private static class ClassificationLabel {
-//		
-//		private final PathClass pathClass;
-//		public final int label;
-//		public final int color;
-//		public final float boundaryThickness;
-//		public final int boundaryLabel;
-//		
-//		ClassificationLabel(final PathClass pathClass, int label, int color, float boundaryThickness, int boundaryLabel) {
-//			this.pathClass = pathClass;
-//			this.label = label;
-//			this.color = color;
-//			this.boundaryThickness = boundaryThickness;
-//			this.boundaryLabel = boundaryLabel;
-//		}
-//		
-//	}
-	
-	
 	
 	/**
 	 * Returns null (does not support ServerBuilders).
@@ -380,6 +512,7 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 		int width = tileRequest.getTileWidth();
 		int height = tileRequest.getTileHeight();
 		BufferedImage img = new BufferedImage(width, height, BufferedImage.TYPE_BYTE_GRAY);
+		WritableRaster raster = img.getRaster();
 		Graphics2D g2d = img.createGraphics();
 		
 		if (!pathObjects.isEmpty()) {
@@ -392,6 +525,9 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 			g2d.scale(scale, scale);
 			g2d.translate(-request.getX(), -request.getY());
 			g2d.setColor(Color.WHITE);
+			
+			BasicStroke stroke = new BasicStroke((float)(params.lineThickness * tileRequest.getDownsample()));
+			g2d.setStroke(stroke);
 
 			// We want to order consistently to avoid confusing overlaps
 			for (var entry : params.labels.entrySet()) {
@@ -400,22 +536,35 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 				var pathClass = entry.getKey();
 				for (var pathObject : pathObjects) {
 					if (pathObject.getPathClass() == pathClass) {
-						var shape = pathObject.getROI().getShape();
-						g2d.fill(shape);
+						var roi = pathObject.getROI();
+						if (roi.isArea())
+							g2d.fill(roi.getShape());
+						else if (roi.isLine())
+							g2d.draw(roi.getShape());
+						else if (roi.isPoint()) {
+							for (var p : roi.getAllPoints()) {
+								int x = (int)((p.getX() - request.getX()) / downsampleFactor);
+								int y = (int)((p.getY() - request.getY()) / downsampleFactor);
+								if (x >= 0 && x < width && y >= 0 && y < height) {
+									raster.setSample(x, y, 0, 255);
+								}
+							}
+						}
 					}
 				}
 			}
-			BasicStroke stroke = null;
 			for (var entry : params.boundaryLabels.entrySet()) {
 				if (entry.getValue() != label)
 					continue;
 				var pathClass = entry.getKey();
 				for (var pathObject : pathObjects) {
-					if (pathObject.getPathClass() == pathClass) {
-						if (stroke == null)
-							stroke = new BasicStroke((float)(params.lineThickness * tileRequest.getDownsample()));
-						var shape = pathObject.getROI().getShape();
-						g2d.draw(shape);
+					if (params.labels.containsKey(pathObject.getPathClass()) && !PathClassTools.isIgnoredClass(pathObject.getPathClass())) {
+//					if (pathObject.getPathClass() == pathClass) {
+						var roi = pathObject.getROI();
+						if (roi.isArea()) {
+							var shape = roi.getShape();
+							g2d.draw(shape);
+						}
 					}
 				}
 			}
@@ -436,8 +585,11 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 		int width = tileRequest.getTileWidth();
 		int height = tileRequest.getTileHeight();
 		BufferedImage img = new BufferedImage(width, height, BufferedImage.TYPE_BYTE_GRAY);
+		WritableRaster raster = img.getRaster();
+		
 		Graphics2D g2d = img.createGraphics();
-		Color color = ColorToolsAwt.getCachedColor(params.labels.get(params.unannotatedClass));
+		int bgLabel = params.labels.get(params.unannotatedClass);
+		Color color = ColorToolsAwt.getCachedColor(bgLabel, bgLabel, bgLabel);
 		g2d.setColor(color);
 		g2d.fillRect(0, 0, width, height);
 
@@ -446,6 +598,10 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 			double scale = 1.0/downsampleFactor;
 			g2d.scale(scale, scale);
 			g2d.translate(-request.getX(), -request.getY());
+			
+			BasicStroke stroke = new BasicStroke((float)(params.lineThickness * tileRequest.getDownsample()));
+			g2d.setStroke(stroke);
+			
 			// We want to order consistently to avoid confusing overlaps
 			for (var entry : params.labels.entrySet()) {
 				var pathClass = entry.getKey();
@@ -453,24 +609,36 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 				color = ColorToolsAwt.getCachedColor(c, c, c);
 				for (var pathObject : pathObjects) {
 					if (pathObject.getPathClass() == pathClass) {
-						var shape = pathObject.getROI().getShape();
+						var roi = pathObject.getROI();
 						g2d.setColor(color);
-						g2d.fill(shape);
+						if (roi.isArea())
+							g2d.fill(roi.getShape());
+						else if (roi.isLine())
+							g2d.draw(roi.getShape());
+						else if (roi.isPoint()) {
+							for (var p : roi.getAllPoints()) {
+								int x = (int)((p.getX() - request.getX()) / downsampleFactor);
+								int y = (int)((p.getY() - request.getY()) / downsampleFactor);
+								if (x >= 0 && x < width && y >= 0 && y < height) {
+									raster.setSample(x, y, 0, c);
+								}
+							}
+						}
 					}
 				}
 			}
-			BasicStroke stroke = null;
 			for (var entry : params.boundaryLabels.entrySet()) {
 				var pathClass = entry.getKey();
 				int c = entry.getValue();
 				color = ColorToolsAwt.getCachedColor(c, c, c);
 				for (var pathObject : pathObjects) {
-					if (pathObject.getPathClass() == pathClass) {
-						if (stroke == null)
-							stroke = new BasicStroke((float)(params.lineThickness * tileRequest.getDownsample()));
-						var shape = pathObject.getROI().getShape();
-						g2d.setColor(color);
-						g2d.draw(shape);
+//					if (pathObject.getPathClass() == pathClass) {
+					if (params.labels.containsKey(pathObject.getPathClass()) && !PathClassTools.isIgnoredClass(pathObject.getPathClass())) {
+						var roi = pathObject.getROI();
+						if (roi.isArea()) {
+							g2d.setColor(color);
+							g2d.draw(roi.getShape());
+						}
 					}
 				}
 			}

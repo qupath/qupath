@@ -73,7 +73,7 @@ public class OMETiffWriter implements ImageWriter<BufferedImage> {
 	public void writeImage(ImageServer<BufferedImage> server, RegionRequest region, String pathOutput)
 			throws IOException {
 		try {
-			OMEPyramidWriter.writePyramid(server, pathOutput, CompressionType.DEFAULT, region);
+			OMEPyramidWriter.writeImage(server, pathOutput, CompressionType.DEFAULT, region);
 		} catch (FormatException e) {
 			throw new IOException(e);
 		}
@@ -90,7 +90,7 @@ public class OMETiffWriter implements ImageWriter<BufferedImage> {
 	@Override
 	public void writeImage(ImageServer<BufferedImage> server, String pathOutput) throws IOException {
 		try {
-			OMEPyramidWriter.writePyramid(server, pathOutput, CompressionType.DEFAULT);
+			OMEPyramidWriter.writeImage(server, pathOutput, CompressionType.DEFAULT);
 		} catch (FormatException e) {
 			throw new IOException(e);
 		}

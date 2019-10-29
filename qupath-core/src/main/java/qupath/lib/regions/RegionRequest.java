@@ -119,7 +119,7 @@ public class RegionRequest extends ImageRegion {
 	/**
 	 * Create a request that matches another request but with a different path.
 	 * @param path
-	 * @param roi
+	 * @param request
 	 * @return
 	 */
 	public static RegionRequest createInstance(String path, RegionRequest request) {

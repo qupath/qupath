@@ -178,6 +178,12 @@ public class OMEPyramidWriter {
 		}
 		
 	}
+	
+	
+	private static int DEFAULT_TILE_SIZE = 512;
+	private static int MIN_SIZE_FOR_TILING = DEFAULT_TILE_SIZE * 8;
+	private static int MIN_SIZE_FOR_PYRAMID = MIN_SIZE_FOR_TILING * 2;
+	
 		
 	/**
 	 * Enum representing different ways in which channels may be written to a file.
@@ -459,8 +465,13 @@ public class OMEPyramidWriter {
 			}
 			writer.setInterleaved(meta.getPixelsInterleaved(series));
 						
-			int tileWidth = writer.setTileSizeX(this.tileWidth);
-			int tileHeight = writer.setTileSizeY(this.tileHeight);
+			int tileWidth = this.tileWidth;
+			int tileHeight = this.tileHeight;
+			boolean isTiled = tileWidth > 0 && tileHeight > 0;
+			if (isTiled) {
+				tileWidth = writer.setTileSizeX(tileWidth);
+				tileHeight = writer.setTileSizeY(tileHeight);				
+			}
 			
 			// If the image represents classifications, set the color model accordingly
 			if (server.getMetadata().getChannelType() == ChannelType.CLASSIFICATION)
@@ -479,8 +490,10 @@ public class OMEPyramidWriter {
 				map.clear();
 				for (int i = 0; i < nPlanes; i++) {
 					IFD ifd = new IFD();
-					ifd.put(IFD.TILE_WIDTH, tileWidth);
-					ifd.put(IFD.TILE_LENGTH, tileHeight);
+					if (isTiled) {
+						ifd.put(IFD.TILE_WIDTH, tileWidth);
+						ifd.put(IFD.TILE_LENGTH, tileHeight);
+					}
 					if (nSamples > 1 && !isRGB)
 						ifd.put(IFD.EXTRA_SAMPLES, new short[nSamples-1]);
 					map.put(Integer.valueOf(i), ifd);
@@ -553,7 +566,7 @@ public class OMEPyramidWriter {
 													e);
 										} finally {
 											int localCount = count.incrementAndGet();
-											if (keyCounts.size() > 1 && keyCounts.contains(localCount)) {
+											if (total > 20 && keyCounts.size() > 1 && keyCounts.contains(localCount)) {
 												double percentage = localCount*100.0/total;
 												logger.info("Written {}% tiles", Math.round(percentage));
 											}
@@ -816,7 +829,7 @@ public class OMEPyramidWriter {
 			series.height = server.getHeight();
 			
 			series.downsamples = server.getPreferredDownsamples();
-			if (server.getMetadata().getPreferredTileWidth() == server.getWidth() && server.getMetadata().getPreferredTileHeight() == server.getHeight()) {
+			if (server.getMetadata().getPreferredTileWidth() >= server.getWidth() && server.getMetadata().getPreferredTileHeight() >= server.getHeight()) {
 				series.tileWidth = server.getMetadata().getPreferredTileWidth();
 				series.tileHeight = server.getMetadata().getPreferredTileHeight();
 			} else {
@@ -1238,33 +1251,48 @@ public class OMEPyramidWriter {
 	 * @throws FormatException
 	 * @throws IOException
 	 */
-	public static void writePyramid(ImageServer<BufferedImage> server, String path, CompressionType compression) throws FormatException, IOException {
-		new Builder(server)
-			.compression(compression == null ? CompressionType.DEFAULT : compression)
-			.allZSlices()
-			.allTimePoints()
-//			.tileSize(512)
-//			.scaledDownsampling(server.getDownsampleForResolution(0), 4)
-			.parallelize()
-			.build()
-			.writePyramid(path);
+	public static void writeImage(ImageServer<BufferedImage> server, String path, CompressionType compression) throws FormatException, IOException {
+		writeImage(server, path, compression, RegionRequest.createInstance(server), true, true);
 	}
 	
 	/**
 	 * Static helper method to write an OME-TIFF pyramidal image for a defined region with the specified compression.
+	 * If region is null, the entire image will be written. If region is not null, it defines the bounding box of the exported 
+	 * pixels in addition to the z-slice and timepoint.
 	 * 
-	 * @param server
-	 * @param path
-	 * @param compression
-	 * @param region the region to export. If this is a RegionRequest that defines a downsample other than the default for the server, this downsample will be used 
-	 * (and the resulting image will not be pyramidal).
+	 * @param server image to write
+	 * @param path path to output file
+	 * @param compression image compression method
+	 * @param region the region to export. If this is a RegionRequest that defines a downsample other than the default for the server, this downsample will be used.
 	 * 
 	 * @throws FormatException
 	 * @throws IOException
 	 */
-	public static void writePyramid(ImageServer<BufferedImage> server, String path, CompressionType compression, ImageRegion region) throws FormatException, IOException {
+	public static void writeImage(ImageServer<BufferedImage> server, String path, CompressionType compression, ImageRegion region) throws FormatException, IOException {
 		if (region == null) {
-			writePyramid(server, path, compression);
+			writeImage(server, path, compression);
+			return;
+		}
+		writeImage(server, path, compression, region, false, false);
+	}
+	
+	/**
+	 * Static helper method to write an OME-TIFF pyramidal image for a defined region with the specified compression, optionally including all 
+	 * z-slices or timepoints.
+	 * 
+	 * @param server image to write
+	 * @param path path to output file
+	 * @param compression image compression method
+	 * @param region the region to export. If this is a RegionRequest that defines a downsample other than the default for the server, this downsample will be used.
+	 * @param allZ if true, export all z-slices otherwise export slice defined by region (ignored if image is not a z-stack)
+	 * @param allT if true, export all timepoints otherwise export timepoint defined by region (ignored if image is not a timeseries)
+	 * 
+	 * @throws FormatException
+	 * @throws IOException
+	 */
+	public static void writeImage(ImageServer<BufferedImage> server, String path, CompressionType compression, ImageRegion region, boolean allZ, boolean allT) throws FormatException, IOException {
+		if (region == null) {
+			writeImage(server, path, compression);
 			return;
 		}
 		
@@ -1276,12 +1304,20 @@ public class OMEPyramidWriter {
 		double downsample = server.getDownsampleForResolution(0);
 		if (region instanceof RegionRequest) {
 			downsample = ((RegionRequest)region).getDownsample();
-		}		
-		if (Math.max(region.getWidth(), region.getHeight())/downsample > 4096) {
-			builder.tileSize(512)
-				   .scaledDownsampling(server.getDownsampleForResolution(0), 4);
+		}
+		
+		int maxDimension = (int)(Math.max(region.getWidth(), region.getHeight())/downsample);
+		if (maxDimension > MIN_SIZE_FOR_PYRAMID) {
+			builder.scaledDownsampling(downsample, 4);
 		} else
 			builder.downsamples(downsample);
+		if (maxDimension > MIN_SIZE_FOR_TILING)
+			builder.tileSize(DEFAULT_TILE_SIZE);
+		
+		if (allZ)
+			builder.allZSlices();
+		if (allT)
+			builder.allTimePoints();
 
 		builder.build().writePyramid(path);
 	}
