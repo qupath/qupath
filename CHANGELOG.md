@@ -30,7 +30,6 @@ Changes include:
   * Press Ctrl (Cmd) while using Wand to select identical pixel values (useful with classification overlays)
 * Renamed & improved 'Create simple thresholder', support image smoothing
 * New 'Memory monitor' and 'Show input display' commands in 'View' menu
-* Fixed DoG superpixel tiling bug, see https://github.com/qupath/qupath/issues/345
 * Summary measurements are displayed for the full image when no objects are selected
   * Added 'saveImageMeasurement' scripting command
 * Revised how images are written
@@ -52,6 +51,7 @@ Changes include:
 * Bug fixes:
   * Fixed size estimate for large images (previously caused some images not to open)
   * Fixed bug that meant the file chooser forgot the last directory
+  * Fixed DoG superpixel tiling bug (https://github.com/qupath/qupath/issues/345)
   * Converting tile classifications to annotations (https://github.com/qupath/qupath/issues/359)
   * Calculating intensity features for RGB fluorescence (https://github.com/qupath/qupath/issues/365)
   * Setting stroke thickness, thanks to @jballanc (https://github.com/qupath/qupath/pull/362)

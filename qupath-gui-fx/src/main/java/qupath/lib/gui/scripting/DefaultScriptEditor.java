@@ -858,6 +858,9 @@ public class DefaultScriptEditor implements ScriptEditor {
 							missingClass = missingClass.substring(ind+1);
 						Class<?> suggestedClass = CONFUSED_CLASSES.get(missingClass);
 						if (suggestedClass != null) {
+							if (!suggestedClass.getSimpleName().equals(missingClass)) {
+								sb.append("You can try replacing ").append(missingClass).append(" with ").append(suggestedClass.getSimpleName()).append("\n");
+							}
 							sb.append("You might want to check 'Run -> Include default imports' is selected, or alternatively add ");
 							sb.append("\n    import " + suggestedClass.getName() + "\nat the start of the script. Full error message below.\n");
 						}
