@@ -29,6 +29,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.UUID;
 
 import qupath.lib.awt.common.BufferedImageTools;
@@ -59,6 +60,17 @@ public class WrappedBufferedImageServer extends AbstractTileableImageServer {
 	 * @param img the BufferedImage to wrap
 	 */
 	public WrappedBufferedImageServer(final String imageName, final BufferedImage img) {
+		this(imageName, img, null);
+	}
+	
+	/**
+	 * Create an {@code ImageServer<BufferedImage>} using an image that has been provided directly.
+	 * 
+	 * @param imageName a name to display (may be null)
+	 * @param img the BufferedImage to wrap
+	 * @param channels the ImageChannels, required in case the preferred channel colors cannot be obtained from the image itself
+	 */
+	public WrappedBufferedImageServer(final String imageName, final BufferedImage img, List<ImageChannel> channels) {
 		super();
 		this.img = BufferedImageTools.duplicate(img);
 
@@ -92,6 +104,13 @@ public class WrappedBufferedImageServer extends AbstractTileableImageServer {
 			isRGB = isRGB | type == img.getType();
 			pixelType = PixelType.UINT8;
 		}
+		// Warning! This method of obtaining channels risks resulting in different colors from the original image
+		if (channels == null) {
+			if (isRGB)
+				channels = ImageChannel.getDefaultRGBChannels();
+			else
+				channels = ImageChannel.getDefaultChannelList(nChannels);
+		}
 		originalMetadata = new ImageServerMetadata.Builder()
 				.width(img.getWidth())
 				.height(img.getHeight())
@@ -100,7 +119,7 @@ public class WrappedBufferedImageServer extends AbstractTileableImageServer {
 				.levelsFromDownsamples(1.0)
 				.rgb(isRGB)
 				.pixelType(pixelType)
-				.channels(ImageChannel.getDefaultChannelList(nChannels))
+				.channels(channels)
 				.build();
 	}
 	

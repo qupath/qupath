@@ -574,10 +574,12 @@ public class ProjectImportImagesCommand implements PathCommand {
 		}
 		if (!success) {
 			// Try with display transforms
-			if (imageDisplay == null)
+			if (imageDisplay == null) {
 				// By wrapping the thumbnail, we avoid slow z-stack/time series requests & determine brightness & contrast just from one plane
-				imageDisplay = new ImageDisplay(new ImageData<>(new WrappedBufferedImageServer("Dummy", img2)));
+				var wrappedServer = new WrappedBufferedImageServer("Dummy", img2, server.getMetadata().getChannels());
+				imageDisplay = new ImageDisplay(new ImageData<>(wrappedServer));
 //				imageDisplay = new ImageDisplay(new ImageData<>(server));
+			}
 			for (ChannelDisplayInfo info : imageDisplay.selectedChannels()) {
 				imageDisplay.autoSetDisplayRange(info);
 			}
