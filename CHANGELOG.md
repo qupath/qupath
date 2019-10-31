@@ -55,11 +55,6 @@ Changes include:
   * Converting tile classifications to annotations (https://github.com/qupath/qupath/issues/359)
   * Calculating intensity features for RGB fluorescence (https://github.com/qupath/qupath/issues/365)
   * Setting stroke thickness, thanks to @jballanc (https://github.com/qupath/qupath/pull/362)
-  
-Known issues with the pixel classifier:
-* Not yet (easily) scriptable
-* Measurements depend on current overlay & which tiles have been cached
-* Some commands (e.g. converting classified to objects) can be slow & cause QuPath to freeze while calculating results
 
 
 ## Version 0.2.0-m4

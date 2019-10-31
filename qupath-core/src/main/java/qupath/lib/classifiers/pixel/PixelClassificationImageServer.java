@@ -130,6 +130,9 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 				.classificationLabels(classifierMetadata.getClassificationLabels())
 				.rgb(false);
 		
+		if (classifierMetadata.getOutputType() != ChannelType.CLASSIFICATION)
+			builder.channels(classifierMetadata.getOutputChannels());
+		
 //		if (classifierMetadata.getOutputType() == ChannelType.PROBABILITY)
 //			.channels(classifierMetadata.getOutputChannels())
 

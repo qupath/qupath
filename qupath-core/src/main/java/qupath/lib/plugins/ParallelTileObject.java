@@ -67,7 +67,22 @@ public class ParallelTileObject extends PathTileObject implements TemporaryObjec
 
 	final private static Logger logger = LoggerFactory.getLogger(ParallelTileObject.class);
 	
-	public static enum Status { PENDING, PROCESSING, DONE }
+	/**
+	 * Current processing status for the tile.
+	 */
+	public static enum Status {
+		/**
+		 * Tile waiting to be processed
+		 */
+		PENDING,
+		/**
+		 * Tile currently being processed
+		 */
+		PROCESSING,
+		/**
+		 * Tile processing complete
+		 */
+		DONE }
 	
 	private static PathClass pathClassPending = PathClassFactory.getPathClass(
 			"Tile-Pending", ColorTools.makeRGB(50, 50, 200));

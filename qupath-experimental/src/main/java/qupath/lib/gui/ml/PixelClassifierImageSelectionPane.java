@@ -18,6 +18,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import org.bytedeco.javacpp.indexer.FloatIndexer;
 import org.bytedeco.openblas.global.openblas;
@@ -105,6 +106,7 @@ import qupath.lib.roi.RectangleROI;
 import qupath.lib.roi.interfaces.ROI;
 import qupath.opencv.ml.OpenCVClassifiers;
 import qupath.opencv.ml.OpenCVClassifiers.OpenCVStatModel;
+import qupath.opencv.ml.OpenCVClassifiers.RTreesClassifier;
 import qupath.opencv.ml.pixel.FeatureImageServer;
 import qupath.opencv.ml.pixel.OpenCVPixelClassifiers;
 import qupath.opencv.ml.pixel.PixelClassifierHelper;
@@ -989,6 +991,13 @@ public class PixelClassifierImageSelectionPane {
 		 }
 		 logger.info("Current accuracy on the {}: {} %", testSet, GeneralTools.formatNumber(nCorrect*100.0/n, 1));
 
+		 if (model instanceof RTreesClassifier) {
+			 var trees = (RTreesClassifier)model;
+			 if (trees.hasFeatureImportance())
+				 logVariableImportance(trees,
+						 helper.getFeatureServer().getMetadata().getChannels().stream()
+						 .map(c -> c.getName()).collect(Collectors.toList()));
+		 }
 		 
 		 trainData.close();
 
@@ -1007,6 +1016,33 @@ public class PixelClassifierImageSelectionPane {
 
 		 var overlay = PixelClassificationOverlay.createPixelClassificationOverlay(viewer, classifier);
 		 replaceOverlay(overlay);
+	}
+	
+	
+	static boolean logVariableImportance(final RTreesClassifier trees, final List<String> features) {
+		var importance = trees.getFeatureImportance();
+		if (importance == null)
+			return false;
+		try {
+			var sorted = IntStream.range(0, importance.length)
+					.boxed()
+					.sorted((a, b) -> -Double.compare(importance[a], importance[b]))
+					.mapToInt(i -> i).toArray();
+			
+			if (sorted.length != features.size())
+				return false;
+			
+			var sb = new StringBuilder("Variable importance:");
+			for (int ind : sorted) {
+				sb.append("\n");
+				sb.append(String.format("%.4f \t %s", importance[ind], features.get(ind)));
+			}
+			logger.info(sb.toString());
+			return true;
+		} catch (Exception e) {
+			logger.debug("Error logging feature importance: {}", e.getLocalizedMessage());
+			return false;
+		}
 	}
 	
 	private PixelClassificationOverlay overlay;

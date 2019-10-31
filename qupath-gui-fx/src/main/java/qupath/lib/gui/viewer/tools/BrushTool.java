@@ -25,6 +25,7 @@ package qupath.lib.gui.viewer.tools;
 
 import java.awt.Shape;
 import java.awt.geom.Point2D;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
@@ -33,7 +34,9 @@ import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.CoordinateSequenceFilter;
 import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.GeometryCollection;
 import org.locationtech.jts.geom.GeometryFactory;
+import org.locationtech.jts.geom.Polygonal;
 import org.locationtech.jts.geom.PrecisionModel;
 import org.locationtech.jts.simplify.VWSimplifier;
 import org.locationtech.jts.util.GeometricShapeFactory;
@@ -98,6 +101,10 @@ public class BrushTool extends AbstractPathROITool {
 	
 	private SnapshotParameters snapshotParameters = new SnapshotParameters();
 	
+	/**
+	 * Create a new brush tool.
+	 * @param modes
+	 */
 	public BrushTool(ModeWrapper modes) {
 		super(modes);
 		snapshotParameters.setFill(Color.TRANSPARENT);
@@ -348,7 +355,11 @@ public class BrushTool extends AbstractPathROITool {
 				} else {
 					// Just add, regardless of whether there are other annotations below or not
 					var temp = shapeROI.getGeometry();
-					shapeNew = temp.union(shapeDrawn);
+					try {
+						shapeNew = temp.union(shapeDrawn);
+					} catch (Exception e2) {
+						shapeNew = shapeROI.getGeometry();
+					}
 				}
 				
 	//			// Convert complete polygons to areas
@@ -362,11 +373,29 @@ public class BrushTool extends AbstractPathROITool {
 			if (requestPixelSnapping())
 				shapeNew = roundAndConstrain(shapeNew, 0, 0, viewer.getServerWidth(), viewer.getServerHeight());
 			else {
+				try {
+					shapeNew = VWSimplifier.simplify(shapeNew, 0.1);
+				} catch (Exception e2) {
+					logger.debug("Error simplifying ROI: " + e2.getLocalizedMessage(), e2);
+				}
 				var bounds = GeometryTools.regionToGeometry(viewer.getServerBounds());
 				shapeNew = shapeNew.intersection(bounds);
 			}
-	//		GeometrySnapper.snapToSelf(shapeNew, 1.0, true);
 			
+			//		GeometrySnapper.snapToSelf(shapeNew, 1.0, true);
+			
+			// Sometimes we can end up with a GeometryCollection containing lines/non-areas... if so, remove these
+			if (shapeNew instanceof GeometryCollection) {
+				List<Geometry> keepGeometries = new ArrayList<>();
+				for (int i = 0; i < shapeNew.getNumGeometries(); i++) {
+					if (shapeNew.getGeometryN(i) instanceof Polygonal) {
+						keepGeometries.add(shapeNew);
+					}
+				}
+				if (keepGeometries.size() < shapeNew.getNumGeometries())
+					shapeNew = factory.buildGeometry(keepGeometries);
+			}
+						
 			ROI roiNew = GeometryTools.geometryToROI(shapeNew, plane);
 			
 			if (currentObject instanceof PathAnnotationObject) {

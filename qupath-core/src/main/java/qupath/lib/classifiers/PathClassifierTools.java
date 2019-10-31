@@ -265,7 +265,7 @@ public class PathClassifierTools {
 
 	/**
 	 * Create a list of channels from classification labels.
-	 * Note that the labels must be &geq; 0 or else an {@link IllegalArgumentException} will be thrown.
+	 * Note that the labels must be &ge; 0 or else an {@link IllegalArgumentException} will be thrown.
 	 * It is also expected that the labels densely represent integer values from 0 up to some maximum, although this is 
 	 * not strictly enforced and channels will be generated from any missing labels.
 	 * 
