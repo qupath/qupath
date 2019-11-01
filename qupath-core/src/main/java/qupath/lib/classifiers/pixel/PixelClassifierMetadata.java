@@ -139,6 +139,7 @@ public class PixelClassifierMetadata {
     	this.inputWidth = builder.inputWidth;
     	this.inputHeight = builder.inputHeight;
     	this.inputNumChannels = builder.inputNumChannels;
+    	this.classificationLabels = builder.classificationLabels;
     	this.outputWidth = builder.outputWidth;
     	this.outputHeight = builder.outputHeight;
     	this.outputType = builder.outputType;
@@ -165,6 +166,8 @@ public class PixelClassifierMetadata {
     	
     	private ImageServerMetadata.ChannelType outputType = ImageServerMetadata.ChannelType.CLASSIFICATION;
     	private List<ImageChannel> outputChannels = new ArrayList<>();
+    	
+    	private Map<Integer, PathClass> classificationLabels;
     	
     	/**
     	 * Build a new PixelClassifierMetadata object.
@@ -243,6 +246,16 @@ public class PixelClassifierMetadata {
     	 */
     	public Builder outputChannels(Collection<ImageChannel> channels) {
     		this.outputChannels.addAll(channels);
+    		return this;
+    	}
+    	
+    	/**
+    	 * Specify classification labels. This may be used instead of outputChannels.
+    	 * @param labels
+    	 * @return
+    	 */
+    	public Builder classificationLabels(Map<Integer, PathClass> labels) {
+    		this.classificationLabels = new LinkedHashMap<>(labels);
     		return this;
     	}
     	    	

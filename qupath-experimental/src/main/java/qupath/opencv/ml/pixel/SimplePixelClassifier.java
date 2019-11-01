@@ -5,9 +5,8 @@ import java.awt.image.DataBufferByte;
 import java.awt.image.IndexColorModel;
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.stream.Collectors;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -112,11 +111,16 @@ class SimplePixelClassifier implements PixelClassifier {
 			var pathClasses = thresholder.getPathClasses();
 			map = new HashMap<>();
 			int i = 0;
-			for (var pathClass : pathClasses)
-				map.put(pathClass, i++);
+			var labels = new LinkedHashMap<Integer, PathClass>();
+			for (var pathClass : pathClasses) {
+				map.put(pathClass, i);
+				labels.put(i, pathClass);
+				i++;
+			}
 			this.metadata = new PixelClassifierMetadata.Builder()
-					.outputChannels(pathClasses.stream().map(p -> getChannel(p)).collect(Collectors.toList()))
+//					.outputChannels(pathClasses.stream().map(p -> getChannel(p)).collect(Collectors.toList()))
 					.inputResolution(inputResolution)
+					.classificationLabels(labels)
 					.inputShape(512, 512)
 					.setChannelType(ImageServerMetadata.ChannelType.CLASSIFICATION)
 					.build();

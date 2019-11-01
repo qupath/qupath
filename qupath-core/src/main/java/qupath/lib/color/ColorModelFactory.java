@@ -14,6 +14,8 @@ import qupath.lib.common.ColorTools;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.PixelType;
 import qupath.lib.objects.classes.PathClass;
+import qupath.lib.objects.classes.PathClassFactory;
+import qupath.lib.objects.classes.PathClassFactory.StandardPathClasses;
 import qupath.lib.objects.classes.PathClassTools;
 
 /**
@@ -44,7 +46,7 @@ public final class ColorModelFactory {
 	 */
     public static ColorModel getIndexedClassificationColorModel(Map<Integer, PathClass> channels) {
     	var map = classificationModels.get(channels);
-    	
+
     	var stats = channels.keySet().stream().mapToInt(c -> c).summaryStatistics();
     	if (stats.getMin() < 0)
     		throw new IllegalArgumentException("Minimum label must be >= 0");
@@ -54,9 +56,15 @@ public final class ColorModelFactory {
             int[] cmap = new int[length];
             
             for (var entry: channels.entrySet()) {
-            	if (PathClassTools.isIgnoredClass(entry.getValue())) {
-            		var color = entry.getValue().getColor();
-                	cmap[entry.getKey()] = ColorTools.makeRGBA(ColorTools.red(color), ColorTools.green(color), ColorTools.blue(color), 32);
+        		var pathClass = entry.getValue();
+        		if (pathClass == null || pathClass == PathClassFactory.getPathClassUnclassified()) {
+        			cmap[entry.getKey()] = ColorTools.makeRGBA(255, 255, 255, 0);
+        		} else if (PathClassTools.isIgnoredClass(entry.getValue())) {
+            		var color = pathClass == null ? 0 : pathClass.getColor();
+            		int alpha = 192;
+            		if (pathClass == PathClassFactory.getPathClass(StandardPathClasses.IGNORE))
+            			alpha = 32;
+                	cmap[entry.getKey()] = ColorTools.makeRGBA(ColorTools.red(color), ColorTools.green(color), ColorTools.blue(color), alpha);
             	} else
             		cmap[entry.getKey()] = entry.getValue().getColor();
             }

@@ -325,7 +325,7 @@ public class PixelClassificationMeasurementManager {
     	
     	MeasurementList measurementList = MeasurementListFactory.createMeasurementList(nMeasurements, MeasurementListType.DOUBLE);
     	
-    	Set<PathClass> ignored = pathClasses.stream().filter(p -> PathClassTools.isIgnoredClass(p)).collect(Collectors.toSet());
+    	Set<PathClass> ignored = pathClasses.stream().filter(p -> p == null || PathClassTools.isIgnoredClass(p)).collect(Collectors.toSet());
     	
     	// Calculate totals for all non-ignored classes
     	Map<PathClass, Long> pathClassTotals = new LinkedHashMap<>();
