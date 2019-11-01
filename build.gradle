@@ -599,9 +599,10 @@ task createPackage(dependsOn:createRuntime, type:Exec) {
 	} else if (OperatingSystem.current().isWindows()) {
 		if (packageType == 'installer') {
 			params << '--package-type' << 'msi'
+			params << '--win-menu'
 			params << '--win-menu-group' << 'QuPath'
 			params << '--win-dir-chooser'
-//			params << '--win-shortcut'
+			params << '--win-shortcut'
 			params << '--win-per-user-install'
 			int lastDash = appVersion.lastIndexOf('-')
 			if (lastDash > 0) {
