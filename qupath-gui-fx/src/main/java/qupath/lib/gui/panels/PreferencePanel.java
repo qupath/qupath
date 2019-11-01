@@ -46,11 +46,11 @@ import javafx.scene.control.Tooltip;
 import javafx.scene.paint.Color;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.helpers.ColorToolsFX;
-import qupath.lib.gui.helpers.CommandFinderTools.CommandBarDisplay;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.prefs.PathPrefs.FontSize;
 import qupath.lib.gui.prefs.PathPrefs.ImageTypeSetting;
+import qupath.lib.gui.tools.ColorToolsFX;
+import qupath.lib.gui.tools.CommandFinderTools.CommandBarDisplay;
 import qupath.lib.gui.prefs.QuPathStyleManager;
 
 /**

@@ -30,7 +30,7 @@ import javafx.beans.property.StringProperty;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
-import qupath.lib.gui.helpers.DisplayHelpers;
+import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObjectTools;
@@ -66,7 +66,7 @@ public class TMAGridRelabel implements PathCommand {
 		
 		ImageData<?> imageData = qupath.getImageData();
 		if (imageData == null || imageData.getHierarchy().getTMAGrid() == null) {
-			DisplayHelpers.showErrorMessage(NAME, "No TMA grid selected!");
+			Dialogs.showErrorMessage(NAME, "No TMA grid selected!");
 			return;
 		}
 		
@@ -75,7 +75,7 @@ public class TMAGridRelabel implements PathCommand {
 		params.addStringParameter("labelsVertical", "Row labels", rowLabelsProperty.get(), "Enter row labels.\nThis can be a continuous range of letters or numbers (e.g. 1-10 or A-J),\nor a discontinuous list separated by spaces (e.g. A B C E F G).");
 		params.addChoiceParameter("labelOrder", "Label order", rowFirstProperty.get() ? "Row first" : "Column first", Arrays.asList("Column first", "Row first"), "Create TMA labels either in the form Row-Column or Column-Row");
 		
-		if (!DisplayHelpers.showParameterDialog(NAME, params))
+		if (!Dialogs.showParameterDialog(NAME, params))
 			return;
 		
 		// Parse the arguments
@@ -88,11 +88,11 @@ public class TMAGridRelabel implements PathCommand {
 		String[] columnLabels = PathObjectTools.parseTMALabelString(labelsHorizontal);
 		String[] rowLabels = PathObjectTools.parseTMALabelString(labelsVertical);
 		if (columnLabels.length < grid.getGridWidth()) {
-			DisplayHelpers.showErrorMessage(NAME, "Not enough column labels specified!");
+			Dialogs.showErrorMessage(NAME, "Not enough column labels specified!");
 			return;			
 		}
 		if (rowLabels.length < grid.getGridHeight()) {
-			DisplayHelpers.showErrorMessage(NAME, "Not enough row labels specified!");
+			Dialogs.showErrorMessage(NAME, "Not enough row labels specified!");
 			return;			
 		}
 		

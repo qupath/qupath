@@ -6,7 +6,7 @@ import org.slf4j.LoggerFactory;
 import qupath.lib.analysis.DistanceTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
-import qupath.lib.gui.helpers.DisplayHelpers;
+import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.plugins.workflow.DefaultScriptableWorkflowStep;
 
 /**
@@ -37,7 +37,7 @@ public class DistanceToAnnotationsCommand implements PathCommand {
 		
 		if (imageData.getServer().nZSlices() > 1) {
 			logger.debug("Warning user that measurements will be 2D...");
-			if (!DisplayHelpers.showConfirmDialog("Distance to annotations 2D", 
+			if (!Dialogs.showConfirmDialog("Distance to annotations 2D", 
 					"Distance to annotations command works only in 2D - distances will not be calculated for objects on different z-slices or time-points")) {
 				logger.debug("Command cancelled");
 				return;

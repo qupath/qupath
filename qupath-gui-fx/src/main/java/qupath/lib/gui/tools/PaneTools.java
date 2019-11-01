@@ -1,4 +1,4 @@
-package qupath.lib.gui.helpers;
+package qupath.lib.gui.tools;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -21,7 +21,7 @@ import javafx.scene.layout.RowConstraints;
  * @author Pete Bankhead
  *
  */
-public class PaneToolsFX {
+public class PaneTools {
 
 	/**
 	 * Add a row of nodes.  The rowspan is always 1.  The colspan is 1 by default, 

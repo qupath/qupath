@@ -44,8 +44,8 @@ import javafx.stage.Screen;
 import javafx.stage.Stage;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.scriptable.SelectObjectsByClassCommand;
-import qupath.lib.gui.helpers.DisplayHelpers;
-import qupath.lib.gui.helpers.dialogs.ParameterPanelFX;
+import qupath.lib.gui.dialogs.Dialogs;
+import qupath.lib.gui.dialogs.ParameterPanelFX;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
@@ -190,10 +190,10 @@ public class ParameterDialogWrapper<T> {
 						else
 							lastWorkflowStep = null;
 					} catch (Exception e) {
-						DisplayHelpers.showErrorMessage("Plugin error", e);
+						Dialogs.showErrorMessage("Plugin error", e);
 					} catch (OutOfMemoryError e) {
 						// This doesn't actually work...
-						DisplayHelpers.showErrorMessage("Out of memory error", "Out of memory - try to close other applications, or decrease the number of parallel processors in the QuPath preferences");
+						Dialogs.showErrorMessage("Out of memory error", "Out of memory - try to close other applications, or decrease the number of parallel processors in the QuPath preferences");
 					} finally {
 						Platform.runLater(() -> {
 							dialog.getScene().setCursor(Cursor.DEFAULT);
@@ -319,7 +319,7 @@ public class ParameterDialogWrapper<T> {
 				String message = name + " requires parent objects of one of the following types:";
 				for (Class<? extends PathObject> cls : supportedParents)
 					message += ("\n" + PathObjectTools.getSuitableName(cls, false));
-				DisplayHelpers.showErrorMessage(name + " error", message);
+				Dialogs.showErrorMessage(name + " error", message);
 				return false;
 			}
 		}
@@ -328,7 +328,7 @@ public class ParameterDialogWrapper<T> {
 		ParameterList paramsParents = new ParameterList();
 		paramsParents.addChoiceParameter(KEY_REGIONS, "Process all", choiceList.get(0), choiceList);
 
-		if (!DisplayHelpers.showParameterDialog("Process regions", paramsParents))
+		if (!Dialogs.showParameterDialog("Process regions", paramsParents))
 			return false;
 
 		

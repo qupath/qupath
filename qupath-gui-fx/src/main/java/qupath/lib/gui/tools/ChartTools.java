@@ -21,7 +21,7 @@
  * #L%
  */
 
-package qupath.lib.gui.helpers;
+package qupath.lib.gui.tools;
 
 import java.util.function.Function;
 
@@ -50,7 +50,7 @@ import qupath.lib.gui.tma.TMASummaryViewer;
  * @author Pete Bankhead
  *
  */
-public class ChartToolsFX {
+public class ChartTools {
 
 	/**
 	 * Get a string representation of chart data, in such a way that it could be pasted into a spreadsheet.

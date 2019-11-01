@@ -51,7 +51,7 @@ import javafx.stage.Stage;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.extensions.QuPathExtension;
-import qupath.lib.gui.helpers.DisplayHelpers;
+import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.images.servers.ImageServerBuilder;
 import qupath.lib.images.servers.ImageServerProvider;
 
@@ -168,7 +168,7 @@ public class ShowInstalledExtensionsCommand implements PathCommand {
 			File dir = file.isDirectory() ? file : file.getParentFile();
 				labelPath.setOnMouseClicked(e -> {
 					if (e.getClickCount() == 2) {
-						DisplayHelpers.openFile(dir);
+						GuiTools.openFile(dir);
 					}
 				});
 		}

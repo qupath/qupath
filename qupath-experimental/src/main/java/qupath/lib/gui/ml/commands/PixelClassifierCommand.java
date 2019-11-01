@@ -2,7 +2,7 @@ package qupath.lib.gui.ml.commands;
 
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
-import qupath.lib.gui.helpers.DisplayHelpers;
+import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.ml.PixelClassifierImageSelectionPane;
 
 /**
@@ -18,7 +18,7 @@ public class PixelClassifierCommand implements PathCommand {
 		var viewer = QuPathGUI.getInstance().getViewer();
 		var imageData = viewer == null ? null : viewer.getImageData();
 		if (imageData == null) {
-			DisplayHelpers.showNoImageError("Pixel classifier");
+			Dialogs.showNoImageError("Pixel classifier");
 		} else
 			new PixelClassifierImageSelectionPane(viewer);
 	}

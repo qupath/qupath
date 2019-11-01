@@ -115,14 +115,14 @@ import qupath.imagej.tools.IJTools;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
-import qupath.lib.gui.helpers.DisplayHelpers;
-import qupath.lib.gui.helpers.PaneToolsFX;
-import qupath.lib.gui.helpers.DisplayHelpers.DialogButton;
+import qupath.lib.gui.dialogs.Dialogs;
+import qupath.lib.gui.dialogs.Dialogs.DialogButton;
 import qupath.lib.gui.logging.LoggingAppender;
 import qupath.lib.gui.logging.TextAppendable;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.scripting.QPEx;
 import qupath.lib.gui.scripting.ScriptEditor;
+import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.projects.Project;
@@ -263,6 +263,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 		CONFUSED_CLASSES.put("QPEx", QPEx.class);
 		CONFUSED_CLASSES.put("ShapeSimplifierAwt", ShapeSimplifier.class);
 		CONFUSED_CLASSES.put("ImagePlusServerBuilder", IJTools.class);
+		CONFUSED_CLASSES.put("DisplayHelpers", Dialogs.class);
 		CONFUSED_CLASSES = Collections.unmodifiableMap(CONFUSED_CLASSES);
 	}
 
@@ -773,16 +774,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 				extraLines = 2;
 			}
 			if (engine.getFactory().getNames().contains("groovy")) {
-				var sb = new StringBuilder();
-				var coreImports = QP.getCoreClasses();
-				for (var cls : coreImports) {
-					sb.append("import ").append(cls.getName()).append("; ");
-				}
-				// Import script class statically and in the normal way
-				sb.append("import ").append(scriptClass).append("; ");
-				sb.append("import static ").append(scriptClass).append(".*").append("\n");
-				sb.append(script);
-				script2 = sb.toString();
+				script2 = QPEx.getDefaultImports(true) + System.lineSeparator() + script;
 //				script2 = String.format(
 //						"import static %s.*;\n" + 
 //						"%s\n",
@@ -949,7 +941,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 		// Check if we need to save
 		if (tab.isModified() && tab.hasScript()) {
 			// TODO: Consider that this previously had a different parent for the dialog... and probably should
-			DialogButton option = DisplayHelpers.showYesNoCancelDialog("Close " + tab.getName(), String.format("Save %s before closing?", tab.getName()));
+			DialogButton option = Dialogs.showYesNoCancelDialog("Close " + tab.getName(), String.format("Save %s before closing?", tab.getName()));
 			if (option == DialogButton.CANCEL)
 				return false;
 			if (option == DialogButton.YES) {
@@ -1149,16 +1141,16 @@ public class DefaultScriptEditor implements ScriptEditor {
 	void handleRunProject(final boolean doSave) {
 		Project<BufferedImage> project = qupath.getProject();
 		if (project == null) {
-			DisplayHelpers.showErrorMessage("Script editor", "No project open");
+			Dialogs.showErrorMessage("Script editor", "No project open");
 			return;
 		}
 		ScriptTab tab = getCurrentScriptTab();
 		if (tab == null || tab.getEditorComponent().getText().trim().length() == 0) {
-			DisplayHelpers.showErrorMessage("Script editor", "No script selected");
+			Dialogs.showErrorMessage("Script editor", "No script selected");
 			return;
 		}
 		if (tab.getLanguage() == null) {
-			DisplayHelpers.showErrorMessage("Script editor", "No language set");
+			Dialogs.showErrorMessage("Script editor", "No language set");
 			return;			
 		}
 		
@@ -1215,8 +1207,8 @@ public class DefaultScriptEditor implements ScriptEditor {
 		paneFooter.add(tfFilter, 0, 0);
 		paneFooter.add(cbWithData, 0, 1);
 				
-		PaneToolsFX.setHGrowPriority(Priority.ALWAYS, tfFilter, cbWithData);
-		PaneToolsFX.setFillWidth(Boolean.TRUE, tfFilter, cbWithData);
+		PaneTools.setHGrowPriority(Priority.ALWAYS, tfFilter, cbWithData);
+		PaneTools.setFillWidth(Boolean.TRUE, tfFilter, cbWithData);
 		cbWithData.setMinWidth(CheckBox.USE_PREF_SIZE);
 		paneFooter.setVgap(5);
 		listSelectionView.setSourceFooter(paneFooter);
@@ -1251,7 +1243,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 		});
 		
 		var paneSelected = new GridPane();
-		PaneToolsFX.addGridRow(paneSelected, 0, 0, "Selected images", labelSelected);
+		PaneTools.addGridRow(paneSelected, 0, 0, "Selected images", labelSelected);
 
 		// Get the current images that are open
 		currentImages.addAll(qupath.getViewers().stream()
@@ -1269,9 +1261,9 @@ public class DefaultScriptEditor implements ScriptEditor {
 			labelSameImageWarning.setTextAlignment(TextAlignment.CENTER);
 			labelSameImageWarning.setAlignment(Pos.CENTER);
 			labelSameImageWarning.setVisible(false);
-			PaneToolsFX.setHGrowPriority(Priority.ALWAYS, labelSameImageWarning);
-			PaneToolsFX.setFillWidth(Boolean.TRUE, labelSameImageWarning);
-			PaneToolsFX.addGridRow(paneSelected, 1, 0,
+			PaneTools.setHGrowPriority(Priority.ALWAYS, labelSameImageWarning);
+			PaneTools.setFillWidth(Boolean.TRUE, labelSameImageWarning);
+			PaneTools.addGridRow(paneSelected, 1, 0,
 					"'Run For Project' will save the data file for any image that is open - you will need to reopen the image to see the changes",
 					labelSameImageWarning);
 		}
@@ -1309,7 +1301,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 		progress.getDialogPane().setGraphic(null);
 		progress.getDialogPane().getButtonTypes().add(ButtonType.CANCEL);
 		progress.getDialogPane().lookupButton(ButtonType.CANCEL).addEventFilter(ActionEvent.ACTION, e -> {
-			if (DisplayHelpers.showYesNoDialog("Cancel batch script", "Are you sure you want to stop the running script after the current image?")) {
+			if (Dialogs.showYesNoDialog("Cancel batch script", "Are you sure you want to stop the running script after the current image?")) {
 				worker.quietCancel();
 				progress.setHeaderText("Cancelling...");
 //				worker.cancel(false);

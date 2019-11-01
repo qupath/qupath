@@ -47,7 +47,7 @@ import org.slf4j.LoggerFactory;
 
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
-import qupath.lib.gui.helpers.DisplayHelpers;
+import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.PixelCalibration;
@@ -92,13 +92,13 @@ public class AlignCoreAnnotationsCV implements PathCommand {
 	public void run() {
 		ImageData<BufferedImage> imageData = qupath.getImageData();
 		if (imageData == null || imageData.getHierarchy().getTMAGrid() == null) {
-			DisplayHelpers.showErrorMessage(name, "A dearrayed TMA image is required");
+			Dialogs.showErrorMessage(name, "A dearrayed TMA image is required");
 			return;
 		}
 		
 		PathObject pathObject = imageData.getHierarchy().getSelectionModel().getSelectedObject();
 		if (!(pathObject instanceof TMACoreObject && pathObject.hasChildren())) {
-			DisplayHelpers.showErrorMessage(name, "Please select a TMA core containing annotations");
+			Dialogs.showErrorMessage(name, "Please select a TMA core containing annotations");
 			return;			
 		}
 
@@ -145,7 +145,7 @@ public class AlignCoreAnnotationsCV implements PathCommand {
 			try {
 				img = server.readBufferedImage(request);
 			} catch (IOException e) {
-				DisplayHelpers.showErrorMessage("Align cores", e);
+				Dialogs.showErrorMessage("Align cores", e);
 				return;
 			}
 			

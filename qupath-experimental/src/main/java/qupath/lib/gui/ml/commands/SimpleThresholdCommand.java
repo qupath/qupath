@@ -27,12 +27,12 @@ import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
-import qupath.lib.gui.helpers.DisplayHelpers;
-import qupath.lib.gui.helpers.PaneToolsFX;
+import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.ml.PixelClassificationOverlay;
 import qupath.lib.gui.ml.PixelClassifierImageSelectionPane;
 import qupath.lib.gui.ml.PixelClassifierTools;
 import qupath.lib.gui.ml.PixelClassifierImageSelectionPane.ClassificationResolution;
+import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.overlays.PathOverlay;
 import qupath.lib.images.ImageData;
@@ -72,7 +72,7 @@ public class SimpleThresholdCommand implements PathCommand {
 	@Override
 	public void run() {
 		if (qupath.getImageData() == null) {
-			DisplayHelpers.showNoImageError("Simple threshold");
+			Dialogs.showNoImageError("Simple threshold");
 		}
 		if (stage == null || !stage.isShowing())
 			showGUI();
@@ -118,12 +118,12 @@ public class SimpleThresholdCommand implements PathCommand {
 		
 		Label labelResolution = new Label("Resolution");
 		labelResolution.setLabelFor(comboResolutions);
-		PaneToolsFX.addGridRow(pane, row++, 0, "Select image resolution to threshold (higher values mean lower resolution, and faster thresholding)",
+		PaneTools.addGridRow(pane, row++, 0, "Select image resolution to threshold (higher values mean lower resolution, and faster thresholding)",
 				labelResolution, comboResolutions, comboResolutions);
 
 		Label label = new Label("Channel");
 		label.setLabelFor(transforms);
-		PaneToolsFX.addGridRow(pane, row++, 0, "Select channel to threshold", label, transforms, transforms);
+		PaneTools.addGridRow(pane, row++, 0, "Select channel to threshold", label, transforms, transforms);
 		
 		Label labelPrefilter = new Label("Prefilter");
 		labelPrefilter.setLabelFor(comboPrefilter);
@@ -134,7 +134,7 @@ public class SimpleThresholdCommand implements PathCommand {
 				MultiscaleFeature.WEIGHTED_STD_DEV
 				);
 		comboPrefilter.getSelectionModel().selectFirst();
-		PaneToolsFX.addGridRow(pane, row++, 0, "Select image smoothing filter (Gaussian is usually best)", labelPrefilter, comboPrefilter, comboPrefilter);
+		PaneTools.addGridRow(pane, row++, 0, "Select image smoothing filter (Gaussian is usually best)", labelPrefilter, comboPrefilter, comboPrefilter);
 
 		label = new Label("Smoothing sigma");
 		label.setLabelFor(sigmaSpinner);
@@ -142,7 +142,7 @@ public class SimpleThresholdCommand implements PathCommand {
 		labelSigma.textProperty().bind(
 				Bindings.createStringBinding(() -> GeneralTools.formatNumber(sigma.get(), 2), sigma)
 				);
-		PaneToolsFX.addGridRow(pane, row++, 0, "Select smoothing sigma value (higher values give a smoother result)", label, sigmaSpinner, labelSigma);
+		PaneTools.addGridRow(pane, row++, 0, "Select smoothing sigma value (higher values give a smoother result)", label, sigmaSpinner, labelSigma);
 
 		label = new Label("Threshold");
 		label.setLabelFor(spinner);
@@ -150,7 +150,7 @@ public class SimpleThresholdCommand implements PathCommand {
 		labelThreshold.textProperty().bind(
 				Bindings.createStringBinding(() -> GeneralTools.formatNumber(threshold.get(), 2), threshold)
 				);
-		PaneToolsFX.addGridRow(pane, row++, 0, "Select threshold value", label, spinner, labelThreshold);
+		PaneTools.addGridRow(pane, row++, 0, "Select threshold value", label, spinner, labelThreshold);
 
 		Label labelAbove = new Label("Above threshold");
 		labelAbove.setLabelFor(classificationsAbove);
@@ -160,9 +160,9 @@ public class SimpleThresholdCommand implements PathCommand {
 
 		Label labelBelow = new Label("Below threshold");
 		labelBelow.setLabelFor(classificationsBelow);
-		PaneToolsFX.addGridRow(pane, row++, 0, "Select classification for pixels above the threshold", labelAbove, classificationsAbove, classificationsAbove);
-		PaneToolsFX.addGridRow(pane, row++, 0, "Select classification for pixels with exactly the threshold value", labelEqual, classificationsEqual, classificationsEqual);
-		PaneToolsFX.addGridRow(pane, row++, 0, "Select classification for pixels below the threshold", labelBelow, classificationsBelow, classificationsBelow);
+		PaneTools.addGridRow(pane, row++, 0, "Select classification for pixels above the threshold", labelAbove, classificationsAbove, classificationsAbove);
+		PaneTools.addGridRow(pane, row++, 0, "Select classification for pixels with exactly the threshold value", labelEqual, classificationsEqual, classificationsEqual);
+		PaneTools.addGridRow(pane, row++, 0, "Select classification for pixels below the threshold", labelBelow, classificationsBelow, classificationsBelow);
 
 //		var paneLabels = PaneToolsFX.createColumnGrid(labelBelow, labelEqual, labelAbove);
 //		var paneCombos = PaneToolsFX.createColumnGrid(classificationsBelow, classificationsEqual, classificationsAbove);
@@ -177,17 +177,17 @@ public class SimpleThresholdCommand implements PathCommand {
 			try {
 				PixelClassifierImageSelectionPane.promptToSaveClassifier(qupath.getProject(), currentClassifier.get());
 			} catch (IOException ex) {
-				DisplayHelpers.showErrorMessage("Save classifier", ex);
+				Dialogs.showErrorMessage("Save classifier", ex);
 			}
 		});
-		PaneToolsFX.addGridRow(pane, row++, 0, "Save current thresholder as a pixel classifier", btnSave, btnSave, btnSave);
+		PaneTools.addGridRow(pane, row++, 0, "Save current thresholder as a pixel classifier", btnSave, btnSave, btnSave);
 
 		
 		var btnCreateObjects = new Button("Create objects");
 		btnCreateObjects.disableProperty().bind(enableButtons.not());
 		var btnClassifyObjects = new Button("Classify detections");
 		btnClassifyObjects.disableProperty().bind(enableButtons.not());
-		var tilePane = PaneToolsFX.createColumnGrid(btnCreateObjects, btnClassifyObjects);
+		var tilePane = PaneTools.createColumnGrid(btnCreateObjects, btnClassifyObjects);
 //		btnCreateObjects.prefWidthProperty().bind(btnClassifyObjects.widthProperty());
 		
 		btnCreateObjects.setOnAction(e -> {
@@ -197,7 +197,7 @@ public class SimpleThresholdCommand implements PathCommand {
 		btnClassifyObjects.setOnAction(e -> {
 			PixelClassifierTools.classifyDetectionsByCentroid(qupath.getImageData(), currentClassifier.get(), true);
 		});
-		PaneToolsFX.addGridRow(pane, row++, 0, null, tilePane, tilePane, tilePane);
+		PaneTools.addGridRow(pane, row++, 0, null, tilePane, tilePane, tilePane);
 		
 		
 		selectedPrefilter.addListener((v, o, n) -> updateClassification());
@@ -229,10 +229,10 @@ public class SimpleThresholdCommand implements PathCommand {
 		pane.setHgap(6.0);
 		pane.setPadding(new Insets(10.0));
 		
-		PaneToolsFX.setMaxWidth(Double.MAX_VALUE, comboResolutions, comboPrefilter,
+		PaneTools.setMaxWidth(Double.MAX_VALUE, comboResolutions, comboPrefilter,
 				transforms, spinner, sigmaSpinner, classificationsAbove, classificationsEqual, classificationsBelow,
 				btnSave, btnClassifyObjects, btnCreateObjects, tilePane);
-		PaneToolsFX.setFillWidth(Boolean.TRUE, comboResolutions, comboPrefilter,
+		PaneTools.setFillWidth(Boolean.TRUE, comboResolutions, comboPrefilter,
 				transforms, spinner, sigmaSpinner, classificationsAbove, classificationsEqual, classificationsBelow,
 				btnSave, btnClassifyObjects, btnCreateObjects, tilePane);
 //		PaneToolsFX.setHGrowPriority(Priority.ALWAYS, comboResolutions, comboPrefilter,

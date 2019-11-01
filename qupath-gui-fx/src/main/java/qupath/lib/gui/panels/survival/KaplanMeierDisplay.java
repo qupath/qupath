@@ -80,11 +80,11 @@ import qupath.lib.analysis.stats.survival.KaplanMeierData;
 import qupath.lib.analysis.stats.survival.LogRankTest;
 import qupath.lib.analysis.stats.survival.LogRankTest.LogRankResult;
 import qupath.lib.common.GeneralTools;
-import qupath.lib.gui.helpers.ChartToolsFX;
-import qupath.lib.gui.helpers.ColorToolsFX;
-import qupath.lib.gui.helpers.dialogs.ParameterPanelFX;
+import qupath.lib.gui.dialogs.ParameterPanelFX;
 import qupath.lib.gui.plots.HistogramPanelFX;
 import qupath.lib.gui.plots.HistogramPanelFX.ThresholdedChartWrapper;
+import qupath.lib.gui.tools.ChartTools;
+import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.TMACoreObject;
@@ -584,7 +584,7 @@ public class KaplanMeierDisplay implements ParameterChangeListener, PathObjectHi
 			chartPValues.setLegendVisible(false);
 
 			// Make chart so it can be navigated
-			ChartToolsFX.makeChartInteractive(chartPValues, xAxis, yAxis);
+			ChartTools.makeChartInteractive(chartPValues, xAxis, yAxis);
 			pValuesChanged = true;
 			Tooltip.install(chartPValues, new Tooltip("Distribution of p-values (log-rank test) comparing low vs. high for all possible score thresholds"));
 			//				chartPValues.getYAxis().setAutoRanging(false);
@@ -598,7 +598,7 @@ public class KaplanMeierDisplay implements ParameterChangeListener, PathObjectHi
 			GridPane.setVgrow(pValuesWrapper.getPane(), Priority.ALWAYS);
 
 			ContextMenu popup = new ContextMenu();
-			ChartToolsFX.addChartExportMenu(chartPValues, popup);
+			ChartTools.addChartExportMenu(chartPValues, popup);
 
 			RadioMenuItem miZoomY1 = new RadioMenuItem("0-1");
 			miZoomY1.setOnAction(e -> {
@@ -648,7 +648,7 @@ public class KaplanMeierDisplay implements ParameterChangeListener, PathObjectHi
 
 			MenuItem miCopyData = new MenuItem("Copy chart data");
 			miCopyData.setOnAction(e -> {
-				String dataString = ChartToolsFX.getChartDataAsString(chartPValues);
+				String dataString = ChartTools.getChartDataAsString(chartPValues);
 				ClipboardContent content = new ClipboardContent();
 				content.putString(dataString);
 				Clipboard.getSystemClipboard().setContent(content);
@@ -776,7 +776,7 @@ public class KaplanMeierDisplay implements ParameterChangeListener, PathObjectHi
 			histogramPanel.getChart().getXAxis().setLabel(scoreColumn);
 			histogramPanel.getChart().getYAxis().setLabel("Count");
 
-			ChartToolsFX.addChartExportMenu(histogramPanel.getChart(), null);
+			ChartTools.addChartExportMenu(histogramPanel.getChart(), null);
 
 			//				histogramWrapper.setVerticalLines(thresholds, ColorToolsFX.getCachedColor(240, 0, 0, 128));
 			// Deal with threshold adjustment

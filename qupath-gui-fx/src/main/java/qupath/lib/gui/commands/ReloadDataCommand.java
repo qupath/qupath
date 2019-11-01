@@ -31,7 +31,7 @@ import org.slf4j.LoggerFactory;
 
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
-import qupath.lib.gui.helpers.DisplayHelpers;
+import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.images.ImageData;
 import qupath.lib.io.PathIO;
 
@@ -56,24 +56,24 @@ public class ReloadDataCommand implements PathCommand {
 		// Check if we have an image
 		ImageData<BufferedImage> imageData = qupath.getImageData();
 		if (imageData == null) {
-			DisplayHelpers.showErrorMessage("Revert", "No open image selected!");
+			Dialogs.showErrorMessage("Revert", "No open image selected!");
 			return;
 		}
 
 		// Check if we have a saved file
 		File savedFile = imageData.getLastSavedPath() == null ? null : new File(imageData.getLastSavedPath());
 		if (savedFile == null || !savedFile.isFile()) {
-			DisplayHelpers.showErrorMessage("Revert", "No previously saved data found!");
+			Dialogs.showErrorMessage("Revert", "No previously saved data found!");
 			return;
 		}
 		
-		if (DisplayHelpers.showConfirmDialog("Revert", "Revert to last saved version?  All changes will be lost.")) {
+		if (Dialogs.showConfirmDialog("Revert", "Revert to last saved version?  All changes will be lost.")) {
 			try {
 				logger.info("Reverting to last saved version: {}", savedFile.getAbsolutePath());
 				ImageData<BufferedImage> imageDataNew = PathIO.readImageData(savedFile, null, imageData.getServer(), BufferedImage.class);
 				qupath.getViewer().setImageData(imageDataNew);
 			} catch (Exception e) {
-				DisplayHelpers.showErrorMessage("Revert", "Error reverting to previously saved file\n\n" + e.getLocalizedMessage());
+				Dialogs.showErrorMessage("Revert", "Error reverting to previously saved file\n\n" + e.getLocalizedMessage());
 			}
 		}
 

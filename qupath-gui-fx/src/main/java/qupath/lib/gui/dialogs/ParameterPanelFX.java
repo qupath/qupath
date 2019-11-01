@@ -21,7 +21,7 @@
  * #L%
  */
 
-package qupath.lib.gui.helpers.dialogs;
+package qupath.lib.gui.dialogs;
 
 import java.text.NumberFormat;
 import java.util.Arrays;
@@ -56,7 +56,7 @@ import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.stage.Stage;
 import qupath.lib.common.GeneralTools;
-import qupath.lib.gui.helpers.PaneToolsFX;
+import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.plugins.parameters.BooleanParameter;
 import qupath.lib.plugins.parameters.ChoiceParameter;
 import qupath.lib.plugins.parameters.DoubleParameter;
@@ -371,17 +371,17 @@ public class ParameterPanelFX {
 		map.put(parameter, component);
 		String help = parameter.getHelpText();
 
-		PaneToolsFX.setFillWidth(Boolean.TRUE, component);
-		PaneToolsFX.setHGrowPriority(Priority.ALWAYS, component);
+		PaneTools.setFillWidth(Boolean.TRUE, component);
+		PaneTools.setHGrowPriority(Priority.ALWAYS, component);
 
 		if (text == null) {
-			PaneToolsFX.addGridRow(pane, currentRow++, 0, help, component, component);
+			PaneTools.addGridRow(pane, currentRow++, 0, help, component, component);
 		} else {
 			Label label = new Label(text);
 			label.setMaxWidth(Double.MAX_VALUE);
 			label.setMinWidth(Label.USE_PREF_SIZE);
 			label.setLabelFor(component);
-			PaneToolsFX.addGridRow(pane, currentRow++, 0, help, label, component);
+			PaneTools.addGridRow(pane, currentRow++, 0, help, label, component);
 		}
 	}
 	

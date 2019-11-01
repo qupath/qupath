@@ -53,7 +53,7 @@ import qupath.lib.gui.QuPathGUI.DefaultMode;
 import qupath.lib.gui.QuPathGUI.GUIActions;
 import qupath.lib.gui.QuPathGUI.Mode;
 import qupath.lib.gui.commands.interfaces.PathCommand;
-import qupath.lib.gui.helpers.DisplayHelpers;
+import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.panels.CountingPanel;
 import qupath.lib.gui.panels.PathAnnotationPanel;
 import qupath.lib.gui.prefs.PathPrefs;
@@ -146,7 +146,7 @@ public class CountingPanelCommand implements PathCommand, ImageDataChangeListene
 							hierarchy.addPathObject(points);
 					}
 				} catch (IOException e) {
-					DisplayHelpers.showErrorMessage("Load points error", e);
+					Dialogs.showErrorMessage("Load points error", e);
 				}
 			}
 		);
@@ -156,7 +156,7 @@ public class CountingPanelCommand implements PathCommand, ImageDataChangeListene
 					return;
 				List<PathObject> pointsList = countingPanel.getPathObjects();
 				if (pointsList.isEmpty()) {
-					DisplayHelpers.showErrorMessage("Save points", "No points available!");
+					Dialogs.showErrorMessage("Save points", "No points available!");
 					return;
 				}
 				String defaultName = null;
@@ -171,7 +171,7 @@ public class CountingPanelCommand implements PathCommand, ImageDataChangeListene
 				try {
 					PointIO.writePointsObjectsList(file, pointsList, PathPrefs.getColorDefaultAnnotations());
 				} catch (IOException e) {
-					DisplayHelpers.showErrorMessage("Save points error", e);
+					Dialogs.showErrorMessage("Save points error", e);
 				}
 			}
 		);

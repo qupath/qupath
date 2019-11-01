@@ -21,7 +21,7 @@
  * #L%
  */
 
-package qupath.lib.gui.helpers;
+package qupath.lib.gui.tools;
 
 import java.util.HashMap;
 import java.util.Map;

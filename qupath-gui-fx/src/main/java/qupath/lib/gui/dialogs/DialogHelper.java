@@ -21,7 +21,7 @@
  * #L%
  */
 
-package qupath.lib.gui.helpers.dialogs;
+package qupath.lib.gui.dialogs;
 
 import java.io.File;
 import java.util.List;

@@ -12,7 +12,7 @@ import org.controlsfx.validation.Validator;
 
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.TextInputDialog;
-import qupath.lib.gui.helpers.DisplayHelpers;
+import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.projects.ResourceManager.Manager;
 
 public class ProjectResourceManagerFX {
@@ -35,7 +35,7 @@ public class ProjectResourceManagerFX {
 			return false;
 		
 		if (names.contains(name.toLowerCase())) {
-			DisplayHelpers.showErrorMessage("Invalid name", name + " already exists! Please choose a unique name.");
+			Dialogs.showErrorMessage("Invalid name", name + " already exists! Please choose a unique name.");
 			return false;
 		}
 		
@@ -46,7 +46,7 @@ public class ProjectResourceManagerFX {
 	
 	public static <T> T promptToLoadResource(Manager<T> manager, String title, String prompt, String defaultName) throws IOException {
 		Collection<String> choices = manager.getNames();
-		String name = DisplayHelpers.showChoiceDialog(title, prompt, choices, null);
+		String name = Dialogs.showChoiceDialog(title, prompt, choices, null);
 		if (name == null)
 			return null;
 		return manager.get(name);
@@ -62,7 +62,7 @@ public class ProjectResourceManagerFX {
 			try {
 				func.apply(manager.get(name));
 			} catch (Exception e1) {
-				DisplayHelpers.showErrorMessage(name, e1);
+				Dialogs.showErrorMessage(name, e1);
 			}
 		});
 		return menuItem;

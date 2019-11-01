@@ -81,10 +81,10 @@ import javafx.stage.Stage;
 import javafx.util.Callback;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.helpers.ChartToolsFX;
-import qupath.lib.gui.helpers.DisplayHelpers;
-import qupath.lib.gui.helpers.PaneToolsFX;
+import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.gui.tools.ChartTools;
+import qupath.lib.gui.tools.PaneTools;
 
 /**
  * Class for displaying a chart in an export-friendly way.
@@ -278,12 +278,12 @@ public class ExportChartPanel {
 				try {
 					ImageIO.write(SwingFXUtils.fromFXImage(img, null), "png", fileOutput);
 				} catch (Exception e1) {
-					DisplayHelpers.showErrorMessage("Save chart error", e1);
+					Dialogs.showErrorMessage("Save chart error", e1);
 				}
 			}
 		});
 
-		Pane paneButtons = PaneToolsFX.createColumnGridControls(btnCopy, btnSave);
+		Pane paneButtons = PaneTools.createColumnGridControls(btnCopy, btnSave);
 		paneButtons.setPadding(new Insets(5, 5, 5, 5));
 
 		// Listen for changes to stroke setting
@@ -446,7 +446,7 @@ public class ExportChartPanel {
 			showExportChartPanel(chart2, null);
 		} catch (InstantiationException | IllegalAccessException | IllegalArgumentException | InvocationTargetException
 				| NoSuchMethodException | SecurityException e) {
-			DisplayHelpers.showErrorNotification("Export chart display error", "Unable to duplicate chart");
+			Dialogs.showErrorNotification("Export chart display error", "Unable to duplicate chart");
 			logger.error("Error duplicating chart", e);
 		}
 	}
@@ -519,7 +519,7 @@ public class ExportChartPanel {
 		
 		// Set the legend to be more appropriate for a line chart
 		if (chart instanceof LineChart<?, ?> && chart.isLegendVisible())
-			ChartToolsFX.setLineChartLegendLines(chart, 25);
+			ChartTools.setLineChartLegendLines(chart, 25);
 
 		persistentStrokeWidthProperty.set(strokeWidthProperty.get());
 		persistentChartStyleProperty.set(chartStyleProperty.get());
@@ -711,7 +711,7 @@ public class ExportChartPanel {
 				try {
 					loadExportPreferences(sheet.getItems(), n);
 				} catch (Exception e) {
-					DisplayHelpers.showErrorMessage("Error loading prefs", "Sorry, unable to load preferences for " + n);
+					Dialogs.showErrorMessage("Error loading prefs", "Sorry, unable to load preferences for " + n);
 					logger.error("Error loading prefs", e);
 				}
 			}
@@ -720,14 +720,14 @@ public class ExportChartPanel {
 		Button btnAdd = new Button("Add");
 		btnAdd.setTooltip(new Tooltip("Add current preferences to stored list"));
 		btnAdd.setOnAction(e -> {
-			String name = DisplayHelpers.showInputDialog("Export chart", "Enter name for stored preferences", chart.getTitle());
+			String name = Dialogs.showInputDialog("Export chart", "Enter name for stored preferences", chart.getTitle());
 			if (name != null && !name.trim().isEmpty()) {
 				try {
 					saveExportPreferences(sheet.getItems(), name);
 					updateStoredPrefs();
 					combo.getSelectionModel().select(name);
 				} catch (Exception e1) {
-					DisplayHelpers.showErrorMessage("Error loading prefs", "Sorry, unable to save preferences " + name);					
+					Dialogs.showErrorMessage("Error loading prefs", "Sorry, unable to save preferences " + name);					
 					logger.error("Error saving prefs", e1);
 				}
 			}
@@ -738,7 +738,7 @@ public class ExportChartPanel {
 		btnRemove.setOnAction(e -> {
 			String selected = combo.getSelectionModel().getSelectedItem();
 			if (selected != null && !selected.trim().isEmpty()) {
-				if (DisplayHelpers.showConfirmDialog("Remove export prefs", "Remove \"" + selected + "\"?")) {
+				if (Dialogs.showConfirmDialog("Remove export prefs", "Remove \"" + selected + "\"?")) {
 					PathPrefs.getUserPreferences().remove(EXPORT_CHART_PREFS_KEY + selected);
 					updateStoredPrefs();
 				}
@@ -749,7 +749,7 @@ public class ExportChartPanel {
 		BorderPane pane = new BorderPane();
 		combo.setMaxWidth(Double.MAX_VALUE);
 		pane.setCenter(combo);
-		pane.setBottom(PaneToolsFX.createColumnGridControls(btnAdd, btnRemove));
+		pane.setBottom(PaneTools.createColumnGridControls(btnAdd, btnRemove));
 		
 		TitledPane titledPane = new TitledPane("Presets", pane);
 		titledPane.setCollapsible(false);

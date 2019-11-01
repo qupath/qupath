@@ -30,7 +30,7 @@ import javafx.event.ActionEvent;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.QuPathGUI.GUIActions;
 import qupath.lib.gui.commands.interfaces.PathCommand;
-import qupath.lib.gui.helpers.DisplayHelpers;
+import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
@@ -71,7 +71,7 @@ public class TMAGridRemove implements PathCommand {
 	public void run() {
 		ImageData<?> imageData = qupath.getImageData();
 		if (imageData == null || imageData.getHierarchy().getTMAGrid() == null) {
-			DisplayHelpers.showErrorMessage(NAME, "No image with dearrayed TMA cores selected!");
+			Dialogs.showErrorMessage(NAME, "No image with dearrayed TMA cores selected!");
 			return;
 		}
 		
@@ -102,20 +102,20 @@ public class TMAGridRemove implements PathCommand {
 		boolean removeRow = type == TMARemoveType.ROW;
 		String typeString = removeRow ? "row" : "column";
 		if (row < 0 || col < 0) {
-			DisplayHelpers.showErrorMessage(NAME, "Please select a TMA core to indicate which " + typeString + " to remove");
+			Dialogs.showErrorMessage(NAME, "Please select a TMA core to indicate which " + typeString + " to remove");
 			return;
 		}
 		
 		// Check we have enough rows/columns - if not, this is just a clear operation
 		if ((removeRow && grid.getGridHeight() <= 1) || (!removeRow && grid.getGridWidth() <= 1)) {
-			if (DisplayHelpers.showConfirmDialog(NAME, "Are you sure you want to delete the entire TMA grid?"))
+			if (Dialogs.showConfirmDialog(NAME, "Are you sure you want to delete the entire TMA grid?"))
 				hierarchy.setTMAGrid(null);
 			return;
 		}
 		
 		// Confirm the removal - add 1 due to 'base 0' probably not being expected by most users...
 		int num = removeRow ? row : col;
-		if (!DisplayHelpers.showConfirmDialog(NAME, "Are you sure you want to delete " + typeString + " " + (num+1) + " from TMA grid?"))
+		if (!Dialogs.showConfirmDialog(NAME, "Are you sure you want to delete " + typeString + " " + (num+1) + " from TMA grid?"))
 			return;
 		
 		// Create a new grid

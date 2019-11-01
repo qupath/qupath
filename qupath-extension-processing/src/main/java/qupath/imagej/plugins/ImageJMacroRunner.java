@@ -56,11 +56,11 @@ import qupath.imagej.gui.IJExtension;
 import qupath.imagej.tools.IJTools;
 import qupath.lib.display.ImageDisplay;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.helpers.DisplayHelpers;
-import qupath.lib.gui.helpers.PaneToolsFX;
-import qupath.lib.gui.helpers.dialogs.ParameterPanelFX;
+import qupath.lib.gui.dialogs.Dialogs;
+import qupath.lib.gui.dialogs.ParameterPanelFX;
 import qupath.lib.gui.images.servers.ChannelDisplayTransformServer;
 import qupath.lib.gui.plugins.ParameterDialogWrapper;
+import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.PathImage;
 import qupath.lib.images.servers.ImageServer;
@@ -172,7 +172,7 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 						// Run in a background thread
 						Collection<? extends PathObject> parents = getParentObjects(runner);
 						if (parents.isEmpty()) {
-							DisplayHelpers.showErrorMessage("ImageJ macro runner", "No annotation or TMA core objects selected!");
+							Dialogs.showErrorMessage("ImageJ macro runner", "No annotation or TMA core objects selected!");
 							return;
 						}
 						
@@ -194,7 +194,7 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 			Button btnClose = new Button("Close");
 			btnClose.setOnAction(e -> dialog.hide());
 			
-			GridPane panelButtons = PaneToolsFX.createRowGridControls(btnRun, btnClose);
+			GridPane panelButtons = PaneTools.createRowGridControls(btnRun, btnClose);
 			
 			pane.setCenter(panelMacro);
 			pane.setBottom(panelButtons);
@@ -237,7 +237,7 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 		try {
 			IJTools.isMemorySufficient(region, imageData);
 		} catch (Exception e1) {
-			DisplayHelpers.showErrorMessage("ImageJ macro error", e1.getMessage());
+			Dialogs.showErrorMessage("ImageJ macro error", e1.getMessage());
 			return;
 		}
 		

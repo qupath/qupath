@@ -31,7 +31,7 @@ import org.slf4j.LoggerFactory;
 
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
-import qupath.lib.gui.helpers.DisplayHelpers;
+import qupath.lib.gui.tools.GuiTools;
 
 /**
  * Command to launch browser to view demo screencasts.
@@ -57,7 +57,7 @@ public class OpenWebpageCommand implements PathCommand {
 
 	@Override
 	public void run() {
-		DisplayHelpers.browseURI(uri);
+		GuiTools.browseURI(uri);
 	}
 
 }

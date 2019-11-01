@@ -30,7 +30,7 @@ import java.io.IOException;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
-import qupath.lib.gui.helpers.DisplayHelpers;
+import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
@@ -57,14 +57,14 @@ public class SerializeImageDataCommand implements PathCommand {
 		public void run() {
 			ImageData<BufferedImage> imageData = qupath.getImageData();
 			if (imageData == null) {
-				DisplayHelpers.showErrorMessage("Serialization error", "No image data to save!");
+				Dialogs.showErrorMessage("Serialization error", "No image data to save!");
 				return;
 			}
 			try {
 				var project = qupath.getProject();
 				var entry = project == null ? null : project.getEntry(imageData);
 				if (entry != null) {
-					if (overwriteExisting || DisplayHelpers.showConfirmDialog("Save changes", "Save changes to " + entry.getImageName() + "?")) {
+					if (overwriteExisting || Dialogs.showConfirmDialog("Save changes", "Save changes to " + entry.getImageName() + "?")) {
 							entry.saveImageData(imageData);
 					} else
 						return;
@@ -96,7 +96,7 @@ public class SerializeImageDataCommand implements PathCommand {
 					PathIO.writeImageData(file, imageData);
 				}
 			} catch (IOException e) {
-				DisplayHelpers.showErrorMessage("Save ImageData", e);
+				Dialogs.showErrorMessage("Save ImageData", e);
 			}
 		}
 		

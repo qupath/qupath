@@ -171,7 +171,6 @@ public class QP {
 			GeometryTools.class,
 			IJTools.class,
 			OpenCVTools.class,
-			GeometryTools.class,
 			
 			// External classes
 			BufferedImage.class
@@ -236,6 +235,8 @@ public class QP {
 	
 	private static String getString(Method m) {
 		var sb = new StringBuilder();
+		if (Modifier.isStatic(m.getModifiers()))
+			sb.append("static ");
 		sb.append(m.getReturnType().getSimpleName());
 		sb.append(" ");
 		sb.append(m.getName());

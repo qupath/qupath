@@ -28,7 +28,7 @@ import org.slf4j.LoggerFactory;
 
 import qupath.lib.gui.ImageDataWrapper;
 import qupath.lib.gui.commands.interfaces.PathCommand;
-import qupath.lib.gui.helpers.DisplayHelpers;
+import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
@@ -70,7 +70,7 @@ public class ShapeSimplifierCommand implements PathCommand {
 			return;
 		}
 
-		String input = DisplayHelpers.showInputDialog("Simplify shape", 
+		String input = Dialogs.showInputDialog("Simplify shape", 
 				"Set altitude threshold in pixels (> 0; higher values give simpler shapes)", 
 				Double.toString(altitudeThreshold));
 		if (input == null || !(input instanceof String) || ((String)input).trim().length() == 0)

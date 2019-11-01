@@ -46,10 +46,10 @@ import javafx.scene.text.TextAlignment;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
-import qupath.lib.gui.helpers.DisplayHelpers;
-import qupath.lib.gui.helpers.PaneToolsFX;
+import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.images.servers.RenderedImageServer;
 import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServers;
@@ -90,7 +90,7 @@ public class ExportImageRegionCommand implements PathCommand {
 	public void run() {
 		QuPathViewer viewer = qupath.getViewer();
 		if (viewer == null || viewer.getServer() == null) {
-			DisplayHelpers.showErrorMessage("Export image region", "No viewer & image selected!");
+			Dialogs.showErrorMessage("Export image region", "No viewer & image selected!");
 			return;
 		}
 		
@@ -185,13 +185,13 @@ public class ExportImageRegionCommand implements PathCommand {
 		
 		tfDownsample.setText(Double.toString(exportDownsample.get()));
 		
-		PaneToolsFX.setMaxWidth(Double.MAX_VALUE, labelSize, textArea, tfDownsample, comboImageType);
-		PaneToolsFX.setHGrowPriority(Priority.ALWAYS, labelSize, textArea, tfDownsample, comboImageType);
+		PaneTools.setMaxWidth(Double.MAX_VALUE, labelSize, textArea, tfDownsample, comboImageType);
+		PaneTools.setHGrowPriority(Priority.ALWAYS, labelSize, textArea, tfDownsample, comboImageType);
 		
 		pane.setVgap(5);
 		pane.setHgap(5);
 		
-		if (!DisplayHelpers.showConfirmDialog("Export image region", pane))
+		if (!Dialogs.showConfirmDialog("Export image region", pane))
 			return;
 		
 		var writer = comboImageType.getSelectionModel().getSelectedItem();
@@ -199,12 +199,12 @@ public class ExportImageRegionCommand implements PathCommand {
 		int w = (int)(regionWidth / downsample.get() + 0.5);
 		int h = (int)(regionHeight / downsample.get() + 0.5);
 		if (!supportsPyramid && w * h > maxPixels) {
-			DisplayHelpers.showErrorNotification("Export image region", "Requested export region too large - try selecting a smaller region, or applying a higher downsample factor");
+			Dialogs.showErrorNotification("Export image region", "Requested export region too large - try selecting a smaller region, or applying a higher downsample factor");
 			return;
 		}
 		
 		if (downsample.get() < 1 || !Double.isFinite(downsample.get())) {
-			DisplayHelpers.showErrorMessage("Export image region", "Downsample factor must be >= 1!");
+			Dialogs.showErrorMessage("Export image region", "Downsample factor must be >= 1!");
 			return;
 		}
 				
@@ -244,7 +244,7 @@ public class ExportImageRegionCommand implements PathCommand {
 				writer.writeImage(server, request, fileOutput.getAbsolutePath());
 			lastWriter = writer;
 		} catch (IOException e) {
-			DisplayHelpers.showErrorMessage("Export region", e);
+			Dialogs.showErrorMessage("Export region", e);
 		}
 	}
 	

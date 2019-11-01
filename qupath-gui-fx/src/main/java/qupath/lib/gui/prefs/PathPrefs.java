@@ -65,7 +65,7 @@ import javafx.collections.ListChangeListener.Change;
 import javafx.collections.ObservableList;
 import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
-import qupath.lib.gui.helpers.CommandFinderTools.CommandBarDisplay;
+import qupath.lib.gui.tools.CommandFinderTools.CommandBarDisplay;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.projects.ProjectIO;
 

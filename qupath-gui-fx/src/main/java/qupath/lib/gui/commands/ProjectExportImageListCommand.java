@@ -38,7 +38,7 @@ import org.slf4j.LoggerFactory;
 
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
-import qupath.lib.gui.helpers.DisplayHelpers;
+import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.projects.ProjectImageEntry;
 import qupath.lib.projects.Projects;
@@ -64,7 +64,7 @@ public class ProjectExportImageListCommand implements PathCommand {
 	public void run() {
 		var project = qupath.getProject();
 		if (project == null) {
-			DisplayHelpers.showErrorMessage(commandName, "No project open!");
+			Dialogs.showErrorMessage(commandName, "No project open!");
 			return;
 		}
 		// Try to get a project directory
@@ -120,7 +120,7 @@ public class ProjectExportImageListCommand implements PathCommand {
 				}
 			}		
 		} catch (IOException e) {
-			DisplayHelpers.showErrorMessage(commandName, fileOutput.getAbsolutePath() + " not found!");
+			Dialogs.showErrorMessage(commandName, fileOutput.getAbsolutePath() + " not found!");
 		}
 		long endTime = System.currentTimeMillis();
 		logger.debug("Exported {} images in {} ms", n, endTime - startTime);

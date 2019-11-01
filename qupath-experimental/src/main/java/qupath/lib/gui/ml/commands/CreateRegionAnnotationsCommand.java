@@ -18,7 +18,7 @@ import javafx.stage.Stage;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
-import qupath.lib.gui.helpers.DisplayHelpers;
+import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.PixelCalibration;
@@ -169,7 +169,7 @@ public class CreateRegionAnnotationsCommand implements PathCommand {
 			}
 			ImageData<?> imageData = viewer.getImageData();
 			if (imageData == null) {
-				DisplayHelpers.showNoImageError("Create region");
+				Dialogs.showNoImageError("Create region");
 				return;
 			}
 			
@@ -188,7 +188,7 @@ public class CreateRegionAnnotationsCommand implements PathCommand {
 				double pixelWidthMicrons = cal.getPixelWidthMicrons();
 				double pixelHeightMicrons = cal.getPixelHeightMicrons();
 				if (!Double.isFinite(pixelWidthMicrons + pixelHeightMicrons)) {
-					DisplayHelpers.showErrorMessage("Create region", "Pixel size not available! Please switch to creating the region in pixels instead.");
+					Dialogs.showErrorMessage("Create region", "Pixel size not available! Please switch to creating the region in pixels instead.");
 					return;
 				}
 				width /= pixelWidthMicrons;
@@ -197,7 +197,7 @@ public class CreateRegionAnnotationsCommand implements PathCommand {
 			
 			// Check the pixels are in range
 			if (width > viewer.getServerWidth() || height > viewer.getServerHeight()) {
-				DisplayHelpers.showErrorMessage("Create region", String.format("Requested size %.1f x %.1f must be smaller than image size %d x %d!",
+				Dialogs.showErrorMessage("Create region", String.format("Requested size %.1f x %.1f must be smaller than image size %d x %d!",
 						width, height, viewer.getServerWidth(), viewer.getServerHeight()));
 				return;
 			}
@@ -219,7 +219,7 @@ public class CreateRegionAnnotationsCommand implements PathCommand {
 				y = viewer.getCenterPixelY() - height / 2.0;
 				break;
 			default:
-				DisplayHelpers.showErrorMessage("Create region", "Unknowing location " + location);
+				Dialogs.showErrorMessage("Create region", "Unknowing location " + location);
 				return;
 			}
 			

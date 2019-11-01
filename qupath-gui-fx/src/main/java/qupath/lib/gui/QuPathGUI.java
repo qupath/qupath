@@ -260,15 +260,12 @@ import qupath.lib.gui.commands.scriptable.SpecifyAnnotationCommand;
 import qupath.lib.gui.commands.scriptable.TMAGridRelabel;
 import qupath.lib.gui.commands.selectable.CellDisplaySelectable;
 import qupath.lib.gui.commands.selectable.ToolSelectable;
+import qupath.lib.gui.dialogs.DialogHelper;
+import qupath.lib.gui.dialogs.DialogHelperFX;
+import qupath.lib.gui.dialogs.Dialogs;
+import qupath.lib.gui.dialogs.ParameterPanelFX;
+import qupath.lib.gui.dialogs.Dialogs.DialogButton;
 import qupath.lib.gui.extensions.QuPathExtension;
-import qupath.lib.gui.helpers.ColorToolsFX;
-import qupath.lib.gui.helpers.CommandFinderTools;
-import qupath.lib.gui.helpers.DisplayHelpers;
-import qupath.lib.gui.helpers.DisplayHelpers.DialogButton;
-import qupath.lib.gui.helpers.DisplayHelpers.SnapshotType;
-import qupath.lib.gui.helpers.dialogs.DialogHelper;
-import qupath.lib.gui.helpers.dialogs.DialogHelperFX;
-import qupath.lib.gui.helpers.dialogs.ParameterPanelFX;
 import qupath.lib.gui.icons.PathIconFactory;
 import qupath.lib.gui.icons.PathIconFactory.PathIcons;
 import qupath.lib.gui.images.stores.DefaultImageRegionStore;
@@ -289,6 +286,10 @@ import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.prefs.QuPathStyleManager;
 import qupath.lib.gui.scripting.QPEx;
 import qupath.lib.gui.scripting.ScriptEditor;
+import qupath.lib.gui.tools.ColorToolsFX;
+import qupath.lib.gui.tools.CommandFinderTools;
+import qupath.lib.gui.tools.GuiTools;
+import qupath.lib.gui.tools.GuiTools.SnapshotType;
 import qupath.lib.gui.viewer.DragDropFileImportListener;
 import qupath.lib.gui.viewer.ModeWrapper;
 import qupath.lib.gui.viewer.OverlayOptions;
@@ -573,7 +574,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		Thread.setDefaultUncaughtExceptionHandler(new UncaughtExceptionHandler() {
 			@Override
 			public void uncaughtException(Thread t, Throwable e) {
-				DisplayHelpers.showErrorNotification("QuPath exception", e);
+				Dialogs.showErrorNotification("QuPath exception", e);
 				if (actionLog != null)
 					actionLog.handle(null);
 				// Try to reclaim any memory we can
@@ -629,7 +630,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 						e.consume();
 						return;
 					}
-				} else if (!DisplayHelpers.showYesNoDialog("Quit QuPath", "Are you sure you want to quit?\n\nUnsaved changes in " + unsavedViewers.size() + " viewers will be lost.")) {
+				} else if (!Dialogs.showYesNoDialog("Quit QuPath", "Are you sure you want to quit?\n\nUnsaved changes in " + unsavedViewers.size() + " viewers will be lost.")) {
 					logger.trace("Pressed no to quit window!");
 					e.consume();
 					return;
@@ -941,7 +942,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				return false;
 			}
 		} else {
-			DisplayHelpers.showErrorMessage("Show URL", "Sorry, unable to launch a browser to open \n" + url);
+			Dialogs.showErrorMessage("Show URL", "Sorry, unable to launch a browser to open \n" + url);
 			return false;
 		}
 	}
@@ -1050,7 +1051,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		if (!fileChanges.exists()) {
 			logger.warn("No changelog found - will not check for updates");
 			if (!isAutoCheck) {
-				DisplayHelpers.showErrorMessage("Update check", "Cannot check for updates at this time, sorry");
+				Dialogs.showErrorMessage("Update check", "Cannot check for updates at this time, sorry");
 			}
 			return;
 		}
@@ -1059,7 +1060,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			changeLog = GeneralTools.readFileAsString(fileChanges.getAbsolutePath());
 		} catch (IOException e1) {
 			if (!isAutoCheck) {
-				DisplayHelpers.showErrorMessage("Update check", "Cannot check for updates at this time, sorry");
+				Dialogs.showErrorMessage("Update check", "Cannot check for updates at this time, sorry");
 			}
 			logger.error("Error reading changelog", e1);
 			return;
@@ -1089,7 +1090,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 //							dialog.getDialogPane().setHeaderText("QuPath is up-to-date!");
 //							dialog.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
 //							dialog.showAndWait();
-							DisplayHelpers.showMessageDialog("Update check", "QuPath is up-to-date!");
+							Dialogs.showMessageDialog("Update check", "QuPath is up-to-date!");
 						});
 					}
 					return;
@@ -1100,7 +1101,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			} catch (Exception e) {
 				// Notify the user if we couldn't read the log
 				if (!isAutoCheck) {
-					DisplayHelpers.showMessageDialog("Update check", "Unable to check for updates at this time, sorry");
+					Dialogs.showMessageDialog("Update check", "Unable to check for updates at this time, sorry");
 					return;
 				}
 				logger.debug("Unable to check for updates - {}", e.getLocalizedMessage());
@@ -1171,9 +1172,9 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		if (result.get().equals(btDownload)) {
 			String url = "https://qupath.github.io";
 			try {
-				DisplayHelpers.browseURI(new URI(url));
+				GuiTools.browseURI(new URI(url));
 			} catch (URISyntaxException e) {
-				DisplayHelpers.showErrorNotification("Download", "Unable to open " + url);
+				Dialogs.showErrorNotification("Download", "Unable to open " + url);
 			}
 		} else if (result.get().equals(btDoNotRemind)) {
 			PathPrefs.setDoAutoUpdateCheck(false);
@@ -1212,7 +1213,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 					logger.info("Loaded extension {} ({} ms)", extension.getName(), endTime - startTime);
 					loadedExtensions.put(extension.getClass(), extension);
 					if (showNotification)
-						DisplayHelpers.showInfoNotification("Extension loaded",  extension.getName());
+						Dialogs.showInfoNotification("Extension loaded",  extension.getName());
 				} catch (Exception e) {
 					logger.error("Error loading extension " + extension, e);
 				}
@@ -1227,7 +1228,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			List<String> serverBuildersUpdated = ImageServerProvider.getInstalledImageServerBuilders().stream().map(s -> s.getName()).collect(Collectors.toList());
 			serverBuildersUpdated.removeAll(serverBuilders);
 			for (String builderName : serverBuildersUpdated) {
-				DisplayHelpers.showInfoNotification("Image server loaded",  builderName);
+				Dialogs.showInfoNotification("Image server loaded",  builderName);
 			}
 		}
 		
@@ -1245,7 +1246,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			return;
 		}
 		if (!canInstallExtensions()) {
-			DisplayHelpers.showErrorMessage("Install extension", "Cannot install extensions when not running QuPath from a .jar file (application), sorry!");
+			Dialogs.showErrorMessage("Install extension", "Cannot install extensions when not running QuPath from a .jar file (application), sorry!");
 			return;
 		}
 		File dir = getExtensionDirectory();
@@ -1280,7 +1281,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			}
 			if (result.get() == btUseDefault) {
 				if (!dirDefault.exists() && !dirDefault.mkdirs()) {
-					DisplayHelpers.showErrorMessage("Extension error", "Unable to create directory at \n" + dirDefault.getAbsolutePath());
+					Dialogs.showErrorMessage("Extension error", "Unable to create directory at \n" + dirDefault.getAbsolutePath());
 					return;
 				}
 				PathPrefs.setUserPath(dirDefault.getAbsolutePath());
@@ -1307,13 +1308,13 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			if (destination.toFile().exists()) {
 				// It would be better to check how many files will be overwritten in one go,
 				// but this should be a pretty rare occurrence
-				if (!DisplayHelpers.showConfirmDialog("Install extension", "Overwrite " + destination.toFile().getName() + "?\n\nYou will have to restart QuPath to see the updates."))
+				if (!Dialogs.showConfirmDialog("Install extension", "Overwrite " + destination.toFile().getName() + "?\n\nYou will have to restart QuPath to see the updates."))
 					return;
 			}
 			try {
 				Files.copy(source, destination, StandardCopyOption.REPLACE_EXISTING);
 			} catch (IOException e) {
-				DisplayHelpers.showErrorMessage("Extension error", file + "\ncould not be copied, sorry");
+				Dialogs.showErrorMessage("Extension error", file + "\ncould not be copied, sorry");
 				logger.error("Could not copy file {}", file, e);
 				return;
 			}
@@ -1485,11 +1486,11 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				PathPrefs.maxMemoryMBProperty().set(maxMemorySpecifiedMB);
 			} else {
 				if (maxMemorySpecifiedMB >= 0)
-					DisplayHelpers.showErrorNotification("Max memory setting", "Specified maximum memory setting too low - will ignore");
+					Dialogs.showErrorNotification("Max memory setting", "Specified maximum memory setting too low - will ignore");
 //				PathPrefs.maxMemoryMBProperty().set(-1);
 			}
 		} else {
-			DisplayHelpers.showWarningNotification("Max memory", "Cannot set maximum memory preferences");
+			Dialogs.showWarningNotification("Max memory", "Cannot set maximum memory preferences");
 		}
 		
 		// Try to update display
@@ -2050,9 +2051,9 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			if (hierarchy == null)
 				return;
 			if (hierarchy.getSelectionModel().singleSelection()) {
-				DisplayHelpers.promptToRemoveSelectedObject(hierarchy.getSelectionModel().getSelectedObject(), hierarchy);
+				GuiTools.promptToRemoveSelectedObject(hierarchy.getSelectionModel().getSelectedObject(), hierarchy);
 			} else {
-				DisplayHelpers.promptToClearAllSelectedObjects(viewer.getImageData());
+				GuiTools.promptToClearAllSelectedObjects(viewer.getImageData());
 			}
 		});
 		
@@ -2328,7 +2329,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			setInitialLocationAndMagnification(viewer);
 			if (imageData != null && (imageData.getImageType() == null || imageData.getImageType() == ImageType.UNSET)) {
 				if (PathPrefs.getAutoEstimateImageType()) {
-					var type = DisplayHelpers.estimateImageType(imageData.getServer(), imageRegionStore.getThumbnail(imageData.getServer(), 0, 0, true));
+					var type = GuiTools.estimateImageType(imageData.getServer(), imageRegionStore.getThumbnail(imageData.getServer(), 0, 0, true));
 					logger.info("Image type estimated to be {}", type);
 					imageData.setImageType(type);
 					imageData.setChanged(false); // Don't want to retain this as a change resulting in a prompt to save the data
@@ -2338,7 +2339,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			}
 			return true;
 		} catch (Exception e) {
-			DisplayHelpers.showErrorMessage("Load ImageData", e);
+			Dialogs.showErrorMessage("Load ImageData", e);
 			return false;
 		}
 	}
@@ -2363,7 +2364,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			return true;
 		ProjectImageEntry<BufferedImage> entry = getProjectImageEntry(imageData);
 		String name = entry == null ? ServerTools.getDisplayableImageName(imageData.getServer()) : entry.getImageName();
-		var response = DisplayHelpers.showYesNoCancelDialog("Save changes", "Save changes to " + name + "?");
+		var response = Dialogs.showYesNoCancelDialog("Save changes", "Save changes to " + name + "?");
 		if (response == DialogButton.CANCEL)
 			return false;
 		if (response == DialogButton.NO)
@@ -2387,7 +2388,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			}
 			return true;
 		} catch (IOException e) {
-			DisplayHelpers.showErrorMessage("Save ImageData", e);
+			Dialogs.showErrorMessage("Save ImageData", e);
 			return false;
 		}
 	}
@@ -2408,7 +2409,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		try {
 			return openImage(getViewer(), pathNew, prompt, includeURLs);
 		} catch (IOException e) {
-			DisplayHelpers.showErrorMessage("Open image", e);
+			Dialogs.showErrorMessage("Open image", e);
 			return false;
 		}
 	}
@@ -2429,7 +2430,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			if (getViewers().size() == 1)
 				viewer = getViewer();
 			else {
-				DisplayHelpers.showErrorMessage("Open image", "Please specify the viewer where the image should be opened!");
+				Dialogs.showErrorMessage("Open image", "Please specify the viewer where the image should be opened!");
 				return false;
 			}
 		}
@@ -2491,7 +2492,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 						return true;
 					}
 				} catch (Exception e) {
-					DisplayHelpers.showErrorMessage("Open project", e);
+					Dialogs.showErrorMessage("Open project", e);
 					logger.error("Error opening project " + fileNew.getAbsolutePath(), e);
 					return false;
 				}
@@ -2510,7 +2511,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			ImageServer<BufferedImage> serverNew = ImageServerProvider.buildServer(pathNew, BufferedImage.class);
 			if (serverNew != null) {
 				if (pathOld != null && prompt && !viewer.getHierarchy().isEmpty()) {
-					if (!DisplayHelpers.showYesNoDialog("Replace open image", "Close " + ServerTools.getDisplayableImageName(server) + "?"))
+					if (!Dialogs.showYesNoDialog("Replace open image", "Close " + ServerTools.getDisplayableImageName(server) + "?"))
 						return false;
 				}
 				ImageData<BufferedImage> imageData = null;
@@ -2519,7 +2520,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 					if (serverNew.nResolutions() == 1 && Math.max(serverNew.getWidth(), serverNew.getHeight()) > minSize) {
 						var serverWrapped = ImageServers.pyramidalize(serverNew);
 						if (serverWrapped.nResolutions() > 1) {
-							if (prompt && DisplayHelpers.showYesNoDialog("Auto pyramidalize",
+							if (prompt && Dialogs.showYesNoDialog("Auto pyramidalize",
 									"QuPath works best with large images saved in a pyramidal format.\n\n" +
 									"Do you want to generate a pyramid dynamically from " + ServerTools.getDisplayableImageName(serverNew) + "?"))
 								serverNew = serverWrapped;
@@ -2541,7 +2542,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				return true;
 			} else {
 				// Show an error message if we can't open the file
-				DisplayHelpers.showErrorNotification("Open image", "Sorry, I can't open " + pathNew);
+				Dialogs.showErrorNotification("Open image", "Sorry, I can't open " + pathNew);
 //				logger.error("Unable to build whole slide server for path '{}'", pathNew);
 			}
 		}
@@ -2561,7 +2562,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	 * @return
 	 */
 	public ImageData<BufferedImage> createNewImageData(final ImageServer<BufferedImage> server, final boolean estimateImageType) {
-		return new ImageData<BufferedImage>(server, estimateImageType ? DisplayHelpers.estimateImageType(server, imageRegionStore.getThumbnail(server, 0, 0, true)) : ImageData.ImageType.UNSET);
+		return new ImageData<BufferedImage>(server, estimateImageType ? GuiTools.estimateImageType(server, imageRegionStore.getThumbnail(server, 0, 0, true)) : ImageData.ImageType.UNSET);
 	}
 	
 		
@@ -2667,7 +2668,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			if (getViewers().size() == 1)
 				viewer = getViewer();
 			else {
-				DisplayHelpers.showErrorMessage("Open saved data", "Please specify the viewer where the data should be opened!");
+				Dialogs.showErrorMessage("Open saved data", "Please specify the viewer where the data should be opened!");
 				return false;
 			}
 		}
@@ -2758,7 +2759,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 					setInitialLocationAndMagnification(viewer);
 			}
 		} catch (IOException e) {
-			DisplayHelpers.showErrorMessage("Read image data", e);
+			Dialogs.showErrorMessage("Read image data", e);
 		}
 		
 		return true;
@@ -2989,9 +2990,9 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 						),
 				createMenu(
 						"Export snapshot...",
-						createCommandAction(new SaveViewCommand(this, SnapshotType.MAIN_WINDOW_SCREENSHOT), "Main window screenshot"),
-						createCommandAction(new SaveViewCommand(this, SnapshotType.MAIN_SCENE), "Main window content"),
-						createCommandAction(new SaveViewCommand(this, SnapshotType.CURRENT_VIEWER), "Current viewer content")
+						createCommandAction(new SaveViewCommand(this, GuiTools.SnapshotType.MAIN_WINDOW_SCREENSHOT), "Main window screenshot"),
+						createCommandAction(new SaveViewCommand(this, GuiTools.SnapshotType.MAIN_SCENE), "Main window content"),
+						createCommandAction(new SaveViewCommand(this, GuiTools.SnapshotType.VIEWER), "Current viewer content")
 						),
 				null,
 				createMenu(
@@ -3021,7 +3022,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 						project = ProjectIO.loadProject(uri, BufferedImage.class);
 						setProject(project);
 					} catch (Exception e1) {
-						DisplayHelpers.showErrorMessage("Project error", "Cannot find project " + uri);
+						Dialogs.showErrorMessage("Project error", "Cannot find project " + uri);
 						logger.error("Error loading project", e1);
 					}
 				});
@@ -3386,7 +3387,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 					((PathPlugin<BufferedImage>)plugin).runPlugin(new PluginRunnerFX(this), arg);
 
 			} catch (Exception e) {
-				DisplayHelpers.showErrorMessage("Error", "Error running " + plugin.getName());
+				Dialogs.showErrorMessage("Error", "Error running " + plugin.getName());
 			}
 		});
 		return action;
@@ -3657,13 +3658,13 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		case ZOOM_OUT:
 			return createCommandAction(new ZoomCommand.ZoomOut(this), "Zoom out", PathIconFactory.createNode(iconSize, iconSize, PathIconFactory.PathIcons.ZOOM_OUT), new KeyCodeCombination(KeyCode.MINUS));
 		case COPY_FULL_SCREENSHOT:
-			return createCommandAction(new CopyViewToClipboardCommand(this, SnapshotType.FULL_SCREENSHOT), "Full screenshot");			
+			return createCommandAction(new CopyViewToClipboardCommand(this, GuiTools.SnapshotType.FULL_SCREENSHOT), "Full screenshot");			
 		case COPY_WINDOW_SCREENSHOT:
-			return createCommandAction(new CopyViewToClipboardCommand(this, SnapshotType.MAIN_WINDOW_SCREENSHOT), "Main window screenshot");			
+			return createCommandAction(new CopyViewToClipboardCommand(this, GuiTools.SnapshotType.MAIN_WINDOW_SCREENSHOT), "Main window screenshot");			
 		case COPY_VIEW:
-			return createCommandAction(new CopyViewToClipboardCommand(this, SnapshotType.CURRENT_VIEWER), "Current viewer", null, new KeyCodeCombination(KeyCode.C, KeyCombination.SHORTCUT_DOWN));
+			return createCommandAction(new CopyViewToClipboardCommand(this, GuiTools.SnapshotType.VIEWER), "Current viewer", null, new KeyCodeCombination(KeyCode.C, KeyCombination.SHORTCUT_DOWN));
 		case COPY_WINDOW:
-			return createCommandAction(new CopyViewToClipboardCommand(this, SnapshotType.MAIN_SCENE), "Main window content");
+			return createCommandAction(new CopyViewToClipboardCommand(this, GuiTools.SnapshotType.MAIN_SCENE), "Main window content");
 		case OPEN_IMAGE:
 			return createCommandAction(new OpenCommand(this), "Open...", null, new KeyCodeCombination(KeyCode.O, KeyCombination.SHORTCUT_DOWN));
 		case OPEN_IMAGE_OR_URL:
@@ -4306,7 +4307,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 //					ParameterPanelFX panel = new ParameterPanelFX(params);
 //					panel.getPane().setPadding(new Insets(10, 10, 10, 10));
 					
-					if (!DisplayHelpers.showParameterDialog("Set magnification", params))
+					if (!Dialogs.showParameterDialog("Set magnification", params))
 						return;
 					
 					if (hasMagnification) {
@@ -4367,7 +4368,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 
 				});
 				
-				DisplayHelpers.showConfirmDialog("Brush tool options", panel.getPane());
+				Dialogs.showConfirmDialog("Brush tool options", panel.getPane());
 				
 //				dialog = new JDialog(qupath.getFrame(), "Brush tool options");
 //				dialog.add(panel);
@@ -4480,7 +4481,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				return;
 			lastMagnification = mag;
 			Platform.runLater(() -> {
-				labelMag.setText(DisplayHelpers.getMagnificationString(viewer));
+				labelMag.setText(GuiTools.getMagnificationString(viewer));
 //				labelMag.setTextAlignment(TextAlignment.CENTER);
 			});
 		}
@@ -4601,7 +4602,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				currentProject.syncChanges();
 			} catch (IOException e) {
 				logger.error("Error syncing project", e);
-				if (!DisplayHelpers.showYesNoDialog("Project error", "A problem occurred while saving the last project - do you want to continue?"))
+				if (!Dialogs.showYesNoDialog("Project error", "A problem occurred while saving the last project - do you want to continue?"))
 					return;
 			}
 		}
@@ -4626,7 +4627,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				if (!ProjectCheckUrisCommand.checkURIs(project, true))
 					return;
 			} catch (IOException e) {
-				DisplayHelpers.showErrorMessage("Update URIs", e);
+				Dialogs.showErrorMessage("Update URIs", e);
 				return;
 			}
 		}
@@ -4874,7 +4875,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		}
 		DialogButton response = DialogButton.YES;
 		if (imageData.isChanged()) {
-			response = DisplayHelpers.showYesNoCancelDialog(dialogTitle, "Save changes to " + ServerTools.getDisplayableImageName(imageData.getServer()) + "?");
+			response = Dialogs.showYesNoCancelDialog(dialogTitle, "Save changes to " + ServerTools.getDisplayableImageName(imageData.getServer()) + "?");
 		}
 		if (response == DialogButton.CANCEL)
 			return false;
@@ -4891,7 +4892,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				} else
 					PathIO.writeImageData(filePrevious, imageData);
 			} catch (IOException e) {
-				DisplayHelpers.showErrorMessage("Save ImageData", e);
+				Dialogs.showErrorMessage("Save ImageData", e);
 			}
 		}
 		return true;
@@ -5038,12 +5039,12 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			int row = splitPaneGrid.getRow(viewer.getView());
  			if (row < 0) {
 				// Shouldn't occur...
-				DisplayHelpers.showErrorMessage("Multiview error", "Cannot find " + viewer + " in the grid!");
+				Dialogs.showErrorMessage("Multiview error", "Cannot find " + viewer + " in the grid!");
 				return;
 			}
 			int nOpen = splitPaneGrid.countOpenViewersForRow(row);
 			if (nOpen > 0) {
-				DisplayHelpers.showErrorMessage("Close row error", "Please close all open viewers in selected row, then try again");
+				Dialogs.showErrorMessage("Close row error", "Please close all open viewers in selected row, then try again");
 //				DisplayHelpers.showErrorMessage("Close row error", "Please close all open viewers in row " + row + ", then try again");
 				return;
 			}
@@ -5106,12 +5107,12 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			int col = splitPaneGrid.getColumn(viewer.getView());
 			if (col < 0) {
 				// Shouldn't occur...
-				DisplayHelpers.showErrorMessage("Multiview error", "Cannot find " + viewer + " in the grid!");
+				Dialogs.showErrorMessage("Multiview error", "Cannot find " + viewer + " in the grid!");
 				return;
 			}
 			int nOpen = splitPaneGrid.countOpenViewersForColumn(col);
 			if (nOpen > 0) {
-				DisplayHelpers.showErrorMessage("Close column error", "Please close all open viewers in selected column, then try again");
+				Dialogs.showErrorMessage("Close column error", "Please close all open viewers in selected column, then try again");
 //				DisplayHelpers.showErrorMessage("Close column error", "Please close all open viewers in column " + col + ", then try again");
 				return;
 			}

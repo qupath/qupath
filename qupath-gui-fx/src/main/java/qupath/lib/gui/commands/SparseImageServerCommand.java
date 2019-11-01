@@ -15,7 +15,7 @@ import org.slf4j.LoggerFactory;
 import javafx.concurrent.Task;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
-import qupath.lib.gui.helpers.DisplayHelpers;
+import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.images.servers.CroppedImageServer;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
@@ -57,12 +57,12 @@ public class SparseImageServerCommand implements PathCommand {
 	public void run() {
 		var project = qupath.getProject();
 		if (project == null) {
-			DisplayHelpers.showErrorMessage(NAME, "You need a project!");
+			Dialogs.showErrorMessage(NAME, "You need a project!");
 			return;
 		}
 		List<PathClass> pathClasses = qupath.getAvailablePathClasses();
 		if (pathClasses.isEmpty()) {
-			DisplayHelpers.showErrorMessage(NAME, "Please ensure classifications are available in QuPath!");
+			Dialogs.showErrorMessage(NAME, "Please ensure classifications are available in QuPath!");
 			return;			
 		}
 		
@@ -80,7 +80,7 @@ public class SparseImageServerCommand implements PathCommand {
 				.addEmptyParameter("Note this command requires images to have similar bit-depths/channels/pixel sizes for compatibility.")
 				;
 		
-		if (!DisplayHelpers.showParameterDialog(NAME, params))
+		if (!Dialogs.showParameterDialog(NAME, params))
 			return;
 		
 		pathClass = (PathClass)params.getChoiceParameterValue("pathClass");
@@ -108,7 +108,7 @@ public class SparseImageServerCommand implements PathCommand {
 			var server = task.get();
 //			var server = createSparseServer(project, pathClass, maxWidth, doZ, rectanglesOnly);
 			if (server == null || server.getManager().getRegions().isEmpty()) {
-				DisplayHelpers.showErrorMessage("Sparse image server", "No suitable annotations found in the current project!");
+				Dialogs.showErrorMessage("Sparse image server", "No suitable annotations found in the current project!");
 				return;			
 			}
 			
@@ -122,7 +122,7 @@ public class SparseImageServerCommand implements PathCommand {
 			}
 			
 		} catch (Exception e) {
-			DisplayHelpers.showErrorMessage("Sparse image server", e);
+			Dialogs.showErrorMessage("Sparse image server", e);
 		}
 	}
 

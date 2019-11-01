@@ -20,7 +20,7 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.common.ThreadTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
-import qupath.lib.gui.helpers.DisplayHelpers;
+import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
@@ -107,7 +107,7 @@ public class OMEPyramidWriterCommand implements PathCommand {
 	public void run() {
 		
 		if (currentTask != null && !currentTask.isDone()) {
-			if (!DisplayHelpers.showConfirmDialog("OME Pyramid writer",
+			if (!Dialogs.showConfirmDialog("OME Pyramid writer",
 					"Do you want to stop the current export?"
 					))
 				// TODO: Delete exporting file?
@@ -120,7 +120,7 @@ public class OMEPyramidWriterCommand implements PathCommand {
 		QuPathViewer viewer = qupath.getViewer();
 		ImageData<BufferedImage> imageData = viewer.getImageData();
 		if (imageData == null) {
-			DisplayHelpers.showNoImageError("OME Pyramid writer");
+			Dialogs.showNoImageError("OME Pyramid writer");
 			return;
 		}
 		ImageServer<BufferedImage> server = imageData.getServer();
@@ -162,7 +162,7 @@ public class OMEPyramidWriterCommand implements PathCommand {
 		params.setHiddenParameters(server.nTimepoints() == 1, "allT");
 		params.setHiddenParameters(singleTile, "tileSize", "parallelize");
 		
-		if (!DisplayHelpers.showParameterDialog("Export OME-TIFF", params))
+		if (!Dialogs.showParameterDialog("Export OME-TIFF", params))
 			return;
 		
 		compression = (CompressionType)params.getChoiceParameterValue("compression");
@@ -248,16 +248,16 @@ public class OMEPyramidWriterCommand implements PathCommand {
 		@Override
 		public void run() {
 			try {
-				DisplayHelpers.showInfoNotification("OME Pyramid writer", "Exporting to " + path + " - \nplease keep QuPath running until export is complete!");
+				Dialogs.showInfoNotification("OME Pyramid writer", "Exporting to " + path + " - \nplease keep QuPath running until export is complete!");
 				long startTime = System.currentTimeMillis();
 				writer.writeImage(path);
 				long endTime = System.currentTimeMillis();
 				logger.info(String.format("OME TIFF export to {} complete in %.1f seconds", (endTime - startTime)/1000.0), path);
-				DisplayHelpers.showInfoNotification("OME Pyramid writer", "OME TIFF export complete!");
+				Dialogs.showInfoNotification("OME Pyramid writer", "OME TIFF export complete!");
 			} catch (ClosedByInterruptException e) {
 				logger.warn("OME Pyramid writer closed by interrupt (possibly due to user cancelling it)", e);
 			} catch (Exception e) {
-				DisplayHelpers.showErrorMessage("OME Pyramid writer", e);
+				Dialogs.showErrorMessage("OME Pyramid writer", e);
 			} finally {
 				writer = null;
 			}

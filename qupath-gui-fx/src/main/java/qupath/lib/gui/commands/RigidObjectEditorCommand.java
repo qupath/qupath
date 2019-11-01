@@ -51,8 +51,8 @@ import qupath.lib.gui.ImageDataChangeListener;
 import qupath.lib.gui.ImageDataWrapper;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
-import qupath.lib.gui.helpers.DisplayHelpers;
-import qupath.lib.gui.helpers.DisplayHelpers.DialogButton;
+import qupath.lib.gui.dialogs.Dialogs;
+import qupath.lib.gui.dialogs.Dialogs.DialogButton;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.gui.viewer.PathHierarchyPaintingHelper;
@@ -132,15 +132,15 @@ public class RigidObjectEditorCommand implements PathCommand, ImageDataChangeLis
 		viewer = qupath.getViewer();
 		PathObject pathObject = getSelectedObject(viewer);
 		if (pathObject == null || !(pathObject.isAnnotation() || pathObject.isTMACore())) {
-			DisplayHelpers.showErrorNotification("Rotate annotation", "No annotation selected!");
+			Dialogs.showErrorNotification("Rotate annotation", "No annotation selected!");
 			return;
 		}
 		if (pathObject.isLocked()) {
-			DisplayHelpers.showErrorNotification("Rotate annotation", "Selected annotation is locked!");
+			Dialogs.showErrorNotification("Rotate annotation", "Selected annotation is locked!");
 			return;
 		}
 		if (pathObject.getROI().isPoint()) {
-			DisplayHelpers.showErrorNotification("Rotate annotation", "Point annotations cannot be rotated, sorry!");
+			Dialogs.showErrorNotification("Rotate annotation", "Point annotations cannot be rotated, sorry!");
 			return;
 		}
 		ImageRegion bounds = viewer.getServerBounds();
@@ -152,7 +152,7 @@ public class RigidObjectEditorCommand implements PathCommand, ImageDataChangeLis
 				}
 			}
 			if (originalObjectROIs.isEmpty()) {
-				DisplayHelpers.showErrorMessage("Rigid refinement problem", "TMA core must contain empty annotations objects for rigid refinement");
+				Dialogs.showErrorMessage("Rigid refinement problem", "TMA core must contain empty annotations objects for rigid refinement");
 				return;
 			}
 		}
@@ -200,7 +200,7 @@ public class RigidObjectEditorCommand implements PathCommand, ImageDataChangeLis
 //		PathObject pathObject = null;
 		if (!ignoreChanges) {
 		
-			DialogButton option = DisplayHelpers.showYesNoCancelDialog(
+			DialogButton option = Dialogs.showYesNoCancelDialog(
 					"Affine object editing", "Confirm object changes?");
 			
 			if (option == DialogButton.CANCEL)

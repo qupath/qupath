@@ -26,7 +26,7 @@ package qupath.lib.gui.commands;
 import javafx.stage.Stage;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
-import qupath.lib.gui.helpers.CommandFinderTools;
+import qupath.lib.gui.tools.CommandFinderTools;
 
 /**
  * Action to display a command viewer, loosely based on ImageJ/Fiji's 'Command Finder'.

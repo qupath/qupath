@@ -103,14 +103,14 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.display.ImageDisplay;
 import qupath.lib.gui.QuPathGUI.DefaultMode;
 import qupath.lib.gui.QuPathGUI.Mode;
-import qupath.lib.gui.helpers.ColorToolsFX;
-import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.gui.images.servers.PathHierarchyImageServer;
 import qupath.lib.gui.images.stores.DefaultImageRegionStore;
 import qupath.lib.gui.images.stores.ImageRegionStoreHelpers;
 import qupath.lib.gui.images.stores.ImageRenderer;
 import qupath.lib.gui.images.stores.TileListener;
 import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.gui.tools.ColorToolsFX;
+import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.viewer.overlays.GridOverlay;
 import qupath.lib.gui.viewer.overlays.HierarchyOverlay;
 import qupath.lib.gui.viewer.overlays.ImageDataOverlay;
@@ -2800,9 +2800,9 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 				}
 				if (getImageData() != null) {
 					if (getHierarchy().getSelectionModel().singleSelection()) {
-						DisplayHelpers.promptToRemoveSelectedObject(getHierarchy().getSelectionModel().getSelectedObject(), getHierarchy());
+						GuiTools.promptToRemoveSelectedObject(getHierarchy().getSelectionModel().getSelectedObject(), getHierarchy());
 					} else {
-						DisplayHelpers.promptToClearAllSelectedObjects(getImageData());
+						GuiTools.promptToClearAllSelectedObjects(getImageData());
 					}
 //					setSelectedObject(null);
 				}

@@ -58,10 +58,10 @@ import javafx.scene.layout.VBox;
 import javafx.scene.text.TextAlignment;
 import qupath.lib.classifiers.PathClassifierTools;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.helpers.DisplayHelpers;
-import qupath.lib.gui.helpers.MeasurementMapper;
-import qupath.lib.gui.helpers.MeasurementMapper.ColorMapper;
+import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.gui.tools.MeasurementMapper;
+import qupath.lib.gui.tools.MeasurementMapper.ColorMapper;
 import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.objects.PathObject;
@@ -277,7 +277,7 @@ public class MeasurementMapPanel {
 	
 	
 	static void setSliderValue(Slider slider, String message) {
-		Double val = DisplayHelpers.showInputDialog("Measurement mapper", message, slider.getValue());
+		Double val = Dialogs.showInputDialog("Measurement mapper", message, slider.getValue());
 		if (val != null && Double.isFinite(val)) {
 			if (val > slider.getMax())
 				slider.setMax(val);

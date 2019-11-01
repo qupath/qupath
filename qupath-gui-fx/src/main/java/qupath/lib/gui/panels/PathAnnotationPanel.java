@@ -70,12 +70,12 @@ import qupath.lib.geom.Point2;
 import qupath.lib.gui.ImageDataChangeListener;
 import qupath.lib.gui.ImageDataWrapper;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.helpers.ColorToolsFX;
-import qupath.lib.gui.helpers.DisplayHelpers;
-import qupath.lib.gui.helpers.DisplayHelpers.DialogButton;
-import qupath.lib.gui.helpers.PaneToolsFX;
+import qupath.lib.gui.dialogs.Dialogs;
+import qupath.lib.gui.dialogs.Dialogs.DialogButton;
 import qupath.lib.gui.icons.PathIconFactory;
 import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.gui.tools.ColorToolsFX;
+import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
@@ -215,12 +215,12 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 		
 		MenuItem miAddClass = new MenuItem("Add class");
 		miAddClass.setOnAction(e -> {
-			String input = DisplayHelpers.showInputDialog("Add class", "Class name", "");
+			String input = Dialogs.showInputDialog("Add class", "Class name", "");
 			if (input == null || input.trim().isEmpty())
 				return;
 			PathClass pathClass = PathClassFactory.getPathClass(input);
 			if (listClasses.getItems().contains(pathClass)) {
-				DisplayHelpers.showErrorMessage("Add class", "Class '" + input + "' already exists!");
+				Dialogs.showErrorMessage("Add class", "Class '" + input + "' already exists!");
 				return;
 			}
 			listClasses.getItems().add(pathClass);
@@ -232,16 +232,16 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 			if (pathClass == null)
 				return;
 			if (pathClass == PathClassFactory.getPathClassUnclassified()) {
-				DisplayHelpers.showErrorMessage("Remove class", "Cannot remove selected class");
+				Dialogs.showErrorMessage("Remove class", "Cannot remove selected class");
 				return;
 			}
-			if (DisplayHelpers.showConfirmDialog("Remove classes", "Remove " + pathClass.getName() + "?"))
+			if (Dialogs.showConfirmDialog("Remove classes", "Remove " + pathClass.getName() + "?"))
 				listClasses.getItems().remove(pathClass);
 		});
 		
 		MenuItem miResetAllClasses = new MenuItem("Reset all classes");
 		miResetAllClasses.setOnAction(e -> {
-			if (DisplayHelpers.showConfirmDialog("Reset classes", "Reset all available classes?"))
+			if (Dialogs.showConfirmDialog("Reset classes", "Reset all available classes?"))
 				qupath.resetAvailablePathClasses();
 		});
 		
@@ -257,7 +257,7 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 			if (pathObjectsToReset.isEmpty())
 				return;
 			if (pathObjectsToReset.size() > 1)
-				if (!DisplayHelpers.showYesNoDialog("Confirm reset labels", String.format("Reset %d annotated objects from class %s?", pathObjectsToReset.size(), pathClass.getName())))
+				if (!Dialogs.showYesNoDialog("Confirm reset labels", String.format("Reset %d annotated objects from class %s?", pathObjectsToReset.size(), pathClass.getName())))
 					return;
 			resetAnnotationClassifications(hierarchy, pathClass);
 		});		
@@ -279,24 +279,24 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 			if (file == null)
 				return;
 			if (!file.getAbsolutePath().toLowerCase().endsWith(ProjectIO.getProjectExtension())) {
-				DisplayHelpers.showErrorMessage("Import PathClasses", file.getName() + " is not a project file!");
+				Dialogs.showErrorMessage("Import PathClasses", file.getName() + " is not a project file!");
 				return;
 			}
 			try {
 				Project<?> project = ProjectIO.loadProject(file, BufferedImage.class);
 				List<PathClass> pathClasses = project.getPathClasses();
 				if (pathClasses.isEmpty()) {
-					DisplayHelpers.showErrorMessage("Import PathClasses", "No classes found in " + file.getName());
+					Dialogs.showErrorMessage("Import PathClasses", "No classes found in " + file.getName());
 					return;
 				}
 				ObservableList<PathClass> availableClasses = qupath.getAvailablePathClasses();
 				if (pathClasses.size() == availableClasses.size() && availableClasses.containsAll(pathClasses)) {
-					DisplayHelpers.showInfoNotification("Import PathClasses", file.getName() + " contains same classifications - no changes to make");
+					Dialogs.showInfoNotification("Import PathClasses", file.getName() + " contains same classifications - no changes to make");
 					return;
 				}
 				availableClasses.setAll(pathClasses);
 			} catch (Exception ex) {
-				DisplayHelpers.showErrorMessage("Error reading project", ex);
+				Dialogs.showErrorMessage("Error reading project", ex);
 			}
 		});
 
@@ -485,7 +485,7 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 		BorderPane panelObjects = new BorderPane();
 		panelObjects.setCenter(listAnnotations);
 		//		panelObjects.setBorder(BorderFactory.createTitledBorder("Annotation list"));
-		GridPane panelButtons = PaneToolsFX.createColumnGrid(2);
+		GridPane panelButtons = PaneTools.createColumnGrid(2);
 
 		Action removeROIAction = createRemoveROIAction();
 		Action clearROIsAction = createClearROIsAction();
@@ -504,9 +504,9 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 		panelClasses.setCenter(listClasses);
 		//		panelClasses.setBorder(BorderFactory.createTitledBorder("Classes"));
 
-		GridPane paneColumns = PaneToolsFX.createColumnGrid(panelObjects, panelClasses);
+		GridPane paneColumns = PaneTools.createColumnGrid(panelObjects, panelClasses);
 
-		panelButtons = PaneToolsFX.createColumnGrid(2);
+		panelButtons = PaneTools.createColumnGrid(2);
 
 		Action setSelectedObjectClassAction = new Action("Set class", e -> {
 			hierarchy = QuPathGUI.getInstance().getImageData().getHierarchy();
@@ -594,7 +594,7 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 			if (pathObjectsToRemove == null || pathObjectsToRemove.isEmpty())
 				return;
 			int nObjects = pathObjectsToRemove.size();
-			if (!DisplayHelpers.showYesNoDialog("Delete annotations",
+			if (!Dialogs.showYesNoDialog("Delete annotations",
 					String.format("Delete %d %s?", nObjects, nObjects == 1 ? "annotation" : "annotations")))
 				return;
 			// Check for descendant objects
@@ -605,7 +605,7 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 			int nDescendants = descendantList.size();
 			boolean keepChildren = true;
 			if (nDescendants > 0) {
-				DialogButton result = DisplayHelpers.showYesNoCancelDialog("Delete annotations",
+				DialogButton result = Dialogs.showYesNoCancelDialog("Delete annotations",
 						String.format("Keep %d descendant %s?", nDescendants, nDescendants == 1 ? "object" : "objects"));
 				if (result == DialogButton.CANCEL)
 					return;
@@ -635,7 +635,7 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 			if (pathObjectsToRemove.isEmpty())
 				return;
 			int nObjects = pathObjectsToRemove.size();
-			if (!DisplayHelpers.showYesNoDialog("Delete all annotations", String.format("Delete %d %s", nObjects, nObjects == 1 ? "annotation" : "annotations")))
+			if (!Dialogs.showYesNoDialog("Delete all annotations", String.format("Delete %d %s", nObjects, nObjects == 1 ? "annotation" : "annotations")))
 				return;
 			
 			// Prompt to keep descendant objects, if required
@@ -648,7 +648,7 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 			children.removeAll(pathObjectsToRemove);
 			boolean keepChildren = true;
 			if (!children.isEmpty()) {
-				DialogButton response = DisplayHelpers.showYesNoCancelDialog("Delete all annotations", "Keep descendant objects?");
+				DialogButton response = Dialogs.showYesNoCancelDialog("Delete all annotations", "Keep descendant objects?");
 				if (response == DialogButton.CANCEL)
 					return;
 				keepChildren = response == DialogButton.YES;
@@ -797,7 +797,7 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 		panel.add(labDescription, 0, 2);
 		panel.add(textAreaDescription, 1, 2);
 
-		if (!DisplayHelpers.showConfirmDialog("Set annotation properties", panel))
+		if (!Dialogs.showConfirmDialog("Set annotation properties", panel))
 			return false;
 
 		String name = textField.getText().trim();
@@ -955,7 +955,7 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 
 		panel.setCenter(panelColor);
 
-		if (!DisplayHelpers.showConfirmDialog("Edit class", panel))
+		if (!Dialogs.showConfirmDialog("Edit class", panel))
 			return false;
 
 //		String newName = textField.getText().trim();

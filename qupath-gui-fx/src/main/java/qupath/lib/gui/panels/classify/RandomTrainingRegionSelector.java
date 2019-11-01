@@ -66,10 +66,10 @@ import qupath.lib.gui.ImageDataWrapper;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.QuPathGUI.DefaultMode;
 import qupath.lib.gui.commands.interfaces.PathCommand;
-import qupath.lib.gui.helpers.ColorToolsFX;
-import qupath.lib.gui.helpers.DisplayHelpers;
-import qupath.lib.gui.helpers.PaneToolsFX;
-import qupath.lib.gui.helpers.dialogs.ParameterPanelFX;
+import qupath.lib.gui.dialogs.Dialogs;
+import qupath.lib.gui.dialogs.ParameterPanelFX;
+import qupath.lib.gui.tools.ColorToolsFX;
+import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.QuPathViewerListener;
 import qupath.lib.images.ImageData;
@@ -133,7 +133,7 @@ public class RandomTrainingRegionSelector implements PathCommand {
 	@Override
 	public void run() {
 		if (qupath.getImageData() == null) {
-			DisplayHelpers.showNoImageError("Training region selector");
+			Dialogs.showNoImageError("Training region selector");
 			return;
 		}
 		if (dialog == null)
@@ -257,7 +257,7 @@ public class RandomTrainingRegionSelector implements PathCommand {
 		});
 		
 		
-		GridPane panelButtons = PaneToolsFX.createColumnGridControls(
+		GridPane panelButtons = PaneTools.createColumnGridControls(
 				ActionUtils.createButton(actionAdd),
 				ActionUtils.createButton(actionSkip)
 				);

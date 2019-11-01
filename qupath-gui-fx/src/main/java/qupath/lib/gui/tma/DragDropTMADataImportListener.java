@@ -34,7 +34,7 @@ import javafx.scene.Scene;
 import javafx.scene.input.DragEvent;
 import javafx.scene.input.Dragboard;
 import javafx.scene.input.TransferMode;
-import qupath.lib.gui.helpers.DisplayHelpers;
+import qupath.lib.gui.dialogs.Dialogs;
 
 
 /**
@@ -86,7 +86,7 @@ public class DragDropTMADataImportListener implements EventHandler<DragEvent> {
     		return; // Shouldn't happen...
     	}
 		if (list.size() > 1) {
-			DisplayHelpers.showErrorMessage("TMA data viewer", "Only one file or directory can be selected for import");
+			Dialogs.showErrorMessage("TMA data viewer", "Only one file or directory can be selected for import");
 			return;
 		}
 		tmaViewer.setInputFile(list.get(0));

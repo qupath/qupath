@@ -85,8 +85,8 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.ImageDataChangeListener;
 import qupath.lib.gui.ImageDataWrapper;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.helpers.DisplayHelpers;
-import qupath.lib.gui.helpers.dialogs.ParameterPanelFX;
+import qupath.lib.gui.dialogs.Dialogs;
+import qupath.lib.gui.dialogs.ParameterPanelFX;
 import qupath.lib.gui.panels.PathImageDetailsPanel.PathImageDetailsTableModel.ROW_TYPE;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.images.ImageData;
@@ -267,7 +267,7 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 						try {
 							ImageIO.write(img, "PNG", fileOutput);
 						} catch (Exception e1) {
-							DisplayHelpers.showErrorMessage("Save image", "Error saving " + fileOutput.getName() + "\n" + e1.getLocalizedMessage());
+							Dialogs.showErrorMessage("Save image", "Error saving " + fileOutput.getName() + "\n" + e1.getLocalizedMessage());
 						}
 					}
 				});
@@ -338,7 +338,7 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 		}
 		var originalMetadata = server.getOriginalMetadata();
 		
-		if (DisplayHelpers.showConfirmDialog("Reset metadata", "Reset to original metadata?")) {
+		if (Dialogs.showConfirmDialog("Reset metadata", "Reset to original metadata?")) {
 			imageData.updateServerMetadata(originalMetadata);
 			return true;
 		}
@@ -351,7 +351,7 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 		Double mag = server.getMetadata().getMagnification();
 		if (mag != null && !Double.isFinite(mag))
 			mag = null;
-		Double mag2 = DisplayHelpers.showInputDialog("Set magnification", "Set magnification for full resolution image", mag);
+		Double mag2 = Dialogs.showInputDialog("Set magnification", "Set magnification for full resolution image", mag);
 		if (mag2 == null || Objects.equals(mag, mag2))
 			return false;
 		if (!Double.isFinite(mag2) && mag == null)
@@ -406,7 +406,7 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 //			}
 			if (Double.isNaN(defaultValue))
 				defaultValue = 1.0;
-			Double result = DisplayHelpers.showInputDialog("Set pixel size", message, defaultValue);
+			Double result = Dialogs.showInputDialog("Set pixel size", message, defaultValue);
 			if (result == null)
 				return false;
 			
@@ -427,7 +427,7 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 					.addDoubleParameter("pixelHeight", "Pixel height", pixelHeightMicrons, GeneralTools.micrometerSymbol(), "Entry the pixel height")
 					.addDoubleParameter("zSpacing", "Z-spacing", zSpacingMicrons, GeneralTools.micrometerSymbol(), "Enter the spacing between slices of a z-stack");
 			params.setHiddenParameters(server.nZSlices() == 1, "zSpacing");
-			if (!DisplayHelpers.showParameterDialog("Set pixel size", params))
+			if (!Dialogs.showParameterDialog("Set pixel size", params))
 				return false;
 			if (server.nZSlices() != 1) {
 				zSpacingMicrons = params.getDoubleParameterValue("zSpacing");
@@ -436,7 +436,7 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 			pixelHeightMicrons = params.getDoubleParameterValue("pixelHeight");
 		}
 		if ((pixelWidthMicrons <= 0 || pixelHeightMicrons <= 0) || (server.nZSlices() > 1 && zSpacingMicrons <= 0)) {
-			if (!DisplayHelpers.showConfirmDialog("Set pixel size", "You entered values <= 0, do you really want to remove this pixel calibration information?")) {
+			if (!Dialogs.showConfirmDialog("Set pixel size", "You entered values <= 0, do you really want to remove this pixel calibration information?")) {
 				return false;
 			}
 			zSpacingMicrons = server.nZSlices() > 1 && zSpacingMicrons > 0 ? zSpacingMicrons : Double.NaN;
@@ -463,7 +463,7 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 			values.remove(ImageType.BRIGHTFIELD_OTHER);
 		}
 		
-		ImageType type = (ImageType)DisplayHelpers.showChoiceDialog("Image type", "Set image type", values, imageData.getImageType());
+		ImageType type = (ImageType)Dialogs.showChoiceDialog("Image type", "Set image type", values, imageData.getImageType());
 		if (type != null && type != imageData.getImageType()) {
 			imageData.setImageType(type);
 			return true;
@@ -511,13 +511,13 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 			if ((pathROI instanceof RectangleROI) && 
 					!pathROI.isEmpty() &&
 					((RectangleROI) pathROI).getArea() < 500*500) {
-				if (DisplayHelpers.showYesNoDialog("Color deconvolution stains", message)) {
+				if (Dialogs.showYesNoDialog("Color deconvolution stains", message)) {
 					ImageServer<BufferedImage> server = imageData.getServer();
 					BufferedImage img = null;
 					try {
 						img = server.readBufferedImage(RegionRequest.createInstance(server.getPath(), 1, pathROI));
 					} catch (IOException e) {
-						DisplayHelpers.showErrorMessage("Set stain vector", "Unable to read image region");
+						Dialogs.showErrorMessage("Set stain vector", "Unable to read image region");
 						logger.error("Unable to read region", e);
 					}
 					int rgb = ColorDeconvolutionHelper.getMedianRGB(img.getRGB(0, 0, img.getWidth(), img.getHeight(), null, 0, img.getWidth()));
@@ -562,7 +562,7 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 		// Disable editing the name if it should be fixed
 		ParameterPanelFX parameterPanel = new ParameterPanelFX(params);
 		parameterPanel.setParameterEnabled("name", editableName);;
-		if (!DisplayHelpers.showConfirmDialog(title, parameterPanel.getPane()))
+		if (!Dialogs.showConfirmDialog(title, parameterPanel.getPane()))
 			return;
 
 		// Check if anything changed
@@ -583,7 +583,7 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 				stains = stains.changeStain(StainVector.createStainVector(nameAfter, valuesParsed[0], valuesParsed[1], valuesParsed[2]), num);					
 			} catch (Exception e) {
 				logger.error("Error setting stain vectors", e);
-				DisplayHelpers.showErrorMessage("Set stain vectors", "Requested stain vectors are not valid!\nAre two stains equal?");
+				Dialogs.showErrorMessage("Set stain vectors", "Requested stain vectors are not valid!\nAre two stains equal?");
 			}
 		} else {
 			// Update the background

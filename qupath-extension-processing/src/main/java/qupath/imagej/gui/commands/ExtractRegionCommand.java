@@ -52,7 +52,7 @@ import qupath.lib.display.ChannelDisplayInfo;
 import qupath.lib.display.ChannelDisplayInfo.SingleChannelDisplayInfo;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
-import qupath.lib.gui.helpers.DisplayHelpers;
+import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.images.servers.ChannelDisplayTransformServer;
 import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.gui.viewer.QuPathViewer;
@@ -141,7 +141,7 @@ public class ExtractRegionCommand implements PathCommand {
 		params.setHiddenParameters(server.nZSlices() == 1, "doZ");
 		params.setHiddenParameters(server.nTimepoints() == 1, "doT");
 		
-		if (!DisplayHelpers.showParameterDialog("Send region to ImageJ", params))
+		if (!Dialogs.showParameterDialog("Send region to ImageJ", params))
 			return;
 		
 		// Parse values
@@ -212,11 +212,11 @@ public class ExtractRegionCommand implements PathCommand {
 			// TODO: Perform calculation based on actual amount of available memory
 			if (memory >= Runtime.getRuntime().totalMemory()) {
 				logger.error("Cannot extract region {} - estimated size is too large (approx. {} MB)", pathObject, GeneralTools.formatNumber(memory / (1024.0 * 1024.0), 2));
-				DisplayHelpers.showErrorMessage("Send region to ImageJ error", "Selected region is too large to extract - please selected a smaller region or use a higher downsample factor");
+				Dialogs.showErrorMessage("Send region to ImageJ error", "Selected region is too large to extract - please selected a smaller region or use a higher downsample factor");
 				continue;
 			}
 			if (memory / 1024 / 1024 > 100) {
-				if (pathObjects.size() == 1 && !DisplayHelpers.showYesNoDialog("Send region to ImageJ", String.format("Attempting to extract this region is likely to require > %.2f MB - are you sure you want to continue?", memory/1024/1024)))
+				if (pathObjects.size() == 1 && !Dialogs.showYesNoDialog("Send region to ImageJ", String.format("Attempting to extract this region is likely to require > %.2f MB - are you sure you want to continue?", memory/1024/1024)))
 					return;
 			}
 			
@@ -278,7 +278,7 @@ public class ExtractRegionCommand implements PathCommand {
 				}
 				imps.add(imp);
 			} catch (IOException e) {
-				DisplayHelpers.showErrorMessage("Send region to ImageJ", e);
+				Dialogs.showErrorMessage("Send region to ImageJ", e);
 				return;
 			}
 		}

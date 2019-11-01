@@ -21,7 +21,7 @@
  * #L%
  */
 
-package qupath.lib.gui.helpers.dialogs;
+package qupath.lib.gui.dialogs;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -44,9 +44,9 @@ import javafx.stage.DirectoryChooser;
 import javafx.stage.FileChooser;
 import javafx.stage.FileChooser.ExtensionFilter;
 import qupath.lib.common.GeneralTools;
-import qupath.lib.gui.helpers.DisplayHelpers;
-import qupath.lib.gui.helpers.PaneToolsFX;
-import qupath.lib.gui.helpers.dialogs.DialogHelper;
+import qupath.lib.gui.dialogs.DialogHelper;
+import qupath.lib.gui.tools.GuiTools;
+import qupath.lib.gui.tools.PaneTools;
 import javafx.stage.Window;
 
 /**
@@ -106,7 +106,7 @@ public class DialogHelperFX implements DialogHelper {
 	public File promptForDirectory(File dirBase) {
 		
 		if (!Platform.isFxApplicationThread()) {
-			return DisplayHelpers.callOnApplicationThread(() -> promptForDirectory(dirBase));
+			return GuiTools.callOnApplicationThread(() -> promptForDirectory(dirBase));
 		}
 		
 		File lastDir = getLastDirectory();
@@ -129,7 +129,7 @@ public class DialogHelperFX implements DialogHelper {
 	public List<File> promptForMultipleFiles(String title, File dirBase, String filterDescription, String... exts) {
 		
 		if (!Platform.isFxApplicationThread()) {
-			return DisplayHelpers.callOnApplicationThread(() -> promptForMultipleFiles(title, dirBase, filterDescription, exts));
+			return GuiTools.callOnApplicationThread(() -> promptForMultipleFiles(title, dirBase, filterDescription, exts));
 		}
 		
 		File lastDir = getLastDirectory();
@@ -190,7 +190,7 @@ public class DialogHelperFX implements DialogHelper {
 	public File promptForFile(String title, File dirBase, String filterDescription, String... exts) {
 		
 		if (!Platform.isFxApplicationThread()) {
-			return DisplayHelpers.callOnApplicationThread(() -> promptForFile(title, dirBase, filterDescription, exts));
+			return GuiTools.callOnApplicationThread(() -> promptForFile(title, dirBase, filterDescription, exts));
 		}
 		
 		File lastDir = getLastDirectory();
@@ -235,7 +235,7 @@ public class DialogHelperFX implements DialogHelper {
 	public File promptToSaveFile(String title, File dirBase, String defaultName, String filterName, String ext) {
 		
 		if (!Platform.isFxApplicationThread()) {
-			return DisplayHelpers.callOnApplicationThread(() -> promptToSaveFile(title, dirBase, defaultName, filterName, ext));
+			return GuiTools.callOnApplicationThread(() -> promptToSaveFile(title, dirBase, defaultName, filterName, ext));
 		}
 
 		File lastDir = getLastDirectory();
@@ -289,7 +289,7 @@ public class DialogHelperFX implements DialogHelper {
 	@Override
 	public String promptForFilePathOrURL(String title, String defaultPath, File dirBase, String filterDescription, String... exts) {
 		if (!Platform.isFxApplicationThread()) {
-			return DisplayHelpers.callOnApplicationThread(() -> promptForFilePathOrURL(title, defaultPath, dirBase, filterDescription, exts));
+			return GuiTools.callOnApplicationThread(() -> promptForFilePathOrURL(title, defaultPath, dirBase, filterDescription, exts));
 		}
 		
 		// Create dialog
@@ -309,7 +309,7 @@ public class DialogHelperFX implements DialogHelper {
         });
         
 //        label.setPadding(new Insets(0, 0, 5, 0));
-        PaneToolsFX.addGridRow(pane, 0, 0, "Input URL or choose file", label, tf, button);
+        PaneTools.addGridRow(pane, 0, 0, "Input URL or choose file", label, tf, button);
         pane.setHgap(5);
 //        pane.setTop(label);
 //        pane.setCenter(tf);

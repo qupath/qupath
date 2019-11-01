@@ -36,9 +36,10 @@ import javafx.scene.control.Menu;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.SeparatorMenuItem;
 import qupath.lib.common.GeneralTools;
-import qupath.lib.gui.helpers.DisplayHelpers;
+import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.scripting.DefaultScriptEditor;
 import qupath.lib.gui.scripting.DefaultScriptEditor.Language;
+import qupath.lib.gui.tools.GuiTools;
 
 /**
  * Helper class for creating a dynamic menu to a directory containing scripts.
@@ -65,9 +66,9 @@ public class ScriptMenuLoader {
 		this.miCreateScript.setOnAction(e -> {
 			String dir = scriptDirectory.get();
 			if (dir == null) {
-				DisplayHelpers.showErrorMessage("New script error", "No script directory set!");
+				Dialogs.showErrorMessage("New script error", "No script directory set!");
 			}
-			String scriptName = DisplayHelpers.showInputDialog("New script", "Enter script name", "");
+			String scriptName = Dialogs.showInputDialog("New script", "Enter script name", "");
 			if (scriptName == null || scriptName.trim().isEmpty())
 				return;
 			if (!scriptName.contains("."))
@@ -82,7 +83,7 @@ public class ScriptMenuLoader {
 						dirScripts.mkdir();
 					scriptFile.createNewFile();
 				} catch (Exception e1) {
-					DisplayHelpers.showErrorMessage("New script error", "Unable to create new script!");
+					Dialogs.showErrorMessage("New script error", "Unable to create new script!");
 					QuPathGUI.logger.error("Create script error", e1);
 				}
 			}
@@ -100,7 +101,7 @@ public class ScriptMenuLoader {
 			if (!dir.exists()) {
 				dir.mkdir();
 			}
-			DisplayHelpers.openFile(dir);
+			GuiTools.openFile(dir);
 		});
 		
 		if (scriptDirectory instanceof StringProperty) {
@@ -180,7 +181,7 @@ public class ScriptMenuLoader {
 							String script = GeneralTools.readFileAsString(scriptFile.getAbsolutePath());
 							DefaultScriptEditor.executeScript(language, script, QuPathGUI.getInstance().getImageData(), true, null);
 						} catch (Exception e2) {
-							DisplayHelpers.showErrorMessage("Script error", e2);
+							Dialogs.showErrorMessage("Script error", e2);
 						}
 					}
 					

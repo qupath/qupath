@@ -48,7 +48,7 @@ import javafx.stage.Window;
 import javafx.stage.WindowEvent;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
-import qupath.lib.gui.helpers.DisplayHelpers;
+import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.prefs.PathPrefs;
 
 /**
@@ -74,7 +74,7 @@ public class ShowInputDisplayCommand implements PathCommand {
 		try {
 			new InputDisplay(qupath.getStage()).show();
 		} catch (Exception e) {
-			DisplayHelpers.showErrorMessage("Error showing input display", e);
+			Dialogs.showErrorMessage("Error showing input display", e);
 		}
 	}
 
@@ -192,7 +192,7 @@ public class ShowInputDisplayCommand implements PathCommand {
 				return;
 			}
 			if (stage != null) {
-				DisplayHelpers.showErrorMessage("Show input", "Input display cannot be reused!");
+				Dialogs.showErrorMessage("Show input", "Input display cannot be reused!");
 				return;
 			}
 

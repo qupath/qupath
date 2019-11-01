@@ -43,11 +43,13 @@ import org.slf4j.LoggerFactory;
 
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.SummaryMeasurementTableCommand;
+import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.images.servers.RenderedImageServer;
 import qupath.lib.gui.models.ObservableMeasurementTableData;
 import qupath.lib.gui.plugins.PluginRunnerFX;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tma.TMADataIO;
+import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ServerTools;
@@ -86,6 +88,50 @@ public class QPEx extends QP {
 	final private static Logger logger = LoggerFactory.getLogger(QPEx.class);
 	
 	final public static String PROJECT_BASE_DIR = "{%PROJECT}";
+	
+	
+	private final static List<Class<?>> CORE_CLASSES = Collections.unmodifiableList(Arrays.asList(
+			Dialogs.class,
+			GuiTools.class
+			));
+	
+	/**
+	 * Get a list of core classes that are likely to be useful for scripting.
+	 * The purpose of this is to allow users to find classes they are likely to need, 
+	 * or to import these automatically at the beginning of scripts.
+	 * @return
+	 */
+	public static List<Class<?>> getCoreClasses() {
+		var list = new ArrayList<>(QP.getCoreClasses());
+		list.addAll(CORE_CLASSES);
+		return list;
+	}
+	
+	/**
+	 * Get a Java/Groovy-friendly multi-line String to import essential classes for scripting.
+	 * @return
+	 */
+	static String getDefaultImports() {
+		return getDefaultImports(false);
+	}
+	
+	/**
+	 * Get a Java/Groovy-friendly String to import essential classes for scripting.
+	 * @param singleLine if true, return imports as a single line (separated by semi-colons)
+	 * @return
+	 */
+	static String getDefaultImports(boolean singleLine) {
+		List<String> imports = new ArrayList<>();
+		for (var cls : QPEx.getCoreClasses())
+			imports.add("import " + cls.getName());
+		// Import script class statically and in the normal way
+		imports.add("import " + QPEx.class.getName());
+		imports.add("import static " + QPEx.class.getName() + ".*");
+		if (singleLine)
+			return String.join("; ", imports);
+		return String.join(";"+System.lineSeparator(), imports);
+	}
+	
 	
 	/**
 	 * Load ImageData from a file.

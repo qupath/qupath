@@ -76,11 +76,11 @@ import qupath.lib.color.ColorToolsAwt;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
+import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.extensions.QuPathExtension;
-import qupath.lib.gui.helpers.ColorToolsFX;
-import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.gui.icons.PathIconFactory;
 import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.images.PathImage;
 import qupath.lib.images.servers.ImageServer;
@@ -568,7 +568,7 @@ public class IJExtension implements QuPathExtension {
 					macro = GeneralTools.readFileAsString(list.get(0).getAbsolutePath());
 					qupath.runPlugin(new ImageJMacroRunner(qupath), macro, true);
 				} catch (IOException e) {
-					DisplayHelpers.showErrorMessage("Error opening ImageJ macro", e);
+					Dialogs.showErrorMessage("Error opening ImageJ macro", e);
 					return false;
 				}
 				return true;
