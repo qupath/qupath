@@ -233,6 +233,7 @@ public class PathObjectTools {
 	 * @param childROI
 	 * @return
 	 */
+	@Deprecated
 	public static boolean containsROI(final ROI parentROI, final ROI childROI) {
 		// Check for nulls... just to be sure
 		if (parentROI == null || childROI == null || !parentROI.isArea() || childROI.isEmpty() || parentROI.isEmpty())
@@ -271,9 +272,12 @@ public class PathObjectTools {
 		
 		// Check shapes
 		for (Point2 p : childROI.getAllPoints()) {
-			if (!childROI.contains(p.getX(), p.getY()))
+			if (!parentROI.contains(p.getX(), p.getY()))
 				return false;
 		}
+		
+		if (parentROI.isArea() && childROI.isArea())
+			return parentROI.getGeometry().covers(childROI.getGeometry());
 		
 //		List<Point> points = parentArea.getPolygonPoints();
 //		for (Point p : childROI.getPolygonPoints()) {
@@ -368,6 +372,7 @@ public class PathObjectTools {
 	 * @param childObject
 	 * @return
 	 */
+	@Deprecated
 	public static boolean containsObject(PathObject parentObject, PathObject childObject) {
 		if (parentObject == null || childObject == null)
 			return false;

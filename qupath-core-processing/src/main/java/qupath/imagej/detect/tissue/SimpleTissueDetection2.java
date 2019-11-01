@@ -34,6 +34,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.locationtech.jts.geom.prep.PreparedGeometryFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -274,6 +275,23 @@ public class SimpleTissueDetection2 extends AbstractDetectionPlugin<BufferedImag
 	
 	
 	private static List<PathObject> convertToPathObjects(ByteProcessor bp, double minArea, boolean smoothCoordinates, Calibration cal, double downsample, double maxHoleArea, boolean excludeOnBoundary, boolean singleAnnotation, ImagePlane plane, List<PathObject> pathObjects) {
+//		
+//		var roiIJ = new ThresholdToSelection().convert(bp);
+//		var roi = IJTools.convertToROI(roiIJ, cal, downsample, plane);
+//		roi = RoiTools.removeSmallPieces(roi, minArea, maxHoleArea);
+//		List<PathObject> annotations = new ArrayList<>();
+//		if (singleAnnotation)
+//			annotations.add(PathObjects.createAnnotationObject(roi));
+//		else {
+//			for (var roi2 : RoiTools.splitROI(roi)) {
+//				annotations.add(PathObjects.createAnnotationObject(roi2));				
+//			}
+//		}
+//		for (var annotation : annotations)
+//			annotation.setLocked(true);
+//		return annotations;
+//			
+		
 		List<PolygonRoi> rois = RoiLabeling.getFilledPolygonROIs(bp, Wand.FOUR_CONNECTED);
 		if (pathObjects == null)
 			pathObjects = new ArrayList<>(rois.size());
@@ -333,11 +351,12 @@ public class SimpleTissueDetection2 extends AbstractDetectionPlugin<BufferedImag
 					break;
 				
 				PathObject pathObject = pathObjects.get(ind);
+				var geom = PreparedGeometryFactory.prepare(pathObject.getROI().getGeometry());
 				areaList.clear();
 				Iterator<PathObject> iter = holes.iterator();
 				while (iter.hasNext()) {
 					PathObject hole = iter.next();
-					if (PathObjectTools.containsObject(pathObject, hole)) {
+					if (geom.covers(hole.getROI().getGeometry())) {
 						areaList.add(RoiTools.getArea(hole.getROI()));
 						iter.remove();
 					}
