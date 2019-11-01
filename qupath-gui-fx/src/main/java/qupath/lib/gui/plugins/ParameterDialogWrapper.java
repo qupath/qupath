@@ -38,6 +38,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.Pane;
 import javafx.scene.text.TextAlignment;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
@@ -209,16 +210,10 @@ public class ParameterDialogWrapper<T> {
 
 		BorderPane pane = new BorderPane();
 		ScrollPane scrollPane = new ScrollPane();
-		BorderPane paneCenter = new BorderPane();
-		paneCenter.setCenter(panel.getPane());
-		paneCenter.setBottom(label);
 		label.setMaxWidth(Double.MAX_VALUE);
-//		scrollPane.setStyle("-fx-background-color:transparent;");
 		scrollPane.setContent(panel.getPane());
 		scrollPane.setFitToWidth(true);
 		pane.setCenter(scrollPane);
-//		pane.setCenter(panel.getPane());
-		paneCenter.setPadding(new Insets(5, 5, 5, 5));
 
 		btnRun.setMaxWidth(Double.MAX_VALUE);
 		btnRun.setPadding(new Insets(5, 5, 5, 5));

@@ -56,6 +56,7 @@ import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
 import javafx.scene.control.OverrunStyle;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Slider;
 import javafx.scene.control.Spinner;
 import javafx.scene.control.ToggleButton;
@@ -522,7 +523,7 @@ public class PixelClassifierImageSelectionPane {
 		var splitPane = new BorderPane(viewerBorderPane);
 		splitPane.setLeft(pane);
 		pane.setPrefWidth(400);
-		pane.setMinHeight(GridPane.USE_PREF_SIZE);
+//		pane.setMinHeight(GridPane.USE_COMPUTED_SIZE);
 //		viewerBorderPane.setMinWidth(0);
 //		viewerPane.setPrefSize(400, 400);
 //		splitPane.setDividerPositions(0.5);
@@ -530,12 +531,18 @@ public class PixelClassifierImageSelectionPane {
 //		SplitPane.setResizableWithParent(pane, Boolean.FALSE);
 //		SplitPane.setResizableWithParent(viewerBorderPane, Boolean.FALSE);
 		
-		var fullPane = new StackPane(splitPane);
+		var fullPane = splitPane;//new StackPane(splitPane);
+//		var fullPane = new ScrollPane(splitPane);
+//		fullPane.setFitToWidth(true);
+//		fullPane.setFitToHeight(true);
 		
 		pane.setPadding(new Insets(5));
 		
 		stage = new Stage();
 		stage.setScene(new Scene(fullPane));
+		
+		stage.setMinHeight(400);
+		stage.setMinWidth(500);
 
 		stage.initOwner(QuPathGUI.getInstance().getStage());
 		

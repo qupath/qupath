@@ -262,16 +262,13 @@ public class ParameterPanelFX {
 		CheckBox cb = new CheckBox(param.getPrompt());
 		cb.setSelected(param.getValueOrDefault());
 //		cb.setStyle("-fx-background-color: red;");
-		cb.setMinWidth(CheckBox.USE_PREF_SIZE);
+		cb.setMinWidth(CheckBox.USE_COMPUTED_SIZE);
 		cb.setMaxWidth(Double.MAX_VALUE);
 		cb.selectedProperty().addListener((v, o, n) -> {
 			if (param.setValue(cb.isSelected()))
 				fireParameterChangedEvent(param, false);
 		});
-		// This seems necessary to avoid ellipsis string
-		var container = new BorderPane(cb);
-		cb.prefWidthProperty().bind(container.widthProperty());
-		addParamComponent(param, null, container);
+		addParamComponent(param, null, cb);
 	}
 	
 	private void addSliderParameter(IntParameter param) {
