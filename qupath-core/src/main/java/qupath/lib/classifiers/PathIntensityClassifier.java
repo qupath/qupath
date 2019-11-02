@@ -34,7 +34,6 @@ import java.util.Map;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
-import qupath.lib.scripting.QP;
 import qupath.lib.objects.PathObject;
 
 /**
@@ -93,9 +92,9 @@ class PathIntensityClassifier implements Serializable, PathObjectClassifier {
 		// If there is no class specified, apply to all
 		if (classSelected == null) {
 			if (singleThreshold) {
-				QP.setIntensityClassifications(pathObjects, intensityMeasurement, t1);
+				PathClassifierTools.setIntensityClassifications(pathObjects, intensityMeasurement, t1);
 			} else {
-				QP.setIntensityClassifications(pathObjects, intensityMeasurement, t1, t2, t3);
+				PathClassifierTools.setIntensityClassifications(pathObjects, intensityMeasurement, t1, t2, t3);
 			}
 			return pathObjects.size();
 		}

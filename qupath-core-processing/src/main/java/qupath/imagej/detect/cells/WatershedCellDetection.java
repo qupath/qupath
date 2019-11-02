@@ -76,9 +76,9 @@ import qupath.lib.images.servers.ServerTools;
 import qupath.lib.measurements.MeasurementListFactory;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClassFactory;
-import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.plugins.AbstractTileableDetectionPlugin;
 import qupath.lib.plugins.ObjectDetector;
 import qupath.lib.plugins.parameters.DoubleParameter;
@@ -88,7 +88,6 @@ import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.PolygonROI;
 import qupath.lib.roi.ShapeSimplifier;
-import qupath.lib.roi.interfaces.PathArea;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
@@ -788,6 +787,8 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 			if (Thread.currentThread().isInterrupted())
 				return;
 
+			double downsample = pathImage.getDownsampleFactor();
+			double downsampleSqrt = Math.sqrt(downsample);
 			
 			// Create nucleus objects
 			// TODO: Set the measurement capacity to improve efficiency
@@ -798,13 +799,16 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 				PolygonRoi rOrig = roisNuclei.get(i);
 				
 				PolygonRoi r = rOrig;
-				if (smoothBoundaries)
-					r = new PolygonRoi(rOrig.getInterpolatedPolygon(Math.min(2.5, rOrig.getNCoordinates()*0.1), true), Roi.POLYGON);
+				if (smoothBoundaries) {
+					r = new PolygonRoi(rOrig.getInterpolatedPolygon(1, false), Roi.POLYGON);
+					r = smoothPolygonRoi(r);
+					r = new PolygonRoi(r.getInterpolatedPolygon(Math.min(2, r.getNCoordinates()*0.1), false), Roi.POLYGON);
+				}
 				
-				PolygonROI pathROI = IJTools.convertToPolygonROI(r, cal, pathImage.getDownsampleFactor(), plane);
+				PolygonROI pathROI = IJTools.convertToPolygonROI(r, cal, downsample, plane);
 				
 				if (smoothBoundaries) {
-					pathROI = ShapeSimplifier.simplifyPolygon(pathROI, pathImage.getDownsampleFactor()/4.0);
+					pathROI = ShapeSimplifier.simplifyPolygon(pathROI, downsampleSqrt/2);
 				}
 				
 				// Create a new shared measurement list
@@ -882,13 +886,19 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 					PolygonRoi r = roisCells[i];
 					if (r == null)
 						continue;
-					if (smoothBoundaries)
-						r = new PolygonRoi(r.getInterpolatedPolygon(Math.min(2.5, r.getNCoordinates()*0.1), false), Roi.POLYGON); // TODO: Check this smoothing - it can be troublesome, causing nuclei to be outside cells
-//						r = smoothPolygonRoi(r);
+					
+					if (smoothBoundaries) {
+						r = new PolygonRoi(r.getInterpolatedPolygon(1, false), Roi.POLYGON);
+						r = smoothPolygonRoi(r);
+						r = new PolygonRoi(r.getInterpolatedPolygon(Math.min(2, r.getNCoordinates()*0.1), false), Roi.POLYGON);
+					}
+//					if (smoothBoundaries)
+//						r = new PolygonRoi(r.getInterpolatedPolygon(Math.min(2, r.getNCoordinates()*0.1), false), Roi.POLYGON); // TODO: Check this smoothing - it can be troublesome, causing nuclei to be outside cells
+////						r = smoothPolygonRoi(r);
 
-					PolygonROI pathROI = IJTools.convertToPolygonROI(r, pathImage.getImage().getCalibration(), pathImage.getDownsampleFactor(), plane);
+					PolygonROI pathROI = IJTools.convertToPolygonROI(r, cal, downsample, plane);
 					if (smoothBoundaries)
-						pathROI = ShapeSimplifier.simplifyPolygon(pathROI, pathImage.getDownsampleFactor()/4.0);
+						pathROI = ShapeSimplifier.simplifyPolygon(pathROI, downsampleSqrt/2.0);
 
 					
 					MeasurementList measurementList = null;
@@ -932,8 +942,8 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 						}
 						
 						// Add nucleus area ratio, if available
-						if (nucleus != null && nucleus.getROI() instanceof PathArea) {
-							double nucleusArea = ((PathArea)nucleus.getROI()).getArea();
+						if (nucleus != null && nucleus.getROI().isArea()) {
+							double nucleusArea = nucleus.getROI().getArea();
 							double cellArea = pathROI.getArea();
 							measurementList.addMeasurement("Nucleus/Cell area ratio", Math.min(nucleusArea / cellArea, 1.0));
 	//						measurementList.addMeasurement("Nucleus/Cell expansion", cellArea - nucleusArea);
@@ -1078,11 +1088,16 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 
 	@Override
 	protected int getTileOverlap(ImageData<BufferedImage> imageData, ParameterList params) {
+//		double pxSize = getPreferredPixelSizeMicrons(imageData, params);
 		double pxSize = imageData.getServer().getPixelCalibration().getAveragedPixelSizeMicrons();
-		if (Double.isNaN(pxSize))
+		if (!Double.isFinite(pxSize))
 			return params.getDoubleParameterValue("cellExpansion") > 0 ? 25 : 10;
-		double cellExpansion = params.getDoubleParameterValue("cellExpansionMicrons") / pxSize;
-		int overlap = cellExpansion > 0 ? (int)(cellExpansion + 10) : 10;
+		double nucleusRadiusMicrons = 10.0;
+		double expansionMicrons = nucleusRadiusMicrons;
+		double cellExpansion = params.getDoubleParameterValue("cellExpansionMicrons");
+		if (cellExpansion > 0)
+			expansionMicrons += params.getDoubleParameterValue("cellExpansionMicrons");
+		int overlap = (int)(expansionMicrons / pxSize * 2.0);
 //		System.out.println("Tile overlap: " + overlap + " pixels");
 		return overlap;
 	}

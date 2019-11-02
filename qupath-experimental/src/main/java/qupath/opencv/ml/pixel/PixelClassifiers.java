@@ -1,5 +1,7 @@
 package qupath.opencv.ml.pixel;
 
+import java.awt.image.BufferedImage;
+
 import com.google.gson.Gson;
 import com.google.gson.TypeAdapter;
 import com.google.gson.TypeAdapterFactory;
@@ -10,6 +12,9 @@ import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.objects.classes.PathClass;
 import qupath.opencv.ml.pixel.features.ColorTransforms.ColorTransform;
+import qupath.opencv.ml.pixel.ValueToClassification.ThresholdClassifier;
+import qupath.opencv.ml.pixel.features.FeatureCalculator;
+import qupath.opencv.ml.pixel.features.FeatureCalculators;
 
 /**
  * Static methods and classes for working with pixel classifiers.
@@ -60,18 +65,23 @@ public class PixelClassifiers {
 	 * 
 	 * @param transform transform to apply to input pixels
 	 * @param inputResolution resolution at which to apply the threshold
-	 * @param threshold threshold value to apply
-	 * @param leqThreshold classification for pixels less than or equal to the threshold
-	 * @param gtThreshold classification for pixels greater than the threshold
+	 * @param thresholder thresholder used to determine classifications
 	 * @return
 	 */
 	public static PixelClassifier createThresholdingClassifier(
 			ColorTransform transform,
 			PixelCalibration inputResolution,
-			double threshold,
-			PathClass leqThreshold,
-			PathClass gtThreshold) {
-		return new SimplePixelClassifier(transform, inputResolution, threshold, leqThreshold, gtThreshold);
+			ThresholdClassifier thresholder) {
+		return createThresholdingClassifier(
+				FeatureCalculators.createColorTransformFeatureCalculator(transform),
+				inputResolution, thresholder);
+	}
+	
+	public static PixelClassifier createThresholdingClassifier(
+			FeatureCalculator<BufferedImage> featureCalculator,
+			PixelCalibration inputResolution,
+			ThresholdClassifier thresholder) {
+		return new SimplePixelClassifier(featureCalculator, inputResolution, thresholder);
 	}
 
 }

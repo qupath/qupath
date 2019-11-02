@@ -85,23 +85,22 @@ import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.util.Callback;
 import qupath.lib.classifiers.Normalization;
-import qupath.lib.classifiers.PathClassificationLabellingHelper;
-import qupath.lib.classifiers.PathClassificationLabellingHelper.SplitType;
 import qupath.lib.classifiers.PathClassifierTools;
 import qupath.lib.classifiers.PathObjectClassifier;
 import qupath.lib.gui.ImageDataChangeListener;
 import qupath.lib.gui.ImageDataWrapper;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.helpers.DisplayHelpers;
-import qupath.lib.gui.helpers.dialogs.ParameterPanelFX;
+import qupath.lib.gui.dialogs.Dialogs;
+import qupath.lib.gui.dialogs.ParameterPanelFX;
+import qupath.lib.gui.panels.classify.PathClassificationLabellingHelper.SplitType;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.classes.PathClassFactory.StandardPathClasses;
-import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
@@ -238,7 +237,7 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 		btnSaveClassifier.setOnAction(event -> {
 
 			if (!classifier.isValid()) {
-				DisplayHelpers.showErrorMessage("Save classifier", "No valid classifier available!");
+				Dialogs.showErrorMessage("Save classifier", "No valid classifier available!");
 				logger.error("No valid classifier available!");
 				return;
 			}
@@ -248,7 +247,7 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 			if (fileClassifier == null)
 				return;
 			if (fileClassifier.exists()) {
-				if (!DisplayHelpers.showYesNoDialog("Overwrite classifier", "Overwrite existing classifier " + fileClassifier.getName() + "?"))
+				if (!Dialogs.showYesNoDialog("Overwrite classifier", "Overwrite existing classifier " + fileClassifier.getName() + "?"))
 					return;
 			}
 
@@ -316,10 +315,10 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 		int n = featurePanel == null ? 0 : featurePanel.getSelectedFeatures().size();
 		if (n == 0) {
 			labelSelectedFeatures.setText("No features selected!");
-			labelSelectedFeatures.setTextFill(Color.RED);
+			labelSelectedFeatures.setStyle("-fx-text-fill: red;");
 		} else {
 			labelSelectedFeatures.setText("Number of selected features: " + n);			
-			labelSelectedFeatures.setTextFill(Color.BLACK);
+			labelSelectedFeatures.setStyle(null);
 		}
 	}
 
@@ -536,15 +535,15 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 		Project<BufferedImage> project = qupath.getProject();
 		String title = "Load training from project";
 		if (project == null || project.isEmpty()) {
-			DisplayHelpers.showErrorMessage(title, "No project available!");
+			Dialogs.showErrorMessage(title, "No project available!");
 			return;
 		}
 
 		if (!retainedObjectsMap.isEmpty()) {
-			if (!DisplayHelpers.showYesNoDialog(title, "The current retained training objects will be reset - do you want to continue?"))
+			if (!Dialogs.showYesNoDialog(title, "The current retained training objects will be reset - do you want to continue?"))
 				return;
 		} else {
-			if (!DisplayHelpers.showYesNoDialog(title, "Are you sure you want to load training samples from all images in the project?\nThis may take some time."))
+			if (!Dialogs.showYesNoDialog(title, "Are you sure you want to load training samples from all images in the project?\nThis may take some time."))
 				return;
 		}
 
@@ -588,16 +587,16 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 		Project<BufferedImage> project = qupath.getProject();
 		String title = "Apply classifier to project";
 		if (classifier == null || !classifier.isValid()) {
-			DisplayHelpers.showErrorMessage(title, "No valid classifier is available! Make sure to build a classifier first.");
+			Dialogs.showErrorMessage(title, "No valid classifier is available! Make sure to build a classifier first.");
 			return;
 		}
 		if (project == null || project.isEmpty()) {
-			DisplayHelpers.showErrorMessage(title, "No project available!");
+			Dialogs.showErrorMessage(title, "No project available!");
 			return;
 		}
 
 		// Be cautious...
-		if (!DisplayHelpers.showYesNoDialog(title, "Are you sure you want to apply the current classifier to all images in the project?\nThis may take some time - and there is no 'undo'."))
+		if (!Dialogs.showYesNoDialog(title, "Are you sure you want to apply the current classifier to all images in the project?\nThis may take some time - and there is no 'undo'."))
 			return;
 
 
@@ -919,7 +918,7 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 		btnEdit.setDisable(!(classifier instanceof Parameterizable));
 		btnEdit.setOnAction(e -> {
 			if (!(classifier instanceof Parameterizable)) {
-				DisplayHelpers.showErrorMessage("Classifier settings", "No options available for selected classifier!");
+				Dialogs.showErrorMessage("Classifier settings", "No options available for selected classifier!");
 				return;
 			}
 
@@ -934,7 +933,7 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 			btnRun.setOnAction(e2 -> updateClassification(true));
 			pane.setBottom(btnRun);
 
-			DisplayHelpers.showMessageDialog("Classifier settings", pane);
+			Dialogs.showMessageDialog("Classifier settings", pane);
 		});
 
 		panelClassifierType.add(btnEdit, 2, 0);
@@ -952,7 +951,7 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 		btnFeatures.setTooltip(new Tooltip("Select features to use for classification - this is required before any classifier can be made"));
 		btnFeatures.setOnAction(e -> {
 			qupath.submitShortTask(() -> featurePanel.ensureMeasurementsUpdated());
-			DisplayHelpers.showMessageDialog("Select Features", featurePanel.getPanel());
+			Dialogs.showMessageDialog("Select Features", featurePanel.getPanel());
 			updateSelectedFeaturesLabel();
 		});
 
@@ -977,7 +976,7 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 		miResetTrainingObjects.setOnAction(e -> {
 			if (retainedObjectsMap == null || retainedObjectsMap.isEmpty())
 				return;
-			if (DisplayHelpers.showYesNoDialog("Remove retained objects", "Remove " + retainedObjectsMap.countRetainedObjects() + " retained object(s) from classifier training?")) {
+			if (Dialogs.showYesNoDialog("Remove retained objects", "Remove " + retainedObjectsMap.countRetainedObjects() + " retained object(s) from classifier training?")) {
 				retainedObjectsMap.clear();
 				updateRetainedObjectsLabel();
 			}
@@ -990,7 +989,7 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 			if (fileTraining == null)
 				return;
 			if (!loadRetainedObjects(fileTraining)) {
-				DisplayHelpers.showErrorMessage("Load training objects", "There was an error loading training objects from \n" + fileTraining);
+				Dialogs.showErrorMessage("Load training objects", "There was an error loading training objects from \n" + fileTraining);
 			}
 		});
 		//		btnSaveTrainingObjects.setTooltip(new Tooltip("Load training objects saved in a previous session"));
@@ -1000,7 +999,7 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 			if (fileTraining == null)
 				return;
 			if (!saveRetainedObjects(fileTraining)) {
-				DisplayHelpers.showErrorMessage("Save training objects", "There was an error saving training objects to \n" + fileTraining);
+				Dialogs.showErrorMessage("Save training objects", "There was an error saving training objects to \n" + fileTraining);
 			}
 		});
 		//		btnSaveTrainingObjects.setTooltip(new Tooltip("Save training objects for reloading in another session"));
@@ -1011,7 +1010,7 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 			if (fileTraining == null)
 				return;
 			if (!exportTrainingFeatures(fileTraining)) {
-				DisplayHelpers.showErrorMessage("Export features", "There was an exporting the training features to \n" + fileTraining);
+				Dialogs.showErrorMessage("Export features", "There was an exporting the training features to \n" + fileTraining);
 			}
 		});
 		//		btnExportTrainingFeatures.setTooltip(new Tooltip("Export training features to a text file (e.g. for analysis elsewhere"));
@@ -1218,7 +1217,7 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 		PathObjectHierarchy hierarchy = getHierarchy();
 		if (hierarchy == null) {
 			if (interactive)
-				DisplayHelpers.showErrorMessage("Classification error", "No objects available to classify!");
+				Dialogs.showErrorMessage("Classification error", "No objects available to classify!");
 			btnSaveClassifier.setDisable(!classifier.isValid());
 			return;
 		}
@@ -1229,14 +1228,14 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 			selectAllFeatures();
 			features = featurePanel.getSelectedFeatures();
 			if (features.size() == 1)	
-				DisplayHelpers.showInfoNotification("Feature selection", "Classifier set to train using the only available feature");
+				Dialogs.showInfoNotification("Feature selection", "Classifier set to train using the only available feature");
 			else if (!features.isEmpty())
-				DisplayHelpers.showInfoNotification("Feature selection", "Classifier set to train using all " + features.size() + " available features");
+				Dialogs.showInfoNotification("Feature selection", "Classifier set to train using all " + features.size() + " available features");
 		}
 
 		// If still got no features, we're rather stuck
 		if (features.isEmpty()) {
-			DisplayHelpers.showErrorMessage("Classification error", "No features available to use for classification!");
+			Dialogs.showErrorMessage("Classification error", "No features available to use for classification!");
 			btnSaveClassifier.setDisable(classifier == null || !classifier.isValid());
 			return;
 		}
@@ -1614,7 +1613,7 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 			Map<PathClass, List<PathObject>> map = PathClassificationLabellingHelper.getClassificationMap(imageDataOld.getHierarchy(), paramsUpdate.getBooleanParameterValue("trainFromPoints"));
 			if (!map.isEmpty() && !retainedObjectsMap.containsValue(map)) {
 				String key = getMapKey(imageDataOld);
-				if (DisplayHelpers.showYesNoDialog("Retain training objects", "Retain current training objects in classifier?")) {
+				if (Dialogs.showYesNoDialog("Retain training objects", "Retain current training objects in classifier?")) {
 					retainedObjectsMap.put(key, map);
 					updateRetainedObjectsLabel();
 				} else {
@@ -1713,7 +1712,7 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 
 		// Don't show a badly-formed table with nothing in it...
 		if (pathClasses.isEmpty()) {
-			DisplayHelpers.showMessageDialog("Training objects", "No training objects selected!");
+			Dialogs.showMessageDialog("Training objects", "No training objects selected!");
 			return;
 		}
 

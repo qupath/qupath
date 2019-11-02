@@ -4,11 +4,16 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
+import qupath.lib.classifiers.PathClassifierTools;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.PixelCalibration;
+import qupath.lib.objects.classes.PathClass;
+import qupath.lib.objects.classes.PathClassFactory;
 
 /**
  * Metadata to control the behavior of a pixel classifier.
@@ -31,6 +36,7 @@ public class PixelClassifierMetadata {
 	
 	private ImageServerMetadata.ChannelType outputType = ImageServerMetadata.ChannelType.CLASSIFICATION;
 	private List<ImageChannel> outputChannels;
+	private Map<Integer, PathClass> classificationLabels;
 	
 	/**
      * Requested pixel size for input.
@@ -103,8 +109,27 @@ public class PixelClassifierMetadata {
      * List representing the names &amp; display colors for each output channel,
      * or for the output classifications if <code>outputType == OutputType.Classification</code>
      */
-    public List<ImageChannel> getOutputChannels() {
-    	return Collections.unmodifiableList(outputChannels);
+    public synchronized List<ImageChannel> getOutputChannels() {
+    	if (outputChannels == null && classificationLabels != null) {
+    		outputChannels = PathClassifierTools.classificationLabelsToChannels(classificationLabels, true);
+    	}
+    	return outputChannels == null ? Collections.emptyList() : Collections.unmodifiableList(outputChannels);
+    }
+    
+    /**
+     * Map between integer labels and classifications. For a labelled image (output type is CLASSIFICATION) then 
+     * the labels correspond to pixel values. Otherwise they correspond to channel numbers.
+     * @return
+     */
+    public synchronized Map<Integer, PathClass> getClassificationLabels() {
+    	if (classificationLabels == null && outputChannels != null) {
+    		classificationLabels = new LinkedHashMap<>();
+    		for (int i = 0; i < outputChannels.size(); i++) {
+    			var channel = outputChannels.get(i);
+    			classificationLabels.put(i, PathClassFactory.getPathClass(channel.getName(), channel.getColor()));
+    		}
+    	}
+    	return classificationLabels == null ? Collections.emptyMap() : Collections.unmodifiableMap(classificationLabels);
     }
     
     
@@ -114,6 +139,7 @@ public class PixelClassifierMetadata {
     	this.inputWidth = builder.inputWidth;
     	this.inputHeight = builder.inputHeight;
     	this.inputNumChannels = builder.inputNumChannels;
+    	this.classificationLabels = builder.classificationLabels;
     	this.outputWidth = builder.outputWidth;
     	this.outputHeight = builder.outputHeight;
     	this.outputType = builder.outputType;
@@ -140,6 +166,8 @@ public class PixelClassifierMetadata {
     	
     	private ImageServerMetadata.ChannelType outputType = ImageServerMetadata.ChannelType.CLASSIFICATION;
     	private List<ImageChannel> outputChannels = new ArrayList<>();
+    	
+    	private Map<Integer, PathClass> classificationLabels;
     	
     	/**
     	 * Build a new PixelClassifierMetadata object.
@@ -218,6 +246,16 @@ public class PixelClassifierMetadata {
     	 */
     	public Builder outputChannels(Collection<ImageChannel> channels) {
     		this.outputChannels.addAll(channels);
+    		return this;
+    	}
+    	
+    	/**
+    	 * Specify classification labels. This may be used instead of outputChannels.
+    	 * @param labels
+    	 * @return
+    	 */
+    	public Builder classificationLabels(Map<Integer, PathClass> labels) {
+    		this.classificationLabels = new LinkedHashMap<>(labels);
     		return this;
     	}
     	    	

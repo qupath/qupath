@@ -29,7 +29,6 @@ import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
 import qupath.lib.regions.RegionRequest;
-import qupath.lib.roi.interfaces.PathPoints;
 import qupath.lib.roi.interfaces.ROI;
 import qupath.opencv.ml.OpenCVClassifiers;
 import qupath.opencv.ml.OpenCVClassifiers.FeaturePreprocessor;
@@ -476,9 +475,9 @@ public class PixelClassifierHelper implements PathObjectHierarchyListener {
         			
         			var roi = annotation.getROI();
         			// For points, make sure at least one point is in the region
-        			if (roi instanceof PathPoints) {
+        			if (roi != null && roi.isPoint()) {
             			boolean containsPoint = false;
-        				for (var p : ((PathPoints)roi).getPointList()) {
+        				for (var p : roi.getAllPoints()) {
         					if (request.contains((int)p.getX(), (int)p.getY(), roi.getZ(), roi.getT())) {
         						containsPoint = true;
         						break;
@@ -568,7 +567,7 @@ public class PixelClassifierHelper implements PathObjectHierarchyListener {
     			boolean isLine = roi.isLine();
     			
     			if (roi.isPoint()) {
-    				for (var p : roi.getPolygonPoints()) {
+    				for (var p : roi.getAllPoints()) {
         				int x = (int)Math.round((p.getX() - request.getX()) / downsample);    					
         				int y = (int)Math.round((p.getY() - request.getY()) / downsample); 
         				if (x >= 0 && y >= 0 && x < width && y < height)

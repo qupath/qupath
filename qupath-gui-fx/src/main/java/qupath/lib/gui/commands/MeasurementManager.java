@@ -58,14 +58,14 @@ import javafx.stage.Modality;
 import javafx.stage.Stage;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
-import qupath.lib.gui.helpers.DisplayHelpers;
+import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathCellObject;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.TMACoreObject;
-import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.plugins.workflow.DefaultScriptableWorkflowStep;
 import qupath.lib.plugins.workflow.WorkflowStep;
@@ -95,7 +95,7 @@ public class MeasurementManager implements PathCommand {
 		
 		ImageData<?> imageData = qupath.getImageData();
 		if (imageData == null) {
-			DisplayHelpers.showErrorMessage("Measurement Manager", "No image selected!");
+			Dialogs.showErrorMessage("Measurement Manager", "No image selected!");
 			return;
 		}
 		
@@ -128,7 +128,7 @@ public class MeasurementManager implements PathCommand {
 		
 		// Check we have something to show
 		if (map.isEmpty()) {
-			DisplayHelpers.showErrorMessage("Measurement Manager", "No objects found!");
+			Dialogs.showErrorMessage("Measurement Manager", "No objects found!");
 			return;
 		}
 		
@@ -181,11 +181,11 @@ public class MeasurementManager implements PathCommand {
 				toRemove.addAll(item.getDescendantMeasurements());
 			}
 			if (toRemove.isEmpty()) {
-				DisplayHelpers.showErrorMessage("Remove measurements", "No measurements selected!");
+				Dialogs.showErrorMessage("Remove measurements", "No measurements selected!");
 				return;
 			}
 			String number = toRemove.size() == 1 ? String.format("'%s'", toRemove.iterator().next()) : toRemove.size() + " measurements";
-			if (DisplayHelpers.showConfirmDialog("Remove measurements", "Are you sure you want to permanently remove " + number + "?")) {
+			if (Dialogs.showConfirmDialog("Remove measurements", "Are you sure you want to permanently remove " + number + "?")) {
 				Class<? extends PathObject> cls = classMap.get(comboBox.getSelectionModel().getSelectedItem());
 				QP.removeMeasurements(hierarchy, cls, toRemove.toArray(new String[toRemove.size()]));
 				

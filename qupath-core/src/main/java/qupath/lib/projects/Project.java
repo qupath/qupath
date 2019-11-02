@@ -34,7 +34,7 @@ import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
 import qupath.lib.objects.classes.PathClass;
-import qupath.lib.projects.ProjectResources.ProjectResourceManager;
+import qupath.lib.projects.ResourceManager.Manager;
 
 /**
  * Data structure to manage images and associated data in QuPath.
@@ -230,21 +230,21 @@ public interface Project<T> {
 	 * 
 	 * @return
 	 */
-	public ProjectResourceManager<String> getScripts();
+	public Manager<String> getScripts();
 	
 	/**
 	 * Get a manager for object classifiers saved within this project.
 	 * 
 	 * @return
 	 */
-	public ProjectResourceManager<PathObjectClassifier> getObjectClassifiers();
+	public Manager<PathObjectClassifier> getObjectClassifiers();
 	
 	/**
 	 * Get a manager for pixel classifiers saved within this project.
 	 * 
 	 * @return
 	 */
-	public ProjectResourceManager<PixelClassifier> getPixelClassifiers();
+	public Manager<PixelClassifier> getPixelClassifiers();
 	
 	
 //	public List<String> listPixelClassifiers();

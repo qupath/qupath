@@ -70,7 +70,7 @@ public class RefineAnnotationsPlugin<T> extends AbstractInteractivePlugin<T> {
 
 	@Override
 	public String getName() {
-		return "Refine annotations";
+		return "Remove fragments";
 	}
 
 	@Override
@@ -139,7 +139,7 @@ public class RefineAnnotationsPlugin<T> extends AbstractInteractivePlugin<T> {
 				if (roiOrig == null || !roiOrig.isArea())
 					continue;
 				ROI roiUpdated = RoiTools.removeSmallPieces(roiOrig, minFragmentSize, maxHoleSize);
-				if (roiUpdated.isEmpty())
+				if (roiUpdated == null || roiUpdated.isEmpty())
 					toRemove.add(pathObject);
 				else if (roiOrig != roiUpdated && pathObject instanceof PathROIObject) {
 					toUpdate.put((PathROIObject)pathObject, roiUpdated);

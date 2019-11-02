@@ -33,9 +33,7 @@ import java.util.List;
 
 import qupath.lib.geom.Point2;
 import qupath.lib.regions.ImagePlane;
-import qupath.lib.roi.interfaces.PathArea;
 import qupath.lib.roi.interfaces.ROI;
-import qupath.lib.roi.interfaces.TranslatableROI;
 
 /**
  * ROI representing a square or rectangle (unrotated).
@@ -43,7 +41,7 @@ import qupath.lib.roi.interfaces.TranslatableROI;
  * @author Pete Bankhead
  *
  */
-public class RectangleROI extends AbstractPathBoundedROI implements PathArea, Serializable {
+public class RectangleROI extends AbstractPathBoundedROI implements Serializable {
 
 	private static final long serialVersionUID = 1L;
 	
@@ -69,6 +67,14 @@ public class RectangleROI extends AbstractPathBoundedROI implements PathArea, Se
 		return "Rectangle";
 	}
 	
+	/**
+	 * Returns 4 (since the rectangle is defined by its bounding box).
+	 * @return
+	 */
+	@Override
+	public int getNumPoints() {
+		return 4;
+	}
 
 	@Override
 	public double getScaledArea(double pixelWidth, double pixelHeight) {
@@ -76,11 +82,12 @@ public class RectangleROI extends AbstractPathBoundedROI implements PathArea, Se
 	}
 	
 	@Override
-	public double getScaledPerimeter(double pixelWidth, double pixelHeight) {
+	public double getScaledLength(double pixelWidth, double pixelHeight) {
 		return (getBoundsWidth() * pixelWidth + getBoundsHeight() * pixelHeight) * 2;
 	}
 
 	@Override
+	@Deprecated
 	public ROI duplicate() {
 		RectangleROI duplicate = new RectangleROI();
 		duplicate.x = x;
@@ -94,7 +101,7 @@ public class RectangleROI extends AbstractPathBoundedROI implements PathArea, Se
 	}
 
 	@Override
-	public List<Point2> getPolygonPoints() {
+	public List<Point2> getAllPoints() {
 		return Arrays.asList(new Point2(x, y),
 				new Point2(x2, y),
 				new Point2(x2, y2),
@@ -114,13 +121,31 @@ public class RectangleROI extends AbstractPathBoundedROI implements PathArea, Se
 	
 	
 	@Override
-	public TranslatableROI translate(double dx, double dy) {
+	public ROI translate(double dx, double dy) {
 		if (dx == 0 && dy == 0)
 			return this;
 		// Shift the bounds
 		return new RectangleROI(getBoundsX()+dx, getBoundsY()+dy, getBoundsWidth(), getBoundsHeight(), getImagePlane());
 	}
 	
+	@Override
+	public ROI getConvexHull() {
+		return this;
+	}
+	
+	@Override
+	public RoiType getRoiType() {
+		return RoiType.AREA;
+	}
+	
+	@Override
+	public ROI scale(double scaleX, double scaleY, double originX, double originY) {
+		double x1 = RoiTools.scaleOrdinate(getBoundsX(), scaleX, originX);
+		double y1 = RoiTools.scaleOrdinate(getBoundsY(), scaleY, originY);
+		double x2 = RoiTools.scaleOrdinate(getBoundsX() + getBoundsWidth(), scaleX, originX);
+		double y2 = RoiTools.scaleOrdinate(getBoundsY() + getBoundsHeight(), scaleY, originY);
+		return new RectangleROI(x1, y1, x2-x1, y2-y1, getImagePlane());
+	}
 	
 	private Object writeReplace() {
 		return new SerializationProxy(this);

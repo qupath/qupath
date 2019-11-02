@@ -58,11 +58,11 @@ import qupath.lib.color.StainVector;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
-import qupath.lib.gui.helpers.ColorToolsFX;
-import qupath.lib.gui.helpers.DisplayHelpers;
-import qupath.lib.gui.helpers.DisplayHelpers.DialogButton;
-import qupath.lib.gui.helpers.dialogs.ParameterPanelFX;
+import qupath.lib.gui.dialogs.Dialogs;
+import qupath.lib.gui.dialogs.ParameterPanelFX;
+import qupath.lib.gui.dialogs.Dialogs.DialogButton;
 import qupath.lib.gui.plots.ScatterPlot;
+import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
 import qupath.lib.plugins.parameters.ParameterList;
@@ -111,13 +111,13 @@ public class EstimateStainVectorsCommand implements PathCommand {
 		
 		ImageData<BufferedImage> imageData = qupath.getImageData();
 		if (imageData == null || !imageData.isBrightfield() || imageData.getServer() == null || !imageData.getServer().isRGB()) {
-			DisplayHelpers.showErrorMessage("Estimate stain vectors", "No brightfield, RGB image selected!");
+			Dialogs.showErrorMessage("Estimate stain vectors", "No brightfield, RGB image selected!");
 //			JOptionPane.showMessageDialog(qupath.getFrame(), "No brightfield, RGB image selected!", "Estimate stain vectors", JOptionPane.ERROR_MESSAGE, null);
 			return;
 		}
 		ColorDeconvolutionStains stains = imageData.getColorDeconvolutionStains();
 		if (stains == null || !stains.getStain(3).isResidual()) {
-			DisplayHelpers.showErrorMessage("Estimate stain vectors", "Sorry, stain editing is only possible for brightfield, RGB images with 2 stains");
+			Dialogs.showErrorMessage("Estimate stain vectors", "Sorry, stain editing is only possible for brightfield, RGB images with 2 stains");
 //			JOptionPane.showMessageDialog(qupath.getFrame(), "Sorry, stain editing is only possible for brightfield, RGB images with 2 stains", "Estimate stain vectors", JOptionPane.ERROR_MESSAGE, null);
 			return;
 		}
@@ -134,7 +134,7 @@ public class EstimateStainVectorsCommand implements PathCommand {
 		try {
 			img = imageData.getServer().readBufferedImage(request);
 		} catch (IOException e) {
-			DisplayHelpers.showErrorMessage("Estimate stain vectors", e);
+			Dialogs.showErrorMessage("Estimate stain vectors", e);
 			logger.error("Unable to obtain pixels for " + request.toString(), e);
 		}
 		
@@ -151,7 +151,7 @@ public class EstimateStainVectorsCommand implements PathCommand {
 		// Check if the background values may need to be changed
 		if (rMax != stains.getMaxRed() || gMax != stains.getMaxGreen() || bMax != stains.getMaxBlue()) {
 			DialogButton response =
-					DisplayHelpers.showYesNoCancelDialog("Estimate stain vectors",
+					Dialogs.showYesNoCancelDialog("Estimate stain vectors",
 							String.format("Modal RGB values %d, %d, %d do not match current background values - do you want to use the modal values?", rMax, gMax, bMax));
 			if (response == DialogButton.CANCEL)
 				return;
@@ -167,14 +167,14 @@ public class EstimateStainVectorsCommand implements PathCommand {
 		try {
 			stainsUpdated = showStainEditor(img, stains);
 		} catch (Exception e) {
-			DisplayHelpers.showErrorMessage("Estimate stain vectors", "Error with stain estimation: " + e.getLocalizedMessage());
+			Dialogs.showErrorMessage("Estimate stain vectors", "Error with stain estimation: " + e.getLocalizedMessage());
 			logger.error("{}", e.getLocalizedMessage(), e);
 //			JOptionPane.showMessageDialog(qupath.getFrame(), "Error with stain estimation: " + e.getLocalizedMessage(), "Estimate stain vectors", JOptionPane.ERROR_MESSAGE, null);
 			return;
 		}
 		if (!stains.equals(stainsUpdated)) {
 			String name = stainsUpdated.getName();
-			String newName = DisplayHelpers.showInputDialog("Estimate stain vectors", "Set name for stain vectors", name);
+			String newName = Dialogs.showInputDialog("Estimate stain vectors", "Set name for stain vectors", name);
 			if (newName == null)
 				return;
 			if (!name.equals(newName) && !newName.trim().isEmpty())
@@ -294,7 +294,7 @@ public class EstimateStainVectorsCommand implements PathCommand {
 					ColorDeconvolutionStains stainsNew = EstimateStainVectors.estimateStains(img, stainsWrapper.getStains(), minOD, maxOD, ignore, checkColors);
 					stainsWrapper.setStains(stainsNew);
 				} catch (Exception e2) {
-					DisplayHelpers.showErrorMessage("Estimate stain vectors", e2);
+					Dialogs.showErrorMessage("Estimate stain vectors", e2);
 				}
 		});
 		
@@ -329,7 +329,7 @@ public class EstimateStainVectorsCommand implements PathCommand {
 		panelMain.setCenter(panelPlots);
 		panelMain.setBottom(panelSouth);
 		
-		if (DisplayHelpers.showConfirmDialog("Visual Stain Editor", panelMain)) {
+		if (Dialogs.showConfirmDialog("Visual Stain Editor", panelMain)) {
 			return stainsWrapper.getStains();
 		} else {
 			stainsWrapper.resetStains();

@@ -65,7 +65,7 @@ import javafx.collections.ListChangeListener.Change;
 import javafx.collections.ObservableList;
 import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
-import qupath.lib.gui.helpers.CommandFinderTools.CommandBarDisplay;
+import qupath.lib.gui.tools.CommandFinderTools.CommandBarDisplay;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.projects.ProjectIO;
 
@@ -1725,6 +1725,26 @@ public class PathPrefs {
     public static float getThickStrokeThickness() {
     	return strokeThickThickness.get();
     }	
+	
+    
+    private static final BooleanProperty usePixelSnapping = createPersistentPreference("usePixelSnapping", true);
+    
+    /**
+	 * If true, pixels should be snapped to integer coordinates when using the drawing tools.
+	 * 
+	 * @return
+	 */
+	public static BooleanProperty usePixelSnappingProperty() {
+		return usePixelSnapping;
+	}
+
+	public static boolean usePixelSnapping() {
+		return usePixelSnapping.get();
+	}
+
+	public static void setUsePixelSnapping(final boolean useCache) {
+		usePixelSnapping.set(useCache);
+	}
 	
 	
 	/*

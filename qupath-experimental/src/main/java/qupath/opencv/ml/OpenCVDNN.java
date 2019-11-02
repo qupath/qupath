@@ -124,7 +124,7 @@ public class OpenCVDNN {
 	 * Get scale factors to be applied for preprocessing. This can either be a single value to multiply 
 	 * all channels, or a different value per input channel. The calculation is {@code (mat - means) * scale}.
 	 * @return
-	 * @sett {@link #getMeans()}
+	 * @see #getMeans()
 	 */
 	public double[] getScales() {
 		return scales.clone();
@@ -203,7 +203,7 @@ public class OpenCVDNN {
 	}
 	
 	/**
-     * Apply mean subtraction & multiplication by a scaling factor to a Mat (in-place).
+     * Apply mean subtraction and multiplication by a scaling factor to a Mat (in-place).
      * @param mat
      * @param model
      */

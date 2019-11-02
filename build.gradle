@@ -26,7 +26,7 @@ def additionalResourcesDir = "build/${qupathOutputDir}"
 /*
  * JavaFX version
  */
-def jfxVersion = '13'
+def jfxVersion = '13.0.1'
 
 /*
  * OpenCV version
@@ -166,8 +166,8 @@ subprojects {
     controlsfx 'org.controlsfx:controlsfx:11.0.0'
 
 //	bioformats 'ome:bioformats_package:6.0.1'
-	bioformats 'ome:formats-gpl:6.2.1'
-	bioformatsTest 'ome:bio-formats_plugins:6.2.1' // Only required for testing
+	bioformats 'ome:formats-gpl:6.3.0'
+	bioformatsTest 'ome:bio-formats_plugins:6.3.0' // Only required for testing
 
     jfxtras 'org.jfxtras:jfxtras-menu:10.0-r1'
 
@@ -599,9 +599,10 @@ task createPackage(dependsOn:createRuntime, type:Exec) {
 	} else if (OperatingSystem.current().isWindows()) {
 		if (packageType == 'installer') {
 			params << '--package-type' << 'msi'
+			params << '--win-menu'
 			params << '--win-menu-group' << 'QuPath'
 			params << '--win-dir-chooser'
-//			params << '--win-shortcut'
+			params << '--win-shortcut'
 			params << '--win-per-user-install'
 			int lastDash = appVersion.lastIndexOf('-')
 			if (lastDash > 0) {

@@ -31,9 +31,9 @@ import org.slf4j.LoggerFactory;
 
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
-import qupath.lib.gui.helpers.DisplayHelpers;
-import qupath.lib.gui.helpers.DisplayHelpers.SnapshotType;
 import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.gui.tools.GuiTools;
+import qupath.lib.gui.tools.GuiTools.SnapshotType;
 import qupath.lib.images.writers.ImageWriter;
 import qupath.lib.images.writers.ImageWriterTools;
 
@@ -51,18 +51,18 @@ public class SaveViewCommand implements PathCommand {
 	private final static Logger logger = LoggerFactory.getLogger(SaveViewCommand.class);
 
 	private QuPathGUI qupath;
-	private SnapshotType type;
+	private GuiTools.SnapshotType type;
 	
 	private static File dirPrevious = null;
 	
-	public SaveViewCommand(final QuPathGUI qupath, final SnapshotType type) {
+	public SaveViewCommand(final QuPathGUI qupath, final GuiTools.SnapshotType type) {
 		this.qupath = qupath;
 		this.type = type;
 	}
 
 	@Override
 	public void run() {
-		BufferedImage img = DisplayHelpers.makeSnapshot(qupath, type);			
+		BufferedImage img = GuiTools.makeSnapshot(qupath, type);			
 		
 		String ext = PathPrefs.getDefaultScreenshotExtension();
 		List<ImageWriter<BufferedImage>> compatibleWriters = ImageWriterTools.getCompatibleWriters(BufferedImage.class, ext);

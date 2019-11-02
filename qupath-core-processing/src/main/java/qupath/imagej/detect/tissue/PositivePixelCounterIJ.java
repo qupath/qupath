@@ -60,7 +60,6 @@ import qupath.lib.plugins.ObjectDetector;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.RectangleROI;
-import qupath.lib.roi.interfaces.PathArea;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
@@ -221,7 +220,7 @@ public class PositivePixelCounterIJ extends AbstractDetectionPlugin<BufferedImag
 					pathObject.getMeasurementList().addMeasurement("Mean hematoxylin OD", meanNegative);
 					pathClass = PathClassFactory.getNegative(null);
 				} else {
-					areaNegative = ((PathArea)roiTissue).getScaledArea(pixelWidth, pixelHeight);
+					areaNegative = roiTissue.getScaledArea(pixelWidth, pixelHeight);
 					pathObject.getMeasurementList().addMeasurement("Stained area " + areaUnits + paramsString, areaNegative);
 					pathObject.getMeasurementList().addMeasurement("Mean " + stains.getStain(1).getName() + " OD" + paramsString, meanNegative);
 					pathClass = PathClassFactory.getPathClass("Pixel count negative", ColorTools.makeScaledRGB(PathClassFactory.getNegative(null).getColor(), 1.25));
@@ -240,7 +239,7 @@ public class PositivePixelCounterIJ extends AbstractDetectionPlugin<BufferedImag
 					pathObject.getMeasurementList().addMeasurement("Mean DAB OD", meanPositive);
 					pathClass = PathClassFactory.getPositive(null);
 				} else {
-					areaPositive = ((PathArea)roiPositive).getScaledArea(pixelWidth, pixelHeight);
+					areaPositive = roiPositive.getScaledArea(pixelWidth, pixelHeight);
 					pathObject.getMeasurementList().addMeasurement("Stained area " + areaUnits + paramsString, areaPositive);
 					pathObject.getMeasurementList().addMeasurement("Mean " + stains.getStain(2).getName() + " OD" + paramsString, meanPositive);
 					pathClass = PathClassFactory.getPathClass("Pixel count positive", ColorTools.makeScaledRGB(PathClassFactory.getPositive(null).getColor(), 1.25));
@@ -284,9 +283,9 @@ public class PositivePixelCounterIJ extends AbstractDetectionPlugin<BufferedImag
 					if (!roisMatch) {
 						logger.warn("Unexpected mismatch between parent ROI & analysis ROI! No measurements based on ROI area will be added.");
 					}
-					if (roisMatch && roiParent instanceof PathArea) {
+					if (roisMatch && roiParent.isArea()) {
 						// Clip to 100% (could conceivably go slightly above because of sub-pixel errors)
-						double areaROI = ((PathArea)roiParent).getScaledArea(pixelWidth, pixelHeight);
+						double areaROI = roiParent.getScaledArea(pixelWidth, pixelHeight);
 						parent.getMeasurementList().putMeasurement("Total ROI area " + areaUnits + paramsString, areaROI);					
 //						parent.getMeasurementList().putMeasurement("Stained % of total ROI area" + paramsString, Math.min(100, (areaPositive + areaNegative) / areaROI * 100.0));					
 						parent.getMeasurementList().putMeasurement("Positive % of total ROI area" + paramsString, Math.min(100, areaPositive / areaROI * 100.0));

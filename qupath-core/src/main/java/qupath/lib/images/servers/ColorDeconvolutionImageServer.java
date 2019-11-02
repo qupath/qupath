@@ -81,7 +81,7 @@ class ColorDeconvolutionImageServer extends TransformingImageServer<BufferedImag
 		}
 		this.stainVectors = Collections.unmodifiableList(stainVectors);
 		
-		this.colorModel = ColorModelFactory.geProbabilityColorModel32Bit(channels);
+		this.colorModel = ColorModelFactory.getProbabilityColorModel32Bit(channels);
 		
 		metadata = new ImageServerMetadata.Builder(server.getMetadata())
 //				.path(String.format("%s, %s (%s)", server.getPath(), stains.toString(), sb.toString()))

@@ -10,16 +10,15 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.layout.GridPane;
-import javafx.scene.layout.Priority;
 import javafx.stage.Stage;
 import qupath.lib.classifiers.pixel.PixelClassificationImageServer;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
-import qupath.lib.gui.helpers.DisplayHelpers;
-import qupath.lib.gui.helpers.PaneToolsFX;
+import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.ml.PixelClassificationOverlay;
 import qupath.lib.gui.ml.PixelClassifierImageSelectionPane;
 import qupath.lib.gui.ml.PixelClassifierTools;
+import qupath.lib.gui.tools.PaneTools;
 
 /**
  * Command to apply a pre-trained pixel classifier to an image.
@@ -33,7 +32,7 @@ public class PixelClassifierLoadCommand implements PathCommand {
 	
 	private QuPathGUI qupath;
 	
-	private String title = "Load Pixel Model";
+	private String title = "Load Pixel Classifier";
 	
 	/**
 	 * Constructor.
@@ -49,13 +48,13 @@ public class PixelClassifierLoadCommand implements PathCommand {
 		
 		var imageData = viewer.getImageData();
 		if (imageData == null) {
-			DisplayHelpers.showErrorMessage(title, "You need an image to run this command!");
+			Dialogs.showNoImageError(title);
 			return;
 		}		
 		
 		var project = qupath.getProject();
 		if (project == null) {
-			DisplayHelpers.showErrorMessage(title, "You need a project open to run this command!");
+			Dialogs.showErrorMessage(title, "You need a project open to run this command!");
 			return;
 		}
 		
@@ -63,11 +62,11 @@ public class PixelClassifierLoadCommand implements PathCommand {
 		try {
 			names = project.getPixelClassifiers().getNames();
 			if (names.isEmpty()) {
-				DisplayHelpers.showErrorMessage(title, "No pixel classifiers were found in the current project!");
+				Dialogs.showErrorMessage(title, "No pixel classifiers were found in the current project!");
 				return;
 			}
 		} catch (IOException e) {
-			DisplayHelpers.showErrorMessage(title, e);
+			Dialogs.showErrorMessage(title, e);
 			return;
 		}
 			
@@ -77,9 +76,9 @@ public class PixelClassifierLoadCommand implements PathCommand {
 			String name = comboClassifiers.getSelectionModel().getSelectedItem();
 			if (name != null) {
 				try {
-					return project.getPixelClassifiers().getResource(name);
+					return project.getPixelClassifiers().get(name);
 				} catch (Exception e) {
-					DisplayHelpers.showErrorMessage("Load pixel model", e);
+					Dialogs.showErrorMessage("Load pixel model", e);
 				}
 			}
 			return null;
@@ -108,7 +107,7 @@ public class PixelClassifierLoadCommand implements PathCommand {
 		btnCreateObjects.disableProperty().bind(enableButtons.not());
 		var btnClassifyObjects = new Button("Classify detections");
 		btnClassifyObjects.disableProperty().bind(enableButtons.not());
-		var tilePane = PaneToolsFX.createColumnGrid(btnCreateObjects, btnClassifyObjects);
+		var tilePane = PaneTools.createColumnGrid(btnCreateObjects, btnClassifyObjects);
 //		btnCreateObjects.prefWidthProperty().bind(btnClassifyObjects.widthProperty());
 		
 		btnCreateObjects.setOnAction(e -> {
@@ -124,15 +123,17 @@ public class PixelClassifierLoadCommand implements PathCommand {
 		pane.setHgap(5);
 		pane.setVgap(10);
 		int row = 0;
-		PaneToolsFX.addGridRow(pane, row++, 0, "Choose pixel classification model to apply to the current image", label, comboClassifiers);
-		PaneToolsFX.addGridRow(pane, row++, 0, "Apply pixel classification", tilePane, tilePane);
+		PaneTools.addGridRow(pane, row++, 0, "Choose pixel classification model to apply to the current image", label, comboClassifiers);
+		PaneTools.addGridRow(pane, row++, 0, "Apply pixel classification", tilePane, tilePane);
 		
-		PaneToolsFX.setMaxWidth(Double.MAX_VALUE, comboClassifiers, tilePane, btnCreateObjects, btnClassifyObjects);
+		PaneTools.setMaxWidth(Double.MAX_VALUE, comboClassifiers, tilePane, btnCreateObjects, btnClassifyObjects);
 				
 		var stage = new Stage();
 		stage.setTitle(title);
 		stage.setScene(new Scene(pane));
 		stage.initOwner(qupath.getStage());
+		stage.sizeToScene();
+		stage.setResizable(false);
 		stage.show();
 		
 		stage.setOnHiding(e -> {

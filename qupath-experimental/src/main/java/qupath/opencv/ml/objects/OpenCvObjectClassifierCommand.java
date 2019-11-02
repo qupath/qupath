@@ -32,8 +32,8 @@ import javafx.stage.Stage;
 import qupath.lib.classifiers.PathObjectClassifier;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
-import qupath.lib.gui.helpers.DisplayHelpers;
-import qupath.lib.gui.helpers.DisplayHelpers.DialogButton;
+import qupath.lib.gui.dialogs.Dialogs;
+import qupath.lib.gui.dialogs.Dialogs.DialogButton;
 import qupath.lib.gui.panels.classify.ClassifierBuilderPanel;
 
 
@@ -89,7 +89,7 @@ public class OpenCvObjectClassifierCommand implements PathCommand {
 			}
 			
 			// If we have a classifier, give option to hide
-			DialogButton button = DisplayHelpers.showYesNoCancelDialog("Classifier builder", "Retain classifier for later use?");
+			DialogButton button = Dialogs.showYesNoCancelDialog("Classifier builder", "Retain classifier for later use?");
 			if (button == DialogButton.CANCEL)
 				e.consume();
 			else if (button == DialogButton.NO) {

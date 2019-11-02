@@ -52,8 +52,8 @@ import javafx.scene.layout.Priority;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
-import qupath.lib.gui.helpers.DisplayHelpers;
-import qupath.lib.gui.helpers.PaneToolsFX;
+import qupath.lib.gui.dialogs.Dialogs;
+import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.projects.Project;
 
 public class ProjectCheckUrisCommand implements PathCommand {
@@ -70,7 +70,7 @@ public class ProjectCheckUrisCommand implements PathCommand {
 	public void run() {
 		var project = qupath.getProject();
 		if (project == null) {
-			DisplayHelpers.showErrorMessage("Check URIs", "No project open!");
+			Dialogs.showErrorMessage("Check URIs", "No project open!");
 			return;
 		}
 		try {
@@ -78,7 +78,7 @@ public class ProjectCheckUrisCommand implements PathCommand {
 			if (!ProjectCheckUrisCommand.checkURIs(project, false))
 				return;
 		} catch (IOException e) {
-			DisplayHelpers.showErrorMessage("Update URIs", e);
+			Dialogs.showErrorMessage("Update URIs", e);
 		}
 	}
 	
@@ -217,15 +217,15 @@ public class ProjectCheckUrisCommand implements PathCommand {
 			});
 			
 			int row = 0;
-			PaneToolsFX.addGridRow(pane, row++, 0, null, table, table, table);
-			PaneToolsFX.addGridRow(pane, row++, 0, null, labelReplacements, labelReplacements, btnSearch);
-			PaneToolsFX.addGridRow(pane, row, 0, null, cbValid);
-			PaneToolsFX.addGridRow(pane, row, 1, null, cbMissing);
-			PaneToolsFX.addGridRow(pane, row++, 2, null, cbUnknown);
+			PaneTools.addGridRow(pane, row++, 0, null, table, table, table);
+			PaneTools.addGridRow(pane, row++, 0, null, labelReplacements, labelReplacements, btnSearch);
+			PaneTools.addGridRow(pane, row, 0, null, cbValid);
+			PaneTools.addGridRow(pane, row, 1, null, cbMissing);
+			PaneTools.addGridRow(pane, row++, 2, null, cbUnknown);
 			
-			PaneToolsFX.setFillWidth(Boolean.TRUE, cbValid, cbMissing, cbUnknown, labelReplacements, table);
-			PaneToolsFX.setHGrowPriority(Priority.ALWAYS, cbValid, cbMissing, cbUnknown, labelReplacements, table);
-			PaneToolsFX.setMaxWidth(Double.MAX_VALUE, cbValid, cbMissing, cbUnknown, labelReplacements, table);
+			PaneTools.setFillWidth(Boolean.TRUE, cbValid, cbMissing, cbUnknown, labelReplacements, table);
+			PaneTools.setHGrowPriority(Priority.ALWAYS, cbValid, cbMissing, cbUnknown, labelReplacements, table);
+			PaneTools.setMaxWidth(Double.MAX_VALUE, cbValid, cbMissing, cbUnknown, labelReplacements, table);
 			GridPane.setHalignment(btnSearch, HPos.RIGHT);
 			
 			pane.setHgap(5);
@@ -414,16 +414,16 @@ public class ProjectCheckUrisCommand implements PathCommand {
 				try {
 					int n = applyReplacements();
 					if (n <= 0) {
-						DisplayHelpers.showInfoNotification("Update URIs", "No URIs updated!");
+						Dialogs.showInfoNotification("Update URIs", "No URIs updated!");
 						return true;
 					}
 					if (n == 1) 
-						DisplayHelpers.showInfoNotification("Update URIs", "URIs updated for 1 image");
+						Dialogs.showInfoNotification("Update URIs", "URIs updated for 1 image");
 					else if (n > 1)
-						DisplayHelpers.showInfoNotification("Update URIs", "URIs updated for " + n + " images");
+						Dialogs.showInfoNotification("Update URIs", "URIs updated for " + n + " images");
 					project.syncChanges();
 				} catch (IOException e) {
-					DisplayHelpers.showErrorMessage("Update URIs", e);
+					Dialogs.showErrorMessage("Update URIs", e);
 				}
 //			}
 			return true;
@@ -455,7 +455,7 @@ public class ProjectCheckUrisCommand implements PathCommand {
 				
 				switch (item.getStatus()) {
 				case EXISTS:
-					setStyle("-fx-text-fill: black");
+					setStyle(null);
 					break;
 				case MISSING:
 					setStyle("-fx-text-fill: red");
@@ -485,7 +485,7 @@ public class ProjectCheckUrisCommand implements PathCommand {
 						logger.error("Error parsing URI", e);
 					}
 					if (uri == null) {
-						DisplayHelpers.showErrorMessage("Change URI", "Unable to parse URI from " + path);
+						Dialogs.showErrorMessage("Change URI", "Unable to parse URI from " + path);
 					} else
 						replacements.put(uriOriginal, new UriItem(uri));
 				} else

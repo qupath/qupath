@@ -55,6 +55,7 @@ public interface PathOverlay {
 	/**
 	 * Check overlay visibility status.  If isVisible() returns {@code false},
 	 * then calls to paintOverlay() will not do anything.
+	 * @return
 	 */
 	public boolean isVisible();
 

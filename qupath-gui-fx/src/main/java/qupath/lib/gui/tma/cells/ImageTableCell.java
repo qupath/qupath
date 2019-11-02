@@ -39,9 +39,9 @@ import javafx.scene.image.ImageView;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
 import javafx.stage.Screen;
-import qupath.lib.gui.helpers.PaintingToolsFX;
 import qupath.lib.gui.tma.entries.TMAEntry;
 import qupath.lib.gui.tma.entries.TMAImageCache;
+import qupath.lib.gui.tools.GuiTools;
 
 
 /**
@@ -110,7 +110,7 @@ public class ImageTableCell extends TreeTableCell<TMAEntry, TMAEntry> {
 			GraphicsContext gc = canvas.getGraphicsContext2D();
 			gc.clearRect(0, 0, w, w);
 			img = isOverlay ? cache.getOverlay(item, w) : cache.getImage(item, w);
-			PaintingToolsFX.paintImage(canvas, img);
+			GuiTools.paintImage(canvas, img);
 		}
 		
 		

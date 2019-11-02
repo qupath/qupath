@@ -41,11 +41,12 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import qupath.lib.geom.Point2;
-import qupath.lib.gui.helpers.DisplayHelpers;
+import qupath.lib.gui.dialogs.Dialogs;
+import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.PathObjects;
-import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
@@ -80,7 +81,7 @@ public class CountingPanel implements PathObjectSelectionListener, PathObjectHie
 	private Action btnDelete = new Action("Delete", e -> {
 		PathObject pathObjectSelected = listCounts.getSelectionModel().getSelectedItem();
 		if (pathObjectSelected != null && PathObjectTools.hasPointROI(pathObjectSelected))
-			DisplayHelpers.promptToRemoveSelectedObject(pathObjectSelected, hierarchy);
+			GuiTools.promptToRemoveSelectedObject(pathObjectSelected, hierarchy);
 	});
 	
 	
@@ -179,13 +180,13 @@ public class CountingPanel implements PathObjectSelectionListener, PathObjectHie
 	public static void copyCoordinatesToClipboard(PathObject pathObject) {
 //		PathObject pathObject = viewer.getPathObjectHierarchy().getSelectionModel().getSelectedPathObject();
 		if (pathObject == null || !pathObject.hasROI() || !(pathObject.getROI() instanceof PointsROI)) {
-			DisplayHelpers.showErrorMessage("Copy points to clipboard", "No points selected!");
+			Dialogs.showErrorMessage("Copy points to clipboard", "No points selected!");
 			return;
 		}
 		StringBuilder sb = new StringBuilder();
 		String name = pathObject.getDisplayedName();
 		PointsROI points = (PointsROI)pathObject.getROI();
-		for (Point2 p : points.getPointList())
+		for (Point2 p : points.getAllPoints())
 			sb.append(name).append("\t").append(p.getX()).append("\t").append(p.getY()).append("\n");
 
 		StringSelection stringSelection = new StringSelection(sb.toString());

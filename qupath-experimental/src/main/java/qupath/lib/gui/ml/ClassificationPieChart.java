@@ -11,6 +11,7 @@ import java.util.Map.Entry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javafx.application.Platform;
 import javafx.scene.chart.PieChart;
 import javafx.scene.chart.PieChart.Data;
 import javafx.scene.control.Tooltip;
@@ -33,6 +34,9 @@ class ClassificationPieChart {
 	private PieChart chart = new PieChart();
 
 	void setData(Map<PathClass, Integer> counts, boolean convertToPercentages) {
+		if (!Platform.isFxApplicationThread()) {
+			Platform.runLater(() -> setData(counts, convertToPercentages));
+		}
 
 		var style = new StringBuilder();
 

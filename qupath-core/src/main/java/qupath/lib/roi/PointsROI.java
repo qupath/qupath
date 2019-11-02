@@ -30,12 +30,10 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import qupath.lib.geom.Point2;
 import qupath.lib.regions.ImagePlane;
-import qupath.lib.roi.interfaces.PathArea;
-import qupath.lib.roi.interfaces.PathPoints;
-import qupath.lib.roi.interfaces.ROIWithHull;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
@@ -44,7 +42,7 @@ import qupath.lib.roi.interfaces.ROI;
  * @author Pete Bankhead
  *
  */
-public class PointsROI extends AbstractPathROI implements ROIWithHull, PathPoints, Serializable {
+public class PointsROI extends AbstractPathROI implements Serializable {
 	
 	private static final long serialVersionUID = 1L;
 	
@@ -55,7 +53,7 @@ public class PointsROI extends AbstractPathROI implements ROIWithHull, PathPoint
 //	protected double pointRadius = -1;
 	
 	transient private double xMin = Double.NaN, yMin = Double.NaN, xMax = Double.NaN, yMax = Double.NaN;
-	transient private PathArea convexHull = null;
+	transient private ROI convexHull = null;
 //	transient protected Point2 pointAdjusting = null;
 	
 	PointsROI() {
@@ -261,17 +259,24 @@ public class PointsROI extends AbstractPathROI implements ROIWithHull, PathPoint
 	}
 	
 	@Override
-	public int getNPoints() {
+	public int getNumPoints() {
 		return points.size();
 	}
 	
 	@Override
-	public List<Point2> getPointList() {
+	public List<Point2> getAllPoints() {
 		return Collections.unmodifiableList(points);
 	}
 	
-
 	@Override
+	public ROI scale(double scaleX, double scaleY, double originX, double originY) {
+		return new PointsROI(
+				getAllPoints().stream().map(p -> RoiTools.scalePoint(p, scaleX, scaleY, originX, originY)).collect(Collectors.toList()),
+				getImagePlane());
+	}
+	
+	@Override
+	@Deprecated
 	public ROI duplicate() {
 		PointsROI roi = new PointsROI(points, getImagePlane());
 //		roi.setPointRadius(pointRadius);
@@ -279,8 +284,7 @@ public class PointsROI extends AbstractPathROI implements ROIWithHull, PathPoint
 	}
 
 	@Override
-	
-	public PathArea getConvexHull() {
+	public ROI getConvexHull() {
 		if (convexHull == null) {
 			if (points.isEmpty())
 				return null;
@@ -290,21 +294,21 @@ public class PointsROI extends AbstractPathROI implements ROIWithHull, PathPoint
 		return convexHull;
 	}
 
-	@Override
-	public double getConvexArea() {
-		PathArea hull = getConvexHull();
-		if (hull != null)
-			return hull.getArea();
-		return Double.NaN;
-	}
-	
-	@Override
-	public double getScaledConvexArea(double pixelWidth, double pixelHeight) {
-		PathArea hull = getConvexHull();
-		if (hull != null)
-			return hull.getScaledArea(pixelWidth, pixelHeight);
-		return Double.NaN;
-	}
+//	@Override
+//	public double getConvexArea() {
+//		PathArea hull = getConvexHull();
+//		if (hull != null)
+//			return hull.getArea();
+//		return Double.NaN;
+//	}
+//	
+//	@Override
+//	public double getScaledConvexArea(double pixelWidth, double pixelHeight) {
+//		PathArea hull = getConvexHull();
+//		if (hull != null)
+//			return hull.getScaledArea(pixelWidth, pixelHeight);
+//		return Double.NaN;
+//	}
 
 	
 	private void resetBounds() {
@@ -365,14 +369,8 @@ public class PointsROI extends AbstractPathROI implements ROIWithHull, PathPoint
 //	}
 	
 	
-	@Override
-	public List<Point2> getPolygonPoints() {
-		return getPointList();
-	}
-	
-	
-	
 	/**
+	 * It is not possible to convert a PointROI to a java.awt.Shape.
 	 * throws UnsupportedOperationException
 	 */
 	@Override
@@ -415,7 +413,7 @@ public class PointsROI extends AbstractPathROI implements ROIWithHull, PathPoint
 		private final int c, z, t;
 		
 		SerializationProxy(final PointsROI roi) {
-			int n = roi.getNPoints();
+			int n = roi.getNumPoints();
 			this.x =  new float[n];
 			this.y =  new float[n];
 			int ind = 0;
@@ -436,6 +434,38 @@ public class PointsROI extends AbstractPathROI implements ROIWithHull, PathPoint
 		}
 		
 	}
+
+
+	@Override
+	public ROI translate(double dx, double dy) {
+		return new PointsROI(
+				points.stream().map(p -> new Point2(p.getX()+dx, p.getY()+dy)).collect(Collectors.toList()),
+				getImagePlane());
+	}
 	
+	@Override
+	public double getArea() {
+		return 0;
+	}
+	
+	@Override
+	public double getScaledArea(double pixelWidth, double pixelHeight) {
+		return 0;
+	}
+	
+	@Override
+	public boolean contains(double x, double y) {
+		return false;
+	}
+
+	@Override
+	public double getLength() {
+		return 0;
+	}
+
+	@Override
+	public double getScaledLength(double pixelWidth, double pixelHeight) {
+		return 0;
+	}
 
 }

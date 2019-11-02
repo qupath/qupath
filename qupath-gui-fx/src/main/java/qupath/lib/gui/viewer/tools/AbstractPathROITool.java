@@ -31,7 +31,7 @@ import org.slf4j.LoggerFactory;
 
 import javafx.scene.Cursor;
 import javafx.scene.input.MouseEvent;
-import qupath.lib.gui.QuPathGUI.Modes;
+import qupath.lib.gui.QuPathGUI.DefaultMode;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.ModeWrapper;
 import qupath.lib.gui.viewer.QuPathViewer;
@@ -62,16 +62,16 @@ abstract class AbstractPathROITool extends AbstractPathTool {
 		super(modes);
 	}
 
-
 	/**
 	 * Create a new ROI with the given starting coordinates.
 	 * 
+	 * @param e
 	 * @param x
 	 * @param y
 	 * @param plane
 	 * @return
 	 */
-	protected abstract ROI createNewROI(double x, double y, ImagePlane plane);
+	protected abstract ROI createNewROI(MouseEvent e, double x, double y, ImagePlane plane);
 	
 	/**
 	 * Create a new annotation & set it in the current viewer.
@@ -80,7 +80,7 @@ abstract class AbstractPathROITool extends AbstractPathTool {
 	 * @param y
 	 * @return
 	 */
-	PathObject createNewAnnotation(double x, double y) {
+	PathObject createNewAnnotation(MouseEvent e, double x, double y) {
 		
 		var currentObject = viewer.getSelectedObject();
 		var editor = viewer.getROIEditor();
@@ -94,7 +94,10 @@ abstract class AbstractPathROITool extends AbstractPathTool {
 			logger.warn("Cannot create new annotation - no hierarchy available!");
 			return null;
 		}
-		ROI roi = createNewROI(x, y, viewer.getImagePlane());
+		ROI roi = createNewROI(e, x, y, viewer.getImagePlane());
+		if (roi == null)
+			return null;
+		
 		PathObject pathObject = PathObjects.createAnnotationObject(roi, PathPrefs.getAutoSetAnnotationClass());
 		var selectionModel = hierarchy.getSelectionModel();
 		if (PathPrefs.isSelectionMode() && !selectionModel.noSelection())
@@ -124,7 +127,7 @@ abstract class AbstractPathROITool extends AbstractPathTool {
 
 		// If we're adjusting a polygon/polyline with an appropriate tool, return at leave it up to the tool to handle the custom things
 		if (adjustingPolygon) {
-			if (viewer.getMode() == Modes.POLYGON || viewer.getMode() == Modes.POLYLINE)
+			if (viewer.getMode() == DefaultMode.POLYGON || viewer.getMode() == DefaultMode.POLYLINE)
 				return;
 			else {
 				viewer.getHierarchy().getSelectionModel().clearSelection();
@@ -133,7 +136,7 @@ abstract class AbstractPathROITool extends AbstractPathTool {
 		}
 
 		// Find out the coordinates in the image domain
-		Point2D p2 = viewer.componentPointToImagePoint(e.getX(), e.getY(), null, false);
+		Point2D p2 = mouseLocationToImage(e, false, requestPixelSnapping());
 		double xx = p2.getX();
 		double yy = p2.getY();
 		if (xx < 0 || yy < 0 || xx >= viewer.getServerWidth() || yy >= viewer.getServerHeight())
@@ -157,7 +160,9 @@ abstract class AbstractPathROITool extends AbstractPathTool {
 				null);
 		
 		// Create a new annotation
-		PathObject pathObject = createNewAnnotation(xx, yy);
+		PathObject pathObject = createNewAnnotation(e, xx, yy);
+		if (pathObject == null)
+			return;
 		
 		// Start editing the ROI immediately
 		editor.setROI(pathObject.getROI());
@@ -240,8 +245,8 @@ abstract class AbstractPathROITool extends AbstractPathTool {
 		var editor = viewer.getROIEditor();
 		editor.ensureHandlesUpdated();
 		editor.resetActiveHandle();
-		if (PathPrefs.getReturnToMoveMode() && modes.getMode() != Modes.BRUSH && modes.getMode() != Modes.WAND)
-			modes.setMode(Modes.MOVE);
+		if (PathPrefs.getReturnToMoveMode() && modes.getMode() != DefaultMode.BRUSH && modes.getMode() != DefaultMode.WAND)
+			modes.setMode(DefaultMode.MOVE);
 	}
 	
 	

@@ -27,13 +27,17 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
+import qupath.lib.objects.classes.PathClass;
 
 /**
  * Class for storing primary ImageServer metadata fields.
@@ -46,6 +50,11 @@ import qupath.lib.common.GeneralTools;
 public class ImageServerMetadata {
 	
 	private static Logger logger = LoggerFactory.getLogger(ImageServerMetadata.class);
+	
+	/**
+	 * Default channel to use with images where the channel type is {@link ChannelType#CLASSIFICATION}.
+	 */
+	public static final ImageChannel DEFAULT_CLASSIFICATION_LABELS_CHANNEL = ImageChannel.getInstance("Labels", ColorTools.makeRGB(255, 255, 255));
 	
 	/**
 	 * Enum representing possible channel (band) types for an image.
@@ -111,6 +120,7 @@ public class ImageServerMetadata {
 	
 	private ImageResolutionLevel[] levels;
 	
+	private Map<Integer, PathClass> classificationLabels;
 	private List<ImageChannel> channels = new ArrayList<>();
 	
 	private Number minValue;
@@ -231,12 +241,25 @@ public class ImageServerMetadata {
 
 		
 		/**
-		 * Specify the interpretation of channels.
+		 * Specify the interpretation of channels. If this is {@link ChannelType#CLASSIFICATION} it will also 
+		 * set the channels to be the default for this kind of server, i.e. a single channel with {@link ImageServerMetadata#DEFAULT_CLASSIFICATION_LABELS_CHANNEL}.
 		 * @param type
 		 * @return
 		 */
 		public Builder channelType(final ImageServerMetadata.ChannelType type) {
 			this.metadata.channelType = type;
+			if (type == ChannelType.CLASSIFICATION)
+				this.metadata.channels = Collections.singletonList(DEFAULT_CLASSIFICATION_LABELS_CHANNEL);
+			return this;
+		}
+		
+		/**
+		 * Specify the interpretation of classification labels. Only relevant for {@link ChannelType#CLASSIFICATION}.
+		 * @param classificationLabels
+		 * @return
+		 */
+		public Builder classificationLabels(final Map<Integer, PathClass> classificationLabels) {
+			this.metadata.classificationLabels = Collections.unmodifiableMap(new LinkedHashMap<>(classificationLabels));
 			return this;
 		}
 		
@@ -445,6 +468,11 @@ public class ImageServerMetadata {
 		this.pixelType = metadata.pixelType;
 		
 		this.pixelCalibration = metadata.pixelCalibration;
+		if (metadata.classificationLabels != null) {
+			this.classificationLabels = Collections.unmodifiableMap(new LinkedHashMap<>(metadata.classificationLabels));
+		} else if (metadata.channelType == ChannelType.CLASSIFICATION) {
+			throw new IllegalArgumentException("Classification labels are required whenever the channel type is CLASSIFICATION!");
+		}
 		
 		this.channels = new ArrayList<>(metadata.getChannels());
 		
@@ -724,6 +752,15 @@ public class ImageServerMetadata {
 	 */
 	public List<ImageChannel> getChannels() {
 		return channels;
+	}
+	
+	/**
+	 * Get map between labels and classification names. This is relevant only where the channel type is {@link ChannelType#CLASSIFICATION}, 
+	 * otherwise it returns an empty map.
+	 * @return
+	 */
+	public Map<Integer, PathClass> getClassificationLabels() {
+		return classificationLabels == null ? Collections.emptyMap() : classificationLabels;
 	}
 	
 	/**

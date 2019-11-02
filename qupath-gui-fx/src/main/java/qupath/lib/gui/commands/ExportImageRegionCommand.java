@@ -46,12 +46,13 @@ import javafx.scene.text.TextAlignment;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
-import qupath.lib.gui.helpers.DisplayHelpers;
-import qupath.lib.gui.helpers.PaneToolsFX;
+import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.images.servers.RenderedImageServer;
 import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.ImageServers;
 import qupath.lib.images.servers.ServerTools;
 import qupath.lib.images.writers.ImageWriter;
 import qupath.lib.images.writers.ImageWriterTools;
@@ -89,7 +90,7 @@ public class ExportImageRegionCommand implements PathCommand {
 	public void run() {
 		QuPathViewer viewer = qupath.getViewer();
 		if (viewer == null || viewer.getServer() == null) {
-			DisplayHelpers.showErrorMessage("Export image region", "No viewer & image selected!");
+			Dialogs.showErrorMessage("Export image region", "No viewer & image selected!");
 			return;
 		}
 		
@@ -159,7 +160,7 @@ public class ExportImageRegionCommand implements PathCommand {
 		pane.add(labelSize, 0, row++, 2, 1);
 		labelSize.textProperty().bind(Bindings.createStringBinding(() -> {
 			if (!Double.isFinite(downsample.get())) {
-				labelSize.setTextFill(Color.RED);
+				labelSize.setStyle("-fx-text-fill: red;");
 				return "Invalid downsample value!  Must be >= 1";
 			}
 			else {
@@ -169,13 +170,13 @@ public class ExportImageRegionCommand implements PathCommand {
 				var writer = comboImageType.getSelectionModel().getSelectedItem();
 				boolean supportsPyramid = writer == null ? false : writer.supportsPyramidal();
 				if (!supportsPyramid && w * h > maxPixels) {
-					labelSize.setTextFill(Color.RED);
+					labelSize.setStyle("-fx-text-fill: red;");
 					warning = " (too big!)";
 				} else if (w < 5 || h < 5) {
-					labelSize.setTextFill(Color.RED);
+					labelSize.setStyle("-fx-text-fill: red;");
 					warning = " (too small!)";					
 				} else
-					labelSize.setTextFill(Color.BLACK);
+					labelSize.setStyle(null);
 				return String.format("Output image size: %d x %d pixels%s",
 						w, h, warning
 						);
@@ -184,13 +185,13 @@ public class ExportImageRegionCommand implements PathCommand {
 		
 		tfDownsample.setText(Double.toString(exportDownsample.get()));
 		
-		PaneToolsFX.setMaxWidth(Double.MAX_VALUE, labelSize, textArea, tfDownsample, comboImageType);
-		PaneToolsFX.setHGrowPriority(Priority.ALWAYS, labelSize, textArea, tfDownsample, comboImageType);
+		PaneTools.setMaxWidth(Double.MAX_VALUE, labelSize, textArea, tfDownsample, comboImageType);
+		PaneTools.setHGrowPriority(Priority.ALWAYS, labelSize, textArea, tfDownsample, comboImageType);
 		
 		pane.setVgap(5);
 		pane.setHgap(5);
 		
-		if (!DisplayHelpers.showConfirmDialog("Export image region", pane))
+		if (!Dialogs.showConfirmDialog("Export image region", pane))
 			return;
 		
 		var writer = comboImageType.getSelectionModel().getSelectedItem();
@@ -198,12 +199,12 @@ public class ExportImageRegionCommand implements PathCommand {
 		int w = (int)(regionWidth / downsample.get() + 0.5);
 		int h = (int)(regionHeight / downsample.get() + 0.5);
 		if (!supportsPyramid && w * h > maxPixels) {
-			DisplayHelpers.showErrorNotification("Export image region", "Requested export region too large - try selecting a smaller region, or applying a higher downsample factor");
+			Dialogs.showErrorNotification("Export image region", "Requested export region too large - try selecting a smaller region, or applying a higher downsample factor");
 			return;
 		}
 		
 		if (downsample.get() < 1 || !Double.isFinite(downsample.get())) {
-			DisplayHelpers.showErrorMessage("Export image region", "Downsample factor must be >= 1!");
+			Dialogs.showErrorMessage("Export image region", "Downsample factor must be >= 1!");
 			return;
 		}
 				
@@ -217,29 +218,33 @@ public class ExportImageRegionCommand implements PathCommand {
 		
 		// Create RegionRequest
 		RegionRequest request = null;
-		if (pathObject == null || !pathObject.hasROI())
-			request = RegionRequest.createInstance(server.getPath(), exportDownsample.get(),
-					0, 0, server.getWidth(), server.getHeight(),
-					viewer.getZPosition(), viewer.getTPosition());
-		else
+		if (pathObject != null && pathObject.hasROI())
 			request = RegionRequest.createInstance(server.getPath(), exportDownsample.get(), roi);				
 
 		// Create a sensible default file name, and prompt for the actual name
 		String ext = writer.getDefaultExtension();
 		String writerName = writer.getName();
-		String defaultName = roi == null ? ServerTools.getDisplayableImageName(server) : 
-			String.format("%s (%s, x=%d, y=%d, w=%d, h=%d)", ServerTools.getDisplayableImageName(server),
+		String defaultName = GeneralTools.getNameWithoutExtension(new File(ServerTools.getDisplayableImageName(server)));
+		if (roi != null) {
+			defaultName = String.format("%s (%s, x=%d, y=%d, w=%d, h=%d)", defaultName,
 					GeneralTools.formatNumber(request.getDownsample(), 2),
 					request.getX(), request.getY(), request.getWidth(), request.getHeight());
+		}
 		File fileOutput = qupath.getDialogHelper().promptToSaveFile("Export image region", null, defaultName, writerName, ext);
 		if (fileOutput == null)
 			return;
 		
 		try {
-			writer.writeImage(server, request, fileOutput.getAbsolutePath());
+			if (request == null) {
+				if (exportDownsample.get() == 1.0)
+					writer.writeImage(server, fileOutput.getAbsolutePath());
+				else
+					writer.writeImage(ImageServers.pyramidalize(server, exportDownsample.get()), fileOutput.getAbsolutePath());
+			} else
+				writer.writeImage(server, request, fileOutput.getAbsolutePath());
 			lastWriter = writer;
 		} catch (IOException e) {
-			DisplayHelpers.showErrorMessage("Export region", e);
+			Dialogs.showErrorMessage("Export region", e);
 		}
 	}
 	

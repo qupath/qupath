@@ -25,6 +25,7 @@ package qupath.lib.gui.scripting.richtextfx;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
@@ -62,6 +63,7 @@ import qupath.lib.common.ThreadTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.scripting.DefaultScriptEditor;
 import qupath.lib.gui.scripting.QPEx;
+import qupath.lib.scripting.QP;
 
 
 
@@ -124,12 +126,27 @@ public class RichScriptEditor extends DefaultScriptEditor {
 		// Remove the methods that come from the Object class...
 		// they tend to be quite confusing
 		for (Method method : Object.class.getMethods()) {
-			METHOD_NAMES.remove(method.getName());
+			if (Modifier.isStatic(method.getModifiers()) && Modifier.isPublic(method.getModifiers()))
+				METHOD_NAMES.remove(method.getName());
 		}
 		
 		for (Field field : QPEx.class.getFields()) {
-			METHOD_NAMES.add(field.getName());
+			if (Modifier.isStatic(field.getModifiers()) && Modifier.isPublic(field.getModifiers()))
+				METHOD_NAMES.add(field.getName());
 		}
+		
+		for (Class<?> cls : QP.getCoreClasses()) {
+			int countStatic = 0;
+			for (Method method : cls.getMethods()) {
+				if (Modifier.isStatic(method.getModifiers()) && Modifier.isPublic(method.getModifiers())) {
+					METHOD_NAMES.add(cls.getSimpleName() + "." + method.getName());
+					countStatic++;
+				}
+			}
+			if (countStatic > 0)
+				METHOD_NAMES.add(cls.getSimpleName() + ".");
+		}
+		
 //		for (Method method : ImageData.class.getMethods()) {
 //			METHOD_NAMES.add(method.getName());
 //		}
@@ -152,7 +169,8 @@ public class RichScriptEditor extends DefaultScriptEditor {
 		METHOD_NAMES.add("println");
 		
 		final String KEYWORD_PATTERN = "\\b(" + String.join("|", KEYWORDS) + ")\\b";
-		final String METHOD_PATTERN = "\\b(" + String.join("|", METHOD_NAMES) + ")\\b";
+//		final String METHOD_PATTERN = "[a-zA-Z]+\\(";
+//		final String METHOD_PATTERN = "\\b(" + String.join("|", METHOD_NAMES) + ")\\b";
 	    final String PAREN_PATTERN = "\\(|\\)";
 	    final String BRACE_PATTERN = "\\{|\\}";
 	    final String BRACKET_PATTERN = "\\[|\\]";
@@ -164,7 +182,7 @@ public class RichScriptEditor extends DefaultScriptEditor {
 	    
 	    PATTERN = Pattern.compile(
 	            "(?<KEYWORD>" + KEYWORD_PATTERN + ")"
-	            + "|(?<METHOD>" + METHOD_PATTERN + ")"
+//	            + "|(?<METHOD>" + METHOD_PATTERN + ")"
 	            + "|(?<PAREN>" + PAREN_PATTERN + ")"
 	            + "|(?<BRACE>" + BRACE_PATTERN + ")"
 	            + "|(?<BRACKET>" + BRACKET_PATTERN + ")"
@@ -200,6 +218,8 @@ public class RichScriptEditor extends DefaultScriptEditor {
 		try {
 			CodeArea codeArea = new CodeArea();
 			codeArea.setParagraphGraphicFactory(LineNumberFactory.get(codeArea));
+			
+			codeArea.setStyle("-fx-background-color: -fx-control-inner-background;");
 			
 			var cleanup = codeArea
 					.multiPlainChanges()
@@ -249,6 +269,7 @@ public class RichScriptEditor extends DefaultScriptEditor {
 		}
 	}
 	
+	private static KeyCodeCombination completionCode = new KeyCodeCombination(KeyCode.SPACE, KeyCombination.CONTROL_DOWN);
 	
 	/**
 	 * Try to match and auto-complete a method name.
@@ -257,7 +278,6 @@ public class RichScriptEditor extends DefaultScriptEditor {
 	 * @param e
 	 */
 	private void matchMethodName(final ScriptEditorControl control, final KeyEvent e) {
-		KeyCodeCombination completionCode = new KeyCodeCombination(KeyCode.SPACE, KeyCombination.CONTROL_DOWN);
 		if (!completionCode.match(e)) {
 			if (!e.isControlDown())
 				completor = null;
@@ -297,7 +317,19 @@ public class RichScriptEditor extends DefaultScriptEditor {
 				start = split[split.length-1].trim();
 //			if (start.length() == 0)
 //				return;
-			completions = METHOD_NAMES.stream().filter(s -> s.startsWith(start)).sorted().collect(Collectors.toList());
+			
+			// Use all available completions if we have a dot included
+			if (text.contains("."))
+				completions = METHOD_NAMES.stream()
+						.filter(s -> s.startsWith(start))
+						.sorted()
+						.collect(Collectors.toList());
+			else
+				// Use only partial completions (methods, classes) if no dot
+				completions = METHOD_NAMES.stream()
+				.filter(s -> s.startsWith(start) && (!s.contains(".") || s.lastIndexOf(".") == s.length()-1))
+				.sorted()
+				.collect(Collectors.toList());				
 		}
 		
 		public void applyNextCompletion() {
@@ -321,6 +353,7 @@ public class RichScriptEditor extends DefaultScriptEditor {
 	protected ScriptEditorControl getNewConsole() {
 		try {
 			CodeArea codeArea = new CodeArea();
+			codeArea.setStyle("-fx-background-color: -fx-control-inner-background;");
 			
 //			var cleanup = codeArea
 //					.multiPlainChanges()
@@ -390,7 +423,7 @@ public class RichScriptEditor extends DefaultScriptEditor {
         while (matcher.find()) {
             String styleClass =
                     matcher.group("KEYWORD") != null ? "keyword" :
-                    matcher.group("METHOD") != null ? "method" :
+//                    matcher.group("METHOD") != null ? "method" :
                     matcher.group("PAREN") != null ? "paren" :
                     matcher.group("BRACE") != null ? "brace" :
                     matcher.group("BRACKET") != null ? "bracket" :

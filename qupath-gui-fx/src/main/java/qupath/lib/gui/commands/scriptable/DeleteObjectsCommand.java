@@ -29,7 +29,7 @@ import org.slf4j.LoggerFactory;
 
 import qupath.lib.gui.ImageDataWrapper;
 import qupath.lib.gui.commands.interfaces.PathCommand;
-import qupath.lib.gui.helpers.DisplayHelpers;
+import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathDetectionObject;
@@ -69,7 +69,7 @@ public class DeleteObjectsCommand implements PathCommand {
 			int n = hierarchy.nObjects();
 			if (n == 0)
 				return;
-			if (DisplayHelpers.showYesNoDialog("Delete objects", "Delete " + n + " objects?")) {
+			if (Dialogs.showYesNoDialog("Delete objects", "Delete " + n + " objects?")) {
 				hierarchy.clearAll();
 				hierarchy.getSelectionModel().setSelectedObject(null);
 				imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep("Clear all objects", "clearAllObjects();"));
@@ -80,7 +80,7 @@ public class DeleteObjectsCommand implements PathCommand {
 		// Handle clearing TMA grid
 		if (TMACoreObject.class.equals(cls)) {
 			if (hierarchy.getTMAGrid() != null) {
-				if (DisplayHelpers.showYesNoDialog("Delete objects", "Clear TMA grid?")) {
+				if (Dialogs.showYesNoDialog("Delete objects", "Clear TMA grid?")) {
 					hierarchy.clearAll();
 					
 					PathObject selected = hierarchy.getSelectionModel().getSelectedObject();
@@ -100,7 +100,7 @@ public class DeleteObjectsCommand implements PathCommand {
 			return;
 		int n = pathObjects.size();
 		String message = n == 1 ? "Delete 1 object?" : "Delete " + n + " objects?";
-		if (DisplayHelpers.showYesNoDialog("Delete objects", message)) {
+		if (Dialogs.showYesNoDialog("Delete objects", message)) {
 			hierarchy.removeObjects(pathObjects, true);
 			
 			PathObject selected = hierarchy.getSelectionModel().getSelectedObject();

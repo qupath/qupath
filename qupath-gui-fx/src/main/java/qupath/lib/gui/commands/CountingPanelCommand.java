@@ -49,10 +49,11 @@ import javafx.stage.Stage;
 import qupath.lib.gui.ImageDataChangeListener;
 import qupath.lib.gui.ImageDataWrapper;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.QuPathGUI.DefaultMode;
 import qupath.lib.gui.QuPathGUI.GUIActions;
-import qupath.lib.gui.QuPathGUI.Modes;
+import qupath.lib.gui.QuPathGUI.Mode;
 import qupath.lib.gui.commands.interfaces.PathCommand;
-import qupath.lib.gui.helpers.DisplayHelpers;
+import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.panels.CountingPanel;
 import qupath.lib.gui.panels.PathAnnotationPanel;
 import qupath.lib.gui.prefs.PathPrefs;
@@ -60,7 +61,7 @@ import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ServerTools;
 import qupath.lib.io.PointIO;
 import qupath.lib.objects.PathObject;
-import qupath.lib.objects.helpers.PathObjectTools;
+import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 
 /**
@@ -145,7 +146,7 @@ public class CountingPanelCommand implements PathCommand, ImageDataChangeListene
 							hierarchy.addPathObject(points);
 					}
 				} catch (IOException e) {
-					DisplayHelpers.showErrorMessage("Load points error", e);
+					Dialogs.showErrorMessage("Load points error", e);
 				}
 			}
 		);
@@ -155,7 +156,7 @@ public class CountingPanelCommand implements PathCommand, ImageDataChangeListene
 					return;
 				List<PathObject> pointsList = countingPanel.getPathObjects();
 				if (pointsList.isEmpty()) {
-					DisplayHelpers.showErrorMessage("Save points", "No points available!");
+					Dialogs.showErrorMessage("Save points", "No points available!");
 					return;
 				}
 				String defaultName = null;
@@ -170,7 +171,7 @@ public class CountingPanelCommand implements PathCommand, ImageDataChangeListene
 				try {
 					PointIO.writePointsObjectsList(file, pointsList, PathPrefs.getColorDefaultAnnotations());
 				} catch (IOException e) {
-					DisplayHelpers.showErrorMessage("Save points error", e);
+					Dialogs.showErrorMessage("Save points error", e);
 				}
 			}
 		);
@@ -235,8 +236,8 @@ public class CountingPanelCommand implements PathCommand, ImageDataChangeListene
 		}
 		
 		if (dialog != null) {
-			if (qupath.getMode() != Modes.POINTS)
-				qupath.setMode(Modes.POINTS);
+			if (qupath.getMode() != DefaultMode.POINTS)
+				qupath.setMode(DefaultMode.POINTS);
 			attemptToSelectPoints();
 			if (!dialog.isShowing())
 				dialog.show();
@@ -262,15 +263,15 @@ public class CountingPanelCommand implements PathCommand, ImageDataChangeListene
 		pane.setPadding(new Insets(10, 10, 10, 10));
 		Scene scene = new Scene(pane, 300, 450);
 		dialog.setScene(scene);
-		dialog.setOnCloseRequest(e -> qupath.setMode(Modes.MOVE));
+		dialog.setOnCloseRequest(e -> qupath.setMode(DefaultMode.MOVE));
 		
 //		dialog.getDialogPane().setMinSize(220, 350);
 //		dialog.getDialogPane().setPrefSize(300, 450);
 //		dialog.getDialogPane().setMaxSize(400, 800);
 		
 //		dialog.setAlwaysOnTop(true);
-		if (qupath.getMode() != Modes.POINTS)
-			qupath.setMode(Modes.POINTS);
+		if (qupath.getMode() != DefaultMode.POINTS)
+			qupath.setMode(DefaultMode.POINTS);
 		attemptToSelectPoints();
 		
 		dialog.initModality(Modality.NONE);

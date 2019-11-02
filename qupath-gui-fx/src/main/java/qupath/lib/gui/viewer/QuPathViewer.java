@@ -101,15 +101,16 @@ import qupath.lib.color.ColorToolsAwt;
 import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.display.ImageDisplay;
-import qupath.lib.gui.QuPathGUI.Modes;
-import qupath.lib.gui.helpers.ColorToolsFX;
-import qupath.lib.gui.helpers.DisplayHelpers;
+import qupath.lib.gui.QuPathGUI.DefaultMode;
+import qupath.lib.gui.QuPathGUI.Mode;
 import qupath.lib.gui.images.servers.PathHierarchyImageServer;
 import qupath.lib.gui.images.stores.DefaultImageRegionStore;
 import qupath.lib.gui.images.stores.ImageRegionStoreHelpers;
 import qupath.lib.gui.images.stores.ImageRenderer;
 import qupath.lib.gui.images.stores.TileListener;
 import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.gui.tools.ColorToolsFX;
+import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.viewer.overlays.GridOverlay;
 import qupath.lib.gui.viewer.overlays.HierarchyOverlay;
 import qupath.lib.gui.viewer.overlays.ImageDataOverlay;
@@ -123,8 +124,8 @@ import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.TMACoreObject;
-import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.TMAGrid;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
@@ -135,8 +136,8 @@ import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.RectangleROI;
 import qupath.lib.roi.RoiEditor;
+import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.interfaces.ROI;
-import qupath.lib.roi.interfaces.PathShape;
 
 
 /**
@@ -237,7 +238,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 
 	private RoiEditor roiEditor = RoiEditor.createInstance();
 
-	private Modes mode = Modes.MOVE;
+	private ObjectProperty<Mode> mode = new SimpleObjectProperty<>(DefaultMode.MOVE);
 	private ImageDisplay imageDisplay;
 	transient private long lastDisplayChangeTimestamp = 0; // Used to indicate imageDisplay changes
 
@@ -510,13 +511,13 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	/**
 	 * Default map without tools - need to call registerTools to change this
 	 */
-	private Map<Modes, PathTool> tools = Collections.emptyMap();
+	private Map<Mode, PathTool> tools = Collections.emptyMap();
 	
 	private PathTool activeTool = null;
 
 
 	public double getMinDownsample() {
-		return 0.0625;
+		return 1.0/64.0;
 	}
 
 	public double getMaxDownsample() {
@@ -565,7 +566,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	}
 
 
-	public void registerTools(Map<Modes, PathTool> tools) {
+	public void registerTools(Map<Mode, PathTool> tools) {
 		this.tools = tools;
 	}
 
@@ -975,15 +976,15 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 			// Temporarily switch to 'move' tool
 			if (activeTool != null)
 				activeTool.deregisterTool(this);
-			activeTool = tools.get(Modes.MOVE);
+			activeTool = tools.get(DefaultMode.MOVE);
 			if (activeTool != null)
 				activeTool.registerTool(this);
 		} else {
 			// Reset tool, as required
-			if (activeTool != tools.get(mode)) {
+			if (activeTool != tools.get(getMode())) {
 				if (activeTool != null)
 					activeTool.deregisterTool(this);
-				activeTool = tools.get(mode);
+				activeTool = tools.get(getMode());
 				if (activeTool != null)
 					activeTool.registerTool(this);
 			}
@@ -1094,14 +1095,14 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	//	}
 
 
-	public void setMode(Modes mode) {
+	public void setMode(Mode mode) {
 		logger.trace("Setting mode {} for {}", mode, this);
 		if (mode == null && activeTool != null) {
 			activeTool.deregisterTool(this);				
 			activeTool = null;
 			updateCursor();
 		}
-		this.mode = mode;
+		this.mode.set(mode);
 		PathTool tool = tools.get(mode);
 		if (activeTool == tool || tool == null)
 			return;
@@ -1116,8 +1117,8 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	
 	protected void updateCursor() {
 //		logger.debug("Requested cursor {} for {}", requestedCursor, getMode());
-		Modes mode = getMode();
-		if (mode == Modes.MOVE)
+		Mode mode = getMode();
+		if (mode == DefaultMode.MOVE)
 			getView().setCursor(Cursor.HAND);
 		else
 			getView().setCursor(requestedCursor);
@@ -1148,13 +1149,17 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 //		getCanvas().setFocusTraversable(focusable);
 	}
 
-	public Modes getMode() {
+	public Mode getMode() {
 		// Always navigate when the spacebar is down
 		if (spaceDown)
-			return Modes.MOVE;
-		return mode;
+			return DefaultMode.MOVE;
+		return mode.get();
 	}
-
+	
+	public void setLockMode(boolean doLock) {
+		this.setLockMode(doLock);
+	}
+	
 	/**
 	 * Get the currently-selected object from the hierarchy.
 	 * @return
@@ -2292,6 +2297,8 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 			pointDest.setLocation(x, y);
 		// Transform the point (in-place)
 		transformInverse.transform(pointDest, pointDest);
+//		pointDest.setLocation(Math.floor(pointDest.getX()), Math.floor(pointDest.getY()));
+//		pointDest.setLocation(Math.round(pointDest.getX()), Math.round(pointDest.getY()));
 		// Constrain, if necessary
 		ImageServer<BufferedImage> server = getServer();
 		if (constrainToBounds && server != null) {
@@ -2660,7 +2667,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	public void selectedPathObjectChanged(PathObject pathObjectSelected, PathObject previousObject, Collection<PathObject> allSelected) {
 
 		// We only want to shift the object ROI to the center under certain conditions, otherwise the screen jerks annoyingly
-		if (!settingSelectedObject && !getZoomToFit() && pathObjectSelected != null && pathObjectSelected.getROI() instanceof PathShape) {
+		if (!settingSelectedObject && !getZoomToFit() && pathObjectSelected != null && RoiTools.isShapeROI(pathObjectSelected.getROI())) {
 
 			// We want to center a TMA core if more than half of it is outside the window
 			boolean centerCore = false;
@@ -2793,9 +2800,9 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 				}
 				if (getImageData() != null) {
 					if (getHierarchy().getSelectionModel().singleSelection()) {
-						DisplayHelpers.promptToRemoveSelectedObject(getHierarchy().getSelectionModel().getSelectedObject(), getHierarchy());
+						GuiTools.promptToRemoveSelectedObject(getHierarchy().getSelectionModel().getSelectedObject(), getHierarchy());
 					} else {
-						DisplayHelpers.promptToClearAllSelectedObjects(getImageData());
+						GuiTools.promptToClearAllSelectedObjects(getImageData());
 					}
 //					setSelectedObject(null);
 				}

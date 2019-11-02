@@ -8,7 +8,7 @@ import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.Pane;
-import qupath.lib.gui.helpers.DisplayHelpers;
+import qupath.lib.gui.dialogs.Dialogs;
 import qupath.opencv.ml.OpenCVClassifiers.OpenCVStatModel;
 
 @Deprecated
@@ -70,7 +70,7 @@ public class OpenCVClassifierSelectorPane {
 		var model = getSelectedModel();
 		var params = model.getParameterList();
 		// TODO: Export not changing model if user presses cancel
-		return DisplayHelpers.showParameterDialog(model.getName(), params);
+		return Dialogs.showParameterDialog(model.getName(), params);
 	}
 	
 

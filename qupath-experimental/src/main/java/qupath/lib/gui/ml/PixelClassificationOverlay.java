@@ -402,7 +402,7 @@ public class PixelClassificationOverlay extends AbstractImageDataOverlay  {
 
     void requestTile(TileRequest tile, ImageServer<BufferedImage> classifierServer) {
         // Make the request, if it isn't already pending
-        if (pendingRequests.add(tile)) {
+        if (!pool.isShutdown() && pendingRequests.add(tile)) {
             pool.submit(() -> {
             	if (pool.isShutdown())
             		return;
@@ -427,7 +427,8 @@ public class PixelClassificationOverlay extends AbstractImageDataOverlay  {
 		                }
                     }
                 } catch (Exception e) {
-                   logger.error("Error requesting tile classification", e);
+                   logger.error("Error requesting tile classification: {}", e.getLocalizedMessage());
+                   logger.debug("", e);
                 } finally {
                     pendingRequests.remove(tile);
                 }

@@ -228,7 +228,7 @@ class DefaultVertices implements Vertices {
 	public Vertices duplicate() {
 		DefaultVertices v = new DefaultVertices(x.length);
 		v.x = Arrays.copyOf(x, x.length);
-		v.y = Arrays.copyOf(y, x.length);
+		v.y = Arrays.copyOf(y, y.length);
 		v.size = size;
 		return v;
 	}

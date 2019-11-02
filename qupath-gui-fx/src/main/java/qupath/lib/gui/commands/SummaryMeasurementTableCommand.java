@@ -84,12 +84,12 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.QuPathGUI.GUIActions;
 import qupath.lib.gui.commands.interfaces.PathCommand;
-import qupath.lib.gui.helpers.PaneToolsFX;
-import qupath.lib.gui.helpers.PaintingToolsFX;
 import qupath.lib.gui.models.HistogramDisplay;
 import qupath.lib.gui.models.ObservableMeasurementTableData;
 import qupath.lib.gui.models.PathTableData;
 import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.gui.tools.GuiTools;
+import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.QuPathViewerListener;
 import qupath.lib.images.ImageData;
@@ -98,9 +98,9 @@ import qupath.lib.images.servers.ServerTools;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.classes.PathClass;
-import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
@@ -395,7 +395,7 @@ public class SummaryMeasurementTableCommand implements PathCommand {
 		//		pane.setCenter(table);
 		splitPane.getItems().add(paneTable);
 		pane.setCenter(splitPane);
-		GridPane panelButtons = PaneToolsFX.createColumnGridControls(buttons.toArray(new ButtonBase[0]));
+		GridPane panelButtons = PaneTools.createColumnGridControls(buttons.toArray(new ButtonBase[0]));
 		pane.setBottom(panelButtons);
 
 		
@@ -557,7 +557,7 @@ public class SummaryMeasurementTableCommand implements PathCommand {
 				
 				Image image = cache.get(roi);
 				if (image != null) {
-					PaintingToolsFX.paintImage(canvas, image);
+					GuiTools.paintImage(canvas, image);
 					return;
 				}
 				qupath.submitShortTask(() -> {

@@ -61,11 +61,11 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.ImageDataChangeListener;
 import qupath.lib.gui.ImageDataWrapper;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.helpers.DisplayHelpers;
-import qupath.lib.gui.helpers.PaneToolsFX;
+import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.plugins.ParameterDialogWrapper;
 import qupath.lib.gui.plugins.PluginRunnerFX;
 import qupath.lib.gui.scripting.ScriptEditor;
+import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.plugins.PathInteractivePlugin;
 import qupath.lib.plugins.PathPlugin;
@@ -169,7 +169,7 @@ public class WorkflowCommandLogView implements ImageDataChangeListener<BufferedI
 				if (steps.isEmpty())
 					return;
 				String message = steps.size() == 1 ? "Remove workflow step?" : "Remove " + steps.size() + " workflow steps?";
-				if (!DisplayHelpers.showYesNoDialog("Remove workflow steps", message))
+				if (!Dialogs.showYesNoDialog("Remove workflow steps", message))
 					return;
 				steps = new ArrayList<>(steps);
 				Collections.sort(steps);
@@ -292,7 +292,7 @@ public class WorkflowCommandLogView implements ImageDataChangeListener<BufferedI
 				stage.setScene(new Scene(new WorkflowCommandLogView(qupath, workflowNew).getPane(), 400, 600));
 				stage.show();
 			});
-			pane.setBottom(PaneToolsFX.createColumnGridControls(btnCreateWorkflow, btnCreateScript));
+			pane.setBottom(PaneTools.createColumnGridControls(btnCreateWorkflow, btnCreateScript));
 		} else
 			pane.setBottom(btnCreateScript);
 		
@@ -316,7 +316,7 @@ public class WorkflowCommandLogView implements ImageDataChangeListener<BufferedI
 	private static void runWorkflowStepInteractively(final QuPathGUI qupath, final WorkflowStep step) {
 		ImageData<BufferedImage> imageData = qupath.getImageData();
 		if (imageData == null) {
-			DisplayHelpers.showErrorMessage("Run workflow step", "No image selected!");
+			Dialogs.showErrorMessage("Run workflow step", "No image selected!");
 			return;
 		}
 		if (step instanceof SimplePluginWorkflowStep) {
@@ -355,7 +355,7 @@ public class WorkflowCommandLogView implements ImageDataChangeListener<BufferedI
 					else
 						plugin.runPlugin(new PluginRunnerFX(qupath), arg);
 				} catch (ClassNotFoundException e1) {
-					DisplayHelpers.showErrorNotification("Plugin class not found", "No plugin class found with name " + pluginClassName);
+					Dialogs.showErrorNotification("Plugin class not found", "No plugin class found with name " + pluginClassName);
 				}
 			}
 		} else if (step instanceof ScriptableWorkflowStep) {

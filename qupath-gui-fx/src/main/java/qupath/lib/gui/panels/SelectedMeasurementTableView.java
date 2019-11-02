@@ -35,6 +35,7 @@ import org.slf4j.LoggerFactory;
 
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.value.ObservableValue;
+import javafx.collections.FXCollections;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TableColumn.CellDataFeatures;
@@ -64,7 +65,7 @@ public class SelectedMeasurementTableView implements PathObjectSelectionListener
 	
 	private ImageData<?> imageData;
 	
-	private TableView<?> tableMeasurements;
+	private TableView<String> tableMeasurements;
 	
 	private ObservableMeasurementTableData tableModel = new ObservableMeasurementTableData();
 	
@@ -76,7 +77,8 @@ public class SelectedMeasurementTableView implements PathObjectSelectionListener
 	
 	@SuppressWarnings("unchecked")
 	private TableView<String> createMeasurementTable() {
-		TableView<String> tableMeasurements = new TableView<>(tableModel.getAllNames());
+		TableView<String> tableMeasurements = new TableView<>();
+		tableMeasurements.getItems().setAll(tableModel.getAllNames());
 		
 		TableColumn<String, String> col1 = new TableColumn<>("Key");
 		col1.setCellValueFactory(new Callback<CellDataFeatures<String, String>, ObservableValue<String>>() {
@@ -123,7 +125,7 @@ public class SelectedMeasurementTableView implements PathObjectSelectionListener
 		return tableModel.getStringValue(selected, name, nDecimalPlaces);
 	}
 	
-	public TableView<?> getTable() {
+	public TableView<String> getTable() {
 		if (tableMeasurements == null)
 			tableMeasurements = createMeasurementTable();
 		return tableMeasurements;
@@ -131,7 +133,10 @@ public class SelectedMeasurementTableView implements PathObjectSelectionListener
 	
 	private void updateTableModel() {
 		tableModel.setImageData(this.imageData, getSelectedObjectList());
-		tableMeasurements.refresh();
+		tableMeasurements.getItems().setAll(tableModel.getAllNames());
+		
+//		tableMeasurements.refresh();
+		
 //		// Check if objects are outside hierarchy
 //		if (imageData != null) {
 //			for (PathObject pathObject : getSelectedObjectList()) {

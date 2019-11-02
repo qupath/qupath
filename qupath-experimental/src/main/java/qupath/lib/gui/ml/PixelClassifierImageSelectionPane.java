@@ -17,7 +17,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+
 import org.bytedeco.javacpp.indexer.FloatIndexer;
+import org.bytedeco.openblas.global.openblas;
 import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.opencv_core.Mat;
 import org.bytedeco.opencv.opencv_ml.ANN_MLP;
@@ -52,6 +56,7 @@ import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
 import javafx.scene.control.OverrunStyle;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Slider;
 import javafx.scene.control.Spinner;
 import javafx.scene.control.ToggleButton;
@@ -59,7 +64,6 @@ import javafx.scene.control.Tooltip;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
-import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
@@ -76,11 +80,12 @@ import qupath.lib.display.ChannelDisplayInfo;
 import qupath.lib.display.ImageDisplay;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.MiniViewerCommand;
-import qupath.lib.gui.helpers.DisplayHelpers;
-import qupath.lib.gui.helpers.PaneToolsFX;
-import qupath.lib.gui.helpers.DisplayHelpers.DialogButton;
+import qupath.lib.gui.dialogs.Dialogs;
+import qupath.lib.gui.dialogs.Dialogs.DialogButton;
 import qupath.lib.gui.images.stores.AbstractImageRenderer;
 import qupath.lib.gui.images.stores.DefaultImageRegionStore;
+import qupath.lib.gui.tools.GuiTools;
+import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageChannel;
@@ -94,7 +99,6 @@ import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.classes.PathClassFactory.StandardPathClasses;
-import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
 import qupath.lib.plugins.parameters.ParameterList;
@@ -104,6 +108,7 @@ import qupath.lib.roi.RectangleROI;
 import qupath.lib.roi.interfaces.ROI;
 import qupath.opencv.ml.OpenCVClassifiers;
 import qupath.opencv.ml.OpenCVClassifiers.OpenCVStatModel;
+import qupath.opencv.ml.OpenCVClassifiers.RTreesClassifier;
 import qupath.opencv.ml.pixel.FeatureImageServer;
 import qupath.opencv.ml.pixel.OpenCVPixelClassifiers;
 import qupath.opencv.ml.pixel.PixelClassifierHelper;
@@ -200,6 +205,10 @@ public class PixelClassifierImageSelectionPane {
 		
 		// Classifier
 		pane = new GridPane();
+		
+		// TODO: Check if openblas multithreading continues to have trouble with Mac/Linux
+		if (!GeneralTools.isWindows())
+			openblas.blas_set_num_threads(1);
 
 		var labelClassifier = new Label("Classifier");
 		var comboClassifier = new ComboBox<OpenCVStatModel>();
@@ -211,7 +220,7 @@ public class PixelClassifierImageSelectionPane {
 		btnEditClassifier.setOnAction(e -> editClassifierParameters());
 		btnEditClassifier.disableProperty().bind(selectedClassifier.isNull());
 		
-		PaneToolsFX.addGridRow(pane, row++, 0, 
+		PaneTools.addGridRow(pane, row++, 0, 
 				"Choose classifier type (RTrees or ANN_MLP are generally good choices)",
 				labelClassifier, comboClassifier, comboClassifier, btnEditClassifier);
 		
@@ -227,7 +236,7 @@ public class PixelClassifierImageSelectionPane {
 		btnResolution.setOnAction(e -> addResolution());
 		selectedResolution = comboResolutions.getSelectionModel().selectedItemProperty();
 		
-		PaneToolsFX.addGridRow(pane, row++, 0, 
+		PaneTools.addGridRow(pane, row++, 0, 
 				"Choose the base image resolution based upon required detail in the classification (see preview on the right)",
 				labelResolution, comboResolutions, comboResolutions, btnResolution);
 		
@@ -261,7 +270,7 @@ public class PixelClassifierImageSelectionPane {
 		comboFeatures.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> updateFeatureCalculator());
 //		btnCustomizeFeatures.setOnAction(e -> showFeatures());
 		
-		PaneToolsFX.addGridRow(pane, row++, 0, 
+		PaneTools.addGridRow(pane, row++, 0, 
 				"Select features for the classifier",
 				labelFeatures, comboFeatures, btnCustomizeFeatures, btnShowFeatures);
 
@@ -278,7 +287,7 @@ public class PixelClassifierImageSelectionPane {
 		var btnShowOutput = new Button("Show");
 		btnShowOutput.setOnAction(e -> showOutput());
 		
-		PaneToolsFX.addGridRow(pane, row++, 0, 
+		PaneTools.addGridRow(pane, row++, 0, 
 				"Choose whether to output classifications only, or estimated probabilities per class (not all classifiers support probabilities, which also require more memory)",
 				labelOutput, comboOutput, comboOutput, btnShowOutput);
 		
@@ -294,7 +303,7 @@ public class PixelClassifierImageSelectionPane {
 		});
 		comboRegion.getSelectionModel().clearAndSelect(0);
 		
-		PaneToolsFX.addGridRow(pane, row++, 0, 
+		PaneTools.addGridRow(pane, row++, 0, 
 				"Choose whether to apply the classifier to the whole image, or only regions containing annotations",
 				labelRegion, comboRegion, comboRegion, comboRegion);
 
@@ -323,7 +332,7 @@ public class PixelClassifierImageSelectionPane {
 				featureOverlay.setLivePrediction(n);
 		});
 				
-		var panePredict = PaneToolsFX.createColumnGridControls(btnAdvancedOptions, btnLive);
+		var panePredict = PaneTools.createColumnGridControls(btnAdvancedOptions, btnLive);
 		pane.add(panePredict, 0, row++, pane.getColumnCount(), 1);
 		
 //		addGridRow(pane, row++, 0, btnPredict, btnPredict, btnPredict);
@@ -348,7 +357,7 @@ public class PixelClassifierImageSelectionPane {
 		GridPane.setVgrow(chart, Priority.ALWAYS);
 		Tooltip.install(chart, new Tooltip("View training classes by proportion"));
 		
-		PaneToolsFX.addGridRow(pane, row++, 0, 
+		PaneTools.addGridRow(pane, row++, 0, 
 				null,
 //				"View information about the current classifier training",
 				chart, chart, chart);
@@ -360,7 +369,7 @@ public class PixelClassifierImageSelectionPane {
 		labelCursor.setMaxWidth(Double.MAX_VALUE);
 		labelCursor.setAlignment(Pos.CENTER);
 		
-		PaneToolsFX.addGridRow(pane, row++, 0, 
+		PaneTools.addGridRow(pane, row++, 0, 
 				"Prediction for current cursor location",
 				labelCursor, labelCursor, labelCursor);
 		
@@ -384,8 +393,8 @@ public class PixelClassifierImageSelectionPane {
 //		comboResolution.setMaxWidth(Double.MAX_VALUE);
 //		labelFeaturesSummary.setMaxWidth(Double.MAX_VALUE);
 		
-		PaneToolsFX.setHGrowPriority(Priority.ALWAYS, comboResolutions, comboClassifier, comboFeatures);
-		PaneToolsFX.setFillWidth(Boolean.TRUE, comboResolutions, comboClassifier, comboFeatures);
+		PaneTools.setHGrowPriority(Priority.ALWAYS, comboResolutions, comboClassifier, comboFeatures);
+		PaneTools.setFillWidth(Boolean.TRUE, comboResolutions, comboClassifier, comboFeatures);
 		
 		
 		
@@ -429,11 +438,11 @@ public class PixelClassifierImageSelectionPane {
 		btnClassifyObjects.disableProperty().bind(classificationComplete);
 		btnClassifyObjects.setOnAction(e -> classifyObjects());
 		
-		var panePostProcess = PaneToolsFX.createColumnGridControls(btnCreateObjects, btnClassifyObjects);
+		var panePostProcess = PaneTools.createColumnGridControls(btnCreateObjects, btnClassifyObjects);
 				
 		pane.add(panePostProcess, 0, row++, pane.getColumnCount(), 1);
 
-		PaneToolsFX.setMaxWidth(Double.MAX_VALUE, pane.getChildren().stream().filter(p -> p instanceof Region).toArray(Region[]::new));
+		PaneTools.setMaxWidth(Double.MAX_VALUE, pane.getChildren().stream().filter(p -> p instanceof Region).toArray(Region[]::new));
 		
 		var viewerBorderPane = new BorderPane(viewerPane);
 		
@@ -469,9 +478,9 @@ public class PixelClassifierImageSelectionPane {
 		spinFeatureMax.setTooltip(new Tooltip("Max display value for feature overlay"));
 		sliderFeatureOpacity.setTooltip(new Tooltip("Adjust classification/feature overlay opacity"));
 		
-		PaneToolsFX.addGridRow(paneFeatures, 0, 0, null,
+		PaneTools.addGridRow(paneFeatures, 0, 0, null,
 				comboDisplayFeatures, comboDisplayFeatures, comboDisplayFeatures, comboDisplayFeatures);
-		PaneToolsFX.addGridRow(paneFeatures, 1, 0, null,
+		PaneTools.addGridRow(paneFeatures, 1, 0, null,
 				sliderFeatureOpacity, spinFeatureMin, spinFeatureMax, btnFeatureAuto);
 //		paneFeatures.add(btnFeatureAuto, 3, 0, 1, 2);
 		
@@ -502,9 +511,9 @@ public class PixelClassifierImageSelectionPane {
 		comboDisplayFeatures.setCellFactory(factory);
 		comboDisplayFeatures.setButtonCell(factory.call(null));
 		
-		PaneToolsFX.setMaxWidth(Double.MAX_VALUE, comboDisplayFeatures, sliderFeatureOpacity);
-		PaneToolsFX.setFillWidth(Boolean.TRUE, comboDisplayFeatures, sliderFeatureOpacity);
-		PaneToolsFX.setHGrowPriority(Priority.ALWAYS, comboDisplayFeatures, sliderFeatureOpacity);
+		PaneTools.setMaxWidth(Double.MAX_VALUE, comboDisplayFeatures, sliderFeatureOpacity);
+		PaneTools.setFillWidth(Boolean.TRUE, comboDisplayFeatures, sliderFeatureOpacity);
+		PaneTools.setHGrowPriority(Priority.ALWAYS, comboDisplayFeatures, sliderFeatureOpacity);
 		paneFeatures.setHgap(5);
 		paneFeatures.setVgap(5);
 		paneFeatures.setPadding(new Insets(5));
@@ -515,7 +524,7 @@ public class PixelClassifierImageSelectionPane {
 		var splitPane = new BorderPane(viewerBorderPane);
 		splitPane.setLeft(pane);
 		pane.setPrefWidth(400);
-		pane.setMinHeight(GridPane.USE_PREF_SIZE);
+//		pane.setMinHeight(GridPane.USE_COMPUTED_SIZE);
 //		viewerBorderPane.setMinWidth(0);
 //		viewerPane.setPrefSize(400, 400);
 //		splitPane.setDividerPositions(0.5);
@@ -523,12 +532,18 @@ public class PixelClassifierImageSelectionPane {
 //		SplitPane.setResizableWithParent(pane, Boolean.FALSE);
 //		SplitPane.setResizableWithParent(viewerBorderPane, Boolean.FALSE);
 		
-		var fullPane = new StackPane(splitPane);
+		var fullPane = splitPane;//new StackPane(splitPane);
+//		var fullPane = new ScrollPane(splitPane);
+//		fullPane.setFitToWidth(true);
+//		fullPane.setFitToHeight(true);
 		
 		pane.setPadding(new Insets(5));
 		
 		stage = new Stage();
 		stage.setScene(new Scene(fullPane));
+		
+		stage.setMinHeight(400);
+		stage.setMinWidth(500);
 
 		stage.initOwner(QuPathGUI.getInstance().getStage());
 		
@@ -544,9 +559,9 @@ public class PixelClassifierImageSelectionPane {
 //			if (c instanceof Control)
 //				((Control)c).setMinSize(Control.USE_PREF_SIZE, Control.USE_PREF_SIZE);
 //		});
-		PaneToolsFX.setMinWidth(
+		PaneTools.setMinWidth(
 				Region.USE_PREF_SIZE,
-				PaneToolsFX.getContentsOfType(stage.getScene().getRoot(), Region.class, true).toArray(Region[]::new));
+				PaneTools.getContentsOfType(stage.getScene().getRoot(), Region.class, true).toArray(Region[]::new));
 		
 		stage.show();
 		stage.setOnCloseRequest(e -> destroy());
@@ -855,7 +870,7 @@ public class PixelClassifierImageSelectionPane {
 				.addDoubleParameter("boundaryThickness", "Boundary thickness", existingStrategy.getBoundaryThickness(), "pixels",
 						"Set the boundary thickness whenever annotation boundaries are trained separately");
 		
-		if (!DisplayHelpers.showParameterDialog("Advanced options", params))
+		if (!Dialogs.showParameterDialog("Advanced options", params))
 			return false;
 		
 		reweightSamples = params.getBooleanParameterValue("reweightSamples");
@@ -889,13 +904,13 @@ public class PixelClassifierImageSelectionPane {
 //			}
 //		}
 		if (helper.getFeatureServer() == null) {
-			DisplayHelpers.showErrorNotification("Pixel classifier", "No feature calculator available!");
+			Dialogs.showErrorNotification("Pixel classifier", "No feature calculator available!");
 			return;			
 		}
 		
 		var model = selectedClassifier.get();
 		if (model == null) {
-			DisplayHelpers.showErrorNotification("Pixel classifier", "No classifier selected!");
+			Dialogs.showErrorNotification("Pixel classifier", "No classifier selected!");
 			return;
 		}
 
@@ -984,6 +999,13 @@ public class PixelClassifierImageSelectionPane {
 		 }
 		 logger.info("Current accuracy on the {}: {} %", testSet, GeneralTools.formatNumber(nCorrect*100.0/n, 1));
 
+		 if (model instanceof RTreesClassifier) {
+			 var trees = (RTreesClassifier)model;
+			 if (trees.hasFeatureImportance())
+				 logVariableImportance(trees,
+						 helper.getFeatureServer().getMetadata().getChannels().stream()
+						 .map(c -> c.getName()).collect(Collectors.toList()));
+		 }
 		 
 		 trainData.close();
 
@@ -1002,6 +1024,33 @@ public class PixelClassifierImageSelectionPane {
 
 		 var overlay = PixelClassificationOverlay.createPixelClassificationOverlay(viewer, classifier);
 		 replaceOverlay(overlay);
+	}
+	
+	
+	static boolean logVariableImportance(final RTreesClassifier trees, final List<String> features) {
+		var importance = trees.getFeatureImportance();
+		if (importance == null)
+			return false;
+		try {
+			var sorted = IntStream.range(0, importance.length)
+					.boxed()
+					.sorted((a, b) -> -Double.compare(importance[a], importance[b]))
+					.mapToInt(i -> i).toArray();
+			
+			if (sorted.length != features.size())
+				return false;
+			
+			var sb = new StringBuilder("Variable importance:");
+			for (int ind : sorted) {
+				sb.append("\n");
+				sb.append(String.format("%.4f \t %s", importance[ind], features.get(ind)));
+			}
+			logger.info(sb.toString());
+			return true;
+		} catch (Exception e) {
+			logger.debug("Error logging feature importance: {}", e.getLocalizedMessage());
+			return false;
+		}
 	}
 	
 	private PixelClassificationOverlay overlay;
@@ -1068,13 +1117,13 @@ public class PixelClassifierImageSelectionPane {
 		if (overlay != null)
 			server = getClassificationServerOrShowError();
 		if (server == null) {
-			DisplayHelpers.showErrorMessage("Pixel classifier", "Nothing to save - please train a classifier first!");
+			Dialogs.showErrorMessage("Pixel classifier", "Nothing to save - please train a classifier first!");
 			return false;
 		}
 		
 		var project = QuPathGUI.getInstance().getProject();
 		if (project == null) {
-			DisplayHelpers.showErrorMessage("Pixel classifier", "Saving pixel classification requires a project!");
+			Dialogs.showErrorMessage("Pixel classifier", "Saving pixel classification requires a project!");
 			return false;
 		}
 			
@@ -1089,7 +1138,7 @@ public class PixelClassifierImageSelectionPane {
 //				return true;
 //			}
 		} catch (Exception e) {
-			DisplayHelpers.showErrorMessage("Pixel classifier", e);
+			Dialogs.showErrorMessage("Pixel classifier", e);
 		}
 		return false;
 	}
@@ -1122,11 +1171,11 @@ public class PixelClassifierImageSelectionPane {
 	}
 	
 	
-	private static String promptToSaveClassifier(Project<BufferedImage> project, PixelClassifier classifier) throws IOException {
+	public static String promptToSaveClassifier(Project<BufferedImage> project, PixelClassifier classifier) throws IOException {
 		
 		String name = getDefaultClassifierName(project, classifier);
 		
-		String classifierName = DisplayHelpers.promptForFilename("Save model", "Model name", name);
+		String classifierName = GuiTools.promptForFilename("Save model", "Model name", name);
 		if (classifierName == null)
 			return null;
 		
@@ -1208,7 +1257,7 @@ public class PixelClassifierImageSelectionPane {
 			try {
 				saveClassifier(project, classifier, classifierName);
 			} catch (IOException e) {
-				DisplayHelpers.showWarningNotification("Pixel classifier", "Unable to write classifier to JSON - classifier can't be reloaded later");
+				Dialogs.showWarningNotification("Pixel classifier", "Unable to write classifier to JSON - classifier can't be reloaded later");
 				logger.error("Error saving classifier", e);
 				throw e;
 			}
@@ -1228,7 +1277,7 @@ public class PixelClassifierImageSelectionPane {
 	
 	
 	private static void saveClassifier(Project<BufferedImage> project, PixelClassifier classifier, String classifierName) throws IOException {
-		project.getPixelClassifiers().putResource(classifierName, classifier);
+		project.getPixelClassifiers().put(classifierName, classifier);
 	}
 	
 	private static boolean saveAndApply(Project<BufferedImage> project, ImageData<BufferedImage> imageData, PixelClassifier classifier) throws IOException {
@@ -1245,7 +1294,7 @@ public class PixelClassifierImageSelectionPane {
 			return null;
 		var server = overlay == null ? null : overlay.getPixelClassificationServer();
 		if (server == null || !(server instanceof PixelClassificationImageServer)) {
-			DisplayHelpers.showErrorMessage("Pixel classifier", "No classifier available!");
+			Dialogs.showErrorMessage("Pixel classifier", "No classifier available!");
 			return null;
 		}
 		return (PixelClassificationImageServer)server;
@@ -1272,8 +1321,6 @@ public class PixelClassifierImageSelectionPane {
 		Objects.requireNonNull(imageData);
 		Objects.requireNonNull(server);
 		
-		var hierarchy = imageData.getHierarchy();
-		
 		var objectTypes = Arrays.asList(
 				"Annotation", "Detection"
 		);
@@ -1287,14 +1334,18 @@ public class PixelClassifierImageSelectionPane {
 		
 		var params = new ParameterList()
 				.addChoiceParameter("objectType", "Object type", "Annotation", objectTypes)
-				.addDoubleParameter("minSize", "Minimum object/hole size", 0)
-				.addChoiceParameter("minSizeUnits", "Minimum object/hole size units", "Pixels", sizeUnits)
-				.addBooleanParameter("doSplit", "Split objects", false);
+				.addDoubleParameter("minSize", "Minimum object size", 0, null, "Minimum size of a region to keep (smaller regions will be dropped)")
+				.addDoubleParameter("minHoleSize", "Minimum hole size", 0, null, "Minimum size of a hole to keep (smaller holes will be filled)")
+				.addChoiceParameter("sizeUnits", "Minimum object/hole size units", "Pixels", sizeUnits)
+				.addBooleanParameter("doSplit", "Split objects", true,
+						"Split multi-part regions into separate objects")
+				.addBooleanParameter("clearExisting", "Delete existing objects", false,
+						"Delete any existing objects within the selected object before adding new objects (or entire image if no object is selected)");
 		
 		PixelCalibration cal = server.getPixelCalibration();
-		params.setHiddenParameters(!cal.hasPixelSizeMicrons(), "minSizeUnits");
+		params.setHiddenParameters(!cal.hasPixelSizeMicrons(), "sizeUnits");
 		
-		if (!DisplayHelpers.showParameterDialog("Create objects", params))
+		if (!Dialogs.showParameterDialog("Create objects", params))
 			return false;
 		
 		Function<ROI, PathObject> creator;
@@ -1308,50 +1359,60 @@ public class PixelClassifierImageSelectionPane {
 			};
 		boolean doSplit = params.getBooleanParameterValue("doSplit");
 		double minSizePixels = params.getDoubleParameterValue("minSize");
-		if (cal.hasPixelSizeMicrons() && !params.getChoiceParameterValue("minSizeUnits").equals("Pixels"))
+		double minHoleSizePixels = params.getDoubleParameterValue("minHoleSize");
+		if (cal.hasPixelSizeMicrons() && !params.getChoiceParameterValue("sizeUnits").equals("Pixels")) {
 			minSizePixels /= (cal.getPixelWidthMicrons() * cal.getPixelHeightMicrons());
+			minHoleSizePixels /= (cal.getPixelWidthMicrons() * cal.getPixelHeightMicrons());
+		}
+		boolean clearExisting = params.getBooleanParameterValue("clearExisting");
 		
-		var selected = imageData.getHierarchy().getSelectionModel().getSelectedObject();
-		if (selected != null && selected.isDetection())
-			selected = null;
-		if (selected != null && !selected.getROI().isArea()) {
-			DisplayHelpers.showErrorMessage("Create objects", "You either need an area selection or no selected object");
+		Collection<PathObject> allSelected = imageData.getHierarchy().getSelectionModel().getSelectedObjects();
+		List<PathObject> selected = allSelected.stream().filter(p -> p.hasROI() && p.getROI().isArea() && 
+				(p.isAnnotation() || p.isTMACore())).collect(Collectors.toList());
+		boolean hasSelection = true;
+		if (allSelected.isEmpty()) {
+			hasSelection = false;
+			selected = Collections.singletonList(imageData.getHierarchy().getRootObject());
+		} else if (selected.size() != allSelected.size()) {
+			Dialogs.showErrorMessage("Create objects", "All selected objects should be annotations with area ROIs or TMA cores!");
 			return false;
 		}
-		if (selected != null && selected.getPathClass() != null && selected.getPathClass() != PathClassFactory.getPathClass(StandardPathClasses.REGION)) {
-			var btn = DisplayHelpers.showYesNoCancelDialog("Create objects", "Create objects for selected annotation?\nChoose 'no' to use the entire image.");
+		if (hasSelection && selected.size() == 1 && selected.get(0).getPathClass() != null && selected.get(0).getPathClass() != PathClassFactory.getPathClass(StandardPathClasses.REGION)) {
+			var btn = Dialogs.showYesNoCancelDialog("Create objects", "Create objects for selected annotation(s)?\nChoose 'no' to use the entire image.");
 			if (btn == DialogButton.CANCEL)
 				return false;
 			if (btn == DialogButton.NO)
-				selected = null;
+				selected = Collections.singletonList(imageData.getHierarchy().getRootObject());
 		}
 		
-		int nChildObjects = 0;
-		if (selected == null)
-			nChildObjects = hierarchy.nObjects();
-		else
-			nChildObjects = PathObjectTools.countDescendants(selected);
-		if (nChildObjects > 0) {
-			String message = "Existing child object will be deleted - is that ok?";
-			if (nChildObjects > 1)
-				message = nChildObjects + " existing descendant object will be deleted - is that ok?";
-			if (!DisplayHelpers.showConfirmDialog("Create objects", message))
-				return false;
-		}
+//		int nChildObjects = 0;
+//		if (selected == null)
+//			nChildObjects = hierarchy.nObjects();
+//		else
+//			nChildObjects = PathObjectTools.countDescendants(selected);
+//		if (nChildObjects > 0) {
+//			String message = "Existing child object will be deleted - is that ok?";
+//			if (nChildObjects > 1)
+//				message = nChildObjects + " existing descendant object will be deleted - is that ok?";
+//			if (!DisplayHelpers.showConfirmDialog("Create objects", message))
+//				return false;
+//		}
 //		// Need to turn off live prediction so we don't start training on the results...
 //		livePrediction.set(false);
 		
-		return PixelClassifierTools.createObjectsFromPixelClassifier(server, imageData.getHierarchy(), selected, creator, minSizePixels, doSplit);
+		return PixelClassifierTools.createObjectsFromPixelClassifier(
+				server, imageData.getHierarchy(), selected, creator,
+				minSizePixels, minHoleSizePixels, doSplit, clearExisting);
 	}
 	
 	
 	private boolean editClassifierParameters() {
 		var model = selectedClassifier.get();
 		if (model == null) {
-			DisplayHelpers.showErrorMessage("Edit parameters", "No classifier selected!");
+			Dialogs.showErrorMessage("Edit parameters", "No classifier selected!");
 			return false;
 		}
-		DisplayHelpers.showParameterDialog("Edit parameters", model.getParameterList());
+		Dialogs.showParameterDialog("Edit parameters", model.getParameterList());
 		updateClassifier();
 		return true;
 	}
@@ -1359,7 +1420,7 @@ public class PixelClassifierImageSelectionPane {
 	
 	private boolean showOutput() {
 		if (overlay == null) {
-			DisplayHelpers.showErrorMessage("Show output", "No pixel classifier has been trained yet!");
+			Dialogs.showErrorMessage("Show output", "No pixel classifier has been trained yet!");
 			return false;
 		}
 		var server = overlay.getPixelClassificationServer();
@@ -1379,10 +1440,10 @@ public class PixelClassifierImageSelectionPane {
 		long estimatedPixels = (long)Math.ceil(request.getWidth()/request.getDownsample()) * (long)Math.ceil(request.getHeight()/request.getDownsample());
 		double estimatedMB = (estimatedPixels * server.nChannels() * (server.getPixelType().getBytesPerPixel())) / (1024.0 * 1024.0);
 		if (estimatedPixels >= Integer.MAX_VALUE - 16) {
-			DisplayHelpers.showErrorMessage("Extract output", "Requested region is too big! Try selecting a smaller region.");
+			Dialogs.showErrorMessage("Extract output", "Requested region is too big! Try selecting a smaller region.");
 			return false;
 		} else if (estimatedMB >= 200.0) {
-			if (!DisplayHelpers.showConfirmDialog("Extract output",
+			if (!Dialogs.showConfirmDialog("Extract output",
 					String.format("Extracting this region will require approximately %.1f MB - are you sure you want to try this?", estimatedMB)))
 				return false;
 		}
@@ -1469,17 +1530,17 @@ public class PixelClassifierImageSelectionPane {
 	private boolean addResolution() {
 		ImageServer<BufferedImage> server = viewer.getServer();
 		if (server == null) {
-			DisplayHelpers.showErrorMessage("Add resolution", "No image available!");
+			Dialogs.showNoImageError("Add resolution");
 			return false;
 		}
 		String units = null;
 		Double pixelSize = null;
 		PixelCalibration cal = server.getPixelCalibration();
 		if (cal.hasPixelSizeMicrons()) {
-			pixelSize = DisplayHelpers.showInputDialog("Add resolution", "Enter requested pixel size in " + GeneralTools.micrometerSymbol(), 1.0);
+			pixelSize = Dialogs.showInputDialog("Add resolution", "Enter requested pixel size in " + GeneralTools.micrometerSymbol(), 1.0);
 			units = PixelCalibration.MICROMETER;
 		} else {
-			pixelSize = DisplayHelpers.showInputDialog("Add resolution", "Enter requested downsample factor", 1.0);
+			pixelSize = Dialogs.showInputDialog("Add resolution", "Enter requested downsample factor", 1.0);
 		}
 		
 		if (pixelSize == null)
@@ -1572,12 +1633,13 @@ public class PixelClassifierImageSelectionPane {
     	
 //    	String coords = GeneralTools.formatNumber(x, 1) + "," + GeneralTools.formatNumber(y, 1);
     	
-    	var channels = classifierServer.getMetadata().getChannels();
     	if (classifierServer.getMetadata().getChannelType() == ImageServerMetadata.ChannelType.CLASSIFICATION) {
+        	var classificationLabels = classifierServer.getMetadata().getClassificationLabels();
         	int sample = img.getRaster().getSample(xx, yy, 0); 		
-        	return String.format("Classification: %s", channels.get(sample).getName());
+        	return String.format("Classification: %s", classificationLabels.get(sample).getName());
 //        	return String.format("Classification (%s):\n%s", coords, channels.get(sample).getName());
     	} else {
+        	var channels = classifierServer.getMetadata().getChannels();
     		String[] array = new String[channels.size()];
     		for (int c = 0; c < channels.size(); c++) {
     			float sample = img.getRaster().getSampleFloat(xx, yy, c);

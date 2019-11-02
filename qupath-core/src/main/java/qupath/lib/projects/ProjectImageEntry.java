@@ -34,7 +34,7 @@ import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
-import qupath.lib.projects.ProjectResources.ProjectResourceManager;
+import qupath.lib.projects.ResourceManager.Manager;
 
 /**
  * Class to represent an image entry within a project.
@@ -280,7 +280,7 @@ public interface ProjectImageEntry<T> {
 	 * 
 	 * @return
 	 */
-	public ProjectResourceManager<ImageServer<T>> getImages();
+	public Manager<ImageServer<T>> getImages();
 	
 	
 

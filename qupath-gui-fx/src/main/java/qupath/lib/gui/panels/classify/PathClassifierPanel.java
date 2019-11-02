@@ -40,8 +40,8 @@ import qupath.lib.classifiers.PathClassifierTools;
 import qupath.lib.classifiers.PathObjectClassifier;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.ViewerManager;
-import qupath.lib.gui.helpers.PaneToolsFX;
 import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
 import qupath.lib.plugins.workflow.RunSavedClassifierWorkflowStep;
@@ -98,7 +98,7 @@ public class PathClassifierPanel {
 		});
 
 
-		GridPane paneButtons = PaneToolsFX.createColumnGridControls(
+		GridPane paneButtons = PaneTools.createColumnGridControls(
 				btnLoad,
 				btnRun
 				);

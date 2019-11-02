@@ -26,7 +26,7 @@ import org.slf4j.LoggerFactory;
 import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
-import qupath.lib.roi.jts.ConverterJTS;
+import qupath.lib.roi.GeometryTools;
 
 /**
  * An ImageServer that combines regions from multiple separate ImageServers, 
@@ -345,9 +345,9 @@ public class SparseImageServer extends AbstractTileableImageServer {
 		var regions = server.getRegions();
 		var map = new LinkedHashMap<SparseImageServerManagerRegion, Geometry>();
 		for (var region : regions) {
-			map.put(region, ConverterJTS.regionToGeometry(region.getRegion()));
+			map.put(region, GeometryTools.regionToGeometry(region.getRegion()));
 		}
-		var allGeometries = UnaryUnionOp.union(map.values());
+		var allGeometries = GeometryTools.union(map.values());
 		
 		// Buffer if necessary
 		if (distancePixels > 0)
@@ -359,7 +359,7 @@ public class SparseImageServer extends AbstractTileableImageServer {
 			for (int i = 0; i < allGeometries.getNumGeometries(); i++) {
 				bounds.add(allGeometries.getGeometryN(i).getEnvelope());
 			}
-			allGeometries = UnaryUnionOp.union(bounds);
+			allGeometries = GeometryTools.union(bounds);
 		}
 		
 		// Check how many distinct geometries we have

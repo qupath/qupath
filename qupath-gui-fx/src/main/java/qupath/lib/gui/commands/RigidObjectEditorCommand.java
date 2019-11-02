@@ -51,8 +51,8 @@ import qupath.lib.gui.ImageDataChangeListener;
 import qupath.lib.gui.ImageDataWrapper;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
-import qupath.lib.gui.helpers.DisplayHelpers;
-import qupath.lib.gui.helpers.DisplayHelpers.DialogButton;
+import qupath.lib.gui.dialogs.Dialogs;
+import qupath.lib.gui.dialogs.Dialogs.DialogButton;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.gui.viewer.PathHierarchyPaintingHelper;
@@ -65,15 +65,12 @@ import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathROIObject;
-import qupath.lib.objects.TMACoreObject;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.PolylineROI;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.RoiTools.CombineOp;
-import qupath.lib.roi.interfaces.PathArea;
-import qupath.lib.roi.interfaces.PathShape;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
@@ -108,19 +105,14 @@ public class RigidObjectEditorCommand implements PathCommand, ImageDataChangeLis
 	 * @return
 	 */
 	PathObject getSelectedObject(final QuPathViewer viewer) {
-		PathObject pathObject = viewer == null ? null : viewer.getSelectedObject();
-		if (isSuitableAnnotation(pathObject))
-			return pathObject;
-		if (pathObject instanceof TMACoreObject)
-			return pathObject;
-		return null;
+		return viewer.getSelectedObject();
 	}
 	
 	
 	private boolean isSuitableAnnotation(PathObject pathObject) {
-		return pathObject instanceof PathAnnotationObject
-				&& pathObject.isEditable()
-				&& (pathObject.getROI() instanceof PathArea || pathObject.getROI() instanceof PolylineROI);
+		return pathObject  instanceof PathAnnotationObject
+//				&& pathObject.isEditable()
+				&& (pathObject.hasROI() && pathObject.getROI().isArea() || pathObject.getROI() instanceof PolylineROI);
 	}
 	
 
@@ -139,18 +131,28 @@ public class RigidObjectEditorCommand implements PathCommand, ImageDataChangeLis
 		// Get the selected object
 		viewer = qupath.getViewer();
 		PathObject pathObject = getSelectedObject(viewer);
-		if (pathObject == null)
+		if (pathObject == null || !(pathObject.isAnnotation() || pathObject.isTMACore())) {
+			Dialogs.showErrorNotification("Rotate annotation", "No annotation selected!");
 			return;
+		}
+		if (pathObject.isLocked()) {
+			Dialogs.showErrorNotification("Rotate annotation", "Selected annotation is locked!");
+			return;
+		}
+		if (pathObject.getROI().isPoint()) {
+			Dialogs.showErrorNotification("Rotate annotation", "Point annotations cannot be rotated, sorry!");
+			return;
+		}
 		ImageRegion bounds = viewer.getServerBounds();
 		
-		if (pathObject instanceof TMACoreObject) {
-			for (PathObject child : pathObject.getChildObjects()) {
+		if (pathObject.isTMACore()) {
+			for (PathObject child : pathObject.getChildObjectsAsArray()) {
 				if (isSuitableAnnotation(child)) {
 					originalObjectROIs.put(child, child.getROI());
 				}
 			}
 			if (originalObjectROIs.isEmpty()) {
-				DisplayHelpers.showErrorMessage("Rigid refinement problem", "TMA core must contain empty annotations objects for rigid refinement");
+				Dialogs.showErrorMessage("Rigid refinement problem", "TMA core must contain empty annotations objects for rigid refinement");
 				return;
 			}
 		}
@@ -160,6 +162,7 @@ public class RigidObjectEditorCommand implements PathCommand, ImageDataChangeLis
 		
 		
 		viewer.setMode(null);
+		qupath.setModeSwitchingEnabled(false);
 		viewer.addViewerListener(this);
 		viewer.getView().addEventHandler(MouseEvent.ANY, mouseListener);
 		
@@ -197,7 +200,7 @@ public class RigidObjectEditorCommand implements PathCommand, ImageDataChangeLis
 //		PathObject pathObject = null;
 		if (!ignoreChanges) {
 		
-			DialogButton option = DisplayHelpers.showYesNoCancelDialog(
+			DialogButton option = Dialogs.showYesNoCancelDialog(
 					"Affine object editing", "Confirm object changes?");
 			
 			if (option == DialogButton.CANCEL)
@@ -211,6 +214,7 @@ public class RigidObjectEditorCommand implements PathCommand, ImageDataChangeLis
 		}
 
 		// Update the mode if the viewer is still active
+		qupath.setModeSwitchingEnabled(true);
 		if (viewer == qupath.getViewer())
 			viewer.setMode(qupath.getMode());
 		
@@ -234,7 +238,7 @@ public class RigidObjectEditorCommand implements PathCommand, ImageDataChangeLis
 	
 	PathObject createTransformedObject() {
 		ROI roi = originalObject.getROI();
-		PathShape shape = RoiTools.getShapeROI(new Area(transformer.getTransformedShape()), roi.getImagePlane());
+		ROI shape = RoiTools.getShapeROI(new Area(transformer.getTransformedShape()), roi.getImagePlane());
 		return PathObjects.createAnnotationObject(shape, originalObject.getPathClass());
 	}
 	
@@ -315,12 +319,14 @@ public class RigidObjectEditorCommand implements PathCommand, ImageDataChangeLis
 				isTranslating = true;
 				lastPoint = p;				
 			}
+			e.consume();
 		}
 
 		public void mouseReleased(MouseEvent e) {
 			isRotating = false;
 			isTranslating = false;
 			lastPoint = null;
+			e.consume();
 		}
 
 		public void mouseDragged(MouseEvent e) {
@@ -342,6 +348,7 @@ public class RigidObjectEditorCommand implements PathCommand, ImageDataChangeLis
 				((PathROIObject)entry.getKey()).setROI(roiTransformed);
 			}
 			viewer.repaint();
+			e.consume();
 		}
 		
 		
@@ -368,7 +375,7 @@ public class RigidObjectEditorCommand implements PathCommand, ImageDataChangeLis
 		
 //		private PathArea roi;
 		// Starting anchors
-		private PathShape roiBounds;
+		private ROI roiBounds;
 		private double anchorX;
 		private double anchorY;
 		
@@ -401,9 +408,9 @@ public class RigidObjectEditorCommand implements PathCommand, ImageDataChangeLis
 		
 		public ROI getTransformedROI(final ROI roi) {
 			ROI transformedROI = getUnclippedTransformedROI(roi);
-			if (roiBounds == null || !(transformedROI instanceof PathShape))
+			if (roiBounds == null) // Should this work for points? || !(transformedROI instanceof PathShape))
 				return transformedROI;
-			return RoiTools.combineROIs((PathShape)transformedROI, roiBounds, CombineOp.INTERSECT);
+			return RoiTools.combineROIs(transformedROI, roiBounds, CombineOp.INTERSECT);
 		}
 		
 		public ROI getUnclippedTransformedROI(final ROI roi) {
@@ -416,14 +423,14 @@ public class RigidObjectEditorCommand implements PathCommand, ImageDataChangeLis
 				if (theta == 0 || GeneralTools.almostTheSame(bounds.getWidth(), bounds.getHeight(), 0.01)) {
 					return ROIs.createEllipseROI(bounds.getX()+dx, bounds.getY()+dy, bounds.getWidth(), bounds.getHeight(), ImagePlane.getPlaneWithChannel(roi));
 				}
-				// Don't flatten an ellipse
-				flatness = -1;
+//				// Don't flatten an ellipse
+//				flatness = 0.5;
 			}
 			
 			updateTransform();
 			shape = transform.createTransformedShape(shape);
 			// TODO: Improve the choice of shape this returns
-			if (roi instanceof PathArea)
+			if (roi != null && roi.isArea())
 				return RoiTools.getShapeROI(shape, roi.getImagePlane(), flatness);
 			else {
 				// Check if we have a line

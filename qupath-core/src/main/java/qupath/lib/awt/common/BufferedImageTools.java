@@ -69,6 +69,18 @@ public class BufferedImageTools {
 	public static BufferedImage createROIMask(final int width, final int height, final ROI roi, final RegionRequest request) {
 		return createROIMask(width, height, roi, request.getX(), request.getY(), request.getDownsample());
 	}
+	
+	/**
+	 * Create a ROI mask using the minimal bounding box for the ROI.
+	 * @param roi
+	 * @param downsample
+	 * @return
+	 */
+	public static BufferedImage createROIMask(final ROI roi, final double downsample) {
+		int width = (int)Math.ceil(roi.getBoundsWidth() / downsample);
+		int height = (int)Math.ceil(roi.getBoundsHeight() / downsample);
+		return createROIMask(width, height, roi, roi.getBoundsX(), roi.getBoundsY(), downsample);
+	}
 
 	/**
 	 * Create a grayscale BufferedImage representing a mask for a specified ROI.
@@ -84,8 +96,39 @@ public class BufferedImageTools {
 	 * @return
 	 */
 	public static BufferedImage createROIMask(final int width, final int height, final ROI roi, final double xOrigin, final double yOrigin, final double downsample) {
-		BufferedImage imgMask = new BufferedImage(width, height, BufferedImage.TYPE_BYTE_GRAY);
 		Shape shape = RoiTools.getShape(roi);
+		return createShapeMask(width, height, shape, xOrigin, yOrigin, downsample);
+	}
+	
+	
+	/**
+	 * Create a Shape mask using the minimal bounding box for the Shape.
+	 * @param shape
+	 * @param downsample
+	 * @return
+	 */
+	public static BufferedImage createROIMask(final Shape shape, final double downsample) {
+		var bounds = shape.getBounds2D();
+		int width = (int)Math.ceil(bounds.getWidth() / downsample);
+		int height = (int)Math.ceil(bounds.getHeight() / downsample);
+		return createShapeMask(width, height, shape, bounds.getX(), bounds.getY(), downsample);
+	}
+	
+	/**
+	 * Create a grayscale BufferedImage representing a mask for a specified ROI.
+	 * <p>
+	 * Pixels inside the ROI will be 255, pixels outside will be 0.
+	 * 
+	 * @param width width of the requested mask image
+	 * @param height height of the requested mask image
+	 * @param shape Shape for mask
+	 * @param xOrigin pixel x coordinate of the top left of the region to include in the mask.
+	 * @param yOrigin pixel y coordinate of the top left of the region to include in the mask.
+	 * @param downsample downsample factor to use when generating the mask, i.e. the amoutn to scale.
+	 * @return
+	 */
+	public static BufferedImage createShapeMask(final int width, final int height, final Shape shape, final double xOrigin, final double yOrigin, final double downsample) {
+		BufferedImage imgMask = new BufferedImage(width, height, BufferedImage.TYPE_BYTE_GRAY);
 		Graphics2D g2d = imgMask.createGraphics();
 		g2d.scale(1.0/downsample, 1.0/downsample);
 		g2d.translate(-xOrigin, -yOrigin);
@@ -269,6 +312,98 @@ public class BufferedImageTools {
 //		System.err.println(String.format("Resizing from %d x %d to %d x %d", w, h, finalWidth, finalHeight));
 
 		return new BufferedImage(img.getColorModel(), raster2, img.isAlphaPremultiplied(), null);
+	}
+
+	/**
+	 * Compute the full histogram for a raster containing 8-bit or 16-bit unsigned integer values.
+	 * @param raster the raster containing the data for the histogram; if not TYPE_BYTE or TYPE_USHORT an {@link IllegalArgumentException} will be thrown
+	 * @param counts histogram counts; if null, a new array will be created. Its must be sufficient for the data type, i.e. 256 or 65536.
+	 * 				 No size checking is performed, therefore if non-null it must be sufficiently large for the data type.
+	 * @param rasterMask optional single-channel mask; if not null, corresponding pixels with 0 values in the mask will be skipped
+	 * @return
+	 */
+	public static long[] computeUnsignedIntHistogram(WritableRaster raster, long[] counts, WritableRaster rasterMask) {
+		if (counts == null) {
+			if (raster.getTransferType() == DataBuffer.TYPE_BYTE)
+				counts = new long[256];
+			else if (raster.getTransferType() == DataBuffer.TYPE_USHORT)
+				counts = new long[65536];
+			else
+				throw new IllegalArgumentException("TransferType must be DataBuffer.TYPE_BYTE or DataBuffer.TYPE_USHORT!");
+		}
+		int h = raster.getHeight();
+		int w = raster.getWidth();
+		int nBands = raster.getNumBands();
+		for (int b = 0; b < nBands; b++) {
+			for (int y = 0; y < h; y++) {
+				for (int x = 0; x < w; x++) {
+					if (rasterMask != null && rasterMask.getSample(x, y, 0) == 0)
+						continue;
+					int ind = raster.getSample(x, y, b);
+					counts[ind]++;
+				}
+			}
+		}
+		return counts;
+	}
+
+	/**
+	 * Create a histogram that identifies the channels (bands) of an image with the maximum values according to the argmax criterion.
+	 * 
+	 * @param raster the multi-band raster containing values to check
+	 * @param counts existing histogram if it should be updated, or null if a new histogram should be created. The length should 
+	 * 				 match the number of bands in the raster.
+	 * @param rasterMask optional single-channel mask; if not null, corresponding pixels with 0 values in the mask will be skipped
+	 * @return
+	 */
+	public static long[] computeArgMaxHistogram(WritableRaster raster, long[] counts, WritableRaster rasterMask) {
+		if (counts == null) {
+			counts = new long[raster.getNumBands()];
+		}
+		int h = raster.getHeight();
+		int w = raster.getWidth();
+		int nBands = raster.getNumBands();
+		for (int y = 0; y < h; y++) {
+			for (int x = 0; x < w; x++) {
+				if (rasterMask != null && rasterMask.getSample(x, y, 0) == 0)
+					continue;
+				double maxValue = raster.getSampleDouble(x, y, 0);
+				int ind = 0;
+				for (int i = 1; i < nBands; i++) {
+					double val = raster.getSampleDouble(x, y, i);
+					if (val > maxValue) {
+						maxValue = val;
+						ind = i;
+					}
+				}
+				counts[ind]++;
+			}
+		}
+		return counts;
+	}
+
+	/**
+	 * Count the number of above-threshold pixels in a specified band of a raster, with optional mask.
+	 * 
+	 * @param raster the multi-band raster containing values to check
+	 * @param threshold threshold value; pixels with values &gt; threshold this will be counted
+	 * @param rasterMask optional single-channel mask; if not null, corresponding pixels with 0 values in the mask will be skipped
+	 * @return
+	 */
+	public static long computeAboveThresholdCounts(WritableRaster raster, int band, double threshold, WritableRaster rasterMask) {
+		long count = 0L;
+		int h = raster.getHeight();
+		int w = raster.getWidth();
+		for (int y = 0; y < h; y++) {
+			for (int x = 0; x < w; x++) {
+				if (rasterMask != null && rasterMask.getSample(x, y, 0) == 0)
+					continue;
+				double val = raster.getSampleDouble(x, y, band);
+				if (val > threshold)
+					count++;
+			}
+		}
+		return count;
 	}
 
 //	/**

@@ -23,23 +23,30 @@
 
 package qupath.lib.gui.viewer.tools;
 
-import java.awt.BasicStroke;
 import java.awt.Shape;
-import java.awt.geom.Area;
-import java.awt.geom.Ellipse2D;
-import java.awt.geom.Line2D;
-import java.awt.geom.Path2D;
 import java.awt.geom.Point2D;
-import java.awt.geom.Rectangle2D;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
+
+import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.CoordinateSequence;
+import org.locationtech.jts.geom.CoordinateSequenceFilter;
+import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.GeometryCollection;
+import org.locationtech.jts.geom.GeometryFactory;
+import org.locationtech.jts.geom.Polygonal;
+import org.locationtech.jts.geom.PrecisionModel;
+import org.locationtech.jts.simplify.VWSimplifier;
+import org.locationtech.jts.util.GeometricShapeFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javafx.scene.Cursor;
 import javafx.scene.SnapshotParameters;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.paint.Color;
-import qupath.lib.awt.common.AwtTools;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.ModeWrapper;
 import qupath.lib.gui.viewer.QuPathViewer;
@@ -53,13 +60,11 @@ import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.classes.PathClassFactory.StandardPathClasses;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.regions.ImagePlane;
-import qupath.lib.roi.ROIs;
 import qupath.lib.roi.RoiTools;
-import qupath.lib.roi.PolygonROI;
+import qupath.lib.roi.GeometryTools;
+import qupath.lib.roi.ROIs;
 import qupath.lib.roi.RectangleROI;
-import qupath.lib.roi.interfaces.PathArea;
 import qupath.lib.roi.interfaces.ROI;
-import qupath.lib.roi.interfaces.PathShape;
 
 /**
  * Tool for drawing (and subtract from) freehand regions, optionally adapting brush size to magnification.
@@ -68,6 +73,8 @@ import qupath.lib.roi.interfaces.PathShape;
  *
  */
 public class BrushTool extends AbstractPathROITool {
+	
+	private static Logger logger = LoggerFactory.getLogger(BrushTool.class);
 	
 	/**
 	 * A collection of classes that should be ignored when
@@ -94,6 +101,10 @@ public class BrushTool extends AbstractPathROITool {
 	
 	private SnapshotParameters snapshotParameters = new SnapshotParameters();
 	
+	/**
+	 * Create a new brush tool.
+	 * @param modes
+	 */
 	public BrushTool(ModeWrapper modes) {
 		super(modes);
 		snapshotParameters.setFill(Color.TRANSPARENT);
@@ -175,7 +186,7 @@ public class BrushTool extends AbstractPathROITool {
 		
 		// Determine if we are creating a new object
 //		boolean createNew = currentObject == null || e.getClickCount() > 1;// || (!currentObject.getROI().contains(p.getX(), p.getY()) && !e.isAltDown());
-		Point2D p = viewer.componentPointToImagePoint(e.getX(), e.getY(), null, false);
+		Point2D p = mouseLocationToImage(e, false, requestPixelSnapping());
 		double xx = p.getX();
 		double yy = p.getY();
 		if (xx < 0 || yy < 0 || xx >= viewer.getServerWidth() || yy >= viewer.getServerHeight())
@@ -198,7 +209,7 @@ public class BrushTool extends AbstractPathROITool {
 			// See if, rather than creating something, we can instead reactivate a current object
 			if (multipleClicks) {
 				PathObject objectSelectable = getSelectableObject(p.getX(), p.getY(), e.getClickCount() - 1);
-				if (objectSelectable != null && objectSelectable.isEditable() && objectSelectable.getROI() instanceof PathArea) {
+				if (objectSelectable != null && objectSelectable.isEditable() && objectSelectable.hasROI() && objectSelectable.getROI().isArea()) {
 					createNew = false;
 					viewer.setSelectedObject(objectSelectable);
 					currentObject = objectSelectable;
@@ -211,7 +222,7 @@ public class BrushTool extends AbstractPathROITool {
 					PathObject objectSelectable = null;
 					for (int i = listSelectable.size()-1; i >= 0; i--) {
 						PathObject temp = listSelectable.get(i);
-						if (temp.isEditable() && temp instanceof PathAnnotationObject && temp.getROI() instanceof PathArea) { //temp.getROI() instanceof AreaROI) {
+						if (temp.isEditable() && temp instanceof PathAnnotationObject && temp.hasROI() && temp.getROI().isArea()) { //temp.getROI() instanceof AreaROI) {
 							objectSelectable = temp;
 							break;
 						}
@@ -228,8 +239,7 @@ public class BrushTool extends AbstractPathROITool {
 		}
 		
 		// Can only modify annotations
-		// TODO: Check for object being locked!
-		if (!createNew && !(currentObject instanceof PathAnnotationObject && currentObject.getROI() instanceof PathShape))
+		if (!createNew && !(currentObject != null && currentObject.isAnnotation() && currentObject.isEditable() && RoiTools.isShapeROI(currentObject.getROI())))
 			return;
 						
 		// Get the parent, in case we need to constrain the shape
@@ -252,10 +262,11 @@ public class BrushTool extends AbstractPathROITool {
 			hierarchy.removeObjectWithoutUpdate(currentObject, true);
 		}
 
-		PathShape shapeROI = createNew ? null : (PathShape)currentObject.getROI();
+		ROI shapeROI = createNew ? null : currentObject.getROI();
 		if (createNew) {
 			creatingTiledROI = false; // Reset this
-			createNewAnnotation(p.getX(), p.getY());
+			createNewAnnotation(e, p.getX(), p.getY());
+			viewer.getROIEditor().setROI(null);
 		} else {
 			viewer.setSelectedObject(getUpdatedObject(e, shapeROI, currentObject, -1));
 			viewer.getROIEditor().setROI(null); // Avoids handles appearing?
@@ -276,16 +287,15 @@ public class BrushTool extends AbstractPathROITool {
         }
 		
 		// Can only modify annotations
-		// TODO: Check for object being locked!
 		PathObject pathObject = viewer.getSelectedObject();
-		if (pathObject == null || !pathObject.isAnnotation())
+		if (pathObject == null || !pathObject.isAnnotation() || !pathObject.isEditable())
 			return;
 
 		ROI currentROI = pathObject.getROI();
-		if (!(currentROI instanceof PathShape))
+		if (!(currentROI instanceof ROI))
 			return;
 		
-		PathShape shapeROI = (PathShape)currentROI;
+		ROI shapeROI = currentROI;
 		
 		PathObject pathObjectUpdated = getUpdatedObject(e, shapeROI, pathObject, -1);
 		if (pathObject != pathObjectUpdated)
@@ -303,81 +313,109 @@ public class BrushTool extends AbstractPathROITool {
 	}
 	
 	
-	private PathObject getUpdatedObject(MouseEvent e, PathShape shapeROI, PathObject currentObject, double flatness) {
-		Point2D p = viewer.componentPointToImagePoint(e.getX(), e.getY(), null, true);
-		PathShape shapeNew;
-		boolean subtractMode = isSubtractMode(e);
-		Shape shapeCurrent = shapeROI == null ? null : RoiTools.getShape(shapeROI);
+	private PathObject getUpdatedObject(MouseEvent e, ROI shapeROI, PathObject currentObject, double flatness) {
+		Point2D p = mouseLocationToImage(e, true, requestPixelSnapping());
 		
-		Shape shapeDrawn = createShape(p.getX(), p.getY(),
+		ImagePlane plane = shapeROI == null ? ImagePlane.getPlane(viewer.getZPosition(), viewer.getTPosition()) : shapeROI.getImagePlane();
+		Geometry shapeNew;
+		boolean subtractMode = isSubtractMode(e);
+		Geometry shapeCurrent = shapeROI == null ? null : shapeROI.getGeometry();
+		
+		Geometry shapeDrawn = createShape(e, p.getX(), p.getY(),
 				PathPrefs.getUseTileBrush() && !e.isShiftDown(),
 				subtractMode ? null : shapeCurrent);
-		lastPoint = p;
-		if (shapeROI != null) {
-			// Check to see if any changes are required at all
-			if (shapeDrawn == null || (subtractMode && !shapeCurrent.intersects(shapeDrawn.getBounds2D())) || 
-					(!subtractMode && shapeCurrent.contains(shapeDrawn.getBounds2D())))
-				return currentObject;
-			
-			// TODO: Consider whether a preference should be used rather than the shift key?
-			// Anyhow, this will switch to 'dodge' mode, and avoid overlapping existing annotations
-			boolean avoidOtherAnnotations = requestParentClipping(e);
-			if (subtractMode) {
-				// If subtracting... then just subtract
-				shapeNew = RoiTools.combineROIs(shapeROI,
-						ROIs.createAreaROI(shapeDrawn, ImagePlane.getPlaneWithChannel(shapeROI.getC(), shapeROI.getZ(), shapeROI.getT())), RoiTools.CombineOp.SUBTRACT, flatness);
-			} else if (avoidOtherAnnotations) {
-				
-				Area area = new Area(shapeCurrent);
-				area.add(new Area(shapeDrawn));
-				if (getCurrentParentArea() != null)
-					area.intersect(getCurrentParentArea());
-				Area currentParentAnnotationsArea = getCurrentParentAnnotationsArea(currentObject);
-				if (currentParentAnnotationsArea != null)
-					area.subtract(currentParentAnnotationsArea);
-				
-//				Rectangle bounds2 = shapeDrawn.getBounds();
-//				Collection<PathObject> annotations = viewer.getHierarchy().getObjectsForRegion(PathAnnotationObject.class, ImageRegion.createInstance(
-//						bounds2.x, bounds2.y, bounds2.width, bounds2.height, viewer.getZPosition(), viewer.getTPosition()), null);
-//				Area area = new Area(shapeCurrent);
-//				area.add(new Area(shapeDrawn));
-//				if (!annotations.isEmpty()) {
-//					for (PathObject pathObject : annotations) {
-//						if (reservedPathClasses.contains(pathObject.getPathClass()))
-//							continue;
-//						if (pathObject.getROI() instanceof PathArea) {
-//							area.subtract(PathROIToolsAwt.getArea(pathObject.getROI()));
-//						}
-//					}
-//				}
-				shapeNew = RoiTools.getShapeROI(area, shapeROI.getImagePlane());
-			} else {
-				// Just add, regardless of whether there are other annotations below or not
-				shapeNew = RoiTools.combineROIs(shapeROI,
-						ROIs.createAreaROI(shapeDrawn, ImagePlane.getPlaneWithChannel(shapeROI)), RoiTools.CombineOp.ADD, flatness);
-			}
-			
-			// Convert complete polygons to areas
-			if (shapeNew instanceof PolygonROI && ((PolygonROI)shapeNew).nVertices() > 50) {
-				shapeNew = ROIs.createAreaROI(RoiTools.getShape(shapeNew), ImagePlane.getPlane(shapeNew));
-			}
-		} else {
-			shapeNew = ROIs.createAreaROI(shapeDrawn, ImagePlane.getPlane(viewer.getZPosition(), viewer.getTPosition()));
-		}
+		if (shapeDrawn == null)
+			return currentObject;
 		
-		if (currentObject instanceof PathAnnotationObject) {
-			((PathAnnotationObject)currentObject).setROI(shapeNew);
+		lastPoint = p;
+		try {
+			if (shapeROI != null) {
+				// Check to see if any changes are required at all
+				if (shapeDrawn == null || (subtractMode && !shapeCurrent.intersects(shapeDrawn)) || 
+						(!subtractMode && shapeCurrent.covers(shapeDrawn)))
+					return currentObject;
+				
+				// TODO: Consider whether a preference should be used rather than the shift key?
+				// Anyhow, this will switch to 'dodge' mode, and avoid overlapping existing annotations
+				boolean avoidOtherAnnotations = requestParentClipping(e);
+				if (subtractMode) {
+					// If subtracting... then just subtract
+					shapeNew = shapeROI.getGeometry().difference(shapeDrawn);
+	//				shapeNew = RoiTools.combineROIs(shapeROI,
+	//						ROIs.createAreaROI(shapeDrawn, ImagePlane.getPlaneWithChannel(shapeROI.getC(), shapeROI.getZ(), shapeROI.getT())), RoiTools.CombineOp.SUBTRACT, flatness);
+				} else if (avoidOtherAnnotations) {
+					shapeNew = shapeCurrent.union(shapeDrawn);
+					var currentArea = getCurrentParentArea();
+					if (currentArea != null)
+						shapeNew = shapeNew.intersection(getCurrentParentArea());
+					
+					var currentParentAnnotationsArea = getCurrentParentAnnotationsArea(currentObject);
+					if (currentParentAnnotationsArea != null)
+						shapeNew = shapeNew.difference(currentParentAnnotationsArea);
+				} else {
+					// Just add, regardless of whether there are other annotations below or not
+					var temp = shapeROI.getGeometry();
+					try {
+						shapeNew = temp.union(shapeDrawn);
+					} catch (Exception e2) {
+						shapeNew = shapeROI.getGeometry();
+					}
+				}
+				
+	//			// Convert complete polygons to areas
+	//			if (shapeNew instanceof PolygonROI && ((PolygonROI)shapeNew).nVertices() > 50) {
+	//				shapeNew = ROIs.createAreaROI(RoiTools.getShape(shapeNew), ImagePlane.getPlane(shapeNew));
+	//			}
+			} else {
+				shapeNew = shapeDrawn;
+			}
+			
+			if (requestPixelSnapping())
+				shapeNew = roundAndConstrain(shapeNew, 0, 0, viewer.getServerWidth(), viewer.getServerHeight());
+			else {
+				try {
+					shapeNew = VWSimplifier.simplify(shapeNew, 0.1);
+				} catch (Exception e2) {
+					logger.debug("Error simplifying ROI: " + e2.getLocalizedMessage(), e2);
+				}
+				var bounds = GeometryTools.regionToGeometry(viewer.getServerBounds());
+				shapeNew = shapeNew.intersection(bounds);
+			}
+			
+			//		GeometrySnapper.snapToSelf(shapeNew, 1.0, true);
+			
+			// Sometimes we can end up with a GeometryCollection containing lines/non-areas... if so, remove these
+			if (shapeNew instanceof GeometryCollection) {
+				List<Geometry> keepGeometries = new ArrayList<>();
+				for (int i = 0; i < shapeNew.getNumGeometries(); i++) {
+					if (shapeNew.getGeometryN(i) instanceof Polygonal) {
+						keepGeometries.add(shapeNew);
+					}
+				}
+				if (keepGeometries.size() < shapeNew.getNumGeometries())
+					shapeNew = factory.buildGeometry(keepGeometries);
+			}
+						
+			ROI roiNew = GeometryTools.geometryToROI(shapeNew, plane);
+			
+			if (currentObject instanceof PathAnnotationObject) {
+				((PathAnnotationObject)currentObject).setROI(roiNew);
+				return currentObject;
+			}
+			
+//			shapeNew = new PathAreaROI(new Area(shapeNew.getShape()));
+			PathObject pathObjectNew = PathObjects.createAnnotationObject(roiNew, PathPrefs.getAutoSetAnnotationClass());
+			if (currentObject != null) {
+				pathObjectNew.setName(currentObject.getName());
+				pathObjectNew.setColorRGB(currentObject.getColorRGB());
+				pathObjectNew.setPathClass(currentObject.getPathClass());
+			}
+			return pathObjectNew;
+
+		} catch (Exception ex) {
+			logger.error("Error updating ROI", ex);
 			return currentObject;
 		}
-		
-//		shapeNew = new PathAreaROI(new Area(shapeNew.getShape()));
-		PathObject pathObjectNew = PathObjects.createAnnotationObject(shapeNew, PathPrefs.getAutoSetAnnotationClass());
-		if (currentObject != null) {
-			pathObjectNew.setName(currentObject.getName());
-			pathObjectNew.setColorRGB(currentObject.getColorRGB());
-			pathObjectNew.setPathClass(currentObject.getPathClass());
-		}
-		return pathObjectNew;
 	}
 	
 	
@@ -420,62 +458,114 @@ public class BrushTool extends AbstractPathROITool {
 	 *                   e.g. to avoid having isolated or jagged boundaries.
 	 * @return
 	 */
-	protected Shape createShape(double x, double y, boolean useTiles, Shape addToShape) {
+	protected Geometry createShape(MouseEvent e, double x, double y, boolean useTiles, Geometry addToShape) {
 		
 		// See if we're on top of a tile
 		if (useTiles) {
 			List<PathObject> listSelectable = getSelectableObjectList(x, y);
 			for (PathObject temp : listSelectable) {
 //				if ((temp instanceof PathDetectionObject) && temp.getROI() instanceof PathArea)
-				if (temp instanceof PathTileObject && temp.getROI() instanceof PathArea && !(temp.getROI() instanceof RectangleROI)) {
+				if (temp instanceof PathTileObject && temp.hasROI() && temp.getROI().isArea() && !(temp.getROI() instanceof RectangleROI)) {
 					creatingTiledROI = true;
-					return RoiTools.getShape(temp.getROI());
+					return temp.getROI().getGeometry();
 				}
 			}
 			// If we're currently creating a tiled, ROI, but now not clicked on a tile, just return
 			if (creatingTiledROI)
 				return null;
 		}
-
 		
 		// Compute a diameter scaled according to the pressure being applied
-		double diameter = getBrushDiameter();
+		double diameter = Math.max(1, getBrushDiameter());
 		
-		Shape shape;
+		Geometry geometry;
 		if (lastPoint == null) {
-			shape = new Ellipse2D.Double(x-diameter/2, y-diameter/2, diameter, diameter);
+			var shapeFactory = new GeometricShapeFactory(getGeometryFactory());
+			shapeFactory.setCentre(new Coordinate(x, y));
+			shapeFactory.setSize(diameter);
+//			shapeFactory.setCentre(new Coordinate(x-diameter/2, y-diameter/2));
+			geometry = shapeFactory.createEllipse();
 		} else {
 			if (lastPoint.distanceSq(x, y) == 0)
 				return null;
-			BasicStroke stroke = new BasicStroke((float)diameter, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
-			shape = stroke.createStrokedShape(new Line2D.Double(lastPoint.getX(), lastPoint.getY(), x, y));
+			var factory = getGeometryFactory();
+			geometry = factory.createLineString(new Coordinate[] {
+					new Coordinate(lastPoint.getX(), lastPoint.getY()),
+					new Coordinate(x, y)}).buffer(diameter/2.0);
 		}
 		
-		// Flattening now helps improve performance - especially when drawing at a low magnification
-		Path2D path = new Path2D.Float();
-		path.append(shape.getPathIterator(null, viewer.getDownsampleFactor()/2.0), true);
-		shape = path;
-		// Clip over the image boundary
-		Rectangle2D shapeBounds = shape.getBounds2D();
-		viewer.getServerBounds();
-		Rectangle2D bounds = AwtTools.getBounds(viewer.getServerBounds());
-		if (!bounds.contains(shapeBounds)) {
-			Area area = new Area(shape);
-			area.intersect(new Area(bounds));
-			return area;
-		}
+//		// Flattening now helps improve performance - especially when drawing at a low magnification
+//		Path2D path = new Path2D.Float();
+//		path.append(shape.getPathIterator(null, viewer.getDownsampleFactor()/2.0), true);
+//		shape = path;
 		
-		return shape;
+		return geometry;
 	}
 	
 	private boolean creatingTiledROI = false;
+	
+	protected GeometryFactory getGeometryFactory() {
+		return factory;
+	}
+
+	/**
+	 * Round coordinates in a Geometry to integer values, and constrain to the specified bounding box.
+	 * @param geometry
+	 */
+	protected Geometry roundAndConstrain(Geometry geometry, double minX, double minY, double maxX, double maxY) {
+		roundingFilter.setBounds(minX, minY, maxX, maxY);
+		geometry.apply(roundingFilter);
+		return VWSimplifier.simplify(geometry, 0.5);
+	}
+	
+	private GeometryFactory factory = new GeometryFactory(new PrecisionModel(100.0)); // TODO: MAKE THIS VARIABLE OUTSIDE
+	
+	private RoundAndConstrainFilter roundingFilter = new RoundAndConstrainFilter();
+			
+	static class RoundAndConstrainFilter implements CoordinateSequenceFilter {
+		
+		private double minX = 0;
+		private double minY = 0;
+		private double maxX = Double.POSITIVE_INFINITY;
+		private double maxY = Double.POSITIVE_INFINITY;
+		
+		void setBounds(double minX, double minY, double maxX, double maxY) {
+			this.minX = minX;
+			this.minY = minY;
+			this.maxX = maxX;
+			this.maxY = maxY;
+		}
+		
+		@Override
+		public boolean isGeometryChanged() {
+			return true;
+		}
+		
+		@Override
+		public boolean isDone() {
+			return false;
+		}
+		
+		@Override
+		public void filter(CoordinateSequence seq, int i) {
+			seq.setOrdinate(i, Coordinate.X,
+					Math.min(maxX, Math.max(minX, Math.round(seq.getOrdinate(i, Coordinate.X)))));
+			
+			seq.setOrdinate(i, Coordinate.Y,
+					Math.min(maxY, Math.max(minY, Math.round(seq.getOrdinate(i, Coordinate.Y)))));
+		}
+		
+	};
 
 	@Override
-	protected ROI createNewROI(double x, double y, ImagePlane plane) {
+	protected ROI createNewROI(MouseEvent e, double x, double y, ImagePlane plane) {
 		creatingTiledROI = false;
 		lastPoint = null;
-		Shape shape = createShape(x, y, PathPrefs.getUseTileBrush(), null);
-		return ROIs.createAreaROI(shape, plane);
+		Geometry geom = createShape(e, x, y, PathPrefs.getUseTileBrush(), null);
+		if (geom == null || geom.isEmpty())
+			return ROIs.createEmptyROI();
+		roundAndConstrain(geom, 0, 0, viewer.getServerWidth(), viewer.getServerHeight());
+		return GeometryTools.geometryToROI(geom, plane);
 	}
 	
 }

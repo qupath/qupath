@@ -15,8 +15,8 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.Pane;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
-import qupath.lib.gui.helpers.DisplayHelpers;
-import qupath.lib.gui.helpers.dialogs.ParameterPanelFX;
+import qupath.lib.gui.dialogs.Dialogs;
+import qupath.lib.gui.dialogs.ParameterPanelFX;
 import qupath.lib.gui.panels.ProjectBrowser;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.projects.Project;
@@ -73,7 +73,7 @@ public class SplitProjectTrainingCommand implements PathCommand {
 	public void run() {
 		Project<BufferedImage> project = qupath.getProject();
 		if (project == null) {
-			DisplayHelpers.showErrorMessage("Split project", "No project available!");
+			Dialogs.showErrorMessage("Split project", "No project available!");
 			return;
 		}
 		Dialog<ButtonType> dialog = new Dialog<>();
@@ -135,7 +135,7 @@ public class SplitProjectTrainingCommand implements PathCommand {
 			// Get a list of the project entries
 			List<ProjectImageEntry<BufferedImage>> entries = project.getImageList();
 			if (entries.isEmpty()) {
-				DisplayHelpers.showWarningNotification("Train/test split", "No images in the project!");
+				Dialogs.showWarningNotification("Train/test split", "No images in the project!");
 				return;
 			}
 			
@@ -148,13 +148,13 @@ public class SplitProjectTrainingCommand implements PathCommand {
 			int nImages = entries.size();
 			if (nTrain < 0) {
 				if (nValidation < 0 || nTest < 0) {
-					DisplayHelpers.showErrorMessage("Train/test split", "Only one set can be < 0 (meaning 'all other images')!");
+					Dialogs.showErrorMessage("Train/test split", "Only one set can be < 0 (meaning 'all other images')!");
 					return;
 				} else
 					nTrain = nImages - nValidation - nTest;
 			} else if (nValidation < 0) {
 				if (nTest < 0) {
-					DisplayHelpers.showErrorMessage("Train/test split", "Only one set can be < 0 (meaning 'all other images')!");
+					Dialogs.showErrorMessage("Train/test split", "Only one set can be < 0 (meaning 'all other images')!");
 					return;
 				} else
 					nValidation = nImages - nTrain - nTest;
@@ -166,7 +166,7 @@ public class SplitProjectTrainingCommand implements PathCommand {
 			
 			// Check if we have enough
 			if (fixedCounts && nRequested > entries.size()) {
-				DisplayHelpers.showErrorMessage("Train/test split", 
+				Dialogs.showErrorMessage("Train/test split", 
 						String.format("Not enough images in project!\n%d available, %d requested.", entries.size(), nRequested));
 				return;
 			}

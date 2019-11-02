@@ -3,6 +3,8 @@ package qupath.lib.gui.ml;
 import ij.plugin.filter.ThresholdToSelection;
 import ij.process.FloatProcessor;
 import ij.process.ImageProcessor;
+
+import org.locationtech.jts.geom.Geometry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -14,25 +16,19 @@ import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.TileRequest;
-import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.classes.Reclassifier;
 import qupath.lib.objects.classes.PathClassTools;
-import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.RegionRequest;
-import qupath.lib.roi.AreaROI;
-import qupath.lib.roi.RoiTools;
-import qupath.lib.roi.RoiTools.CombineOp;
-import qupath.lib.roi.interfaces.PathArea;
-import qupath.lib.roi.interfaces.PathShape;
+import qupath.lib.roi.GeometryTools;
 import qupath.lib.roi.interfaces.ROI;
 
-import java.awt.geom.Path2D;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferByte;
 import java.awt.image.Raster;
@@ -40,6 +36,7 @@ import java.awt.image.WritableRaster;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -268,20 +265,21 @@ public class PixelClassifierTools {
 	     * 
 	     * @param imageData
 	     * @param classifier
-	     * @param selectedObject
+	     * @param selectedObjects
 	     * @param minSizePixels
+	     * @param minHoleSizePixels
 	     * @param doSplit
 	     * @return
 	     */
     public static boolean createDetectionsFromPixelClassifier(
-			ImageData<BufferedImage> imageData, PixelClassifier classifier, PathObject selectedObject, 
-			double minSizePixels, boolean doSplit) {
+			ImageData<BufferedImage> imageData, PixelClassifier classifier, Collection<PathObject> selectedObjects, 
+			double minSizePixels, double minHoleSizePixels, boolean doSplit, boolean clearExisting) {
 		return createObjectsFromPixelClassifier(
 				new PixelClassificationImageServer(imageData, classifier),
 				imageData.getHierarchy(),
-				selectedObject,
+				selectedObjects,
 				(var roi) -> PathObjects.createDetectionObject(roi),
-				minSizePixels, doSplit);
+				minSizePixels, minHoleSizePixels, doSplit, clearExisting);
 	}
 
     /**
@@ -289,156 +287,193 @@ public class PixelClassifierTools {
      * 
      * @param imageData
      * @param classifier
-     * @param selectedObject
+     * @param selectedObjects
      * @param minSizePixels
+     * @param minHoleSizePixels
      * @param doSplit
      * @return
      */
 	public static boolean createAnnotationsFromPixelClassifier(
-			ImageData<BufferedImage> imageData, PixelClassifier classifier, PathObject selectedObject, 
-			double minSizePixels, boolean doSplit) {
+			ImageData<BufferedImage> imageData, PixelClassifier classifier, Collection<PathObject> selectedObjects, 
+			double minSizePixels, double minHoleSizePixels, boolean doSplit, boolean clearExisting) {
 		
 		return createObjectsFromPixelClassifier(
 				new PixelClassificationImageServer(imageData, classifier),
 				imageData.getHierarchy(),
-				selectedObject,
+				selectedObjects,
 				(var roi) -> {
 					var annotation = PathObjects.createAnnotationObject(roi);
 					annotation.setLocked(true);
 					return annotation;
 				},
-				minSizePixels, doSplit);
+				minSizePixels, minHoleSizePixels, doSplit, clearExisting);
+	}
+	
+	public static boolean createObjectsFromPixelClassifier(
+			ImageServer<BufferedImage> server, PathObjectHierarchy hierarchy, Collection<PathObject> selectedObjects, 
+			Function<ROI, ? extends PathObject> creator, double minSizePixels, double minHoleSizePixels, boolean doSplit, boolean clearExisting) {
+		for (var pathObject : selectedObjects) {
+			if (!createObjectsFromPixelClassifier(server, hierarchy, pathObject,
+					creator, minSizePixels, minHoleSizePixels, doSplit, clearExisting))
+				return false;
+		}
+		return true;
 	}
 
 	/**
 	 * Create objects and add them to an object hierarchy based on thresholding the output of a pixel classifier.
 	 * 
 	 * @param server
+	 * @param hierarchy
 	 * @param selectedObject
 	 * @param creator
+	 * @param minSizePixels
+	 * @param minHoleSizePixels
 	 * @param doSplit
 	 * @return
 	 */
 	public static boolean createObjectsFromPixelClassifier(
 			ImageServer<BufferedImage> server, PathObjectHierarchy hierarchy, PathObject selectedObject, 
-			Function<ROI, ? extends PathObject> creator, double minSizePixels, boolean doSplit) {
+			Function<ROI, ? extends PathObject> creator, double minSizePixels, double minHoleSizePixels,
+			boolean doSplit, boolean clearExisting) {
 		
-		var clipArea = selectedObject == null ? null : RoiTools.getArea(selectedObject.getROI());
-		Collection<TileRequest> tiles;
-		if (selectedObject == null) {
-			tiles = server.getTileRequestManager().getAllTileRequests();
+		var clipArea = selectedObject == null || selectedObject.isRootObject() ? null : selectedObject.getROI().getGeometry();
+		
+		// Identify regions for selected ROI or entire image
+		List<RegionRequest> regionRequests;
+		if (selectedObject != null && !selectedObject.isRootObject()) {
+			if (selectedObject.hasROI()) {
+				var request = RegionRequest.createInstance(
+						server.getPath(), server.getDownsampleForResolution(0), 
+						selectedObject.getROI());			
+				regionRequests = Collections.singletonList(request);
+			} else
+				regionRequests = Collections.emptyList();
 		} else {
-			var request = RegionRequest.createInstance(
-					server.getPath(), server.getDownsampleForResolution(0), 
-					selectedObject.getROI());			
-			tiles = server.getTileRequestManager().getTileRequests(request);
+			regionRequests = RegionRequest.createAllRequests(server, server.getDownsampleForResolution(0));
 		}
-	
-		Map<PathClass, List<PathObject>> pathObjectMap = tiles.parallelStream().map(t -> {
-			var list = new ArrayList<PathObject>();
-			try {
-				var img = server.readBufferedImage(t.getRegionRequest());
-				var nChannels = server.nChannels();
-				// Get raster containing classifications and integer values, by taking the argmax
-				var raster = img.getRaster();
-				if (server.getMetadata().getChannelType() != ImageServerMetadata.ChannelType.CLASSIFICATION) {
-					int h = raster.getHeight();
-					int w = raster.getWidth();
-					byte[] output = new byte[w * h];
-					for (int y = 0; y < h; y++) {
-						for (int x = 0; x < w; x++) {
-							int maxInd = 0;
-							float maxVal = raster.getSampleFloat(x, y, 0);
-							for (int c = 1; c < nChannels; c++) {
-								float val = raster.getSampleFloat(x, y, c);						
-								if (val > maxVal) {
-									maxInd = c;
-									maxVal = val;
+		
+		// Create output array
+		var pathObjects = new ArrayList<PathObject>();
+
+		// Loop through region requests (usually 1, unless we have a z-stack or time series)
+		for (RegionRequest regionRequest : regionRequests) {
+			Collection<TileRequest> tiles = server.getTileRequestManager().getTileRequests(regionRequest);
+			
+			Map<PathClass, List<GeometryWrapper>> pathObjectMap = tiles.parallelStream().map(t -> {
+				var list = new ArrayList<GeometryWrapper>();
+				try {
+					var img = server.readBufferedImage(t.getRegionRequest());
+					var nChannels = server.nChannels();
+					// Get raster containing classifications and integer values, by taking the argmax
+					var raster = img.getRaster();
+					if (server.getMetadata().getChannelType() != ImageServerMetadata.ChannelType.CLASSIFICATION) {
+						int h = raster.getHeight();
+						int w = raster.getWidth();
+						byte[] output = new byte[w * h];
+						for (int y = 0; y < h; y++) {
+							for (int x = 0; x < w; x++) {
+								int maxInd = 0;
+								float maxVal = raster.getSampleFloat(x, y, 0);
+								for (int c = 1; c < nChannels; c++) {
+									float val = raster.getSampleFloat(x, y, c);						
+									if (val > maxVal) {
+										maxInd = c;
+										maxVal = val;
+									}
+									output[y*w+x] = (byte)maxInd;
 								}
-								output[y*w+x] = (byte)maxInd;
 							}
 						}
+						raster = WritableRaster.createPackedRaster(
+								new DataBufferByte(output, w*h), w, h, 8, null);
 					}
-					raster = WritableRaster.createPackedRaster(
-							new DataBufferByte(output, w*h), w, h, 8, null);
-				}
-				for (int c = 0; c < nChannels; c++) {
-					ImageChannel channel = server.getChannel(c);
-					if (channel == null || channel.getName() == null)
-						continue;
-					var pathClass = PathClassFactory.getPathClass(channel.getName());
-					if (pathClass == null || PathClassTools.isGradedIntensityClass(pathClass) || PathClassTools.isIgnoredClass(pathClass))
-						continue;
-					ROI roi = thresholdToROI(raster, c-0.5, c+0.5, 0, t);
+					var labels = server.getMetadata().getClassificationLabels();
+					for (var entry : labels.entrySet()) {
+						int c = entry.getKey();
+						PathClass pathClass = entry.getValue();
+						if (pathClass == null || PathClassTools.isGradedIntensityClass(pathClass) || PathClassTools.isIgnoredClass(pathClass))
+							continue;
+						ROI roi = thresholdToROI(raster, c-0.5, c+0.5, 0, t);
 										
-					if (roi != null && clipArea != null) {
-						var roiArea = RoiTools.getArea(roi);
-						RoiTools.combineAreas(roiArea, clipArea, CombineOp.INTERSECT);
-						if (roiArea.isEmpty())
-							roi = null;
-						else
-							roi = RoiTools.getShapeROI(roiArea, roi.getImagePlane());
+						if (roi != null)  {
+							Geometry geometry = roi.getGeometry();
+							if (clipArea != null)
+								geometry = geometry.intersection(clipArea);
+							if (!geometry.isEmpty())
+								list.add(new GeometryWrapper(geometry, pathClass, roi.getImagePlane()));
+						}
 					}
-					
-					if (roi != null)
-						list.add(PathObjects.createDetectionObject(roi, pathClass));
+				} catch (Exception e) {
+					logger.error("Error requesting classified tile", e);
 				}
-			} catch (Exception e) {
-				logger.error("Error requesting classified tile", e);
-			}
-			return list;
-		}).flatMap(p -> p.stream()).collect(Collectors.groupingBy(p -> p.getPathClass(), Collectors.toList()));
-	
-		// Merge objects with the same classification
-		var pathObjects = new ArrayList<PathObject>();
-		for (var entry : pathObjectMap.entrySet()) {
-			var pathClass = entry.getKey();
-			var list = entry.getValue();
-			Path2D path = new Path2D.Double();
-			for (var pathObject : list) {
-				var shape = RoiTools.getShape(pathObject.getROI());
-				path.append(shape, false);
-			}
-	
-			var plane = ImagePlane.getDefaultPlane();
-			var roi = RoiTools.getShapeROI(path, plane, 0.5);
-			
-			// Apply size threshold
-			if (roi != null && minSizePixels > 0) {
-				if (roi instanceof AreaROI)
-					roi = (PathShape)RoiTools.removeSmallPieces((AreaROI)roi, minSizePixels, minSizePixels);
-				else if (!(roi instanceof PathArea && ((PathArea)roi).getArea() > minSizePixels))
+				return list;
+			}).flatMap(p -> p.stream()).collect(Collectors.groupingBy(p -> p.pathClass, Collectors.toList()));
+		
+			// Merge objects with the same classification
+			for (var entry : pathObjectMap.entrySet()) {
+				var pathClass = entry.getKey();
+				var list = entry.getValue();
+				
+				// Merge to a single Geometry
+				Geometry geometry = GeometryTools.union(list.stream().map(g -> g.geometry).collect(Collectors.toList()));
+				
+				// Apply size filters
+				geometry = GeometryTools.refineAreas(geometry, minSizePixels, minHoleSizePixels);
+				if (geometry == null)
 					continue;
-			}
-	
-			
-			if (doSplit) {
-				var rois = RoiTools.splitROI(roi);
-				for (var r : rois) {
+				
+				if (doSplit) {
+					for (int i = 0; i < geometry.getNumGeometries(); i++) {
+						var geom = geometry.getGeometryN(i);
+						var r = GeometryTools.geometryToROI(geom, regionRequest.getPlane());
+						var annotation = creator.apply(r);
+						annotation.setPathClass(pathClass);
+						pathObjects.add(annotation);
+					}
+				} else {
+					var r = GeometryTools.geometryToROI(geometry, regionRequest.getPlane());
 					var annotation = creator.apply(r);
 					annotation.setPathClass(pathClass);
-					pathObjects.add(annotation);
+					pathObjects.add(annotation);				
 				}
-			} else {
-				var annotation = creator.apply(roi);
-				annotation.setPathClass(pathClass);
-				pathObjects.add(annotation);				
 			}
 		}
 	
-		// Add objects
-		if (selectedObject == null) {
-			hierarchy.clearAll();
-			hierarchy.getRootObject().addPathObjects(pathObjects);
-			hierarchy.fireHierarchyChangedEvent(PixelClassifierTools.class);
+		// Add objects, optionally deleting existing objects first
+		if (clearExisting || (selectedObject != null && !selectedObject.hasChildren())) {
+			if (selectedObject == null) {
+				hierarchy.clearAll();
+				hierarchy.getRootObject().addPathObjects(pathObjects);
+				hierarchy.fireHierarchyChangedEvent(PixelClassifierTools.class);
+			} else {
+				selectedObject.clearPathObjects();
+				selectedObject.addPathObjects(pathObjects);
+				hierarchy.fireHierarchyChangedEvent(PixelClassifierTools.class, selectedObject);
+			}
 		} else {
-			((PathAnnotationObject)selectedObject).setLocked(true);
-			selectedObject.clearPathObjects();
-			selectedObject.addPathObjects(pathObjects);
-			hierarchy.fireHierarchyChangedEvent(PixelClassifierTools.class, selectedObject);
+			hierarchy.addPathObjects(pathObjects);
 		}
+		if (selectedObject != null && (selectedObject.isAnnotation() || selectedObject.isTMACore()))
+			selectedObject.setLocked(true);
 		return true;
 	}
+	
+	
+	static class GeometryWrapper {
+		
+		final Geometry geometry;
+		final PathClass pathClass;
+		final ImagePlane plane;
+		
+		GeometryWrapper(Geometry geometry, PathClass pathClass, ImagePlane plane) {
+			this.geometry = geometry;
+			this.pathClass = pathClass;
+			this.plane = plane;
+		}
+		
+	}
+	
 
 
 	/**

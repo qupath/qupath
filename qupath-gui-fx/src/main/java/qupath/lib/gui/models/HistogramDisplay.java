@@ -49,7 +49,7 @@ import javafx.scene.layout.Priority;
 import javafx.util.Callback;
 import qupath.lib.analysis.stats.Histogram;
 import qupath.lib.common.GeneralTools;
-import qupath.lib.gui.helpers.dialogs.ParameterPanelFX;
+import qupath.lib.gui.dialogs.ParameterPanelFX;
 import qupath.lib.gui.plots.HistogramPanelFX;
 import qupath.lib.gui.plots.HistogramPanelFX.HistogramData;
 import qupath.lib.plugins.parameters.IntParameter;

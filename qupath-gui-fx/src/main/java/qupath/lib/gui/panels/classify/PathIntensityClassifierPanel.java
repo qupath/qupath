@@ -49,7 +49,7 @@ import qupath.lib.analysis.stats.StatisticsHelper;
 import qupath.lib.classifiers.PathClassifierTools;
 import qupath.lib.classifiers.PathObjectClassifier;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.helpers.dialogs.ParameterPanelFX;
+import qupath.lib.gui.dialogs.ParameterPanelFX;
 import qupath.lib.gui.plots.HistogramPanelFX;
 import qupath.lib.gui.plots.HistogramPanelFX.ThresholdedChartWrapper;
 import qupath.lib.images.ImageData;

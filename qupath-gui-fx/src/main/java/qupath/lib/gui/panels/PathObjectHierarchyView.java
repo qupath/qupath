@@ -41,14 +41,14 @@ import javafx.util.Callback;
 import qupath.lib.gui.ImageDataChangeListener;
 import qupath.lib.gui.ImageDataWrapper;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.helpers.ColorToolsFX;
 import qupath.lib.gui.icons.PathIconFactory;
 import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.DefaultPathObjectComparator;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.PathRootObject;
-import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
@@ -480,9 +480,8 @@ public class PathObjectHierarchyView implements ImageDataChangeListener<Buffered
 			var value = getValue();
 			if (!childrenSet && children.isEmpty()) {
 				childrenSet = true;
-				Collection<PathObject> currentChildren = value.getChildObjects();
-				if (!currentChildren.isEmpty()) {
-					var childArray = currentChildren.toArray(PathObject[]::new);
+				var childArray = value.getChildObjectsAsArray();
+				if (childArray.length > 0) {
 					Arrays.sort(childArray, DefaultPathObjectComparator.getInstance());
 					List<TreeItem<PathObject>> newChildren = new ArrayList<>();
 					boolean includeDetections = detectionDisplay.get() != TreeDetectionDisplay.NONE;

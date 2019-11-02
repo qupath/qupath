@@ -6,11 +6,17 @@ import java.awt.image.IndexColorModel;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import qupath.lib.common.ColorTools;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.PixelType;
+import qupath.lib.objects.classes.PathClass;
+import qupath.lib.objects.classes.PathClassFactory;
+import qupath.lib.objects.classes.PathClassFactory.StandardPathClasses;
+import qupath.lib.objects.classes.PathClassTools;
 
 /**
  * Factory methods to help create ColorModels for use with BufferedImages.
@@ -20,7 +26,7 @@ import qupath.lib.images.servers.PixelType;
  */
 public final class ColorModelFactory {
 	
-	private static Map<List<ImageChannel>, IndexColorModel> classificationModels = Collections.synchronizedMap(new HashMap<>());
+	private static Map<Map<Integer, PathClass>, IndexColorModel> classificationModels = Collections.synchronizedMap(new HashMap<>());
 
 	private static Map<List<ImageChannel>, ColorModel> probabilityModels8 = Collections.synchronizedMap(new HashMap<>());
 	private static Map<List<ImageChannel>, ColorModel> probabilityModels32 = Collections.synchronizedMap(new HashMap<>());
@@ -33,20 +39,62 @@ public final class ColorModelFactory {
 	/**
 	 * Get a ColorModel suitable for showing output pixel classifications, using an 8-bit 
 	 * labeled image.
+     * A cached model may be retrieved if possible, rather than generating a new one.
 	 * 
 	 * @param channels
 	 * @return
 	 */
-    public static ColorModel getIndexedColorModel(List<ImageChannel> channels) {
+    public static ColorModel getIndexedClassificationColorModel(Map<Integer, PathClass> channels) {
     	var map = classificationModels.get(channels);
+
+    	var stats = channels.keySet().stream().mapToInt(c -> c).summaryStatistics();
+    	if (stats.getMin() < 0)
+    		throw new IllegalArgumentException("Minimum label must be >= 0");
+    	int length = stats.getMax() + 1;
+    	
     	if (map == null) {
-            int[] cmap = channels.stream().mapToInt(c -> c.getColor()).toArray();
+            int[] cmap = new int[length];
+            
+            for (var entry: channels.entrySet()) {
+        		var pathClass = entry.getValue();
+        		if (pathClass == null || pathClass == PathClassFactory.getPathClassUnclassified()) {
+        			cmap[entry.getKey()] = ColorTools.makeRGBA(255, 255, 255, 0);
+        		} else if (PathClassTools.isIgnoredClass(entry.getValue())) {
+            		var color = pathClass == null ? 0 : pathClass.getColor();
+            		int alpha = 192;
+            		if (pathClass == PathClassFactory.getPathClass(StandardPathClasses.IGNORE))
+            			alpha = 32;
+                	cmap[entry.getKey()] = ColorTools.makeRGBA(ColorTools.red(color), ColorTools.green(color), ColorTools.blue(color), alpha);
+            	} else
+            		cmap[entry.getKey()] = entry.getValue().getColor();
+            }
             if (cmap.length > 256)
             	throw new IllegalArgumentException("Only 256 possible classifications supported!");
-            map = new IndexColorModel(8, channels.size(), cmap, 0, true, -1, DataBuffer.TYPE_BYTE);    		
-            classificationModels.put(new ArrayList<>(channels), map);
+            map = new IndexColorModel(8, length, cmap, 0, true, -1, DataBuffer.TYPE_BYTE);    		
+            classificationModels.put(new LinkedHashMap<>(channels), map);
     	}
     	return map;
+    }
+    
+    /**
+     * Create an indexed colormap for a labelled (indexed color) image.
+     * @param labelColors map with integer labels as keys and packed (A)RGB colors as values.
+     * @return
+     */
+    public static ColorModel createIndexedColorModel(Map<Integer, Integer> labelColors, boolean includeAlpha) {
+    	var stats = labelColors.keySet().stream().mapToInt(c -> c).summaryStatistics();
+    	if (stats.getMin() < 0)
+    		throw new IllegalArgumentException("Minimum label must be >= 0");
+    	int length = stats.getMax() + 1;
+    	
+        int[] cmap = new int[length];
+        
+        for (var entry: labelColors.entrySet()) {
+        	cmap[entry.getKey()] = entry.getValue();
+        }
+        if (cmap.length > 256)
+        	throw new IllegalArgumentException("Only 256 possible classifications supported!");
+        return new IndexColorModel(8, length, cmap, 0, includeAlpha, -1, DataBuffer.TYPE_BYTE);    		
     }
     
     
@@ -54,11 +102,12 @@ public final class ColorModelFactory {
      * Get a ColorModel suitable for showing 8-bit pseudo-probabilities for multiple channels.
      * <p>
      * The range of values is assumed to be 0-255, treated as probabilities rescaled from 0-1.
+     * A cached model will be retrieved where possible, rather than generating a new one.
      * 
      * @param channels
      * @return
      */
-    public static ColorModel geProbabilityColorModel8Bit(List<ImageChannel> channels) {
+    public static ColorModel getProbabilityColorModel8Bit(List<ImageChannel> channels) {
     	var map = probabilityModels8.get(channels);
     	if (map == null) {
             int[] colors = channels.stream().mapToInt(c -> c.getColor()).toArray();
@@ -73,11 +122,12 @@ public final class ColorModelFactory {
      * Get a ColorModel suitable for showing 32-bit (pseudo-)probabilities for multiple channels.
      * <p>
      * The range of values is assumed to be 0-1.
+     * A cached model will be retrieved where possible, rather than generating a new one.
      * 
      * @param channels
      * @return
      */
-    public static ColorModel geProbabilityColorModel32Bit(List<ImageChannel> channels) {
+    public static ColorModel getProbabilityColorModel32Bit(List<ImageChannel> channels) {
     	var map = probabilityModels32.get(channels);
     	if (map == null) {
             int[] colors = channels.stream().mapToInt(c -> c.getColor()).toArray();
@@ -92,6 +142,7 @@ public final class ColorModelFactory {
 	 * <p>
 	 * This isn't very highly recommended; it is here to help in cases where a {@code BufferedImage} 
 	 * is required, but really only a raster is needed.
+	 * The actual color used is undefined (but it will likely be black).
 	 * 
 	 * @param bpp
 	 * @return
@@ -101,7 +152,7 @@ public final class ColorModelFactory {
 	}
 
 	/**
-	 * Create a ColorModel that can be used to display an image where pixels per channel reflect 
+	 * Create a new ColorModel that can be used to display an image where pixels per channel reflect 
 	 * probabilities, either as float or byte.
 	 * <p>
 	 * It is assumed that the probabilities sum to 1; if they sum to less than 1, <code>alphaResidual</code> 
@@ -117,6 +168,24 @@ public final class ColorModelFactory {
 	 */
 	public static ColorModel createColorModel(final PixelType type, final int nChannels, final boolean alphaResidual, final int...colors) {
 		return new DefaultColorModel(type, nChannels, alphaResidual, colors);
+	}
+	
+	/**
+	 * Create a ColorModel for displaying an image with the specified channel colors.
+	 * Note that this currently does not provide any means to change the display range (e.g. for brightness/contrast)
+	 * and therefore may not be sufficient on its own for generating a satisfactory (A)RGB image.
+	 * 
+	 * @param type
+	 * @param channels
+	 * @return
+	 */
+	public static ColorModel createColorModel(final PixelType type, final List<ImageChannel> channels) {
+		return new DefaultColorModel(type, channels.size(), false, channels.stream().mapToInt(c -> {
+			Integer color = c.getColor();
+			if (color == null)
+				color = ColorTools.makeRGB(255, 255, 255);
+			return color;
+		}).toArray());
 	}
     
 

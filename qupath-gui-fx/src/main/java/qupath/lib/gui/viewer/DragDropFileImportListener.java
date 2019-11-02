@@ -42,7 +42,7 @@ import javafx.scene.input.Dragboard;
 import javafx.scene.input.TransferMode;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.ProjectImportImagesCommand;
-import qupath.lib.gui.helpers.DisplayHelpers;
+import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.scripting.ScriptEditor;
 import qupath.lib.gui.tma.TMADataIO;
@@ -120,7 +120,7 @@ public class DragDropFileImportListener implements EventHandler<DragEvent> {
 			try {
 				handleFileDrop(viewer, dragboard.getFiles());
 			} catch (IOException e) {
-				DisplayHelpers.showErrorMessage("Drag & Drop", e);
+				Dialogs.showErrorMessage("Drag & Drop", e);
 			}
 		}
 		event.setDropCompleted(true);
@@ -177,7 +177,7 @@ public class DragDropFileImportListener implements EventHandler<DragEvent> {
 			if (gui.canInstallExtensions())
 				gui.installExtensions(list);
 			else
-				DisplayHelpers.showErrorMessage("Install extensions", "Sorry, extensions can only be installed when QuPath is run as a standalone application.");
+				Dialogs.showErrorMessage("Install extensions", "Sorry, extensions can only be installed when QuPath is run as a standalone application.");
 			return;
 		}
 		
@@ -195,13 +195,13 @@ public class DragDropFileImportListener implements EventHandler<DragEvent> {
 
 				// If we have a different path, open as a new image
 				if (viewer == null) {
-					DisplayHelpers.showErrorMessage("Open data", "Please drag the file onto a specific viewer to open!");
+					Dialogs.showErrorMessage("Open data", "Please drag the file onto a specific viewer to open!");
 					break;
 				}
 				try {
 					gui.openSavedData(viewer, file, false, true);
 				} catch (Exception e) {
-					DisplayHelpers.showErrorMessage("Open image", e);
+					Dialogs.showErrorMessage("Open image", e);
 				}
 				return;
 			}
@@ -219,13 +219,13 @@ public class DragDropFileImportListener implements EventHandler<DragEvent> {
 					// Prompt to select which project file to open
 					logger.debug("Multiple project files found in directory {}", file);
 					String[] fileNames = projectFiles.stream().map(f -> f.getName()).toArray(n -> new String[n]);
-					String selectedName = DisplayHelpers.showChoiceDialog("Select project", "Select project to open", fileNames, fileNames[0]);
+					String selectedName = Dialogs.showChoiceDialog("Select project", "Select project to open", fileNames, fileNames[0]);
 					if (selectedName == null)
 						return;
 					file = new File(file, selectedName);
 				} else if (filesInDirectory.length == 0) {
 					// If we have an empty directory, offer to set it as a project
-					if (DisplayHelpers.showYesNoDialog("Create project", "Create project for empty directory?")) {
+					if (Dialogs.showYesNoDialog("Create project", "Create project for empty directory?")) {
 						Project<BufferedImage> project = Projects.createProject(file, BufferedImage.class);
 						gui.setProject(project);
 						if (!project.isEmpty())
@@ -243,7 +243,7 @@ public class DragDropFileImportListener implements EventHandler<DragEvent> {
 					Project<BufferedImage> project = ProjectIO.loadProject(file, BufferedImage.class);
 					gui.setProject(project);
 				} catch (Exception e) {
-					DisplayHelpers.showErrorMessage("Project error", e);
+					Dialogs.showErrorMessage("Project error", e);
 //					logger.error("Could not open as project file: {}", e);
 				}
 				return;
@@ -252,14 +252,14 @@ public class DragDropFileImportListener implements EventHandler<DragEvent> {
 			// Check if this is TMA dearraying data file
 			if (singleFile && (fileName.endsWith(TMADataIO.TMA_DEARRAYING_DATA_EXTENSION))) {
 				if (hierarchy == null)
-					DisplayHelpers.showErrorMessage("TMA grid import", "Please open an image first before importing a dearrayed TMA grid!");
+					Dialogs.showErrorMessage("TMA grid import", "Please open an image first before importing a dearrayed TMA grid!");
 				else {
 					TMAGrid tmaGrid = TMADataIO.importDearrayedTMAData(file);
 					if (tmaGrid != null) {
-						if (hierarchy.isEmpty() || DisplayHelpers.showYesNoDialog("TMA grid import", "Set TMA grid for existing hierarchy?"))
+						if (hierarchy.isEmpty() || Dialogs.showYesNoDialog("TMA grid import", "Set TMA grid for existing hierarchy?"))
 							hierarchy.setTMAGrid(tmaGrid);
 					} else
-						DisplayHelpers.showErrorMessage("TMA grid import", "Could not parse TMA grid from " + file.getName());
+						Dialogs.showErrorMessage("TMA grid import", "Could not parse TMA grid from " + file.getName());
 				}
 				return;
 			}
@@ -283,7 +283,7 @@ public class DragDropFileImportListener implements EventHandler<DragEvent> {
 			if (singleFile && file.isFile()) {
 				// Try to open as an image, if the extension is known
 				if (viewer == null) {
-					DisplayHelpers.showErrorMessage("Open image", "Please drag the file only a specific viewer to open!");
+					Dialogs.showErrorMessage("Open image", "Please drag the file only a specific viewer to open!");
 					return;
 				}
 				gui.openImage(viewer, file.getAbsolutePath(), true, true);
@@ -301,14 +301,14 @@ public class DragDropFileImportListener implements EventHandler<DragEvent> {
 		}
 		if (gui.getProject() == null) {
 			if (list.size() > 1) {
-				DisplayHelpers.showErrorMessage("Drag & drop", "Could not handle multiple file drop - if you want to handle multiple images, you need to create a project first");
+				Dialogs.showErrorMessage("Drag & drop", "Could not handle multiple file drop - if you want to handle multiple images, you need to create a project first");
 				return;
 			}
     	}
 		if (list.size() > 1)
-			DisplayHelpers.showErrorMessage("Drag & drop", "Sorry, I couldn't figure out what to do with these files - try opening one at a time");
+			Dialogs.showErrorMessage("Drag & drop", "Sorry, I couldn't figure out what to do with these files - try opening one at a time");
 		else
-			DisplayHelpers.showErrorMessage("Drag & drop", "Sorry, I couldn't figure out what to do with " + list.get(0).getName());
+			Dialogs.showErrorMessage("Drag & drop", "Sorry, I couldn't figure out what to do with " + list.get(0).getName());
 	}
     
     

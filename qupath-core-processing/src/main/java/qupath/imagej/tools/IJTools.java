@@ -689,7 +689,7 @@ public class IJTools {
 			if (pathROI instanceof PointsROI)
 				return ROIConverterIJ.convertToPointROI((PointsROI)pathROI, xOrigin, yOrigin, downsampleFactor);
 			// If we have any other kind of shape, create a general shape roi
-			if (pathROI instanceof AreaROI) { // TODO: Deal with non-AWT area ROIs!
+			if (pathROI != null && pathROI.isArea()) { // TODO: Deal with non-AWT area ROIs!
 				Shape shape = RoiTools.getArea(pathROI);
 	//			"scaleX", "shearY", "shearX", "scaleY", "translateX", "translateY"
 				shape = new AffineTransform(1.0/downsampleFactor, 0, 0, 1.0/downsampleFactor, xOrigin, yOrigin).createTransformedShape(shape);

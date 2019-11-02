@@ -33,17 +33,20 @@ package qupath.lib.plugins;
 public interface PathTask extends Runnable {
 	
 	/**
-	 * Post-processing.
-	 * 
-	 * Should be called on Event Dispatch Thread when using Swing, or Application thread for JavaFX.
+	 * Perform optional post-processing after a task has completed.
+	 * <p>
+	 * When processing a collection of tasks with a {@link PluginRunner}, this method 
+	 * should be called on the same thread. The choice of thread depends on the runner, but 
+	 * may be the Event Dispatch Thread when using Swing or Application thread for JavaFX.
 	 */
-	public void taskComplete();
+	public default void taskComplete(boolean wasCancelled) {}
 	
 	/**
 	 * Get a description of the results from running this task, which may be used e.g. in a progress monitor or output to the command line.
+	 * Default implementation returns null.
 	 * 
 	 * @return
 	 */
-	public String getLastResultsDescription();
+	public default String getLastResultsDescription() {return null;}
 
 }

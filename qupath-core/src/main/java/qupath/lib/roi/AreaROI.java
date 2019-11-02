@@ -35,7 +35,6 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.geom.Point2;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.interfaces.ROI;
-import qupath.lib.roi.interfaces.TranslatableROI;
 
 /**
  * Implementation of an arbitrary area ROI - which could contain disjointed or hollow regions.
@@ -55,7 +54,7 @@ import qupath.lib.roi.interfaces.TranslatableROI;
  * @author Pete Bankhead
  *
  */
-public class AreaROI extends AbstractPathAreaROI implements TranslatableROI, Serializable {
+public class AreaROI extends AbstractPathROI implements Serializable {
 	
 //	final static private Logger logger = LoggerFactory.getLogger(AreaROI.class);
 	
@@ -115,7 +114,7 @@ public class AreaROI extends AbstractPathAreaROI implements TranslatableROI, Ser
 	}
 
 	@Override
-	public double getPerimeter() {
+	public double getLength() {
 		if (stats == null)
 			calculateShapeMeasurements();
 		return stats.getPerimeter();
@@ -180,6 +179,7 @@ public class AreaROI extends AbstractPathAreaROI implements TranslatableROI, Ser
 	}
 
 	@Override
+	@Deprecated
 	public ROI duplicate() {
 		return new AreaROI(vertices, getImagePlane());
 	}
@@ -190,7 +190,7 @@ public class AreaROI extends AbstractPathAreaROI implements TranslatableROI, Ser
 
 	
 	@Override
-	public TranslatableROI translate(double dx, double dy) {
+	public ROI translate(double dx, double dy) {
 		// Shift the bounds
 		if (dx == 0 && dy == 0)
 			return this;
@@ -212,6 +212,27 @@ public class AreaROI extends AbstractPathAreaROI implements TranslatableROI, Ser
 		}
 		return new AreaROI(xx, yy, getImagePlane());
 	}
+	
+	@Override
+	public ROI scale(double scaleX, double scaleY, double originX, double originY) {
+		// Create shifted vertices
+		float[][] xx = new float[vertices.size()][];
+		float[][] yy = new float[vertices.size()][];
+		int idx = 0;
+		for (MutableVertices v : vertices) {
+			// Shift the region
+			float[] x = v.getX(null);
+			float[] y = v.getY(null);
+			for (int i = 0; i < x.length; i++) {
+				x[i] = (float)RoiTools.scaleOrdinate(x[i], scaleX, originX);
+				y[i] = (float)RoiTools.scaleOrdinate(y[i], scaleY, originY);
+			}
+			xx[idx] = x;
+			yy[idx] = y;
+			idx++;
+		}
+		return new AreaROI(xx, yy, getImagePlane());
+	}
 
 	@Override
 	public double getScaledArea(double pixelWidth, double pixelHeight) {
@@ -222,9 +243,9 @@ public class AreaROI extends AbstractPathAreaROI implements TranslatableROI, Ser
 	}
 
 	@Override
-	public double getScaledPerimeter(double pixelWidth, double pixelHeight) {
+	public double getScaledLength(double pixelWidth, double pixelHeight) {
 		if (GeneralTools.almostTheSame(pixelWidth, pixelHeight, 0.0001))
-			return getPerimeter() * (pixelWidth + pixelHeight) * .5;
+			return getLength() * (pixelWidth + pixelHeight) * .5;
 		// TODO: Need to confirm this is not a performance bottleneck in practice (speed vs. memory issue)
 		return new ClosedShapeStatistics(vertices, pixelWidth, pixelHeight).getPerimeter();
 	}
@@ -266,7 +287,7 @@ public class AreaROI extends AbstractPathAreaROI implements TranslatableROI, Ser
 	 * result in the same shape as that which the area represents.
 	 */
 	@Override
-	public List<Point2> getPolygonPoints() {
+	public List<Point2> getAllPoints() {
 		if (vertices == null || vertices.isEmpty())
 			return Collections.emptyList();
 		List<Point2> list = new ArrayList<>();
@@ -324,7 +345,12 @@ public class AreaROI extends AbstractPathAreaROI implements TranslatableROI, Ser
 
 	@Override
 	public Shape getShape() {
-		return RoiTools.getShape(this);
+		return new AWTAreaROI(this).getShape();
+	}
+
+	@Override
+	public RoiType getRoiType() {
+		return RoiType.AREA;
 	}
 	
 }

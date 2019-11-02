@@ -86,7 +86,7 @@ import javafx.stage.Stage;
 import jfxtras.scene.layout.GridPane;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
-import qupath.lib.gui.helpers.DisplayHelpers;
+import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.panels.ObjectTreeBrowser;
 import qupath.lib.gui.scripting.QPEx;
 import qupath.lib.images.ImageData;
@@ -445,10 +445,10 @@ public class ScriptInterpreterCommand implements PathCommand {
 				if (variables.isEmpty())
 					return;
 				if (variables.size() == 1) {
-					if (!DisplayHelpers.showConfirmDialog("Clear variables", "Clear variable '" + variables.get(0) + "'?"))
+					if (!Dialogs.showConfirmDialog("Clear variables", "Clear variable '" + variables.get(0) + "'?"))
 						return;
 				} else {
-					if (!DisplayHelpers.showConfirmDialog("Clear variables", "Clear " + variables.size() + " variables?"))
+					if (!Dialogs.showConfirmDialog("Clear variables", "Clear " + variables.size() + " variables?"))
 						return;
 				}
 				for (String v : variables)

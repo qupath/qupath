@@ -40,7 +40,7 @@ import javafx.scene.control.PasswordField;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.GridPane;
 import qupath.lib.common.GeneralTools;
-import qupath.lib.gui.helpers.DisplayHelpers;
+import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerBuilder;
 
@@ -455,7 +455,7 @@ public class OmeroWebImageServerBuilder implements ImageServerBuilder<BufferedIm
 			pane.setHgap(5);
 			pane.setVgap(5);
 
-			if (!DisplayHelpers.showConfirmDialog("Login", pane))
+			if (!Dialogs.showConfirmDialog("Login", pane))
 				return null;
 
 			String userName = tfUsername.getText();

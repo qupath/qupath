@@ -30,8 +30,8 @@ import javafx.scene.input.Clipboard;
 import javafx.scene.input.DataFormat;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
-import qupath.lib.gui.helpers.DisplayHelpers;
-import qupath.lib.gui.helpers.DisplayHelpers.SnapshotType;
+import qupath.lib.gui.tools.GuiTools;
+import qupath.lib.gui.tools.GuiTools.SnapshotType;
 
 /**
  * Command to copy a screenshot to the system clipboard.
@@ -42,9 +42,9 @@ import qupath.lib.gui.helpers.DisplayHelpers.SnapshotType;
 public class CopyViewToClipboardCommand implements PathCommand {
 	
 	final private QuPathGUI qupath;
-	final private SnapshotType type;
+	final private GuiTools.SnapshotType type;
 	
-	public CopyViewToClipboardCommand(final QuPathGUI qupath, final SnapshotType type) {
+	public CopyViewToClipboardCommand(final QuPathGUI qupath, final GuiTools.SnapshotType type) {
 		super();
 		this.qupath = qupath;
 		this.type = type;
@@ -52,7 +52,7 @@ public class CopyViewToClipboardCommand implements PathCommand {
 
 	@Override
 	public void run() {
-		Image img = DisplayHelpers.makeSnapshotFX(qupath, type);
+		Image img = GuiTools.makeSnapshotFX(qupath, qupath.getViewer(), type);
 		Clipboard.getSystemClipboard().setContent(Collections.singletonMap(DataFormat.IMAGE, img));
 	}
 	

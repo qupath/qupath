@@ -32,24 +32,64 @@ package qupath.lib.common;
 public class ColorTools {
 	
 	/**
+	 * Packed int representing white.
+	 */
+	final public static int WHITE = makeRGB(255, 255, 255);
+
+	/**
+	 * Packed int representing black.
+	 */
+	final public static Integer BLACK = makeRGB(0, 0, 0);
+
+	/**
+	 * Packed int representing red.
+	 */
+	final public static Integer RED = makeRGB(255, 0, 0);
+
+	/**
+	 * Packed int representing green.
+	 */
+	final public static Integer GREEN = makeRGB(0, 255, 0);
+
+	/**
+	 * Packed int representing blue.
+	 */
+	final public static Integer BLUE = makeRGB(0, 0, 255);
+
+	/**
+	 * Packed int representing magenta.
+	 */
+	final public static Integer MAGENTA = makeRGB(255, 0, 255);
+
+	/**
+	 * Packed int representing cyan.
+	 */
+	final public static Integer CYAN = makeRGB(0, 255, 255);
+
+	/**
+	 * Packed int representing yellow.
+	 */
+	final public static Integer YELLOW = makeRGB(255, 255, 0);
+
+	/**
 	 * Mask for use when extracting the alpha component from a packed ARGB int value.
 	 */
-	final public static int MASK_ALPHA = 0xff000000;
+	final public static Integer MASK_ALPHA = 0xff000000;
 	
 	/**
 	 * Mask for use when extracting the red component from a packed (A)RGB int value.
 	 */
-	final public static int MASK_RED = 0xff0000;
+	final public static Integer MASK_RED = 0xff0000;
 	
 	/**
 	 * Mask for use when extracting the green component from a packed (A)RGB int value.
 	 */
-	final public static int MASK_GREEN = 0xff00;
+	final public static Integer MASK_GREEN = 0xff00;
 	
 	/**
 	 * Mask for use when extracting the blue component from a packed (A)RGB int value.
 	 */
-	final public static int MASK_BLUE = 0xff;
+	final public static Integer MASK_BLUE = 0xff;
 
 	/**
 	 * Make a packed RGB value from specified input values.

@@ -128,8 +128,14 @@ public interface ROI {
 	 * the expected output for a ROI that contains holes or disconnected regions is (currently) undefined.
 	 * @return
 	 */
-	public List<Point2> getPolygonPoints();
+	public abstract List<Point2> getAllPoints();
 
+	/**
+	 * Get the number of points, as would be returned by {@link #getAllPoints()}.
+	 * @return
+	 */
+	public abstract int getNumPoints();
+		
 	/**
 	 * Returns true if the ROI bounds have zero width and height.
 	 * 
@@ -209,6 +215,101 @@ public interface ROI {
 	 * @return
 	 */
 	public boolean isPoint();
+	
+	/**
+	 * Create a translated version of this ROI. The original ROI is unchanged.
+	 * @param dx horizontal translation
+	 * @param dy vertical translation
+	 * @return
+	 */
+	public ROI translate(double dx, double dy);
+	
+	/**
+	 * Create a scaled version of this ROI. Coordinates are multiplied by the given 
+	 * scaling factors, while the original ROI is unchanged.
+	 * @param scaleX horizontal scale value
+	 * @param scaleY vertical scale value
+	 * @param originX value subtracted from each x-ordinate prior to scaling, and added back afterwards
+	 * @param originY value subtracted from each y-ordinate prior to scaling, and added back afterwards
+	 * @return
+	 * @see #scale(double, double)
+	 */
+	public ROI scale(double scaleX, double scaleY, double originX, double originY);
+	
+	/**
+	 * Create a scaled version of this ROI. Coordinates are multiplied by the given 
+	 * scaling factors, while the original ROI is unchanged. The scaling uses 0,0 as the origin.
+	 * @param scaleX horizontal scale value
+	 * @param scaleY vertical scale value
+	 * @return
+	 * @see #scale(double, double, double, double)
+	 */
+	public default ROI scale(double scaleX, double scaleY) {
+		return scale(scaleX, scaleY, 0, 0);
+	}
+	
+	/**
+	 * Get the area of this ROI. For lines and points this returns 0.
+	 * @return
+	 * @see #getScaledArea(double, double)
+	 */
+	public double getArea();
+	
+	/**
+	 * Get scaled area of the ROI, for use with calibrated pixel sizes.
+	 * @param pixelWidth
+	 * @param pixelHeight
+	 * @return
+	 * @see #getArea()
+	 */
+	public double getScaledArea(double pixelWidth, double pixelHeight);
+	
+	/**
+	 * Get ROI length.
+	 * This is defined as
+	 * <ul>
+	 *   <li><i>perimeter</i> in the case of area ROIs</li>
+	 *   <li><i>total length of line segments</i> in the case of line or polyline ROIs</li>
+	 *   <li>0 in the case of point ROIs</li>
+	 * </ul>
+	 * @return
+	 * @see #getScaledLength(double, double)
+	 */
+	public double getLength();
+	
+	/**
+	 * Get the scaled length, for use with calibrated pixel sizes.
+	 * @param pixelWidth
+	 * @param pixelHeight
+	 * @return
+	 * @see #getLength()
+	 */
+	public double getScaledLength(double pixelWidth, double pixelHeight);
+	
+	
+	/**
+	 * Get a ROI representing the convex hull of this ROI.
+	 * This should be the smallest convex shape that contains all the ROI points.
+	 * @return
+	 */
+	public ROI getConvexHull();
+	
+	/**
+	 * Calculate the solidity, defined as ROI area / convex hull area.
+	 * Returns Double.NaN if the ROI does not represent an area.
+	 * @return
+	 */
+	public double getSolidity();
+	
+	/**
+	 * Test is the ROI contains specified x, y coordinates.
+	 * Only Area ROIs can return true, i.e. where {@link #isArea()} returns true. 
+	 * All other ROIs (points, lines) return false.
+	 * @param x
+	 * @param y
+	 * @return
+	 */
+	public boolean contains(double x, double y);
 	
 
 }

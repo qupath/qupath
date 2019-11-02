@@ -76,7 +76,8 @@ public class RenderedImageServer extends AbstractTileableImageServer implements 
 	 * @see Builder
 	 */
 	public static ImageServer<BufferedImage> createRenderedServer(QuPathViewer viewer) {
-		return new Builder(viewer).build();
+		return new Builder(viewer)
+				.build();
 	}
 	
 	/**

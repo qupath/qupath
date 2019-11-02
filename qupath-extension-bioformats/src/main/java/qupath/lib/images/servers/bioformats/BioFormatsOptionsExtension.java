@@ -35,8 +35,8 @@ import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.StringProperty;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.extensions.QuPathExtension;
-import qupath.lib.gui.helpers.DisplayHelpers;
 import qupath.lib.gui.panels.PreferencePanel;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.images.writers.ome.OMEPyramidWriterCommand;
@@ -58,7 +58,7 @@ public class BioFormatsOptionsExtension implements QuPathExtension {
 		// Request Bio-Formats version - if null, Bio-Formats is missing & we can't install the extension
 		bfVersion = BioFormatsServerBuilder.getBioFormatsVersion();
 		if (bfVersion == null) {
-			DisplayHelpers.showErrorMessage("Bio-Formats extension",
+			Dialogs.showErrorMessage("Bio-Formats extension",
 						"The Bio-Formats extension is installed, but 'bioformats_package.jar' is missing!\n\n" + 
 						"Please make sure both .jar files are copied to the QuPath extensions folder.");
 			return;
@@ -68,7 +68,7 @@ public class BioFormatsOptionsExtension implements QuPathExtension {
 		
 		
 		QuPathGUI.addMenuItems(
-				qupath.getMenu("File>Export region...", true),
+				qupath.getMenu("File>Export images...", true),
 				QuPathGUI.createCommandAction(new OMEPyramidWriterCommand(qupath), "OME TIFF"));
 		
 		
@@ -150,7 +150,7 @@ public class BioFormatsOptionsExtension implements QuPathExtension {
 	@Override
 	public String getDescription() {
 		if (bfVersion == null) {
-			return "See https://github.com/qupath/qupath-bioformats-extension for details about installing 'bioformats_package.jar'";
+			return "Cannot fit the Bio-Formats library required by this extension!'";
 		} else {
 			return "Installs options for the Bio-Formats image server in the QuPath preference pane";			
 		}

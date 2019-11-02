@@ -92,13 +92,13 @@ import qupath.lib.gui.ImageDataChangeListener;
 import qupath.lib.gui.ImageDataWrapper;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
-import qupath.lib.gui.helpers.ColorToolsFX;
-import qupath.lib.gui.helpers.DisplayHelpers;
-import qupath.lib.gui.helpers.PaneToolsFX;
+import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.plots.HistogramPanelFX;
 import qupath.lib.gui.plots.HistogramPanelFX.HistogramData;
 import qupath.lib.gui.plots.HistogramPanelFX.ThresholdedChartWrapper;
 import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.gui.tools.ColorToolsFX;
+import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageChannel;
@@ -225,7 +225,7 @@ public class BrightnessContrastCommand implements PathCommand, ImageDataChangeLi
 				if (infoVisible == null)
 					return;
 
-				Double value = DisplayHelpers.showInputDialog("Display range", "Set display range minimum", (double)infoVisible.getMinDisplay());
+				Double value = Dialogs.showInputDialog("Display range", "Set display range minimum", (double)infoVisible.getMinDisplay());
 				if (value != null && !Double.isNaN(value)) {
 					sliderMin.setValue(value);
 					// Update display directly if out of slider range
@@ -244,7 +244,7 @@ public class BrightnessContrastCommand implements PathCommand, ImageDataChangeLi
 				if (infoVisible == null)
 					return;
 
-				Double value = DisplayHelpers.showInputDialog("Display range", "Set display range maximum", (double)infoVisible.getMaxDisplay());
+				Double value = Dialogs.showInputDialog("Display range", "Set display range maximum", (double)infoVisible.getMaxDisplay());
 				if (value != null && !Double.isNaN(value)) {
 					sliderMax.setValue(value);
 					// Update display directly if out of slider range
@@ -376,10 +376,23 @@ public class BrightnessContrastCommand implements PathCommand, ImageDataChangeLi
 			CheckBoxTableCell<ChannelDisplayInfo, Boolean> cell = new CheckBoxTableCell<>();
 			// Select cells when clicked - means a click anywhere within the row forces selection.
 			// Previously, clicking within the checkbox didn't select the row.
-			cell.addEventFilter(MouseEvent.MOUSE_RELEASED, e -> {
+			cell.addEventFilter(MouseEvent.MOUSE_CLICKED, e -> {
+				if (e.isPopupTrigger())
+					return;
 				int ind = cell.getIndex();
-				if (ind < column.getTableView().getItems().size())
-					column.getTableView().getSelectionModel().select(ind);
+				var tableView = cell.getTableView();
+				if (ind < tableView.getItems().size()) {
+					if (e.isShiftDown())
+						tableView.getSelectionModel().select(ind);
+					else
+						tableView.getSelectionModel().clearAndSelect(ind);
+					var channel = cell.getTableRow().getItem();
+					// Handle clicks within the cell but outside the checkbox
+					if (e.getTarget() == cell && channel != null && imageDisplay != null) {
+						updateDisplay(channel, !imageDisplay.selectedChannels().contains(channel));
+					}
+					e.consume();
+				}
 			});
 			return cell;
 		});
@@ -497,7 +510,7 @@ public class BrightnessContrastCommand implements PathCommand, ImageDataChangeLi
 		// Create brightness/contrast panel
 		BorderPane panelSliders = new BorderPane();
 		panelSliders.setTop(box);
-		GridPane panelButtons = PaneToolsFX.createColumnGridControls(
+		GridPane panelButtons = PaneTools.createColumnGridControls(
 				btnAuto,
 				btnReset
 				);
@@ -949,12 +962,24 @@ public class BrightnessContrastCommand implements PathCommand, ImageDataChangeLi
 		private KeyCombination copyCombo = new KeyCodeCombination(KeyCode.C, KeyCombination.SHORTCUT_DOWN);
 		private KeyCombination pasteCombo = new KeyCodeCombination(KeyCode.V, KeyCombination.SHORTCUT_DOWN);
 
+		private KeyCombination spaceCombo = new KeyCodeCombination(KeyCode.SPACE, KeyCombination.SHORTCUT_ANY);
+		private KeyCombination enterCombo = new KeyCodeCombination(KeyCode.ENTER, KeyCombination.SHORTCUT_ANY);
+
 		@Override
 		public void handle(KeyEvent event) {
-			if (copyCombo.match(event))
+			if (copyCombo.match(event)) {
 				doCopy(event);
-			else if (pasteCombo.match(event))
+				event.consume();
+			} else if (pasteCombo.match(event)) {
 				doPaste(event);
+				event.consume();
+			} else if (spaceCombo.match(event) || enterCombo.match(event)) {
+				var channel = table.getSelectionModel().getSelectedItem();
+				if (imageDisplay != null && channel != null) {
+					updateDisplay(channel, !imageDisplay.selectedChannels().contains(channel));
+				}
+				event.consume();
+			}
 		}
 		
 		/**
@@ -988,11 +1013,11 @@ public class BrightnessContrastCommand implements PathCommand, ImageDataChangeLi
 			}
 			var names = string.lines().collect(Collectors.toList());
 			if (selected.size() != names.size()) {
-				DisplayHelpers.showErrorNotification("Paste channel names", "The number of lines on the clipboard doesn't match the number of channel names to replace!");
+				Dialogs.showErrorNotification("Paste channel names", "The number of lines on the clipboard doesn't match the number of channel names to replace!");
 				return;
 			}
 			if (names.size() != new HashSet<>(names).size()) {
-				DisplayHelpers.showErrorNotification("Paste channel names", "Channel names should be unique!");
+				Dialogs.showErrorNotification("Paste channel names", "Channel names should be unique!");
 				return;
 			}
 			var metadata = server.getMetadata();
@@ -1013,7 +1038,7 @@ public class BrightnessContrastCommand implements PathCommand, ImageDataChangeLi
 			List<String> allNewNames = channels.stream().map(c -> c.getName()).collect(Collectors.toList());
 			Set<String> allNewNamesSet = new LinkedHashSet<>(allNewNames);
 			if (allNewNames.size() != allNewNamesSet.size()) {
-				DisplayHelpers.showErrorMessage("Channel", "Cannot paste channels - names would not be unique \n(check log for details)");
+				Dialogs.showErrorMessage("Channel", "Cannot paste channels - names would not be unique \n(check log for details)");
 				for (String n : allNewNamesSet)
 					allNewNames.remove(n);
 				logger.warn("Requested channel names would result in duplicates: " + String.join(", ", allNewNames));

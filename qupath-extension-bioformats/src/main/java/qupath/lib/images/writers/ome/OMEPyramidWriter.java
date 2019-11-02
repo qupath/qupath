@@ -9,12 +9,13 @@ import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
-import java.util.LinkedHashSet;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -26,6 +27,7 @@ import loci.formats.FormatException;
 import loci.formats.MetadataTools;
 import loci.formats.meta.IMetadata;
 import loci.formats.meta.IPyramidStore;
+import loci.formats.out.OMETiffWriter;
 import loci.formats.out.PyramidOMETiffWriter;
 import loci.formats.tiff.IFD;
 import ome.units.UNITS;
@@ -34,12 +36,14 @@ import ome.xml.model.enums.DimensionOrder;
 import ome.xml.model.enums.PixelType;
 import ome.xml.model.primitives.Color;
 import ome.xml.model.primitives.PositiveInteger;
+import qupath.lib.color.ColorModelFactory;
 import qupath.lib.common.ColorTools;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.images.servers.ServerTools;
+import qupath.lib.images.servers.ImageServerMetadata.ChannelType;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
 
@@ -63,6 +67,124 @@ public class OMEPyramidWriter {
 	
 	private static Logger logger = LoggerFactory.getLogger(OMEPyramidWriter.class);
 	
+	/**
+	 * Preferred compression type when using Bio-Formats.
+	 */
+	public static enum CompressionType {
+		/**
+		 * No compression (faster to write, no loss of information, but large file sizes).
+		 */
+		UNCOMPRESSED,
+		/**
+		 * Default (QuPath will select compression option based on image size and type, may be lossless or lossy).
+		 */
+		DEFAULT,
+		/**
+		 * JPEG compression (only for single channel or RGB 8-bit images).
+		 */
+		JPEG,
+		/**
+		 * Lossless JPEG-2000 compression.
+		 */
+		J2K,
+		/**
+		 * Lossy JPEG-2000 compression.
+		 */
+		J2K_LOSSY,
+		/**
+		 * LZW compression.
+		 */
+		LZW,
+		/**
+		 * ZLIB compression.
+		 */
+		ZLIB;
+		
+		/**
+		 * Get the String representation understood by OMETiffWriter.
+		 * @return
+		 */
+		public String getOMEString(ImageServer<?> server) {
+			switch(this) {
+			case J2K:
+				return OMETiffWriter.COMPRESSION_J2K;
+			case J2K_LOSSY:
+				return OMETiffWriter.COMPRESSION_J2K_LOSSY;
+			case JPEG:
+				return OMETiffWriter.COMPRESSION_JPEG;
+			case UNCOMPRESSED:
+				return OMETiffWriter.COMPRESSION_UNCOMPRESSED;
+			case LZW:
+				return OMETiffWriter.COMPRESSION_LZW;
+			case ZLIB:
+				return OMETiffWriter.COMPRESSION_ZLIB;
+			case DEFAULT:
+			default:
+				if (server.isRGB() && server.nResolutions() > 1)
+					return OMETiffWriter.COMPRESSION_JPEG;
+				if (server.getPixelType() == qupath.lib.images.servers.PixelType.UINT8)
+					// LZW is apparently bad for 16-bit (can increase file sizes?)
+					return OMETiffWriter.COMPRESSION_LZW;
+				else
+					return OMETiffWriter.COMPRESSION_ZLIB;
+			}
+		}
+		
+		/**
+		 * Returns true if the compression type supports a specific image server, or false 
+		 * if it is incompatible. This may be due to bit-depth, number of channels etc.
+		 * @param server
+		 * @return
+		 */
+		public boolean supportsImage(ImageServer<?> server) {
+			switch(this) {
+			case JPEG:
+				return server.isRGB() || 
+						(server.nChannels() == 1 && server.getPixelType() == qupath.lib.images.servers.PixelType.UINT8);
+			case J2K:
+			case J2K_LOSSY:
+				// It seems OME-TIFF can only write 8-bit or 16-bit J2K?
+				return server.getPixelType().getBytesPerPixel() <= 2;
+			case LZW:
+			case DEFAULT:
+			case UNCOMPRESSED:
+			case ZLIB:
+				return true;
+			default:
+				return false;
+			}
+		}
+		
+		@Override
+		public String toString() {
+			switch(this) {
+			case DEFAULT:
+				return "Default (lossless or lossy)";
+			case J2K:
+				return "JPEG-2000 (lossless)";
+			case J2K_LOSSY:
+				return "JPEG-2000 (lossy)";
+			case JPEG:
+				return "JPEG (lossy)";
+			case UNCOMPRESSED:
+				return "Uncompressed";
+			case LZW:
+				return "LZW (lossless)";
+			case ZLIB:
+				return "ZLIB (lossless)";
+			default:
+				throw new IllegalArgumentException("Unknown compression type " + this);
+			}
+		}
+		
+	}
+	
+	
+	private static int DEFAULT_TILE_SIZE = 512;
+	private static int MIN_SIZE_FOR_TILING = DEFAULT_TILE_SIZE * 8;
+	private static int MIN_SIZE_FOR_PYRAMID = MIN_SIZE_FOR_TILING * 2;
+	
+		
 	/**
 	 * Enum representing different ways in which channels may be written to a file.
 	 */
@@ -108,7 +230,8 @@ public class OMEPyramidWriter {
 		File file = new File(path);
 		if (file.exists() && !keepExisting) {
 			logger.warn("Deleting existing file {}", path);
-			file.delete();
+			if (!file.delete())
+				throw new IOException("Unable to delete " + file.getAbsolutePath());
 		}
 				
 		try (PyramidOMETiffWriter writer = new PyramidOMETiffWriter()) {
@@ -164,7 +287,7 @@ public class OMEPyramidWriter {
 		private Boolean bigTiff;
 		private ChannelExportType channelExportType = ChannelExportType.DEFAULT;
 	
-		private String compression = PyramidOMETiffWriter.COMPRESSION_UNCOMPRESSED;
+		private CompressionType compression = CompressionType.DEFAULT;
 		
 		public void initializeMatadata(IMetadata meta, int series) throws IOException {
 			
@@ -323,7 +446,7 @@ public class OMEPyramidWriter {
 		public void writePyramid(final PyramidOMETiffWriter writer, IMetadata meta, final int series) throws FormatException, IOException {
 	
 			boolean isRGB = server.isRGB() && Arrays.equals(channels, new int[] {0, 1, 2});
-			int nChannels = meta.getChannelCount(series);
+			int nChannels = meta.getPixelsSizeC(series).getValue();
 			int nSamples = meta.getChannelSamplesPerPixel(series, 0).getValue();
 			int sizeZ = meta.getPixelsSizeZ(series).getValue();
 			int sizeT = meta.getPixelsSizeT(series).getValue();
@@ -331,11 +454,28 @@ public class OMEPyramidWriter {
 			int height = meta.getPixelsSizeY(series).getValue();
 			int nPlanes = (nChannels / nSamples) * sizeZ * sizeT;
 			
-			writer.setCompression(compression);
+			if (compression.supportsImage(server))
+				writer.setCompression(compression.getOMEString(server));
+			else {
+				String compressionString = CompressionType.DEFAULT.getOMEString(server);
+				logger.warn("Requested compression {} incompatible with current image, will use {} instead",
+						compression.getOMEString(server),
+						compressionString);
+				writer.setCompression(compressionString);
+			}
 			writer.setInterleaved(meta.getPixelsInterleaved(series));
+						
+			int tileWidth = this.tileWidth;
+			int tileHeight = this.tileHeight;
+			boolean isTiled = tileWidth > 0 && tileHeight > 0;
+			if (isTiled) {
+				tileWidth = writer.setTileSizeX(tileWidth);
+				tileHeight = writer.setTileSizeY(tileHeight);				
+			}
 			
-			int tileWidth = writer.setTileSizeX(this.tileWidth);
-			int tileHeight = writer.setTileSizeY(this.tileHeight);
+			// If the image represents classifications, set the color model accordingly
+			if (server.getMetadata().getChannelType() == ChannelType.CLASSIFICATION)
+				writer.setColorModel(ColorModelFactory.getIndexedClassificationColorModel(server.getMetadata().getClassificationLabels()));
 	
 			writer.setSeries(series);
 			
@@ -350,8 +490,10 @@ public class OMEPyramidWriter {
 				map.clear();
 				for (int i = 0; i < nPlanes; i++) {
 					IFD ifd = new IFD();
-					ifd.put(IFD.TILE_WIDTH, tileWidth);
-					ifd.put(IFD.TILE_LENGTH, tileHeight);
+					if (isTiled) {
+						ifd.put(IFD.TILE_WIDTH, tileWidth);
+						ifd.put(IFD.TILE_LENGTH, tileHeight);
+					}
 					if (nSamples > 1 && !isRGB)
 						ifd.put(IFD.EXTRA_SAMPLES, new short[nSamples-1]);
 					map.put(Integer.valueOf(i), ifd);
@@ -377,6 +519,7 @@ public class OMEPyramidWriter {
 						 *  It appears we can use parallelization for tile writing (thanks to synchronization in the writer),
 						 *  provided we write the (0,0) tile first.
 						 */
+						long planeStartTime = System.currentTimeMillis();
 						
 						// Create a list of all required requests, extracting the first
 						List<ImageRegion> regions = new ArrayList<>();
@@ -393,10 +536,11 @@ public class OMEPyramidWriter {
 							logger.info("Writing resolution {} of {} (downsample={}, {} tiles)", level+1, downsamples.length, d, total);
 
 						ImageRegion firstRegion = regions.remove(0);
-
+						
 						// Show progress at key moments
 						int inc = total > 1000 ? 20 : 10;
-						Set<Integer> keyCounts = IntStream.range(1, inc).mapToObj(i -> (int)Math.round((double)total / inc * i)).collect(Collectors.toSet());
+						Set<Integer> keyCounts = IntStream.range(1, inc).mapToObj(i -> (int)Math.round((double)total / inc * i)).collect(Collectors.toCollection(() -> new HashSet<>()));
+						keyCounts.add(total-1);
 						
 						// Loop through effective channels (which is 1 if we are writing interleaved)
 						for (int ci = 0; ci < effectiveSizeC; ci++) {
@@ -410,23 +554,42 @@ public class OMEPyramidWriter {
 							// We *must* write the first region first
 							writeRegion(writer, plane, ifd, firstRegion, d, isRGB, localChannels);
 							if (!regions.isEmpty()) {
-								var stream = parallelExport ? regions.parallelStream() : regions.stream();
-								stream.forEach(region -> {
-									try {
-										writeRegion(writer, plane, ifd, region, d, isRGB, localChannels);
-									} catch (Exception e) {
-										logger.error(String.format(
-												"Error writing %s (downsample=%.2f)",
-												region.toString(), d),
-												e);
-									} finally {
-										int localCount = count.incrementAndGet();
-										if (keyCounts.size() > 1 && keyCounts.contains(localCount)) {
-											double percentage = localCount*100.0/total;
-											logger.info("Written {}% tiles", Math.round(percentage));
+								var tasks = regions.stream().map(region -> new Runnable() {
+									@Override
+									public void run() {
+										try {
+											writeRegion(writer, plane, ifd, region, d, isRGB, localChannels);
+										} catch (Exception e) {
+											logger.error(String.format(
+													"Error writing %s (downsample=%.2f)",
+													region.toString(), d),
+													e);
+										} finally {
+											int localCount = count.incrementAndGet();
+											if (total > 20 && keyCounts.size() > 1 && keyCounts.contains(localCount)) {
+												double percentage = localCount*100.0/total;
+												logger.info("Written {}% tiles", Math.round(percentage));
+											}
 										}
 									}
-								});
+								}).collect(Collectors.toList());
+								
+								if (parallelExport) {
+									var pool = Executors.newWorkStealingPool(4);
+									for (var task : tasks) {
+										pool.submit(task);
+									}
+									pool.shutdown();
+									try {
+										pool.awaitTermination(regions.size(), TimeUnit.MINUTES);
+										logger.info("Plane written in {} ms", System.currentTimeMillis() - planeStartTime);
+									} catch (InterruptedException e) {
+										throw new IOException("Timeout writing regions", e);
+									}
+								} else {
+									for (var task : tasks)
+										task.run();
+								}
 							}
 						}
 						zi++;
@@ -666,7 +829,7 @@ public class OMEPyramidWriter {
 			series.height = server.getHeight();
 			
 			series.downsamples = server.getPreferredDownsamples();
-			if (server.getMetadata().getPreferredTileWidth() == server.getWidth() && server.getMetadata().getPreferredTileHeight() == server.getHeight()) {
+			if (server.getMetadata().getPreferredTileWidth() >= server.getWidth() && server.getMetadata().getPreferredTileHeight() >= server.getHeight()) {
 				series.tileWidth = server.getMetadata().getPreferredTileWidth();
 				series.tileHeight = server.getMetadata().getPreferredTileHeight();
 			} else {
@@ -742,7 +905,7 @@ public class OMEPyramidWriter {
 		 * @param compression
 		 * @return
 		 */
-		public Builder compression(final String compression) {
+		public Builder compression(final CompressionType compression) {
 			series.compression = compression;
 			return this;
 		}
@@ -1025,26 +1188,6 @@ public class OMEPyramidWriter {
 	}
 
 	/**
-	 * Get all available compression types compatible with a specific ImageServer.
-	 * @param server
-	 * @return
-	 */
-	static Set<String> getCompatibleCompressionTypes(final ImageServer<BufferedImage> server) {
-
-		Set<String> set = new LinkedHashSet<>(getAvailableCompressionTypes());
-		// Remove some types of compression that aren't expected to work
-		if (server.getPixelType().getBytesPerPixel() > 2) {
-			set.remove(PyramidOMETiffWriter.COMPRESSION_JPEG);
-			set.remove(PyramidOMETiffWriter.COMPRESSION_J2K);
-			set.remove(PyramidOMETiffWriter.COMPRESSION_J2K_LOSSY);
-		} else if (server.getPixelType().getBitsPerPixel() != 8 || (server.nChannels() > 1 && !server.isRGB())) {
-			set.remove(PyramidOMETiffWriter.COMPRESSION_JPEG);
-		}
-
-		return Collections.unmodifiableSet(set);
-	}
-
-	/**
 	 * Get a String representing the 'Uncompressed' compression type.
 	 * @return
 	 */
@@ -1073,8 +1216,11 @@ public class OMEPyramidWriter {
 	 * @param server
 	 * @return
 	 */
-	static String getDefaultLosslessCompressionType(final ImageServer<BufferedImage> server) {
-		return PyramidOMETiffWriter.COMPRESSION_LZW;
+	static CompressionType getDefaultLosslessCompressionType(final ImageServer<BufferedImage> server) {
+		if (server.getPixelType() == qupath.lib.images.servers.PixelType.UINT8)
+			return CompressionType.LZW;
+		else
+			return CompressionType.ZLIB;
 	}
 	
 	/**
@@ -1087,11 +1233,11 @@ public class OMEPyramidWriter {
 	 * @param server
 	 * @return
 	 */
-	static String getDefaultLossyCompressionType(final ImageServer<BufferedImage> server) {
+	static CompressionType getDefaultLossyCompressionType(final ImageServer<BufferedImage> server) {
 		if (server.isRGB())
-			return PyramidOMETiffWriter.COMPRESSION_JPEG;
+			return CompressionType.JPEG;
 		if (server.getPixelType().getBitsPerPixel() <= 16)
-			return PyramidOMETiffWriter.COMPRESSION_J2K_LOSSY;
+			return CompressionType.J2K_LOSSY;
 		// Don't try another lossy compression method...
 		return getDefaultLosslessCompressionType(server);
 	}
@@ -1105,32 +1251,74 @@ public class OMEPyramidWriter {
 	 * @throws FormatException
 	 * @throws IOException
 	 */
-	public static void writePyramid(ImageServer<BufferedImage> server, String path, String compression) throws FormatException, IOException {
-		new Builder(server).compression(compression).build().writePyramid(path);
+	public static void writeImage(ImageServer<BufferedImage> server, String path, CompressionType compression) throws FormatException, IOException {
+		writeImage(server, path, compression, RegionRequest.createInstance(server), true, true);
 	}
 	
 	/**
 	 * Static helper method to write an OME-TIFF pyramidal image for a defined region with the specified compression.
+	 * If region is null, the entire image will be written. If region is not null, it defines the bounding box of the exported 
+	 * pixels in addition to the z-slice and timepoint.
 	 * 
-	 * @param server
-	 * @param path
-	 * @param compression
-	 * @param region the region to export. If this is a RegionRequest that defines a downsample other than the default for the server, this downsample will be used 
-	 * (and the resulting image will not be pyramidal).
+	 * @param server image to write
+	 * @param path path to output file
+	 * @param compression image compression method
+	 * @param region the region to export. If this is a RegionRequest that defines a downsample other than the default for the server, this downsample will be used.
 	 * 
 	 * @throws FormatException
 	 * @throws IOException
 	 */
-	public static void writePyramid(ImageServer<BufferedImage> server, String path, String compression, ImageRegion region) throws FormatException, IOException {
-		var builder = new Builder(server).compression(compression);
-		if (region != null) {
-			builder = builder.region(region);			
+	public static void writeImage(ImageServer<BufferedImage> server, String path, CompressionType compression, ImageRegion region) throws FormatException, IOException {
+		if (region == null) {
+			writeImage(server, path, compression);
+			return;
 		}
+		writeImage(server, path, compression, region, false, false);
+	}
+	
+	/**
+	 * Static helper method to write an OME-TIFF pyramidal image for a defined region with the specified compression, optionally including all 
+	 * z-slices or timepoints.
+	 * 
+	 * @param server image to write
+	 * @param path path to output file
+	 * @param compression image compression method
+	 * @param region the region to export. If this is a RegionRequest that defines a downsample other than the default for the server, this downsample will be used.
+	 * @param allZ if true, export all z-slices otherwise export slice defined by region (ignored if image is not a z-stack)
+	 * @param allT if true, export all timepoints otherwise export timepoint defined by region (ignored if image is not a timeseries)
+	 * 
+	 * @throws FormatException
+	 * @throws IOException
+	 */
+	public static void writeImage(ImageServer<BufferedImage> server, String path, CompressionType compression, ImageRegion region, boolean allZ, boolean allT) throws FormatException, IOException {
+		if (region == null) {
+			writeImage(server, path, compression);
+			return;
+		}
+		
+		var builder = new Builder(server)
+				.compression(compression == null ? CompressionType.DEFAULT : compression)
+				.parallelize()
+				.region(region);
+		
+		double downsample = server.getDownsampleForResolution(0);
 		if (region instanceof RegionRequest) {
-			double downsample = ((RegionRequest)region).getDownsample();
-			if (downsample != server.getDownsampleForResolution(0))
-				builder.downsamples(downsample);
+			downsample = ((RegionRequest)region).getDownsample();
 		}
+		
+		int maxDimension = (int)(Math.max(region.getWidth(), region.getHeight())/downsample);
+		if (maxDimension > MIN_SIZE_FOR_PYRAMID) {
+			builder.scaledDownsampling(downsample, 4);
+		} else
+			builder.downsamples(downsample);
+		if (maxDimension > MIN_SIZE_FOR_TILING)
+			builder.tileSize(DEFAULT_TILE_SIZE);
+		
+		if (allZ)
+			builder.allZSlices();
+		if (allT)
+			builder.allTimePoints();
+
 		builder.build().writePyramid(path);
 	}
 

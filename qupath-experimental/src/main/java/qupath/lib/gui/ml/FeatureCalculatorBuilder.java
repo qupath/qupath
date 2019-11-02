@@ -18,8 +18,8 @@ import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
 import javafx.scene.control.MenuItem;
 import javafx.scene.layout.GridPane;
-import qupath.lib.gui.helpers.DisplayHelpers;
-import qupath.lib.gui.helpers.PaneToolsFX;
+import qupath.lib.gui.dialogs.Dialogs;
+import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.PixelCalibration;
 import qupath.opencv.ml.pixel.features.FeatureCalculator;
@@ -116,13 +116,13 @@ abstract class FeatureCalculatorBuilder {
 
 			selectedChannels = comboChannels.getCheckModel().getCheckedItems();
 
-			PaneToolsFX.setMaxWidth(Double.MAX_VALUE, comboChannels, comboScales);
+			PaneTools.setMaxWidth(Double.MAX_VALUE, comboChannels, comboScales);
 
-			PaneToolsFX.addGridRow(pane, row++, 0,
+			PaneTools.addGridRow(pane, row++, 0,
 					"Choose the image channels used to calculate features",
 					labelChannels, comboChannels);		
 
-			PaneToolsFX.addGridRow(pane, row++, 0,
+			PaneTools.addGridRow(pane, row++, 0,
 					"Choose the feature scales",
 					labelScales, comboScales);					
 
@@ -164,10 +164,10 @@ abstract class FeatureCalculatorBuilder {
 				}
 			}
 
-			boolean success = DisplayHelpers.showMessageDialog("Select features", pane);
+			boolean success = Dialogs.showMessageDialog("Select features", pane);
 			if (success) {
 				if (selectedChannels == null || selectedChannels.isEmpty()) {
-					DisplayHelpers.showErrorNotification("Pixel classifier", "No channels selected!");
+					Dialogs.showErrorNotification("Pixel classifier", "No channels selected!");
 					return false;
 				}
 			}
@@ -267,26 +267,26 @@ abstract class FeatureCalculatorBuilder {
 			do3D = cb3D.selectedProperty();
 
 
-			PaneToolsFX.setMaxWidth(Double.MAX_VALUE, comboChannels, comboFeatures, comboScales,
+			PaneTools.setMaxWidth(Double.MAX_VALUE, comboChannels, comboFeatures, comboScales,
 					cbNormalize, cb3D);
 
-			PaneToolsFX.addGridRow(pane, row++, 0,
+			PaneTools.addGridRow(pane, row++, 0,
 					"Choose the image channels used to calculate features",
 					labelChannels, comboChannels);		
 
-			PaneToolsFX.addGridRow(pane, row++, 0,
+			PaneTools.addGridRow(pane, row++, 0,
 					"Choose the feature scales",
 					labelScales, comboScales);		
 
-			PaneToolsFX.addGridRow(pane, row++, 0,
+			PaneTools.addGridRow(pane, row++, 0,
 					"Choose the features",
 					labelFeatures, comboFeatures);		
 
-			PaneToolsFX.addGridRow(pane, row++, 0,
+			PaneTools.addGridRow(pane, row++, 0,
 					"Apply local intensity normalization before calculating features",
 					cbNormalize, cbNormalize);		
 
-			PaneToolsFX.addGridRow(pane, row++, 0,
+			PaneTools.addGridRow(pane, row++, 0,
 					"Use 3D filters (rather than 2D)",
 					cb3D, cb3D);	
 
@@ -352,15 +352,15 @@ abstract class FeatureCalculatorBuilder {
 			
 			
 
-			boolean success = DisplayHelpers.showMessageDialog("Select features", pane);
+			boolean success = Dialogs.showMessageDialog("Select features", pane);
 			if (success) {
 				if (selectedChannels == null || selectedChannels.isEmpty()) {
-					DisplayHelpers.showErrorNotification("Pixel classifier", "No channels selected!");
+					Dialogs.showErrorNotification("Pixel classifier", "No channels selected!");
 					return false;
 				}
 
 				if (selectedFeatures == null || selectedFeatures.isEmpty()) {
-					DisplayHelpers.showErrorNotification("Pixel classifier", "No features selected!");
+					Dialogs.showErrorNotification("Pixel classifier", "No features selected!");
 					return false;
 				}
 			}

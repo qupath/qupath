@@ -119,7 +119,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 	 * This is necessary to avoid creating multiple readers that are too large (e.g. sometimes 
 	 * a memoization file can be over 1GB...)
 	 */
-	private static long MAX_PARALLELIZATION_MEMO_SIZE = 1024L * 1024L * 8L;
+	private static long MAX_PARALLELIZATION_MEMO_SIZE = 1024L * 1024L * 16L;
 	
 	/**
 	 * The original URI requested for this server.
@@ -544,8 +544,11 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 					if (color != null)
 						channelColor = ColorTools.makeRGBA(color.getRed(), color.getGreen(), color.getBlue(), color.getAlpha());
 					else {
-						// Select next available default color
-						channelColor = ImageChannel.getDefaultChannelColor(c);
+						// Select next available default color, or white (for grayscale) if only one channel
+						if (nChannels == 1)
+							channelColor = ColorTools.makeRGB(255, 255, 255);
+						else
+							channelColor = ImageChannel.getDefaultChannelColor(c);
 					}
 					if (channelName == null)
 						channelName = "Channel " + (c + 1);
@@ -560,7 +563,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 					isRGB = true;
 					colorModel = ColorModel.getRGBdefault();
 				} else {
-					colorModel = ColorModelFactory.createColorModel(pixelType, nChannels, false, channels.stream().mapToInt(c -> c.getColor()).toArray());
+					colorModel = ColorModelFactory.createColorModel(pixelType, channels);
 				}
 			}
 

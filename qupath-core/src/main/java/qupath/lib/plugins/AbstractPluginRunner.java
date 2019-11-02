@@ -24,6 +24,7 @@
 package qupath.lib.plugins;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
@@ -31,6 +32,7 @@ import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -59,7 +61,7 @@ public abstract class AbstractPluginRunner<T> implements PluginRunner<T> {
 	private static ExecutorService pool;
 	private ExecutorCompletionService<Runnable> service;
 
-	private Map<Future<Runnable>, Runnable> pendingTasks = new HashMap<>();
+	private Map<Future<Runnable>, Runnable> pendingTasks = Collections.synchronizedMap(new HashMap<>());
 	
 	private SimpleProgressMonitor monitor;
 	
@@ -127,7 +129,7 @@ public abstract class AbstractPluginRunner<T> implements PluginRunner<T> {
 	 * @see qupath.lib.plugins.PluginRunner#runTasks(java.util.Collection)
 	 */
 	@Override
-	public synchronized void runTasks(Collection<Runnable> tasks) {
+	public synchronized void runTasks(Collection<Runnable> tasks, boolean updateHierarchy) {
 		
 		if (tasks.isEmpty())
 			return;
@@ -153,8 +155,12 @@ public abstract class AbstractPluginRunner<T> implements PluginRunner<T> {
 		// TODO: See if this needs to be shutdown here, or there's a better way..?
 		// In any case, it was inhibiting application shutdown just letting it be...
 		pool.shutdown();
-		if (!pendingTasks.isEmpty())
-			awaitCompletion();
+		awaitCompletion();
+		
+		// Post-process any PathTasks
+		postProcess(tasks.stream().filter(t -> t instanceof PathTask).map(t -> (PathTask)t).collect(Collectors.toList()));
+		
+		getImageData().getHierarchy().fireHierarchyChangedEvent(this);
 	}
 	
 	
@@ -192,12 +198,7 @@ public abstract class AbstractPluginRunner<T> implements PluginRunner<T> {
 				if (!future.isCancelled()) {
 					Runnable runnable = future.get();
 					PathTask task = runnable instanceof PathTask ? (PathTask)runnable : null;
-					if (task != null) {
-						// Do post-processing if necessary - this includes updating the monitor
-						postProcess(runnable);
-					} else {
-						updateMonitor(task);
-					}
+					updateMonitor(task);
 				}
 				pendingTasks.remove(future);
 			}
@@ -237,16 +238,24 @@ public abstract class AbstractPluginRunner<T> implements PluginRunner<T> {
 	 * Note: Subclasses may choose to override this method so that it is called on a particular thread
 	 * (e.g. with Platform.runLater() or SwingUtilities.invokeLater).
 	 * 
-	 * @param runnable
+	 * @param tasks
 	 */
-	protected void postProcess(final Runnable runnable) {
-		PathTask task = runnable instanceof PathTask ? (PathTask)runnable : null;
-		if (task != null) {
-			task.taskComplete();
-		}
+	protected void postProcess(final Collection<PathTask> tasks) {
+		boolean wasCancelled = tasksCancelled || monitor.cancelled();
+		for (var task : tasks)
+			task.taskComplete(wasCancelled);
+		
+		var imageData = getImageData();
+		if (imageData != null)
+			imageData.getHierarchy().fireHierarchyChangedEvent(this);
+		
+//		PathTask task = runnable instanceof PathTask ? (PathTask)runnable : null;
+//		if (task != null) {
+//			task.taskComplete();
+//		}
 //		runnable.getClass().getSimpleName()
 //		System.err.println("Updating monitor from post processing");
-		updateMonitor(task);
+//		updateMonitor(task);
 	}
 	
 	private void updateMonitor(final PathTask task) {

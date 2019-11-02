@@ -12,12 +12,12 @@ import org.controlsfx.validation.Validator;
 
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.TextInputDialog;
-import qupath.lib.gui.helpers.DisplayHelpers;
-import qupath.lib.projects.ProjectResources.ProjectResourceManager;
+import qupath.lib.gui.dialogs.Dialogs;
+import qupath.lib.projects.ResourceManager.Manager;
 
 public class ProjectResourceManagerFX {
 	
-	public static <T> boolean promptToSaveResource(ProjectResourceManager<T> manager, T resource, String title, String prompt, String defaultName) throws IOException {
+	public static <T> boolean promptToSaveResource(Manager<T> manager, T resource, String title, String prompt, String defaultName) throws IOException {
 		
 		
 		var names = new HashSet<>(manager.getNames().stream().map(n -> n.toLowerCase()).collect(Collectors.toList()));
@@ -35,34 +35,34 @@ public class ProjectResourceManagerFX {
 			return false;
 		
 		if (names.contains(name.toLowerCase())) {
-			DisplayHelpers.showErrorMessage("Invalid name", name + " already exists! Please choose a unique name.");
+			Dialogs.showErrorMessage("Invalid name", name + " already exists! Please choose a unique name.");
 			return false;
 		}
 		
 //		String name = DisplayHelpers.showInputDialog(title, prompt, defaultName);
-		manager.putResource(name, resource);
+		manager.put(name, resource);
 		return true;
 	}
 	
-	public static <T> T promptToLoadResource(ProjectResourceManager<T> manager, String title, String prompt, String defaultName) throws IOException {
+	public static <T> T promptToLoadResource(Manager<T> manager, String title, String prompt, String defaultName) throws IOException {
 		Collection<String> choices = manager.getNames();
-		String name = DisplayHelpers.showChoiceDialog(title, prompt, choices, null);
+		String name = Dialogs.showChoiceDialog(title, prompt, choices, null);
 		if (name == null)
 			return null;
-		return manager.getResource(name);
+		return manager.get(name);
 	}
 	
-	public static <T> MenuItem[] createMenuItems(ProjectResourceManager<T> manager, Function<T, Void> func) throws IOException {
+	public static <T> MenuItem[] createMenuItems(Manager<T> manager, Function<T, Void> func) throws IOException {
 		return manager.getNames().stream().map(n -> createMenuItem(manager, n, func)).toArray(i -> new MenuItem[i]);
 	}
 	
-	static <T> MenuItem createMenuItem(ProjectResourceManager<T> manager, String name, Function<T, Void> func) {
+	static <T> MenuItem createMenuItem(Manager<T> manager, String name, Function<T, Void> func) {
 		var menuItem = new MenuItem(name);
 		menuItem.setOnAction(e -> {
 			try {
-				func.apply(manager.getResource(name));
+				func.apply(manager.get(name));
 			} catch (Exception e1) {
-				DisplayHelpers.showErrorMessage(name, e1);
+				Dialogs.showErrorMessage(name, e1);
 			}
 		});
 		return menuItem;

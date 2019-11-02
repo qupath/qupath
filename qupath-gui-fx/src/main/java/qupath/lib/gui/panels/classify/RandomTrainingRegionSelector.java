@@ -64,11 +64,12 @@ import qupath.lib.geom.Point2;
 import qupath.lib.gui.ImageDataChangeListener;
 import qupath.lib.gui.ImageDataWrapper;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.QuPathGUI.Modes;
+import qupath.lib.gui.QuPathGUI.DefaultMode;
 import qupath.lib.gui.commands.interfaces.PathCommand;
-import qupath.lib.gui.helpers.ColorToolsFX;
-import qupath.lib.gui.helpers.PaneToolsFX;
-import qupath.lib.gui.helpers.dialogs.ParameterPanelFX;
+import qupath.lib.gui.dialogs.Dialogs;
+import qupath.lib.gui.dialogs.ParameterPanelFX;
+import qupath.lib.gui.tools.ColorToolsFX;
+import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.QuPathViewerListener;
 import qupath.lib.images.ImageData;
@@ -76,9 +77,9 @@ import qupath.lib.measurements.MeasurementList;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClass;
-import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.TMAGrid;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
@@ -87,23 +88,22 @@ import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.PointsROI;
 import qupath.lib.roi.ROIs;
-import qupath.lib.roi.interfaces.PathPoints;
 import qupath.lib.roi.interfaces.ROI;
 
 
 /**
  * Class for randomly selecting points, prompting the user to assign these a classification which can later be used for training.
- * 
+ * <p>
  * If detection objects are available, then the points will be selected from their centroids.
  * Furthermore, in this case objects can optionally be clustered.
  * If this is applied, random selection is made from an object belonging to each cluster in turn -
  * to help ensure that all get covered.
  * Clusters are determined based on object measurements; if any measurements have 'mean' in the name
  * then only these will be used, otherwise all measurements will be used.
- * 
+ * <p>
  * (The purpose of preferring means is that the many dimensions of the other measurements get in the way... 
  * also, no measurement scaling is performed.)
- * 
+ * <p>
  * TODO: Perform clustering using thumbnail image, not individual object measurements.
  * 
  * @author Pete Bankhead
@@ -132,12 +132,16 @@ public class RandomTrainingRegionSelector implements PathCommand {
 	
 	@Override
 	public void run() {
+		if (qupath.getImageData() == null) {
+			Dialogs.showNoImageError("Training region selector");
+			return;
+		}
 		if (dialog == null)
 			createDialog();
 		dialog.show();
 		// Don't allow changing modes
 		qupath.setModeSwitchingEnabled(true);
-		qupath.setMode(Modes.MOVE);
+		qupath.setMode(DefaultMode.MOVE);
 		qupath.setModeSwitchingEnabled(false);
 	}
 	
@@ -253,7 +257,7 @@ public class RandomTrainingRegionSelector implements PathCommand {
 		});
 		
 		
-		GridPane panelButtons = PaneToolsFX.createColumnGridControls(
+		GridPane panelButtons = PaneTools.createColumnGridControls(
 				ActionUtils.createButton(actionAdd),
 				ActionUtils.createButton(actionSkip)
 				);
@@ -420,7 +424,7 @@ public class RandomTrainingRegionSelector implements PathCommand {
 			if (pathObject == null)
 				return 0;
 			PointsROI points = (PointsROI)pathObject.getROI();
-			return points.getNPoints();
+			return points.getNumPoints();
 		}
 
 		@Override
@@ -439,7 +443,7 @@ public class RandomTrainingRegionSelector implements PathCommand {
 		private QuPathViewer viewer;
 		
 		private ObjectCache objectCache = new ObjectCache();
-		private PathPoints currentPoint;
+		private ROI currentPoint;
 		
 		private int nextCluster = 0;
 		
@@ -483,7 +487,7 @@ public class RandomTrainingRegionSelector implements PathCommand {
 					hierarchy.addPathObject(pathObject);
 				} else {
 					PointsROI pointsROI = ((PointsROI)pathObject.getROI());
-					List<Point2> points = new ArrayList<Point2>(pointsROI.getPointList());
+					List<Point2> points = new ArrayList<Point2>(pointsROI.getAllPoints());
 					points.add(new Point2(x, y));
 					((PathAnnotationObject)pathObject).setROI(ROIs.createPointsROI(points, ImagePlane.getDefaultPlane()));
 					hierarchy.fireObjectsChangedEvent(this, Collections.singleton(pathObject));

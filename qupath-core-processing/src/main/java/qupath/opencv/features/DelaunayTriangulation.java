@@ -42,7 +42,7 @@ import org.bytedeco.opencv.opencv_core.Rect;
 import org.bytedeco.opencv.opencv_imgproc.Subdiv2D;
 
 import qupath.lib.analysis.stats.RunningStatistics;
-import qupath.lib.classifiers.PathClassificationLabellingHelper;
+import qupath.lib.classifiers.PathClassifierTools;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.objects.PathCellObject;
 import qupath.lib.objects.PathObject;
@@ -77,7 +77,7 @@ public class DelaunayTriangulation implements PathObjectConnectionGroup {
 		this.limitByClass = limitByClass;
 		computeDelaunay(pathObjects, pixelWidth, pixelHeight);
 		
-		Collection<String> measurements = PathClassificationLabellingHelper.getAvailableFeatures(pathObjects);
+		Collection<String> measurements = PathClassifierTools.getAvailableFeatures(pathObjects);
 		for (String name : measurements) {
 			RunningStatistics stats = new RunningStatistics();
 			pathObjects.stream().forEach(p -> stats.addValue(p.getMeasurementList().getMeasurementValue(name)));
@@ -423,7 +423,7 @@ public class DelaunayTriangulation implements PathObjectConnectionGroup {
 		
 		String key = "Cluster ";
 		List<String> measurementNames = new ArrayList<>();
-		for (String s : PathClassificationLabellingHelper.getAvailableFeatures(nodeMap.keySet())) {
+		for (String s : PathClassifierTools.getAvailableFeatures(nodeMap.keySet())) {
 			if (!s.startsWith(key))
 				measurementNames.add(s);
 		}

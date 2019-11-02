@@ -11,7 +11,7 @@ import java.util.Scanner;
 
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.helpers.DisplayHelpers;
+import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.viewer.QuPathViewer;
 
 /**
@@ -217,7 +217,7 @@ public class ViewTrackers {
 
 	static void handleExport(final ViewTracker tracker) {
 		if (tracker.isEmpty()) {
-			DisplayHelpers.showErrorMessage("Tracking export", "Tracker is empty - nothing to export!");
+			Dialogs.showErrorMessage("Tracking export", "Tracker is empty - nothing to export!");
 			return;
 		}
 		File fileExport = QuPathGUI.getSharedDialogHelper().promptToSaveFile(null, null, null, "QuPath tracking data (csv)", "csv");
@@ -254,7 +254,7 @@ public class ViewTrackers {
 		}
 		
 		if (content == null) {
-			DisplayHelpers.showErrorMessage("View tracking import", "Unable to read " + fileImport);
+			Dialogs.showErrorMessage("View tracking import", "Unable to read " + fileImport);
 			return false;
 		}
 		tracker.resetRecording();
@@ -262,7 +262,7 @@ public class ViewTrackers {
 			parseSummaryString(content, null, tracker);
 			return true;
 		} catch (Exception e) {
-			DisplayHelpers.showErrorMessage("View tracking import", "Unable to read tracking data from " + fileImport);
+			Dialogs.showErrorMessage("View tracking import", "Unable to read tracking data from " + fileImport);
 			e.printStackTrace();
 		}
 		return false;

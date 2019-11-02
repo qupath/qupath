@@ -42,20 +42,16 @@ import javafx.scene.shape.LineTo;
 import javafx.scene.shape.MoveTo;
 import javafx.scene.shape.Path;
 import javafx.scene.shape.Rectangle;
-import javafx.scene.shape.Shape;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.helpers.ColorToolsFX;
 import qupath.lib.gui.prefs.PathPrefs;
-import qupath.lib.objects.PathCellObject;
+import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.objects.PathObject;
-import qupath.lib.objects.helpers.PathObjectTools;
+import qupath.lib.objects.PathObjectTools;
 import qupath.lib.roi.EllipseROI;
 import qupath.lib.roi.LineROI;
 import qupath.lib.roi.RoiTools;
-import qupath.lib.roi.RoiTools.CombineOp;
 import qupath.lib.roi.PointsROI;
 import qupath.lib.roi.RectangleROI;
-import qupath.lib.roi.interfaces.PathArea;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
@@ -234,14 +230,14 @@ public class PathIconFactory {
 			line.setStroke(color);
 			line.setFill(null);
 			return line;
-		} else if (pathROI instanceof PointsROI) {
+		} else if (pathROI.isPoint()) {
 			// Just show generic points
 			Node node = PathIconFactory.createNode(Math.min(width, height), Math.min(width, height), PathIconFactory.PathIcons.POINTS_TOOL);	
 			if (node instanceof Glyph)
 				((Glyph)node).setColor(color);
 			return node;
 		} else {
-			var shape = pathROI instanceof PathArea ? RoiTools.getArea(pathROI) : RoiTools.getShape(pathROI);
+			var shape = pathROI.isArea() ? RoiTools.getArea(pathROI) : RoiTools.getShape(pathROI);
 			if (shape != null) {
 				var transform = new AffineTransform();
 				transform.translate(-pathROI.getBoundsX(), -pathROI.getBoundsY());
@@ -314,7 +310,7 @@ public class PathIconFactory {
 		}
 	}
 	
-	public static Node createNode(int width, int height, QuPathGUI.Modes mode) {
+	public static Node createNode(int width, int height, QuPathGUI.DefaultMode mode) {
 		switch (mode) {
 		case LINE:
 			return createNode(width, height, PathIcons.LINE_TOOL);

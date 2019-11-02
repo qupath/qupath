@@ -27,7 +27,7 @@ public class PathClassTools {
 	 * @return
 	 */
 	public static boolean isIgnoredClass(final PathClass pathClass) {
-		return pathClass.getName().endsWith("*");
+		return pathClass == null || pathClass.getName() == null || pathClass.getName().endsWith("*");
 	}
 	
 	/**
